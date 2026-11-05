@@ -3,8 +3,8 @@ module Darklang.SCM.PackageOps
 // Sealing work and moving it between branches: commit, merge, rebase, archive, and settling a
 // conflict by binding the version a person chose.
 //
-// All of it is ordinary ops. There is no merge op and no propagation op: a merge flips its
-// frontier effective and records a `BranchEvent`, and a resolution authors a `Decision`.
+// All of it is ordinary ops. There is no merge op and no propagation op: a merge moves the branch's
+// ops to its parent and folds them there, and a resolution authors a `Decision`.
 //
 // Each act runs in F# as one action (`SCM.Actions`); what is here is when to ask for it, the checks
 // in front of it, and what a person reads about it.

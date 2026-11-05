@@ -68,6 +68,7 @@ let private testMkdirRecursiveUnderPolicyAncestor =
         LibExecution.HostSecurity.policyDirectoryForTesting policy
       let! found =
         LibDB.ProgramTypes.Fn.find
+          PT.BranchId.Main
           { owner = "Darklang"
             modules = [ "Stdlib"; "Cli"; "Dir" ]
             name = "createRecursive" }

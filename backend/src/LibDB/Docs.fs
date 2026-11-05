@@ -1,7 +1,7 @@
 /// Reading and writing the prose a `DocPart` names, and the key a location's doc is stored under.
 ///
 /// One implementation, shared by the fold (which reaches through a serialized blob) and by the
-/// branch overlay (which reaches through a loaded item). Two would drift, and it is the READ that
+/// in-memory overlay and search patching (which reach through a loaded item). Two would drift, and it is the READ that
 /// decides whether an incoming edit descends from what a store holds or diverges from it -- so a
 /// disagreement between them would be a disagreement about what counts as a conflict.
 ///
@@ -260,57 +260,39 @@ let partFromKey (key : string) : Option<PT.DocPart> =
   | _ -> None
 
 
-/// Every doc <param location> has OF ITS OWN, keyed by (kind, within).
+/// What a view's visible doc rows look like, over <param where> (a condition on `visible`).
+let private visibleDocsSql (where : string) : string =
+  Layers.view "@" Layers.docs
+  + " SELECT owner, modules, name, kind, within, text FROM visible WHERE "
+  + where
+
+/// Every doc <param location> has OF ITS OWN on <param branchId>, keyed by (kind, within).
 ///
 /// Empty for almost every name: a doc a name has not overridden lives in the declaration, which is
 /// where a reader finds it without asking. This answers the other question -- "does this NAME say
 /// something else" -- which is what makes ten `ParseError` types able to mean ten things.
-///
-/// Main's rows with the branch's on top. A branch's `UpdateDoc` never folds into `location_docs`
-/// (that table is main's, the same way `locations` is), so the branch half is read from its ops.
 let docsAt
   (branchId : PT.BranchId)
   (location : PT.PackageLocation)
   : Task<List<PT.DocPart * string>> =
   task {
-    let modules = String.concat "." location.modules
-
     let! rows =
-      Sql.query
-        "SELECT kind, within, text FROM location_docs
-         WHERE owner = @owner AND modules = @modules AND name = @name"
-      |> Sql.parameters
+      Sql.query (
+        visibleDocsSql "owner = @owner AND modules = @modules AND name = @name"
+      )
+      |> Sql.parameters (
         [ "owner", Sql.string location.owner
-          "modules", Sql.string modules
+          "modules", Sql.string (String.concat "." location.modules)
           "name", Sql.string location.name ]
+        @ Layers.sqlParams branchId true
+      )
       |> Sql.executeAsync (fun read ->
         (read.string "kind", read.string "within", read.string "text"))
 
-    let fromMain =
+    return
       rows
       |> List.choose (fun (k, w, text) ->
         partOf k w |> Option.map (fun part -> part, text))
-      |> Map.ofList
-
-    let! all =
-      if branchId.IsMain then
-        Task.FromResult fromMain
-      else
-        task {
-          let! ops = Branches.chainOverlayOps branchId
-
-          return
-            ops
-            |> List.fold
-              (fun acc op ->
-                match op with
-                | PT.PackageOp.UpdateDoc(loc, part, text, _, _) when loc = location ->
-                  Map.add part text acc
-                | _ -> acc)
-              fromMain
-        }
-
-    return Map.toList all
   }
 
 
@@ -327,64 +309,29 @@ let docsForLocations
     if List.isEmpty locations then
       return Map.empty
     else
-      let keyed = locations |> List.distinct
-
-      let keyOf (l : PT.PackageLocation) =
-        String.concat "\u0000" [ l.owner; String.concat "." l.modules; l.name ]
-
-      let keyParams =
-        keyed |> List.mapi (fun i l -> ($"key_{i}", Sql.string (keyOf l)))
-
-      let keyClause =
-        keyed |> List.mapi (fun i _ -> $"@key_{i}") |> String.concat ", "
-
+      let wanted = Set.ofList locations
       let! rows =
-        Sql.query
-          $"""
-          SELECT owner, modules, name, kind, within, text
-          FROM location_docs
-          WHERE owner || char(0) || modules || char(0) || name IN ({keyClause})
-          """
-        |> Sql.parameters keyParams
+        Sql.query (visibleDocsSql "1 = 1")
+        |> Sql.parameters (Layers.sqlParams branchId true)
         |> Sql.executeAsync (fun read ->
-          ((read.string "owner", read.string "modules", read.string "name"),
-           (read.string "kind", read.string "within", read.string "text")))
+          let loc : PT.PackageLocation =
+            { owner = read.string "owner"
+              modules =
+                (match read.string "modules" with
+                 | "" -> []
+                 | m -> m.Split('.') |> List.ofArray)
+              name = read.string "name" }
+          (loc, (read.string "kind", read.string "within", read.string "text")))
 
-      let byLocation =
-        keyed
-        |> List.choose (fun l ->
-          let mine =
-            rows
-            |> List.filter (fun ((o, m, n), _) ->
-              o = l.owner && m = String.concat "." l.modules && n = l.name)
-            |> List.choose (fun (_, (k, w, text)) ->
-              partOf k w |> Option.map (fun part -> part, text))
-
-          if List.isEmpty mine then None else Some(l, mine))
-        |> Map.ofList
-
-      if branchId.IsMain then
-        return byLocation
-      else
-        let! ops = Branches.chainOverlayOps branchId
-        let wanted = Set.ofList keyed
-
-        return
-          ops
-          |> List.fold
-            (fun acc op ->
-              match op with
-              | PT.PackageOp.UpdateDoc(loc, part, text, _, _) when
-                Set.contains loc wanted
-                ->
-                let standing =
-                  Map.tryFind loc acc
-                  |> Option.defaultValue []
-                  |> List.filter (fun (p, _) -> p <> part)
-
-                Map.add loc (standing @ [ part, text ]) acc
-              | _ -> acc)
-            byLocation
+      return
+        rows
+        |> List.filter (fun (l, _) -> Set.contains l wanted)
+        |> List.choose (fun (l, (k, w, text)) ->
+          partOf k w |> Option.map (fun part -> (l, (part, text))))
+        |> List.fold
+          (fun (acc : Map<PT.PackageLocation, List<PT.DocPart * string>>) (l, pt) ->
+            Map.add l ((Map.tryFind l acc |> Option.defaultValue []) @ [ pt ]) acc)
+          Map.empty
   }
 
 
@@ -405,15 +352,20 @@ let docsForLocations
 /// from another instance, and one bad op must not refuse the batch it came in.
 let private declaredAt
   (ctx : Ctx)
+  (branch : PT.BranchId)
   (location : PT.PackageLocation)
   (part : PT.DocPart)
   : Task<Option<string>> =
   task {
     let! bound =
-      pairOption ctx "SELECT item_hash, item_type FROM locations
-         WHERE owner = $owner AND modules = $modules AND name = $name
-           AND unlisted_at IS NULL AND source <> 'unbind'
-         LIMIT 1" (fun cmd -> pLoc cmd location)
+      pairOption
+        ctx
+        (Layers.view "$" Layers.locations
+         + " SELECT item_hash, item_type FROM visible
+             WHERE owner = $owner AND modules = $modules AND name = $name AND item_hash <> ''")
+        (fun cmd ->
+          pLoc cmd location
+          Layers.bind cmd branch true)
 
     match bound with
     | None
@@ -544,7 +496,8 @@ let private recordDocConflict
 ///     newer text still wins, and the conflict record keeps the loser's words findable.
 let applyUpdateDoc
   (ctx : Ctx)
-  (branchId : PT.BranchId)
+  (layer : Layers.Layer)
+  (opId : System.Guid)
   (ts : string)
   (location : PT.PackageLocation)
   (part : PT.DocPart)
@@ -560,23 +513,40 @@ let applyUpdateDoc
       p cmd "$kind" kind
       p cmd "$within" within
 
-    let! standing =
+    // What the name says now, as this branch sees it: its own words if any layer it sees holds
+    // some, else what its declaration says. "" when the name holds nothing at all, which is the
+    // ordinary case for a doc op that arrived ahead of the `SetName` that binds its subject.
+    let! seen =
       pairOption
         ctx
-        "SELECT text, origin_ts FROM location_docs
-         WHERE owner = $owner AND modules = $modules AND name = $name
-           AND kind = $kind AND within = $within"
-        bindKey
+        (Layers.view "$" Layers.docs
+         + " SELECT text, origin_ts FROM visible
+             WHERE owner = $owner AND modules = $modules AND name = $name
+               AND kind = $kind AND within = $within")
+        (fun cmd ->
+          bindKey cmd
+          Layers.bind cmd layer.branch true)
 
-    // The name's own words if it has said any, else what its declaration says. "" when the name
-    // holds nothing at all, which is the ordinary case for a doc op that arrived ahead of the
-    // `SetName` that binds its subject.
     let! current =
-      match standing with
+      match seen with
       | Some(text, _) -> Task.FromResult text
-      | None -> declaredAt ctx location part |> Task.map (Option.defaultValue "")
+      | None ->
+        declaredAt ctx layer.branch location part
+        |> Task.map (Option.defaultValue "")
 
-    let standingTs = standing |> Option.bind snd |> Option.defaultValue ""
+    // Staleness is the layer's own question: an older statement than the one this layer already
+    // holds is a late arrival.
+    let! standingTs =
+      textOption ctx "SELECT origin_ts FROM location_docs
+         WHERE owner = $owner AND modules = $modules AND name = $name
+           AND kind = $kind AND within = $within
+           AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
+        bindKey cmd
+        p cmd "$branch" (string layer.branch)
+        p cmd "$draft" (if layer.draft then 1L else 0L))
+
+    let standingTs = standingTs |> Option.defaultValue ""
+    let seenTs = seen |> Option.bind snd |> Option.defaultValue ""
 
     if current = text then
       return ()
@@ -597,24 +567,28 @@ let applyUpdateDoc
         do!
           recordDocConflict
             ctx
-            branchId
+            layer.branch
             ts
             location
             part
             current
-            standingTs
+            seenTs
             text
             (not stale)
 
-      if stale then
-        return ()
-      else
+      if not stale then
+        do! Layers.supersede ctx Layers.docs layer bindKey
         do!
-          exec ctx "INSERT INTO location_docs (owner, modules, name, kind, within, text, origin_ts)
-             VALUES ($owner, $modules, $name, $kind, $within, $text, $ts)
-             ON CONFLICT(owner, modules, name, kind, within) DO UPDATE SET
-               text = excluded.text, origin_ts = excluded.origin_ts" (fun cmd ->
-            bindKey cmd
-            p cmd "$text" text
-            p cmd "$ts" ts)
+          exec
+            ctx
+            "INSERT INTO location_docs
+               (branch_id, draft, owner, modules, name, kind, within, text, origin_ts, op_id)
+             VALUES ($branch, $draft, $owner, $modules, $name, $kind, $within, $text, $ts, $op_id)"
+            (fun cmd ->
+              bindKey cmd
+              p cmd "$branch" (string layer.branch)
+              p cmd "$draft" (if layer.draft then 1L else 0L)
+              p cmd "$text" text
+              p cmd "$ts" ts
+              p cmd "$op_id" (string opId))
   }

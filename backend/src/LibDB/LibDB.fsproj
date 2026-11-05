@@ -20,12 +20,13 @@
     <Compile Include="Sqlite.fs" />
     <Compile Include="StoreBackups.fs" />
     <Compile Include="PreparedBatch.fs" />
+    <Compile Include="Caching.fs" />
+    <Compile Include="Layers.fs" />
     <Compile Include="Deprecations.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="TestResults.fs" />
     <Compile Include="StoreHealth.fs" />
     <Compile Include="PackageLocation.fs" />
-    <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="PackageItem.fs" />
     <Compile Include="DependencyExtractor.fs" />
@@ -49,7 +50,6 @@
     <Compile Include="ScmConflicts.fs" />
     <Compile Include="ScmOps.fs" />
     <Compile Include="ScmDetect.fs" />
-    <Compile Include="Draft.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="ReferenceNames.fs" />
     <Compile Include="ReferenceDependencies.fs" />

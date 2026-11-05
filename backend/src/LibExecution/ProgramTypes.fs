@@ -888,18 +888,6 @@ module PackageTest =
       expectedError : Option<ExpectedError> }
 
 
-/// What happened to a branch. A CLOSED set, so a type rather than a string. Both cases are MONOTONIC:
-/// applying one twice, or out of order, lands in the same place, so they need no stamp to arbitrate and
-/// can travel between machines with nothing to compare against. A rename would be last-writer-wins and
-/// there is no stamp on `branches` to arbitrate it, so there is no case for one.
-type BranchEventKind =
-  /// Its work is in its parent. Carries the ids of the ops the merge moved, because a peer holding the
-  /// branch may hold MORE of it than the merger saw (its own unpushed edits), and the event must not
-  /// take those with it.
-  | Merged of ops : List<System.Guid>
-  /// Put away, not deleted.
-  | Archived
-
 /// Operations on packages: the canonical, append-only unit of change.
 type PackageOp =
   // Content operations - add definitions
@@ -964,8 +952,7 @@ type PackageOp =
   // `restating` is empty except on the restatement path, and is never read. Same hole as
   // `UpdateDoc.restating`, one axis over: deprecation is a STATE, and `Deprecate` and
   // `Undeprecate` are each other's inverse, so saying a thing again after the inverse produces
-  // the op that said it the first time and folds to nothing. `Inserts` and
-  // `Branches.restateReverts` stamp it, via `PT.restating`, and only when what the op says is
+  // the op that said it the first time and folds to nothing. `Inserts.restateOrDrop` stamps it, via `PT.restating`, and only when what the op says is
   // not what currently stands.
   | Deprecate of
     target : Reference *
@@ -1001,7 +988,7 @@ type PackageOp =
   ///
   /// `restating` is empty except on one path and is never read. Ops are content-addressed, so
   /// putting a doc back to what it said before produces the op that already exists -- the hole
-  /// `Decision.id` fills for a name. `Inserts` and `Branches.restateReverts` stamp it.
+  /// `Decision.id` fills for a name. `Inserts.restateOrDrop` stamps it.
   ///
   /// TODO: this wants to become a package VALUE of a broadly-known type, roughly
   /// `{ text: String, about: PackageThing }`, so that examples, deprecation notes and a third
@@ -1054,17 +1041,6 @@ type PackageOp =
     reason : string *
     kind : DecisionKind
 
-  /// Something that happened to a BRANCH, as opposed to something that happened to a name.
-  ///
-  /// Merging is otherwise local: the merged ops travel (they are main ops now) and
-  /// the two mains converge on identical hashes, but the FACT of the merge does not,
-  /// so a colleague's branch still lists as live work and they can keep authoring on
-  /// something that already landed.
-  ///
-  /// An event for a branch this store has never heard of folds to nothing. That is
-  /// not a failure: branch ids travel with a bundle, so the ones you share match,
-  /// and the ones you do not share are none of your business.
-  | BranchEvent of branchId : BranchId * event : BranchEventKind * at : string
 
 // There is deliberately no op for a propagation or its undo. "These changes belong together" is
 // what a COMMIT says, and "this version lost" is what a recorded conflict says; a cascade is just

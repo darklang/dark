@@ -51,7 +51,7 @@ let countLiveDependents(
   targetLoc: LanguageTools.ProgramTypes.PackageLocation,
   targetKind: LanguageTools.ProgramTypes.ItemKind)
   : Int64 =
-  let deps = SCM.Deps.dependentsOf([ (targetLoc, targetKind) ])
+  let deps = SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (targetLoc, targetKind) ])
   let depSets = Query.loadDeprecationSets(branchId)
   deps
   |> Stdlib.List.filter(fun entry ->

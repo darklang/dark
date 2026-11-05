@@ -230,7 +230,7 @@ let whyFrom(args: List<String>): String =
 
 
 /// Constraints are a property of the whole STORE, not of a branch: detection runs over main's live bindings
-/// and their dependency edges, which a branch's overlay doesn't change. So there is nothing branch-scoped to
+/// and their dependency edges, which a branch's layers don't change. So there is nothing branch-scoped to
 /// ack, and acking from a branch would record an answer to a question that wasn't asked there.
 ///
 /// Propagation choices are different: they genuinely differ per branch (a branch may want a different
@@ -353,7 +353,7 @@ let resolutionFor(
 /// above the item moves too.
 ///
 /// Gated on main like `ack`, for the same reason: detection runs over MAIN's bindings, so a resolution
-/// authored from a branch would repoint main's caller onto the branch's overlay, where main cannot see it,
+/// authored from a branch would repoint main's caller onto the branch's layers, where main cannot see it,
 /// while the finding it answers stays open on main.
 let executeResolve(state: AppState, args: List<String>): AppState =
   if onBranch() then

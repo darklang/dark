@@ -433,7 +433,7 @@ reads dependencies by signature only, but `pmGetFnSignature` goes through `getFn
 is cached anyway, and by the end of a whole-tree check every fn's body is. Dropping the caches right
 after the checker's pool loads freed 64 MB, about half of the ~400 MB floor that a single lane still
 needs. The fix is a signature read that does not populate the cache, and it has to keep reading
-through a branch's overlay, which uses the same path, so it is a design change rather than a flag.
+a branch's view, which uses the same path, so it is a design change rather than a flag.
 It waits on the store-upgrade work in that area settling.
 
 ### Compile-time type checking -- owned elsewhere

@@ -404,9 +404,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description =
         "Starts, renames, switches to or archives a branch. Starting resolves a name to the "
         + "live branch holding it, creating it if none does. Switching moves this process "
-        + "and stores the branch for the next command. Archiving deletes the branch's "
-        + "unshared inert ops, drops its tags and bases, marks it, and authors and commits "
-        + "the event that tells other machines, in one transaction."
+        + "and stores the branch for the next command. Archiving deletes the branch's ops, "
+        + "the rows they wrote and its bases, and marks it archived, in one transaction "
+        + "(a merged branch is only marked)."
       fn =
         (function
         | _, _, _, [| action |] ->

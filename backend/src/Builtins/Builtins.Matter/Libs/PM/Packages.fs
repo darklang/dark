@@ -59,7 +59,8 @@ let private cutoffFromDT (value : Dval) =
   | DEnum(_, _, _, "None", []) -> None
   | value -> Exception.raiseInternal "Invalid history cutoff" [ "value", value ]
 
-/// Persist a computed cascade on its branch and refresh the process overlay.
+/// Persist a computed cascade on its branch, marked as PROPAGATED, not authored: it's the only
+/// point at which the difference is known.
 let persistPropagation
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
@@ -68,40 +69,8 @@ let persistPropagation
     do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
     let! names = LibDB.ReferenceNames.captureForStorage branch ops
     let ops = ops @ names
-    if branch.IsMain then
-      // Marked as PROPAGATED, not authored. It's the only point at which the difference is known.
-      let! _ = LibDB.Inserts.insertAndApplyPropagatedOps ops
-      return ()
-    else
-      // On a branch the repoints are BRANCH ops: stored effective=0 and tagged to the frontier,
-      // never folded into main's `locations`. That's the isolation guarantee -- a cascade that
-      // leaked into main would be worse than one that didn't happen.
-      //
-      // A repoint can create a branch-local version of a MAIN item (main's `dep` gets a branch
-      // copy pointing at the branch's `base`, main's copy untouched). Recording name bases for
-      // them is what lets a later merge tell that apart from a divergence.
-      // Marked as PROPAGATED on the branch's own record, as main's `locations.source` would be.
-      let! _ = LibDB.Branches.storeDeltaOpsFrom "propagation" branch ops
-      let! parentId = LibDB.Branches.parentOf branch
-      do! LibDB.Branches.recordNameBases branch parentId ops
-      // Fold the CONTENT (never the SetNames) so the new versions resolve and carry their
-      // dependency edges, exactly as branch authoring does.
-      let contentOps =
-        ops
-        |> List.filter (fun op ->
-          match op with
-          | PT.PackageOp.AddValue _
-          | PT.PackageOp.AddFn _
-          | PT.PackageOp.AddType _
-          | PT.PackageOp.AddTrait _
-          | PT.PackageOp.AddTraitImpl _
-          | PT.PackageOp.AddTest _ -> true
-          | _ -> false)
-      if not (List.isEmpty contentOps) then
-        do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
-      // Refresh the process overlay so a later eval in THIS process sees the repoints.
-      let! all = LibDB.Branches.loadDeltaOps branch
-      LibDB.PackageManager.setBranchOverlay all
+    let! _ = LibDB.Inserts.authorOn branch "propagation" ops
+    return ()
   }
 
 
@@ -120,27 +89,17 @@ let findOn
   (kind : PT.ItemKind)
   (location : PT.PackageLocation)
   : Ply<Option<PT.Hash>> =
-  if branch.IsMain then
-    match kind with
-    | PT.ItemKind.Type -> PMPT.Type.find location
-    | PT.ItemKind.Value -> PMPT.Value.find location
-    | PT.ItemKind.Fn -> PMPT.Fn.find location
-    | PT.ItemKind.Trait -> PMPT.Trait.find location
-    | PT.ItemKind.TraitImpl -> PMPT.TraitImpl.find location
-    | PT.ItemKind.Test -> PMPT.Test.find location
-  else
-    let branchPM = LibDB.PackageManager.ptForBranch branch
-    match kind with
-    | PT.ItemKind.Type -> branchPM.findType location
-    | PT.ItemKind.Value -> branchPM.findValue location
-    | PT.ItemKind.Fn -> branchPM.findFn location
-    | PT.ItemKind.Trait -> branchPM.findTrait location
-    | PT.ItemKind.TraitImpl -> branchPM.findTraitImpl location
-    | PT.ItemKind.Test -> branchPM.findTest location
+  match kind with
+  | PT.ItemKind.Type -> PMPT.Type.find branch location
+  | PT.ItemKind.Value -> PMPT.Value.find branch location
+  | PT.ItemKind.Fn -> PMPT.Fn.find branch location
+  | PT.ItemKind.Trait -> PMPT.Trait.find branch location
+  | PT.ItemKind.TraitImpl -> PMPT.TraitImpl.find branch location
+  | PT.ItemKind.Test -> PMPT.Test.find branch location
 
 
-/// Bind <param location> to content already in the store, as a `Decision`/`Override`: on main
-/// folded, on a branch stored on its frontier as a 'resolution'. Refuses content that is not there,
+/// Bind <param location> to content already in the store, as a `Decision`/`Override` authored onto
+/// the branch's draft with source 'resolution'. Refuses content that is not there,
 /// since a dangling binding fails at CALL time, far from the cause.
 let rebind
   (branch : PT.BranchId)
@@ -191,14 +150,8 @@ let rebind
             PT.DecisionKind.Override reference
           ) ]
 
-      if branch.IsMain then
-        let! _ = LibDB.Inserts.insertAndApplyOps ops
-        ()
-      else
-        // A rebind a person forced, on the branch's own record; see `op_branches.source`.
-        let! _ = LibDB.Branches.storeDeltaOpsFrom "resolution" branch ops
-        let! parentId = LibDB.Branches.parentOf branch
-        do! LibDB.Branches.recordNameBases branch parentId ops
+      // A rebind a person forced.
+      let! _ = LibDB.Inserts.authorOn branch "resolution" ops
 
       return Ok()
   }
@@ -240,14 +193,12 @@ let repoint
 
 /// `pmLocations`: every name a hash of <param kind> is bound to, seen from <param branchId>.
 ///
-/// Three answers, in order, because a hash with no live name still has to render as something better
+/// Two answers, in order, because a hash with no live name still has to render as something better
 /// than `<hash:d6f972b3>`:
 ///
-/// 1. main's `locations`, via the PM;
-/// 2. the branch overlay -- a branch's SetNames never fold into `locations`, so a branch-authored item
-///    has no row there at all;
-/// 3. a name it USED to have, main's record first and then the branch's. Reached when viewing a
-///    superseded version, whose live name has moved on to the newer one.
+/// 1. the names the branch binds it at, main's first;
+/// 2. a name it USED to have. Reached when viewing a superseded version, whose live name has moved
+///    on to the newer one.
 let private locationsFn (pm : PT.PackageManager) : BuiltInFn =
   { name = fn "pmLocations" 0
     typeParams = []
@@ -266,34 +217,40 @@ let private locationsFn (pm : PT.PackageManager) : BuiltInFn =
           let kind = PT2DT.ItemKind.fromDT kindDval
           let hash = PT2DT.Hash.fromDT hashDval
 
-          let fromMain, everNamedOnMain =
+          // The caller's own manager first: it knows a script's declarations, which the store does
+          // not, and main's names come before a branch's. Then the names the branch adds.
+          let fromPm, onBranch, everNamed =
             match kind with
             | PT.ItemKind.Type ->
-              pm.getTypeLocations, PMPT.Type.getLocationsEverNamed
+              pm.getTypeLocations,
+              PMPT.Type.getLocations branch,
+              PMPT.Type.getLocationsEverNamed branch
             | PT.ItemKind.Value ->
-              pm.getValueLocations, PMPT.Value.getLocationsEverNamed
-            | PT.ItemKind.Fn -> pm.getFnLocations, PMPT.Fn.getLocationsEverNamed
+              pm.getValueLocations,
+              PMPT.Value.getLocations branch,
+              PMPT.Value.getLocationsEverNamed branch
+            | PT.ItemKind.Fn ->
+              pm.getFnLocations,
+              PMPT.Fn.getLocations branch,
+              PMPT.Fn.getLocationsEverNamed branch
             | PT.ItemKind.Trait ->
-              pm.getTraitLocations, PMPT.Trait.getLocationsEverNamed
+              pm.getTraitLocations,
+              PMPT.Trait.getLocations branch,
+              PMPT.Trait.getLocationsEverNamed branch
             | PT.ItemKind.TraitImpl ->
-              pm.getTraitImplLocations, PMPT.TraitImpl.getLocationsEverNamed
+              pm.getTraitImplLocations,
+              PMPT.TraitImpl.getLocations branch,
+              PMPT.TraitImpl.getLocationsEverNamed branch
             | PT.ItemKind.Test ->
-              pm.getTestLocations, PMPT.Test.getLocationsEverNamed
+              pm.getTestLocations,
+              PMPT.Test.getLocations branch,
+              PMPT.Test.getLocationsEverNamed branch
 
-          let! onMain = fromMain hash
-          let named = LibDB.PackageManager.locationsFor branch kind hash onMain
-
-          let! result =
-            if List.isEmpty named then
-              uply {
-                match! everNamedOnMain hash with
-                | [] ->
-                  return
-                    LibDB.PackageManager.branchLocationsEverNamed branch kind hash
-                | everNamed -> return everNamed
-              }
-            else
-              Ply named
+          let! first = fromPm hash
+          let! more = if branch.IsMain then Ply [] else onBranch hash
+          let named =
+            first @ (more |> List.filter (fun l -> not (List.contains l first)))
+          let! result = if List.isEmpty named then everNamed hash else Ply named
 
           return
             result
@@ -308,10 +265,8 @@ let private locationsFn (pm : PT.PackageManager) : BuiltInFn =
 
 /// `pmFind`: location -> hash for an item of <param kind>, resolved against <param branchId>.
 ///
-/// On a BRANCH, resolve against the overlay, so a name authored earlier on the same branch resolves. On
-/// main, read the store directly: the overlay PM memoizes its base, which goes stale across a long-lived
-/// process (the test harness shares one), and the direct finder (`PMPT.{Type,Value,Fn,...}.find`) has no
-/// cache to go stale.
+/// Read in the branch's view through the direct finders (`PMPT.{Type,Value,Fn,...}.find`), which have
+/// no cache to go stale across a long-lived process (the test harness shares one).
 let private findFn () : BuiltInFn =
   { name = fn "pmFind" 0
     typeParams = []
@@ -664,7 +619,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               | owner :: modules ->
                 let location : PT.PackageLocation =
                   { owner = owner; modules = modules; name = fnName }
-                // Through the branch overlay, like `pmSearch` and `pmFind`. The closure `pm` is
+                // Through the branch's view, like `pmSearch` and `pmFind`. The closure `pm` is
                 // MAIN's package manager; asked about a router authored on a branch it answers "No
                 // function named ..." about a fn that is plainly there.
                 let branchPM =
@@ -832,8 +787,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            // Through the branch overlay, so a branch's items show up in ls/view/tree/search, not just
-            // eval. Main's overlay is main itself.
+            // Through the branch's view, so a branch's items show up in ls/view/tree/search, not just
+            // eval.
             let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
             let! results = pm.search searchQuery
             return PT2DT.Search.SearchResults.toDT results
@@ -870,7 +825,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            // Through the branch overlay: a branch is its ops laid over main, not a scope to walk up.
+            // Through the branch's view, not a scope to walk up.
             let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
             let! results = pm.search searchQuery
 
@@ -979,7 +934,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       // It authors an op. `Decision`/`Override` is a write whatever the name suggests, and this one
-      // reaches `Inserts`, `storeDeltaOps` and `recordNameBases`.
+      // reaches `Inserts`.
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
@@ -1024,9 +979,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 | v ->
                   Exception.raiseInternal "Invalid dependency target" [ "value", v ])
             let! state = LibDB.ReferenceNames.load branch
-            let! bindings = LibDB.ReferenceNames.branchBindings branch
             let! dependents =
-              LibDB.ReferenceDependencies.dependents state bindings targets
+              LibDB.ReferenceDependencies.dependents state branch targets
             let tupleKT =
               KTTuple(
                 VT.known (PT2DT.Hash.knownType ()),
@@ -1365,45 +1319,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               snapshots
               |> List.map PT2DT.ReferenceNamesSnapshot.toDT
               |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-    { name = fn "pmCommittedBindings" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "locations"
-            (TList(TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), [])))
-            "Names to resolve on committed main" ]
-      returnType =
-        TList(
-          TTuple(TCustomType(NR.ok (PT2DT.PackageOp.typeName ()), []), TString, [])
-        )
-      description =
-        "Find the operations that give these names their committed bindings on main, including their timestamps."
-      fn =
-        (function
-        | _, _, _, [| DList(_, locations) |] ->
-          uply {
-            let! bindings =
-              LibDB.Queries.committedBindingOperationsFor (
-                List.map PT2DT.PackageLocation.fromDT locations
-              )
-            return
-              bindings
-              |> Map.toList
-              |> List.map (fun (_, (op, stamp)) ->
-                DTuple(PT2DT.PackageOp.toDT op, DString stamp, []))
-              |> Dval.list (
-                KTTuple(
-                  VT.known (KTCustomType(PT2DT.PackageOp.typeName (), [])),
-                  VT.known KTString,
-                  []
-                )
-              )
           }
         | _ -> incorrectArgs ())
       previewable = Impure

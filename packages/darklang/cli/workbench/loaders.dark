@@ -525,7 +525,7 @@ let referencesFrom(
     // run information. Keep `used by` about production coupling instead of
     // listing every test twice. The `dark deps` command remains comprehensive.
     let dependents =
-      SCM.Deps.dependentsOf([ (loc, kind) ])
+      SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (loc, kind) ])
       |> Stdlib.List.filter(fun((_hash, _location, dependentKind)) ->
         dependentKind != LanguageTools.ProgramTypes.ItemKind.Test)
     let dependentLines =

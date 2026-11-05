@@ -8,11 +8,9 @@ module Darklang.SCM.Tests.Branches
 // authors a name, then main commits the same name differently. (The F# originals faked
 // it by staling the recorded base, to keep off a main every other test was reading.)
 //
-// What stays in `BranchOverlay.Tests.fs`: the overlay itself (`withExtraOps`,
-// `ptForBranch`, process branch selection), the F# store primitives (`storeDeltaOps`,
-// `recordNameBases`, `loadDeltaOps`, `createBranch`, `lookupRef`), the fold
-// (`applyUnappliedOps` sweep and LWW across merges), undecodable ops, the F#/Dark
-// parent-hash agreement, and the source scans.
+// What stays in `BranchOverlay.Tests.fs`: the in-memory overlay (`withExtraOps`), `ptForBranch` and
+// process branch selection, the F# store primitives (`Inserts.authorOn`, `createBranch`,
+// `lookupRef`), LWW across merges, undecodable ops, and the source scans.
 
 let fooAt(m: String): Darklang.LanguageTools.ProgramTypes.PackageLocation =
   Authoring.loc(m, "foo")
@@ -161,13 +159,11 @@ test aMergeCountsWhatItFlipped =
 // merges again. An empty op list reaches the guard before anything else.
 test authoringOnAMergedBranchIsRefused =
   let b = Authoring.branchOff("finished-proof", Authoring.main())
+  let setup = onBranch(b, "FinishedProof", "1")
   let merged =
-    Darklang.SCM.PackageOps.add(
-      Authoring.main(),
-      [ Darklang.LanguageTools.ProgramTypes.PackageOp.BranchEvent(
-          b,
-          Darklang.LanguageTools.ProgramTypes.BranchEventKind.Merged([]),
-          "2026-01-01T00:00:00.000Z") ])
+    Darklang.SCM.PackageOps.mergeBranch(b)
+    |> Stdlib.Result.map(fun _ -> ())
+    |> Stdlib.Result.mapError(fun e -> Darklang.SCM.PackageOps.mergeErrorMessage(e))
   let isMerged(): Bool =
     Darklang.SCM.Branches.list()
     |> Stdlib.List.any(fun row -> row.id == b && row.merged)
@@ -177,7 +173,8 @@ test authoringOnAMergedBranchIsRefused =
     | Ok(_) -> "accepted"
     | Error(e) -> if Stdlib.String.contains(e, "merged or archived") then "refused" else e
   Stdlib.Test.all(
-    [ Authoring.ok(merged)
+    [ Authoring.ok(setup)
+      Authoring.ok(merged)
       wasMerged |> Stdlib.Test.equal(true)
       refused |> Stdlib.Test.equal("refused")
       isMerged() |> Stdlib.Test.equal(true) ])

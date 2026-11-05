@@ -2,13 +2,10 @@
 /// `SCM.PackageOps`). One function, one query family: `query` takes which commits are wanted and how
 /// many, and answers with commit rows (or just how many there are).
 ///
-/// Each case is the SQL Dark used to run itself, moved across as it was: the same statement, the same
-/// ordering, the same scope. Nothing here decides anything. A commit has no branch column, so the
-/// branch cases ask the op log which commits a branch's ops sit in, exactly as before: main owns the
-/// effective ops no branch has claimed, a branch owns the ops tagged to it.
+/// Each case is one statement over `commits`, and nothing here decides anything; the branch cases
+/// filter on `branch_id`.
 ///
-/// A row with no `hash` is dropped, and every other column reads NULL as "", which is what the Dark
-/// decoder did.
+/// A row with no `hash` is dropped, and every other column reads NULL as "".
 module LibDB.ScmCommits
 
 open System.Threading.Tasks
@@ -33,16 +30,18 @@ type Filter =
   | HashPrefix of prefix : string
   /// The commits that name this one as their parent.
   | ChildrenOf of hash : string
-  /// The newest commit among the ops <param branchId> can see (its chain plus main), newest by stamp.
-  | ParentFor of branchId : PT.BranchId
 
 
 type Commit =
-  { hash : string
+  {
+    hash : string
     message : string
     originTs : string
     createdAt : string
-    parent : string }
+    parent : string
+    /// A commit that records what happened to a branch rather than work (an archive).
+    housekeeping : bool
+  }
 
 /// `total` is the number of matching commits when the limit was 0 (and `commits` is then empty);
 /// otherwise it is the number of commits returned.
@@ -59,16 +58,6 @@ type private Shape =
   }
 
 
-/// The parent-chain walk, as the Dark side's `chainCteSql` spells it: @p0 = the branch, @p1 = main's
-/// id. Main's id is bound, never written as a literal.
-let private chainCte =
-  "WITH RECURSIVE chain(bid) AS (
-     SELECT @p0
-     UNION
-     SELECT b.parent_id FROM branches b JOIN chain c ON b.id = c.bid
-     WHERE b.parent_id != @p1
-   )"
-
 /// `\` is the escape character for the LIKE in `HashPrefix`.
 let private escapeLike (s : string) : string =
   s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")
@@ -84,20 +73,9 @@ let private shape (f : Filter) : Shape =
   | OnBranch branchId ->
     // What the branch OWNS, which is a different question from what it can see: the number behind
     // "2 ahead" and behind a branch's own commit list.
-    let owned, ps =
-      if branchId.IsMain then
-        "p.effective = 1 AND p.id NOT IN (SELECT op_id FROM op_branches)", []
-      else
-        "p.id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)",
-        [ "p0", Sql.string (string branchId) ]
-    { from =
-        "FROM commits c
-         WHERE c.hash IN (SELECT DISTINCT p.commit_hash FROM package_ops p
-                          WHERE p.commit_hash IS NOT NULL AND "
-        + owned
-        + ")"
+    { from = "FROM commits c WHERE c.branch_id = @p0"
       order = "ORDER BY c.rowid DESC"
-      parameters = ps }
+      parameters = [ "p0", Sql.string (string branchId) ] }
 
   | HashPrefix prefix ->
     { from = "FROM commits c WHERE c.hash LIKE @prefix || '%' ESCAPE '\\'"
@@ -108,30 +86,6 @@ let private shape (f : Filter) : Shape =
     { from = "FROM commits c WHERE c.parent = @hash"
       order = ""
       parameters = [ "hash", Sql.string hash ] }
-
-  | ParentFor branchId ->
-    // What this branch can SEE, committed: its own ops plus main's, which is why a fresh branch's
-    // first commit follows main's latest rather than nothing. A branch off a branch follows its
-    // parent's commits too.
-    let where, ps =
-      if branchId.IsMain then
-        "p.commit_hash IS NOT NULL AND p.effective = 1
-         AND p.id NOT IN (SELECT op_id FROM op_branches)",
-        []
-      else
-        "p.commit_hash IS NOT NULL
-         AND (p.id IN (SELECT op_id FROM op_branches WHERE branch_id IN ("
-        + chainCte
-        + " SELECT bid FROM chain))
-              OR (p.effective = 1 AND p.id NOT IN (SELECT op_id FROM op_branches)))",
-        [ "p0", Sql.string (string branchId)
-          "p1", Sql.string (string PT.BranchId.Main) ]
-    { from =
-        "FROM commits c WHERE c.hash IN (SELECT p.commit_hash FROM package_ops p WHERE "
-        + where
-        + ")"
-      order = "ORDER BY c.origin_ts DESC, c.rowid DESC"
-      parameters = ps }
 
 
 /// The commits <param f> selects, at most <param limit> of them (a negative limit means all of them).
@@ -148,7 +102,7 @@ let query (f : Filter) (limit : int64) : Task<Page> =
     else
       let! rows =
         Sql.query (
-          "SELECT c.hash, c.message, c.origin_ts, c.created_at, c.parent "
+          "SELECT c.hash, c.message, c.origin_ts, c.created_at, c.parent, c.housekeeping "
           + s.from
           + " "
           + s.order
@@ -163,7 +117,8 @@ let query (f : Filter) (limit : int64) : Task<Page> =
               message = orEmpty "message"
               originTs = orEmpty "origin_ts"
               createdAt = orEmpty "created_at"
-              parent = orEmpty "parent" }))
+              parent = orEmpty "parent"
+              housekeeping = read.int64 "housekeeping" <> 0L }))
       let commits = List.choose identity rows
       return { total = int64 (List.length commits); commits = commits }
   }

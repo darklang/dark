@@ -55,8 +55,8 @@ let private storedOrEphemeral
 
 
 // Cache of Harmful fn hashes, as underlying hex strings: PT.Hash and RT.Hash are distinct CLR
-// types, and storing strings avoids threading either wrapper through the cache layer. Not
-// branch-scoped, since `deprecations` isn't. `invalidateHarmful` is for a long-lived process that
+// types, and storing strings avoids threading either wrapper through the cache layer. Main's: a
+// fn is harmful wherever it runs once main says so. `invalidateHarmful` is for a long-lived process that
 // mutates deprecation state and must not keep answering from a stale Set.
 let mutable private harmfulCache : Option<Set<string>> = None
 
@@ -88,8 +88,6 @@ Caching.register invalidateHarmful
 
 
 
-/// The PT PackageManager for MAIN: name resolution against `locations`, which by design holds only
-/// main's bindings. A branch is this plus its delta ops -- branch-aware callers want `ptForBranch`.
 /// <param pm>'s LOCATED results, with each name's own doc in place of its declaration's.
 ///
 /// Only the located reads: a search result knows which NAME it answered for, and that is what a doc
@@ -147,19 +145,18 @@ let withLocationDocs
           } }
 
 
-let pt : PT.PackageManager =
-  // `withCache` allocates a fresh `ConcurrentDictionary` per invocation, so hoist the cached
-  // lambdas out here to reuse one dict. Caching by location is safe precisely because this PM only
-  // ever answers about main; a branch's answers come from the overlay in front of it, built per
-  // branch id and never sharing this dict.
-  let findTypeCached = withCache (fun location -> PMPT.Type.find location)
-  let findValueCached = withCache (fun location -> PMPT.Value.find location)
-  let findFnCached = withCache (fun location -> PMPT.Fn.find location)
-  let findTestCached = withCache (fun location -> PMPT.Test.find location)
-
+/// The PT PackageManager for <param branch>: name resolution over the branch's view of the layered
+/// `locations` (`LibDB.Layers`), content by hash. Built once per branch per process; its caches are
+/// dropped with every other one on a fold.
+let private ptOn (branch : PT.BranchId) : PT.PackageManager =
+  let findTypeCached = withCache (fun location -> PMPT.Type.find branch location)
+  let findValueCached = withCache (fun location -> PMPT.Value.find branch location)
+  let findFnCached = withCache (fun location -> PMPT.Fn.find branch location)
+  let findTestCached = withCache (fun location -> PMPT.Test.find branch location)
   let findTraitCached =
-    Caching.withNegativeCache (fun location -> PMPT.Trait.find location)
-  let findImplCached = withCache (fun location -> PMPT.TraitImpl.find location)
+    Caching.withNegativeCache (fun location -> PMPT.Trait.find branch location)
+  let findImplCached =
+    withCache (fun location -> PMPT.TraitImpl.find branch location)
 
   // Not `withCache`: its key would be unit, which a dictionary cannot hold. Same
   // lifetime as the others (dropped by `invalidateAll`).
@@ -171,7 +168,7 @@ let pt : PT.PackageManager =
       | Some names -> Ply names
       | None ->
         uply {
-          let! names = PMPT.Trait.names ()
+          let! names = PMPT.Trait.names branch
           cached <- Some names
           return names
         }
@@ -199,23 +196,34 @@ let pt : PT.PackageManager =
     // ahead of the store, `type MyErr = | BadFormat` in a script would rename
     // `Stdlib.Int.ParseError` for the rest of the process.
     getTypeLocations =
-      storedOrEphemeral PMPT.Type.getLocations EphemeralPackages.typeLocations
+      storedOrEphemeral
+        (PMPT.Type.getLocations branch)
+        EphemeralPackages.typeLocations
     getValueLocations =
-      storedOrEphemeral PMPT.Value.getLocations EphemeralPackages.valueLocations
+      storedOrEphemeral
+        (PMPT.Value.getLocations branch)
+        EphemeralPackages.valueLocations
     getFnLocations =
-      storedOrEphemeral PMPT.Fn.getLocations EphemeralPackages.fnLocations
+      storedOrEphemeral (PMPT.Fn.getLocations branch) EphemeralPackages.fnLocations
     getTraitLocations =
-      storedOrEphemeral PMPT.Trait.getLocations EphemeralPackages.traitLocations
+      storedOrEphemeral
+        (PMPT.Trait.getLocations branch)
+        EphemeralPackages.traitLocations
     getTraitImplLocations =
-      storedOrEphemeral PMPT.TraitImpl.getLocations EphemeralPackages.implLocations
-    getTestLocations = PMPT.Test.getLocations
+      storedOrEphemeral
+        (PMPT.TraitImpl.getLocations branch)
+        EphemeralPackages.implLocations
+    getTestLocations = PMPT.Test.getLocations branch
 
-    search = fun query -> PMPT.search query
+    search = fun query -> PMPT.search branch query
 
     impls = Impls.impls
     implsWithMethod = Impls.implsWithMethod
 
     init = uply { return () } }
+
+/// The PT PackageManager for MAIN. Branch-aware callers want `ptForBranch`.
+let pt : PT.PackageManager = ptOn PT.BranchId.Main
 
 
 /// <param pm>, with an account's APPROVED VERSIONS narrowing how a function NAME resolves.
@@ -265,10 +273,10 @@ let narrowedToApprovedVersions
 
 
 /// An in-memory PackageManager built by applying `ops` in sequence. Used for transient state
-/// during parsing, testing, and branch overlays.
+/// during parsing and testing, for ops that are not stored.
 ///
-/// <param below> is the manager this one is layered over, when it is a layer: a branch overlay's
-/// SetName can name content the branch never carried an Add for, because an op is identified by its
+/// <param below> is the manager this one is layered over, when it is a layer: an in-memory
+/// SetName can name content these ops never carried an Add for, because an op is identified by its
 /// content and main already held that body under another name. Resolving the name needs nothing extra
 /// (the combined manager falls through by hash), but search builds its rows from items, so an item the
 /// layer names but does not hold is fetched from `below`; that is what keeps `ls`, `view` and `search`
@@ -315,15 +323,14 @@ let createInMemoryOver
     | PT.PackageOp.AddTest _ -> ()
 
     // None of these change what a name points at -- an ack records what a person decided ABOUT a
-    // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those), a
-    // BranchEvent is about the branch -- so an overlay of bindings has nothing to do here.
+    // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those) -- so
+    // an overlay of bindings has nothing to do here.
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
     | PT.PackageOp.Rename _
     | PT.PackageOp.SetReferenceNames _
     | PT.PackageOp.UpdateDoc _
-    | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Ack _)
-    | PT.PackageOp.BranchEvent _ -> ()
+    | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Ack _) -> ()
 
     // An override binds a name like a SetName does; the overlay only cares about the binding.
     | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
@@ -512,7 +519,7 @@ let createInMemoryOver
 
     search =
       fun query ->
-        // Query-aware in-memory search so a BRANCH overlay's items show up in ls/view/tree/search,
+        // Query-aware in-memory search so the in-memory ops' items show up in ls/view/tree/search,
         // not just eval. Locations here come from SetName ops' PackageLocation, which is cleanly
         // structured (owner separate, modules a proper list) unlike the `locations` table's
         // owner-in-modules ambiguity. `combine` appends these to main's results, so this only
@@ -718,7 +725,7 @@ let combine
     search =
       fun query ->
         uply {
-          // OVERLAY WINS: a name the overlay rebinds (a branch override of a main item) must
+          // OVERLAY WINS: a name the overlay rebinds (an in-memory rebind of a stored item) must
           // appear ONCE, as the branch's version. Overlay results come first, so
           // distinctBy-location keeps them over the fallback's stale entry.
           let! overlayResults = overlay.search query
@@ -810,8 +817,8 @@ let hide
                     tests = shown r.tests }
             } }
 
-/// `basePM` with `ops` overlaid on top: the branch overlay, and the parse-time PM for tests and
-/// from-disk parsing.
+/// `basePM` with `ops` overlaid on top: the PM for ops that are not stored (tests, from-disk
+/// parsing).
 let withExtraOps
   (basePM : PT.PackageManager)
   (ops : List<PT.PackageOp>)
@@ -820,41 +827,15 @@ let withExtraOps
   combine opsPM (hide (unboundBy ops) basePM)
 
 
-// BRANCH OVERLAYS.
+// THE BRANCH THIS PROCESS IS ON.
 //
-// A branch is not a copy: it is delta ops (stored `effective = 0`, tagged in `op_branches`)
-// overlaid on core, so a branch's PM is `withExtraOps pt ops`. That derivation needs nothing but
-// the branch id, so it works for ANY branch on demand: `opsForBranch` / `ptForBranch`.
-//
-// The process also has "the branch I am on", resolved once at the CLI entry point from `--branch` /
-// `DARK_BRANCH` / `current_branch`. That is a DEFAULT, not the mechanism: the entry point hands it
-// to `ExecutionState.branchId` and it is passed from there. Nothing deep in the stack reads it
-// ambiently, which is what lets a long-lived process answer about a branch it is not sitting on,
-// and lets `switch` change branch without restarting.
-
-let mutable private branchOverlayOps : List<PT.PackageOp> = []
+// Resolved once at the CLI entry point from `--branch` / `DARK_BRANCH` / `current_branch`. That is
+// a DEFAULT, not the mechanism: the entry point hands it to `ExecutionState.branchId` and it is
+// passed from there, which is what lets a long-lived process answer about a branch it is not
+// sitting on, and lets `switch` change branch without restarting.
 
 /// The active branch's ID (for authoring routing), or None = author to main.
 let mutable private currentBranchIdOpt : Option<PT.BranchId> = None
-
-/// Delta ops for branches OTHER than the active one, loaded on demand. Bounded by how many
-/// branches a process actually asks about, which for a CLI is one or two.
-let private otherBranchOps =
-  System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, List<PT.PackageOp>>()
-
-// Dropped on every fold, like the rest: DB-derived state held for the life of the process with no
-// other way to expire. The user-visible readers of another branch (`diff`, `conflicts branch`) query
-// SQLite directly, so this guards the in-process readers only.
-Caching.register (fun () -> otherBranchOps.Clear())
-
-// The ACTIVE branch's overlay too: it is loaded once by `selectBranch` and refreshed by this
-// process's own authoring, but a branch op that lands from outside (a sync daemon's pull into the
-// store a `serve --branch` process is reading) reaches it only through an invalidation. Without
-// this a long-lived process on a branch served the overlay it booted with for the rest of its life.
-Caching.register (fun () ->
-  match currentBranchIdOpt with
-  | Some id -> branchOverlayOps <- (Branches.loadDeltaOps id).Result
-  | None -> ())
 
 /// Resolve a dotted package name or an exact #hash. Names follow updates;
 /// hashes pin a caller to one version, which is how the test runner names its worker. Main
@@ -883,56 +864,20 @@ let resolveFnRef (dotted : string) : Option<RT.FQFnName.FQFnName> =
     | [] -> None
 
 
-/// Select the active branch's delta ops for this process (empty = main/core only). Prefer
-/// `selectBranch`, which loads them; this is for callers already holding an explicit op list.
-let setBranchOverlay (ops : List<PT.PackageOp>) : unit = branchOverlayOps <- ops
-
-/// Drop the memoized op list for <branchId>, so the next read of it goes back to the store.
-///
-/// `opsForBranch` memoizes every branch that isn't the current one, and that memo is otherwise
-/// only cleared by a fold. Authoring to a branch you aren't sitting on is supported, and a branch
-/// write with no content ops folds nothing, so without this a process that had read that branch
-/// once would keep serving the pre-write list for the rest of its life.
-let forgetBranch (branchId : PT.BranchId) : unit =
-  otherBranchOps.TryRemove branchId |> ignore<bool * List<PT.PackageOp>>
-
 /// The branch this process is on. Main when nothing else was selected.
 let currentBranchId () : PT.BranchId =
   currentBranchIdOpt |> Option.defaultValue PT.BranchId.Main
 
-/// Delta ops for ANY branch, walking its parent chain. The active branch answers from the process
-/// overlay (already loaded); any other is loaded once and memoized.
-///
-/// Main has none by construction -- its ops ARE the core, and an overlay is what a branch adds on top --
-/// so it answers empty without a query. Hence a plain `BranchId` rather than an Option: main is a
-/// branch id like any other, and wrapping it would make `None` and `Some main` two spellings of one thing.
-let opsForBranch (branchId : PT.BranchId) : List<PT.PackageOp> =
-  if branchId.IsMain then
-    []
-  elif currentBranchIdOpt = Some branchId then
-    branchOverlayOps
-  else
-    otherBranchOps.GetOrAdd(branchId, (fun id -> (Branches.loadDeltaOps id).Result))
+let private branchPMs =
+  System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, PT.PackageManager>()
 
-/// The PT PM for <branchId>: core with that branch's overlay, or plain core on main.
-/// Used at parse/lowering time so a branch fn resolves name->hash.
-///
-/// The overlay is prefixed with the main-draft mask (`Queries.mainDraftMaskOps`): a branch
-/// resolves through COMMITTED main plus its own work, so main's uncommitted draft never leaks
-/// into a branch's view. The branch's own ops come later in the list and win over the mask.
+/// The PT PM for <branchId>: names as that branch sees them, with each name's own doc in place of
+/// its declaration's in located results.
 let ptForBranch (branchId : PT.BranchId) : PT.PackageManager =
-  // The doc overlay goes on OUTSIDE the branch overlay, and carries the branch id: a name's own
-  // words come from `location_docs` on main and from the branch's ops on a branch, and only this
-  // layer knows which branch is being asked.
-  let base' =
-    if branchId.IsMain then
-      pt
-    else
-      match (Queries.mainDraftMaskOps ()).Result @ opsForBranch branchId with
-      | [] -> pt
-      | ops -> withExtraOps pt ops
-
-  withLocationDocs branchId base'
+  branchPMs.GetOrAdd(
+    branchId,
+    fun b -> withLocationDocs b (if b.IsMain then pt else ptOn b)
+  )
 
 /// The stamp of the op that added an impl, put on the candidate. The item does not carry it (it is
 /// not content), so the store is the only place it can come from; a candidate the store has never
@@ -943,6 +888,41 @@ let private stampedWith
   : RT.ImplCandidate =
   let (RT.Hash h) = c.source
   { c with stamp = stamps |> Map.tryFind h |> Option.defaultValue "" }
+
+
+/// What dispatch on <param branch> may pick among <param impls>: the ones the branch binds at a name,
+/// not deprecated there, each stamped with its op's time. One query per branch for the bound set,
+/// cached with everything else, where asking each impl's names cost a query or two per impl.
+let private candidatesOn =
+  let live =
+    Caching.withCache (fun (branch : PT.BranchId) ->
+      PMPT.TraitImpl.liveHashes branch |> Ply.map Some)
+  let stamps : ref<Option<Map<string, string>>> = ref None
+  Caching.register (fun () -> stamps.Value <- None)
+  fun (branch : PT.BranchId) (impls : List<PT.TraitImpl.TraitImpl>) ->
+    uply {
+      let! bound = live branch
+      let! deprecated = Queries.getDeprecatedTraitImplHashesFor branch
+      let! stampMap =
+        match stamps.Value with
+        | Some m -> Ply m
+        | None ->
+          uply {
+            let! m = Queries.getTraitImplStamps ()
+            stamps.Value <- Some m
+            return m
+          }
+      let isCandidate (i : PT.TraitImpl.TraitImpl) =
+        let (Hash h) = i.hash
+        (bound |> Option.exists (fun b -> b.Contains h))
+        && not (Set.contains h deprecated)
+      return
+        impls
+        |> List.filter isCandidate
+        |> List.choose PT2RT.ImplCandidate.ofImpl
+        |> List.distinctBy (fun c -> c.source)
+        |> List.map (stampedWith stampMap)
+    }
 
 
 // TODO: bring back eager loading
@@ -967,23 +947,12 @@ let rt : RT.PackageManager =
     // candidates (a `Deprecate` op folds, which drops every cache).
     implCandidates =
       let cached =
-        Caching.withCache
-          (fun (branchId : PT.BranchId, traitHash : RT.FQTraitName.Package) ->
-            uply {
-              let! cs =
-                PT2RT.ImplCandidate.ofPackageManager
-                  (ptForBranch branchId)
-                  traitHash
-              let! deprecated = Queries.getDeprecatedTraitImplHashesFor branchId
-              let! stamps = Queries.getTraitImplStamps ()
-              return
-                Some(
-                  cs
-                  |> List.filter (fun c ->
-                    let (RT.Hash h) = c.source in not (Set.contains h deprecated))
-                  |> List.map (stampedWith stamps)
-                )
-            })
+        Caching.withCache (fun (branchId : PT.BranchId, RT.Hash traitHash) ->
+          uply {
+            let! impls = Impls.impls (PT.Hash traitHash)
+            let! cs = candidatesOn branchId impls
+            return Some cs
+          })
       fun branchId traitHash ->
         uply {
           match! cached (branchId, traitHash) with
@@ -994,19 +963,9 @@ let rt : RT.PackageManager =
       let cached =
         Caching.withCache (fun (branchId : PT.BranchId, methodName : string) ->
           uply {
-            let! cs =
-              PT2RT.ImplCandidate.ofPackageManagerByMethod
-                (ptForBranch branchId)
-                methodName
-            let! deprecated = Queries.getDeprecatedTraitImplHashesFor branchId
-            let! stamps = Queries.getTraitImplStamps ()
-            return
-              Some(
-                cs
-                |> List.filter (fun c ->
-                  let (RT.Hash h) = c.source in not (Set.contains h deprecated))
-                |> List.map (stampedWith stamps)
-              )
+            let! impls = Impls.implsWithMethod methodName
+            let! cs = candidatesOn branchId impls
+            return Some cs
           })
       fun branchId methodName ->
         uply {
@@ -1024,92 +983,7 @@ let rt : RT.PackageManager =
       } }
 
 
-/// Where a branch binds <param hash>, for hash-to-NAME lookups.
-///
-/// `locations` holds main's bindings only; a branch's SetNames deliberately never fold into it,
-/// which is the isolation guarantee. So anything resolving a hash back to a name has to ask the
-/// overlay too, or a branch-authored item has no name at all and renders as `<hash:d6f972b3>`.
-///
-/// Latest binding wins within the overlay (ops arrive oldest-first), and a name the branch REBOUND
-/// to something else no longer counts as a location for the old hash, same as main.
-let branchLocationsFor
-  (branchId : PT.BranchId)
-  (kind : PT.ItemKind)
-  (hash : Hash)
-  : List<PT.PackageLocation> =
-  opsForBranch branchId
-  |> List.fold
-    (fun (acc : Map<string, PT.PackageLocation * Hash>) op ->
-      match op with
-      | PT.PackageOp.SetName(loc, target, _)
-      | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
-      | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) when
-        target.kind = kind
-        ->
-        let modules = String.concat "." loc.modules
-        let key = $"{loc.owner}/{modules}/{loc.name}"
-        Map.add key (loc, target.hash) acc
-      | PT.PackageOp.Unbind(loc, _) ->
-        let modules = String.concat "." loc.modules
-        Map.remove $"{loc.owner}/{modules}/{loc.name}" acc
-      | _ -> acc)
-    Map.empty
-  |> Map.toList
-  |> List.choose (fun (_, (loc, h)) -> if h = hash then Some loc else None)
-
-
-/// Every location this branch has EVER bound <param hash> to, live or superseded.
-/// `branchLocationsFor` answers only "what does this hash hold NOW"; superseded
-/// versions on a branch have no other name source (`getLocationsEverNamed` reads
-/// `locations`, which a branch never writes).
-///
-/// Strictly a FALLBACK for when the live lookup found nothing, or a moved-off
-/// version would keep answering to the name that moved on.
-let branchLocationsEverNamed
-  (branchId : PT.BranchId)
-  (kind : PT.ItemKind)
-  (hash : Hash)
-  : List<PT.PackageLocation> =
-  opsForBranch branchId
-  |> List.choose (fun op ->
-    match op with
-    | PT.PackageOp.SetName(loc, target, _)
-    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
-    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) when
-      target.kind = kind && target.hash = hash
-      ->
-      Some loc
-    | _ -> None)
-  |> List.distinct
-
-
-/// Locations for <param hash>: main's, then any the branch adds.
-///
-/// Main FIRST, deliberately: callers render a label and take the head, and identical content is
-/// one item, so a hash is routinely live at several names. Branch-first would render a MAIN item
-/// whose body happens to match something you wrote on a branch under the branch's name, the right
-/// content under the wrong label. This way it is purely additive: the branch supplies names for
-/// hashes main cannot name at all, and changes nothing main could already answer.
-let locationsFor
-  (branchId : PT.BranchId)
-  (kind : PT.ItemKind)
-  (hash : Hash)
-  (fromMain : List<PT.PackageLocation>)
-  : List<PT.PackageLocation> =
-  match branchLocationsFor branchId kind hash with
-  | [] -> fromMain
-  | branchLocs ->
-    fromMain @ (branchLocs |> List.filter (fun l -> not (List.contains l fromMain)))
-
-/// Make <branchId> the branch this process is on: load its delta ops and set both globals. Used at
-/// boot and by `ops switch`, so a long-lived process changes branch without a restart. Drops the
-/// on-demand memo, since a re-select is the moment a stale overlay would show.
+/// Make <branchId> the branch this process is on. Used at boot and by `switch`, so a long-lived
+/// process changes branch without a restart.
 let selectBranch (branchId : PT.BranchId) : unit =
-  otherBranchOps.Clear()
-
-  if branchId.IsMain then
-    branchOverlayOps <- []
-    currentBranchIdOpt <- None
-  else
-    branchOverlayOps <- (Branches.loadDeltaOps branchId).Result
-    currentBranchIdOpt <- Some branchId
+  currentBranchIdOpt <- if branchId.IsMain then None else Some branchId

@@ -2,8 +2,8 @@ module Darklang.Cli.Branch
 
 // Branches: isolated lines of work you can author and evaluate without touching main.
 //
-// A branch is a set of delta ops stored `effective = 0` in the shared `package_ops` and tagged in
-// `op_branches`; a branch's package manager is main's with those ops overlaid. Nothing here writes SQL --
+// A branch's ops are stored under its id, and its names resolve as its own work over what its
+// parents committed. Nothing here writes SQL --
 // all of it is siloed in `SCM.PackageOps` -- this file only parses arguments and formats what it returns.
 //
 // This file holds the lifecycle and registry surface (switch/list/archive, execute/help/complete). Merge and rebase are in branchMerge.dark, log and diff in
@@ -18,8 +18,8 @@ let whereLabel(id: Uuid): String =
 /// The id of the branch <param branchRef> refers to, WITHOUT creating anything, or None.
 ///
 /// Three spellings, because all three get printed at people and anything you can see you should be able to
-/// paste: a NAME, which is what you normally type; a full ID, which a bundle carries and which a branch
-/// with no name of its own goes by; and an ID PREFIX, which is what `dark branches` shows (8 characters).
+/// paste: a NAME, which is what you normally type; a full ID, which a branch with no name of its own
+/// goes by; and an ID PREFIX, which is what `dark branches` shows (8 characters).
 ///
 /// Ambiguity is refused rather than guessed. Returns None on no match too; the caller decides whether that
 /// is an error to report or a name to start a branch under.
@@ -86,7 +86,7 @@ let executeList(state: AppState, includeMerged: Bool): AppState =
   state
 
 /// Switch the current branch: persistently (the `current_branch` config key, so the next process starts
-/// here) AND in this process (the overlay used for name resolution and execution). `switch main` (or
+/// here) AND in this process (the branch names resolve on and code runs on). `switch main` (or
 /// empty) returns to main.
 ///
 /// Both halves are needed: the interactive REPL is one long-lived process, so writing only the config key
@@ -104,8 +104,8 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
       | Ambiguous -> true
       | _ -> false
 
-  // The branch a switch lands on, RETURNED rather than assumed, so the REPL's state moves with the process
-  // overlay instead of drifting from it for the rest of the session.
+  // The branch a switch lands on, RETURNED rather than assumed, so the REPL's state moves with the process's
+  // branch instead of drifting from it for the rest of the session.
   let landedOn =
     match branchRef with
     // A leading dash is a mistyped flag or a sweep's argument, never a branch name. Without this
@@ -196,7 +196,7 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
   Cli.exitWith({ state with currentBranchId = landedOn }, Stdlib.Bool.not(refused))
 
 /// Where merging <branchId> leaves you: its parent, as (id, name). A branch with no row is treated as
-/// parented to main, which is what an imported branch that arrived as tagged ops looks like.
+/// parented to main, which is what ops under an id with no registry row look like.
 let parentOf(branchId: Uuid): (Uuid * String) =
   match SCM.Branches.list() |> Stdlib.List.findFirst(fun b -> b.id == branchId) with
   | Some(b) -> (b.parent, SCM.PackageOps.branchName(b.parent))
@@ -204,9 +204,8 @@ let parentOf(branchId: Uuid): (Uuid * String) =
 
 /// `dark branch rename <branch> <new-name>`
 ///
-/// Possible at all only because a name is an alias now: op tags, per-name bases, bundles and parent
-/// links all point at the id, so this is one UPDATE and nothing else moves. It could not be done when the
-/// name WAS the id.
+/// One UPDATE and nothing else moves: a name is an alias, and ops, per-name bases and parent links all
+/// point at the id.
 let executeRename(state: AppState, branchRef: String, newName: String): AppState =
   match resolveRef(branchRef) with
   | None -> Cli.exitWith(state, false)
@@ -316,8 +315,8 @@ let executeArchive(
 let help(_state: AppState): String =
   [ ""
     "  You name a branch; it gets a uuid underneath. Names are what you"
-    "  type and can reuse; the uuid is what op tags, bundles and parent"
-    "  links point at. `dark branches` shows both."
+    "  type and can reuse; the uuid is what its ops and parent links"
+    "  point at. `dark branches` shows both."
     ""
     "  dark branch                   show the current branch (or main)"
     "  dark branch <name>            switch to a branch, starting it if it's new"

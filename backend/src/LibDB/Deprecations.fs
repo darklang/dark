@@ -1,10 +1,8 @@
 /// What deprecation STANDS for a piece of content, and the annotation encoding the `deprecations`
 /// projection stores.
 ///
-/// One reader, for the same reason `Lww` is one rule: three places ask the question and they must
-/// not drift. The fold writes the rows (`PackageOpPlayback`), authoring asks whether the op it is
-/// about to drop as a duplicate says what already stands (`Inserts`, `Branches`), and the CLI and
-/// LSP read it to display (`Queries`). Early in the compile order so all four can share it.
+/// One reader: authoring asks whether the op it is about to drop as a duplicate says what already
+/// stands (`Inserts`), and the CLI reads it to display (`Queries`).
 module LibDB.Deprecations
 
 open System.Threading.Tasks
@@ -41,35 +39,28 @@ let deserializeAnnotation (blob : byte array) : Option<PT.DeprecationKind * stri
   with _ ->
     None
 
-/// The deprecation standing for (<param itemHash>, <param itemKind>) in the projection, or None
-/// when the item is not deprecated.
-///
-/// The ordering is the fold's: by the op's time, with arrival as the tie-break for rows folded
-/// before `origin_ts` existed. `created_at` alone answered "whichever reached this machine last",
-/// so two peers holding the same two ops could disagree about whether an item is deprecated.
+/// The deprecation standing for (<param itemHash>, <param itemKind>) as <param branch> sees it, or
+/// None when the item is not deprecated there.
 let standing
+  (branch : PT.BranchId)
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
   : Task<Option<PT.DeprecationKind * string>> =
   task {
     let (Hash itemHashStr) = itemHash
 
-    let! row =
+    let! rows =
       Sql.query
-        """
-        SELECT state, annotation_blob
-        FROM deprecations
-        WHERE item_hash = @item_hash
-          AND item_kind = @item_kind
-          AND unlisted_at IS NULL
-        ORDER BY COALESCE(origin_ts, '') DESC, created_at DESC
-        LIMIT 1
-        """
+        "SELECT branch_id, draft, state, annotation_blob FROM deprecations
+         WHERE item_hash = @item_hash AND item_kind = @item_kind AND live = 1"
       |> Sql.parameters
         [ "item_hash", Sql.string itemHashStr
           "item_kind", Sql.string (itemKind.toString ()) ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.string "state", read.bytesOrNone "annotation_blob"))
+      |> Sql.executeAsync (fun read ->
+        (read.string "branch_id",
+         read.int64 "draft" <> 0L,
+         (read.string "state", read.bytesOrNone "annotation_blob")))
+    let row = Layers.pick (Layers.chainOf branch) rows
 
     match row with
     | Some("deprecated", Some blob) -> return deserializeAnnotation blob
@@ -77,34 +68,31 @@ let standing
   }
 
 
-/// What the chain's own `Deprecate`/`Undeprecate` ops say, folded in order: content hash to the
-/// kind it was said about, and the standing those ops leave.
+/// Every item <param branch> sees deprecated: (hash, kind, annotation).
 ///
-/// A branch's deprecation never folds, so there is no `deprecations` row to ask and this overlay
-/// is the only answer for content the chain speaks about; <fn standing> is the fallback for
-/// content it is silent about.
-///
-/// Pure, and takes the ops rather than a branch, because the ops come from `Branches`, which
-/// compiles after this file. Both callers hand them in: authoring, to decide whether the op it is
-/// about to drop as a duplicate says what already stands, and `Queries`, to read for display. If
-/// those two folded it separately they could disagree, and then the restatement decision and the
-/// read disagree about the same branch -- the same shape of bug as two copies of `Lww`.
-///
-/// The kind travels in the value because one reader wants a single kind of item and the others
-/// want all of them. It does NOT key the map: content is the key, as everywhere else, and one
-/// hash bound to two kinds is answered by whichever op is later.
-let chainStanding
-  (ops : List<PT.PackageOp>)
-  : Map<string, PT.ItemKind * Option<PT.DeprecationKind * string>> =
-  ops
-  |> List.fold
-    (fun acc op ->
-      match op with
-      | PT.PackageOp.Deprecate(target, kind, message, _) ->
-        let (Hash h) = target.hash
-        Map.add h (target.kind, Some(kind, message)) acc
-      | PT.PackageOp.Undeprecate(target, _) ->
-        let (Hash h) = target.hash
-        Map.add h (target.kind, None) acc
-      | _ -> acc)
-    Map.empty
+/// Cached per branch, dropped with every other cache on a fold: dispatch asks once per trait, and a
+/// whole-view query costs more to compile than to run.
+let private deprecatedInCached =
+  Caching.withCache (fun (branch : PT.BranchId) ->
+    uply {
+      let! rows =
+        Sql.query (
+          Layers.view "@" Layers.deprecations
+          + " SELECT item_hash, item_kind, annotation_blob FROM visible WHERE state = 'deprecated'"
+        )
+        |> Sql.parameters (Layers.sqlParams branch true)
+        |> Sql.executeAsync (fun read ->
+          (read.string "item_hash",
+           read.string "item_kind",
+           read.bytesOrNone "annotation_blob"))
+      return Some rows
+    })
+
+let deprecatedIn
+  (branch : PT.BranchId)
+  : Task<List<string * string * Option<byte array>>> =
+  task {
+    match! Ply.toTask (deprecatedInCached branch) with
+    | Some rows -> return rows
+    | None -> return []
+  }

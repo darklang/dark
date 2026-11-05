@@ -208,19 +208,14 @@ let bindingOf(row: SCM.Bindings.BindingRow): Binding =
       // Projected onto `locations` by the fold, off the `SetName` that wrote it.
       previous = row.previous }
 
-/// What this instance's fold currently binds, restricted to <param names> (the incoming side's bare names),
-/// so a reconciliation never scans the whole `locations` projection. Filtering by bare name is enough of a
-/// narrowing; the detector matches on the full (owner, modules, name) key anyway.
-///
-/// main-scoped, on purpose: a sync import folds into MAIN, so main's bindings are the local side of that
-/// reconciliation whatever branch the process stands on. A branch merge reads the parent's side through
-/// `PackageOps.parentBindings`, which starts from this and overlays the chain.
+/// What main currently binds, restricted to <param names> (bare names), so a reconciliation never scans
+/// the whole `locations` projection. The detector matches on the full (owner, modules, name) key anyway.
 let localBindingsFor(names: List<String>): List<Binding> =
   match names with
   | [] -> []
   | _ ->
     SCM.Bindings.query(
-      SCM.Bindings.BindingFilter.MainByBareNames(Stdlib.List.unique(names))
+      SCM.Bindings.BindingFilter.ByBareNames(SCM.Branch.mainBranchId, Stdlib.List.unique(names))
     )
     |> Stdlib.List.map(bindingOf)
 
@@ -286,7 +281,7 @@ let aboutABinding(kind: String): Bool =
 /// Conflicts awaiting a human ON THIS BRANCH, oldest first.
 ///
 /// Scoped, because a conflict is a divergence in one line of work: settling main's while standing on a
-/// branch would write the answer into an overlay where it does nothing until merge, and settling a
+/// branch would write the answer into the branch's layers, which main does not see until merge, and settling a
 /// branch's from main would answer for a projection that hasn't happened yet. Each branch sees its own.
 let pending(): List<Conflict> =
   let recorded =

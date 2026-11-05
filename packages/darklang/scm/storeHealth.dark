@@ -5,8 +5,6 @@ module Darklang.SCM.StoreHealth
 //
 //   - the fold QUARANTINES an op it can't parse: marks it applied, skips it, one line to stderr, and never
 //     mentions it again.
-//   - an interrupted import leaves `op_branches` tags pointing at an op or a branch that isn't there, so a
-//     branch is quietly missing part of its own frontier.
 //   - a live name bound to a hash with no content: the name resolves, and fetching it finds nothing.
 //
 // NOT a command -- a health check you have to think of is one nobody runs, so `dark status` reports these
@@ -14,12 +12,9 @@ module Darklang.SCM.StoreHealth
 
 
 /// The raw counts behind <fn problems>, each 0 when it can't be answered: ops stamped more than a
-/// day ahead of now, op tags naming an op that isn't in the log, op tags naming a branch that isn't
-/// registered, effective ops the fold never applied, and live names bound to a hash with no content.
+/// day ahead of now, ops the fold never applied, and live names bound to a hash with no content.
 type Counts =
   { futureStamped: Int64
-    orphanTags: Int64
-    taggedToNothing: Int64
     unfolded: Int64
     danglingBindings: Int64 }
 
@@ -51,7 +46,7 @@ let problems(): List<Problem> =
   let c = counts()
 
   Stdlib.List.flatten(
-    [ // `package_ops` and `op_branches` are the log itself. Re-folding replays them exactly as they are.
+    [ // `package_ops` is the log itself. Re-folding replays them exactly as they are.
       //
       // A stamp well ahead of now means some instance's clock is wrong. Ordering still works -- the
       // authoring clock advances past anything it receives, so your later edits win -- but the stamps
@@ -60,14 +55,6 @@ let problems(): List<Problem> =
         c.futureStamped,
         false,
         "op(s) stamped over a day in the future (a peer's clock is wrong)")
-      countedProblem(
-        c.orphanTags,
-        false,
-        "op tag(s) pointing at an op that isn't in the log (a branch is missing part of its own history)")
-      countedProblem(
-        c.taggedToNothing,
-        false,
-        "op tag(s) pointing at a branch that isn't registered (the ops are held by nothing that lists them)")
 
       // What a fold produces, so a fold can produce it again correctly.
       countedProblem(

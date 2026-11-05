@@ -99,14 +99,12 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM package_tests;
       DELETE FROM package_dependencies;
       DELETE FROM deprecations;
+      DELETE FROM location_docs;
 
-      -- The builder's BRANCHES are not canon. A branch's ops live in `package_ops` at effective = 0 and are
-      -- tagged in `op_branches`, so both halves have to go and the ops have to go FIRST -- dropping the tags
-      -- alone would leave untagged effective = 0 ops that no fold ever applies and nothing accounts for.
-      -- Otherwise every install grown from this seed opens with somebody else's half-finished work in
-      -- `dark branches`.
-      DELETE FROM package_ops WHERE id IN (SELECT op_id FROM op_branches);
-      DELETE FROM op_branches;
+      -- The builder's BRANCHES are not canon. Otherwise every install grown from this seed opens with
+      -- somebody else's half-finished work in `dark branches`.
+      DELETE FROM package_ops WHERE branch_id <> '00000000-0000-0000-0000-000000000001';
+      DELETE FROM commits WHERE branch_id <> '00000000-0000-0000-0000-000000000001';
       DELETE FROM branch_name_bases;
       -- All of them: main is not a row here, so there is nothing to preserve.
       DELETE FROM branches;
@@ -138,8 +136,7 @@ let export (outputPath : string) : Task<unit> =
       -- F# suite leaves fixtures in main's draft, so a release build would otherwise
       -- refuse or not depending on what ran last. The bindings need no separate
       -- delete; every projection went above.
-      DELETE FROM package_ops
-      WHERE commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches);
+      DELETE FROM package_ops WHERE commit_hash IS NULL;
 
       UPDATE package_ops SET applied = 0;
       """
@@ -157,44 +154,37 @@ let export (outputPath : string) : Task<unit> =
 // Grow
 // ---------------------
 
-/// The pending set: every op that is effective and not yet folded, as raw (id, blob) rows. The
+/// The pending set: every op not yet folded, as raw (rowid, branch, id, blob) rows, in log order. The
 /// fold's half is `foldRead`; `applyUnappliedOpsPass` is the two in sequence. Split so a test can put a
-/// concurrent write between them, which is the case the by-id sweep in `foldRead` exists for.
-///
-/// TEST SEAM: public for `MultiInstance.Tests`, like `useStoreForTesting`. Nothing else calls the halves.
-let readPending () : Task<List<System.Guid * byte[]>> =
+/// concurrent write between them, which is the case the by-row sweep in `foldRead` exists for.
+let readPending () : Task<List<int64 * PT.BranchId * System.Guid * byte[]>> =
   task {
     // Fast check: are there any unapplied ops? Avoids loading blobs when count is 0.
     let! count =
-      Sql.query
-        "SELECT COUNT(*) as n FROM package_ops WHERE applied = 0 AND effective = 1"
+      Sql.query "SELECT COUNT(*) as n FROM package_ops WHERE applied = 0"
       |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
     if count = 0L then
       return []
     else
-      // Read the raw (id, blob) rows WITHOUT deserializing in the reader: a malformed op_blob
-      // (corrupt / truncated on the wire, or a poisoned push) must not throw here and brick the
-      // whole fold -- AND every fold after it, since the op stays applied=0 and gets re-read.
+      // Read the raw rows WITHOUT deserializing in the reader: a malformed op_blob must not throw here
+      // and brick the whole fold -- AND every fold after it, since the op stays applied=0.
       return!
         Sql.query
-          """
-        SELECT id, op_blob
-        FROM package_ops
-        WHERE applied = 0 AND effective = 1
-        -- effective = 1: only ops main RUNS fold into the live projections. A branch's op, or one a
-        -- client pushed to a relay, sits at applied = 0, effective = 0 -- present in the log, never
-        -- folded, until a merge flips it effective.
-        -- rowid breaks ties: created_at is second-resolution so a batch's ops share it. The fold's final
-        -- state is order-independent, but a deterministic replay order keeps re-folds byte-identical.
-        ORDER BY created_at ASC, rowid ASC
-        """
-        |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytes "op_blob"))
+          "SELECT rowid AS seq, branch_id, id, op_blob FROM package_ops
+           WHERE applied = 0 ORDER BY rowid"
+        |> Sql.executeAsync (fun read ->
+          (read.int64 "seq",
+           PT.BranchId.ParseUnsafe(read.string "branch_id"),
+           read.uuid "id",
+           read.bytes "op_blob"))
   }
 
-/// Fold the rows `readPending` returned, and mark exactly those applied. Returns the count folded.
-/// TEST SEAM, as `readPending`.
-let foldRead (rawOps : List<System.Guid * byte[]>) : Task<int64> =
+/// Fold the rows `readPending` returned, each into its own branch, and mark exactly those applied.
+/// Returns the count folded.
+let foldRead
+  (rawOps : List<int64 * PT.BranchId * System.Guid * byte[]>)
+  : Task<int64> =
   task {
     if List.isEmpty rawOps then
       return 0L
@@ -202,42 +192,31 @@ let foldRead (rawOps : List<System.Guid * byte[]>) : Task<int64> =
 
       // Deserialize per-op; SKIP + log any that fail rather than aborting, so one bad op cannot brick a
       // store. They stay `applied = 0`, which is the truth -- nothing folded them -- and means a build
-      // that CAN read them still will. Marking them applied would be faster (they are re-read every fold)
-      // and would make an op unreadable by an older binary permanently invisible to a newer one.
-      let mutable skipped : List<System.Guid> = []
+      // that CAN read them still will.
+      let mutable skipped = 0
 
       let unappliedOps =
         rawOps
-        |> List.choose (fun (opId, opBlob) ->
+        |> List.choose (fun (seq, branch, opId, opBlob) ->
           match BS.PT.PackageOp.tryDeserialize opId opBlob with
-          | Some op -> Some(opId, op)
+          | Some op -> Some(seq, branch, op)
           | None ->
-            skipped <- opId :: skipped
+            skipped <- skipped + 1
             None)
 
-      // ONE line, not one per op. These ops are deliberately left unapplied so a later build can read
-      // them, which means they are re-examined on every startup: a line each would put a wall of
-      // warnings ahead of every command's real output, on every command, forever.
-      match skipped with
-      | [] -> ()
-      | _ when warnedAboutUnreadableOps -> ()
-      | ids ->
+      // ONE line, not one per op: these are re-examined on every startup.
+      if skipped > 0 && not warnedAboutUnreadableOps then
         warnedAboutUnreadableOps <- true
         NonBlockingConsole.writeErrLine (
-          $"note: {List.length ids} op(s) in this store were written in a format this build cannot "
+          $"note: {skipped} op(s) in this store were written in a format this build cannot "
           + "read, and are being skipped. They are kept, not dropped, so a later build can apply them."
         )
 
       if List.isEmpty unappliedOps then
-        // Every pending op was unparseable. Nothing folded, so nothing is marked applied and the caller's
-        // loop stops on the zero. They are re-read next fold, which is the point: a newer build reads them.
         return 0L
       else
-        // Apply all ops + the applied=1 sweep in ONE transaction: for 9000+ ops that collapses ~20k WAL
-        // commits into one. Not crash-safe by design -- an aborted run leaves applied=0 and the next boot
-        // replays; replay isn't byte-idempotent (fresh Guid ids) but the final projection is equivalent.
-        // FK enforcement is off for the load, because replaying ops out of topological order trips FKs, so
-        // `PRAGMA foreign_key_check` runs after commit and fails loudly on a real violation.
+        // All ops + the applied=1 sweep in ONE transaction: for 9000+ ops that collapses ~20k WAL
+        // commits into one.
         use conn = new SqliteConnection(LibDB.Sqlite.connString)
         do! conn.OpenAsync()
         let runRaw (sql : string) : Task<unit> =
@@ -247,120 +226,50 @@ let foldRead (rawOps : List<System.Guid * byte[]>) : Task<int64> =
             let! _ = cmd.ExecuteNonQueryAsync()
             return ()
           }
-        // PRAGMAs affecting transaction semantics must run OUTSIDE a transaction; foreign_keys=OFF in
-        // particular only takes effect when not in one.
-        //
         // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter update, which
-        // poisons the page cache of a concurrent reader on another connection -- that reader then returns
-        // SQLITE_CORRUPT even though `PRAGMA integrity_check` is clean. The bulk-grow win comes from
-        // collapsing 9000+ commits into one transaction, not from OFF.
+        // poisons the page cache of a concurrent reader on another connection.
         do!
           runRaw
-            "PRAGMA journal_mode=WAL; \
-             PRAGMA synchronous=NORMAL; \
-             PRAGMA busy_timeout=5000; \
-             PRAGMA foreign_keys=OFF;"
+            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
         let opCount = List.length unappliedOps
         use _bulk = Telemetry.span "seed.applyOps.bulk" [ "ops", string opCount ]
         use tx = conn.BeginTransaction()
 
-        let opsOnly = unappliedOps |> List.map (fun (_, op) -> op)
-        // Mark applied BEFORE folding, in the same transaction so a throw rolls both back and the ops
-        // stay retryable.
-        //
-        // By ID, never by predicate. The SELECT above ran on another connection, outside this
-        // transaction; a `serve` committing an op between it and here matches `applied = 0 AND
-        // effective = 1` too, and a predicate sweep marked it applied with nothing having folded it, and
-        // nothing ever re-read it. By id it stays applied = 0 and the next pass takes it. The same
-        // argument covers the fold's own side effects (a merge event flipping a frontier effective
-        // mid-fold) and the skipped, unreadable ops, which are simply not in the list.
-        for chunk in unappliedOps |> List.map fst |> List.chunkBySize 500 do
-          let quoted = chunk |> List.map (fun g -> $"'{g}'") |> String.concat ", "
-          do! runRaw $"UPDATE package_ops SET applied = 1 WHERE id IN ({quoted})"
+        // By ROW, never by predicate: a `serve` committing an op between the read and here matches
+        // `applied = 0` too, and a predicate sweep would mark it applied with nothing having folded it.
+        for chunk in
+          unappliedOps |> List.map (fun (seq, _, _) -> seq) |> List.chunkBySize 500 do
+          let listed = chunk |> List.map string |> String.concat ", "
+          do! runRaw $"UPDATE package_ops SET applied = 1 WHERE rowid IN ({listed})"
 
-        do! PackageOpPlayback.applyOpsOnConnection conn opsOnly
+        // Each run of consecutive ops on one branch folds into that branch, in log order.
+        let runs =
+          unappliedOps
+          |> List.fold
+            (fun (acc : List<PT.BranchId * List<PT.PackageOp>>) (_, branch, op) ->
+              match acc with
+              | (b, ops) :: rest when b = branch -> (b, op :: ops) :: rest
+              | _ -> (branch, [ op ]) :: acc)
+            []
+          |> List.rev
+          |> List.map (fun (b, ops) -> (b, List.rev ops))
+        for (branch, ops) in runs do
+          do! PackageOpPlayback.applyOpsOnConnection conn branch ops
 
         tx.Commit()
-
-        // `PRAGMA foreign_key_check` runs regardless of the per-connection `foreign_keys` setting, and
-        // returns a row per violation. Anything here is a real data bug -- an inconsistent seed, or a
-        // replay that produced dangling refs -- so surface it rather than persist a broken projection.
-        //
-        // No need to flip `foreign_keys` back on: the pragma is per-connection and this one is about to
-        // close.
-        let violations = ResizeArray<string * string * string * string>()
-        use checkCmd = conn.CreateCommand()
-        checkCmd.CommandText <- "PRAGMA foreign_key_check"
-        use! reader = checkCmd.ExecuteReaderAsync()
-        // fantomas can't format `while! reader.ReadAsync() do ...` inside a
-        // task CE, so we drive the loop with a mutable flag.
-        let mutable keepReading = true
-        while keepReading do
-          let! hasNext = reader.ReadAsync()
-          if hasNext then
-            // columns: table, rowid, parent, fkid
-            let row =
-              reader.GetString(0),
-              reader.GetValue(1).ToString(),
-              reader.GetString(2),
-              reader.GetValue(3).ToString()
-            violations.Add(row)
-          else
-            keepReading <- false
-        if violations.Count > 0 then
-          let summary =
-            violations
-            |> Seq.truncate 5
-            |> Seq.map (fun (t, r, p, f) -> $"  {t} rowid={r} -> {p} (fk_id={f})")
-            |> String.concat "\n"
-          Exception.raiseInternal
-            $"foreign_key_check reported {violations.Count} \
-              violation(s) after grow:\n{summary}"
-            [ "first_violations", summary ]
-
         return int64 opCount
   }
 
 
-/// One pass: fold everything currently unapplied-and-effective. `applyUnappliedOps` repeats this,
-/// because folding an op can make OTHER ops effective.
+/// One pass: fold everything currently unapplied.
 let private applyUnappliedOpsPass () : Task<int64> =
   task {
     let! pending = readPending ()
     return! foldRead pending
   }
 
-/// Fold every op that is unapplied and effective, until there are none left.
-///
-/// Repeats because folding an op can MAKE other ops effective: a merge event flips
-/// its branch's frontier, and those ops are not in the pass that folded the event.
-///
-/// Terminates because every pass marks what it folded as applied, so the set strictly shrinks; an op
-/// this build cannot read stays pending but counts as nothing folded, so a pass that meets only those
-/// returns 0 and stops the loop. The bound is a backstop against a future op kind that makes work
-/// faster than this drains it, not an expected case; it is deliberately loud rather than silent if it
-/// is ever hit.
-let applyUnappliedOps () : Task<int64> =
-  task {
-    let mutable total = 0L
-    let mutable pass = 0
-    let mutable keepGoing = true
-
-    while keepGoing do
-      let! n = applyUnappliedOpsPass ()
-      total <- total + n
-      pass <- pass + 1
-
-      if n > 0L && pass >= 10 then
-        Exception.raiseInternal
-          "applyUnappliedOps did not settle: an op kind is making ops effective \
-           faster than the fold applies them"
-          [ "passes", pass; "applied", total ]
-
-      keepGoing <- n > 0L
-
-    return total
-  }
+/// Fold every op that is unapplied. An op this build cannot read stays pending and is not counted.
+let applyUnappliedOps () : Task<int64> = applyUnappliedOpsPass ()
 
 
 /// The regenerable projections: every table the op-fold writes. `deprecations` is one: it's folded
@@ -376,7 +285,8 @@ let projectionTables : List<string> =
     "package_tests"
     "locations"
     "package_dependencies"
-    "deprecations" ]
+    "deprecations"
+    "location_docs" ]
 
 
 
@@ -538,8 +448,9 @@ let evaluateAllValues
           """
           SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
           FROM package_values pv
-          LEFT JOIN locations l ON l.item_hash = pv.hash AND l.unlisted_at IS NULL
+          LEFT JOIN locations l ON l.item_hash = pv.hash AND l.live = 1
           WHERE pv.rt_dval IS NULL
+          GROUP BY pv.hash
           """
         |> Sql.executeAsync (fun read ->
           let hash = Hash(read.string "hash")
@@ -661,10 +572,6 @@ let growIfNeeded
     use _span = Telemetry.span "seed.growIfNeeded" []
     let! appliedCount =
       Telemetry.timeTask "seed.applyOps" [] (fun () -> applyUnappliedOps ())
-    // The fold above reads effective=1 only, so branch-scoped Decisions (a branch's propagation
-    // pins) never pass through it. After a projection drop (the migrations path defers here),
-    // skipping this would silently delete every branch pin; refolding is idempotent and
-    // origin_ts-guarded, so run it whenever the fold actually folded something.
     // A store can have every op applied yet still hold unevaluated values (rt_dval NULL): after a
     // migration that re-marks ops applied without evaluating, or a store copied/built without a final grow
     // (the test seed does exactly this). Gating evaluation on `appliedCount > 0` alone leaves those values

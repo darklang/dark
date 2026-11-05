@@ -38,12 +38,11 @@ let private currentBindings
   : Task<Map<string * string * string, string>> =
   task {
     let! rows =
-      Sql.query
-        """
-        SELECT owner, modules, name, item_hash
-        FROM locations
-        WHERE unlisted_at IS NULL
-        """
+      Sql.query (
+        Layers.view "@" Layers.locations
+        + " SELECT owner, modules, name, item_hash FROM visible WHERE item_hash <> ''"
+      )
+      |> Sql.parameters (Layers.sqlParams PT.BranchId.Main true)
       |> Sql.executeAsync (fun read ->
         (read.string "owner", read.string "modules", read.string "name"),
         read.string "item_hash")

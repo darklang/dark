@@ -544,7 +544,6 @@ module Type =
       let reference = p [] "Reference"
       let docPart = p [] "DocPart"
       let deprecationKind = p [] "DeprecationKind"
-      let branchEventKind = p [] "BranchEventKind"
       let decisionKind = p [] "DecisionKind"
       let propagateRepoint = p [] "PropagateRepoint"
 

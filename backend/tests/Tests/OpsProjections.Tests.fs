@@ -133,7 +133,7 @@ let private bindingFingerprint () : Task<string> =
     let! locs =
       Sql.query
         """
-        SELECT owner, modules, name, item_hash, (unlisted_at IS NOT NULL) AS gone,
+        SELECT owner, modules, name, item_hash, (live = 0) AS gone,
                COALESCE(previous, '') AS prev
         FROM locations
         ORDER BY owner, modules, name, item_hash
@@ -387,7 +387,7 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
   testTask "invalid and protected reference snapshots are rejected before storage" {
     let location : PT.PackageLocation =
       { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "head" }
-    let! hash = LibDB.ProgramTypes.Fn.find location |> Ply.toTask
+    let! hash = LibDB.ProgramTypes.Fn.find PT.BranchId.Main location |> Ply.toTask
     let hash =
       hash |> Option.defaultWith (fun () -> failtest "missing List.head fixture")
     let target = PT.PackageFn hash
@@ -480,32 +480,19 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
         protectedOverride
         PT.PackageOp.Unbind(location, None)
         PT.PackageOp.SetName(location, target, None) ] do
-      let! result = LibDB.Inserts.insertUntrustedOps [ op ]
+      let! result = LibDB.Inserts.insertUntrustedOps PT.BranchId.Main [ op ]
       match result with
       | Error _ -> ()
       | Ok _ -> failtest "invalid reference metadata was accepted"
-      do!
-        expectRejected "branch writes reject the same invalid metadata" (fun () ->
-          LibDB.Branches.storeDeltaOps branch [ op ])
-      let id = LibDB.Inserts.computeOpHash op
-      let bytes = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
-      do!
-        expectRejected "decoded imports reject invalid reference metadata" (fun () ->
-          LibDB.Inserts.importOpsBulk
-            ""
-            [ string id,
-              System.Convert.ToHexString bytes,
-              "2026-11-03T00:00:00.000Z" ])
-      do!
-        expectRejected "raw branch imports validate decodable metadata" (fun () ->
-          LibDB.Branches.storeDeltaBlobsStamped
-            branch
-            [ id, bytes, "2026-11-03T00:00:00.000Z" ])
+      let! onBranch = LibDB.Inserts.insertUntrustedOps branch [ op ]
+      match onBranch with
+      | Error _ -> ()
+      | Ok _ -> failtest "a branch write accepted invalid reference metadata"
     let invalidPropagation =
       PT.PackageOp.SetReferenceNames(location, target, [], None)
     do!
       expectRejected "propagation still validates declaration content" (fun () ->
-        LibDB.Branches.storeDeltaOpsFrom "propagation" branch [ invalidPropagation ])
+        LibDB.Inserts.authorOn branch "propagation" [ invalidPropagation ])
     let! after = countRows "package_ops"
     Expect.equal after before "rejected snapshots never enter the log"
     let trusted =
@@ -515,7 +502,7 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
         names,
         Some(branch.Guid.ToString("N"))
       )
-    let! inserted = LibDB.Branches.storeDeltaOpsFrom "propagation" branch [ trusted ]
+    let! inserted = LibDB.Inserts.authorOn branch "propagation" [ trusted ]
     Expect.equal
       inserted
       1L
@@ -523,8 +510,7 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
     let trustedId = LibDB.Inserts.computeOpHash trusted
     let parameters = [ [ "id", Sql.uuid trustedId ] ]
     Sql.executeTransactionSync
-      [ "DELETE FROM op_branches WHERE op_id = @id", parameters
-        "DELETE FROM package_ops WHERE id = @id", parameters ]
+      [ "DELETE FROM package_ops WHERE id = @id", parameters ]
     |> ignore<List<int>>
     do!
       Sql.query "DELETE FROM branches WHERE id = @id"
@@ -533,8 +519,7 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
   }
 
 let committedBindingsSurviveMainDraftSuppression =
-  testTask
-    "committed binding reads include operations suppressed by a newer main draft" {
+  testTask "a newer main draft leaves the committed binding a branch reads in place" {
     let location : PT.PackageLocation =
       { owner = "Tests"
         modules = [ "CommittedLog" ]
@@ -544,33 +529,32 @@ let committedBindingsSurviveMainDraftSuppression =
     let draft = PT.PackageOp.SetName(location, target "c", None)
     let incoming = PT.PackageOp.SetName(location, target "b", None)
     let write stamp committed op =
-      LibDB.Inserts.insertAndApplyOpsWith
-        (fun _ -> stamp)
-        (fun _ -> committed)
-        "op"
-        [ op ]
+      LibDB.Inserts.inTransaction (fun ctx ->
+        LibDB.Inserts.storeAndFoldOn
+          ctx
+          PT.BranchId.Main
+          "op"
+          (fun _ -> stamp)
+          (fun _ -> committed)
+          [ op ])
     let! _ = write "2026-11-03T00:00:00.010Z" (Some "baseline") baseline
     let! _ = write "2026-11-03T00:00:00.030Z" None draft
     let! _ = write "2026-11-03T00:00:00.020Z" (Some "merged") incoming
-    let! materialized =
-      Sql.query "SELECT count(*) AS n FROM locations WHERE op_id = @id"
-      |> Sql.parameters
-        [ "id", Sql.string (string (LibDB.Inserts.computeOpHash incoming)) ]
-      |> Sql.executeRowAsync (fun row -> row.int64 "n")
+    let name : LibDB.ScmBindings.Name =
+      { owner = "Tests"; modules = "CommittedLog"; name = location.name }
+    let committedHash () =
+      task {
+        let! rows =
+          LibDB.ScmBindings.query (
+            LibDB.ScmBindings.CommittedAt(PT.BranchId.Main, [ name ])
+          )
+        return rows |> List.tryHead |> Option.map _.hash
+      }
+    let! committed = committedHash ()
     Expect.equal
-      materialized
-      0L
-      "the main draft suppressed the committed location row"
-    let! committed = LibDB.Queries.committedBindingsFor [ location ]
-    Expect.equal
-      (Map.tryFind location committed)
-      (Some(target "b"))
-      "the committed log still contains the merged binding"
-    let! mask = LibDB.Queries.mainDraftMaskOps ()
-    Expect.contains
-      mask
-      incoming
-      "the branch mask restores the merged binding, not the baseline"
+      committed
+      (Some(String.replicate 64 "b"))
+      "main's committed layer holds the merged binding under its newer draft"
     let branch = System.Guid.NewGuid()
     let code =
       $"Darklang.SCM.PackageOps.liveBindingFor(Stdlib.Result.withDefault(Stdlib.Uuid.parse(\"{branch}\"), Darklang.SCM.Branch.mainBranchId), Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\", modules = [\"CommittedLog\"], name = \"{location.name}\" }}) |> Stdlib.Option.map(fun binding -> binding.hash)"
@@ -579,31 +563,7 @@ let committedBindingsSurviveMainDraftSuppression =
     | Ok(RT.DEnum(_, _, _, "Some", [ RT.DString hash ])) ->
       Expect.equal hash (String.replicate 64 "b") "the Dark branch reader agrees"
     | other -> failtestf "unexpected committed binding: %A" other
-    let! _ =
-      write
-        "2026-11-03T00:00:00.025Z"
-        (Some "removed")
-        (PT.PackageOp.Unbind(location, None))
-    let! committed = LibDB.Queries.committedBindingsFor [ location ]
-    Expect.isFalse
-      (Map.containsKey location committed)
-      "a committed unbind hidden by the main draft still removes the name"
-    let! _ =
-      write
-        "2026-11-03T00:00:00.025Z"
-        (Some "tie")
-        (PT.PackageOp.SetName(location, target "d", None))
-    let! committed = LibDB.Queries.committedBindingsFor [ location ]
-    Expect.equal
-      (Map.tryFind location committed)
-      (Some(target "d"))
-      "a binding beats a tombstone on an equal stamp"
-    for op in
-      [ baseline
-        draft
-        incoming
-        PT.PackageOp.Unbind(location, None)
-        PT.PackageOp.SetName(location, target "d", None) ] do
+    for op in [ baseline; draft; incoming ] do
       do!
         Sql.query
           "DELETE FROM locations WHERE op_id = @id; DELETE FROM package_ops WHERE id = @id"
@@ -651,8 +611,13 @@ let operationKindsBackfillFromTheLog =
       )
     let blob = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
     do!
-      Sql.query "INSERT INTO package_ops (id, op_blob) VALUES (@id, @blob)"
-      |> Sql.parameters [ "id", Sql.uuid id; "blob", Sql.bytes blob ]
+      Sql.query
+        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
+         VALUES (@id, @main, @main, @blob, '2026-11-03T00:00:00.000Z')"
+      |> Sql.parameters
+        [ "id", Sql.uuid id
+          "blob", Sql.bytes blob
+          "main", Sql.string (string PT.BranchId.Main) ]
       |> Sql.executeStatementAsync
     try
       LibDB.Releases.runPending ()
@@ -685,9 +650,12 @@ let unreadableReferenceMetadataIsRetained =
     let id = System.Guid.NewGuid()
     do!
       Sql.query
-        "INSERT INTO package_ops (id, op_blob, op_kind, applied)
-         VALUES (@id, @blob, 'rename', 1)"
-      |> Sql.parameters [ "id", Sql.uuid id; "blob", Sql.bytes [| 0uy |] ]
+        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts)
+         VALUES (@id, @main, @main, @blob, 'rename', 1, '2026-11-03T00:00:00.000Z')"
+      |> Sql.parameters
+        [ "id", Sql.uuid id
+          "blob", Sql.bytes [| 0uy |]
+          "main", Sql.string (string PT.BranchId.Main) ]
       |> Sql.executeStatementAsync
     try
       let! after = LibDB.ReferenceNames.load PT.BranchId.Main
@@ -710,7 +678,7 @@ let unreadableReferenceMetadataIsRetained =
 let registryCoversProjections =
   // The COUNT is in the name on purpose: adding a projection to the registry without adding it here
   // is exactly the drift this catches.
-  test "the projection registry covers exactly the 9 regenerable projections" {
+  test "the projection registry covers exactly the 10 regenerable projections" {
     Expect.equal
       (List.sort Seed.projectionTables)
       (List.sort
@@ -722,7 +690,8 @@ let registryCoversProjections =
           "package_tests"
           "locations"
           "package_dependencies"
-          "deprecations" ])
+          "deprecations"
+          "location_docs" ])
       "the registry's tables are exactly Seed.export's stripped projections (incl. deprecations)"
   }
 
@@ -734,7 +703,6 @@ let noCanonicalInDropSet =
     let canonical =
       [ "package_ops" // the authored op log — the truth
         "package_blobs" // canonical content (op-playback never writes it)
-        "op_branches" // which ops belong to which branch; without it a branch's ops are orphaned
         "branches"
         "branch_name_bases"
         "commits"

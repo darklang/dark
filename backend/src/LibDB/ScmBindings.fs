@@ -1,16 +1,9 @@
-/// Reads over `locations`, the name -> hash bindings the fold projects for MAIN,
-/// for the Dark SCM code. One function, one query family: `query` takes what is
-/// being asked and answers with bindings.
+/// Reads over `locations`, the name -> hash bindings, for the Dark SCM code. One function, one query
+/// family: `query` takes what is being asked and answers with bindings.
 ///
-/// Each case is the SQL Dark used to run itself, moved across as it was: the same
-/// statement, the same ordering, the same scope. Nothing here decides anything.
-/// `locations` only ever holds main's bindings (a branch's SetNames never fold into
-/// it), so every case answers about MAIN, and the Dark side lays the branch chain
-/// over the answer exactly as before.
-///
-/// Rows the Dark decoder used to drop (a NULL where it wanted text) are dropped
-/// here, and the columns it read a NULL as "" still read as "". So the Dark side
-/// sees the same rows it always saw.
+/// Every case names the branch it asks about and answers as that branch SEES its names
+/// (`LibDB.Layers`): its own work over what its ancestors committed. Main is a branch like any
+/// other.
 module LibDB.ScmBindings
 
 open System.Threading.Tasks
@@ -21,34 +14,48 @@ open Prelude
 open Fumble
 open LibDB.Sqlite
 
+module PT = LibExecution.ProgramTypes
+
 
 /// A name as `locations` stores it: modules joined by ".".
 type Name = { owner : string; modules : string; name : string }
 
 /// What is being asked. One case per question the Dark side asks.
 type Query =
-  /// One name main binds this hash at, if any.
-  | MainLocationOf of hash : string
-  /// Every live binding on main whose bare name is one of these, whatever its
-  /// owner and modules.
-  | MainByBareNames of names : List<string>
-  /// What main binds at each of these names, draft included.
-  | MainAtEach of List<Name>
-  /// The hash main binds at this name for this kind, if any.
-  | MainHashAt of kind : string * Name
-  /// Every live binding on main that propagation wrote.
-  | Propagated
-  /// Every hash this name was bound to by an op or by propagation, oldest first,
-  /// live or not.
-  | AuthoringOrder of Name
-  /// Every hash ever bound at each of these (name, kind) pairs, unbinds left out,
-  /// the live one first.
-  | EverBound of List<Name * string>
-  /// Every name main binds this content at.
-  | MainByHash of hash : string * kind : string
-  /// What main binds, committed work only, at each name this branch recorded a
-  /// base for.
-  | CommittedAtBases of branchId : string
+  /// One name the branch binds this hash at, if any.
+  | LocationOf of branch : PT.BranchId * hash : string
+  /// Every binding the branch sees whose bare name is one of these, whatever its owner and modules.
+  | ByBareNames of branch : PT.BranchId * names : List<string>
+  /// What the branch binds at each of these names; a name bound to nothing is absent.
+  | At of branch : PT.BranchId * names : List<Name>
+  /// `At`, in the branch's committed view: its draft left out.
+  | CommittedAt of branch : PT.BranchId * names : List<Name>
+  /// Every binding the branch's own work holds that propagation wrote: on a branch, its own followers,
+  /// not main's.
+  | Propagated of branch : PT.BranchId
+  /// Every hash this name was bound to by an op or by propagation in the branch's view, oldest
+  /// first, live or not.
+  | AuthoringOrder of branch : PT.BranchId * Name
+  /// Every hash ever bound at each of these (name, kind) pairs in the branch's view, removals left
+  /// out, the live one first.
+  | EverBound of branch : PT.BranchId * List<Name * string>
+  /// Every name the branch binds this content at.
+  | ByHash of branch : PT.BranchId * hash : string * kind : string
+  /// Every name the branch binds each of these hashes at.
+  | ByHashes of branch : PT.BranchId * hashes : List<string>
+  /// What the branch's own work last said about each name it touched, removals included (hash
+  /// ""): the side it brings to a merge. Nothing for main, which is the trunk.
+  | Own of branch : PT.BranchId
+  /// Every hash the branch and its ancestors below main bound by an op or by propagation, per name,
+  /// oldest first: a branch's own authoring history, which main's rows do not hold.
+  | BranchHistory of branch : PT.BranchId
+  /// The names the branch's view shows as removed by a branch below main -- the branch itself or an
+  /// ancestor -- with the removal's stamp. Main's own removals are not among them: a merge compares
+  /// against those as main's bindings, not as removals.
+  | RemovedOffMain of branch : PT.BranchId
+  /// What the branch sees BENEATH itself -- its ancestors' committed work -- at each name it
+  /// recorded a base for; a name bound to nothing there reads hash "".
+  | AboveBases of branch : PT.BranchId
 
 
 /// One answer row. Which fields are filled depends on the query; the rest are ""
@@ -93,38 +100,13 @@ let private nameParams
     "modules", Sql.string n.modules
     "name", Sql.string n.name ]
 
-// JSON for `json_each` to bind. Written with the writer, never the reflecting serializer, which
-// the published (AOT) binary does not have.
-let private writeJson (f : System.Text.Json.Utf8JsonWriter -> unit) : string =
-  use buffer = new System.IO.MemoryStream()
-  (use w = new System.Text.Json.Utf8JsonWriter(buffer)
-   f w)
-  System.Text.Encoding.UTF8.GetString(buffer.ToArray())
-
-let private writeStrings
-  (w : System.Text.Json.Utf8JsonWriter)
-  (items : List<string>)
-  =
-  w.WriteStartArray()
-  items |> List.iter (fun (s : string) -> w.WriteStringValue s)
-  w.WriteEndArray()
-
-let private jsonList (items : List<string>) : string =
-  writeJson (fun w -> writeStrings w items)
-
-let private json (rows : List<List<string>>) : string =
-  writeJson (fun w ->
-    w.WriteStartArray()
-    rows |> List.iter (writeStrings w)
-    w.WriteEndArray())
-
 let private namesJson (names : List<Name>) : string =
-  names |> List.map (fun n -> [ n.owner; n.modules; n.name ]) |> json
+  names |> List.map (fun n -> [ n.owner; n.modules; n.name ]) |> jsonRows
 
 let private orEmpty (read : RowReader) (col : string) : string =
   read.stringOrNone col |> Option.defaultValue ""
 
-/// The full binding shape the Dark decoder read: owner, modules, name and hash
+/// A whole binding: owner, modules, name and hash
 /// required, a missing kind or stamp read as "", `previous` as it is.
 let private fullBinding (read : RowReader) : Option<Binding> =
   match
@@ -153,134 +135,198 @@ let private nameOnly (read : RowReader) : Option<Binding> =
   | _ -> None
 
 
+let private visibleSql (select : string) : string =
+  Layers.view "@" Layers.locations + " " + select
+
+let private fullCols =
+  "owner, modules, name, item_type, item_hash, COALESCE(origin_ts,'') AS ts, previous"
+
+let private view (b : PT.BranchId) = Layers.sqlParams b true
+
 let query (q : Query) : Task<List<Binding>> =
   match q with
-  | MainLocationOf hash ->
+  | LocationOf(b, hash) ->
     run
-      "SELECT owner, modules, name FROM locations
-       WHERE item_hash = @hash AND unlisted_at IS NULL LIMIT 1"
-      [ "hash", Sql.string hash ]
-      (fun read -> nameOnly read |> Option.map (fun b -> { b with hash = hash }))
+      // Main's name first: callers render it as a label, and identical content is one item.
+      (visibleSql
+        "SELECT owner, modules, name FROM visible WHERE item_hash = @hash
+         ORDER BY (branch_id = @vm) DESC, seq DESC LIMIT 1")
+      (("hash", Sql.string hash) :: view b)
+      (fun read -> nameOnly read |> Option.map (fun r -> { r with hash = hash }))
 
-  | MainByBareNames names ->
-    if List.isEmpty names then
-      Task.FromResult []
-    else
-      // One statement over a JSON list, where Dark built an IN-list and split it
-      // into chunks of 900 to stay under SQLite's bound-parameter cap.
-      run
-        "SELECT owner, modules, name, item_type, item_hash, COALESCE(origin_ts,'') AS ts,
-                previous
-         FROM locations
-         WHERE unlisted_at IS NULL AND name IN (SELECT value FROM json_each(@names))"
-        [ "names", Sql.string (jsonList names) ]
-        fullBinding
-
-  | MainAtEach names ->
+  | ByBareNames(b, names) ->
     if List.isEmpty names then
       Task.FromResult []
     else
       run
-        "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
-                COALESCE(l.origin_ts,'') AS ts, l.previous
-         FROM json_each(@names) j
-         JOIN locations l
-           ON l.owner = json_extract(j.value, '$[0]')
-          AND l.modules = json_extract(j.value, '$[1]')
-          AND l.name = json_extract(j.value, '$[2]')
-         WHERE l.unlisted_at IS NULL"
-        [ "names", Sql.string (namesJson names) ]
+        (visibleSql (
+          $"SELECT {fullCols} FROM visible
+            WHERE item_hash <> '' AND name IN (SELECT value FROM json_each(@names))"
+        ))
+        (("names", Sql.string (jsonStrings names)) :: view b)
         fullBinding
 
-  | MainHashAt(kind, n) ->
-    run "SELECT item_hash FROM locations
-       WHERE owner = @owner AND modules = @modules AND name = @name
-         AND item_type = @kind AND unlisted_at IS NULL
-       LIMIT 1" (("kind", Sql.string kind) :: nameParams n) (fun read ->
-      read.stringOrNone "item_hash"
-      |> Option.map (fun h ->
-        { empty with
-            owner = n.owner
-            modules = n.modules
-            name = n.name
-            itemType = kind
-            hash = h }))
+  | At(b, names)
+  | CommittedAt(b, names) ->
+    let viewOf =
+      match q with
+      | CommittedAt _ -> Layers.committedSqlParams b
+      | _ -> view b
+    if List.isEmpty names then
+      Task.FromResult []
+    else
+      run
+        (visibleSql (
+          // From the names, then their rows: joined the other way round, SQLite builds the whole view
+          // and filters it.
+          $"SELECT {fullCols} FROM json_each(@names) j
+            CROSS JOIN visible l
+              ON l.owner = json_extract(j.value, '$[0]')
+             AND l.modules = json_extract(j.value, '$[1]')
+             AND l.name = json_extract(j.value, '$[2]')
+            WHERE l.item_hash <> ''"
+        ))
+        (("names", Sql.string (namesJson names)) :: viewOf)
+        fullBinding
 
-  | Propagated ->
-    // The name is required; a missing owner or modules read as "", as the Dark
-    // decoder did.
-    run "SELECT owner, modules, name FROM locations
-        WHERE source = 'propagation' AND unlisted_at IS NULL" [] (fun read ->
-      read.stringOrNone "name"
-      |> Option.map (fun nm ->
-        { empty with
-            owner = orEmpty read "owner"
-            modules = orEmpty read "modules"
-            name = nm }))
+  | Propagated b ->
+    run
+      (visibleSql
+        "SELECT owner, modules, name FROM visible
+         WHERE source = 'propagation' AND item_hash <> '' AND branch_id = @vb")
+      (view b)
+      nameOnly
 
-  | AuthoringOrder n ->
-    run "SELECT item_hash FROM locations
-       WHERE owner = @owner AND modules = @modules AND name = @name
-         AND source IN ('op', 'propagation')
-       ORDER BY rowid" (nameParams n) (fun read ->
-      read.stringOrNone "item_hash"
-      |> Option.map (fun h ->
-        { empty with
-            owner = n.owner
-            modules = n.modules
-            name = n.name
-            hash = h }))
+  | AuthoringOrder(b, n) ->
+    run
+      (Layers.cte "@"
+       + " SELECT l.item_hash FROM locations l
+           JOIN layer y ON y.branch_id = l.branch_id AND y.draft = l.draft
+           WHERE l.owner = @owner AND l.modules = @modules AND l.name = @name
+             AND l.source IN ('op', 'propagation') AND l.item_hash <> ''
+           ORDER BY l.rowid")
+      (nameParams n @ view b)
+      (fun read ->
+        read.stringOrNone "item_hash"
+        |> Option.map (fun h ->
+          { empty with
+              owner = n.owner
+              modules = n.modules
+              name = n.name
+              hash = h }))
 
-  | EverBound keys ->
+  | EverBound(b, keys) ->
     if List.isEmpty keys then
       Task.FromResult []
     else
       let keysJson =
         keys
         |> List.map (fun (n, kind) -> [ n.owner; n.modules; n.name; kind ])
-        |> json
+        |> jsonRows
       run
-        "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash
-         FROM json_each(@keys) j
-         JOIN locations l
-           ON l.owner = json_extract(j.value, '$[0]')
-          AND l.modules = json_extract(j.value, '$[1]')
-          AND l.name = json_extract(j.value, '$[2]')
-          AND l.item_type = json_extract(j.value, '$[3]')
-         WHERE l.source <> 'unbind'
-         GROUP BY l.owner, l.modules, l.name, l.item_type, l.item_hash
-         ORDER BY l.owner, l.modules, l.name, l.item_type,
-           MAX(CASE WHEN l.unlisted_at IS NULL THEN '9999-12-31' ELSE l.unlisted_at END) DESC"
-        [ "keys", Sql.string keysJson ]
+        (Layers.cte "@"
+         + " SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash
+             FROM json_each(@keys) j
+             JOIN locations l
+               ON l.owner = json_extract(j.value, '$[0]')
+              AND l.modules = json_extract(j.value, '$[1]')
+              AND l.name = json_extract(j.value, '$[2]')
+              AND l.item_type = json_extract(j.value, '$[3]')
+             JOIN layer y ON y.branch_id = l.branch_id AND y.draft = l.draft
+             WHERE l.item_hash <> ''
+             GROUP BY l.owner, l.modules, l.name, l.item_type, l.item_hash
+             ORDER BY l.owner, l.modules, l.name, l.item_type, MAX(l.live) DESC, MAX(l.rowid) DESC")
+        (("keys", Sql.string keysJson) :: view b)
         (fun read ->
           match
             nameOnly read,
             read.stringOrNone "item_type",
             read.stringOrNone "item_hash"
           with
-          | Some b, Some k, Some h -> Some { b with itemType = k; hash = h }
+          | Some r, Some k, Some h -> Some { r with itemType = k; hash = h }
           | _ -> None)
 
-  | MainByHash(hash, kind) ->
+  | ByHash(b, hash, kind) ->
     run
-      "SELECT owner, modules, name FROM locations
-       WHERE item_hash = @hash AND item_type = @kind AND unlisted_at IS NULL"
-      [ "hash", Sql.string hash; "kind", Sql.string kind ]
+      (visibleSql
+        "SELECT owner, modules, name FROM visible WHERE item_hash = @hash AND item_type = @kind")
+      ([ "hash", Sql.string hash; "kind", Sql.string kind ] @ view b)
       (fun read ->
         nameOnly read
-        |> Option.map (fun b -> { b with itemType = kind; hash = hash }))
+        |> Option.map (fun r -> { r with itemType = kind; hash = hash }))
 
-  | CommittedAtBases branchId ->
+  | ByHashes(b, hashes) ->
+    if List.isEmpty hashes then
+      Task.FromResult []
+    else
+      run
+        (visibleSql
+          "SELECT item_hash, owner, modules, name FROM visible
+           WHERE item_hash IN (SELECT value FROM json_each(@hashes))")
+        (("hashes", Sql.string (jsonStrings hashes)) :: view b)
+        (fun read ->
+          match nameOnly read, read.stringOrNone "item_hash" with
+          | Some r, Some h -> Some { r with hash = h }
+          | _ -> None)
+
+  | Own b ->
+    // The branch's own two layers only: its draft over its committed work.
     run
-      "SELECT l.owner, l.modules, l.name, l.item_hash
-       FROM branch_name_bases b
-       JOIN locations l
-         ON l.owner = b.owner AND l.modules = b.modules AND l.name = b.name
-       JOIN package_ops p ON p.id = l.op_id
-       WHERE b.branch_id = @branch AND l.unlisted_at IS NULL
-         AND p.commit_hash IS NOT NULL"
-      [ "branch", Sql.string branchId ]
+      $"SELECT {fullCols} FROM locations l
+        WHERE l.branch_id = @b AND l.branch_id <> @main AND l.live = 1
+          AND (l.draft = 1 OR NOT EXISTS (
+            SELECT 1 FROM locations d
+            WHERE d.branch_id = l.branch_id AND d.draft = 1 AND d.live = 1
+              AND d.owner = l.owner AND d.modules = l.modules AND d.name = l.name))
+        ORDER BY l.owner, l.modules, l.name"
+      [ "b", Sql.string (string b); "main", Sql.string (string PT.BranchId.Main) ]
       (fun read ->
-        match nameOnly read, read.stringOrNone "item_hash" with
-        | Some b, Some h -> Some { b with hash = h }
-        | _ -> None)
+        match nameOnly read with
+        | Some r ->
+          Some
+            { r with
+                itemType = orEmpty read "item_type"
+                hash = orEmpty read "item_hash"
+                originTs = orEmpty read "ts"
+                previous = read.stringOrNone "previous" }
+        | None -> None)
+
+  | BranchHistory b ->
+    run
+      (Layers.cte "@"
+       + " SELECT l.owner, l.modules, l.name, l.item_hash FROM locations l
+           JOIN layer y ON y.branch_id = l.branch_id AND y.draft = l.draft
+           WHERE l.branch_id <> @vm AND l.source IN ('op', 'propagation') AND l.item_hash <> ''
+           ORDER BY l.rowid")
+      (view b)
+      (fun read ->
+        match nameOnly read with
+        | Some r -> Some { r with hash = orEmpty read "item_hash" }
+        | None -> None)
+
+  | RemovedOffMain b ->
+    run
+      (visibleSql (
+        $"SELECT {fullCols} FROM visible WHERE item_hash = '' AND branch_id <> @vm"
+      ))
+      (view b)
+      (fun read ->
+        nameOnly read
+        |> Option.map (fun r ->
+          { r with
+              originTs = orEmpty read "ts"
+              previous = read.stringOrNone "previous" }))
+
+  | AboveBases b ->
+    run
+      (visibleSql
+        "SELECT nb.owner, nb.modules, nb.name,
+                COALESCE((SELECT v.item_hash FROM visible v
+                          WHERE v.owner = nb.owner AND v.modules = nb.modules
+                            AND v.name = nb.name), '') AS item_hash
+         FROM branch_name_bases nb WHERE nb.branch_id = @vb")
+      (Layers.sqlParams b false)
+      (fun read ->
+        match nameOnly read with
+        | Some r -> Some { r with hash = orEmpty read "item_hash" }
+        | None -> None)

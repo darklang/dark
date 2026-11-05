@@ -26,14 +26,13 @@ type PropagationResult = { repoints : List<PT.PropagateRepoint> }
 /// Every item that transitively depends on the targets, filtered by FQN at each level so same-hash content
 /// at other locations does not enter the cascade.
 ///
-/// <param branchBindings> is the branch's view of where things live, merged OVER main. A branch's items
-/// have no `locations` row, so without it a branch-authored dependent never repoints, and a name the branch
-/// rebound would resolve to main's version and walk the cascade off the branch.
+/// Dependents are found in <param branch>'s view: a name the branch rebound to a body of its own that does
+/// not refer to the target is not one, whatever main's body at that name says.
 ///
 /// Propagate the updated version to every caller on this branch, regardless of owner.
 let private discoverDependents
   (referenceNames : ReferenceNames.State)
-  (branchBindings : Map<PT.PackageLocation, Option<PT.Reference>>)
+  (branch : PT.BranchId)
   (sourceLocations : List<PT.PackageLocation>)
   (sourceItemKind : PT.ItemKind)
   (fromSourceHashes : List<Hash>)
@@ -65,7 +64,7 @@ let private discoverDependents
             |> List.fold (fun acc target -> Set.add (key target) acc) processed
 
           let! batchDependents =
-            ReferenceDependencies.dependents referenceNames branchBindings toProcess
+            ReferenceDependencies.dependents referenceNames branch toProcess
 
           let unseen =
             batchDependents
@@ -153,58 +152,16 @@ let private resolveCurrentHash
   (fallback : Hash)
   : Task<Hash> =
   task {
-    // The BRANCH's binding first, then main's. A branch's `SetName`s never fold into
-    // `locations`, so main's row for a branch-edited item is the pre-branch version,
-    // and for an item the branch introduced there is no row at all.
-    //
-    // Read from the branch's delta ops rather than a branch package manager because
-    // `PackageManager` compiles after this file. Last binding wins: the ops arrive
-    // oldest-first, same as the overlay's own rule, and an `Override` decision counts
-    // as a binding for the same reason `SCM.PackageOps.bindingFromOp` says it does --
-    // it IS a rebind, and missing it would resolve to a superseded version.
-    // `Some None` is a name the branch UNBOUND: it resolves to nothing on the branch, whatever main
-    // holds, so the fallback is the placeholder rather than main's row.
-    let! fromBranch =
-      if branch.IsMain then
-        Task.FromResult None
-      else
-        task {
-          let! ops = Branches.chainOverlayOps branch
-
-          return
-            ops
-            |> List.fold
-              (fun acc op ->
-                match op with
-                | PT.PackageOp.SetName(l, target, _) when l = loc ->
-                  Some(if target.kind = kind then Some target.hash else None)
-                | PT.PackageOp.Decision(_,
-                                        l,
-                                        _,
-                                        PT.DecisionKind.Restore(_, target, _))
-                | PT.PackageOp.Decision(_, l, _, PT.DecisionKind.Override target) when
-                  l = loc
-                  ->
-                  Some(if target.kind = kind then Some target.hash else None)
-                | PT.PackageOp.Unbind(l, _) when l = loc -> Some None
-                | _ -> acc)
-              None
-        }
-
-    match fromBranch with
-    | Some(Some h) -> return h
-    | Some None -> return fallback
-    | None ->
-      let find =
-        match kind with
-        | PT.ItemKind.Type -> PMTypes.Type.find loc
-        | PT.ItemKind.Fn -> PMTypes.Fn.find loc
-        | PT.ItemKind.Value -> PMTypes.Value.find loc
-        | PT.ItemKind.Trait -> PMTypes.Trait.find loc
-        | PT.ItemKind.TraitImpl -> PMTypes.TraitImpl.find loc
-        | PT.ItemKind.Test -> PMTypes.Test.find loc
-      let! resolved = Ply.toTask find
-      return resolved |> Option.defaultValue fallback
+    let find =
+      match kind with
+      | PT.ItemKind.Type -> PMTypes.Type.find branch loc
+      | PT.ItemKind.Fn -> PMTypes.Fn.find branch loc
+      | PT.ItemKind.Value -> PMTypes.Value.find branch loc
+      | PT.ItemKind.Trait -> PMTypes.Trait.find branch loc
+      | PT.ItemKind.TraitImpl -> PMTypes.TraitImpl.find branch loc
+      | PT.ItemKind.Test -> PMTypes.Test.find branch loc
+    let! resolved = Ply.toTask find
+    return resolved |> Option.defaultValue fallback
   }
 
 
@@ -555,13 +512,10 @@ let propagate
     let! referenceNames = ReferenceNames.load branch
     let sourceLocations = [ sourceLocation ]
 
-    // On a branch, resolve dependents through the branch's own bindings first.
-    let! branchBindings = ReferenceNames.branchBindings branch
-
     let! dependents =
       discoverDependents
         referenceNames
-        branchBindings
+        branch
         sourceLocations
         sourceItemKind
         fromSourceHashes

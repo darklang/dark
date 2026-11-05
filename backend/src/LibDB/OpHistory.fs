@@ -1,4 +1,4 @@
-/// Visibility rules shared by branch overlays, reference names and undo history.
+/// Visibility rules shared by reference names and undo history.
 module LibDB.OpHistory
 
 open FSharp.Control.Tasks
@@ -20,11 +20,8 @@ let visibility (own : string) (before : Option<string>) : string =
 /// these operations to the location being undone, so ancestry stays with undo.
 let revisionOperations (scope : PT.BranchId) inherited before =
   task {
-    let ownership =
-      if scope.IsMain then
-        "p.effective = 1 AND p.id NOT IN (SELECT op_id FROM op_branches)"
-      else
-        "p.id IN (SELECT op_id FROM op_branches WHERE branch_id = @scope)"
+    // `+` keeps SQLite on the op-kind index: main's ops are nearly the whole log.
+    let ownership = "+p.branch_id = @scope"
     // Undo cutoffs describe committed history, including when explicitly applied
     // to the current scope. Live current-scope reads have no cutoff.
     let committedOnly = inherited || Option.isSome before

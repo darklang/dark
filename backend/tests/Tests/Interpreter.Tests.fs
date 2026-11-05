@@ -1567,7 +1567,7 @@ module BoundMemo =
       | Error errs -> return failtest $"authoring {label} failed to parse: {errs}"
       | Ok ops ->
         let stabilized = LibDB.HashStabilization.computeRealHashes ops
-        let! _ = LibDB.Inserts.insertAndApplyOpsAsWip stabilized
+        let! _ = LibDB.Inserts.insertAndApplyOps stabilized
         let! _ = LibDB.WipRefresh.refresh pmPT
         return stabilized
     }
@@ -1635,7 +1635,7 @@ let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
       do! entered state callCrate "a new implementation is seen at once"
 
       let! _ =
-        LibDB.Inserts.insertAndApplyOpsAsWip
+        LibDB.Inserts.insertAndApplyOps
           [ PT.PackageOp.Deprecate(
               PT.Reference.PackageTraitImpl boxImpl,
               PT.DeprecationKind.Obsolete,

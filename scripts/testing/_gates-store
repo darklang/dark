@@ -266,6 +266,82 @@ gate_backups_restore() {
   [[ "$fail" -eq 0 ]]
 }
 
+# --- old-store-resets: a store from before per-branch names opens, backed up and refilled -------
+# Its package tables cannot be carried across, so the first open resets them. What has to hold:
+# a fresh backup is taken whatever older backups the folder holds, it says where, the packages come
+# back from the build, config and traces are kept, and a stored branch that is gone falls back to
+# main. The old shape is made by hand from a current store: the tables the shape is recognised by
+# put back as they were, and the stamp that says this build already reconciled the store removed.
+#
+# Gate, not an F# test: it is the binary's own open path (backup, reset, schema, top-up) on a real
+# HOME. A published binary, since only one with an embedded seed takes that path: the one passed, or
+# `CLI` when it is not the debug build, or the newest in clis/.
+gate_old_store_resets() {
+  set -uo pipefail
+
+  CLI=${1:-${CLI:-}}
+  if [[ -z "$CLI" || "$CLI" == *Cli/Debug/* ]]; then
+    # shellcheck disable=SC2012  # need mtime order; no filename here has a space
+    CLI=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
+  fi
+  [[ -x "$CLI" ]] || { echo "old-store-resets: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }
+  ROOT=$(realpath -m rundir/old-store-test)
+  pass=0; fail=0
+  ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
+  bad() { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 300 <<<"$2" | tr '\n' ' ')"; }
+  want() { if grep -qE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
+
+  rm -rf "$ROOT"; mkdir -p "$ROOT/.darklang"
+  [[ $CLI = /* ]] || CLI=$PWD/$CLI
+  x() { HOME="$ROOT" "$CLI" "$@" </dev/null 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+  DB="$ROOT/.darklang/data.db"
+
+  scripts/testing/_copy-store "$DB"
+  sqlite3 "$DB" "DELETE FROM config_v0;"
+  sqlite3 "$DB" "
+    DROP TABLE package_ops;
+    CREATE TABLE package_ops (id TEXT PRIMARY KEY, op_blob BLOB NOT NULL, applied INTEGER NOT NULL DEFAULT 0,
+      effective INTEGER NOT NULL DEFAULT 1, commit_hash TEXT, origin_ts TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    INSERT INTO package_ops (id, op_blob) VALUES ('00000000-0000-0000-0000-0000000000aa', x'00');
+    DROP TABLE locations;
+    CREATE TABLE locations (location_id TEXT PRIMARY KEY, owner TEXT, modules TEXT, name TEXT,
+      item_hash TEXT, item_type TEXT, unlisted_at TEXT);
+    CREATE TABLE op_branches (op_id TEXT, branch_id TEXT, source TEXT);
+    INSERT OR REPLACE INTO config_v0 (key, value) VALUES ('gate.kept', 'yes');
+    INSERT OR REPLACE INTO config_v0 (key, value) VALUES ('current_branch', '11111111-2222-3333-4444-555555555555');
+    INSERT INTO traces (id, root_tlid, handler_desc, timestamp, input_name, input_value)
+      VALUES ('gate-old-store-trace', 0, 'gate', '2026-01-01T00:00:00Z', 'x', x'00');
+    DROP TABLE IF EXISTS store_stamp_v0;"
+  # An older upgrade backup must not stand in for the reset's own.
+  mkdir -p "$ROOT/.darklang/backups"
+  sqlite3 "$ROOT/.darklang/backups/data.db.before-upgrade-20200101T000000Z-to-dev" "CREATE TABLE stale (x)"
+
+  echo "== the first open resets it"
+  opened=$(x eval 'Stdlib.List.length([1, 2, 3])')
+  want "it says the store predates per-branch names" "predates per-branch names" "$opened"
+  want "and names the backup" "copied to .*data\.db\.before-layers-" "$opened"
+  want "and the packages are back" "^3$" "$(tail -1 <<<"$opened")"
+
+  backup=$(find "$ROOT/.darklang/backups" -name 'data.db.before-layers-*' | head -1)
+  if [[ -n "$backup" ]]; then ok "a fresh backup was taken"; else bad "a fresh backup was taken" "$(ls "$ROOT/.darklang/backups")"; fi
+  want "and it holds the old store" "^1$" "$(sqlite3 "$backup" "SELECT COUNT(*) FROM pragma_table_info('package_ops') WHERE name = 'effective'" 2>&1)"
+
+  echo "== what is not packages is kept"
+  want "config is kept" "^yes$" "$(sqlite3 "$DB" "SELECT value FROM config_v0 WHERE key = 'gate.kept'")"
+  want "traces are kept" "^1$" "$(sqlite3 "$DB" "SELECT COUNT(*) FROM traces WHERE id = 'gate-old-store-trace'")"
+  want "a stored branch that is gone falls back to main" "on main" "$(x branch)"
+  want "and the store is the new shape" "^1$" "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('package_ops') WHERE name = 'branch_id'")"
+
+  echo "== the next open is an ordinary one"
+  again=$(x eval 1)
+  if grep -q "predates" <<<"$again"; then bad "it does not reset again" "$again"; else ok "it does not reset again"; fi
+
+  echo
+  echo "passed: $pass   failed: $fail"
+  [[ "$fail" -eq 0 ]]
+}
+
 # --- reload-is-reproducible: two reloads of one tree must agree on every op id ------------------
 # The parser mints ephemeral node ids into every expression; an Add op whose id hashes a
 # serialization carrying them changes id on every reload, so every upgrade grows every store and
@@ -287,7 +363,7 @@ gate_reload_is_reproducible() {
 
   ids() {
     sqlite3 "$WORK/data.db" \
-      "SELECT id FROM package_ops WHERE id NOT IN (SELECT op_id FROM op_branches) ORDER BY id"
+      "SELECT id FROM package_ops WHERE branch_id = '00000000-0000-0000-0000-000000000001' ORDER BY id"
   }
 
   ./scripts/build/reload-packages > "$WORK/logs/reload-1.log" 2>&1
@@ -687,11 +763,9 @@ gate_trait_choice_any_batching() {
 
 
 # --- trait-deprecation-is-per-branch: deprecating an implementation is branch-aware ---
-# `deprecations` has no `branch_id`: a branch's `Deprecate` op sits inert in the op log the same
-# way its names do, and names answer that with an in-memory overlay. The impl-candidate read did
-# not, so it answered about MAIN while you stood on a branch: `dark view` there called an
-# implementation deprecated while a call there still dispatched to it. The display half and the
-# dispatch half disagreed exactly where a branch is supposed to be the thing that differs.
+# Deprecations are layered per branch like names, and dispatch and `dark view` must both answer
+# from the branch's view: if either reads main's, `dark view` calls an implementation deprecated
+# while a call there still dispatches to it, exactly where a branch is supposed to differ.
 #
 # Gate, not a testfile: it needs a store, a commit, and a second branch, which is three things a
 # testfile has none of.
@@ -871,7 +945,8 @@ DARK
     exit 1
   fi
 
-  # Down: a branch forked after that deprecation sees it.
+  # Down: a branch forked after that deprecation is committed sees it.
+  $CLI commit -m 'gate: the deprecation' --yes >/dev/null
   $CLI branch create gate-pin-dep >/dev/null
   if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: a branch does not inherit a deprecation made on main."
@@ -895,8 +970,8 @@ DARK
   fi
 
   echo "trait-pin-across-branches: a call saved on main keeps its implementation ($held) on a branch"
-  echo "  where a fresh call takes the branch's newer one ($fresh); and a deprecation made on main"
-  echo "  is inherited by a branch, overridable there, and unaffected by that override."
+  echo "  where a fresh call takes the branch's newer one ($fresh); and a deprecation committed on"
+  echo "  main is inherited by a branch, overridable there, and unaffected by that override."
 }
 
 # --- shipped-tree-typechecks: production packages pass the at-rest checker ----------------------
@@ -927,7 +1002,7 @@ gate_shipped_tree_typechecks() {
 
   # The store's own item count, which is what the report is measured against.
   STORE_ITEMS=$(sqlite3 "$ROOT/.darklang/data.db" \
-    "SELECT count(*) FROM locations WHERE unlisted_at IS NULL AND item_type <> 'module'")
+    "SELECT count(*) FROM locations WHERE live = 1 AND item_hash <> '' AND branch_id = '00000000-0000-0000-0000-000000000001' AND item_type <> 'module'")
   if [[ -z "$STORE_ITEMS" || "$STORE_ITEMS" -lt 100 ]]; then
     echo "shipped-tree-typechecks: the store has $STORE_ITEMS items, so there is nothing to audit" >&2
     exit 2

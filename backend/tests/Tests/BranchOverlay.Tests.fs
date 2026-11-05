@@ -1,18 +1,17 @@
-/// Proof for the branches-as-overlays model: a "branch" is its delta ops overlaid on a shared
-/// core PackageManager (`PM.withExtraOps`).
+/// Proof for the branch model: a branch's ops are stored under its id, and what it binds is written
+/// into its own layers of the name projections (`LibDB.Layers`). In-memory overlays
+/// (`PM.withExtraOps`) are what parsing and tests use for ops that are not stored at all.
 ///
 /// Two properties concurrent agents depend on:
-///   - ISOLATION FROM CORE: a fn authored on a branch overlay resolves + EXECUTES there, but
-///     is invisible to the shared core -- it never leaks into main.
-///   - ISOLATION BETWEEN BRANCHES: two overlays over the SAME core see only their own defs;
-///     neither can resolve OR fetch the other's, which is what lets N agents run N branches
-///     concurrently over a shared read-only core.
+///   - ISOLATION FROM CORE: a fn authored on a branch resolves + EXECUTES there, but is invisible to
+///     main -- it never leaks into main.
+///   - ISOLATION BETWEEN BRANCHES: two branches over the SAME main see only their own names, which is
+///     what lets N agents run N branches concurrently.
 ///
 /// The branch verbs as Dark callers reach them (conflicts, rebase, resolution, merging, and the
 /// branch-aware binding reads) are tested in Dark, in `packages/darklang/tests/scm/branches.dark`,
 /// against real conflicts in a store of their own. What is here needs F#: the overlay, the F# store
-/// primitives, the fold, undecodable ops, the F#/Dark agreement checks, and what an action leaves
-/// behind when it is stopped partway.
+/// primitives, the fold, undecodable ops, and what an action leaves behind when it is stopped partway.
 module Tests.BranchOverlay
 
 open Expecto
@@ -107,21 +106,26 @@ let private mainDraftIds () : Task<Set<string>> =
     let! ids =
       Sql.query
         "SELECT id FROM package_ops
-         WHERE commit_hash IS NULL AND effective = 1
-           AND id NOT IN (SELECT op_id FROM op_branches)"
+         WHERE commit_hash IS NULL AND branch_id = '00000000-0000-0000-0000-000000000001'"
       |> Sql.executeAsync (fun read -> read.string "id")
     return Set.ofList ids
   }
 
-let private dropMainDraftOpsSince (before : Set<string>) : Task<unit> =
-  task {
-    let! now = mainDraftIds ()
-    for id in Set.difference now before do
-      do!
-        Sql.query "DELETE FROM package_ops WHERE id = @id"
-        |> Sql.parameters [ "id", Sql.string id ]
-        |> Sql.executeStatementAsync
-  }
+/// Author <param ops> onto <param b>'s draft, the path every author takes.
+let private author (b : PT.BranchId) (ops : List<PT.PackageOp>) : Task<int64> =
+  LibDB.Inserts.authorOn b "op" ops
+
+/// The ids of the ops <param b> holds.
+let private branchOpIds (b : PT.BranchId) : Task<List<string>> =
+  Sql.query "SELECT id FROM package_ops WHERE branch_id = @b"
+  |> Sql.parameters [ "b", Sql.string (string b) ]
+  |> Sql.executeAsync (fun read -> read.string "id")
+
+/// How many ops <param b> holds.
+let private ownOpCount (branchId : PT.BranchId) : Task<int64> =
+  countSql
+    "SELECT count(*) AS n FROM package_ops WHERE branch_id = @b"
+    [ "b", Sql.string (string branchId) ]
 
 /// The NAMES a branch has recorded a fork base for.
 let private baseNames (branchId : PT.BranchId) : Task<List<string>> =
@@ -129,33 +133,6 @@ let private baseNames (branchId : PT.BranchId) : Task<List<string>> =
     "Darklang.SCM.Branches.nameBases("
     + darkBranch branchId
     + ") |> Stdlib.List.map(fun((_o, _m, n, _h)) -> n)"
-  )
-
-/// "owner\nmodules\nname=hash" per recorded base, as DARK computes the parent's current hash. Spelled
-/// the same as the F# side in `parentHashesAgreeAcrossLanguages`, so the two lists compare directly.
-let private parentHashLinesFromDark
-  (parentId : PT.BranchId)
-  (branchId : PT.BranchId)
-  : Task<List<string>> =
-  let key = "(Darklang.SCM.Branches.nameKey(o, m, n))"
-
-  let hashes =
-    "(Darklang.SCM.Branches.parentHashesForBases("
-    + darkBranch parentId
-    + ", "
-    + darkBranch branchId
-    + "))"
-
-  darkStringList (
-    "((Darklang.SCM.Branches.nameBases("
-    + darkBranch branchId
-    + ") |> Stdlib.List.map(fun((o, m, n, _h)) -> "
-    + key
-    + " + \"=\" + ((Stdlib.Dict.get("
-    + hashes
-    + ", "
-    + key
-    + ")) |> Stdlib.Option.withDefault(\"\")))) |> Stdlib.List.sort)"
   )
 
 // A branch's source: one fn `foo` returning `answer`, computed via a CORE call
@@ -265,8 +242,8 @@ let unbindHidesACoreNameOnTheBranchOnly =
 let isolationBetweenBranches =
   testTask
     "two overlays over one core see only their own defs (concurrent-branch isolation)" {
-    let! opsA = parsePackageOps (branchSource 42)
-    let! opsB = parsePackageOps (branchSource 99)
+    let! opsA = parsePackageOps (branchSource 8804)
+    let! opsB = parsePackageOps (branchSource 8805)
     let branchA = PM.withExtraOps pmPT opsA
     let branchB = PM.withExtraOps pmPT opsB
 
@@ -287,8 +264,8 @@ let isolationBetweenBranches =
 
     let! dvA = runFooBody branchA opsA
     let! dvB = runFooBody branchB opsB
-    Expect.equal dvA (RT.DInt64 42L) "branch A -> 42"
-    Expect.equal dvB (RT.DInt64 99L) "branch B -> 99"
+    Expect.equal dvA (RT.DInt64 8804L) "branch A -> 8804"
+    Expect.equal dvB (RT.DInt64 8805L) "branch B -> 8805"
   }
 
 /// The branch a READ verb resolves a name to: the most recent branch of that name that has not been
@@ -324,12 +301,14 @@ let private cleanupBranch (branchId : PT.BranchId) : Task<unit> =
       |> Sql.parameters [ "b", Sql.string (string branchId) ]
       |> Sql.executeStatementAsync
 
-    do!
-      del
-        "DELETE FROM package_ops WHERE id IN (SELECT op_id FROM op_branches WHERE branch_id = @b)"
-    do! del "DELETE FROM op_branches WHERE branch_id = @b"
+    do! del "DELETE FROM package_ops WHERE branch_id = @b"
+    do! del "DELETE FROM locations WHERE branch_id = @b"
+    do! del "DELETE FROM deprecations WHERE branch_id = @b"
+    do! del "DELETE FROM location_docs WHERE branch_id = @b"
     do! del "DELETE FROM branch_name_bases WHERE branch_id = @b"
+    do! del "DELETE FROM commits WHERE branch_id = @b"
     do! del "DELETE FROM branches WHERE id = @b"
+    LibDB.Caching.invalidateAll ()
   }
 
 /// A fresh branch off main for a test: derives the test-branch id from <param label>,
@@ -355,133 +334,64 @@ let private freshBranchOff
     return b
   }
 
-/// The parent's CURRENT hash per name is computed in both languages, and has to come out the same.
-///
-/// The two exist because the halves of the fork-base model run in different places: RECORDING a base
-/// happens mid-author inside `scmAddOps`, which is F#, while DECIDING whether the parent has since
-/// moved that name is `SCM.Branches.nameConflicts`, which is Dark. They read the same thing -- main's
-/// `locations`, overridden by the parent chain's own rebinds when the parent is not main -- and if they
-/// stop agreeing, a branch is either permanently conflicted or never conflicted, with nothing to say
-/// which.
-///
-/// Exercised against a NON-MAIN parent, because that is the case with logic in it: for a main parent
-/// both sides are one table read.
-let parentHashesAgreeAcrossLanguages =
-  testTask "F# and Dark compute the same parent hashes for a branch's bases" {
-    let! parent = freshBranch "ph-parent" "ph-parent"
-    let! parentOps = parsePackageOps (namedSource "PhTest" 1)
-    let! _ = Branches.storeDeltaOps parent parentOps
-    do! Branches.recordNameBases parent PT.BranchId.Main parentOps
-
-    let! child = freshBranchOff parent "ph-child" "ph-child"
-    let! childOps = parsePackageOps (namedSource "PhTest" 2)
-    let! _ = Branches.storeDeltaOps child childOps
-    do! Branches.recordNameBases child parent childOps
-
-    let! bases =
-      Sql.query
-        "SELECT owner, modules, name FROM branch_name_bases WHERE branch_id = @b"
-      |> Sql.parameters [ "b", Sql.string (string child) ]
-      |> Sql.executeAsync (fun read ->
-        read.string "owner", read.string "modules", read.string "name")
-    Expect.isNonEmpty bases "the child recorded a base to compare"
-
-    let! parentHashes = Branches.parentNameHashes parent
-
-    let fromFSharp =
-      bases
-      |> List.map (fun (o, m, n) ->
-        let hash = parentHashes |> Map.tryFind (o, m, n) |> Option.defaultValue ""
-        $"{o}\n{m}\n{n}={hash}")
-      |> List.sort
-
-    let! fromDark = parentHashLinesFromDark parent child
-
-    Expect.equal
-      fromDark
-      fromFSharp
-      "Dark and F# agree on the parent's hash for every name the child based on"
-
-    do! cleanupBranch child
-    do! cleanupBranch parent
-  }
-
-/// An op this build cannot decode must be SKIPPED by the branch overlay, never raised on.
-///
-/// A synced store's own log holds ops a peer authored on a newer format. They are stored and left
-/// unapplied on purpose, so a later build can apply them, which means they sit in the local log where
-/// every local reader meets them -- including `chainOverlayOps`, which is what a process RESOLVES
-/// through and loads at boot for whatever branch you are standing on. Raising there does not fail one
-/// command, it fails the CLI, permanently, for as long as the op is in the log.
-///
-/// The other half of the rule is that skipping one for READING never becomes dropping it for WRITING:
-/// the junk op is still in the table at the end of this.
+/// An op this build cannot decode is SKIPPED by every reader of a branch, never raised on, and stays
+/// in the log: a later build may read it.
 let undecodableBranchOpIsSkippedNotFatal =
   testTask
-    "an op the build can't decode is skipped by the overlay, and survives in the log" {
+    "an op the build can't decode is skipped on its branch, and survives in the log" {
     let! bid = freshBranch "undecodable-overlay" "undecodable"
     let! ops = parsePackageOps (namedSource "UndecodableTest" 3)
-    let! _ = Branches.storeDeltaOps bid ops
+    let! _ = author bid ops
 
-    // A blob no build can read, tagged to the branch the way a peer's newer-format op arrives.
     let junkId = System.Guid.NewGuid()
     do!
       execSqlP
-        "INSERT INTO package_ops (id, op_blob, effective, origin_ts)
-         VALUES (@id, @blob, 0, '2099-01-01T00:00:00.000Z')"
+        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, applied, origin_ts)
+         VALUES (@id, @b, @b, @blob, 0, '2099-01-01T00:00:00.000Z')"
         [ "id", Sql.string (string junkId)
+          "b", Sql.string (string bid)
           "blob", Sql.bytes [| 0xFFuy; 0xFEuy; 0xFDuy; 0xFCuy |] ]
-    do!
-      execSqlP
-        "INSERT INTO op_branches (op_id, branch_id) VALUES (@id, @b)"
-        [ "id", Sql.string (string junkId); "b", Sql.string (string bid) ]
 
-    let! loaded = Branches.loadDeltaOps bid
+    let! (own : LibDB.ScmOps.Page) = LibDB.ScmOps.query (LibDB.ScmOps.Own bid) -1L
     Expect.equal
-      (List.length loaded)
+      (own.ops |> List.choose (fun (r : LibDB.ScmOps.Row) -> r.op) |> List.length)
       (List.length ops)
-      "the readable ops load, and the unreadable one is not among them"
+      "the readable ops read, and the unreadable one decodes to nothing"
 
-    let overlay = PM.withExtraOps pmPT loaded
-    let! resolved = overlay.findFn (fooLocIn "UndecodableTest") |> Ply.toTask
+    let! _ = Seed.applyUnappliedOps ()
+    LibDB.Caching.invalidateAll ()
+    let! resolved =
+      (PM.ptForBranch bid).findFn (fooLocIn "UndecodableTest") |> Ply.toTask
     Expect.isSome resolved "and the branch still resolves its own fn"
 
     let! stillThere =
       countSql
-        "SELECT count(*) AS n FROM package_ops WHERE id = @id"
+        "SELECT count(*) AS n FROM package_ops WHERE id = @id AND applied = 0"
         [ "id", Sql.string (string junkId) ]
-    Expect.equal stillThere 1L "reading past it did not delete it"
+    Expect.equal
+      stillThere
+      1L
+      "reading and folding past it did not delete or mark it"
 
     do! cleanupBranch bid
-    do!
-      execSqlP
-        "DELETE FROM package_ops WHERE id = @id"
-        [ "id", Sql.string (string junkId) ]
   }
 
-/// The overlay's SEARCH and its `findFn` must name the same version.
-///
-/// They are two foldings of the same ops and it is easy for them to disagree: `findFn` goes through the
-/// location map (last binding wins) while search enumerates the hash map, which is ordered BY HASH.
-/// Callers take the head, so a search ordered by hash makes `dark view` on a branch show whichever
-/// version happens to sort lowest while `eval`, `diff` and `log` all run the newest -- reading one
-/// thing and running another.
-///
-/// Three versions, because two cannot tell a hash-ordered answer from a correct one.
+/// A branch's SEARCH and its `findFn` must name the same version: callers take the head, and a
+/// listing that showed an older version while `eval` ran the newest would read one thing and run
+/// another. Three versions, because two cannot tell an arbitrary order from a correct one.
 let overlaySearchAgreesWithFindFn =
-  testTask "the overlay's search names the version its location map binds" {
+  testTask "a branch's search names the version its name binds" {
     let! bid = freshBranch "search-agrees" "search-agrees"
 
     for answer in [ 1; 2; 3 ] do
       let! ops = parsePackageOps (namedSource "SearchAgrees" answer)
-      let! _ = Branches.storeDeltaOps bid ops
+      let! _ = author bid ops
       ()
 
-    let! loaded = Branches.loadDeltaOps bid
-    let overlay = PM.withExtraOps pmPT loaded
+    let pm = PM.ptForBranch bid
     let loc = fooLocIn "SearchAgrees"
 
-    let! bound = overlay.findFn loc |> Ply.toTask
+    let! bound = pm.findFn loc |> Ply.toTask
     Expect.isSome bound "the branch binds the name"
 
     let query : PT.Search.SearchQuery =
@@ -491,7 +401,7 @@ let overlaySearchAgreesWithFindFn =
         entityTypes = []
         exactMatch = true }
 
-    let! (results : PT.Search.SearchResults) = overlay.search query |> Ply.toTask
+    let! (results : PT.Search.SearchResults) = pm.search query |> Ply.toTask
 
     let found =
       results.fns
@@ -506,28 +416,23 @@ let overlaySearchAgreesWithFindFn =
     Expect.equal
       (found |> List.map (fun f -> f.entity.hash))
       [ Option.get bound ]
-      "and it is the version the location map binds"
+      "and it is the version the name binds"
 
     do! cleanupBranch bid
   }
 
-/// A version a branch has edited PAST still has a name.
-///
-/// The live lookup folds last-wins per location, so it answers about the newest and nothing else, and
-/// main's `getLocationsEverNamed` reads `locations`, which a branch never writes. Between them a
-/// superseded branch version would have no name at all, and `dark log` would render it `<hash:...>`
-/// beside a newest-version line in the same listing that shows its name.
-///
-/// A fallback, not an alternative: the live name still wins while there is one.
+/// A version a branch has edited PAST still has a name, for display: the live lookup answers about the
+/// newest only, and without the history `dark log` would render it `<hash:...>`. A fallback, not an
+/// alternative: the live name still wins while there is one.
 let supersededBranchVersionsKeepTheirName =
   testTask
     "a version the branch has edited past is still named, not rendered as a hash" {
     let! bid = freshBranch "ever-named" "ever-named"
 
     let! firstOps = parsePackageOps (namedSource "EverNamed" 1)
-    let! _ = Branches.storeDeltaOps bid firstOps
+    let! _ = author bid firstOps
     let! secondOps = parsePackageOps (namedSource "EverNamed" 2)
-    let! _ = Branches.storeDeltaOps bid secondOps
+    let! _ = author bid secondOps
 
     let superseded = hashBoundTo firstOps "foo"
     let live = hashBoundTo secondOps "foo"
@@ -536,60 +441,51 @@ let supersededBranchVersionsKeepTheirName =
       live
       "the two authorings really are different versions"
 
-    let liveNames =
-      PM.branchLocationsFor bid PT.ItemKind.Fn live |> List.map (fun l -> l.name)
-    Expect.equal liveNames [ "foo" ] "the live version is named by the live lookup"
+    let! liveNames = LibDB.ProgramTypes.Fn.getLocations bid live |> Ply.toTask
+    Expect.equal
+      (liveNames |> List.map (fun (l : PT.PackageLocation) -> l.name))
+      [ "foo" ]
+      "the live version is named by the live lookup"
 
+    let! supersededNames =
+      LibDB.ProgramTypes.Fn.getLocations bid superseded |> Ply.toTask
     Expect.isEmpty
-      (PM.branchLocationsFor bid PT.ItemKind.Fn superseded)
+      supersededNames
       "and the superseded one is not -- that is what the fallback is for"
 
-    let everNames =
-      PM.branchLocationsEverNamed bid PT.ItemKind.Fn superseded
-      |> List.map (fun l -> l.name)
-    Expect.equal everNames [ "foo" ] "the fallback recovers the name it had"
+    let! everNames =
+      LibDB.ProgramTypes.Fn.getLocationsEverNamed bid superseded |> Ply.toTask
+    Expect.equal
+      (everNames |> List.map (fun (l : PT.PackageLocation) -> l.name))
+      [ "foo" ]
+      "the fallback recovers the name it had"
+
+    let! onMain =
+      LibDB.ProgramTypes.Fn.getLocationsEverNamed PT.BranchId.Main live |> Ply.toTask
+    Expect.isEmpty onMain "and main never had a name for either"
 
     do! cleanupBranch bid
   }
 
 let storeThenOverlay =
   testTask
-    "a branch's ops round-trip through the store (effective=0) and overlay to resolve foo" {
+    "a branch's ops round-trip through the store and resolve foo on that branch only" {
     let! branchId = freshBranch "test-branch-store-1" "store-proof"
     let! byName = idForName "store-proof"
     Expect.equal byName (Some branchId) "branch resolves by its name alias"
 
     let! ops = parsePackageOps (branchSource 42)
-    let! stored = Branches.storeDeltaOps branchId ops
-    Expect.isGreaterThan stored 0L "ops stored to the branch frontier"
+    let! stored = author branchId ops
+    Expect.isGreaterThan stored 0L "ops stored on the branch"
 
-    // stored effective=0 -> in the log, NOT folded into core, so core can't resolve foo.
     let! onCore = pmPT.findFn fooLoc |> Ply.toTask
-    Expect.isNone onCore "foo is NOT folded into main (effective=0)"
+    Expect.isNone onCore "foo is NOT bound on main"
 
-    let! loaded = Branches.loadDeltaOps branchId
-    let overlay = PM.withExtraOps pmPT loaded
-    let! onBranch = overlay.findFn fooLoc |> Ply.toTask
-    Expect.isSome onBranch "foo resolves via the branch loaded from the store"
+    let! onBranch = (PM.ptForBranch branchId).findFn fooLoc |> Ply.toTask
+    Expect.isSome onBranch "foo resolves on the branch, from the store"
 
     do! cleanupBranch branchId
   }
-
-/// How many ops this branch's own frontier tags, ignoring the parent chain. A retag moves tags off
-/// a branch rather than deleting its ops, so this is what says the move happened.
-let private ownTagCount (branchId : PT.BranchId) : Task<int64> =
-  countSql
-    "SELECT count(*) AS n FROM op_branches WHERE branch_id = @b"
-    [ "b", Sql.string (string branchId) ]
-
-/// Count a branch's frontier ops at a given effective flag (cache-free, direct SQL).
-let private countEffective (branchId : PT.BranchId) (eff : int) : Task<int64> =
-  Sql.query
-    "SELECT count(*) AS n FROM package_ops p
-     JOIN op_branches b ON b.op_id = p.id
-     WHERE b.branch_id = @b AND p.effective = @e"
-  |> Sql.parameters [ "b", Sql.string (string branchId); "e", Sql.int eff ]
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
 /// Concurrent `resolveOrCreate` for one name yields ONE branch. The case `DARK_BRANCH` makes
 /// ordinary: several agents start in their own shells with the same branch name exported and all
@@ -687,166 +583,128 @@ let mergedBranchStaysAddressable =
 
 
 let processOverlaySelects =
-  testTask
-    "the branch a process is on resolves through its overlay; leaving it stops that" {
+  testTask "the branch a process is on resolves its names; leaving it stops that" {
     PM.selectBranch PT.BranchId.Main // ensure clean start (process-global)
     let! before =
       (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc |> Ply.toTask
-    Expect.isNone before "no branch active -> foo unresolved (core only)"
+    Expect.isNone before "no branch active -> foo unresolved (main only)"
 
+    let! b = freshBranch "overlaySel" "overlay-sel"
     let! ops = parsePackageOps (branchSource 42)
-    PM.selectBranch (testBranch "overlaySel")
-    PM.setBranchOverlay ops
+    let! _ = author b ops
+    PM.selectBranch b
     let! during =
       (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc |> Ply.toTask
-    Expect.isSome during "on the branch -> foo resolves through its overlay"
+    Expect.isSome during "on the branch -> foo resolves"
 
-    // Main is still answered from core alone, with the branch's ops loaded and inert.
     let! fromMain = (PM.ptForBranch PT.BranchId.Main).findFn fooLoc |> Ply.toTask
     Expect.isNone fromMain "and main never sees a branch's binding"
 
     PM.selectBranch PT.BranchId.Main // leave clean for other tests (process-global)
     let! after = (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc |> Ply.toTask
     Expect.isNone after "back on main -> foo unresolved again"
+    do! cleanupBranch b
   }
 
 let branchesOffBranches =
-  testTask "a branch off another sees its parent's frontier (branches off branches)" {
+  testTask
+    "a branch off another sees its parent's committed work (branches off branches)" {
     do! cleanupBranch (testBranch "boB")
     do! cleanupBranch (testBranch "boA")
     do! Branches.createBranch (testBranch "boA") "chain-a" PT.BranchId.Main
     do! Branches.createBranch (testBranch "boB") "chain-b" (testBranch "boA") // B off A
-
     let! opsA = parsePackageOps (namedSource "ChainA" 42)
     let! opsB = parsePackageOps (namedSource "ChainB" 99)
-    let! _ = Branches.storeDeltaOps (testBranch "boA") opsA
-    let! _ = Branches.storeDeltaOps (testBranch "boB") opsB
+    let! _ = author (testBranch "boA") opsA
+    let! _ = author (testBranch "boB") opsB
+    let pmA () = PM.ptForBranch (testBranch "boA")
+    let pmB () = PM.ptForBranch (testBranch "boB")
 
-    // A parent's WIP is its own: until A commits, B's chain overlay carries none of A's ops.
-    let! bWipOps = Branches.loadDeltaOps (testBranch "boB")
-    let bWipOverlay = PM.withExtraOps pmPT bWipOps
-    let! bSeesAWip = bWipOverlay.findFn (fooLocIn "ChainA") |> Ply.toTask
+    // A parent's draft is its own: until A commits, B sees none of A's work.
+    let! bSeesAWip = (pmB ()).findFn (fooLocIn "ChainA") |> Ply.toTask
     Expect.isNone bSeesAWip "B does NOT see its parent A's uncommitted fn"
 
-    // Committed on A, the chain carries it. The stamp is what loadDeltaOps keys on.
-    do!
-      execSqlP
-        "UPDATE package_ops SET commit_hash = 'chain-test-commit'
-         WHERE id IN (SELECT op_id FROM op_branches WHERE branch_id = @b)"
-        [ "b", Sql.uuid ((testBranch "boA").Guid) ]
+    let! committed =
+      LibDB.ScmActions.commit
+        (testBranch "boA")
+        "chain-a work"
+        LibDB.ScmActions.Whole
+        false
+    Expect.isOk committed "A commits"
 
-    // B's overlay walks the parent chain: A's committed frontier + B's own (committed or not).
-    let! bOps = Branches.loadDeltaOps (testBranch "boB")
-    let bOverlay = PM.withExtraOps pmPT bOps
-    let! bSeesA = bOverlay.findFn (fooLocIn "ChainA") |> Ply.toTask
-    let! bSeesB = bOverlay.findFn (fooLocIn "ChainB") |> Ply.toTask
+    let! bSeesA = (pmB ()).findFn (fooLocIn "ChainA") |> Ply.toTask
+    let! bSeesB = (pmB ()).findFn (fooLocIn "ChainB") |> Ply.toTask
     Expect.isSome bSeesA "B sees its parent A's committed fn (branches off branches)"
     Expect.isSome bSeesB "B sees its own fn, uncommitted included"
 
-    let! aOps = Branches.loadDeltaOps (testBranch "boA")
-    let aOverlay = PM.withExtraOps pmPT aOps
-    let! aSeesA = aOverlay.findFn (fooLocIn "ChainA") |> Ply.toTask
-    let! aSeesB = aOverlay.findFn (fooLocIn "ChainB") |> Ply.toTask
+    let! aSeesA = (pmA ()).findFn (fooLocIn "ChainA") |> Ply.toTask
+    let! aSeesB = (pmA ()).findFn (fooLocIn "ChainB") |> Ply.toTask
     Expect.isSome aSeesA "A sees its own fn"
     Expect.isNone aSeesB "A does NOT see its child B's fn"
 
-    // MERGE B INTO A (parent != main): retag B's frontier onto A. A's overlay now folds B's fn, but
-    // main is still untouched (a non-main merge never flips effective / folds into main).
+    // MERGE B INTO A (parent != main): B's ops become A's; main is still untouched.
     let! parentOfB = Branches.parentOf (testBranch "boB")
     Expect.equal parentOfB (testBranch "boA") "B's parent is A"
-    Expect.equal parentOfB (testBranch "boA") "and so the merge retags onto A"
     let! draftBefore = mainDraftIds ()
     let! merged = mergeIntoParent (testBranch "boB")
-    Expect.isGreaterThan merged 0L "B had frontier ops to merge"
+    Expect.isGreaterThan merged 0L "B had ops to merge"
 
-    let! aOps2 = Branches.loadDeltaOps (testBranch "boA")
-    let aOverlay2 = PM.withExtraOps pmPT aOps2
-    let! aNowSeesB = aOverlay2.findFn (fooLocIn "ChainB") |> Ply.toTask
-    Expect.isSome aNowSeesB "after merge, A sees B's fn (retagged onto A)"
-    // B's OWN frontier tags are gone (moved to A). loadDeltaOps("boB") would still WALK to A, so we
-    // check the direct tags, not the chain overlay.
-    let! bOwnTags = ownTagCount (testBranch "boB")
-    Expect.equal
-      bOwnTags
-      0L
-      "B's own frontier tags are empty after the retag (its ops are A's now)"
+    let! aNowSeesB = (pmA ()).findFn (fooLocIn "ChainB") |> Ply.toTask
+    Expect.isSome aNowSeesB "after merge, A sees B's fn"
+    let! bOwn = ownOpCount (testBranch "boB")
+    Expect.equal bOwn 0L "B holds no ops after the merge (they are A's now)"
     let! stillNotMain = pmPT.findFn (fooLocIn "ChainB") |> Ply.toTask
     Expect.isNone stillNotMain "merge into a non-main parent does NOT leak into main"
+    let! draftAfter = mainDraftIds ()
+    Expect.equal draftAfter draftBefore "and leaves main's draft alone"
 
-    // The merge's event lands in main's draft, uncommitted (the parent's own merge commits it); take
-    // it out so nothing after this reads a draft it did not make.
-    do! dropMainDraftOpsSince draftBefore
     do! cleanupBranch (testBranch "boB")
     do! cleanupBranch (testBranch "boA")
   }
 
-/// Main authoring's WipRefresh must NOT see a branch's ops: `getWipOps` excludes every
-/// `op_branches`-tagged op. Let them back into WIP and the draft rewrite folds them
-/// into main.
-let getWipOpsExcludesBranch =
-  testTask
-    "getWipOps excludes branch-tagged ops (main authoring can't see branch state)" {
+/// Main's draft is main's uncommitted ops and nothing a branch holds: `WipRefresh` rewrites it, and a
+/// branch's ops let into it would fold into main.
+let mainDraftExcludesBranchOps =
+  testTask "main's draft leaves out every op a branch holds" {
     let! branchId = freshBranch "test-wip-guard" "wip-guard"
+    let! before = mainDraftIds ()
     let! ops = parsePackageOps (branchSource 42)
-    let! _ = Branches.storeDeltaOps branchId ops
+    let! _ = author branchId ops
 
-    let! wip = Queries.getWipOps ()
-    // `effective = 1`: `getWipOps` excludes the OTHER inert population too (ops a client pushed to this
-    // store, and anything a test left inert), which carries no tag to subtract.
-    let! total =
-      countSql "SELECT count(*) AS n FROM package_ops WHERE effective = 1" []
-    let! branchCount = ownTagCount branchId
-    // Every TAGGED op, not just this branch's: `getWipOps` excludes `op_branches` wholesale, so
-    // subtracting only our own count assumes we're the only branch in the store, and we aren't.
-    // DISTINCT because one op can be tagged to several branches.
-    let! taggedCount =
-      Sql.query
-        "SELECT count(DISTINCT ob.op_id) AS n FROM op_branches ob
-         JOIN package_ops p ON p.id = ob.op_id
-         WHERE p.effective = 1"
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
-
-    Expect.isGreaterThan branchCount 0L "the branch actually stored ops"
+    let! (draftIds, _) = Queries.getDraftOpsWithIds ()
+    let! after = mainDraftIds ()
+    let! own = ownOpCount branchId
+    Expect.isGreaterThan own 0L "the branch actually stored ops"
+    Expect.equal after before "main's draft did not grow"
     Expect.equal
-      (int64 (List.length wip))
-      (total - taggedCount)
-      "getWipOps returns every op EXCEPT branch-tagged ones (isolation)"
+      (draftIds |> List.map string |> Set.ofList)
+      after
+      "and the draft WipRefresh reads is exactly main's"
 
     do! cleanupBranch branchId
   }
 
-/// `applyUnappliedOps`' final sweep is scoped to `applied=0 AND effective=1`, so merging branch M
-/// leaves sibling S's still-pending ops applied=0. A wider sweep marks them applied without folding
-/// them, they can never fold afterwards, and S's binding is silently lost by merge order.
+/// Merging one branch touches no other branch's ops or names.
 let mergeDoesNotConsumeSiblingPendingOps =
-  testTask
-    "a merge leaves OTHER branches' pending ops applied=0 (applied-flag isolation)" {
+  testTask "a merge leaves OTHER branches' ops and names alone" {
     let! bS = freshBranch "test-sweep-sibling" "sweep-sibling"
     let! bM = freshBranch "test-sweep-merging" "sweep-merging"
-    // Distinct modules so M's fold pollutes only its own unique name (cleaned up after).
     let! opsS = parsePackageOps (namedSource "SweepSibling" 7)
     let! opsM = parsePackageOps (namedSource "SweepMerging" 8)
-    let! _ = Branches.storeDeltaOps bS opsS
-    let! _ = Branches.storeDeltaOps bM opsM
+    let! _ = author bS opsS
+    let! _ = author bM opsM
 
-    let pendingCount (b : PT.BranchId) : Task<int64> =
-      Sql.query
-        "SELECT count(*) AS n FROM package_ops
-         WHERE applied = 0 AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @b)"
-      |> Sql.parameters [ "b", Sql.string (string b) ]
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
+    let! sBefore = ownOpCount bS
+    Expect.isGreaterThan sBefore 0L "sibling S holds ops"
 
-    let! sBefore = pendingCount bS
-    Expect.isGreaterThan sBefore 0L "sibling S starts with pending (applied=0) ops"
-
-    // Merge M into main: flip its frontier effective=1 and fold, in the merge's own transaction.
     let! _ = mergeIntoParent bM
 
-    let! sAfter = pendingCount bS
-    Expect.equal
-      sAfter
-      sBefore
-      "S's pending ops are UNTOUCHED by M's merge (still applied=0)"
+    let! sAfter = ownOpCount bS
+    Expect.equal sAfter sBefore "S's ops are UNTOUCHED by M's merge"
+    let! sStill = (PM.ptForBranch bS).findFn (fooLocIn "SweepSibling") |> Ply.toTask
+    Expect.isSome sStill "and S still resolves its own name"
+    let! notOnMain = pmPT.findFn (fooLocIn "SweepSibling") |> Ply.toTask
+    Expect.isNone notOnMain "which is still not main's"
 
     do! cleanupBranch bS
     do! cleanupBranch bM
@@ -876,11 +734,11 @@ let sameNameMergesConvergeToLater =
     do! Branches.createBranch bOld "cvg-old" PT.BranchId.Main
     do! Branches.createBranch bNew "cvg-new" PT.BranchId.Main
     // Same module+name (ConvergeWin.foo), different bodies -> different hashes. bOld stored first, so
-    // its ops get an EARLIER origin_ts than bNew's (storeDeltaOps stamps now() per call).
+    // its ops get an EARLIER origin_ts than bNew's (authoring stamps from the process clock).
     let! opsOld = parsePackageOps (namedSource "ConvergeWin" 5)
     let! opsNew = parsePackageOps (namedSource "ConvergeWin" 6)
-    let! _ = Branches.storeDeltaOps bOld opsOld
-    let! _ = Branches.storeDeltaOps bNew opsNew
+    let! _ = author bOld opsOld
+    let! _ = author bNew opsNew
     let (PT.Hash newerHash) = hashBoundTo opsNew "foo"
 
     do! mergeFold bOld
@@ -899,38 +757,11 @@ let sameNameMergesConvergeToLater =
     do! execSql "DELETE FROM conflicts WHERE modules = 'ConvergeWin'"
   }
 
-/// Locks the branch-transfer import path (what scmImportBranchOps does): register a branch, store
-/// its ops effective=0 + tag, and re-derive the per-name bases against THIS instance's main. The
-/// cross-instance invariant is that a branch stays a branch on the receiving side.
-let branchTransferImportReDerivesBases =
-  testTask
-    "importing a branch's ops recreates it isolated + re-derives its per-name bases locally" {
-    // simulate scmImportBranchOps: register + store ops + re-derive bases.
-    let! dst = freshBranch "test-xfer-dst" "xfer"
-    let! ops = parsePackageOps (namedSource "XferTest" 8)
-    let! _ = Branches.storeDeltaOps dst ops
-    do! Branches.recordNameBases dst PT.BranchId.Main ops
-
-    let! loaded = Branches.loadDeltaOps dst
-    let overlay = PM.withExtraOps pmPT loaded
-    let! resolved = overlay.findFn (fooLocIn "XferTest") |> Ply.toTask
-    Expect.isSome resolved "imported branch resolves its fn"
-    let! onCore = pmPT.findFn (fooLocIn "XferTest") |> Ply.toTask
-    Expect.isNone onCore "and it did NOT leak into core"
-
-    // per-name bases were re-derived (against local main), so merge/rebase work on this instance.
-    let! bases = baseNames dst
-    Expect.isNonEmpty bases "per-name bases re-derived on import"
-
-    do! cleanupBranch dst
-  }
-
 /// A name a branch binds ONLY by resolving a conflict still needs a per-name base: the base is what
 /// the conflict detector needs to prove BOTH sides moved. Without one that name can never conflict
-/// again, and `dark diff` renders it as `+ new` rather than a change. `bindingFromOp` counts
-/// `Resolve` as a binding, and `recordNameBases` has to agree with it.
+/// again, and `dark diff` renders it as `+ new` rather than a change.
 let resolveAloneRecordsANameBase =
-  testTask "a name bound only by Resolve still gets a per-name base" {
+  testTask "a name bound only by an override still gets a per-name base" {
     let! b = freshBranch "test-resolve-base" "resolve-base"
 
     // Borrow a real (location, target) off a SetName rather than hand-building a hash: what is under
@@ -947,10 +778,9 @@ let resolveAloneRecordsANameBase =
     Expect.isSome binding "the fixture produced a SetName to borrow a binding from"
     let (loc, target) = Option.get binding
 
-    do!
-      Branches.recordNameBases
+    let! _ =
+      author
         b
-        PT.BranchId.Main
         [ PT.PackageOp.Decision(
             "decision-for-the-base-test",
             loc,
@@ -962,7 +792,7 @@ let resolveAloneRecordsANameBase =
     Expect.equal
       recorded
       [ loc.name ]
-      "the Resolve on its own recorded a base for the name"
+      "the override on its own recorded a base for the name"
 
     do! cleanupBranch b
   }
@@ -1010,24 +840,17 @@ let reuseBranchIdRevives =
     do! cleanupBranch b
   }
 
-/// ISOLATION: the branch author path folds a value's AddValue CONTENT into package_values (so eval
-/// can read its rt_dval), but must NOT fold the SetName, so the NAME never lands in main's
-/// `locations`. CORRECTNESS: after the content fold, `evaluateAllValues` must materialise an
-/// EXPRESSION body's Dval into rt_dval, or it stays NULL and getValue returns nothing.
+/// A value authored on a branch: its content lands in the shared `package_values`, so it can be
+/// evaluated and read by hash, but its NAME is the branch's alone. And an EXPRESSION body has to
+/// materialise into rt_dval, or getValue returns nothing.
 let branchValueContentFoldIsolatesName =
   testTask
-    "folding a branch value's AddValue content populates package_values but NOT locations" {
+    "a branch value's content is shared and evaluated, its name stays on the branch" {
+    let! b = freshBranch "test-branch-val" "branch-val"
     let source = "module Tests.BranchValFoldTest\n\nval vv = 3 + 4"
     let! ops = parsePackageOps source
-    let addValueOps =
-      ops
-      |> List.filter (fun op ->
-        match op with
-        | PT.PackageOp.AddValue _ -> true
-        | _ -> false)
-    Expect.isNonEmpty addValueOps "the val source produced an AddValue op"
     let valueHash =
-      addValueOps
+      ops
       |> List.pick (fun op ->
         match op with
         | PT.PackageOp.AddValue v ->
@@ -1035,43 +858,31 @@ let branchValueContentFoldIsolatesName =
           Some h
         | _ -> None)
 
-    // Fold ONLY the AddValue (mirrors the branch author path's content-only fold).
-    do! LibDB.PackageOpPlayback.applyOps addValueOps
+    let! _ = author b ops
 
     let! contentCount =
       countSql
         "SELECT count(*) AS n FROM package_values WHERE hash = @h"
         [ "h", Sql.string valueHash ]
-    Expect.isGreaterThan
-      contentCount
-      0L
-      "AddValue folded the content into package_values"
+    Expect.isGreaterThan contentCount 0L "the content folded into package_values"
 
-    let! locCount =
-      Sql.query
-        "SELECT count(*) AS n FROM locations WHERE name = 'vv' AND modules LIKE '%BranchValFoldTest%'"
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
-    Expect.equal
-      locCount
-      0L
-      "the branch value's NAME is NOT in main locations (content-only fold keeps names branch-isolated)"
+    let vvLoc : PT.PackageLocation =
+      { owner = "Tests"; modules = [ "BranchValFoldTest" ]; name = "vv" }
+    let! onMain = liveBoundHash vvLoc
+    Expect.isNone onMain "the branch value's NAME is not main's"
+    let! onBranch = (PM.ptForBranch b).findValue vvLoc |> Ply.toTask
+    Expect.isSome onBranch "and it is the branch's"
 
-    // `applyOps` stores rt_dval NULL (see PackageOpPlayback.fs), so the branch author path must run
-    // `evaluateAllValues` for an EXPRESSION-valued branch value to materialise its Dval.
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
     let! _ = Seed.evaluateAllValues Seed.TrustedSeed builtins PM.rt
     let! (evaluated : Option<RT.PackageValue.PackageValue>) =
       LibDB.RuntimeTypes.Value.get (RT.Hash valueHash) |> Ply.toTask
     match evaluated with
     | Some pv ->
-      Expect.equal
-        pv.body
-        (RT.DInt64 7L)
-        "the expression-valued branch value materialised to 3+4=7 in rt_dval (bug #1 correctness guard)"
-    | None ->
-      Tests.failtest
-        "rt_dval was NULL after evaluateAllValues -- expression-valued branch values would error (bug #1 regression)"
+      Expect.equal pv.body (RT.DInt64 7L) "the value materialised to 3+4=7"
+    | None -> Tests.failtest "rt_dval was NULL after evaluateAllValues"
 
+    do! cleanupBranch b
     do!
       execSqlP
         "DELETE FROM package_values WHERE hash = @h"
@@ -1080,7 +891,7 @@ let branchValueContentFoldIsolatesName =
 
 let branchExists =
   testTask
-    "a branch is found by its registry row OR its op tags, and a typo is found by neither" {
+    "a branch is found by its registry row OR its ops, and a typo is found by neither" {
     do! cleanupBranch (testBranch "beX")
 
     let! beforeAnything = Branches.exists (testBranch "beX")
@@ -1092,53 +903,22 @@ let branchExists =
     let! registeredOnly = Branches.exists (testBranch "beX")
     Expect.isTrue registeredOnly "registered with no ops still Branches.exists"
 
-    // Tagged ops with no registry row: this is what a branch bundle from another machine looks like
-    // before anything registers it locally. Also has to count.
+    // Ops with no registry row. Also has to count.
     do! cleanupBranch (testBranch "beY")
     let! ops = parsePackageOps (namedSource "BeY" 7)
-    let! _ = Branches.storeDeltaOps (testBranch "beY") ops
+    let! _ = author (testBranch "beY") ops
     do!
       execSqlP
         "DELETE FROM branches WHERE id = @b"
         [ "b", Sql.string (string (testBranch "beY")) ]
     let! taggedOnly = Branches.exists (testBranch "beY")
-    Expect.isTrue taggedOnly "ops tagged with no registry row still Branches.exists"
+    Expect.isTrue taggedOnly "ops with no registry row still Branches.exists"
 
     let! typo = Branches.exists (testBranch "beYY")
     Expect.isFalse typo "a prefix of a real branch is not that branch"
 
     do! cleanupBranch (testBranch "beX")
     do! cleanupBranch (testBranch "beY")
-  }
-
-let importedOpsKeepTheirStamps =
-  testTask
-    "storeDeltaOpsStamped preserves an incoming op's origin_ts instead of re-stamping it" {
-    do! cleanupBranch (testBranch "stX")
-    do! Branches.createBranch (testBranch "stX") "" PT.BranchId.Main
-
-    // A stamp from the far past, which the local authoring clock could never produce.
-    let farPast = "2001-02-03T04:05:06.007Z"
-    let! ops = parsePackageOps (namedSource "StX" 13)
-    let! _ =
-      Branches.storeDeltaOpsStamped
-        (testBranch "stX")
-        (ops |> List.map (fun op -> (op, farPast)))
-
-    let! stamps =
-      Sql.query
-        "SELECT DISTINCT p.origin_ts AS ts FROM package_ops p
-         JOIN op_branches ob ON ob.op_id = p.id WHERE ob.branch_id = @b"
-      |> Sql.parameters [ "b", Sql.string (string (testBranch "stX")) ]
-      |> Sql.executeAsync (fun read -> read.string "ts")
-
-    Expect.equal
-      stamps
-      [ farPast ]
-      "every imported op keeps the stamp it arrived with -- re-stamping locally makes the IMPORTER \
-       look like the author, so LWW resolves by who imported last rather than who edited last"
-
-    do! cleanupBranch (testBranch "stX")
   }
 
 let branchPMIsPerBranch =
@@ -1150,15 +930,14 @@ let branchPMIsPerBranch =
 
     let! opsA = parsePackageOps (namedSource "PfA" 42)
     let! opsB = parsePackageOps (namedSource "PfB" 99)
-    let! _ = Branches.storeDeltaOps (testBranch "pfA") opsA
-    let! _ = Branches.storeDeltaOps (testBranch "pfB") opsB
+    let! _ = author (testBranch "pfA") opsA
+    let! _ = author (testBranch "pfB") opsB
 
     // Sit on A. This is the state a `dark --branch pfA ...` process boots into.
     PM.selectBranch (testBranch "pfA")
     Expect.equal (PM.currentBranchId ()) (testBranch "pfA") "process is on pfA"
 
-    // Asking about a branch we're NOT on is what a process-global overlay alone cannot do, and what
-    // the LSP and any daemon will need.
+    // Asking about a branch we're NOT on is what the LSP and any daemon will need.
     let! aFromA =
       (PM.ptForBranch (testBranch "pfA")).findFn (fooLocIn "PfA") |> Ply.toTask
     Expect.isSome aFromA "on pfA, pfA's fn resolves"
@@ -1169,7 +948,7 @@ let branchPMIsPerBranch =
 
     let! aFromB =
       (PM.ptForBranch (testBranch "pfB")).findFn (fooLocIn "PfA") |> Ply.toTask
-    Expect.isNone aFromB "pfB's overlay does not contain pfA's fn"
+    Expect.isNone aFromB "pfB does not bind pfA's fn"
 
     let! aFromMain =
       (PM.ptForBranch PT.BranchId.Main).findFn (fooLocIn "PfA") |> Ply.toTask
@@ -1183,7 +962,7 @@ let branchPMIsPerBranch =
       "process moved to pfB without restarting"
     let! bAfterSwitch =
       (PM.ptForBranch (PM.currentBranchId ())).findFn (fooLocIn "PfB") |> Ply.toTask
-    Expect.isSome bAfterSwitch "the active overlay followed the switch"
+    Expect.isSome bAfterSwitch "the active branch followed the switch"
     let! aAfterSwitch =
       (PM.ptForBranch (PM.currentBranchId ())).findFn (fooLocIn "PfA") |> Ply.toTask
     Expect.isNone aAfterSwitch "and stopped answering about the branch we left"
@@ -1193,58 +972,62 @@ let branchPMIsPerBranch =
     do! cleanupBranch (testBranch "pfB")
   }
 
+/// A branch supplies names for hashes main can't name, and never relabels ones it can: identical
+/// content is one item, so a hash is routinely live at several names, and preferring the branch's would
+/// render a main item under a branch label.
 let branchNamesResolveButDontShadowMain =
   testTask
     "a branch supplies names for hashes main can't name, and never relabels ones it can" {
     do! cleanupBranch (testBranch "lnX")
     do! Branches.createBranch (testBranch "lnX") "" PT.BranchId.Main
+    let b = testBranch "lnX"
 
-    let! ops = parsePackageOps (namedSource "LnX" 42)
-    let! _ = Branches.storeDeltaOps (testBranch "lnX") ops
+    let! ops = parsePackageOps (namedSource "LnX" 8803)
+    let! _ = author b ops
+    let branchHash = hashBoundTo ops "foo"
 
-    let branchHash =
-      ops
-      |> List.tryPick (fun op ->
-        match op with
-        | PT.PackageOp.SetName(l, target, _) when l.name = "foo" -> Some target.hash
-        | _ -> None)
-      |> Option.get
-
-    // Main cannot name this hash: a branch's SetNames never fold into `locations`, so without the
-    // overlay the caller has nothing to render but 64 hex characters.
     let! fromMain = PM.pt.getFnLocations branchHash |> Ply.toTask
     Expect.isEmpty fromMain "main has no name for a branch-authored hash"
 
-    PM.selectBranch (testBranch "lnX")
-    let onBranch =
-      PM.locationsFor (PM.currentBranchId ()) PT.ItemKind.Fn branchHash []
+    let! onBranch = LibDB.ProgramTypes.Fn.getLocations b branchHash |> Ply.toTask
     Expect.equal
-      (onBranch |> List.map (fun l -> l.name))
+      (onBranch |> List.map (fun (l : PT.PackageLocation) -> l.name))
       [ "foo" ]
-      "the overlay supplies the name main is missing"
+      "the branch supplies the name main is missing"
 
-    // ... but main WINS when it has an answer. Identical content is one item, so a hash is routinely
-    // live at several names, and preferring the branch's renders a main item under a branch label.
-    let mainLoc : PT.PackageLocation =
-      { owner = "Darklang"; modules = [ "SomeMainModule" ]; name = "mainName" }
-    let withMain =
-      PM.locationsFor (PM.currentBranchId ()) PT.ItemKind.Fn branchHash [ mainLoc ]
-    Expect.equal
-      (withMain |> List.map (fun l -> l.name) |> List.tryHead)
-      (Some "mainName")
-      "main's name comes first, so a duplicated body is never relabelled to the branch's"
+    let! asType = LibDB.ProgramTypes.Type.getLocations b branchHash |> Ply.toTask
+    Expect.isEmpty asType "the answer is per kind, not per hash alone"
 
-    let asType =
-      PM.locationsFor (PM.currentBranchId ()) PT.ItemKind.Type branchHash []
-    Expect.isEmpty asType "the overlay answers per kind, not per hash alone"
+    // Main binds the same body under another name: main's name comes first.
+    let! before = mainDraftIds ()
+    let! mainOps = parsePackageOps (namedSource "LnMainName" 8803)
+    let mainHash = hashBoundTo mainOps "foo"
+    if mainHash = branchHash then
+      // Committed: a branch sees what main committed, never main's draft.
+      let! _ = author PT.BranchId.Main mainOps
+      let! now0 = mainDraftIds ()
+      let! _ =
+        LibDB.ScmActions.commit
+          PT.BranchId.Main
+          "ln main name"
+          (LibDB.ScmActions.Only(Set.difference now0 before |> Set.toList))
+          false
+      let (PT.Hash h) = branchHash
+      let! withMain = LibDB.ScmBindings.query (LibDB.ScmBindings.LocationOf(b, h))
+      Expect.equal
+        (withMain
+         |> List.map (fun (r : LibDB.ScmBindings.Binding) -> r.modules)
+         |> List.tryHead)
+        (Some "LnMainName")
+        "main's name comes first, so a duplicated body is never relabelled to the branch's"
+      do! execSql "DELETE FROM locations WHERE modules = 'LnMainName'"
+      do!
+        execSql
+          "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = 'ln main name')"
+      do! execSql "DELETE FROM commits WHERE message = 'ln main name'"
 
-    PM.selectBranch PT.BranchId.Main
-    let offBranch = PM.locationsFor PT.BranchId.Main PT.ItemKind.Fn branchHash []
-    Expect.isEmpty offBranch "off the branch, the name is gone again (isolation)"
-
-    do! cleanupBranch (testBranch "lnX")
+    do! cleanupBranch b
   }
-
 
 /// The three ways a run picks its branch. Each tier is scoped tighter than the one below on purpose:
 /// the FLAG is this command, the ENV is this SHELL, the config is this machine. The env tier is what
@@ -1333,47 +1116,16 @@ let branchResolutionOrder =
   }
 
 
-/// A merge that does not travel: the merged OPS already cross (they are main ops once merged, and
-/// the two mains converge on identical hashes), but without the event the FACT of the merge does
-/// not, so a colleague's copy of the branch still lists as live work they could keep authoring on.
-let branchEventMarksMerged =
-  testTask "a BranchEvent(Merged) op folds to marking that branch merged" {
-    let! branchId = freshBranch "test-branch-event-merged" "event-proof"
-
-    let! before = isMerged branchId
-    Expect.isFalse before "not merged before the event"
-
-    let op =
-      PT.PackageOp.BranchEvent(branchId, PT.Merged [], "2026-01-01T00:00:00.000Z")
-    let! _ = LibDB.Inserts.insertAndApplyOps [ op ]
-
-    let! after = isMerged branchId
-    Expect.isTrue after "the event folded, so the branch reads as merged"
-
-    // Monotonic: this is what lets the event travel with no stamp on `branches` to arbitrate with, and
-    // what makes re-receiving it on a third machine harmless.
-    let! _ = LibDB.Inserts.insertAndApplyOps [ op ]
-    let! twice = isMerged branchId
-    Expect.isTrue twice "applying it again lands in the same place"
-
-    do! cleanupBranch branchId
-  }
-
-
-/// An op is one row whatever authored it, so a branch's op and main's identical op share an id. Main
-/// authoring it is main saying it runs here: the row flips effective and folds, and the tag goes.
-///
-/// `INSERT OR IGNORE` is the wrong verb for that. The row already exists, so the insert does nothing
-/// while the CLI reports that it authored -- `dark deprecate` saying "Deprecated" over a fn that keeps
-/// running.
+/// An op is one row per branch, so main authoring an op a branch already holds gives MAIN its own
+/// row: main runs it, and the branch keeps its own.
 let mainRetakesABranchsOp =
   testTask
-    "authoring on main an op a branch already holds makes it effective, untagged, and live" {
+    "authoring on main an op a branch already holds makes it main's, and leaves the branch's" {
     let! branchId = freshBranch "test-branch-main-retake" "retake-proof"
+    let! before = mainDraftIds ()
 
-    let! ops = parsePackageOps (namedSource "MainRetake" 42)
-    let ids = ops |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-    let! _ = Branches.storeDeltaOps branchId ops
+    let! ops = parsePackageOps (namedSource "MainRetake" 8801)
+    let! _ = author branchId ops
     let! onMainBefore = pmPT.findFn (fooLocIn "MainRetake") |> Ply.toTask
     Expect.isNone onMainBefore "held by the branch only, main cannot see it"
 
@@ -1381,78 +1133,45 @@ let mainRetakesABranchsOp =
     Expect.equal
       inserted
       (int64 (List.length ops))
-      "every op counted as taken, none as a duplicate"
-
-    let! effectiveTagged =
-      Sql.query
-        "SELECT
-           sum(p.effective) AS eff,
-           (SELECT count(*) FROM op_branches WHERE branch_id = @b) AS tagged
-         FROM package_ops p WHERE p.id IN (SELECT value FROM json_each(@ids))"
-      |> Sql.parameters
-        [ "b", Sql.string (string branchId)
-          "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize ids) ]
-      |> Sql.executeRowAsync (fun read -> (read.int64 "eff", read.int64 "tagged"))
-    Expect.equal
-      effectiveTagged
-      (int64 (List.length ops), 0L)
-      "all effective, and no tag left on any"
+      "every op counted as main's, none as a duplicate"
 
     let! onMainAfter = pmPT.findFn (fooLocIn "MainRetake") |> Ply.toTask
-    Expect.isSome onMainAfter "and main resolves it"
+    Expect.isSome onMainAfter "main resolves it"
+    let! own = ownOpCount branchId
+    Expect.equal own (int64 (List.length ops)) "and the branch still holds its own"
 
-    // The tag is gone, so cleanupBranch would not find the rows; drop them by id.
-    do!
-      execSqlP
-        "DELETE FROM locations WHERE op_id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize ids) ]
-    do!
-      execSqlP
-        "DELETE FROM package_ops WHERE id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize ids) ]
-    LibDB.Caching.invalidateAll ()
+    let! now = mainDraftIds ()
+    let! _ =
+      LibDB.ScmActions.discard
+        PT.BranchId.Main
+        (LibDB.ScmActions.Ops(Set.difference now before |> Set.toList))
     do! cleanupBranch branchId
   }
 
 
-/// The other half of `mainRetakesABranchsOp`: storing on a branch an op main already runs must not tag it.
-/// Every draft query excludes tagged ids, so a tag on main's own op hid it from `status` and `commit`.
+/// The other half of `mainRetakesABranchsOp`: a branch storing an op main already runs leaves main's
+/// draft as it was.
 let aBranchNeverTagsWhatMainRuns =
-  testTask "storing an op main already runs on a branch leaves it untagged" {
+  testTask "storing an op main already runs on a branch leaves main's draft alone" {
     let! branchId = freshBranch "test-branch-no-tag-on-main" "no-tag-proof"
+    let! before = mainDraftIds ()
 
-    let! ops = parsePackageOps (namedSource "NoTagOnMain" 42)
+    let! ops = parsePackageOps (namedSource "NoTagOnMain" 8802)
     let ids = ops |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
     let! _ = LibDB.Inserts.insertAndApplyOps ops
-    let! _ = Branches.storeDeltaOps branchId ops
+    let! _ = author branchId ops
 
-    let! tagged = ownTagCount branchId
-    Expect.equal tagged 0L "nothing main runs was tagged"
-    let! draft = Queries.getDraftOps ()
-    let draftIds =
-      draft |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
+    let! draft = mainDraftIds ()
     for id in ids do
-      Expect.contains draftIds id "and main's draft still lists its own op"
+      Expect.isTrue (Set.contains id draft) "main's draft still lists its own op"
 
-    // A fresh op on the same branch is tagged as before.
-    let! fresh = parsePackageOps (namedSource "NoTagOnMainFresh" 43)
-    let! stored = Branches.storeDeltaOps branchId fresh
-    Expect.equal stored (int64 (List.length fresh)) "fresh ops are stored"
-    let! taggedNow = ownTagCount branchId
-    Expect.equal taggedNow (int64 (List.length fresh)) "and tagged"
-
-    do!
-      execSqlP
-        "DELETE FROM locations WHERE op_id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize ids) ]
-    do!
-      execSqlP
-        "DELETE FROM package_ops WHERE id IN (SELECT value FROM json_each(@ids))"
-        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize ids) ]
-    LibDB.Caching.invalidateAll ()
+    let! now = mainDraftIds ()
+    let! _ =
+      LibDB.ScmActions.discard
+        PT.BranchId.Main
+        (LibDB.ScmActions.Ops(Set.difference now before |> Set.toList))
     do! cleanupBranch branchId
   }
-
 
 /// `lookupRef` says WHY it missed, because only one kind of miss should start a branch. A bare `None`
 /// stands for a foreign uuid, an ambiguous prefix and an unknown name alike, which turns
@@ -1529,130 +1248,6 @@ let overlayPairsByHashNotAdjacency =
     Expect.equal a (RT.DInt64 42L) "A's name runs A's body"
     Expect.equal b (RT.DInt64 99L) "and B's runs B's"
   }
-
-
-/// A bundle op this build cannot decode is stored raw and inert beside the ones it can, the way main
-/// sync stores such ops, rather than refusing the whole bundle. The next build that reads it applies it.
-let anUndecodableBundleOpIsKeptNotRefused =
-  testTask
-    "a branch bundle with one unreadable op stores it inert and keeps the rest" {
-    let! branchId = freshBranch "test-branch-raw-op" "raw-proof"
-
-    let! ops = parsePackageOps (namedSource "RawOp" 42)
-    let! stored =
-      Branches.storeDeltaOpsStamped
-        branchId
-        (ops |> List.map (fun op -> (op, "2026-01-01T00:00:00.000Z")))
-    let alien = System.Guid.NewGuid()
-    let! storedRaw =
-      Branches.storeDeltaBlobsStamped
-        branchId
-        [ (alien, [| 0xFFuy; 0x39uy; 0x07uy |], "2026-01-01T00:00:01.000Z") ]
-    Expect.equal storedRaw 1L "the raw op is stored"
-
-    let! (rows, tags) =
-      Sql.query
-        "SELECT
-           (SELECT count(*) FROM package_ops WHERE id = @a AND effective = 0) AS r,
-           (SELECT count(*) FROM op_branches WHERE op_id = @a AND branch_id = @b) AS t"
-      |> Sql.parameters
-        [ "a", Sql.string (string alien); "b", Sql.string (string branchId) ]
-      |> Sql.executeRowAsync (fun read -> (read.int64 "r", read.int64 "t"))
-    Expect.equal (rows, tags) (1L, 1L) "inert, and on the branch"
-
-    let! loaded = Branches.loadDeltaOps branchId
-    Expect.equal
-      (int64 (List.length loaded))
-      stored
-      "the readable ops load; the raw one is skipped, not fatal"
-
-    do! cleanupBranch branchId
-  }
-
-
-/// The receiving side has no obligation to know every branch its peers have. Branch ids travel with
-/// a bundle, so the branches you actually share match; the rest are none of this store's business.
-let branchEventForUnknownBranchIsIgnored =
-  testTask "a BranchEvent for a branch this store has never seen folds to nothing" {
-    // A real id that no `branches` row carries. Since the op field became a `BranchId`, "not an id at
-    // all" is no longer representable, so unknown-but-well-formed is the only case left to cover.
-    let unknown = testBranch "test-branch-that-does-not-exist"
-    let op =
-      PT.PackageOp.BranchEvent(unknown, PT.Merged [], "2026-01-01T00:00:00.000Z")
-
-    let! _ = LibDB.Inserts.insertAndApplyOps [ op ]
-
-    let! rows =
-      countSql
-        "SELECT COUNT(*) as n FROM branches WHERE id = @b"
-        [ "b", Sql.string (string unknown) ]
-    Expect.equal rows 0L "no branch was conjured up to receive the event"
-
-    // The one op this test wrote, back out: every test in this file leaves the shared store as it
-    // found it, and this one was the exception.
-    let opId = LibSerialization.Hashing.Hashing.computeOpRowId op
-    do! execSqlP "DELETE FROM package_ops WHERE id = @id" [ "id", Sql.uuid opId ]
-  }
-
-
-/// The fold marks ops applied by PREDICATE, not by id, and folding an op can change that predicate.
-///
-/// A merge event arriving from another machine flips its branch's frontier to effective=1 mid-fold.
-/// An applied=1 sweep running afterwards marks those ops applied without anything having folded
-/// them, so the branch reads `[merged]` next to a main that does not have its code. The sweep runs
-/// BEFORE the fold for exactly this reason.
-let foldDoesNotStrandOpsItMadeEffective =
-  testTask
-    "an op that makes other ops effective does not leave them applied-but-unfolded" {
-    let! branchId = freshBranch "test-branch-stranded" "stranded-proof"
-
-    let! ops = parsePackageOps (namedSource "BranchTestStranded" 77)
-    let! _ = Branches.storeDeltaOps branchId ops
-
-    let! pending = countEffective branchId 0
-    Expect.isGreaterThan pending 0L "the branch's ops start effective=0"
-
-    // The event has to arrive the way a SYNC delivers it: inserted unapplied-and-effective, then
-    // folded by `applyUnappliedOps`, which puts the flip and the sweep inside ONE pass. Authoring it
-    // locally folds it in its own call, and a later pass picks the branch ops up regardless.
-    // The event names what the merge moved: with an empty list it would, correctly, fold nothing.
-    let mergedIds = ops |> List.map LibDB.Inserts.computeOpHash
-    let event =
-      PT.PackageOp.BranchEvent(
-        branchId,
-        PT.Merged mergedIds,
-        "2026-01-01T00:00:00.000Z"
-      )
-    let eventId = LibDB.Inserts.computeOpHash event
-    let eventBytes = BS.PT.PackageOp.serialize eventId event
-    do!
-      execSqlP
-        "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts)
-         VALUES (@id, @blob, 0, 1, @ts)"
-        [ "id", Sql.uuid eventId
-          "blob", Sql.bytes eventBytes
-          "ts", Sql.string "2026-01-01T00:00:00.000Z" ]
-
-    let! _ = Seed.applyUnappliedOps ()
-
-    // Asserted over the ids captured BEFORE the event, because the event clears the branch tags: a
-    // query that looks them up by tag afterwards finds nothing and passes for the wrong reason.
-    let ids = ops |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-    let! unfolded =
-      Sql.query
-        $"""SELECT COUNT(*) as n FROM package_ops
-            WHERE applied = 0 AND id IN ({ids |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
-    Expect.equal unfolded 0L "every op the event made effective was actually folded"
-
-    let! inMain = pmPT.findFn (fooLocIn "BranchTestStranded") |> Ply.toTask
-    Expect.isSome
-      inMain
-      "the merged branch's fn resolves on main after the event folded"
-
-    do! cleanupBranch branchId
-  }
-
 
 
 /// Dark code outside the SCM silos must not query `locations`. It is MAIN's projection and has no
@@ -1774,7 +1369,7 @@ let noMainLiteralInDarkSql =
 /// A branch ID never reaches a person. Names do.
 ///
 /// Ids everywhere inside, a NAME wherever a human reads it. The rule breaks in strings nothing else
-/// tests -- conflict candidate labels, the `BranchEvent` line in `dark show`, the `rebase` and
+/// tests -- conflict candidate labels, the `rebase` and
 /// `resolve` messages -- and it reads as `rebased onto "00000000-0000-0000-0000-000000000001"`.
 ///
 /// Textual, and a tripwire rather than a proof: it knows the spellings we actually use for a branch id,
@@ -1884,62 +1479,9 @@ let overrideClosesOnlyItsOwnKind =
   }
 
 
-/// A merge event for a branch this store never held must update NOTHING. Op ids are
-/// content-addressed, so the event's id list can name an op that exists here as local draft
-/// work; without the op_branches predicate on the stamp UPDATE, that op got the merger's
-/// commit_hash while the effective-flip correctly no-opped.
-let unknownBranchEventStampsNothing =
-  testTask
-    "a merge event for a never-held branch does not stamp a same-content draft op" {
-    let! ops = parsePackageOps (namedSource "StampGuard" 7)
-    let! _ = LibDB.Inserts.insertAndApplyOps ops
-    let opIds = ops |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-
-    // The event, from a branch id this store has no row for, carrying a commit to copy.
-    let ghostBranch = testBranch "neverHeldStamp"
-    let event =
-      PT.PackageOp.BranchEvent(
-        ghostBranch,
-        PT.Merged(ops |> List.map LibDB.Inserts.computeOpHash),
-        "2026-01-01T00:00:00.000Z"
-      )
-    let eventId = LibDB.Inserts.computeOpHash event
-    let eventBytes = BS.PT.PackageOp.serialize eventId event
-    do!
-      execSqlP
-        "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts, commit_hash)
-         VALUES (@id, @blob, 0, 1, @ts, 'stamp-guard-commit')"
-        [ "id", Sql.uuid eventId
-          "blob", Sql.bytes eventBytes
-          "ts", Sql.string "2026-01-01T00:00:00.000Z" ]
-
-    let! _ = Seed.applyUnappliedOps ()
-
-    let! stamped =
-      countSql
-        $"""SELECT COUNT(*) as n FROM package_ops
-            WHERE commit_hash IS NOT NULL AND id IN ({opIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
-        []
-    Expect.equal stamped 0L "the local draft ops keep commit_hash NULL"
-
-    do! execSql "DELETE FROM locations WHERE modules = 'StampGuard'"
-    do! execSqlP "DELETE FROM package_ops WHERE id = @id" [ "id", Sql.uuid eventId ]
-    do!
-      execSql
-        $"""DELETE FROM package_ops WHERE id IN ({opIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
-  }
-
-// ── actions stopped partway ─────────────────────────────────────────────────────────────────────
-//
-// Every SCM action writes in one transaction where it can, and these stop one at each named step
-// INSIDE that transaction (`ScmActions.Testing.failAt`), which is what a crash there does: the
-// transaction never commits. The store has to read exactly as it did before, and the same action
-// run again has to finish the job. Before the actions moved into F#, merge, archive, commit and
-// discard each ran as several transactions sequenced from Dark, and nothing tested the gaps.
-
 /// Everything an action on <param b> could leave half-done, scoped to rows this test owns: the
-/// branch's own ops (by id, so they are still counted once untagged), its tags, bases and flags,
-/// main's draft, commits under <param message>, and the names and conflicts in <param modName>.
+/// branch's own ops, its bases and flags, the ops by id wherever they are, main's draft, commits under
+/// <param message>, and the names and conflicts in <param modName>.
 let private actionFootprint
   (b : PT.BranchId)
   (opIds : List<string>)
@@ -1950,7 +1492,7 @@ let private actionFootprint
     let ids = opIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "
     let pb = [ "b", Sql.string (string b) ]
     let! tags =
-      countSql "SELECT count(*) AS n FROM op_branches WHERE branch_id = @b" pb
+      countSql "SELECT count(*) AS n FROM package_ops WHERE branch_id = @b" pb
     let! bases =
       countSql "SELECT count(*) AS n FROM branch_name_bases WHERE branch_id = @b" pb
     let! baseHashes =
@@ -1967,7 +1509,7 @@ let private actionFootprint
       countSql $"SELECT count(*) AS n FROM package_ops WHERE id IN ({ids})" []
     let! effective =
       countSql
-        $"SELECT count(*) AS n FROM package_ops WHERE effective = 1 AND id IN ({ids})"
+        $"SELECT count(*) AS n FROM package_ops WHERE branch_id = '00000000-0000-0000-0000-000000000001' AND id IN ({ids})"
         []
     let! applied =
       countSql
@@ -1984,7 +1526,7 @@ let private actionFootprint
     let! draft = mainDraftIds ()
     let! live =
       countSql
-        "SELECT count(*) AS n FROM locations WHERE modules = @m AND unlisted_at IS NULL"
+        "SELECT count(*) AS n FROM locations WHERE modules = @m AND live = 1"
         [ "m", Sql.string modName ]
     let! conflicts =
       countSql
@@ -2022,11 +1564,6 @@ let private stoppedAt
     Expect.equal after before $"stopped at {step}, the store reads as it did before"
   }
 
-let private branchOpIds (b : PT.BranchId) : Task<List<string>> =
-  Sql.query "SELECT op_id FROM op_branches WHERE branch_id = @b"
-  |> Sql.parameters [ "b", Sql.string (string b) ]
-  |> Sql.executeAsync (fun read -> read.string "op_id")
-
 let private dropCommitsAndOps
   (message : string)
   (opIds : List<string>)
@@ -2047,20 +1584,15 @@ let interruptedMergeLeavesNothingHalfDone =
     let modName = "InterruptMerge"
     let message = "merged branch \"int-merge\""
     let! b = freshBranch "test-int-merge" "int-merge"
-    let! ops = parsePackageOps (namedSource modName 3)
-    let! _ = Branches.storeDeltaOps b ops
+    let! ops = parsePackageOps (namedSource modName 8811)
+    let! _ = author b ops
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds message modName
     let merge () =
       LibDB.ScmActions.merge b [] (fun _ -> Task.FromResult()) (fun () ->
         Task.FromResult())
 
-    for step in
-      [ "merge.flipped"
-        "merge.folded"
-        "merge.marked"
-        "merge.event"
-        "merge.committed" ] do
+    for step in [ "merge.committed"; "merge.moved"; "merge.folded"; "merge.marked" ] do
       do! stoppedAt step footprint merge
 
     let! done' = merge ()
@@ -2090,8 +1622,8 @@ let failedEvaluationAfterAMergeIsAWarning =
     let modName = "MergeEvalFails"
     let message = "merged branch \"merge-eval\""
     let! b = freshBranch "test-merge-eval" "merge-eval"
-    let! ops = parsePackageOps (namedSource modName 7)
-    let! _ = Branches.storeDeltaOps b ops
+    let! ops = parsePackageOps (namedSource modName 8812)
+    let! _ = author b ops
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds message modName
 
@@ -2122,14 +1654,13 @@ let interruptedArchiveLeavesNothingHalfDone =
     let modName = "InterruptArchive"
     let message = "archived branch \"int-archive\""
     let! b = freshBranch "test-int-archive" "int-archive"
-    let! ops = parsePackageOps (namedSource modName 4)
-    let! _ = Branches.storeDeltaOps b ops
+    let! ops = parsePackageOps (namedSource modName 8813)
+    let! _ = author b ops
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds message modName
     let archive () = LibDB.ScmActions.archive b
 
-    for step in [ "archive.marked"; "archive.event" ] do
-      do! stoppedAt step footprint archive
+    do! stoppedAt "archive.marked" footprint archive
 
     let! done' = archive ()
     Expect.isOk done' "the re-run archives"
@@ -2138,10 +1669,7 @@ let interruptedArchiveLeavesNothingHalfDone =
       after
       "tags=0 bases=0 [] finished=1 present=0 "
       $"its ops, tags and bases are gone and it is marked: {after}"
-    Expect.stringContains
-      after
-      "commits=1 "
-      "and the event that says so is committed"
+    Expect.stringContains after "commits=1 " "and the commit that says so is there"
 
     do! dropCommitsAndOps message []
     do! cleanupBranch b
@@ -2152,8 +1680,8 @@ let interruptedCommitWritesNoEmptyCommit =
     let modName = "InterruptCommit"
     let message = "int-commit work"
     let! b = freshBranch "test-int-commit" "int-commit"
-    let! ops = parsePackageOps (namedSource modName 5)
-    let! _ = Branches.storeDeltaOps b ops
+    let! ops = parsePackageOps (namedSource modName 8814)
+    let! _ = author b ops
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds message modName
     let commit () = LibDB.ScmActions.commit b message LibDB.ScmActions.Whole false
@@ -2173,22 +1701,22 @@ let interruptedCommitWritesNoEmptyCommit =
     do! cleanupBranch b
   }
 
-let interruptedBranchDiscardKeepsTagsWithTheirOps =
-  testTask "a branch discard stopped between rows and tags leaves both" {
+let interruptedBranchDiscardKeepsRowsWithTheirOps =
+  testTask "a branch discard stopped between its rows and its ops leaves both" {
     let modName = "InterruptDiscard"
     let! b = freshBranch "test-int-discard" "int-discard"
-    let! ops = parsePackageOps (namedSource modName 6)
-    let! _ = Branches.storeDeltaOps b ops
+    let! ops = parsePackageOps (namedSource modName 8815)
+    let! _ = author b ops
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds "" modName
     let discard () = LibDB.ScmActions.discard b LibDB.ScmActions.All
 
-    do! stoppedAt "discard.rows" footprint discard
+    do! stoppedAt "drop.rows" footprint discard
 
     let! done' = discard ()
     Expect.equal done' (Ok(List.length opIds)) "the re-run drops the draft"
     let! after = footprint ()
-    Expect.stringContains after "tags=0 " "no tag is left pointing at a deleted op"
+    Expect.stringContains after "tags=0 " "the branch holds no ops"
     Expect.stringContains after "present=0 " "and the rows went with them"
 
     do! cleanupBranch b
@@ -2202,7 +1730,7 @@ let interruptedRebaseCanBeRunAgain =
     // A base the parent has since moved off: main binds nothing at this name, so the parent's hash is "".
     do!
       execSqlP
-        "INSERT INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+        "INSERT OR REPLACE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
          VALUES (@b, 'Tests', @m, 'foo', 'stale')"
         [ "b", Sql.string (string b); "m", Sql.string modName ]
     let footprint () = actionFootprint b [] "" modName
@@ -2232,11 +1760,11 @@ let interruptedResolutionChangesNothing =
   testTask "keep-mine and take-theirs stopped before the base moves change nothing" {
     let modName = "InterruptResolve"
     let! b = freshBranch "test-int-resolve" "int-resolve"
-    let! ops = parsePackageOps (namedSource modName 7)
-    let! _ = Branches.storeDeltaOps b ops
+    let! ops = parsePackageOps (namedSource modName 8816)
+    let! _ = author b ops
     do!
       execSqlP
-        "INSERT INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+        "INSERT OR REPLACE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
          VALUES (@b, 'Tests', @m, 'foo', 'stale')"
         [ "b", Sql.string (string b); "m", Sql.string modName ]
     let! opIds = branchOpIds b
@@ -2262,7 +1790,7 @@ let interruptedResolutionChangesNothing =
 
 
 let tests =
-  // These mutate the process-global branch overlay AND delete from `package_ops`, either of which
+  // These mutate the process-global current branch AND delete from `package_ops`, either of which
   // can make a concurrent reader see the store mid-change. testSequenced, NOT testSequencedGroup:
   // the group form only sequences the tests inside it, and still runs in the parallel phase next
   // to everything else.
@@ -2273,11 +1801,9 @@ let tests =
       isolationFromCore
       unbindHidesACoreNameOnTheBranchOnly
       branchExists
-      importedOpsKeepTheirStamps
       branchPMIsPerBranch
       branchNamesResolveButDontShadowMain
       isolationBetweenBranches
-      parentHashesAgreeAcrossLanguages
       undecodableBranchOpIsSkippedNotFatal
       overlaySearchAgreesWithFindFn
       supersededBranchVersionsKeepTheirName
@@ -2286,30 +1812,24 @@ let tests =
       concurrentCreateYieldsOneBranch
       processOverlaySelects
       branchesOffBranches
-      getWipOpsExcludesBranch
+      mainDraftExcludesBranchOps
       mergeDoesNotConsumeSiblingPendingOps
       sameNameMergesConvergeToLater
       resolveAloneRecordsANameBase
       reuseBranchIdRevives
       branchValueContentFoldIsolatesName
-      branchEventMarksMerged
-      branchEventForUnknownBranchIsIgnored
-      foldDoesNotStrandOpsItMadeEffective
-      branchTransferImportReDerivesBases
       noDirectLocationsReadsOutsideTheSilos
       noMainLiteralInDarkSql
       branchIdsNeverReachAPerson
       overrideClosesOnlyItsOwnKind
-      unknownBranchEventStampsNothing
       mainRetakesABranchsOp
       aBranchNeverTagsWhatMainRuns
       refLookupSaysWhyItMissed
       overlayPairsByHashNotAdjacency
-      anUndecodableBundleOpIsKeptNotRefused
       interruptedMergeLeavesNothingHalfDone
       failedEvaluationAfterAMergeIsAWarning
       interruptedArchiveLeavesNothingHalfDone
       interruptedCommitWritesNoEmptyCommit
-      interruptedBranchDiscardKeepsTagsWithTheirOps
+      interruptedBranchDiscardKeepsRowsWithTheirOps
       interruptedRebaseCanBeRunAgain
       interruptedResolutionChangesNothing ]

@@ -48,7 +48,7 @@ type Info =
     name : string
     parentId : string
     merged : bool
-    /// `All` only: how many ops are tagged to it.
+    /// `All` only: how many ops it holds.
     ops : int64
     /// `NameBasesOf` only.
     nameBases : List<NameBase>
@@ -77,7 +77,7 @@ let query (q : Query) : Task<List<Info>> =
   | All ->
     Sql.query
       "SELECT b.id, b.name, b.parent_id, b.merged_at IS NOT NULL AS merged,
-              (SELECT count(*) FROM op_branches ob WHERE ob.branch_id = b.id) AS ops
+              (SELECT count(*) FROM package_ops p WHERE p.branch_id = b.id) AS ops
        FROM branches b WHERE b.archived_at IS NULL ORDER BY b.created_at DESC"
     |> Sql.executeAsync (fun read ->
       { empty with

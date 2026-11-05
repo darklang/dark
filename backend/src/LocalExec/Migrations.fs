@@ -172,6 +172,7 @@ let private runSchemaBootstrap (sql : string) : unit =
 
 let run () : unit =
   let sql = schemaSql ()
+  let _ = LibDB.Releases.resetIfOlderShape LibConfig.Config.dbPath
   // Three passes, and the order is the whole point. Tables first, so everything exists. Then the
   // release steps, which are the only thing that can add a COLUMN to a table that already exists.
   // Then the indexes, which may name a column a step has just added.

@@ -72,13 +72,13 @@ from code updates.
 
 ## Branches
 
-A branch is an overlay on the same op log, not a copy. Its ops are invisible
+A branch is a layer over its parent in the same store, not a copy. Its ops are invisible
 to main until they merge, and it resolves through COMMITTED work only: a
 parent's draft (main's included) is invisible downstream until committed.
 Both directions are what make several agents on several branches safe at once.
 
 You refer to a branch by NAME everywhere on the command line. Underneath it
-has a uuid, which is what the op tags, bundles and parent links point at, so
+has a uuid, which is what its ops and parent links point at, so
 renaming a branch doesn't orphan its work and two machines that each started
 a `fix-auth` keep two branches rather than silently becoming one. `branches`
 prints both.

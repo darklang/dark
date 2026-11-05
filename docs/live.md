@@ -70,7 +70,7 @@ lookup sees the store as it is. That is the whole reload.
 | cache | keyed by | on a change |
 |---|---|---|
 | `LibDB.PackageManager.pt.findFn` / `findType` / `findValue` | location | dropped by `invalidateAll`; the next lookup reads the new binding |
-| `LibDB.PackageManager.ptForBranch` overlay (`otherBranchOps`) | branch id | dropped by `invalidateAll` |
+| `LibDB.PackageManager.ptForBranch` per-branch lookups | branch id, location | dropped by `invalidateAll` |
 | `LibDB.PackageManager.harmfulCache` | none (a set of hashes) | dropped by `invalidateAll` |
 | `LibDB.PackageManager.rt.getFn` / `getType` / `getValue`, `pt.getFn` ... | hash | dropped by `invalidateAll` too, harmlessly: a hash's body never changes, the entry refills on the next call |
 | `ExecutionState.packageFnCallCache` | hash | survives; correct, a hash's call data never changes |

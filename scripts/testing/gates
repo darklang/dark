@@ -38,6 +38,7 @@ GATES=(
   workbench-views
   first-day
   backups-restore
+  old-store-resets
   reload-is-reproducible
   trait-choice-survives-rival
   trait-choice-any-batching
@@ -68,7 +69,7 @@ GATES=(
 # These are durations, so they drift with whatever else is on the box; the trait four were taken
 # while another clone was running perf experiments. Treat them as orders of magnitude against the
 # 5m bound, not as a budget. A gate reporting 0s has not run at all.
-CI_GATES=(workbench-scm workbench-views
+CI_GATES=(workbench-scm workbench-views old-store-resets
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches
           shipped-tree-typechecks perf-probes-run prompts-unattended)
@@ -80,6 +81,7 @@ describe() {
     workbench-views)        echo 'every workbench view, one session each' ;;
     first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;
     backups-restore)        echo 'backup, wipe, restore; the destructive verbs ask first' ;;
+    old-store-resets)       echo 'a store from before per-branch names: backed up, reset, refilled' ;;
     reload-is-reproducible) echo 'two reloads of one tree agree on every op id' ;;
     trait-choice-survives-rival) echo 'a saved call keeps its implementation when a newer rival lands' ;;
     trait-choice-any-batching) echo 'the choice is recorded whether trait, impls and callers are saved together or apart' ;;

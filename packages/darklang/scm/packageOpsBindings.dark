@@ -1,8 +1,8 @@
 module Darklang.SCM.PackageOps
 
-// Read operations to work out what each name points to.
-// The locations table holds main's bindings. For other branches, apply the changes
-// from the branch and its parents to find the bindings visible there.
+// Turning op rows into bindings: what each op says about a name, and what a name holds NOW. What a
+// name holds is the store's answer (`SCM.Bindings`), asked of the branch; the op-row folds here are for
+// a run of ops that is not in the store's answer yet, such as a draft being checked.
 
 /// (id, ts, op) per row whose op this build could read -- the one filter behind every op-log read
 /// that wants ops. `scmOps` decodes the blobs; a row it could not decode (a peer's op on a newer
@@ -140,42 +140,11 @@ let bindingsFromOpRows(rows: List<OpRow>): List<Conflicts.Binding> =
   bindingEntriesFromOpRows(rows) |> Stdlib.List.filterMap(fun w -> w.binding)
 
 
-/// Read binding changes from this branch and its parents, stopping before main.
-/// Use the same ordering as LibDB.Branches.chainOverlayOps so Dark and F# agree.
-/// The query uses main's UUID as @p1. Comparing parent_id with the text "main"
-/// would miss that boundary because parent_id stores a UUID.
-let chainBindingEntries(branchId: Uuid): List<NameWord> =
-  bindingEntriesFromOpRows(chainOpRows(branchId))
-
-
-/// The chain's op rows, oldest first -- the one query behind <fn chainBindingEntries> and
-/// `branchHashHistoryFor`.
-let chainOpRows(branchId: Uuid): List<OpRow> = rowsOf(OpFilter.Chain(branchId))
-
-
-/// <fn chainBindingEntries>, keeping only the names the chain leaves bound.
-let chainBindings(branchId: Uuid): List<Conflicts.Binding> =
-  chainBindingEntries(branchId) |> Stdlib.List.filterMap(fun w -> w.binding)
-
-
-/// Read committed main bindings from the shared storage reader.
-/// It also finds bindings whose location rows were hidden by main's draft.
-let committedBindingsFor(locs: List<(String * String * String)>): List<Conflicts.Binding> =
-  let locations =
-    locs |> Stdlib.List.map(fun((owner, modules, name)) -> Deps.locationOf(owner, modules, name))
-  Builtin.pmCommittedBindings(locations)
-  |> Stdlib.List.filterMap(fun((op, stamp)) -> bindingFromOp(op, stamp) |> Stdlib.Option.map(fun((_, binding)) -> binding))
-
-/// Read the committed bindings visible on this branch for the requested names.
+/// What <param branchId> has COMMITTED at each of <param locations>: its own committed work over its
+/// ancestors', main's included. Its draft is left out.
 let committedBindingsOn(branchId: Uuid, locations: List<(String * String * String)>): List<Conflicts.Binding> =
-  let main = committedBindingsFor(locations)
-  let branch = if SCM.Branch.isMain(branchId) then [] else
-    rowsOf(OpFilter.ChainCommitted(branchId)) |> bindingEntriesFromOpRows
-  let key(b: Conflicts.Binding): String = Conflicts.bindingKey(b.owner, b.modules, b.name)
-  let touched = branch |> Stdlib.List.map(fun word -> Conflicts.bindingKey(word.owner, word.modules, word.name))
-  Stdlib.List.concat(
-    main |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(Stdlib.List.contains(touched, key(b)))),
-    branch |> Stdlib.List.filterMap(fun word -> word.binding))
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.CommittedAt(branchId, locations))
+  |> Stdlib.List.map(Conflicts.bindingOf)
 
 type ReferenceSource =
   (LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)
@@ -190,71 +159,41 @@ let liveReferenceSources(branchId: Uuid): List<ReferenceSource> =
   Builtin.pmLiveReferenceSources(branchId)
 
 
-/// Resolve one name through the same branch-aware batch reader as dependency checks.
+/// What <param loc> resolves to on <param branchId>: the branch's own work over what its ancestors
+/// committed, main's included. THE branch-aware read of a live binding.
 let liveBindingFor(
   branchId: Uuid,
   loc: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<Conflicts.Binding> =
-  Stdlib.Dict.get(liveBindingsFor(branchId, [ loc ]),
-    Conflicts.bindingKey(loc.owner, Stdlib.String.join(loc.modules, "."), loc.name))
+  SCM.Bindings.query(
+    SCM.Bindings.BindingFilter.At(
+      branchId,
+      [ (loc.owner, Stdlib.String.join(loc.modules, "."), loc.name) ]
+    )
+  )
+  |> Stdlib.List.head
+  |> Stdlib.Option.map(Conflicts.bindingOf)
 
 
 /// <fn liveBindingFor> for many names at once, keyed by `Conflicts.bindingKey`; a name that resolves
 /// to nothing is absent.
-///
-/// Same two layers, asked once each: the chain decoded once, then main in one query for the names
-/// the chain says nothing about. Asked per name, a branch re-decodes its whole chain every time.
 let liveBindingsFor(
   branchId: Uuid,
   locs: List<LanguageTools.ProgramTypes.PackageLocation>)
   : Dict<String, Conflicts.Binding> =
-  let chain = if SCM.Branch.isMain(branchId) then [] else chainBindingEntries(branchId)
-  liveBindingsOver(branchId, chain, locs)
-
-
-/// <fn liveBindingsFor> for a caller that has already read <param chain>, the
-/// `chainBindingEntries` of <param branchId>, and should not pay for it twice.
-let liveBindingsOver(
-  branchId: Uuid,
-  chain: List<NameWord>,
-  locs: List<LanguageTools.ProgramTypes.PackageLocation>)
-  : Dict<String, Conflicts.Binding> =
-  let onMain = SCM.Branch.isMain(branchId)
-
-  let chainWords =
-    chain
-    |> Stdlib.List.map(fun w -> (Conflicts.bindingKey(w.owner, w.modules, w.name), w))
-    |> Stdlib.Dict.fromEntries
-
-  let undecided =
+  let names =
     locs
     |> Stdlib.List.map(fun loc ->
       (loc.owner, Stdlib.String.join(loc.modules, "."), loc.name))
     |> Stdlib.List.unique
-    |> Stdlib.List.filter(fun t ->
-      let (owner, modules, name) = t
-      let key = Conflicts.bindingKey(owner, modules, name)
-      Stdlib.Option.isNone(Stdlib.Dict.get(chainWords, key)))
 
-  // main-scoped: read main's bindings for names the branch has not changed.
-  // Other branches inherit committed bindings; main also sees its own draft.
-  // Reverse the rows before building the Dict so the first row for each name wins.
-  let fromMain =
-    if Stdlib.List.isEmpty(undecided) then []
-    else if Stdlib.Bool.not(onMain) then committedBindingsFor(undecided)
-    else
-      SCM.Bindings.query(SCM.Bindings.BindingFilter.MainAtEach(undecided))
-      |> Stdlib.List.map(Conflicts.bindingOf)
-      |> Stdlib.List.reverse
-
-  Stdlib.List.concat(
-    (chainWords
-     |> Stdlib.Dict.toEntries
-     |> Stdlib.List.filterMap(fun kw ->
-       let (k, w) = kw
-       w.binding |> Stdlib.Option.map(fun b -> (k, b)))),
-    fromMain |> Stdlib.List.map(fun b -> (Conflicts.bindingKey(b.owner, b.modules, b.name), b)))
-  |> Stdlib.Dict.fromEntries
+  if Stdlib.List.isEmpty(names) then
+    Dict {}
+  else
+    SCM.Bindings.query(SCM.Bindings.BindingFilter.At(branchId, names))
+    |> Stdlib.List.map(fun row ->
+      (Conflicts.bindingKey(row.owner, row.modules, row.name), Conflicts.bindingOf(row)))
+    |> Stdlib.Dict.fromEntries
 
 
 /// <fn liveBindingFor> on the branch this process stands on.
@@ -262,4 +201,3 @@ let liveBindingAt(
   loc: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<Conflicts.Binding> =
   liveBindingFor(currentBranch(), loc)
-

@@ -172,7 +172,6 @@ module PT =
       | PT.PackageOp.SetReferenceNames _ -> "reference-names"
       | PT.PackageOp.UpdateDoc _ -> "update-doc"
       | PT.PackageOp.Decision _ -> "decision"
-      | PT.PackageOp.BranchEvent _ -> "branch-event"
 
     /// The op, or None when THIS BUILD cannot read it. Nearly every reader wants this
     /// one rather than `deserialize`: a synced store's own log legitimately holds ops
@@ -180,8 +179,7 @@ module PT =
     /// build can apply them -- so local readers meet unreadable ops routinely.
     ///
     /// One decoder returns an Option, every reader tolerates, and no writer deletes
-    /// what it could not decode: `Inserts.wholeMainDeletes` excludes them BY ID,
-    /// never by whether they parse.
+    /// what it could not decode: a rewrite deletes only the ids it read as ops.
     let tryDeserialize (id : System.Guid) (data : byte[]) : Option<PT.PackageOp> =
       try
         Some(deserialize id data)

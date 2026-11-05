@@ -75,7 +75,7 @@ let private indexedNames (hashes : List<Hash>) =
 /// Dependency queries and propagation both use this function.
 let dependents
   (state : State)
-  (branchBindings : Map<PT.PackageLocation, Option<PT.Reference>>)
+  (branch : PT.BranchId)
   (targets : List<Queries.LocationTarget>)
   : Task<List<Queries.LocationDependent>> =
   task {
@@ -98,29 +98,14 @@ let dependents
         else
           None)
     let hashes = List.distinct (hashes @ renamedCallers)
-    let! mainLocations = Queries.getLiveLocationsForHashes hashes
-
-    let branchLocationsByHash : Map<Hash, List<PT.ItemKind * PT.PackageLocation>> =
-      branchBindings
-      |> Map.toList
-      |> List.choose (fun (location, reference) ->
-        reference
-        |> Option.map (fun reference -> reference.hash, (reference.kind, location)))
-      |> List.groupBy fst
-      |> Map.map (List.map snd)
-
-    // Include both inherited callers and callers added on the branch.
-    // Several names can share the same body, and each needs to follow the edit.
+    // Where the branch's view binds each of them; several names can share one body, and each
+    // needs to follow the edit.
+    let! live = Queries.getLiveLocationsForHashes branch hashes
     let batchDependents =
       hashes
       |> List.collect (fun h ->
-        let fromBranch =
-          Map.tryFind (Hash h) branchLocationsByHash |> Option.defaultValue []
-        let fromMain = Map.tryFind h mainLocations |> Option.defaultValue []
-
-        // Branch first so it wins the dedup below for a location both describe.
-        let resolved = (fromBranch @ fromMain) |> List.distinctBy snd
-        resolved
+        Map.tryFind h live
+        |> Option.defaultValue []
         |> List.map (fun (kind, loc) ->
           ({ itemHash = Hash h; itemKind = kind; itemLocation = loc }
           : Queries.LocationDependent)))
@@ -174,39 +159,25 @@ let dependents
           return List.rev matches
         }
 
-    return
-      batchDependents
-      |> List.filter (fun dependent ->
-        match Map.tryFind dependent.itemLocation branchBindings with
-        | None -> true
-        | Some current ->
-          let reference =
-            PT.Reference.fromHashAndKind (dependent.itemHash, dependent.itemKind)
-          current = Some reference)
-
+    return batchDependents
   }
 
-/// One branch-visible binding snapshot for the entire review.
-let liveBindings branch =
+/// One branch-visible binding snapshot for the entire review: every name the view binds.
+let liveBindings (branch : PT.BranchId) =
   task {
-    let! main =
-      Sql.query
-        "SELECT owner, modules, name, item_type, item_hash FROM locations WHERE unlisted_at IS NULL"
+    let! rows =
+      Sql.query (
+        Layers.view "@" Layers.locations
+        + " SELECT owner, modules, name, item_type, item_hash FROM visible WHERE item_hash <> ''"
+      )
+      |> Sql.parameters (Layers.sqlParams branch true)
       |> Sql.executeAsync (fun row ->
         location (row.string "owner") (row.string "modules") (row.string "name"),
         PT.Reference.fromHashAndKind (
           Hash(row.string "item_hash"),
           PT.ItemKind.fromString (row.string "item_type")
         ))
-    let! changes = branchBindings branch
-    return
-      changes
-      |> Map.fold
-        (fun bindings name target ->
-          match target with
-          | Some target -> Map.add name target bindings
-          | None -> Map.remove name bindings)
-        (Map.ofList main)
+    return Map.ofList rows
   }
 
 let private namedReferencesFrom
@@ -306,28 +277,30 @@ let reviewGraph
         enqueue caller
   stale, List.ofSeq result
 
-/// Main's index can narrow the graph before any edges cross out of SQLite.
-/// Saved names and ambiguous hashes are exceptions: read those callers even when
-/// their indexed names look current, because their effective names may be stale.
-let private reviewMain
+/// The dependency index narrows the graph before any edges cross out of SQLite: only callers of a name
+/// whose version in <param branch>'s view is not the one the edge recorded. Saved names and ambiguous
+/// hashes are exceptions: read those callers even when their indexed names look current, because their
+/// effective names may be stale.
+let private reviewIndexed
+  (branch : PT.BranchId)
   (state : State)
   (live : Map<PT.PackageLocation, PT.Reference>)
   (changed : List<PT.PackageLocation * PT.Reference>)
   =
   task {
     let! candidates =
-      Sql.query
-        """WITH stale AS MATERIALIZED (
+      Sql.query (
+        Layers.view "@" Layers.locations
+        + """, stale AS MATERIALIZED (
              SELECT d.depends_on_owner AS owner,
                     d.depends_on_modules AS modules, d.depends_on_name AS name,
                     d.depends_on_hash AS hash
              FROM (SELECT DISTINCT depends_on_owner, depends_on_modules,
                           depends_on_name, depends_on_hash
                    FROM package_dependencies WHERE depends_on_owner IS NOT NULL) d
-             JOIN locations l ON l.owner = d.depends_on_owner
+             JOIN visible l ON l.owner = d.depends_on_owner
                AND l.modules = d.depends_on_modules AND l.name = d.depends_on_name
-               AND l.unlisted_at IS NULL
-             WHERE l.item_hash <> d.depends_on_hash
+             WHERE l.item_hash <> d.depends_on_hash AND l.item_hash <> ''
            )
            SELECT DISTINCT d.item_hash
            FROM stale s CROSS JOIN package_dependencies d
@@ -338,6 +311,8 @@ let private reviewMain
            WHERE depends_on_owner IS NOT NULL
            GROUP BY item_hash, depends_on_hash, depends_on_item_type
            HAVING COUNT(*) > 1"""
+      )
+      |> Sql.parameters (Layers.sqlParams branch true)
       |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
     let byHash = live |> Map.toList |> List.groupBy (fun (_, target) -> target.hash)
     let sources hashes =
@@ -426,14 +401,9 @@ let private reviewMain
   }
 
 /// Share binding and reference-name state across constraint and propagation review.
-/// Main uses indexed candidates; branches retain the full overlay-aware graph.
 let dependencyReview branch changed =
   task {
     let! state = load branch
     let! live = liveBindings branch
-    if branch.IsMain then
-      return! reviewMain state live changed
-    else
-      let! edges = namedReferencesFrom state (Map.toList live)
-      return edges |> Result.map (fun edges -> reviewGraph live edges changed)
+    return! reviewIndexed branch state live changed
   }

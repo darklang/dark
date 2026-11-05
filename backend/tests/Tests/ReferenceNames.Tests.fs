@@ -110,7 +110,7 @@ let savedNamesNeedTheStoredDeclaration =
             | Some names -> names
             | None -> failtest "the fixture has a stored body"
           let! _ =
-            LibDB.Inserts.insertAndApplyOpsAsWip
+            LibDB.Inserts.insertAndApplyOps
               [ PT.PackageOp.SetReferenceNames(fst caller, snd caller, names, None) ]
           // Keep the saved names and dependency index, but remove the body they describe.
           let (PT.Hash hash) = hash
@@ -221,7 +221,7 @@ let downstream(): Int64 = caller()
               "the initial aliases are current"
           // Change the binding without propagation so review has a stale edge to find.
           let! _ =
-            LibDB.Inserts.insertAndApplyOpsAsWip
+            LibDB.Inserts.insertAndApplyOps
               [ PT.PackageOp.SetName(leaf, replacement, None) ]
           let! (_, current) = source moduleName "leaf"
           Expect.equal
@@ -258,26 +258,8 @@ let downstream(): Int64 = caller()
                 match all with
                 | Ok edges -> edges
                 | Error message -> failtest message
-              let! rows =
-                Sql.query
-                  "SELECT owner, modules, name, item_type, item_hash FROM locations WHERE unlisted_at IS NULL"
-                |> Sql.executeAsync (fun row ->
-                  let modules = row.string "modules"
-                  let location : PT.PackageLocation =
-                    { owner = row.string "owner"
-                      modules =
-                        if modules = "" then
-                          []
-                        else
-                          modules.Split('.') |> Array.toList
-                      name = row.string "name" }
-                  location,
-                  PT.Reference.fromHashAndKind (
-                    PT.Hash(row.string "item_hash"),
-                    PT.ItemKind.fromString (row.string "item_type")
-                  ))
-              let expected =
-                ReferenceDependencies.reviewGraph (Map.ofList rows) edges changed
+              let! live = ReferenceDependencies.liveBindings PT.BranchId.Main
+              let expected = ReferenceDependencies.reviewGraph live edges changed
               let! actual =
                 ReferenceDependencies.dependencyReview PT.BranchId.Main changed
               let normalize (stale, repoints) =
@@ -291,7 +273,7 @@ let downstream(): Int64 = caller()
           do! checkFullGraph [ leaf, replacement; caller ]
           // Now stale through the saved alias rather than the canonical body name.
           let! _ =
-            LibDB.Inserts.insertAndApplyOpsAsWip
+            LibDB.Inserts.insertAndApplyOps
               [ PT.PackageOp.SetName(alias, replacement, None) ]
           do! checkFullGraph [ alias, replacement ]
         })

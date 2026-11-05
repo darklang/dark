@@ -7,7 +7,7 @@ module Darklang.SCM.Draft
 // This module owns that picture; callers add presentation on top but never repeat those reads.
 //
 // Deliberately NOT branch-parameterised. Every read resolves the branch through
-// `SCM.PackageOps.currentBranch ()`, the process overlay -- a `branchId` parameter would invite callers to
+// `SCM.PackageOps.currentBranch ()`, the process's branch -- a `branchId` parameter would invite callers to
 // pass `AppState.currentBranchId`, which is a DIFFERENT value.
 
 /// The current draft, as anything describing it needs to see it.
@@ -109,9 +109,8 @@ let needsYouCount(p: Picture): Int64 =
 
 // Rewriting MAIN's draft: dropping ops you authored but have not committed. Each is one action in F#
 // (`SCM.Actions.discard`): the draft is a rewritable head over an immutable tail, and a rewrite either
-// deletes exactly the rows the dropped ops wrote and re-lists what they superseded, or, when that cannot
-// be identified afterwards, rebuilds the draft. Either way an op this build cannot decode is never
-// deleted: what is skipped for reading must never be dropped for writing.
+// deletes exactly the rows the dropped ops wrote and re-lists what they superseded. An op this build
+// cannot decode is never deleted: what is skipped for reading must never be dropped for writing.
 
 /// Drop the in-memory package caches, for a caller that knows the store moved under it.
 let invalidateCaches(): Unit = Builtin.scmInvalidateCaches()

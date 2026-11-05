@@ -64,23 +64,6 @@ module DeprecationKind =
     | b -> raiseFormatError $"Invalid DeprecationKind tag: {b}"
 
 
-// -- BranchEventKind --
-
-module BranchEventKind =
-  let write (w : BinaryWriter) (k : BranchEventKind) : unit =
-    match k with
-    | Merged ops ->
-      w.Write(0uy)
-      List.write w Guid.write ops
-    | Archived -> w.Write(1uy)
-
-  let read (r : BinaryReader) : BranchEventKind =
-    match r.ReadByte() with
-    | 0uy -> Merged(List.read r Guid.read)
-    | 1uy -> Archived
-    | b -> raiseFormatError $"Invalid BranchEventKind tag: {b}"
-
-
 // -- DecisionKind --
 
 module DecisionKind =
@@ -318,7 +301,7 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     | Some stamp ->
       w.Write(1uy)
       String.write w stamp
-  // 11, not one of the retired 6-9 (nor 13, which was `Describe` before docs learned to name a
+  // 11, not one of the retired 6-10 (nor 13, which was `Describe` before docs learned to name a
   // predecessor). A retired tag is never recycled: an old blob would then decode as a DIFFERENT op
   // rather than failing, and silently decoding as something else is the worst thing a format can
   // do. Cheap to avoid -- tags are arbitrary and there is no shortage of them.
@@ -328,11 +311,6 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     PackageLocation.write w location
     String.write w reason
     DecisionKind.write w kind
-  | PackageOp.BranchEvent(branchId, event, at) ->
-    w.Write(10uy)
-    Guid.write w branchId.Guid
-    BranchEventKind.write w event
-    String.write w at
 
 let read (version : uint32) (r : BinaryReader) : PackageOp =
   match r.ReadByte() with
@@ -414,11 +392,6 @@ let read (version : uint32) (r : BinaryReader) : PackageOp =
       | 1uy -> Some(String.read r)
       | b -> raiseFormatError $"Invalid UpdateDoc restating tag: {b}"
     PackageOp.UpdateDoc(location, part, text, previous, restating)
-  | 10uy ->
-    let branchId = LibExecution.Branching.BranchId.Id(Guid.read r)
-    let event = BranchEventKind.read r
-    let at = String.read r
-    PackageOp.BranchEvent(branchId, event, at)
   | 11uy ->
     let id = String.read r
     let location = PackageLocation.read r

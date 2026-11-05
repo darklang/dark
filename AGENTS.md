@@ -551,10 +551,10 @@ rule. Every primitive still needs a real Dark caller; unused primitives are remo
 
 ## SCM / branches
 
-`package_ops` is canonical and append-only; an op's id IS its content hash. Everything else -- `locations`,
-`package_functions`, `package_dependencies`, `propagation_policy` -- is a projection you can drop and
-re-fold from the log. That is why a schema change to a projection costs nothing and a change to a canonical
-table needs `LibDB/Releases.fs`.
+`package_ops` is canonical: one row per op per branch, and an op's id IS its content hash. Everything
+else -- `locations`, `deprecations`, `location_docs`, `package_functions`, `package_dependencies` -- is a
+projection you can drop and re-fold from the log. That is why a schema change to a projection costs
+nothing and a change to a canonical table needs `LibDB/Releases.fs`.
 
 Every write to the SCM tables is an ACTION in F#: commit, discard, the branch lifecycle (start, rename,
 switch, archive), merge, rebase, and settling a conflict, one builtin each (`scmCommit`, `scmBranch`,
@@ -565,8 +565,9 @@ path from Dark into the store; the reads are typed builtins too (`scmOps`, `scmB
 
     packages/darklang/scm/     # what to make of the store, and the names callers use
       actions.dark             #   the action builtins' one wrapper each, and their types
-      packageOps.dark          #   package_ops: the log, and branches as overlays
-      branches.dark            #   branches, op_branches, branch_name_bases; canMerge lives here
+      packageOps.dark          #   package_ops: the log
+      bindings.dark            #   locations: what a branch binds, asked of that branch
+      branches.dark            #   branches, branch_name_bases; canMerge lives here
       commits.dark             #   commits
       conflicts.dark           #   conflicts: the shapes, the reads, how one is shown
       constraints.dark         #   standing findings (outdated usages)
@@ -575,12 +576,12 @@ path from Dark into the store; the reads are typed builtins too (`scmOps`, `scmB
       storeHealth.dark         #   what can be wrong with the STORE
 
     LibExecution/Lww.fs        # THE last-writer-wins rule. One place, on purpose; see below
-    LibDB/PackageOpPlayback.fs # THE FOLD: ops -> projections. Read this first.
-    LibDB/Inserts.fs           # author: mint the op id, insert, fold
+    LibDB/Layers.fs            # what a branch SEES: the layered projections. Read this first.
+    LibDB/PackageOpPlayback.fs # THE FOLD: ops -> projections, each op into its branch's layer
+    LibDB/Inserts.fs           # author onto any branch: restate, insert, fold, record name bases
     LibDB/ScmActions.fs        # the actions: commit, discard, branch lifecycle, merge, rebase, resolve
     LibDB/ScmDetect.fs         # conflict detection, beside the rule it names winners by
-    LibDB/Draft.fs             # the whole-draft rebuild a discard falls back to
-    LibDB/Branches.fs          # branch storage: authoring onto a branch, the chain overlay, name bases
+    LibDB/Branches.fs          # the branch registry: ids, names, parents, lookups
     LibDB/Propagation.fs       # the cascade: who depends on what moved
     LibDB/Releases.fs          # shape changes to canonical tables on existing stores
 
@@ -598,8 +599,13 @@ the ordinary path) the step that cannot join comes first and is complete on its 
 it is idempotent, so running the action again finishes it. `ScmActions.Testing.failAt` stops an action at
 a named step inside its transaction, and `BranchOverlay.Tests` checks the store reads as it did before.
 
-**A branch is an overlay, not a copy.** Its ops live in the same table, stored `effective = 0` and tagged in
-`op_branches`. A branch's package manager is main's with those ops layered on top.
+**A branch is layers, not a copy.** Its ops are the `package_ops` rows under
+its id. Names, deprecations and docs are kept per LAYER -- a branch, and whether the op that wrote the row
+is committed -- and `live = 1` marks the newest row of a layer for its key. A branch SEES its draft layer,
+its committed layer, then each ancestor's committed layer up to main's, nearest first (`Layers.cte`,
+`Layers.visible`); main sees its draft over its committed work. So a branch never sees a parent's draft.
+Commit moves rows from the draft layer to the committed one, discard deletes draft rows, and merge moves
+the branch's ops to the parent and folds them there. Every read takes the branch it asks about.
 
 **A store's own log can hold ops it cannot read.** Written when ops arrived over a wire from a
 peer on a different build, which no longer happens in this tree; it still holds for any op this
@@ -609,8 +615,8 @@ the local log where every local reader meets them. So "the LOCAL log is ours, ra
 parse" is false. A reader that raises dies on the first such op and stays dead (once seen as a raw
 `BinaryFormatException` out of a propagation command); a writer that deletes main's log and
 re-inserts what it read destroys them. The rule: ONE decoder, it returns an Option, every reader
-tolerates, and no writer deletes what it could not decode (`Inserts.wholeMainDeletes` excludes
-them by id).
+tolerates, and no writer deletes what it could not decode (the draft rewrite deletes only the ids it
+read as ops).
 
 **A build eats ops that are not in `packages/`.** `LocalExec` calls `LibDB.Purge.purge ()` before a
 package reload: it wipes the store and re-authors every item from the `.dark` files on disk, so
@@ -619,19 +625,10 @@ the absolute numbers depend on the tree and are smaller now, the halving is the 
 is dev tooling, so this is a dev-clone fact rather than a product one, and we are deliberately not
 fixing it.
 
-**Authoring looks like the same bug and is not.** `WipRefresh.refresh` runs on EVERY author, in any
-binary, and it also deletes the whole non-branch log and re-inserts. The difference is where the
-re-insert reads from: `Queries.getWipOps` reads the DATABASE, and it carries the same
-`WHERE effective = 1 AND id NOT IN (SELECT op_id FROM op_branches)` as `Inserts.draftDeletes` and
-`Inserts.wholeMainDeletes`. Delete and read cover the same set, so an op goes out and comes back.
-That symmetry is the whole safety property. Break it in either direction and authoring silently eats
-ops: without the id exclusion the undecodable ones go, and without `effective = 1` anything stored
-inert goes.
-
-**This is the trap.** `locations` has NO `branch_id`. A branch has no rows there at all, so any read that
-goes straight to `locations` answers about MAIN while you are standing on a branch -- and it answers
-plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
-op log directly.
+**Authoring looks like the same bug and is not.** `WipRefresh.refresh` runs on every author on main, and
+it deletes main's draft and re-inserts it re-resolved. It deletes exactly the ops it read
+(`Inserts.rewriteDraftIfUnchanged`), and only if the draft is still what it read, so another author's op
+and an op this build cannot decode both survive it.
 
 ## Traits
 

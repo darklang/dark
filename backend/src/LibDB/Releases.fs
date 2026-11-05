@@ -5,8 +5,8 @@
 ///
 /// In principle a PROJECTION needs no step, since dropping and re-folding it rebuilds the new shape. In
 /// practice nothing on the shipped path does that: `rebuildProjections` is reachable only from LocalExec,
-/// which is not shipped. So a projection whose shape changed needs a step here too, and `locations` has
-/// two. Fixing that properly means teaching startup to notice the drift and re-fold; until then, a step.
+/// which is not shipped. So a projection whose shape changed needs a step here too, or, when the change
+/// is too large to carry, a reset (`resetIfOlderShape`).
 ///
 /// Dated schema files may add columns with ALTER TABLE ... ADD COLUMN. The schema
 /// runner guards those statements with addColumnIfMissing before release steps
@@ -56,6 +56,61 @@ let addColumnIfMissing
     |> Sql.executeStatementSync
 
 
+/// The package and SCM tables of a store made before names, deprecations and docs were kept per
+/// branch (`LibDB.Layers`). Their shape changed too much to carry across: such a store's packages are
+/// reset, and the caller's top-up or reload refills them. Every other table -- config, policy,
+/// traces -- is kept. `package_ops` is last, as the table the shape is recognised by.
+let private beforeLayers : List<string> =
+  [ "op_branches"
+    "branches"
+    "branch_name_bases"
+    "commits"
+    "conflicts"
+    "locations"
+    "deprecations"
+    "location_docs"
+    "package_types"
+    "package_values"
+    "package_functions"
+    "package_tests"
+    "package_traits"
+    "package_trait_impls"
+    "package_dependencies"
+    "seed_ops"
+    "package_ops" ]
+
+let private isOlderShape () : bool =
+  (tableExists "package_ops"
+   && not (hasColumn "package_ops" "branch_id" && hasColumn "package_ops" "op_kind"))
+  || (tableExists "locations" && not (hasColumn "locations" "draft"))
+
+/// Reset the package tables of the store at <param dbPath> when it is older than the layered shape,
+/// so the schema can create them afresh. Returns the backup taken first, when it reset.
+///
+/// Runs BEFORE the schema: `CREATE TABLE IF NOT EXISTS` would leave the old shapes in place and the
+/// first index on a new column would fail. The backup is always a fresh copy, taken here, and the
+/// reset refuses without one. The drops are one transaction, so a reset that is interrupted leaves
+/// the old store whole, and the next start backs it up and resets it again.
+let resetIfOlderShape (dbPath : string) : Option<string> =
+  if not (isOlderShape ()) then
+    None
+  else
+    match StoreBackups.beforeReset dbPath with
+    | Error reason ->
+      Exception.raiseInternal
+        $"this store predates per-branch names, and the backup taken before resetting it failed: {reason}"
+        []
+    | Ok backup ->
+      System.Console.Error.WriteLine
+        $"  release: this store predates per-branch names. Its packages, branches and commits are copied to {backup.path}, and its packages are refilled from this build."
+      beforeLayers
+      |> List.filter tableExists
+      |> List.map (fun t -> $"DROP TABLE {t}", [ [] ])
+      |> Sql.executeTransactionSync
+      |> ignore<List<int>>
+      Some backup.path
+
+
 // ---------------------
 // The steps
 // ---------------------
@@ -93,14 +148,9 @@ let populateOpKinds () : unit =
     |> ignore<List<int>>
 
 let steps : List<Step> =
-  [ { name = "package-op-kind"
-      run =
-        fun () ->
-          addColumnIfMissing
-            "package_ops"
-            "op_kind"
-            "TEXT NOT NULL DEFAULT 'unknown'"
-          populateOpKinds () } ]
+  // NEW STEPS GO HERE. A store older than the current op log is reset rather than migrated
+  // (`resetIfOlderShape`), so nothing before it needs a step.
+  []
 
 
 let private alreadyRun () : Set<string> =
@@ -124,11 +174,11 @@ let private alreadyRun () : Set<string> =
 ///   2. steps    -- migrate existing data and support previously recorded releases
 ///   3. indexes  -- `CREATE INDEX IF NOT EXISTS`, which FAILS if it names a column step 2 just added
 ///
-/// Doing it in one pass fails exactly there: the schema indexes `package_ops(effective)`, and on a
+/// Doing it in one pass fails exactly there: the schema indexes `package_ops(op_kind)`, and on a
 /// store predating that column the index cannot be created.
 let private schemaStatements (schemaSql : string) =
-  // Comments FIRST, then split. The schema's comments contain semicolons ("NULL = DRAFT; Gates
-  // nothing"), so splitting first cuts statements in half and SQLite reports "incomplete input".
+  // Comments FIRST, then split. The schema's comments contain semicolons ("NULL = the branch's
+  // draft."), so splitting first cuts statements in half and SQLite reports "incomplete input".
   // No `--` appears inside a string literal in that file, so truncating at one is safe here.
   let stripped =
     schemaSql.Split('\n')
@@ -235,7 +285,7 @@ let runPending () : unit =
       |> Sql.executeStatementSync
 
 
-  // A newer decoder may now understand operations received after the column
-  // migration ran. Reclassify unknown rows on startup, including when every
-  // release step has already been recorded. Canonical bytes stay unchanged.
+  // A newer decoder can classify ops an older build stored as 'unknown'; reclassify them on
+  // every start, including when every release step has already been recorded. Canonical bytes
+  // stay unchanged.
   populateOpKinds ()

@@ -597,8 +597,7 @@ let private runCli (args : string[]) : int =
     Telemetry.time "cli.pmInit" [] (fun () -> cliPackageManager.init.Result)
 
     // `--branch <branch>` / `--branch=<branch>`, a name, an id or an id prefix: pick the branch for
-    // THIS process. Its delta ops (stored effective=0 in the shared log) overlay core for parse and
-    // execute, so nothing is switched persistently. Both spellings, because every other CLI takes
+    // THIS process: names resolve as that branch sees them, so nothing is switched persistently. Both spellings, because every other CLI takes
     // either. A missing value is an ERROR, not a fall-through to `current_branch`.
     // Global flags stop at the script path; later flags belong to the script.
     let args, scriptTail =

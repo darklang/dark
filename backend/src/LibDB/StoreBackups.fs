@@ -117,6 +117,11 @@ let private take (dbPath : string) (kind : string) : Result<Backup, string> =
 /// `dark backups now`.
 let create (dbPath : string) : Result<Backup, string> = take dbPath "manual"
 
+/// The copy taken before a store older than the layered shape is reset (`Releases.resetIfOlderShape`).
+/// Always a new one: the reset drops the store's packages, branches and commits.
+let beforeReset (dbPath : string) : Result<Backup, string> =
+  take dbPath "before-layers"
+
 /// Put the backup called <param name> in place of the store's contents. The store as it is now is
 /// copied aside first (`data.db.pre-restore-<time>`), so a restore can itself be undone; that copy
 /// is what this returns. Anything this process has already read is still the old store, so the

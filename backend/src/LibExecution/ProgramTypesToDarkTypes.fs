@@ -2159,34 +2159,6 @@ module Search =
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 
 
-module BranchEventKind =
-  let typeName () =
-    FQTypeName.fqPackage (
-      PackageRefs.Type.LanguageTools.ProgramTypes.branchEventKind ()
-    )
-  let knownType () = KTCustomType(typeName (), [])
-
-  let toDT (k : PT.BranchEventKind) : Dval =
-    let (caseName, fields) =
-      match k with
-      | PT.Merged ops -> "Merged", [ Dval.list KTUuid (ops |> List.map DUuid) ]
-      | PT.Archived -> "Archived", []
-    DEnum(typeName (), typeName (), [], caseName, fields)
-
-  let fromDT (d : Dval) : PT.BranchEventKind =
-    match d with
-    | DEnum(_, _, [], "Merged", [ DList(_, ops) ]) ->
-      PT.Merged(
-        ops
-        |> List.map (fun d ->
-          match d with
-          | DUuid g -> g
-          | _ -> Exception.raiseInternal "Invalid Merged op id" [])
-      )
-    | DEnum(_, _, [], "Archived", []) -> PT.Archived
-    | _ -> Exception.raiseInternal "Invalid BranchEventKind" []
-
-
 module ReferenceNamesSnapshot =
   let typeName =
     Dval.memoTypeName
@@ -2372,9 +2344,6 @@ module PackageOp =
           PackageLocation.toDT location
           DString reason
           DecisionKind.toDT kind ]
-      | PT.PackageOp.BranchEvent(branchId, event, at) ->
-        "BranchEvent",
-        [ DUuid branchId.Guid; BranchEventKind.toDT event; DString at ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.PackageOp option =
@@ -2461,14 +2430,6 @@ module PackageOp =
           PackageLocation.fromDT location,
           reason,
           DecisionKind.fromDT kind
-        )
-      )
-    | DEnum(_, _, [], "BranchEvent", [ DUuid branchId; event; DString at ]) ->
-      Some(
-        PT.PackageOp.BranchEvent(
-          LibExecution.Branching.BranchId.Id branchId,
-          BranchEventKind.fromDT event,
-          at
         )
       )
     | _ -> None

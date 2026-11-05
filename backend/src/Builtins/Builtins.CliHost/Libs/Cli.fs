@@ -195,10 +195,8 @@ let private declarationsToModule
 
     // Pass 1: lower against the base pm (intra-script refs unresolved, allowed).
     //
-    // `ptForBranch` = main's bindings plus that branch's delta ops overlaid (empty on main, so this is
-    // exactly `pt` for the common case). The branch has to be applied HERE, by wrapping the pm, because
-    // a location lookup takes no branch: `locations` has no branch column, so a branch is an overlay
-    // of ops rather than an argument a query can carry.
+    // `ptForBranch`: names resolve as the run's branch sees them. A branch's own content is in the
+    // shared content tables, so what a name resolves to runs by hash on any branch.
     //
     // Then the account's APPROVED VERSIONS on top, which is what makes an approval bind anything:
     // a name becomes a hash HERE, at lowering, so this is the only place a "when I say `Acme.charge`
@@ -936,50 +934,21 @@ let executeWith
 
     let traits = mod'.traits |> List.map PT2RT.Trait.toRT
 
-    // Graft the delta defs (compiled to RT) of the branch THIS RUN is on, alongside
-    // the script's own, so a branch fn CALLED in the expr executes. Empty for main.
-    //
-    // From `parentState.branchId`, the same branch the parse resolved names against.
-    // Reading process state here instead would let the two disagree -- names
-    // resolved to hashes on one branch, executed against another branch's graft --
-    // whenever a caller ran against a branch it wasn't sitting on.
-    let branchOps = LibDB.PackageManager.opsForBranch parentState.branchId
-    let branchTypes =
-      branchOps
-      |> List.choose (function
-        | PT.PackageOp.AddType t -> Some(PT2RT.PackageType.toRT t)
-        | _ -> None)
-    // Load branch values from the database, where their evaluated results are stored.
-    // Adding them through PackageValue.toRT would override those results with a
-    // conversion that only supports constants, breaking values initialized by calls.
-    // Branch-specific name resolution still selects the correct value hash.
-    let branchFns =
-      branchOps
-      |> List.choose (function
-        | PT.PackageOp.AddFn f -> Some(PT2RT.PackageFn.toRT f)
-        | _ -> None)
-
     // TODO we should probably use LibPM's in-memory grafting thing instead of this
     // (no need for RT.PM.withExtras to exist, I think)
     // The script's own `impl` blocks are items the store has no row for; offer them
     // as candidates ahead of the store's. (The branch's impls the branch's package
     // manager serves itself.)
     let scriptImpls = mod'.impls |> List.choose PT2RT.ImplCandidate.ofImpl
-    let branchTraits =
-      branchOps
-      |> List.choose (function
-        | PT.PackageOp.AddTrait t -> Some(PT2RT.Trait.toRT t)
-        | _ -> None)
-
     let pm =
       pmRT
       |> PackageManager.withExtras
-        (branchTypes @ types)
+        types
         // `values` is bound as PT here, since the only other use of it wants that form;
         // `withExtras` takes RT, so convert at the call rather than changing the binding.
         (values |> List.map (PT2RT.PackageValue.toRT parentState.values.builtIn))
-        (branchFns @ fns)
-        (branchTraits @ traits)
+        fns
+        traits
       |> PackageManager.withExtraImpls scriptImpls
 
     let (traceDesc, inputName, inputValue) = ScriptOrEvalInput.toTraceParams input

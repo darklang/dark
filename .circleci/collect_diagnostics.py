@@ -43,6 +43,7 @@ CHECK_DATABASES = {
   "gate-workbench-views": homes("workbench-views-test"),
   "gate-first-day": homes("first-day/home.*", "first-day/installed.*"),
   "gate-backups-restore": homes("backups-test"),
+  "gate-old-store-resets": homes("old-store-test"),
   "gate-reload-is-reproducible": homes("reload-reproducible"),
   "gate-trait-choice-survives-rival": homes("trait-rival"),
   "gate-trait-choice-any-batching": homes("trait-batching"),
