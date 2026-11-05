@@ -119,9 +119,10 @@ let collectItemReferences(
 /// prepared, built once (`baseFor`).
 type Base =
   { env: Model.Environment
-    /// When true, the pool is closed (every type, fn signature and value in it refers only to
-    /// things in it), so <param env> also holds every pool value's scheme and a piece loads
-    /// nothing the pool holds. When false, pieces load their closures as before.
+    /// When true, the pool is the whole branch and closed (every type, fn signature and value in
+    /// it refers only to things in it), so <param env> also holds every pool value's scheme and a
+    /// piece loads nothing the pool holds. Its fns' bodies are covered only because every fn they
+    /// can call is in the pool too. When false, pieces load their closures as before.
     closed: Bool
     pool: Environment.Closure
     /// Each pool value's outcome, worked out once in <param env>. Empty unless closed.
@@ -215,8 +216,8 @@ let checkPackageOpsFrom(
       (fun v -> Items.bodyNodeId(v.body)),
       fun v -> Environment.exprRefs(builtins, v.body))
 
-  // On a closed base every body's references are already in the environment, so the walk would
-  // only find things to throw away.
+  // A closed base is a whole branch, so everything a fn body can call is already in the
+  // environment and the walk would only find things to throw away.
   let onClosedBase =
     match base with
     | Some(b) -> b.closed
@@ -474,15 +475,24 @@ let checkQuery(
   // for its own copy. Only when the pool's types are closed (everything they reference is in it),
   // since a type's facts are worked out from what it references.
   //
+  // The pool holds fns by signature only, so whether it covers what their bodies call is known
+  // only when it holds every fn there is. A module's fns can call anything on the branch: its
+  // base is never closed, and its pieces walk their bodies and load what those call.
+  let wholeBranch =
+    Stdlib.List.isEmpty(query.currentModule)
+    && query.text == ""
+    && Stdlib.List.isEmpty(query.entityTypes)
+    && query.searchDepth == LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+
   // Implementations are read on first use and kept for the rest of a piece, so pieces starting
   // from one base would each read them again. When there is more than one piece, the base
   // reads them all once instead.
   let base =
     if Stdlib.List.length(unique) > size then
-      (baseFor(branchId, pool))
+      (baseFor(branchId, pool, wholeBranch))
       |> Stdlib.Option.map(fun b -> { b with env = Environment.withAllTraitImpls(b.env) })
     else
-      baseFor(branchId, pool)
+      baseFor(branchId, pool, wholeBranch)
 
   match Stdlib.List.chunkBySize(unique, size) with
   | Ok(chunks) ->
@@ -510,10 +520,15 @@ let checkQuery(
   | Error(_) -> checkReferencesFrom(pool, base, branchId, loadCandidate, unique)
 
 /// The builtins environment with every declaration in <param pool> registered and prepared, or
-/// None when a pool type references a type that is not in the pool. Closed (see `Base`) when the
-/// pool's fn signatures and values also refer only to things in it, which a whole-branch query's
-/// pool does; its values are then checked here once.
-let baseFor(branchId: Uuid, pool: Environment.Closure): Stdlib.Option.Option<Base> =
+/// None when a pool type references a type that is not in the pool. Closed (see `Base`) only when
+/// <param wholeBranch> says the pool is every declaration on the branch and its fn signatures and
+/// values also refer only to things in it; its values are then checked here once. A smaller pool
+/// can look closed by its signatures while its fns' bodies call things outside it.
+let baseFor(
+  branchId: Uuid,
+  pool: Environment.Closure,
+  wholeBranch: Bool)
+  : Stdlib.Option.Option<Base> =
   let inPool(r: LanguageTools.ProgramTypes.Reference): Bool =
     match r with
     | PackageType(hash) -> Stdlib.Dict.containsKey(pool.types, hash)
@@ -535,7 +550,8 @@ let baseFor(branchId: Uuid, pool: Environment.Closure): Stdlib.Option.Option<Bas
     let env = Declarations.prepareDeclarations(env)
 
     let closed =
-      Stdlib.List.all(Stdlib.Dict.values(pool.fns), fun fn ->
+      wholeBranch
+      && Stdlib.List.all(Stdlib.Dict.values(pool.fns), fun fn ->
         Stdlib.List.all(Environment.signatureRefs(fn), inPool))
       && Stdlib.List.all(Stdlib.Dict.values(pool.values), fun v ->
         match guard((fun body -> Environment.exprRefs(builtins, body)), v.body) with

@@ -341,6 +341,42 @@ test typecheckNamesOnlyWhatIsInScope =
           $"the text names nothing outside the scope, it said: {text}") ]))
 
 
+/// A module's fns are checked against what their bodies call, wherever that lives. Their
+/// signatures here name nothing outside the module, and the audit once took that to mean it
+/// had everything, never loaded the callee and reported the fn incomplete. One calls into
+/// Stdlib; the other into a fn in another module that takes a type of that module's own.
+test typecheckLoadsWhatAModuleBodyCalls =
+  Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ step(i, [ "fn", "Tests.TcBodyDep.render", "(n: Int): String = Stdlib.toString(n)" ])
+        check(
+          i,
+          [ "typecheck", "Tests.TcBodyDep", "--json" ],
+          [ fun(j) -> int(j, "checked") |> Stdlib.Test.equal(1)
+            fun(j) -> int(j, "incomplete") |> Stdlib.Test.equal(0)
+            fun(j) -> int(j, "failed") |> Stdlib.Test.equal(0) ])
+        Instance.expectExit(i, [ "typecheck", "Tests.TcBodyDep" ], 0)
+
+        step(i, [ "type", "Tests.TcBodyDepLib.Point", "= { x: Int64 }" ])
+        step(
+          i,
+          [ "fn"
+            "Tests.TcBodyDepLib.describe"
+            "(p: Tests.TcBodyDepLib.Point): String = Stdlib.toString(p.x)" ])
+        step(
+          i,
+          [ "fn"
+            "Tests.TcBodyDepUser.describeAt"
+            "(n: Int64): String = Tests.TcBodyDepLib.describe(Tests.TcBodyDepLib.Point { x = n })" ])
+        check(
+          i,
+          [ "typecheck", "Tests.TcBodyDepUser", "--json" ],
+          [ fun(j) -> int(j, "checked") |> Stdlib.Test.equal(1)
+            fun(j) -> int(j, "incomplete") |> Stdlib.Test.equal(0)
+            fun(j) -> int(j, "failed") |> Stdlib.Test.equal(0) ])
+        Instance.expectExit(i, [ "typecheck", "Tests.TcBodyDepUser" ], 0) ]))
+
+
 /// An implementation is one result. Its method fn lives one level under it and its path
 /// reads as a module, so without collapsing them `search %` listed every `Modulo`
 /// implementation three times: as an impl, as a fn and as a module.
