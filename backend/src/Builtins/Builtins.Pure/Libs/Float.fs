@@ -36,20 +36,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatRoundUp" 0
-      typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
-      description = "Round up to an integer value"
-      fn =
-        (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Ceiling |> roundedToInt vm
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "floatFloor" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
@@ -58,24 +44,6 @@ let fns () : List<BuiltInFn> =
         "Round down to an integer value.\n\nConsider <fn Float.truncate> if "
         + "your goal is to discard the fractional part of a number: "
         + "{{Float.floor(-1.9) == -2}} but {{Float.truncate(-1.9) == -1}}"
-      fn =
-        (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt vm
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "floatRoundDown" 0
-      typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
-      description =
-        "Round down to an integer value.\n\nConsider <fn Float.truncate> if "
-        + "your goal is to discard the fractional part of a number: "
-        + "{{Float.floor(-1.9) == -2}} but {{Float.truncate(-1.9) == -1}}"
-
       fn =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt vm
@@ -254,21 +222,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatRoundTowardsZero" 0
-      typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
-      description =
-        "Discard the fractional portion of <type Float> <param a>, rounding towards zero."
-      fn =
-        (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Truncate |> roundedToInt vm
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "floatParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
@@ -316,20 +269,6 @@ let fns () : List<BuiltInFn> =
             else if System.Double.IsNaN f then "NaN"
             else floatToShortestString f
           Ply(DString result)
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "floatIsNaN" 0
-      typeParams = []
-      parameters = [ Param.make "f" TFloat "" ]
-      returnType = TBool
-      description = "Returns true if <param f> is NaN"
-      fn =
-        (function
-        | _, _, _, [| DFloat f |] -> Ply(DBool(System.Double.IsNaN f))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -227,6 +227,7 @@ module Type =
     let int128ParseError = p [ "Int128" ] "ParseError"
     let uint128ParseError = p [ "UInt128" ] "ParseError"
     let floatParseError = p [ "Float" ] "ParseError"
+    let cryptoDigestAlgorithm = p [ "Crypto" ] "DigestAlgorithm"
     let uuidParseError = p [ "Uuid" ] "ParseError"
 
     module Http =

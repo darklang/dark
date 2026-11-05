@@ -1,12 +1,31 @@
 module Darklang.Stdlib.Crypto
 
 
+/// A hash function for <fn Crypto.digest> and <fn Crypto.hmac>.
+type DigestAlgorithm =
+  | Md5
+  | Sha1
+  | Sha256
+  | Sha384
+
+
+/// Computes the <param algorithm> digest of the given <param data>
+let digest(algorithm: DigestAlgorithm, data: Bytes): Bytes =
+  Builtin.cryptoDigest(algorithm, data)
+
+
+/// Computes the HMAC (hash-based message authentication code, RFC 2104) of <param data> under
+/// <param key>, over the <param algorithm> digest.
+let hmac(algorithm: DigestAlgorithm, key: Bytes, data: Bytes): Bytes =
+  Builtin.cryptoHmac(algorithm, key, data)
+
+
 /// Computes the SHA-256 digest of the given <param data>
-let sha256(data: Bytes): Bytes = Builtin.cryptoSha256(data)
+let sha256(data: Bytes): Bytes = digest(DigestAlgorithm.Sha256, data)
 
 
 /// Computes the SHA-384 digest of the given <param data>
-let sha384(data: Bytes): Bytes = Builtin.cryptoSha384(data)
+let sha384(data: Bytes): Bytes = digest(DigestAlgorithm.Sha384, data)
 
 
 /// Hashes <param text> to a cryptographically-secure digest string.
@@ -16,16 +35,17 @@ let digestText(text: String): String =
 
 
 /// Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security
-let md5(data: Bytes): Bytes = Builtin.cryptoMd5(data)
+let md5(data: Bytes): Bytes = digest(DigestAlgorithm.Md5, data)
 
 
 /// Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
 let sha256hmac(key: Bytes, data: Bytes): Bytes =
-  Builtin.cryptoSha256hmac(key, data)
+  hmac(DigestAlgorithm.Sha256, key, data)
 
 
 /// Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
-let sha1hmac(key: Bytes, data: Bytes): Bytes = Builtin.cryptoSha1hmac(key, data)
+let sha1hmac(key: Bytes, data: Bytes): Bytes =
+  hmac(DigestAlgorithm.Sha1, key, data)
 
 
 /// Whether <param presented> equals <param expected>, in time that does not depend on where they first
