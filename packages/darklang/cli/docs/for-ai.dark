@@ -39,8 +39,9 @@ non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
 
 ## Authoring
 
-Names have three parts, Owner.Module.name. Use an owner of your own, such as
-`Me`: `Darklang` is reserved for the standard library and refuses a save.
+A name is Owner.name, or Owner.Module.name to put it in a module. Use an owner
+of your own, such as `Me`: `Darklang` is reserved for the standard library and
+refuses a save.
 
 Create several declarations atomically:
 

@@ -1839,7 +1839,7 @@ let private workbenchRefusalsAreMarkedAsRefusals =
   cliTest "the workbench marks a refusal as a refusal, not a success" (fun state ->
     task {
       let code =
-        "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\nlet st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\nlet kindOf = fun step -> match step with | Continue(s) -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\nlet input = fun(action, text) -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(text), action = action } in\nStdlib.String.join([ kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"author-fn\", \"Tests.\"))), kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"search\", \"zzzWbNothingIsCalledThis\"))), kindOf(Darklang.Cli.Workbench.resolveConflict(st, \"ok\")) ], \"\\n\")"
+        "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\nlet st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\nlet kindOf = fun step -> match step with | Continue(s) -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\nlet input = fun(action, text) -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(text), action = action } in\nStdlib.String.join([ kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"author-fn\", \" \"))), kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"search\", \"zzzWbNothingIsCalledThis\"))), kindOf(Darklang.Cli.Workbench.resolveConflict(st, \"ok\")) ], \"\\n\")"
         + ""
         + ""
         + ""
@@ -1858,9 +1858,7 @@ let private workbenchRefusalsAreMarkedAsRefusals =
       for (line, text) in
         Array.zip
           lines
-          [| "need at least owner.Module"
-             "no matches for"
-             "no conflict selected" |] do
+          [| "need an owner"; "no matches for"; "no conflict selected" |] do
         Expect.stringContains line text $"the message is the one meant:\n{answer}"
         Expect.stringContains
           line

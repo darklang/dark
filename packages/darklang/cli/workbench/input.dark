@@ -161,12 +161,12 @@ let performInputAction(state: State, inp: InputState): Step =
         Step.Continue(
           { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Failed, message = "rebase failed: " + e })
   else if Stdlib.String.startsWith(inp.action, "author-") then
-    // A new item's target module was asked for (shallow tree location): parse it, then open the editor.
+    // A new item's owner or module was asked for (authoring from the root): parse it, then open the editor.
     let kind = Stdlib.String.dropFirst(inp.action, Stdlib.String.length("author-"))
     let modParts =
       Stdlib.String.split(Stdlib.String.trim(inp.field.text), ".") |> Stdlib.List.filter(fun p -> p != "")
-    if Stdlib.List.length(modParts) < 2 then
-      Step.Continue({ state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = "need at least owner.Module" })
+    if Stdlib.List.isEmpty(modParts) then
+      Step.Continue({ state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Refused, message = "need an owner" })
     else
       openNewEditor({ state with input = Stdlib.Option.Option.None }, kind, modParts)
   else if inp.action == "search" then
