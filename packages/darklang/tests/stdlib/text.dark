@@ -1,0 +1,64 @@
+module Darklang.Stdlib.Text.Tests
+
+// "界界界" already occupies six display cells and needs no padding at width 6.
+test padToWidth =
+  Stdlib.Test.all(
+    [ Stdlib.Text.padEndToWidth("", 0) |> Stdlib.Test.equal("")
+      Stdlib.Text.padEndToWidth("abc", 3) |> Stdlib.Test.equal("abc")
+      Stdlib.Text.padEndToWidth("abc", 6) |> Stdlib.Test.equal("abc   ")
+      Stdlib.Text.padEndToWidth("abc", -3) |> Stdlib.Test.equal("abc")
+      Stdlib.Text.padEndToWidth("abcdef", 3) |> Stdlib.Test.equal("abcdef")
+      Stdlib.Text.padEndToWidth("界", 4) |> Stdlib.Test.equal("界  ")
+      Stdlib.Text.padEndToWidth("界界界", 6) |> Stdlib.Test.equal("界界界")
+      Stdlib.Text.padEndToWidth("🙂", 4) |> Stdlib.Test.equal("🙂  ")
+      Stdlib.Text.padEndToWidth("é", 3) |> Stdlib.Test.equal("é  ")
+      Stdlib.Text.padStartToWidth("", 0) |> Stdlib.Test.equal("")
+      Stdlib.Text.padStartToWidth("abc", 6) |> Stdlib.Test.equal("   abc")
+      Stdlib.Text.padStartToWidth("abc", 3) |> Stdlib.Test.equal("abc")
+      Stdlib.Text.padStartToWidth("abcdef", 3) |> Stdlib.Test.equal("abcdef")
+      Stdlib.Text.padStartToWidth("界", 4) |> Stdlib.Test.equal("  界")
+      Stdlib.Text.padStartToWidth("界界界", 6) |> Stdlib.Test.equal("界界界") ])
+
+test clipToWidth =
+  Stdlib.Test.all(
+    [ Stdlib.Text.clipToWidth("abcdef", 10) |> Stdlib.Test.equal("abcdef")
+      Stdlib.Text.clipToWidth("abcdef", 6) |> Stdlib.Test.equal("abcdef")
+      Stdlib.Text.clipToWidth("abcdef", 4) |> Stdlib.Test.equal("abcd")
+      Stdlib.Text.clipToWidth("abcdef", 1) |> Stdlib.Test.equal("a")
+      Stdlib.Text.clipToWidth("abcdef", 0) |> Stdlib.Test.equal("")
+      Stdlib.Text.clipToWidth("\u0301", 0) |> Stdlib.Test.equal("")
+      Stdlib.Text.clipToWidth("abcdef", -2) |> Stdlib.Test.equal("")
+      Stdlib.Text.clipToWidth("", -2) |> Stdlib.Test.equal("")
+      // Keep wide characters whole, even if that leaves a cell unused.
+      Stdlib.Text.clipToWidth("界界界", 4) |> Stdlib.Test.equal("界界")
+      Stdlib.Text.clipToWidth("界界界", 3) |> Stdlib.Test.equal("界")
+      Stdlib.Text.clipToWidth("界界界", 1) |> Stdlib.Test.equal("")
+      Stdlib.Text.clipToWidth("a界b", 2) |> Stdlib.Test.equal("a")
+      // Keep combining marks with their base character.
+      Stdlib.Text.clipToWidth("ééé", 2) |> Stdlib.Test.equal("éé") ])
+
+// Include the ellipsis marker in the total width.
+test ellipsis =
+  Stdlib.Test.all(
+    [ Stdlib.Text.ellipsis("hello world", 12) |> Stdlib.Test.equal("hello world")
+      Stdlib.Text.ellipsis("hello world", 11) |> Stdlib.Test.equal("hello world")
+      Stdlib.Text.ellipsis("hello world", 10) |> Stdlib.Test.equal("hello w...")
+      Stdlib.Text.ellipsis("hello world", 8) |> Stdlib.Test.equal("hello...")
+      Stdlib.Text.ellipsis("abcdef", 5) |> Stdlib.Test.equal("ab...")
+      Stdlib.Text.ellipsis("abcdef", 4) |> Stdlib.Test.equal("a...")
+      Stdlib.Text.ellipsis("abcdef", 3) |> Stdlib.Test.equal("...")
+      // Shorten the marker when it cannot fit in full.
+      Stdlib.Text.ellipsis("abcdef", 2) |> Stdlib.Test.equal("..")
+      Stdlib.Text.ellipsis("abcdef", 1) |> Stdlib.Test.equal(".")
+      Stdlib.Text.ellipsis("abcdef", 0) |> Stdlib.Test.equal("")
+      Stdlib.Text.ellipsis("\u0301", 0) |> Stdlib.Test.equal("")
+      // Negative widths return an empty string.
+      Stdlib.Text.ellipsis("abcdef", -2) |> Stdlib.Test.equal("")
+      Stdlib.Text.ellipsis("", 0) |> Stdlib.Test.equal("")
+      Stdlib.Text.ellipsis("ab", 2) |> Stdlib.Test.equal("ab")
+      // These four characters occupy eight display cells.
+      Stdlib.Text.ellipsis("界界界界", 8) |> Stdlib.Test.equal("界界界界")
+      Stdlib.Text.ellipsis("界界界界", 7) |> Stdlib.Test.equal("界界...")
+      Stdlib.Text.ellipsis("界界界界", 6) |> Stdlib.Test.equal("界...")
+      Stdlib.Text.ellipsis("👱👱🏻👱🏼👱🏽👱🏾👱🏿", 7) |> Stdlib.Test.equal("👱👱🏻...")
+      Stdlib.Text.ellipsis("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇", 4) |> Stdlib.Test.equal("Z̤͔ͧ̑̓...") ])

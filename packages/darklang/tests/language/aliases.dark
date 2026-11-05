@@ -142,7 +142,7 @@ module RecordWithTypeArgsDifferentName =
   test wrongFieldARaises =
     MostOutest { a = "not allowed", b = "string" }
     => raises
-      "Failed to create record. Expected Int64 for field `a`, but got \"not allow... (a String)"
+      "Failed to create record. Expected Int64 for field `a`, but got \"not allowed\" (a String)"
 
   test wrongFieldBRaises =
     MostOutest { a = 5L, b = 6L }

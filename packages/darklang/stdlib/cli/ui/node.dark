@@ -229,9 +229,9 @@ let tableRows(columns: List<String>, rows: List<List<String>>): List<String> =
       let cell = Stdlib.List.getAt(cells, i) |> Stdlib.Option.withDefault("")
 
       if Stdlib.List.getAt(numeric, i) == Stdlib.Option.Option.Some(true) then
-        Stdlib.String.padStartToWidth(cell, w)
+        Stdlib.Text.padStartToWidth(cell, w)
       else
-        Stdlib.String.padEndToWidth(cell, w))
+        Stdlib.Text.padEndToWidth(cell, w))
     |> Stdlib.String.join("  ")
     |> Stdlib.String.trimEnd
 
@@ -284,7 +284,7 @@ let paint(
       // At most two rows: a band is a headline, not a page.
       Stdlib.List.take(lines, 2)
       |> Stdlib.List.indexedMap(fun(i, line) ->
-        let padded = Stdlib.String.padEndToWidth(" " + line, region.cols)
+        let padded = Stdlib.Text.padEndToWidth(" " + line, region.cols)
         Layout.at(region, i, 0, Colors.colorize(code, padded)))
       |> Stdlib.List.flatten
     | Table(columns, rows) ->

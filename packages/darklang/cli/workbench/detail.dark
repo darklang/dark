@@ -114,7 +114,7 @@ let sectionHeading(label: String): String =
 /// A `label   value` row under a section heading: the label dim in a fixed
 /// column, the value as it came.
 let factRow(label: String, value: String): String =
-  "  " + (Stdlib.Cli.UI.Colors.dimText(Stdlib.String.padEndToWidth(label, 11))) + value
+  "  " + (Stdlib.Cli.UI.Colors.dimText(Stdlib.Text.padEndToWidth(label, 11))) + value
 
 /// A dim note under a fact row, aligned with its value.
 let factNote(note: String): String =
@@ -201,7 +201,7 @@ let modulePreviewLines(state: State, item: BodyItem): List<String> =
     | None -> Stdlib.Cli.UI.Colors.dimText(desc)
   let childLine(child: BodyItem): String =
     let display = if child.isModule then child.name + "/" else child.name
-    let padded = Stdlib.String.padEndToWidth(display, nameCol + 2)
+    let padded = Stdlib.Text.padEndToWidth(display, nameCol + 2)
     let name =
       if child.isModule then Stdlib.Cli.UI.Colors.boldText(padded)
       else if child.kind == "type" then Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, padded)

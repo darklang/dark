@@ -25,7 +25,7 @@ let print(columns: List<String>, rows: List<List<String>>): Unit =
     columns
     |> Stdlib.List.indexedMap(fun(i, header) ->
       match Stdlib.List.getAt(colWidths, i) with
-      | Some(w) -> Stdlib.String.padEndToWidth(header, w)
+      | Some(w) -> Stdlib.Text.padEndToWidth(header, w)
       | None -> header)
     |> Stdlib.String.join("  ")
     // Padding on the final column is trailing whitespace with nothing after it to line up against. It
@@ -55,7 +55,7 @@ let print(columns: List<String>, rows: List<List<String>>): Unit =
             | None -> ""
 
           match Stdlib.List.getAt(colWidths, i) with
-          | Some(w) -> Stdlib.String.padEndToWidth(cell, w)
+          | Some(w) -> Stdlib.Text.padEndToWidth(cell, w)
           | None -> cell)
         |> Stdlib.String.join("  ")
         |> Stdlib.String.trimEnd

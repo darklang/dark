@@ -220,7 +220,7 @@ let executeList(state: AppState): AppState =
         // dropped, and an abbreviation nobody expands is not a word.
         let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
 
-        let tag = Stdlib.String.padEndToWidth($"({whose}, {mark})", 16)
+        let tag = Stdlib.Text.padEndToWidth($"({whose}, {mark})", 16)
 
         let flat =
           Stdlib.List.getAt(flats, i) |> Stdlib.Option.withDefault("(nothing to show)")

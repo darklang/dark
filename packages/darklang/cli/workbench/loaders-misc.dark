@@ -81,7 +81,7 @@ let branchListText(currentBranchId: Uuid): String =
   let rows =
     loadBranchItems(currentBranchId)
     |> Stdlib.List.map(fun it ->
-      "  " + (Stdlib.String.padEndToWidth(it.name, 30)) + (Stdlib.Cli.UI.Colors.dimText(it.desc)))
+      "  " + (Stdlib.Text.padEndToWidth(it.name, 30)) + (Stdlib.Cli.UI.Colors.dimText(it.desc)))
   Stdlib.String.join(
     Stdlib.List.flatten([ [ Stdlib.Cli.UI.Colors.boldText("Branches"), "" ], rows ]),
     "\n")
@@ -202,8 +202,8 @@ let loadTraceBodyItems(): List<BodyItem> =
         isModule = false
         desc =
           let status =
-            Stdlib.String.padEndToWidth(Cli.TraceVerbs.statusText(t.status), 10)
-          let ago = Stdlib.String.padEndToWidth(Cli.TraceVerbs.whenText(t.created), 16)
+            Stdlib.Text.padEndToWidth(Cli.TraceVerbs.statusText(t.status), 10)
+          let ago = Stdlib.Text.padEndToWidth(Cli.TraceVerbs.whenText(t.created), 16)
           // A pin is the one thing about a trace you change from this pane, so the row has to
           // show it: `*` pinned, nothing otherwise, as the CLI table prints it.
           let pin = if t.pinned then "* " else "  "
