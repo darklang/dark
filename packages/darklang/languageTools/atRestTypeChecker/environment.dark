@@ -320,11 +320,8 @@ let allInfixOperations(): List<LanguageTools.ProgramTypes.InfixFnName> =
     LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals
     LanguageTools.ProgramTypes.InfixFnName.StringConcat ]
 
-/// Every visible trait's implementations, self types converted to the checker's own.
-///
-/// Taken for the whole batch up front. See `Model.Environment.traitImpls` for why that is
-/// the point rather than an optimisation.
-let traitImpls(branchId: Uuid): Dict<String, List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>> =
+/// The traits bound on <param branchId>, keyed by hash as a string.
+let visibleTraits(branchId: Uuid): Dict<String, LanguageTools.ProgramTypes.Hash> =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = []
@@ -333,32 +330,65 @@ let traitImpls(branchId: Uuid): Dict<String, List<(Model.Ty * LanguageTools.Prog
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
         exactMatch = false }
 
-  (LanguageTools.PackageManager.Search.search(branchId, query)).traits
-  |> Stdlib.List.fold(Dict {}, fun(acc, t) ->
-    let converted =
-      (LanguageTools.PackageManager.Trait.impls(branchId, t.entity.hash))
-      |> Stdlib.List.map(fun candidate ->
-        ((tyOfRuntimeType(candidate.self)), candidate.source))
+  let (_, _, _, _, traits, _, _) =
+    LanguageTools.PackageManager.Search.searchNamesAndHashes(branchId, query)
 
-    Stdlib.Dict.set(
-      acc,
-      LanguageTools.ProgramTypes.hashToString(t.entity.hash),
-      converted))
+  Stdlib.List.fold(traits, Dict {}, fun(acc, (_, hash)) ->
+    Stdlib.Dict.set(acc, LanguageTools.ProgramTypes.hashToString(hash), hash))
+
+/// <param env> with its `visibleTraits` read, and them.
+let withVisibleTraits(
+  env: Model.Environment)
+  : (Dict<String, LanguageTools.ProgramTypes.Hash> * Model.Environment) =
+  match env.visibleTraits with
+  | Some(visible) -> (visible, env)
+  | None ->
+    let visible = visibleTraits(env.branchId)
+    (visible, { env with visibleTraits = Stdlib.Option.Option.Some(visible) })
+
+/// One trait's implementations as the store has them, self types converted to the checker's
+/// own, and <param env> holding them. Empty for a trait not bound on the branch.
+let storeImplsOf(
+  env: Model.Environment,
+  key: String)
+  : (List<(Model.Ty * LanguageTools.ProgramTypes.Hash)> * Model.Environment) =
+  match Stdlib.Dict.get(env.traitImpls, key) with
+  | Some(impls) -> (impls, env)
+  | None ->
+    let (visible, env) = withVisibleTraits(env)
+
+    let impls =
+      match Stdlib.Dict.get(visible, key) with
+      | Some(traitHash) ->
+        (LanguageTools.PackageManager.Trait.impls(env.branchId, traitHash))
+        |> Stdlib.List.map(fun candidate ->
+          ((tyOfRuntimeType(candidate.self)), candidate.source))
+      | None -> []
+
+    (impls, { env with traitImpls = Stdlib.Dict.set(env.traitImpls, key, impls) })
+
+/// <param env> with every bound trait's implementations read, for a caller that will start
+/// many checks from it and would otherwise read each trait again in every one.
+let withAllTraitImpls(env: Model.Environment): Model.Environment =
+  let (visible, env) = withVisibleTraits(env)
+
+  Stdlib.List.fold(Stdlib.Dict.keys(visible), env, fun(env, key) ->
+    let (_, env) = storeImplsOf(env, key)
+    env)
 
 /// Which trait and method each operator is. One table, in F#, shared with the lowering, so
 /// the checker and the runtime cannot come to disagree about what `+` means.
-let infixTrait(
-  branchId: Uuid)
-  : Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String)>> =
+///
+/// Only the trait and method: the implementations are read when an operator is met, by
+/// `implsOfTrait`, rather than once per operator here and thrown away.
+let infixTrait(): Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String)>> =
   (allInfixOperations())
   |> Stdlib.List.fold(Dict {}, fun(acc, operation) ->
-    let found =
-      match LanguageTools.PackageManager.Trait.forInfix(branchId, operation) with
-      | None -> Stdlib.Option.Option.None
-      | Some((traitHash, method_, _)) ->
-        Stdlib.Option.Option.Some((traitHash, method_))
-
-    Stdlib.Dict.set(acc, infixKey(operation), found))
+    Stdlib.Dict.set(
+      acc,
+      infixKey(operation),
+      LanguageTools.PackageManager.Trait.operatorTrait(
+        LanguageTools.ProgramTypes.Operator.OpInfix(operation))))
   |> (fun acc ->
     // The two UNARY operators, under keys no infix operator can collide with. They were left
     // on hand-written type predicates when the binary ones moved to implementation lookup,
@@ -369,49 +399,77 @@ let infixTrait(
       Stdlib.Dict.set(
         acc,
         "unary -",
-        (match LanguageTools.PackageManager.Trait.forNegate(branchId) with
-         | None -> Stdlib.Option.Option.None
-         | Some((h, m, _)) -> Stdlib.Option.Option.Some((h, m))))
+        LanguageTools.PackageManager.Trait.operatorTrait(
+          LanguageTools.ProgramTypes.Operator.OpNegate))
 
     Stdlib.Dict.set(
       withNegate,
       "unary ~",
-      (match LanguageTools.PackageManager.Trait.forBitwiseNot(branchId) with
-       | None -> Stdlib.Option.Option.None
-       | Some((h, m, _)) -> Stdlib.Option.Option.Some((h, m)))))
+      LanguageTools.PackageManager.Trait.operatorTrait(
+        LanguageTools.ProgramTypes.Operator.OpBitwiseNot)))
 
-/// The implementations of <param traitHash> that this batch knows about.
+/// The implementations of <param traitHash> that this batch knows about: the store's, then the
+/// batch's own that the store does not already hold, less any the batch replaces. Returns
+/// <param env> with the store's read, so the next declaration does not read them again.
 let implsOfTrait(
   env: Model.Environment,
   traitHash: LanguageTools.ProgramTypes.Hash)
-  : List<(Model.Ty * LanguageTools.ProgramTypes.Hash)> =
-  match
-    Stdlib.Dict.get(env.traitImpls, LanguageTools.ProgramTypes.hashToString(traitHash))
-  with
-  | Some(impls) -> impls
-  | None -> []
+  : (List<(Model.Ty * LanguageTools.ProgramTypes.Hash)> * Model.Environment) =
+  let key = LanguageTools.ProgramTypes.hashToString(traitHash)
+  let (stored, env) = storeImplsOf(env, key)
+
+  // An implementation already in the store (an identical re-save) is not added twice, which
+  // would make it its own rival.
+  let withBatch =
+    match Stdlib.Dict.get(env.batchImpls, key) with
+    | None -> stored
+    | Some(added) ->
+      Stdlib.List.fold(added, stored, fun(found, (self, hash)) ->
+        if Stdlib.List.any(found, fun((_, h)) -> h == hash) then
+          found
+        else
+          Stdlib.List.append(found, (self, hash)))
+
+  let impls =
+    if Stdlib.List.isEmpty(env.replacedImpls) then
+      withBatch
+    else
+      withBatch
+      |> Stdlib.List.filter(fun((_, hash)) ->
+        Stdlib.Bool.not(Stdlib.List.contains(env.replacedImpls, hash)))
+
+  (impls, env)
+
+/// The trait and method an operator is, without reading its implementations.
+let infixTraitOf(
+  env: Model.Environment,
+  operation: LanguageTools.ProgramTypes.InfixFnName)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String)> =
+  match Stdlib.Dict.get(env.infixTrait, infixKey(operation)) with
+  | Some(found) -> found
+  | None -> Stdlib.Option.Option.None
 
 /// The trait and method a UNARY operator is, and that trait's implementations.
 let unaryImplsFor(
   env: Model.Environment,
   key: String)
-  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> =
+  : (Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> * Model.Environment) =
   match Stdlib.Dict.get(env.infixTrait, key) with
   | Some(Some((traitHash, method_))) ->
-    Stdlib.Option.Option.Some((traitHash, method_, implsOfTrait(env, traitHash)))
-  | _ -> Stdlib.Option.Option.None
+    let (impls, env) = implsOfTrait(env, traitHash)
+    (Stdlib.Option.Option.Some((traitHash, method_, impls)), env)
+  | _ -> (Stdlib.Option.Option.None, env)
 
 /// The trait and method an operator is, and that trait's implementations.
 let infixImplsFor(
   env: Model.Environment,
   operation: LanguageTools.ProgramTypes.InfixFnName)
-  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> =
-  match Stdlib.Dict.get(env.infixTrait, infixKey(operation)) with
-  | Some(Some((traitHash, method_))) ->
-    Stdlib.Option.Option.Some(
-      (traitHash, method_, implsOfTrait(env, traitHash))
-    )
-  | _ -> Stdlib.Option.Option.None
+  : (Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> * Model.Environment) =
+  match infixTraitOf(env, operation) with
+  | Some((traitHash, method_)) ->
+    let (impls, env) = implsOfTrait(env, traitHash)
+    (Stdlib.Option.Option.Some((traitHash, method_, impls)), env)
+  | None -> (Stdlib.Option.Option.None, env)
 
 /// Create an empty environment with the standard Option, Result and Test.Result
 /// type hashes.
@@ -424,9 +482,12 @@ let builtins(branchId: Uuid): Model.Environment =
       functions = Dict {}
       values = Dict {}
       declarationFacts = Dict {}
-      traitImpls = traitImpls(branchId)
+      traitImpls = Dict {}
+      visibleTraits = Stdlib.Option.Option.None
+      batchImpls = Dict {}
+      replacedImpls = []
       batchTraits = Dict {}
-      infixTrait = infixTrait(branchId)
+      infixTrait = infixTrait()
       valueTypeParameters = Dict {}
       dictKeyParameters = Dict {}
       callables = Dict {}
@@ -455,8 +516,10 @@ let withBatch(
         LanguageTools.ProgramTypes.hashToString(t.hash),
         t))
 
-  let traitImpls =
-    Stdlib.List.fold(impls, env.traitImpls, fun(found, i) ->
+  // Kept apart from the store's and joined to them in `implsOfTrait`, so a trait nothing in
+  // the batch uses is never read.
+  let batchImpls =
+    Stdlib.List.fold(impls, env.batchImpls, fun(found, i) ->
       match i.trait_.resolved with
       | Ok(resolved) ->
         match resolved.name with
@@ -467,19 +530,16 @@ let withBatch(
             | Some(impls) -> impls
             | None -> []
 
-          if Stdlib.List.any(existing, fun((_, h)) -> h == i.hash) then
-            found
-          else
-            let (self, _) =
-              Types.fromReference(Dict {}, Stdlib.Option.Option.None, i.self)
+          let (self, _) =
+            Types.fromReference(Dict {}, Stdlib.Option.Option.None, i.self)
 
-            Stdlib.Dict.set(
-              found,
-              key,
-              Stdlib.List.append(existing, (self, i.hash)))
+          Stdlib.Dict.set(
+            found,
+            key,
+            Stdlib.List.append(existing, (self, i.hash)))
       | Error(_) -> found)
 
-  { env with batchTraits = batchTraits, traitImpls = traitImpls }
+  { env with batchTraits = batchTraits, batchImpls = batchImpls }
 
 
 /// <param env> without the store's implementations that <param ops> rebind to something else.
@@ -524,12 +584,7 @@ let withoutReplaced(
   if Stdlib.List.isEmpty(replaced) then
     env
   else
-    { env with
-        traitImpls =
-          Stdlib.Dict.map(env.traitImpls, fun(_, impls) ->
-            impls
-            |> Stdlib.List.filter(fun((_, hash)) ->
-              Stdlib.Bool.not(Stdlib.List.contains(replaced, hash)))) }
+    { env with replacedImpls = Stdlib.List.concat(env.replacedImpls, replaced) }
 
 
 // --------------------

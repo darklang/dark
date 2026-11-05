@@ -181,35 +181,6 @@ module Trait =
     : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String)> =
     Builtin.pmOperatorTrait(op)
 
-  /// The trait an operator is, the method it maps to, and the impls bound on <param branchId>.
-  let forOperator(
-    branchId: Uuid,
-    op: ProgramTypes.Operator)
-    : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
-    match operatorTrait(op) with
-    | None -> Stdlib.Option.Option.None
-    | Some((traitHash, method_)) ->
-      Stdlib.Option.Option.Some((traitHash, method_, impls(branchId, traitHash)))
-
-  /// `forOperator` for an infix operator.
-  let forInfix(
-    branchId: Uuid,
-    operation: ProgramTypes.InfixFnName)
-    : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
-    forOperator(branchId, ProgramTypes.Operator.OpInfix(operation))
-
-  /// The same for unary minus.
-  let forNegate(
-    branchId: Uuid)
-    : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
-    forOperator(branchId, ProgramTypes.Operator.OpNegate)
-
-  /// And for `~x`.
-  let forBitwiseNot(
-    branchId: Uuid)
-    : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
-    forOperator(branchId, ProgramTypes.Operator.OpBitwiseNot)
-
 
 module TraitImpl =
   let find(

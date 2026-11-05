@@ -2163,13 +2163,8 @@ let traitCallFor(
       addResolution(s, Model.Resolution.Deferred(at, param))
     )
   | _ ->
-    recordImplChoice(
-      s,
-      at,
-      traitHash,
-      method_,
-      subject,
-      Environment.implsOfTrait(s.env, traitHash))
+    let (candidates, env) = Environment.implsOfTrait(s.env, traitHash)
+    recordImplChoice({ s with env = env }, at, traitHash, method_, subject, candidates)
 
 /// What this call gave one of the callee's bounds, once the supplied type is known.
 ///
@@ -2199,7 +2194,8 @@ let callerBoundFor(
         Model.Resolution.CallerBoundDeferred(at, param, traitHash, fromParam))
     )
   | _ ->
-    let candidates = Environment.implsOfTrait(s.env, traitHash)
+    let (candidates, env) = Environment.implsOfTrait(s.env, traitHash)
+    let s = { s with env = env }
 
     let byHead =
       candidates
@@ -2275,14 +2271,17 @@ let operandFor(
   // deferral rather than looking for an implementation of a rigid type, which would find none
   // and report every bounded generic in the tree as missing one.
   | TRigid(param) ->
-    match Environment.infixImplsFor(s.env, operation) with
+    match Environment.infixTraitOf(s.env, operation) with
     | None -> Stdlib.Option.Option.Some(s)
     | Some(_) ->
       Stdlib.Option.Option.Some(
         addResolution(s, Model.Resolution.Deferred(at, param))
       )
   | _ ->
-    match Environment.infixImplsFor(s.env, operation) with
+    let (found, env) = Environment.infixImplsFor(s.env, operation)
+    let s = { s with env = env }
+
+    match found with
     // Not a trait, so there is nothing to look up and nothing to record. `==` and `!=` are
     // structural equality for every value, and an operator whose trait hash is not generated
     // yet answers the same way, which is what keeps a tree whose refs are missing from
@@ -2326,7 +2325,10 @@ let unaryOperand(
       addResolution(s, Model.Resolution.Deferred(at, param))
     )
   | _ ->
-    match Environment.unaryImplsFor(s.env, key) with
+    let (found, env) = Environment.unaryImplsFor(s.env, key)
+    let s = { s with env = env }
+
+    match found with
     // Not a trait yet, or the refs are not generated: say nothing rather than refuse
     // everything.
     | None -> Stdlib.Option.Option.Some(s)

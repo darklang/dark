@@ -339,17 +339,25 @@ type Environment =
     values: Dict<LanguageTools.ProgramTypes.Hash, Scheme>
     /// Cached validation problems and direct references for types already inspected.
     declarationFacts: Dict<LanguageTools.ProgramTypes.Hash, DeclarationFacts>
-    /// Every visible trait's implementations, with each self type converted to the checker's
-    /// own types once and reused. Keyed by the trait's hash as a string.
+    /// The store's implementations of each trait read so far, with each self type converted
+    /// to the checker's own types once and reused. Keyed by the trait's hash as a string.
     ///
-    /// Filled for the whole BATCH, which is the point: a declaration gets a fresh solver
-    /// state, so a cache that filled itself on first use would reset at every declaration and
-    /// almost never be read twice. Converting a candidate's self type per CALL NODE rather
-    /// than per trait is most of what a whole-tree check costs.
-    ///
-    /// There are a handful of traits and the underlying read is cached per (branch, trait),
-    /// so taking all of them up front is cheaper than deciding which ones will be needed.
+    /// Filled on first use, one trait at a time, and carried from declaration to declaration
+    /// through the batch: converting a candidate's self type per CALL NODE rather than per
+    /// trait is most of what a whole-tree check costs. Reading every trait up front cost a
+    /// check that needs one trait, or none, the same as one that needs all of them. Read
+    /// through `Environment.implsOfTrait`, which adds the batch's own and drops the replaced.
     traitImpls: Dict<String, List<(Ty * LanguageTools.ProgramTypes.Hash)>>
+
+    /// The traits bound on the branch, keyed by hash as a string, once something has asked.
+    /// A trait that is not bound has no implementations from the store.
+    visibleTraits: Stdlib.Option.Option<Dict<String, LanguageTools.ProgramTypes.Hash>>
+
+    /// The batch's own implementations, by trait, in the order the batch declares them.
+    batchImpls: Dict<String, List<(Ty * LanguageTools.ProgramTypes.Hash)>>
+
+    /// The store's implementations the batch rebinds to something else (`withoutReplaced`).
+    replacedImpls: List<LanguageTools.ProgramTypes.Hash>
 
     /// The traits this batch declares, keyed by hash as a string. A trait is otherwise read
     /// from the store, which does not hold a batch's own items until after the check: without

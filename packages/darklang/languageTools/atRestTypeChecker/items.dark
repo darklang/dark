@@ -633,13 +633,27 @@ let checkTest(
 
 /// Check each test against env. Nothing can reference a test, so no test's
 /// result feeds another declaration's check.
+///
+/// Each test does start from the trait implementations the ones before it read, and from
+/// nothing else of theirs: they are read on first use, and without this every test using `+`
+/// read them again.
 let checkTests(
   env: Model.Environment,
   testResult: LanguageTools.ProgramTypes.Hash,
   tests: List<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
   : List<(LanguageTools.ProgramTypes.Reference * Outcome)> =
-  Stdlib.List.map(tests, fun test ->
-    let (outcome, _) =
-      guardItem(bodyNodeId(test.body), env, fun env ->
-        checkTest(env, testResult, test))
-    (LanguageTools.ProgramTypes.Reference.PackageTest(test.hash), outcome))
+  let (_, results) =
+    Stdlib.List.fold(tests, (env, []), fun((read, results), test) ->
+      let start =
+        { env with traitImpls = read.traitImpls, visibleTraits = read.visibleTraits }
+
+      let (outcome, after) =
+        guardItem(bodyNodeId(test.body), start, fun env ->
+          checkTest(env, testResult, test))
+
+      (after,
+       Stdlib.List.prepend(
+         results,
+         (LanguageTools.ProgramTypes.Reference.PackageTest(test.hash), outcome))))
+
+  Stdlib.List.reverse(results)
