@@ -26,7 +26,7 @@ module Darklang.SCM.PackageOps
 let add(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Result.Result<Int, String> =
+  : Stdlib.Result.Result<Int64, String> =
   Builtin.scmAddOps(branchId, Lineage.recordPrevious(branchId, ops))
 
 
@@ -76,7 +76,7 @@ let addAuthored(
 let takeBackFailedValues(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>,
-  added: Stdlib.Result.Result<Int, String>,
+  added: Stdlib.Result.Result<Int64, String>,
   failed: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
   : String =
   let failedLocations = failed |> Stdlib.List.map(fun((loc, _)) -> loc)
@@ -151,7 +151,7 @@ let valueEvaluated(hash: String): Bool =
 let unbind(
   branchId: Uuid,
   bindings: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
-  : Stdlib.Result.Result<Int, String> =
+  : Stdlib.Result.Result<Int64, String> =
   let hashes = bindings |> Stdlib.List.map(fun((_, hash)) -> hash)
 
   let isOneOf(op: LanguageTools.ProgramTypes.PackageOp): Bool =
@@ -272,7 +272,7 @@ let query(filter: OpFilter, limit: Int64): OpPage = Builtin.scmOps(filter, limit
 
 
 /// Every row <param filter> selects.
-let rowsOf(filter: OpFilter): List<OpRow> = (query(filter, -1L)).ops
+let rowsOf(filter: OpFilter): List<OpRow> = (query(filter, -1)).ops
 
 
 /// The ids of every op <param filter> selects, in its order.
@@ -281,7 +281,7 @@ let idsOf(filter: OpFilter): List<String> =
 
 
 /// How many ops <param filter> selects.
-let countOf(filter: OpFilter): Int64 = (query(filter, 0L)).total
+let countOf(filter: OpFilter): Int64 = (query(filter, 0)).total
 
 
 /// The `ts` of a one-row stamp case.

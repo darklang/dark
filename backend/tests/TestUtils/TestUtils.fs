@@ -385,6 +385,8 @@ module Expect =
     | DInt _
 
     | DFloat _
+    | DFloat32 _
+    | DDecimal _
 
     | DDateTime _
     | DUuid _
@@ -460,6 +462,8 @@ module Expect =
         | Error() -> errorFn path (debugDval actual) (debugDval expected)
 
       match actual, expected with
+      | DFloat32 l, DFloat32 r ->
+        if System.Single.IsNaN l && System.Single.IsNaN r then () else check path l r
       | DFloat l, DFloat r ->
         if System.Double.IsNaN l && System.Double.IsNaN r then
           // This isn't "true" equality, it's just for tests
@@ -483,6 +487,10 @@ module Expect =
           error path
         else if not (Accuracy.areClose Accuracy.veryHigh l r) then
           error path
+
+      // scale too: 1.10m and 1.1m are `==` but not the same value for a round-trip test
+      | DDecimal l, DDecimal r ->
+        check path (System.Decimal.GetBits l) (System.Decimal.GetBits r)
 
       | DDateTime l, DDateTime r ->
         // Two dates can be the same millisecond and not be equal if they don't
@@ -590,6 +598,8 @@ module Expect =
       | DUInt128 _, _
       | DInt _, _
       | DFloat _, _
+      | DFloat32 _, _
+      | DDecimal _, _
       | DChar _, _
       | DString _, _
       | DDateTime _, _
@@ -770,6 +780,13 @@ module Expect =
         check path sign sign'
         check path whole whole'
         check path part part'
+      | EFloat32(_, sign, whole, part), EFloat32(_, sign', whole', part') ->
+        check path sign sign'
+        check path whole whole'
+        check path part part'
+
+      | EDecimal(_, d), EDecimal(_, d') ->
+        check path (System.Decimal.GetBits d) (System.Decimal.GetBits d')
 
       | EInfix(_, op, l, r, _), EInfix(_, op', l', r', _) ->
         check path op op'
@@ -889,6 +906,8 @@ module Expect =
       | EValue _, _
       | EBool _, _
       | EFloat _, _
+      | EFloat32 _, _
+      | EDecimal _, _
       | ELet _, _
       | EIf _, _
       | EList _, _
@@ -947,6 +966,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUInt128 _
     | DInt _
     | DFloat _
+    | DFloat32 _
+    | DDecimal _
     | DChar _
     | DString _ // TODO: should actually traverse in interpolations
     | DUuid _
@@ -1048,6 +1069,14 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     // Not representable in twelve digits, so a "G12" roundtrip would lose them.
     ("float_no_short_decimal", DFloat(0.1 + 0.2), TFloat)
     ("float_third", DFloat(1.0 / 3.0), TFloat)
+    ("float32", DFloat32 1.5f, TFloat32)
+    ("float32_tenth", DFloat32 0.1f, TFloat32)
+    ("float32_negative_zero", DFloat32 -0.0f, TFloat32)
+    ("decimal", DDecimal 19.99m, TDecimal)
+    ("decimal_scale", DDecimal 1.10m, TDecimal)
+    ("decimal_negative", DDecimal -0.5m, TDecimal)
+    ("decimal_max", DDecimal System.Decimal.MaxValue, TDecimal)
+    ("decimal_tiny", DDecimal 0.0000000000000000000000000001m, TDecimal)
     ("int5", DInt64 5L, TInt64)
     ("int_8_bits", DInt8 127y, TInt8)
     ("int_16_bits", DInt16 32767s, TInt16)

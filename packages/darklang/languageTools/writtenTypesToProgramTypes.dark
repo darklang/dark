@@ -13,7 +13,7 @@ module Darklang.LanguageTools.WrittenTypesToProgramTypes
 //     DeferredResolver has nothing to refresh.
 type Context =
   { currentFnName: Stdlib.Option.Option<List<String>>
-    argMap: Dict<String, Int>
+    argMap: Dict<String, Int64>
     localBindings: List<String> }
 
 val defaultContext =
@@ -24,10 +24,10 @@ val defaultContext =
 
 let gid(): Int64 =
   // TODO: fix upper range here
-  Stdlib.Int64.random(0L, 922337203685477580L)
+  Stdlib.Int64.random(0, 922337203685477580)
 
 let gtlid(): UInt64 =
-  Stdlib.UInt64.random(0UL, 9223372036854775807UL)
+  Stdlib.UInt64.random(0u64, 9223372036854775807u64)
 
 /// Compute a unique location-based placeholder hash for parsed items.
 /// This ensures each item gets a distinct key in createInMemory maps,
@@ -230,6 +230,8 @@ module TypeReference =
       | TUInt128(_range) -> (ProgramTypes.TypeReference.TUInt128, [])
       | TInt(_range) -> (ProgramTypes.TypeReference.TInt, [])
       | TFloat(_range) -> (ProgramTypes.TypeReference.TFloat, [])
+      | TFloat32(_range) -> (ProgramTypes.TypeReference.TFloat32, [])
+      | TDecimal(_range) -> (ProgramTypes.TypeReference.TDecimal, [])
       | TChar(_range) -> (ProgramTypes.TypeReference.TChar, [])
       | TString(_range) -> (ProgramTypes.TypeReference.TString, [])
       | TDateTime(_range) -> (ProgramTypes.TypeReference.TDateTime, [])
@@ -489,6 +491,9 @@ module Expr =
       | MPInt(_, (_, i)) -> ProgramTypes.MatchPattern.MPInt(gid(), i)
       | MPFloat(_, s, w, f) ->
         ProgramTypes.MatchPattern.MPFloat(gid(), s, w, f)
+      | MPFloat32(_, s, w, f) ->
+        ProgramTypes.MatchPattern.MPFloat32(gid(), s, w, f)
+      | MPDecimal(_, d) -> ProgramTypes.MatchPattern.MPDecimal(gid(), d)
       | MPString(_, contents, _, _) ->
         match contents with
         | None -> ProgramTypes.MatchPattern.MPString(gid(), "")
@@ -710,6 +715,8 @@ module Expr =
     | EUInt128(_, (_, i), _) -> (ProgramTypes.Expr.EUInt128(gid(), i), [])
     | EInt(_, (_, i)) -> (ProgramTypes.Expr.EInt(gid(), i), [])
     | EFloat(_, s, w, f) -> (ProgramTypes.Expr.EFloat(gid(), s, w, f), [])
+    | EFloat32(_, s, w, f) -> (ProgramTypes.Expr.EFloat32(gid(), s, w, f), [])
+    | EDecimal(_, d) -> (ProgramTypes.Expr.EDecimal(gid(), d), [])
     | EString(_, _, contents, _, _) ->
       let (segment, unresolvedNames) =
         contents
@@ -1477,6 +1484,8 @@ module FunctionDeclaration =
     | TUInt128
     | TInt
     | TFloat
+    | TFloat32
+    | TDecimal
     | TChar
     | TString
     | TDateTime
@@ -1643,6 +1652,8 @@ module ImplDeclaration =
       | TInt128(_) -> "Int128"
       | TUInt128(_) -> "UInt128"
       | TFloat(_) -> "Float"
+      | TFloat32(_) -> "Float32"
+      | TDecimal(_) -> "Decimal"
       | TChar(_) -> "Char"
       | TString(_) -> "String"
       | TDateTime(_) -> "DateTime"

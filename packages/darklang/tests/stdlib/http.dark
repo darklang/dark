@@ -54,7 +54,7 @@ module Darklang.Stdlib.Http.Tests
 // for comparison, then compare responses directly once blob equality compares content.
 let responseView(
   response: Stdlib.Http.Response)
-  : (Int * List<String * String> * Stdlib.Result.Result<String, String>) =
+  : (Int64 * List<String * String> * Stdlib.Result.Result<String, String>) =
   (response.statusCode, response.headers, Stdlib.Utf8.decode(response.body))
 
 // Build a request with an empty body.

@@ -6,7 +6,7 @@ type Json =
   | Bool of Bool
   // These were originally flattened as a single Number case, to match JSON spec
   // CLEANUP there may be benefits to flattening back to a `Number of JsonNumber` case, where `JsonNumber = | Integer of Int | Float of Float`. Not sure if there's a benefit or not, but there was _some_ reason we kept it to the strict single Number case to start.
-  | Integer of Int
+  | Integer of Int64
   | Float of Float
   | String of String
   | Array of List<Json>
@@ -135,7 +135,7 @@ module Format =
   /// Take apart <fn Float.toString>, which already holds the shortest
   /// round-trip digits: the sign, the significant digits with no leading or
   /// trailing zeros ("" for zero), and the decimal exponent of the first one.
-  let shortestDigits(n: Float): (Bool * String * Int) =
+  let shortestDigits(n: Float): (Bool * String * Int64) =
     let text = Stdlib.toString(n)
     let negative = String.startsWith(text, "-")
     let unsigned = if negative then String.dropFirst(text, 1) else text
@@ -143,7 +143,7 @@ module Format =
     let (mantissa, exp10) =
       match String.split(unsigned, "e") with
       | [ m, e ] ->
-        (m, Int.parse(String.replaceAll(e, "+", "")) |> Result.withDefault(0))
+        (m, Int64.parse(String.replaceAll(e, "+", "")) |> Result.withDefault(0))
       | _ -> (unsigned, 0)
 
     let (intPart, fracPart) =
@@ -268,7 +268,7 @@ module Parse =
 
 
   /// {{None}} for a surrogate, which is not a scalar a string can hold.
-  let codepointText(codepoint: Int): Option.Option<String> =
+  let codepointText(codepoint: Int64): Option.Option<String> =
     Codepoint.fromInt(codepoint)
     |> Option.andThen(Char.fromCodepoint)
     |> Option.map(String.fromChar)
@@ -277,7 +277,7 @@ module Parse =
   /// Hex digits in order, so the index of a digit is its value.
   val hexDigits = "0123456789ABCDEF"
 
-  let hexValue(digits: String): Int =
+  let hexValue(digits: String): Int64 =
     List.fold(String.toList(String.toUppercase(digits)), 0, fun(total, d) ->
       let value =
         String.indexOf(hexDigits, String.fromChar(d)) |> Option.withDefault(0)
@@ -298,7 +298,10 @@ module Parse =
     if Regex.isMatch(t, "[.eE]") |> Result.withDefault(false) then
       Float.parse(t) |> Result.toOption |> Option.map(fun f -> Json.Float(f))
     else
-      Int.parse(t) |> Result.toOption |> Option.map(fun i -> Json.Integer(i))
+      // an integer past Int64 is read as a Float, as JavaScript reads every number
+      match Int64.parse(t) with
+      | Ok(i) -> Option.Option.Some(Json.Integer(i))
+      | Error(_) -> Float.parse(t) |> Result.toOption |> Option.map(fun f -> Json.Float(f))
 
 
   /// The rest of an array, after its `[`.
@@ -344,7 +347,7 @@ module Parse =
 
 /// Reads an exact JSON integer. A Float value is never silently truncated or
 /// reinterpreted as an integer, even if its current value is whole.
-let toInt(j: Json): Option.Option<Int> =
+let toInt(j: Json): Option.Option<Int64> =
   match j with
   | Integer(i) -> Option.Option.Some(i)
   | _ -> Option.Option.None
@@ -355,8 +358,8 @@ let toFloat(j: Json): Option.Option<Float> =
   match j with
   | Float(n) -> Option.Option.Some(n)
   | Integer(i) ->
-    let n = Int.toFloat(i)
-    if Float.isFinite(n) && Int.fromFloat(n) == i then
+    let n = Int64.toFloat(i)
+    if Int64.fromFloat(n) == Option.Option.Some(i) then
       Option.Option.Some(n)
     else
       Option.Option.None
@@ -417,7 +420,7 @@ module Helpers =
   let getIntOption(
     key: String,
     fields: List<(String * Json)>)
-    : Option.Option<Int> =
+    : Option.Option<Int64> =
     let found = List.findFirst(fields, fun((k, _)) -> k == key)
 
     match found with
@@ -430,7 +433,7 @@ module Helpers =
   let getIntOptionResult(
     key: String,
     fields: List<(String * Json)>)
-    : Result.Result<Option.Option<Int>, String> =
+    : Result.Result<Option.Option<Int64>, String> =
     match getValue(key, fields) with
     | None -> Result.Result.Ok(Option.Option.None)
     | Some(Null) -> Result.Result.Ok(Option.Option.None)
@@ -445,7 +448,7 @@ module Helpers =
   let getIntResult(
     key: String,
     fields: List<(String * Json)>)
-    : Result.Result<Int, String> =
+    : Result.Result<Int64, String> =
     match getValue(key, fields) with
     | None -> Result.Result.Error($"Missing JSON integer field: {key}")
     | Some(value) ->
@@ -459,9 +462,9 @@ module Helpers =
   /// integer (see <fn toInt>).
   let getIntOr(
     key: String,
-    default_: Int,
+    default_: Int64,
     fields: List<(String * Json)>)
-    : Result.Result<Int, String> =
+    : Result.Result<Int64, String> =
     match getValue(key, fields) with
     | None -> Result.Result.Ok(default_)
     | Some(Null) -> Result.Result.Ok(default_)
@@ -532,7 +535,7 @@ module Builder =
     List.append(fields, (key, Json.Float(value)))
 
   /// Add an integer field without converting it to Float
-  let addInt(fields: Fields, key: String, value: Int): Fields =
+  let addInt(fields: Fields, key: String, value: Int64): Fields =
     List.append(fields, (key, Json.Integer(value)))
 
   /// Add a required bool field
@@ -571,7 +574,7 @@ module Builder =
   let addOptionalInt(
     fields: Fields,
     key: String,
-    value: Option.Option<Int>)
+    value: Option.Option<Int64>)
     : Fields =
     match value with
     | Some(v) -> addInt(fields, key, v)

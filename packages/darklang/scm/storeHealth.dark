@@ -37,7 +37,7 @@ type Problem =
     refoldable: Bool }
 
 let countedProblem(n: Int64, refoldable: Bool, what: String): List<Problem> =
-  if n > 0L then
+  if n > 0 then
     [ Problem
         { text = $"{Stdlib.toString(n)} {what}"
           refoldable = refoldable } ]

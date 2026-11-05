@@ -4,7 +4,7 @@ module Darklang.Stdlib.Duration
 
 
 /// A whole number of seconds. Can be negative.
-type Duration = { seconds: Int }
+type Duration = { seconds: Int64 }
 
 
 type ParseError =
@@ -17,11 +17,11 @@ type ParseError =
 
 
 /// Create a <type Duration> from <param seconds> seconds.
-let fromSeconds(seconds: Int): Duration = Duration { seconds = seconds }
+let fromSeconds(seconds: Int64): Duration = Duration { seconds = seconds }
 
 
 /// Get the number of seconds in <param d>.
-let toSeconds(d: Duration): Int = d.seconds
+let toSeconds(d: Duration): Int64 = d.seconds
 
 
 /// Parse a string like "30s", "5m", "1h", "2d" or "-5m" into a <type Duration>.
@@ -36,13 +36,18 @@ let parse(s: String): Stdlib.Result.Result<Duration, ParseError> =
   if Stdlib.String.isEmpty(unit) then
     Stdlib.Result.Result.Error(ParseError.MissingUnit)
   else
-    match Stdlib.Int.parse(number) with
+    match Stdlib.Int64.parse(number) with
     | Ok(n) ->
+      // a count of seconds past Int64 is refused rather than wrapped
+      let times(factor: Int64): Stdlib.Result.Result<Duration, ParseError> =
+        match Stdlib.Int64.checkedMultiply(n, factor) with
+        | Ok(s) -> Stdlib.Result.Result.Ok(fromSeconds(s))
+        | Error(_) -> Stdlib.Result.Result.Error(ParseError.InvalidNumber)
       match unit with
-      | "s" -> Stdlib.Result.Result.Ok(fromSeconds(n))
-      | "m" -> Stdlib.Result.Result.Ok(fromSeconds(n * 60))
-      | "h" -> Stdlib.Result.Result.Ok(fromSeconds(n * 3600))
-      | "d" -> Stdlib.Result.Result.Ok(fromSeconds(n * 86400))
+      | "s" -> times(1)
+      | "m" -> times(60)
+      | "h" -> times(3600)
+      | "d" -> times(86400)
       | _ -> Stdlib.Result.Result.Error(ParseError.UnknownUnit)
 
     | Error(_) -> Stdlib.Result.Result.Error(ParseError.InvalidNumber)

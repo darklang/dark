@@ -20,7 +20,7 @@ module BuiltinGroups =
     |> Stdlib.List.map(fun f -> Darklang.Cli.Builtins.extractGroup(f.name.name))
 
   /// Prefixes carrying at least <param floor> builtins.
-  let substantial(floor: Int): List<String> =
+  let substantial(floor: Int64): List<String> =
     let live = livePrefixes()
     live
     |> Stdlib.List.unique

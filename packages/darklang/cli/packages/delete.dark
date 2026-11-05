@@ -49,7 +49,7 @@ let countLiveDependents(
   branchId: Uuid,
   targetLoc: LanguageTools.ProgramTypes.PackageLocation,
   targetKind: LanguageTools.ProgramTypes.ItemKind)
-  : Int =
+  : Int64 =
   let deps = SCM.Deps.dependentsOf([ (targetLoc, targetKind) ])
   let depSets = Query.loadDeprecationSets(branchId)
   deps

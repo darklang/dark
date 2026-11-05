@@ -155,7 +155,7 @@ let saveReportDetails(
 let scriptReport(
   branchId: Uuid,
   report: LanguageTools.AtRestTypeChecker.Report,
-  positions: List<(UInt64 * Int * Int)>)
+  positions: List<(UInt64 * Int64 * Int64)>)
   : String =
   let at(issue: LanguageTools.AtRestTypeChecker.Issue): String =
     match issue.nodeId with

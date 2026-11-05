@@ -17,8 +17,8 @@ type Mode =
 
 type State =
   { items: List<NavItem>
-    selectedIndex: Int
-    scrollOffset: Int
+    selectedIndex: Int64
+    scrollOffset: Int64
     currentLocation: PackageLocation
     mode: Mode
     display: Display
@@ -28,7 +28,7 @@ type State =
     /// Package reads happen during state transitions, never in `view`.
     focusRows: List<String>
     /// First logical row visible in the independently scrollable preview.
-    focusScrollOffset: Int
+    focusScrollOffset: Int64
     branchId: Uuid }
 
 
@@ -40,16 +40,16 @@ type Session =
 
 /// Navigation regions derived from one terminal-size sample.
 type Layout =
-  { width: Int
-    contentHeight: Int
-    bodyHeight: Int
-    helpHeight: Int
-    itemViewportHeight: Int
-    focusHeight: Int
-    focusContentHeight: Int
+  { width: Int64
+    contentHeight: Int64
+    bodyHeight: Int64
+    helpHeight: Int64
+    itemViewportHeight: Int64
+    focusHeight: Int64
+    focusContentHeight: Int64
     sideBySide: Bool
-    listWidth: Int
-    focusWidth: Int }
+    listWidth: Int64
+    focusWidth: Int64 }
 
 
 let helpSections(mode: Mode, display: Display): List<String> =
@@ -84,7 +84,7 @@ let helpSections(mode: Mode, display: Display): List<String> =
 
 
 let packHelpRows(
-  width: Int,
+  width: Int64,
   sections: List<String>,
   current: String,
   rows: List<String>)
@@ -120,7 +120,7 @@ let packHelpRows(
 let helpRowsAtWidth(
   mode: Mode,
   display: Display,
-  width: Int)
+  width: Int64)
   : List<String> =
   packHelpRows(
     Stdlib.max(1, width),
@@ -616,11 +616,11 @@ let showAtSize(
 
 
 let scrollOffsetForSelection(
-  selectedIndex: Int,
-  scrollOffset: Int,
-  viewportHeight: Int,
-  totalItems: Int)
-  : Int =
+  selectedIndex: Int64,
+  scrollOffset: Int64,
+  viewportHeight: Int64,
+  totalItems: Int64)
+  : Int64 =
   if viewportHeight <= 0 || totalItems <= 0 then
     0
   else
@@ -638,8 +638,8 @@ let scrollOffsetForSelection(
 
 let withFocusScrollOffset(
   navState: State,
-  focusContentHeight: Int,
-  offset: Int)
+  focusContentHeight: Int64,
+  offset: Int64)
   : State =
   let maxOffset =
     Stdlib.max(
@@ -651,7 +651,7 @@ let withFocusScrollOffset(
 
 
 // Navigation helper functions
-let moveUp(navState: State, viewportHeight: Int): State =
+let moveUp(navState: State, viewportHeight: Int64): State =
   let totalItems = (Stdlib.List.length(navState.items))
   if totalItems > 0 then
     let newIndex =
@@ -674,7 +674,7 @@ let moveUp(navState: State, viewportHeight: Int): State =
   else
     navState
 
-let moveDown(navState: State, viewportHeight: Int): State =
+let moveDown(navState: State, viewportHeight: Int64): State =
   let totalItems = (Stdlib.List.length(navState.items))
   if totalItems > 0 then
     let newIndex =
@@ -808,7 +808,7 @@ let performSearch(navState: State): State =
 let handleNavKeys(
   navState: State,
   key: Stdlib.Cli.Stdin.Key.Key,
-  viewportHeight: Int)
+  viewportHeight: Int64)
   : Stdlib.Option.Option<State> =
   match key with
   | UpArrow -> Stdlib.Option.Option.Some(moveUp(navState, viewportHeight))

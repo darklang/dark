@@ -54,9 +54,9 @@ let wideDependencyReadsRespectSelection =
           let moduleName = "ReferenceBatches"
           let names = [ 1..105 ] |> List.map (fun i -> $"caller{i}")
           let declarations =
-            [ "let leaf(): Int64 = 932102L"
+            [ "let leaf(): Int64 = 932102"
               for i in 1..105 do
-                $"let caller{i}(): Int64 = Tests.{moduleName}.leaf() + {i}L" ]
+                $"let caller{i}(): Int64 = Tests.{moduleName}.leaf() + {i}" ]
             |> String.concat "\n"
           let! _ = authorIntoMain $"module Tests.{moduleName}\n{declarations}"
           let! sources = Task.WhenAll(names |> List.map (source moduleName))
@@ -101,7 +101,7 @@ let savedNamesNeedTheStoredDeclaration =
           let moduleName = "MissingReferenceBody"
           let! ops =
             authorIntoMain
-              $"module Tests.{moduleName}\nlet leaf(): Int64 = 932103L\nlet caller(): Int64 = leaf()"
+              $"module Tests.{moduleName}\nlet leaf(): Int64 = 932103\nlet caller(): Int64 = leaf()"
           let hash = hashBoundTo ops "caller"
           let caller = location moduleName "caller", PT.PackageFn hash
           let! stored = LibDB.ReferenceNamesContent.storedNames (snd caller)
@@ -172,9 +172,9 @@ let reviewUsesSavedAliasNames =
           let! _ =
             authorIntoMain
               $"""module Tests.{moduleName}
-let leaf(): Int64 = 932110L
-let alias(): Int64 = 932110L
-let replacement(): Int64 = 932111L
+let leaf(): Int64 = 932110
+let alias(): Int64 = 932110
+let replacement(): Int64 = 932111
 """
           // Bare calls to functions not yet stored lower to local variables.
           // Store the helpers first so both callers have resolved dependency edges.

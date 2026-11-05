@@ -50,6 +50,13 @@ type SemanticToken = { range: Range, tokenType: TokenType }
 let makeToken(s: Range, t: TokenType): SemanticToken =
   SemanticToken { range = s, tokenType = t }
 
+/// A number's digits, then its suffix (`s8` in `12s8`) if it has one; a bare `12` has none.
+let numberTokens(digits: Range, suffix: Range): List<SemanticToken> =
+  if suffix.start == suffix.end_ then
+    [ makeToken(digits, TokenType.Number) ]
+  else
+    [ makeToken(digits, TokenType.Number), makeToken(suffix, TokenType.Symbol) ]
+
 
 module ModuleIdentifier =
   let tokenize(m: WrittenTypes.ModuleIdentifier): List<SemanticToken> =
@@ -123,6 +130,8 @@ module TypeReference =
       | TUInt128(r)
       | TInt(r)
       | TFloat(r)
+      | TFloat32(r)
+      | TDecimal(r)
       | TChar(r)
       | TString(r)
       | TUuid(r)
@@ -483,12 +492,14 @@ module MatchPattern =
     | MPUInt64(_, (intPartRange, _), suffixPartRange)
     | MPInt128(_, (intPartRange, _), suffixPartRange)
     | MPUInt128(_, (intPartRange, _), suffixPartRange) ->
-      [ makeToken(intPartRange, TokenType.Number)
-        makeToken(suffixPartRange, TokenType.Symbol) ]
-    // suffix-less Int
+      numberTokens(intPartRange, suffixPartRange)
+    // 12z, its suffix part of the number
     | MPInt(_, (intPartRange, _)) -> [ makeToken(intPartRange, TokenType.Number) ]
     | MPFloat(range, _sign, _whole, _fraction) ->
       [ makeToken(range, TokenType.Number) ]
+    | MPFloat32(range, _sign, _whole, _fraction) ->
+      [ makeToken(range, TokenType.Number) ]
+    | MPDecimal(range, _d) -> [ makeToken(range, TokenType.Number) ]
     | MPBool(range, _b) -> [ makeToken(range, TokenType.Keyword) ]
     | MPString(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
       let contents =
@@ -585,7 +596,7 @@ module MatchPattern =
 
       [ // Some
         caseName
-        // 1L
+        // 1
         fields ]
       |> Stdlib.List.flatten
 
@@ -682,7 +693,7 @@ module Expr =
           [ makeToken(symbolDot, TokenType.Symbol) ]
           // Some
           caseName
-          // 1L
+          // 1
           fields ]
         |> Stdlib.List.flatten
 
@@ -712,35 +723,41 @@ module Expr =
     // true
     | EBool(range, _b) -> [ makeToken(range, TokenType.Keyword) ]
 
-    // 12y
+    // 12s8
     | EInt8(_, (intPartRange, _), suffixPartRange)
-    // 12uy
+    // 12u8
     | EUInt8(_, (intPartRange, _), suffixPartRange)
-    // 12s
+    // 12s16
     | EInt16(_, (intPartRange, _), suffixPartRange)
-    // 12us
+    // 12u16
     | EUInt16(_, (intPartRange, _), suffixPartRange)
-    // 12l
+    // 12s32
     | EInt32(_, (intPartRange, _), suffixPartRange)
-    // 12ul
+    // 12u32
     | EUInt32(_, (intPartRange, _), suffixPartRange)
-    // 12L
+    // 12
     | EInt64(_, (intPartRange, _), suffixPartRange)
-    // 12UL
+    // 12u64
     | EUInt64(_, (intPartRange, _), suffixPartRange)
-    // 12Q
+    // 12s128
     | EInt128(_, (intPartRange, _), suffixPartRange)
-    // 12Z
+    // 12u128
     | EUInt128(_, (intPartRange, _), suffixPartRange) ->
-      [ makeToken(intPartRange, TokenType.Number)
-        makeToken(suffixPartRange, TokenType.Symbol) ]
+      numberTokens(intPartRange, suffixPartRange)
 
-    // suffix-less Int
+    // 12z, its suffix part of the number
     | EInt(_, (intPartRange, _)) -> [ makeToken(intPartRange, TokenType.Number) ]
 
     // 12.0
     | EFloat(range, _sign, _whole, _fraction) ->
       [ makeToken(range, TokenType.Number) ]
+
+    // 12.0f32
+    | EFloat32(range, _sign, _whole, _fraction) ->
+      [ makeToken(range, TokenType.Number) ]
+
+    // 19.99dec
+    | EDecimal(range, _d) -> [ makeToken(range, TokenType.Number) ]
 
     // "hello"
     | EString(_range,
@@ -894,7 +911,7 @@ module Expr =
         [ makeToken(symbolCloseBrace, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
 
-    //{ RecordForUpdate { x = 4L, y = 1L } with y = 2L }
+    //{ RecordForUpdate { x = 4, y = 1 } with y = 2 }
     | ERecordUpdate(range,
                     record,
                     updates,
@@ -912,21 +929,21 @@ module Expr =
             [ makeToken(range, TokenType.Property) ]
             // =
             [ makeToken(symbolEquals, TokenType.Symbol) ]
-            // 4L
+            // 4
             Expr.tokenize(value) ]
           |> Stdlib.List.flatten)
         |> Stdlib.List.flatten
 
-      [ // { RecordForUpdate { x = 4L, y = 1L }
+      [ // { RecordForUpdate { x = 4, y = 1 }
         record
         // with
         [ makeToken(keywordWith, TokenType.Keyword) ]
-        // y = 2L
+        // y = 2
         updates ]
       |> Stdlib.List.flatten
 
 
-    // Option.Option.Some 1L
+    // Option.Option.Some 1
     | EEnum(range, typeName, caseName, fields, symbolDot) ->
       let typeName = QualifiedTypeIdentifier.tokenize(typeName)
 
@@ -946,7 +963,7 @@ module Expr =
         [ makeToken(symbolDot, TokenType.Symbol) ]
         // Some
         caseName
-        // 1L
+        // 1
         fields ]
       |> Stdlib.List.flatten
 

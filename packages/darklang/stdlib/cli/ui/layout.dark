@@ -5,22 +5,22 @@ module Darklang.Stdlib.Cli.UI.Layout
 
 /// What a component wants.
 type SizeRequest =
-  { minRows: Int
-    minCols: Int
-    preferredRows: Int
-    preferredCols: Int }
+  { minRows: Int64
+    minCols: Int64
+    preferredRows: Int64
+    preferredCols: Int64 }
 
 /// What a component gets.
 type Region =
-  { top: Int
-    left: Int
-    rows: Int
-    cols: Int }
+  { top: Int64
+    left: Int64
+    rows: Int64
+    cols: Int64 }
 
 /// Text to place at a zero-based terminal position. `Canvas` paints these onto a grid of rows.
 type Span =
-  { row: Int
-    col: Int
+  { row: Int64
+    col: Int64
     text: String }
 
 /// A renderable component that can negotiate its size.
@@ -41,7 +41,7 @@ type Component =
 /// wide-glyph row is measured correctly. The old `printAt` used `String.length`, which counts grapheme
 /// clusters, not columns: `界` and a ZWJ emoji each count 1 but occupy 2, so CJK or emoji content pushed the
 /// rest of its row sideways.
-let at(region: Region, row: Int, col: Int, text: String): List<Span> =
+let at(region: Region, row: Int64, col: Int64, text: String): List<Span> =
   if row >= 0 && row < region.rows && col >= 0 && col < region.cols then
     [ Span
         { row = region.top + row - 1
@@ -56,7 +56,7 @@ let at(region: Region, row: Int, col: Int, text: String): List<Span> =
 
 
 /// Fill a row with a repeated character, within the region.
-let fillRow(region: Region, row: Int, ch: String): List<Span> =
+let fillRow(region: Region, row: Int64, ch: String): List<Span> =
   at(region, row, 0, Stdlib.String.repeat(ch, region.cols))
 
 /// Blank the whole region.
@@ -73,7 +73,7 @@ let clearRegion(region: Region): List<Span> =
 
 /// Distribute `totalRows` among components based on their size requests.
 /// Each gets at least min, then remaining space is split toward preferred.
-let distributeRows(totalRows: Int, requests: List<SizeRequest>): List<Int> =
+let distributeRows(totalRows: Int64, requests: List<SizeRequest>): List<Int64> =
   let count = Stdlib.List.length(requests)
   if count == 0 then
     []
@@ -133,14 +133,14 @@ let vstack(region: Region, components: List<Component>): List<Span> =
   chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 
 /// A fixed-height component: always requests exactly N rows.
-let fixedSize(n: Int, renderFn: Region -> List<Span>): Component =
+let fixedSize(n: Int64, renderFn: Region -> List<Span>): Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = n, minCols = 0, preferredRows = n, preferredCols = 0 }
       render = renderFn }
 
 /// A flexible component: needs at least `min` rows, prefers `preferred`.
-let flex(min: Int, preferred: Int, renderFn: Region -> List<Span>): Component =
+let flex(min: Int64, preferred: Int64, renderFn: Region -> List<Span>): Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = min, minCols = 0, preferredRows = preferred, preferredCols = 0 }
@@ -158,7 +158,7 @@ let greedy(renderFn: Region -> List<Span>): Component =
 
 /// Distribute `totalCols` among components based on their size requests.
 /// Each gets at least min, then remaining space is split toward preferred.
-let distributeCols(totalCols: Int, requests: List<SizeRequest>): List<Int> =
+let distributeCols(totalCols: Int64, requests: List<SizeRequest>): List<Int64> =
   let count = Stdlib.List.length(requests)
   if count == 0 then
     []
@@ -208,14 +208,14 @@ let hstack(region: Region, components: List<Component>): List<Span> =
   chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 
 /// A fixed-width component: always requests exactly N cols; fills the region's height.
-let fixedWidth(n: Int, renderFn: Region -> List<Span>): Component =
+let fixedWidth(n: Int64, renderFn: Region -> List<Span>): Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = 1, minCols = n, preferredRows = 999, preferredCols = n }
       render = renderFn }
 
 /// A flexible-width component: needs at least `min` cols, prefers `preferred`.
-let flexWidth(min: Int, preferred: Int, renderFn: Region -> List<Span>): Component =
+let flexWidth(min: Int64, preferred: Int64, renderFn: Region -> List<Span>): Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = 1, minCols = min, preferredRows = 999, preferredCols = preferred }

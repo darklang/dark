@@ -9,7 +9,7 @@ module Darklang.Cli.Workbench
 ///
 /// Continuation rows are indented two columns, so a wrapped line reads as one thing rather than as two
 /// unrelated rows; the wrap width is reduced to match, which keeps every row inside the pane.
-let wrapRow(maxFit: Int, line: String): List<String> =
+let wrapRow(maxFit: Int64, line: String): List<String> =
   let room = Stdlib.max(1, maxFit - 2)
 
   match Stdlib.Cli.Tui.Text.wrapAtColumn(line, room) with
@@ -28,10 +28,10 @@ let wrapRow(maxFit: Int, line: String): List<String> =
 /// under that, not a substitute for the printer laying out to the width.
 let renderScrollableLines(
   region: Stdlib.Cli.UI.Layout.Region,
-  colOffset: Int,
+  colOffset: Int64,
   lines: List<String>,
   display: List<String>,
-  scroll: Int)
+  scroll: Int64)
   : List<Stdlib.Cli.UI.Layout.Span> =
   let maxFit = Stdlib.max(1, region.cols - 1)
 
@@ -66,7 +66,7 @@ let renderScrollableLines(
 /// Sized to the longest name plus its cursor, glyph, badges and inset, then held between a floor and
 /// a ceiling. The tree is a column of short names; the Inspect pane is where the text that needs room
 /// actually goes, so any column the tree doesn't need belongs to it.
-let matterSplitFor(state: State): Int =
+let matterSplitFor(state: State): Int64 =
   let (w, _h) = Terminal.getSize()
   let w = if w < 24 then 80 else w
 
@@ -97,7 +97,7 @@ let matterSplitFor(state: State): Int =
 /// sizes the pretty-printer and the diff wash, so an estimate won't do: an
 /// older one used Matter's ceiling split for every view, which over-padded
 /// diff lines until each wrapped in two. Home has no preview.
-let previewInnerWidth(state: State): Int =
+let previewInnerWidth(state: State): Int64 =
   let (w, _h) = Terminal.getSize()
   let w = if w < 24 then 80 else w
   let pct =
@@ -111,7 +111,7 @@ let previewInnerWidth(state: State): Int =
   Stdlib.max(1, detail.cols - 1)
 
 /// How many screen rows `previewLines` occupies once wrapped: what scrolling is bounded by.
-let previewRowCount(state: State): Int =
+let previewRowCount(state: State): Int64 =
   let maxFit = previewInnerWidth(state)
 
   previewLines(state)
@@ -140,10 +140,10 @@ let renderPreview(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdli
   renderScrollableLines(region, 0, plain, highlighted, state.detailScroll)
 
 /// "1 commit" / "2 commits" - count + correctly-pluralized noun.
-let plural(n: Int, noun: String): String = Cli.Text.plural(n, noun)
+let plural(n: Int64, noun: String): String = Cli.Text.plural(n, noun)
 
 /// A reverse-video selection used by modal pickers. `plain` must be unstyled.
-let selectionRow(width: Int, plain: String): String =
+let selectionRow(width: Int64, plain: String): String =
   let padded = Stdlib.Cli.Tui.Text.fitToWidth(plain, width)
   Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.reverse, padded)
 
@@ -158,7 +158,7 @@ let selectionBar(name: String, rest: String, focused: Bool): String =
   (Stdlib.Cli.UI.Colors.colorize(color, "┃ " + name)) + rest
 
 /// A full-body scrollable reader (Docs topic content, etc.).
-let renderReading(content: String, isCode: Bool, scroll: Int, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
+let renderReading(content: String, isCode: Bool, scroll: Int64, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   let plain = Stdlib.String.split(content, "\n")
   // Highlight code readers (Tree-leaf / Changes source); ANSI-aware truncate keeps color even when a line
   // overflows the width. Non-code content stays plain.
@@ -210,8 +210,8 @@ let paneContent(region: Stdlib.Cli.UI.Layout.Region): Stdlib.Cli.UI.Layout.Regio
 /// this returns.
 let paneGeometry(
   region: Stdlib.Cli.UI.Layout.Region,
-  firstPct: Int)
-  : (Stdlib.Cli.UI.Layout.Region * Stdlib.Cli.UI.Layout.Region * Int * Bool) =
+  firstPct: Int64)
+  : (Stdlib.Cli.UI.Layout.Region * Stdlib.Cli.UI.Layout.Region * Int64 * Bool) =
   if region.cols < paneMinSplitCols then
     let whole = paneContent(region)
     (whole, whole, 0 - 1, true)
@@ -260,7 +260,7 @@ let paneTitle(name: String, parts: List<String>, focused: Bool): String =
 
 /// One run of the top edge, `width` columns: `─ title ───`, or all dashes for
 /// an empty title. The dashes are dim; the title keeps its own styling.
-let edgeSegment(width: Int, title: String): String =
+let edgeSegment(width: Int64, title: String): String =
   let paint(t: String): String = Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.brightBlack, t)
   if (title == "") || (width < 5) then
     paint(Stdlib.String.repeat("─", Stdlib.max(0, width)))
@@ -276,7 +276,7 @@ let frameWithTitles(
   region: Stdlib.Cli.UI.Layout.Region,
   titleFirst: String,
   titleSecond: String,
-  ruleCol: Int)
+  ruleCol: Int64)
   : List<Stdlib.Cli.UI.Layout.Span> =
   let paint(t: String): String = Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.brightBlack, t)
   let w = region.cols
@@ -326,7 +326,7 @@ let titledLines(
 /// two, and only the focused column is drawn, with a ‹1/2› on its title.
 let paneSplit(
   region: Stdlib.Cli.UI.Layout.Region,
-  firstPct: Int,
+  firstPct: Int64,
   focus: Stdlib.Cli.UI.SplitPane.Focus,
   titleFirst: String,
   renderFirst: Stdlib.Cli.UI.Layout.Region -> List<Stdlib.Cli.UI.Layout.Span>,

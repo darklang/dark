@@ -70,7 +70,7 @@ let duplicateDeclarationNames(
 let landDocEdits(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Int =
+  : Int64 =
   // The Add for the item a SetName binds: they carry the same placeholder hash before the save.
   let addFor(
     h: LanguageTools.ProgramTypes.Hash)
@@ -282,8 +282,8 @@ let help(_state: Cli.AppState): String =
     "Example:"
     "  dark module /Me.Example - <<'EOF'"
     "  val greeting = \"hello\""
-    "  let double(n: Int): Int = n * 2"
-    "  let quadruple(n: Int): Int = double(double(n))"
+    "  let double(n: Int64): Int64 = n * 2"
+    "  let quadruple(n: Int64): Int64 = double(double(n))"
     "  test doubles = double(4) |> Stdlib.Test.equal(8)"
     "  EOF"
     "  dark eval 'Me.Example.quadruple(5)'"

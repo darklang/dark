@@ -136,7 +136,8 @@ let private executeWorker
         [ value ]
       )
     let! bytes = LibDB.TestProcess.WorkerResult.serialize result
-    return DTuple(LibExecution.Bytes.newEphemeral bytes, Dval.int (bigint code), [])
+    return
+      DTuple(LibExecution.Bytes.newEphemeral bytes, Dval.dint64 (int64 code), [])
   }
 
 /// Whether the analysis of <param test>'s body and everything it calls is complete and finds
@@ -398,7 +399,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmTestWorkerExecute" 0
       typeParams = []
       parameters = [ Param.make "request" TBytes ""; Param.make "access" TBytes "" ]
-      returnType = TTuple(TBytes, TInt, [])
+      returnType = TTuple(TBytes, TInt64, [])
       description =
         "Executes a serialized test request with its inherited permissions and returns its serialized result and exit code."
       fn =
@@ -595,7 +596,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             "Hash of the package test to execute"
           Param.makeWithArgs
             "worker"
-            (TFn(NEList.singleton (TList TString), TInt))
+            (TFn(NEList.singleton (TList TString), TInt64))
             "The worker entry point"
             [ "args" ] ]
       returnType =

@@ -4,7 +4,7 @@ test dependentReadsKeepBranchAliasesSeparate =
   let main = Authoring.main()
   let m = "ReferenceBranchAliases"
   let _ = Authoring.authorOn(main, "Tests", m,
-    "let a(): Int64 = 932107L\nlet b(): Int64 = 932107L") |> Builtin.unwrap
+    "let a(): Int64 = 932107\nlet b(): Int64 = 932107") |> Builtin.unwrap
   let _ = Authoring.authorOn(main, "Tests", m,
     "let caller(): Int64 = a()") |> Builtin.unwrap
   let _ = Darklang.SCM.PackageOps.commitDraft(main, "alias baseline") |> Builtin.unwrap
@@ -34,7 +34,7 @@ test dependencyReadsExcludeAParentsDraft =
   let parent = Authoring.branchOff("reference-parent", Authoring.main())
   let m = "ReferenceParent"
   let _ = Authoring.authorOn(parent, "Tests", m,
-    "let leaf(): Int64 = 932101L\nlet caller(): Int64 = leaf()") |> Builtin.unwrap
+    "let leaf(): Int64 = 932101\nlet caller(): Int64 = leaf()") |> Builtin.unwrap
   let _ = Darklang.SCM.PackageOps.commitDraft(parent, "parent baseline") |> Builtin.unwrap
   let child = Authoring.branchOff("reference-child", parent)
   let (_, target) = source(parent, m, "leaf")

@@ -6,12 +6,12 @@ test andTruthTable =
       Stdlib.Bool.and(false, true) |> Stdlib.Test.equal(false)
       Stdlib.Bool.and(true, false) |> Stdlib.Test.equal(false)
       Stdlib.Bool.and(true, true) |> Stdlib.Test.equal(true)
-      Stdlib.Bool.and(8L >= 5L, 6L <= 8L) |> Stdlib.Test.equal(true)
+      Stdlib.Bool.and(8 >= 5, 6 <= 8) |> Stdlib.Test.equal(true)
       (false && false) |> Stdlib.Test.equal(false)
       (false && true) |> Stdlib.Test.equal(false)
       (true && false) |> Stdlib.Test.equal(false)
       (true && true) |> Stdlib.Test.equal(true)
-      ((8L >= 5L) && (6L <= 8L)) |> Stdlib.Test.equal(true) ])
+      ((8 >= 5) && (6 <= 8)) |> Stdlib.Test.equal(true) ])
 
 test notTruthTable =
   Stdlib.Test.all(

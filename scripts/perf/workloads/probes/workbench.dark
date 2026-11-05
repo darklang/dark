@@ -11,11 +11,11 @@ let _smokeNotice =
   if smoke then Stdlib.printLine("SMOKE CHECK: figures are not performance measurements") else ()
 
 let renderN(
-  i: Int,
+  i: Int64,
   state: Darklang.Cli.Workbench.State,
   size: Stdlib.Cli.Tui.Size,
-  acc: Int)
-  : Int =
+  acc: Int64)
+  : Int64 =
   if i == 0 then
     acc
   else
@@ -23,7 +23,7 @@ let renderN(
     renderN(i - 1, state, size, acc + (Stdlib.List.length(v.rows)))
 
 let timeView(
-  idx: Int,
+  idx: Int64,
   base: Darklang.Cli.Workbench.State,
   size: Stdlib.Cli.Tui.Size)
   : Unit =

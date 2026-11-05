@@ -364,7 +364,7 @@ So the 2.1 MB splits three ways, and only one of them was what anybody suspected
   stores. `gate` set `DARK_CONFIG_TRACE_DETAIL=off` and the ladder in `LibDB/Tracing.fs` puts the
   STORED setting above the environment, so on any store where somebody ran `dark traces record on`
   the gate was measuring a recording run. Proven directly: with `TRACE_DETAIL=off` set, one
-  `eval 1L` against the dev store took `traces` from 71 to 72; with `--no-trace` it stayed at 72.
+  `eval 1` against the dev store took `traces` from 71 to 72; with `--no-trace` it stayed at 72.
   `gate` passes `--no-trace` now, which pins the setting and beats both.
 - **Store provenance: 1.7 MB, and the mechanism is NOT identified.** A store grown by the
   published binary from its own embedded seed reads 9.7; any store this dev tree produced reads

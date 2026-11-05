@@ -11,12 +11,12 @@ module Darklang.PrettyPrinter.ProgramTypes.Ast
 /// <field label> is the node kind (`ELet`, `EApply`); <field detail> is the scalar payload it carries
 /// (a variable name, a literal, an operator), which is what makes a tree readable without expanding it.
 type Line =
-  { depth: Int
+  { depth: Int64
     label: String
     detail: String }
 
 
-let line(depth: Int, label: String, detail: String): Line =
+let line(depth: Int64, label: String, detail: String): Line =
   Line { depth = depth, label = label, detail = detail }
 
 
@@ -47,20 +47,24 @@ let matchPattern(pat: LanguageTools.ProgramTypes.MatchPattern): String =
   | MPVariable(_, name) -> name
   | MPUnit(_) -> "()"
   | MPBool(_, b) -> Stdlib.toString(b)
-  | MPInt8(_, i) -> Stdlib.toString(i)
-  | MPUInt8(_, i) -> Stdlib.toString(i)
-  | MPInt16(_, i) -> Stdlib.toString(i)
-  | MPUInt16(_, i) -> Stdlib.toString(i)
-  | MPInt32(_, i) -> Stdlib.toString(i)
-  | MPUInt32(_, i) -> Stdlib.toString(i)
+  | MPInt8(_, i) -> Stdlib.toString(i) + "s8"
+  | MPUInt8(_, i) -> Stdlib.toString(i) + "u8"
+  | MPInt16(_, i) -> Stdlib.toString(i) + "s16"
+  | MPUInt16(_, i) -> Stdlib.toString(i) + "u16"
+  | MPInt32(_, i) -> Stdlib.toString(i) + "s32"
+  | MPUInt32(_, i) -> Stdlib.toString(i) + "u32"
   | MPInt64(_, i) -> Stdlib.toString(i)
-  | MPUInt64(_, i) -> Stdlib.toString(i)
-  | MPInt128(_, i) -> Stdlib.toString(i)
-  | MPUInt128(_, i) -> Stdlib.toString(i)
-  | MPInt(_, i) -> Stdlib.toString(i)
+  | MPUInt64(_, i) -> Stdlib.toString(i) + "u64"
+  | MPInt128(_, i) -> Stdlib.toString(i) + "s128"
+  | MPUInt128(_, i) -> Stdlib.toString(i) + "u128"
+  | MPInt(_, i) -> Stdlib.toString(i) + "z"
   | MPFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign(sign)
     $"{s}{whole}.{part}"
+  | MPFloat32(_, sign, whole, part) ->
+    let s = PrettyPrinter.sign(sign)
+    $"{s}{whole}.{part}f32"
+  | MPDecimal(_, d) -> $"{Stdlib.toString(d)}dec"
   | MPChar(_, c) -> $"'{c}'"
   | MPString(_, s) -> "\"" + (clip(s)) + "\""
   | MPList(_, items) ->
@@ -97,7 +101,7 @@ let typeArgsSuffix(ctx: PrettyPrinter.ProgramTypes.Context, typeArgs: List<Langu
     $"<{parts}>"
 
 
-let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.ProgramTypes.Expr): List<Line> =
+let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int64, e: LanguageTools.ProgramTypes.Expr): List<Line> =
   let here(label: String, detail: String): List<Line> = [ line(depth, label, detail) ]
   let child(e: LanguageTools.ProgramTypes.Expr): List<Line> = expr(ctx, depth + 1, e)
 
@@ -121,6 +125,10 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.P
   | EFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign(sign)
     here("Float", $"{s}{whole}.{part}")
+  | EFloat32(_, sign, whole, part) ->
+    let s = PrettyPrinter.sign(sign)
+    here("Float32", $"{s}{whole}.{part}f32")
+  | EDecimal(_, d) -> here("Decimal", $"{Stdlib.toString(d)}dec")
   | EChar(_, c) -> here("Char", $"'{c}'")
   | EVariable(_, name) -> here("Variable", name)
   | EArg(_, index) -> here("Arg", $"#{Stdlib.toString(index)}")
@@ -276,7 +284,7 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, e: LanguageTools.P
     Stdlib.List.flatten([ here("Pipe", $"{n} stages"), child(lhs), partLines ])
 
 
-let pipeExpr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int, p: LanguageTools.ProgramTypes.PipeExpr): List<Line> =
+let pipeExpr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int64, p: LanguageTools.ProgramTypes.PipeExpr): List<Line> =
   match p with
   | EPipeLambda(_, pats, body) ->
     let ps =

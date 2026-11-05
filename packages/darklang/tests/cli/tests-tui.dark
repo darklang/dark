@@ -282,7 +282,7 @@ let workbenchState(): Darklang.Cli.Workbench.State =
 
 
 /// Render one view and report whether it produced a plausible frame.
-let rendersView(viewIndex: Int): Bool =
+let rendersView(viewIndex: Int64): Bool =
   let state = { (workbenchState()) with activeView = viewIndex }
   let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
   let view = Darklang.Cli.Workbench.viewAtSize(state, size)
@@ -407,7 +407,7 @@ test workbenchItemReaderShowsNoRawEscapes =
 /// deliberately broken, every assertion in `scripts/testing/gates workbench-views` still passed, because
 /// none of them draw a preview. Focusing it through the terminal needs a third interaction, and the
 /// frame diff stops being reliable past two -- so it belongs here, where rendering takes no terminal.
-let rendersPreview(viewIndex: Int): Bool =
+let rendersPreview(viewIndex: Int64): Bool =
   let base = workbenchState()
   let state = { base with activeView = viewIndex }
   // A pane reads the SELECTED item, so a view with an empty list exercises only its empty case. That is
@@ -577,9 +577,9 @@ test workbenchPageFollowsYourSave =
     |> Stdlib.String.join("\n")
   // Fresh numbers each run: the store outlives the test, and saving a body the name has held
   // before is a revert, which is a different path.
-  let n = Stdlib.Int.random(100000, 999999)
-  let before = (Stdlib.toString(n)) + "L"
-  let after = (Stdlib.toString(n + 1)) + "L"
+  let n = Stdlib.Int64.random(100000, 999999)
+  let before = Stdlib.toString(n)
+  let after = Stdlib.toString(n + 1)
   let first = save(start, "let answer () : Int64 = " + before)
   let firstPage = page(first)
   let secondPage = page(save(first, "let answer () : Int64 = " + after))
@@ -846,7 +846,7 @@ test replParsesLetBinding =
       ("let 2x = 3", Stdlib.Option.Option.None)
       // A wrapped declaration binds, rhs and all - a pasted chain never reaches here, because
       // `splitStatements` has already separated it into one statement per binding.
-      ("let xs = [ 1L\n  2L ]", Stdlib.Option.Option.Some(("xs", "[ 1L\n  2L ]"))) ]
+      ("let xs = [ 1\n  2 ]", Stdlib.Option.Option.Some(("xs", "[ 1\n  2 ]"))) ]
   let wrong =
     cases
     |> Stdlib.List.filter(fun c ->
@@ -906,7 +906,7 @@ test replRebindKeepsPosition =
 test replReadsCapturedValue =
   // `captureValue` reports through a tagged string; anything that isn't an `ok:` means "hold the expression
   // instead", including an empty result.
-  if (Darklang.Cli.Repl.readCaptured("ok:[1L, 2L]") == Stdlib.Option.Option.Some("[1L, 2L]"))
+  if (Darklang.Cli.Repl.readCaptured("ok:[1, 2]") == Stdlib.Option.Option.Some("[1, 2]"))
      && (Darklang.Cli.Repl.readCaptured("err:no literal") == Stdlib.Option.Option.None)
      && (Darklang.Cli.Repl.readCaptured("") == Stdlib.Option.Option.None) then
     Stdlib.Test.Result.Pass
@@ -919,8 +919,8 @@ test replSplitsPastedStatements =
   // statement ends. Indentation is the signal: an indented line continues the one above, so a wrapped
   // expression stays whole while a chain separates.
   let cases =
-    [ ("let a = 21L\na * 2L", [ "let a = 21L", "a * 2L" ])
-      ("Stdlib.List.map(xs,\n  fun x -> x * 2L)", [ "Stdlib.List.map(xs,\n  fun x -> x * 2L)" ])
+    [ ("let a = 21\na * 2", [ "let a = 21", "a * 2" ])
+      ("Stdlib.List.map(xs,\n  fun x -> x * 2)", [ "Stdlib.List.map(xs,\n  fun x -> x * 2)" ])
       // A blank line closes a statement rather than joining across it.
       ("let a = 1\n\nlet b = 2", [ "let a = 1", "let b = 2" ])
       ("one line", [ "one line" ])
@@ -944,7 +944,7 @@ test replCapturesRealValues =
   let branch = Darklang.SCM.Branch.mainBranchId
   let cases =
     [ (Darklang.Cli.Repl.captureValue(branch, 42), "ok:42")
-      (Darklang.Cli.Repl.captureValue(branch, [ 1L, 2L ]), "ok:[1L, 2L]")
+      (Darklang.Cli.Repl.captureValue(branch, [ 1, 2 ]), "ok:[1, 2]")
       (Darklang.Cli.Repl.captureValue(branch, "hi"), "ok:\"hi\"")
       // An enum renders under a shortened package name, so `Option.Some(1)`. That and the
       // fully-qualified spelling both parse back to the same value, which is what matters here: the
@@ -977,7 +977,7 @@ test workbenchCapturesStrayOutput =
 
 
 /// Does rendering view `viewIndex` put `marker` on the screen?
-let viewShows(viewIndex: Int, marker: String): Bool =
+let viewShows(viewIndex: Int64, marker: String): Bool =
   let state =
     Darklang.Cli.Workbench.focusNavbar(
       { (workbenchState()) with activeView = viewIndex })
@@ -988,7 +988,7 @@ let viewShows(viewIndex: Int, marker: String): Bool =
 
 /// `viewShows`, with the CONTENT holding the keyboard: the footer then carries the
 /// view's own hints rather than the nav's.
-let contentShows(viewIndex: Int, marker: String): Bool =
+let contentShows(viewIndex: Int64, marker: String): Bool =
   let state =
     Darklang.Cli.Workbench.focusContent(
       { (workbenchState()) with activeView = viewIndex })

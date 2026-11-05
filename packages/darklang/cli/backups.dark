@@ -86,7 +86,7 @@ let executeRestore(state: AppState, name: String, autoConfirm: Bool): AppState =
 /// and takes an explicit yes, like every other verb that destroys something: a backup is the thing you
 /// reach for AFTER a mistake, and the one command that must not make one.
 let executePrune(state: AppState, keepArg: String, autoConfirm: Bool): AppState =
-  match Stdlib.Int.parse(keepArg) with
+  match Stdlib.Int64.parse(keepArg) with
   | Error(_) ->
     Cli.printErr($"\"{keepArg}\" isn't a number of backups to keep.")
     Cli.exitWith(state, false)

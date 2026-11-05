@@ -30,7 +30,7 @@ let rows(json: Stdlib.AltJson.Json): List<Stdlib.AltJson.Json> =
   | Array(items) -> items
   | _ -> []
 
-let int(json: Stdlib.AltJson.Json, name: String): Int =
+let int(json: Stdlib.AltJson.Json, name: String): Int64 =
   match field(json, name) with
   | Integer(n) -> n
   | _ -> -1
@@ -177,7 +177,7 @@ test emptyAnswersKeepTheirShape =
 test aDraftThroughCommitKeepsItsShape =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.JsonDeps.leaf", "() : Int64 = 7202L" ])
+      [ step(i, [ "fn", "Tests.JsonDeps.leaf", "() : Int64 = 7202" ])
         step(i, [ "fn", "Tests.JsonDeps.caller", "(): Int64 = Tests.JsonDeps.leaf()" ])
         check(
           i,
@@ -234,7 +234,7 @@ test branchListingsAreArrays =
 
 
 /// Every declaration under a module, counted by the search rather than by the checker.
-let declaredUnder(path: List<String>): Int =
+let declaredUnder(path: List<String>): Int64 =
   let (_, types, values, fns, _, impls, tests) =
     Darklang.LanguageTools.PackageManager.Search.searchNamesAndHashes(
       Darklang.SCM.Branch.mainBranchId,
@@ -247,7 +247,7 @@ let declaredUnder(path: List<String>): Int =
 
   (distinct(types)) + (distinct(values)) + (distinct(fns)) + (distinct(impls)) + (distinct(tests))
 
-let distinct(found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>): Int =
+let distinct(found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>): Int64 =
   Stdlib.List.length(Stdlib.List.unique(Stdlib.List.map(found, fun((_, h)) -> h)))
 
 
@@ -294,7 +294,7 @@ test typecheckAnswersWithItsCounts =
 test typecheckFailsACallToNothing =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.TcGone.callsGone", "(n: Int64): String = Stdlib.Int.toString(n)" ])
+      [ step(i, [ "fn", "Tests.TcGone.callsGone", "(n: Int64): String = Stdlib.Int64.toString(n)" ])
         check(
           i,
           [ "typecheck", "Tests.TcGone", "--json" ],
@@ -314,8 +314,8 @@ test typecheckNamesOnlyWhatIsInScope =
       rows(field(j, "items")) |> Stdlib.List.map(fun(r) -> string(r, "name"))
     // Setup runs before the text is read, so it is bound first rather than listed below.
     let setup =
-      [ step(i, [ "fn", "Tests.TcElsewhere.show", "(n: Int): String = Stdlib.toString(n)" ])
-        step(i, [ "fn", "Tests.TcScope.render", "(n: Int): String = Stdlib.toString(n)" ]) ]
+      [ step(i, [ "fn", "Tests.TcElsewhere.show", "(n: Int64): String = Stdlib.toString(n)" ])
+        step(i, [ "fn", "Tests.TcScope.render", "(n: Int64): String = Stdlib.toString(n)" ]) ]
     let text =
       match Instance.run(i, [ "typecheck", "Tests.TcScope", "--all" ]) with
       | Ok(out) -> out.stdout
@@ -348,7 +348,7 @@ test typecheckNamesOnlyWhatIsInScope =
 test typecheckLoadsWhatAModuleBodyCalls =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.TcBodyDep.render", "(n: Int): String = Stdlib.toString(n)" ])
+      [ step(i, [ "fn", "Tests.TcBodyDep.render", "(n: Int64): String = Stdlib.toString(n)" ])
         check(
           i,
           [ "typecheck", "Tests.TcBodyDep", "--json" ],

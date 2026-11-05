@@ -19,7 +19,7 @@ module Darklang.Stdlib.Cli.UI.TextField
 type State =
   { text: String
     /// Grapheme index the cursor sits *before*: 0 is the start, `length text` is the end.
-    cursor: Int }
+    cursor: Int64 }
 
 /// What the field tells its parent.
 type Msg =
@@ -101,7 +101,7 @@ let isTypeable(c: String): Bool =
   && Stdlib.Bool.not(
     Stdlib.List.any(
       Stdlib.String.toCodepoints(c),
-      fun cp -> cp == 9ul || cp == 10ul || cp == 13ul || cp == 27ul))
+      fun cp -> cp == 9u32 || cp == 10u32 || cp == 13u32 || cp == 27u32))
 
 
 let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
@@ -133,7 +133,7 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
 // --- Rendering ---
 
 /// The first grapheme to show, so that the cursor is inside a window `width` wide.
-let windowFor(state: State, width: Int): Int =
+let windowFor(state: State, width: Int64): Int64 =
   let w = Stdlib.max(1, width)
   let len = Stdlib.String.length(state.text)
   // Keep the window anchored at the end when the text is short enough to fit whole.
@@ -148,7 +148,7 @@ let windowFor(state: State, width: Int): Int =
 ///
 /// Returns a styled string for embedding in a row the caller is already building (an outline item, say).
 /// The cursor is drawn on the character it sits before, or on a trailing space at the end of the line.
-let renderInline(state: State, width: Int): String =
+let renderInline(state: State, width: Int64): String =
   let w = Stdlib.max(1, width)
   let start = windowFor(state, w)
   let len = Stdlib.String.length(state.text)
@@ -179,7 +179,7 @@ let renderMaybeFocused(
   state: State,
   focused: Bool,
   placeholder: String,
-  width: Int)
+  width: Int64)
   : String =
   if focused then renderInline(state, width)
   else if state.text == "" then Colors.dimText(placeholder)

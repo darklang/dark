@@ -558,7 +558,7 @@ module KeyRead =
       /// both deliver many events faster than a frame. The reader waits out the burst - until a pause or a
       /// time limit, whichever comes first - and reports the count, so a caller can apply all of the
       /// movement and render once. Ignoring it is safe and means "treat a flick as a single step".
-      repeat: Int}
+      repeat: Int64}
 
   let toString(k: KeyRead): String =
     (Modifiers.toString(k.modifiers)) + (Key.toString(k.key))

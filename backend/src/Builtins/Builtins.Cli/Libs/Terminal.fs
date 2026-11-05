@@ -104,13 +104,13 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "cliTerminalSize" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TTuple(TInt, TInt, [])
+      returnType = TTuple(TInt64, TInt64, [])
       description = "Sample terminal width and height together as (columns, rows)"
       fn =
         (function
         | _, _, _, [| DUnit |] ->
           let (width, height) = terminalSize ()
-          DTuple(Dval.int (bigint width), Dval.int (bigint height), []) |> Ply
+          DTuple(Dval.dint64 (int64 width), Dval.dint64 (int64 height), []) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -119,17 +119,18 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "cliTerminalIsatty" 0
       typeParams = []
-      parameters = [ Param.make "fd" TInt "0 for stdin, 1 for stdout, 2 for stderr" ]
+      parameters =
+        [ Param.make "fd" TInt64 "0 for stdin, 1 for stdout, 2 for stderr" ]
       returnType = TBool
       description =
         "isatty(3) for the standard descriptors: whether stdin (0), stdout (1) or stderr (2) is a "
         + "terminal. False for any other descriptor."
       fn =
         (function
-        | _, vm, _, [| DInt fd |] ->
+        | _, vm, _, [| DInt64 fd |] ->
           // .NET's redirection flags rather than an ioctl, so it works on macOS and Windows too.
           let answer =
-            match intToInt32 vm fd with
+            match int64ToInt32 vm fd with
             | 0 -> not System.Console.IsInputRedirected
             | 1 -> not System.Console.IsOutputRedirected
             | 2 -> not System.Console.IsErrorRedirected
@@ -195,14 +196,14 @@ let fns () : List<BuiltInFn> =
     { name = fn "cliTerminalInspectRow" 0
       typeParams = []
       parameters = [ Param.make "text" TString "One candidate logical row" ]
-      returnType = TTuple(TInt, TBool, [])
+      returnType = TTuple(TInt64, TBool, [])
       description =
         "Return (columns the row occupies when control-free, whether it holds control characters)"
       fn =
         (function
         | _, _, _, [| DString text |] ->
           DTuple(
-            text |> TextWidth.ofString |> bigint |> Dval.int,
+            text |> TextWidth.ofString |> int64 |> Dval.dint64,
             text |> TextWidth.containsControl |> DBool,
             []
           )
@@ -217,12 +218,12 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "text" TString "One logical row, possibly carrying SGR styling" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Terminal columns occupied by text that may carry SGR styling"
       fn =
         (function
         | _, _, _, [| DString text |] ->
-          text |> TerminalText.styledWidth |> bigint |> Dval.int |> Ply
+          text |> TerminalText.styledWidth |> int64 |> Dval.dint64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -233,14 +234,14 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "text" TString "One logical row, possibly carrying SGR styling"
-          Param.make "maxWidth" TInt "Terminal columns to clip to" ]
+          Param.make "maxWidth" TInt64 "Terminal columns to clip to" ]
       returnType = TString
       description =
         "Clip styled text to a column count, keeping SGR and dropping other escapes and control characters"
       fn =
         (function
-        | _, vm, _, [| DString text; DInt maxWidth |] ->
-          DString(TerminalText.clipToWidth text (intToInt32 vm maxWidth)) |> Ply
+        | _, vm, _, [| DString text; DInt64 maxWidth |] ->
+          DString(TerminalText.clipToWidth text (int64ToInt32 vm maxWidth)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -267,14 +268,14 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "text" TString "One logical row, possibly carrying SGR styling"
-          Param.make "maxWidth" TInt "Terminal columns to wrap at" ]
+          Param.make "maxWidth" TInt64 "Terminal columns to wrap at" ]
       returnType = TList TString
       description =
         "Break text into terminal-width rows at the column, restating styling across a wrap"
       fn =
         (function
-        | _, vm, _, [| DString text; DInt maxWidth |] ->
-          TerminalText.wrapAtColumn text (intToInt32 vm maxWidth)
+        | _, vm, _, [| DString text; DInt64 maxWidth |] ->
+          TerminalText.wrapAtColumn text (int64ToInt32 vm maxWidth)
           |> List.map DString
           |> fun rows -> DList(VT.string, rows)
           |> Ply
@@ -288,16 +289,16 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "text" TString "Plain, control-free text"
-          Param.make "maxWidth" TInt "Terminal columns per row" ]
-      returnType = TTuple(TInt, TInt, [])
+          Param.make "maxWidth" TInt64 "Terminal columns per row" ]
+      returnType = TTuple(TInt64, TInt64, [])
       description =
         "Zero-based (row, column) cursor position immediately after plain text at a given width"
       fn =
         (function
-        | _, vm, _, [| DString text; DInt maxWidth |] ->
+        | _, vm, _, [| DString text; DInt64 maxWidth |] ->
           let (row, column) =
-            TerminalText.positionAfter text (intToInt32 vm maxWidth)
-          DTuple(row |> bigint |> Dval.int, column |> bigint |> Dval.int, []) |> Ply
+            TerminalText.positionAfter text (int64ToInt32 vm maxWidth)
+          DTuple(Dval.dint64 (int64 row), Dval.dint64 (int64 column), []) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

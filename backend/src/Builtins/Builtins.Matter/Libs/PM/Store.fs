@@ -56,7 +56,7 @@ let private backupToDT (b : LibDB.StoreBackups.Backup) : Dval =
     Map
       [ "name", DString b.name
         "path", DString b.path
-        "bytes", Dval.int (bigint b.bytes) ]
+        "bytes", Dval.dint64 (int64 b.bytes) ]
   )
 
 
@@ -220,14 +220,14 @@ let fns () : List<BuiltInFn> =
     { name = fn "storeVersion" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "The store's change counter as this process sees it: moves whenever a commit lands "
         + "through another connection. Only \"same as before\" or \"moved\" means anything."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply { return Dval.int (bigint (LibDB.Sqlite.DataVersion.current ())) }
+          uply { return Dval.dint64 (int64 (LibDB.Sqlite.DataVersion.current ())) }
         | _ -> incorrectArgs ())
       previewable = Impure
       // `PackageRead`, like every other question about the package store.

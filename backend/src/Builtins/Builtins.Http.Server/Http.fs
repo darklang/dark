@@ -57,7 +57,7 @@ module Response =
       let body = Map.get "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBytes bodyRef) ->
+      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBytes bodyRef) ->
         let headers =
           headers
           |> List.fold
@@ -73,13 +73,10 @@ module Response =
         match headers with
         | Ok headers ->
           let! body = Bytes.readBytes state bodyRef
-          // `statusCode` is an arbitrary-precision `Int`; narrowing a value
-          // outside Int32 range with `int` would throw a host exception, so
-          // reject it as an application error instead.
-          let codeBig = RT.DarkInt.toBigInt code
+          // `statusCode` is an `Int64`; narrowing a value outside Int32 range
+          // with `int` would wrap, so reject it as an application error instead.
           if
-            codeBig < bigint System.Int32.MinValue
-            || codeBig > bigint System.Int32.MaxValue
+            code < int64 System.Int32.MinValue || code > int64 System.Int32.MaxValue
           then
             return
               { statusCode = 500
@@ -87,7 +84,7 @@ module Response =
                 body = UTF8.toBytes "Application error: statusCode out of range" }
           else
             return
-              { statusCode = int codeBig
+              { statusCode = int code
                 headers = lowercaseHeaderKeys headers
                 body = body }
         | Error msg ->
@@ -119,7 +116,7 @@ module Response =
           ""
           "HTTP handlers should return results in the form:"
           "  Darklang.Stdlib.Http.Response {"
-          "    statusCode : Int"
+          "    statusCode : Int64"
           "    headers : List<String*String>"
           "    body : Bytes"
           "  }" ]

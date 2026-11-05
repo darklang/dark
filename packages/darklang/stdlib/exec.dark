@@ -102,7 +102,7 @@ type Handle<'a> = { id: Uuid }
 
 /// How many processes run at once: one per core this process may use. More than this many
 /// spawned at once take turns rather than running faster.
-let workers(): Int =
+let workers(): Int64 =
   Builtin.execWorkerCount()
 
 

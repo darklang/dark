@@ -371,13 +371,13 @@ let prepareDeclarations(env: Model.Environment): Model.Environment =
 /// another through type references. Each group is a strongly connected component.
 /// nextIndex assigns discovery numbers; groups finish after their dependencies.
 type Components =
-  { nextIndex: Int
+  { nextIndex: Int64
     /// Discovery number for every declaration visited so far.
-    index: Dict<LanguageTools.ProgramTypes.Hash, Int>
+    index: Dict<LanguageTools.ProgramTypes.Hash, Int64>
     /// Lowest discovery number propagated from a newly visited dependency or
     /// a reference to a declaration still on stack. Equality with a declaration's
     /// own index identifies the root of its component.
-    lowLink: Dict<LanguageTools.ProgramTypes.Hash, Int>
+    lowLink: Dict<LanguageTools.ProgramTypes.Hash, Int64>
     /// Visited declarations whose component has not yet been completed.
     stack: List<LanguageTools.ProgramTypes.Hash>
     /// Membership lookup for stack, avoiding a list scan for each dependency.
@@ -398,9 +398,9 @@ let referencesOf(
 /// Read a traversal index, defaulting to zero if absent. The component traversal
 /// normally calls this only after assigning the declaration an index.
 let indexOrZero(
-  indices: Dict<LanguageTools.ProgramTypes.Hash, Int>,
+  indices: Dict<LanguageTools.ProgramTypes.Hash, Int64>,
   name: LanguageTools.ProgramTypes.Hash)
-  : Int =
+  : Int64 =
   Stdlib.Option.withDefault(Stdlib.Dict.get(indices, name), 0)
 
 /// Visit a declaration for the first time and explore its dependencies. If it is

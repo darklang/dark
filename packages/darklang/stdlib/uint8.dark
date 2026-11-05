@@ -35,9 +35,9 @@ impl Power for UInt8 =
   let power(``base``: UInt8, exponent: UInt8): UInt8 =
     // The signed types push this into the builtin; here the ladder stays, because an
     // unsigned exponent is never negative, so there is no error case to push.
-    if ``base`` == 0uy && exponent == 0uy then 1uy
-    else if ``base`` == 0uy then 0uy
-    else if ``base`` == 1uy then 1uy
+    if ``base`` == 0u8 && exponent == 0u8 then 1u8
+    else if ``base`` == 0u8 then 0u8
+    else if ``base`` == 1u8 then 1u8
     else Builtin.uint8Power(``base``, exponent)
 
 
@@ -163,10 +163,10 @@ impl ToString for UInt8 =
   let toString(uint8: UInt8): String = Builtin.uint8ToString(uint8)
 
 impl Zero for UInt8 =
-  let zero(): UInt8 = 0uy
+  let zero(): UInt8 = 0u8
 
 impl One for UInt8 =
-  let one(): UInt8 = 1uy
+  let one(): UInt8 = 1u8
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -203,7 +203,7 @@ let checkedMultiply(
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
 let checkedNegate(a: UInt8): Stdlib.Result.Result<UInt8, Stdlib.Int.Overflow> =
-  if a == 0uy then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+  if a == 0u8 then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always

@@ -51,11 +51,11 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
       typeParams = []
       parameters = [ Param.moved "dict" (TDict(varK, varA)) "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the number of entries in <param dict>"
       fn =
         (function
-        | _, _, _, [| DDict(_, _, o) |] -> Ply(Dval.int (bigint (DictMap.count o)))
+        | _, _, _, [| DDict(_, _, o) |] -> Ply(Dval.dint64 (int64 (DictMap.count o)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

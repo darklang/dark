@@ -48,7 +48,7 @@ let configKeys(): List<String> = Builtin.configKeys()
 
 /// One copy of the store: a backup in the folder beside it, or a snapshot written elsewhere.
 /// The path is for showing; an action names a backup by its name.
-type Backup = { name: String, path: String, bytes: Int }
+type Backup = { name: String, path: String, bytes: Int64 }
 
 
 /// What `backups` does. Each answers with the backups it is about.

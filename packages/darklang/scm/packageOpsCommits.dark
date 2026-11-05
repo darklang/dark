@@ -6,8 +6,8 @@ module Darklang.SCM.PackageOps
 
 
 /// Get recent package ops (fully decoded), newest first.
-let getRecent(limit: Int): List<LanguageTools.ProgramTypes.PackageOp> =
-  let n = Stdlib.Int.toInt64(limit) |> Stdlib.Option.withDefault(-1L)
+let getRecent(limit: Int64): List<LanguageTools.ProgramTypes.PackageOp> =
+  let n = limit
   decodeOpRows((query(OpFilter.Recent, n)).ops)
 
 
@@ -16,7 +16,7 @@ let getRecent(limit: Int): List<LanguageTools.ProgramTypes.PackageOp> =
 let getByIdPrefix(
   prefix: String)
   : List<LanguageTools.ProgramTypes.PackageOp> =
-  decodeOpRows((query(OpFilter.IdPrefix(prefix), 20L)).ops)
+  decodeOpRows((query(OpFilter.IdPrefix(prefix), 20)).ops)
 
 
 let opsInCommitLimited(
@@ -121,7 +121,7 @@ let storeNow(): String = stampOf(OpFilter.StoreNow)
 /// this by asking for a hundred thousand commits and taking the length, which decodes every row of
 /// a store's whole history to print one number above twenty lines.
 let commitCountOnBranch(branchId: Uuid): Int64 =
-  (Commits.query(Commits.CommitFilter.OnBranch(branchId), 0L)).total
+  (Commits.query(Commits.CommitFilter.OnBranch(branchId), 0)).total
 
 
 /// The commits whose ops live on <param branchId>, newest first.
@@ -145,7 +145,7 @@ let commitsOnBranch(branchId: Uuid, limit: Int64): List<Commits.Commit> =
 ///
 /// Empty means this store has committed nothing yet, which is the only honest answer for a first commit.
 let parentCommitFor(branchId: Uuid): String =
-  let page = Commits.query(Commits.CommitFilter.ParentFor(branchId), 1L)
+  let page = Commits.query(Commits.CommitFilter.ParentFor(branchId), 1)
 
   match Stdlib.List.head(page.commits) with
   | Some(c) -> c.hash
@@ -158,10 +158,10 @@ let parentCommitFor(branchId: Uuid): String =
 /// merged work files under the author's commits and the merge commit holds only its event, and
 /// hiding it there would make the same history read differently per machine.
 let isHousekeepingCommit(commitHash: String): Bool =
-  if (opCountIn(commitHash)) > 3L then
+  if (opCountIn(commitHash)) > 3 then
     false
   else
-    let ops = opsInCommitLimited(commitHash, 4L)
+    let ops = opsInCommitLimited(commitHash, 4)
 
     (Stdlib.Bool.not(Stdlib.List.isEmpty(ops)))
     && (ops

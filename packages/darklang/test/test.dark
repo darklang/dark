@@ -8,16 +8,16 @@ let fnWithTypeArgAndOneParam<'a>(arg: 'a): 'a = arg
 let twoStringFn(str1: String, str2: String): String =
   str1 + " appended " + str2
 
-let returnsInt(): Int = 5
+let returnsInt(): Int64 = 5
 
 let returnsString(): String = "string"
 
-let returnsOptionSome(): Stdlib.Option.Option<Int> =
+let returnsOptionSome(): Stdlib.Option.Option<Int64> =
   Stdlib.Option.Option.Some(5)
 
 let returnsOptionNone(): Stdlib.Option.Option<'a> = Stdlib.Option.Option.None
 
-let returnsResultOk(): Stdlib.Result.Result<Int, String> =
+let returnsResultOk(): Stdlib.Result.Result<Int64, String> =
   Stdlib.Result.Result.Ok(5)
 
 let returnsResultError(): Stdlib.Result.Result<Char, Bool> =
@@ -27,7 +27,7 @@ let throwsException(): DateTime =
   Builtin.testRaiseException("throwsException message")
 
 type X<'a> =
-  | A of Int
+  | A of Int64
   | B of 'a
 
 let polyFn(a: X<'a>): X<'a> = a
@@ -36,25 +36,25 @@ let definedPolyFn<'a>(a: X<'a>): X<'a> = a
 
 module Values =
   val stringValue = "test"
-  val int128Value = 5Q
-  val uint128Value = 5Z
+  val int128Value = 5s128
+  val uint128Value = 5u128
   val intValue = 5
-  val int64Value = 5L
-  val uint64Value = 5UL
-  val int32Value = 5l
-  val uint32Value = 5ul
-  val int16Value = 5s
-  val uint16Value = 5us
-  val int8Value = 5y
-  val uint8Value = 5uy
+  val int64Value = 5
+  val uint64Value = 5u64
+  val int32Value = 5s32
+  val uint32Value = 5u32
+  val int16Value = 5s16
+  val uint16Value = 5u16
+  val int8Value = 5s8
+  val uint8Value = 5u8
   val floatValue = 5.6
   val boolValue = true
-  val tupleValue = (1L, 2L, 3L)
+  val tupleValue = (1, 2, 3)
   val charValue = 'c'
   val unitValue = ()
-  val enumValue = Stdlib.Option.Option.Some(5L)
-  val listValue = [ 1L, 2L, 3L ]
-  val dictValue = Dict { "a": 1L, "b": 2L, "c": 3L }
+  val enumValue = Stdlib.Option.Option.Some(5)
+  val listValue = [ 1, 2, 3 ]
+  val dictValue = Dict { "a": 1, "b": 2, "c": 3 }
   val recordValue = Stdlib.Cli.Host.Host {
     os = Stdlib.Cli.OS.OS.Linux
     arch = Stdlib.Cli.Architecture.Architecture.X86_64

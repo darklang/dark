@@ -31,7 +31,7 @@ test framePushesAreOnePerElement =
        Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + 1)))
 
    (LanguageTools.Perf.minus(raw, harness)).framePushes)
-  |> Stdlib.Test.equal(50L)
+  |> Stdlib.Test.equal(50)
 
 test minusClampsAtZero =
   (let big = LanguageTools.Perf.floor()
@@ -39,7 +39,7 @@ test minusClampsAtZero =
    let (small, _) = LanguageTools.Perf.measure(fun () -> ())
 
    let clamped = LanguageTools.Perf.minus(small, big)
-   (clamped.instructions >= 0L) && (clamped.allocBytes >= 0L))
+   (clamped.instructions >= 0) && (clamped.allocBytes >= 0))
   |> Stdlib.Test.equal(true)
 
 test measurementCarriesItsBuild =
@@ -52,11 +52,11 @@ test measurementCarriesItsBuild =
 
 test bestKeepsTheLowestOfEachField =
   (let (m, _) = LanguageTools.Perf.measure(fun () -> ())
-   let hi = { m with allocBytes = 900L, instructions = 5L }
-   let lo = { m with allocBytes = 100L, instructions = 9L }
+   let hi = { m with allocBytes = 900, instructions = 5 }
+   let lo = { m with allocBytes = 100, instructions = 9 }
 
    match LanguageTools.Perf.best([ hi, lo ]) with
-   | Some(b) -> (b.allocBytes == 100L) && (b.instructions == 5L)
+   | Some(b) -> (b.allocBytes == 100) && (b.instructions == 5)
    | None -> false)
   |> Stdlib.Test.equal(true)
 
@@ -72,4 +72,4 @@ test abMeasuresEachSideSeparately =
       3)
 
    (a.framePushes, b.framePushes))
-  |> Stdlib.Test.equal((50L, 10L))
+  |> Stdlib.Test.equal((50, 10))

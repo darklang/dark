@@ -13,12 +13,12 @@ module Darklang.Stdlib.Cli.Tui.Text
 
 /// Measure a row and report whether it holds control characters. The width is only meaningful when
 /// the flag is false, and the two come back together because the frame fast path wants both.
-let inspect(text: String): (Int * Bool) =
+let inspect(text: String): (Int64 * Bool) =
   Builtin.cliTerminalInspectRow(text)
 
 
 /// Terminal columns occupied by a row that may carry SGR styling.
-let styledWidth(text: String): Int =
+let styledWidth(text: String): Int64 =
   Builtin.cliTerminalStyledWidth(text)
 
 
@@ -28,7 +28,7 @@ let stripSgr(text: String): String =
 
 
 /// Clip a row to a column width, keeping SGR and dropping every other escape and control character.
-let clipToWidth(text: String, maxWidth: Int): String =
+let clipToWidth(text: String, maxWidth: Int64): String =
   Builtin.cliTerminalClipToWidth(text, maxWidth)
 
 
@@ -39,7 +39,7 @@ let clipToWidth(text: String, maxWidth: Int): String =
 /// character of ellipsis is the difference between "there is more" and "that is all".
 ///
 /// Below two columns there is no room to say anything, so it degrades to a plain clip.
-let clipMarked(text: String, maxWidth: Int): String =
+let clipMarked(text: String, maxWidth: Int64): String =
   if styledWidth(text) <= maxWidth then
     text
   else if maxWidth <= 1 then
@@ -50,19 +50,19 @@ let clipMarked(text: String, maxWidth: Int): String =
 
 /// Break a row at the column, restating styling that spans the wrap. To break at spaces where it
 /// can, use `wrapAtWords`.
-let wrapAtColumn(text: String, maxWidth: Int): List<String> =
+let wrapAtColumn(text: String, maxWidth: Int64): List<String> =
   Builtin.cliTerminalWrapAtColumn(text, maxWidth)
 
 
 /// Zero-based cursor position immediately after plain text. Exactly past the last column reads as
 /// column zero of the next row, matching what the terminal does.
-let positionAfter(text: String, maxWidth: Int): (Int * Int) =
+let positionAfter(text: String, maxWidth: Int64): (Int64 * Int64) =
   Builtin.cliTerminalPositionAfter(text, maxWidth)
 
 
 /// Clip, but skip the work for a row already plain and within bounds. That is the common case, and
 /// it costs one measurement.
-let normalizeToWidth(text: String, maxWidth: Int): String =
+let normalizeToWidth(text: String, maxWidth: Int64): String =
   let width = Stdlib.max(0, maxWidth)
   let (measuredWidth, containsControl) = inspect(text)
 
@@ -73,7 +73,7 @@ let normalizeToWidth(text: String, maxWidth: Int): String =
 
 
 /// Pad or clip text to exactly the requested terminal-column width.
-let fitToWidth(text: String, targetWidth: Int): String =
+let fitToWidth(text: String, targetWidth: Int64): String =
   let clipped = clipToWidth(text, targetWidth)
   let padding = Stdlib.max(0, targetWidth - (styledWidth(clipped)))
   clipped + Stdlib.String.repeat(" ", padding)
@@ -82,7 +82,7 @@ let fitToWidth(text: String, targetWidth: Int): String =
 // --- Word wrapping ---
 
 /// Break one long word across lines, since it can't be fitted whole.
-let splitLongWord(word: String, width: Int): List<String> =
+let splitLongWord(word: String, width: Int64): List<String> =
   if (Stdlib.String.displayWidth(word)) <= width then
     [ word ]
   else
@@ -98,7 +98,7 @@ let addWord(
   lines: List<String>,
   current: String,
   word: String,
-  width: Int)
+  width: Int64)
   : (List<String> * String) =
   let candidate = if current == "" then word else current + " " + word
 
@@ -116,7 +116,7 @@ let addWord(
 
 /// Break plain text at spaces where it can and inside a word where it must.
 /// Styling isn't handled: wrap first, colour after.
-let wrapAtWords(text: String, width: Int): List<String> =
+let wrapAtWords(text: String, width: Int64): List<String> =
   let w = Stdlib.max(1, width)
 
   if text == "" then

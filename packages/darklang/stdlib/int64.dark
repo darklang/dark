@@ -16,7 +16,7 @@ impl Modulo for Int64 =
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
-/// For example, {{Int64.remainder(15L, 6L) == Ok(3L)}}. The remainder will be
+/// For example, {{Int64.remainder(15, 6) == Ok(3)}}. The remainder will be
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
 /// Returns an {{Error}} if <param divisor> is {{0}}.
@@ -102,8 +102,9 @@ let fromFloat(a: Float): Stdlib.Option.Option<Int64> =
 /// (ties to even). Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
 let fromFloatRounded(a: Float): Stdlib.Option.Option<Int64> =
-  if Float.isFinite(a) then
-    a |> Float.round |> Stdlib.Int.toInt64
+  // 2^63 is exact as a Float, and every Float in [-2^63, 2^63) rounds into range
+  if a >= -9223372036854775808.0 && a < 9223372036854775808.0 then
+    Stdlib.Option.Option.Some(Float.round(a))
   else
     Stdlib.Option.Option.None
 
@@ -197,10 +198,10 @@ impl ToString for Int64 =
   let toString(int: Int64): String = Builtin.int64ToString(int)
 
 impl Zero for Int64 =
-  let zero(): Int64 = 0L
+  let zero(): Int64 = 0
 
 impl One for Int64 =
-  let one(): Int64 = 1L
+  let one(): Int64 = 1
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -212,7 +213,7 @@ let checkedAdd(
   b: Int64)
   : Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
   let sum = a + b
-  let wrapped = if b < 0L then sum > a else sum < a
+  let wrapped = if b < 0 then sum > a else sum < a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
 
 
@@ -222,7 +223,7 @@ let checkedSubtract(
   b: Int64)
   : Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
   let difference = a - b
-  let wrapped = if b < 0L then difference < a else difference > a
+  let wrapped = if b < 0 then difference < a else difference > a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(difference)
 
 
@@ -240,16 +241,16 @@ let checkedMultiply(
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int64): Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
-  if a == -9223372036854775808L then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
+  if a == -9223372036854775808 then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int64)
   : Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
-  if a == -9223372036854775808L then
+  if a == -9223372036854775808 then
     Error(Stdlib.Int.Overflow.Overflow)
-  else if a < 0L then
+  else if a < 0 then
     Ok(-a)
   else
     Ok(a)

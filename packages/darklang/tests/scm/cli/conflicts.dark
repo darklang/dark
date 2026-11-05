@@ -151,7 +151,7 @@ test ackKeepsTheWinnerAndOverrideTakesTheLoser =
 test overridingANameAlsoRepointsItsCallers =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 100L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 100")
       commit(dark, "base")
       featThenMainEdit(dark, "Tests.App.helper", "2", "3")
       merge(dark, "feat")
@@ -183,7 +183,7 @@ test overridingANameAlsoRepointsItsCallers =
 test overridingTheCallerFirstThenTheHelperSettlesBoth =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 100L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 100")
       commit(dark, "base")
       featThenMainEdit(dark, "Tests.App.helper", "2", "3")
       same(
@@ -243,7 +243,7 @@ test resolveOnABranchTakesTheirsOrKeepsMine =
 test resolveTheirsDropsTheBranchsVersionSoMineHasNothingToKeep =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "base")
       featThenMainEdit(dark, "Tests.App.helper", "2", "3")
 

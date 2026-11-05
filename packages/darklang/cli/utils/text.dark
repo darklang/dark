@@ -5,7 +5,7 @@ module Darklang.Cli.Text
 /// <param text> as lines no wider than <param width>, broken at spaces, every line after the first
 /// carrying <param indent>. What every line a person reads at a save goes through: an 80-column
 /// terminal is the floor, and a wrapped line keeps its shape.
-let wrap(width: Int, indent: String, text: String): List<String> =
+let wrap(width: Int64, indent: String, text: String): List<String> =
   let room = Stdlib.max(20, width - (Stdlib.String.length(indent)))
 
   match Stdlib.Cli.Tui.Text.wrapAtWords(text, room) with
@@ -31,7 +31,7 @@ let shortId(id: Uuid): String = shortIdText(Stdlib.toString(id))
 /// <param text> on one line, at most <param width> characters: for a table cell that must not
 /// break the row. `Table.print` pads to the widest cell and never wraps, so a cell that is
 /// allowed to be long costs every row below it.
-let oneLineAt(width: Int, text: String): String =
+let oneLineAt(width: Int64, text: String): String =
   let flat = Stdlib.String.join(Stdlib.String.splitOnNewline(text), " ")
   if Stdlib.String.length(flat) > width then
     (Stdlib.String.slice(flat, 0, width - 3)) + "..."
@@ -44,14 +44,14 @@ let oneLine(text: String): String = oneLineAt(40, text)
 /// "9,999", "48k", "3.2M": a count at a glance, for a column where the exact number is not the
 /// point and the magnitude is.
 let count(n: Int64): String =
-  if n < 10000L then Stdlib.toString(n)
-  else if n < 1000000L then $"{Stdlib.toString(n / 1000L)}k"
+  if n < 10000 then Stdlib.toString(n)
+  else if n < 1000000 then $"{Stdlib.toString(n / 1000)}k"
   else
-    let tenths = n / 100000L
-    $"{Stdlib.toString(tenths / 10L)}.{Stdlib.toString(tenths % 10L)}M"
+    let tenths = n / 100000
+    $"{Stdlib.toString(tenths / 10)}.{Stdlib.toString(tenths % 10)}M"
 
 /// "812 B", "34 KB", "2.1 MB": bytes at a glance.
-let bytes(n: Int): String =
+let bytes(n: Int64): String =
   if n < 1024 then $"{Stdlib.toString(n)} B"
   else if n < 1048576 then $"{Stdlib.toString(n / 1024)} KB"
   else
@@ -61,7 +61,7 @@ let bytes(n: Int): String =
 // "1 value" / "2 values": a count with its noun pluralized by the English rule in
 // `Stdlib.English.pluralize`, so no CLI message reads "1 value(s)". The linguistic rule lives in
 // stdlib; this just pairs it with a count.
-let plural(n: Int, noun: String): String =
+let plural(n: Int64, noun: String): String =
   if n == 1 then
     $"{Stdlib.toString(n)} {noun}"
   else

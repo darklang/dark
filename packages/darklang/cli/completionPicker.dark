@@ -2,8 +2,8 @@ module Darklang.Cli.CompletionPicker
 
 type State =
   { items: List<Completion.CompletionItem>
-    selectedIndex: Int
-    scrollOffset: Int
+    selectedIndex: Int64
+    scrollOffset: Int64
     commandPrefix: String }
 
 val maxVisibleItems = 10
@@ -16,7 +16,7 @@ val minimumHeight = 2
 val minimumWidth = Stdlib.String.displayWidth(minimumHelpText)
 
 type Layout =
-  { itemCapacity: Int
+  { itemCapacity: Int64
     showScrollIndicator: Bool }
 
 let supportsSize(size: Stdlib.Cli.Tui.Size): Bool =
@@ -25,7 +25,7 @@ let supportsSize(size: Stdlib.Cli.Tui.Size): Bool =
 val unsupportedSizeMessage =
   $"Completion picker requires at least {Stdlib.toString(minimumWidth)} columns and {Stdlib.toString(minimumHeight)} rows."
 
-let helpTextAtWidth(width: Int): String =
+let helpTextAtWidth(width: Int64): String =
   if Stdlib.String.displayWidth(fullHelpText) <= width then
     fullHelpText
   else if Stdlib.String.displayWidth(compactHelpText) <= width then
@@ -85,11 +85,11 @@ let layoutAtSize(
 let visibleCapacity(
   state: State,
   size: Stdlib.Cli.Tui.Size)
-  : Int =
+  : Int64 =
   (layoutAtSize(state, size)).itemCapacity
 
 
-let effectiveOffset(state: State, capacity: Int): Int =
+let effectiveOffset(state: State, capacity: Int64): Int64 =
   let itemCount = Stdlib.List.length(state.items)
   let maxOffset = Stdlib.max(0, itemCount - capacity)
   let desired =
@@ -172,7 +172,7 @@ let moveUp(state: State): State =
     state
 
 /// Move selection down, keeping it within a viewport of `capacity` rows.
-let moveDownWithCapacity(capacity: Int, state: State): State =
+let moveDownWithCapacity(capacity: Int64, state: State): State =
   let itemCount = Stdlib.List.length(state.items)
 
   if state.selectedIndex < (itemCount - 1) then

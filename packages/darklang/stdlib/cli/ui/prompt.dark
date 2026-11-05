@@ -47,7 +47,7 @@ let select(
     match Stdlib.Cli.Stdin.readLineOrEnd() with
     | None -> Stdlib.Option.Option.None
     | Some(input) ->
-      match Stdlib.Int.parse(Stdlib.String.trim(input)) with
+      match Stdlib.Int64.parse(Stdlib.String.trim(input)) with
       | Ok(n) ->
         match Stdlib.List.getAt(choices, n - 1) with
         | Some(choice) -> Stdlib.Option.Option.Some(choice)

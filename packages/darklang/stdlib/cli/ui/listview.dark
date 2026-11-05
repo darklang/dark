@@ -4,7 +4,7 @@
 /// and passes them in — so any view (the package tree, Changes, History, Docs …) mounts the same list body.
 module Darklang.Stdlib.Cli.UI.ListView
 
-let render(region: Layout.Region, displayLines: List<String>, selected: Int): List<Layout.Span> =
+let render(region: Layout.Region, displayLines: List<String>, selected: Int64): List<Layout.Span> =
   let total = Stdlib.List.length(displayLines)
   if total == 0 then
     []

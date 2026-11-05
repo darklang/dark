@@ -4,14 +4,14 @@ module Darklang.Stdlib.Diff.Tests
 // reference. It indexed into cons lists per cell; the answers, including which side
 // wins a tie, are what the new one has to reproduce.
 
-let refTableGet(table: List<List<Int>>, row: Int, col: Int): Int =
+let refTableGet(table: List<List<Int64>>, row: Int64, col: Int64): Int64 =
   let r = Stdlib.Option.withDefault(Stdlib.List.getAt(table, row), [])
   Stdlib.Option.withDefault(Stdlib.List.getAt(r, col), 0)
 
 let refBuildTable(
   oldLines: List<String>,
   newLines: List<String>)
-  : List<List<Int>> =
+  : List<List<Int64>> =
   let zeroRow =
     Stdlib.List.map(Stdlib.List.range(0, Stdlib.List.length(oldLines)), fun _i -> 0)
 
@@ -38,9 +38,9 @@ let refBuildTable(
 let refTrace(
   oldLines: List<String>,
   newLines: List<String>,
-  table: List<List<Int>>,
-  i: Int,
-  j: Int)
+  table: List<List<Int64>>,
+  i: Int64,
+  j: Int64)
   : List<Stdlib.Diff.DiffLine> =
   if (i == 0) && (j == 0) then
     []
@@ -88,7 +88,7 @@ let refLines(oldText: String, newText: String): List<Stdlib.Diff.DiffLine> =
 
 // A text of `len` lines drawn from a three-word alphabet, so most pairs share lines
 // and tie often, which is where two LCS walks can disagree.
-let genText(seed: Int, len: Int): String =
+let genText(seed: Int64, len: Int64): String =
   Stdlib.List.range(1, len)
   |> Stdlib.List.map(fun k ->
     match ((seed * 31 + k * 17 + (seed * k) % 7) % 4) with
@@ -100,7 +100,7 @@ let genText(seed: Int, len: Int): String =
 
 // Every (old, new) pair over 18 seeds of lengths 0 to 8: how many were compared, and
 // how many came out differently.
-let compareAll(): (Int * Int) =
+let compareAll(): (Int64 * Int64) =
   let texts =
     Stdlib.List.range(0, 17)
     |> Stdlib.List.map(fun seed -> genText(seed, seed % 9))

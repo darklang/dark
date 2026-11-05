@@ -14,7 +14,7 @@ let indent(s: String): String =
     | line -> "  " + line)
   |> Stdlib.String.join("\n")
 
-let indentByLevel(level: Int, s: String): String =
+let indentByLevel(level: Int64, s: String): String =
   let indentStr = Stdlib.String.repeat("  ", level)
 
   s
@@ -31,7 +31,7 @@ let sign(s: LanguageTools.Sign): String =
   | Negative -> "-"
 
 // One-hex-digit (0-15) to its source character.
-let hexDigitChar(n: Int): String =
+let hexDigitChar(n: Int64): String =
   Stdlib.String.slice("0123456789ABCDEF", n, n + 1)
 
 // Escape backslashes and ASCII controls within a grapheme, preserving the
@@ -47,20 +47,20 @@ let encodeChar(c: Char): String =
     |> Stdlib.String.toCodepoints
     |> Stdlib.List.map(fun cp ->
       match Stdlib.Char.fromCodepoint(cp) with
-      | Some(one) -> if cp < 128ul then encodeChar(one) else Stdlib.toString(one)
+      | Some(one) -> if cp < 128u32 then encodeChar(one) else Stdlib.toString(one)
       | None -> "")
     |> Stdlib.String.join("")
   | Some(code) ->
-    if code == 92uy then "\\\\"
-    else if code == 7uy then "\\a"
-    else if code == 8uy then "\\b"
-    else if code == 9uy then "\\t"
-    else if code == 10uy then "\\n"
-    else if code == 11uy then "\\v"
-    else if code == 12uy then "\\f"
-    else if code == 13uy then "\\r"
-    else if code < 32uy || code == 127uy then
-      let n = Stdlib.Int.fromUInt8(code)
+    if code == 92u8 then "\\\\"
+    else if code == 7u8 then "\\a"
+    else if code == 8u8 then "\\b"
+    else if code == 9u8 then "\\t"
+    else if code == 10u8 then "\\n"
+    else if code == 11u8 then "\\v"
+    else if code == 12u8 then "\\f"
+    else if code == 13u8 then "\\r"
+    else if code < 32u8 || code == 127u8 then
+      let n = Stdlib.Int64.fromUInt8(code)
       let hi = n / 16
       let lo = n % 16
       $"\\x{hexDigitChar(hi)}{hexDigitChar(lo)}"
@@ -241,7 +241,7 @@ type DisplayOptions =
   {
     /// Columns available for the whole line, counted from column 0. A printer that starts partway
     /// along a line accounts for that itself; this is the page width, not the room remaining.
-    width: Int
+    width: Int64
 
     /// The module the reader is standing in, owner-first. Names are spelled relative to it.
     currentModule: List<String>
@@ -256,7 +256,7 @@ type DisplayOptions =
 
     /// Stop descending past this depth and print a marker instead. `None` means print it all. Traces and
     /// error messages want a shallow cap; `eval` generally doesn't.
-    maxDepth: Stdlib.Option.Option<Int>
+    maxDepth: Stdlib.Option.Option<Int64>
   }
 
 module DisplayOptions =
@@ -290,5 +290,5 @@ module DisplayOptions =
     { DisplayOptions.default with palette = p }
 
   /// The defaults at a given width.
-  let atWidth(width: Int): DisplayOptions =
+  let atWidth(width: Int64): DisplayOptions =
     { DisplayOptions.default with width = width }

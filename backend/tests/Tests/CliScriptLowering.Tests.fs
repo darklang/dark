@@ -61,9 +61,9 @@ let private testUnresolvedRefsDoNotCollide =
     let! (m : CliScript.PTCliScriptModule) =
       parse
         "type TA = { a: String }\n\
-         type TB = { b: Int }\n\
-         let takesA (r: TA) : Int = 7\n\
-         let takesB (r: TB) : Int = 7\n\
+         type TB = { b: Int64 }\n\
+         let takesA (r: TA) : Int64 = 7\n\
+         let takesB (r: TB) : Int64 = 7\n\
          0"
 
     Expect.hasLength m.types 2 "both types lowered"
@@ -87,8 +87,8 @@ let private testIdenticalDeclarationsShareAHash =
   testTask "structurally identical declarations share one hash" {
     let! (m : CliScript.PTCliScriptModule) =
       parse
-        "let alpha (x: Int) : Int = x + 1\n\
-         let beta (x: Int) : Int = x + 1\n\
+        "let alpha (x: Int64) : Int64 = x + 1\n\
+         let beta (x: Int64) : Int64 = x + 1\n\
          0"
 
     Expect.hasLength m.fns 2 "both fns lowered"
@@ -105,8 +105,8 @@ let private testMutuallyRecursiveDeclarations =
   testTask "mutually recursive fns hash as a batch" {
     let! (m : CliScript.PTCliScriptModule) =
       parse
-        "let isEven (n: Int) : Bool = if n == 0 then true else isOdd (n - 1)\n\
-         let isOdd (n: Int) : Bool = if n == 0 then false else isEven (n - 1)\n\
+        "let isEven (n: Int64) : Bool = if n == 0 then true else isOdd (n - 1)\n\
+         let isOdd (n: Int64) : Bool = if n == 0 then false else isEven (n - 1)\n\
          0"
 
     Expect.hasLength m.fns 2 "both fns lowered"
@@ -127,7 +127,7 @@ let private testScriptTypeUnifiesWithPackageType =
     let! (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
     let! (reference : CliScript.PTCliScriptModule) =
       parse
-        "let f (e: Darklang.Stdlib.Int.ParseError) : Int = 1\n\
+        "let f (e: Darklang.Stdlib.Int.ParseError) : Int64 = 1\n\
          0"
 
     match m.types, reference.fns with
@@ -153,7 +153,7 @@ let private testScriptTypeUnifiesWithPackageType =
 let private testDeclarationsAreNameableAfterLowering =
   testTask "lowered declarations can be resolved back to their names" {
     let! (m : CliScript.PTCliScriptModule) =
-      parse "type Celsius = { degrees: Int }\n0"
+      parse "type Celsius = { degrees: Int64 }\n0"
 
     match m.types with
     | [ celsius ] ->
@@ -195,7 +195,7 @@ let private testRegistryDoesNotDisplaceStoredNames =
 let private testMiddleStatementErrorStopsTheScript =
   testTask "an error in a middle statement ends the script" {
     let code =
-      "let boom(xs: List<Int>): Unit =\n  match xs with\n  | [] -> ()\nboom([ 1, 2 ])\n0\n"
+      "let boom(xs: List<Int64>): Unit =\n  match xs with\n  | [] -> ()\nboom([ 1, 2 ])\n0\n"
       + ""
       + ""
       + ""
@@ -276,14 +276,14 @@ let private testTopLevelSequencing =
 
     testList
       mode
-      [ rejects "newline sequence rejects a non-Unit intermediate" "1L\n\"done\"" 0
+      [ rejects "newline sequence rejects a non-Unit intermediate" "1\n\"done\"" 0
         rejects
           "a non-Unit middle expression stops later effects"
-          "Builtin.testIncrementSideEffectCounter()\n1L\nBuiltin.testIncrementSideEffectCounter(\"done\")"
+          "Builtin.testIncrementSideEffectCounter()\n1\nBuiltin.testIncrementSideEffectCounter(\"done\")"
           1
         accepts "Unit intermediate" "()\n\"done\"" (RT.DString "done")
-        accepts "explicit discard" "let _ = 1L\n\"done\"" (RT.DString "done")
-        accepts "non-Unit final expression" "1L" (RT.DInt64 1L)
+        accepts "explicit discard" "let _ = 1\n\"done\"" (RT.DString "done")
+        accepts "non-Unit final expression" "1" (RT.DInt64 1L)
         accepts "Unit final expression" "()\n()" RT.DUnit ])
   |> testList "top-level sequencing"
 
@@ -301,10 +301,10 @@ let private scriptValueExecution =
 
   testList
     "script value execution"
-    [ accepts "arithmetic" "val n = 1L + 2L\nn + 1L" (RT.DInt64 4L) 0
+    [ accepts "arithmetic" "val n = 1 + 2\nn + 1" (RT.DInt64 4L) 0
       accepts
         "lambda and value alias"
-        "val inc = fun x -> x + 1L\nval alias = inc\nalias(2L)"
+        "val inc = fun x -> x + 1\nval alias = inc\nalias(2)"
         (RT.DInt64 3L)
         0
       accepts
@@ -314,22 +314,22 @@ let private scriptValueExecution =
         0
       accepts
         "forward dependency through a function is evaluated once"
-        "val first = later()\nlet later(): Int64 = second\nval second = Builtin.testIncrementSideEffectCounter(2L)\nfirst + second"
+        "val first = later()\nlet later(): Int64 = second\nval second = Builtin.testIncrementSideEffectCounter(2)\nfirst + second"
         (RT.DInt64 4L)
         1
       accepts
         "submodule values"
-        "module Local =\n  val n = 1L + 2L\nLocal.n + 1L"
+        "module Local =\n  val n = 1 + 2\nLocal.n + 1"
         (RT.DInt64 4L)
         0
       accepts
         "unused values are initialized"
-        "val unused = Builtin.testIncrementSideEffectCounter(2L)\n0L"
+        "val unused = Builtin.testIncrementSideEffectCounter(2)\n0"
         (RT.DInt64 0L)
         1
       testTask "a failed initializer stops later effects" {
         let code =
-          "val bad = 1L / 0L\nval later = Builtin.testIncrementSideEffectCounter(2L)\nBuiltin.testIncrementSideEffectCounter(3L)"
+          "val bad = 1 / 0\nval later = Builtin.testIncrementSideEffectCounter(2)\nBuiltin.testIncrementSideEffectCounter(3)"
         let! state = executionStateFor pmPT false
         let! script = parse code
         let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
@@ -379,7 +379,7 @@ let private testScriptArgumentsAreInvocationSpecific =
 let private testScriptInputNamesAreReserved =
   testTask "scripts reserve root args but allow qualified and local bindings" {
     let! state = executionStateFor pmPT false
-    for code in [ "val args = 42\n0"; "let args(): Int = 42\n0" ] do
+    for code in [ "val args = 42\n0"; "let args(): Int64 = 42\n0" ] do
       let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
       match parsed with
       | Error [ (diagnostic : LibParser.Parser.Diagnostic) ] ->
@@ -387,24 +387,24 @@ let private testScriptInputNamesAreReserved =
       | other -> failtest $"Expected a reserved-name error, got %A{other}"
 
     for code in
-      [ "let count(args: List<String>): Int = 0\ncount(args)"
-        "let count(): Int =\n  let args = 42\n  args\ncount()"
-        "trait ReadArgs<'a> =\n  let args(v: 'a): Int\nimpl ReadArgs for Int =\n  let args(v: Int): Int = v\n0" ] do
+      [ "let count(args: List<String>): Int64 = 0\ncount(args)"
+        "let count(): Int64 =\n  let args = 42\n  args\ncount()"
+        "trait ReadArgs<'a> =\n  let args(v: 'a): Int64\nimpl ReadArgs for Int64 =\n  let args(v: Int64): Int64 = v\n0" ] do
       let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
       Expect.isOk parsed "parameters, local bindings and impl methods remain legal"
 
     for code in
-      [ "module Nested =\n  let args(): Int = 42\nNested.args()"
+      [ "module Nested =\n  let args(): Int64 = 42\nNested.args()"
         "module Nested =\n  val args = 42\nif args == [\"input\"] then Nested.args else 0" ] do
       let! script = parse code
       let! result =
         Cli.execute state script (scriptInput code [ "input" ]) |> Ply.toTask
       Expect.equal
         result
-        (Ok(LibExecution.Dval.int 42I))
+        (Ok(LibExecution.RuntimeTypes.DInt64 42L))
         "qualified args declarations coexist with script input"
 
-    for code in [ "val args = 42\nargs"; "let args(): Int = 42\nargs()" ] do
+    for code in [ "val args = 42\nargs"; "let args(): Int64 = 42\nargs()" ] do
       let! parsed = Cli.parseCliExpr state code |> Ply.toTask
       Expect.isOk parsed "eval may declare values and functions named args"
   }

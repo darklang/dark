@@ -20,11 +20,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "bytesLength" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the length of <param bytes> in bytes."
       fn =
         (function
-        | _, _, _, [| DBytes ref |] -> Ply(Dval.int (bigint ref.Length))
+        | _, _, _, [| DBytes ref |] -> Ply(Dval.dint64 ref.Length)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -33,7 +33,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "bytesPeek" 0
       typeParams = []
-      parameters = [ Param.make "bytes" TBytes ""; Param.make "count" TInt "" ]
+      parameters = [ Param.make "bytes" TBytes ""; Param.make "count" TInt64 "" ]
       returnType = TypeReference.option TBytes
       description =
         "The first <param count> bytes of <param bytes>, or None when the bytes "
@@ -41,12 +41,12 @@ let fns () : List<BuiltInFn> =
         + "printing a value."
       fn =
         (function
-        | _, _, _, [| DBytes(Ephemeral eph); DInt count |] ->
-          let n =
-            max (bigint 0) (min (DarkInt.toBigInt count) (bigint eph.bytes.Length))
+        | _, _, _, [| DBytes(Ephemeral eph); DInt64 count |] ->
+          let n = max 0L (min count (int64 eph.bytes.Length))
           let prefix = Array.truncate (int n) eph.bytes
           Ply(Dval.optionSome KTBytes (Bytes.newEphemeral prefix))
-        | _, _, _, [| DBytes(Persistent _); DInt _ |] -> Ply(Dval.optionNone KTBytes)
+        | _, _, _, [| DBytes(Persistent _); DInt64 _ |] ->
+          Ply(Dval.optionNone KTBytes)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -89,21 +89,20 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "bytes" TBytes ""
-          Param.make "start" TInt "zero-based, inclusive"
-          Param.make "length" TInt "0 or more" ]
+          Param.make "start" TInt64 "zero-based, inclusive"
+          Param.make "length" TInt64 "0 or more" ]
       returnType = TBytes
       description =
         "Copies <param length> bytes starting at <param start> into Bytes. Out-of-range slices are clamped."
       fn =
         (function
-        | state, _, _, [| DBytes ref; DInt startD; DInt lenD |] ->
+        | state, _, _, [| DBytes ref; DInt64 startD; DInt64 lenD |] ->
           Bytes.withBytes state ref (fun bs ->
-            let len = bigint bs.Length
-            let safeStart = max (bigint 0) (min (DarkInt.toBigInt startD) len)
-            let safeLen =
-              max (bigint 0) (min (DarkInt.toBigInt lenD) (len - safeStart))
+            let len = int64 bs.Length
+            let safeStart = max 0L (min startD len)
+            let safeLen = max 0L (min lenD (len - safeStart))
             let slice = Array.zeroCreate<byte> (int safeLen)
-            if safeLen > bigint 0 then
+            if safeLen > 0L then
               System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
             Ply(Bytes.newEphemeral slice))
         | _ -> incorrectArgs ())
@@ -117,18 +116,18 @@ let fns () : List<BuiltInFn> =
     // whole buffer as a list.
     { name = fn "bytesGetAt" 0
       typeParams = []
-      parameters = [ Param.make "bytes" TBytes ""; Param.make "index" TInt "" ]
+      parameters = [ Param.make "bytes" TBytes ""; Param.make "index" TInt64 "" ]
       returnType = TypeReference.option TUInt8
       description =
         "Returns {{Some byte}} at <param index> in <param bytes>, or {{None}} if out of bounds."
       fn =
         (function
-        | state, _, _, [| DBytes ref; DInt index |] ->
+        | state, _, _, [| DBytes ref; DInt64 index |] ->
           Bytes.withBytes state ref (fun bs ->
-            match DarkInt.toInt64 index with
-            | Some i when i >= 0L && i < int64 bs.Length ->
-              Ply(Dval.optionSome KTUInt8 (DUInt8 bs[int i]))
-            | _ -> Ply(Dval.optionNone KTUInt8))
+            if index >= 0L && index < int64 bs.Length then
+              Ply(Dval.optionSome KTUInt8 (DUInt8 bs[int index]))
+            else
+              Ply(Dval.optionNone KTUInt8))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -142,20 +141,20 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "bytes" TBytes ""
           Param.make "byte" TUInt8 ""
-          Param.make "start" TInt "zero-based, inclusive" ]
-      returnType = TypeReference.option TInt
+          Param.make "start" TInt64 "zero-based, inclusive" ]
+      returnType = TypeReference.option TInt64
       description =
         "Returns {{Some index}} of the first <param byte> in <param bytes> at or after <param start>, or {{None}} if there is none or <param start> is out of range."
       fn =
         (function
-        | state, _, _, [| DBytes ref; DUInt8 b; DInt startD |] ->
+        | state, _, _, [| DBytes ref; DUInt8 b; DInt64 startD |] ->
           Bytes.withBytes state ref (fun bs ->
-            match DarkInt.toInt64 startD with
-            | Some start when start >= 0L && start < int64 bs.Length ->
-              match System.Array.IndexOf(bs, b, int start) with
-              | -1 -> Ply(Dval.optionNone KTInt)
-              | i -> Ply(Dval.optionSome KTInt (Dval.int (bigint i)))
-            | _ -> Ply(Dval.optionNone KTInt))
+            if startD >= 0L && startD < int64 bs.Length then
+              match System.Array.IndexOf(bs, b, int startD) with
+              | -1 -> Ply(Dval.optionNone KTInt64)
+              | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
+            else
+              Ply(Dval.optionNone KTInt64))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

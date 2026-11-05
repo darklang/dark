@@ -2,19 +2,19 @@ module Darklang.Language.Tests.Apply
 
 test lambdasAndOperators =
   Stdlib.Test.all(
-    [ (let fn = (fun x -> x + 1L)
-       fn(6L))
-      |> Stdlib.Test.equal(7L)
+    [ (let fn = (fun x -> x + 1)
+       fn(6))
+      |> Stdlib.Test.equal(7)
       (let fn = (+)
-       fn(3L, 4L))
-      |> Stdlib.Test.equal(7L)
+       fn(3, 4))
+      |> Stdlib.Test.equal(7)
       (let fn = (fun(a, b) -> Stdlib.max(a, b))
-       fn(3L, 7L))
-      |> Stdlib.Test.equal(7L) ])
+       fn(3, 7))
+      |> Stdlib.Test.equal(7) ])
 
 // `map` gives its callback one argument, and a two-parameter lambda takes two, so it raises.
 test callbackGivenTooFewArguments =
-  ([ 1L, 2L ] |> Stdlib.List.map(fun(x, y) -> x))
+  ([ 1, 2 ] |> Stdlib.List.map(fun(x, y) -> x))
   => raises "Lambda expects 2 arguments, but got 1 argument"
 
 // ---------------------------
@@ -39,25 +39,25 @@ let fnWithTypeArgAndOneParam<'a>(arg: 'a): 'a =
 let twoStringFn(str1: String, str2: String): String =
   str1 + " appended " + str2
 
-let returnsInt(): Int64 = 5L
+let returnsInt(): Int64 = 5
 
 let returnsString(): String = "string"
 
-let shouldReturnStringButDoesNot(): String = 5L
+let shouldReturnStringButDoesNot(): String = 5
 
 let returnsOptionSome(): Stdlib.Option.Option<Int64> =
-  Stdlib.Option.Option.Some(5L)
+  Stdlib.Option.Option.Some(5)
 
 let returnsOptionNone(): Stdlib.Option.Option<Int64> = Stdlib.Option.Option.None
 
 let returnsResultOk(): Stdlib.Result.Result<Int64, 'err> =
-  Stdlib.Result.Result.Ok(5L)
+  Stdlib.Result.Result.Ok(5)
 
 let derrorFn(msg: String): String = msg + Stdlib.Test.raiseRuntimeError(msg)
 
 let fnWithTypeArgs<'a, 'b>(a: 'a, b: 'b): 'a = a
 
-let fnWithTypedReturn<'a>(): 'a = 5L // errors unless Int64 passed for 'a
+let fnWithTypedReturn<'a>(): 'a = 5 // errors unless Int64 passed for 'a
 
 type X<'a> = | A of Int64 | B of 'a
 
@@ -69,40 +69,40 @@ test userFunctions =
   Stdlib.Test.all(
     [ stringFn("string") |> Stdlib.Test.equal("string appended string")
       twoStringFn("str1", "str2") |> Stdlib.Test.equal("str1 appended str2")
-      returnsInt() |> Stdlib.Test.equal(5L)
+      returnsInt() |> Stdlib.Test.equal(5)
       returnsString() |> Stdlib.Test.equal("string")
-      returnsOptionSome() |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5L))
-      (returnsOptionSome()) |> Builtin.unwrap |> Stdlib.Test.equal(5L)
+      returnsOptionSome() |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5))
+      (returnsOptionSome()) |> Builtin.unwrap |> Stdlib.Test.equal(5)
       returnsOptionNone() |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-      returnsResultOk() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5L))
-      (returnsResultOk()) |> Builtin.unwrap |> Stdlib.Test.equal(5L)
-      fnWithTypeArgAndOneParam<Int64>(1L) |> Stdlib.Test.equal(1L)
-      fnWithTypeArgs<Int64, String>(5L, "x") |> Stdlib.Test.equal(5L)
-      fnWithTypedReturn<Int64>() |> Stdlib.Test.equal(5L)
-      polyFn(X.A(5L)) |> Stdlib.Test.equal(X.A(5L))
+      returnsResultOk() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5))
+      (returnsResultOk()) |> Builtin.unwrap |> Stdlib.Test.equal(5)
+      fnWithTypeArgAndOneParam<Int64>(1) |> Stdlib.Test.equal(1)
+      fnWithTypeArgs<Int64, String>(5, "x") |> Stdlib.Test.equal(5)
+      fnWithTypedReturn<Int64>() |> Stdlib.Test.equal(5)
+      polyFn(X.A(5)) |> Stdlib.Test.equal(X.A(5))
       polyFn(X.B("str")) |> Stdlib.Test.equal(X.B("str"))
-      strFn(X.A(5L)) |> Stdlib.Test.equal(X.A(5L))
+      strFn(X.A(5)) |> Stdlib.Test.equal(X.A(5))
       strFn(X.B("str")) |> Stdlib.Test.equal(X.B("str")) ])
 
 // Inferred type arguments agree with explicit ones.
 test definedPolyFnInfersTypeArgs =
   Stdlib.Test.all(
-    [ definedPolyFn<String>(X.A(5L)) |> Stdlib.Test.equal(definedPolyFn(X.A(5L)))
+    [ definedPolyFn<String>(X.A(5)) |> Stdlib.Test.equal(definedPolyFn(X.A(5)))
       definedPolyFn<String>(X.B("str"))
       |> Stdlib.Test.equal(definedPolyFn(X.B("str"))) ])
 
 module InvalidFnCalls =
   test missingFunctionRaises =
-    (functionWhichDoesntExist(6L))
+    (functionWhichDoesntExist(6))
     => raises "There is no variable named: functionWhichDoesntExist"
 
   // errors around type args. Calling with 0 type args is allowed —
   // inference fills `'a` in from the actual arg's ValueType.
   test zeroTypeArgsAreInferred =
-    fnWithTypeArgAndOneParam(1L) |> Stdlib.Test.equal(1L)
+    fnWithTypeArgAndOneParam(1) |> Stdlib.Test.equal(1)
 
   test tooManyTypeArgsRaises =
-    fnWithTypeArgAndOneParam<Int64, String>(1L)
+    fnWithTypeArgAndOneParam<Int64, String>(1)
     => raises
       "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
 
@@ -113,7 +113,7 @@ module InvalidFnCalls =
       "Darklang.Language.Tests.Apply.stringFn expects 1 argument, but got 2 arguments"
 
   test wrongArgTypeRaises =
-    stringFn(5L)
+    stringFn(5)
     => raises
       "Darklang.Language.Tests.Apply.stringFn's 1st parameter `key` expects String, but got Int64 (5)"
 
@@ -136,7 +136,7 @@ module InvalidFnCalls =
 
   // errors around type args take priority over ones about args
   test typeArgErrorComesFirst =
-    fnWithTypeArgAndOneParam<Int64, String>(1L, "str")
+    fnWithTypeArgAndOneParam<Int64, String>(1, "str")
     => raises
       "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
 

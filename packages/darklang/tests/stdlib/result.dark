@@ -4,20 +4,20 @@ test andThen =
   Stdlib.Test.all(
     [ Stdlib.Result.andThen(Error("test"), fun _ -> Error("test"))
       |> Stdlib.Test.equal(Error("test"))
-      Stdlib.Result.andThen(Error("test"), fun _ -> Ok(5L))
+      Stdlib.Result.andThen(Error("test"), fun _ -> Ok(5))
       |> Stdlib.Test.equal(Error("test"))
-      Stdlib.Result.andThen(Ok(5L), fun _ -> Error("test"))
+      Stdlib.Result.andThen(Ok(5), fun _ -> Error("test"))
       |> Stdlib.Test.equal(Error("test"))
-      Stdlib.Result.andThen(Ok(5L), fun x -> Ok(1L + x))
-      |> Stdlib.Test.equal(Ok(6L)) ])
+      Stdlib.Result.andThen(Ok(5), fun x -> Ok(1 + x))
+      |> Stdlib.Test.equal(Ok(6)) ])
 
 test collect =
   Stdlib.Test.all(
-    [ Stdlib.Result.collect([ Ok(5L), Ok(6L), Ok(7L) ])
-      |> Stdlib.Test.equal(Ok([ 5L, 6L, 7L ]))
-      Stdlib.Result.collect([ Ok(5L), Error("test"), Ok(7L) ])
+    [ Stdlib.Result.collect([ Ok(5), Ok(6), Ok(7) ])
+      |> Stdlib.Test.equal(Ok([ 5, 6, 7 ]))
+      Stdlib.Result.collect([ Ok(5), Error("test"), Ok(7) ])
       |> Stdlib.Test.equal(Error("test"))
-      Stdlib.Result.collect([ Ok(5L), Error("test"), Error("test2") ])
+      Stdlib.Result.collect([ Ok(5), Error("test"), Error("test2") ])
       |> Stdlib.Test.equal(Error("test"))
       Stdlib.Result.collect([ Error("test"), Error("test2") ])
       |> Stdlib.Test.equal(Error("test"))
@@ -26,14 +26,14 @@ test collect =
 
 test fromOption =
   Stdlib.Test.all(
-    [ Stdlib.Result.fromOption(Some(6L), "test")
-      |> Stdlib.Test.equal(Ok(6L))
+    [ Stdlib.Result.fromOption(Some(6), "test")
+      |> Stdlib.Test.equal(Ok(6))
       Stdlib.Result.fromOption(None, "test")
       |> Stdlib.Test.equal(Error("test"))
       Stdlib.Result.fromOption(Some(Error("test")), "test")
       |> Stdlib.Test.equal(Ok(Error("test")))
-      Stdlib.Result.fromOption(None, (1L, 2L, 3L))
-      |> Stdlib.Test.equal(Error((1L, 2L, 3L)))
+      Stdlib.Result.fromOption(None, (1, 2, 3))
+      |> Stdlib.Test.equal(Error((1, 2, 3)))
       Stdlib.Result.fromOption(None, None)
       |> Stdlib.Test.equal(Error(None)) ])
 
@@ -41,12 +41,12 @@ test map2 =
   Stdlib.Test.all(
     [ Stdlib.Result.map2(Error("error1"), Error("error2"), fun(x, y) -> x - y)
       |> Stdlib.Test.equal(Error("error1"))
-      Stdlib.Result.map2(Error("error1"), Ok(1L), fun(x, y) -> x - y)
+      Stdlib.Result.map2(Error("error1"), Ok(1), fun(x, y) -> x - y)
       |> Stdlib.Test.equal(Error("error1"))
-      Stdlib.Result.map2(Ok(10L), Error("error2"), fun(x, y) -> x - y)
+      Stdlib.Result.map2(Ok(10), Error("error2"), fun(x, y) -> x - y)
       |> Stdlib.Test.equal(Error("error2"))
-      Stdlib.Result.map2(Ok(10L), Ok(1L), fun(x, y) -> x - y)
-      |> Stdlib.Test.equal(Ok(9L)) ])
+      Stdlib.Result.map2(Ok(10), Ok(1), fun(x, y) -> x - y)
+      |> Stdlib.Test.equal(Ok(9)) ])
 
 test map3 =
   Stdlib.Test.all(
@@ -59,19 +59,19 @@ test map3 =
       Stdlib.Result.map3(
         Error("error1"),
         Error("error2"),
-        Ok(1L),
+        Ok(1),
         fun(x, y, z) -> x - y - z)
       |> Stdlib.Test.equal(Error("error1"))
       Stdlib.Result.map3(
-        Ok(10L),
+        Ok(10),
         Error("error2"),
         Error("error3"),
         fun(x, y, z) -> x - y - z)
       |> Stdlib.Test.equal(Error("error2"))
-      Stdlib.Result.map3(Ok(10L), Ok(1L), Error("error3"), fun(x, y, z) -> x - y - z)
+      Stdlib.Result.map3(Ok(10), Ok(1), Error("error3"), fun(x, y, z) -> x - y - z)
       |> Stdlib.Test.equal(Error("error3"))
-      Stdlib.Result.map3(Ok(10L), Ok(1L), Ok(1L), fun(x, y, z) -> x - y - z)
-      |> Stdlib.Test.equal(Ok(8L)) ])
+      Stdlib.Result.map3(Ok(10), Ok(1), Ok(1), fun(x, y, z) -> x - y - z)
+      |> Stdlib.Test.equal(Ok(8)) ])
 
 test map4 =
   Stdlib.Test.all(
@@ -86,23 +86,23 @@ test map4 =
         Error("error1"),
         Error("error2"),
         Error("error3"),
-        Ok(1L),
+        Ok(1),
         fun(w, x, y, z) -> w - x - y - z)
       |> Stdlib.Test.equal(Error("error1"))
       Stdlib.Result.map4(
-        Ok(10L),
-        Ok(1L),
-        Ok(1L),
+        Ok(10),
+        Ok(1),
+        Ok(1),
         Error("error4"),
         fun(w, x, y, z) -> w - x - y - z)
       |> Stdlib.Test.equal(Error("error4"))
       Stdlib.Result.map4(
-        Ok(10L),
-        Ok(1L),
-        Ok(1L),
-        Ok(2L),
+        Ok(10),
+        Ok(1),
+        Ok(1),
+        Ok(2),
         fun(w, x, y, z) -> w - x - y - z)
-      |> Stdlib.Test.equal(Ok(6L)) ])
+      |> Stdlib.Test.equal(Ok(6)) ])
 
 test map5 =
   Stdlib.Test.all(
@@ -119,36 +119,36 @@ test map5 =
         Error("error2"),
         Error("error3"),
         Error("error4"),
-        Ok(1L),
+        Ok(1),
         fun(v, w, x, y, z) -> v - w - x - y - z)
       |> Stdlib.Test.equal(Error("error1"))
       Stdlib.Result.map5(
-        Ok(10L),
-        Ok(1L),
-        Ok(1L),
-        Ok(2L),
+        Ok(10),
+        Ok(1),
+        Ok(1),
+        Ok(2),
         Error("error5"),
         fun(v, w, x, y, z) -> v - w - x - y - z)
       |> Stdlib.Test.equal(Error("error5"))
       Stdlib.Result.map5(
-        Ok(10L),
-        Ok(1L),
-        Ok(1L),
-        Ok(2L),
-        Ok(3L),
+        Ok(10),
+        Ok(1),
+        Ok(1),
+        Ok(2),
+        Ok(3),
         fun(v, w, x, y, z) -> v - w - x - y - z)
-      |> Stdlib.Test.equal(Ok(3L)) ])
+      |> Stdlib.Test.equal(Ok(3)) ])
 
 test mapWithDefault =
   Stdlib.Test.all(
-    [ Stdlib.Result.mapWithDefault(Error("test"), 5L, fun x -> x + 1L)
-      |> Stdlib.Test.equal(5L)
-      Stdlib.Result.mapWithDefault(Ok(6L), 5L, fun x -> x + 1L)
-      |> Stdlib.Test.equal(7L)
+    [ Stdlib.Result.mapWithDefault(Error("test"), 5, fun x -> x + 1)
+      |> Stdlib.Test.equal(5)
+      Stdlib.Result.mapWithDefault(Ok(6), 5, fun x -> x + 1)
+      |> Stdlib.Test.equal(7)
       Stdlib.Result.mapWithDefault(
         Error("test1"),
         Error("test2"),
-        fun x -> x + 1L)
+        fun x -> x + 1)
       |> Stdlib.Test.equal(Error("test2")) ])
 
 test mapError =
@@ -157,22 +157,22 @@ test mapError =
         Error("test"),
         fun x -> Stdlib.String.append(x, "-appended"))
       |> Stdlib.Test.equal(Error("test-appended"))
-      Stdlib.Result.mapError(Ok(4L), fun x -> (x / 2L))
-      |> Stdlib.Test.equal(Ok(4L)) ])
+      Stdlib.Result.mapError(Ok(4), fun x -> (x / 2))
+      |> Stdlib.Test.equal(Ok(4)) ])
 
 test map =
   Stdlib.Test.all(
-    [ Stdlib.Result.map(Error("test"), fun x -> (x / 2L))
+    [ Stdlib.Result.map(Error("test"), fun x -> (x / 2))
       |> Stdlib.Test.equal(Error("test"))
-      Stdlib.Result.map(Ok(4L), fun x -> (x / 2L))
-      |> Stdlib.Test.equal(Ok(2L)) ])
+      Stdlib.Result.map(Ok(4), fun x -> (x / 2))
+      |> Stdlib.Test.equal(Ok(2)) ])
 
 test withDefault =
   Stdlib.Test.all(
-    [ Stdlib.Result.withDefault(Error("test"), 5L)
-      |> Stdlib.Test.equal(5L)
-      Stdlib.Result.withDefault(Ok(6L), 5L)
-      |> Stdlib.Test.equal(6L) ])
+    [ Stdlib.Result.withDefault(Error("test"), 5)
+      |> Stdlib.Test.equal(5)
+      Stdlib.Result.withDefault(Ok(6), 5)
+      |> Stdlib.Test.equal(6) ])
 
 test toOption =
   Stdlib.Test.all(
@@ -227,9 +227,9 @@ test join =
 
 test combine =
   Stdlib.Test.all(
-    [ Stdlib.Result.combine([ Ok(1L), Ok(2L), Ok(3L) ])
-      |> Stdlib.Test.equal(Ok([ 1L, 2L, 3L ]))
-      Stdlib.Result.combine([ Ok(1L), Error("test"), Ok(3L) ])
+    [ Stdlib.Result.combine([ Ok(1), Ok(2), Ok(3) ])
+      |> Stdlib.Test.equal(Ok([ 1, 2, 3 ]))
+      Stdlib.Result.combine([ Ok(1), Error("test"), Ok(3) ])
       |> Stdlib.Test.equal(Error("test"))
       Stdlib.Result.combine([ Error("test1"), Error("test2") ])
       |> Stdlib.Test.equal(Error("test1"))
@@ -238,10 +238,10 @@ test combine =
 
 test values =
   Stdlib.Test.all(
-    [ Stdlib.Result.values([ Ok(1L), Ok(2L), Ok(3L) ])
-      |> Stdlib.Test.equal(Ok([ 1L, 2L, 3L ]))
-      Stdlib.Result.values([ Ok(1L), Error("test"), Ok(3L) ])
-      |> Stdlib.Test.equal(Ok([ 1L, 3L ]))
+    [ Stdlib.Result.values([ Ok(1), Ok(2), Ok(3) ])
+      |> Stdlib.Test.equal(Ok([ 1, 2, 3 ]))
+      Stdlib.Result.values([ Ok(1), Error("test"), Ok(3) ])
+      |> Stdlib.Test.equal(Ok([ 1, 3 ]))
       Stdlib.Result.values([ Error("test1"), Error("test2") ])
       |> Stdlib.Test.equal(Ok([]))
       Stdlib.Result.values([])

@@ -29,7 +29,7 @@ let globalKey(state: State, keyChar: Stdlib.Option.Option<String>): Stdlib.Optio
         { state with
             input = Stdlib.Option.Option.Some(InputState { prompt = "search ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "search" }) }))
   | Some(s) ->
-    match Stdlib.Int.parse(s) with
+    match Stdlib.Int64.parse(s) with
     | Ok(n) -> Stdlib.Option.Option.Some(Step.Continue(jumpToWorkspace(state, n)))
     | Error(_) -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None

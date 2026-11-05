@@ -130,7 +130,7 @@ let execute(state: AppState, args: List<String>): AppState =
       match Stdlib.List.findFirst(args, fun arg -> Stdlib.String.startsWith(arg, "--depth=")) with
       | Some(depthArg) ->
         let depthStr = Stdlib.String.dropFirst(depthArg, 8) // Remove "--depth="
-        match Stdlib.Int.parse(depthStr) with
+        match Stdlib.Int64.parse(depthStr) with
         | Ok(depth) when depth > 0 && depth <= 10 -> Stdlib.Option.Option.Some(depth)
         | _ -> Stdlib.Option.Option.None
       | None -> Stdlib.Option.Option.Some(2) // Default depth of 2 for concise but useful view
@@ -182,8 +182,8 @@ let execute(state: AppState, args: List<String>): AppState =
 let displayTree(
   branchId: Uuid,
   location: PackageLocation,
-  remainingDepth: Int,
-  currentDepth: Int,
+  remainingDepth: Int64,
+  currentDepth: Int64,
   prefix: String,
   depSets: Query.DeprecationSets,
   includeDeprecated: Bool,

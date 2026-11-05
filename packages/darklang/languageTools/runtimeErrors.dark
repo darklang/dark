@@ -66,8 +66,8 @@ module Enums =
     | ConstructionWrongNumberOfFields of
       typeName: FQTypeName.FQTypeName *
       caseName: String *
-      expectedFieldCount: Int *
-      actualFieldCount: Int
+      expectedFieldCount: Int64 *
+      actualFieldCount: Int64
 
     | ConstructionCaseNotFound of
       typeName: FQTypeName.FQTypeName *
@@ -75,7 +75,7 @@ module Enums =
 
     | ConstructionFieldOfWrongType of
       caseName: String *
-      fieldIndex: Int *
+      fieldIndex: Int64 *
       declaredType: Stdlib.Option.Option<TypeReference> *
       expectedType: ValueType *
       actualType: ValueType *
@@ -113,24 +113,24 @@ module Records =
     | FieldAccessFieldNotFound of fieldName: String
     | FieldAccessNotRecord of actualType: ValueType
     /// Invalid or out-of-range tuple index, such as `t.0` or `t.x`.
-    | FieldAccessTupleIndexOutOfRange of fieldName: String * tupleLength: Int
+    | FieldAccessTupleIndexOutOfRange of fieldName: String * tupleLength: Int64
 
 module Applications =
   type Error =
     | ExpectedApplicableButNot of actualType: ValueType * actualValue: Dval
 
-    | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
+    | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
     | CannotApplyTypeArgsMoreThanOnce
-    | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
-    | TooFewArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
-    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+    | TooFewArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
     | FnResultNotExpectedType of fnName : FQFnName.FQFnName * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
-    | LambdaResultNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | LambdaResultNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
     | CannotApplyTypeArgsToLambda
-    | TooManyArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
-    | TooFewArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
+    | TooManyArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
+    | TooFewArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
     | LambdaNotAvailable of lambdaExprId: ID
 
 module Statements =
@@ -182,6 +182,7 @@ module CLIs =
 type Error =
   | Bool of Bools.Error
   | Int of Ints.Error
+  | DecimalOutOfRange
   | String of Strings.Error
 
   | List of Lists.Error
@@ -207,7 +208,7 @@ type Error =
   /// Deprecate op. Override with --allow-harmful on run/eval.
   | DeprecatedItemHalted of target: FQFnName.Package
 
-  | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int * actual: Int
+  | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
 
   | Record of Records.Error
   | Enum of Enums.Error

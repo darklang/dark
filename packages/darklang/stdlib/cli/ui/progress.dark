@@ -5,7 +5,7 @@ module Darklang.Stdlib.Cli.UI.Progress
 /// current: current progress value
 /// total: total value
 /// label: text to show after the bar
-let bar(current: Int, total: Int, label: String): Unit =
+let bar(current: Int64, total: Int64, label: String): Unit =
   let width = 30
 
   let filled =

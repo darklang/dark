@@ -79,11 +79,11 @@ type Context =
     currentModule: List<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
-    currentFunction: Stdlib.Option.Option<(String * Dict<String, Int>)>
+    currentFunction: Stdlib.Option.Option<(String * Dict<String, Int64>)>
 
     /// Columns available. Layout decisions are made against this; it is a field rather than something
     /// looked up so that printing stays reproducible and a caller can print for a pane.
-    width: Int
+    width: Int64
 
     /// The location this definition is being shown under, when the caller knows it.
     ///
@@ -216,7 +216,7 @@ module FQValueName =
       let namePart = t.name
 
       let versionPart =
-        if t.version == 0l then
+        if t.version == 0s32 then
           ""
         else
           $"_v{Stdlib.toString(t.version)}"
@@ -263,7 +263,7 @@ module FQFnName =
       let namePart = t.name
 
       let versionPart =
-        if t.version == 0l then
+        if t.version == 0s32 then
           ""
         else
           $"_v{Stdlib.toString(t.version)}"
@@ -474,6 +474,8 @@ let typeReferenceFlatAtPrecedence(
   | TUInt128 -> "UInt128"
   | TInt -> "Int"
   | TFloat -> "Float"
+  | TFloat32 -> "Float32"
+  | TDecimal -> "Decimal"
   | TChar -> "Char"
   | TString -> "String"
   | TDateTime -> "DateTime"
@@ -598,21 +600,27 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
 
   | MPBool(_id, b) -> Stdlib.toString(b)
 
-  | MPInt8(_id, i) -> (Stdlib.toString(i)) + "y"
-  | MPUInt8(_id, i) -> (Stdlib.toString(i)) + "uy"
-  | MPInt16(_id, i) -> (Stdlib.toString(i)) + "s"
-  | MPUInt16(_id, i) -> (Stdlib.toString(i)) + "us"
-  | MPInt32(_id, i) -> (Stdlib.toString(i)) + "l"
-  | MPUInt32(_id, i) -> (Stdlib.toString(i)) + "ul"
-  | MPInt64(_id, i) -> (Stdlib.toString(i)) + "L"
-  | MPUInt64(_id, i) -> (Stdlib.toString(i)) + "UL"
-  | MPInt128(_id, i) -> (Stdlib.toString(i)) + "Q"
-  | MPUInt128(_id, i) -> (Stdlib.toString(i)) + "Z"
-  | MPInt(_id, i) -> Stdlib.toString(i)
+  | MPInt8(_id, i) -> Stdlib.toString(i) + "s8"
+  | MPUInt8(_id, i) -> Stdlib.toString(i) + "u8"
+  | MPInt16(_id, i) -> Stdlib.toString(i) + "s16"
+  | MPUInt16(_id, i) -> Stdlib.toString(i) + "u16"
+  | MPInt32(_id, i) -> Stdlib.toString(i) + "s32"
+  | MPUInt32(_id, i) -> Stdlib.toString(i) + "u32"
+  | MPInt64(_id, i) -> Stdlib.toString(i)
+  | MPUInt64(_id, i) -> Stdlib.toString(i) + "u64"
+  | MPInt128(_id, i) -> Stdlib.toString(i) + "s128"
+  | MPUInt128(_id, i) -> Stdlib.toString(i) + "u128"
+  | MPInt(_id, i) -> Stdlib.toString(i) + "z"
 
   | MPFloat(_id, sign, whole, remainder) ->
     let remainderPart = PrettyPrinter.processRemainder(remainder)
     $"{PrettyPrinter.sign(sign)}{whole}.{remainderPart}"
+
+  | MPFloat32(_id, sign, whole, remainder) ->
+    let remainderPart = PrettyPrinter.processRemainder(remainder)
+    $"{PrettyPrinter.sign(sign)}{whole}.{remainderPart}f32"
+
+  | MPDecimal(_id, d) -> $"{Stdlib.toString(d)}dec"
 
   | MPChar(_id, c) -> $"'{PrettyPrinter.escapeCharLiteral(c)}'"
   | MPString(_id, s) -> $"\"{PrettyPrinter.escapeSpecialCharacters(s)}\""
@@ -886,7 +894,7 @@ let docOfText(s: String): Stdlib.Pretty.Doc =
 ///   8 `+ -`  9 `* / %`  10 `**` (right)
 /// If that table moves, this has to move with it, or the printer starts emitting parens that change
 /// what the parser builds.
-let infixPower(i: LanguageTools.ProgramTypes.Infix): (Int * Bool) =
+let infixPower(i: LanguageTools.ProgramTypes.Infix): (Int64 * Bool) =
   match i with
   | BinOp(BinOpOr) -> (1, false)
   | BinOp(BinOpAnd) -> (2, false)
@@ -917,9 +925,9 @@ let infixPower(i: LanguageTools.ProgramTypes.Infix): (Int * Bool) =
 /// 0 is for the constructs that swallow whatever follows them -- an `if`, a `match`, a lambda -- which
 /// always need wrapping when they appear inside something else. 100 is everything self-delimiting: a
 /// literal, a variable, a record, an application. Application binds tighter than any operator, so
-/// `factorial n * 2L` needs no parens around the call, which is the main thing the old printer got
+/// `factorial n * 2` needs no parens around the call, which is the main thing the old printer got
 /// wrong by bracketing every operand unconditionally.
-let exprPower(e: LanguageTools.ProgramTypes.Expr): Int =
+let exprPower(e: LanguageTools.ProgramTypes.Expr): Int64 =
   match e with
   | EInfix(_, op, _, _, _) ->
     let (p, _) = infixPower(op)
@@ -940,7 +948,7 @@ let exprPower(e: LanguageTools.ProgramTypes.Expr): Int =
 /// so the left one does.
 let infixOperandNeedsParens(
   operand: LanguageTools.ProgramTypes.Expr,
-  parentPower: Int,
+  parentPower: Int64,
   parentIsRightAssoc: Bool,
   isRightOperand: Bool)
   : Bool =
@@ -1151,7 +1159,7 @@ let exprDoc(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty.Doc
     if annotate then doc else Stdlib.Pretty.group(doc)
 
   // Parenthesise only where precedence or associativity requires it. The old printer wrapped both
-  // operands unconditionally, which turned `n * (factorial n - 1L)` into `(n) * ((factorial n) - (1L))`
+  // operands unconditionally, which turned `n * (factorial n - 1)` into `(n) * ((factorial n) - (1))`
   // and meant printing its own output kept adding brackets.
   | EInfix(_id, infixOp, left, right, _) ->
     let (power, rightAssoc) = infixPower(infixOp)
@@ -1289,22 +1297,29 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
 
   | EBool(_id, b) -> Stdlib.toString(b)
 
-  | EInt8(_id, i) -> Stdlib.toString(i) + "y"
-  | EUInt8(_id, i) -> Stdlib.toString(i) + "uy"
-  | EInt16(_id, i) -> Stdlib.toString(i) + "s"
-  | EUInt16(_id, i) -> Stdlib.toString(i) + "us"
-  | EInt32(_id, i) -> Stdlib.toString(i) + "l"
-  | EUInt32(_id, i) -> Stdlib.toString(i) + "ul"
-  | EInt64(_id, i) -> (Stdlib.toString(i)) + "L"
-  | EUInt64(_id, i) -> (Stdlib.toString(i)) + "UL"
-  | EInt128(_id, i) -> Stdlib.toString(i) + "Q"
-  | EUInt128(_id, i) -> Stdlib.toString(i) + "Z"
-  | EInt(_id, i) -> Stdlib.toString(i)
+  | EInt8(_id, i) -> Stdlib.toString(i) + "s8"
+  | EUInt8(_id, i) -> Stdlib.toString(i) + "u8"
+  | EInt16(_id, i) -> Stdlib.toString(i) + "s16"
+  | EUInt16(_id, i) -> Stdlib.toString(i) + "u16"
+  | EInt32(_id, i) -> Stdlib.toString(i) + "s32"
+  | EUInt32(_id, i) -> Stdlib.toString(i) + "u32"
+  | EInt64(_id, i) -> Stdlib.toString(i)
+  | EUInt64(_id, i) -> Stdlib.toString(i) + "u64"
+  | EInt128(_id, i) -> Stdlib.toString(i) + "s128"
+  | EUInt128(_id, i) -> Stdlib.toString(i) + "u128"
+  | EInt(_id, i) -> Stdlib.toString(i) + "z"
 
   | EFloat(_id, sign, whole, remainder) ->
     let signPart = PrettyPrinter.sign(sign)
     let remainderPart = PrettyPrinter.processRemainder(remainder)
     $"{signPart}{whole}.{remainderPart}"
+
+  | EFloat32(_id, sign, whole, remainder) ->
+    let signPart = PrettyPrinter.sign(sign)
+    let remainderPart = PrettyPrinter.processRemainder(remainder)
+    $"{signPart}{whole}.{remainderPart}f32"
+
+  | EDecimal(_id, d) -> $"{Stdlib.toString(d)}dec"
 
   | EChar(_id, c) -> "'" + (PrettyPrinter.escapeCharLiteral(c)) + "'"
 

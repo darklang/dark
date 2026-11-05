@@ -142,13 +142,13 @@ module Request =
 
 
 type Response =
-  { statusCode: Int
+  { statusCode: Int64
     headers: List<String * String>
     body: Bytes }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param code> and <param response> body.
-let response(body: Bytes, statusCode: Int): Stdlib.Http.Response =
+let response(body: Bytes, statusCode: Int64): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = []
@@ -160,7 +160,7 @@ let response(body: Bytes, statusCode: Int): Stdlib.Http.Response =
 let responseWithHeaders(
   body: Bytes,
   headers: List<String * String>,
-  statusCode: Int)
+  statusCode: Int64)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -180,7 +180,7 @@ let success(body: Bytes): Stdlib.Http.Response =
 /// Content-Type header set to "text/html; charset=utf-8".
 let responseWithHtml(
   body: String,
-  statusCode: Int)
+  statusCode: Int64)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -193,7 +193,7 @@ let responseWithHtml(
 /// Content-Type header set to "text/plain; charset=utf-8".
 let responseWithText(
   text: String,
-  statusCode: Int)
+  statusCode: Int64)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -205,7 +205,7 @@ let responseWithText(
 /// Content-Type header set to "application/json".
 let responseWithJson(
   json: String,
-  statusCode: Int)
+  statusCode: Int64)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -262,7 +262,7 @@ let serverError(error: String): Stdlib.Http.Response =
 
 type Cookie =
   { expires: DateTime
-    maxAge: Int
+    maxAge: Int64
     domain: String
     path: String
     secure: Bool

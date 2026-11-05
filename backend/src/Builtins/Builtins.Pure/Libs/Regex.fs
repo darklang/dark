@@ -54,7 +54,7 @@ let private errorToDT (e : RegexError) : Dval =
   let (caseName, fields) =
     match e with
     | InvalidPattern(message, position) ->
-      "InvalidPattern", [ DString message; Dval.int (bigint position) ]
+      "InvalidPattern", [ DString message; DInt64(int64 position) ]
     | UnsupportedSyntax construct -> "UnsupportedSyntax", [ DString construct ]
     | InvalidUnicodeMatch -> "InvalidUnicodeMatch", []
     | MatchLimitExceeded -> "MatchLimitExceeded", []
@@ -234,8 +234,8 @@ let private scan
       rangeType,
       [],
       Map
-        [ "start", Dval.int (bigint (positions.Floor start))
-          "end", Dval.int (bigint (positions.Ceiling finish)) ]
+        [ "start", DInt64(int64 (positions.Floor start))
+          "end", DInt64(int64 (positions.Ceiling finish)) ]
     )
 
   let capture (g : Group) : Option<Dval> =

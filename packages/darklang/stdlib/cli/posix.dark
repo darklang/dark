@@ -5,14 +5,14 @@ module Darklang.Stdlib.Cli.Posix
 
 /// Structured error from posix operations, carrying the errno code.
 type Error =
-  { errno: Int
+  { errno: Int64
     message: String }
 
 /// Result of a stat() call.
 type StatResult =
-  { mode: Int
-    size: Int
-    mtimeSec: Int }
+  { mode: Int64
+    size: Int64
+    mtimeSec: Int64 }
 
 /// Standard permission modes
 module Modes =
@@ -25,29 +25,29 @@ module Modes =
 
 // -- Open flags ---------------------------------------------------
 module OpenFlags =
-  let rdonly(): Int = 0
-  let wronly(): Int = 1
-  let rdwr(): Int = 2
-  let creat(): Int = Stdlib.Cli.Posix.__abiOpenCreate()
-  let trunc(): Int = Stdlib.Cli.Posix.__abiOpenTruncate()
-  let append(): Int = Stdlib.Cli.Posix.__abiOpenAppend()
+  let rdonly(): Int64 = 0
+  let wronly(): Int64 = 1
+  let rdwr(): Int64 = 2
+  let creat(): Int64 = Stdlib.Cli.Posix.__abiOpenCreate()
+  let trunc(): Int64 = Stdlib.Cli.Posix.__abiOpenTruncate()
+  let append(): Int64 = Stdlib.Cli.Posix.__abiOpenAppend()
 
 
 /// Open a file. Returns a file descriptor.
-let openFile(path: String, flags: Int, mode: Int): Result.Result<Int, Error> =
+let openFile(path: String, flags: Int64, mode: Int64): Result.Result<Int, Error> =
   Builtin.syscallOpen(path, flags, mode)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 
 /// Read up to `count` bytes from an open file descriptor.
-let fdRead(fd: Int, count: Int): Result.Result<Bytes, Error> =
+let fdRead(fd: Int, count: Int64): Result.Result<Bytes, Error> =
   Builtin.syscallRead(fd, count)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
-let fdWrite(fd: Int, bytes: Bytes): Result.Result<Int, Error> =
+let fdWrite(fd: Int, bytes: Bytes): Result.Result<Int64, Error> =
   Stdlib.Cli.Posix.__writeAll((fun chunk -> Builtin.syscallWrite(fd, chunk) |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)), bytes, 0)
 
 
@@ -72,7 +72,7 @@ let fdReadAll(
 
 
 /// Seek to a byte offset from the start of an open file.
-let fdSeekFromStart(fd: Int, offset: Int): Result.Result<Int, Error> =
+let fdSeekFromStart(fd: Int, offset: Int64): Result.Result<Int64, Error> =
   Builtin.syscallLseek(fd, offset, 0)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
@@ -96,7 +96,7 @@ let chdir(path: String): Result.Result<Unit, Error> =
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 /// Create a directory
-let mkdir(path: String, mode: Int): Result.Result<Unit, Error> =
+let mkdir(path: String, mode: Int64): Result.Result<Unit, Error> =
   Builtin.syscallMkdir(path, mode)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
@@ -116,7 +116,7 @@ let rename(oldpath: String, newpath: String): Result.Result<Unit, Error> =
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 /// Change file permissions
-let chmod(path: String, mode: Int): Result.Result<Unit, Error> =
+let chmod(path: String, mode: Int64): Result.Result<Unit, Error> =
   Builtin.syscallChmod(path, mode)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
@@ -191,7 +191,7 @@ let uname(): Result.Result<(String * String * String), Error> =
 
 
 /// Send a signal to a process
-let kill(pid: Int, signal: Int): Result.Result<Unit, Error> =
+let kill(pid: Int64, signal: Int64): Result.Result<Unit, Error> =
   Builtin.syscallKill(pid, signal)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
@@ -245,7 +245,7 @@ let isDirectory(path: String): Bool =
 
 /// Check if a process is running via kill(pid, 0).
 /// Signal 0 checks process existence without sending a signal.
-let isProcessRunning(pid: Int): Bool =
+let isProcessRunning(pid: Int64): Bool =
   match kill(pid, 0) with
   | Ok(_) -> true
   | Error(e) ->
@@ -297,47 +297,47 @@ let __abiX64(): Bool = Builtin.runtimeTargetArchitecture() == "x64"
 
 let __abiArm32(): Bool = Builtin.runtimeTargetArchitecture() == "arm"
 
-let __abiOpenCreate(): Int = if __abiMac() then 512 else 64
+let __abiOpenCreate(): Int64 = if __abiMac() then 512 else 64
 
-let __abiOpenTruncate(): Int = if __abiMac() then 1024 else 512
+let __abiOpenTruncate(): Int64 = if __abiMac() then 1024 else 512
 
-let __abiOpenAppend(): Int = if __abiMac() then 8 else 1024
+let __abiOpenAppend(): Int64 = if __abiMac() then 8 else 1024
 
-let __abiOpenExclusive(): Int = if __abiMac() then 2048 else 128
+let __abiOpenExclusive(): Int64 = if __abiMac() then 2048 else 128
 
-let __abiRemoveDirectory(): Int = if __abiMac() then 128 else 512
+let __abiRemoveDirectory(): Int64 = if __abiMac() then 128 else 512
 
-let __abiOpenDirectory(): Int =
+let __abiOpenDirectory(): Int64 =
   if __abiMac() then 1048576 else if __abiX64() then 65536 else 16384
 
-let __abiStatModeOffset(): Int =
+let __abiStatModeOffset(): Int64 =
   if __abiMac() then 4 else if __abiX64() then 24 else if __abiArm32() then 16 else 16
 
-let __abiStatModeWidth(): Int = if __abiMac() then 2 else 4
+let __abiStatModeWidth(): Int64 = if __abiMac() then 2 else 4
 
-let __abiStatUidOffset(): Int =
+let __abiStatUidOffset(): Int64 =
   if __abiMac() then 16 else if __abiX64() then 28 else if __abiArm32() then 24 else 24
 
-let __abiStatSizeOffset(): Int =
+let __abiStatSizeOffset(): Int64 =
   if __abiMac() then 96 else if __abiX64() then 48 else if __abiArm32() then 48 else 48
 
-let __abiStatMtimeOffset(): Int =
+let __abiStatMtimeOffset(): Int64 =
   if __abiMac() then 48 else if __abiX64() then 88 else if __abiArm32() then 80 else 88
 
-let __abiStatTimeWidth(): Int = if __abiArm32() then 4 else 8
+let __abiStatTimeWidth(): Int64 = if __abiArm32() then 4 else 8
 
-let __abiStatDeviceWidth(): Int = if __abiMac() then 4 else 8
+let __abiStatDeviceWidth(): Int64 = if __abiMac() then 4 else 8
 
-let __abiStatInodeOffset(): Int = if __abiArm32() then 96 else 8
+let __abiStatInodeOffset(): Int64 = if __abiArm32() then 96 else 8
 
-let __abiDirectoryNameOffset(): Int = if __abiMac() then 21 else 19
+let __abiDirectoryNameOffset(): Int64 = if __abiMac() then 21 else 19
 
 
 /// Bounds-checked decoding of kernel byte records. No OS effects occur here.
 
 /// <param width> bytes of <param bytes> from <param offset>, little-endian.
-let __kernelField(bytes: Bytes, offset: Int, width: Int)
-  : Result.Result<Int, Int> =
+let __kernelField(bytes: Bytes, offset: Int64, width: Int64)
+  : Result.Result<Int64, Int64> =
   if width == 0 then Ok(0)
   else
     match Stdlib.Bytes.getAt(bytes, offset) with
@@ -345,10 +345,10 @@ let __kernelField(bytes: Bytes, offset: Int, width: Int)
     | Some(byte) ->
       match __kernelField(bytes, offset + 1, width - 1) with
       | Error(e) -> Error(e)
-      | Ok(high) -> Ok(Stdlib.Int.fromUInt8(byte) + 256 * high)
+      | Ok(high) -> Ok(Stdlib.Int64.fromUInt8(byte) + 256 * high)
 
-let __kernelSignedField(bytes: Bytes, offset: Int, width: Int)
-  : Result.Result<Int, Int> =
+let __kernelSignedField(bytes: Bytes, offset: Int64, width: Int64)
+  : Result.Result<Int64, Int64> =
   match __kernelField(bytes, offset, width) with
   | Error(e) -> Error(e)
   | Ok(n) ->
@@ -356,9 +356,9 @@ let __kernelSignedField(bytes: Bytes, offset: Int, width: Int)
     Ok(if n >= modulus / 2 then n - modulus else n)
 
 type __KernelMetadata =
-  { mode: Int, size: Int, mtimeSec: Int, uid: Int, device: Int, inode: Int }
+  { mode: Int64, size: Int64, mtimeSec: Int64, uid: Int64, device: Int64, inode: Int64 }
 
-let __kernelMetadata(bytes: Bytes): Result.Result<__KernelMetadata, Int> =
+let __kernelMetadata(bytes: Bytes): Result.Result<__KernelMetadata, Int64> =
   __kernelField(bytes, Stdlib.Cli.Posix.__abiStatModeOffset(), Stdlib.Cli.Posix.__abiStatModeWidth())
   |> Stdlib.Result.andThen(fun mode ->
     __kernelSignedField(bytes, Stdlib.Cli.Posix.__abiStatSizeOffset(), 8)
@@ -375,8 +375,8 @@ let __kernelMetadata(bytes: Bytes): Result.Result<__KernelMetadata, Int> =
                          device = device, inode = inode }))))))
 
 /// Decode records within one read, from <param at> to the end of it.
-let __kernelEntriesFrom(bytes: Bytes, at: Int, reversed: List<String>)
-  : Result.Result<List<String>, Int> =
+let __kernelEntriesFrom(bytes: Bytes, at: Int64, reversed: List<String>)
+  : Result.Result<List<String>, Int64> =
   let remaining = Stdlib.Bytes.length(bytes) - at
   if remaining <= 0 then Ok(reversed)
   else
@@ -387,7 +387,7 @@ let __kernelEntriesFrom(bytes: Bytes, at: Int, reversed: List<String>)
       else
         let nameStart = at + nameOffset
         let recordEnd = at + length
-        match Stdlib.Bytes.indexOfFrom(bytes, 0uy, nameStart) with
+        match Stdlib.Bytes.indexOfFrom(bytes, 0u8, nameStart) with
         | Some(nul) when nul < recordEnd ->
           match Stdlib.Bytes.slice(bytes, nameStart, nul) with
           | Ok(nameBytes) ->
@@ -400,14 +400,14 @@ let __kernelEntriesFrom(bytes: Bytes, at: Int, reversed: List<String>)
         | _ -> Error(5))
 
 let __kernelEntries(bytes: Bytes, reversed: List<String>)
-  : Result.Result<List<String>, Int> =
+  : Result.Result<List<String>, Int64> =
   __kernelEntriesFrom(bytes, 0, reversed)
 
 
 /// Directory iteration and record decoding over single-call kernel primitives.
 
 let __directoryReadAll(fd: Int, reversed: List<String>)
-  : Result.Result<List<String>, Int> =
+  : Result.Result<List<String>, Int64> =
   match Builtin.syscallGetdents(fd, 32768) with
   | Error(e) ->
     if e == 4 then __directoryReadAll(fd, reversed) else Error(e)
@@ -431,8 +431,8 @@ let __directoryList(path: String): Result.Result<List<String>, Posix.Error> =
 
 /// Path buffer growth and text decoding over one-call kernel primitives.
 
-let __pathReadlinkWith(read: Int -> Result.Result<Bytes, Int>, count: Int)
-  : Result.Result<Bytes, Int> =
+let __pathReadlinkWith(read: Int64 -> Result.Result<Bytes, Int64>, count: Int64)
+  : Result.Result<Bytes, Int64> =
   if count <= 0 then Error(22)
   else
     match read(count) with
@@ -448,8 +448,8 @@ let __pathReadlink(path: String): Result.Result<String, Posix.Error> =
   |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
-let __pathCwdWith(read: Int -> Result.Result<Bytes, Int>, count: Int)
-  : Result.Result<Bytes, Int> =
+let __pathCwdWith(read: Int64 -> Result.Result<Bytes, Int64>, count: Int64)
+  : Result.Result<Bytes, Int64> =
   if count <= 0 then Error(22)
   else
     match read(count) with
@@ -460,7 +460,7 @@ let __pathCwdWith(read: Int -> Result.Result<Bytes, Int>, count: Int)
 
 let __pathPathText(bytes: Bytes): String =
   let text =
-    match Stdlib.Bytes.indexOf(bytes, 0uy) with
+    match Stdlib.Bytes.indexOf(bytes, 0u8) with
     | Some(nul) -> Stdlib.Bytes.take(bytes, nul)
     | None -> bytes
   Stdlib.Utf8.decodeWithReplacement(text)
@@ -487,7 +487,7 @@ let __pathGetCwd(): Result.Result<String, Posix.Error> =
 /// Kernel errno is platform-specific; permission and host diagnostics stay intact.
 
 // Keep errno rendering shared while the engines have different ToString APIs.
-let __decimal(value: Int): String =
+let __decimal(value: Int64): String =
     if value < 0 then Stdlib.String.append("-", __decimal(0 - value))
     else
         let quotient = value / 10
@@ -501,7 +501,7 @@ let __decimal(value: Int): String =
         if quotient == 0 then suffix
         else Stdlib.String.append(__decimal(quotient), suffix)
 
-let __macMessage(errno: Int): String =
+let __macMessage(errno: Int64): String =
     if errno == 1 then "Operation not permitted"
     else if errno == 2 then "No such file or directory"
     else if errno == 3 then "No such process"
@@ -611,7 +611,7 @@ let __macMessage(errno: Int): String =
     else if errno == 107 then "Capabilities insufficient"
     else Stdlib.String.append("Unknown error: ", __decimal(errno))
 
-let __fromErrno(errno: Int): Stdlib.Cli.Posix.Error =
+let __fromErrno(errno: Int64): Stdlib.Cli.Posix.Error =
     let message =
         if Stdlib.Cli.Posix.__abiMac() then __macMessage(errno)
         else if errno == 1 then "Operation not permitted"
@@ -753,10 +753,10 @@ let __fromErrno(errno: Int): Stdlib.Cli.Posix.Error =
 /// Complete a descriptor write when the kernel accepts only part of a buffer.
 
 let __writeAll(
-  write: Bytes -> Result.Result<Int, Stdlib.Cli.Posix.Error>,
+  write: Bytes -> Result.Result<Int64, Stdlib.Cli.Posix.Error>,
   bytes: Bytes,
-  written: Int)
-  : Result.Result<Int, Stdlib.Cli.Posix.Error> =
+  written: Int64)
+  : Result.Result<Int64, Stdlib.Cli.Posix.Error> =
   let length = Stdlib.Bytes.length(bytes)
   if length == 0 then Stdlib.Result.Result.Ok(written)
   else
@@ -776,7 +776,7 @@ let __writeAll(
 
 /// Account-file parsing ported from the compiler's Cli.Env implementation.
 
-let __accountFieldFromPasswd(lines: List<String>, uid: String, index: Int): Stdlib.Option.Option<String> =
+let __accountFieldFromPasswd(lines: List<String>, uid: String, index: Int64): Stdlib.Option.Option<String> =
   match lines with
   | [] -> Stdlib.Option.Option.None
   | [line, ...rest] ->
@@ -788,7 +788,7 @@ let __accountFieldFromPasswd(lines: List<String>, uid: String, index: Int): Stdl
     | _ -> __accountFieldFromPasswd(rest, uid, index)
 
 /// Reading the fixed account file uses the ordinary checked filesystem boundary.
-let __accountLookup(uid: String, index: Int): Stdlib.Option.Option<String> =
+let __accountLookup(uid: String, index: Int64): Stdlib.Option.Option<String> =
   match Stdlib.Cli.FileSystem.readFileAsString("/etc/passwd") with
   | Ok(contents) -> __accountFieldFromPasswd(Stdlib.String.splitOnNewline(contents), uid, index)
   | Error(_) -> Stdlib.Option.Option.None
@@ -796,7 +796,7 @@ let __accountLookup(uid: String, index: Int): Stdlib.Option.Option<String> =
 
 /// Collision retries for exclusive temporary-entry creation.
 
-let __tempEntropy(remaining: Int, reversed: List<Bytes>): Result.Result<Bytes, Int> =
+let __tempEntropy(remaining: Int64, reversed: List<Bytes>): Result.Result<Bytes, Int64> =
   if remaining == 0 then Ok(Stdlib.Bytes.concatAll(Stdlib.List.reverse(reversed)))
   else
     match Builtin.syscallGetentropy(remaining) with
@@ -812,8 +812,8 @@ let __tempCandidate(prefix: String): Result.Result<String, Stdlib.Cli.Posix.Erro
   |> Stdlib.Result.map(fun bytes -> Stdlib.String.append(prefix, Stdlib.Hex.encode(bytes)))
 
 let __tempRetry(
-  create: Int -> Result.Result<'a, Stdlib.Cli.Posix.Error>,
-  remaining: Int)
+  create: Int64 -> Result.Result<'a, Stdlib.Cli.Posix.Error>,
+  remaining: Int64)
   : Result.Result<'a, Stdlib.Cli.Posix.Error> =
   match create(remaining) with
   | Error(error) ->

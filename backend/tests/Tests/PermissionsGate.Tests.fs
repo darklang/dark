@@ -755,9 +755,9 @@ let private servingFn
     eApply
       (eBuiltinFn "httpServerServe" 0)
       []
-      [ PT.EInt(gid (), bigint port)
+      [ PT.EInt64(gid (), int64 port)
         handler
-        PT.EInt(gid (), 1000I)
+        PT.EInt64(gid (), 1000L)
         eBool true
         eBool true
         eBool false

@@ -60,7 +60,7 @@ type Node<'msg> =
   | Button of label: String * 'msg
   | Link of label: String * href: String
   /// `node` in a box of exactly this many rows and columns (clipped, or padded).
-  | Region of rows: Int * cols: Int * Node<'msg>
+  | Region of rows: Int64 * cols: Int64 * Node<'msg>
   /// A full-width message in the severity's colour. This is where a diagnostic goes when the host
   /// keeps the last good frame under it.
   | Band of Severity * String
@@ -92,7 +92,7 @@ let table(columns: List<String>, rows: List<List<String>>): Node<'msg> =
 // --- measuring ---
 
 /// The width of the widest cell in each column of a table, headers included.
-let tableWidths(columns: List<String>, rows: List<List<String>>): List<Int> =
+let tableWidths(columns: List<String>, rows: List<List<String>>): List<Int64> =
   columns
   |> Stdlib.List.indexedMap(fun(i, header) ->
     let headerWidth = Stdlib.String.displayWidth(header)
@@ -104,7 +104,7 @@ let tableWidths(columns: List<String>, rows: List<List<String>>): List<Int> =
       | None -> widest))
 
 /// The size a node would take if nothing constrained it: (rows, cols).
-let measure(node: Node<'msg>): (Int * Int) =
+let measure(node: Node<'msg>): (Int64 * Int64) =
   match node with
   | Text(s) -> (1, Stdlib.String.displayWidth(s))
   | Styled(_, inner) -> measure(inner)
@@ -202,7 +202,7 @@ let severityCode(severity: Severity): String =
 
 /// A sub-region: `rows` rows starting `top` rows down and `left` columns in, `cols` wide, never
 /// reaching outside the parent.
-let sub(region: Layout.Region, top: Int, left: Int, rows: Int, cols: Int): Layout.Region =
+let sub(region: Layout.Region, top: Int64, left: Int64, rows: Int64, cols: Int64): Layout.Region =
   Layout.Region
     { top = region.top + top
       left = region.left + left
@@ -211,11 +211,11 @@ let sub(region: Layout.Region, top: Int, left: Int, rows: Int, cols: Int): Layou
 
 /// Does every cell in column <param i> read as a number? Those columns right-align, the way a
 /// person lines up figures; text stays left.
-let isNumericColumn(rows: List<List<String>>, i: Int): Bool =
+let isNumericColumn(rows: List<List<String>>, i: Int64): Bool =
   let cells = rows |> Stdlib.List.filterMap(fun r -> Stdlib.List.getAt(r, i))
 
   (Stdlib.Bool.not(Stdlib.List.isEmpty(cells)))
-  && (cells |> Stdlib.List.all(fun c -> (c == "") || (Stdlib.Result.isOk(Stdlib.Int.parse(c)))))
+  && (cells |> Stdlib.List.all(fun c -> (c == "") || (Stdlib.Result.isOk(Stdlib.Int64.parse(c)))))
 
 /// The text rows of a table: header, rule, rows, each cell padded to its column; numeric columns
 /// right-aligned.
@@ -250,14 +250,14 @@ let paint(
   focus: String,
   style: String)
   : List<Layout.Span> =
-  let textAt(r: Int, s: String): List<Layout.Span> =
+  let textAt(r: Int64, s: String): List<Layout.Span> =
     let shown = if style == "" then s else Colors.colorize(style, s)
     Layout.at(region, r, 0, shown)
 
   if region.rows <= 0 || region.cols <= 0 then
     []
   else
-    let stack(children: List<Node<'msg>>, indent: Int, marker: String): List<Layout.Span> =
+    let stack(children: List<Node<'msg>>, indent: Int64, marker: String): List<Layout.Span> =
     let (_top, chunks) =
       children
       |> Stdlib.List.fold((0, []), fun(acc, child) ->
@@ -331,7 +331,7 @@ let toSpans(node: Node<'msg>, region: Layout.Region, focus: String): List<Layout
 
 /// Paint <param node> as styled rows at <param width>, as tall as it measures, with <param focus>
 /// marked: what a host windows when the tree is taller than its pane.
-let toRows(node: Node<'msg>, width: Int, focus: String): List<String> =
+let toRows(node: Node<'msg>, width: Int64, focus: String): List<String> =
   let (rows, _) = measure(node)
   let w = Stdlib.max(1, width)
   let region = Layout.Region { top = 1, left = 1, rows = rows, cols = w }
@@ -339,11 +339,11 @@ let toRows(node: Node<'msg>, width: Int, focus: String): List<String> =
 
 /// Paint <param node> as plain rows at <param width>, as tall as it measures: for printing a tree
 /// to stdout (a one-shot command) rather than into a frame.
-let toLines(node: Node<'msg>, width: Int): List<String> = toRows(node, width, "")
+let toLines(node: Node<'msg>, width: Int64): List<String> = toRows(node, width, "")
 
 /// The row a focusable node with <param id> is painted on, so a host can scroll it into view.
-let rowOf(node: Node<'msg>, id: String): Stdlib.Option.Option<Int> =
-  let find(n: Node<'msg>, top: Int): Stdlib.Option.Option<Int> =
+let rowOf(node: Node<'msg>, id: String): Stdlib.Option.Option<Int64> =
+  let find(n: Node<'msg>, top: Int64): Stdlib.Option.Option<Int64> =
     match n with
     | Input(spec) -> if spec.id == id then Stdlib.Option.Option.Some(top) else Stdlib.Option.Option.None
     | Button(label, _) -> if label == id then Stdlib.Option.Option.Some(top) else Stdlib.Option.Option.None

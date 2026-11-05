@@ -23,9 +23,9 @@ module Darklang.Stdlib.Cli.UI.Canvas
 
 /// A placed run of text, with its width measured once.
 type Segment =
-  { col: Int
+  { col: Int64
     text: String
-    width: Int }
+    width: Int64 }
 
 
 /// Lay `next` over `existing`, trimming whatever it covers.
@@ -74,7 +74,7 @@ let overlay(existing: List<Segment>, next: Segment): List<Segment> =
 
 
 /// Render placed segments into one row, padding the gaps between them with spaces.
-let renderSegments(width: Int, segments: List<Segment>): String =
+let renderSegments(width: Int64, segments: List<Segment>): String =
   let (text, _endCol) =
     segments
     |> Stdlib.List.fold(("", 0), fun(acc, seg) ->
@@ -109,7 +109,7 @@ let renderSegments(width: Int, segments: List<Segment>): String =
 
 
 /// Paint one row's spans, in order.
-let composeRow(width: Int, rowSpans: List<Layout.Span>): String =
+let composeRow(width: Int64, rowSpans: List<Layout.Span>): String =
   // `renderSegments` walks the segments left to right, so they have to be in column order. Sorting
   // them there cost a `sortBy` per row, to reorder rows a renderer had already produced left to
   // right.
@@ -153,7 +153,7 @@ let composeRow(width: Int, rowSpans: List<Layout.Span>): String =
 ///
 /// Spans are bucketed by row in one pass. Doing it the obvious way (filter the whole span list once per row)
 /// is quadratic, and a full-screen frame has enough of both to make that hurt.
-let compose(width: Int, height: Int, spans: List<Layout.Span>): List<String> =
+let compose(width: Int64, height: Int64, spans: List<Layout.Span>): List<String> =
   let w = Stdlib.max(1, width)
   let h = Stdlib.max(0, height)
 

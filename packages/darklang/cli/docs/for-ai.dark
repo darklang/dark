@@ -46,21 +46,21 @@ refuses a save.
 Create several declarations atomically:
 
   module /Me.Example - <<'EOF'
-  type State = { count: Int }
-  let double(n: Int): Int = n * 2
-  let main(n: Int): Int = double(n)
+  type State = { count: Int64 }
+  let double(n: Int64): Int64 = n * 2
+  let main(n: Int64): Int64 = double(n)
   EOF
 
 For one function, stdin accepts a complete declaration; the shorter signature
 and body fragment remains valid:
 
   fn /Me.Example.double - <<'EOF'
-  let double(n: Int): Int = n * 2
+  let double(n: Int64): Int64 = n * 2
   EOF
 
 At module scope values use `val name = value`; `let` declares functions. Inside
 a function, local values use `let`. Nested helpers annotate every parameter
-(the return type is optional; neither is checked): `let helper(x: Int): Int = ...`.
+(the return type is optional; neither is checked): `let helper(x: Int64): Int64 = ...`.
 
 `fn`, `type`, `val` and `module` run the at-rest type checker on what they save
 and print its findings; the save goes through regardless (WIP is yours to break).
@@ -134,7 +134,7 @@ body; the body may be any expression and passes only when the rendered message
 matches exactly:
 
   test divisionByZero =
-    (1L / 0L)
+    (1 / 0)
     => raises "Cannot divide by 0"
 
 
@@ -166,7 +166,8 @@ never against what you typed.
 - `|>` passes the value on its left in as the first argument. If that value is
   an `if` or `match`, put it in parentheses, or only its last branch gets piped.
 - Strings concatenate with `+`. Interpolation uses the type's `ToString` implementation.
-- Bare integers are arbitrary-precision `Int`; numeric operands must have one type.
+- A bare integer is an `Int64` and a bare `1.5` a `Float`; numeric operands must
+  have one type. Other number types take a suffix (table in Critical Syntax).
 - Local values use `let max = 6` without annotations; package values use `val`.
 - Record construction is `State { count = 0 }`; update is `{ state with count = 1 }`.
 - `f(x)?` extracts Ok/Some or immediately returns Error/None from the
@@ -384,9 +385,9 @@ Rules:
   `f a b` is a parse error.
 - No partial application: a call gives every argument, and too few is an error,
   not a function. To supply the rest later, write a lambda: `fun x -> Stdlib.max(1, x)`.
-- Declarations list their parameters the same way: `let add(a: Int, b: Int): Int = a + b`.
+- Declarations list their parameters the same way: `let add(a: Int64, b: Int64): Int64 = a + b`.
 - Nested function definitions need PARENTHESIZED, annotated params:
-  `let helper(x: Int): Int = ...`. The return type is optional, and neither
+  `let helper(x: Int64): Int64 = ...`. The return type is optional, and neither
   annotation is checked. The parser desugars this to a local lambda, so
   use it for task-local helpers. A nested fn can call one defined above it; a FORWARD
   reference to one defined below fails, and so does mutual recursion.
@@ -406,7 +407,7 @@ Rules:
 - Spread joins lists: `[x, ...xs]`, `[...a, ...b]`. There is no `::` or `@`.
 - Dicts and records use commas or newlines, never semicolons:
   `Dict { "a": 1, "b": 2 }`, `Point { x = 1, y = 2 }`,
-  `type Point = { x: Int, y: Int }`, `{ point with x = 3, y = 4 }`.
+  `type Point = { x: Int64, y: Int64 }`, `{ point with x = 3, y = 4 }`.
 - Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
   double quotes; "a" is not 'a')
 - Tuples destructure inline in `let` and in lambda params:
@@ -420,9 +421,18 @@ Rules:
   Power Negate; `< <= > >=` are Compare; `& | ^ << >>` and `~x` are BitwiseAnd BitwiseOr
   BitwiseXor ShiftLeft ShiftRight BitwiseNot. `==` and `!=` are NOT traits: structural on
   every value, always, and no type can override them.
-  Operands must match (`1 + 2`, `1.0 + 2.0`; `1L + 2.0` is an error). `/` is
+  Operands must match (`1 + 2`, `1.0 + 2.0`; `1 + 2.0` is an error). `/` is
   integer division on ints, float on floats; `**` is power; a bare `1` is an
-  arbitrary-precision `Int` and never overflows. `"a" + "b"` is `"ab"`.
+  `Int64`, which wraps on overflow. `"a" + "b"` is `"ab"`.
+  `19.99dec` is a `Decimal`: exact base-10, the type for money; `Stdlib.Decimal.round`,
+  `roundWith` (a `RoundingMode`), `floor`, `ceiling`, `power`, `parse`, `toParts`.
+- Number literals. The suffix decides the type; nothing infers it:
+    1, 1s, 1s64   Int64          1u, 1u64   UInt64
+    1s8 1s16 1s32 1s128          1u8 1u16 1u32 1u128
+    1z            Int            1.5, 1e5, 1.5f64   Float
+    1.5f32        Float32        19.99dec   Decimal (no exponent)
+  `z` is for ℤ, the integers: `1z` has no size limit.
+  Values print with their suffix except Int64 and Float, so output pastes back as itself.
 - Traits: `impl Add for Vec = let add(a: Vec, b: Vec): Vec = ...` gives Vec
   a `+`; `impl ToString for Point = let toString(p: Point): String = ...`
   gives `p.toString`; your own with `trait Area<'a> = let area(s: 'a): Float`.
@@ -431,7 +441,7 @@ Rules:
   call sees (active, shadowed, unordered); `dark constraints --json` has the rival
   pairs; `docs traits`.
 - Bitwise operators have implementations for every integer type and none for
-  Float; both operands (the shift count included) must be the same type.
+  Float or Float32; both operands (the shift count included) must be the same type.
 - `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
   there needs parens: `| A -> (a | b)`.
 

@@ -3,27 +3,27 @@ module Darklang.Language.Tests.Collections
 test listLiterals =
   Stdlib.Test.all(
     [ [] |> Stdlib.Test.equal([])
-      [ 1L ] |> Stdlib.Test.equal([ 1L ])
-      [ 1L, 2L ] |> Stdlib.Test.equal([ 1L, 2L ])
-      [ 5L, 1L + 5L, 0L ] |> Stdlib.Test.equal([ 5L, 6L, 0L ]) ])
+      [ 1 ] |> Stdlib.Test.equal([ 1 ])
+      [ 1, 2 ] |> Stdlib.Test.equal([ 1, 2 ])
+      [ 5, 1 + 5, 0 ] |> Stdlib.Test.equal([ 5, 6, 0 ]) ])
 
 test listRaisesElementError =
-  [ 5L, Stdlib.Test.raiseRuntimeError("test"), 0L ]
+  [ 5, Stdlib.Test.raiseRuntimeError("test"), 0 ]
   => raises "Uncaught exception: test"
 
 test listRaisesFirstElementError =
-  [ 5L, Stdlib.Test.raiseRuntimeError("1"), Stdlib.Test.raiseRuntimeError("2") ]
+  [ 5, Stdlib.Test.raiseRuntimeError("1"), Stdlib.Test.raiseRuntimeError("2") ]
   => raises "Uncaught exception: 1"
 
 // A list holds one type; the first element of another type raises.
 test mixedListRaises =
-  [ 1L, true ] => raises "Cannot add a Bool (true) to a list of Int64. Failed at index 1."
+  [ 1, true ] => raises "Cannot add a Bool (true) to a list of Int64. Failed at index 1."
 
 test dictLiterals =
   Stdlib.Test.all(
-    [ (Dict { "a": 5L } |> Stdlib.Dict.get("a")) |> Stdlib.Test.equal(Some(5L))
-      (Dict { "": 5L } |> Stdlib.Dict.get("")) |> Stdlib.Test.equal(Some(5L))
-      (Dict { "a": 5L } |> Stdlib.Dict.get("b")) |> Stdlib.Test.equal(None) ])
+    [ (Dict { "a": 5 } |> Stdlib.Dict.get("a")) |> Stdlib.Test.equal(Some(5))
+      (Dict { "": 5 } |> Stdlib.Dict.get("")) |> Stdlib.Test.equal(Some(5))
+      (Dict { "a": 5 } |> Stdlib.Dict.get("b")) |> Stdlib.Test.equal(None) ])
 
 // A key written twice in a literal keeps its last value.
 test dictLiteralLastDuplicateWins =

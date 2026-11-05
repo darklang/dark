@@ -8,15 +8,15 @@ let smoke = false
 let _smokeNotice =
   if smoke then Stdlib.printLine("SMOKE CHECK: figures are not performance measurements") else ()
 
-let measure(label: String, f: Int -> Int): Unit =
-  let run(n: Int): Int =
+let measure(label: String, f: Int64 -> Int64): Unit =
+  let run(n: Int64): Int64 =
     Stdlib.List.fold(Stdlib.List.range(1, n), 0, fun(acc, i) ->
       if (f(i)) == -987654321 then acc + 1 else acc)
   let _warm = run((if smoke then 2 else 50))
   let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
   let result = run((if smoke then 3 else 2000))
   let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
-  Stdlib.debug(label, (after - before) / (if smoke then 3L else 2000L))
+  Stdlib.debug(label, (after - before) / (if smoke then 3 else 2000))
   if result == 0 then () else Stdlib.debug("unexpected result", result)
 
 let probe(label: String, text: String): Unit =
@@ -38,6 +38,6 @@ let main(): Int64 =
   probe("16 bytes", "0123456789abcdef")
   probe("64 KiB", Stdlib.String.repeat("x", 65536))
   measure("baseline again", fun i -> i)
-  0L
+  0
 
 main()

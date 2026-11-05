@@ -35,7 +35,7 @@ type StatusJson =
     /// Outstanding Constraint findings. A COUNT here rather than the list, because they're a standing
     /// property of the STORE, not of this draft -- `dark constraints --json` is where the list lives, and
     /// duplicating it would make two things that can disagree.
-    constraints: Int }
+    constraints: Int64 }
 
 /// What `dark commit` did. Everything StatusJson has, plus the outcome. `commit` is the commit's id;
 /// `committed` is false when the review ran but you declined, so an agent can tell "nothing to do" from
@@ -50,7 +50,7 @@ type CommitJson =
     commit: String
     message: String
     opsCommitted: Int64
-    dependentsRepointed: Int
+    dependentsRepointed: Int64
     changed: List<ChangedItem>
     /// Fully-qualified names the draft removes.
     removed: List<String>
@@ -94,7 +94,7 @@ let conflictWithFqn(c: SCM.Conflicts.Conflict): ConflictJson =
 
 /// What `dark conflicts` returns for a list or a preview.
 type ConflictListJson =
-  { pending: Int
+  { pending: Int64
     conflicts: List<ConflictJson> }
 
 /// The result of acting on one conflict (ack / override).
@@ -153,7 +153,7 @@ let branchesJson(bs: List<BranchJson>): String =
 /// mean committing to a JSON shape for every expression form, which is a large promise to keep stable for
 /// a surface whose question is "what did I do, in order".
 type BranchOpJson =
-  { seq: Int
+  { seq: Int64
     op: String }
 
 let branchOpsJson(os: List<BranchOpJson>): String =
@@ -230,7 +230,7 @@ let changedItems(branchId: Uuid, propagated: List<String>, entries: List<(SCM.Co
     changedItem(branchId, propagated, b, existed, previous))
 
 /// Right-pad to <param width> so a column of names lines up under each other.
-let pad(s: String, width: Int): String =
+let pad(s: String, width: Int64): String =
   let n = Stdlib.String.length(s)
   if n >= width then s else s + (Stdlib.String.repeat(" ", width - n))
 

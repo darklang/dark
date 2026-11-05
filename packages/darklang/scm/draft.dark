@@ -24,7 +24,7 @@ type Picture =
     conflicts: List<SCM.Conflicts.Conflict>
     /// A COUNT, never a list. Constraints are a standing property of the STORE rather than of this draft,
     /// so a list here is something you learn to scroll past while a count points at a command.
-    constraints: Int
+    constraints: Int64
     ops: Int64 }
 
 /// Read the whole picture. One call, five reads, and the only place they happen.
@@ -47,16 +47,16 @@ let read(unit: Unit): Picture =
 /// `dark status` runs on every invocation, so it deliberately does NOT build a `Picture`: it asks for a
 /// count where a count will do, and skips dependency details.
 type Counts =
-  { changed: Int
-    followed: Int
-    removed: Int
-    repoints: Int
+  { changed: Int64
+    followed: Int64
+    removed: Int64
+    repoints: Int64
     conflicts: Int64
-    constraints: Int
+    constraints: Int64
     /// How many of `constraints` touch a name this draft binds, as the usage or as the
     /// dependency. The rest stood before the draft did, and a count that lumps them together
     /// reads as "your edit broke N things" on a store where N were broken when you arrived.
-    constraintsFromDraft: Int
+    constraintsFromDraft: Int64
     ops: Int64 }
 
 let counts(unit: Unit): Counts =
@@ -94,16 +94,16 @@ let followed(p: Picture, b: SCM.Conflicts.Binding): Bool =
   Stdlib.List.contains(p.propagated, SCM.Conflicts.fqn(b.owner, b.modules, b.name))
 
 /// How many of the changed names followed something rather than being edited by you.
-let followedCount(p: Picture): Int =
+let followedCount(p: Picture): Int64 =
   p.bindings |> Stdlib.List.filter(fun b -> followed(p, b)) |> Stdlib.List.length
 
 /// How many you actually authored.
-let authoredCount(p: Picture): Int =
+let authoredCount(p: Picture): Int64 =
   (Stdlib.List.length(p.bindings)) - (followedCount(p))
 
 /// Everything waiting on a person right now: divergences the fold settled and standing findings. One
 /// number, because they're one question ("is anything waiting on me?").
-let needsYouCount(p: Picture): Int =
+let needsYouCount(p: Picture): Int64 =
   (Stdlib.List.length(p.conflicts)) + p.constraints
 
 
@@ -117,7 +117,7 @@ let needsYouCount(p: Picture): Int =
 let invalidateCaches(): Unit = Builtin.scmInvalidateCaches()
 
 /// Drop main's draft entirely. Returns how many ops went.
-let discardAll(): Stdlib.Result.Result<Int, String> =
+let discardAll(): Stdlib.Result.Result<Int64, String> =
   SCM.PackageOps.discardOn(SCM.Branch.mainBranchId, SCM.Actions.DiscardWhat.All)
 
 /// Drop ONE name's uncommitted bindings from main's draft, leaving the rest alone. The content stays.
@@ -125,7 +125,7 @@ let discardName(
   owner: String,
   modules: List<String>,
   name: String)
-  : Stdlib.Result.Result<Int, String> =
+  : Stdlib.Result.Result<Int64, String> =
   SCM.PackageOps.discardOn(
     SCM.Branch.mainBranchId,
     SCM.Actions.DiscardWhat.Name(
@@ -137,7 +137,7 @@ let discardName(
 
 /// Collapse main's draft's superseded NAMINGS: for each name keep the binding that wrote the row the
 /// name has now, drop the earlier ones. Content stays, so a re-fold produces the same store.
-let collapse(): Stdlib.Result.Result<Int, String> =
+let collapse(): Stdlib.Result.Result<Int64, String> =
   SCM.PackageOps.discardOn(SCM.Branch.mainBranchId, SCM.Actions.DiscardWhat.Collapse)
 
 /// The content hash a reference points at, as text.

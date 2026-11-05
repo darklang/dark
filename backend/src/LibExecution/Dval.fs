@@ -14,6 +14,8 @@ let uint16 (i : uint16) = DUInt16 i
 let int32 (i : int32) = DInt32 i
 let uint32 (i : uint32) = DUInt32 i
 let int64 (i : int64) = DInt64 i
+/// `DInt64`, sharing one instance for the small values.
+let dint64 (i : int64) : Dval = RuntimeTypes.Dval.dint64 i
 let uint64 (i : uint64) = DUInt64 i
 let int128 (i : System.Int128) = DInt128 i
 let uint128 (i : System.UInt128) = DUInt128 i
@@ -222,6 +224,8 @@ let rec isPersistable (dv : Dval) : bool =
   | DUInt128 _
   | DInt _
   | DFloat _
+  | DFloat32 _
+  | DDecimal _
   | DChar _
   | DString _
   | DDateTime _
@@ -307,6 +311,8 @@ let rec isInertData (dv : Dval) : bool =
   | DUInt128 _
   | DInt _
   | DFloat _
+  | DFloat32 _
+  | DDecimal _
   | DChar _
   | DString _
   | DDateTime _
@@ -385,6 +391,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DInt a, DInt b -> a = b
 
   | DFloat a, DFloat b -> a = b
+  | DFloat32 a, DFloat32 b -> a = b
+  | DDecimal a, DDecimal b -> a = b
 
   | DChar a, DChar b -> a = b
   | DString a, DString b -> a = b
@@ -485,6 +493,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUInt128 _, _
   | DInt _, _
   | DFloat _, _
+  | DFloat32 _, _
+  | DDecimal _, _
   | DChar _, _
   | DString _, _
   | DDateTime _, _
@@ -562,6 +572,12 @@ let private tryHashLeaf (value : Dval) : ValueOption<int> =
       code.Add(DarkInt.toBigInt x)
       true
     | DFloat x ->
+      code.Add x
+      true
+    | DDecimal x ->
+      code.Add x
+      true
+    | DFloat32 x ->
       code.Add x
       true
     | DChar x ->
@@ -722,6 +738,8 @@ let rec toDebugString (dv : Dval) : string =
   | DUInt128 i -> i.ToString inv
   | DInt i -> (DarkInt.toBigInt i).ToString inv
   | DFloat f -> f.ToString inv
+  | DFloat32 f -> f.ToString inv
+  | DDecimal d -> d.ToString inv
   | DChar c -> $"'{c}'"
   | DString s -> $"\"{s}\""
   | DDateTime d -> DarkDateTime.toIsoString d

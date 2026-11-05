@@ -25,11 +25,11 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "floatCeiling" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Round up to an integer value"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Ceiling |> roundedToInt vm
+        | _, vm, _, [| DFloat a |] -> a |> System.Math.Ceiling |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -39,14 +39,14 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatFloor" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Round down to an integer value.\n\nConsider <fn Float.truncate> if "
         + "your goal is to discard the fractional part of a number: "
         + "{{Float.floor(-1.9) == -2}} but {{Float.truncate(-1.9) == -1}}"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt vm
+        | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -56,11 +56,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatRound" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Round |> roundedToInt vm
+        | _, vm, _, [| DFloat a |] -> a |> System.Math.Round |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -70,12 +70,12 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatTruncate" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Truncate |> roundedToInt vm
+        | _, vm, _, [| DFloat a |] -> a |> System.Math.Truncate |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

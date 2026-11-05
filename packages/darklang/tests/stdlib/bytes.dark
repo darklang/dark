@@ -16,10 +16,10 @@ test isEmpty =
 
 // getAt
 test getAt =
-  let bytes = Stdlib.Bytes.fromList([ 10uy, 20uy, 30uy ])
+  let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
   Stdlib.Test.all(
-    [ Stdlib.Bytes.getAt(bytes, 0) |> Stdlib.Test.equal(Some(10uy))
-      Stdlib.Bytes.getAt(bytes, 2) |> Stdlib.Test.equal(Some(30uy))
+    [ Stdlib.Bytes.getAt(bytes, 0) |> Stdlib.Test.equal(Some(10u8))
+      Stdlib.Bytes.getAt(bytes, 2) |> Stdlib.Test.equal(Some(30u8))
       Stdlib.Bytes.getAt(bytes, 3) |> Stdlib.Test.equal(None)
       Stdlib.Bytes.getAt(bytes, -1) |> Stdlib.Test.equal(None)
       Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
@@ -29,14 +29,14 @@ test getAt =
 test indexOf =
   let bytes = Stdlib.Utf8.encode("ab\nc\n")
   Stdlib.Test.all(
-    [ Stdlib.Bytes.indexOf(bytes, 10uy) |> Stdlib.Test.equal(Some(2))
-      Stdlib.Bytes.indexOf(bytes, 0uy) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10uy) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 2) |> Stdlib.Test.equal(Some(2))
-      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 3) |> Stdlib.Test.equal(Some(4))
-      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 5) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfFrom(bytes, 10uy, -1) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfFrom(bytes, 10uy, 99) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Bytes.indexOf(bytes, 10u8) |> Stdlib.Test.equal(Some(2))
+      Stdlib.Bytes.indexOf(bytes, 0u8) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10u8) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 2) |> Stdlib.Test.equal(Some(2))
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 3) |> Stdlib.Test.equal(Some(4))
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 5) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, -1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 99) |> Stdlib.Test.equal(None) ])
 
 // concat
 test concat =
@@ -108,8 +108,8 @@ test drop =
 test listConversions =
   Stdlib.Test.all(
     [ Stdlib.Utf8.encode("abc") |> Stdlib.Bytes.toList
-      |> Stdlib.Test.equal([ 97uy, 98uy, 99uy ])
-      Stdlib.Bytes.fromList([ 97uy, 98uy, 99uy ])
+      |> Stdlib.Test.equal([ 97u8, 98u8, 99u8 ])
+      Stdlib.Bytes.fromList([ 97u8, 98u8, 99u8 ])
       |> Stdlib.Test.equal(Stdlib.Utf8.encode("abc")) ])
 
 // Equality depends on contents, including for independently created values.
@@ -123,12 +123,12 @@ test equalityUsesContents =
     [ (bytes == bytes) |> Stdlib.Test.equal(true)
       (bytes == Stdlib.Utf8.encode("hi")) |> Stdlib.Test.equal(true)
       (Stdlib.Utf8.encode("") == Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
-      ([bytes] == [Stdlib.Bytes.fromList([104uy, 105uy])])
+      ([bytes] == [Stdlib.Bytes.fromList([104u8, 105u8])])
       |> Stdlib.Test.equal(true) ])
 
 test collectionsUseContentEquality =
   let a = Stdlib.Utf8.encode("hi")
-  let b = Stdlib.Bytes.fromList([104uy, 105uy])
+  let b = Stdlib.Bytes.fromList([104u8, 105u8])
   let x = Stdlib.Utf8.encode("x")
   Stdlib.Test.all(
     [ Stdlib.List.contains([a], b) |> Stdlib.Test.equal(true)
@@ -149,12 +149,12 @@ test sortByRefusesBytesKeys =
 
 // A sort reaches Bytes inside a value only when everything before them ties.
 test sortOfValuesHoldingBytesComparesEarlierFieldsFirst =
-  Stdlib.List.sort([ (2L, Stdlib.Utf8.encode("x")), (1L, Stdlib.Utf8.encode("y")) ])
+  Stdlib.List.sort([ (2, Stdlib.Utf8.encode("x")), (1, Stdlib.Utf8.encode("y")) ])
   |> Stdlib.List.map(Stdlib.Tuple2.first)
-  |> Stdlib.Test.equal([ 1L, 2L ])
+  |> Stdlib.Test.equal([ 1, 2 ])
 
 test sortOfValuesHoldingBytesRefusesOnATie =
-  Stdlib.List.sort([ (1L, Stdlib.Utf8.encode("x")), (1L, Stdlib.Utf8.encode("y")) ])
+  Stdlib.List.sort([ (1, Stdlib.Utf8.encode("x")), (1, Stdlib.Utf8.encode("y")) ])
   => raises "Cannot sort <Bytes: 1 byte 78>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
 // Reflection carries an opaque Bytes value, never a storage-specific tag.
@@ -164,12 +164,12 @@ test reflectionUsesContents =
     [ (reflect(Stdlib.Bytes.empty) == reflect(Stdlib.Utf8.encode("")))
       |> Stdlib.Test.equal(true)
       (reflect(Stdlib.Utf8.encode("hi"))
-       == reflect(Stdlib.Bytes.fromList([104uy, 105uy])))
+       == reflect(Stdlib.Bytes.fromList([104u8, 105u8])))
       |> Stdlib.Test.equal(true) ])
 
 test dictionaryKeysUseContents =
   let first = Stdlib.Utf8.encode("hi")
-  let same = Stdlib.Bytes.fromList([104uy, 105uy])
+  let same = Stdlib.Bytes.fromList([104u8, 105u8])
   let different = Stdlib.Utf8.encode("ho")
   let dict = Dict { first: "found" }
   let byEmpty = Dict { Stdlib.Bytes.empty: "empty" }
@@ -189,7 +189,7 @@ test dictionaryKeysUseContents =
 // refuses.
 test duplicateBytesKeysAreOneKey =
   let a = Stdlib.Utf8.encode("a")
-  let alsoA = Stdlib.Bytes.fromList([97uy])
+  let alsoA = Stdlib.Bytes.fromList([97u8])
   Stdlib.Test.all(
     [ Dict { (a): 1, (alsoA): 2 } |> Stdlib.Test.equal(Dict { (a): 2 })
       Stdlib.Dict.fromEntriesUnique([ (a, 1), (alsoA, 2) ])

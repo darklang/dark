@@ -59,7 +59,7 @@ test savingANameTwiceCommitsOnlyTheLastVersion =
 test commitIncludeTakesWhatTheNameNeedsAndJsonOnlyPreviews =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 1L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 1")
       saveNumber(dark, "Tests.App.other", "3")
 
       // `--json` without `-y` only previews.

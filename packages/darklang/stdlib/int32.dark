@@ -177,10 +177,10 @@ impl ToString for Int32 =
   let toString(int: Int32): String = Builtin.int32ToString(int)
 
 impl Zero for Int32 =
-  let zero(): Int32 = 0l
+  let zero(): Int32 = 0s32
 
 impl One for Int32 =
-  let one(): Int32 = 1l
+  let one(): Int32 = 1s32
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -192,7 +192,7 @@ let checkedAdd(
   b: Int32)
   : Stdlib.Result.Result<Int32, Stdlib.Int.Overflow> =
   let sum = a + b
-  let wrapped = if b < 0l then sum > a else sum < a
+  let wrapped = if b < 0s32 then sum > a else sum < a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
 
 
@@ -202,7 +202,7 @@ let checkedSubtract(
   b: Int32)
   : Stdlib.Result.Result<Int32, Stdlib.Int.Overflow> =
   let difference = a - b
-  let wrapped = if b < 0l then difference < a else difference > a
+  let wrapped = if b < 0s32 then difference < a else difference > a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(difference)
 
 
@@ -220,16 +220,16 @@ let checkedMultiply(
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int32): Stdlib.Result.Result<Int32, Stdlib.Int.Overflow> =
-  if a == -2147483648l then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
+  if a == -2147483648s32 then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int32)
   : Stdlib.Result.Result<Int32, Stdlib.Int.Overflow> =
-  if a == -2147483648l then
+  if a == -2147483648s32 then
     Error(Stdlib.Int.Overflow.Overflow)
-  else if a < 0l then
+  else if a < 0s32 then
     Ok(-a)
   else
     Ok(a)

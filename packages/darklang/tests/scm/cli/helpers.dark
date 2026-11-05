@@ -33,7 +33,7 @@ let runWithEnv(
   dark: Darklang.Cli.Tests.Instance.T,
   env: List<(String * String)>,
   args: List<String>)
-  : (Int * String * String) =
+  : (Int64 * String * String) =
   match
     Stdlib.Cli.Process.runWithEnv(
       dark.cli,
@@ -46,7 +46,7 @@ let runWithEnv(
 let exec(
   dark: Darklang.Cli.Tests.Instance.T,
   args: List<String>)
-  : (Int * String * String) =
+  : (Int64 * String * String) =
   runWithEnv(dark, [], args)
 
 
@@ -71,7 +71,7 @@ let saveNumber(
   name: String,
   number: String)
   : Stdlib.Test.Result =
-  save(dark, name, $"(): Int64 = {number}L")
+  save(dark, name, $"(): Int64 = {number}")
 
 /// `dark commit <message> -y`: commit the whole draft without asking.
 let commit(dark: Darklang.Cli.Tests.Instance.T, message: String): Stdlib.Test.Result =
@@ -260,7 +260,7 @@ let rows(j: Stdlib.AltJson.Json): List<Stdlib.AltJson.Json> =
 let text(j: Stdlib.AltJson.Json, name: String): String =
   Darklang.Cli.Tests.JsonShapes.string(j, name)
 
-let number(j: Stdlib.AltJson.Json, name: String): Int =
+let number(j: Stdlib.AltJson.Json, name: String): Int64 =
   Darklang.Cli.Tests.JsonShapes.int(j, name)
 
 let flag(j: Stdlib.AltJson.Json, name: String): Bool =
@@ -292,7 +292,7 @@ let draftOn(dark: Darklang.Cli.Tests.Instance.T, branch: String): List<String> =
   draftIn(json(dark, [ "--branch", branch, "status", "--json" ]))
 
 /// How many draft entries point at a version of a name that the name no longer has.
-let staleCallers(dark: Darklang.Cli.Tests.Instance.T): Int =
+let staleCallers(dark: Darklang.Cli.Tests.Instance.T): Int64 =
   number(status(dark), "constraints")
 
 /// The draft holds nothing.
@@ -405,7 +405,7 @@ let newestOp(dark: Darklang.Cli.Tests.Instance.T): String =
   |> Stdlib.Option.withDefault("")
 
 /// How many lines of `show <newest commit>` set <param name>.
-let timesNewestCommitSets(dark: Darklang.Cli.Tests.Instance.T, name: String): Int =
+let timesNewestCommitSets(dark: Darklang.Cli.Tests.Instance.T, name: String): Int64 =
   let (_, out, _) = exec(dark, [ "show", newestCommit(dark) ])
 
   out

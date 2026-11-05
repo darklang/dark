@@ -15,7 +15,7 @@ type HttpRule =
   { method: Permissions.Scope<String>
     scheme: Permissions.Scope<String>
     host: Permissions.HostRule
-    port: Permissions.Scope<Int>
+    port: Permissions.Scope<Int64>
     pathPrefix: Permissions.Scope<String>
     /// The query string is part of the request, so `/x?id=public` and
     /// `/x?id=secret` are different requests. A rule written with a query
@@ -59,7 +59,7 @@ type Rule =
   | All
   | Effect of Permissions.Effect
   | Http of Permissions.HttpRule
-  | HttpServer of Permissions.Scope<Int>
+  | HttpServer of Permissions.Scope<Int64>
   | FileRead of Permissions.Scope<String>
   | FileWrite of Permissions.Scope<String>
   | EnvRead of Permissions.Scope<String>
@@ -194,10 +194,10 @@ let scope(value: String): Permissions.Scope<String> =
 
 /// A port for `http-server`: `*` or 0-65535. Anything else is None, never a
 /// rule that silently matches nothing.
-let portScope(value: String): Stdlib.Option.Option<Permissions.Scope<Int>> =
+let portScope(value: String): Stdlib.Option.Option<Permissions.Scope<Int64>> =
   if value == "*" then Stdlib.Option.Option.Some(Permissions.Scope.All)
   else
-    Stdlib.Int.parse(value)
+    Stdlib.Int64.parse(value)
     |> Stdlib.Result.toOption
     |> Stdlib.Option.andThen(fun port ->
       if port >= 0 && port <= 65535 then
@@ -235,7 +235,7 @@ let accessRules(
     | "rw" -> Stdlib.Option.Option.Some([ read, write ])
     | _ -> Stdlib.Option.Option.None
 
-let defaultPort(scheme: String): Int =
+let defaultPort(scheme: String): Int64 =
   if scheme == "http" then 80 else 443
 
 /// Parse a URL authority such as `h`, `h:8080`, `h:*`, `[::1]`, or
@@ -246,15 +246,15 @@ let defaultPort(scheme: String): Int =
 let hostAndPort(
   scheme: String,
   authority: String)
-  : Stdlib.Option.Option<(String * Permissions.Scope<Int>)> =
+  : Stdlib.Option.Option<(String * Permissions.Scope<Int64>)> =
   let withPort(
     host: String,
     portText: String)
-    : Stdlib.Option.Option<(String * Permissions.Scope<Int>)> =
+    : Stdlib.Option.Option<(String * Permissions.Scope<Int64>)> =
     Permissions.portScope(portText) |> Stdlib.Option.map(fun port -> (host, port))
   // If both scheme and host are specific, an omitted port uses the scheme's
   // default. If either is a wildcard, an omitted port means any port.
-  let withoutPort(host: String): Stdlib.Option.Option<(String * Permissions.Scope<Int>)> =
+  let withoutPort(host: String): Stdlib.Option.Option<(String * Permissions.Scope<Int64>)> =
     if host == "*" || scheme == "*" then
       Stdlib.Option.Option.Some((host, Permissions.Scope.All))
     else

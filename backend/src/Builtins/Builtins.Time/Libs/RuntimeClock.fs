@@ -20,35 +20,34 @@ let private make name parameters returnType body : BuiltInFn =
     deprecated = NotDeprecated }
 
 let fns () =
-  [ make "runtimeRealtimeTicks" [ Param.make "unit" TUnit "" ] TInt (function
+  [ make "runtimeRealtimeTicks" [ Param.make "unit" TUnit "" ] TInt64 (function
       | _, _, _, [| DUnit |] ->
         NodaTime.SystemClock.Instance.GetCurrentInstant().ToUnixTimeTicks()
-        |> bigint
-        |> Dval.int
+        |> Dval.dint64
         |> Ply
       | _ -> incorrectArgs ())
     make
       "runtimeMonotonicCounter"
       [ Param.make "unit" TUnit "" ]
-      (TTuple(TInt, TInt, []))
+      (TTuple(TInt64, TInt64, []))
       (function
        | _, _, _, [| DUnit |] ->
          Ply(
            DTuple(
-             Dval.int (bigint (System.Diagnostics.Stopwatch.GetTimestamp())),
-             Dval.int (bigint System.Diagnostics.Stopwatch.Frequency),
+             Dval.dint64 (int64 (System.Diagnostics.Stopwatch.GetTimestamp())),
+             Dval.dint64 (int64 System.Diagnostics.Stopwatch.Frequency),
              []
            )
          )
        | _ -> incorrectArgs ())
     make
       "runtimeDelayTicks"
-      [ Param.make "ticks" TInt "100ns runtime timer ticks" ]
+      [ Param.make "ticks" TInt64 "100ns runtime timer ticks" ]
       TUnit
       (function
-       | _, vm, _, [| DInt ticks |] ->
+       | _, _, _, [| DInt64 ticks |] ->
          uply {
-           let delay = System.TimeSpan.FromTicks(intToInt64 vm ticks)
+           let delay = System.TimeSpan.FromTicks ticks
            do! System.Threading.Tasks.Task.Delay delay
            return DUnit
          }

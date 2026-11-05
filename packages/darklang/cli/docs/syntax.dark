@@ -5,9 +5,20 @@ let content(): String =
 
 ## Basics
   let x = 5
-  let add(a: Int, b: Int): Int = a + b
+  let add(a: Int64, b: Int64): Int64 = a + b
   if cond then a else b
   // comment
+
+## Numbers
+  1, 1s, 1s64   Int64          1u, 1u64   UInt64
+  1s8 1s16 1s32 1s128          1u8 1u16 1u32 1u128
+  1z            Int            1.5, 1e5, 1.5f64   Float
+  1.5f32        Float32        19.99dec   Decimal (no exponent)
+
+`z` is for ℤ, the integers: `1z` has no size limit. The suffix decides the type,
+and both operands of `+` must have the same one: `1 + 1s32` is an error, so
+write `1s32 + 1s32`. Values print with their suffix except Int64 and Float, so
+output pastes back as the same value.
 
 ## Statements
   Stdlib.printLine("start")        // a line before the last must return Unit
@@ -22,14 +33,14 @@ be taken. A save reports the same error, and `commit` refuses it.
 
 ## Functions
   let greet(name: String): String = $"Hello, {name}"
-  let twice(f: Int -> Int, x: Int): Int = f(f(x))   // one argument: A -> B
-  let both(f: (Int, Int) -> Int): Int = f(1, 2)     // several: (A, B) -> C
+  let twice(f: Int64 -> Int64, x: Int64): Int64 = f(f(x))   // one argument: A -> B
+  let both(f: (Int64, Int64) -> Int64): Int64 = f(1, 2)     // several: (A, B) -> C
 
 Nested functions are supported in a function body. Each parameter needs a
 type, as at the top level; the return type is optional. Neither is checked
 yet: both are dropped when the nested fn becomes a local lambda.
-  let outer(n: Int): Int =
-    let double(x: Int): Int = x * 2
+  let outer(n: Int64): Int64 =
+    let double(x: Int64): Int64 = x * 2
     double(n)
 
 A package item named `__name` is an internal helper for its module, not public
@@ -49,8 +60,8 @@ it is still called, viewed and depended on by its full name.
 `docs pattern-matching` has every pattern form, `as` included.
 
 ## Result and Option unwrap
-  let next(input: String): Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
-    let number = Stdlib.Int.parse(input)?
+  let next(input: String): Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
+    let number = Stdlib.Int64.parse(input)?
     Ok(number + 1)
 
 `value?` extracts the value from Ok/Some, or immediately returns Error/None
@@ -78,7 +89,7 @@ only pipes `b`, as if you had written `if c then a else (b |> f)`. Write
 
 ## Dicts and records
   Dict { "a": 1, "b": 2 }
-  type Point = { x: Int, y: Int }
+  type Point = { x: Int64, y: Int64 }
   Point { x = 1, y = 2 }
   { point with x = 3, y = 4 }
 

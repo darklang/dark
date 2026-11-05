@@ -112,7 +112,7 @@ let previewFlat(branchId: Uuid, itemType: String, hash: String, name: String): S
   |> (fun ls -> Stdlib.String.join(ls, " "))
 
 /// The index at which two strings first differ (their common-prefix length).
-let firstDivergence(a: String, b: String): Int =
+let firstDivergence(a: String, b: String): Int64 =
   let la = Stdlib.String.toList(a)
   let lb = Stdlib.String.toList(b)
 
@@ -572,7 +572,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
 ///
 /// Returns whether to keep going: quitting part-way is a normal thing to want, and the ones you have
 /// already settled stay settled.
-let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int, total: Int): Bool =
+let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int64, total: Int64): Bool =
   let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
   let pos = $"{Stdlib.toString(n)}/{Stdlib.toString(total)}"
   Cli.Stderr.line("")

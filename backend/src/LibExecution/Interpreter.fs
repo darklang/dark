@@ -263,6 +263,8 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTUInt128
     | KTInt
     | KTFloat
+    | KTFloat32
+    | KTDecimal
     | KTChar
     | KTString
     | KTUuid
@@ -571,6 +573,15 @@ and checkAndExtractMatchPattern
   | MPFloat l ->
     match dv with
     | DFloat r -> l = r
+    | _ -> false
+  | MPFloat32 l ->
+    match dv with
+    | DFloat32 r -> l = r
+    | _ -> false
+  // decimal's `=` ignores scale, so `1.1m` matches 1.10m, the same answer as `==`
+  | MPDecimal l ->
+    match dv with
+    | DDecimal r -> l = r
     | _ -> false
   | MPChar l ->
     match dv with
@@ -1777,6 +1788,11 @@ let private tryFastOp
       match ArgSeq.uncons ctx.args with
       | ValueSome(struct (only, rest)) when ArgSeq.isEmpty rest ->
         FastOps.eval1 tag only
+      | ValueSome(struct (DInt64 a, rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DInt64 b, tail)) when ArgSeq.isEmpty tail ->
+          FastOps.eval64 tag a b
+        | _ -> ValueNone
       | ValueSome(struct (DInt a, rest)) ->
         match ArgSeq.uncons rest with
         | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
@@ -1786,7 +1802,7 @@ let private tryFastOp
         match ArgSeq.uncons rest with
         | ValueSome(struct (DString b, tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalStr tag a b
-        | ValueSome(struct (DInt n, tail)) when ArgSeq.isEmpty tail ->
+        | ValueSome(struct (DInt64 n, tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalStrInt tag a n
         | _ -> ValueNone
       | ValueSome(struct (DList(vt1, l1), rest)) ->
@@ -1887,6 +1903,10 @@ let private tryFastOpOn
       // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
       // operator or not. The pair alone was worth several percent of both the gate and a view build.
       match registers[argRegs.head] with
+      | DInt64 x ->
+        match registers[secondReg] with
+        | DInt64 y -> FastOps.eval64 tag x y
+        | _ -> ValueNone
       | DInt x ->
         match registers[secondReg] with
         | DInt y -> FastOps.eval tag x y
@@ -1894,7 +1914,7 @@ let private tryFastOpOn
       | DString x ->
         match registers[secondReg] with
         | DString y -> FastOps.evalStr tag x y
-        | DInt n -> FastOps.evalStrInt tag x n
+        | DInt64 n -> FastOps.evalStrInt tag x n
         | _ -> ValueNone
       | DList(vt1, l1) ->
         match registers[secondReg] with

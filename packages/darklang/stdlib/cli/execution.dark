@@ -3,7 +3,7 @@ module Darklang.Stdlib.Cli
 
 /// The result of running a command in the CLI, typically with `Cli.execute`
 type ExecutionOutcome =
-  { exitCode: Int
+  { exitCode: Int64
 
     // TODO bytes, not strings -- see internal note in Process.fs
     stdout: String

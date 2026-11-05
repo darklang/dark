@@ -2,7 +2,7 @@ module Darklang.PrettyPrinter.ProgramTypes
 
 let sourceFileAtWidth(
   branchId: Uuid,
-  width: Int,
+  width: Int64,
   source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
   // The parser supplies the owner separately, so print names from the root.

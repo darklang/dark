@@ -15,7 +15,7 @@ let executeList(state: AppState, limit: Int64, showAll: Bool): AppState =
   // This branch's commits, not the store's: on a branch, main's commits are not "mine", and the workbench
   // lists the same set for the same branch.
   let branchId = state.currentBranchId
-  let total = Stdlib.Int.fromInt64(SCM.PackageOps.commitCountOnBranch(branchId))
+  let total = SCM.PackageOps.commitCountOnBranch(branchId)
 
   // Housekeeping commits (archive markers with no authored work) are hidden by default: on an old
   // store they dominate the listing. `--all` shows them. The overscan bounds how many rows get
@@ -24,7 +24,7 @@ let executeList(state: AppState, limit: Int64, showAll: Bool): AppState =
     if showAll then
       (SCM.PackageOps.commitsOnBranch(branchId, limit), 0)
     else
-      let window = SCM.PackageOps.commitsOnBranch(branchId, limit + 60L)
+      let window = SCM.PackageOps.commitsOnBranch(branchId, limit + 60)
 
       let kept =
         window
@@ -32,7 +32,7 @@ let executeList(state: AppState, limit: Int64, showAll: Bool): AppState =
           Stdlib.Bool.not(SCM.PackageOps.isHousekeepingCommit(c.hash)))
 
       let hiddenCount = (Stdlib.List.length(window)) - (Stdlib.List.length(kept))
-      (Stdlib.List.take(kept, Stdlib.Int.fromInt64(limit)), hiddenCount)
+      (Stdlib.List.take(kept, limit), hiddenCount)
 
   if Stdlib.List.isEmpty(commits) then
     Cli.printOk("no commits yet -- `dark commit` makes one from your draft.")
@@ -71,10 +71,10 @@ let executeDetailed(state: AppState, limit: Int64, showAll: Bool): AppState =
     if showAll then
       SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit)
     else
-      SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit + 60L)
+      SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit + 60)
       |> Stdlib.List.filter(fun c ->
         Stdlib.Bool.not(SCM.PackageOps.isHousekeepingCommit(c.hash)))
-      |> (fun kept -> Stdlib.List.take(kept, Stdlib.Int.fromInt64(limit)))
+      |> (fun kept -> Stdlib.List.take(kept, limit))
 
   if Stdlib.List.isEmpty(commits) then
     Cli.printOk("no commits yet -- `dark commit` makes one from your draft.")
@@ -88,16 +88,16 @@ let executeDetailed(state: AppState, limit: Int64, showAll: Bool): AppState =
       Cli.printOk($"commit {SCM.Conflicts.shortHash(c.hash)}  {msg}")
 
       Stdlib.printLine(
-        $"  at {c.originTs} -- {Cli.Text.plural(Stdlib.Int.fromInt64(n), "op")}")
+        $"  at {c.originTs} -- {Cli.Text.plural(n, "op")}")
 
-      SCM.PackageOps.opsInCommitLimited(c.hash, 50L)
+      SCM.PackageOps.opsInCommitLimited(c.hash, 50)
       |> Stdlib.List.iter(fun op ->
         Stdlib.printLine(
           $"    {PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)}"))
 
-      if n > 50L then
+      if n > 50 then
         Cli.printHint(
-          $"    ... {Stdlib.toString(n - 50L)} more -- `dark ops` walks the log in full."))
+          $"    ... {Stdlib.toString(n - 50)} more -- `dark ops` walks the log in full."))
 
     state
 
@@ -136,12 +136,12 @@ let execute(state: AppState, args: List<String>): AppState =
   let limit =
     match args with
     | [ n ] -> Stdlib.Int64.parse(n) |> Stdlib.Result.toOption
-    | _ -> Stdlib.Option.Option.Some(20L)
+    | _ -> Stdlib.Option.Option.Some(20)
 
   // A branch name is the thing people put here, because `dark log <branch>` takes one. Answering with
   // the help, or defaulting the count, would be answering plausibly rather than refusing.
   match (args, limit) with
-  | ([ n ], Some(l)) when l <= 0L ->
+  | ([ n ], Some(l)) when l <= 0 ->
     Cli.printErr($"`dark commits` takes a positive count; got {n}.")
     Cli.exitWith(state, false)
   | ([ n ], None) ->
@@ -151,7 +151,7 @@ let execute(state: AppState, args: List<String>): AppState =
     Cli.exitWith(state, false)
   | (_, _) ->
 
-  let limit = limit |> Stdlib.Option.withDefault(20L)
+  let limit = limit |> Stdlib.Option.withDefault(20)
 
   if wantsJson then
     Stdlib.printLine(ScmJson.commitsJson(commitRows(limit)))
@@ -179,7 +179,7 @@ let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
   Cli.printOk($"commit {SCM.Conflicts.shortHash(c.hash)}")
   Stdlib.printLine($"  {msg}")
   Stdlib.printLine($"  at {c.originTs}")
-  Stdlib.printLine($"  {Cli.Text.plural(Stdlib.Int.fromInt64(n), "op")} in this commit")
+  Stdlib.printLine($"  {Cli.Text.plural(n, "op")} in this commit")
 
   // The commit this one follows. Worth a line rather than a lookup: an id is derived from its parent as
   // well as its contents, so "which one came before" is part of what the id MEANS here. Silent for the
@@ -194,14 +194,14 @@ let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
 
   // Capped. The seed commit holds ~17k ops, and printing all of them fetches every blob to flood a
   // terminal nobody can read back. The count above already said how many there are.
-  let shown = SCM.PackageOps.opsInCommitLimited(c.hash, 50L)
+  let shown = SCM.PackageOps.opsInCommitLimited(c.hash, 50)
 
   shown
   |> Stdlib.List.iter(fun op ->
     Stdlib.printLine(
       PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)))
 
-  if n > 50L then
+  if n > 50 then
     Stdlib.printErrorLine("")
     Cli.printHint(
       $"  showing the first 50 of {Stdlib.toString(n)} -- `dark ops` walks the log in full.")

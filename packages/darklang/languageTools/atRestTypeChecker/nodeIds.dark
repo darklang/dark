@@ -93,6 +93,8 @@ let children(node: Node): (Stdlib.Option.Option<Int64> * List<Node>) =
     | EUInt128(_, _)
     | EInt(_, _)
     | EFloat(_, _, _, _)
+    | EFloat32(_, _, _, _)
+    | EDecimal(_, _)
     | EChar(_, _)
     | EArg(_, _)
     | ESelf(_) -> (Stdlib.Option.Option.None, [])
@@ -127,6 +129,8 @@ let children(node: Node): (Stdlib.Option.Option<Int64> * List<Node>) =
     | MPUInt128(_, _)
     | MPInt(_, _)
     | MPFloat(_, _, _, _)
+    | MPFloat32(_, _, _, _)
+    | MPDecimal(_, _)
     | MPChar(_, _)
     | MPString(_, _) -> (Stdlib.Option.Option.None, [])
   | Pipe(p) ->
@@ -163,7 +167,7 @@ let findDuplicate(
 /// solver will chase one.
 /// A function, not a `val`: the checker runs during `reloadPackages`, before
 /// `evaluateAllValues`, so reading a package value there raises `ValueNotFound`.
-let maxDeclarationDepth(): Int64 = 1000L
+let maxDeclarationDepth(): Int64 = 1000
 
 /// Whether the tree nests deeper than <param limit>, a level at a time so that measuring
 /// cannot exhaust the stack the limit protects.
@@ -179,13 +183,13 @@ let deeperThan(limit: Int64, depth: Int64, level: List<Node>): Bool =
           let (_, children) = children(node)
           children)))
 
-    deeperThan(limit, depth + 1L, next)
+    deeperThan(limit, depth + 1, next)
 
 /// A body too deep to infer from, so callers can skip inference as they do for duplicate IDs.
 let tooDeep(
   body: LanguageTools.ProgramTypes.Expr)
   : Stdlib.Option.Option<Model.Finding> =
-  if deeperThan(maxDeclarationDepth(), 0L, [ Node.Expression(body) ]) then
+  if deeperThan(maxDeclarationDepth(), 0, [ Node.Expression(body) ]) then
     Stdlib.Option.Option.Some(
       Types.warning(
         IssueCode.UnsupportedConstruct,
@@ -222,14 +226,14 @@ let typeDeeperThan(
     let next =
       Stdlib.List.flatten(Stdlib.List.map(level, fun typ -> typeChildren(typ)))
 
-    typeDeeperThan(limit, depth + 1L, next)
+    typeDeeperThan(limit, depth + 1, next)
 
 /// A declared type too deep to work on. Applies wherever the type sits, which it did not
 /// before: it used to depend on whether that shape's walk recursed through a builtin callback.
 let typeTooDeep(
   types: List<LanguageTools.ProgramTypes.TypeReference>)
   : Stdlib.Option.Option<Model.Finding> =
-  if typeDeeperThan(maxDeclarationDepth(), 0L, types) then
+  if typeDeeperThan(maxDeclarationDepth(), 0, types) then
     Stdlib.Option.Option.Some(
       Types.warning(
         IssueCode.UnsupportedConstruct,
@@ -361,6 +365,8 @@ let visit(
     | EUInt128(_, _)
     | EInt(_, _)
     | EFloat(_, _, _, _)
+    | EFloat32(_, _, _, _)
+    | EDecimal(_, _)
     | EChar(_, _)
     | EArg(_, _)
     | ESelf(_) -> (ids, next)
@@ -399,6 +405,8 @@ let visit(
     | MPUInt128(_, _)
     | MPInt(_, _)
     | MPFloat(_, _, _, _)
+    | MPFloat32(_, _, _, _)
+    | MPDecimal(_, _)
     | MPChar(_, _)
     | MPString(_, _) -> (ids, next)
   | Pipe(p) ->
@@ -426,7 +434,7 @@ let levelsAndIds(
     let (ids, next) =
       Stdlib.List.fold(level, (ids, []), fun((ids, next), node) -> visit(node, ids, next))
 
-    levelsAndIds(limit, depth + 1L, next, ids)
+    levelsAndIds(limit, depth + 1, next, ids)
 
 /// Whether any id appears twice in <param ids>: the native `unique` drops repeats, so a repeat
 /// shows as a shorter list.
@@ -441,7 +449,7 @@ let hasRepeat(ids: List<Int64>): Bool =
 let inspect(
   body: LanguageTools.ProgramTypes.Expr)
   : (Stdlib.Option.Option<Model.Finding> * Stdlib.Option.Option<Model.Finding>) =
-  let (deep, ids) = levelsAndIds(maxDeclarationDepth(), 0L, [ Node.Expression(body) ], [])
+  let (deep, ids) = levelsAndIds(maxDeclarationDepth(), 0, [ Node.Expression(body) ], [])
 
   if deep then
     (tooDeep(body), problem(body))

@@ -27,6 +27,8 @@ let int128 = known KTInt128
 let uint128 = known KTUInt128
 let int = known KTInt
 let float = known KTFloat
+let float32 = known KTFloat32
+let decimal = known KTDecimal
 let char = known KTChar
 let string = known KTString
 let dateTime = known KTDateTime
@@ -80,6 +82,8 @@ let rec private mergeKnownTypes
     | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
     | KTInt, KTInt -> KTInt |> Ok
     | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTFloat32, KTFloat32 -> KTFloat32 |> Ok
+    | KTDecimal, KTDecimal -> KTDecimal |> Ok
     | KTChar, KTChar -> KTChar |> Ok
     | KTString, KTString -> KTString |> Ok
     | KTUuid, KTUuid -> KTUuid |> Ok

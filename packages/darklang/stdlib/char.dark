@@ -73,7 +73,7 @@ let isASCII(c: Char): Bool =
 let toAsciiCode(c: Char): Stdlib.Option.Option<UInt8> =
   match Stdlib.Char.toCodepoint(c) with
   | Some(code) ->
-    if code < 128ul then Stdlib.UInt8.fromUInt32(code) else Stdlib.Option.Option.None
+    if code < 128u32 then Stdlib.UInt8.fromUInt32(code) else Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
 

@@ -14,8 +14,8 @@ let promote(
     Darklang.SCM.Branch.mainBranchId,
     d)
 
-let intValue(i: Int): Darklang.LanguageTools.RuntimeTypes.Dval =
-  Darklang.LanguageTools.RuntimeTypes.Dval.DInt(i)
+let intValue(i: Int64): Darklang.LanguageTools.RuntimeTypes.Dval =
+  Darklang.LanguageTools.RuntimeTypes.Dval.DInt64(i)
 
 let unknownType(): Darklang.LanguageTools.RuntimeTypes.ValueType =
   Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown
@@ -38,14 +38,14 @@ test literals =
        | Ok(EBool(_, b)) -> b
        | _ -> false)
       |> Stdlib.Test.equal(true)
-      (match promote(intValue(42)) with
+      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DInt(42z)) with
        | Ok(EInt(_, i)) -> i
-       | _ -> -1)
-      |> Stdlib.Test.equal(42)
-      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DInt64(7L)) with
+       | _ -> -1z)
+      |> Stdlib.Test.equal(42z)
+      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DInt64(7)) with
        | Ok(EInt64(_, i)) -> i
-       | _ -> -1L)
-      |> Stdlib.Test.equal(7L)
+       | _ -> -1)
+      |> Stdlib.Test.equal(7)
       (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat(3.14)) with
        | Ok(EFloat(_, _sign, w, f)) -> w + "." + f
        | _ -> "FAIL")
@@ -59,6 +59,12 @@ test literals =
        | Ok(EFloat(_, _sign, w, f)) -> w + "." + f
        | _ -> "FAIL")
       |> Stdlib.Test.equal("0.30000000000000004")
+      // A Float32's own shortest digits, not the widened Float's
+      // 0.10000000149011612
+      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat32(0.1f32)) with
+       | Ok(EFloat32(_, _sign, w, f)) -> w + "." + f
+       | _ -> "FAIL")
+      |> Stdlib.Test.equal("0.1")
       (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DChar('a')) with
        | Ok(EChar(_, c)) -> c
        | _ -> "FAIL")
@@ -111,7 +117,7 @@ test collections =
                 unknownType(),
                 [ intValue(5) ]) ])))
        with
-       | Ok(EList(_, [ EList(_, [ EInt(_, i) ]) ])) -> i
+       | Ok(EList(_, [ EList(_, [ EInt64(_, i) ]) ])) -> i
        | _ -> -1)
       |> Stdlib.Test.equal(5) ])
 

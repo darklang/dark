@@ -24,14 +24,14 @@ let private inDateRange (vm : VMState) (f : unit -> Dval) : Ply<Dval> =
 let fns () : List<BuiltInFn> =
   [ { name = fn "dateTimeFromUnixTicks" 0
       typeParams = []
-      parameters = [ Param.make "ticks" TInt "100ns ticks since Unix epoch" ]
+      parameters = [ Param.make "ticks" TInt64 "100ns ticks since Unix epoch" ]
       returnType = TDateTime
       description = "Pure DateTime representation conversion; no clock access"
       fn =
         (function
-        | _, vm, _, [| DInt ticks |] ->
+        | _, vm, _, [| DInt64 ticks |] ->
           inDateRange vm (fun () ->
-            intToInt64 vm ticks
+            ticks
             |> Instant.FromUnixTimeTicks
             |> DarkDateTime.fromInstant
             |> DDateTime)
@@ -44,13 +44,13 @@ let fns () : List<BuiltInFn> =
     { name = fn "dateTimeToUnixTicks" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "100ns ticks since the Unix epoch; the inverse of <fn dateTimeFromUnixTicks>"
       fn =
         (function
         | _, _, _, [| DDateTime d |] ->
-          (DarkDateTime.toInstant d).ToUnixTimeTicks() |> bigint |> Dval.int |> Ply
+          (DarkDateTime.toInstant d).ToUnixTimeTicks() |> int64 |> Dval.dint64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

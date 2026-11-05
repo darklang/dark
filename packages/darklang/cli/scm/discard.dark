@@ -89,7 +89,7 @@ let execute(state: AppState, args: List<String>): AppState =
   // a version restore, a deprecation, an ack -- and deciding on the bindings alone reported those
   // as nothing to discard and then left them in place, which `dark propagate` promptly showed
   // still there. The listing below is per binding and stays that way; the count is the truth.
-  if ops == 0L then
+  if ops == 0 then
     Cli.Stderr.ok($"nothing to discard -- your draft on {scope} is empty.")
     state
   else
@@ -98,7 +98,7 @@ let execute(state: AppState, args: List<String>): AppState =
   // reads as "already fine".
   Cli.Stderr.line((
     Stdlib.Cli.UI.Colors.warning(
-      $"  DISCARDING ({Stdlib.toString(Stdlib.List.length(changed))}) on {scope}, {Cli.Text.plural(Stdlib.Int.fromInt64(ops), "op")}")
+      $"  DISCARDING ({Stdlib.toString(Stdlib.List.length(changed))}) on {scope}, {Cli.Text.plural(ops, "op")}")
   ))
 
   // Ops that bind no name have nothing to list per-name; say how many rather than showing an

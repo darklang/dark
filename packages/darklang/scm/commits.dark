@@ -50,7 +50,7 @@ let query(filter: CommitFilter, limit: Int64): CommitPage =
   Builtin.scmCommits(filter, limit)
 
 /// Number of commits across the store, matching the unfiltered recent listing.
-let count(): Int64 = (query(CommitFilter.Recent, 0L)).total
+let count(): Int64 = (query(CommitFilter.Recent, 0)).total
 
 /// The most recent commits, newest first.
 let recent(limit: Int64): List<Commit> = (query(CommitFilter.Recent, limit)).commits
@@ -58,13 +58,13 @@ let recent(limit: Int64): List<Commit> = (query(CommitFilter.Recent, limit)).com
 /// The commit whose hash starts with <param prefix>. Newest wins if a short prefix matches more than one,
 /// which is the same rule `dark ops show` uses for op ids.
 let byHashPrefix(prefix: String): Stdlib.Option.Option<Commit> =
-  Stdlib.List.head((query(CommitFilter.HashPrefix(prefix), 1L)).commits)
+  Stdlib.List.head((query(CommitFilter.HashPrefix(prefix), 1)).commits)
 
 
 /// The commits that follow <param hash> on some line. Empty when nothing does, which is what makes a
 /// commit the tip of its own chain.
 let children(hash: String): List<String> =
-  (query(CommitFilter.ChildrenOf(hash), -1L)).commits
+  (query(CommitFilter.ChildrenOf(hash), -1)).commits
   |> Stdlib.List.map(fun c -> c.hash)
 
 /// The op ids a commit holds.

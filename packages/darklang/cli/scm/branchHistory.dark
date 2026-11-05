@@ -134,11 +134,11 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
       // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
       let ops = (SCM.Draft.counts()).ops
 
-      if ops == 0L then
+      if ops == 0 then
         Cli.printOk("clean: nothing changed since your last commit.")
       else
         Cli.printOk(
-          $"""{Cli.Text.plural(Stdlib.Int.fromInt64(ops), "op")} to commit, no changed names (no new version: restores, deprecations, docs, acks)""")
+          $"""{Cli.Text.plural(ops, "op")} to commit, no changed names (no new version: restores, deprecations, docs, acks)""")
 
       Cli.printHint("  `dark diff <branch>` compares a branch with its parent.")
       state
@@ -201,10 +201,10 @@ let executeLogCmd(state: AppState, args: List<String>): AppState =
     | id when SCM.Branch.isMain(id) ->
       if wantsJson then
         // On main `log` IS the commit history, so it answers with exactly what `commits --json` answers.
-        Stdlib.printLine(ScmJson.commitsJson(Commits.commitRows(20L)))
+        Stdlib.printLine(ScmJson.commitsJson(Commits.commitRows(20)))
         state
       else
-        Commits.executeList(state, 20L, false)
+        Commits.executeList(state, 20, false)
     // By NAME, because `executeLog` echoes back whatever it was handed and everything else the CLI
     // prints about a branch is its name. `resolveRef` turns it straight back into this id.
     | id ->

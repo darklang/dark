@@ -640,14 +640,14 @@ module ExecutionError =
       | Runtime(rte, stack) ->
         "Runtime", [ RT2DT.RuntimeError.toDT rte; callStackToDT stack ]
       | TypeCheck(report, locations) ->
-        let locationKT = KTTuple(VT.uint64, VT.int, [ VT.int ])
+        let locationKT = KTTuple(VT.uint64, VT.int64, [ VT.int64 ])
         let locations =
           locations
           |> List.map (fun (nodeId, line, column) ->
             DTuple(
               DUInt64 nodeId,
-              Dval.int (bigint line),
-              [ Dval.int (bigint column) ]
+              Dval.dint64 (int64 line),
+              [ Dval.dint64 (int64 column) ]
             ))
           |> Dval.list locationKT
         "TypeCheck", [ report; locations ]
@@ -1294,9 +1294,9 @@ let fns () : List<BuiltInFn> =
       typeParams = [ "a"; "b" ]
       parameters =
         [ Param.make "branch" (TypeReference.option TUuid) ""
-          Param.make "timeoutMs" TInt ""
-          Param.make "columns" TInt ""
-          Param.make "rows" TInt ""
+          Param.make "timeoutMs" TInt64 ""
+          Param.make "columns" TInt64 ""
+          Param.make "rows" TInt64 ""
           Param.makeWithArgs
             "callback"
             (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
@@ -1305,7 +1305,7 @@ let fns () : List<BuiltInFn> =
           Param.make "argument" (TVariable "a") ""
           Param.makeWithArgs
             "worker"
-            (TFn(NEList.singleton (TList TString), TInt))
+            (TFn(NEList.singleton (TList TString), TInt64))
             "The worker entry point"
             [ "args" ] ]
       returnType =
@@ -1313,7 +1313,7 @@ let fns () : List<BuiltInFn> =
           (TTuple(
             TypeReference.option (TypeReference.result (TVariable "b") TString),
             TString,
-            [ TString; TInt; TList TString ]
+            [ TString; TInt64; TList TString ]
           ))
           TString
       description =
@@ -1324,9 +1324,9 @@ let fns () : List<BuiltInFn> =
           vm,
           _,
           [| branch
-             DInt timeout
-             DInt columns
-             DInt rows
+             DInt64 timeout
+             DInt64 columns
+             DInt64 rows
              DApplicable(AppNamedFn callback)
              argument
              DApplicable(AppNamedFn { name = FQFnName.Package(Hash workerHash)
@@ -1342,18 +1342,15 @@ let fns () : List<BuiltInFn> =
                 [ value ]
               )
             let fail message = wrap "Error" (DString message)
-            let timeout = DarkInt.toBigInt timeout
-            let columns = DarkInt.toBigInt columns
-            let rows = DarkInt.toBigInt rows
             if not state.test.isPackageTest then
               return fail "Test.Process.run is only available inside a package test"
             elif
-              timeout < 1I
-              || timeout > 600000I
-              || columns < 1I
-              || columns > 10000I
-              || rows < 1I
-              || rows > 10000I
+              timeout < 1L
+              || timeout > 600000L
+              || columns < 1L
+              || columns > 10000L
+              || rows < 1L
+              || rows > 10000L
             then
               return
                 fail
@@ -1404,7 +1401,7 @@ let fns () : List<BuiltInFn> =
                         result,
                         DString output.stdout,
                         [ DString output.stderr
-                          Dval.int (bigint output.exitCode)
+                          Dval.dint64 (int64 output.exitCode)
                           DList(VT.string, List.map DString output.cleanupErrors) ]
                       ))
 
@@ -1888,7 +1885,7 @@ let fns () : List<BuiltInFn> =
             "currentModule"
             (TList TString)
             "Names are relative to this module"
-          Param.make "width" TInt "Columns available for the result"
+          Param.make "width" TInt64 "Columns available for the result"
           Param.make "color" TBool "Whether to use terminal colors"
           Param.make
             "allowHarmful"
@@ -1915,7 +1912,7 @@ let fns () : List<BuiltInFn> =
              DUuid branchId
              DString expression
              DList(_, currentModule)
-             DInt width
+             DInt64 width
              DBool color
              DBool allowHarmful |] ->
           uply {
@@ -1965,7 +1962,7 @@ let fns () : List<BuiltInFn> =
                       let! text =
                         Exe.dvalToReprForTerminal
                           exeState
-                          (intToInt32 vm width)
+                          (int64ToInt32 vm width)
                           color
                           currentModule
                           result

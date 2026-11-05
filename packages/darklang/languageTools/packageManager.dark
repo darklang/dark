@@ -29,7 +29,7 @@ module PickContext =
     PickContext { currentModule = [], preferredLocation = Stdlib.Option.Option.None }
 
 /// Count how many leading segments of two lists match.
-let countMatchingPrefix(a: List<String>, b: List<String>): Int =
+let countMatchingPrefix(a: List<String>, b: List<String>): Int64 =
   match (a, b) with
   | ([aHead, ...aTail], [bHead, ...bTail]) ->
     if aHead == bHead then

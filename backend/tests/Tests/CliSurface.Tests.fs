@@ -125,7 +125,7 @@ let private stderrIsCapturedInOrder =
   cliTest "stderr is captured apart from stdout, and in order with it" (fun target ->
     task {
       let program =
-        "let _ = Stdlib.printLine(\"first\") in let _ = Stdlib.printErrorLine(\"second\") in let _ = Stdlib.printLine(\"third\") in 4L"
+        "let _ = Stdlib.printLine(\"first\") in let _ = Stdlib.printErrorLine(\"second\") in let _ = Stdlib.printLine(\"third\") in 4"
         + ""
         + ""
 
@@ -146,7 +146,7 @@ let private diagnosticsStayOffStdout =
     "eval's error and Stdlib.debug go to stderr, not into the answer"
     (fun target ->
       task {
-        let! (out, err, status) = runCliStreams target [ "eval"; "1L / 0L" ]
+        let! (out, err, status) = runCliStreams target [ "eval"; "1 / 0" ]
         Expect.equal status 1 "a raised eval exits 1"
         Expect.equal out "" "a failed eval has no answer on stdout"
         Expect.stringContains
@@ -155,7 +155,7 @@ let private diagnosticsStayOffStdout =
           "the error is on stderr"
 
         let! (out, err, status) =
-          runCliStreams target [ "eval"; "let _ = Stdlib.debug(\"lbl\", 5L) in 7L" ]
+          runCliStreams target [ "eval"; "let _ = Stdlib.debug(\"lbl\", 5) in 7" ]
         Expect.equal status 0 "the eval succeeded"
         Expect.equal out "7" "stdout is the value alone"
         Expect.stringContains err "DEBUG: lbl: 5" "the debug line is on stderr"
@@ -169,7 +169,7 @@ let private hintsAndLogsStayOffStdout =
       let! (out, err, status) =
         runCliStreams
           target
-          [ "eval"; "let _ = Stdlib.Cli.Log.warn(\"careful\") in 7L" ]
+          [ "eval"; "let _ = Stdlib.Cli.Log.warn(\"careful\") in 7" ]
       Expect.equal status 0 "the eval succeeded"
       Expect.equal out "7" "stdout is the value alone"
       Expect.stringContains
@@ -496,7 +496,7 @@ let private noWorkbenchRowOverflowsItsFrame =
     (fun state ->
       task {
         // A CJK name and an emoji commit message, so the frame is measuring real wide glyphs.
-        let! _ = runCli state [ "fn"; "Tests.Wide.世界"; "() : Int64 = 1L" ]
+        let! _ = runCli state [ "fn"; "Tests.Wide.世界"; "() : Int64 = 1" ]
         let! _ = runCli state [ "commit"; "コミット 🎉 wide"; "-y" ]
 
         let over (width : int) : string =
@@ -781,7 +781,7 @@ let theDeclarationCheckReadsArgumentsRight =
             // A lone "-" is a word: standard input.
             $"{A}between 2 2 []", [ "Some.Module"; "-" ], false
             // Every word a word: an expression may start with a minus.
-            $"{A}text 1", [ "-1L"; "+"; "2L" ], false
+            $"{A}text 1", [ "-1L"; "+"; "2" ], false
             $"{A}between 1 1 []", [], true
             // The subcommand is the first word that is not a flag.
             $"{A}everywhere [ \"--json\" ] [] ({A}subcommands [ (\"list\", {A}upTo 1 []) ] ({A}nothing ()))",
@@ -968,7 +968,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "nav", [ "Darklang.Stdlib.List" ]
       "ls", [ "Darklang.Stdlib.List" ]
       "back", []
-      "eval", [ "1L + 1L" ]
+      "eval", [ "1 + 1" ]
       "view", [ seed.fn ]
       "tree", [ "Darklang.Stdlib"; "--depth"; "1" ]
       "search", [ "mergeFavoring" ]
@@ -1044,7 +1044,7 @@ let everyCommandWorksWithValidArguments =
         // committed by NAME: `commit` with no `--include` would take whatever other tests left
         // in the draft.
         do! CliDsl.onMain state
-        do! CliDsl.fn state "Tests.Sweep.dep" "() : Int64 = 1L"
+        do! CliDsl.fn state "Tests.Sweep.dep" "() : Int64 = 1"
         do! CliDsl.fn state fnName "(): Int64 = Tests.Sweep.dep()"
         do!
           CliDsl.run
@@ -1058,7 +1058,7 @@ let everyCommandWorksWithValidArguments =
 
         // A branch that differs from main, for `diff` / `merge --dry-run` / `rebase --dry-run`.
         do! CliDsl.switch state branch
-        do! CliDsl.fn state "Tests.Sweep.onBranch" "() : Int64 = 2L"
+        do! CliDsl.fn state "Tests.Sweep.onBranch" "() : Int64 = 2"
         do! CliDsl.onMain state
 
         let! commitsJson = runCli state [ "commits"; "1"; "--json" ]
@@ -1070,7 +1070,7 @@ let everyCommandWorksWithValidArguments =
         // seed and puts it back, the way `cliTestWithFreshTraces` does.
         let recordingBefore = LibDB.Tracing.TraceDetail.current
         LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
-        let! _ = runCli state [ "eval"; "1L + 1L" ]
+        let! _ = runCli state [ "eval"; "1 + 1" ]
         let! runsJson = runCli state [ "traces"; "list"; "1"; "--json" ]
         let run =
           let split = runsJson.Split("\"id\":\"")
@@ -1503,7 +1503,7 @@ let private aDashLedArgumentIsNeverAName =
 let private costlyMistakesAreRefused =
   cliTestOnMain "a mistyped flag or a stray word changes nothing" (fun state ->
     task {
-      do! CliDsl.fn state "Tests.Costly.kept" "() : Int64 = 1L"
+      do! CliDsl.fn state "Tests.Costly.kept" "() : Int64 = 1"
 
       let! _, discardCode = runCliWithExit state [ "discard"; "--only-this"; "-y" ]
       Expect.equal discardCode 1L "discard refuses a flag it does not have"
@@ -1511,15 +1511,13 @@ let private costlyMistakesAreRefused =
       Expect.stringContains kept "1" "and the draft is still there"
 
       let! _, valCode =
-        runCliWithExit state [ "val"; "Tests.Costly.x"; "42L"; "zzz" ]
+        runCliWithExit state [ "val"; "Tests.Costly.x"; "42"; "zzz" ]
       Expect.equal valCode 1L "val refuses a word after the definition"
       let! x = runCli state [ "eval"; "Tests.Costly.x" ]
       Expect.isFalse (x.Contains "42") "and saves nothing"
 
       let! _, fnCode =
-        runCliWithExit
-          state
-          [ "fn"; "Tests.Costly.f"; "() : Int64 = 90817L"; "zzz" ]
+        runCliWithExit state [ "fn"; "Tests.Costly.f"; "() : Int64 = 90817"; "zzz" ]
       Expect.equal fnCode 1L "fn refuses a word after the definition"
       let! f = runCli state [ "eval"; "Tests.Costly.f()" ]
       Expect.isFalse (f.Contains "90817") "and saves nothing"
@@ -1559,9 +1557,8 @@ let private viewHeadsWithTheNameYouAskedFor =
       task {
         let! _ = runCli state [ "switch"; "main" ]
         let! _ =
-          runCli state [ "fn"; "Tests.SharedBody.alpha"; "() : Int64 = 4242L" ]
-        let! _ =
-          runCli state [ "fn"; "Tests.SharedBody.beta"; "() : Int64 = 4242L" ]
+          runCli state [ "fn"; "Tests.SharedBody.alpha"; "() : Int64 = 4242" ]
+        let! _ = runCli state [ "fn"; "Tests.SharedBody.beta"; "() : Int64 = 4242" ]
 
         // Colour codes sit BETWEEN `let` and the name, so the two-word header never matches raw output.
         // Stripping is better than asserting on the bare name here, which appears in the location line too
@@ -1775,10 +1772,10 @@ let private workbenchSaysUnchangedAndLands =
         let! _ =
           runCli
             state
-            [ "fn"; "/Tests.WbSame.same"; "(x: Int64) : Int64 = x + 7311L" ]
+            [ "fn"; "/Tests.WbSame.same"; "(x: Int64) : Int64 = x + 7311" ]
 
         let! same =
-          editInWorkbench state [ "Tests"; "WbSame" ] "same" "x + 7311L" "x + 7311L"
+          editInWorkbench state [ "Tests"; "WbSame" ] "same" "x + 7311" "x + 7311"
         Expect.stringContains
           same
           "unchanged"
@@ -1810,7 +1807,7 @@ let private workbenchDocCommentDocuments =
         let! _ =
           runCli
             state
-            [ "fn"; "/Tests.WbDoc.docme"; "(x: Int64) : Int64 = x + 9137L" ]
+            [ "fn"; "/Tests.WbDoc.docme"; "(x: Int64) : Int64 = x + 9137" ]
 
         let! saved =
           editInWorkbench
@@ -1919,7 +1916,7 @@ let private workbenchImplEditUpdatesInPlace =
           runCli
             state
             [ "eval"
-              "Tests.WbImplEdit.WbShout.shout(Tests.WbImplEdit.Box { wbImplEditMark = 1L })" ]
+              "Tests.WbImplEdit.WbShout.shout(Tests.WbImplEdit.Box { wbImplEditMark = 1 })" ]
         Expect.stringContains answer "box2" "the call answers with the edited body"
       })
 
@@ -1963,7 +1960,7 @@ let private workbenchTraitEditKeepsImplementations =
           runCli
             state
             [ "eval"
-              "Tests.WbTraitEdit.WbWave.shout(Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
+              "Tests.WbTraitEdit.WbWave.shout(Tests.WbTraitEdit.Box { wbTraitEditMark = 1 })" ]
         Expect.stringContains
           answer
           "box"
@@ -1985,7 +1982,7 @@ let private workbenchTraitEditKeepsImplementations =
           runCli
             state
             [ "eval"
-              "Tests.WbTraitEdit.WbWave.wave(Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
+              "Tests.WbTraitEdit.WbWave.wave(Tests.WbTraitEdit.Box { wbTraitEditMark = 1 })" ]
         Expect.stringContains
           missing
           "chosen here has no `wave`"
@@ -1999,17 +1996,17 @@ let private workbenchFnEditCarriesCallers =
     (fun state ->
       task {
         let! _ =
-          runCli state [ "fn"; "/Tests.WbFnEdit.g"; "(x: Int64) : Int64 = x + 1L" ]
+          runCli state [ "fn"; "/Tests.WbFnEdit.g"; "(x: Int64) : Int64 = x + 1" ]
         let! _ =
           runCli
             state
             [ "fn"; "/Tests.WbFnEdit.f"; "(x: Int64): Int64 = Tests.WbFnEdit.g(x)" ]
 
         let! saved =
-          editInWorkbench state [ "Tests"; "WbFnEdit" ] "g" "x + 1L" "x + 5L"
+          editInWorkbench state [ "Tests"; "WbFnEdit" ] "g" "x + 1" "x + 5"
         Expect.stringContains saved "footer: saved" "the edit saved"
 
-        let! answer = runCli state [ "eval"; "Tests.WbFnEdit.f(1L)" ]
+        let! answer = runCli state [ "eval"; "Tests.WbFnEdit.f(1)" ]
         Expect.stringContains answer "6" "the caller runs the edited body"
       })
 
@@ -2027,7 +2024,7 @@ let private staleApprovalIsARefusal =
     (fun state ->
       task {
         let name = "Tests.HonestApproval.stale"
-        let! _ = runCli state [ "fn"; "/" + name; "(x: Int64) : Int64 = x + 6143L" ]
+        let! _ = runCli state [ "fn"; "/" + name; "(x: Int64) : Int64 = x + 6143" ]
         let! approved, approvalStatus =
           runCliWithStatus state [ "permissions"; "approve"; name ]
         Expect.equal approvalStatus 0 approved
@@ -2059,7 +2056,7 @@ let private staleApprovalIsARefusal =
         let! outcome =
           task {
             try
-              let! ran = runCli state [ "eval"; name + "(1L)" ]
+              let! ran = runCli state [ "eval"; name + "(1)" ]
               return Ok ran
             with e ->
               return Error e
@@ -2141,7 +2138,7 @@ let private moduleDocOnlyEditLands =
           System.IO.File.WriteAllText(file, text)
           file
         let source (docA : string) =
-          $"/// {docA}\nlet docA(x: Int64): Int64 = x + 7741L\n\n/// The second item's words, untouched.\nlet docB(x: Int64): Int64 = x + 7742L\n"
+          $"/// {docA}\nlet docA(x: Int64): Int64 = x + 7741\n\n/// The second item's words, untouched.\nlet docB(x: Int64): Int64 = x + 7742\n"
 
         let! _ =
           runCli

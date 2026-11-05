@@ -2,11 +2,11 @@
 module Darklang.Cli.Packages.Typecheck
 
 type Counts =
-  { checkedCount: Int
-    failedCount: Int
-    incompleteCount: Int
+  { checkedCount: Int64
+    failedCount: Int64
+    incompleteCount: Int64
     /// Of the failed, how many name something that resolves to nothing.
-    unresolvedCount: Int }
+    unresolvedCount: Int64 }
 
 type OutputFilter =
   { showChecked: Bool
@@ -213,7 +213,7 @@ let jsonReport(
   outputFilter: OutputFilter,
   report: LanguageTools.AtRestTypeChecker.Report,
   totals: Counts,
-  total: Int)
+  total: Int64)
   : String =
   let verdictWord(v: LanguageTools.AtRestTypeChecker.Verdict): String =
     match v with

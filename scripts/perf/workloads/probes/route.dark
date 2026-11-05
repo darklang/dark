@@ -35,7 +35,7 @@ let req =
       headers = [ ("host", "localhost"), ("accept", "*/*") ]
       body = Stdlib.Bytes.empty }
 
-let routeN(i: Int, acc: Int): Int =
+let routeN(i: Int64, acc: Int64): Int64 =
   if i == 0 then
     acc
   else

@@ -232,7 +232,7 @@ let tests =
           let unwrapSnippets =
             [ "fun x -> Ok(x?)"
               "fun x -> Some(x?.field?)"
-              "fun x -> Ok((Stdlib.Int.parse(x))?)"
+              "fun x -> Ok((Stdlib.Int64.parse(x))?)"
               "fun x -> Ok(x??)"
               "fun x -> Some((x |> Stdlib.List.head)?)" ]
             |> List.map (fun source ->
@@ -324,7 +324,7 @@ let tests =
              [ "M" ],
              [ "Tests"; "M"; "f" ],
              [ "x" ],
-             "match 99L with | x -> x")
+             "match 99 with | x -> x")
             // a QUALIFIED self-call is a normal reference, not ESelf (matches F#)
             ("qualified-self-call",
              [ "M" ],

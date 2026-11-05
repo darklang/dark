@@ -106,9 +106,9 @@ let mergeRefusal(
   : Bool =
   let uncommitted = SCM.PackageOps.authoredDraftOpCountFor(branchId)
 
-  if uncommitted != 0L then
+  if uncommitted != 0 then
     Cli.printErr(
-      $"cannot merge \"{branchRef}\": it has {Cli.Text.plural(Stdlib.Int.fromInt64(uncommitted), "uncommitted op")}.")
+      $"cannot merge \"{branchRef}\": it has {Cli.Text.plural(uncommitted, "uncommitted op")}.")
 
     Cli.printHint(
       $"  commit them (`dark --branch {branchRef} commit \"<message>\"`) or drop them (`dark --branch {branchRef} discard`), then merge.")

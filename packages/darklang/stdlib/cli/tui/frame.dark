@@ -10,14 +10,14 @@ module Darklang.Stdlib.Cli.Tui.Frame
 /// One logical row that changed between two views.
 type RowChange =
   { /// Zero-based row in the logical view.
-    row: Int
+    row: Int64
     /// Complete styled content for the row, or an empty string to clear it.
     content: String }
 
 
 /// Compare both row lists once while accumulating changes in reverse order.
 let changedRowsFrom(
-  row: Int,
+  row: Int64,
   previousRows: List<String>,
   nextRows: List<String>,
   changes: List<RowChange>)
@@ -60,7 +60,7 @@ let changedRows(
 
 /// Traverse both lists once while accumulating a complete repaint.
 let fullRedrawRowsFrom(
-  row: Int,
+  row: Int64,
   previousRows: List<String>,
   nextRows: List<String>,
   changes: List<RowChange>)
@@ -108,7 +108,7 @@ let fullRedrawRows(
 /// final reset contains any style left open by the logical row. Returning to
 /// column one cancels deferred wrap before the next terminal update.
 let renderRowChangeAtWidth(
-  width: Int,
+  width: Int64,
   change: RowChange)
   : String =
   let terminalRow = Stdlib.toString(change.row + 1)
@@ -131,7 +131,7 @@ let renderCursor(cursor: Tui.Cursor): String =
 /// The caller writes this returned string once. Terminal session modes are
 /// deliberately excluded: the terminal session owns those effects.
 let renderAtWidth(
-  width: Int,
+  width: Int64,
   previous: Stdlib.Option.Option<Tui.View>,
   next: Tui.View)
   : String =
@@ -160,7 +160,7 @@ let renderAtWidth(
 
 /// Produce a complete repaint while clearing rows removed from the prior view.
 let renderFullAtWidth(
-  width: Int,
+  width: Int64,
   previous: Stdlib.Option.Option<Tui.View>,
   next: Tui.View)
   : String =

@@ -42,7 +42,7 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
 
 
 /// Centre a box `rows` x `cols` inside `region`.
-let centred(region: Layout.Region, rows: Int, cols: Int): Layout.Region =
+let centred(region: Layout.Region, rows: Int64, cols: Int64): Layout.Region =
   let w = Stdlib.min(region.cols, cols)
   let h = Stdlib.min(region.rows, rows)
 

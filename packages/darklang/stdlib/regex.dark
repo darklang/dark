@@ -15,7 +15,7 @@ module Darklang.Stdlib.Regex
 type RegexError =
   /// The pattern does not parse. The message says why, and the position is the
   /// character of the pattern it points at.
-  | InvalidPattern of message: String * position: Int
+  | InvalidPattern of message: String * position: Int64
   /// The pattern needs backtracking: a backreference, a lookahead or lookbehind, an
   /// atomic group, a conditional, or `\G`.
   | UnsupportedSyntax of construct: String
@@ -31,8 +31,8 @@ type RegexError =
 /// boundary inside a character (between `\r` and `\n`, say) widens the range to
 /// cover it.
 type Range =
-  { start: Int
-    end: Int }
+  { start: Int64
+    end: Int64 }
 
 
 /// What one group matched.

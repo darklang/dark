@@ -45,7 +45,7 @@ type Session<'model, 'msg> =
     /// A one-frame note: what just changed.
     toast: Stdlib.Option.Option<String>
     /// The first tree row on screen, when the tree is taller than the pane.
-    scroll: Int
+    scroll: Int64
     /// `--live`: follow the code. Off, the view runs the version it resolved at start and a
     /// save changes nothing on screen, which is what you want when the thing on screen is
     /// running and you are editing something else. On, a save repaints it, and an agent
@@ -90,7 +90,7 @@ let resolveAll(
 // --- rendering ---
 
 /// The band's rows at this width: at most two.
-let bandRows(band: String, width: Int): Int =
+let bandRows(band: String, width: Int64): Int64 =
   Stdlib.min(2, Stdlib.List.length(Stdlib.Cli.Tui.Text.wrapAtWords(band, Stdlib.max(1, width - 2))))
 
 /// The whole screen for a session at a size. Pure: everything it needs is on the session.
@@ -170,7 +170,7 @@ let render(s: Session<'model, 'msg>): Session<'model, 'msg> =
     { s with band = Stdlib.Option.Option.Some(why) }
 
 /// The rows the tree gets at this size: the body less the band.
-let treeRowsAt(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Int =
+let treeRowsAt(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Int64 =
   let region = Stdlib.Cli.UI.Chrome.bodyRegion(size)
 
   let bandHeight =
@@ -413,7 +413,7 @@ let press(read: Stdlib.Cli.Stdin.KeyRead.KeyRead): Stdlib.Cli.UI.Widget.KeyPress
     (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(read.keyChar)))
 
 /// How long a toast stays up when nothing else happens.
-val toastMs = 3000L
+val toastMs = 3000
 
 /// One turn: wait, then act. Split from `run` so a test can drive turns one at a time. A toast
 /// on screen adds a timer to the wait; it clears when the timer fires or on the next key,

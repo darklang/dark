@@ -35,9 +35,9 @@ impl Power for UInt32 =
   let power(``base``: UInt32, exponent: UInt32): UInt32 =
     // The signed types push this into the builtin; here the ladder stays, because an
     // unsigned exponent is never negative, so there is no error case to push.
-    if ``base`` == 0ul && exponent == 0ul then 1ul
-    else if ``base`` == 0ul then 0ul
-    else if ``base`` == 1ul then 1ul
+    if ``base`` == 0u32 && exponent == 0u32 then 1u32
+    else if ``base`` == 0u32 then 0u32
+    else if ``base`` == 1u32 then 1u32
     else Builtin.uint32Power(``base``, exponent)
 
 
@@ -165,10 +165,10 @@ impl ToString for UInt32 =
   let toString(uint32: UInt32): String = Builtin.uint32ToString(uint32)
 
 impl Zero for UInt32 =
-  let zero(): UInt32 = 0ul
+  let zero(): UInt32 = 0u32
 
 impl One for UInt32 =
-  let one(): UInt32 = 1ul
+  let one(): UInt32 = 1u32
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -205,7 +205,7 @@ let checkedMultiply(
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
 let checkedNegate(a: UInt32): Stdlib.Result.Result<UInt32, Stdlib.Int.Overflow> =
-  if a == 0ul then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+  if a == 0u32 then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always

@@ -81,8 +81,7 @@ let private darkBranch (branchId : PT.BranchId) : string =
 let private darkIntResult (code : string) : Task<int64> =
   task {
     match! evalDarkExpr code with
-    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DInt n ])) ->
-      return int64 (RT.DarkInt.toBigInt n)
+    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DInt64 n ])) -> return n
     | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString e ])) ->
       return failtest $"the Dark call failed: {e}"
     | Ok other -> return failtest $"unexpected result shape: {other}"
@@ -164,7 +163,7 @@ let private parentHashLinesFromDark
 let private branchSource (answer : int) : string =
   $"""module Tests.BranchTestOverlay
 
-let foo(x: Int64): Int64 = {answer - 2}L + 2L"""
+let foo(x: Int64): Int64 = {answer - 2} + 2"""
 
 let private fooLoc : PT.PackageLocation =
   { owner = "Tests"; modules = [ "BranchTestOverlay" ]; name = "foo" }
@@ -173,7 +172,7 @@ let private fooLoc : PT.PackageLocation =
 let private namedSource (modName : string) (answer : int) : string =
   $"""module Tests.{modName}
 
-let foo(x: Int64): Int64 = {answer - 2}L + 2L"""
+let foo(x: Int64): Int64 = {answer - 2} + 2"""
 
 let private fooLocIn (modName : string) : PT.PackageLocation =
   { owner = "Tests"; modules = [ modName ]; name = "foo" }
@@ -1018,7 +1017,7 @@ let reuseBranchIdRevives =
 let branchValueContentFoldIsolatesName =
   testTask
     "folding a branch value's AddValue content populates package_values but NOT locations" {
-    let source = "module Tests.BranchValFoldTest\n\nval vv = 3L + 4L"
+    let source = "module Tests.BranchValFoldTest\n\nval vv = 3 + 4"
     let! ops = parsePackageOps source
     let addValueOps =
       ops

@@ -708,7 +708,7 @@ let dvalToReprForTerminal
     state
     (PackageRefs.Fn.Cli.renderValue ())
     "dval"
-    [ Dval.int (bigint width); RT.DBool color; currentModule; RT2DT.Dval.toDT dval ]
+    [ RT.DInt64(int64 width); RT.DBool color; currentModule; RT2DT.Dval.toDT dval ]
 
 
 let typeRefToString

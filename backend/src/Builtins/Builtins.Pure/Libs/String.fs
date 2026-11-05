@@ -39,21 +39,18 @@ let private egcSubstring (s : string) (first : int) (last : int) : string =
     s.Substring(startIndex, endIndex - startIndex)
 
 
-/// Clamp a Dark `Int` index against a cluster length, the way `String.slice` always has: a negative
+/// Clamp a Dark `Int64` index against a cluster length, the way `String.slice` always has: a negative
 /// index counts from the end, then the result is clamped to [0, len].
 ///
-/// Clamps in the `Int` domain and only then narrows -- narrowing first raises `OutOfRange` on an
+/// Clamps in the `Int64` domain and only then narrows -- narrowing first raises `OutOfRange` on an
 /// index past int32, where this clamps. `String.slice "abc" 0 4503599627370498` is "abc", and there
 /// is a testfile line for it.
-let private normalizeEgcIndex (len : int) (d : DarkInt) : int =
-  match d with
-  | DarkInt.Finite i ->
-    let i = if i < 0L then int64 len + i else i
-    if i < 0L then 0
-    elif i > int64 len then len
-    else int i
-  // Past int64 either way: still just "before the start" or "past the end".
-  | DarkInt.Infinite b -> if b.Sign > 0 then len else 0
+let private normalizeEgcIndex (len : int) (i : int64) : int =
+  // `len + i` cannot overflow for a negative `i`: `len` is at most int32.
+  let i = if i < 0L then int64 len + i else i
+  if i < 0L then 0
+  elif i > int64 len then len
+  else int i
 
 
 /// The UTF-16 length of the cluster that starts at `offset`.
@@ -165,13 +162,13 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "stringDisplayWidth" 0
       typeParams = []
       parameters = [ Param.make "text" TString "Plain, single-line text" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Cells the text occupies in a fixed-width grid, over extended grapheme clusters"
       fn =
         (function
         | _, _, _, [| DString text |] ->
-          text |> TextWidth.ofString |> bigint |> Dval.int |> Ply
+          text |> TextWidth.ofString |> int64 |> Dval.dint64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -288,12 +285,12 @@ let fns () : List<BuiltInFn> =
     { name = fn "stringLength" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the length of the string"
       fn =
         (function
         | _, _, _, [| DString s |] ->
-          s |> String.lengthInEgcs |> bigint |> Dval.int |> Ply
+          s |> String.lengthInEgcs |> int64 |> Dval.dint64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -304,14 +301,14 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "s" TString "The string to repeat"
-          Param.make "count" TInt "How many times to repeat it" ]
+          Param.make "count" TInt64 "How many times to repeat it" ]
       returnType = TString
       description =
         "Returns <param s> repeated <param count> times. An empty string when <param count> is not positive."
       fn =
         (function
-        | _, vm, _, [| DString s; DInt count |] ->
-          DString(String.repeat s (intToInt32 vm count)) |> Ply
+        | _, vm, _, [| DString s; DInt64 count |] ->
+          DString(String.repeat s (int64ToInt32 vm count)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -430,22 +427,21 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "stringDropFirst" 0
       typeParams = []
-      parameters = [ Param.make "string" TString ""; Param.make "count" TInt "" ]
+      parameters = [ Param.make "string" TString ""; Param.make "count" TInt64 "" ]
       returnType = TString
       description =
         "Returns <param string> with the first <param count> characters removed. The whole string "
         + "if <param count> is negative, the empty string if it is longer than <param string>."
       fn =
         (function
-        | _, _, _, [| DString s; DInt countD |] ->
+        | _, _, _, [| DString s; DInt64 countD |] ->
           // The Dark version was two `String.length` calls, two comparisons and a `slice`. The
           // "count is longer than the string" case needs no branch here: `normalizeEgcIndex` clamps
           // it to the length, and an empty range gives "". A NEGATIVE count does need one, because
           // a negative index counts from the end rather than clamping to zero.
-          match countD with
-          | DarkInt.Finite i when i < 0L -> Ply(DString s)
-          | DarkInt.Infinite b when b.Sign < 0 -> Ply(DString s)
-          | _ ->
+          if countD < 0L then
+            Ply(DString s)
+          else
             let len = String.lengthInEgcs s
             let first = normalizeEgcIndex len countD
             egcSubstring s first len |> DString |> Ply
@@ -502,8 +498,8 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "string" TString ""
-          Param.make "from" TInt ""
-          Param.make "to" TInt "" ]
+          Param.make "from" TInt64 ""
+          Param.make "to" TInt64 "" ]
       returnType = TString
       description =
         "Returns the substring of <param string> between the <param from> and "
@@ -511,7 +507,7 @@ let fns () : List<BuiltInFn> =
         + "<param string>."
       fn =
         (function
-        | _, _, _, [| DString s; DInt firstD; DInt lastD |] ->
+        | _, _, _, [| DString s; DInt64 firstD; DInt64 lastD |] ->
           // `String.lengthInEgcs`, not `StringInfo(_).LengthInTextElements`: the former checks
           // `isCharwise` first and answers with `s.Length` for text that has no multi-char clusters,
           // which is nearly all of it. Going straight to `StringInfo` measurably regressed the CLI.
@@ -612,7 +608,7 @@ let fns () : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Returns the index of the first <param searchFor> in <param str>, counted in characters "
         + "(extended grapheme clusters) like {{String.length}} and {{String.slice}}. Returns -1 if "
@@ -621,7 +617,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString str; DString search |] ->
           let index = if search = "" then 0 else egcIndexOf str search
-          Ply(Dval.int (bigint index))
+          Ply(Dval.dint64 (int64 index))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -636,7 +632,7 @@ let fns () : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Returns the index of the last <param searchFor> in <param str>, counted in characters "
         + "(extended grapheme clusters) like {{String.length}} and {{String.slice}}. Returns -1 if "
@@ -649,7 +645,7 @@ let fns () : List<BuiltInFn> =
               String.lengthInEgcs str
             else
               egcLastIndexOf str search
-          Ply(Dval.int (bigint index))
+          Ply(Dval.dint64 (int64 index))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -681,7 +677,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "stringCodepointLength" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Return how many Unicode codepoints <param s> has. At least <fn String.length>, "
         + "which counts grapheme clusters, and unrelated to <fn String.displayWidth>, "
@@ -702,7 +698,7 @@ let fns () : List<BuiltInFn> =
             count <- count + 1
             i <- i + (if isPair then 2 else 1)
 
-          count |> bigint |> Dval.int |> Ply
+          count |> int64 |> Dval.dint64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -711,7 +707,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "stringGetByteAt" 0
       typeParams = []
-      parameters = [ Param.make "s" TString ""; Param.make "index" TInt "" ]
+      parameters = [ Param.make "s" TString ""; Param.make "index" TInt64 "" ]
       returnType = TypeReference.option TUInt8
       description =
         "Return {{Some <var b>}} for the byte at <param index> of <param s>'s UTF-8 "
@@ -720,9 +716,8 @@ let fns () : List<BuiltInFn> =
         + "one, so an index here does not line up with one into <fn String.toList>."
       fn =
         (function
-        | _, _, _, [| DString s; DInt index |] ->
-          // Values outside int64 are necessarily past the end.
-          match DarkInt.toInt64 index |> Option.bind (utf8ByteAt s) with
+        | _, _, _, [| DString s; DInt64 index |] ->
+          match utf8ByteAt s index with
           | Some b -> Dval.optionSome KTUInt8 (DUInt8 b) |> Ply
           | None -> Dval.optionNone KTUInt8 |> Ply
         | _ -> incorrectArgs ())

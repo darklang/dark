@@ -262,7 +262,7 @@ let builtinReferenceScanning =
           "\"Builtin.fake \\\" // still a string\"\n\"\"\"Builtin.fake\"\"\"\nBuiltin.printLine()",
           [ "printLine" ]
           "interpolation",
-          "$\"Builtin.fake {{Builtin.fake}} {Builtin.int64Add(1L, 2L)}\"",
+          "$\"Builtin.fake {{Builtin.fake}} {Builtin.int64Add(1, 2)}\"",
           [ "int64Add" ]
           "raw interpolation",
           "$\"\"\"Builtin.fake {{Builtin.fake}} {Builtin.printLine(\"Builtin.fake\")}\"\"\"",
@@ -274,7 +274,7 @@ let builtinReferenceScanning =
           "Darklang.Example.Builtin.fake(NotBuiltin.fake, Builtin.real_v2)",
           [ "real_v2" ]
           "function values and whitespace",
-          "let f = Builtin . int64Add\nBuiltin.int64Add(1L, 2L)",
+          "let f = Builtin . int64Add\nBuiltin.int64Add(1, 2)",
           [ "int64Add"; "int64Add" ] ] do
         test name {
           Expect.equal

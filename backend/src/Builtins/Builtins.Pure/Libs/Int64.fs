@@ -83,7 +83,7 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns the integer remainder left over after dividing <param "
         + "dividend> by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int64.remainder(15L, 6L) == Ok(3L)}}. The remainder will be "
+        + "{{Int64.remainder(15, 6) == Ok(3)}}. The remainder will be "
         + "negative only if {{<var dividend> < 0}}.\n\nThe sign of <param "
         + "divisor> doesn't influence the outcome.\n\nReturns an {{Error}} if "
         + "<param divisor> is {{0}}."

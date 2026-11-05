@@ -18,7 +18,7 @@ let fooAt(m: String): Darklang.LanguageTools.ProgramTypes.PackageLocation =
   Authoring.loc(m, "foo")
 
 let foo(answer: String): String =
-  $"let foo(x: Int64): Int64 = {answer}L + 2L"
+  $"let foo(x: Int64): Int64 = {answer} + 2"
 
 let onBranch(b: Uuid, m: String, answer: String): Stdlib.Result.Result<Unit, String> =
   Authoring.authorOn(b, "Tests", m, foo(answer))
@@ -141,7 +141,7 @@ test aMergeCountsWhatItFlipped =
   let setup = onBranch(b, "McX", "11")
   let pending =
     Darklang.SCM.Branch.get(b)
-    |> Stdlib.Option.map(fun br -> Stdlib.Int.fromInt64(br.ops))
+    |> Stdlib.Option.map(fun br -> br.ops)
     |> Stdlib.Option.withDefault(0)
   let first =
     Darklang.SCM.PackageOps.mergeBranch(b) |> Stdlib.Result.map(fun o -> o.merged)
@@ -241,7 +241,7 @@ test liveBindingsForAgreesWithTheOneNameRead =
       if one == fromMany then show(one) else (show(one)) + " vs " + (show(fromMany)))
   let fromBranch = answersFrom(b)
   let fromMain = answersFrom(Authoring.main())
-  let at(xs: List<String>, i: Int): String = Stdlib.List.getAt(xs, i) |> Stdlib.Option.withDefault("missing")
+  let at(xs: List<String>, i: Int64): String = Stdlib.List.getAt(xs, i) |> Stdlib.Option.withDefault("missing")
   let isHash(s: String): Bool = s != "none" && s != "missing" && Stdlib.Bool.not(Stdlib.String.contains(s, " vs "))
   Stdlib.Test.all(
     [ Authoring.ok(setup)

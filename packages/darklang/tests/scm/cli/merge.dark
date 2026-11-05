@@ -65,7 +65,7 @@ test aMergeIntoABranchMakesNoMergeCommit =
 test aCallerAddedOnABranchFollowsWhatMainChangedWhenItMerges =
   scenario(fun dark ->
     [ switch(dark, "main")
-      save(dark, "Tests.MergeRepro.foo", "(): Int64 = 1L")
+      save(dark, "Tests.MergeRepro.foo", "(): Int64 = 1")
       commit(dark, "Add foo")
 
       switch(dark, "merge-repro")
@@ -73,7 +73,7 @@ test aCallerAddedOnABranchFollowsWhatMainChangedWhenItMerges =
       commit(dark, "Add caller on branch")
 
       switch(dark, "main")
-      save(dark, "Tests.MergeRepro.foo", "(): Int64 = 2L")
+      save(dark, "Tests.MergeRepro.foo", "(): Int64 = 2")
       commit(dark, "Update foo on main")
 
       says(
@@ -142,7 +142,7 @@ test docsAndDeprecationsMadeOnABranchArriveWithTheMerge =
       commit(dark, "base")
 
       switch(dark, "feat")
-      save(dark, "Tests.App.f", "/// Documented on the branch.\nlet f(): Int64 = 1L")
+      save(dark, "Tests.App.f", "/// Documented on the branch.\nlet f(): Int64 = 1")
       run(dark, [ "deprecate", "fn", "Tests.App.old", "--kind", "obsolete", "-y" ])
       says(dark, [ "view", "Tests.App.f" ], "Documented on the branch.", "the branch sees its doc")
       says(dark, [ "view", "Tests.App.old" ], "DEPRECATED", "and its deprecation")
@@ -159,8 +159,8 @@ test docsAndDeprecationsMadeOnABranchArriveWithTheMerge =
 test aValueMadeOnABranchWorksAfterTheMerge =
   scenario(fun dark ->
     [ switch(dark, "feat")
-      run(dark, [ "val", "Tests.App.answer", "40L + 2L" ])
-      save(dark, "Tests.App.plusOne", "(): Int64 = Tests.App.answer + 1L")
+      run(dark, [ "val", "Tests.App.answer", "40 + 2" ])
+      save(dark, "Tests.App.plusOne", "(): Int64 = Tests.App.answer + 1")
       commit(dark, "feat work")
       evals(dark, "Tests.App.answer", "42", "the value works on the branch")
       evals(dark, "Tests.App.plusOne()", "43", "and so does its caller")

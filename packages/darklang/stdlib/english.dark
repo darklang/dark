@@ -36,7 +36,7 @@ let pluralize(word: String): String =
 
 
 /// Converts an integer <param n> to its ordinal representation as a string.
-let toOrdinal(n: Int): String =
+let toOrdinal(n: Int64): String =
   // `%` is Euclidean here (-1 % 10 = 9), so drop the sign first
   let lastTwoDigits = (Stdlib.abs(n)) % 100
 

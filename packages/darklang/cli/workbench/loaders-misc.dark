@@ -45,13 +45,13 @@ let thingDetail(state: State): String =
 let loadBranchItems(currentBranchId: Uuid): List<BodyItem> =
   let describe(id: Uuid, ahead: Int64): String =
     let last =
-      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1L)) with
+      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1)) with
       | Some(c) -> agoText(c.originTs)
       | None -> ""
     Stdlib.List.filter(
       [ (if id == currentBranchId then "current" else "")
-        (if SCM.PackageOps.draftOpCountFor(id) > 0L then "draft" else "")
-        (if ahead > 0L then (Stdlib.toString(ahead)) + " ops ahead" else "")
+        (if SCM.PackageOps.draftOpCountFor(id) > 0 then "draft" else "")
+        (if ahead > 0 then (Stdlib.toString(ahead)) + " ops ahead" else "")
         last ],
       fun part -> part != "")
     |> Stdlib.String.join(" · ")
@@ -64,7 +64,7 @@ let loadBranchItems(currentBranchId: Uuid): List<BodyItem> =
       { name = (branchMarker(onMain)) + Darklang.SCM.Branch.mainBranchName
         kind = "branch"
         isModule = false
-        desc = describe(Darklang.SCM.Branch.mainBranchId, 0L) }
+        desc = describe(Darklang.SCM.Branch.mainBranchId, 0) }
   let others =
     Darklang.SCM.Branch.list()
     |> Stdlib.List.map(fun b ->
@@ -216,7 +216,7 @@ let loadTraceBodyItems(): List<BodyItem> =
 /// branch's uncommitted work; Traces and Docs their own; Scratch renders its
 /// own body (no list). The lens comes from the view state.
 let itemsForView(
-  view: Int,
+  view: Int64,
   branchId: Uuid,
   location: Packages.PackageLocation,
   matterLens: Lens)

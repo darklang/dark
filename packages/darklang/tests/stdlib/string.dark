@@ -2,11 +2,11 @@ module Darklang.Stdlib.String.Tests
 
 // Text the parser has not seen, so not normalized: `e` then a combining acute accent, then `x`.
 let decomposedEx(): String =
-  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 101uy, 204uy, 129uy, 120uy ]))
+  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 101u8, 204u8, 129u8, 120u8 ]))
 
 // A combining acute accent on its own.
 let acute(): String =
-  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 204uy, 129uy ]))
+  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 204u8, 129u8 ]))
 
 test stringEquality =
   Stdlib.Test.all(
@@ -94,7 +94,7 @@ test mapReplacesEveryCharacter =
 
 // // CLEANUP: it should be a type error on the function not returning a Char
 // test mapRejectsNonCharResult =
-//   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 5L)
+//   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 5)
 //   => raises
 //     """Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<Int64> ([  5, 5, ...) was passed instead.
 //
@@ -1028,13 +1028,13 @@ test lastIndexOf =
 
 test compare =
   Stdlib.Test.all(
-    [ Stdlib.String.compare("a", "b") < 0L |> Stdlib.Test.equal(true)
-      Stdlib.String.compare("ab", "abc") < 0L |> Stdlib.Test.equal(true)
-      Stdlib.String.compare("é", "é") |> Stdlib.Test.equal(0L)
+    [ Stdlib.String.compare("a", "b") < 0 |> Stdlib.Test.equal(true)
+      Stdlib.String.compare("ab", "abc") < 0 |> Stdlib.Test.equal(true)
+      Stdlib.String.compare("é", "é") |> Stdlib.Test.equal(0)
       // By code point: U+FF71 sorts before U+1F600, though its UTF-16 unit is larger than
       // the emoji's first one.
-      Stdlib.String.compare("ｱ", "😀") < 0L |> Stdlib.Test.equal(true)
-      Stdlib.String.compare("😀", "ｱ") > 0L |> Stdlib.Test.equal(true)
+      Stdlib.String.compare("ｱ", "😀") < 0 |> Stdlib.Test.equal(true)
+      Stdlib.String.compare("😀", "ｱ") > 0 |> Stdlib.Test.equal(true)
       "ｱ" < "😀" |> Stdlib.Test.equal(true)
       "ｱ" < "🇵🇷" |> Stdlib.Test.equal(true)
       "ｱ" < "👍🏽" |> Stdlib.Test.equal(true)
@@ -1073,15 +1073,15 @@ test repeat =
 test toCodepoints =
   Stdlib.Test.all(
     [ Stdlib.String.toCodepoints("") |> Stdlib.Test.equal([])
-      Stdlib.String.toCodepoints("abc") |> Stdlib.Test.equal([ 97ul, 98ul, 99ul ])
+      Stdlib.String.toCodepoints("abc") |> Stdlib.Test.equal([ 97u32, 98u32, 99u32 ])
       Stdlib.String.toCodepoints("héllo")
-      |> Stdlib.Test.equal([ 104ul, 233ul, 108ul, 108ul, 111ul ])
+      |> Stdlib.Test.equal([ 104u32, 233u32, 108u32, 108u32, 111u32 ])
       // One cluster containing three codepoints.
       Stdlib.String.toCodepoints("👩‍👧")
-      |> Stdlib.Test.equal([ 128105ul, 8205ul, 128103ul ])
+      |> Stdlib.Test.equal([ 128105u32, 8205u32, 128103u32 ])
       // 0, the top of Latin-1, and the largest codepoint.
       Stdlib.String.toCodepoints("\u0000ÿ\U0010FFFF")
-      |> Stdlib.Test.equal([ 0ul, 255ul, 1114111ul ]) ])
+      |> Stdlib.Test.equal([ 0u32, 255u32, 1114111u32 ]) ])
 
 test codepointLength =
   Stdlib.Test.all(
@@ -1097,12 +1097,12 @@ test codepointLength =
 
 test getByteAt =
   Stdlib.Test.all(
-    [ Stdlib.String.getByteAt("abc", 0) |> Stdlib.Test.equal(Some(97uy))
-      Stdlib.String.getByteAt("abc", 1) |> Stdlib.Test.equal(Some(98uy))
-      Stdlib.String.getByteAt("abc", 2) |> Stdlib.Test.equal(Some(99uy))
+    [ Stdlib.String.getByteAt("abc", 0) |> Stdlib.Test.equal(Some(97u8))
+      Stdlib.String.getByteAt("abc", 1) |> Stdlib.Test.equal(Some(98u8))
+      Stdlib.String.getByteAt("abc", 2) |> Stdlib.Test.equal(Some(99u8))
       // UTF-8 encodes é as C3 A9.
-      Stdlib.String.getByteAt("é", 0) |> Stdlib.Test.equal(Some(195uy))
-      Stdlib.String.getByteAt("é", 1) |> Stdlib.Test.equal(Some(169uy))
+      Stdlib.String.getByteAt("é", 0) |> Stdlib.Test.equal(Some(195u8))
+      Stdlib.String.getByteAt("é", 1) |> Stdlib.Test.equal(Some(169u8))
       Stdlib.String.getByteAt("é", 2) |> Stdlib.Test.equal(None)
       Stdlib.String.getByteAt("abc", 3) |> Stdlib.Test.equal(None)
       Stdlib.String.getByteAt("", 0) |> Stdlib.Test.equal(None)
@@ -1167,16 +1167,16 @@ module MapEffects =
       Stdlib.String.map("a string", fun _ ->
         let _ = Stdlib.Test.incrementCounter()
         'c')
-    (value, Stdlib.Test.counterValue()) |> Stdlib.Test.equal(("cccccccc", 8L))
+    (value, Stdlib.Test.counterValue()) |> Stdlib.Test.equal(("cccccccc", 8))
 
 // CLEANUP: Re-enable after setting InvariantGlobalization=false in CLI and Wasm
 // and verifying ICU packaging. These byte assertions require NFC composition.
 // test appendComposesUnicode =
 //   Stdlib.Test.all
 //     [ Stdlib.String.append "a" "̂" |> Stdlib.Utf8.encode
-//       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [195uy, 162uy]
+//       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [195u8, 162u8]
 //       Stdlib.String.append "ᄀ" "ᅡᆨ" |> Stdlib.Utf8.encode
-//       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [234uy, 176uy, 129uy] ]
+//       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [234u8, 176u8, 129u8] ]
 
 // head returns the whole grapheme cluster.
 test headUsesWholeGraphemes =
@@ -1186,5 +1186,5 @@ test headUsesWholeGraphemes =
       Stdlib.String.head("👨‍❤️‍💋‍👨") |> Stdlib.Test.equal(Some('👨‍❤️‍💋‍👨')) ])
 
 test mapRejectsNonCharResult =
-  Stdlib.String.map("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", fun _ -> 5L)
+  Stdlib.String.map("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", fun _ -> 5)
   => raises "Darklang.Stdlib.String.map's 2nd parameter `fn` returned Int64 (5), but should return Char"

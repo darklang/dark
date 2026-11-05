@@ -312,9 +312,9 @@ type DraftEntry =
 let discardOn(
   branchId: Uuid,
   what: SCM.Actions.DiscardWhat)
-  : Stdlib.Result.Result<Int, String> =
+  : Stdlib.Result.Result<Int64, String> =
   match SCM.Actions.discard(branchId, what) with
-  | Ok(n) -> Stdlib.Result.Result.Ok(Stdlib.Int.fromInt64(n))
+  | Ok(n) -> Stdlib.Result.Result.Ok(n)
   | Error(Refused(Moved)) ->
     Stdlib.Result.Result.Error(
       "the draft kept changing while it was being rewritten (10 tries), usually another save, a pull, or your own editor, so nothing was changed. Run it again.")
@@ -322,7 +322,7 @@ let discardOn(
 
 
 /// Drop MAIN's uncommitted ops. Returns how many went.
-let discardMainDraft(): Stdlib.Result.Result<Int, String> =
+let discardMainDraft(): Stdlib.Result.Result<Int64, String> =
   discardOn(SCM.Branch.mainBranchId, SCM.Actions.DiscardWhat.All)
 
 
@@ -338,7 +338,7 @@ let discardDraftName(
   owner: String,
   modules: List<String>,
   name: String)
-  : Stdlib.Result.Result<Int, String> =
+  : Stdlib.Result.Result<Int64, String> =
   discardOn(
     currentBranch(),
     SCM.Actions.DiscardWhat.Name(
@@ -350,12 +350,12 @@ let discardDraftName(
 
 
 /// Drop these ops from <param branchId>'s draft. Returns how many went.
-let dropBranchOps(branchId: Uuid, ids: List<String>): Stdlib.Result.Result<Int, String> =
+let dropBranchOps(branchId: Uuid, ids: List<String>): Stdlib.Result.Result<Int64, String> =
   match ids with
   | [] -> Stdlib.Result.Result.Ok(0)
   | ids -> discardOn(branchId, SCM.Actions.DiscardWhat.Ops(ids))
 
 
 /// Drop the current scope's draft, whichever it is.
-let discardDraft(): Stdlib.Result.Result<Int, String> =
+let discardDraft(): Stdlib.Result.Result<Int64, String> =
   discardOn(currentBranch(), SCM.Actions.DiscardWhat.All)

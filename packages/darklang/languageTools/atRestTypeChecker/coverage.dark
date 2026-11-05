@@ -15,7 +15,7 @@ type Constructor =
   | BoolCase of Bool
   | EmptyList
   | ConsList
-  | TupleOf of Int
+  | TupleOf of Int64
   | EnumCase of String
 
 /// A description of an uncovered value for the diagnostic, rather than a runtime value.
@@ -26,7 +26,7 @@ type Missing =
   | Built of Constructor * List<Missing>
 
 /// Make n copies, for wildcard fields or unspecified parts of a missing value.
-let replicate(n: Int, x: 'a): List<'a> =
+let replicate(n: Int64, x: 'a): List<'a> =
   Stdlib.List.map(Stdlib.List.range(1, n), fun _ -> x)
 
 /// Format an uncovered value for the non-exhaustive-match diagnostic.
@@ -125,7 +125,7 @@ let constructors(
 /// rows. For a matching constructor with no fields, return one empty row.
 let specialize(
   constructor: Constructor,
-  fieldCount: Int,
+  fieldCount: Int64,
   pattern: LanguageTools.ProgramTypes.MatchPattern)
   : List<List<LanguageTools.ProgramTypes.MatchPattern>> =
   match pattern with
@@ -179,7 +179,7 @@ let specialize(
 /// with the constructor's field patterns, retaining each row's remaining columns.
 let specializeRows(
   constructor: Constructor,
-  fieldCount: Int,
+  fieldCount: Int64,
   rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
   : List<List<LanguageTools.ProgramTypes.MatchPattern>> =
   rows
@@ -209,7 +209,7 @@ let catchAllRows(rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>): Lis
 /// wildcards do not count, even though they can match a value of that constructor.
 let namesConstructor(
   constructor: Constructor,
-  fieldCount: Int,
+  fieldCount: Int64,
   pattern: LanguageTools.ProgramTypes.MatchPattern)
   : Bool =
   Stdlib.List.any(alternatives(pattern), fun p ->
@@ -288,7 +288,7 @@ let isExhaustiveByConstructors(
 let findUncovered(
   env: Model.Environment,
   subst: Dict<Model.Var, Model.Ty>,
-  depth: Int,
+  depth: Int64,
   types: List<Model.Ty>,
   rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
   : Stdlib.Option.Option<List<Missing>> =

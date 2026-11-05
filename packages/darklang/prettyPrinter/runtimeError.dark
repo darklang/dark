@@ -20,10 +20,10 @@ module RuntimeError =
   type ErrorSegment =
     // -- Basic types
     | String of String
-    | Int of Int
-    | Ordinal of Int // 1st, 2nd, etc
+    | Int of Int64
+    | Ordinal of Int64 // 1st, 2nd, etc
     | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
-    | Count of Int * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
+    | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
     // -- Functions
     | FunctionName of FQFnName
@@ -152,6 +152,8 @@ module RuntimeError =
     | Known(KTUInt128)
     | Known(KTInt)
     | Known(KTFloat)
+    | Known(KTFloat32)
+    | Known(KTDecimal)
     | Known(KTBool)
     | Known(KTChar)
     | Known(KTDateTime)
@@ -193,6 +195,7 @@ module RuntimeError =
 
     | Int(DivideByZeroError) -> [ ES.String("Cannot divide by 0") ]
     | Int(OutOfRange) -> [ ES.String("Encountered out-of-range value for type of Int") ]
+    | DecimalOutOfRange -> [ ES.String("Decimal result is out of range (larger than 79228162514264337593543950335)") ]
     | Int(NegativeExponent) -> [ ES.String("Cannot raise integer to a negative exponent") ]
     | Int(NegativeModulus) -> [ ES.String("Cannot evaluate modulus against a negative number") ]
     | Int(ZeroModulus) -> [ ES.String("Cannot evaluate modulus against 0") ]
@@ -214,7 +217,7 @@ module RuntimeError =
         ES.String(") to a list of ")
         ES.ValueType(expectedType)
         ES.String(". Failed at index ")
-        ES.Int(Stdlib.Int.fromInt32(index))
+        ES.Int(Stdlib.Int64.fromInt32(index))
         ES.String(".")]
 
     | List(CannotSort(value)) ->
@@ -568,9 +571,9 @@ module RuntimeError =
         [ ES.String("Unsupported type in JSON: ")
           ES.TypeReference(typ)
           ES.String(". Some types are not supported in Json serialization, and cannot be used as arguments to ")
-          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse", version = 0l }))
+          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse", version = 0s32 }))
           ES.String(" or ")
-          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize", version = 0l })) ]
+          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize", version = 0s32 })) ]
       | CannotSerializeValue(dv) ->
         [ ES.String("Cannot serialize ")
           ES.FullValue(dv)
@@ -631,7 +634,7 @@ module RuntimeError =
       | NoExpressionsToExecute ->
         [ ES.String("Nothing to evaluate. Add a final expression after your declarations. For a .dark script, use `main(args)` to call your function, or `0` to exit successfully. See `dark docs scripts`.") ]
       | NonIntReturned(returnedValue) ->
-        [ ES.String("Script must finish with an Int exit code (0 succeeds) or Unit; got ")
+        [ ES.String("Script must finish with an Int64 exit code (0 succeeds) or Unit; got ")
           ES.FullValue(returnedValue)
           ES.String(". A main function is not called automatically: finish with `main(args)` to call it. See `dark docs scripts`.") ]
 

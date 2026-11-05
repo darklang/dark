@@ -80,10 +80,10 @@ let lambdaPats(source: String): List<WrittenTypes.LetPattern> =
   | [ ELambda(_, pats, _, _, _) ] -> pats
   | _ -> []
 
-let at(r: Darklang.LanguageTools.Parser.Range): (Int * Int) =
+let at(r: Darklang.LanguageTools.Parser.Range): (Int64 * Int64) =
   (r.start.row, r.start.column)
 
-let columns(r: Darklang.LanguageTools.Parser.Range): (Int * Int) =
+let columns(r: Darklang.LanguageTools.Parser.Range): (Int64 * Int64) =
   (r.start.column, r.end_.column)
 
 /// The columns of a quoted literal's opening quote, contents and closing quote.
@@ -91,10 +91,10 @@ let quoteColumns(
   openQuote: Darklang.LanguageTools.Parser.Range,
   contents: Darklang.LanguageTools.Parser.Range,
   closeQuote: Darklang.LanguageTools.Parser.Range)
-  : List<(Int * Int)> =
+  : List<(Int64 * Int64)> =
   [ columns(openQuote), columns(contents), columns(closeQuote) ]
 
-let calls(source: String): Stdlib.Option.Option<(String * Int)> =
+let calls(source: String): Stdlib.Option.Option<(String * Int64)> =
   match exprs(source) with
   | [ EApply(_, EFnName(_, name), [], args) ] ->
     Stdlib.Option.Option.Some((name.fn.name, Stdlib.List.length(args)))
@@ -118,8 +118,8 @@ test valueDeclarationRanges =
     | EInfix(
         _,
         (op, InfixFnCall(ArithmeticPlus)),
-        EInt(_, (_, 1)),
-        EInt(_, (_, 2))) ->
+        EInt64(_, (_, 1), _),
+        EInt64(_, (_, 2), _)) ->
       Stdlib.Test.all(
         [ at(v.keywordVal) |> Stdlib.Test.equal((1, 2))
           (v.keywordVal.end_.row, v.keywordVal.end_.column)
@@ -132,22 +132,28 @@ test valueDeclarationRanges =
 
 test numericLiteralRangesSplitDigitsFromSuffix =
   let signed =
-    match exprs("-1L") with
+    match exprs("-1s64") with
     | [ EInt64(_, (digits, _), suffix) ] ->
-      [ columns(digits), columns(suffix) ] |> Stdlib.Test.equal([ (0, 2), (2, 3) ])
-    | _ -> unexpected("-1L")
+      [ columns(digits), columns(suffix) ] |> Stdlib.Test.equal([ (0, 2), (2, 5) ])
+    | _ -> unexpected("-1s64")
   let unsigned =
-    match exprs("1uy") with
+    match exprs("1u8") with
     | [ EUInt8(_, (digits, _), suffix) ] ->
       [ columns(digits), columns(suffix) ] |> Stdlib.Test.equal([ (0, 1), (1, 3) ])
-    | _ -> unexpected("1uy")
+    | _ -> unexpected("1u8")
   let pattern =
-    match armPatterns("match x with | 1L -> x") with
-    | [ MPInt64(_, (digits, _), suffix) ] ->
+    match armPatterns("match x with | 1s8 -> x") with
+    | [ MPInt8(_, (digits, _), suffix) ] ->
       [ columns(digits), columns(suffix) ]
-      |> Stdlib.Test.equal([ (15, 16), (16, 17) ])
-    | _ -> unexpected("match x with | 1L -> x")
-  Stdlib.Test.all([ signed, unsigned, pattern ])
+      |> Stdlib.Test.equal([ (15, 16), (16, 18) ])
+    | _ -> unexpected("match x with | 1s8 -> x")
+  // a bare Int64 has an empty suffix, where the digits end
+  let bare =
+    match exprs("12") with
+    | [ EInt64(_, (digits, _), suffix) ] ->
+      [ columns(digits), columns(suffix) ] |> Stdlib.Test.equal([ (0, 2), (2, 2) ])
+    | _ -> unexpected("12")
+  Stdlib.Test.all([ signed, unsigned, pattern, bare ])
 
 test quotedLiteralRangesSplitDelimiters =
   let string =
@@ -179,9 +185,9 @@ test closingDelimitersEndTheRange =
     | Some(QualifiedName(q)) -> q.range.end_.column |> Stdlib.Test.equal(30)
     | _ -> unexpected("type X = Result<Int64, String>")
   let ctor =
-    match exprs("Pair(1L, 2L)") with
-    | [ e ] -> (WrittenTypes.Expr.range(e)).end_.column |> Stdlib.Test.equal(12)
-    | _ -> unexpected("Pair(1L, 2L)")
+    match exprs("Pair(1, 2)") with
+    | [ e ] -> (WrittenTypes.Expr.range(e)).end_.column |> Stdlib.Test.equal(10)
+    | _ -> unexpected("Pair(1, 2)")
   // an unterminated interpolation keeps its text and gets a zero-width close at EOF
   let unterminated =
     match exprs("$\"abc") with
@@ -209,7 +215,7 @@ test namedTestRanges =
 
 test namedTestOutcomes =
   let raisesSource =
-    "module M =\n  test divisionByZero =\n    1L / 0L\n"
+    "module M =\n  test divisionByZero =\n    1 / 0\n"
     + "    => raises \"Cannot divide by 0\""
   let raises =
     match packageModule(raisesSource) with
@@ -244,21 +250,21 @@ test simpleExpressions =
       | [ EString(_, None, [ StringText(_, "hi") ], _, _) ] -> ok()
       | _ -> unexpected("\"hi\"")
 
-      match exprs("Stdlib.Int64.remainder(1L, 2L)") with
+      match exprs("Stdlib.Int64.remainder(1, 2)") with
       | [ EApply(_, EFnName(_, q), _, [ _, _ ]) ] ->
         (q.fn.name, Stdlib.List.length(q.modules))
         |> Stdlib.Test.equal(("remainder", 2))
       | _ -> unexpected("qualified call")
 
-      match exprs("if true then 1L else 2L") with
+      match exprs("if true then 1 else 2") with
       | [ EIf(_, EBool(_, true), _, Some(_), _, _, Some(_)) ] -> ok()
       | _ -> unexpected("if")
 
-      match exprs("[1L, 2L, 3L]") with
+      match exprs("[1, 2, 3]") with
       | [ EList(_, [ _, _, _ ], _, _) ] -> ok()
       | _ -> unexpected("list")
 
-      match exprs("(1L, 2L)") with
+      match exprs("(1, 2)") with
       | [ ETuple(_, _, _, _, [], _, _) ] -> ok()
       | _ -> unexpected("2-tuple")
 
@@ -276,7 +282,7 @@ test simpleExpressions =
             _) ] -> ok()
       | _ -> unexpected("lambda")
 
-      match exprs("Point { x = 1L, y = 2L }") with
+      match exprs("Point { x = 1, y = 2 }") with
       | [ ERecord(_, typeName, [ (_, (_, "x"), _), (_, (_, "y"), _) ], _, _) ] ->
         typeName.typ.name |> Stdlib.Test.equal("Point")
       | _ -> unexpected("record")
@@ -298,33 +304,33 @@ test simpleExpressions =
 
 // A no-param `let` at a script's top level is a statement over what follows.
 test topLevelLetSequences =
-  let source = "let x = 1L\nx"
+  let source = "let x = 1\nx"
   match (decls(source), exprs(source)) with
   | ([],
-     [ ELet(_, LPVariable(_, "x"), EInt64(_, (_, 1L), _), EVariable(_, "x"), _, _) ]) ->
+     [ ELet(_, LPVariable(_, "x"), EInt64(_, (_, 1), _), EVariable(_, "x"), _, _) ]) ->
     ok()
   | _ -> unexpected(source)
 
 test enumConstructors =
   Stdlib.Test.all(
-    [ match exprs("Some(5L)") with
+    [ match exprs("Some(5)") with
       | [ EEnum(_, _, (_, "Some"), [ _ ], _) ] -> ok()
-      | _ -> unexpected("Some(5L)")
+      | _ -> unexpected("Some(5)")
 
-      match exprs("Stdlib.Result.Result.Ok(5L)") with
+      match exprs("Stdlib.Result.Result.Ok(5)") with
       | [ EEnum(_, typeName, (_, "Ok"), [ _ ], _) ] ->
         (typeName.typ.name, Stdlib.List.length(typeName.modules))
         |> Stdlib.Test.equal(("Result", 2))
       | _ -> unexpected("qualified Ok")
 
       // one tuple field takes its own parens; a space before the paren is fine
-      match exprs("Some((1L, 2L))") with
+      match exprs("Some((1, 2))") with
       | [ EEnum(_, _, (_, "Some"), [ ETuple(_, _, _, _, _, _, _) ], _) ] -> ok()
-      | _ -> unexpected("Some((1L, 2L))")
+      | _ -> unexpected("Some((1, 2))")
 
-      match exprs("Pair (1L, 2L)") with
+      match exprs("Pair (1, 2)") with
       | [ EEnum(_, _, (_, "Pair"), [ _, _ ], _) ] -> ok()
-      | _ -> unexpected("Pair (1L, 2L)") ])
+      | _ -> unexpected("Pair (1, 2)") ])
 
 test matchPatterns =
   Stdlib.Test.all(
@@ -333,38 +339,38 @@ test matchPatterns =
           MPEnum(_, (_, "Error"), _) ] -> ok()
       | _ -> unexpected("enum patterns")
 
-      match armPatterns("match xs with | [] -> 0L | [h, ...t] -> h") with
+      match armPatterns("match xs with | [] -> 0 | [h, ...t] -> h") with
       | [ _, MPListCons(_, _, _, _) ] -> ok()
       | _ -> unexpected("cons pattern")
 
-      match armPatterns("match n with | 0L | 1L -> true | _ -> false") with
+      match armPatterns("match n with | 0 | 1 -> true | _ -> false") with
       | [ MPOr(_, [ _, _ ]), _ ] -> ok()
       | _ -> unexpected("or pattern")
 
       // `|` is looser than `,`: `1, 2 | 3, 4` is an or of two 2-tuples
-      match armPatterns("match p with | 1L, 2L | 3L, 4L -> true | _ -> false") with
+      match armPatterns("match p with | 1, 2 | 3, 4 -> true | _ -> false") with
       | [ MPOr(
             _,
             [ MPTuple(_, _, _, _, [], _, _), MPTuple(_, _, _, _, [], _, _) ])
           _ ] -> ok()
       | _ -> unexpected("1, 2 | 3, 4")
 
-      match armPatterns("match p with | 1L | 2L, 3L -> true | _ -> false") with
+      match armPatterns("match p with | 1 | 2, 3 -> true | _ -> false") with
       | [ MPOr(_, [ MPInt64(_, _, _), MPTuple(_, _, _, _, _, _, _) ]), _ ] -> ok()
       | _ -> unexpected("1 | 2, 3")
 
-      match armPatterns("match p with | (1L, 2L) -> true | _ -> false") with
+      match armPatterns("match p with | (1, 2) -> true | _ -> false") with
       | [ MPTuple(_, _, _, _, [], _, _), _ ] -> ok()
       | _ -> unexpected("(1, 2)")
 
       // in a constructor a bare `,` separates fields
-      match armPatterns("match x with | Pair(a, b) -> a | _ -> 0L") with
+      match armPatterns("match x with | Pair(a, b) -> a | _ -> 0") with
       | [ MPEnum(_, (_, "Pair"), [ _, _ ]), _ ] -> ok()
       | _ -> unexpected("Pair(a, b)")
 
-      match armPatterns("match x with | Ok(5y) -> 1L | Ok(-4y) -> 2L | _ -> 3L") with
-      | [ MPEnum(_, (_, "Ok"), [ MPInt8(_, (_, 5y), _) ])
-          MPEnum(_, (_, "Ok"), [ MPInt8(_, (_, -4y), _) ])
+      match armPatterns("match x with | Ok(5s8) -> 1 | Ok(-4s8) -> 2 | _ -> 3") with
+      | [ MPEnum(_, (_, "Ok"), [ MPInt8(_, (_, 5s8), _) ])
+          MPEnum(_, (_, "Ok"), [ MPInt8(_, (_, -4s8), _) ])
           _ ] -> ok()
       | _ -> unexpected("sized-int fields")
 
@@ -472,7 +478,7 @@ test lambdaParameters =
       | [ LPVariable(_, "acc"), LPTuple(_, _, _, _, _, _, _) ] -> ok()
       | _ -> unexpected("fun(acc, (k, v))")
 
-      match lambdaPats("fun () -> 1L") with
+      match lambdaPats("fun () -> 1") with
       | [ LPUnit(_) ] -> ok()
       | _ -> unexpected("fun ()") ])
 
@@ -490,7 +496,7 @@ test offside =
       | Some(EStatement(_, _, EUnit(_))) -> ok()
       | _ -> unexpected("statement then unit")
 
-      match fnBody("let f(): Int64 =\n  let x = 1L\n  let y = 2L\n  x") with
+      match fnBody("let f(): Int64 =\n  let x = 1\n  let y = 2\n  x") with
       | Some(ELet(
           _,
           LPVariable(_, "x"),
@@ -505,13 +511,13 @@ test offside =
       | Some(EApply(_, _, _, [ _, _ ])) -> ok()
       | _ -> unexpected("continued call")
 
-      match exprs("[ 1L\n  2L\n  3L ]") with
+      match exprs("[ 1\n  2\n  3 ]") with
       | [ EList(_, [ _, _, _ ], _, _) ] -> ok()
       | _ -> unexpected("newline-separated list")
 
       // a nested fn declaration is a name-bound lambda
       match
-        fnBody("let f(): Int64 =\n  let g(x: Int64): Int64 = x + 1L\n  g(5L)")
+        fnBody("let f(): Int64 =\n  let g(x: Int64): Int64 = x + 1\n  g(5)")
       with
       | Some(ELet(
           _,
@@ -552,7 +558,7 @@ test declarations =
 
       // a nested `module X =` block holds its indented declarations
       match
-        scriptModule("module Darklang.Foo\nmodule Bar =\n  val a = 1L\nval b = 2L")
+        scriptModule("module Darklang.Foo\nmodule Bar =\n  val a = 1\nval b = 2")
       with
       | [ SubModule(bar), Value(b) ] ->
         match bar.declarations with
@@ -755,15 +761,15 @@ test typeReferences =
 
 test functionTypes =
   Stdlib.Test.all(
-    [ match fnParamType("let f(g: Int64 -> String): Int64 = 1L") with
+    [ match fnParamType("let f(g: Int64 -> String): Int64 = 1") with
       | Some(Builtin(TFn(_, [ _ ], _))) -> ok()
       | _ -> unexpected("Int64 -> String")
 
-      match fnParamType("let f(p: (String * Int64)): Int64 = 1L") with
+      match fnParamType("let f(p: (String * Int64)): Int64 = 1") with
       | Some(Builtin(TTuple(_, _, _, _, _, _, _))) -> ok()
       | _ -> unexpected("(String * Int64)")
 
-      match fnParamType("let f(x: Stdlib.Option.Option<String>): Int64 = 1L") with
+      match fnParamType("let f(x: Stdlib.Option.Option<String>): Int64 = 1") with
       | Some(QualifiedName(q)) ->
         match q.typeArgs with
         | [ Builtin(TString(_)) ] -> ok()
@@ -771,19 +777,19 @@ test functionTypes =
       | _ -> unexpected("Option<String>")
 
       // several arguments go in parentheses
-      match fnParamType("let f(g: (Int64, String) -> Bool): Int64 = 1L") with
+      match fnParamType("let f(g: (Int64, String) -> Bool): Int64 = 1") with
       | Some(Builtin(TFn(
           _,
           [ (Builtin(TInt64(_)), _), (Builtin(TString(_)), _) ],
           Builtin(TBool(_))))) -> ok()
       | _ -> unexpected("(Int64, String) -> Bool")
 
-      match fnParamType("let f(g: Int64 -> (Int64 -> Int64)): Int64 = 1L") with
+      match fnParamType("let f(g: Int64 -> (Int64 -> Int64)): Int64 = 1") with
       | Some(Builtin(TFn(_, [ _ ], Builtin(TFn(_, [ _ ], _))))) -> ok()
       | _ -> unexpected("Int64 -> (Int64 -> Int64)")
 
       match
-        fnParamType("let f(g: (Int64 -> Int64, String) -> Bool): Int64 = 1L")
+        fnParamType("let f(g: (Int64 -> Int64, String) -> Bool): Int64 = 1")
       with
       | Some(Builtin(TFn(_, [ (Builtin(TFn(_, _, _)), _), _ ], _))) -> ok()
       | _ -> unexpected("(Int64 -> Int64, String) -> Bool") ])
@@ -793,9 +799,9 @@ test functionTypes =
 
 test literalValues =
   Stdlib.Test.all(
-    [ match exprs("-128y") with
-      | [ EInt8(_, (_, v), _) ] -> v |> Stdlib.Test.equal(-128y)
-      | _ -> unexpected("-128y")
+    [ match exprs("-128s8") with
+      | [ EInt8(_, (_, v), _) ] -> v |> Stdlib.Test.equal(-128s8)
+      | _ -> unexpected("-128s8")
 
       // exponent floats lower to plain digits
       match exprs("1e300") with
@@ -822,18 +828,18 @@ test recoveryKeepsTheTree =
   let resync =
     "module Test\n"
     + "let broken1 (x: Int64) : Int64 =\n  x + \n\n"
-    + "let broken2 () : Int64 =\n  [1L, 2L\n\n"
-    + "let fine (y: Int64) : Int64 =\n  y * 2L\n"
+    + "let broken2 () : Int64 =\n  [1, 2\n\n"
+    + "let fine (y: Int64) : Int64 =\n  y * 2\n"
   Stdlib.Test.all(
     [ // two independent errors still leave both list elements
-      match exprs("[1L + , 2L * ]") with
+      match exprs("[1 + , 2 * ]") with
       | [ EList(_, [ _, _ ], _, _) ] -> ok()
-      | _ -> unexpected("[1L + , 2L * ]")
+      | _ -> unexpected("[1 + , 2 * ]")
 
       // the delimiter is not consumed, the group closes, the hole is an EError
-      match exprs("(1L + )") with
-      | [ EInfix(_, _, EInt64(_, (_, 1L), _), EError(_)) ] -> ok()
-      | _ -> unexpected("(1L + )")
+      match exprs("(1 + )") with
+      | [ EInfix(_, _, EInt64(_, (_, 1), _), EError(_)) ] -> ok()
+      | _ -> unexpected("(1 + )")
 
       // a broken declaration does not swallow the ones after it
       match scriptModule(resync) with
@@ -846,7 +852,7 @@ test recoveryKeepsTheTree =
       | _ -> unexpected(resync)
 
       // the fn after a broken impl survives
-      decls("impl Show for Point =\n  val x = 1\nlet after (x: Int) : Int = x")
+      decls("impl Show for Point =\n  val x = 1\nlet after (x: Int64) : Int64 = x")
       |> Stdlib.List.any(fun d ->
         match d with
         | Function(f) -> f.name.name == "after"
@@ -879,7 +885,7 @@ test traits =
       match
         decls(
           "trait Num<'a> =\n  let add(a: 'a, b: 'a): 'a\n  let zero(): 'a\n"
-          + "  let neg(a: 'a): 'a\nlet after(x: Int): Int = x")
+          + "  let neg(a: 'a): 'a\nlet after(x: Int64): Int64 = x")
       with
       | [ Trait(t), Function(f) ] ->
         (methodNames(t), f.name.name)
@@ -931,7 +937,7 @@ test traits =
         boundNames(t.bounds) |> Stdlib.Test.equal([ ("a", "Compare") ])
       | _ -> unexpected("bounded type")
 
-      match decls("let f<'a: Convert<Int>>(x: 'a): Int = 1") with
+      match decls("let f<'a: Convert<Int64>>(x: 'a): Int64 = 1") with
       | [ Function(f) ] ->
         match f.bounds with
         | [ b ] -> Stdlib.List.length(b.trait_.typeArgs) |> Stdlib.Test.equal(1)

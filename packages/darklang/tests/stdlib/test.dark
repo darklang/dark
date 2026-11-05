@@ -27,15 +27,15 @@ test expect =
 
 test equal =
   Stdlib.Test.all(
-    [ Stdlib.Test.equal(8L, 8L) |> is(Stdlib.Test.Result.Pass)
-      Stdlib.Test.equal(8L, 9L)
+    [ Stdlib.Test.equal(8, 8) |> is(Stdlib.Test.Result.Pass)
+      Stdlib.Test.equal(8, 9)
       |> is(Stdlib.Test.Result.Fail([ "expected 9, got 8" ]))
-      (8L |> Stdlib.Test.equal(8L)) |> is(Stdlib.Test.Result.Pass) ])
+      (8 |> Stdlib.Test.equal(8)) |> is(Stdlib.Test.Result.Pass) ])
 
 test notEqual =
   Stdlib.Test.all(
-    [ Stdlib.Test.notEqual(1L, 2L) |> is(Stdlib.Test.Result.Pass)
-      Stdlib.Test.notEqual(1L, 1L)
+    [ Stdlib.Test.notEqual(1, 2) |> is(Stdlib.Test.Result.Pass)
+      Stdlib.Test.notEqual(1, 1)
       |> is(Stdlib.Test.Result.Fail([ "did not expect 1" ])) ])
 
 test all =

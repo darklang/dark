@@ -21,7 +21,7 @@ let undoReferenceOnlyEdits =
           let prefix =
             if branch = "main" then "Tests.UndoRefsMain" else "Tests.UndoRefsBranch"
           for alias in [ "a"; "b"; "c" ] do
-            do! fn state $"{prefix}.{alias}" "(): Int64 = 773991L"
+            do! fn state $"{prefix}.{alias}" "(): Int64 = 773991"
           do! fn state $"{prefix}.caller" $"(): Int64 = {prefix}.a()"
           do! commit state "initial reference version"
           do! fn state $"{prefix}.other" $"(): Int64 = {prefix}.b()"
@@ -49,7 +49,7 @@ let undoReferenceOnlyEdits =
               [ "undo"; $"{prefix}.caller" ]
               "first version"
               "repeated undo stops at the first reference version"
-          do! fn state $"{prefix}.a" "(): Int64 = 773992L"
+          do! fn state $"{prefix}.a" "(): Int64 = 773992"
           do!
             evals
               state
@@ -77,7 +77,7 @@ let undoKeepsRepeatedRevisions =
           let prefix =
             if branch = "main" then "Tests.RepeatMain" else "Tests.RepeatBranch"
           for alias in [ "a"; "b"; "c" ] do
-            do! fn state $"{prefix}.{alias}" "(): Int64 = 781551L"
+            do! fn state $"{prefix}.{alias}" "(): Int64 = 781551"
           for alias in [ "a"; "b"; "a" ] do
             do! fn state $"{prefix}.caller" $"(): Int64 = {prefix}.{alias}()"
             do! commit state "alias revision"
@@ -102,7 +102,7 @@ let undoKeepsRepeatedRevisions =
               [ "view"; $"{prefix}.caller"; "--raw" ]
               "b()"
               "new edits follow the restored revision"
-          do! fn state $"{prefix}.unrelated" "(): Int64 = 781552L"
+          do! fn state $"{prefix}.unrelated" "(): Int64 = 781552"
           do! commitOnly state "commit undo" $"{prefix}.caller"
           do! discardAll state
           do!
@@ -139,7 +139,7 @@ let undoUsesBranchBaseline =
     task {
       do! start state
       for alias in [ "a"; "b"; "c" ] do
-        do! fn state $"Tests.UndoBaseline.{alias}" "(): Int64 = 781561L"
+        do! fn state $"Tests.UndoBaseline.{alias}" "(): Int64 = 781561"
       do! fn state "Tests.UndoBaseline.caller" "(): Int64 = Tests.UndoBaseline.a()"
       do! commit state "baseline"
       do! switch state "undo-baseline"
@@ -182,11 +182,11 @@ let undoOrdersBodyAndAliasEdits =
     task {
       do! start state
       for alias in [ "a"; "b" ] do
-        do! fn state $"Tests.UndoMixed.{alias}" "(): Int64 = 781571L"
-      for body in [ "a()"; "b()"; "b() + 1L"; "a() + 1L" ] do
+        do! fn state $"Tests.UndoMixed.{alias}" "(): Int64 = 781571"
+      for body in [ "a()"; "b()"; "b() + 1"; "a() + 1" ] do
         do! fn state "Tests.UndoMixed.caller" $"(): Int64 = Tests.UndoMixed.{body}"
         do! commit state "mixed revision"
-      for body in [ "b() + 1L"; "b()"; "a()" ] do
+      for body in [ "b() + 1"; "b()"; "a()" ] do
         do! run state [ "undo"; "Tests.UndoMixed.caller" ]
         do!
           shows
@@ -208,16 +208,16 @@ let undoSurvivesDraftRefresh =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.UndoRefresh.f" "(): Int64 = 667741L"
+        do! fn state "Tests.UndoRefresh.f" "(): Int64 = 667741"
         do! commit state "undo refresh baseline"
         for value in [ 667742; 667743; 667744 ] do
-          do! fn state "Tests.UndoRefresh.f" $"(): Int64 = {value}L"
+          do! fn state "Tests.UndoRefresh.f" $"(): Int64 = {value}"
         do!
           fn
             state
             "Tests.UndoRefresh.pending"
             "(): Int64 = Tests.UndoRefresh.missing()"
-        do! fn state "Tests.UndoRefresh.missing" "(): Int64 = 667745L"
+        do! fn state "Tests.UndoRefresh.missing" "(): Int64 = 667745"
         do!
           evals
             state
@@ -247,8 +247,8 @@ let undoTracksRefreshedRevisionIds =
       task {
         do! start state
         for alias in [ "a"; "b"; "c" ] do
-          do! fn state $"Tests.UndoRefreshedId.{alias}" "(): Int64 = 667751L"
-        do! fn state "Tests.UndoRefreshedId.caller" "(): Int64 = 667750L"
+          do! fn state $"Tests.UndoRefreshedId.{alias}" "(): Int64 = 667751"
+        do! fn state "Tests.UndoRefreshedId.caller" "(): Int64 = 667750"
         do! commit state "undo id baseline"
         for alias in [ "a"; "b"; "c" ] do
           do!
@@ -257,7 +257,7 @@ let undoTracksRefreshedRevisionIds =
               "Tests.UndoRefreshedId.caller"
               $"(): Int64 = Tests.UndoRefreshedId.later() + Tests.UndoRefreshedId.{alias}()"
         do! run state [ "undo"; "Tests.UndoRefreshedId.caller" ]
-        do! fn state "Tests.UndoRefreshedId.later" "(): Int64 = 2L"
+        do! fn state "Tests.UndoRefreshedId.later" "(): Int64 = 2"
         do!
           evals
             state
@@ -288,11 +288,11 @@ let undoStepsBackAndStopsAtTheFirstVersion =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Auth.step" "() : Int64 = 7411L"
+        do! fn state "Tests.Auth.step" "() : Int64 = 7411"
         do! commit state "step v1"
-        do! fn state "Tests.Auth.step" "() : Int64 = 7412L"
+        do! fn state "Tests.Auth.step" "() : Int64 = 7412"
         do! commit state "step v2"
-        do! fn state "Tests.Auth.step" "() : Int64 = 7413L"
+        do! fn state "Tests.Auth.step" "() : Int64 = 7413"
         do! commit state "step v3"
 
         do!
@@ -326,10 +326,10 @@ let undoSurvivesFullCommit =
       task {
         do! start state
         let name = "Tests.UndoCommit.f"
-        do! fn state name "(): Int64 = 91837400L"
+        do! fn state name "(): Int64 = 91837400"
         do! commit state "baseline"
         for value in [ 91837401; 91837402; 91837403 ] do
-          do! fn state name $"(): Int64 = {value}L"
+          do! fn state name $"(): Int64 = {value}"
         for value in [ "91837402"; "91837401" ] do
           do! run state [ "undo"; name ]
           do! evals state $"{name}()" value "undo selects an earlier draft revision"
@@ -354,12 +354,12 @@ let refreshResolvesTheRestoredBody =
       do! start state
       let name = "Tests.UndoForward.f"
       let helper = "Tests.UndoForward.helper"
-      do! fn state name "(): Int64 = 91838000L"
+      do! fn state name "(): Int64 = 91838000"
       do! commit state "baseline"
       for offset in [ 1; 2 ] do
-        do! fn state name $"(): Int64 = {helper}() + {offset}L"
+        do! fn state name $"(): Int64 = {helper}() + {offset}"
       do! run state [ "undo"; name ]
-      do! fn state helper "(): Int64 = 91838010L"
+      do! fn state helper "(): Int64 = 91838010"
       do! evals state $"{name}()" "91838011" "refresh resolves the restored body"
       do! commit state "resolved restore"
       do! run state [ "undo"; name ]

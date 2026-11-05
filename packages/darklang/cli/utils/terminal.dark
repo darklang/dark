@@ -1,7 +1,7 @@
 module Darklang.Cli.Terminal
 
 /// Samples terminal width and height in one native call.
-let getSize(): (Int * Int) =
+let getSize(): (Int64 * Int64) =
   Builtin.cliTerminalSize()
 
 
@@ -33,7 +33,7 @@ let palette(): PrettyPrinter.Palette =
 /// A value rendered for this terminal: laid out for `width`, painted with the CLI's palette.
 let renderValue(
   branchId: Uuid,
-  width: Int,
+  width: Int64,
   color: Bool,
   currentModule: List<String>,
   dv: LanguageTools.RuntimeTypes.Dval)

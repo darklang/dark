@@ -82,7 +82,7 @@ let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, S
   match unresolvedInDraft(branchId) with
   | [] ->
     match draftOpCountFor(branchId) with
-    | 0L -> Stdlib.Result.Result.Error("nothing to commit")
+    | 0 -> Stdlib.Result.Result.Error("nothing to commit")
     | _ ->
       match commitOn(branchId, message, SCM.Actions.CommitScope.Whole, false) with
       | Ok(c) -> Stdlib.Result.Result.Ok(c.hash)
@@ -99,7 +99,7 @@ let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, S
 
 
 /// Drop the draft for <param branchId>, whichever kind of draft that is. Returns how many ops went.
-let discardDraftFor(branchId: Uuid): Int =
+let discardDraftFor(branchId: Uuid): Int64 =
   match discardOn(branchId, SCM.Actions.DiscardWhat.All) with
   | Ok(n) -> n
   | Error(_) -> 0
@@ -125,7 +125,7 @@ let commitOn(
 /// What a merge did: how many ops moved, and what it auto-resolved on the way. `warning` is
 /// something that went wrong after it landed (its values failed to evaluate), or "".
 type MergeOutcome =
-  { merged: Int
+  { merged: Int64
     conflicts: List<Conflicts.Conflict>
     /// The branch's callers repointed at the parent's version before it landed.
     repointed: List<String>
@@ -162,7 +162,7 @@ let mergeBranch(branchId: Uuid): Stdlib.Result.Result<MergeOutcome, MergeError> 
   match SCM.Actions.merge(SCM.Actions.MergeAction.IntoParent(branchId, repoints)) with
   | Ok(r) ->
     (MergeOutcome
-      { merged = Stdlib.Int.fromInt64(r.moved)
+      { merged = r.moved
         conflicts = r.conflicts
         repointed = r.repointed
         warning = r.warning })
@@ -244,17 +244,17 @@ let rebaseBranch(branchId: Uuid): Stdlib.Result.Result<RebaseOutcome, String> =
 
 /// A display of all active branches (one line each: name (id) <- parent [status]).
 let branchList(includeMerged: Bool): String =
-  let hidden = if includeMerged then 0L else Branches.mergedCount()
+  let hidden = if includeMerged then 0 else Branches.mergedCount()
 
   let footer =
-    if hidden == 0L then
+    if hidden == 0 then
       ""
     else
       $"\n\n{Stdlib.toString(hidden)} merged -- `dark branches --all` shows them."
 
   match Branches.listLines(includeMerged) with
   | [] ->
-    if hidden == 0L then
+    if hidden == 0 then
       "no branches -- `dark switch <name>` starts one."
     else
       $"no live branches.{footer}"

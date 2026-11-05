@@ -80,17 +80,17 @@ test emptyInputDoesNotBlock =
 
 
 test invalidChildPoll =
-  Builtin.runtimeChildPoll(-1)
+  Builtin.runtimeChildPoll(-1z)
   |> Stdlib.Test.equal(Error(9))
 
 
 test invalidChildDescriptors =
-  Builtin.runtimeChildDescriptors(-1)
+  Builtin.runtimeChildDescriptors(-1z)
   |> Stdlib.Test.equal(Error(9))
 
 
 test invalidChildClose =
-  Builtin.runtimeChildClose(-1)
+  Builtin.runtimeChildClose(-1z)
   |> Stdlib.Test.equal(Error(9))
 
 

@@ -46,7 +46,7 @@ let var(id: Int64, role: Model.Role): Model.Ty = Model.Ty.TVar(Model.Var.Of(id, 
 let resultOf(id: Int64): Model.Ty = var(id, Model.Role.Result)
 
 /// An unknown for one component of a node, such as an argument or field, indexed from zero.
-let part(id: Int64, index: Int): Model.Ty = var(id, Model.Role.Part(index))
+let part(id: Int64, index: Int64): Model.Ty = var(id, Model.Role.Part(index))
 
 /// An empty requirement group for syntax that adds no checks of its own.
 let nothing(): Model.Constraint = Model.Constraint.All([])
@@ -167,7 +167,7 @@ let resolvedFn(
 /// string for package functions or other versions, so they do not match these rules.
 let builtinName(fn: LanguageTools.ProgramTypes.FQFnName.FQFnName): String =
   match fn with
-  | Builtin(b) -> if b.version == 0l then b.name else ""
+  | Builtin(b) -> if b.version == 0s32 then b.name else ""
   | Package(_) -> ""
   // Not a builtin, so it has no builtin name. Callers use this to recognise the operator
   // builtins and a trait method is never one of those.
@@ -251,6 +251,8 @@ let isNonExpansive(expr: LanguageTools.ProgramTypes.Expr): Bool =
   | EUInt128(_, _) -> true
   | EInt(_, _) -> true
   | EFloat(_, _, _, _) -> true
+  | EFloat32(_, _, _, _) -> true
+  | EDecimal(_, _) -> true
   | EChar(_, _) -> true
   | EFnName(_, _, _) -> true
   | EValue(_, _) -> true
@@ -353,6 +355,8 @@ let matchPattern(
   | MPUInt128(id, _) -> literal(id, Model.Ty.TUInt128)
   | MPInt(id, _) -> literal(id, Model.Ty.TInt)
   | MPFloat(id, _, _, _) -> literal(id, Model.Ty.TFloat)
+  | MPFloat32(id, _, _, _) -> literal(id, Model.Ty.TFloat32)
+  | MPDecimal(id, _) -> literal(id, Model.Ty.TDecimal)
   | MPChar(id, _) -> literal(id, Model.Ty.TChar)
   | MPString(id, _) -> literal(id, Model.Ty.TString)
   | MPVariable(id, name) ->
@@ -503,6 +507,8 @@ let patternIds(pattern: LanguageTools.ProgramTypes.MatchPattern): List<Int64> =
   | MPUInt128(id, _) -> [ id ]
   | MPInt(id, _) -> [ id ]
   | MPFloat(id, _, _, _) -> [ id ]
+  | MPFloat32(id, _, _, _) -> [ id ]
+  | MPDecimal(id, _) -> [ id ]
   | MPChar(id, _) -> [ id ]
   | MPString(id, _) -> [ id ]
   | MPVariable(id, _) -> [ id ]
@@ -587,6 +593,8 @@ let infer(scope: Scope, expr: LanguageTools.ProgramTypes.Expr): (Model.Ty * Mode
   | EDict(id, entries) -> inferDict(scope, id, entries)
   | EChar(_, _) -> (Model.Ty.TChar, nothing())
   | EFloat(_, _, _, _) -> (Model.Ty.TFloat, nothing())
+  | EFloat32(_, _, _, _) -> (Model.Ty.TFloat32, nothing())
+  | EDecimal(_, _) -> (Model.Ty.TDecimal, nothing())
   | ESelf(id) -> inferSelf(scope, id)
   | EInt8(_, _) -> (Model.Ty.TInt8, nothing())
   | EUInt8(_, _) -> (Model.Ty.TUInt8, nothing())
@@ -620,7 +628,7 @@ let inferVariable(scope: Scope, id: Int64, name: String): (Model.Ty * Model.Cons
 
 /// Read a package function parameter by its zero-based position. Report an invalid
 /// index when the position is out of range or the current scope has no argument slots.
-let inferArg(scope: Scope, id: Int64, index: Int): (Model.Ty * Model.Constraint) =
+let inferArg(scope: Scope, id: Int64, index: Int64): (Model.Ty * Model.Constraint) =
   match Stdlib.List.getAt(scope.arguments, index) with
   | Some(t) -> (t, nothing())
   | None ->
@@ -1117,6 +1125,20 @@ let constantDictKey(
       else
         Stdlib.Option.Option.Some(Stdlib.toString(f))
     | Error(_) -> Stdlib.Option.Option.None
+  | EFloat32(_, sign, whole, fraction) ->
+    let sign =
+      match sign with
+      | Negative -> "-"
+      | Positive -> ""
+    match Stdlib.Float32.parse(sign + whole + "." + fraction) with
+    | Ok(f) ->
+      if f == 0.0f32 then
+        Stdlib.Option.Option.Some("0.0f32")
+      else
+        Stdlib.Option.Option.Some((Stdlib.toString(f)) + "f32")
+    | Error(_) -> Stdlib.Option.Option.None
+  // normalised, so `1.10dec` and `1.1dec` are one key, as they are one value under `==`
+  | EDecimal(_, d) -> Stdlib.Option.Option.Some(Stdlib.toString(Stdlib.Decimal.normalize(d)))
   | EChar(_, c) -> Stdlib.Option.Option.Some(quote("'", c))
   | EString(_, segments) ->
     let texts =
@@ -1354,7 +1376,7 @@ let apply(
 let argumentSlots(
   scope: Scope,
   id: Int64,
-  index: Int,
+  index: Int64,
   args: List<LanguageTools.ProgramTypes.Expr>,
   slots: List<(Model.Ty * Site)>,
   checks: List<Model.Constraint>)
@@ -1453,7 +1475,7 @@ let inferPipePart(
             at(id),
             noType(),
             noType(),
-            Context.Arity(Types.count(parameters), 1L)))
+            Context.Arity(Types.count(parameters), 1)))
       | _ -> nothing()
 
     (bodyType,

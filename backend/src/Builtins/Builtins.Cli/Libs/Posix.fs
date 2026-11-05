@@ -38,7 +38,7 @@ let private dPosixError (failure : Host.Failure) : Dval =
     tn,
     [],
     Map
-      [ "errno", Dval.int (bigint failure.errno)
+      [ "errno", Dval.dint64 (int64 failure.errno)
         "message", DString failure.message ]
   )
 
@@ -90,8 +90,8 @@ let private syscallResult
   : Ply<Dval> =
   Interpreter.requestHost vm (Host.Operation.Posix op) (fun outcome ->
     match outcome with
-    | Ok response -> Ply(Dval.resultOk kt KTInt (ok response))
-    | Error e -> Ply(Dval.resultError kt KTInt (Dval.int (bigint e.errno))))
+    | Ok response -> Ply(Dval.resultOk kt KTInt64 (ok response))
+    | Error e -> Ply(Dval.resultError kt KTInt64 (Dval.dint64 (int64 e.errno))))
 
 let private fileEffects = set [ Effect.FileRead; Effect.FileWrite ]
 
@@ -143,7 +143,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallStatAt" 0
       typeParams = []
       parameters = [ Param.make "path" TString "Checked, no-follow entry" ]
-      returnType = TypeReference.result TBytes TInt
+      returnType = TypeReference.result TBytes TInt64
       description = "Raw kernel stat bytes; field decoding belongs in Dark"
       fn =
         (function
@@ -159,16 +159,16 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt "Directory descriptor"
-          Param.make "count" TInt "Maximum raw bytes" ]
-      returnType = TypeReference.result TBytes TInt
+          Param.make "count" TInt64 "Maximum raw bytes" ]
+      returnType = TypeReference.result TBytes TInt64
       description = "One getdents64/getdirentries64 call; no record decoding"
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt count |] ->
+        | _, vm, _, [| DInt fd; DInt64 count |] ->
           let op =
             HostTypes.PosixOp.DirectoryBytes(
               intToDescriptor vm fd,
-              intToInt32 vm count
+              int64ToInt32 vm count
             )
           syscallResult KTBytes vm op (fun r ->
             Bytes.newEphemeral (Host.expectBytes r))
@@ -179,16 +179,16 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "syscallGetcwd" 0
       typeParams = []
-      parameters = [ Param.make "count" TInt "Maximum raw bytes" ]
-      returnType = TypeReference.result TBytes TInt
+      parameters = [ Param.make "count" TInt64 "Maximum raw bytes" ]
+      returnType = TypeReference.result TBytes TInt64
       description = "One kernel getcwd call; no buffer growth or public decoding"
       fn =
         (function
-        | _, vm, _, [| DInt count |] ->
+        | _, vm, _, [| DInt64 count |] ->
           syscallResult
             KTBytes
             vm
-            (HostTypes.PosixOp.GetcwdBytes(intToInt32 vm count))
+            (HostTypes.PosixOp.GetcwdBytes(int64ToInt32 vm count))
             (fun r -> Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -199,7 +199,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallChdir" 0
       typeParams = []
       parameters = [ Param.make "path" TString "Directory to change to" ]
-      returnType = TypeReference.result TUnit TInt
+      returnType = TypeReference.result TUnit TInt64
       description = "Changes the current working directory via kernel chdir()"
       fn =
         (function
@@ -217,13 +217,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "The directory path to create"
-          Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
-      returnType = TypeReference.result TUnit TInt
+          Param.make "mode" TInt64 "Permission bits (e.g. 493 for 0755)" ]
+      returnType = TypeReference.result TUnit TInt64
       description = "Creates a directory via kernel mkdir()"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt mode |] ->
-          let op = HostTypes.PosixOp.Mkdir(path, intToInt32 vm mode)
+        | _, vm, _, [| DString path; DInt64 mode |] ->
+          let op = HostTypes.PosixOp.Mkdir(path, int64ToInt32 vm mode)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -235,16 +235,16 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "The entry to remove"
-          Param.make "flags" TInt "Kernel unlinkat flags" ]
-      returnType = TypeReference.result TUnit TInt
+          Param.make "flags" TInt64 "Kernel unlinkat flags" ]
+      returnType = TypeReference.result TUnit TInt64
       description = "One checked entry-relative unlinkat call"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt flags |] ->
+        | _, vm, _, [| DString path; DInt64 flags |] ->
           syscallResult
             KTUnit
             vm
-            (HostTypes.PosixOp.UnlinkAt(path, intToInt32 vm flags))
+            (HostTypes.PosixOp.UnlinkAt(path, int64ToInt32 vm flags))
             unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -257,7 +257,7 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "oldpath" TString "Current path"
           Param.make "newpath" TString "New path" ]
-      returnType = TypeReference.result TUnit TInt
+      returnType = TypeReference.result TUnit TInt64
       description = "Renames/moves a file or directory via kernel rename()"
       fn =
         (function
@@ -274,13 +274,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path"
-          Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
-      returnType = TypeReference.result TUnit TInt
+          Param.make "mode" TInt64 "Permission bits (e.g. 493 for 0755)" ]
+      returnType = TypeReference.result TUnit TInt64
       description = "Changes file permissions via kernel chmod()"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt mode |] ->
-          let op = HostTypes.PosixOp.Chmod(path, intToInt32 vm mode)
+        | _, vm, _, [| DString path; DInt64 mode |] ->
+          let op = HostTypes.PosixOp.Chmod(path, int64ToInt32 vm mode)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -293,7 +293,7 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "target" TString "Path the symlink points to"
           Param.make "linkpath" TString "Path of the symlink to create" ]
-      returnType = TypeReference.result TUnit TInt
+      returnType = TypeReference.result TUnit TInt64
       description = "Creates a symbolic link via kernel symlink()"
       fn =
         (function
@@ -313,16 +313,16 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "Symlink path to read"
-          Param.make "count" TInt "Maximum bytes" ]
-      returnType = TypeReference.result TBytes TInt
+          Param.make "count" TInt64 "Maximum bytes" ]
+      returnType = TypeReference.result TBytes TInt64
       description = "One readlinkat call, with no growth or text decoding"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt count |] ->
+        | _, vm, _, [| DString path; DInt64 count |] ->
           syscallResult
             KTBytes
             vm
-            (HostTypes.PosixOp.ReadlinkBytes(path, intToInt32 vm count))
+            (HostTypes.PosixOp.ReadlinkBytes(path, int64ToInt32 vm count))
             (fun response -> Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -347,17 +347,18 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallKill" 0
       typeParams = []
       parameters =
-        [ Param.make "pid" TInt "Process ID"
+        [ Param.make "pid" TInt64 "Process ID"
           Param.make
             "signal"
-            TInt
+            TInt64
             "Signal number (e.g. 9 for SIGKILL, 15 for SIGTERM)" ]
-      returnType = TypeReference.result TUnit TInt
+      returnType = TypeReference.result TUnit TInt64
       description = "Sends a signal to a process."
       fn =
         (function
-        | _, vm, _, [| DInt pid; DInt signal |] ->
-          let op = HostTypes.PosixOp.Kill(intToInt32 vm pid, intToInt32 vm signal)
+        | _, vm, _, [| DInt64 pid; DInt64 signal |] ->
+          let op =
+            HostTypes.PosixOp.Kill(int64ToInt32 vm pid, int64ToInt32 vm signal)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -369,15 +370,15 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt "File descriptor to read from"
-          Param.make "count" TInt "Max bytes to read" ]
-      returnType = TypeReference.result TBytes TInt
+          Param.make "count" TInt64 "Max bytes to read" ]
+      returnType = TypeReference.result TBytes TInt64
       description =
         "Reads up to count bytes from a file descriptor into an ephemeral Bytes."
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt count |] ->
+        | _, vm, _, [| DInt fd; DInt64 count |] ->
           let op =
-            HostTypes.PosixOp.FdRead(intToDescriptor vm fd, intToInt32 vm count)
+            HostTypes.PosixOp.FdRead(intToDescriptor vm fd, int64ToInt32 vm count)
           syscallResult KTBytes vm op (fun response ->
             Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
@@ -390,25 +391,25 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt "File descriptor to reposition"
-          Param.make "offset" TInt "Byte offset"
+          Param.make "offset" TInt64 "Byte offset"
           Param.make
             "whence"
-            TInt
+            TInt64
             "Seek origin: 0 for start, 1 for current position, 2 for end" ]
-      returnType = TypeReference.result TInt TInt
+      returnType = TypeReference.result TInt64 TInt64
       description =
         "Seeks to a new position in an open file and returns the resulting byte offset."
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt offset; DInt whence |] ->
+        | _, vm, _, [| DInt fd; DInt64 offset; DInt64 whence |] ->
           let op =
             HostTypes.PosixOp.FdSeek(
               intToDescriptor vm fd,
-              intToInt64 vm offset,
-              intToInt32 vm whence
+              offset,
+              int64ToInt32 vm whence
             )
-          syscallResult KTInt vm op (fun response ->
-            Dval.int (bigint (Host.expectOffset response)))
+          syscallResult KTInt64 vm op (fun response ->
+            Dval.dint64 (int64 (Host.expectOffset response)))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -420,15 +421,15 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "fd" TInt "File descriptor to write to"
           Param.make "bytes" TBytes "Bytes to write" ]
-      returnType = TypeReference.result TInt TInt
+      returnType = TypeReference.result TInt64 TInt64
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
         | state, vm, _, [| DInt fd; DBytes ref |] ->
           Bytes.withBytes state ref (fun bytes ->
             let op = HostTypes.PosixOp.FdWrite(intToDescriptor vm fd, bytes)
-            syscallResult KTInt vm op (fun response ->
-              Dval.int (bigint (Host.expectWritten response))))
+            syscallResult KTInt64 vm op (fun response ->
+              Dval.dint64 (int64 (Host.expectWritten response))))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -438,7 +439,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallClose" 0
       typeParams = []
       parameters = [ Param.make "fd" TInt "File descriptor to close" ]
-      returnType = TypeReference.result TUnit TInt
+      returnType = TypeReference.result TUnit TInt64
       description = "Closes a file descriptor."
       fn =
         (function
@@ -455,15 +456,18 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path to open"
-          Param.make "flags" TInt "Open flags (e.g. O_RDONLY, O_WRONLY | O_CREAT)"
-          Param.make "mode" TInt "Permission bits for new files (e.g. 420 for 0644)" ]
-      returnType = TypeReference.result TInt TInt
+          Param.make "flags" TInt64 "Open flags (e.g. O_RDONLY, O_WRONLY | O_CREAT)"
+          Param.make
+            "mode"
+            TInt64
+            "Permission bits for new files (e.g. 420 for 0644)" ]
+      returnType = TypeReference.result TInt TInt64
       description = "Opens a file via kernel open(). Returns a file descriptor."
       fn =
         (function
-        | _, vm, _, [| DString path; DInt flags; DInt mode |] ->
+        | _, vm, _, [| DString path; DInt64 flags; DInt64 mode |] ->
           let op =
-            HostTypes.PosixOp.Open(path, intToInt32 vm flags, intToInt32 vm mode)
+            HostTypes.PosixOp.Open(path, int64ToInt32 vm flags, int64ToInt32 vm mode)
           syscallResult KTInt vm op (fun response ->
             Dval.int (Host.expectDescriptor response))
         | _ -> incorrectArgs ())
@@ -482,11 +486,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallGetpid" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the current process ID via kernel getpid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.getpid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 (HostPosix.getpid ())) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -496,11 +500,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallGetuid" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the current user ID via kernel getuid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.getuid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 (HostPosix.getuid ())) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -533,13 +537,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt "File descriptor"
-          Param.make "operation" TInt "Kernel LOCK_* operation bits" ]
-      returnType = TypeReference.result TUnit TInt
+          Param.make "operation" TInt64 "Kernel LOCK_* operation bits" ]
+      returnType = TypeReference.result TUnit TInt64
       description = "Locks or unlocks a file via kernel flock()"
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt operation |] ->
-          let lockOp = intToInt32 vm operation
+        | _, vm, _, [| DInt fd; DInt64 operation |] ->
+          let lockOp = int64ToInt32 vm operation
           let op = HostTypes.PosixOp.Flock(intToDescriptor vm fd, lockOp)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())

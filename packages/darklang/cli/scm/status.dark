@@ -58,7 +58,7 @@ let executePretty(state: AppState): AppState =
   // "clean" right after `dark delete X`, with the Deprecate sitting in the draft waiting to be swept
   // into whatever got committed next. Same mistake `discard` made about the same ops.
   if
-    (s.changed == 0) && (s.removed == 0) && (s.conflicts == 0L) && (s.ops == 0L)
+    (s.changed == 0) && (s.removed == 0) && (s.conflicts == 0) && (s.ops == 0)
   then
     Cli.printOk("clean: nothing changed since your last commit.")
 
@@ -88,22 +88,22 @@ let executePretty(state: AppState): AppState =
              []
            else
              [ $"{Cli.Text.plural(s.repoints, "dependent")} will repoint" ]),
-          (if s.conflicts == 0L then
+          (if s.conflicts == 0 then
              []
            else
-             [ $"{Cli.Text.plural(Stdlib.Int.fromInt64(s.conflicts), "conflict")} to review" ]))))
+             [ $"{Cli.Text.plural(s.conflicts, "conflict")} to review" ]))))
 
     // Nothing name-shaped to describe, but ops all the same: say what they are rather than printing
     // "draft: " with an empty list after it.
     if Stdlib.List.isEmpty(parts) then
       Cli.printOk(
-        $"""draft: {Cli.Text.plural(Stdlib.Int.fromInt64(s.ops), "op")}, no changed names (no new version: restores, deprecations, docs, acks)""")
+        $"""draft: {Cli.Text.plural(s.ops, "op")}, no changed names (no new version: restores, deprecations, docs, acks)""")
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  -> `dark commit` to review + commit (it asks first)"))
     else
       Cli.printOk($"""draft: {Stdlib.String.join(parts, ", ")}""")
 
-    if s.conflicts > 0L then
+    if s.conflicts > 0 then
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  -> `dark conflicts` to review them"))
 
     // Split what this draft caused from what was already there: on a store with standing

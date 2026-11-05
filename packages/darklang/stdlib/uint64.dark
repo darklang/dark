@@ -38,9 +38,9 @@ impl Power for UInt64 =
   let power(``base``: UInt64, exponent: UInt64): UInt64 =
     // The signed types push this into the builtin; here the ladder stays, because an
     // unsigned exponent is never negative, so there is no error case to push.
-    if ``base`` == 0UL && exponent == 0UL then 1UL
-    else if ``base`` == 0UL then 0UL
-    else if ``base`` == 1UL then 1UL
+    if ``base`` == 0u64 && exponent == 0u64 then 1u64
+    else if ``base`` == 0u64 then 0u64
+    else if ``base`` == 1u64 then 1u64
     else Builtin.uint64Power(``base``, exponent)
 
 
@@ -85,8 +85,11 @@ let fromFloat(a: Float): Stdlib.Option.Option<UInt64> =
 /// (ties to even). Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
 let fromFloatRounded(a: Float): Stdlib.Option.Option<UInt64> =
-  if Float.isFinite(a) then
-    a |> Float.round |> Stdlib.Int.toUInt64
+  if Float.isFinite(a) && a >= 9223372036854775808.0 then
+    // every Float from 2^63 up is a whole number, so there is nothing to round
+    a |> Stdlib.Int.fromFloat |> Stdlib.Int.toUInt64
+  else if a >= -1.0 && a < 9223372036854775808.0 then
+    a |> Float.round |> Stdlib.UInt64.fromInt64
   else
     Stdlib.Option.Option.None
 
@@ -182,10 +185,10 @@ impl ToString for UInt64 =
   let toString(uint64: UInt64): String = Builtin.uint64ToString(uint64)
 
 impl Zero for UInt64 =
-  let zero(): UInt64 = 0UL
+  let zero(): UInt64 = 0u64
 
 impl One for UInt64 =
-  let one(): UInt64 = 1UL
+  let one(): UInt64 = 1u64
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -222,7 +225,7 @@ let checkedMultiply(
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
 let checkedNegate(a: UInt64): Stdlib.Result.Result<UInt64, Stdlib.Int.Overflow> =
-  if a == 0UL then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+  if a == 0u64 then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always

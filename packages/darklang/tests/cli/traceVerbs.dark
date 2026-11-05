@@ -399,7 +399,7 @@ test recursionIsALoopAndEmptyIterationsStaySilent =
       authored(
         i,
         "Tests.Prev.fact",
-        "(n: Int): Int =\n  if n <= 1 then\n    1\n  else\n    let sub = Tests.Prev.fact(n - 1)\n    n * sub")
+        "(n: Int64): Int64 =\n  if n <= 1 then\n    1\n  else\n    let sub = Tests.Prev.fact(n - 1)\n    n * sub")
 
     let ran = Instance.said(i, [ "eval", "Tests.Prev.fact(5)" ])
     let viewed = Instance.said(i, [ "traces", "show", "Tests.Prev.fact" ])
@@ -429,7 +429,7 @@ test everyIterationOfALoopIsReachable =
       authored(
         i,
         "Tests.Prev.scaled",
-        "(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length")
+        "(n: Int64): Int64 =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length")
 
     let ran = Instance.said(i, [ "eval", "Tests.Prev.scaled(30)" ])
 
@@ -462,7 +462,7 @@ test everyIterationOfALoopIsReachable =
 test fnsNamesWhatRunsWentThrough =
   Traces.withTraces(fun i ->
     let defined =
-      authored(i, "Tests.Prev.counted", "(xs: List<Int>): Int =\n  Stdlib.List.length(xs)")
+      authored(i, "Tests.Prev.counted", "(xs: List<Int64>): Int64 =\n  Stdlib.List.length(xs)")
 
     let ran = Instance.said(i, [ "eval", "Tests.Prev.counted([1, 2, 3])" ])
     let listed = Instance.said(i, [ "traces", "fns" ])
@@ -481,7 +481,7 @@ test fnsNamesWhatRunsWentThrough =
 /// them one.
 test twoNamesForOneFunctionFindTheSameRuns =
   Traces.withTraces(fun i ->
-    let body = "(n: Int) : Int =\n  n * 3"
+    let body = "(n: Int64) : Int64 =\n  n * 3"
 
     let defined =
       Stdlib.Test.all(

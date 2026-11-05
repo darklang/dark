@@ -19,8 +19,8 @@ let renameOntoALiveNameIsRefusedAndBothSurvive =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Auth.one" "() : Int64 = 7405L"
-        do! fn state "Tests.Auth.two" "() : Int64 = 7406L"
+        do! fn state "Tests.Auth.one" "() : Int64 = 7405"
+        do! fn state "Tests.Auth.two" "() : Int64 = 7406"
         do! commit state "auth rename fixture"
 
         do!
@@ -45,7 +45,7 @@ let deleteStillRefusesAfterARename =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.RenDep.callee" "() : Int64 = 7431L"
+        do! fn state "Tests.RenDep.callee" "() : Int64 = 7431"
         do! fn state "Tests.RenDep.caller" "(): Int64 = Tests.RenDep.callee()"
         do! run state [ "type"; "Tests.RenDep.Crate"; "{ renDepWidth: Int64 }" ]
         do!
@@ -96,9 +96,9 @@ let aRenamedItemsCallersFollowTheNewName =
 
         let scenario (m : string) =
           task {
-            do! fn state $"Tests.{m}.fmt" "() : Int64 = 7461L"
+            do! fn state $"Tests.{m}.fmt" "() : Int64 = 7461"
             do! fn state $"Tests.{m}.caller" $"(): Int64 = Tests.{m}.fmt()"
-            do! fn state $"Tests.{m}.alias" "() : Int64 = 7461L"
+            do! fn state $"Tests.{m}.alias" "() : Int64 = 7461"
             do! fn state $"Tests.{m}.aliasCaller" $"(): Int64 = Tests.{m}.alias()"
             do!
               fn
@@ -168,7 +168,7 @@ let aRenamedItemsCallersFollowTheNewName =
             do! commitOnly state $"{m} atomic rename" $"Tests.{m}.toMoney"
             do! clean state "a partial commit keeps the entire rename together"
 
-            do! fn state $"Tests.{m}.fmt" "() : Int64 = 7462L"
+            do! fn state $"Tests.{m}.fmt" "() : Int64 = 7462"
             do!
               evals
                 state
@@ -189,7 +189,7 @@ let aRenamedItemsCallersFollowTheNewName =
                 state
                 $"Tests.{m}.mixed"
                 $"(): Int64 = Tests.{m}.toMoney() + Tests.{m}.fmt()"
-            do! fn state $"Tests.{m}.toMoney" "() : Int64 = 7463L"
+            do! fn state $"Tests.{m}.toMoney" "() : Int64 = 7463"
             do!
               evals
                 state
@@ -248,16 +248,16 @@ let aRenamedItemsCallersFollowTheNewName =
                 $"{m}: committing preserves fmt's callers"
 
             // Restore exactly the content the old name held before the rename.
-            do! fn state $"Tests.{m}.restored" "() : Int64 = 7464L"
+            do! fn state $"Tests.{m}.restored" "() : Int64 = 7464"
             do! commit state $"{m} restore fixture"
             do! run state [ "rename"; $"Tests.{m}.restored"; $"Tests.{m}.kept" ]
-            do! fn state $"Tests.{m}.restored" "() : Int64 = 7464L"
+            do! fn state $"Tests.{m}.restored" "() : Int64 = 7464"
             do!
               fn
                 state
                 $"Tests.{m}.restoredCaller"
                 $"(): Int64 = Tests.{m}.restored()"
-            do! fn state $"Tests.{m}.restored" "() : Int64 = 7465L"
+            do! fn state $"Tests.{m}.restored" "() : Int64 = 7465"
             do!
               evals
                 state
@@ -279,18 +279,17 @@ let aRenamedItemsCallersFollowTheNewName =
                 $"{m}: committing preserves restored callers"
 
             // Save the function first so its recursive call can resolve.
-            do!
-              fn state $"Tests.{m}.recursive" "let recursive(n: Int64): Int64 = 0L"
+            do! fn state $"Tests.{m}.recursive" "let recursive(n: Int64): Int64 = 0"
             do!
               fn
                 state
                 $"Tests.{m}.recursive"
-                $"let recursive(n: Int64): Int64 = if n == 0L then 0L else Tests.{m}.recursive(n - 1L)"
+                $"let recursive(n: Int64): Int64 = if n == 0 then 0 else Tests.{m}.recursive(n - 1)"
             do!
               fn
                 state
                 $"Tests.{m}.recursiveCaller"
-                $"(): Int64 = Tests.{m}.recursive(3L)"
+                $"(): Int64 = Tests.{m}.recursive(3)"
             do!
               evals
                 state
@@ -318,7 +317,7 @@ let aRenamedItemsCallersFollowTheNewName =
               fn
                 state
                 $"Tests.{m}.renamedRecursive"
-                $"let renamedRecursive(n: Int64): Int64 = if n == 0L then 7L else Tests.{m}.renamedRecursive(n - 1L)"
+                $"let renamedRecursive(n: Int64): Int64 = if n == 0 then 7 else Tests.{m}.renamedRecursive(n - 1)"
             do!
               evals
                 state
@@ -329,7 +328,7 @@ let aRenamedItemsCallersFollowTheNewName =
           }
 
         do! scenario "RenTo"
-        do! fn state "Tests.RenInherited.leaf" "(): Int64 = 7471L"
+        do! fn state "Tests.RenInherited.leaf" "(): Int64 = 7471"
         do!
           fn
             state
@@ -347,7 +346,7 @@ let aRenamedItemsCallersFollowTheNewName =
             [ "view"; "Tests.RenInherited.caller"; "--raw" ]
             "moved()"
             "the branch updates inherited reference metadata"
-        do! fn state "Tests.RenInherited.moved" "(): Int64 = 7472L"
+        do! fn state "Tests.RenInherited.moved" "(): Int64 = 7472"
         do!
           evals
             state
@@ -374,13 +373,13 @@ let branchRenamesAndRemovalsDoNotResurrectCallers =
   instanceTest "branch renames and removals do not resurrect callers" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86201L"
+      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86201"
       do! fn state "Tests.CallerLive.caller" "(): Int64 = Tests.CallerLive.foo()"
       do! commit state "live callers baseline"
       do! switch state "caller-live"
       do!
         run state [ "rename"; "Tests.CallerLive.caller"; "Tests.CallerLive.moved" ]
-      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86202L"
+      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86202"
       do!
         evals state "Tests.CallerLive.moved()" "86202" "the renamed caller follows"
       do! notFound state "Tests.CallerLive.caller()" "the old name stays removed"
@@ -395,11 +394,11 @@ let branchRenamesAndRemovalsDoNotResurrectCallers =
           state
           [ "eval"
             """Darklang.SCM.PackageOps.add(Darklang.SCM.PackageOps.currentBranch(), [Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests", modules = ["CallerLive"], name = "moved" }, Darklang.Stdlib.Option.Option.None)])""" ]
-      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86203L"
+      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86203"
       do!
         notFound state "Tests.CallerLive.moved()" "the deleted caller stays deleted"
-      do! value state "Tests.CallerLive.caller" "99L"
-      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86204L"
+      do! value state "Tests.CallerLive.caller" "99"
+      do! fn state "Tests.CallerLive.foo" "(): Int64 = 86204"
       do!
         evals
           state
@@ -419,7 +418,7 @@ let refreshedRenameSnapshotsSurviveAProjectionRebuild =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.RefreshLog.foo" "(): Int64 = 86801L"
+        do! fn state "Tests.RefreshLog.foo" "(): Int64 = 86801"
         do! commit state "refresh log baseline"
         do!
           fn
@@ -438,8 +437,8 @@ let refreshedRenameSnapshotsSurviveAProjectionRebuild =
         let stamp = Map.find (LibDB.Inserts.computeOpHash rename) stamps
         Expect.isSome stamp "the rename has an authoring time"
         // This new binding must stay after the rename, even if refreshing the rename changes its ID.
-        do! fn state "Tests.RefreshLog.foo" "(): Int64 = 86809L"
-        do! fn state "Tests.RefreshLog.later" "(): Int64 = 2L"
+        do! fn state "Tests.RefreshLog.foo" "(): Int64 = 86809"
+        do! fn state "Tests.RefreshLog.later" "(): Int64 = 2"
         let! after = LibDB.Queries.getDraftOps ()
         let updated =
           after
@@ -497,7 +496,7 @@ let refreshedRenameSnapshotsSurviveAProjectionRebuild =
             [ "deps"; "uses"; "Tests.RefreshLog.caller" ]
             "Tests.RefreshLog.bar"
             "refresh preserves the renamed dependency"
-        do! fn state "Tests.RefreshLog.bar" "(): Int64 = 86810L"
+        do! fn state "Tests.RefreshLog.bar" "(): Int64 = 86810"
         do!
           evals
             state
@@ -514,7 +513,7 @@ let forwardReferenceRefreshFollowsChainedRenames =
       do! fn state "Tests.RenameChain.a" "(): Int64 = Tests.RenameChain.later()"
       do! run state [ "rename"; "Tests.RenameChain.a"; "Tests.RenameChain.b" ]
       do! run state [ "rename"; "Tests.RenameChain.b"; "Tests.RenameChain.c" ]
-      do! fn state "Tests.RenameChain.later" "(): Int64 = 86521L"
+      do! fn state "Tests.RenameChain.later" "(): Int64 = 86521"
       do!
         evals
           state
@@ -522,7 +521,7 @@ let forwardReferenceRefreshFollowsChainedRenames =
           "86521"
           "the final name gets the resolved declaration"
       do! commit state "resolved after two renames"
-      do! fn state "Tests.RenameChain.later" "(): Int64 = 86522L"
+      do! fn state "Tests.RenameChain.later" "(): Int64 = 86522"
       do!
         evals
           state
@@ -537,13 +536,13 @@ let recursiveForwardReferenceRefreshFollowsChainedRenames =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.RecursiveRenameChain.a" "(n: Int64): Int64 = 0L"
+        do! fn state "Tests.RecursiveRenameChain.a" "(n: Int64): Int64 = 0"
         do! commit state "recursive rename binding"
         do!
           fn
             state
             "Tests.RecursiveRenameChain.a"
-            "(n: Int64): Int64 = if n == 0L then Tests.RecursiveRenameChain.later() else Tests.RecursiveRenameChain.a(n - 1L)"
+            "(n: Int64): Int64 = if n == 0 then Tests.RecursiveRenameChain.later() else Tests.RecursiveRenameChain.a(n - 1)"
         do!
           exits
             state
@@ -560,17 +559,17 @@ let recursiveForwardReferenceRefreshFollowsChainedRenames =
               "Tests.RecursiveRenameChain.c" ]
             0L
             "the second rename succeeds"
-        do! fn state "Tests.RecursiveRenameChain.later" "(): Int64 = 86531L"
+        do! fn state "Tests.RecursiveRenameChain.later" "(): Int64 = 86531"
         do!
           evals
             state
-            "Tests.RecursiveRenameChain.c(0L)"
+            "Tests.RecursiveRenameChain.c(0)"
             "86531"
             "the forward reference resolves at the final name"
         do!
           evals
             state
-            "Tests.RecursiveRenameChain.c(2L)"
+            "Tests.RecursiveRenameChain.c(2)"
             "86531"
             "recursive calls use the refreshed declaration too"
         do!
@@ -588,7 +587,7 @@ let recursiveForwardReferenceRefreshFollowsChainedRenames =
         do!
           evals
             state
-            "Tests.RecursiveRenameChain.c(2L)"
+            "Tests.RecursiveRenameChain.c(2)"
             "86531"
             "recursive calls still work after committing"
       })
@@ -604,13 +603,10 @@ let refreshKeepsLaterEditsAfterChainedRenames =
         fn
           state
           "Tests.RenameLatest.a"
-          "(): Int64 = Tests.RenameLatest.later() + 10L"
+          "(): Int64 = Tests.RenameLatest.later() + 10"
       do!
-        fn
-          state
-          "Tests.RenameLatest.c"
-          "(): Int64 = Tests.RenameLatest.later() + 1L"
-      do! fn state "Tests.RenameLatest.later" "(): Int64 = 86541L"
+        fn state "Tests.RenameLatest.c" "(): Int64 = Tests.RenameLatest.later() + 1"
+      do! fn state "Tests.RenameLatest.later" "(): Int64 = 86541"
       do!
         evals
           state
@@ -635,7 +631,7 @@ let aRenameCanBeDiscardedByEitherName =
           task {
             let oldName = $"Tests.{name}.old"
             let moved = $"Tests.{name}.moved"
-            do! fn state oldName "(): Int64 = 582731L"
+            do! fn state oldName "(): Int64 = 582731"
             do! fn state $"Tests.{name}.caller" $"(): Int64 = {oldName}()"
             do! commit state "discard rename fixture"
             for discardName in [ moved; oldName ] do
@@ -668,8 +664,8 @@ let renameIntoReusedLocationKeepsSourceReferences =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.ReusedRename.original" "(): Int64 = 582771L"
-        do! fn state "Tests.ReusedRename.alias" "(): Int64 = 582771L"
+        do! fn state "Tests.ReusedRename.original" "(): Int64 = 582771"
+        do! fn state "Tests.ReusedRename.alias" "(): Int64 = 582771"
         do!
           fn
             state
@@ -704,14 +700,14 @@ let renameIntoReusedLocationKeepsSourceReferences =
             [ "view"; "Tests.ReusedRename.destination"; "--raw" ]
             "alias()"
             "the source metadata replaces the vacant destination history"
-        do! fn state "Tests.ReusedRename.moved" "(): Int64 = 582772L"
+        do! fn state "Tests.ReusedRename.moved" "(): Int64 = 582772"
         do!
           evals
             state
             "Tests.ReusedRename.destination()"
             "582771"
             "the old destination dependency no longer controls it"
-        do! fn state "Tests.ReusedRename.alias" "(): Int64 = 582773L"
+        do! fn state "Tests.ReusedRename.alias" "(): Int64 = 582773"
         do!
           evals
             state
@@ -732,8 +728,8 @@ let independentRenamesCompose =
             if reverse then "Tests.RenameComposeReverse" else "Tests.RenameCompose"
           let branch =
             if reverse then "rename-compose-reverse" else "rename-compose"
-          do! fn state $"{prefix}.a" "(): Int64 = 582751L"
-          do! fn state $"{prefix}.b" "(): Int64 = 582752L"
+          do! fn state $"{prefix}.a" "(): Int64 = 582751"
+          do! fn state $"{prefix}.b" "(): Int64 = 582752"
           do! fn state $"{prefix}.caller" $"(): Int64 = {prefix}.a() + {prefix}.b()"
           do! commit state "independent rename baseline"
           let first, second = if reverse then "b", "a" else "a", "b"
@@ -773,8 +769,8 @@ let independentRenamesCompose =
               [ "view"; $"{prefix}.caller"; "--raw" ]
               "bMoved()"
               "merge retains the second edge"
-          do! fn state $"{prefix}.aMoved" "(): Int64 = 10L"
-          do! fn state $"{prefix}.bMoved" "(): Int64 = 20L"
+          do! fn state $"{prefix}.aMoved" "(): Int64 = 10"
+          do! fn state $"{prefix}.bMoved" "(): Int64 = 20"
           do!
             evals
               state
@@ -790,13 +786,13 @@ let aRenameIncludesACallerArrivingThroughMerge =
   instanceTest "a rename includes a caller arriving through merge" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582741L"
+      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582741"
       do! commit state "older caller base"
       do! switch state "rename-older-caller"
       do! fn state "Tests.RenameOlder.caller" "(): Int64 = Tests.RenameOlder.foo()"
       do! commit state "caller on branch"
       do! onMain state
-      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582742L"
+      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582742"
       do! commit state "main moved on"
       do! run state [ "merge"; "rename-older-caller"; "-y" ]
       let! hash = runCliPlain state [ "hash"; "Tests.RenameOlder.caller" ]
@@ -815,14 +811,14 @@ let aRenameIncludesACallerArrivingThroughMerge =
           [ "deps"; "uses"; "Tests.RenameOlder.caller" ]
           "Tests.RenameOlder.bar"
           "the merged caller's reference follows the name"
-      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582743L"
+      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582743"
       do!
         evals
           state
           "Tests.RenameOlder.caller()"
           "582742"
           "reusing the old name does not redirect the caller"
-      do! fn state "Tests.RenameOlder.bar" "(): Int64 = 582744L"
+      do! fn state "Tests.RenameOlder.bar" "(): Int64 = 582744"
       do!
         evals
           state
@@ -838,16 +834,16 @@ let aReusedCallerKeepsItsOwnReferenceNames =
   instanceTest "reused caller content keeps its own reference names" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.RefNames.old" "(): Int64 = 9734822L"
+      do! fn state "Tests.RefNames.old" "(): Int64 = 9734822"
       do! fn state "Tests.RefNames.a" "(): Int64 = Tests.RefNames.old()"
       do! commit state "reference name fixture"
       do! run state [ "rename"; "Tests.RefNames.old"; "Tests.RefNames.moved" ]
       do! fn state "Tests.RefNames.b" "(): Int64 = Tests.RefNames.moved()"
-      do! fn state "Tests.RefNames.a" "(): Int64 = 9734823L"
-      do! fn state "Tests.RefNames.b" "(): Int64 = 9734824L"
-      do! fn state "Tests.RefNames.old" "(): Int64 = 9734822L"
+      do! fn state "Tests.RefNames.a" "(): Int64 = 9734823"
+      do! fn state "Tests.RefNames.b" "(): Int64 = 9734824"
+      do! fn state "Tests.RefNames.old" "(): Int64 = 9734822"
       do! fn state "Tests.RefNames.c" "(): Int64 = Tests.RefNames.old()"
-      do! fn state "Tests.RefNames.moved" "(): Int64 = 9734825L"
+      do! fn state "Tests.RefNames.moved" "(): Int64 = 9734825"
       do!
         evals
           state
@@ -876,11 +872,11 @@ let branchBodyRevertKeepsNewAlias =
       task {
         do! start state
         do! switch state "revert-alias"
-        do! fn state "Tests.RevertAlias.a" "(): Int64 = 910001L"
-        do! fn state "Tests.RevertAlias.b" "(): Int64 = 910001L"
+        do! fn state "Tests.RevertAlias.a" "(): Int64 = 910001"
+        do! fn state "Tests.RevertAlias.b" "(): Int64 = 910001"
         // The final transition repeats a stored SetName, but changes the alias
         // inside the shared body. Restating the binding must not lose that edit.
-        for body in [ "a() + 1L"; "a() + 2L"; "a() + 1L"; "b() + 2L" ] do
+        for body in [ "a() + 1"; "a() + 2"; "a() + 1"; "b() + 2" ] do
           do!
             fn
               state
@@ -891,9 +887,9 @@ let branchBodyRevertKeepsNewAlias =
           shows
             state
             [ "view"; "Tests.RevertAlias.caller"; "--raw" ]
-            "b() + 2L"
+            "b() + 2"
             "the reverted body keeps the newly chosen alias"
-        for body in [ "a() + 1L"; "a() + 2L"; "a() + 1L" ] do
+        for body in [ "a() + 1"; "a() + 2"; "a() + 1" ] do
           do! run state [ "undo"; "Tests.RevertAlias.caller" ]
           do!
             shows
@@ -907,23 +903,23 @@ let branchBodyRevertKeepsNewAlias =
           fn
             state
             "Tests.RevertAlias.caller"
-            "(): Int64 = Tests.RevertAlias.a() + 2L"
+            "(): Int64 = Tests.RevertAlias.a() + 2"
         do! run state [ "undo"; "Tests.RevertAlias.caller" ]
         do!
           shows
             state
             [ "view"; "Tests.RevertAlias.caller"; "--raw" ]
-            "b() + 2L"
+            "b() + 2"
             "a subsequent alias edit has its own undo revision"
         do! discardAll state
-        do! fn state "Tests.RevertAlias.a" "(): Int64 = 910010L"
+        do! fn state "Tests.RevertAlias.a" "(): Int64 = 910010"
         do!
           evals
             state
             "Tests.RevertAlias.caller()"
             "910003"
             "the old alias no longer controls the caller"
-        do! fn state "Tests.RevertAlias.b" "(): Int64 = 910020L"
+        do! fn state "Tests.RevertAlias.b" "(): Int64 = 910020"
         do!
           evals
             state
@@ -939,7 +935,7 @@ let promotingBranchContentKeepsItsReferenceNames =
       task {
         do! start state
         for alias in [ "a"; "b" ] do
-          do! fn state $"Tests.PromoteAlias.{alias}" "(): Int64 = 91837261L"
+          do! fn state $"Tests.PromoteAlias.{alias}" "(): Int64 = 91837261"
         do! commit state "shared helpers"
         do! switch state "promote-alias"
         do!
@@ -961,14 +957,14 @@ let promotingBranchContentKeepsItsReferenceNames =
             [ "view"; "Tests.PromoteAlias.branchCaller"; "--raw" ]
             "b()"
             "main cannot replace the branch's canonical reference names"
-        do! fn state "Tests.PromoteAlias.a" "(): Int64 = 91837262L"
+        do! fn state "Tests.PromoteAlias.a" "(): Int64 = 91837262"
         do!
           evals
             state
             "Tests.PromoteAlias.branchCaller()"
             "91837261"
             "the branch caller still ignores a"
-        do! fn state "Tests.PromoteAlias.b" "(): Int64 = 91837263L"
+        do! fn state "Tests.PromoteAlias.b" "(): Int64 = 91837263"
         do!
           evals
             state
@@ -984,7 +980,7 @@ let branchAliasEditsAppearInPreviewAndResolveToParent =
       task {
         do! start state
         for alias in [ "a"; "b" ] do
-          do! fn state $"Tests.ResolveAlias.{alias}" "(): Int64 = 91837271L"
+          do! fn state $"Tests.ResolveAlias.{alias}" "(): Int64 = 91837271"
         do!
           fn state "Tests.ResolveAlias.caller" "(): Int64 = Tests.ResolveAlias.a()"
         do! commit state "alias baseline"
@@ -1011,7 +1007,7 @@ let branchAliasEditsAppearInPreviewAndResolveToParent =
             [ "view"; "Tests.ResolveAlias.caller"; "--raw" ]
             "a()"
             "taking theirs restores the parent's reference names"
-        do! fn state "Tests.ResolveAlias.b" "(): Int64 = 91837272L"
+        do! fn state "Tests.ResolveAlias.b" "(): Int64 = 91837272"
         do!
           evals
             state

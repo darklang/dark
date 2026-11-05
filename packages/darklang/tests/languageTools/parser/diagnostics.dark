@@ -65,28 +65,28 @@ let says(source: String, fragment: String): Stdlib.Test.Result =
 test goldenMessages =
   Stdlib.Test.all(
     [ golden(
-        "(1L + 2L",
+        "(1 + 2",
         [ "expected ')' to close the '(' at line 1:1, found end of file" ])
-      golden("(1L + )", [ "expected an expression, found ')'" ])
+      golden("(1 + )", [ "expected an expression, found ')'" ])
       golden(
-        "Point { x = 1L",
+        "Point { x = 1",
         [ "expected '}' to close the '{' at line 1:7, found end of file" ])
-      golden("if true then 1L else", [ "expected an expression, found end of file" ])
+      golden("if true then 1 else", [ "expected an expression, found end of file" ])
       // the missing `:` is reported once, then `Int64` is read as the type
       golden("let f (x Int64) : Int64 = x", [ "expected ':', found 'Int64'" ])
       golden(
-        "128y",
-        [ "integer literal 128y is out of range (this magnitude is only valid negated: -128y)" ])
+        "128s8",
+        [ "integer literal 128s8 is out of range (this magnitude is only valid negated: -128s8)" ])
       // the unfinished arm is missing both its arrow and its body
       golden(
         "match x with | Ok(v) -> v | Error",
         [ "expected '->' in match case, found end of file"
           "expected an expression, found end of file" ])
       golden(
-        "let x = [1L, 2L",
+        "let x = [1, 2",
         [ "expected ']' to close the '[' at line 1:9, found end of file"
           "expected an expression, found end of file" ])
-      golden("[1L; 2L]", [ "expected ',' between list elements, found ';'" ])
+      golden("[1; 2]", [ "expected ',' between list elements, found ';'" ])
       // `as` is looser than `,` and `|`, so naming one part needs parentheses
       golden(
         "match x with | (a as y, b) -> y",
@@ -101,47 +101,47 @@ test goldenMessages =
         "match x with | (a, b as t) -> t",
         [ "'as' after a tuple's last element is ambiguous" ])
       // one diagnostic per invalid tuple index
-      golden("t.1L", [ "expected a tuple element number after '.', found '1L'" ])
+      golden("t.1s8", [ "expected a tuple element number after '.', found '1s8'" ])
       golden(
-        "t.1e0 + 1L",
+        "t.1e0 + 1",
         [ "expected a tuple element number after '.', found '1e0'" ])
       golden(
         "t.1.2e3",
         [ "expected a tuple element number after '.', found '1.2e3'" ])
       // the lexer's error, without a parser error on top
-      golden("t.1.2L", [ "invalid number literal: 1.2L" ])
-      golden("t.300y", [ "out of range for Int8: 300" ])
+      golden("t.1.2s8", [ "invalid number literal: 1.2s8" ])
+      golden("t.300s8", [ "out of range for Int8: 300s8" ])
       golden(
-        "[1L; 2L; 3L]",
+        "[1; 2; 3]",
         [ "expected ',' between list elements, found ';'"
           "expected ',' between list elements, found ';'" ])
       golden(
         "match x with | [a; b] -> a",
         [ "expected ',' between list-pattern elements, found ';'" ])
       golden(
-        "Point { x = 1L; y = 2L }",
+        "Point { x = 1; y = 2 }",
         [ "expected ',' between record fields, found ';'" ])
       golden(
-        "Dict { 1L: 2L; 3L: 4L }",
+        "Dict { 1: 2; 3: 4 }",
         [ "expected ',' between dict entries, found ';'" ])
       golden(
-        "{ p with x = 1L; y = 2L }",
+        "{ p with x = 1; y = 2 }",
         [ "expected ',' between record-update fields, found ';'" ])
       golden(
         "type P = { x: Int64; y: Int64 }",
         [ "expected ',' between record-type fields, found ';'" ])
       // only a newline separates statements: in a body, in parens, at top level
       golden(
-        "let f(): Unit =\n  print(1L); print(2L)",
+        "let f(): Unit =\n  print(1); print(2)",
         [ "expected a new line between statements, found ';'" ])
       golden(
-        "(print(1L); print(2L))",
+        "(print(1); print(2))",
         [ "expected a new line between statements, found ';'" ])
       golden(
-        "print(1L); print(2L)",
+        "print(1); print(2)",
         [ "expected a new line between statements, found ';'" ])
-      golden("let x : String = 1L in x", [ "Value annotations are not supported" ])
-      golden("val x : String = 1L", [ "Value annotations are not supported" ]) ])
+      golden("let x : String = 1 in x", [ "Value annotations are not supported" ])
+      golden("val x : String = 1", [ "Value annotations are not supported" ]) ])
 
 // A malformed lexeme gets a diagnostic, never a silent success and never a throw.
 test lexicalFailures =
@@ -150,33 +150,33 @@ test lexicalFailures =
       rejects("\"abc")
       rejects("'a")
       rejects("'\\na'")
-      rejects("$\"{1L")
-      rejects("$\"{1L +++ 2L}\"")
+      rejects("$\"{1")
+      rejects("$\"{1 +++ 2}\"")
       rejects("match x with")
-      rejects("fun -> 1L")
-      rejects("module X =\nlet y = 1L")
-      rejects("{ a = 1L }")
-      rejects("match x with\n  | Some(x) -> x\n    | None -> 0L")
+      rejects("fun -> 1")
+      rejects("module X =\nlet y = 1")
+      rejects("{ a = 1 }")
+      rejects("match x with\n  | Some(x) -> x\n    | None -> 0")
       rejects("1e")
       rejects("1.5e+")
       rejects("1e401")
-      rejects("99999999999999999999L")
-      rejects("9000y")
+      rejects("99999999999999999999")
+      rejects("9000s8")
       rejects("(* never closed")
-      rejects("$\"{1L\n2L}\"")
+      rejects("$\"{1\n2}\"")
       rejects("$\"{}\"")
-      rejects("$\"{val x = 1L}\"")
+      rejects("$\"{val x = 1}\"")
       rejects("$\"hello } world\"")
       // a `}` inside a comment or a raw string does not close the interpolation
-      clean("$\"{(* } *) 1L}\"")
+      clean("$\"{(* } *) 1}\"")
       clean("$\"{\"\"\" } \"\"\"}\"")
-      clean("$\"a{ 1L }b\"") ])
+      clean("$\"a{ 1 }b\"") ])
 
 test operatorsDarkLacksSayWhatToWrite =
   Stdlib.Test.all(
     [ says("match xs with | h :: t -> h", "a list is `[head, ...tail]`")
-      says("1L :: []", "a list is `[head, ...tail]`")
-      says("[1L] @ [2L]", "join lists with `[...a, ...b]`")
+      says("1 :: []", "a list is `[head, ...tail]`")
+      says("[1] @ [2]", "join lists with `[...a, ...b]`")
       says("(@)", "join lists with `[...a, ...b]`")
       says("\"a\" ++ \"b\"", "join Strings with `+`")
       says("...", "only goes inside a list")
@@ -188,24 +188,24 @@ test operatorsDarkLacksSayWhatToWrite =
 
 test sameLineItemsNeedSeparators =
   Stdlib.Test.all(
-    [ rejects("[1L 2L]")
+    [ rejects("[1 2]")
       rejects("match xs with | [a b] -> a")
-      rejects("Pair(1L 2L)")
+      rejects("Pair(1 2)")
       rejects("match pair with | Pair(a b) -> a")
-      rejects("Person { a = 1L b = 2L }")
-      rejects("Dict { \"a\": 1L \"b\": 2L }")
-      rejects("{ value with a = 1L b = 2L }")
+      rejects("Person { a = 1 b = 2 }")
+      rejects("Dict { \"a\": 1 \"b\": 2 }")
+      rejects("{ value with a = 1 b = 2 }")
       rejects("type R = { a: Int64 b: String }")
-      clean("[1L, 2L]")
+      clean("[1, 2]")
       clean("match xs with | [a, b] -> a")
-      clean("Pair(1L, 2L)")
+      clean("Pair(1, 2)")
       clean("match pair with | Pair(a, b) -> a")
-      clean("Person { a = 1L, b = 2L }")
-      clean("Dict { \"a\": 1L, \"b\": 2L }")
-      clean("{ value with a = 1L, b = 2L }")
+      clean("Person { a = 1, b = 2 }")
+      clean("Dict { \"a\": 1, \"b\": 2 }")
+      clean("{ value with a = 1, b = 2 }")
       clean("type R = { a: Int64, b: String }")
-      clean("Person { a = 1L, b = 2L, }")
-      clean("let f(): Unit =\n  print(1L)\n  print(2L)") ])
+      clean("Person { a = 1, b = 2, }")
+      clean("let f(): Unit =\n  print(1)\n  print(2)") ])
 
 test identifiersAndModifiers =
   Stdlib.Test.all(
@@ -214,16 +214,16 @@ test identifiersAndModifiers =
       rejects("module M =\n  let rec f (x: Int64) : Int64 = x")
       rejects("module M =\n  let private f (x: Int64) : Int64 = x")
       rejects("module M =\n  let internal f (x: Int64) : Int64 = x")
-      rejects("if true then let private f (x: Int64) : Int64 = x in f(1L) else 0L")
-      clean("let rec = 1L in rec")
-      clean("let private = 1L in private")
-      clean("let internal = 1L in internal")
+      rejects("if true then let private f (x: Int64) : Int64 = x in f(1) else 0")
+      clean("let rec = 1 in rec")
+      clean("let private = 1 in private")
+      clean("let internal = 1 in internal")
       // a package fn's parameter cannot be blank; a lambda's can
       says(
         "let f(___: Int64, x: Int64): Int64 = x",
         "Blank parameter '___' is not allowed")
       clean("let f(): Unit = ()")
-      clean("fun ___ -> 1L")
+      clean("fun ___ -> 1")
       // `val` declares a value, so it takes no parameters
       says(
         "val f (x: Int64) : Int64 = x",
@@ -238,14 +238,14 @@ test identifiersAndModifiers =
 test emptyAndMalformedForms =
   Stdlib.Test.all(
     [ // recovery still reports what it recovered from
-      rejects("[1L + , 2L * ]")
+      rejects("[1 + , 2 * ]")
       rejects(
         "module Test\n"
         + "let broken1 (x: Int64) : Int64 =\n  x + \n\n"
-        + "let broken2 () : Int64 =\n  [1L, 2L\n\n"
-        + "let fine (y: Int64) : Int64 =\n  y * 2L\n")
+        + "let broken2 () : Int64 =\n  [1, 2\n\n"
+        + "let fine (y: Int64) : Int64 =\n  y * 2\n")
       rejects("{ x with }")
-      clean("{ r with f = 1L }")
+      clean("{ r with f = 1 }")
       rejects("type X = {}")
       rejects("type X = |")
       clean("type X = { a: Int64 }")
@@ -255,20 +255,20 @@ test emptyAndMalformedForms =
       rejects("12l3")
       rejects("1.5xyz")
       rejects("80I")
-      clean("123L")
+      clean("123")
       clean("1.5")
       clean("1e300")
-      clean("[1L, 2L]")
-      // `128y` is not -128: the magnitude only fits negated
-      rejects("128y")
-      rejects("32768s")
-      rejects("2147483648l")
-      rejects("9223372036854775808L")
-      rejects("170141183460469231731687303715884105728Q")
-      clean("-128y")
-      clean("-9223372036854775808L")
-      clean("match x with | -128y -> 1L | _ -> 2L")
-      clean("match x with | Ok(5y) -> 1L | Ok(-4y) -> 2L | _ -> 3L") ])
+      clean("[1, 2]")
+      // `128s8` is not -128: the magnitude only fits negated
+      rejects("128s8")
+      rejects("32768s16")
+      rejects("2147483648s32")
+      rejects("9223372036854775808")
+      rejects("170141183460469231731687303715884105728s128")
+      clean("-128s8")
+      clean("-9223372036854775808")
+      clean("match x with | -128s8 -> 1 | _ -> 2")
+      clean("match x with | Ok(5s8) -> 1 | Ok(-4s8) -> 2 | _ -> 3") ])
 
 test recoveryStopsAtEndOfFile =
   let found = messages("let x =")
@@ -299,26 +299,26 @@ test genericSyntaxIsExplicit =
 
 test callSyntax =
   Stdlib.Test.all(
-    [ clean("f (1L, 2L)")
-      clean("f(1L)(2L)")
+    [ clean("f (1, 2)")
+      clean("f(1)(2)")
       clean("f(x).field")
       clean("a.add(b)")
       clean("Stdlib.Json.parse<Int64>(s)")
-      rejects("x |> (+) 1L")
+      rejects("x |> (+) 1")
       // a constructor's fields go in parentheses
-      clean("Ok(5L)")
-      clean("Ok (5L)")
+      clean("Ok(5)")
+      clean("Ok (5)")
       clean("None")
-      clean("match x with | Ok(v) -> v | Pair(a, b) -> a | None -> 0L")
+      clean("match x with | Ok(v) -> v | Pair(a, b) -> a | None -> 0")
       // a declaration lists its parameters once
-      clean("let f(): Int64 = 1L")
+      clean("let f(): Int64 = 1")
       clean("let f(\n  a: Int64,\n  b: Int64\n): Int64 = a")
       clean(
         "let outer(n: Int64): Int64 =\n"
         + "  let double(x: Int64, y: Int64): Int64 = x + y\n"
         + "  double(n, n)")
       // an argument list in a type needs an arrow after it
-      rejects("let f(g: (Int64, Int64)): Int64 = 1L") ])
+      rejects("let f(g: (Int64, Int64)): Int64 = 1") ])
 
 test unwrapSpelling =
   Stdlib.Test.all(
@@ -347,7 +347,7 @@ test traitDeclarations =
       clean("trait Fun<'f> =\n  let map<'b>(v: 'f): 'b")
       // an alias member names a fn, so a lambda is not one
       rejects("impl Show for Point =\n  let show = fun p -> \"p\"")
-      rejects("impl Show for Point =\n  val x = 1\nlet after (x: Int) : Int = x") ])
+      rejects("impl Show for Point =\n  val x = 1\nlet after (x: Int64) : Int64 = x") ])
 
 // Named tests are package declarations. These use the Package kind, since a
 // Script adds its own diagnostic for any test and would hide a missing one.
@@ -355,7 +355,7 @@ test namedTests =
   Stdlib.Test.all(
     [ cleanPackage("module M =\n  test doubles = Stdlib.Test.equal(8, 8)")
       cleanPackage(
-        "module M =\n  test divisionByZero =\n    1L / 0L\n"
+        "module M =\n  test divisionByZero =\n    1 / 0\n"
         + "    => raises \"Cannot divide by 0\"")
       cleanPackage(
         "module M =\n"
@@ -368,7 +368,7 @@ test namedTests =
       // the old header form is gone
       rejectsPackage(
         "module M =\n"
-        + "  test divisionByZero raises \"Cannot divide by 0\" = 1L / 0L")
+        + "  test divisionByZero raises \"Cannot divide by 0\" = 1 / 0")
       // a script refuses a named test
       cleanPackage("test passes = true")
       messages("test passes = true")
@@ -380,6 +380,6 @@ test namedTests =
 test packageRootLetValue =
   messagesIn(
     Darklang.LanguageTools.Parser.FileKind.Package,
-    "let chars = \"abc\"\n\nlet length(s: String): Int = Stdlib.String.length(s)")
+    "let chars = \"abc\"\n\nlet length(s: String): Int64 = Stdlib.String.length(s)")
   |> Stdlib.Test.equal(
     [ "Module value declarations must use 'val'; 'let' is reserved for functions and local bindings" ])

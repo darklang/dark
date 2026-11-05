@@ -8,18 +8,20 @@ type TokenRange = { start : Pos; end_ : Pos }
 
 /// Token types for the lexer.
 type Token =
-  | TInt of bigint // Default integer — arbitrary-precision `Int` (bare `1`)
-  | TInt64 of int64 // 64-bit signed: 1L
-  | TInt128 of System.Int128 // 128-bit signed: 1Q
-  | TInt8 of sbyte // 8-bit signed: 1y
-  | TInt16 of int16 // 16-bit signed: 1s
-  | TInt32 of int32 // 32-bit signed: 1l
-  | TUInt8 of byte // 8-bit unsigned: 1uy
-  | TUInt16 of uint16 // 16-bit unsigned: 1us
-  | TUInt32 of uint32 // 32-bit unsigned: 1ul
-  | TUInt64 of uint64 // 64-bit unsigned: 1UL
-  | TUInt128 of System.UInt128 // 128-bit unsigned: 1Z
-  | TFloat of float
+  | TInt of bigint // arbitrary-precision: 1z
+  | TInt64 of int64 // 1, 1s, 1s64
+  | TInt128 of System.Int128 // 1s128
+  | TInt8 of sbyte // 1s8
+  | TInt16 of int16 // 1s16
+  | TInt32 of int32 // 1s32
+  | TUInt8 of byte // 1u8
+  | TUInt16 of uint16 // 1u16
+  | TUInt32 of uint32 // 1u32
+  | TUInt64 of uint64 // 1u, 1u64
+  | TUInt128 of System.UInt128 // 1u128
+  | TFloat of float // 1.5, 1.5f64
+  | TFloat32 of float32 // 1.5f32
+  | TDecimal of decimal // 19.99dec, scale as written
   | TStringLit of string // String literal token
   | TCharLit of string // Char literal: 'x' (stores UTF-8 string for EGC support)
   // Interpolated string `$"Hello {name}!"`. No payload: the parser re-reads the

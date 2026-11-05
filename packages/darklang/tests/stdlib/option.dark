@@ -2,30 +2,30 @@ module Darklang.Stdlib.Option.Tests
 
 test andThen =
   Stdlib.Test.all(
-    [ Stdlib.Option.andThen(Some(5L), fun x -> Some(1L + x))
-      |> Stdlib.Test.equal(Some(6L))
-      Stdlib.Option.andThen(Some(5L), fun _ -> None)
+    [ Stdlib.Option.andThen(Some(5), fun x -> Some(1 + x))
+      |> Stdlib.Test.equal(Some(6))
+      Stdlib.Option.andThen(Some(5), fun _ -> None)
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.andThen(None, fun _ -> Some(5L))
+      Stdlib.Option.andThen(None, fun _ -> Some(5))
       |> Stdlib.Test.equal(None)
       Stdlib.Option.andThen(None, fun _ -> None)
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.andThen(Some(8L), fun x -> Some(x / 2L))
-      |> Stdlib.Test.equal(Some(4L)) ])
+      Stdlib.Option.andThen(Some(8), fun x -> Some(x / 2))
+      |> Stdlib.Test.equal(Some(4)) ])
 
 test andThenPropagatesRuntimeErrors =
   Stdlib.Option.andThen(
-    Some(8L),
-    fun x -> Some(x / 0L))
+    Some(8),
+    fun x -> Some(x / 0))
   => raises "Cannot divide by 0"
 
 test andThen2 =
   Stdlib.Test.all(
-    [ Stdlib.Option.andThen2(Some(5L), Some(6L), fun(x, y) -> Some(x + y))
-      |> Stdlib.Test.equal(Some(11L))
-      Stdlib.Option.andThen2(Some(5L), None, fun(x, y) -> Some(x + y))
+    [ Stdlib.Option.andThen2(Some(5), Some(6), fun(x, y) -> Some(x + y))
+      |> Stdlib.Test.equal(Some(11))
+      Stdlib.Option.andThen2(Some(5), None, fun(x, y) -> Some(x + y))
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.andThen2(None, Some(6L), fun(x, y) -> Some(x + y))
+      Stdlib.Option.andThen2(None, Some(6), fun(x, y) -> Some(x + y))
       |> Stdlib.Test.equal(None)
       Stdlib.Option.andThen2(None, None, fun(x, y) -> Some(x + y))
       |> Stdlib.Test.equal(None) ])
@@ -33,16 +33,16 @@ test andThen2 =
 test andThen3 =
   Stdlib.Test.all(
     [ Stdlib.Option.andThen3(
-        Some(5L),
-        Some(6L),
-        Some(7L),
+        Some(5),
+        Some(6),
+        Some(7),
         fun(x, y, z) -> Some(x + y + z))
-      |> Stdlib.Test.equal(Some(18L))
-      Stdlib.Option.andThen3(None, Some(6L), Some(7L), fun(x, y, z) -> Some(x + y + z))
+      |> Stdlib.Test.equal(Some(18))
+      Stdlib.Option.andThen3(None, Some(6), Some(7), fun(x, y, z) -> Some(x + y + z))
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.andThen3(Some(5L), None, Some(7L), fun(x, y, z) -> Some(x + y + z))
+      Stdlib.Option.andThen3(Some(5), None, Some(7), fun(x, y, z) -> Some(x + y + z))
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.andThen3(Some(5L), Some(6L), None, fun(x, y, z) -> Some(x + y + z))
+      Stdlib.Option.andThen3(Some(5), Some(6), None, fun(x, y, z) -> Some(x + y + z))
       |> Stdlib.Test.equal(None)
       Stdlib.Option.andThen3(None, None, None, fun(x, y, z) -> Some(x + y + z))
       |> Stdlib.Test.equal(None) ])
@@ -50,37 +50,37 @@ test andThen3 =
 test andThen4 =
   Stdlib.Test.all(
     [ Stdlib.Option.andThen4(
-        Some(5L),
-        Some(6L),
-        Some(7L),
-        Some(8L),
+        Some(5),
+        Some(6),
+        Some(7),
+        Some(8),
         fun(w, x, y, z) -> Some(w + x + y + z))
-      |> Stdlib.Test.equal(Some(26L))
+      |> Stdlib.Test.equal(Some(26))
       Stdlib.Option.andThen4(
         None,
-        Some(6L),
-        Some(7L),
-        Some(8L),
+        Some(6),
+        Some(7),
+        Some(8),
         fun(w, x, y, z) -> Some(w + x + y + z))
       |> Stdlib.Test.equal(None)
       Stdlib.Option.andThen4(
-        Some(5L),
+        Some(5),
         None,
-        Some(7L),
-        Some(8L),
+        Some(7),
+        Some(8),
         fun(w, x, y, z) -> Some(w + x + y + z))
       |> Stdlib.Test.equal(None)
       Stdlib.Option.andThen4(
-        Some(5L),
-        Some(6L),
+        Some(5),
+        Some(6),
         None,
-        Some(8L),
+        Some(8),
         fun(w, x, y, z) -> Some(w + x + y + z))
       |> Stdlib.Test.equal(None)
       Stdlib.Option.andThen4(
-        Some(5L),
-        Some(6L),
-        Some(7L),
+        Some(5),
+        Some(6),
+        Some(7),
         None,
         fun(w, x, y, z) -> Some(w + x + y + z))
       |> Stdlib.Test.equal(None)
@@ -94,28 +94,28 @@ test andThen4 =
 
 test map =
   Stdlib.Test.all(
-    [ Stdlib.Option.map(Some(4L), fun x -> (x / 2L))
-      |> Stdlib.Test.equal(Some(2L))
-      Stdlib.Option.map(None, fun x -> (x / 2L))
+    [ Stdlib.Option.map(Some(4), fun x -> (x / 2))
+      |> Stdlib.Test.equal(Some(2))
+      Stdlib.Option.map(None, fun x -> (x / 2))
       |> Stdlib.Test.equal(None) ])
 
 test map2 =
   Stdlib.Test.all(
-    [ Stdlib.Option.map2(Some(10L), Some(1L), fun(x, y) -> x - y)
-      |> Stdlib.Test.equal(Some(9L))
-      Stdlib.Option.map2(Some(10L), None, fun(x, y) -> x - y) |> Stdlib.Test.equal(None)
-      Stdlib.Option.map2(None, Some(1L), fun(x, y) -> x - y) |> Stdlib.Test.equal(None)
+    [ Stdlib.Option.map2(Some(10), Some(1), fun(x, y) -> x - y)
+      |> Stdlib.Test.equal(Some(9))
+      Stdlib.Option.map2(Some(10), None, fun(x, y) -> x - y) |> Stdlib.Test.equal(None)
+      Stdlib.Option.map2(None, Some(1), fun(x, y) -> x - y) |> Stdlib.Test.equal(None)
       Stdlib.Option.map2(None, None, fun(x, y) -> x - y) |> Stdlib.Test.equal(None) ])
 
 test map3 =
   Stdlib.Test.all(
-    [ Stdlib.Option.map3(Some(10L), Some(1L), Some(2L), fun(x, y, z) -> x - y - z)
-      |> Stdlib.Test.equal(Some(7L))
-      Stdlib.Option.map3(Some(10L), None, Some(2L), fun(x, y, z) -> x - y - z)
+    [ Stdlib.Option.map3(Some(10), Some(1), Some(2), fun(x, y, z) -> x - y - z)
+      |> Stdlib.Test.equal(Some(7))
+      Stdlib.Option.map3(Some(10), None, Some(2), fun(x, y, z) -> x - y - z)
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.map3(None, Some(1L), Some(2L), fun(x, y, z) -> x - y - z)
+      Stdlib.Option.map3(None, Some(1), Some(2), fun(x, y, z) -> x - y - z)
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.map3(None, None, Some(2L), fun(x, y, z) -> x - y - z)
+      Stdlib.Option.map3(None, None, Some(2), fun(x, y, z) -> x - y - z)
       |> Stdlib.Test.equal(None)
       Stdlib.Option.map3(None, None, None, fun(x, y, z) -> x - y - z)
       |> Stdlib.Test.equal(None) ])
@@ -123,29 +123,29 @@ test map3 =
 test map4 =
   Stdlib.Test.all(
     [ Stdlib.Option.map4(
-        Some(10L),
-        Some(1L),
-        Some(2L),
-        Some(3L),
+        Some(10),
+        Some(1),
+        Some(2),
+        Some(3),
         fun(w, x, y, z) -> w - x - y - z)
-      |> Stdlib.Test.equal(Some(4L))
+      |> Stdlib.Test.equal(Some(4))
       Stdlib.Option.map4(
-        Some(10L),
+        Some(10),
         None,
-        Some(2L),
-        Some(3L),
+        Some(2),
+        Some(3),
         fun(w, x, y, z) -> w - x - y - z)
       |> Stdlib.Test.equal(None)
       Stdlib.Option.map4(
         None,
-        Some(1L),
-        Some(2L),
-        Some(3L),
+        Some(1),
+        Some(2),
+        Some(3),
         fun(w, x, y, z) -> w - x - y - z)
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.map4(None, None, Some(2L), Some(3L), fun(w, x, y, z) -> w - x - y - z)
+      Stdlib.Option.map4(None, None, Some(2), Some(3), fun(w, x, y, z) -> w - x - y - z)
       |> Stdlib.Test.equal(None)
-      Stdlib.Option.map4(None, None, None, Some(3L), fun(w, x, y, z) -> w - x - y - z)
+      Stdlib.Option.map4(None, None, None, Some(3), fun(w, x, y, z) -> w - x - y - z)
       |> Stdlib.Test.equal(None)
       Stdlib.Option.map4(None, None, None, None, fun(w, x, y, z) -> w - x - y - z)
       |> Stdlib.Test.equal(None) ])
@@ -153,19 +153,19 @@ test map4 =
 test map5 =
   Stdlib.Test.all(
     [ Stdlib.Option.map5(
-        Some(10L),
-        Some(1L),
-        Some(2L),
-        Some(3L),
-        Some(4L),
+        Some(10),
+        Some(1),
+        Some(2),
+        Some(3),
+        Some(4),
         fun(v, w, x, y, z) -> v - w - x - y - z)
-      |> Stdlib.Test.equal(Some(0L))
+      |> Stdlib.Test.equal(Some(0))
       Stdlib.Option.map5(
-        Some(10L),
+        Some(10),
         None,
-        Some(2L),
-        Some(3L),
-        Some(4L),
+        Some(2),
+        Some(3),
+        Some(4),
         fun(v, w, x, y, z) -> v - w - x - y - z)
       |> Stdlib.Test.equal(None)
       Stdlib.Option.map5(
@@ -179,78 +179,78 @@ test map5 =
 
 test mapWithDefault =
   Stdlib.Test.all(
-    [ Stdlib.Option.mapWithDefault(Some(5L), 6L, fun x -> x + 1L)
-      |> Stdlib.Test.equal(6L)
-      Stdlib.Option.mapWithDefault(None, 6L, fun x -> x + 1L)
-      |> Stdlib.Test.equal(6L)
-      Stdlib.Option.mapWithDefault(Some(5L), None, fun x -> x + 1L)
-      |> Stdlib.Test.equal(6L)
-      Stdlib.Option.mapWithDefault(None, None, fun x -> x + 1L)
+    [ Stdlib.Option.mapWithDefault(Some(5), 6, fun x -> x + 1)
+      |> Stdlib.Test.equal(6)
+      Stdlib.Option.mapWithDefault(None, 6, fun x -> x + 1)
+      |> Stdlib.Test.equal(6)
+      Stdlib.Option.mapWithDefault(Some(5), None, fun x -> x + 1)
+      |> Stdlib.Test.equal(6)
+      Stdlib.Option.mapWithDefault(None, None, fun x -> x + 1)
       |> Stdlib.Test.equal(None) ])
 
 test withDefault =
   Stdlib.Test.all(
-    [ Stdlib.Option.withDefault(Some(6L), 5L)
-      |> Stdlib.Test.equal(6L)
-      Stdlib.Option.withDefault(None, 5L)
-      |> Stdlib.Test.equal(5L) ])
+    [ Stdlib.Option.withDefault(Some(6), 5)
+      |> Stdlib.Test.equal(6)
+      Stdlib.Option.withDefault(None, 5)
+      |> Stdlib.Test.equal(5) ])
 
 test isSome =
   Stdlib.Test.all(
-    [ Stdlib.Option.isSome(Some(6L)) |> Stdlib.Test.equal(true)
+    [ Stdlib.Option.isSome(Some(6)) |> Stdlib.Test.equal(true)
       Stdlib.Option.isSome(None) |> Stdlib.Test.equal(false) ])
 
 test isNone =
   Stdlib.Test.all(
-    [ Stdlib.Option.isNone(Some(6L)) |> Stdlib.Test.equal(false)
+    [ Stdlib.Option.isNone(Some(6)) |> Stdlib.Test.equal(false)
       Stdlib.Option.isNone(None) |> Stdlib.Test.equal(true) ])
 
 test toResult =
   Stdlib.Test.all(
-    [ Stdlib.Option.toResult(Some(6L), 5L) |> Stdlib.Test.equal(Ok(6L))
+    [ Stdlib.Option.toResult(Some(6), 5) |> Stdlib.Test.equal(Ok(6))
       Stdlib.Option.toResult(None, "error") |> Stdlib.Test.equal(Error("error")) ])
 
 test toList =
   Stdlib.Test.all(
-    [ Stdlib.Option.toList(Some(6L)) |> Stdlib.Test.equal([ 6L ])
+    [ Stdlib.Option.toList(Some(6)) |> Stdlib.Test.equal([ 6 ])
       Stdlib.Option.toList(None) |> Stdlib.Test.equal([]) ])
 
 test and =
   Stdlib.Test.all(
-    [ Stdlib.Option.and(Some(6L), Some(5L)) |> Stdlib.Test.equal(Some(5L))
-      Stdlib.Option.and(Some(6L), None) |> Stdlib.Test.equal(None)
-      Stdlib.Option.and(None, Some(5L)) |> Stdlib.Test.equal(None)
+    [ Stdlib.Option.and(Some(6), Some(5)) |> Stdlib.Test.equal(Some(5))
+      Stdlib.Option.and(Some(6), None) |> Stdlib.Test.equal(None)
+      Stdlib.Option.and(None, Some(5)) |> Stdlib.Test.equal(None)
       Stdlib.Option.and(None, None) |> Stdlib.Test.equal(None) ])
 
 test or =
   Stdlib.Test.all(
-    [ Stdlib.Option.or(Some(6L), Some(5L)) |> Stdlib.Test.equal(Some(6L))
-      Stdlib.Option.or(Some(6L), None) |> Stdlib.Test.equal(Some(6L))
-      Stdlib.Option.or(None, Some(5L)) |> Stdlib.Test.equal(Some(5L))
+    [ Stdlib.Option.or(Some(6), Some(5)) |> Stdlib.Test.equal(Some(6))
+      Stdlib.Option.or(Some(6), None) |> Stdlib.Test.equal(Some(6))
+      Stdlib.Option.or(None, Some(5)) |> Stdlib.Test.equal(Some(5))
       Stdlib.Option.or(None, None) |> Stdlib.Test.equal(None) ])
 
 test join =
   Stdlib.Test.all(
-    [ Stdlib.Option.join(Some(Some(6L))) |> Stdlib.Test.equal(Some(6L))
+    [ Stdlib.Option.join(Some(Some(6))) |> Stdlib.Test.equal(Some(6))
       Stdlib.Option.join(Some(None)) |> Stdlib.Test.equal(None)
       Stdlib.Option.join(None) |> Stdlib.Test.equal(None) ])
 
 test combine =
   Stdlib.Test.all(
-    [ Stdlib.Option.combine([ Some(6L), Some(5L), Some(4L), Some(3L) ])
-      |> Stdlib.Test.equal(Some([ 6L, 5L, 4L, 3L ]))
-      Stdlib.Option.combine([ Some(6L), None, Some(4L), Some(3L) ])
+    [ Stdlib.Option.combine([ Some(6), Some(5), Some(4), Some(3) ])
+      |> Stdlib.Test.equal(Some([ 6, 5, 4, 3 ]))
+      Stdlib.Option.combine([ Some(6), None, Some(4), Some(3) ])
       |> Stdlib.Test.equal(None)
       Stdlib.Option.combine([ None, None, None, None ])
       |> Stdlib.Test.equal(None) ])
 
 test values =
   Stdlib.Test.all(
-    [ Stdlib.Option.values([ Some(6L), Some(5L), Some(4L), Some(3L) ])
-      |> Stdlib.Test.equal([ 6L, 5L, 4L, 3L ])
-      Stdlib.Option.values([ Some(6L), None, Some(4L), Some(3L) ])
-      |> Stdlib.Test.equal([ 6L, 4L, 3L ])
-      Stdlib.Option.values([ Some(6L), None, None, None ])
-      |> Stdlib.Test.equal([ 6L ])
+    [ Stdlib.Option.values([ Some(6), Some(5), Some(4), Some(3) ])
+      |> Stdlib.Test.equal([ 6, 5, 4, 3 ])
+      Stdlib.Option.values([ Some(6), None, Some(4), Some(3) ])
+      |> Stdlib.Test.equal([ 6, 4, 3 ])
+      Stdlib.Option.values([ Some(6), None, None, None ])
+      |> Stdlib.Test.equal([ 6 ])
       Stdlib.Option.values([ None, None, None, None ])
       |> Stdlib.Test.equal([]) ])

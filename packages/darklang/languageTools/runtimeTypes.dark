@@ -88,6 +88,8 @@ type TypeReference =
   | TUInt128
   | TInt
   | TFloat
+  | TFloat32
+  | TDecimal
   | TChar
   | TString
   | TUuid
@@ -121,6 +123,8 @@ type KnownType =
   | KTUInt128
   | KTInt
   | KTFloat
+  | KTFloat32
+  | KTDecimal
   | KTChar
   | KTString
   | KTUuid
@@ -165,6 +169,8 @@ type MatchPattern =
   | MPUInt128 of UInt128
   | MPInt of Int
   | MPFloat of Float
+  | MPFloat32 of Float32
+  | MPDecimal of Decimal
   | MPChar of String
   | MPString of String
   | MPTuple of MatchPattern * MatchPattern * List<MatchPattern>
@@ -305,6 +311,8 @@ type Dval =
   | DUInt128 of UInt128
   | DInt of Int
   | DFloat of Float
+  | DFloat32 of Float32
+  | DDecimal of Decimal
   | DChar of Char
   | DString of String
   | DDateTime of DateTime

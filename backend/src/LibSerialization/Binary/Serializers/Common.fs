@@ -124,6 +124,28 @@ module Float =
     | 3uy -> r.ReadDouble()
     | b -> raise (BinaryFormatException(CorruptedData $"Invalid float tag: {b}"))
 
+/// The raw binary32 bits, so every value (NaN payloads, -0) round-trips.
+module Float32 =
+  let write (w : BinaryWriter) (value : float32) =
+    w.Write(System.BitConverter.SingleToUInt32Bits value)
+
+  let read (r : BinaryReader) : float32 =
+    System.BitConverter.UInt32BitsToSingle(r.ReadUInt32())
+
+/// The four 32-bit words of `Decimal.GetBits`: the 96-bit magnitude, then sign and scale. Exact,
+/// scale included, so `1.10m` reads back as 1.10.
+module Decimal =
+  let write (w : BinaryWriter) (value : decimal) =
+    for part in System.Decimal.GetBits value do
+      w.Write(part)
+
+  let read (r : BinaryReader) : decimal =
+    let parts = Array.init 4 (fun _ -> r.ReadInt32())
+    try
+      System.Decimal(parts)
+    with :? System.ArgumentException ->
+      raise (BinaryFormatException(CorruptedData "Invalid decimal bits"))
+
 module DateTime =
   let write (w : BinaryWriter) (value : NodaTime.Instant) =
     w.Write(value.ToUnixTimeTicks())

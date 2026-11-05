@@ -258,7 +258,7 @@ let stripDocComments(src: String): String =
 /// Open the spacious editor to author a new `kind` into `targetModule`.
 let openNewEditor(state: State, kind: String, targetModule: List<String>): Step =
   let (titleBase, template, nameCol) =
-    if kind == "type" then ("New type", "type NewType =\n  { field: Int }", 5)
+    if kind == "type" then ("New type", "type NewType =\n  { field: Int64 }", 5)
     else if kind == "value" then ("New value", "val newValue = 1", 4)
     else if kind == "trait" then
       ("New trait", "trait NewTrait<'a> =\n  let method(v: 'a): String", 6)
@@ -266,7 +266,7 @@ let openNewEditor(state: State, kind: String, targetModule: List<String>): Step 
     // rather than to a name you are about to type.
     else if kind == "impl" then
       ("New implementation", "impl NewTrait for SomeType =\n  let method(v: SomeType): String = \"\"", 5)
-    else ("New function", "let newFunction(x: Int): Int =\n  x", 4)
+    else ("New function", "let newFunction(x: Int64): Int64 =\n  x", 4)
   let where = "  ·  in " + (Stdlib.String.join(targetModule, "."))
   let buf = Stdlib.Cli.UI.Editor.fromText(template)
   Step.Continue(

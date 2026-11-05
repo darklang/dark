@@ -535,81 +535,54 @@ let tokenize
      endIndex,
      endPosition)
 
-  // integer suffix → token; returns (token, charsConsumedAfterDigits)
-  let intToken (digits : string) (suffixIndex : int) : Result<Token * int, string> =
-    let parseInt64 () =
-      match System.Int64.TryParse digits with
-      | true, value -> Ok(TInt64 value)
-      | _ when digits = "9223372036854775808" -> Ok(TInt64 System.Int64.MinValue)
-      | _ -> Error $"Integer literal too large: {digits}"
-    if matchesAt "uy" suffixIndex then
-      (match System.Byte.TryParse digits with
-       | true, value -> Ok(TUInt8 value, 2)
-       | _ -> Error $"out of range for UInt8: {digits}")
-    elif matchesAt "us" suffixIndex then
-      (match System.UInt16.TryParse digits with
-       | true, value -> Ok(TUInt16 value, 2)
-       | _ -> Error $"out of range for UInt16: {digits}")
-    elif matchesAt "ul" suffixIndex then
-      (match System.UInt32.TryParse digits with
-       | true, value -> Ok(TUInt32 value, 2)
-       | _ -> Error $"out of range for UInt32: {digits}")
-    elif matchesAt "UL" suffixIndex then
-      (match System.UInt64.TryParse digits with
-       | true, value -> Ok(TUInt64 value, 2)
-       | _ -> Error $"out of range for UInt64: {digits}")
-    elif matchesAt "L" suffixIndex then
-      parseInt64 () |> Result.map (fun token -> (token, 1))
-    elif matchesAt "Q" suffixIndex then
-      (match System.Int128.TryParse digits with
-       | true, value -> Ok(TInt128 value, 1)
-       | _ when digits = "170141183460469231731687303715884105728" ->
-         Ok(TInt128 System.Int128.MinValue, 1)
-       | _ -> Error $"out of range for Int128: {digits}")
-    elif matchesAt "Z" suffixIndex then
-      (match System.UInt128.TryParse digits with
-       | true, value -> Ok(TUInt128 value, 1)
-       | _ -> Error $"out of range for UInt128: {digits}")
-    elif matchesAt "y" suffixIndex then
-      (match System.SByte.TryParse digits with
-       | true, value -> Ok(TInt8 value, 1)
-       | _ when digits = "128" -> Ok(TInt8 System.SByte.MinValue, 1)
-       | _ -> Error $"out of range for Int8: {digits}")
-    elif matchesAt "s" suffixIndex then
-      (match System.Int16.TryParse digits with
-       | true, value -> Ok(TInt16 value, 1)
-       | _ when digits = "32768" -> Ok(TInt16 System.Int16.MinValue, 1)
-       | _ -> Error $"out of range for Int16: {digits}")
-    elif matchesAt "l" suffixIndex then
-      (match System.Int32.TryParse digits with
-       | true, value -> Ok(TInt32 value, 1)
-       | _ when digits = "2147483648" -> Ok(TInt32 System.Int32.MinValue, 1)
-       | _ -> Error $"out of range for Int32: {digits}")
-    // bare literal (no suffix) → arbitrary-precision `Int` (the default).
-    else
-      (match System.Numerics.BigInteger.TryParse digits with
-       | true, value -> Ok(TInt value, 0)
-       | _ -> Error $"Invalid integer literal: {digits}")
-
-  let recognizedIntSuffixLength (suffixIndex : int) : int =
-    if
-      matchesAt "uy" suffixIndex
-      || matchesAt "us" suffixIndex
-      || matchesAt "ul" suffixIndex
-      || matchesAt "UL" suffixIndex
-    then
-      2
-    elif
-      matchesAt "L" suffixIndex
-      || matchesAt "Q" suffixIndex
-      || matchesAt "Z" suffixIndex
-      || matchesAt "y" suffixIndex
-      || matchesAt "s" suffixIndex
-      || matchesAt "l" suffixIndex
-    then
-      1
-    else
-      0
+  // An int literal's token, for the type its suffix names (`None`: no such suffix).
+  // A signed type's |MinValue| lexes to MinValue so the negated literal can exist
+  // (`-128s8`); the parser refuses it un-negated.
+  let intToken (digits : string) (suffix : string) : Option<Result<Token, string>> =
+    // `minValue` comes before `tryParse` so it fixes 'a, which picks the overload. An
+    // unsigned type has no negated literal, so it passes "" as its magnitude.
+    let sized
+      (typeName : string)
+      (minMagnitude : string)
+      (minValue : 'a)
+      (tryParse : string -> bool * 'a)
+      (token : 'a -> Token)
+      =
+      match tryParse digits with
+      | true, value -> Some(Ok(token value))
+      | _ when digits = minMagnitude -> Some(Ok(token minValue))
+      | _ -> Some(Error $"out of range for {typeName}: {digits}{suffix}")
+    match suffix with
+    | ""
+    | "s"
+    | "s64" ->
+      sized
+        "Int64"
+        "9223372036854775808"
+        System.Int64.MinValue
+        System.Int64.TryParse
+        TInt64
+    | "u"
+    | "u64" -> sized "UInt64" "" 0UL System.UInt64.TryParse TUInt64
+    | "s8" -> sized "Int8" "128" System.SByte.MinValue System.SByte.TryParse TInt8
+    | "u8" -> sized "UInt8" "" 0uy System.Byte.TryParse TUInt8
+    | "s16" ->
+      sized "Int16" "32768" System.Int16.MinValue System.Int16.TryParse TInt16
+    | "u16" -> sized "UInt16" "" 0us System.UInt16.TryParse TUInt16
+    | "s32" ->
+      sized "Int32" "2147483648" System.Int32.MinValue System.Int32.TryParse TInt32
+    | "u32" -> sized "UInt32" "" 0u System.UInt32.TryParse TUInt32
+    | "s128" ->
+      sized
+        "Int128"
+        "170141183460469231731687303715884105728"
+        System.Int128.MinValue
+        System.Int128.TryParse
+        TInt128
+    | "u128" ->
+      sized "UInt128" "" System.UInt128.Zero System.UInt128.TryParse TUInt128
+    | "z" -> Some(Ok(TInt(System.Numerics.BigInteger.Parse digits)))
+    | _ -> None
 
   let rec scanString (scanIndex : int) (closing : char) : Result<int, string> =
     if scanIndex >= inputLength then
@@ -743,105 +716,107 @@ let tokenize
             endIndex
             position
         go nextIndex nextPosition (spannedToken :: tokensRev)
-      // numbers
+      // numbers: digits, an optional fraction and exponent, then a suffix naming
+      // the type (`1s8`, `1.5f32`, `19.99dec`). No suffix is Int64 or Float.
       elif System.Char.IsDigit character then
-        // A number token must end at a non-identifier boundary. Glued suffix text
-        // like `123abc` or `12l3` is a typo, not two tokens.
         let isIdentifierContinue boundaryIndex =
           boundaryIndex < inputLength
           && (System.Char.IsLetterOrDigit input[boundaryIndex]
               || input[boundaryIndex] = '_'
               || input[boundaryIndex] = '\'')
-        let mutable digitEndIndex = index + 1
-        while digitEndIndex < inputLength && System.Char.IsDigit input[digitEndIndex] do
-          digitEndIndex <- digitEndIndex + 1
-        // float?
+        let skipDigits from =
+          let mutable i = from
+          while i < inputLength && System.Char.IsDigit input[i] do
+            i <- i + 1
+          i
+        let digitEndIndex = skipDigits (index + 1)
         let hasFraction =
           digitEndIndex + 1 < inputLength
           && input[digitEndIndex] = '.'
           && System.Char.IsDigit input[digitEndIndex + 1]
-        let hasExponent =
-          digitEndIndex < inputLength
-          && (input[digitEndIndex] = 'e' || input[digitEndIndex] = 'E')
-        if hasFraction || hasExponent then
-          let mutable floatEndIndex = digitEndIndex
-          if hasFraction then
-            floatEndIndex <- floatEndIndex + 1
-            while (floatEndIndex < inputLength
-                   && System.Char.IsDigit input[floatEndIndex]) do
-              floatEndIndex <- floatEndIndex + 1
-          if
-            floatEndIndex < inputLength
-            && (input[floatEndIndex] = 'e' || input[floatEndIndex] = 'E')
-          then
-            floatEndIndex <- floatEndIndex + 1
+        let fractionEndIndex =
+          if hasFraction then skipDigits (digitEndIndex + 1) else digitEndIndex
+        // `e` is an exponent only when digits follow it, so `1e` stays one bad literal
+        let exponentEndIndex =
+          let signIndex = fractionEndIndex + 1
+          let digitsIndex =
             if
-              floatEndIndex < inputLength
-              && (input[floatEndIndex] = '+' || input[floatEndIndex] = '-')
+              signIndex < inputLength
+              && (input[signIndex] = '+' || input[signIndex] = '-')
             then
-              floatEndIndex <- floatEndIndex + 1
-            while (floatEndIndex < inputLength
-                   && System.Char.IsDigit input[floatEndIndex]) do
-              floatEndIndex <- floatEndIndex + 1
-          let text = input.Substring(index, floatEndIndex - index)
-          match
-            System.Double.TryParse(
-              text,
-              System.Globalization.NumberStyles.Float,
-              System.Globalization.CultureInfo.InvariantCulture
-            )
-          with
-          | true, value when not (isIdentifierContinue floatEndIndex) ->
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TFloat value) index floatEndIndex position
-            go nextIndex nextPosition (spannedToken :: tokensRev)
-          | true, _ ->
-            // Float glued to identifier chars (`1.5abc`): consume the run and
-            // diagnose it as one malformed literal.
-            let mutable errorEndIndex = floatEndIndex
-            while isIdentifierContinue errorEndIndex do
-              errorEndIndex <- errorEndIndex + 1
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TFloat 0.0) index errorEndIndex position
-            addDiagnostic
-              spannedToken.range
-              $"invalid number literal: {input.Substring(index, errorEndIndex - index)}"
-            go nextIndex nextPosition (spannedToken :: tokensRev)
+              signIndex + 1
+            else
+              signIndex
+          if
+            fractionEndIndex < inputLength
+            && (input[fractionEndIndex] = 'e' || input[fractionEndIndex] = 'E')
+            && digitsIndex < inputLength
+            && System.Char.IsDigit input[digitsIndex]
+          then
+            skipDigits digitsIndex
+          else
+            fractionEndIndex
+        let hasExponent = exponentEndIndex > fractionEndIndex
+        // A number token ends at a non-identifier boundary: glued text like `123abc`
+        // is one malformed literal, not two tokens.
+        let mutable endIndex = exponentEndIndex
+        while isIdentifierContinue endIndex do
+          endIndex <- endIndex + 1
+        let suffix = input.Substring(exponentEndIndex, endIndex - exponentEndIndex)
+        let body = input.Substring(index, exponentEndIndex - index)
+        let invariant = System.Globalization.CultureInfo.InvariantCulture
+        let floatStyle = System.Globalization.NumberStyles.Float
+        // Past a format's range the value comes back infinite, and the parser reports it
+        let float () =
+          match System.Double.TryParse(body, floatStyle, invariant) with
+          | true, value -> (TFloat value, None)
+          | _ -> (TFloat 0.0, Some $"malformed float literal: {body}{suffix}")
+        let invalid placeholder =
+          (placeholder,
+           Some $"invalid number literal: {input.Substring(index, endIndex - index)}")
+        let (token, diagnostic) =
+          match suffix with
+          | "dec" when hasExponent ->
+            (TDecimal 0m,
+             Some $"a Decimal literal is written without an exponent: {body}dec")
+          | "dec" ->
+            // .NET rounds digits past 28-29 significant ones rather than refusing them,
+            // so a literal is accepted only if it prints back as written (leading zeros
+            // of the whole part aside).
+            let written =
+              let trimmed = body.TrimStart '0'
+              if trimmed = "" || trimmed.StartsWith "." then
+                "0" + trimmed
+              else
+                trimmed
+            match
+              System.Decimal.TryParse(
+                body,
+                System.Globalization.NumberStyles.AllowDecimalPoint,
+                invariant
+              )
+            with
+            | true, value when value.ToString(invariant) = written ->
+              (TDecimal value, None)
+            | _ ->
+              (TDecimal 0m,
+               Some $"decimal literal out of range or past 28 digits: {body}dec")
+          | "f32" ->
+            match System.Single.TryParse(body, floatStyle, invariant) with
+            | true, value -> (TFloat32 value, None)
+            | _ -> (TFloat32 0.0f, Some $"malformed float literal: {body}f32")
+          | "f64" -> float ()
+          | "" when hasFraction || hasExponent -> float ()
+          | _ when hasFraction || hasExponent -> invalid (TFloat 0.0)
           | _ ->
-            // Emit a placeholder so malformed floats still highlight as numbers.
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TFloat 0.0) index floatEndIndex position
-            addDiagnostic spannedToken.range $"malformed float literal: {text}"
-            go nextIndex nextPosition (spannedToken :: tokensRev)
-        else
-          let digits = input.Substring(index, digitEndIndex - index)
-          match intToken digits digitEndIndex with
-          | Ok(token, suffixLength) when
-            not (isIdentifierContinue (digitEndIndex + suffixLength))
-            ->
-            let (spannedToken, nextIndex, nextPosition) =
-              emit token index (digitEndIndex + suffixLength) position
-            go nextIndex nextPosition (spannedToken :: tokensRev)
-          | Ok(_, suffixLength) ->
-            // Int glued to identifier chars: consume the run and diagnose it as
-            // one malformed literal.
-            let mutable errorEndIndex = digitEndIndex + suffixLength
-            while isIdentifierContinue errorEndIndex do
-              errorEndIndex <- errorEndIndex + 1
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TInt64 0L) index errorEndIndex position
-            addDiagnostic
-              spannedToken.range
-              $"invalid number literal: {input.Substring(index, errorEndIndex - index)}"
-            go nextIndex nextPosition (spannedToken :: tokensRev)
-          | Error message ->
-            // Consume a recognized suffix even on range failure so it cannot
-            // reappear as a separate identifier in the recovery tree.
-            let suffixLength = recognizedIntSuffixLength digitEndIndex
-            let (spannedToken, nextIndex, nextPosition) =
-              emit (TInt64 0L) index (digitEndIndex + suffixLength) position
-            addDiagnostic spannedToken.range message
-            go nextIndex nextPosition (spannedToken :: tokensRev)
+            match intToken body suffix with
+            | Some(Ok token) -> (token, None)
+            | Some(Error message) -> (TInt64 0L, Some message)
+            | None -> invalid (TInt64 0L)
+        let (spannedToken, nextIndex, nextPosition) =
+          emit token index endIndex position
+        diagnostic |> Option.iter (addDiagnostic spannedToken.range)
+        go nextIndex nextPosition (spannedToken :: tokensRev)
       // triple-quoted string: """ ... """ (raw, may contain single/double quotes)
       elif
         character = '"'

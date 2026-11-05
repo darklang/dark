@@ -41,19 +41,19 @@
 // blunt about this -- and the minimum of several passes is the least noisy estimator available:
 // a pass can be slowed by the machine, never sped up by it.
 
-type Rec = { a: Int, b: String }
+type Rec = { a: Int64, b: String }
 
 type Enum =
-  | One of Int
-  | Two of String * Int
+  | One of Int64
+  | Two of String * Int64
 
-let plainFn(i: Int): Int = i + 1
-let twoArgFn(i: Int, j: Int): Int = i + j
-let recFn(i: Int): Rec = Rec { a = i, b = "x" }
-let optFn(i: Int): Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some(i)
-let listFn(i: Int): List<Int> = [ i ]
+let plainFn(i: Int64): Int64 = i + 1
+let twoArgFn(i: Int64, j: Int64): Int64 = i + j
+let recFn(i: Int64): Rec = Rec { a = i, b = "x" }
+let optFn(i: Int64): Stdlib.Option.Option<Int64> = Stdlib.Option.Option.Some(i)
+let listFn(i: Int64): List<Int64> = [ i ]
 
-type Rec5 = { a: Int, b: Int, c: Int, d: Int, e: Int }
+type Rec5 = { a: Int64, b: Int64, c: Int64, d: Int64, e: Int64 }
 
 val preBuiltInt = 7
 val preBuilt = Rec { a = 1, b = "x" }
@@ -71,7 +71,7 @@ let iterations = if smoke then 3 else 10000
 ///
 /// The accumulator is never added to, for the reason `costs.dark` gives: summing the results made
 /// each row depend on how large its own accumulator grew, so the harness measured the arithmetic.
-let onePass(f: Int -> Int): Int =
+let onePass(f: Int64 -> Int64): Int64 =
   let t0 = Darklang.Cli.Telemetry.now()
 
   // Keep the match and comparisons taking both branches, even with few calls.
@@ -82,7 +82,7 @@ let onePass(f: Int -> Int): Int =
 
   (Darklang.Cli.Telemetry.now()) - t0
 
-let measure(label: String, f: Int -> Int): Unit =
+let measure(label: String, f: Int64 -> Int64): Unit =
   // Warm first: the first call through a function loads and converts it.
   let _warm = onePass(f)
   let a = onePass(f)
@@ -99,7 +99,7 @@ let measure(label: String, f: Int -> Int): Unit =
 /// the row -- the same expression reads 1.1 us slower near the top of the table than at the end. This
 /// exercises the paths the table shares (a fold, a lambda, package and builtin calls, a record, a
 /// list) enough times to saturate that before any of it counts.
-let saturate(n: Int, acc: Int): Int =
+let saturate(n: Int64, acc: Int64): Int64 =
   if n == 0 then
     acc
   else
@@ -132,8 +132,8 @@ measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length("
 // machinery on its own, with and without a wrapper around it.
 // A wrapper called with an EXPLICIT type argument. The thin-wrapper elision declines when
 // `typeArgs` is non-empty, so this pair is the un-elided cost of the same forwarding.
-measure("builtin with a type arg              ", fun i -> Stdlib.String.length(Builtin.jsonSerialize<Int>(i)))
-measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length(Stdlib.Json.serialize<Int>(i)))
+measure("builtin with a type arg              ", fun i -> Stdlib.String.length(Builtin.jsonSerialize<Int64>(i)))
+measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length(Stdlib.Json.serialize<Int64>(i)))
 measure("call a trivial builtin (boolNot)     ", fun i -> if Builtin.boolNot(true) then 1 else 0)
 measure("  the same, via its package wrapper  ", fun i -> if Stdlib.Bool.not(true) then 1 else 0)
 

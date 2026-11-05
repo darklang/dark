@@ -93,7 +93,7 @@ let canMerge(branchId: Uuid): Stdlib.Result.Result<Unit, MergeRefusal> =
 
   let changes = SCM.PackageOps.countOf(SCM.PackageOps.OpFilter.Tagged(branchId))
 
-  if changes == 0L then
+  if changes == 0 then
     Stdlib.Result.Result.Error(MergeRefusal.NothingToMerge)
   else
     // "Active" must mean the same here as in the message below, which tells you to merge OR ARCHIVE the
@@ -151,8 +151,6 @@ let mergedCount(): Int64 =
   list()
   |> Stdlib.List.filter(fun b -> b.merged)
   |> Stdlib.List.length
-  |> Stdlib.Int.toInt64
-  |> Stdlib.Option.withDefault(0L)
 
 /// The branch list, one line each. <param includeMerged> false drops the ones already merged -- the
 /// default, because merged branches accumulate forever and nothing removes them.

@@ -24,7 +24,7 @@ module Input =
         status = Darklang.Tracing.Status.Done
         parent = None
         pinned = false
-        durationMs = 0L
+        durationMs = 0
         entryHash = None
         created = ""
         updated = "" }
@@ -139,7 +139,7 @@ module Plural =
 module TheLog =
   // A logged call, with everything the renderer reads.
 
-  let call(name: String, ms: Int, seq: Int64): Darklang.Tracing.FnCall =
+  let call(name: String, ms: Int64, seq: Int64): Darklang.Tracing.FnCall =
     Darklang.Tracing.FnCall
       { callId = $"call-{name}"
         fnName = name
@@ -154,7 +154,7 @@ module TheLog =
     Darklang.Cli.Tracing.formatFnCalls(
       opts,
       Darklang.SCM.Branch.mainBranchId,
-      [ call("httpClientGet", 120, 0L), call("printLine", 0, 1L) ])
+      [ call("httpClientGet", 120, 0), call("printLine", 0, 1) ])
 
   // A trace that did nothing outside itself says so, rather than printing an empty block.
   test noCalls =
@@ -214,10 +214,10 @@ module TheLogIsCut =
         result = Darklang.LanguageTools.RuntimeTypes.Dval.DUnit
         durationMs = 0
         processId = Stdlib.Option.Option.None
-        seq = 0L
-        ord = 0L }
+        seq = 0
+        ord = 0 }
 
-  let logOf(count: Int, opts: Darklang.Cli.Tracing.ViewOptions): Int =
+  let logOf(count: Int64, opts: Darklang.Cli.Tracing.ViewOptions): Int64 =
     Stdlib.List.length(
       (Stdlib.String.split(
         (Darklang.Cli.Tracing.formatFnCalls(
@@ -226,7 +226,7 @@ module TheLogIsCut =
           Stdlib.List.map(Stdlib.List.range(1, count), fun _ -> one))),
         "\n")))
 
-  let textOf(count: Int, opts: Darklang.Cli.Tracing.ViewOptions): String =
+  let textOf(count: Int64, opts: Darklang.Cli.Tracing.ViewOptions): String =
     Darklang.Cli.Tracing.formatFnCalls(
       opts,
       Darklang.SCM.Branch.mainBranchId,

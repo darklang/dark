@@ -29,16 +29,16 @@ let partialRenameSelectsRequiredVersions
         let prefix =
           if branch = "main" then "Tests.PartialMain" else "Tests.PartialBranch"
         let foo, bar, caller = $"{prefix}.foo", $"{prefix}.bar", $"{prefix}.caller"
-        do! fn state foo "(): Int64 = 86401L"
+        do! fn state foo "(): Int64 = 86401"
         do! fn state caller $"(): Int64 = {foo}()"
         do! commit state "partial rename baseline"
         if draftBeforeRename then
-          do! fn state foo "(): Int64 = 86402L"
-          do! fn state caller $"(): Int64 = {foo}() + 1L"
+          do! fn state foo "(): Int64 = 86402"
+          do! fn state caller $"(): Int64 = {foo}() + 1"
         do! run state [ "rename"; foo; bar ]
         if laterEdits then
-          do! fn state foo "(): Int64 = 86409L"
-          do! fn state caller "(): Int64 = 86499L"
+          do! fn state foo "(): Int64 = 86409"
+          do! fn state caller "(): Int64 = 86499"
         do! commitOnly state "selected rename" bar
         if laterEdits then
           do! dirty state "later edits remain uncommitted"
@@ -63,14 +63,14 @@ let partialRenameSelectsRequiredVersions
             [ "deps"; "uses"; caller ]
             bar
             "the committed caller follows the renamed dependency"
-        do! fn state foo "(): Int64 = 86409L"
+        do! fn state foo "(): Int64 = 86409"
         do!
           evals
             state
             $"{caller}()"
             expected
             "reusing the old name does not redirect the caller"
-        do! fn state bar "(): Int64 = 86410L"
+        do! fn state bar "(): Int64 = 86410"
         let followed = if draftBeforeRename then "86411" else "86410"
         do! evals state $"{caller}()" followed "the caller follows subsequent edits"
         do! discardAll state
@@ -93,7 +93,7 @@ let partialRenameChecksTheCapturedCallerVersion =
           let original = $"{prefix}.original"
           let moved = $"{prefix}.moved"
           let caller = $"{prefix}.caller"
-          do! fn state original "(): Int64 = 93701L"
+          do! fn state original "(): Int64 = 93701"
           do! commit state "validation baseline"
           // Saving type errors is allowed. Rename captures this broken version.
           do! fn state caller $"(): String = {original}()"
@@ -144,13 +144,13 @@ let aPartialCommitIncludesDeepDependencies =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.DeepCommit.n0" "(): Int64 = 1L"
+        do! fn state "Tests.DeepCommit.n0" "(): Int64 = 1"
         for i in 1..11 do
           do!
             fn
               state
               $"Tests.DeepCommit.n{i}"
-              $"(): Int64 = Tests.DeepCommit.n{i - 1}() + 1L"
+              $"(): Int64 = Tests.DeepCommit.n{i - 1}() + 1"
         do! commitOnly state "deep dependency closure" "Tests.DeepCommit.n11"
         do! clean state "all twelve declarations and their names commit together"
         do!
@@ -175,11 +175,11 @@ let partialRenameKeepsTransitiveAliasNames =
             else
               "Tests.TransitiveBranch"
           for alias in [ "x"; "y" ] do
-            do! fn state $"{prefix}.{alias}" "(): Int64 = 941001L"
+            do! fn state $"{prefix}.{alias}" "(): Int64 = 941001"
           if branch <> "main" then
             do! fn state $"{prefix}.other" $"(): Int64 = {prefix}.y()"
           do! fn state $"{prefix}.helper" $"(): Int64 = {prefix}.x()"
-          do! fn state $"{prefix}.source" "(): Int64 = 941002L"
+          do! fn state $"{prefix}.source" "(): Int64 = 941002"
           do!
             fn
               state
@@ -201,7 +201,7 @@ let partialRenameKeepsTransitiveAliasNames =
             shows
               state
               [ "view"; $"{prefix}.x"; "--raw" ]
-              "941001L"
+              "941001"
               "the original dependency name was committed"
           do!
             notFound
@@ -214,7 +214,7 @@ let partialRenameKeepsTransitiveAliasNames =
               [ "view"; $"{prefix}.helper"; "--raw" ]
               "x()"
               "the committed helper follows the original alias"
-          do! fn state $"{prefix}.x" "(): Int64 = 941003L"
+          do! fn state $"{prefix}.x" "(): Int64 = 941003"
           do!
             evals
               state
@@ -238,13 +238,13 @@ let partialReferenceOnlyEdits =
               "Tests.ReferenceMain"
             else
               "Tests.ReferenceBranch"
-          do! fn state $"{prefix}.a" "(): Int64 = 991273L"
-          do! fn state $"{prefix}.b" "(): Int64 = 991273L"
+          do! fn state $"{prefix}.a" "(): Int64 = 991273"
+          do! fn state $"{prefix}.b" "(): Int64 = 991273"
           do! fn state $"{prefix}.caller" $"(): Int64 = {prefix}.a()"
           do! commit state "reference baseline"
           for alias in [ "b"; "a"; "b" ] do
             do! fn state $"{prefix}.caller" $"(): Int64 = {prefix}.{alias}()"
-            do! fn state $"{prefix}.unrelated" "(): Int64 = 991274L"
+            do! fn state $"{prefix}.unrelated" "(): Int64 = 991274"
             for args in
               [ [ "status"; "--json" ]
                 [ "commit"; "--json"; $"--include={prefix}.caller" ] ] do
@@ -278,7 +278,7 @@ let partialReferenceOnlyEdits =
                 $"{alias}()"
                 "discard keeps the committed reference names"
             do! clean state "no older reference edits remain in the draft"
-          do! fn state $"{prefix}.b" "(): Int64 = 991275L"
+          do! fn state $"{prefix}.b" "(): Int64 = 991275"
           do!
             evals
               state
@@ -295,8 +295,8 @@ let partialRenameLeavesLaterAliasEdits =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.PartialAlias.original" "(): Int64 = 582781L"
-        do! fn state "Tests.PartialAlias.alias" "(): Int64 = 582781L"
+        do! fn state "Tests.PartialAlias.original" "(): Int64 = 582781"
+        do! fn state "Tests.PartialAlias.alias" "(): Int64 = 582781"
         do! commit state "alias partial baseline"
         do!
           fn
@@ -324,14 +324,14 @@ let partialRenameLeavesLaterAliasEdits =
             [ "view"; "Tests.PartialAlias.caller"; "--raw" ]
             "moved()"
             "discard reveals the caller version selected by the rename"
-        do! fn state "Tests.PartialAlias.alias" "(): Int64 = 582782L"
+        do! fn state "Tests.PartialAlias.alias" "(): Int64 = 582782"
         do!
           evals
             state
             "Tests.PartialAlias.caller()"
             "582781"
             "the later alias edit was not committed"
-        do! fn state "Tests.PartialAlias.moved" "(): Int64 = 582783L"
+        do! fn state "Tests.PartialAlias.moved" "(): Int64 = 582783"
         do!
           evals
             state

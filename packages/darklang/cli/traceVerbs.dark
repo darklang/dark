@@ -51,8 +51,8 @@ let whyEmpty(doing: String): List<String> =
 ///
 /// Eight is almost always enough, and a table that prints more than it needs to spends the
 /// width on nothing. Git shortens commit ids the same way, for the same reason.
-let idWidth(ids: List<String>): Int =
-  let distinct(w: Int): Bool =
+let idWidth(ids: List<String>): Int64 =
+  let distinct(w: Int64): Bool =
     let prefixes = ids |> Stdlib.List.map(fun id -> Stdlib.String.slice(id, 0, w))
     (Stdlib.List.length(Stdlib.List.unique(prefixes))) == (Stdlib.List.length(ids))
 
@@ -95,7 +95,7 @@ let whenText(created: String): String =
 /// One row of the trace table. Deliberately narrow: `Table.print` pads to the widest cell and
 /// does not wrap, so a column that is usually empty costs every row its width. The fork lineage
 /// and the full input are in `traces show`.
-let row(width: Int, e: Darklang.Tracing.Trace): List<String> =
+let row(width: Int64, e: Darklang.Tracing.Trace): List<String> =
   // A `*` on the id rather than a column of its own. A pin column is four characters of width on
   // every row for a flag almost no row has, and `input` is the column that truncates.
   let id =
@@ -158,7 +158,7 @@ type CallJson =
     fn: String
     args: List<String>
     result: String
-    durationMs: Int
+    durationMs: Int64
     /// The process that made the call, for a trace that spawned any.
     process: Stdlib.Option.Option<String> }
 
@@ -172,7 +172,7 @@ type TraceWithCallsJson =
 /// One iteration of a loop, for `--json`.
 type LoopIterationJson =
   { /// Which one this is, counting from 1.
-    at: Int
+    at: Int64
     /// `--iteration map:3`, ready to use.
     iteration: String
     /// What this iteration produced, by expression id. Everything at once, so an agent never
@@ -202,7 +202,7 @@ type LoopJson =
     /// The function this is a loop of. The short `name` above is unique on the page but does not
     /// say WHICH `map` it was.
     fn: FnRef
-    count: Int
+    count: Int64
     iterations: List<LoopIterationJson> }
 
 
@@ -284,7 +284,7 @@ let traceJson(branchId: Uuid, trace: Darklang.Tracing.Trace): TraceJson =
       status = statusText(trace.status)
       pinned = trace.pinned
       durationMs =
-        if trace.durationMs > 0L then
+        if trace.durationMs > 0 then
           Stdlib.Option.Option.Some(trace.durationMs)
         else
           Stdlib.Option.Option.None
@@ -328,7 +328,7 @@ let printInspectJson(branchId: Uuid, prefix: String): Bool =
       match Darklang.Tracing.Store.view(trace.id) with
       | Some(data) ->
         data.functionCalls
-        |> Stdlib.List.filter(fun c -> c.ord >= 0L)
+        |> Stdlib.List.filter(fun c -> c.ord >= 0)
         |> Stdlib.List.map(fun c -> callJson(branchId, c))
       | None -> []
     Stdlib.printLine(
@@ -481,7 +481,7 @@ let pin(prefix: String, pinned: Bool): Bool =
 let printCalls(branchId: Uuid, typed: String): Unit =
   let fnName = canonicalFnName(branchId, typed)
 
-  match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 25L) with
+  match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 25) with
   | [] ->
     Stdlib.printLine($"no recorded trace went through {fnName}")
     (whyEmpty("run something that calls it"))
@@ -516,7 +516,7 @@ let showCodeJson(
     match tracePrefix with
     | Some(prefix) -> find(prefix)
     | None ->
-      match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1L) with
+      match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1) with
       | [ newest ] -> Stdlib.Result.Result.Ok(newest)
       | _ ->
         Stdlib.Result.Result.Error($"no recorded trace went through {fnName}")
@@ -539,7 +539,7 @@ let showCodeJson(
     with
     | None ->
       // Same two cases the page tells apart: never existed, or ran and has since gone.
-      match Darklang.Tracing.Store.wentThrough(fnName, "", 1L) with
+      match Darklang.Tracing.Store.wentThrough(fnName, "", 1) with
       | [] -> Cli.printErr($"no function named {fnName} on this branch")
       | _ ->
         Cli.printErr(
@@ -672,7 +672,7 @@ type Loop =
     /// `iterations` is how far the re-run got. Saying "iteration 2 of 2" about a loop that ran seven
     /// times is the failure this exists to prevent. 0 for a trace recorded before the shape was
     /// kept, where the honest answer is that nobody wrote it down.
-    recorded: Int }
+    recorded: Int64 }
 
 
 /// Is <param frameId> inside <param fnHash>, rather than inside something it called?
@@ -690,7 +690,7 @@ let insideFn(
   frameId: String,
   fnHash: String,
   stdlibHashes: List<String>,
-  fuel: Int)
+  fuel: Int64)
   : Bool =
   if fuel <= 0 then
     false
@@ -855,7 +855,7 @@ let loopsOf(
     let recorded =
       recordedIterations
       |> Stdlib.List.findFirst(fun pair -> (Stdlib.Tuple2.first(pair)) == k)
-      |> Stdlib.Option.map(fun pair -> Stdlib.Int.fromInt64(Stdlib.Tuple2.second(pair)))
+      |> Stdlib.Option.map(fun pair -> Stdlib.Tuple2.second(pair))
       |> Stdlib.Option.withDefault(0)
 
     (nm, hash, iterations, recorded))
@@ -907,7 +907,7 @@ let chosenIteration(
   |> Stdlib.Option.andThen(fun sel ->
     match Stdlib.String.split(sel, ":") with
     | [ _, p ] ->
-      (match Stdlib.Int.parse(p) with
+      (match Stdlib.Int64.parse(p) with
        | Ok(n) -> Stdlib.List.getAt(loop.iterations, n - 1)
        | Error(_) -> Stdlib.Option.Option.None)
     | _ -> Stdlib.List.head(loop.iterations))
@@ -953,8 +953,7 @@ let iterationsToFetch(
       else
         loop.iterations
         |> Stdlib.List.findFirstIndex(fun f -> f.id == frame.id)
-        |> Stdlib.Option.andThen(fun i ->
-          Stdlib.Int.toInt64(i) |> Stdlib.Option.map(fun at -> (frame.callSite, at))))
+        |> Stdlib.Option.map(fun at -> (frame.callSite, at)))
 
 
 /// One iteration's values, laid over the page.
@@ -1058,7 +1057,7 @@ let showCode(
     // still offer them.
     // By NAME, and only here. The store has no such function, so there is no hash to ask by;
     // the name in the index is the only evidence left that this ever ran.
-    match Darklang.Tracing.Store.wentThrough(fnName, "", 1L) with
+    match Darklang.Tracing.Store.wentThrough(fnName, "", 1) with
     | [] ->
       Cli.printErr($"no function named {fnName} on this branch")
       { state with exitCode = 1 }
@@ -1085,7 +1084,7 @@ let showCode(
         Cli.printErr(e)
         Stdlib.Option.Option.None
     | None ->
-      match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1L) with
+      match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1) with
       | [ newest ] -> Stdlib.Option.Option.Some(newest)
       | _ ->
         Stdlib.printLine($"no recorded trace went through {fnName}")

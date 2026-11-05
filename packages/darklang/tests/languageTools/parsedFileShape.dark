@@ -12,7 +12,7 @@ module Darklang.LanguageTools.Parser.Parse.Tests
 // post-parse validation decides whether this is Test source — so an ordinary
 // typo like `valoops = 1` (a missing space after `val`) parses as one.
 
-let shape(source: String): (Int * Int) =
+let shape(source: String): (Int64 * Int64) =
   match Darklang.LanguageTools.Parser.Parse.toWrittenTypes(source) with
   | Some(SourceFile(file)) ->
     (Stdlib.List.length(file.declarations), Stdlib.List.length(file.exprsToEval))
@@ -22,7 +22,7 @@ let shape(source: String): (Int * Int) =
 test realDeclarations =
   Stdlib.Test.all(
     [ shape("val v = 1") |> Stdlib.Test.equal((1, 0))
-      shape("let f(x: Int): Int = x") |> Stdlib.Test.equal((1, 0))
+      shape("let f(x: Int64): Int64 = x") |> Stdlib.Test.equal((1, 0))
       shape("type T = Unit") |> Stdlib.Test.equal((1, 0))
       shape("module M =\n  val v = 1") |> Stdlib.Test.equal((1, 0)) ])
 
@@ -50,10 +50,10 @@ test notDeclarations =
 test moduleHeadedFiles =
   Stdlib.Test.all(
     [ shape("module Darklang.Foo\n\nvaloops = 1") |> Stdlib.Test.equal((1, 0))
-      shape("module Darklang.Foo\n\nlet f(x: Int): Int = x")
+      shape("module Darklang.Foo\n\nlet f(x: Int64): Int64 = x")
       |> Stdlib.Test.equal((1, 0))
       // a type under an attribute the parser does not know still lands
-      shape("module Darklang.Foo\n\n[<Nonsense>] type Counter = Int")
+      shape("module Darklang.Foo\n\n[<Nonsense>] type Counter = Int64")
       |> Stdlib.Test.equal((1, 0)) ])
 
 // A real declaration alongside an assignment-shaped line: the declaration

@@ -422,7 +422,7 @@ let pageName(page: Page): String =
 
 
 /// How many times one read's key should be applied.
-let burstTimes(keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead): Int =
+let burstTimes(keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead): Int64 =
   // Only movement repeats. A burst of Enter or Escape is coalesced too, but acting on it twenty times
   // would turn a stray wheel-click-on-the-wrong-key into twenty actions; movement is the case where
   // "do it N times" is unambiguously what was meant.
@@ -441,7 +441,7 @@ let burstTimes(keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead): Int =
 let applyKeyRead(
   state: AppState,
   keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead,
-  times: Int)
+  times: Int64)
   : AppState =
   let keyPressedMsg = Msg.KeyPressed(keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some(keyInput.keyChar))
   // A page transition ends the burst. Movement can cause one - a SubApp may return Exit or hand off to
@@ -502,7 +502,7 @@ let applyKeyRead(
       else Update.updateAppState(st, keyPressedMsg))
 
 
-let runInteractiveLoop(state: AppState): Int =
+let runInteractiveLoop(state: AppState): Int64 =
   if state.isExiting then
     // Clear any retained prompt region so the shell prompt takes its place.
     let _cleared = clearPromptRegion(state)

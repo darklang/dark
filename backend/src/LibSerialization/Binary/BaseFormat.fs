@@ -22,8 +22,13 @@ open System
 /// Nothing existing changed layout; a v5 blob reads as is.
 /// A lambda value no longer carries applied arguments (there is no partial application). Its
 /// layout changed in place, without a version: no store in use holds an older lambda blob.
+/// v7 (numbers, 2026-11): `DFloat32`, `KTFloat32`, `TFloat32`, `EFloat32` and `MPFloat32` take
+/// the next tag in each table, and the `Decimal` cases the one after. A Decimal is the four words
+/// of `Decimal.GetBits`. Nothing existing changed layout, so a v6 blob reads, but its meaning
+/// moved: a bare integer literal reads as an Int64 rather than an `Int`, and the stdlib with it,
+/// so there is no migration and a store from before v7 is started afresh.
 [<Literal>]
-let CurrentVersion = 6u
+let CurrentVersion = 7u
 
 /// The oldest version this binary still reads.
 [<Literal>]

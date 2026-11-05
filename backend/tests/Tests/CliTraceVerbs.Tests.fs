@@ -81,7 +81,7 @@ let private scriptOrEvalInputPersistence =
             args,
             { allowHarmful = true; sandbox = true; warnPermissions = true }
           )
-        for input in [ Traces.EvalExpression("1L + 2L", true); script ] do
+        for input in [ Traces.EvalExpression("1 + 2", true); script ] do
           let id = storeInvocation (Some input)
           let! read = Traces.getCliInput id
           Expect.equal read (Some input) "the invocation reads back whole"
@@ -424,15 +424,15 @@ let private retentionKeepsTheNewestAndTheSuspended =
         LibDB.Tracing.TraceRetention.setForTesting 2L 0L
         try
           // Four runs; the first is suspended by hand so it must survive.
-          let! _ = runCli state [ "eval"; "1L" ]
+          let! _ = runCli state [ "eval"; "1" ]
           let! first = latest ()
           Traces.setStatus first.id Traces.Suspended
-          let! _ = runCli state [ "eval"; "2L" ]
-          let! _ = runCli state [ "eval"; "3L" ]
+          let! _ = runCli state [ "eval"; "2" ]
+          let! _ = runCli state [ "eval"; "3" ]
           // The pass runs at most every ten seconds; the seam reset its clock, and it ran on
           // the fourth store, which is the one past the cap.
           LibDB.Tracing.TraceRetention.setForTesting 2L 0L
-          let! _ = runCli state [ "eval"; "4L" ]
+          let! _ = runCli state [ "eval"; "4" ]
           let! traces =
             Sql.query "SELECT id FROM traces ORDER BY timestamp"
             |> Sql.executeAsync (fun read -> read.string "id")
@@ -536,7 +536,7 @@ let private manualDeletesSweepOrphanedRows =
           fn
             state
             "Tests.Prev.looped"
-            ("(n: Int): Int =\n"
+            ("(n: Int64): Int64 =\n"
              + "  Stdlib.List.range(1, n)\n"
              + "  |> Stdlib.List.map(fun i -> i * 2)\n"
              + "  |> Stdlib.List.length")
@@ -816,7 +816,7 @@ let private deletingEveryTraceEmptiesEveryTraceTable =
           fn
             state
             "Tests.Prev.looped"
-            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
+            ("(n: Int64): Int64 =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
              + ""
              + ""
              + "")
@@ -921,7 +921,7 @@ let private pureLoopPassesAreCounted =
           fn
             state
             "Tests.Prev.pure"
-            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
+            ("(n: Int64): Int64 =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
              + ""
              + ""
              + "")
@@ -964,7 +964,7 @@ let private aFunctionThatRanAndWentIsNotATypo =
     (fun state ->
       task {
         do! start state
-        let! _ = runCli state [ "eval"; "1L" ]
+        let! _ = runCli state [ "eval"; "1" ]
         let! latest' = latest ()
         let traceId = string latest'.id
 
@@ -1028,7 +1028,7 @@ let private deletingATraceTakesItsLoopCounts =
           fn
             state
             "Tests.Prev.looped"
-            ("(n: Int): Int =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
+            ("(n: Int64): Int64 =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i -> i * 2)\n  |> Stdlib.List.length"
              + ""
              + ""
              + "")

@@ -82,26 +82,26 @@ let outcomes =
       authorIn
         m
         """let double(n: Int64): Int64 = (n + n)
-test passes = Darklang.PackageTestOutcomes.double(4L) |> Stdlib.Test.equal(8L)
-test fails = Darklang.PackageTestOutcomes.double(4L) |> Stdlib.Test.equal(9L)
+test passes = Darklang.PackageTestOutcomes.double(4) |> Stdlib.Test.equal(8)
+test fails = Darklang.PackageTestOutcomes.double(4) |> Stdlib.Test.equal(9)
 test collects =
   Stdlib.Test.all([ Stdlib.Test.fail("a"), Stdlib.Test.fail("b") ])
-test notAResult = 5L
+test notAResult = 5
 let restrictedPrint():{} Unit = Stdlib.printLine("should not print")
 test effectful =
   let _ = Darklang.PackageTestOutcomes.restrictedPrint()
   Stdlib.Test.pass()
 test raisesWhatItRaises =
-  (1L / 0L)
+  (1 / 0)
   => raises "Cannot divide by 0"
 test injectsRuntimeError =
   Stdlib.Test.raiseRuntimeError("injected")
   => raises "Uncaught exception: injected"
 test raisesButReturned =
-  1L
+  1
   => raises "Cannot divide by 0"
 test raisesSomethingElse =
-  (1L / 0L)
+  (1 / 0)
   => raises "another message"
 let randomKey():{Random} String = Stdlib.toString(Stdlib.Uuid.generate())
 let noRandom():{} String = Stdlib.toString(Stdlib.Uuid.generate())
@@ -211,11 +211,11 @@ let isolatedObservations =
         m
         """let observed(n: Int64): Int64 = Stdlib.Test.incrementCounter(n)
 test counts =
-  let value = Darklang.PackageTestObservations.observed(7L)
+  let value = Darklang.PackageTestObservations.observed(7)
   let _ = Stdlib.Test.incrementCounter("another type")
-  (value, Stdlib.Test.counterValue()) |> Stdlib.Test.equal((7L, 2L))
+  (value, Stdlib.Test.counterValue()) |> Stdlib.Test.equal((7, 2))
 test startsEmpty =
-  Stdlib.Test.counterValue() |> Stdlib.Test.equal(0L)
+  Stdlib.Test.counterValue() |> Stdlib.Test.equal(0)
 test callsStayOrdered =
   Stdlib.List.map(Stdlib.List.range(1, 200), fun _ ->
     let _ = Stdlib.Test.incrementCounter()
@@ -224,10 +224,10 @@ test callsStayOrdered =
 test sharesWithChildren =
   let _ = Stdlib.List.parallelMap(Stdlib.List.range(1, 8), fun _ ->
     Stdlib.List.iter(Stdlib.List.range(1, 200), fun _ -> Stdlib.Test.incrementCounter()))
-  Stdlib.Test.counterValue() |> Stdlib.Test.equal(1600L)
+  Stdlib.Test.counterValue() |> Stdlib.Test.equal(1600)
 test stopsAfterError =
   let _ = Stdlib.Test.incrementCounter()
-  (1L / 0L)
+  (1 / 0)
   => raises "Cannot divide by 0"
 test failsAfterObservation =
   let _ = Stdlib.Test.incrementCounter()

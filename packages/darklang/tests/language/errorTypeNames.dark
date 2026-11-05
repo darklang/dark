@@ -10,59 +10,59 @@ module AmbiguousHash =
   // function: their parameter types share a hash, so nothing would distinguish
   // them, they would collapse to one declaration, and this would test whichever
   // one survived rather than each of them.
-  let takesIntParseError(e: Darklang.Stdlib.Int.ParseError): Int = 1
-  let takesUuidParseError(e: Darklang.Stdlib.Uuid.ParseError): Int = 2
-  let returnsIntParseError(n: Int): Darklang.Stdlib.Int.ParseError = n
+  let takesIntParseError(e: Darklang.Stdlib.Int.ParseError): Int64 = 1
+  let takesUuidParseError(e: Darklang.Stdlib.Uuid.ParseError): Int64 = 2
+  let returnsIntParseError(n: Int64): Darklang.Stdlib.Int.ParseError = n
 
   // One hash, three declarations, three names printed.
   test intParamRaises =
     (takesIntParseError(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.takesIntParseError's 1st parameter `e` expects Darklang.Stdlib.Int.ParseError, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.takesIntParseError's 1st parameter `e` expects Darklang.Stdlib.Int.ParseError, but got Int64 (5)"
 
   test uuidParamRaises =
     (takesUuidParseError(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.takesUuidParseError's 1st parameter `e` expects Darklang.Stdlib.Uuid.ParseError, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.takesUuidParseError's 1st parameter `e` expects Darklang.Stdlib.Uuid.ParseError, but got Int64 (5)"
 
   test intReturnRaises =
     (returnsIntParseError(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.returnsIntParseError's return value expects Darklang.Stdlib.Int.ParseError, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.returnsIntParseError's return value expects Darklang.Stdlib.Int.ParseError, but got Int64 (5)"
 
 module NestedInTypeArguments =
   // The name has to be chosen per position, not once for the whole type. A
   // `ValueType` is a tree of hashes, so every custom type inside it has the same
   // problem as the outermost one.
-  let takesListOfInt(x: List<Darklang.Stdlib.Int.ParseError>): Int = 1
-  let takesListOfUuid(x: List<Darklang.Stdlib.Uuid.ParseError>): Int = 2
-  let takesDeep(x: Dict<String, List<Darklang.Stdlib.Uuid.ParseError>>): Int = 3
+  let takesListOfInt(x: List<Darklang.Stdlib.Int.ParseError>): Int64 = 1
+  let takesListOfUuid(x: List<Darklang.Stdlib.Uuid.ParseError>): Int64 = 2
+  let takesDeep(x: Dict<String, List<Darklang.Stdlib.Uuid.ParseError>>): Int64 = 3
 
   // The sharpest case: one hash, two positions, two names, in one type.
   let takesPair(
     x: (Darklang.Stdlib.Int.ParseError * Darklang.Stdlib.Uuid.ParseError))
-    : Int =
+    : Int64 =
     4
 
   test listOfIntRaises =
     (takesListOfInt(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesListOfInt's 1st parameter `x` expects List<Darklang.Stdlib.Int.ParseError>, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesListOfInt's 1st parameter `x` expects List<Darklang.Stdlib.Int.ParseError>, but got Int64 (5)"
 
   test listOfUuidRaises =
     (takesListOfUuid(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesListOfUuid's 1st parameter `x` expects List<Darklang.Stdlib.Uuid.ParseError>, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesListOfUuid's 1st parameter `x` expects List<Darklang.Stdlib.Uuid.ParseError>, but got Int64 (5)"
 
   test deepRaises =
     (takesDeep(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesDeep's 1st parameter `x` expects Dict<String, List<Darklang.Stdlib.Uuid.ParseError>>, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesDeep's 1st parameter `x` expects Dict<String, List<Darklang.Stdlib.Uuid.ParseError>>, but got Int64 (5)"
 
   test pairRaises =
     (takesPair(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesPair's 1st parameter `x` expects (Darklang.Stdlib.Int.ParseError * Darklang.Stdlib.Uuid.ParseError), but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesPair's 1st parameter `x` expects (Darklang.Stdlib.Int.ParseError * Darklang.Stdlib.Uuid.ParseError), but got Int64 (5)"
 
 module RecordAndEnumFields =
   // Same rule, reached through the other messages that print a declared type.
@@ -83,41 +83,41 @@ module RecordAndEnumFields =
   test intRecordRaises =
     (makeIntRecord())
     => raises
-      "Failed to create record. Expected Darklang.Stdlib.Int.ParseError for field `e`, but got 5 (an Int)"
+      "Failed to create record. Expected Darklang.Stdlib.Int.ParseError for field `e`, but got 5 (an Int64)"
 
   test uuidRecordRaises =
     (makeUuidRecord())
     => raises
-      "Failed to create record. Expected List<Darklang.Stdlib.Uuid.ParseError> for field `es`, but got 5 (an Int)"
+      "Failed to create record. Expected List<Darklang.Stdlib.Uuid.ParseError> for field `es`, but got 5 (an Int64)"
 
   test enumRaises =
     (makeEnum())
     => raises
-      "Failed to create enum. Expected Darklang.Stdlib.Uuid.ParseError for field 0 in `Wrap`, but got Int (5)"
+      "Failed to create enum. Expected Darklang.Stdlib.Uuid.ParseError for field 0 in `Wrap`, but got Int64 (5)"
 
   test updateRaises =
     (updateIntRecord())
     => raises
-      "Failed to create updated record. Expected Darklang.Stdlib.Int.ParseError for field `e`, but got 5 (an Int)"
+      "Failed to create updated record. Expected Darklang.Stdlib.Int.ParseError for field `e`, but got 5 (an Int64)"
 
 module UnambiguousHash =
   // One location, so there is nothing to choose between and the canonical name
   // is printed however the author spelled it. Type arguments survive either way.
-  let takesOption(o: Darklang.Stdlib.Option.Option<Int>): Int = 1
+  let takesOption(o: Darklang.Stdlib.Option.Option<Int64>): Int64 = 1
 
   test optionRaises =
     (takesOption(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.UnambiguousHash.takesOption's 1st parameter `o` expects Darklang.Stdlib.Option.Option<Int>, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.UnambiguousHash.takesOption's 1st parameter `o` expects Darklang.Stdlib.Option.Option<Int64>, but got Int64 (5)"
 
 module LocallyDeclared =
   // This type has no package name, so the declaration supplies its display name.
   // The unusual field name keeps its content hash distinct from other types in the suite.
-  type Celsius = { portedCelsiusDegrees: Int }
+  type Celsius = { portedCelsiusDegrees: Int64 }
 
   let describe(t: Celsius): String = "ok"
 
   test localTypeRaises =
     (describe(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.LocallyDeclared.describe's 1st parameter `t` expects Darklang.Language.Tests.ErrorTypeNames.LocallyDeclared.Celsius, but got Int (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.LocallyDeclared.describe's 1st parameter `t` expects Darklang.Language.Tests.ErrorTypeNames.LocallyDeclared.Celsius, but got Int64 (5)"

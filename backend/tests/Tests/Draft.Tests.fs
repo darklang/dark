@@ -30,8 +30,7 @@ open TestUtils.TestUtils
 let private runDarkResult (code : string) : Task<Result<int64, string>> =
   task {
     match! evalDarkExpr code with
-    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DInt n ])) ->
-      return Ok(int64 (RT.DarkInt.toBigInt n))
+    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DInt64 n ])) -> return Ok n
     | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString e ])) -> return Error e
     | Ok other -> return Error $"unexpected result shape: {other}"
     | Error(rte, _) -> return Error $"{rte}"
@@ -78,12 +77,12 @@ let keepsAnOpItCannotRead =
     let m = "DraftTestUnreadable"
     do! cleanup m
 
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet u(): Int64 = 7001L"
+    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet u(): Int64 = 7001"
     let! _ = commitAll "draft test: unreadable v1"
     let! committedHash = liveHash m "u"
 
     // An uncommitted edit over a committed binding, so the rewrite has real work to do.
-    let! editOps = authorIntoMain $"module Darklang.{m}\n\nlet u(): Int64 = 7002L"
+    let! editOps = authorIntoMain $"module Darklang.{m}\n\nlet u(): Int64 = 7002"
 
     // Stands in for an op off the wire that this build's deserializer rejects. Committed and
     // unapplied, which is where they actually land.
@@ -151,7 +150,7 @@ let aFailedRewriteLeavesTheDraftIntact =
     let m = "DraftTestAtomic"
     do! cleanup m
 
-    let! ops = authorIntoMain $"module Darklang.{m}\n\nlet a(): Int64 = 7101L"
+    let! ops = authorIntoMain $"module Darklang.{m}\n\nlet a(): Int64 = 7101"
     let! before = liveHash m "a"
     Expect.isSome before "the draft binding is live"
     let! draftBefore = draftOpCount ()
@@ -206,7 +205,7 @@ let aRefreshDoesNotEatAnAuthorThatLandedMidway =
 
     let! _ =
       authorIntoMain
-        $"module Darklang.{m}\n\nlet caller(): Int64 = Darklang.{m}.callee() + 1L"
+        $"module Darklang.{m}\n\nlet caller(): Int64 = Darklang.{m}.callee() + 1"
 
     let mutable opened = 0
     let! _ =
@@ -216,7 +215,7 @@ let aRefreshDoesNotEatAnAuthorThatLandedMidway =
             opened <- opened + 1
             if opened = 1 then
               let! _ =
-                authorIntoMain $"module Darklang.{m}\n\nlet callee(): Int64 = 41L"
+                authorIntoMain $"module Darklang.{m}\n\nlet callee(): Int64 = 41"
               ()
           })
         pmPT
@@ -266,8 +265,8 @@ let aPullInsideARebuildsWindowSurvivesIt =
     let m = "DraftTestRebuildPull"
     do! cleanup m
 
-    let! mine = authorIntoMain $"module Darklang.{m}\n\nlet mine(): Int64 = 1L"
-    let! peerOps = parsePackageOps $"module Tests.{m}\n\nlet peer(): Int64 = 2L"
+    let! mine = authorIntoMain $"module Darklang.{m}\n\nlet mine(): Int64 = 1"
+    let! peerOps = parsePackageOps $"module Tests.{m}\n\nlet peer(): Int64 = 2"
 
     // An op kind this build has no tag for, which is what a newer build's op looks like here.
     let alienId = System.Guid.NewGuid()
@@ -362,9 +361,9 @@ let anAuthorAfterTheDraftWasChosenFromSurvivesARebuild =
     let m = "DraftTestRebuildAuthor"
     do! cleanup m
 
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet early(): Int64 = 1L"
+    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet early(): Int64 = 1"
     let! draft = draftAsDarkReadsIt ()
-    let! late = authorIntoMain $"module Darklang.{m}\n\nlet late(): Int64 = 2L"
+    let! late = authorIntoMain $"module Darklang.{m}\n\nlet late(): Int64 = 2"
 
     let! rebuilt = LibDB.Draft.rebuild draft Set.empty
 
@@ -396,7 +395,7 @@ let aDiscardLeavesTheCommittedLogInPlace =
     let m = "DraftTestScoped"
     do! cleanup m
 
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet s(): Int64 = 7001L"
+    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet s(): Int64 = 7001"
     let! _ = commitAll "draft test: scoped"
     let! rowidBefore = firstCommittedRowid ()
     Expect.notEqual rowidBefore -1L "there is a committed op to watch"
@@ -406,7 +405,7 @@ let aDiscardLeavesTheCommittedLogInPlace =
     let! afterEmpty = firstCommittedRowid ()
     Expect.equal afterEmpty rowidBefore "and rewrites nothing"
 
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet d(): Int64 = 7002L"
+    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet d(): Int64 = 7002"
     let! dropped = runDarkResult "Darklang.SCM.Draft.discardAll()"
     Expect.isGreaterThan (unwrap dropped) 0L "the draft op was dropped"
     let! afterDrop = firstCommittedRowid ()

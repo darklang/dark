@@ -23,7 +23,7 @@ read, an HTTP GET or HEAD). Anything else runs in order.
 
   let h = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.File.writeText(log, "done"))  // in the background
   Stdlib.Exec.await(h)                                   // wait for it
-  Stdlib.Exec.awaitWithin(500L, h)                       // ... or give up after 500 ms: None
+  Stdlib.Exec.awaitWithin(500, h)                       // ... or give up after 500 ms: None
   Stdlib.Exec.select([ h1; h2 ])                         // the first to finish
   Stdlib.Exec.cancel(h)                                  // stop it, and its children
   Stdlib.List.parallelMap(items, fib)                    // CPU-bound work across the cores

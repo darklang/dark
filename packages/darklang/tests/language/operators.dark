@@ -2,10 +2,10 @@ module Darklang.Language.Tests.Operators
 
 test addition =
   Stdlib.Test.all(
-    [ 5L + 3L |> Stdlib.Test.equal(8L)
+    [ 5 + 3 |> Stdlib.Test.equal(8)
       "xx" + "yy" |> Stdlib.Test.equal("xxyy")
-      (5L + (3L)) |> Stdlib.Test.equal(8L)
-      (5L + 3L) |> Stdlib.Test.equal(8L) ])
+      (5 + (3)) |> Stdlib.Test.equal(8)
+      (5 + 3) |> Stdlib.Test.equal(8) ])
 
 // Numeric operators are polymorphic over numeric types at runtime
 test numericTypes =
@@ -13,19 +13,19 @@ test numericTypes =
     [ 1.0 + 2.0 |> Stdlib.Test.equal(3.0)
       3.5 * 2.0 |> Stdlib.Test.equal(7.0)
       10.0 - 4.0 |> Stdlib.Test.equal(6.0)
-      1y + 2y |> Stdlib.Test.equal(3y)
-      100UL - 1UL |> Stdlib.Test.equal(99UL)
-      10L / 3L |> Stdlib.Test.equal(3L)
+      1s8 + 2s8 |> Stdlib.Test.equal(3s8)
+      100u64 - 1u64 |> Stdlib.Test.equal(99u64)
+      10 / 3 |> Stdlib.Test.equal(3)
       10.0 / 4.0 |> Stdlib.Test.equal(2.5)
-      7L % 3L |> Stdlib.Test.equal(1L)
-      -8L % 3L |> Stdlib.Test.equal(1L)
+      7 % 3 |> Stdlib.Test.equal(1)
+      -8 % 3 |> Stdlib.Test.equal(1)
       2.0 ** 3.0 |> Stdlib.Test.equal(8.0)
-      2L ** 3L |> Stdlib.Test.equal(8L)
+      2 ** 3 |> Stdlib.Test.equal(8)
       2.5 < 3.5 |> Stdlib.Test.equal(true)
-      5L >= 5L |> Stdlib.Test.equal(true)
-      2y > 1y |> Stdlib.Test.equal(true) ])
+      5 >= 5 |> Stdlib.Test.equal(true)
+      2s8 > 1s8 |> Stdlib.Test.equal(true) ])
 
-// `%` is integer-only: Float has no Modulo implementation, deliberately
+// Float has no Modulo implementation, deliberately; Decimal and the integers do
 test floatModuloRaises =
   7.5 % 2.0
   => raises
@@ -34,10 +34,10 @@ test floatModuloRaises =
 // Mixed operand types are a type error (no implicit coercion), said before
 // dispatch so the message is the operator's, not the impl fn's
 test int64PlusBoolRaises =
-  5L + true => raises "Cannot perform numeric operation on Int64 and Bool"
+  5 + true => raises "Cannot perform numeric operation on Int64 and Bool"
 
 test int64PlusFloatRaises =
-  1L + 2.0 => raises "Cannot perform numeric operation on Int64 and Float"
+  1 + 2.0 => raises "Cannot perform numeric operation on Int64 and Float"
 
 // String implements Add but no other arithmetic trait
 test stringAdd =
@@ -51,23 +51,23 @@ test stringSubtractRaises =
 test overflow =
   Stdlib.Test.all(
     [ // Integer +,-,* overflow wraps around (two's complement)
-      127y + 1y |> Stdlib.Test.equal(-128y)
-      0uy - 1uy |> Stdlib.Test.equal(255uy)
-      9223372036854775807L + 1L |> Stdlib.Test.equal(-9223372036854775808L)
-      2L * 9223372036854775807L |> Stdlib.Test.equal(-2L)
-      170141183460469231731687303715884105727Q + 1Q
-      |> Stdlib.Test.equal(-170141183460469231731687303715884105728Q)
-      340282366920938463463374607431768211455Z + 1Z |> Stdlib.Test.equal(0Z)
+      127s8 + 1s8 |> Stdlib.Test.equal(-128s8)
+      0u8 - 1u8 |> Stdlib.Test.equal(255u8)
+      9223372036854775807 + 1 |> Stdlib.Test.equal(-9223372036854775808)
+      2 * 9223372036854775807 |> Stdlib.Test.equal(-2)
+      170141183460469231731687303715884105727s128 + 1s128
+      |> Stdlib.Test.equal(-170141183460469231731687303715884105728s128)
+      340282366920938463463374607431768211455u128 + 1u128 |> Stdlib.Test.equal(0u128)
       // Signed integer division overflow (MinValue / -1) wraps back to MinValue
-      -9223372036854775808L / -1L |> Stdlib.Test.equal(-9223372036854775808L)
-      -128y / -1y |> Stdlib.Test.equal(-128y)
+      -9223372036854775808 / -1 |> Stdlib.Test.equal(-9223372036854775808)
+      -128s8 / -1s8 |> Stdlib.Test.equal(-128s8)
       // Power overflow wraps around (two's complement)
-      2L ** 64L |> Stdlib.Test.equal(0L)
-      (-9223372036854775808L) ** 64L |> Stdlib.Test.equal(0L) ])
+      2 ** 64 |> Stdlib.Test.equal(0)
+      (-9223372036854775808) ** 64 |> Stdlib.Test.equal(0) ])
 
 // Integer division by zero raises a clean RTE
 test divideByZeroRaises =
-  10L / 0L => raises "Cannot divide by 0"
+  10 / 0 => raises "Cannot divide by 0"
 
 // Float overflow produces infinity, following IEEE arithmetic.
 test floatOverflowIsInfinity =
@@ -76,26 +76,26 @@ test floatOverflowIsInfinity =
 // `**` (power) works on every numeric type, the 128-bit ints included
 test power =
   Stdlib.Test.all(
-    [ 2y ** 3y |> Stdlib.Test.equal(8y)
-      3uy ** 3uy |> Stdlib.Test.equal(27uy)
-      2l ** 10l |> Stdlib.Test.equal(1024l)
-      2Q ** 3Q |> Stdlib.Test.equal(8Q)
-      2Z ** 3Z |> Stdlib.Test.equal(8Z)
+    [ 2s8 ** 3s8 |> Stdlib.Test.equal(8s8)
+      3u8 ** 3u8 |> Stdlib.Test.equal(27u8)
+      2s32 ** 10s32 |> Stdlib.Test.equal(1024s32)
+      2s128 ** 3s128 |> Stdlib.Test.equal(8s128)
+      2u128 ** 3u128 |> Stdlib.Test.equal(8u128)
       // and wraps on overflow, as the narrower widths do
-      2Z ** 128Z |> Stdlib.Test.equal(0Z) ])
+      2u128 ** 128u128 |> Stdlib.Test.equal(0u128) ])
 
 // unary `-` works on every signed integer type and Float
 test unaryMinus =
   Stdlib.Test.all(
-    [ -(2y + 3y) |> Stdlib.Test.equal(-5y)
+    [ -(2s8 + 3s8) |> Stdlib.Test.equal(-5s8)
       -(1.0 + 1.5) |> Stdlib.Test.equal(-2.5) ])
 
 test rightOperandErrorRaises =
-  5L + (Stdlib.Test.raiseRuntimeError("error"))
+  5 + (Stdlib.Test.raiseRuntimeError("error"))
   => raises "Uncaught exception: error"
 
 test leftOperandErrorRaises =
-  (Stdlib.Test.raiseRuntimeError("error")) + 5L
+  (Stdlib.Test.raiseRuntimeError("error")) + 5
   => raises "Uncaught exception: error"
 
 test leftOperandErrorRaisesFirst =
@@ -109,18 +109,18 @@ test leftOperandErrorRaisesFirst =
 // polymorphic over every integer type; both operands must be the same type
 test bitwise =
   Stdlib.Test.all(
-    [ 12L & 10L |> Stdlib.Test.equal(8L)
-      12L | 10L |> Stdlib.Test.equal(14L)
-      12L ^ 10L |> Stdlib.Test.equal(6L)
-      12y & 10y |> Stdlib.Test.equal(8y)
-      12uy | 10uy |> Stdlib.Test.equal(14uy)
-      12s ^ 10s |> Stdlib.Test.equal(6s)
-      12us & 10us |> Stdlib.Test.equal(8us)
-      12l | 10l |> Stdlib.Test.equal(14l)
-      12ul ^ 10ul |> Stdlib.Test.equal(6ul)
-      12UL & 10UL |> Stdlib.Test.equal(8UL)
-      12Q | 10Q |> Stdlib.Test.equal(14Q)
-      12Z ^ 10Z |> Stdlib.Test.equal(6Z)
+    [ 12 & 10 |> Stdlib.Test.equal(8)
+      12 | 10 |> Stdlib.Test.equal(14)
+      12 ^ 10 |> Stdlib.Test.equal(6)
+      12s8 & 10s8 |> Stdlib.Test.equal(8s8)
+      12u8 | 10u8 |> Stdlib.Test.equal(14u8)
+      12s16 ^ 10s16 |> Stdlib.Test.equal(6s16)
+      12u16 & 10u16 |> Stdlib.Test.equal(8u16)
+      12s32 | 10s32 |> Stdlib.Test.equal(14s32)
+      12u32 ^ 10u32 |> Stdlib.Test.equal(6u32)
+      12u64 & 10u64 |> Stdlib.Test.equal(8u64)
+      12s128 | 10s128 |> Stdlib.Test.equal(14s128)
+      12u128 ^ 10u128 |> Stdlib.Test.equal(6u128)
       12 & 10 |> Stdlib.Test.equal(8)
       12 | 10 |> Stdlib.Test.equal(14)
       12 ^ 10 |> Stdlib.Test.equal(6) ])
@@ -128,32 +128,32 @@ test bitwise =
 test shifts =
   Stdlib.Test.all(
     [ // the shift COUNT is the same type as the value
-      1L << 4L |> Stdlib.Test.equal(16L)
-      64L >> 3L |> Stdlib.Test.equal(8L)
-      1y << 2y |> Stdlib.Test.equal(4y)
-      128uy >> 7uy |> Stdlib.Test.equal(1uy)
-      1 << 100 |> Stdlib.Test.equal(1267650600228229401496703205376)
-      (1 << 100) >> 99 |> Stdlib.Test.equal(2)
+      1 << 4 |> Stdlib.Test.equal(16)
+      64 >> 3 |> Stdlib.Test.equal(8)
+      1s8 << 2s8 |> Stdlib.Test.equal(4s8)
+      128u8 >> 7u8 |> Stdlib.Test.equal(1u8)
+      1z << 100z |> Stdlib.Test.equal(1267650600228229401496703205376z)
+      (1z << 100z) >> 99z |> Stdlib.Test.equal(2z)
       // fixed-width shifts wrap; `Int` grows instead
-      1L << 64L |> Stdlib.Test.equal(1L)
-      1uy << 8uy |> Stdlib.Test.equal(1uy) ])
+      1 << 64 |> Stdlib.Test.equal(1)
+      1u8 << 8u8 |> Stdlib.Test.equal(1u8) ])
 
 // `Int` has no width to mask a count against, so an unusable one raises
 test negativeLeftShiftRaises =
-  1 << -1 => raises "Encountered out-of-range value for type of Int"
+  1z << -1z => raises "Encountered out-of-range value for type of Int"
 
 test negativeRightShiftRaises =
-  1 >> -1 => raises "Encountered out-of-range value for type of Int"
+  1z >> -1z => raises "Encountered out-of-range value for type of Int"
 
 // unary `~` is two's complement on every integer type
 test bitwiseNot =
   Stdlib.Test.all(
-    [ ~0L |> Stdlib.Test.equal(-1L)
-      ~5L |> Stdlib.Test.equal(-6L)
-      ~0uy |> Stdlib.Test.equal(255uy)
+    [ ~0 |> Stdlib.Test.equal(-1)
+      ~5 |> Stdlib.Test.equal(-6)
+      ~0u8 |> Stdlib.Test.equal(255u8)
       ~0 |> Stdlib.Test.equal(-1)
       ~(-1) |> Stdlib.Test.equal(0)
-      ~(2L + 3L) |> Stdlib.Test.equal(-6L) ])
+      ~(2 + 3) |> Stdlib.Test.equal(-6) ])
 
 // bitwise operators are traits like every other operator, so a Float says what
 // is missing
@@ -174,34 +174,34 @@ test floatBitwiseNotRaises =
 
 // mixed widths are a type error, exactly as for the arithmetic operators
 test mixedBitwiseWidthsRaises =
-  1L & 2y => raises "Cannot perform numeric operation on Int64 and Int8"
+  1 & 2s8 => raises "Cannot perform numeric operation on Int64 and Int8"
 
 test mixedShiftWidthsRaises =
-  1L << 2 => raises "Cannot perform numeric operation on Int64 and Int"
+  1 << 2z => raises "Cannot perform numeric operation on Int64 and Int"
 
 // precedence: bitwise binds TIGHTER than the comparisons (Python's order, not
 // C's), and looser than the arithmetic operators
 test bitwisePrecedence =
   Stdlib.Test.all(
-    [ (12L & 10L) == 8L |> Stdlib.Test.equal(true)
-      12L & 10L == 8L |> Stdlib.Test.equal(true)
-      (1L | 6L) ^ (1L & 6L) |> Stdlib.Test.equal(7L)
-      1L | 6L ^ 1L & 6L |> Stdlib.Test.equal(7L)
-      1L << 1L + 1L |> Stdlib.Test.equal(4L)
-      12L | 4L & 5L |> Stdlib.Test.equal(12L)
-      ~0L & 255L |> Stdlib.Test.equal(255L) ])
+    [ (12 & 10) == 8 |> Stdlib.Test.equal(true)
+      12 & 10 == 8 |> Stdlib.Test.equal(true)
+      (1 | 6) ^ (1 & 6) |> Stdlib.Test.equal(7)
+      1 | 6 ^ 1 & 6 |> Stdlib.Test.equal(7)
+      1 << 1 + 1 |> Stdlib.Test.equal(4)
+      12 | 4 & 5 |> Stdlib.Test.equal(12)
+      ~0 & 255 |> Stdlib.Test.equal(255) ])
 
 // left-associative, unlike `**`
 test associativity =
   Stdlib.Test.all(
-    [ 8L >> 1L >> 1L |> Stdlib.Test.equal(2L)
+    [ 8 >> 1 >> 1 |> Stdlib.Test.equal(2)
       2 ** 3 ** 2 |> Stdlib.Test.equal(512) ])
 
 // operator sections
 test sections =
   Stdlib.Test.all(
-    [ 12L |> (fun v -> v & 10L) |> Stdlib.Test.equal(8L)
-      12L |> (fun v -> v | 10L) |> Stdlib.Test.equal(14L)
+    [ 12 |> (fun v -> v & 10) |> Stdlib.Test.equal(8)
+      12 |> (fun v -> v | 10) |> Stdlib.Test.equal(14)
       2 |> (fun v -> v ** 10) |> Stdlib.Test.equal(1024) ])
 
 // ---------------------------------------------------------------------------
@@ -215,32 +215,32 @@ test booleanNot =
       // binds tighter than any infix operator, looser than application
       !true && true |> Stdlib.Test.equal(false)
       !true == false |> Stdlib.Test.equal(true)
-      1L & 2L |> Stdlib.Test.equal(0L) ])
+      1 & 2 |> Stdlib.Test.equal(0) ])
 
 // ---------------------------------------------------------------------------
 // `|` vs the match-arm separator: inside a match, the ARM wins
 // ---------------------------------------------------------------------------
 test barInMatch =
   Stdlib.Test.all(
-    [ (match 14L with
-       | 14L -> "matched"
+    [ (match 14 with
+       | 14 -> "matched"
        | _ -> "no")
       |> Stdlib.Test.equal("matched")
       // single-line arms still parse
-      (match 2L with | 1L -> "a" | 2L -> "b" | _ -> "c") |> Stdlib.Test.equal("b")
+      (match 2 with | 1 -> "a" | 2 -> "b" | _ -> "c") |> Stdlib.Test.equal("b")
       // or-patterns still parse
-      (match 3L with | 1L | 3L -> "a" | _ -> "b") |> Stdlib.Test.equal("a")
+      (match 3 with | 1 | 3 -> "a" | _ -> "b") |> Stdlib.Test.equal("a")
       // the SUBJECT is outside the arms, so `|` there is the operator
-      (match 12L | 10L with | 14L -> "or-ed" | _ -> "no")
+      (match 12 | 10 with | 14 -> "or-ed" | _ -> "no")
       |> Stdlib.Test.equal("or-ed")
       // in an arm body, parens (or any bracket) make it the operator again
-      (match 1L with | 1L -> (12L | 3L) | _ -> 0L) |> Stdlib.Test.equal(15L)
-      (match 1L with | 1L -> [ 12L | 3L ] | _ -> []) |> Stdlib.Test.equal([ 15L ])
+      (match 1 with | 1 -> (12 | 3) | _ -> 0) |> Stdlib.Test.equal(15)
+      (match 1 with | 1 -> [ 12 | 3 ] | _ -> []) |> Stdlib.Test.equal([ 15 ])
       // an arm body on its own row, indented past the arm column, needs no
       // parens
-      (match 1L with
-       | 1L ->
-         let z = 12L | 3L
+      (match 1 with
+       | 1 ->
+         let z = 12 | 3
          z
-       | _ -> 0L)
-      |> Stdlib.Test.equal(15L) ])
+       | _ -> 0)
+      |> Stdlib.Test.equal(15) ])

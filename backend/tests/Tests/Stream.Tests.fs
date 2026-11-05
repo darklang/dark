@@ -320,7 +320,7 @@ let closingATransformClosesItsSource =
       let! (_, seen) =
         runTracked
           [ label ]
-          $"""let s = Builtin.testTrackedStream("{label}", [ 1L, 2L, 3L ])
+          $"""let s = Builtin.testTrackedStream("{label}", [ 1, 2, 3 ])
 let t = {build}
 let _ = Stdlib.Stream.next(t)
 Stdlib.Stream.close(t)"""
@@ -335,9 +335,9 @@ let concatClosesWhatItHolds =
     let! (result, seen) =
       runTracked
         [ "concat-a"; "concat-b"; "concat-c" ]
-        """let a = Builtin.testTrackedStream("concat-a", [ 1L ])
-let b = Builtin.testTrackedStream("concat-b", [ 2L, 3L ])
-let c = Builtin.testTrackedStream("concat-c", [ 4L ])
+        """let a = Builtin.testTrackedStream("concat-a", [ 1 ])
+let b = Builtin.testTrackedStream("concat-b", [ 2, 3 ])
+let c = Builtin.testTrackedStream("concat-c", [ 4 ])
 let joined = Stdlib.Stream.concat([ a, b, c ])
 let first = Stdlib.Stream.next(joined)
 let second = Stdlib.Stream.next(joined)

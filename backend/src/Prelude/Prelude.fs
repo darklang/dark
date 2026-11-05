@@ -307,7 +307,12 @@ let readFloat (f : float) : (Sign * string * string) =
   sign, whole, fraction
 
 
-let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
+let private makeFloatWith
+  (parse : string -> 'f)
+  (sign : Sign)
+  (whole : string)
+  (fraction : string)
+  : 'f =
   try
     if whole <> "" then assert_ "non-zero string" [] (whole[0] <> '-')
     if whole <> "0" then assertRe $"makefloat" "[1-9][0-9]*" whole
@@ -315,11 +320,24 @@ let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
       match sign with
       | Positive -> ""
       | Negative -> "-"
-    $"{sign}{whole}.{fraction}" |> System.Double.Parse
+    parse $"{sign}{whole}.{fraction}"
   with e ->
     Exception.raiseInternal
       $"makeFloat failed"
       [ "sign", sign; "whole", whole; "fraction", fraction; "inner", e ]
+
+let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
+  makeFloatWith System.Double.Parse sign whole fraction
+
+/// Parses the decimal straight to binary32, never through a double, so the
+/// literal rounds once.
+let makeFloat32 (sign : Sign) (whole : string) (fraction : string) : float32 =
+  makeFloatWith
+    (fun s ->
+      System.Single.Parse(s, System.Globalization.CultureInfo.InvariantCulture))
+    sign
+    whole
+    fraction
 
 
 /// A finite float as text: the shortest digits that parse back to the same float, laid out the way
@@ -328,10 +346,10 @@ let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
 /// upper bound is where a double stops being able to hold every integer, so fixed notation never pads
 /// with digits the value doesn't have. Whole numbers in fixed notation get a `.0`; nothing else does.
 /// NaN and the infinities are the caller's, as each site spells them differently.
-let floatToShortestString (f : float) : string =
-  // "R" is shortest round-trip on .NET Core 3+, but in .NET's own notation ("1E+17", "1E-05",
-  // "123456789012345"), so take it apart into digits and a decimal exponent first.
-  let r = f.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+/// Dark's notation for a shortest round-trip string. "R" is shortest round-trip on .NET
+/// Core 3+, for double and single alike, but in .NET's own notation ("1E+17", "1E-05",
+/// "123456789012345"), so take it apart into digits and a decimal exponent first.
+let private roundTripToDarkNotation (r : string) : string =
   let negative = r.StartsWith '-'
   let r = if negative then r.Substring 1 else r
   let mantissa, exp10 =
@@ -363,6 +381,17 @@ let floatToShortestString (f : float) : string =
         sign + digits + String.replicate (point - digits.Length) "0" + ".0"
       else
         sign + digits.Substring(0, point) + "." + digits.Substring point
+
+let floatToShortestString (f : float) : string =
+  roundTripToDarkNotation (
+    f.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+  )
+
+/// The shortest decimal that reads back to the same binary32, in Dark's notation.
+let float32ToShortestString (f : float32) : string =
+  roundTripToDarkNotation (
+    f.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+  )
 
 
 

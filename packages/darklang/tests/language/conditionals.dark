@@ -2,19 +2,19 @@ module Darklang.Language.Tests.Conditionals
 
 test ifElse =
   Stdlib.Test.all(
-    [ (if true then "correct" else 0L) |> Stdlib.Test.equal("correct")
-      (if false then Stdlib.Test.raiseRuntimeError("a") else 0L)
-      |> Stdlib.Test.equal(0L)
-      (if true then 0L else Stdlib.Test.raiseRuntimeError("a"))
-      |> Stdlib.Test.equal(0L)
+    [ (if true then "correct" else 0) |> Stdlib.Test.equal("correct")
+      (if false then Stdlib.Test.raiseRuntimeError("a") else 0)
+      |> Stdlib.Test.equal(0)
+      (if true then 0 else Stdlib.Test.raiseRuntimeError("a"))
+      |> Stdlib.Test.equal(0)
       (if false then "" else "correct") |> Stdlib.Test.equal("correct") ])
 
 test thenErrorRaises =
-  (if true then Stdlib.Test.raiseRuntimeError("a") else 0L)
+  (if true then Stdlib.Test.raiseRuntimeError("a") else 0)
   => raises "Uncaught exception: a"
 
 test elseErrorRaises =
-  (if false then 0L else Stdlib.Test.raiseRuntimeError("a"))
+  (if false then 0 else Stdlib.Test.raiseRuntimeError("a"))
   => raises "Uncaught exception: a"
 
 test unitConditionRaises =
@@ -26,15 +26,15 @@ test conditionErrorRaises =
   => raises "Uncaught exception: msg"
 
 test int64ConditionRaises =
-  (if 5L then "" else "")
+  (if 5 then "" else "")
   => raises "Encountered a condition that must be a Bool, but got an Int64 (5)"
 
 test ifWithoutElse =
   Stdlib.Test.all(
     [ (if true then ()) |> Stdlib.Test.equal(())
-      (if 1L > 3L then 4L) |> Stdlib.Test.equal(())
-      (if 1L < 3L then 4L) |> Stdlib.Test.equal(4L)
-      (if 1L < 3L then "msg") |> Stdlib.Test.equal("msg") ])
+      (if 1 > 3 then 4) |> Stdlib.Test.equal(())
+      (if 1 < 3 then 4) |> Stdlib.Test.equal(4)
+      (if 1 < 3 then "msg") |> Stdlib.Test.equal("msg") ])
 
 test ifWithoutElseUnitConditionRaises =
   (if () then "msg")
