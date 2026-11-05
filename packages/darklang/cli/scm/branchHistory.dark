@@ -118,7 +118,18 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
   | [] ->
     let r = Cli.Commit.review(state)
 
-    if Stdlib.List.isEmpty(r.changed) then
+    if ScmJson.wantsJson(args) then
+      Stdlib.printLine(
+        ScmJson.draftDiffJson(
+          ScmJson.DraftDiffJson
+            { draftOps = (SCM.Draft.counts()).ops
+              changed = r.items
+              removed = r.removed }
+        )
+      )
+
+      state
+    else if Stdlib.List.isEmpty(r.changed) then
       // Ops that bind no name (a deprecation, a restore, an ack) have nothing to show in a per-name
       // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
       let ops = (SCM.Draft.counts()).ops

@@ -405,15 +405,37 @@ let private modulesOf (loc : PT.PackageLocation) : string =
 
 let private hashText (h : PT.Hash) : string = let (PT.Hash s) = h in s
 
-/// What one op says about a name, keyed for a latest-wins fold. `None` binding = the name ended.
+/// A name's last word on one side: bound to a version, or ended.
+type private Word =
+  | Bound of Detect.Binding
+  | Ended of Detect.Removal
+
+let private boundOf (w : Word) : Option<Detect.Binding> =
+  match w with
+  | Bound b -> Some b
+  | Ended _ -> None
+
+let private endedOf (w : Word) : Option<Detect.Removal> =
+  match w with
+  | Ended r -> Some r
+  | Bound _ -> None
+
+/// What one op says about a name, keyed for a latest-wins fold.
 let private nameWord
   (op : PT.PackageOp)
   (ts : string)
-  : Option<string * string * Option<Detect.Binding> * PT.PackageLocation> =
+  : Option<string * string * Word * PT.PackageLocation> =
   match op with
-  | PT.PackageOp.Unbind(loc, _) ->
+  | PT.PackageOp.Unbind(loc, previous) ->
     let m = modulesOf loc
-    Some($"{ts}|0|", Detect.bindingKey loc.owner m loc.name, None, loc)
+    let removal : Detect.Removal =
+      { owner = loc.owner
+        modules = m
+        name = loc.name
+        originTs = ts
+        author = ""
+        previous = previous |> Option.map hashText }
+    Some($"{ts}|0|", Detect.bindingKey loc.owner m loc.name, Ended removal, loc)
   | PT.PackageOp.SetName(loc, target, _)
   | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
     let m = modulesOf loc
@@ -431,40 +453,39 @@ let private nameWord
         originTs = ts
         author = ""
         previous = previous }
-    Some($"{ts}|1|{hash}", Detect.bindingKey loc.owner m loc.name, Some binding, loc)
+    Some(
+      $"{ts}|1|{hash}",
+      Detect.bindingKey loc.owner m loc.name,
+      Bound binding,
+      loc
+    )
   | _ -> None
 
 /// A run of (ts, op) folded to each name's last word, in key order. The order the fold would keep is
 /// the order sorted here: later stamp, then a binding over an unbind, then the greater hash
 /// (`LibExecution.Lww`), whatever order the rows arrived in.
-let private lastWords
-  (entries : List<string * PT.PackageOp>)
-  : List<string * Option<Detect.Binding>> =
+let private lastWords (entries : List<string * PT.PackageOp>) : List<string * Word> =
   entries
   |> List.collect (fun (ts, op) ->
     PT.packageOpBindingEffects op |> List.map (fun effect -> (ts, effect)))
   |> List.choose (fun (ts, op) -> nameWord op ts)
   |> List.sortWith (fun (a, _, _, _) (b, _, _, _) ->
     System.String.CompareOrdinal(a, b))
-  |> List.fold
-    (fun (m : Map<string, Option<Detect.Binding>>) (_, k, b, _) -> Map.add k b m)
-    Map.empty
+  |> List.fold (fun (m : Map<string, Word>) (_, k, w, _) -> Map.add k w m) Map.empty
   |> Map.toList
 
 let private opEntries (opRows : List<ScmOps.Row>) : List<string * PT.PackageOp> =
   opRows |> List.choose (fun r -> r.op |> Option.map (fun op -> (r.ts, op)))
 
-/// What a branch's OWN ops bind: the incoming side of its merge.
-let private branchBindings (b : PT.BranchId) : Ply<List<Detect.Binding>> =
+/// What a branch's OWN ops last said about each name: the incoming side of its merge.
+let private branchWords (b : PT.BranchId) : Ply<List<Word>> =
   uply {
     let! page = ScmOps.query (ScmOps.Own b) -1L
-    return lastWords (opEntries page.ops) |> List.choose snd
+    return lastWords (opEntries page.ops) |> List.map snd
   }
 
 /// What a branch CHAIN binds (the branch, then its ancestors below main), names it ended included.
-let private chainWords
-  (b : PT.BranchId)
-  : Ply<List<string * Option<Detect.Binding>>> =
+let private chainWords (b : PT.BranchId) : Ply<List<string * Word>> =
   uply {
     let! page = ScmOps.query (ScmOps.Chain b) -1L
     return lastWords (opEntries page.ops)
@@ -497,11 +518,9 @@ let private parentBindings
       return fromMain
     else
       let! words = chainWords parent
-      let overlay = words |> List.choose snd
-      let overlayKeys =
-        overlay
-        |> List.map (fun b -> Detect.bindingKey b.owner b.modules b.name)
-        |> Set.ofList
+      let overlay = words |> List.choose (snd >> boundOf)
+      // A name the chain ENDED is not main's to answer for either: the parent does not bind it.
+      let overlayKeys = words |> List.map fst |> Set.ofList
       let untouched =
         fromMain
         |> List.filter (fun b ->
@@ -549,15 +568,66 @@ let private nameBases (b : PT.BranchId) : Ply<List<Detect.NameBase>> =
 
 /// The conflicts a merge of <param b> into its parent WOULD record: the branch's own bindings against
 /// the parent's, tested against the bases the branch recorded. Records nothing.
+///
+/// Removals count both ways. A name the branch ended that the parent has since edited, and a name the
+/// parent's chain ended that the branch has since edited, are each a name both sides moved; whichever
+/// is newer wins, and the other is recorded like any loser. (Main's own removals carry no stamp in
+/// what this reads, so a name main ended is not among them.)
 let preview (b : PT.BranchId) : Ply<List<Detect.Conflict>> =
   uply {
-    let! incoming = branchBindings b
-    let! parent = parentOf b
-    let! local = parentBindings parent (incoming |> List.map _.name)
+    let! words = branchWords b
     let! bases = nameBases b
+    let baseOf (owner : string) (modules : string) (n : string) =
+      bases
+      |> List.tryFind (fun nb ->
+        nb.owner = owner && nb.modules = modules && nb.name = n)
+      |> Option.map _.baseHash
+    // What a branch edit replaced, as the PARENT sees it, is what the parent held at the branch's base.
+    // The op says what the parent held when it was made (`SCM.Lineage`), and once the parent has moved
+    // that is a version the branch never saw: read as written, a branch's second edit after the parent
+    // changed the name passes for an edit made on top of the parent's change, and hides the conflict.
+    // A branch that did take the parent's version (a rebase, `resolve`) moved its base there.
+    let incoming =
+      words
+      |> List.choose boundOf
+      |> List.map (fun (inc : Detect.Binding) ->
+        match baseOf inc.owner inc.modules inc.name with
+        | Some "" -> { inc with previous = None }
+        | Some baseHash -> { inc with previous = Some baseHash }
+        | None -> inc)
+    let removals = words |> List.choose endedOf
+    let! parent = parentOf b
+    let! local =
+      parentBindings
+        parent
+        ((incoming |> List.map _.name) @ (removals |> List.map _.name))
+    let! parentEnded =
+      uply {
+        if parent.IsMain then
+          return []
+        else
+          let! parentWords = chainWords parent
+          return parentWords |> List.choose (snd >> endedOf)
+      }
     let! parentName = branchName parent
     let! name = branchName b
-    return Detect.detect parentName name local incoming bases
+    // A removal the branch made of a name the parent has not moved since the base is the branch's own
+    // business, whatever the removal says it replaced (it may be the branch's own earlier edit).
+    let parentMoved =
+      local |> List.filter (fun l -> baseOf l.owner l.modules l.name <> Some l.hash)
+    // `detectRemovals` words its reason for a pull, where the local side is you. Here it is the
+    // parent, so the reason names the edit rather than whose it is, as `detectEndedLocally` does.
+    let removed =
+      Detect.detectRemovals parentName name parentMoved removals
+      |> List.map (fun c ->
+        if c.reason = "your edit is newer" then
+          { c with reason = "the edit is newer" }
+        else
+          c)
+    return
+      Detect.detect parentName name local incoming bases
+      @ removed
+      @ Detect.detectEndedLocally parentName name parentEnded incoming bases
   }
 
 /// Record <param conflicts> against <param branchId>, on the caller's connection. An id already
@@ -597,6 +667,64 @@ let private recordConflictsOn
           [ "@branch", box (string branchId); "@id", box c.id ]
       ()
   }
+
+/// Recorded conflicts matching <param where>, on the caller's connection.
+let private conflictsOn
+  (conn : SqliteConnection)
+  (where : string)
+  (ps : List<Param>)
+  : Ply<List<Detect.Conflict>> =
+  rows
+    conn
+    ("SELECT id, owner, modules, name, item_type, COALESCE(part, ''), kind, candidates,
+             COALESCE(auto_resolved_to, ''), COALESCE(reason, ''), status,
+             COALESCE(resolved_by, '')
+      FROM conflicts WHERE "
+     + where
+     + " ORDER BY rowid")
+    ps
+    (fun r ->
+      ({ Detect.Conflict.id = textOr r 0
+         owner = textOr r 1
+         modules = textOr r 2
+         name = textOr r 3
+         itemType = textOr r 4
+         part = textOr r 5
+         kind = textOr r 6
+         candidates = Detect.parseCandidates (textOr r 7)
+         autoResolvedTo = textOr r 8
+         reason = textOr r 9
+         status = textOr r 10
+         resolvedBy = textOr r 11 }
+      : Detect.Conflict))
+
+/// Move what is still pending on <param branchId> to <param parent>, and answer what moved. A merged
+/// branch is finished: nobody can settle a conflict recorded there, so one a rebase recorded on it
+/// would otherwise be lost the moment it merged, with its losing version nowhere to override from.
+let private carryPendingOn
+  (conn : SqliteConnection)
+  (branchId : PT.BranchId)
+  (parent : PT.BranchId)
+  : Ply<List<Detect.Conflict>> =
+  uply {
+    let b = box (string branchId)
+    let! pending =
+      conflictsOn conn "branch_id = @b AND status = 'pending'" [ "@b", b ]
+    let! _ =
+      exec
+        conn
+        "UPDATE conflicts SET branch_id = @p WHERE branch_id = @b AND status = 'pending'"
+        [ "@p", box (string parent); "@b", b ]
+    return pending
+  }
+
+/// <param recorded>, then what <param carried> adds that it does not already hold.
+let private withCarried
+  (recorded : List<Detect.Conflict>)
+  (carried : List<Detect.Conflict>)
+  : List<Detect.Conflict> =
+  let ids = recorded |> List.map _.id |> Set.ofList
+  recorded @ (carried |> List.filter (fun c -> not (Set.contains c.id ids)))
 
 /// Record conflicts as pending against a branch, in one transaction. For a test that needs a recorded
 /// conflict without staging the divergence behind it; actions record their own.
@@ -1281,6 +1409,24 @@ type Reconciled =
     warning : string
   }
 
+/// One caller of a name the parent moved, to repoint at the parent's version. Which callers are
+/// outdated is a language question, answered in Dark (`SCM.Constraints`) and handed in.
+type Repoint =
+  { usage : string
+    dependency : PT.PackageLocation
+    kind : PT.ItemKind
+    fromHash : PT.Hash
+    toHash : PT.Hash }
+
+/// The ids of <param b>'s draft, as `commit` means it.
+let private draftIds (b : PT.BranchId) : Ply<List<string>> =
+  uply {
+    use conn = new SqliteConnection(LibDB.Sqlite.connString)
+    do! conn.OpenAsync()
+    let where, ps = draftWhere b
+    return! ids conn ("SELECT p.id FROM package_ops p WHERE " + where) ps
+  }
+
 /// Can this branch merge into its parent: it holds ops, and nothing unmerged branches off it.
 /// Conflicts do not gate a merge; they are recorded.
 let private gate (branchId : PT.BranchId) : Ply<Result<unit, Refusal>> =
@@ -1313,156 +1459,187 @@ let private taggedOn
 /// later; folding here would leak the child's work into main), mark merged, author the event, record
 /// the conflicts. Values that landed in main are evaluated after the transaction commits.
 ///
-/// The gate and the conflicts are read first, and the frontier is read again inside the transaction:
+/// First, as a rebase does, the branch's callers of names the parent moved (<param repoints>, which
+/// Dark finds) are repointed at the parent's version, each a propagation of its own, so what lands
+/// calls what the parent runs. Into main they land in the merge's commit; into a branch they are
+/// committed on the branch first, so they do not arrive as the parent's uncommitted work. Stopped
+/// before the merge, the branch holds the repoints and merging again carries on from there.
+///
+/// Conflicts still pending on the branch, which a rebase recorded there, move to the parent with it.
+///
+/// The gate and the conflicts are read next, and the frontier is read again inside the transaction:
 /// if the branch moved in between, nothing is written and the answer says so.
 let merge
   (branchId : PT.BranchId)
+  (repoints : List<Repoint>)
+  (repoint : Repoint -> Task<unit>)
   (evaluateValues : unit -> Task<unit>)
   : Task<Result<Reconciled, Failure>> =
   uply {
     match! gate branchId with
     | Error r -> return Error(Refused r)
     | Ok() ->
-      let! conflicts = preview branchId
       let! parent = parentOf branchId
-      let! name = branchName branchId
-      let! frontier = ScmOps.query (ScmOps.Tagged branchId) -1L
-      let moved = frontier.ops |> List.map _.id
-      let movedGuids =
-        moved
-        |> List.choose (fun s ->
-          match System.Guid.TryParse s with
-          | true, g -> Some g
-          | _ -> None)
-      let b = box (string branchId)
-      try
-        let! result =
-          transact (fun conn ->
-            uply {
-              let! now = taggedOn conn branchId
-              if Set.ofList now <> Set.ofList moved then
-                return Error(Refused Moved)
-              elif parent.IsMain then
-                let! toFlip =
-                  count
-                    conn
-                    "SELECT count(*) FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
-                     WHERE ob.branch_id = @b AND p.effective = 0"
-                    [ "@b", b ]
-                let! _ =
-                  exec
-                    conn
-                    "UPDATE package_ops SET effective = 1
-                     WHERE effective = 0
-                       AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @b)"
-                    [ "@b", b ]
-                step "merge.flipped"
-                let! _ = foldPendingOn conn
-                step "merge.folded"
-                let! _ =
-                  exec
-                    conn
-                    "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
-                    [ "@b", b ]
-                let! _ =
-                  exec
-                    conn
-                    "DELETE FROM op_branches WHERE branch_id = @b"
-                    [ "@b", b ]
-                step "merge.marked"
-                let! eventId = authorEventOn conn branchId (PT.Merged movedGuids)
-                step "merge.event"
-                // A merge into main COMMITS what it landed: a pulled branch's ops arrive uncommitted,
-                // and the event is new. Left in main's draft they read as work nobody did.
-                let landed = (movedGuids |> List.map string) @ [ string eventId ]
-                let! commitHash =
-                  commitLandedOn conn $"merged branch \"{name}\"" landed
-                step "merge.committed"
-                // Filed against the PARENT: the merge folded into it, and the branch is finished.
-                do! recordConflictsOn conn parent conflicts
-                return
-                  Ok
-                    { moved = toFlip
-                      conflicts = conflicts
-                      diverged = []
-                      repointed = []
-                      commit = commitHash |> Option.defaultValue ""
-                      warning = "" }
-              else
-                let p = box (string parent)
-                // The tags move with their provenance, and so do the bases: the parent then carries
-                // the child's rebinds, and a name without a base could never conflict again.
-                let! _ =
-                  exec
-                    conn
-                    "INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
-                     SELECT op_id, @p, source FROM op_branches WHERE branch_id = @b"
-                    [ "@p", p; "@b", b ]
-                let! _ =
-                  exec
-                    conn
-                    "DELETE FROM op_branches WHERE branch_id = @b"
-                    [ "@b", b ]
-                step "merge.retagged"
-                let! _ =
-                  exec
-                    conn
-                    "INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
-                     SELECT @p, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @b"
-                    [ "@p", p; "@b", b ]
-                let! _ =
-                  exec
-                    conn
-                    "DELETE FROM branch_name_bases WHERE branch_id = @b"
-                    [ "@b", b ]
-                let! _ =
-                  exec
-                    conn
-                    "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
-                    [ "@b", b ]
-                step "merge.marked"
-                let! _ = authorEventOn conn branchId (PT.Merged movedGuids)
-                do! recordConflictsOn conn parent conflicts
-                return
-                  Ok
-                    { moved = int64 (List.length moved)
-                      conflicts = conflicts
-                      diverged = []
-                      repointed = []
-                      commit = ""
-                      warning = "" }
-            })
-        // After the transaction, and outside its `with`: by now the merge HAS landed, so a value that
-        // fails to evaluate is a warning on a success, never a failure the store does not reflect.
-        match result with
-        | Ok r when parent.IsMain ->
-          let! evaluated =
-            uply {
-              try
-                do! evaluateValues ()
-                return ""
-              with e ->
-                return
-                  "merged, but evaluating the values it landed failed: "
-                  + e.Message
-                  + " -- they run on the next reload."
-            }
-          return Ok { r with warning = evaluated }
-        | _ -> return result
-      with e ->
-        return Error(Failed e.Message)
+      let! parentName = branchName parent
+      let! followed =
+        uply {
+          if List.isEmpty repoints then
+            return Ok()
+          else
+            let! before = draftIds branchId
+            for r in repoints do
+              do! repoint r
+            if parent.IsMain then
+              return Ok()
+            else
+              let! after = draftIds branchId
+              let before = Set.ofList before
+              match
+                after |> List.filter (fun id -> not (Set.contains id before))
+              with
+              | [] -> return Ok()
+              | added ->
+                let! c =
+                  commit branchId $"followed \"{parentName}\"" (Only added) false
+                return c |> Result.map (fun (_ : Committed) -> ())
+        }
+      match followed with
+      | Error e -> return Error e
+      | Ok() ->
+        let repointed = repoints |> List.map _.usage |> List.distinct
+        let! conflicts = preview branchId
+        let! name = branchName branchId
+        let! frontier = ScmOps.query (ScmOps.Tagged branchId) -1L
+        let moved = frontier.ops |> List.map _.id
+        let movedGuids =
+          moved
+          |> List.choose (fun s ->
+            match System.Guid.TryParse s with
+            | true, g -> Some g
+            | _ -> None)
+        let b = box (string branchId)
+        try
+          let! result =
+            transact (fun conn ->
+              uply {
+                let! now = taggedOn conn branchId
+                if Set.ofList now <> Set.ofList moved then
+                  return Error(Refused Moved)
+                elif parent.IsMain then
+                  let! toFlip =
+                    count
+                      conn
+                      "SELECT count(*) FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
+                       WHERE ob.branch_id = @b AND p.effective = 0"
+                      [ "@b", b ]
+                  let! _ =
+                    exec
+                      conn
+                      "UPDATE package_ops SET effective = 1
+                       WHERE effective = 0
+                         AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @b)"
+                      [ "@b", b ]
+                  step "merge.flipped"
+                  let! _ = foldPendingOn conn
+                  step "merge.folded"
+                  let! _ =
+                    exec
+                      conn
+                      "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
+                      [ "@b", b ]
+                  let! _ =
+                    exec
+                      conn
+                      "DELETE FROM op_branches WHERE branch_id = @b"
+                      [ "@b", b ]
+                  step "merge.marked"
+                  let! eventId = authorEventOn conn branchId (PT.Merged movedGuids)
+                  step "merge.event"
+                  // A merge into main COMMITS what it landed: a pulled branch's ops arrive uncommitted,
+                  // and the event is new. Left in main's draft they read as work nobody did.
+                  let landed = (movedGuids |> List.map string) @ [ string eventId ]
+                  let! commitHash =
+                    commitLandedOn conn $"merged branch \"{name}\"" landed
+                  step "merge.committed"
+                  // Filed against the PARENT: the merge folded into it, and the branch is finished.
+                  do! recordConflictsOn conn parent conflicts
+                  let! carried = carryPendingOn conn branchId parent
+                  return
+                    Ok
+                      { moved = toFlip
+                        conflicts = withCarried conflicts carried
+                        diverged = []
+                        repointed = repointed
+                        commit = commitHash |> Option.defaultValue ""
+                        warning = "" }
+                else
+                  let p = box (string parent)
+                  // The tags move with their provenance, and so do the bases: the parent then carries
+                  // the child's rebinds, and a name without a base could never conflict again.
+                  let! _ =
+                    exec
+                      conn
+                      "INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
+                       SELECT op_id, @p, source FROM op_branches WHERE branch_id = @b"
+                      [ "@p", p; "@b", b ]
+                  let! _ =
+                    exec
+                      conn
+                      "DELETE FROM op_branches WHERE branch_id = @b"
+                      [ "@b", b ]
+                  step "merge.retagged"
+                  let! _ =
+                    exec
+                      conn
+                      "INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+                       SELECT @p, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @b"
+                      [ "@p", p; "@b", b ]
+                  let! _ =
+                    exec
+                      conn
+                      "DELETE FROM branch_name_bases WHERE branch_id = @b"
+                      [ "@b", b ]
+                  let! _ =
+                    exec
+                      conn
+                      "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
+                      [ "@b", b ]
+                  step "merge.marked"
+                  let! _ = authorEventOn conn branchId (PT.Merged movedGuids)
+                  do! recordConflictsOn conn parent conflicts
+                  let! carried = carryPendingOn conn branchId parent
+                  return
+                    Ok
+                      { moved = int64 (List.length moved)
+                        conflicts = withCarried conflicts carried
+                        diverged = []
+                        repointed = repointed
+                        commit = ""
+                        warning = "" }
+              })
+          // After the transaction, and outside its `with`: by now the merge HAS landed, so a value that
+          // fails to evaluate is a warning on a success, never a failure the store does not reflect.
+          match result with
+          | Ok r when parent.IsMain ->
+            let! evaluated =
+              uply {
+                try
+                  do! evaluateValues ()
+                  return ""
+                with e ->
+                  return
+                    "merged, but evaluating the values it landed failed: "
+                    + e.Message
+                    + " -- they run on the next reload."
+              }
+            return Ok { r with warning = evaluated }
+          | _ -> return result
+        with e ->
+          return Error(Failed e.Message)
   }
   |> Ply.toTask
 
 
-/// One caller of a name the parent moved, to repoint at the parent's version. Which callers are
-/// outdated is a language question, answered in Dark (`SCM.Constraints`) and handed in.
-type Repoint =
-  { usage : string
-    dependency : PT.PackageLocation
-    kind : PT.ItemKind
-    fromHash : PT.Hash
-    toHash : PT.Hash }
 
 /// What the parent binds now for each name <param branchId> recorded a base for: main's COMMITTED
 /// bindings (a branch never sees main's draft), and a parent below main's own words over them. A name
@@ -1484,27 +1661,67 @@ let private parentHashesForBases
           let! words = chainWords parent
           return
             words
-            |> List.map (fun (k, w) ->
-              // The chain word's key is `owner/modules/name`; rebuild it from the binding, or, for a
-              // name the chain ended, from the key itself.
+            |> List.map (fun (_, w) ->
               match w with
-              | Some b -> (key b.owner b.modules b.name, b.hash)
-              | None ->
-                match k.Split('/') |> List.ofArray with
-                | [ o; m; n ] -> (key o m n, "")
-                | _ -> (k, ""))
+              | Bound b -> (key b.owner b.modules b.name, b.hash)
+              | Ended r -> (key r.owner r.modules r.name, ""))
       }
     return
       (fromMain @ overlay) |> List.fold (fun m (k, h) -> Map.add k h m) Map.empty
   }
 
+/// The location a conflict is about.
+let locationOfConflict (c : Detect.Conflict) : PT.PackageLocation =
+  { owner = c.owner
+    modules = if c.modules = "" then [] else c.modules.Split('.') |> List.ofArray
+    name = c.name }
+
+/// Does <param op> bind or end the name, or change its reference names? A rename counts for both of
+/// its names and a restore for its one, so the op goes whole.
+let private movesKey
+  (owner : string)
+  (modules : string)
+  (name : string)
+  (op : PT.PackageOp)
+  : bool =
+  let isKey (loc : PT.PackageLocation) =
+    loc.owner = owner && modulesOf loc = modules && loc.name = name
+  match op with
+  | PT.PackageOp.SetReferenceNames(loc, _, _, _) -> isKey loc
+  | _ ->
+    PT.packageOpBindingEffects op
+    |> List.exists (fun effect ->
+      match effect with
+      | PT.PackageOp.SetName(loc, _, _)
+      | PT.PackageOp.Unbind(loc, _)
+      | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override _) -> isKey loc
+      | _ -> false)
+
+/// The parent's side won <param c>: the version a reconciliation keeps is the local candidate's.
+let private parentWon (c : Detect.Conflict) : bool =
+  c.candidates
+  |> List.exists (fun cand -> cand.side = "local" && cand.hash = c.autoResolvedTo)
+
+let private itemKindOf (itemType : string) : PT.ItemKind =
+  match itemType with
+  | "type" -> PT.ItemKind.Type
+  | "value" -> PT.ItemKind.Value
+  | "trait" -> PT.ItemKind.Trait
+  | "impl" -> PT.ItemKind.TraitImpl
+  | "test" -> PT.ItemKind.Test
+  | _ -> PT.ItemKind.Fn
+
 /// REBASE <param branchId> onto its parent: accept the parent's current state as its new base.
 ///
 /// Reads first: the conflicts the reconciliation records, and which names the parent moved since the
 /// fork (both answered against the store as it stands). Then each outdated caller is repointed, a
-/// propagation per caller, each a complete edit of its own. Then ONE transaction moves every base and
-/// records the conflicts. Stopped before that transaction, the bases still say the old fork point, so
-/// running the rebase again redoes what is left and finishes.
+/// propagation per caller, each a complete edit of its own. Then ONE transaction moves every base,
+/// takes the parent's version of every name the parent's newer edit won (the branch's own ops on it
+/// leave the branch, so the branch runs what the record says was kept, and the record keeps the
+/// branch's version for an override), and records the conflicts. Stopped before that transaction, the
+/// bases still say the old fork point, so running the rebase again redoes what is left and finishes.
+/// Last, the branch's callers of a version that lost follow the winner, each a propagation; stopped
+/// before those, a re-run finds them outdated and repoints them.
 let rebase
   (branchId : PT.BranchId)
   (repoints : List<Repoint>)
@@ -1529,7 +1746,7 @@ let rebase
         do! repoint r
       let repointed = repoints |> List.map _.usage |> List.distinct
       try
-        return!
+        let! result =
           transact (fun conn ->
             uply {
               step "rebase.repointed"
@@ -1546,6 +1763,17 @@ let rebase
                       "@n", box nb.name ]
                 ()
               step "rebase.bases"
+              let! own = ownOpsOn conn branchId
+              for c in conflicts |> List.filter parentWon do
+                for (id, _, op) in own do
+                  if movesKey c.owner c.modules c.name op then
+                    let! _ =
+                      exec
+                        conn
+                        "DELETE FROM op_branches WHERE op_id = @id AND branch_id = @b"
+                        [ "@id", box id; "@b", box (string branchId) ]
+                    ()
+              step "rebase.took-parents"
               // The mirror of merge: a rebase folds the PARENT's work into the branch, so the
               // conflict is the branch's to answer.
               do! recordConflictsOn conn branchId conflicts
@@ -1558,6 +1786,26 @@ let rebase
                     commit = ""
                     warning = "" }
             })
+        match result with
+        | Ok _ ->
+          // The callers of a version that lost now follow the one that won, the way an override's
+          // callers do. A removal that won leaves nothing to follow.
+          for c in conflicts |> List.filter parentWon do
+            let lost =
+              c.candidates
+              |> List.tryFind (fun cand -> cand.side = "incoming" && cand.hash <> "")
+            match lost with
+            | Some l when c.autoResolvedTo <> "" ->
+              do!
+                repoint
+                  { usage = ""
+                    dependency = locationOfConflict c
+                    kind = itemKindOf c.itemType
+                    fromHash = PT.Hash l.hash
+                    toHash = PT.Hash c.autoResolvedTo }
+            | _ -> ()
+        | Error _ -> ()
+        return result
       with e ->
         return Error(Failed e.Message)
   }
@@ -1744,33 +1992,10 @@ let conflictById (id : string) : Task<Option<Detect.Conflict>> =
   uply {
     use conn = new SqliteConnection(LibDB.Sqlite.connString)
     do! conn.OpenAsync()
-    let! found =
-      rows conn "SELECT id, owner, modules, name, item_type, COALESCE(part, ''), kind, candidates,
-                COALESCE(auto_resolved_to, ''), COALESCE(reason, ''), status,
-                COALESCE(resolved_by, '')
-         FROM conflicts WHERE id = @id" [ "@id", box id ] (fun r ->
-        ({ Detect.Conflict.id = textOr r 0
-           owner = textOr r 1
-           modules = textOr r 2
-           name = textOr r 3
-           itemType = textOr r 4
-           part = textOr r 5
-           kind = textOr r 6
-           candidates = Detect.parseCandidates (textOr r 7)
-           autoResolvedTo = textOr r 8
-           reason = textOr r 9
-           status = textOr r 10
-           resolvedBy = textOr r 11 }
-        : Detect.Conflict))
+    let! found = conflictsOn conn "id = @id" [ "@id", box id ]
     return List.tryHead found
   }
   |> Ply.toTask
-
-/// The location a conflict is about.
-let locationOfConflict (c : Detect.Conflict) : PT.PackageLocation =
-  { owner = c.owner
-    modules = if c.modules = "" then [] else c.modules.Split('.') |> List.ofArray
-    name = c.name }
 
 /// The part of a declaration a doc conflict names, as `DocPart.fromKey` spells it.
 let docPartOfKey (key : string) : Option<PT.DocPart> =

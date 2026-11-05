@@ -3,8 +3,8 @@
 module Darklang.SCM.Tests.Cli
 
 
-// Bug today: after the rebase the branch still runs its own version, while the conflict the rebase
-// recorded says main's was kept. When fixed, the branch should run main's version (3).
+// Main's edit is the newer one, so after the rebase the branch runs it, and its own is the recorded
+// loser.
 test rebaseNamesWhatBothSidesChangedAndRecordsIt =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
@@ -19,15 +19,12 @@ test rebaseNamesWhatBothSidesChangedAndRecordsIt =
       same(conflicts(dark), [ "Tests.App.a: main kept over feat (later-origin-ts)" ], "and records it on the branch")
       same(commitsOnMain(dark), [ "main edits", "base" ], "main is untouched")
 
-      evals(dark, "Tests.App.a()", "2", "today: the branch runs its own, older version")
-      bugToday(
-        "after a rebase the branch runs a version its own conflict says lost",
-        evals(dark, "Tests.App.a()", "3", "the branch should run the version the rebase kept")) ])
+      evals(dark, "Tests.App.a()", "3", "the branch runs the version the rebase kept") ])
 
 
-// Bug today: when main changed the name twice, a rebase then a merge drops the branch's version
-// with nothing recorded on main. When fixed, main's `conflicts` should list the branch's version.
-test rebaseThenMergeLosesTheBranchsVersionSilently =
+// The rebase records the branch's losing version on the branch; the merge carries that record to
+// main, where it can still be overridden.
+test rebaseThenMergeKeepsTheBranchsLosingVersionRecorded =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
       commit(dark, "base")
@@ -42,13 +39,10 @@ test rebaseThenMergeLosesTheBranchsVersionSilently =
       switch(dark, "main")
       says(dark, [ "merge", "feat", "-y" ], "Merged", "the merge goes through")
       evals(dark, "Tests.App.a()", "4", "main's newest version runs")
-      same(conflicts(dark), [], "today: nothing is recorded on main")
-      bugToday(
-        "a rebase then a merge drops the branch's version without recording it",
-        same(
-          conflicts(dark),
-          [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
-          "the branch's version should be recorded as the loser on main")) ])
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
+        "the branch's version is recorded as the loser on main") ])
 
 
 test rebaseRepointsTheBranchsCallersOfANameMainChanged =
@@ -108,8 +102,7 @@ test rebaseRepointsCallersOfCallersAndASecondRebaseDoesNothing =
       draftIsEmpty(dark, "with main's draft empty") ])
 
 
-// Today the branch runs its own k after the rebase: the same bug as
-// `rebaseNamesWhatBothSidesChangedAndRecordsIt`. So after the merge, g is left on the branch's k.
+// Main's k is newer, so the rebase takes it on the branch, and g follows it as well as main's f.
 test rebaseWhereTheBranchBothCallsAndChangesNamesMainChanged =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.f", "1")
@@ -129,21 +122,22 @@ test rebaseWhereTheBranchBothCallsAndChangesNamesMainChanged =
       switch(dark, "feat")
       says(dark, [ "rebase" ], "you also touched:\n  Tests.App.k", "the rebase names k, which both changed")
       same(draft(dark), [ "followed Tests.App.g" ], "g follows main's f")
-      evals(dark, "Tests.App.k()", "20", "today: the branch runs its own k")
-      evals(dark, "Tests.App.g()", "22", "so g is main's f plus the branch's k")
+      evals(dark, "Tests.App.k()", "30", "the branch runs main's newer k")
+      evals(dark, "Tests.App.g()", "32", "so g is main's f plus main's k")
+      same(staleCallers(dark), 0, "and nothing on the branch calls an old version")
       same(conflicts(dark), [ "Tests.App.k: main kept over feat (later-origin-ts)" ], "k is recorded on the branch")
 
       commit(dark, "follow main")
       switch(dark, "main")
-      says(dark, [ "merge", "feat", "-y" ], "1 conflict(s) auto-resolved", "the merge records k again")
+      says(dark, [ "merge", "feat", "-y" ], "1 conflict(s) auto-resolved", "the merge carries k's record to main")
       evals(dark, "Tests.App.k()", "30", "main's newer k runs")
-      evals(dark, "Tests.App.g()", "22", "today: g still adds the branch's k")
-      same(staleCallers(dark), 1, "which status counts as pointing at an old version")
+      evals(dark, "Tests.App.g()", "32", "and g adds it")
+      same(staleCallers(dark), 0, "with nothing pointing at an old version")
       same(conflicts(dark), [ "Tests.App.k: main kept over feat (later-origin-ts)" ], "k is recorded on main") ])
 
 
-// Bug today: on `sub`, the parent's rename of `a` beats sub's older edit of `a`, but only `k`
-// is recorded. When fixed, sub's `conflicts` should list `a` as well.
+// On `sub`, the parent's newer rename of `a` beats sub's older edit of `a`, and sub's edit is recorded
+// as the loser, like `k`. The records travel up with each merge, so they can still be overridden.
 test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
@@ -163,28 +157,34 @@ test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
 
       switch(dark, "sub")
       says(dark, [ "rebase", "--dry-run" ], "~ Tests.App.k", "the dry run names k")
-      doesNotSay(dark, [ "rebase", "--dry-run" ], "Tests.App.a", "but not a")
+      says(dark, [ "rebase", "--dry-run" ], "~ Tests.App.a", "and a, which feat renamed away")
       says(dark, [ "rebase" ], "you also touched:\n  Tests.App.a\n  Tests.App.k", "the rebase names both")
       notFound(dark, "Tests.App.a()", "feat's newer rename wins over sub's edit of a")
       evals(dark, "Tests.App.k()", "7", "and feat's newer k wins")
-      same(conflicts(dark), [ "Tests.App.k: feat kept over sub (later-origin-ts)" ], "today: only k is recorded")
-      bugToday(
-        "a removal that beats an edit in a rebase is not recorded",
-        same(
-          Stdlib.List.length(conflicts(dark)),
-          2,
-          "sub's edit of a should be recorded too"))
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: feat kept over sub (removal is newer)"
+          "Tests.App.k: feat kept over sub (later-origin-ts)" ],
+        "both of sub's losing versions are recorded")
 
       switch(dark, "feat")
-      says(dark, [ "merge", "sub", "-y" ], "1 conflict(s) auto-resolved", "merging sub into feat records k")
+      says(dark, [ "merge", "sub", "-y" ], "2 conflict(s) auto-resolved", "merging sub into feat carries both records")
       notFound(dark, "Tests.App.a()", "a stays renamed away")
       evals(dark, "Tests.App.b()", "1", "b holds what a was")
       evals(dark, "Tests.App.k()", "7", "and feat's k stays")
-      same(conflicts(dark), [ "Tests.App.k: feat kept over sub (later-origin-ts)" ], "feat has k recorded")
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: feat kept over sub (removal is newer)"
+          "Tests.App.k: feat kept over sub (later-origin-ts)" ],
+        "feat holds both records")
 
       switch(dark, "main")
       merge(dark, "feat")
       notFound(dark, "Tests.App.a()", "on main, a is gone")
       evals(dark, "Tests.App.b()", "1", "b is there")
       evals(dark, "Tests.App.k()", "7", "and so is feat's k")
-      same(conflicts(dark), [], "with nothing recorded on main") ])
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: feat kept over sub (removal is newer)"
+          "Tests.App.k: feat kept over sub (later-origin-ts)" ],
+        "and main, nothing having settled them") ])

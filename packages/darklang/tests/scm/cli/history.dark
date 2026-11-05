@@ -45,7 +45,6 @@ test onABranchLogListsOpsAndCommitsListsCommits =
       same(commits(dark), [], "and main's history has none of it") ])
 
 
-// Bug today: bare `dark diff --json` prints prose. When fixed, it should print JSON.
 test diffShowsTheDraftOrWhatABranchChanges =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
@@ -66,7 +65,10 @@ test diffShowsTheDraftOrWhatABranchChanges =
         [ "new Tests.App.b", "changed Tests.App.a" ],
         "and --json lists them, new names first")
 
-      says(dark, [ "diff", "--json" ], "clean: nothing changed", "today: bare diff --json prints prose")
-      bugToday(
-        "bare `diff --json` prints prose",
-        same(json(dark, [ "diff", "--json" ]) != Stdlib.AltJson.Json.Null, true, "bare diff --json should print JSON")) ])
+      same(number(json(dark, [ "diff", "--json" ]), "draftOps"), 0, "bare diff --json prints the empty draft as JSON")
+      saveNumber(dark, "Tests.App.c", "5")
+      same(
+        rows(field(json(dark, [ "diff", "--json" ]), "changed"))
+        |> Stdlib.List.map(fun e -> $"{text(e, "change")} {text(e, "name")}"),
+        [ "new Tests.App.c" ],
+        "and lists what the draft changes") ])

@@ -93,7 +93,10 @@ let private darkIntResult (code : string) : Task<int64> =
 /// moved. Into main that flips and folds; into a branch it retags.
 let private mergeIntoParent (branchId : PT.BranchId) : Task<int64> =
   task {
-    match! LibDB.ScmActions.merge branchId (fun () -> Task.FromResult()) with
+    match!
+      LibDB.ScmActions.merge branchId [] (fun _ -> Task.FromResult()) (fun () ->
+        Task.FromResult())
+    with
     | Ok r -> return r.moved
     | Error(LibDB.ScmActions.Failed e) -> return failtest $"the merge failed: {e}"
     | Error(LibDB.ScmActions.Refused _) -> return failtest "the merge was refused"
@@ -2049,7 +2052,9 @@ let interruptedMergeLeavesNothingHalfDone =
     let! _ = Branches.storeDeltaOps b ops
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds message modName
-    let merge () = LibDB.ScmActions.merge b (fun () -> Task.FromResult())
+    let merge () =
+      LibDB.ScmActions.merge b [] (fun _ -> Task.FromResult()) (fun () ->
+        Task.FromResult())
 
     for step in
       [ "merge.flipped"
@@ -2092,7 +2097,7 @@ let failedEvaluationAfterAMergeIsAWarning =
     let footprint () = actionFootprint b opIds message modName
 
     let! result =
-      LibDB.ScmActions.merge b (fun () ->
+      LibDB.ScmActions.merge b [] (fun _ -> Task.FromResult()) (fun () ->
         Exception.raiseInternal "evaluation blew up (test)" [])
     match result with
     | Ok(r : LibDB.ScmActions.Reconciled) ->

@@ -32,9 +32,8 @@ test whenMainChangedANameLastMainWinsAndTheBranchIsRecorded =
       says(dark, [ "conflicts", "list" ], "B (feat, lost)", "the listing shows both sides") ])
 
 
-// Bug today: main's version is lost with nothing recorded. The branch's second edit is stored as
-// if made on top of main's change, which the branch never saw. When fixed, `conflicts` should
-// list main's version as the loser.
+// The branch's second edit is newer than main's, so it wins; main's version, which the branch never
+// saw, is recorded as the loser.
 test whenTheBranchChangesANameAgainAfterMainDidTheBranchWins =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
@@ -48,13 +47,10 @@ test whenTheBranchChangesANameAgainAfterMainDidTheBranchWins =
       switch(dark, "main")
       merge(dark, "feat")
       evals(dark, "Tests.App.a()", "4", "the branch's newer version runs")
-      same(conflicts(dark), [], "today: nothing is recorded")
-      bugToday(
-        "a branch's second edit after its parent changed the name hides the conflict",
-        same(
-          conflicts(dark),
-          [ "Tests.App.a: feat kept over main (later-origin-ts)" ],
-          "main's version should be recorded as the loser")) ])
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: feat kept over main (later-origin-ts)" ],
+        "main's version is recorded as the loser") ])
 
 
 // Odd, but today's behaviour: two creations of one name are recorded as
@@ -77,8 +73,8 @@ test whenBothSidesCreateTheSameNameTheNewerWins =
         "as a same-name conflict") ])
 
 
-// Bug today: when the branch renames `a` away and main later edits `a`, main's edit wins but the
-// removal it beat is not recorded. When fixed, `conflicts` should list the branch's removal.
+// When the branch renames `a` away and main later edits `a`, main's edit wins and the removal it beat
+// is recorded.
 test aRenameOnTheBranchLosesToANewerEditOnMain =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
@@ -109,13 +105,10 @@ test aRenameOnTheBranchLosesToANewerEditOnMain =
       evals(dark, "Tests.App.b()", "1", "and the new name still holds what was renamed")
       notFound(dark, "Tests.App.x()", "the newer rename of x wins")
       evals(dark, "Tests.App.y()", "4", "carrying main's version of x")
-      same(conflicts(dark), [], "today: nothing is recorded")
-      bugToday(
-        "a removal that loses to a newer edit is not recorded",
-        same(
-          conflicts(dark),
-          [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
-          "the beaten removal should be recorded")) ])
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: main kept over feat (the edit is newer)" ],
+        "the beaten removal is recorded") ])
 
 
 test ackKeepsTheWinnerAndOverrideTakesTheLoser =

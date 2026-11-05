@@ -88,7 +88,8 @@ type Repoint =
     toHash: LanguageTools.ProgramTypes.Hash }
 
 type MergeAction =
-  | IntoParent of branchId: Uuid
+  /// Merge, after repointing <param repoints> on the branch at the parent's versions.
+  | IntoParent of branchId: Uuid * repoints: List<Repoint>
   | Rebase of branchId: Uuid * repoints: List<Repoint>
   /// The conflicts a merge would record. Writes nothing.
   | Preview of branchId: Uuid
