@@ -1,6 +1,6 @@
 # At-rest type checker
 
-The at-rest type checker checks stored `ProgramTypes` without running user code. It reports structural and type errors independently of execution. `run` and `eval` do not invoke it or block on its findings; runtime checks apply when code executes.
+The at-rest type checker checks stored `ProgramTypes` without running user code. It reports structural and type errors independently of execution. `run` and `eval` run it before code that has more than one statement, and refuse a definite error; runtime checks apply when code executes.
 
 ## Check results
 
@@ -100,15 +100,24 @@ Avoid recursion inside builtin callbacks. Stack checks belong in the F# runtime 
 
 ## Trust boundary and rollout
 
-Authoring saves with warnings. Commit rejects definite errors unless overridden. Script execution does not run the at-rest checker. Runtime checks remain enabled.
+Authoring saves with warnings. Commit rejects definite errors unless overridden. Scripts and `eval` with more than one statement reject definite errors before running. Runtime checks remain enabled.
 
 ### Scripts and eval
 
 Scripts and `eval` parse and resolve names, then execute under guest permissions.
-They do not run the at-rest checker. An unused function with a type error does
-not prevent execution; a reached runtime error stops the run after any earlier
-effects. Name resolution uses the selected branch and the script's declarations.
-Top-level expressions except the last must return Unit, enforced at runtime.
+When the code has more than one statement (more than one top-level expression, or
+a statement anywhere in it or in the script's declarations), `prepareGuest` in
+`Builtins.CliHost/Libs/Cli.fs` first sends the script's declarations and its
+top-level code to `checkPackageOpsOn` as one batch. The top-level expressions
+become, in order, the body of a temporary function that is never stored: `args`
+is its `List<String>` parameter and its return type is left undeclared, so every
+expression but the last must be Unit, as at runtime, and the last may be anything.
+Lowering records where each top-level node came from, so a finding prints a line
+and column. `Failed` stops the run before anything executes, an unused function
+included; `Incomplete`, or a checker that cannot answer, lets it run. A single
+expression is not checked: nothing can run before its error, and the check costs
+a fixed ~60ms, most of it building the trait tables in `Environment.builtins`.
+Name resolution and checking use the selected branch and the script's declarations.
 
 Script value initializers run under guest permissions before top-level
 expressions. Results are cached per run, including forward dependencies reached through functions. An error or dependency cycle stops execution. Stored package values use their already evaluated data.

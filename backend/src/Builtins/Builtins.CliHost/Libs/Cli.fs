@@ -20,6 +20,7 @@ module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module PTAst = LibExecution.ProgramTypesAst
 module Exe = LibExecution.Execution
 module Scheduler = LibExecution.Scheduler
 module PackageRefs = LibExecution.PackageRefs
@@ -362,11 +363,13 @@ let private declarationsToModule
         implLocations)
 
     // Script expressions take `args` as a parameter; eval expressions run directly.
+    let sourceRanges = System.Collections.Generic.Dictionary<id, WT.Range>()
     let expressionContext =
       { WT2PT.Context.currentFnName = None
         WT2PT.Context.argMap =
           parameters |> List.mapi (fun index name -> name, index) |> Map.ofList
-        WT2PT.Context.localBindings = Set.empty }
+        WT2PT.Context.localBindings = Set.empty
+        WT2PT.Context.sourceRanges = Some sourceRanges }
     let! exprs =
       wtExprs
       |> List.ofSeq
@@ -401,7 +404,8 @@ let private declarationsToModule
         traits = traits
         impls = impls
         submodules = emptyDefs
-        exprs = exprs }
+        exprs = exprs
+        sourceRanges = sourceRanges }
   }
 
 /// Parse a whole CLI script with the hand-written parser, lowering `WT → PT`. One
@@ -556,8 +560,9 @@ module ExecutionError =
   type ExecutionError =
     | Parse of ParseError.ParseError
     | Runtime of RT.RuntimeError.Error * RT.CallStack
-    /// The Dark checker report, kept structured for CLI rendering.
-    | TypeCheck of Dval
+    /// The Dark checker report, kept structured for CLI rendering, and where in the
+    /// source each node it names starts: (node id, line, column), both 1-based.
+    | TypeCheck of Dval * List<id * int * int>
     /// A runtime error reclassified after the run (see `classify`), carrying
     /// what the retry prompt needs. Deliberately not a RuntimeError case: the
     /// classification and the suggested rule are CLI presentation.
@@ -632,7 +637,18 @@ module ExecutionError =
       | Parse pe -> "Parse", [ ParseError.toDT pe ]
       | Runtime(rte, stack) ->
         "Runtime", [ RT2DT.RuntimeError.toDT rte; callStackToDT stack ]
-      | TypeCheck report -> "TypeCheck", [ report ]
+      | TypeCheck(report, locations) ->
+        let locationKT = KTTuple(VT.uint64, VT.int, [ VT.int ])
+        let locations =
+          locations
+          |> List.map (fun (nodeId, line, column) ->
+            DTuple(
+              DUInt64 nodeId,
+              Dval.int (bigint line),
+              [ Dval.int (bigint column) ]
+            ))
+          |> Dval.list locationKT
+        "TypeCheck", [ report; locations ]
       | Denied d -> "Denied", [ permissionDeniedToDT d ]
       | Unhandled u -> "Unhandled", [ unhandledToDT u ]
     DEnum(typeName, typeName, [], caseName, fields)
@@ -665,14 +681,157 @@ module ReplayStop =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-/// Parse guest source without running advisory at-rest analysis.
+/// Never stored or bound: it only names the top-level code inside one check, and a report
+/// item with no location is printed as "Top-level expression".
+let private topLevelHash = PT.Hash "script-top-level"
+
+/// The node ids a report's definite findings point at.
+let private reportedNodeIds (report : Dval) : List<id> =
+  let field name (d : Dval) =
+    match d with
+    | DRecord(_, _, _, fields) -> Map.tryFind name fields
+    | _ -> None
+  let list d =
+    match d with
+    | Some(DList(_, items)) -> items
+    | _ -> []
+  list (field "items" report)
+  |> List.collect (fun item -> list (field "diagnostics" item))
+  |> List.choose (fun issue ->
+    match field "nodeId" issue with
+    | Some(DEnum(_, _, _, "Some", [ DUInt64 nodeId ])) -> Some nodeId
+    | _ -> None)
+
+/// Type-check a parsed script or eval expression without running any of it. Returns the
+/// checker's report when it found a definite error, which stops the run before its first
+/// effect; otherwise None, and the run goes ahead with its runtime checks.
+///
+/// The top-level expressions become the body of one temporary function, in order, so each
+/// one but the last must return Unit exactly as it must when they run, and a branch or a
+/// lambda is checked whether or not it would run. A script's `args` is that function's
+/// `List<String>` parameter. Its return type is left undeclared, so the last expression may
+/// be anything and a top-level `?` is not judged against a type nobody wrote. The script's
+/// own declarations go in the same batch, so calls to them are checked against them.
+///
+/// Only a Failed verdict refuses: Incomplete means the checker lacked evidence, not that the
+/// code is wrong, and a checker that cannot answer lets the run go ahead.
+///
+/// Only code with a statement in it is checked (see `hasStatements`).
+let private checkGuest
+  (state : RT.ExecutionState)
+  (input : LibDB.Traces.ScriptOrEvalInput)
+  (script : Utils.CliScript.PTCliScriptModule)
+  : Ply<Option<ExecutionError.ExecutionError>> =
+  uply {
+    let isScript =
+      match input with
+      | LibDB.Traces.RunScript _ -> true
+      | LibDB.Traces.EvalExpression _ -> false
+    // A script's expressions arrive as lambdas over `args`; check what they run.
+    let bodies =
+      script.exprs
+      |> List.map (fun expr ->
+        match expr with
+        | PT.ELambda(_, _, body) when isScript -> body
+        | _ -> expr)
+    let rec sequence (exprs : List<PT.Expr>) : PT.Expr =
+      match exprs with
+      | [] -> PT.EUnit(gid ())
+      | [ last ] -> last
+      | first :: rest -> PT.EStatement(gid (), first, sequence rest)
+    let parameter : PT.PackageFn.Parameter =
+      if isScript then
+        { name = "args"; typ = PT.TList PT.TString; description = "" }
+      else
+        { name = "unit"; typ = PT.TUnit; description = "" }
+    let topLevel : PT.PackageFn.PackageFn =
+      { hash = topLevelHash
+        body = sequence bodies
+        typeParams = []
+        parameters = NEList.singleton parameter
+        returnType = PT.TVariable "result"
+        description = ""
+        permissionCeiling = None
+        bounds = [] }
+    let ops =
+      List.concat
+        [ (script.types @ script.submodules.types) |> List.map PT.PackageOp.AddType
+          (script.values @ script.submodules.values)
+          |> List.map PT.PackageOp.AddValue
+          (script.fns @ script.submodules.fns) |> List.map PT.PackageOp.AddFn
+          script.traits |> List.map PT.PackageOp.AddTrait
+          script.impls |> List.map PT.PackageOp.AddTraitImpl
+          [ PT.PackageOp.AddFn topLevel ] ]
+    try
+      // Converted one by one: an op nested too deeply to convert is left out rather than
+      // losing the whole check.
+      let converted =
+        ops
+        |> List.choose (fun op ->
+          try
+            Some(PT2DT.PackageOp.toDT op)
+          with :? System.InsufficientExecutionStackException ->
+            None)
+      let fnName =
+        FQFnName.fqPackage (
+          PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOpsOn ()
+        )
+      let args =
+        NEList.ofList
+          (DUuid state.branchId.Guid)
+          [ DList(VT.customType (PT2DT.PackageOp.typeName ()) [], converted) ]
+      match! Exe.executeFunction state fnName [] args with
+      | Ok(DRecord(_, _, _, fields) as report) ->
+        match Map.tryFind "verdict" fields with
+        | Some(DEnum(_, _, _, "Failed", [])) ->
+          let locations =
+            reportedNodeIds report
+            |> List.distinct
+            |> List.choose (fun nodeId ->
+              match script.sourceRanges.TryGetValue nodeId with
+              | true, range ->
+                Some(nodeId, range.start.row + 1, range.start.column + 1)
+              | false, _ -> None)
+          return Some(ExecutionError.TypeCheck(report, locations))
+        | _ -> return None
+      | _ -> return None
+    with _ ->
+      return None
+  }
+
+/// Whether one statement runs before another: more than one top-level expression, or a
+/// statement anywhere in the top-level code or the script's own declarations. Only then can an
+/// effect run before an error that was in the code all along; a single expression is left to
+/// the runtime checks. The check costs about 60ms however small the code (building the
+/// checker's trait tables is most of it), which a one-line `eval` should not pay.
+let private hasStatements (script : Utils.CliScript.PTCliScriptModule) : bool =
+  let rec go (pending : List<PT.Expr>) : bool =
+    match pending with
+    | [] -> false
+    | PT.EStatement _ :: _ -> true
+    | expr :: rest -> go (PTAst.subExprs expr @ rest)
+  let declared =
+    ((script.fns @ script.submodules.fns)
+     |> List.map (fun (fn : PT.PackageFn.PackageFn) -> fn.body))
+    @ ((script.values @ script.submodules.values)
+       |> List.map (fun (value : PT.PackageValue.PackageValue) -> value.body))
+  List.length script.exprs > 1 || go script.exprs || go declared
+
+/// Parse guest source, then type-check it before any of it runs.
 let private prepareGuest
+  (state : RT.ExecutionState)
+  (input : LibDB.Traces.ScriptOrEvalInput)
   (parse : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>>)
   (source : string)
   : Ply<Result<Utils.CliScript.PTCliScriptModule, ExecutionError.ExecutionError>> =
   uply {
     match! parse with
-    | Ok script -> return Ok script
+    | Ok script ->
+      let! refusal =
+        if hasStatements script then checkGuest state input script else Ply None
+      match refusal with
+      | Some refusal -> return Error refusal
+      | None -> return Ok script
     | Error diagnostics ->
       let message =
         match diagnostics with
@@ -928,7 +1087,16 @@ let executeWith
         |> RuntimeError.CLI
         |> raiseUntargetedRTE
     | exprs ->
-      let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
+      // Each with the id of what it runs (a script's lambda body), so a top-level statement
+      // that returns something other than Unit is named the way a nested one is.
+      let exprInstrs =
+        exprs
+        |> List.map (fun expr ->
+          let ran =
+            match expr with
+            | PT.ELambda(_, _, body) -> body
+            | _ -> expr
+          PT.Expr.toID ran, PT2RT.Expr.toRT Map.empty 0 None expr)
       // Initialize values before top-level expressions. Dependencies may run first.
       let valueInstrs =
         values
@@ -942,22 +1110,24 @@ let executeWith
             ),
             PT.EUnit(gid ())
           )
-          |> PT2RT.Expr.toRT Map.empty 0 None)
+          |> fun expr -> PT.Expr.toID expr, PT2RT.Expr.toRT Map.empty 0 None expr)
 
       // Under the scheduler each expression is its own process, spawned from the CLI's
       // process and awaited: it budget-yields, `ps` lists it, and a `readKey` in it parks
       // instead of holding the thread. Without one (tests, the LSP) it runs inline.
+      // `statement` is the id of an expression that must return Unit, because another follows it.
       let runOne
-        (mustReturnUnit : bool)
+        (statement : Option<id>)
         (instr : RT.Instructions)
         : Ply<RT.ExecutionResult> =
         let instr =
-          if mustReturnUnit then
+          match statement with
+          | Some exprId ->
             { instr with
                 instructions =
-                  instr.instructions @ [ RT.CheckIfFirstExprIsUnit instr.resultIn ] }
-          else
-            instr
+                  instr.instructions
+                  @ [ RT.CheckIfFirstExprIsUnit(exprId, instr.resultIn) ] }
+          | None -> instr
         match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
         | Some s, Some parent ->
           let child =
@@ -970,14 +1140,14 @@ let executeWith
         | LibDB.Traces.EvalExpression _ -> runOne
         | LibDB.Traces.RunScript(_, _, args, _) ->
           let argument = Dval.list KTString (List.map DString args)
-          fun mustReturnUnit entry ->
+          fun statement entry ->
             uply {
               // This creates the function; the script body runs in runOne below.
               match! Exe.executeExpr state entry with
               | Error _ as failed -> return failed
               | Ok(DApplicable callable) ->
                 return!
-                  Exe.instructionsForApply callable argument |> runOne mustReturnUnit
+                  Exe.instructionsForApply callable argument |> runOne statement
               | Ok value ->
                 return
                   Exception.raiseInternal
@@ -987,17 +1157,17 @@ let executeWith
 
       // Awaited in order, and the first error ends the script.
       let rec runInOrder
-        (executeExpression : bool -> RT.Instructions -> Ply<RT.ExecutionResult>)
-        (instrs : List<RT.Instructions>)
+        (executeExpression : Option<id> -> RT.Instructions -> Ply<RT.ExecutionResult>)
+        (instrs : List<id * RT.Instructions>)
         : Ply<RT.ExecutionResult> =
         uply {
           match instrs with
           | [] -> return Ok DUnit
-          | [ last ] -> return! executeExpression false last
-          | instr :: rest ->
+          | [ (_, last) ] -> return! executeExpression None last
+          | (exprId, instr) :: rest ->
             // Separate top-level expressions obey the same sequencing rule as
             // EStatement inside a block, including its runtime error and trace.
-            match! executeExpression true instr with
+            match! executeExpression (Some exprId) instr with
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder executeExpression rest
         }
@@ -1357,7 +1527,11 @@ let fns () : List<BuiltInFn> =
                         warnPermissions = warnPermissions }
                     )
                   let! parsedScript =
-                    prepareGuest (parseScriptOrEvalInput branchState input) code
+                    prepareGuest
+                      branchState
+                      input
+                      (parseScriptOrEvalInput branchState input)
+                      code
 
                   match parsedScript with
                   | Ok mod' ->
@@ -1768,6 +1942,8 @@ let fns () : List<BuiltInFn> =
                   let input = LibDB.Traces.EvalExpression(expression, allowHarmful)
                   let! parsedScript =
                     prepareGuest
+                      branchState
+                      input
                       (parseScriptOrEvalInput branchState input)
                       expression
 

@@ -333,8 +333,10 @@ module Instruction =
       w.Write 21uy
       w.Write(targetRegIfDB : int)
       String.write w name
-    | CheckIfFirstExprIsUnit reg ->
-      w.Write 22uy
+    // Tag 22 was this instruction before it carried the statement's id; it is still read.
+    | CheckIfFirstExprIsUnit(exprId, reg) ->
+      w.Write 25uy
+      w.Write(exprId : uint64)
       w.Write(reg : int)
     | TraceExpr(exprId, reg) ->
       w.Write 24uy
@@ -457,7 +459,11 @@ module Instruction =
       VarNotFound(targetRegIfDB, name)
     | 22uy ->
       let reg = r.ReadInt32()
-      CheckIfFirstExprIsUnit(reg)
+      CheckIfFirstExprIsUnit(0UL, reg)
+    | 25uy ->
+      let exprId = r.ReadUInt64()
+      let reg = r.ReadInt32()
+      CheckIfFirstExprIsUnit(exprId, reg)
     | 23uy ->
       let target = r.ReadInt32()
       let source = r.ReadInt32()

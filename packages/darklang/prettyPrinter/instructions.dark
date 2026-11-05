@@ -161,7 +161,7 @@ let opcode(i: LanguageTools.RuntimeTypes.Instruction): String =
   | Apply(_, _, _, _) -> "Apply"
   | RaiseNRE(_, _) -> "RaiseNRE"
   | VarNotFound(_, _) -> "VarNotFound"
-  | CheckIfFirstExprIsUnit(_) -> "CheckIfFirstExprIsUnit"
+  | CheckIfFirstExprIsUnit(_, _) -> "CheckIfFirstExprIsUnit"
   | TraceExpr(_, _) -> "TraceExpr"
 
 
@@ -215,7 +215,7 @@ let operands(branchId: Uuid, index: Int, i: LanguageTools.RuntimeTypes.Instructi
     $"{register(t)} <- {register(fnReg)}({registers(args)})"
   | RaiseNRE(names, _) -> Stdlib.String.join(names, ".")
   | VarNotFound(t, name) -> $"{register(t)} <- ${name}"
-  | CheckIfFirstExprIsUnit(r) -> register(r)
+  | CheckIfFirstExprIsUnit(_, r) -> register(r)
   | TraceExpr(exprId, r) -> $"expr {Stdlib.toString(exprId)} = {register(r)}"
 
 

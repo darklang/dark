@@ -248,7 +248,10 @@ let tests =
             )
           let fsBuiltins = localBuiltIns pmPT
           let ctx : WT2PT.Context =
-            { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
+            { currentFnName = None
+              argMap = Map.empty
+              localBindings = Set.empty
+              sourceRanges = None }
 
           let mismatches = ResizeArray<string * string>()
           let mutable darkSideErrors = 0
@@ -368,7 +371,8 @@ let tests =
           let ctx : WT2PT.Context =
             { currentFnName = (if List.isEmpty cfn then None else Some cfn)
               argMap = prms |> List.mapi (fun i p -> (p, i)) |> Map.ofList
-              localBindings = Set.empty }
+              localBindings = Set.empty
+              sourceRanges = None }
           match (P.parse snip).parsed with
           | Some(WT.SourceFile { exprsToEval = [ e ] }) ->
             let! (fsPT : PT.Expr) =

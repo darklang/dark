@@ -1685,13 +1685,19 @@ module Expr =
 
 
   module Statement =
+    /// The statement a `CheckIfFirstExprIsUnit` names: the expression before the last.
+    let private firstStatementId (expr : PT.Expr) : id =
+      match expr with
+      | PT.EStatement(_, first, _) -> PT.Expr.toID first
+      | _ -> Exception.raiseInternal "not a statement" []
+
     let simple =
       t
         "()\n1L"
         E.Statements.simple
         (2,
          [ RT.LoadVal(0, RT.DUnit)
-           RT.CheckIfFirstExprIsUnit(0)
+           RT.CheckIfFirstExprIsUnit(firstStatementId E.Statements.simple, 0)
            RT.LoadVal(1, RT.DInt64 1L) ],
          1)
 
@@ -1714,7 +1720,7 @@ module Expr =
              )
            )
            RT.Apply(2, 1, [], NEList.ofList 0 [])
-           RT.CheckIfFirstExprIsUnit(2)
+           RT.CheckIfFirstExprIsUnit(firstStatementId E.Statements.statement, 2)
            RT.LoadVal(3, RT.DInt64 3L) ],
          3)
 

@@ -108,35 +108,64 @@ let printSaveReport(
   match report.verdict with
   | Checked -> ()
   | Failed ->
-    let details =
-      Stdlib.List.concat(
-        issueLines(branchId, report.diagnostics),
-        issueLines(branchId, report.warnings))
     Stdlib.List.concat(
       [ ""
         (Stdlib.Cli.UI.Colors.error(
           ("Type check failed. Saved as a draft; "
            + "`dark commit` will refuse it until it is fixed:"))) ],
-      details)
+      saveReportDetails(branchId, report))
     |> Cli.Stderr.lines
   | Incomplete ->
-    let details =
-      Stdlib.List.concat(
-        issueLines(branchId, report.diagnostics),
-        issueLines(branchId, report.warnings))
     Stdlib.List.concat(
       [ ""
         (Stdlib.Cli.UI.Colors.warning(
           "Type check was incomplete; saved anyway:")) ],
-      details)
+      saveReportDetails(branchId, report))
     |> Cli.Stderr.lines
 
-
-/// Script errors name local declarations without exposing their parser-only owner.
-let scriptReport(
+/// The issues under the declaration each one is in, as `commit` and `typecheck` print them, so
+/// a module save names the functions to open. The report's own lists are the union of the
+/// items' and stand alone only when the checker produced no items.
+let saveReportDetails(
   branchId: Uuid,
   report: LanguageTools.AtRestTypeChecker.Report)
+  : List<String> =
+  match report.items with
+  | [] ->
+    Stdlib.List.concat(
+      issueLines(branchId, report.diagnostics),
+      issueLines(branchId, report.warnings))
+  | items ->
+    items
+    |> Stdlib.List.filter(fun item ->
+      item.verdict != LanguageTools.AtRestTypeChecker.Verdict.Checked)
+    |> Stdlib.List.map(fun item ->
+      let label = Packages.Typecheck.itemLabel(branchId, item.item)
+      let lines =
+        Stdlib.List.concat(
+          issueLines(branchId, item.diagnostics),
+          issueLines(branchId, item.warnings))
+        |> Stdlib.List.map(fun line -> "  " + line)
+      Stdlib.List.prepend(lines, $"  {label}:"))
+    |> Stdlib.List.flatten
+
+
+/// Script errors name local declarations without exposing their parser-only owner, and say
+/// where in the source each issue is when <param positions> knows its node.
+let scriptReport(
+  branchId: Uuid,
+  report: LanguageTools.AtRestTypeChecker.Report,
+  positions: List<(UInt64 * Int * Int)>)
   : String =
+  let at(issue: LanguageTools.AtRestTypeChecker.Issue): String =
+    match issue.nodeId with
+    | Some(nodeId) ->
+      match Stdlib.List.findFirst(positions, fun((id, _, _)) -> id == nodeId) with
+      | Some((_, line, column)) ->
+        $"line {Stdlib.toString(line)}, column {Stdlib.toString(column)}: "
+      | None -> ""
+    | None -> ""
+
   let sourceName(locations: List<LanguageTools.ProgramTypes.PackageLocation>): Stdlib.Option.Option<String> =
     LanguageTools.PackageManager.pickLocation(
       LanguageTools.PackageManager.PickContext.empty,
@@ -171,8 +200,10 @@ let scriptReport(
         |> Stdlib.List.map(fun issue ->
           let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
           let message = LanguageTools.AtRestTypeChecker.issueToStringWith(typeName, issue)
-          "  - [" + code + "] " + message)
+          "  - " + at(issue) + "[" + code + "] " + message)
       Stdlib.List.prepend(issues, label + ":")
 
   let lines = Stdlib.List.flatten(Stdlib.List.map(report.items, itemLines))
-  Stdlib.String.join(Stdlib.List.prepend(lines, "Static type check failed:"), "\n")
+  Stdlib.String.join(
+    Stdlib.List.prepend(lines, "Static type check failed, so nothing ran:"),
+    "\n")

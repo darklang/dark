@@ -934,7 +934,9 @@ type Instruction =
 
   | VarNotFound of targetRegIfDB : Register * name : string
 
-  | CheckIfFirstExprIsUnit of Register
+  /// The statement `exprId` left its value in `valueReg`; anything but Unit is an error that
+  /// names the statement, so whatever has the source can say where it is.
+  | CheckIfFirstExprIsUnit of exprId : id * valueReg : Register
 
   /// Live values: hand the value now in `valueReg` to the tracer as the result of the source
   /// expression `exprId` (an `EApply`), when the tracer wants expression results. Emitted after
@@ -2298,6 +2300,7 @@ module RuntimeError =
   module Statements =
     type Error =
       | FirstExpressionMustBeUnit of
+        exprId : id *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval

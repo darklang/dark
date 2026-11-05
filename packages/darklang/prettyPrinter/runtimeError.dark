@@ -553,14 +553,14 @@ module RuntimeError =
 
     | Statement(err) ->
       match err with
-      | FirstExpressionMustBeUnit(expectedTypes, actualType, actualValue) ->
-        [ ES.String("First expression must be of type ")
+      | FirstExpressionMustBeUnit(_exprId, expectedTypes, actualType, actualValue) ->
+        [ ES.String("A statement before the last must return ")
           ES.ValueType(expectedTypes)
-          ES.String(", but got ")
+          ES.String(", but this one returned ")
           ES.ValueType(actualType)
           ES.String(" (")
           ES.FullValue(actualValue)
-          ES.String(")") ]
+          ES.String("). Discard a value with `let _ = ...`") ]
 
     | Json(err) ->
       match err with

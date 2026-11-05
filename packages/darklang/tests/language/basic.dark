@@ -23,7 +23,7 @@ test unitStatementsRunInSequence =
 test nonUnitStatementRaises =
   (1L
    true)
-  => raises "First expression must be of type Unit, but got Int64 (1)"
+  => raises "A statement before the last must return Unit, but this one returned Int64 (1). Discard a value with `let _ = ...`"
 
 test and =
   Stdlib.Test.all(

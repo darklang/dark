@@ -17,7 +17,11 @@ type Context =
     // Function parameters by name, used to lower references to `EArg`.
     argMap : Map<string, int>
     // Local bindings from lets and patterns, used before global name resolution.
-    localBindings : Set<string> }
+    localBindings : Set<string>
+    // When set, where each lowered expression came from, by its new node id. Node ids are
+    // minted here and carry no position, so this is the only way back to the source for a
+    // finding about a node (the CLI uses it to give a type error before a run a line).
+    sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>> }
 
 /// The builtin name sets that name resolution checks against.
 ///
@@ -378,6 +382,23 @@ module Expr =
       name
 
   let rec toPT
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (context : Context)
+    (e : WT.Expr)
+    : Ply<PT.Expr> =
+    match context.sourceRanges with
+    | None -> lowerExpr builtins pm onMissing currentModule context e
+    | Some ranges ->
+      uply {
+        let! expr = lowerExpr builtins pm onMissing currentModule context e
+        ranges[PT.Expr.toID expr] <- WT.exprRange e
+        return expr
+      }
+
+  and private lowerExpr
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
@@ -1156,7 +1177,10 @@ module PackageValue =
     : Ply<PT.PackageValue.PackageValue> =
     uply {
       let context =
-        { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
+        { currentFnName = None
+          argMap = Map.empty
+          localBindings = Set.empty
+          sourceRanges = None }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return { hash = Hash ""; description = c.description; body = body }
     }
@@ -1179,7 +1203,10 @@ module PackageTest =
     : Ply<PT.PackageTest.PackageTest> =
     uply {
       let context =
-        { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
+        { currentFnName = None
+          argMap = Map.empty
+          localBindings = Set.empty
+          sourceRanges = None }
       let! body = Expr.toPT builtins pm onMissing currentModule context test.body
       return
         { hash = Hash ""
@@ -1258,7 +1285,8 @@ module PackageFn =
       let context =
         { currentFnName = Some(currentModule @ [ fn.name.name ])
           argMap = argMap
-          localBindings = Set.empty }
+          localBindings = Set.empty
+          sourceRanges = None }
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       // Explicit typeParams stay first because callers pass positional type
