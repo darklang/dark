@@ -180,9 +180,9 @@ let dependents
         match Map.tryFind dependent.itemLocation branchBindings with
         | None -> true
         | Some current ->
-          current = Some(
+          let reference =
             PT.Reference.fromHashAndKind (dependent.itemHash, dependent.itemKind)
-          ))
+          current = Some reference)
 
   }
 
