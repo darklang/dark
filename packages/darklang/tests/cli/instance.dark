@@ -56,10 +56,14 @@ let create(): Stdlib.Result.Result<T, String> =
     | Ok(_) ->
       // `.backup` rather than `cp`, and a read lock rather than a write one, so this is
       // safe against a dev store something else is using.
+      //
+      // Then clear the copy's config. It would otherwise inherit the dev store's current
+      // branch and identity, so if the dev store is on a branch, every test instance
+      // starts there instead of on main. Clear all of it, not just the branch keys.
       let copy =
         Stdlib.Cli.Unix.executeInDirectoryWithOutput(
           ".",
-          $"sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db'")
+          $"sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db' && sqlite3 {dir}/data.db 'DELETE FROM config_v0;'")
 
       if copy.exitCode != 0 then
         Stdlib.Result.Result.Error($"could not seed {dir} from {src}: {copy.stderr}")
