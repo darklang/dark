@@ -238,6 +238,13 @@ module Type =
           let part = p [ "JsonPath"; "Part" ] "Part"
         let parseError = p [] "ParseError"
 
+    module Regex =
+      let private p addl = p ("Regex" :: addl)
+      let regexError = p [] "RegexError"
+      let match_ = p [] "Match"
+      let capture = p [] "Capture"
+      let range = p [] "Range"
+
     module AltJson =
       let private p addl = p ("AltJson" :: addl)
       let parseError = p [ "ParseError" ] "ParseError"
