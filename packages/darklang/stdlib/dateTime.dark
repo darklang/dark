@@ -7,6 +7,93 @@
 module Darklang.Stdlib.DateTime
 
 
+/// A day of the week. <fn Weekday.toNumber> numbers them as ISO 8601 does, from Monday = {{1}} to Sunday = {{7}}.
+type Weekday =
+  | Monday
+  | Tuesday
+  | Wednesday
+  | Thursday
+  | Friday
+  | Saturday
+  | Sunday
+
+
+module Weekday =
+  /// The ISO 8601 number of <param day>, from Monday = {{1}} to Sunday = {{7}}
+  let toNumber(day: Weekday): UInt8 =
+    match day with
+    | Monday -> 1uy
+    | Tuesday -> 2uy
+    | Wednesday -> 3uy
+    | Thursday -> 4uy
+    | Friday -> 5uy
+    | Saturday -> 6uy
+    | Sunday -> 7uy
+
+  /// The weekday numbered <param n> by ISO 8601 (Monday = {{1}} to Sunday = {{7}}), or {{None}} for any other number
+  let fromNumber(n: UInt8): Stdlib.Option.Option<Weekday> =
+    match n with
+    | 1uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Weekday.Monday)
+    | 2uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Weekday.Tuesday)
+    | 3uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Weekday.Wednesday)
+    | 4uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Weekday.Thursday)
+    | 5uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Weekday.Friday)
+    | 6uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Weekday.Saturday)
+    | 7uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Weekday.Sunday)
+    | _ -> Stdlib.Option.Option.None
+
+
+/// A month of the year. <fn Month.toNumber> numbers them from January = {{1}} to December = {{12}}.
+type Month =
+  | January
+  | February
+  | March
+  | April
+  | May
+  | June
+  | July
+  | August
+  | September
+  | October
+  | November
+  | December
+
+
+module Month =
+  /// The number of <param month>, from January = {{1}} to December = {{12}}
+  let toNumber(month: Month): UInt8 =
+    match month with
+    | January -> 1uy
+    | February -> 2uy
+    | March -> 3uy
+    | April -> 4uy
+    | May -> 5uy
+    | June -> 6uy
+    | July -> 7uy
+    | August -> 8uy
+    | September -> 9uy
+    | October -> 10uy
+    | November -> 11uy
+    | December -> 12uy
+
+  /// The month numbered <param n> (January = {{1}} to December = {{12}}), or {{None}} for any other number
+  let fromNumber(n: UInt8): Stdlib.Option.Option<Month> =
+    match n with
+    | 1uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.January)
+    | 2uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.February)
+    | 3uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.March)
+    | 4uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.April)
+    | 5uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.May)
+    | 6uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.June)
+    | 7uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.July)
+    | 8uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.August)
+    | 9uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.September)
+    | 10uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.October)
+    | 11uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.November)
+    | 12uy -> Stdlib.Option.Option.Some(Stdlib.DateTime.Month.December)
+    | _ -> Stdlib.Option.Option.None
+
+
 // A DateTime is a count of 100ns ticks since the Unix epoch, read and built by the two
 // builtins below. Apart from the three string formatters, everything else is arithmetic on that
 // count, over the proleptic Gregorian calendar. Follows Paul's compiler stdlib (`dateTime.dark`).
@@ -29,6 +116,9 @@ let __daysSinceEpoch(date: DateTime): Int =
   __floorDiv(__ticks(date), __ticksPerDay())
 
 let __ticksWithinDay(date: DateTime): Int = __ticks(date) % __ticksPerDay()
+
+/// A calendar or clock field, which the caller has already bounded.
+let __field8(n: Int): UInt8 = Stdlib.Int.toUInt8(n) |> Builtin.unwrap
 
 /// Days since 1970-01-01 of a civil date.
 let __daysFromCivil(year: Int, month: Int, day: Int): Int =
@@ -94,13 +184,13 @@ let __number(digits: List<Char>): Stdlib.Option.Option<Int> =
 let __isLeapYear(year: Int): Bool =
   (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 
-let __daysInMonth(year: Int, month: Int): Int =
+let __daysInMonth(year: Int, month: Month): Int =
   match month with
-  | 2 -> if __isLeapYear(year) then 29 else 28
-  | 4 -> 30
-  | 6 -> 30
-  | 9 -> 30
-  | 11 -> 30
+  | February -> if __isLeapYear(year) then 29 else 28
+  | April -> 30
+  | June -> 30
+  | September -> 30
+  | November -> 30
   | _ -> 31
 
 let __fromParts(
@@ -122,16 +212,17 @@ let __fromParts(
      __number(millisecond))
   with
   | (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s), Some(ms)) ->
-    if
-      y >= 1
-      && mo >= 1
-      && mo <= 12
-      && d >= 1
-      && d <= __daysInMonth(y, mo)
-      && h <= 23
-      && mi <= 59
-      && s <= 59
-    then
+    let valid =
+      match Stdlib.Int.toUInt8(mo) |> Stdlib.Option.andThen(Month.fromNumber) with
+      | Some(month) ->
+        y >= 1
+        && d >= 1
+        && d <= __daysInMonth(y, month)
+        && h <= 23
+        && mi <= 59
+        && s <= 59
+      | None -> false
+    if valid then
       let ticks =
         __daysFromCivil(y, mo, d) * __ticksPerDay()
         + h * __ticksPerHour()
@@ -233,30 +324,38 @@ let fromSeconds(seconds: Int): DateTime =
 let year(date: DateTime): Int = (__civilFromDays(__daysSinceEpoch(date))).1
 
 
-/// Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}
-let month(date: DateTime): Int = (__civilFromDays(__daysSinceEpoch(date))).2
+/// Returns the month of <param date>
+let month(date: DateTime): Month =
+  __field8((__civilFromDays(__daysSinceEpoch(date))).2)
+  |> Month.fromNumber
+  |> Builtin.unwrap
 
 
-/// Returns the day portion of <param date> as an <type Int>
-let day(date: DateTime): Int = (__civilFromDays(__daysSinceEpoch(date))).3
+/// Returns the day portion of <param date> as a <type UInt8> between {{1}} and {{31}}
+let day(date: DateTime): UInt8 =
+  __field8((__civilFromDays(__daysSinceEpoch(date))).3)
 
 
-/// Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
-let weekday(date: DateTime): Int = (__daysSinceEpoch(date) + 3) % 7 + 1
+/// Returns the weekday of <param date>
+let weekday(date: DateTime): Weekday =
+  __field8((__daysSinceEpoch(date) + 3) % 7 + 1)
+  |> Weekday.fromNumber
+  |> Builtin.unwrap
 
 
-/// Returns the hour portion of <param date> as an <type Int>
-let hour(date: DateTime): Int = __ticksWithinDay(date) / __ticksPerHour()
+/// Returns the hour portion of <param date> as a <type UInt8> between {{0}} and {{23}}
+let hour(date: DateTime): UInt8 =
+  __field8(__ticksWithinDay(date) / __ticksPerHour())
 
 
-/// Returns the minute portion of <param date> as an <type Int>
-let minute(date: DateTime): Int =
-  (__ticksWithinDay(date) / __ticksPerMinute()) % 60
+/// Returns the minute portion of <param date> as a <type UInt8> between {{0}} and {{59}}
+let minute(date: DateTime): UInt8 =
+  __field8((__ticksWithinDay(date) / __ticksPerMinute()) % 60)
 
 
-/// Returns the second portion of <param date> as an <type Int>
-let second(date: DateTime): Int =
-  (__ticksWithinDay(date) / __ticksPerSecond()) % 60
+/// Returns the second portion of <param date> as a <type UInt8> between {{0}} and {{59}}
+let second(date: DateTime): UInt8 =
+  __field8((__ticksWithinDay(date) / __ticksPerSecond()) % 60)
 
 
 /// Returns <type date> with the time set to midnight
@@ -291,9 +390,10 @@ let subtractMilliseconds(d: DateTime, milliseconds: Int): DateTime =
   __fromTicks(__ticks(d) - milliseconds * __ticksPerMillisecond())
 
 
-/// Returns the millisecond portion of <param date> as an <type Int> between {{0}} and {{999}}
-let millisecond(date: DateTime): Int =
-  (__ticksWithinDay(date) / __ticksPerMillisecond()) % 1000
+/// Returns the millisecond portion of <param date> as a <type UInt16> between {{0}} and {{999}}
+let millisecond(date: DateTime): UInt16 =
+  Stdlib.Int.toUInt16((__ticksWithinDay(date) / __ticksPerMillisecond()) % 1000)
+  |> Builtin.unwrap
 
 
 /// Returns the difference of the two dates, in milliseconds
@@ -311,12 +411,12 @@ let formatDirective(date: DateTime, directive: Char): Stdlib.Option.Option<Strin
   | 'Y' ->
     let y = year(date)
     Stdlib.Option.Option.Some(if y < 0 then "-" + zeroPadded(0 - y, 4) else zeroPadded(y, 4))
-  | 'm' -> Stdlib.Option.Option.Some(zeroPadded(month(date), 2))
-  | 'd' -> Stdlib.Option.Option.Some(zeroPadded(day(date), 2))
-  | 'H' -> Stdlib.Option.Option.Some(zeroPadded(hour(date), 2))
-  | 'M' -> Stdlib.Option.Option.Some(zeroPadded(minute(date), 2))
-  | 'S' -> Stdlib.Option.Option.Some(zeroPadded(second(date), 2))
-  | 'f' -> Stdlib.Option.Option.Some(zeroPadded(millisecond(date), 3))
+  | 'm' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int.fromUInt8(Month.toNumber(month(date))), 2))
+  | 'd' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int.fromUInt8(day(date)), 2))
+  | 'H' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int.fromUInt8(hour(date)), 2))
+  | 'M' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int.fromUInt8(minute(date)), 2))
+  | 'S' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int.fromUInt8(second(date)), 2))
+  | 'f' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int.fromUInt16(millisecond(date)), 3))
   | '%' -> Stdlib.Option.Option.Some("%")
   | _ -> Stdlib.Option.Option.None
 

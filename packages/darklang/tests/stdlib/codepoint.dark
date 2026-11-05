@@ -4,11 +4,14 @@ module Darklang.Stdlib.Codepoint.Tests
 test scalarBoundaries =
   Stdlib.Test.all(
     [ Stdlib.Codepoint.isValidScalar(0ul) |> Stdlib.Test.equal(true)
+      Stdlib.Codepoint.isValidScalar(255ul) |> Stdlib.Test.equal(true)
       Stdlib.Codepoint.isValidScalar(55295ul) |> Stdlib.Test.equal(true)
       Stdlib.Codepoint.isValidScalar(55296ul) |> Stdlib.Test.equal(false)
       Stdlib.Codepoint.isValidScalar(57343ul) |> Stdlib.Test.equal(false)
       Stdlib.Codepoint.isValidScalar(57344ul) |> Stdlib.Test.equal(true)
       Stdlib.Codepoint.isValidScalar(1114111ul) |> Stdlib.Test.equal(true)
+      Stdlib.Codepoint.isValidScalar(Stdlib.Codepoint.max())
+      |> Stdlib.Test.equal(true)
       Stdlib.Codepoint.isValidScalar(1114112ul) |> Stdlib.Test.equal(false)
       Stdlib.Codepoint.isValidScalar(4294967295ul) |> Stdlib.Test.equal(false)
       // U+0378 is unassigned, but a valid scalar and constructor input.
@@ -16,6 +19,17 @@ test scalarBoundaries =
       Stdlib.Char.fromCodepoint(888ul)
       |> Stdlib.Option.andThen(Stdlib.Char.toCodepoint)
       |> Stdlib.Test.equal(Some(888ul)) ])
+
+
+test fromInt =
+  Stdlib.Test.all(
+    [ Stdlib.Codepoint.fromInt(0) |> Stdlib.Test.equal(Some(0ul))
+      Stdlib.Codepoint.fromInt(255) |> Stdlib.Test.equal(Some(255ul))
+      Stdlib.Codepoint.fromInt(1114111) |> Stdlib.Test.equal(Some(1114111ul))
+      Stdlib.Codepoint.fromInt(55296) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt(1114112) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt(-1) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt(4294967296) |> Stdlib.Test.equal(None) ])
 
 
 test properties =
