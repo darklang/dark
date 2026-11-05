@@ -80,6 +80,17 @@
     <DirectPInvoke Include="e_sqlite3" />
   </ItemGroup>
 
+  <!-- The statically linked musl build (StaticOpenSslLinking, set by
+       build-release-cli-exes.sh) carries its own libcrypto. Cli.fs calls into it
+       once at startup to keep it off the host's openssl.cnf; see StaticOpenSsl
+       there. Nothing else defines the constant, so other builds lack the call. -->
+  <PropertyGroup Condition="'$(PublishAot)' == 'true' And '$(StaticOpenSslLinking)' == 'true'">
+    <DefineConstants>$(DefineConstants);DARK_STATIC_OPENSSL</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(StaticOpenSslLinking)' == 'true'">
+    <DirectPInvoke Include="libcrypto" />
+  </ItemGroup>
+
   <!-- Escape hatch for linking additional native archives into an AOT publish,
        for targets that need a compatibility shim the shipped set doesn't.
        Semicolon-separated paths. No shipped build sets this, so it's inert

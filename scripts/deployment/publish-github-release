@@ -17,7 +17,7 @@ Install on Linux or macOS:
 
 Or download the file for your platform below, and run it from wherever you put it:
 
-- Linux x64: `linux-x64` (Alpine and other musl distros: `linux-musl-x64`)
+- Linux x64: `linux-x64` (Alpine, or anywhere with no system libraries, such as an empty container: `linux-musl-x64`, which is statically linked)
 - Linux ARM: `linux-arm64`, or `linux-arm` for 32-bit
 - macOS: `osx-arm64` on Apple silicon, `osx-x64` on Intel
 
