@@ -21,7 +21,9 @@ let fns () : List<BuiltInFn> =
             return DString repr
           }
         | _ -> incorrectArgs ())
-      previewable = Pure
+      // Impure though it performs nothing: it shows type names as the branch binds them now,
+      // so a rename changes the answer.
+      previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 

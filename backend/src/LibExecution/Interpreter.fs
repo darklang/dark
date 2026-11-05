@@ -1526,6 +1526,16 @@ let private invokeBuiltin
       []
     )
     |> raiseRTE vm.threadID
+  // A package test inside the runner's process computes and nothing else, like a spread child:
+  // an `Impure` call could read or change the runner's own state. It stops here, before the
+  // call, and the runner runs the test again in a worker (`PackageTests.executeInProcessTest`).
+  if exeState.test.inRunner && fn.previewable = Impure then
+    exeState.test.stoppedAtImpure <- true
+    RTE.UncaughtException(
+      $"`{fn.name.name}` is Impure, so this test runs again in a worker",
+      []
+    )
+    |> raiseRTE vm.threadID
   if not (Set.isEmpty fn.callEffects) then
     // `Native` names what no rule can scope, so a policy grants it whole or not at all --
     // which would put the CLI's own commands (the test runner, seed export, raw descriptors)

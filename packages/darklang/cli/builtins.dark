@@ -295,7 +295,7 @@ let help(_state: AppState): String =
     ""
     "Options:"
     "  --with-sigs    Show full function signatures with parameter types"
-    "  --with-purity  Tag each fn with [pure] / [impure-previewable] / [impure]"
+    "  --with-purity  Tag each fn with [pure] / [impure]"
     ""
     "Arguments:"
     "  filter         Optional pattern to filter fns by name or group, values by name"

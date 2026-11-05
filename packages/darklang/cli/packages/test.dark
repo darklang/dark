@@ -388,9 +388,10 @@ let runSelected(
     | None ->
       Stdlib.printLine($"Running: {fullPath(item)}")
       let handle = Stdlib.Exec.spawn(fun () ->
-        let inProcess = LanguageTools.PackageManager.Test.runsInProcess(item.entity.hash)
         let started = Stdlib.DateTime.__monotonicMilliseconds()
         let outcome = runFresh(run, branchId, item.entity)
+        // Asked after the run: a test stopped at an `Impure` call ran again in a worker.
+        let inProcess = LanguageTools.PackageManager.Test.runsInProcess(item.entity.hash)
         FinishedTest
           { name = fullPath(item)
             test = item.entity
