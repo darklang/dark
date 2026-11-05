@@ -48,7 +48,7 @@ let clampCursor(state: State): State =
 /// Insert a string of any length at the cursor, and move past all of it.
 let insert(state: State, s: String): State =
   let before = Stdlib.String.slice(state.text, 0, state.cursor)
-  let after = Stdlib.String.dropFirst(state.text, state.cursor)
+  let after = Stdlib.String.drop(state.text, state.cursor)
 
   State
     { text = before + s + after
@@ -59,7 +59,7 @@ let backspace(state: State): State =
     state
   else
     let before = Stdlib.String.slice(state.text, 0, state.cursor - 1)
-    let after = Stdlib.String.dropFirst(state.text, state.cursor)
+    let after = Stdlib.String.drop(state.text, state.cursor)
     State { text = before + after, cursor = state.cursor - 1 }
 
 /// Delete the character to the right of the cursor.
@@ -68,7 +68,7 @@ let deleteForward(state: State): State =
     state
   else
     let before = Stdlib.String.slice(state.text, 0, state.cursor)
-    let after = Stdlib.String.dropFirst(state.text, state.cursor + 1)
+    let after = Stdlib.String.drop(state.text, state.cursor + 1)
     { state with text = before + after }
 
 /// Drop everything from the cursor to the end (readline's ^k), so replacing a line is two keys.
@@ -165,7 +165,7 @@ let renderInline(state: State, width: Int): String =
 
   let after =
     if state.cursor < len then
-      Stdlib.String.dropFirst(visible, cursorAt + 1)
+      Stdlib.String.drop(visible, cursorAt + 1)
     else
       ""
 

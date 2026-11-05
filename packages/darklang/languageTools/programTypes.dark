@@ -435,7 +435,7 @@ let hashToString(hash: Hash): String =
 /// First 8 hex chars, for human-readable display
 let hashToShort(hash: Hash): String =
   let h = hashToString(hash)
-  Stdlib.String.first(h, 8)
+  Stdlib.String.take(h, 8)
 
 /// The hash of a piece of PROSE, which is not content and so is not hashed the way an item is.
 ///

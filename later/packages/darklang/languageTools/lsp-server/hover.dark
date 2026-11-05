@@ -57,7 +57,7 @@ let handleHoverRequest
         let pathPart =
           // TODO: remove magic
           params.textDocument.uri
-          |> Stdlib.String.dropFirst 8 // Remove "darkfs:/"
+          |> Stdlib.String.drop 8 // Remove "darkfs:/"
           |> Stdlib.String.dropLast 5 // Remove ".dark"
 
         if Stdlib.String.startsWith pathPart "script/" then

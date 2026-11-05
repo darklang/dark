@@ -238,7 +238,7 @@ let readHeader
   if line == "" then
     (state, contentLength |> Stdlib.Option.toResult "No Content-Length header found")
   else if Stdlib.String.startsWith line "Content-Length: " then
-    let lengthStr = Stdlib.String.dropFirst line 16
+    let lengthStr = Stdlib.String.drop line 16
 
     match Stdlib.Int.parse lengthStr with
     | Ok length -> readHeader state (Stdlib.Option.Option.Some length)
@@ -272,7 +272,7 @@ let tryReadHeader
   if line == "" then
     contentLength |> Stdlib.Option.toResult "No Content-Length header found"
   else if Stdlib.String.startsWith line "Content-Length: " then
-    let lengthStr = Stdlib.String.dropFirst line 16
+    let lengthStr = Stdlib.String.drop line 16
 
     match Stdlib.Int.parse lengthStr with
     | Ok length -> tryReadHeader (Stdlib.Option.Option.Some length)

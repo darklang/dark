@@ -40,9 +40,9 @@ let parseRouteSegments(route: String): List<RouteSegment> =
     if String.isEmpty(seg) then
       Option.Option.None
     else if String.startsWith(seg, ":") then
-      Option.Option.Some(RouteSegment.Variable(String.dropFirst(seg, 1)))
+      Option.Option.Some(RouteSegment.Variable(String.drop(seg, 1)))
     else if String.startsWith(seg, "*") then
-      Option.Option.Some(RouteSegment.Wildcard(String.dropFirst(seg, 1)))
+      Option.Option.Some(RouteSegment.Wildcard(String.drop(seg, 1)))
     else
       Option.Option.Some(RouteSegment.Literal(seg)))
 

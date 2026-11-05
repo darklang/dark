@@ -146,12 +146,12 @@ let parseLetBinding(text: String): Stdlib.Option.Option<(String * String)> =
   if Stdlib.Bool.not(Stdlib.String.startsWith(trimmed, "let ")) then
     Stdlib.Option.Option.None
   else
-    let body = Stdlib.String.dropFirst(trimmed, 4)
+    let body = Stdlib.String.drop(trimmed, 4)
     match Stdlib.String.indexOf(body, "=") with
     | None -> Stdlib.Option.Option.None
     | Some(i) ->
       let name = Stdlib.String.trim(Stdlib.String.slice(body, 0, i))
-      let rhs = Stdlib.String.trim(Stdlib.String.dropFirst(body, i + 1))
+      let rhs = Stdlib.String.trim(Stdlib.String.drop(body, i + 1))
       // `let x == y` is a comparison typo, not a binding; and an empty right-hand side isn't one either.
       if (isSimpleName(name)) && (rhs != "") && (Stdlib.Bool.not(Stdlib.String.startsWith(rhs, "="))) then
         Stdlib.Option.Option.Some((name, rhs))
@@ -229,6 +229,6 @@ let captureExpr(bindings: List<Binding>, branchId: Uuid, name: String, rhs: Stri
 let readCaptured(output: String): Stdlib.Option.Option<String> =
   let trimmed = Stdlib.String.trim(output)
   if Stdlib.String.startsWith(trimmed, "ok:") then
-    Stdlib.Option.Option.Some(Stdlib.String.dropFirst(trimmed, 3))
+    Stdlib.Option.Option.Some(Stdlib.String.drop(trimmed, 3))
   else
     Stdlib.Option.Option.None

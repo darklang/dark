@@ -78,7 +78,7 @@ let getMatchedSegmentSuffix(completion: String, partial: String): String =
   | None -> ""
   | Some(matchStart) ->
     let afterMatch = matchStart + (Stdlib.String.length(partial))
-    let rest = Stdlib.String.dropFirst(completion, afterMatch)
+    let rest = Stdlib.String.drop(completion, afterMatch)
     // Find end of current segment (next "." or end of string)
     match Stdlib.String.indexOf(rest, ".") with
     | Some(dotPos) -> Stdlib.String.slice(rest, 0, dotPos)
@@ -90,13 +90,13 @@ let getHintFromCompletions(partial: String, completions: List<String>): String =
   | [] -> ""
   | [singleCompletion] ->
     if Stdlib.String.startsWith(singleCompletion, partial) then
-      Stdlib.String.dropFirst(singleCompletion, Stdlib.String.length(partial))
+      Stdlib.String.drop(singleCompletion, Stdlib.String.length(partial))
     else
       getMatchedSegmentSuffix(singleCompletion, partial)
   | multiple ->
     let commonPrefix = findCommonPrefix(multiple)
     if Stdlib.String.startsWith(commonPrefix, partial) && Stdlib.String.length(commonPrefix) > Stdlib.String.length(partial) then
-      Stdlib.String.dropFirst(commonPrefix, Stdlib.String.length(partial))
+      Stdlib.String.drop(commonPrefix, Stdlib.String.length(partial))
     else
       getMatchedSegmentSuffix(commonPrefix, partial)
 
@@ -168,7 +168,7 @@ let completeFilesystemPath(partialArg: String): List<String> =
     match Stdlib.String.lastIndexOf(partialArg, "/") with
     | Some(idx) ->
       let dirPart = Stdlib.String.slice(partialArg, 0, idx + 1)
-      let filePart = Stdlib.String.dropFirst(partialArg, idx + 1)
+      let filePart = Stdlib.String.drop(partialArg, idx + 1)
 
       let fullPath =
         if Stdlib.String.startsWith(dirPart, "/") then

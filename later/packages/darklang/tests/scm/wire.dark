@@ -177,7 +177,7 @@ module BothWritersAgree =
 // Run in a child snapshot so mutations stay isolated even if evaluation aborts.
 module BothWritersAgreeOnOps =
   /// A commit two of the three ops belong to where they were "authored"; the third was never committed.
-  let commitHash () : String = "c0ffee01" + (Stdlib.String.first (Stdlib.toString (Stdlib.Uuid.generate ())) 8)
+  let commitHash () : String = "c0ffee01" + (Stdlib.String.take (Stdlib.toString (Stdlib.Uuid.generate ())) 8)
 
   let op (n: Int64) (commit: String) : Darklang.SCM.Wire.SyncOp =
     Darklang.SCM.Wire.SyncOp
@@ -253,7 +253,7 @@ module BothWritersAgreeOnOps =
       else if n != d then
         let show (t: (String * String * String * String * String)) : String =
           let (i, b, ts, a, cm) = t
-          $"{Stdlib.String.first i 8}/{Stdlib.String.first b 12}/{ts}/{a}/{Stdlib.String.first cm 8}"
+          $"{Stdlib.String.take i 8}/{Stdlib.String.take b 12}/{ts}/{a}/{Stdlib.String.take cm 8}"
         $"the two writers disagree: native={Stdlib.String.join (Stdlib.List.map n show) ","} dark={Stdlib.String.join (Stdlib.List.map d show) ","}"
       else if (d |> Stdlib.List.all (fun (_, _, _, a, _) -> a == owner)) |> Stdlib.Bool.not then
         "author is not the owner"

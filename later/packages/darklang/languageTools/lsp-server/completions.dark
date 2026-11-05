@@ -96,7 +96,7 @@ let createCompletions
       let moduleString = Stdlib.String.slice wordUnderCursor 0 i
       let modules = if moduleString == "" then [] else Stdlib.String.split moduleString "."
       let searchStr =
-        wordUnderCursor |> Stdlib.String.dropFirst (i + 1)
+        wordUnderCursor |> Stdlib.String.drop (i + 1)
 
       (modules, searchStr)
 

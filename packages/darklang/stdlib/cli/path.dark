@@ -45,7 +45,7 @@ let basename(path: String): String =
   let p = stripTrailing(path)
 
   match Stdlib.String.lastIndexOf(p, "/") with
-  | Some(i) -> Stdlib.String.dropFirst(p, i + 1)
+  | Some(i) -> Stdlib.String.drop(p, i + 1)
   | None -> p
 
 
@@ -59,7 +59,7 @@ let extension(path: String): Stdlib.Option.Option<String> =
 
   match Stdlib.String.lastIndexOf(name, ".") with
   | Some(0) -> Stdlib.Option.Option.None
-  | Some(i) -> Stdlib.Option.Option.Some(Stdlib.String.dropFirst(name, i))
+  | Some(i) -> Stdlib.Option.Option.Some(Stdlib.String.drop(name, i))
   | None -> Stdlib.Option.Option.None
 
 

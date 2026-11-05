@@ -37,7 +37,7 @@ module Editing =
   /// Insert text at cursor position
   let insertAtCursor(state: State, char: String): State =
     let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition)
-    let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition)
+    let afterCursor = Stdlib.String.drop(state.text, state.cursorPosition)
     let newText = beforeCursor + char + afterCursor
     { state with
         text = newText
@@ -49,7 +49,7 @@ module Editing =
   let deleteBeforeCursor(state: State): State =
     if state.cursorPosition > 0 then
       let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition - 1)
-      let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition)
+      let afterCursor = Stdlib.String.drop(state.text, state.cursorPosition)
       let newText = beforeCursor + afterCursor
       { state with
           text = newText
@@ -64,7 +64,7 @@ module Editing =
 
     if state.cursorPosition < textLength then
       let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition)
-      let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition + 1)
+      let afterCursor = Stdlib.String.drop(state.text, state.cursorPosition + 1)
       let newText = beforeCursor + afterCursor
       { state with text = newText, historyIndex = -1 }
     else

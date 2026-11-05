@@ -32,7 +32,7 @@ let parse(s: String): Stdlib.Result.Result<Duration, ParseError> =
     |> Stdlib.String.toList
     |> Stdlib.List.takeWhile(fun c -> !Stdlib.Char.isLetter(c))
     |> Stdlib.String.fromList
-  let unit = Stdlib.String.dropFirst(s, Stdlib.String.length(number))
+  let unit = Stdlib.String.drop(s, Stdlib.String.length(number))
   if Stdlib.String.isEmpty(unit) then
     Stdlib.Result.Result.Error(ParseError.MissingUnit)
   else

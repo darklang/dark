@@ -167,7 +167,7 @@ let conflictId(
   let sorted = Stdlib.List.sort(hashes)
   let material = $"{owner}/{modules}/{name}|" + (Stdlib.String.join(sorted, ","))
   let digest = Stdlib.Hex.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(material)))
-  Stdlib.String.toLowercase(Stdlib.String.first(digest, 8))
+  Stdlib.String.toLowercase(Stdlib.String.take(digest, 8))
 
 
 // THE DETECTOR
@@ -655,7 +655,7 @@ let getByIdPrefix(rawPrefix: String): Stdlib.Option.Option<Conflict> =
   // `dark conflicts` prints ids as `#509907c8`, so a copy-paste brings the `#` along. Accept what we print.
   let idPrefix =
     if Stdlib.String.startsWith(rawPrefix, "#") then
-      Stdlib.String.dropFirst(rawPrefix, 1)
+      Stdlib.String.drop(rawPrefix, 1)
     else
       rawPrefix
 
@@ -699,7 +699,7 @@ let setStatus(id: String, status: String, resolvedBy: String): Unit =
 let shortHash(h: String): String =
   if h == "" then "(none)"
   else if Stdlib.String.length(h) <= 8 then h
-  else Stdlib.String.first(h, 8)
+  else Stdlib.String.take(h, 8)
 
 let candidateFor(c: Conflict, side: String): Stdlib.Option.Option<Candidate> =
   Stdlib.List.findFirst(c.candidates, fun cand -> cand.side == side)

@@ -63,7 +63,7 @@ let boardRows () : List<Row> =
 
 let prOfRef (ref: String) : Stdlib.Option.Option<Int> =
   if Stdlib.String.startsWith ref "#" then
-    match Stdlib.Int.parse (Stdlib.String.dropFirst ref 1) with
+    match Stdlib.Int.parse (Stdlib.String.drop ref 1) with
     | Ok n -> Stdlib.Option.Option.Some n
     | Error _ -> Stdlib.Option.Option.None
   else

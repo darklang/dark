@@ -67,7 +67,7 @@ let saveEditing(state: State, es: EditingState): Step =
     | [first, ...rest] ->
       let firstT = Stdlib.String.trim(first)
       if Stdlib.String.startsWith(firstT, "module ") then
-        let modStr = Stdlib.String.trim(Stdlib.String.dropFirst(firstT, Stdlib.String.length("module ")))
+        let modStr = Stdlib.String.trim(Stdlib.String.drop(firstT, Stdlib.String.length("module ")))
         let modParts = Stdlib.String.split(modStr, ".") |> Stdlib.List.filter(fun p -> p != "")
         (modParts, Stdlib.String.trim(Stdlib.String.join(rest, "\n")))
       else

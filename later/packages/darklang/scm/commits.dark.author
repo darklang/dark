@@ -34,7 +34,7 @@ let mintHash
   let ops = Stdlib.String.join opIds ","
   let material = $"{message}|{author}|{stamp}|{parent}|{ops}"
   let digest = Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob material))
-  Stdlib.String.toLowercase (Stdlib.String.first digest 16)
+  Stdlib.String.toLowercase (Stdlib.String.take digest 16)
 
 // --- create: second parameter, and the call it passes through ---
 let create

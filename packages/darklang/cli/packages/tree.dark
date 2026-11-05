@@ -128,7 +128,7 @@ let execute(state: AppState, args: List<String>): AppState =
     let depth =
       match Stdlib.List.findFirst(args, fun arg -> Stdlib.String.startsWith(arg, "--depth=")) with
       | Some(depthArg) ->
-        let depthStr = Stdlib.String.dropFirst(depthArg, 8) // Remove "--depth="
+        let depthStr = Stdlib.String.drop(depthArg, 8) // Remove "--depth="
         match Stdlib.Int.parse(depthStr) with
         | Ok(depth) when depth > 0 && depth <= 10 -> Stdlib.Option.Option.Some(depth)
         | _ -> Stdlib.Option.Option.None

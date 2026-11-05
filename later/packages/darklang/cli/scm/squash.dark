@@ -81,7 +81,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Ok hash ->
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.success
-            $"✓ squashed {Stdlib.toString count} commits into {Stdlib.String.first hash 8}")
+            $"✓ squashed {Stdlib.toString count} commits into {Stdlib.String.take hash 8}")
 
         Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  {message}")
         state

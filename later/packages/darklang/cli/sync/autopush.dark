@@ -79,7 +79,7 @@ let pushDraft (state: AppState) : Outcome =
 
         if relay == "" then
           Outcome.Failed
-            $"committed {Stdlib.String.first hash 8} but there is no relay to push to -- `dark connect <url>`, or `dark config set live.autopush off`"
+            $"committed {Stdlib.String.take hash 8} but there is no relay to push to -- `dark connect <url>`, or `dark config set live.autopush off`"
         else
           let (pushed, story) =
             Cli.Workbench.captureOutputAnd (fun () ->
@@ -99,7 +99,7 @@ let pushDraft (state: AppState) : Outcome =
               |> Stdlib.List.last
               |> Stdlib.Option.withDefault "the push did not go through"
 
-            Outcome.Failed $"committed {Stdlib.String.first hash 8}; {last}"
+            Outcome.Failed $"committed {Stdlib.String.take hash 8}; {last}"
 
 /// Whether the push verb's output says it pushed. The verbs print rather than return, so this
 /// reads their success lines: `Pushed N ops` and `Already up to date` from `dark push`
@@ -118,7 +118,7 @@ let pushDraftOn (branchId: Uuid) : Outcome =
 let describe (outcome: Outcome) : String =
   match outcome with
   | Nothing -> ""
-  | Pushed hash -> $"autopush: committed {Stdlib.String.first hash 8} and pushed"
+  | Pushed hash -> $"autopush: committed {Stdlib.String.take hash 8} and pushed"
   | Failed why -> $"autopush: {why}"
 
 /// The tail of an authoring command: when the mode is on and something is in the draft, commit it

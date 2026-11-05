@@ -315,7 +315,7 @@ let floatLiteral () : P<Expr> =
 
       let withoutSign =
         if hasSign then
-          Stdlib.String.dropFirst s 1
+          Stdlib.String.drop s 1
         else
           s
 

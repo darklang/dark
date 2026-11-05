@@ -109,14 +109,14 @@ module Format =
         sign + "0"
       else if exponent < -4 || exponent > 16 then
         let rest =
-          if String.length(digits) == 1 then "" else "." + (String.dropFirst(digits, 1))
+          if String.length(digits) == 1 then "" else "." + (String.drop(digits, 1))
 
         let expSign = if exponent < 0 then "-" else "+"
         let magnitude = if exponent < 0 then 0 - exponent else exponent
         // At least two exponent digits, as .NET writes them.
         let shown = Stdlib.toString(magnitude)
         let padded = String.padStart(shown, '0', 2)
-        sign + (String.first(digits, 1)) + rest + "E" + expSign + padded
+        sign + (String.take(digits, 1)) + rest + "E" + expSign + padded
       else
         let point = exponent + 1
         let width = String.length(digits)
@@ -126,7 +126,7 @@ module Format =
         else if point >= width then
           sign + digits + (String.repeat("0", point - width))
         else
-          sign + (String.first(digits, point)) + "." + (String.dropFirst(digits, point))
+          sign + (String.take(digits, point)) + "." + (String.drop(digits, point))
 
 
   /// Take apart <fn Float.toString>, which already holds the shortest
@@ -135,7 +135,7 @@ module Format =
   let shortestDigits(n: Float): (Bool * String * Int) =
     let text = Stdlib.toString(n)
     let negative = String.startsWith(text, "-")
-    let unsigned = if negative then String.dropFirst(text, 1) else text
+    let unsigned = if negative then String.drop(text, 1) else text
 
     let (mantissa, exp10) =
       match String.split(unsigned, "e") with

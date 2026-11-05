@@ -97,7 +97,7 @@ let hintsFor
             Stdlib.Option.Option.None
           else
             // `a` is `p` followed by ` // = value`; the hint carries `= value`.
-            let label = Stdlib.String.dropFirst a ((Stdlib.String.length p) + 4)
+            let label = Stdlib.String.drop a ((Stdlib.String.length p) + 4)
             let line = headerLine + (i - plainHeader)
 
             let lineText =
@@ -131,7 +131,7 @@ let fnsIn
     []
   else
     let nameForLookup =
-      uri |> Stdlib.String.dropFirst 8 |> Stdlib.String.dropLast 5
+      uri |> Stdlib.String.drop 8 |> Stdlib.String.dropLast 5
 
     if Stdlib.String.startsWith nameForLookup "script/" then
       []

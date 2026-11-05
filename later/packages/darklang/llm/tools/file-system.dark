@@ -32,7 +32,7 @@ let resolveSafePath (path: String) : Stdlib.Result.Result<String, String> =
       if path == "." then
         ""
       else if Stdlib.String.startsWith path "./" then
-        Stdlib.String.dropFirst path 2
+        Stdlib.String.drop path 2
       else
         path
 
@@ -84,7 +84,7 @@ let filePathToDisplayPath (fullPath: String) : String =
   let cwd = Stdlib.Cli.FileSystem.currentDirectory ()
   let cwdPrefix = cwd + "/"
   if Stdlib.String.startsWith fullPath cwdPrefix then
-    Stdlib.String.dropFirst fullPath (Stdlib.String.length cwdPrefix)
+    Stdlib.String.drop fullPath (Stdlib.String.length cwdPrefix)
   else if fullPath == cwd then
     "."
   else

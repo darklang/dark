@@ -142,7 +142,7 @@ let resolveGenericName(
         let core =
           if Stdlib.String.endsWith(name, "'") then Stdlib.String.dropLast(name, 1) else name
         let core =
-          if Stdlib.String.startsWith(core, "__") then Stdlib.String.dropFirst(core, 2) else core
+          if Stdlib.String.startsWith(core, "__") then Stdlib.String.drop(core, 2) else core
         match Stdlib.String.toList(core) with
         | [] -> false
         | [first, ...rest] ->

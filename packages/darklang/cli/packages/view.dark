@@ -684,7 +684,7 @@ let resolveHashArg(
      | Test -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Test(loc)))
   | None ->
     Stdlib.Result.Result.Error(
-      $"no live name binds hash {Stdlib.String.first(hash, 8)} -- `dark show {Stdlib.String.first(hash, 8)}` reads it as an op.")
+      $"no live name binds hash {Stdlib.String.take(hash, 8)} -- `dark show {Stdlib.String.take(hash, 8)}` reads it as an op.")
 
 
 // VIEW command - view modules, functions, types, or constants, as source, AST, or instructions

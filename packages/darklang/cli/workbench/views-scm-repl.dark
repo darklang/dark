@@ -80,7 +80,7 @@ let bindSession(state: State, name: String, rhs: String): (Stdlib.Option.Option<
       (Stdlib.Option.Option.Some(
          Darklang.Cli.Repl.Binding { name = name, source = source, value = source, captured = true }),
        $"{name} = {source}")
-    | None -> fallback(Stdlib.String.trim(Stdlib.String.dropFirst(Stdlib.String.trim(out), 4)))
+    | None -> fallback(Stdlib.String.trim(Stdlib.String.drop(Stdlib.String.trim(out), 4)))
 
 /// Run one REPL statement against the session: bind it if it's a `let <name> = ...`, else evaluate it.
 /// Returns the state with the log, the session and the last result all updated.

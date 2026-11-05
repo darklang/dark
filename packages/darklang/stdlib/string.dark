@@ -139,12 +139,12 @@ let splitFirst(
   if separator == "" then
     Option.Option.None
   else
-    // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
+    // indexOfEgc (not indexOf) because take / drop / length are EGC-indexed.
     match String.indexOfEgc(string, separator) with
     | None -> Option.Option.None
     | Some(i) ->
-      let before = String.first(string, i)
-      let after = String.dropFirst(string, i + String.length(separator))
+      let before = String.take(string, i)
+      let after = String.drop(string, i + String.length(separator))
       Option.Option.Some((before, after))
 
 
@@ -160,12 +160,12 @@ let splitLast(
   if separator == "" then
     Option.Option.None
   else
-    // lastIndexOfEgc (not lastIndexOf) because first / dropFirst / length are EGC-indexed.
+    // lastIndexOfEgc (not lastIndexOf) because take / drop / length are EGC-indexed.
     match String.lastIndexOfEgc(string, separator) with
     | None -> Option.Option.None
     | Some(i) ->
-      let before = String.first(string, i)
-      let after = String.dropFirst(string, i + String.length(separator))
+      let before = String.take(string, i)
+      let after = String.drop(string, i + String.length(separator))
       Option.Option.Some((before, after))
 
 
@@ -182,12 +182,12 @@ let splitN(
   if n <= 1 || separator == "" then
     [ string ]
   else
-    // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
+    // indexOfEgc (not indexOf) because take / drop / length are EGC-indexed.
     match String.indexOfEgc(string, separator) with
     | None -> [ string ]
     | Some(i) ->
-      let before = String.first(string, i)
-      let rest = String.dropFirst(string, i + String.length(separator))
+      let before = String.take(string, i)
+      let rest = String.drop(string, i + String.length(separator))
       List.prepend(String.splitN(rest, separator, n - 1), before)
 
 
@@ -239,10 +239,10 @@ let slice(string: String, from: Int, ``to``: Int): String =
   Builtin.stringSlice(string, from, ``to``)
 
 
-/// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
+/// Returns the first <param characterCount> characters of <param string>.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
-/// If <param characterCount> is negative, returns the empty string."
-let first(string: String, characterCount: Int): String =
+/// If <param characterCount> is negative, returns the empty string.
+let take(string: String, characterCount: Int): String =
   if characterCount < 0 then
     ""
   else if characterCount > String.length(string) then
@@ -251,10 +251,10 @@ let first(string: String, characterCount: Int): String =
     String.slice(string, 0, characterCount)
 
 
-/// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
+/// Returns the last <param characterCount> characters of <param string>.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string.
-let last(string: String, characterCount: Int): String =
+let takeLast(string: String, characterCount: Int): String =
   if characterCount < 0 then
     ""
   else if characterCount > String.length(string) then
@@ -266,7 +266,7 @@ let last(string: String, characterCount: Int): String =
       String.length(string))
 
 
-/// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
+/// Returns all but the last <param characterCount> characters of <param string>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
 let dropLast(string: String, characterCount: Int): String =
@@ -281,10 +281,10 @@ let dropLast(string: String, characterCount: Int): String =
       String.length(string) - characterCount)
 
 
-/// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
+/// Returns all but the first <param characterCount> characters of <param string>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropFirst(string: String, characterCount: Int): String =
+let drop(string: String, characterCount: Int): String =
   Builtin.stringDropFirst(string, characterCount)
 
 
@@ -362,8 +362,8 @@ let endsWith(subject: String, suffix: String): Bool =
 let stripPrefix(subject: String, prefix: String): Option.Option<String> =
   let n = String.length(prefix)
 
-  if String.first(subject, n) == prefix then
-    Option.Option.Some(String.dropFirst(subject, n))
+  if String.take(subject, n) == prefix then
+    Option.Option.Some(String.drop(subject, n))
   else
     Option.Option.None
 
@@ -374,7 +374,7 @@ let stripPrefix(subject: String, prefix: String): Option.Option<String> =
 let stripSuffix(subject: String, suffix: String): Option.Option<String> =
   let n = String.length(suffix)
 
-  if String.last(subject, n) == suffix then
+  if String.takeLast(subject, n) == suffix then
     Option.Option.Some(String.dropLast(subject, n))
   else
     Option.Option.None
@@ -382,7 +382,7 @@ let stripSuffix(subject: String, suffix: String): Option.Option<String> =
 
 /// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
 /// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
-/// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
+/// The returned index is **not** suitable for arithmetic with {{take}}, {{drop}},
 /// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
 let indexOf(str: String, searchFor: String): Option.Option<Int> =
   let idx = Builtin.stringIndexOf(str, searchFor)
@@ -391,7 +391,7 @@ let indexOf(str: String, searchFor: String): Option.Option<Int> =
 
 /// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
 /// measured in extended grapheme clusters (consistent with {{length}}, {{slice}},
-/// {{first}}, and {{dropFirst}}). Returns {{None}} if <param searchFor> does not occur.
+/// {{take}}, and {{drop}}). Returns {{None}} if <param searchFor> does not occur.
 /// The match must begin and end on EGC boundaries — searching for a partial grapheme
 /// (e.g. a base codepoint inside a ZWJ sequence) will not match.
 let indexOfEgc(str: String, searchFor: String): Option.Option<Int> =

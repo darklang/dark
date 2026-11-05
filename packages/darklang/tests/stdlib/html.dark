@@ -69,7 +69,7 @@ test commentNeverHoldsDoubleDash =
       // Strip `<!-- ` and ` -->` to get the text inside.
       let inner =
         html
-        |> Stdlib.String.dropFirst(5)
+        |> Stdlib.String.drop(5)
         |> Stdlib.String.dropLast(4)
 
       Stdlib.String.contains(inner, "--") |> Stdlib.Test.equal(false))))

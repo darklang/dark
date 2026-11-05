@@ -106,7 +106,7 @@ let regex (pattern: String) : Parser<String> =
           match Stdlib.Regex.find input anchoredPattern with
           | Some matched ->
             let remaining =
-              Stdlib.String.dropFirst input (Stdlib.String.length matched)
+              Stdlib.String.drop input (Stdlib.String.length matched)
 
             ParseResult.Success(matched, remaining)
           | None -> ParseResult.Failure("Expected pattern: " + pattern)) }
@@ -119,7 +119,7 @@ let string (expected: String) : Parser<String> =
         (fun input ->
           if Stdlib.String.startsWith input expected then
             let remaining =
-              Stdlib.String.dropFirst input (Stdlib.String.length expected)
+              Stdlib.String.drop input (Stdlib.String.length expected)
 
             ParseResult.Success(expected, remaining)
           else
@@ -134,7 +134,7 @@ let charWhere (predicate: Char -> Bool) (description: String) : Parser<Char> =
           match Stdlib.String.head input with
           | Some c ->
             if predicate c then
-              let remaining = Stdlib.String.dropFirst input 1
+              let remaining = Stdlib.String.drop input 1
               ParseResult.Success(c, remaining)
             else
               ParseResult.Failure("Expected: " + description)

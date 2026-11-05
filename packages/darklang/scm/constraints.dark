@@ -152,7 +152,7 @@ let findingId(
   let raw = $"{fqnOf(usage)}|{fqnOf(dependency)}|{discriminator}"
 
   let digest = Stdlib.Hex.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(raw)))
-  Stdlib.String.toLowercase(Stdlib.String.first(digest, 8))
+  Stdlib.String.toLowercase(Stdlib.String.take(digest, 8))
 
 
 /// Find callers that still use an older version of a dependency.

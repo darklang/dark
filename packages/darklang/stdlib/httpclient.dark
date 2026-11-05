@@ -223,7 +223,7 @@ module Sse =
 
       let value =
         if Stdlib.String.startsWith(afterColon, " ") then
-          Stdlib.String.dropFirst(afterColon, 1)
+          Stdlib.String.drop(afterColon, 1)
         else
           afterColon
 

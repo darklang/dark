@@ -83,7 +83,7 @@ let escapesOk(s: String): Bool =
   (Stdlib.String.split(s, "%"))
   |> Stdlib.List.drop(1)
   |> Stdlib.List.all(fun piece ->
-    let hex = Stdlib.String.first(piece, 2)
+    let hex = Stdlib.String.take(piece, 2)
 
     (Stdlib.String.length(hex)) == 2
     && Stdlib.List.all(Stdlib.String.toList(hex), fun c -> isHexDigit(c)))
@@ -240,9 +240,9 @@ let parseAuthority(
        | Some((bracketed, after)) when
          after == "" || Stdlib.String.startsWith(after, ":")
          ->
-         match parseIPLiteral(Stdlib.String.dropFirst(bracketed, 1)) with
+         match parseIPLiteral(Stdlib.String.drop(bracketed, 1)) with
          | Some(host) ->
-           Stdlib.Result.Result.Ok((host, Stdlib.String.dropFirst(after, 1)))
+           Stdlib.Result.Result.Ok((host, Stdlib.String.drop(after, 1)))
          | None -> Stdlib.Result.Result.Error(ParseError.InvalidHost(hostPort))
        | _ -> Stdlib.Result.Result.Error(ParseError.InvalidHost(hostPort))
      else
@@ -446,15 +446,15 @@ let removeDots(input: String, out: List<String>): String =
   if input == "" || input == "." || input == ".." then
     out |> Stdlib.List.reverse |> Stdlib.String.join("")
   else if Stdlib.String.startsWith(input, "../") then
-    removeDots(Stdlib.String.dropFirst(input, 3), out)
+    removeDots(Stdlib.String.drop(input, 3), out)
   else if
     Stdlib.String.startsWith(input, "./") || Stdlib.String.startsWith(input, "/./")
   then
-    removeDots(Stdlib.String.dropFirst(input, 2), out)
+    removeDots(Stdlib.String.drop(input, 2), out)
   else if input == "/." then
     removeDots("/", out)
   else if Stdlib.String.startsWith(input, "/../") then
-    removeDots(Stdlib.String.dropFirst(input, 3), Stdlib.List.drop(out, 1))
+    removeDots(Stdlib.String.drop(input, 3), Stdlib.List.drop(out, 1))
   else if input == "/.." then
     removeDots("/", Stdlib.List.drop(out, 1))
   else
@@ -608,7 +608,7 @@ let percentDecode(s: String): String =
       | Ok(b) ->
         Stdlib.List.prepend(
           Stdlib.List.prepend(reversed, b),
-          Stdlib.Utf8.encode(Stdlib.String.dropFirst(piece, 2)))
+          Stdlib.Utf8.encode(Stdlib.String.drop(piece, 2)))
       | Error(_) -> Stdlib.List.prepend(reversed, Stdlib.Utf8.encode("%" + piece)))
     |> Stdlib.List.reverse
     |> Stdlib.Bytes.concatAll

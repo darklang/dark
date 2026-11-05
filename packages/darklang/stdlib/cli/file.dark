@@ -383,7 +383,7 @@ let glob(basePath: String, pattern: String): Result.Result<List<String>, Posix.E
   |> Stdlib.Result.map(fun allPaths ->
     allPaths
     |> Stdlib.List.filter(fun fullPath ->
-      let rel = Stdlib.String.dropFirst(fullPath, (Stdlib.String.length(cleanBase)) + 1)
+      let rel = Stdlib.String.drop(fullPath, (Stdlib.String.length(cleanBase)) + 1)
       let pathSegs = Stdlib.String.split(rel, "/")
       globMatchSegments(patternSegs, pathSegs)))
 

@@ -224,7 +224,7 @@ let commitListText(): String =
     recentCommitRows(30L)
     |> Stdlib.List.map(fun c ->
       // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
-      let short = Stdlib.String.first(c.hash, 8)
+      let short = Stdlib.String.take(c.hash, 8)
       let ops = Stdlib.toString(c.ops)
       "  " + (Stdlib.Cli.UI.Colors.dimText(short)) + "  " + c.message
       + (Stdlib.Cli.UI.Colors.dimText("  " + ops + (if ops == "1" then " op" else " ops"))))

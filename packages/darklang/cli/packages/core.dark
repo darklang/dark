@@ -91,7 +91,7 @@ let definitionFromArgs(args: List<String>): String =
     let joined = Stdlib.String.join(parts, " ") |> Stdlib.String.trim
 
     if Stdlib.String.startsWith(joined, "=") then
-      Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim
+      Stdlib.String.drop(joined, 1) |> Stdlib.String.trim
     else
       joined
 

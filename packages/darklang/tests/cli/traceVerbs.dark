@@ -35,7 +35,7 @@ let latestField(i: Instance.T, name: String): Stdlib.AltJson.Json =
 
 /// The id the tests hand the CLI: longer than the eight characters it prints, to
 /// keep clear of a chance collision.
-let prefix(id: String): String = Stdlib.String.first(id, 12)
+let prefix(id: String): String = Stdlib.String.take(id, 12)
 
 
 /// Author, commit and approve one function, so a run of it records and a view of it
@@ -144,7 +144,7 @@ test aResumeAfterAnEditRunsTheNewCodeOnTheOldEffects =
       | Error(e) -> ("", e)
 
     let last = lines(Stdlib.String.trim(stdout)) |> Stdlib.List.last |> Stdlib.Option.withDefault("")
-    let uuidOf = fun(s) -> Stdlib.String.replaceAll(Stdlib.String.dropFirst(s, 3), "\"", "")
+    let uuidOf = fun(s) -> Stdlib.String.replaceAll(Stdlib.String.drop(s, 3), "\"", "")
 
     Stdlib.Test.all(
       [ v1

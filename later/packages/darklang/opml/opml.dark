@@ -66,7 +66,7 @@ let attributeValue
   match Stdlib.String.indexOf line marker with
   | None -> Stdlib.Option.Option.None
   | Some start ->
-    let afterMarker = Stdlib.String.dropFirst line (start + (Stdlib.String.length marker))
+    let afterMarker = Stdlib.String.drop line (start + (Stdlib.String.length marker))
 
     match Stdlib.String.indexOf afterMarker "\"" with
     | None -> Stdlib.Option.Option.None
@@ -78,7 +78,7 @@ let parseTitle (opml: String) : String =
   match Stdlib.String.indexOf opml "<title>" with
   | None -> ""
   | Some start ->
-    let afterTag = Stdlib.String.dropFirst opml (start + 7)
+    let afterTag = Stdlib.String.drop opml (start + 7)
 
     match Stdlib.String.indexOf afterTag "</title>" with
     | None -> ""

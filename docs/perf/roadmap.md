@@ -84,7 +84,7 @@ Four were removed again for failing that test. `String.endsWith` and `Dict.isEmp
 nothing. `Int.max` and `Int.min` did help, marginally, but they are a single comparison rather than a
 loop, so they are back to `if greaterThan a b then a else b` in Dark; the Dark version allocates
 slightly less, because it returns its operand rather than re-wrapping it, and routing does not move.
-The two remaining marginal ones, `List.zipShortest` and `String.dropFirst`, are worth 9.2% of routing
+The two remaining marginal ones, `List.zipShortest` and `String.drop`, are worth 9.2% of routing
 between them and both walk their input, so they stay.
 
 A thin wrapper called with **explicit type arguments** is never elided, because the guard requires no

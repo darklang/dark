@@ -135,7 +135,7 @@ let submodulesOf (path: String) : List<(String * Int64)> =
   rows
   |> Stdlib.List.filterMap (fun pair ->
     let (m, n) = pair
-    let rest = Stdlib.String.dropFirst m (Stdlib.String.length prefix)
+    let rest = Stdlib.String.drop m (Stdlib.String.length prefix)
 
     match Stdlib.String.split rest "." with
     | seg :: _ -> Stdlib.Option.Option.Some(($"{prefix}{seg}", n))

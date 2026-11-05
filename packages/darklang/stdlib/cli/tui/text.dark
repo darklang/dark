@@ -90,7 +90,7 @@ let splitLongWord(word: String, width: Int): List<String> =
     let taken = Stdlib.String.length(head)
     // A wide glyph can make `clipToWidth` take fewer characters than columns; never take none.
     let step = Stdlib.max(1, taken)
-    Stdlib.List.prepend(splitLongWord(Stdlib.String.dropFirst(word, step), width), head)
+    Stdlib.List.prepend(splitLongWord(Stdlib.String.drop(word, step), width), head)
 
 
 /// Fold one word into the lines built so far.

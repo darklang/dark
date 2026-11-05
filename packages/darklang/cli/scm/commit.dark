@@ -38,7 +38,7 @@ let parseInclude(args: List<String>): List<String> =
   args
   |> Stdlib.List.filter(fun a -> Stdlib.String.startsWith(a, "--include="))
   |> Stdlib.List.map(fun a ->
-    Stdlib.String.dropFirst(a, Stdlib.String.length("--include=")))
+    Stdlib.String.drop(a, Stdlib.String.length("--include=")))
   |> Stdlib.List.map(fun raw -> Stdlib.String.split(raw, ","))
   |> Stdlib.List.flatten
   |> Stdlib.List.map(fun n -> Stdlib.String.trim(n))
@@ -650,7 +650,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
             $"; {Cli.Text.plural(heldOps, "op")} ({Cli.Text.plural(heldItems, "item")}) still in the draft"
 
         let stamped = Cli.Text.plural(Stdlib.Int.fromInt64(committed), "op")
-        Cli.printOk($"  commit {Stdlib.String.first(hash, 8)} -- {stamped}{movedNote}{heldNote}.")
+        Cli.printOk($"  commit {Stdlib.String.take(hash, 8)} -- {stamped}{movedNote}{heldNote}.")
         state
 
 let execute(state: AppState, args: List<String>): AppState =

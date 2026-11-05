@@ -30,7 +30,7 @@ module ReadFile =
     let nameForLookup =
       // TODO: remove magic
       params.uri
-      |> Stdlib.String.dropFirst 8  // Drop "darkfs:/"
+      |> Stdlib.String.drop 8  // Drop "darkfs:/"
       |> Stdlib.String.dropLast 5   // Drop ".dark"
 
     let location =
@@ -41,7 +41,7 @@ module ReadFile =
       if Stdlib.String.startsWith nameForLookup "script/" then
         let scriptName =
           nameForLookup
-          |> Stdlib.String.dropFirst 7  // Drop "script/"
+          |> Stdlib.String.drop 7  // Drop "script/"
 
         match Cli.Scripts.get scriptName with
         | Some script -> script.text
@@ -348,13 +348,13 @@ module WriteFile =
     let nameForLookup =
       // TODO: remove magic
       params.uri
-      |> Stdlib.String.dropFirst 8  // Drop "darkfs:/"
+      |> Stdlib.String.drop 8  // Drop "darkfs:/"
       |> Stdlib.String.dropLast 5   // Drop ".dark"
 
     if Stdlib.String.startsWith nameForLookup "script/" then
       let scriptName =
         nameForLookup
-        |> Stdlib.String.dropFirst 7  // Drop "script/"
+        |> Stdlib.String.drop 7  // Drop "script/"
 
       match Cli.Scripts.update scriptName content with
       | Ok () -> sendSuccessResponse state requestId [] Stdlib.Option.Option.None

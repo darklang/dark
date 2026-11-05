@@ -226,7 +226,7 @@ let executeList(state: AppState): AppState =
           Stdlib.List.getAt(flats, i) |> Stdlib.Option.withDefault("(nothing to show)")
 
         let windowed =
-          if windowStart == 0 then flat else "..." + (Stdlib.String.dropFirst(flat, windowStart))
+          if windowStart == 0 then flat else "..." + (Stdlib.String.drop(flat, windowStart))
 
         let suffixed =
           if textsEqual then
@@ -754,7 +754,7 @@ let complete(
     if sub == "show" || sub == "ack" || sub == "override" then
       SCM.Conflicts.pending()
       |> Stdlib.List.map(fun c ->
-        (Stdlib.String.first(c.id, 8), SCM.Conflicts.fqn(c.owner, c.modules, c.name)))
+        (Stdlib.String.take(c.id, 8), SCM.Conflicts.fqn(c.owner, c.modules, c.name)))
       |> Stdlib.List.filter(fun pair ->
         let (id, _) = pair
         Stdlib.String.startsWith(id, partial))

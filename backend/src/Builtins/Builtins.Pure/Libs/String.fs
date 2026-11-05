@@ -533,7 +533,7 @@ let fns () : List<BuiltInFn> =
         + "<param str>, measured in UTF-16 code units (the .NET string "
         + "representation). Returns -1 if <param searchFor> does not occur. For "
         + "an index that pairs with {{String.length}}, {{String.slice}}, "
-        + "{{String.first}}, and {{String.dropFirst}} (which are all "
+        + "{{String.take}}, and {{String.drop}} (which are all "
         + "EGC-indexed), use {{stringIndexOfEgc}}.\n\nNote on SQL: SQLite's INSTR "
         + "and .NET's IndexOf both tell us whether a substring was found, but "
         + "they count positions differently for some Unicode text. SQLite counts "
@@ -566,8 +566,8 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns the index of the first occurrence of <param searchFor> in "
         + "<param str>, measured in extended grapheme clusters (consistent with "
-        + "{{String.length}}, {{String.slice}}, {{String.first}}, and "
-        + "{{String.dropFirst}}). Returns -1 if <param searchFor> does not occur. "
+        + "{{String.length}}, {{String.slice}}, {{String.take}}, and "
+        + "{{String.drop}}). Returns -1 if <param searchFor> does not occur. "
         + "The match must begin and end on EGC boundaries — partial-grapheme "
         + "matches (e.g. finding a skin-tone modifier alone inside a full "
         + "skin-toned emoji) are not reported."
@@ -648,8 +648,8 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns the index of the last occurrence of <param searchFor> in "
         + "<param str>, measured in extended grapheme clusters (consistent with "
-        + "{{String.length}}, {{String.slice}}, {{String.first}}, and "
-        + "{{String.dropFirst}}). Returns -1 if <param searchFor> does not occur. "
+        + "{{String.length}}, {{String.slice}}, {{String.take}}, and "
+        + "{{String.drop}}). Returns -1 if <param searchFor> does not occur. "
         + "The match must begin and end on EGC boundaries — partial-grapheme "
         + "matches are not reported."
       fn =

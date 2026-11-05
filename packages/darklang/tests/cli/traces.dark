@@ -57,7 +57,7 @@ let latestId(i: Instance.T): String =
 
 
 /// The id as the CLI prints it.
-let short(id: String): String = Stdlib.String.first(id, 8)
+let short(id: String): String = Stdlib.String.take(id, 8)
 
 
 // ─── the listing and its housekeeping ───────────────────────────────────────

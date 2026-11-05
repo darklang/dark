@@ -87,7 +87,7 @@ let getDirectoryContents(path: String): List<String> =
       // Normalize path by removing leading "./" if present
       let normalizedPath =
         if Stdlib.String.startsWith(path, "./") then
-          Stdlib.String.dropFirst(path, 2)
+          Stdlib.String.drop(path, 2)
         else
           path
       $"{currentDir}/{normalizedPath}"
@@ -111,7 +111,7 @@ let isDirectoryAtPath(dirPath: String, fileName: String): Bool =
     if Stdlib.String.startsWith(dirPath, "/") then
       dirPath
     else if Stdlib.String.startsWith(dirPath, "./") then
-      let withoutDot = Stdlib.String.dropFirst(dirPath, 2)
+      let withoutDot = Stdlib.String.drop(dirPath, 2)
       $"{currentDir}/{withoutDot}"
     else
       $"{currentDir}/{dirPath}"

@@ -92,7 +92,7 @@ let branchMarker(current: Bool): String = if current then "● " else "○ "
 /// Is this branch row main's? Main has no `branches` row, so `selectedBranch`
 /// cannot name it; the rows that stand for it are known by name instead.
 let isMainRow(item: BodyItem): Bool =
-  (Stdlib.String.dropFirst(item.name, 2)) == Darklang.SCM.Branch.mainBranchName
+  (Stdlib.String.drop(item.name, 2)) == Darklang.SCM.Branch.mainBranchName
 
 /// Is the cursor on a branch row for main (Home's)?
 let cursorOnMainRow(state: State): Bool =
@@ -126,7 +126,7 @@ let selectedBranch(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Branc
     // Rows read "<marker> <name>[   (merged)]" - see `loadBranchItems`.
     let name =
       item.name
-      |> Stdlib.String.dropFirst(2)
+      |> Stdlib.String.drop(2)
       |> fun s -> Stdlib.String.split(s, "   (merged)") |> Stdlib.List.head |> Stdlib.Option.withDefault(s)
       |> Stdlib.String.trim
     Darklang.SCM.Branch.list() |> Stdlib.List.findFirst(fun b -> b.name == name)

@@ -181,7 +181,7 @@ let selectTargets(
 
     // Findings are printed as `#1d8740cd`, so a pasted id arrives with the `#`. Accept what we print.
     let normalize(i: String): String =
-      if Stdlib.String.startsWith(i, "#") then Stdlib.String.dropFirst(i, 1) else i
+      if Stdlib.String.startsWith(i, "#") then Stdlib.String.drop(i, 1) else i
 
     // An EMPTY prefix must not match. `startsWith f.id ""` is true of every finding, so `dark ack ""`
     // would ack the first one: a mutation, chosen arbitrarily, from an argument that says nothing. It is

@@ -695,7 +695,7 @@ test groupBy =
         [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ])
       Stdlib.List.groupBy(
         [ "apple", "banana", "avocado", "grape", "apricot" ],
-        fun word -> Stdlib.String.first(word, 1))
+        fun word -> Stdlib.String.take(word, 1))
       |> Stdlib.Test.equal(
         [ ("a", [ "apple", "avocado", "apricot" ])
           ("b", [ "banana" ])
@@ -719,7 +719,7 @@ test groupBy =
       |> Stdlib.Test.equal(
         [ (3L, [ 3L, 3L, 3L ]), (1L, [ 1L, 1L ]), (2L, [ 2L ]) ])
       Stdlib.List.groupBy([ "b2", "a1", "b1", "c1", "a2" ], fun s ->
-        Stdlib.String.first(s, 1))
+        Stdlib.String.take(s, 1))
       |> Stdlib.Test.equal(
         [ ("b", [ "b2", "b1" ]), ("a", [ "a1", "a2" ]), ("c", [ "c1" ]) ]) ])
 

@@ -214,7 +214,7 @@ module Helpers =
             // Extract the variable name (remove the {})
             let varName =
               templateSeg
-              |> Stdlib.String.dropFirst 1
+              |> Stdlib.String.drop 1
               |> Stdlib.String.dropLast 1
 
             Stdlib.Option.Option.Some ((varName, uriSeg))

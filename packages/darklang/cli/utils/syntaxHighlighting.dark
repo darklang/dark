@@ -46,7 +46,7 @@ let highlightLine(line: String, lineTokens: List<LanguageTools.SemanticTokens.Se
     |> Stdlib.List.fold(line, fun(currentLine, (pos, colorCode)) ->
         if pos >= 0 && pos <= Stdlib.String.length(currentLine) then
           let before = Stdlib.String.slice(currentLine, 0, pos)
-          let after = Stdlib.String.dropFirst(currentLine, pos)
+          let after = Stdlib.String.drop(currentLine, pos)
           before + colorCode + after
         else
           currentLine)

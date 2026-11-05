@@ -249,7 +249,7 @@ let importBranch (json: String) : Stdlib.Result.Result<String, String> =
 
     let importName =
       if b.name != "" && taken then
-        $"{b.name}~{Stdlib.String.first (Stdlib.toString b.branchId) 8}"
+        $"{b.name}~{Stdlib.String.take (Stdlib.toString b.branchId) 8}"
       else
         b.name
 

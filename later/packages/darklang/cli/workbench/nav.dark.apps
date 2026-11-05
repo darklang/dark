@@ -26,7 +26,7 @@ let selectedApp (state: State) : Stdlib.Option.Option<Darklang.Cli.Apps.Model.Ap
     // Rows read "<marker> <name>  ·  <description>" - see `loadAppItems`.
     let name =
       item.name
-      |> Stdlib.String.dropFirst 2
+      |> Stdlib.String.drop 2
       |> fun rest ->
         Stdlib.String.split rest "  ·  " |> Stdlib.List.head |> Stdlib.Option.withDefault rest
     Darklang.Cli.Apps.Registry.available () |> Stdlib.List.findFirst (fun a -> a.name == name)

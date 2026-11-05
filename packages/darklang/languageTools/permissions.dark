@@ -264,10 +264,10 @@ let hostAndPort(
     match Stdlib.String.splitFirst(authority, "]") with
     | None -> Stdlib.Option.Option.None
     | Some((bracketed, rest)) ->
-      let host = Stdlib.String.dropFirst(bracketed, 1)
+      let host = Stdlib.String.drop(bracketed, 1)
       if rest == "" then withoutPort(host)
       else if Stdlib.String.startsWith(rest, ":") then
-        withPort(host, Stdlib.String.dropFirst(rest, 1))
+        withPort(host, Stdlib.String.drop(rest, 1))
       else Stdlib.Option.Option.None
   else
     match Stdlib.String.splitFirst(authority, ":") with
@@ -323,7 +323,7 @@ let httpRule(
             let hostRule =
               if host == "*" then Permissions.HostRule.Any
               else if Stdlib.String.startsWith(host, "*.") then
-                Permissions.HostRule.SubdomainsOf(Stdlib.String.dropFirst(host, 2))
+                Permissions.HostRule.SubdomainsOf(Stdlib.String.drop(host, 2))
               else Permissions.HostRule.Exact(host)
             Stdlib.Option.Option.Some(
               Permissions.Rule.Http(

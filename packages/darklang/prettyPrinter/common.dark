@@ -137,7 +137,7 @@ let processRemainder(remainder: String): String =
       |> Stdlib.String.toList
       |> Stdlib.List.all(fun c -> Stdlib.Char.isDigit(c) || (Stdlib.toString(c)) == ".")
     if isPlainDecimal && (Stdlib.String.startsWith(printed, "0.")) then
-      Stdlib.String.dropFirst(printed, 2)
+      Stdlib.String.drop(printed, 2)
     else
       remainder
   | Error(_) ->

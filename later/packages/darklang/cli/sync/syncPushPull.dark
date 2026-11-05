@@ -433,7 +433,7 @@ let executePull (state: AppState) (url: String) : AppState =
 
               arrived
               |> Stdlib.List.iter (fun c ->
-                Cli.printQuiet $"  {Stdlib.String.first c.hash 8}  {c.author}  {c.message}")
+                Cli.printQuiet $"  {Stdlib.String.take c.hash 8}  {c.author}  {c.message}")
             else
               ()
 

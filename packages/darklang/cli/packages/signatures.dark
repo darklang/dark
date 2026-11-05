@@ -115,7 +115,7 @@ let trimRoot(root: String, key: String): String =
   let prefix = root + "."
   if key == root then "(root)"
   else if Stdlib.String.startsWith(key, prefix) then
-    Stdlib.String.dropFirst(key, Stdlib.String.length(prefix))
+    Stdlib.String.drop(key, Stdlib.String.length(prefix))
   else key
 
 

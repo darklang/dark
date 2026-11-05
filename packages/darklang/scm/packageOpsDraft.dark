@@ -130,7 +130,7 @@ let unresolvedInDraft(branchId: Uuid): List<(String * List<String>)> =
         Stdlib.Option.Option.None
       else
         // Reachable but unnamed: still a real problem, and the short hash is the only honest label.
-        Stdlib.Option.Option.Some((Stdlib.String.first(hash, 8), names)))
+        Stdlib.Option.Option.Some((Stdlib.String.take(hash, 8), names)))
 
 
 /// The names whose CURRENT binding was written by PROPAGATION rather than by a person.

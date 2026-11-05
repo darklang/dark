@@ -161,7 +161,7 @@ let performInputAction(state: State, inp: InputState): Step =
           { state with input = Stdlib.Option.Option.None, messageKind = MessageKind.Failed, message = "rebase failed: " + e })
   else if Stdlib.String.startsWith(inp.action, "author-") then
     // A new item's target module was asked for (shallow tree location): parse it, then open the editor.
-    let kind = Stdlib.String.dropFirst(inp.action, Stdlib.String.length("author-"))
+    let kind = Stdlib.String.drop(inp.action, Stdlib.String.length("author-"))
     let modParts =
       Stdlib.String.split(Stdlib.String.trim(inp.field.text), ".") |> Stdlib.List.filter(fun p -> p != "")
     if Stdlib.List.length(modParts) < 2 then
