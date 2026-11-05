@@ -847,6 +847,12 @@ let private goldenDiagnosticsTests =
         | [ d ] ->
           Expect.equal d.code P.DiagnosticCode.expected "code"
           Expect.equal d.hint (Some "use ',' instead") "hint"
+        | other -> failtest $"expected one diagnostic, got {other}"
+        match (P.parse "print(1L); print(2L)").diagnostics with
+        | [ d ] ->
+          Expect.equal d.code P.DiagnosticCode.expected "code"
+          Expect.equal d.range.start.column 9 "points at the ';'"
+          Expect.equal d.hint (Some "put the next statement on a new line") "hint"
         | other -> failtest $"expected one diagnostic, got {other}")
       testCase "renderDiagnostic: caret snippet + related + hint" (fun _ ->
         let src = "let x = (1L +"

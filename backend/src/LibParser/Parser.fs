@@ -789,6 +789,17 @@ let private errCollectionSemicolon (state : ParserState) (i : int) (what : strin
     []
     (Some "use ',' instead")
 
+// Report a `;` between statements, then skip it as if it were a newline. Only a
+// newline separates statements.
+let private errStatementSemicolon (state : ParserState) (i : int) =
+  errFull
+    state
+    DiagnosticCode.expected
+    i
+    "expected a new line between statements, found ';'"
+    []
+    (Some "put the next statement on a new line")
+
 let private requireElementSeparator
   (state : ParserState)
   (previousRange : TokenRange)
@@ -916,6 +927,7 @@ and parseBlockAt (state : ParserState) (col : int) (i : int) : WT.Expr * int =
     if j = k then
       go <- false // no progress — stop (avoids a spin)
     elif tok state j = TSemicolon then
+      errStatementSemicolon state j
       k <- j + 1
     elif hasNextStmt state col j then
       k <- j
@@ -2605,6 +2617,9 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
               && tok state m <> TEOF
               && tok state m <> TComma
               && not (declBarrier state m) do
+          if tok state m = TSemicolon then
+            errStatementSemicolon state m
+            m <- m + 1
           let bm = m
           let (s, m2) = parseExpr state m
           if m2 > bm then
@@ -3964,6 +3979,9 @@ and parseItemsBody
          )
          k <- k2
          if tok state nk <> TEquals then go <- false // file header consumed the rest
+       | TSemicolon, _ ->
+         errStatementSemicolon state k
+         k <- k + 1
        | _ ->
          let (e, k2) = parseExpr state k
          // A source-level `actual = expected` is represented as a test node.
