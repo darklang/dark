@@ -462,6 +462,59 @@ test subtractMs =
       sMs("2021-01-01T00:00:00Z", "2020-01-01T00:00:00Z")
       |> Stdlib.Test.equal(31622400000) ])
 
+let f(date: DateTime): String =
+  Stdlib.DateTime.format(date, "%Y-%m-%d %H:%M:%S.%f") |> Builtin.unwrap
+
+let civil(year: Int, month: Int, day: Int): DateTime =
+  Stdlib.DateTime.__fromTicks(
+    Stdlib.DateTime.__daysFromCivil(year, month, day) * Stdlib.DateTime.__ticksPerDay())
+
+test format =
+  Stdlib.Test.all(
+    [ f(d("2019-07-28T22:42:36.500Z")) |> Stdlib.Test.equal("2019-07-28 22:42:36.500")
+      Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "%d/%m/%Y at %H%M")
+      |> Stdlib.Test.equal(Ok("28/07/2019 at 2242"))
+      Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "")
+      |> Stdlib.Test.equal(Ok(""))
+      Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "%%Y is %Y, 100%%")
+      |> Stdlib.Test.equal(Ok("%Y is 2019, 100%")) ])
+
+test formatPadsEveryField =
+  Stdlib.Test.all(
+    [ f(d("0001-02-03T04:05:06.007Z")) |> Stdlib.Test.equal("0001-02-03 04:05:06.007")
+      f(d("0099-01-01T00:00:00Z")) |> Stdlib.Test.equal("0099-01-01 00:00:00.000")
+      f(d("9999-12-31T23:59:59.999Z")) |> Stdlib.Test.equal("9999-12-31 23:59:59.999")
+      f(civil(0, 1, 1)) |> Stdlib.Test.equal("0000-01-01 00:00:00.000")
+      f(civil(-1, 6, 15)) |> Stdlib.Test.equal("-0001-06-15 00:00:00.000")
+      // the fraction is truncated to milliseconds, never rounded up into the next second
+      f(Stdlib.DateTime.__fromTicks(9999999))
+      |> Stdlib.Test.equal("1970-01-01 00:00:00.999") ])
+
+test formatAcrossMonthAndYearEdges =
+  Stdlib.Test.all(
+    [ f(a("2019-01-31T23:59:59Z", 1)) |> Stdlib.Test.equal("2019-02-01 00:00:00.000")
+      f(a("2019-04-30T23:59:59Z", 1)) |> Stdlib.Test.equal("2019-05-01 00:00:00.000")
+      f(a("2019-12-31T23:59:59Z", 1)) |> Stdlib.Test.equal("2020-01-01 00:00:00.000")
+      f(a("1970-01-01T00:00:00Z", -1)) |> Stdlib.Test.equal("1969-12-31 23:59:59.000")
+      f(ams("1970-01-01T00:00:00Z", -1)) |> Stdlib.Test.equal("1969-12-31 23:59:59.999") ])
+
+test formatLeapYears =
+  Stdlib.Test.all(
+    [ f(a("2020-02-28T23:59:59Z", 1)) |> Stdlib.Test.equal("2020-02-29 00:00:00.000")
+      f(a("2020-02-29T23:59:59Z", 1)) |> Stdlib.Test.equal("2020-03-01 00:00:00.000")
+      f(a("2019-02-28T23:59:59Z", 1)) |> Stdlib.Test.equal("2019-03-01 00:00:00.000")
+      f(a("2000-02-28T23:59:59Z", 1)) |> Stdlib.Test.equal("2000-02-29 00:00:00.000")
+      f(a("1900-02-28T23:59:59Z", 1)) |> Stdlib.Test.equal("1900-03-01 00:00:00.000") ])
+
+test formatRejectsUnknownDirectives =
+  Stdlib.Test.all(
+    [ Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "%Y-%q")
+      |> Stdlib.Test.equal(
+        Error("Unknown directive %q; the directives are %Y %m %d %H %M %S %f %%"))
+      Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "100%")
+      |> Stdlib.Test.equal(
+        Error("The pattern ends in a lone %; write %% for a literal %")) ])
+
 // The clock and sleep syscalls behind now, monotonic time and sleep
 test clockSyscalls =
   let interruptedOnce = fun(seconds, _) ->
