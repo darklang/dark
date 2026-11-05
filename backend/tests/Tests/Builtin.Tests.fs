@@ -680,9 +680,11 @@ let movedParamsHaveSupportedTypes =
   }
 
 
-/// `Pure` is what lets a package test run inside the runner's process (`PackageTests.fs`,
-/// `runsInProcess`), so a builtin wrongly marked `Pure` lets a test see the runner's state.
-/// Two checks. A builtin with an effect is never `Pure`. And builtins that declare no effect
+/// `Pure` is what lets a package test running inside the runner's process make the call
+/// (`PackageTests.fs`, `executeInProcessTest`), and what lets it keep a cached pass, so a
+/// builtin wrongly marked `Pure` lets a test see the runner's state or reuse a stale pass.
+/// Three checks. A builtin with an effect is always `Impure`. A builtin that renders package
+/// names is `Impure`. And builtins that declare no effect
 /// but answer from the host or from state the whole process shares stay `Impure`: the pid,
 /// raw descriptors, interpreter and GC counters, the trace switch, the store and log paths,
 /// the terminal, child-process buffers, and the running test's own counter. The second list
@@ -714,15 +716,23 @@ let pureMeansNoHiddenState =
     allBuiltinSets () |> List.collect (fun b -> b.fns.Values |> List.ofSeq)
   testList
     "Pure builtins can run a package test in-process"
-    [ testCase "a builtin with an effect is never Pure" (fun () ->
+    [ testCase "a builtin with an effect is always Impure" (fun () ->
         let all = fns ()
         Expect.isGreaterThan (List.length all) 500 "examined every builtin"
         let wrong =
           all
           |> List.filter (fun fn ->
-            fn.previewable = RT.Pure && not (Set.isEmpty fn.callEffects))
+            fn.previewable <> RT.Impure && not (Set.isEmpty fn.callEffects))
           |> List.map (fun fn -> fn.name.name)
-        Expect.equal wrong [] "effectful builtins marked Pure")
+        Expect.equal wrong [] "effectful builtins not marked Impure")
+
+      testCase "a builtin that renders package names is not Pure" (fun () ->
+        let byName =
+          fns () |> List.map (fun fn -> fn.name.name, fn.previewable) |> Map.ofList
+        Expect.equal
+          (Map.tryFind "toRepr" byName)
+          (Some RT.Impure)
+          "toRepr shows type names, which a rename changes")
 
       testCase "builtins with hidden state are not Pure" (fun () ->
         let byName =

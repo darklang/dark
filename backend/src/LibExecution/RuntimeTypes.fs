@@ -3365,11 +3365,13 @@ type PackagePolicyOrigin = { approvedAs : List<string>; stale : bool }
 
 /// Whether a builtin always answers the same way, for a reader who wants to know.
 ///
-/// This is a LABEL, not a decision: nothing in the runtime branches on it. What decides
-/// anything is `callEffects`, a set that is empty for a pure call, and it decides everything --
-/// the permission gate, the call-graph analysis, the pure-builtin fast path, and whether a
-/// a view answers a call from the log or performs it. `callEffects` composes and this does not,
-/// so where the two could disagree, `callEffects` is the one that is true.
+/// Mostly a LABEL. It decides three narrow things: whether an effect-free call is logged, whether
+/// a package test running inside the runner may make the call (an `Impure` one sends it to a
+/// worker), and whether a test's cached pass may be reused (everything it reaches is `Pure`).
+/// Everything else is `callEffects`, a set that is empty for a pure call -- the permission gate,
+/// the call-graph analysis, the pure-builtin fast path, and whether a view answers a call from
+/// the log or performs it. `callEffects` composes and this does not, so where the two could
+/// disagree, `callEffects` is the one that is true.
 type Previewable =
   /// The same inputs always yield the same outputs. e.g. `DateTime.addSeconds`
   | Pure
@@ -4361,6 +4363,11 @@ and TestContext =
     /// Package tests receive a fresh context. Observation builtins use atomic
     /// access so explicitly spawned children may safely share their test's count.
     mutable sideEffectCount : int
+    /// Set for a package test running inside the runner's own process. An `Impure` builtin
+    /// call stops it before the call is made, and the test runs again in a worker.
+    inRunner : bool
+    /// Set when an `Impure` call stopped such a test.
+    mutable stoppedAtImpure : bool
 
     mutable exceptionReports : List<string * string * Metadata>
     mutable expectedExceptionCount : int

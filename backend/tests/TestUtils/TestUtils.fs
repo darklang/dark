@@ -195,6 +195,8 @@ let executionStateFor
     let testContext : RT.TestContext =
       { isPackageTest = false
         sideEffectCount = 0
+        inRunner = false
+        stoppedAtImpure = false
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =

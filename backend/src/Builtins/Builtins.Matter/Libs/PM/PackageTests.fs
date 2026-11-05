@@ -139,17 +139,40 @@ let private executeWorker
     return DTuple(LibExecution.Bytes.newEphemeral bytes, Dval.int (bigint code), [])
   }
 
+/// Whether the analysis of <param test>'s body and everything it calls is complete and finds
+/// no effect at all (not even the clock), counting a builtin only when <param admits> takes its
+/// `previewable` and as unknown otherwise. The one walk behind running a test in-process and
+/// reusing its cached pass; the two differ only in which builtins they admit.
+let private provablyEffectFree
+  (admits : Previewable -> bool)
+  (state : ExecutionState)
+  (test : PT.PackageTest.PackageTest)
+  : Ply<bool> =
+  uply {
+    let callEffectsFor (name, version) =
+      let key : FQFnName.Builtin = { name = name; version = version }
+      match state.fns.builtIn.TryGetValue key with
+      | true, builtin when admits builtin.previewable -> Some builtin.callEffects
+      | _ -> None
+    let! result =
+      PackagePermissions.cacheSafetyForExpression
+        PackagePermissions.Load.fromStore
+        callEffectsFor
+        test.body
+    return result.complete && Set.isEmpty result.requiredEffects
+  }
+
 let private inProcessMemo =
   System.Collections.Concurrent.ConcurrentDictionary<PT.Hash, bool>()
 
-/// Whether <param test> can skip the worker. Only on positive evidence: the analysis of its
-/// body and everything it calls is complete, finds no effect at all (not even the clock), and
-/// every builtin on the way is marked `Pure`, the same tag that says a builtin may be previewed
-/// (same inputs, same outputs). Such a test writes nothing, reads nothing another test or the
-/// runner could change, prints nothing and asks for no permission. An `Impure` builtin counts
-/// as unknown, so a new builtin with hidden state is isolated unless someone marks it `Pure`.
-/// A test's hash covers its body and everything it calls, so the answer is kept for the life of
-/// the process.
+/// Whether <param test> starts inside the runner rather than in a worker. Only on positive
+/// evidence that it is provably effect free: it writes nothing, prints nothing and asks for no
+/// permission. An `Impure` builtin with no declared effect may still be on the way, since many
+/// sit only on a failure path (`Stdlib.Test.equal` renders with `toRepr` only when the values
+/// differ); if the run actually reaches one it stops before the call and goes to a worker
+/// (`executeInProcessTest`), so nothing `Impure` ever runs in the runner. A test's hash covers
+/// its body and everything it calls, so the answer is kept for the life of the process, and a
+/// test that was stopped is answered `false` from then on.
 let private runsInProcess
   (state : ExecutionState)
   (test : PT.PackageTest.PackageTest)
@@ -158,39 +181,56 @@ let private runsInProcess
     match inProcessMemo.TryGetValue test.hash with
     | true, known -> return known
     | false, _ ->
-      let callEffectsFor (name, version) =
-        let key : FQFnName.Builtin = { name = name; version = version }
-        match state.fns.builtIn.TryGetValue key with
-        | true, builtin when builtin.previewable = Pure -> Some builtin.callEffects
-        | _ -> None
-      let! result =
-        PackagePermissions.cacheSafetyForExpression
-          PackagePermissions.Load.fromStore
-          callEffectsFor
-          test.body
-      let inProcess = result.complete && Set.isEmpty result.requiredEffects
+      let! inProcess = provablyEffectFree (fun _ -> true) state test
       inProcessMemo[test.hash] <- inProcess
       return inProcess
   }
 
+/// Whether a passing result of <param test> may be reused: it is provably effect free and every
+/// builtin on the way is `Pure`. Stricter than `runsInProcess`, because a cached pass outlives
+/// the run and an `Impure` builtin may answer differently next time (`toRepr` once a name
+/// moves). Anything unknown reruns.
+let private isCacheSafe
+  (state : ExecutionState)
+  (test : PT.PackageTest.PackageTest)
+  : Ply<bool> =
+  provablyEffectFree
+    (function
+    | Pure -> true
+    | Impure -> false)
+    state
+    test
+
 /// Run a test the analysis cleared in this process, under the same test policy a worker
 /// gets, with a counter of its own. It shares the runner's warm package caches; a worker
-/// starts cold and copies the store first.
+/// starts cold and copies the store first. `None` when the run reached an `Impure` builtin
+/// and stopped before calling it: the test then belongs in a worker.
 let private executeInProcessTest
   (caller : ExecutionState)
   (vm : VMState)
   (branchId : System.Guid)
   (test : PT.PackageTest.PackageTest)
-  : Ply<Dval> =
+  : Ply<Option<Dval>> =
   uply {
     let guest = LibDB.PolicyStore.testState caller.accountID caller
     let state =
       { guest with
           branchId = LibExecution.Branching.BranchId.Id branchId
           access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
-          test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
+          test =
+            { guest.test with
+                isPackageTest = true
+                sideEffectCount = 0
+                inRunner = true
+                stoppedAtImpure = false } }
     let! result = executeTestBody state test
-    return reflectOutcome result
+    // Checked whatever the result: a builtin that catches its callee's failure could have
+    // swallowed the stop.
+    if state.test.stoppedAtImpure then
+      inProcessMemo[test.hash] <- false
+      return None
+    else
+      return Some(reflectOutcome result)
   }
 
 /// Every other package test executes its own hash in a fresh worker on the run's read-only
@@ -442,22 +482,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             match! pm.getTest hash with
             | None -> return DBool false
             | Some test ->
-              let cacheSafeCallEffectsFor (name, version) =
-                let key : FQFnName.Builtin = { name = name; version = version }
-                // These calls observe branch-dependent rendering or mutable
-                // test-local state despite needing no host permissions.
-                if name = "toRepr" || name = "testCounter" then
-                  None
-                else
-                  match state.fns.builtIn.TryGetValue key with
-                  | true, builtin -> Some builtin.callEffects
-                  | false, _ -> None
-              let! result =
-                PackagePermissions.cacheSafetyForExpression
-                  PackagePermissions.Load.fromStore
-                  cacheSafeCallEffectsFor
-                  test.body
-              return DBool(result.complete && Set.isEmpty result.requiredEffects)
+              let! safe = isCacheSafe state test
+              return DBool safe
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -503,7 +529,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           requireRunningPackageTest state "raiseRuntimeError"
           raiseUntargetedRTE (RuntimeError.UncaughtException(message, []))
         | _ -> incorrectArgs ())
-      previewable = Impure
+      // Pure: inside a test, the same message always raises the same error, so a test that
+      // checks how an error propagates can run in-process and keep its cached pass.
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -517,8 +545,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType = TBool
       description =
         "Whether `pmExecuteTest` runs the test inside this process rather than in a "
-        + "fresh process and store: true only when analysis shows it needs no effect "
-        + "and calls only `Pure` builtins."
+        + "fresh process and store: true only when analysis shows it needs no effect, "
+        + "and false from then on once a run of it reached an `Impure` builtin."
       fn =
         (function
         | state, _, _, [| hashDval |] ->
@@ -590,7 +618,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           ))
       description =
         "Runs a package test with test permissions: in this process when analysis shows "
-        + "it needs no effect and calls only `Pure` builtins, otherwise in a fresh "
+        + "it needs no effect and the run calls only `Pure` builtins, otherwise in a fresh "
         + "process and store, cleaned up "
         + "afterwards. Returns the value or runtime error. "
         + "The Dark caller decides whether it passed."
@@ -614,9 +642,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   Error(RuntimeError.VariableNotFound $"package test {hashStr}", [])
                 )
             | Some test ->
-              match! runsInProcess exeState test with
-              | true -> return! executeInProcessTest exeState vm branchId test
-              | false ->
+              let! inRunner =
+                uply {
+                  match! runsInProcess exeState test with
+                  | true -> return! executeInProcessTest exeState vm branchId test
+                  | false -> return None
+                }
+              match inRunner with
+              | Some outcome -> return outcome
+              | None ->
                 return!
                   executeIsolatedTest exeState vm runId branchId workerHash hashStr
           }

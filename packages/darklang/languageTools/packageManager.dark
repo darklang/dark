@@ -289,7 +289,7 @@ module Test =
 
   /// Whether this test runs inside the runner rather than in a fresh process
   /// with its own store copy: true only when analysis shows it needs no effect
-  /// at all and calls only pure builtins.
+  /// at all, and false once a run of it reached an impure builtin.
   let runsInProcess(hash: ProgramTypes.Hash): Bool =
     Builtin.pmTestRunsInProcess(hash)
 

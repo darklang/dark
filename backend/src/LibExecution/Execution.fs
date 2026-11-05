@@ -40,6 +40,8 @@ let rec noTracing : RT.Tracing.Tracing =
 let noTestContext : RT.TestContext =
   { isPackageTest = false
     sideEffectCount = 0
+    inRunner = false
+    stoppedAtImpure = false
 
     exceptionReports = []
     expectedExceptionCount = 0
