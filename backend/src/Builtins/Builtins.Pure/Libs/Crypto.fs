@@ -1,7 +1,7 @@
 /// <summary>
 /// Builtin functions for cryptography
 ///
-/// Computes hashes such as sha256, md5, etc.
+/// Digests and HMACs, picked by `Stdlib.Crypto.DigestAlgorithm`.
 /// </summary>
 module Builtins.Pure.Libs.Crypto
 
@@ -14,19 +14,72 @@ open LibExecution.Builtin.Shortcuts
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Bytes = LibExecution.Bytes
+module PackageRefs = LibExecution.PackageRefs
+
+/// `Stdlib.Crypto.DigestAlgorithm`, which picks the hash for both builtins below. The case
+/// names are matched as strings.
+let private digestAlgorithmType () =
+  TCustomType(
+    { originalName = []
+      resolved =
+        Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.cryptoDigestAlgorithm ())) },
+    []
+  )
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "cryptoSha256" 0
+  [ { name = fn "cryptoDigest" 0
       typeParams = []
-      parameters = [ Param.make "data" TBytes "" ]
+      parameters =
+        [ Param.make "algorithm" (digestAlgorithmType ()) ""
+          Param.make "data" TBytes "" ]
       returnType = TBytes
-      description = "Computes the SHA-256 digest of the given <param data>"
+      description = "Computes the <param algorithm> digest of the given <param data>"
       fn =
         (function
-        | state, _, _, [| DBytes ref |] ->
-          Bytes.withBytes state ref (fun data ->
-            Ply(Bytes.newEphemeral (SHA256.HashData(System.ReadOnlySpan(data)))))
+        | state, _, _, [| DEnum(_, _, [], algorithm, []); DBytes ref |] ->
+          let hash (data : byte[]) : byte[] =
+            let span = System.ReadOnlySpan data
+            match algorithm with
+            | "Md5" -> MD5.HashData span
+            | "Sha1" -> SHA1.HashData span
+            | "Sha256" -> SHA256.HashData span
+            | "Sha384" -> SHA384.HashData span
+            | _ -> incorrectArgs ()
+          Bytes.withBytes state ref (fun data -> Ply(Bytes.newEphemeral (hash data)))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cryptoHmac" 0
+      typeParams = []
+      parameters =
+        [ Param.make "algorithm" (digestAlgorithmType ()) ""
+          Param.make "key" TBytes ""
+          Param.make "data" TBytes "" ]
+      returnType = TBytes
+      description =
+        "Computes the HMAC (hash-based message authentication code, RFC 2104) of <param data> under <param key>, over the <param algorithm> digest."
+      fn =
+        (function
+        | state,
+          _,
+          _,
+          [| DEnum(_, _, [], algorithm, []); DBytes keyRef; DBytes dataRef |] ->
+          let hmac (key : byte[]) (data : byte[]) : byte[] =
+            let key = System.ReadOnlySpan key
+            let data = System.ReadOnlySpan data
+            match algorithm with
+            | "Md5" -> HMACMD5.HashData(key, data)
+            | "Sha1" -> HMACSHA1.HashData(key, data)
+            | "Sha256" -> HMACSHA256.HashData(key, data)
+            | "Sha384" -> HMACSHA384.HashData(key, data)
+            | _ -> incorrectArgs ()
+          Bytes.withBytes state keyRef (fun key ->
+            Bytes.withBytes state dataRef (fun data ->
+              Ply(Bytes.newEphemeral (hmac key data))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -60,77 +113,6 @@ let fns () : List<BuiltInFn> =
                 )
               )
             )
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "cryptoSha384" 0
-      typeParams = []
-      parameters = [ Param.make "data" TBytes "" ]
-      returnType = TBytes
-      description = "Computes the SHA-384 digest of the given <param data>"
-      fn =
-        (function
-        | state, _, _, [| DBytes ref |] ->
-          Bytes.withBytes state ref (fun data ->
-            Ply(Bytes.newEphemeral (SHA384.HashData(System.ReadOnlySpan data))))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "cryptoMd5" 0
-      typeParams = []
-      parameters = [ Param.make "data" TBytes "" ]
-      returnType = TBytes
-      description =
-        "Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
-      fn =
-        (function
-        | state, _, _, [| DBytes ref |] ->
-          Bytes.withBytes state ref (fun data ->
-            Ply(Bytes.newEphemeral (MD5.HashData(System.ReadOnlySpan data))))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "cryptoSha256hmac" 0
-      typeParams = []
-      parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
-      returnType = TBytes
-      description =
-        "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
-      fn =
-        (function
-        | state, _, _, [| DBytes keyRef; DBytes dataRef |] ->
-          Bytes.withBytes state keyRef (fun key ->
-            Bytes.withBytes state dataRef (fun data ->
-              use hmac = new HMACSHA256(key)
-              Ply(Bytes.newEphemeral (hmac.ComputeHash(data)))))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "cryptoSha1hmac" 0
-      typeParams = []
-      parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
-      returnType = TBytes
-      description =
-        "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
-      fn =
-        (function
-        | state, _, _, [| DBytes keyRef; DBytes dataRef |] ->
-          Bytes.withBytes state keyRef (fun key ->
-            Bytes.withBytes state dataRef (fun data ->
-              use hmac = new HMACSHA1(key)
-              Ply(Bytes.newEphemeral (hmac.ComputeHash(data)))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

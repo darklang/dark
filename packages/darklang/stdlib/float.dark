@@ -8,7 +8,7 @@ let ceiling(a: Float): Int = Builtin.floatCeiling(a)
 
 
 /// Round up to an integer value
-let roundUp(a: Float): Int = Builtin.floatRoundUp(a)
+let roundUp(a: Float): Int = ceiling(a)
 
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal
@@ -20,7 +20,7 @@ let floor(a: Float): Int = Builtin.floatFloor(a)
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal is to discard the fractional part
 /// of a number: {{Float.floor(-1.9) == -2}} but {{Float.truncate(-1.9) == -1}}
-let roundDown(a: Float): Int = Builtin.floatRoundDown(a)
+let roundDown(a: Float): Int = floor(a)
 
 
 /// Round to the nearest integer value
@@ -28,7 +28,7 @@ let round(a: Float): Int = Builtin.floatRound(a)
 
 
 /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-let roundTowardsZero(a: Float): Int = Builtin.floatRoundTowardsZero(a)
+let roundTowardsZero(a: Float): Int = truncate(a)
 
 
 /// Discard the fractional portion of the float, rounding towards zero
@@ -121,7 +121,9 @@ let parse(s: String): Stdlib.Result.Result<Float, ParseError> =
 
 
 /// Returns true if <param f> is NaN
-let isNaN(f: Float): Bool = Builtin.floatIsNaN(f)
+let isNaN(f: Float): Bool =
+  // NaN is the only float that does not equal itself
+  f != f
 
 
 /// Returns {{true}} if <param f> is a finite number, and {{false}} for NaN

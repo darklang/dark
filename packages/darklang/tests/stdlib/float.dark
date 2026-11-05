@@ -361,3 +361,29 @@ test toBitsDistinguishesSignedZero =
 test parseRejectsHexadecimalNotation =
   Stdlib.Float.parse("0xffffffffffffffff")
   |> Stdlib.Test.equal(Error(Stdlib.Float.ParseError.BadFormat))
+
+test isNaN =
+  Stdlib.Test.all(
+    [ Stdlib.Float.isNaN(nan()) |> Stdlib.Test.equal(true)
+      Stdlib.Float.isNaN(-(nan())) |> Stdlib.Test.equal(true)
+      Stdlib.Float.isNaN(infinity() - infinity()) |> Stdlib.Test.equal(true)
+      Stdlib.Float.isNaN(0.0 * infinity()) |> Stdlib.Test.equal(true)
+      Stdlib.Float.isNaN(infinity()) |> Stdlib.Test.equal(false)
+      Stdlib.Float.isNaN(negativeInfinity()) |> Stdlib.Test.equal(false)
+      Stdlib.Float.isNaN(0.0) |> Stdlib.Test.equal(false)
+      Stdlib.Float.isNaN(-0.0) |> Stdlib.Test.equal(false)
+      Stdlib.Float.isNaN(1.5) |> Stdlib.Test.equal(false) ])
+
+// The round* names are the same operations as ceiling, floor and truncate, negative halves included.
+test roundAliasesMatch =
+  Stdlib.Test.all(
+    [ Stdlib.Float.roundUp(-1.5) |> Stdlib.Test.equal(Stdlib.Float.ceiling(-1.5))
+      Stdlib.Float.roundUp(-0.5) |> Stdlib.Test.equal(0)
+      Stdlib.Float.roundDown(-1.5) |> Stdlib.Test.equal(Stdlib.Float.floor(-1.5))
+      Stdlib.Float.roundDown(-0.5) |> Stdlib.Test.equal(-1)
+      Stdlib.Float.roundTowardsZero(-1.5) |> Stdlib.Test.equal(Stdlib.Float.truncate(-1.5))
+      Stdlib.Float.roundTowardsZero(1.5) |> Stdlib.Test.equal(1) ])
+
+test roundTowardsZeroRejectsNan =
+  Stdlib.Float.roundTowardsZero(nan())
+  => raises "Encountered out-of-range value for type of Int"

@@ -910,3 +910,25 @@ test uniqueBySupportsNestedKeys =
     [ ([1, 2], Some("a")), ([1, 2], Some("a")), ([2, 1], None) ],
     fun x -> x)
   |> Stdlib.Test.equal([ ([1, 2], Some("a")), ([2, 1], None) ])
+
+// Over enough draws every element turns up, and nothing else does: 400 draws from four miss one
+// with probability about 1e-50.
+test randomElementReachesEveryElement =
+  let items = [ "a", "b", "c", "d" ]
+  let draws =
+    Stdlib.List.filterMap(Stdlib.List.range(1, 400), fun(_i) -> Stdlib.List.randomElement(items))
+  Stdlib.Test.all(
+    [ Stdlib.List.length(draws) |> Stdlib.Test.equal(400)
+      draws |> Stdlib.List.unique() |> Stdlib.List.sort() |> Stdlib.Test.equal(items)
+      Stdlib.List.randomElement([ 7L, 7L ]) |> Stdlib.Test.equal(Some(7L)) ])
+
+// Every order of three is reachable (600 shuffles miss one with probability about 1e-47), and a
+// longer list keeps every element.
+test shuffleReachesEveryOrder =
+  let orders =
+    Stdlib.List.map(Stdlib.List.range(1, 600), fun(_i) -> Stdlib.List.shuffle([ 1L, 2L, 3L ]))
+  let long = Stdlib.List.range(0, 99)
+  Stdlib.Test.all(
+    [ orders |> Stdlib.List.unique() |> Stdlib.List.length() |> Stdlib.Test.equal(6)
+      Stdlib.List.shuffle(long) |> Stdlib.List.sort() |> Stdlib.Test.equal(long)
+      Stdlib.List.shuffle([ [], [ 1L ] ]) |> Stdlib.List.length() |> Stdlib.Test.equal(2) ])

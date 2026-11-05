@@ -551,13 +551,25 @@ let setAt(
 /// selected value in <param list>. Returns {{None}} if <param list> is
 /// empty.
 let randomElement(list: List<'a>): Option.Option<'a> =
-  Builtin.listRandomElement(list)
+  match list with
+  | [] -> Option.Option.None
+  | _ -> getAt(list, Stdlib.Int.random(0, length(list) - 1))
 
 
 /// Returns <param list> in a random order using Fisher–Yates.
 /// Preserves every element, including duplicates.
 let shuffle(list: List<'a>): List<'a> =
-  Builtin.listShuffle(list)
+  let last = length(list) - 1
+  let start = Stdlib.Dict.fromEntries(indexedMap(list, fun(i, v) -> (i, v)))
+  // From the last position down to the second, swap each with a uniformly chosen position at or
+  // before it.
+  let shuffled =
+    fold(reverse(range(1, last)), start, fun(items, i) ->
+      let j = Stdlib.Int.random(0, i)
+      match (Stdlib.Dict.get(items, i), Stdlib.Dict.get(items, j)) with
+      | (Some(atI), Some(atJ)) -> Stdlib.Dict.set(Stdlib.Dict.set(items, i, atJ), j, atI)
+      | _ -> items)
+  filterMap(range(0, last), fun(i) -> Stdlib.Dict.get(shuffled, i))
 
 
 /// Groups <param list> into tuples (key, elements), where the key is computed by applying

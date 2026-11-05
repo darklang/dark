@@ -87,25 +87,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stdoutClear" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "A unit" ]
-      returnType = TUnit
-      description = "Clears the standard output."
-      fn =
-        function
-        | _, _, _, [| DUnit |] ->
-          if System.OperatingSystem.IsWindows() then
-            System.Console.Clear()
-          else
-            System.Console.Write("\u001b[2J\u001b[H") // ANSI escape for non-Windows
-          Ply DUnit
-        | _ -> incorrectArgs ()
-      previewable = Impure
-      callEffects = set [ Effect.Stdout ]
-      deprecated = NotDeprecated }
-
-
     { name = fn "stdoutCaptureStart" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "A unit" ]
