@@ -230,20 +230,6 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "testRuntimeError" 0
-      typeParams = []
-      parameters = [ Param.make "errorString" TString "" ]
-      returnType = TInt64
-      description = "Return a value representing a type error"
-      fn =
-        (function
-        | _, _, _, [| DString errorString |] ->
-          raiseUntargetedRTE (RuntimeError.UncaughtException(errorString, []))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
     { name = fn "testIncrementSideEffectCounter" 0
       typeParams = []
       parameters =

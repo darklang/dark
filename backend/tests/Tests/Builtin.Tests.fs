@@ -701,8 +701,7 @@ let private hiddenStateBuiltins : Set<string> =
       "cliTerminalSize"
       "cliTerminalIsatty"
       "runtimeChildBufferSet"
-      "testIncrementCounter"
-      "testCounterValue" ]
+      "testCounter" ]
 
 let pureMeansNoHiddenState =
   let fns () =

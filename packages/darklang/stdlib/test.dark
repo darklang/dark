@@ -15,17 +15,23 @@ let fail(message: String): Result = Result.Fail([ message ])
 let raiseRuntimeError(message: String): Int64 =
   Builtin.pmTestRaiseRuntimeError(message)
 
+/// This test's counter, after adding one to it if <param increment>. Callers
+/// use `incrementCounter` and `counterValue`.
+let counter(increment: Bool): Int64 =
+  Builtin.testCounter(increment)
+
 /// Increment this test's counter and return the value unchanged. Use to check
 /// how often a callback or expression runs. The counter starts at zero for each
 /// test run and is shared with its helper calls. Only available in package tests.
 let incrementCounter(value: 'a): 'a =
-  Builtin.testIncrementCounter(value)
+  let _ = counter(true)
+  value
 
 /// Return this test's counter, which starts at zero for each test run.
 /// Tests using the counter rerun rather than reuse a cached pass.
 /// Only available in package tests; no database or host permissions needed.
 let counterValue(): Int64 =
-  Builtin.testCounterValue()
+  counter(false)
 
 let expect(condition: Bool, message: String): Result =
   if condition then Result.Pass else Result.Fail([ message ])
