@@ -899,7 +899,7 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns a copy of <param list> with every value sorted in ascending "
         + "order.\n\nUse this if the values have types Dark knows how to "
-        + "sort.\n\nConsider <fn List.sortBy> or <fn List.sortByComparator> if "
+        + "sort.\n\nConsider <fn List.sortBy> or <fn List.sortWith> if "
         + "you need more control over the sorting process."
       fn =
         (function

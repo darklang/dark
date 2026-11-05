@@ -533,34 +533,55 @@ test sort =
       |> Stdlib.Test.equal([ 2L, 3L, 6L, 8L ])
       Stdlib.List.sort([]) |> Stdlib.Test.equal([]) ])
 
-test sortByComparator =
+test sortWith =
+  let ascending = fun(a, b) ->
+    if a < b then Stdlib.Ordering.Less
+    else if a > b then Stdlib.Ordering.Greater
+    else Stdlib.Ordering.Equal
+  let descending = fun(a, b) -> ascending(b, a)
+  let byKey = fun(a, b) ->
+    let (ka, _) = a
+    let (kb, _) = b
+    ascending(ka, kb)
+
   Stdlib.Test.all(
-    [ Stdlib.List.sortByComparator([ 3L, 1L, 2L ], fun(a, b) -> 3)
-      |> Stdlib.Test.equal(
-        Error("Expected comparator function to return -1, 0, or 1, but it returned 3"))
-      Stdlib.List.sortByComparator([ 3L, 1L, 2L ], fun(a, b) ->
-        if (a < b) then -1 else 1)
-      |> Stdlib.Test.equal(Ok([ 1L, 2L, 3L ]))
-      Stdlib.List.sortByComparator([], fun(a, b) ->
-        if (a < b) then -1 else 1)
-      |> Stdlib.Test.equal(Ok([]))
-      Stdlib.List.sortByComparator(
+    [ Stdlib.List.sortWith([], ascending) |> Stdlib.Test.equal([])
+      Stdlib.List.sortWith([ 1L ], ascending) |> Stdlib.Test.equal([ 1L ])
+
+      // each outcome on its own
+      Stdlib.List.sortWith([ 1L, 2L ], fun(_, _) -> Stdlib.Ordering.Less)
+      |> Stdlib.Test.equal([ 1L, 2L ])
+      Stdlib.List.sortWith([ 1L, 2L ], fun(_, _) -> Stdlib.Ordering.Equal)
+      |> Stdlib.Test.equal([ 1L, 2L ])
+      Stdlib.List.sortWith([ 1L, 2L ], fun(_, _) -> Stdlib.Ordering.Greater)
+      |> Stdlib.Test.equal([ 2L, 1L ])
+
+      Stdlib.List.sortWith([ 3L, 1L, 2L ], ascending)
+      |> Stdlib.Test.equal([ 1L, 2L, 3L ])
+      Stdlib.List.sortWith(
         [ 3L, 1L, 2L, 67L, 3L, -1L, 6L, 3L, 5L, 6L
           2L, 5L, 63L, 2L, 3L, 5L, -1L, -1L, -1L ],
-        fun(a, b) -> if (a < b) then -1 else 1)
+        ascending)
       |> Stdlib.Test.equal(
-        (Ok(
-          [ -1L, -1L, -1L, -1L, 1L, 2L, 2L, 2L, 3L, 3L
-            3L, 3L, 5L, 5L, 5L, 6L, 6L, 63L, 67L ]))) ])
+        [ -1L, -1L, -1L, -1L, 1L, 2L, 2L, 2L, 3L, 3L
+          3L, 3L, 5L, 5L, 5L, 6L, 6L, 63L, 67L ])
 
-// CLEANUP this error message is not ideal in 2 ways:
-// - The error does not provide context that the issue is with the fn specifically
-// - it seems to be from the perspective of the lambda
-//   (I'm a lambda and I'm expecting 2 arguments, but I got 1!!)
-//   rather than from the perspective of the function it's being used in
-// test comparatorRejectsWrongArity =
-//   Stdlib.List.sortByComparator [ 6.0, 2.0 ] (fun x -> x)
-//   => raises "Expected 1 arguments, got 2"
+      Stdlib.List.sortWith([ 3L, 1L, 2L, 67L, -1L, 6L, 3L ], descending)
+      |> Stdlib.Test.equal([ 67L, 6L, 3L, 3L, 2L, 1L, -1L ])
+
+      // stable: equal keys keep the order they came in
+      Stdlib.List.sortWith([ (0L, "p"), (1L, "a"), (1L, "b") ], byKey)
+      |> Stdlib.Test.equal([ (0L, "p"), (1L, "a"), (1L, "b") ])
+      Stdlib.List.sortWith(
+        [ (1L, "a"), (0L, "b"), (1L, "c"), (0L, "d"), (1L, "e"), (0L, "f") ],
+        byKey)
+      |> Stdlib.Test.equal(
+        [ (0L, "b"), (0L, "d"), (0L, "f"), (1L, "a"), (1L, "c"), (1L, "e") ])
+      Stdlib.List.sortWith(
+        [ (1L, "a"), (0L, "b"), (1L, "c"), (0L, "d"), (1L, "e"), (0L, "f") ],
+        fun(a, b) -> byKey(b, a))
+      |> Stdlib.Test.equal(
+        [ (1L, "a"), (1L, "c"), (1L, "e"), (0L, "b"), (0L, "d"), (0L, "f") ]) ])
 
 test tail =
   Stdlib.Test.all(
@@ -819,15 +840,13 @@ test partitionRejectsOptionCondition =
     | 3L -> true)
   => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned Darklang.Stdlib.Option.Option<_> (None), but should return Bool"
 
-// CLEANUP: it should be a type error on the function not returning an Int64
-test comparatorRejectsFloatResult =
-  Stdlib.List.sortByComparator([ 3L, 1L, 2L ], fun(_, _) -> 0.1)
-  => raises "Darklang.Stdlib.List.sortByComparator's 2nd parameter `fn` returned Float (0.1), but should return Int"
+test comparatorRejectsIntResult =
+  Stdlib.List.sortWith([ 3L, 1L, 2L ], fun(_, _) -> 0)
+  => raises "Darklang.Stdlib.List.sortWith's 2nd parameter `fn` returned Int (0), but should return Darklang.Stdlib.Ordering"
 
-// CLEANUP: it should be a type error on the function not returning an Int64
 test comparatorRejectsStringResult =
-  Stdlib.List.sortByComparator([ 1L, 2L, 3L ], fun(_, _) -> "㧑༷釺")
-  => raises "Darklang.Stdlib.List.sortByComparator's 2nd parameter `fn` returned String (\"㧑༷釺\"), but should return Int"
+  Stdlib.List.sortWith([ 1L, 2L, 3L ], fun(_, _) -> "㧑༷釺")
+  => raises "Darklang.Stdlib.List.sortWith's 2nd parameter `fn` returned String (\"㧑༷釺\"), but should return Darklang.Stdlib.Ordering"
 
 test sortRefusesFunctions =
   Stdlib.List.sort([ (fun x -> x), (fun y -> y) ])
@@ -902,7 +921,7 @@ module IterEffects =
     Stdlib.Test.counterValue() |> Stdlib.Test.equal(1L)
 
 test comparatorRejectsWrongArity =
-  Stdlib.List.sortByComparator([6.0, 2.0], fun x -> x)
+  Stdlib.List.sortWith([6.0, 2.0], fun x -> x)
   => raises "Lambda expects 1 argument, but got 2 arguments"
 
 test uniqueBySupportsNestedKeys =
