@@ -91,7 +91,8 @@ let tests =
         Expect.isError
           (check "exec.policy" "Zzz.Nope.nope")
           "and not one it does not"
-        Expect.isOk (check "exec.policy" "") "empty is round robin again"
+        Expect.isError (check "exec.policy" "") "empty is unset, not set"
+        Expect.isOk (check "test.anything" "") "a test key may hold empty"
         Expect.isError (check "instance.name" "  ") "a name is not blank"
         Expect.isOk (check "instance.name" "laptop") "a name"
       }

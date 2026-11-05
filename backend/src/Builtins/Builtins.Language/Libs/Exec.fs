@@ -120,7 +120,7 @@ let private detailToDT (p : Scheduler.ProcessSummary) : Dval =
 /// wrong, and how to put it back.
 let policyComplaint (policy : string) (what : string) : string =
   $"exec.policy: {policy} {what}; round robin for this turn. "
-  + "`dark config set exec.policy Darklang.Stdlib.Exec.Policy.roundRobin` resets it."
+  + "`dark config unset exec.policy` resets it."
 
 let chooserFor
   (state : ExecutionState)

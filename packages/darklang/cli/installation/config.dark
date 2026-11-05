@@ -1,11 +1,25 @@
 /// Where the local installation of the Darklang CLI lives.
 module Darklang.Cli.Installation.Config
 
-/// Get the Darklang home directory path.
+/// `<param home>/.darklang`, or why there is no safe one: an empty home, `/` (however many
+/// slashes), or anything not absolute, which covers an unexpanded `~`.
+let darklangHomeIn(home: String): Stdlib.Result.Result<String, String> =
+  let withoutSlashes = Stdlib.Cli.Path.stripTrailing(home)
+
+  if withoutSlashes == "" || withoutSlashes == "/" then
+    Stdlib.Result.Result.Error(
+      $"your home directory looks like '{home}', so there is no safe place for .darklang. Set HOME and try again.")
+  else if Stdlib.Bool.not(Stdlib.String.startsWith(withoutSlashes, "/")) then
+    Stdlib.Result.Result.Error(
+      $"your home directory '{home}' is not an absolute path. Set HOME and try again.")
+  else
+    Stdlib.Result.Result.Ok($"{withoutSlashes}/.darklang")
+
+
+/// The Darklang home directory, or why it can't be found.
 ///
-/// Takes a host it no longer reads: the layout used to differ on Windows, which is gone, and
-/// every caller already has one.
-let getDarklangHomeDir(_host: Stdlib.Cli.Host.Host): String =
+/// Takes a host it doesn't read; every caller already has one.
+let getDarklangHomeDir(_host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<String, String> =
   match Stdlib.Cli.Unix.getHomeDirectory() with
-  | Ok(dir) -> $"{dir}/.darklang"
-  | Error(_) -> "~/.darklang"
+  | Ok(home) -> darklangHomeIn(home)
+  | Error(e) -> Stdlib.Result.Result.Error($"couldn't find your home directory: {e}")

@@ -120,9 +120,9 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     | Ok(_) ->
       let back =
         match Config.defaultOf(key) with
-        | Some(d) -> $" (default: {d})"
+        | Some(d) -> $" ({d})"
         | None -> ""
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Unset {key}{back}"))
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"{key} is back to its default{back}"))
       state
 
   | ["get", key] ->
