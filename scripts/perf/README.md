@@ -29,10 +29,19 @@ mostly harness. One primitive on purpose: a function against its replacement, on
 five input sizes, a survey of twenty builtins, are all loops over it, which is cheaper than
 curating input sets per function.
 
-From the command line, `dark eval --stats <expr>` prints the same block. Note what it measures:
-evaluating an expression parses and resolves it too, and for anything small that is most of the
-allocation, while the instruction count is execution only. Inside a script, `Perf.measure` brackets
-the work alone.
+From the command line, `dark eval --stats <expr>` and `dark run --stats <file>` print the same
+block, after whatever the expression or script printed. Note what they measure: evaluating an
+expression or running a script parses and resolves it too, and for anything small that is most of
+the allocation, while the instruction count is execution only. Inside a script, `Perf.measure`
+brackets the work alone. Neither counts process startup, which is what `gate`'s number is mostly
+made of (see below).
+
+To compare two pieces of Dark, `Perf.ab(a, b, rounds)` alternates them so drift lands on both
+sides, takes the harness off each reading and keeps the lowest of each field per side:
+
+    let (old, new) = Perf.ab(fun () -> oldWay(input), fun () -> newWay(input), 5)
+    Perf.render(old)
+    Perf.render(new)
 
 Every measurement carries the build that produced it (`debug`, `release-r2r`, `release-aot`),
 because the same workload has three different right answers.

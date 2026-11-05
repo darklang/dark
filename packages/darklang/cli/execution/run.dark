@@ -92,20 +92,25 @@ let execute(state: AppState, args: List<String>): AppState =
       Darklang.Tracing.ScriptOptions {
         allowHarmful = false
         sandbox = false
-        warnPermissions = false })
+        warnPermissions = false },
+      false)
 
 
-/// Parse the options before the script path.
+/// Parse the options before the script path. <param stats> is `--stats`: kept out of
+/// `ScriptOptions` because those are saved with the trace for replay, and a replay has no reason
+/// to report what the original cost.
 let executeOptions(
   state: AppState,
   flags: List<String>,
   script: List<String>,
-  options: Darklang.Tracing.ScriptOptions)
+  options: Darklang.Tracing.ScriptOptions,
+  stats: Bool)
   : AppState =
   match flags with
-  | ["--allow-harmful", ...rest] -> executeOptions(state, rest, script, { options with allowHarmful = true })
-  | ["--sandbox", ...rest] -> executeOptions(state, rest, script, { options with sandbox = true })
-  | ["--warn-permissions", ...rest] -> executeOptions(state, rest, script, { options with warnPermissions = true })
+  | ["--allow-harmful", ...rest] -> executeOptions(state, rest, script, { options with allowHarmful = true }, stats)
+  | ["--sandbox", ...rest] -> executeOptions(state, rest, script, { options with sandbox = true }, stats)
+  | ["--warn-permissions", ...rest] -> executeOptions(state, rest, script, { options with warnPermissions = true }, stats)
+  | ["--stats", ...rest] -> executeOptions(state, rest, script, options, true)
   | [] | [ "--" ] ->
     match script with
     | [scriptPath, ...scriptArgs] ->
@@ -113,7 +118,7 @@ let executeOptions(
         Cli.printErr("--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")
         Cli.exitWith(state, false)
       else
-        executeScript(state, scriptPath, scriptArgs, options)
+        executeScript(state, scriptPath, scriptArgs, options, stats)
     | [] ->
       Stdlib.printLine(help(state))
       Cli.exitWith(state, false)
@@ -133,7 +138,8 @@ let executeScript(
   state: AppState,
   scriptPath: String,
   args: List<String>,
-  options: Darklang.Tracing.ScriptOptions)
+  options: Darklang.Tracing.ScriptOptions,
+  stats: Bool)
   : AppState =
   match Stdlib.Cli.FileSystem.readFile(scriptPath) with
   | Error(e) ->
@@ -155,13 +161,14 @@ let executeScript(
     { state with exitCode = 1 }
   | Ok(script) ->
     let scriptSourceCode = Stdlib.Utf8.decodeWithReplacement(script)
-    runScript(
+    runScriptMeasured(
       state,
       scriptPath,
       scriptSourceCode,
       args,
       options,
-      true)
+      true,
+      stats)
 
 
 let allowAlways(): String = "Allow future runs (save to the instance policy)"
@@ -184,7 +191,22 @@ let runScript(
   options: Darklang.Tracing.ScriptOptions,
   offerApproval: Bool)
   : AppState =
-  let result =
+  runScriptMeasured(state, scriptPath, code, args, options, offerApproval, false)
+
+
+/// <fn runScript>, and with <param stats> also what the run cost, the same block `eval --stats`
+/// prints. Only parsing and executing are measured: an approval prompt waits on a person, and
+/// that is not the script's time.
+let runScriptMeasured(
+  state: AppState,
+  scriptPath: String,
+  code: String,
+  args: List<String>,
+  options: Darklang.Tracing.ScriptOptions,
+  offerApproval: Bool,
+  stats: Bool)
+  : AppState =
+  let run = fun () ->
     parseAndExecute(
       state.accountID,
       state.currentBranchId,
@@ -192,6 +214,40 @@ let runScript(
       code,
       args,
       options)
+
+  let (measurement, result) =
+    if stats then
+      // What the script cost, net of the measuring harness itself: see Perf.floor.
+      let harness = LanguageTools.Perf.floor()
+      let (raw, result) = LanguageTools.Perf.measure(run)
+      (Stdlib.Option.Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
+    else
+      (Stdlib.Option.Option.None, run())
+
+  let newState = handleResult(state, result, options, offerApproval)
+
+  match measurement with
+  | Some(m) ->
+    // stdout, after whatever the script printed, as `eval --stats` does.
+    let _ = Stdlib.printLine("")
+    let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
+    let _ =
+      Stdlib.printLine(
+        "  (includes parsing the script; Perf.measure inside it brackets execution alone)")
+
+    newState
+  | None -> newState
+
+
+/// Report what <fn parseAndExecute> returned, and offer to save a denied permission.
+let handleResult(
+  state: AppState,
+  result: Stdlib.Result.Result<(Int *
+                                List<(String * String * Stdlib.Option.Option<String>)>),
+                               ExecutionError.ExecutionError>,
+  options: Darklang.Tracing.ScriptOptions,
+  offerApproval: Bool)
+  : AppState =
   match result with
   | Ok((exitCode, violations)) ->
     match permissionWarningLines(violations) with
@@ -261,6 +317,7 @@ let help(_state: AppState): String =
     "Examples:"
     "  run-script script.dark            - Run a script"
     "  run-script script.dark a b c      - Run with args"
+    "  run-script --stats script.dark    - Run and report what it cost"
     ""
     "Everything after the path is passed unchanged, including flags and --."
     "See `docs scripts` for arguments, exit codes and permissions."
@@ -272,6 +329,10 @@ let help(_state: AppState): String =
     "                       policies run and report them; the instance policy and function"
     "                       ceilings still deny. Not with --sandbox."
     "  --allow-harmful    - Opt out of Harmful-deprecation halting."
+    "  --stats            - Also report what the run cost: allocation, time, instructions,"
+    "                       calls and frame pushes, net of the measuring harness, tagged"
+    "                       with the build they came from. Includes parsing the script;"
+    "                       call Perf.measure inside it to measure the work alone."
     ""
     "To call a package function, use 'eval' instead:"
     "  eval (5 + 3)" ]

@@ -185,6 +185,30 @@ test scriptArgumentsAndExitCodes =
         help ]))
 
 
+/// `run --stats` reports what the run cost after the script's own output. After the path,
+/// `--stats` is the script's argument like any other flag, and reports nothing.
+test runStatsReportsTheCost =
+  Instance.withInstance(fun i ->
+    let path =
+      script(
+        i,
+        "stats.dark",
+        "Stdlib.printLine(Stdlib.String.join(args, \",\"))\nStdlib.printLine(\"SCRIPT_RAN\")")
+
+    let (code, out) = Instance.ran(i, [ "run", "--stats", path ])
+    let (afterCode, after) = Instance.ran(i, [ "run", path, "--stats" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "run --stats succeeds")
+        Instance.says(out, "SCRIPT_RAN", "the script still runs")
+        Instance.says(out, "build ", "the build the numbers came from")
+        Instance.says(out, "allocated ", "the allocation")
+        Instance.says(out, "instructions ", "the interpreter's counters")
+        Instance.exitedWith(afterCode, 0, "--stats after the path is a script argument")
+        Instance.says(after, "--stats", "the script received it")
+        Instance.doesNotSay(after, "allocated ", "and nothing was measured") ]))
+
+
 /// A denied permission stops the script, and approving it at the prompt saves the
 /// rule without restarting the run; a later run then completes.
 ///

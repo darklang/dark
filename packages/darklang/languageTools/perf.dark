@@ -101,6 +101,46 @@ let minus(m: Measurement, f: Measurement): Measurement =
       framePushes = atLeastZero64(m.framePushes - f.framePushes) }
 
 
+/// The lowest of each field across <param readings>, or None for no readings. Interference only
+/// ever adds (a GC, a busy box, a cold cache), so the lowest reading is the one nearest the work.
+let best(readings: List<Measurement>): Stdlib.Option.Option<Measurement> =
+  match readings with
+  | [] -> Stdlib.Option.Option.None
+  | [ first, ...rest ] ->
+    let low64(a: Int64, b: Int64): Int64 = if b < a then b else a
+    let low(a: Int, b: Int): Int = if b < a then b else a
+
+    Stdlib.Option.Option.Some(
+      Stdlib.List.fold(rest, first, fun(acc, m) ->
+        { acc with
+            allocBytes = low64(acc.allocBytes, m.allocBytes)
+            ms = low(acc.ms, m.ms)
+            instructions = low64(acc.instructions, m.instructions)
+            builtinCalls = low64(acc.builtinCalls, m.builtinCalls)
+            packageCalls = low64(acc.packageCalls, m.packageCalls)
+            framePushes = low64(acc.framePushes, m.framePushes) }))
+
+
+/// <param a> against <param b>, alternated for <param rounds> rounds so that drift over the run
+/// lands on both sides rather than on whichever went second. Each reading has the harness taken
+/// off (<fn floor>), and each side reports its <fn best>. Fewer than one round counts as one.
+let ab(a: Unit -> 'a, b: Unit -> 'b, rounds: Int): (Measurement * Measurement) =
+  let harness = floor()
+  let n = if rounds < 1 then 1 else rounds
+
+  let pairs =
+    Stdlib.List.range(1, n)
+    |> Stdlib.List.map(fun _round ->
+      let (ma, _) = measure(a)
+      let (mb, _) = measure(b)
+      (minus(ma, harness), minus(mb, harness)))
+
+  let side(pick: ((Measurement * Measurement)) -> Measurement): Measurement =
+    (best(Stdlib.List.map(pairs, pick))) |> Stdlib.Option.withDefault(harness)
+
+  (side(Stdlib.Tuple2.first), side(Stdlib.Tuple2.second))
+
+
 /// A measurement as a block of lines, for a terminal.
 let render(m: Measurement): String =
   let lines =
