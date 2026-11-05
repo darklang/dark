@@ -1224,8 +1224,8 @@ let executeTail(
         else
           let nStr = Stdlib.toString(n)
           $"there is no {nStr}{ordinalSuffix(n)}-most-recent trace{suffix}"
-      Stdlib.printLine(msg)
-      state
+      Cli.printErr(msg)
+      { state with exitCode = 1 }
     | [row, ...] -> executeInspect(state, row.id, defaultViewOptions)
 
 

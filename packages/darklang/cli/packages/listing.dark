@@ -212,8 +212,8 @@ let execute(state: AppState, args: List<String>): AppState =
         state
       | Type(_) | Value(_) | Function(_) | Trait(_) | Test(_) ->
         let locationStr = Packages.formatLocation(newLocation)
-        Stdlib.printLine($"'{locationStr}' is not a module.")
-        Stdlib.printLine("`dark view` shows one item; `dark ls` lists a module.")
+        Cli.printErr($"'{locationStr}' is not a module.")
+        Cli.Stderr.line("`dark view` shows one item; `dark ls` lists a module.")
 
         // A trait's own question is which types implement it, and `impls` is the only command that
         // answers it. Without this line you find that command in the docs or by accident.
@@ -221,10 +221,10 @@ let execute(state: AppState, args: List<String>): AppState =
         | Trait(t) ->
           let traitName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(t)
 
-          Stdlib.printLine($"`dark impls {traitName}` lists the types that implement it.")
+          Cli.Stderr.line($"`dark impls {traitName}` lists the types that implement it.")
         | _ -> ()
 
-        state
+        Cli.exitWith(state, false)
   | _ ->
     Stdlib.printLine(help(state))
     state
