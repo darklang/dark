@@ -197,7 +197,7 @@ let buildState(branchId: Uuid, location: PackageLocation): State =
   let modulePath = modulePathOf(location)
 
   // Get all entities in this location
-  let results = Query.allDirectDescendants(branchId, modulePath)
+  let results = Query.withoutInternal(Query.allDirectDescendants(branchId, modulePath))
   let allItems = buildNavItemsFromResults(results, modulePath)
 
   State
@@ -223,7 +223,7 @@ let loadFocusRows(
 
   match location with
   | Module(path) ->
-    let results = Query.allDirectDescendants(branchId, path)
+    let results = Query.withoutInternal(Query.allDirectDescendants(branchId, path))
     let locationStr = Packages.formatLocation(location)
 
     let currentPathLength = Stdlib.List.length(path)
@@ -784,7 +784,8 @@ let performSearch(navState: State): State =
           entityTypes = []
           exactMatch = false }
 
-    let results = LanguageTools.PackageManager.Search.search(navState.branchId, query)
+    let results =
+      Query.withoutInternal(LanguageTools.PackageManager.Search.search(navState.branchId, query))
 
     // Convert search results to NavItems with full paths
     let moduleItems =

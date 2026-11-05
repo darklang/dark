@@ -44,6 +44,7 @@ let listModule(
   branchId: Uuid,
   location: PackageLocation,
   includeDeprecated: Bool,
+  includeInternal: Bool,
   showVersions: Bool)
   : Unit =
   let modulePath = modulePathOf(location)
@@ -53,12 +54,12 @@ let listModule(
   let (allSubmodules, rawTypes, rawValues, rawFns, rawTraits, rawImpls, rawTests) =
     Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
   let depSets = Query.loadDeprecationSets(branchId)
-  let types = Query.filterDeprecatedPairs(rawTypes, depSets, includeDeprecated)
-  let values = Query.filterDeprecatedPairs(rawValues, depSets, includeDeprecated)
-  let fns = Query.filterDeprecatedPairs(rawFns, depSets, includeDeprecated)
-  let traits = Query.filterDeprecatedPairs(rawTraits, depSets, includeDeprecated)
-  let impls = Query.filterDeprecatedPairs(rawImpls, depSets, includeDeprecated)
-  let tests = Query.filterDeprecatedPairs(rawTests, depSets, includeDeprecated)
+  let types = Query.filterHiddenPairs(rawTypes, depSets, includeDeprecated, includeInternal)
+  let values = Query.filterHiddenPairs(rawValues, depSets, includeDeprecated, includeInternal)
+  let fns = Query.filterHiddenPairs(rawFns, depSets, includeDeprecated, includeInternal)
+  let traits = Query.filterHiddenPairs(rawTraits, depSets, includeDeprecated, includeInternal)
+  let impls = Query.filterHiddenPairs(rawImpls, depSets, includeDeprecated, includeInternal)
+  let tests = Query.filterHiddenPairs(rawTests, depSets, includeDeprecated, includeInternal)
 
   let locationStr = Packages.formatLocation(location)
   Stdlib.printLine($"Contents of {locationStr}:")
@@ -82,7 +83,7 @@ let listModule(
     let (_subs, _t, _v, _f, _tr, childImpls, _te) =
       Query.allDirectDescendantNamesAndHashes(branchId, childPath)
 
-    Query.filterDeprecatedPairs(childImpls, depSets, includeDeprecated)
+    Query.filterHiddenPairs(childImpls, depSets, includeDeprecated, includeInternal)
     |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, typeName, hash, childPath))
 
   // The type an implementation stored HERE is for is the module we are standing in: at
@@ -182,15 +183,16 @@ let listModule(
 let execute(state: AppState, args: List<String>): AppState =
   let branchId = state.currentBranchId
   let includeDeprecated = Stdlib.List.contains(args, "--include-deprecated")
+  let includeInternal = Stdlib.List.contains(args, "--include-internal")
   let showVersions = Stdlib.List.contains(args, "--versions")
 
   let positional =
     args
     |> Stdlib.List.filter(fun a ->
-      (a != "--include-deprecated") && (a != "--versions"))
+      (a != "--include-deprecated") && (a != "--include-internal") && (a != "--versions"))
   match positional with
   | [] ->
-    listModule(branchId, state.packageData.currentLocation, includeDeprecated, showVersions)
+    listModule(branchId, state.packageData.currentLocation, includeDeprecated, includeInternal, showVersions)
     state
   | [pathArg] ->
     match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
@@ -200,7 +202,7 @@ let execute(state: AppState, args: List<String>): AppState =
     | Ok(newLocation) ->
       match newLocation with
       | Module(_) ->
-        listModule(branchId, newLocation, includeDeprecated, showVersions)
+        listModule(branchId, newLocation, includeDeprecated, includeInternal, showVersions)
         state
       // An implementation's methods are fns in a module named for it, so listing one is a real
       // question with a real answer; the other kinds are leaves.
@@ -208,7 +210,7 @@ let execute(state: AppState, args: List<String>): AppState =
         let asModule =
           PackageLocation.Module(Stdlib.List.append(Stdlib.List.prepend(i.modules, i.owner), i.name))
 
-        listModule(branchId, asModule, includeDeprecated, showVersions)
+        listModule(branchId, asModule, includeDeprecated, includeInternal, showVersions)
         state
       | Type(_) | Value(_) | Function(_) | Trait(_) | Test(_) ->
         let locationStr = Packages.formatLocation(newLocation)
@@ -244,12 +246,14 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 
 let help(_state: AppState): String =
   [
-    "Usage: ls [path] [--include-deprecated] [--versions]"
+    "Usage: ls [path] [--include-deprecated] [--include-internal] [--versions]"
     "List contents of the current location or specified path with icons."
     ""
     "Shows modules, types, functions, values, traits, trait implementations and tests, by kind."
     "Deprecated items with no live callers are hidden by default; pass"
     "--include-deprecated to show them. Visible deprecated items are marked ⚠."
+    "Internal helpers (names starting with __) are hidden too; --include-internal"
+    "shows them. `view` and calls reach them by name either way."
     ""
     "A listing names what a name MEANS, which is one version. --versions is how"
     "you ask what it has meant: every version under that name, oldest first, the"

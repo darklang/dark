@@ -32,6 +32,10 @@ yet: both are dropped when the nested fn becomes a local lambda.
     let double(x: Int): Int = x * 2
     double(n)
 
+A package item named `__name` is an internal helper for its module, not public
+API. Listings, search and completion hide it unless given `--include-internal`;
+it is still called, viewed and depended on by its full name.
+
 ## Constructors
   Some(5)         // fields in parentheses, like a call's arguments
   Pair(1, 2)      // several fields

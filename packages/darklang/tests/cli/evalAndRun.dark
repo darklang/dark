@@ -360,3 +360,26 @@ test lsViewAndHelpAnswer =
         Stdlib.Test.expect(
           Stdlib.String.contains(helpLs, "list") || Stdlib.String.contains(helpLs, "List"),
           $"help ls describes it: {helpLs}") ]))
+
+
+/// A `__` name is an internal helper: listings and search leave it out unless asked, and naming it
+/// still reaches it.
+test internalNamesHiddenUntilAsked =
+  Instance.withInstance(fun i ->
+    let ls = Instance.said(i, [ "ls", "Stdlib.DateTime" ])
+    let lsAll = Instance.said(i, [ "ls", "Stdlib.DateTime", "--include-internal" ])
+    let search = Instance.said(i, [ "search", "fromTicks" ])
+    let searchAll = Instance.said(i, [ "search", "fromTicks", "--include-internal" ])
+    let view = Instance.said(i, [ "view", "Stdlib.DateTime.__fromTicks" ])
+    let call = Instance.said(i, [ "eval", "Stdlib.DateTime.__ticks(Stdlib.DateTime.__fromTicks(5))" ])
+    let deps = Instance.said(i, [ "deps", "Stdlib.DateTime.__fromTicks" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(ls, "toString", "ls: a public fn")
+        Instance.doesNotSay(ls, "__fromTicks", "ls hides an internal fn")
+        Instance.says(lsAll, "__fromTicks", "ls --include-internal shows it")
+        Instance.doesNotSay(search, "__fromTicks", "search hides it")
+        Instance.says(searchAll, "__fromTicks", "search --include-internal shows it")
+        Instance.says(view, "dateTimeFromUnixTicks", "view by name shows its body")
+        Instance.says(call, "5", "a call by name runs it")
+        Instance.says(deps, "addSeconds", "deps by name lists its dependents") ]))

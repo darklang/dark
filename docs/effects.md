@@ -568,9 +568,10 @@ of .NET, SQLite or other libraries. No generic syscall-number or native-pointer
 Builtin is exposed to Darklang, and there is no public fork primitive.
 
 Existing public StdLib functions compose private `__` helpers in File, Process,
-Posix, Sys and DateTime. Helpers call `Builtin.syscallX` and `Builtin.runtimeX`
-directly; Builtins are already private and need no `__` prefix. There are no
-public syscall/runtime wrapper packages or separate algorithm modules.
+Posix, Sys and DateTime; listings and search hide them by default. Helpers call
+`Builtin.syscallX` and `Builtin.runtimeX` directly; Builtins are already private
+and need no `__` prefix. There are no public syscall/runtime wrapper packages or
+separate algorithm modules.
 
 Shared Dark code owns glob matching, errno messages, target ABI constants,
 directory/stat/clock/event record decoding, path-buffer growth, complete-write

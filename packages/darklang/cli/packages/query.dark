@@ -64,17 +64,17 @@ let allDirectDescendantNamesAndHashes(
   LanguageTools.PackageManager.Search.searchNamesAndHashes(branchId, query)
 
 
-/// Drop items that are deprecated-and-hidden, for a (name, hash) listing.
-let filterDeprecatedPairs(
+/// Drop what a listing hides by default, for a (name, hash) listing. See `filterHidden`.
+let filterHiddenPairs(
   items: List<(String * LanguageTools.ProgramTypes.Hash)>,
   sets: DeprecationSets,
-  includeDeprecated: Bool)
+  includeDeprecated: Bool,
+  includeInternal: Bool)
   : List<(String * LanguageTools.ProgramTypes.Hash)> =
-  if includeDeprecated then
-    items
-  else
-    items
-    |> Stdlib.List.filter(fun((_name, hash)) -> Stdlib.Bool.not(isHidden(sets, hash)))
+  items
+  |> Stdlib.List.filter(fun((name, hash)) ->
+    (includeDeprecated || Stdlib.Bool.not(isHidden(sets, hash)))
+    && (includeInternal || Stdlib.Bool.not(isInternalName(name))))
 
 
 /// Search for a specific entity by name in a given module path (exact match)
@@ -123,7 +123,7 @@ let getDirectSubmodules(results: LanguageTools.ProgramTypes.Search.SearchResults
 ///   * Items whose hash is in "deprecated but shown" are returned with their
 ///     location marked; the UI can render an icon.
 ///
-/// With `--include-deprecated`: nothing is filtered out.
+/// With `--include-deprecated`: no deprecated item is filtered out.
 ///
 /// Sets are kept as Dicts keyed by the underlying hex string (there's no
 /// Stdlib.Set yet), giving O(1) lookup. The unit value is unused.
@@ -178,13 +178,42 @@ let isDeprecated(
   memberOf(sets.allDeprecated, hash)
 
 
-/// Filter SearchResults by the default visibility rule. Pass `includeDeprecated = true`
-/// to return results untouched.
-let filterDeprecated(
+/// A name whose last segment starts with `__` is an internal helper: callable and viewable by
+/// name, but left out of listings, search and completion unless asked for.
+let isInternalName(name: String): Bool = Stdlib.String.startsWith(name, "__")
+
+
+/// Drop internal helpers (`isInternalName`) from a list of names.
+let withoutInternalNames(names: List<String>): List<String> =
+  names |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(isInternalName(n)))
+
+
+/// Drop internal helpers (`isInternalName`) from SearchResults.
+let withoutInternal(
+  results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  let shown(loc: LanguageTools.ProgramTypes.PackageLocation): Bool = Stdlib.Bool.not(isInternalName(loc.name))
+
+  LanguageTools.ProgramTypes.Search.SearchResults
+    { submodules = results.submodules
+      types = results.types |> Stdlib.List.filter(fun i -> shown(i.location))
+      values = results.values |> Stdlib.List.filter(fun i -> shown(i.location))
+      fns = results.fns |> Stdlib.List.filter(fun i -> shown(i.location))
+      traits = results.traits |> Stdlib.List.filter(fun i -> shown(i.location))
+      impls = results.impls |> Stdlib.List.filter(fun i -> shown(i.location))
+      tests = results.tests |> Stdlib.List.filter(fun i -> shown(i.location)) }
+
+
+/// Filter SearchResults by the default visibility rule: hidden deprecations and internal helpers
+/// are dropped unless <param includeDeprecated> / <param includeInternal> ask for them.
+let filterHidden(
   results: LanguageTools.ProgramTypes.Search.SearchResults,
   sets: DeprecationSets,
-  includeDeprecated: Bool)
+  includeDeprecated: Bool,
+  includeInternal: Bool)
   : LanguageTools.ProgramTypes.Search.SearchResults =
+  let results = if includeInternal then results else withoutInternal(results)
+
   if includeDeprecated then
     results
   else
