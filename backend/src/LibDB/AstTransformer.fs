@@ -35,11 +35,11 @@ type HashMapping =
     /// (`resolveTraitCalls`), so a call goes on running the implementation it was written
     /// against. Empty everywhere else: propagation and SCC stabilization rewrite hashes, they do
     /// not re-resolve anything.
-    pins : Map<id, PT.FQFnName.ImplChoice>
+    resolvedImpls : Map<id, PT.FQFnName.ImplChoice>
 
     /// What the SAVE worked out for the bounds of the fn each call names, keyed by the call's
-    /// name node. The other half of `pins`: that one says what a call in a bounded fn's BODY
-    /// defers to, this one says which implementation the CALLER's type argument implies.
+    /// name node. The other half of `resolvedImpls`: that one says what a call in a bounded fn's
+    /// BODY defers to, this one says which implementation the CALLER's type argument implies.
     boundImpls : Map<id, List<PT.FQFnName.BoundImpl>>
   }
 
@@ -47,7 +47,7 @@ let emptyMapping : HashMapping =
   { byLocation = Map.empty
     byHash = Map.empty
     referenceName = None
-    pins = Map.empty
+    resolvedImpls = Map.empty
     boundImpls = Map.empty }
 
 let private replaceHash
@@ -94,9 +94,6 @@ let private transformNameResolution
       visit None None |> ignore<Option<PT.PackageLocation>>)
     nr
 
-/// The implementation the save chose for the trait-method call at this node, written onto its
-/// name. Nothing else can be pinned, and a node the save had no answer for is left alone: a
-/// call whose self type is only known at run time stays a run-time lookup.
 /// A reference the save wrote, moved through a hash mapping like every other one.
 let private movedRef
   (mapping : HashMapping)
@@ -110,12 +107,15 @@ let private movedRef
         | None -> r.location }
 
 
-let private pinAt
+/// The implementation the save chose for the trait-method call at this node, written onto its
+/// name. Only a trait method carries one, and a node the save had no answer for is left alone: a
+/// call whose self type is only known at run time stays a run-time lookup.
+let private withResolvedImpl
   (mapping : HashMapping)
   (nodeId : id)
   (nr : PT.NameResolution<PT.FQFnName.FQFnName>)
   : PT.NameResolution<PT.FQFnName.FQFnName> =
-  match Map.tryFind nodeId mapping.pins, nr.resolved with
+  match Map.tryFind nodeId mapping.resolvedImpls, nr.resolved with
   | Some choice,
     Ok({ name = PT.FQFnName.TraitMethod { trait_ = traitHash
                                           method_ = methodName
@@ -130,19 +130,19 @@ let private pinAt
   | _ -> nr
 
 
-/// `-x` and `~x`, pinned. The parser stores them as `Builtin.negate x` and
-/// `Builtin.bitwiseNot x`, and lowering runs them as `Negate.negate` and
+/// `-x` and `~x`, with the implementation the save chose. The parser stores them as
+/// `Builtin.negate x` and `Builtin.bitwiseNot x`, and lowering runs them as `Negate.negate` and
 /// `BitwiseNot.bitwiseNot` with nothing recorded, so the store picked the
 /// implementation on every run. The checker resolves them like any operator, but
-/// at the APPLY node, since the builtin name is not a trait method `pinAt` could
-/// rewrite. With a pin there, the name becomes the trait method it runs as,
+/// at the APPLY node, since the builtin name is not a trait method `withResolvedImpl`
+/// could rewrite. With a choice there, the name becomes the trait method it runs as,
 /// carrying the choice, which is how a named `Negate.negate x` is stored.
-let private pinUnary
+let private withResolvedUnary
   (mapping : HashMapping)
   (applyId : id)
   (fnExpr : PT.Expr)
   : PT.Expr =
-  match Map.tryFind applyId mapping.pins, fnExpr with
+  match Map.tryFind applyId mapping.resolvedImpls, fnExpr with
   | Some choice,
     PT.EFnName(nameId,
                ({ resolved = Ok { name = PT.FQFnName.Builtin { name = builtin
@@ -321,17 +321,17 @@ and private transformPipeExpr
       infix,
       transformExpr mapping rhs,
       // The same as `EInfix`: the save's answer for this node, or the one already there, moved.
-      (match Map.tryFind id mapping.pins with
-       | Some pinned -> pinned
+      (match Map.tryFind id mapping.resolvedImpls with
+       | Some resolved -> resolved
        | None -> moveChoice mapping implFn)
     )
 
   | PT.EPipeFnCall(id, nr, typeArgs, args, boundImpls) ->
     PT.EPipeFnCall(
       id,
-      // `pinAt` as well as the move: `xs |> Show.show` is a trait method call like any
-      // other, and the save picked an implementation for it.
-      transformFnName mapping nr |> pinAt mapping id,
+      // `withResolvedImpl` as well as the move: `xs |> Show.show` is a trait method call like
+      // any other, and the save picked an implementation for it.
+      transformFnName mapping nr |> withResolvedImpl mapping id,
       typeArgs |> List.map (transformTypeRef mapping),
       args |> List.map (transformExpr mapping),
       // And the same as `EFnName`: what this call owes the callee's bounds. Without this a
@@ -429,7 +429,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EApply(id, fnExpr, typeArgs, args) ->
     PT.EApply(
       id,
-      transformExpr mapping (pinUnary mapping id fnExpr),
+      transformExpr mapping (withResolvedUnary mapping id fnExpr),
       typeArgs |> List.map (transformTypeRef mapping),
       args |> NEList.map (transformExpr mapping)
     )
@@ -437,7 +437,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EFnName(id, nr, boundImpls) ->
     PT.EFnName(
       id,
-      transformFnName mapping nr |> pinAt mapping id,
+      transformFnName mapping nr |> withResolvedImpl mapping id,
       (match Map.tryFind id mapping.boundImpls with
        | Some resolved -> resolved
        | None ->
@@ -456,8 +456,8 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
       transformExpr mapping rhs,
       // Either the save's answer for this node, or the one already there, moved like any
       // other reference.
-      (match Map.tryFind id mapping.pins with
-       | Some pinned -> pinned
+      (match Map.tryFind id mapping.resolvedImpls with
+       | Some resolved -> resolved
        | None -> moveChoice mapping implFn)
     )
 

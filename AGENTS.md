@@ -79,7 +79,7 @@ did. Narrowing it is the biggest remaining win in the loop, and it's entangled w
 `package-ref-hashes.txt`, so coordinate before starting.
 
 The figure has moved in between, which is why it is worth re-measuring before acting on
-it. Pinning trait calls added a whole-tree type check to the reload and took it to about
+it. Resolving trait calls at save added a whole-tree type check to the reload and took it to about
 128s; splitting that check into 32 pieces across the cores (`TraitCalls.resolveIn`)
 brought it back to about 31s. The check is now about a quarter of the reload (the
 `Resolved trait calls: ... in Ns` line), so what is left to win is reloading less, not
@@ -697,10 +697,10 @@ because the checker has not run yet.
 **The disk-load path records choices too, and it is the reason a reload rehashes so much.**
 `resolveTraitCalls` runs from `addAuthored` (so `dark fn`/`impl`/`module` and the workbench)
 and from `LocalExec.reloadPackages`, which authors `packages/` off disk. The reload path
-does it in the same order the authoring path does, pins at the hashes in hand and then
-`computeRealHashes` to move them, and it prints how many ops moved. Recording a choice changes
+does it in the same order the authoring path does, records the choices at the hashes in hand
+and then `computeRealHashes` to move them, and it prints how many ops moved. Recording a choice changes
 an item's content hash and every caller's hash moves with it, so the op count it reports is
-larger than the number of calls pinned. Two things follow: the shipped tree and `seed.db` carry
+larger than the number of calls resolved. Two things follow: the shipped tree and `seed.db` carry
 their choices, so a dispatch-cost measurement against them is measuring the resolved path; and
 "a saved call goes on meaning what it meant" holds for the tree, not just for what somebody
 typed at the CLI.
@@ -974,7 +974,7 @@ artifact from a real regression, and the duration is the clearer of them: the re
 than not running.
 
 This cost an hour, most of it spent bisecting four innocent checker files, and it was only
-settled by putting a probe on a branch known to pin thousands and watching it report zero too. A
+settled by putting a probe on a branch known to resolve thousands and watching it report zero too. A
 branch cannot regress against itself, so the moment both trees agreed the cause had to be
 environmental. When a number collapses, test the instrument against a known-good tree BEFORE
 reading any diffs.

@@ -545,9 +545,9 @@ let withBatch(
 /// <param env> without the store's implementations that <param ops> rebind to something else.
 ///
 /// Implementations are read by NAME on the branch, and a save rebinds names. Before the batch is
-/// stored, which is when save-time pinning asks, an implementation the batch re-declares under a
-/// different hash is still bound, so a call saved beside its replacement was pinned to the one
-/// being replaced, and the report after the save disagreed with the pin. Without it, the check
+/// stored, which is when save-time resolution asks, an implementation the batch re-declares under a
+/// different hash is still bound, so a call saved beside its replacement was resolved to the one
+/// being replaced, and the report after the save disagreed with the choice. Without it, the check
 /// sees the store as it will be once the batch lands. An implementation also bound somewhere the
 /// batch does not touch stays, and so does one the batch binds itself.
 let withoutReplaced(

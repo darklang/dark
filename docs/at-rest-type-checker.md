@@ -208,10 +208,10 @@ ceiling with the trait method's: `ImplExceedsCeiling`, `AmbiguousImpl` and
 - Visible means in `Environment.traitImpls`: every implementation bound on the branch in the
   store, plus the batch's own (`Environment.withBatch`). A trait the batch declares is read
   from the batch too (`batchTraits`), so a trait, its implementations and their callers can be
-  saved in one `dark module` and pin exactly as they would saved one at a time. Without the
-  batch's own, the same code pinned or not depending on how its saves were batched, and nothing
+  saved in one `dark module` and resolve exactly as they would saved one at a time. Without
+  the batch's own, the same code resolved or not depending on how its saves were batched, and nothing
   reported it (`gates trait-choice-any-batching`).
-- An authoring save that leaves any call unpinned says so, naming the items: a trait call still
+- An authoring save that leaves any call unresolved says so, naming the items: a trait call still
   `Unknown`, or a call into a bounded fn with no recorded bounds.
 
 ## Non-goals

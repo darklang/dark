@@ -53,8 +53,8 @@ type private Resolution =
 /// pattern that insists on `[]` then matches nothing while looking completely reasonable: it
 /// cost an hour of hunting for a producer that was working the whole time.
 ///
-/// A resolution this build cannot read must mean "no pin", exactly as a call the checker
-/// could not resolve means "no pin": the op goes un-rewritten and the runtime dispatches.
+/// A resolution this build cannot read must mean "nothing recorded", exactly as a call the
+/// checker could not resolve does: the op goes un-rewritten and the runtime dispatches.
 /// Raising here would turn a report we merely failed to understand into a failed save, and
 /// the whole point of the three-state `ImplChoice` is that not knowing is representable.
 module private Decode =
@@ -129,25 +129,25 @@ module private Decode =
 // --------------------
 //
 // A whole-tree check is about 84 seconds of interpreted Dark, and the dev reload pays it on
-// every `.dark` change because that is how pinning learns what to pin. The obvious fix is to
-// reuse what the last reload worked out, keyed by each item's content-addressed hash, and it
-// does not work. Written down because the design looks right and fails in a way that reports
-// success.
+// every `.dark` change because that is how it learns what each trait call resolves to. The
+// obvious fix is to reuse what the last reload worked out, keyed by each item's
+// content-addressed hash, and it does not work. Written down because the design looks right and
+// fails in a way that reports success.
 //
 // A resolution is keyed BY NODE ID, and the parser generates node ids fresh on every parse:
 // the same source parsed twice gives one `EInfix` id of 574556921872619684 and then
 // 55962466547940726. Content hashing ignores ids, which is what makes the content hash a
 // stable cache KEY, and is exactly why the cached VALUE is worthless: the entry hits, hands
 // back resolutions addressed to nodes this parse never created, and `AstTransformer` applies
-// none of them. Measured: 3,653 resolutions reused across 5,870 items, 0 ops pinned, against
-// 4,586 pinned by the same tree with no cache. Fast, agreed with itself, and wrong.
+// none of them. Measured: 3,653 resolutions reused across 5,870 items, 0 ops rewritten, against
+// 4,586 rewritten by the same tree with no cache. Fast, agreed with itself, and wrong.
 //
-// What would work, and is a follow-up rather than a line: cache the finished PINNED OP rather
+// What would work, and is a follow-up rather than a line: cache the finished REWRITTEN OP rather
 // than the resolutions. An op carries its own ids, ids do not participate in hashing, so
-// substituting last run's pinned op for this run's unpinned one yields the same content hash
-// as pinning it afresh. That needs the binary serializer and its own correctness argument.
+// substituting last run's rewritten op for this run's unrewritten one yields the same content
+// hash as resolving it afresh. That needs the binary serializer and its own correctness argument.
 //
-// `notes/traits/warm-vs-cold.sh` is what caught this, by comparing the PIN COUNT rather than
+// `notes/traits/warm-vs-cold.sh` is what caught this, by comparing the RESOLVED COUNT rather than
 // the time. A cache that never hits and a cache that hits uselessly both look like a cache
 // that works if you only measure agreement or only measure speed.
 
@@ -178,7 +178,7 @@ let private askChecker
   (ops : List<PT.PackageOp>)
   : Ply<Map<PT.Hash, List<Resolution>>> =
   uply {
-    // The branch explicitly, not whatever `exeState` happens to carry: a call is pinned to the
+    // The branch explicitly, not whatever `exeState` happens to carry: a call resolves to the
     // implementation live on the branch being SAVED to.
     let args =
       NEList.ofList
@@ -301,7 +301,7 @@ let private worthChecking
         // so this is not about speed; it is about the value meaning the same thing after
         // someone else's implementation arrives.
         | PT.PackageOp.AddValue value -> hasInfix value.body
-        // A test body calls bounded generics and operators like any fn, and pinning them
+        // A test body calls bounded generics and operators like any fn, and resolving them
         // is what lets the test runner prove it effect-free and run it in-process.
         | PT.PackageOp.AddTest test ->
           hasInfix test.body || namesATraitMethod test.body
@@ -351,13 +351,13 @@ let private resolveIn
       return ops
     else
       // A deprecated implementation is not a candidate at run time, so it must not be one
-      // here either: `dark constraints` tells you to deprecate one of two rivals, and pinning
-      // the one you just retired would make that advice a trap.
+      // here either: `dark constraints` tells you to deprecate one of two rivals, and resolving
+      // to the one you just retired would make that advice a trap.
       let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashesFor branchId
       let! storedStamps = LibDB.Queries.getTraitImplStamps ()
 
       // The batch's own traits and implementations, which the store does not hold until after
-      // this. A call saved together with the implementation it resolved to is pinned to it, and
+      // this. A call saved together with the implementation it resolved to keeps it, and
       // that implementation is the newest there is, so it carries a stamp from now.
       let batchTraits =
         ops
@@ -391,8 +391,8 @@ let private resolveIn
 
       // Chunks load what they do not carry from the store, so only a caller whose batch is
       // already in the store can split it; an authoring batch is not, and stays whole. The
-      // count is fixed rather than per-core so every machine pins the same tree: two items
-      // with one hash get only one copy pinned, and which one depends on the split.
+      // count is fixed rather than per-core so every machine resolves the same tree: two
+      // items with one hash get only one copy resolved, and which one depends on the split.
       let size =
         if storeHoldsOps then
           max 256 (List.length ops / 32 + 1)
@@ -452,21 +452,21 @@ let private resolveIn
                       | _ -> None))
           }
 
-        let pinsByItem = Dictionary<PT.Hash, Map<id, PT.FQFnName.ImplChoice>>()
+        let implsByItem = Dictionary<PT.Hash, Map<id, PT.FQFnName.ImplChoice>>()
         let boundsByItem =
           Dictionary<PT.Hash, Map<id, List<PT.FQFnName.BoundImpl>>>()
 
         for KeyValue(itemHash, resolutions) in resolved do
           // Accumulated in loops rather than folds: the trait and the impl fn are both awaited,
           // so the fold version is three nested `uply` continuations deep.
-          let mutable pins = Map.empty
+          let mutable impls = Map.empty
           let mutable bounds = Map.empty
 
           for resolution in resolutions do
             match resolution with
             | Call(at, method_, implHashes) ->
               match! implFnFor method_ implHashes with
-              | Some implFn -> pins <- Map.add at (PT.FQFnName.Chosen implFn) pins
+              | Some implFn -> impls <- Map.add at (PT.FQFnName.Chosen implFn) impls
               | None -> ()
             | _ -> ()
 
@@ -476,8 +476,8 @@ let private resolveIn
           for resolution in resolutions do
             match resolution with
             | Deferred(at, param) ->
-              if not (Map.containsKey at pins) then
-                pins <- Map.add at (PT.FQFnName.FromTypeParam param) pins
+              if not (Map.containsKey at impls) then
+                impls <- Map.add at (PT.FQFnName.FromTypeParam param) impls
             | _ -> ()
 
           // The other half: what this item's CALLS worked out for the bounds of the fns they
@@ -516,24 +516,24 @@ let private resolveIn
               | None -> ()
             | _ -> ()
 
-          if not (Map.isEmpty pins) then pinsByItem[itemHash] <- pins
+          if not (Map.isEmpty impls) then implsByItem[itemHash] <- impls
           if not (Map.isEmpty bounds) then boundsByItem[itemHash] <- bounds
 
         let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
-          let pins =
-            match pinsByItem.TryGetValue hash with
-            | true, pins -> pins
+          let impls =
+            match implsByItem.TryGetValue hash with
+            | true, impls -> impls
             | _ -> Map.empty
           let bounds =
             match boundsByItem.TryGetValue hash with
             | true, bounds -> bounds
             | _ -> Map.empty
-          if Map.isEmpty pins && Map.isEmpty bounds then
+          if Map.isEmpty impls && Map.isEmpty bounds then
             None
           else
             Some
               { LibDB.AstTransformer.emptyMapping with
-                  pins = pins
+                  resolvedImpls = impls
                   boundImpls = bounds }
 
         let transformed =
@@ -562,18 +562,18 @@ let private resolveIn
             | _ -> op)
 
         // Two items with one hash are one item, parsed twice. A resolution is keyed by node id
-        // and the two parses have different ids, so only the copy the checker saw is pinned, and
-        // which copy that is depends on how the batch was split. The unpinned copy then rehashes
+        // and the two parses have different ids, so only the copy the checker saw is resolved, and
+        // which copy that is depends on how the batch was split. The unresolved copy then rehashes
         // apart from its twin, with every caller after it: loading the package tests alongside
         // the rest moved 340 production fns this way, `Cli.executeCliCommand` among them. So
-        // the copy that was pinned stands for every copy; ids do not enter the hash.
+        // the copy that was resolved stands for every copy; ids do not enter the hash.
         let bodyHash (op : PT.PackageOp) : Option<PT.Hash> =
           match op with
           | PT.PackageOp.AddFn fn -> Some fn.hash
           | PT.PackageOp.AddValue value -> Some value.hash
           | PT.PackageOp.AddTest test -> Some test.hash
           | _ -> None
-        let pinnedByHash =
+        let rewrittenByHash =
           List.zip ops transformed
           |> List.choose (fun (before, after) ->
             // Structurally: the twin gets the same mapping, and comes back rebuilt but
@@ -590,22 +590,23 @@ let private resolveIn
               after
             else
               match
-                bodyHash before |> Option.bind (fun h -> Map.tryFind h pinnedByHash)
+                bodyHash before
+                |> Option.bind (fun h -> Map.tryFind h rewrittenByHash)
               with
-              | Some pinned -> pinned
+              | Some rewritten -> rewritten
               | None -> after)
   }
 
 
 // --------------------
-// Saying what was left unpinned.
+// Saying what was left unresolved.
 // --------------------
 
 /// The calls in <param expr> that will be decided at run time rather than by this save: a trait
 /// method or a trait operator still `Unknown`, and a call into a BOUNDED fn that recorded nothing
 /// for its bounds (so the callee's deferral has nothing to read). <param isBounded> answers for a
 /// callee by hash.
-let rec private unpinned (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
+let rec private unresolved (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
   let traitOperator (infix : PT.Infix) =
     match infix with
     | PT.InfixFnCall name -> Option.isSome (LibExecution.NumericTraits.ofInfix name)
@@ -614,7 +615,7 @@ let rec private unpinned (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
     match nr.resolved with
     | Ok { name = PT.FQFnName.TraitMethod { implFn = PT.FQFnName.Unknown } } -> 1
     | Ok { name = PT.FQFnName.Package h } when not recorded && isBounded h -> 1
-    // A pinned `-x` names the trait method, so one still naming the builtin was not pinned.
+    // A resolved `-x` names the trait method, so one still naming the builtin was not resolved.
     | _ when
       isUnaryOperator nr && Option.isSome (LibExecution.NumericTraits.ofNegate ())
       ->
@@ -634,13 +635,13 @@ let rec private unpinned (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
           1
         | _ -> 0)
     | _ -> 0
-  here + (PTAst.subExprs expr |> List.sumBy (unpinned isBounded))
+  here + (PTAst.subExprs expr |> List.sumBy (unresolved isBounded))
 
 
 /// Write onto each trait-method call in <param ops> the implementation it resolves to, and on an
 /// authoring save, say how many calls it could not.
 ///
-/// The count is what makes a partly pinned save visible. A save the checker could not settle at
+/// The count is what makes a partly resolved save visible. A save the checker could not settle at
 /// all printed a line; one it settled partly printed nothing, and its unsettled calls ran whichever
 /// implementation was newest, which a later rival could change without anyone being told.
 let resolveTraitCalls
@@ -697,9 +698,9 @@ let resolveTraitCalls
         |> List.choose (fun op ->
           let hash, count =
             match op with
-            | PT.PackageOp.AddFn fn -> fn.hash, unpinned isBounded fn.body
-            | PT.PackageOp.AddValue v -> v.hash, unpinned isBounded v.body
-            | PT.PackageOp.AddTest t -> t.hash, unpinned isBounded t.body
+            | PT.PackageOp.AddFn fn -> fn.hash, unresolved isBounded fn.body
+            | PT.PackageOp.AddValue v -> v.hash, unresolved isBounded v.body
+            | PT.PackageOp.AddTest t -> t.hash, unresolved isBounded t.body
             | _ -> PT.Hash "", 0
           if count = 0 then
             None
@@ -717,7 +718,7 @@ let resolveTraitCalls
         let total = List.length left
         let which = String.concat ", " left
         print
-          $"  [traitcalls] trait calls this save could not pin, in {total} item(s), will run whichever implementation is newest when they run: {which}"
+          $"  [traitcalls] trait calls this save could not resolve, in {total} item(s), will run whichever implementation is newest when they run: {which}"
 
     return resolved
   }

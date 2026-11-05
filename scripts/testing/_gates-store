@@ -307,7 +307,7 @@ gate_reload_is_reproducible() {
     exit 1
   fi
   if [[ "$moved" -lt 100 ]]; then
-    echo "reload-is-reproducible: the reload pinned $moved trait call op(s), which is too few."
+    echo "reload-is-reproducible: the reload resolved $moved trait call op(s), which is too few."
     echo "  A whole-tree reload resolves thousands. Zero or a handful means the checker failed"
     echo "  over the batch and reported nothing. Look in $WORK/logs/packages.log for the line"
     echo "  saying the at-rest checker failed over a whole batch."
@@ -321,7 +321,7 @@ gate_reload_is_reproducible() {
     exit 1
   fi
   echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids,"
-  echo "  and the second pinned $moved trait call op(s)."
+  echo "  and the second resolved $moved trait call op(s)."
 }
 
 # --- trait-checker-vs-dispatch: the checker and dispatch agree on which impls exist ---
@@ -414,8 +414,8 @@ DARK
   #
   # The checker matched an implementation by the HEAD of its self type and the runtime matched the
   # type arguments too, so `impl T for Option<Int64>` and `impl T for Option<String>` were both
-  # candidates at the save and it picked between them by timestamp. The pin landed on whichever was
-  # authored later rather than the one that fits, and since the pin is `Chosen` the runtime never
+  # candidates at the save and it picked between them by timestamp. The choice landed on whichever was
+  # authored later rather than the one that fits, and since the choice is `Chosen` the runtime never
   # re-asked: a green save that raised on its first call. The tell is that the ANSWER depended on
   # authoring order, so this walks both orders and expects the same answer from each.
   for order in int-first str-first; do
@@ -455,8 +455,8 @@ DARK
 )
     # The save has to agree as well as the call. The checker compared the impl's Int64 against
     # the literal's still-unwalked type variable, so it refused this save while the call ran.
-    if [[ "$saved" == *MissingImpl* || "$saved" == *"could not pin"* ]]; then
-      echo "trait-checker-vs-dispatch: the save refused or left unpinned a call that dispatch runs,"
+    if [[ "$saved" == *MissingImpl* || "$saved" == *"could not resolve"* ]]; then
+      echo "trait-checker-vs-dispatch: the save refused or left unresolved a call that dispatch runs,"
       echo "  with the implementations authored $order:"
       echo "    ${saved//$'\n'/$'\n'    }"
       exit 1
@@ -464,7 +464,7 @@ DARK
 
     got=$($CLI eval 'Stachu.Fit.callIt()' 2>&1 | clean || true)
     if [[ "$got" != INT ]]; then
-      echo "trait-checker-vs-dispatch: a saved call was pinned to an implementation that does not"
+      echo "trait-checker-vs-dispatch: a saved call was resolved to an implementation that does not"
       echo "  fit its type arguments, with the implementations authored $order."
       echo "  An Option<Int64> should take the Option<Int64> implementation whichever order they"
       echo "  were written in. It answered:"
@@ -599,7 +599,7 @@ gate_trait_choice_any_batching() {
       "let tryIt(): List<String> = [ describe([ 1, 2, 3 ]), describe(\"hello\") ]"
   }
 
-  # How many choices a stored fn's body records, `Unknown` aside: what pinning wrote.
+  # How many choices a stored fn's body records, `Unknown` aside: what resolving wrote.
   recorded() {
     $CLI eval "match Darklang.LanguageTools.PackageManager.Function.find(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Stachu\", modules = [\"$1\"], name = \"$2\" }) with
 | Some(h) ->

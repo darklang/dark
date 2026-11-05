@@ -384,8 +384,8 @@ let loadCandidate(
 ///
 /// For a caller with no branch in hand: the LSP checking an unsaved buffer, and the checker's
 /// own tests. An implementation bound only on a branch is invisible here, which is the same
-/// answer this gave before it could see implementations at all. Anything that PINS a call
-/// passes its branch explicitly through `checkPackageOpsOn`, because pinning against the wrong
+/// answer this gave before it could see implementations at all. Anything that RESOLVES a call
+/// passes its branch explicitly through `checkPackageOpsOn`, because resolving against the wrong
 /// branch's implementations would store the wrong answer.
 let checkPackageOps(ops: List<LanguageTools.ProgramTypes.PackageOp>): Report =
   checkPackageOpsOn(Darklang.SCM.Branch.mainBranchId, ops)

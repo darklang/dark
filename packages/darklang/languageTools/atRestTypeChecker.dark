@@ -219,7 +219,7 @@ type ItemReport =
     diagnostics: List<Issue>
     warnings: List<Issue>
 
-    /// Which implementation each trait call in this item resolved to. Save-time pinning
+    /// Which implementation each trait call in this item resolved to. Save-time resolution
     /// is the only caller that reads it; everything that reports to a PERSON reads the
     /// three fields above and ignores this one.
     ///
@@ -257,7 +257,7 @@ let checkPackageOps(
 
 /// Check package operations against the implementations bound on <param branchId>.
 ///
-/// What authoring uses, and what save-time pinning reads: a call is pinned to the
+/// What authoring uses, and what save-time resolution reads: a call resolves to the
 /// implementation that is live on the branch being saved to, so the branch is not optional
 /// there the way it is for an editor buffer.
 let checkPackageOpsOn(

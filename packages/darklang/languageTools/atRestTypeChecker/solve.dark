@@ -25,7 +25,7 @@ type State =
 
     /// Which implementation each trait call resolved to, most recent first. Unlike
     /// findings these do not affect the verdict: they are what the caller asked the
-    /// check FOR, when that caller is save-time pinning rather than a person.
+    /// check FOR, when that caller is save-time resolution rather than a person.
     resolutions: List<Model.Resolution> }
 
 /// Begin checking a declaration with fresh inference state and the supplied environment.
