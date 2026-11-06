@@ -1,9 +1,9 @@
 module Darklang.Stdlib.Diff
 
 type DiffLine =
-  | Same of String
-  | Added of String
-  | Removed of String
+  | Same(String)
+  | Added(String)
+  | Removed(String)
 
 /// The rows of the LCS length table, last row first, each row last column first.
 ///

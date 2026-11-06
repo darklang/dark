@@ -91,9 +91,9 @@ let executeImport (state: AppState) (path: String) : AppState =
 module Status =
   type Verdict =
     | InSync
-    | ToSend of Int64
+    | ToSend(Int64)
     | Behind
-    | BothWays of Int64
+    | BothWays(Int64)
 
   type Model =
     { url: String

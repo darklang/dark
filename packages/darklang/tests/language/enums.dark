@@ -33,7 +33,7 @@ module Errors =
 
   module User =
     // Distinct enum cases give this type its own content hash for stable error names.
-    type MyEnum = | PortedFixtureA | B | C of String
+    type MyEnum = | PortedFixtureA | B | C(String)
 
     test unknownCaseRaises =
       MyEnum.D
@@ -93,8 +93,8 @@ module Simple =
 
   module EnumReference =
     type CorD =
-      | C of Int64
-      | D of AorB
+      | C(Int64)
+      | D(AorB)
 
     test payloadEquality =
       Stdlib.Test.all(
@@ -104,9 +104,9 @@ module Simple =
 module MixedCases =
   type EnumOfMixedCases =
     | W
-    | X of String
-    | Y of i: Int64
-    | Z of c: String * i: Int64
+    | X(String)
+    | Y(i: Int64)
+    | Z(c: String, i: Int64)
 
   test equality =
     Stdlib.Test.all(
@@ -162,8 +162,8 @@ module MixedCases =
 
 module TuplesVsNonTuples =
   type Tuples =
-    | NotTuple of String * Int64
-    | Tuple of (String * Int64)
+    | NotTuple(String, Int64)
+    | Tuple(String * Int64)
 
   test matching =
     Stdlib.Test.all(
@@ -187,7 +187,7 @@ module TuplesVsNonTuples =
 module Recursive =
   type Tree =
     | Leaf
-    | Node of Tree * Tree
+    | Node(Tree, Tree)
 
   test trees =
     Stdlib.Test.all(
@@ -203,7 +203,7 @@ module Polymorphism =
 
   type RBTree<'a> =
     | Empty
-    | Node of color: Color * left: RBTree<'a> * value: 'a * right: RBTree<'a>
+    | Node(color: Color, left: RBTree<'a>, value: 'a, right: RBTree<'a>)
 
   let singleton(value: 'a): RBTree<'a> =
     RBTree.Node(Color.Red, RBTree.Empty, value, RBTree.Empty)

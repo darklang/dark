@@ -453,6 +453,7 @@ Rules:
   # { must not be left of type name
 
 ## Enums
+  type Shape = | Dot | Seg(Point, Point)   # declare: fields in parentheses, like a call
   Option.Some(5)     # construct: TypeName.Case, fields in parentheses
   | Some(x) -> ...           # match: Case, or Type.Case
   | (Ok(x), Ok(y)) -> ...    # tuple of constructors

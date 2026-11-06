@@ -892,6 +892,69 @@ let private callSyntaxTests =
         Expect.equal
           (hint "let add (a: Int64) (b: Int64) : Int64 = a + b")
           [ "write `let f(a: T, b: U)` rather than `let f (a: T) (b: U)`" ]
+          "the old form names the new one")
+      testCase "an enum case's fields go in parentheses" (fun _ ->
+        let fieldShapes (src : string) =
+          let r = P.parse src
+          Expect.isEmpty r.diagnostics src
+          match r.parsed with
+          | Some(WT.SourceFile { declarations = [ WT.DType { definition = WT.TDEnum cases } ] }) ->
+            cases
+            |> List.map (fun (_, c) ->
+              c.fields
+              |> List.map (fun f ->
+                (f.label |> Option.map snd,
+                 match f.typ with
+                 | WT.TTuple _ -> "tuple"
+                 | WT.TFn _ -> "fn"
+                 | _ -> "atom")))
+          | other -> failtest $"expected one enum, got: {other}"
+        // The diagnostics' messages, and the cases found despite them.
+        let recovered (src : string) =
+          let r = P.parse src
+          let names =
+            match r.parsed with
+            | Some(WT.SourceFile { declarations = WT.DType { definition = WT.TDEnum cases } :: _ }) ->
+              cases |> List.map (fun (_, c) -> snd c.name)
+            | other -> failtest $"expected an enum, got: {other}"
+          (r.diagnostics |> List.map (fun d -> d.message), names)
+        Expect.equal
+          (fieldShapes
+            "type Shape = | Dot | Seg(Int64, Int64) | Pair(Int64 * Int64)")
+          [ []; [ (None, "atom"); (None, "atom") ]; [ (None, "tuple") ] ]
+          "commas separate fields; `*` makes one tuple field"
+        Expect.equal
+          (fieldShapes "type K = KeyPressed (key: String, modifiers: List<String>)")
+          [ [ (Some "key", "atom"); (Some "modifiers", "atom") ] ]
+          "labelled, with a space before the paren"
+        Expect.equal
+          (fieldShapes "type R = | Run(Int64 -> Int64) | Pair(x: Int64 * Int64)")
+          [ [ (None, "fn") ]; [ (Some "x", "tuple") ] ]
+          "a function field and a labelled tuple field need no parens of their own"
+        Expect.equal
+          (recovered "type E = | Foo() | Bar")
+          ([ "a case with no fields is written without parentheses" ],
+           [ "Foo"; "Bar" ])
+          "empty parens"
+        Expect.equal
+          (recovered "type E = | Foo(Int64 String) | Bar")
+          ([ "expected ',' or ')' between a case's fields, found 'String'" ],
+           [ "Foo"; "Bar" ])
+          "a missing comma skips to the `)`"
+        let (unclosed, names) = recovered "type E =\n  | Foo(Int64\n  | Bar"
+        Expect.equal names [ "Foo"; "Bar" ] "an unclosed case ends at the next `|`"
+        Expect.equal
+          (unclosed |> List.map (fun m -> m.StartsWith "expected ')' to close"))
+          [ true ]
+          "and says the paren is unclosed"
+        Expect.equal
+          (recovered "type E =\n  | Foo\n  (Int64)\n  | Bar")
+          ([ "a case's fields start on the same line as its name" ],
+           [ "Foo"; "Bar" ])
+          "fields on the next line are an error"
+        Expect.equal
+          (hint "type Shape = | Dot | Seg of Int64 * Int64")
+          [ "write `Seg(A, B)` rather than `Seg of A * B`" ]
           "the old form names the new one") ]
 
 /// Lexical failures. The plain "it diagnoses" cases are package tests; these look at
@@ -1006,7 +1069,7 @@ let private fuzzTests =
       "module A.B\ntype T = { a: Int64, b: List<String> }\nlet v = T { a = 1, b = [] }"
       "match xs with\n| [] -> 0\n| [h, ...t] -> h + (sum t)\n| _ -> $\"n {h} m\""
       "[1, 2] |> Stdlib.List.map(fun x -> x * 2) |> (fun v -> v + \"s\")"
-      "type E = | A of Int64 * String | B\nlet g(): E = A(1, \"x\")" ]
+      "type E = | A(Int64, String) | B\nlet g(): E = A(1, \"x\")" ]
   testList
     "fuzz"
     [ testCase "mutated inputs never throw; parsing is deterministic" (fun _ ->

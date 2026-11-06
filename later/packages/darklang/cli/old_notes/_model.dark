@@ -12,10 +12,10 @@ type Page =
   // | OtherUser of username: String
 
   // Matter
-  | Module of owner: String * submodulePath: List<String>
-  | Type of location: LanguageTools.ProgramTypes.PackageLocation
-  | Fn of location: LanguageTools.ProgramTypes.PackageLocation
-  | Value of location: LanguageTools.ProgramTypes.PackageLocation
+  | Module(owner: String, submodulePath: List<String>)
+  | Type(location: LanguageTools.ProgramTypes.PackageLocation)
+  | Fn(location: LanguageTools.ProgramTypes.PackageLocation)
+  | Value(location: LanguageTools.ProgramTypes.PackageLocation)
 
   // app
   //| App of Uuid
@@ -54,9 +54,9 @@ type Page =
   /// The result of a command execution
   type CommandResult =
     | None
-    | Success of message: String
-    | Info of message: String
-    | Error of message: String
+    | Success(message: String)
+    | Info(message: String)
+    | Error(message: String)
 
   /// The CLI interaction mode
   type InteractionMode =
@@ -91,8 +91,8 @@ type Page =
 
   /// Content types
   type ViewContent =
-    | ModuleView of EntityCategory * List<String> * Int  // category, items, selectedIndex
-    | EntityDefinitionView of EntityDefinition
+    | ModuleView(EntityCategory, List<String>, Int)  // category, items, selectedIndex
+    | EntityDefinitionView(EntityDefinition)
 
   /// Viewing mode state
   type ViewingState =

@@ -17,7 +17,7 @@ type State =
 
 type Msg =
   /// Enter, with the index into the labels the parent handed in.
-  | Chose of Int64
+  | Chose(Int64)
   /// Escape.
   | Cancelled
 

@@ -53,15 +53,15 @@ type InputAudio =
 /// ChatCompletionContentPart = Text | Image | InputAudio | Refusal
 type ContentPart =
   /// Text content (ChatCompletionContentPartText)
-  | Text of String
+  | Text(String)
   /// Image from URL (ChatCompletionContentPartImage)
-  | ImageUrl of url: String * detail: ImageDetail
+  | ImageUrl(url: String, detail: ImageDetail)
   /// Image from base64 data (ChatCompletionContentPartImage)
-  | ImageBase64 of mediaType: String * data: String * detail: ImageDetail
+  | ImageBase64(mediaType: String, data: String, detail: ImageDetail)
   /// Audio input (ChatCompletionContentPartInputAudio)
-  | InputAudio of InputAudio
+  | InputAudio(InputAudio)
   /// Refusal content from assistant (ChatCompletionContentPartRefusal)
-  | Refusal of String
+  | Refusal(String)
 
 /// Convert content part to JSON
 let contentPartToJson (part: ContentPart) : Json =

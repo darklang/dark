@@ -10,7 +10,7 @@ type FileError =
   /// appears here: it raises before the operation runs.
   | OsAccessDenied
   /// Any other I/O failure — carries the original message.
-  | Other of String
+  | Other(String)
 
 
 module FileError =

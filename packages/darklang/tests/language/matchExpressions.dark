@@ -763,8 +763,8 @@ module TypeErrors =
   // Distinct enum cases give this type its own content hash for stable error names.
   type TestType =
     | NoArgs
-    | OneArg of Int64
-    | PortedTwoArgs of Int64 * Int64
+    | OneArg(Int64)
+    | PortedTwoArgs(Int64, Int64)
 
   // enum with more pattern params than actual args
   test tooManyPatternParamsRaises =

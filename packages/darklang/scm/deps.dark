@@ -13,11 +13,11 @@ module Darklang.SCM.Deps
 /// What `query` is asked.
 type DepQuery =
   /// What one item references, as distinct (hash, kind) pairs.
-  | Of of hash: String
+  | Of(hash: String)
   /// The distinct hashes these items reference.
-  | Closure of hashes: List<String>
+  | Closure(hashes: List<String>)
   /// Whether anything references this hash: at most one edge comes back.
-  | Referenced of hash: String
+  | Referenced(hash: String)
 
 
 /// One recorded edge. `Closure` leaves `dependsOnType` as "".

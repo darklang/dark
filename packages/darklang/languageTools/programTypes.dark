@@ -24,20 +24,20 @@ type ResolvedName<'a> =
 
 module FQTypeName =
   type Package = Hash
-  type FQTypeName = Package of Package
+  type FQTypeName = Package(Package)
 
 /// A trait, by content hash. A trait is its own item kind (`Trait.Trait`).
 module FQTraitName =
   type Package = Hash
-  type FQTraitName = Package of Package
+  type FQTraitName = Package(Package)
 
 module FQValueName =
   type Builtin = { name: String, version: Int32 }
   type Package = Hash
 
   type FQValueName =
-    | Builtin of Builtin
-    | Package of Package
+    | Builtin(Builtin)
+    | Package(Package)
 
 module FQFnName =
   type Builtin = { name: String, version: Int32 }
@@ -48,11 +48,11 @@ module FQFnName =
   /// nobody could work out, and an Option said both with the same value.
   type ImplChoice =
     /// The save picked it; stored code goes on running it
-    | Chosen of ResolvedName<Package>
+    | Chosen(ResolvedName<Package>)
     /// The self type is this type param of the item the call sits in, so the
     /// implementation is whatever the caller's type argument implies, and the
     /// caller records it.
-    | FromTypeParam of String
+    | FromTypeParam(String)
     /// Nothing to say. Only code parsed and run without being saved gets here.
     | Unknown
 
@@ -73,9 +73,9 @@ module FQFnName =
       implFn: ImplChoice }
 
   type FQFnName =
-    | Builtin of Builtin
-    | Package of Package
-    | TraitMethod of TraitMethod
+    | Builtin(Builtin)
+    | Package(Package)
+    | TraitMethod(TraitMethod)
 
 
 type NameResolutionError =
@@ -94,7 +94,7 @@ type NameResolution<'a> =
 /// Darklang's available types (int, List<T>, user-defined types, etc.)
 type TypeReference =
   // A named variable, eg `a` in `List<a>`, matches anything
-  | TVariable of String
+  | TVariable(String)
 
   | TUnit
   | TBool
@@ -117,67 +117,67 @@ type TypeReference =
   | TDateTime
   | TUuid
   | TBytes
-  | TStream of TypeReference
+  | TStream(TypeReference)
 
-  | TList of TypeReference
-  | TTuple of TypeReference * TypeReference * List<TypeReference>
-  | TDict of key: TypeReference * value: TypeReference
+  | TList(TypeReference)
+  | TTuple(TypeReference, TypeReference, List<TypeReference>)
+  | TDict(key: TypeReference, value: TypeReference)
 
-  | TCustomType of
-    NameResolution<FQTypeName.FQTypeName> *
-    typeArgs: List<TypeReference>
+  | TCustomType(
+    NameResolution<FQTypeName.FQTypeName>,
+    typeArgs: List<TypeReference>)
 
 
   // TODO: this should be an NEList
-  | TFn of List<TypeReference> * TypeReference
+  | TFn(List<TypeReference>, TypeReference)
 
 
 
 type LetPattern =
-  | LPUnit of ID
-  | LPVariable of ID * name: String
-  | LPWildcard of ID
-  | LPTuple of
-    ID *
-    first: LetPattern *
-    second: LetPattern *
-    theRest: List<LetPattern>
+  | LPUnit(ID)
+  | LPVariable(ID, name: String)
+  | LPWildcard(ID)
+  | LPTuple(
+    ID,
+    first: LetPattern,
+    second: LetPattern,
+    theRest: List<LetPattern>)
 
 
 /// Used for pattern matching in a match statement
 type MatchPattern =
-  | MPVariable of ID * String
+  | MPVariable(ID, String)
 
-  | MPUnit of ID
-  | MPBool of ID * Bool
-  | MPInt8 of ID * Int8
-  | MPUInt8 of ID * UInt8
-  | MPInt16 of ID * Int16
-  | MPUInt16 of ID * UInt16
-  | MPInt32 of ID * Int32
-  | MPUInt32 of ID * UInt32
-  | MPInt64 of ID * Int64
-  | MPUInt64 of ID * UInt64
-  | MPInt128 of ID * Int128
-  | MPUInt128 of ID * UInt128
-  | MPInt of ID * Int
-  | MPFloat of ID * Sign * String * String
-  | MPFloat32 of ID * Sign * String * String
-  | MPDecimal of ID * Decimal
-  | MPChar of ID * String
-  | MPString of ID * String
+  | MPUnit(ID)
+  | MPBool(ID, Bool)
+  | MPInt8(ID, Int8)
+  | MPUInt8(ID, UInt8)
+  | MPInt16(ID, Int16)
+  | MPUInt16(ID, UInt16)
+  | MPInt32(ID, Int32)
+  | MPUInt32(ID, UInt32)
+  | MPInt64(ID, Int64)
+  | MPUInt64(ID, UInt64)
+  | MPInt128(ID, Int128)
+  | MPUInt128(ID, UInt128)
+  | MPInt(ID, Int)
+  | MPFloat(ID, Sign, String, String)
+  | MPFloat32(ID, Sign, String, String)
+  | MPDecimal(ID, Decimal)
+  | MPChar(ID, String)
+  | MPString(ID, String)
 
-  | MPList of ID * List<MatchPattern>
-  | MPListCons of ID * head: MatchPattern * tail: MatchPattern
+  | MPList(ID, List<MatchPattern>)
+  | MPListCons(ID, head: MatchPattern, tail: MatchPattern)
 
-  | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPTuple(ID, MatchPattern, MatchPattern, List<MatchPattern>)
 
-  | MPEnum of ID * caseName: String * fieldPats: List<MatchPattern>
+  | MPEnum(ID, caseName: String, fieldPats: List<MatchPattern>)
 
-  | MPOr of ID * List<MatchPattern>
+  | MPOr(ID, List<MatchPattern>)
 
   /// `pattern as name`: matches what `pattern` matches and binds the whole value
-  | MPAs of ID * pattern: MatchPattern * name: String
+  | MPAs(ID, pattern: MatchPattern, name: String)
 
 type BinaryOperation =
   | BinOpAnd
@@ -205,41 +205,41 @@ type InfixFnName =
   | StringConcat
 
 type Infix =
-  | InfixFnCall of InfixFnName
-  | BinOp of BinaryOperation
+  | InfixFnCall(InfixFnName)
+  | BinOp(BinaryOperation)
 
 /// An operator that can be a trait method: any infix one, unary minus, or `~`.
 type Operator =
-  | OpInfix of InfixFnName
+  | OpInfix(InfixFnName)
   | OpNegate
   | OpBitwiseNot
 
 
 type StringSegment =
-  | StringText of String
-  | StringInterpolation of Expr
+  | StringText(String)
+  | StringInterpolation(Expr)
 
 
 type PipeExpr =
-  | EPipeVariable of ID * String * List<Expr>
+  | EPipeVariable(ID, String, List<Expr>)
 
-  | EPipeLambda of ID * List<LetPattern> * Expr
+  | EPipeLambda(ID, List<LetPattern>, Expr)
 
-  | EPipeInfix of ID * Infix * Expr * FQFnName.ImplChoice
+  | EPipeInfix(ID, Infix, Expr, FQFnName.ImplChoice)
 
-  | EPipeFnCall of
-    ID *
-    NameResolution<FQFnName.FQFnName> *
-    typeArgs: List<TypeReference> *
-    args: List<Expr> *
+  | EPipeFnCall(
+    ID,
+    NameResolution<FQFnName.FQFnName>,
+    typeArgs: List<TypeReference>,
+    args: List<Expr>,
     /// As `EFnName`: what this call worked out for the callee's bounds.
-    boundImpls: List<FQFnName.BoundImpl>
+    boundImpls: List<FQFnName.BoundImpl>)
 
-  | EPipeEnum of
-    ID *
-    typeName: NameResolution<FQTypeName.FQTypeName> *
-    caseName: String *
-    fields: List<Expr>
+  | EPipeEnum(
+    ID,
+    typeName: NameResolution<FQTypeName.FQTypeName>,
+    caseName: String,
+    fields: List<Expr>)
 
 
 type MatchCase =
@@ -251,79 +251,79 @@ type MatchCase =
 
 /// Expressions - the main part of the language.
 type Expr =
-  | EUnit of ID
+  | EUnit(ID)
 
   // simple data
 
-  | EBool of ID * Bool
+  | EBool(ID, Bool)
 
-  | EInt8 of ID * Int8
-  | EUInt8 of ID * UInt8
-  | EInt16 of ID * Int16
-  | EUInt16 of ID * UInt16
-  | EInt32 of ID * Int32
-  | EUInt32 of ID * UInt32
-  | EInt64 of ID * Int64
-  | EUInt64 of ID * UInt64
-  | EInt128 of ID * Int128
-  | EUInt128 of ID * UInt128
-  | EInt of ID * Int
+  | EInt8(ID, Int8)
+  | EUInt8(ID, UInt8)
+  | EInt16(ID, Int16)
+  | EUInt16(ID, UInt16)
+  | EInt32(ID, Int32)
+  | EUInt32(ID, UInt32)
+  | EInt64(ID, Int64)
+  | EUInt64(ID, UInt64)
+  | EInt128(ID, Int128)
+  | EUInt128(ID, UInt128)
+  | EInt(ID, Int)
 
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
-  | EFloat of ID * Sign * String * String
+  | EFloat(ID, Sign, String, String)
   /// A decimal literal, `19.99dec`; the value keeps its written scale
-  | EDecimal of ID * Decimal
+  | EDecimal(ID, Decimal)
 
   /// Single precision, written `1.5f32`. Same shape as `EFloat`.
-  | EFloat32 of ID * Sign * String * String
+  | EFloat32(ID, Sign, String, String)
 
   /// A character is an Extended Grapheme Cluster (hence why we use a String). This
   /// is equivalent to one screen-visible "character" in Unicode.
-  | EChar of ID * String
+  | EChar(ID, String)
 
-  | EString of ID * List<StringSegment>
+  | EString(ID, List<StringSegment>)
 
 
   // structures of data
-  | EList of ID * List<Expr>
+  | EList(ID, List<Expr>)
 
-  | EDict of ID * List<Expr * Expr>
+  | EDict(ID, List<Expr * Expr>)
 
-  | ETuple of ID * Expr * Expr * List<Expr>
+  | ETuple(ID, Expr, Expr, List<Expr>)
 
-  | ERecord of
-    ID *
-    typeName: NameResolution<FQTypeName.FQTypeName> *
-    typeArgs: List<TypeReference> *
-    fields: List<String * Expr>
+  | ERecord(
+    ID,
+    typeName: NameResolution<FQTypeName.FQTypeName>,
+    typeArgs: List<TypeReference>,
+    fields: List<String * Expr>)
 
-  | EEnum of
-    ID *
-    typeName: NameResolution<FQTypeName.FQTypeName> *
-    typeArgs : List<TypeReference> *
-    caseName: String *
-    fields: List<Expr>
+  | EEnum(
+    ID,
+    typeName: NameResolution<FQTypeName.FQTypeName>,
+    typeArgs : List<TypeReference>,
+    caseName: String,
+    fields: List<Expr>)
 
   // declaring and accessing variables
-  | ELet of ID * LetPattern * Expr * Expr
-  | ERecordFieldAccess of ID * Expr * String
-  | EVariable of ID * String
-  | EArg of ID * Int64
-  | EValue of ID * NameResolution<FQValueName.FQValueName>
+  | ELet(ID, LetPattern, Expr, Expr)
+  | ERecordFieldAccess(ID, Expr, String)
+  | EVariable(ID, String)
+  | EArg(ID, Int64)
+  | EValue(ID, NameResolution<FQValueName.FQValueName>)
 
   // control flow
-  | EUnwrap of ID * Expr
-  | EIf of
-    ID *
-    cond: Expr *
-    thenExpr: Expr *
-    elseExpr: Stdlib.Option.Option<Expr>
+  | EUnwrap(ID, Expr)
+  | EIf(
+    ID,
+    cond: Expr,
+    thenExpr: Expr,
+    elseExpr: Stdlib.Option.Option<Expr>)
 
-  | EMatch of ID * arg: Expr * cases: List<MatchCase>
+  | EMatch(ID, arg: Expr, cases: List<MatchCase>)
 
-  | EPipe of ID * Expr * List<PipeExpr>
+  | EPipe(ID, Expr, List<PipeExpr>)
 
 
   // function calls
@@ -331,26 +331,26 @@ type Expr =
   /// when this was SAVED names for the operator's method, so the operator goes on meaning what
   /// it meant. `Unknown` for the operators that are no trait method (`==`, `!=`, `&&`, `||`)
   /// and where the operand type is only known at run time.
-  | EInfix of
-    ID *
-    Infix *
-    Expr *
-    Expr *
-    implFn: FQFnName.ImplChoice
+  | EInfix(
+    ID,
+    Infix,
+    Expr,
+    Expr,
+    implFn: FQFnName.ImplChoice)
 
-  | ELambda of ID * List<LetPattern> * Expr
+  | ELambda(ID, List<LetPattern>, Expr)
 
   // TODO do typeArgs actually apply here?
   // they definitely don't _always_ make sense.
-  | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
+  | EApply(ID, Expr, typeArgs: List<TypeReference>, args: List<Expr>)
 
-  | EFnName of ID * NameResolution<FQFnName.FQFnName> * List<FQFnName.BoundImpl>
+  | EFnName(ID, NameResolution<FQFnName.FQFnName>, List<FQFnName.BoundImpl>)
 
-  | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
+  | ERecordUpdate(ID, record: Expr, updates: List<String * Expr>)
 
-  | EStatement of ID * first: Expr * next: Expr
+  | EStatement(ID, first: Expr, next: Expr)
 
-  | ESelf of ID
+  | ESelf(ID)
 
 module Expr =
   let toID(expr: Expr): ID =
@@ -402,13 +402,13 @@ type Deprecation<'name> =
   | NotDeprecated
 
   /// The exact same thing is available under a new, preferred name
-  | RenamedTo of 'name
+  | RenamedTo('name)
 
   /// This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of 'name
+  | ReplacedBy('name)
 
   /// This has been deprecated and not replaced, provide a message for the user
-  | DeprecatedBecause of String
+  | DeprecatedBecause(String)
 
 
 let parsePackageLocation(nameToParse: String): PackageLocation =
@@ -437,7 +437,7 @@ let parsePackageLocation(nameToParse: String): PackageLocation =
 type BranchID = Uuid
 
 /// Content-addressed hash for package items (hex-encoded SHA-256)
-type Hash = | Hash of String
+type Hash = | Hash(String)
 
 let hashToString(hash: Hash): String =
   match hash with
@@ -495,9 +495,9 @@ module TypeDeclaration =
       description: String }
 
   type Definition =
-    | Alias of TypeReference
-    | Record of List<RecordField>
-    | Enum of List<EnumCase>
+    | Alias(TypeReference)
+    | Record(List<RecordField>)
+    | Enum(List<EnumCase>)
 
   type TypeDeclaration =
     { typeParams: List<String>
@@ -597,7 +597,7 @@ module TraitImpl =
 
 module PackageTest =
   type ExpectedError =
-    | RuntimeError of String
+    | RuntimeError(String)
 
   /// Named executable package content. It is deliberately not callable from
   /// production expressions; the test runner evaluates its body directly.
@@ -647,12 +647,12 @@ module ItemKind =
 /// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
 /// growth (RefBuiltin, RefExternal, ...).
 type Reference =
-  | PackageType of Hash
-  | PackageValue of Hash
-  | PackageFn of Hash
-  | PackageTrait of Hash
-  | PackageTraitImpl of Hash
-  | PackageTest of Hash
+  | PackageType(Hash)
+  | PackageValue(Hash)
+  | PackageFn(Hash)
+  | PackageTrait(Hash)
+  | PackageTraitImpl(Hash)
+  | PackageTest(Hash)
 
 module Reference =
   let hash(r: Reference): Hash =
@@ -686,7 +686,7 @@ module Reference =
 /// Deprecate op; consumers decide how loud to be.
 type DeprecationKind =
   /// A different item (different hash) should be used instead.
-  | SupersededBy of replacement: Reference
+  | SupersededBy(replacement: Reference)
   /// Actively dangerous — runtime halts on invocation by default.
   | Harmful
   /// Don't use this anymore (catch-all).
@@ -707,24 +707,24 @@ type DecisionKind =
   /// SetName because ops are content-addressed: re-authoring the losing SetName produces the op that
   /// already exists and folds nothing. Binds with source='resolution' and closes the conflict as
   /// `overridden`.
-  | Override of target: Reference
+  | Override(target: Reference)
   /// Used by `dark undo` to bring back an earlier edit.
   /// Restore both the declaration's content and the names its references used.
   /// `revision` records which edit we returned to, so the next undo can go further back.
-  | Restore of revision: Uuid * target: Reference * names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>
+  | Restore(revision: Uuid, target: Reference, names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>)
   /// A standing finding has been seen and accepted. Closes it as `acked`, and binds nothing.
-  | Ack of findingId: String
+  | Ack(findingId: String)
 /// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
 ///
 /// The nested parts are the point. A doc on a field, a case or a parameter is outside the identity
 /// hash too, so before these there was no op that could carry an edit to one.
 type DocPart =
   | WholeItem
-  | RecordField of fieldName: String
-  | EnumCase of caseName: String
+  | RecordField(fieldName: String)
+  | EnumCase(caseName: String)
   /// By POSITION, not name: a parameter's name is not in the identity hash, so a name would not
   /// survive the version it was written against. Field and case names ARE hashed.
-  | Parameter of parameterIndex: Int64
+  | Parameter(parameterIndex: Int64)
 
 module DocPart =
   /// The part a stored key names ("item", "record-field:x", "parameter:0"), or None for one this
@@ -760,39 +760,39 @@ type ReferenceNamesSnapshot =
     restating: Stdlib.Option.Option<String> }
 
 type PackageOp =
-  | AddType of PackageType.PackageType
-  | AddValue of PackageValue.PackageValue
-  | AddFn of PackageFn.PackageFn
-  | AddTrait of Trait.Trait
-  | AddTraitImpl of TraitImpl.TraitImpl
-  | AddTest of PackageTest.PackageTest
+  | AddType(PackageType.PackageType)
+  | AddValue(PackageValue.PackageValue)
+  | AddFn(PackageFn.PackageFn)
+  | AddTrait(Trait.Trait)
+  | AddTraitImpl(TraitImpl.TraitImpl)
+  | AddTest(PackageTest.PackageTest)
   /// Bind a name (location) to a piece of content (target).
   ///
   /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
   /// authored it had no store to ask, which is true of the parsers). Two SetNames for one location that
   /// BOTH name no predecessor are two independent creations, which is a conflict; one that names the
   /// other's hash is an ordinary edit, which is not.
-  | SetName of
-      location: PackageLocation *
-      target: Reference *
-      previous: Stdlib.Option.Option<Hash>
+  | SetName(
+      location: PackageLocation,
+      target: Reference,
+      previous: Stdlib.Option.Option<Hash>)
   /// A name stops existing. Unlists whatever is live at the location and nothing else: the content stays
   /// reachable by hash. `previous` is the hash it unbound. Not a Deprecate, which is about content and would
   /// mark every other name on the same body; a deprecated name still resolves, an unbound one does not.
-  | Unbind of location: PackageLocation * previous: Stdlib.Option.Option<Hash>
+  | Unbind(location: PackageLocation, previous: Stdlib.Option.Option<Hash>)
   /// Author-initiated deprecation annotation on a specific hash.
   ///
   /// `restating` is empty except on the restatement path, same hole as `UpdateDoc`'s one axis over:
   /// `Deprecate` and `Undeprecate` are each other's inverse, so saying one again after the other
   /// produces the op that said it the first time. It matters more on `Undeprecate`, which carries
   /// nothing else, so without it there is exactly one possible undeprecate per item for all time.
-  | Deprecate of
-      target: Reference *
-      kind: DeprecationKind *
-      message: String *
-      restating: Stdlib.Option.Option<String>
+  | Deprecate(
+      target: Reference,
+      kind: DeprecationKind,
+      message: String,
+      restating: Stdlib.Option.Option<String>)
   /// Clear any prior deprecation on a target.
-  | Undeprecate of target: Reference * restating: Stdlib.Option.Option<String>
+  | Undeprecate(target: Reference, restating: Stdlib.Option.Option<String>)
   /// What the thing at a NAME says about itself, or one named part of it.
   ///
   /// Scoped to a location, not to content, and that is the point: content is shared. Ten names hold
@@ -803,40 +803,40 @@ type PackageOp =
   /// `previous` is the hash of the text being replaced, None when there was nothing there. It is
   /// what lets two people editing one doc comment produce a recorded conflict rather than one of
   /// them losing their words silently. `restating` is empty except on the restatement path.
-  | UpdateDoc of
-      location: PackageLocation *
-      part: DocPart *
-      text: String *
-      previous: Stdlib.Option.Option<Hash> *
-      restating: Stdlib.Option.Option<String>
+  | UpdateDoc(
+      location: PackageLocation,
+      part: DocPart,
+      text: String,
+      previous: Stdlib.Option.Option<Hash>,
+      restating: Stdlib.Option.Option<String>)
   /// Save which name each package reference uses in this declaration.
   /// For example, `double` and `twice` can point to the same function hash.
   /// Renaming `double` should update calls to `double`, leaving calls to `twice` alone.
   /// The hash cannot tell those names apart, so we save the names here.
   /// We collect references as we walk the declaration's AST and read this list
   /// back in the same order. `double() + double()` needs two entries, one per call.
-  | SetReferenceNames of
-      location: PackageLocation *
-      target: Reference *
-      names: List<(Reference * Stdlib.Option.Option<PackageLocation>)> *
-      restating: Stdlib.Option.Option<String>
+  | SetReferenceNames(
+      location: PackageLocation,
+      target: Reference,
+      names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>,
+      restating: Stdlib.Option.Option<String>)
   /// Rename an item and update the names its callers use, all in one operation.
   /// `references` includes saved names for the callers and the item being moved.
-  | Rename of
-      oldLocation: PackageLocation *
-      newLocation: PackageLocation *
-      target: Reference *
-      references: List<ReferenceNamesSnapshot> *
-      stamp: String
+  | Rename(
+      oldLocation: PackageLocation,
+      newLocation: PackageLocation,
+      target: Reference,
+      references: List<ReferenceNamesSnapshot>,
+      stamp: String)
   /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding and acking a
   /// finding are one class of act -- someone decided something about a location, and it has to hold on
   /// every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,
   /// and idempotence is the caller's choice of what to put in it. `reason` is carried, never interpreted.
-  | Decision of
-      id: String *
-      location: PackageLocation *
-      reason: String *
-      kind: DecisionKind
+  | Decision(
+      id: String,
+      location: PackageLocation,
+      reason: String,
+      kind: DecisionKind)
 
 
 module PackageOp =
@@ -1149,15 +1149,15 @@ type Definitions =
 
 module SourceFile =
   type Declaration =
-    | Type of PackageType.PackageType
-    | Value of PackageValue.PackageValue
-    | Function of PackageFn.PackageFn
-    | Trait of Trait.Trait
+    | Type(PackageType.PackageType)
+    | Value(PackageValue.PackageValue)
+    | Function(PackageFn.PackageFn)
+    | Trait(Trait.Trait)
     /// The impl item; its method fns are separate `Function` declarations
-    | Impl of TraitImpl.TraitImpl
-    | Test of PackageTest.PackageTest
+    | Impl(TraitImpl.TraitImpl)
+    | Test(PackageTest.PackageTest)
     // db and handlers
-    | Module of Definitions // re-evaluate if this makes sense to be here
+    | Module(Definitions) // re-evaluate if this makes sense to be here
 
   type SourceFile =
     { declarations: List<Declaration>

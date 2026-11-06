@@ -45,27 +45,27 @@ type InputSpec<'msg> =
 
 type Node<'msg> =
   /// One line of text, clipped to the width it is given.
-  | Text of String
-  | Styled of Style * Node<'msg>
+  | Text(String)
+  | Styled(Style, Node<'msg>)
   /// Children side by side.
-  | Row of List<Node<'msg>>
+  | Row(List<Node<'msg>>)
   /// Children stacked.
-  | Column of List<Node<'msg>>
+  | Column(List<Node<'msg>>)
   /// A header row, a rule, then the rows; column widths from the content.
-  | Table of columns: List<String> * rows: List<List<String>>
+  | Table(columns: List<String>, rows: List<List<String>>)
   /// Children stacked, each marked as an item.
-  | ListOf of List<Node<'msg>>
-  | Input of InputSpec<'msg>
+  | ListOf(List<Node<'msg>>)
+  | Input(InputSpec<'msg>)
   /// A label that sends `'msg` when pressed.
-  | Button of label: String * 'msg
-  | Link of label: String * href: String
+  | Button(label: String, 'msg)
+  | Link(label: String, href: String)
   /// `node` in a box of exactly this many rows and columns (clipped, or padded).
-  | Region of rows: Int64 * cols: Int64 * Node<'msg>
+  | Region(rows: Int64, cols: Int64, Node<'msg>)
   /// A full-width message in the severity's colour. This is where a diagnostic goes when the host
   /// keeps the last good frame under it.
-  | Band of Severity * String
+  | Band(Severity, String)
   /// Rows already rendered by something older. The escape hatch for views written as lines.
-  | Rows of List<String>
+  | Rows(List<String>)
   /// Nothing. A branch of a view that has nothing to say this frame.
   | Empty
 
@@ -163,8 +163,8 @@ let focusable(node: Node<'msg>): List<String> =
 
 /// The `Button` message or `Input` spec under a focus id, if the tree still has it.
 type Focused<'msg> =
-  | OnButton of 'msg
-  | OnInput of InputSpec<'msg>
+  | OnButton('msg)
+  | OnInput(InputSpec<'msg>)
 
 let findFocused(node: Node<'msg>, id: String): Stdlib.Option.Option<Focused<'msg>> =
   match node with

@@ -32,26 +32,26 @@ type InfixOp =
   | BooleanOr
 
 type StringSegment =
-  | StringText of String
-  | StringInterpolation of Expr
+  | StringText(String)
+  | StringInterpolation(Expr)
 
 type LetPattern =
-  | LPVariable of String
+  | LPVariable(String)
   | LPUnit
-  | LPTuple of first: LetPattern * second: LetPattern * rest: List<LetPattern>
+  | LPTuple(first: LetPattern, second: LetPattern, rest: List<LetPattern>)
 
 type MatchPattern =
-  | MPVariable of String
+  | MPVariable(String)
   | MPUnit
-  | MPBool of Bool
-  | MPInt64 of Int64
-  | MPFloat of Float
-  | MPString of String
-  | MPChar of String
-  | MPList of List<MatchPattern>
-  | MPListCons of head: MatchPattern * tail: MatchPattern
-  | MPTuple of first: MatchPattern * second: MatchPattern * rest: List<MatchPattern>
-  | MPEnum of typeName: String * caseName: String * fields: List<MatchPattern>
+  | MPBool(Bool)
+  | MPInt64(Int64)
+  | MPFloat(Float)
+  | MPString(String)
+  | MPChar(String)
+  | MPList(List<MatchPattern>)
+  | MPListCons(head: MatchPattern, tail: MatchPattern)
+  | MPTuple(first: MatchPattern, second: MatchPattern, rest: List<MatchPattern>)
+  | MPEnum(typeName: String, caseName: String, fields: List<MatchPattern>)
 
 type MatchCase =
   { pattern: MatchPattern
@@ -78,68 +78,68 @@ type TypeReference =
   | TFloat
   | TChar
   | TString
-  | TList of TypeReference
-  | TTuple of first: TypeReference * second: TypeReference * rest: List<TypeReference>
-  | TDict of TypeReference
-  | TCustomType of QualifiedName * typeArgs: List<TypeReference>
-  | TVariable of String
-  | TFn of args: List<TypeReference> * ret: TypeReference
+  | TList(TypeReference)
+  | TTuple(first: TypeReference, second: TypeReference, rest: List<TypeReference>)
+  | TDict(TypeReference)
+  | TCustomType(QualifiedName, typeArgs: List<TypeReference>)
+  | TVariable(String)
+  | TFn(args: List<TypeReference>, ret: TypeReference)
 
 type Expr =
   // Literals
   | EUnit
-  | EBool of Bool
-  | EInt8 of Int8
-  | EUInt8 of UInt8
-  | EInt16 of Int16
-  | EUInt16 of UInt16
-  | EInt32 of Int32
-  | EUInt32 of UInt32
-  | EInt64 of Int64
-  | EUInt64 of UInt64
-  | EInt128 of Int128
-  | EUInt128 of UInt128
-  | EFloat of sign: Sign * whole: String * fractional: String
-  | EChar of String
-  | EString of List<StringSegment>
+  | EBool(Bool)
+  | EInt8(Int8)
+  | EUInt8(UInt8)
+  | EInt16(Int16)
+  | EUInt16(UInt16)
+  | EInt32(Int32)
+  | EUInt32(UInt32)
+  | EInt64(Int64)
+  | EUInt64(UInt64)
+  | EInt128(Int128)
+  | EUInt128(UInt128)
+  | EFloat(sign: Sign, whole: String, fractional: String)
+  | EChar(String)
+  | EString(List<StringSegment>)
 
   // Variables and references
-  | EVariable of String
-  | EFnName of QualifiedName
-  | EValue of QualifiedName
+  | EVariable(String)
+  | EFnName(QualifiedName)
+  | EValue(QualifiedName)
 
   // Control flow
-  | EIf of cond: Expr * thenExpr: Expr * elseExpr: Stdlib.Option.Option<Expr>
-  | EMatch of arg: Expr * cases: List<MatchCase>
-  | ELet of pattern: LetPattern * value: Expr * body: Expr
+  | EIf(cond: Expr, thenExpr: Expr, elseExpr: Stdlib.Option.Option<Expr>)
+  | EMatch(arg: Expr, cases: List<MatchCase>)
+  | ELet(pattern: LetPattern, value: Expr, body: Expr)
 
   // Data structures
-  | EList of List<Expr>
-  | EDict of List<(Expr * Expr)>
-  | ETuple of first: Expr * second: Expr * rest: List<Expr>
+  | EList(List<Expr>)
+  | EDict(List<(Expr * Expr)>)
+  | ETuple(first: Expr, second: Expr, rest: List<Expr>)
 
   // Records and Enums
-  | ERecord of typeName: QualifiedName * fields: List<(String * Expr)>
-  | ERecordFieldAccess of record: Expr * fieldName: String
-  | ERecordUpdate of record: Expr * updates: List<(String * Expr)>
-  | EEnum of typeName: QualifiedName * caseName: String * fields: List<Expr>
+  | ERecord(typeName: QualifiedName, fields: List<(String * Expr)>)
+  | ERecordFieldAccess(record: Expr, fieldName: String)
+  | ERecordUpdate(record: Expr, updates: List<(String * Expr)>)
+  | EEnum(typeName: QualifiedName, caseName: String, fields: List<Expr>)
 
   // Functions
-  | EApply of fn: Expr * typeArgs: List<TypeReference> * args: List<Expr>
-  | ELambda of pats: List<LetPattern> * body: Expr
-  | EInfix of op: InfixOp * left: Expr * right: Expr
+  | EApply(fn: Expr, typeArgs: List<TypeReference>, args: List<Expr>)
+  | ELambda(pats: List<LetPattern>, body: Expr)
+  | EInfix(op: InfixOp, left: Expr, right: Expr)
 
   // Pipe
-  | EPipe of expr: Expr * parts: List<PipeExpr>
+  | EPipe(expr: Expr, parts: List<PipeExpr>)
 
   // Statement (sequential expressions)
-  | EStatement of first: Expr * next: Expr
+  | EStatement(first: Expr, next: Expr)
 
 type PipeExpr =
-  | PipeLambda of pats: List<LetPattern> * body: Expr
-  | PipeInfix of op: InfixOp * right: Expr
-  | PipeFnCall of fn: QualifiedName * args: List<Expr>
-  | PipeEnum of typeName: QualifiedName * caseName: String * fields: List<Expr>
+  | PipeLambda(pats: List<LetPattern>, body: Expr)
+  | PipeInfix(op: InfixOp, right: Expr)
+  | PipeFnCall(fn: QualifiedName, args: List<Expr>)
+  | PipeEnum(typeName: QualifiedName, caseName: String, fields: List<Expr>)
 
 
 // ============================================

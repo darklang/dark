@@ -14,7 +14,7 @@ type Model =
 
 type Msg =
   | Refresh
-  | Noted of String
+  | Noted(String)
 
 /// Read through the op-log silo, never `locations` directly: that table is main-only.
 let init () : Model =

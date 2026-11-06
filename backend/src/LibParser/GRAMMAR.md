@@ -193,8 +193,9 @@ takes; fewer is a runtime error (`TooFewArgsForFn`) and an at-rest checker error
 that: `fun x -> f(a, x)`. A function value named without a call (`List.map(xs,
 Int64.toFloat)`) is still a value.
 
-Enum constructors and lambda parameters take the same shape: `Ok(5)`,
-`Pair(1, 2)`, `fun(acc, x) -> …`. See Enum constructors and Lambdas below.
+Enum case declarations, constructors and lambda parameters take the same shape:
+`| Pair(Int, Int)`, `Pair(1, 2)`, `fun(acc, x) -> …`. See Enum constructors,
+Lambdas and Type declarations below.
 
 ## Offside (indentation) rules
 
@@ -372,8 +373,7 @@ Type variables are `'a` or bare lowercase names. Tuples use `A * B`. A function
 type with one argument is `A -> B`; with several, the arguments are a
 parenthesized list, as in a call: `(A, B) -> C`. A function that returns a
 function is `A -> (B -> C)`. A chain `A -> B -> C` is a `PARSE-UNEXPECTED` error
-with a hint; it is still parsed as `(A, B) -> C`, for recovery. Enum case fields separate with `*` at atom level:
-`Case of A * B` has two fields; a tuple field needs parens, `Case of (A * B)`.
+with a hint; it is still parsed as `(A, B) -> C`, for recovery.
 
 ## Declarations
 
@@ -417,8 +417,13 @@ Modules nest. The path builds the package location: `owner.modules.name`.
 **Type declarations** — `type Name<'a> = …` is one of:
 
 - a **record**: `{ f: T, … }`;
-- an **enum**: `| A | B of T` (after the first case each case requires a leading
-  `|`);
+- an **enum**: `| A | B(T)` (after the first case each case requires a leading
+  `|`). A case's fields go in parentheses, separated by commas, as a
+  constructor's do: `| Seg(Point, Point)` has two fields and
+  `| Seg(Point * Point)` one tuple field. A field may be labelled,
+  `| KeyPressed(key: Key, modifiers: Modifiers)`; the label is documentation,
+  and building and matching stay positional. `| B of T` is a `PARSE-UNEXPECTED`
+  error with a hint, still parsed for recovery;
 - an **alias** to another type: `type Id = String`, `type Pair = Int * Int`.
 
 **Trait declarations** — `trait Name<'a> =` followed by an indented block of

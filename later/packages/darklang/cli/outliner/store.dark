@@ -136,9 +136,9 @@ let starterData(): PersistedData =
 /// What came back from disk.
 type LoadResult =
   /// A file we understood (or no file at all, in which case this is the starter content).
-  | Loaded of PersistedData
+  | Loaded(PersistedData)
   /// A file we didn't understand. The caller must not write over it.
-  | Unreadable of path: String * reason: String
+  | Unreadable(path: String, reason: String)
 
 let parse(contents: String): LoadResult =
   match Stdlib.Json.parse<PersistedData>(contents) with

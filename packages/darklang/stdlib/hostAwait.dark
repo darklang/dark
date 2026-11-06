@@ -18,25 +18,25 @@ type EventSpec =
   /// The package store changed: an op landed here, or was pulled.
   | StoreChanged
   /// Fires once, this many milliseconds from now.
-  | Timer of ms: Int64
+  | Timer(ms: Int64)
   /// A process (`Exec.list` shows their ids) finished.
-  | ExecDone of id: Uuid
+  | ExecDone(id: Uuid)
   /// The next line of stdin, without its line ending.
   | StdinLine
   /// The next this-many BYTES of stdin, as text: a body framed by a `Content-Length`. A wait for
   /// stdin that something else beat leaves its read outstanding, and the next stdin wait must
   /// ask for the same thing, since that read's answer is already on its way.
-  | StdinBytes of bytes: Int64
+  | StdinBytes(bytes: Int64)
 
 
 /// What the runtime delivers: the first of the requested specs to happen, before `await` has
 /// described a store change. `Builtin.hostAwait` returns this; loops see `Event`.
 type RawEvent =
-  | Key of Stdlib.Cli.Stdin.KeyRead.KeyRead
+  | Key(Stdlib.Cli.Stdin.KeyRead.KeyRead)
   | StoreChanged
   | Timer
-  | ExecDone of id: Uuid
-  | Stdin of text: String
+  | ExecDone(id: Uuid)
+  | Stdin(text: String)
   | StdinClosed
 
 
@@ -44,15 +44,15 @@ type RawEvent =
 type Event =
   /// One read of the keyboard, as the runtime reads it: a key, a paste, or a coalesced burst with
   /// its repeat count. `Stdlib.Cli.UI.Widget.press` narrows it to a `KeyPress` for a widget.
-  | Key of Stdlib.Cli.Stdin.KeyRead.KeyRead
+  | Key(Stdlib.Cli.Stdin.KeyRead.KeyRead)
   /// What landed: the ops, the names they touched, or `unknown` when it will not say
   /// (`Stdlib.Live.poll` describes it).
-  | StoreChanged of Stdlib.Live.Change
+  | StoreChanged(Stdlib.Live.Change)
   | Timer
-  | ExecDone of id: Uuid
+  | ExecDone(id: Uuid)
   /// What a `StdinLine` or `StdinBytes` read. A stream that went out of step (a byte count that
   /// ends inside a character) raises rather than arriving here.
-  | Stdin of text: String
+  | Stdin(text: String)
   /// Stdin ended: nothing more will arrive.
   | StdinClosed
 

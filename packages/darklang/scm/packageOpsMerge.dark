@@ -137,8 +137,8 @@ type MergeOutcome =
 /// The two are worth telling apart. A refusal is a state the branch is in and a person can act on;
 /// a mechanism failure means the store did something unexpected halfway.
 type MergeError =
-  | Refused of Branches.MergeRefusal
-  | Mechanism of String
+  | Refused(Branches.MergeRefusal)
+  | Mechanism(String)
 
 /// The sentence a person reads, whichever half it came from.
 let mergeErrorMessage(e: MergeError): String =

@@ -56,7 +56,7 @@ type MyEnum =
 type MyEnum2 =
   | D
   | E
-  | F of MyEnum
+  | F(MyEnum)
 
 type EnumTestRecord = { x: String; y: MyEnum }
 
@@ -204,7 +204,7 @@ module AccessRecordInGenericField =
     |> Stdlib.Test.equal [ GenericThing { name = RecordThing { nested = "joe" } } ]
 
 module AccessEnumInGenericField =
-  type EnumThing = A of String
+  type EnumThing = A(String)
 
   [<DB>]
   type EnumThingDB = GenericThing<EnumThing>

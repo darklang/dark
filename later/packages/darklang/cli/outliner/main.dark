@@ -7,13 +7,13 @@ module Darklang.Cli.Outliner.Main
 
 /// An action waiting on a yes/no.
 type Pending =
-  | DeleteDocument of Int
-  | DeleteNode of Int
+  | DeleteDocument(Int)
+  | DeleteNode(Int)
 
 type Screen =
-  | DocPicker of Stdlib.Cli.UI.Picker.State
-  | DocRenaming of docId: Int * Stdlib.Cli.UI.Picker.State * Stdlib.Cli.UI.TextField.State
-  | Editing of Editor.State
+  | DocPicker(Stdlib.Cli.UI.Picker.State)
+  | DocRenaming(docId: Int, Stdlib.Cli.UI.Picker.State, Stdlib.Cli.UI.TextField.State)
+  | Editing(Editor.State)
 
 type State =
   { documents: List<Document>
@@ -32,9 +32,9 @@ type State =
     savedStamp: Stdlib.Option.Option<Store.Stamp> }
 
 type KeyResult =
-  | Continue of State
-  | Save of State
-  | Exit of State
+  | Continue(State)
+  | Save(State)
+  | Exit(State)
 
 
 // --- Documents ---

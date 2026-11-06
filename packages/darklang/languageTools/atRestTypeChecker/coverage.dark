@@ -12,18 +12,18 @@ module Darklang.LanguageTools.AtRestTypeChecker.Coverage
 /// has a head and tail, a tuple has elements, and an enum case has payload fields.
 type Constructor =
   | UnitCase
-  | BoolCase of Bool
+  | BoolCase(Bool)
   | EmptyList
   | ConsList
-  | TupleOf of Int64
-  | EnumCase of String
+  | TupleOf(Int64)
+  | EnumCase(String)
 
 /// A description of an uncovered value for the diagnostic, rather than a runtime value.
 type Missing =
   /// Leave this part unspecified, displayed as an ellipsis.
   | Anything
   /// Describe the outer shape and any missing values within its fields.
-  | Built of Constructor * List<Missing>
+  | Built(Constructor, List<Missing>)
 
 /// Make n copies, for wildcard fields or unspecified parts of a missing value.
 let replicate(n: Int64, x: 'a): List<'a> =

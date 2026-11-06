@@ -11,13 +11,13 @@ type BinOp =
   | Div
 
 type Expr =
-  | EInt of Int64
-  | EBool of Bool
-  | EVar of String
-  | EBinOp of left: Expr * op: BinOp * right: Expr
-  | EIf of cond: Expr * thenExpr: Expr * elseExpr: Expr
-  | ELet of name: String * value: Expr * body: Expr
-  | EList of List<Expr>
+  | EInt(Int64)
+  | EBool(Bool)
+  | EVar(String)
+  | EBinOp(left: Expr, op: BinOp, right: Expr)
+  | EIf(cond: Expr, thenExpr: Expr, elseExpr: Expr)
+  | ELet(name: String, value: Expr, body: Expr)
+  | EList(List<Expr>)
 
 
 // ============================================

@@ -98,7 +98,7 @@ module Command =
 
 
   type Command =
-    | General of GeneralCommand
+    | General(GeneralCommand)
     //| Config of ConfigCommand
     //| Matter of MatterCommand
     //| App of AppCommand

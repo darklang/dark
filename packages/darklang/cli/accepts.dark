@@ -29,10 +29,10 @@ type Shape =
   }
 
 type Accepts =
-  | Takes of Shape
+  | Takes(Shape)
   /// The first word that is not a flag names a subcommand with its own arguments. `otherwise` is what
   /// the command takes when that word is not one of them, including when there are no words.
-  | Subcommands of named: List<(String * Accepts)> * otherwise: Shape
+  | Subcommands(named: List<(String * Accepts)>, otherwise: Shape)
 
 
 // Each helper builds its `Shape` itself rather than through a shared constructor: the one being run is

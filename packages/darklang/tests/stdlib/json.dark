@@ -1531,10 +1531,10 @@ module UserDefinedEnums =
   // TODO: more nesting...
   type PrettyLikely =
     | Yeah
-    | Enh of reason: String * Int64
+    | Enh(reason: String, Int64)
 
   type PrettyLikely2 =
-    | PrettyLikely of PrettyLikely
+    | PrettyLikely(PrettyLikely)
     | Yes
     | No
 
@@ -1909,9 +1909,9 @@ module Package =
 module RestoredArchive =
   type Counter = { v: Int64 }
   type NamedError =
-    | InvalidPackageName of List<String>
-    | MissingEnumModuleName of String
-    | NotFound of List<String>
+    | InvalidPackageName(List<String>)
+    | MissingEnumModuleName(String)
+    | NotFound(List<String>)
 
   test enumWithListPayload =
     let value = NamedError.InvalidPackageName(["NamePart"])

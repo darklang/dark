@@ -11,31 +11,31 @@ module Darklang.SCM.Bindings
 /// `ItemKind.toString` writes it.
 type BindingFilter =
   /// One name the branch binds this hash at, if any. Fills owner, modules, name.
-  | LocationOf of branchId: Uuid * hash: String
+  | LocationOf(branchId: Uuid, hash: String)
   /// Every binding whose bare name is one of these, whatever its owner and modules.
-  | ByBareNames of branchId: Uuid * names: List<String>
+  | ByBareNames(branchId: Uuid, names: List<String>)
   /// What the branch binds at each (owner, modules, name); a name bound to nothing is absent.
-  | At of branchId: Uuid * names: List<(String * String * String)>
+  | At(branchId: Uuid, names: List<(String * String * String)>)
   /// `At`, in the branch's committed view: its draft left out.
-  | CommittedAt of branchId: Uuid * names: List<(String * String * String)>
+  | CommittedAt(branchId: Uuid, names: List<(String * String * String)>)
   /// Every binding the branch's own work holds that propagation wrote. Fills owner, modules, name.
-  | Propagated of branchId: Uuid
+  | Propagated(branchId: Uuid)
   /// Every hash this name was bound to by an op or by propagation, oldest first, live or not.
-  | AuthoringOrder of branchId: Uuid * owner: String * modules: String * name: String
+  | AuthoringOrder(branchId: Uuid, owner: String, modules: String, name: String)
   /// Every hash ever bound at each (owner, modules, name, kind), removals left out, the live one first.
-  | EverBound of branchId: Uuid * keys: List<(String * String * String * String)>
+  | EverBound(branchId: Uuid, keys: List<(String * String * String * String)>)
   /// Every name the branch binds this content at. Fills owner, modules, name.
-  | ByHash of branchId: Uuid * hash: String * kind: String
+  | ByHash(branchId: Uuid, hash: String, kind: String)
   /// Every name the branch binds each of these hashes at. Fills owner, modules, name, hash.
-  | ByHashes of branchId: Uuid * hashes: List<String>
+  | ByHashes(branchId: Uuid, hashes: List<String>)
   /// What the branch's own work last said about each name it touched; a removal has hash "".
-  | Own of branchId: Uuid
+  | Own(branchId: Uuid)
   /// Every hash the branch and its ancestors below main bound by an op or by propagation, oldest
   /// first. Fills owner, modules, name, hash.
-  | BranchHistory of branchId: Uuid
+  | BranchHistory(branchId: Uuid)
   /// What the branch sees beneath itself -- its ancestors' committed work -- at each name it recorded a
   /// base for. Fills owner, modules, name, hash ("" for nothing there).
-  | AboveBases of branchId: Uuid
+  | AboveBases(branchId: Uuid)
 
 
 /// One binding. Which fields a filter fills is said on its case; the rest are ""

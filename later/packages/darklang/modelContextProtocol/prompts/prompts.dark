@@ -100,8 +100,8 @@ module GetPromptResponse =
     | Assistant
 
   type PromptContent =
-    | Text of String
-    | Resource of Json // Placeholder for resource content
+    | Text(String)
+    | Resource(Json) // Placeholder for resource content
 
   type PromptMessage = {
     role: MessageRole

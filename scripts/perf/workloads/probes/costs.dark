@@ -14,8 +14,8 @@
 type Rec = { a: Int64, b: String }
 
 type Enum =
-  | One of Int64
-  | Two of String * Int64
+  | One(Int64)
+  | Two(String, Int64)
 
 let plainFn(i: Int64): Int64 = i + 1
 let twoArgFn(i: Int64, j: Int64): Int64 = i + j

@@ -68,9 +68,9 @@ module InputItem =
 
   /// Content part for messages
   type ContentPart =
-    | Text of String
-    | InputImage of url: String * detail: String
-    | InputFile of fileId: String
+    | Text(String)
+    | InputImage(url: String, detail: String)
+    | InputFile(fileId: String)
 
   /// Convert content part to JSON
   let contentPartToJson (part: ContentPart) : Json =
@@ -91,9 +91,9 @@ module InputItem =
 
   /// Input item types
   type InputItem =
-    | Message of role: Role * content: List<ContentPart>
-    | FunctionCallOutput of callId: String * output: String
-    | ItemReference of id: String
+    | Message(role: Role, content: List<ContentPart>)
+    | FunctionCallOutput(callId: String, output: String)
+    | ItemReference(id: String)
 
   /// Convert input item to JSON
   let toJson (item: InputItem) : Json =
@@ -155,18 +155,18 @@ module InputItem =
 module OutputItem =
   /// Output content types
   type OutputContent =
-    | OutputText of text: String * annotations: List<Json>
-    | Refusal of refusal: String
+    | OutputText(text: String, annotations: List<Json>)
+    | Refusal(refusal: String)
 
   /// Output item types
   type OutputItem =
-    | Message of id: String * role: String * content: List<OutputContent> * status: String
-    | FunctionCall of id: String * callId: String * name: String * arguments: String * status: String
-    | WebSearchCall of id: String * status: String
-    | FileSearchCall of id: String * status: String * results: List<Json>
-    | CodeInterpreterCall of id: String * status: String * outputs: List<Json>
-    | ComputerCall of id: String * callId: String * action: Json * status: String
-    | Reasoning of id: String * summary: List<Json>
+    | Message(id: String, role: String, content: List<OutputContent>, status: String)
+    | FunctionCall(id: String, callId: String, name: String, arguments: String, status: String)
+    | WebSearchCall(id: String, status: String)
+    | FileSearchCall(id: String, status: String, results: List<Json>)
+    | CodeInterpreterCall(id: String, status: String, outputs: List<Json>)
+    | ComputerCall(id: String, callId: String, action: Json, status: String)
+    | Reasoning(id: String, summary: List<Json>)
 
   /// Parse output content from JSON
   let parseOutputContent (json: Json) : Stdlib.Option.Option<OutputContent> =
@@ -253,11 +253,11 @@ module BuiltInTools =
 
   /// Built-in tool types
   type BuiltInTool =
-    | WebSearch of WebSearch.WebSearchTool
-    | FileSearch of FileSearchTool
-    | CodeInterpreter of CodeInterpreterTool
-    | ComputerUse of ComputerUseTool
-    | Function of Tools.Tool
+    | WebSearch(WebSearch.WebSearchTool)
+    | FileSearch(FileSearchTool)
+    | CodeInterpreter(CodeInterpreterTool)
+    | ComputerUse(ComputerUseTool)
+    | Function(Tools.Tool)
 
   /// Convert built-in tool to JSON
   let toJson (tool: BuiltInTool) : Json =
@@ -383,7 +383,7 @@ module TextConfig =
   type TextFormat =
     | Text
     | JsonObject
-    | JsonSchema of name: String * description: Stdlib.Option.Option<String> * schema: Json * strict: Bool
+    | JsonSchema(name: String, description: Stdlib.Option.Option<String>, schema: Json, strict: Bool)
 
   /// Convert text format to JSON
   let formatToJson (format: TextFormat) : Json =
@@ -452,8 +452,8 @@ module ReasoningConfig =
 
 /// Input can be simple text or a list of input items
 type Input =
-  | SimpleText of String
-  | Items of List<InputItem.InputItem>
+  | SimpleText(String)
+  | Items(List<InputItem.InputItem>)
 
 /// Convert input to JSON
 let inputToJson (input: Input) : Json =

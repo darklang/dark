@@ -8,8 +8,8 @@ module Stachu.JsonCanvas
 // ---------------------
 
 type Color =
-  | Preset of Int64
-  | Hex of String
+  | Preset(Int64)
+  | Hex(String)
 
 type Side =
   | Top
@@ -66,10 +66,10 @@ type GroupNodeData =
     color: Stdlib.Option.Option<Color> }
 
 type Node =
-  | TextNode of TextNodeData
-  | FileNode of FileNodeData
-  | LinkNode of LinkNodeData
-  | GroupNode of GroupNodeData
+  | TextNode(TextNodeData)
+  | FileNode(FileNodeData)
+  | LinkNode(LinkNodeData)
+  | GroupNode(GroupNodeData)
 
 type Edge =
   { id: String

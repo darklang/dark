@@ -226,21 +226,19 @@ test tokenizeTypeDeclaration =
           (TokenType.Property, (0, 28), (0, 29))
           (TokenType.Symbol, (0, 29), (0, 30))
           (TokenType.TypeName, (0, 31), (0, 37)) ])
-      "type MyEnum =\n  | A of Int64\n  | B of y: String" |> tokenize
+      "type MyEnum =\n  | A(Int64)\n  | B(y: String)" |> tokenize
       |> Stdlib.Test.equal(
         [ (TokenType.Keyword, (0, 0), (0, 4))
           (TokenType.TypeName, (0, 5), (0, 11))
           (TokenType.Symbol, (0, 12), (0, 13))
           (TokenType.Symbol, (1, 2), (1, 3))
           (TokenType.EnumMember, (1, 4), (1, 5))
-          (TokenType.Keyword, (1, 6), (1, 8))
-          (TokenType.TypeName, (1, 9), (1, 14))
+          (TokenType.TypeName, (1, 6), (1, 11))
           (TokenType.Symbol, (2, 2), (2, 3))
           (TokenType.EnumMember, (2, 4), (2, 5))
-          (TokenType.Keyword, (2, 6), (2, 8))
-          (TokenType.Property, (2, 9), (2, 10))
-          (TokenType.Symbol, (2, 10), (2, 11))
-          (TokenType.TypeName, (2, 12), (2, 18)) ]) ])
+          (TokenType.Property, (2, 6), (2, 7))
+          (TokenType.Symbol, (2, 7), (2, 8))
+          (TokenType.TypeName, (2, 9), (2, 15)) ]) ])
 
 test tokenizeFunctionDeclaration =
   Stdlib.Test.all(

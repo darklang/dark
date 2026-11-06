@@ -26,15 +26,15 @@ type BranchFilter =
   /// Every branch not archived, newest first, each with its op count.
   | All
   /// The branch with this id, archived or not. At most one row.
-  | ById of id: Uuid
+  | ById(id: Uuid)
   /// The newest branch not archived that goes by this name. At most one row.
-  | ByName of name: String
+  | ByName(name: String)
   /// The active (unmerged, unarchived) children of this branch, ordered by display name (the id when
   /// the name is "").
-  | ChildrenOf of id: Uuid
+  | ChildrenOf(id: Uuid)
   /// The bases this branch recorded, one per name it touched, on a single row. Answers whether or not
   /// the branch has a `branches` row, since the bases are kept by id alone.
-  | NameBasesOf of id: Uuid
+  | NameBasesOf(id: Uuid)
 
 
 /// One branch as the store holds it. Which fields a filter fills is said on its case; the rest are

@@ -414,7 +414,7 @@ module ConstructorDeclarations =
   test constructingCaseChecksWholeDeclaration =
     Stdlib.Test.all(
       [ check(
-          (src([ "type E = | A | B of Dict<(Int64 -> Int64), Int64>"
+          (src([ "type E = | A | B(Dict<(Int64 -> Int64), Int64>)"
                  "let f(): Int64 ="
                  "  let e = E.A"
                  "  1" ])), "f")
@@ -428,7 +428,7 @@ module ConstructorDeclarations =
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
         check(
           (src([ "type Bad = List<Bad>"
-                 "type E = | A | B of Bad"
+                 "type E = | A | B(Bad)"
                  "let f(): Int64 ="
                  "  let e = E.A"
                  "  1" ])), "f")
@@ -612,7 +612,7 @@ module Basics =
 // ----------------------------------------------------------------------------------
 
 module Constructors =
-  val pair = "type Pair = | None | Some of (Int64 * String)"
+  val pair = "type Pair = | None | Some(Int64 * String)"
 
   // Pair.Some takes one tuple field. Some(1, "url") supplies two fields;
   // Some((1, "url")) supplies the single tuple the declaration requires.
@@ -693,7 +693,7 @@ module Constructors =
   test constructorUsesFunctionTypeParams =
     check(
       (src(
-        [ "type Box<'item> = | Box of 'item"
+        [ "type Box<'item> = | Box('item)"
           "let f(x: 'a): Box<'a> = Box<'a>.Box(x)" ])),
       "f")
     |> Stdlib.Test.equal("checked:")
@@ -960,20 +960,20 @@ module DictKeys =
 module RecursivePhantomKeys =
   test phantomRecursionAllowsFunctionArgs =
     Stdlib.Test.all(
-      [ DictKeys.key([ "type P<'a> = End | Next of P<'a>" ], "P<Int64 -> Int64>")
+      [ DictKeys.key([ "type P<'a> = End | Next(P<'a>)" ], "P<Int64 -> Int64>")
         |> Stdlib.Test.equal("checked:")
-        DictKeys.key([ "type P<'a> = End | Next of P<List<'a>>" ], "P<Int64 -> Int64>")
+        DictKeys.key([ "type P<'a> = End | Next(P<List<'a>>)" ], "P<Int64 -> Int64>")
         |> Stdlib.Test.equal("checked:")
-        DictKeys.key([ "type P<'a> = End | Next of P<'a -> Int64>" ], "P<Int64 -> Int64>")
+        DictKeys.key([ "type P<'a> = End | Next(P<'a -> Int64>)" ], "P<Int64 -> Int64>")
         |> Stdlib.Test.equal("checked:")
         DictKeys.key([ "type P<'a> = { children: List<P<'a>> }" ], "P<Int64 -> Int64>")
         |> Stdlib.Test.equal("checked:")
         DictKeys.key(
-          [ "type P<'a> = End | Next of Q<'a>", "type Q<'a> = { p: P<'a> }" ],
+          [ "type P<'a> = End | Next(Q<'a>)", "type Q<'a> = { p: P<'a> }" ],
           "P<Int64 -> Int64>")
         |> Stdlib.Test.equal("checked:")
         DictKeys.key(
-          [ "type P<'a> = End | Next of Alias<'a>", "type Alias<'a> = P<'a>" ],
+          [ "type P<'a> = End | Next(Alias<'a>)", "type Alias<'a> = P<'a>" ],
           "P<Int64 -> Int64>")
         |> Stdlib.Test.equal("checked:") ])
 
@@ -981,7 +981,7 @@ module RecursivePhantomKeys =
   // through the recursive declarations: only that argument must be a valid key type.
   let swapped(typ: String): String =
     DictKeys.key(
-      [ "type A<'a, 'b> = End | Next of B<'b, 'a>"
+      [ "type A<'a, 'b> = End | Next(B<'b, 'a>)"
         "type B<'a, 'b> = { value: 'a, next: List<A<'b, 'a>> }" ], typ)
 
   test swappedAndStoredTypeArgs =
@@ -991,11 +991,11 @@ module RecursivePhantomKeys =
         swapped("A<Int64, Int64 -> Int64>")
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
         DictKeys.key(
-          [ "type P<'a> = End | Next of P<'a> | Value of 'a" ],
+          [ "type P<'a> = End | Next(P<'a>) | Value('a)" ],
           "P<Int64 -> Int64>")
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
         DictKeys.key(
-          [ "type P<'a> = End | Next of P<'a> | Run of (Int64 -> Int64)" ],
+          [ "type P<'a> = End | Next(P<'a>) | Run(Int64 -> Int64)" ],
           "P<Int64>")
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType") ])
 
@@ -1005,12 +1005,12 @@ module RecursivePhantomKeys =
   test aliasedDictKeepsPhantomDistinction =
     Stdlib.Test.all(
       [ check(
-          (src([ "type P<'a> = End | Next of P<'a>"
+          (src([ "type P<'a> = End | Next(P<'a>)"
                  "type D<'a> = Dict<P<'a>, Int64>"
                  "let f(d: D<Int64 -> Int64>): Unit = ()" ])), "f")
         |> Stdlib.Test.equal("checked:")
         check(
-          (src([ "type P<'a> = End | Next of P<'a> | Value of 'a"
+          (src([ "type P<'a> = End | Next(P<'a>) | Value('a)"
                  "type D<'a> = Dict<P<'a>, Int64>"
                  "let f(d: D<Int64 -> Int64>): Unit = ()" ])), "f")
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType") ])
@@ -1027,7 +1027,7 @@ module InstantiatedDictKeys =
         |> Stdlib.Test.equal("checked:")
         signature([ "type R<'a> = { items: Dict<'a, Int64> }" ], "R<Int64 -> Int64>")
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
-        signature([ "type E<'a> = | E of Dict<'a, Int64>" ], "E<Int64 -> Int64>")
+        signature([ "type E<'a> = | E(Dict<'a, Int64>)" ], "E<Int64 -> Int64>")
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
         signature([ "type R<'a> = { items: Dict<'a, Int64> }", "type W<'a> = { wrapped: R<List<'a>> }" ], "W<Int64 -> Int64>")
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
@@ -1876,8 +1876,8 @@ module Patterns =
 
   let nested(): String =
     src(
-      [ "type Inner = | SourceFile of String"
-        "type Outer = | Nothing | Something of Inner"
+      [ "type Inner = | SourceFile(String)"
+        "type Outer = | Nothing | Something(Inner)"
         "let f(value: Outer): Int64 ="
         "  match value with"
         "  | Nothing -> 0"
@@ -1889,7 +1889,7 @@ module Patterns =
 
   let restrictive(): String =
     src(
-      [ "type E = | A of Bool | B"
+      [ "type E = | A(Bool) | B"
         "let f(value: E): Int64 ="
         "  match value with"
         "  | A(true) -> 1"
@@ -1913,7 +1913,7 @@ module Patterns =
   let tree(cases: List<String>): String =
     src(
       (Stdlib.List.concat(
-        [ "type Tree = | Node of Tree | Leaf", "let f (t: Tree) : Int64 =", "  match t with" ],
+        [ "type Tree = | Node(Tree) | Leaf", "let f (t: Tree) : Int64 =", "  match t with" ],
         cases)))
 
   test recursiveTreeCoverage =
@@ -1932,7 +1932,7 @@ module Patterns =
   let treeAndBool(cases: List<String>): String =
     src(
       (Stdlib.List.concat(
-        [ "type Tree = | Node of Tree | Leaf"
+        [ "type Tree = | Node(Tree) | Leaf"
           "let f (x: (Tree * Bool)) : Int64 ="
           "  match x with" ],
         cases)))
@@ -3238,15 +3238,15 @@ module DefiniteConstructorErrors =
 
   test constructorErrors =
     Stdlib.Test.all(
-      [ construct("type E<'a> = A of 'a", "E.B")
+      [ construct("type E<'a> = A('a)", "E.B")
         |> Stdlib.Test.equal("failed:UnknownEnumCase")
         construct("type R<'a> = { value: 'a }", "R.B")
         |> Stdlib.Test.equal("failed:TypeMismatch")
-        construct("type E<'a> = A of 'a", "E { value = 1 }")
+        construct("type E<'a> = A('a)", "E { value = 1 }")
         |> Stdlib.Test.equal("failed:TypeMismatch")
-        construct("type E<'a> = A of 'a", "E.A")
+        construct("type E<'a> = A('a)", "E.A")
         |> Stdlib.Test.equal("failed:EnumFieldCountMismatch")
-        construct("type E<'a> = A of 'a", "E.A(1)")
+        construct("type E<'a> = A('a)", "E.A(1)")
         |> Stdlib.Test.equal("checked:")
         construct("type R<'a> = { value: 'a }", "R { value = 1 }")
         |> Stdlib.Test.equal("checked:") ])

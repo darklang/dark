@@ -1488,8 +1488,16 @@ module TypeDeclaration =
     ctx: Context,
     d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
     : Stdlib.Pretty.Doc =
-    // Function fields need parens within the enum case's `*` product.
-    let typ = typeReferenceDocWithFnParens(ctx, true, d.typ)
+    // The fields are already in parentheses, so a tuple or function field needs none of its own:
+    // `Seg(Point * Point)`, `Run(Int64 -> Int64)`. A function inside a tuple field keeps them.
+    let typ =
+      match d.typ with
+      | TTuple(first, second, theRest) ->
+        (Stdlib.List.concat([ first, second ], theRest))
+        |> Stdlib.List.map(fun item -> typeReferenceDocWithFnParens(ctx, true, item))
+        |> Stdlib.Pretty.join(Stdlib.Pretty.concat(Stdlib.Pretty.text(" *"), Stdlib.Pretty.line))
+        |> Stdlib.Pretty.group
+      | typ -> typeReferenceDocWithFnParens(ctx, false, typ)
 
     match d.label with
     | None -> typ
@@ -1511,21 +1519,14 @@ module TypeDeclaration =
     match c.fields with
     | [] -> withInlineDoc(c.description, Stdlib.Pretty.text("| " + c.name))
     | fields ->
-      let fieldPart =
-        fields
-        |> Stdlib.List.map(fun field ->
-          TypeDeclaration.enumFieldDoc(ctx, field))
-        |> fun docs ->
-          Stdlib.Pretty.join(
-            docs,
-            (Stdlib.Pretty.concat(
-              Stdlib.Pretty.text(" *"),
-              Stdlib.Pretty.line)))
-        |> Stdlib.Pretty.group
+      let parts =
+        fields |> Stdlib.List.map(fun field -> TypeDeclaration.enumFieldDoc(ctx, field))
 
       withInlineDoc(
         c.description,
-        Stdlib.Pretty.hang(2, Stdlib.Pretty.text($"| {c.name} of"), [ fieldPart ]))
+        Stdlib.Pretty.concat(
+          Stdlib.Pretty.text("| " + c.name),
+          wrapExprs("(", ")", ",", Stdlib.Pretty.softLine, parts)))
 
   let enumCase(
     ctx: Context,

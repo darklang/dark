@@ -12,7 +12,7 @@ type Facts =
 /// Whether an interactive TUI may start.
 type Availability =
   | Available
-  | Unavailable of reason: String
+  | Unavailable(reason: String)
 
 
 /// Evaluate terminal support from host facts.

@@ -60,12 +60,12 @@ type BackupAction =
   /// Put the named backup in place of the store. The store as it is now is copied aside first
   /// (`data.db.pre-restore-<time>`), and that copy is the answer. Anything this process has already
   /// read is still the old store, so the caller should say to restart.
-  | Restore of String
+  | Restore(String)
   /// Delete the named backup.
-  | Delete of String
+  | Delete(String)
   /// Write a copy of the store to a path outside the folder, such as a store to try a new
   /// release against. A database already there has its contents replaced.
-  | SnapshotTo of String
+  | SnapshotTo(String)
 
 
 /// Copies of this instance's store: list, take, restore and delete the backups beside it, or write

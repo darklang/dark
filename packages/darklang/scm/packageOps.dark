@@ -195,26 +195,26 @@ type OpFilter =
   /// Every op in the log, newest first by when it landed here.
   | Recent
   /// The ops whose id starts with this, newest first.
-  | IdPrefix of prefix: String
+  | IdPrefix(prefix: String)
   /// The ops a commit holds, oldest first.
-  | InCommit of hash: String
+  | InCommit(hash: String)
   /// The ops a branch can SEE (its own and its ancestors', up to main's), newest first.
-  | Visible of branchId: Uuid
+  | Visible(branchId: Uuid)
   /// The ids of the ops a branch can see that landed after <param since> (a `created_at`), or at it
   /// too when <param andAtSince>, oldest first. See `idsLandedSince`.
-  | LandedSince of branchId: Uuid * since: String * andAtSince: Bool
+  | LandedSince(branchId: Uuid, since: String, andAtSince: Bool)
   /// The ids of the ops that landed at exactly this `created_at`.
-  | LandedAt of at: String
+  | LandedAt(at: String)
   /// These ops, oldest first. An id the log does not hold is skipped.
-  | Ids of ids: List<String>
+  | Ids(ids: List<String>)
   /// A branch's draft: its uncommitted ops, oldest first.
-  | Draft of branchId: Uuid
+  | Draft(branchId: Uuid)
   /// The draft's ids, sorted by id.
-  | DraftIds of branchId: Uuid
+  | DraftIds(branchId: Uuid)
   /// A branch's own ops, committed or not, oldest first, with `source` filled.
-  | Own of branchId: Uuid
+  | Own(branchId: Uuid)
   /// The ops written on a branch that a merge has since moved to its parent.
-  | MergedFrom of branchId: Uuid
+  | MergedFrom(branchId: Uuid)
   /// Every op of main's, oldest first.
   | Main
   /// One row whose `ts` is the newest `created_at` among landed ops, or "".
@@ -284,12 +284,12 @@ type OpSummary =
 /// What a branch REF resolved to. A DU rather than an Option because "no such branch" and "that could be
 /// several branches" want different words from the caller, and an Option would flatten them into one.
 type BranchRefResult =
-  | Found of Uuid
+  | Found(Uuid)
   /// Not a live name, not an id, not a prefix: a name this store has never had. The ONE miss a write
   /// verb may answer by starting a branch.
   | NotFound
   /// A full id, and no branch here has it: a peer's, or a mispaste. Never something to start a branch
   /// named after.
-  | UnknownId of Uuid
+  | UnknownId(Uuid)
   /// The prefix matched more than one branch.
   | Ambiguous

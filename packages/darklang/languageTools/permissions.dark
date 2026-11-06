@@ -4,12 +4,12 @@ module Darklang.LanguageTools.Permissions
 
 type Scope<'a> =
   | All
-  | Only of 'a
+  | Only('a)
 
 type HostRule =
   | Any
-  | Exact of String
-  | SubdomainsOf of String
+  | Exact(String)
+  | SubdomainsOf(String)
 
 type HttpRule =
   { method: Permissions.Scope<String>
@@ -57,14 +57,14 @@ type Effect =
 
 type Rule =
   | All
-  | Effect of Permissions.Effect
-  | Http of Permissions.HttpRule
-  | HttpServer of Permissions.Scope<Int64>
-  | FileRead of Permissions.Scope<String>
-  | FileWrite of Permissions.Scope<String>
-  | EnvRead of Permissions.Scope<String>
-  | EnvWrite of Permissions.Scope<String>
-  | Process of Permissions.ProcessRule
+  | Effect(Permissions.Effect)
+  | Http(Permissions.HttpRule)
+  | HttpServer(Permissions.Scope<Int64>)
+  | FileRead(Permissions.Scope<String>)
+  | FileWrite(Permissions.Scope<String>)
+  | EnvRead(Permissions.Scope<String>)
+  | EnvWrite(Permissions.Scope<String>)
+  | Process(Permissions.ProcessRule)
 
 type Policy =
   { allow: List<Permissions.Rule>
@@ -76,29 +76,29 @@ type Policy =
 type ApprovalFailure =
   /// The permission contract differs from the currently approved version's: the human-readable
   /// differences, for a second explicit review.
-  | ContractChanged of List<String>
+  | ContractChanged(List<String>)
   /// The version cannot be approved as asked: an unknown hash, an
   /// unacknowledged incomplete analysis, rules that never allow an effect it
   /// requires, or a storage failure. The message is complete.
-  | Refused of String
+  | Refused(String)
 
 /// A change to the instance policy. Like `ApprovalFailure`, it lives here because the host
 /// builtin that takes it addresses Dark types through the `LanguageTools.Permissions` package ref.
 type PolicyEdit =
   /// Replace the whole policy.
-  | Replace of Permissions.Policy
+  | Replace(Permissions.Policy)
   /// Add allow and deny rules and remove rules from both lists. Removals apply first.
-  | Change of
-    allow: List<Permissions.Rule> *
-    deny: List<Permissions.Rule> *
-    remove: List<Permissions.Rule>
+  | Change(
+    allow: List<Permissions.Rule>,
+    deny: List<Permissions.Rule>,
+    remove: List<Permissions.Rule>)
 
 /// Which approval to take back. The two are separate records on purpose.
 type ApprovalTarget =
   /// The version approved for a logical function name; the hash's approval stays.
-  | Name of String
+  | Name(String)
   /// The approval of one immutable version, with the dependencies no other approved root needs.
-  | Hash of String
+  | Hash(String)
 
 /// One approval as an account sees it. A hash approved under several names appears once per name.
 type Approval =

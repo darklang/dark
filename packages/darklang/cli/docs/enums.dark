@@ -4,7 +4,10 @@ let content(): String =
   """# Enums
 
 ## Define
-  type Status = | Pending | Done of Int64
+  type Status = | Pending | Done(Int64)
+  type Shape = | Seg(Point, Point)          # two fields, separated by commas
+  type Shape = | Seg(Point * Point)         # one field, a tuple
+  type Key = | Pressed(key: Char, shift: Bool)  # labels are documentation only
 
 ## Construct
   Status.Pending

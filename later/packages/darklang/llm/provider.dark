@@ -38,15 +38,15 @@ module Role =
 
 /// Image source - either base64 encoded or URL
 type ImageSource =
-  | Base64 of mediaType: String * data: String
-  | Url of String
+  | Base64(mediaType: String, data: String)
+  | Url(String)
 
 /// A content block in a message
 type ContentBlock =
-  | Text of String
-  | Image of ImageSource
-  | ToolResult of toolUseId: String * content: String * isError: Bool
-  | ToolUse of id: String * name: String * arguments: Json
+  | Text(String)
+  | Image(ImageSource)
+  | ToolResult(toolUseId: String, content: String, isError: Bool)
+  | ToolUse(id: String, name: String, arguments: Json)
 
 /// A message in a conversation (supports text-only or mixed content)
 type Message =
@@ -261,7 +261,7 @@ type StopReason =
   | MaxTokens // Hit token limit
   | StopSequence // Hit a stop sequence
   | ContentFiltered // Safety filter triggered
-  | Error of String // Provider error
+  | Error(String) // Provider error
 
 module StopReason =
   let toString (r: StopReason) : String =
@@ -325,15 +325,15 @@ type Response =
 
 /// Errors that can occur when calling an LLM provider
 type ProviderError =
-  | AuthenticationError of String
-  | RateLimitError of String
-  | InvalidRequestError of String
+  | AuthenticationError(String)
+  | RateLimitError(String)
+  | InvalidRequestError(String)
   /// The provider answered, but not in a shape we could read
-  | InvalidResponseError of String
-  | ServerError of String
-  | NetworkError of String
-  | ContentFilterError of String
-  | Unknown of String
+  | InvalidResponseError(String)
+  | ServerError(String)
+  | NetworkError(String)
+  | ContentFilterError(String)
+  | Unknown(String)
 
 module ProviderError =
   let toString (e: ProviderError) : String =
@@ -489,13 +489,13 @@ let retryRequest
 type ToolChoice =
   | Auto // Let the model decide
   | Any // Force the model to use a tool
-  | Specific of String // Force a specific tool
+  | Specific(String) // Force a specific tool
   | None // Disable tools for this request
 
 /// Thinking configuration
 type ThinkingConfig =
   | Disabled
-  | Enabled of budgetTokens: Int
+  | Enabled(budgetTokens: Int)
   | Adaptive // Let the model decide (Anthropic Opus 4.6+)
 
 /// Web search configuration
@@ -528,7 +528,7 @@ val defaultWebFetch =
 type ResponseFormat =
   | Text
   | JsonObject
-  | JsonSchema of schema: Json
+  | JsonSchema(schema: Json)
 
 /// Extended request options for provider-specific features
 type RequestExtensions =

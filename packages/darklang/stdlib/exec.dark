@@ -15,7 +15,7 @@ module Darklang.Stdlib.Exec
 
 /// What a process was started on.
 type Entry =
-  | Function of LanguageTools.RuntimeTypes.FQFnName.FQFnName
+  | Function(LanguageTools.RuntimeTypes.FQFnName.FQFnName)
   | Expr
 
 
@@ -23,26 +23,26 @@ type Entry =
 type ParkedOn =
   /// A host operation being performed for a builtin: a file read, an HTTP request, a process
   /// run. The text names the operation and its resource (`file-read /some/path`).
-  | Host of String
+  | Host(String)
   /// A builtin that had to wait: `sleep`, the script an `eval` runs.
-  | Builtin of LanguageTools.RuntimeTypes.FQFnName.Builtin
+  | Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin)
   /// A package function call that had to wait.
-  | PackageFn of LanguageTools.RuntimeTypes.FQFnName.Package
+  | PackageFn(LanguageTools.RuntimeTypes.FQFnName.Package)
   /// A lambda application that had to wait.
   | Lambda
   /// The interpreter waiting on the store for a type or value.
   | RareOpcode
   /// `Host.await`: one of these.
-  | Events of List<Stdlib.Host.EventSpec>
+  | Events(List<Stdlib.Host.EventSpec>)
   /// `Exec.await`: this process finishing.
-  | Process of Uuid
+  | Process(Uuid)
 
 
 type Status =
   | Runnable
-  | Parked of ParkedOn
+  | Parked(ParkedOn)
   | Done
-  | Failed of LanguageTools.RuntimeTypes.RuntimeError.Error
+  | Failed(LanguageTools.RuntimeTypes.RuntimeError.Error)
 
 
 type Summary =

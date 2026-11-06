@@ -18,7 +18,7 @@ type Doc =
   | Empty
 
   /// Literal text. Never broken, so it can exceed the width if a single token is wider than the page.
-  | Text of String
+  | Text(String)
 
   /// A soft break: a space when the enclosing group fits on one line, a newline plus the current
   /// indentation when it doesn't.
@@ -33,24 +33,24 @@ type Doc =
   | SoftLine
 
   /// Two documents, one after the other, with nothing between them.
-  | Concat of Doc * Doc
+  | Concat(Doc, Doc)
 
   /// Indent everything inside by `n` columns, applied after each break rather than once at the front.
-  | Nest of Int64 * Doc
+  | Nest(Int64, Doc)
 
   /// Try to fit the inside on one line.
-  | Group of Doc
+  | Group(Doc)
 
   /// Text with something wrapped around it that occupies no columns -- a terminal escape, typically.
   /// Only the middle is measured, which is the entire point: decoration must not change where a
   /// document breaks, and it silently would if the escapes were part of a `Text`.
-  | Styled of opening: String * text: String * closing: String
+  | Styled(opening: String, text: String, closing: String)
 
   /// Text held back until the line ends: it is emitted just before the next newline (or at the
   /// end), after whatever else is laid out on that line. Zero columns wide, so it never changes
   /// where anything breaks. A trailing `// comment` needs this, or a `)` or `,` printed after it
   /// on the same line would land inside the comment.
-  | LineSuffix of String
+  | LineSuffix(String)
 
 
 /// Whether we are currently rendering a group flat or broken.

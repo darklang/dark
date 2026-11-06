@@ -33,7 +33,7 @@ type Model =
   // Claude 3 (legacy)
   | Haiku3
   // Custom model string (for new models not yet in enum)
-  | Custom of String
+  | Custom(String)
 
 module Model =
   let toString (m: Model) : String =

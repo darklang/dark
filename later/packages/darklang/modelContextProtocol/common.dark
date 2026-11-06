@@ -88,10 +88,10 @@ type MessageRole =
 
 /// Content types for prompt messages
 type PromptContent =
-  | Text of String
-  | Image of ImageContent
-  | Audio of AudioContent
-  | Resource of ResourceContent
+  | Text(String)
+  | Image(ImageContent)
+  | Audio(AudioContent)
+  | Resource(ResourceContent)
 
 /// Image content for messages
 type ImageContent =

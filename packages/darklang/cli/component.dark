@@ -21,13 +21,13 @@ module Darklang.Cli.Component
 /// What one keystroke does to a component.
 type Step<'s> =
   /// Keep going with this state.
-  | Stay of 's
+  | Stay('s)
   /// Keep going, and persist first (`save` is called with the new state).
-  | Save of 's
+  | Save('s)
   /// Leave the app. Nothing is persisted, so a component that wants "save on exit" says `Save` first.
-  | Exit of 's
+  | Exit('s)
   /// Hand off to a foreground command; the CLI returns to this page (at this state) when it exits.
-  | Launch of 's * String
+  | Launch('s, String)
 
 type Component<'s> =
   { /// The complete view at a given terminal size. Must be pure: the renderer may call it to diff frames,

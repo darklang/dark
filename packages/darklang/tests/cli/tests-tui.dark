@@ -639,7 +639,7 @@ test workbenchRunTestsAreLastInInspect =
 type WbAction =
   | Continued
   | Exited
-  | Launched of command: String
+  | Launched(command: String)
 
 type WbResult =
   { state: Darklang.Cli.Workbench.State

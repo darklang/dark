@@ -16,7 +16,7 @@ type DifferentShape = { da: Int64, db: Int64 }
 
 type Colour =
   | Red
-  | Blue of Int64
+  | Blue(Int64)
 
 type ColourAlias = Colour
 

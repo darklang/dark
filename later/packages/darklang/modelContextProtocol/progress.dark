@@ -9,8 +9,8 @@ module Darklang.ModelContextProtocol
 
 /// Progress token used to track progress of long-running operations
 type ProgressToken = 
-  | Int of Int
-  | String of String
+  | Int(Int)
+  | String(String)
 
 /// Convert a progress token to JSON
 let progressTokenToJson (token: ProgressToken) : Json =

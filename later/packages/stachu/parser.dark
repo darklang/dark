@@ -6,8 +6,8 @@ module Stachu.Parser
 /// either success with a value and remaining input,
 /// or failure
 type ParseResult<'a> =
-  | Success of value: 'a * remaining: String
-  | Failure of error: String
+  | Success(value: 'a, remaining: String)
+  | Failure(error: String)
 
 /// A parser is a function from input string to parse result
 /// We represent it as a record with a single `run` function

@@ -339,11 +339,11 @@ module TextDocumentFilter =
   /// @sample A language filter that applies to typescript files on disk: `{ language: 'typescript', scheme: 'file' }`
   /// @sample A language filter that applies to all package.json paths: `{ language: 'json', pattern: '**package.json' }`
   type TextDocumentFilter =
-    | TextDocumentFilterLanguage of
-      TextDocumentFilterLanguage.TextDocumentFilterLanguage
+    | TextDocumentFilterLanguage(
+      TextDocumentFilterLanguage.TextDocumentFilterLanguage)
 
-    | TextDocumentFilterScheme of
-      TextDocumentFilterScheme.TextDocumentFilterScheme
+    | TextDocumentFilterScheme(
+      TextDocumentFilterScheme.TextDocumentFilterScheme)
 
   let toJson (f: TextDocumentFilter) : Json =
     match f with
@@ -354,7 +354,7 @@ module TextDocumentFilter =
 module DocumentFilter =
   /// A document filter describes a top level text document
   /// or a notebook cell document.
-  type DocumentFilter = Text of TextDocumentFilter.TextDocumentFilter
+  type DocumentFilter = Text(TextDocumentFilter.TextDocumentFilter)
   // TODO: | NotebookCell of NotebookCellTextDocumentFilter;
 
   let toJson (f: DocumentFilter) : Json =
@@ -381,7 +381,7 @@ module TextDocumentRegistrationOptions =
   module TextDocumentRegistrationOptionsDocumentSelector =
     type TextDocumentRegistrationOptionsDocumentSelector =
       | Null
-      | DocumentSelector of DocumentSelector.DocumentSelector
+      | DocumentSelector(DocumentSelector.DocumentSelector)
 
     let toJson (d: TextDocumentRegistrationOptionsDocumentSelector) : Json =
       match d with
@@ -482,8 +482,8 @@ module CodeDescription =
 
 module DiagnosticCode =
   type DiagnosticCode =
-    | Number of Int
-    | String of String
+    | Number(Int)
+    | String(String)
 
   let toJson (c: DiagnosticCode) : Json =
     match c with

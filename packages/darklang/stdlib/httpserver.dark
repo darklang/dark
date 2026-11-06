@@ -26,9 +26,9 @@ type RouteMatch =
 
 /// Segment type for route parsing
 type RouteSegment =
-  | Literal of String
-  | Variable of String
-  | Wildcard of String
+  | Literal(String)
+  | Variable(String)
+  | Wildcard(String)
 
 
 /// Parse a route pattern into segments
