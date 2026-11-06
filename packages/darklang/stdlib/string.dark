@@ -243,9 +243,9 @@ let slice(string: String, from: Int64, ``to``: Int64): String =
   Builtin.stringSlice(string, from, ``to``)
 
 
-/// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
+/// Returns the first <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
-/// If <param characterCount> is negative, returns the empty string."
+/// If <param characterCount> is negative, returns the empty string.
 let first(string: String, characterCount: Int64): String =
   if characterCount < 0 then
     ""
@@ -255,34 +255,26 @@ let first(string: String, characterCount: Int64): String =
     String.slice(string, 0, characterCount)
 
 
-/// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
+/// Returns the last <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string.
 let last(string: String, characterCount: Int64): String =
-  if characterCount < 0 then
-    ""
-  else if characterCount > String.length(string) then
-    string
-  else
-    String.slice(
-      string,
-      String.length(string) - characterCount,
-      String.length(string))
+  let len = String.length(string)
+
+  if characterCount < 0 then ""
+  else if characterCount > len then string
+  else String.slice(string, len - characterCount, len)
 
 
-/// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
+/// Returns all but the last <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
 let dropLast(string: String, characterCount: Int64): String =
-  if characterCount < 0 then
-    string
-  else if characterCount > String.length(string) then
-    ""
-  else
-    String.slice(
-      string,
-      0,
-      String.length(string) - characterCount)
+  let len = String.length(string)
+
+  if characterCount < 0 then string
+  else if characterCount > len then ""
+  else String.slice(string, 0, len - characterCount)
 
 
 /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
@@ -357,7 +349,8 @@ let startsWith(subject: String, prefix: String): Bool =
 
 /// Checks if <param subject> ends with <param suffix>
 let endsWith(subject: String, suffix: String): Bool =
-  String.slice(subject, String.length(subject) - String.length(suffix), String.length(subject)) == suffix
+  let len = String.length(subject)
+  String.slice(subject, len - String.length(suffix), len) == suffix
 
 
 /// Removes <param prefix> from the start of <param subject>.
@@ -376,10 +369,11 @@ let stripPrefix(subject: String, prefix: String): Option.Option<String> =
 /// Example: {{stripSuffix "notes.txt" ".txt"}} returns {{Some "notes"}}.
 /// Returns {{None}} if <param subject> does not end with <param suffix>.
 let stripSuffix(subject: String, suffix: String): Option.Option<String> =
-  let n = String.length(suffix)
+  let len = String.length(subject)
+  let start = len - String.length(suffix)
 
-  if String.last(subject, n) == suffix then
-    Option.Option.Some(String.dropLast(subject, n))
+  if start >= 0 && String.slice(subject, start, len) == suffix then
+    Option.Option.Some(String.slice(subject, 0, start))
   else
     Option.Option.None
 
@@ -426,16 +420,20 @@ let splitOnNewline(str: String): List<String> =
 
 /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
 let head(str: String): Option.Option<Char> =
-  if str == "" then
-    Option.Option.None
-  else
-    str |> String.toList |> List.head
+  str |> String.slice(0, 1) |> String.toList |> List.head
 
 
 /// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
 /// byte), or {{None}} if <param index> is negative or past the end.
 let charAt(str: String, index: Int64): Option.Option<Char> =
-  str |> String.toList |> List.getAt(index)
+  // `slice` counts a negative index from the end, so it is ruled out first. No string is long
+  // enough to reach the index where `index + 1` overflows.
+  if index < 0 then
+    Option.Option.None
+  else
+    match Int64.checkedAdd(index, 1) with
+    | Ok(next) -> str |> String.slice(index, next) |> String.toList |> List.head
+    | Error(_) -> Option.Option.None
 
 
 /// Orders two strings by code point: negative when <param a> sorts first, 0 when they
