@@ -14,9 +14,10 @@
 #
 # --full runs the static checks above, then CI's steps: `build --optimize`, a seed exported
 # from a freshly loaded store, the NativeAOT CLI, the allocation gate, first-day, `gates ci`,
-# the package tests, the backend suite with `--published --split`, validate-cli-artifact, and
+# the package tests, the F# suite with `--published --split`, validate-cli-artifact, and
 # a check that nothing wrote to the source tree. The CLI steps run with CI=true and CLI= set the way build-cli sets
-# them.
+# them. It does not call scripts/run-tests: that runs the same three suites against the
+# dev builds CLI, and --full wants CIs NativeAOT binary and fresh seed under them.
 #
 # Every step logs to rundir/logs/pre-push/<step>.log; a failing step prints its tail. A step
 # whose build failed is skipped, not run against a stale one. The last line is
@@ -100,7 +101,7 @@ step ci-python-tests ci_python_tests
 
 if [[ "$MODE" == quick ]]; then
   if step build scripts/dev/build; then
-    step builtin-rules scripts/run-backend-tests --filter-test-list builtin
+    step builtin-rules scripts/run-fsharp-tests --filter-test-list builtin
     step shipped-tree-typechecks scripts/testing/gates shipped-tree-typechecks
   else
     skip builtin-rules "build failed"
@@ -118,7 +119,7 @@ else
     step gates-ci timeout 15m scripts/testing/gates ci --parallel
     step package-tests timeout 20m scripts/testing/gates package-tests
     step backend-tests env DARK_TEST_CLI="$PWD/$CLI" DARK_CONFIG_PACKAGES_SOURCE=seed \
-      timeout 20m scripts/run-backend-tests --published --split
+      timeout 20m scripts/run-fsharp-tests --published --split
     step validate-cli-artifact scripts/testing/validate-cli-artifact "$CLI"
     unset CI CLI
   else

@@ -10,5 +10,5 @@ This directory keeps the raw HTTP tests and shared test data:
 - `data`: shared test assets.
 
 The HTTP harnesses are separate from the removed execution-test runner. Both run
-as part of `./scripts/run-backend-tests`. See `docs/unittests.md` for filtering
+as part of `./scripts/run-fsharp-tests`. See `docs/unittests.md` for filtering
 and build instructions, and each HTTP directory's README for its file format.

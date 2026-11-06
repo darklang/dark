@@ -334,14 +334,14 @@ jobs:
       # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the
       # default no-output timeout can no longer fire on a healthy-but-slow run.
       - run:
-          name: Run backend tests
+          name: Run F# tests
           command: |
             # The package load above already exported this build's seed.
             # Give tests their own copy instead of parsing the same sources again.
             # --split runs the sequenced tests in a second process alongside the rest.
             DARK_TEST_CLI="$PWD/$(ls clis/darklang-*-linux-x64)" \
             DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
-              --run backend-tests -- timeout 20m scripts/run-backend-tests --published --split
+              --run backend-tests -- timeout 20m scripts/run-fsharp-tests --published --split
 
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works
@@ -465,7 +465,7 @@ jobs:
       # The gates are end-to-end checks on the shipped binary. Keep them after the allocation
       # check: they write to the store it measures.
       - run:
-          name: Package tests and gate scripts (the CI subset)
+          name: Dark package tests and gate scripts (the CI subset)
           command: |
             export CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64"
             # The gates print a summary when they finish; the package tests stream, which

@@ -63,13 +63,13 @@ GATES=(
 # own step. The gates below run later in that same job, against the same binary.
 #
 # Measured locally, for comparison with the 5m per-gate bound CI applies:
-#   workbench-views 14s, first-day 24s, workbench-scm 35s
+#   workbench-views 14s, first-day 24s, workbench-scm 35s, backups-restore 11s
 #   trait-choice-survives-rival 6s, trait-deprecation-is-per-branch 10s,
 #   trait-checker-vs-dispatch 16s, trait-pin-across-branches 21s
 # These are durations, so they drift with whatever else is on the box; the trait four were taken
 # while another clone was running perf experiments. Treat them as orders of magnitude against the
 # 5m bound, not as a budget. A gate reporting 0s has not run at all.
-CI_GATES=(workbench-scm workbench-views old-store-resets
+CI_GATES=(workbench-scm workbench-views old-store-resets backups-restore
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches
           shipped-tree-typechecks perf-probes-run prompts-unattended)
@@ -88,7 +88,7 @@ describe() {
     trait-checker-vs-dispatch) echo 'the at-rest checker and dispatch agree on which impls apply' ;;
     trait-deprecation-is-per-branch) echo 'deprecating an implementation is branch-aware, display and dispatch' ;;
     trait-pin-across-branches) echo 'a saved call keeps its implementation across a branch boundary' ;;
-    package-tests)          echo 'every package test in packages/, through `dark test run` (CI: own step)' ;;
+    package-tests)          echo 'every package test in packages/, through `dark test run` (CI: beside `ci`)' ;;
     shipped-tree-typechecks) echo 'production packages pass the at-rest checker; package-tests checks test sources' ;;
     perf-probes-run)        echo 'every perf probe still starts; they have no other caller' ;;
     prompts-unattended)     echo 'a question nobody can answer is refused, never waited on' ;;

@@ -20,7 +20,7 @@ if [[ "$#" -gt 0 ]]; then
   echo "note: $* ignored. The container builds once when it starts. After that:" >&2
   echo "      scripts/dev/build    build what's changed" >&2
   echo "      scripts/dev/watch    rebuild on save" >&2
-  echo "      scripts/run-backend-tests" >&2
+  echo "      scripts/run-fsharp-tests" >&2
 fi
 
 "$DIR/scripts/dev/start"

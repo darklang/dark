@@ -103,7 +103,7 @@ fi
 # IS F#. Said once, only for a whole-suite run, where it is worth about five minutes.
 if [[ "$PUBLISHED" != "true" && "$FILTERED" != "true" ]]; then
   echo "note: the whole suite is much faster published."
-  echo "      scripts/dev/build --optimize && ./scripts/run-backend-tests --published"
+  echo "      scripts/dev/build --optimize && ./scripts/run-fsharp-tests --published"
 fi
 
 LOGS="${HOME}/.darklang/logs"
@@ -267,8 +267,8 @@ for log in "${LOGS_TO_CHECK[@]}"; do
       fi
       echo
       echo "Find what to run:"
-      echo "    scripts/run-backend-tests --groups          the tree, with counts"
-      echo "    scripts/run-backend-tests --find <substr>   which tests match"
+      echo "    scripts/run-fsharp-tests --groups          the tree, with counts"
+      echo "    scripts/run-fsharp-tests --find <substr>   which tests match"
     } >&2
     exit 1
   fi

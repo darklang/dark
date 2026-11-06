@@ -37,7 +37,7 @@ def homes(*names):
 CHECK_DATABASES = {
   **{name: ["data.db"] for name in ["migrations", "packages", "seed", "allocation",
                                      "gate-perf-probes-run", "gate-gates-are-clean"]},
-  # `run-backend-tests --split` gives the one-at-a-time tests a store of their own.
+  # `run-fsharp-tests --split` gives the one-at-a-time tests a store of their own.
   "backend-tests": ["test-data.db", "split-sequenced/.darklang/test-data.db"],
   "gate-workbench-scm": homes("workbench-scm-test", "workbench-scm-test-quiet"),
   "gate-workbench-views": homes("workbench-views-test"),

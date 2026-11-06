@@ -2,7 +2,7 @@
 # Run a command in this clone's dev container.
 #
 #   scripts/dev/exec <command> [args...]
-#   scripts/dev/exec --timeout 300 ./scripts/run-backend-tests --filter-test-list Foo
+#   scripts/dev/exec --timeout 300 ./scripts/run-fsharp-tests --filter-test-list Foo
 #   scripts/dev/exec -e DARK_CONFIG_TRACE_DETAIL=on ./scripts/run-cli eval 1
 #   scripts/dev/exec ps -eo pid,etime,args
 #   scripts/dev/exec sqlite3 rundir/data.db 'select count(*) from locations'

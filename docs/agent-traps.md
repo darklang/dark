@@ -38,7 +38,7 @@ inputs you edited. When the change was to testfiles or packages rather than F#, 
 directly.
 
 To actually run the suite against a published build without compiling, use
-`./scripts/run-backend-tests --published`, and read its own `EXPECTO!` line and exit code.
+`./scripts/run-fsharp-tests --published`, and read its own `EXPECTO!` line and exit code.
 That is the third shape of the same failure in one night: a filter that matched less than
 intended, a field that resolves at execution, and now a zero that means the step was
 skipped. Whenever a number is suspiciously good or suspiciously fast, ask whether the thing
@@ -183,12 +183,12 @@ minutes is `scripts/build/build-release-cli-exes.sh && scripts/testing/gates all
 
 ## Tests and gates
 
-`run-backend-tests` does NOT compile. It reloads packages and runs the test binary that is
+`run-fsharp-tests` does NOT compile. It reloads packages and runs the test binary that is
 already there, so an `.fs` change you have not built yet is simply not in the run. It looks
 exactly like a pass, and a red test you "fixed" stays red with its old message, which is the
 tell. Build first:
 
-    scripts/dev/build && ./scripts/run-backend-tests
+    scripts/dev/build && ./scripts/run-fsharp-tests
 
 The other trap: a filter that matches nothing used to be reported as `0 tests run - Success!`
 with exit 0. It fails now. `docs/unittests.md` has the rest, including what the three filter
@@ -213,8 +213,8 @@ renames flags that never existed upstream. Grep the working tree for any of thos
 report your own branch as though it were the world. Three times in one session, each time while
 deciding whether something was separable, which is the decision that depends on it most.
 
-**A host-side `timeout` around `run-backend-tests` leaves the real test process running, holding
-the lock.** `timeout 300 ./scripts/run-backend-tests ...` kills the wrapper on the host; the
+**A host-side `timeout` around `run-fsharp-tests` leaves the real test process running, holding
+the lock.** `timeout 300 ./scripts/run-fsharp-tests ...` kills the wrapper on the host; the
 `Tests` binary inside the container is not its child and keeps going. It still holds the suite
 lock, so every run you start afterwards exits IMMEDIATELY, with no output and nothing resembling
 an error. Measured: a filtered run that should take seconds returned in 0s, four times in a row,
@@ -235,7 +235,7 @@ So two rules, and the second is the one that saves you:
   narrow filter. If a run came back in under a second, check for a surviving `Tests` process
   before you believe a word of it.
 
-Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
+Two runs in the same clone destroy each other, so `run-fsharp-tests` takes a lock.
 Two runs in different clones are fine; each has its own container, so its own PID
 namespace, network and `rundir`. That is a statement about CORRECTNESS, not about the box: four
 clones publishing Release at once put 42 build processes on the machine and took it to zero free

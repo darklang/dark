@@ -36,7 +36,7 @@ let private parseShard (args : string array) : (int * int) option * string array
       Exception.raiseInternal $"--shard {spec}: expected INDEX/TOTAL, like 0/4" []
 
 /// `--kind sequenced` or `--kind parallel` runs only that half of the suite, so
-/// `run-backend-tests --split` can run the two halves as two processes at the same time.
+/// `run-fsharp-tests --split` can run the two halves as two processes at the same time.
 /// Sequenced tests run one at a time because they share this process's state; they don't
 /// need the parallel tests to finish first. Tests in a `testSequencedGroup` count as
 /// parallel: they only wait for each other, and already run in the parallel phase.
@@ -81,7 +81,7 @@ let main (args : string array) : int =
   try
     let shard, args = parseShard args
     let kind, args = parseKind args
-    // Tests has no CLI worker entry point. Use the CLI selected by run-backend-tests.
+    // Tests has no CLI worker entry point. Use the CLI selected by run-fsharp-tests.
     match System.Environment.GetEnvironmentVariable "DARK_TEST_CLI" with
     | null
     | "" -> ()

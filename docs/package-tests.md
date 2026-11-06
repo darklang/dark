@@ -2,7 +2,7 @@
 
 Tests are package items, alongside functions, types and values. Their bodies run through the existing interpreter. Dark code discovers tests, judges their results and reports what happened; F# handles storage, execution and process isolation.
 
-This is a guide to the design and the main parts of the implementation. See [Unit tests](unittests.md) for commands, CI setup and the remaining backend tests.
+This is a guide to the design and the main parts of the implementation. See [Unit tests](unittests.md) for commands, CI setup and the F# tests.
 
 ## From a declaration to a stored test
 
