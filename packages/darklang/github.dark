@@ -10,7 +10,7 @@ module Darklang.GitHub
 val darklangRepoBaseUrl = "https://api.github.com/repos/darklang/dark"
 
 /// A baseline function for fetching data from the GitHub API
-let fetchString(
+let __fetchString(
   url: String)
   : Stdlib.Result.Result<String, String> =
   let headers =
@@ -37,7 +37,7 @@ module Releases =
   ///
   /// TODO: typify the error type
   let getLatestReleaseTag(): Stdlib.Result.Result<String, String> =
-    match fetchString($"{darklangRepoBaseUrl}/releases") with
+    match __fetchString($"{darklangRepoBaseUrl}/releases") with
     | Ok(releasesJsonString) ->
       match Stdlib.Json.parse<List<Release>>(releasesJsonString) with
       | Ok(releases) ->
@@ -52,7 +52,7 @@ module Releases =
   /// The published releases, newest first: the first hundred, which is the most GitHub
   /// returns on one page.
   let list(): Stdlib.Result.Result<List<Release>, String> =
-    match fetchString($"{darklangRepoBaseUrl}/releases?per_page=100") with
+    match __fetchString($"{darklangRepoBaseUrl}/releases?per_page=100") with
     | Ok(releasesJsonString) ->
       match Stdlib.Json.parse<List<Release>>(releasesJsonString) with
       | Ok(releases) -> Stdlib.Result.Result.Ok(releases)
@@ -133,7 +133,7 @@ module Releases =
     match platformId(host) with
     | Ok(hostStr) ->
       let fetched =
-        fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}")
+        __fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}")
 
       match fetched with
       | Ok(releaseJsonString) ->

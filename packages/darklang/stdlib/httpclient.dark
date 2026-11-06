@@ -213,7 +213,7 @@ module Sse =
   /// spec: if there's no colon, the whole line is the field with an
   /// empty value; the leading space after the colon (if any) is
   /// stripped.
-  let splitField(line: String): (String * String) =
+  let __splitField(line: String): (String * String) =
     match Stdlib.String.indexOf(line, ":") with
     | None -> (line, "")
     | Some(idx) ->
@@ -234,7 +234,7 @@ module Sse =
   /// appends (with newline between multiple), `event: …` sets the
   /// event type, `id: …` sets the id, `:` comment lines are skipped,
   /// unknown fields are ignored.
-  let applyLine(
+  let __applyLine(
     data: String,
     eventType: String,
     id: String,
@@ -246,7 +246,7 @@ module Sse =
     else if Stdlib.String.startsWith(line, ":") then
       (data, eventType, id, hasData)
     else
-      let (field, value) = splitField(line)
+      let (field, value) = __splitField(line)
 
       if field == "data" then
         let newData =
@@ -267,14 +267,14 @@ module Sse =
   /// Build an Event from the accumulated lines of one block, if any
   /// `data:` field was seen. `lastId` is the id the block inherits
   /// when no `id:` field appears.
-  let tryEmitBlock(
+  let __tryEmitBlock(
     lines: List<String>,
     lastId: String)
     : Stdlib.Option.Option<Event> =
     let (data, eventType, id, hasData) =
       Stdlib.List.fold(lines, ("", "", lastId, false), fun(acc, line) ->
         let (d, e, i, h) = acc
-        applyLine(d, e, i, h, line))
+        __applyLine(d, e, i, h, line))
 
     if hasData then
       Stdlib.Option.Option.Some(Event { data = data, eventType = eventType, id = id })
@@ -285,7 +285,7 @@ module Sse =
   /// Pull bytes from the underlying stream until a complete event
   /// terminator (blank line) arrives, then emit. Returns None once
   /// the stream is exhausted and no buffered data remains.
-  let pullNextEvent(
+  let __pullNextEvent(
     bytes: Stream<UInt8>,
     state: ParseState)
     : Stdlib.Option.Option<(Event * ParseState)> =
@@ -309,7 +309,7 @@ module Sse =
       if Stdlib.List.isEmpty(pending) then
         Stdlib.Option.Option.None
       else
-        match tryEmitBlock(pending, state.lastId) with
+        match __tryEmitBlock(pending, state.lastId) with
         | Some(event) ->
           let nextState =
             ParseState
@@ -330,7 +330,7 @@ module Sse =
 
         if Stdlib.String.isEmpty(line) then
           // Blank line terminates the block. Try to emit an Event.
-          match tryEmitBlock(state.currentLines, state.lastId) with
+          match __tryEmitBlock(state.currentLines, state.lastId) with
           | Some(event) ->
             let nextState =
               ParseState
@@ -345,7 +345,7 @@ module Sse =
                   currentLines = []
                   currentLine = [] }
 
-            pullNextEvent(bytes, nextState)
+            __pullNextEvent(bytes, nextState)
         else
           // Regular line; append and keep reading.
           let nextState =
@@ -354,7 +354,7 @@ module Sse =
                 currentLines = Stdlib.List.append(state.currentLines, line)
                 currentLine = [] }
 
-          pullNextEvent(bytes, nextState)
+          __pullNextEvent(bytes, nextState)
       else
         let nextState =
           ParseState
@@ -362,7 +362,7 @@ module Sse =
               currentLines = state.currentLines
               currentLine = Stdlib.List.append(state.currentLine, b) }
 
-        pullNextEvent(bytes, nextState)
+        __pullNextEvent(bytes, nextState)
 
 
   /// Parse an SSE byte stream into a stream of Events. Lazy: events
@@ -371,4 +371,4 @@ module Sse =
   let parse(bytes: Stream<UInt8>): Stream<Event> =
     let initial = ParseState { lastId = "", currentLines = [], currentLine = [] }
     Stdlib.Stream.unfold<ParseState, Event>(initial, fun state ->
-      pullNextEvent(bytes, state))
+      __pullNextEvent(bytes, state))

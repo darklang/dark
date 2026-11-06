@@ -416,7 +416,7 @@ let zeroPadded(n: Int64, width: Int64): String =
   Stdlib.String.padStart(Stdlib.toString(n), '0', width)
 
 /// The text for one {{format}} directive (the character after {{%}}), or {{None}} if it is not a directive
-let formatDirective(date: DateTime, directive: Char): Stdlib.Option.Option<String> =
+let __formatDirective(date: DateTime, directive: Char): Stdlib.Option.Option<String> =
   match directive with
   | 'Y' ->
     let y = year(date)
@@ -431,22 +431,22 @@ let formatDirective(date: DateTime, directive: Char): Stdlib.Option.Option<Strin
   | _ -> Stdlib.Option.Option.None
 
 /// Writes <param chars> of a {{format}} pattern after <param written> (kept in reverse order)
-let formatChars(date: DateTime, chars: List<Char>, written: List<String>)
+let __formatChars(date: DateTime, chars: List<Char>, written: List<String>)
   : Stdlib.Result.Result<String, String> =
   match chars with
   | [] -> Stdlib.Result.Result.Ok(Stdlib.String.join(Stdlib.List.reverse(written), ""))
   | [ '%' ] ->
     Stdlib.Result.Result.Error("The pattern ends in a lone %; write %% for a literal %")
   | [ '%', directive, ...rest ] ->
-    match formatDirective(date, directive) with
-    | Some(text) -> formatChars(date, rest, Stdlib.List.prepend(written, text))
+    match __formatDirective(date, directive) with
+    | Some(text) -> __formatChars(date, rest, Stdlib.List.prepend(written, text))
     | None ->
       Stdlib.Result.Result.Error(
         "Unknown directive %"
         + Stdlib.String.fromChar(directive)
         + "; the directives are %Y %m %d %H %M %S %f %%")
   | [ c, ...rest ] ->
-    formatChars(date, rest, Stdlib.List.prepend(written, Stdlib.String.fromChar(c)))
+    __formatChars(date, rest, Stdlib.List.prepend(written, Stdlib.String.fromChar(c)))
 
 
 /// Writes <param date> (always UTC) using <param pattern>, where each directive is
@@ -458,7 +458,7 @@ let formatChars(date: DateTime, chars: List<Char>, written: List<String>)
 /// Any other {{%}} sequence, or a lone {{%}} at the end, is an {{Error}}.
 /// For example, {{format(d, "%Y-%m-%d %H:%M:%S.%f")}} gives {{Ok("2019-07-28 22:42:36.500")}}.
 let format(date: DateTime, pattern: String): Stdlib.Result.Result<String, String> =
-  formatChars(date, Stdlib.String.toList(pattern), [])
+  __formatChars(date, Stdlib.String.toList(pattern), [])
 
 
 // Shared clock implementation.

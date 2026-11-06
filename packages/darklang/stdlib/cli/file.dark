@@ -75,7 +75,7 @@ let readLines(path: String): Result.Result<List<String>, Posix.Error> =
   |> Stdlib.Result.map(fun text -> Stdlib.String.splitOnNewline(text))
 
 
-let countNewlines(blob: Bytes): Int64 =
+let __countNewlines(blob: Bytes): Int64 =
   let countFrom(start: Int64, count: Int64): Int64 =
     match Stdlib.Bytes.indexOfFrom(blob, 10u8, start) with
     | Some(i) -> countFrom(i + 1, count + 1)
@@ -84,7 +84,7 @@ let countNewlines(blob: Bytes): Int64 =
 
 
 /// Everything after the first newline in <param bytes>; empty if there is none.
-let dropThroughFirstNewline(bytes: Bytes): Bytes =
+let __dropThroughFirstNewline(bytes: Bytes): Bytes =
   match Stdlib.Bytes.indexOf(bytes, 10u8) with
   | Some(i) -> Stdlib.Bytes.drop(bytes, i + 1)
   | None -> Stdlib.Bytes.empty
@@ -92,7 +92,7 @@ let dropThroughFirstNewline(bytes: Bytes): Bytes =
 
 /// Read exactly `count` bytes from `fd`, or fewer only at end of file.
 ///
-/// `Posix.fdRead` is one `read(2)` and may legally return fewer bytes than asked for. `readTailChunks`
+/// `Posix.fdRead` is one `read(2)` and may legally return fewer bytes than asked for. `__readTailChunks`
 /// addresses the file by absolute offset, so a short read there would silently drop bytes out of the middle
 /// of the window and hand back lines that never existed. Loop instead. (`fdReadAll` above loops for the same
 /// reason.)
@@ -114,7 +114,7 @@ let readFully(
         readFully(fd, count - received, Stdlib.List.append(acc, chunk)))
 
 
-let readTailChunks(
+let __readTailChunks(
   fd: Int,
   cursor: Int64,
   requiredNewlines: Int64,
@@ -133,11 +133,11 @@ let readTailChunks(
     |> Stdlib.Result.andThen(fun _position ->
       (readFully(fd, bytesToRead, []))
       |> Stdlib.Result.andThen(fun chunk ->
-        readTailChunks(
+        __readTailChunks(
           fd,
           start,
           requiredNewlines,
-          foundNewlines + countNewlines(chunk),
+          foundNewlines + __countNewlines(chunk),
           Stdlib.List.prepend(chunks, chunk))))
 
 
@@ -157,13 +157,13 @@ let readLastLines(
       | Error(e) -> Stdlib.Result.Result.Error(e)
       | Ok(fd) ->
         let tailResult =
-          readTailChunks(fd, fileSize, count, 0, [])
+          __readTailChunks(fd, fileSize, count, 0, [])
         let _closed = Posix.fdClose(fd)
 
         tailResult
         |> Stdlib.Result.andThen(fun((blob, startedAtBeginning)) ->
           let bytes =
-            if startedAtBeginning then blob else dropThroughFirstNewline(blob)
+            if startedAtBeginning then blob else __dropThroughFirstNewline(blob)
 
           match Stdlib.Utf8.decode(bytes) with
           | Error(message) ->
@@ -391,7 +391,7 @@ let glob(basePath: String, pattern: String): Result.Result<List<String>, Posix.E
 /// Portable fallback when kernel event queues are unavailable.
 /// Calls the callback each time the file changes. Stops when shouldStop returns true.
 /// Returns Error if the file becomes inaccessible.
-let watchLoop(
+let __watchPolling(
   path: String,
   intervalMs: Float,
   lastMtime: Int64,
@@ -407,7 +407,7 @@ let watchLoop(
     | Ok(newMtime) ->
       if newMtime != lastMtime then fn()
       else ()
-      watchLoop(path, intervalMs, newMtime, shouldStop, fn)
+      __watchPolling(path, intervalMs, newMtime, shouldStop, fn)
     | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
@@ -431,7 +431,7 @@ let watch(
       // still uses checked stat operations; never retry through an unsafe path.
       if e == 38 || e == 95 || e == 2 then
         match getModifiedTime(path) with
-        | Ok(mtime) -> watchLoop(path, intervalMs, mtime, shouldStop, fn)
+        | Ok(mtime) -> __watchPolling(path, intervalMs, mtime, shouldStop, fn)
         | Error(error) -> Error(error)
       else Error(Stdlib.Cli.Posix.__fromErrno(e))
   else if Builtin.runtimeTargetOS() == "darwin" then
@@ -440,7 +440,7 @@ let watch(
     |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
   else
     match getModifiedTime(path) with
-    | Ok(mtime) -> watchLoop(path, intervalMs, mtime, shouldStop, fn)
+    | Ok(mtime) -> __watchPolling(path, intervalMs, mtime, shouldStop, fn)
     | Error(e) -> Stdlib.Result.Result.Error(e)
 
 

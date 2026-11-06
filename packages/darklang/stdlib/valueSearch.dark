@@ -8,7 +8,7 @@ type FoundValue<'a> =
     value: 'a }
 
 /// Parse namespace string into parts (non-generic helper)
-let parseNamespace(targetNamespace: String): List<String> =
+let __parseNamespace(targetNamespace: String): List<String> =
   if (Stdlib.String.length(targetNamespace)) == 0 then
     []
   else
@@ -16,7 +16,7 @@ let parseNamespace(targetNamespace: String): List<String> =
 
 
 /// Check if a value path starts with the namespace parts (non-generic helper)
-let isValueInNamespace(
+let __isValueInNamespace(
   namespaceParts: List<String>,
   valuePath: List<String>)
   : Bool =
@@ -28,7 +28,7 @@ let isValueInNamespace(
 
 
 /// Build full path string from location (non-generic helper)
-let buildPathFromLocation(
+let __buildPathFromLocation(
   owner: String,
   modules: List<String>,
   name: String)
@@ -52,7 +52,7 @@ let findByType(
   targetNamespace: String,
   targetTypeHash: LanguageTools.ProgramTypes.Hash)
   : List<FoundValue<'a>> =
-  let namespaceParts = parseNamespace(targetNamespace)
+  let namespaceParts = __parseNamespace(targetNamespace)
 
   // Construct a ValueType for the custom type
   let rtHash =
@@ -73,11 +73,11 @@ let findByType(
       // Check if it's in the target namespace
       let valuePath = Stdlib.List.prepend(location.modules, location.owner)
 
-      if isValueInNamespace(namespaceParts, valuePath) then
+      if __isValueInNamespace(namespaceParts, valuePath) then
         // Evaluate the value
         match evaluate(valueHash) with
         | Some(evaluatedValue) ->
-          let fullPath = buildPathFromLocation(location.owner, location.modules, location.name)
+          let fullPath = __buildPathFromLocation(location.owner, location.modules, location.name)
 
           Stdlib.Option.Option.Some(
             FoundValue { path = fullPath, value = evaluatedValue }

@@ -67,7 +67,7 @@ let addMissingValue(acc: Parsed, token: String): Parsed =
   { acc with errors = Stdlib.List.append(acc.errors, ParseError.MissingValue(token)) }
 
 
-let parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
+let __parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
   match remaining with
   | [] -> acc
 
@@ -75,23 +75,23 @@ let parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
     match canonicalFor(spec.valueFlags, token) with
     | Some(name) ->
       match rest with
-      | [value, ...tail] -> parseLoop(spec, addOption(acc, name, value), tail)
-      | [] -> parseLoop(spec, addMissingValue(acc, token), rest)
+      | [value, ...tail] -> __parseLoop(spec, addOption(acc, name, value), tail)
+      | [] -> __parseLoop(spec, addMissingValue(acc, token), rest)
     | None ->
       match canonicalFor(spec.flags, token) with
-      | Some(name) -> parseLoop(spec, addFlag(acc, name), rest)
+      | Some(name) -> __parseLoop(spec, addFlag(acc, name), rest)
       | None ->
         if isFlagLike(token) then
-          parseLoop(spec, addUnknown(acc, token), rest)
+          __parseLoop(spec, addUnknown(acc, token), rest)
         else
-          parseLoop(
+          __parseLoop(
             spec,
             { acc with positionals = Stdlib.List.append(acc.positionals, token) },
             rest)
 
 
 let parse(spec: Spec, args: List<String>): Parsed =
-  parseLoop(spec, emptyParsed, args)
+  __parseLoop(spec, emptyParsed, args)
 
 
 let hasFlag(p: Parsed, name: String): Bool =

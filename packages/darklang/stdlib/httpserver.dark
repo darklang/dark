@@ -32,7 +32,7 @@ type RouteSegment =
 
 
 /// Parse a route pattern into segments
-let parseRouteSegments(route: String): List<RouteSegment> =
+let __parseRouteSegments(route: String): List<RouteSegment> =
   let segments = String.split(route, "/")
 
   segments
@@ -48,7 +48,7 @@ let parseRouteSegments(route: String): List<RouteSegment> =
 
 
 /// Match a single route segment against a path segment
-let matchSegment(
+let __matchSegment(
   routeSeg: RouteSegment,
   pathSeg: String,
   remainingPath: List<String>)
@@ -76,7 +76,7 @@ let splitPath(requestPath: String): List<String> =
 ///
 /// Routing splits one path against every handler, so doing it here rather than inside `matchRoute`
 /// lets the caller split once instead of once per handler.
-let matchRouteSegments(routeSegs: List<RouteSegment>, pathSegs: List<String>): RouteMatch =
+let __matchRouteSegments(routeSegs: List<RouteSegment>, pathSegs: List<String>): RouteMatch =
   let routeLen = List.length(routeSegs)
   let pathLen = List.length(pathSegs)
 
@@ -97,7 +97,7 @@ let matchRouteSegments(routeSegs: List<RouteSegment>, pathSegs: List<String>): R
           | None -> Option.Option.None
           | Some(vars) ->
             let (routeSeg, pathSeg) = pair
-            match matchSegment(routeSeg, pathSeg, []) with
+            match __matchSegment(routeSeg, pathSeg, []) with
             | Some(newVars) ->
               Option.Option.Some(List.concat(vars, newVars))
             | None -> Option.Option.None)
@@ -108,11 +108,11 @@ let matchRouteSegments(routeSegs: List<RouteSegment>, pathSegs: List<String>): R
 
 
 let matchRoute(routePattern: String, requestPath: String): RouteMatch =
-  matchRouteSegments(parseRouteSegments(routePattern), splitPath(requestPath))
+  __matchRouteSegments(__parseRouteSegments(routePattern), splitPath(requestPath))
 
 
 /// Find the first handler that matches the request
-let findHandler(
+let __findHandler(
   handlers: List<Handler>,
   method: String,
   path: String)
@@ -127,14 +127,14 @@ let findHandler(
       // Method first. The route match is the expensive half, and a handler whose method cannot
       // match never needs it -- the previous order computed it regardless.
       if (h.method == method) || (h.method == "*") then
-        let routeMatch = matchRouteSegments(parseRouteSegments(h.route), pathSegs)
+        let routeMatch = __matchRouteSegments(__parseRouteSegments(h.route), pathSegs)
         routeMatch.matched
       else
         false)
 
   match matchingHandler with
   | Some(h) ->
-    let routeMatch = matchRouteSegments(parseRouteSegments(h.route), pathSegs)
+    let routeMatch = __matchRouteSegments(__parseRouteSegments(h.route), pathSegs)
     Option.Option.Some((h, routeMatch))
   | None -> Option.Option.None
 
@@ -161,7 +161,7 @@ let routeRequest(
   let method = getMethod(req)
   let path = getPath(req)
 
-  match findHandler(handlers, method, path) with
+  match __findHandler(handlers, method, path) with
   | Some((handler, _routeMatch)) -> handler.handler(req)
   | None -> Http.notFound()
 
@@ -170,7 +170,7 @@ let routeRequest(
 /// Example: getPathParam req "/user/:id" "id" returns Some "123" for path "/user/123"
 let getPathParam(req: Http.Request, routePattern: String, paramName: String): Option.Option<String> =
   let path = getPath(req)
-  let routeSegs = parseRouteSegments(routePattern)
+  let routeSegs = __parseRouteSegments(routePattern)
   let pathSegs =
     (String.split(path, "/"))
     |> List.filter(fun s -> Bool.not(String.isEmpty(s)))

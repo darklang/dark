@@ -31,12 +31,12 @@ let sign(s: LanguageTools.Sign): String =
   | Negative -> "-"
 
 // One-hex-digit (0-15) to its source character.
-let hexDigitChar(n: Int64): String =
+let __hexDigitChar(n: Int64): String =
   Stdlib.String.slice("0123456789ABCDEF", n, n + 1)
 
 // Escape backslashes and ASCII controls within a grapheme, preserving the
 // remaining text. The caller handles quotes for string and char literals.
-let encodeChar(c: Char): String =
+let __encodeChar(c: Char): String =
   match Stdlib.Char.toAsciiCode(c) with
   | None ->
     // A grapheme of several code points can hold a backslash plus combining
@@ -47,7 +47,7 @@ let encodeChar(c: Char): String =
     |> Stdlib.String.toCodepoints
     |> Stdlib.List.map(fun cp ->
       match Stdlib.Char.fromCodepoint(cp) with
-      | Some(one) -> if cp < 128u32 then encodeChar(one) else Stdlib.toString(one)
+      | Some(one) -> if cp < 128u32 then __encodeChar(one) else Stdlib.toString(one)
       | None -> "")
     |> Stdlib.String.join("")
   | Some(code) ->
@@ -63,26 +63,26 @@ let encodeChar(c: Char): String =
       let n = Stdlib.Int64.fromUInt8(code)
       let hi = n / 16
       let lo = n % 16
-      $"\\x{hexDigitChar(hi)}{hexDigitChar(lo)}"
+      $"\\x{__hexDigitChar(hi)}{__hexDigitChar(lo)}"
     else
       Stdlib.toString(c)
 
 // Encode special characters back to source-form. Symmetric with the parser's
 // `decodeStringContent`. Quote escapes are added per quote style — `"` for
 // string literals, `'` for char literals — so the common path skips them.
-let escapeCommon(s: String): String =
+let __escapeCommon(s: String): String =
   s
   |> Stdlib.String.toList
-  |> Stdlib.List.map(encodeChar)
+  |> Stdlib.List.map(__encodeChar)
   |> Stdlib.String.join("")
 
 /// Escape for `"..."` string literals: common specials plus the closing `"`.
 let escapeSpecialCharacters(s: String): String =
-  (escapeCommon(s)) |> Stdlib.String.replaceAll("\"", "\\\"")
+  (__escapeCommon(s)) |> Stdlib.String.replaceAll("\"", "\\\"")
 
 /// Escape for `'...'` char literals: common specials plus the closing `'`.
 let escapeCharLiteral(s: String): String =
-  (escapeCommon(s)) |> Stdlib.String.replaceAll("'", "\\'")
+  (__escapeCommon(s)) |> Stdlib.String.replaceAll("'", "\\'")
 
 /// Format a record/dict field name for source output.
 /// Two reasons a field name needs backticks:

@@ -79,7 +79,7 @@ let isHexDigit(c: Char): Bool =
 
 
 /// Is every {{%}} in <param s> followed by two hex digits?
-let escapesOk(s: String): Bool =
+let __escapesOk(s: String): Bool =
   (Stdlib.String.split(s, "%"))
   |> Stdlib.List.drop(1)
   |> Stdlib.List.all(fun piece ->
@@ -92,7 +92,7 @@ let escapesOk(s: String): Bool =
 /// Checks that a part holds only unreserved characters, sub-delims, escapes and
 /// <param extra>. A host may also hold non-ASCII letters ({{bücher.de}}), kept
 /// as written. Does nothing unless <param strict>.
-let checkPart(
+let __checkPart(
   strict: Bool,
   part: String,
   extra: String,
@@ -117,7 +117,7 @@ let checkPart(
       Stdlib.Result.Result.Error(
         ParseError.InvalidCharacter(part, Stdlib.String.fromChar(c)))
     | None ->
-      if escapesOk(s) then
+      if __escapesOk(s) then
         Stdlib.Result.Result.Ok()
       else
         Stdlib.Result.Result.Error(ParseError.InvalidPercentEncoding(part))
@@ -197,7 +197,7 @@ let parseIPLiteral(inner: String): Stdlib.Option.Option<String> =
   let zoneOk =
     zone == ""
     || (zone != "%25"
-        && escapesOk(zone)
+        && __escapesOk(zone)
         && Stdlib.List.all(Stdlib.String.toList(zone), fun c ->
           c == '%' || isUnreserved(c)))
 
@@ -232,7 +232,7 @@ let parseAuthority(
     | Some((u, hp)) -> (Stdlib.Option.Option.Some(u), hp)
     | None -> (Stdlib.Option.Option.None, authority)
 
-  let _ = (checkPart(strict, "userinfo", ":", userinfo))?
+  let _ = (__checkPart(strict, "userinfo", ":", userinfo))?
 
   let (host, portText) =
     (if Stdlib.String.startsWith(hostPort, "[") then
@@ -258,7 +258,7 @@ let parseAuthority(
          (Stdlib.List.length(Stdlib.String.split(name, "."))) == 4
          && Stdlib.List.all(Stdlib.String.split(name, "."), fun o -> isDigits(o))
 
-       match checkPart(strict, "host", "", Stdlib.Option.Option.Some(name)) with
+       match __checkPart(strict, "host", "", Stdlib.Option.Option.Some(name)) with
        | Error(e) -> Stdlib.Result.Result.Error(e)
        | Ok(_) ->
          // A lenient parse skips the character check, but a `:` left in the
@@ -314,7 +314,7 @@ let splitScheme(
   | _ -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.None, s))
 
 
-let parseWith(
+let __parseWith(
   strict: Bool,
   absolute: Bool,
   s: String)
@@ -354,9 +354,9 @@ let parseWith(
           Stdlib.Option.Option.None,
           Stdlib.Option.Option.None)))?
 
-  let _ = (checkPart(strict, "path", ":@/", Stdlib.Option.Option.Some(path)))?
-  let _ = (checkPart(strict, "query", ":@/?", query))?
-  let _ = (checkPart(strict, "fragment", ":@/?", fragment))?
+  let _ = (__checkPart(strict, "path", ":@/", Stdlib.Option.Option.Some(path)))?
+  let _ = (__checkPart(strict, "query", ":@/?", query))?
+  let _ = (__checkPart(strict, "fragment", ":@/?", fragment))?
 
   Stdlib.Result.Result.Ok(
     Url
@@ -376,14 +376,14 @@ let parseWith(
 /// the host, must be percent-encoded first. Note that {{localhost:8080}} parses,
 /// as scheme {{localhost}} with path {{8080}}, which is what the RFC says it is.
 let parse(s: String): Stdlib.Result.Result<Url, ParseError> =
-  parseWith(true, true, s)
+  __parseWith(true, true, s)
 
 
 /// Like <fn parse>, but also takes a relative reference, as found in a link:
 /// {{/a/b}}, {{../c}}, {{?q=1}}, {{#top}}, {{//host/p}} or {{""}}. Its
 /// {{scheme}} is {{None}}. See <fn resolve> to follow one from a base URL.
 let parseReference(s: String): Stdlib.Result.Result<Url, ParseError> =
-  parseWith(true, false, s)
+  __parseWith(true, false, s)
 
 
 /// Like <fn parseReference>, but does not check characters: a space, a
@@ -392,7 +392,7 @@ let parseReference(s: String): Stdlib.Result.Result<Url, ParseError> =
 /// and port are still checked, so it can fail: {{http://x:port/}} is an
 /// <type ParseError>.
 let parseLenient(s: String): Stdlib.Result.Result<Url, ParseError> =
-  parseWith(false, false, s)
+  __parseWith(false, false, s)
 
 
 /// Prints <param url> back as a string. For anything <fn parse> accepted,
@@ -442,21 +442,21 @@ impl ToString for Url =
 
 /// RFC 3986 section 5.2.4. <param out> holds the output's segments, each with
 /// its leading {{/}}, newest first.
-let removeDots(input: String, out: List<String>): String =
+let __removeDots(input: String, out: List<String>): String =
   if input == "" || input == "." || input == ".." then
     out |> Stdlib.List.reverse |> Stdlib.String.join("")
   else if Stdlib.String.startsWith(input, "../") then
-    removeDots(Stdlib.String.dropFirst(input, 3), out)
+    __removeDots(Stdlib.String.dropFirst(input, 3), out)
   else if
     Stdlib.String.startsWith(input, "./") || Stdlib.String.startsWith(input, "/./")
   then
-    removeDots(Stdlib.String.dropFirst(input, 2), out)
+    __removeDots(Stdlib.String.dropFirst(input, 2), out)
   else if input == "/." then
-    removeDots("/", out)
+    __removeDots("/", out)
   else if Stdlib.String.startsWith(input, "/../") then
-    removeDots(Stdlib.String.dropFirst(input, 3), Stdlib.List.drop(out, 1))
+    __removeDots(Stdlib.String.dropFirst(input, 3), Stdlib.List.drop(out, 1))
   else if input == "/.." then
-    removeDots("/", Stdlib.List.drop(out, 1))
+    __removeDots("/", Stdlib.List.drop(out, 1))
   else
     let (lead, rest) =
       match Stdlib.String.stripPrefix(input, "/") with
@@ -465,21 +465,21 @@ let removeDots(input: String, out: List<String>): String =
 
     match Stdlib.String.splitFirst(rest, "/") with
     | Some((segment, after)) ->
-      removeDots("/" + after, Stdlib.List.prepend(out, lead + segment))
-    | None -> removeDots("", Stdlib.List.prepend(out, lead + rest))
+      __removeDots("/" + after, Stdlib.List.prepend(out, lead + segment))
+    | None -> __removeDots("", Stdlib.List.prepend(out, lead + rest))
 
 
 /// Removes {{.}} and {{..}} segments from a path: {{/a/b/../c/./d}} is
 /// {{/a/c/d}}. The result can start with {{//}} ({{/..//x}} is {{//x}}); see
 /// <fn resolve> for what that means in a URL with no host.
-let removeDotSegments(path: String): String = removeDots(path, [])
+let removeDotSegments(path: String): String = __removeDots(path, [])
 
 
 /// A path that cannot be misread when printed (RFC 3986 sections 4.2 and 5.3).
 /// With no host, a path starting {{//}} would read back as one, so it gets a
 /// {{/.}} in front; with no scheme either, a first segment holding a {{:}} would
 /// read back as a scheme, so it gets a {{./}}.
-let guardPath(url: Url): Url =
+let __guardPath(url: Url): Url =
   let firstSegment =
     match Stdlib.String.splitFirst(url.path, "/") with
     | Some((first, _)) -> first
@@ -504,11 +504,11 @@ let guardPath(url: Url): Url =
 /// host, a path that would then start {{//}} keeps a {{/.}} in front
 /// ({{non-spec:/.//p}}), so the result never prints as a different host.
 let resolve(base: Url, ref: Url): Url =
-  guardPath(resolveRaw(base, ref))
+  __guardPath(__resolveRaw(base, ref))
 
 
-/// RFC 3986 section 5.2.2, before <fn guardPath>.
-let resolveRaw(base: Url, ref: Url): Url =
+/// RFC 3986 section 5.2.2, before <fn __guardPath>.
+let __resolveRaw(base: Url, ref: Url): Url =
   if ref.scheme != Stdlib.Option.Option.None then
     { ref with path = removeDotSegments(ref.path) }
   else if ref.host != Stdlib.Option.Option.None then
