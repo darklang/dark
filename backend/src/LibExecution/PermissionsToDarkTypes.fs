@@ -66,7 +66,7 @@ module HttpRule =
       typeName (),
       typeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "method", Scope.stringToDT rule.method
           "scheme", Scope.stringToDT rule.scheme
           "host", HostRule.toDT rule.host
@@ -95,7 +95,7 @@ module ProcessRule =
       typeName (),
       typeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "executable", Scope.stringToDT rule.executable
           "args",
           Scope.toDT
@@ -193,7 +193,7 @@ module Policy =
       typeName (),
       typeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "allow", DList(VT.known (Rule.knownType ()), List.map Rule.toDT allow)
           "deny", DList(VT.known (Rule.knownType ()), List.map Rule.toDT deny) ]
     )
@@ -276,7 +276,7 @@ module Approval =
       typeName (),
       typeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "hash", DString hash
           "name", Dval.option KTString (Option.map DString name)
           "policy", policyOption policy

@@ -84,7 +84,7 @@ let private traceRowToDT (read : RowReader) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "id", DString(read.string "id")
         "entry", DString(read.string "handler_desc")
         "input", RT2DT.Dval.toDT inputValue
@@ -189,7 +189,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
           let args = parseArgsBytes ev.argsBytes
           let result = parseDvalBytes ev.resultBytes
           let fields =
-            Map
+            RecordFields.ofList
               [ "callId", DString ev.callId
                 "fnName", DString displayName
                 "args", Dval.list dvalKT args
@@ -404,14 +404,15 @@ let private detail (traceID : string) : Ply<Option<Dval>> =
       let! fnCalls = loadFnCalls r.id
       let inputVarType = inputVarTypeName ()
       let inputFields =
-        Map
+        RecordFields.ofList
           [ "name", DString r.inputName; "value", parseDvalBytes r.inputValueBytes ]
       let inputs =
         [ DRecord(inputVarType, inputVarType, [], inputFields) ]
         |> Dval.list (KTCustomType(inputVarType, []))
       let typeName = traceDataTypeName ()
       let fields =
-        Map [ "trace", r.trace; "inputs", inputs; "functionCalls", fnCalls ]
+        RecordFields.ofList
+          [ "trace", r.trace; "inputs", inputs; "functionCalls", fnCalls ]
       return Some(DRecord(typeName, typeName, [], fields))
     | None -> return None
   }
@@ -580,7 +581,7 @@ let private answerToDT (a : Answer) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "runs", Dval.list (KTCustomType(traceTypeName (), [])) a.runs
         "detail", Dval.option (KTCustomType(traceDataTypeName (), [])) a.detail
         "ids", a.ids |> List.map DString |> Dval.list KTString

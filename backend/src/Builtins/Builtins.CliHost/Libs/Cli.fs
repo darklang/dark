@@ -621,7 +621,7 @@ module ExecutionError =
       |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
       |> fun items -> DList(VT.known pairKT, items)
     let fields = [ "message", DString u.message; "metadata", metadataDval ]
-    DRecord(typeName, typeName, [], Map fields)
+    DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
   let private permissionDeniedToDT (d : PermissionDenied) : Dval =
     let typeName = permissionDeniedTypeName ()
@@ -630,7 +630,7 @@ module ExecutionError =
         "resource", DString d.resource
         "rule", (d.rule |> Option.map DString |> Dval.option KTString)
         "callStack", callStackToDT d.callStack ]
-    DRecord(typeName, typeName, [], Map fields)
+    DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
   let toDT (err : ExecutionError) : Dval =
     let typeName = fqTypeName ()
@@ -691,7 +691,7 @@ let private topLevelHash = PT.Hash "script-top-level"
 let private reportedNodeIds (report : Dval) : List<id> =
   let field name (d : Dval) =
     match d with
-    | DRecord(_, _, _, fields) -> Map.tryFind name fields
+    | DRecord(_, _, _, fields) -> RecordFields.tryFind name fields
     | _ -> None
   let list d =
     match d with
@@ -784,7 +784,7 @@ let private checkGuest
           [ DList(VT.customType (PT2DT.PackageOp.typeName ()) [], converted) ]
       match! Exe.executeFunction state fnName [] args with
       | Ok(DRecord(_, _, _, fields) as report) ->
-        match Map.tryFind "verdict" fields with
+        match RecordFields.tryFind "verdict" fields with
         | Some(DEnum(_, _, _, "Failed", [])) ->
           let locations =
             reportedNodeIds report

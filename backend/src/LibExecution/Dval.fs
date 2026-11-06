@@ -165,7 +165,7 @@ let rec mapCallables
     DTuple(walk first, walk second, List.map walk rest)
   | DDict(kt, vt, entries) -> DDict(kt, vt, DictMap.map walk entries)
   | DRecord(sourceType, runtimeType, typeArgs, fields) ->
-    DRecord(sourceType, runtimeType, typeArgs, Map.map walk fields)
+    DRecord(sourceType, runtimeType, typeArgs, RecordFields.map walk fields)
   | DEnum(sourceType, runtimeType, typeArgs, caseName, fields) ->
     DEnum(sourceType, runtimeType, typeArgs, caseName, List.map walk fields)
   | other -> other
@@ -248,7 +248,7 @@ let rec isPersistable (dv : Dval) : bool =
     isPersistable a && isPersistable b && List.forall isPersistable rest
   | DDict(_, _, entries) ->
     entries |> DictMap.forall (fun k v -> isPersistable k && isPersistable v)
-  | DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.forall isPersistable
+  | DRecord(_, _, _, fields) -> fields |> RecordFields.forall isPersistable
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isPersistable
 
 
@@ -280,7 +280,7 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
       | Some r -> Some r
       | None -> nonPersistableReason v)
   | DRecord(_, _, _, fields) ->
-    fields |> Map.values |> Seq.tryPick nonPersistableReason
+    fields |> RecordFields.values |> List.tryPick nonPersistableReason
   | DEnum(_, _, _, _, fields) -> fields |> List.tryPick nonPersistableReason
 
   | _ -> None
@@ -324,7 +324,7 @@ let rec isInertData (dv : Dval) : bool =
     isInertData a && isInertData b && List.forall isInertData rest
   | DDict(_, _, entries) ->
     entries |> DictMap.forall (fun k v -> isInertData k && isInertData v)
-  | DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.forall isInertData
+  | DRecord(_, _, _, fields) -> fields |> RecordFields.forall isInertData
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isInertData
 
 
@@ -434,13 +434,11 @@ let rec equals (a : Dval) (b : Dval) : bool =
       (fun ta tb -> Result.isOk (ValueType.merge ta tb))
       typeArgsA
       typeArgsB
-    && Map.count fieldsA = Map.count fieldsB
-    && (fieldsA
-        |> Map.toSeq
-        |> Seq.forall (fun (k, va) ->
-          match Map.find k fieldsB with
-          | Some vb -> r va vb
-          | None -> false))
+    && fieldsA.Count = fieldsB.Count
+    && Array.forall2
+      (fun (struct (ka : string, va)) (struct (kb, vb)) -> ka = kb && r va vb)
+      fieldsA.Entries
+      fieldsB.Entries
 
   | DEnum(_, typeNameA, typeArgsA, caseNameA, fieldsA),
     DEnum(_, typeNameB, typeArgsB, caseNameB, fieldsB) ->
@@ -516,16 +514,13 @@ type private HashFrame = { value : Dval; mutable code : System.HashCode }
 
 
 /// Walks collections one item at a time to keep the work stack small.
-/// Keeps record iterators on that stack so `finally` can clean them up after an error.
 [<NoEquality; NoComparison>]
 type private HashWork =
   | HashValue of Dval
   | AddHash of HashFrame
   | HashList of HashFrame * List<Dval>
   | HashDict of HashFrame * entries : (struct (Dval * Dval))[] * next : int
-  | HashRecord of
-    HashFrame *
-    System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, Dval>>
+  | HashRecord of HashFrame * entries : (struct (string * Dval))[] * next : int
 
 
 /// Hashes simple values without creating a work stack or cache.
@@ -631,81 +626,70 @@ let hash (dv : Dval) : int =
       result <- frame.code.ToHashCode()
       hashes.Add(frame.value, result)
 
-    try
-      while pending.Count > 0 do
-        match pending.Peek() with
-        | HashValue value ->
-          pending.Pop() |> ignore<HashWork>
-          match hashes.TryGetValue value with
-          | true, code -> result <- code
-          | false, _ ->
-            match tryHashLeaf value with
-            | ValueSome code ->
-              result <- code
-              hashes.Add(value, code)
-            | ValueNone ->
-              let frame = { value = value; code = System.HashCode() }
-              frame.code.Add(DictKey.caseTag value)
-              match value with
-              | DList(_, xs) -> pending.Push(HashList(frame, xs))
-              | DTuple(a, b, rest) -> pending.Push(HashList(frame, a :: b :: rest))
-              | DDict(_, _, entries) ->
-                pending.Push(HashDict(frame, entries.Entries, 0))
-              | DRecord(_, name, _, fields) ->
-                frame.code.Add name
-                pending.Push(HashRecord(frame, (fields :> seq<_>).GetEnumerator()))
-              | DEnum(_, name, _, caseName, fields) ->
-                frame.code.Add name
-                frame.code.Add caseName
-                pending.Push(HashList(frame, fields))
-              | DApplicable(AppNamedFn fn) ->
-                frame.code.Add fn.name
-                pending.Push(HashList(frame, fn.argsSoFar))
-              | _ -> Exception.raiseInternal "Hash leaf was not handled" []
-        | AddHash frame ->
-          pending.Pop() |> ignore<HashWork>
-          frame.code.Add result
-        | HashList(frame, xs) ->
-          pending.Pop() |> ignore<HashWork>
-          match xs with
-          | [] -> finish frame
-          | x :: rest ->
-            pending.Push(HashList(frame, rest))
-            pending.Push(AddHash frame)
-            pending.Push(HashValue x)
-        | HashDict(frame, entries, next) ->
-          pending.Pop() |> ignore<HashWork>
-          if next < entries.Length then
-            let struct (key, value) = entries[next]
-            pending.Push(HashDict(frame, entries, next + 1))
-            pending.Push(AddHash frame)
-            pending.Push(HashValue value)
-            pending.Push(AddHash frame)
-            pending.Push(HashValue key)
-          else
-            finish frame
-        // An error can skip the normal Dispose() call. Keep the iterator on
-        // the stack so `finally` can still find it and clean it up.
-        | HashRecord(frame, fields) ->
-          if fields.MoveNext() then
-            let field = fields.Current
-            frame.code.Add field.Key
-            pending.Push(AddHash frame)
-            pending.Push(HashValue field.Value)
-          else
-            pending.Pop() |> ignore<HashWork>
-            fields.Dispose()
-            finish frame
+    while pending.Count > 0 do
+      match pending.Peek() with
+      | HashValue value ->
+        pending.Pop() |> ignore<HashWork>
+        match hashes.TryGetValue value with
+        | true, code -> result <- code
+        | false, _ ->
+          match tryHashLeaf value with
+          | ValueSome code ->
+            result <- code
+            hashes.Add(value, code)
+          | ValueNone ->
+            let frame = { value = value; code = System.HashCode() }
+            frame.code.Add(DictKey.caseTag value)
+            match value with
+            | DList(_, xs) -> pending.Push(HashList(frame, xs))
+            | DTuple(a, b, rest) -> pending.Push(HashList(frame, a :: b :: rest))
+            | DDict(_, _, entries) ->
+              pending.Push(HashDict(frame, entries.Entries, 0))
+            | DRecord(_, name, _, fields) ->
+              frame.code.Add name
+              pending.Push(HashRecord(frame, fields.Entries, 0))
+            | DEnum(_, name, _, caseName, fields) ->
+              frame.code.Add name
+              frame.code.Add caseName
+              pending.Push(HashList(frame, fields))
+            | DApplicable(AppNamedFn fn) ->
+              frame.code.Add fn.name
+              pending.Push(HashList(frame, fn.argsSoFar))
+            | _ -> Exception.raiseInternal "Hash leaf was not handled" []
+      | AddHash frame ->
+        pending.Pop() |> ignore<HashWork>
+        frame.code.Add result
+      | HashList(frame, xs) ->
+        pending.Pop() |> ignore<HashWork>
+        match xs with
+        | [] -> finish frame
+        | x :: rest ->
+          pending.Push(HashList(frame, rest))
+          pending.Push(AddHash frame)
+          pending.Push(HashValue x)
+      | HashDict(frame, entries, next) ->
+        pending.Pop() |> ignore<HashWork>
+        if next < entries.Length then
+          let struct (key, value) = entries[next]
+          pending.Push(HashDict(frame, entries, next + 1))
+          pending.Push(AddHash frame)
+          pending.Push(HashValue value)
+          pending.Push(AddHash frame)
+          pending.Push(HashValue key)
+        else
+          finish frame
+      | HashRecord(frame, entries, next) ->
+        pending.Pop() |> ignore<HashWork>
+        if next < entries.Length then
+          let struct (name, value) = entries[next]
+          frame.code.Add name
+          pending.Push(HashRecord(frame, entries, next + 1))
+          pending.Push(AddHash frame)
+          pending.Push(HashValue value)
+        else
+          finish frame
 
-      result
-    finally
-      for work in pending do
-        match work with
-        | HashRecord(_, fields) -> fields.Dispose()
-        | HashValue _
-        | AddHash _
-        | HashList _
-        | HashDict _ -> ()
+    result
 
 
 /// Uses Dark's equality rules, so NaN is unequal to itself.
@@ -755,7 +739,7 @@ let rec toDebugString (dv : Dval) : string =
   | DRecord(_, _, _, fields) ->
     let shown =
       fields
-      |> Map.toList
+      |> RecordFields.toList
       |> List.map (fun (k, v) -> $"{k} = {r v}")
       |> String.concat "; "
     $"{{ {shown} }}"

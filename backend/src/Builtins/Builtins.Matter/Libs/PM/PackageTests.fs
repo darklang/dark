@@ -321,10 +321,10 @@ let private resultKeyFromDT (dv : Dval) : Option<LibDB.TestResults.Key> =
   match dv with
   | DRecord(_, _, _, fields) ->
     match
-      Map.tryFind "test" fields,
-      Map.tryFind "runtime" fields,
-      Map.tryFind "branch" fields,
-      Map.tryFind "resultType" fields
+      RecordFields.tryFind "test" fields,
+      RecordFields.tryFind "runtime" fields,
+      RecordFields.tryFind "branch" fields,
+      RecordFields.tryFind "resultType" fields
     with
     | Some(DString test),
       Some(DString runtime),

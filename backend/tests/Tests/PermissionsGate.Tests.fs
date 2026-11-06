@@ -448,8 +448,8 @@ let guestCodeCanCallPolicyReads =
     match approvals with
     | RT.DList(_, [ RT.DRecord(_, _, _, fields) ]) ->
       Expect.equal
-        fields["hash"]
-        (RT.DString hash)
+        (RT.RecordFields.tryFind "hash" fields)
+        (Some(RT.DString hash))
         "the entry is for the hash asked about"
     | other -> failtestf "expected one approval entry, got %A" other
     let! bundled = call "pmFnIsBundled" [| RT.DString hash |]

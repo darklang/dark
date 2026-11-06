@@ -117,7 +117,8 @@ module RuntimeTypes =
     let typeName = RT.FQTypeName.Package hashRT
     sampleDvals ()
     |> List.map (fun (name, (dv, _)) -> name, dv)
-    |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
+    |> fun fields ->
+        RT.DRecord(typeName, typeName, [], RT.RecordFields.ofList fields)
 
   let typeDeclarations : List<RT.TypeDeclaration.T> =
     [ // Alias type

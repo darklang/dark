@@ -249,7 +249,7 @@ let makeTest versionName filename =
       let normalizeResponseHeaders (dval : RT.Dval) : RT.Dval =
         match dval with
         | RT.DRecord(t1, t2, ta, fields) ->
-          match Map.tryFind "headers" fields with
+          match RT.RecordFields.tryFind "headers" fields with
           | Some(RT.DList(elemType, items)) ->
             let sorted =
               items
@@ -257,7 +257,8 @@ let makeTest versionName filename =
                 match item with
                 | RT.DTuple(RT.DString k, _, _) -> k.ToLowerInvariant()
                 | _ -> "")
-            let newFields = Map.add "headers" (RT.DList(elemType, sorted)) fields
+            let newFields =
+              RT.RecordFields.add "headers" (RT.DList(elemType, sorted)) fields
             RT.DRecord(t1, t2, ta, newFields)
           | _ -> dval
         | _ -> dval

@@ -107,7 +107,7 @@ module FQValueName =
         FQTypeName.fqPackage (
           PackageRefs.Type.LanguageTools.RuntimeTypes.FQValueName.builtin ()
         )
-      DRecord(typeName, typeName, [], Map fields)
+      DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
     let fromDT (d : Dval) : FQValueName.Builtin =
       match d with
@@ -153,7 +153,7 @@ module FQFnName =
 
     let toDT (u : FQFnName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt32 u.version ]
-      DRecord(typeName (), typeName (), [], Map fields)
+      DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
 
     let fromDT (d : Dval) : FQFnName.Builtin =
       match d with
@@ -202,18 +202,21 @@ module FQFnName =
         [ "trait_", FQTraitName.Package.toDT u.trait_
           "method_", DString u.method_
           "implFn", ImplChoice.toDT u.implFn ]
-      DRecord(typeName (), typeName (), [], Map fields)
+      DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
 
     let fromDT (d : Dval) : FQFnName.TraitMethod =
       match d with
       | DRecord(_, _, _, fields) ->
         { trait_ =
-            FQTraitName.Package.fromDT (Map.find "trait_" fields |> Option.get)
+            FQTraitName.Package.fromDT (
+              RecordFields.tryFind "trait_" fields |> Option.get
+            )
           method_ =
-            match Map.find "method_" fields with
+            match RecordFields.tryFind "method_" fields with
             | Some(DString m) -> m
             | _ -> Exception.raiseInternal "Invalid TraitMethod.method_" []
-          implFn = ImplChoice.fromDT (Map.find "implFn" fields |> Option.get) }
+          implFn =
+            ImplChoice.fromDT (RecordFields.tryFind "implFn" fields |> Option.get) }
       | _ -> Exception.raiseInternal "Invalid FQFnName.TraitMethod" []
 
 
@@ -300,7 +303,7 @@ module NameResolution =
       typeName (),
       typeName (),
       [],
-      Map [ "originalName", originalName; "resolved", resolved ]
+      RecordFields.ofList [ "originalName", originalName; "resolved", resolved ]
     )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
@@ -437,7 +440,7 @@ module ImplCandidate =
       typeName (),
       typeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "trait_", FQTraitName.Package.toDT c.trait_
           "self", TypeReference.toDT c.self
           "methods", methods
@@ -711,7 +714,7 @@ module ApplicableNamedFn =
         "argsSoFar",
         DList(VT.known (Dval.knownType ()), List.map Dval.toDT namedFn.argsSoFar) ]
 
-    DRecord(typeName, typeName, [], Map fields)
+    DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
   let fromDT (d : Dval) : ApplicableNamedFn =
     match d with
@@ -749,7 +752,7 @@ module ApplicableLambda =
            (ValueType.knownType ())
            (TST.map ValueType.toDT lambda.typeSymbolTable)) ]
 
-    DRecord(typeName, typeName, [], Map fields)
+    DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
 
   let fromDT (d : Dval) : ApplicableLambda =
@@ -870,7 +873,9 @@ module Dval =
         [ FQTypeName.toDT runtimeTypeName
           FQTypeName.toDT sourceTypeName
           DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
-          Dval.stringDictFromMap (knownType ()) (Map.map toDT fields) ]
+          Dval.stringDict
+            (knownType ())
+            (RecordFields.toList (RecordFields.map toDT fields)) ]
 
     | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
       mk
@@ -954,7 +959,7 @@ module Dval =
         FQTypeName.fromDT runtimeTypeName,
         FQTypeName.fromDT sourceTypeName,
         typeArgs |> D.list ValueType.fromDT,
-        entries |> D.dict fromDT
+        entries |> D.dict fromDT |> Map.toList |> RecordFields.ofList
       )
 
     | DEnum(_,
@@ -1093,7 +1098,7 @@ module Instruction =
       instructionsTypeName (),
       instructionsTypeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "registerCount", DInt32 i.registerCount
           "instructions", i.instructions |> List.map toDT |> Dval.list (knownType ())
           "resultIn", DInt32 i.resultIn ]
@@ -1104,7 +1109,7 @@ module Instruction =
       lambdaImplTypeName (),
       lambdaImplTypeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "exprId", DUInt64 l.exprId
           "patterns",
           l.patterns

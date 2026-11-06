@@ -38,7 +38,7 @@ module Request =
 
     let fields =
       [ "body", Bytes.newEphemeral body; "headers", headers; "url", RT.DString uri ]
-    RT.DRecord(typ, typ, [], Map fields)
+    RT.DRecord(typ, typ, [], RT.RecordFields.ofList fields)
 
 
 module Response =
@@ -49,12 +49,12 @@ module Response =
   /// Extracted from the task CE to avoid FS3511 (non-statically-compilable state machine).
   let parseHttpResponseFields
     (state : RT.ExecutionState)
-    (fields : Map<string, RT.Dval>)
+    (fields : RT.RecordFields)
     : Ply<HttpResponse> =
     uply {
-      let code = Map.get "statusCode" fields
-      let headers = Map.get "headers" fields
-      let body = Map.get "body" fields
+      let code = RT.RecordFields.tryFind "statusCode" fields
+      let headers = RT.RecordFields.tryFind "headers" fields
+      let body = RT.RecordFields.tryFind "body" fields
 
       match code, headers, body with
       | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBytes bodyRef) ->

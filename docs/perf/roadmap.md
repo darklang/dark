@@ -306,14 +306,6 @@ because `DarkInt` is a struct DU carrying space for a `bigint`, so any integer o
 costs that. Splitting the representation, or making `Infinite` hold a reference, is the real fix.
 *(estimate: moderate win, wide blast radius)*
 
-### Records still use `Map<string, Dval>`
-
-Dicts moved off F#'s `Map` to `DictMap`: a sorted array up to 24 entries, then a balanced tree
-built from it in one pass (see its comments for the measurement behind the limit). `DRecord` still
-holds its fields in a `Map<string, Dval>`, and the same small-array shape would probably help it,
-though a record's field set is fixed by its type, which may allow something cheaper still.
-*(estimate)*
-
 ### Moving the rest of the codebase off Ply -- measured neutral, do not redo for performance
 
 ~400 `uply` sites remain outside the interpreter loop, and it is tempting to read the interpreter's

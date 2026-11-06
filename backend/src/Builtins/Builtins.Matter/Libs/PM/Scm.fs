@@ -49,7 +49,7 @@ let private depEdgeToDT (e : Deps.Edge) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "itemHash", DString e.itemHash
         "dependsOnHash", DString e.dependsOnHash
         "dependsOnType", DString e.dependsOnType ]
@@ -103,7 +103,7 @@ let private bindingRowToDT (b : Bindings.Binding) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "owner", DString b.owner
         "modules", DString b.modules
         "name", DString b.name
@@ -137,7 +137,7 @@ let private nameBaseToDT (b : Branches.NameBase) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "owner", DString b.owner
         "modules", DString b.modules
         "name", DString b.name
@@ -150,7 +150,7 @@ let private branchInfoToDT (i : Branches.Info) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "id", DString i.id
         "name", DString i.name
         "parentId", DString i.parentId
@@ -185,7 +185,7 @@ let private commitToDT (c : Commits.Commit) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "hash", DString c.hash
         "message", DString c.message
         "originTs", DString c.originTs
@@ -199,7 +199,7 @@ let private commitPageToDT (p : Commits.Page) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "total", DInt64 p.total
         "commits",
         p.commits
@@ -227,7 +227,7 @@ let private conflictRowToDT (r : Conflicts.Row) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "id", DString r.id
         "owner", DString r.owner
         "modules", DString r.modules
@@ -296,7 +296,7 @@ let private opRowToDT (r : Ops.Row) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "id", DString r.id
         "ts", DString r.ts
         "sizeBytes", DInt64 r.sizeBytes
@@ -310,7 +310,7 @@ let private opPageToDT (p : Ops.Page) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "total", DInt64 p.total
         "ops",
         p.ops |> List.map opRowToDT |> Dval.list (KTCustomType(opRowTypeName (), [])) ]

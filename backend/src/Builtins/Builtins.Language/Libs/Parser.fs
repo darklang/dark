@@ -42,7 +42,7 @@ module WrittenTypesToDarkTypes =
       pointTypeName (),
       [],
       // `Point` is `{ row: Int, column: Int }` in WrittenTypes
-      Map
+      RecordFields.ofList
         [ "row", Dval.dint64 (int64 p.row); "column", Dval.dint64 (int64 p.column) ]
     )
 
@@ -51,7 +51,7 @@ module WrittenTypesToDarkTypes =
       rangeTypeName (),
       rangeTypeName (),
       [],
-      Map [ "start", pointToDT r.start; "end_", pointToDT r.end_ ]
+      RecordFields.ofList [ "start", pointToDT r.start; "end_", pointToDT r.end_ ]
     )
 
   // The recurring WrittenTypes "range + string" shape (a name, case label, key, …).
@@ -130,7 +130,12 @@ module WrittenTypesToDarkTypes =
 
   let private identifierToDT (refFn : unit -> string) (i : WT.Identifier) : Dval =
     let t = tn refFn
-    DRecord(t, t, [], Map [ "range", rangeToDT i.range; "name", DString i.name ])
+    DRecord(
+      t,
+      t,
+      [],
+      RecordFields.ofList [ "range", rangeToDT i.range; "name", DString i.name ]
+    )
 
   // The `modules` path of a qualified name: each module segment paired with the range
   // of its trailing `.`. Shared by the qualified fn/type identifier converters.
@@ -152,7 +157,7 @@ module WrittenTypesToDarkTypes =
       tn WTRefs.qualifiedTypeIdentifier,
       tn WTRefs.qualifiedTypeIdentifier,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT q.range
           "modules", modulesToDT q.modules
           "typ", identifierToDT WTRefs.typeIdentifier q.typ
@@ -255,7 +260,7 @@ module WrittenTypesToDarkTypes =
       tn WTRefs.qualifiedFnIdentifier,
       tn WTRefs.qualifiedFnIdentifier,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT q.range
           "modules", modulesToDT q.modules
           "fn", identifierToDT WTRefs.fnIdentifier q.fn ]
@@ -271,7 +276,7 @@ module WrittenTypesToDarkTypes =
         pt,
         [],
         "Unit",
-        [ DRecord(ut, ut, [], Map [ "range", rangeToDT r ]) ]
+        [ DRecord(ut, ut, [], RecordFields.ofList [ "range", rangeToDT r ]) ]
       )
     | WT.FPNormal(r, name, typ, lp, colon, rp, description) ->
       let nt = tn WTRefs.fnNormalParameter
@@ -280,7 +285,7 @@ module WrittenTypesToDarkTypes =
           nt,
           nt,
           [],
-          Map
+          RecordFields.ofList
             [ "range", rangeToDT r
               "name", identifierToDT WTRefs.variableIdentifier name
               "typ", typeReferenceToDT typ
@@ -1003,7 +1008,8 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map [ "pat", patDval; "whenCondition", whenDval; "rhs", exprToDT c.rhs ]
+      RecordFields.ofList
+        [ "pat", patDval; "whenCondition", whenDval; "rhs", exprToDT c.rhs ]
     )
 
   // A list of names with their source ranges, `List<(Range * String)>` in the
@@ -1020,7 +1026,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT b.range
           "param", DString b.param
           "trait_", qualifiedTypeIdentifierToDT b.trait_
@@ -1036,7 +1042,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT f.range
           "name", identifierToDT WTRefs.fnIdentifier f.name
           "typeParams", rangedNamesToDT f.typeParams
@@ -1064,7 +1070,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT m.range
           "name", identifierToDT WTRefs.fnIdentifier m.name
           "typeParams", rangedNamesToDT m.typeParams
@@ -1090,7 +1096,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT tr.range
           "name", identifierToDT WTRefs.typeIdentifier tr.name
           "typeParams", rangedNamesToDT tr.typeParams
@@ -1111,7 +1117,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT v.range
           "name", identifierToDT WTRefs.valueIdentifier v.name
           "body", exprToDT v.body
@@ -1133,7 +1139,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT impl.range
           "typeParams", rangedNamesToDT impl.typeParams
           "bounds", boundsToDT impl.bounds
@@ -1157,7 +1163,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT test.range
           "name", identifierToDT WTRefs.valueIdentifier test.name
           "body", exprToDT test.body
@@ -1196,7 +1202,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT f.range
           "name", rangedString nr nm
           "typ", typeReferenceToDT f.typ
@@ -1216,7 +1222,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT f.range
           "typ", typeReferenceToDT f.typ
           "label", labelDval
@@ -1232,7 +1238,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT c.range
           "name", rangedString nr nm
           "fields",
@@ -1278,7 +1284,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT td.range
           "name", identifierToDT WTRefs.typeIdentifier td.name
           "typeParams", rangedNamesToDT td.typeParams
@@ -1299,7 +1305,7 @@ module WrittenTypesToDarkTypes =
       t,
       t,
       [],
-      Map
+      RecordFields.ofList
         [ "range", rangeToDT m.range
           "name", rangedString nameRange nameStr
           "declarations",
@@ -1393,7 +1399,7 @@ module WrittenTypesToDarkTypes =
           tn WTRefs.sourceFile,
           tn WTRefs.sourceFile,
           [],
-          Map
+          RecordFields.ofList
             [ "range", rangeToDT sf.range
               "declarations",
               DList(

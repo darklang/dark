@@ -39,7 +39,7 @@ module ScriptOptions =
       tn,
       tn,
       [],
-      Map
+      RT.RecordFields.ofList
         [ "allowHarmful", RT.DBool options.allowHarmful
           "sandbox", RT.DBool options.sandbox
           "warnPermissions", RT.DBool options.warnPermissions ]
@@ -502,7 +502,7 @@ let log
             try
               match BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes with
               | RT.DRecord(_, _, _, fields) ->
-                match Map.tryFind "id" fields with
+                match RT.RecordFields.tryFind "id" fields with
                 | Some(RT.DUuid child) -> Some child
                 | _ -> None
               | _ -> None

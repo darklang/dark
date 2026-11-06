@@ -155,7 +155,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
     // See `DDict` above.
     w.writeObject (fun () ->
       fields
-      |> Map.iter (fun fieldName dval ->
+      |> RecordFields.iter (fun fieldName dval ->
         w.WritePropertyName fieldName
         r dval))
 
@@ -772,7 +772,7 @@ let parse
                 tst
                 typeName
                 typeArgsVT
-                fields
+                (fields |> List.map (fun (n, v) -> struct (n, v)) |> Array.ofList)
             return record
       }
 

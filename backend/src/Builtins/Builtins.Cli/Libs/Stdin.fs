@@ -188,7 +188,7 @@ let keyReadToDval
       FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Stdin.modifiers ())
     let fields =
       [ "alt", DBool altHeld; "shift", DBool shiftHeld; "ctrl", DBool ctrlHeld ]
-    DRecord(typeName, typeName, [], Map fields)
+    DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
   let keyCaseName =
     match readKey.Key with
@@ -364,7 +364,7 @@ let keyReadToDval
       typeName,
       typeName,
       [],
-      Map
+      RecordFields.ofList
         [ "key", key
           "modifiers", modifiers
           "keyChar", keyChar

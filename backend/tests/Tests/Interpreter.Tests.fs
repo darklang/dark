@@ -449,7 +449,7 @@ module AliasChecks =
                 targetName,
                 targetName,
                 [],
-                Map.ofList [ "field", RT.DInt64 1L ]
+                RT.RecordFields.ofList [ "field", RT.DInt64 1L ]
               )
               RT.TypeDeclaration.Enum(
                 NEList.singleton { name = "Case"; fields = [] }
@@ -574,7 +574,7 @@ module DictKeyOrdering =
         RT.FQTypeName.Package(RT.Hash "t"),
         RT.FQTypeName.Package(RT.Hash "t"),
         [],
-        Map.empty
+        RT.RecordFields.empty
       )
       "DEnum",
       RT.DEnum(
@@ -641,7 +641,7 @@ module DictKeyOrdering =
     let runtimeName = RT.FQTypeName.Package(RT.Hash "shared-runtime-type")
     let sourceA = RT.FQTypeName.Package(RT.Hash "written-as-alias")
     let sourceB = RT.FQTypeName.Package(RT.Hash "written-directly")
-    let fields = Map [ "x", RT.DInt64 1L ]
+    let fields = RT.RecordFields.ofList [ "x", RT.DInt64 1L ]
     [ "record via alias vs directly",
       RT.DRecord(sourceA, runtimeName, [], fields),
       RT.DRecord(sourceB, runtimeName, [], fields)
@@ -773,7 +773,7 @@ module ListUnique =
     test "equal values have equal hashes, including compatible metadata" {
       let name = RT.FQTypeName.fqPackage "resolved"
       let alias = RT.FQTypeName.fqPackage "alias"
-      let fields = Map [ "value", RT.DFloat 0.0 ]
+      let fields = RT.RecordFields.ofList [ "value", RT.DFloat 0.0 ]
       let record source args = RT.DRecord(source, name, args, fields)
       let enum source args = RT.DEnum(source, name, args, "None", [])
       let dict key value =
@@ -819,8 +819,8 @@ module ListUnique =
           [ a, b
             RT.DList(VT.unknown, [ a ]), RT.DList(VT.unknown, [ b ])
             RT.DTuple(a, RT.DUnit, []), RT.DTuple(b, RT.DUnit, [])
-            RT.DRecord(name, name, [], Map [ "value", a ]),
-            RT.DRecord(alias, name, [], Map [ "value", b ])
+            RT.DRecord(name, name, [], RT.RecordFields.ofList [ "value", a ]),
+            RT.DRecord(alias, name, [], RT.RecordFields.ofList [ "value", b ])
             RT.DEnum(name, name, [], "Some", [ a ]),
             RT.DEnum(alias, name, [], "Some", [ b ])
             RT.DDict(VT.string, VT.unknown, RT.DictMap.ofList [ RT.DString "k", a ]),
@@ -851,7 +851,7 @@ module ListUnique =
           name,
           name,
           [],
-          xs |> List.mapi (fun i x -> $"field{i:D3}", x) |> Map
+          xs |> List.mapi (fun i x -> $"field{i:D3}", x) |> RT.RecordFields.ofList
         )
       let nested xs =
         [ 1..64 ]
@@ -973,7 +973,8 @@ module ListUnique =
           VT.unknown,
           RT.DictMap.ofList [ RT.DString "a", a; RT.DString "b", b ]
         ))
-      (fun a b -> RT.DRecord(name, name, [], Map [ "a", a; "b", b ]))
+      (fun a b ->
+        RT.DRecord(name, name, [], RT.RecordFields.ofList [ "a", a; "b", b ]))
       (fun a b -> RT.DEnum(name, name, [], "Node", [ a; b ]))
       (fun a b -> named "partial" [ a; b ]) ]
 
@@ -1200,6 +1201,85 @@ module DictShapes =
         unionAgreesWithAdds ]
 
 
+/// `RecordFields` keeps a record's fields sorted by name, ordinally, with no name twice.
+module RecordFieldsShape =
+  let private entry (name : string) (i : int64) = struct (name, RT.DInt64 i)
+  let private names (entries : (struct (string * RT.Dval))[]) : List<string> =
+    entries |> Array.map (fun (struct (n, _)) -> n) |> List.ofArray
+
+  let sortedOrdinally =
+    testCase "fields are sorted by code unit, not by culture" (fun _ ->
+      let fields =
+        [ "b"; "B"; "_x"; "a"; "\u00e9" ]
+        |> List.mapi (fun i n -> n, RT.DInt64(int64 i))
+        |> RT.RecordFields.ofList
+      Expect.equal
+        (names fields.Entries)
+        [ "B"; "_x"; "a"; "b"; "\u00e9" ]
+        "ordinal order"
+      Expect.equal
+        (RT.RecordFields.tryFind "\u00e9" fields)
+        (Some(RT.DInt64 4L))
+        "found by search")
+
+  let ofArrayKeepsTheLastDuplicate =
+    testCase "a name given several times keeps its last value" (fun _ ->
+      let fields =
+        RT.RecordFields.ofArray
+          [| entry "x" 1L; entry "y" 2L; entry "x" 3L; entry "x" 4L; entry "a" 5L |]
+      Expect.equal (names fields.Entries) [ "a"; "x"; "y" ] "one of each name"
+      Expect.equal
+        (RT.RecordFields.tryFind "x" fields)
+        (Some(RT.DInt64 4L))
+        "the last x")
+
+  let insertSortedPlacesOrRefuses =
+    testCase
+      "insertSorted moves a new name into place and refuses a repeat"
+      (fun _ ->
+        for name in [ "0"; "b"; "d"; "f" ] do
+          let entries =
+            [| entry "a" 0L; entry "c" 0L; entry "e" 0L; entry name 1L |]
+          Expect.isTrue (RT.RecordFields.insertSorted entries 3) $"{name} is new"
+          Expect.equal
+            (names entries)
+            (List.sort [ "a"; "c"; "e"; name ])
+            $"{name} in place"
+        for name in [ "a"; "c"; "e" ] do
+          let entries =
+            [| entry "a" 0L; entry "c" 0L; entry "e" 0L; entry name 1L |]
+          Expect.isFalse (RT.RecordFields.insertSorted entries 3) $"{name} repeats"
+          Expect.equal
+            (names entries)
+            [ "a"; "c"; "e"; name ]
+            $"{name} moved nothing")
+
+  let setWritesOrInserts =
+    testCase "set writes a present name in place and inserts a new one" (fun _ ->
+      let start () = [| entry "b" 0L; entry "d" 0L |]
+      let present = start ()
+      let after = RT.RecordFields.set "d" (RT.DInt64 9L) present
+      Expect.isTrue (obj.ReferenceEquals(after, present)) "same array"
+      Expect.equal
+        (RT.RecordFields.tryFind "d" (RT.RecordFields.ofArray after))
+        (Some(RT.DInt64 9L))
+        "written"
+      for name, expected in
+        [ "a", [ "a"; "b"; "d" ]; "c", [ "b"; "c"; "d" ]; "e", [ "b"; "d"; "e" ] ] do
+        Expect.equal
+          (names (RT.RecordFields.set name (RT.DInt64 1L) (start ())))
+          expected
+          $"{name} inserted")
+
+  let tests =
+    testList
+      "RecordFieldsShape"
+      [ sortedOrdinally
+        ofArrayKeepsTheLastDuplicate
+        insertSortedPlacesOrRefuses
+        setWritesOrInserts ]
+
+
 /// Deep equality, ordering, type merging, and substitution must fail the stack check.
 /// A small thread stack triggers the guard without allocating values large enough
 /// to stall the parallel suite. A missing check terminates the test process.
@@ -1276,7 +1356,8 @@ module DeepValues =
             | 1 -> RT.DTuple(RT.DUnit, inner, [])
             | 2 ->
               RT.DDict(VT.unit, VT.unknown, RT.DictMap.ofList [ RT.DUnit, inner ])
-            | 3 -> RT.DRecord(name, name, [], Map [ "value", inner ])
+            | 3 ->
+              RT.DRecord(name, name, [], RT.RecordFields.ofList [ "value", inner ])
             | 4 -> RT.DEnum(name, name, [], "Value", [ inner ])
             | _ -> RT.DApplicable(RT.AppNamedFn { fn with argsSoFar = [ inner ] }))
           (RT.DInt64 1L)
@@ -1630,7 +1711,7 @@ module DebugText =
           RT.DString "hi",
           [ RT.DList(RT.ValueType.Unknown, [ RT.DBool true; RT.DUnit ])
             RT.DEnum(tn, tn, [], "Some", [ RT.DFloat 1.5 ])
-            RT.DRecord(tn, tn, [], Map [ "a", RT.DChar "x" ]) ]
+            RT.DRecord(tn, tn, [], RT.RecordFields.ofList [ "a", RT.DChar "x" ]) ]
         )
       Expect.equal
         (LibExecution.Dval.toDebugString dv)
@@ -1661,6 +1742,7 @@ let tests =
       DictKeyOrdering.tests
       ListUnique.tests
       DictShapes.tests
+      RecordFieldsShape.tests
       DeepValues.tests
       Reload.tests
       BoundMemo.tests

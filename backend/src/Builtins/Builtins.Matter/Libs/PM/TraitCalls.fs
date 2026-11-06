@@ -93,8 +93,8 @@ module private Decode =
       | _ -> None
     | _ -> None
 
-  let private field (name : string) (fields : DvalMap) : Option<Dval> =
-    Map.tryFind name fields
+  let private field (name : string) (fields : RecordFields) : Option<Dval> =
+    RecordFields.tryFind name fields
 
   /// The item each `ItemReport` is about, and what it resolved, for the three kinds that have
   /// a body to resolve anything in. A type, trait or impl reports no resolutions.
@@ -193,7 +193,7 @@ let private askChecker
         let warnings =
           match report with
           | DRecord(_, _, _, fields) ->
-            match Map.tryFind "warnings" fields with
+            match RecordFields.tryFind "warnings" fields with
             | Some(DList(_, ws)) -> List.length ws
             | _ -> 0
           | _ -> 0
