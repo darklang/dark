@@ -972,7 +972,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DFloat32 _
     | DDecimal _
     | DChar _
-    | DString _ // TODO: should actually traverse in interpolations
+    | DString _
     | DUuid _
     | DDateTime _
     | DApplicable _

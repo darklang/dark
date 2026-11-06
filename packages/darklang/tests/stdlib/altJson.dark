@@ -7,9 +7,6 @@ module Darklang.Stdlib.AltJson.Tests
 // what about huge strings or something? look into the limitations of JSON per the
 // spec
 
-// TODO: `format` doesn't _have_ to be a builtin... but `parse` kinda does, for now
-// should we bother taking the formatter out of Builtin land? enh
-
 // aliases and helpers
 type Json = Stdlib.AltJson.Json
 
@@ -168,9 +165,6 @@ test largeIntegerFields =
        | _ -> Error("did not round trip"))
       |> Stdlib.Test.equal(Ok(9007199254740993)) ])
 
-// TODO:
-// - strings with quotes in them
-// - ' instead of "
 test stringValues =
   Stdlib.Test.all(
     [ format(Json.String("hi")) |> Stdlib.Test.equal("\"hi\"")
@@ -191,8 +185,6 @@ test quotedStrings =
       parse(format(Json.String("👨‍❤️‍💋‍👨")))
       |> Stdlib.Test.equal(Ok(Json.String("👨‍❤️‍💋‍👨"))) ])
 
-// TODO:
-// - huge arrays
 test arrayValues =
   Stdlib.Test.all(
     [ // empty
@@ -285,7 +277,6 @@ test objectValues =
       |> Stdlib.Test.equal(parsedOk(Json.Object([("", Json.Null)]))) ])
 
 // // name with newline
-// // TODO not sure what's right here
 // format (Json.Object [ ("a\nb", Json.Null) ])
 // |> Stdlib.Test.equal "{\"a\nb\": null}"
 // parse "{\"a\nb\": null}"
