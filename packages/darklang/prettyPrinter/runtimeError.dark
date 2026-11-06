@@ -71,6 +71,17 @@ module RuntimeError =
   type ErrorSegments = List<ErrorSegment>
 
 
+  /// The escaped form of the longest prefix of `chars` that fits in `room` columns. Cuts
+  /// between characters, before escaping, so a cut never splits an escape like `\"`.
+  let __escapedPrefix(chars: List<Char>, acc: String, room: Int64): String =
+    match chars with
+    | [] -> acc
+    | [c, ...rest] ->
+      let e = PrettyPrinter.escapeSpecialCharacters(Stdlib.String.fromChar(c))
+      let w = Stdlib.String.displayWidth(e)
+      if w > room then acc else __escapedPrefix(rest, acc + e, room - w)
+
+
   let segmentsToString(branchId: Uuid, segments: ErrorSegments): String =
     let reversed = Stdlib.List.reverse(segments)
 
@@ -117,8 +128,14 @@ module RuntimeError =
           | InlineFieldName(f) -> f
           | VarName(v) -> $"`{v}`"
           | InlineVarName(v) -> v
+          | InlineValue(DString(s)) ->
+            let escaped = PrettyPrinter.escapeSpecialCharacters(s)
+
+            if Stdlib.String.displayWidth(escaped) <= 11 then
+              $"\"{escaped}\""
+            else
+              $"\"{__escapedPrefix(Stdlib.String.toList(s), "", 8)}...\""
           | InlineValue(dv) ->
-            // CLEANUP for strings that are cut off, the closing `"` is missing.
             (dval(branchId, dv))
             |> Stdlib.Text.ellipsis(13)
             |> Stdlib.String.splitOnNewline
