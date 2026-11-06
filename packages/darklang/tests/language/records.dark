@@ -52,6 +52,21 @@ module InvalidCols =
     => raises
       "Failed to create record. Expected Int64 for field `col1`, but got \"\" (a String)"
 
+  test wrongFieldTypeLongStringRaises =
+    Cols1 { col1 = "abcdefghijklmnopqrstuvwxyz" }
+    => raises
+      "Failed to create record. Expected Int64 for field `col1`, but got \"abcdefgh...\" (a String)"
+
+  test wrongFieldTypeEscapeAtCutRaises =
+    Cols1 { col1 = "abcdefg\"hij\nklmnop" }
+    => raises
+      "Failed to create record. Expected Int64 for field `col1`, but got \"abcdefg...\" (a String)"
+
+  test wrongFieldTypeEscapeBeforeCutRaises =
+    Cols1 { col1 = "abc\ndefghijklmnop" }
+    => raises
+      "Failed to create record. Expected Int64 for field `col1`, but got \"abc\\ndef...\" (a String)"
+
 module InvalidType =
   // Evaluate the unresolved name from source at run time so it does not prevent
   // the package from loading. Check both the error branch and its message.
