@@ -32,6 +32,14 @@ let private requireBundledCaller
     |> raiseUntargetedRTE
 
 
+/// Refuse a change to a `LibDB.Config.personOnly` key unless the CLI itself is making it.
+/// Guest code (`run`, `eval`, a served handler, a package test) has `canManagePolicies` off.
+let private requireThePerson (state : ExecutionState) (key : string) : unit =
+  if List.contains key LibDB.Config.personOnly && not state.canManagePolicies then
+    RuntimeError.UncaughtException(LibDB.Config.refusal key, [])
+    |> raiseUntargetedRTE
+
+
 /// The watch behind `Stdlib.Host.await` (see `hostWatchGet` below). One slot per OS process,
 /// because one host loop runs per process. A second loop in the same process would share it
 /// and see the first's "already reported" state; make it per-process state if that day comes.
@@ -166,11 +174,13 @@ let fns () : List<BuiltInFn> =
         "Set a local config value (config_v0), or unset it with None so its reader falls back "
         + "to the default. Local + unsynced. Refuses a key nothing reads, a value the reader "
         + "would not take, and the keys only the runtime writes (`current_branch`, "
-        + "`instance.id`), saying why in the Error."
+        + "`instance.id`), saying why in the Error. Code cannot change the settings that open "
+        + "the network guard or decide what traces record; only `dark config set` can."
       fn =
         (function
-        | _, _, _, [| DString key; DEnum(_, _, _, "Some", [ DString value ]) |] ->
+        | state, _, _, [| DString key; DEnum(_, _, _, "Some", [ DString value ]) |] ->
           uply {
+            requireThePerson state key
             let resolves name =
               LibDB.PackageManager.resolveFnRef name |> Option.isSome
             match LibDB.Config.check resolves key value with
@@ -182,8 +192,9 @@ let fns () : List<BuiltInFn> =
               do! LibDB.Config.set key value
               return Dval.resultOk KTUnit KTString DUnit
           }
-        | _, _, _, [| DString key; DEnum(_, _, _, "None", []) |] ->
+        | state, _, _, [| DString key; DEnum(_, _, _, "None", []) |] ->
           uply {
+            requireThePerson state key
             match LibDB.Config.checkUnset key with
             | Error e -> return Dval.resultError KTUnit KTString (DString e)
             | Ok() ->

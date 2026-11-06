@@ -182,5 +182,6 @@ let help(_state: Cli.AppState): String =
     "  config get exec.workers"
     "  config unset trace.record"
     ""
-    "`config list` names every key a person sets, with its default; any other key is refused." ]
+    "`config list` names every key a person sets, with its default; any other key is refused."
+    "http.loopback, http.private and trace.record are yours alone: code you run cannot change them." ]
   |> Stdlib.String.join("\n")

@@ -321,10 +321,33 @@ both are off until set by name, and widen nothing else. A key is necessary and
 not sufficient: the instance policy still has to allow the URL, so a missing
 grant is a raise where a missing key is `Error(BadUrl(InvalidHost))`.
 
-HTTP clients honor .NET's configured proxy (including `HTTP_PROXY`, `HTTPS_PROXY`,`ALL_PROXY` and `NO_PROXY`). An explicitly selected proxy is trusted transport:
-Dark can connect to its host and port even on loopback, without `http.loopback`.
-Direct connections, including proxy bypasses, retain the normal IP guards, and the requested URL still needs an instance-policy grant. This does not enable direct access to other localhost services. Configure only proxies you trust:
-the proxy resolves and reaches the destination, so Dark cannot enforce its destination IP restrictions beyond that proxy. Literal banned destination hosts and metadata-request headers are still rejected before proxy selection.
+Only the person running Dark sets them: `dark config set`, or
+`DARK_CONFIG_HTTP_LOOPBACK` / `DARK_CONFIG_HTTP_PRIVATE` for one environment.
+Code Dark runs cannot, whatever it was granted. `configSet` refuses
+`http.loopback`, `http.private` and `trace.record` (`LibDB.Config.personOnly`)
+unless the CLI itself is the caller (`canManagePolicies`), the same line policy
+edits use, and says what to run instead. They are not a grant, because
+`permissions allow all` would then open the guard too.
+
+**A configured proxy is trusted.** HTTP clients use .NET's configured proxy
+(`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`). The guard checks the
+destination, not the proxy:
+
+- Dark connects to the proxy's own host and port even on loopback or a private
+  address, without `http.loopback` or `http.private`.
+- A URL whose host is a blocked address literal, `localhost` or a metadata
+  name, and a metadata request header, are refused before a proxy is chosen.
+- A destination given by name is resolved by the proxy, so Dark never sees the
+  address it lands on and cannot refuse it.
+- A request the proxy does not take (`NO_PROXY`) connects directly and is
+  checked as usual. Every URL still needs an instance-policy grant.
+
+What the proxy sees: for `http://`, everything, the URL, every header
+(`Authorization` and cookies included) and both bodies. For `https://`, the
+host and port it is asked to reach, when, and how much goes each way, but not
+the path, headers or bodies, unless it is an intercepting proxy whose
+certificate this machine trusts, which sees everything. Configure only a proxy
+you would trust with that.
 
 Kernel primitives use the same boundary, with `HostPosix` and `HostKernel`
 owned by the host. Path operations check exact read/write requests; descriptors

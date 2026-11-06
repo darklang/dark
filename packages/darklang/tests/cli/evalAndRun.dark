@@ -407,3 +407,37 @@ test internalNamesHiddenUntilAsked =
         Instance.says(view, "dateTimeFromUnixTicks", "view by name shows its body")
         Instance.says(call, "5", "a call by name runs it")
         Instance.says(deps, "addSeconds", "deps by name lists its dependents") ]))
+
+
+/// The settings that open HTTP's network guard or decide what traces record are the
+/// person's: code holding package-write still cannot change them, and is told how
+/// the person can. `config set` itself goes on working.
+test codeCannotChangeTheNetworkGuard =
+  Instance.withInstance(fun i ->
+    let allowed = Instance.ran(i, [ "permissions", "allow", "package-write" ])
+
+    let tries =
+      [ "Stdlib.LocalStore.configSet(\"http.loopback\", \"on\")"
+        "Stdlib.LocalStore.configSet(\"http.private\", \"on\")"
+        "Stdlib.LocalStore.configSet(\"trace.record\", \"on\")"
+        "Stdlib.LocalStore.configUnset(\"trace.record\")"
+        "Builtin.tracesApplyRecording(false)" ]
+      |> Stdlib.List.map(fun code -> Instance.ran(i, [ "eval", code ]))
+
+    let loopback = Instance.said(i, [ "config", "get", "http.loopback" ])
+    let priv = Instance.said(i, [ "config", "get", "http.private" ])
+    let byThePerson = Instance.ran(i, [ "config", "set", "http.loopback", "on" ])
+    let after = Instance.said(i, [ "config", "get", "http.loopback" ])
+
+    Stdlib.Test.all(
+      Stdlib.List.flatten(
+        [ [ Instance.exitedWith(Stdlib.Tuple2.first(allowed), 0, "package-write is granted") ]
+          tries
+          |> Stdlib.List.map(fun((code, out)) ->
+            Stdlib.Test.all(
+              [ Instance.exitedWith(code, 1, $"code is refused: {out}")
+                Instance.says(out, "dark config set", "and told who can change it") ]))
+          [ Instance.doesNotSay(loopback, "= on", "http.loopback is unchanged")
+            Instance.doesNotSay(priv, "= on", "http.private is unchanged")
+            Instance.exitedWith(Stdlib.Tuple2.first(byThePerson), 0, "`config set` still works")
+            Instance.says(after, "http.loopback = on", "and the setting took") ] ])))

@@ -683,10 +683,13 @@ let fns () : List<BuiltInFn> =
         "Make THIS process record, or stop recording, without waiting for the next command. "
         + "The lasting setting is `trace.record` in the store's config, which the caller writes "
         + "first; this is only how a session already running picks it up. Touches nothing "
-        + "persistent and no other process."
+        + "persistent and no other process. Like `trace.record`, only the CLI itself may."
       fn =
         (function
-        | _, _, _, [| DBool on |] ->
+        | state, _, _, [| DBool on |] ->
+          if not state.canManagePolicies then
+            RuntimeError.UncaughtException(LibDB.Config.refusal "trace.record", [])
+            |> raiseUntargetedRTE
           LibDB.Tracing.TraceDetail.setForTesting (
             if on then
               LibDB.Tracing.TraceDetail.On
