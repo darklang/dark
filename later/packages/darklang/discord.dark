@@ -44,10 +44,10 @@ type AllowedMentions =
   | SuppressAll
   /// Allow only the listed user/role IDs (snowflakes as strings).
   /// `everyone` controls whether @everyone / @here also fire.
-  | AllowSpecific of
-    users: List<String> *
-    roles: List<String> *
-    everyone: Bool
+  | AllowSpecific(
+    users: List<String>,
+    roles: List<String>,
+    everyone: Bool)
 
 
 /// A message to post to a Discord webhook.
@@ -65,10 +65,10 @@ type Message =
 
 type Error =
   /// The HTTP request itself failed (DNS, network, malformed URL, ...).
-  | RequestFailed of Stdlib.HttpClient.RequestError
+  | RequestFailed(Stdlib.HttpClient.RequestError)
   /// Discord returned a non-2xx response.
   /// Common cases: 401 invalid token, 404 unknown webhook, 429 rate limited.
-  | DiscordError of statusCode: Int * body: String
+  | DiscordError(statusCode: Int, body: String)
 
 
 let toString (e: Error) : String =

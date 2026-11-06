@@ -59,9 +59,9 @@ type HtmlTag =
 /// Represents a node in the HTML tree.
 type Node =
   /// Raw text content, comments, or any string to include as-is
-  | String of String
+  | String(String)
   /// A structured HTML element with attributes and children
-  | HtmlTag of HtmlTag
+  | HtmlTag(HtmlTag)
 
 
 /// Void elements in HTML - self-closing tags that cannot have children.

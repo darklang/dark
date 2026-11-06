@@ -22,7 +22,7 @@ type Json = Stdlib.AltJson.Json
 type Format =
   | Text
   | JsonObject
-  | JsonSchema of String * Stdlib.Option.Option<String> * Json  // (name, description, schema)
+  | JsonSchema(String, Stdlib.Option.Option<String>, Json)  // (name, description, schema)
 
 /// Convert to JSON
 let toJson (format: Format) : Json =

@@ -180,9 +180,9 @@ let rec loop model =
   | _ -> loop(model)
 ```
 
-`Stdlib.Host.await([Key, StoreChanged, Timer ms, ExecDone id])` returns the first that
-fired: `Key of KeyRead` (the runtime's read: a key, a paste, a burst with its repeat
-count), `StoreChanged of Live.Change`, `Timer`, `ExecDone of id` (a process finished; ask
+`Stdlib.Host.await([Key, StoreChanged, Timer(ms), ExecDone(id)])` returns the first that
+fired: `Key(KeyRead)` (the runtime's read: a key, a paste, a burst with its repeat
+count), `StoreChanged(Live.Change)`, `Timer`, `ExecDone(id)` (a process finished; ask
 `Exec.await` how). It is `Builtin.hostAwait` (`docs/processes.md`: under the scheduler
 the calling process parks on the event queue, fed by a reader thread, timers and a
 store poll over `LibDB.Sqlite.DataVersion`; outside a scheduler the thread is held,

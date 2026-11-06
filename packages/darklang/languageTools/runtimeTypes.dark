@@ -5,7 +5,7 @@ module Darklang.LanguageTools.RuntimeTypes
 type Option<'a> = Stdlib.Option.Option<'a>
 // </aliases>
 
-type Hash = | Hash of String
+type Hash = | Hash(String)
 
 let hashToString(hash: Hash): String =
   match hash with
@@ -13,19 +13,19 @@ let hashToString(hash: Hash): String =
 
 module FQTypeName =
   type Package = Hash
-  type FQTypeName = Package of Package
+  type FQTypeName = Package(Package)
 
 module FQTraitName =
   type Package = Hash
-  type FQTraitName = Package of Package
+  type FQTraitName = Package(Package)
 
 module FQValueName =
   type Builtin = { name: String, version: Int32 }
   type Package = Hash
 
   type FQValueName =
-    | Builtin of Builtin
-    | Package of Package
+    | Builtin(Builtin)
+    | Package(Package)
 
 module FQFnName =
   type Builtin = { name: String, version: Int32 }
@@ -35,9 +35,9 @@ module FQFnName =
   /// `ProgramTypes.FQFnName.ImplChoice`.
   type ImplChoice =
     /// That fn runs
-    | Chosen of Package
+    | Chosen(Package)
     /// Read from the frame the caller filled, rather than asked of the store
-    | FromTypeParam of String
+    | FromTypeParam(String)
     /// Resolve at the call; the only path that asks the store
     | Unknown
 
@@ -49,20 +49,20 @@ module FQFnName =
       implFn: ImplChoice }
 
   type FQFnName =
-    | Builtin of Builtin
-    | Package of Package
-    | TraitMethod of TraitMethod
+    | Builtin(Builtin)
+    | Package(Package)
+    | TraitMethod(TraitMethod)
 
 /// Where a call frame is executing.
 type ExecutionPoint =
   | Source
-  | Function of FQFnName.FQFnName
+  | Function(FQFnName.FQFnName)
   /// `parent` is the frame that called the lambda. `writtenIn` is the fn (or
   /// `Source`) the lambda is written in, or `None` when that isn't known.
-  | Lambda of
-    parent: ExecutionPoint *
-    exprId: UInt64 *
-    writtenIn: Option<ExecutionPoint>
+  | Lambda(
+    parent: ExecutionPoint,
+    exprId: UInt64,
+    writtenIn: Option<ExecutionPoint>)
 
 type NameResolutionError =
   | NotFound
@@ -95,15 +95,15 @@ type TypeReference =
   | TUuid
   | TDateTime
   | TBytes
-  | TStream of TypeReference
-  | TTuple of TypeReference * TypeReference * List<TypeReference>
-  | TList of TypeReference
-  | TDict of key: TypeReference * value: TypeReference
-  | TCustomType of
-    NameResolution<FQTypeName.FQTypeName> *
-    typeArgs: List<TypeReference>
-  | TFn of List<TypeReference> * TypeReference
-  | TVariable of String
+  | TStream(TypeReference)
+  | TTuple(TypeReference, TypeReference, List<TypeReference>)
+  | TList(TypeReference)
+  | TDict(key: TypeReference, value: TypeReference)
+  | TCustomType(
+    NameResolution<FQTypeName.FQTypeName>,
+    typeArgs: List<TypeReference>)
+  | TFn(List<TypeReference>, TypeReference)
+  | TVariable(String)
 
 type TypeSymbolTable = Dict<String, TypeReference>
 
@@ -130,56 +130,56 @@ type KnownType =
   | KTUuid
   | KTDateTime
   | KTBytes
-  | KTStream of ValueType
-  | KTTuple of ValueType * ValueType * List<ValueType>
-  | KTList of ValueType
-  | KTDict of key: ValueType * value: ValueType
+  | KTStream(ValueType)
+  | KTTuple(ValueType, ValueType, List<ValueType>)
+  | KTList(ValueType)
+  | KTDict(key: ValueType, value: ValueType)
 
-  | KTFn of List<ValueType> * ValueType
+  | KTFn(List<ValueType>, ValueType)
 
-  | KTCustomType of FQTypeName.FQTypeName * typeArgs: List<ValueType>
+  | KTCustomType(FQTypeName.FQTypeName, typeArgs: List<ValueType>)
 
 
 type ValueType =
   | Unknown
-  | Known of KnownType
+  | Known(KnownType)
 
 
 type LetPattern =
-  | LPVariable of reg: Register
+  | LPVariable(reg: Register)
   | LPWildcard
   | LPUnit
-  | LPTuple of
-    first: LetPattern *
-    second: LetPattern *
-    theRest: List<LetPattern>
+  | LPTuple(
+    first: LetPattern,
+    second: LetPattern,
+    theRest: List<LetPattern>)
 
 type MatchPattern =
   | MPUnit
-  | MPBool of Bool
-  | MPInt8 of Int8
-  | MPUInt8 of UInt8
-  | MPInt16 of Int16
-  | MPUInt16 of UInt16
-  | MPInt32 of Int32
-  | MPUInt32 of UInt32
-  | MPInt64 of Int64
-  | MPUInt64 of UInt64
-  | MPInt128 of Int128
-  | MPUInt128 of UInt128
-  | MPInt of Int
-  | MPFloat of Float
-  | MPFloat32 of Float32
-  | MPDecimal of Decimal
-  | MPChar of String
-  | MPString of String
-  | MPTuple of MatchPattern * MatchPattern * List<MatchPattern>
-  | MPList of List<MatchPattern>
-  | MPListCons of head: MatchPattern * tail: MatchPattern
-  | MPEnum of caseName: String * fieldPatterns: List<MatchPattern>
-  | MPVariable of Register
-  | MPOr of List<MatchPattern>
-  | MPAs of MatchPattern * Register
+  | MPBool(Bool)
+  | MPInt8(Int8)
+  | MPUInt8(UInt8)
+  | MPInt16(Int16)
+  | MPUInt16(UInt16)
+  | MPInt32(Int32)
+  | MPUInt32(UInt32)
+  | MPInt64(Int64)
+  | MPUInt64(UInt64)
+  | MPInt128(Int128)
+  | MPUInt128(UInt128)
+  | MPInt(Int)
+  | MPFloat(Float)
+  | MPFloat32(Float32)
+  | MPDecimal(Decimal)
+  | MPChar(String)
+  | MPString(String)
+  | MPTuple(MatchPattern, MatchPattern, List<MatchPattern>)
+  | MPList(List<MatchPattern>)
+  | MPListCons(head: MatchPattern, tail: MatchPattern)
+  | MPEnum(caseName: String, fieldPatterns: List<MatchPattern>)
+  | MPVariable(Register)
+  | MPOr(List<MatchPattern>)
+  | MPAs(MatchPattern, Register)
 
 type Register = Int32
 
@@ -188,8 +188,8 @@ type DvalMap = Dict<String, Dval>
 type DictMap = Dict<Dval, Dval>
 
 type StringSegment =
-  | Text of String
-  | Interpolated of Register
+  | Text(String)
+  | Interpolated(Register)
 
 
 /// The register-machine instruction set the interpreter actually runs.
@@ -200,61 +200,61 @@ type StringSegment =
 /// Jump offsets are relative to the jumping instruction, so a listing has to add the index back to make
 /// them readable.
 type Instruction =
-  | LoadVal of loadTo: Register * value: Dval
-  | CopyVal of copyTo: Register * copyFrom: Register
-  | Or of createTo: Register * lhs: Register * rhs: Register
-  | And of createTo: Register * lhs: Register * rhs: Register
-  | CreateString of createTo: Register * segments: List<StringSegment>
-  | CheckLetPatternAndExtractVars of valueReg: Register * pat: LetPattern
-  | JumpByIfFalse of instrsToJump: Int32 * conditionReg: Register
-  | JumpBy of instrsToJump: Int32
-  | Unwrap of
-    extractTo: Register *
-    valueReg: Register *
-    returns: Stdlib.Option.Option<FQTypeName.FQTypeName>
-  | CheckMatchPatternAndExtractVars of
-    valueReg: Register *
-    pat: MatchPattern *
-    failJump: Int32
-  | MatchUnmatched of valueReg: Register
-  | CreateTuple of
-    createTo: Register *
-    first: Register *
-    second: Register *
-    theRest: List<Register>
-  | CreateList of createTo: Register * itemsToAdd: List<Register>
-  | CreateDict of createTo: Register * entries: List<(Register * Register)>
-  | CreateRecord of
-    createTo: Register *
-    typeName: FQTypeName.FQTypeName *
-    typeArgs: List<TypeReference> *
-    fields: List<(String * Register)>
-  | CloneRecordWithUpdates of
-    createTo: Register *
-    originalRecordReg: Register *
-    updates: List<(String * Register)>
-  | GetRecordField of
-    targetReg: Register *
-    recordReg: Register *
-    fieldName: String
-  | CreateEnum of
-    createTo: Register *
-    typeName: FQTypeName.FQTypeName *
-    typeArgs: List<TypeReference> *
-    caseName: String *
-    fields: List<Register>
-  | LoadValue of createTo: Register * value: FQValueName.FQValueName
-  | CreateLambda of createTo: Register * lambda: LambdaImpl
-  | Apply of
-    createTo: Register *
-    thingToApply: Register *
-    typeArgs: List<TypeReference> *
-    args: List<Register>
-  | RaiseNRE of names: List<String> * error: NameResolutionError
-  | VarNotFound of targetRegIfDB: Register * name: String
-  | CheckIfFirstExprIsUnit of exprId: UInt64 * reg: Register
+  | LoadVal(loadTo: Register, value: Dval)
+  | CopyVal(copyTo: Register, copyFrom: Register)
+  | Or(createTo: Register, lhs: Register, rhs: Register)
+  | And(createTo: Register, lhs: Register, rhs: Register)
+  | CreateString(createTo: Register, segments: List<StringSegment>)
+  | CheckLetPatternAndExtractVars(valueReg: Register, pat: LetPattern)
+  | JumpByIfFalse(instrsToJump: Int32, conditionReg: Register)
+  | JumpBy(instrsToJump: Int32)
+  | Unwrap(
+    extractTo: Register,
+    valueReg: Register,
+    returns: Stdlib.Option.Option<FQTypeName.FQTypeName>)
+  | CheckMatchPatternAndExtractVars(
+    valueReg: Register,
+    pat: MatchPattern,
+    failJump: Int32)
+  | MatchUnmatched(valueReg: Register)
+  | CreateTuple(
+    createTo: Register,
+    first: Register,
+    second: Register,
+    theRest: List<Register>)
+  | CreateList(createTo: Register, itemsToAdd: List<Register>)
+  | CreateDict(createTo: Register, entries: List<(Register * Register)>)
+  | CreateRecord(
+    createTo: Register,
+    typeName: FQTypeName.FQTypeName,
+    typeArgs: List<TypeReference>,
+    fields: List<(String * Register)>)
+  | CloneRecordWithUpdates(
+    createTo: Register,
+    originalRecordReg: Register,
+    updates: List<(String * Register)>)
+  | GetRecordField(
+    targetReg: Register,
+    recordReg: Register,
+    fieldName: String)
+  | CreateEnum(
+    createTo: Register,
+    typeName: FQTypeName.FQTypeName,
+    typeArgs: List<TypeReference>,
+    caseName: String,
+    fields: List<Register>)
+  | LoadValue(createTo: Register, value: FQValueName.FQValueName)
+  | CreateLambda(createTo: Register, lambda: LambdaImpl)
+  | Apply(
+    createTo: Register,
+    thingToApply: Register,
+    typeArgs: List<TypeReference>,
+    args: List<Register>)
+  | RaiseNRE(names: List<String>, error: NameResolutionError)
+  | VarNotFound(targetRegIfDB: Register, name: String)
+  | CheckIfFirstExprIsUnit(exprId: UInt64, reg: Register)
   /// The value in `valueReg` is the result of the source expression `exprId`, for live values.
-  | TraceExpr of exprId: UInt64 * valueReg: Register
+  | TraceExpr(exprId: UInt64, valueReg: Register)
 
 
 type Instructions =
@@ -281,8 +281,8 @@ type ApplicableLambda =
     typeSymbolTable: TypeSymbolTable }
 
 type Applicable =
-  | AppLambda of ApplicableLambda
-  | AppNamedFn of ApplicableNamedFn
+  | AppLambda(ApplicableLambda)
+  | AppNamedFn(ApplicableNamedFn)
 
 
 /// One impl of a trait as dispatch sees it: what it is for, and the fn behind each method
@@ -298,50 +298,50 @@ type ImplCandidate =
 
 type Dval =
   | DUnit
-  | DBool of Bool
-  | DInt8 of Int8
-  | DUInt8 of UInt8
-  | DInt16 of Int16
-  | DUInt16 of UInt16
-  | DInt32 of Int32
-  | DUInt32 of UInt32
-  | DInt64 of Int64
-  | DUInt64 of UInt64
-  | DInt128 of Int128
-  | DUInt128 of UInt128
-  | DInt of Int
-  | DFloat of Float
-  | DFloat32 of Float32
-  | DDecimal of Decimal
-  | DChar of Char
-  | DString of String
-  | DDateTime of DateTime
-  | DUuid of Uuid
+  | DBool(Bool)
+  | DInt8(Int8)
+  | DUInt8(UInt8)
+  | DInt16(Int16)
+  | DUInt16(UInt16)
+  | DInt32(Int32)
+  | DUInt32(UInt32)
+  | DInt64(Int64)
+  | DUInt64(UInt64)
+  | DInt128(Int128)
+  | DUInt128(UInt128)
+  | DInt(Int)
+  | DFloat(Float)
+  | DFloat32(Float32)
+  | DDecimal(Decimal)
+  | DChar(Char)
+  | DString(String)
+  | DDateTime(DateTime)
+  | DUuid(Uuid)
 
-  | DTuple of Dval * Dval * List<Dval>
-  | DList of ValueType * List<Dval>
-  | DDict of keyType: ValueType * valueType: ValueType * entries: DictMap
+  | DTuple(Dval, Dval, List<Dval>)
+  | DList(ValueType, List<Dval>)
+  | DDict(keyType: ValueType, valueType: ValueType, entries: DictMap)
 
-  | DRecord of
-    runtimeTypeName: FQTypeName.FQTypeName *
-    sourceTypeName: FQTypeName.FQTypeName *
-    typeArgs: List<ValueType> *
-    fields: DvalMap
+  | DRecord(
+    runtimeTypeName: FQTypeName.FQTypeName,
+    sourceTypeName: FQTypeName.FQTypeName,
+    typeArgs: List<ValueType>,
+    fields: DvalMap)
 
-  | DEnum of
-    runtimeTypeName: FQTypeName.FQTypeName *
-    sourceTypeName: FQTypeName.FQTypeName *
-    typeArgs: List<ValueType> *
-    caseName: String *
-    fields: List<Dval>
+  | DEnum(
+    runtimeTypeName: FQTypeName.FQTypeName,
+    sourceTypeName: FQTypeName.FQTypeName,
+    typeArgs: List<ValueType>,
+    caseName: String,
+    fields: List<Dval>)
 
-  | DApplicable of Applicable
+  | DApplicable(Applicable)
 
   // References
 
-  | DBytes of Bytes
+  | DBytes(Bytes)
 
-  | DStreamStub of elemType: ValueType
+  | DStreamStub(elemType: ValueType)
 
 type BuiltInParam =
   { name: String

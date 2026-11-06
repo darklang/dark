@@ -110,7 +110,7 @@ type Overlay =
   /// The `?` keymap, drawn centred with its interior cleared. Any key closes it.
   | Keymap
   /// Searchable branch list. Selection is by id, never by a decorated label.
-  | Branches of BranchPicker
+  | Branches(BranchPicker)
 
 
 /// The REPL view's state: what's been run, what's bound, and what's half-typed.
@@ -269,11 +269,11 @@ type EditingState =
     err: String }
 
 type Step =
-  | Continue of State
-  | Exit of State
+  | Continue(State)
+  | Exit(State)
   /// Hand off to a foreground command (e.g. a full-screen app opened from the Apps view). The CLI pushes the
   /// workbench and returns to it when that command's page exits. Carries the workbench State to return to.
-  | Launch of State * String
+  | Launch(State, String)
 
 /// Keyboard and scrolling behavior, independent of a view's drawing style.
 type ViewBehavior =

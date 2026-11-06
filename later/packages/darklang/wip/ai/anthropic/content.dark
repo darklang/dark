@@ -55,7 +55,7 @@ type ContentType =
   | ToolReference
   | ContainerUpload
   // Fallback for unknown types
-  | Unknown of String
+  | Unknown(String)
 
 module ContentType =
   let toString (ct: ContentType) : String =
@@ -104,8 +104,8 @@ module ContentType =
 
 type CallerType =
   | Direct
-  | CodeExecution20250825 of String  // tool_id
-  | CodeExecution20260120 of String  // tool_id
+  | CodeExecution20250825(String)  // tool_id
+  | CodeExecution20260120(String)  // tool_id
 
 module CallerType =
   let toJson (caller: CallerType) : Stdlib.AltJson.Json =
@@ -165,7 +165,7 @@ type ToolErrorCode =
   // Text editor specific
   | FileNotFound
   // Unknown error
-  | Unknown of String
+  | Unknown(String)
 
 module ToolErrorCode =
   let toString (code: ToolErrorCode) : String =

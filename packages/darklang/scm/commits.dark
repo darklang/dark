@@ -33,11 +33,11 @@ type CommitFilter =
   | Recent
   /// The commits in this branch's own history, newest first. A merge moves a branch's commits to its
   /// parent.
-  | OnBranch of branchId: Uuid
+  | OnBranch(branchId: Uuid)
   /// The commits whose hash starts with this, newest first. `%` and `_` match only themselves.
-  | HashPrefix of prefix: String
+  | HashPrefix(prefix: String)
   /// The commits that name this one as their parent.
-  | ChildrenOf of hash: String
+  | ChildrenOf(hash: String)
 
 /// What `query` answers with. `total` counts every match when the limit was 0 (and `commits` is then
 /// empty); otherwise it is how many commits came back.

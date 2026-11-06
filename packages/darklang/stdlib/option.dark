@@ -2,7 +2,7 @@ module Darklang.Stdlib.Option
 
 
 type Option<'v> =
-  | Some of 'v
+  | Some('v)
   | None
 
 

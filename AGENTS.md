@@ -1075,8 +1075,8 @@ nothing" rather than "crashed and the guard ate it". So when a search or any wid
 the destructures, and treat a zero from a guarded path as unexplained until you have seen the guard
 not fire.
 
-**A wildcard doesn't match a multi-field DU case.** `| ExportPath _ ->` silently fails to match
-`ExportPath of String * TextField.State`; you need `| ExportPath(_ext, _field) ->`. It's a
+**A wildcard doesn't match a multi-field DU case.** `| ExportPath(_) ->` silently fails to match
+`ExportPath(String, TextField.State)`; you need `| ExportPath(_ext, _field) ->`. It's a
 runtime error ("No matching case found") at the moment that case comes up, not a load
 error, so it waits until you press the key that reaches it.
 

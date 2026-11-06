@@ -3816,7 +3816,7 @@ and parseTypeDefinition (state : ParserState) (i : int) : WT.TypeDefinition * in
     tok state i = TBar
     || (match tok state i, tok state (i + 1) with
         | TIdent nm, t2 when nm.Length > 0 && System.Char.IsUpper nm[0] ->
-          t2 = TOf || t2 = TBar
+          t2 = TLParen || t2 = TOf || t2 = TBar
         | _ -> false)
   match tok state i with
   | TLBrace -> parseRecordDef state i
@@ -3875,27 +3875,99 @@ and parseRecordDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
       k
   (WT.TDRecord(List.ofSeq fields), kk)
 
-and parseEnumField (state : ParserState) (i : int) : WT.EnumFieldSyntax * int =
-  // an enum case's fields are separated by `*` (`Case of A * B` = two fields), so
-  // the field type is parsed at ATOM level — a bare `*` is the separator, not a
-  // tuple. A tuple field must be parenthesized (`(A * B)`), which parseAtomType handles.
+and parseEnumField
+  (state : ParserState)
+  (parseType : ParserState -> int -> WT.TypeReference * int)
+  (i : int)
+  : WT.EnumFieldSyntax * int =
   match tok state i, tok state (i + 1) with
   | TIdent lbl, TColon ->
     let lblR = rng state i
     let colon = rng state (i + 1)
-    let (typ, j) = parseAtomType state (i + 2)
+    let (typ, j) = parseType state (i + 2)
     ({ range = span lblR (WT.typeReferenceRange typ)
        typ = typ
        label = Some(lblR, lbl)
        symbolColon = Some colon },
      j)
   | _ ->
-    let (typ, j) = parseAtomType state i
+    let (typ, j) = parseType state i
     ({ range = WT.typeReferenceRange typ
        typ = typ
        label = None
        symbolColon = None },
      j)
+
+/// A case's fields go in parentheses, separated by commas, as a constructor's do:
+/// `Seg(Point, Point)` is two fields and `Seg(Point * Point)` one tuple field.
+and parseEnumFields
+  (state : ParserState)
+  (i : int)
+  (fields : System.Collections.Generic.List<WT.EnumFieldSyntax>)
+  : int =
+  let openP = rng state i
+  // A `|` or the end of the file ends the case even without its `)`, so the
+  // cases after an unclosed one are still found.
+  let endsCase k = tok state k = TBar || tok state k = TEOF
+  let mutable k = i + 1
+  let mutable go = true
+  while go && tok state k <> TRParen && not (endsCase k) do
+    let (f, k2) = parseEnumField state parseFnType k
+    fields.Add f
+    if tok state k2 = TComma then
+      k <- k2 + 1
+    elif tok state k2 = TRParen || endsCase k2 then
+      k <- k2
+      go <- false
+    else
+      errExpected state k2 "',' or ')' between a case's fields"
+      k <- k2
+      while tok state k <> TRParen && not (endsCase k) do
+        k <- k + 1
+      go <- false
+  if fields.Count = 0 && tok state k = TRParen then
+    errFull
+      state
+      DiagnosticCode.expected
+      k
+      "a case with no fields is written without parentheses"
+      []
+      None
+  if tok state k = TRParen then
+    k + 1
+  else
+    errUnclosed state k ")" "(" openP
+    k
+
+/// `| Seg of Point * Point` is not Dark. The fields are still parsed (split by
+/// `*`, each at atom level), so recovery sees the shape the author meant.
+and parseOfFields
+  (state : ParserState)
+  (caseIdx : int)
+  (i : int)
+  (fields : System.Collections.Generic.List<WT.EnumFieldSyntax>)
+  : int =
+  let (f0, k0) = parseEnumField state parseAtomType (i + 1)
+  fields.Add f0
+  let mutable k = k0
+  while tok state k = TStar do
+    let (fi, ki) = parseEnumField state parseAtomType (k + 1)
+    fields.Add fi
+    k <- ki
+  let caseName = txt state caseIdx
+  let typed = placeholders fields.Count |> List.map (fun p -> p.ToUpperInvariant())
+  let commaList = String.concat ", " typed
+  let starList = String.concat " * " typed
+  state.diagnostics.Add
+    { code = DiagnosticCode.unexpected
+      severity = DiagError
+      range = span (rng state caseIdx) (Seq.last fields).range
+      message = "an enum case's fields go in parentheses, separated by commas"
+      related = []
+      hint =
+        Some
+          $"write `{caseName}({commaList})` rather than `{caseName} of {starList}`" }
+  k
 
 and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
   let cases = System.Collections.Generic.List<TokenRange * WT.EnumCaseSyntax>()
@@ -3927,26 +3999,31 @@ and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
         let cnameIdx = k
         k <- k + 1
         let fields = System.Collections.Generic.List<WT.EnumFieldSyntax>()
-        let mutable kwOf = None
-        if tok state k = TOf then
-          kwOf <- Some(rng state k)
-          k <- k + 1
-          let (f0, k0) = parseEnumField state k
-          fields.Add f0
-          k <- k0
-          while tok state k = TStar do
-            k <- k + 1
-            let (fi, ki) = parseEnumField state k
-            fields.Add fi
-            k <- ki
-        let lastR = if fields.Count > 0 then (Seq.last fields).range else cnameR
+        // A space before the `(` is allowed, as for a constructor. A `(` on a later
+        // line, indented at least as far as the case, is still taken as its
+        // fields for recovery, but is an error; a less indented one is the next
+        // statement.
+        if tok state k = TLParen && (rng state k).start.row = cnameR.end_.row then
+          k <- parseEnumFields state k fields
+        elif
+          tok state k = TLParen
+          && (rng state k).start.column >= barRange.start.column
+        then
+          err
+            state
+            DiagnosticCode.unexpected
+            k
+            "a case's fields start on the same line as its name"
+          k <- parseEnumFields state k fields
+        elif tok state k = TOf then
+          k <- parseOfFields state cnameIdx k fields
+        let lastR = if k > cnameIdx + 1 then rng state (k - 1) else cnameR
         cases.Add(
           barRange,
           { range = span cnameR lastR
             name = (cnameR, cname)
             fields = List.ofSeq fields
-            description = (if barDoc <> "" then barDoc else docOf state cnameIdx)
-            keywordOf = kwOf }
+            description = (if barDoc <> "" then barDoc else docOf state cnameIdx) }
         )
       | _ -> go <- false
   // `type X = |` with no case — diagnose so the `"_"` placeholder the normalizer

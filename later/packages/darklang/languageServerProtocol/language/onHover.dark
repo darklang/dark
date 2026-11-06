@@ -2,7 +2,7 @@
 module Darklang.LanguageServerProtocol.Hover
 
 
-type HoverContentKind = MarkupContent of MarkupContent
+type HoverContentKind = MarkupContent(MarkupContent)
 // | MarkedString
 // | MarkedStringList
 

@@ -2,8 +2,8 @@ module Darklang.Stdlib.Result
 
 
 type Result<'Ok, 'Err> =
-  | Ok of 'Ok
-  | Error of 'Err
+  | Ok('Ok)
+  | Error('Err)
 
 
 /// If <param result> is {{Ok <var value>}}, returns {{Ok (fn <var value>)}}.

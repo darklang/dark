@@ -442,13 +442,13 @@ let handleResponse
 
 /// Message content - either simple strings or content blocks
 type MessageContent =
-  | Simple of List<Content.SimpleMessage>
-  | Blocks of List<Content.BlockMessage>
+  | Simple(List<Content.SimpleMessage>)
+  | Blocks(List<Content.BlockMessage>)
 
 /// System prompt - either a string or structured blocks
 type SystemContent =
-  | Text of String
-  | Blocks of List<Content.SystemBlock>
+  | Text(String)
+  | Blocks(List<Content.SystemBlock>)
 
 /// Request configuration with sensible defaults
 type Request =

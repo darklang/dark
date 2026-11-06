@@ -29,7 +29,7 @@ let get(dict: Dict<'k, 'v>, key: 'k): Stdlib.Option.Option<'v> =
 /// Identifies a duplicate key reported by
 /// <fn Dict.insert>, <fn Dict.fromEntriesUnique> and <fn Dict.mergeUnique>.
 type DuplicateKey<'k> =
-  | DuplicateKey of 'k
+  | DuplicateKey('k)
 
 
 /// Returns a copy of <param dict> with the <param key> set to <param value>,

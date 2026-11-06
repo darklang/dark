@@ -606,8 +606,8 @@ module CompletionRequest =
   module CompletionResult =
     type CompletionResult =
       | Null
-      | SimpleList of List<CompletionItem.CompletionItem>
-      | CompletionList of CompletionList.CompletionList
+      | SimpleList(List<CompletionItem.CompletionItem>)
+      | CompletionList(CompletionList.CompletionList)
 
     let toJson (result: CompletionResult) : Json =
       match result with

@@ -216,7 +216,7 @@ test moduleCommand =
       "let quadruple(n: Int64): Int64 = double(double(n))"
     ] |> Stdlib.String.join("\n")
   let invalidSource =
-    [ "type Wrapped = Wrap of (Int64 * String)"
+    [ "type Wrapped = Wrap(Int64 * String)"
       ""
       "let shouldNotExist(value: Wrapped): Wrapped ="
       "  match value with"

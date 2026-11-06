@@ -320,7 +320,7 @@ val person = "type Person = { name: String, age: Int64, hasPet: Bool }"
 val myString = "type MyString = String"
 val pet = "type Pet = String"
 val myEnum =
-  "type MyEnum =\n  | A\n  | B of Int64\n  | C of (Int64 * Int64)\n  | D of Int64 * Int64\n  | E of Int64 * Int64 * Int64"
+  "type MyEnum =\n  | A\n  | B(Int64)\n  | C(Int64 * Int64)\n  | D(Int64, Int64)\n  | E(Int64, Int64, Int64)"
 
 
 /// The text a string or char literal decoded to, with interpolated literals inlined. Proves an

@@ -4,13 +4,13 @@ module Darklang.Cli.Packages
 // (less of this in CLI world)
 
 type PackageLocation =
-  | Module of path: List<String>
-  | Type of location: LanguageTools.ProgramTypes.PackageLocation
-  | Value of location: LanguageTools.ProgramTypes.PackageLocation
-  | Function of location: LanguageTools.ProgramTypes.PackageLocation
-  | Trait of location: LanguageTools.ProgramTypes.PackageLocation
-  | Impl of location: LanguageTools.ProgramTypes.PackageLocation
-  | Test of location: LanguageTools.ProgramTypes.PackageLocation
+  | Module(path: List<String>)
+  | Type(location: LanguageTools.ProgramTypes.PackageLocation)
+  | Value(location: LanguageTools.ProgramTypes.PackageLocation)
+  | Function(location: LanguageTools.ProgramTypes.PackageLocation)
+  | Trait(location: LanguageTools.ProgramTypes.PackageLocation)
+  | Impl(location: LanguageTools.ProgramTypes.PackageLocation)
+  | Test(location: LanguageTools.ProgramTypes.PackageLocation)
 
 /// The module path a location sits in: the module itself, or the module an item lives in.
 let modulePathOf(location: PackageLocation): List<String> =

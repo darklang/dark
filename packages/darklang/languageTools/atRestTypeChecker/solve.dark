@@ -759,11 +759,11 @@ type DeferredRequirement =
   /// The subject is used by an operator that requires a numeric type.
   | NumericType
   /// Accessing or updating this field constrains its type.
-  | FieldType of String * Model.Ty
+  | FieldType(String, Model.Ty)
   /// A pattern names this enum case and constrains its payload types.
-  | CaseFields of String * List<Model.Ty>
+  | CaseFields(String, List<Model.Ty>)
   /// unwrap or ? extracts a payload of this type from the subject.
-  | UnwrappedType of Model.Ty
+  | UnwrappedType(Model.Ty)
 
 /// A requirement on a subject type, with the node and context to use if it
 /// conflicts with another pending use of the same subject.
@@ -2394,9 +2394,9 @@ let unwrapUnknown(
 /// The standard container and payload types recognized for postfix ?.
 type UnwrapContainer =
   /// Some carries a value; None can be returned early without a payload.
-  | OptionOf of value: Model.Ty
+  | OptionOf(value: Model.Ty)
   /// Ok carries a value; Error's payload must match the enclosing return type's error payload.
-  | ResultOf of value: Model.Ty * error: Model.Ty
+  | ResultOf(value: Model.Ty, error: Model.Ty)
   /// Not a standard Option or Result with the expected number of type arguments.
   | NotContainer
 

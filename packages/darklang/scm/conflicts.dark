@@ -99,10 +99,10 @@ type Conflict =
 /// What `query` is asked. Branch-scoped cases take the branch; the rest read every branch.
 type ConflictFilter =
   /// Conflicts awaiting a human on this branch, oldest first.
-  | Pending of branchId: Uuid
+  | Pending(branchId: Uuid)
   /// The one conflict on this branch whose id starts with the reference, or whose name (dotted, or
   /// bare) is that. Pending ones first, then oldest. At most one comes back.
-  | ByRef of reference: String * branchId: Uuid
+  | ByRef(reference: String, branchId: Uuid)
   /// The acked records that are not name conflicts: the constraint acks. Only `id` is filled.
   | AckedConstraints
   /// Whether anything was ever overridden: at most one row, only `id` filled.

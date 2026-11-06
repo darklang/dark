@@ -52,8 +52,8 @@ let commitAsIs (branchId: Uuid) (author: String) : Stdlib.Result.Result<String, 
 type Outcome =
   /// The mode is off, or the draft is empty: nothing to say.
   | Nothing
-  | Pushed of commit: String
-  | Failed of String
+  | Pushed(commit: String)
+  | Failed(String)
 
 /// Commit the draft and push it. The push verbs print their story; it is captured and folded into
 /// the outcome, since two of the three callers own a screen (the workbench) or a protocol channel

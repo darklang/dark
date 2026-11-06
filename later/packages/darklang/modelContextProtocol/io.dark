@@ -5,58 +5,58 @@ module Darklang.ModelContextProtocol
 /// Types of messages that can be received from clients
 type IncomingMessage =
   // Lifecycle
-  | InitializeRequest of
-      requestId: JsonRPC.RequestID *
-      LifeCycle.InitializeRequest.InitializeParams
+  | InitializeRequest(
+      requestId: JsonRPC.RequestID,
+      LifeCycle.InitializeRequest.InitializeParams)
   | Initialized
-  | Shutdown of requestId: JsonRPC.RequestID
+  | Shutdown(requestId: JsonRPC.RequestID)
 
   // Resources
-  | ListResourcesRequest of requestId: JsonRPC.RequestID
-  | ListResourceTemplatesRequest of requestId: JsonRPC.RequestID
-  | ReadResourceRequest of
-      requestId: JsonRPC.RequestID *
-      Resources.ReadResourceParams.ReadResourceParams
+  | ListResourcesRequest(requestId: JsonRPC.RequestID)
+  | ListResourceTemplatesRequest(requestId: JsonRPC.RequestID)
+  | ReadResourceRequest(
+      requestId: JsonRPC.RequestID,
+      Resources.ReadResourceParams.ReadResourceParams)
 
   // Tools
-  | ListToolsRequest of requestId: JsonRPC.RequestID
-  | CallToolRequest of
-      requestId: JsonRPC.RequestID *
-      Tools.CallToolRequest.CallToolParams
+  | ListToolsRequest(requestId: JsonRPC.RequestID)
+  | CallToolRequest(
+      requestId: JsonRPC.RequestID,
+      Tools.CallToolRequest.CallToolParams)
 
   // Prompts
-  | ListPromptsRequest of requestId: JsonRPC.RequestID
-  | GetPromptRequest of
-      requestId: JsonRPC.RequestID *
-      name: String *
-      arguments: Stdlib.AltJson.Json
+  | ListPromptsRequest(requestId: JsonRPC.RequestID)
+  | GetPromptRequest(
+      requestId: JsonRPC.RequestID,
+      name: String,
+      arguments: Stdlib.AltJson.Json)
 
   // Logging
-  | SetLoggingLevelRequest of
-      requestId: Stdlib.Option.Option<JsonRPC.RequestID> *
-      SetLoggingLevel.SetLoggingLevelParams
+  | SetLoggingLevelRequest(
+      requestId: Stdlib.Option.Option<JsonRPC.RequestID>,
+      SetLoggingLevel.SetLoggingLevelParams)
 
   // Progress
-  | ProgressNotification of ProgressNotification.ProgressNotificationParams
+  | ProgressNotification(ProgressNotification.ProgressNotificationParams)
 
   // Notifications
-  | CancelNotification of requestId: JsonRPC.RequestID
+  | CancelNotification(requestId: JsonRPC.RequestID)
 
   // Roots
-  | ListRootsRequest of requestId: JsonRPC.RequestID
+  | ListRootsRequest(requestId: JsonRPC.RequestID)
 
   // Sampling
-  | CreateMessageRequest of
-      requestId: JsonRPC.RequestID *
-      Sampling.CreateMessageParams
+  | CreateMessageRequest(
+      requestId: JsonRPC.RequestID,
+      Sampling.CreateMessageParams)
 
   // Completion
-  | CompleteRequest of
-      requestId: JsonRPC.RequestID *
-      CompletionParams
+  | CompleteRequest(
+      requestId: JsonRPC.RequestID,
+      CompletionParams)
 
   // Other
-  | Other of JsonRPC.Request.Request
+  | Other(JsonRPC.Request.Request)
 
 /// Parse an incoming JSON-RPC message into an MCP message
 let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =

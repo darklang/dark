@@ -15,10 +15,10 @@ module Darklang.Stdlib.Regex
 type RegexError =
   /// The pattern does not parse. The message says why, and the position is the
   /// character of the pattern it points at.
-  | InvalidPattern of message: String * position: Int64
+  | InvalidPattern(message: String, position: Int64)
   /// The pattern needs backtracking: a backreference, a lookahead or lookbehind, an
   /// atomic group, a conditional, or `\G`.
-  | UnsupportedSyntax of construct: String
+  | UnsupportedSyntax(construct: String)
   /// A match would start or end between the two halves of an emoji (or any
   /// character past U+FFFF), and half of one is not text. `.` and `[^x]` step
   /// through such a character half at a time; `.+` takes it whole.

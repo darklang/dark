@@ -261,7 +261,7 @@ let toJson (tool: WebSearchTool) : Json =
 /// Action types for web search calls
 type WebSearchAction =
   /// Standard web search (incurs tool call cost)
-  | Search of SearchActionData
+  | Search(SearchActionData)
   /// Opening a page (supported in reasoning models)
   | OpenPage
   /// Searching within a page (supported in reasoning models)

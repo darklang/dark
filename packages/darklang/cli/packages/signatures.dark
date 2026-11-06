@@ -83,12 +83,19 @@ let formatType(
           let fieldStrs =
             fs
             |> Stdlib.List.map(fun f ->
-              let t = PrettyPrinter.ProgramTypes.typeReference(ctx, f.typ)
+              let t =
+                match f.typ with
+                | TTuple(first, second, theRest) ->
+                  (Stdlib.List.concat([ first, second ], theRest))
+                  |> Stdlib.List.map(fun item ->
+                    PrettyPrinter.ProgramTypes.typeReferenceFlatAtPrecedence(ctx, true, item))
+                  |> Stdlib.String.join(" * ")
+                | typ -> PrettyPrinter.ProgramTypes.typeReference(ctx, typ)
               match f.label with
               | Some(lbl) -> $"{lbl}: {t}"
               | None -> t)
-            |> Stdlib.String.join(" * ")
-          $"{c.name} of {fieldStrs}")
+            |> Stdlib.String.join(", ")
+          $"{c.name}({fieldStrs})")
       |> Stdlib.String.join(" | ")
 
   $"type {name}{typeParams} = {body}"

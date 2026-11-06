@@ -12,8 +12,8 @@ type Json = Stdlib.AltJson.Json
 
 type TestResult =
   | Pass
-  | Fail of message: String
-  | Skipped of reason: String
+  | Fail(message: String)
+  | Skipped(reason: String)
 
 type TestFunction = Unit -> TestResult
 

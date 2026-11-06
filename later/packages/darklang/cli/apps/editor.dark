@@ -21,10 +21,10 @@ type State =
     showDetail: Bool }
 
 type Action =
-  | Continue of State
-  | Exit of State
+  | Continue(State)
+  | Exit(State)
   /// run a foreground app's command, handing the screen over to it
-  | LaunchFg of String
+  | LaunchFg(String)
 
 
 let selectedApp (state: State) : Stdlib.Option.Option<Model.App> =

@@ -38,168 +38,168 @@ type QualifiedFnIdentifier =
 
 // CLEANUP: Refactor List<String> to List<Range* String> or use a QualifiedTypeIdentifier.
 // Consider removing 'Unresolved' and inlining it where it's used, since all names are unresolved at this stage (wt)
-type Name = Unresolved of Range * List<String>
+type Name = Unresolved(Range, List<String>)
 
 // Types
 module TypeReference =
   // The first range corresponds to the whole type
   type Builtin =
-    | TUnit of Range
-    | TBool of Range
-    | TInt8 of Range
-    | TUInt8 of Range
-    | TInt16 of Range
-    | TUInt16 of Range
-    | TInt32 of Range
-    | TUInt32 of Range
-    | TInt64 of Range
-    | TUInt64 of Range
-    | TInt128 of Range
-    | TUInt128 of Range
-    | TInt of Range
-    | TFloat of Range
-    | TFloat32 of Range
-    | TDecimal of Range
-    | TChar of Range
-    | TString of Range
-    | TDateTime of Range
-    | TUuid of Range
-    | TBytes of Range
+    | TUnit(Range)
+    | TBool(Range)
+    | TInt8(Range)
+    | TUInt8(Range)
+    | TInt16(Range)
+    | TUInt16(Range)
+    | TInt32(Range)
+    | TUInt32(Range)
+    | TInt64(Range)
+    | TUInt64(Range)
+    | TInt128(Range)
+    | TUInt128(Range)
+    | TInt(Range)
+    | TFloat(Range)
+    | TFloat32(Range)
+    | TDecimal(Range)
+    | TChar(Range)
+    | TString(Range)
+    | TDateTime(Range)
+    | TUuid(Range)
+    | TBytes(Range)
 
-    | TStream of
-      Range *
-      keywordStream: Range *
-      openBracket: Range *
-      typ: TypeReference.TypeReference *
-      closeBracket: Range
+    | TStream(
+      Range,
+      keywordStream: Range,
+      openBracket: Range,
+      typ: TypeReference.TypeReference,
+      closeBracket: Range)
 
-    | TList of
-      Range *
-      keywordList: Range *
-      openBracket: Range *
-      typ: TypeReference.TypeReference *
-      closeBracket: Range
+    | TList(
+      Range,
+      keywordList: Range,
+      openBracket: Range,
+      typ: TypeReference.TypeReference,
+      closeBracket: Range)
 
-    | TDict of
-      Range *
-      keywordDict: Range *
-      openBrace: Range *
-      key: TypeReference.TypeReference *
-      symbolComma: Range *
-      value: TypeReference.TypeReference *
-      closeBrace: Range
+    | TDict(
+      Range,
+      keywordDict: Range,
+      openBrace: Range,
+      key: TypeReference.TypeReference,
+      symbolComma: Range,
+      value: TypeReference.TypeReference,
+      closeBrace: Range)
 
-    | TTuple of
-      Range *
-      first: TypeReference *
-      symbolAsterisk: Range *
-      second: TypeReference *
+    | TTuple(
+      Range,
+      first: TypeReference,
+      symbolAsterisk: Range,
+      second: TypeReference,
       /// the Range corresponds to the `*` symbol
-      rest: List<(Range * TypeReference)> *
-      openParen: Range *
-      closeParen: Range
+      rest: List<(Range * TypeReference)>,
+      openParen: Range,
+      closeParen: Range)
 
-    | TFn of
-      Range *
+    | TFn(
+      Range,
       /// the Range corresponds to the `->` symbol
-      arguments: List<(TypeReference.TypeReference * Range)> *
-      ret: TypeReference.TypeReference
+      arguments: List<(TypeReference.TypeReference * Range)>,
+      ret: TypeReference.TypeReference)
 
-    | TVariable of
-      Range *
-      symbolSingleQuote: Range *
+    | TVariable(
+      Range,
+      symbolSingleQuote: Range,
       /// the Range corresponds to the `'` symbol
-      name: (Range * String)
+      name: Range * String)
 
 
   type TypeReference =
-    | Builtin of Builtin
-    | QualifiedName of QualifiedTypeIdentifier
+    | Builtin(Builtin)
+    | QualifiedName(QualifiedTypeIdentifier)
 
 // Expressions
 type LetPattern =
-  | LPUnit of Range
-  | LPVariable of Range * name: String
-  | LPWildcard of Range
-  | LPTuple of
-    Range *
-    first: LetPattern *
-    symbolComma: Range *
-    second: LetPattern *
+  | LPUnit(Range)
+  | LPVariable(Range, name: String)
+  | LPWildcard(Range)
+  | LPTuple(
+    Range,
+    first: LetPattern,
+    symbolComma: Range,
+    second: LetPattern,
     /// the Range corresponds to the `,` symbol
-    rest: List<(Range * LetPattern)> *
-    symbolOpenParen: Range *
-    symbolCloseParen: Range
+    rest: List<(Range * LetPattern)>,
+    symbolOpenParen: Range,
+    symbolCloseParen: Range)
 
 
 type MatchPattern =
-  | MPUnit of Range
-  | MPBool of Range * Bool
-  | MPInt8 of Range * intPart: (Range * Int8) * suffixPart: Range
-  | MPUInt8 of Range * intPart: (Range * UInt8) * suffixPart: Range
-  | MPInt16 of Range * intPart: (Range * Int16) * suffixPart: Range
-  | MPUInt16 of Range * intPart: (Range * UInt16) * suffixPart: Range
-  | MPInt32 of Range * intPart: (Range * Int32) * suffixPart: Range
-  | MPUInt32 of Range * intPart: (Range * UInt32) * suffixPart: Range
-  | MPInt64 of Range * intPart: (Range * Int64) * suffixPart: Range
-  | MPUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
-  | MPInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
-  | MPUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
-  | MPInt of Range * intPart: (Range * Int)
-  | MPFloat of Range * Sign * String * String
-  | MPFloat32 of Range * Sign * String * String
-  | MPDecimal of Range * Decimal
-  | MPChar of
-    Range *
-    contents: Stdlib.Option.Option<(Range * String)> *
-    symbolOpenQuote: Range *
-    symbolCloseQuote: Range
-  | MPString of
-    Range *
-    contents: Stdlib.Option.Option<(Range * String)> *
-    symbolOpenQuote: Range *
-    symbolCloseQuote: Range
-  | MPList of
-    Range *
+  | MPUnit(Range)
+  | MPBool(Range, Bool)
+  | MPInt8(Range, intPart: Range * Int8, suffixPart: Range)
+  | MPUInt8(Range, intPart: Range * UInt8, suffixPart: Range)
+  | MPInt16(Range, intPart: Range * Int16, suffixPart: Range)
+  | MPUInt16(Range, intPart: Range * UInt16, suffixPart: Range)
+  | MPInt32(Range, intPart: Range * Int32, suffixPart: Range)
+  | MPUInt32(Range, intPart: Range * UInt32, suffixPart: Range)
+  | MPInt64(Range, intPart: Range * Int64, suffixPart: Range)
+  | MPUInt64(Range, intPart: Range * UInt64, suffixPart: Range)
+  | MPInt128(Range, intPart: Range * Int128, suffixPart: Range)
+  | MPUInt128(Range, intPart: Range * UInt128, suffixPart: Range)
+  | MPInt(Range, intPart: Range * Int)
+  | MPFloat(Range, Sign, String, String)
+  | MPFloat32(Range, Sign, String, String)
+  | MPDecimal(Range, Decimal)
+  | MPChar(
+    Range,
+    contents: Stdlib.Option.Option<(Range * String)>,
+    symbolOpenQuote: Range,
+    symbolCloseQuote: Range)
+  | MPString(
+    Range,
+    contents: Stdlib.Option.Option<(Range * String)>,
+    symbolOpenQuote: Range,
+    symbolCloseQuote: Range)
+  | MPList(
+    Range,
     /// the Range corresponds to the `,` symbol
-    contents: List<(MatchPattern * Stdlib.Option.Option<Range>)> *
-    symbolOpenBracket: Range *
-    symbolCloseBracket: Range
+    contents: List<(MatchPattern * Stdlib.Option.Option<Range>)>,
+    symbolOpenBracket: Range,
+    symbolCloseBracket: Range)
   /// `[head, ...tail]`, one node per head; every node in a chain shares the `...`
-  | MPListCons of
-    Range *
-    head: MatchPattern *
-    tail: MatchPattern *
-    symbolDots: Range
-  | MPTuple of
-    Range *
-    first: MatchPattern *
-    symbolComma: Range *
-    second: MatchPattern *
+  | MPListCons(
+    Range,
+    head: MatchPattern,
+    tail: MatchPattern,
+    symbolDots: Range)
+  | MPTuple(
+    Range,
+    first: MatchPattern,
+    symbolComma: Range,
+    second: MatchPattern,
     /// the Range corresponds to the `,` symbol
-    rest: List<(Range * MatchPattern)> *
-    symbolOpenParen: Range *
-    symbolCloseParen: Range
-  | MPVariable of Range * String
-  | MPEnum of
-    Range *
-    caseName: (Range * String) *
-    fieldPats: List<MatchPattern>
+    rest: List<(Range * MatchPattern)>,
+    symbolOpenParen: Range,
+    symbolCloseParen: Range)
+  | MPVariable(Range, String)
+  | MPEnum(
+    Range,
+    caseName: Range * String,
+    fieldPats: List<MatchPattern>)
 
   // CLEANUP: handle pipe symbols
-  | MPOr of Range * List<MatchPattern>
+  | MPOr(Range, List<MatchPattern>)
 
   /// `pattern as name`: matches what `pattern` matches and binds the whole value
-  | MPAs of
-    Range *
-    pattern: MatchPattern *
-    symbolAs: Range *
-    name: (Range * String)
+  | MPAs(
+    Range,
+    pattern: MatchPattern,
+    symbolAs: Range,
+    name: Range * String)
 
   // A recovery hole where a pattern was expected but couldn't be parsed (the
   // parse carries a diagnostic at this range). Tooling renders around it; it
   // never reaches execution.
-  | MPError of Range
+  | MPError(Range)
 
 type MatchCase =
   { pat:
@@ -237,179 +237,179 @@ type InfixFnName =
   | ComparisonNotEquals
 
 type Infix =
-  | InfixFnCall of InfixFnName
-  | BinOp of BinaryOperation
+  | InfixFnCall(InfixFnName)
+  | BinOp(BinaryOperation)
 
 type StringSegment =
-  | StringText of Range * String
-  | StringInterpolation of
-    Range *
-    Expr *
-    symbolOpenBrace: Range *
-    symbolCloseBrace: Range
+  | StringText(Range, String)
+  | StringInterpolation(
+    Range,
+    Expr,
+    symbolOpenBrace: Range,
+    symbolCloseBrace: Range)
 
 type Expr =
-  | EUnit of Range
-  | EBool of Range * Bool
-  | EInt8 of Range * intPart: (Range * Int8) * suffixPart: Range
-  | EUInt8 of Range * intPart: (Range * UInt8) * suffixPart: Range
-  | EInt16 of Range * intPart: (Range * Int16) * suffixPart: Range
-  | EUInt16 of Range * intPart: (Range * UInt16) * suffixPart: Range
-  | EInt32 of Range * intPart: (Range * Int32) * suffixPart: Range
-  | EUInt32 of Range * intPart: (Range * UInt32) * suffixPart: Range
-  | EInt64 of
-    Range *
-    intPart: (Range * Int64) *
+  | EUnit(Range)
+  | EBool(Range, Bool)
+  | EInt8(Range, intPart: Range * Int8, suffixPart: Range)
+  | EUInt8(Range, intPart: Range * UInt8, suffixPart: Range)
+  | EInt16(Range, intPart: Range * Int16, suffixPart: Range)
+  | EUInt16(Range, intPart: Range * UInt16, suffixPart: Range)
+  | EInt32(Range, intPart: Range * Int32, suffixPart: Range)
+  | EUInt32(Range, intPart: Range * UInt32, suffixPart: Range)
+  | EInt64(
+    Range,
+    intPart: Range * Int64,
     /// for the L suffix
-    suffixPart: Range
-  | EUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
-  | EInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
-  | EUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
-  | EInt of Range * intPart: (Range * Int)
-  | EFloat of Range * Sign * String * String
-  | EFloat32 of Range * Sign * String * String
-  | EDecimal of Range * Decimal
-  | EString of
-    Range *
-    symbolDollarSign: Stdlib.Option.Option<Range> *
-    contents: List<StringSegment> *
-    symbolOpenQuote: Range *
-    symbolCloseQuote: Range
-  | EChar of
-    Range *
-    contents: Stdlib.Option.Option<(Range * String)> *
-    symbolOpenQuote: Range *
-    symbolCloseQuote: Range
+    suffixPart: Range)
+  | EUInt64(Range, intPart: Range * UInt64, suffixPart: Range)
+  | EInt128(Range, intPart: Range * Int128, suffixPart: Range)
+  | EUInt128(Range, intPart: Range * UInt128, suffixPart: Range)
+  | EInt(Range, intPart: Range * Int)
+  | EFloat(Range, Sign, String, String)
+  | EFloat32(Range, Sign, String, String)
+  | EDecimal(Range, Decimal)
+  | EString(
+    Range,
+    symbolDollarSign: Stdlib.Option.Option<Range>,
+    contents: List<StringSegment>,
+    symbolOpenQuote: Range,
+    symbolCloseQuote: Range)
+  | EChar(
+    Range,
+    contents: Stdlib.Option.Option<(Range * String)>,
+    symbolOpenQuote: Range,
+    symbolCloseQuote: Range)
 
-  | EList of
-    Range *
+  | EList(
+    Range,
     /// the Range corresponds to the `,` symbol
-    contents: List<(Expr * Stdlib.Option.Option<Range>)> *
-    symbolOpenBracket: Range *
-    symbolCloseBracket: Range
+    contents: List<(Expr * Stdlib.Option.Option<Range>)>,
+    symbolOpenBracket: Range,
+    symbolCloseBracket: Range)
 
-  | EDict of
-    Range *
-    contents: List<(Range * Expr * Range * Expr)> *
-    keywordDict: Range *
-    symbolOpenBrace: Range *
-    symbolCloseBrace: Range
+  | EDict(
+    Range,
+    contents: List<(Range * Expr * Range * Expr)>,
+    keywordDict: Range,
+    symbolOpenBrace: Range,
+    symbolCloseBrace: Range)
 
-  | ETuple of
-    Range *
-    first: Expr *
-    symbolComma: Range *
-    second: Expr *
+  | ETuple(
+    Range,
+    first: Expr,
+    symbolComma: Range,
+    second: Expr,
     /// the Range corresponds to the `,` symbol
-    rest: List<(Range * Expr)> *
-    symbolOpenParen: Range *
-    symbolCloseParen: Range
+    rest: List<(Range * Expr)>,
+    symbolOpenParen: Range,
+    symbolCloseParen: Range)
 
-  | ERecord of
-    Range *
-    typeName: QualifiedTypeIdentifier *
+  | ERecord(
+    Range,
+    typeName: QualifiedTypeIdentifier,
     // fields: List<:, key, value>
-    fields: List<(Range * (Range * String) * Expr)> *
-    symbolOpenBrace: Range *
-    symbolCloseBrace: Range
+    fields: List<(Range * (Range * String) * Expr)>,
+    symbolOpenBrace: Range,
+    symbolCloseBrace: Range)
 
-  | ERecordUpdate of
-    Range *
-    record: Expr *
+  | ERecordUpdate(
+    Range,
+    record: Expr,
     /// the second Range corresponds to the symbol `=`
-    updates: List<((Range * String) * Range * Expr)> *
-    symbolOpenBrace: Range *
-    symbolCloseBrace: Range *
-    keywordWith: Range
+    updates: List<((Range * String) * Range * Expr)>,
+    symbolOpenBrace: Range,
+    symbolCloseBrace: Range,
+    keywordWith: Range)
 
-  | EEnum of
-    Range *
-    typeName: QualifiedTypeIdentifier *
-    caseName: (Range * String) *
-    fields: List<Expr> *
+  | EEnum(
+    Range,
+    typeName: QualifiedTypeIdentifier,
+    caseName: Range * String,
+    fields: List<Expr>,
     /// between the typeName and the caseName
-    symbolDot: Range
+    symbolDot: Range)
 
-  | ELet of
-    Range *
-    LetPattern *
-    expr: Expr *
-    body: Expr *
-    keywordLet: Range *
-    symbolEquals: Range
+  | ELet(
+    Range,
+    LetPattern,
+    expr: Expr,
+    body: Expr,
+    keywordLet: Range,
+    symbolEquals: Range)
 
-  | EUnwrap of Range * Expr * symbolQuestion: Range
-  | EVariable of Range * String
+  | EUnwrap(Range, Expr, symbolQuestion: Range)
+  | EVariable(Range, String)
 
-  | ERecordFieldAccess of
-    Range *
-    Expr *
-    fieldName: (Range * String) *
-    symbolDot: Range
+  | ERecordFieldAccess(
+    Range,
+    Expr,
+    fieldName: Range * String,
+    symbolDot: Range)
 
-  | EIf of
-    Range *
-    cond: Expr *
-    thenExpr: Expr *
-    elseExpr: Stdlib.Option.Option<Expr> *
-    keywordIf: Range *
-    keywordThen: Range *
-    keywordElse: Stdlib.Option.Option<Range>
+  | EIf(
+    Range,
+    cond: Expr,
+    thenExpr: Expr,
+    elseExpr: Stdlib.Option.Option<Expr>,
+    keywordIf: Range,
+    keywordThen: Range,
+    keywordElse: Stdlib.Option.Option<Range>)
 
-  | EMatch of
-    Range *
-    expr: Expr *
-    cases: List<MatchCase> *
-    keywordMatch: Range *
-    keywordWith: Range
+  | EMatch(
+    Range,
+    expr: Expr,
+    cases: List<MatchCase>,
+    keywordMatch: Range,
+    keywordWith: Range)
 
   /// the Range corresponds to the `|` symbol
-  | EPipe of Range * Expr * List<(Range * PipeExpr)>
+  | EPipe(Range, Expr, List<(Range * PipeExpr)>)
 
-  | EInfix of Range * op: (Range * Infix) * left: Expr * right: Expr
+  | EInfix(Range, op: Range * Infix, left: Expr, right: Expr)
 
-  | ELambda of
-    Range *
-    pats: List<LetPattern> *
-    body: Expr *
-    keywordFun: Range *
-    symbolArrow: Range
+  | ELambda(
+    Range,
+    pats: List<LetPattern>,
+    body: Expr,
+    keywordFun: Range,
+    symbolArrow: Range)
 
-  | EApply of
-    Range *
-    lhs: Expr *
-    typeArgs: List<TypeReference.TypeReference> *
-    args: List<Expr>
+  | EApply(
+    Range,
+    lhs: Expr,
+    typeArgs: List<TypeReference.TypeReference>,
+    args: List<Expr>)
 
-  | EFnName of Range * name: QualifiedFnIdentifier
+  | EFnName(Range, name: QualifiedFnIdentifier)
 
-  | EStatement of Range * first: Expr * next: Expr
+  | EStatement(Range, first: Expr, next: Expr)
 
   // A recovery hole where an expression was expected but couldn't be parsed
   // (the parse carries a diagnostic at this range). Tooling renders around it;
   // it never reaches execution.
-  | EError of Range
+  | EError(Range)
 
 type PipeExpr =
-  | EPipeLambda of
-    Range *
-    pats: List<LetPattern> *
-    body: Expr *
-    keywordFun: Range *
-    symbolArrow: Range
-  | EPipeEnum of
-    Range *
-    typeName: QualifiedTypeIdentifier *
-    caseName: (Range * String) *
-    fields: List<Expr> *
+  | EPipeLambda(
+    Range,
+    pats: List<LetPattern>,
+    body: Expr,
+    keywordFun: Range,
+    symbolArrow: Range)
+  | EPipeEnum(
+    Range,
+    typeName: QualifiedTypeIdentifier,
+    caseName: Range * String,
+    fields: List<Expr>,
     /// between the typeName and the caseName
-    symbolDot: Range
-  | EPipeFnCall of
-    Range *
-    fnName: QualifiedFnIdentifier *
-    typeArgs: List<TypeReference.TypeReference> *
-    args: List<Expr>
-  | EPipeVariableOrFnCall of Range * String
+    symbolDot: Range)
+  | EPipeFnCall(
+    Range,
+    fnName: QualifiedFnIdentifier,
+    typeArgs: List<TypeReference.TypeReference>,
+    args: List<Expr>)
+  | EPipeVariableOrFnCall(Range, String)
 
 
 module Expr =
@@ -458,15 +458,15 @@ module Expr =
 // Module declarations
 module ModuleDeclaration =
   type Declaration =
-    | Type of TypeDeclaration.TypeDeclaration
-    | Function of FnDeclaration.FnDeclaration
-    | Value of ValueDeclaration.ValueDeclaration
-    | Trait of TraitDeclaration.TraitDeclaration
-    | Impl of ImplDeclaration.ImplDeclaration
-    | Test of TestDeclaration.TestDeclaration
-    | SubModule of ModuleDeclaration.ModuleDeclaration
+    | Type(TypeDeclaration.TypeDeclaration)
+    | Function(FnDeclaration.FnDeclaration)
+    | Value(ValueDeclaration.ValueDeclaration)
+    | Trait(TraitDeclaration.TraitDeclaration)
+    | Impl(ImplDeclaration.ImplDeclaration)
+    | Test(TestDeclaration.TestDeclaration)
+    | SubModule(ModuleDeclaration.ModuleDeclaration)
     // TODO: handle http handler and db
-    | Expr of Expr
+    | Expr(Expr)
 
   type ModuleDeclaration =
     { range: Range
@@ -503,15 +503,14 @@ module TypeDeclaration =
     { range: Range
       name: (Range * String)
       fields: List<EnumField>
-      description: String
-      keywordOf: Stdlib.Option.Option<Range> }
+      description: String }
 
   type Definition =
-    | Alias of TypeReference.TypeReference
+    | Alias(TypeReference.TypeReference)
     /// the Range corresponds to the `,` symbol
-    | Record of List<(RecordField * Stdlib.Option.Option<Range>)>
+    | Record(List<(RecordField * Stdlib.Option.Option<Range>)>)
     /// the Range corresponds to the `|` symbol
-    | Enum of List<(Range * EnumCase)>
+    | Enum(List<(Range * EnumCase)>)
 
   type TypeDeclaration =
     { range: Range
@@ -539,7 +538,7 @@ module ValueDeclaration =
 // Named package tests
 module TestDeclaration =
   type ExpectedError =
-    | RuntimeError of String
+    | RuntimeError(String)
 
   type TestDeclaration =
     { range: Range
@@ -568,8 +567,8 @@ module FnDeclaration =
       symbolRightParen: Range }
 
   type Parameter =
-    | Unit of UnitParameter
-    | Normal of NormalParameter
+    | Unit(UnitParameter)
+    | Normal(NormalParameter)
 
 
   type FnDeclaration =
@@ -627,9 +626,9 @@ module TraitDeclaration =
 module ImplDeclaration =
   type Member =
     /// A full fn declaration in the block
-    | Method of FnDeclaration.FnDeclaration
+    | Method(FnDeclaration.FnDeclaration)
     /// `let name = Existing.fn`: the method is a fn that already exists
-    | Alias of ValueDeclaration.ValueDeclaration
+    | Alias(ValueDeclaration.ValueDeclaration)
 
   type ImplDeclaration =
     { range: Range
@@ -646,13 +645,13 @@ module ImplDeclaration =
 
 module SourceFile =
   type SourceFileDeclaration =
-    | Type of TypeDeclaration.TypeDeclaration
-    | Function of FnDeclaration.FnDeclaration
-    | Value of ValueDeclaration.ValueDeclaration
-    | Trait of TraitDeclaration.TraitDeclaration
-    | Impl of ImplDeclaration.ImplDeclaration
-    | Test of TestDeclaration.TestDeclaration
-    | Module of ModuleDeclaration.ModuleDeclaration
+    | Type(TypeDeclaration.TypeDeclaration)
+    | Function(FnDeclaration.FnDeclaration)
+    | Value(ValueDeclaration.ValueDeclaration)
+    | Trait(TraitDeclaration.TraitDeclaration)
+    | Impl(ImplDeclaration.ImplDeclaration)
+    | Test(TestDeclaration.TestDeclaration)
+    | Module(ModuleDeclaration.ModuleDeclaration)
 
   type SourceFile =
     { range: Range
@@ -660,4 +659,4 @@ module SourceFile =
       exprsToEval: List<Expr> }
 
 
-type ParsedFile = SourceFile of SourceFile.SourceFile
+type ParsedFile = SourceFile(SourceFile.SourceFile)

@@ -22,9 +22,9 @@ module Sampling =
 
   /// Sampling message content types
   type SamplingContent =
-    | Text of String
-    | Image of ImageContent
-    | Resource of ResourceContent
+    | Text(String)
+    | Image(ImageContent)
+    | Resource(ResourceContent)
 
   /// Image content for sampling
   type ImageContent =

@@ -172,8 +172,8 @@ type UserMessage =
 
 /// User message content - text or multi-modal
 type UserMessageContent =
-  | TextContent of String
-  | PartsContent of List<Content.ContentPart>
+  | TextContent(String)
+  | PartsContent(List<Content.ContentPart>)
 
 /// Assistant message (ChatCompletionAssistantMessageParam)
 /// Message from the model
@@ -201,12 +201,12 @@ type FunctionMessage =
 
 /// Union type for all chat messages
 type ChatMessage =
-  | Developer of DeveloperMessage
-  | System of SystemMessage
-  | User of UserMessage
-  | Assistant of AssistantMessage
-  | Tool of ToolMessage
-  | Function of FunctionMessage  // Deprecated
+  | Developer(DeveloperMessage)
+  | System(SystemMessage)
+  | User(UserMessage)
+  | Assistant(AssistantMessage)
+  | Tool(ToolMessage)
+  | Function(FunctionMessage)  // Deprecated
 
 
 // =============================================================================

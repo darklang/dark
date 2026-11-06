@@ -134,8 +134,8 @@ type BatchError =
 
 /// Result of a single request in a batch
 type BatchResultContent =
-  | Succeeded of Response.Response
-  | Errored of BatchError
+  | Succeeded(Response.Response)
+  | Errored(BatchError)
   | Canceled
   | Expired
 

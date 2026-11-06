@@ -144,7 +144,7 @@ module SemanticTokensRequest =
   module SemanticTokensResult =
     type SemanticTokensResult =
       | Null
-      | SemanticTokens of SemanticTokens.SemanticTokens
+      | SemanticTokens(SemanticTokens.SemanticTokens)
 
     let toJson (r: SemanticTokensResult) : Json =
       match r with
@@ -159,7 +159,7 @@ module SemanticTokensOptions =
   // Note: not a type in the spec, but used in SemanticTokensOptions as a union
   module SemanticTokensOptionsRange =
     type SemanticTokensOptionsRange =
-      | Bool of Bool
+      | Bool(Bool)
       | EmptyObject
 
     let toJson (r: SemanticTokensOptionsRange) : Json =
@@ -186,9 +186,9 @@ module SemanticTokensOptions =
   // Note: not a type in the spec, but used in SemanticTokensOptions as a union
   module SemanticTokensOptionsFull =
     type SemanticTokensOptionsFull =
-      | Bool of Bool
-      | SemanticTokensFullDelta of
-        SemanticTokensFullDelta.SemanticTokensFullDelta
+      | Bool(Bool)
+      | SemanticTokensFullDelta(
+        SemanticTokensFullDelta.SemanticTokensFullDelta)
 
     let toJson (f: SemanticTokensOptionsFull) : Json =
       match f with
@@ -285,7 +285,7 @@ module SemanticTokenProviderOptions =
     // | SemanticTokensRegistrationOptions of
     //   SemanticTokensRegistrationOptions.SemanticTokensRegistrationOptions
 
-    | SemanticTokensOptions of SemanticTokensOptions.SemanticTokensOptions
+    | SemanticTokensOptions(SemanticTokensOptions.SemanticTokensOptions)
 
   let toJson (o: SemanticTokenProviderOptions) : Json =
     match o with

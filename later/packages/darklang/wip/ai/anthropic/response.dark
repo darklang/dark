@@ -16,7 +16,7 @@ type StopReason =
   | ToolUse
   | PauseTurn
   | Refusal
-  | Unknown of String
+  | Unknown(String)
 
 module StopReason =
   let toString (r: StopReason) : String =
@@ -93,19 +93,19 @@ type Response =
 type ApiError =
   | NetworkError
   | Timeout
-  | BadUrl of String
-  | BadHeader of String
-  | BadBody of String
+  | BadUrl(String)
+  | BadHeader(String)
+  | BadBody(String)
   | RateLimited
-  | InvalidRequest of String
-  | AuthenticationError of String
-  | PermissionDenied of String
-  | NotFoundError of String
-  | RequestTooLarge of String
-  | ServerError of String
-  | Overloaded of String
-  | InvalidResponse of String
-  | UnknownError of statusCode: Int * body: String
+  | InvalidRequest(String)
+  | AuthenticationError(String)
+  | PermissionDenied(String)
+  | NotFoundError(String)
+  | RequestTooLarge(String)
+  | ServerError(String)
+  | Overloaded(String)
+  | InvalidResponse(String)
+  | UnknownError(statusCode: Int, body: String)
 
 module ApiError =
   /// Convert an ApiError to a human-readable string

@@ -15,8 +15,8 @@ val expectedJsonRpcVersion = "2.0"
 
 type RequestID =
   | Null
-  | Int of Int
-  | String of String
+  | Int(Int)
+  | String(String)
 
 let requestIdToJson (id: RequestID) : Json =
   match id with
@@ -27,8 +27,8 @@ let requestIdToJson (id: RequestID) : Json =
 
 module Request =
   type RequestParams =
-    | Array of List<Json>
-    | Object of List<String * Json>
+    | Array(List<Json>)
+    | Object(List<String * Json>)
 
   /// A single message from an LSP Client to an LSP Server
   ///
@@ -42,25 +42,25 @@ module Request =
   module Parsing =
     type ParseError =
       // must be an object `{...}`)
-      | NotObject of Json
+      | NotObject(Json)
 
       /// must be provided
       | MissingJsonRpcField
 
       /// must be `String "2.0"` exactly
-      | InvalidJsonRpcField of actual: Json
+      | InvalidJsonRpcField(actual: Json)
 
       /// can be missing, but otherwise must be null, a String, or a Number
-      | InvalidIdField of actual: Json
+      | InvalidIdField(actual: Json)
 
       /// must be provided
-      | MissingMethodField of id: Stdlib.Option.Option<RequestID>
+      | MissingMethodField(id: Stdlib.Option.Option<RequestID>)
 
       /// must be a string
-      | InvalidMethodField of id: Stdlib.Option.Option<RequestID> * actual: Json
+      | InvalidMethodField(id: Stdlib.Option.Option<RequestID>, actual: Json)
 
       /// can be missing, but otherwise must be an array or an object
-      | InvalidParamsField of id: Stdlib.Option.Option<RequestID> * actual: Json
+      | InvalidParamsField(id: Stdlib.Option.Option<RequestID>, actual: Json)
 
 
 
@@ -223,15 +223,15 @@ module IncomingMessage =
   // TODO: SingleResponse, BatchOfResponses
   // (really rare in our use case, but possible per the spec)
   type IncomingMessage =
-    | NotJson of String
-    | NotObjectOrArray of Json
+    | NotJson(String)
+    | NotObjectOrArray(Json)
 
     | EmptyBatch
 
-    | SingleRequest of
-      Stdlib.Result.Result<Request.Request, Request.Parsing.ParseError>
-    | BatchOfRequests of
-      List<Stdlib.Result.Result<Request.Request, Request.Parsing.ParseError>>
+    | SingleRequest(
+      Stdlib.Result.Result<Request.Request, Request.Parsing.ParseError>)
+    | BatchOfRequests(
+      List<Stdlib.Result.Result<Request.Request, Request.Parsing.ParseError>>)
 
 
   let parse (jsonString: String) : IncomingMessage =

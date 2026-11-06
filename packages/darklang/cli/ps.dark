@@ -425,9 +425,9 @@ let help(_state: AppState): String =
 module Watch =
   type Row =
     /// Another Dark process on this machine, by pid.
-    | Machine of pid: Int64 * cells: List<String>
+    | Machine(pid: Int64, cells: List<String>)
     /// A process in this instance, by id.
-    | Local of id: Uuid * cells: List<String>
+    | Local(id: Uuid, cells: List<String>)
 
   type Model =
     { rows: List<Row>

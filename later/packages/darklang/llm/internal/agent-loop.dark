@@ -13,8 +13,8 @@ type Message = Darklang.LLM.Provider.Message
 
 /// Output from a tool execution
 type ToolOutput =
-  | Text of String
-  | Json of Json
+  | Text(String)
+  | Json(Json)
 
 module ToolOutput =
   let toString (output: ToolOutput) : String =

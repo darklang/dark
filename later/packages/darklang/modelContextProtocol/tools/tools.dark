@@ -139,10 +139,10 @@ module Darklang =
 
       module CallToolResponse =
         type ContentItem =
-          | TextContent of String
-          | ImageContent of ImageContent
-          | AudioContent of AudioContent
-          | ResourceContent of ResourceContent
+          | TextContent(String)
+          | ImageContent(ImageContent)
+          | AudioContent(AudioContent)
+          | ResourceContent(ResourceContent)
 
         type CallToolResult = {
           content: List<ContentItem>

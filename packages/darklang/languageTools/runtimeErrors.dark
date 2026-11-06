@@ -4,17 +4,17 @@ module TypeChecking =
   type TypeCheckPathPart =
     | ListType
     | DictValueType
-    | TupleLength of expected : Int32 * actual : Int32
-    | TupleAtIndex of Int32
-    | TypeArg of typeName: FQTypeName.FQTypeName * index : Int32 * expected : TypeReference * actual: ValueType * typeArgCount: Int32
+    | TupleLength(expected : Int32, actual : Int32)
+    | TupleAtIndex(Int32)
+    | TypeArg(typeName: FQTypeName.FQTypeName, index : Int32, expected : TypeReference, actual: ValueType, typeArgCount: Int32)
 
   type ReverseTypeCheckPath = List<TypeCheckPathPart>
 
 module Bools =
   type Error =
-    | AndOnlySupportsBooleans of gotLeft: ValueType * gotRight: ValueType
-    | OrOnlySupportsBooleans of gotLeft: ValueType * gotRight: ValueType
-    | ConditionRequiresBool of actualValueType: ValueType * actualValue: Dval
+    | AndOnlySupportsBooleans(gotLeft: ValueType, gotRight: ValueType)
+    | OrOnlySupportsBooleans(gotLeft: ValueType, gotRight: ValueType)
+    | ConditionRequiresBool(actualValueType: ValueType, actualValue: Dval)
 
 module Ints =
   type Error =
@@ -26,207 +26,207 @@ module Ints =
 
 module Strings =
   type Error =
-    | NonStringInInterpolation of vt: ValueType * dv: Dval
+    | NonStringInInterpolation(vt: ValueType, dv: Dval)
 
 module Lists =
   type Error =
-    | TriedToAddMismatchedData of
-      index: Int32 *
-      expectedType: ValueType *
-      actualType: ValueType *
-      actualValue: Dval
+    | TriedToAddMismatchedData(
+      index: Int32,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
     /// A sort met a value with no order: Bytes, a function or a stream.
-    | CannotSort of value: Dval
+    | CannotSort(value: Dval)
 
 module Dicts =
   type Error =
-    | TriedToAddMismatchedData of
-      key: Dval *
-      expectedType: ValueType *
-      actualType: ValueType *
-      actualValue: Dval
+    | TriedToAddMismatchedData(
+      key: Dval,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
 
-    | UnsupportedKeyType of keyType: ValueType * key: Dval
+    | UnsupportedKeyType(keyType: ValueType, key: Dval)
 
-    | MismatchedKeyType of
-      expectedType: ValueType *
-      actualType: ValueType *
-      actualKey: Dval
+    | MismatchedKeyType(
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualKey: Dval)
 
 module Lets =
   type Error =
-    | PatternDoesNotMatch of dval: Dval * pat: LetPattern
+    | PatternDoesNotMatch(dval: Dval, pat: LetPattern)
 
 module Matches =
   type Error =
-    | MatchUnmatched of unmatchedValue: Dval
+    | MatchUnmatched(unmatchedValue: Dval)
 
 module Enums =
   type Error =
-    | ConstructionWrongNumberOfFields of
-      typeName: FQTypeName.FQTypeName *
-      caseName: String *
-      expectedFieldCount: Int64 *
-      actualFieldCount: Int64
+    | ConstructionWrongNumberOfFields(
+      typeName: FQTypeName.FQTypeName,
+      caseName: String,
+      expectedFieldCount: Int64,
+      actualFieldCount: Int64)
 
-    | ConstructionCaseNotFound of
-      typeName: FQTypeName.FQTypeName *
-      caseName: String
+    | ConstructionCaseNotFound(
+      typeName: FQTypeName.FQTypeName,
+      caseName: String)
 
-    | ConstructionFieldOfWrongType of
-      caseName: String *
-      fieldIndex: Int64 *
-      declaredType: Stdlib.Option.Option<TypeReference> *
-      expectedType: ValueType *
-      actualType: ValueType *
-      actualValue: Dval
+    | ConstructionFieldOfWrongType(
+      caseName: String,
+      fieldIndex: Int64,
+      declaredType: Stdlib.Option.Option<TypeReference>,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
 
 module Records =
   type Error =
     // -- Creation --
-    | CreationTypeNotRecord of name: FQTypeName.FQTypeName
+    | CreationTypeNotRecord(name: FQTypeName.FQTypeName)
     | CreationEmptyKey
-    | CreationMissingField of fieldName: String
-    | CreationDuplicateField of fieldName: String
-    | CreationFieldNotExpected of fieldName: String
-    | CreationFieldOfWrongType of
-      fieldName: String *
-      declaredType: Stdlib.Option.Option<TypeReference> *
-      expectedType: ValueType *
-      actualType: ValueType *
-      actualValue: Dval
+    | CreationMissingField(fieldName: String)
+    | CreationDuplicateField(fieldName: String)
+    | CreationFieldNotExpected(fieldName: String)
+    | CreationFieldOfWrongType(
+      fieldName: String,
+      declaredType: Stdlib.Option.Option<TypeReference>,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
 
     // -- Update --
-    | UpdateNotRecord of actualType: ValueType
+    | UpdateNotRecord(actualType: ValueType)
     | UpdateEmptyKey
-    | UpdateDuplicateField of fieldName: String
-    | UpdateFieldNotExpected of fieldName: String
-    | UpdateFieldOfWrongType of
-      fieldName: String *
-      declaredType: Stdlib.Option.Option<TypeReference> *
-      expectedType: ValueType *
-      actualType: ValueType *
-      actualValue : Dval
+    | UpdateDuplicateField(fieldName: String)
+    | UpdateFieldNotExpected(fieldName: String)
+    | UpdateFieldOfWrongType(
+      fieldName: String,
+      declaredType: Stdlib.Option.Option<TypeReference>,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue : Dval)
 
     // -- Field Access --
     | FieldAccessEmptyFieldName
-    | FieldAccessFieldNotFound of fieldName: String
-    | FieldAccessNotRecord of actualType: ValueType
+    | FieldAccessFieldNotFound(fieldName: String)
+    | FieldAccessNotRecord(actualType: ValueType)
     /// Invalid or out-of-range tuple index, such as `t.0` or `t.x`.
-    | FieldAccessTupleIndexOutOfRange of fieldName: String * tupleLength: Int64
+    | FieldAccessTupleIndexOutOfRange(fieldName: String, tupleLength: Int64)
 
 module Applications =
   type Error =
-    | ExpectedApplicableButNot of actualType: ValueType * actualValue: Dval
+    | ExpectedApplicableButNot(actualType: ValueType, actualValue: Dval)
 
-    | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+    | WrongNumberOfTypeArgsForFn(fn: FQFnName.FQFnName, expected: Int64, actual: Int64)
     | CannotApplyTypeArgsMoreThanOnce
-    | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
-    | TooFewArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
-    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
-    | FnResultNotExpectedType of fnName : FQFnName.FQFnName * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | TooManyArgsForFn(fn: FQFnName.FQFnName, expected: Int64, actual: Int64)
+    | TooFewArgsForFn(fn: FQFnName.FQFnName, expected: Int64, actual: Int64)
+    | FnParameterNotExpectedType(fnName : FQFnName.FQFnName, paramIndex: Int64, paramName : String, declaredType : Stdlib.Option.Option<TypeReference>, expectedType : ValueType, actualType : ValueType, actualValue : Dval)
+    | FnResultNotExpectedType(fnName : FQFnName.FQFnName, declaredType : Stdlib.Option.Option<TypeReference>, expectedType : ValueType, actualType : ValueType, actualValue : Dval)
 
-    | LambdaResultNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | LambdaResultNotExpectedType(fnName : FQFnName.FQFnName, paramIndex: Int64, paramName : String, declaredType : Stdlib.Option.Option<TypeReference>, expectedType : ValueType, actualType : ValueType, actualValue : Dval)
 
     | CannotApplyTypeArgsToLambda
-    | TooManyArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
-    | TooFewArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
-    | LambdaNotAvailable of lambdaExprId: ID
+    | TooManyArgsForLambda(lambdaExprId: ID, expected: Int64, actual: Int64)
+    | TooFewArgsForLambda(lambdaExprId: ID, expected: Int64, actual: Int64)
+    | LambdaNotAvailable(lambdaExprId: ID)
 
 module Statements =
   type Error =
     /// `exprId` is the statement, so whatever has the source can say where it is.
-    | FirstExpressionMustBeUnit of
-        exprId: ID *
-        expectedType: ValueType *
-        actualType: ValueType *
-        actualValue: Dval
+    | FirstExpressionMustBeUnit(
+        exprId: ID,
+        expectedType: ValueType,
+        actualType: ValueType,
+        actualValue: Dval)
 
 module Unwraps =
   type Error =
     | GotNone
-    | GotError of err: Dval
-    | NonOptionOrResult of actual: Dval
-    | UnwrapContainerMismatch of actual: Dval
-    | UnwrapOperandNotContainer of actual: Dval
-    | MultipleArgs of args: List<Dval>
+    | GotError(err: Dval)
+    | NonOptionOrResult(actual: Dval)
+    | UnwrapContainerMismatch(actual: Dval)
+    | UnwrapOperandNotContainer(actual: Dval)
+    | MultipleArgs(args: List<Dval>)
 
 module Jsons =
   type Error =
-    | UnsupportedType of TypeReference
-    | CannotSerializeValue of Dval
+    | UnsupportedType(TypeReference)
+    | CannotSerializeValue(Dval)
 
 module Traits =
   type Error =
     /// No impl of the trait for the self type is visible on this branch
-    | MissingImpl of trait_: FQTraitName.FQTraitName * self: ValueType
+    | MissingImpl(trait_: FQTraitName.FQTraitName, self: ValueType)
     /// More than one impl of the trait for the self type is visible
-    | DispatchAmbiguous of
-      trait_: FQTraitName.FQTraitName *
-      self: ValueType *
-      candidates: List<Hash>
+    | DispatchAmbiguous(
+      trait_: FQTraitName.FQTraitName,
+      self: ValueType,
+      candidates: List<Hash>)
     /// `x.m` where `x` has no field `m` and several traits have a method `m` for its type
-    | MethodAmbiguous of method_: String * self: ValueType * traits: List<FQTraitName.FQTraitName>
+    | MethodAmbiguous(method_: String, self: ValueType, traits: List<FQTraitName.FQTraitName>)
     /// The self type could not be determined at the call
-    | SelfTypeUnknown of trait_: FQTraitName.FQTraitName * method_: String
+    | SelfTypeUnknown(trait_: FQTraitName.FQTraitName, method_: String)
     /// The trait has no method of that name
-    | NoSuchMethod of trait_: FQTraitName.FQTraitName * method_: String
+    | NoSuchMethod(trait_: FQTraitName.FQTraitName, method_: String)
     /// The trait itself is not in the package manager
-    | TraitNotFound of trait_: FQTraitName.FQTraitName
+    | TraitNotFound(trait_: FQTraitName.FQTraitName)
 
 module CLIs =
   type Error =
     | NoExpressionsToExecute
-    | NonIntReturned of actuallyReturned: Dval
+    | NonIntReturned(actuallyReturned: Dval)
 
 type Error =
-  | Bool of Bools.Error
-  | Int of Ints.Error
+  | Bool(Bools.Error)
+  | Int(Ints.Error)
   | DecimalOutOfRange
-  | String of Strings.Error
+  | String(Strings.Error)
 
-  | List of Lists.Error
-  | Dict of Dicts.Error
+  | List(Lists.Error)
+  | Dict(Dicts.Error)
 
-  | Let of Lets.Error
-  | VariableNotFound of attemptedVarName: String
+  | Let(Lets.Error)
+  | VariableNotFound(attemptedVarName: String)
 
-  | EqualityCheckOnIncompatibleTypes of left: ValueType * right: ValueType
-  | NumericOperationOnIncompatibleTypes of left: ValueType * right: ValueType
+  | EqualityCheckOnIncompatibleTypes(left: ValueType, right: ValueType)
+  | NumericOperationOnIncompatibleTypes(left: ValueType, right: ValueType)
 
-  | IfConditionNotBool of actualValue: Dval * actualValueType: ValueType
+  | IfConditionNotBool(actualValue: Dval, actualValueType: ValueType)
 
-  | Match of Matches.Error
+  | Match(Matches.Error)
 
-  | ParseTimeNameResolution of originalName: List<String> * error: NameResolutionError
+  | ParseTimeNameResolution(originalName: List<String>, error: NameResolutionError)
 
-  | TypeNotFound of name: FQTypeName.FQTypeName
-  | FnNotFound of name: FQFnName.FQFnName
-  | ValueNotFound of name: FQValueName.FQValueName
+  | TypeNotFound(name: FQTypeName.FQTypeName)
+  | FnNotFound(name: FQFnName.FQFnName)
+  | ValueNotFound(name: FQValueName.FQValueName)
 
   /// Invoked a package fn whose content hash is marked `Harmful` via a
   /// Deprecate op. Override with --allow-harmful on run/eval.
-  | DeprecatedItemHalted of target: FQFnName.Package
+  | DeprecatedItemHalted(target: FQFnName.Package)
 
-  | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
+  | WrongNumberOfTypeArgsForType(fn: FQTypeName.FQTypeName, expected: Int64, actual: Int64)
 
-  | Record of Records.Error
-  | Enum of Enums.Error
+  | Record(Records.Error)
+  | Enum(Enums.Error)
 
-  | Apply of Applications.Error
+  | Apply(Applications.Error)
 
-  | Statement of Statements.Error
+  | Statement(Statements.Error)
 
-  | Unwrap of Unwraps.Error
+  | Unwrap(Unwraps.Error)
 
-  | Json of Jsons.Error
+  | Json(Jsons.Error)
 
-  | Trait of Traits.Error
+  | Trait(Traits.Error)
 
-  | CLI of CLIs.Error
+  | CLI(CLIs.Error)
 
-  | UncaughtException of msg : String * metadata : List<(String * Dval)>
+  | UncaughtException(msg : String, metadata : List<(String * Dval)>)
 
   /// Something the person running the program can resolve once told, with the sentence that tells
   /// them: an approval names a version the store no longer holds, the policy file cannot be trusted.
-  | Condition of message: String
+  | Condition(message: String)

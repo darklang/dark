@@ -24,7 +24,7 @@ type State =
 /// What the field tells its parent.
 type Msg =
   /// Enter, with the text as it stands.
-  | Submitted of String
+  | Submitted(String)
   /// Escape. The parent decides whether that discards anything.
   | Cancelled
 

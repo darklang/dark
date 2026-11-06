@@ -1233,7 +1233,6 @@ module WrittenTypesToDarkTypes =
   let private enumCaseToDT (c : WT.EnumCaseSyntax) : Dval =
     let t = tn WTRefs.typeDeclEnumCase
     let (nr, nm) = c.name
-    let ofDval = optionRangeToDT c.keywordOf
     DRecord(
       t,
       t,
@@ -1246,8 +1245,7 @@ module WrittenTypesToDarkTypes =
             VT.customType (tn WTRefs.typeDeclEnumField) [],
             List.map enumFieldToDT c.fields
           )
-          "description", DString c.description
-          "keywordOf", ofDval ]
+          "description", DString c.description ]
     )
 
   let private definitionToDT (d : WT.TypeDefinition) : Dval =

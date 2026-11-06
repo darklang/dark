@@ -19,50 +19,50 @@ module RuntimeError =
   /// decorate/link to the sources in a native way
   type ErrorSegment =
     // -- Basic types
-    | String of String
-    | Int of Int64
-    | Ordinal of Int64 // 1st, 2nd, etc
+    | String(String)
+    | Int(Int64)
+    | Ordinal(Int64) // 1st, 2nd, etc
     | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
-    | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
+    | Count(Int64, singular: ErrorSegment, plural: ErrorSegment) // 2 errors, 1 error, etc
 
     // -- Functions
-    | FunctionName of FQFnName
+    | FunctionName(FQFnName)
     /// Description from StdLib description fields.
     /// Note: may include markers like `<param name>`, to be parsed and displayed differently.
-    | Description of String
-    | ParamName of String
-    | InlineParamName of String
+    | Description(String)
+    | ParamName(String)
+    | InlineParamName(String)
 
     // -- Types
-    | TypeName of FQTypeName
-    | ShortTypeName of FQTypeName
-    | TraitName of LanguageTools.RuntimeTypes.FQTraitName.FQTraitName
-    | ShortTraitName of LanguageTools.RuntimeTypes.FQTraitName.FQTraitName
-    | TypeReference of TypeReference
-    | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
-    | ValueType of ValueType
+    | TypeName(FQTypeName)
+    | ShortTypeName(FQTypeName)
+    | TraitName(LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+    | ShortTraitName(LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+    | TypeReference(TypeReference)
+    | TypeOfValue(Dval) // CLEANUP should these all just be ValueTypes?
+    | ValueType(ValueType)
     /// A value type together with the type reference it was declared as. One
     /// content hash can be bound to several names, so the declaration is the
     /// only thing that says which of them the author meant.
-    | DeclaredValueType of
-      Stdlib.Option.Option<LanguageTools.RuntimeTypes.TypeReference> *
-      ValueType
-    | FieldName of String // records and enums
-    | InlineFieldName of String // records and enums
+    | DeclaredValueType(
+      Stdlib.Option.Option<LanguageTools.RuntimeTypes.TypeReference>,
+      ValueType)
+    | FieldName(String) // records and enums
+    | InlineFieldName(String) // records and enums
 
     // -- Values
-    | ValueName of FQValueName
+    | ValueName(FQValueName)
 
     // -- Variables
-    //| DBName of String
-    | VarName of String
-    | InlineVarName of String
+    //| DBName(String)
+    | VarName(String)
+    | InlineVarName(String)
 
     // -- Dvals
-    | InlineValue of Dval // possibly shortened to be shown inline
-    | FullValue of Dval
+    | InlineValue(Dval) // possibly shortened to be shown inline
+    | FullValue(Dval)
 
-    | LetPattern of LetPattern
+    | LetPattern(LetPattern)
 
 
   type ES = ErrorSegment
@@ -687,7 +687,7 @@ module RuntimeError =
     segmentsToString(branchId, s)
 
 
-  type ErrorMessage = ErrorString of String
+  type ErrorMessage = ErrorString(String)
 
   let toErrorMessage(
         branchId: Uuid,

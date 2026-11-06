@@ -192,10 +192,10 @@ let moveDownWithCapacity(capacity: Int64, state: State): State =
 
 /// Result of handling a key press
 type KeyResult =
-  | Continue of State
-  | SelectItem of String
+  | Continue(State)
+  | SelectItem(String)
   | Cancel
-  | Unavailable of message: String
+  | Unavailable(message: String)
 
 /// Handle a key press in the picker
 let handleKeyAtSize(

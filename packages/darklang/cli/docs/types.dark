@@ -31,7 +31,7 @@ let content(): String =
   Person { name = "Jo", age = 30 }
 
 ## Enums
-  type Status = | Active | Inactive of String
+  type Status = | Active | Inactive(String)
   Status.Active
   Status.Inactive("reason")
 

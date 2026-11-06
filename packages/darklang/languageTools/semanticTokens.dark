@@ -255,11 +255,6 @@ module TypeDeclaration =
       |> Stdlib.List.map(fun((pipeRange, case)) ->
         let (enumCaseNameRange, _) = case.name
 
-        let keywordOf =
-          match case.keywordOf with
-          | Some(range) -> [ makeToken(range, TokenType.Keyword) ]
-          | None -> []
-
         let labelTokens =
           case.fields
           |> Stdlib.List.map(fun field ->
@@ -283,7 +278,6 @@ module TypeDeclaration =
 
         [ [ makeToken(pipeRange, TokenType.Symbol) ]
           [ makeToken(enumCaseNameRange, TokenType.EnumMember) ]
-          keywordOf
           labelTokens
           fields ]
         |> Stdlib.List.flatten)

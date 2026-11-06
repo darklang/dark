@@ -7,45 +7,45 @@ type IncomingMessage =
   // lifecycle
   | InitializeRequest // TODO add requestId and params
   | Initialized
-  | Shutdown of requestId: JsonRPC.RequestID
+  | Shutdown(requestId: JsonRPC.RequestID)
   // | Exit TODO
 
   // utility
   | SetTrace // TODO is this a notification or a request?
 
   // doc sync
-  | TextDocumentDidOpenNotification of
-    DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams
+  | TextDocumentDidOpenNotification(
+    DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
 
-  | TextDocumentDidChangeNotification of
-    DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams
+  | TextDocumentDidChangeNotification(
+    DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams)
 
-  | TextDocumentDidSaveNotification of
-    DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams
+  | TextDocumentDidSaveNotification(
+    DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams)
 
-  | TextDocumentDidCloseNotification of
-    DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams
+  | TextDocumentDidCloseNotification(
+    DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
 
   // completions
-  | TextDocumentCompletionRequest of
-    requestId: JsonRPC.RequestID *
-    Completions.CompletionRequest.CompletionParams.CompletionParams
+  | TextDocumentCompletionRequest(
+    requestId: JsonRPC.RequestID,
+    Completions.CompletionRequest.CompletionParams.CompletionParams)
 
   // semantic tokens
-  | TextDocumentSemanticTokensRequest of
-    requestId: JsonRPC.RequestID *
-    SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams
+  | TextDocumentSemanticTokensRequest(
+    requestId: JsonRPC.RequestID,
+    SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams)
 
   // hover
-  | TextDocumentHoverRequest of
-    requestId: JsonRPC.RequestID *
-    Hover.HoverRequest.HoverParams.HoverParams
+  | TextDocumentHoverRequest(
+    requestId: JsonRPC.RequestID,
+    Hover.HoverRequest.HoverParams.HoverParams)
 
   // diagnostics
   // | PublishDiagnostics of
   //   LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.PublishDiagnosticsParams
 
-  | Other of JsonRPC.Request.Request
+  | Other(JsonRPC.Request.Request)
 
 
 let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =

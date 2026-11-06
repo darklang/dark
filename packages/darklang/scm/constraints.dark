@@ -104,17 +104,17 @@ type RivalChoice =
 /// to put in them, and the alternative is a case carrying fields it cannot honour.
 type FindingDetail =
   /// A usage still on an old version: what it references, and what that name means now.
-  | Versions of
-    using: LanguageTools.ProgramTypes.Hash *
-    current: LanguageTools.ProgramTypes.Hash
+  | Versions(
+    using: LanguageTools.ProgramTypes.Hash,
+    current: LanguageTools.ProgramTypes.Hash)
 
   /// Two implementations of one trait for one type: the type, as printed, the other
   /// implementation (`usage` is this one, `dependency` the trait), and which of the two a call
   /// runs.
-  | Rivals of
-    self: String *
-    rival: LanguageTools.ProgramTypes.PackageLocation *
-    choice: RivalChoice
+  | Rivals(
+    self: String,
+    rival: LanguageTools.ProgramTypes.PackageLocation,
+    choice: RivalChoice)
 
 
 /// One finding: which kind it is, the usage it is about, the dependency involved, and whatever that kind

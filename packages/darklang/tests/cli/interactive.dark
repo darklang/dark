@@ -15,9 +15,9 @@ module Darklang.Cli.Tests.Interactive
 /// One step of an interaction.
 type Step =
   /// Wait for this text to appear, or fail the whole run.
-  | Await of String
+  | Await(String)
   /// Send these keys. `expect`'s own notation, so "\r" is Enter and "\003" is Ctrl-C.
-  | Send of String
+  | Send(String)
 
 
 let escape(s: String): String =

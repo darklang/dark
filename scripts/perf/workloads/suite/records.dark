@@ -11,9 +11,9 @@ let iters(): Int64 =
 type Point = { x: Int64, y: Int64, label: String }
 
 type Shape =
-  | Dot of Point
-  | Seg of Point * Point
-  | Group of List<Shape>
+  | Dot(Point)
+  | Seg(Point, Point)
+  | Group(List<Shape>)
 
 let span(s: Shape): Int64 =
   match s with

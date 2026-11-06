@@ -16,8 +16,8 @@ module ParseError =
     module Part =
       type Part =
         | Root
-        | Index of Int64
-        | Field of String
+        | Index(Int64)
+        | Field(String)
 
       let toString(part: Part): String =
         match part with
@@ -33,25 +33,25 @@ module ParseError =
 
   type ParseError =
     /// The json string can't be parsed as the given type.
-    | CantMatchWithType of
-      LanguageTools.RuntimeTypes.TypeReference *
-      String *
-      JsonPath.JsonPath
-    | EnumExtraField of rawJson: String * JsonPath.JsonPath
-    | EnumMissingField of
-      LanguageTools.RuntimeTypes.TypeReference *
-      index: Int64 *
-      JsonPath.JsonPath
-    | EnumInvalidCasename of
-      LanguageTools.RuntimeTypes.TypeReference *
-      caseName: String *
-      JsonPath.JsonPath
-    | EnumTooManyCases of
-      LanguageTools.RuntimeTypes.TypeReference *
-      cases: List<String> *
-      JsonPath.JsonPath
-    | RecordDuplicateField of fieldName: String * JsonPath.JsonPath
-    | RecordMissingField of fieldName: String * JsonPath.JsonPath
+    | CantMatchWithType(
+      LanguageTools.RuntimeTypes.TypeReference,
+      String,
+      JsonPath.JsonPath)
+    | EnumExtraField(rawJson: String, JsonPath.JsonPath)
+    | EnumMissingField(
+      LanguageTools.RuntimeTypes.TypeReference,
+      index: Int64,
+      JsonPath.JsonPath)
+    | EnumInvalidCasename(
+      LanguageTools.RuntimeTypes.TypeReference,
+      caseName: String,
+      JsonPath.JsonPath)
+    | EnumTooManyCases(
+      LanguageTools.RuntimeTypes.TypeReference,
+      cases: List<String>,
+      JsonPath.JsonPath)
+    | RecordDuplicateField(fieldName: String, JsonPath.JsonPath)
+    | RecordMissingField(fieldName: String, JsonPath.JsonPath)
     | NotJson
 
   let toString(

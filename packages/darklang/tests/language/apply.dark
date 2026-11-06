@@ -59,7 +59,7 @@ let fnWithTypeArgs<'a, 'b>(a: 'a, b: 'b): 'a = a
 
 let fnWithTypedReturn<'a>(): 'a = 5 // errors unless Int64 passed for 'a
 
-type X<'a> = | A of Int64 | B of 'a
+type X<'a> = | A(Int64) | B('a)
 
 let polyFn(a: X<'a>): X<'a> = a
 let strFn(a: X<String>): X<String> = a

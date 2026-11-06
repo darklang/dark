@@ -6,7 +6,7 @@ module Darklang.LanguageTools.Parser.CliScript
 type ParseError =
   /// A rendered parser diagnostic — line/column (when known) are already
   /// formatted into the message.
-  | Message of String
+  | Message(String)
 
 
 module ParseError =

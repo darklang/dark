@@ -4,10 +4,10 @@
 module Darklang.LanguageTools.AtRestTypeChecker.NodeIds
 
 type Node =
-  | Expression of LanguageTools.ProgramTypes.Expr
-  | LetPattern of LanguageTools.ProgramTypes.LetPattern
-  | MatchPattern of LanguageTools.ProgramTypes.MatchPattern
-  | Pipe of LanguageTools.ProgramTypes.PipeExpr
+  | Expression(LanguageTools.ProgramTypes.Expr)
+  | LetPattern(LanguageTools.ProgramTypes.LetPattern)
+  | MatchPattern(LanguageTools.ProgramTypes.MatchPattern)
+  | Pipe(LanguageTools.ProgramTypes.PipeExpr)
 
 /// <param xs> as nodes. Top-level rather than nested in `children`, which runs for every node of
 /// every body, more than once per body: a nested helper is a closure allocated on every call,

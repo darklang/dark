@@ -204,8 +204,8 @@ module TextDocumentSyncOptions =
   /// TODO: better name
   module SaveOptionsOrBool =
     type SaveOptionsOrBool =
-      | Bool of Bool
-      | SaveOptions of SaveOptions.SaveOptions
+      | Bool(Bool)
+      | SaveOptions(SaveOptions.SaveOptions)
 
     let toJson (s: SaveOptionsOrBool.SaveOptionsOrBool) : Json =
       match s with

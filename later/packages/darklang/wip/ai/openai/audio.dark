@@ -321,10 +321,10 @@ module Transcriptions =
       usage: Stdlib.Option.Option<Usage> }
 
   type TranscriptionResponse =
-    | TextResult of String
-    | JsonResult of TranscriptionJson
-    | VerboseResult of TranscriptionVerbose
-    | DiarizedResult of TranscriptionDiarized
+    | TextResult(String)
+    | JsonResult(TranscriptionJson)
+    | VerboseResult(TranscriptionVerbose)
+    | DiarizedResult(TranscriptionDiarized)
 
   type Options =
     { model: String
@@ -691,9 +691,9 @@ module Translations =
       segments: List<Transcriptions.TranscriptionSegment> }
 
   type TranslationResponse =
-    | TextResult of String
-    | JsonResult of TranslationJson
-    | VerboseResult of TranslationVerbose
+    | TextResult(String)
+    | JsonResult(TranslationJson)
+    | VerboseResult(TranslationVerbose)
 
   type Options =
     { model: String

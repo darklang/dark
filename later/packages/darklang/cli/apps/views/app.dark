@@ -1,9 +1,9 @@
 module Darklang.Cli.Apps.Views.App
 
 type Screen =
-  | ViewList of selected: Int
+  | ViewList(selected: Int)
   /// The focused row is used as the dashboard's scroll position.
-  | ViewDisplay of viewIndex: Int * focusedRow: Int
+  | ViewDisplay(viewIndex: Int, focusedRow: Int)
 
 type State =
   { screen: Screen
@@ -73,8 +73,8 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
 // ── Key handling ──
 
 type Action =
-  | Continue of State
-  | Exit of State
+  | Continue(State)
+  | Exit(State)
 
 let handleKey
   (state: State)

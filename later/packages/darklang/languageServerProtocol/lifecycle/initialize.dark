@@ -421,10 +421,10 @@ module InitializeParams =
 // note: this doesn't directly map to a single type in the spec
 module TextDocumentSyncServerCapabilities =
   type TextDocumentSyncServerCapabilities =
-    | TextDocumentSyncOptions of
-      DocumentSync.TextDocument.TextDocumentSyncOptions.TextDocumentSyncOptions
-    | TextDocumentSyncKind of
-      DocumentSync.TextDocument.TextDocumentSyncKind.TextDocumentSyncKind
+    | TextDocumentSyncOptions(
+      DocumentSync.TextDocument.TextDocumentSyncOptions.TextDocumentSyncOptions)
+    | TextDocumentSyncKind(
+      DocumentSync.TextDocument.TextDocumentSyncKind.TextDocumentSyncKind)
 
   // Note: we intentionally don't include any extra json representing this wrapper union type
   // (i.e. we don't indicate the 'case' of the union)

@@ -2,9 +2,9 @@
 module Darklang.Language.Tests.Semantics
 
 type Shape =
-  | Circle of Float
-  | Rect of Float * Float
-  | Named of name: String * inner: Shape
+  | Circle(Float)
+  | Rect(Float, Float)
+  | Named(name: String, inner: Shape)
 
 type Acct = { id: Int64, name: String, tags: List<String> }
 

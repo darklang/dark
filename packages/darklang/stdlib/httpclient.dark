@@ -17,14 +17,14 @@ type BadUrlDetails =
   | InvalidRequest
 
 type RequestError =
-  | BadUrl of BadUrlDetails
+  | BadUrl(BadUrlDetails)
   /// Occurs when the request is cancelled due to a timeout
   | Timeout
-  | BadHeader of BadHeader
+  | BadHeader(BadHeader)
   /// Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, etc.
   | NetworkError
   /// Occurs when the TLS handshake fails, eg. the server's certificate can't be verified. The message says why.
-  | TlsError of String
+  | TlsError(String)
   /// Occurs when the request method is not invalid.
   | BadMethod
 

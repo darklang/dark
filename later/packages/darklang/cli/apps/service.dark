@@ -10,9 +10,9 @@ type Platform =
 
 /// Result of writing and activating an auto-start unit.
 type EnableResult =
-  | Enabled of String
-  | WroteOnly of String
-  | Failed of String
+  | Enabled(String)
+  | WroteOnly(String)
+  | Failed(String)
 
 let platform () : Platform =
   match Stdlib.Cli.Sys.os () with

@@ -167,7 +167,7 @@ has posted, so it is exclusive, not shared.
 store per OS process, so the reader thread and the store poll are
 process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
 
-- `Key of KeyRead`: from the stdin reader thread. It starts on the first
+- `Key(KeyRead)`: from the stdin reader thread. It starts on the first
   `Key` subscription and reads one key per request, delivered to the queue
   that requested it (requests from several schedulers are served oldest
   first, one read in flight), so a trace that never waits on a key never
@@ -200,8 +200,8 @@ version.
 
 ```
 module Darklang.Stdlib.Host
-type EventSpec = Key | StoreChanged | Timer of ms: Int64 | ExecDone of id: Uuid
-type Event = Key of KeyRead | StoreChanged of Stdlib.Live.Change | Timer | ExecDone of id: Uuid
+type EventSpec = Key | StoreChanged | Timer(ms: Int64) | ExecDone(id: Uuid)
+type Event = Key(KeyRead) | StoreChanged(Stdlib.Live.Change) | Timer | ExecDone(id: Uuid)
 let await(specs: List<EventSpec>): Event
 ```
 

@@ -51,7 +51,7 @@ test recordFields =
    (x.y.z.a |> Stdlib.List.length))
   |> Stdlib.Test.equal(5)
 
-type MyEnum = A of Int64 * Int64 * Int64
+type MyEnum = A(Int64, Int64, Int64)
 
 test constructorsAndOptions =
   Stdlib.Test.all(

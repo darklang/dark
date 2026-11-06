@@ -64,8 +64,8 @@ module TreeItemLabel =
 module TreeItem =
   module Description =
     type Description =
-      | String of String
-      | Bool of Bool
+      | String(String)
+      | Bool(Bool)
 
     let toJson (d: Description) : Json =
       match d with
@@ -75,8 +75,8 @@ module TreeItem =
 
   module Label =
     type Label =
-      | String of String
-      | TreeItemLabel of TreeItemLabel.TreeItemLabel
+      | String(String)
+      | TreeItemLabel(TreeItemLabel.TreeItemLabel)
 
     let toJson (l: Label) : Json =
       match l with
@@ -90,7 +90,7 @@ module TreeItem =
       //| Uri of Uri
       //| DarkAndLight of
       // ThemeIcon of
-      | String of String
+      | String(String)
 
     let toJson (i: IconPath) : Json =
       match i with
@@ -100,7 +100,7 @@ module TreeItem =
   module Tooltip =
     type Tooltip =
       // TODO: MarkdownString of MarkdownString
-      | String of String
+      | String(String)
 
     let toJson (t: Tooltip) : Json =
       match t with

@@ -22,9 +22,9 @@ module Darklang.Cli.LiveView.Host
 
 /// What a view's `update` receives.
 type Event<'msg> =
-  | Key of Stdlib.Cli.UI.Widget.KeyPress
+  | Key(Stdlib.Cli.UI.Widget.KeyPress)
   /// A `Button` was pressed, or an `Input` edited: the message the tree carried.
-  | Msg of 'msg
+  | Msg('msg)
   /// The view's `every` interval passed: refresh whatever moves on its own.
   | Tick
 

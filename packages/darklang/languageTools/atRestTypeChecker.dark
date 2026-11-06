@@ -23,14 +23,14 @@ type StaticType =
   | TUuid
   | TDateTime
   | TBytes
-  | TStream of StaticType
-  | TList of StaticType
-  | TTuple of StaticType * StaticType * List<StaticType>
-  | TDict of key: StaticType * value: StaticType
-  | TCustom of LanguageTools.ProgramTypes.Hash * List<StaticType>
-  | TFn of List<StaticType> * StaticType
-  | TRigidVariable of String
-  | TInferenceVariable of Int64
+  | TStream(StaticType)
+  | TList(StaticType)
+  | TTuple(StaticType, StaticType, List<StaticType>)
+  | TDict(key: StaticType, value: StaticType)
+  | TCustom(LanguageTools.ProgramTypes.Hash, List<StaticType>)
+  | TFn(List<StaticType>, StaticType)
+  | TRigidVariable(String)
+  | TInferenceVariable(Int64)
 
 type Verdict =
   | Checked
@@ -92,10 +92,10 @@ type IssueCode =
 
 /// A function or value the checker names in an issue.
 type NameRef =
-  | Builtin of String * Int64
-  | Package of LanguageTools.ProgramTypes.Hash
+  | Builtin(String, Int64)
+  | Package(LanguageTools.ProgramTypes.Hash)
   /// A trait method, by the trait type's hash and the method name
-  | TraitMethod of LanguageTools.ProgramTypes.Hash * String
+  | TraitMethod(LanguageTools.ProgramTypes.Hash, String)
 
 /// Where in the item the checker was working when it found something.
 type Site =
@@ -109,7 +109,7 @@ type Site =
   | Expression
   | StatementBeforeFinalExpression
   | FunctionApplication
-  | FunctionArgument of Int64
+  | FunctionArgument(Int64)
   | IfWithoutElse
   | RecordFieldAccess
   | InterpolatedSegment
@@ -166,29 +166,29 @@ type UntrustedBuiltin =
 /// resolver and could only ever say `Type #a1b2c3d4`, while `contextToStringWith` can
 /// look the hash up and say what the author called it.
 type Context =
-  | InStringInterpolation of Context
+  | InStringInterpolation(Context)
   | NoDetail
-  | At of Site
-  | Unresolved of List<String>
-  | TypeUnavailable of LanguageTools.ProgramTypes.Hash
-  | TraitUnavailable of LanguageTools.ProgramTypes.Hash
+  | At(Site)
+  | Unresolved(List<String>)
+  | TypeUnavailable(LanguageTools.ProgramTypes.Hash)
+  | TraitUnavailable(LanguageTools.ProgramTypes.Hash)
   /// The trait method an impl gets wrong, and what is wrong with it
-  | ImplMethod of LanguageTools.ProgramTypes.Hash * String * String
-  | FunctionUnavailable of NameRef
-  | ValueUnavailable of NameRef
-  | Identifier of String
-  | Identifiers of List<String>
-  | Duplicate of String * DuplicateSite
-  | Ambiguous of AmbiguousSubject
-  | Untrusted of NameRef * UntrustedBuiltin
+  | ImplMethod(LanguageTools.ProgramTypes.Hash, String, String)
+  | FunctionUnavailable(NameRef)
+  | ValueUnavailable(NameRef)
+  | Identifier(String)
+  | Identifiers(List<String>)
+  | Duplicate(String, DuplicateSite)
+  | Ambiguous(AmbiguousSubject)
+  | Untrusted(NameRef, UntrustedBuiltin)
   /// The trait a bound or method call needed an impl of
-  | TraitNeeded of LanguageTools.ProgramTypes.Hash * Stdlib.Option.Option<String>
-  | Arity of Int64 * Int64
-  | NamedArity of String * Int64 * Int64
-  | TypeArity of LanguageTools.ProgramTypes.Hash * Int64 * Int64
-  | ArgumentIndex of Int64
-  | UncoveredPattern of Stdlib.Option.Option<String>
-  | InfixOperandUnsupported of LanguageTools.ProgramTypes.InfixFnName
+  | TraitNeeded(LanguageTools.ProgramTypes.Hash, Stdlib.Option.Option<String>)
+  | Arity(Int64, Int64)
+  | NamedArity(String, Int64, Int64)
+  | TypeArity(LanguageTools.ProgramTypes.Hash, Int64, Int64)
+  | ArgumentIndex(Int64)
+  | UncoveredPattern(Stdlib.Option.Option<String>)
+  | InfixOperandUnsupported(LanguageTools.ProgramTypes.InfixFnName)
   | RecordRequiredForConstruction
   | RecordRequiredForFieldAccess
   | RecordRequiredForUpdate
@@ -206,7 +206,7 @@ type Context =
   | DeclarationTooDeep
   | UnaryMinusOperandNotSignedNumeric
   | BitwiseNotOperandNotInteger
-  | CheckerUnavailable of String
+  | CheckerUnavailable(String)
 
 type Issue =
   { code: IssueCode
@@ -242,7 +242,7 @@ type CheckFailure =
   /// Nesting deep enough to exhaust the native stack.
   | TooDeep
   /// Any other runtime error, rendered.
-  | Failed of message: String
+  | Failed(message: String)
 
 /// The report for nothing: no items, so trivially Checked.
 let emptyReport(): Report =

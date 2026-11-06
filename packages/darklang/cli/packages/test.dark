@@ -9,8 +9,8 @@ module Darklang.Cli.Packages.Test
 /// for display, while runtime failures are never stored.
 type Outcome =
   | Passed
-  | Failed of messages: List<String>
-  | RuntimeFailed of message: String
+  | Failed(messages: List<String>)
+  | RuntimeFailed(message: String)
 
 /// How long one test took to run, and where.
 type Timing =

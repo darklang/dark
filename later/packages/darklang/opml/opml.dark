@@ -87,9 +87,9 @@ let parseTitle (opml: String) : String =
 /// One `<outline>` line, reduced to what we care about.
 type Event =
   /// An element that contains others: text, and we're now one level deeper.
-  | Open of String
+  | Open(String)
   /// A self-closing element: text, same level.
-  | Leaf of String
+  | Leaf(String)
   /// `</outline>`: back up a level.
   | Close
   /// Anything else (the xml declaration, head, body, blank lines).

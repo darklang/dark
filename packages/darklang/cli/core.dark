@@ -12,7 +12,7 @@ type SubAppAction =
   | Save
   | Exit
   /// Hand off to another command (e.g. a browser launching a foreground app), replacing this page.
-  | LaunchCommand of String
+  | LaunchCommand(String)
 
 type SubApp =
   { onKey: (Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Stdlib.Option.Option<String>) -> (SubAppAction * SubApp)
@@ -37,9 +37,9 @@ type SubApp =
 
 type Page =
   | MainPrompt
-  | InteractiveNav of Packages.NavInteractive.Session
-  | CompletionPicker of CompletionPicker.Session
-  | SubApp of SubApp
+  | InteractiveNav(Packages.NavInteractive.Session)
+  | CompletionPicker(CompletionPicker.Session)
+  | SubApp(SubApp)
 
 type AppState =
   { isExiting: Bool
@@ -208,8 +208,8 @@ let initState(): AppState =
       exitCode = 0 }
 
 type Msg =
-  | ProcessInput of String
-  | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers * keyChar: Stdlib.Option.Option<String>
+  | ProcessInput(String)
+  | KeyPressed(key: Stdlib.Cli.Stdin.Key.Key, modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers, keyChar: Stdlib.Option.Option<String>)
   | Exit
 
 
@@ -233,17 +233,17 @@ module ExecutionError =
   /// Boundary type for CLI command failures. Each variant carries its own
   /// structured payload — no flattening to strings at the boundary.
   type ExecutionError =
-    | Parse of LanguageTools.Parser.CliScript.ParseError
+    | Parse(LanguageTools.Parser.CliScript.ParseError)
     /// A definite type error found before anything ran, and where each node the report
     /// names starts in the source: (node id, line, column), both 1-based.
-    | TypeCheck of
-        report: LanguageTools.AtRestTypeChecker.Report *
-        locations: List<(UInt64 * Int64 * Int64)>
-    | Runtime of
-        error: LanguageTools.RuntimeTypes.RuntimeError.Error *
-        callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>
-    | Denied of PermissionDenied
-    | Unhandled of Unhandled
+    | TypeCheck(
+        report: LanguageTools.AtRestTypeChecker.Report,
+        locations: List<(UInt64 * Int64 * Int64)>)
+    | Runtime(
+        error: LanguageTools.RuntimeTypes.RuntimeError.Error,
+        callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
+    | Denied(PermissionDenied)
+    | Unhandled(Unhandled)
 
   /// `. Did you mean `X`?` for a name that did not resolve, when the standard library has it
   /// somewhere else; the same hint `dark fn` gives (<fn Packages.Errors.stdlibSuggestion>).

@@ -16,8 +16,8 @@ type Spec =
 
 
 type ParseError =
-  | UnknownFlag of String
-  | MissingValue of String
+  | UnknownFlag(String)
+  | MissingValue(String)
 
 
 type Parsed =

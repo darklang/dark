@@ -194,8 +194,8 @@ module MultiNestedRecordAlias =
 
 module EnumWithTypeArgs =
   type Inner<'a, 'b> =
-    | A of 'a
-    | B of 'b
+    | A('a)
+    | B('b)
 
   type Outer1<'a> = Inner<'a, Int64>
   type Outer2<'b> = Inner<String, 'b>
@@ -230,13 +230,13 @@ module EnumWithTypeArgs =
 
 module EnumWithTypeArgsDifferentName =
   type Inner<'a, 'b> =
-    | A of 'a
-    | B of 'b
+    | A('a)
+    | B('b)
 
   type LessInner<'b, 'a> = Inner<'a, 'b>
   type Outer<'x> = LessInner<'x, Int64>
   type Outest<'y> = Outer<'y>
-  type MostOutest = Outest<String> // effectively: `| A of Int64 | B of String`
+  type MostOutest = Outest<String> // effectively: `| A(Int64) | B(String)`
 
   test reorderedTypeArgs =
     Stdlib.Test.all(
@@ -255,8 +255,8 @@ module EnumWithTypeArgsDifferentName =
 
 module EnumWithRecursiveTypeArgs =
   type Inner<'a> =
-    | A of a: 'a
-    | B of b: Stdlib.Result.Result<Alias<'a>, String>
+    | A(a: 'a)
+    | B(b: Stdlib.Result.Result<Alias<'a>, String>)
 
   type Alias<'x> = Inner<'x>
 

@@ -21,12 +21,12 @@ type Json = Stdlib.AltJson.Json
 /// - Arrays with typed items
 /// - Nested objects with their own properties
 type Property =
-  | StringProp of StringPropData
-  | IntegerProp of IntegerPropData
-  | NumberProp of NumberPropData
-  | BooleanProp of BooleanPropData
-  | ArrayProp of ArrayPropData
-  | ObjectProp of ObjectPropData
+  | StringProp(StringPropData)
+  | IntegerProp(IntegerPropData)
+  | NumberProp(NumberPropData)
+  | BooleanProp(BooleanPropData)
+  | ArrayProp(ArrayPropData)
+  | ObjectProp(ObjectPropData)
 
 type StringPropData =
   { description: String
@@ -367,8 +367,8 @@ let customToolToJson (tool: CustomTool) : Json =
 
 /// A tool that can be passed to the API
 type Tool =
-  | Function of FunctionTool
-  | Custom of CustomTool
+  | Function(FunctionTool)
+  | Custom(CustomTool)
 
 /// Convert any tool to JSON
 let toJson (tool: Tool) : Json =
@@ -407,9 +407,9 @@ type ToolChoice =
   /// Model must call one or more functions
   | Required
   /// Model must call this specific function
-  | Function of String
+  | Function(String)
   /// Restrict tool calls to a subset of available tools
-  | AllowedTools of AllowedToolsData
+  | AllowedTools(AllowedToolsData)
 
 type AllowedToolsData =
   { mode: AllowedToolsMode
@@ -533,8 +533,8 @@ type CustomToolCall =
 
 /// Tool call from model response (union of function and custom)
 type ToolCall =
-  | FunctionCall of FunctionToolCall
-  | CustomCall of CustomToolCall
+  | FunctionCall(FunctionToolCall)
+  | CustomCall(CustomToolCall)
 
 /// Get the call_id from any tool call (needed for sending results back)
 let getCallId (toolCall: ToolCall) : String =

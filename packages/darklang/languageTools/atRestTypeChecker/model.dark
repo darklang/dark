@@ -11,7 +11,7 @@ type Role =
   | Result
   /// The type of one component, identified by its zero-based position: a lambda
   /// parameter, call argument, constructor field, or tuple-pattern element.
-  | Part of Int64
+  | Part(Int64)
   /// The lambda's return type, also used to check early returns from ?.
   | Return
   /// The element type shared by a list's values or a list pattern's elements.
@@ -31,9 +31,9 @@ type Role =
 /// Solve uses a separate counter to give each use of a generic type fresh unknowns.
 type Var =
   /// An unknown identified by the syntax node that introduced it and its role there.
-  | Of of Int64 * Role
+  | Of(Int64, Role)
   /// A new unknown allocated by Solve, including when a generic type is used.
-  | Fresh of Int64
+  | Fresh(Int64)
 
 /// Types represented inside the checker, including declared type parameters,
 /// types still being inferred, and placeholders for previously reported problems.
@@ -59,17 +59,17 @@ type Ty =
   | TUuid
   | TDateTime
   | TBytes
-  | TStream of Ty
-  | TList of Ty
-  | TTuple of Ty * Ty * List<Ty>
-  | TDict of Ty * Ty
-  | TCustom of LanguageTools.ProgramTypes.Hash * List<Ty>
-  | TFn of List<Ty> * Ty
+  | TStream(Ty)
+  | TList(Ty)
+  | TTuple(Ty, Ty, List<Ty>)
+  | TDict(Ty, Ty)
+  | TCustom(LanguageTools.ProgramTypes.Hash, List<Ty>)
+  | TFn(List<Ty>, Ty)
   /// A declared type parameter such as 'a. While checking a generic definition,
   /// it must remain generic; the solver cannot choose a concrete type for it.
-  | TRigid of String
+  | TRigid(String)
   /// An unknown whose type the solver may determine from its uses.
-  | TVar of Var
+  | TVar(Var)
   /// A type that cannot be checked because of an already reported problem.
   /// Suppress extra diagnostics that would depend on knowing this type.
   | TError
@@ -92,133 +92,133 @@ type Finding =
 /// How the checker obtains the type of a local variable when it is used.
 type Binder =
   /// Every use shares one type; information learned from one use constrains the others.
-  | Mono of Ty
+  | Mono(Ty)
   /// The binding's pattern ID identifies a saved Scheme. Each use gets fresh
   /// unknowns for that scheme's generic parts, allowing uses at different types.
-  | Poly of Int64
+  | Poly(Int64)
 
 /// A requirement generated from syntax for Solve to check.
 /// Order matters: establish a called function's type before checking its arguments,
 /// so a lambda passed as an argument can use the expected parameter types.
 type Constraint =
   /// Process the enclosed requirements in their listed order.
-  | All of List<Constraint>
+  | All(List<Constraint>)
   /// Require actual and expected to be compatible, filling in unknowns where possible.
   /// Use at and site to identify where a mismatch occurred in the diagnostic.
-  | Equal of at: Int64 * site: Site * expected: Ty * actual: Ty
+  | Equal(at: Int64, site: Site, expected: Ty, actual: Ty)
   /// Record a problem already found while inspecting syntax, such as an unknown variable.
-  | Report of Finding
+  | Report(Finding)
   /// Determine target from the named function's signature, using the supplied
   /// type arguments or fresh unknowns for omitted type arguments.
-  | UseFunction of
-    at: Int64 *
-    name: LanguageTools.ProgramTypes.FQFnName.FQFnName *
-    typeArgs: List<Ty> *
-    target: Ty
+  | UseFunction(
+    at: Int64,
+    name: LanguageTools.ProgramTypes.FQFnName.FQFnName,
+    typeArgs: List<Ty>,
+    target: Ty)
   /// Determine target from the named package or builtin value's type.
   /// For a generic package value, give this use its own type unknowns.
-  | UseValue of
-    at: Int64 *
-    name: LanguageTools.ProgramTypes.FQValueName.FQValueName *
-    target: Ty
+  | UseValue(
+    at: Int64,
+    name: LanguageTools.ProgramTypes.FQValueName.FQValueName,
+    target: Ty)
   /// Determine target from the local Scheme saved under binder's pattern ID,
   /// with fresh unknowns and the saved requirements for this particular use.
-  | UseLocal of at: Int64 * binder: Int64 * target: Ty
+  | UseLocal(at: Int64, binder: Int64, target: Ty)
   /// Check a call using callee's type, the argument types and their diagnostic
   /// contexts, and the required result type. The call gives exactly as many
   /// arguments as the callee takes.
-  | Apply of at: Int64 * callee: Ty * args: List<(Ty * Site)> * result: Ty
+  | Apply(at: Int64, callee: Ty, args: List<(Ty * Site)>, result: Ty)
   /// Check that the named type is a record, that the supplied fields match its
   /// declaration, and that result is the constructed record's type.
-  | NewRecord of
-    at: Int64 *
-    typeName: LanguageTools.ProgramTypes.Hash *
-    typeArgs: List<Ty> *
-    fields: List<(String * Ty)> *
-    result: Ty
+  | NewRecord(
+    at: Int64,
+    typeName: LanguageTools.ProgramTypes.Hash,
+    typeArgs: List<Ty>,
+    fields: List<(String * Ty)>,
+    result: Ty)
   /// Check that the named enum case exists and its fields match the supplied
   /// types. Set result to the constructed enum's type.
-  | NewEnum of
-    at: Int64 *
-    typeName: LanguageTools.ProgramTypes.Hash *
-    typeArgs: List<Ty> *
-    caseName: String *
-    fields: List<(Ty * Site)> *
-    result: Ty
+  | NewEnum(
+    at: Int64,
+    typeName: LanguageTools.ProgramTypes.Hash,
+    typeArgs: List<Ty>,
+    caseName: String,
+    fields: List<(Ty * Site)>,
+    result: Ty)
   /// Check a record field or tuple-element access and determine result's type.
   /// Defer the check if record's type is not yet known.
-  | GetField of at: Int64 * record: Ty * field: String * result: Ty
+  | GetField(at: Int64, record: Ty, field: String, result: Ty)
   /// Check that record has each updated field and that its declared type accepts
   /// the new value. Defer the check if record's type is not yet known.
-  | UpdateRecord of at: Int64 * record: Ty * fields: List<(String * Ty)>
+  | UpdateRecord(at: Int64, record: Ty, fields: List<(String * Ty)>)
   /// Check an enum-case pattern against scrutinee, the type of the matched value.
   /// Validate the case name and field types once scrutinee's type is known.
-  | EnumPattern of at: Int64 * scrutinee: Ty * caseName: String * fields: List<Ty>
+  | EnumPattern(at: Int64, scrutinee: Ty, caseName: String, fields: List<Ty>)
   /// Require an operand type supported by this operator. Defer the check while
   /// the type is unknown; subject describes the unresolved requirement in warnings.
-  | Operand of
-    at: Int64 *
-    operation: LanguageTools.ProgramTypes.InfixFnName *
-    operand: Ty *
-    subject: AmbiguousSubject
+  | Operand(
+    at: Int64,
+    operation: LanguageTools.ProgramTypes.InfixFnName,
+    operand: Ty,
+    subject: AmbiguousSubject)
   /// What a CALL owes for one of the callee's bounds: the callee's parameter <param param>
   /// owes <param trait_>, and <param supplied> is the type this call gave it.
   ///
   /// Deferred like the others, because the supplied type is often an unknown the arguments
   /// have not filled in. Resolving it is what makes a call into a bounded generic static: the
   /// callee's body defers to its parameter and this says what the parameter meant here.
-  | CallerBound of
-    at: Int64 *
-    param: String *
-    trait_: LanguageTools.ProgramTypes.Hash *
-    supplied: Ty
+  | CallerBound(
+    at: Int64,
+    param: String,
+    trait_: LanguageTools.ProgramTypes.Hash,
+    supplied: Ty)
   /// A named trait method call (`Show.show p`), as opposed to an operator.
   ///
   /// Deferred for the same reason `Operand` is: which implementation applies depends on the
   /// self type, and at the point the call is generated that type is an unknown the arguments
   /// have not filled in yet. `self` is the type the trait's own self parameter took at this
   /// use, so resolving it is what identifies the implementation.
-  | TraitCall of
-    at: Int64 *
-    trait_: LanguageTools.ProgramTypes.Hash *
-    method_: String *
-    self: Ty
+  | TraitCall(
+    at: Int64,
+    trait_: LanguageTools.ProgramTypes.Hash,
+    method_: String,
+    self: Ty)
   /// Require a signed integer or Float for unary minus. Defer while its type is unknown.
-  | Negate of at: Int64 * operand: Ty
+  | Negate(at: Int64, operand: Ty)
   /// Require an integer for bitwise NOT. Defer while its type is unknown.
-  | BitwiseNot of at: Int64 * operand: Ty
+  | BitwiseNot(at: Int64, operand: Ty)
   /// Require a valid dictionary key type, including all values it can contain.
   /// For example, a key cannot contain a function. Defer checks that still need
   /// type information from the dictionary's entries or their later uses.
-  | DictKey of at: Int64 * key: Ty
+  | DictKey(at: Int64, key: Ty)
   /// Determine Builtin.unwrap's result from an Option's Some payload or a Result's
   /// Ok payload. Defer the check while arg's type is unknown.
-  | Unwrap of
-    at: Int64 *
-    fn: LanguageTools.ProgramTypes.FQFnName.FQFnName *
-    arg: Ty *
-    result: Ty
+  | Unwrap(
+    at: Int64,
+    fn: LanguageTools.ProgramTypes.FQFnName.FQFnName,
+    arg: Ty,
+    result: Ty)
   /// Check postfix ?: operand must be an Option or Result containing inner.
   /// The enclosing function or lambda's returned type must use the same container
   /// and, for Result, the same error type. Either operand or returned can supply
   /// the type information needed to continue the check.
-  | Propagate of at: Int64 * operand: Ty * inner: Ty * returned: Ty
+  | Propagate(at: Int64, operand: Ty, inner: Ty, returned: Ty)
   /// Save a reusable Scheme for binder. Unknowns in typ that are independent of
   /// the surrounding scope may vary between uses; unknowns tied to surrounding
   /// bindings must stay shared. Save deferred requirements with the scheme too.
-  | Generalize of binder: Int64 * typ: Ty * scope: List<Binder>
+  | Generalize(binder: Int64, typ: Ty, scope: List<Binder>)
   /// Check whether the match cases cover every value of scrutinee's type.
   /// Run after type inference. Skip this check if the matched type or patterns
   /// already have problems that would make coverage diagnostics misleading.
-  | Covers of
-    at: Int64 *
-    scrutinee: Ty *
-    cases: List<LanguageTools.ProgramTypes.MatchCase> *
-    patternIds: List<Int64>
+  | Covers(
+    at: Int64,
+    scrutinee: Ty,
+    cases: List<LanguageTools.ProgramTypes.MatchCase>,
+    patternIds: List<Int64>)
   /// Validate typ and the declarations it references: types must exist, receive
   /// the required number of type arguments, and be valid in their positions.
   /// This includes checking types used as dictionary keys.
-  | WellFormed of at: Stdlib.Option.Option<Int64> * typ: Ty
+  | WellFormed(at: Stdlib.Option.Option<Int64>, typ: Ty)
 
 /// A reusable inferred type. Each use replaces quantified variables with fresh
 /// unknowns and must satisfy the saved constraints for those new types.
@@ -244,39 +244,39 @@ type Resolution =
   /// A trait method call: the method, and the implementations that apply to it. One
   /// implementation is the answer; several are an ordering question for the store, which
   /// knows which is newer, and none leaves the call to resolve at run time.
-  | Call of
-    at: Int64 *
-    method_: String *
-    impls: List<LanguageTools.ProgramTypes.Hash>
+  | Call(
+    at: Int64,
+    method_: String,
+    impls: List<LanguageTools.ProgramTypes.Hash>)
 
   /// The call's self type is one of the item's own type parameters, so this item cannot
   /// decide: it records which parameter, and the caller supplies the rest.
-  | Deferred of at: Int64 * param: String
+  | Deferred(at: Int64, param: String)
 
   /// This call names a function with a bound, and here is what the bound came to for the
   /// type argument supplied. One of these per bound on the callee.
-  | CallerBound of
-    at: Int64 *
-    param: String *
-    trait_: LanguageTools.ProgramTypes.Hash *
-    impls: List<LanguageTools.ProgramTypes.Hash>
+  | CallerBound(
+    at: Int64,
+    param: String,
+    trait_: LanguageTools.ProgramTypes.Hash,
+    impls: List<LanguageTools.ProgramTypes.Hash>)
 
   /// The same, except the type argument is one of THIS item's parameters, so the bound is
   /// passed along rather than discharged. This is what threads a bound through a generic
   /// that calls another generic.
-  | CallerBoundDeferred of
-    at: Int64 *
-    param: String *
-    trait_: LanguageTools.ProgramTypes.Hash *
-    fromParam: String
+  | CallerBoundDeferred(
+    at: Int64,
+    param: String,
+    trait_: LanguageTools.ProgramTypes.Hash,
+    fromParam: String)
 
 /// Whether a named function has a signature the checker can use.
 type Callable =
   /// A converted signature, ready to be used with this call's type arguments.
-  | Declared of Template
+  | Declared(Template)
   /// A builtin whose signature does not describe its behavior precisely enough
   /// for checking. The reason explains why its use is Incomplete.
-  | Untrusted of UntrustedBuiltin
+  | Untrusted(UntrustedBuiltin)
   /// No usable signature could be obtained for this function.
   | Unavailable
 

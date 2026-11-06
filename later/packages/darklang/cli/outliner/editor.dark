@@ -31,11 +31,11 @@ type Msg =
   /// The outline changed and should be persisted.
   | Dirty
   /// Something worth saying in the status bar.
-  | Note of String
+  | Note(String)
   /// Escape from the top level: the parent decides what "back" means.
   | Back
   /// The user asked to delete a node that isn't empty. The parent owns the confirmation.
-  | DeleteRequested of id: Int * descendants: Int
+  | DeleteRequested(id: Int, descendants: Int)
 
 
 let fromOutline(outline: Outline): State =

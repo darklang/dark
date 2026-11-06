@@ -5,7 +5,7 @@ type PathSegment =
   | Root           // Go to root (/)
   | Here           // Stay here (.)
   | Up             // Go up one level (..)
-  | Into of String // Go into a named entity/module
+  | Into(String) // Go into a named entity/module
 
 let parsePath(pathStr: String): List<PathSegment> =
   if pathStr == "/" then

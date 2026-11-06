@@ -861,7 +861,7 @@ let private commitRefusesDefiniteTypeErrors =
 
         // A one-field enum case given two arguments. Definite, and cheap to state.
         let source =
-          "type Wrapped = Wrap of (Int64 * String)\n\nlet bad(value: Wrapped): Wrapped =\n  match value with\n  | Wrap((number, text)) -> Wrapped.Wrap(number, text)\n"
+          "type Wrapped = Wrap(Int64 * String)\n\nlet bad(value: Wrapped): Wrapped =\n  match value with\n  | Wrap((number, text)) -> Wrapped.Wrap(number, text)\n"
           + ""
           + ""
           + ""

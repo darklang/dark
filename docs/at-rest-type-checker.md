@@ -160,7 +160,7 @@ Checker node IDs are not source locations. Diagnostics use declaration locations
 Every `ProgramTypes.Expr`, let-pattern, match-pattern, pipe, type-reference, record, and enum case has an explicit checker arm. Darklang does not check exhaustiveness at compile time. A new AST case without a rule causes a "No matching case" runtime error, which the guard turns into `Incomplete`. Add the rule and a checker test in the same change as the syntax. Rules that cannot prove a construct must add a warning and return an unknown.
 
 Match exhaustiveness uses a constructor matrix for unit, boolean, tuple, and enum types, including nested and correlated patterns. Lists support the common
-empty/cons split. A column's constructors expand only when its patterns name all of them; otherwise, only rows matching anything decide coverage. Unconditional expansion can loop on recursive types: specializing a wildcard to `Node of Tree` repeats the same row. Infinite literal domains and coverage relying only on guards are conservative: if full coverage cannot be proved, the expression is
+empty/cons split. A column's constructors expand only when its patterns name all of them; otherwise, only rows matching anything decide coverage. Unconditional expansion can loop on recursive types: specializing a wildcard to `Node(Tree)` repeats the same row. Infinite literal domains and coverage relying only on guards are conservative: if full coverage cannot be proved, the expression is
 `Incomplete`.
 
 The checker needs a declared or trusted signature to use a runtime value as evidence of its type. Builtin signatures are part of the trust boundary.

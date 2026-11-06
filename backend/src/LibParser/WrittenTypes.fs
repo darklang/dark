@@ -524,7 +524,6 @@ type EnumCaseSyntax =
     fields : List<EnumFieldSyntax>
     /// The `///` written above the case. See `FnParam` for why it is kept.
     description : string
-    keywordOf : Option<Range>
   }
 
 type TypeDefinition =
