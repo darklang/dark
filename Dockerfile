@@ -13,15 +13,21 @@
 #
 #   cd ../dockerfile && ./clone-from-dark-repo.sh ../dark
 #
-# Commit and push there, and its CI builds and pushes `darklang/dark-base` and
-# `darklang/dark-build-base` tagged with that repo's short sha. Then bump BOTH
-# pins here, in .circleci/config.yml, under `.executors`: `in-container` uses
-# dark-base and `release-linux` uses dark-build-base. Bumping one and not the
-# other leaves the two images built from different revisions of this file.
-# Search DOCKERFILE_REPO for the spots.
+# Commit and push there, and its CI builds and pushes `darklang/dark-ci`,
+# `darklang/dark-base` and `darklang/dark-build-base` tagged with that repo's
+# short sha. Then bump ALL the pins here, in .circleci/config.yml, under
+# `.executors`: `in-container` uses dark-ci and `release-linux` uses
+# dark-build-base. Bumping one and not the others leaves the images built from
+# different revisions of this file. Search DOCKERFILE_REPO for the spots.
+#
+# Two stages. `dark-ci` holds what CI jobs run and nothing else, because every
+# CI job pulls it before doing anything. `dark-base` is the dev container: it
+# is dark-ci plus the tools people use interactively, so the two share every
+# dark-ci layer. It is the last stage, which is what a plain `docker build` and
+# .devcontainer/devcontainer.json produce. CI's image is `--target dark-ci`.
 
 
-FROM ubuntu:24.04 AS dark-base
+FROM ubuntu:24.04 AS dark-ci
 
 ENV FORCE_BUILD=8
 
@@ -43,32 +49,6 @@ ARG gid=1000
 ############################
 ## apt
 ############################
-USER root
-RUN DEBIAN_FRONTEND=noninteractive \
-    apt update --allow-releaseinfo-change && \
-    DEBIAN_FRONTEND=noninteractive \
-    apt install \
-      -y \
-      --no-install-recommends \
-      curl \
-      apt-transport-https \
-      ca-certificates \
-      lsb-release \
-      less \
-      gpg \
-      gpg-agent \
-      file \
-      && apt clean \
-      && rm -rf /var/lib/apt/lists/*
-
-# Latest NPM (taken from https://deb.nodesource.com)
-#
-# Node is here for one reason: `scripts/perf/crosslang` runs the reference workload in node and
-# python to compare allocation per iteration. Nothing in the tree needs a global npm package any
-# more, so there are none; node itself is still a dependency of that perf tool, so it stays.
-RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-
-RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
 
 # Mostly, we use the generic version. However, for things in production we want
 # to pin the exact package version so that we don't have any surprises.  As a
@@ -80,36 +60,29 @@ RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesourc
 # - replace <HASH> with a recent hash from the docker build output.
 # - just use the package name, not the version.
 
-# Deps:
-# - apt-transport-https for npm
-# - net-tools for netstat
+# What the CI jobs run. Anything only used interactively goes in dark-base below.
+USER root
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
     apt install \
       --no-install-recommends \
       -y \
-      git \
+      curl \
+      # scripts/installers/install-targz-file
       wget \
+      ca-certificates \
+      git \
       sudo \
       locales \
-      git-restore-mtime \
-      nodejs \
       sqlite3 \
       jq \
-      parallel \
-      vim \
       unzip \
-      python3-pip \
-      python3-setuptools \
-      python3-dev \
+      xz-utils \
+      file \
+      procps \
+      python3 \
       python3-venv \
-      libsodium-dev \
-      libssl-dev \
-      zlib1g-dev \
-      net-tools \
-      bash-completion \
-      dnsutils \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
       libgcc1 \
@@ -120,9 +93,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
       zlib1g \
       # end .NET dependencies
       # NativeAOT builds (`scripts/build/build-release-cli-exes.sh --aot`) need
-      # gcc as the platform linker. It also brings in binutils, whose objcopy
-      # strips symbols.
+      # gcc as the platform linker, and zlib1g-dev to link against. gcc also
+      # brings in binutils, whose objcopy strips symbols.
       gcc \
+      zlib1g-dev \
+      # killall, in scripts/build/_dotnet-wrapper and scripts/run-backend-tests
       psmisc \
       # CLI integration tests
       expect \
@@ -172,14 +147,11 @@ COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 ############################
 # Pip packages
 ############################
+# yamllint for scripts/linting/yamllinter, and it brings pathspec, which
+# scripts/build/_buildplan.py imports. dark-base adds the interactive ones.
 RUN python3 -m venv /home/dark/.local \
-  && /home/dark/.local/bin/pip install --no-cache-dir setuptools yq yamllint watchfiles yapf==0.40.1 brotli
+  && /home/dark/.local/bin/pip install --no-cache-dir yamllint
 ENV PATH="/home/dark/.local/bin:$PATH"
-
-####################################
-# CircleCI
-####################################
-RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
 
 ############################
 # Shellcheck
@@ -224,13 +196,17 @@ ENV NUGET_XMLDOC_MODE=skip \
 RUN /home/dark/install-dotnet \
   --version=10.0.102 \
   --arm64-sha256=1254141153d29b5b926e0e7b0b172a25f9c096b8ed6a182f54062c5e0b41384b30e10e2bf1ebe86ed0f58f4ff762203acd83bcf23fefb59c07af45332d794700 \
-  --amd64-sha256=7adf40e8e5547970391cfbe474c3874c6918ce3575ac398f376c78502134e1c8a2fa3da9aca281fdaeda81671f56c851ebe9e74c5b57c5a298bd45deba63565d
+  --amd64-sha256=7adf40e8e5547970391cfbe474c3874c6918ce3575ac398f376c78502134e1c8a2fa3da9aca281fdaeda81671f56c851ebe9e74c5b57c5a298bd45deba63565d \
+  # Parts of the SDK nothing here runs: `dotnet format` (fantomas formats), `dotnet watch`
+  # (scripts/dev/watch has its own watcher), and the .NET Framework test host, which is
+  # Windows-only. Removed in the same layer, or they would still be pulled.
+  && sudo rm -rf \
+    /usr/share/dotnet/sdk/*/DotnetTools/dotnet-format \
+    /usr/share/dotnet/sdk/*/DotnetTools/dotnet-watch \
+    /usr/share/dotnet/sdk/*/TestHostNetFramework
 
 # formatting
 RUN dotnet tool install fantomas --version 6.2.3 -g
-
-# profiling: scripts/perf/alloc-profile and scripts/perf/cpu-profile both drive this
-RUN dotnet tool install dotnet-trace --version 9.0.661903 -g
 
 ENV PATH="$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
@@ -261,13 +237,11 @@ RUN set -e; \
   # TODO: verify the download. Needs the .minisig fetched and minisign installed, not just the
   # call; the values above are the published signatures.
   mkdir ~/zig; \
-  tar -xf zig.tar.xz -C ~/zig; \
-  rm zig.tar.xz; \
-  mv ~/zig/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/* ~/zig;
+  # Not the bundled docs (46 MB): nothing builds from them.
+  tar -xf zig.tar.xz -C ~/zig --strip-components=1 --exclude="zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/doc"; \
+  rm zig.tar.xz;
 
 ENV PATH="$PATH:/home/dark/zig"
-
-
 
 ############################
 # Environment
@@ -284,6 +258,64 @@ RUN touch .bash_history
 RUN mkdir -p .config/configstore
 RUN mkdir -p app
 RUN mkdir -p app/backend/Build
+
+
+############################
+# The dev container: dark-ci plus what people use by hand
+############################
+FROM dark-ci AS dark-base
+
+USER root
+
+# Latest NPM (taken from https://deb.nodesource.com)
+#
+# Node is here for one reason: `scripts/perf/crosslang` runs the reference workload in node and
+# python to compare allocation per iteration. Nothing in the tree needs a global npm package any
+# more, so there are none; node itself is still a dependency of that perf tool, so it stays.
+#
+# Deps:
+# - gpg for the nodesource key
+# - net-tools for netstat
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt update --allow-releaseinfo-change && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt install -y --no-install-recommends gpg gpg-agent \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+    && apt update \
+    && DEBIAN_FRONTEND=noninteractive \
+    apt install \
+      --no-install-recommends \
+      -y \
+      apt-transport-https \
+      lsb-release \
+      less \
+      git-restore-mtime \
+      nodejs \
+      parallel \
+      vim \
+      python3-pip \
+      python3-setuptools \
+      python3-dev \
+      libsodium-dev \
+      libssl-dev \
+      net-tools \
+      bash-completion \
+      dnsutils \
+      && apt clean \
+      && rm -rf /var/lib/apt/lists/*
+
+USER dark
+
+RUN /home/dark/.local/bin/pip install --no-cache-dir setuptools yq watchfiles yapf==0.40.1 brotli
+
+####################################
+# CircleCI
+####################################
+RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
+
+# profiling: scripts/perf/alloc-profile and scripts/perf/cpu-profile both drive this
+RUN dotnet tool install dotnet-trace --version 9.0.661903 -g
 
 RUN mkdir -p \
   /home/dark/.vscode-server/extensions \
