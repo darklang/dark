@@ -23,7 +23,7 @@ open Tests.CliDsl
 
 /// `dark diff` with no branch named answers about the DRAFT.
 let private bareDiffShowsTheDraft =
-  cliTest "diff with no branch shows the draft" (fun state ->
+  instanceTest "diff with no branch shows the draft" (fun state ->
     task {
       let! _ = runCli state [ "discard"; "--yes" ]
       let! clean = runCli state [ "diff" ]
@@ -44,7 +44,7 @@ let private bareDiffShowsTheDraft =
 
 /// A subcommand typed without its arguments must not leave state behind.
 let private bareSubcommandDoesNotBecomeABranch =
-  cliTest "a branch subcommand with no arguments creates nothing" (fun state ->
+  instanceTest "a branch subcommand with no arguments creates nothing" (fun state ->
     task {
       let! before = runCli state [ "branches" ]
 
@@ -72,7 +72,7 @@ let private bareSubcommandDoesNotBecomeABranch =
 /// A commit id is derived from what the commit HOLDS and where it sits, not only from who typed what and
 /// when, and the graph is a chain rather than a flat list.
 let private commitsChainToTheirParent =
-  cliTest "a commit names the one it follows" (fun state ->
+  instanceTest "a commit names the one it follows" (fun state ->
     task {
       // `commit` prints `commit <8 hex> -- n op(s).`; `show` prints 16. So the short id from the first
       // commit is a prefix of what the second one reports as its parent.
@@ -126,7 +126,7 @@ let private commitsChainToTheirParent =
 /// Asserted by RUNNING the caller rather than by reading the draft: what a repoint is for is that the
 /// thing above you gets the new answer.
 let editingOnABranchRepointsItsCallers =
-  cliTestOnMain "editing an item on a branch repoints what calls it" (fun state ->
+  instanceTest "editing an item on a branch repoints what calls it" (fun state ->
     task {
       do!
         shows
@@ -165,7 +165,7 @@ let editingOnABranchRepointsItsCallers =
 /// column `pin` on a branch finds MAIN's staged repoint and drops it -- a pin issued on a branch
 /// reverting main -- and `status` on a branch reports main's followers as the branch's.
 let private aBranchKnowsWhatFollowed =
-  cliTestOnMain
+  instanceTest
     "status reports branch-local followers without changing main"
     (fun state ->
       task {
@@ -231,7 +231,7 @@ let private aBranchKnowsWhatFollowed =
 /// A full branch id this store does not hold is REFUSED. Only a name nobody has starts a branch, so
 /// `dark switch <a peer's uuid>` cannot quietly mint one named after the uuid and read as success.
 let private switchRefusesAForeignId =
-  cliTestOnMain
+  instanceTest
     "switch refuses a uuid this store does not have, rather than starting a branch named after it"
     (fun state ->
       task {
@@ -255,7 +255,7 @@ let private switchRefusesAForeignId =
 /// sit in main's draft afterwards, reading as "1 item changed" that nobody edited, until the next
 /// unrelated commit sweeps them up under its message.
 let private aMergeCommitsWhatItLands =
-  cliTestOnMain
+  instanceTest
     "merging a branch leaves main's draft as it was, under a merge commit"
     (fun state ->
       task {
@@ -307,7 +307,7 @@ let private aMergeCommitsWhatItLands =
 /// takes it off main when the branch merges. Authored through `SCM.PackageOps.add`, since no verb writes
 /// one yet; the importer will, once the reload becomes a diff.
 let private anUnbindRemovesANameThroughTheCli =
-  cliTestOnMain
+  instanceTest
     "an unbind removes a name on the branch, then on main when the branch merges"
     (fun state ->
       task {
@@ -369,7 +369,7 @@ let private anUnbindRemovesANameThroughTheCli =
 /// changed-NAMES list, which a deprecation is never in: an agent then cannot commit one at all, and it
 /// ships in the seed as somebody's mystery op.
 let private aDeprecationCommitsByEitherPath =
-  cliTestOnMain
+  instanceTest
     "a deprecation-only draft commits, by --include= and by --json"
     (fun state ->
       task {
@@ -448,7 +448,7 @@ let private archivingABranchCommitsItsEvent =
 /// a heredoc or not at all (an agent on two machines lost a round to it). A definition is never one
 /// token, so one argument that names a file that exists is the file.
 let private fnReadsItsDefinitionFromAFile =
-  cliTest "fn takes a source file, the way module does" (fun state ->
+  instanceTest "fn takes a source file, the way module does" (fun state ->
     task {
       let file =
         System.IO.Path.Combine(
@@ -480,7 +480,7 @@ let private fnReadsItsDefinitionFromAFile =
 /// constraint said so: the branch ran main's old code silently. Seen on two machines. Now the branch
 /// reports the stale usage, and `rebase` repoints it, which is what "accept the parent's changes" means.
 let private aBranchLearnsThatMainMovedItsDependency =
-  cliTestOnMain
+  instanceTest
     "a branch's callers of a fn main moved are reported, and rebase repoints them"
     (fun state ->
       task {
@@ -539,7 +539,7 @@ let private aBranchLearnsThatMainMovedItsDependency =
 /// edit broke N things" (an agent authoring on two machines said exactly that). The count now says
 /// how many touch a name this draft binds; a clean tree calls the rest what they are, standing.
 let private statusSeparatesTheDraftsConstraintsFromStandingOnes =
-  cliTestOnMain
+  instanceTest
     "status says which constraints this draft caused and which stood already"
     (fun state ->
       task {
@@ -592,7 +592,7 @@ let private statusSeparatesTheDraftsConstraintsFromStandingOnes =
 /// prints no stack header over it. One line for a one-line mistake; a real stack, from a fn that
 /// failed inside another, still prints.
 let private aMissingNameIsOneLineNotAStackHeader =
-  cliTest
+  instanceTest
     "eval of a name that does not exist prints the error and no empty call stack"
     (fun state ->
       task {
@@ -616,7 +616,7 @@ let private aMissingNameIsOneLineNotAStackHeader =
 /// A branch pulled without its parent lists a parent this store has never registered. The bare id
 /// read as corruption on the machine that saw it; the list now says what it is.
 let private anUnknownParentIsNamedAsSuch =
-  cliTest
+  instanceTest
     "a branch whose parent is not in this store says so in the list"
     (fun state ->
       task {
@@ -637,7 +637,7 @@ let private anUnknownParentIsNamedAsSuch =
 /// Scripts and agents branch on the exit, so failure has to BE one, not prose. The full sweep of
 /// error paths is not wired yet; the two a script hits first are, and this pins them.
 let private failuresExitNonzero =
-  cliTest
+  instanceTest
     "an unknown command and a failed eval exit nonzero; a good command exits zero"
     (fun state ->
       task {
@@ -656,7 +656,7 @@ let private failuresExitNonzero =
 /// And a commit's message is the one sentence other machines get, so an empty one is refused
 /// rather than recorded forever.
 let private commitAsksAndNeedsAMessage =
-  cliTestOnMain
+  instanceTest
     "commit on a piped stdin stays a draft, and an empty message is refused"
     (fun state ->
       task {
@@ -689,7 +689,7 @@ let private commitAsksAndNeedsAMessage =
 
 /// `--as` takes one value and `--why` swallows the rest of the line; neither is a target id.
 let private constraintFlagsAreNotTargets =
-  cliTest "constraint flag values are not read as finding ids" (fun state ->
+  instanceTest "constraint flag values are not read as finding ids" (fun state ->
     task {
       let! asOut =
         runCli state [ "constraints"; "resolve"; "zzzzzzzz"; "--as"; "repoint" ]
@@ -736,7 +736,7 @@ let private aBranchDiscardLeavesNoDanglingTags =
 /// Archiving the branch you stand on moves you to its PARENT -- read before the archive drops the
 /// row from the listing, or a branch-of-a-branch landed you on main.
 let private archivingAChildLandsOnItsParent =
-  cliTestOnMain
+  instanceTest
     "archiving a child branch from atop it lands on the parent, not main"
     (fun state ->
       task {
@@ -759,7 +759,7 @@ let private archivingAChildLandsOnItsParent =
 /// to a branch, so a query that forgot the tag would take both, and the way you would find out is that
 /// work you never mentioned had gone.
 let discardOnABranchLeavesMainsDraftAlone =
-  cliTestOnMain
+  instanceTest
     "discard on a branch drops the branch's work, not main's draft"
     (fun state ->
       task {
@@ -809,7 +809,7 @@ let discardOnABranchLeavesMainsDraftAlone =
 /// the current branch, and if that guard went, committing anything anywhere would quietly rewrite work
 /// sitting on main.
 let committingOnABranchLeavesMainsDraftUncollapsed =
-  cliTestOnMain "committing on a branch does not collapse main's draft" (fun state ->
+  instanceTest "committing on a branch does not collapse main's draft" (fun state ->
     task {
       // Two versions of one name: four draft ops that a collapse would reduce.
       do! fn state "Tests.CollapseIso.item" "() : Int64 = 1"
@@ -858,7 +858,7 @@ let committingOnABranchLeavesMainsDraftUncollapsed =
 /// checker's report promises something the tool does not do, which is worse than saying nothing.
 /// `-y` deliberately does not wave it through, same as `--allow-unresolved`.
 let private commitRefusesDefiniteTypeErrors =
-  cliTest
+  instanceTest
     "commit refuses a definite type error, and --allow-type-errors takes it"
     (fun state ->
       task {
@@ -980,7 +980,7 @@ let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
       })
 
 let private deprecationIsReversible =
-  cliTest "delete can be undone" (fun state ->
+  instanceTest "delete can be undone" (fun state ->
     task {
       do! author state "Tests.Undep.item" "(x: Int64) : Int64 = x + 4242"
 
@@ -1201,7 +1201,7 @@ let private deprecationTakesEffectInTheSameProcess =
 /// named item's uncommitted dependency comes WITH it (a commit referencing uncommitted content
 /// would be internally inconsistent), and a name the draft does not hold is refused.
 let partialCommitTakesOnlyWhatYouNamed =
-  cliTestOnMain
+  instanceTest
     "commit --include= takes the named items plus their dependencies"
     (fun state ->
       task {
@@ -1281,7 +1281,7 @@ let partialCommitTakesOnlyWhatYouNamed =
 /// A branch verb takes the name you can see, not the id it resolves to: every branch has a uuid
 /// behind it, and a verb handed the name printed by `dark branches` must not treat it as an id.
 let private branchVerbsTakeTheNameYouSee =
-  cliTestOnMain "every branch verb accepts the name the listing prints" (fun state ->
+  instanceTest "every branch verb accepts the name the listing prints" (fun state ->
     task {
       do! switch state "verbname"
       let! _ = runCli state [ "fn"; "Tests.Vn.one"; "(x: Int64) : Int64 = x + 1" ]
@@ -1311,7 +1311,7 @@ let private branchVerbsTakeTheNameYouSee =
 
 
 let private otherBranchAnswersStayCurrent =
-  cliTestOnMain
+  instanceTest
     "asking about a branch you're not on gives a current answer"
     (fun state ->
       task {
@@ -1340,7 +1340,7 @@ let private otherBranchAnswersStayCurrent =
 
 /// Shared content must remain bound at every alias when propagation crosses owners.
 let private allConsumersFollowAcrossOwners =
-  cliTest "all consumers follow dependency edits across owners" (fun state ->
+  instanceTest "all consumers follow dependency edits across owners" (fun state ->
     task {
       do! fn state "Vendor.Auto.dep" "() : Int64 = 1"
       let body = "() : Int64 = Vendor.Auto.dep () + 100"
@@ -1366,7 +1366,7 @@ let private allConsumersFollowAcrossOwners =
     })
 
 let private crossOwnerPropagationIsBranchLocal =
-  cliTestOnMain "cross-owner propagation stays on its branch" (fun state ->
+  instanceTest "cross-owner propagation stays on its branch" (fun state ->
     task {
       do! start state
       do! fn state "Vendor.BranchAuto.dep" "() : Int64 = 41"
@@ -1400,7 +1400,7 @@ let private crossOwnerPropagationIsBranchLocal =
 ///
 /// The refusal sweeps in `CliSurface.Tests.fs` do not reach this: `--json` is not a bogus argument.
 let private everyJsonSurfaceParses =
-  cliTest "every --json surface emits parseable JSON" (fun state ->
+  instanceTest "every --json surface emits parseable JSON" (fun state ->
     task {
       do! fn state "Tests.Json.probe" "() : Int64 = 1"
 
@@ -1443,7 +1443,7 @@ let private everyJsonSurfaceParses =
 /// `--raw` is the other half. Without it, reading an item back out meant stripping a trailer and a
 /// `let f ` prefix with `sed`, which is a screen-scrape: it works until the display changes.
 let private editChangesAnItemWithoutRetypingIt =
-  cliTest
+  instanceTest
     "edit round-trips an item through --raw, and leaves its siblings alone"
     (fun state ->
       task {
@@ -1597,7 +1597,7 @@ let private aNameHoldsOneItemWhateverItsKind =
 /// whose recursive walk up the parent chain is the overlay logic everything else trusts, and nothing
 /// covered them.
 let private branchChainSeesItsAncestry =
-  cliTestOnMain
+  instanceTest
     "a branch off a branch sees its parent's COMMITTED work, and main sees neither"
     (fun state ->
       task {
@@ -1660,7 +1660,7 @@ let private branchChainSeesItsAncestry =
 /// off a branch omitted the intermediate branch; `undo` on a branch stepped onto a version main authored
 /// AFTER the fork; `deps` on a branch listed main's version of a caller the branch had re-authored.
 let private branchReadsAnswerAboutTheBranch =
-  cliTestOnMain
+  instanceTest
     "ops, undo and deps answer about the branch you stand on, chain included"
     (fun state ->
       task {
@@ -1731,7 +1731,7 @@ let private branchReadsAnswerAboutTheBranch =
 
 /// `dark merge` and `dark rebase` with no argument mean the branch you are standing on.
 let private bareMergeAndRebaseMeanThisBranch =
-  cliTestOnMain
+  instanceTest
     "merge and rebase with no argument mean the branch you're on"
     (fun state ->
       task {
@@ -1782,7 +1782,7 @@ let private bareMergeAndRebaseMeanThisBranch =
 /// It is the question you ask BEFORE changing something, so the wrong answer is the dangerous direction:
 /// it says nothing on your branch depends on this.
 let private dependentsSeeTheBranchYouAreOn =
-  cliTestOnMain
+  instanceTest
     "who calls this counts the callers on your branch, not just main's"
     (fun state ->
       task {
@@ -2003,32 +2003,30 @@ let private aConflictCloseThatFailsIsReported =
 /// refusal still reports the REASON rather than a declined prompt, which is why the gates above test
 /// what they test.
 let private mergeAsksBeforeItGoes =
-  cliTestOnMain
-    "a merge on a pipe refuses without -y, and goes with it"
-    (fun state ->
-      task {
-        do! switch state "askbr"
-        do! fn state "Tests.Ask.a" "() : Int64 = 31"
-        do! commit state "ask work"
-        do! onMain state
+  instanceTest "a merge on a pipe refuses without -y, and goes with it" (fun state ->
+    task {
+      do! switch state "askbr"
+      do! fn state "Tests.Ask.a" "() : Int64 = 31"
+      do! commit state "ask work"
+      do! onMain state
 
-        do!
-          refuses
-            state
-            [ "merge"; "askbr" ]
-            "not merged"
-            "Merged"
-            "a piped merge with no -y refuses, and does not claim it merged"
+      do!
+        refuses
+          state
+          [ "merge"; "askbr" ]
+          "not merged"
+          "Merged"
+          "a piped merge with no -y refuses, and does not claim it merged"
 
-        // Refusing has to mean the branch is still there to merge. A refusal that half-merged would
-        // pass the assertion above and lose the work anyway.
-        do!
-          shows
-            state
-            [ "merge"; "askbr"; "-y" ]
-            "Merged"
-            "and -y merges the same branch, so the refusal changed nothing"
-      })
+      // Refusing has to mean the branch is still there to merge. A refusal that half-merged would
+      // pass the assertion above and lose the work anyway.
+      do!
+        shows
+          state
+          [ "merge"; "askbr"; "-y" ]
+          "Merged"
+          "and -y merges the same branch, so the refusal changed nothing"
+    })
 
 /// Whether a merge is ALLOWED is a decision, so it is decided in Dark; the builtin only does the work.
 ///
@@ -2037,7 +2035,7 @@ let private mergeAsksBeforeItGoes =
 /// the same in the check as in the message, which says to merge OR ARCHIVE the children --
 /// counting archived children as active makes that advice a dead end.
 let private mergeGatesAreDecidedInDark =
-  cliTestOnMain
+  instanceTest
     "merge refuses an empty branch, and one with children until they are archived"
     (fun state ->
       task {
@@ -2083,7 +2081,7 @@ let private mergeGatesAreDecidedInDark =
 /// to add. The flag is filtered out before the branch reference is read, so it can go on either
 /// side: otherwise `dark diff --json foo` looks for a branch literally named "--json".
 let private diffAndLogAnswerInJson =
-  cliTestOnMain
+  instanceTest
     "diff and log answer in JSON, with the flag on either side"
     (fun state ->
       task {
@@ -2132,7 +2130,7 @@ let private diffAndLogAnswerInJson =
 /// before its callee is ordinary, and `WipRefresh` re-resolves once the callee lands -- so the
 /// forward reference has to commit cleanly.
 let commitRefusesUnresolvedReferences =
-  cliTestOnMain
+  instanceTest
     "commit refuses a reference that never resolves, but not a forward one"
     (fun state ->
       task {
@@ -2188,7 +2186,7 @@ let commitRefusesUnresolvedReferences =
 /// resolve: a branch discard does not re-fold, so deleted main ops would leave `locations` rows
 /// outliving them and main's functions still answering. Resolution cannot see that; the op count can.
 let private discardOnABranchLeavesMainAlone =
-  cliTestOnMain
+  instanceTest
     "discard on a branch drops that branch's draft and leaves main's alone"
     (fun state ->
       task {
@@ -2252,7 +2250,7 @@ let private discardOnABranchLeavesMainAlone =
 /// The commit ROW was written before the ops were stamped, so a failed branch commit also left a commit
 /// naming nothing behind.
 let private committingOnABranchCommitsItsOps =
-  cliTestOnMain "committing on a branch commits that branch's ops" (fun state ->
+  instanceTest "committing on a branch commits that branch's ops" (fun state ->
     task {
       do! switch state "commitbr"
       do! fn state "Tests.CommitBr.item" "() : Int64 = 7"
@@ -2346,7 +2344,7 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
 /// there, and a draft edit over a committed version resolves to the committed one. The branch is an
 /// overlay on COMMITTED main; `dark commit` is what publishes work downstream.
 let private aBranchNeverSeesMainsDraft =
-  cliTestOnMain
+  instanceTest
     "a branch resolves through committed main, not main's draft"
     (fun state ->
       task {
@@ -2390,7 +2388,7 @@ let private aBranchNeverSeesMainsDraft =
 /// `dark commits` hides housekeeping (event-only commits: a branch archive or merge marker with no
 /// authored work) behind `--all`, and says how many it hid.
 let private commitsHideHousekeeping =
-  cliTestOnMain
+  instanceTest
     "commits hides archive markers by default; --all shows them"
     (fun state ->
       task {
@@ -2421,7 +2419,7 @@ let private commitsHideHousekeeping =
 /// `discard` must not touch them: they are data this store holds for someone else, and the
 /// draft it reports must be the draft it drops.
 let private discardSparesInertOps =
-  cliTestOnMain "discard leaves relay-hosted (inert) ops alone" (fun state ->
+  instanceTest "discard leaves relay-hosted (inert) ops alone" (fun state ->
     task {
       let! ops =
         parsePackageOps
@@ -2466,7 +2464,7 @@ let held(x: Int64): Int64 = x + 41"""
 /// Merging one must still commit what it landed -- the shared op is main's now -- and the
 /// sibling's later archive must not make it reappear as draft work nobody typed.
 let private mergeCommitsWhatASiblingStillTags =
-  cliTestOnMain
+  instanceTest
     "a merge commits shared ops even while a sibling still tags them"
     (fun state ->
       task {
@@ -2484,12 +2482,12 @@ let private mergeCommitsWhatASiblingStillTags =
 
         // The shared content op is tagged by shared2 still; it must carry the merge's commit.
         let! unstamped =
-          countSql
+          countSqlIn
+            state
             "SELECT COUNT(*) as n FROM package_ops p
              WHERE p.commit_hash IS NULL AND p.effective = 1
                AND p.id IN (SELECT op_id FROM op_branches ob
                             JOIN branches b ON b.id = ob.branch_id WHERE b.name = 'shared2')"
-            []
         Expect.equal
           unstamped
           0L
@@ -2513,7 +2511,7 @@ let private mergeCommitsWhatASiblingStillTags =
 /// while the CLI reports success. `Decision`/`Override` is the op that means "this binding again,
 /// and I mean it" -- rebinding authors it for exactly this reason.
 let revertingToAnEarlierVersionTakesEffect =
-  cliTestOnMain "going back to an earlier version actually goes back" (fun state ->
+  instanceTest "going back to an earlier version actually goes back" (fun state ->
     task {
       do! start state
       do! switch state "revertbr"
@@ -2539,7 +2537,7 @@ let revertingToAnEarlierVersionTakesEffect =
 
 /// The same on main, where authoring is live-on-write.
 let revertingOnMainTakesEffect =
-  cliTestOnMain "going back to an earlier version works on main too" (fun state ->
+  instanceTest "going back to an earlier version works on main too" (fun state ->
     task {
       do! start state
       do! fn state "Tests.RevertMain.f" "() : Int64 = 1"
@@ -2555,7 +2553,7 @@ let revertingOnMainTakesEffect =
 /// `--include=<caller>` on a branch committed the caller and left its dependency's NAME in the
 /// draft, so a reader downstream could run the caller but could not find what it called.
 let aPartialCommitTakesItsDependencysName =
-  cliTestOnMain
+  instanceTest
     "a partial commit on a branch carries the names it depends on"
     (fun state ->
       task {
@@ -2581,7 +2579,7 @@ let aPartialCommitTakesItsDependencysName =
 /// Commit B, then A, then C: C's parent must be A, the commit that actually precedes it. Taking
 /// "the newest commit" by arrival instead put A on nobody's chain.
 let commitsFollowTheCommitBeforeThem =
-  cliTestOnMain
+  instanceTest
     "each commit follows the one before it, whatever order they were made in"
     (fun state ->
       task {

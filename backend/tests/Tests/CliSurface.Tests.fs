@@ -25,7 +25,8 @@ module CliDsl = Tests.CliDsl
 
 
 let private storedPermissionsAreIsolated =
-  testTask "CLI tests isolate stored permissions even after a failure" {
+  testSequenced
+  <| testTask "CLI tests isolate stored permissions even after a failure" {
     let originalDirectory = LibExecution.HostSecurity.policyDirectory ()
     let mutable initial = LibDB.PolicyStore.empty
     try
@@ -82,7 +83,8 @@ let private reusesCompiledFunctions =
     })
 
 let private timeoutBoundsSynchronousWork =
-  testTask "the CLI timeout bounds work before its first await" {
+  testSequenced
+  <| testTask "the CLI timeout bounds work before its first await" {
     let release =
       TaskCompletionSource<unit>(TaskCreationOptions.RunContinuationsAsynchronously)
     let stopped =
@@ -103,7 +105,8 @@ let private timeoutBoundsSynchronousWork =
   }
 
 let private timeoutPreservesCapture =
-  testTask "the CLI timeout preserves results and captured output" {
+  testSequenced
+  <| testTask "the CLI timeout preserves results and captured output" {
     Expect.isTrue (NonBlockingConsole.startCapture ()) "capture starts"
     try
       let! result =
@@ -142,7 +145,7 @@ let private stderrIsCapturedInOrder =
     })
 
 let private diagnosticsStayOffStdout =
-  cliTest
+  instanceTest
     "eval's error and Stdlib.debug go to stderr, not into the answer"
     (fun target ->
       task {
@@ -164,7 +167,7 @@ let private diagnosticsStayOffStdout =
 /// What a person reads while a command runs (a log line, a hint about another flag) is not part of
 /// the answer, so `dark search x | wc -l` counts results and nothing else.
 let private hintsAndLogsStayOffStdout =
-  cliTest "log lines and hints go to stderr, not into the answer" (fun target ->
+  instanceTest "log lines and hints go to stderr, not into the answer" (fun target ->
     task {
       let! (out, err, status) =
         runCliStreams
@@ -187,7 +190,7 @@ let private hintsAndLogsStayOffStdout =
     })
 
 let private testHelpCommand =
-  cliTest "help command" (fun state ->
+  instanceTest "help command" (fun state ->
     task {
       let! output = runCli state [ "help" ]
       Expect.stringContains output "Packages:" "category header"
@@ -264,7 +267,7 @@ let private renderExpr (body : string) : string =
   + body
 
 let private workbenchViewsRender =
-  cliTest "every workbench view renders a full frame" (fun state ->
+  instanceTest "every workbench view renders a full frame" (fun state ->
     task {
       // A view that throws produces no frame at all, which is what these row counts
       // are really checking.
@@ -287,7 +290,7 @@ let private workbenchViewsRender =
 /// `esc/q` (quit), the two a person needs most when lost. The row drops whole hints cheapest-first
 /// instead: secondary globals, then the view's own actions, and `?`/`esc/q` never.
 let private hintRowKeepsTheWayOut =
-  cliTest
+  instanceTest
     "the hint row drops secondary keys before it drops help and quit"
     (fun state ->
       task {
@@ -337,7 +340,7 @@ let private hintRowKeepsTheWayOut =
 /// anything the left side spills past the glance is lost. It drops whole segments in priority order
 /// instead, the instance first, so the branch survives far narrower.
 let private headerKeepsTheBranchWhenNarrow =
-  cliTest
+  instanceTest
     "the header drops the instance before the branch, and never the branch"
     (fun state ->
       task {
@@ -371,7 +374,7 @@ let private headerKeepsTheBranchWhenNarrow =
       })
 
 let private workbenchBranchActionsWork =
-  cliTestOnMain
+  instanceTest
     "the workbench can start, switch and merge a branch without throwing"
     (fun state ->
       task {
@@ -409,7 +412,7 @@ let private workbenchBranchActionsWork =
 /// has none -- so a success message would be a no-op you believe, and "the branch has no changes"
 /// counts the changes of a branch you are not on.
 let private mergeAndRebaseRefuseOnMain =
-  cliTest
+  instanceTest
     "merge and rebase refuse on main, rather than claiming to have run"
     (fun state ->
       task {
@@ -442,43 +445,47 @@ let private mergeAndRebaseRefuseOnMain =
 /// deserializes every blob to discard almost all of them, which in the workbench is a freeze on a
 /// keypress. Asserted on the OUTPUT, not a stopwatch: if the cap goes, so does "showing the first 50".
 let private showingACommitDoesNotFetchEveryOp =
-  cliTest "showing a big commit's ops is capped, not fetched whole" (fun state ->
-    task {
-      let! commits = runCli state [ "commits"; "--json" ]
-      // The baseline commit is the one with thousands of ops: the last row, oldest first.
-      let hashes =
-        commits.Split("\"hash\":\"")
-        |> Array.skip 1
-        |> Array.map (fun (s : string) -> s.Split('"')[0])
-      let hash = hashes[hashes.Length - 1]
+  instanceTest
+    "showing a big commit's ops is capped, not fetched whole"
+    (fun state ->
+      task {
+        let! commits = runCli state [ "commits"; "--json" ]
+        // The baseline commit is the one with thousands of ops: the last row, oldest first.
+        let hashes =
+          commits.Split("\"hash\":\"")
+          |> Array.skip 1
+          |> Array.map (fun (s : string) -> s.Split('"')[0])
+        let hash = hashes[hashes.Length - 1]
 
-      let! shown = runCli state [ "show"; hash ]
-      Expect.stringContains
-        shown
-        "showing the first 50 of"
-        "the op list is capped and says so, rather than printing thousands"
-    })
+        let! shown = runCli state [ "show"; hash ]
+        Expect.stringContains
+          shown
+          "showing the first 50 of"
+          "the op list is capped and says so, rather than printing thousands"
+      })
 
 let private workbenchHandlesTerminalSizes =
-  cliTest "the workbench frames a tiny terminal instead of breaking" (fun state ->
-    task {
-      // 56x12 is the documented floor: at it you get a real frame, below it a resize
-      // message rather than a mangled layout. Both fill the space they were given.
-      let! atFloor =
-        runCli state [ "eval"; renderExpr "Stdlib.List.length(frame(0, 56, 12))" ]
-      Expect.stringContains atFloor "12" "a frame at the documented minimum size"
+  instanceTest
+    "the workbench frames a tiny terminal instead of breaking"
+    (fun state ->
+      task {
+        // 56x12 is the documented floor: at it you get a real frame, below it a resize
+        // message rather than a mangled layout. Both fill the space they were given.
+        let! atFloor =
+          runCli state [ "eval"; renderExpr "Stdlib.List.length(frame(0, 56, 12))" ]
+        Expect.stringContains atFloor "12" "a frame at the documented minimum size"
 
-      let! tooSmall =
-        runCli
-          state
-          [ "eval"
-            renderExpr
-              "Stdlib.String.join(frame(0, 40, 10), \"|\") |> Stdlib.String.contains(\"too small\")" ]
-      Expect.stringContains
-        tooSmall
-        "true"
-        "below the minimum, the frame says to resize"
-    })
+        let! tooSmall =
+          runCli
+            state
+            [ "eval"
+              renderExpr
+                "Stdlib.String.join(frame(0, 40, 10), \"|\") |> Stdlib.String.contains(\"too small\")" ]
+        Expect.stringContains
+          tooSmall
+          "true"
+          "below the minimum, the frame says to resize"
+      })
 
 /// No workbench row is WIDER than the frame it was given, wide glyphs included.
 ///
@@ -491,7 +498,7 @@ let private workbenchHandlesTerminalSizes =
 /// measurement said. The fitters were moved to F# for speed, which is exactly the kind of rewrite that
 /// loses a cell-vs-character distinction, and nothing looks until someone's name is not ASCII.
 let private noWorkbenchRowOverflowsItsFrame =
-  cliTest
+  instanceTest
     "no workbench row is wider than its frame, wide glyphs included"
     (fun state ->
       task {
@@ -519,7 +526,7 @@ let private noWorkbenchRowOverflowsItsFrame =
       })
 
 let private workbenchContextRowSaysWhereYouAre =
-  cliTest "the workbench header names the branch, in every view" (fun state ->
+  instanceTest "the workbench header names the branch, in every view" (fun state ->
     task {
       // The header is the first row: the branch, then the instance. The two are styled apart, so
       // they are never adjacent in the string; each is matched on its own.
@@ -546,7 +553,7 @@ let private workbenchContextRowSaysWhereYouAre =
     })
 
 let private everyCommandAnswersHelp =
-  cliTest "every registered command answers `help` with help" (fun state ->
+  instanceTest "every registered command answers `help` with help" (fun state ->
     task {
       let! commands = registeredCommands state
       Expect.isGreaterThan (List.length commands) 20 "the registry was read"
@@ -636,7 +643,7 @@ let private everyHelpLeadsWithASummary =
     })
 
 let private everyExclusionIsReal =
-  cliTest "every command excluded from the sweeps still exists" (fun state ->
+  instanceTest "every command excluded from the sweeps still exists" (fun state ->
     task {
       let! commands = registeredCommands state
       Expect.isGreaterThan (List.length commands) 20 "the registry was read"
@@ -801,7 +808,7 @@ let theDeclarationCheckReadsArgumentsRight =
       })
 
 let everyCommandRefusesAFlagItDoesNotHave =
-  cliTest "every command refuses a flag it does not have" (fun state ->
+  instanceTest "every command refuses a flag it does not have" (fun state ->
     task {
       let! commands = registeredCommands state
       let swept =
@@ -836,7 +843,7 @@ let private aWordIsNotAMistake : Map<string, AWordIs> =
       WhatItMakes "the words are the commit message, and it commits the draft" ]
 
 let everyCommandRefusesAWordItDoesNotKnow =
-  cliTestOnMain
+  instanceTest
     "every command refuses a word it does not know, unless a word is a query"
     (fun state ->
       task {
@@ -880,7 +887,7 @@ let everyCommandRefusesAWordItDoesNotKnow =
 /// this file quietly asserting about a branch. Nothing here throws before the switch back: the sweep
 /// collects failures rather than raising, and the report comes after.
 let everyCommandSurvivesABranch =
-  cliTestOnMain
+  instanceTest
     "no registered command crashes or goes silent while on a branch"
     (fun state ->
       task {
@@ -1147,7 +1154,7 @@ let everyCommandWorksWithValidArguments =
 
 /// An empty grant is not a grant, and must not report that it is.
 let private permissionsRefusesAnEmptyRule =
-  cliTest
+  instanceTest
     "`permissions allow` with no rule is refused rather than reported as allowed"
     (fun state ->
       task {
@@ -1182,40 +1189,38 @@ let private nonexistentTargets : List<string * List<string>> =
     "permissions approve", [ "permissions"; "approve"; "--yes"; "Zzz.Nope.nope" ] ]
 
 let private missingTargetsAreNamed =
-  cliTestOnMain
-    "a command that can't find its target says which target"
-    (fun state ->
-      task {
-        // On main, deliberately: `ack` refuses on a branch (an ack is a statement about
-        // the store), and the process is a shared global another test may have moved.
-        let! _ = runCli state [ "switch"; "main" ]
+  instanceTest "a command that can't find its target says which target" (fun state ->
+    task {
+      // On main, deliberately: `ack` refuses on a branch (an ack is a statement about
+      // the store), and the process is a shared global another test may have moved.
+      let! _ = runCli state [ "switch"; "main" ]
 
-        let mutable failures : List<string * string> = []
+      let mutable failures : List<string * string> = []
 
-        for (label, args) in nonexistentTargets do
-          let! output = runCli state args
-          let target = args |> List.last |> Option.defaultValue ""
+      for (label, args) in nonexistentTargets do
+        let! output = runCli state args
+        let target = args |> List.last |> Option.defaultValue ""
 
-          // The first segment, not the whole target: a traversal stops at the first
-          // segment it cannot find, so `Zzz.Nope.nope` is answered with `Zzz`.
-          let firstSegment = target.Split('.')[0]
+        // The first segment, not the whole target: a traversal stops at the first
+        // segment it cannot find, so `Zzz.Nope.nope` is answered with `Zzz`.
+        let firstSegment = target.Split('.')[0]
 
-          if output.Trim() = "" then
-            failures <- (label, "said nothing") :: failures
-          elif not (output.Contains firstSegment) then
-            failures <- (label, output.Split('\n')[0]) :: failures
+        if output.Trim() = "" then
+          failures <- (label, "said nothing") :: failures
+        elif not (output.Contains firstSegment) then
+          failures <- (label, output.Split('\n')[0]) :: failures
 
-        if not (List.isEmpty failures) then
-          let detail =
-            failures
-            |> List.rev
-            |> List.map (fun (c, why) -> $"  dark {c} <missing> -> {why}")
-            |> String.concat "\n"
+      if not (List.isEmpty failures) then
+        let detail =
+          failures
+          |> List.rev
+          |> List.map (fun (c, why) -> $"  dark {c} <missing> -> {why}")
+          |> String.concat "\n"
 
-          Tests.failtestf
-            "commands that don't name the target they couldn't find:\n%s"
-            detail
-      })
+        Tests.failtestf
+          "commands that don't name the target they couldn't find:\n%s"
+          detail
+    })
 
 /// Refusals that printed their reason and exited 0. A refusal is a failed command: that is the one
 /// part of it a shell `&&`, a CI step or an agent's authoring loop can read, and the rest of the
@@ -1237,7 +1242,7 @@ let private traitRefusals : List<string * List<string>> =
     "ack, no id", [ "ack" ] ]
 
 let private traitRefusalsExitNonZero =
-  cliTestOnMain "a refusal on the traits side exits non-zero" (fun state ->
+  instanceTest "a refusal on the traits side exits non-zero" (fun state ->
     task {
       let! _ = runCli state [ "switch"; "main" ]
 
@@ -1283,7 +1288,7 @@ let private otherRefusals : List<string * List<string>> =
     "rebase, a branch that does not exist", [ "rebase"; "zzznope" ] ]
 
 let private otherRefusalsExitNonZero =
-  cliTestOnMain "a refusal outside the traits side exits non-zero" (fun state ->
+  instanceTest "a refusal outside the traits side exits non-zero" (fun state ->
     task {
       let mutable failures : List<string * string> = []
       let mutable examined = 0
@@ -1353,7 +1358,7 @@ let private refusalsOnStderr : List<string * List<string>> =
     [ "traces"; "inspect"; "zzznope"; "--json" ] ]
 
 let private refusalsKeepStdoutEmpty =
-  cliTestOnMain
+  instanceTest
     "a refusal leaves stdout empty, says why on stderr, and exits non-zero"
     (fun state ->
       task {
@@ -1413,7 +1418,7 @@ let private docTopicsToCheck =
   [ "scm"; "for-ai"; "cli"; "processes"; "live"; "http-server" ]
 
 let private documentedCommandsAreReal =
-  cliTest "every command the docs mention exists" (fun state ->
+  instanceTest "every command the docs mention exists" (fun state ->
     task {
       let! registered = registeredCommands state
       // Aliases don't appear in the group listing's first token, so read them out of the parenthesised
@@ -1475,7 +1480,7 @@ let private documentedCommandsAreReal =
 /// starts a branch called "--help" and moves the store onto it, so the next `dark fn` authors on a
 /// branch that exists by accident.
 let private aDashLedArgumentIsNeverAName =
-  cliTestOnMain
+  instanceTest
     "a dash-led argument is refused as a name rather than taken as one"
     (fun state ->
       task {
@@ -1501,7 +1506,7 @@ let private aDashLedArgumentIsNeverAName =
 /// beside `-y` used to discard the whole draft, and a stray word after an inline definition used to
 /// be dropped and the rest saved.
 let private costlyMistakesAreRefused =
-  cliTestOnMain "a mistyped flag or a stray word changes nothing" (fun state ->
+  instanceTest "a mistyped flag or a stray word changes nothing" (fun state ->
     task {
       do! CliDsl.fn state "Tests.Costly.kept" "() : Int64 = 1"
 
@@ -1529,7 +1534,7 @@ let private costlyMistakesAreRefused =
 /// `serve` is not swept, because success binds a port, so its refusals are checked here. A
 /// refusal that exits 0 is one a script cannot see, and these all did.
 let private unsweptCommandsRefuseWithExit1 =
-  cliTestOnMain "serve refusals exit 1" (fun state ->
+  instanceTest "serve refusals exit 1" (fun state ->
     task {
       let cases =
         [ [ "serve" ], "`dark serve` needs an argument"
@@ -1551,7 +1556,7 @@ let private unsweptCommandsRefuseWithExit1 =
 /// asked to see, and nothing in the scoring can know which name was typed, so the asked-for location is
 /// carried into the printer and wins outright when it is one of the candidates.
 let private viewHeadsWithTheNameYouAskedFor =
-  cliTestOnMain
+  instanceTest
     "view heads a shared body with the name that was asked for"
     (fun state ->
       task {
@@ -1583,7 +1588,7 @@ let private viewHeadsWithTheNameYouAskedFor =
 
 
 let private unwrapErrorsAreReadable =
-  cliTest "eval checks unwrap operands and runs valid unwraps" (fun state ->
+  instanceTest "eval checks unwrap operands and runs valid unwraps" (fun state ->
     task {
       let! rejected, exitCode =
         runCliWithExit state [ "eval"; "(fun value -> Some(value? + 1))(4)" ]
@@ -2129,7 +2134,7 @@ let private damagedPolicyIsARefusal =
 /// commands do, saved nothing while printing the same "Defined" line as a real save. Two items, one
 /// doc changed, because a module saves a batch and one item's words must not land on the other.
 let private moduleDocOnlyEditLands =
-  cliTest
+  instanceTest
     "a doc-only edit through dark module lands on the item it was made to"
     (fun state ->
       task {

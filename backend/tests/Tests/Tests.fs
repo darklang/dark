@@ -138,7 +138,8 @@ let main (args : string array) : int =
 
         // http server
         Tests.HttpServer.tests
-        // Sequenced, because these capture `Console.Out` and that is process-global.
+        // The in-process cases here are sequenced, because they capture `Console.Out` and
+        // that is process-global. The rest run on CLI instances, beside everything else.
         //
         // Every destructive command here passes `--yes`. CI runs with a pty, so the
         // "is anyone watching?" check says yes and the confirmation prompt blocks on a
