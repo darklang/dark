@@ -127,6 +127,8 @@ let commitOn(
 type MergeOutcome =
   { merged: Int
     conflicts: List<Conflicts.Conflict>
+    /// The branch's callers repointed at the parent's version before it landed.
+    repointed: List<String>
     warning: String }
 
 
@@ -145,19 +147,24 @@ let mergeErrorMessage(e: MergeError): String =
   | Mechanism(m) -> m
 
 
-/// Merge a branch into its parent, as one action: gate (`Branches.canMerge`'s three refusals), detect
+/// Merge a branch into its parent, as one action: gate (`Branches.canMerge`'s three refusals), repoint
+/// the branch's callers of names the parent moved at the parent's version (as a rebase does), detect
 /// the conflicts, then in ONE transaction flip the frontier effective and fold it, mark the branch
 /// merged, author the event that tells other machines, commit what landed, and record the conflicts.
 /// Into a branch-off-a-branch the frontier is retagged onto the parent instead of folded.
 ///
 /// Conflicts do not BLOCK the merge. They are auto-resolved by origin_ts LWW and recorded against the
-/// parent, so the loser is reviewable rather than silently gone.
+/// parent, so the loser is reviewable rather than silently gone. Conflicts still pending on the branch
+/// (a rebase records them there) move to the parent too.
 let mergeBranch(branchId: Uuid): Stdlib.Result.Result<MergeOutcome, MergeError> =
-  match SCM.Actions.merge(SCM.Actions.MergeAction.IntoParent(branchId)) with
+  let repoints = Branches.outdatedRepoints(branchId)
+
+  match SCM.Actions.merge(SCM.Actions.MergeAction.IntoParent(branchId, repoints)) with
   | Ok(r) ->
     (MergeOutcome
       { merged = Stdlib.Int.fromInt64(r.moved)
         conflicts = r.conflicts
+        repointed = r.repointed
         warning = r.warning })
     |> Stdlib.Result.Result.Ok
   | Error(Refused(IsMain)) ->
@@ -194,7 +201,7 @@ let rebaseMessage(parentId: Uuid, rebased: Branches.Rebased): String =
     | names ->
       let n = Stdlib.toString(Stdlib.List.length(names))
       let listed = Stdlib.String.join(names, "\n  ")
-      [ $"it had changed {n} name(s) you also touched:\n  {listed}\nyour branch's versions win by recency on merge -- re-author any you want to take the parent's version of." ]
+      [ $"it had changed {n} name(s) you also touched:\n  {listed}\nthe newer edit of each won and the other is recorded: `dark conflicts` lists them, and an override takes the other." ]
 
   let repointedPart =
     match rebased.repointed with
@@ -212,7 +219,8 @@ let rebaseMessage(parentId: Uuid, rebased: Branches.Rebased): String =
 
 
 /// Rebase a branch: accept the parent's current state as the new base; reports the names the parent changed
-/// since the fork, so the branch's own ops layer on top (LWW). Records what it reconciled, same as merge.
+/// since the fork. Where both changed a name the newer edit wins, on the branch too. Records what it
+/// reconciled, same as merge.
 let rebaseBranch(branchId: Uuid): Stdlib.Result.Result<RebaseOutcome, String> =
   if SCM.Branch.isMain(branchId) then
     // Main has no parent to rebase onto, so this is not a thing you can do rather than a thing that found

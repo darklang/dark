@@ -784,54 +784,53 @@ let independentRenamesCompose =
           do! commit state "updated renamed dependencies"
       })
 
-let aRenameIncludesAnOlderCallerArrivingThroughMerge =
-  instanceTest
-    "a rename includes an older caller arriving through merge"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582741L"
-        do! commit state "older caller base"
-        do! switch state "rename-older-caller"
-        do!
-          fn state "Tests.RenameOlder.caller" "(): Int64 = Tests.RenameOlder.foo()"
-        do! commit state "caller on branch"
-        do! onMain state
-        do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582742L"
-        do! commit state "main moved on"
-        do! run state [ "merge"; "rename-older-caller"; "-y" ]
-        let! hash = runCliPlain state [ "hash"; "Tests.RenameOlder.caller" ]
-        do!
-          evals
-            state
-            "Tests.RenameOlder.caller()"
-            "582741"
-            "the merge fixture has an older reference"
-        do! run state [ "rename"; "Tests.RenameOlder.foo"; "Tests.RenameOlder.bar" ]
-        let! after = runCliPlain state [ "hash"; "Tests.RenameOlder.caller" ]
-        Expect.equal after hash "rename preserves the caller's version"
-        do!
-          shows
-            state
-            [ "deps"; "uses"; "Tests.RenameOlder.caller" ]
-            "Tests.RenameOlder.bar"
-            "the older reference follows the name"
-        do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582743L"
-        do!
-          evals
-            state
-            "Tests.RenameOlder.caller()"
-            "582741"
-            "reusing the old name does not redirect the caller"
-        do! fn state "Tests.RenameOlder.bar" "(): Int64 = 582744L"
-        do!
-          evals
-            state
-            "Tests.RenameOlder.caller()"
-            "582744"
-            "subsequent edits find the caller"
-        do! commit state "renamed older caller"
-      })
+/// A caller written on a branch against an older version arrives through merge already
+/// moved to the parent's newer version (#6039); a rename afterwards still has to find it.
+let aRenameIncludesACallerArrivingThroughMerge =
+  instanceTest "a rename includes a caller arriving through merge" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582741L"
+      do! commit state "older caller base"
+      do! switch state "rename-older-caller"
+      do! fn state "Tests.RenameOlder.caller" "(): Int64 = Tests.RenameOlder.foo()"
+      do! commit state "caller on branch"
+      do! onMain state
+      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582742L"
+      do! commit state "main moved on"
+      do! run state [ "merge"; "rename-older-caller"; "-y" ]
+      let! hash = runCliPlain state [ "hash"; "Tests.RenameOlder.caller" ]
+      do!
+        evals
+          state
+          "Tests.RenameOlder.caller()"
+          "582742"
+          "the merge moves the branch's caller to main's newer version"
+      do! run state [ "rename"; "Tests.RenameOlder.foo"; "Tests.RenameOlder.bar" ]
+      let! after = runCliPlain state [ "hash"; "Tests.RenameOlder.caller" ]
+      Expect.equal after hash "rename preserves the caller's version"
+      do!
+        shows
+          state
+          [ "deps"; "uses"; "Tests.RenameOlder.caller" ]
+          "Tests.RenameOlder.bar"
+          "the merged caller's reference follows the name"
+      do! fn state "Tests.RenameOlder.foo" "(): Int64 = 582743L"
+      do!
+        evals
+          state
+          "Tests.RenameOlder.caller()"
+          "582742"
+          "reusing the old name does not redirect the caller"
+      do! fn state "Tests.RenameOlder.bar" "(): Int64 = 582744L"
+      do!
+        evals
+          state
+          "Tests.RenameOlder.caller()"
+          "582744"
+          "subsequent edits find the caller"
+      do! commit state "renamed merged caller"
+    })
 
 /// A caller that reuses this code should keep its own reference names,
 /// without picking up names used by earlier callers.
@@ -1035,6 +1034,6 @@ let tests : List<Test> =
     aRenameCanBeDiscardedByEitherName
     renameIntoReusedLocationKeepsSourceReferences
     independentRenamesCompose
-    aRenameIncludesAnOlderCallerArrivingThroughMerge
+    aRenameIncludesACallerArrivingThroughMerge
     aReusedCallerKeepsItsOwnReferenceNames
     branchBodyRevertKeepsNewAlias ]

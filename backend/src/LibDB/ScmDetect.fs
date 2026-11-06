@@ -256,6 +256,64 @@ let detectRemovals
     | _ -> None)
 
 
+/// The other direction of <fn detectRemovals>: the LOCAL side ended a name the INCOMING side has since
+/// edited. Only with a recorded base, and only for a name the local side held at that base: then both
+/// moved it, one to nothing and one to a new version. Whichever is newer wins, as the fold has it
+/// (`Lww.unbindBeatsBinding`), and the other is recorded.
+let detectEndedLocally
+  (localLabel : string)
+  (incomingLabel : string)
+  (ended : List<Removal>)
+  (incoming : List<Binding>)
+  (bases : List<NameBase>)
+  : List<Conflict> =
+  let endedByKey =
+    ended
+    |> List.fold
+      (fun (m : Map<string, Removal>) r ->
+        Map.add (bindingKey r.owner r.modules r.name) r m)
+      Map.empty
+  let baseByKey =
+    bases
+    |> List.fold
+      (fun (m : Map<string, string>) b ->
+        Map.add (bindingKey b.owner b.modules b.name) b.baseHash m)
+      Map.empty
+
+  incoming
+  |> List.choose (fun inc ->
+    let k = bindingKey inc.owner inc.modules inc.name
+    match Map.tryFind k endedByKey, Map.tryFind k baseByKey with
+    | Some rem, Some baseHash when baseHash <> "" && inc.hash <> baseHash ->
+      let removalWins =
+        LibExecution.Lww.unbindBeatsBinding rem.originTs inc.originTs
+      Some
+        { id = conflictId inc.owner inc.modules inc.name [ inc.hash; "" ]
+          owner = inc.owner
+          modules = inc.modules
+          name = inc.name
+          itemType = inc.itemType
+          part = ""
+          kind = "removed-vs-edited"
+          candidates =
+            [ { side = "local"
+                hash = ""
+                removed = true
+                text = ""
+                originTs = rem.originTs
+                author = if rem.author = "" then localLabel else rem.author }
+              { side = "incoming"
+                hash = inc.hash
+                removed = false
+                text = ""
+                originTs = inc.originTs
+                author = if inc.author = "" then incomingLabel else inc.author } ]
+          autoResolvedTo = if removalWins then "" else inc.hash
+          reason = if removalWins then "removal is newer" else "the edit is newer"
+          status = "pending"
+          resolvedBy = "" }
+    | _ -> None)
+
 /// Candidates as the `conflicts.candidates` column holds them: the JSON `Stdlib.Json.serialize`
 /// writes for a `List<SCM.Conflicts.Candidate>` -- compact, fields in name order, relaxed escaping --
 /// so a row written here reads exactly like one Dark wrote.

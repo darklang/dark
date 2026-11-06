@@ -60,6 +60,38 @@ test aMergeIntoABranchMakesNoMergeCommit =
         "under one merge commit") ])
 
 
+// #6039, exactly as reported: a caller added on a branch, then main changes what it calls. The merge
+// repoints the caller at main's version, as a rebase would.
+test aCallerAddedOnABranchFollowsWhatMainChangedWhenItMerges =
+  scenario(fun dark ->
+    [ switch(dark, "main")
+      save(dark, "Tests.MergeRepro.foo", "(): Int64 = 1L")
+      commit(dark, "Add foo")
+
+      switch(dark, "merge-repro")
+      save(dark, "Tests.MergeRepro.caller", "(): Int64 = Tests.MergeRepro.foo()")
+      commit(dark, "Add caller on branch")
+
+      switch(dark, "main")
+      save(dark, "Tests.MergeRepro.foo", "(): Int64 = 2L")
+      commit(dark, "Update foo on main")
+
+      says(
+        dark,
+        [ "merge", "merge-repro", "-y" ],
+        "1 caller(s) on the branch now point at the parent's version:\n  Tests.MergeRepro.caller",
+        "the merge says it repointed the caller")
+
+      evals(dark, "Tests.MergeRepro.foo()", "2", "foo is main's version")
+      evals(dark, "Tests.MergeRepro.caller()", "2", "and the merged caller calls it")
+      same(
+        rows(field(json(dark, [ "constraints", "--json" ]), "findings")),
+        [],
+        "nothing is left calling an old version")
+      draftIsEmpty(dark, "the repoint landed in the merge's commit")
+      same(conflicts(dark), [], "and nothing collided") ])
+
+
 test mergeRefusesAndSaysWhy =
   scenario(fun dark ->
     [ refuses(dark, [ "merge", "main", "-y" ], "main is the trunk", "main has no parent to merge into")

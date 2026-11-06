@@ -159,6 +159,16 @@ type BranchOpJson =
 let branchOpsJson(os: List<BranchOpJson>): String =
   Stdlib.Json.serialize<List<BranchOpJson>>(os)
 
+/// `dark diff --json`: the draft, the same list the pretty `diff` prints. `draftOps` counts what binds no
+/// name too (a deprecation, a restore), which `changed` cannot show.
+type DraftDiffJson =
+  { draftOps: Int64
+    changed: List<ChangedItem>
+    /// Fully-qualified names the draft removes.
+    removed: List<String> }
+
+let draftDiffJson(d: DraftDiffJson): String = Stdlib.Json.serialize<DraftDiffJson>(d)
+
 /// `dark diff <branch> --json`. The SCM record is serialized directly rather than copied into a shape of
 /// its own: there is nothing to add here, and a second shape would be a second thing to keep in step.
 let branchDiffJson(es: List<SCM.PackageOps.BranchDiffEntry>): String =

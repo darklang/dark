@@ -441,36 +441,43 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType = resultType (tref Refs.reconciled)
       description =
         "Merges a branch into its parent, rebases it onto its parent, or previews the "
-        + "conflicts a merge would record. A merge is one transaction; values that land in "
-        + "main are evaluated after it. A rebase repoints the outdated callers it is handed, "
-        + "then moves every base and records the conflicts in one transaction. Conflicts are "
-        + "detected here, against the rule the fold applies."
+        + "conflicts a merge would record. Both first repoint the outdated callers they are "
+        + "handed. A merge is then one transaction, which also carries the branch's pending "
+        + "conflicts to the parent; values that land in main are evaluated after it. A rebase "
+        + "then moves every base, takes the parent's version where the parent's newer edit "
+        + "won, and records the conflicts in one transaction. Conflicts are detected here, "
+        + "against the rule the fold applies."
       fn =
         (function
         | exeState, vm, _, [| action |] ->
           uply {
             let reconciled = outcome (kt Refs.reconciled) reconciledToDT
+            // One repoint, on the branch: a whole propagation, as an edit there would make.
+            let repointOn
+              (b : System.Guid)
+              (rp : Actions.Repoint)
+              : System.Threading.Tasks.Task<unit> =
+              uply {
+                let! _ =
+                  Packages.repoint
+                    (branch b)
+                    rp.dependency
+                    rp.kind
+                    [ rp.fromHash ]
+                    rp.toHash
+                return ()
+              }
+              |> Ply.toTask
             match action with
-            | DEnum(_, _, _, "IntoParent", [ DUuid b ]) ->
+            | DEnum(_, _, _, "IntoParent", [ DUuid b; repoints ]) ->
+              let repoints = listOf repointFromDT repoints
               let! r =
-                Actions.merge (branch b) (fun () ->
+                Actions.merge (branch b) repoints (repointOn b) (fun () ->
                   PackageOps.evaluateLandedValues exeState vm |> Ply.toTask)
               return reconciled r
             | DEnum(_, _, _, "Rebase", [ DUuid b; repoints ]) ->
               let repoints = listOf repointFromDT repoints
-              let! r =
-                Actions.rebase (branch b) repoints (fun rp ->
-                  uply {
-                    let! _ =
-                      Packages.repoint
-                        (branch b)
-                        rp.dependency
-                        rp.kind
-                        [ rp.fromHash ]
-                        rp.toHash
-                    return ()
-                  }
-                  |> Ply.toTask)
+              let! r = Actions.rebase (branch b) repoints (repointOn b)
               return reconciled r
             | DEnum(_, _, _, "Preview", [ DUuid b ]) ->
               let! conflicts = Actions.preview (branch b)

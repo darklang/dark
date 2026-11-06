@@ -296,8 +296,8 @@ let nameConflicts(branchId: Uuid): List<String> =
 
 /// What a rebase did, in the two ways the parent's changes reach a branch.
 type Rebased =
-  { /// Names the parent changed that this branch had ALSO changed: a divergence, settled by recency
-    /// on merge unless the person re-authors.
+  { /// Names the parent changed that this branch had ALSO changed: a divergence. The newer edit wins
+    /// (the branch takes the parent's version when that is the parent's), and the other is recorded.
     diverged: List<String>
     /// The branch's own callers of names the parent moved, repointed at the parent's version. Not a
     /// divergence: nobody on the branch touched these, and after the repoint they agree with the
@@ -306,12 +306,32 @@ type Rebased =
 
 
 /// REBASE: accept the parent's current state as this branch's new base. Returns the names the parent had
-/// changed since the fork; after this the branch's own ops layer on top (LWW by origin_ts) and merge is
-/// unblocked. The union of both halves of <fn rebaseDetailed>, for callers that want one list.
+/// changed since the fork; where both changed a name the newer edit (by origin_ts) now stands on the
+/// branch, and merge is unblocked. The union of both halves of <fn rebaseDetailed>, for callers that want one list.
 let rebase(branchId: Uuid): Stdlib.Result.Result<List<String>, String> =
   match rebaseDetailed(branchId) with
   | Ok(r) -> Stdlib.Result.Result.Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
   | Error(e) -> Stdlib.Result.Result.Error(e)
+
+
+/// The branch's own callers that still reference a version of something the parent has since moved,
+/// each as the repoint that brings it to the parent's version. Rebase and merge both apply them first,
+/// so a caller written on a branch calls what the parent runs once the two meet.
+let outdatedRepoints(branchId: Uuid): List<SCM.Actions.Repoint> =
+  SCM.Constraints.detectOutdatedUsagesOn(branchId)
+  |> Stdlib.List.filterMap(fun f ->
+    match f.detail with
+    | Versions(using, current) ->
+      Stdlib.Option.Option.Some(
+        SCM.Actions.Repoint
+          { usage =
+              Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
+            dependency = f.dependency
+            kind = f.dependencyKind
+            fromHash = using
+            toHash = current }
+      )
+    | _ -> Stdlib.Option.Option.None)
 
 
 /// The rebase itself, as one action: the divergences and repoints apart (see <type Rebased>), and the
@@ -323,23 +343,7 @@ let rebase(branchId: Uuid): Stdlib.Result.Result<List<String>, String> =
 /// those the way an edit on the parent would have, then moves every base and records the conflicts in
 /// one transaction.
 let rebaseDetailed(branchId: Uuid): Stdlib.Result.Result<SCM.Actions.Reconciled, String> =
-  let repoints =
-    SCM.Constraints.detectOutdatedUsagesOn(branchId)
-    |> Stdlib.List.filterMap(fun f ->
-      match f.detail with
-      | Versions(using, current) ->
-        Stdlib.Option.Option.Some(
-          SCM.Actions.Repoint
-            { usage =
-                Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
-              dependency = f.dependency
-              kind = f.dependencyKind
-              fromHash = using
-              toHash = current }
-        )
-      | _ -> Stdlib.Option.Option.None)
-
-  match SCM.Actions.merge(SCM.Actions.MergeAction.Rebase(branchId, repoints)) with
+  match SCM.Actions.merge(SCM.Actions.MergeAction.Rebase(branchId, outdatedRepoints(branchId))) with
   | Ok(r) -> Stdlib.Result.Result.Ok(r)
   | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
 
