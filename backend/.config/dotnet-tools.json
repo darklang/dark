@@ -8,13 +8,6 @@
         "paket"
       ],
       "rollForward": false
-    },
-    "dotnet-trace": {
-      "version": "9.0.553101",
-      "commands": [
-        "dotnet-trace"
-      ],
-      "rollForward": false
     }
   }
 }

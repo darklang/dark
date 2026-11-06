@@ -37,5 +37,9 @@
          per build were most of the noise that made the other warnings easy to miss.
          Revisit if paket learns about PrunePackageReference. -->
     <NoWarn>$(NoWarn);NU1510</NoWarn>
+
+    <!-- NU1603: a version paket.lock names wasn't found, so NuGet took the next one up.
+         That is a dependency changing without anyone changing it, so it fails the build. -->
+    <WarningsAsErrors>$(WarningsAsErrors);NU1603</WarningsAsErrors>
   </PropertyGroup>
 </Project>

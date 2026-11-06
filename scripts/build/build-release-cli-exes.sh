@@ -256,7 +256,7 @@ if [[ -n "$SEED_PATH" ]]; then
 else
   # Refresh LocalExec and packages before exporting this checkout's seed.
   scripts/build/_dotnet-wrapper tool restore
-  scripts/build/_dotnet-wrapper paket restore
+  scripts/build/_dotnet-wrapper paket restore --fail-on-checks
   scripts/build/_dotnet-wrapper build --configuration Debug src/LocalExec/LocalExec.fsproj
   scripts/build/run-migrations
   scripts/build/reload-packages
