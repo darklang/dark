@@ -1093,23 +1093,24 @@ gate_package_tests() {
   # root, which is not where every caller runs.
   export DARK_CLI_UNDER_TEST="$CLI"
 
-  "$CLI" permissions clear
+  "$CLI" permissions clear < /dev/null > /dev/null
 
   set +e
-  # Stream progress to CI as well as the log so its no-output timeout does not
-  # stop a running suite. Unbuffer sed so each test appears as it runs.
-  "$CLI" test run --force < /dev/null 2>&1 | sed -u 's/\x1b\[[0-9;]*m//g' | tee "$ROOT/test.log"
+  # Every line goes to the log. Shown: failures with their messages as they happen, the slowest
+  # tests and the verdict, and a count every 250 passes, which keeps CI's no-output timeout from
+  # stopping a running suite. Unbuffered throughout so a failure appears when it happens.
+  "$CLI" test run --force < /dev/null 2>&1 | sed -u 's/\x1b\[[0-9;]*m//g' | tee "$ROOT/test.log" \
+    | awk '/^Running: / { next }
+           /^PASS / { if (++passed % 250 == 0) { print passed " passed so far"; fflush() } next }
+           { print; fflush() }'
   status=${PIPESTATUS[0]}
   set -e
 
-  # The failures, then the verdict line. All of it is in the log.
-  grep -E '^(FAIL|ERROR) ' "$ROOT/test.log" || true
   verdict=$(grep -E '[0-9,]+ passed, [0-9,]+ failed' "$ROOT/test.log" | tail -1 || true)
   if [[ -z "$verdict" ]]; then
+    # Its last lines include the tests that were still running.
     echo "package-tests: no verdict line; last output from $ROOT/test.log:" >&2
     tail -80 "$ROOT/test.log" >&2
-  else
-    echo "$verdict"
   fi
 
   if [[ "$status" -ne 0 ]] || ! grep -q ' 0 failed' <<<"$verdict"; then

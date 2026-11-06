@@ -289,4 +289,5 @@ print('{"id":"abcdef"}')
 
 
 if __name__ == "__main__":
-  unittest.main()
+  # The collector reports every database it was asked about; shown only for a failing test.
+  unittest.main(buffer=True)
