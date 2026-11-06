@@ -17,7 +17,7 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < "
         + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "Int64.remainder> if you want the remainder after division, which has a "
+        + "Int64.checkedRemainder> if you want the remainder after division, which has a "
         + "different behavior for negative numbers."
       fn =
         (function
@@ -73,38 +73,6 @@ let fns () : List<BuiltInFn> =
     //   previewable = Pure
     //   deprecated = NotDeprecated
     //   accessibility = Any }
-
-
-    { name = fn "int64Remainder" 0
-      typeParams = []
-      parameters =
-        [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
-      returnType = TypeReference.result TInt64 TString
-      description =
-        "Returns the integer remainder left over after dividing <param "
-        + "dividend> by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int64.remainder(15, 6) == Ok(3)}}. The remainder will be "
-        + "negative only if {{<var dividend> < 0}}.\n\nThe sign of <param "
-        + "divisor> doesn't influence the outcome.\n\nReturns an {{Error}} if "
-        + "<param divisor> is {{0}}."
-      fn =
-        let resultOk r = Dval.resultOk KTInt64 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt64 KTString r |> Ply
-        (function
-        | _, _, _, [| DInt64 v; DInt64 d |] ->
-          if d = 0L then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError
-          else if d = -1L then
-            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
-            0L |> Dval.dint64 |> resultOk
-          else
-            v % d |> Dval.dint64 |> resultOk
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
 
 
     { name = fn "int64Add" 0

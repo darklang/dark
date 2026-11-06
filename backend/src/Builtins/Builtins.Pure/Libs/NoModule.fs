@@ -258,6 +258,10 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO: make integer `/` and `%` checked by default: return a Result, and callers
+    // unwrap. The interpreter may be a little slower, and the compiler should optimize
+    // the unwrapping away. Until then, `checkedDivide` / `checkedMod` /
+    // `checkedRemainder` on each integer type return a Result.
     { name = fn "divide" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
@@ -326,6 +330,10 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO: make integer `/` and `%` checked by default: return a Result, and callers
+    // unwrap. The interpreter may be a little slower, and the compiler should optimize
+    // the unwrapping away. Until then, `checkedDivide` / `checkedMod` /
+    // `checkedRemainder` on each integer type return a Result.
     { name = fn "modulo" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]

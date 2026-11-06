@@ -17,7 +17,7 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < "
         + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "Int8.remainder> if you want the remainder after division, which has a "
+        + "Int8.checkedRemainder> if you want the remainder after division, which has a "
         + "different behavior for negative numbers."
       fn =
         (function
@@ -30,37 +30,6 @@ let fns () : List<BuiltInFn> =
             let result = v % m
             let result = if result < 0y then m + result else result
             Ply(DInt8 result)
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "int8Remainder" 0
-      typeParams = []
-      parameters = [ Param.make "value" TInt8 ""; Param.make "divisor" TInt8 "" ]
-      returnType = TypeReference.result TInt8 TString
-      description =
-        "Returns the integer remainder left over after dividing <param value> "
-        + "by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int8.remainder 15 6 == Ok 3}}. The remainder will be negative only "
-        + "if {{<var value> < 0}}.\n\nThe sign of <param divisor> doesn't "
-        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
-        + "{{0}}."
-      fn =
-        let resultOk r = Dval.resultOk KTInt8 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt8 KTString r |> Ply
-        (function
-        | _, _, _, [| DInt8 v; DInt8 d |] ->
-          if d = 0y then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError
-          else if d = -1y then
-            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
-            0y |> DInt8 |> resultOk
-          else
-            v % d |> DInt8 |> resultOk
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

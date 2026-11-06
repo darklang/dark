@@ -77,7 +77,7 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < "
         + "b}}. The modulus <param b> must be greater than 0. Use <fn "
-        + "BigInt.remainder> if you want the remainder after division, which has a "
+        + "BigInt.checkedRemainder> if you want the remainder after division, which has a "
         + "different behavior for negative numbers."
       fn =
         (function
@@ -90,34 +90,6 @@ let fns () : List<BuiltInFn> =
           else
             let r = DarkBigInt.toBigInt a % m
             Ply(Dval.bigInt (if r < bigZero then m + r else r))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "bigIntRemainder" 0
-      typeParams = []
-      parameters = [ Param.make "value" TBigInt ""; Param.make "divisor" TBigInt "" ]
-      returnType = TypeReference.result TBigInt TString
-      description =
-        "Returns the integer remainder left over after dividing <param value> "
-        + "by <param divisor>, as a <type Result>. The remainder will be negative "
-        + "only if {{<var value> < 0}}. The sign of <param divisor> doesn't "
-        + "influence the outcome. Returns an {{Error}} if <param divisor> is "
-        + "{{0}}."
-      fn =
-        let resultOk = Dval.resultOk KTBigInt KTString
-        let resultError = Dval.resultError KTBigInt KTString
-        (function
-        | _, _, _, [| DBigInt value; DBigInt divisor |] ->
-          let d = DarkBigInt.toBigInt divisor
-          if d = bigZero then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError |> Ply
-          else
-            DarkBigInt.toBigInt value % d |> Dval.bigInt |> resultOk |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

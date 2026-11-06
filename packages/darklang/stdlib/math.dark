@@ -100,3 +100,16 @@ let tanh(angleInRadians: Float): Float = Builtin.mathTanh(angleInRadians)
 /// `Int8.checkedAdd(127s8, 1s8)` is {{Error Overflow}}. Going below 0 on an unsigned
 /// type is an Overflow too. <type BigInt> itself never overflows.
 type Overflow = | Overflow
+
+
+/// What `checkedDivide` and `checkedRemainder` return, for every integer type and
+/// <type Decimal>, where `/` raises
+type DivisionError =
+  | DivisionByZero
+
+
+/// What `checkedMod` returns, for every integer type and <type Decimal>, where `%` raises:
+/// the modulus must be greater than 0
+type ModulusError =
+  | ZeroModulus
+  | NegativeModulus

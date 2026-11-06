@@ -11,19 +11,9 @@ type ParseError = | BadFormat
 impl Modulo for BigInt =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.
-  /// Use <fn BigInt.remainder> if you want the remainder after division, which has
+  /// Use <fn BigInt.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
   let modulo(a: BigInt, b: BigInt): BigInt = Builtin.bigIntMod(a, b)
-
-
-/// Returns the integer remainder left over after dividing <param value> by
-/// <param divisor>, as a <type Result>.
-/// For example, {{BigInt.remainder(15z, 6z) == Ok(3z)}}. The remainder will be
-/// negative only if {{<var value> < 0}}.
-/// The sign of <param divisor> doesn't influence the outcome.
-/// Returns an {{Error}} if <param divisor> is {{0}}.
-let remainder(value: BigInt, divisor: BigInt): Stdlib.Result.Result<BigInt, String> =
-  Builtin.bigIntRemainder(value, divisor)
 
 
 impl Add for BigInt =
@@ -189,3 +179,38 @@ impl Zero for BigInt =
 impl One for BigInt =
   let one(): BigInt = 1z
 
+
+// Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
+// these return the reason instead.
+// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
+// builtin in NoModule.fs.
+
+/// Divides <param a> by <param b>, rounding towards zero, or
+/// {{Error DivisionByZero}} where `/` raises.
+let checkedDivide(a: BigInt, b: BigInt): Stdlib.Result.Result<BigInt, Stdlib.Math.DivisionError> =
+  if b == 0z then Error(Stdlib.Math.DivisionError.DivisionByZero) else Ok(a / b)
+
+
+/// What is left after dividing <param value> by <param divisor>, rounding towards
+/// zero: negative only if <param value> is, whatever the sign of <param divisor>.
+/// {{Error DivisionByZero}} if <param divisor> is {{0}}.
+/// Use <fn BigInt.checkedMod> to wrap around into {{0 <= res < b}} instead.
+let checkedRemainder(
+  value: BigInt,
+  divisor: BigInt)
+  : Stdlib.Result.Result<BigInt, Stdlib.Math.DivisionError> =
+  if divisor == 0z then
+    Error(Stdlib.Math.DivisionError.DivisionByZero)
+  else
+    Ok(value - (value / divisor) * divisor)
+
+
+/// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
+/// {{Error ZeroModulus}} or {{Error NegativeModulus}}
+let checkedMod(a: BigInt, b: BigInt): Stdlib.Result.Result<BigInt, Stdlib.Math.ModulusError> =
+  if b == 0z then
+    Error(Stdlib.Math.ModulusError.ZeroModulus)
+  else if b < 0z then
+    Error(Stdlib.Math.ModulusError.NegativeModulus)
+  else
+    Ok(a % b)

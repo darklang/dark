@@ -16,9 +16,7 @@ let fns () : List<BuiltInFn> =
       returnType = TUInt16
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < "
-        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "UInt16.remainder> if you want the remainder after division, which has "
-        + "a different behavior for negative numbers."
+        + "b}}.\n\nThe modulus <param b> must be greater than 0."
       fn =
         (function
         | _, vm, _, [| DUInt16 v; DUInt16 m |] ->

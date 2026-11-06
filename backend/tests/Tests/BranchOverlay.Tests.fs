@@ -198,9 +198,9 @@ let unbindHidesACoreNameOnTheBranchOnly =
     // Any fn main holds at a known location, and it has to be a plain top-level fn: a
     // trait method lives under its impl's path, not directly under `Stdlib.Int64`.
     let addLoc : PT.PackageLocation =
-      { owner = "Darklang"; modules = [ "Stdlib"; "Int64" ]; name = "remainder" }
+      { owner = "Darklang"; modules = [ "Stdlib"; "Int64" ]; name = "checkedMod" }
     let! onCore = pmPT.findFn addLoc |> Ply.toTask
-    Expect.isSome onCore "Stdlib.Int64.remainder is a main fn"
+    Expect.isSome onCore "Stdlib.Int64.checkedMod is a main fn"
     let hash = Option.get onCore
 
     let branch = PM.withExtraOps pmPT [ PT.PackageOp.Unbind(addLoc, Some hash) ]

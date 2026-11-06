@@ -35,15 +35,15 @@ test negate =
 /// divisor is 0.
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int128.remainder(15s128, 6s128) |> Stdlib.Test.equal(Ok(3s128))
-      Stdlib.Int128.remainder(20s128, 8s128) |> Stdlib.Test.equal(Ok(4s128))
-      Stdlib.Int128.remainder(-20s128, 8s128) |> Stdlib.Test.equal(Ok(-4s128))
-      Stdlib.Int128.remainder(-20s128, -8s128) |> Stdlib.Test.equal(Ok(-4s128))
-      Stdlib.Int128.remainder(-15s128, 6s128) |> Stdlib.Test.equal(Ok(-3s128))
-      Stdlib.Int128.remainder(-170141183460469231731687303715884105728s128, -1s128)
+    [ Stdlib.Int128.checkedRemainder(15s128, 6s128) |> Stdlib.Test.equal(Ok(3s128))
+      Stdlib.Int128.checkedRemainder(20s128, 8s128) |> Stdlib.Test.equal(Ok(4s128))
+      Stdlib.Int128.checkedRemainder(-20s128, 8s128) |> Stdlib.Test.equal(Ok(-4s128))
+      Stdlib.Int128.checkedRemainder(-20s128, -8s128) |> Stdlib.Test.equal(Ok(-4s128))
+      Stdlib.Int128.checkedRemainder(-15s128, 6s128) |> Stdlib.Test.equal(Ok(-3s128))
+      Stdlib.Int128.checkedRemainder(-170141183460469231731687303715884105728s128, -1s128)
       |> Stdlib.Test.equal(Ok(0s128))
-      Stdlib.Int128.remainder(5s128, 0s128)
-      |> Stdlib.Test.equal(Error("Cannot divide by 0")) ])
+      Stdlib.Int128.checkedRemainder(5s128, 0s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
 
 /// Wraps on overflow.
 test add =
@@ -381,3 +381,19 @@ test checkedAbsoluteValue =
       Stdlib.Int128.checkedAbsoluteValue(170141183460469231731687303715884105727s128)
       |> Stdlib.Test.equal(Ok(170141183460469231731687303715884105727s128))
       Stdlib.Int128.checkedAbsoluteValue(0s128) |> Stdlib.Test.equal(Ok(0s128)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.Int128.checkedDivide(17s128, 3s128) |> Stdlib.Test.equal(Ok(5s128))
+      Stdlib.Int128.checkedDivide(-8s128, 5s128) |> Stdlib.Test.equal(Ok(-1s128))
+      Stdlib.Int128.checkedDivide(-170141183460469231731687303715884105728s128, -1s128)
+      |> Stdlib.Test.equal(Ok(-170141183460469231731687303715884105728s128))
+      Stdlib.Int128.checkedDivide(5s128, 0s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.Int128.checkedMod(15s128, 6s128) |> Stdlib.Test.equal(Ok(3s128))
+      Stdlib.Int128.checkedMod(-1s128, 2s128) |> Stdlib.Test.equal(Ok(1s128))
+      Stdlib.Int128.checkedMod(5s128, 0s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
+      Stdlib.Int128.checkedMod(5s128, -1s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])

@@ -18,7 +18,7 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < "
         + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
-        + "Int128.remainder> if you want the remainder after division, which has "
+        + "Int128.checkedRemainder> if you want the remainder after division, which has "
         + "a different behavior for negative numbers."
       fn =
         (function
@@ -31,37 +31,6 @@ let fns () : List<BuiltInFn> =
             let result = v % m
             let result = if result < System.Int128.Zero then m + result else result
             Ply(DInt128(result))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "int128Remainder" 0
-      typeParams = []
-      parameters = [ Param.make "value" TInt128 ""; Param.make "divisor" TInt128 "" ]
-      returnType = TypeReference.result TInt128 TString
-      description =
-        "Returns the integer remainder left over after dividing <param value> "
-        + "by <param divisor>, as a <type Result>.\n\nFor example, "
-        + "{{Int128.remainder 15 6 == Ok 3}}. The remainder will be negative only "
-        + "if {{<var value> < 0}}.\n\nThe sign of <param divisor> doesn't "
-        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
-        + "{{0}}."
-      fn =
-        let resultOk r = Dval.resultOk KTInt128 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt128 KTString r |> Ply
-        (function
-        | _, _, _, [| DInt128 v; DInt128 d |] ->
-          if d = System.Int128.Zero then
-            // The return type is a `Result`, so surface this as an `Error`
-            // rather than raising a runtime error.
-            DString "Cannot divide by 0" |> resultError
-          else if d = System.Int128.NegativeOne then
-            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
-            System.Int128.Zero |> DInt128 |> resultOk
-          else
-            v % d |> DInt128 |> resultOk
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

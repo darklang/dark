@@ -325,3 +325,13 @@ test checkedAbsoluteValue =
     [ Stdlib.UInt16.checkedAbsoluteValue(65535u16)
       |> Stdlib.Test.equal(Ok(65535u16))
       Stdlib.UInt16.checkedAbsoluteValue(0u16) |> Stdlib.Test.equal(Ok(0u16)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.UInt16.checkedDivide(17u16, 3u16) |> Stdlib.Test.equal(Ok(5u16))
+      Stdlib.UInt16.checkedDivide(5u16, 0u16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.UInt16.checkedMod(15u16, 6u16) |> Stdlib.Test.equal(Ok(3u16))
+      Stdlib.UInt16.checkedMod(5u16, 0u16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus)) ])

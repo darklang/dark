@@ -132,14 +132,15 @@ test fromFloatRejectsNegativeInfinity =
 // is 0 ---
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.remainder(15z, 6z) |> Stdlib.Test.equal(Ok(3z))
-      Stdlib.BigInt.remainder(20z, 8z) |> Stdlib.Test.equal(Ok(4z))
-      Stdlib.BigInt.remainder(-20z, 8z) |> Stdlib.Test.equal(Ok(-4z))
-      Stdlib.BigInt.remainder(-20z, -8z) |> Stdlib.Test.equal(Ok(-4z))
-      Stdlib.BigInt.remainder(-15z, 6z) |> Stdlib.Test.equal(Ok(-3z))
-      Stdlib.BigInt.remainder(5z, 0z) |> Stdlib.Test.equal(Error("Cannot divide by 0"))
+    [ Stdlib.BigInt.checkedRemainder(15z, 6z) |> Stdlib.Test.equal(Ok(3z))
+      Stdlib.BigInt.checkedRemainder(20z, 8z) |> Stdlib.Test.equal(Ok(4z))
+      Stdlib.BigInt.checkedRemainder(-20z, 8z) |> Stdlib.Test.equal(Ok(-4z))
+      Stdlib.BigInt.checkedRemainder(-20z, -8z) |> Stdlib.Test.equal(Ok(-4z))
+      Stdlib.BigInt.checkedRemainder(-15z, 6z) |> Stdlib.Test.equal(Ok(-3z))
+      Stdlib.BigInt.checkedRemainder(5z, 0z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
       // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
-      Stdlib.BigInt.remainder(2z ** 100z, 7z) |> Stdlib.Test.equal(Ok(2z)) ])
+      Stdlib.BigInt.checkedRemainder(2z ** 100z, 7z) |> Stdlib.Test.equal(Ok(2z)) ])
 
 // The % operator dispatches to mod, which wraps into [0, b) and rejects b <= 0.
 test modulo =
@@ -157,6 +158,10 @@ test moduloRejectsZero =
 
 test moduloRejectsNegativeDivisor =
   (5z % -5z)
+  => raises "Cannot evaluate modulus against a negative number"
+
+test moduloRejectsMinusOne =
+  (5z % -1z)
   => raises "Cannot evaluate modulus against a negative number"
 
 // --- shiftLeft / shiftRight: count must fit Int32, else OutOfRange ---
@@ -209,3 +214,21 @@ test randomFullRangeEveryWidth =
     Stdlib.Bool.not(inRange && (Stdlib.List.length(Stdlib.List.unique(draws)) > 1)))
   |> Stdlib.List.map(fun((name, _, _, _)) -> name)
   |> Stdlib.Test.equal([])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedDivide(17z, 3z) |> Stdlib.Test.equal(Ok(5z))
+      Stdlib.BigInt.checkedDivide(-8z, 5z) |> Stdlib.Test.equal(Ok(-1z))
+      Stdlib.BigInt.checkedDivide(5z, 0z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.BigInt.checkedMod(15z, 6z) |> Stdlib.Test.equal(Ok(3z))
+      Stdlib.BigInt.checkedMod(-1z, 2z) |> Stdlib.Test.equal(Ok(1z))
+      Stdlib.BigInt.checkedMod(5z, 0z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
+      Stdlib.BigInt.checkedMod(5z, -1z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+
+test divideRejectsZero =
+  (7z / 0z)
+  => raises "Cannot divide by 0"

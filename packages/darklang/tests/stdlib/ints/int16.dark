@@ -104,12 +104,12 @@ test negate =
 /// divisor is 0.
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int16.remainder(15s16, 6s16) |> Stdlib.Test.equal(Ok(3s16))
-      Stdlib.Int16.remainder(-20s16, 8s16) |> Stdlib.Test.equal(Ok(-4s16))
-      Stdlib.Int16.remainder(-20s16, -8s16) |> Stdlib.Test.equal(Ok(-4s16))
-      Stdlib.Int16.remainder(-32768s16, -1s16) |> Stdlib.Test.equal(Ok(0s16))
-      Stdlib.Int16.remainder(5s16, 0s16)
-      |> Stdlib.Test.equal(Error("Cannot divide by 0")) ])
+    [ Stdlib.Int16.checkedRemainder(15s16, 6s16) |> Stdlib.Test.equal(Ok(3s16))
+      Stdlib.Int16.checkedRemainder(-20s16, 8s16) |> Stdlib.Test.equal(Ok(-4s16))
+      Stdlib.Int16.checkedRemainder(-20s16, -8s16) |> Stdlib.Test.equal(Ok(-4s16))
+      Stdlib.Int16.checkedRemainder(-32768s16, -1s16) |> Stdlib.Test.equal(Ok(0s16))
+      Stdlib.Int16.checkedRemainder(5s16, 0s16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
 
 test greaterThan =
   Stdlib.Test.all(
@@ -391,3 +391,30 @@ test checkedAbsoluteValue =
       Stdlib.Int16.checkedAbsoluteValue(-32767s16) |> Stdlib.Test.equal(Ok(32767s16))
       Stdlib.Int16.checkedAbsoluteValue(32767s16) |> Stdlib.Test.equal(Ok(32767s16))
       Stdlib.Int16.checkedAbsoluteValue(0s16) |> Stdlib.Test.equal(Ok(0s16)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.checkedDivide(17s16, 3s16) |> Stdlib.Test.equal(Ok(5s16))
+      Stdlib.Int16.checkedDivide(-8s16, 5s16) |> Stdlib.Test.equal(Ok(-1s16))
+      Stdlib.Int16.checkedDivide(-32768s16, -1s16) |> Stdlib.Test.equal(Ok(-32768s16))
+      Stdlib.Int16.checkedDivide(5s16, 0s16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.Int16.checkedMod(15s16, 6s16) |> Stdlib.Test.equal(Ok(3s16))
+      Stdlib.Int16.checkedMod(-1s16, 2s16) |> Stdlib.Test.equal(Ok(1s16))
+      Stdlib.Int16.checkedMod(5s16, 0s16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
+      Stdlib.Int16.checkedMod(5s16, -1s16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+
+test moduloRejectsZero =
+  (5s16 % 0s16)
+  => raises "Cannot evaluate modulus against 0"
+
+test moduloRejectsNegativeDivisor =
+  (5s16 % -5s16)
+  => raises "Cannot evaluate modulus against a negative number"
+
+test moduloRejectsMinusOne =
+  (5s16 % -1s16)
+  => raises "Cannot evaluate modulus against a negative number"
