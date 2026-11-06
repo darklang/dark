@@ -27,6 +27,8 @@ For example, on Linux x64:
     chmod +x darklang-alpha-*-linux-x64
     ./darklang-alpha-*-linux-x64
 
+To check a download, run `sha256sum -c --ignore-missing darklang-alpha-*-sha256sums.txt` (on macOS, `shasum -a 256 -c --ignore-missing`) in the folder you downloaded it to.
+
 A fresh install can't touch files, the network, processes or environment variables until you allow it; the refusal names the `dark permissions allow ...` command that does.
 END_BODY
 
@@ -42,17 +44,6 @@ delete_release() {
     "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id"
 }
 
-# Function to delete a tag
-delete_tag() {
-  tag_name=$1
-  echo "Deleting tag: $tag_name"
-  curl -s -L \
-    -X DELETE \
-    -H "Authorization: Bearer $TOKEN" \
-     -H "X-GitHub-Api-Version: 2022-11-28" \
-    "https://api.github.com/repos/$OWNER/$REPO/git/refs/tags/$tag_name"
-}
-
 # This only runs for a pushed v* tag, and the release takes that tag's name.
 # Choosing the version is someone else's job: scripts/deployment/release (or
 # tag-release, if switched back on in CI) pushes the next v0.0.N, and a tag
@@ -65,8 +56,34 @@ fi
 TAG="$CIRCLE_TAG"
 echo "Publishing for pushed tag: $TAG"
 
+# Only commits on main are released. A v* tag pushed anywhere else would otherwise become the
+# newest release, which is what `install.sh` and `dark update` install.
+git fetch --quiet https://github.com/darklang/dark.git main
+if ! git merge-base --is-ancestor "$CIRCLE_SHA1" FETCH_HEAD; then
+  echo "$TAG points at $CIRCLE_SHA1, which is not on main. Not publishing it."
+  exit 1
+fi
 
-# Create a GitHub release
+## The gzipped binaries in the clis directory. Only those: the `.mode` file beside each one
+## records how it was built, for the perf tooling, and is not a download.
+FILES_DIR="/home/dark/app/clis"
+shopt -s nullglob
+binaries=("$FILES_DIR"/*.gz)
+if [ "${#binaries[@]}" -eq 0 ]; then
+  echo "No binaries in $FILES_DIR to publish."
+  exit 1
+fi
+
+## One checksum file beside them, named like them so the asset name still starts with the
+## build that `dark update` reads from it.
+sums="$FILES_DIR/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-sha256sums.txt"
+(cd "$FILES_DIR" && sha256sum -- *.gz) > "$sums"
+cat "$sums"
+
+
+# Create the release as a draft, which nobody else sees, and publish it once every file is on
+# it. Installers never see a release with files still missing, and the repo's immutable
+# releases setting, which locks a release when it is published, leaves the uploads alone.
 response=$(curl -s -L \
   -X POST \
   -H "Accept: application/vnd.github+json" \
@@ -75,64 +92,56 @@ response=$(curl -s -L \
   "https://api.github.com/repos/$OWNER/$REPO/releases" \
   -d "$(jq -n --arg tag "$TAG" --arg target "$TARGET_COMMITISH" --arg name "$NAME" --arg body "$BODY" \
     '{tag_name: $tag, target_commitish: $target, name: $name, body: $body,
-      draft: false, prerelease: true, generate_release_notes: false}')")
+      draft: true, prerelease: true, generate_release_notes: false}')")
 
 echo "Release creation response: $response"
 
-# Store the new release ID to delete the release if files upload fails
-new_release_id=$(echo $response | jq -r '.id')
-
-## Check if release creation was successful
-if [ "$(echo "$response" | jq -r '.id')" == "null" ]; then
+new_release_id=$(jq -r '.id' <<<"$response")
+if [ "$new_release_id" == "null" ]; then
   echo "Release creation failed"
   exit 1
 fi
 
 
-# Upload files to the release
+# Upload files to the draft. Every upload is checked; on any failure the draft is deleted. The
+# pushed tag is left in place.
 
 ## Extract the upload URL from the response: remove the {?name,label} part
-upload_url=$(echo $response | jq -r .upload_url | sed -e "s/{?name,label}//")
+upload_url=$(jq -r .upload_url <<<"$response" | sed -e "s/{?name,label}//")
 
-## Upload the gzipped binaries in the clis directory. Only those: the `.mode` file
-## beside each one records how it was built, for the perf tooling, and is not a download.
-FILES_DIR="/home/dark/app/clis"
-FILES_FOUND=false
+for FILE_PATH in "${binaries[@]}" "$sums"; do
+  FILE_NAME=$(basename "$FILE_PATH")
+  echo "Uploading file: $FILE_PATH"
 
-for FILE_PATH in "$FILES_DIR"/*.gz; do
-  if [[ -f "$FILE_PATH" ]]; then
-    FILES_FOUND=true
-    FILE_NAME=$(basename "$FILE_PATH")
-    echo "Uploading file: $FILE_PATH"
+  upload_response=$(curl -s -L \
+      -X POST \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/octet-stream" \
+      "$upload_url?name=$FILE_NAME" \
+      --data-binary @"$FILE_PATH")
 
-    upload_response=$(curl -s -L \
-        -X POST \
-        -H "Accept: application/vnd.github+json" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Content-Type: application/octet-stream" \
-        "$upload_url?name=$FILE_NAME" \
-        --data-binary @"$FILE_PATH")
+  if [ "$(jq -r '.state' <<<"$upload_response")" != "uploaded" ]; then
+    echo "Uploading $FILE_NAME failed: $upload_response"
+    delete_release "$new_release_id"
+    echo "Deleted the draft. Leaving the pushed tag $TAG in place."
+    exit 1
   fi
 done
 
+publish_response=$(curl -s -L \
+  -X PATCH \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  "https://api.github.com/repos/$OWNER/$REPO/releases/$new_release_id" \
+  -d '{"draft": false}')
 
-# Check if all executables uploaded successfully before deleting old releases
-if [ "$FILES_FOUND" = false ] || [ "$(echo "$upload_response" | jq -r '.state')" != "uploaded" ]; then
-    echo "Not all executables uploaded successfully."
-    echo "Deleting the newly created release..."
-    delete_release "$new_release_id"
-    # Only clean up tags we made. A pushed tag is the user's, and deleting it
-    # out from under a failed CI run would be a surprising thing to do.
-    if [ -z "${CIRCLE_TAG:-}" ]; then
-      echo "Deleting the tag..."
-      delete_tag "$TAG"
-    else
-      echo "Leaving the pushed tag $TAG in place."
-    fi
-    echo "Deleted"
-    exit 1
-else
-    echo "All executables uploaded successfully"
+if [ "$(jq -r '.draft' <<<"$publish_response")" != "false" ]; then
+  echo "Publishing the release failed: $publish_response"
+  delete_release "$new_release_id"
+  echo "Deleted the draft. Leaving the pushed tag $TAG in place."
+  exit 1
 fi
 
 echo "Done - new release published (old releases preserved)"

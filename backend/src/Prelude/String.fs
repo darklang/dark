@@ -29,8 +29,8 @@ let toEgcChar (str : string) : Option<string> =
   if
     str <> ""
     && System.Globalization.StringInfo.GetNextTextElementLength(
-         System.MemoryExtensions.AsSpan str
-       ) = str.Length
+      System.MemoryExtensions.AsSpan str
+    ) = str.Length
   then
     Some str
   else

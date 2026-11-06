@@ -8,12 +8,17 @@ version: 2.1
 # something to this file, there's an equivalent to be added there. CI doesn't run
 # compile itself; it drives _dotnet-wrapper directly, so the two can drift.
 
-# The build cache holds the nuget download directory only. Measured: restoring costs 1.5s
-# and saves 4.9s of `tool restore` + `paket restore`, so it earns about 3.4s a job.
+# Secrets live in CircleCI contexts, each named only by the job that needs it and restricted
+# in CircleCI to the pipelines it is for; the project itself holds none. So a branch, a fork PR
+# or a Dependabot build gets no secret, whatever its copy of this file says.
 #
-# It used to also carry `backend/Build/obj`, which MSBuild ignores here because
-# `git restore-mtime` is commented out, so cached objects always look stale. The sqlite
-# archive caches in the release matrix are unrelated and stay.
+#   github-release      GITHUB_RELEASES_TOKEN               publish-release-clis, on v* tags
+#   dockerhub-publish   DOCKER_HUB_USER, DOCKER_HUB_TOKEN   publish-images in config.yml, on main
+#
+# Caches: any pipeline in this repo can write any cache key, including one main is about to
+# ask for, because a branch's config picks its own keys. So main and the release jobs restore
+# none, and only branch and PR builds use the NuGet one. Measured: restoring costs 1.5s and
+# saves 4.9s of `tool restore` + `paket restore`, so it earns about 3.4s a job.
 
 parameters:
   # Set by .circleci/config.yml from scripts/deployment/ci-images, pinned by digest.
@@ -72,14 +77,15 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     docker:
-      - image: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+      # 10.0-alpine, by digest so the build doesn't change under us.
+      - image: mcr.microsoft.com/dotnet/sdk@sha256:5562fd626eec39f6f53218f9b7d7856ab7195d51d846568304fbe85071a3b6e6
 
   # CircleCI's macOS executors are bare VMs with no Docker, so there's no
   # container for the scripts to enter. IN_DEV_CONTAINER is what tells
   # _assert-in-container not to re-enter and just run, which is exactly how
   # the in-container executor above uses it: CI is already inside its image.
-  # The job installs .NET and zig itself and takes the seed database over the
-  # workspace rather than building one.
+  # The job installs .NET and zig itself (scripts/build/install-release-toolchain) and
+  # takes the seed database over the workspace rather than building one.
   macos-builder:
     working_directory: ~/app
     environment:
@@ -131,6 +137,20 @@ commands:
           root: "."
           paths:
             - clis
+
+  # Branch and PR builds only: see the note on caches at the top of this file.
+  nuget-cache-restore:
+    steps:
+      - run: shasum backend/paket.lock backend/global.json > ../checksum
+      - unless:
+          condition:
+            equal: [main, << pipeline.git.branch >>]
+          steps:
+            - restore_cache:
+                keys:
+                  - v7-nuget-{{ checksum "../checksum" }}
+                  # prefix match: an older lockfile's downloads still beat starting empty
+                  - v7-nuget-
 
   show-large-files-and-directories:
     steps:
@@ -201,8 +221,6 @@ commands:
             scripts/devcontainer/_create-app-directories
             scripts/devcontainer/_create-cache-directories
             scripts/devcontainer/_setup-hosts
-            # Build process statements moved to build-backend
-            env
 
 ##########################
 # Actual workflow
@@ -240,12 +258,7 @@ jobs:
           command: |
             set -x
 
-      - run: shasum backend/paket.lock backend/global.json > ../checksum
-      - restore_cache:
-          keys:
-            - v7-nuget-{{ checksum "../checksum" }}
-            # prefix match: an older lockfile's downloads still beat starting empty
-            - v7-nuget-
+      - nuget-cache-restore
       - show-large-files-and-directories
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -348,12 +361,7 @@ jobs:
           command: python3 .circleci/test_artifact_validation.py
       - show-large-files-and-directories
       # For tests
-      - run: shasum backend/paket.lock backend/global.json > ../checksum
-      - restore_cache:
-          keys:
-            - v7-nuget-{{ checksum "../checksum" }}
-            # prefix match: an older lockfile's downloads still beat starting empty
-            - v7-nuget-
+      - nuget-cache-restore
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - save_cache:
@@ -476,12 +484,6 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - run: shasum backend/paket.lock backend/global.json > ../checksum
-      - restore_cache:
-          keys:
-            - v7-nuget-{{ checksum "../checksum" }}
-            # prefix match: an older lockfile's downloads still beat starting empty
-            - v7-nuget-
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - run:
@@ -529,24 +531,13 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
 
-      # SQLite static archives for the AOT link, built by zig cc from the
-      # amalgamation. Keyed on the build script's content, which contains the
-      # SQLite version pin, so a version bump always invalidates.
+      # SQLite static archives for the AOT link, built by zig cc from the amalgamation.
+      # Every release, never from a cache: see the note on caches at the top of this file.
       - run:
-          name: Hash build-sqlite.sh for cache key
-          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
-      - restore_cache:
-          keys:
-            - v1-sqlite-archives-linux-{{ checksum "../sqlite-checksum" }}
-      - run:
-          name: Build SQLite static archives (skips on cache hit)
+          name: Build SQLite static archives
           command: |
             ./scripts/build/build-sqlite.sh \
               --runtimes=linux-x64,linux-arm64
-      - save_cache:
-          paths:
-            - backend/src/Cli/lib
-          key: v1-sqlite-archives-linux-{{ checksum "../sqlite-checksum" }}
 
       # Two linux runtimes are deliberately absent, for different reasons.
       #
@@ -648,24 +639,18 @@ jobs:
           name: Install build dependencies
           command: |
             # cmake, openssl-dev and openssl-libs-static: the musl binary links OpenSSL
-            # statically, and .NET builds its OpenSSL shim from source to do that.
-            apk add --no-cache bash git curl clang build-base zlib-dev zig openssl icu-libs \
-              cmake openssl-dev openssl-libs-static
-            # build-sqlite.sh looks for zig at $HOME/zig/zig, same as everywhere else
-            mkdir -p "$HOME/zig" && ln -sf "$(command -v zig)" "$HOME/zig/zig"
+            # statically, and .NET builds its OpenSSL shim from source to do that. tar and
+            # xz unpack the pinned toolchain.
+            apk add --no-cache bash git curl clang build-base zlib-dev openssl icu-libs \
+              cmake openssl-dev openssl-libs-static tar xz
       - checkout
       - run:
-          name: Install the pinned .NET SDK
+          name: Install the pinned .NET SDK and zig
           command: |
-            # The image ships a newer patch than backend/global.json pins, and
-            # that file sets rollForward: disable, so every dotnet command fails
-            # until the exact version is present. Read it rather than hardcode a
-            # third copy of the version.
-            SDK=$(grep -oE '"version"[^"]*"[^"]+"' backend/global.json \
-                    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-            echo "Installing .NET SDK $SDK (from backend/global.json)"
-            curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
-            bash /tmp/dotnet-install.sh --version "$SDK" --install-dir /usr/share/dotnet
+            # The image ships a newer SDK patch than backend/global.json pins, and that file
+            # sets rollForward: disable, so every dotnet command fails until the exact version
+            # is present. build-sqlite.sh looks for zig at $HOME/zig/zig.
+            scripts/build/install-release-toolchain linux-musl-x64 /usr/share/dotnet "$HOME/zig"
             dotnet --version
       - attach_workspace: { at: "." }
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -734,44 +719,16 @@ jobs:
       # build-sqlite.sh writes to app/backend/src/Cli/lib relative to ~, so
       # the checkout has to live at ~/app here the same as it does in the
       # container. That's what working_directory on the executor is for.
-      #
-      # Restore the SQLite archive first: zig is only needed to build it, so on a cache
-      # hit zig isn't installed.
       - run:
-          name: Hash build-sqlite.sh for cache key
-          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
-      - restore_cache:
-          keys:
-            - v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
-      - run:
-          name: Install build dependencies
+          name: Install the pinned .NET SDK and zig
           command: |
-            # Read the SDK version out of global.json rather than pinning a
-            # third copy of it. global.json sets rollForward: disable, so
-            # `--channel 10.0` installs something newer and every dotnet
-            # command then refuses to run, blaming an SDK version rather than
-            # this file.
-            SDK=$(python3 -c \
-              "import json;print(json.load(open('backend/global.json'))['sdk']['version'])")
-            echo "Installing .NET SDK $SDK (from backend/global.json)"
-            curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
-            bash dotnet-install.sh --version "$SDK" --install-dir "$HOME/.dotnet"
+            scripts/build/install-release-toolchain osx-arm64 "$HOME/.dotnet" "$HOME/zig"
             echo 'export PATH="$HOME/.dotnet:$PATH"' >> "$BASH_ENV"
-            if [[ -f backend/src/Cli/lib/libe_sqlite3-osx-arm64.a ]]; then
-              echo "SQLite archive restored from cache; zig not needed."
-            else
-              HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install zig
-              mkdir -p "$HOME/zig" && ln -sf "$(which zig)" "$HOME/zig/zig"
-            fi
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - run:
-          name: Build SQLite static archives (skips on cache hit)
+          name: Build SQLite static archives
           command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64
-      - save_cache:
-          paths:
-            - backend/src/Cli/lib
-          key: v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
       # Only osx-arm64 (Apple Silicon) is built here. osx-x64 (Intel) is built in
       # build-cli-r2r-extras, as R2R rather than AOT: CircleCI has no Intel Macs to test an
       # AOT build on.
@@ -814,6 +771,8 @@ jobs:
 
   #
   # Switched off. Main releases only when someone runs scripts/deployment/release.
+  # Switching it on also needs GITHUB_RELEASES_TOKEN in a context of its own, restricted to
+  # main: `github-release` is restricted to tags.
   #
   # When switched on, this tags every green merge to main with the next v0.0.N,
   # which releases it. To switch it on, uncomment this job and its entry under
@@ -895,6 +854,7 @@ workflows:
       # its releases by scripts/deployment/release pushing one, not through
       # this filter.
       - publish-release-clis:
+          context: github-release
           filters:
             tags:
               only: /^v.*/

@@ -153,3 +153,43 @@ module ReleaseForBuild =
         Darklang.GitHub.Releases.buildOf(
           Darklang.GitHub.Releases.Release { tag_name = "v0.0.1", assets = [] })
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// What `install.sh` and `dark update` check a download against: the release's checksums file.
+module Checksums =
+  test sumsFileIsFoundAndNeverTakenForABinary =
+    let assets =
+      Stdlib.List.append(
+        AssetForPlatform.assets(),
+        AssetForPlatform.asset("darklang-alpha-abc1234-sha256sums.txt"))
+
+    Stdlib.Test.all(
+      [ Darklang.GitHub.Releases.sumsUrlFor(assets)
+        |> Stdlib.Test.equal(
+          (Stdlib.Option.Option.Some(
+             "https://example.com/darklang-alpha-abc1234-sha256sums.txt")))
+        Darklang.GitHub.Releases.sumsUrlFor(AssetForPlatform.assets())
+        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        Darklang.GitHub.Releases.assetUrlFor(assets, "linux-x64")
+        |> Stdlib.Test.equal(
+          (Stdlib.Option.Option.Some(
+             "https://example.com/darklang-alpha-abc1234-linux-x64.gz"))) ])
+
+  // As `sha256sum` prints them. `linux-arm` must not take `linux-arm64`'s line.
+  val sums =
+    "AB12  darklang-alpha-abc1234-linux-arm64.gz\ncd34  darklang-alpha-abc1234-linux-arm.gz\n"
+
+  test hashForEachFile =
+    Stdlib.Test.all(
+      [ Darklang.Cli.Installation.Download.expectedSha256(
+          sums,
+          "darklang-alpha-abc1234-linux-arm.gz")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some("cd34"))
+        Darklang.Cli.Installation.Download.expectedSha256(
+          sums,
+          "darklang-alpha-abc1234-linux-arm64.gz")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some("ab12"))
+        Darklang.Cli.Installation.Download.expectedSha256(
+          sums,
+          "darklang-alpha-abc1234-osx-x64.gz")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])

@@ -388,7 +388,7 @@ module RT =
       // compare the bits, so NaN equals itself and -0.0f32 is not 0.0f32
       | RT.DFloat32 f1, RT.DFloat32 f2 ->
         System.BitConverter.SingleToUInt32Bits f1 = System.BitConverter.SingleToUInt32Bits
-                                                      f2
+          f2
       // `=` on decimals ignores scale, so compare the bits: 1.10m must not come back 1.1m
       | RT.DDecimal d1, RT.DDecimal d2 ->
         System.Decimal.GetBits d1 = System.Decimal.GetBits d2
