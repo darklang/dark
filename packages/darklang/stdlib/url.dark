@@ -538,6 +538,7 @@ let __resolveRaw(base: Url, ref: Url): Url =
 /// The query string's fields, decoded, in order and with repeats kept. Splits
 /// each field at its first {{=}}, reads {{+}} as a space (as an HTML form sends
 /// it), and skips empty fields, so {{?a=1&&b}} is {{[("a", "1"), ("b", "")]}}.
+/// <fn withQueryParams> goes the other way.
 let queryParams(url: Url): List<(String * String)> =
   match url.query with
   | None -> []
@@ -559,6 +560,7 @@ let queryParams(url: Url): List<(String * String)> =
 /// so {{/}} and {{""}} are both {{[]}}; one in the middle ({{/a//b}}) is kept.
 /// Decoding is <fn percentDecode>, so a {{+}} stays a {{+}}. Use it for routing,
 /// and the raw {{path}} when an escaped {{/}} ({{%2F}}) must not split.
+/// <fn withPathSegments> goes the other way.
 let pathSegments(url: Url): List<String> =
   let segments =
     match Stdlib.String.split(url.path, "/") with
@@ -581,6 +583,57 @@ let encodeQuery(params: List<(String * String)>): String =
     let (k, v) = pair
     percentEncode(k) + "=" + percentEncode(v))
   |> Stdlib.String.join("&")
+
+
+/// The other way from <fn pathSegments>: sets the path to <param segments>, each
+/// one <fn percentEncode>d, so a {{/}}, {{?}} or {{#}} in it stays data:
+/// {{["users", "a/b", "café"]}} is {{/users/a%2Fb/caf%C3%A9}}. A segment that is
+/// just {{.}} or {{..}} is written {{%2E}} or {{%2E%2E}}, which <fn resolve> does
+/// not follow (a browser still does).
+///
+/// The path starts with {{/}} when there is a host or the old path did, and is
+/// relative otherwise: {{mailto:old}} with {{["new"]}} is {{mailto:new}}, and a
+/// relative {{a/b}} stays relative. No segments is {{/}} or {{""}} by that rule.
+///
+/// {{pathSegments(withPathSegments(u, s)) == s}}, with two exceptions: a last
+/// segment of {{""}} gives a trailing {{/}}, which <fn pathSegments> drops; and
+/// with no host, a first segment of {{""}} gets a dot segment in front
+/// ({{/.//x}} or {{.//x}}), so the path reads back as neither a host nor absolute.
+let withPathSegments(url: Url, segments: List<String>): Url =
+  let joined =
+    segments
+    |> Stdlib.List.map(fun s ->
+      match s with
+      | "." -> "%2E"
+      | ".." -> "%2E%2E"
+      | _ -> percentEncode(s))
+    |> Stdlib.String.join("/")
+
+  let path =
+    if
+      url.host != Stdlib.Option.Option.None
+      || Stdlib.String.startsWith(url.path, "/")
+    then
+      "/" + joined
+    else if Stdlib.List.head(segments) == Stdlib.Option.Option.Some("") then
+      "./" + joined
+    else
+      joined
+
+  __guardPath({ url with path = path })
+
+
+/// The other way from <fn queryParams>: sets the query to <param params>, written
+/// by <fn encodeQuery>, so {{[("q", "a&b")]}} is {{?q=a%26b}}, and
+/// {{queryParams(withQueryParams(u, ps)) == ps}}. No params is no query at all,
+/// rather than a bare {{?}}.
+let withQueryParams(url: Url, params: List<(String * String)>): Url =
+  { url with
+      query =
+        if params == [] then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some(encodeQuery(params)) }
 
 
 /// Decodes {{%XX}} escapes, byte by byte, and reads the result as UTF-8:

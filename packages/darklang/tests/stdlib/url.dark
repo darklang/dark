@@ -709,6 +709,75 @@ test encodeQuery =
       |> Stdlib.Result.map(fun u -> Stdlib.Url.queryParams(u))
       |> Stdlib.Test.equal(Ok([ ("a&b", "c=d"), ("é", "+ %"), ("a&b", "") ])) ])
 
+let withPath(
+  s: String,
+  segments: List<String>)
+  : Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
+  Stdlib.Url.parseReference(s)
+  |> Stdlib.Result.map(fun u ->
+    Stdlib.Url.toString(Stdlib.Url.withPathSegments(u, segments)))
+
+let withQuery(
+  s: String,
+  params: List<(String * String)>)
+  : Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
+  Stdlib.Url.parseReference(s)
+  |> Stdlib.Result.map(fun u ->
+    Stdlib.Url.toString(Stdlib.Url.withQueryParams(u, params)))
+
+test withPathSegments =
+  let segments = [ "a b", "x/y", "é", "?#", "..", ".", "", "+", "%" ]
+
+  Stdlib.Test.all(
+    [ [ "https://example.com/old?q=1", "/old", "mailto:old", "a/b", "" ]
+      |> Stdlib.List.map(fun base ->
+        Stdlib.Url.parseReference(base)
+        |> Stdlib.Result.map(fun u ->
+          Stdlib.Url.pathSegments(Stdlib.Url.withPathSegments(u, segments)))
+        |> Stdlib.Test.equal(Ok(segments)))
+      |> Stdlib.Test.all
+      withPath("https://example.com/old?q=1", segments)
+      |> Stdlib.Test.equal(
+        Ok("https://example.com/a%20b/x%2Fy/%C3%A9/%3F%23/%2E%2E/%2E//%2B/%25?q=1"))
+      withPath("https://example.com/old", [])
+      |> Stdlib.Test.equal(Ok("https://example.com/"))
+      // Absolute or relative, as the path was.
+      withPath("/old", []) |> Stdlib.Test.equal(Ok("/"))
+      withPath("/old", [ "x" ]) |> Stdlib.Test.equal(Ok("/x"))
+      withPath("a/b", []) |> Stdlib.Test.equal(Ok(""))
+      withPath("a/b", [ "x", "y" ]) |> Stdlib.Test.equal(Ok("x/y"))
+      withPath("mailto:old", [ "a b" ]) |> Stdlib.Test.equal(Ok("mailto:a%20b"))
+      // The two cases that do not round-trip.
+      withPath("https://example.com", [ "a", "" ])
+      |> Stdlib.Test.equal(Ok("https://example.com/a/"))
+      withPath("non-spec:/p", [ "", "evil.com" ])
+      |> Stdlib.Test.equal(Ok("non-spec:/.//evil.com"))
+      withPath("a", [ "", "x" ]) |> Stdlib.Test.equal(Ok(".//x"))
+      // A `..` segment is a name, not a step up.
+      Stdlib.Url.parse("http://x")
+      |> Stdlib.Result.map(fun u ->
+        Stdlib.Url.removeDotSegments(
+          (Stdlib.Url.withPathSegments(u, [ "a", "..", "b" ])).path))
+      |> Stdlib.Test.equal(Ok("/a/%2E%2E/b")) ])
+
+test withQueryParams =
+  let params =
+    [ ("a", "1")
+      ("a", "2")
+      ("q", "C++ map")
+      ("k=v", "x&y=z")
+      ("empty", "")
+      ("é", "%") ]
+
+  Stdlib.Test.all(
+    [ Stdlib.Url.parse("http://x/p#top")
+      |> Stdlib.Result.map(fun u ->
+        Stdlib.Url.queryParams(Stdlib.Url.withQueryParams(u, params)))
+      |> Stdlib.Test.equal(Ok(params))
+      withQuery("http://x/p#top", [ ("q", "a b"), ("n", "1+1") ])
+      |> Stdlib.Test.equal(Ok("http://x/p?q=a%20b&n=1%2B1#top"))
+      withQuery("http://x/p?old=1", []) |> Stdlib.Test.equal(Ok("http://x/p")) ])
+
 // RFC 3986 sections 4.2 and 5.3: with no host, a resolved path starting `//`
 // gets a `/.` in front, or it would read back as a host. Cases from WHATWG's
 // urltestdata.json, which serializes the same way.
@@ -811,8 +880,8 @@ test elmUrlPercent =
       Stdlib.Url.percentDecode("%XY") |> Stdlib.Test.equal("%XY")
       Stdlib.Url.percentDecode("%C2") |> Stdlib.Test.equal("�") ])
 
-// Url.Builder's examples, built from a record and encodeQuery, which is what we
-// have instead of a builder.
+// Url.Builder's examples. Elm's builders take the path as a string, so these set
+// `path` directly and the query with withQueryParams.
 let at(
   host: Stdlib.Option.Option<String>,
   port: Stdlib.Option.Option<Int64>,
@@ -820,15 +889,16 @@ let at(
   params: List<(String * String)>,
   fragment: Stdlib.Option.Option<String>)
   : String =
-  Stdlib.Url.toString(
-    Stdlib.Url.Url
-      { scheme = if host == None then None else Some("https")
-        userinfo = None
-        host = host
-        port = port
-        path = path
-        query = if params == [] then None else Some(Stdlib.Url.encodeQuery(params))
-        fragment = fragment })
+  Stdlib.Url.Url
+    { scheme = if host == None then None else Some("https")
+      userinfo = None
+      host = host
+      port = port
+      path = path
+      query = None
+      fragment = fragment }
+  |> Stdlib.Url.withQueryParams(params)
+  |> Stdlib.Url.toString
 
 test elmUrlBuilder =
   Stdlib.Test.all(
