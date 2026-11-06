@@ -54,6 +54,22 @@ let private parseKind (args : string array) : bool option * string array =
         Exception.raiseInternal $"--kind {other}: expected sequenced or parallel" []
     Some sequenced, Array.append args[0 .. i - 1] args[i + 2 ..]
 
+/// `--only-groups A,B` keeps only the top-level groups named (`tests/A/...`), and `--skip-groups A,B`
+/// drops them. `run-fsharp-tests --split` uses the pair to run the sequenced tests in two
+/// processes, a group never divided between them: a sequenced group's tests can depend on what
+/// the ones before them left behind.
+let private parseGroups
+  (flag : string)
+  (args : string array)
+  : Set<string> option * string array =
+  match Array.tryFindIndex (fun a -> a = flag) args with
+  | None -> None, args
+  | Some i ->
+    if i + 1 >= args.Length then
+      Exception.raiseInternal $"{flag} needs a comma-separated list of groups" []
+    let groups = args[i + 1].Split(',') |> Array.filter ((<>) "") |> Set.ofArray
+    Some groups, Array.append args[0 .. i - 1] args[i + 2 ..]
+
 /// Remove the tests not in `keep`, leaving the rest of the tree exactly as it was.
 /// Don't swap in Expecto's `Test.filter` or `fromFlatTests`: they rebuild the tree, which
 /// changes test names in the JUnit report, and a few full names contain characters XML
@@ -81,6 +97,8 @@ let main (args : string array) : int =
   try
     let shard, args = parseShard args
     let kind, args = parseKind args
+    let onlyGroups, args = parseGroups "--only-groups" args
+    let skipGroups, args = parseGroups "--skip-groups" args
 
     // The suite gets a policy of its own, so no test reads or writes the clone's
     // (`~/.darklang/policy`, the dev store's: a deny-all left there refuses the clone's own
@@ -252,14 +270,30 @@ let main (args : string array) : int =
         |> List.filter (fun t -> ownedBy total t = idx)
         |> Test.fromFlatTests "/"
 
+    let grouped =
+      let group (t : FlatTest) = t.name |> List.tryItem 1 |> Option.defaultValue ""
+      let wanted (t : FlatTest) =
+        (onlyGroups |> Option.forall (fun gs -> Set.contains (group t) gs))
+        && (skipGroups |> Option.forall (fun gs -> not (Set.contains (group t) gs)))
+      match onlyGroups, skipGroups with
+      | None, None -> sharded
+      | _ ->
+        let keep =
+          sharded
+          |> Test.toTestCodeList
+          |> List.filter wanted
+          |> List.map (fun t -> t.name)
+          |> Set.ofList
+        keepOnly keep [] sharded |> Option.defaultValue (TestList([], Normal))
+
     let toRun =
       match kind with
-      | None -> sharded
+      | None -> grouped
       | Some sequenced ->
         print
           $"""Running the {if sequenced then "sequenced" else "parallel"} tests."""
         let keep =
-          sharded
+          grouped
           |> Test.toTestCodeList
           |> List.filter (fun t ->
             match t.sequenced with
@@ -267,7 +301,7 @@ let main (args : string array) : int =
             | _ -> not sequenced)
           |> List.map (fun t -> t.name)
           |> Set.ofList
-        keepOnly keep [] sharded |> Option.defaultValue (TestList([], Normal))
+        keepOnly keep [] grouped |> Option.defaultValue (TestList([], Normal))
 
     let exitCode =
       runTestsWithCLIArgs [ Allow_Duplicate_Names; JoinWith "/" ] args toRun

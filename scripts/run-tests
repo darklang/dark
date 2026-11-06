@@ -7,9 +7,10 @@
 #     scripts/run-tests               against the Debug build (`scripts/dev/build`)
 #     scripts/run-tests --published   against the published build (`scripts/dev/build --optimize`)
 #
-# The suites share nothing they write: the F# tests use rundir/test-data.db and
-# rundir/split-sequenced/, package-tests uses rundir/package-tests/, and each gate its own rundir
-# and HOME. Each suite's output goes to rundir/logs/run-tests/<suite>.log.
+# The suites share nothing they write: the F# tests use rundir/test-data.db,
+# rundir/split-sequenced/ and rundir/split-sequenced-2/, package-tests uses rundir/package-tests/,
+# and each gate its own rundir and HOME. Each suite's output goes to
+# rundir/logs/run-tests/<suite>.log.
 #
 # Not here: first-day, which needs a release binary (`gates first-day <binary>`), and the build's
 # own Python tests (scripts/testing/test-build-planning.py, .circleci/test_*.py).
@@ -63,9 +64,9 @@ counts() {
   local log="$LOGS/$1.log"
   case "$1" in
     fsharp)
-      plain "$log" | grep -oE '(\[sequenced\] )?.*EXPECTO! [0-9,]+ tests run.*errored' \
-        | sed -E 's/.*(\[sequenced\]).*EXPECTO! /sequenced: /; s/.*EXPECTO! /parallel: /' \
-        | sed -E 's/ in [0-9:.]+ for tests –/:/' | paste -sd ';' | sed 's/;/; /' ;;
+      plain "$log" | grep -oE '(\[sequenced(-2)?\] )?.*EXPECTO! [0-9,]+ tests run.*errored' \
+        | sed -E 's/.*\[(sequenced(-2)?)\].*EXPECTO! /\1: /; s/.*EXPECTO! /parallel: /' \
+        | sed -E 's/ in [0-9:.]+ for tests –/:/' | paste -sd ';' | sed 's/;/; /g' ;;
     package-tests)
       plain "$log" | grep -E '[0-9,]+ passed, [0-9,]+ failed' | tail -1 | cut -d';' -f1 ;;
     gates)

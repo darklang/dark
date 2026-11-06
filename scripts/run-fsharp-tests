@@ -25,7 +25,7 @@ do
       LISTING=true # lists without running, so "no tests ran" is expected
       EXPECTO_ARGS+=("${i}")
       ;;
-    --filter|--filter-test-list|--filter-test-case|--run|--shard|--kind)
+    --filter|--filter-test-list|--filter-test-case|--run|--shard|--kind|--only-groups|--skip-groups)
       FILTERED=true
       EXPECTO_ARGS+=("${i}")
       ;;
@@ -186,43 +186,54 @@ if [[ -v CI ]]; then
   (
     start=$(date +%s)
     while true; do
-      sleep 120
+      # Off the output: killing this loop leaves the sleep running, and a sleep holding the
+      # pipe kept anything reading it (a `tee`, a timer) waiting up to two minutes more.
+      sleep 120 > /dev/null 2>&1
       echo "[heartbeat] tests still running, $(( $(date +%s) - start ))s elapsed"
     done
   ) &
   HEARTBEAT_PID=$!
 fi
 
-PRIORITY=()
-if [[ "$SPLIT" == "true" ]]; then
-  # The sequenced tests run one at a time because they share process state (the open store,
-  # captured console, trace settings), not because they need the parallel tests to finish
-  # first. So they get a process of their own: its own HOME (so its own store, CLI instances,
-  # policy and logs) and HttpClient port, so nothing it writes reaches the other half.
-  SEQ_HOME="${HOME}/.darklang/split-sequenced"
-  SEQ_RUNDIR="$SEQ_HOME/.darklang"
-  SEQ_LOG="${LOGS}/fsharp-tests-sequenced.log"
-  SEQ_JUNIT="${HOME}/.darklang/test_results/backend-sequenced.xml" # beside the other
-  rm -rf "$SEQ_HOME"
-  mkdir -p "$SEQ_RUNDIR/logs"
+SEQ_PIDS=()
+SEQ_LOGS=()
+# The sequenced tests run one at a time because they share process state (the open store,
+# captured console, trace settings), not because they need the parallel tests to finish
+# first. So each share of them gets a process of its own: its own HOME (so its own store, CLI
+# instances, policy and logs) and HttpClient port, so nothing it writes reaches the others.
+start_sequenced() {
+  local name="$1" port_offset="$2"
+  shift 2
+  local home="${HOME}/.darklang/split-${name}"
+  local log="${LOGS}/fsharp-tests-${name}.log"
+  local junit="${HOME}/.darklang/test_results/backend-${name}.xml" # beside the others
+  rm -rf "$home"
+  mkdir -p "$home/.darklang/logs"
   # Through SQLite, not cp: the store may still have writes in its WAL.
   python3 -c 'import sqlite3, sys
 src, dst = sqlite3.connect(sys.argv[1]), sqlite3.connect(sys.argv[2])
-src.backup(dst)' "$DB_PATH" "$SEQ_RUNDIR/${DARK_CONFIG_DB_NAME}"
-
+src.backup(dst)' "$DB_PATH" "$home/.darklang/${DARK_CONFIG_DB_NAME}"
   (
-    HOME="$SEQ_HOME" \
-    DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT=$((DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT + 1)) \
+    HOME="$home" \
+    DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT=$((DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT + port_offset)) \
     DARK_CONFIG_TELEMETRY_EXPORTER=none \
     "${EXE}" ${SPINNER} --colours "${COLOURS}" \
-      --junit-summary "${SEQ_JUNIT}" "${EXPECTO_ARGS[@]}" \
-      --kind sequenced < /dev/null 2>&1 | tee "${SEQ_LOG}" | sed -u 's/^/[sequenced] /'
+      --junit-summary "$junit" "${EXPECTO_ARGS[@]}" \
+      --kind sequenced "$@" < /dev/null 2>&1 | tee "$log" | sed -u "s/^/[${name}] /"
     exit "${PIPESTATUS[0]}"
   ) &
-  SEQ_PID=$!
+  SEQ_PIDS+=($!)
+  SEQ_LOGS+=("$log")
+}
 
-  # The sequenced half is now the longer one, so the parallel half yields the CPU to it.
-  PRIORITY=(nice -n 10)
+if [[ "$SPLIT" == "true" ]]; then
+  # Two shares, whole groups each, as even as the groups allow: the sequenced tests in one
+  # process ran well past the parallel ones. These groups take about half of the sequenced
+  # time (on CI: OpsProjections 30s, PackageTests 28s, scheduler 17s, spread 6s); rebalance
+  # here when the timings move. Keep CliTraces and CliTraceVerbs together, in that order.
+  SEQ_SECOND_SHARE=PackageTests,OpsProjections,scheduler,spread
+  start_sequenced sequenced 1 --skip-groups "$SEQ_SECOND_SHARE"
+  start_sequenced sequenced-2 2 --only-groups "$SEQ_SECOND_SHARE"
   EXPECTO_ARGS+=(--kind parallel)
 fi
 
@@ -233,15 +244,17 @@ set +e
 # surfaces are tested by the expect-driven gates, in their own processes); making it never a tty
 # means the suite behaves identically piped, in CI, and under tmux.
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-"${PRIORITY[@]}" "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" < /dev/null 2>&1 | tee "${TEST_LOG}"
+"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" < /dev/null 2>&1 | tee "${TEST_LOG}"
 STATUS=${PIPESTATUS[0]}
 LOGS_TO_CHECK=("${TEST_LOG}")
 if [[ "$SPLIT" == "true" ]]; then
-  wait "$SEQ_PID"
-  SEQ_STATUS=$?
-  [[ "$STATUS" -eq 0 ]] && STATUS=$SEQ_STATUS
-  LOGS_TO_CHECK+=("${SEQ_LOG}")
-  FILTERED=true # each half must have run something
+  for pid in "${SEQ_PIDS[@]}"; do
+    wait "$pid"
+    SEQ_STATUS=$?
+    [[ "$STATUS" -eq 0 ]] && STATUS=$SEQ_STATUS
+  done
+  LOGS_TO_CHECK+=("${SEQ_LOGS[@]}")
+  FILTERED=true # each process must have run something
 fi
 set -e
 
