@@ -144,10 +144,8 @@ let hashListToDict(
 
 /// The deprecation sets, as <param branchId> sees them.
 ///
-/// Main's deprecations with the branch chain's own `Deprecate`/`Undeprecate` ops layered over them.
-/// The fold is main-only -- a branch's ops sit inert until it merges -- so this is an overlay, the
-/// same way a branch's NAMES are an overlay rather than rows of their own. Until this consulted the
-/// branch, deprecating on a branch changed nothing there and `view` went on calling the item live.
+/// Its own layers over its ancestors' committed ones (`LibDB.Deprecations`), the same view its names
+/// resolve in.
 let loadDeprecationSets(branchId: Uuid): DeprecationSets =
   let (all, hidden) = Builtin.pmGetDeprecationSets(branchId)
   DeprecationSets

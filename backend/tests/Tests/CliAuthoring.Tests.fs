@@ -265,8 +265,9 @@ let authoringFollowsStoredCommits =
         do! start state
         withStore state (fun cmd ->
           cmd.CommandText <-
-            "INSERT INTO commits (hash, message, origin_ts) "
-            + "VALUES ('clock-regression-future', 'future clock', '2099-01-01T00:00:00.000Z')"
+            "INSERT INTO commits (hash, branch_id, message, origin_ts) "
+            + "VALUES ('clock-regression-future', '00000000-0000-0000-0000-000000000001', "
+            + "'future clock', '2099-01-01T00:00:00.000Z')"
           Expect.equal
             (cmd.ExecuteNonQuery())
             1
@@ -281,7 +282,7 @@ let authoringFollowsStoredCommits =
         let mainStamp =
           "SELECT p.origin_ts AS ts FROM package_ops p JOIN locations l ON l.op_id = p.id "
           + "WHERE l.owner = 'Tests' AND l.modules = 'ClockRegression' "
-          + "AND l.name = 'main' AND l.unlisted_at IS NULL"
+          + "AND l.name = 'main' AND l.live = 1"
         Expect.stringStarts
           (stamp mainStamp)
           "2099-"
@@ -290,8 +291,7 @@ let authoringFollowsStoredCommits =
         do! fn state "Tests.ClockRegression.branch" "(): Int64 = 781564"
         let branchStamp =
           "SELECT MIN(p.origin_ts) AS ts FROM package_ops p "
-          + "JOIN op_branches ob ON ob.op_id = p.id "
-          + "JOIN branches b ON b.id = ob.branch_id WHERE b.name = 'clock-regression'"
+          + "JOIN branches b ON b.id = p.branch_id WHERE b.name = 'clock-regression'"
         Expect.stringStarts
           (stamp branchStamp)
           "2099-"

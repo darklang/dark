@@ -93,8 +93,8 @@ let executeLog(state: AppState, branchRef: String): AppState =
           PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op)))
     else if Stdlib.Bool.not(Stdlib.List.isEmpty(merged)) then
       Cli.printOk($"{m} merged from branch \"{branchRef}\" into its parent (oldest first):")
-      // Names resolve against the PARENT: the ops are its now, and the merged branch's own overlay is
-      // empty, so resolving against it would print every hash bare.
+      // Names resolve against the PARENT: the ops are its now, and the merged branch holds none of
+      // them, so resolving against it would print every hash bare.
       let parent = SCM.PackageOps.branchParentOf(branchId)
       merged
       |> Stdlib.List.iter(fun op ->

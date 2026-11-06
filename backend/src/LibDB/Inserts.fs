@@ -1,13 +1,19 @@
+/// THE authoring path: store ops on a branch's draft and fold them, in one transaction. Main is a
+/// branch like any other here; the only difference is that a branch also records, per name it
+/// touches, what its parent held there (`branch_name_bases`).
 module LibDB.Inserts
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
+open Microsoft.Data.Sqlite
 
 open Prelude
 open LibExecution.ProgramTypes
 
 open Fumble
 open LibDB.Sqlite
+open LibDB.PreparedBatch
 
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
@@ -23,310 +29,308 @@ let computeOpHash (op : PT.PackageOp) : System.Guid = Hashing.computeOpRowId op
 /// why it must not be duplicated.
 let nextOriginTs () : string = OriginTs.next ()
 
+/// Main's draft, as a condition on `package_ops`: main's uncommitted ops.
+let mainDraftWhere =
+  $"branch_id = '{string PT.BranchId.Main}' AND commit_hash IS NULL"
 
-/// Insert PackageOps and fold them into the projections, resolving each op's origin_ts via `tsFor`
-/// and its committing commit via `commitFor`. Same contract as `insertAndApplyOps`; the two
-/// resolvers let callers PRESERVE existing values instead of resetting them for every op.
-/// Which of these locations do NOT currently bind the hash the op names.
-///
-/// The filter that separates a REVERT from a no-op re-author: re-running the same authoring command
-/// also produces a duplicate `SetName`, and that one really is nothing to do.
-let private notCurrentlyBound (ops : List<PT.PackageOp>) : Task<List<PT.PackageOp>> =
+/// Read one text column per row.
+let private texts
+  (ctx : Ctx)
+  (sql : string)
+  (bind : SqliteCommand -> unit)
+  : Task<List<string * string>> =
   task {
-    let candidates =
-      ops
-      |> List.choose (fun op ->
-        match op with
-        | PT.PackageOp.SetName(location, target, _) ->
-          Some(op, location, target.hash)
-        | _ -> None)
-
-    if List.isEmpty candidates then
-      return []
-    else
-      let keyParams =
-        candidates
-        |> List.mapi (fun i (_, location : PT.PackageLocation, _) ->
-          ($"key_{i}",
-           Sql.string (
-             String.concat
-               "\u0000"
-               [ location.owner; String.concat "." location.modules; location.name ]
-           )))
-
-      let keyClause =
-        candidates |> List.mapi (fun i _ -> $"@key_{i}") |> String.concat ", "
-
-      let! rows =
-        Sql.query
-          $"""
-          SELECT owner, modules, name, item_hash
-          FROM locations
-          WHERE unlisted_at IS NULL
-            AND owner || char(0) || modules || char(0) || name IN ({keyClause})
-          """
-        |> Sql.parameters keyParams
-        |> Sql.executeAsync (fun read ->
-          ((read.string "owner", read.string "modules", read.string "name"),
-           read.string "item_hash"))
-
-      let live = Map.ofList rows
-
-      return
-        candidates
-        |> List.filter (fun (_, location, Hash h) ->
-          let key =
-            (location.owner, String.concat "." location.modules, location.name)
-          match Map.tryFind key live with
-          | Some bound -> bound <> h
-          | None -> true)
-        |> List.map (fun (op, _, _) -> op)
+    let cmd = command ctx sql
+    cmd.Parameters.Clear()
+    bind cmd
+    use! reader = cmd.ExecuteReaderAsync()
+    let out = ResizeArray()
+    while reader.Read() do
+      out.Add(
+        reader.GetString 0,
+        (if reader.IsDBNull 1 then "" else reader.GetString 1)
+      )
+    return List.ofSeq out
   }
 
 
-/// Which of these doc ops say something the NAME does not currently say.
-///
-/// The doc half of the question `notCurrentlyBound` asks about bindings. A doc op the log already
-/// holds is either a re-run of the same command (the register already says this, nothing to do) or
-/// a RESTATEMENT: putting the text back to something the name held before, which is unsayable as
-/// itself because ops are content-addressed. The register is what tells them apart.
-///
-/// A name with no row has never had a doc edited: its text comes from the declaration, so an op
-/// saying something else is new rather than a restatement of the register.
-let private docsNotCurrentlySaid
+// ------------------------------------------------------------------
+// Restating
+// ------------------------------------------------------------------
+
+/// Which of <param ids> the log holds, on any branch.
+let private heldOn (ctx : Ctx) (ids : List<System.Guid>) : Task<Set<System.Guid>> =
+  task {
+    if List.isEmpty ids then
+      return Set.empty
+    else
+      let! rows =
+        texts
+          ctx
+          "SELECT DISTINCT id, '' FROM package_ops WHERE id IN (SELECT value FROM json_each($ids))"
+          (fun cmd -> p cmd "$ids" (jsonStrings (ids |> List.map string)))
+      return rows |> List.map (fst >> System.Guid.Parse) |> Set.ofList
+  }
+
+/// What <param branch> sees at a name, or "" for nothing.
+let private boundIn
+  (ctx : Ctx)
+  (branch : PT.BranchId)
+  (loc : PT.PackageLocation)
+  : Task<string> =
+  task {
+    let! found =
+      textOption
+        ctx
+        (Layers.view "$" Layers.locations
+         + " SELECT item_hash FROM visible
+             WHERE owner = $owner AND modules = $modules AND name = $name")
+        (fun cmd ->
+          pLoc cmd loc
+          Layers.bind cmd branch true)
+    return Option.defaultValue "" found
+  }
+
+/// The text <param branch> sees for a name's doc part, if a name says one of its own.
+let private docIn
+  (ctx : Ctx)
+  (branch : PT.BranchId)
+  (loc : PT.PackageLocation)
+  (part : PT.DocPart)
+  : Task<Option<string>> =
+  textOption
+    ctx
+    (Layers.view "$" Layers.docs
+     + " SELECT text FROM visible
+         WHERE owner = $owner AND modules = $modules AND name = $name
+           AND kind = $kind AND within = $within")
+    (fun cmd ->
+      pLoc cmd loc
+      p cmd "$kind" (Docs.kind part)
+      p cmd "$within" (Docs.within part)
+      Layers.bind cmd branch true)
+
+/// The deprecation <param branch> sees standing on an item.
+let private deprecationIn
+  (ctx : Ctx)
+  (branch : PT.BranchId)
+  (target : PT.Reference)
+  : Task<Option<PT.DeprecationKind * string>> =
+  task {
+    let (Hash h) = target.hash
+    let! found =
+      bytesOption
+        ctx
+        (Layers.view "$" Layers.deprecations
+         + " SELECT CASE WHEN state = 'deprecated' THEN annotation_blob ELSE NULL END
+             FROM visible WHERE item_hash = $item_hash AND item_kind = $item_kind")
+        (fun cmd ->
+          p cmd "$item_hash" h
+          p cmd "$item_kind" (target.kind.toString ())
+          Layers.bind cmd branch true)
+    return found |> Option.bind Deprecations.deserializeAnnotation
+  }
+
+/// An op the log already holds can only be said again by a DISTINCT op: ids are content hashes, so
+/// putting a name back to an earlier version, a doc back to earlier words, or a deprecation back
+/// after an undeprecate, produces the op that already exists. Such an op is re-said with a fresh
+/// stamp (`PT.restating`) when what it says is not what <param branch> currently sees, and dropped
+/// when it is, which is a re-run of the same command.
+let private restateOrDrop
+  (ctx : Ctx)
+  (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Task<List<PT.PackageOp>> =
   task {
-    let candidates =
-      ops
-      |> List.choose (fun op ->
-        match op with
-        | PT.PackageOp.UpdateDoc(location, part, text, _, _) ->
-          Some(op, location, part, text)
-        | _ -> None)
-
-    if List.isEmpty candidates then
-      return []
-    else
-      let key (location : PT.PackageLocation) (part : PT.DocPart) =
-        String.concat
-          "\u0000"
-          [ location.owner
-            String.concat "." location.modules
-            location.name
-            Docs.kind part
-            Docs.within part ]
-
-      let keyParams =
-        candidates
-        |> List.mapi (fun i (_, location, part, _) ->
-          ($"key_{i}", Sql.string (key location part)))
-
-      let keyClause =
-        candidates |> List.mapi (fun i _ -> $"@key_{i}") |> String.concat ", "
-
-      let! rows =
-        Sql.query
-          $"""
-          SELECT owner, modules, name, kind, within, text
-          FROM location_docs
-          WHERE owner || char(0) || modules || char(0) || name || char(0)
-                || kind || char(0) || within IN ({keyClause})
-          """
-        |> Sql.parameters keyParams
-        |> Sql.executeAsync (fun read ->
-          (String.concat
-            "\u0000"
-            [ read.string "owner"
-              read.string "modules"
-              read.string "name"
-              read.string "kind"
-              read.string "within" ],
-           read.string "text"))
-
-      let said = Map.ofList rows
-
-      return
-        candidates
-        |> List.filter (fun (_, location, part, text) ->
-          Map.tryFind (key location part) said <> Some text)
-        |> List.map (fun (op, _, _, _) -> op)
+    let restatable =
+      ops |> List.filter (fun op -> Option.isSome (PT.restating "" op))
+    let! held = heldOn ctx (restatable |> List.map computeOpHash)
+    let out = ResizeArray()
+    for op in ops do
+      if not (Set.contains (computeOpHash op) held) then
+        out.Add op
+      else
+        let! saysSomethingNew =
+          task {
+            match op with
+            | PT.PackageOp.SetName(loc, target, _) ->
+              let! bound = boundIn ctx branch loc
+              let (Hash h) = target.hash
+              return bound <> h
+            | PT.PackageOp.UpdateDoc(loc, part, text, _, _) ->
+              let! said = docIn ctx branch loc part
+              return said <> Some text
+            | PT.PackageOp.Deprecate(target, kind, message, _) ->
+              let! standing = deprecationIn ctx branch target
+              return standing <> Some(kind, message)
+            | PT.PackageOp.Undeprecate(target, _) ->
+              let! standing = deprecationIn ctx branch target
+              return standing <> None
+            | _ -> return false
+          }
+        if saysSomethingNew then
+          out.Add(PT.restating (nextOriginTs ()) op |> Option.defaultValue op)
+    return List.ofSeq out
   }
 
 
-/// Which of these deprecation statements are NOT what currently stands for their target.
-///
-/// The same question `notCurrentlyBound` asks about bindings and `docsNotCurrentlySaid` asks about
-/// prose. `Deprecate` and `Undeprecate` are each other's inverse, so an op the log already holds is
-/// either a re-run of the same command (already in effect, nothing to do) or a RESTATEMENT: saying
-/// a thing again after the inverse, which is unsayable as itself because ops are
-/// content-addressed. `deprecations` is what tells them apart.
-///
-/// A deprecation is in effect only when the state AND the words match, so re-stating an older
-/// message while a newer deprecation stands is a restatement too, not a no-op.
-let private deprecationsNotInEffect
+// ------------------------------------------------------------------
+// Name bases
+// ------------------------------------------------------------------
+
+/// The locations a set of ops rebinds or removes. An override counts: a name bound solely by
+/// resolving a conflict still needs its base, or it could never conflict again.
+let private rebound (ops : List<PT.PackageOp>) : List<PT.PackageLocation> =
+  ops
+  |> List.collect PT.packageOpBindingEffects
+  |> List.choose (fun op ->
+    match op with
+    | PT.PackageOp.SetName(loc, _, _)
+    | PT.PackageOp.Unbind(loc, _)
+    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override _) -> Some loc
+    | _ -> None)
+  |> List.distinct
+
+/// Record, for each name <param ops> touches on <param branch>, what the branch's parent held there
+/// ('' when nothing), once: the first touch is the fork point a later merge compares against.
+let private recordNameBases
+  (ctx : Ctx)
+  (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Task<List<PT.PackageOp>> =
+  : Task<unit> =
   task {
-    // `Some(kind, message)` is a Deprecate, naming the annotation it asks to stand; None is an
-    // Undeprecate, which asks for nothing to stand.
-    let candidates =
-      ops
-      |> List.choose (fun op ->
-        match op with
-        | PT.PackageOp.Deprecate(target, kind, message, _) ->
-          Some(op, target, Some(kind, message))
-        | PT.PackageOp.Undeprecate(target, _) -> Some(op, target, None)
-        | _ -> None)
-
-    let mutable restatements = []
-
-    for (op, (target : PT.Reference), asked) in candidates do
-      let! standing = Deprecations.standing target.hash target.kind
-      if standing <> asked then restatements <- op :: restatements
-
-    return List.rev restatements
+    for loc in rebound ops do
+      do!
+        exec
+          ctx
+          (Layers.view "$" Layers.locations
+           + " INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+               SELECT $vb, $owner, $modules, $name,
+                 COALESCE((SELECT item_hash FROM visible
+                           WHERE owner = $owner AND modules = $modules AND name = $name), '')")
+          (fun cmd ->
+            pLoc cmd loc
+            Layers.bind cmd branch false)
   }
 
 
-let rec insertAndApplyOpsWith
+// ------------------------------------------------------------------
+// Authoring
+// ------------------------------------------------------------------
+
+/// Store <param ops> on <param branch>, on the caller's connection and inside its transaction, and
+/// fold the ones that are new. Returns them. An op the branch already holds is skipped, except for
+/// the names its body reached its callees through in THIS parse, which are recorded.
+let storeAndFoldOn
+  (ctx : Ctx)
+  (branch : PT.BranchId)
+  (source : string)
   (tsFor : System.Guid -> string)
-  (commitFor : System.Guid -> string option)
+  (commitFor : System.Guid -> Option<string>)
+  (ops : List<PT.PackageOp>)
+  : Task<List<PT.PackageOp>> =
+  task {
+    let inserted = ResizeArray<PT.PackageOp>()
+    let ignored = ResizeArray<PT.PackageOp>()
+    for op in ops do
+      let opId = computeOpHash op
+      let! n =
+        execRows
+          ctx
+          "INSERT OR IGNORE INTO package_ops
+             (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts, commit_hash, source)
+           VALUES ($id, $branch, $branch, $blob, $kind, 1, $ts, $commit, $source)"
+          (fun cmd ->
+            pUuid cmd "$id" opId
+            p cmd "$branch" (string branch)
+            p cmd "$blob" (BS.PT.PackageOp.serialize opId op)
+            p cmd "$kind" (BS.PT.PackageOp.kind op)
+            p cmd "$ts" (tsFor opId)
+            pOpt cmd "$commit" (commitFor opId)
+            p cmd "$source" source)
+      if n > 0 then inserted.Add op else ignored.Add op
+
+    if not branch.IsMain then do! recordNameBases ctx branch (List.ofSeq inserted)
+
+    do!
+      Telemetry.timeTask "author.fold" [] (fun () ->
+        PackageOpPlayback.applyOpsOnConnection ctx.conn branch (List.ofSeq inserted))
+    do!
+      PackageOpPlayback.recordDependenciesOnConnection ctx.conn (List.ofSeq ignored)
+    return List.ofSeq inserted
+  }
+
+/// Run <param f> in one transaction on a connection of its own.
+let inTransaction (f : Ctx -> Task<'a>) : Task<'a> =
+  task {
+    use conn = new SqliteConnection(LibDB.Sqlite.connString)
+    do! conn.OpenAsync()
+    do
+      use pragma = conn.CreateCommand()
+      pragma.CommandText <- "PRAGMA busy_timeout=5000;"
+      pragma.ExecuteNonQuery() |> ignore<int>
+    use tx = conn.BeginTransaction()
+    let ctx = newCtx conn
+    try
+      let! r = f ctx
+      tx.Commit()
+      Caching.invalidateAll ()
+      return r
+    finally
+      disposeCtx ctx
+  }
+
+/// Store <param ops> on <param branch>'s draft exactly as given, each stamped by <param tsFor>, and
+/// fold them, in one transaction. No restating: for a caller replaying ops that already have their
+/// identities and stamps. Returns how many were newly stored.
+let authorWith
+  (branch : PT.BranchId)
+  (source : string)
+  (tsFor : System.Guid -> string)
+  (ops : List<PT.PackageOp>)
+  : Task<int64> =
+  inTransaction (fun ctx ->
+    task {
+      let! inserted = storeAndFoldOn ctx branch source tsFor (fun _ -> None) ops
+      return int64 (List.length inserted)
+    })
+
+/// Author <param ops> onto <param branch>'s draft, stamped fresh, and fold them. Returns how many
+/// were newly stored: an op the branch already holds counts 0. Saved reference names that do not
+/// describe their declaration are refused here, whoever wrote them.
+let authorOn
+  (branch : PT.BranchId)
   (source : string)
   (ops : List<PT.PackageOp>)
   : Task<int64> =
-  task {
-    if List.isEmpty ops then
-      return 0L
-    else
-      // Phase 1: insert with applied=false. Stamps are assigned in list order, so sequential edits
-      // within one wall-clock millisecond are still ordered by creation for the LWW.
-      let opsWithIds =
-        ops
-        |> List.map (fun op ->
-          let opId = computeOpHash op
-          let opBlob = BS.PT.PackageOp.serialize opId op
-          (opId, op, opBlob, tsFor opId, commitFor opId))
-
-      // Two statements per op, one transaction. The id is the content hash: an
-      // identical op main already runs affects 0 rows and is skipped below. But the
-      // row can also exist at effective=0 (branch-authored, or synced for review);
-      // main authoring it now means it runs here, so the conflict clause flips it
-      // effective and it folds like a fresh insert. The untag goes in the same
-      // breath: an effective op is never tagged (see Branches.storeDeltaOpsStamped).
-      let statements =
-        opsWithIds
-        |> List.collect (fun (opId, _op, opBlob, originTs, commitHash) ->
-          let insert =
-            """
-            INSERT INTO package_ops
-              (id, op_blob, op_kind, applied, origin_ts, commit_hash)
-            VALUES (@id, @op_blob, @op_kind, @applied, @origin_ts, @commit_hash)
-            ON CONFLICT(id) DO UPDATE
-              SET effective = 1,
-                  applied = 0,
-                  origin_ts = excluded.origin_ts,
-                  commit_hash = excluded.commit_hash
-              WHERE package_ops.effective = 0
-            """
-
-          let parameters =
-            [ "id", Sql.uuid opId
-              "op_blob", Sql.bytes opBlob
-              "op_kind", Sql.string (BS.PT.PackageOp.kind _op)
-              "applied", Sql.bool false
-              "origin_ts", Sql.string originTs
-              "commit_hash",
-              (match commitHash with
-               | Some h -> Sql.string h
-               | None -> Sql.dbnull) ]
-
-          let untag = "DELETE FROM op_branches WHERE op_id = @id"
-
-          [ (insert, [ parameters ]); (untag, [ [ "id", Sql.uuid opId ] ]) ])
-
-      // The insert's count per op; the untag's is not interesting.
-      let rowsAffected =
-        statements
-        |> Sql.executeTransactionSync
-        |> List.chunkBySize 2
-        |> List.map (fun pair -> List.item 0 pair)
-
-      // What was inserted, as opposed to skipped as a duplicate.
-      let insertedCount = rowsAffected |> List.sumBy int64
-
-      let insertedOpsWithIds =
-        List.zip opsWithIds rowsAffected
-        |> List.filter (fun (_, affected) -> affected > 0)
-        |> List.map fst
-
-      let opsToApply = insertedOpsWithIds |> List.map (fun (_, op, _, _, _) -> op)
-      let insertedOpIds =
-        insertedOpsWithIds |> List.map (fun (opId, _, _, _, _) -> opId)
-
-      do!
-        Telemetry.timeTask "author.fold" [] (fun () ->
-          PackageOpPlayback.applyOpsFrom source opsToApply)
-
-      // An `Add*` the log already held is not folded again, and does not need to be, except for one
-      // thing: the names its body reached its callees through in THIS parse. Two names can hold one
-      // body, and a caller written against either is the same op; without this the second name's
-      // callers had no edge under that name.
-      let ignored =
-        List.zip opsWithIds rowsAffected
-        |> List.filter (fun (_, affected) -> affected = 0)
-        |> List.map (fun ((_, op, _, _, _), _) -> op)
-      do!
-        Telemetry.timeTask "author.deps" [] (fun () ->
-          PackageOpPlayback.recordDependenciesOnly ignored)
-
-      // A `SetName` already in the log, for a name bound to something else right now, is a revert:
-      // unsayable as a `SetName` (`PT.restating`), so it is re-authored as the decision it is. An
-      // `UpdateDoc` already in the log, saying something the target does not currently say, is the
-      // same thing one level down, and goes back in stamped. So is a `Deprecate` or `Undeprecate`
-      // the log holds whose statement is not what stands: deprecate, undeprecate, deprecate the
-      // same way is three decisions and the third wears the first one's id. Recursion terminates: a
-      // `SetName` becomes a `Decision`, and a stamped op is a new op id, so none is ignored again.
-      let! toRestateNames =
-        Telemetry.timeTask "author.notBound" [] (fun () -> notCurrentlyBound ignored)
-      let! toRestateDocs =
-        Telemetry.timeTask "author.notSaid" [] (fun () ->
-          docsNotCurrentlySaid ignored)
-      let! toRestateDeprecations =
-        Telemetry.timeTask "author.notInEffect" [] (fun () ->
-          deprecationsNotInEffect ignored)
-      let toRestate = toRestateNames @ toRestateDocs @ toRestateDeprecations
-      let! restated =
-        if List.isEmpty toRestate then
-          Task.FromResult 0L
-        else
-          toRestate
-          |> List.choose (PT.restating (nextOriginTs ()))
-          |> insertAndApplyOpsWith tsFor commitFor source
-
-      // Bookkeeping only: the fold above already ran, so a failure here costs a redundant re-fold on
-      // the next pass, not correctness.
-      if not (List.isEmpty insertedOpIds) then
-        try
-          let updateStatements =
-            insertedOpIds
-            |> List.map (fun opId ->
-              let sql =
-                "UPDATE package_ops SET applied = @applied \
-                 WHERE id = @id"
-              let parameters = [ "applied", Sql.bool true; "id", Sql.uuid opId ]
-              (sql, [ parameters ]))
-
-          updateStatements |> Sql.executeTransactionSync |> ignore<List<int>>
-        with ex ->
-          System.Console.Error.WriteLine(
-            $"Warning: Failed to mark {List.length insertedOpIds} ops as applied: {ex.Message}"
-          )
-
-      // The restatements count: they are ops this call authored, and a caller reporting "0 ops" for
-      // a revert that did land would be the same lie in a different place.
-      return insertedCount + restated
-  }
+  if List.isEmpty ops then
+    Task.FromResult 0L
+  else
+    task {
+      match! ReferenceNamesContent.validate ops with
+      | Some reason -> return Exception.raiseInternal reason []
+      | None ->
+        return!
+          inTransaction (fun ctx ->
+            task {
+              let! ops = restateOrDrop ctx branch ops
+              // Stamps in list order, so sequential edits within one millisecond keep their order.
+              let stamps =
+                ops
+                |> List.map (fun op -> computeOpHash op, nextOriginTs ())
+                |> Map.ofList
+              let! inserted =
+                storeAndFoldOn
+                  ctx
+                  branch
+                  source
+                  (fun id ->
+                    Map.tryFind id stamps |> Option.defaultWith nextOriginTs)
+                  (fun _ -> None)
+                  ops
+              return int64 (List.length inserted)
+            })
+    }
 
 
 let reservedOwnerViolation = OpValidation.reservedOwnerViolation
@@ -358,321 +362,74 @@ let placeholderHashViolation (ops : List<PT.PackageOp>) : Option<string> =
     $"cannot store package ops with the placeholder hash \"{h}\"; stabilize them first (WrittenTypesToProgramTypes.stabilizePackageOps)")
 
 let insertAndApplyOps (ops : List<PT.PackageOp>) : Task<int64> =
-  insertAndApplyOpsWith (fun _ -> nextOriginTs ()) (fun _ -> None) "op" ops
+  authorOn PT.BranchId.Main "op" ops
 
-
-/// Insert ops that PROPAGATION authored, marking their bindings as such: 'propagation' joins 'op'
-/// and 'resolution' in `locations.source`. Without it the bindings are indistinguishable from ones
-/// you typed, and `dark commit` can't say which entries you edited and which followed. It has to be
-/// recorded at the point of repoint, since rendering the two versions doesn't distinguish them
-/// either: an older version's references resolve differently once superseded.
-let insertAndApplyPropagatedOps (ops : List<PT.PackageOp>) : Task<int64> =
-  insertAndApplyOpsWith (fun _ -> nextOriginTs ()) (fun _ -> None) "propagation" ops
-
-
-/// Insert ops as main WIP (commit-free: no commit_hash, the op is live once folded).
-let insertAndApplyOpsAsWip (ops : List<PT.PackageOp>) : Task<int64> =
-  insertAndApplyOps ops
-
-
-/// The draft's rows: main's uncommitted ops and the bindings they wrote. The `resolution` overlay is
-/// kept; `discard` must not silently revert a synced resolution into a divergence.
-///
-/// `effective = 1` is the same clause `Queries.getWipOps` carries and for the same reason: ops a client
-/// pushed to this store are inert, untagged and uncommitted, so without it a discard here deletes data
-/// this store is only holding for someone else.
-/// Safely insert package operations submitted by RUNNING Dark code -- a guest
-/// `run`, or ops that arrived over sync. Rejects protected `Darklang` bindings
-/// and unstabilized hashes before insertion; trusted seeding does not come
-/// through here.
-let insertUntrustedOps (ops : List<PT.PackageOp>) : Task<Result<int64, string>> =
+/// Safely insert package operations submitted by RUNNING Dark code. On main, rejects protected
+/// `Darklang` bindings and unstabilized hashes before insertion; trusted seeding does not come through
+/// here.
+let insertUntrustedOps
+  (branch : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : Task<Result<int64, string>> =
   task {
-    match reservedOwnerViolation ops, placeholderHashViolation ops with
-    | Some reason, _
-    | None, Some reason -> return Error reason
-    | None, None ->
-      let! invalid = ReferenceNamesContent.validate ops
-      match invalid with
+    // Reserved names on every branch: bundled code changes only by propagation, which does not come
+    // through here. Placeholder hashes are main's question; a branch repairs them before a merge.
+    let violation =
+      if branch.IsMain then
+        Option.orElse (placeholderHashViolation ops) (reservedOwnerViolation ops)
+      else
+        reservedOwnerViolation ops
+    match violation with
+    | Some reason -> return Error reason
+    | None ->
+      match! ReferenceNamesContent.validate ops with
       | Some reason -> return Error reason
       | None ->
-        let! count = insertAndApplyOpsAsWip ops
+        let! count = authorOn branch "op" ops
         return Ok count
   }
 
-/// Which `package_ops` rows are main's draft. The read (`Queries.getDraftOps`), the delete
-/// (`draftDeletes`) and the check between them (`rewriteDraftIfUnchanged`) all use this one clause:
-/// if the set read and the set deleted ever differ, the difference is deleted and never put back.
-let draftWhere =
-  "effective = 1 AND commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches)"
 
-/// Which `package_ops` rows are main's whole log, committed or not. The read
-/// (`Queries.getMainOpsWithIds`), the delete (`wholeMainDeletes`) and the check between them
-/// (`rewriteMainIfUnchanged`) all use this one clause, for the same reason as `draftWhere`.
-///
-/// Branch-tagged ops are a branch's pending state, and sweeping them in would re-insert them into main
-/// effective and fold them. `effective = 1` leaves out the ops a client pushed to this store, which it
-/// only holds for someone else.
-let mainWhere = "effective = 1 AND id NOT IN (SELECT op_id FROM op_branches)"
-
-let draftDeletes : List<string> =
-  [ $"DELETE FROM locations WHERE source <> 'resolution'
-      AND op_id IN (SELECT id FROM package_ops WHERE {draftWhere})"
-    $"DELETE FROM package_ops WHERE {draftWhere}" ]
-
-/// Every main op and what it wrote, EXCEPT the ids in `keep`: the ops this build cannot decode, which
-/// the caller has read by id. Deleting those would delete a peer's committed op for good because this
-/// binary is the wrong version to parse it; left in place they change no projection, and the next build
-/// that can read them applies them. Branch-tagged ops are never main's and are left alone too.
-let wholeMainDeletes (keep : Set<System.Guid>) : List<string> =
-  let keepUnreadable =
-    if Set.isEmpty keep then
-      ""
-    else
-      let quoted =
-        keep
-        |> Set.toList
-        |> List.map (fun (g : System.Guid) -> $"'{g.ToString()}'")
-        |> String.concat ","
-      $" AND id NOT IN ({quoted})"
-  [ "DELETE FROM locations WHERE source <> 'resolution'"
-    "DELETE FROM deprecations"
-    $"DELETE FROM package_ops WHERE {mainWhere}{keepUnreadable}" ]
-
-/// Delete, re-insert and re-fold as ONE transaction. `deletes` run first, in order; then every op is
-/// inserted (or, if its row survived the deletes at `effective = 0`, flipped effective and untagged, as
-/// `insertAndApplyOpsWith` does) and the ones that landed are folded on the same connection; then the
-/// commit. ONE transaction is the whole point: split across four (delete; insert; fold; mark applied)
-/// a crash after the first deletes main's draft, or all of main, with nothing to put back.
-///
-/// `applied = 1` at insert is right because insert, fold and commit are one unit: a throw anywhere rolls
-/// all of it back and the store is exactly as it was. The fold opens nothing of its own on a connection
-/// it is handed, which is what lets it run inside this transaction; a Fumble call in here would open a
-/// second connection and wait on the lock this one holds.
-let private rewriteOpsAtomicallyIf
-  (asRead : Option<string * List<System.Guid>>)
-  (deletes : List<string>)
-  (tsFor : System.Guid -> string)
-  (commitFor : System.Guid -> string option)
-  (source : string)
-  (ops : List<PT.PackageOp>)
-  : Task<Option<int64>> =
-  task {
-    use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
-    do! conn.OpenAsync()
-    // Outside the transaction, where a pragma takes effect.
-    do
-      use pragma = conn.CreateCommand()
-      pragma.CommandText <- "PRAGMA busy_timeout=5000;"
-      pragma.ExecuteNonQuery() |> ignore<int>
-    use tx = conn.BeginTransaction()
-    // After BeginTransaction: a command created on the connection now carries the transaction.
-    let ctx = PreparedBatch.newCtx conn
-    try
-      let! unchanged =
-        match asRead with
-        | None -> Task.FromResult true
-        | Some(where, expected) ->
-          task {
-            use cmd = conn.CreateCommand()
-            cmd.CommandText <-
-              $"SELECT id FROM package_ops WHERE {where}
-                ORDER BY created_at ASC, rowid ASC"
-            use! reader = cmd.ExecuteReaderAsync()
-            let current = ResizeArray<System.Guid>()
-            while reader.Read() do
-              current.Add(System.Guid.Parse(reader.GetString 0))
-            return List.ofSeq current = expected
-          }
-      if not unchanged then
-        return None
-      else
-        for d in deletes do
-          do! PreparedBatch.exec ctx d (fun _ -> ())
-
-        let inserted = ResizeArray<PT.PackageOp>()
-        for op in ops do
-          let opId = computeOpHash op
-          let blob = BS.PT.PackageOp.serialize opId op
-          let! n =
-            PreparedBatch.execRows ctx "INSERT INTO package_ops (id, op_blob, op_kind, applied, origin_ts, commit_hash)
-             VALUES ($id, $blob, $kind, 1, $ts, $commit)
-             ON CONFLICT(id) DO UPDATE
-               SET effective = 1, applied = 1,
-                   origin_ts = excluded.origin_ts, commit_hash = excluded.commit_hash
-               WHERE package_ops.effective = 0" (fun cmd ->
-              PreparedBatch.pUuid cmd "$id" opId
-              PreparedBatch.p cmd "$blob" blob
-              PreparedBatch.p cmd "$kind" (BS.PT.PackageOp.kind op)
-              PreparedBatch.p cmd "$ts" (tsFor opId)
-              PreparedBatch.pOpt cmd "$commit" (commitFor opId))
-          do!
-            PreparedBatch.exec
-              ctx
-              "DELETE FROM op_branches WHERE op_id = $id"
-              (fun cmd -> PreparedBatch.pUuid cmd "$id" opId)
-          if n > 0 then inserted.Add op
-
-        do!
-          PackageOpPlayback.applyOpsOnConnectionFrom
-            conn
-            source
-            (List.ofSeq inserted)
-        tx.Commit()
-        Caching.invalidateAll ()
-        return Some(int64 inserted.Count)
-    finally
-      PreparedBatch.disposeCtx ctx
-  }
-
-let rewriteOpsAtomically
-  (deletes : List<string>)
-  (tsFor : System.Guid -> string)
-  (commitFor : System.Guid -> string option)
-  (source : string)
-  (ops : List<PT.PackageOp>)
-  : Task<int64> =
-  task {
-    let! n = rewriteOpsAtomicallyIf None deletes tsFor commitFor source ops
-    return Option.defaultValue 0L n
-  }
-
-/// Replace main's draft with `ops`, but only if the draft still holds exactly the rows `draftAsRead`
-/// lists, checked under the write lock. A caller that read the draft, worked on it, and then deleted it
-/// would otherwise delete whatever another author added in between and never put it back. `None` means
-/// the draft moved and nothing was written; read it again.
+/// Replace the ops <param ops0> of main's draft with <param ops>, but only if the draft still holds
+/// exactly the rows `draftAsRead` lists, checked under the write lock. A caller that read the draft, worked on it, and then deleted
+/// it would otherwise delete whatever another author added in between. `None` means the draft moved
+/// and nothing was written; read it again.
 let rewriteDraftIfUnchanged
   (draftAsRead : List<System.Guid>)
+  (ops0 : List<PT.PackageOp>)
   (tsFor : System.Guid -> string)
   (ops : List<PT.PackageOp>)
   : Task<Option<int64>> =
-  rewriteOpsAtomicallyIf
-    (Some(draftWhere, draftAsRead))
-    draftDeletes
-    tsFor
-    (fun _ -> None)
-    "op"
-    ops
-
-/// Replace main's whole log with `ops`, sparing `unreadable` by id, but only if main still holds
-/// exactly the rows `mainAsRead` lists, checked under the write lock. The draft version's reasoning,
-/// over the whole log: a pull or an author landing after the read would otherwise be deleted and
-/// never put back, committed or undecodable alike. `None` means main moved and nothing was written.
-let rewriteMainIfUnchanged
-  (mainAsRead : List<System.Guid>)
-  (unreadable : Set<System.Guid>)
-  (tsFor : System.Guid -> string)
-  (commitFor : System.Guid -> string option)
-  (ops : List<PT.PackageOp>)
-  : Task<Option<int64>> =
-  // A whole-main rewrite re-folds bindings that were authored, propagated or resolved alike, and the
-  // op alone does not say which. 'op' is the honest default.
-  rewriteOpsAtomicallyIf
-    (Some(mainWhere, mainAsRead))
-    (wholeMainDeletes unreadable)
-    tsFor
-    commitFor
-    "op"
-    ops
-
-
-/// Bulk-import synced ops (id, op_blob-as-hex, origin_ts) in ONE transaction, committed into
-/// <param commitHash> ("" = leave uncommitted). Arriving ops are somebody else's finished work,
-/// not YOUR draft, so an import commits them on the way in; otherwise the first `dark status` after
-/// a pull would report the peer's whole history as things you changed.
-///
-/// The decode-hex + bulk INSERT lives in F# because Dark's per-op insert is far too slow for a real
-/// log. origin_ts is preserved (the LWW stamp), INSERT OR IGNORE dedups by content id, and ops land
-/// unapplied for the caller to fold, at effective=1 so they take effect. Returns how many were
-/// newly inserted.
-let importOpsBulk
-  (commitHash : string)
-  (records : List<string * string * string>)
-  : Task<int64> =
-  task {
-    if List.isEmpty records then
-      return 0L
-    else
-      let decoded =
-        records
-        |> List.choose (fun (id, blob, _) ->
-          try
-            BS.PT.PackageOp.tryDeserialize
-              (System.Guid.Parse id)
-              (System.Convert.FromHexString blob)
-          with _ ->
-            None)
-      match OpValidation.reservedOwnerViolation decoded with
-      | Some reason -> Exception.raiseInternal reason []
-      | None -> ()
-      let! invalid = ReferenceNamesContent.validate decoded
-      match invalid with
-      | Some reason -> Exception.raiseInternal reason []
-      | None -> ()
-      // Advance our clock past everything in this batch BEFORE anything is stored, so the next
-      // thing authored here sorts after what we just learned about. See `OriginTs.observe`: a peer
-      // whose clock is ahead would otherwise win every contested name forever.
-      records |> List.iter (fun (_, _, originTs) -> OriginTs.observe originTs)
-
-      // A malformed record (non-uuid id, non-hex blob) must SKIP rather than throw, or one bad
-      // record on the wire rejects the whole batch. Blobs are validated again at fold time, which
-      // also skips bad ops, so nothing malformed reaches a projection.
-      let paramRows =
-        records
-        |> List.choose (fun (id, blobHex, originTs) ->
-          try
-            Some
-              [ "id", Sql.uuid (System.Guid.Parse id)
-                "op_blob", Sql.bytes (System.Convert.FromHexString blobHex)
-                "op_kind",
-                Sql.string (
-                  BS.PT.PackageOp.kindOfBlob
-                    (System.Guid.Parse id)
-                    (System.Convert.FromHexString blobHex)
-                )
-                "origin_ts", Sql.string originTs
-                "commit_hash",
-                (if commitHash = "" then Sql.dbnull else Sql.string commitHash) ]
-          with ex ->
-            NonBlockingConsole.writeErrLine (
-              $"importOpsBulk: skipping malformed record id={id}: {ex.Message}"
-            )
-            None)
-
-      if List.isEmpty paramRows then
-        return 0L
+  inTransaction (fun ctx ->
+    task {
+      let! current =
+        texts
+          ctx
+          $"SELECT id, '' FROM package_ops WHERE {mainDraftWhere} ORDER BY rowid"
+          (fun _ -> ())
+      if (current |> List.map (fst >> System.Guid.Parse)) <> draftAsRead then
+        return None
       else
-        let sql =
-          """
-          INSERT OR IGNORE INTO package_ops
-            (id, op_blob, op_kind, applied, effective, origin_ts, commit_hash)
-          VALUES (@id, @op_blob, @op_kind, 0, 1, @origin_ts, @commit_hash)
-          """
-
-        // An op id is a content hash, so an op arriving from a peer's MAIN can already be here as
-        // a branch's inert copy: the same code, authored on a branch that has not merged. The
-        // insert above ignores it, so promote it -- it is a main op now, whatever else holds it.
-        // `applied = 0` re-arms the fold, which is what binds the name; the branch keeps its tag,
-        // the state a merge leaves behind. Only ever 0 -> 1: nothing here makes a main op inert.
-        let promote =
-          """
-          UPDATE package_ops
-             SET effective = 1,
-                 applied = 0,
-                 commit_hash = COALESCE(commit_hash, @commit_hash)
-           WHERE id = @id AND effective = 0
-          """
-
-        let promoteRows =
-          paramRows
-          |> List.map (fun row ->
-            row |> List.filter (fun (k, _) -> k = "id" || k = "commit_hash"))
-
-        let affected = Sql.executeTransactionSync [ (sql, paramRows) ]
-        let promoted = Sql.executeTransactionSync [ (promote, promoteRows) ]
-        // Both counts: an op that was inert here and is now effective is as new to main as one
-        // that never arrived at all.
-        return (affected |> List.sumBy int64) + (promoted |> List.sumBy int64)
-  }
+        // Only what was read as an op: an op this build cannot decode is spared, not skipped, so a
+        // build that can read it still will.
+        let readable = ops0 |> List.map (computeOpHash >> string) |> jsonStrings
+        let bindIds (cmd : SqliteCommand) = p cmd "$ids" readable
+        do!
+          Layers.dropRowsOf
+            ctx
+            PT.BranchId.Main
+            "op_id IN (SELECT value FROM json_each($ids))"
+            bindIds
+        do!
+          exec
+            ctx
+            $"DELETE FROM package_ops WHERE {mainDraftWhere}
+                AND id IN (SELECT value FROM json_each($ids))"
+            bindIds
+        let! inserted =
+          storeAndFoldOn ctx PT.BranchId.Main "op" tsFor (fun _ -> None) ops
+        return Some(int64 (List.length inserted))
+    })
 
 
 /// Commit every currently-uncommitted MAIN op into one commit. The package RELOAD path uses this:
@@ -685,56 +442,47 @@ let importOpsBulk
 /// DEV CAVEAT: a reload sweeps a genuine un-committed local draft into the baseline commit too.
 /// That's tolerable only because reload is a dev-loop tool.
 let commitAllAsBaseline (message : string) : Task<string> =
-  task {
-    let! summary =
-      Sql.query
-        """
-        SELECT COUNT(*) AS n, COALESCE(MAX(origin_ts), '') AS latest
-        FROM package_ops
-        WHERE commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches)
-        """
-      |> Sql.executeRowAsync (fun read -> (read.int64 "n", read.string "latest"))
+  inTransaction (fun ctx ->
+    task {
+      let! count =
+        scalarInt
+          ctx
+          $"SELECT COUNT(*) FROM package_ops WHERE {mainDraftWhere}"
+          (fun _ -> ())
+      let! latest =
+        textOption
+          ctx
+          $"SELECT MAX(origin_ts) FROM package_ops WHERE {mainDraftWhere}"
+          (fun _ -> ())
 
-    let (count, latest) = summary
+      if count = 0L then
+        return ""
+      else
+        let material = $"""{message}|{count}|{Option.defaultValue "" latest}"""
+        let hash =
+          material
+          |> System.Text.Encoding.UTF8.GetBytes
+          |> System.Security.Cryptography.SHA256.HashData
+          |> System.Convert.ToHexString
+          |> fun h -> h.Substring(0, 16).ToLowerInvariant()
 
-    if count = 0L then
-      return ""
-    else
-      let material = $"{message}|{count}|{latest}"
-
-      let hash =
-        material
-        |> System.Text.Encoding.UTF8.GetBytes
-        |> System.Security.Cryptography.SHA256.HashData
-        |> System.Convert.ToHexString
-        |> fun h -> h.Substring(0, 16).ToLowerInvariant()
-
-      do!
-        Sql.query
-          "INSERT OR REPLACE INTO commits (hash, message, origin_ts)
-           VALUES (@hash, @message, @origin_ts)"
-        |> Sql.parameters
-          [ "hash", Sql.string hash
-            "message", Sql.string message
-            "origin_ts", Sql.string (nextOriginTs ()) ]
-        |> Sql.executeStatementAsync
-
-      do!
-        Sql.query
-          "UPDATE package_ops SET commit_hash = @hash
-           WHERE commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches)"
-        |> Sql.parameters [ "hash", Sql.string hash ]
-        |> Sql.executeStatementAsync
-
-      // A commit NAMES the ops it committed; it doesn't snapshot anything. The authoring refresh
-      // rewrites main by delete-and-reinsert, and an op whose content changed comes back with a
-      // new id and no commit, so an older baseline can end up naming nothing at all. Those rows
-      // are tombstones, and `dark commits` otherwise fills up with commits over an empty set.
-      do!
-        Sql.query
-          "DELETE FROM commits WHERE hash NOT IN
-             (SELECT DISTINCT commit_hash FROM package_ops WHERE commit_hash IS NOT NULL)"
-        |> Sql.executeStatementAsync
-
-      return hash
-  }
+        do!
+          exec ctx "INSERT OR REPLACE INTO commits (hash, branch_id, message, origin_ts)
+             VALUES ($hash, $branch, $message, $ts)" (fun cmd ->
+            p cmd "$branch" (string PT.BranchId.Main)
+            p cmd "$hash" hash
+            p cmd "$message" message
+            p cmd "$ts" (nextOriginTs ()))
+        do!
+          exec
+            ctx
+            $"UPDATE package_ops SET commit_hash = $hash WHERE {mainDraftWhere}"
+            (fun cmd -> p cmd "$hash" hash)
+        do!
+          Layers.commitRowsOf
+            ctx
+            PT.BranchId.Main
+            "op_id IN (SELECT id FROM package_ops WHERE branch_id = $branch AND commit_hash = $hash)"
+            (fun cmd -> p cmd "$hash" hash)
+        return hash
+    })

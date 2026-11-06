@@ -93,7 +93,12 @@ let authoringOrder(
   let fromMain =
     // main-scoped: main's half of the sequence, cut at the fork below when on a branch.
     SCM.Bindings.query(
-      SCM.Bindings.BindingFilter.AuthoringOrder(loc.owner, modulesOf(loc), loc.name)
+      SCM.Bindings.BindingFilter.AuthoringOrder(
+        SCM.Branch.mainBranchId,
+        loc.owner,
+        modulesOf(loc),
+        loc.name
+      )
     )
     |> Stdlib.List.map(fun b -> b.hash)
 
@@ -126,15 +131,12 @@ let authoringOrder(
       fromBranch |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(mainUpToFork, h))))
 
 
-/// Every hash that has ever been bound at <param loc> on MAIN, newest first.
+/// Every hash that has ever been bound at <param loc> on MAIN, newest first, the live one first. A name
+/// that has been rebound and rebound again has a row per binding, and the caller wants the versions, not
+/// the rebinds.
 ///
-/// Grouped by hash, ordered by when each stopped being live -- the one still live sorts first because a
-/// NULL `unlisted_at` stands in as a date past every real one. A name that has been rebound and rebound
-/// again has a row per binding, and the caller wants the versions, not the rebinds.
-///
-/// Main only, and the caller is expected to know it: `locations` has no `branch_id`, so on a branch this
-/// is the history you FORKED FROM. `Cli.Packages.Propagate.getAllPreviousHashes` appends the branch's own
-/// versions to it.
+/// Main's, and the caller is expected to know it: on a branch this is the history you FORKED FROM.
+/// `Cli.Packages.Propagate.getAllPreviousHashes` appends the branch's own versions to it.
 let everBoundHashes(
   loc: LanguageTools.ProgramTypes.PackageLocation,
   itemKind: LanguageTools.ProgramTypes.ItemKind)
@@ -175,7 +177,7 @@ let everBoundHashesFor(
     Dict {}
   else
     // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
-    SCM.Bindings.query(SCM.Bindings.BindingFilter.EverBound(keys))
+    SCM.Bindings.query(SCM.Bindings.BindingFilter.EverBound(SCM.Branch.mainBranchId, keys))
     |> Stdlib.List.map(fun b ->
       (everBoundKey(b.owner, b.modules, b.name, b.itemType),
        LanguageTools.ProgramTypes.Hash.Hash(b.hash)))

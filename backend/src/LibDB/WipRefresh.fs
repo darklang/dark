@@ -3,8 +3,7 @@
 /// Keep older versions needed by renames, reference snapshots, or undo.
 ///
 /// Only main's uncommitted operations are read here. Other branches' drafts and
-/// committed operations stay unchanged. `Draft.rebuild` replays committed history
-/// without recalculating its hashes.
+/// committed operations stay unchanged.
 module LibDB.WipRefresh
 
 open System.Threading.Tasks
@@ -331,7 +330,7 @@ let private refreshOnce
   (pm : PT.PackageManager)
   : Task<Option<int64>> =
   task {
-    // Read only the draft; getWipOps would include committed operations too.
+    // Only the draft: committed ops never go through stabilization.
     let! (draftIds, wipOps) = Queries.getDraftOpsWithIds ()
     do! afterRead ()
 
@@ -387,6 +386,7 @@ let private refreshOnce
           match!
             Inserts.rewriteDraftIfUnchanged
               draftIds
+              wipOps
               (fun opId ->
                 match Map.tryFind opId preserveTs with
                 | Some ts -> ts

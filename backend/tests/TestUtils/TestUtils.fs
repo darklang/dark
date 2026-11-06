@@ -89,17 +89,21 @@ let countSql
   |> Sql.parameters ps
   |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
-/// What `locations` currently binds <param l> to: the live (not unlisted) row, if
-/// any. Raises if more than one row is live, which would itself be a store bug.
+/// What main currently binds <param l> to, if anything.
 let liveBoundHash (l : PT.PackageLocation) : Task<Option<string>> =
-  Sql.query
-    "SELECT item_hash FROM locations
-     WHERE owner = @o AND modules = @m AND name = @n AND unlisted_at IS NULL"
+  Sql.query (
+    "WITH RECURSIVE chain(bid, depth) AS (SELECT '00000000-0000-0000-0000-000000000001', 0),
+       layer(branch_id, draft, rank) AS (SELECT bid, 1, 0 FROM chain UNION ALL SELECT bid, 0, 1 FROM chain)
+     SELECT l.item_hash FROM locations l JOIN layer y ON y.branch_id = l.branch_id AND y.draft = l.draft
+     WHERE l.owner = @o AND l.modules = @m AND l.name = @n AND l.live = 1
+     ORDER BY y.rank LIMIT 1"
+  )
   |> Sql.parameters
     [ "o", Sql.string l.owner
       "m", Sql.string (String.concat "." l.modules)
       "n", Sql.string l.name ]
   |> Sql.executeRowOptionAsync (fun read -> read.string "item_hash")
+  |> Task.map (Option.filter (fun h -> h <> ""))
 
 let testPackageFn
   (typeParams : List<string>)
@@ -1448,7 +1452,7 @@ let authorIntoMain (source : string) : Task<List<PT.PackageOp>> =
     do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
     // Match scmAddOps: save reference names before duplicate bodies are combined.
     let! names = LibDB.ReferenceNames.captureForStorage PT.BranchId.Main stabilized
-    let! _ = LibDB.Inserts.insertAndApplyOpsAsWip (stabilized @ names)
+    let! _ = LibDB.Inserts.insertAndApplyOps (stabilized @ names)
     // The same second step the authoring builtin takes: re-resolve names and recompute
     // SCC-aware hashes now that the new items exist. Skipping it leaves forward
     // references unresolved, so the dependency edges a cascade reads are never written.

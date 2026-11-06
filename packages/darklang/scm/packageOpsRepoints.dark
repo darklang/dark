@@ -4,45 +4,18 @@ module Darklang.SCM.PackageOps
 //
 // Propagation's read half: all callers follow.
 
-/// Find names for this content using main's bindings and the branch's binding changes.
-/// Deprecating content affects every name that points to it, so include inherited names too.
+/// Every name bound to <param hash>, as <param branchId> sees it.
+///
+/// Deprecation is keyed on CONTENT, so it applies to every name holding that hash, which for a trivial
+/// value can be many unrelated ones.
 let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String> =
-  let mainNames =
-    // main-scoped: main's names for this content; the chain's names and rebinds are applied below.
-    SCM.Bindings.query(SCM.Bindings.BindingFilter.MainByHash(hash, itemType))
-    |> Stdlib.List.map(fun b -> Conflicts.fqn(b.owner, b.modules, b.name))
-
-  if SCM.Branch.isMain(branchId) then
-    mainNames
-  else
-    // Include names inherited from parent branches.
-    // Remove main's names when the branch or a parent now binds them to different content.
-    let chain = chainBindings(branchId)
-
-    let branchNames =
-      chain
-      |> Stdlib.List.filterMap(fun b ->
-        if b.hash == hash && b.itemType == itemType then
-          Stdlib.Option.Option.Some(Conflicts.fqn(b.owner, b.modules, b.name))
-        else
-          Stdlib.Option.Option.None)
-
-    let reboundAway =
-      chain
-      |> Stdlib.List.filterMap(fun b ->
-        if b.hash != hash then
-          Stdlib.Option.Option.Some(Conflicts.fqn(b.owner, b.modules, b.name))
-        else
-          Stdlib.Option.Option.None)
-
-    let mainStill =
-      mainNames |> Stdlib.List.filter(fun n -> Stdlib.Bool.not(Stdlib.List.contains(reboundAway, n)))
-
-    Stdlib.List.unique(Stdlib.List.concat(mainStill, branchNames))
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.ByHash(branchId, hash, itemType))
+  |> Stdlib.List.map(fun b -> Conflicts.fqn(b.owner, b.modules, b.name))
+  |> Stdlib.List.unique
 
 
-/// A caller update and the dependency that caused it.
-/// The commit preview uses both names to explain why the caller will change.
+/// One knock-on repoint: <param name> moves because <param uses> did. Carrying the CAUSE is what lets the
+/// commit view read as an outcome ("Home.render -> uses User.format") instead of a bare list of names.
 type Repoint =
   { name: String
     uses: String }

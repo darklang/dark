@@ -60,7 +60,7 @@ module HandleCommand =
         uply {
           LibDB.PackageRefsGenerator.initializeFromOps ops
           do! LibDB.Purge.purge ()
-          let! _ = LibDB.Inserts.insertAndApplyOpsAsWip ops
+          let! _ = LibDB.Inserts.insertAndApplyOps ops
           if commitBaseline then
             // The .dark files are the shipped baseline, not your draft. Commit them, or
             // every `dark status` would open on the whole package tree as uncommitted
@@ -228,7 +228,7 @@ module HandleCommand =
       let! rows =
         Sql.query
           "SELECT item_hash, owner, modules, name, item_type FROM locations
-           WHERE unlisted_at IS NULL AND item_type <> 'module'"
+           WHERE live = 1 AND item_hash <> '' AND item_type <> 'module'"
         |> Sql.executeAsync (fun read ->
           (read.string "item_hash",
            read.string "owner",

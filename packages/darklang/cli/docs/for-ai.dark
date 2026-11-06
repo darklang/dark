@@ -262,7 +262,7 @@ mismatch), so branch on the exit, not on grepping for "error".
 
 ## Branches
 
-A branch is an overlay on the same op log, invisible to main until it merges, and it sees only COMMITTED work from main and its parents -- a draft is private to where it was authored.
+A branch is its own layer of names over its parent's, in the same store, invisible to main until it merges, and it sees only COMMITTED work from main and its parents -- a draft is private to where it was authored.
 Several agents on several branches is the case this is built for: one process
 each, and they never see each other's work until someone merges.
 

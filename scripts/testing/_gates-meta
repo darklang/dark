@@ -19,8 +19,8 @@ gate_gates_are_clean() {
 
   FINGERPRINT="
     SELECT 'ops='       || (SELECT COUNT(*) FROM package_ops)
-        || ' locs='     || (SELECT COUNT(*) FROM locations WHERE unlisted_at IS NULL)
-        || ' owners='   || (SELECT COUNT(DISTINCT owner) FROM locations WHERE unlisted_at IS NULL)
+        || ' locs='     || (SELECT COUNT(*) FROM locations WHERE live = 1 AND item_hash <> '')
+        || ' owners='   || (SELECT COUNT(DISTINCT owner) FROM locations WHERE live = 1 AND item_hash <> '')
         || ' branches=' || (SELECT COUNT(*) FROM branches)
         || ' conflicts='|| (SELECT COUNT(*) FROM conflicts)
         || ' commits='  || (SELECT COUNT(*) FROM commits)

@@ -89,3 +89,23 @@ test discardOnABranchThenArchiveLeavesMainUntouched =
       draftIsEmpty(dark, "main's draft is empty")
       same(staleCallers(dark), 0, "with nothing stale")
       same(allBranches(dark), [], "and the branch is gone") ])
+
+
+// An undo's restore is draft work like any other edit: discarding the whole draft takes it away with
+// the edits it stepped back through, and the name is on its committed version again.
+test discardAfterAnUndoAndARenameGoesBackToTheCommittedVersion =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.f", "1")
+      saveNumber(dark, "Tests.App.other", "5")
+      commit(dark, "base")
+
+      saveNumber(dark, "Tests.App.f", "2")
+      saveNumber(dark, "Tests.App.f", "3")
+      run(dark, [ "undo", "Tests.App.f" ])
+      evals(dark, "Tests.App.f()", "2", "undo stepped f back one edit")
+      run(dark, [ "rename", "Tests.App.other", "Tests.App.renamed" ])
+
+      run(dark, [ "discard", "-y" ])
+      draftIsEmpty(dark, "discard empties the draft")
+      evals(dark, "Tests.App.f()", "1", "f is on its committed version, not the restored one")
+      evals(dark, "Tests.App.other()", "5", "and the rename is gone too") ])

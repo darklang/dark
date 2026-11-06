@@ -10,10 +10,9 @@ module Darklang.Cli.Packages.Propagate
 /// Every hash that has ever been at a location, NEWEST FIRST. Empty means the name is new here.
 /// Callers filter out the current hash to get only previous versions.
 ///
-/// Two sources, and both are needed. `locations` has no `branch_id`, so on a branch its rows are the
-/// history you FORKED FROM; the branch's own edits live in its op log and are prepended here. Answering
-/// from `locations` alone is the plausible-but-wrong shape: re-authoring a branch-only item reads as
-/// "Created" rather than "Updated", and propagation finds no earlier version to repoint dependents off.
+/// Two sources: `everBoundHashes` is the history you FORKED FROM, and on a branch its own edits are
+/// prepended. Without them, re-authoring a branch-only item reads as "Created" rather than "Updated",
+/// and propagation finds no earlier version to repoint dependents off.
 let getAllPreviousHashes(
   branchId: Uuid,
   location: LanguageTools.ProgramTypes.PackageLocation,

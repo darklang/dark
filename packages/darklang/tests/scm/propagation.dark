@@ -345,7 +345,7 @@ test aCallerOfEitherNameOfOneBodyIsFoundByThatName =
     Authoring.authorAll("TwinTwo", [ "let twin(x: Int64): Int64 = x + 4001"
                                      "let caller(x: Int64): Int64 = (Tests.TwinTwo.twin(x)) + 10" ])
   let callersOf(m: String): Int64 =
-    Stdlib.List.length(Darklang.SCM.Deps.dependentsByName([ (Authoring.loc(m, "twin"), fn) ]))
+    Stdlib.List.length(Darklang.SCM.Deps.dependentsFor(Darklang.SCM.PackageOps.currentBranch(), [ (Authoring.loc(m, "twin"), fn) ]))
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(setup2)

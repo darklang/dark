@@ -7,23 +7,21 @@ module Darklang.SCM.PackageOps
 // one. Callers say `SCM.PackageOps.x` wherever the definition lives, so the file boundary can move
 // without a single call site changing.
 //
-// Everything here goes through the overlay rather than reading `locations`, which has no `branch_id`
-// and so answers about MAIN while you are standing on a branch.
+// What a branch binds is the store's answer, asked of that branch (`SCM.Bindings`).
 
 
-/// What a BRANCH binds, from its OWN frontier (not the parent chain) -- exactly the ops a merge would flip
-/// effective and fold, so this is the incoming side of a merge.
+/// What a BRANCH's own work binds (not its parent chain's): the incoming side of a merge.
 let branchBindings(branchId: Uuid): List<Conflicts.Binding> =
-  bindingsFromOpRows(Branches.ownOpRows(branchId))
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.Own(branchId))
+  |> Stdlib.List.filter(fun row -> row.hash != "")
+  |> Stdlib.List.map(Conflicts.bindingOf)
 
 
-/// Does this branch exist at all? Checks BOTH the registry row and the op tags, because either can exist
-/// without the other: switching registers a branch before it has ops, and an imported branch arrives as
-/// tagged ops before anything registers it. Otherwise "unknown" reads as "empty".
+/// Does this branch exist at all? A registry row, or ops under its id.
 let branchExists(branchId: Uuid): Bool =
   match Branches.query(Branches.BranchFilter.ById(branchId)) with
   | [_, ...] -> true
-  | [] -> Stdlib.Bool.not(Stdlib.List.isEmpty((query(OpFilter.Tagged(branchId), 1)).ops))
+  | [] -> Stdlib.Bool.not(Stdlib.List.isEmpty((query(OpFilter.Own(branchId), 1)).ops))
 
 
 /// A branch's registered parent, or MAIN's id when it has none. The id, not the name "main"
@@ -34,36 +32,10 @@ let branchParentOf(branchId: Uuid): Uuid =
   | [] -> SCM.Branch.mainBranchId
 
 
-/// What the PARENT binds for <param names> -- the LOCAL side a branch merges into. parent=main is just
-/// `locations`; a non-main parent is main overlaid by that chain's own rebinds.
+/// What the PARENT binds for <param names> -- the LOCAL side a branch merges into.
 let parentBindings(parentId: Uuid, names: List<String>): List<Conflicts.Binding> =
-  let fromMain = Conflicts.localBindingsFor(names)
-
-  if SCM.Branch.isMain(parentId) then
-    fromMain
-  else
-    let overlay = chainBindings(parentId)
-
-    let overlayKeys =
-      overlay |> Stdlib.List.map(fun b -> Conflicts.bindingKey(b.owner, b.modules, b.name))
-
-    // Dict, not `List.contains`: `fromMain` is EVERY live binding, so a linear membership test per element is
-    // O(main x overlay) on a path every branch-aware read goes through. See `unknownRecords`.
-    let overlayKeySet =
-      overlayKeys
-      |> Stdlib.List.map(fun k -> (k, true))
-      |> Stdlib.Dict.fromEntries
-
-    let untouched =
-      fromMain
-      |> Stdlib.List.filter(fun b ->
-        match
-          Stdlib.Dict.get(overlayKeySet, Conflicts.bindingKey(b.owner, b.modules, b.name))
-        with
-        | Some(_) -> false
-        | None -> true)
-
-    Stdlib.List.concat(untouched, overlay)
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.ByBareNames(parentId, Stdlib.List.unique(names)))
+  |> Stdlib.List.map(Conflicts.bindingOf)
 
 
 // the branch PREVIEW (what a merge would hit, before anything is recorded)
@@ -223,30 +195,9 @@ let branchIsMerged(branchId: Uuid): Bool =
 
 
 
-/// The ops a merge moved off <param branchId>, read back off its merge events.
-///
-/// A merge deletes the branch's tags (the ops are its parent's now), so after it the tag
-/// table says the branch never held anything. The `Merged` event is the one record of
-/// which ops were its, and there can be several: a branch merged in two rounds has two.
-/// Oldest first, like `branchOps`. Empty for a branch that has not merged.
+/// The ops a merge moved off <param branchId>, oldest first. Empty for a branch that has not merged.
 let mergedOpsOf(branchId: Uuid): List<LanguageTools.ProgramTypes.PackageOp> =
-  // Byte 9 of the blob is the op tag; 0x0A is BranchEvent. There are few of these, so
-  // decoding them all to find this branch's is cheaper than a column would be worth.
-  let events = decodeOpRows(rowsOf(OpFilter.BranchEvents))
-
-  let ids =
-    events
-    |> Stdlib.List.map(fun op ->
-      match op with
-      | BranchEvent(b, Merged(ops), _) -> if b == branchId then ops else []
-      | _ -> [])
-    |> Stdlib.List.flatten
-    |> Stdlib.List.map(Stdlib.toString)
-
-  if Stdlib.List.isEmpty(ids) then
-    []
-  else
-    decodeOpRows(rowsOf(OpFilter.Ids(ids)))
+  decodeOpRows(rowsOf(OpFilter.MergedFrom(branchId)))
 
 
 /// Turn a branch NAME into its id, starting the branch if that name has none. Returns (id, wasCreated);
@@ -258,13 +209,11 @@ let resolveBranch(name: String, parentId: Uuid): (Uuid * Bool) =
   | Error(e) -> Builtin.unwrap(Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e)))
 
 
-/// Move THIS process onto <param branchId>, loading that branch's delta ops as the overlay name resolution
-/// and execution read, and store it as the branch the next command starts on. Returns the branch now
+/// Move THIS process onto <param branchId>, so names resolve as that branch sees them, and store it as
+/// the branch the next command starts on. Returns the branch now
 /// active -- the one call that changes what every later name in the process resolves to.
 ///
-/// `--branch` is a one-off and never comes through here; it is resolved before any Dark runs. To reload
-/// the overlay of the branch you are already on after editing its ops, use `SCM.Draft.invalidateCaches`,
-/// which does not store anything.
+/// `--branch` is a one-off and never comes through here; it is resolved before any Dark runs.
 let selectBranch(branchId: Uuid): Uuid =
   match SCM.Actions.branch(SCM.Actions.BranchAction.Switch(branchId)) with
   | Ok(b) -> b.id
@@ -286,25 +235,10 @@ let branchHashHistoryFor(
   |> Stdlib.Option.withDefault([])
 
 
-/// <fn branchHashHistoryFor> for every name the chain has bound, from one read of the chain, keyed by
-/// `Conflicts.bindingKey`.
+/// <fn branchHashHistoryFor> for every name the chain has bound, keyed by `Conflicts.bindingKey`.
 let branchHashHistories(branchId: Uuid): Dict<String, List<String>> =
-  // Deliberately SetName-only: an Override is a decision, not authoring history.
-  decodeOpRows(chainOpRows(branchId))
-  |> Stdlib.List.map(LanguageTools.ProgramTypes.PackageOp.bindingOps)
-  |> Stdlib.List.flatten
-  |> Stdlib.List.filterMap(fun op ->
-    match op with
-    | SetName(location, target, _) ->
-      Stdlib.Option.Option.Some(
-        (Conflicts.bindingKey(
-          location.owner,
-          Stdlib.String.join(location.modules, "."),
-          location.name),
-         LanguageTools.ProgramTypes.hashToString(
-           LanguageTools.ProgramTypes.Reference.hash(target)))
-      )
-    | _ -> Stdlib.Option.Option.None)
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.BranchHistory(branchId))
+  |> Stdlib.List.map(fun row -> (Conflicts.bindingKey(row.owner, row.modules, row.name), row.hash))
   |> Stdlib.List.groupBy(fun((key, _)) -> key)
   |> Stdlib.List.map(fun((key, entries)) ->
     // `unique` keeps first occurrences in place, which is the authoring order this function exists
@@ -314,10 +248,8 @@ let branchHashHistories(branchId: Uuid): Dict<String, List<String>> =
 
 
 /// A branch's OWN frontier ops, oldest-first: its authoring history, for `dark log <branch>` (the
-/// SEQUENCE, complementary to `diff`'s net effect). Just this branch's tag, NOT the parent chain.
+/// SEQUENCE, complementary to `diff`'s net effect). Just this branch's ops, NOT the parent chain.
 ///
-/// Skips an op this build cannot decode rather than raising on it. A synced store's log holds a peer's
-/// ops on a format this binary does not know, stored and left unapplied on purpose, and a history
-/// listing is the last thing that should die because one of them is in the way.
+/// Skips an op this build cannot decode rather than raising on it.
 let branchOps(branchId: Uuid): List<LanguageTools.ProgramTypes.PackageOp> =
   decodeOpRows(Branches.ownOpRows(branchId))

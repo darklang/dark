@@ -1,10 +1,9 @@
 /// The draft rewrite under conditions only F# can stage.
 ///
 /// What `dark discard` and collapse drop, and what they must leave, is tested in Dark, in
-/// `packages/darklang/tests/scm/draft.dark`. The tests here stay because they inject a failure
-/// into the rewrite (`rewriteOpsAtomically`), open a race window through an F# hook
-/// (`refreshWith`, `rebuildWith`, a `rebuild` handed a stale read), plant an op blob this
-/// build cannot decode, or read where committed ops sit in the log, which nothing in the SCM
+/// `packages/darklang/tests/scm/draft.dark`. The tests here stay because they stop a discard partway
+/// (`ScmActions.Testing.failAt`), open a race window through an F# hook (`refreshWith`), plant an op
+/// blob this build cannot decode, or read where committed ops sit in the log, which nothing in the SCM
 /// reports.
 module Tests.Draft
 
@@ -47,7 +46,7 @@ let private liveHash (m : string) (name : string) : Task<Option<string>> =
 let private draftOpCount () : Task<int64> =
   Sql.query
     "SELECT count(*) AS n FROM package_ops
-     WHERE commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches)"
+     WHERE commit_hash IS NULL AND branch_id = '00000000-0000-0000-0000-000000000001'"
   |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
 /// The op count a discard reported, or a failure that says why.
@@ -57,22 +56,28 @@ let private unwrap (r : Result<int64, string>) : int64 =
   | Error e -> Exception.raiseInternal "discard errored" [ "e", e ]
 
 let private cleanup (m : string) : Task<unit> =
-  Sql.query "DELETE FROM locations WHERE owner = 'Darklang' AND modules = @m"
-  |> Sql.parameters [ "m", Sql.string m ]
-  |> Sql.executeStatementAsync
+  task {
+    do!
+      Sql.query
+        "DELETE FROM package_ops WHERE id IN
+           (SELECT op_id FROM locations WHERE owner = 'Darklang' AND modules = @m)"
+      |> Sql.parameters [ "m", Sql.string m ]
+      |> Sql.executeStatementAsync
+    do!
+      Sql.query "DELETE FROM locations WHERE owner = 'Darklang' AND modules = @m"
+      |> Sql.parameters [ "m", Sql.string m ]
+      |> Sql.executeStatementAsync
+    LibDB.Caching.invalidateAll ()
+  }
 
 
 
-/// A store that has synced holds ops it did not write. One from a peer on a different build cannot be
-/// decoded here, and is kept unapplied on purpose so a later build can read it -- which puts it in the
-/// main log, where every reader meets it.
-///
-/// Two things have to hold, and they pull against each other. Reading the log must not raise, or one
-/// such op takes down every command that rewrites the draft, permanently. And the rewrite deletes the
-/// main log and re-inserts what it read, so a read that merely SKIPS the op would delete a colleague's
-/// committed work for being unparseable. It has to be spared, not skipped.
+/// The log can hold ops this build cannot decode -- written by an older or newer build -- kept
+/// unapplied on purpose so a build that can read them still will. Reading the draft must not raise on
+/// one, and nothing that rewrites the draft may delete one for being unparseable: it is spared, not
+/// skipped.
 let keepsAnOpItCannotRead =
-  testTask "a rewrite spares the ops this build cannot decode" {
+  testTask "a discard and a draft rewrite spare the ops this build cannot decode" {
     use output = new OutputCapture()
     let m = "DraftTestUnreadable"
     do! cleanup m
@@ -81,29 +86,32 @@ let keepsAnOpItCannotRead =
     let! _ = commitAll "draft test: unreadable v1"
     let! committedHash = liveHash m "u"
 
-    // An uncommitted edit over a committed binding, so the rewrite has real work to do.
+    // An uncommitted edit over a committed binding, so the discard has real work to do.
     let! editOps = authorIntoMain $"module Darklang.{m}\n\nlet u(): Int64 = 7002"
 
-    // Stands in for an op off the wire that this build's deserializer rejects. Committed and
-    // unapplied, which is where they actually land.
-    let alienId = System.Guid.NewGuid()
+    // Two ops this build's deserializer rejects: one committed, one in the draft itself.
+    let alienCommitted = System.Guid.NewGuid()
+    let alienDraft = System.Guid.NewGuid()
+    for (id, commit) in
+      [ (alienCommitted, box "alien-commit"); (alienDraft, box System.DBNull.Value) ] do
+      let! _ =
+        Sql.query
+          "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, applied, commit_hash, origin_ts)
+           VALUES (@id, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', @blob, 0, @commit, '2026-08-28T00:00:00Z')"
+        |> Sql.parameters
+          [ "id", Sql.string (string id)
+            "blob", Sql.bytes [| 0xFFuy; 0x39uy; 0x07uy; 0x2Auy |]
+            "commit",
+            (match commit with
+             | :? string as c -> Sql.string c
+             | _ -> Sql.dbnull) ]
+        |> Sql.executeNonQueryAsync
+      ()
 
-    let! _ =
-      Sql.query
-        "INSERT INTO package_ops (id, op_blob, applied, effective, commit_hash, origin_ts)
-         VALUES (@id, @blob, 0, 1, 'alien-commit', '2026-08-28T00:00:00Z')"
-      |> Sql.parameters
-        [ "id", Sql.string (string alienId)
-          "blob", Sql.bytes [| 0xFFuy; 0x39uy; 0x07uy; 0x2Auy |] ]
-      |> Sql.executeNonQueryAsync
-
-    // A Deprecate in the draft is what forces the REBUILD route rather than the surgical one: it
-    // writes a row no origin_ts traces back, so `discard` rebuilds from the surviving ops. That is
-    // the route that deletes the main log, and so the only route the alien op can be lost on.
+    // A Deprecate in the draft as well, so the discard drops a row from every layered table.
     let target = PT.Reference.PackageFn(hashBoundTo editOps "u")
-
     let! _ =
-      Inserts.insertAndApplyOpsAsWip
+      Inserts.insertAndApplyOps
         [ PT.PackageOp.Deprecate(
             target,
             PT.DeprecationKind.Harmful,
@@ -111,28 +119,32 @@ let keepsAnOpItCannotRead =
             None
           ) ]
 
+    // The draft rewrite WipRefresh does, then the discard.
+    let! _ = LibDB.WipRefresh.refresh pmPT
     let! result = runDarkResult "Darklang.SCM.Draft.discardAll()"
     let _ = unwrap result
 
     let! afterHash = liveHash m "u"
-    Expect.equal afterHash committedHash "the rewrite still did its job"
+    Expect.equal afterHash committedHash "the discard still did its job"
+    let! deprecated =
+      LibDB.Queries.getCurrentDeprecation (hashBoundTo editOps "u") PT.ItemKind.Fn
+    Expect.isNone deprecated "and took the deprecation with it"
 
-    let! survivors =
-      countSql
-        "SELECT COUNT(*) AS n FROM package_ops WHERE id = @id"
-        [ "id", Sql.string (string alienId) ]
-
-    Expect.equal survivors 1L "the op it could not read is still in the log"
-
-    let! _ =
-      Sql.query "DELETE FROM package_ops WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.string (string alienId) ]
-      |> Sql.executeNonQueryAsync
+    for id in [ alienCommitted; alienDraft ] do
+      let! survivors =
+        countSql
+          "SELECT COUNT(*) AS n FROM package_ops WHERE id = @id"
+          [ "id", Sql.string (string id) ]
+      Expect.equal survivors 1L "an op it could not read is still in the log"
+      let! _ =
+        Sql.query "DELETE FROM package_ops WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.string (string id) ]
+        |> Sql.executeNonQueryAsync
+      ()
 
     do! cleanup m
     output.Check(fun stdout stderr ->
-      Expect.equal stdout "" "the rebuild has no command output"
-      // The store warning is emitted only once per process.
+      Expect.equal stdout "" "the discard has no command output"
       if stderr <> "" then
         Expect.stringContains stderr "format this build cannot read" "the alien op"
         Expect.stringContains
@@ -142,11 +154,10 @@ let keepsAnOpItCannotRead =
   }
 
 
-/// The rewrite is delete-then-reinsert, and it is one transaction. Split across two, a crash in
-/// between deletes the draft for good; as one, a failure after the delete leaves the draft exactly
-/// where it was. The crash is injected as a statement that cannot run, placed after the delete.
+/// A discard is one transaction: stopped after it has deleted the draft's rows, it leaves the draft
+/// exactly where it was, and the same discard run again does its job.
 let aFailedRewriteLeavesTheDraftIntact =
-  testTask "a rewrite that fails after its delete rolls the delete back" {
+  testTask "a discard stopped after deleting its rows rolls the delete back" {
     let m = "DraftTestAtomic"
     do! cleanup m
 
@@ -154,23 +165,19 @@ let aFailedRewriteLeavesTheDraftIntact =
     let! before = liveHash m "a"
     Expect.isSome before "the draft binding is live"
     let! draftBefore = draftOpCount ()
+    let ids = ops |> List.map (fun op -> string (Inserts.computeOpHash op))
 
-    let poisoned = Inserts.draftDeletes @ [ "DELETE FROM no_such_table_draft_test" ]
+    LibDB.ScmActions.Testing.failAt.Value <- "drop.rows"
     let! outcome =
       task {
         try
-          let! _ =
-            Inserts.rewriteOpsAtomically
-              poisoned
-              (fun _ -> Inserts.nextOriginTs ())
-              (fun _ -> None)
-              "op"
-              ops
-          return Ok()
-        with e ->
-          return Error e.Message
+          return!
+            LibDB.ScmActions.discard PT.BranchId.Main (LibDB.ScmActions.Ops ids)
+        finally
+          LibDB.ScmActions.Testing.failAt.Value <- null
       }
-    Expect.isError outcome "the poisoned rewrite raised"
+    LibDB.ScmActions.Testing.failAt.Value <- null
+    Expect.isError outcome "the stopped discard failed"
 
     let! after = liveHash m "a"
     Expect.equal
@@ -180,16 +187,12 @@ let aFailedRewriteLeavesTheDraftIntact =
     let! draftAfter = draftOpCount ()
     Expect.equal draftAfter draftBefore "and so is every draft op"
 
-    // And the same rewrite without the poison does its job, so the test is not passing on a no-op.
-    let! _ =
-      Inserts.rewriteOpsAtomically
-        Inserts.draftDeletes
-        (fun _ -> Inserts.nextOriginTs ())
-        (fun _ -> None)
-        "op"
-        ops
+    // And the same discard without the stop does its job, so the test is not passing on a no-op.
+    let! dropped =
+      LibDB.ScmActions.discard PT.BranchId.Main (LibDB.ScmActions.Ops ids)
+    Expect.equal dropped (Ok(List.length ids)) "a clean discard drops them"
     let! again = liveHash m "a"
-    Expect.equal again before "a clean rewrite lands the same binding"
+    Expect.isNone again "and the name goes with them"
 
     do! cleanup m
   }
@@ -235,161 +238,16 @@ let aRefreshDoesNotEatAnAuthorThatLandedMidway =
     do! cleanup m
   }
 
-/// The draft as a discard reads it, which is what it hands the rebuild.
-let private draftAsDarkReadsIt () : Task<Set<System.Guid>> =
-  task {
-    let! rows = LibDB.Queries.getMainOpsWithIds ()
-    return
-      rows
-      |> List.filter (fun r -> Option.isSome r.op && Option.isNone r.commitHash)
-      |> List.map _.id
-      |> Set.ofList
-  }
-
-let private opIsInTheLog (id : System.Guid) : Task<bool> =
-  task {
-    let! n =
-      countSql
-        "SELECT COUNT(*) AS n FROM package_ops WHERE id = @id"
-        [ "id", Sql.uuid id ]
-    return n = 1L
-  }
-
-/// `Draft.rebuild` deletes the whole of main and re-inserts what it read. A pull landing between the
-/// read and the delete brings ops that are in the set deleted and not in the set read: a peer's
-/// committed work, and an op from a newer build that the delete is meant to spare by id. The window is
-/// opened by hand through `rebuildWith`.
-let aPullInsideARebuildsWindowSurvivesIt =
-  testTask "a pull that lands inside a rebuild's window survives it, readable or not" {
-    use output = new OutputCapture()
-    let m = "DraftTestRebuildPull"
-    do! cleanup m
-
-    let! mine = authorIntoMain $"module Darklang.{m}\n\nlet mine(): Int64 = 1"
-    let! peerOps = parsePackageOps $"module Tests.{m}\n\nlet peer(): Int64 = 2"
-
-    // An op kind this build has no tag for, which is what a newer build's op looks like here.
-    let alienId = System.Guid.NewGuid()
-    let peerOp =
-      match peerOps with
-      | op :: _ -> op
-      | [] -> failtest "the peer source authored nothing"
-    let alienBytes =
-      LibSerialization.Binary.Serialization.PT.PackageOp.serialize alienId peerOp
-    alienBytes[8] <- 200uy
-    Expect.isNone
-      (LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize
-        alienId
-        alienBytes)
-      "the alien op really is undecodable"
-
-    let records =
-      (peerOps
-       |> List.map (fun op ->
-         let id = Inserts.computeOpHash op
-         (string id,
-          System.Convert.ToHexString(
-            LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
-          ),
-          Inserts.nextOriginTs ())))
-      @ [ (string alienId,
-           System.Convert.ToHexString alienBytes,
-           Inserts.nextOriginTs ()) ]
-
-    // `scmImportOps`, which is what a pull runs.
-    let pull () =
-      task {
-        let! _ = Inserts.importOpsBulk "draft-test-pull" records
-        let! _ = LibDB.Seed.applyUnappliedOps ()
-        return ()
-      }
-
-    let! draft = draftAsDarkReadsIt ()
-    let mutable opened = 0
-    let! rebuilt =
-      LibDB.Draft.rebuildWith
-        (fun () ->
-          task {
-            opened <- opened + 1
-            if opened = 1 then do! pull ()
-          })
-        draft
-        Set.empty
-
-    let! peer = liveBoundHash { owner = "Tests"; modules = [ m ]; name = "peer" }
-    Expect.isSome peer "the pulled, committed fn is still bound"
-    let! alienKept = opIsInTheLog alienId
-    Expect.isTrue alienKept "the op this build cannot decode is still in the log"
-    Expect.isFalse rebuilt "main moved under the rebuild, so it wrote nothing"
-    let! mineBefore = liveHash m "mine"
-    let (PT.Hash mineHash) = hashBoundTo mine "mine"
-    Expect.equal mineBefore (Some mineHash) "and nothing of the draft went"
-
-    // From a fresh read, as `rewriteBy` goes round again, the rebuild does its job and spares both.
-    let! draft = draftAsDarkReadsIt ()
-    let! rebuilt = LibDB.Draft.rebuild draft Set.empty
-    Expect.isTrue rebuilt "the second read matches, so the rebuild writes"
-    let! mineAfter = liveHash m "mine"
-    Expect.isNone mineAfter "the draft is gone"
-    let! peerAfter =
-      liveBoundHash { owner = "Tests"; modules = [ m ]; name = "peer" }
-    Expect.equal peerAfter peer "the pulled fn is still bound after a real rebuild"
-    let! alienAfter = opIsInTheLog alienId
-    Expect.isTrue alienAfter "and so is the alien op"
-
-    let! _ =
-      Sql.query "DELETE FROM package_ops WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.uuid alienId ]
-      |> Sql.executeNonQueryAsync
-    do! cleanup m
-    output.Check(fun stdout stderr ->
-      Expect.equal stdout "" "the rebuild has no command output"
-      // The store warning is emitted only once per process.
-      if stderr <> "" then
-        Expect.stringContains stderr "format this build cannot read" "the alien op"
-        Expect.stringContains
-          stderr
-          "They are kept, not dropped"
-          "preserved for later")
-  }
-
-/// `rewriteBy` chooses `keptIds` from its own read of the draft, before the rebuild reads anything, so
-/// an author landing in between is not kept and would be deleted. The rebuild refuses instead.
-let anAuthorAfterTheDraftWasChosenFromSurvivesARebuild =
-  testTask
-    "an author that lands after the draft was chosen from survives the rebuild" {
-    let m = "DraftTestRebuildAuthor"
-    do! cleanup m
-
-    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet early(): Int64 = 1"
-    let! draft = draftAsDarkReadsIt ()
-    let! late = authorIntoMain $"module Darklang.{m}\n\nlet late(): Int64 = 2"
-
-    let! rebuilt = LibDB.Draft.rebuild draft Set.empty
-
-    let! lateBound = liveHash m "late"
-    let (PT.Hash lateHash) = hashBoundTo late "late"
-    Expect.equal
-      lateBound
-      (Some lateHash)
-      "the author nobody chose to drop is still bound"
-    Expect.isFalse rebuilt "the draft is not the one the caller chose from"
-
-    do! cleanup m
-  }
-
-
-/// Where main's oldest committed op sits in the log. A rebuild deletes and re-inserts every main
-/// op, which moves this; a surgical drop does not.
+/// Where main's oldest committed op sits in the log, which only a rewrite of the log would move.
 let private firstCommittedRowid () : Task<int64> =
   Sql.query
     "SELECT COALESCE(MIN(rowid), -1) AS n FROM package_ops
-     WHERE commit_hash IS NOT NULL AND id NOT IN (SELECT op_id FROM op_branches)"
+     WHERE commit_hash IS NOT NULL AND branch_id = @main"
+  |> Sql.parameters [ "main", Sql.string (string PT.BranchId.Main) ]
   |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
-/// Rebuilding main to drop a draft op leaves every other reader a half-empty store while it runs,
-/// and a rebuild with nothing to remove is pure risk. A discard touches only the rows the draft
-/// wrote, with or without a draft to drop, and an unmoved committed rowid is the evidence.
+/// A discard touches only the rows the draft wrote, with or without a draft to drop, so every other
+/// reader keeps a whole store; an unmoved committed rowid is the evidence.
 let aDiscardLeavesTheCommittedLogInPlace =
   testTask "a discard leaves the committed log in place" {
     let m = "DraftTestScoped"
@@ -426,6 +284,4 @@ let tests =
     [ keepsAnOpItCannotRead
       aFailedRewriteLeavesTheDraftIntact
       aRefreshDoesNotEatAnAuthorThatLandedMidway
-      aPullInsideARebuildsWindowSurvivesIt
-      anAuthorAfterTheDraftWasChosenFromSurvivesARebuild
       aDiscardLeavesTheCommittedLogInPlace ]

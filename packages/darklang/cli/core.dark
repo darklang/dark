@@ -176,7 +176,7 @@ let commandOptions(commands: List<Registry.CommandHandler>): List<String> =
 /// REPL's: one long-lived process where `switch` moves you mid-session, so the state has to move with it
 /// and a command that renders (`status`, `commit`, the workbench) reads it from there.
 /// `SCM.PackageOps.currentBranch ()` is the process's, and it is what the verbs that MUTATE the store use
-/// -- `branch`, `merge`, `discard`, `push` -- because the ops they author route by the process overlay,
+/// -- `branch`, `merge`, `discard`, `push` -- because the ops they author route by the process's branch,
 /// and a state that had drifted from it would report one branch while writing to another.
 let resolveStartingBranch(): Uuid = SCM.PackageOps.currentBranch()
 

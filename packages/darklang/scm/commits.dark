@@ -22,22 +22,22 @@ type Commit =
     createdAt: String
     /// The commit this one follows on the line it was made on, or "" for the first commit in a store.
     /// Part of the hash, so a commit's id says where it sits as well as what it holds.
-    parent: String }
+    parent: String
+    /// A commit that records what happened to a branch rather than work: archiving one.
+    housekeeping: Bool }
 
 
 /// Which commits `query` is asked for.
 type CommitFilter =
   /// Every commit in the store, newest first by when it was written here.
   | Recent
-  /// The commits whose ops this branch OWNS, newest first. A commit is not on a branch, its ops are:
-  /// for main that is the effective ops no branch has claimed, for a branch the ops tagged to it.
+  /// The commits in this branch's own history, newest first. A merge moves a branch's commits to its
+  /// parent.
   | OnBranch of branchId: Uuid
   /// The commits whose hash starts with this, newest first. `%` and `_` match only themselves.
   | HashPrefix of prefix: String
   /// The commits that name this one as their parent.
   | ChildrenOf of hash: String
-  /// The newest commit, by stamp, among the ops this branch can see: its chains own plus mains.
-  | ParentFor of branchId: Uuid
 
 /// What `query` answers with. `total` counts every match when the limit was 0 (and `commits` is then
 /// empty); otherwise it is how many commits came back.
@@ -67,7 +67,5 @@ let children(hash: String): List<String> =
   (query(CommitFilter.ChildrenOf(hash), -1)).commits
   |> Stdlib.List.map(fun c -> c.hash)
 
-/// The op ids a commit holds.
-let opIdsIn(hash: String): List<String> =
-  SCM.PackageOps.idsOf(SCM.PackageOps.OpFilter.IdsInCommit(hash))
+
 

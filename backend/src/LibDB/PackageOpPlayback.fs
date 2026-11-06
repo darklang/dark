@@ -1,12 +1,11 @@
-/// Applies PackageOps to the DB projection tables.
-/// These tables (package_types, package_values, package_functions, package_tests, locations) are projections
-/// of the source-of-truth package_ops table.
+/// THE FOLD: applies PackageOps to the projection tables. The content tables (package_types,
+/// package_values, package_functions, package_tests, package_traits, package_trait_impls) are shared
+/// by every branch; names, deprecations and docs are written into the op's layer (`LibDB.Layers`).
 ///
 /// All writes go through a caller-provided SqliteConnection so the entire op
 /// batch can run inside one outer transaction. On cold-start grow (9000+ ops)
 /// that turns ~20k tiny WAL commits into one, which is the difference between
-/// a 5-second startup and a sub-second one. Inserts.fs (the other caller) opens
-/// a one-shot connection per call.
+/// a 5-second startup and a sub-second one.
 module LibDB.PackageOpPlayback
 
 
@@ -416,511 +415,262 @@ let private applyAddTest
     do! updateDependencies ctx hashStr refs
   }
 
-/// The `origin_ts` the log stamped on <param opId>, or None when the log does not hold it.
-///
-/// Id alone is the whole key: `package_ops` has one row per op; branch claims live
-/// in `op_branches`.
-let private originTsOf (ctx : Ctx) (opId : System.Guid) : Task<Option<string>> =
-  textOption ctx "SELECT origin_ts FROM package_ops WHERE id = $id" (fun cmd ->
-    p cmd "$id" (string opId))
+/// What the log says about the op being folded: its stamp, whether it is still in the draft, and what
+/// wrote it. Read from its row on the branch it is folding into, which every caller has stored first.
+type private OpRow = { ts : Option<string>; draft : bool; source : string }
 
-/// The newest `Unbind` folded at a name, by the stamp of the op that made it. An `Unbind` leaves a
-/// TOMBSTONE in `locations`: a row unlisted the moment it is written, stamped with the unbind's own
-/// origin_ts, so a SetName for the name that arrives after the unbind but was authored before it can
-/// find out and stay stale. Without one, two stores converge on different answers depending on which
-/// of the two ops arrived first.
-let private latestUnbindTs
+let private opRowOf
   (ctx : Ctx)
+  (branch : PT.BranchId)
+  (op : PT.PackageOp)
+  : Task<OpRow> =
+  task {
+    let id = Hashing.computeOpRowId op
+    let cmd =
+      command
+        ctx
+        "SELECT origin_ts, commit_hash IS NULL, source FROM package_ops
+         WHERE id = $id AND branch_id = $branch"
+    cmd.Parameters.Clear()
+    pUuid cmd "$id" id
+    p cmd "$branch" (string branch)
+    use! reader = cmd.ExecuteReaderAsync()
+    let! found = reader.ReadAsync()
+    if found then
+      return
+        { ts = (if reader.IsDBNull 0 then None else Some(reader.GetString 0))
+          draft = reader.GetInt64 1 <> 0L
+          source = reader.GetString 2 }
+    else
+      // An op the log does not hold: nothing stamped it, and it is nobody's commit.
+      return { ts = None; draft = true; source = "op" }
+  }
+
+/// The kind of item <param branch>'s view binds at <param location>, if it binds one: what a removal
+/// records on its tombstone.
+let private kindInView
+  (ctx : Ctx)
+  (branch : PT.BranchId)
   (location : PT.PackageLocation)
   : Task<Option<string>> =
-  textOption
-    ctx
-    ("SELECT origin_ts FROM locations "
-     + "WHERE owner = $owner AND modules = $modules AND name = $name "
-     + "AND source = 'unbind' AND origin_ts IS NOT NULL "
-     + "ORDER BY origin_ts DESC LIMIT 1")
-    (fun cmd -> pLoc cmd location)
+  task {
+    let cmd =
+      command
+        ctx
+        "SELECT branch_id, draft, item_type FROM locations
+         WHERE owner = $owner AND modules = $modules AND name = $name AND live = 1"
+    cmd.Parameters.Clear()
+    pLoc cmd location
+    use! reader = cmd.ExecuteReaderAsync()
+    let rows = System.Collections.Generic.List<string * bool * string>()
+    let mutable more = true
+    while more do
+      let! found = reader.ReadAsync()
+      if found then
+        rows.Add(reader.GetString 0, reader.GetInt64 1 <> 0L, reader.GetString 2)
+      else
+        more <- false
+    return Layers.pick (Layers.chainOf branch) (List.ofSeq rows)
+  }
 
-/// Apply a Set*Name op to the locations table.
-/// <param source> is what put the binding there: "op" for a normal fold, "resolution" for a human's answer
-/// to a conflict. `discard` deletes op-fold bindings but skips resolutions, so the tag is what stops a
-/// routine discard from silently undoing a decision someone made on purpose.
-let private applySetNameFrom
+let private layerParams (cmd : SqliteCommand) (layer : Layers.Layer) =
+  p cmd "$branch" (string layer.branch)
+  p cmd "$draft" (if layer.draft then 1L else 0L)
+
+/// The live row of <param layer> at a name: (item_hash, origin_ts). An `item_hash` of "" is a
+/// removal.
+let private liveInLayer
   (ctx : Ctx)
+  (layer : Layers.Layer)
+  (location : PT.PackageLocation)
+  : Task<Option<string * Option<string>>> =
+  pairOption ctx "SELECT item_hash, origin_ts FROM locations
+     WHERE owner = $owner AND modules = $modules AND name = $name
+       AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
+    pLoc cmd location
+    layerParams cmd layer)
+
+/// Write a row into <param layer> at <param location>: it becomes the layer's live row there.
+/// <param itemHash> "" for a removal.
+let private writeName
+  (ctx : Ctx)
+  (layer : Layers.Layer)
+  (location : PT.PackageLocation)
+  (itemHash : string)
+  (itemType : string)
+  (ts : Option<string>)
   (source : string)
-  (opForStamp : PT.PackageOp)
+  (opId : System.Guid)
+  (previous : Option<string>)
+  : Task<unit> =
+  task {
+    do! Layers.supersede ctx Layers.locations layer (fun cmd -> pLoc cmd location)
+    do!
+      exec ctx """
+        INSERT INTO locations
+          (branch_id, draft, owner, modules, name, item_hash, item_type, origin_ts, source, op_id,
+           previous)
+        VALUES ($branch, $draft, $owner, $modules, $name, $item_hash, $item_type, $origin_ts, $source,
+                $op_id, $previous)
+        """ (fun cmd ->
+        layerParams cmd layer
+        pLoc cmd location
+        p cmd "$item_hash" itemHash
+        p cmd "$item_type" itemType
+        pOpt cmd "$origin_ts" ts
+        p cmd "$source" source
+        p cmd "$op_id" (string opId)
+        pOpt cmd "$previous" previous)
+  }
+
+/// Fold a binding: <param location> holds <param itemHash> in <param layer>, unless what the layer
+/// holds there is newer.
+///
+/// Last-writer-wins by the ops' own stamps (`LibExecution.Lww`, shared with conflict detection), so
+/// a merge folding a branch's older edit over the parent's newer one keeps the newer one. A removal
+/// in the layer beats a binding only when it is strictly later.
+let private applySetName
+  (ctx : Ctx)
+  (layer : Layers.Layer)
+  (row : OpRow)
+  (source : string)
+  (op : PT.PackageOp)
   (itemHash : Hash)
   (location : PT.PackageLocation)
   (itemKind : PT.ItemKind)
   : Task<unit> =
   task {
-    let itemTypeStr = itemKind.toString ()
-    let locationId = System.Guid.NewGuid()
     let (Hash itemHashStr) = itemHash
-
-    // Read off the OP, not inferred from what is currently live. An `Override` names no predecessor,
-    // and saying it replaced whatever happened to be there would put lineage on a row that has none.
     let previousHash =
-      match opForStamp with
+      match op with
       | PT.PackageOp.SetName(_, _, Some(Hash h)) -> Some h
       | _ -> None
 
-    // Timestamp-LWW: order by the op's CREATION time (`origin_ts`), not arrival, so
-    // every instance converges on the same binding. Unknown stamps fall through to
-    // last-writer, leaving non-sync playback unchanged. Reads run on ctx.conn so
-    // they see writes from earlier ops in this same transaction.
-    //
-    // THIS op is handed in rather than rebuilt from (location, hash, kind): a
-    // resolution and the SetName it resembles hash differently, so a reconstruction
-    // would read as unknown and silently degrade to last-writer-wins.
-    let thisOpId = Hashing.computeOpRowId opForStamp
-    let! thisTs = originTsOf ctx thisOpId
-
-    // Keyed by NAME, not (name, kind): a location's identity is (owner, modules, name) -- `item_type` is
-    // only a lookup hint (item_hash + kind -> find the thing), never part of what a name IS. So the
-    // binding this op supersedes is whatever is live at the name, whatever kind it holds.
-    let! curBinding =
-      pairOption
-        ctx
-        ("SELECT item_hash, origin_ts FROM locations "
-         + "WHERE owner = $owner AND modules = $modules AND name = $name "
-         + "AND unlisted_at IS NULL LIMIT 1")
-        (fun cmd -> pLoc cmd location)
-
+    let! current = liveInLayer ctx layer location
     let isStale =
-      match curBinding, thisTs with
-      // Different hash, both stamped: the LWW rule (incl. the portable higher-hash
-      // tie-break) lives in `LibExecution.Lww`, shared with conflict detection (`LibDB.ScmDetect`);
-      // `Tests.Lww` asserts they agree.
+      match current, row.ts with
+      | Some("", Some removedTs), Some t -> Lww.unbindBeatsBinding removedTs t
       | Some(curHash, Some curTs), Some t when curHash <> itemHashStr ->
         Lww.isStale t itemHashStr curTs curHash
-      // Same content re-applied: keep the EARLIEST origin_ts, so the binding's stamp is identical on every
-      // instance regardless of arrival order. Re-stamping with a later equal-hash op would let a
-      // different-hash op stamped between the two win on one instance and lose on another.
+      // Same content again: keep the earliest stamp, so the binding's stamp does not depend on
+      // the order its ops arrived in.
       | Some(curHash, Some curTs), Some t when curHash = itemHashStr -> t >= curTs
       | _ -> false
 
-    // Authored before the name was unbound, arriving after: the unbind is the later word.
-    let! unboundSince = latestUnbindTs ctx location
-    let unboundAfter =
-      match unboundSince, thisTs with
-      // The mirror of applyUnbind's check: ties go to the binding, so only a strictly later
-      // tombstone blocks the SetName. One rule, `Lww.unbindBeatsBinding`, both directions.
-      | Some u, Some t -> Lww.unbindBeatsBinding u t
-      | _ -> false
-
-    if isStale || unboundAfter then
-      return ()
-    else
-      // 1. Unlist whatever is live at the target name (handles updates). One name holds ONE item: this
-      //    does NOT filter on item_type, so binding a fn over a name that held a value replaces it rather
-      //    than leaving both live.
+    if not isStale then
       do!
-        exec ctx """
-          UPDATE locations
-          SET unlisted_at = datetime('now')
-          WHERE owner = $owner
-            AND modules = $modules
-            AND name = $name
-            AND unlisted_at IS NULL
-          """ (fun cmd -> pLoc cmd location)
-
-      // 2. Nothing else is touched: a SetName binds its own name only. A hash is
-      //    routinely live at several names, and retiring the others needs an op that
-      //    names them.
-
-      // 3. Insert new location entry (with origin_ts for cross-instance timestamp-LWW).
-      do!
-        exec ctx """
-          INSERT INTO locations
-            (location_id, item_hash, owner, modules, name, item_type, origin_ts, source, op_id,
-             previous)
-          VALUES ($location_id, $item_hash, $owner, $modules, $name, $item_type, $origin_ts, $source,
-                  $op_id, $previous)
-          """ (fun cmd ->
-          pUuid cmd "$location_id" locationId
-          p cmd "$item_hash" itemHashStr
-          pLoc cmd location
-          p cmd "$item_type" itemTypeStr
-          pOpt cmd "$origin_ts" thisTs
-          p cmd "$source" source
-          // The op that wrote this row, so a later reader can find it exactly rather than by its stamp.
-          p cmd "$op_id" (string thisOpId)
-          // What this binding replaced, taken from the op rather than inferred. Conflict detection
-          // compares it against the incoming side's, so it has to mean the same thing on both.
-          pOpt cmd "$previous" previousHash)
+        writeName
+          ctx
+          layer
+          location
+          itemHashStr
+          (itemKind.toString ())
+          row.ts
+          source
+          (Hashing.computeOpRowId op)
+          previousHash
   }
 
-/// Record a deprecation-state change: supersede any prior un-superseded `deprecations`
-/// row for (item_hash, item_kind), then insert the new row. Per call site: the state
-/// ('deprecated' or 'undeprecated') and the annotation blob (a serialized kind+message,
-/// or None for an undeprecate, stored as NULL).
-///
-/// Identity is hash-keyed: `Reference` carries only a Hash, so two FQNs sharing a hash
-/// deprecate together. Not branch-scoped: a deprecation is keyed on content, and a
-/// branch's `Deprecate` never folds at all.
-/// <param ts> is the OP's time, and it is what decides. Deprecating a thing and undeprecating it are
-/// two ops; whichever was SAID last is the answer, on every machine, whatever order they arrived in.
-/// Ordering by arrival meant a peer that pulled them in the other order disagreed with you about
-/// whether a function is harmful.
+/// Fold an `Unbind`: the name stops existing in <param layer>, which hides it in every layer below.
+/// Content is untouched. Ties go to the binding (`Lww.unbindBeatsBinding`).
+let private applyUnbind
+  (ctx : Ctx)
+  (layer : Layers.Layer)
+  (row : OpRow)
+  (op : PT.PackageOp)
+  (location : PT.PackageLocation)
+  (previous : Option<Hash>)
+  : Task<unit> =
+  task {
+    let! current = liveInLayer ctx layer location
+    let isStale =
+      match current, row.ts with
+      | Some(h, Some curTs), Some t when h <> "" ->
+        not (Lww.unbindBeatsBinding t curTs)
+      | _ -> false
+
+    if not isStale then
+      let! kind = kindInView ctx layer.branch location
+      do!
+        writeName
+          ctx
+          layer
+          location
+          ""
+          (kind |> Option.defaultValue (PT.ItemKind.Fn.toString ()))
+          row.ts
+          "op"
+          (Hashing.computeOpRowId op)
+          (previous |> Option.map (fun (Hash h) -> h))
+  }
+
+/// Record a deprecation-state change in <param layer>: the newest statement stands, by the op's own
+/// stamp, whatever order the ops arrived in. Keyed on content: two names sharing a hash deprecate
+/// together.
 let private writeDeprecationState
   (ctx : Ctx)
+  (layer : Layers.Layer)
+  (row : OpRow)
+  (opId : System.Guid)
   (target : PT.Reference)
-  (ts : Option<string>)
   (state : string)
   (blob : Option<byte[]>)
   : Task<unit> =
   task {
     let (Hash itemHashStr) = target.hash
     let itemKindStr = target.kind.toString ()
+    let bindKey (cmd : SqliteCommand) =
+      p cmd "$item_hash" itemHashStr
+      p cmd "$item_kind" itemKindStr
 
-    // Older than what already stands is a late arrival, not a new decision.
     let! standingTs =
-      textOption
-        ctx
-        ("SELECT COALESCE(origin_ts,'') AS ts FROM deprecations "
-         + "WHERE item_hash = $item_hash AND item_kind = $item_kind "
-         + "AND unlisted_at IS NULL LIMIT 1")
-        (fun cmd ->
-          p cmd "$item_hash" itemHashStr
-          p cmd "$item_kind" itemKindStr)
+      textOption ctx "SELECT origin_ts FROM deprecations
+         WHERE item_hash = $item_hash AND item_kind = $item_kind
+           AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
+        bindKey cmd
+        layerParams cmd layer)
 
+    let ts = row.ts |> Option.defaultValue ""
     let stale =
-      match standingTs, ts with
-      | Some standing, Some t when standing <> "" -> t < standing
+      match standingTs with
+      | Some standing when standing <> "" -> ts < standing
       | _ -> false
 
-    if stale then
-      return ()
-    else
-      do!
-        exec ctx """
-          UPDATE deprecations
-          SET unlisted_at = datetime('now')
-          WHERE item_hash = $item_hash
-            AND item_kind = $item_kind
-            AND unlisted_at IS NULL
-          """ (fun cmd ->
-          p cmd "$item_hash" itemHashStr
-          p cmd "$item_kind" itemKindStr)
-
+    if not stale then
+      do! Layers.supersede ctx Layers.deprecations layer bindKey
       do!
         exec ctx """
           INSERT INTO deprecations
-            (deprecation_id, item_hash, item_kind, state, annotation_blob, origin_ts)
-          VALUES
-            ($deprecation_id, $item_hash, $item_kind, $state, $blob, $origin_ts)
+            (branch_id, draft, item_hash, item_kind, state, annotation_blob, origin_ts, op_id)
+          VALUES ($branch, $draft, $item_hash, $item_kind, $state, $blob, $origin_ts, $op_id)
           """ (fun cmd ->
-          pUuid cmd "$deprecation_id" (System.Guid.NewGuid())
-          p cmd "$item_hash" itemHashStr
-          p cmd "$item_kind" itemKindStr
+          layerParams cmd layer
+          bindKey cmd
           p cmd "$state" state
-          pOpt cmd "$origin_ts" ts
+          p cmd "$origin_ts" ts
+          p cmd "$op_id" (string opId)
           match blob with
           | Some b -> p cmd "$blob" b
           | None -> p cmd "$blob" System.DBNull.Value)
   }
 
 
-/// Apply a Deprecate op: a `deprecated` row carrying the serialized kind + message.
-let private applyDeprecate
-  (ctx : Ctx)
-  (ts : Option<string>)
-  (target : PT.Reference)
-  (kind : PT.DeprecationKind)
-  (message : string)
-  : Task<unit> =
-  writeDeprecationState
-    ctx
-    target
-    ts
-    "deprecated"
-    (Some(Deprecations.serializeAnnotation kind message))
-
-
-/// Apply an Undeprecate op: an `undeprecated` row with no annotation.
-let private applyUndeprecate
-  (ctx : Ctx)
-  (ts : Option<string>)
-  (target : PT.Reference)
-  : Task<unit> =
-  writeDeprecationState ctx target ts "undeprecated" None
-
-
 // ------------------------------------------------------------------
 // Op dispatch.
 // ------------------------------------------------------------------
 
-/// Fold the non-binding half of a `Decision` into whichever projection owns it.
-///
-/// This is what makes the constraint acks in `conflicts` a derived projection rather
-/// than a second source of truth. `Override` is not here: it binds a name, so it folds through
-/// `applySetNameFrom` alongside the other binding ops.
-///
-/// The stamp comes from the OP's own `origin_ts`, not from now, so a decision keeps the time it was made
-/// when it syncs -- which is what lets LWW agree across instances instead of "whoever imported last wins".
-let private applyDecision
-  (ctx : Ctx)
-  (_branchId : PT.BranchId)
-  (op : PT.PackageOp)
-  (loc : PT.PackageLocation)
-  (reason : string)
-  (kind : PT.DecisionKind)
-  : Task<unit> =
-  task {
-    let opId = Hashing.computeOpRowId op
-    // "" for an op the log does not hold: it loses every `origin_ts` guard below, which is the right
-    // answer for a decision nothing recorded.
-    let! ts = originTsOf ctx opId |> Task.map (Option.defaultValue "")
-
-    match kind with
-    | PT.DecisionKind.Restore _
-    | PT.DecisionKind.Override _ ->
-      // Folded as a binding, not here. Kept explicit so adding a case to `DecisionKind` is a compile
-      // error in both places rather than a silent no-op in one of them.
-      ()
-
-    | PT.DecisionKind.Ack findingId ->
-      // A finding nobody has answered isn't stored at all -- only answers are rows, because detection
-      // re-derives the findings whenever anyone asks.
-      do!
-        exec
-          ctx
-          "INSERT INTO conflicts
-             (id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason, status, origin_ts)
-           -- item_type left empty, not guessed: the op doesn't carry the usage's
-           -- kind, and nothing reads an ack row's kind (`ackedIds` selects on
-           -- id + status).
-           VALUES ($id, $owner, $modules, $name, '', 'stale-usage', '[]', '', $reason, 'acked', $ts)
-           ON CONFLICT(id) DO UPDATE SET
-             status = 'acked', reason = excluded.reason, origin_ts = excluded.origin_ts"
-          (fun cmd ->
-            p cmd "$id" findingId
-            pLoc cmd loc
-            p cmd "$reason" reason
-            p cmd "$ts" ts)
-  }
-
-
-/// Apply a branch event: what happened to a BRANCH, as opposed to what happened to a name.
-///
-/// Only the MONOTONIC events: "merged" and "archived" can be applied twice in any
-/// order and land in the same place, so they need no stamp column. Rename is LWW and
-/// would need one; it isn't here.
-///
-/// An event naming a branch this store does not have updates nothing, which is the right answer rather than
-/// an error: branch ids travel with a bundle, so the branches you share match, and the ones you never
-/// shared are none of this store's business.
-let private applyBranchEvent
-  (ctx : Ctx)
-  (eventOpId : System.Guid)
-  (branchId : PT.BranchId)
-  (event : PT.BranchEventKind)
-  (at : string)
-  : Task<unit> =
-  task {
-    match event with
-    | PT.Merged mergedOps ->
-      // The push that carried this merge could not deliver the branch's ops
-      // (content-addressed, already present here whenever the branch was shared), so
-      // setting merged_at alone leaves them effective=0 and main without the
-      // branch's code. So do what a local merge does, for EXACTLY the ops the event
-      // names (this store may hold more -- its own unpushed edits stay on the
-      // branch): into main they flip effective; into another parent they retag onto
-      // it with the child's name bases. Ids bind once as a JSON array (built by
-      // hand: the reflection serializer is disabled under AOT).
-      let ids =
-        "["
-        + (mergedOps
-           |> List.map (fun g -> "\"" + string g + "\"")
-           |> String.concat ",")
-        + "]"
-      let b = string branchId
-      let bindB (cmd : SqliteCommand) =
-        p cmd "$b" b
-        p cmd "$ids" ids
-
-      let! parent =
-        textOption ctx "SELECT parent_id FROM branches WHERE id = $b" (fun cmd ->
-          p cmd "$b" b)
-      let parentIsMain =
-        match parent with
-        | None -> true
-        | Some pid -> PT.BranchId.Parse pid = Some PT.BranchId.Main || pid = ""
-
-      // A merge event routinely arrives BEFORE the bundle whose ops it names
-      // (main's ops before a branch's); folded then it would flip nothing
-      // and never be re-examined. So an event whose branch has no ops yet stays
-      // deferred and the next fold takes it. Only when the branch EXISTS here: an
-      // event for a never-shared branch folds to nothing, correctly.
-      let! tagged =
-        scalarInt
-          ctx
-          "SELECT count(*) FROM op_branches WHERE branch_id = $b"
-          (fun cmd -> p cmd "$b" b)
-      let! branchKnownHere =
-        scalarInt ctx "SELECT count(*) FROM branches WHERE id = $b" (fun cmd ->
-          p cmd "$b" b)
-
-      if tagged = 0L && branchKnownHere > 0L then
-        // `applied = 2`, DEFERRED: folded, did nothing, and waiting for ops it names. A third state
-        // rather than back to 0, because `readPending` selects `applied = 0` and `applyUnappliedOps`
-        // loops until nothing is pending: an op that keeps re-appearing never settles and the loop
-        // raises. 2 is skipped by that select, and `Branches.undeferBranchEvents` puts it back to 0
-        // when a bundle lands.
-        do!
-          exec ctx "UPDATE package_ops SET applied = 2 WHERE id = $e" (fun cmd ->
-            p cmd "$e" (string eventOpId))
-      elif parentIsMain then
-        do!
-          exec
-            ctx
-            "UPDATE package_ops SET effective = 1
-             WHERE effective = 0
-               AND id IN (SELECT value FROM json_each($ids))
-               AND id IN (SELECT op_id FROM op_branches WHERE branch_id = $b)"
-            bindB
-        // Stamp the flipped ops with the event's own commit: the branch bundle
-        // carried no commits, and uncommitted they'd show up in main's draft. (On
-        // the merger's own store the event is itself uncommitted at this point; the
-        // Dark merge commits both together right after.)
-        do!
-          exec
-            ctx
-            // The op_branches predicate matches the flip above: ids are content-addressed, so
-            // without it an event for a branch this store never held could stamp a same-content
-            // op sitting in main's draft with the merger's commit. Tag rows still exist here;
-            // the DELETE runs after both UPDATEs.
-            "UPDATE package_ops SET commit_hash = (SELECT commit_hash FROM package_ops WHERE id = $e)
-             WHERE commit_hash IS NULL
-               AND id IN (SELECT value FROM json_each($ids))
-               AND id IN (SELECT op_id FROM op_branches WHERE branch_id = $b)
-               AND (SELECT commit_hash FROM package_ops WHERE id = $e) IS NOT NULL"
-            (fun cmd ->
-              bindB cmd
-              p cmd "$e" (string eventOpId))
-      else
-        let parentId = Option.defaultValue "" parent
-        let bindP (cmd : SqliteCommand) =
-          bindB cmd
-          p cmd "$p" parentId
-        do!
-          exec
-            ctx
-            "INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
-             SELECT op_id, $p, source FROM op_branches
-             WHERE branch_id = $b AND op_id IN (SELECT value FROM json_each($ids))"
-            bindP
-        do!
-          exec
-            ctx
-            "INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
-             SELECT $p, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = $b"
-            bindP
-
-      do!
-        exec
-          ctx
-          "DELETE FROM op_branches
-           WHERE branch_id = $b AND op_id IN (SELECT value FROM json_each($ids))"
-          bindB
-
-      // Last, and only when nothing of the branch is left here. A branch holding ops the merger never
-      // saw stays live, holding exactly those; merging it locally later names them in a second event.
-      do!
-        exec
-          ctx
-          "UPDATE branches SET merged_at = $at
-           WHERE id = $b AND merged_at IS NULL
-             AND NOT EXISTS (SELECT 1 FROM op_branches WHERE branch_id = $b)"
-          (fun cmd ->
-            p cmd "$b" b
-            p cmd "$at" at)
-    | PT.Archived ->
-      do!
-        exec
-          ctx
-          "UPDATE branches SET archived_at = $at WHERE id = $b AND archived_at IS NULL"
-          (fun cmd ->
-            p cmd "$b" (string branchId)
-            p cmd "$at" at)
-  }
-
-
-/// Apply an `Unbind`: the name stops existing. Unlists whatever is live at the location and writes the
-/// tombstone `latestUnbindTs` reads; content is untouched. Same LWW as a binding: an unbind stamped
-/// before the live binding is an old op arriving late, and the name it would take out was bound after
-/// it, so it stays.
-let private applyUnbind
-  (ctx : Ctx)
-  (op : PT.PackageOp)
-  (location : PT.PackageLocation)
-  (previous : Option<Hash>)
-  : Task<unit> =
-  task {
-    let thisOpId = Hashing.computeOpRowId op
-    let! thisTs = originTsOf ctx thisOpId
-
-    let! live =
-      pairOption
-        ctx
-        ("SELECT item_type, origin_ts FROM locations "
-         + "WHERE owner = $owner AND modules = $modules AND name = $name "
-         + "AND unlisted_at IS NULL LIMIT 1")
-        (fun cmd -> pLoc cmd location)
-
-    let isStale =
-      match live, thisTs with
-      // Ties go to the binding: `Lww.unbindBeatsBinding` is the one statement of the rule.
-      | Some(_, Some curTs), Some t -> not (Lww.unbindBeatsBinding t curTs)
-      | _ -> false
-
-    if isStale then
-      return ()
-    else
-      do!
-        exec ctx """
-          UPDATE locations
-          SET unlisted_at = datetime('now')
-          WHERE owner = $owner
-            AND modules = $modules
-            AND name = $name
-            AND unlisted_at IS NULL
-          """ (fun cmd -> pLoc cmd location)
-
-      // The tombstone. `item_hash` is what it unbound (or nothing, when the op named no predecessor)
-      // and `item_type` is what was live, or 'fn' when nothing was: both are lookup hints on a row no
-      // live-binding read ever sees, since it is unlisted from birth.
-      let previousHash = previous |> Option.map (fun (Hash h) -> h)
-      let kind =
-        match live with
-        | Some(k, _) -> k
-        | None -> PT.ItemKind.Fn.toString ()
-      do!
-        exec ctx """
-          INSERT INTO locations
-            (location_id, item_hash, owner, modules, name, item_type, origin_ts, source, op_id,
-             previous, unlisted_at)
-          VALUES ($location_id, $item_hash, $owner, $modules, $name, $item_type, $origin_ts, 'unbind',
-                  $op_id, $previous, datetime('now'))
-          """ (fun cmd ->
-          pUuid cmd "$location_id" (System.Guid.NewGuid())
-          p cmd "$item_hash" (previousHash |> Option.defaultValue "")
-          pLoc cmd location
-          p cmd "$item_type" kind
-          pOpt cmd "$origin_ts" thisTs
-          p cmd "$op_id" (string thisOpId)
-          pOpt cmd "$previous" previousHash)
-  }
-
-
+/// Fold one op into <param branch>'s projections: content into the shared content tables, and
+/// names, deprecations and docs into the layer its row is in (the draft until it is committed).
 let private applyOp
   (ctx : Ctx)
-  (source : string)
-  (mayRewriteExisting : bool)
+  (branch : PT.BranchId)
   (op : PT.PackageOp)
   : Task<unit> =
   task {
+    // Content rows are shared by every branch, and identical by hash; the only thing that can
+    // differ is the doc comment, and only main's work rewrites it, or a branch's wording would be
+    // published to everyone. A branch says what it thinks an item is with an `UpdateDoc`.
+    let mayRewriteExisting = branch.IsMain
     match op with
     | PT.PackageOp.AddType typ -> do! applyAddType ctx mayRewriteExisting typ
     | PT.PackageOp.AddValue value -> do! applyAddValue ctx mayRewriteExisting value
@@ -928,73 +678,100 @@ let private applyOp
     | PT.PackageOp.AddTrait t -> do! applyAddTrait ctx mayRewriteExisting t
     | PT.PackageOp.AddTraitImpl i ->
       // The op's own time, so two rival impls order the same way wherever they land.
-      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
-      do! applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" ts) i
+      let! row = opRowOf ctx branch op
+      do! applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" row.ts) i
     | PT.PackageOp.AddTest test -> do! applyAddTest ctx mayRewriteExisting test
-    | PT.PackageOp.SetName(loc, target, _) ->
-      do! applySetNameFrom ctx source op target.hash loc target.kind
-    | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
-    // `restating` is part of the op's identity and nothing else: the stamp exists so that saying a
-    // thing again is a distinct op, and what it SAYS is the kind and the message. The fold reads the
-    // op's `origin_ts` as it always did.
-    | PT.PackageOp.Deprecate(target, kind, message, _) ->
-      // The op's own time, so the NEWEST statement wins rather than the last to arrive.
-      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
-      do! applyDeprecate ctx ts target kind message
-    | PT.PackageOp.Undeprecate(target, _) ->
-      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
-      do! applyUndeprecate ctx ts target
-    | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
-      do! applyUnbind ctx op oldLocation (Some target.hash)
-      do! applySetNameFrom ctx source op target.hash newLocation target.kind
-    | PT.PackageOp.SetReferenceNames _ -> ()
-    | PT.PackageOp.UpdateDoc(location, part, text, previous, _) ->
-      // The op's own time, so the NEWEST statement wins rather than the last to arrive.
-      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
-      // This fold is main's: a branch keeps its own wording as a delta op and `LibDB.Docs` reads it
-      // from there, so a conflict recorded here is main's too.
-      do!
-        Docs.applyUpdateDoc
-          ctx
-          PT.BranchId.Main
-          (Option.defaultValue "" ts)
-          location
-          part
-          text
-          previous
-    | PT.PackageOp.Decision(id, loc, reason, kind) ->
-      match kind with
-      | PT.DecisionKind.Restore(_, target, _) ->
-        do! applySetNameFrom ctx "resolution" op target.hash loc target.kind
-      | PT.DecisionKind.Override target ->
-        // An override answers ONE name, so it binds one name. Unlisting every other location that
-        // happens to share the hash would be collateral damage.
-        do! applySetNameFrom ctx "resolution" op target.hash loc target.kind
-        // Close the local conflict record too: the op converges the BINDING
-        // everywhere, but without this the non-choosing machine keeps listing the
-        // conflict as pending.
+    | _ ->
+      let! row = opRowOf ctx branch op
+      let layer : Layers.Layer = { branch = branch; draft = row.draft }
+      let opId = Hashing.computeOpRowId op
+      match op with
+      | PT.PackageOp.SetName(loc, target, _) ->
+        do! applySetName ctx layer row row.source op target.hash loc target.kind
+      | PT.PackageOp.Unbind(loc, previous) ->
+        do! applyUnbind ctx layer row op loc previous
+      // `restating` is part of the op's identity and nothing else: what it SAYS is the kind and
+      // the message.
+      | PT.PackageOp.Deprecate(target, kind, message, _) ->
         do!
-          exec
+          writeDeprecationState
             ctx
-            // Scoped to item KIND as well as name: one location can hold a fn AND a
-            // value, and overriding the fn must not close the value's
-            // still-contested conflict.
-            "UPDATE conflicts SET status = 'overridden', resolved_by = $op
-             WHERE owner = $owner AND modules = $modules AND name = $name
-               AND item_type = $kind AND status = 'pending'"
-            (fun cmd ->
-              p cmd "$op" id
-              p cmd "$kind" (target.kind.toString ())
-              pLoc cmd loc)
-      | _ ->
-        // This fold is main's, so the row is main's. A branch's decision is folded by the branch path
-        // with that branch's id; the two must spell main the same way or a policy set on main is written
-        // under an id nothing reads.
-        do! applyDecision ctx PT.BranchId.Main op loc reason kind
-    | PT.PackageOp.BranchEvent(branchId, event, at) ->
-      // An event for a branch this store has never heard of folds to nothing. That is not a failure:
-      // branch ids travel with a bundle, so the ones you share match.
-      do! applyBranchEvent ctx (Hashing.computeOpRowId op) branchId event at
+            layer
+            row
+            opId
+            target
+            "deprecated"
+            (Some(Deprecations.serializeAnnotation kind message))
+      | PT.PackageOp.Undeprecate(target, _) ->
+        do! writeDeprecationState ctx layer row opId target "undeprecated" None
+      // A rename is its two binding effects; the names its callers use are read from the op itself
+      // (`ReferenceNames`), as `SetReferenceNames` is.
+      | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+        do! applyUnbind ctx layer row op oldLocation (Some target.hash)
+        do!
+          applySetName
+            ctx
+            layer
+            row
+            row.source
+            op
+            target.hash
+            newLocation
+            target.kind
+      | PT.PackageOp.SetReferenceNames _ -> ()
+      | PT.PackageOp.UpdateDoc(location, part, text, previous, _) ->
+        do!
+          Docs.applyUpdateDoc
+            ctx
+            layer
+            opId
+            (Option.defaultValue "" row.ts)
+            location
+            part
+            text
+            previous
+      | PT.PackageOp.Decision(id, loc, reason, kind) ->
+        match kind with
+        | PT.DecisionKind.Restore(_, target, _) ->
+          // Undo putting an earlier version back: a binding, like an override.
+          do! applySetName ctx layer row "resolution" op target.hash loc target.kind
+        | PT.DecisionKind.Override target ->
+          // An override answers ONE name, so it binds one name.
+          do! applySetName ctx layer row "resolution" op target.hash loc target.kind
+          // And closes the record it settles, on the branch it is folded on. Scoped to item KIND as
+          // well as name: one location can hold a fn AND a value, and overriding the fn must not
+          // close the value's conflict.
+          do!
+            exec
+              ctx
+              "UPDATE conflicts SET status = 'overridden', resolved_by = $op
+               WHERE owner = $owner AND modules = $modules AND name = $name
+                 AND item_type = $kind AND status = 'pending' AND branch_id = $branch"
+              (fun cmd ->
+                p cmd "$op" id
+                p cmd "$kind" (target.kind.toString ())
+                p cmd "$branch" (string layer.branch)
+                pLoc cmd loc)
+        | PT.DecisionKind.Ack findingId ->
+          // A finding nobody has answered isn't stored at all -- only answers are rows, because
+          // detection re-derives the findings whenever anyone asks.
+          do!
+            exec
+              ctx
+              "INSERT INTO conflicts
+                 (id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason,
+                  status, origin_ts, branch_id)
+               VALUES ($id, $owner, $modules, $name, '', 'stale-usage', '[]', '', $reason, 'acked',
+                       $ts, $branch)
+               ON CONFLICT(id) DO UPDATE SET
+                 status = 'acked', reason = excluded.reason, origin_ts = excluded.origin_ts"
+              (fun cmd ->
+                p cmd "$id" findingId
+                pLoc cmd loc
+                p cmd "$reason" reason
+                p cmd "$ts" (Option.defaultValue "" row.ts)
+                p cmd "$branch" (string branch))
+      | _ -> ()
   }
 
 
@@ -1002,22 +779,19 @@ let private applyOp
 // Public API.
 // ------------------------------------------------------------------
 
-/// Apply a list of PackageOps using a caller-provided open SqliteConnection.
-/// The caller controls transaction boundaries: wrap the call in BEGIN/COMMIT
-/// for a bulk-replay, or use auto-commit for a small commit-time batch. A
-/// fresh prepared-statement cache (Ctx) is created and disposed per call,
-/// so the cache lifetime matches a single `applyOpsOnConnection` invocation.
-let applyOpsOnConnectionWith
+/// Fold <param ops> into <param branch>'s projections, on a caller-provided connection, so the caller
+/// controls the transaction: one outer transaction for a bulk fold, or the action's own. Each op must
+/// already be stored on the branch; its row says its stamp and whether it is still in the draft.
+let applyOpsOnConnection
   (conn : SqliteConnection)
-  (source : string)
-  (mayRewriteExisting : bool)
+  (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Task<unit> =
   task {
     let ctx = newCtx conn
     try
       for op in ops do
-        do! applyOp ctx source mayRewriteExisting op
+        do! applyOp ctx branch op
     finally
       disposeCtx ctx
 
@@ -1026,55 +800,25 @@ let applyOpsOnConnectionWith
     Caching.invalidateAll ()
   }
 
-let applyOpsOnConnectionFrom
-  (conn : SqliteConnection)
-  (source : string)
-  (ops : List<PT.PackageOp>)
-  : Task<unit> =
-  applyOpsOnConnectionWith conn source true ops
-
-let applyOpsOnConnection
-  (conn : SqliteConnection)
-  (ops : List<PT.PackageOp>)
-  : Task<unit> =
-  applyOpsOnConnectionFrom conn "op" ops
-
-
-/// Convenience wrapper for callers that don't have a shared connection (e.g.
-/// Inserts.fs at commit time, where the op batch is small). Opens a fresh
-/// connection per call and wraps the whole batch in a single transaction:
-/// faster than auto-commit, and it makes the apply atomic with respect to
-/// other readers.
-let private applyOwningConnection
-  (source : string)
-  (mayRewriteExisting : bool)
-  (ops : List<PT.PackageOp>)
-  : Task<unit> =
+/// `applyOpsOnConnection` on a connection of its own, in one transaction.
+let applyOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) : Task<unit> =
   task {
     use conn = new SqliteConnection(LibDB.Sqlite.connString)
     do! conn.OpenAsync()
     use tx = conn.BeginTransaction()
-    do! applyOpsOnConnectionWith conn source mayRewriteExisting ops
+    do! applyOpsOnConnection conn branch ops
     tx.Commit()
   }
 
-let applyOpsFrom (source : string) (ops : List<PT.PackageOp>) : Task<unit> =
-  applyOwningConnection source true ops
 
-let applyOps (ops : List<PT.PackageOp>) : Task<unit> = applyOpsFrom "op" ops
-
-
-/// A BRANCH's content ops: folded so the branch's own bodies are runnable and its dependency edges
-/// are visible, but never rewriting a row that is already there. See `upsertContentAddressed`.
-let applyBranchContentOps (ops : List<PT.PackageOp>) : Task<unit> =
-  applyOwningConnection "op" false ops
-
-
-/// Record the callees of these `Add*` ops' items without folding anything else. For an op the log
-/// already holds: the content is there, but this parse may have reached its callees through names the
-/// first fold never saw (two names, one body), and `updateDependencies` adds those. Every other kind of
-/// op is skipped; there is nothing to record for it.
-let recordDependenciesOnly (ops : List<PT.PackageOp>) : Task<unit> =
+/// Record the callees of these `Add*` ops' items without folding anything else, on the caller's
+/// connection. For an op the log already holds: the content is there, but this parse may have reached
+/// its callees through names the first fold never saw (two names, one body), and
+/// `updateDependencies` adds those. Every other kind of op is skipped.
+let recordDependenciesOnConnection
+  (conn : SqliteConnection)
+  (ops : List<PT.PackageOp>)
+  : Task<unit> =
   task {
     let adds =
       ops
@@ -1101,15 +845,10 @@ let recordDependenciesOnly (ops : List<PT.PackageOp>) : Task<unit> =
         | _ -> None)
 
     if not (List.isEmpty adds) then
-      use conn = new SqliteConnection(LibDB.Sqlite.connString)
-      do! conn.OpenAsync()
-      use tx = conn.BeginTransaction()
       let ctx = newCtx conn
       try
         for (hash, deps) in adds do
           do! updateDependencies ctx hash deps
       finally
         disposeCtx ctx
-      tx.Commit()
-      Caching.invalidateAll ()
   }

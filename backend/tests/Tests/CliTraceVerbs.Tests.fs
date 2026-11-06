@@ -721,7 +721,7 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
         let! fnHash =
           Sql.query
             "SELECT item_hash FROM locations WHERE owner = 'Darklang' AND modules = 'Stdlib.Int128'
-             AND name = 'sqrt' AND item_type = 'fn' AND unlisted_at IS NULL"
+             AND name = 'sqrt' AND item_type = 'fn' AND live = 1"
           |> Sql.executeRowAsync (fun read -> read.string "item_hash")
         let saved = "test_saved_package_function"
         do! Sql.query $"DROP TABLE IF EXISTS {saved}" |> Sql.executeStatementAsync

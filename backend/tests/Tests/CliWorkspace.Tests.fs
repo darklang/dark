@@ -1036,7 +1036,6 @@ let private viewFollowsEdits =
 
 
 /// `serve --branch`: the same as above, with the router and its callee authored on a branch.
-/// The branch's ops are inert (never `applied`), so a watch on the branch must see them.
 let private serveFollowsEditsOnABranch =
   cliTest "serve --branch follows edits made on the branch" (fun target ->
     task {
@@ -1167,7 +1166,8 @@ let private pollIgnoresAnOpUntilItIsApplied =
             let opId = LibDB.Inserts.computeOpHash op
             let blob =
               LibSerialization.Binary.Serialization.PT.PackageOp.serialize opId op
-            ("INSERT INTO package_ops (id, op_blob, applied, origin_ts) VALUES (@id, @op_blob, 0, @ts)",
+            ("INSERT INTO package_ops (id, branch_id, authored_on, op_blob, applied, origin_ts)
+              VALUES (@id, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', @op_blob, 0, @ts)",
              [ [ "id", Sql.uuid opId
                  "op_blob", Sql.bytes blob
                  "ts", Sql.string (LibDB.Inserts.nextOriginTs ()) ] ]))
@@ -1176,10 +1176,10 @@ let private pollIgnoresAnOpUntilItIsApplied =
         let! watch = pollQuiet state watch
 
         // The fold, then the applied mark, as `insertAndApplyOps` does them.
-        do! LibDB.PackageOpPlayback.applyOpsFrom "op" ops
+        do! LibDB.PackageOpPlayback.applyOps PT.BranchId.Main ops
         ops
         |> List.map (fun op ->
-          ("UPDATE package_ops SET applied = 1 WHERE id = @id",
+          ("UPDATE package_ops SET applied = 1 WHERE id = @id AND branch_id = '00000000-0000-0000-0000-000000000001'",
            [ [ "id", Sql.uuid (LibDB.Inserts.computeOpHash op) ] ]))
         |> Sql.executeTransactionSync
         |> ignore<List<int>>
@@ -1196,8 +1196,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
       })
 
 
-/// A branch's own ops are never `applied`: they are stored inert and tagged in one transaction,
-/// so the applied-only rule for main (above) must not hide them from a watch on the branch.
+/// A watch on a branch sees the branch's own saves, under the same applied-only rule as main's.
 let private pollOnABranchSeesTheBranchsOwnSaves =
   cliTest "a poll on a branch reports the branch's own saves" (fun target ->
     task {

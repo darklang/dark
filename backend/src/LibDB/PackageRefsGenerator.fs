@@ -131,13 +131,14 @@ let generate (writeSourceFile : bool) : Ply<unit> =
 
     // Query all Darklang-owned locations from DB
     let! dbRows =
-      Sql.query
-        """
-        SELECT item_type, modules, name, item_hash
-        FROM locations
-        WHERE owner = 'Darklang'
-          AND unlisted_at IS NULL
-        """
+      Sql.query (
+        Layers.view "@" Layers.locations
+        + " SELECT item_type, modules, name, item_hash FROM visible
+            WHERE owner = 'Darklang' AND item_hash <> ''"
+      )
+      |> Sql.parameters (
+        Layers.sqlParams LibExecution.ProgramTypes.BranchId.Main true
+      )
       |> Sql.executeAsync (fun read ->
         let itemType = read.string "item_type"
         let modules = read.string "modules"

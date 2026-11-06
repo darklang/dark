@@ -144,8 +144,8 @@ module Sql =
   /// state, so callers must be `testSequenced` and must restore the default when done.
   ///
   /// The caller must invalidate the caches after this (`LibDB.Caching.invalidateAll`), which cannot
-  /// happen here because `Caching` compiles after this module. The package manager and the branch
-  /// overlay memoize by content hash and branch id, and those are IDENTICAL across two copies of one
+  /// happen here because `Caching` compiles after this module. The package managers, one per
+  /// branch, memoize by content hash and branch id, and those are IDENTICAL across two copies of one
   /// store, so a read after the swap otherwise answers with the other instance's rows.
   let useStoreForTesting (path : string) : unit =
     connString <- connStringFor path
@@ -385,3 +385,33 @@ type RowReader with
 
   member this.instantOrNone(name : string) : Option<NodaTime.Instant> =
     this.dateTimeOrNone (name) |> Option.map toUtcInstant
+
+
+/// JSON for `json_each` to bind a list as one parameter. Written with the writer, never the
+/// reflecting serializer, which the published (AOT) binary does not have.
+let private writeJson (f : System.Text.Json.Utf8JsonWriter -> unit) : string =
+  use buffer = new System.IO.MemoryStream()
+  (use w = new System.Text.Json.Utf8JsonWriter(buffer)
+   f w)
+  System.Text.Encoding.UTF8.GetString(buffer.ToArray())
+
+let private writeStrings
+  (w : System.Text.Json.Utf8JsonWriter)
+  (items : List<string>)
+  =
+  w.WriteStartArray()
+  for s in items do
+    w.WriteStringValue s
+  w.WriteEndArray()
+
+/// A JSON array of strings.
+let jsonStrings (items : List<string>) : string =
+  writeJson (fun w -> writeStrings w items)
+
+/// A JSON array of string arrays: one per row, read back with `json_extract(value, '$[i]')`.
+let jsonRows (rows : List<List<string>>) : string =
+  writeJson (fun w ->
+    w.WriteStartArray()
+    for row in rows do
+      writeStrings w row
+    w.WriteEndArray())

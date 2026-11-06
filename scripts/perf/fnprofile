@@ -59,7 +59,7 @@ names = {}
 if os.path.exists(db):
   con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
   for h, owner, mods, name in con.execute(
-    "select item_hash, owner, modules, name from locations where unlisted_at is null"
+    "select item_hash, owner, modules, name from locations where live = 1 and item_hash <> ''"
   ):
     names[h] = f"{owner}.{mods}.{name}" if mods else f"{owner}.{name}"
 

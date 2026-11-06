@@ -75,11 +75,6 @@ let summariesFor(branchId: Uuid, limit: Int64): List<OpSummary> =
 /// version, keep it, and never look again: the fold's own commit moves the store's counter, but the
 /// next poll would find no op it had not already reported. Reporting an op only once it is applied
 /// means a host that looks mid-fold sees nothing new, and the poll after the fold sees the op.
-///
-/// A BRANCH's own ops are the exception: they are stored inert (`applied = 0` is their steady
-/// state, since nothing folds them into main's `locations`) and tagged onto the branch in the same
-/// transaction, so there is no window, and a tagged op is complete the moment it is visible. A
-/// branch watch takes main's ops when applied and its chain's ops when tagged.
 let idsLandedSince(branchId: Uuid, since: String, andAtSince: Bool): List<String> =
   idsOf(OpFilter.LandedSince(branchId, since, andAtSince))
 
@@ -98,10 +93,7 @@ let summariesByIds(ids: List<String>): List<OpSummary> =
 /// When the newest APPLIED op in the log landed here (`created_at`), or "" for an empty log. Where a
 /// watcher starts from. Applied only, as `idsLandedSince`: an op inserted and not yet folded must not
 /// advance a watcher past itself.
-/// An op counts as landed once it is applied (main's ops) or tagged onto a branch (a branch's
-/// own ops are inert, `applied = 0` for good, and tagged in the same transaction they are stored
-/// in). The same rule `idsLandedSince` reports by; a frontier taken by a narrower rule sits behind
-/// every branch op, and a branch watch then re-reports its whole history on every poll.
+/// An op counts as landed once it is applied, on any branch: the same rule `idsLandedSince` reports by.
 let newestInsert(): String = stampOf(OpFilter.NewestLanded)
 
 
@@ -117,60 +109,17 @@ let storeNow(): String = stampOf(OpFilter.StoreNow)
 
 /// How many commits this branch has, without decoding any of them.
 ///
-/// The same predicate `commitsOnBranch` selects with, counted in SQLite. The listing used to get
-/// this by asking for a hundred thousand commits and taking the length, which decodes every row of
-/// a store's whole history to print one number above twenty lines.
+/// The same predicate `commitsOnBranch` selects with, counted in SQLite, so nothing is decoded to
+/// print one number.
 let commitCountOnBranch(branchId: Uuid): Int64 =
   (Commits.query(Commits.CommitFilter.OnBranch(branchId), 0)).total
 
 
 /// The commits whose ops live on <param branchId>, newest first.
 ///
-/// `commits` has no branch column, and cannot: a commit is not ON a branch, its OPS are. So the question
-/// goes to the log. A branch OWNS the ops tagged to it and nothing else; main owns the effective ops no
-/// branch has claimed. That is a different question from what a branch can SEE: "owns" answers "what did
-/// I do that the parent has not" -- the number Home means when it says a branch is N ahead.
+/// A commit belongs to `commits.branch_id`, and a merge moves it to the parent. That is what a branch
+/// OWNS, a different question from what it can SEE: "owns" answers "what did I do that the parent has
+/// not" -- the number Home means when it says a branch is N ahead.
 let commitsOnBranch(branchId: Uuid, limit: Int64): List<Commits.Commit> =
   (Commits.query(Commits.CommitFilter.OnBranch(branchId), limit)).commits
-
-
-/// The commit a new one on <param branchId> follows: the newest commit among the ops this branch can see
-/// (a commit is not ON a branch, its ops are -- see `commitsOnBranch`). A branch that has committed
-/// nothing answers with main's latest, keeping the chain continuous across a fork, and a branch off a
-/// branch follows its parent's commits too.
-///
-/// The newest COMMIT this branch can see, not the commit of the newest visible OP. They differ whenever
-/// commits are made out of authoring order, which `--include=` makes easy, and then the commit made
-/// second is on nobody's chain.
-///
-/// Empty means this store has committed nothing yet, which is the only honest answer for a first commit.
-let parentCommitFor(branchId: Uuid): String =
-  let page = Commits.query(Commits.CommitFilter.ParentFor(branchId), 1)
-
-  match Stdlib.List.head(page.commits) with
-  | Some(c) -> c.hash
-  | None -> ""
-
-
-/// True when every op in <param commitHash> is an ARCHIVE marker -- a `BranchEvent` recording
-/// that a branch was discarded, carrying no authored work. `dark commits` hides these by
-/// default; `--all` shows them. Merge events are never housekeeping: on a peer's machine the
-/// merged work files under the author's commits and the merge commit holds only its event, and
-/// hiding it there would make the same history read differently per machine.
-let isHousekeepingCommit(commitHash: String): Bool =
-  if (opCountIn(commitHash)) > 3 then
-    false
-  else
-    let ops = opsInCommitLimited(commitHash, 4)
-
-    (Stdlib.Bool.not(Stdlib.List.isEmpty(ops)))
-    && (ops
-        |> Stdlib.List.all(fun op ->
-          match op with
-          | BranchEvent(_branchId, event, _at) ->
-            match event with
-            | Archived -> true
-            | _ -> false
-          | _ -> false))
-
 

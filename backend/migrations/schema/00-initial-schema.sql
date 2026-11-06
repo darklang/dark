@@ -5,7 +5,8 @@
 -- it. That rule bought backward compatibility with stores this build can no longer open anyway:
 -- the molt dropped the sync tables, the user-space tables and `commits.author`, which is more
 -- change than any upgrade path was going to carry. So the history is cut here. A store older than
--- this file is not supported; delete it and start again, and your packages re-author from disk.
+-- the layered shape is reset on first open (`LibDB.Releases.resetIfOlderShape`): backed up, its
+-- package and SCM tables dropped, and its packages refilled from the build.
 --
 -- What did NOT change is the mechanism. `LibDB.Releases` still exists and still runs, and a schema
 -- change from here on is still two halves: declare it here, for new stores, and add a step there,
@@ -65,96 +66,73 @@ INSERT OR IGNORE INTO accounts_v0 (id, name) VALUES
   ('00000000-0000-0000-0000-000000000004', 'Feriel');
 
 -- ---------------------------------------------------------------------------
--- from 02-op-log.sql
+-- The op log
 -- ---------------------------------------------------------------------------
 
--- The op log: the source of truth every projection below is derived from, plus the two indexes
--- that keep `dark status` cheap.
-
---------------------
--- Op log
---------------------
-
--- The source of truth for all package changes: the content-addressed op log.
+-- The source of truth. Every table from here to the traces is folded from it and can be rebuilt.
+--
+-- One row per op PER BRANCH. An op's id is its content hash, so the same edit made on two branches
+-- is one id twice, and each branch keeps its own row: a branch's work never shares a row with
+-- another branch's. Main is a branch like any other, with a well-known id.
 CREATE TABLE IF NOT EXISTS package_ops (
   id TEXT NOT NULL,
+  -- The branch whose op this is now. A merge moves the row to the parent.
+  branch_id TEXT NOT NULL,
+  -- The branch it was written on. Stays put through a merge, so a merged branch can still say what
+  -- it landed.
+  authored_on TEXT NOT NULL,
   op_blob BLOB NOT NULL,
+  -- The op's case (`PackageOp.kind`), so a query can pick out renames and the like without decoding.
+  op_kind TEXT NOT NULL DEFAULT 'unknown',
+  -- Folded into the projections. An op this build cannot read stays 0, so a later build folds it.
   applied INTEGER NOT NULL DEFAULT 0,
-  -- An op is always STORED (synced) but only takes EFFECT -- folds into the live projections, so it
-  -- resolves and becomes callable -- when `effective = 1`. Locally-authored and trusted ops are
-  -- effective on arrival; untrusted synced ops land `effective = 0`: present in the log, inert.
-  effective INTEGER NOT NULL DEFAULT 1,
-  -- The commit this op belongs to; NULL = DRAFT (edited and live, not yet committed). Gates nothing
-  -- at runtime; it answers "what have I changed", which is what `dark status` reports.
+  -- The commit this op belongs to; NULL = the branch's draft.
   commit_hash TEXT NULL,
+  -- What wrote it: 'op' = authored, 'propagation' = a repoint that followed an edit, 'resolution' = a
+  -- conflict settled or a pin rolled back.
+  source TEXT NOT NULL DEFAULT 'op',
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
-  -- Authoring timestamp, PORTABLE across sync. A locally-authored op self-stamps at insert; a SYNCED
-  -- op preserves its origin, so every instance agrees and max(origin_ts) picks the same divergence
-  -- winner. Distinct from `created_at`, which is local-insert time and differs per instance.
-  origin_ts TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  -- The id is the op's content hash, so INSERT OR IGNORE dedups identical re-adds.
-  PRIMARY KEY (id)
+  -- Authoring stamp, from the process clock (`LibDB.OriginTs`). Last-writer-wins orders by it.
+  origin_ts TEXT NOT NULL,
+  PRIMARY KEY (id, branch_id)
 );
+CREATE INDEX IF NOT EXISTS idx_package_ops_branch ON package_ops(branch_id, commit_hash);
 CREATE INDEX IF NOT EXISTS idx_package_ops_created ON package_ops(created_at);
+CREATE INDEX IF NOT EXISTS idx_package_ops_kind ON package_ops(op_kind);
+-- The log's newest stamp (every authoring and commit asks for the next one) and the health check's
+-- future-stamped count.
+CREATE INDEX IF NOT EXISTS idx_package_ops_origin ON package_ops(origin_ts);
 CREATE INDEX IF NOT EXISTS idx_package_ops_applied
   ON package_ops(applied) WHERE applied = 0;
--- Fast lookup of the "pending review" queue (synced but not yet effective).
-CREATE INDEX IF NOT EXISTS idx_package_ops_pending
-  ON package_ops(effective) WHERE effective = 0;
--- The draft: `dark status` asks this on every invocation, and it must stay cheap as the log grows.
-CREATE INDEX IF NOT EXISTS idx_package_ops_draft
-  ON package_ops(commit_hash) WHERE commit_hash IS NULL;
+CREATE INDEX IF NOT EXISTS idx_package_ops_authored ON package_ops(authored_on);
 
 -- ---------------------------------------------------------------------------
--- from 03-branches.sql
+-- Branches
 -- ---------------------------------------------------------------------------
 
--- Branches: an id, the ops tagged onto it, and the per-name fork points. A branch is an OVERLAY
--- of ops, not a copy of the store.
-
--- A branch = a stable ID + an optional name alias + a FRONTIER of ops. Refer to a branch BY ID;
--- `name` is a mutable alias. A branch's authored ops are inserted `effective = 0` (present in the
--- shared log, NOT folded into main) and tagged in `op_branches`; its overlay package manager is
--- withExtraOps(core, the branch's ops), and MERGE up flips those ops `effective = 1` and folds.
+-- A branch = a stable id, a name a person can change, and a parent. Its ops are the `package_ops`
+-- rows with its id, and what it binds is in the projections below, under its id. Main has no row.
 CREATE TABLE IF NOT EXISTS branches (
-  id TEXT PRIMARY KEY,                 -- stable branch id (the handle); name is an alias
+  id TEXT PRIMARY KEY,
   name TEXT NOT NULL DEFAULT '',
-  parent_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',  -- branches off branches: the parent (default main)
+  parent_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
   merged_at TIMESTAMP NULL,            -- set when the branch's work is merged into its parent
-  archived_at TIMESTAMP NULL           -- set when the branch is archived (soft delete)
+  archived_at TIMESTAMP NULL           -- set when the branch is archived
 );
--- Deliberately NOT unique, even among live branches: two instances can each start a `fix-auth`,
--- and after a sync both rows live here. `resolveOrCreate` handles the local
--- don't-start-two-under-one-name race.
 CREATE INDEX IF NOT EXISTS idx_branches_name ON branches(name) WHERE name != '';
 CREATE INDEX IF NOT EXISTS idx_branches_parent ON branches(parent_id);
 
--- The per-branch frontier: which ops belong to a branch (many-to-many; an op can be shared).
-CREATE TABLE IF NOT EXISTS op_branches (
-  op_id TEXT NOT NULL,
-  branch_id TEXT NOT NULL,
-  -- What put this op on the branch: 'op' = authored, 'propagation' = a repoint that followed an edit,
-  -- 'resolution' = a conflict override or a pin's rollback. The branch twin of `locations.source`;
-  -- without it a branch cannot tell "you typed this" from "this followed something", so `status`,
-  -- `undo` and `pin` could only answer about main. Local metadata: it does not travel in a bundle.
-  source TEXT NOT NULL DEFAULT 'op',
-  PRIMARY KEY (op_id, branch_id)
-);
-CREATE INDEX IF NOT EXISTS idx_op_branches_branch ON op_branches(branch_id);
-
--- The per-name BASE for a branch: main's content-hash for a name when the branch FIRST touched it
--- ('' if the name was new). Content hashes are STABLE across a reload (unlike origin_ts, which
--- reload re-stamps). A merge CONFLICT = main's CURRENT hash for the name differs from this base.
+-- The per-name BASE for a branch: what its parent bound a name to when the branch FIRST touched it
+-- ('' if the name was new). A merge conflict is the parent having moved the name since.
 CREATE TABLE IF NOT EXISTS branch_name_bases (
   branch_id TEXT NOT NULL,
   owner TEXT NOT NULL,
   modules TEXT NOT NULL,
   name TEXT NOT NULL,
-  base_hash TEXT NOT NULL,   -- main's item_hash for this name at first touch ('' = the name was new)
+  base_hash TEXT NOT NULL,
   PRIMARY KEY (branch_id, owner, modules, name)
 );
-CREATE INDEX IF NOT EXISTS idx_branch_name_bases_branch ON branch_name_bases(branch_id);
 
 -- ---------------------------------------------------------------------------
 -- from 04-commits.sql
@@ -171,11 +149,17 @@ CREATE TABLE IF NOT EXISTS commits (
   -- The same work committed onto the same history gets the same id on two machines; the same work onto
   -- different histories does not, the way a git commit's id depends on its parent.
   hash TEXT PRIMARY KEY,
+  -- The branch whose history this commit is in. A merge moves the branch's commits to its parent.
+  branch_id TEXT NOT NULL,
   message TEXT NOT NULL DEFAULT '',
   origin_ts TEXT NOT NULL,          -- portable authoring stamp, same clock as package_ops.origin_ts
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  parent TEXT NOT NULL DEFAULT ''   -- the commit this one follows; '' for the first in a store
+  parent TEXT NOT NULL DEFAULT '',  -- the commit this one follows; '' for the first in a store
+  -- 1 for a commit that records what happened to a branch rather than work: archiving one. `dark
+  -- commits` leaves these out unless asked.
+  housekeeping INTEGER NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS idx_commits_branch ON commits(branch_id);
 CREATE INDEX IF NOT EXISTS idx_commits_created ON commits(created_at);
 
 -- ---------------------------------------------------------------------------
@@ -293,93 +277,76 @@ CREATE TABLE IF NOT EXISTS seed_ops (
   op_id TEXT PRIMARY KEY
 );
 
--- Name resolution: maps (owner, modules, name) to a content hash. `unlisted_at` tracks
--- pointer-lifecycle (renames, propagation, WIP-to-committed swaps); separate from author-initiated
-
 -- ---------------------------------------------------------------------------
--- from 07-names.sql
+-- Names, deprecations and docs: LAYERED
 -- ---------------------------------------------------------------------------
 
--- The layers that say what content MEANS right now: which name holds it, what is deprecated,
--- what each item says about itself, and what calls what.
+-- What content MEANS right now: which name holds it, what is deprecated, what a name says about
+-- itself. Each of the three tables holds every branch's answer, not just main's.
+--
+-- A row belongs to a LAYER: a branch, and whether the op that wrote it is still in that branch's
+-- draft. `live = 1` marks the newest row of its layer for its key; older rows stay as history.
+-- What a branch SEES is its own draft layer, then its own committed layer, then each ancestor's
+-- committed layer up to main's, nearest first: the first layer holding a live row for a key answers
+-- for it (`LibDB.Layers`). Main sees its draft over its committed work. A commit moves rows from the
+-- draft layer to the committed one; a discard deletes draft rows; a merge folds the branch's ops into
+-- the parent's layers.
 
--- `deprecations`.
 CREATE TABLE IF NOT EXISTS locations (
-  location_id TEXT PRIMARY KEY,
-  item_hash TEXT NOT NULL,
+  branch_id TEXT NOT NULL,
+  draft INTEGER NOT NULL,
   owner TEXT NOT NULL,
   modules TEXT NOT NULL,
   name TEXT NOT NULL,
+  -- The content the name holds; '' where the name was removed, which hides it in every layer below.
+  item_hash TEXT NOT NULL,
   item_type TEXT NOT NULL,                -- 'fn' | 'type' | 'value' | 'trait' | 'impl' | 'test'
-  created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
-  unlisted_at TIMESTAMP NULL,             -- set when a later row supersedes this one
-  -- The origin_ts of the op that set THIS binding, so playback orders by CREATION rather than
-  -- arrival (timestamp-LWW). A SetName created EARLIER than the current binding (an old op arriving
-  -- late via sync) is stale: playback skips the rebind, so the latest-by-creation name wins.
+  live INTEGER NOT NULL DEFAULT 1,
+  -- The stamp of the op that wrote this row: a binding older than the live one does not replace it.
   origin_ts TEXT NULL,
-  -- What put this binding here: 'op' = the normal op-fold (incl. WIP authoring), 'resolution' = a
-  -- human/keep-local resolution OVERLAY. `discard` deletes op-fold bindings but excludes 'resolution',
-  -- so it can't silently revert a synced resolution into a divergence. 'unbind' = an Unbind's
-  -- TOMBSTONE: unlisted from birth, stamped with the unbind's origin_ts, so a binding authored before
-  -- the unbind but arriving after it can be told to stay stale. Never live; history reads skip it.
+  -- `package_ops.source` of the op that wrote it.
   source TEXT NOT NULL DEFAULT 'op',
-  -- The op that wrote this binding. `origin_ts` orders bindings but does not IDENTIFY one: two
-  -- instances can mint the same stamp, so a lookup by stamp can land on the wrong op and misread
-  -- "is this binding committed yet". This is what `pin` uses to tell a staged repoint from a
-  -- committed one.
-  op_id TEXT NOT NULL DEFAULT '',
-  -- The hash this binding REPLACED, as the `SetName` op recorded it; NULL when the op named no
-  -- predecessor. Conflict detection needs it from BOTH sides (incoming reads it off the op, local
-  -- reads it here). What an op SAYS it replaced is the lineage; the previous row by origin_ts is
-  -- only the previous row by stamp.
+  op_id TEXT NOT NULL,
+  -- The hash this binding REPLACED, as the op recorded it; NULL when the op named no predecessor.
   previous TEXT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_locations_branch_lookup
-  ON locations(owner, modules, name, item_type)
-  WHERE unlisted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_locations_module
-  ON locations(owner, modules) WHERE unlisted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_locations_owner_modules
-  ON locations(owner, modules);
--- Hash -> name. Reads that join `locations` on `item_hash` are frequent, and without this SQLite
--- builds a throwaway index for each one: work proportional to the whole table, for a lookup.
-CREATE INDEX IF NOT EXISTS idx_locations_item_hash
-  ON locations(item_hash);
+CREATE INDEX IF NOT EXISTS idx_locations_name
+  ON locations(owner, modules, name) WHERE live = 1;
+CREATE INDEX IF NOT EXISTS idx_locations_history
+  ON locations(owner, modules, name, branch_id, draft);
+CREATE INDEX IF NOT EXISTS idx_locations_item_hash ON locations(item_hash);
+-- A module's names, whatever their owner: what `search` lists a module through.
+CREATE INDEX IF NOT EXISTS idx_locations_modules ON locations(modules) WHERE live = 1;
+CREATE INDEX IF NOT EXISTS idx_locations_op ON locations(op_id, branch_id);
+-- A layer's live rows: what `Layers.visible` reads the nearer layers of a view through.
+CREATE INDEX IF NOT EXISTS idx_locations_layer ON locations(branch_id, draft) WHERE live = 1;
 
 
--- Author-initiated deprecations. Projection of Deprecate / Undeprecate ops.
+-- Projection of Deprecate / Undeprecate ops, keyed by content.
 CREATE TABLE IF NOT EXISTS deprecations (
-  deprecation_id TEXT PRIMARY KEY,
+  branch_id TEXT NOT NULL,
+  draft INTEGER NOT NULL,
   item_hash TEXT NOT NULL,
-  item_kind TEXT NOT NULL,                    -- 'fn' | 'type' | 'value' | 'trait' | 'impl' | 'test'
-
-  -- 'deprecated' (annotation_blob has kind + message + optional replacement ref)
-  -- 'undeprecated' (annotation_blob NULL), used for ancestor-override on child branches
+  item_kind TEXT NOT NULL,
+  -- 'deprecated' (annotation_blob has kind + message) or 'undeprecated' (annotation_blob NULL)
   state TEXT NOT NULL,
   annotation_blob BLOB,
-
-  -- The origin_ts of the op that said this, so the answer is the NEWEST statement rather than the
-  -- last one to arrive. `created_at` is when this machine wrote the row; two machines folding the
-  -- same two ops in different orders used to disagree about whether an item is deprecated.
-  origin_ts TEXT,
-
-  created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
-  unlisted_at TIMESTAMP                       -- set when a later row supersedes this one
+  live INTEGER NOT NULL DEFAULT 1,
+  origin_ts TEXT NOT NULL,
+  op_id TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_deprecations_lookup
-  ON deprecations(item_hash, item_kind) WHERE unlisted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_deprecations_item
+  ON deprecations(item_hash, item_kind) WHERE live = 1;
+CREATE INDEX IF NOT EXISTS idx_deprecations_op ON deprecations(op_id, branch_id);
+-- A layer's live rows: what `Layers.visible` reads the nearer layers of a view through.
+CREATE INDEX IF NOT EXISTS idx_deprecations_layer ON deprecations(branch_id, draft) WHERE live = 1;
 
 
 -- What a NAME says about itself, when it says something other than its declaration does.
--- Projection of UpdateDoc ops.
---
--- Keyed on the LOCATION, not on content, because content is shared: ten names hold
--- `type ParseError = | BadFormat | OutOfRange`, and what `Int64.ParseError` means is not what
--- `UInt64.ParseError` means. The declaration's own `///` travels in the item and is the fallback;
--- this is how one name says something else.
---
--- Nothing is here for most names. A row exists only where somebody edited a doc.
+-- Projection of UpdateDoc ops, keyed on the LOCATION, not on content, because content is shared.
 CREATE TABLE IF NOT EXISTS location_docs (
+  branch_id TEXT NOT NULL,
+  draft INTEGER NOT NULL,
   owner TEXT NOT NULL,
   modules TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -389,11 +356,15 @@ CREATE TABLE IF NOT EXISTS location_docs (
   -- its INDEX, since a parameter's name is not part of identity.
   within TEXT NOT NULL,
   text TEXT NOT NULL,
-  -- The origin_ts of the op that wrote this text, so the newest STATEMENT wins rather than the last
-  -- to arrive.
+  live INTEGER NOT NULL DEFAULT 1,
   origin_ts TEXT NOT NULL,
-  PRIMARY KEY (owner, modules, name, kind, within)
+  op_id TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_location_docs_name
+  ON location_docs(owner, modules, name) WHERE live = 1;
+CREATE INDEX IF NOT EXISTS idx_location_docs_op ON location_docs(op_id, branch_id);
+-- A layer's live rows: what `Layers.visible` reads the nearer layers of a view through.
+CREATE INDEX IF NOT EXISTS idx_location_docs_layer ON location_docs(branch_id, draft) WHERE live = 1;
 
 
 -- Dependency edges between package items. Records the user-typed FQN alongside the content hash, so
@@ -654,10 +625,10 @@ CREATE INDEX IF NOT EXISTS idx_package_dependencies_target
 -- from 11-op-log-commit-index.sql
 -- ---------------------------------------------------------------------------
 
--- Ops by the commit that holds them. `02-op-log.sql` indexes only the draft (`commit_hash IS NULL`),
--- so asking how many ops one commit holds scanned the whole log, and `dark commits` asks that about
--- every row it lists. That file is frozen, so the index lives here.
-CREATE INDEX IF NOT EXISTS idx_package_ops_commit ON package_ops(commit_hash);
+-- Ops by the commit that holds them, so asking how many ops one commit holds does not scan the whole
+-- log; `dark commits` asks that about every row it lists.
+CREATE INDEX IF NOT EXISTS idx_package_ops_commit ON package_ops(commit_hash)
+  WHERE commit_hash IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- from 12-trace-blobs.sql

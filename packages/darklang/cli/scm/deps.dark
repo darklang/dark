@@ -76,7 +76,7 @@ let showDependents(
   entityName: String,
   cap: Bool)
   : Unit =
-  let dependents = SCM.Deps.dependentsOf([ (targetLoc, targetKind) ])
+  let dependents = SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (targetLoc, targetKind) ])
 
   match dependents with
   | [] ->
@@ -116,7 +116,7 @@ let collectTransitiveDependents(
     match toProcess with
     | [] -> accumulated
     | targets ->
-      let batchResults = SCM.Deps.dependentsOf(targets)
+      let batchResults = SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), targets)
 
       // Each result already carries its own location, so this level's dependents are
       // next level's targets with no hash -> location round-trip in between.
@@ -294,7 +294,7 @@ let executeJson(
   let dependencies = SCM.Deps.dependencyEdges(state.currentBranchId, loc, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) |> Stdlib.List.map(edgeJson)
 
   let dependents =
-    SCM.Deps.dependentsOf([ (loc, kind) ])
+    SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (loc, kind) ])
     |> Stdlib.List.map(fun d ->
       let (h, dLoc, dKind) = d
       edgeJson((h, dKind, dLoc)))

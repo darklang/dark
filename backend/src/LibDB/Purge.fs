@@ -47,9 +47,7 @@ let tables : List<string> =
     // unresolvable, and `dark conflicts` presents it as neither.
     "conflicts"
 
-    // The branch OVERLAY goes with the ops: emptying the log while keeping these leaves
-    // every tag pointing at nothing, so a purge ends a branch's uncommitted work.
-    "op_branches"
+    // A branch's fork points describe ops that go with the log.
     "branch_name_bases"
 
     // Which ops came from a build's embedded seed; a stale entry misreports that.

@@ -1,6 +1,6 @@
 /// Remember which names each caller uses, for each location and content version.
 /// Two callers can share the same code while following different names.
-/// Each branch applies its own changes on top of committed main.
+/// A branch reads its own changes, and what its ancestors committed, over committed main.
 module LibDB.ReferenceNames
 
 open System.Threading.Tasks
@@ -85,15 +85,19 @@ do Caching.register (fun () -> mainStates.Clear())
 
 let private loadAt (branch : PT.BranchId) (before : Option<string>) : Task<State> =
   task {
-    let visibility =
-      OpHistory.visibility (if branch.IsMain then "1 = 1" else "0 = 1") before
-    let parameters =
+    let cutoff =
       before |> Option.toList |> List.map (fun stamp -> "before", Sql.string stamp)
-    let predicate =
-      $"p.op_kind IN ('rename', 'reference-names', 'decision') AND p.effective = 1 AND p.id NOT IN (SELECT op_id FROM op_branches) AND {visibility}"
+    let metadata = "p.op_kind IN ('rename', 'reference-names', 'decision')"
+    // Main's ops: its draft too when main is the reader, its committed work otherwise.
+    let mainPredicate =
+      let visible =
+        OpHistory.visibility (if branch.IsMain then "1 = 1" else "0 = 1") before
+      // `+` keeps SQLite on the op-kind index: main's ops are nearly the whole log.
+      $"{metadata} AND +p.branch_id = @main AND {visible}"
+    let parameters = ("main", Sql.string (string PT.BranchId.Main)) :: cutoff
     let! ids =
       Sql.query
-        $"SELECT p.id FROM package_ops p WHERE {predicate} ORDER BY p.origin_ts, p.id"
+        $"SELECT p.id FROM package_ops p WHERE {mainPredicate} ORDER BY p.origin_ts, p.id"
       |> Sql.parameters parameters
       |> Sql.executeAsync (fun r -> r.uuid "id")
     let! mainState =
@@ -104,7 +108,8 @@ let private loadAt (branch : PT.BranchId) (before : Option<string>) : Task<State
         task {
           let! rows =
             Sql.query
-              $"SELECT p.id, p.op_blob FROM package_ops p WHERE {predicate} ORDER BY p.origin_ts, p.id"
+              $"SELECT p.id, p.op_blob FROM package_ops p WHERE {mainPredicate}
+                ORDER BY p.origin_ts, p.id"
             |> Sql.parameters parameters
             |> Sql.executeAsync (fun r ->
               r.uuid "id",
@@ -114,11 +119,29 @@ let private loadAt (branch : PT.BranchId) (before : Option<string>) : Task<State
             mainStates[branch.IsMain] <- (List.map fst rows, state)
           return state
         }
+    // A branch's chain over main: its own ops, and what its ancestors below main committed.
     let! overlay =
       if branch.IsMain then
         Task.FromResult []
       else
-        Branches.chainOverlayOperations branch before
+        let below =
+          Layers.chainOf branch
+          |> List.filter (fun b -> not b.IsMain)
+          |> List.map string
+        let visible = OpHistory.visibility "p.branch_id = @start" before
+        Sql.query
+          $"SELECT p.id, p.op_blob FROM package_ops p
+            WHERE {metadata} AND p.branch_id IN (SELECT value FROM json_each(@chain))
+              AND {visible}
+            ORDER BY p.origin_ts, p.id"
+        |> Sql.parameters (
+          [ "chain", Sql.string (jsonStrings below)
+            "start", Sql.string (string branch) ]
+          @ cutoff
+        )
+        |> Sql.executeAsync (fun r ->
+          BS.PT.PackageOp.tryDeserialize (r.uuid "id") (r.bytes "op_blob"))
+        |> Task.map (List.choose identity)
     return List.fold apply mainState overlay
   }
 
@@ -190,29 +213,6 @@ let internal effectiveNames (state : State) location target original =
         [ "location", location; "target", target ]
     names
 
-/// Find the branch's binding changes and hide main's uncommitted changes.
-let branchBindings (branch : PT.BranchId) =
-  task {
-    if branch.IsMain then
-      return Map.empty
-    else
-      let! mask = Queries.mainDraftMaskOps ()
-      let! overlay = Branches.chainOverlayOps branch
-      return
-        (mask @ overlay)
-        |> List.fold
-          (fun state op ->
-            match Branches.nameEffect op with
-            | Some(Branches.Binds(location, kind, hash)) ->
-              Map.add
-                location
-                (Some(PT.Reference.fromHashAndKind (Hash hash, kind)))
-                state
-            | Some(Branches.Ends location) -> Map.add location None state
-            | None -> state)
-          Map.empty
-  }
-
 /// Save each declaration's reference names before the store keeps one body per hash.
 /// Authoring, propagation and draft refresh all need this before writing content.
 let captureForStorage
@@ -241,7 +241,6 @@ let captureForStorage
           let! stored = storedNames target
           canonical <- Map.add target (Option.defaultValue names stored) canonical
         | _ -> ()
-      let! bindings = branchBindings branch
       let result = ResizeArray<PT.PackageOp>()
       for (location, target, names) in declarations do
         match Map.tryFind (location, target) state with
@@ -252,20 +251,21 @@ let captureForStorage
           // A new alias has no earlier version at this location.
           if Option.isNone existing then
             let! current =
-              match Map.tryFind location bindings with
-              | Some current -> Task.FromResult current
-              | None ->
-                task {
-                  let! rows =
-                    Queries.getLiveLocationsForHashes
-                      [ (let (Hash h) = target.hash in h) ]
-                  let present =
-                    rows
-                    |> Map.toList
-                    |> List.collect snd
-                    |> List.contains (target.kind, location)
-                  return if present then Some target else None
-                }
+              task {
+                let find =
+                  match target.kind with
+                  | PT.ItemKind.Type -> LibDB.ProgramTypes.Type.find
+                  | PT.ItemKind.Fn -> LibDB.ProgramTypes.Fn.find
+                  | PT.ItemKind.Value -> LibDB.ProgramTypes.Value.find
+                  | PT.ItemKind.Trait -> LibDB.ProgramTypes.Trait.find
+                  | PT.ItemKind.TraitImpl -> LibDB.ProgramTypes.TraitImpl.find
+                  | PT.ItemKind.Test -> LibDB.ProgramTypes.Test.find
+                let! found = find branch location |> Ply.toTask
+                return
+                  found
+                  |> Option.map (fun h ->
+                    PT.Reference.fromHashAndKind (h, target.kind))
+              }
             if current = Some target then
               match Map.tryFind target canonical with
               | Some original ->

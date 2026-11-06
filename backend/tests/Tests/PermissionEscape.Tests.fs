@@ -51,7 +51,7 @@ let private storeUnevaluated (name : string) (body : PT.Expr) : Task<PT.Hash> =
   task {
     let value = makeValue body
     let! (_ : int64) =
-      Inserts.insertAndApplyOpsAsWip
+      Inserts.insertAndApplyOps
         [ PT.PackageOp.AddValue value
           PT.PackageOp.SetName(loc name, PT.PackageValue value.hash, None) ]
     return value.hash
@@ -207,6 +207,7 @@ let testGuestAuthorityInstallsApprovals =
       "an unknown, non-bundled package is denied until approved"
     let! (found : Option<PT.Hash>) =
       LibDB.ProgramTypes.Fn.find
+        PT.BranchId.Main
         { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
       |> Ply.toTask
     match found with
@@ -236,7 +237,7 @@ let testUnapprovedPackageFnInValueBodyIsRefused =
         permissionCeiling = None
         bounds = [] }
     let! (_ : int64) =
-      Inserts.insertAndApplyOpsAsWip
+      Inserts.insertAndApplyOps
         [ PT.PackageOp.AddFn clockFn
           PT.PackageOp.SetName(
             loc "unapprovedClock",
@@ -295,7 +296,7 @@ let testStoredValuesNeedNoHostEffects =
         """
         SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
         FROM package_values pv
-        JOIN locations l ON l.item_hash = pv.hash AND l.unlisted_at IS NULL
+        JOIN locations l ON l.item_hash = pv.hash AND l.live = 1 AND l.item_hash <> ''
         """
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"

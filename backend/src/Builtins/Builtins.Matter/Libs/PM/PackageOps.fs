@@ -67,11 +67,11 @@ let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : str
 
 /// Author <param ops> onto <param branchId>, uncommitted: THE authoring path, behind `scmAddOps` and
 /// behind every SCM action that authors an op of its own (settling a conflict). Ok is how many ops were
-/// newly stored (an op the log already holds counts 0); Error is why nothing, or not everything, landed.
+/// newly stored (an op the branch already holds counts 0); Error is why nothing, or not everything,
+/// landed.
 ///
-/// On main: stabilize, insert through the guarded path, refresh the draft, evaluate new values. On a
-/// branch: stabilize, restate reverts, store inert and tagged, record name bases, fold the content
-/// only, evaluate, and move the overlay if this process stands on the branch.
+/// Stabilize, store and fold through the guarded path, then -- on main -- re-resolve the draft around
+/// what landed, and evaluate new values.
 let authorOps
   (exeState : ExecutionState)
   (vm : VMState)
@@ -84,79 +84,24 @@ let authorOps
     // clock last saw.
     do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
 
-    // Branch: the edit lands on the BRANCH, stored effective=0 and tagged, never folded into main.
-    // Hashes stabilize exactly as the main path does, or a merged value's `package_values` (keyed by
-    // AddValue) and `locations` (keyed by SetName) disagree and the value cannot be found.
-    if not branchId.IsMain then
-      // Refuse, rather than write: a merged or archived branch must not be REVIVED by an edit landing
-      // on it. A workbench still holding the id after a merge in another shell would otherwise put its
-      // next edit on a branch nothing will ever merge again.
-      match! LibDB.Branches.isFinished branchId with
-      | true ->
-        return
-          Error
-            $"branch {branchId} has been merged or archived; `dark switch <name>` starts a new one"
-      | false ->
+    // Refuse, rather than write: a merged or archived branch must not be REVIVED by an edit landing
+    // on it. A workbench still holding the id after a merge in another shell would otherwise put its
+    // next edit on a branch nothing will ever merge again.
+    let! finished =
+      if branchId.IsMain then
+        System.Threading.Tasks.Task.FromResult false
+      else
+        LibDB.Branches.isFinished branchId
+    if finished then
+      return
+        Error
+          $"branch {branchId} has been merged or archived; `dark switch <name>` starts a new one"
+    else
+      if not branchId.IsMain then
         do! LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main
 
-        let stabilized = LibDB.HashStabilization.computeRealHashes ops
-        let! referenceNames =
-          LibDB.ReferenceNames.captureForStorage branchId stabilized
-        // Capture while each declaration still has its SetName. A repeated revert becomes an
-        // Override, which no longer forms that pair.
-        let! stabilized = LibDB.Branches.restateReverts branchId stabilized
-        let stabilized = stabilized @ referenceNames
-        let! n = LibDB.Branches.storeDeltaOps branchId stabilized
-        // The parent's current hash per name touched, so a later merge can tell whether the parent
-        // moved the same name.
-        let! parentId = LibDB.Branches.parentOf branchId
-        do! LibDB.Branches.recordNameBases branchId parentId stabilized
-        // Content (Add*, never SetName) folds into the shared content tables; the NAME layer is what a
-        // branch keeps to itself. Needed so an expression-valued branch value has an rt_dval to eval,
-        // and so propagation can see the branch item's dependency edges.
-        let contentOps =
-          stabilized
-          |> List.filter (fun op ->
-            match op with
-            | PT.PackageOp.AddValue _
-            | PT.PackageOp.AddFn _
-            | PT.PackageOp.AddType _
-            | PT.PackageOp.AddTrait _
-            | PT.PackageOp.AddTraitImpl _
-            | PT.PackageOp.AddTest _ -> true
-            | _ -> false)
-        let! branchFailures =
-          uply {
-            if List.isEmpty contentOps then
-              return []
-            else
-              do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
-              let builtins : Builtins =
-                { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
-              // A branch's own bodies, arriving from guest code: same bound as the main-branch path.
-              let! evaluated =
-                LibDB.Seed.evaluateAllValues
-                  (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
-                    exeState.accountID
-                    vm.activeAccess)
-                  builtins
-                  LibDB.PackageManager.rt
-              return ownEvaluationFailures ops evaluated
-          }
-        // Move the overlay only for the branch this process is on; writing to another branch must not
-        // change what this caller resolves against. Other branches are memoized, so forget them rather
-        // than leave a stale answer.
-        if LibDB.PackageManager.currentBranchId () = branchId then
-          let! all = LibDB.Branches.loadDeltaOps branchId
-          LibDB.PackageManager.setBranchOverlay all
-        else
-          LibDB.PackageManager.forgetBranch branchId
-        match branchFailures with
-        | [] -> return Ok n
-        | failures -> return Error(failureText failures)
-    else
       // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName targets would
-      // too, and the only thing that repairs those is `WipRefresh.refresh` rewriting the ENTIRE log.
+      // too, and the only thing that repairs those is `WipRefresh.refresh` rewriting the draft.
       let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
       // The store keeps one body per content hash. Two callers with that hash can still use
       // different aliases, such as `double` and `twice`. Save each caller's reference names before
@@ -165,15 +110,16 @@ let authorOps
         LibDB.ReferenceNames.captureForStorage branchId stabilizedOps
       let stabilizedOps = stabilizedOps @ referenceNames
 
-      // These package changes came from running Dark code, so they land uncommitted AND through the
-      // guarded path: reserved bundled names and placeholder hashes are rejected here.
-      match! LibDB.Inserts.insertUntrustedOps stabilizedOps with
+      // These package changes came from running Dark code, so they land through the guarded path:
+      // reserved bundled names and placeholder hashes are rejected here.
+      match! LibDB.Inserts.insertUntrustedOps branchId stabilizedOps with
       | Error reason -> return Error reason
       | Ok insertedCount ->
-        // Refresh the EXISTING draft: re-resolve names and recompute SCC-aware hashes now that new
-        // items exist. This is the forward-ref case: an earlier draft item that references THIS
-        // newly-authored one.
-        let! _refreshed = LibDB.WipRefresh.refresh pm
+        // Refresh main's draft: re-resolve names and recompute SCC-aware hashes now that new items
+        // exist. This is the forward-ref case: an earlier draft item that references THIS one.
+        if branchId.IsMain then
+          let! _refreshed = LibDB.WipRefresh.refresh pm
+          ()
 
         // Evaluate values whose runtime form is still missing, bounded by the instance policy and by
         // this caller's access -- otherwise `val x = <denied effect>` performs the effect that
@@ -324,9 +270,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           []
         )
       description =
-        "Counts what is wrong with the store itself: ops stamped in the future, op tags "
-        + "naming a missing op or branch, ops that never folded, and live names bound to "
-        + "missing content. A count that cannot be taken is 0."
+        "Counts what is wrong with the store itself: ops stamped in the future, ops that "
+        + "never folded, and live names bound to missing content. A count that cannot be "
+        + "taken is 0."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
@@ -340,8 +286,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 [],
                 RecordFields.ofList
                   [ "futureStamped", DInt64 c.futureStamped
-                    "orphanTags", DInt64 c.orphanTags
-                    "taggedToNothing", DInt64 c.taggedToNothing
                     "unfolded", DInt64 c.unfolded
                     "danglingBindings", DInt64 c.danglingBindings ]
               )

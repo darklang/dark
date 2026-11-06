@@ -2,12 +2,12 @@ module Darklang.SCM.Branches
 
 //  the BRANCH-TABLES data-access silo
 //
-// Reads `branches`, `op_branches` and `branch_name_bases`, and decides what to make of them. Every write
+// Reads `branches` and `branch_name_bases`, and decides what to make of them. Every write
 // to them is an action in F# (`SCM.Actions`): starting, archiving, merging, rebasing and resolving a
 // branch each run as one operation there.
 //
 // The READS of `branches` and `branch_name_bases` go through one builtin, `scmBranches`, and the SQL
-// lives with it in F# (`LibDB.ScmBranches`); `op_branches` is read through `SCM.PackageOps.query`,
+// lives with it in F# (`LibDB.ScmBranches`); a branch's ops are read through `SCM.PackageOps.query`,
 // with the op log. What to make of the answer -- main, a missing parent, an id that will not
 // parse -- stays here.
 //
@@ -45,7 +45,7 @@ type BranchInfo =
     name: String
     parentId: String
     merged: Bool
-    /// `All` only: how many ops are tagged to it.
+    /// `All` only: how many ops it holds.
     ops: Int64
     /// `NameBasesOf` only.
     nameBases: List<SCM.Conflicts.NameBase> }
@@ -91,7 +91,7 @@ let canMerge(branchId: Uuid): Stdlib.Result.Result<Unit, MergeRefusal> =
     Stdlib.Result.Result.Error(MergeRefusal.IsMain)
   else
 
-  let changes = SCM.PackageOps.countOf(SCM.PackageOps.OpFilter.Tagged(branchId))
+  let changes = SCM.PackageOps.countOf(SCM.PackageOps.OpFilter.Own(branchId))
 
   if changes == 0 then
     Stdlib.Result.Result.Error(MergeRefusal.NothingToMerge)
@@ -194,7 +194,7 @@ let baseRecords(branchId: Uuid): List<SCM.Conflicts.NameBase> =
   |> Stdlib.List.flatten
 
 
-/// The key a name is looked up by. `branch_name_bases`, `locations` and the overlay all spell a name as
+/// The key a name is looked up by. `branch_name_bases` and `locations` both spell a name as
 /// (owner, dotted-modules, name), and this is that triple flattened so a Dict can hold it. The separator
 /// is a newline because none of the three parts can contain one.
 let nameKey(owner: String, modules: String, name: String): String =
@@ -218,46 +218,14 @@ let nameBases(branchId: Uuid): List<(String * String * String * String)> =
 
 
 /// The parent's CURRENT hash for each name this branch has a base for -- the state a child forks from and
-/// merges back into.
+/// merges back into: what the branch sees beneath itself, its ancestors' COMMITTED work. A name the
+/// parent removed, or never had, reads "".
 ///
-/// Only the branch's OWN names are read, not all of `locations`. The full table is tens of thousands of
-/// rows and a branch touches a handful, and the difference is a Dark loop over each.
-///
-/// parent = main means `locations` answers directly. A non-main parent lives only as an OVERLAY, so main's
-/// answer is then overridden by that chain's own rebinds -- the same fold `SCM.PackageOps.chainBindings`
-/// already does, latest stamp per name.
-let parentHashesForBases(parentId: Uuid, branchId: Uuid): Dict<String, String> =
-  let fromMain =
-    // main-scoped: main's hashes are the base; a non-main parent's rebinds are overlaid by the caller.
-    //
-    // COMMITTED bindings only. Authoring on main is live-on-write, so main's `locations` carries its
-    // draft too, and rebasing onto that pulled the parent's uncommitted work into the branch: the
-    // branch's callers were repointed at a version main had not committed and might still discard,
-    // and the branch was left inconsistent with itself (its own base said one thing, its callers
-    // another). A branch resolves through committed work only -- that rule is stated for reads, and
-    // the base a rebase moves to is the same rule.
-    SCM.Bindings.query(
-      SCM.Bindings.BindingFilter.CommittedAtBases(Stdlib.toString(branchId))
-    )
-    |> Stdlib.List.map(fun b -> (nameKey(b.owner, b.modules, b.name), b.hash))
-
-  // A name the chain UNBOUND reads as "", the same spelling `divergedIn` gives a name main unlisted.
-  let overlay =
-    if SCM.Branch.isMain(parentId) then
-      []
-    else
-      SCM.PackageOps.chainBindingEntries(parentId)
-      |> Stdlib.List.map(fun w ->
-        let hash =
-          match w.binding with
-          | Some(b) -> b.hash
-          | None -> ""
-        (nameKey(w.owner, w.modules, w.name), hash))
-
-  // The parent's hash for each name is main's, unless the parent branch changed
-  // it. `fromEntries` keeps the last entry for a name, so the parent's changes
-  // go second. A name the parent removed counts as a change too ("").
-  Stdlib.Dict.fromEntries(Stdlib.List.concat(fromMain, overlay))
+/// Committed only: rebasing onto a parent's draft would pull its uncommitted work into the branch.
+let parentHashesForBases(_parentId: Uuid, branchId: Uuid): Dict<String, String> =
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.AboveBases(branchId))
+  |> Stdlib.List.map(fun b -> (nameKey(b.owner, b.modules, b.name), b.hash))
+  |> Stdlib.Dict.fromEntries
 
 
 /// Names the PARENT has moved since this branch forked, given bases and hashes already read: its current
@@ -375,7 +343,7 @@ let ownFrontierOps(
 
 
 /// <fn ownFrontierOps>, with what put each op on the branch: 'op', 'propagation' or 'resolution' (see
-/// `op_branches.source`). What lets a branch tell an edit you typed from a repoint that followed one.
+/// `package_ops.source`). What lets a branch tell an edit you typed from a repoint that followed one.
 let ownFrontierOpsWithSource(
   branchId: Uuid)
   : List<(Uuid * LanguageTools.ProgramTypes.PackageOp * String)> =
@@ -386,15 +354,7 @@ let ownFrontierOpsWithSource(
     | _ -> Stdlib.Option.Option.None)
 
 
-/// The ids of <param branchId>'s UNCOMMITTED ops -- its draft, as `discard` and `status` mean it.
-///
-/// `ownFrontierOps` deliberately includes committed ops (a branch's whole frontier is what merge
-/// and export need). Anything that DROPS ops wants this instead.
-let uncommittedOpIds(branchId: Uuid): List<String> =
-  SCM.PackageOps.idsOf(SCM.PackageOps.OpFilter.OwnUncommitted(branchId))
-
-
-/// A branch's own tagged op rows, oldest first, each with its `source`. The one query
+/// A branch's own op rows, oldest first, each with its `source`. The one query
 /// behind <fn ownFrontierOpsWithSource>, `branchBindings` and `branchOps`.
 let ownOpRows(branchId: Uuid): List<SCM.PackageOps.OpRow> =
   SCM.PackageOps.rowsOf(SCM.PackageOps.OpFilter.Own(branchId))
@@ -432,7 +392,7 @@ let opBindsKey(
 
 
 /// RESOLVE take-theirs: drop the branch's binding for <param fqn> -- every op that binds it, a `SetName`
-/// or the override a `resolve mine` wrote -- so the overlay falls back to the parent's version, and move
+/// or the override a `resolve mine` wrote -- so the branch's view falls back to the parent's version, and move
 /// the name's base to the parent's current. One action.
 let resolveTakeTheirs(
   branchId: Uuid,

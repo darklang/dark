@@ -5,7 +5,7 @@
 /// lower of the two (a portable, instance-independent tiebreak). An identical binding already live is
 /// stale too: there is nothing to win, and the fold keeps what it has with its earliest stamp.
 ///
-/// Three places apply it: the op-fold (`PackageOpPlayback.applySetNameFrom`), divergence detection
+/// Three places apply it: the op-fold (`PackageOpPlayback.applySetName`), divergence detection
 /// (`LibDB.ScmDetect`, which names the winner a recorded conflict keeps) and choosing between two
 /// implementations of one trait for one type (`LibExecution.Traits.select`). Dark asks it too, through
 /// `scmLwwBeats` (`SCM.Conflicts.beats`), rather than keeping a copy; `Tests.Lww` checks that name
@@ -31,7 +31,7 @@ let isStale
 /// An Unbind against a live BINDING on an exact stamp tie: the binding wins. SetName/SetName ties
 /// break on the hash; a tombstone has no hash to offer, so without a rule the SECOND arrival won
 /// and two stores that saw the pair in different orders diverged forever. Strict `>` is that rule,
-/// used by both sides of the pair in `PackageOpPlayback` (applyUnbind, and the unboundAfter check).
+/// used by both sides of the pair in `PackageOpPlayback` (applyUnbind, and the removal arm of applySetName).
 let unbindBeatsBinding (unbindTs : string) (bindingTs : string) : bool =
   unbindTs > bindingTs
 

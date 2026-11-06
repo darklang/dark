@@ -3,22 +3,21 @@ module Darklang.SCM.Tests.Draft
 // The draft: what `dark discard` drops, and what it must not touch.
 //
 // A draft op is already folded and already running; "draft" means uncommitted, not
-// inert. Dropping one has to undo a fold, and a fold has no inverse, so `SCM.Draft`
-// rebuilds from the ops that survive. These check the rebuild is faithful: a committed
-// binding comes back rather than merely being left alone, and a committed op keeps its
-// commit.
+// inert. A discard deletes the rows the draft wrote, and what they superseded in the
+// committed layer shows again. These check that: a committed binding comes back rather
+// than merely being left alone, and a committed op keeps its commit.
 //
-// What stays in `Draft.Tests.fs`: the tests that inject a failure or open a race window
-// through F# hooks (`rewriteOpsAtomically`, `refreshWith`, `rebuildWith`, a stale
-// `rebuild` read), the one that plants an undecodable op blob, and the one that reads
-// where committed ops sit in the log, which nothing in the SCM reports.
+// What stays in `Draft.Tests.fs`: the tests that stop a discard partway or open a race
+// window through F# hooks (`failAt`, `refreshWith`), the one that plants an undecodable
+// op blob, and the one that reads where committed ops sit in the log, which nothing in
+// the SCM reports.
 
 let draftCount(): Int64 = Darklang.SCM.PackageOps.draftOpCountFor(Authoring.main())
 
-/// The ops in effect that are not main's draft: the committed ones, and any a merge brought in.
-/// A discard must leave every one of them alone.
+/// Main's ops that are not its draft: the committed ones, and any a merge brought in. A discard
+/// must leave every one of them alone.
 let committedOpCount(): Int64 =
-  Darklang.SCM.PackageOps.countOf(Darklang.SCM.PackageOps.OpFilter.Effective) - draftCount()
+  Darklang.SCM.PackageOps.countOf(Darklang.SCM.PackageOps.OpFilter.Main) - draftCount()
 
 let commit(message: String): Stdlib.Result.Result<String, String> =
   Darklang.SCM.PackageOps.commitDraft(Authoring.main(), message)

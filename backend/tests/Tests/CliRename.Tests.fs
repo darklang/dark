@@ -86,7 +86,7 @@ let deleteStillRefusesAfterARename =
 
 /// After renaming fmt to toMoney, callers should show toMoney() and follow later edits.
 /// Creating another fmt must not redirect those callers, and content hashes must stay the same.
-/// Check main and a branch: branch bindings come from operations, not main's locations table.
+/// Check main and a branch: a branch resolves names in its own view.
 let aRenamedItemsCallersFollowTheNewName =
   instanceTest
     "a renamed item's callers follow its new name, not whatever takes the old one"

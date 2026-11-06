@@ -12,8 +12,8 @@ let help(_state: AppState): String =
     "  dark discard -y       skip the confirmation"
     "  dark discard <name>   drop just that item from your draft"
     ""
-    "  Committed work is never touched. On a branch this drops that branch's uncommitted ops;"
-    "  on main it drops main's and re-folds from the commits that remain."
+    "  Committed work is never touched: this drops the uncommitted ops of the branch you're on,"
+    "  main included, and each name they touched is back to its committed version."
     "  To step ONE item BACK a version, that's `dark undo <name>`. To remove one from"
     "  the draft entirely, which is what a NEW item needs since it has no version to"
     "  step back to, `dark discard <name>`." ]

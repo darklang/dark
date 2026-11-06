@@ -74,27 +74,34 @@ let private bindingNames (items : List<Dval>) : List<Bindings.Name> =
     | other -> Exception.raiseInternal "expected a name tuple" [ "got", other ])
 
 let private bindingFilterFromDT (f : Dval) : Bindings.Query =
+  let br g = PT.BranchId.Id g
   match f with
-  | DEnum(_, _, _, "MainLocationOf", [ DString h ]) -> Bindings.MainLocationOf h
-  | DEnum(_, _, _, "MainByBareNames", [ DList(_, ns) ]) ->
-    Bindings.MainByBareNames(strings ns)
-  | DEnum(_, _, _, "MainAtEach", [ DList(_, ns) ]) ->
-    Bindings.MainAtEach(bindingNames ns)
-  | DEnum(_, _, _, "MainHashAt", [ DString k; o; m; n ]) ->
-    Bindings.MainHashAt(k, bindingName o m n)
-  | DEnum(_, _, _, "Propagated", []) -> Bindings.Propagated
-  | DEnum(_, _, _, "AuthoringOrder", [ o; m; n ]) ->
-    Bindings.AuthoringOrder(bindingName o m n)
-  | DEnum(_, _, _, "EverBound", [ DList(_, keys) ]) ->
-    keys
-    |> List.map (function
-      | DTuple(o, m, [ n; DString k ]) -> (bindingName o m n, k)
-      | other ->
-        Exception.raiseInternal "expected a (name, kind) tuple" [ "got", other ])
-    |> Bindings.EverBound
-  | DEnum(_, _, _, "MainByHash", [ DString h; DString k ]) ->
-    Bindings.MainByHash(h, k)
-  | DEnum(_, _, _, "CommittedAtBases", [ DString b ]) -> Bindings.CommittedAtBases b
+  | DEnum(_, _, _, "LocationOf", [ DUuid g; DString h ]) ->
+    Bindings.LocationOf(br g, h)
+  | DEnum(_, _, _, "ByBareNames", [ DUuid g; DList(_, ns) ]) ->
+    Bindings.ByBareNames(br g, strings ns)
+  | DEnum(_, _, _, "At", [ DUuid g; DList(_, ns) ]) ->
+    Bindings.At(br g, bindingNames ns)
+  | DEnum(_, _, _, "CommittedAt", [ DUuid g; DList(_, ns) ]) ->
+    Bindings.CommittedAt(br g, bindingNames ns)
+  | DEnum(_, _, _, "Propagated", [ DUuid g ]) -> Bindings.Propagated(br g)
+  | DEnum(_, _, _, "AuthoringOrder", [ DUuid g; o; m; n ]) ->
+    Bindings.AuthoringOrder(br g, bindingName o m n)
+  | DEnum(_, _, _, "EverBound", [ DUuid g; DList(_, keys) ]) ->
+    let keys =
+      keys
+      |> List.map (function
+        | DTuple(o, m, [ n; DString k ]) -> (bindingName o m n, k)
+        | other ->
+          Exception.raiseInternal "expected a (name, kind) tuple" [ "got", other ])
+    Bindings.EverBound(br g, keys)
+  | DEnum(_, _, _, "ByHash", [ DUuid g; DString h; DString k ]) ->
+    Bindings.ByHash(br g, h, k)
+  | DEnum(_, _, _, "ByHashes", [ DUuid g; DList(_, hs) ]) ->
+    Bindings.ByHashes(br g, strings hs)
+  | DEnum(_, _, _, "Own", [ DUuid g ]) -> Bindings.Own(br g)
+  | DEnum(_, _, _, "BranchHistory", [ DUuid g ]) -> Bindings.BranchHistory(br g)
+  | DEnum(_, _, _, "AboveBases", [ DUuid g ]) -> Bindings.AboveBases(br g)
   | other -> Exception.raiseInternal "unknown BindingFilter" [ "got", other ]
 
 let private bindingRowToDT (b : Bindings.Binding) : Dval =
@@ -176,7 +183,6 @@ let private commitFilterFromDT (f : Dval) : Commits.Filter =
   | DEnum(_, _, _, "OnBranch", [ DUuid b ]) -> Commits.OnBranch(PT.BranchId.Id b)
   | DEnum(_, _, _, "HashPrefix", [ DString p ]) -> Commits.HashPrefix p
   | DEnum(_, _, _, "ChildrenOf", [ DString h ]) -> Commits.ChildrenOf h
-  | DEnum(_, _, _, "ParentFor", [ DUuid b ]) -> Commits.ParentFor(PT.BranchId.Id b)
   | other -> Exception.raiseInternal "unknown CommitFilter" [ "got", other ]
 
 let private commitToDT (c : Commits.Commit) : Dval =
@@ -190,7 +196,8 @@ let private commitToDT (c : Commits.Commit) : Dval =
         "message", DString c.message
         "originTs", DString c.originTs
         "createdAt", DString c.createdAt
-        "parent", DString c.parent ]
+        "parent", DString c.parent
+        "housekeeping", DBool c.housekeeping ]
   )
 
 let private commitPageToDT (p : Commits.Page) : Dval =
@@ -261,29 +268,19 @@ let private opFilterFromDT (f : Dval) : Ops.Filter =
   | DEnum(_, _, _, "Recent", []) -> Ops.Recent
   | DEnum(_, _, _, "IdPrefix", [ DString p ]) -> Ops.IdPrefix p
   | DEnum(_, _, _, "InCommit", [ DString h ]) -> Ops.InCommit h
-  | DEnum(_, _, _, "IdsInCommit", [ DString h ]) -> Ops.IdsInCommit h
   | DEnum(_, _, _, "Visible", [ DUuid g ]) -> Ops.Visible(b g)
   | DEnum(_, _, _, "LandedSince", [ DUuid g; DString since; DBool andAtSince ]) ->
     Ops.LandedSince(b g, since, andAtSince)
   | DEnum(_, _, _, "LandedAt", [ DString at ]) -> Ops.LandedAt at
   | DEnum(_, _, _, "Ids", [ DList(_, ids) ]) -> Ops.Ids(strings ids)
-  | DEnum(_, _, _, "BranchEvents", []) -> Ops.BranchEvents
   | DEnum(_, _, _, "Draft", [ DUuid g ]) -> Ops.Draft(b g)
   | DEnum(_, _, _, "DraftIds", [ DUuid g ]) -> Ops.DraftIds(b g)
-  | DEnum(_, _, _, "AuthoredDraft", [ DUuid g ]) -> Ops.AuthoredDraft(b g)
   | DEnum(_, _, _, "Own", [ DUuid g ]) -> Ops.Own(b g)
-  | DEnum(_, _, _, "OwnUncommitted", [ DUuid g ]) -> Ops.OwnUncommitted(b g)
-  | DEnum(_, _, _, "Tagged", [ DUuid g ]) -> Ops.Tagged(b g)
-  | DEnum(_, _, _, "Unmerged", [ DUuid g ]) -> Ops.Unmerged(b g)
-  | DEnum(_, _, _, "DiscardableDraft", [ DUuid g ]) -> Ops.DiscardableDraft(b g)
-  | DEnum(_, _, _, "Chain", [ DUuid g ]) -> Ops.Chain(b g)
-  | DEnum(_, _, _, "ChainCommitted", [ DUuid g ]) -> Ops.ChainCommitted(b g)
-  | DEnum(_, _, _, "MainUncommitted", []) -> Ops.MainUncommitted
-  | DEnum(_, _, _, "Effective", []) -> Ops.Effective
-  | DEnum(_, _, _, "NextStamp", []) -> Ops.NextStamp
-  | DEnum(_, _, _, "StampPastEverything", []) -> Ops.StampPastEverything
+  | DEnum(_, _, _, "MergedFrom", [ DUuid g ]) -> Ops.MergedFrom(b g)
+  | DEnum(_, _, _, "Main", []) -> Ops.Main
   | DEnum(_, _, _, "NewestLanded", []) -> Ops.NewestLanded
   | DEnum(_, _, _, "StoreNow", []) -> Ops.StoreNow
+  | DEnum(_, _, _, "NextStamp", []) -> Ops.NextStamp
   | other -> Exception.raiseInternal "unknown OpFilter" [ "got", other ]
 
 let private opRowToDT (r : Ops.Row) : Dval =

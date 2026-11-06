@@ -920,20 +920,17 @@ module ProgramTypes =
   /// Every `PackageOp` case, and every shape within a case that the writer branches on.
   ///
   /// This is the format two machines must agree on byte for byte to converge, and the fold covers it
-  /// only indirectly: a case the fold never reaches (a `Decision` kind, a `BranchEvent`, a `SetName`
-  /// carrying a predecessor) needs its value here or it is asserted nowhere.
+  /// only indirectly: a case the fold never reaches (a `Decision` kind, a `SetName` carrying a
+  /// predecessor) needs its value here or it is asserted nowhere.
   ///
   /// The shapes that matter, beyond one of each case: `SetName`/`Unbind` with and without `previous`,
-  /// which is a presence byte rather than a sentinel hash; all three `DecisionKind`s; both
-  /// `BranchEventKind`s, one of which carries a list of ids; and a `Hash` that is not 64 hex
-  /// characters, which takes the writer's fallback branch.
+  /// which is a presence byte rather than a sentinel hash; all three `DecisionKind`s; and a `Hash`
+  /// that is not 64 hex characters, which takes the writer's fallback branch.
   let packageOps : List<PackageOp> =
     let loc = packageLocation
     let otherLoc : PackageLocation =
       { owner = "MyOrg"; modules = []; name = "helper" }
     let shortHash = Hash "beef"
-    let branchId =
-      PT.BranchId.Id(System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3301")
 
     [ AddType packageTypes[0]
       AddType boundedPackageType
@@ -1042,13 +1039,4 @@ module ProgramTypes =
           [ Reference.PackageFn shortHash, Some otherLoc
             Reference.PackageType hashPT, None ]
         )
-      )
-      BranchEvent(branchId, BranchEventKind.Archived, "2026-01-01T00:00:00.000Z")
-      BranchEvent(branchId, BranchEventKind.Merged [], "2026-01-01T00:00:00.000Z")
-      BranchEvent(
-        branchId,
-        BranchEventKind.Merged
-          [ System.Guid.Parse "7c9e6679-7425-40de-944b-e07fc1f90ae7"
-            System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3300" ],
-        "2026-01-01T00:00:00.000Z"
       ) ]

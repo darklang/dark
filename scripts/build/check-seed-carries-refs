@@ -52,7 +52,7 @@ def main() -> int:
     # The seed must carry NO instance state. A seed built on a machine that has a branch ships that
     # branch to every install. `Seed.export` strips these; this is what holds it to that.
     dirty = []
-    for table in ("branches", "op_branches", "config_v0"):
+    for table in ("branches", "config_v0"):
         try:
             n = db.execute(f"SELECT count(*) FROM seed.{table}").fetchone()[0]
         except sqlite3.OperationalError:
@@ -62,6 +62,14 @@ def main() -> int:
 
     # Uncommitted ops are your DRAFT. Whatever you are part-way through when the release is cut
     # ships to every install and reads as "1 item changed" on someone else's first run.
+    # A branch's ops are the branch's work, and the branch is not shipped.
+    branch_ops = db.execute(
+        "SELECT count(*) FROM seed.package_ops"
+        " WHERE branch_id <> '00000000-0000-0000-0000-000000000001'"
+    ).fetchone()[0]
+    if branch_ops:
+        dirty.append(("package_ops (on a branch)", branch_ops))
+
     wip = db.execute(
         "SELECT count(*) FROM seed.package_ops WHERE commit_hash IS NULL"
     ).fetchone()[0]

@@ -60,22 +60,6 @@ let dependenciesOf(
   |> Stdlib.List.map(fun e ->
     (LanguageTools.ProgramTypes.Hash.Hash(e.dependsOnHash), e.dependsOnType))
 
-/// The branch chain's own bindings as (hash, location, kind), or [] on main.
-///
-/// Computed ONCE per call that needs it and passed down. `chainBindings` is a recursive walk up the
-/// parent chain over every op the chain holds, so asking it per dependent turns one query into one per
-/// caller of the thing you asked about.
-let branchOverlayBindings(
-  )
-  : List<(String * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
-  match SCM.PackageOps.currentBranch() with
-  | id when SCM.Branch.isMain(id) -> []
-  | branch ->
-    SCM.PackageOps.chainBindings(branch)
-    |> Stdlib.List.map(fun b ->
-      (b.hash, locationOf(b.owner, b.modules, b.name), kindOf(b.itemType)))
-
-
 /// Find callers of these names using this branch's saved reference names.
 /// A rename updates these names without changing the caller's content hash.
 let dependentsFor(
@@ -84,54 +68,31 @@ let dependentsFor(
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
   Builtin.pmDependents(branch, targets)
 
-let dependentsByName(targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>): List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
-  dependentsFor(SCM.PackageOps.currentBranch(), targets)
 
-/// Items that reference any target name, including older versions of that name.
-let dependentsOf(
-  targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
-  : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
-  dependentsByName(targets)
-
-
-/// The name `locations` gives this hash, if any.
+/// The name MAIN gives this hash, if any.
 let mainLocationOf(
   h: String)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  // main-scoped, on purpose: what MAIN names this hash; the overlay's names come
-  // from `branchOverlayBindings`.
-  SCM.Bindings.query(SCM.Bindings.BindingFilter.MainLocationOf(h))
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.LocationOf(SCM.Branch.mainBranchId, h))
   |> Stdlib.List.head
   |> Stdlib.Option.map(fun b -> locationOf(b.owner, b.modules, b.name))
 
-/// Resolve hashes to a location, for display. A hash can be live at several names; this takes one, since
-/// the callers are rendering a label rather than driving a cascade.
-///
-/// Main answers first, and the branch overlay only fills what main can't. `locations` holds main's
-/// bindings only -- a branch's SetNames deliberately never fold into it -- so without the overlay every
-/// branch-authored item renders as a bare 64-character hash. But the overlay must not go FIRST: identical
-/// content is one item, so a hash is routinely live at several names, and preferring the branch's would
-/// relabel a main item whose body you happened to duplicate on a branch. Right content, wrong label, which
-/// is worse than the gap.
+/// Resolve hashes to a location on the current branch, for display. A hash can be live at several
+/// names; this takes one, main's first, since the callers are rendering a label rather than driving a
+/// cascade: identical content is one item, and preferring a branch's name would relabel a main item
+/// whose body you happened to duplicate on a branch.
 let resolveLocations(
   hashes: List<LanguageTools.ProgramTypes.Hash>)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation)> =
-  let overlay =
-    branchOverlayBindings()
-    |> Stdlib.List.map(fun entry ->
-      match entry with
-      | (h, loc, _) -> (h, loc))
+  let branchId = SCM.PackageOps.currentBranch()
 
   hashes
   |> Stdlib.List.filterMap(fun hash ->
     let h = LanguageTools.ProgramTypes.hashToString(hash)
 
-    match mainLocationOf(h) with
-    | Some(loc) -> Stdlib.Option.Option.Some((hash, loc))
-    | None ->
-      match overlay |> Stdlib.List.findFirst(fun pair -> Stdlib.Tuple2.first(pair) == h) with
-      | Some(pair) -> Stdlib.Option.Option.Some((hash, Stdlib.Tuple2.second(pair)))
-      | None -> Stdlib.Option.Option.None)
+    SCM.Bindings.query(SCM.Bindings.BindingFilter.LocationOf(branchId, h))
+    |> Stdlib.List.head
+    |> Stdlib.Option.map(fun b -> (hash, locationOf(b.owner, b.modules, b.name))))
 
 
 /// A named edge: caller location, caller version, referenced version, referenced name.

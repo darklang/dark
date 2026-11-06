@@ -200,10 +200,9 @@ let private reseedFromEmbedded (dbPath : string) : bool =
         use probe = conn.CreateCommand()
         probe.CommandText <-
           "ATTACH DATABASE $seed AS seed;
-           SELECT (SELECT COUNT(*) FROM seed.package_ops s
-                     WHERE NOT EXISTS (SELECT 1 FROM package_ops o WHERE o.id = s.id))
-                + (SELECT COUNT(*) FROM package_ops o
-                     WHERE o.effective = 0 AND o.id IN (SELECT id FROM seed.package_ops));"
+           SELECT COUNT(*) FROM seed.package_ops s
+           WHERE NOT EXISTS
+             (SELECT 1 FROM package_ops o WHERE o.id = s.id AND o.branch_id = s.branch_id);"
         probe.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
         let pending = probe.ExecuteScalar() |> string |> int
         use detach = conn.CreateCommand()
@@ -237,9 +236,9 @@ let private reseedFromEmbedded (dbPath : string) : bool =
             locallyAuthored <- []
           else
             mine.CommandText <-
-              "SELECT owner, modules, name, item_type, item_hash, source
+              $"SELECT owner, modules, name, item_type, item_hash, source
                FROM locations
-               WHERE unlisted_at IS NULL
+               WHERE live = 1 AND item_hash <> '' AND branch_id = '{string LibExecution.ProgramTypes.BranchId.Main}'
                  AND op_id NOT IN (SELECT op_id FROM seed_ops)"
             let held = ResizeArray()
             use r = mine.ExecuteReader()
@@ -270,24 +269,12 @@ let private reseedFromEmbedded (dbPath : string) : bool =
         // reports thousands of items changed. Commit rows come first so the reference has a target.
         cmd.CommandText <-
           "ATTACH DATABASE $seed AS seed;
-           INSERT OR IGNORE INTO commits (hash, message, origin_ts)
-             SELECT hash, message, origin_ts FROM seed.commits;
-           INSERT OR IGNORE INTO package_ops (id, op_blob, op_kind, applied, effective, origin_ts, commit_hash)
-             SELECT id, op_blob, op_kind, 0, 1, origin_ts, commit_hash FROM seed.package_ops;
-           -- An op already PRESENT but INERT has to be woken up, and `INSERT OR IGNORE` cannot do it.
-           -- A relay stores what its clients push at `effective = 0`, and ops are content-addressed, so
-           -- a client pushing its package tree lands the SAME ids this seed carries: the insert above
-           -- skips them, the rows stay inert, and the binary dies with `FnNotFound` on its own router.
-           -- Only ops the seed contains, and only inert ones, are touched, so a client op the seed
-           -- knows nothing about stays hosted data.
-           UPDATE package_ops
-             SET effective = 1, applied = 0
-             WHERE effective = 0
-               AND id IN (SELECT id FROM seed.package_ops);
-           -- Main runs it now, so no branch may still claim it: an effective op is never tagged (see
-           -- `Branches.storeDeltaOpsStamped`). A review queue holding a peer's op that this build ships
-           -- has nothing left to review for it, and a tag left behind hid the op from main's draft.
-           DELETE FROM op_branches WHERE op_id IN (SELECT id FROM seed.package_ops);
+           INSERT OR IGNORE INTO commits (hash, branch_id, message, origin_ts, parent, housekeeping)
+             SELECT hash, branch_id, message, origin_ts, parent, housekeeping FROM seed.commits;
+           INSERT OR IGNORE INTO package_ops
+             (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts, commit_hash, source)
+             SELECT id, branch_id, authored_on, op_blob, op_kind, 0, origin_ts, commit_hash, source
+             FROM seed.package_ops;
            DETACH DATABASE seed;"
         cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
         cmd.ExecuteNonQuery() |> ignore<int>
@@ -418,6 +405,8 @@ let extract () : unit =
         try
           match embeddedSchema () with
           | Some sql ->
+            timed "extract.reset" (fun () -> LibDB.Releases.resetIfOlderShape dbPath)
+            |> ignore<Option<string>>
             timed "extract.schema" (fun () -> LibDB.Releases.applySchemaTables sql)
             timed "extract.releases" (fun () -> LibDB.Releases.runPending ())
             timed "extract.indexes" (fun () -> LibDB.Releases.applySchemaIndexes sql)

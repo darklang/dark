@@ -1,10 +1,8 @@
 /// The SCM ACTIONS: commit, discard, the branch lifecycle, merge, rebase, and settling a conflict.
 ///
 /// Each one is a whole operation, run here end to end, in ONE transaction wherever the work allows it.
-/// They used to be fragments sequenced from Dark, a transaction per fragment, and every gap between two
-/// was a state a crash could leave behind: a commit row naming no ops, a branch archived here whose
-/// event never told anyone, a merged branch whose landed ops sat in main's draft, a deleted op with its
-/// tag still pointing at it.
+/// So no crash leaves a half-state behind: a commit row naming no ops, a merged branch whose landed ops
+/// sat in main's draft, a deleted op whose rows still bound a name.
 ///
 /// Where one transaction is not possible, the step that cannot join it comes FIRST and is complete on
 /// its own, and the step after it is idempotent, so running the action again finishes it:
@@ -24,6 +22,8 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Microsoft.Data.Sqlite
+
+open LibDB.Sqlite
 
 open Prelude
 
@@ -118,16 +118,6 @@ let private count
     return List.tryHead found |> Option.defaultValue 0L
   }
 
-/// A JSON array of strings for `json_each`, written by hand: no reflection in shipped code.
-let private jsonStrings (items : List<string>) : string =
-  use stream = new System.IO.MemoryStream()
-  (use w = new System.Text.Json.Utf8JsonWriter(stream)
-   w.WriteStartArray()
-   for s in items do
-     w.WriteStringValue s
-   w.WriteEndArray())
-  System.Text.Encoding.UTF8.GetString(stream.ToArray())
-
 /// Run <f> in ONE transaction on its own connection. It commits when <f> answers `Ok`, and rolls back
 /// on `Error` or a raise, so a refusal found partway leaves nothing behind either. The caches are
 /// dropped after a commit, since every action here writes something they are built from.
@@ -157,52 +147,28 @@ let private transact
 // what every action reads
 // ---------------------------------------------------------------------------------------------
 
-/// The draft, as one clause over `package_ops p`: on main the uncommitted effective ops no branch tags,
-/// on a branch that branch's own uncommitted ops. The ONE definition; the reads that list the draft
-/// (`ScmOps`) spell the same clause.
+/// The draft, as one clause over `package_ops p`: the branch's uncommitted ops. The ONE definition;
+/// the reads that list the draft (`ScmOps`) spell the same clause.
 let private draftWhere (b : PT.BranchId) : string * List<Param> =
-  if b.IsMain then
-    "p.commit_hash IS NULL AND p.effective = 1
-     AND p.id NOT IN (SELECT op_id FROM op_branches)",
-    []
-  else
-    "p.commit_hash IS NULL
-     AND p.id IN (SELECT op_id FROM op_branches WHERE branch_id = @branch)",
-    [ "@branch", box (string b) ]
+  "p.branch_id = @branch AND p.commit_hash IS NULL", [ "@branch", box (string b) ]
 
-let private chainCte =
-  "WITH RECURSIVE chain(bid) AS (
-     SELECT @start
-     UNION
-     SELECT b.parent_id FROM branches b JOIN chain c ON b.id = c.bid
-     WHERE b.parent_id != @mainId
-   )"
+/// `Layers.cte`'s parameters, for this file's commands.
+let private viewParams (b : PT.BranchId) (own : bool) : List<Param> =
+  Layers.parameters "@" b own
 
-/// The newest commit <param b> can see: its chain's committed ops and main's. "" for none.
+/// The newest commit <param b> can see: its chain's committed ops, main's included. "" for none.
 let private parentCommitOn
   (conn : SqliteConnection)
   (b : PT.BranchId)
   : Ply<string> =
   uply {
-    let where, ps =
-      if b.IsMain then
-        "p.commit_hash IS NOT NULL AND p.effective = 1
-         AND p.id NOT IN (SELECT op_id FROM op_branches)",
-        []
-      else
-        "p.commit_hash IS NOT NULL
-         AND (p.id IN (SELECT op_id FROM op_branches WHERE branch_id IN (SELECT bid FROM chain))
-              OR (p.effective = 1 AND p.id NOT IN (SELECT op_id FROM op_branches)))",
-        [ "@start", box (string b); "@mainId", box (string PT.BranchId.Main) ]
-    let prefix = if b.IsMain then "" else chainCte
     let! found =
       ids
         conn
-        (prefix
-         + " SELECT c.hash FROM commits c WHERE c.hash IN (SELECT p.commit_hash FROM package_ops p WHERE "
-         + where
-         + ") ORDER BY c.origin_ts DESC, c.rowid DESC LIMIT 1")
-        ps
+        (Layers.cte "@"
+         + " SELECT hash FROM commits WHERE branch_id IN (SELECT bid FROM chain)
+             ORDER BY origin_ts DESC, rowid DESC LIMIT 1")
+        (viewParams b true)
     return List.tryHead found |> Option.defaultValue ""
   }
 
@@ -252,6 +218,8 @@ let private sortOrdinal (items : List<string>) : List<string> =
 
 let private insertCommit
   (conn : SqliteConnection)
+  (branch : PT.BranchId)
+  (housekeeping : bool)
   (hash : string)
   (message : string)
   (stamp : string)
@@ -261,138 +229,150 @@ let private insertCommit
     let! _ =
       exec
         conn
-        "INSERT OR REPLACE INTO commits (hash, message, origin_ts, parent)
-         VALUES (@hash, @message, @ts, @parent)"
+        "INSERT OR REPLACE INTO commits (hash, branch_id, message, origin_ts, parent, housekeeping)
+         VALUES (@hash, @branch, @message, @ts, @parent, @hk)"
         [ "@hash", box hash
+          "@branch", box (string branch)
           "@message", box message
           "@ts", box stamp
-          "@parent", box parent ]
+          "@parent", box parent
+          "@hk", box (if housekeeping then 1L else 0L) ]
     return ()
   }
 
-/// Commit, on main, whichever of <param opIds> have LANDED there (effective and uncommitted), whatever
-/// branch still tags them. For what a branch verb lands by itself -- a merge's frontier, its event, an
-/// archive's event -- which nobody typed and so nobody would think to commit. Exactly these ids, never
-/// "whatever is uncommitted", which would sweep someone's half-written fn into a commit about a branch.
-let private commitLandedOn
+/// A commit on <param b> that holds no ops: what a merge into main, or an archive, records.
+let private markerCommitOn
   (conn : SqliteConnection)
+  (b : PT.BranchId)
+  (housekeeping : bool)
+  (message : string)
+  : Ply<string> =
+  uply {
+    let! parent = parentCommitOn conn b
+    let! stamp = nextStampOn conn
+    let hash = mintCommitHash message stamp [] parent
+    do! insertCommit conn b housekeeping hash message stamp parent
+    return hash
+  }
+
+/// Stamp <param b>'s uncommitted ops among <param opIds> with a new commit under <param message>, and
+/// move what they wrote to the branch's committed layer. None when none of them is uncommitted.
+let private commitDraftOpsOn
+  (conn : SqliteConnection)
+  (b : PT.BranchId)
   (message : string)
   (opIds : List<string>)
   : Ply<Option<string>> =
   uply {
-    let! landed =
+    let! draft =
       ids
         conn
-        "SELECT id FROM package_ops WHERE commit_hash IS NULL AND effective = 1"
-        []
-    let landed = Set.ofList landed
-    let toStamp = opIds |> List.filter (fun id -> Set.contains id landed)
+        "SELECT id FROM package_ops WHERE branch_id = @b AND commit_hash IS NULL"
+        [ "@b", box (string b) ]
+    let draft = Set.ofList draft
+    let toStamp =
+      opIds |> List.filter (fun id -> Set.contains id draft) |> List.distinct
     if List.isEmpty toStamp then
       return None
     else
-      let! parent = parentCommitOn conn PT.BranchId.Main
+      let! parent = parentCommitOn conn b
       let! stamp = nextStampOn conn
       let hash = mintCommitHash message stamp (sortOrdinal toStamp) parent
-      do! insertCommit conn hash message stamp parent
-      for id in toStamp do
-        let! _ =
-          exec
-            conn
-            "UPDATE package_ops SET commit_hash = @hash
-             WHERE id = @id AND commit_hash IS NULL AND effective = 1"
-            [ "@hash", box hash; "@id", box id ]
-        ()
-      return Some hash
-  }
-
-
-/// Author a `BranchEvent` on main and fold it, on the caller's connection. What tells the OTHER
-/// machine what happened to a branch; the local tables were already changed by the caller.
-let private authorEventOn
-  (conn : SqliteConnection)
-  (branchId : PT.BranchId)
-  (event : PT.BranchEventKind)
-  : Ply<System.Guid> =
-  uply {
-    let at =
-      System.DateTime.UtcNow.ToString(
-        "yyyy-MM-ddTHH:mm:ss.fffZ",
-        System.Globalization.CultureInfo.InvariantCulture
-      )
-    let op = PT.PackageOp.BranchEvent(branchId, event, at)
-    let opId = Inserts.computeOpHash op
-    let blob = BS.PT.PackageOp.serialize opId op
-    // The same insert authoring uses (`Inserts.insertAndApplyOpsWith`): applied = 0, then folded, then
-    // marked applied, so a fold that raises takes the insert back with it.
-    let! inserted =
-      exec
-        conn
-        "INSERT INTO package_ops (id, op_blob, op_kind, applied, origin_ts, commit_hash)
-         VALUES (@id, @blob, @kind, 0, @ts, NULL)
-         ON CONFLICT(id) DO UPDATE
-           SET effective = 1, applied = 0, origin_ts = excluded.origin_ts,
-               commit_hash = excluded.commit_hash
-           WHERE package_ops.effective = 0"
-        [ "@id", box (string opId)
-          "@blob", box blob
-          "@kind", box (BS.PT.PackageOp.kind op)
-          "@ts", box (OriginTs.next ()) ]
-    let! _ =
-      exec
-        conn
-        "DELETE FROM op_branches WHERE op_id = @id"
-        [ "@id", box (string opId) ]
-    if inserted > 0 then
-      do! PackageOpPlayback.applyOpsOnConnectionFrom conn "op" [ op ]
+      do! insertCommit conn b false hash message stamp parent
       let! _ =
         exec
           conn
-          "UPDATE package_ops SET applied = 1 WHERE id = @id"
-          [ "@id", box (string opId) ]
-      ()
-    return opId
+          "UPDATE package_ops SET commit_hash = @hash
+           WHERE branch_id = @b AND commit_hash IS NULL
+             AND id IN (SELECT value FROM json_each(@ids))"
+          [ "@hash", box hash
+            "@b", box (string b)
+            "@ids", box (jsonStrings toStamp) ]
+      let ctx = PreparedBatch.newCtx conn
+      try
+        do!
+          Layers.commitRowsOf
+            ctx
+            b
+            "op_id IN (SELECT id FROM package_ops WHERE branch_id = $branch AND commit_hash = $hash)"
+            (fun cmd -> PreparedBatch.p cmd "$hash" hash)
+      finally
+        PreparedBatch.disposeCtx ctx
+      return Some hash
   }
 
-
-/// Fold every effective, unapplied op, on the caller's connection and inside its transaction.
-///
-/// What `Seed.applyUnappliedOps` does on its own connection, here so a merge's flip and its fold land
-/// together. Repeats while a pass makes more ops effective; an op this build cannot read stays
-/// `applied = 0` (a later build applies it) and counts as nothing folded, which is what stops the loop.
-let private foldPendingOn (conn : SqliteConnection) : Ply<int64> =
+/// Delete what <param opIds> are on <param b>: their rows in the layered projections, then the ops.
+/// Returns how many ops went. Content is shared and stays.
+let private dropOpsOn
+  (conn : SqliteConnection)
+  (b : PT.BranchId)
+  (opIds : List<string>)
+  : Ply<int> =
   uply {
-    let mutable total = 0L
-    let mutable pass = 0
-    let mutable keepGoing = true
-    while keepGoing do
-      let! pending =
-        rows conn "SELECT id, op_blob FROM package_ops WHERE applied = 0 AND effective = 1
-           ORDER BY created_at ASC, rowid ASC" [] (fun r ->
-          (r.GetString 0, r.GetFieldValue<byte[]> 1))
-      let decoded =
-        pending
-        |> List.choose (fun (id, blob) ->
-          match System.Guid.TryParse id with
-          | true, g ->
-            BS.PT.PackageOp.tryDeserialize g blob |> Option.map (fun op -> (id, op))
-          | _ -> None)
-      if List.isEmpty decoded then
-        keepGoing <- false
-      else
-        // By id, never by predicate: see `Seed.foldRead`.
-        let! _ =
-          exec
-            conn
-            "UPDATE package_ops SET applied = 1 WHERE id IN (SELECT value FROM json_each(@ids))"
-            [ "@ids", box (jsonStrings (List.map fst decoded)) ]
-        do! PackageOpPlayback.applyOpsOnConnection conn (List.map snd decoded)
-        total <- total + int64 (List.length decoded)
-        pass <- pass + 1
-        if pass >= 10 then
-          Exception.raiseInternal
-            "the merge fold did not settle: ops keep becoming effective"
-            [ "passes", pass; "applied", total ]
-    return total
+    if List.isEmpty opIds then
+      return 0
+    else
+      let ctx = PreparedBatch.newCtx conn
+      try
+        do!
+          Layers.dropRowsOf
+            ctx
+            b
+            "op_id IN (SELECT value FROM json_each($ids))"
+            (fun cmd -> PreparedBatch.p cmd "$ids" (jsonStrings opIds))
+      finally
+        PreparedBatch.disposeCtx ctx
+      step "drop.rows"
+      return!
+        exec
+          conn
+          "DELETE FROM package_ops WHERE branch_id = @b AND id IN (SELECT value FROM json_each(@ids))"
+          [ "@b", box (string b); "@ids", box (jsonStrings opIds) ]
+  }
+
+/// Move every op of <param b> onto <param target> and fold them there, in authoring order: what a
+/// merge does. The branch's rows in the layered projections go; the ops write the target's.
+/// An op the target already holds stays the target's and is not folded again; the branch's copy goes.
+let private moveOpsOn
+  (conn : SqliteConnection)
+  (b : PT.BranchId)
+  (target : PT.BranchId)
+  : Ply<unit> =
+  uply {
+    let! moving =
+      rows
+        conn
+        "SELECT id, op_blob FROM package_ops WHERE branch_id = @b ORDER BY origin_ts, rowid"
+        [ "@b", box (string b) ]
+        (fun r -> (r.GetString 0, r.GetFieldValue<byte[]> 1))
+    let! already =
+      ids
+        conn
+        "SELECT id FROM package_ops WHERE branch_id = @t AND id IN (SELECT value FROM json_each(@ids))"
+        [ "@t", box (string target)
+          "@ids", box (jsonStrings (List.map fst moving)) ]
+    let already = Set.ofList already
+    let bt = [ "@b", box (string b); "@t", box (string target) ]
+    let! _ =
+      exec
+        conn
+        "DELETE FROM package_ops
+         WHERE branch_id = @b AND id IN (SELECT id FROM package_ops WHERE branch_id = @t)"
+        bt
+    let! _ =
+      exec conn "UPDATE package_ops SET branch_id = @t WHERE branch_id = @b" bt
+    for t in Layers.all do
+      let! _ = exec conn $"DELETE FROM {t.name} WHERE branch_id = @b" bt
+      ()
+    step "merge.moved"
+    let ops =
+      moving
+      |> List.choose (fun (id, blob) ->
+        match System.Guid.TryParse id with
+        | true, g when not (Set.contains id already) ->
+          BS.PT.PackageOp.tryDeserialize g blob
+        | _ -> None)
+    do! PackageOpPlayback.applyOpsOnConnection conn target ops
   }
 
 
@@ -420,77 +400,6 @@ let private endedOf (w : Word) : Option<Detect.Removal> =
   | Ended r -> Some r
   | Bound _ -> None
 
-/// What one op says about a name, keyed for a latest-wins fold.
-let private nameWord
-  (op : PT.PackageOp)
-  (ts : string)
-  : Option<string * string * Word * PT.PackageLocation> =
-  match op with
-  | PT.PackageOp.Unbind(loc, previous) ->
-    let m = modulesOf loc
-    let removal : Detect.Removal =
-      { owner = loc.owner
-        modules = m
-        name = loc.name
-        originTs = ts
-        author = ""
-        previous = previous |> Option.map hashText }
-    Some($"{ts}|0|", Detect.bindingKey loc.owner m loc.name, Ended removal, loc)
-  | PT.PackageOp.SetName(loc, target, _)
-  | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
-    let m = modulesOf loc
-    let hash = hashText target.hash
-    let previous =
-      match op with
-      | PT.PackageOp.SetName(_, _, Some h) -> Some(hashText h)
-      | _ -> None
-    let binding : Detect.Binding =
-      { Detect.Binding.owner = loc.owner
-        modules = m
-        name = loc.name
-        itemType = target.kind.toString ()
-        hash = hash
-        originTs = ts
-        author = ""
-        previous = previous }
-    Some(
-      $"{ts}|1|{hash}",
-      Detect.bindingKey loc.owner m loc.name,
-      Bound binding,
-      loc
-    )
-  | _ -> None
-
-/// A run of (ts, op) folded to each name's last word, in key order. The order the fold would keep is
-/// the order sorted here: later stamp, then a binding over an unbind, then the greater hash
-/// (`LibExecution.Lww`), whatever order the rows arrived in.
-let private lastWords (entries : List<string * PT.PackageOp>) : List<string * Word> =
-  entries
-  |> List.collect (fun (ts, op) ->
-    PT.packageOpBindingEffects op |> List.map (fun effect -> (ts, effect)))
-  |> List.choose (fun (ts, op) -> nameWord op ts)
-  |> List.sortWith (fun (a, _, _, _) (b, _, _, _) ->
-    System.String.CompareOrdinal(a, b))
-  |> List.fold (fun (m : Map<string, Word>) (_, k, w, _) -> Map.add k w m) Map.empty
-  |> Map.toList
-
-let private opEntries (opRows : List<ScmOps.Row>) : List<string * PT.PackageOp> =
-  opRows |> List.choose (fun r -> r.op |> Option.map (fun op -> (r.ts, op)))
-
-/// What a branch's OWN ops last said about each name: the incoming side of its merge.
-let private branchWords (b : PT.BranchId) : Ply<List<Word>> =
-  uply {
-    let! page = ScmOps.query (ScmOps.Own b) -1L
-    return lastWords (opEntries page.ops) |> List.map snd
-  }
-
-/// What a branch CHAIN binds (the branch, then its ancestors below main), names it ended included.
-let private chainWords (b : PT.BranchId) : Ply<List<string * Word>> =
-  uply {
-    let! page = ScmOps.query (ScmOps.Chain b) -1L
-    return lastWords (opEntries page.ops)
-  }
-
 let private bindingOfRow (row : ScmBindings.Binding) : Detect.Binding =
   { Detect.Binding.owner = row.owner
     modules = row.modules
@@ -501,33 +410,33 @@ let private bindingOfRow (row : ScmBindings.Binding) : Detect.Binding =
     author = ""
     previous = row.previous }
 
-/// What the PARENT binds for these bare names: the local side a branch merges into. Main's live
-/// bindings, and for a parent below main its chain's own bindings over them.
+let private removalOfRow (row : ScmBindings.Binding) : Detect.Removal =
+  { owner = row.owner
+    modules = row.modules
+    name = row.name
+    originTs = row.originTs
+    author = ""
+    previous = row.previous }
+
+let private wordOf (row : ScmBindings.Binding) : Word =
+  if row.hash = "" then Ended(removalOfRow row) else Bound(bindingOfRow row)
+
+/// What a branch's OWN work last said about each name: the incoming side of its merge.
+let private branchWords (b : PT.BranchId) : Ply<List<Word>> =
+  uply {
+    let! rows = ScmBindings.query (ScmBindings.Own b)
+    return rows |> List.map wordOf
+  }
+
+/// What the PARENT binds for these bare names: the local side a branch merges into.
 let private parentBindings
   (parent : PT.BranchId)
   (names : List<string>)
   : Ply<List<Detect.Binding>> =
   uply {
-    let! fromMain =
-      if List.isEmpty names then
-        Task.FromResult []
-      else
-        ScmBindings.query (ScmBindings.MainByBareNames(List.distinct names))
-    let fromMain = fromMain |> List.map bindingOfRow
-    if parent.IsMain then
-      return fromMain
-    else
-      let! words = chainWords parent
-      let overlay = words |> List.choose (snd >> boundOf)
-      // A name the chain ENDED is not main's to answer for either: the parent does not bind it.
-      let overlayKeys = words |> List.map fst |> Set.ofList
-      let untouched =
-        fromMain
-        |> List.filter (fun b ->
-          not (
-            Set.contains (Detect.bindingKey b.owner b.modules b.name) overlayKeys
-          ))
-      return untouched @ overlay
+    let! rows =
+      ScmBindings.query (ScmBindings.ByBareNames(parent, List.distinct names))
+    return rows |> List.map bindingOfRow
   }
 
 /// The name a person reads for a branch: "main", its name, or its id when it has none.
@@ -606,8 +515,8 @@ let preview (b : PT.BranchId) : Ply<List<Detect.Conflict>> =
         if parent.IsMain then
           return []
         else
-          let! parentWords = chainWords parent
-          return parentWords |> List.choose (snd >> endedOf)
+          let! rows = ScmBindings.query (ScmBindings.RemovedOffMain parent)
+          return rows |> List.map removalOfRow
       }
     let! parentName = branchName parent
     let! name = branchName b
@@ -781,66 +690,17 @@ type Failure =
 // discard: rewriting a draft
 // ---------------------------------------------------------------------------------------------
 
-/// One op in main's draft.
+/// One op in a draft.
 type private DraftOp = { id : string; ts : string; op : PT.PackageOp }
 
-let private refHash (r : PT.Reference) : string = hashText r.hash
-
-let private addedHashes (ops : List<PT.PackageOp>) : Set<string> =
-  ops
-  |> List.choose (fun op ->
-    match op with
-    | PT.PackageOp.AddType t -> Some(hashText t.hash)
-    | PT.PackageOp.AddValue v -> Some(hashText v.hash)
-    | PT.PackageOp.AddFn f -> Some(hashText f.hash)
-    | PT.PackageOp.AddTrait t -> Some(hashText t.hash)
-    | PT.PackageOp.AddTraitImpl i -> Some(hashText i.hash)
-    | PT.PackageOp.AddTest t -> Some(hashText t.hash)
-    | _ -> None)
-  |> Set.ofList
-
-/// Can dropping this op be undone by deleting the rows it wrote and re-listing what it superseded?
-/// Content (`Add*`) and a binding that named content added in the same draft, or an override: yes.
-/// A standalone rename, an unbind, a deprecation, a doc, a non-override decision, a branch event: no,
-/// since what they unlisted or recorded cannot be identified afterwards.
-let private surgicallyUndoable (added : Set<string>) (op : PT.PackageOp) : bool =
-  match op with
-  | PT.PackageOp.AddType _
-  | PT.PackageOp.AddValue _
-  | PT.PackageOp.AddFn _
-  | PT.PackageOp.AddTrait _
-  | PT.PackageOp.AddTraitImpl _
-  | PT.PackageOp.AddTest _ -> true
-  | PT.PackageOp.SetName(_, target, _) -> Set.contains (refHash target) added
-  // A `Restore` writes one `locations` row like an override, and its reference names are read from
-  // the op log, so deleting its op row undoes them too.
-  | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Override _)
-  | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Restore _) -> true
-  | PT.PackageOp.Decision _
-  | PT.PackageOp.Unbind _
-  | PT.PackageOp.Deprecate _
-  | PT.PackageOp.Undeprecate _
-  | PT.PackageOp.Rename _
-  | PT.PackageOp.SetReferenceNames _
-  | PT.PackageOp.UpdateDoc _
-  | PT.PackageOp.BranchEvent _ -> false
-
-/// The `locations` row an op wrote: (owner, modules, name, hash, ts).
-let private locationRowOf
-  (d : DraftOp)
-  : Option<string * string * string * string * string> =
-  match d.op with
-  | PT.PackageOp.SetName(loc, target, _)
-  | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target)
-  | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _)) ->
-    Some(loc.owner, modulesOf loc, loc.name, refHash target, d.ts)
-  | _ -> None
-
-/// Main's draft, oldest first, on the given connection. An op this build cannot decode is not in it:
-/// nothing here may drop what it could not read.
-let private mainDraftOn (conn : SqliteConnection) : Ply<List<DraftOp>> =
+/// <param b>'s draft, oldest first, on the given connection. An op this build cannot decode is not in
+/// it: nothing here may drop what it could not read.
+let private draftOn
+  (conn : SqliteConnection)
+  (b : PT.BranchId)
+  : Ply<List<DraftOp>> =
   uply {
-    let where, ps = draftWhere PT.BranchId.Main
+    let where, ps = draftWhere b
     let! found =
       rows
         conn
@@ -874,37 +734,39 @@ type DiscardWhat =
 let private sameLocation (a : PT.PackageLocation) (b : PT.PackageLocation) : bool =
   a.owner = b.owner && modulesOf a = modulesOf b && a.name = b.name
 
-/// Does discarding <param loc> from MAIN's draft drop this op: a binding of the name, a change to its
-/// reference names, or a rename to or from it. A rename goes whole, so it is never left half-applied.
-let private bindsLocation (loc : PT.PackageLocation) (op : PT.PackageOp) : bool =
-  match op with
-  | PT.PackageOp.Rename(oldLocation, newLocation, _, _, _) ->
-    sameLocation oldLocation loc || sameLocation newLocation loc
-  | PT.PackageOp.SetReferenceNames(l, _, _, _)
-  | PT.PackageOp.SetName(l, _, _)
-  | PT.PackageOp.Decision(_, l, _, PT.DecisionKind.Restore _)
-  | PT.PackageOp.Decision(_, l, _, PT.DecisionKind.Override _) -> sameLocation l loc
-  | _ -> false
-
-/// The same for a BRANCH's draft, where an `Unbind` of the name goes too.
-let private branchOpTouches (loc : PT.PackageLocation) (op : PT.PackageOp) : bool =
+/// Does discarding <param loc> from <param branch>'s draft drop this op: a binding of the name, a
+/// change to its reference names, or a rename to or from it. A rename goes whole, so it is never left
+/// half-applied. On a branch an `Unbind` of the name goes too.
+let private touchesLocation
+  (branch : PT.BranchId)
+  (loc : PT.PackageLocation)
+  (op : PT.PackageOp)
+  : bool =
   match op with
   | PT.PackageOp.SetReferenceNames(l, _, _, _) -> sameLocation l loc
+  | PT.PackageOp.Rename(oldLocation, newLocation, _, _, _) ->
+    sameLocation oldLocation loc || sameLocation newLocation loc
   | _ ->
     PT.packageOpBindingEffects op
     |> List.exists (fun effect ->
       match effect with
-      | PT.PackageOp.Unbind(l, _)
       | PT.PackageOp.SetName(l, _, _)
       | PT.PackageOp.Decision(_, l, _, PT.DecisionKind.Override _) ->
         sameLocation l loc
+      | PT.PackageOp.Unbind(l, _) -> not branch.IsMain && sameLocation l loc
       | _ -> false)
 
-/// What survives <param what>, in draft order.
-let private kept (what : DiscardWhat) (draft : List<DraftOp>) : List<DraftOp> =
+/// What survives <param what> of <param branch>'s draft, in draft order.
+let private kept
+  (branch : PT.BranchId)
+  (what : DiscardWhat)
+  (draft : List<DraftOp>)
+  : List<DraftOp> =
   match what with
+  // Everything, an undo's `Restore` and a conflict's `Override` alike: each is an op in the draft, and
+  // a binding the log no longer holds an op for could never be rebuilt from it.
   | All -> []
-  | Name loc -> draft |> List.filter (fun d -> not (bindsLocation loc d.op))
+  | Name loc -> draft |> List.filter (fun d -> not (touchesLocation branch loc d.op))
   | Ops dropIds ->
     let drop = Set.ofList dropIds
     draft |> List.filter (fun d -> not (Set.contains d.id drop))
@@ -921,7 +783,7 @@ let private kept (what : DiscardWhat) (draft : List<DraftOp>) : List<DraftOp> =
           match d.op with
           | PT.PackageOp.SetName(loc, target, _) ->
             let k = key loc
-            let h = refHash target
+            let h = hashText target.hash
             match Map.tryFind k acc with
             | Some(_, standing) when standing = h -> acc
             | _ -> Map.add k (d.id, h) acc
@@ -947,245 +809,47 @@ let private kept (what : DiscardWhat) (draft : List<DraftOp>) : List<DraftOp> =
         | None -> true
       | _ -> true)
 
-/// One go at rewriting main's draft. Surgical when every dropped op allows it, in one transaction with
-/// the read it decided on; otherwise the whole-draft rebuild, which refuses (`None`) when the draft is
-/// no longer the one it chose from, so the caller reads and chooses again.
-let private rewriteMainOnce (what : DiscardWhat) : Ply<Option<Result<int, string>>> =
-  uply {
-    let! surgical =
-      transact (fun conn ->
-        uply {
-          let! draft = mainDraftOn conn
-          let keptIds = kept what draft |> List.map _.id |> Set.ofList
-          let dropped =
-            draft |> List.filter (fun d -> not (Set.contains d.id keptIds))
-          let added = addedHashes (draft |> List.map _.op)
-          if List.isEmpty dropped then
-            return Ok(Some 0)
-          elif
-            not (List.forall (fun d -> surgicallyUndoable added d.op) dropped)
-          then
-            // Nothing written; the rebuild below takes it.
-            return Error(draft |> List.map _.id, Set.toList keptIds)
-          else
-            // Rows first, then the names left with nothing live get their newest surviving row back,
-            // then the op rows: no reader ever sees a binding no op explains.
-            let locs = dropped |> List.choose locationRowOf
-            for (o, m, n, h, ts) in locs do
-              let! _ =
-                exec
-                  conn
-                  "DELETE FROM locations
-                   WHERE owner = @o AND modules = @m AND name = @n
-                     AND item_hash = @h AND origin_ts = @ts"
-                  [ "@o", box o
-                    "@m", box m
-                    "@n", box n
-                    "@h", box h
-                    "@ts", box ts ]
-              ()
-            step "discard.rows"
-            for (o, m, n) in
-              locs |> List.map (fun (o, m, n, _, _) -> (o, m, n)) |> List.distinct do
-              // A name whose newest surviving row is an unbind's tombstone stays unbound.
-              let! _ =
-                exec
-                  conn
-                  "UPDATE locations SET unlisted_at = NULL
-                   WHERE location_id = (
-                     SELECT location_id FROM locations
-                     WHERE owner = @o AND modules = @m AND name = @n
-                     ORDER BY origin_ts DESC, rowid DESC
-                     LIMIT 1
-                   )
-                   AND source <> 'unbind'
-                   AND NOT EXISTS (
-                     SELECT 1 FROM locations
-                     WHERE owner = @o AND modules = @m AND name = @n AND unlisted_at IS NULL
-                   )"
-                  [ "@o", box o; "@m", box m; "@n", box n ]
-              ()
-            for d in dropped do
-              let! _ =
-                exec
-                  conn
-                  "DELETE FROM package_ops WHERE id = @id"
-                  [ "@id", box d.id ]
-              ()
-            return Ok(Some(List.length dropped))
-        })
-    match surgical with
-    | Ok(Some n) -> return Some(Ok n)
-    | Ok None -> return Some(Ok 0)
-    | Error(draftIds, keptIds) ->
-      let parse (xs : List<string>) =
-        xs
-        |> List.choose (fun s ->
-          match System.Guid.TryParse s with
-          | true, g -> Some g
-          | _ -> None)
-        |> Set.ofList
-      let dropped = List.length draftIds - List.length keptIds
-      let! rebuilt = Draft.rebuild (parse draftIds) (parse keptIds)
-      Caching.invalidateAll ()
-      return (if rebuilt then Some(Ok dropped) else None)
-  }
-
-/// Rewrite main's draft to what <param what> keeps. Returns how many ops went.
-let private rewriteMain (what : DiscardWhat) : Ply<Result<int, Failure>> =
-  uply {
-    let mutable attempt = 1
-    let mutable answer = None
-    while Option.isNone answer do
-      let! once =
-        uply {
-          try
-            let! r = rewriteMainOnce what
-            return r |> Option.map (Result.mapError Failed)
-          with e ->
-            return Some(Error(Failed e.Message))
-        }
-      match once with
-      | Some r -> answer <- Some r
-      // An attempt is short, so ten misses in a row is not ordinary contention.
-      | None when attempt >= 10 -> answer <- Some(Error(Refused Moved))
-      | None -> attempt <- attempt + 1
-    return Option.get answer
-  }
-
-/// Drop these ops from a branch: untag the uncommitted ones, then delete the rows nothing else holds.
-/// Returns how many left the branch.
-let private dropBranchOpsOn
-  (conn : SqliteConnection)
-  (branchId : PT.BranchId)
-  (opIds : List<string>)
-  : Ply<int> =
-  uply {
-    let mutable dropped = 0
-    // Untag FIRST: the untag is guarded on the op being uncommitted, which it can only check while the
-    // row still exists.
-    for id in opIds do
-      let! n =
-        exec
-          conn
-          "DELETE FROM op_branches WHERE branch_id = @branch AND op_id = @id
-             AND op_id IN (SELECT id FROM package_ops WHERE commit_hash IS NULL)"
-          [ "@branch", box (string branchId); "@id", box id ]
-      dropped <- dropped + n
-    step "discard.untag"
-    for id in opIds do
-      let! _ =
-        exec
-          conn
-          "DELETE FROM package_ops WHERE commit_hash IS NULL AND effective = 0 AND id = @id
-             AND id NOT IN (SELECT op_id FROM op_branches)"
-          [ "@id", box id ]
-      ()
-    return dropped
-  }
-
-/// A branch's own ops, oldest first, decoded, with whether each is committed.
-let private ownOpsOn
-  (conn : SqliteConnection)
-  (branchId : PT.BranchId)
-  : Ply<List<string * bool * PT.PackageOp>> =
-  uply {
-    let! found =
-      rows
-        conn
-        "SELECT p.id, p.commit_hash IS NOT NULL, p.op_blob
-         FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
-         WHERE ob.branch_id = @branch
-         ORDER BY p.origin_ts, p.rowid"
-        [ "@branch", box (string branchId) ]
-        (fun r -> (r.GetString 0, r.GetInt64 1 <> 0L, r.GetFieldValue<byte[]> 2))
-    return
-      found
-      |> List.choose (fun (id, committed, blob) ->
-        match System.Guid.TryParse id with
-        | true, g ->
-          BS.PT.PackageOp.tryDeserialize g blob
-          |> Option.map (fun op -> (id, committed, op))
-        | _ -> None)
-  }
-
-let private discardBranch
-  (branchId : PT.BranchId)
-  (what : DiscardWhat)
-  : Ply<Result<int, Failure>> =
-  transact (fun conn ->
-    uply {
-      let b = box (string branchId)
-      match what with
-      | Collapse -> return Ok 0
-      | All ->
-        // How many the draft held, which is what the person was shown.
-        let where, ps = draftWhere branchId
-        let! n = count conn ("SELECT count(*) FROM package_ops p WHERE " + where) ps
-        let! draftIds =
-          ids
-            conn
-            "SELECT id FROM package_ops
-             WHERE commit_hash IS NULL AND effective = 0
-               AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @branch)"
-            [ "@branch", b ]
-        // Rows first, and only those no OTHER branch holds; then this branch's tags. One transaction,
-        // so an op is never left untagged-but-present, which reads as a main op.
-        let! _ =
-          exec
-            conn
-            "DELETE FROM package_ops
-             WHERE id IN (SELECT value FROM json_each(@ids))
-               AND id NOT IN (SELECT op_id FROM op_branches WHERE branch_id <> @branch)"
-            [ "@ids", box (jsonStrings draftIds); "@branch", b ]
-        step "discard.rows"
-        let! _ =
-          exec
-            conn
-            "DELETE FROM op_branches
-             WHERE branch_id = @branch AND op_id IN (SELECT value FROM json_each(@ids))"
-            [ "@branch", b; "@ids", box (jsonStrings draftIds) ]
-        // Once the branch holds nothing, its fork points describe ops that no longer exist.
-        let! remaining =
-          count
-            conn
-            "SELECT count(*) FROM op_branches WHERE branch_id = @branch"
-            [ "@branch", b ]
-        if remaining = 0L then
-          let! _ =
-            exec
-              conn
-              "DELETE FROM branch_name_bases WHERE branch_id = @branch"
-              [ "@branch", b ]
-          ()
-        return Ok(int n)
-      | Name loc ->
-        let! own = ownOpsOn conn branchId
-        let toDrop =
-          own
-          |> List.filter (fun (_, committed, op) ->
-            not committed && branchOpTouches loc op)
-          |> List.map (fun (id, _, _) -> id)
-        let! n = dropBranchOpsOn conn branchId toDrop
-        return Ok n
-      | Ops opIds ->
-        let! n = dropBranchOpsOn conn branchId opIds
-        return Ok n
-    })
-
-/// Drop what <param what> names from <param branchId>'s draft. Returns how many ops went.
+/// Drop what <param what> names from <param branchId>'s draft, in one transaction: the ops and what
+/// they wrote. What their draft rows had superseded is live again, since a draft never touches the
+/// committed layer underneath it. Returns how many ops went.
 let discard
   (branchId : PT.BranchId)
   (what : DiscardWhat)
   : Task<Result<int, Failure>> =
   uply {
-    if branchId.IsMain then
-      return! rewriteMain what
-    else
-      try
-        return! discardBranch branchId what
-      with e ->
-        return Error(Failed e.Message)
+    try
+      return!
+        transact (fun conn ->
+          uply {
+            match what with
+            | Collapse when not branchId.IsMain -> return Ok 0
+            | _ ->
+              let! draft = draftOn conn branchId
+              let keptIds = kept branchId what draft |> List.map _.id |> Set.ofList
+              let dropped =
+                draft
+                |> List.map _.id
+                |> List.filter (fun id -> not (Set.contains id keptIds))
+              let! n = dropOpsOn conn branchId dropped
+              step "discard.ops"
+              if not branchId.IsMain then
+                // Once the branch holds nothing, its fork points describe ops that no longer exist.
+                let! remaining =
+                  count
+                    conn
+                    "SELECT count(*) FROM package_ops WHERE branch_id = @b"
+                    [ "@b", box (string branchId) ]
+                if remaining = 0L then
+                  let! _ =
+                    exec
+                      conn
+                      "DELETE FROM branch_name_bases WHERE branch_id = @b"
+                      [ "@b", box (string branchId) ]
+                  ()
+              return Ok n
+          })
+    with e ->
+      return Error(Failed e.Message)
   }
   |> Ply.toTask
 
@@ -1218,61 +882,34 @@ let commit
   : Task<Result<Committed, Failure>> =
   uply {
     if collapse && branchId.IsMain then
-      // A collapse that fails is not a reason to refuse the commit, which is what the Dark commit did
-      // too (it dropped `collapseDraft`'s Result): the draft is left uncollapsed and still commits,
-      // with every naming in it.
-      let! _ = rewriteMain Collapse
+      // A collapse that fails is not a reason to refuse the commit: the draft is left uncollapsed
+      // and still commits, with every naming in it.
+      let! _ = discard branchId Collapse
       ()
     try
       return!
         transact (fun conn ->
           uply {
-            let! parent = parentCommitOn conn branchId
             let where, ps = draftWhere branchId
-            let! hashIds =
+            let! draft =
+              ids
+                conn
+                ("SELECT p.id FROM package_ops p WHERE " + where + " ORDER BY p.id")
+                ps
+            let selected =
               match scope with
-              | Whole ->
-                ids
+              | Whole -> draft
+              | Only selected -> selected
+            let! parent = parentCommitOn conn branchId
+            match! commitDraftOpsOn conn branchId message selected with
+            | None -> return Error(Refused NothingToCommit)
+            | Some hash ->
+              step "commit.row"
+              let! stamped =
+                count
                   conn
-                  ("SELECT p.id FROM package_ops p WHERE "
-                   + where
-                   + " ORDER BY p.id")
-                  ps
-              | Only selected -> Ply(sortOrdinal selected)
-            let! stamp = nextStampOn conn
-            let hash = mintCommitHash message stamp hashIds parent
-            do! insertCommit conn hash message stamp parent
-            step "commit.row"
-            let! stamped =
-              uply {
-                match scope with
-                | Whole ->
-                  let! n =
-                    exec
-                      conn
-                      ("UPDATE package_ops SET commit_hash = @hash WHERE id IN
-                         (SELECT p.id FROM package_ops p WHERE "
-                       + where
-                       + ")")
-                      (("@hash", box hash) :: ps)
-                  return int64 n
-                | Only selected ->
-                  let mutable n = 0L
-                  for id in selected do
-                    let! one =
-                      exec
-                        conn
-                        ("UPDATE package_ops SET commit_hash = @hash WHERE id = @id
-                           AND id IN (SELECT p.id FROM package_ops p WHERE "
-                         + where
-                         + ")")
-                        (("@hash", box hash) :: ("@id", box id) :: ps)
-                    n <- n + int64 one
-                  return n
-              }
-            if stamped = 0L then
-              return Error(Refused NothingToCommit)
-            else
+                  "SELECT count(*) FROM package_ops WHERE branch_id = @b AND commit_hash = @h"
+                  [ "@b", box (string branchId); "@h", box hash ]
               return Ok { hash = hash; stamped = stamped; parent = parent }
           })
     with e ->
@@ -1337,9 +974,8 @@ let switchTo (branchId : PT.BranchId) : Task<BranchDone> =
     return { id = branchId; created = false }
   }
 
-/// ARCHIVE: delete the branch's inert ops no other branch holds, drop its tags and bases, mark it
-/// archived, author the event that tells other machines, and commit that event -- all in ONE
-/// transaction. A merged branch's ops are its parent's already and untagged, so this only marks it.
+/// ARCHIVE: delete the branch's ops, what they wrote, and its bases, and mark it archived, in ONE
+/// transaction. A merged branch's ops are its parent's already, so this only marks it.
 let archive (branchId : PT.BranchId) : Task<Result<BranchDone, Failure>> =
   uply {
     if branchId.IsMain then
@@ -1350,38 +986,25 @@ let archive (branchId : PT.BranchId) : Task<Result<BranchDone, Failure>> =
         return!
           transact (fun conn ->
             uply {
-              let b = box (string branchId)
+              let b = [ "@b", box (string branchId) ]
+              let! _ = exec conn "DELETE FROM package_ops WHERE branch_id = @b" b
+              for t in Layers.all do
+                let! _ = exec conn $"DELETE FROM {t.name} WHERE branch_id = @b" b
+                ()
               let! _ =
-                exec
-                  conn
-                  "DELETE FROM package_ops
-                   WHERE effective = 0
-                     AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @b)
-                     AND id NOT IN (SELECT op_id FROM op_branches WHERE branch_id <> @b)"
-                  [ "@b", b ]
-              let! _ =
-                exec conn "DELETE FROM op_branches WHERE branch_id = @b" [ "@b", b ]
-              let! _ =
-                exec
-                  conn
-                  "DELETE FROM branch_name_bases WHERE branch_id = @b"
-                  [ "@b", b ]
+                exec conn "DELETE FROM branch_name_bases WHERE branch_id = @b" b
               let! _ =
                 exec
                   conn
                   "UPDATE branches SET archived_at = datetime('now') WHERE id = @b"
-                  [ "@b", b ]
+                  b
               step "archive.marked"
-              let! eventId = authorEventOn conn branchId PT.Archived
-              step "archive.event"
-              // Committed, for the same reason a merge commits what it lands: a `BranchEvent` binds
-              // no name, so left in main's draft it reads clean to `status` and gets swept into some
-              // unrelated commit.
               let! _ =
-                commitLandedOn
+                markerCommitOn
                   conn
+                  PT.BranchId.Main
+                  true
                   $"archived branch \"{handle}\""
-                  [ string eventId ]
               return Ok { id = branchId; created = false }
             })
       with e ->
@@ -1434,30 +1057,29 @@ let private gate (branchId : PT.BranchId) : Ply<Result<unit, Refusal>> =
     if branchId.IsMain then
       return Error IsMain
     else
-      let! tagged = ScmOps.query (ScmOps.Tagged branchId) 0L
-      if tagged.total = 0L then
+      let! own = ScmOps.query (ScmOps.Own branchId) 0L
+      if own.total = 0L then
         return Error NothingToMerge
       else
         let! children = ScmBranches.query (ScmBranches.ChildrenOf(string branchId))
         if List.isEmpty children then return Ok() else return Error HasActiveChildren
   }
 
-let private taggedOn
+let private ownIdsOn
   (conn : SqliteConnection)
   (branchId : PT.BranchId)
   : Ply<List<string>> =
   ids
     conn
-    "SELECT op_id FROM op_branches WHERE branch_id = @b"
+    "SELECT id FROM package_ops WHERE branch_id = @b"
     [ "@b", box (string branchId) ]
 
 /// MERGE <param branchId> into its parent.
 ///
-/// Into MAIN, one transaction: flip the branch's ops effective and fold them, mark it merged and drop
-/// its tags, author the event that tells other machines, commit what landed, record the conflicts.
-/// Into a BRANCH, one transaction: move the tags and bases to the parent (whose own overlay folds them
-/// later; folding here would leak the child's work into main), mark merged, author the event, record
-/// the conflicts. Values that landed in main are evaluated after the transaction commits.
+/// One transaction: into MAIN, commit what is uncommitted under one merge commit (a commit of its own
+/// when nothing is); move the branch's ops and commits to the parent and fold the ops into the
+/// parent's layers; into a BRANCH, move the bases too; mark it merged; record the conflicts. Values
+/// that landed in main are evaluated after the transaction commits.
 ///
 /// First, as a rebase does, the branch's callers of names the parent moved (<param repoints>, which
 /// Dark finds) are repointed at the parent's version, each a propagation of its own, so what lands
@@ -1509,112 +1131,76 @@ let merge
         let repointed = repoints |> List.map _.usage |> List.distinct
         let! conflicts = preview branchId
         let! name = branchName branchId
-        let! frontier = ScmOps.query (ScmOps.Tagged branchId) -1L
-        let moved = frontier.ops |> List.map _.id
-        let movedGuids =
-          moved
-          |> List.choose (fun s ->
-            match System.Guid.TryParse s with
-            | true, g -> Some g
-            | _ -> None)
+        let! frontier = ScmOps.query (ScmOps.Own branchId) 0L
+        let! moved =
+          uply {
+            use conn = new SqliteConnection(LibDB.Sqlite.connString)
+            do! conn.OpenAsync()
+            return! ownIdsOn conn branchId
+          }
         let b = box (string branchId)
         try
           let! result =
             transact (fun conn ->
               uply {
-                let! now = taggedOn conn branchId
+                let! now = ownIdsOn conn branchId
                 if Set.ofList now <> Set.ofList moved then
                   return Error(Refused Moved)
-                elif parent.IsMain then
-                  let! toFlip =
-                    count
-                      conn
-                      "SELECT count(*) FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
-                       WHERE ob.branch_id = @b AND p.effective = 0"
-                      [ "@b", b ]
+                else
+                  // Into main, what lands is COMMITTED: the branch's uncommitted work would otherwise
+                  // read as main's draft, work nobody did here.
+                  let! commitHash =
+                    uply {
+                      if parent.IsMain then
+                        let message = $"merged branch \"{name}\""
+                        match! commitDraftOpsOn conn branchId message moved with
+                        | Some h -> return Some h
+                        | None ->
+                          let! h = markerCommitOn conn branchId false message
+                          return Some h
+                      else
+                        return None
+                    }
+                  step "merge.committed"
+                  // The branch's history becomes the parent's.
                   let! _ =
                     exec
                       conn
-                      "UPDATE package_ops SET effective = 1
-                       WHERE effective = 0
-                         AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @b)"
-                      [ "@b", b ]
-                  step "merge.flipped"
-                  let! _ = foldPendingOn conn
+                      "UPDATE commits SET branch_id = @p WHERE branch_id = @b"
+                      [ "@p", box (string parent); "@b", b ]
+                  do! moveOpsOn conn branchId parent
                   step "merge.folded"
+                  if not parent.IsMain then
+                    // The bases move with the ops: the parent then carries the child's rebinds, and
+                    // a name without a base could never conflict again.
+                    let! _ =
+                      exec
+                        conn
+                        "INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+                         SELECT @p, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @b"
+                        [ "@p", box (string parent); "@b", b ]
+                    let! _ =
+                      exec
+                        conn
+                        "DELETE FROM branch_name_bases WHERE branch_id = @b"
+                        [ "@b", b ]
+                    ()
                   let! _ =
                     exec
                       conn
                       "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
                       [ "@b", b ]
-                  let! _ =
-                    exec
-                      conn
-                      "DELETE FROM op_branches WHERE branch_id = @b"
-                      [ "@b", b ]
                   step "merge.marked"
-                  let! eventId = authorEventOn conn branchId (PT.Merged movedGuids)
-                  step "merge.event"
-                  // A merge into main COMMITS what it landed: a pulled branch's ops arrive uncommitted,
-                  // and the event is new. Left in main's draft they read as work nobody did.
-                  let landed = (movedGuids |> List.map string) @ [ string eventId ]
-                  let! commitHash =
-                    commitLandedOn conn $"merged branch \"{name}\"" landed
-                  step "merge.committed"
                   // Filed against the PARENT: the merge folded into it, and the branch is finished.
                   do! recordConflictsOn conn parent conflicts
                   let! carried = carryPendingOn conn branchId parent
                   return
                     Ok
-                      { moved = toFlip
+                      { moved = frontier.total
                         conflicts = withCarried conflicts carried
                         diverged = []
                         repointed = repointed
                         commit = commitHash |> Option.defaultValue ""
-                        warning = "" }
-                else
-                  let p = box (string parent)
-                  // The tags move with their provenance, and so do the bases: the parent then carries
-                  // the child's rebinds, and a name without a base could never conflict again.
-                  let! _ =
-                    exec
-                      conn
-                      "INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
-                       SELECT op_id, @p, source FROM op_branches WHERE branch_id = @b"
-                      [ "@p", p; "@b", b ]
-                  let! _ =
-                    exec
-                      conn
-                      "DELETE FROM op_branches WHERE branch_id = @b"
-                      [ "@b", b ]
-                  step "merge.retagged"
-                  let! _ =
-                    exec
-                      conn
-                      "INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
-                       SELECT @p, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @b"
-                      [ "@p", p; "@b", b ]
-                  let! _ =
-                    exec
-                      conn
-                      "DELETE FROM branch_name_bases WHERE branch_id = @b"
-                      [ "@b", b ]
-                  let! _ =
-                    exec
-                      conn
-                      "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
-                      [ "@b", b ]
-                  step "merge.marked"
-                  let! _ = authorEventOn conn branchId (PT.Merged movedGuids)
-                  do! recordConflictsOn conn parent conflicts
-                  let! carried = carryPendingOn conn branchId parent
-                  return
-                    Ok
-                      { moved = int64 (List.length moved)
-                        conflicts = withCarried conflicts carried
-                        diverged = []
-                        repointed = repointed
-                        commit = ""
                         warning = "" }
               })
           // After the transaction, and outside its `with`: by now the merge HAS landed, so a value that
@@ -1641,33 +1227,38 @@ let merge
 
 
 
-/// What the parent binds now for each name <param branchId> recorded a base for: main's COMMITTED
-/// bindings (a branch never sees main's draft), and a parent below main's own words over them. A name
-/// the parent's chain ended reads "".
+/// What the parent binds now, as <param branchId> sees beneath itself, for each name the branch
+/// recorded a base for. A name bound to nothing there reads "".
 let private parentHashesForBases
-  (parent : PT.BranchId)
   (branchId : PT.BranchId)
   : Ply<Map<string, string>> =
   uply {
-    let key o m n = o + "\n" + m + "\n" + n
-    let! fromMain = ScmBindings.query (ScmBindings.CommittedAtBases(string branchId))
-    let fromMain =
-      fromMain |> List.map (fun b -> (key b.owner b.modules b.name, b.hash))
-    let! overlay =
-      uply {
-        if parent.IsMain then
-          return []
-        else
-          let! words = chainWords parent
-          return
-            words
-            |> List.map (fun (_, w) ->
-              match w with
-              | Bound b -> (key b.owner b.modules b.name, b.hash)
-              | Ended r -> (key r.owner r.modules r.name, ""))
-      }
+    let! rows = ScmBindings.query (ScmBindings.AboveBases branchId)
     return
-      (fromMain @ overlay) |> List.fold (fun m (k, h) -> Map.add k h m) Map.empty
+      rows
+      |> List.map (fun b -> (b.owner + "\n" + b.modules + "\n" + b.name, b.hash))
+      |> Map.ofList
+  }
+
+/// A branch's own ops, oldest first, decoded.
+let private ownOpsOn
+  (conn : SqliteConnection)
+  (branchId : PT.BranchId)
+  : Ply<List<string * PT.PackageOp>> =
+  uply {
+    let! found =
+      rows
+        conn
+        "SELECT id, op_blob FROM package_ops WHERE branch_id = @b ORDER BY origin_ts, rowid"
+        [ "@b", box (string branchId) ]
+        (fun r -> (r.GetString 0, r.GetFieldValue<byte[]> 1))
+    return
+      found
+      |> List.choose (fun (id, blob) ->
+        match System.Guid.TryParse id with
+        | true, g ->
+          BS.PT.PackageOp.tryDeserialize g blob |> Option.map (fun op -> (id, op))
+        | _ -> None)
   }
 
 /// The location a conflict is about.
@@ -1732,9 +1323,8 @@ let rebase
       return Error(Refused IsMain)
     else
       let! conflicts = preview branchId
-      let! parent = parentOf branchId
       let! bases = nameBases branchId
-      let! parentHashes = parentHashesForBases parent branchId
+      let! parentHashes = parentHashesForBases branchId
       let current (nb : Detect.NameBase) =
         Map.tryFind (nb.owner + "\n" + nb.modules + "\n" + nb.name) parentHashes
         |> Option.defaultValue ""
@@ -1764,15 +1354,15 @@ let rebase
                 ()
               step "rebase.bases"
               let! own = ownOpsOn conn branchId
-              for c in conflicts |> List.filter parentWon do
-                for (id, _, op) in own do
-                  if movesKey c.owner c.modules c.name op then
-                    let! _ =
-                      exec
-                        conn
-                        "DELETE FROM op_branches WHERE op_id = @id AND branch_id = @b"
-                        [ "@id", box id; "@b", box (string branchId) ]
-                    ()
+              let taken =
+                conflicts
+                |> List.filter parentWon
+                |> List.collect (fun c ->
+                  own
+                  |> List.filter (fun (_, op) ->
+                    movesKey c.owner c.modules c.name op)
+                  |> List.map fst)
+              let! _ = dropOpsOn conn branchId (List.distinct taken)
               step "rebase.took-parents"
               // The mirror of merge: a rebase folds the PARENT's work into the branch, so the
               // conflict is the branch's to answer.
@@ -1825,8 +1415,7 @@ let private setBaseToParentOn
   (name : string)
   : Ply<unit> =
   uply {
-    let! parent = parentOf branchId
-    let! hashes = parentHashesForBases parent branchId
+    let! hashes = parentHashesForBases branchId
     let current =
       Map.tryFind (owner + "\n" + modules + "\n" + name) hashes
       |> Option.defaultValue ""
@@ -1880,7 +1469,7 @@ let keepMine
             let! own = ownOpsOn conn branchId
             let bound =
               own
-              |> List.choose (fun (_, _, op) -> bindsKey owner modules name op)
+              |> List.choose (fun (_, op) -> bindsKey owner modules name op)
               |> List.tryLast
             match bound with
             | None -> return Error(Refused NotBound)
@@ -1896,23 +1485,19 @@ let keepMine
                   PT.DecisionKind.Override target
                 )
               OriginTs.observe stamp
-              let opId = Branches.opRowId op
-              let! _ =
-                exec
-                  conn
-                  "INSERT OR IGNORE INTO package_ops (id, op_blob, op_kind, applied, effective, origin_ts)
-                   VALUES (@id, @blob, @kind, 0, 0, @ts)"
-                  [ "@id", box (string opId)
-                    "@blob", box (BS.PT.PackageOp.serialize opId op)
-                    "@kind", box (BS.PT.PackageOp.kind op)
-                    "@ts", box stamp ]
-              let! _ =
-                exec
-                  conn
-                  "INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
-                   SELECT @id, @b, 'op'
-                   WHERE NOT EXISTS (SELECT 1 FROM package_ops WHERE id = @id AND effective = 1)"
-                  [ "@id", box (string opId); "@b", box (string branchId) ]
+              let ctx = PreparedBatch.newCtx conn
+              try
+                let! _ =
+                  Inserts.storeAndFoldOn
+                    ctx
+                    branchId
+                    "resolution"
+                    (fun _ -> stamp)
+                    (fun _ -> None)
+                    [ op ]
+                ()
+              finally
+                PreparedBatch.disposeCtx ctx
               step "resolve.stored"
               do! setBaseToParentOn conn branchId owner modules name
               return Ok()
@@ -1922,7 +1507,7 @@ let keepMine
   }
   |> Ply.toTask
 
-/// TAKE THEIRS: drop every op of the branch's that binds the name, so the overlay falls back to the
+/// TAKE THEIRS: drop every op of the branch's that binds the name, so the branch's view falls back to the
 /// parent's version, and move the name's base to the parent's. One transaction.
 let takeTheirs
   (branchId : PT.BranchId)
@@ -1938,22 +1523,16 @@ let takeTheirs
             let! own = ownOpsOn conn branchId
             let binding =
               own
-              |> List.filter (fun (_, _, op) ->
+              |> List.filter (fun (_, op) ->
                 match op with
                 | PT.PackageOp.SetReferenceNames(loc, _, _, _) ->
                   loc.owner = owner && modulesOf loc = modules && loc.name = name
                 | _ -> Option.isSome (bindsKey owner modules name op))
-              |> List.map (fun (id, _, _) -> id)
+              |> List.map fst
             match binding with
             | [] -> return Error(Refused NotBound)
             | opIds ->
-              for id in opIds do
-                let! _ =
-                  exec
-                    conn
-                    "DELETE FROM op_branches WHERE op_id = @id AND branch_id = @b"
-                    [ "@id", box id; "@b", box (string branchId) ]
-                ()
+              let! _ = dropOpsOn conn branchId opIds
               step "resolve.untagged"
               do! setBaseToParentOn conn branchId owner modules name
               return Ok()

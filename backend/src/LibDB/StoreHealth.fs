@@ -16,11 +16,7 @@ type Counts =
   {
     /// ops stamped more than a day ahead of now: some instance's clock is wrong
     futureStamped : int64
-    /// `op_branches` rows naming an op that is not in `package_ops`
-    orphanTags : int64
-    /// `op_branches` rows naming a branch that is not in `branches`
-    taggedToNothing : int64
-    /// effective ops the fold never applied
+    /// ops the fold never applied
     unfolded : int64
     /// live names bound to a hash with no content
     danglingBindings : int64
@@ -44,37 +40,22 @@ let counts () : Task<Counts> =
         "SELECT count(*) AS n FROM package_ops
          WHERE origin_ts > strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 day')"
 
-    let! orphanTags =
-      count
-        "SELECT count(*) AS n FROM op_branches ob
-         LEFT JOIN package_ops p ON p.id = ob.op_id
-         WHERE p.id IS NULL"
+    let! unfolded = count "SELECT count(*) AS n FROM package_ops WHERE applied = 0"
 
-    let! taggedToNothing =
-      count
-        "SELECT count(*) AS n FROM op_branches ob
-         LEFT JOIN branches b ON b.id = ob.branch_id
-         WHERE b.id IS NULL"
-
-    let! unfolded =
-      count
-        "SELECT count(*) AS n FROM package_ops WHERE applied = 0 AND effective = 1"
-
+    // Each name looked up only in its own kind's table.
     let! danglingBindings =
       count
         "SELECT count(*) AS n FROM locations l
-         WHERE l.unlisted_at IS NULL
-           AND NOT EXISTS (SELECT 1 FROM package_functions f WHERE f.hash = l.item_hash)
-           AND NOT EXISTS (SELECT 1 FROM package_types t WHERE t.hash = l.item_hash)
-           AND NOT EXISTS (SELECT 1 FROM package_values v WHERE v.hash = l.item_hash)
-           AND NOT EXISTS (SELECT 1 FROM package_traits tr WHERE tr.hash = l.item_hash)
-           AND NOT EXISTS (SELECT 1 FROM package_trait_impls i WHERE i.hash = l.item_hash)
-           AND NOT EXISTS (SELECT 1 FROM package_tests test WHERE test.hash = l.item_hash)"
+         WHERE l.live = 1 AND l.item_hash <> ''
+           AND NOT EXISTS (SELECT 1 FROM package_functions f WHERE l.item_type = 'fn' AND f.hash = l.item_hash)
+           AND NOT EXISTS (SELECT 1 FROM package_types t WHERE l.item_type = 'type' AND t.hash = l.item_hash)
+           AND NOT EXISTS (SELECT 1 FROM package_values v WHERE l.item_type = 'value' AND v.hash = l.item_hash)
+           AND NOT EXISTS (SELECT 1 FROM package_traits tr WHERE l.item_type = 'trait' AND tr.hash = l.item_hash)
+           AND NOT EXISTS (SELECT 1 FROM package_trait_impls i WHERE l.item_type = 'impl' AND i.hash = l.item_hash)
+           AND NOT EXISTS (SELECT 1 FROM package_tests test WHERE l.item_type = 'test' AND test.hash = l.item_hash)"
 
     return
       { futureStamped = futureStamped
-        orphanTags = orphanTags
-        taggedToNothing = taggedToNothing
         unfolded = unfolded
         danglingBindings = danglingBindings }
   }

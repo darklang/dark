@@ -1,23 +1,15 @@
 /// Checks a batch of PackageOps must pass before anything is written.
 ///
-/// These run against the ops themselves plus, where a check needs it, the names
-/// already visible on the branch. None of them write. They exist so an authoring
+/// These run against the ops themselves, and none of them write. They exist so an authoring
 /// surface can refuse a batch and say why, while the paths that must converge
 /// without asking anyone (sync's fold, historical replay) go on accepting
 /// everything and resolving it by their own rules.
 module LibDB.OpValidation
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 open LibExecution.ProgramTypes
 
-open Fumble
-open LibDB.Sqlite
-
 module PT = LibExecution.ProgramTypes
-module PackageLocation = LibDB.PackageLocation
 open LibSerialization.Hashing
 
 
@@ -77,8 +69,7 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
     | PT.PackageOp.Rename _
     | PT.PackageOp.SetReferenceNames _
     | PT.PackageOp.UpdateDoc _
-    | PT.PackageOp.Decision _
-    | PT.PackageOp.BranchEvent _ -> None
+    | PT.PackageOp.Decision _ -> None
 
   ops
   |> List.choose claim
@@ -94,77 +85,3 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
       Some $"{kind} hash {declared} is claimed by {bodies} different bodies"
     else
       None)
-
-
-/// The names in <param ops> already held on the branch by an item of another kind, as
-/// ready-to-print messages, empty when there's no clash.
-///
-/// One name holds one item, so replacing a value with a fn at the same name is a real decision, not
-/// a typo to absorb silently. Local authoring can ask the human to be explicit (delete it first);
-/// the SYNC fold cannot -- it has no one to ask and must converge, so it replaces by
-/// last-writer-wins. That asymmetry is deliberate: this guard is UX, not an invariant, and anything
-/// that reaches the fold is still handled.
-///
-/// <param _branchId> is not consulted: this reads `locations` directly, so it
-/// answers about MAIN, and a branch overlay has no `locations` rows of its own -- a
-/// fn-over-value clash on a branch is accepted silently and left to the fold.
-let kindClashes
-  (_branchId : PT.BranchId)
-  (ops : List<PT.PackageOp>)
-  : Task<List<string>> =
-  task {
-    let setNames =
-      ops
-      |> List.choose (fun op ->
-        match op with
-        | PT.PackageOp.SetName(loc, target, _) -> Some(loc, target.kind)
-        | _ -> None)
-
-    let mutable clashes = []
-
-    for (loc, kind) in setNames do
-      // A DEPRECATED binding doesn't defend its name: `delete` retires the item, and the name is then free to
-      // be re-bound as another kind (which is exactly what the clash message tells you to do). Reusing the
-      // name is safe because dependents reference items by HASH, not by name - the retired item still
-      // resolves for anything pointing at it. "Currently deprecated" = the newest deprecations row for the
-      // item says so, matching how readers decide it (Queries.fs).
-      let! live =
-        Sql.query
-          """
-          SELECT l.item_type FROM locations l
-          WHERE l.owner = @owner AND l.modules = @modules AND l.name = @name
-            AND l.unlisted_at IS NULL
-            AND NOT EXISTS (
-              SELECT 1 FROM deprecations d
-              WHERE d.item_hash = l.item_hash
-                AND d.item_kind = l.item_type
-                AND d.unlisted_at IS NULL
-                AND d.state = 'deprecated'
-                AND d.created_at = (
-                  SELECT MAX(d2.created_at) FROM deprecations d2
-                  WHERE d2.item_hash = d.item_hash
-                    AND d2.item_kind = d.item_kind
-                    AND d2.unlisted_at IS NULL
-                )
-            )
-          LIMIT 1
-          """
-        |> Sql.parameters
-          [ "owner", Sql.string loc.owner
-            "modules", Sql.string (String.concat "." loc.modules)
-            "name", Sql.string loc.name ]
-        |> Sql.executeRowOptionAsync (fun read -> read.string "item_type")
-
-      let incoming = kind.toString ()
-
-      match live with
-      | Some existing when existing <> incoming ->
-        let dotted = (loc.owner :: loc.modules) @ [ loc.name ] |> String.concat "."
-        clashes <-
-          $"{dotted} is already a {existing}. A name holds one item, so it can't also be a {incoming}. "
-          + $"Retire it first (dark delete {existing} {dotted}), or pick another name."
-          :: clashes
-      | _ -> ()
-
-    return List.rev clashes
-  }

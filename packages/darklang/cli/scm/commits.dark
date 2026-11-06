@@ -29,7 +29,7 @@ let executeList(state: AppState, limit: Int64, showAll: Bool): AppState =
       let kept =
         window
         |> Stdlib.List.filter(fun c ->
-          Stdlib.Bool.not(SCM.PackageOps.isHousekeepingCommit(c.hash)))
+          Stdlib.Bool.not(c.housekeeping))
 
       let hiddenCount = (Stdlib.List.length(window)) - (Stdlib.List.length(kept))
       (Stdlib.List.take(kept, limit), hiddenCount)
@@ -73,7 +73,7 @@ let executeDetailed(state: AppState, limit: Int64, showAll: Bool): AppState =
     else
       SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit + 60)
       |> Stdlib.List.filter(fun c ->
-        Stdlib.Bool.not(SCM.PackageOps.isHousekeepingCommit(c.hash)))
+        Stdlib.Bool.not(c.housekeeping))
       |> (fun kept -> Stdlib.List.take(kept, limit))
 
   if Stdlib.List.isEmpty(commits) then

@@ -2075,15 +2075,3 @@ module PackageOp =
         let hash = LanguageTools.ProgramTypes.Reference.hash(target)
         $"Override #{id} {name} -> [{LanguageTools.ProgramTypes.hashToShort(hash)}]{why}"
       | Ack(findingId) -> $"Ack {findingId} {name}{why}"
-    // A commit that lands a branch carries this op, so without an arm here `dark show` and
-    // `dark commits` raise on exactly the commits a person most wants to read.
-    | BranchEvent(eventBranchId, event, _at) ->
-      let what =
-        match event with
-        | Merged(_) -> "merged into its parent"
-        | Archived -> "archived"
-
-      // Show the NAME, same as everywhere else a branch is user-facing.
-      let who = Darklang.SCM.PackageOps.branchName(eventBranchId)
-
-      $"BranchEvent {who} {what}"

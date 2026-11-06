@@ -699,15 +699,6 @@ type PropagateRepoint =
     toRef: Reference }
 
 
-/// What happened to a branch. A closed set, so a type rather than a string. Both cases are monotonic:
-/// applying one twice, or out of order, lands in the same place. Rename is absent because it is
-/// last-writer-wins and `branches` records no stamp to arbitrate with.
-type BranchEventKind =
-  /// The ids of the ops the merge moved. A peer holding more of the branch than the merger saw (its own
-  /// unpushed edits) keeps those on the branch.
-  | Merged of ops: List<Uuid>
-  | Archived
-
 /// What a `Decision` DID. The shared part of a decision (who, where, why) lives on the op; this is the
 /// part that varies, so a decision that binds a name and one that only closes a finding can't be
 /// confused for each other.
@@ -846,10 +837,6 @@ type PackageOp =
       location: PackageLocation *
       reason: String *
       kind: DecisionKind
-  /// Something that happened to a BRANCH rather than to a name. Merged ops travel on their own, since
-  /// they become main ops; the FACT of the merge does not, so without this a colleague's copy of a branch
-  /// goes on listing it as live work after you land it.
-  | BranchEvent of branchId: Uuid * event: BranchEventKind * at: String
 
 
 module PackageOp =

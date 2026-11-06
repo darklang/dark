@@ -160,7 +160,7 @@ let editingOnABranchRepointsItsCallers =
         "the caller was repointed onto the edit, on the branch"
     })
 
-/// A branch records what put each of its bindings there (`op_branches.source`), so on a branch `status`
+/// A branch records what put each of its bindings there (`package_ops.source`), so on a branch `status`
 /// can split what you typed from what followed, and `pin` un-stages the BRANCH's repoint. Without the
 /// column `pin` on a branch finds MAIN's staged repoint and drops it -- a pin issued on a branch
 /// reverting main -- and `status` on a branch reports main's followers as the branch's.
@@ -396,10 +396,8 @@ let private aDeprecationCommitsByEitherPath =
         do! shows state [ "status" ] "clean" "leaving nothing behind"
       })
 
-/// Archiving a branch commits the event it authors. A `BranchEvent` binds no name, so `status` counts
-/// nothing and reads clean while the op sits in main's draft, waiting for the next unrelated commit to
-/// sweep it up under a message about something else. It also fails the seed guard, which is where it
-/// surfaces: a release build refuses over an archive nobody knew was pending.
+/// Archiving a branch records it as a commit of its own and leaves main's draft untouched: nothing
+/// it does may be swept up later under a message about something else.
 let private archivingABranchCommitsItsEvent =
   cliTestOnMain
     "archiving a branch commits the event, leaving a genuinely clean tree"
@@ -422,8 +420,7 @@ let private archivingABranchCommitsItsEvent =
         let! pending =
           Sql.query
             "SELECT count(*) AS n FROM package_ops
-           WHERE commit_hash IS NULL AND effective = 1
-             AND id NOT IN (SELECT op_id FROM op_branches)"
+           WHERE commit_hash IS NULL AND branch_id = '00000000-0000-0000-0000-000000000001'"
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
         Expect.equal
           pending
@@ -439,11 +436,6 @@ let private archivingABranchCommitsItsEvent =
             "the archive is its own commit"
       })
 
-/// A bundle carries the sender's COMMITS, not just their ops.
-///
-/// Without them a pulled branch arrives wholly uncommitted, and the puller's next `commit` sweeps the
-/// author's finished work under the puller's message -- the same op filed under a different commit on
-/// each machine.
 /// `module` took a file and `fn` took text, so the multi-line fn a person had in a file went through
 /// a heredoc or not at all (an agent on two machines lost a round to it). A definition is never one
 /// token, so one argument that names a file that exists is the file.
@@ -704,12 +696,11 @@ let private constraintFlagsAreNotTargets =
         $"an unquoted --why reason is not read as ids: {whyOut}"
     })
 
-/// A branch discard captures its op ids before deleting, so the untag can no longer miss the rows
-/// the delete removed -- which left tags pointing at nothing, and `status`'s store health calling
-/// the store damaged at exactly the moment trust was thinnest.
+/// A branch discard deletes the rows its ops wrote along with the ops, so nothing the branch binds is
+/// left pointing at an op that is gone, and `status`'s store health stays quiet.
 let private aBranchDiscardLeavesNoDanglingTags =
   cliTestOnMain
-    "discarding a branch draft leaves no tag pointing at a missing op"
+    "discarding a branch draft leaves no binding pointing at a missing op"
     (fun state ->
       task {
         do! switch state "dangletags"
@@ -720,10 +711,12 @@ let private aBranchDiscardLeavesNoDanglingTags =
 
         let! dangling =
           Sql.query
-            "SELECT count(*) AS n FROM op_branches ob
-           WHERE NOT EXISTS (SELECT 1 FROM package_ops p WHERE p.id = ob.op_id)"
+            "SELECT count(*) AS n FROM locations l
+           WHERE l.branch_id <> '00000000-0000-0000-0000-000000000001'
+             AND NOT EXISTS (SELECT 1 FROM package_ops p
+                             WHERE p.id = l.op_id AND p.branch_id = l.branch_id)"
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
-        Expect.equal dangling 0L "every surviving tag points at a real op"
+        Expect.equal dangling 0L "every surviving binding points at a real op"
 
         let! status = runCli state [ "status" ]
         Expect.isFalse
@@ -755,8 +748,8 @@ let private archivingAChildLandsOnItsParent =
 /// `discard` on a branch drops the BRANCH's work and leaves main's draft alone.
 ///
 /// Worth asserting because the command is destructive and the two drafts are kept apart by a `WHERE`
-/// clause rather than by anything the type system checks: main's draft is the uncommitted ops NOT tagged
-/// to a branch, so a query that forgot the tag would take both, and the way you would find out is that
+/// clause rather than by anything the type system checks: main's draft is main's uncommitted ops, so a
+/// query that forgot the branch would take both, and the way you would find out is that
 /// work you never mentioned had gone.
 let discardOnABranchLeavesMainsDraftAlone =
   instanceTest
@@ -804,8 +797,7 @@ let discardOnABranchLeavesMainsDraftAlone =
 /// Committing on a branch does not collapse main's draft.
 ///
 /// Commit collapses the draft's superseded namings, keeping the last binding per name -- and "the draft"
-/// means MAIN's, the uncommitted ops not tagged to a branch. A branch's ops are branch-pending and are
-/// collapsed when they merge. Nothing in the types says which one `collapse` is about; it is a guard on
+/// means MAIN's uncommitted ops. A branch's ops are collapsed when they merge. Nothing in the types says which one `collapse` is about; it is a guard on
 /// the current branch, and if that guard went, committing anything anywhere would quietly rewrite work
 /// sitting on main.
 let committingOnABranchLeavesMainsDraftUncollapsed =
@@ -1079,7 +1071,7 @@ let private resetWorkedExample () : Task<unit> =
     do!
       execSql
         "DELETE FROM package_ops WHERE commit_hash IS NULL
-           AND id NOT IN (SELECT op_id FROM op_branches)
+           AND branch_id = '00000000-0000-0000-0000-000000000001'
            AND id IN (SELECT DISTINCT l.op_id FROM locations l
                       WHERE l.owner = 'Ux' AND l.modules = 'Money')"
 
@@ -1593,9 +1585,8 @@ let private aNameHoldsOneItemWhateverItsKind =
 /// A branch off a branch sees its whole ancestry, and nothing sees its descendants.
 ///
 /// Nested branches are not exotic: `dark branch new` parents the new branch to the one you are standing
-/// on, so you get a chain by not thinking about it. They are the shape that exercises `chainBindings`,
-/// whose recursive walk up the parent chain is the overlay logic everything else trusts, and nothing
-/// covered them.
+/// on, so you get a chain by not thinking about it. They are the shape that exercises the view's walk up
+/// the parent chain (`Layers.chainOf`), which everything else trusts.
 let private branchChainSeesItsAncestry =
   instanceTest
     "a branch off a branch sees its parent's COMMITTED work, and main sees neither"
@@ -1774,10 +1765,8 @@ let private bareMergeAndRebaseMeanThisBranch =
 
 /// "Who calls this" must answer about the BRANCH you are standing on.
 ///
-/// `SCM.Deps.dependentsOf` joined `package_dependencies` to `locations` inside the query. A branch's
-/// items never fold into `locations` -- that is what makes a branch an overlay rather than a copy -- so
-/// the join dropped every branch-authored caller and returned main's list, which looks complete. The
-/// edge was there the whole time; only the name to call it by was missing.
+/// The dependency edge is shared, but the name to call a caller by is the branch's: a join against
+/// main's names would drop every branch-authored caller and return main's list, which looks complete.
 ///
 /// It is the question you ask BEFORE changing something, so the wrong answer is the dangerous direction:
 /// it says nothing on your branch depends on this.
@@ -2178,13 +2167,9 @@ let commitRefusesUnresolvedReferences =
 
 /// `discard` is one verb over two implementations.
 ///
-/// On main it drops the uncommitted ops and RE-FOLDS the store from what survives, since those ops
-/// had already folded into `locations`. On a branch there is nothing to re-fold: branch ops are
-/// `effective = 0` and never reached main's projections, so deleting the rows IS the removal.
-///
-/// That MAIN's draft survives has to be asserted on the OP LOG, not on whether main's names still
-/// resolve: a branch discard does not re-fold, so deleted main ops would leave `locations` rows
-/// outliving them and main's functions still answering. Resolution cannot see that; the op count can.
+/// That MAIN's draft survives a branch's discard has to be asserted on the OP LOG, not on whether
+/// main's names still resolve. Resolution cannot see a deleted op whose rows outlived it; the op
+/// count can.
 let private discardOnABranchLeavesMainAlone =
   instanceTest
     "discard on a branch drops that branch's draft and leaves main's alone"
@@ -2306,7 +2291,7 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
         "the branch's conflict is on the branch's list"
       Expect.isFalse
         (onBranch.Contains "cnfmain0001")
-        "and main's is not, because answering it from here would write into an overlay"
+        "and main's is not, because answering it from here would write into the branch"
 
       // The payoff. A conflict is a property of the STORE, so an ack given on a branch
       // has to count everywhere rather than be refused for being branch-local.
@@ -2341,8 +2326,8 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
     })
 
 /// Main's uncommitted draft never leaks into a branch's view: a draft-born name does not resolve
-/// there, and a draft edit over a committed version resolves to the committed one. The branch is an
-/// overlay on COMMITTED main; `dark commit` is what publishes work downstream.
+/// there, and a draft edit over a committed version resolves to the committed one. The branch sees
+/// COMMITTED main; `dark commit` is what publishes work downstream.
 let private aBranchNeverSeesMainsDraft =
   instanceTest
     "a branch resolves through committed main, not main's draft"
@@ -2415,54 +2400,8 @@ let private commitsHideHousekeeping =
       })
 
 
-/// A relay-hosted store holds client-pushed ops at effective=0, untagged and uncommitted.
-/// `discard` must not touch them: they are data this store holds for someone else, and the
-/// draft it reports must be the draft it drops.
-let private discardSparesInertOps =
-  instanceTest "discard leaves relay-hosted (inert) ops alone" (fun state ->
-    task {
-      let! ops =
-        parsePackageOps
-          """module InertHold
-
-let held(x: Int64): Int64 = x + 41"""
-      let inertIds =
-        ops |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-      for op in ops do
-        let id = LibDB.Inserts.computeOpHash op
-        do!
-          execSqlP
-            "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts)
-               VALUES (@id, @blob, 1, 0, @ts)"
-            [ "id", Sql.uuid id
-              "blob",
-              Sql.bytes (
-                LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
-              )
-              "ts", Sql.string "2026-01-01T00:00:00.000Z" ]
-
-      do! shows state [ "status" ] "clean" "inert ops are not the draft"
-
-      do! discardAll state
-
-      let! survived =
-        countSql
-          $"""SELECT COUNT(*) as n FROM package_ops
-                WHERE id IN ({inertIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
-          []
-      Expect.equal
-        survived
-        (int64 (List.length inertIds))
-        "discard left the hosted ops in place"
-
-      do!
-        execSql
-          $"""DELETE FROM package_ops WHERE id IN ({inertIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
-    })
-
-/// Content-addressed ops are one row, so two branches authoring identical source share ops.
-/// Merging one must still commit what it landed -- the shared op is main's now -- and the
-/// sibling's later archive must not make it reappear as draft work nobody typed.
+/// Two branches authoring identical source hold the same op ids. Merging one must still commit what
+/// it landed, and the sibling's later archive must not make it reappear as draft work nobody typed.
 let private mergeCommitsWhatASiblingStillTags =
   instanceTest
     "a merge commits shared ops even while a sibling still tags them"
@@ -2480,18 +2419,13 @@ let private mergeCommitsWhatASiblingStillTags =
         do!
           shows state [ "merge"; "shared1"; "-y" ] "erged" "the merge went through"
 
-        // The shared content op is tagged by shared2 still; it must carry the merge's commit.
+        // Main holds the shared op now, committed by the merge.
         let! unstamped =
           countSqlIn
             state
             "SELECT COUNT(*) as n FROM package_ops p
-             WHERE p.commit_hash IS NULL AND p.effective = 1
-               AND p.id IN (SELECT op_id FROM op_branches ob
-                            JOIN branches b ON b.id = ob.branch_id WHERE b.name = 'shared2')"
-        Expect.equal
-          unstamped
-          0L
-          "every landed op the sibling tags is stamped by the merge"
+             WHERE p.commit_hash IS NULL AND p.branch_id = '00000000-0000-0000-0000-000000000001'"
+        Expect.equal unstamped 0L "everything the merge landed is stamped by it"
 
         do! shows state [ "status" ] "clean" "the merge left main clean"
 
@@ -2649,6 +2583,109 @@ let overrideByNameAnswersThePendingConflict =
     })
 
 
+/// A merge writes the branch's rows into the parent's committed layer AFTER the parent's draft was
+/// written, so a commit that moved the draft across and then took the newest row by insertion order
+/// let an older merged edit replace the draft's newer one. A layer's live row is the newest by stamp.
+let private aCommitKeepsTheDraftOverAnOlderMergedEdit =
+  instanceTest
+    "committing keeps the draft's edit over an older one a merge brought in"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.CommitLww.f" "(): Int64 = 1"
+        do! fn state "Tests.CommitLww.g" "(): Int64 = 1"
+        do! commit state "commit lww: base"
+
+        do! switch state "commit-lww"
+        do! fn state "Tests.CommitLww.f" "(): Int64 = 2"
+        do!
+          fn state "Tests.CommitLww.g" "/// from the branch\nlet g(): Int64 =\n  1"
+        do! deprecate state "Tests.CommitLww.g"
+        do! commit state "commit lww: the older edits"
+
+        do! onMain state
+        do! fn state "Tests.CommitLww.f" "(): Int64 = 3"
+        do!
+          fn
+            state
+            "Tests.CommitLww.g"
+            "/// from main's draft\nlet g(): Int64 =\n  1"
+        do!
+          run
+            state
+            [ "deprecate"
+              "fn"
+              "Tests.CommitLww.g"
+              "--kind"
+              "harmful"
+              "-m"
+              "main's draft"
+              "-y" ]
+        do! merge state "commit-lww"
+        do! evals state "Tests.CommitLww.f()" "3" "main's draft wins in its view"
+
+        do! commit state "commit lww: main's draft"
+        do! evals state "Tests.CommitLww.f()" "3" "and still wins once committed"
+        do!
+          shows
+            state
+            [ "view"; "Tests.CommitLww.g" ]
+            "from main's draft"
+            "the draft's doc is the one that stands"
+        do!
+          shows
+            state
+            [ "eval"; "Tests.CommitLww.g()" ]
+            "Harmful"
+            "and so is the draft's deprecation"
+      })
+
+/// An override settles the conflict on the branch it is authored on. Folded on a branch, it must
+/// leave a pending conflict on main alone.
+let private anOverrideOnABranchLeavesMainsConflictOpen =
+  cliTestOnMain
+    "an override on a branch leaves main's pending conflict open"
+    (fun state ->
+      task {
+        do! discardAll state
+        do! fn state "Tests.OverrideScope.x" "(): Int64 = 1"
+        do! commit state "override scope: first"
+        do! fn state "Tests.OverrideScope.x" "(): Int64 = 2"
+        do! commit state "override scope: second"
+        do!
+          recordConflict
+            LibExecution.ProgramTypes.BranchId.Main
+            "ovscope001"
+            "Tests"
+            "OverrideScope"
+            "x"
+            "aaa"
+
+        // Keeping the branch's version is authored as an override, folded on the branch.
+        do! switch state "override-scope"
+        do! fn state "Tests.OverrideScope.x" "(): Int64 = 3"
+        do!
+          shows
+            state
+            [ "branch"
+              "resolve"
+              "override-scope"
+              "Tests.OverrideScope.x"
+              "mine" ]
+            "kept the branch"
+            "the branch keeps its version"
+        do! onMain state
+
+        let! status =
+          countSql
+            "SELECT COUNT(*) AS n FROM conflicts WHERE id = 'ovscope001' AND status = 'pending'"
+            []
+        Expect.equal status 1L "main's conflict is still pending"
+        do! run state [ "branch"; "archive"; "override-scope" ]
+        do! execSql "DELETE FROM conflicts WHERE id = 'ovscope001'"
+      })
+
+
 let tests : List<Test> =
   [ commitRefusesDefiniteTypeErrors
     failedValueSaveLeavesNothingBehind false
@@ -2693,7 +2730,6 @@ let tests : List<Test> =
     allConsumersFollowAcrossOwners
     crossOwnerPropagationIsBranchLocal
     aBranchNeverSeesMainsDraft
-    discardSparesInertOps
     mergeCommitsWhatASiblingStillTags
     commitsHideHousekeeping
     commitsChainToTheirParent
@@ -2703,4 +2739,6 @@ let tests : List<Test> =
     commitsFollowTheCommitBeforeThem
     overrideByNameAnswersThePendingConflict
     aFailedJsonCommitExitsNonzero
-    aConflictCloseThatFailsIsReported ]
+    aConflictCloseThatFailsIsReported
+    aCommitKeepsTheDraftOverAnOlderMergedEdit
+    anOverrideOnABranchLeavesMainsConflictOpen ]

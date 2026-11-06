@@ -157,7 +157,7 @@ let testRows(
   : List<String> =
   let depSets = Query.loadDeprecationSets(branchId)
   let tests =
-    SCM.Deps.dependentsOf([ (location, kind) ])
+    SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (location, kind) ])
     |> Stdlib.List.filter(fun((hash, _, depKind)) ->
       depKind == LanguageTools.ProgramTypes.ItemKind.Test
       && Stdlib.Bool.not(Query.isDeprecated(depSets, hash)))

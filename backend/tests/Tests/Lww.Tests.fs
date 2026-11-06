@@ -200,11 +200,11 @@ let private applyInOrder (pairs : List<PT.PackageOp * string>) : Task<unit> =
       |> Map.ofList
 
     let! _ =
-      Inserts.insertAndApplyOpsWith
+      Inserts.authorWith
+        PT.BranchId.Main
+        "op"
         (fun opId ->
           Map.tryFind opId stamps |> Option.defaultValue "2026-01-01T00:00:00.000Z")
-        (fun _ -> None)
-        "op"
         (pairs |> List.map fst)
 
     return ()
