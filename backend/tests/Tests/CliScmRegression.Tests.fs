@@ -31,16 +31,16 @@ let private propagationLeavesBranchWorkAlone =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Casc.base" "() : Int64 = 20L"
+        do! fn state "Tests.Casc.base" "() : Int64 = 20"
         do! fn state "Tests.Casc.caller" "(): Int64 = Tests.Casc.base()"
         do! commit state "casc base"
 
         do! switch state "cascbr"
-        do! fn state "Tests.Casc.caller" "() : Int64 = 777L"
+        do! fn state "Tests.Casc.caller" "() : Int64 = 777"
         do! commit state "branch caller"
 
         // The edit whose cascade used to reach main's caller and bind main's body here.
-        do! fn state "Tests.Casc.base" "() : Int64 = 30L"
+        do! fn state "Tests.Casc.base" "() : Int64 = 30"
         do!
           evals state "Tests.Casc.caller()" "777" "the branch keeps its own caller"
 
@@ -58,7 +58,7 @@ let private rebaseIgnoresMainsDraft =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Reb.root" "() : Int64 = 111L"
+        do! fn state "Tests.Reb.root" "() : Int64 = 111"
         do! commit state "reb v1"
 
         do! switch state "rebbr"
@@ -67,7 +67,7 @@ let private rebaseIgnoresMainsDraft =
 
         // Main edits the dependency and does NOT commit it.
         do! onMain state
-        do! fn state "Tests.Reb.root" "() : Int64 = 222L"
+        do! fn state "Tests.Reb.root" "() : Int64 = 222"
         do! dirty state "main's edit is a draft"
 
         do! switch state "rebbr"
@@ -91,7 +91,7 @@ let private archiveRefusesToOrphanAChild =
     (fun state ->
       task {
         do! switch state "orphanpar"
-        do! fn state "Tests.Orph.p" "() : Int64 = 1L"
+        do! fn state "Tests.Orph.p" "() : Int64 = 1"
         do! commit state "parent work"
         do! run state [ "branch"; "create"; "orphankid" ]
 
@@ -129,7 +129,7 @@ let private deprecateIsVisibleOnItsBranch =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.DepBr.old" "() : Int64 = 1L"
+        do! fn state "Tests.DepBr.old" "() : Int64 = 1"
         do! commit state "depbr base"
 
         do! switch state "depbr"
@@ -173,12 +173,12 @@ let private branchDiscardKeepsCommittedWork =
       task {
         do! start state
         do! switch state "discardkeep"
-        do! fn state "Tests.DiscardKeep.f" "() : Int64 = 1L"
+        do! fn state "Tests.DiscardKeep.f" "() : Int64 = 1"
         do! commit state "f v1 on branch"
         do! evals state "Tests.DiscardKeep.f()" "1" "the committed version runs"
 
         // A second, UNCOMMITTED edit: this is what discard is allowed to take.
-        do! fn state "Tests.DiscardKeep.f" "() : Int64 = 2L"
+        do! fn state "Tests.DiscardKeep.f" "() : Int64 = 2"
         do! discardName state "Tests.DiscardKeep.f"
 
         do!
@@ -204,8 +204,8 @@ let private partialCommitTakesNamesNotBodies =
   instanceTest "--include= leaves an unrelated name that shares a body" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Part.public" "() : Int64 = 987L"
-      do! fn state "Tests.Part.private" "() : Int64 = 987L"
+      do! fn state "Tests.Part.public" "() : Int64 = 987"
+      do! fn state "Tests.Part.private" "() : Int64 = 987"
 
       // The preview lists the whole draft, which is right; what must not appear is the
       // "also committed" line, which is where the unrelated name used to be reported as needed.
@@ -237,15 +237,15 @@ let private partialCommitTakesNewNameForCommittedContent =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.SharedCommit.committed" "() : Int64 = 19327L"
+        do! fn state "Tests.SharedCommit.committed" "() : Int64 = 19327"
         do! commit state "existing dependency content"
-        do! fn state "Tests.SharedCommit.dep" "() : Int64 = 19327L"
-        do! fn state "Tests.SharedCommit.unrelated" "() : Int64 = 19327L"
+        do! fn state "Tests.SharedCommit.dep" "() : Int64 = 19327"
+        do! fn state "Tests.SharedCommit.unrelated" "() : Int64 = 19327"
         do!
           fn
             state
             "Tests.SharedCommit.caller"
-            "(): Int64 = Tests.SharedCommit.dep() + 1L"
+            "(): Int64 = Tests.SharedCommit.dep() + 1"
 
         do!
           commitOnly
@@ -279,9 +279,9 @@ let private discardSeesWhatUndoWrote =
   instanceTest "discard <name> drops what undo staged" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Undo.f" "() : Int64 = 1L"
+      do! fn state "Tests.Undo.f" "() : Int64 = 1"
       do! commit state "undo v1"
-      do! fn state "Tests.Undo.f" "() : Int64 = 2L"
+      do! fn state "Tests.Undo.f" "() : Int64 = 2"
       do! commit state "undo v2"
 
       do! run state [ "undo"; "Tests.Undo.f" ]
@@ -303,7 +303,7 @@ let private discardCountsOpsNotNames =
   instanceTest "discard sees a draft that holds only a decision" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Dec.f" "() : Int64 = 1L"
+      do! fn state "Tests.Dec.f" "() : Int64 = 1"
       do! commit state "dec base"
 
       // A pin binds no name, so this draft has an op and no changed names.
@@ -378,7 +378,7 @@ let private renameMovesANameNotItsContent =
   instanceTest "rename moves a name and leaves its callers alone" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Rn.old" "() : Int64 = 42L"
+      do! fn state "Tests.Rn.old" "() : Int64 = 42"
       do! fn state "Tests.Rn.caller" "(): Int64 = Tests.Rn.old()"
       do! commit state "rn base"
 
@@ -400,8 +400,8 @@ let private renameRefusesTheBadCases =
   instanceTest "rename refuses a missing name and an occupied one" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Rn2.a" "() : Int64 = 1L"
-      do! fn state "Tests.Rn2.b" "() : Int64 = 2L"
+      do! fn state "Tests.Rn2.a" "() : Int64 = 1"
+      do! fn state "Tests.Rn2.b" "() : Int64 = 2"
       do! commit state "rn2 base"
 
       do!
@@ -436,19 +436,19 @@ let private theEverydayLoop =
   instanceTest "author, run, commit, edit, cascade, commit" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 100L"
+      do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 100"
       do! fn state "Tests.Day.total" "(a: Int64): Int64 = Tests.Day.cents(a)"
 
       // Live on write: no build step between authoring and running it.
-      do! evals state "Tests.Day.total(3L)" "300" "the new code runs immediately"
+      do! evals state "Tests.Day.total(3)" "300" "the new code runs immediately"
       do! dirty state "and it is a draft until committed"
 
       do! commit state "money helpers"
       do! clean state "committing empties the draft"
 
       // An edit to a dependency repoints its callers, in the draft, before any commit.
-      do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 1000L"
-      do! evals state "Tests.Day.total(3L)" "3000" "the caller followed the edit"
+      do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 1000"
+      do! evals state "Tests.Day.total(3)" "3000" "the caller followed the edit"
       do! dirty state "the repoint is staged, not committed"
 
       do! commit state "cents in mills"
@@ -456,7 +456,7 @@ let private theEverydayLoop =
       do!
         evals
           state
-          "Tests.Day.total(3L)"
+          "Tests.Day.total(3)"
           "3000"
           "with the new behaviour still in place"
     })
@@ -467,12 +467,12 @@ let private theBranchLoop =
   instanceTest "a branch holds its own work, sees main's, and merges" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Loop.shared" "() : Int64 = 1L"
+      do! fn state "Tests.Loop.shared" "() : Int64 = 1"
       do! commit state "shared, on main"
 
       do! switch state "looper"
       do! shows state [ "branch" ] "looper" "switch says where you are"
-      do! fn state "Tests.Loop.mine" "(): Int64 = Tests.Loop.shared() + 1L"
+      do! fn state "Tests.Loop.mine" "(): Int64 = Tests.Loop.shared() + 1"
       do! commit state "branch work"
       do! evals state "Tests.Loop.mine()" "2" "the branch resolves main's names"
 

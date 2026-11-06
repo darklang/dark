@@ -190,7 +190,7 @@ let handleSearchResultsKey(
   : Step =
   // Search-results mode: ↑↓ move, ⏎ jumps to the hit, Esc closes.
   let n = Stdlib.List.length(state.search.hits)
-  let moveTo(i: Int) =
+  let moveTo(i: Int64) =
     Step.Continue(
       { state with
           search =

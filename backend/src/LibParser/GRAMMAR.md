@@ -32,29 +32,34 @@ Backtick-quoted ``` ``name`` ``` permits anything up to the closing backticks.
 A leading `'` in type position lexes a type variable, such as `'a` or `'TModel`.
 Elsewhere, `'…'` is a char literal.
 
-### Integer literals
+### Number literals
 
-Bare literals (`42`) are arbitrary-precision `Int`. Suffixes select fixed-width
-types:
+A number is digits, an optional fraction (`.digits`) and exponent
+(`e[±]digits`), then a suffix glued on that names its type. The type is decided
+here, by the literal alone; nothing infers it from context.
 
-| suffix | type |
-|---|---|
-| `y` | Int8 |
-| `uy` | UInt8 |
-| `s` | Int16 |
-| `us` | UInt16 |
-| `l` | Int32 |
-| `ul` | UInt32 |
-| `L` | Int64 |
-| `UL` | UInt64 |
-| `Q` | Int128 |
-| `Z` | UInt128 |
+| type | literal | | type | literal |
+|---|---|---|---|---|
+| Int8 | `1s8` | | UInt8 | `1u8` |
+| Int16 | `1s16` | | UInt16 | `1u16` |
+| Int32 | `1s32` | | UInt32 | `1u32` |
+| Int64 | `1`, `1s`, `1s64` | | UInt64 | `1u`, `1u64` |
+| Int128 | `1s128` | | UInt128 | `1u128` |
+| Int | `1z` | | | |
+| Float | `1.5`, `1e5`, `1.5f64` | | Float32 | `1.5f32`, `1e5f32` |
+| Decimal | `19.99dec` | | | |
 
-(No `I` suffix — bare literals are already `Int`, so `80I` is a number glued to
-an identifier and diagnosed like `123abc`.)
+`z` is for ℤ, the integers: `1z` is the arbitrary-precision `Int`, with no size
+limit. A bare integer is an Int64 and a bare fraction or exponent is a Float.
+The float suffixes also take a whole number (`1f32`, `1f64`, `1dec`); the
+integer suffixes never take a fraction or exponent (`1.5s8` is an error).
 
-A literal whose magnitude equals the type's `|MinValue|` (e.g. `128y`,
-`9223372036854775808L`) is valid **only when negated** (`-128y`); bare use is an
+A literal ends at a non-identifier character, so any other glued text is one
+malformed literal: `123abc`, `1s7`, `1.5f16` and `1.5m` are each diagnosed
+whole. A word that starts with a letter, such as `s32`, is an identifier.
+
+A literal whose magnitude equals the type's `|MinValue|` (e.g. `128s8`,
+`9223372036854775808`) is valid **only when negated** (`-128s8`); bare use is an
 out-of-range diagnostic, never a silent wrap.
 
 ### Float literals
@@ -74,6 +79,20 @@ exponent limit: large exponents can cancel large mantissas or fractional zeros.
 Normalization removes leading zeros from the whole part and does not depend on
 host float formatting. The same rules apply to float patterns. Runtime string
 parsing remains a separate operation.
+
+A `Float32` literal (`1.5f32`, `1e3f32`) is checked by the same precision rule
+against binary32 instead, so `0.1f32` is accepted and `0.1234567891f32` is an
+error.
+
+### Decimal literals
+
+`digits[.digits]dec`, with no exponent (`1e5dec` is an error, since a Decimal is
+the digits as written): `19.99dec`, `1dec`, `-0.05dec` (unary minus, as for
+floats). The value is a .NET `decimal` and keeps the written scale, so `1.10dec`
+is 1.10, not 1.1. A literal is accepted only if it prints back as written once
+leading zeros of the whole part are dropped, so anything .NET would round (more
+than 28 places, or more significant digits than 96 bits hold) and anything past
+79228162514264337593543950335 is a diagnostic rather than a rounded value.
 
 ### String literals
 
@@ -191,7 +210,7 @@ One rule set for all inputs:
 - Inside a call's parentheses the arguments may sit on their own lines:
   `List.fold(\n  init,\n  fn)`.
 - An operator on a new line continues the statement at-or-past the anchor —
-  except `-`, which must be *past* it (`1L` then `-8L` at the anchor is two
+  except `-`, which must be *past* it (`1` then `-8` at the anchor is two
   statements, not subtraction).
 - `else`/`elif` bind to the `if` chain at-or-left of their column; `match` arms
   align on the first `|`'s column (a shallower `|` belongs to an outer match).
@@ -344,7 +363,7 @@ that does not name a trait is `PARSE-BOUND`.
 
 ## Types
 
-Primitive types are `Unit Bool Int Int8…UInt128 Float Char String DateTime Uuid
+Primitive types are `Unit Bool Int Int8…UInt128 Float Float32 Decimal Char String DateTime Uuid
 Bytes` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
 syntax. Other uppercase names, including `Stream<T>`, are custom
 types with optional type arguments.
@@ -466,7 +485,7 @@ Codes are stable identifiers (key on these, never on message text):
 | `PARSE-UNCLOSED` | missing closing delimiter — the opener is in `related` |
 | `PARSE-ESCAPE` | invalid escape/codepoint in a literal |
 | `PARSE-INT-RANGE` | integer literal out of range (hint: the negated form) |
-| `PARSE-FLOAT-PRECISION` | binary64 conversion loses specified decimal precision |
+| `PARSE-FLOAT-PRECISION` | binary64 (binary32 for `f`) conversion loses specified decimal precision |
 | `PARSE-FLOAT-OVERFLOW` | float literal rounds to infinity |
 | `PARSE-FLOAT-UNDERFLOW` | nonzero float literal rounds to zero |
 | `PARSE-FLOAT-INVALID` | malformed decimal float during recovery |

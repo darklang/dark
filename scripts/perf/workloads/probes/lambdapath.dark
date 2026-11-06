@@ -23,27 +23,27 @@ let _smokeNotice =
 
 let iterations = if smoke then 1 else 2000
 
-let now(): Int =
+let now(): Int64 =
   Darklang.Cli.Telemetry.now()
 
 /// Warm the process before the first row, so the table does not measure its own warm-up.
 /// See the same trick in optime.dark, which needed 40,000 iterations before it stopped drifting.
-let saturate(n: Int, acc: Int): Int =
+let saturate(n: Int64, acc: Int64): Int64 =
   if n <= 0 then acc else saturate(n - 1, acc + n)
 
 /// Recurse over a list applying `f` to each element.
-let walkApply(xs: List<Int>, f: Int -> Int, acc: Int): Int =
+let walkApply(xs: List<Int64>, f: Int64 -> Int64, acc: Int64): Int64 =
   match xs with
   | [] -> acc
   | [head, ...rest] -> walkApply(rest, f, acc + (f(head)))
 
 /// The same recursion with no application in it, to price the recursion itself.
-let walkOnly(xs: List<Int>, acc: Int): Int =
+let walkOnly(xs: List<Int64>, acc: Int64): Int64 =
   match xs with
   | [] -> acc
   | [head, ...rest] -> walkOnly(rest, acc + head)
 
-let timeOf(body: Int -> Int): Int =
+let timeOf(body: Int64 -> Int64): Int64 =
   let t0 = now()
   let _r =
     Stdlib.List.fold(Stdlib.List.range(1, iterations), 0, fun(acc, i) ->
@@ -51,7 +51,7 @@ let timeOf(body: Int -> Int): Int =
   (now()) - t0
 
 /// Fastest of three passes: a pass can be slowed by the machine, never sped up by it.
-let best(body: Int -> Int): Int =
+let best(body: Int64 -> Int64): Int64 =
   let _warm = timeOf(body)
   let a = timeOf(body)
   let b = timeOf(body)
@@ -59,7 +59,7 @@ let best(body: Int -> Int): Int =
   Stdlib.min(a, Stdlib.min(b, c))
 
 /// ns per element, from the difference between two sizes.
-let perElement(label: String, small: Int, large: Int, n: Int): Unit =
+let perElement(label: String, small: Int64, large: Int64, n: Int64): Unit =
   let ns = ((large - small) * 1000000) / (iterations * n)
   Stdlib.printLine(label + "  " + (Stdlib.toString(ns)) + " ns")
 

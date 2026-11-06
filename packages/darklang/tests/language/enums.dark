@@ -46,7 +46,7 @@ module Errors =
         "Expected 1 fields in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`C`, but got 0"
 
     test extraPayloadRaises =
-      MyEnum.B(5L)
+      MyEnum.B(5)
       => raises
         "Expected 0 fields in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`B`, but got 1"
 
@@ -69,7 +69,7 @@ module Errors =
         "No matching case found for value Darklang.Language.Tests.Enums.Errors.User.MyEnum.C(\"test\") in match expression"
 
     test wrongPayloadTypeRaises =
-      (MyEnum.C(5L))
+      (MyEnum.C(5))
       => raises
         "Failed to create enum. Expected String for field 0 in `C`, but got Int64 (5)"
 
@@ -98,7 +98,7 @@ module Simple =
 
     test payloadEquality =
       Stdlib.Test.all(
-        [ (CorD.C(5L) != CorD.D(AorB.B)) |> Stdlib.Test.equal(true)
+        [ (CorD.C(5) != CorD.D(AorB.B)) |> Stdlib.Test.equal(true)
           (CorD.D(AorB.A) == CorD.D(AorB.A)) |> Stdlib.Test.equal(true) ])
 
 module MixedCases =
@@ -110,11 +110,11 @@ module MixedCases =
 
   test equality =
     Stdlib.Test.all(
-      [ (EnumOfMixedCases.W == (EnumOfMixedCases.Y(1L))) |> Stdlib.Test.equal(false)
-        (EnumOfMixedCases.Y(1L) == EnumOfMixedCases.Y(1L)) |> Stdlib.Test.equal(true) ])
+      [ (EnumOfMixedCases.W == (EnumOfMixedCases.Y(1))) |> Stdlib.Test.equal(false)
+        (EnumOfMixedCases.Y(1) == EnumOfMixedCases.Y(1)) |> Stdlib.Test.equal(true) ])
 
   test xWrongTypeRaises =
-    EnumOfMixedCases.X(1L)
+    EnumOfMixedCases.X(1)
     => raises
       "Failed to create enum. Expected String for field 0 in `X`, but got Int64 (1)"
 
@@ -124,7 +124,7 @@ module MixedCases =
       "Failed to create enum. Expected Int64 for field 0 in `Y`, but got String (\"test\")"
 
   test zMissingFieldRaises =
-    EnumOfMixedCases.Z(1L)
+    EnumOfMixedCases.Z(1)
     => raises
       "Expected 2 fields in Darklang.Language.Tests.Enums.MixedCases.EnumOfMixedCases.`Z`, but got 1"
 
@@ -141,17 +141,17 @@ module MixedCases =
       [ (let values =
           [ EnumOfMixedCases.W
             EnumOfMixedCases.X("testX")
-            EnumOfMixedCases.Y(5L)
-            EnumOfMixedCases.Z("testZ", 2L) ]
+            EnumOfMixedCases.Y(5)
+            EnumOfMixedCases.Z("testZ", 2) ]
          match Stdlib.List.getAt(values, 3) with
          | Some(z) -> Stdlib.Result.Result.Ok(z)
          | None -> Stdlib.Result.Result.Error("Failure"))
         |> Stdlib.Test.equal(
-          Darklang.Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2L)))
+          Darklang.Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2)))
         ([ EnumOfMixedCases.W
            EnumOfMixedCases.X("testX")
-           EnumOfMixedCases.Y(5L)
-           EnumOfMixedCases.Z("testZ", 2L) ]
+           EnumOfMixedCases.Y(5)
+           EnumOfMixedCases.Z("testZ", 2) ]
          |> Stdlib.List.map(fun v ->
            match v with
            | X(s) -> "X " + s
@@ -167,20 +167,20 @@ module TuplesVsNonTuples =
 
   test matching =
     Stdlib.Test.all(
-      [ (match Tuples.NotTuple("printer broke", 7L) with
-         | NotTuple(reason, 7L) -> reason)
+      [ (match Tuples.NotTuple("printer broke", 7) with
+         | NotTuple(reason, 7) -> reason)
         |> Stdlib.Test.equal("printer broke")
-        (match Tuples.Tuple(("printer broke", 7L)) with
-         | Tuple((reason, 7L)) -> reason)
+        (match Tuples.Tuple(("printer broke", 7)) with
+         | Tuple((reason, 7)) -> reason)
         |> Stdlib.Test.equal("printer broke") ])
 
   test tupleForTwoFieldsRaises =
-    (Tuples.NotTuple(("printer broke", 7L)))
+    (Tuples.NotTuple(("printer broke", 7)))
     => raises
       "Expected 2 fields in Darklang.Language.Tests.Enums.TuplesVsNonTuples.Tuples.`NotTuple`, but got 1"
 
   test twoFieldsForTupleRaises =
-    Tuples.Tuple("printer broke", 7L)
+    Tuples.Tuple("printer broke", 7)
     => raises
       "Expected 1 fields in Darklang.Language.Tests.Enums.TuplesVsNonTuples.Tuples.`Tuple`, but got 2"
 
@@ -220,9 +220,9 @@ module Polymorphism =
       // tuple-pipe thing
       let c = (value, v) |> cmp
 
-      if c < 0L then
+      if c < 0 then
         RBTree.Node(color, insert'(left, value, cmp), v, right)
-      elif c > 0L then
+      elif c > 0 then
         RBTree.Node(color, left, v, insert'(right, value, cmp))
       else
         RBTree.Node(color, left, value, right)
@@ -248,9 +248,9 @@ module Polymorphism =
   test insertionOrderDoesNotMatter =
     (let intCmp =
       fun((x, y)) ->
-        if x < y then -1L
-        elif x > y then 1L
-        else 0L
-     ([ 1L, -2L, 5L, 3L ] |> ofList(intCmp) |> toList)
-     == ([ 3L, 5L, -2L, 1L ] |> ofList(intCmp) |> toList))
+        if x < y then -1
+        elif x > y then 1
+        else 0
+     ([ 1, -2, 5, 3 ] |> ofList(intCmp) |> toList)
+     == ([ 3, 5, -2, 1 ] |> ofList(intCmp) |> toList))
     |> Stdlib.Test.equal(true)

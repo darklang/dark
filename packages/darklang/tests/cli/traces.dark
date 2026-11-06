@@ -37,7 +37,7 @@ let withTraces(f: Instance.T -> Stdlib.Test.Result): Stdlib.Test.Result =
 
 
 /// The rows `traces list <n> --json` answers, newest first.
-let listed(i: Instance.T, n: Int): List<Stdlib.AltJson.Json> =
+let listed(i: Instance.T, n: Int64): List<Stdlib.AltJson.Json> =
   match Instance.run(i, [ "traces", "list", Stdlib.toString(n), "--json" ]) with
   | Error(_) -> []
   | Ok(out) ->
@@ -73,7 +73,7 @@ test helpListsTheVerbs =
 
 test tailShowsTheLastEval =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "let x = 7L\nx" ])
+    let ran = step(i, [ "eval", "let x = 7\nx" ])
     let out = Instance.said(i, [ "traces", "tail" ])
 
     Stdlib.Test.all(
@@ -81,12 +81,12 @@ test tailShowsTheLastEval =
         Instance.says(out, "entry     eval", "the entry line")
         // All of it, not the table's truncation: a multi-line input prints as its
         // own block.
-        Instance.says(out, "let x = 7L", "the recorded input") ]))
+        Instance.says(out, "let x = 7", "the recorded input") ]))
 
 
 test deleteAllEmptiesTheList =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 2L" ])
+    let ran = step(i, [ "eval", "1 + 2" ])
     let before = Instance.said(i, [ "traces", "list" ])
     let deleted = step(i, [ "traces", "delete", "--all", "--yes" ])
     let after = Instance.said(i, [ "traces", "list" ])
@@ -100,7 +100,7 @@ test deleteAllEmptiesTheList =
 
 test statsCountsRuns =
   withTraces(fun i ->
-    let ran = Stdlib.Test.all([ step(i, [ "eval", "1L" ]), step(i, [ "eval", "2L" ]) ])
+    let ran = Stdlib.Test.all([ step(i, [ "eval", "1" ]), step(i, [ "eval", "2" ]) ])
     let out = Instance.said(i, [ "traces", "stats" ])
 
     Stdlib.Test.all(
@@ -114,7 +114,7 @@ test statsCountsRuns =
 /// into one would point at nothing.
 test statsHidesTheRouteHintForEvalOnly =
   withTraces(fun i ->
-    let ran = Stdlib.Test.all([ step(i, [ "eval", "1L + 1L" ]), step(i, [ "eval", "2L + 2L" ]) ])
+    let ran = Stdlib.Test.all([ step(i, [ "eval", "1 + 1" ]), step(i, [ "eval", "2 + 2" ]) ])
     let out = Instance.said(i, [ "traces", "stats" ])
 
     Stdlib.Test.all(
@@ -128,14 +128,14 @@ test findSearchesContentAndAnswers =
   withTraces(fun i ->
     let ran =
       Stdlib.Test.all(
-        [ step(i, [ "eval", "\"unique-token-xyz12345\"" ]), step(i, [ "eval", "1L + 1L" ]) ])
+        [ step(i, [ "eval", "\"unique-token-xyz12345\"" ]), step(i, [ "eval", "1 + 1" ]) ])
 
     let found = Instance.said(i, [ "traces", "find", "unique-token-xyz12345" ])
 
     // A pure computation logs no calls, so the only place its value appears is the
-    // run's own recorded answer. `find` searches that too, or `find 3` over `1L +
-    // 2L` finds nothing.
-    let pure = step(i, [ "eval", "40L + 2L" ])
+    // run's own recorded answer. `find` searches that too, or `find 3` over `1 +
+    // 2` finds nothing.
+    let pure = step(i, [ "eval", "40 + 2" ])
     let byAnswer = Instance.said(i, [ "traces", "find", "42" ])
 
     Stdlib.Test.all(
@@ -143,14 +143,14 @@ test findSearchesContentAndAnswers =
         Instance.says(found, "what ran", "the run table's header")
         Instance.says(found, "eval", "the eval")
         pure
-        Instance.says(byAnswer, "40L + 2L", "a pure run is found by what it answered") ]))
+        Instance.says(byAnswer, "40 + 2", "a pure run is found by what it answered") ]))
 
 
 /// `%` and `_` are LIKE wildcards in the query underneath; typed, they are just
 /// characters.
 test findTakesWildcardsLiterally =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 1L" ])
+    let ran = step(i, [ "eval", "1 + 1" ])
 
     Stdlib.Test.all(
       [ ran
@@ -161,7 +161,7 @@ test findTakesWildcardsLiterally =
 
 test deleteOneKeepsTheOthers =
   withTraces(fun i ->
-    let ran = Stdlib.Test.all([ step(i, [ "eval", "1L + 1L" ]), step(i, [ "eval", "2L + 2L" ]) ])
+    let ran = Stdlib.Test.all([ step(i, [ "eval", "1 + 1" ]), step(i, [ "eval", "2 + 2" ]) ])
     let id = latestId(i)
     let deleted = Instance.said(i, [ "traces", "delete", id, "--yes" ])
     let after = Instance.said(i, [ "traces", "list" ])
@@ -170,14 +170,14 @@ test deleteOneKeepsTheOthers =
       [ ran
         Instance.says(deleted, $"deleted {short(id)}", "the delete confirms by id")
         Instance.doesNotSay(after, short(id), "the deleted trace is gone from the list")
-        Instance.says(after, "1L + 1L", "and the other one is still there") ]))
+        Instance.says(after, "1 + 1", "and the other one is still there") ]))
 
 
 test pruneKeepsTheNewest =
   withTraces(fun i ->
     let ran =
       Stdlib.Test.all(
-        [ step(i, [ "eval", "1L" ]), step(i, [ "eval", "2L" ]), step(i, [ "eval", "3L" ]) ])
+        [ step(i, [ "eval", "1" ]), step(i, [ "eval", "2" ]), step(i, [ "eval", "3" ]) ])
 
     let id = latestId(i)
     let pruned = Instance.said(i, [ "traces", "delete", "--keep", "1", "--yes" ])
@@ -194,7 +194,7 @@ test pruneIsIdempotent =
   withTraces(fun i ->
     let ran =
       [ 1, 2, 3, 4, 5 ]
-      |> Stdlib.List.map(fun(_) -> step(i, [ "eval", "1L + 2L" ]))
+      |> Stdlib.List.map(fun(_) -> step(i, [ "eval", "1 + 2" ]))
       |> Stdlib.Test.all
 
     let pruned =
@@ -210,16 +210,16 @@ test pruneIsIdempotent =
 
 test deleteSaysOneOrMany =
   withTraces(fun i ->
-    let _ = step(i, [ "eval", "1L + 1L" ])
+    let _ = step(i, [ "eval", "1 + 1" ])
     let clearOne = Instance.said(i, [ "traces", "delete", "--all", "--yes" ])
-    let _ = step(i, [ "eval", "1L + 1L" ])
-    let _ = step(i, [ "eval", "2L + 2L" ])
+    let _ = step(i, [ "eval", "1 + 1" ])
+    let _ = step(i, [ "eval", "2 + 2" ])
     let clearTwo = Instance.said(i, [ "traces", "delete", "--all", "--yes" ])
-    let _ = step(i, [ "eval", "1L + 1L" ])
-    let _ = step(i, [ "eval", "2L + 2L" ])
+    let _ = step(i, [ "eval", "1 + 1" ])
+    let _ = step(i, [ "eval", "2 + 2" ])
     let pruneNone = Instance.said(i, [ "traces", "delete", "--keep", "0", "--yes" ])
-    let _ = step(i, [ "eval", "3L + 3L" ])
-    let _ = step(i, [ "eval", "4L + 4L" ])
+    let _ = step(i, [ "eval", "3 + 3" ])
+    let _ = step(i, [ "eval", "4 + 4" ])
     let pruneOne = Instance.said(i, [ "traces", "delete", "--keep", "1", "--yes" ])
 
     Stdlib.Test.all(
@@ -232,7 +232,7 @@ test deleteSaysOneOrMany =
 /// `pin` and `unpin` write the store; nothing else here runs either verb.
 test pinRoundTrips =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 2L" ])
+    let ran = step(i, [ "eval", "1 + 2" ])
     let id = short(latestId(i))
     let pinned = Instance.said(i, [ "traces", "pin", id ])
     let shown = Instance.said(i, [ "traces", "inspect", id ])
@@ -252,13 +252,13 @@ test pinRoundTrips =
 
 test rerunEvaluatesTheRecordedInputAgain =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 2L" ])
+    let ran = step(i, [ "eval", "1 + 2" ])
     let id = latestId(i)
     let out = Instance.said(i, [ "traces", "rerun", id ])
 
     Stdlib.Test.all(
       [ ran
-        Instance.says(out, $"rerunning {short(id)}: 1L + 2L", "the header previews the saved source")
+        Instance.says(out, $"rerunning {short(id)}: 1 + 2", "the header previews the saved source")
         Instance.says(out, "3", "the result")
         Instance.says(out, "rerun complete", "the completion line")
         // A rerun is a trace of its own.
@@ -269,7 +269,7 @@ test rerunEvaluatesTheRecordedInputAgain =
 
 test argumentOrderDoesNotMatter =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 1L" ])
+    let ran = step(i, [ "eval", "1 + 1" ])
 
     Stdlib.Test.all(
       [ ran
@@ -283,7 +283,7 @@ test argumentOrderDoesNotMatter =
 
 test routeFilterIgnoresCase =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 1L" ])
+    let ran = step(i, [ "eval", "1 + 1" ])
     let lower = Instance.said(i, [ "traces", "list", "--route", "eval" ])
     let upper = Instance.said(i, [ "traces", "list", "--route", "EVAL" ])
     let mixed = Instance.said(i, [ "traces", "list", "--route", "Eval" ])
@@ -317,7 +317,7 @@ test negativeCountsAreRefused =
 /// Empty and blank filters, and the old spellings of `--inspect`, refused by name.
 test emptyPatternsAreRefused =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 1L" ])
+    let ran = step(i, [ "eval", "1 + 1" ])
 
     // `--view` and `--show` are the two spellings `--inspect` has had, each refused
     // by name rather than as an unknown flag.
@@ -358,7 +358,7 @@ test unknownSubcommandsAreNamed =
 /// take.
 test flagsWhereAnIdGoesAreRefused =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 1L" ])
+    let ran = step(i, [ "eval", "1 + 1" ])
     let id = latestId(i)
 
     Stdlib.Test.all(
@@ -375,7 +375,7 @@ test flagsWhereAnIdGoesAreRefused =
 
 test inspectRefusesOldAndNegativeOptions =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "1L + 1L" ])
+    let ran = step(i, [ "eval", "1 + 1" ])
     let id = latestId(i)
 
     Stdlib.Test.all(
@@ -446,7 +446,7 @@ test anEmptyAnswerSaysWhyItIsEmpty =
 /// is one; if somebody gives it an effect, pick another that still has none.
 test anImpureBuiltinWithoutEffectsIsLogged =
   withTraces(fun i ->
-    let defined = step(i, [ "fn", "Test.NoEffects.pid", "(): Int = Stdlib.Cli.Sys.currentPid()" ])
+    let defined = step(i, [ "fn", "Test.NoEffects.pid", "(): Int64 = Stdlib.Cli.Sys.currentPid()" ])
     let ran = step(i, [ "eval", "Test.NoEffects.pid()" ])
     let inspected = Instance.said(i, [ "traces", "inspect", short(latestId(i)) ])
 
@@ -467,7 +467,7 @@ test anImpureBuiltinWithoutEffectsIsLogged =
 /// looks like a fact.
 test theShortNameFormWorks =
   withTraces(fun i ->
-    let ran = step(i, [ "eval", "Stdlib.List.length([1L, 2L])" ])
+    let ran = step(i, [ "eval", "Stdlib.List.length([1, 2])" ])
     let full = Instance.said(i, [ "traces", "calls", "Darklang.Stdlib.List.length" ])
     let shortForm = Instance.said(i, [ "traces", "calls", "Stdlib.List.length" ])
     let shown = Instance.said(i, [ "traces", "show", "Stdlib.List.length" ])
@@ -516,9 +516,9 @@ test aReplayTellsDriftFromARaise =
   withTraces(fun i ->
     let authored =
       Stdlib.Test.all(
-        [ step(i, [ "fn", "Tests.DriftT.inner", "(n: Int64): Int64 = (n * 2L)" ])
+        [ step(i, [ "fn", "Tests.DriftT.inner", "(n: Int64): Int64 = (n * 2)" ])
           step(i, [ "fn", "Tests.DriftT.outer", "(n: Int64): Int64 = Tests.DriftT.inner(n)" ])
-          step(i, [ "eval", "Tests.DriftT.outer(5L)" ]) ])
+          step(i, [ "eval", "Tests.DriftT.outer(5)" ]) ])
 
     let id = short(latestId(i))
     // Before the drift the page REPLAYS: the recorded value is on the line.
@@ -535,9 +535,9 @@ test aReplayTellsDriftFromARaise =
     // A genuine raise must NOT be called drift, or the label means nothing.
     let raised =
       Stdlib.Test.all(
-        [ step(i, [ "fn", "Tests.RaiseT.boom", "(n: Int64): Int64 = (n / 0L)" ])
+        [ step(i, [ "fn", "Tests.RaiseT.boom", "(n: Int64): Int64 = (n / 0)" ])
           Instance.exitedWith(
-            Stdlib.Tuple2.first(Instance.ran(i, [ "eval", "Tests.RaiseT.boom(5L)" ])),
+            Stdlib.Tuple2.first(Instance.ran(i, [ "eval", "Tests.RaiseT.boom(5)" ])),
             1,
             "the raising eval") ])
 
@@ -637,7 +637,7 @@ test exitCodesSayWhetherItWorked =
     let good = $"{dir}/exit-ok.dark"
     let raises = $"{dir}/exit-raise.dark"
     let _ = Stdlib.Cli.File.writeText(good, "Stdlib.printLine(\"fine\")\n")
-    let _ = Stdlib.Cli.File.writeText(raises, "(1L / 0L)\n")
+    let _ = Stdlib.Cli.File.writeText(raises, "(1 / 0)\n")
 
     // Naming something that is not there is a refusal, whatever printed. `show`
     // takes a function, so a run id handed to it is a refusal that says which verb
@@ -646,8 +646,8 @@ test exitCodesSayWhetherItWorked =
     [ ([ "run", good ], 0, "a script that ran")
       ([ "run", raises ], 1, "a script that raised")
       ([ "run", $"{dir}/exit-missing.dark" ], 1, "a script that is not there")
-      ([ "eval", "1L + 1L" ], 0, "an expression that answered")
-      ([ "eval", "(1L / 0L)" ], 1, "an expression that raised")
+      ([ "eval", "1 + 1" ], 0, "an expression that answered")
+      ([ "eval", "(1 / 0)" ], 1, "an expression that raised")
       ([ "traces", "inspect", "zzzzzzzz" ], 1, "a run id nothing matches")
       ([ "traces", "show", "zzzzzzzz" ], 1, "a name that is neither a fn nor a run")
       ([ "traces", "show", "abc123ef" ], 1, "a run id where a function name goes")

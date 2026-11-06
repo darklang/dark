@@ -1,19 +1,19 @@
 module Darklang.Stdlib.Cli.Posix.Tests
 
 /// An errno that differs by platform: macOS has no such syscall (ENOSYS, 78).
-let errnoOr(linux: Int): Int = if Stdlib.Cli.Posix.__abiMac() then 78 else linux
+let errnoOr(linux: Int64): Int64 = if Stdlib.Cli.Posix.__abiMac() then 78 else linux
 
-let posixError(errno: Int, message: String): Stdlib.Cli.Posix.Error =
+let posixError(errno: Int64, message: String): Stdlib.Cli.Posix.Error =
   Stdlib.Cli.Posix.Error { errno = errno, message = message }
 
 // Raw syscalls refuse bad descriptors and arguments with their errno
 test syscallErrnos =
   Stdlib.Test.all(
-    [ Builtin.syscallRead(-1, 1) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallRead(-1, -1) |> Stdlib.Test.equal(Error(22))
-      Builtin.syscallClose(-1) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallLseek(-1, 0, 0) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallFlock(-1, 2) |> Stdlib.Test.equal(Error(9))
+    [ Builtin.syscallRead(-1z, 1) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallRead(-1z, -1) |> Stdlib.Test.equal(Error(22))
+      Builtin.syscallClose(-1z) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallLseek(-1z, 0, 0) |> Stdlib.Test.equal(Error(9))
+      Builtin.syscallFlock(-1z, 2) |> Stdlib.Test.equal(Error(9))
       Stdlib.Test.expect(Builtin.syscallGetpid() > 0, "getpid is positive")
       Stdlib.Test.expect(Builtin.syscallGetuid() >= 0, "getuid is not negative")
       Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 0)
@@ -42,7 +42,7 @@ test readlinkAtTruncates =
     let link = Stdlib.Cli.Path.join([ dir, "link" ])
     let _ = Stdlib.Cli.Posix.symlink("abcdef", link)
     Builtin.syscallReadlinkAt(link, 2) |> Stdlib.Result.map(Stdlib.Bytes.toList))
-  |> Stdlib.Test.equal(Ok(Ok([ 97uy, 98uy ])))
+  |> Stdlib.Test.equal(Ok(Ok([ 97u8, 98u8 ])))
 
 // The cwd and readlink wrappers grow their buffer until the result fits
 test bufferGrowth =
@@ -52,7 +52,7 @@ test bufferGrowth =
           if count == 2 then Error(34) else Ok(Stdlib.Utf8.encode("/x\0"))),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Ok([ 47uy, 120uy, 0uy ]))
+      |> Stdlib.Test.equal(Ok([ 47u8, 120u8, 0u8 ]))
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun count ->
           if count == 2 then Ok(Stdlib.Utf8.encode("ab"))
@@ -60,7 +60,7 @@ test bufferGrowth =
           else Error(22)),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Ok([ 97uy, 98uy, 99uy ]))
+      |> Stdlib.Test.equal(Ok([ 97u8, 98u8, 99u8 ]))
       Stdlib.Cli.Posix.__pathReadlinkWith((fun _ -> Ok(Stdlib.Bytes.empty)), 0)
       |> Stdlib.Test.equal(Error(22)) ])
 
@@ -139,7 +139,7 @@ test publicWrappers =
       Stdlib.Cli.Posix.getCwd()
       |> Stdlib.Result.map(fun path -> Stdlib.String.startsWith(path, "/"))
       |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Cli.Posix.fdRead(-1, 1)
+      Stdlib.Cli.Posix.fdRead(-1z, 1)
       |> Stdlib.Test.equal(Error(posixError(9, "Bad file descriptor"))) ])
 
 // Setting a file's times through the platform syscall shows up in stat

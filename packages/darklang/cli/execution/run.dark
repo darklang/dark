@@ -4,11 +4,12 @@ module Darklang.Cli.Run
 /// Unit succeeds; Int and Int64 supply the script's exit code.
 let exitCode(
   value: LanguageTools.RuntimeTypes.Dval)
-  : Stdlib.Result.Result<Int, ExecutionError.ExecutionError> =
+  : Stdlib.Result.Result<Int64, ExecutionError.ExecutionError> =
   match value with
   | DUnit -> Ok(0)
-  | DInt(code) -> Ok(code)
-  | DInt64(code) -> Ok(Stdlib.Int.fromInt64(code))
+  | DInt64(code) -> Ok(code)
+  // an `Int` past Int64 is no exit code the OS could carry, so it fails like any other
+  | DInt(code) -> Ok(Stdlib.Int.toInt64(code) |> Stdlib.Option.withDefault(1))
   | _ ->
     Error(
       ExecutionError.ExecutionError.Runtime(
@@ -29,7 +30,7 @@ let parseAndExecute(
   code: String,
   args: List<String>,
   options: Darklang.Tracing.ScriptOptions)
-  : Stdlib.Result.Result<(Int *
+  : Stdlib.Result.Result<(Int64 *
                           List<(String * String * Stdlib.Option.Option<String>)>),
                          ExecutionError.ExecutionError> =
   let result =
@@ -242,7 +243,7 @@ let runScriptMeasured(
 /// Report what <fn parseAndExecute> returned, and offer to save a denied permission.
 let handleResult(
   state: AppState,
-  result: Stdlib.Result.Result<(Int *
+  result: Stdlib.Result.Result<(Int64 *
                                 List<(String * String * Stdlib.Option.Option<String>)>),
                                ExecutionError.ExecutionError>,
   options: Darklang.Tracing.ScriptOptions,

@@ -14,7 +14,7 @@ val empty = Builtin.bytesEmpty
 
 
 /// Returns the length of <param bytes> in bytes.
-let length(bytes: Bytes): Int = Builtin.bytesLength(bytes)
+let length(bytes: Bytes): Int64 = Builtin.bytesLength(bytes)
 
 
 /// Returns {{true}} if <param bytes> has no bytes in it.
@@ -23,7 +23,7 @@ let isEmpty(bytes: Bytes): Bool = (length(bytes)) == 0
 
 /// Returns {{Some byte}} at <param index> in <param bytes> if <param index> is
 /// less than the length, otherwise returns {{None}}.
-let getAt(bytes: Bytes, index: Int): Stdlib.Option.Option<UInt8> =
+let getAt(bytes: Bytes, index: Int64): Stdlib.Option.Option<UInt8> =
   Builtin.bytesGetAt(bytes, index)
 
 
@@ -32,14 +32,14 @@ let getAt(bytes: Bytes, index: Int): Stdlib.Option.Option<UInt8> =
 let indexOfFrom(
   bytes: Bytes,
   byte: UInt8,
-  start: Int)
-  : Stdlib.Option.Option<Int> =
+  start: Int64)
+  : Stdlib.Option.Option<Int64> =
   Builtin.bytesIndexOf(bytes, byte, start)
 
 
 /// Returns {{Some index}} of the first <param byte> in <param bytes>, or
 /// {{None}} if it isn't there.
-let indexOf(bytes: Bytes, byte: UInt8): Stdlib.Option.Option<Int> =
+let indexOf(bytes: Bytes, byte: UInt8): Stdlib.Option.Option<Int64> =
   indexOfFrom(bytes, byte, 0)
 
 
@@ -61,8 +61,8 @@ type IndexError =
 /// {{0 <= start <= end <= length}}.
 let slice(
   bytes: Bytes,
-  start: Int,
-  end: Int)
+  start: Int64,
+  end: Int64)
   : Stdlib.Result.Result<Bytes, IndexError> =
   if start < 0 || start > end || end > length(bytes) then
     Stdlib.Result.Result.Error(IndexError.IndexOutOfBounds)
@@ -72,7 +72,7 @@ let slice(
 
 /// Returns the first <param count> bytes of <param bytes>, or all of them if
 /// there are fewer. A <param count> of zero or less gives the empty Bytes.
-let take(bytes: Bytes, count: Int): Bytes =
+let take(bytes: Bytes, count: Int64): Bytes =
   let total = length(bytes)
   let end = if count < 0 then 0 else if count > total then total else count
   // Never out of range: `end` is within the Bytes.
@@ -81,7 +81,7 @@ let take(bytes: Bytes, count: Int): Bytes =
 
 /// Returns <param bytes> without its first <param count> bytes, or the empty
 /// Bytes if there are fewer. A <param count> of zero or less drops nothing.
-let drop(bytes: Bytes, count: Int): Bytes =
+let drop(bytes: Bytes, count: Int64): Bytes =
   let total = length(bytes)
   let start = if count < 0 then 0 else if count > total then total else count
   // Never out of range: `start` is within the Bytes.

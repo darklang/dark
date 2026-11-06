@@ -45,18 +45,18 @@ let read(q: TraceQuery): List<Trace> =
 
 
 /// The most recent <param limit> traces, newest first.
-let list(limit: Int): List<Trace> =
+let list(limit: Int64): List<Trace> =
   read(TraceQuery.Newest(limit))
 
 
 /// The most recent <param limit> traces that called <param fnName>.
-let listByFn(fnName: String, limit: Int): List<Trace> =
+let listByFn(fnName: String, limit: Int64): List<Trace> =
   read(TraceQuery.Calling(fnName, limit))
 
 
 /// The most recent <param limit> traces whose inputs, args or results
 /// contain <param pattern>.
-let find(pattern: String, limit: Int): List<Trace> =
+let find(pattern: String, limit: Int64): List<Trace> =
   read(TraceQuery.Containing(pattern, limit))
 
 
@@ -142,7 +142,7 @@ let fnCounts(traceLimit: Int64): List<String * Int64> =
 ///
 /// `""` for the hash when there is none to give.
 let wentThrough(fnName: String, fnHash: String, limit: Int64): List<Trace> =
-  read(TraceQuery.WentThrough(fnName, fnHash, Stdlib.Int.fromInt64(limit)))
+  read(TraceQuery.WentThrough(fnName, fnHash, limit))
 
 
 /// The runs that went through a function a person named.
@@ -269,38 +269,38 @@ let resolveID(input: String): Stdlib.Result.Result<String, String> =
 
 /// Per-fn totals over the last <param traceLimit> traces:
 /// (fnName, callCount, totalMs, maxMs), most total time first.
-let hotspots(traceLimit: Int): List<(String * Int * Int * Int)> =
+let hotspots(traceLimit: Int64): List<(String * Int64 * Int64 * Int64)> =
   (query(TraceQuery.Hotspots(traceLimit))).totals
 
 
 /// Per-handler totals over the last <param traceLimit> traces:
 /// (handler, traceCount, totalMs, maxMs).
-let statsByHandler(traceLimit: Int): List<(String * Int * Int * Int)> =
+let statsByHandler(traceLimit: Int64): List<(String * Int64 * Int64 * Int64)> =
   (query(TraceQuery.StatsByHandler(traceLimit))).totals
 
 
 /// Delete the runs <param which> names, with their calls. Returns how many went. The four below
 /// are the names callers use.
-let deleteWhere(which: TraceSelection): Int =
+let deleteWhere(which: TraceSelection): Int64 =
   Builtin.tracesDelete(which)
 
 
 /// Delete one trace by full ID. Returns the number of rows deleted.
-let delete(traceID: String): Int =
+let delete(traceID: String): Int64 =
   deleteWhere(TraceSelection.One(traceID))
 
 
 /// Delete every trace. Returns the number deleted.
-let clear(): Int =
+let clear(): Int64 =
   deleteWhere(TraceSelection.All)
 
 
 /// Delete traces recorded before <param cutoff>. Returns the number deleted.
-let clearBefore(cutoff: String): Int =
+let clearBefore(cutoff: String): Int64 =
   deleteWhere(TraceSelection.Before(cutoff))
 
 
 /// Keep the <param keepN> most recent traces, delete the rest. Returns the
 /// number deleted.
-let pruneKeep(keepN: Int): Int =
+let pruneKeep(keepN: Int64): Int64 =
   deleteWhere(TraceSelection.AllButNewest(keepN))

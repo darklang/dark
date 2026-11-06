@@ -54,7 +54,7 @@ For a file path starting with a dash, use `dark run -- -name.dark`.
 ## Results and exit codes
 
 Expressions run in order. Each must return Unit, except the last, which may return
-an Int exit code: 0 for success, or 1-255 for a portable failure code.
+an Int64 exit code: 0 for success, or 1-255 for a portable failure code.
 Int64 is also accepted. A final Unit means success, so this is a complete script:
 
   Stdlib.printLine("Hello")

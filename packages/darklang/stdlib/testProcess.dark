@@ -4,15 +4,15 @@ module Darklang.Stdlib.Test.Process
 
 type Options =
   { branch: Option<Uuid>
-    timeoutMs: Int
-    columns: Int
-    rows: Int }
+    timeoutMs: Int64
+    columns: Int64
+    rows: Int64 }
 
 type Output<'a> =
   { result: Stdlib.Result.Result<'a, String>
     stdout: String
     stderr: String
-    exitCode: Int
+    exitCode: Int64
     cleanupErrors: List<String> }
 
 let defaults(): Options =

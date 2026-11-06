@@ -134,10 +134,10 @@ impl ToString for UInt128 =
   let toString(uint128: UInt128): String = Builtin.uint128ToString(uint128)
 
 impl Zero for UInt128 =
-  let zero(): UInt128 = 0Z
+  let zero(): UInt128 = 0u128
 
 impl One for UInt128 =
-  let one(): UInt128 = 1Z
+  let one(): UInt128 = 1u128
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -174,7 +174,7 @@ let checkedMultiply(
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
 let checkedNegate(a: UInt128): Stdlib.Result.Result<UInt128, Stdlib.Int.Overflow> =
-  if a == 0Z then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+  if a == 0u128 then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always

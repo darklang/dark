@@ -16,7 +16,7 @@ let singleton(key: 'k, value: 'v): Dict<'k, 'v> =
   Stdlib.Dict.set(Dict { }, key, value)
 
 /// Returns the number of entries in <param dict>
-let size(dict: Dict<'k, 'v>): Int =
+let size(dict: Dict<'k, 'v>): Int64 =
   Builtin.dictSize(dict)
 
 
@@ -107,16 +107,16 @@ let mergeWith(
 
 /// Keeps the entries of <param dict> whose key is also a key of <param keep>.
 /// The values always come from <param dict>:
-/// {{intersectKeys (Dict { "a": 1L, "b": 2L }) (Dict { "b": true })}}
-/// is {{Dict { "b": 2L }}}. The opposite of <fn Dict.differenceKeys>.
+/// {{intersectKeys (Dict { "a": 1, "b": 2 }) (Dict { "b": true })}}
+/// is {{Dict { "b": 2 }}}. The opposite of <fn Dict.differenceKeys>.
 let intersectKeys(dict: Dict<'k, 'v>, keep: Dict<'k, 'b>): Dict<'k, 'v> =
   Stdlib.Dict.filter(dict, fun(k, _) -> Stdlib.Dict.containsKey(keep, k))
 
 
 /// Keeps the entries of <param dict> whose key is not a key of <param drop>.
 /// The values always come from <param dict>:
-/// {{differenceKeys (Dict { "a": 1L, "b": 2L }) (Dict { "b": true })}}
-/// is {{Dict { "a": 1L }}}. The opposite of <fn Dict.intersectKeys>.
+/// {{differenceKeys (Dict { "a": 1, "b": 2 }) (Dict { "b": true })}}
+/// is {{Dict { "a": 1 }}}. The opposite of <fn Dict.intersectKeys>.
 let differenceKeys(dict: Dict<'k, 'v>, drop: Dict<'k, 'b>): Dict<'k, 'v> =
   Stdlib.Dict.filter(dict, fun(k, _) ->
     Stdlib.Bool.not(Stdlib.Dict.containsKey(drop, k)))

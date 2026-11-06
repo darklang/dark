@@ -8,21 +8,21 @@ module Darklang.Language.Tests.NestedFunctions
 test definitionsAndRecursion =
   Stdlib.Test.all(
     [ // non-recursive nested fn with type annotations
-      (let double(x: Int64): Int64 = x * 2L
-       double(5L))
-      |> Stdlib.Test.equal(10L)
+      (let double(x: Int64): Int64 = x * 2
+       double(5))
+      |> Stdlib.Test.equal(10)
       // self-recursive nested fn
       (let fact(n: Int64): Int64 =
-         if n <= 1L then 1L else n * (fact(n - 1L))
-       fact(5L))
-      |> Stdlib.Test.equal(120L)
+         if n <= 1 then 1 else n * (fact(n - 1))
+       fact(5))
+      |> Stdlib.Test.equal(120)
       // the reverse/reverseHelper example, with the helper nested inside
       (let reverseHelper(list: List<Int64>, acc: List<Int64>): List<Int64> =
          match list with
          | [] -> acc
          | [head, ...tail] -> reverseHelper(tail, Stdlib.List.prepend(acc, head))
-       reverseHelper([ 1L, 2L, 3L ], []))
-      |> Stdlib.Test.equal([ 3L, 2L, 1L ])
+       reverseHelper([ 1, 2, 3 ], []))
+      |> Stdlib.Test.equal([ 3, 2, 1 ])
       // generic type params in annotations are accepted (dropped at runtime)
       (let rev(list: List<'a>, acc: List<'a>): List<'a> =
          match list with
@@ -34,36 +34,36 @@ test definitionsAndRecursion =
 test closuresAndShadowing =
   Stdlib.Test.all(
     [ // nested fn closes over an outer let binding AND recurses
-      (let limit = 10L
+      (let limit = 10
        let sumUpTo(i: Int64): Int64 =
-         if i > limit then 0L else i + (sumUpTo(i + 1L))
-       sumUpTo(1L))
-      |> Stdlib.Test.equal(55L)
+         if i > limit then 0 else i + (sumUpTo(i + 1))
+       sumUpTo(1))
+      |> Stdlib.Test.equal(55)
       // nested fn that closes over an outer binding without recursing
-      (let multiplier = 3L
+      (let multiplier = 3
        let scale(x: Int64): Int64 = x * multiplier
-       scale(4L))
-      |> Stdlib.Test.equal(12L)
+       scale(4))
+      |> Stdlib.Test.equal(12)
       // rebinding a name to a lambda that references the OUTER binding captures
       // the outer value - it is not self-recursion
-      (let f = 1L
+      (let f = 1
        let f = (fun x -> f + x)
-       f(5L))
-      |> Stdlib.Test.equal(6L)
+       f(5))
+      |> Stdlib.Test.equal(6)
       // a lambda param that shadows the binding name is the param, not recursion
-      (let x = (fun x -> x * 2L)
-       x(3L))
-      |> Stdlib.Test.equal(6L) ])
+      (let x = (fun x -> x * 2)
+       x(3))
+      |> Stdlib.Test.equal(6) ])
 
 // a nested fn whose name collides with a fn in scope is rejected - the
 // reference inside the body is ambiguous (recursion vs. the outer fn), so
 // it's an error rather than silently picking one
-let sumDown(x: Int64): Int64 = x + 100L
+let sumDown(x: Int64): Int64 = x + 100
 
 test nameCollisionRaises =
   (let sumDown(n: Int64): Int64 =
-     if n <= 0L then 0L else n + (sumDown(n - 1L))
-   sumDown(3L))
+     if n <= 0 then 0 else n + (sumDown(n - 1))
+   sumDown(3))
   => raises
     "Nested function name `sumDown` (a function or value with this name already exists in scope) is not a valid name"
 
@@ -71,25 +71,25 @@ test nameCollisionRaises =
 // not found"
 test mutualRecursionRaises =
   (let isEven(n: Int64): Bool =
-     if n == 0L then true else isOdd(n - 1L)
+     if n == 0 then true else isOdd(n - 1)
    let isOdd(n: Int64): Bool =
-     if n == 0L then false else isEven(n - 1L)
-   isEven(4L))
+     if n == 0 then false else isEven(n - 1)
+   isEven(4))
   => raises
     "`isOdd` (forward calls between nested functions aren't supported; use top-level functions instead) not found"
 
 test earlierAndShadowedNames =
   Stdlib.Test.all(
     [ // but a nested fn CAN call one defined before it (plain closure capture)
-      (let double(x: Int64): Int64 = x * 2L
+      (let double(x: Int64): Int64 = x * 2
        let quadruple(x: Int64): Int64 = double(double(x))
-       quadruple(3L))
-      |> Stdlib.Test.equal(12L)
+       quadruple(3))
+      |> Stdlib.Test.equal(12)
       // an inner binding that shadows a later nested fn's name is fine - not
       // mutual recursion
       (let f(n: Int64): Int64 =
-         let foo = 5L
+         let foo = 5
          foo + n
        let foo(x: Int64): Int64 = x
-       f(1L))
-      |> Stdlib.Test.equal(6L) ])
+       f(1))
+      |> Stdlib.Test.equal(6) ])

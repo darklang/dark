@@ -15,7 +15,7 @@ let area(s: Shape): Float =
   | Named(_, inner) -> area(inner)
 
 let fib(n: Int64): Int64 =
-  if n < 2L then n else (fib(n - 1L)) + (fib(n - 2L))
+  if n < 2 then n else (fib(n - 1)) + (fib(n - 2))
 
 let shapes(): List<Shape> =
   [ Shape.Circle(2.0)
@@ -33,11 +33,11 @@ test areasAndFiltering =
       |> Stdlib.List.filter(fun a -> a > 5.0)
       |> Stdlib.Test.equal([ 12.56636, 12.0 ]) ])
 
-test recursion = fib(18L) |> Stdlib.Test.equal(2584L)
+test recursion = fib(18) |> Stdlib.Test.equal(2584)
 
 // Check the serialized JSON text and the whole record after the round trip.
 test recordJsonRoundtrip =
-  let acct = Acct { id = 7L, name = "ada", tags = [ "x", "y" ] }
+  let acct = Acct { id = 7, name = "ada", tags = [ "x", "y" ] }
   let json = Stdlib.Json.serialize<Acct>(acct)
   Stdlib.Test.all(
     [ json

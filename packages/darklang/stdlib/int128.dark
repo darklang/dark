@@ -167,10 +167,10 @@ impl ToString for Int128 =
   let toString(int128: Int128): String = Builtin.int128ToString(int128)
 
 impl Zero for Int128 =
-  let zero(): Int128 = 0Q
+  let zero(): Int128 = 0s128
 
 impl One for Int128 =
-  let one(): Int128 = 1Q
+  let one(): Int128 = 1s128
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -182,7 +182,7 @@ let checkedAdd(
   b: Int128)
   : Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
   let sum = a + b
-  let wrapped = if b < 0Q then sum > a else sum < a
+  let wrapped = if b < 0s128 then sum > a else sum < a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
 
 
@@ -192,7 +192,7 @@ let checkedSubtract(
   b: Int128)
   : Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
   let difference = a - b
-  let wrapped = if b < 0Q then difference < a else difference > a
+  let wrapped = if b < 0s128 then difference < a else difference > a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(difference)
 
 
@@ -210,7 +210,7 @@ let checkedMultiply(
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int128): Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
-  if a == -170141183460469231731687303715884105728Q then
+  if a == -170141183460469231731687303715884105728s128 then
     Error(Stdlib.Int.Overflow.Overflow)
   else
     Ok(-a)
@@ -220,9 +220,9 @@ let checkedNegate(a: Int128): Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> 
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int128)
   : Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
-  if a == -170141183460469231731687303715884105728Q then
+  if a == -170141183460469231731687303715884105728s128 then
     Error(Stdlib.Int.Overflow.Overflow)
-  else if a < 0Q then
+  else if a < 0s128 then
     Ok(-a)
   else
     Ok(a)

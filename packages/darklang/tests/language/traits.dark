@@ -5,7 +5,7 @@ module Darklang.Language.Tests.Traits
 // (`'a: Show`) are checked when a fn is entered.
 
 module Shapes =
-  type Point = { x: Int, y: Int }
+  type Point = { x: Int64, y: Int64 }
 
   trait Show<'a> =
     let show(value: 'a): String
@@ -14,8 +14,8 @@ module Shapes =
     let show(p: Point): String =
       $"({Stdlib.toString(p.x)}, {Stdlib.toString(p.y)})"
 
-  impl Show for Int =
-    let show(n: Int): String = Stdlib.toString(n)
+  impl Show for Int64 =
+    let show(n: Int64): String = Stdlib.toString(n)
 
   impl Show for Bool =
     let show(b: Bool): String = if b then "yes" else "no"
@@ -93,7 +93,7 @@ module Shapes =
       "Float has no implementation of Darklang.Language.Tests.Traits.Shapes.Show. Write `impl Show for Float = ...`, or run `dark impls Show` to see which types do"
 
 module Multi =
-  type Vec = { dx: Int, dy: Int }
+  type Vec = { dx: Int64, dy: Int64 }
 
   // The operators are the stdlib traits: `+` is `Stdlib.Add.add`. A user impl
   // makes `Vec + Vec` an ordinary expression.
@@ -147,12 +147,12 @@ module Ambiguity =
   trait Label<'a> =
     let describe(v: 'a): String
 
-  impl Describe for Int =
-    let describe(n: Int): String = "described"
-    let short(n: Int): String = "d"
+  impl Describe for Int64 =
+    let describe(n: Int64): String = "described"
+    let short(n: Int64): String = "d"
 
-  impl Label for Int =
-    let describe(n: Int): String = "labelled"
+  impl Label for Int64 =
+    let describe(n: Int64): String = "labelled"
 
   // Naming the trait disambiguates
   test namedTraitDisambiguates =
@@ -164,7 +164,7 @@ module Ambiguity =
   test ambiguousReceiverRaises =
     (1).describe
     => raises
-      "Int has more than one `describe`: 2 traits declare it. Say which one you mean, as `SomeTrait.describe(value)`"
+      "Int64 has more than one `describe`: 2 traits declare it. Say which one you mean, as `SomeTrait.describe(value)`"
 
 module MethodBounds =
   // A method may declare its own type params and bounds, on top of the trait's bound
@@ -185,15 +185,15 @@ module MethodBounds =
   // two red, and no constant satisfies both.
   test methodBounds =
     Stdlib.Test.all(
-      [ MethodBounds.Pair.pair(MethodBounds.Box { n = 1L }, 1L, 2L)
+      [ MethodBounds.Pair.pair(MethodBounds.Box { n = 1 }, 1, 2)
         |> Stdlib.Test.equal(true)
-        MethodBounds.Pair.pair(MethodBounds.Box { n = 1L }, 2L, 1L)
+        MethodBounds.Pair.pair(MethodBounds.Box { n = 1 }, 2, 1)
         |> Stdlib.Test.equal(false)
-        MethodBounds.Pair.pair(MethodBounds.Box { n = 1L }, "a", "b")
+        MethodBounds.Pair.pair(MethodBounds.Box { n = 1 }, "a", "b")
         |> Stdlib.Test.equal(true) ])
 
   test methodBoundOnBoolRaises =
-    MethodBounds.Pair.pair(MethodBounds.Box { n = 1L }, true, true)
+    MethodBounds.Pair.pair(MethodBounds.Box { n = 1 }, true, true)
     => raises
       "Bool has no implementation of Darklang.Stdlib.Compare. Write `impl Compare for Bool = ...`, or run `dark impls Compare` to see which types do"
 
@@ -216,40 +216,40 @@ module SortOrder =
 
   test customCompareOrder =
     Stdlib.Test.all(
-      [ (SortOrder.Desc { descKey = 1L, descTag = "" }
-         < SortOrder.Desc { descKey = 2L, descTag = "" })
+      [ (SortOrder.Desc { descKey = 1, descTag = "" }
+         < SortOrder.Desc { descKey = 2, descTag = "" })
         |> Stdlib.Test.equal(false)
         Stdlib.List.sort(
-          [ SortOrder.Desc { descKey = 1L, descTag = "" }
-            SortOrder.Desc { descKey = 3L, descTag = "" }
-            SortOrder.Desc { descKey = 2L, descTag = "" } ])
+          [ SortOrder.Desc { descKey = 1, descTag = "" }
+            SortOrder.Desc { descKey = 3, descTag = "" }
+            SortOrder.Desc { descKey = 2, descTag = "" } ])
         |> Stdlib.Test.equal(
-          [ SortOrder.Desc { descKey = 3L, descTag = "" }
-            SortOrder.Desc { descKey = 2L, descTag = "" }
-            SortOrder.Desc { descKey = 1L, descTag = "" } ]) ])
+          [ SortOrder.Desc { descKey = 3, descTag = "" }
+            SortOrder.Desc { descKey = 2, descTag = "" }
+            SortOrder.Desc { descKey = 1, descTag = "" } ]) ])
 
   // Stable: values equal under `Compare` keep the order they came in, whatever their
   // structure.
   test stableSort =
     Stdlib.List.sort(
-      [ SortOrder.Desc { descKey = 1L, descTag = "b" }
-        SortOrder.Desc { descKey = 2L, descTag = "x" }
-        SortOrder.Desc { descKey = 1L, descTag = "a" } ])
+      [ SortOrder.Desc { descKey = 1, descTag = "b" }
+        SortOrder.Desc { descKey = 2, descTag = "x" }
+        SortOrder.Desc { descKey = 1, descTag = "a" } ])
     |> Stdlib.Test.equal(
-      [ SortOrder.Desc { descKey = 2L, descTag = "x" }
-        SortOrder.Desc { descKey = 1L, descTag = "b" }
-        SortOrder.Desc { descKey = 1L, descTag = "a" } ])
+      [ SortOrder.Desc { descKey = 2, descTag = "x" }
+        SortOrder.Desc { descKey = 1, descTag = "b" }
+        SortOrder.Desc { descKey = 1, descTag = "a" } ])
 
   // A type with no `Compare` of its own sorts structurally, as before.
   type Plain = { plainKey: Int64 }
 
   test structuralSort =
     Stdlib.List.sort(
-      [ SortOrder.Plain { plainKey = 2L }
-        SortOrder.Plain { plainKey = 1L } ])
+      [ SortOrder.Plain { plainKey = 2 }
+        SortOrder.Plain { plainKey = 1 } ])
     |> Stdlib.Test.equal(
-      [ SortOrder.Plain { plainKey = 1L }
-        SortOrder.Plain { plainKey = 2L } ])
+      [ SortOrder.Plain { plainKey = 1 }
+        SortOrder.Plain { plainKey = 2 } ])
 
 module Equality =
   // `==` is NOT a trait: equality is structural, for every value, always. A type
@@ -262,14 +262,14 @@ module Equality =
   // Every field counts, including the one a custom equality would have ignored.
   test structuralEquality =
     Stdlib.Test.all(
-      [ (Equality.User { id = 1L, name = "a" }
-         == Equality.User { id = 1L, name = "a" })
+      [ (Equality.User { id = 1, name = "a" }
+         == Equality.User { id = 1, name = "a" })
         |> Stdlib.Test.equal(true)
-        (Equality.User { id = 1L, name = "a" }
-         == Equality.User { id = 1L, name = "b" })
+        (Equality.User { id = 1, name = "a" }
+         == Equality.User { id = 1, name = "b" })
         |> Stdlib.Test.equal(false)
-        (Equality.User { id = 1L, name = "a" }
-         != Equality.User { id = 1L, name = "b" })
+        (Equality.User { id = 1, name = "a" }
+         != Equality.User { id = 1, name = "b" })
         |> Stdlib.Test.equal(true)
         (1 == 1) |> Stdlib.Test.equal(true)
         1 != 1 |> Stdlib.Test.equal(false)
@@ -280,59 +280,59 @@ module Equality =
 
   test intVsStringEqualityRaises =
     (1 == "a")
-    => raises "Cannot perform equality check on Int and String"
+    => raises "Cannot perform equality check on Int64 and String"
 
   // Containers compare element by element, structurally, and agree with the
   // elements.
   test containerEquality =
     Stdlib.Test.all(
-      [ ([ Equality.User { id = 1L, name = "a" } ]
-         == [ Equality.User { id = 1L, name = "a" } ])
+      [ ([ Equality.User { id = 1, name = "a" } ]
+         == [ Equality.User { id = 1, name = "a" } ])
         |> Stdlib.Test.equal(true)
-        ([ Equality.User { id = 1L, name = "a" } ]
-         == [ Equality.User { id = 1L, name = "b" } ])
+        ([ Equality.User { id = 1, name = "a" } ]
+         == [ Equality.User { id = 1, name = "b" } ])
         |> Stdlib.Test.equal(false)
-        ([ Equality.User { id = 1L, name = "a" } ]
-         != [ Equality.User { id = 1L, name = "b" } ])
+        ([ Equality.User { id = 1, name = "a" } ]
+         != [ Equality.User { id = 1, name = "b" } ])
         |> Stdlib.Test.equal(true) ])
 
   // lengths first
   test lengthsFirst =
-    ([ Equality.User { id = 1L, name = "a" } ] == []) |> Stdlib.Test.equal(false)
+    ([ Equality.User { id = 1, name = "a" } ] == []) |> Stdlib.Test.equal(false)
 
   // the same one level down: a tuple slot, a dict value, an Option payload, a record
   // field
   test nestedEquality =
     Stdlib.Test.all(
-      [ ((1L, Equality.User { id = 1L, name = "a" })
-         == (1L, Equality.User { id = 1L, name = "a" }))
+      [ ((1, Equality.User { id = 1, name = "a" })
+         == (1, Equality.User { id = 1, name = "a" }))
         |> Stdlib.Test.equal(true)
-        ((1L, Equality.User { id = 1L, name = "a" })
-         == (1L, Equality.User { id = 1L, name = "b" }))
+        ((1, Equality.User { id = 1, name = "a" })
+         == (1, Equality.User { id = 1, name = "b" }))
         |> Stdlib.Test.equal(false)
         ((Stdlib.Dict.fromEntries(
-            [ ("k", Equality.User { id = 1L, name = "a" }) ]))
+            [ ("k", Equality.User { id = 1, name = "a" }) ]))
          == (Stdlib.Dict.fromEntries(
-               [ ("k", Equality.User { id = 1L, name = "a" }) ])))
+               [ ("k", Equality.User { id = 1, name = "a" }) ])))
         |> Stdlib.Test.equal(true)
-        (Stdlib.Option.Option.Some(Equality.User { id = 1L, name = "a" })
+        (Stdlib.Option.Option.Some(Equality.User { id = 1, name = "a" })
          == Stdlib.Option.Option.None)
         |> Stdlib.Test.equal(false)
-        ([ [ Equality.User { id = 1L, name = "a" } ] ]
-         == [ [ Equality.User { id = 1L, name = "b" } ] ])
+        ([ [ Equality.User { id = 1, name = "a" } ] ]
+         == [ [ Equality.User { id = 1, name = "b" } ] ])
         |> Stdlib.Test.equal(false)
-        (Equality.Holder { user = Equality.User { id = 1L, name = "a" } }
-         == Equality.Holder { user = Equality.User { id = 1L, name = "a" } })
+        (Equality.Holder { user = Equality.User { id = 1, name = "a" } }
+         == Equality.Holder { user = Equality.User { id = 1, name = "a" } })
         |> Stdlib.Test.equal(true)
-        (Equality.Holder { user = Equality.User { id = 1L, name = "a" } }
-         == Equality.Holder { user = Equality.User { id = 1L, name = "b" } })
+        (Equality.Holder { user = Equality.User { id = 1, name = "a" } }
+         == Equality.Holder { user = Equality.User { id = 1, name = "b" } })
         |> Stdlib.Test.equal(false) ])
 
   // a list of builtin values, unchanged throughout
   test builtinListEquality =
     Stdlib.Test.all(
-      [ ([ 1L, 2L ] == [ 1L, 2L ]) |> Stdlib.Test.equal(true)
-        ([ 1L, 2L ] == [ 1L, 3L ]) |> Stdlib.Test.equal(false)
+      [ ([ 1, 2 ] == [ 1, 2 ]) |> Stdlib.Test.equal(true)
+        ([ 1, 2 ] == [ 1, 3 ]) |> Stdlib.Test.equal(false)
         ([] == []) |> Stdlib.Test.equal(true) ])
 
 module Identities =
@@ -340,7 +340,7 @@ module Identities =
   // no argument to read the type from.
   test explicitTypeArg =
     Stdlib.Test.all(
-      [ Stdlib.Zero.zero<Int64>() |> Stdlib.Test.equal(0L)
+      [ Stdlib.Zero.zero<Int64>() |> Stdlib.Test.equal(0)
         Stdlib.One.one<Float>() |> Stdlib.Test.equal(1.0) ])
 
   test zeroWithoutTypeRaises =
@@ -352,13 +352,13 @@ module Identities =
 
   test boundedZero =
     Stdlib.Test.all(
-      [ Identities.zeroOf(5L) |> Stdlib.Test.equal(5L)
+      [ Identities.zeroOf(5) |> Stdlib.Test.equal(5)
         Identities.zeroOf(2.5) |> Stdlib.Test.equal(2.5) ])
 
   // `sum` and `product` take a seed, so `[]` never has to ask
   test seededSumAndProduct =
     Stdlib.Test.all(
-      [ Stdlib.sum(0L, [ 1L, 2L, 3L ]) |> Stdlib.Test.equal(6L)
+      [ Stdlib.sum(0, [ 1, 2, 3 ]) |> Stdlib.Test.equal(6)
         Stdlib.sum(0.0, []) |> Stdlib.Test.equal(0.0)
         Stdlib.product(1, [ 2, 3, 4 ]) |> Stdlib.Test.equal(24)
         Stdlib.sum(Multi.Vec { dx = 0, dy = 0 },
@@ -376,14 +376,14 @@ module Rendering =
 
   test toStringTrait =
     Stdlib.Test.all(
-      [ (Rendering.Point { x = 1L, y = 2L }).toString |> Stdlib.Test.equal("(1, 2)")
-        Stdlib.toString(Rendering.Point { x = 1L, y = 2L })
+      [ (Rendering.Point { x = 1, y = 2 }).toString |> Stdlib.Test.equal("(1, 2)")
+        Stdlib.toString(Rendering.Point { x = 1, y = 2 })
         |> Stdlib.Test.equal("(1, 2)")
-        Stdlib.toString(42L) |> Stdlib.Test.equal("42")
+        Stdlib.toString(42) |> Stdlib.Test.equal("42")
         Stdlib.toString(true) |> Stdlib.Test.equal("true")
         Stdlib.toString(2.5) |> Stdlib.Test.equal("2.5")
         (7).toString |> Stdlib.Test.equal("7")
-        Stdlib.max(3L, 9L) |> Stdlib.Test.equal(9L) ])
+        Stdlib.max(3, 9) |> Stdlib.Test.equal(9) ])
 
   // String, Char and DateTime implement Compare, so the generics cover them too
   test compareOnStringsAndChars =
@@ -407,12 +407,12 @@ module Rendering =
   // `abs` needs three traits at once: compare, negate, and a zero to compare against
   test abs =
     Stdlib.Test.all(
-      [ Stdlib.abs(-5L) |> Stdlib.Test.equal(5L)
+      [ Stdlib.abs(-5) |> Stdlib.Test.equal(5)
         Stdlib.abs(2.5) |> Stdlib.Test.equal(2.5)
         Stdlib.abs(0) |> Stdlib.Test.equal(0) ])
 
   // an unsigned type has no Negate implementation, so it has no abs either
   test absOfUnsignedRaises =
-    Stdlib.abs(5uy)
+    Stdlib.abs(5u8)
     => raises
       "UInt8 has no implementation of Darklang.Stdlib.Negate. Write `impl Negate for UInt8 = ...`, or run `dark impls Negate` to see which types do"

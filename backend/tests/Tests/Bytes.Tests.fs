@@ -259,7 +259,7 @@ let byteLengthDoesNotReadStorage =
       let! actual =
         builtin.fn (struct (state, Unchecked.defaultof<RT.VMState>, [], [| bytes |]))
         |> Ply.toTask
-      Expect.equal actual (RT.Dval.int 3I) "length comes from the reference"
+      Expect.equal actual (RT.DInt64 3L) "length comes from the reference"
     match dbytesRef inMemory with
     | RT.Ephemeral eph -> Expect.isFalse eph.IsHashed "length does not hash bytes"
     | _ -> failtest "length must not promote bytes"
@@ -284,7 +284,7 @@ let peekDoesNotReadStorage =
         struct (state,
                 Unchecked.defaultof<RT.VMState>,
                 [],
-                [| bytes; RT.Dval.int 16I |])
+                [| bytes; RT.DInt64 16L |])
       )
       |> Ply.toTask
     let big = mkEphemeral (Array.create 1_000_000 7uy)

@@ -819,10 +819,10 @@ let runListenerLive
 let private serve
   (exeState : ExecutionState)
   (vm : VMState)
-  (portArg : DarkInt)
+  (port : int64)
   (routing : Routing)
   (approvalRoot : Applicable)
-  (maxBodyBytesArg : DarkInt)
+  (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
   (logRequests : bool)
@@ -850,13 +850,10 @@ let private serve
     // maxBodyBytes is a comparison threshold; a negative limit would
     // reject every request (treated as over-limit), so reject it. 0 is
     // valid (allow no body).
-    let maxBodyBytes = intToInt64 vm maxBodyBytesArg
     if maxBodyBytes < 0L then
       RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
-    // A TCP port must be in [0, 65535]. intToInt64 alone would let
-    // larger-but-int64-sized values reach HttpListener.Start and throw a
-    // host exception, so validate the real port range up front.
-    let port = intToInt64 vm portArg
+    // A TCP port must be in [0, 65535]. Anything else would reach
+    // HttpListener.Start and throw a host exception, so check it up front.
     if port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort then
       RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
 
@@ -953,7 +950,7 @@ let private handlerType = TFn(NEList.singleton requestType, responseType)
 let private commonParams =
   [ Param.make
       "maxBodyBytes"
-      TInt
+      TInt64
       "Maximum request body size in bytes (over-limit → 413)"
     Param.make
       "injectStandardHeaders"
@@ -978,7 +975,7 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
       parameters =
-        [ Param.make "port" TInt "TCP port to listen on"
+        [ Param.make "port" TInt64 "TCP port to listen on"
           Param.makeWithArgs
             "handler"
             handlerType
@@ -994,9 +991,9 @@ let fns () : List<BuiltInFn> =
         | exeState,
           vm,
           _,
-          [| DInt portArg
+          [| DInt64 portArg
              DApplicable handler
-             DInt maxBodyBytesArg
+             DInt64 maxBodyBytesArg
              DBool injectStandardHeaders
              DBool canonicalizeFromForwardedProto
              DBool logRequests
@@ -1025,7 +1022,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "httpServerServeLive" 0
       typeParams = []
       parameters =
-        [ Param.make "port" TInt "TCP port to listen on"
+        [ Param.make "port" TInt64 "TCP port to listen on"
           Param.make "init" (TVariable "s") "The routing state to start from"
           Param.makeWithArgs
             "step"
@@ -1054,12 +1051,12 @@ let fns () : List<BuiltInFn> =
         | exeState,
           vm,
           _,
-          [| DInt portArg
+          [| DInt64 portArg
              init
              DApplicable step
              DApplicable first
              DBool dev
-             DInt maxBodyBytesArg
+             DInt64 maxBodyBytesArg
              DBool injectStandardHeaders
              DBool canonicalizeFromForwardedProto
              DBool logRequests

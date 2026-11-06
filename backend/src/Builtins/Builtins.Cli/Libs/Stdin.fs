@@ -368,7 +368,7 @@ let keyReadToDval
         [ "key", key
           "modifiers", modifiers
           "keyChar", keyChar
-          "repeat", Dval.int (bigint repeat) ]
+          "repeat", Dval.dint64 (int64 repeat) ]
     )
 
   keyRead

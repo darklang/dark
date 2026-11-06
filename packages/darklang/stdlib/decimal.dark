@@ -1,0 +1,389 @@
+module Darklang.Stdlib.Decimal
+
+// `Decimal` is base-10: an integer of up to 96 bits and a scale of 0 to 28 places,
+// so `0.1dec + 0.2dec` is exactly `0.3dec`, which is what money and exact JSON
+// numbers need. Written `19.99dec`, never with an exponent, and printed the same
+// way. The scale is part of the value and survives printing, so `1.10dec` prints
+// as 1.10dec, while `1.10dec == 1.1dec` (and they are one dict key). A result
+// past 96 bits raises; a product or quotient with more than 28 places is rounded
+// to fit, half to even, as .NET's decimal does.
+//
+// Everything here is Dark over two builtins, `toParts` and `fromParts`. The
+// operators go to the polymorphic `Builtin.add` and friends.
+
+type ParseError =
+  | BadFormat
+  | OutOfRange
+
+
+/// Split <param d> into {{(unscaled, scale)}}, where <param d> is
+/// {{unscaled / 10 ** scale}}: {{Decimal.toParts(1.10dec) == (110z, 2)}}
+let toParts(d: Decimal): (Int * Int64) = Builtin.decimalToParts(d)
+
+
+/// The decimal {{unscaled / 10 ** scale}}, keeping <param scale>:
+/// {{Decimal.fromParts(110z, 2) == Some(1.10dec)}}. {{None}} when <param scale> is outside
+/// 0 to 28 or <param unscaled> needs more than 96 bits.
+let fromParts(
+  unscaled: Int,
+  scale: Int64)
+  : Stdlib.Option.Option<Decimal> =
+  Builtin.decimalFromParts(unscaled, scale)
+
+
+/// Raises with <param message>, for a result the caller asked for that cannot exist.
+let __refuse(message: String): Decimal =
+  Builtin.unwrap(Stdlib.Result.Result.Error(message))
+
+
+impl Add for Decimal =
+  /// Add <param a> and <param b>; the result has the larger of their scales
+  let add(a: Decimal, b: Decimal): Decimal = Builtin.add(a, b)
+
+
+impl Subtract for Decimal =
+  /// Subtract <param b> from <param a>
+  let subtract(a: Decimal, b: Decimal): Decimal = Builtin.subtract(a, b)
+
+
+impl Multiply for Decimal =
+  /// Multiply <param a> by <param b>; the scales add, up to 28 places
+  let multiply(a: Decimal, b: Decimal): Decimal = Builtin.multiply(a, b)
+
+
+impl Divide for Decimal =
+  /// Divide <param a> by <param b>, to as many places as fit (28 at most).
+  /// {{1dec / 3dec}} is {{0.3333333333333333333333333333dec}}. Raises on division by zero.
+  /// To fix the places of a quotient, follow it with <fn Decimal.round>.
+  let divide(a: Decimal, b: Decimal): Decimal = Builtin.divide(a, b)
+
+
+impl Negate for Decimal =
+  /// Returns the negation of <param a>, {{-a}}
+  let negate(a: Decimal): Decimal = Builtin.negate(a)
+
+
+impl Compare for Decimal =
+  /// Returns true if <param a> is less than <param b>. Scale does not matter.
+  let lessThan(a: Decimal, b: Decimal): Bool = Builtin.lessThan(a, b)
+  /// Returns true if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo(a: Decimal, b: Decimal): Bool =
+    Builtin.lessThanOrEqualTo(a, b)
+  /// Returns true if <param a> is greater than <param b>
+  let greaterThan(a: Decimal, b: Decimal): Bool = Builtin.greaterThan(a, b)
+  /// Returns true if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo(a: Decimal, b: Decimal): Bool =
+    Builtin.greaterThanOrEqualTo(a, b)
+
+
+impl Zero for Decimal =
+  let zero(): Decimal = 0dec
+
+
+impl One for Decimal =
+  let one(): Decimal = 1dec
+
+
+impl ToString for Decimal =
+  /// Stringify <param d> at its scale, without exponent:
+  /// {{Stdlib.toString(1.10dec) == "1.10"}}, {{Stdlib.toString(-0.05dec) == "-0.05"}}
+  let toString(d: Decimal): String =
+    let (unscaled, scale) = toParts(d)
+    let sign = if unscaled < 0z then "-" else ""
+    let digits = Stdlib.toString(Stdlib.abs(unscaled))
+
+    if scale == 0 then
+      sign + digits
+    else
+      // at least one digit before the point: 0.05 is "005" before the split
+      let padCount = scale + 1 - Stdlib.String.length(digits)
+      let padding = Stdlib.String.repeat("0", padCount)
+      let padded = padding + digits
+      let whole = Stdlib.String.dropLast(padded, scale)
+      let fraction = Stdlib.String.last(padded, scale)
+      sign + whole + "." + fraction
+
+
+/// The number of places <param d> carries: {{Decimal.scale(1.10dec) == 2}}
+let scale(d: Decimal): Int64 =
+  let (_, s) = toParts(d)
+  s
+
+
+/// <param d> with its trailing zeros dropped: {{Decimal.normalize(1.10dec)}} prints as
+/// 1.1. Equal to <param d> under {{==}}; only the printed form changes.
+let normalize(d: Decimal): Decimal =
+  let (unscaled, s) = toParts(d)
+  let (u, sc) = __stripZeros(unscaled, s)
+  match fromParts(u, sc) with
+  | Some(n) -> n
+  | None -> d
+
+let __stripZeros(unscaled: Int, scale: Int64): (Int * Int64) =
+  if scale > 0 && unscaled % 10z == 0z then
+    __stripZeros(unscaled / 10z, scale - 1)
+  else
+    (unscaled, scale)
+
+
+/// How <fn Decimal.roundWith> settles the digits it drops.
+type RoundingMode =
+  /// To the nearer neighbour, a tie away from zero: 2.5 is 3, -2.5 is -3
+  | HalfAwayFromZero
+  /// To the nearer neighbour, a tie to the even one (banker's rounding): 2.5 is 2, 3.5 is 4
+  | HalfEven
+  /// Drop them: 2.9 is 2, -2.9 is -2
+  | TowardsZero
+  /// Round up in magnitude whenever anything is dropped: 2.1 is 3, -2.1 is -3
+  | AwayFromZero
+  /// Towards negative infinity: 2.9 is 2, -2.1 is -3
+  | Floor
+  /// Towards positive infinity: 2.1 is 3, -2.9 is -2
+  | Ceiling
+
+
+/// <param d> at exactly <param places> places, the dropped digits settled by <param mode>:
+/// {{Decimal.roundWith(2.345dec, 2, RoundingMode.HalfEven) == 2.34dec}}. More places than
+/// <param d> has pads with zeros. Raises when <param places> is outside 0 to 28, or the
+/// padded value needs more than 96 bits.
+let roundWith(d: Decimal, places: Int64, mode: RoundingMode): Decimal =
+  if places < 0 || places > 28 then
+    __refuse($"Decimal places must be between 0 and 28, got {Stdlib.toString(places)}")
+  else
+    let (unscaled, s) = toParts(d)
+
+    let rescaled =
+      if places >= s then
+        unscaled * (10z ** Stdlib.Int.fromInt64(places - s))
+      else
+        let divisor = 10z ** Stdlib.Int.fromInt64(s - places)
+        let negative = unscaled < 0z
+        let magnitude = Stdlib.abs(unscaled)
+        let kept = magnitude / divisor
+        let dropped = magnitude % divisor
+        let twice = dropped * 2z
+
+        let up =
+          match mode with
+          | HalfAwayFromZero -> twice >= divisor
+          | HalfEven -> twice > divisor || (twice == divisor && kept % 2z == 1z)
+          | TowardsZero -> false
+          | AwayFromZero -> dropped > 0z
+          | Floor -> negative && dropped > 0z
+          | Ceiling -> Stdlib.Bool.not(negative) && dropped > 0z
+
+        let kept = if up then kept + 1z else kept
+        if negative then 0z - kept else kept
+
+    match fromParts(rescaled, places) with
+    | Some(r) -> r
+    | None -> __refuse("Decimal result is out of range (more than 96 bits)")
+
+
+/// <param d> rounded to exactly <param places> places, half away from zero, the way
+/// prices are rounded: {{Decimal.round(2.345dec, 2) == 2.35dec}},
+/// {{Decimal.round(-2.345dec, 2) == -2.35dec}}. Fewer places than <param d> has rounds;
+/// more pads, so {{Stdlib.toString(Decimal.round(5dec, 2)) == "5.00"}}. Raises when
+/// <param places> is outside 0 to 28, or the padded value needs more than 96 bits.
+/// <fn Decimal.roundWith> takes the other rounding modes.
+let round(d: Decimal, places: Int64): Decimal =
+  roundWith(d, places, RoundingMode.HalfAwayFromZero)
+
+
+/// <param d> cut to <param places> places, dropping the rest without rounding:
+/// {{Decimal.truncate(2.349dec, 2) == 2.34dec}}, {{Decimal.truncate(-2.349dec, 2) == -2.34dec}}.
+/// Raises when <param places> is outside 0 to 28.
+let truncate(d: Decimal, places: Int64): Decimal =
+  roundWith(d, places, RoundingMode.TowardsZero)
+
+
+/// The largest whole number not above <param d>, as a decimal with no places:
+/// {{Decimal.floor(-2.1dec) == -3dec}}. A decimal, not an <type Int64>: a decimal's
+/// whole part can be past Int64.
+let floor(d: Decimal): Decimal = roundWith(d, 0, RoundingMode.Floor)
+
+
+/// The smallest whole number not below <param d>, as a decimal with no places:
+/// {{Decimal.ceiling(2.1dec) == 3dec}}
+let ceiling(d: Decimal): Decimal = roundWith(d, 0, RoundingMode.Ceiling)
+
+
+/// How many significant digits <param d> carries, trailing zeros included:
+/// {{Decimal.precision(123.40dec) == 5}}, {{Decimal.precision(0.05dec) == 1}}. At most 29.
+let precision(d: Decimal): Int64 =
+  let (unscaled, _) = toParts(d)
+  Stdlib.String.length(Stdlib.toString(Stdlib.abs(unscaled)))
+
+
+/// <param base> to the whole power <param exponent>, by multiplying, so as exact as
+/// <fn Decimal.multiply> is: {{Decimal.power(1.1dec, 2) == 1.21dec}}. A negative
+/// <param exponent> divides: {{Decimal.power(2dec, -2) == 0.25dec}}. Raises when the
+/// result is out of range, or for zero to a negative power.
+let power(``base``: Decimal, exponent: Int64): Decimal =
+  let n = Stdlib.Int.fromInt64(exponent)
+
+  if n < 0z then
+    1dec / __powerOf(``base``, 0z - n)
+  else
+    __powerOf(``base``, n)
+
+let __powerOf(b: Decimal, n: Int): Decimal =
+  if n == 0z then
+    1dec
+  else
+    let half = __powerOf(b, n / 2z)
+    let square = half * half
+    if n % 2z == 0z then square else square * b
+
+
+impl Modulo for Decimal =
+  /// <param a> wrapped around so that {{0 <= result < b}}, exactly:
+  /// {{-0.5dec % 2dec == 1.5dec}}. The modulus <param b> must be greater than 0.
+  /// Use <fn Decimal.remainder> for a result with <param a>'s sign.
+  let modulo(a: Decimal, b: Decimal): Decimal = Builtin.modulo(a, b)
+
+
+/// What is left after taking whole multiples of <param divisor> out of <param value>,
+/// exactly, with <param value>'s sign: {{Decimal.remainder(-5.5dec, 2dec) == Ok(-1.5dec)}}.
+/// The sign of <param divisor> does not matter. {{Error}} when <param divisor> is zero.
+let remainder(
+  value: Decimal,
+  divisor: Decimal)
+  : Stdlib.Result.Result<Decimal, String> =
+  if divisor == 0dec then
+    Stdlib.Result.Result.Error("Cannot divide by 0")
+  else
+    let r = Builtin.modulo(Stdlib.abs(value), Stdlib.abs(divisor))
+    Stdlib.Result.Result.Ok(if value < 0dec then -(r) else r)
+
+
+/// The integer part of <param d>, rounding towards zero:
+/// {{Decimal.toInt(-2.9dec) == -2z}}
+let toInt(d: Decimal): Int =
+  let (unscaled, s) = toParts(d)
+  unscaled / (10z ** Stdlib.Int.fromInt64(s))
+
+
+/// <param i> as a decimal with no places, or {{None}} past 96 bits
+let fromInt(i: Int): Stdlib.Option.Option<Decimal> = fromParts(i, 0)
+
+
+/// The integer part of <param d>, rounding towards zero, or {{None}} past Int64:
+/// {{Decimal.toInt64(-2.9dec) == Some(-2)}}
+let toInt64(d: Decimal): Stdlib.Option.Option<Int64> = Stdlib.Int.toInt64(toInt(d))
+
+
+/// <param i> as a decimal with no places. Every Int64 fits.
+let fromInt64(i: Int64): Decimal =
+  match fromParts(Stdlib.Int.fromInt64(i), 0) with
+  | Some(d) -> d
+  // unreachable: 64 bits is less than 96
+  | None -> 0dec
+
+
+/// The <type Float> nearest <param d>. Exact only when <param d> happens to be a
+/// binary fraction, which is the reason <type Decimal> exists.
+let toFloat(d: Decimal): Float =
+  match Stdlib.Float.parse(Stdlib.toString(d)) with
+  | Ok(f) -> f
+  // unreachable: every decimal prints as digits a float parses
+  | Error(_) -> 0.0
+
+
+/// The decimal that <param f> prints as, {{Decimal.fromFloat(0.1) == Some(0.1dec)}},
+/// since a Float prints as the shortest decimal that reads back as itself. {{None}}
+/// for NaN, the infinities, and anything out of range.
+let fromFloat(f: Float): Stdlib.Option.Option<Decimal> =
+  match parse(Stdlib.toString(f)) with
+  | Ok(d) -> Stdlib.Option.Option.Some(d)
+  | Error(_) -> Stdlib.Option.Option.None
+
+
+/// The <type Float32> nearest <param d>, rounded once from the decimal
+let toFloat32(d: Decimal): Float32 =
+  match Stdlib.Float32.parse(Stdlib.toString(d)) with
+  | Ok(f) -> f
+  // unreachable: every decimal prints as digits a Float32 parses
+  | Error(_) -> 0.0f32
+
+
+/// The decimal that <param f> prints as, so {{Decimal.fromFloat32(0.1f32) == Some(0.1dec)}}
+/// although the Float32 is not exactly a tenth. {{None}} for NaN, the infinities, and
+/// anything out of range.
+let fromFloat32(f: Float32): Stdlib.Option.Option<Decimal> =
+  match parse(Stdlib.toString(f)) with
+  | Ok(d) -> Stdlib.Option.Option.Some(d)
+  | Error(_) -> Stdlib.Option.Option.None
+
+
+/// Parse <param s> as a decimal, keeping the places written:
+/// {{Decimal.parse("19.99") == Ok(19.99dec)}}, {{Decimal.parse("-1.10")}} keeps 2 places.
+/// Accepts an exponent ({{"1.5e3"}}, {{"1e-5"}}), the form <fn Float.toString> uses
+/// for very large and very small values. Refuses anything it cannot hold exactly:
+/// more than 28 places, or more than 96 bits, is {{Error(OutOfRange)}}, never a
+/// rounded value.
+let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
+  let negative = Stdlib.String.startsWith(s, "-")
+  let unsigned = if negative then Stdlib.String.dropFirst(s, 1) else s
+  let body = Stdlib.String.toLowercase(unsigned)
+
+  let isDigits(t: String): Bool =
+    (Stdlib.Bool.not(Stdlib.String.isEmpty(t)))
+    && (Stdlib.List.all(Stdlib.String.toList(t), Stdlib.Char.isDigit))
+
+  let exponentOf(e: String): Stdlib.Option.Option<Int> =
+    let unsigned =
+      if Stdlib.String.startsWith(e, "-") || Stdlib.String.startsWith(e, "+") then
+        Stdlib.String.dropFirst(e, 1)
+      else
+        e
+
+    if isDigits(unsigned) then
+      Stdlib.Result.toOption(Stdlib.Int.parse(e))
+    else
+      Stdlib.Option.Option.None
+
+  let (mantissa, exponent) =
+    match Stdlib.String.split(body, "e") with
+    | [ m ] -> (m, Stdlib.Option.Option.Some(0z))
+    | [ m, e ] -> (m, exponentOf(e))
+    | _ -> ("", Stdlib.Option.Option.None)
+
+  // `1.` has an empty fraction, which is malformed, not zero places
+  let (whole, fraction) =
+    match Stdlib.String.split(mantissa, ".") with
+    | [ w ] -> (w, "0")
+    | [ w, f ] -> (w, f)
+    | _ -> ("", "")
+  let places =
+    if Stdlib.String.contains(mantissa, ".") then
+      Stdlib.Int.fromInt64(Stdlib.String.length(fraction))
+    else
+      0z
+
+  match exponent with
+  | Some(exponent) ->
+    if Stdlib.Bool.not(isDigits(whole) && isDigits(fraction)) then
+      Stdlib.Result.Result.Error(ParseError.BadFormat)
+    else
+      let digits = if places == 0z then whole else whole + fraction
+      let places = places - exponent
+
+      // 29 digits is the most 96 bits can hold, so a larger shift is out of range
+      // anyway; checking first keeps `1e999999999` from building a billion-digit Int
+      if places < -29z || places > 28z + Stdlib.Int.fromInt64(Stdlib.String.length(digits)) then
+        Stdlib.Result.Result.Error(ParseError.OutOfRange)
+      else
+        let magnitude = Stdlib.Result.withDefault(Stdlib.Int.parse(digits), 0z)
+        let unscaled = if negative then 0z - magnitude else magnitude
+
+        let parts =
+          if places < 0z then
+            fromParts(unscaled * (10z ** (0z - places)), 0)
+          else
+            fromParts(unscaled, Builtin.unwrap(Stdlib.Int.toInt64(places)))
+
+        match parts with
+        | Some(d) -> Stdlib.Result.Result.Ok(d)
+        | None -> Stdlib.Result.Result.Error(ParseError.OutOfRange)
+  | None -> Stdlib.Result.Result.Error(ParseError.BadFormat)

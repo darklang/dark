@@ -291,7 +291,7 @@ CHILD=$(mktemp -d /tmp/dark-artifact-child.XXXXXX)
 mkdir -p "$CHILD/parent" "$CHILD/child"
 cp "$ARTIFACT" "$CHILD/parent/dark"
 cp "$ARTIFACT" "$CHILD/child/dark"
-inner="env HOME=$CHILD/child $CHILD/child/dark eval 1L"
+inner="env HOME=$CHILD/child $CHILD/child/dark eval 1"
 child_rc=0
 child_out=$( cd "$CHILD" && export HOME="$CHILD/parent" \
   && ./parent/dark permissions allow process /bin/sh -c "$inner" \

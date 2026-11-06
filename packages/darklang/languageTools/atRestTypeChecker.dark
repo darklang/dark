@@ -16,6 +16,8 @@ type StaticType =
   | TUInt128
   | TInt
   | TFloat
+  | TFloat32
+  | TDecimal
   | TChar
   | TString
   | TUuid
@@ -28,7 +30,7 @@ type StaticType =
   | TCustom of LanguageTools.ProgramTypes.Hash * List<StaticType>
   | TFn of List<StaticType> * StaticType
   | TRigidVariable of String
-  | TInferenceVariable of Int
+  | TInferenceVariable of Int64
 
 type Verdict =
   | Checked
@@ -342,6 +344,8 @@ let staticTypeToStringWith(
   | TUInt128 -> "UInt128"
   | TInt -> "Int"
   | TFloat -> "Float"
+  | TFloat32 -> "Float32"
+  | TDecimal -> "Decimal"
   | TChar -> "Char"
   | TString -> "String"
   | TUuid -> "Uuid"
@@ -427,7 +431,7 @@ let nameRefToStringWith(
   : String =
   match name with
   | Builtin(name, version) ->
-    if version == 0L then
+    if version == 0 then
       $"Builtin.{name}"
     else
       $"Builtin.{name}_v{Stdlib.toString(version)}"
@@ -460,7 +464,7 @@ let siteToString(site: Site): String =
   | StatementBeforeFinalExpression -> "the statement before the final expression"
   | FunctionApplication -> "this function application"
   | FunctionArgument(position) ->
-    $"argument {Stdlib.toString(position + 1L)}"
+    $"argument {Stdlib.toString(position + 1)}"
   | IfWithoutElse -> "an if without an else"
   | RecordFieldAccess -> "this field access"
   | InterpolatedSegment ->
@@ -605,15 +609,15 @@ let contextToStringWith(
     $"{name(fn)} cannot be checked statically: {untrustedBuiltinToString(reason)}"
   | Arity(expected, actual) ->
     let noun =
-      if expected == 1L then "1 type argument"
+      if expected == 1 then "1 type argument"
       else $"{Stdlib.toString(expected)} type arguments"
-    let verb = if actual == 1L then "was" else "were"
+    let verb = if actual == 1 then "was" else "were"
 
     match code with
     | TooFewArguments
     | TooManyArguments ->
       let args =
-        if expected == 1L then "1 argument"
+        if expected == 1 then "1 argument"
         else $"{Stdlib.toString(expected)} arguments"
 
       $"This function takes {args}, but {Stdlib.toString(actual)} {verb} given"
@@ -624,16 +628,16 @@ let contextToStringWith(
       + $"but {Stdlib.toString(actual)} {verb} provided"
   | NamedArity(ident, expected, actual) ->
     let noun =
-      if expected == 1L then "1 field" else $"{Stdlib.toString(expected)} fields"
-    let verb = if actual == 1L then "was" else "were"
+      if expected == 1 then "1 field" else $"{Stdlib.toString(expected)} fields"
+    let verb = if actual == 1 then "was" else "were"
 
     $"Case '{ident}' expects {noun}, "
     + $"but {Stdlib.toString(actual)} {verb} provided"
   | TypeArity(hash, expected, actual) ->
     let noun =
-      if expected == 1L then "1 type argument"
+      if expected == 1 then "1 type argument"
       else $"{Stdlib.toString(expected)} type arguments"
-    let verb = if actual == 1L then "was" else "were"
+    let verb = if actual == 1 then "was" else "were"
 
     $"{typeName(hash)} expects {noun}, "
     + $"but {Stdlib.toString(actual)} {verb} provided"

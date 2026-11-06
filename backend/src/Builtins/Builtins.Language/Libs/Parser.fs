@@ -42,7 +42,8 @@ module WrittenTypesToDarkTypes =
       pointTypeName (),
       [],
       // `Point` is `{ row: Int, column: Int }` in WrittenTypes
-      Map [ "row", Dval.int (bigint p.row); "column", Dval.int (bigint p.column) ]
+      Map
+        [ "row", Dval.dint64 (int64 p.row); "column", Dval.dint64 (int64 p.column) ]
     )
 
   let private rangeToDT (r : Tok.TokenRange) : Dval =
@@ -182,6 +183,8 @@ module WrittenTypesToDarkTypes =
     | WT.TUInt128 r -> builtin "TUInt128" [ rangeToDT r ]
     | WT.TInt r -> builtin "TInt" [ rangeToDT r ]
     | WT.TFloat r -> builtin "TFloat" [ rangeToDT r ]
+    | WT.TFloat32 r -> builtin "TFloat32" [ rangeToDT r ]
+    | WT.TDecimal r -> builtin "TDecimal" [ rangeToDT r ]
     | WT.TChar r -> builtin "TChar" [ rangeToDT r ]
     | WT.TString r -> builtin "TString" [ rangeToDT r ]
     | WT.TDateTime r -> builtin "TDateTime" [ rangeToDT r ]
@@ -393,6 +396,17 @@ module WrittenTypesToDarkTypes =
         "MPFloat",
         [ rangeToDT r; signDval; DString whole; DString frac ]
       )
+    | WT.MPFloat32(r, neg, whole, frac) ->
+      let st = signTypeName ()
+      let signDval = DEnum(st, st, [], (if neg then "Negative" else "Positive"), [])
+      DEnum(
+        t,
+        t,
+        [],
+        "MPFloat32",
+        [ rangeToDT r; signDval; DString whole; DString frac ]
+      )
+    | WT.MPDecimal(r, d) -> DEnum(t, t, [], "MPDecimal", [ rangeToDT r; DDecimal d ])
     | WT.MPBool(r, b) -> DEnum(t, t, [], "MPBool", [ rangeToDT r; DBool b ])
     | WT.MPUnit r -> DEnum(t, t, [], "MPUnit", [ rangeToDT r ])
     | WT.MPString(r, contents, openQ, closeQ) ->
@@ -606,6 +620,17 @@ module WrittenTypesToDarkTypes =
         "EFloat",
         [ rangeToDT r; signDval; DString whole; DString frac ]
       )
+    | WT.EFloat32(r, neg, whole, frac) ->
+      let st = signTypeName ()
+      let signDval = DEnum(st, st, [], (if neg then "Negative" else "Positive"), [])
+      DEnum(
+        t,
+        t,
+        [],
+        "EFloat32",
+        [ rangeToDT r; signDval; DString whole; DString frac ]
+      )
+    | WT.EDecimal(r, d) -> DEnum(t, t, [], "EDecimal", [ rangeToDT r; DDecimal d ])
     | WT.EChar(r, contents, openQ, closeQ) ->
       let contentsKT = KTTuple(VT.customType (rangeTypeName ()) [], VT.string, [])
       let contentsDval =

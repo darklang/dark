@@ -2,13 +2,13 @@ module Darklang.Internal.Test
 
 type WTTest =
   { name: String
-    lineNumber: Int
+    lineNumber: Int64
     actual: LanguageTools.WrittenTypes.Expr
     expected: LanguageTools.WrittenTypes.Expr }
 
 type PTTest =
   { name: String
-    lineNumber: Int
+    lineNumber: Int64
     actual: LanguageTools.ProgramTypes.Expr
     expected: LanguageTools.ProgramTypes.Expr }
 

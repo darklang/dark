@@ -15,18 +15,18 @@ type Outcome =
 /// How long one test took to run, and where.
 type Timing =
   { name: String
-    ms: Int
+    ms: Int64
     inProcess: Bool }
 
 type Counts =
-  { passed: Int
-    failed: Int
-    cached: Int
-    ran: Int
+  { passed: Int64
+    failed: Int64
+    cached: Int64
+    ran: Int64
     /// Of those that ran, how many needed their own process and store copy.
-    isolated: Int
+    isolated: Int64
     /// Of those isolated, how many wrote to the shared store and reran on a copy.
-    reran: Int
+    reran: Int64
     timings: List<Timing> }
 
 val usage =
@@ -191,7 +191,7 @@ let addFailed(
   { state with exitCode = 1 }
 
 /// `test add`: author one test at <param locationStr>. <param definition> is
-/// the body alone (`Foo.double 4L |> Stdlib.Test.equal 8L`) or a whole
+/// the body alone (`Foo.double 4 |> Stdlib.Test.equal 8`) or a whole
 /// declaration, `test name = ...` with an optional doc comment, which is what
 /// a file or stdin usually holds.
 let addTest(
@@ -283,7 +283,7 @@ let runTests(state: Cli.AppState, args: List<String>): Cli.AppState =
 
 type RunOptions =
   { force: Bool
-    jobs: Int
+    jobs: Int64
     filters: List<String> }
 
 let parseRunOptions(
@@ -294,7 +294,7 @@ let parseRunOptions(
   | [] -> Ok(options)
   | ["--force", ...rest] -> parseRunOptions({ options with force = true }, rest)
   | ["--jobs", value, ...rest] ->
-    match Stdlib.Int.parse(value) with
+    match Stdlib.Int64.parse(value) with
     | Ok(jobs) when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
     | _ -> Error("--jobs needs a positive whole number")
   | [ "--jobs" ] -> Error("--jobs needs a positive whole number")
@@ -316,7 +316,7 @@ type FinishedTest =
     wasCached: Bool
     inProcess: Bool
     reran: Bool
-    ms: Int }
+    ms: Int64 }
 
 let finishTest(
   cache: Stdlib.Option.Option<CacheContext>,
@@ -526,11 +526,11 @@ let help(_state: Cli.AppState): String =
     "  test run --force MyApp.Math.doubles"
     ""
     "Adding a test:"
-    "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double(4L) |> Stdlib.Test.equal(8L)'"
+    "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double(4) |> Stdlib.Test.equal(8)'"
     "  test add MyApp.Math.Tests.doubles doubles.dark"
     "  test add MyApp.Math.Tests.doubles - <<'EOF'"
     "  /// Doubling four gives eight."
-    "  test doubles = MyApp.Math.double(4L) |> Stdlib.Test.equal(8L)"
+    "  test doubles = MyApp.Math.double(4) |> Stdlib.Test.equal(8)"
     "  test keyLength = Stdlib.Uuid.generate() |> Stdlib.toString |> Stdlib.String.length |> Stdlib.Test.equal(36)"
     "  EOF"
     "The body may be given alone or as a whole `test name = ...` declaration;"

@@ -19,9 +19,9 @@ let confirmExplicit(autoConfirm: Bool, question: String): Bool =
 /// State for prompt-specific fields (text, cursor, history)
 type State =
   { text: String
-    cursorPosition: Int
+    cursorPosition: Int64
     commandHistory: List<String>
-    historyIndex: Int
+    historyIndex: Int64
     savedPrompt: String }
 
 let initState(): State =

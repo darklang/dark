@@ -101,6 +101,8 @@ and TypeReference =
   | TInt128 of Range
   | TUInt128 of Range
   | TFloat of Range
+  | TFloat32 of Range
+  | TDecimal of Range
   | TChar of Range
   | TString of Range
   | TDateTime of Range
@@ -150,6 +152,8 @@ let primTypes : List<string * (Range -> TypeReference)> =
     "Int128", TInt128
     "UInt128", TUInt128
     "Float", TFloat
+    "Float32", TFloat32
+    "Decimal", TDecimal
     "Char", TChar
     "String", TString
     "DateTime", TDateTime
@@ -187,6 +191,8 @@ type MatchPattern =
   | MPInt128 of Range * intPart : (Range * System.Int128) * suffixPart : Range
   | MPUInt128 of Range * intPart : (Range * System.UInt128) * suffixPart : Range
   | MPFloat of Range * isNegative : bool * whole : string * fraction : string
+  | MPFloat32 of Range * isNegative : bool * whole : string * fraction : string
+  | MPDecimal of Range * decimal
   | MPBool of Range * bool
   | MPString of
     Range *
@@ -253,6 +259,8 @@ let rec mpRange (p : MatchPattern) : Range =
   | MPInt128(r, _, _)
   | MPUInt128(r, _, _)
   | MPFloat(r, _, _, _)
+  | MPFloat32(r, _, _, _)
+  | MPDecimal(r, _)
   | MPBool(r, _)
   | MPString(r, _, _, _)
   | MPChar(r, _, _, _)
@@ -288,6 +296,8 @@ and Expr =
   | EInt128 of Range * intPart : (Range * System.Int128) * suffixPart : Range
   | EUInt128 of Range * intPart : (Range * System.UInt128) * suffixPart : Range
   | EFloat of Range * isNegative : bool * whole : string * fraction : string
+  | EFloat32 of Range * isNegative : bool * whole : string * fraction : string
+  | EDecimal of Range * decimal
   | EChar of
     Range *
     contents : Option<Range * string> *
@@ -643,6 +653,8 @@ let exprRange (e : Expr) : Range =
   | EInt128(r, _, _)
   | EUInt128(r, _, _)
   | EFloat(r, _, _, _)
+  | EFloat32(r, _, _, _)
+  | EDecimal(r, _)
   | EChar(r, _, _, _)
   | EString(r, _, _, _, _)
   | EVariable(r, _)
@@ -681,6 +693,8 @@ let typeReferenceRange (t : TypeReference) : Range =
   | TInt128 r
   | TUInt128 r
   | TFloat r
+  | TFloat32 r
+  | TDecimal r
   | TChar r
   | TString r
   | TDateTime r
@@ -930,6 +944,8 @@ let typeReferenceHeadName (t : TypeReference) : string =
   | TInt128 _ -> "Int128"
   | TUInt128 _ -> "UInt128"
   | TFloat _ -> "Float"
+  | TFloat32 _ -> "Float32"
+  | TDecimal _ -> "Decimal"
   | TChar _ -> "Char"
   | TString _ -> "String"
   | TDateTime _ -> "DateTime"

@@ -129,13 +129,13 @@ let ascend(state: State): Step =
 /// The nearest selectable row to `from`, looking in `dir` (+1 / -1) past any
 /// section headers; `from` itself if it's selectable. Falls back to the other
 /// direction at the ends, so the cursor never sits on a header.
-let selectableRow(items: List<BodyItem>, from: Int, dir: Int): Int =
+let selectableRow(items: List<BodyItem>, from: Int64, dir: Int64): Int64 =
   let n = Stdlib.List.length(items)
-  let isOk(i: Int): Bool =
+  let isOk(i: Int64): Bool =
     match Stdlib.List.getAt(items, i) with
     | Some(it) -> Stdlib.Bool.not(isSectionHeader(it))
     | None -> false
-  let scan(i: Int, step: Int): Int =
+  let scan(i: Int64, step: Int64): Int64 =
     if (i < 0) || (i >= n) then 0 - 1
     else if isOk(i) then i
     else scan(i + step, step)
@@ -161,8 +161,8 @@ let fixSelection(state: State): State =
 /// both ends clamp for free, section headers are stepped over exactly as they are one at a time,
 /// and a pane that scrolls its document scrolls it. Home and PageUp exist and he does not use
 /// them; this needs no fn key and no letter taken away from something else.
-let repeatStep(state: State, step: State -> Step, times: Int): Step =
-  let go(s: State, n: Int): State =
+let repeatStep(state: State, step: State -> Step, times: Int64): Step =
+  let go(s: State, n: Int64): State =
     if n <= 0 then
       s
     else

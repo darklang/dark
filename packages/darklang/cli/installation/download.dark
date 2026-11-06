@@ -54,7 +54,7 @@ let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
     | Ok(_) ->
       let result =
         Stdlib.Cli.execute(
-          $"HOME='{tmp}' '{binaryPath}' eval '1L + 2L' </dev/null 2>&1")
+          $"HOME='{tmp}' '{binaryPath}' eval '1 + 2' </dev/null 2>&1")
 
       let _cleaned = Stdlib.Cli.execute($"rm -rf '{tmp}'")
 

@@ -12,7 +12,7 @@ module Darklang.Stdlib.Text
 ///
 /// Returns <param s> unchanged if it already meets or exceeds <param width>.
 /// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
-let padStartToWidth(s: String, width: Int): String =
+let padStartToWidth(s: String, width: Int64): String =
   let padding = width - (Stdlib.String.displayWidth(s))
   if padding <= 0 then s else (Stdlib.String.repeat(" ", padding)) + s
 
@@ -21,7 +21,7 @@ let padStartToWidth(s: String, width: Int): String =
 ///
 /// Returns <param s> unchanged if it already meets or exceeds <param width>.
 /// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
-let padEndToWidth(s: String, width: Int): String =
+let padEndToWidth(s: String, width: Int64): String =
   let padding = width - (Stdlib.String.displayWidth(s))
   if padding <= 0 then s else s + (Stdlib.String.repeat(" ", padding))
 
@@ -30,18 +30,18 @@ let padEndToWidth(s: String, width: Int): String =
 ///
 /// Keeps whole characters, so the result may be one cell narrower than <param width> if the next
 /// character is too wide to fit. Returns {{""}} if <param width> is zero or negative.
-let clipToWidth(s: String, width: Int): String =
+let clipToWidth(s: String, width: Int64): String =
   if width <= 0 then
     ""
   else if Stdlib.String.displayWidth(s) <= width then
     s
   else
     // Prefix widths never decrease, so binary search finds the cut without measuring every prefix.
-    let fits(n: Int): Bool =
+    let fits(n: Int64): Bool =
       Stdlib.String.displayWidth(Stdlib.String.slice(s, 0, n)) <= width
 
     // The first `lo` characters fit; the first `hi` characters exceed the width.
-    let search(lo: Int, hi: Int): Int =
+    let search(lo: Int64, hi: Int64): Int64 =
       if hi - lo <= 1 then
         lo
       else
@@ -63,7 +63,7 @@ val ellipsisMarker = "..."
 ///
 /// If text needs shortening and <param width> is less than three, shortens the marker too:
 /// {{ellipsis("abcdef", 2)}} returns {{".."}}. Returns {{""}} if <param width> is zero or negative.
-let ellipsis(s: String, width: Int): String =
+let ellipsis(s: String, width: Int64): String =
   if width <= 0 then
     ""
   else if Stdlib.String.displayWidth(s) <= width then

@@ -59,7 +59,7 @@ let toLowercase(s: String): String = Builtin.stringToLowercase(s)
 
 // TODO: UInt?
 /// Returns the length of the string
-let length(s: String): Int = Builtin.stringLength(s)
+let length(s: String): Int64 = Builtin.stringLength(s)
 
 
 /// Return the Unicode codepoints in <param s>.
@@ -67,7 +67,7 @@ let toCodepoints(s: String): List<UInt32> = Builtin.stringToCodepoints(s)
 
 
 /// Return the number of Unicode codepoints in <param s>.
-let codepointLength(s: String): Int = Builtin.stringCodepointLength(s)
+let codepointLength(s: String): Int64 = Builtin.stringCodepointLength(s)
 
 
 /// How many cells <param s> occupies in a fixed-width grid.
@@ -79,7 +79,7 @@ let codepointLength(s: String): Int = Builtin.stringCodepointLength(s)
 /// A property of the text rather than of any one medium, so the answer is the same in a terminal, a
 /// monospaced buffer or a fixed-width report. Plain text only: escape sequences aren't text, and
 /// `Cli.Tui.Text` handles rows that carry them.
-let displayWidth(s: String): Int =
+let displayWidth(s: String): Int64 =
   Builtin.stringDisplayWidth(s)
 
 
@@ -181,7 +181,7 @@ let splitLast(
 let splitN(
   string: String,
   separator: String,
-  n: Int)
+  n: Int64)
   : List<String> =
   if n <= 1 || separator == "" then
     [ string ]
@@ -210,7 +210,7 @@ let fromChar(c: Char): String = Stdlib.toString(c)
 
 /// Generate a random alphanumeric <type String> of length <param length>.
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
-let random(length: Int): Result.Result<String, String> =
+let random(length: Int64): Result.Result<String, String> =
   if length < 0 then
     Result.Result.Error(
       $"Expected `length` to be positive, but it was `{length |> Stdlib.toString}`")
@@ -220,7 +220,7 @@ let random(length: Int): Result.Result<String, String> =
 
     let randomChar =
       fun _ ->
-        (let index = Stdlib.Int.random(0, (String.length(characters)) - 1)
+        (let index = Stdlib.Int64.random(0, (String.length(characters)) - 1)
          String.slice(characters, index, index + 1))
 
     let result =
@@ -239,14 +239,14 @@ let contains(lookingIn: String, searchingFor: String): Bool =
 
 /// Returns the substring of <param string> between the <param from> and <param to> indices.
 /// Negative indices start counting from the end of <param string>.
-let slice(string: String, from: Int, ``to``: Int): String =
+let slice(string: String, from: Int64, ``to``: Int64): String =
   Builtin.stringSlice(string, from, ``to``)
 
 
 /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string."
-let first(string: String, characterCount: Int): String =
+let first(string: String, characterCount: Int64): String =
   if characterCount < 0 then
     ""
   else if characterCount > String.length(string) then
@@ -258,7 +258,7 @@ let first(string: String, characterCount: Int): String =
 /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string.
-let last(string: String, characterCount: Int): String =
+let last(string: String, characterCount: Int64): String =
   if characterCount < 0 then
     ""
   else if characterCount > String.length(string) then
@@ -273,7 +273,7 @@ let last(string: String, characterCount: Int): String =
 /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropLast(string: String, characterCount: Int): String =
+let dropLast(string: String, characterCount: Int64): String =
   if characterCount < 0 then
     string
   else if characterCount > String.length(string) then
@@ -288,7 +288,7 @@ let dropLast(string: String, characterCount: Int): String =
 /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropFirst(string: String, characterCount: Int): String =
+let dropFirst(string: String, characterCount: Int64): String =
   Builtin.stringDropFirst(string, characterCount)
 
 
@@ -298,7 +298,7 @@ let dropFirst(string: String, characterCount: Int): String =
 /// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
 ///
 /// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padStartToWidth`.
-let padStart(string: String, padWith: Char, goalLength: Int): String =
+let padStart(string: String, padWith: Char, goalLength: Int64): String =
   let padCount = goalLength - String.length(string)
 
   if padCount <= 0 then
@@ -313,7 +313,7 @@ let padStart(string: String, padWith: Char, goalLength: Int): String =
 /// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
 ///
 /// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padEndToWidth`.
-let padEnd(string: String, padWith: Char, goalLength: Int): String =
+let padEnd(string: String, padWith: Char, goalLength: Int64): String =
   let padCount = goalLength - String.length(string)
 
   if padCount <= 0 then
@@ -346,7 +346,7 @@ let trimEnd(str: String): String = Builtin.stringTrimEnd(str)
 
 /// Return the byte at <param index> in <param str>'s UTF-8 encoding.
 /// Returns {{None}} when <param index> is outside the encoding.
-let getByteAt(str: String, index: Int): Option.Option<UInt8> =
+let getByteAt(str: String, index: Int64): Option.Option<UInt8> =
   Builtin.stringGetByteAt(str, index)
 
 
@@ -388,7 +388,7 @@ let stripSuffix(subject: String, suffix: String): Option.Option<String> =
 /// Chars (EGC, not byte) like {{length}}, {{slice}} and {{dropFirst}}. Returns {{None}}
 /// if <param searchFor> does not occur. Matches whole Chars only: {{"👍"}} is not found
 /// in {{"👍🏽"}}.
-let indexOf(str: String, searchFor: String): Option.Option<Int> =
+let indexOf(str: String, searchFor: String): Option.Option<Int64> =
   let idx = Builtin.stringIndexOf(str, searchFor)
   if idx == -1 then Option.Option.None else Option.Option.Some(idx)
 
@@ -399,7 +399,7 @@ let indexOf(str: String, searchFor: String): Option.Option<Int> =
 let lastIndexOf(
   str: String,
   searchFor: String)
-  : Option.Option<Int> =
+  : Option.Option<Int64> =
   let lastIndex = Builtin.stringLastIndexOf(str, searchFor)
 
   if lastIndex == -1 then
@@ -410,7 +410,7 @@ let lastIndexOf(
 
 /// Returns the <param string> repeated for a specified <param count> times.
 /// If <param count> is less than or equal to 0, returns an empty string.
-let repeat(string: String, count: Int): String =
+let repeat(string: String, count: Int64): String =
   Builtin.stringRepeat(string, count)
 
 
@@ -434,7 +434,7 @@ let head(str: String): Option.Option<Char> =
 
 /// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
 /// byte), or {{None}} if <param index> is negative or past the end.
-let charAt(str: String, index: Int): Option.Option<Char> =
+let charAt(str: String, index: Int64): Option.Option<Char> =
   str |> String.toList |> List.getAt(index)
 
 
@@ -447,15 +447,15 @@ let compare(a: String, b: String): Int64 = Builtin.stringCompare(a, b)
 
 /// `"a" < "b"`, and with it `Stdlib.max`, `min` and `clamp` on Strings.
 impl Compare for String =
-  let lessThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) < 0L
+  let lessThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) < 0
 
   let lessThanOrEqualTo(a: String, b: String): Bool =
-    (Stdlib.String.compare(a, b)) <= 0L
+    (Stdlib.String.compare(a, b)) <= 0
 
-  let greaterThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) > 0L
+  let greaterThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) > 0
 
   let greaterThanOrEqualTo(a: String, b: String): Bool =
-    (Stdlib.String.compare(a, b)) >= 0L
+    (Stdlib.String.compare(a, b)) >= 0
 
 
 /// A String is already text

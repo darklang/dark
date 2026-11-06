@@ -271,20 +271,20 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             TUuid
             "the branch these ops land on (main is `SCM.Branch.mainBranchId`). Passed rather than ambient so a caller can author onto a branch it isn't sitting on -- which is what sync does"
           Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
-      returnType = TypeReference.result TInt TString
+      returnType = TypeReference.result TInt64 TString
       description =
         "Add package ops to <param branchId>, uncommitted. Returns the "
         + "number inserted; duplicates are skipped, since an op's id is its content."
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
+        let resultOk = Dval.resultOk KTInt64 KTString
+        let resultError = Dval.resultError KTInt64 KTString
         (function
         | exeState, vm, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
               match! authorOps exeState vm pm (PT.BranchId.Id branchId) ops with
-              | Ok n -> return resultOk (Dval.int (bigint n))
+              | Ok n -> return resultOk (Dval.dint64 (int64 n))
               | Error message -> return resultError (Dval.string message)
             with ex ->
               return resultError (Dval.string ex.Message)

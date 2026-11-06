@@ -36,7 +36,7 @@ let upgradeRestoresSeedOperationKinds =
         // Start from the binary's bundled seed, rather than the copied test store.
         for suffix in [ ""; "-wal"; "-shm" ] do
           System.IO.File.Delete(dbPath + suffix)
-        let! initial = Tests.CliInstance.runRaw instance [ "eval"; "1L + 1L" ]
+        let! initial = Tests.CliInstance.runRaw instance [ "eval"; "1 + 1" ]
         let (code, output, error) = initial
         Expect.equal code 0 $"the private installation starts successfully: {error}"
         Expect.equal (output.Trim()) "2" "the seeded installation can evaluate code"
@@ -81,7 +81,7 @@ let upgradeRestoresSeedOperationKinds =
             (Map.containsKey id remaining)
             "the operation is absent before upgrading"
         let! (code, output, error) =
-          Tests.CliInstance.runRaw instance [ "eval"; "1L + 1L" ]
+          Tests.CliInstance.runRaw instance [ "eval"; "1 + 1" ]
         Expect.equal code 0 $"the upgrade succeeds: {error}"
         Expect.equal (output.Trim()) "2" "evaluation works after the upgrade"
         let restored = readOperations ()
@@ -228,21 +228,21 @@ let testsFollowEditsAcrossOwners =
   instanceTest "tests follow production edits across owners" (fun state ->
     task {
       do! start state
-      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 2L)"
+      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 2)"
       do!
         run
           state
           [ "test"
             "add"
             "Tests.TestFollow.halfOf8"
-            "Vendor.TestFollow.half(8L) |> Stdlib.Test.equal(4L)" ]
+            "Vendor.TestFollow.half(8) |> Stdlib.Test.equal(4)" ]
       do!
         shows
           state
           [ "test"; "run"; "Tests.TestFollow" ]
           "PASS Tests.TestFollow.halfOf8"
           "the test starts against the current function"
-      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 3L)"
+      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 3)"
       do!
         showsAll
           state
@@ -272,7 +272,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
         )
       System.IO.File.WriteAllText(
         file,
-        "let inner(n: Int64): Int64 = (n + 1L)\n\nlet outer(n: Int64): Int64 = Tests.CacheT.inner(n)\n\ntest outerOf1 =\n  Stdlib.Test.expect(Tests.CacheT.outer(1L) == 2L, \"expected 2, got 3\")\n"
+        "let inner(n: Int64): Int64 = (n + 1)\n\nlet outer(n: Int64): Int64 = Tests.CacheT.inner(n)\n\ntest outerOf1 =\n  Stdlib.Test.expect(Tests.CacheT.outer(1) == 2, \"expected 2, got 3\")\n"
         + ""
         + ""
         + ""
@@ -301,7 +301,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
           "an unchanged test is answered from the cache"
 
       // Two calls away: the test names `outer`, and only `inner` changes.
-      do! fn state "Tests.CacheT.inner" "(n: Int64) : Int64 = (n + 2L)"
+      do! fn state "Tests.CacheT.inner" "(n: Int64) : Int64 = (n + 2)"
       do!
         showsAll
           state
@@ -327,7 +327,7 @@ let cachedTestsRerunWhenWhatTheyUseChanges =
         fn
           state
           "Tests.CacheT.outer"
-          "(n: Int64): Int64 = Tests.CacheT.inner(n - 1L)"
+          "(n: Int64): Int64 = Tests.CacheT.inner(n - 1)"
       do!
         showsAll
           state
@@ -401,7 +401,7 @@ let testsWithoutPurityProofAlwaysRun =
         )
       System.IO.File.WriteAllText(
         file,
-        "test randomKey =\n  (Stdlib.toString(Stdlib.Uuid.generate())) |> Stdlib.String.length\n  |> Stdlib.Test.equal(36)\n\ntest dynamicCall =\n  (let fn = (+)\n   fn(1L, 1L)) |> Stdlib.Test.equal(2L)\n\ntest renderedValue =\n  let text = Stdlib.toRepr(1L)\n  Stdlib.Test.equal(text, text)\n\ntest expectedError =\n  (1L / 0L)\n  => raises \"Cannot divide by 0\"\n"
+        "test randomKey =\n  (Stdlib.toString(Stdlib.Uuid.generate())) |> Stdlib.String.length\n  |> Stdlib.Test.equal(36)\n\ntest dynamicCall =\n  (let fn = (+)\n   fn(1, 1)) |> Stdlib.Test.equal(2)\n\ntest renderedValue =\n  let text = Stdlib.toRepr(1)\n  Stdlib.Test.equal(text, text)\n\ntest expectedError =\n  (1 / 0)\n  => raises \"Cannot divide by 0\"\n"
         + ""
         + ""
         + ""
@@ -449,8 +449,8 @@ let assertionFailureMessagesAlwaysRun =
 test equalMessage =
   match
     Stdlib.Test.equal(
-      First { cacheSafetyField = 1L },
-      First { cacheSafetyField = 2L })
+      First { cacheSafetyField = 1 },
+      First { cacheSafetyField = 2 })
   with
   | Pass -> Stdlib.Test.fail("expected an assertion failure")
   | Fail(messages) ->
@@ -459,8 +459,8 @@ test equalMessage =
 test notEqualMessage =
   match
     Stdlib.Test.notEqual(
-      First { cacheSafetyField = 1L },
-      First { cacheSafetyField = 1L })
+      First { cacheSafetyField = 1 },
+      First { cacheSafetyField = 1 })
   with
   | Pass -> Stdlib.Test.fail("expected an assertion failure")
   | Fail(messages) ->
@@ -560,7 +560,7 @@ let cachedPassesRequireTheSameBuildAndJudge =
         fn
           state
           "Darklang.LanguageTools.PackageManager.Test.Worker.main"
-          "(_args: List<String>) : Int = 17"
+          "(_args: List<String>) : Int64 = 17"
       do!
         shows
           state
@@ -584,7 +584,7 @@ let testAddAuthorsATest =
           [ "test"
             "add"
             "Tests.AddT.doubles"
-            "Tests.AddT.double(4L) |> Stdlib.Test.equal(8L)" ]
+            "Tests.AddT.double(4) |> Stdlib.Test.equal(8)" ]
           "Created test Tests.AddT.doubles"
           "a bare body becomes `test doubles = ...`"
       do!
@@ -605,7 +605,7 @@ let testAddAuthorsATest =
           [ "test"
             "add"
             "Tests.AddT.doubles"
-            "test doubles :{} = Tests.AddT.double(4L) |> Stdlib.Test.equal(8L)" ]
+            "test doubles :{} = Tests.AddT.double(4) |> Stdlib.Test.equal(8)" ]
           1L
           "a test cannot declare its own permission ceiling"
       do!
@@ -614,7 +614,7 @@ let testAddAuthorsATest =
           [ "test"
             "add"
             "Tests.AddT.doubles"
-            "test doubles = Tests.AddT.double(4L) |> Stdlib.Test.equal(8L)" ]
+            "test doubles = Tests.AddT.double(4) |> Stdlib.Test.equal(8)" ]
           0L
           "a complete test declaration is accepted"
       do!
@@ -701,7 +701,7 @@ let isolatedTestDeclarations =
           add
             "expected"
             """test expected =
-  1L / 0L => raises "Cannot divide by 0"
+  1 / 0 => raises "Cannot divide by 0"
 """
         do!
           add
@@ -747,7 +747,7 @@ let entryPointOverrideIsForOneInvocation =
         let source = System.IO.Path.Combine(instance.dir, "entry-point.dark")
         System.IO.File.WriteAllText(
           source,
-          """let alternate(args: List<String>): Int =
+          """let alternate(args: List<String>): Int64 =
   Stdlib.printLine(Stdlib.String.join(args, ","))
   0
 """
@@ -1085,8 +1085,8 @@ let pureTestsRunInProcess =
         do!
           add
             "pure"
-            "Stdlib.List.map([ 1L, 2L ], fun x -> x + 1L) |> Stdlib.Test.equal([ 2L, 3L ])"
-        do! add "raises" "1L / 0L => raises \"Cannot divide by 0\""
+            "Stdlib.List.map([ 1, 2 ], fun x -> x + 1) |> Stdlib.Test.equal([ 2, 3 ])"
+        do! add "raises" "1 / 0 => raises \"Cannot divide by 0\""
         do!
           add
             "clock"
@@ -1133,7 +1133,7 @@ test fails =
   Stdlib.printLine("{\"Pass\":[]}")
   Stdlib.Test.fail("intentional isolation failure")
 test expected =
-  (if Stdlib.Cli.Sys.isTerminal(0) then 2L else 1L) / 0L => raises "Cannot divide by 0"
+  (if Stdlib.Cli.Sys.isTerminal(0) then 2 else 1) / 0 => raises "Cannot divide by 0"
 """
           )
           do! run state [ "module"; "Tests.WorkerExit"; file ]
@@ -1382,7 +1382,7 @@ let private workbenchAt (modules : List<string>) (row : string) : string =
   let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
   // These tests open Matter directly. Skip Home's dependency and constraint reads.
   let draft =
-    "Darklang.SCM.Draft.Picture { bindings = [], propagated = [], removed = [], repoints = [], conflicts = [], constraints = 0, ops = 0L }"
+    "Darklang.SCM.Draft.Picture { bindings = [], propagated = [], removed = [], repoints = [], conflicts = [], constraints = 0, ops = 0 }"
   $"let st = Darklang.Cli.Workbench.initialStateFrom(Darklang.SCM.PackageOps.currentBranch(), Stdlib.Option.Option.None, \"i\", false, {draft}) in "
   + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path} ]) }} in "
   + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems(s0) } in "
@@ -1435,7 +1435,7 @@ let workbenchRenameEndsTheOldName =
   instanceTest "a workbench rename leaves one name, not two" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.WbRename.before" "() : Int64 = 7L"
+      do! fn state "Tests.WbRename.before" "() : Int64 = 7"
       do!
         evals
           state
@@ -1580,7 +1580,7 @@ let findValuesTakesTheSameNames =
 let referenceCommandsAnswer =
   instanceTest "the reference commands answer" (fun state ->
     task {
-      do! shows state [ "builtins" ] "Int:" "builtins lists them by module"
+      do! shows state [ "builtins" ] "Int64:" "builtins lists them by module"
       do! shows state [ "commands" ] "nav" "commands lists the registry"
       do! shows state [ "docs" ] "for-ai" "docs lists its topics"
       do! sane state [ "docs"; "syntax" ] "and prints one"
@@ -1599,7 +1599,7 @@ let authoringRoundTrips =
   instanceTest "what you author is what you read back" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Round.answer" "() : Int64 = 42L"
+      do! fn state "Tests.Round.answer" "() : Int64 = 42"
       do!
         shows
           state
@@ -1615,7 +1615,7 @@ let valuesRoundTrip =
   instanceTest "a value round-trips too" (fun state ->
     task {
       do! start state
-      do! value state "Tests.Round.eleven" "11L"
+      do! value state "Tests.Round.eleven" "11"
       do! evals state "Tests.Round.eleven" "11" "the value is readable by name"
       do! discardAll state
     })
@@ -1627,7 +1627,7 @@ let deleteAndRestore =
   instanceTest "delete retires an item, restore brings it back" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Retire.f" "() : Int64 = 50505L"
+      do! fn state "Tests.Retire.f" "() : Int64 = 50505"
       do! commit state "add f"
       do! evals state "Tests.Retire.f()" "50505" "it runs before the delete"
 
@@ -1696,7 +1696,7 @@ let deprecateAndUndeprecate =
   instanceTest "deprecate marks an item, undeprecate clears it" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Dep.old" "() : Int64 = 1L"
+      do! fn state "Tests.Dep.old" "() : Int64 = 1"
       do! commit state "add old"
 
       do! deprecate state "Tests.Dep.old"
@@ -1728,13 +1728,13 @@ let aDocOnlyEditKeepsTheVersionAndStillLands =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Docs.f" "() : Int64 = 7L"
-        do! fn state "Tests.Docs.caller" "(): Int64 = Tests.Docs.f() + 1L"
+        do! fn state "Tests.Docs.f" "() : Int64 = 7"
+        do! fn state "Tests.Docs.caller" "(): Int64 = Tests.Docs.f() + 1"
         do! commit state "add f and its caller"
 
         let! before = runCliPlain state [ "hash"; "Tests.Docs.f" ]
 
-        do! fn state "Tests.Docs.f" "/// Returns seven.\nlet f(): Int64 =\n  7L"
+        do! fn state "Tests.Docs.f" "/// Returns seven.\nlet f(): Int64 =\n  7"
 
         let! after = runCliPlain state [ "hash"; "Tests.Docs.f" ]
         Expect.equal
@@ -1769,8 +1769,8 @@ let aBranchesDocEditStaysOnTheBranch =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.DocsBr.f" "() : Int64 = 3L"
-        do! fn state "Tests.DocsBr.f" "/// Main's wording.\nlet f(): Int64 =\n  3L"
+        do! fn state "Tests.DocsBr.f" "() : Int64 = 3"
+        do! fn state "Tests.DocsBr.f" "/// Main's wording.\nlet f(): Int64 =\n  3"
         do! commit state "add f, documented"
 
         do! switch state "docsbr"
@@ -1778,7 +1778,7 @@ let aBranchesDocEditStaysOnTheBranch =
           fn
             state
             "Tests.DocsBr.f"
-            "/// The branch's wording.\nlet f(): Int64 =\n  3L"
+            "/// The branch's wording.\nlet f(): Int64 =\n  3"
         do!
           shows
             state
@@ -1970,8 +1970,8 @@ let twoNamesHoldingOneItemHaveTheirOwnDocs =
   instanceTest "two names holding one item document it separately" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.DocOne.f" "() : Int64 = 5301L"
-      do! fn state "Tests.DocTwo.f" "() : Int64 = 5301L"
+      do! fn state "Tests.DocOne.f" "() : Int64 = 5301"
+      do! fn state "Tests.DocTwo.f" "() : Int64 = 5301"
       do! commit state "one body, two names"
 
       // Same body, so ONE item: this is the premise, not an accident of the fixture.
@@ -1983,7 +1983,7 @@ let twoNamesHoldingOneItemHaveTheirOwnDocs =
         fn
           state
           "Tests.DocOne.f"
-          "/// what the first name means\nlet f(): Int64 =\n  5301L"
+          "/// what the first name means\nlet f(): Int64 =\n  5301"
 
       do!
         shows
@@ -2019,7 +2019,7 @@ let twoWordingsForOneDocRecordAConflict =
           fn
             state
             "Tests.DocClash.f"
-            "/// ours, written here\nlet f(): Int64 =\n  5101L"
+            "/// ours, written here\nlet f(): Int64 =\n  5101"
         do! commit state "add f, documented"
 
         // What a peer's op looks like on arrival: it names a predecessor nobody here ever wrote.
@@ -2109,10 +2109,10 @@ let authoringWithoutADocDoesNotClearOne =
       task {
         do! start state
         do!
-          fn state "Tests.DocKeep.f" "/// what it is for\nlet f(): Int64 =\n  5201L"
+          fn state "Tests.DocKeep.f" "/// what it is for\nlet f(): Int64 =\n  5201"
         do! commit state "add f, documented"
 
-        do! fn state "Tests.DocKeep.f" "() : Int64 = 5201L"
+        do! fn state "Tests.DocKeep.f" "() : Int64 = 5201"
         do!
           shows
             state
@@ -2135,8 +2135,8 @@ let reAuthoringTheSameSourceSurvivesTheCommit =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Twice.f" "() : Int64 = 4901L"
-        do! fn state "Tests.Twice.f" "() : Int64 = 4901L"
+        do! fn state "Tests.Twice.f" "() : Int64 = 4901"
+        do! fn state "Tests.Twice.f" "() : Int64 = 4901"
         do! commit state "add f, said twice"
 
         do!
@@ -2157,9 +2157,9 @@ let aVersionMovedAndMovedBackKeepsTheLastNaming =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4902L"
-        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4903L"
-        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4902L"
+        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4902"
+        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4903"
+        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4902"
         do! commit state "there and back"
 
         do!
@@ -2178,7 +2178,7 @@ let renameIsVisibleToEverythingThatReads =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Ren.before" "() : Int64 = 3L"
+        do! fn state "Tests.Ren.before" "() : Int64 = 3"
         do! commit state "add before"
         do! run state [ "rename"; "Tests.Ren.before"; "Tests.Ren.after" ]
 

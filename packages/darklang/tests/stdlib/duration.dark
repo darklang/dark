@@ -1,7 +1,7 @@
 // Parse duration strings like "30s" and "5m" into durations in whole seconds.
 module Darklang.Stdlib.Duration.Tests
 
-let seconds(s: String): Stdlib.Result.Result<Int, Stdlib.Duration.ParseError> =
+let seconds(s: String): Stdlib.Result.Result<Int64, Stdlib.Duration.ParseError> =
   Stdlib.Duration.parse(s) |> Stdlib.Result.map(Stdlib.Duration.toSeconds)
 
 // --- units ---
@@ -23,10 +23,14 @@ test parseNegative =
       seconds("-5m") |> Stdlib.Test.equal(Ok(-300))
       seconds("-2d") |> Stdlib.Test.equal(Ok(-172800)) ])
 
-// Durations can be larger than Int64 allows.
+// A duration is an Int64 of seconds; past that it is refused, not wrapped.
 test parseBeyondInt64 =
-  seconds("9223372036854775808s")
-  |> Stdlib.Test.equal(Ok(9223372036854775808))
+  Stdlib.Test.all(
+    [ seconds("9223372036854775807s") |> Stdlib.Test.equal(Ok(9223372036854775807))
+      seconds("9223372036854775808s")
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber))
+      seconds("106751991167301d")
+      |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.InvalidNumber)) ])
 
 // --- errors ---
 test parseRejectsMissingUnit =

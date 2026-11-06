@@ -6,7 +6,7 @@ module Darklang.Cli.Workbench
 /// A one-line, clipped rendering of a value's body for the row description:
 /// `"hello"`, `[1, 2, 3]`. First line only, and no more than `width`
 /// columns - a value can be a whole table.
-let valueDesc(ctx: PrettyPrinter.ProgramTypes.Context, body: LanguageTools.ProgramTypes.Expr, width: Int): String =
+let valueDesc(ctx: PrettyPrinter.ProgramTypes.Context, body: LanguageTools.ProgramTypes.Expr, width: Int64): String =
   let printed = PrettyPrinter.ProgramTypes.expr(ctx, body)
   let firstLine = Stdlib.String.split(printed, "\n") |> Stdlib.List.head |> Stdlib.Option.withDefault(printed)
   let clipped =
@@ -140,7 +140,7 @@ let moduleRows(
 ///
 /// No branch to pass: `SCM.Draft.read ()` resolves through the process branch overlay, which `onBranch`
 /// keeps in step with `state.branchId`. For any OTHER branch, ask `draftBindingsFor` by id.
-let wipItemCount(): Int =
+let wipItemCount(): Int64 =
   Stdlib.List.length((SCM.Draft.read()).bindings)
 
 /// The glyph a Changes row leads with, by what the row is: a fn, a type, a
@@ -221,7 +221,7 @@ let recentCommitRows(limit: Int64): List<ScmJson.CommitRowJson> =
 /// "more commits" row opens.
 let commitListText(): String =
   let rows =
-    recentCommitRows(30L)
+    recentCommitRows(30)
     |> Stdlib.List.map(fun c ->
       // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
       let short = Stdlib.String.first(c.hash, 8)
@@ -233,16 +233,16 @@ let commitListText(): String =
     "\n")
 
 /// The ops of the selected commit, rendered for the reader. Capped - a seed commit can have 10k+ ops.
-let commitOpsText(branchId: Uuid, selected: Int): String =
-  let commits = recentCommitRows(30L)
+let commitOpsText(branchId: Uuid, selected: Int64): String =
+  let commits = recentCommitRows(30)
   match Stdlib.List.getAt(commits, selected) with
   | None -> "(no commit selected)"
   | Some(c) ->
     let hashStr = c.hash
     // Fetch the 20 we show, not all of them: the seed commit holds ~17k ops, and deserializing every blob
     // to display twenty of them freezes this pane for as long as that takes.
-    let opCount = Stdlib.Int.fromInt64(SCM.PackageOps.opCountIn(hashStr))
-    let shown = SCM.PackageOps.opsInCommitLimited(hashStr, 20L)
+    let opCount = SCM.PackageOps.opCountIn(hashStr)
+    let shown = SCM.PackageOps.opsInCommitLimited(hashStr, 20)
     let opLines =
       shown
       |> Stdlib.List.map(fun op -> "  " + (PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op)))
@@ -459,7 +459,7 @@ let runSearch(branchId: Uuid, queryText: String): List<SearchHit> =
   // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
   // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Hex.decode`, which matched on its description.
   let needle = Stdlib.String.toLowercase(Stdlib.String.trim(queryText))
-  let rank(h: SearchHit): Int =
+  let rank(h: SearchHit): Int64 =
     let name = Stdlib.String.toLowercase(h.name)
     if name == needle then 0
     else if Stdlib.String.startsWith(name, needle) then 1
@@ -541,7 +541,7 @@ let referencesFrom(
     // Capped: `List.map` has hundreds of dependents, and a page is for reading, not scrolling to
     // the end of. The command prints them all.
     let fqn = Stdlib.String.join(Stdlib.List.append(modulePath, leaf), ".")
-    let capped(n: Int, lines: List<String>): List<String> =
+    let capped(n: Int64, lines: List<String>): List<String> =
       if n <= referenceCap then lines
       else
         Stdlib.List.append(
@@ -549,7 +549,7 @@ let referencesFrom(
           Stdlib.Cli.UI.Colors.dimText("  + " + (Stdlib.toString(n - referenceCap)) + " more · :deps " + fqn + " lists them all"))
     // No item name here: `inspectPageLines` composes this under a page already headed by that
     // item's source, so including it printed the name twice on one screen.
-    let heading(label: String, n: Int): String =
+    let heading(label: String, n: Int64): String =
       (sectionHeading(label)) + (Stdlib.Cli.UI.Colors.dimText(" · " + (Stdlib.toString(n))))
     Stdlib.String.join(
       (Stdlib.List.flatten(

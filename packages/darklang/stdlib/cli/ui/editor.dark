@@ -4,8 +4,8 @@ module Darklang.Stdlib.Cli.UI.Editor
 
 type Buf =
   { lines: List<String>
-    row: Int
-    col: Int }
+    row: Int64
+    col: Int64 }
 
 let emptyBuf(): Buf =
   Buf { lines = [ "" ], row = 0, col = 0 }
@@ -21,7 +21,7 @@ let toText(buf: Buf): String =
 let currentLine(buf: Buf): String =
   Stdlib.List.getAt(buf.lines, buf.row) |> Stdlib.Option.withDefault("")
 
-let setLine(lines: List<String>, row: Int, s: String): List<String> =
+let setLine(lines: List<String>, row: Int64, s: String): List<String> =
   lines |> Stdlib.List.indexedMap(fun(i, l) -> if i == row then s else l)
 
 let insertChar(buf: Buf, ch: String): Buf =

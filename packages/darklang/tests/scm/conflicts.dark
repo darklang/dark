@@ -44,7 +44,7 @@ module Helpers =
     local: List<Darklang.SCM.Conflicts.Binding>,
     incoming: List<Darklang.SCM.Conflicts.Binding>,
     bases: List<Darklang.SCM.Conflicts.NameBase>)
-    : Int =
+    : Int64 =
     Stdlib.List.length(Darklang.SCM.Conflicts.detect("yours", "theirs", local, incoming, bases))
 
 module Detect =

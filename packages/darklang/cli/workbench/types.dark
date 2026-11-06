@@ -71,7 +71,7 @@ let otherLens(lens: Lens): Lens =
 /// hit's location. No hits means it isn't open.
 type SearchState =
   { hits: List<SearchHit>
-    selected: Int }
+    selected: Int64 }
 
 let emptySearch(): SearchState =
   SearchState { hits = [], selected = 0 }
@@ -82,16 +82,16 @@ let emptySearch(): SearchState =
 /// A forward move is spelled the same way: take `returnPointOf`, change what
 /// differs, `moveToPoint` it.
 type ReturnPoint =
-  { view: Int
+  { view: Int64
     location: Packages.PackageLocation
     lens: Lens
-    selected: Int
+    selected: Int64
     filter: String }
 
 /// A target the nav can open: a view and its section within that view. Coarser
 /// than a `ReturnPoint`, which is everything needed to land back exactly.
 /// `section` is meaningful for SCM and AI; it is zero for other views.
-type Dest = { view: Int, section: Int }
+type Dest = { view: Int64, section: Int64 }
 
 
 /// What's drawn over the frame, and holding the keyboard while it is.
@@ -103,7 +103,7 @@ type BranchChoice = { id: Uuid, name: String, detail: String }
 type BranchPicker =
   { choices: List<BranchChoice>
     field: Stdlib.Cli.UI.TextField.State
-    selected: Int }
+    selected: Int64 }
 
 type Overlay =
   | NoOverlay
@@ -147,16 +147,16 @@ type MessageKind =
 /// What the Code view's item page was built from. Everything it reads, and nothing a keystroke
 /// moves without moving the page: scrolling, focus, the command bar and the overlays are absent.
 type PreviewKey =
-  { view: Int
+  { view: Int64
     lens: Lens
     branchId: Uuid
     location: Packages.PackageLocation
     items: List<BodyItem>
-    selected: Int
+    selected: Int64
     accountId: Stdlib.Option.Option<Uuid>
     liveValues: Dict<String, String>
     renderPeek: String
-    width: Int
+    width: Int64
     /// The draft's op count, so your own save, discard or deprecation rebuilds the page.
     draftOps: Int64 }
 
@@ -165,7 +165,7 @@ type PreviewCache =
     lines: List<String> }
 
 type State =
-  { activeView: Int
+  { activeView: Int64
     /// `--live`: reload when something changes the store under you. Off, nothing is said and
     /// nothing moves until you press `R`, which is the difference
     /// between a viewer telling you something happened and a viewer rearranging itself while
@@ -173,10 +173,10 @@ type State =
     live: Bool
     location: Packages.PackageLocation
     items: List<BodyItem>
-    selected: Int
+    selected: Int64
     /// Which content pane has focus. `Neither` while the navbar does.
     focus: Stdlib.Cli.UI.SplitPane.Focus
-    detailScroll: Int
+    detailScroll: Int64
     /// When Some, a full-body reader is open (e.g. a Docs topic); its text scrolls via detailScroll.
     reading: Stdlib.Option.Option<String>
     /// Whether the open reader's content is Dark code (so it gets syntax-highlighted). False for docs/help/
@@ -201,16 +201,16 @@ type State =
     overlay: Overlay
     /// The navbar cursor, as a position into `navbarRows`. `focus ==
     /// Neither` means the navbar owns the keyboard.
-    navbarSel: Int
+    navbarSel: Int64
     /// The last destination visited in each workspace.
-    wsLast: List<(Int * Dest)>
+    wsLast: List<(Int64 * Dest)>
     /// Where you have been, most recent first: what esc returns to. Every move
     /// - a view switch, entering a module, a jump from search - pushes the place
     /// it left. Capped, so a long session cannot grow it without bound.
     back: List<ReturnPoint>
     /// `:` command bar: which completion in the dropdown is highlighted (↑↓ move, tab accepts it). Reset to 0
     /// whenever the text changes.
-    completionSel: Int
+    completionSel: Int64
     /// Names of items with uncommitted edits, and of deprecated items in the current module.
     ///
     /// Cached rather than read in the renderer. Both are DB reads, the renderer runs on every keypress, and
@@ -332,14 +332,14 @@ val viewSpecs =
   Stdlib.List.concat(base, exts)
 
 /// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
-let extensionViewAt(idx: Int): Stdlib.Option.Option<ViewDef> =
+let extensionViewAt(idx: Int64): Stdlib.Option.Option<ViewDef> =
   if idx < baseViewCount then
     Stdlib.Option.Option.None
   else
     Stdlib.List.getAt(extensionViews(), idx - baseViewCount)
 
 /// Single-column views never give focus to an invisible second pane.
-let viewBehavior(view: Int): ViewBehavior =
+let viewBehavior(view: Int64): ViewBehavior =
   if view == vHome then ViewBehavior.SectionedList
   else
     match extensionViewAt(view) with
@@ -354,13 +354,13 @@ let isSectioned(state: State): Bool =
   viewBehavior(state.activeView) == ViewBehavior.SectionedList
 
 /// The display label for any view index.
-let viewLabel(idx: Int): String =
+let viewLabel(idx: Int64): String =
   match extensionViewAt(idx) with
   | Some(vd) -> vd.name
   | None -> Frame.viewName(idx)
 
 /// The view indices the navbar may show, in `viewSpecs` order.
-let visibleViews(state: State): List<Int> =
+let visibleViews(state: State): List<Int64> =
   viewSpecs |> Stdlib.List.map(fun spec -> Stdlib.Tuple2.first(spec))
 
 

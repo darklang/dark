@@ -80,7 +80,7 @@ type FnCall =
     result: LanguageTools.RuntimeTypes.Dval
     /// Wall clock for the call. For a read in flight it is measured at the landing, so an HTTP
     /// call carries its round trip rather than the time to hand back a promise.
-    durationMs: Int
+    durationMs: Int64
     /// The process that made the call. `None` for a run nobody scheduled, and for rows written
     /// before processes existed.
     processId: Stdlib.Option.Option<Uuid>
@@ -117,17 +117,17 @@ type TraceData =
 /// back a `TraceAnswer`; the first five cases are runs, newest first.
 type TraceQuery =
   /// The newest runs.
-  | Newest of limit: Int
+  | Newest of limit: Int64
   /// The newest runs with a call whose function name contains this text.
-  | Calling of fnName: String * limit: Int
+  | Calling of fnName: String * limit: Int64
   /// The newest runs that went through a function: by its name, or by its hash when that is
   /// not "". `Tracing.Store.wentThrough` says why it takes both.
-  | WentThrough of fnName: String * fnHash: String * limit: Int
+  | WentThrough of fnName: String * fnHash: String * limit: Int64
   /// One run by its full id.
   | ById of traceID: String
   /// The newest runs whose input, result or any recorded call's args or result contains this
   /// text (case-sensitive), searching the newest 2000 runs.
-  | Containing of pattern: String * limit: Int
+  | Containing of pattern: String * limit: Int64
   /// One run with its inputs and its calls.
   | Detail of traceID: String
   /// The ids that start with this text, newest first, at most six.
@@ -141,9 +141,9 @@ type TraceQuery =
   /// Which package functions the last N runs went through, and in how many runs each.
   | FnCounts of traceLimit: Int64
   /// Impure call timings over the last N runs, per function.
-  | Hotspots of traceLimit: Int
+  | Hotspots of traceLimit: Int64
   /// Run timings over the last N runs, per entry.
-  | StatsByHandler of traceLimit: Int
+  | StatsByHandler of traceLimit: Int64
 
 
 /// What a `TraceQuery` answers. Which field is filled depends on the query; the rest are empty.
@@ -162,7 +162,7 @@ type TraceAnswer =
     counts: List<(String * Int64)>
     /// `Hotspots`: (function name, calls, total ms, max ms). `StatsByHandler`: (entry, runs,
     /// total ms, max ms).
-    totals: List<(String * Int * Int * Int)> }
+    totals: List<(String * Int64 * Int64 * Int64)> }
 
 
 /// Which runs to delete.
@@ -173,7 +173,7 @@ type TraceSelection =
   /// The runs recorded before this ISO 8601 timestamp.
   | Before of cutoff: String
   /// All but the newest few, keeping any run a suspended one still needs.
-  | AllButNewest of keep: Int
+  | AllButNewest of keep: Int64
 
 
 /// Why a replay stopped.

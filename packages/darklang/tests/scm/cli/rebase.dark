@@ -24,12 +24,14 @@ test rebaseNamesWhatBothSidesChangedAndRecordsIt =
 
 // The rebase records the branch's losing version on the branch; the merge carries that record to
 // main, where it can still be overridden.
+// Numbers no other fn returns: an edit to a body the store already holds adds no version,
+// only a name, and a rebase that drops it leaves the branch with nothing to merge.
 test rebaseThenMergeKeepsTheBranchsLosingVersionRecorded =
   scenario(fun dark ->
-    [ saveNumber(dark, "Tests.App.a", "1")
+    [ saveNumber(dark, "Tests.App.a", "41001")
       commit(dark, "base")
-      featThenMainEdit(dark, "Tests.App.a", "2", "3")
-      saveNumber(dark, "Tests.App.a", "4")
+      featThenMainEdit(dark, "Tests.App.a", "41002", "41003")
+      saveNumber(dark, "Tests.App.a", "41004")
       commit(dark, "main edits again")
 
       switch(dark, "feat")
@@ -38,7 +40,7 @@ test rebaseThenMergeKeepsTheBranchsLosingVersionRecorded =
 
       switch(dark, "main")
       says(dark, [ "merge", "feat", "-y" ], "Merged", "the merge goes through")
-      evals(dark, "Tests.App.a()", "4", "main's newest version runs")
+      evals(dark, "Tests.App.a()", "41004", "main's newest version runs")
       same(
         conflicts(dark),
         [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
@@ -51,7 +53,7 @@ test rebaseRepointsTheBranchsCallersOfANameMainChanged =
       commit(dark, "base")
 
       switch(dark, "feat")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "feat adds a caller")
 
       switch(dark, "main")
@@ -73,8 +75,8 @@ test rebaseRepointsCallersOfCallersAndASecondRebaseDoesNothing =
       commit(dark, "base")
 
       switch(dark, "feat")
-      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10L")
-      save(dark, "Tests.App.h", "(): Int64 = Tests.App.g() + 100L")
+      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10")
+      save(dark, "Tests.App.h", "(): Int64 = Tests.App.g() + 100")
       commit(dark, "feat adds g calling f, and h calling g")
 
       switch(dark, "main")
@@ -138,21 +140,22 @@ test rebaseWhereTheBranchBothCallsAndChangesNamesMainChanged =
 
 // On `sub`, the parent's newer rename of `a` beats sub's older edit of `a`, and sub's edit is recorded
 // as the loser, like `k`. The records travel up with each merge, so they can still be overridden.
+// Numbers no other fn returns, as above.
 test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
   scenario(fun dark ->
-    [ saveNumber(dark, "Tests.App.a", "1")
-      saveNumber(dark, "Tests.App.k", "5")
+    [ saveNumber(dark, "Tests.App.a", "42001")
+      saveNumber(dark, "Tests.App.k", "42005")
       commit(dark, "base")
 
       switch(dark, "feat")
       switch(dark, "sub")
-      saveNumber(dark, "Tests.App.a", "2")
-      saveNumber(dark, "Tests.App.k", "6")
+      saveNumber(dark, "Tests.App.a", "42002")
+      saveNumber(dark, "Tests.App.k", "42006")
       commit(dark, "sub changes a and k")
 
       switch(dark, "feat")
       run(dark, [ "rename", "Tests.App.a", "Tests.App.b" ])
-      saveNumber(dark, "Tests.App.k", "7")
+      saveNumber(dark, "Tests.App.k", "42007")
       commit(dark, "feat renames a to b, and changes k")
 
       switch(dark, "sub")
@@ -160,7 +163,7 @@ test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
       says(dark, [ "rebase", "--dry-run" ], "~ Tests.App.a", "and a, which feat renamed away")
       says(dark, [ "rebase" ], "you also touched:\n  Tests.App.a\n  Tests.App.k", "the rebase names both")
       notFound(dark, "Tests.App.a()", "feat's newer rename wins over sub's edit of a")
-      evals(dark, "Tests.App.k()", "7", "and feat's newer k wins")
+      evals(dark, "Tests.App.k()", "42007", "and feat's newer k wins")
       same(
         conflicts(dark),
         [ "Tests.App.a: feat kept over sub (removal is newer)"
@@ -170,8 +173,8 @@ test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
       switch(dark, "feat")
       says(dark, [ "merge", "sub", "-y" ], "2 conflict(s) auto-resolved", "merging sub into feat carries both records")
       notFound(dark, "Tests.App.a()", "a stays renamed away")
-      evals(dark, "Tests.App.b()", "1", "b holds what a was")
-      evals(dark, "Tests.App.k()", "7", "and feat's k stays")
+      evals(dark, "Tests.App.b()", "42001", "b holds what a was")
+      evals(dark, "Tests.App.k()", "42007", "and feat's k stays")
       same(
         conflicts(dark),
         [ "Tests.App.a: feat kept over sub (removal is newer)"
@@ -181,8 +184,8 @@ test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
       switch(dark, "main")
       merge(dark, "feat")
       notFound(dark, "Tests.App.a()", "on main, a is gone")
-      evals(dark, "Tests.App.b()", "1", "b is there")
-      evals(dark, "Tests.App.k()", "7", "and so is feat's k")
+      evals(dark, "Tests.App.b()", "42001", "b is there")
+      evals(dark, "Tests.App.k()", "42007", "and so is feat's k")
       same(
         conflicts(dark),
         [ "Tests.App.a: feat kept over sub (removal is newer)"

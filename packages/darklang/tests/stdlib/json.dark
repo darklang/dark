@@ -78,62 +78,62 @@ module Int =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int>(0) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<Int>(12345) |> Stdlib.Test.equal("12345")
-          Stdlib.Json.serialize<Int>(-12345) |> Stdlib.Test.equal("-12345") ])
+        [ Stdlib.Json.serialize<Int>(0z) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int>(12345z) |> Stdlib.Test.equal("12345")
+          Stdlib.Json.serialize<Int>(-12345z) |> Stdlib.Test.equal("-12345") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int>("0") |> Stdlib.Test.equal(Result.Ok(0))
-          Stdlib.Json.parse<Int>("12345") |> Stdlib.Test.equal(Result.Ok(12345))
-          Stdlib.Json.parse<Int>("-12345") |> Stdlib.Test.equal(Result.Ok(-12345)) ])
+        [ Stdlib.Json.parse<Int>("0") |> Stdlib.Test.equal(Result.Ok(0z))
+          Stdlib.Json.parse<Int>("12345") |> Stdlib.Test.equal(Result.Ok(12345z))
+          Stdlib.Json.parse<Int>("-12345") |> Stdlib.Test.equal(Result.Ok(-12345z)) ])
 
   module Huge =
     test serialize =
       Stdlib.Test.all(
         [ // arbitrary precision: well past Int64, exact round-trip
-          Stdlib.Json.serialize<Int>(123456789012345678901234567890)
+          Stdlib.Json.serialize<Int>(123456789012345678901234567890z)
           |> Stdlib.Test.equal("123456789012345678901234567890")
-          Stdlib.Json.parse<Int>(Stdlib.Json.serialize<Int>(99999999999999999999999999999999))
-          |> Stdlib.Test.equal(Result.Ok(99999999999999999999999999999999)) ])
+          Stdlib.Json.parse<Int>(Stdlib.Json.serialize<Int>(99999999999999999999999999999999z))
+          |> Stdlib.Test.equal(Result.Ok(99999999999999999999999999999999z)) ])
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int>("123456789012345678901234567890")
-          |> Stdlib.Test.equal(Result.Ok(123456789012345678901234567890))
+          |> Stdlib.Test.equal(Result.Ok(123456789012345678901234567890z))
           Stdlib.Json.parse<Int>("-123456789012345678901234567890")
-          |> Stdlib.Test.equal(Result.Ok(-123456789012345678901234567890)) ])
+          |> Stdlib.Test.equal(Result.Ok(-123456789012345678901234567890z)) ])
 
   module PastInt64 =
     test serialize =
       // Int is unbounded: it serializes/parses values that overflow Int64.
       // Compare the Int64Limits module above, which *errors* on these exact values.
-      Stdlib.Json.serialize<Int>(9223372036854775808)
+      Stdlib.Json.serialize<Int>(9223372036854775808z)
       |> Stdlib.Test.equal("9223372036854775808")
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int>("9223372036854775808")
-          |> Stdlib.Test.equal(Result.Ok(9223372036854775808))
+          |> Stdlib.Test.equal(Result.Ok(9223372036854775808z))
           Stdlib.Json.parse<Int>("-9223372036854775809")
-          |> Stdlib.Test.equal(Result.Ok(-9223372036854775809))
+          |> Stdlib.Test.equal(Result.Ok(-9223372036854775809z))
           // a float-form just above the Int64 max (Int64 rejects "9.3E18")
           Stdlib.Json.parse<Int>("9.3E18")
-          |> Stdlib.Test.equal(Result.Ok(9300000000000000000)) ])
+          |> Stdlib.Test.equal(Result.Ok(9300000000000000000z)) ])
 
   module IntegerValuedFloatForms =
     test parse =
       Stdlib.Test.all(
         [ // integer-valued decimal/exponent forms are accepted, parsed EXACTLY
           // (the same forms the fixed-width int parsers accept)
-          Stdlib.Json.parse<Int>("0.0") |> Stdlib.Test.equal(Result.Ok(0))
-          Stdlib.Json.parse<Int>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1))
-          Stdlib.Json.parse<Int>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120))
-          Stdlib.Json.parse<Int>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120))
-          Stdlib.Json.parse<Int>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120))
+          Stdlib.Json.parse<Int>("0.0") |> Stdlib.Test.equal(Result.Ok(0z))
+          Stdlib.Json.parse<Int>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1z))
+          Stdlib.Json.parse<Int>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120z))
+          Stdlib.Json.parse<Int>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120z))
+          Stdlib.Json.parse<Int>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120z))
           // exact even past 2^53 — guards the precision-loss regression
           Stdlib.Json.parse<Int>("9007199254740993.0")
-          |> Stdlib.Test.equal(Result.Ok(9007199254740993)) ])
+          |> Stdlib.Test.equal(Result.Ok(9007199254740993z)) ])
 
   module Errors =
     test parseErrors =
@@ -157,48 +157,48 @@ module Int =
 
     test parse =
       // ...but zero with an extreme negative exponent is still exactly zero
-      Stdlib.Json.parse<Int>("0e-2147483648") |> Stdlib.Test.equal(Result.Ok(0))
+      Stdlib.Json.parse<Int>("0e-2147483648") |> Stdlib.Test.equal(Result.Ok(0z))
 
 module Int64 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int64>(0L) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<Int64>(12345L) |> Stdlib.Test.equal("12345")
-          Stdlib.Json.serialize<Int64>(-12345L) |> Stdlib.Test.equal("-12345") ])
+        [ Stdlib.Json.serialize<Int64>(0) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int64>(12345) |> Stdlib.Test.equal("12345")
+          Stdlib.Json.serialize<Int64>(-12345) |> Stdlib.Test.equal("-12345") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int64>("0") |> Stdlib.Test.equal(Result.Ok(0L))
-          Stdlib.Json.parse<Int64>("0.0") |> Stdlib.Test.equal(Result.Ok(0L))
-          Stdlib.Json.parse<Int64>("-0.0") |> Stdlib.Test.equal(Result.Ok(0L))
-          Stdlib.Json.parse<Int64>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1L))
-          Stdlib.Json.parse<Int64>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120L))
-          Stdlib.Json.parse<Int64>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120L))
-          Stdlib.Json.parse<Int64>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120L)) ])
+        [ Stdlib.Json.parse<Int64>("0") |> Stdlib.Test.equal(Result.Ok(0))
+          Stdlib.Json.parse<Int64>("0.0") |> Stdlib.Test.equal(Result.Ok(0))
+          Stdlib.Json.parse<Int64>("-0.0") |> Stdlib.Test.equal(Result.Ok(0))
+          Stdlib.Json.parse<Int64>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1))
+          Stdlib.Json.parse<Int64>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120))
+          Stdlib.Json.parse<Int64>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120))
+          Stdlib.Json.parse<Int64>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120)) ])
 
   module Int32Limits =
     test serialize =
       Stdlib.Test.all(
         [ // test the limits of int32 (-2147483648 to 2147483647)
-          Stdlib.Json.serialize<Int64>(-2147483648L)
+          Stdlib.Json.serialize<Int64>(-2147483648)
           |> Stdlib.Test.equal("-2147483648")
-          Stdlib.Json.serialize<Int64>(2147483647L) |> Stdlib.Test.equal("2147483647")
-          Stdlib.Json.serialize<Int64>(-2147483649L)
+          Stdlib.Json.serialize<Int64>(2147483647) |> Stdlib.Test.equal("2147483647")
+          Stdlib.Json.serialize<Int64>(-2147483649)
           |> Stdlib.Test.equal("-2147483649")
-          Stdlib.Json.serialize<Int64>(2147483648L)
+          Stdlib.Json.serialize<Int64>(2147483648)
           |> Stdlib.Test.equal("2147483648") ])
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int64>("-2147483648")
-          |> Stdlib.Test.equal(Result.Ok(-2147483648L))
+          |> Stdlib.Test.equal(Result.Ok(-2147483648))
           Stdlib.Json.parse<Int64>("2147483647")
-          |> Stdlib.Test.equal(Result.Ok(2147483647L))
+          |> Stdlib.Test.equal(Result.Ok(2147483647))
           Stdlib.Json.parse<Int64>("-2147483649")
-          |> Stdlib.Test.equal(Result.Ok(-2147483649L))
+          |> Stdlib.Test.equal(Result.Ok(-2147483649))
           Stdlib.Json.parse<Int64>("2147483648")
-          |> Stdlib.Test.equal(Result.Ok(2147483648L)) ])
+          |> Stdlib.Test.equal(Result.Ok(2147483648)) ])
 
   module Int64Limits =
     // test the limits of int64 (-9223372036854775808 to 9223372036854775807)
@@ -220,17 +220,17 @@ module Int64 =
       Stdlib.Test.all(
         [ // This is a float that is a valid int64
           Stdlib.Json.parse<Int64>("9.2E18")
-          |> Stdlib.Test.equal(Result.Ok(9200000000000000000L))
+          |> Stdlib.Test.equal(Result.Ok(9200000000000000000))
           Stdlib.Json.parse<Int64>("9223372036854775807")
-          |> Stdlib.Test.equal(Result.Ok(9223372036854775807L))
+          |> Stdlib.Test.equal(Result.Ok(9223372036854775807))
           Stdlib.Json.parse<Int64>("-9223372036854775808")
-          |> Stdlib.Test.equal(Result.Ok(-9223372036854775808L)) ])
+          |> Stdlib.Test.equal(Result.Ok(-9223372036854775808)) ])
 
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int64>(9223372036854775807L)
+        [ Stdlib.Json.serialize<Int64>(9223372036854775807)
           |> Stdlib.Test.equal("9223372036854775807")
-          Stdlib.Json.serialize<Int64>(-9223372036854775808L)
+          Stdlib.Json.serialize<Int64>(-9223372036854775808)
           |> Stdlib.Test.equal("-9223372036854775808") ])
 
   module Errors =
@@ -264,31 +264,31 @@ module UInt64 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt64>(0UL) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt64>(12345UL) |> Stdlib.Test.equal("12345") ])
+        [ Stdlib.Json.serialize<UInt64>(0u64) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt64>(12345u64) |> Stdlib.Test.equal("12345") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt64>("0") |> Stdlib.Test.equal(Result.Ok(0UL))
-          Stdlib.Json.parse<UInt64>("0.0") |> Stdlib.Test.equal(Result.Ok(0UL))
-          Stdlib.Json.parse<UInt64>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120UL))
-          Stdlib.Json.parse<UInt64>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120UL))
+        [ Stdlib.Json.parse<UInt64>("0") |> Stdlib.Test.equal(Result.Ok(0u64))
+          Stdlib.Json.parse<UInt64>("0.0") |> Stdlib.Test.equal(Result.Ok(0u64))
+          Stdlib.Json.parse<UInt64>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u64))
+          Stdlib.Json.parse<UInt64>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u64))
           Stdlib.Json.parse<UInt64>("1200E-1")
-          |> Stdlib.Test.equal(Result.Ok(120UL)) ])
+          |> Stdlib.Test.equal(Result.Ok(120u64)) ])
 
   module UInt64Limits =
     // test the limits of uint64 (0 to 18446744073709551615)
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt64>(0UL) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt64>(18446744073709551615UL)
+        [ Stdlib.Json.serialize<UInt64>(0u64) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt64>(18446744073709551615u64)
           |> Stdlib.Test.equal("18446744073709551615") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt64>("0") |> Stdlib.Test.equal(Result.Ok(0UL))
+        [ Stdlib.Json.parse<UInt64>("0") |> Stdlib.Test.equal(Result.Ok(0u64))
           Stdlib.Json.parse<UInt64>("18446744073709551615")
-          |> Stdlib.Test.equal(Result.Ok(18446744073709551615UL)) ])
+          |> Stdlib.Test.equal(Result.Ok(18446744073709551615u64)) ])
 
     // First number that doesn't fit in an int64
     // TODO : The two commented tests below are failing due to a bug in the
@@ -307,7 +307,7 @@ module UInt64 =
 
     test parsesScientificMaximum =
       Stdlib.Json.parse<UInt64>("1.8446744073709551615E19")
-      |> Stdlib.Test.equal(Result.Ok(18446744073709551615UL))
+      |> Stdlib.Test.equal(Result.Ok(18446744073709551615u64))
 
     test parseErrors =
       // This is a float that is slightly above the uint64 max
@@ -352,30 +352,30 @@ module Int8 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int8>(0y) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<Int8>(123y) |> Stdlib.Test.equal("123")
-          Stdlib.Json.serialize<Int8>(-123y) |> Stdlib.Test.equal("-123") ])
+        [ Stdlib.Json.serialize<Int8>(0s8) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int8>(123s8) |> Stdlib.Test.equal("123")
+          Stdlib.Json.serialize<Int8>(-123s8) |> Stdlib.Test.equal("-123") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int8>("0") |> Stdlib.Test.equal(Result.Ok(0y))
-          Stdlib.Json.parse<Int8>("0.0") |> Stdlib.Test.equal(Result.Ok(0y))
-          Stdlib.Json.parse<Int8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0y))
-          Stdlib.Json.parse<Int8>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1y))
-          Stdlib.Json.parse<Int8>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120y))
-          Stdlib.Json.parse<Int8>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120y))
-          Stdlib.Json.parse<Int8>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120y)) ])
+        [ Stdlib.Json.parse<Int8>("0") |> Stdlib.Test.equal(Result.Ok(0s8))
+          Stdlib.Json.parse<Int8>("0.0") |> Stdlib.Test.equal(Result.Ok(0s8))
+          Stdlib.Json.parse<Int8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s8))
+          Stdlib.Json.parse<Int8>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s8))
+          Stdlib.Json.parse<Int8>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s8))
+          Stdlib.Json.parse<Int8>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s8))
+          Stdlib.Json.parse<Int8>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s8)) ])
 
   module Int8Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int8>(-128y) |> Stdlib.Test.equal("-128")
-          Stdlib.Json.serialize<Int8>(127y) |> Stdlib.Test.equal("127") ])
+        [ Stdlib.Json.serialize<Int8>(-128s8) |> Stdlib.Test.equal("-128")
+          Stdlib.Json.serialize<Int8>(127s8) |> Stdlib.Test.equal("127") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int8>("-128") |> Stdlib.Test.equal(Result.Ok(-128y))
-          Stdlib.Json.parse<Int8>("127") |> Stdlib.Test.equal(Result.Ok(127y)) ])
+        [ Stdlib.Json.parse<Int8>("-128") |> Stdlib.Test.equal(Result.Ok(-128s8))
+          Stdlib.Json.parse<Int8>("127") |> Stdlib.Test.equal(Result.Ok(127s8)) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -414,30 +414,30 @@ module UInt8 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt8>(1uy) |> Stdlib.Test.equal("1")
-          Stdlib.Json.serialize<UInt8>(123uy) |> Stdlib.Test.equal("123")
-          Stdlib.Json.serialize<UInt8>(254uy) |> Stdlib.Test.equal("254") ])
+        [ Stdlib.Json.serialize<UInt8>(1u8) |> Stdlib.Test.equal("1")
+          Stdlib.Json.serialize<UInt8>(123u8) |> Stdlib.Test.equal("123")
+          Stdlib.Json.serialize<UInt8>(254u8) |> Stdlib.Test.equal("254") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt8>("0") |> Stdlib.Test.equal(Result.Ok(0uy))
-          Stdlib.Json.parse<UInt8>("0.0") |> Stdlib.Test.equal(Result.Ok(0uy))
+        [ Stdlib.Json.parse<UInt8>("0") |> Stdlib.Test.equal(Result.Ok(0u8))
+          Stdlib.Json.parse<UInt8>("0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
           // CLEANUP is this OK?
-          Stdlib.Json.parse<UInt8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0uy))
-          Stdlib.Json.parse<UInt8>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120uy))
-          Stdlib.Json.parse<UInt8>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120uy))
-          Stdlib.Json.parse<UInt8>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120uy)) ])
+          Stdlib.Json.parse<UInt8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
+          Stdlib.Json.parse<UInt8>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u8))
+          Stdlib.Json.parse<UInt8>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u8))
+          Stdlib.Json.parse<UInt8>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120u8)) ])
 
   module UInt8Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt8>(0uy) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt8>(255uy) |> Stdlib.Test.equal("255") ])
+        [ Stdlib.Json.serialize<UInt8>(0u8) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt8>(255u8) |> Stdlib.Test.equal("255") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt8>("0") |> Stdlib.Test.equal(Result.Ok(0uy))
-          Stdlib.Json.parse<UInt8>("255") |> Stdlib.Test.equal(Result.Ok(255uy)) ])
+        [ Stdlib.Json.parse<UInt8>("0") |> Stdlib.Test.equal(Result.Ok(0u8))
+          Stdlib.Json.parse<UInt8>("255") |> Stdlib.Test.equal(Result.Ok(255u8)) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -476,30 +476,30 @@ module Int16 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int16>(0s) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<Int16>(123s) |> Stdlib.Test.equal("123")
-          Stdlib.Json.serialize<Int16>(-123s) |> Stdlib.Test.equal("-123") ])
+        [ Stdlib.Json.serialize<Int16>(0s16) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int16>(123s16) |> Stdlib.Test.equal("123")
+          Stdlib.Json.serialize<Int16>(-123s16) |> Stdlib.Test.equal("-123") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int16>("0") |> Stdlib.Test.equal(Result.Ok(0s))
-          Stdlib.Json.parse<Int16>("0.0") |> Stdlib.Test.equal(Result.Ok(0s))
-          Stdlib.Json.parse<Int16>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s))
-          Stdlib.Json.parse<Int16>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s))
-          Stdlib.Json.parse<Int16>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s))
-          Stdlib.Json.parse<Int16>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s))
-          Stdlib.Json.parse<Int16>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s)) ])
+        [ Stdlib.Json.parse<Int16>("0") |> Stdlib.Test.equal(Result.Ok(0s16))
+          Stdlib.Json.parse<Int16>("0.0") |> Stdlib.Test.equal(Result.Ok(0s16))
+          Stdlib.Json.parse<Int16>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s16))
+          Stdlib.Json.parse<Int16>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s16))
+          Stdlib.Json.parse<Int16>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s16))
+          Stdlib.Json.parse<Int16>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s16))
+          Stdlib.Json.parse<Int16>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s16)) ])
 
   module Int16Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int16>(-32768s) |> Stdlib.Test.equal("-32768")
-          Stdlib.Json.serialize<Int16>(32767s) |> Stdlib.Test.equal("32767") ])
+        [ Stdlib.Json.serialize<Int16>(-32768s16) |> Stdlib.Test.equal("-32768")
+          Stdlib.Json.serialize<Int16>(32767s16) |> Stdlib.Test.equal("32767") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int16>("-32768") |> Stdlib.Test.equal(Result.Ok(-32768s))
-          Stdlib.Json.parse<Int16>("32767") |> Stdlib.Test.equal(Result.Ok(32767s)) ])
+        [ Stdlib.Json.parse<Int16>("-32768") |> Stdlib.Test.equal(Result.Ok(-32768s16))
+          Stdlib.Json.parse<Int16>("32767") |> Stdlib.Test.equal(Result.Ok(32767s16)) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -547,29 +547,29 @@ module UInt16 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt16>(0us) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt16>(123us) |> Stdlib.Test.equal("123") ])
+        [ Stdlib.Json.serialize<UInt16>(0u16) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt16>(123u16) |> Stdlib.Test.equal("123") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt16>("0") |> Stdlib.Test.equal(Result.Ok(0us))
-          Stdlib.Json.parse<UInt16>("0.0") |> Stdlib.Test.equal(Result.Ok(0us))
-          Stdlib.Json.parse<UInt16>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120us))
-          Stdlib.Json.parse<UInt16>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120us))
+        [ Stdlib.Json.parse<UInt16>("0") |> Stdlib.Test.equal(Result.Ok(0u16))
+          Stdlib.Json.parse<UInt16>("0.0") |> Stdlib.Test.equal(Result.Ok(0u16))
+          Stdlib.Json.parse<UInt16>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u16))
+          Stdlib.Json.parse<UInt16>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u16))
           Stdlib.Json.parse<UInt16>("1200E-1")
-          |> Stdlib.Test.equal(Result.Ok(120us)) ])
+          |> Stdlib.Test.equal(Result.Ok(120u16)) ])
 
   module UInt16Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt16>(0us) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt16>(65535us) |> Stdlib.Test.equal("65535") ])
+        [ Stdlib.Json.serialize<UInt16>(0u16) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt16>(65535u16) |> Stdlib.Test.equal("65535") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt16>("0") |> Stdlib.Test.equal(Result.Ok(0us))
+        [ Stdlib.Json.parse<UInt16>("0") |> Stdlib.Test.equal(Result.Ok(0u16))
           Stdlib.Json.parse<UInt16>("65535")
-          |> Stdlib.Test.equal(Result.Ok(65535us)) ])
+          |> Stdlib.Test.equal(Result.Ok(65535u16)) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -610,34 +610,34 @@ module Int32 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int32>(0l) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<Int32>(123l) |> Stdlib.Test.equal("123")
-          Stdlib.Json.serialize<Int32>(-123l) |> Stdlib.Test.equal("-123") ])
+        [ Stdlib.Json.serialize<Int32>(0s32) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int32>(123s32) |> Stdlib.Test.equal("123")
+          Stdlib.Json.serialize<Int32>(-123s32) |> Stdlib.Test.equal("-123") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int32>("0") |> Stdlib.Test.equal(Result.Ok(0l))
-          Stdlib.Json.parse<Int32>("0.0") |> Stdlib.Test.equal(Result.Ok(0l))
-          Stdlib.Json.parse<Int32>("-0.0") |> Stdlib.Test.equal(Result.Ok(0l))
-          Stdlib.Json.parse<Int32>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1l))
-          Stdlib.Json.parse<Int32>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120l))
-          Stdlib.Json.parse<Int32>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120l))
-          Stdlib.Json.parse<Int32>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120l)) ])
+        [ Stdlib.Json.parse<Int32>("0") |> Stdlib.Test.equal(Result.Ok(0s32))
+          Stdlib.Json.parse<Int32>("0.0") |> Stdlib.Test.equal(Result.Ok(0s32))
+          Stdlib.Json.parse<Int32>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s32))
+          Stdlib.Json.parse<Int32>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s32))
+          Stdlib.Json.parse<Int32>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s32))
+          Stdlib.Json.parse<Int32>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s32))
+          Stdlib.Json.parse<Int32>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s32)) ])
 
   module Int32Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int32>(-2147483648l)
+        [ Stdlib.Json.serialize<Int32>(-2147483648s32)
           |> Stdlib.Test.equal("-2147483648")
-          Stdlib.Json.serialize<Int32>(2147483647l)
+          Stdlib.Json.serialize<Int32>(2147483647s32)
           |> Stdlib.Test.equal("2147483647") ])
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int32>("-2147483648")
-          |> Stdlib.Test.equal(Result.Ok(-2147483648l))
+          |> Stdlib.Test.equal(Result.Ok(-2147483648s32))
           Stdlib.Json.parse<Int32>("2147483647")
-          |> Stdlib.Test.equal(Result.Ok(2147483647l)) ])
+          |> Stdlib.Test.equal(Result.Ok(2147483647s32)) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -676,31 +676,31 @@ module UInt32 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt32>(0ul) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt32>(123ul) |> Stdlib.Test.equal("123") ])
+        [ Stdlib.Json.serialize<UInt32>(0u32) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt32>(123u32) |> Stdlib.Test.equal("123") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt32>("0") |> Stdlib.Test.equal(Result.Ok(0ul))
-          Stdlib.Json.parse<UInt32>("0.0") |> Stdlib.Test.equal(Result.Ok(0ul))
-          Stdlib.Json.parse<UInt32>("-0.0") |> Stdlib.Test.equal(Result.Ok(0ul))
-          Stdlib.Json.parse<UInt32>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120ul))
-          Stdlib.Json.parse<UInt32>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120ul))
+        [ Stdlib.Json.parse<UInt32>("0") |> Stdlib.Test.equal(Result.Ok(0u32))
+          Stdlib.Json.parse<UInt32>("0.0") |> Stdlib.Test.equal(Result.Ok(0u32))
+          Stdlib.Json.parse<UInt32>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u32))
+          Stdlib.Json.parse<UInt32>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u32))
+          Stdlib.Json.parse<UInt32>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u32))
           Stdlib.Json.parse<UInt32>("1200E-1")
-          |> Stdlib.Test.equal(Result.Ok(120ul)) ])
+          |> Stdlib.Test.equal(Result.Ok(120u32)) ])
 
   module UInt32Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt32>(0ul) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt32>(4294967295ul)
+        [ Stdlib.Json.serialize<UInt32>(0u32) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt32>(4294967295u32)
           |> Stdlib.Test.equal("4294967295") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt32>("0") |> Stdlib.Test.equal(Result.Ok(0ul))
+        [ Stdlib.Json.parse<UInt32>("0") |> Stdlib.Test.equal(Result.Ok(0u32))
           Stdlib.Json.parse<UInt32>("4294967295")
-          |> Stdlib.Test.equal(Result.Ok(4294967295ul)) ])
+          |> Stdlib.Test.equal(Result.Ok(4294967295u32)) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -748,44 +748,44 @@ module Int128 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int128>(0Q) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<Int128>(12345Q) |> Stdlib.Test.equal("12345")
-          Stdlib.Json.serialize<Int128>(-12345Q) |> Stdlib.Test.equal("-12345") ])
+        [ Stdlib.Json.serialize<Int128>(0s128) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int128>(12345s128) |> Stdlib.Test.equal("12345")
+          Stdlib.Json.serialize<Int128>(-12345s128) |> Stdlib.Test.equal("-12345") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int128>("0") |> Stdlib.Test.equal(Result.Ok(0Q))
-          Stdlib.Json.parse<Int128>("0.0") |> Stdlib.Test.equal(Result.Ok(0Q))
-          Stdlib.Json.parse<Int128>("-0.0") |> Stdlib.Test.equal(Result.Ok(0Q))
-          Stdlib.Json.parse<Int128>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1Q))
-          Stdlib.Json.parse<Int128>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120Q))
-          Stdlib.Json.parse<Int128>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120Q))
-          Stdlib.Json.parse<Int128>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120Q)) ])
+        [ Stdlib.Json.parse<Int128>("0") |> Stdlib.Test.equal(Result.Ok(0s128))
+          Stdlib.Json.parse<Int128>("0.0") |> Stdlib.Test.equal(Result.Ok(0s128))
+          Stdlib.Json.parse<Int128>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s128))
+          Stdlib.Json.parse<Int128>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s128))
+          Stdlib.Json.parse<Int128>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s128))
+          Stdlib.Json.parse<Int128>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s128))
+          Stdlib.Json.parse<Int128>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s128)) ])
 
   module Int128Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int128>(-170141183460469231731687303715884105728Q)
+        [ Stdlib.Json.serialize<Int128>(-170141183460469231731687303715884105728s128)
           |> Stdlib.Test.equal("-170141183460469231731687303715884105728")
-          Stdlib.Json.serialize<Int128>(170141183460469231731687303715884105727Q)
+          Stdlib.Json.serialize<Int128>(170141183460469231731687303715884105727s128)
           |> Stdlib.Test.equal("170141183460469231731687303715884105727") ])
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int128>("-170141183460469231731687303715884105728")
           |> Stdlib.Test.equal((Result.Ok(
-              -170141183460469231731687303715884105728Q)))
+              -170141183460469231731687303715884105728s128)))
           Stdlib.Json.parse<Int128>("170141183460469231731687303715884105727")
           |> Stdlib.Test.equal((Result.Ok(
-              170141183460469231731687303715884105727Q)))
+              170141183460469231731687303715884105727s128)))
           // This is a float that is a valid Int128
           Stdlib.Json.parse<Int128>("1.7E38")
           |> Stdlib.Test.equal((Result.Ok(
-              169999999999999998061923293023115935744Q)))
+              169999999999999998061923293023115935744s128)))
           // A large negative number that is within Int128 range
           Stdlib.Json.parse<Int128>("-1.7E38")
           |> Stdlib.Test.equal((Result.Ok(
-              -169999999999999998061923293023115935744Q))) ])
+              -169999999999999998061923293023115935744s128))) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -843,39 +843,39 @@ module Int128 =
       // wrapped around to the min value
       Stdlib.Json.parse<Int128>("-170141183460469231731687303715884105800")
       |> Stdlib.Test.equal((Result.Ok(
-          -170141183460469231731687303715884105728Q)))
+          -170141183460469231731687303715884105728s128)))
 
 module UInt128 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt128>(0Z) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt128>(12345Z) |> Stdlib.Test.equal("12345") ])
+        [ Stdlib.Json.serialize<UInt128>(0u128) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<UInt128>(12345u128) |> Stdlib.Test.equal("12345") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt128>("0") |> Stdlib.Test.equal(Result.Ok(0Z))
-          Stdlib.Json.parse<UInt128>("0.0") |> Stdlib.Test.equal(Result.Ok(0Z))
-          Stdlib.Json.parse<UInt128>("-0.0") |> Stdlib.Test.equal(Result.Ok(0Z))
-          Stdlib.Json.parse<UInt128>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120Z))
-          Stdlib.Json.parse<UInt128>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120Z))
+        [ Stdlib.Json.parse<UInt128>("0") |> Stdlib.Test.equal(Result.Ok(0u128))
+          Stdlib.Json.parse<UInt128>("0.0") |> Stdlib.Test.equal(Result.Ok(0u128))
+          Stdlib.Json.parse<UInt128>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u128))
+          Stdlib.Json.parse<UInt128>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u128))
+          Stdlib.Json.parse<UInt128>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u128))
           Stdlib.Json.parse<UInt128>("1200E-1")
-          |> Stdlib.Test.equal(Result.Ok(120Z)) ])
+          |> Stdlib.Test.equal(Result.Ok(120u128)) ])
 
   module UInt128Limits =
     // First number that doesn't fit in a UInt128
     test serialize =
-      Stdlib.Json.serialize<UInt128>(0Z) |> Stdlib.Test.equal("0")
+      Stdlib.Json.serialize<UInt128>(0u128) |> Stdlib.Test.equal("0")
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211455")
           |> Stdlib.Test.equal((Result.Ok(
-              340282366920938463463374607431768211455Z)))
+              340282366920938463463374607431768211455u128)))
           // This is a large number that is a valid UInt128
           Stdlib.Json.parse<UInt128>("3.4E38")
           |> Stdlib.Test.equal((Result.Ok(
-              339999999999999996123846586046231871488Z))) ])
+              339999999999999996123846586046231871488u128))) ])
 
     test parseErrors =
       Stdlib.Test.all(
@@ -1250,10 +1250,10 @@ module List =
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<List<Int64>>([]) |> Stdlib.Test.equal("[]")
-        Stdlib.Json.serialize<List<Int64>>([ 1L, 2L, 3L ])
+        Stdlib.Json.serialize<List<Int64>>([ 1, 2, 3 ])
         |> Stdlib.Test.equal("[1,2,3]")
         Stdlib.Json.serialize<List<List<List<Int64>>>>(
-          [ [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ], [ [ 7L, 8L ], [ 9L, 0L ] ] ])
+          [ [ [ 1, 2, 3 ], [ 4, 5, 6 ] ], [ [ 7, 8 ], [ 9, 0 ] ] ])
         |> Stdlib.Test.equal("[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]")
         Stdlib.Json.serialize<List<Dict<String, String>>>(
           [ Dict { "name": "Alice", "role": "admin" }
@@ -1261,19 +1261,19 @@ module List =
             Dict { "name": "Charlie", "role": "user" } ])
         |> Stdlib.Test.equal("""[{"name":"Alice","role":"admin"},{"name":"Bob","role":"user"},{"name":"Charlie","role":"user"}]""")
         Stdlib.Json.serialize<List<Person>>(
-          [ Person { Name = "Alice", Age = 42L }
-            Person { Name = "Bob", Age = 27L }
-            Person { Name = "Charlie", Age = 99L } ])
+          [ Person { Name = "Alice", Age = 42 }
+            Person { Name = "Bob", Age = 27 }
+            Person { Name = "Charlie", Age = 99 } ])
         |> Stdlib.Test.equal("""[{"Age":42,"Name":"Alice"},{"Age":27,"Name":"Bob"},{"Age":99,"Name":"Charlie"}]""") ])
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<List<Int64>>("[]") |> Stdlib.Test.equal(Result.Ok([]))
         Stdlib.Json.parse<List<Int64>>("[1,2,3]")
-        |> Stdlib.Test.equal(Result.Ok([ 1L, 2L, 3L ]))
+        |> Stdlib.Test.equal(Result.Ok([ 1, 2, 3 ]))
         Stdlib.Json.parse<List<List<List<Int64>>>>("[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]")
         |> Stdlib.Test.equal((Result.Ok(
-            [ [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ], [ [ 7L, 8L ], [ 9L, 0L ] ] ])))
+            [ [ [ 1, 2, 3 ], [ 4, 5, 6 ] ], [ [ 7, 8 ], [ 9, 0 ] ] ])))
         Stdlib.Json.parse<List<Dict<String, String>>>(
           """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""")
         |> Stdlib.Test.equal((Result.Ok(
@@ -1283,9 +1283,9 @@ module List =
         Stdlib.Json.parse<List<Person>>(
           """[{"Name": "Alice", "Age": 42}, {"Name": "Bob", "Age": 27}, {"Name": "Charlie", "Age": 99}]""")
         |> Stdlib.Test.equal((Result.Ok(
-            [ Person { Name = "Alice", Age = 42L }
-              Person { Name = "Bob", Age = 27L }
-              Person { Name = "Charlie", Age = 99L } ])))
+            [ Person { Name = "Alice", Age = 42 }
+              Person { Name = "Bob", Age = 27 }
+              Person { Name = "Charlie", Age = 99 } ])))
         Stdlib.Json.parse<List<Dict<String, MyString>>>(
           """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""")
         |> Stdlib.Test.equal((Result.Ok(
@@ -1299,7 +1299,7 @@ module List =
 
   module Errors =
     test rejects1 =
-      (Stdlib.Json.serialize<List<Int64>>((1L, 2L, "three")))
+      (Stdlib.Json.serialize<List<Int64>>((1, 2, "three")))
       => raises "Darklang.Stdlib.Json.serialize's 1st parameter `value` expects List<Int64>, but got (Int64 * Int64 * String) ((1, 2, \"three\"))"
 
     test parseErrors =
@@ -1321,32 +1321,32 @@ module List =
 module Tuples =
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<Int64 * String * Int64>((1L, "two", 3L))
+      [ Stdlib.Json.serialize<Int64 * String * Int64>((1, "two", 3))
         |> Stdlib.Test.equal("[1,\"two\",3]")
         Stdlib.Json.serialize<List<Int64> * List<Person>>((
-            [ 1L, 2L, 3L ],
-            [ Person { Name = "Alice", Age = 42L } ]
+            [ 1, 2, 3 ],
+            [ Person { Name = "Alice", Age = 42 } ]
           ))
         |> Stdlib.Test.equal("[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]")
         Stdlib.Json.serialize<(Int64 * String) * (Person * Dict<String, String>)>((
-            (1L, "two"),
-            (Person { Name = "Alice", Age = 42L }, Stdlib.Dict.singleton("a", "b"))
+            (1, "two"),
+            (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b"))
           ))
         |> Stdlib.Test.equal("[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
         Stdlib.Json.serialize<(List<Int64 * String> * List<UInt8>) *
           (Person * Dict<String, String>)>((
-            ([ (1L, "two"), (3L, "four") ], []),
-            (Person { Name = "Alice", Age = 42L }, Stdlib.Dict.singleton("a", "b"))
+            ([ (1, "two"), (3, "four") ], []),
+            (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b"))
           ))
         |> Stdlib.Test.equal("[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
         Stdlib.Json.serialize<Person * Option<Int64>>((
-            Person { Name = "Alice", Age = 42L },
-            Option.Some(1L)
+            Person { Name = "Alice", Age = 42 },
+            Option.Some(1)
           ))
         |> Stdlib.Test.equal("[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]")
         Stdlib.Json.serialize<Option<Int64> * Result<Int64, String>>((
-            Option.Some(1L),
-            Result.Ok(2L)
+            Option.Some(1),
+            Result.Ok(2)
           ))
         |> Stdlib.Test.equal("[{\"Some\":[1]},{\"Ok\":[2]}]")
         Stdlib.Json.serialize<Char * Bool>(('a', true))
@@ -1361,34 +1361,34 @@ module Tuples =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Int64 * String * Int64>("[1,\"two\",3]")
         |> Stdlib.Test.equal((Result.Ok(
-            (1L, "two", 3L)
+            (1, "two", 3)
           )))
         Stdlib.Json.parse<List<Int64> * List<Person>>(
           "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]")
         |> Stdlib.Test.equal((Result.Ok(
-            ([ 1L, 2L, 3L ], [ Person { Name = "Alice", Age = 42L } ])
+            ([ 1, 2, 3 ], [ Person { Name = "Alice", Age = 42 } ])
           )))
         Stdlib.Json.parse<(Int64 * String) * (Person * Dict<String, String>)>(
           "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
         |> Stdlib.Test.equal((Result.Ok(
-            ((1L, "two"),
-             (Person { Name = "Alice", Age = 42L }, Stdlib.Dict.singleton("a", "b")))
+            ((1, "two"),
+             (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b")))
           )))
         Stdlib.Json.parse<(List<Int64 * String> * List<UInt8>) * (Person * Dict<String, String>)>(
           "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
         |> Stdlib.Test.equal((Result
             .Ok(
-              (([ (1L, "two"), (3L, "four") ], []),
-               (Person { Name = "Alice", Age = 42L }, Stdlib.Dict.singleton("a", "b")))
+              (([ (1, "two"), (3, "four") ], []),
+               (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b")))
             )))
         Stdlib.Json.parse<Person * Option<Int64>>(
           "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]")
         |> Stdlib.Test.equal((Result.Ok(
-            (Person { Name = "Alice", Age = 42L }, Option.Some(1L))
+            (Person { Name = "Alice", Age = 42 }, Option.Some(1))
           )))
         Stdlib.Json.parse<Option<Int64> * Result<Int64, String>>(
           "[{\"Some\":[1]},{\"Ok\":[2]}]")
-        |> Stdlib.Test.equal(Result.Ok((Option.Some(1L), Result.Ok(2L))))
+        |> Stdlib.Test.equal(Result.Ok((Option.Some(1), Result.Ok(2))))
         Stdlib.Json.parse<Char * Bool>("[\"a\",true]")
         |> Stdlib.Test.equal(Result.Ok(('a', true)))
         Stdlib.Json.parse<DateTime * Uuid>(
@@ -1437,7 +1437,7 @@ module Option =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Option<Int64>>(Option.None)
         |> Stdlib.Test.equal("{\"None\":[]}")
-        Stdlib.Json.serialize<Option<Int64>>(Option.Some(1L))
+        Stdlib.Json.serialize<Option<Int64>>(Option.Some(1))
         |> Stdlib.Test.equal("{\"Some\":[1]}") ])
 
   test parse =
@@ -1445,7 +1445,7 @@ module Option =
       [ Stdlib.Json.parse<Option<Int64>>("{\"None\":[]}")
         |> Stdlib.Test.equal(Result.Ok(Option.None))
         Stdlib.Json.parse<Option<Int64>>("{\"Some\":[1]}")
-        |> Stdlib.Test.equal(Result.Ok(Option.Some(1L))) ])
+        |> Stdlib.Test.equal(Result.Ok(Option.Some(1))) ])
 
   module Errors =
     // Option parsing intentionally requires the explicit enum representation.
@@ -1465,40 +1465,40 @@ module Option =
 module Result =
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1L))
+      [ Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
         Stdlib.Json.serialize<Result<Int64, String>>(Result.Error("err message"))
         |> Stdlib.Test.equal("{\"Error\":[\"err message\"]}")
         Stdlib.Json.serialize<Result<List<Dict<String, String> * Option<Int64>>, String>>((
             Result.Ok(
-              [ (Stdlib.Dict.singleton("a", "b"), Option.Some(1L))
+              [ (Stdlib.Dict.singleton("a", "b"), Option.Some(1))
                 (Stdlib.Dict.singleton("c", "d"), Option.None) ])
           ))
         |> Stdlib.Test.equal("{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}")
-        Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(Result.Ok(Result.Ok(1L)))
+        Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(Result.Ok(Result.Ok(1)))
         |> Stdlib.Test.equal("{\"Ok\":[{\"Ok\":[1]}]}")
         Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(Result.Ok(Result.Error("err message")))
         |> Stdlib.Test.equal("{\"Ok\":[{\"Error\":[\"err message\"]}]}")
-        Stdlib.Json.serialize<Result<Result<Option<Result<Int64, String>>, String>, String>>(Result.Ok(Result.Ok(Option.Some(Result.Ok(1L)))))
+        Stdlib.Json.serialize<Result<Result<Option<Result<Int64, String>>, String>, String>>(Result.Ok(Result.Ok(Option.Some(Result.Ok(1)))))
         |> Stdlib.Test.equal("{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}") ])
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Result<Int64, String>>("{\"Ok\":[1]}")
-        |> Stdlib.Test.equal(Result.Ok(Result.Ok(1L)))
+        |> Stdlib.Test.equal(Result.Ok(Result.Ok(1)))
         Stdlib.Json.parse<Result<Int64, String>>("{\"Error\":[\"err message\"]}")
         |> Stdlib.Test.equal((Result
             .Ok(Result.Error("err message"))))
         Stdlib.Json.parse<Result<List<Dict<String, String> * Option<Int64>>, String>>("{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}")
-        |> Stdlib.Test.equal(Result.Ok(Result.Ok([ (Stdlib.Dict.singleton("a", "b"), Option.Some(1L)), (Stdlib.Dict.singleton("c", "d"), Option.None) ])))
+        |> Stdlib.Test.equal(Result.Ok(Result.Ok([ (Stdlib.Dict.singleton("a", "b"), Option.Some(1)), (Stdlib.Dict.singleton("c", "d"), Option.None) ])))
         Stdlib.Json.parse<Result<Result<Int64, String>, String>>("{\"Ok\":[{\"Ok\":[1]}]}")
-        |> Stdlib.Test.equal(Result.Ok(Result.Ok(Result.Ok(1L))))
+        |> Stdlib.Test.equal(Result.Ok(Result.Ok(Result.Ok(1))))
         Stdlib.Json.parse<Result<Result<Int64, String>, String>>("{\"Ok\":[{\"Error\":[\"err message\"]}]}")
         |> Stdlib.Test.equal(Result.Ok(Result.Ok(Result.Error("err message"))))
         Stdlib.Json.parse<Result<Result<Option<Result<Int64, String>>, String>, String>>(
           "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}")
         |> Stdlib.Test.equal((Result.Ok(
-            Result.Ok(Result.Ok(Option.Some(Result.Ok(1L))))
+            Result.Ok(Result.Ok(Option.Some(Result.Ok(1))))
           ))) ])
 
 module Dict =
@@ -1519,7 +1519,7 @@ module Dict =
         |> Stdlib.Test.equal(Result.Ok(Dict { "a": "b", "c": "d" })) ])
 
   test rejects1 =
-    (Stdlib.Json.serialize<Dict<Int64, String>>(Dict { 1L: "a" }))
+    (Stdlib.Json.serialize<Dict<Int64, String>>(Dict { 1: "a" }))
     => raises "Cannot serialize { 1: \"a\" } into JSON"
 
   module Errors =
@@ -1542,11 +1542,11 @@ module UserDefinedEnums =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<PrettyLikely>(PrettyLikely.Yeah)
         |> Stdlib.Test.equal("{\"Yeah\":[]}")
-        Stdlib.Json.serialize<PrettyLikely>(PrettyLikely.Enh("printer broke", 7L))
+        Stdlib.Json.serialize<PrettyLikely>(PrettyLikely.Enh("printer broke", 7))
         |> Stdlib.Test.equal("{\"Enh\":[\"printer broke\",7]}")
         Stdlib.Json.serialize<PrettyLikely2>(PrettyLikely2.PrettyLikely(PrettyLikely.Yeah))
         |> Stdlib.Test.equal("{\"PrettyLikely\":[{\"Yeah\":[]}]}")
-        Stdlib.Json.serialize<PrettyLikely2>(PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7L)))
+        Stdlib.Json.serialize<PrettyLikely2>(PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7)))
         |> Stdlib.Test.equal("{\"PrettyLikely\":[{\"Enh\":[\"printer broke\",7]}]}") ])
 
   test parse =
@@ -1555,7 +1555,7 @@ module UserDefinedEnums =
         |> Stdlib.Test.equal(Result.Ok(PrettyLikely.Yeah))
         Stdlib.Json.parse<PrettyLikely>("{\"Enh\":[\"printer broke\",7]}")
         |> Stdlib.Test.equal((Result.Ok(
-            PrettyLikely.Enh("printer broke", 7L)
+            PrettyLikely.Enh("printer broke", 7)
           )))
         Stdlib.Json.parse<PrettyLikely2>("{\"PrettyLikely\":[{\"Yeah\":[]}]}")
         |> Stdlib.Test.equal((Result.Ok(
@@ -1564,7 +1564,7 @@ module UserDefinedEnums =
         Stdlib.Json.parse<PrettyLikely2>(
           "{\"PrettyLikely\":[{\"Enh\":[\"printer broke\",7]}]}")
         |> Stdlib.Test.equal((Result.Ok(
-            PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7L))
+            PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7))
           ))) ])
 
   module Errors =
@@ -1605,71 +1605,71 @@ module UserDefinedEnums =
 module UserDefinedRecords =
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<Person>(Person { Name = "Bob", Age = 42L })
+      [ Stdlib.Json.serialize<Person>(Person { Name = "Bob", Age = 42 })
         |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
         Stdlib.Json.serialize<People>((
             People
               { GroupName = "Two Georges"
                 People =
-                  [ Person { Name = "George A", Age = 27L }
-                    Person { Name = "George B", Age = 42L } ] }
+                  [ Person { Name = "George A", Age = 27 }
+                    Person { Name = "George B", Age = 42 } ] }
           ))
         |> Stdlib.Test.equal("""{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
         Stdlib.Json.serialize<Combo<Person, Combo<People, Int64>>>((
             Combo
-              { e1 = Person { Name = "Bob", Age = 42L }
+              { e1 = Person { Name = "Bob", Age = 42 }
                 e2 =
                   Combo
                     { e1 =
                         People
                           { GroupName = "Two Georges"
                             People =
-                              [ Person { Name = "George A", Age = 27L }
-                                Person { Name = "George B", Age = 42L } ] }
-                      e2 = 5L } }
+                              [ Person { Name = "George A", Age = 27 }
+                                Person { Name = "George B", Age = 42 } ] }
+                      e2 = 5 } }
           ))
         |> Stdlib.Test.equal("""{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
         (Combo
-          { e1 = Person { Name = "Bob", Age = 42L }
+          { e1 = Person { Name = "Bob", Age = 42 }
             e2 =
               Combo
                 { e1 =
                     People
                       { GroupName = "Two Georges"
                         People =
-                          [ Person { Name = "George A", Age = 27L }
-                            Person { Name = "George B", Age = 42L } ] }
-                  e2 = 5L } })
+                          [ Person { Name = "George A", Age = 27 }
+                            Person { Name = "George B", Age = 42 } ] }
+                  e2 = 5 } })
         |> Stdlib.Json.serialize<Combo<Person, Combo<People, Int64>>>
         |> Stdlib.Json.parse<Combo<Person, Combo<People, Int64>>>
         |> Builtin.unwrap
         |> Stdlib.Test.equal(((Combo
-            { e1 = Person { Name = "Bob", Age = 42L }
+            { e1 = Person { Name = "Bob", Age = 42 }
               e2 =
                 Combo
                   { e1 =
                       People
                         { GroupName = "Two Georges"
                           People =
-                            [ Person { Name = "George A", Age = 27L }
-                              Person { Name = "George B", Age = 42L } ] }
-                    e2 = 5L } }))) ])
+                            [ Person { Name = "George A", Age = 27 }
+                              Person { Name = "George B", Age = 42 } ] }
+                    e2 = 5 } }))) ])
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42 }""")
         |> Stdlib.Test.equal((Result.Ok(
-            Person { Name = "Bob", Age = 42L }
+            Person { Name = "Bob", Age = 42 }
           )))
         // can parse even if the JSON has _extra_ fields
         Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42, "Height": "6 ft" }""")
         |> Stdlib.Test.equal((Result
-            .Ok(Person { Name = "Bob", Age = 42L })))
+            .Ok(Person { Name = "Bob", Age = 42 })))
         (let personMaybe = Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42 }""")
          match personMaybe with
          | Ok(person) -> person.Age
-         | Error(_) -> 0L)
-        |> Stdlib.Test.equal(42L)
+         | Error(_) -> 0)
+        |> Stdlib.Test.equal(42)
         Stdlib.Json.parse<People>(
           """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
         |> Stdlib.Test.equal((Result
@@ -1677,24 +1677,24 @@ module UserDefinedRecords =
               People
                 { GroupName = "Two Georges"
                   People =
-                    [ Person { Name = "George A", Age = 27L }
-                      Person { Name = "George B", Age = 42L } ] }
+                    [ Person { Name = "George A", Age = 27 }
+                      Person { Name = "George B", Age = 42 } ] }
             )))
         Stdlib.Json.parse<Combo<Person, Combo<People, Int64>>>(
           """{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
         |> Stdlib.Test.equal((Result
             .Ok(
               Combo
-                { e1 = Person { Name = "Bob", Age = 42L }
+                { e1 = Person { Name = "Bob", Age = 42 }
                   e2 =
                     Combo
                       { e1 =
                           People
                             { GroupName = "Two Georges"
                               People =
-                                [ Person { Name = "George A", Age = 27L }
-                                  Person { Name = "George B", Age = 42L } ] }
-                        e2 = 5L } }
+                                [ Person { Name = "George A", Age = 27 }
+                                  Person { Name = "George B", Age = 42 } ] }
+                        e2 = 5 } }
             ))) ])
 
   type People =
@@ -1725,30 +1725,30 @@ module UserDefinedAliases =
 
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<MyInt>(42L) |> Stdlib.Test.equal("42")
-        Stdlib.Json.serialize<MyPerson>(Person { Name = "Bob", Age = 42L })
+      [ Stdlib.Json.serialize<MyInt>(42) |> Stdlib.Test.equal("42")
+        Stdlib.Json.serialize<MyPerson>(Person { Name = "Bob", Age = 42 })
         |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
-        Stdlib.Json.serialize<MyPrettyLikely>(UserDefinedEnums.PrettyLikely.Enh("printer broke", 7L))
+        Stdlib.Json.serialize<MyPrettyLikely>(UserDefinedEnums.PrettyLikely.Enh("printer broke", 7))
         |> Stdlib.Test.equal("{\"Enh\":[\"printer broke\",7]}")
         // With content-addressed hashing, Person1 and Person2 are structurally
         // identical and share the same Hash, so they're the same type.
-        Stdlib.Json.serialize<Person2>(Person1 { Name = "Bob", Age = 42L })
+        Stdlib.Json.serialize<Person2>(Person1 { Name = "Bob", Age = 42 })
         |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
-        Stdlib.Json.serialize<StringResult<Int64>>(Result.Ok(1L))
+        Stdlib.Json.serialize<StringResult<Int64>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
         Stdlib.Json.serialize<StringResult<Int64>>(Result.Error("err"))
         |> Stdlib.Test.equal("{\"Error\":[\"err\"]}") ])
 
   test parse =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<MyInt>("42") |> Stdlib.Test.equal(Result.Ok(42L))
+      [ Stdlib.Json.parse<MyInt>("42") |> Stdlib.Test.equal(Result.Ok(42))
         Stdlib.Json.parse<MyPerson>("""{ "Name": "Bob", "Age": 42 }""")
         |> Stdlib.Test.equal((Result.Ok(
-            Person { Name = "Bob", Age = 42L }
+            Person { Name = "Bob", Age = 42 }
           )))
         Stdlib.Json.parse<MyPrettyLikely>("{\"Enh\":[\"printer broke\",7]}")
         |> Stdlib.Test.equal((Result.Ok(
-            UserDefinedEnums.PrettyLikely.Enh("printer broke", 7L)
+            UserDefinedEnums.PrettyLikely.Enh("printer broke", 7)
           ))) ])
 
   type MyPerson = Person
@@ -1763,7 +1763,7 @@ module UserDefinedAliases =
   // This test currently slips by the typechecker, and so we get an internal
   // exception
   test rejects1 =
-    (Stdlib.Json.serialize<StringResult<Int64>>(Result.Error(1L)))
+    (Stdlib.Json.serialize<StringResult<Int64>>(Result.Error(1)))
     => raises "Darklang.Stdlib.Json.serialize's 1st parameter `value` expects Darklang.Stdlib.Result.Result<Int64, String>, but got Darklang.Stdlib.Result.Result<_, Int64> (Error(1))"
 
 module Package =
@@ -1771,11 +1771,11 @@ module Package =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Option<Int64>>(Option.None)
         |> Stdlib.Test.equal("{\"None\":[]}")
-        Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1L))
+        Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
         Stdlib.Json.serialize<Result<Int64, String>>(Result.Error("err message"))
         |> Stdlib.Test.equal("{\"Error\":[\"err message\"]}")
-        Stdlib.Json.serialize<Darklang.LanguageTools.ID>(42L)
+        Stdlib.Json.serialize<Darklang.LanguageTools.ID>(42)
         |> Stdlib.Test.equal("42")
         Stdlib.Json.serialize<Darklang.LanguageTools.Sign>(
           Darklang.LanguageTools.Sign.Positive)
@@ -1786,12 +1786,12 @@ module Package =
       [ Stdlib.Json.parse<Option<Int64>>("{\"None\":[]}")
         |> Stdlib.Test.equal(Result.Ok(Option.None))
         Stdlib.Json.parse<Result<Int64, String>>("{\"Ok\":[1]}")
-        |> Stdlib.Test.equal(Result.Ok(Result.Ok(1L)))
+        |> Stdlib.Test.equal(Result.Ok(Result.Ok(1)))
         Stdlib.Json.parse<Result<Int64, String>>("{\"Error\":[\"err message\"]}")
         |> Stdlib.Test.equal((Result
             .Ok(Result.Error("err message"))))
         Stdlib.Json.parse<Darklang.LanguageTools.ID>("42")
-        |> Stdlib.Test.equal(Result.Ok(42L))
+        |> Stdlib.Test.equal(Result.Ok(42))
         Stdlib.Json.parse<Darklang.LanguageTools.Sign>("{\"Positive\":[]}")
         |> Stdlib.Test.equal((Result.Ok(
             Darklang.LanguageTools.Sign.Positive))) ])
@@ -1861,9 +1861,9 @@ module Package =
 // => raises "JSON string was empty"
 
 // Stdlib.Json.parse<TODO> "{ \"v\": 4611686018427387903 }"
-// |> Stdlib.Test.equal { v = 4611686018427387903L }
+// |> Stdlib.Test.equal { v = 4611686018427387903 }
 // Stdlib.Json.parse<TODO> "{ \"v\": 4611686018427387904 }"
-// |> Stdlib.Test.equal { v = 4611686018427387904L }
+// |> Stdlib.Test.equal { v = 4611686018427387904 }
 
 // Stdlib.Json.parse<TODO> "''"
 // => raises "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
@@ -1877,9 +1877,9 @@ module Package =
 // => raises "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 
 // Stdlib.Json.parse<TODO> "{ \"v\": 4611686018427387903 }"
-// |> Stdlib.Test.equal (Result.Ok { v = 4611686018427387903L })
+// |> Stdlib.Test.equal (Result.Ok { v = 4611686018427387903 })
 // Stdlib.Json.parse<TODO> "{ \"v\": 4611686018427387904 }"
-// |> Stdlib.Test.equal (Result.Ok { v = 4611686018427387904L })
+// |> Stdlib.Test.equal (Result.Ok { v = 4611686018427387904 })
 
 // Stdlib.Json.parse<TODO> ""
 // |> Stdlib.Test.equal (Result.Error "JSON string was empty")
@@ -1949,21 +1949,21 @@ module RestoredArchive =
 
   test scalarAndLargeRecordValues =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<Int64>("1") |> Stdlib.Test.equal(Ok(1L))
+      [ Stdlib.Json.parse<Int64>("1") |> Stdlib.Test.equal(Ok(1))
         Stdlib.Json.parse<String>("\"\"") |> Stdlib.Test.equal(Ok(""))
         Stdlib.Json.parse<Counter>("{ \"v\": 4611686018427387903 }")
-        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387903L }))
+        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387903 }))
         Stdlib.Json.parse<Counter>("{ \"v\": 4611686018427387904 }")
-        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387904L })) ])
+        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387904 })) ])
 
   test uint64ExactDecimalAndExponentForms =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<UInt64>("18446744073709551615.0")
-        |> Stdlib.Test.equal(Ok(18446744073709551615UL))
+        |> Stdlib.Test.equal(Ok(18446744073709551615u64))
         Stdlib.Json.parse<UInt64>("18446744073709551614.0")
-        |> Stdlib.Test.equal(Ok(18446744073709551614UL))
+        |> Stdlib.Test.equal(Ok(18446744073709551614u64))
         Stdlib.Json.parse<UInt64>("9007199254740993e0")
-        |> Stdlib.Test.equal(Ok(9007199254740993UL)) ])
+        |> Stdlib.Test.equal(Ok(9007199254740993u64)) ])
 
   test uint64RejectsOverflowAndRoundedFractions =
     [ "18446744073709551616.0", "1.8446744073709551616e19"

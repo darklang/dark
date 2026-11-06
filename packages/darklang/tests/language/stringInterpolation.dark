@@ -8,14 +8,14 @@ test interpolation =
        let age = "30"
        $"Name: {name}, Age: {age} years old.")
       |> Stdlib.Test.equal("Name: John, Age: 30 years old.")
-      (let one = 1L in $"test {Stdlib.toString(one)}")
+      (let one = 1 in $"test {Stdlib.toString(one)}")
       |> Stdlib.Test.equal("test 1") ])
 
 test floatInterpolation =
   (let one = 1.0 in $"test {one}") |> Stdlib.Test.equal("test 1.0")
 
 test int64Interpolation =
-  (let one = 1L in $"test {one}") |> Stdlib.Test.equal("test 1")
+  (let one = 1 in $"test {one}") |> Stdlib.Test.equal("test 1")
 
 type Point = { x: Int64 }
 
@@ -26,12 +26,12 @@ let display<'a: ToString>(value: 'a): String = $"value: {value}"
 
 test customAndGeneric =
   Stdlib.Test.all(
-    [ $"{Point { x = 42L }}" |> Stdlib.Test.equal("Point(42)")
-      display(Point { x = 3L }) |> Stdlib.Test.equal("value: Point(3)")
-      display(7L) |> Stdlib.Test.equal("value: 7") ])
+    [ $"{Point { x = 42 }}" |> Stdlib.Test.equal("Point(42)")
+      display(Point { x = 3 }) |> Stdlib.Test.equal("value: Point(3)")
+      display(7) |> Stdlib.Test.equal("value: 7") ])
 
 test unboundVariableRaises =
-  (let two = 2L in "test 1" == $"test {one}")
+  (let two = 2 in "test 1" == $"test {one}")
   => raises "There is no variable named: one"
 
 // --- interpolation scanner and brace escapes ---

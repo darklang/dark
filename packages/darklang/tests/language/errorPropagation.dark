@@ -3,7 +3,7 @@ module Darklang.Language.Tests.ErrorPropagation
 module Error =
   test map2WrongArgRaises =
     (Stdlib.Option.map2(
-      Stdlib.Option.Option.Some(10L),
+      Stdlib.Option.Option.Some(10),
       "not an option",
       fun((a, b)) -> "1"))
     => raises
@@ -12,7 +12,7 @@ module Error =
 
 // Check we get previous errors before later ones
 test earlierErrorFirst =
-  (Stdlib.List.map([ 1L, 2L, 3L, 4L, 5L ], fun x ->
+  (Stdlib.List.map([ 1, 2, 3, 4, 5 ], fun x ->
     Stdlib.Test.raiseRuntimeError("X")))
   |> Stdlib.List.fakeFunction
   => raises "Uncaught exception: X"
@@ -23,7 +23,7 @@ module ErrorPropagation =
     => raises "Uncaught exception: test"
 
   test ifCondition =
-    (if Stdlib.Test.raiseRuntimeError("test") then 5L else 6L)
+    (if Stdlib.Test.raiseRuntimeError("test") then 5 else 6)
     => raises "Uncaught exception: test"
 
   test fieldAccessTarget =
@@ -31,19 +31,19 @@ module ErrorPropagation =
     => raises "Uncaught exception: test"
 
   test listElementCall =
-    [ 5L, 6L, Stdlib.List.head(Stdlib.Test.raiseRuntimeError("test")) ]
+    [ 5, 6, Stdlib.List.head(Stdlib.Test.raiseRuntimeError("test")) ]
     => raises "Uncaught exception: test"
 
   test listElement =
-    [ 5L, 6L, Stdlib.Test.raiseRuntimeError("test") ]
+    [ 5, 6, Stdlib.Test.raiseRuntimeError("test") ]
     => raises "Uncaught exception: test"
 
   test pipeStageThenMore =
-    5L |> (fun v -> v + (Stdlib.Test.raiseRuntimeError("test"))) |> (fun v -> v + 3564L)
+    5 |> (fun v -> v + (Stdlib.Test.raiseRuntimeError("test"))) |> (fun v -> v + 3564)
     => raises "Uncaught exception: test"
 
   test pipeStage =
-    5L |> (fun v -> v + (Stdlib.Test.raiseRuntimeError("test")))
+    5 |> (fun v -> v + (Stdlib.Test.raiseRuntimeError("test")))
     => raises "Uncaught exception: test"
 
   test pipeIntoRaise =
@@ -76,14 +76,14 @@ module ErrorPropagation =
   test recordFirstFieldErrorFirst =
     EPRec
       { i = Stdlib.Test.raiseRuntimeError("1")
-        m = 5L
+        m = 5
         j = Stdlib.List.head(Stdlib.Test.raiseRuntimeError("2"))
-        n = 6L }
+        n = 6 }
     => raises "Uncaught exception: 1"
 
   // An operand's error propagates through +.
   test stringAddOperand =
-    "msg" + (1L / 0L) => raises "Cannot divide by 0"
+    "msg" + (1 / 0) => raises "Cannot divide by 0"
 
 test fieldAccessOnRaise =
   (Stdlib.Test.raiseRuntimeError("error")).fieldName

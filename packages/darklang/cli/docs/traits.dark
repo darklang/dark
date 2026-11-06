@@ -19,10 +19,10 @@ builtin type already has implementations. Yours join with one `impl`.
     let add(a: Point, b: Point): Point =
       Point { x = a.x + b.x, y = a.y + b.y }
 
-  let p = Point { x = 1L, y = 2L }
+  let p = Point { x = 1, y = 2 }
   ToString.toString(p)         // "(1, 2)"
   p.toString                   // the same call, receiver first
-  p + p                        // Point { x = 2L, y = 4L }
+  p + p                        // Point { x = 2, y = 4 }
 
   A member can name a fn that already exists instead of declaring one:
     impl ToString for Point =

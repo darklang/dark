@@ -17,7 +17,7 @@ let pp(value: 'a): String =
     Darklang.SCM.Branch.mainBranchId,
     Darklang.LanguageTools.RuntimeTypes.reflect(value))
 
-let emptyInts(): List<Int> = []
+let emptyInts(): List<Int64> = []
 
 let loc(
   owner: String,
@@ -35,13 +35,13 @@ let short(
   : String =
   Darklang.PrettyPrinter.shortenName(currentModule, owner, modules, name)
 
-let at(width: Int, value: 'a): String =
+let at(width: Int64, value: 'a): String =
   Darklang.PrettyPrinter.RuntimeTypes.dvalWith(
     Darklang.SCM.Branch.mainBranchId,
     Darklang.PrettyPrinter.DisplayOptions.atWidth(width),
     Darklang.LanguageTools.RuntimeTypes.reflect(value))
 
-let big(): List<Int> =
+let big(): List<Int64> =
   Stdlib.List.range(1, 2000) |> Stdlib.List.map(fun i -> i * 37)
 
 // Scalars
@@ -59,7 +59,32 @@ test scalars =
       // shorter.
       pp(1.5) |> Stdlib.Test.equal("1.5")
       pp(0.1 + 0.2) |> Stdlib.Test.equal("0.30000000000000004")
-      pp(0.00001) |> Stdlib.Test.equal("1e-5") ])
+      pp(0.00001) |> Stdlib.Test.equal("1e-5")
+      // A Float32 carries its suffix, so it reads back as itself and not as a
+      // Float. NaN and the infinities have no literal to suffix.
+      pp(1.5f32) |> Stdlib.Test.equal("1.5f32")
+      pp(0.1f32 + 0.2f32) |> Stdlib.Test.equal("0.3f32")
+      pp(1e30f32) |> Stdlib.Test.equal("1e+30f32")
+      pp(1.0f32 / 0.0f32) |> Stdlib.Test.equal("Infinity") ])
+
+// Every number but an Int64 or a Float prints with its suffix, so what is printed
+// pastes back as the same value.
+test numbersPrintWithTheirSuffix =
+  Stdlib.Test.all(
+    [ pp(-5s8) |> Stdlib.Test.equal("-5s8")
+      pp(5u8) |> Stdlib.Test.equal("5u8")
+      pp(5s16) |> Stdlib.Test.equal("5s16")
+      pp(5u16) |> Stdlib.Test.equal("5u16")
+      pp(5s32) |> Stdlib.Test.equal("5s32")
+      pp(5u32) |> Stdlib.Test.equal("5u32")
+      pp(5s64) |> Stdlib.Test.equal("5")
+      pp(5u) |> Stdlib.Test.equal("5u64")
+      pp(5s128) |> Stdlib.Test.equal("5s128")
+      pp(5u128) |> Stdlib.Test.equal("5u128")
+      pp(18446744073709551616z) |> Stdlib.Test.equal("18446744073709551616z")
+      pp(1.5f64) |> Stdlib.Test.equal("1.5")
+      pp(19.90dec) |> Stdlib.Test.equal("19.90dec")
+      pp([ 1s8, 2s8 ]) |> Stdlib.Test.equal("[1s8, 2s8]") ])
 
 // Float literals in source
 //
@@ -118,9 +143,9 @@ test collections =
       |> Stdlib.Test.equal("{ \"has-hyphen\": 1 }")
       pp(Stdlib.Dict.fromEntries([ ("type", 1) ]))
       |> Stdlib.Test.equal("{ \"type\": 1 }")
-      pp(Dict { 1L: "one", 2L: "two" })
+      pp(Dict { 1: "one", 2: "two" })
       |> Stdlib.Test.equal("{ 1: \"one\", 2: \"two\" }")
-      pp(Dict { (1L, "a"): true }) |> Stdlib.Test.equal("{ (1, \"a\"): true }") ])
+      pp(Dict { (1, "a"): true }) |> Stdlib.Test.equal("{ (1, \"a\"): true }") ])
 
 // Records
 //
@@ -251,7 +276,7 @@ test enumTypeNames =
       // makes them one type with three names; naming one is guessing, and it
       // used to guess wrong often enough that `Stdlib.Int.parse` would report a
       // `Stdlib.Uuid.ParseError`. The case alone is honest.
-      pp(Stdlib.Int.parse("abc")) |> Stdlib.Test.equal("Error(BadFormat)") ])
+      pp(Stdlib.Int64.parse("abc")) |> Stdlib.Test.equal("Error(BadFormat)") ])
 
 // `dvalOneLine` renders only as much as it can show
 //

@@ -202,7 +202,7 @@ let private testTracesIdPrefixIsPlainText =
     "a quote or a wildcard in a trace id is just text"
     (fun state ->
       task {
-        let! _ = runCli state [ "eval"; "1L + 2L" ]
+        let! _ = runCli state [ "eval"; "1 + 2" ]
         for typed in [ "a'b"; "'"; "%"; "_" ] do
           let! out = runCli state [ "traces"; "pin"; typed ]
           Expect.stringContains

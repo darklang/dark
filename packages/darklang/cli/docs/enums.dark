@@ -4,7 +4,7 @@ let content(): String =
   """# Enums
 
 ## Define
-  type Status = | Pending | Done of Int
+  type Status = | Pending | Done of Int64
 
 ## Construct
   Status.Pending

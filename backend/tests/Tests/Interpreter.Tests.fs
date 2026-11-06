@@ -70,7 +70,7 @@ module Values =
           "Stdlib.String.displayWidth(Darklang.Cli.CompletionPicker.minimumHelpText)"
       let! actual = evalDarkExpr "Darklang.Cli.CompletionPicker.minimumWidth"
       match expected, actual with
-      | Ok(RT.DInt _ as e), Ok a ->
+      | Ok(RT.DInt64 _ as e), Ok a ->
         Expect.equal a e "minimumWidth is the display width of minimumHelpText"
       | _ -> return failtest $"unexpected results: {expected} and {actual}"
     }
@@ -561,6 +561,7 @@ module DictKeyOrdering =
       "DUInt128", RT.DUInt128(System.UInt128.op_Implicit 1u)
       "DInt", LibExecution.Dval.int 1I
       "DFloat", RT.DFloat 1.0
+      "DDecimal", RT.DDecimal 1.5m
       "DChar", RT.DChar "c"
       "DString", RT.DString "s"
       "DDateTime", RT.DDateTime(LibExecution.DarkDateTime.T(2026, 8, 31, 0, 0, 0))
@@ -650,6 +651,9 @@ module DictKeyOrdering =
       RT.DEnum(sourceB, runtimeName, [], "Case", [ RT.DInt64 1L ])
 
       "signed zero", RT.DFloat 0.0, RT.DFloat -0.0
+
+      // `==` and decimal's own Equals ignore scale; a dict key has to as well
+      "decimal scale", RT.DDecimal 1.10m, RT.DDecimal 1.1m
 
       "persistent blobs differing only in length",
       RT.DBytes(RT.Persistent("samehash", 1L)),
@@ -1342,14 +1346,14 @@ module Reload =
       // re-binding of an old hash rather than the edit this test is about.
       let one = int64 (System.Random.Shared.Next(1_000, 1_000_000_000))
       let two = one + 1L
-      let! v1 = authorIntoMain $"module Darklang.{m}\n\nlet answer(): Int64 = {one}L"
+      let! v1 = authorIntoMain $"module Darklang.{m}\n\nlet answer(): Int64 = {one}"
       let h1 = hashBoundTo v1 "answer"
       let! state = executionStateFor pmPT false
       let held = applicableFor h1
       let! before = call state held
       Expect.equal before (RT.DInt64 one) "the first version answers"
 
-      let! v2 = authorIntoMain $"module Darklang.{m}\n\nlet answer(): Int64 = {two}L"
+      let! v2 = authorIntoMain $"module Darklang.{m}\n\nlet answer(): Int64 = {two}"
       let h2 = hashBoundTo v2 "answer"
       Expect.notEqual h1 h2 "the edit is a new hash"
 
@@ -1512,9 +1516,9 @@ module BoundMemo =
 
 let guarded<'a: {q}.Lbl>(v: 'a): String = \"entered\"
 
-let callBox(): String = {q}.guarded({q}.Box {{ boxWidth{r} = 1L }})
+let callBox(): String = {q}.guarded({q}.Box {{ boxWidth{r} = 1 }})
 
-let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1L }})"
+let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
       // Read back from the store: the refresh may have re-hashed what the parse returned.
       let current
         (find : PT.PackageLocation -> Ply<Option<PT.Hash>>)
@@ -1598,7 +1602,7 @@ module LambdaResultChecks =
 
   let sameWhetherOrNotWrapperIsSkipped =
     testTask "List.filter checks its callback whether or not the wrapper is skipped" {
-      let code = "Stdlib.List.filter([ 1L, 2L ], fun x -> 2L)"
+      let code = "Stdlib.List.filter([ 1, 2 ], fun x -> 2)"
       let! skipped = run false code
       let! viaFrame = run true code
       let a = failedParam skipped

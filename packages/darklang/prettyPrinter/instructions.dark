@@ -53,18 +53,21 @@ let matchPattern(pat: LanguageTools.RuntimeTypes.MatchPattern): String =
   | MPVariable(reg) -> register(reg)
   | MPUnit -> "()"
   | MPBool(b) -> Stdlib.toString(b)
-  | MPInt8(i) -> Stdlib.toString(i)
-  | MPUInt8(i) -> Stdlib.toString(i)
-  | MPInt16(i) -> Stdlib.toString(i)
-  | MPUInt16(i) -> Stdlib.toString(i)
-  | MPInt32(i) -> Stdlib.toString(i)
-  | MPUInt32(i) -> Stdlib.toString(i)
+  | MPInt8(i) -> Stdlib.toString(i) + "s8"
+  | MPUInt8(i) -> Stdlib.toString(i) + "u8"
+  | MPInt16(i) -> Stdlib.toString(i) + "s16"
+  | MPUInt16(i) -> Stdlib.toString(i) + "u16"
+  | MPInt32(i) -> Stdlib.toString(i) + "s32"
+  | MPUInt32(i) -> Stdlib.toString(i) + "u32"
   | MPInt64(i) -> Stdlib.toString(i)
-  | MPUInt64(i) -> Stdlib.toString(i)
-  | MPInt128(i) -> Stdlib.toString(i)
-  | MPUInt128(i) -> Stdlib.toString(i)
-  | MPInt(i) -> Stdlib.toString(i)
+  | MPUInt64(i) -> Stdlib.toString(i) + "u64"
+  | MPInt128(i) -> Stdlib.toString(i) + "s128"
+  | MPUInt128(i) -> Stdlib.toString(i) + "u128"
+  | MPInt(i) -> Stdlib.toString(i) + "z"
   | MPFloat(f) -> Stdlib.toString(f)
+  | MPFloat32(f) ->
+    if Stdlib.Float32.isFinite(f) then (Stdlib.toString(f)) + "f32" else Stdlib.toString(f)
+  | MPDecimal(d) -> Stdlib.toString(d) + "dec"
   | MPChar(c) -> $"'{c}'"
   | MPString(s) -> $"\"{s}\""
   | MPList(items) ->
@@ -111,8 +114,11 @@ let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
   | DString(s) -> "\"" + (clip(Stdlib.String.replaceAll(s, "\n", "\\n"))) + "\""
   | DChar(c) -> $"'{Stdlib.toString(c)}'"
   | DInt64(i) -> Stdlib.toString(i)
-  | DInt(i) -> Stdlib.toString(i)
+  | DInt(i) -> Stdlib.toString(i) + "z"
   | DFloat(f) -> Stdlib.toString(f)
+  | DFloat32(f) ->
+    if Stdlib.Float32.isFinite(f) then (Stdlib.toString(f)) + "f32" else Stdlib.toString(f)
+  | DDecimal(d) -> Stdlib.toString(d) + "dec"
   | DList(_, items) -> $"[{Stdlib.toString(Stdlib.List.length(items))} items]"
   | DDict(_, _, entries) ->
     let n = Stdlib.List.length(Stdlib.Dict.keys(entries))
@@ -167,7 +173,7 @@ let opcode(i: LanguageTools.RuntimeTypes.Instruction): String =
 
 /// Everything after the opcode. <param index> is the instruction's own position: jump offsets are stored
 /// relative, and a relative jump is unreadable in a listing, so they're shown both ways.
-let operands(branchId: Uuid, index: Int, i: LanguageTools.RuntimeTypes.Instruction): String =
+let operands(branchId: Uuid, index: Int64, i: LanguageTools.RuntimeTypes.Instruction): String =
   match i with
   | LoadVal(r, v) -> $"{register(r)} <- {inlineDval(branchId, v)}"
   | CopyVal(t, s) -> $"{register(t)} <- {register(s)}"
@@ -180,15 +186,15 @@ let operands(branchId: Uuid, index: Int, i: LanguageTools.RuntimeTypes.Instructi
     $"{register(t)} <- {parts}"
   | CheckLetPatternAndExtractVars(v, p) -> $"{letPattern(p)} <- {register(v)}"
   | JumpByIfFalse(n, c) ->
-    let target = Stdlib.toString(index + (Stdlib.Int.fromInt32(n)) + 1)
+    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(n)) + 1)
     $"{register(c)} -> +{Stdlib.toString(n)} -> {target}"
   | Unwrap(target, source, _) ->
     (register(target)) + " <- " + (register(source)) + "?"
   | JumpBy(n) ->
-    let target = Stdlib.toString(index + (Stdlib.Int.fromInt32(n)) + 1)
+    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(n)) + 1)
     $"+{Stdlib.toString(n)} -> {target}"
   | CheckMatchPatternAndExtractVars(v, p, failJump) ->
-    let target = Stdlib.toString(index + (Stdlib.Int.fromInt32(failJump)) + 1)
+    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(failJump)) + 1)
     $"{register(v)} ~ {matchPattern(p)}  else -> {target}"
   | MatchUnmatched(v) -> register(v)
   | CreateTuple(t, first, second, theRest) ->

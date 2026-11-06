@@ -23,7 +23,7 @@ let branchBindings(branchId: Uuid): List<Conflicts.Binding> =
 let branchExists(branchId: Uuid): Bool =
   match Branches.query(Branches.BranchFilter.ById(branchId)) with
   | [_, ...] -> true
-  | [] -> Stdlib.Bool.not(Stdlib.List.isEmpty((query(OpFilter.Tagged(branchId), 1L)).ops))
+  | [] -> Stdlib.Bool.not(Stdlib.List.isEmpty((query(OpFilter.Tagged(branchId), 1)).ops))
 
 
 /// A branch's registered parent, or MAIN's id when it has none. The id, not the name "main"

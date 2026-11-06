@@ -62,10 +62,10 @@ test evalAnswers =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
       [ prints(i, [ "eval", "Stdlib.Bool.and(true, false)" ], "false")
-        prints(i, [ "eval", "5L + 3L" ], "8")
+        prints(i, [ "eval", "5 + 3" ], "8")
         prints(i, [ "eval", "Stdlib.String.length(\"hello\")" ], "5")
-        prints(i, [ "eval", "[1L, 2L, 3L] |> Stdlib.List.length" ], "3")
-        prints(i, [ "eval", "2L + 3L" ], "5")
+        prints(i, [ "eval", "[1, 2, 3] |> Stdlib.List.length" ], "3")
+        prints(i, [ "eval", "2 + 3" ], "5")
         prints(i, [ "eval", "\"hello\" + \"world\"" ], "helloworld") ]))
 
 
@@ -80,26 +80,26 @@ test scriptDeclarationsKeepTheirIdentity =
         prints(
           i,
           [ "eval"
-            "type TA = { a: String }\ntype TB = { b: Int }\nlet takesA(r: TA): Int = 7\nlet takesB(r: TB): Int = 7\n(takesA(TA { a = \"x\" })) + (takesB(TB { b = 1 }))" ],
+            "type TA = { a: String }\ntype TB = { b: Int64 }\nlet takesA(r: TA): Int64 = 7\nlet takesB(r: TB): Int64 = 7\n(takesA(TA { a = \"x\" })) + (takesB(TB { b = 1 }))" ],
           "14")
         // Genuinely identical declarations SHOULD share one hash.
         prints(
           i,
           [ "eval"
-            "let alpha(x: Int): Int = x + 1\nlet beta(x: Int): Int = x + 1\n(alpha(1)) + (beta(1))" ],
+            "let alpha(x: Int64): Int64 = x + 1\nlet beta(x: Int64): Int64 = x + 1\n(alpha(1)) + (beta(1))" ],
           "4")
         // Hashing after resolution means the graph can have cycles, hashed as a
         // batch.
         prints(
           i,
           [ "eval"
-            "let isEven(n: Int): Bool = if n == 0 then true else isOdd(n - 1)\nlet isOdd(n: Int): Bool = if n == 0 then false else isEven(n - 1)\nisEven(10)" ],
+            "let isEven(n: Int64): Bool = if n == 0 then true else isOdd(n - 1)\nlet isOdd(n: Int64): Bool = if n == 0 then false else isEven(n - 1)\nisEven(10)" ],
           "true")
         // A script type with the same shape as a package type IS that type.
         prints(
           i,
           [ "eval"
-            "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.Int.ParseError): Int = 1\nf(MyErr.BadFormat)" ],
+            "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.Int.ParseError): Int64 = 1\nf(MyErr.BadFormat)" ],
           "1") ]))
 
 
@@ -110,7 +110,7 @@ test scriptArgumentsAndExitCodes =
     // prints)
     let cases =
       [ ("arguments reach closures and each top-level expression",
-         "let main(inputs: List<String>): Int = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine(Stdlib.String.join((fun () -> args)(), \",\"))\nmain(args)",
+         "let main(inputs: List<String>): Int64 = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine(Stdlib.String.join((fun () -> args)(), \",\"))\nmain(args)",
          [],
          [ "a b", "", "é" ],
          7,
@@ -134,10 +134,10 @@ test scriptArgumentsAndExitCodes =
          0,
          "")
         ("option terminator", "if args == [] then 0 else 1", [ "--" ], [], 0, "")
-        ("int64 exit code", "3L", [], [], 3, "Script exited with code 3")
-        ("definitions only", "let main(inputs: List<String>): Int = 0", [], [], 1, "main(args)")
+        ("int64 exit code", "3", [], [], 3, "Script exited with code 3")
+        ("definitions only", "let main(inputs: List<String>): Int64 = 0", [], [], 1, "main(args)")
         ("main is not auto-called",
-         "let main(inputs: List<String>): Int = 0\nmain",
+         "let main(inputs: List<String>): Int64 = 0\nmain",
          [],
          [],
          1,
@@ -263,7 +263,7 @@ test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
        first + "let f = fun x ->\n  x + 1\n  ()\n0",
        "line 3, column 3")
       ("a dropped value in the script's own function",
-       "let helper(n: Int): Unit =\n  n + 1\n  ()\n" + first + "0",
+       "let helper(n: Int64): Unit =\n  n + 1\n  ()\n" + first + "0",
        "Function helper")
       ("a wrong argument", first + "Stdlib.List.length(\"bad\")", "line 2, column 20") ]
     |> Stdlib.List.map(fun((label, source, where)) ->
@@ -314,9 +314,9 @@ test runtimeChecksUseTheSelectedBranch =
           ok([ "fn", "Tests.ScriptChecking.accept", "(value: String) : String = value" ])
           ok([ "switch", "main" ]) ])
 
-    let main = prints(i, [ "eval", "Tests.ScriptChecking.accept(7L)" ], "7")
+    let main = prints(i, [ "eval", "Tests.ScriptChecking.accept(7)" ], "7")
     let switched = ok([ "switch", "script-check" ])
-    let rejected = Instance.said(i, [ "eval", "Tests.ScriptChecking.accept(7L)" ])
+    let rejected = Instance.said(i, [ "eval", "Tests.ScriptChecking.accept(7)" ])
     let accepted = prints(i, [ "eval", "Tests.ScriptChecking.accept(\"branch\")" ], "branch")
 
     Stdlib.Test.all(
@@ -349,7 +349,7 @@ test runtimeErrorsNameScriptTypes =
       Instance.said(
         i,
         [ "eval"
-          "type Celsius = { degrees: Int }\ntype Fahrenheit = { degrees: Float }\nlet describe (t: Celsius) : String = \"ok\"\ndescribe (Fahrenheit { degrees = 1.0 })" ])
+          "type Celsius = { degrees: Int64 }\ntype Fahrenheit = { degrees: Float }\nlet describe (t: Celsius) : String = \"ok\"\ndescribe (Fahrenheit { degrees = 1.0 })" ])
 
     Stdlib.Test.all(
       [ Instance.says(out, "Celsius", "the expected type is named")

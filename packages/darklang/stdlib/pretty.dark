@@ -36,7 +36,7 @@ type Doc =
   | Concat of Doc * Doc
 
   /// Indent everything inside by `n` columns, applied after each break rather than once at the front.
-  | Nest of Int * Doc
+  | Nest of Int64 * Doc
 
   /// Try to fit the inside on one line.
   | Group of Doc
@@ -84,7 +84,7 @@ let concatSpace(a: Doc, b: Doc): Doc = Doc.Concat(a, Doc.Concat(Doc.Text(" "), b
 
 let concatLine(a: Doc, b: Doc): Doc = Doc.Concat(a, Doc.Concat(Doc.Line, b))
 
-let nest(n: Int, d: Doc): Doc = Doc.Nest(n, d)
+let nest(n: Int64, d: Doc): Doc = Doc.Nest(n, d)
 
 let group(d: Doc): Doc = Doc.Group(d)
 
@@ -102,7 +102,7 @@ let vsep(ds: List<Doc>): Doc =
   | [first, ...rest] -> Stdlib.List.fold(rest, first, fun(acc, d) -> Pretty.concatLine(acc, d))
 
 /// Hang `items` from `head`, breaking and indenting them when needed.
-let hang(indent: Int, head: Doc, items: List<Doc>): Doc =
+let hang(indent: Int64, head: Doc, items: List<Doc>): Doc =
   Doc.Group(
     Doc.Concat(
       head,
@@ -128,7 +128,7 @@ let join(ds: List<Doc>, sep: Doc): Doc =
 /// fits) or runs out of room. `HardLine` answers no, which is what makes a group containing one always
 /// break. The pending items after the group are included, so a group isn't kept flat only to have the
 /// text that follows it overflow anyway.
-let fits(room: Int, items: List<(Int * Mode * Doc)>): Bool =
+let fits(room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
   if room < 0 then
     false
   else
@@ -170,7 +170,7 @@ let flushSuffixes(acc: List<String>, pending: List<String>): List<String> =
   | _ -> Stdlib.List.fold(pending, acc, fun(a, s) -> Stdlib.List.prepend(a, s))
 
 /// End the line: the held-back suffixes, the newline, then the next line's indentation.
-let breakLine(acc: List<String>, pending: List<String>, indent: Int): List<String> =
+let breakLine(acc: List<String>, pending: List<String>, indent: Int64): List<String> =
   Stdlib.List.prepend(
     Stdlib.List.prepend(Pretty.flushSuffixes(acc, pending), "\n"),
     Stdlib.String.repeat(" ", indent))
@@ -182,11 +182,11 @@ let breakLine(acc: List<String>, pending: List<String>, indent: Int): List<Strin
 /// Appending to a string per node would copy the whole output each time, quadratic in its length.
 /// `pending` is the line suffixes waiting for the line to end, in order.
 let renderLoop(
-  width: Int,
-  col: Int,
+  width: Int64,
+  col: Int64,
   acc: List<String>,
   pending: List<String>,
-  items: List<(Int * Mode * Doc)>)
+  items: List<(Int64 * Mode * Doc)>)
   : List<String> =
   match items with
   | [] -> Pretty.flushSuffixes(acc, pending)
@@ -241,7 +241,7 @@ let renderLoop(
 
 
 /// Lay out `doc` for a page `width` columns wide.
-let render(width: Int, doc: Doc): String =
+let render(width: Int64, doc: Doc): String =
   Pretty.renderLoop(width, 0, [], [], [ ((0, Mode.Break, doc)) ])
   |> Stdlib.List.reverse
   |> Stdlib.String.join("")

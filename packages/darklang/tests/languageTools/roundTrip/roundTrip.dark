@@ -27,7 +27,7 @@ type Parsed =
     unresolved: List<(List<String> * LanguageTools.ProgramTypes.NameResolutionError)> }
 
 
-let exprName(i: Int): String = $"roundTripExpr{Stdlib.toString(i)}"
+let exprName(i: Int64): String = $"roundTripExpr{Stdlib.toString(i)}"
 
 /// Each top-level expression as the body of a value, so it is hashed, and its references to the
 /// file's own declarations remapped, along with those declarations.
@@ -206,7 +206,7 @@ let parseOn(branchId: Uuid, source: String): Stdlib.Result.Result<Parsed, String
             unresolved |> Stdlib.List.map(fun((_, names, error)) -> (names, error)) })
 
 
-let printAt(branchId: Uuid, width: Int, parsed: Parsed): String =
+let printAt(branchId: Uuid, width: Int64, parsed: Parsed): String =
   PrettyPrinter.ProgramTypes.sourceFileAtWidth(branchId, width, parsed.tree)
 
 

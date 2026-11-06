@@ -28,7 +28,7 @@ let parseError(error: ParseError): Stdlib.Result.Result<Json, ParseError> =
 // </helpers>
 
 /// `toInt` of whatever `text` parses to, and None when it does not parse.
-let parseInt(text: String): Stdlib.Option.Option<Int> =
+let parseInt(text: String): Stdlib.Option.Option<Int64> =
   match parse(text) with
   | Ok(json) -> Stdlib.AltJson.toInt(json)
   | Error(_) -> None

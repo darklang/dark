@@ -3,26 +3,26 @@ module Darklang.Language.Tests.ESelf
 // Tests for ESelf (recursive function calls)
 
 module ESelfTests =
-  let factorial(n: Int): Int =
+  let factorial(n: Int64): Int64 =
     if (n <= 1) then
       1
     else
       n * (factorial(n - 1))
 
-  let fibonacci(n: Int): Int =
+  let fibonacci(n: Int64): Int64 =
     if (n <= 1) then
       n
     else
       (ESelfTests.fibonacci(n - 1)) + (ESelfTests.fibonacci(n - 2))
 
-  let sumUpTo(n: Int): Int =
+  let sumUpTo(n: Int64): Int64 =
     if (n <= 0) then
       0
     else
       n + (ESelfTests.sumUpTo(n - 1))
 
 module ShadowingTest =
-  let factorialWithShadowing(n: Int): (String * Int) =
+  let factorialWithShadowing(n: Int64): (String * Int64) =
     if (n <= 1) then
       ("base_case", 1)
     else
@@ -31,7 +31,7 @@ module ShadowingTest =
         n * ((ShadowingTest.factorialWithShadowing(n - 1)) |> Stdlib.Tuple2.second)
       (factorialWithShadowing , result)
 
-  let factorialWithShadowingError(n: Int): (String * Int) =
+  let factorialWithShadowingError(n: Int64): (String * Int64) =
     if (n <= 1) then
       ("base_case", 1)
     else
@@ -40,7 +40,7 @@ module ShadowingTest =
         n * ((factorialWithShadowingError(n - 1)) |> Stdlib.Tuple2.second)
       (factorialWithShadowingError , result)
 
-  let incrementWithShadowing(y: Int, z: Int): Int =
+  let incrementWithShadowing(y: Int64, z: Int64): Int64 =
     if (z <= 0) then
       y
     else
@@ -49,7 +49,7 @@ module ShadowingTest =
       let lambdaResult = incrementWithShadowing(z)
       result + lambdaResult
 
-  let matchWithShadowing(x: Int): Int =
+  let matchWithShadowing(x: Int64): Int64 =
     match x with
     | 0 -> 0
     | 1 -> matchWithShadowing(0)
@@ -58,7 +58,7 @@ module ShadowingTest =
       matchWithShadowing(2)
     | matchWithShadowing -> matchWithShadowing + 1
 
-  let tupleMatchWithShadowing(x: Int * Int): Int =
+  let tupleMatchWithShadowing(x: Int64 * Int64): Int64 =
     match x with
     | (0, _) -> 0
     | (1, n) -> tupleMatchWithShadowing((0, n))
@@ -67,13 +67,13 @@ module ShadowingTest =
         tupleMatchWithShadowing(v)
     | (a, tupleMatchWithShadowing) -> a + tupleMatchWithShadowing
 
-  let letBindingShadowing(x: Int): List<Int> =
+  let letBindingShadowing(x: Int64): List<Int64> =
     let letBindingShadowing = (fun v -> v * 3)
     let letBindingShadowing = [ 10, letBindingShadowing(x) ]
     let letBindingShadowing = Stdlib.List.reverse(letBindingShadowing)
     letBindingShadowing
 
-  let conditionalShadowing(x: Int): Int =
+  let conditionalShadowing(x: Int64): Int64 =
     if x <= 0 then
       0
     elif x < 3 then
@@ -85,7 +85,7 @@ module ShadowingTest =
     else
       x + conditionalShadowing(x - 1)
 
-  let pipeWithShadowing(x: Int): Int =
+  let pipeWithShadowing(x: Int64): Int64 =
     match x with
     | 0 -> 0
     | 1 -> 0 |> pipeWithShadowing
@@ -99,7 +99,7 @@ module ShadowingTest =
   // replaces the first, in the store and in the in-memory package manager alike. So
   // the val has its own name.
   val valueShadowingBase = 120
-  let valueShadowing(x: Int): Int =
+  let valueShadowing(x: Int64): Int64 =
     if x <= 0 then
       10
     else if x == 1 then

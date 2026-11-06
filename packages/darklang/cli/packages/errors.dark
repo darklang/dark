@@ -115,7 +115,7 @@ let reportParseErrors(
 ///
 /// The arguments are joined into one source, so a stray extra one parses as a second
 /// declaration or a bare expression. Taking the first declaration and ignoring the rest
-/// saved `dark val Me.A.x 42L zzznope` as `42L` and reported success.
+/// saved `dark val Me.A.x 42 zzznope` as `42` and reported success.
 let reportTrailing(sourceFile: LanguageTools.WrittenTypes.SourceFile.SourceFile): Bool =
   let decls = Stdlib.List.length(sourceFile.declarations)
   let extra = decls + (Stdlib.List.length(sourceFile.exprsToEval)) - 1

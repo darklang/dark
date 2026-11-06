@@ -11,7 +11,7 @@ type Role =
   | Result
   /// The type of one component, identified by its zero-based position: a lambda
   /// parameter, call argument, constructor field, or tuple-pattern element.
-  | Part of Int
+  | Part of Int64
   /// The lambda's return type, also used to check early returns from ?.
   | Return
   /// The element type shared by a list's values or a list pattern's elements.
@@ -33,7 +33,7 @@ type Var =
   /// An unknown identified by the syntax node that introduced it and its role there.
   | Of of Int64 * Role
   /// A new unknown allocated by Solve, including when a generic type is used.
-  | Fresh of Int
+  | Fresh of Int64
 
 /// Types represented inside the checker, including declared type parameters,
 /// types still being inferred, and placeholders for previously reported problems.
@@ -52,6 +52,8 @@ type Ty =
   | TUInt128
   | TInt
   | TFloat
+  | TFloat32
+  | TDecimal
   | TChar
   | TString
   | TUuid

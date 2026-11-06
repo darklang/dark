@@ -6,7 +6,7 @@
 // against an OLDER published binary too, whose store may not carry today's wrapper. The clock
 // is the exception: there is no raw clock builtin any more, so it goes through
 // `Stdlib.DateTime.__monotonicMilliseconds`, which needs a binary from mid-October 2026 on.
-let hot(n: Int, acc: Int): Int =
+let hot(n: Int64, acc: Int64): Int64 =
   if n <= 0 then
     acc
   else

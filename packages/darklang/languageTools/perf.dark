@@ -17,7 +17,7 @@ type Counters =
 /// What one thunk cost.
 type Measurement =
   { allocBytes: Int64
-    ms: Int
+    ms: Int64
     instructions: Int64
     builtinCalls: Int64
     packageCalls: Int64
@@ -34,12 +34,12 @@ type Measurement =
 
 let noCounters(): Counters =
   Counters
-    { instructions = 0L
-      builtinCalls = 0L
-      packageCalls = 0L
-      framePushes = 0L
+    { instructions = 0
+      builtinCalls = 0
+      packageCalls = 0
+      framePushes = 0
       buildMode = "unknown"
-      statSets = 0L }
+      statSets = 0 }
 
 
 /// The interpreter's counters as they stand now.
@@ -89,8 +89,8 @@ let floor(): Measurement =
 
 /// <param m> with the harness floor taken off, clamped so a cheap thunk cannot report a negative.
 let minus(m: Measurement, f: Measurement): Measurement =
-  let atLeastZero64(n: Int64): Int64 = if n < 0L then 0L else n
-  let atLeastZero(n: Int): Int = if n < 0 then 0 else n
+  let atLeastZero64(n: Int64): Int64 = if n < 0 then 0 else n
+  let atLeastZero(n: Int64): Int64 = if n < 0 then 0 else n
 
   { m with
       allocBytes = atLeastZero64(m.allocBytes - f.allocBytes)
@@ -108,7 +108,7 @@ let best(readings: List<Measurement>): Stdlib.Option.Option<Measurement> =
   | [] -> Stdlib.Option.Option.None
   | [ first, ...rest ] ->
     let low64(a: Int64, b: Int64): Int64 = if b < a then b else a
-    let low(a: Int, b: Int): Int = if b < a then b else a
+    let low(a: Int64, b: Int64): Int64 = if b < a then b else a
 
     Stdlib.Option.Option.Some(
       Stdlib.List.fold(rest, first, fun(acc, m) ->
@@ -124,7 +124,7 @@ let best(readings: List<Measurement>): Stdlib.Option.Option<Measurement> =
 /// <param a> against <param b>, alternated for <param rounds> rounds so that drift over the run
 /// lands on both sides rather than on whichever went second. Each reading has the harness taken
 /// off (<fn floor>), and each side reports its <fn best>. Fewer than one round counts as one.
-let ab(a: Unit -> 'a, b: Unit -> 'b, rounds: Int): (Measurement * Measurement) =
+let ab(a: Unit -> 'a, b: Unit -> 'b, rounds: Int64): (Measurement * Measurement) =
   let harness = floor()
   let n = if rounds < 1 then 1 else rounds
 
@@ -153,7 +153,7 @@ let render(m: Measurement): String =
       $"  frame pushes    {Stdlib.toString(m.framePushes)}" ]
 
   let lines =
-    if m.statSets > 0L then
+    if m.statSets > 0 then
       Stdlib.List.append(
         lines,
         $"  note            one VM's share of {Stdlib.toString(m.statSets)} counter sets")

@@ -94,6 +94,14 @@ module Shortcuts =
     | None ->
       RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
 
+  /// Narrow an `Int64` to a native `int` (Int32), raising a Dark `OutOfRange` error
+  /// when the value doesn't fit.
+  let int64ToInt32 (vm : VMState) (i : int64) : int =
+    if i < int64 System.Int32.MinValue || i > int64 System.Int32.MaxValue then
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+    else
+      int i
+
   /// Capability tokens cannot be narrowed to OS descriptor numbers.
   let intToDescriptor (vm : VMState) (i : DarkInt) : HostTypes.FileDescriptor =
     let value = DarkInt.toBigInt i
@@ -110,5 +118,15 @@ module Shortcuts =
       RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
     else
       rounded |> bigint |> Dval.int |> Ply
+
+  /// `roundedToInt` for an `Int64` result: out of its range is `OutOfRange` too.
+  let roundedToInt64 (vm : VMState) (rounded : float) : Ply<Dval> =
+    // 2^63 is exact as a float; anything at or past it, or NaN, does not fit.
+    if
+      not (rounded >= -9223372036854775808.0 && rounded < 9223372036854775808.0)
+    then
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+    else
+      rounded |> int64 |> Dval.dint64 |> Ply
 
   type Param = BuiltInParam

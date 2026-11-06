@@ -218,7 +218,7 @@ module FQValueName =
     let namePart = t.name
 
     let versionPart =
-      if t.version == 0l then
+      if t.version == 0s32 then
         ""
       else
         $"_v{Stdlib.toString(t.version)}"
@@ -246,7 +246,7 @@ module FQFnName =
     let namePart = t.name
 
     let versionPart =
-      if t.version == 0l then
+      if t.version == 0s32 then
         ""
       else
         $"_v{Stdlib.toString(t.version)}"
@@ -311,13 +311,13 @@ let callStack(
   branchId: Uuid,
   frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
   : String =
-  let label(frame: String, count: Int): String =
+  let label(frame: String, count: Int64): String =
     if count == 1 then frame else $"{frame} (×{Stdlib.toString(count)})"
 
   let group(
     remaining: List<String>,
     current: String,
-    count: Int,
+    count: Int64,
     lines: List<String>)
     : List<String> =
     match remaining with
@@ -359,6 +359,8 @@ let typeReference(
   | TInt -> "Int"
 
   | TFloat -> "Float"
+  | TFloat32 -> "Float32"
+  | TDecimal -> "Decimal"
 
   | TChar -> "Char"
   | TString -> "String"
@@ -441,6 +443,8 @@ let knownType(
   | KTInt -> "Int"
 
   | KTFloat -> "Float"
+  | KTFloat32 -> "Float32"
+  | KTDecimal -> "Decimal"
 
   | KTChar -> "Char"
   | KTString -> "String"
@@ -538,7 +542,7 @@ let declaredKnownType(
   // the same shape and so has an nth type argument to give.
   let nth(
     refs: List<LanguageTools.RuntimeTypes.TypeReference>,
-    i: Int)
+    i: Int64)
     : Stdlib.Option.Option<LanguageTools.RuntimeTypes.TypeReference> =
     Stdlib.List.getAt(refs, i)
 
@@ -623,7 +627,7 @@ let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
 /// The first <param count> bytes of <param bytes> as spaced hex ("68 69"), or
 /// None for saved Bytes. It reads only bytes already in memory, never the
 /// store, so printing stays cheap.
-let bytesPreview(bytes: Bytes, count: Int): Stdlib.Option.Option<String> =
+let bytesPreview(bytes: Bytes, count: Int64): Stdlib.Option.Option<String> =
   Builtin.bytesPeek(bytes, count)
   |> Stdlib.Option.map(fun prefix ->
     let hex = prefix |> Stdlib.Hex.encode |> Stdlib.String.toLowercase
@@ -657,6 +661,8 @@ module Dval =
     | DUInt128(_) -> "UInt128"
     | DInt(_) -> "Int"
     | DFloat(_) -> "Float"
+    | DFloat32(_) -> "Float32"
+    | DDecimal(_) -> "Decimal"
     | DChar(_) -> "Char"
     | DString(_) -> "String"
     | DDateTime(_) -> "DateTime"
@@ -739,7 +745,7 @@ module Dval =
       Stdlib.List.concat(ordered, extra)
 
 
-  let makeSpaces(len: Int): String =
+  let makeSpaces(len: Int64): String =
     match Stdlib.List.repeat(len, " ") with
     | Ok(spaces) -> spaces |> Stdlib.String.join("")
     | Error(_) -> ""
@@ -755,7 +761,7 @@ module Dval =
   let toDoc(
     branchId: Uuid,
     opts: PrettyPrinter.DisplayOptions,
-    depth: Int,
+    depth: Int64,
     dv: LanguageTools.RuntimeTypes.Dval)
     : Stdlib.Pretty.Doc =
     let txt(s: String): Stdlib.Pretty.Doc = Stdlib.Pretty.text(s)
@@ -810,19 +816,24 @@ module Dval =
     | DChar(c) -> paint(opts.palette.string_, $"'{PrettyPrinter.escapeCharLiteral(Stdlib.toString(c))}'")
     | DString(s) -> paint(opts.palette.string_, $"\"{PrettyPrinter.escapeSpecialCharacters(s)}\"")
 
-    | DInt8(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt8(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt16(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt16(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt32(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt32(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DInt8(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s8")
+    | DUInt8(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u8")
+    | DInt16(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s16")
+    | DUInt16(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u16")
+    | DInt32(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s32")
+    | DUInt32(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u32")
     | DInt64(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt64(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt128(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt128(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DInt(i) -> paint(opts.palette.number, Stdlib.toString(i))
+    | DUInt64(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u64")
+    | DInt128(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s128")
+    | DUInt128(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u128")
+    | DInt(i) -> paint(opts.palette.number, Stdlib.toString(i) + "z")
 
     | DFloat(f) -> paint(opts.palette.number, Stdlib.toString(f))
+    | DFloat32(f) ->
+      // NaN and the infinities have no literal to suffix, so they print as a Float's do
+      let s = Stdlib.toString(f)
+      paint(opts.palette.number, (if Stdlib.Float32.isFinite(f) then s + "f32" else s))
+    | DDecimal(d) -> paint(opts.palette.number, Stdlib.toString(d) + "dec")
 
     | DDateTime(d) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(d)}>")
     | DUuid(uuid) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(uuid)}>")
@@ -964,7 +975,7 @@ let dvalWith(
 /// Only lists. A dict with thousands of keys has the same problem and is not handled here,
 /// because "the first n" of a dict needs an ordering this type does not promise.
 let capForDisplay(
-    maxChars: Int,
+    maxChars: Int64,
     dv: LanguageTools.RuntimeTypes.Dval)
   : LanguageTools.RuntimeTypes.Dval =
   let enough = Stdlib.max((maxChars / 3) + 2, 64)
@@ -980,7 +991,7 @@ let capForDisplay(
 
 let dvalOneLine(
     branchId: Uuid,
-    maxChars: Int,
+    maxChars: Int64,
     dv: LanguageTools.RuntimeTypes.Dval)
   : String =
   let dv = capForDisplay(maxChars, dv)

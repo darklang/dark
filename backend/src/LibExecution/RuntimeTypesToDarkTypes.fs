@@ -9,10 +9,10 @@ module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 module Effects2DT = LibExecution.EffectsToDarkTypes
 
-/// `Dval.int` is shadowed by the local `module Dval` below, so it can't be
+/// `Dval.dint64` is shadowed by the local `module Dval` below, so it can't be
 /// called unqualified in this file. This is the unshadowed encoder for the
-/// native-`int` → `Int` conversions (small counts/indices/arities).
-let private dintOfInt (i : int) : Dval = RuntimeTypes.Dval.int (bigint i)
+/// native-`int` → `Int64` conversions (small counts/indices/arities).
+let private dintOfInt (i : int) : Dval = RuntimeTypes.Dval.dint64 (int64 i)
 
 
 
@@ -342,6 +342,8 @@ module TypeReference =
       | TUInt128 -> "TUInt128", []
       | TInt -> "TInt", []
       | TFloat -> "TFloat", []
+      | TFloat32 -> "TFloat32", []
+      | TDecimal -> "TDecimal", []
       | TChar -> "TChar", []
       | TString -> "TString", []
       | TDateTime -> "TDateTime", []
@@ -389,6 +391,8 @@ module TypeReference =
     | DEnum(_, _, [], "TUInt128", []) -> TUInt128
     | DEnum(_, _, [], "TInt", []) -> TInt
     | DEnum(_, _, [], "TFloat", []) -> TFloat
+    | DEnum(_, _, [], "TFloat32", []) -> TFloat32
+    | DEnum(_, _, [], "TDecimal", []) -> TDecimal
     | DEnum(_, _, [], "TChar", []) -> TChar
     | DEnum(_, _, [], "TString", []) -> TString
     | DEnum(_, _, [], "TDateTime", []) -> TDateTime
@@ -497,6 +501,8 @@ module MatchPattern =
       | MPUInt128 i -> "MPUInt128", [ DUInt128 i ]
       | MPInt i -> "MPInt", [ Dval.int i ]
       | MPFloat f -> "MPFloat", [ DFloat f ]
+      | MPFloat32 f -> "MPFloat32", [ DFloat32 f ]
+      | MPDecimal f -> "MPDecimal", [ DDecimal f ]
       | MPChar c -> "MPChar", [ DString c ]
       | MPString s -> "MPString", [ DString s ]
 
@@ -540,6 +546,8 @@ module MatchPattern =
     | DEnum(_, _, [], "MPUInt128", [ DUInt128 i ]) -> MPUInt128(i)
     | DEnum(_, _, [], "MPInt", [ (DInt _) as v ]) -> MPInt(Dval.asBigInt v)
     | DEnum(_, _, [], "MPFloat", [ DFloat f ]) -> MPFloat f
+    | DEnum(_, _, [], "MPFloat32", [ DFloat32 f ]) -> MPFloat32 f
+    | DEnum(_, _, [], "MPDecimal", [ DDecimal f ]) -> MPDecimal f
     | DEnum(_, _, [], "MPChar", [ DString c ]) -> MPChar c
     | DEnum(_, _, [], "MPString", [ DString s ]) -> MPString s
 
@@ -584,6 +592,8 @@ module KnownType =
       | KTUInt128 -> "KTUInt128", []
       | KTInt -> "KTInt", []
       | KTFloat -> "KTFloat", []
+      | KTFloat32 -> "KTFloat32", []
+      | KTDecimal -> "KTDecimal", []
       | KTChar -> "KTChar", []
       | KTString -> "KTString", []
       | KTUuid -> "KTUuid", []
@@ -631,6 +641,8 @@ module KnownType =
     | DEnum(_, _, [], "KTUInt128", []) -> KTUInt128
     | DEnum(_, _, [], "KTInt", []) -> KTInt
     | DEnum(_, _, [], "KTFloat", []) -> KTFloat
+    | DEnum(_, _, [], "KTFloat32", []) -> KTFloat32
+    | DEnum(_, _, [], "KTDecimal", []) -> KTDecimal
     | DEnum(_, _, [], "KTChar", []) -> KTChar
     | DEnum(_, _, [], "KTString", []) -> KTString
     | DEnum(_, _, [], "KTUuid", []) -> KTUuid
@@ -819,6 +831,8 @@ module Dval =
     | DUInt128 i -> mk "DUInt128" [ DUInt128 i ]
     | DInt i -> mk "DInt" [ DInt i ]
     | DFloat f -> mk "DFloat" [ DFloat f ]
+    | DFloat32 f -> mk "DFloat32" [ DFloat32 f ]
+    | DDecimal f -> mk "DDecimal" [ DDecimal f ]
     | DChar c -> mk "DChar" [ DChar c ]
     | DString s -> mk "DString" [ DString s ]
     | DUuid u -> mk "DUuid" [ DUuid u ]
@@ -908,6 +922,8 @@ module Dval =
     | DEnum(_, _, [], "DInt", [ (DInt _) as v ]) ->
       RuntimeTypes.Dval.int (RuntimeTypes.Dval.asBigInt v)
     | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
+    | DEnum(_, _, [], "DFloat32", [ DFloat32 f ]) -> DFloat32 f
+    | DEnum(_, _, [], "DDecimal", [ DDecimal f ]) -> DDecimal f
     | DEnum(_, _, [], "DChar", [ DChar c ]) -> DChar c
     | DEnum(_, _, [], "DString", [ DString s ]) -> DString s
     | DEnum(_, _, [], "DDateTime", [ DDateTime d ]) -> DDateTime d
@@ -1943,6 +1959,7 @@ module RuntimeError =
       match e with
       | RuntimeError.Bool e -> "Bool", [ Bools.toDT e ]
       | RuntimeError.Int e -> "Int", [ Ints.toDT e ]
+      | RuntimeError.DecimalOutOfRange -> "DecimalOutOfRange", []
       | RuntimeError.String e -> "String", [ Strings.toDT e ]
       | RuntimeError.List e -> "List", [ Lists.toDT e ]
       | RuntimeError.Dict e -> "Dict", [ Dicts.toDT e ]
@@ -1993,6 +2010,7 @@ module RuntimeError =
     match d with
     | DEnum(_, _, [], "Bool", [ e ]) -> RuntimeError.Bool(Bools.fromDT e)
     | DEnum(_, _, [], "Int", [ e ]) -> RuntimeError.Int(Ints.fromDT e)
+    | DEnum(_, _, [], "DecimalOutOfRange", []) -> RuntimeError.DecimalOutOfRange
     | DEnum(_, _, [], "String", [ e ]) -> RuntimeError.String(Strings.fromDT e)
     | DEnum(_, _, [], "List", [ e ]) -> RuntimeError.List(Lists.fromDT e)
     | DEnum(_, _, [], "Dict", [ e ]) -> RuntimeError.Dict(Dicts.fromDT e)

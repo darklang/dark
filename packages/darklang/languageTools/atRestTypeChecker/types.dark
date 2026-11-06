@@ -414,6 +414,8 @@ let fromReferenceInto(
   | TUInt128 -> (Model.Ty.TUInt128, found)
   | TInt -> (Model.Ty.TInt, found)
   | TFloat -> (Model.Ty.TFloat, found)
+  | TFloat32 -> (Model.Ty.TFloat32, found)
+  | TDecimal -> (Model.Ty.TDecimal, found)
   | TChar -> (Model.Ty.TChar, found)
   | TUuid -> (Model.Ty.TUuid, found)
   | TDateTime -> (Model.Ty.TDateTime, found)
@@ -526,7 +528,7 @@ let fieldType(
 
 /// Convert a count or index to the Int64 representation used in report contexts.
 /// The caller must supply a number that fits in Int64.
-let int64(n: Int): Int64 = Builtin.unwrap(Stdlib.Int.toInt64(n))
+let int64(n: Int64): Int64 = n
 
 /// Count list elements in the Int64 form used for reported argument counts.
 let count(xs: List<'a>): Int64 = int64(Stdlib.List.length(xs))
@@ -906,6 +908,8 @@ let isUsableDictKey(env: Model.Environment, seen: List<LanguageTools.ProgramType
   | TUInt128
   | TInt
   | TFloat
+  | TFloat32
+  | TDecimal
   | TChar
   | TString
   | TUuid
@@ -1033,6 +1037,8 @@ let toStatic(ty: Model.Ty): StaticType =
   | TUInt128 -> StaticType.TUInt128
   | TInt -> StaticType.TInt
   | TFloat -> StaticType.TFloat
+  | TFloat32 -> StaticType.TFloat32
+  | TDecimal -> StaticType.TDecimal
   | TChar -> StaticType.TChar
   | TString -> StaticType.TString
   | TUuid -> StaticType.TUuid

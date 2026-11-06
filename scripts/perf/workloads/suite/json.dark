@@ -1,23 +1,23 @@
 // JSON round trips. Polymorphic serialization walks the type declaration alongside the value, so it
 // exercises the package-type lookup and the type-symbol-table paths harder than anything else here.
-let iters(): Int =
+let iters(): Int64 =
   match Stdlib.Env.get("PERF_ITERS") with
   | Some(s) ->
-    match Stdlib.Int.parse(s) with
+    match Stdlib.Int64.parse(s) with
     | Ok(n) -> n
     | Error(_) -> 0
   | None -> 0
 
-type Item = { id: Int, name: String, tags: List<String>, active: Bool }
+type Item = { id: Int64, name: String, tags: List<String>, active: Bool }
 
-let work(n: Int): Int =
+let work(n: Int64): Int64 =
   let item = Item { id = n, name = "item", tags = ["a", "b", "c"], active = true }
   let s = Stdlib.Json.serialize<Item>(item)
   match Stdlib.Json.parse<Item>(s) with
   | Ok(back) -> (Stdlib.String.length(s)) + back.id
   | Error(_) -> 0
 
-let repeat(times: Int, acc: Int): Int =
+let repeat(times: Int64, acc: Int64): Int64 =
   if times <= 0 then acc else repeat(times - 1, acc + (work(times)))
 
 let _warm = repeat(5, 0)

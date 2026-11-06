@@ -35,7 +35,7 @@ let base =
 
 let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
 
-let viewN(i: Int, s: Darklang.Cli.Workbench.State, acc: Int): Int =
+let viewN(i: Int64, s: Darklang.Cli.Workbench.State, acc: Int64): Int64 =
   if i == 0 then
     acc
   else
@@ -52,7 +52,7 @@ let a1 = Darklang.LanguageTools.InterpreterStats.allocatedBytes()
 let _ =
   Stdlib.printLine(
     ("bytes per view build: "
-     + (Stdlib.toString((Stdlib.Int.fromInt64(a1 - a0)) / allocationIterations))))
+     + (Stdlib.toString((a1 - a0) / allocationIterations))))
 
 // Time. Long enough that ~100 Hz sampling lands hundreds of samples inside it, so this is also the
 // section to run a sampling profiler against.

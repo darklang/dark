@@ -134,6 +134,8 @@ module TypeReference =
     | PT.TInt -> RT.TInt
 
     | PT.TFloat -> RT.TFloat
+    | PT.TFloat32 -> RT.TFloat32
+    | PT.TDecimal -> RT.TDecimal
 
     | PT.TChar -> RT.TChar
     | PT.TString -> RT.TString
@@ -177,6 +179,8 @@ module TypeReference =
     | PT.TUInt128 -> RT.ValueType.Known RT.KTUInt128
     | PT.TInt -> RT.ValueType.Known RT.KTInt
     | PT.TFloat -> RT.ValueType.Known RT.KTFloat
+    | PT.TFloat32 -> RT.ValueType.Known RT.KTFloat32
+    | PT.TDecimal -> RT.ValueType.Known RT.KTDecimal
     | PT.TChar -> RT.ValueType.Known RT.KTChar
     | PT.TString -> RT.ValueType.Known RT.KTString
     | PT.TDateTime -> RT.ValueType.Known RT.KTDateTime
@@ -296,6 +300,10 @@ module MatchPattern =
 
     | PT.MPFloat(_, sign, whole, frac) ->
       RT.MPFloat(makeFloat sign whole frac), symbols, rc
+    | PT.MPFloat32(_, sign, whole, frac) ->
+      RT.MPFloat32(makeFloat32 sign whole frac), symbols, rc
+
+    | PT.MPDecimal(_, d) -> RT.MPDecimal d, symbols, rc
 
     | PT.MPChar(_, c) -> RT.MPChar c, symbols, rc
     | PT.MPString(_, s) -> RT.MPString s, symbols, rc
@@ -410,6 +418,8 @@ module MatchPattern =
             | RT.MPUInt128 i -> RT.MPUInt128 i
             | RT.MPInt i -> RT.MPInt i
             | RT.MPFloat f -> RT.MPFloat f
+            | RT.MPFloat32 f -> RT.MPFloat32 f
+            | RT.MPDecimal d -> RT.MPDecimal d
             | RT.MPChar c -> RT.MPChar c
             | RT.MPString s -> RT.MPString s
             | RT.MPVariable reg ->
@@ -736,6 +746,12 @@ module Expr =
       let whole = if whole = "" then "0" else whole
       let fraction = if fraction = "" then "0" else fraction
       justLoadDval (RT.DFloat(makeFloat sign whole fraction))
+    | PT.EFloat32(_id, sign, whole, fraction) ->
+      let whole = if whole = "" then "0" else whole
+      let fraction = if fraction = "" then "0" else fraction
+      justLoadDval (RT.DFloat32(makeFloat32 sign whole fraction))
+
+    | PT.EDecimal(_id, d) -> justLoadDval (RT.DDecimal d)
 
     | PT.EChar(_id, c) -> justLoadDval (RT.DChar c)
 
@@ -1437,6 +1453,18 @@ module PackageValue =
       match System.Double.TryParse(str) with
       | (true, f) -> RT.DFloat f
       | (false, _) -> RT.DFloat 0.0
+    | PT.EFloat32(_, sign, whole, part) ->
+      let str = (if sign = Positive then "" else "-") + whole + "." + part
+      match
+        System.Single.TryParse(
+          str,
+          System.Globalization.NumberStyles.Float,
+          System.Globalization.CultureInfo.InvariantCulture
+        )
+      with
+      | (true, f) -> RT.DFloat32 f
+      | (false, _) -> RT.DFloat32 0.0f
+    | PT.EDecimal(_, d) -> RT.DDecimal d
     | PT.EChar(_, c) -> RT.DChar c
     | PT.EString(_, segments) ->
       // For values, string segments should only be text, not interpolations

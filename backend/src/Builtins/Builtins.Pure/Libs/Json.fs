@@ -72,7 +72,7 @@ module JsonPath =
       let (caseName, fields) =
         match part with
         | Root -> "Root", []
-        | Index i -> "Index", [ Dval.int (bigint i) ]
+        | Index i -> "Index", [ Dval.dint64 (int64 i) ]
         | Field s -> "Field", [ DString s ]
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -110,6 +110,16 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
     else if System.Double.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
     else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
     else w.WriteRawValue(floatToShortestString f)
+
+  | DFloat32 f ->
+    if System.Single.IsNaN f then w.WriteStringValue "NaN"
+    else if System.Single.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
+    else if System.Single.IsPositiveInfinity f then w.WriteStringValue "Infinity"
+    else w.WriteRawValue(float32ToShortestString f)
+
+  // at its scale, so `1.10m` writes `1.10`
+  | DDecimal d ->
+    w.WriteRawValue(d.ToString(System.Globalization.CultureInfo.InvariantCulture))
 
   | DChar c -> w.WriteStringValue c
   | DString s -> w.WriteStringValue s
@@ -194,7 +204,7 @@ module ParseError =
       | EnumMissingField(typ, fieldCount, errorPath) ->
         "EnumMissingField",
         [ RT2DT.TypeReference.toDT typ
-          Dval.int (bigint fieldCount)
+          Dval.dint64 (int64 fieldCount)
           JsonPath.toDT errorPath ]
 
       | EnumInvalidCasename(typ, caseName, errorPath) ->
@@ -274,6 +284,37 @@ let private parseExactJsonInteger (raw : string) : bigint option =
     with
     | true, v -> Some v
     | false, _ -> None
+
+
+/// Parses a JSON number literal to a `decimal` only when that is exact. `Decimal.TryParse`
+/// rounds past 28-29 significant digits and flushes tiny values to zero without saying so, so
+/// the result is checked: the literal times 10^scale has to be the same integer as the decimal's
+/// own unscaled value.
+let private parseExactJsonDecimal (raw : string) : decimal option =
+  match
+    System.Decimal.TryParse(
+      raw,
+      System.Globalization.NumberStyles.Float,
+      System.Globalization.CultureInfo.InvariantCulture
+    )
+  with
+  | false, _ -> None
+  | true, d ->
+    let scale = int d.Scale
+    let mantissa, exp =
+      match raw.IndexOfAny [| 'e'; 'E' |] with
+      | -1 -> raw, 0L
+      | i ->
+        match System.Int64.TryParse(raw.Substring(i + 1)) with
+        | true, e -> raw.Substring(0, i), e
+        | false, _ -> raw, System.Int64.MinValue
+    if exp = System.Int64.MinValue then
+      None
+    else
+      let unscaled = System.Decimal.Truncate(d * pown 10m scale)
+      match parseExactJsonInteger $"{mantissa}e{exp + int64 scale}" with
+      | Some n when n = bigint unscaled -> Some d
+      | _ -> None
 
 
 let parse
@@ -502,6 +543,20 @@ let parse
       | "-Infinity" -> DFloat System.Double.NegativeInfinity
       | _ -> raiseCantMatchWithType TFloat j pathSoFar
       |> Ply
+
+    | TFloat32, JsonValueKind.Number -> j.GetSingle() |> DFloat32 |> Ply
+    | TFloat32, JsonValueKind.String ->
+      match j.GetString() with
+      | "NaN" -> DFloat32 System.Single.NaN
+      | "Infinity" -> DFloat32 System.Single.PositiveInfinity
+      | "-Infinity" -> DFloat32 System.Single.NegativeInfinity
+      | _ -> raiseCantMatchWithType TFloat32 j pathSoFar
+      |> Ply
+
+    | TDecimal, JsonValueKind.Number ->
+      match parseExactJsonDecimal (j.GetRawText()) with
+      | Some d -> Ply(DDecimal d)
+      | None -> raiseCantMatchWithType TDecimal j pathSoFar |> Ply
 
     | TChar, JsonValueKind.String ->
       match String.toEgcChar (j.GetString()) with
@@ -745,6 +800,8 @@ let parse
     | TUInt128, _
     | TInt, _
     | TFloat, _
+    | TFloat32, _
+    | TDecimal, _
     | TChar, _
     | TString, _
     | TUuid, _

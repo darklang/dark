@@ -5,8 +5,8 @@ module Darklang.Cli.Http.Serve
 /// Parsed flags + positional. `routerPath = ""` means "no router given".
 type Args =
   { routerPath: String
-    port: Int
-    maxBodyBytes: Int
+    port: Int64
+    maxBodyBytes: Int64
     /// `--live`: resolve the router by name per request, on the last version that passes its
     /// checks (`Stdlib.Live`), and tell an open browser page to reload itself when the version
     /// moves. OFF unless asked for: a server that changes under you while you edit is a thing
@@ -30,12 +30,12 @@ let parseArgs(rest: List<String>, acc: Args): Args =
   match rest with
   | [] -> acc
   | ["--port", value, ...tail] ->
-    match Stdlib.Int.parse(value) with
+    match Stdlib.Int64.parse(value) with
     | Error(_) ->
       { acc with error = Stdlib.Option.Option.Some($"Invalid --port: {value}") }
     | Ok(p) -> parseArgs(tail, { acc with port = p })
   | ["--max-body-bytes", value, ...tail] ->
-    match Stdlib.Int.parse(value) with
+    match Stdlib.Int64.parse(value) with
     | Error(_) ->
       { acc with
           error = Stdlib.Option.Option.Some($"Invalid --max-body-bytes: {value}") }
@@ -139,7 +139,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             match Stdlib.Env.get("DARK_HOST_PORT_BASE") with
             | None -> []
             | Some(baseStr) ->
-              match Stdlib.Int.parse(baseStr) with
+              match Stdlib.Int64.parse(baseStr) with
               | Error(_) -> []
               | Ok(hostBase) ->
                 let offset = parsed.port - 9090

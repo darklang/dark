@@ -546,7 +546,7 @@ module Expr =
 
     let combinedPatternsWithVarAndWhenCond =
       t
-        "match (1L,2L) with\n| (x,2L) | (2L,x) when x == 1L -> \"first branch\"\n _ -> \"second branch\""
+        "match (1,2) with\n| (x,2) | (2,x) when x == 1 -> \"first branch\"\n _ -> \"second branch\""
         E.Match.combinedPatternsWithVarAndWhenCond
         (9,
          [ RT.LoadVal(1, RT.DInt64 1L)
@@ -591,7 +591,7 @@ module Expr =
 
     let combinedPatSameVarDifferentPos =
       t
-        "match (Stdlib.Result.Result.Ok 1L, Stdlib.Result.Result.Error \"error\") with\n| (Error err, Ok _) | (Ok _, Error err) -> err"
+        "match (Stdlib.Result.Result.Ok 1, Stdlib.Result.Result.Error \"error\") with\n| (Error err, Ok _) | (Ok _, Error err) -> err"
         E.Match.combinedPatSameVarDifferentPos
         (8,
          [ RT.LoadVal(2, RT.DInt64 1L)
@@ -1603,7 +1603,7 @@ module Expr =
       module MyFnThatTakesALambda =
         let myMap =
           t
-            "Test.myMap([1L, 2L], fun x -> x + 1L)"
+            "Test.myMap([1, 2], fun x -> x + 1)"
             E.Fns.Package.MyFnThatTakesALambda.fullyApplied
             (6,
              [ RT.LoadVal(1, RT.DInt64 1L)
@@ -1693,7 +1693,7 @@ module Expr =
 
     let simple =
       t
-        "()\n1L"
+        "()\n1"
         E.Statements.simple
         (2,
          [ RT.LoadVal(0, RT.DUnit)
@@ -1703,7 +1703,7 @@ module Expr =
 
     let statement =
       t
-        "Builtin.printLine(\"hello\")\n3L"
+        "Builtin.printLine(\"hello\")\n3"
         E.Statements.statement
         (4,
          [ RT.LoadVal(0, RT.DString "hello")

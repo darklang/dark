@@ -9,9 +9,10 @@ type Error =
   | Precision
   | Invalid
 
-let diagnostic (error : Error) : string * string =
+/// `format` names the literal's binary format: binary64 or binary32.
+let diagnostic (format : string) (error : Error) : string * string =
   match error with
-  | Overflow -> "PARSE-FLOAT-OVERFLOW", "Float literal overflows binary64"
+  | Overflow -> "PARSE-FLOAT-OVERFLOW", $"Float literal overflows {format}"
   | Underflow -> "PARSE-FLOAT-UNDERFLOW", "Nonzero float literal underflows to zero"
   | Precision ->
     "PARSE-FLOAT-PRECISION", "Float literal loses precision specified in the source"
@@ -55,12 +56,24 @@ let private binaryRatio (value : float) : bigint * bigint =
   let significand = bigint significand
   if power >= 0 then significand <<< power, 1I else significand, 1I <<< -power
 
+let private binaryRatio32 (value : float32) : bigint * bigint =
+  let bits = System.BitConverter.SingleToUInt32Bits(abs value)
+  let encodedExponent = int ((bits >>> 23) &&& 0xffu)
+  let fraction = bits &&& 0x007fffffu
+  let significand, power =
+    if encodedExponent = 0 then
+      fraction, -149
+    else
+      fraction ||| 0x00800000u, encodedExponent - 150
+  let significand = bigint significand
+  if power >= 0 then significand <<< power, 1I else significand, 1I <<< -power
+
 let private preservesPrecision
-  (value : float)
+  (ratio : bigint * bigint)
   (coefficient : bigint)
   (power : int)
   : bool =
-  let numerator, denominator = binaryRatio value
+  let numerator, denominator = ratio
   let numerator, denominator =
     if power >= 0 then
       numerator, denominator * BigInteger.Pow(10I, power)
@@ -88,7 +101,13 @@ let private normalized
       allDigits.Substring(0, point), allDigits.Substring(point)
   trimLeadingZeros whole, (if fraction = "" then "0" else fraction)
 
-let parse (source : string) (value : float) : Result<string * string, Error> =
+let private parseWith
+  (isNaN : bool)
+  (isInfinity : bool)
+  (isZero : bool)
+  (ratio : unit -> bigint * bigint)
+  (source : string)
+  : Result<string * string, Error> =
   let source = if source.StartsWith '-' then source.Substring 1 else source
   let decimal =
     match source.Split([| 'e'; 'E' |]) with
@@ -111,20 +130,37 @@ let parse (source : string) (value : float) : Result<string * string, Error> =
       Error Invalid
     | Some(whole, fraction) ->
       let coefficientText = trimLeadingZeros (whole + fraction)
-      if System.Double.IsNaN value then
+      if isNaN then
         Error Invalid
-      elif System.Double.IsInfinity value then
+      elif isInfinity then
         Error Overflow
-      elif value = 0.0 && coefficientText <> "0" then
+      elif isZero && coefficientText <> "0" then
         Error Underflow
-      elif value = 0.0 then
+      elif isZero then
         Ok("0", "0")
       else
         match exponent (source.Length + 400) powerText with
         | None -> Error Invalid
         | Some power ->
           let coefficient = BigInteger.Parse coefficientText
-          if preservesPrecision value coefficient (power - fraction.Length) then
+          if preservesPrecision (ratio ()) coefficient (power - fraction.Length) then
             Ok(normalized whole fraction power)
           else
             Error Precision
+
+let parse (source : string) (value : float) : Result<string * string, Error> =
+  parseWith
+    (System.Double.IsNaN value)
+    (System.Double.IsInfinity value)
+    (value = 0.0)
+    (fun () -> binaryRatio value)
+    source
+
+/// Takes the literal's source without its `f` suffix.
+let parse32 (source : string) (value : float32) : Result<string * string, Error> =
+  parseWith
+    (System.Single.IsNaN value)
+    (System.Single.IsInfinity value)
+    (value = 0.0f)
+    (fun () -> binaryRatio32 value)
+    source

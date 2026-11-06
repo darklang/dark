@@ -223,6 +223,8 @@ module RoundTripExpect =
     | RT.DUInt128 _
     | RT.DInt _
     | RT.DFloat _
+    | RT.DFloat32 _
+    | RT.DDecimal _
     | RT.DChar _
     | RT.DString _
     | RT.DDateTime _
@@ -347,7 +349,7 @@ let t
         let ppArgs =
           NEList.ofList
             (RT.DUuid PT.BranchId.Main.Guid)
-            [ Dval.int (bigint width); sourceFile ]
+            [ RT.DInt64(int64 width); sourceFile ]
         let! ppResult =
           LibExecution.Execution.executeFunction
             ppExeState
@@ -496,8 +498,8 @@ let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
 let exprs =
   [ t
       "record, 3 fields"
-      "Tests.Person {name =\"John\", age = 30L, hasPet = true} "
-      "Tests.Person { name = \"John\", age = 30L, hasPet = true }"
+      "Tests.Person {name =\"John\", age = 30, hasPet = true} "
+      "Tests.Person { name = \"John\", age = 30, hasPet = true }"
       [ person ]
       []
       []
@@ -505,8 +507,8 @@ let exprs =
 
     t
       "record with newline as separator"
-      "Tests.Person\n {name =\"John\"\n age = 30L\n hasPet = true} "
-      "Tests.Person { name = \"John\", age = 30L, hasPet = true }"
+      "Tests.Person\n {name =\"John\"\n age = 30\n hasPet = true} "
+      "Tests.Person { name = \"John\", age = 30, hasPet = true }"
       [ person ]
       []
       []
@@ -514,8 +516,8 @@ let exprs =
 
     t
       "record with type args"
-      "Generic<Tests.Person> { x = Person { name = \"John\", age = 30L, hasPet = true } }"
-      "Generic<Tests.Person> { x = Person { name = \"John\", age = 30L, hasPet = true } }"
+      "Generic<Tests.Person> { x = Person { name = \"John\", age = 30, hasPet = true } }"
+      "Generic<Tests.Person> { x = Person { name = \"John\", age = 30, hasPet = true } }"
       [ person ]
       []
       []
@@ -523,8 +525,8 @@ let exprs =
 
     t
       "record update 1"
-      "{ Tests.Person { name = \"John\", age = 30L, hasPet = true } with age = 31L }"
-      "{ Tests.Person { name = \"John\", age = 30L, hasPet = true } with age = 31L }"
+      "{ Tests.Person { name = \"John\", age = 30, hasPet = true } with age = 31 }"
+      "{ Tests.Person { name = \"John\", age = 30, hasPet = true } with age = 31 }"
       [ person ]
       []
       []
@@ -532,8 +534,8 @@ let exprs =
 
     t
       "record update 4"
-      "(let myRec = Tests.Person { name = \"John\", age = 30L, hasPet = true }\n  { myRec with\n      name = \"Jane\"\n      age = 31L\n      hasPet = false })"
-      "let myRec = Tests.Person { name = \"John\", age = 30L, hasPet = true }\n{ myRec with name = \"Jane\", age = 31L, hasPet = false }"
+      "(let myRec = Tests.Person { name = \"John\", age = 30, hasPet = true }\n  { myRec with\n      name = \"Jane\"\n      age = 31\n      hasPet = false })"
+      "let myRec = Tests.Person { name = \"John\", age = 30, hasPet = true }\n{ myRec with name = \"Jane\", age = 31, hasPet = false }"
       [ person ]
       []
       []
@@ -543,8 +545,8 @@ let exprs =
 
     t
       "custom enum tupled params"
-      "Tests.MyEnum.C((1L, 2L))"
-      "Tests.MyEnum.C((1L, 2L))"
+      "Tests.MyEnum.C((1, 2))"
+      "Tests.MyEnum.C((1, 2))"
       [ myEnum ]
       []
       []
@@ -552,8 +554,8 @@ let exprs =
 
     t
       "custom enum fn params"
-      "Tests.MyEnum.D(1L, 2L)"
-      "Tests.MyEnum.D(1L, 2L)"
+      "Tests.MyEnum.D(1, 2)"
+      "Tests.MyEnum.D(1, 2)"
       [ myEnum ]
       []
       []
@@ -561,8 +563,8 @@ let exprs =
 
     t
       "custom enum indexed params"
-      "Tests.MyEnum.D(\n  1L,\n  2L\n)"
-      "Tests.MyEnum.D(1L, 2L)"
+      "Tests.MyEnum.D(\n  1,\n  2\n)"
+      "Tests.MyEnum.D(1, 2)"
       [ myEnum ]
       []
       []
@@ -579,8 +581,8 @@ let exprs =
 
     t
       "pipe, into enum 2"
-      "33L |> Tests.MyEnum.D(21L)"
-      "33L |> Tests.MyEnum.D(21L)"
+      "33 |> Tests.MyEnum.D(21)"
+      "33 |> Tests.MyEnum.D(21)"
       [ myEnum ]
       []
       []
@@ -588,8 +590,8 @@ let exprs =
 
     t
       "pipe, into enum, several fields"
-      "33L |> Tests.MyEnum.E(21L, 42L)"
-      "33L |> Tests.MyEnum.E(21L, 42L)"
+      "33 |> Tests.MyEnum.E(21, 42)"
+      "33 |> Tests.MyEnum.E(21, 42)"
       [ myEnum ]
       []
       []
@@ -597,9 +599,9 @@ let exprs =
 
     t
       "fn call with an uppercase reference"
-      """Stdlib.Box.set(Tests.Person { name = "John", age = 30L, hasPet = true }, "key", TestBox)"""
+      """Stdlib.Box.set(Tests.Person { name = "John", age = 30, hasPet = true }, "key", TestBox)"""
       """Stdlib.Box.set(
-  Tests.Person { name = "John", age = 30L, hasPet = true },
+  Tests.Person { name = "John", age = 30, hasPet = true },
   "key",
   TestBox
 )"""
@@ -612,8 +614,8 @@ let exprs =
 let valueDeclarations =
   [ t
       "record with fields"
-      "val myPerson = Tests.Person { name = \"Alice\", age = 30L, hasPet = true }"
-      "val myPerson = Tests.Person { name = \"Alice\", age = 30L, hasPet = true }"
+      "val myPerson = Tests.Person { name = \"Alice\", age = 30, hasPet = true }"
+      "val myPerson = Tests.Person { name = \"Alice\", age = 30, hasPet = true }"
       [ person ]
       []
       []
@@ -632,8 +634,8 @@ let moduleDeclarations =
 
     t
       "module with types, fns, and vals"
-      "module MyModule =\n  type ID = Int64\n  type MyString = String\n  let myFn(i: Int64): Int64 = 1L\n  val x = 100L"
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1L\n\n  val x = 100L"
+      "module MyModule =\n  type ID = Int64\n  type MyString = String\n  let myFn(i: Int64): Int64 = 1\n  val x = 100"
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1\n\n  val x = 100"
       []
       []
       []
@@ -641,8 +643,8 @@ let moduleDeclarations =
 
     t
       "module with types, fns, vals, and newlines"
-      "module MyModule =\n  type ID = Int64\n\n  type MyString = String\n\n  let myFn(i: Int64): Int64 = 1L\n\n  val x = 100L"
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1L\n\n  val x = 100L"
+      "module MyModule =\n  type ID = Int64\n\n  type MyString = String\n\n  let myFn(i: Int64): Int64 = 1\n\n  val x = 100"
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1\n\n  val x = 100"
       []
       []
       []
@@ -650,8 +652,8 @@ let moduleDeclarations =
 
     t
       "nested module declaration"
-      "module MyModule1 =\n  type ID = Int64\n  module MyModule2 =\n    type ID = Int64\n    module MyModule3 =\n      type ID = Int64\n      val x = 100L\n      1L"
-      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      val x = 100L\n\n      1L"
+      "module MyModule1 =\n  type ID = Int64\n  module MyModule2 =\n    type ID = Int64\n    module MyModule3 =\n      type ID = Int64\n      val x = 100\n      1"
+      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      val x = 100\n\n      1"
       []
       []
       []

@@ -54,7 +54,7 @@ let render(node: Node.Node<'msg>, toJson: 'msg -> String): String =
     $"<div class=\"dark-vstack\">{inner}</div>"
   | Table(columns, rows) ->
     let numeric = columns |> Stdlib.List.indexedMap(fun(i, _) -> Node.isNumericColumn(rows, i))
-    let cls(i: Int): String =
+    let cls(i: Int64): String =
       if Stdlib.List.getAt(numeric, i) == Stdlib.Option.Option.Some(true) then " class=\"dark-num\"" else ""
 
     let head =

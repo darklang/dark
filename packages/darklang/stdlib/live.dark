@@ -21,7 +21,7 @@ module Darklang.Stdlib.Live
 /// The store's change counter as this process sees it. It moves whenever a commit lands through another
 /// connection, in this process or in another one. Only "same as before" or "moved" means anything, and
 /// only within one process; the number itself does not.
-let version(): Int = Builtin.storeVersion()
+let version(): Int64 = Builtin.storeVersion()
 
 
 // --- what changed ---
@@ -45,7 +45,7 @@ type Change =
 /// has reported.
 type Watch =
   { branchId: Uuid
-    version: Int
+    version: Int64
     /// The newest insert time (`created_at`, second resolution) reported so far. The next poll asks
     /// for everything from it on.
     since: String
@@ -256,7 +256,7 @@ let dependents(
   let walk(
     frontier: List<Touched>,
     seen: List<LanguageTools.ProgramTypes.PackageLocation>,
-    depth: Int)
+    depth: Int64)
     : List<LanguageTools.ProgramTypes.PackageLocation> =
     if Stdlib.List.isEmpty(frontier) then
       seen
@@ -769,7 +769,7 @@ module Values =
     branchId: Uuid,
     entry: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Values> =
-    replayWithin(1000L, 500, accountID, branchId, entry)
+    replayWithin(1000, 500, accountID, branchId, entry)
 
 
   /// `replay`, refusing a recorded run that took longer than <param maxDurationMs> or went
@@ -782,12 +782,12 @@ module Values =
   /// ran last. Both limits, because `durationMs` is 0 for a run recorded before it was kept.
   let replayWithin(
     maxDurationMs: Int64,
-    maxFns: Int,
+    maxFns: Int64,
     accountID: Stdlib.Option.Option<Uuid>,
     branchId: Uuid,
     entry: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Values> =
-    match Darklang.Tracing.Store.wentThroughNamed(branchId, entryName(entry), 1L) with
+    match Darklang.Tracing.Store.wentThroughNamed(branchId, entryName(entry), 1) with
     | [] -> Stdlib.Option.Option.None
     | [newest, ...] ->
       let fns = Stdlib.List.length(Darklang.Tracing.Store.fnsOf(newest.id))

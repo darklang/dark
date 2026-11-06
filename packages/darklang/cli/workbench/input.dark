@@ -240,7 +240,7 @@ let performInputAction(state: State, inp: InputState): Step =
     // `let x = ...` binds for the rest of the session instead of printing a result.
     //
     // A paste is run statement by statement, so it does exactly what typing those lines would have done -
-    // `let a = 21L` binds, then `a * 2L` sees it and prints 42. Indented lines continue the one above, so a
+    // `let a = 21` binds, then `a * 2` sees it and prints 42. Indented lines continue the one above, so a
     // wrapped expression is still one statement (see `Repl.splitStatements`).
     let body = Stdlib.String.trimEnd(inp.field.text)
     // Two spaces when you typed none, so `splitStatements` sees the typed line as the

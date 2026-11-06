@@ -256,10 +256,9 @@ and private runCliInProcess
         // reading the buffer or we capture nothing.
         NonBlockingConsole.wait ()
         match result with
-        | Ok(RT.DInt status) ->
+        | Ok(RT.DInt64 status) ->
           let (all, out, err) = NonBlockingConsole.stopCaptureEach ()
-          return
-            (all.Trim(), out.Trim(), err.Trim(), int (RT.DarkInt.toBigInt status))
+          return (all.Trim(), out.Trim(), err.Trim(), int status)
         | Ok other ->
           return
             Tests.failtestf
@@ -594,7 +593,6 @@ and private runCliWithExitInProcess
       let printed = (NonBlockingConsole.stopCapture ()).Trim()
       match result with
       | Ok(RT.DInt64 code) -> return (printed, code)
-      | Ok(RT.DInt code) -> return (printed, int64 (RT.DarkInt.toBigInt code))
       | Ok other ->
         return Tests.failtestf "executeCliCommand returned a non-int: %A" other
       | Error(rte, _) -> return Tests.failtestf "runCliWithExit errored: %A" rte

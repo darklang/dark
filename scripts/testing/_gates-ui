@@ -30,7 +30,7 @@ gate_workbench_scm() {
 
 
   # a commit, for History
-  "$PWD/$CLI" fn /WbScm.T.base '() : Int64 = 1L' >/dev/null 2>&1
+  "$PWD/$CLI" fn /WbScm.T.base '() : Int64 = 1' >/dev/null 2>&1
   "$PWD/$CLI" commit "workbench scm fixture" -y >/dev/null 2>&1
 
   # a branch that diverges from main on one name, so merging it RECORDS a conflict.
@@ -38,14 +38,14 @@ gate_workbench_scm() {
   # never happens, no conflict is recorded, and Home has no "needs you" to show -- which is a
   # fixture that stopped building the thing the gate asserts on.
   "$PWD/$CLI" branch create wb-scm >/dev/null 2>&1
-  "$PWD/$CLI" --branch wb-scm fn /WbScm.T.base '() : Int64 = 222L' >/dev/null 2>&1
+  "$PWD/$CLI" --branch wb-scm fn /WbScm.T.base '() : Int64 = 222' >/dev/null 2>&1
   "$PWD/$CLI" --branch wb-scm commit "wb-scm diverges" -y >/dev/null 2>&1
-  "$PWD/$CLI" --branch main fn /WbScm.T.base '() : Int64 = 111L' >/dev/null 2>&1
+  "$PWD/$CLI" --branch main fn /WbScm.T.base '() : Int64 = 111' >/dev/null 2>&1
   "$PWD/$CLI" --branch wb-scm merge wb-scm -y >/dev/null 2>&1
 
   # and an uncommitted draft on main, for Changes
   "$PWD/$CLI" switch main >/dev/null 2>&1
-  "$PWD/$CLI" fn /WbScm.T.draft '() : Int64 = 9L' >/dev/null 2>&1
+  "$PWD/$CLI" fn /WbScm.T.draft '() : Int64 = 9' >/dev/null 2>&1
 
   # More branches than Home displays: the picker must still reach every one.
   for n in $(seq 1 12); do
@@ -61,7 +61,7 @@ gate_workbench_scm() {
   rm -rf "$QUIET"; mkdir -p "$QUIET"
   scripts/testing/_copy-store "$QUIET/data.db"
   sqlite3 "$QUIET/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
-  "$PWD/$CLI" fn /WbQuiet.T.only '() : Int64 = 1L' >/dev/null 2>&1
+  "$PWD/$CLI" fn /WbQuiet.T.only '() : Int64 = 1' >/dev/null 2>&1
   "$PWD/$CLI" commit "workbench quiet fixture" -y >/dev/null 2>&1
   exec expect "$PWD/scripts/testing/fixtures/_workbench-quiet.expect" "$PWD/$CLI" "$HOME/.darklang"
 }
@@ -91,24 +91,24 @@ gate_workbench_views() {
   run() { "$PWD/$CLI" "$@" >/dev/null 2>&1 || true; }
 
   # commits, for History and Home's "last commit"
-  run fn /WbV.T.base '() : Int64 = 1L'
+  run fn /WbV.T.base '() : Int64 = 1'
   run commit "workbench views fixture" -y
 
   # a branch that diverges on one name, merged so a conflict is RECORDED
   run branch create wbv
-  run --branch wbv fn /WbV.T.base '() : Int64 = 222L'
-  run --branch main fn /WbV.T.base '() : Int64 = 111L'
+  run --branch wbv fn /WbV.T.base '() : Int64 = 222'
+  run --branch main fn /WbV.T.base '() : Int64 = 111'
   run --branch wbv merge wbv -y
   run switch main
 
   # an uncommitted draft, for Changes and the Home status box
-  run fn /WbV.T.draft '() : Int64 = 9L'
+  run fn /WbV.T.draft '() : Int64 = 9'
 
   # traces: recording is OFF until asked for, and something has to have RUN, for the Traces view
   # to hold anything
   run traces record on
   run eval 'WbV.T.draft()'
-  run eval 'Stdlib.List.length([ 1L, 2L, 3L ])'
+  run eval 'Stdlib.List.length([ 1, 2, 3 ])'
 
   exec expect "$PWD/scripts/testing/fixtures/_workbench-views.expect" "$PWD/$CLI" "$HOME/.darklang"
 }
@@ -161,7 +161,7 @@ gate_prompts_unattended() {
     || fail "with stderr redirected the question can't be seen, so nobody can answer it"
   checked=$((checked + 1))
 
-  "$CLI_ABS" fn PromptsGate.T.x '() : Int64 = 1L' >/dev/null 2>&1 < /dev/null || fail "could not author the draft to discard"
+  "$CLI_ABS" fn PromptsGate.T.x '() : Int64 = 1' >/dev/null 2>&1 < /dev/null || fail "could not author the draft to discard"
   set +e
   out=$(pty "env CI=1 $CLI_ABS discard; echo EXIT=\$?")
   set -e

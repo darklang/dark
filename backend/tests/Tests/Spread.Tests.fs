@@ -243,10 +243,7 @@ let private nestingIsBounded =
       "the outer map and the first three elements' inner maps, and no others"
     Expect.equal
       (expectOk result)
-      (RT.DList(
-        LibExecution.ValueType.int,
-        List.replicate 20 (LibExecution.Dval.int (bigint 50))
-      ))
+      (RT.DList(LibExecution.ValueType.int64, List.replicate 20 (RT.DInt64 50L)))
       "twenty lengths of fifty"
   }
 
@@ -469,10 +466,7 @@ let private wrongPureFallsBack =
           let code =
             "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = Stdlib.DateTime.now() in i * 2)))"
           let! (result, fellBack) = delta fallbacks (fun () -> run liar code)
-          Expect.equal
-            (expectOk result)
-            (LibExecution.Dval.int (bigint 100))
-            "the whole list"
+          Expect.equal (expectOk result) (RT.DInt64 100L) "the whole list"
           Expect.equal fellBack 1L "the spread fell back"
         })
   }

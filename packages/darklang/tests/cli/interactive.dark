@@ -108,7 +108,7 @@ let drive(
   i: Instance.T,
   args: List<String>,
   steps: List<Step>,
-  timeoutSeconds: Int)
+  timeoutSeconds: Int64)
   : Stdlib.Result.Result<String, String> =
   if Stdlib.Bool.not(available()) then
     Stdlib.Result.Result.Error("expect is not installed")
@@ -174,7 +174,7 @@ let expectSteps(
   i: Instance.T,
   args: List<String>,
   steps: List<Step>,
-  timeoutSeconds: Int)
+  timeoutSeconds: Int64)
   : Stdlib.Test.Result =
   match drive(i, args, steps, timeoutSeconds) with
   | Ok(_) -> Stdlib.Test.Result.Pass

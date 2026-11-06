@@ -17,8 +17,8 @@
 module Darklang.Cli.LiveView.Runner
 
 /// An interval as the timer spec wants it.
-let timerMs(intervalMs: Int): Int64 =
-  Stdlib.Int.toInt64(intervalMs) |> Stdlib.Option.withDefault(5000L)
+let timerMs(intervalMs: Int64): Int64 =
+  intervalMs
 
 /// One tick, then wait for the next, or for the store to move under the step.
 let loop(
@@ -26,9 +26,9 @@ let loop(
   branchId: Uuid,
   lg: Stdlib.Live.LastGood,
   state: 's,
-  intervalMs: Int,
+  intervalMs: Int64,
   live: Bool)
-  : Int =
+  : Int64 =
   let state =
     match Stdlib.Live.call(lg, state) with
     | Ok(next) -> next
@@ -67,9 +67,9 @@ let run(
   name: String,
   stepName: String,
   init: 's,
-  intervalMs: Int,
+  intervalMs: Int64,
   live: Bool)
-  : Int =
+  : Int64 =
   match Stdlib.Live.locationOfName(stepName) with
   | None ->
     Stdlib.printLine($"{name}: {stepName} is not a package fn name")

@@ -74,13 +74,13 @@ test finishedStatementRuns =
   Stdlib.Test.all(
     [ Darklang.Cli.Repl.wantsAnotherLine("1 + 1") |> Stdlib.Test.equal(false)
       Darklang.Cli.Repl.wantsAnotherLine("let x = 1") |> Stdlib.Test.equal(false)
-      Darklang.Cli.Repl.wantsAnotherLine("Stdlib.List.map(xs, fun x -> x * 2L)")
+      Darklang.Cli.Repl.wantsAnotherLine("Stdlib.List.map(xs, fun x -> x * 2)")
       |> Stdlib.Test.equal(false)
       Darklang.Cli.Repl.wantsAnotherLine("") |> Stdlib.Test.equal(false) ])
 
 // Judged over the whole statement so far, not just the last line: this closes what the first line opened.
 test wholeStatementJudged =
-  Darklang.Cli.Repl.wantsAnotherLine("Stdlib.List.map(xs,\n  fun x -> x * 2L)")
+  Darklang.Cli.Repl.wantsAnotherLine("Stdlib.List.map(xs,\n  fun x -> x * 2)")
   |> Stdlib.Test.equal(false)
 
 // A keyword only counts as the whole last token, so a name that merely ends in one isn't mistaken for it.
@@ -118,8 +118,8 @@ test rebindKeepsPosition =
 
 // --- reading `captureValue` back ---
 test readCaptured =
-  Darklang.Cli.Repl.readCaptured("ok:[1L, 2L]")
-  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("[1L, 2L]"))
+  Darklang.Cli.Repl.readCaptured("ok:[1, 2]")
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("[1, 2]"))
 
 // anything that isn't `ok:` means "hold the expression instead"
 test nonOkHoldsExpression =

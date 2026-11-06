@@ -22,6 +22,8 @@ let rec subExprs (expr : Expr) : List<Expr> =
   | EUInt128 _
   | EInt _
   | EFloat _
+  | EFloat32 _
+  | EDecimal _
   | EChar _
   | EVariable _
   | EArg _
@@ -92,6 +94,8 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   | EUInt128 _
   | EInt _
   | EFloat _
+  | EFloat32 _
+  | EDecimal _
   | EChar _ -> Set.empty
 
   | EString(_, segments) ->
@@ -201,6 +205,8 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
   | EUInt128 _
   | EInt _
   | EFloat _
+  | EFloat32 _
+  | EDecimal _
   | EChar _ -> Set.empty
 
   | EString(_, segments) ->

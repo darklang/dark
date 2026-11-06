@@ -110,7 +110,7 @@ let renderBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.C
     else renderViewBody(state, region)
 
 /// A view's purpose and data caveat. An empty caveat means real data.
-let viewBlurb(idx: Int): (String * String) =
+let viewBlurb(idx: Int64): (String * String) =
   if idx == vMatter then ("browse and edit the package tree", "")
   else if idx == vScratch then
     ("evaluate expressions -- ⏎ to start typing, esc to stop; `let` binds for the session", "")
@@ -131,7 +131,7 @@ let viewBlurb(idx: Int): (String * String) =
 /// END, which are `?` (the keymap) and `q` (the way out) -- the two a person needs most when lost. The
 /// row drops whole hints cheapest-first instead: secondary globals, then the view's own actions, and
 /// `?`/`q` never.
-let hintsForView(state: State, width: Int): String =
+let hintsForView(state: State, width: Int64): String =
   let view = state.activeView
   // Pane movement only applies when a preview exists.
   let hasPreview = hasDetailPane(state)

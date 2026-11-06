@@ -267,31 +267,25 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listTake" 0
       typeParams = []
-      parameters = [ Param.moved "list" (TList varA) ""; Param.make "count" TInt "" ]
+      parameters =
+        [ Param.moved "list" (TList varA) ""; Param.make "count" TInt64 "" ]
       returnType = TList varA
       description =
         "Returns the first <param count> values of <param list>, or all of them if there are fewer"
       fn =
         (function
-        | _, vm, [], [| DList(_, items); DInt count |] ->
+        | _, vm, [], [| DList(_, items); DInt64 count |] ->
           // The Dark version recursed one package call, one match and one `prepend` per element. There
           // is no lambda here at all -- it is pure structure -- so nothing about it needed to be
           // interpreted.
-          let n =
-            match count with
-            | DarkInt.Finite i -> i
-            // Past either end of any list. `intToInt32` would raise instead, and `take` with an
-            // absurd count is defined to return the whole list rather than fail.
-            | DarkInt.Infinite b -> if b.Sign > 0 then System.Int64.MaxValue else 0L
-
-          if n <= 0L then
+          if count <= 0L then
             Ply(DList(VT.unknown, []))
           else
             let mutable acc = []
             let mutable rest = items
             let mutable taken = 0L
 
-            while taken < n && not (List.isEmpty rest) do
+            while taken < count && not (List.isEmpty rest) do
               match rest with
               | elem :: tail ->
                 acc <- elem :: acc
@@ -315,7 +309,7 @@ let fns () : List<BuiltInFn> =
         [ Param.moved "list" (TList varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn(NEList.doubleton TInt varA, varB))
+            (TFn(NEList.doubleton TInt64 varA, varB))
             ""
             [ "index"; "elem" ] ]
       returnType = TList varB
@@ -353,8 +347,8 @@ let fns () : List<BuiltInFn> =
                           let first = start + int64 offset
                           let indices =
                             List.init (List.length chunk) (fun k ->
-                              Dval.int (bigint (first + int64 k)))
-                          [ DList(VT.int, indices); DList(vt, chunk) ])
+                              Dval.dint64 (first + int64 k))
+                          [ DList(VT.int64, indices); DList(vt, chunk) ])
                         app
                         probe.PerElement
                         rest
@@ -364,16 +358,16 @@ let fns () : List<BuiltInFn> =
                     | [] -> return mappedList vm (List.rev acc)
                     | elem :: elemTail ->
                       rest <- elemTail
-                      let index = Dval.int (bigint i)
+                      let index = Dval.dint64 i
                       i <- i + 1L
                       return! Interpreter.requestApply vm app index [ elem ] next
                   }
                 else
                   rest <- elemTail
-                  let index = Dval.int (bigint i)
+                  let index = Dval.dint64 i
                   i <- i + 1L
                   Interpreter.requestApply vm app index [ elem ] next
-            Interpreter.requestApply vm app (Dval.int (bigint 0)) [ first ] next
+            Interpreter.requestApply vm app (Dval.dint64 0L) [ first ] next
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -687,43 +681,29 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listRange" 0
       typeParams = []
-      parameters = [ Param.make "lowest" TInt ""; Param.make "highest" TInt "" ]
-      returnType = TList TInt
+      parameters = [ Param.make "lowest" TInt64 ""; Param.make "highest" TInt64 "" ]
+      returnType = TList TInt64
       description =
-        "Returns a list of the Ints from <param lowest> to <param highest>, inclusive of both"
+        "Returns a list of the Int64s from <param lowest> to <param highest>, inclusive of both"
       fn =
         (function
-        | _, _, [], [| DInt lowest; DInt highest |] ->
+        | _, _, [], [| DInt64 lowest; DInt64 highest |] ->
           // Counted down, so the list is built in order without a reverse.
-          //
-          // On `int64` where both ends are `Finite`, which is every range anyone writes. Doing it in
-          // `bigint` throughout boxes a `BigInteger` per element, which dominated the allocation when
-          // this was first written that way. A range that needs the wide path would not fit in memory
-          // anyway, but it keeps its own arithmetic.
           let mutable items = []
-
-          match lowest, highest with
-          | DarkInt.Finite low, DarkInt.Finite high ->
-            let mutable current = high
-            // `current = low` ends it rather than `current - 1L >= low`, which underflows at
-            // `Int64.MinValue`.
-            let mutable more = high >= low
-            while more do
-              items <- DInt(DarkInt.Finite current) :: items
-              if current = low then more <- false else current <- current - 1L
-          | _ ->
-            let low = DarkInt.toBigInt lowest
-            let mutable current = DarkInt.toBigInt highest
-            while current >= low do
-              items <- Dval.int current :: items
-              current <- current - bigint 1
+          let mutable current = highest
+          // `current = lowest` ends it rather than `current - 1L >= lowest`, which underflows at
+          // `Int64.MinValue`.
+          let mutable more = highest >= lowest
+          while more do
+            items <- Dval.dint64 current :: items
+            if current = lowest then more <- false else current <- current - 1L
 
           // An empty range keeps an unknown element type, which is what the Dark version did: it
-          // returned the literal `[]`, and only `prepend` ever made it a `List<Int>`.
+          // returned the literal `[]`, and only `prepend` ever made it a `List<Int64>`.
           if List.isEmpty items then
             Ply(DList(VT.unknown, []))
           else
-            Ply(DList(VT.int, items))
+            Ply(DList(VT.int64, items))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -852,11 +832,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "listLength" 0
       typeParams = []
       parameters = [ Param.moved "list" (TList varA) "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | _, _, _, [| DList(_, l) |] -> Ply(Dval.int (bigint l.Length))
+        | _, _, _, [| DList(_, l) |] -> Ply(Dval.dint64 (int64 l.Length))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -1054,13 +1034,14 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listGetAt" 0
       typeParams = []
-      parameters = [ Param.moved "list" (TList varA) ""; Param.make "index" TInt "" ]
+      parameters =
+        [ Param.moved "list" (TList varA) ""; Param.make "index" TInt64 "" ]
       returnType = TypeReference.option varA
       description =
         "Returns {{Some value}} at <param index> in <param list>, or {{None}} if out of bounds."
       fn =
         (function
-        | _, vm, _, [| DList(vt, l); DInt index |] ->
+        | _, vm, _, [| DList(vt, l); DInt64 index |] ->
           // Still a walk, since that's what a cons list costs, but one walk rather than an interpreted
           // call per position. Deliberately not `List.length` then `List.item`: that is O(n) even for
           // index 0, and callers ask for low indices of long lists.
@@ -1069,10 +1050,7 @@ let fns () : List<BuiltInFn> =
             | [] -> None
             | head :: tail ->
               if remaining = 0L then Some head else walk (remaining - 1L) tail
-          let item =
-            match DarkInt.toInt64 index with
-            | Some i when i >= 0L -> walk i l
-            | _ -> None
+          let item = if index >= 0L then walk index l else None
           Ply(TypeChecker.DvalCreator.option vm.threadID vt item)
         | _ -> incorrectArgs ())
       previewable = Pure

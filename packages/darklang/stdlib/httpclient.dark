@@ -46,7 +46,7 @@ let toString(e: RequestError): String =
 
 /// The response from a HTTP request
 type Response =
-  { statusCode: Int
+  { statusCode: Int64
     headers: List<(String * String)>
     body: Bytes }
 
@@ -56,7 +56,7 @@ type Response =
 /// The underlying HTTP response is released when the stream is
 /// drained to completion or `Stdlib.Stream.close`d.
 type StreamResponse =
-  { statusCode: Int
+  { statusCode: Int64
     headers: List<(String * String)>
     body: Stream<UInt8> }
 
@@ -319,8 +319,8 @@ module Sse =
         | None -> Stdlib.Option.Option.None
 
     | Some(b) ->
-      // 10uy = '\n'. End of a line.
-      if b == 10uy then
+      // 10u8 = '\n'. End of a line.
+      if b == 10u8 then
         let line =
           match
             Stdlib.Utf8.decode(Stdlib.Bytes.fromList(state.currentLine))

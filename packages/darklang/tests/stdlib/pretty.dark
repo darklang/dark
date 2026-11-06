@@ -9,7 +9,7 @@ module Darklang.Stdlib.Pretty.Tests
 // --- helpers ---
 let t(s: String): Darklang.Stdlib.Pretty.Doc = Darklang.Stdlib.Pretty.text(s)
 
-let r(width: Int, d: Darklang.Stdlib.Pretty.Doc): String =
+let r(width: Int64, d: Darklang.Stdlib.Pretty.Doc): String =
   Darklang.Stdlib.Pretty.render(width, d)
 
 let g(d: Darklang.Stdlib.Pretty.Doc): Darklang.Stdlib.Pretty.Doc =

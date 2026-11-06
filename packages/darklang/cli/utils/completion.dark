@@ -122,7 +122,7 @@ let commandNamesCompletion(state: AppState, args: List<String>): List<Completion
 
 
 // Helper functions for finding common prefixes in completions
-let findCommonLength(str1: String, str2: String, index: Int, maxLen: Int): Int =
+let findCommonLength(str1: String, str2: String, index: Int64, maxLen: Int64): Int64 =
   if index >= maxLen then
     index
   else

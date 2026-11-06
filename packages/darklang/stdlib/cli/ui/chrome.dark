@@ -56,7 +56,7 @@ let toneStyle(tone: Tone): String =
   | Danger -> Colors.bgRed + Colors.brightWhite
 
 /// A full-width bar, padded so the background colour reaches the right edge.
-let bar(width: Int, style: String, text: String): String =
+let bar(width: Int64, style: String, text: String): String =
   let clipped = Tui.Text.clipToWidth(text, width)
   let used = Tui.Text.styledWidth(clipped)
   let padding =
@@ -71,10 +71,10 @@ let bar(width: Int, style: String, text: String): String =
 ///
 /// A short terminal gives up the blank line first, then the help bar, then the title: the body is the last
 /// thing to lose space, because it's the only part that's actually the app.
-let titleRows(height: Int): Int =
+let titleRows(height: Int64): Int64 =
   if height >= 4 then 2 else if height >= 2 then 1 else 0
 
-let helpRows(height: Int): Int =
+let helpRows(height: Int64): Int64 =
   if height >= 3 then 1 else 0
 
 /// The region the body gets, in a terminal of this size.
@@ -91,7 +91,7 @@ let bodyRegion(size: Tui.Size): Layout.Region =
 
 // --- Rendering ---
 
-let titleBar(f: Frame, width: Int): String =
+let titleBar(f: Frame, width: Int64): String =
   let title =
     Colors.colorize(
       Colors.purpleBg + Colors.white + Colors.bold,
@@ -105,7 +105,7 @@ let titleBar(f: Frame, width: Int): String =
 
   Tui.Text.clipToWidth(title + badge, width)
 
-let footBar(f: Frame, width: Int): String =
+let footBar(f: Frame, width: Int64): String =
   if f.message == "" then
     bar(width, Colors.grayBg + Colors.white, f.help)
   else

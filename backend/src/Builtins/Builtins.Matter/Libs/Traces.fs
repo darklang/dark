@@ -194,7 +194,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
                 "fnName", DString displayName
                 "args", Dval.list dvalKT args
                 "result", result
-                "durationMs", Dval.int (bigint ev.durationMs)
+                "durationMs", Dval.dint64 (int64 ev.durationMs)
                 "processId",
                 (match System.Guid.TryParse ev.processId with
                  | true, g when g <> System.Guid.Empty ->
@@ -231,26 +231,25 @@ type private Query =
   | Hotspots of traceLimit : int64
   | StatsByHandler of traceLimit : int64
 
-let private queryFromDT (vm : VMState) (q : Dval) : Query =
-  let i64 = intToInt64 vm
+let private queryFromDT (q : Dval) : Query =
   match q with
-  | DEnum(_, _, _, "Newest", [ DInt limit ]) -> Newest(i64 limit)
-  | DEnum(_, _, _, "Calling", [ DString fnName; DInt limit ]) ->
-    Calling(fnName, i64 limit)
-  | DEnum(_, _, _, "WentThrough", [ DString fnName; DString fnHash; DInt limit ]) ->
-    WentThrough(fnName, fnHash, i64 limit)
+  | DEnum(_, _, _, "Newest", [ DInt64 limit ]) -> Newest limit
+  | DEnum(_, _, _, "Calling", [ DString fnName; DInt64 limit ]) ->
+    Calling(fnName, limit)
+  | DEnum(_, _, _, "WentThrough", [ DString fnName; DString fnHash; DInt64 limit ]) ->
+    WentThrough(fnName, fnHash, limit)
   | DEnum(_, _, _, "ById", [ DString traceID ]) -> ById traceID
-  | DEnum(_, _, _, "Containing", [ DString pattern; DInt limit ]) ->
-    Containing(pattern, i64 limit)
+  | DEnum(_, _, _, "Containing", [ DString pattern; DInt64 limit ]) ->
+    Containing(pattern, limit)
   | DEnum(_, _, _, "Detail", [ DString traceID ]) -> Detail traceID
   | DEnum(_, _, _, "IdsStartingWith", [ DString prefix ]) -> IdsStartingWith prefix
   | DEnum(_, _, _, "SavedInput", [ DString traceID ]) -> SavedInput traceID
   | DEnum(_, _, _, "FnsOf", [ DString traceID ]) -> FnsOf traceID
   | DEnum(_, _, _, "LoopPasses", [ DString traceID ]) -> LoopPasses traceID
   | DEnum(_, _, _, "FnCounts", [ DInt64 traceLimit ]) -> FnCounts traceLimit
-  | DEnum(_, _, _, "Hotspots", [ DInt traceLimit ]) -> Hotspots(i64 traceLimit)
-  | DEnum(_, _, _, "StatsByHandler", [ DInt traceLimit ]) ->
-    StatsByHandler(i64 traceLimit)
+  | DEnum(_, _, _, "Hotspots", [ DInt64 traceLimit ]) -> Hotspots traceLimit
+  | DEnum(_, _, _, "StatsByHandler", [ DInt64 traceLimit ]) ->
+    StatsByHandler traceLimit
   | _ -> Exception.raiseInternal "not a Tracing.TraceQuery" [ "query", q ]
 
 
@@ -458,9 +457,8 @@ let private statsByHandler (traceLimit : int64) : Ply<List<Dval>> =
       |> Sql.executeAsync (fun read ->
         DTuple(
           DString(read.string "handler"),
-          Dval.int (bigint (read.int64 "trace_count")),
-          [ Dval.int (bigint (read.int64 "total_ms"))
-            Dval.int (bigint (read.int64 "max_ms")) ]
+          Dval.dint64 (read.int64 "trace_count"),
+          [ Dval.dint64 (read.int64 "total_ms"); Dval.dint64 (read.int64 "max_ms") ]
         ))
     return rows
   }
@@ -492,9 +490,8 @@ let private hotspots (traceLimit : int64) : Ply<List<Dval>> =
       |> Sql.executeAsync (fun read ->
         DTuple(
           DString(read.string "name"),
-          Dval.int (bigint (read.int64 "call_count")),
-          [ Dval.int (bigint (read.int64 "total_ms"))
-            Dval.int (bigint (read.int64 "max_ms")) ]
+          Dval.dint64 (read.int64 "call_count"),
+          [ Dval.dint64 (read.int64 "total_ms"); Dval.dint64 (read.int64 "max_ms") ]
         ))
     return rows
   }
@@ -578,7 +575,7 @@ let private noAnswer : Answer =
 
 let private answerToDT (a : Answer) : Dval =
   let tn = traceAnswerTypeName ()
-  let totalsKT = KTTuple(VT.string, VT.int, [ VT.int; VT.int ])
+  let totalsKT = KTTuple(VT.string, VT.int64, [ VT.int64; VT.int64 ])
   DRecord(
     tn,
     tn,
@@ -717,9 +714,9 @@ let fns () : List<BuiltInFn> =
         + "tables' layout stays an F# matter. Runs come newest first."
       fn =
         (function
-        | exeState, vm, _, [| q |] ->
+        | exeState, _, _, [| q |] ->
           uply {
-            let! a = answer exeState (queryFromDT vm q)
+            let! a = answer exeState (queryFromDT q)
             return answerToDT a
           }
         | _ -> incorrectArgs ())
@@ -735,7 +732,7 @@ let fns () : List<BuiltInFn> =
             "which"
             (TCustomType(NR.ok (traceSelectionTypeName ()), []))
             "one run by full id, every run, the runs before a cutoff, or all but the newest few" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Delete the runs a `Tracing.TraceSelection` names, with their calls and the executions "
         + "they were the logs of. Returns how many runs went. `AllButNewest` is the same pass "
@@ -743,11 +740,10 @@ let fns () : List<BuiltInFn> =
         + "needs."
       fn =
         (function
-        | _, vm, _, [| DEnum(_, _, _, "AllButNewest", [ DInt keepNArg ]) |] ->
-          let keepN = intToInt64 vm keepNArg
+        | _, _, _, [| DEnum(_, _, _, "AllButNewest", [ DInt64 keepN ]) |] ->
           let deleted = LibDB.Tracing.TraceRetention.prune (Some keepN) None
           LibDB.Tracing.TraceRetention.sweepOrphans ()
-          Dval.int (bigint deleted) |> Ply
+          Dval.dint64 (int64 deleted) |> Ply
         | _, _, _, [| (DEnum _ as which) |] ->
           uply {
             let! ids = selectedIds which
@@ -757,7 +753,7 @@ let fns () : List<BuiltInFn> =
             | _ ->
               LibDB.Tracing.TraceRetention.deleteTraces ids
               LibDB.Tracing.TraceRetention.sweepOrphans ()
-            return Dval.int (bigint (List.length ids))
+            return Dval.dint64 (int64 (List.length ids))
           }
         | _ -> incorrectArgs ())
       previewable = Impure

@@ -6,9 +6,9 @@ test floats =
       (6.02e22 * -10.0) |> Stdlib.Test.equal(-6.02e23) ])
 
 test letBoundVariable =
-  (let x = 5L
+  (let x = 5
    x)
-  |> Stdlib.Test.equal(5L)
+  |> Stdlib.Test.equal(5)
 
 test missingVariableRaises =
   myvar => raises "There is no variable named: myvar"
@@ -21,7 +21,7 @@ test unitStatementsRunInSequence =
   |> Stdlib.Test.equal(true)
 
 test nonUnitStatementRaises =
-  (1L
+  (1
    true)
   => raises "A statement before the last must return Unit, but this one returned Int64 (1). Discard a value with `let _ = ...`"
 
@@ -31,7 +31,7 @@ test and =
       (true && false) |> Stdlib.Test.equal(false)
       (false && true) |> Stdlib.Test.equal(false)
       (false && false) |> Stdlib.Test.equal(false)
-      (false && 5L) |> Stdlib.Test.equal(false)
+      (false && 5) |> Stdlib.Test.equal(false)
       //TODO bring back short-circuiting
       // (false && Stdlib.Test.raiseRuntimeError "msg")
       // |> Stdlib.Test.equal false
@@ -45,7 +45,7 @@ test andEvaluatesRightOperand =
   => raises "Uncaught exception: msg"
 
 test andRejectsNonBooleanRight =
-  (true && 5L) => raises "&& only supports Booleans"
+  (true && 5) => raises "&& only supports Booleans"
 
 test andRaisesLeftOperandErrorFirst =
   (Stdlib.Test.raiseRuntimeError("msg1") && Stdlib.Test.raiseRuntimeError("msg2"))
@@ -60,17 +60,17 @@ test or =
       (true || false) |> Stdlib.Test.equal(true)
       (false || true) |> Stdlib.Test.equal(true)
       (false || false) |> Stdlib.Test.equal(false)
-      (true || 5L) |> Stdlib.Test.equal(true)
+      (true || 5) |> Stdlib.Test.equal(true)
       (true |> (fun v -> v || true)) |> Stdlib.Test.equal(true)
       (true |> (fun v -> v || false)) |> Stdlib.Test.equal(true)
       (false |> (fun v -> v || true)) |> Stdlib.Test.equal(true)
       (false |> (fun v -> v || false)) |> Stdlib.Test.equal(false) ])
 
 test orRejectsNonBooleanRight =
-  (false || 5L) => raises "|| only supports Booleans"
+  (false || 5) => raises "|| only supports Booleans"
 
 test orRejectsNonBooleanLeft =
-  (5L || true) => raises "|| only supports Booleans"
+  (5 || true) => raises "|| only supports Booleans"
 
 // TODO bring back short-circuiting
 // test orShortCircuits =
@@ -88,4 +88,4 @@ test runtimeErrorRaises =
   => raises "Uncaught exception: runtime from syntax"
 
 test mixedNumericEqualityRaises =
-  (5.7 != 6L) => raises "Cannot perform equality check on Float and Int64"
+  (5.7 != 6) => raises "Cannot perform equality check on Float and Int64"

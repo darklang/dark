@@ -1,19 +1,19 @@
 // Option and Result: construction, matching and chaining. These are how idiomatic Dark reports
 // absence and failure, and until this workload existed nothing in the suite built many of them --
 // which hid three consecutive halvings of container construction.
-let iters(): Int =
+let iters(): Int64 =
   match Stdlib.Env.get("PERF_ITERS") with
   | Some(s) ->
-    match Stdlib.Int.parse(s) with
+    match Stdlib.Int64.parse(s) with
     | Ok(n) -> n
     | Error(_) -> 0
   | None -> 0
 
 type Boxed<'v> = { v: 'v, tag: String }
 
-let empties(): List<Int> = []
+let empties(): List<Int64> = []
 
-let work(n: Int): Int =
+let work(n: Int64): Int64 =
   let xs = [n, n + 1, n + 2]
 
   // Option from the standard library, matched
@@ -30,20 +30,20 @@ let work(n: Int): Int =
 
   // Result from parsing, both arms
   let c =
-    match Stdlib.Int.parse("123") with
+    match Stdlib.Int64.parse("123") with
     | Ok(v) -> v
     | Error(_) -> 0
   let d =
-    match Stdlib.Int.parse("not a number") with
+    match Stdlib.Int64.parse("not a number") with
     | Ok(v) -> v
     | Error(_) -> 1
 
   // A parameterised record, which took the same slow path as Option and Result
-  let boxed = Boxed<Int> { v = a, tag = "t" }
+  let boxed = Boxed<Int64> { v = a, tag = "t" }
 
   a + b + c + d + boxed.v
 
-let repeat(times: Int, acc: Int): Int =
+let repeat(times: Int64, acc: Int64): Int64 =
   if times <= 0 then acc else repeat(times - 1, acc + (work(times)))
 
 let _warm = repeat(20, 0)

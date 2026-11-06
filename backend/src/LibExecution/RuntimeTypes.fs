@@ -179,6 +179,8 @@ type KnownType =
   // arbitrary-precision integer; the default `Int`
   | KTInt
   | KTFloat
+  | KTFloat32
+  | KTDecimal
   | KTChar
   | KTString
   | KTUuid
@@ -391,6 +393,8 @@ type TypeReference =
   // arbitrary-precision integer; the default `Int`
   | TInt
   | TFloat
+  | TFloat32
+  | TDecimal
   | TChar
   | TString
   | TUuid
@@ -429,6 +433,8 @@ type TypeReference =
       | TUInt128
       | TInt
       | TFloat
+      | TFloat32
+      | TDecimal
       | TChar
       | TString
       | TUuid
@@ -684,6 +690,8 @@ type MatchPattern =
   | MPUInt128 of System.UInt128
   | MPInt of bigint
   | MPFloat of float
+  | MPFloat32 of float32
+  | MPDecimal of decimal
   | MPChar of string
   | MPString of string
   | MPList of List<MatchPattern>
@@ -1022,6 +1030,8 @@ and DictKey private () =
     | DApplicable _ -> 25
     | DStream _ -> 26
     | DPromise _ -> 27
+    | DFloat32 _ -> 28
+    | DDecimal _ -> 29
 
   static member compare (a : Dval) (b : Dval) : int =
     DvalOrdering.compareForDictKey a b
@@ -1044,6 +1054,8 @@ and DictKey private () =
     | DUInt128 x -> combine (hash x)
     | DInt x -> combine (hash (DarkInt.toBigInt x))
     | DFloat x -> combine (hash x)
+    | DFloat32 x -> combine (hash x)
+    | DDecimal x -> combine (hash x)
     | DChar x -> combine (hash x)
     | DString x -> combine (hash x)
     | DDateTime x -> combine (hash x)
@@ -1108,6 +1120,8 @@ and DvalOrdering private () =
     | DUInt128 x, DUInt128 y -> compare x y
     | DInt x, DInt y -> DarkInt.compare x y
     | DFloat x, DFloat y -> compare x y
+    | DFloat32 x, DFloat32 y -> compare x y
+    | DDecimal x, DDecimal y -> compare x y
     | DChar x, DChar y -> String.compareByCodepoint x y
     | DString x, DString y -> String.compareByCodepoint x y
     | DDateTime x, DDateTime y -> compare x y
@@ -1480,6 +1494,8 @@ and [<NoComparison>] Dval =
   | DInt of DarkInt
 
   | DFloat of double
+  | DFloat32 of float32
+  | DDecimal of decimal
 
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
   | DString of string
@@ -2368,6 +2384,8 @@ module RuntimeError =
   type Error =
     | Bool of Bools.Error
     | Int of Ints.Error
+    /// A Decimal result too large for its 96 bits
+    | DecimalOutOfRange
     | String of Strings.Error
 
     | List of Lists.Error
@@ -2546,6 +2564,8 @@ module KnownVT =
   let uint128 : ValueType = ValueType.Known KTUInt128
   let int : ValueType = ValueType.Known KTInt
   let float : ValueType = ValueType.Known KTFloat
+  let float32 : ValueType = ValueType.Known KTFloat32
+  let decimal : ValueType = ValueType.Known KTDecimal
   let char : ValueType = ValueType.Known KTChar
   let string : ValueType = ValueType.Known KTString
   let dateTime : ValueType = ValueType.Known KTDateTime
@@ -2624,6 +2644,8 @@ module Dval =
   let private vtUInt128 = KnownVT.uint128
   let private vtInt = KnownVT.int
   let private vtFloat = KnownVT.float
+  let private vtFloat32 = KnownVT.float32
+  let private vtDecimal = KnownVT.decimal
   let private vtChar = KnownVT.char
   let private vtString = KnownVT.string
   let private vtDateTime = KnownVT.dateTime
@@ -2667,6 +2689,8 @@ module Dval =
     | DUInt128 _ -> vtUInt128
     | DInt _ -> vtInt
     | DFloat _ -> vtFloat
+    | DFloat32 _ -> vtFloat32
+    | DDecimal _ -> vtDecimal
     | DChar _ -> vtChar
     | DString _ -> vtString
     | DDateTime _ -> vtDateTime
@@ -2779,6 +2803,8 @@ module Dval =
     | DUInt128 _
     | DInt _
     | DFloat _
+    | DFloat32 _
+    | DDecimal _
     | DChar _
     | DString _
     | DDateTime _
@@ -2844,6 +2870,8 @@ module Dval =
           | DUInt128 _
           | DInt _
           | DFloat _
+          | DFloat32 _
+          | DDecimal _
           | DChar _
           | DString _
           | DDateTime _
@@ -2970,6 +2998,8 @@ module Dval =
           | KTUInt128
           | KTInt
           | KTFloat
+          | KTFloat32
+          | KTDecimal
           | KTChar
           | KTString
           | KTUuid
@@ -4651,6 +4681,8 @@ module Types =
     | TUInt128
     | TInt
     | TFloat
+    | TFloat32
+    | TDecimal
     | TChar
     | TString
     | TUuid
@@ -4791,6 +4823,8 @@ module TypeReference =
     | TUInt128 -> Ply KnownVT.uint128
     | TInt -> Ply KnownVT.int
     | TFloat -> Ply KnownVT.float
+    | TFloat32 -> Ply KnownVT.float32
+    | TDecimal -> Ply KnownVT.decimal
     | TChar -> Ply KnownVT.char
     | TString -> Ply KnownVT.string
     | TUuid -> Ply KnownVT.uuid
@@ -4877,6 +4911,8 @@ module TypeReference =
     | KTUInt128 -> TUInt128
     | KTInt -> TInt
     | KTFloat -> TFloat
+    | KTFloat32 -> TFloat32
+    | KTDecimal -> TDecimal
     | KTChar -> TChar
     | KTString -> TString
     | KTUuid -> TUuid
@@ -4914,6 +4950,8 @@ module TypeReference =
     | TUInt128
     | TInt
     | TFloat
+    | TFloat32
+    | TDecimal
     | TChar
     | TString
     | TUuid

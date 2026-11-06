@@ -46,7 +46,7 @@ type ViewOptions =
     /// Children still recurse so the surrounding structure stays intact.
     exclude: Stdlib.Option.Option<String>
     /// When Some N, hide calls whose durationMs < N (keeps the slow stuff).
-    slowThresholdMs: Stdlib.Option.Option<Int>
+    slowThresholdMs: Stdlib.Option.Option<Int64>
     /// Print every logged call. Off, the log is cut at forty lines with a count of the rest,
     /// because a served request can log thousands and a screenful is what a person wanted.
     all: Bool }
@@ -62,7 +62,7 @@ val defaultViewOptions =
 
 /// English ordinal suffix for a non-negative integer. "1st", "2nd",
 /// "3rd", "4th"… honoring the 11/12/13 exception (always "th").
-let ordinalSuffix(n: Int): String =
+let ordinalSuffix(n: Int64): String =
   let mod100 = n % 100
   if mod100 >= 11 && mod100 <= 13 then "th"
   else
@@ -153,7 +153,7 @@ let parseViewOptions(
       { opts with slowThresholdMs = Stdlib.Option.Option.Some(10) },
       rest)
   | ["--slow-ms", numStr, ...rest] ->
-    match Stdlib.Int.parse(numStr) with
+    match Stdlib.Int64.parse(numStr) with
     | Ok(n) ->
       if n < 0 then
         Stdlib.Result.Result.Error($"--slow-ms is a number of milliseconds, so it cannot be negative (got {numStr})")
@@ -377,7 +377,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     Cli.printErr("Usage: traces list --route <substring> [limit] [--json]")
     { state with exitCode = 1 }
   | [ "list", limitStr ] ->
-    match Stdlib.Int.parse(limitStr) with
+    match Stdlib.Int64.parse(limitStr) with
     | Ok(limit) ->
       if wantsJson then executeListJson(state, limit) else executeList(state, limit)
     | Error(_) ->
@@ -386,7 +386,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | [ "list", "--fn", fnName ] ->
     executeListByFn(state, fnName, 20, wantsJson)
   | [ "list", "--fn", fnName, limitStr ] ->
-    match Stdlib.Int.parse(limitStr) with
+    match Stdlib.Int64.parse(limitStr) with
     | Ok(limit) -> executeListByFn(state, fnName, limit, wantsJson)
     | Error(_) ->
       Cli.printErr(parsePositionalErr(limitStr, "limit"))
@@ -394,7 +394,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | [ "list", "--route", route ] ->
     executeListByRoute(state, route, 20, wantsJson)
   | [ "list", "--route", route, limitStr ] ->
-    match Stdlib.Int.parse(limitStr) with
+    match Stdlib.Int64.parse(limitStr) with
     | Ok(limit) -> executeListByRoute(state, route, limit, wantsJson)
     | Error(_) ->
       Cli.printErr(parsePositionalErr(limitStr, "limit"))
@@ -408,7 +408,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | [ "stats" ] ->
     if wantsJson then executeStatsJson(state, 100) else executeStats(state, 100)
   | [ "stats", limitStr ] ->
-    match Stdlib.Int.parse(limitStr) with
+    match Stdlib.Int64.parse(limitStr) with
     | Ok(limit) ->
       if wantsJson then executeStatsJson(state, limit) else executeStats(state, limit)
     | Error(_) ->
@@ -422,7 +422,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     Cli.printErr("Usage: traces tail [N] --route <substring>")
     { state with exitCode = 1 }
   | [ "tail", nStr ] ->
-    match Stdlib.Int.parse(nStr) with
+    match Stdlib.Int64.parse(nStr) with
     | Ok(n) -> executeTail(state, Stdlib.Option.Option.None, n)
     | Error(_) ->
       Cli.printErr(parsePositionalErr(nStr, "trace number"))
@@ -431,7 +431,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     executeTail(state, Stdlib.Option.Option.Some(route), 1)
   | [ "tail", "--route", route, nStr ]
   | [ "tail", nStr, "--route", route ] ->
-    match Stdlib.Int.parse(nStr) with
+    match Stdlib.Int64.parse(nStr) with
     | Ok(n) -> executeTail(state, Stdlib.Option.Option.Some(route), n)
     | Error(_) ->
       Cli.printErr(parsePositionalErr(nStr, "trace number"))
@@ -445,7 +445,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     else
       executeFind(state, pattern, 20)
   | [ "find", pattern, limitStr ] ->
-    match Stdlib.Int.parse(limitStr) with
+    match Stdlib.Int64.parse(limitStr) with
     | Ok(limit) ->
       if wantsJson then executeFindJson(state, pattern, limit)
       else executeFind(state, pattern, limit)
@@ -462,7 +462,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     else executeFnCounts(state, 100, showAll)
   | [ "fns", limitStr ]
   | [ "fns", limitStr, "--all" ] ->
-    match Stdlib.Int.parse(limitStr) with
+    match Stdlib.Int64.parse(limitStr) with
     | Ok(limit) ->
       let showAll = Stdlib.List.contains(args, "--all")
       if wantsJson then executeFnCountsJson(state, limit, showAll)
@@ -475,7 +475,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     if wantsJson then executeHotspotsJson(state, 100)
     else executeHotspots(state, 100)
   | [ "hotspots", limitStr ] ->
-    match Stdlib.Int.parse(limitStr) with
+    match Stdlib.Int64.parse(limitStr) with
     | Ok(limit) ->
       if wantsJson then executeHotspotsJson(state, limit)
       else executeHotspots(state, limit)
@@ -608,7 +608,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           state.currentBranchId,
           LanguageTools.ProgramTypes.parsePackageLocation(fnName)))
        == Stdlib.Option.Option.None)
-      && Stdlib.List.isEmpty(Darklang.Tracing.Store.wentThrough(fnName, "", 1L))
+      && Stdlib.List.isEmpty(Darklang.Tracing.Store.wentThrough(fnName, "", 1))
     then
       Cli.printErr($"no function named {fnName} on this branch")
       { state with exitCode = 1 }
@@ -616,7 +616,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       if wantsJson then
         Cli.TraceVerbs.printTracesJson(
           state.currentBranchId,
-          Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 25L))
+          Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 25))
       else
         Cli.TraceVerbs.printCalls(state.currentBranchId, fnName)
       state
@@ -632,7 +632,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           init = "Darklang.Cli.TraceWatch.init"
           update = "Darklang.Cli.TraceWatch.update"
           render = "Darklang.Cli.TraceWatch.render"
-          every = Stdlib.Option.Option.Some(500L)
+          every = Stdlib.Option.Option.Some(500)
           keys =
             Stdlib.Option.Option.Some(
               "up/down pick a trace  |  esc quit  (nothing here performs an effect)") }
@@ -712,7 +712,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       { state with exitCode = 1 }
 
   | [ "delete", "--keep", nStr ] ->
-    match Stdlib.Int.parse(nStr) with
+    match Stdlib.Int64.parse(nStr) with
     | Ok(n) ->
       if confirmDestructive(
            autoConfirm,
@@ -828,7 +828,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 val limitTooSmall = "a limit is a number of traces, so it has to be 1 or more"
 
 
-let executeList(state: Cli.AppState, limit: Int): Cli.AppState =
+let executeList(state: Cli.AppState, limit: Int64): Cli.AppState =
   if limit < 1 then
     Cli.printErr(limitTooSmall)
     { state with exitCode = 1 }
@@ -840,7 +840,7 @@ let executeList(state: Cli.AppState, limit: Int): Cli.AppState =
 /// `traces list --json [N]` — same data as `traces list` but emitted as a
 /// JSON array of `{traceId, handler, timestamp}` objects, no headers or
 /// footers. Designed for piping into jq / scripts. Empty store prints `[]`.
-let executeListJson(state: Cli.AppState, limit: Int): Cli.AppState =
+let executeListJson(state: Cli.AppState, limit: Int64): Cli.AppState =
   if limit < 1 then
     Cli.printErr(limitTooSmall)
     { state with exitCode = 1 }
@@ -854,7 +854,7 @@ let executeListJson(state: Cli.AppState, limit: Int): Cli.AppState =
 let executeListByFn(
   state: Cli.AppState,
   typed: String,
-  limit: Int,
+  limit: Int64,
   jsonMode: Bool)
   : Cli.AppState =
   if Stdlib.String.trim(typed) == "" then
@@ -881,7 +881,7 @@ let executeListByFn(
       | [] ->
         Stdlib.printLine($"no kept trace made an effectful call matching {fnName}")
 
-        match Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 1L) with
+        match Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 1) with
         | [] ->
           (Cli.TraceVerbs.whyEmpty("run something that calls it"))
           |> Stdlib.List.iter(fun line ->
@@ -910,23 +910,14 @@ let executeListByFn(
 /// saying so buries the handful of names that are actually yours.
 let executeFnCounts(
   state: Cli.AppState,
-  traceLimit: Int,
+  traceLimit: Int64,
   showAll: Bool)
   : Cli.AppState =
   if traceLimit < 1 then
     Cli.printErr(limitTooSmall)
     { state with exitCode = 1 }
   else
-    // `Int` is arbitrary-precision, so this conversion really can fail. Refused by name rather
-    // than defaulted, because silently counting a different number of traces than you asked for
-    // is the kind of quiet wrongness this whole branch has been removing.
-    match Stdlib.Int.toInt64(traceLimit) with
-    | None ->
-      Cli.printErr("that limit is too large to be a number of traces")
-      { state with exitCode = 1 }
-    | Some(limit64) ->
-
-    let all = Darklang.Tracing.Store.fnCounts(limit64)
+    let all = Darklang.Tracing.Store.fnCounts(traceLimit)
 
     let rows =
       if showAll then
@@ -981,7 +972,7 @@ let executeFnCounts(
         let (name, runs) = row
         let padded = Stdlib.Text.padEndToWidth(display(name), width)
         let n = Stdlib.toString(runs)
-        let word = if runs == 1L then "run" else "runs"
+        let word = if runs == 1 then "run" else "runs"
         Stdlib.printLine($"  {padded}  {n} {word}"))
 
       Stdlib.printErrorLine("")
@@ -1015,21 +1006,15 @@ type FnRunsJson =
 
 let executeFnCountsJson(
   state: Cli.AppState,
-  traceLimit: Int,
+  traceLimit: Int64,
   showAll: Bool)
   : Cli.AppState =
   if traceLimit < 1 then
     Cli.printErr(limitTooSmall)
     { state with exitCode = 1 }
   else
-    match Stdlib.Int.toInt64(traceLimit) with
-    | None ->
-      Cli.printErr("that limit is too large to be a number of traces")
-      { state with exitCode = 1 }
-    | Some(limit64) ->
-
     let rows =
-      Darklang.Tracing.Store.fnCounts(limit64)
+      Darklang.Tracing.Store.fnCounts(traceLimit)
       |> Stdlib.List.filter(fun row ->
         showAll
         || Stdlib.Bool.not(Stdlib.String.startsWith(Stdlib.Tuple2.first(row), "Darklang.")))
@@ -1050,7 +1035,7 @@ let executeFnCountsJson(
 /// logged, so every name it prints is a builtin.
 let executeHotspots(
   state: Cli.AppState,
-  traceLimit: Int)
+  traceLimit: Int64)
   : Cli.AppState =
   if traceLimit < 1 then
     Cli.printErr(limitTooSmall)
@@ -1084,7 +1069,7 @@ let executeHotspots(
 /// piping. Empty store prints `[]`.
 let executeHotspotsJson(
   state: Cli.AppState,
-  traceLimit: Int)
+  traceLimit: Int64)
   : Cli.AppState =
   if traceLimit < 1 then
     Cli.printErr(limitTooSmall)
@@ -1105,7 +1090,7 @@ let executeHotspotsJson(
 
 
 /// Right-align a number in a field of `width` chars.
-let padNum(n: Int, width: Int): String =
+let padNum(n: Int64, width: Int64): String =
   Darklang.Tracing.Format.padNum(n, width)
 
 let jsonEscape(s: String): String = Darklang.Tracing.Format.jsonEscape(s)
@@ -1118,7 +1103,7 @@ let jsonEscape(s: String): String = Darklang.Tracing.Format.jsonEscape(s)
 let executeFind(
   state: Cli.AppState,
   pattern: String,
-  limit: Int)
+  limit: Int64)
   : Cli.AppState =
   if pattern == "" then
     Cli.printErr("find takes something to look for: part of an id, or of what was run")
@@ -1139,7 +1124,7 @@ let executeFind(
 let executeFindJson(
   state: Cli.AppState,
   pattern: String,
-  limit: Int)
+  limit: Int64)
   : Cli.AppState =
   if pattern == "" then
     Cli.printErr("find takes something to look for: part of an id, or of what was run")
@@ -1180,7 +1165,7 @@ let executeFindInspect(state: Cli.AppState, pattern: String): Cli.AppState =
 let executeTail(
   state: Cli.AppState,
   routeFilter: Stdlib.Option.Option<String>,
-  n: Int)
+  n: Int64)
   : Cli.AppState =
   let routeIsEmpty =
     match routeFilter with
@@ -1233,7 +1218,7 @@ let executeTail(
 /// trace count, total ms (sum of every fn-call duration in each trace),
 /// max single-call ms. Pairs with `traces hotspots` (per-fn aggregate)
 /// for "which routes are heavy?" vs "which fns are heavy?".
-let executeStats(state: Cli.AppState, limit: Int): Cli.AppState =
+let executeStats(state: Cli.AppState, limit: Int64): Cli.AppState =
   if limit < 1 then
     Cli.printErr(limitTooSmall)
     { state with exitCode = 1 }
@@ -1277,7 +1262,7 @@ let executeStats(state: Cli.AppState, limit: Int): Cli.AppState =
 /// `traces stats --json [limit]` — same data as a JSON array of
 /// `{handler, count, totalMs, maxMs}` objects, no headers/footers,
 /// for piping. Empty store prints `[]`.
-let executeStatsJson(state: Cli.AppState, limit: Int): Cli.AppState =
+let executeStatsJson(state: Cli.AppState, limit: Int64): Cli.AppState =
   if limit < 1 then
     Cli.printErr(limitTooSmall)
     { state with exitCode = 1 }
@@ -1385,7 +1370,7 @@ let executeFollow(
 let executeListByRoute(
   state: Cli.AppState,
   route: String,
-  limit: Int,
+  limit: Int64,
   jsonMode: Bool)
   : Cli.AppState =
   if Stdlib.String.trim(route) == "" then
@@ -1571,7 +1556,7 @@ let executeInspect(
       $"  started   {Cli.TraceVerbs.whenText(run.created)} ({run.created})")
     // Wall clock for the trace itself, which is not the sum of its calls: the gaps between them
     // are its own work. 0 for a trace still going, and for one recorded before this was kept.
-    if run.durationMs > 0L then
+    if run.durationMs > 0 then
       let ms = Stdlib.toString(run.durationMs)
       Stdlib.printLine($"  took      {ms}ms")
     else
@@ -1620,7 +1605,7 @@ let executeInspect(
       Stdlib.printLine(
         "  did       not kept (dropped to make room, or recording was off)")
     | Some(data) ->
-      let logged = data.functionCalls |> Stdlib.List.filter(fun c -> c.ord >= 0L)
+      let logged = data.functionCalls |> Stdlib.List.filter(fun c -> c.ord >= 0)
 
       // An empty log is its own answer and gets ONE line. Saying "0 calls with
       // effects" and then "(it touched nothing outside itself)" underneath is the
@@ -1656,7 +1641,7 @@ let executeInspect(
       // a trace that reads as complete when it was cut is the one thing a debugging aid must
       // not do.
       data.functionCalls
-      |> Stdlib.List.filter(fun c -> c.ord < 0L)
+      |> Stdlib.List.filter(fun c -> c.ord < 0)
       |> Stdlib.List.iter(fun c -> Stdlib.printLine($"  {c.fnName}"))
     state
 
@@ -1767,7 +1752,7 @@ let executeDelete(state: Cli.AppState, traceID: String): Cli.AppState =
 /// `traces delete --keep <N>` — keep the N most-recent traces, drop the
 /// rest (with their fn_calls). For bounded retention as the trace store
 /// grows; pair with `traces delete --all` for a full wipe.
-let executePruneKeep(state: Cli.AppState, keepN: Int): Cli.AppState =
+let executePruneKeep(state: Cli.AppState, keepN: Int64): Cli.AppState =
   if keepN < 0 then
     Cli.printErr("--keep takes a number of traces to keep, so it cannot be negative")
     { state with exitCode = 1 }

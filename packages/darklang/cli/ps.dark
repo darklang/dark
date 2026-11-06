@@ -65,7 +65,7 @@ let statusText(branchId: Uuid, status: Stdlib.Exec.Status): String =
 
 /// One row of the process tree. No `parent` column: the indentation is the parent, and
 /// `Table.print` pads to the widest cell, so a column that repeats the shape costs every row.
-let row(branchId: Uuid, depth: Int, p: Stdlib.Exec.Summary): List<String> =
+let row(branchId: Uuid, depth: Int64, p: Stdlib.Exec.Summary): List<String> =
   let indent = Stdlib.String.repeat("  ", depth)
   [ Cli.Text.shortId(p.id)
     Cli.Text.oneLineAt(30, $"{indent}{entryText(branchId, p.entry)}")
@@ -82,7 +82,7 @@ let treeRowsWithIds(branchId: Uuid, all: List<Stdlib.Exec.Summary>): List<(Uuid 
     match p.parent with
     | None -> true
     | Some(pid) -> Stdlib.Bool.not(Stdlib.List.contains(ids, pid))
-  let under(depth: Int, p: Stdlib.Exec.Summary): List<(Uuid * List<String>)> =
+  let under(depth: Int64, p: Stdlib.Exec.Summary): List<(Uuid * List<String>)> =
     let children =
       all |> Stdlib.List.filter(fun c -> c.parent == Stdlib.Option.Option.Some(p.id))
     Stdlib.List.prepend(
@@ -140,12 +140,12 @@ let startedAgoText(started: DateTime): String =
 /// The other Dark processes on this machine (a serve, a daemon, another terminal), oldest
 /// first, as (pid, the cells of its row); this process is left out, since its own table is
 /// printed above. The full command line is in `ps show`: it is longer than a terminal.
-let machineEntries(): List<(Int * List<String>)> =
+let machineEntries(): List<(Int64 * List<String>)> =
   let me = Stdlib.Cli.Sys.currentPid()
   Stdlib.Exec.machineList()
-  |> Stdlib.List.filter(fun m -> (Stdlib.Int.fromInt64(m.pid)) != me)
+  |> Stdlib.List.filter(fun m -> (m.pid) != me)
   |> Stdlib.List.map(fun m ->
-    (Stdlib.Int.fromInt64(m.pid),
+    (m.pid,
      [ Stdlib.toString(m.pid)
        Cli.Text.oneLineAt(28, m.title)
        (if m.branch == "" then "main" else m.branch)
@@ -203,8 +203,8 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
       Stdlib.printLine($"  status        {statusText(branchId, s.status)}")
       Stdlib.printLine($"  started       {startedAgoText(s.started)}")
       Stdlib.printLine($"  instructions  {Stdlib.toString(s.instructionsTaken)}")
-      Stdlib.printLine($"  memory        {Cli.Text.bytes(Stdlib.Int.fromInt64(s.allocated))} allocated")
-      if s.inflight > 0L then
+      Stdlib.printLine($"  memory        {Cli.Text.bytes(s.allocated)} allocated")
+      if s.inflight > 0 then
         Stdlib.printLine($"  inflight      {Stdlib.toString(s.inflight)} reads")
       else
         ()
@@ -228,10 +228,10 @@ let printShow(branchId: Uuid, prefix: String): Bool = printShowWith(branchId, pr
 let machineByPid(
   target: String)
   : Stdlib.Option.Option<Stdlib.Exec.MachineProcess> =
-  match Stdlib.Int.parse(target) with
+  match Stdlib.Int64.parse(target) with
   | Ok(pid) ->
     Stdlib.Exec.machineList()
-    |> Stdlib.List.filter(fun m -> (Stdlib.Int.fromInt64(m.pid)) == pid)
+    |> Stdlib.List.filter(fun m -> (m.pid) == pid)
     |> Stdlib.List.head
   | Error(_) -> Stdlib.Option.Option.None
 
@@ -256,10 +256,10 @@ let printMachineShow(target: String, json: Bool): Bool =
 /// Signal another Dark process on this machine. `cancel` is INT, the Ctrl-C path: a traced run
 /// is suspended (`dark traces` keeps it), a daemon or a serve ends. `kill` is KILL.
 let signalMachine(
-  pid: Int,
+  pid: Int64,
   hard: Bool)
   : Stdlib.Result.Result<String, String> =
-  let known = Stdlib.Exec.machineList() |> Stdlib.List.filter(fun m -> (Stdlib.Int.fromInt64(m.pid)) == pid)
+  let known = Stdlib.Exec.machineList() |> Stdlib.List.filter(fun m -> (m.pid) == pid)
   let pidText = Stdlib.toString(pid)
   match known with
   | [] ->
@@ -296,7 +296,7 @@ let stopLocal(
 
 /// A pid names another Dark process on this machine; anything else is an id prefix in this one.
 let stop(target: String, hard: Bool): Stdlib.Result.Result<String, String> =
-  match Stdlib.Int.parse(target) with
+  match Stdlib.Int64.parse(target) with
   | Ok(pid) -> signalMachine(pid, hard)
   | Error(_) -> stopLocal(target, hard)
 
@@ -309,7 +309,7 @@ let printJson(): Unit =
   let me = Stdlib.Cli.Sys.currentPid()
   let machine =
     Stdlib.Exec.machineList()
-    |> Stdlib.List.filter(fun m -> (Stdlib.Int.fromInt64(m.pid)) != me)
+    |> Stdlib.List.filter(fun m -> (m.pid) != me)
   Stdlib.printLine(
     (Stdlib.Json.serialize<PsSnapshot>(
       PsSnapshot { thisInstance = processes, machine = machine })))
@@ -332,7 +332,7 @@ let execute(state: AppState, args: List<String>): AppState =
           init = "Darklang.Cli.Ps.Watch.init"
           update = "Darklang.Cli.Ps.Watch.update"
           render = "Darklang.Cli.Ps.Watch.render"
-          every = Stdlib.Option.Option.Some(500L)
+          every = Stdlib.Option.Option.Some(500)
           keys =
             Stdlib.Option.Option.Some("up/down move  |  c cancel  |  k kill  |  esc quit") }
     // `--watch` IS the opt-in: a panel whose whole job is to repaint. It follows the store for
@@ -425,13 +425,13 @@ let help(_state: AppState): String =
 module Watch =
   type Row =
     /// Another Dark process on this machine, by pid.
-    | Machine of pid: Int * cells: List<String>
+    | Machine of pid: Int64 * cells: List<String>
     /// A process in this instance, by id.
     | Local of id: Uuid * cells: List<String>
 
   type Model =
     { rows: List<Row>
-      cursor: Int
+      cursor: Int64
       /// What the last `c`/`k` said, shown under the tables until the next key.
       note: String }
 
@@ -484,7 +484,7 @@ module Watch =
         | _ -> { m with note = "" }
 
   let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
-    let mark(i: Int, cells: List<String>): List<String> =
+    let mark(i: Int64, cells: List<String>): List<String> =
       match cells with
       | [first, ...rest] -> Stdlib.List.prepend(rest, (if i == m.cursor then "> " else "  ") + first)
       | [] -> []

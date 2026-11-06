@@ -241,12 +241,12 @@ let help(_state: Cli.AppState): String =
     "Examples, in order (each runs as written):"
     "  dark type Me.Demo.Point '{ x: Int64, y: Int64 }'"
     "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
-    "  dark eval 'Stdlib.toString(Me.Demo.Point { x = 3L, y = 4L })'"
+    "  dark eval 'Stdlib.toString(Me.Demo.Point { x = 3, y = 4 })'"
     ""
     "  # `+` on a type of your own:"
     "  dark type Me.Demo.Vec '{ dx: Int64, dy: Int64 }'"
     "  dark impl Me.Demo 'Add for Vec = let add(a: Vec, b: Vec): Vec = Vec { dx = a.dx + b.dx, dy = a.dy + b.dy }'"
-    "  dark eval 'Me.Demo.Vec { dx = 1L, dy = 2L } + Me.Demo.Vec { dx = 3L, dy = 4L }'"
+    "  dark eval 'Me.Demo.Vec { dx = 1, dy = 2 } + Me.Demo.Vec { dx = 3, dy = 4 }'"
     ""
     "  # Naming a fn that already exists, instead of writing one:"
     "  dark fn Me.Demo.vecText '(v: Me.Demo.Vec): String = Stdlib.toString(v.dx) + \",\" + Stdlib.toString(v.dy)'"
@@ -273,7 +273,7 @@ let help(_state: Cli.AppState): String =
     "  impl<'a: ToString> ToString for Box<'a> ="
     "    let toString(b: Box<'a>): String = \"box of \" + Stdlib.toString(b.item)"
     "  EOF"
-    "  dark eval 'Stdlib.toString(Me.Boxes.Box { item = 7L })'"
+    "  dark eval 'Stdlib.toString(Me.Boxes.Box { item = 7 })'"
     ""
   ] |> Stdlib.String.join("\n")
 

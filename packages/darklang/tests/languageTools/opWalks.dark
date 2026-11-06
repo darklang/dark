@@ -36,13 +36,13 @@ let declare(
 
 
 let one(): Darklang.LanguageTools.ProgramTypes.Expr =
-  Darklang.LanguageTools.ProgramTypes.Expr.EInt64(1L, 1L)
+  Darklang.LanguageTools.ProgramTypes.Expr.EInt64(1, 1)
 
 
 /// A call to <param name>, which resolves to nothing.
 let unresolvedCall(name: String): Darklang.LanguageTools.ProgramTypes.Expr =
   Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
-    1L,
+    1,
     Darklang.LanguageTools.ProgramTypes.NameResolution
       { originalName = Stdlib.String.split(name, ".")
         resolved =
@@ -76,10 +76,10 @@ test twoNamesAreNotADuplicate =
 test unresolvedNamesAreCollectedOnce =
   let body =
     Darklang.LanguageTools.ProgramTypes.Expr.EStatement(
-      1L,
+      1,
       unresolvedCall("Stdlib.List.hed"),
       Darklang.LanguageTools.ProgramTypes.Expr.EStatement(
-        1L,
+        1,
         unresolvedCall("Nope.x"),
         unresolvedCall("Stdlib.List.hed")
       )

@@ -4,7 +4,7 @@
 // the single-process workloads never touch -- so the handler itself should not dominate. `/json`
 // does a little real work so the number isn't purely framing overhead.
 
-type Item = { id: Int, name: String, tags: List<String> }
+type Item = { id: Int64, name: String, tags: List<String> }
 
 let helloFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
   Stdlib.Http.responseWithText("hello", 200)
@@ -38,10 +38,10 @@ let handlers =
 let router(req: Stdlib.Http.Request): Stdlib.Http.Response =
   Stdlib.HttpServer.routeRequest(handlers, req)
 
-let port(): Int =
+let port(): Int64 =
   match Stdlib.Env.get("PERF_HTTP_PORT") with
   | Some(s) ->
-    match Stdlib.Int.parse(s) with
+    match Stdlib.Int64.parse(s) with
     | Ok(n) -> n
     | Error(_) -> 9095
   | None -> 9095
@@ -59,9 +59,9 @@ let main(): Int64 =
       router,
       fun () -> Stdlib.printLine("LISTENING"))
   with
-  | Ok(_) -> 0L
+  | Ok(_) -> 0
   | Error(e) ->
     Stdlib.printLine("serve failed: " + e)
-    1L
+    1
 
 main()

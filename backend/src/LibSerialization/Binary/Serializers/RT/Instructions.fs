@@ -78,6 +78,12 @@ module MatchPattern =
     | MPFloat value ->
       w.Write 12uy
       Float.write w value
+    | MPFloat32 value ->
+      w.Write 23uy
+      Float32.write w value
+    | MPDecimal value ->
+      w.Write 24uy
+      Decimal.write w value
     | MPChar value ->
       w.Write 13uy
       String.write w value
@@ -129,6 +135,8 @@ module MatchPattern =
     | 10uy -> MPInt128(System.Int128.Parse(String.read r))
     | 11uy -> MPUInt128(System.UInt128.Parse(String.read r))
     | 12uy -> MPFloat(Float.read r)
+    | 23uy -> MPFloat32(Float32.read r)
+    | 24uy -> MPDecimal(Decimal.read r)
     | 13uy -> MPChar(String.read r)
     | 14uy -> MPString(String.read r)
     | 15uy ->

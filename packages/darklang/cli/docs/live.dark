@@ -12,7 +12,7 @@ running with the error beside it.
 Any module with these three is a view:
 
   module My.Counter
-  type Model = { count: Int }
+  type Model = { count: Int64 }
   type Msg = | Inc
   let init(): Model = Model { count = 0 }
   let update(m: Model, e: Darklang.Cli.LiveView.Host.Event<Msg>): Model = ...
@@ -62,7 +62,7 @@ recording keeps every impure call, and the pure ones are recomputed.
     My.Counter.render follows
   dark val My.Counter.title 3
   ! Updated value My.Counter.title
-    My.Counter.render no longer type-checks: expected String, got Int (argument 2)
+    My.Counter.render no longer type-checks: expected String, got Int64 (argument 2)
 
 A view on the broken version shows a band under its last good frame:
 `My.Counter.render: still on the last good version; the newest has a type

@@ -16,7 +16,7 @@ module ParseError =
     module Part =
       type Part =
         | Root
-        | Index of Int
+        | Index of Int64
         | Field of String
 
       let toString(part: Part): String =
@@ -40,7 +40,7 @@ module ParseError =
     | EnumExtraField of rawJson: String * JsonPath.JsonPath
     | EnumMissingField of
       LanguageTools.RuntimeTypes.TypeReference *
-      index: Int *
+      index: Int64 *
       JsonPath.JsonPath
     | EnumInvalidCasename of
       LanguageTools.RuntimeTypes.TypeReference *

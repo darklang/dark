@@ -1,21 +1,21 @@
 // Records and enums: construction, field access, functional update, and matching. Every Dark
 // program that models anything does this constantly, and none of it goes through the list path.
-let iters(): Int =
+let iters(): Int64 =
   match Stdlib.Env.get("PERF_ITERS") with
   | Some(s) ->
-    match Stdlib.Int.parse(s) with
+    match Stdlib.Int64.parse(s) with
     | Ok(n) -> n
     | Error(_) -> 0
   | None -> 0
 
-type Point = { x: Int, y: Int, label: String }
+type Point = { x: Int64, y: Int64, label: String }
 
 type Shape =
   | Dot of Point
   | Seg of Point * Point
   | Group of List<Shape>
 
-let span(s: Shape): Int =
+let span(s: Shape): Int64 =
   match s with
   | Dot(p) -> p.x + p.y
   | Seg(a, b) -> (b.x - a.x) + (b.y - a.y)
@@ -23,13 +23,13 @@ let span(s: Shape): Int =
 
 let step(p: Point): Point = { p with x = p.x + 1, y = p.y + 2 }
 
-let work(n: Int): Int =
+let work(n: Int64): Int64 =
   let p = Point { x = n, y = n + 1, label = "p" }
   let q = step(step(p))
   let shape = Shape.Group([Shape.Dot(p), Shape.Seg(p, q), Shape.Dot(q)])
   (span(shape)) + q.x
 
-let repeat(times: Int, acc: Int): Int =
+let repeat(times: Int64, acc: Int64): Int64 =
   if times <= 0 then acc else repeat(times - 1, acc + (work(times)))
 
 let _warm = repeat(20, 0)

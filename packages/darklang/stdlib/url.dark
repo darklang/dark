@@ -21,7 +21,7 @@ type Url =
   { scheme: Stdlib.Option.Option<String>
     userinfo: Stdlib.Option.Option<String>
     host: Stdlib.Option.Option<String>
-    port: Stdlib.Option.Option<Int>
+    port: Stdlib.Option.Option<Int64>
     path: String
     query: Stdlib.Option.Option<String>
     fragment: Stdlib.Option.Option<String> }
@@ -140,7 +140,7 @@ let isIPv4(s: String): Bool =
     isDigits(o)
     && (Stdlib.String.length(o)) <= 3
     && (o == "0" || !(Stdlib.String.startsWith(o, "0")))
-    && (match Stdlib.Int.parse(o) with
+    && (match Stdlib.Int64.parse(o) with
         | Ok(n) -> n <= 255
         | Error(_) -> false))
 
@@ -210,11 +210,11 @@ let parseIPLiteral(inner: String): Stdlib.Option.Option<String> =
 /// An empty port ({{http://x:/}}) is allowed by RFC 3986 and means no port.
 let parsePort(
   s: String)
-  : Stdlib.Result.Result<Stdlib.Option.Option<Int>, ParseError> =
+  : Stdlib.Result.Result<Stdlib.Option.Option<Int64>, ParseError> =
   if s == "" then
     Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
   else
-    match Stdlib.Int.parse(s) with
+    match Stdlib.Int64.parse(s) with
     | Ok(n) when isDigits(s) && (Stdlib.String.length(s)) <= 5 && n <= 65535 ->
       Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(n))
     | _ -> Stdlib.Result.Result.Error(ParseError.InvalidPort(s))
@@ -224,7 +224,7 @@ let parsePort(
 let parseAuthority(
   strict: Bool,
   authority: String)
-  : Stdlib.Result.Result<(Stdlib.Option.Option<String> * Stdlib.Option.Option<String> * Stdlib.Option.Option<Int>), ParseError> =
+  : Stdlib.Result.Result<(Stdlib.Option.Option<String> * Stdlib.Option.Option<String> * Stdlib.Option.Option<Int64>), ParseError> =
   // The LAST `@`, so a stray one in the userinfo is reported as a bad character
   // there instead of turning up in the host.
   let (userinfo, hostPort) =
@@ -632,6 +632,6 @@ let percentEncode(s: String): String =
   |> Stdlib.Bytes.toList
   |> Stdlib.List.map(fun b ->
     match Stdlib.Char.fromCodepoint(Stdlib.UInt32.fromUInt8(b)) with
-    | Some(c) when b < 128uy && isUnreserved(c) -> Stdlib.String.fromChar(c)
+    | Some(c) when b < 128u8 && isUnreserved(c) -> Stdlib.String.fromChar(c)
     | _ -> "%" + Stdlib.Hex.encode(Stdlib.Bytes.fromList([ b ])))
   |> Stdlib.String.join("")

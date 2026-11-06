@@ -10,7 +10,7 @@ type State =
     /// Types assigned to inference variables; assignments may refer to other variables.
     subst: Dict<Model.Var, Model.Ty>
     /// Counter for Fresh variables, separate from unknowns identified by syntax nodes.
-    nextVariableId: Int
+    nextVariableId: Int64
     /// Reusable local type schemes, keyed by the pattern node that introduced each name.
     schemes: Dict<Int64, Model.Scheme>
     /// Requirements waiting for more type information, most recently queued first.
@@ -152,7 +152,7 @@ let markAllUnknownsAsError(s: State, tys: List<Model.Ty>): State =
 /// rather than by the native stack running out. `NodeIds.maxDeclarationDepth` bounds input.
 /// A function, not a `val`: the checker runs during `reloadPackages`, before
 /// `evaluateAllValues`, so reading a package value there raises `ValueNotFound`.
-let maxUnifyDepth(): Int64 = 1000L
+let maxUnifyDepth(): Int64 = 1000
 
 /// Require actual to agree with expected, assigning unknowns where possible.
 /// Use at and site to locate and explain any mismatch.
@@ -163,7 +163,7 @@ let unify(
   expected: Model.Ty,
   actual: Model.Ty)
   : State =
-  unifyIn(0L, s, at, site, expected, actual)
+  unifyIn(0, s, at, site, expected, actual)
 
 /// `unify`, <param depth> levels into a comparison.
 ///
@@ -194,7 +194,7 @@ let unifyIn(
         { s with gaveUpOnDepth = true },
         Types.warning(IssueCode.UnsupportedConstruct, at, Context.DeclarationTooDeep))
   else
-    unifyDifferent(depth + 1L, s, at, site, expected, actual)
+    unifyDifferent(depth + 1, s, at, site, expected, actual)
 
 /// Compare types after following assignments and ruling out exact equality.
 /// Unknowns can be assigned, matching containers compare their components, and
@@ -251,7 +251,7 @@ let unifyAll(
   expected: List<Model.Ty>,
   actual: List<Model.Ty>)
   : State =
-  unifyAllIn(0L, s, at, site, expected, actual)
+  unifyAllIn(0, s, at, site, expected, actual)
 
 /// `unifyAll`, <param depth> levels into a comparison.
 let unifyAllIn(
@@ -957,7 +957,7 @@ let queueDeferred(s: State, c: Model.Constraint): State =
 
 /// Count pending requirements plus arguments still waiting to be applied.
 /// A partially resolved call can make progress without removing its Apply requirement.
-let pendingWork(pending: List<Model.Constraint>): Int =
+let pendingWork(pending: List<Model.Constraint>): Int64 =
   Stdlib.List.fold(pending, 0, fun(count, c) ->
     match c with
     | Apply(_, _, args, _) -> count + 1 + Stdlib.List.length(args)
@@ -1774,7 +1774,7 @@ let newEnum(
 /// Parse tuple-element access using the runtime's field-name rules: one to nine
 /// digits with no leading zero. The resulting index starts at one; the caller
 /// checks whether that position exists in the tuple.
-let tupleIndexOfFieldName(field: String): Stdlib.Option.Option<Int> =
+let tupleIndexOfFieldName(field: String): Stdlib.Option.Option<Int64> =
   let chars = Stdlib.String.toList(field)
 
   match chars with
@@ -1785,7 +1785,7 @@ let tupleIndexOfFieldName(field: String): Stdlib.Option.Option<Int> =
       && Stdlib.List.length(chars) <= 9
       && Stdlib.List.all(chars, fun c -> Stdlib.Char.isDigit(c))
     then
-      Stdlib.Result.toOption(Stdlib.Int.parse(field))
+      Stdlib.Result.toOption(Stdlib.Int64.parse(field))
     else
       Stdlib.Option.Option.None
 
@@ -2028,7 +2028,7 @@ let enumPattern(
 // Check operator operands, builtin unwrap, and postfix ?.
 // --------------------
 
-/// Recognize integer types of every supported width, plus Float.
+/// Recognize integer types of every supported width, plus Float and Decimal.
 let isNumeric(t: Model.Ty): Bool =
   match t with
   | TInt8
@@ -2042,10 +2042,12 @@ let isNumeric(t: Model.Ty): Bool =
   | TInt128
   | TUInt128
   | TInt
-  | TFloat -> true
+  | TFloat
+  | TFloat32
+  | TDecimal -> true
   | _ -> false
 
-/// Recognize signed integers and Float, the types accepted by unary minus.
+/// Recognize signed integers, Float and Decimal, the types accepted by unary minus.
 let isSignedNumeric(t: Model.Ty): Bool =
   match t with
   | TInt8
@@ -2054,11 +2056,13 @@ let isSignedNumeric(t: Model.Ty): Bool =
   | TInt64
   | TInt128
   | TInt
-  | TFloat -> true
+  | TFloat
+  | TFloat32
+  | TDecimal -> true
   | _ -> false
 
 /// <param subject> as `implApplies` needs it: every inference variable and alias resolved at
-/// every depth. `expand` only decides the head, so `Box { f = 1L }` is still `Box<?t>` there.
+/// every depth. `expand` only decides the head, so `Box { f = 1 }` is still `Box<?t>` there.
 /// An expansion that fails leaves the aliases, which can only cost a match, never invent one.
 let decidedSubject(s: State, subject: Model.Ty): Model.Ty =
   match Types.expandDeep(s.env, s.subst, Stdlib.Option.Option.None, [], subject) with

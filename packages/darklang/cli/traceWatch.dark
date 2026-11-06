@@ -34,7 +34,7 @@ type Model =
     /// render that asks the time is a panel that shows an error instead of itself. `reload` is
     /// where effects are allowed, and it already runs on every tick, move and edit.
     traceLines: List<String>
-    cursor: Int
+    cursor: Int64
     /// The selected trace's code, already annotated. Recomputed on a move, a tick and an edit,
     /// because all three can change it: a different trace, a new one arriving, different code.
     source: List<String>
@@ -46,7 +46,7 @@ type Model =
     problem: Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson>
     /// The store's change counter when this was built. A tick that finds it unmoved has
     /// nothing new to show, so it skips the replay rather than redoing it twice a second.
-    storeVersion: Int }
+    storeVersion: Int64 }
 
 
 type Msg = | Refresh
@@ -107,9 +107,9 @@ let annotate(
 /// onto a different trace while you were reading it.
 let pickCursor(
   ids: List<String>,
-  cursor: Int,
+  cursor: Int64,
   keep: Stdlib.Option.Option<String>)
-  : Int =
+  : Int64 =
   let found =
     match keep with
     | Some(id) -> Stdlib.List.findFirstIndex(ids, fun i -> i == id)
@@ -144,12 +144,12 @@ let reload(
   accountID: Stdlib.Option.Option<Uuid>,
   branchId: Uuid,
   fn: String,
-  cursor: Int,
+  cursor: Int64,
   keep: Stdlib.Option.Option<String>)
   : Model =
   // Read first, so a write that lands while this runs moves it past what was read.
   let storeVersion = Stdlib.Live.version()
-  let traces = Darklang.Tracing.Store.wentThroughNamed(branchId, fn, 25L)
+  let traces = Darklang.Tracing.Store.wentThroughNamed(branchId, fn, 25)
   let cursor = pickCursor(traces |> Stdlib.List.map(fun r -> r.id), cursor, keep)
   let (source, problem) = annotate(accountID, branchId, fn, Stdlib.List.getAt(traces, cursor))
 

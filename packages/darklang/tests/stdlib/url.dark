@@ -10,7 +10,7 @@ let hostOf(
 
 let portOf(
   s: String)
-  : Stdlib.Result.Result<Stdlib.Option.Option<Int>, Stdlib.Url.ParseError> =
+  : Stdlib.Result.Result<Stdlib.Option.Option<Int64>, Stdlib.Url.ParseError> =
   Stdlib.Url.parse(s) |> Stdlib.Result.map(fun u -> u.port)
 
 let pathOf(s: String): Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
@@ -815,7 +815,7 @@ test elmUrlPercent =
 // have instead of a builder.
 let at(
   host: Stdlib.Option.Option<String>,
-  port: Stdlib.Option.Option<Int>,
+  port: Stdlib.Option.Option<Int64>,
   path: String,
   params: List<(String * String)>,
   fragment: Stdlib.Option.Option<String>)

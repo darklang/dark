@@ -1,12 +1,9 @@
 module Darklang.Stdlib.Int
 
-// `Int` is the default, arbitrary-precision integer (a bare literal like `1`).
-// The operators (`+`, `-`, `<`, ...) work on it; this
-// module provides the same operations as named functions, plus parse/stringify
-// and conversions to/from the fixed-width integer types.
-//
-// Note: because this file is parsed by the F# host parser, every `Int` literal
-// below needs the `I` suffix (a bare `1` would be an `Int32` here).
+// `Int` is the arbitrary-precision integer, written with a `z` suffix: `1z` (`z`
+// for ℤ, the integers). A bare `1` is an Int64. The operators (`+`, `-`, `<`,
+// ...) work on it; this module provides the same operations as named functions,
+// plus parse/stringify and conversions to/from the fixed-width integer types.
 
 type ParseError = | BadFormat
 
@@ -21,7 +18,7 @@ impl Modulo for Int =
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
-/// For example, {{Int.remainder(15, 6) == Ok(3)}}. The remainder will be
+/// For example, {{Int.remainder(15z, 6z) == Ok(3z)}}. The remainder will be
 /// negative only if {{<var value> < 0}}.
 /// The sign of <param divisor> doesn't influence the outcome.
 /// Returns an {{Error}} if <param divisor> is {{0}}.
@@ -187,13 +184,13 @@ impl ToString for Int =
   let toString(int: Int): String = Builtin.intToString(int)
 
 impl Zero for Int =
-  let zero(): Int = 0
+  let zero(): Int = 0z
 
 impl One for Int =
-  let one(): Int = 1
+  let one(): Int = 1z
 
 
 /// What a fixed-width `checked` function returns where the operator would wrap:
-/// `Int8.checkedAdd(127y, 1y)` is {{Error Overflow}}. Going below 0 on an unsigned
+/// `Int8.checkedAdd(127s8, 1s8)` is {{Error Overflow}}. Going below 0 on an unsigned
 /// type is an Overflow too. <type Int> itself never overflows.
 type Overflow = | Overflow

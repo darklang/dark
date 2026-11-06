@@ -72,7 +72,7 @@ let findFirst(list: List<'a>, fn: 'a -> Bool): Option.Option<'a> =
 
 /// Returns the index of the first element in <param list> for which <param fn>
 /// returns true. Returns {{None}} if no such element exists.
-let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int> =
+let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int64> =
   list
   |> indexedMap(fun(i, item) -> (i, item))
   |> findFirst(fun((_i, item)) -> fn(item))
@@ -81,7 +81,7 @@ let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int> =
 
 /// Returns the zero-based index of the first element in <param list> equal to
 /// <param x>, wrapped in {{Some}}. Returns {{None}} if no such element exists.
-let indexOf(list: List<'a>, x: 'a): Option.Option<Int> =
+let indexOf(list: List<'a>, x: 'a): Option.Option<Int64> =
   findFirstIndex(list, fun item -> item == x)
 
 
@@ -92,7 +92,7 @@ let contains(list: List<'a>, value: 'a): Bool =
 
 /// Returns a list containing <param val> repeated <param times> times
 let repeat(
-  times: Int,
+  times: Int64,
   value: 'a)
   : Result.Result<List<'a>, String> =
   if times < 0 then
@@ -103,13 +103,13 @@ let repeat(
 
 
 /// Returns the number of values in <param list>
-let ``length``(list: List<'a>): Int =
+let ``length``(list: List<'a>): Int64 =
   Builtin.listLength(list)
 
 
 /// Returns a list of numbers where each element is {{1}} larger than the
 /// previous. You provide the <param lowest> and <param highest> numbers in the list.
-let range(lowest: Int, highest: Int): List<Int> =
+let range(lowest: Int64, highest: Int64): List<Int64> =
   Builtin.listRange(lowest, highest)
 
 
@@ -261,7 +261,7 @@ let sortWith(list: List<'a>, fn: ('a, 'a) -> Ordering): List<'a> =
 
   // Halves are contiguous runs, not alternating values, so every value in
   // `left` came before every value in `right`.
-  let mergeSort(lst: List<'a>, len: Int): List<'a> =
+  let mergeSort(lst: List<'a>, len: Int64): List<'a> =
     if len <= 1 then
       lst
     else
@@ -319,7 +319,7 @@ let remove(list: List<'a>, x: 'a): List<'a> =
 
 /// Removes the element at zero-based index <param i> from <param list>.
 /// Returns the list unchanged if <param i> is negative or out of range.
-let removeAt(list: List<'a>, i: Int): List<'a> =
+let removeAt(list: List<'a>, i: Int64): List<'a> =
   if i < 0 then
     list
   else
@@ -330,7 +330,7 @@ let removeAt(list: List<'a>, i: Int): List<'a> =
 
 
 /// Drops the first <param count> values from <param list>
-let drop(list: List<'a>, count: Int): List<'a> =
+let drop(list: List<'a>, count: Int64): List<'a> =
   if count <= 0 then
     list
   else
@@ -357,7 +357,7 @@ let dropLast(list: List<'a>): List<'a> =
 
 
 /// Drops all but the first <param count> values from <param list>
-let take(list: List<'a>, count: Int): List<'a> =
+let take(list: List<'a>, count: Int64): List<'a> =
   Builtin.listTake(list, count)
 
 
@@ -391,7 +391,7 @@ let parallelMap(list: List<'a>, fn: 'a -> 'b): List<'b> =
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
 /// returning a list of the results of those calls.
 /// Consider <fn map> if you don't need the index.
-let indexedMap(list: List<'a>, fn: (Int, 'a) -> 'b): List<'b> =
+let indexedMap(list: List<'a>, fn: (Int64, 'a) -> 'b): List<'b> =
   Builtin.listIndexedMap(list, fn)
 
 
@@ -414,8 +414,8 @@ let map2shortest(
 /// What <fn zip> and <fn map2> return when their two lists differ in length: the
 /// length of each.
 type LengthMismatch =
-  { left: Int
-    right: Int }
+  { left: Int64
+    right: Int64 }
 
 
 /// If the lists are the same length, returns {{Ok list}} formed by mapping
@@ -491,7 +491,7 @@ let unzip(pairs: List<('a * 'b)>): (List<'a> * List<'b>) =
 
 /// Returns {{Some value}} at <param index> in <param list> if <param index> is
 /// less than the length of the list otherwise returns {{None}}.
-let getAt(list: List<'a>, index: Int): Option.Option<'a> =
+let getAt(list: List<'a>, index: Int64): Option.Option<'a> =
   Builtin.listGetAt(list, index)
 
 
@@ -505,7 +505,7 @@ type IndexError =
 /// Returns {{Error IndexOutOfBounds}} if the resolved index is outside the list.
 let setAt(
   list: List<'a>,
-  index: Int,
+  index: Int64,
   value: 'a)
   : Result.Result<List<'a>, IndexError> =
   let listLength = length(list)
@@ -525,7 +525,7 @@ let setAt(
 let randomElement(list: List<'a>): Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
-  | _ -> getAt(list, Stdlib.Int.random(0, length(list) - 1))
+  | _ -> getAt(list, Stdlib.Int64.random(0, length(list) - 1))
 
 
 /// Returns <param list> in a random order using Fisher–Yates.
@@ -537,7 +537,7 @@ let shuffle(list: List<'a>): List<'a> =
   // before it.
   let shuffled =
     fold(reverse(range(1, last)), start, fun(items, i) ->
-      let j = Stdlib.Int.random(0, i)
+      let j = Stdlib.Int64.random(0, i)
       match (Stdlib.Dict.get(items, i), Stdlib.Dict.get(items, j)) with
       | (Some(atI), Some(atJ)) -> Stdlib.Dict.set(Stdlib.Dict.set(items, i, atJ), j, atI)
       | _ -> items)
@@ -599,7 +599,7 @@ type ChunkBySizeError = | SizeMustBeGreaterThanZero
 /// If <param size> is less than or equal to zero, returns an error
 let chunkBySize(
   list: List<'a>,
-  size: Int)
+  size: Int64)
   : Result.Result<List<List<'a>>, ChunkBySizeError> =
   if size <= 0 then
     Result.Result.Error(

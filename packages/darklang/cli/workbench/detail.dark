@@ -467,7 +467,7 @@ let traceDetail(state: State): String =
         match Darklang.Tracing.Store.view(trace.id) with
         | None -> [ "log: not kept (dropped to make room, or recording was off)" ]
         | Some(data) ->
-          let logged = data.functionCalls |> Stdlib.List.filter(fun c -> c.ord >= 0L)
+          let logged = data.functionCalls |> Stdlib.List.filter(fun c -> c.ord >= 0)
           match logged with
           | [] -> [ "log: this trace touched nothing outside itself" ]
           | _ ->
@@ -551,7 +551,7 @@ let tracesText(state: State): String =
     // `wentThrough` reads the names-only index every recorded trace writes, which is what
     // `dark traces calls <fn>` uses and what this pane means.
     let rows =
-      Darklang.Tracing.Store.wentThroughNamed(state.branchId, fullName, 30L)
+      Darklang.Tracing.Store.wentThroughNamed(state.branchId, fullName, 30)
       |> Stdlib.List.map(fun t -> "  " + t.entry + "  ·  " + t.created)
     // Empty means one of two things, and `traces list` already knows which:
     // nothing has called it, or recording is off (the default) so nothing

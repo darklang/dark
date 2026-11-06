@@ -43,24 +43,24 @@ type EEnum2UInt128 = EEnumUInt128
 
 test scalars =
   Stdlib.Test.all(
-    [ (5Q == 5Q) |> Stdlib.Test.equal(true)
-      (5Q != 6Q) |> Stdlib.Test.equal(true)
-      (5Z == 5Z) |> Stdlib.Test.equal(true)
-      (5Z != 6Z) |> Stdlib.Test.equal(true)
-      (5L == 5L) |> Stdlib.Test.equal(true)
-      (5L != 6L) |> Stdlib.Test.equal(true)
-      (5l == 5l) |> Stdlib.Test.equal(true)
-      (5l != 6l) |> Stdlib.Test.equal(true)
-      (5ul == 5ul) |> Stdlib.Test.equal(true)
-      (5ul != 6ul) |> Stdlib.Test.equal(true)
-      (5y == 5y) |> Stdlib.Test.equal(true)
-      (5y != 6y) |> Stdlib.Test.equal(true)
-      (5uy == 5uy) |> Stdlib.Test.equal(true)
-      (5uy != 6uy) |> Stdlib.Test.equal(true)
-      (5s == 5s) |> Stdlib.Test.equal(true)
-      (5s != 6s) |> Stdlib.Test.equal(true)
-      (5us == 5us) |> Stdlib.Test.equal(true)
-      (5us != 6us) |> Stdlib.Test.equal(true)
+    [ (5s128 == 5s128) |> Stdlib.Test.equal(true)
+      (5s128 != 6s128) |> Stdlib.Test.equal(true)
+      (5u128 == 5u128) |> Stdlib.Test.equal(true)
+      (5u128 != 6u128) |> Stdlib.Test.equal(true)
+      (5 == 5) |> Stdlib.Test.equal(true)
+      (5 != 6) |> Stdlib.Test.equal(true)
+      (5s32 == 5s32) |> Stdlib.Test.equal(true)
+      (5s32 != 6s32) |> Stdlib.Test.equal(true)
+      (5u32 == 5u32) |> Stdlib.Test.equal(true)
+      (5u32 != 6u32) |> Stdlib.Test.equal(true)
+      (5s8 == 5s8) |> Stdlib.Test.equal(true)
+      (5s8 != 6s8) |> Stdlib.Test.equal(true)
+      (5u8 == 5u8) |> Stdlib.Test.equal(true)
+      (5u8 != 6u8) |> Stdlib.Test.equal(true)
+      (5s16 == 5s16) |> Stdlib.Test.equal(true)
+      (5s16 != 6s16) |> Stdlib.Test.equal(true)
+      (5u16 == 5u16) |> Stdlib.Test.equal(true)
+      (5u16 != 6u16) |> Stdlib.Test.equal(true)
       (5.6 == 5.6) |> Stdlib.Test.equal(true)
       (-5.555555555555555e28 == -5.555555555555555e28)
       |> Stdlib.Test.equal(true)
@@ -74,20 +74,20 @@ test scalars =
 
 test lists =
   Stdlib.Test.all(
-    [ ([ 1L, 2L, 3L ] == [ 1L, 2L, 3L ]) |> Stdlib.Test.equal(true)
-      ([ 1L, 2L, 3L ] != [ 3L, 2L, 1L ]) |> Stdlib.Test.equal(true)
-      ([ 1l, 2l, 3l ] == [ 1l, 2l, 3l ]) |> Stdlib.Test.equal(true)
-      ([ 1l, 2l, 3l ] != [ 3l, 2l, 1l ]) |> Stdlib.Test.equal(true)
-      ([ 1ul, 2ul, 3ul ] == [ 1ul, 2ul, 3ul ]) |> Stdlib.Test.equal(true)
-      ([ 1ul, 2ul, 3ul ] != [ 3ul, 2ul, 1ul ]) |> Stdlib.Test.equal(true)
-      ([ 1s, 2s, 3s ] == [ 1s, 2s, 3s ]) |> Stdlib.Test.equal(true)
-      ([ 1s, 2s, 3s ] != [ 3s, 2s, 1s ]) |> Stdlib.Test.equal(true)
-      ([ 1us, 2us, 3us ] == [ 1us, 2us, 3us ]) |> Stdlib.Test.equal(true)
-      ([ 1us, 2us, 3us ] != [ 3us, 2us, 1us ]) |> Stdlib.Test.equal(true)
-      ([ 1y, 2y, 3y ] == [ 1y, 2y, 3y ]) |> Stdlib.Test.equal(true)
-      ([ 1y, 2y, 3y ] != [ 3y, 2y, 1y ]) |> Stdlib.Test.equal(true)
-      ([ 1uy, 2uy, 3uy ] == [ 1uy, 2uy, 3uy ]) |> Stdlib.Test.equal(true)
-      ([ 1uy, 2uy, 3uy ] != [ 3uy, 2uy, 1uy ]) |> Stdlib.Test.equal(true) ])
+    [ ([ 1, 2, 3 ] == [ 1, 2, 3 ]) |> Stdlib.Test.equal(true)
+      ([ 1, 2, 3 ] != [ 3, 2, 1 ]) |> Stdlib.Test.equal(true)
+      ([ 1s32, 2s32, 3s32 ] == [ 1s32, 2s32, 3s32 ]) |> Stdlib.Test.equal(true)
+      ([ 1s32, 2s32, 3s32 ] != [ 3s32, 2s32, 1s32 ]) |> Stdlib.Test.equal(true)
+      ([ 1u32, 2u32, 3u32 ] == [ 1u32, 2u32, 3u32 ]) |> Stdlib.Test.equal(true)
+      ([ 1u32, 2u32, 3u32 ] != [ 3u32, 2u32, 1u32 ]) |> Stdlib.Test.equal(true)
+      ([ 1s16, 2s16, 3s16 ] == [ 1s16, 2s16, 3s16 ]) |> Stdlib.Test.equal(true)
+      ([ 1s16, 2s16, 3s16 ] != [ 3s16, 2s16, 1s16 ]) |> Stdlib.Test.equal(true)
+      ([ 1u16, 2u16, 3u16 ] == [ 1u16, 2u16, 3u16 ]) |> Stdlib.Test.equal(true)
+      ([ 1u16, 2u16, 3u16 ] != [ 3u16, 2u16, 1u16 ]) |> Stdlib.Test.equal(true)
+      ([ 1s8, 2s8, 3s8 ] == [ 1s8, 2s8, 3s8 ]) |> Stdlib.Test.equal(true)
+      ([ 1s8, 2s8, 3s8 ] != [ 3s8, 2s8, 1s8 ]) |> Stdlib.Test.equal(true)
+      ([ 1u8, 2u8, 3u8 ] == [ 1u8, 2u8, 3u8 ]) |> Stdlib.Test.equal(true)
+      ([ 1u8, 2u8, 3u8 ] != [ 3u8, 2u8, 1u8 ]) |> Stdlib.Test.equal(true) ])
 
 test bytesDatesAndUuids =
   Stdlib.Test.all(
@@ -109,171 +109,171 @@ test bytesDatesAndUuids =
 
 // TODO revisit these
 //(fun x -> y) |> Stdlib.Test.equal (fun x -> y)
-// ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y))
+// ((fun x -> let y = 1s128 in y) == (fun x -> let y = 1s128 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x))
+// ((fun x -> let y = 1s128 in y) != (fun x -> let y = 2s128 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y))
+// ((fun x -> let y = 1u128 in y) == (fun x -> let y = 1u128 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x))
+// ((fun x -> let y = 1u128 in y) != (fun x -> let y = 2u128 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y))
+// ((fun x -> let y = 1 in y) == (fun x -> let y = 1 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x))
+// ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y))
+// ((fun x -> let y = 1s32 in y) == (fun x -> let y = 1s32 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x))
+// ((fun x -> let y = 1s32 in y) != (fun x -> let y = 2s32 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y))
+// ((fun x -> let y = 1u32 in y) == (fun x -> let y = 1u32 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x))
+// ((fun x -> let y = 1u32 in y) != (fun x -> let y = 2u32 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y))
+// ((fun x -> let y = 1s16 in y) == (fun x -> let y = 1s16 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x))
+// ((fun x -> let y = 1s16 in y) != (fun x -> let y = 2s16 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y))
+// ((fun x -> let y = 1u16 in y) == (fun x -> let y = 1u16 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x))
+// ((fun x -> let y = 1u16 in y) != (fun x -> let y = 2u16 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y))
+// ((fun x -> let y = 1s8 in y) == (fun x -> let y = 1s8 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x))
+// ((fun x -> let y = 1s8 in y) != (fun x -> let y = 2s8 in x))
 // |> Stdlib.Test.equal false
 //
-// ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y))
+// ((fun x -> let y = 1u8 in y) == (fun x -> let y = 1u8 in y))
 // |> Stdlib.Test.equal true
-// ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x))
+// ((fun x -> let y = 1u8 in y) != (fun x -> let y = 2u8 in x))
 // |> Stdlib.Test.equal false
 
 // Separately written lambdas are unequal. Comparing them does not execute their bodies.
 test lambdas =
   Stdlib.Test.all(
     [ ((fun x -> y) == (fun x -> y)) |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y))
+      ((fun x -> let y = 1s128 in y) == (fun x -> let y = 1s128 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x))
+      ((fun x -> let y = 1s128 in y) != (fun x -> let y = 2s128 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y))
+      ((fun x -> let y = 1u128 in y) == (fun x -> let y = 1u128 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x))
+      ((fun x -> let y = 1u128 in y) != (fun x -> let y = 2u128 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y))
+      ((fun x -> let y = 1 in y) == (fun x -> let y = 1 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x))
+      ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y))
+      ((fun x -> let y = 1s32 in y) == (fun x -> let y = 1s32 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x))
+      ((fun x -> let y = 1s32 in y) != (fun x -> let y = 2s32 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y))
+      ((fun x -> let y = 1u32 in y) == (fun x -> let y = 1u32 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x))
+      ((fun x -> let y = 1u32 in y) != (fun x -> let y = 2u32 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y))
+      ((fun x -> let y = 1s16 in y) == (fun x -> let y = 1s16 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x))
+      ((fun x -> let y = 1s16 in y) != (fun x -> let y = 2s16 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y))
+      ((fun x -> let y = 1u16 in y) == (fun x -> let y = 1u16 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x))
+      ((fun x -> let y = 1u16 in y) != (fun x -> let y = 2u16 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y))
+      ((fun x -> let y = 1s8 in y) == (fun x -> let y = 1s8 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x))
+      ((fun x -> let y = 1s8 in y) != (fun x -> let y = 2s8 in x))
       |> Stdlib.Test.equal(true)
-      ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y))
+      ((fun x -> let y = 1u8 in y) == (fun x -> let y = 1u8 in y))
       |> Stdlib.Test.equal(false)
-      ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x))
+      ((fun x -> let y = 1u8 in y) != (fun x -> let y = 2u8 in x))
       |> Stdlib.Test.equal(true) ])
 
 test records =
   Stdlib.Test.all(
-    [ (ERecInt128 { x = 6Q, y = 7Q } == ERecInt128 { x = 6Q, y = 7Q })
+    [ (ERecInt128 { x = 6s128, y = 7s128 } == ERecInt128 { x = 6s128, y = 7s128 })
       |> Stdlib.Test.equal(true)
-      (ERecInt128 { x = 6Q, y = 7Q } == ERecInt128 { y = 7Q, x = 6Q })
+      (ERecInt128 { x = 6s128, y = 7s128 } == ERecInt128 { y = 7s128, x = 6s128 })
       |> Stdlib.Test.equal(true)
-      (ERecInt128 { x = 6Q, y = 7Q } != ERecInt128 { x = 7Q, y = 6Q })
+      (ERecInt128 { x = 6s128, y = 7s128 } != ERecInt128 { x = 7s128, y = 6s128 })
       |> Stdlib.Test.equal(true)
-      (ERecInt128 { x = 6Q, y = 7Q } == ERec2Int128 { y = 7Q, x = 6Q })
+      (ERecInt128 { x = 6s128, y = 7s128 } == ERec2Int128 { y = 7s128, x = 6s128 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt128 { x = 6Z, y = 7Z } == ERecUInt128 { x = 6Z, y = 7Z })
+      (ERecUInt128 { x = 6u128, y = 7u128 } == ERecUInt128 { x = 6u128, y = 7u128 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt128 { x = 6Z, y = 7Z } == ERecUInt128 { y = 7Z, x = 6Z })
+      (ERecUInt128 { x = 6u128, y = 7u128 } == ERecUInt128 { y = 7u128, x = 6u128 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt128 { x = 6Z, y = 7Z } != ERecUInt128 { x = 7Z, y = 6Z })
+      (ERecUInt128 { x = 6u128, y = 7u128 } != ERecUInt128 { x = 7u128, y = 6u128 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt128 { x = 6Z, y = 7Z } == ERec2UInt128 { y = 7Z, x = 6Z })
+      (ERecUInt128 { x = 6u128, y = 7u128 } == ERec2UInt128 { y = 7u128, x = 6u128 })
       |> Stdlib.Test.equal(true)
-      (ERec { x = 6L, y = 7L } == ERec { x = 6L, y = 7L })
+      (ERec { x = 6, y = 7 } == ERec { x = 6, y = 7 })
       |> Stdlib.Test.equal(true)
-      (ERec { x = 6L, y = 7L } == ERec { y = 7L, x = 6L })
+      (ERec { x = 6, y = 7 } == ERec { y = 7, x = 6 })
       |> Stdlib.Test.equal(true)
-      (ERec { x = 6L, y = 7L } != ERec { x = 7L, y = 6L })
+      (ERec { x = 6, y = 7 } != ERec { x = 7, y = 6 })
       |> Stdlib.Test.equal(true)
-      (ERec { x = 6L, y = 7L } == ERec2 { y = 7L, x = 6L })
+      (ERec { x = 6, y = 7 } == ERec2 { y = 7, x = 6 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt64 { x = 6UL, y = 7UL } == ERecUInt64 { x = 6UL, y = 7UL })
+      (ERecUInt64 { x = 6u64, y = 7u64 } == ERecUInt64 { x = 6u64, y = 7u64 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt64 { x = 6UL, y = 7UL } == ERecUInt64 { y = 7UL, x = 6UL })
+      (ERecUInt64 { x = 6u64, y = 7u64 } == ERecUInt64 { y = 7u64, x = 6u64 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt64 { x = 6UL, y = 7UL } != ERecUInt64 { x = 7UL, y = 6UL })
+      (ERecUInt64 { x = 6u64, y = 7u64 } != ERecUInt64 { x = 7u64, y = 6u64 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt64 { x = 6UL, y = 7UL } == ERec2UInt64 { y = 7UL, x = 6UL })
+      (ERecUInt64 { x = 6u64, y = 7u64 } == ERec2UInt64 { y = 7u64, x = 6u64 })
       |> Stdlib.Test.equal(true)
-      (ERecInt32 { x = 6l, y = 7l } == ERecInt32 { x = 6l, y = 7l })
+      (ERecInt32 { x = 6s32, y = 7s32 } == ERecInt32 { x = 6s32, y = 7s32 })
       |> Stdlib.Test.equal(true)
-      (ERecInt32 { x = 6l, y = 7l } == ERecInt32 { y = 7l, x = 6l })
+      (ERecInt32 { x = 6s32, y = 7s32 } == ERecInt32 { y = 7s32, x = 6s32 })
       |> Stdlib.Test.equal(true)
-      (ERecInt32 { x = 6l, y = 7l } != ERecInt32 { x = 7l, y = 6l })
+      (ERecInt32 { x = 6s32, y = 7s32 } != ERecInt32 { x = 7s32, y = 6s32 })
       |> Stdlib.Test.equal(true)
-      (ERecInt32 { x = 6l, y = 7l } == ERec2Int32 { y = 7l, x = 6l })
+      (ERecInt32 { x = 6s32, y = 7s32 } == ERec2Int32 { y = 7s32, x = 6s32 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt32 { x = 6ul, y = 7ul } == ERecUInt32 { x = 6ul, y = 7ul })
+      (ERecUInt32 { x = 6u32, y = 7u32 } == ERecUInt32 { x = 6u32, y = 7u32 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt32 { x = 6ul, y = 7ul } == ERecUInt32 { y = 7ul, x = 6ul })
+      (ERecUInt32 { x = 6u32, y = 7u32 } == ERecUInt32 { y = 7u32, x = 6u32 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt32 { x = 6ul, y = 7ul } != ERecUInt32 { x = 7ul, y = 6ul })
+      (ERecUInt32 { x = 6u32, y = 7u32 } != ERecUInt32 { x = 7u32, y = 6u32 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt32 { x = 6ul, y = 7ul } == ERec2UInt32 { y = 7ul, x = 6ul })
+      (ERecUInt32 { x = 6u32, y = 7u32 } == ERec2UInt32 { y = 7u32, x = 6u32 })
       |> Stdlib.Test.equal(true)
-      (ERecInt16 { x = 6s, y = 7s } == ERecInt16 { x = 6s, y = 7s })
+      (ERecInt16 { x = 6s16, y = 7s16 } == ERecInt16 { x = 6s16, y = 7s16 })
       |> Stdlib.Test.equal(true)
-      (ERecInt16 { x = 6s, y = 7s } == ERecInt16 { y = 7s, x = 6s })
+      (ERecInt16 { x = 6s16, y = 7s16 } == ERecInt16 { y = 7s16, x = 6s16 })
       |> Stdlib.Test.equal(true)
-      (ERecInt16 { x = 6s, y = 7s } != ERecInt16 { x = 7s, y = 6s })
+      (ERecInt16 { x = 6s16, y = 7s16 } != ERecInt16 { x = 7s16, y = 6s16 })
       |> Stdlib.Test.equal(true)
-      (ERecInt16 { x = 6s, y = 7s } == ERec2Int16 { y = 7s, x = 6s })
+      (ERecInt16 { x = 6s16, y = 7s16 } == ERec2Int16 { y = 7s16, x = 6s16 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt16 { x = 6us, y = 7us } == ERecUInt16 { x = 6us, y = 7us })
+      (ERecUInt16 { x = 6u16, y = 7u16 } == ERecUInt16 { x = 6u16, y = 7u16 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt16 { x = 6us, y = 7us } == ERecUInt16 { y = 7us, x = 6us })
+      (ERecUInt16 { x = 6u16, y = 7u16 } == ERecUInt16 { y = 7u16, x = 6u16 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt16 { x = 6us, y = 7us } != ERecUInt16 { x = 7us, y = 6us })
+      (ERecUInt16 { x = 6u16, y = 7u16 } != ERecUInt16 { x = 7u16, y = 6u16 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt16 { x = 6us, y = 7us } == ERec2UInt16 { y = 7us, x = 6us })
+      (ERecUInt16 { x = 6u16, y = 7u16 } == ERec2UInt16 { y = 7u16, x = 6u16 })
       |> Stdlib.Test.equal(true)
-      (ERecInt8 { x = 6y, y = 7y } == ERecInt8 { x = 6y, y = 7y })
+      (ERecInt8 { x = 6s8, y = 7s8 } == ERecInt8 { x = 6s8, y = 7s8 })
       |> Stdlib.Test.equal(true)
-      (ERecInt8 { x = 6y, y = 7y } == ERecInt8 { y = 7y, x = 6y })
+      (ERecInt8 { x = 6s8, y = 7s8 } == ERecInt8 { y = 7s8, x = 6s8 })
       |> Stdlib.Test.equal(true)
-      (ERecInt8 { x = 6y, y = 7y } != ERecInt8 { x = 7y, y = 6y })
+      (ERecInt8 { x = 6s8, y = 7s8 } != ERecInt8 { x = 7s8, y = 6s8 })
       |> Stdlib.Test.equal(true)
-      (ERecInt8 { x = 6y, y = 7y } == ERec2Int8 { y = 7y, x = 6y })
+      (ERecInt8 { x = 6s8, y = 7s8 } == ERec2Int8 { y = 7s8, x = 6s8 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt8 { x = 6uy, y = 7uy } == ERecUInt8 { x = 6uy, y = 7uy })
+      (ERecUInt8 { x = 6u8, y = 7u8 } == ERecUInt8 { x = 6u8, y = 7u8 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt8 { x = 6uy, y = 7uy } == ERecUInt8 { y = 7uy, x = 6uy })
+      (ERecUInt8 { x = 6u8, y = 7u8 } == ERecUInt8 { y = 7u8, x = 6u8 })
       |> Stdlib.Test.equal(true)
-      (ERecUInt8 { x = 6uy, y = 7uy } != ERecUInt8 { x = 7uy, y = 6uy })
+      (ERecUInt8 { x = 6u8, y = 7u8 } != ERecUInt8 { x = 7u8, y = 6u8 })
       |> Stdlib.Test.equal(true) ])
 
 test enums =
@@ -282,36 +282,36 @@ test enums =
       (EEnumInt128.E1 != EEnumInt128.E2) |> Stdlib.Test.equal(true)
       (EEnumUInt128.E1 == EEnumUInt128.E1) |> Stdlib.Test.equal(true)
       (EEnumUInt128.E1 != EEnumUInt128.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt128.E3(5Q) == EEnumInt128.E3(5Q)) |> Stdlib.Test.equal(true)
-      (EEnumInt128.E3(5Q) != EEnumInt128.E3(6Q)) |> Stdlib.Test.equal(true)
+      (EEnumInt128.E3(5s128) == EEnumInt128.E3(5s128)) |> Stdlib.Test.equal(true)
+      (EEnumInt128.E3(5s128) != EEnumInt128.E3(6s128)) |> Stdlib.Test.equal(true)
       (EEnum.E1 == EEnum.E1) |> Stdlib.Test.equal(true)
       (EEnum.E1 != EEnum.E2) |> Stdlib.Test.equal(true)
-      (EEnum.E3(5L) == EEnum.E3(5L)) |> Stdlib.Test.equal(true)
-      (EEnum.E3(5L) != EEnum.E3(6L)) |> Stdlib.Test.equal(true)
+      (EEnum.E3(5) == EEnum.E3(5)) |> Stdlib.Test.equal(true)
+      (EEnum.E3(5) != EEnum.E3(6)) |> Stdlib.Test.equal(true)
       (EEnumUIn64.E1 == EEnumUIn64.E1) |> Stdlib.Test.equal(true)
       (EEnumUIn64.E1 != EEnumUIn64.E2) |> Stdlib.Test.equal(true)
-      (EEnumUIn64.E3(5UL) == EEnumUIn64.E3(5UL)) |> Stdlib.Test.equal(true)
-      (EEnumUIn64.E3(5UL) != EEnumUIn64.E3(6UL)) |> Stdlib.Test.equal(true)
+      (EEnumUIn64.E3(5u64) == EEnumUIn64.E3(5u64)) |> Stdlib.Test.equal(true)
+      (EEnumUIn64.E3(5u64) != EEnumUIn64.E3(6u64)) |> Stdlib.Test.equal(true)
       (EEnumInt32.E1 == EEnumInt32.E1) |> Stdlib.Test.equal(true)
       (EEnumInt32.E1 != EEnumInt32.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt32.E3(5l) == EEnumInt32.E3(5l)) |> Stdlib.Test.equal(true)
-      (EEnumInt32.E3(5l) != EEnumInt32.E3(6l)) |> Stdlib.Test.equal(true)
+      (EEnumInt32.E3(5s32) == EEnumInt32.E3(5s32)) |> Stdlib.Test.equal(true)
+      (EEnumInt32.E3(5s32) != EEnumInt32.E3(6s32)) |> Stdlib.Test.equal(true)
       (EEnumUInt32.E1 == EEnumUInt32.E1) |> Stdlib.Test.equal(true)
       (EEnumUInt32.E1 != EEnumUInt32.E2) |> Stdlib.Test.equal(true)
-      (EEnumUInt32.E3(5ul) == EEnumUInt32.E3(5ul)) |> Stdlib.Test.equal(true)
-      (EEnumUInt32.E3(5ul) != EEnumUInt32.E3(6ul)) |> Stdlib.Test.equal(true)
+      (EEnumUInt32.E3(5u32) == EEnumUInt32.E3(5u32)) |> Stdlib.Test.equal(true)
+      (EEnumUInt32.E3(5u32) != EEnumUInt32.E3(6u32)) |> Stdlib.Test.equal(true)
       (EEnumInt16.E1 == EEnumInt16.E1) |> Stdlib.Test.equal(true)
       (EEnumInt16.E1 != EEnumInt16.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt16.E3(5s) == EEnumInt16.E3(5s)) |> Stdlib.Test.equal(true)
-      (EEnumInt16.E3(5s) != EEnumInt16.E3(6s)) |> Stdlib.Test.equal(true)
+      (EEnumInt16.E3(5s16) == EEnumInt16.E3(5s16)) |> Stdlib.Test.equal(true)
+      (EEnumInt16.E3(5s16) != EEnumInt16.E3(6s16)) |> Stdlib.Test.equal(true)
       (EEnumUInt16.E1 == EEnumUInt16.E1) |> Stdlib.Test.equal(true)
       (EEnumUInt16.E1 != EEnumUInt16.E2) |> Stdlib.Test.equal(true)
-      (EEnumUInt16.E3(5us) == EEnumUInt16.E3(5us)) |> Stdlib.Test.equal(true)
-      (EEnumUInt16.E3(5us) != EEnumUInt16.E3(6us)) |> Stdlib.Test.equal(true)
+      (EEnumUInt16.E3(5u16) == EEnumUInt16.E3(5u16)) |> Stdlib.Test.equal(true)
+      (EEnumUInt16.E3(5u16) != EEnumUInt16.E3(6u16)) |> Stdlib.Test.equal(true)
       (EEnumInt8.E1 == EEnumInt8.E1) |> Stdlib.Test.equal(true)
       (EEnumInt8.E1 != EEnumInt8.E2) |> Stdlib.Test.equal(true)
-      (EEnumInt8.E3(5y) == EEnumInt8.E3(5y)) |> Stdlib.Test.equal(true)
-      (EEnumInt8.E3(5y) != EEnumInt8.E3(6y)) |> Stdlib.Test.equal(true) ])
+      (EEnumInt8.E3(5s8) == EEnumInt8.E3(5s8)) |> Stdlib.Test.equal(true)
+      (EEnumInt8.E3(5s8) != EEnumInt8.E3(6s8)) |> Stdlib.Test.equal(true) ])
 
 // aliases
 test enumAliases =
@@ -344,40 +344,40 @@ test optionsAndResults =
       (Stdlib.Option.Option.None
        != Stdlib.Option.Option.Some(Stdlib.Option.Option.None))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some(5L) == Stdlib.Option.Option.Some(5L))
+      (Stdlib.Option.Option.Some(5) == Stdlib.Option.Option.Some(5))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some(5L) != Stdlib.Option.Option.Some(6L))
+      (Stdlib.Option.Option.Some(5) != Stdlib.Option.Option.Some(6))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L))
-       != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(1L)))
+      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0))
+       != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(1)))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L))
-       == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L)))
+      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0))
+       == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0)))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Result.Result.Error(0L) == Stdlib.Result.Result.Error(0L))
+      (Stdlib.Result.Result.Error(0) == Stdlib.Result.Result.Error(0))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Result.Result.Ok(0L) == Stdlib.Result.Result.Ok(0L))
+      (Stdlib.Result.Result.Ok(0) == Stdlib.Result.Result.Ok(0))
       |> Stdlib.Test.equal(true)
-      (Stdlib.Result.Result.Ok(0L) != Stdlib.Result.Result.Error(0L))
+      (Stdlib.Result.Result.Ok(0) != Stdlib.Result.Result.Error(0))
       |> Stdlib.Test.equal(true) ])
 
 test floatEqualsInt64Raises =
-  (5.7 != 6L) => raises "Cannot perform equality check on Float and Int64"
+  (5.7 != 6) => raises "Cannot perform equality check on Float and Int64"
 
 test floatEqualsSameValueInt64Raises =
-  (5.7 != 5L) => raises "Cannot perform equality check on Float and Int64"
+  (5.7 != 5) => raises "Cannot perform equality check on Float and Int64"
 
 test uint16EqualsInt16Raises =
-  (5us == 5s) => raises "Cannot perform equality check on UInt16 and Int16"
+  (5u16 == 5s16) => raises "Cannot perform equality check on UInt16 and Int16"
 
 test int8EqualsInt32Raises =
-  (5y == 5l) => raises "Cannot perform equality check on Int8 and Int32"
+  (5s8 == 5s32) => raises "Cannot perform equality check on Int8 and Int32"
 
 test int64EqualsInt32Raises =
-  (5L == 5l) => raises "Cannot perform equality check on Int64 and Int32"
+  (5 == 5s32) => raises "Cannot perform equality check on Int64 and Int32"
 
 test uint16NotEqualsInt16Raises =
-  (5us != 6s) => raises "Cannot perform equality check on UInt16 and Int16"
+  (5u16 != 6s16) => raises "Cannot perform equality check on UInt16 and Int16"
 
 test leftOperandErrorRaisesFirst =
   (Stdlib.Test.raiseRuntimeError("test")
@@ -393,74 +393,74 @@ test unitEqualsBoolRaises =
   (() != false) => raises "Cannot perform equality check on Unit and Bool"
 
 test unitEqualsInt32Raises =
-  (() != 0l) => raises "Cannot perform equality check on Unit and Int32"
+  (() != 0s32) => raises "Cannot perform equality check on Unit and Int32"
 
 test unitEqualsFloatRaises =
   (() != 0.0) => raises "Cannot perform equality check on Unit and Float"
 
 // The left operand's error is raised before the right operand is evaluated.
 test leftOperandErrorRaisesBeforeRight =
-  (1L / 0L) != (Builtin.unwrap(None)) => raises "Cannot divide by 0"
+  (1 / 0) != (Builtin.unwrap(None)) => raises "Cannot divide by 0"
 
 // Other ways to call it
 test equalsForms =
   Stdlib.Test.all(
-    [ 1Q == 1Q |> Stdlib.Test.equal(true)
-      (==)(1Q, 1Q) |> Stdlib.Test.equal(true)
-      1Z == 1Z |> Stdlib.Test.equal(true)
-      (==)(1Z, 1Z) |> Stdlib.Test.equal(true)
-      1L == 1L |> Stdlib.Test.equal(true)
-      (==)(1L, 1L) |> Stdlib.Test.equal(true)
-      1l == 1l |> Stdlib.Test.equal(true)
-      (==)(1l, 1l) |> Stdlib.Test.equal(true)
-      1ul == 1ul |> Stdlib.Test.equal(true)
-      (==)(1ul, 1ul) |> Stdlib.Test.equal(true)
-      1s == 1s |> Stdlib.Test.equal(true)
-      (==)(1s, 1s) |> Stdlib.Test.equal(true)
-      1us == 1us |> Stdlib.Test.equal(true)
-      (==)(1us, 1us) |> Stdlib.Test.equal(true)
-      1y == 1y |> Stdlib.Test.equal(true)
-      (==)(1y, 1y) |> Stdlib.Test.equal(true)
-      1uy == 1uy |> Stdlib.Test.equal(true)
-      (==)(1uy, 1uy) |> Stdlib.Test.equal(true) ])
+    [ 1s128 == 1s128 |> Stdlib.Test.equal(true)
+      (==)(1s128, 1s128) |> Stdlib.Test.equal(true)
+      1u128 == 1u128 |> Stdlib.Test.equal(true)
+      (==)(1u128, 1u128) |> Stdlib.Test.equal(true)
+      1 == 1 |> Stdlib.Test.equal(true)
+      (==)(1, 1) |> Stdlib.Test.equal(true)
+      1s32 == 1s32 |> Stdlib.Test.equal(true)
+      (==)(1s32, 1s32) |> Stdlib.Test.equal(true)
+      1u32 == 1u32 |> Stdlib.Test.equal(true)
+      (==)(1u32, 1u32) |> Stdlib.Test.equal(true)
+      1s16 == 1s16 |> Stdlib.Test.equal(true)
+      (==)(1s16, 1s16) |> Stdlib.Test.equal(true)
+      1u16 == 1u16 |> Stdlib.Test.equal(true)
+      (==)(1u16, 1u16) |> Stdlib.Test.equal(true)
+      1s8 == 1s8 |> Stdlib.Test.equal(true)
+      (==)(1s8, 1s8) |> Stdlib.Test.equal(true)
+      1u8 == 1u8 |> Stdlib.Test.equal(true)
+      (==)(1u8, 1u8) |> Stdlib.Test.equal(true) ])
 
 test stdlibEquals =
   Stdlib.Test.all(
-    [ Stdlib.equals(1Q, 1Q) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1Z, 1Z) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1L, 1L) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1l, 1l) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1ul, 1ul) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1s, 1s) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1us, 1us) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1y, 1y) |> Stdlib.Test.equal(true)
-      Stdlib.equals(1uy, 1uy) |> Stdlib.Test.equal(true) ])
+    [ Stdlib.equals(1s128, 1s128) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1u128, 1u128) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1, 1) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1s32, 1s32) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1u32, 1u32) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1s16, 1s16) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1u16, 1u16) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1s8, 1s8) |> Stdlib.Test.equal(true)
+      Stdlib.equals(1u8, 1u8) |> Stdlib.Test.equal(true) ])
 
 test notEquals =
   Stdlib.Test.all(
-    [ 1Q != 1Q |> Stdlib.Test.equal(false)
-      1Z != 1Z |> Stdlib.Test.equal(false)
-      1L != 1L |> Stdlib.Test.equal(false)
-      1l != 1l |> Stdlib.Test.equal(false)
-      1ul != 1ul |> Stdlib.Test.equal(false)
-      1s != 1s |> Stdlib.Test.equal(false)
-      1us != 1us |> Stdlib.Test.equal(false)
-      1y != 1y |> Stdlib.Test.equal(false)
-      1uy != 1uy |> Stdlib.Test.equal(false)
+    [ 1s128 != 1s128 |> Stdlib.Test.equal(false)
+      1u128 != 1u128 |> Stdlib.Test.equal(false)
+      1 != 1 |> Stdlib.Test.equal(false)
+      1s32 != 1s32 |> Stdlib.Test.equal(false)
+      1u32 != 1u32 |> Stdlib.Test.equal(false)
+      1s16 != 1s16 |> Stdlib.Test.equal(false)
+      1u16 != 1u16 |> Stdlib.Test.equal(false)
+      1s8 != 1s8 |> Stdlib.Test.equal(false)
+      1u8 != 1u8 |> Stdlib.Test.equal(false)
       "abc" != "abc" |> Stdlib.Test.equal(false)
       "abd" != "abc" |> Stdlib.Test.equal(true)
       ((Stdlib.DateTime.parse("2021-07-28T22:42:36Z"))
        != (Stdlib.DateTime.parse("2019-07-28T22:42:36Z")))
       |> Stdlib.Test.equal(true)
-      (!=)(1Q, 1Q) |> Stdlib.Test.equal(false)
-      (!=)(1Z, 1Z) |> Stdlib.Test.equal(false)
-      (!=)(1L, 1L) |> Stdlib.Test.equal(false)
-      (!=)(1l, 1l) |> Stdlib.Test.equal(false)
-      (!=)(1ul, 1ul) |> Stdlib.Test.equal(false)
-      (!=)(1s, 1s) |> Stdlib.Test.equal(false)
-      (!=)(1us, 1us) |> Stdlib.Test.equal(false)
-      (!=)(1y, 1y) |> Stdlib.Test.equal(false)
-      (!=)(1uy, 1uy) |> Stdlib.Test.equal(false)
+      (!=)(1s128, 1s128) |> Stdlib.Test.equal(false)
+      (!=)(1u128, 1u128) |> Stdlib.Test.equal(false)
+      (!=)(1, 1) |> Stdlib.Test.equal(false)
+      (!=)(1s32, 1s32) |> Stdlib.Test.equal(false)
+      (!=)(1u32, 1u32) |> Stdlib.Test.equal(false)
+      (!=)(1s16, 1s16) |> Stdlib.Test.equal(false)
+      (!=)(1u16, 1u16) |> Stdlib.Test.equal(false)
+      (!=)(1s8, 1s8) |> Stdlib.Test.equal(false)
+      (!=)(1u8, 1u8) |> Stdlib.Test.equal(false)
       (!=)("abc", "abc") |> Stdlib.Test.equal(false)
       (!=)("abd", "abc") |> Stdlib.Test.equal(true)
       ((!=)(
@@ -470,15 +470,15 @@ test notEquals =
 
 test stdlibNotEquals =
   Stdlib.Test.all(
-    [ Stdlib.notEquals(1Q, 1Q) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1Z, 1Z) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1L, 1L) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1l, 1l) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1ul, 1ul) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1s, 1s) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1us, 1us) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1y, 1y) |> Stdlib.Test.equal(false)
-      Stdlib.notEquals(1uy, 1uy) |> Stdlib.Test.equal(false)
+    [ Stdlib.notEquals(1s128, 1s128) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1u128, 1u128) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1, 1) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1s32, 1s32) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1u32, 1u32) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1s16, 1s16) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1u16, 1u16) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1s8, 1s8) |> Stdlib.Test.equal(false)
+      Stdlib.notEquals(1u8, 1u8) |> Stdlib.Test.equal(false)
       Stdlib.notEquals("abc", "abc") |> Stdlib.Test.equal(false)
       Stdlib.notEquals("abd", "abc") |> Stdlib.Test.equal(true)
       (Stdlib.notEquals(
@@ -501,14 +501,14 @@ test stdlibNotEquals =
 
 test unwrap =
   Stdlib.Test.all(
-    [ Stdlib.Option.Option.Some(5L) |> Builtin.unwrap |> Stdlib.Test.equal(5L)
+    [ Stdlib.Option.Option.Some(5) |> Builtin.unwrap |> Stdlib.Test.equal(5)
       Stdlib.Result.Result.Ok(true) |> Builtin.unwrap |> Stdlib.Test.equal(true) ])
 
 test unwrapNoneRaises =
   Stdlib.Option.Option.None |> Builtin.unwrap => raises "Cannot unwrap None"
 
 test unwrapErrorRaises =
-  Stdlib.Result.Result.Error(5L) |> Builtin.unwrap
+  Stdlib.Result.Result.Error(5) |> Builtin.unwrap
   => raises "Cannot unwrap Error: 5"
 
 test unwrapNonOptionRaises =

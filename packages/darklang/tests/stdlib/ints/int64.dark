@@ -2,329 +2,326 @@ module Darklang.Stdlib.Int64.Tests
 
 test abs =
   Stdlib.Test.all(
-    [ Stdlib.abs(-5L) |> Stdlib.Test.equal(5L)
-      Stdlib.abs(5L) |> Stdlib.Test.equal(5L)
-      Stdlib.abs(-9223372036854775808L) |> Stdlib.Test.equal(-9223372036854775808L) ])
+    [ Stdlib.abs(-5) |> Stdlib.Test.equal(5)
+      Stdlib.abs(5) |> Stdlib.Test.equal(5)
+      Stdlib.abs(-9223372036854775808) |> Stdlib.Test.equal(-9223372036854775808) ])
 
 // `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check
 // that it reaches this type and that the type's own comparison holds at its
 // extremes.
 
 test max =
-  Stdlib.max(-100L, -20000L) |> Stdlib.Test.equal(-100L)
+  Stdlib.max(-100, -20000) |> Stdlib.Test.equal(-100)
 
 test min =
-  Stdlib.min(-100L, -20000L) |> Stdlib.Test.equal(-20000L)
+  Stdlib.min(-100, -20000) |> Stdlib.Test.equal(-20000)
 
 test clamp =
-  Stdlib.clamp(-2147483647L, 250L, -26L) |> Stdlib.Test.equal(-26L)
+  Stdlib.clamp(-2147483647, 250, -26) |> Stdlib.Test.equal(-26)
 
 test negate =
   Stdlib.Test.all(
-    [ (--5L) |> Stdlib.Test.equal(5L)
-      (-(5L)) |> Stdlib.Test.equal(-5L)
-      (-0L) |> Stdlib.Test.equal(0L)
-      (--0L) |> Stdlib.Test.equal(0L)
-      (-(-9223372036854775808L)) |> Stdlib.Test.equal(-9223372036854775808L) ])
+    [ (--5) |> Stdlib.Test.equal(5)
+      (-(5)) |> Stdlib.Test.equal(-5)
+      (-0) |> Stdlib.Test.equal(0)
+      (--0) |> Stdlib.Test.equal(0)
+      (-(-9223372036854775808)) |> Stdlib.Test.equal(-9223372036854775808) ])
 
 /// A Result: the sign follows the dividend, and it is an Error only when the
 /// divisor is 0.
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int64.remainder(15L, 6L) |> Stdlib.Test.equal(Ok(3L))
-      Stdlib.Int64.remainder(20L, 8L) |> Stdlib.Test.equal(Ok(4L))
-      Stdlib.Int64.remainder(-20L, 8L) |> Stdlib.Test.equal(Ok(-4L))
-      Stdlib.Int64.remainder(-20L, -8L) |> Stdlib.Test.equal(Ok(-4L))
-      Stdlib.Int64.remainder(-15L, 6L) |> Stdlib.Test.equal(Ok(-3L))
-      Stdlib.Int64.remainder(-9223372036854775808L, -1L) |> Stdlib.Test.equal(Ok(0L))
-      Stdlib.Int64.remainder(5L, 0L) |> Stdlib.Test.equal(Error("Cannot divide by 0"))
+    [ Stdlib.Int64.remainder(15, 6) |> Stdlib.Test.equal(Ok(3))
+      Stdlib.Int64.remainder(20, 8) |> Stdlib.Test.equal(Ok(4))
+      Stdlib.Int64.remainder(-20, 8) |> Stdlib.Test.equal(Ok(-4))
+      Stdlib.Int64.remainder(-20, -8) |> Stdlib.Test.equal(Ok(-4))
+      Stdlib.Int64.remainder(-15, 6) |> Stdlib.Test.equal(Ok(-3))
+      Stdlib.Int64.remainder(-9223372036854775808, -1) |> Stdlib.Test.equal(Ok(0))
+      Stdlib.Int64.remainder(5, 0) |> Stdlib.Test.equal(Error("Cannot divide by 0"))
       ((Stdlib.List.map(
        Stdlib.List.range(-5, 5),
-       fun v -> Stdlib.Int64.remainder((Builtin.unwrap(
-         Stdlib.Int.toInt64(v))), -4L))))
-      |> Stdlib.Test.equal(([ Ok(-1L)
-                              Ok(0L)
-                              Ok(-3L)
-                              Ok(-2L)
-                              Ok(-1L)
-                              Ok(0L)
-                              Ok(1L)
-                              Ok(2L)
-                              Ok(3L)
-                              Ok(0L)
-                              Ok(1L) ]))
+       fun v -> Stdlib.Int64.remainder(v, -4))))
+      |> Stdlib.Test.equal(([ Ok(-1)
+                              Ok(0)
+                              Ok(-3)
+                              Ok(-2)
+                              Ok(-1)
+                              Ok(0)
+                              Ok(1)
+                              Ok(2)
+                              Ok(3)
+                              Ok(0)
+                              Ok(1) ]))
       ((Stdlib.List.map(
        Stdlib.List.range(-5, 5),
-       fun v -> Stdlib.Int64.remainder(Builtin.unwrap(Stdlib.Int.toInt64(v)), 4L))))
-      |> Stdlib.Test.equal(([ Ok(-1L)
-                              Ok(0L)
-                              Ok(-3L)
-                              Ok(-2L)
-                              Ok(-1L)
-                              Ok(0L)
-                              Ok(1L)
-                              Ok(2L)
-                              Ok(3L)
-                              Ok(0L)
-                              Ok(1L) ])) ])
+       fun v -> Stdlib.Int64.remainder(v, 4))))
+      |> Stdlib.Test.equal(([ Ok(-1)
+                              Ok(0)
+                              Ok(-3)
+                              Ok(-2)
+                              Ok(-1)
+                              Ok(0)
+                              Ok(1)
+                              Ok(2)
+                              Ok(3)
+                              Ok(0)
+                              Ok(1) ])) ])
 
 /// `%` wraps into [0, b), and raises when b <= 0.
 test modulo =
   Stdlib.Test.all(
-    [ (15L % 5L) |> Stdlib.Test.equal(0L)
-      (15L % 6L) |> Stdlib.Test.equal(3L)
-      (0L % 15L) |> Stdlib.Test.equal(0L)
-      (-1L % 2L) |> Stdlib.Test.equal(1L)
-      (-754L % 53L) |> Stdlib.Test.equal(41L)
-      (9999999999998L % 3L) |> Stdlib.Test.equal(2L)
-      (Stdlib.List.map(Stdlib.List.range(-5, 5), fun v -> ((Builtin.unwrap(
-         Stdlib.Int.toInt64(v))) % 4L)))
-      |> Stdlib.Test.equal([ 3L, 0L, 1L, 2L, 3L, 0L, 1L, 2L, 3L, 0L, 1L ])
-      15L % 5L |> Stdlib.Test.equal(0L)
-      (Stdlib.List.map(Stdlib.List.range(-5, 5), fun v -> (Builtin.unwrap(
-         Stdlib.Int.toInt64(v))) % 4L))
-      |> Stdlib.Test.equal([ 3L, 0L, 1L, 2L, 3L, 0L, 1L, 2L, 3L, 0L, 1L ]) ])
+    [ (15 % 5) |> Stdlib.Test.equal(0)
+      (15 % 6) |> Stdlib.Test.equal(3)
+      (0 % 15) |> Stdlib.Test.equal(0)
+      (-1 % 2) |> Stdlib.Test.equal(1)
+      (-754 % 53) |> Stdlib.Test.equal(41)
+      (9999999999998 % 3) |> Stdlib.Test.equal(2)
+      (Stdlib.List.map(Stdlib.List.range(-5, 5), fun v -> (v % 4)))
+      |> Stdlib.Test.equal([ 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1 ])
+      15 % 5 |> Stdlib.Test.equal(0)
+      (Stdlib.List.map(Stdlib.List.range(-5, 5), fun v -> v % 4))
+      |> Stdlib.Test.equal([ 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1 ]) ])
 
 test moduloRejectsZero =
-  (5L % 0L)
+  (5 % 0)
   => raises "Cannot evaluate modulus against 0"
 
 test moduloRejectsNegativeDivisor =
-  (5L % -5L)
+  (5 % -5)
   => raises "Cannot evaluate modulus against a negative number"
 
 test moduloRejectsZero2 =
-  5L % 0L
+  5 % 0
   => raises "Cannot evaluate modulus against 0"
 
 test moduloRejectsNegativeDivisor2 =
-  5L % -5L
+  5 % -5
   => raises "Cannot evaluate modulus against a negative number"
 
 /// Wraps on overflow.
 test power =
   Stdlib.Test.all(
-    [ (8L ** 5L) |> Stdlib.Test.equal(32768L)
-      (0L ** 1L) |> Stdlib.Test.equal(0L)
-      (0L ** 0L) |> Stdlib.Test.equal(1L)
-      (1L ** 0L) |> Stdlib.Test.equal(1L)
-      (1000L ** 0L) |> Stdlib.Test.equal(1L)
-      (-8L ** 5L) |> Stdlib.Test.equal(-32768L)
-      (200L ** 20L) |> Stdlib.Test.equal(1152921504606846976L)
-      (200L ** 7L) |> Stdlib.Test.equal(12800000000000000L)
-      (1L ** 2147483649L) |> Stdlib.Test.equal(1L)
-      (-1L ** 2147483649L) |> Stdlib.Test.equal(-1L)
+    [ (8 ** 5) |> Stdlib.Test.equal(32768)
+      (0 ** 1) |> Stdlib.Test.equal(0)
+      (0 ** 0) |> Stdlib.Test.equal(1)
+      (1 ** 0) |> Stdlib.Test.equal(1)
+      (1000 ** 0) |> Stdlib.Test.equal(1)
+      (-8 ** 5) |> Stdlib.Test.equal(-32768)
+      (200 ** 20) |> Stdlib.Test.equal(1152921504606846976)
+      (200 ** 7) |> Stdlib.Test.equal(12800000000000000)
+      (1 ** 2147483649) |> Stdlib.Test.equal(1)
+      (-1 ** 2147483649) |> Stdlib.Test.equal(-1)
       // Non-trivial base with a huge (out-of-Int32-range) exponent wraps via modular
       // exponentiation, which stays cheap instead of building an enormous bigint.
-      (2L ** 2147483649L) |> Stdlib.Test.equal(0L)
-      (2L ** 64L) |> Stdlib.Test.equal(0L)
-      5L ** 2L |> Stdlib.Test.equal(25L)
-      -8L ** 5L |> Stdlib.Test.equal(-32768L)
-      50L ** 2L |> Stdlib.Test.equal(2500L) ])
+      (2 ** 2147483649) |> Stdlib.Test.equal(0)
+      (2 ** 64) |> Stdlib.Test.equal(0)
+      5 ** 2 |> Stdlib.Test.equal(25)
+      -8 ** 5 |> Stdlib.Test.equal(-32768)
+      50 ** 2 |> Stdlib.Test.equal(2500) ])
 
 test powerRejectsNegativeExponent =
-  (2L ** -3L)
+  (2 ** -3)
   => raises "Cannot raise integer to a negative exponent"
 
 test powerOfZeroRejectsNegativeExponent =
-  (0L ** -1L)
+  (0 ** -1)
   => raises "Cannot raise integer to a negative exponent"
 
 test powerOfOneRejectsNegativeExponent =
-  (1L ** -5L)
+  (1 ** -5)
   => raises "Cannot raise integer to a negative exponent"
 
 test powerOfMinusOneRejectsNegativeExponent =
-  (-1L ** -3L)
+  (-1 ** -3)
   => raises "Cannot raise integer to a negative exponent"
 
 test greaterThan =
   Stdlib.Test.all(
-    [ (20L > 1L) |> Stdlib.Test.equal(true)
-      20L > 1L |> Stdlib.Test.equal(true) ])
+    [ (20 > 1) |> Stdlib.Test.equal(true)
+      20 > 1 |> Stdlib.Test.equal(true) ])
 
 test greaterThanOrEqualTo =
   Stdlib.Test.all(
-    [ 0L >= 1L |> Stdlib.Test.equal(false)
-      1L >= 0L |> Stdlib.Test.equal(true)
-      6L >= 1L |> Stdlib.Test.equal(true)
-      6L >= 8L |> Stdlib.Test.equal(false)
-      -5L >= -20L |> Stdlib.Test.equal(true)
-      -20L >= -1L |> Stdlib.Test.equal(false)
-      -20L >= -20L |> Stdlib.Test.equal(true)
-      (0L >= 1L) |> Stdlib.Test.equal(false)
-      (1L >= 0L) |> Stdlib.Test.equal(true)
-      (6L >= 1L) |> Stdlib.Test.equal(true)
-      (6L >= 8L) |> Stdlib.Test.equal(false)
-      (-5L >= -20L) |> Stdlib.Test.equal(true)
-      (-20L >= -1L) |> Stdlib.Test.equal(false)
-      (-20L >= -20L) |> Stdlib.Test.equal(true) ])
+    [ 0 >= 1 |> Stdlib.Test.equal(false)
+      1 >= 0 |> Stdlib.Test.equal(true)
+      6 >= 1 |> Stdlib.Test.equal(true)
+      6 >= 8 |> Stdlib.Test.equal(false)
+      -5 >= -20 |> Stdlib.Test.equal(true)
+      -20 >= -1 |> Stdlib.Test.equal(false)
+      -20 >= -20 |> Stdlib.Test.equal(true)
+      (0 >= 1) |> Stdlib.Test.equal(false)
+      (1 >= 0) |> Stdlib.Test.equal(true)
+      (6 >= 1) |> Stdlib.Test.equal(true)
+      (6 >= 8) |> Stdlib.Test.equal(false)
+      (-5 >= -20) |> Stdlib.Test.equal(true)
+      (-20 >= -1) |> Stdlib.Test.equal(false)
+      (-20 >= -20) |> Stdlib.Test.equal(true) ])
 
 test lessThanOrEqualTo =
   Stdlib.Test.all(
-    [ 6L <= 8L |> Stdlib.Test.equal(true)
-      10L <= 1L |> Stdlib.Test.equal(false)
-      0L <= 1L |> Stdlib.Test.equal(true)
-      1L <= 0L |> Stdlib.Test.equal(false)
-      -100L <= 22544L |> Stdlib.Test.equal(true)
-      -999L <= -9999L |> Stdlib.Test.equal(false)
-      -8888L <= -8888L |> Stdlib.Test.equal(true)
-      (6L <= 8L) |> Stdlib.Test.equal(true)
-      (10L <= 1L) |> Stdlib.Test.equal(false)
-      (0L <= 1L) |> Stdlib.Test.equal(true)
-      (1L <= 0L) |> Stdlib.Test.equal(false)
-      (-100L <= 22544L) |> Stdlib.Test.equal(true)
-      (-999L <= -9999L) |> Stdlib.Test.equal(false)
-      (-8888L <= -8888L) |> Stdlib.Test.equal(true) ])
+    [ 6 <= 8 |> Stdlib.Test.equal(true)
+      10 <= 1 |> Stdlib.Test.equal(false)
+      0 <= 1 |> Stdlib.Test.equal(true)
+      1 <= 0 |> Stdlib.Test.equal(false)
+      -100 <= 22544 |> Stdlib.Test.equal(true)
+      -999 <= -9999 |> Stdlib.Test.equal(false)
+      -8888 <= -8888 |> Stdlib.Test.equal(true)
+      (6 <= 8) |> Stdlib.Test.equal(true)
+      (10 <= 1) |> Stdlib.Test.equal(false)
+      (0 <= 1) |> Stdlib.Test.equal(true)
+      (1 <= 0) |> Stdlib.Test.equal(false)
+      (-100 <= 22544) |> Stdlib.Test.equal(true)
+      (-999 <= -9999) |> Stdlib.Test.equal(false)
+      (-8888 <= -8888) |> Stdlib.Test.equal(true) ])
 
 test lessThan =
   Stdlib.Test.all(
-    [ (6L < 8L) |> Stdlib.Test.equal(true)
-      (10L < 1L) |> Stdlib.Test.equal(false)
-      (0L < 1L) |> Stdlib.Test.equal(true)
-      (1L < 0L) |> Stdlib.Test.equal(false)
-      (-100L < 22544L) |> Stdlib.Test.equal(true)
-      (-999L < -9999L) |> Stdlib.Test.equal(false)
-      (-8888L < -8888L) |> Stdlib.Test.equal(false)
-      6L < 8L |> Stdlib.Test.equal(true)
-      10L < 1L |> Stdlib.Test.equal(false)
-      0L < 1L |> Stdlib.Test.equal(true)
-      1L < 0L |> Stdlib.Test.equal(false)
-      -100L < 22544L |> Stdlib.Test.equal(true)
-      -999L < -9999L |> Stdlib.Test.equal(false)
-      -8888L < -8888L |> Stdlib.Test.equal(false) ])
+    [ (6 < 8) |> Stdlib.Test.equal(true)
+      (10 < 1) |> Stdlib.Test.equal(false)
+      (0 < 1) |> Stdlib.Test.equal(true)
+      (1 < 0) |> Stdlib.Test.equal(false)
+      (-100 < 22544) |> Stdlib.Test.equal(true)
+      (-999 < -9999) |> Stdlib.Test.equal(false)
+      (-8888 < -8888) |> Stdlib.Test.equal(false)
+      6 < 8 |> Stdlib.Test.equal(true)
+      10 < 1 |> Stdlib.Test.equal(false)
+      0 < 1 |> Stdlib.Test.equal(true)
+      1 < 0 |> Stdlib.Test.equal(false)
+      -100 < 22544 |> Stdlib.Test.equal(true)
+      -999 < -9999 |> Stdlib.Test.equal(false)
+      -8888 < -8888 |> Stdlib.Test.equal(false) ])
 
 test sqrt =
   Stdlib.Test.all(
-    [ Stdlib.Int64.sqrt(4L) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int64.sqrt(100L) |> Stdlib.Test.equal(10.0)
-      Stdlib.Int64.sqrt(86L) |> Stdlib.Test.equal(9.273618495495704) ])
+    [ Stdlib.Int64.sqrt(4) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int64.sqrt(100) |> Stdlib.Test.equal(10.0)
+      Stdlib.Int64.sqrt(86) |> Stdlib.Test.equal(9.273618495495704) ])
 
 test toFloat =
   Stdlib.Test.all(
-    [ Stdlib.Int64.toFloat(2L) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int64.toFloat(955656L) |> Stdlib.Test.equal(955656.0)
-      Stdlib.Int64.toFloat(-10L) |> Stdlib.Test.equal(-10.0) ])
+    [ Stdlib.Int64.toFloat(2) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int64.toFloat(955656) |> Stdlib.Test.equal(955656.0)
+      Stdlib.Int64.toFloat(-10) |> Stdlib.Test.equal(-10.0) ])
 
 test fromFloat =
   Stdlib.Test.all(
     [ // fromFloat truncates toward zero, like Int.fromFloat; fromFloatRounded rounds
-      Stdlib.Int64.fromFloat(3.9) |> Stdlib.Test.equal(Some(3L))
-      Stdlib.Int64.fromFloat(-3.9) |> Stdlib.Test.equal(Some(-3L))
+      Stdlib.Int64.fromFloat(3.9) |> Stdlib.Test.equal(Some(3))
+      Stdlib.Int64.fromFloat(-3.9) |> Stdlib.Test.equal(Some(-3))
       Stdlib.Int64.fromFloat(1e30)
       |> Stdlib.Test.equal(None)
       Stdlib.Int64.fromFloat(0.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.Int64.fromFloat(1.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.Int64.fromFloat(-1.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.Int64.fromFloat(-9223372036854775808.0)
-      |> Stdlib.Test.equal(Some(-9223372036854775808L))
+      |> Stdlib.Test.equal(Some(-9223372036854775808))
       Stdlib.Int64.fromFloat(9223372036854775808.0) |> Stdlib.Test.equal(None) ])
 
 test fromFloatRounded =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromFloatRounded(3.9) |> Stdlib.Test.equal(Some(4L))
-      Stdlib.Int64.fromFloatRounded(-3.9) |> Stdlib.Test.equal(Some(-4L))
+    [ Stdlib.Int64.fromFloatRounded(3.9) |> Stdlib.Test.equal(Some(4))
+      Stdlib.Int64.fromFloatRounded(-3.9) |> Stdlib.Test.equal(Some(-4))
       Stdlib.Int64.fromFloatRounded(1e30)
       |> Stdlib.Test.equal(None)
       Stdlib.Int64.fromFloatRounded(0.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.Int64.fromFloatRounded(1.0 / 0.0) |> Stdlib.Test.equal(None)
       Stdlib.Int64.fromFloatRounded(-1.0 / 0.0) |> Stdlib.Test.equal(None)
-      Stdlib.Int64.fromFloatRounded(2.5) |> Stdlib.Test.equal(Some(2L))
-      Stdlib.Int64.fromFloatRounded(3.5) |> Stdlib.Test.equal(Some(4L))
-      Stdlib.Int64.fromFloatRounded(-2.5) |> Stdlib.Test.equal(Some(-2L)) ])
+      Stdlib.Int64.fromFloatRounded(2.5) |> Stdlib.Test.equal(Some(2))
+      Stdlib.Int64.fromFloatRounded(3.5) |> Stdlib.Test.equal(Some(4))
+      Stdlib.Int64.fromFloatRounded(-2.5) |> Stdlib.Test.equal(Some(-2)) ])
 
 /// Wraps on overflow.
 test add =
   Stdlib.Test.all(
-    [ (10L + 9L) |> Stdlib.Test.equal(19L)
-      (88L + 9L) |> Stdlib.Test.equal(97L)
-      (-1L + 2L) |> Stdlib.Test.equal(1L)
-      (1L + 0L) |> Stdlib.Test.equal(1L)
-      (-55L + 55L) |> Stdlib.Test.equal(0L)
-      (9223372036854775806L + 1L) |> Stdlib.Test.equal(9223372036854775807L)
+    [ (10 + 9) |> Stdlib.Test.equal(19)
+      (88 + 9) |> Stdlib.Test.equal(97)
+      (-1 + 2) |> Stdlib.Test.equal(1)
+      (1 + 0) |> Stdlib.Test.equal(1)
+      (-55 + 55) |> Stdlib.Test.equal(0)
+      (9223372036854775806 + 1) |> Stdlib.Test.equal(9223372036854775807)
       // Overflow tests
-      (9223372036854775807L + 1L) |> Stdlib.Test.equal(-9223372036854775808L)
-      (55L + 9223372036854775807L) |> Stdlib.Test.equal(-9223372036854775754L)
-      ((-9223372036854775808L) + (-1L)) |> Stdlib.Test.equal(9223372036854775807L)
-      -2000L + 1950L |> Stdlib.Test.equal(-50L)
-      -1993L + 2000L |> Stdlib.Test.equal(7L) ])
+      (9223372036854775807 + 1) |> Stdlib.Test.equal(-9223372036854775808)
+      (55 + 9223372036854775807) |> Stdlib.Test.equal(-9223372036854775754)
+      ((-9223372036854775808) + (-1)) |> Stdlib.Test.equal(9223372036854775807)
+      -2000 + 1950 |> Stdlib.Test.equal(-50)
+      -1993 + 2000 |> Stdlib.Test.equal(7) ])
 
 /// Wraps on overflow.
 test subtract =
   Stdlib.Test.all(
-    [ (10L - 9L) |> Stdlib.Test.equal(1L)
-      (88L - 9L) |> Stdlib.Test.equal(79L)
-      (0L - 1L) |> Stdlib.Test.equal(-1L)
-      (1L - 0L) |> Stdlib.Test.equal(1L)
-      (-55L - -55L) |> Stdlib.Test.equal(0L)
-      2000L - 1950L |> Stdlib.Test.equal(50L)
-      -1993L - -2000L |> Stdlib.Test.equal(7L) ])
+    [ (10 - 9) |> Stdlib.Test.equal(1)
+      (88 - 9) |> Stdlib.Test.equal(79)
+      (0 - 1) |> Stdlib.Test.equal(-1)
+      (1 - 0) |> Stdlib.Test.equal(1)
+      (-55 - -55) |> Stdlib.Test.equal(0)
+      2000 - 1950 |> Stdlib.Test.equal(50)
+      -1993 - -2000 |> Stdlib.Test.equal(7) ])
 
 /// Wraps on overflow.
 test multiply =
   Stdlib.Test.all(
-    [ (8L * 8L) |> Stdlib.Test.equal(64L)
-      (5145L * 5145L) |> Stdlib.Test.equal(26471025L)
-      // 1L * 1.0
+    [ (8 * 8) |> Stdlib.Test.equal(64)
+      (5145 * 5145) |> Stdlib.Test.equal(26471025)
+      // 1 * 1.0
       // => raises
       //   "int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float
       //   (1.0) was passed instead.
       //
       // Expected: (b: Int64)
       // Actual: a Float: 1.0"
-      8L * 8L |> Stdlib.Test.equal(64L) ])
+      8 * 8 |> Stdlib.Test.equal(64) ])
 
 test multiplyByFloatRaises =
-  1L * 1.0 => raises "Cannot perform numeric operation on Int64 and Float"
+  1 * 1.0 => raises "Cannot perform numeric operation on Int64 and Float"
 
 test divide =
   Stdlib.Test.all(
-    [ (10L / 5L) |> Stdlib.Test.equal(2L)
-      (17L / 3L) |> Stdlib.Test.equal(5L)
-      (-8L / 5L) |> Stdlib.Test.equal(-1L)
-      (0L / 1L) |> Stdlib.Test.equal(0L)
-      ((-9223372036854775808L) / -1L) |> Stdlib.Test.equal(-9223372036854775808L) ])
+    [ (10 / 5) |> Stdlib.Test.equal(2)
+      (17 / 3) |> Stdlib.Test.equal(5)
+      (-8 / 5) |> Stdlib.Test.equal(-1)
+      (0 / 1) |> Stdlib.Test.equal(0)
+      ((-9223372036854775808) / -1) |> Stdlib.Test.equal(-9223372036854775808) ])
 
 test divideOfOneRejectsZero =
-  (1L / 0L)
+  (1 / 0)
   => raises "Cannot divide by 0"
 
 test sum =
-  Stdlib.sum(0L, [ 1L, 2L ]) |> Stdlib.Test.equal(3L)
+  Stdlib.sum(0, [ 1, 2 ]) |> Stdlib.Test.equal(3)
 
 test parse =
   Stdlib.Test.all(
     [ // parses ok
-      Stdlib.Int64.parse("0") |> Stdlib.Test.equal(Ok(0L))
-      Stdlib.Int64.parse("1") |> Stdlib.Test.equal(Ok(1L))
-      Stdlib.Int64.parse(" 1") |> Stdlib.Test.equal(Ok(1L))
-      Stdlib.Int64.parse("1 ") |> Stdlib.Test.equal(Ok(1L))
-      Stdlib.Int64.parse("+1") |> Stdlib.Test.equal(Ok(1L))
-      Stdlib.Int64.parse(" +1 ") |> Stdlib.Test.equal(Ok(1L))
-      Stdlib.Int64.parse("-1") |> Stdlib.Test.equal(Ok(-1L))
+      Stdlib.Int64.parse("0") |> Stdlib.Test.equal(Ok(0))
+      Stdlib.Int64.parse("1") |> Stdlib.Test.equal(Ok(1))
+      Stdlib.Int64.parse(" 1") |> Stdlib.Test.equal(Ok(1))
+      Stdlib.Int64.parse("1 ") |> Stdlib.Test.equal(Ok(1))
+      Stdlib.Int64.parse("+1") |> Stdlib.Test.equal(Ok(1))
+      Stdlib.Int64.parse(" +1 ") |> Stdlib.Test.equal(Ok(1))
+      Stdlib.Int64.parse("-1") |> Stdlib.Test.equal(Ok(-1))
       // "octal" format ignored
-      Stdlib.Int64.parse("078") |> Stdlib.Test.equal(Ok(78L))
-      Stdlib.Int64.parse("-00001") |> Stdlib.Test.equal(Ok(-1L))
-      Stdlib.Int64.parse("-10001") |> Stdlib.Test.equal(Ok(-10001L))
+      Stdlib.Int64.parse("078") |> Stdlib.Test.equal(Ok(78))
+      Stdlib.Int64.parse("-00001") |> Stdlib.Test.equal(Ok(-1))
+      Stdlib.Int64.parse("-10001") |> Stdlib.Test.equal(Ok(-10001))
       // testing upper and lower bounds
       // int63 lower limit
       Stdlib.Int64.parse("-4611686018427387904")
-      |> Stdlib.Test.equal(Ok(-4611686018427387904L))
+      |> Stdlib.Test.equal(Ok(-4611686018427387904))
       // past the int63 upper limit
       Stdlib.Int64.parse("-4611686018427387905")
-      |> Stdlib.Test.equal(Ok(-4611686018427387905L))
+      |> Stdlib.Test.equal(Ok(-4611686018427387905))
       // .NET lower limit
       Stdlib.Int64.parse("-9223372036854775808")
-      |> Stdlib.Test.equal(Ok(-9223372036854775808L))
+      |> Stdlib.Test.equal(Ok(-9223372036854775808))
       // int63 upper limit
       Stdlib.Int64.parse("4611686018427387903")
-      |> Stdlib.Test.equal(Ok(4611686018427387903L))
+      |> Stdlib.Test.equal(Ok(4611686018427387903))
       // past the int63 upper limit
       Stdlib.Int64.parse("4611686018427387904")
-      |> Stdlib.Test.equal(Ok(4611686018427387904L))
+      |> Stdlib.Test.equal(Ok(4611686018427387904))
       // .NET upper limit
       Stdlib.Int64.parse("9223372036854775807")
-      |> Stdlib.Test.equal(Ok(9223372036854775807L)) ])
+      |> Stdlib.Test.equal(Ok(9223372036854775807)) ])
 
 test parseOutOfRange =
   Stdlib.Test.all(
@@ -365,211 +362,211 @@ test parseBadFormat =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(0L) |> Stdlib.Test.equal("0")
-      Stdlib.toString(1L) |> Stdlib.Test.equal("1")
-      Stdlib.toString(-1L) |> Stdlib.Test.equal("-1")
+    [ Stdlib.toString(0) |> Stdlib.Test.equal("0")
+      Stdlib.toString(1) |> Stdlib.Test.equal("1")
+      Stdlib.toString(-1) |> Stdlib.Test.equal("-1")
       // int63 lower limit
-      Stdlib.toString(-4611686018427387904L)
+      Stdlib.toString(-4611686018427387904)
       |> Stdlib.Test.equal("-4611686018427387904")
       // past the int63 upper limit"
-      Stdlib.toString(-4611686018427387905L)
+      Stdlib.toString(-4611686018427387905)
       |> Stdlib.Test.equal("-4611686018427387905")
       // .NET lower limit
-      Stdlib.toString(-9223372036854775808L)
+      Stdlib.toString(-9223372036854775808)
       |> Stdlib.Test.equal("-9223372036854775808")
       // int63 upper limit
-      Stdlib.toString(4611686018427387903L) |> Stdlib.Test.equal("4611686018427387903")
+      Stdlib.toString(4611686018427387903) |> Stdlib.Test.equal("4611686018427387903")
       // past the int63 upper limit
-      Stdlib.toString(4611686018427387904L) |> Stdlib.Test.equal("4611686018427387904")
+      Stdlib.toString(4611686018427387904) |> Stdlib.Test.equal("4611686018427387904")
       // .NET upper limit
-      Stdlib.toString(9223372036854775807L)
+      Stdlib.toString(9223372036854775807)
       |> Stdlib.Test.equal("9223372036854775807") ])
 
 test fromInt8 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt8(0y) |> Stdlib.Test.equal(0L)
-      Stdlib.Int64.fromInt8(1y) |> Stdlib.Test.equal(1L)
-      Stdlib.Int64.fromInt8(127y) |> Stdlib.Test.equal(127L)
-      Stdlib.Int64.fromInt8(-128y) |> Stdlib.Test.equal(-128L) ])
+    [ Stdlib.Int64.fromInt8(0s8) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromInt8(1s8) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromInt8(127s8) |> Stdlib.Test.equal(127)
+      Stdlib.Int64.fromInt8(-128s8) |> Stdlib.Test.equal(-128) ])
 
 test fromUInt8 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt8(0uy) |> Stdlib.Test.equal(0L)
-      Stdlib.Int64.fromUInt8(1uy) |> Stdlib.Test.equal(1L)
-      Stdlib.Int64.fromUInt8(255uy) |> Stdlib.Test.equal(255L) ])
+    [ Stdlib.Int64.fromUInt8(0u8) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromUInt8(1u8) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromUInt8(255u8) |> Stdlib.Test.equal(255) ])
 
 test fromInt16 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt16(0s) |> Stdlib.Test.equal(0L)
-      Stdlib.Int64.fromInt16(1s) |> Stdlib.Test.equal(1L)
-      Stdlib.Int64.fromInt16(32767s) |> Stdlib.Test.equal(32767L)
-      Stdlib.Int64.fromInt16(-32768s) |> Stdlib.Test.equal(-32768L) ])
+    [ Stdlib.Int64.fromInt16(0s16) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromInt16(1s16) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromInt16(32767s16) |> Stdlib.Test.equal(32767)
+      Stdlib.Int64.fromInt16(-32768s16) |> Stdlib.Test.equal(-32768) ])
 
 test fromUInt16 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt16(0us) |> Stdlib.Test.equal(0L)
-      Stdlib.Int64.fromUInt16(1us) |> Stdlib.Test.equal(1L)
-      Stdlib.Int64.fromUInt16(65535us) |> Stdlib.Test.equal(65535L) ])
+    [ Stdlib.Int64.fromUInt16(0u16) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromUInt16(1u16) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromUInt16(65535u16) |> Stdlib.Test.equal(65535) ])
 
 test fromInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt32(0l) |> Stdlib.Test.equal(0L)
-      Stdlib.Int64.fromInt32(1l) |> Stdlib.Test.equal(1L)
-      Stdlib.Int64.fromInt32(2147483647l) |> Stdlib.Test.equal(2147483647L)
-      Stdlib.Int64.fromInt32(-2147483648l) |> Stdlib.Test.equal(-2147483648L) ])
+    [ Stdlib.Int64.fromInt32(0s32) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromInt32(1s32) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromInt32(2147483647s32) |> Stdlib.Test.equal(2147483647)
+      Stdlib.Int64.fromInt32(-2147483648s32) |> Stdlib.Test.equal(-2147483648) ])
 
 test fromUInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt32(0ul) |> Stdlib.Test.equal(0L)
-      Stdlib.Int64.fromUInt32(1ul) |> Stdlib.Test.equal(1L)
-      Stdlib.Int64.fromUInt32(4294967295ul) |> Stdlib.Test.equal(4294967295L) ])
+    [ Stdlib.Int64.fromUInt32(0u32) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromUInt32(1u32) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromUInt32(4294967295u32) |> Stdlib.Test.equal(4294967295) ])
 
 test fromUInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt64(0UL) |> Stdlib.Test.equal(Some(0L))
-      Stdlib.Int64.fromUInt64(1UL) |> Stdlib.Test.equal(Some(1L))
-      Stdlib.Int64.fromUInt64(9223372036854775807UL)
-      |> Stdlib.Test.equal(Some(9223372036854775807L))
-      Stdlib.Int64.fromUInt64(18446744073709551615UL) |> Stdlib.Test.equal(None)
-      Stdlib.Int64.fromUInt64(9223372036854775808UL) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int64.fromUInt64(0u64) |> Stdlib.Test.equal(Some(0))
+      Stdlib.Int64.fromUInt64(1u64) |> Stdlib.Test.equal(Some(1))
+      Stdlib.Int64.fromUInt64(9223372036854775807u64)
+      |> Stdlib.Test.equal(Some(9223372036854775807))
+      Stdlib.Int64.fromUInt64(18446744073709551615u64) |> Stdlib.Test.equal(None)
+      Stdlib.Int64.fromUInt64(9223372036854775808u64) |> Stdlib.Test.equal(None) ])
 
 test fromInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt128(0Q) |> Stdlib.Test.equal(Some(0L))
-      Stdlib.Int64.fromInt128(1Q) |> Stdlib.Test.equal(Some(1L))
-      Stdlib.Int64.fromInt128(9223372036854775807Q)
-      |> Stdlib.Test.equal(Some(9223372036854775807L))
-      Stdlib.Int64.fromInt128(-9223372036854775808Q)
-      |> Stdlib.Test.equal(Some(-9223372036854775808L))
-      Stdlib.Int64.fromInt128(9223372036854775808Q) |> Stdlib.Test.equal(None)
-      Stdlib.Int64.fromInt128(-9223372036854775809Q) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int64.fromInt128(0s128) |> Stdlib.Test.equal(Some(0))
+      Stdlib.Int64.fromInt128(1s128) |> Stdlib.Test.equal(Some(1))
+      Stdlib.Int64.fromInt128(9223372036854775807s128)
+      |> Stdlib.Test.equal(Some(9223372036854775807))
+      Stdlib.Int64.fromInt128(-9223372036854775808s128)
+      |> Stdlib.Test.equal(Some(-9223372036854775808))
+      Stdlib.Int64.fromInt128(9223372036854775808s128) |> Stdlib.Test.equal(None)
+      Stdlib.Int64.fromInt128(-9223372036854775809s128) |> Stdlib.Test.equal(None) ])
 
 test fromUInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt128(0Z) |> Stdlib.Test.equal(Some(0L))
-      Stdlib.Int64.fromUInt128(1Z) |> Stdlib.Test.equal(Some(1L))
-      Stdlib.Int64.fromUInt128(9223372036854775807Z)
-      |> Stdlib.Test.equal(Some(9223372036854775807L))
-      Stdlib.Int64.fromUInt128(18446744073709551615Z) |> Stdlib.Test.equal(None)
-      Stdlib.Int64.fromUInt128(9223372036854775808Z) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int64.fromUInt128(0u128) |> Stdlib.Test.equal(Some(0))
+      Stdlib.Int64.fromUInt128(1u128) |> Stdlib.Test.equal(Some(1))
+      Stdlib.Int64.fromUInt128(9223372036854775807u128)
+      |> Stdlib.Test.equal(Some(9223372036854775807))
+      Stdlib.Int64.fromUInt128(18446744073709551615u128) |> Stdlib.Test.equal(None)
+      Stdlib.Int64.fromUInt128(9223372036854775808u128) |> Stdlib.Test.equal(None) ])
 
 test bitwiseAnd =
   Stdlib.Test.all(
-    [ (12L & 10L) |> Stdlib.Test.equal(8L)
-      (0L & 0L) |> Stdlib.Test.equal(0L)
-      ((-1L) & 0L) |> Stdlib.Test.equal(0L)
-      (9223372036854775807L & 9223372036854775807L)
-      |> Stdlib.Test.equal(9223372036854775807L)
-      ((-9223372036854775808L) & (-1L)) |> Stdlib.Test.equal(-9223372036854775808L)
-      (9223372036854775807L & (-9223372036854775808L)) |> Stdlib.Test.equal(0L)
-      ((-1L) & (-1L)) |> Stdlib.Test.equal(-1L) ])
+    [ (12 & 10) |> Stdlib.Test.equal(8)
+      (0 & 0) |> Stdlib.Test.equal(0)
+      ((-1) & 0) |> Stdlib.Test.equal(0)
+      (9223372036854775807 & 9223372036854775807)
+      |> Stdlib.Test.equal(9223372036854775807)
+      ((-9223372036854775808) & (-1)) |> Stdlib.Test.equal(-9223372036854775808)
+      (9223372036854775807 & (-9223372036854775808)) |> Stdlib.Test.equal(0)
+      ((-1) & (-1)) |> Stdlib.Test.equal(-1) ])
 
 test bitwiseOr =
   Stdlib.Test.all(
-    [ (12L | 10L) |> Stdlib.Test.equal(14L)
-      (0L | 0L) |> Stdlib.Test.equal(0L)
-      ((-1L) | 0L) |> Stdlib.Test.equal(-1L)
-      (9223372036854775807L | 0L) |> Stdlib.Test.equal(9223372036854775807L)
-      ((-9223372036854775808L) | 0L) |> Stdlib.Test.equal(-9223372036854775808L)
-      (9223372036854775807L | (-9223372036854775808L)) |> Stdlib.Test.equal(-1L) ])
+    [ (12 | 10) |> Stdlib.Test.equal(14)
+      (0 | 0) |> Stdlib.Test.equal(0)
+      ((-1) | 0) |> Stdlib.Test.equal(-1)
+      (9223372036854775807 | 0) |> Stdlib.Test.equal(9223372036854775807)
+      ((-9223372036854775808) | 0) |> Stdlib.Test.equal(-9223372036854775808)
+      (9223372036854775807 | (-9223372036854775808)) |> Stdlib.Test.equal(-1) ])
 
 test bitwiseXor =
   Stdlib.Test.all(
-    [ (12L ^ 10L) |> Stdlib.Test.equal(6L)
-      (0L ^ 0L) |> Stdlib.Test.equal(0L)
-      ((-1L) ^ (-1L)) |> Stdlib.Test.equal(0L)
-      (9223372036854775807L ^ (-1L)) |> Stdlib.Test.equal(-9223372036854775808L)
-      ((-9223372036854775808L) ^ (-1L)) |> Stdlib.Test.equal(9223372036854775807L)
-      (9223372036854775807L ^ 9223372036854775807L) |> Stdlib.Test.equal(0L) ])
+    [ (12 ^ 10) |> Stdlib.Test.equal(6)
+      (0 ^ 0) |> Stdlib.Test.equal(0)
+      ((-1) ^ (-1)) |> Stdlib.Test.equal(0)
+      (9223372036854775807 ^ (-1)) |> Stdlib.Test.equal(-9223372036854775808)
+      ((-9223372036854775808) ^ (-1)) |> Stdlib.Test.equal(9223372036854775807)
+      (9223372036854775807 ^ 9223372036854775807) |> Stdlib.Test.equal(0) ])
 
 test bitwiseNot =
   Stdlib.Test.all(
-    [ (~0L) |> Stdlib.Test.equal(-1L)
-      (~(-1L)) |> Stdlib.Test.equal(0L)
-      (~9223372036854775807L) |> Stdlib.Test.equal(-9223372036854775808L)
-      (~(-9223372036854775808L)) |> Stdlib.Test.equal(9223372036854775807L)
-      (~1L) |> Stdlib.Test.equal(-2L) ])
+    [ (~0) |> Stdlib.Test.equal(-1)
+      (~(-1)) |> Stdlib.Test.equal(0)
+      (~9223372036854775807) |> Stdlib.Test.equal(-9223372036854775808)
+      (~(-9223372036854775808)) |> Stdlib.Test.equal(9223372036854775807)
+      (~1) |> Stdlib.Test.equal(-2) ])
 
 test shiftLeft =
   Stdlib.Test.all(
-    [ (1L << 2L) |> Stdlib.Test.equal(4L)
-      (0L << 5L) |> Stdlib.Test.equal(0L)
-      (1L << 0L) |> Stdlib.Test.equal(1L)
-      (1L << 62L) |> Stdlib.Test.equal(4611686018427387904L)
-      (5L << 3L) |> Stdlib.Test.equal(40L) ])
+    [ (1 << 2) |> Stdlib.Test.equal(4)
+      (0 << 5) |> Stdlib.Test.equal(0)
+      (1 << 0) |> Stdlib.Test.equal(1)
+      (1 << 62) |> Stdlib.Test.equal(4611686018427387904)
+      (5 << 3) |> Stdlib.Test.equal(40) ])
 
 test shiftRight =
   Stdlib.Test.all(
-    [ (8L >> 2L) |> Stdlib.Test.equal(2L)
-      (0L >> 5L) |> Stdlib.Test.equal(0L)
-      (1L >> 0L) |> Stdlib.Test.equal(1L)
-      (4611686018427387904L >> 62L) |> Stdlib.Test.equal(1L)
-      ((-1L) >> 1L) |> Stdlib.Test.equal(-1L)
-      (40L >> 3L) |> Stdlib.Test.equal(5L) ])
+    [ (8 >> 2) |> Stdlib.Test.equal(2)
+      (0 >> 5) |> Stdlib.Test.equal(0)
+      (1 >> 0) |> Stdlib.Test.equal(1)
+      (4611686018427387904 >> 62) |> Stdlib.Test.equal(1)
+      ((-1) >> 1) |> Stdlib.Test.equal(-1)
+      (40 >> 3) |> Stdlib.Test.equal(5) ])
 
 test checkedAdd =
   Stdlib.Test.all(
-    [ Stdlib.Int64.checkedAdd(9223372036854775807L, 1L)
+    [ Stdlib.Int64.checkedAdd(9223372036854775807, 1)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedAdd(-9223372036854775808L, -1L)
+      Stdlib.Int64.checkedAdd(-9223372036854775808, -1)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedAdd(9223372036854775807L, -1L)
-      |> Stdlib.Test.equal(Ok(9223372036854775806L))
-      Stdlib.Int64.checkedAdd(-9223372036854775808L, 1L)
-      |> Stdlib.Test.equal(Ok(-9223372036854775807L))
-      Stdlib.Int64.checkedAdd(9223372036854775807L, -9223372036854775808L)
-      |> Stdlib.Test.equal(Ok(-1L))
-      Stdlib.Int64.checkedAdd(-9223372036854775808L, 0L)
-      |> Stdlib.Test.equal(Ok(-9223372036854775808L)) ])
+      Stdlib.Int64.checkedAdd(9223372036854775807, -1)
+      |> Stdlib.Test.equal(Ok(9223372036854775806))
+      Stdlib.Int64.checkedAdd(-9223372036854775808, 1)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807))
+      Stdlib.Int64.checkedAdd(9223372036854775807, -9223372036854775808)
+      |> Stdlib.Test.equal(Ok(-1))
+      Stdlib.Int64.checkedAdd(-9223372036854775808, 0)
+      |> Stdlib.Test.equal(Ok(-9223372036854775808)) ])
 
 test checkedSubtract =
   Stdlib.Test.all(
-    [ Stdlib.Int64.checkedSubtract(-9223372036854775808L, 1L)
+    [ Stdlib.Int64.checkedSubtract(-9223372036854775808, 1)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedSubtract(9223372036854775807L, -1L)
+      Stdlib.Int64.checkedSubtract(9223372036854775807, -1)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedSubtract(0L, -9223372036854775808L)
+      Stdlib.Int64.checkedSubtract(0, -9223372036854775808)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedSubtract(-1L, -9223372036854775808L)
-      |> Stdlib.Test.equal(Ok(9223372036854775807L))
-      Stdlib.Int64.checkedSubtract(9223372036854775807L, 9223372036854775807L)
-      |> Stdlib.Test.equal(Ok(0L))
-      Stdlib.Int64.checkedSubtract(-9223372036854775808L, -1L)
-      |> Stdlib.Test.equal(Ok(-9223372036854775807L)) ])
+      Stdlib.Int64.checkedSubtract(-1, -9223372036854775808)
+      |> Stdlib.Test.equal(Ok(9223372036854775807))
+      Stdlib.Int64.checkedSubtract(9223372036854775807, 9223372036854775807)
+      |> Stdlib.Test.equal(Ok(0))
+      Stdlib.Int64.checkedSubtract(-9223372036854775808, -1)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807)) ])
 
 test checkedMultiply =
   Stdlib.Test.all(
-    [ Stdlib.Int64.checkedMultiply(9223372036854775807L, 2L)
+    [ Stdlib.Int64.checkedMultiply(9223372036854775807, 2)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedMultiply(-9223372036854775808L, -1L)
+      Stdlib.Int64.checkedMultiply(-9223372036854775808, -1)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedMultiply(-1L, -9223372036854775808L)
+      Stdlib.Int64.checkedMultiply(-1, -9223372036854775808)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedMultiply(-9223372036854775808L, 2L)
+      Stdlib.Int64.checkedMultiply(-9223372036854775808, 2)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedMultiply(9223372036854775807L, -1L)
-      |> Stdlib.Test.equal(Ok(-9223372036854775807L))
-      Stdlib.Int64.checkedMultiply(-9223372036854775808L, 1L)
-      |> Stdlib.Test.equal(Ok(-9223372036854775808L))
-      Stdlib.Int64.checkedMultiply(-9223372036854775808L, 0L)
-      |> Stdlib.Test.equal(Ok(0L))
-      Stdlib.Int64.checkedMultiply(-2L, 4611686018427387903L)
-      |> Stdlib.Test.equal(Ok(-9223372036854775806L)) ])
+      Stdlib.Int64.checkedMultiply(9223372036854775807, -1)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807))
+      Stdlib.Int64.checkedMultiply(-9223372036854775808, 1)
+      |> Stdlib.Test.equal(Ok(-9223372036854775808))
+      Stdlib.Int64.checkedMultiply(-9223372036854775808, 0)
+      |> Stdlib.Test.equal(Ok(0))
+      Stdlib.Int64.checkedMultiply(-2, 4611686018427387903)
+      |> Stdlib.Test.equal(Ok(-9223372036854775806)) ])
 
 test checkedNegate =
   Stdlib.Test.all(
-    [ Stdlib.Int64.checkedNegate(-9223372036854775808L)
+    [ Stdlib.Int64.checkedNegate(-9223372036854775808)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedNegate(9223372036854775807L)
-      |> Stdlib.Test.equal(Ok(-9223372036854775807L))
-      Stdlib.Int64.checkedNegate(0L) |> Stdlib.Test.equal(Ok(0L)) ])
+      Stdlib.Int64.checkedNegate(9223372036854775807)
+      |> Stdlib.Test.equal(Ok(-9223372036854775807))
+      Stdlib.Int64.checkedNegate(0) |> Stdlib.Test.equal(Ok(0)) ])
 
 test checkedAbsoluteValue =
   Stdlib.Test.all(
-    [ Stdlib.Int64.checkedAbsoluteValue(-9223372036854775808L)
+    [ Stdlib.Int64.checkedAbsoluteValue(-9223372036854775808)
       |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
-      Stdlib.Int64.checkedAbsoluteValue(-9223372036854775807L)
-      |> Stdlib.Test.equal(Ok(9223372036854775807L))
-      Stdlib.Int64.checkedAbsoluteValue(9223372036854775807L)
-      |> Stdlib.Test.equal(Ok(9223372036854775807L))
-      Stdlib.Int64.checkedAbsoluteValue(0L) |> Stdlib.Test.equal(Ok(0L)) ])
+      Stdlib.Int64.checkedAbsoluteValue(-9223372036854775807)
+      |> Stdlib.Test.equal(Ok(9223372036854775807))
+      Stdlib.Int64.checkedAbsoluteValue(9223372036854775807)
+      |> Stdlib.Test.equal(Ok(9223372036854775807))
+      Stdlib.Int64.checkedAbsoluteValue(0) |> Stdlib.Test.equal(Ok(0)) ])

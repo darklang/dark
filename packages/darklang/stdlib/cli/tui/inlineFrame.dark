@@ -5,7 +5,7 @@
 module Darklang.Stdlib.Cli.Tui.InlineFrame
 
 
-let cursorRow(view: Tui.View): Int =
+let cursorRow(view: Tui.View): Int64 =
   match view.cursor with
   | Hidden ->
     Stdlib.max(0, Stdlib.List.length(view.rows) - 1)
@@ -13,7 +13,7 @@ let cursorRow(view: Tui.View): Int =
     Stdlib.max(0, row)
 
 
-let moveRows(fromRow: Int, toRow: Int): String =
+let moveRows(fromRow: Int64, toRow: Int64): String =
   let distance = toRow - fromRow
   if distance < 0 then
     $"\u001b[{Stdlib.toString(0 - distance)}A"
@@ -27,13 +27,13 @@ let moveRows(fromRow: Int, toRow: Int): String =
 ///
 /// Clearing before writing preserves the final cell of full-width content.
 /// Resets prevent background colors and row styling from leaking.
-let renderContentAtWidth(width: Int, content: String): String =
+let renderContentAtWidth(width: Int64, content: String): String =
   let content = Text.normalizeToWidth(content, width)
   "\r\u001b[0m\u001b[K" + content + "\u001b[0m"
 
 
 let finishAtCursor(
-  currentRow: Int,
+  currentRow: Int64,
   view: Tui.View)
   : String =
   match view.cursor with
@@ -54,7 +54,7 @@ let finishAtCursor(
 /// Rendering starts from the cursor position left by the previous view and
 /// clears rows that no longer exist.
 let renderFullAtWidth(
-  width: Int,
+  width: Int64,
   previous: Stdlib.Option.Option<Tui.View>,
   next: Tui.View)
   : String =
@@ -96,7 +96,7 @@ let renderFullAtWidth(
 /// Rewrite changed rows relative to the previous cursor, then place the next
 /// cursor.
 let renderAtWidth(
-  width: Int,
+  width: Int64,
   previous: Stdlib.Option.Option<Tui.View>,
   next: Tui.View)
   : String =

@@ -4,15 +4,15 @@ let content(): String =
   """# Functions
 
 ## Define
-  let add(a: Int, b: Int): Int = a + b
+  let add(a: Int64, b: Int64): Int64 = a + b
   let greet(name: String): String = $"Hi {name}"
 
 ## No params
   let now(): DateTime = Stdlib.DateTime.now()
 
 ## Nested functions
-  let outer(n: Int): Int =
-    let double(x: Int): Int = x * 2
+  let outer(n: Int64): Int64 =
+    let double(x: Int64): Int64 = x * 2
     double(n)
 
   # Nested params and the return need types. `let double(x) = ...` and

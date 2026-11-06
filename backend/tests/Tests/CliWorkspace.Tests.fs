@@ -378,7 +378,7 @@ let foldCallbackKeepsItsAccess =
           fn
             state
             "Tests.FoldAccess.run"
-            "(): String = \"fold-access-\" + Stdlib.toString(Stdlib.List.length(Stdlib.List.fold([ 1L, 2L, 3L ], [], fun(acc, n) -> Stdlib.List.prepend(acc, Tests.FoldAccess.stamp(n)))))"
+            "(): String = \"fold-access-\" + Stdlib.toString(Stdlib.List.length(Stdlib.List.fold([ 1, 2, 3 ], [], fun(acc, n) -> Stdlib.List.prepend(acc, Tests.FoldAccess.stamp(n)))))"
         for name in [ "stamp"; "run" ] do
           do!
             run
@@ -429,7 +429,7 @@ let anApprovedVersionIsWhatRuns =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Appr.rate" "() : Int64 = 6101L"
+        do! fn state "Tests.Appr.rate" "() : Int64 = 6101"
         do! commit state "rate v1"
         do! run state [ "permissions"; "approve"; "Tests.Appr.rate"; "--yes" ]
         do!
@@ -441,7 +441,7 @@ let anApprovedVersionIsWhatRuns =
 
         // A newer version, published and live: the NAME now points at it for everything that has
         // not approved a version.
-        do! fn state "Tests.Appr.rate" "() : Int64 = 6102L"
+        do! fn state "Tests.Appr.rate" "() : Int64 = 6102"
         do! commit state "rate v2"
 
         do!
@@ -500,7 +500,7 @@ let showTellsYouWhatACommitHolds =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Show.f" "() : Int64 = 1L"
+        do! fn state "Tests.Show.f" "() : Int64 = 1"
         do! commit state "a commit to show"
         do! shows state [ "log" ] "a commit to show" "the commit is in the log"
         do!
@@ -707,7 +707,7 @@ let private serveFollowsEdits =
           false
           [ "[live] now on the new version of Tests.LiveHttp.router"
             "[live] Tests.LiveHttp.router: still on the last good version; "
-            + "the newest has a type error: expected String, got Int (return value)"
+            + "the newest has a type error: expected String, got Int64 (return value)"
             "[live] now on the new version of Tests.LiveHttp.router"
             "[live] now on the new version of Tests.LiveHttp.router" ]
           (fun port ->
@@ -750,7 +750,7 @@ let private serveFollowsEdits =
                 why
                 "still on the last good version"
                 "the diagnostic names what it kept"
-              Expect.stringContains why "expected String, got Int" "and says why"
+              Expect.stringContains why "expected String, got Int64" "and says why"
 
               do! author "Tests.LiveHttp.page" "(): String = \"three\""
               let! (_, body) = getText port
@@ -775,9 +775,9 @@ let private pollAndAffects =
       let state = executionState target
       let author = author target
 
-      do! author "Tests.LivePoll.leaf" "(): Int = 1"
-      do! author "Tests.LivePoll.branch" "(): Int = (Tests.LivePoll.leaf()) + 1"
-      do! author "Tests.LivePoll.bystander" "(): Int = 7"
+      do! author "Tests.LivePoll.leaf" "(): Int64 = 1"
+      do! author "Tests.LivePoll.branch" "(): Int64 = (Tests.LivePoll.leaf()) + 1"
+      do! author "Tests.LivePoll.bystander" "(): Int64 = 7"
 
       let loc (name : string) : Task<RT.Dval> =
         evalUnder state (locSource [ "LivePoll" ] name)
@@ -790,7 +790,7 @@ let private pollAndAffects =
       // A fresh watch has nothing to report.
       let! watch = pollQuiet state watch
 
-      do! author "Tests.LivePoll.leaf" "(): Int = 2"
+      do! author "Tests.LivePoll.leaf" "(): Int64 = 2"
 
       let! (_, change) = pollChange state watch "expected the edit to be reported"
 
@@ -849,7 +849,7 @@ let private treeRendersTheSameEverywhere =
     task {
       let state = executionState target
       let tree =
-        "Darklang.Stdlib.Cli.UI.Node.column([ Darklang.Stdlib.Cli.UI.Node.bold(\"Stats\"), Darklang.Stdlib.Cli.UI.Node.table([ \"module\", \"fns\" ], [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ]), Darklang.Stdlib.Cli.UI.Node.band(Darklang.Stdlib.Cli.UI.Node.Severity.Error, \"boom\"), Darklang.Stdlib.Cli.UI.Node.row([ Darklang.Stdlib.Cli.UI.Node.text(\"a\"), Darklang.Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ]) ])"
+        "Darklang.Stdlib.Cli.UI.Node.column([ Darklang.Stdlib.Cli.UI.Node.bold(\"Stats\"), Darklang.Stdlib.Cli.UI.Node.table([ \"module\", \"fns\" ], [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ]), Darklang.Stdlib.Cli.UI.Node.band(Darklang.Stdlib.Cli.UI.Node.Severity.Error, \"boom\"), Darklang.Stdlib.Cli.UI.Node.row([ Darklang.Stdlib.Cli.UI.Node.text(\"a\"), Darklang.Stdlib.Cli.UI.Node.Node.Button(\"go\", 1) ]) ])"
       let region =
         "Darklang.Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 10, cols = 40 }"
 
@@ -919,15 +919,15 @@ let private viewFollowsEdits =
         let author = author target
         let run (name : string) (args : List<RT.Dval>) = callByName state name args
 
-        do! author "Tests.LiveView.init" "(): Int = 0"
+        do! author "Tests.LiveView.init" "(): Int64 = 0"
         do!
           author
             "Tests.LiveView.update"
-            "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key(_) -> m + 1 | Msg(n) -> m + n"
+            "(m: Int64, e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = match e with | Key(_) -> m + 1 | Msg(n) -> m + n"
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version one\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)), Stdlib.Cli.UI.Node.Node.Button(\"ten\", 10) ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version one\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)), Stdlib.Cli.UI.Node.Node.Button(\"ten\", 10) ])"
 
         let view =
           "Darklang.Cli.LiveView.Model.View { name = \"live\", title = \"Live\", init = \"Tests.LiveView.init\", update = \"Tests.LiveView.update\", render = \"Tests.LiveView.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
@@ -977,7 +977,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version two\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version two\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
         pushTick ()
         let! session = step session
         let! afterEdit = rowsOf session
@@ -992,7 +992,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(3) ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(3) ])"
         pushTick ()
         let! session = step session
         let! afterBreak = rowsOf session
@@ -1013,7 +1013,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version three\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version three\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
         pushTick ()
         let! session = step session
         let! afterFix = rowsOf session
@@ -1080,15 +1080,15 @@ let private modelSavesAndResumes =
       let state = executionState target
       let author = author target
 
-      do! author "Tests.LiveSave.init" "(): Int = 0"
+      do! author "Tests.LiveSave.init" "(): Int64 = 0"
       do!
         author
           "Tests.LiveSave.update"
-          "(m: Int, e: Darklang.Cli.LiveView.Host.Event<Int>): Int = match e with | Key(_) -> m + 1 | Msg(n) -> m + n"
+          "(m: Int64, e: Darklang.Cli.LiveView.Host.Event<Int64>): Int64 = match e with | Key(_) -> m + 1 | Msg(n) -> m + n"
       do!
         author
           "Tests.LiveSave.render"
-          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m))"
+          "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m))"
 
       let view =
         "Darklang.Cli.LiveView.Model.View { name = \"s\", title = \"S\", init = \"Tests.LiveSave.init\", update = \"Tests.LiveSave.update\", render = \"Tests.LiveSave.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
@@ -1148,7 +1148,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
       task {
         let state = executionState target
         let author = author target
-        do! author "Tests.LiveFold.leaf" "(): Int = 1"
+        do! author "Tests.LiveFold.leaf" "(): Int64 = 1"
 
         let! watch =
           evalUnder
@@ -1160,7 +1160,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
         // A fresh body per run: the log is content-addressed and the store outlives the run.
         let body = System.Random.Shared.Next(1_000, 1_000_000_000)
         let! ops =
-          parsePackageOps $"module Tests.LiveFold\n\nlet leaf(): Int = {body}"
+          parsePackageOps $"module Tests.LiveFold\n\nlet leaf(): Int64 = {body}"
         let statements =
           ops
           |> List.map (fun op ->
@@ -1209,7 +1209,7 @@ let private pollOnABranchSeesTheBranchsOwnSaves =
           evalUnder
             state
             "Darklang.Stdlib.Live.watch(Darklang.SCM.PackageOps.currentBranch())"
-        do! author "Tests.LiveBranchPoll.leaf" "(): Int = 1"
+        do! author "Tests.LiveBranchPoll.leaf" "(): Int64 = 1"
         let! (_, change) = pollChange state watch "the branch save was not reported"
         let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
         match names with
@@ -1293,7 +1293,7 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         | RT.DEnum(_, _, _, "Some", [ RT.DString s ]) ->
           Expect.stringContains
             s
-            "expected String, got Int"
+            "expected String, got Int64"
             "and the reason names the broken callee's error"
         | other -> failtest $"expected a diagnostic, got {other}"
       })
@@ -1452,15 +1452,15 @@ let private pipeStageValuesStayOutsideTheirDelimiters =
         do!
           author
             "Tests.PipeVals.asArg"
-            "(xs: List<Int>): String =\n  Stdlib.toString(xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length)"
+            "(xs: List<Int64>): String =\n  Stdlib.toString(xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length)"
         do!
           author
             "Tests.PipeVals.inTuple"
-            "(xs: List<Int>): (Int * Int) =\n  (xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length, 7)"
+            "(xs: List<Int64>): (Int64 * Int64) =\n  (xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length, 7)"
         do!
           author
             "Tests.PipeVals.inList"
-            "(xs: List<Int>): List<Int> =\n  [ xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length ]"
+            "(xs: List<Int64>): List<Int64> =\n  [ xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length ]"
 
         for fn in [ "asArg"; "inTuple"; "inList" ] do
           let! _ = runCli target [ "eval"; $"Tests.PipeVals.{fn}([1, 2])" ]
@@ -1543,15 +1543,15 @@ let private pipeStagesCarryTheirValues =
         do!
           author
             "Tests.Pipes.sizes"
-            "(n: Int64): Int =\n  [1L, 2L, n] |> Stdlib.List.map(fun x -> x * 2L) |> Stdlib.List.length"
+            "(n: Int64): Int64 =\n  [1, 2, n] |> Stdlib.List.map(fun x -> x * 2) |> Stdlib.List.length"
 
-        let! ran = runCli target [ "eval"; "Tests.Pipes.sizes(5L)" ]
+        let! ran = runCli target [ "eval"; "Tests.Pipes.sizes(5)" ]
         Expect.stringContains ran "3" "the call ran"
 
         let! shown = runCli target [ "traces"; "show"; "Tests.Pipes.sizes" ]
         Expect.stringContains
           shown
-          "|> Stdlib.List.map(fun x -> x * 2L) // = [2, 4, 10]"
+          "|> Stdlib.List.map(fun x -> x * 2) // = [2, 4, 10]"
           "what came out of the middle stage, on its own line"
         Expect.stringContains
           shown
@@ -1587,8 +1587,8 @@ let private liveValuesStayBounded =
     (fun target ->
       task {
         let state = executionState target
-        do! author target "Tests.LiveBound.inc" "(n: Int64): Int64 = (n + 1L)"
-        let! out = runCli target [ "eval"; "Tests.LiveBound.inc(41L)" ]
+        do! author target "Tests.LiveBound.inc" "(n: Int64): Int64 = (n + 1)"
+        let! out = runCli target [ "eval"; "Tests.LiveBound.inc(41)" ]
         Expect.stringContains out "42" "the call ran"
 
         let within (ms : string) (fns : string) =
@@ -1598,20 +1598,20 @@ let private liveValuesStayBounded =
         let expectSkipped (label : string) (ms : string) (fns : string) =
           task {
             match! evalUnder state (within ms fns) with
-            | RT.DTuple(RT.DInt n, RT.DString why, []) ->
-              Expect.equal (RT.DarkInt.toBigInt n) 0I $"{label}: nothing replayed"
+            | RT.DTuple(RT.DInt64 n, RT.DString why, []) ->
+              Expect.equal n 0L $"{label}: nothing replayed"
               Expect.stringContains
                 why
                 "too large to show live values"
                 $"{label}: and says why"
             | other -> failtest $"{label}: expected (0, why), got {other}"
           }
-        match! evalUnder state (within "1000L" "500") with
-        | RT.DTuple(RT.DInt n, RT.DString "", []) ->
-          Expect.isGreaterThan (RT.DarkInt.toBigInt n) 0I "a small run is replayed"
+        match! evalUnder state (within "1000" "500") with
+        | RT.DTuple(RT.DInt64 n, RT.DString "", []) ->
+          Expect.isGreaterThan n 0L "a small run is replayed"
         | other -> failtest $"expected (n, \"\"), got {other}"
-        do! expectSkipped "over the time limit" "-1L" "500"
-        do! expectSkipped "over the fn limit" "1000L" "0"
+        do! expectSkipped "over the time limit" "-1" "500"
+        do! expectSkipped "over the fn limit" "1000" "0"
 
         // A sentinel in the values survives a refresh that moved nothing, so that refresh did not
         // replay; the reload a store change forces does, and puts the real values back.
@@ -1628,16 +1628,13 @@ let kept = Darklang.Cli.Workbench.refresh(marked, { marked with detailScroll = 1
 let reloaded = Darklang.Cli.Workbench.refresh(kept, Darklang.Cli.Workbench.forceScmRefresh(kept))
 (Darklang.Stdlib.Dict.size(s.liveValues), Darklang.Stdlib.Dict.keys(kept.liveValues), Darklang.Stdlib.Dict.keys(reloaded.liveValues))"""
         match wb with
-        | RT.DTuple(RT.DInt first,
+        | RT.DTuple(RT.DInt64 first,
                     RT.DList(_, [ RT.DString "sentinel" ]),
                     [ RT.DList(_, again) ]) ->
-          Expect.isGreaterThan
-            (RT.DarkInt.toBigInt first)
-            0I
-            "the fn shows its values"
+          Expect.isGreaterThan first 0L "the fn shows its values"
           Expect.equal
-            (bigint (List.length again))
-            (RT.DarkInt.toBigInt first)
+            (int64 (List.length again))
+            first
             "a forced reload replays again"
           Expect.isFalse
             (List.contains (RT.DString "sentinel") again)
@@ -1673,7 +1670,7 @@ let private observeAndShow =
             (hasReport, rte, render)
           | other -> failtest $"expected an observation, got {other}"
 
-        do! author "Tests.LiveObs.init" "(): Int64 = 3L"
+        do! author "Tests.LiveObs.init" "(): Int64 = 3"
         do!
           author
             "Tests.LiveObs.update"
@@ -1681,7 +1678,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold(\"Obs\"), Stdlib.Cli.UI.Node.table([ \"k\", \"v\" ], [ [ \"count\", Stdlib.toString(m) ] ]), Stdlib.Cli.UI.Node.row([ Stdlib.Cli.UI.Node.text(\"a\"), Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ]), Stdlib.Cli.UI.Node.band(Stdlib.Cli.UI.Node.Severity.Error, \"boom\") ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold(\"Obs\"), Stdlib.Cli.UI.Node.table([ \"k\", \"v\" ], [ [ \"count\", Stdlib.toString(m) ] ]), Stdlib.Cli.UI.Node.row([ Stdlib.Cli.UI.Node.text(\"a\"), Stdlib.Cli.UI.Node.Node.Button(\"go\", 1) ]), Stdlib.Cli.UI.Node.band(Stdlib.Cli.UI.Node.Severity.Error, \"boom\") ])"
 
         let! first = observe ()
         let (hasReport, rte, render) = unpack first
@@ -1696,7 +1693,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(3L)"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(3)"
         let! broken = observe ()
         let (hasReport, rte, render) = unpack broken
         Expect.isTrue hasReport "the newest version's report is there"
@@ -1710,7 +1707,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(Stdlib.toString(m / 0L))"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(Stdlib.toString(m / 0))"
         let! raised = observe ()
         let (hasReport, rte, render) = unpack raised
         Expect.isFalse hasReport "this version passes its checks"
@@ -1724,7 +1721,7 @@ let private observeAndShow =
           "and the version before it is the picture"
 
         // `show` names a view through the store; the host loop switches on its next turn.
-        do! author "Tests.LiveOther.init" "(): Int64 = 0L"
+        do! author "Tests.LiveOther.init" "(): Int64 = 0"
         do!
           author
             "Tests.LiveOther.update"

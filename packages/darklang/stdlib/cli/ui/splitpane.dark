@@ -20,7 +20,7 @@ type Focus =
 let render(
   region: Layout.Region,
   orientation: Orientation,
-  firstPct: Int,
+  firstPct: Int64,
   focused: Focus,
   titleFirst: String,
   titleSecond: String,

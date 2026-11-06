@@ -2,8 +2,8 @@ module Darklang.Stdlib.Retry
 
 
 let withBackoffLoop(
-  maxAttempts: Int,
-  attempt: Int,
+  maxAttempts: Int64,
+  attempt: Int64,
   delayMs: Float,
   fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
@@ -21,15 +21,15 @@ let withBackoffLoop(
 /// Starts with a 100ms delay, doubling each retry.
 /// Returns the first successful result, or the last error.
 let withBackoff(
-  maxAttempts: Int,
+  maxAttempts: Int64,
   fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
   withBackoffLoop(maxAttempts, 1, 100.0, fn)
 
 
 let withFixedDelayLoop(
-  maxAttempts: Int,
-  attempt: Int,
+  maxAttempts: Int64,
+  attempt: Int64,
   delayMs: Float,
   fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
@@ -45,7 +45,7 @@ let withFixedDelayLoop(
 
 /// Retry with a fixed delay between attempts.
 let withFixedDelay(
-  maxAttempts: Int,
+  maxAttempts: Int64,
   delayMs: Float,
   fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =

@@ -183,7 +183,7 @@ let previousHashesOfAll(
 /// One CHANGED line, from the SAME classification the JSON reports. The mark says what happened to the
 /// name: `+` new, `~` changed, `>` when it merely FOLLOWED your edit rather than being one. The note says
 /// whether a fn's SIGNATURE moved, the part callers can't absorb by a hash swap.
-let changedLine(width: Int, item: ScmJson.ChangedItem): String =
+let changedLine(width: Int64, item: ScmJson.ChangedItem): String =
   let mark =
     if item.followed then ">"
     else if item.change == "new" then "+"
@@ -199,7 +199,7 @@ let propagateOne(
   branchId: Uuid,
   b: SCM.Conflicts.Binding,
   previous: List<LanguageTools.ProgramTypes.Hash>)
-  : Int =
+  : Int64 =
   match previous with
   | [] -> 0 // brand new, nothing can be pointing at an older version of it
   | _ ->
@@ -217,7 +217,7 @@ let propagateOne(
       0
 
 /// The widest of a set of names, so the notes beside them line up instead of stair-stepping.
-let widest(names: List<String>): Int =
+let widest(names: List<String>): Int64 =
   names
   |> Stdlib.List.map(fun n -> Stdlib.String.length(n))
   |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
@@ -288,7 +288,7 @@ let typeCheckSelection(names: List<String>): LanguageTools.AtRestTypeChecker.Rep
 
 /// Repoint every dependent of every name the draft changed, and count what moved. Both commit paths run
 /// it: a repoint is a consequence of the EDIT, not of which ops you chose to stamp.
-let propagateAll(state: AppState, r: Review): Int =
+let propagateAll(state: AppState, r: Review): Int64 =
   r.withPrevious
   |> Stdlib.List.map(fun entry ->
     let (b, previous) = entry
@@ -307,7 +307,7 @@ let commitSelected(
   r: Review,
   message: String,
   names: List<String>)
-  : Stdlib.Result.Result<(String * Int64 * Int), String> =
+  : Stdlib.Result.Result<(String * Int64 * Int64), String> =
   match SCM.PartialCommit.plan(names) with
   | Error(e) -> Stdlib.Result.Result.Error(e)
   | Ok((opIds, pulledIn)) ->
@@ -354,7 +354,7 @@ let commit(
   state: AppState,
   r: Review,
   message: String)
-  : Stdlib.Result.Result<(String * Int64 * Int), String> =
+  : Stdlib.Result.Result<(String * Int64 * Int64), String> =
   let moved = propagateAll(state, r)
 
   // Collapse BEFORE committing (`collapse = true`, main only). Until now every version in the draft is
@@ -401,7 +401,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
       ""
 
   let refusal =
-    if SCM.PackageOps.draftOpCount() == 0L then "nothing-to-commit" else quietRefusal()
+    if SCM.PackageOps.draftOpCount() == 0 then "nothing-to-commit" else quietRefusal()
 
   // `failure` is a commit that was asked for (`-y`) and did not happen. It is not a refusal: the
   // checks passed and the store said no, so the JSON still says `committed: false`, the reason
@@ -409,10 +409,10 @@ let executeJson(state: AppState, args: List<String>): AppState =
   let (didCommit, hash, ops, moved, failure) =
     // Ask the DRAFT, not the changed-bindings list, for the same reason `executePretty` does: a
     // draft holding only a `Deprecate` binds no name and is still not empty.
-    if SCM.PackageOps.draftOpCount() == 0L then
-      (false, "", 0L, 0, "")
+    if SCM.PackageOps.draftOpCount() == 0 then
+      (false, "", 0, 0, "")
     else if refusal != "" then
-      (false, "", 0L, 0, "")
+      (false, "", 0, 0, "")
     else if parsed.autoConfirm then
       match
         (if Stdlib.List.isEmpty(parsed.include) then
@@ -421,9 +421,9 @@ let executeJson(state: AppState, args: List<String>): AppState =
            commitSelected(state, r, parsed.message, parsed.include))
       with
       | Ok((h, n, m)) -> (true, h, n, m, "")
-      | Error(e) -> (false, "", 0L, 0, e)
+      | Error(e) -> (false, "", 0, 0, e)
     else
-      (false, "", 0L, 0, "")
+      (false, "", 0, 0, "")
 
   Stdlib.printLine((
     ScmJson.commitJson((
@@ -545,7 +545,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
   // `changed`, and a draft holding only `dark delete X` is not empty: judged by that list it would never
   // commit, and would ship in the seed as somebody else's mystery op.
   // Nothing was committed, so it is a refusal: `dark commit -y && dark push` must not carry on.
-  if SCM.PackageOps.draftOpCount() == 0L then
+  if SCM.PackageOps.draftOpCount() == 0 then
     Cli.printErr("nothing to commit -- your draft is empty.")
     { state with exitCode = 1 }
   // A commit is what other machines pull, and its message is the one sentence they get. An empty
@@ -664,11 +664,11 @@ let executePretty(state: AppState, args: List<String>): AppState =
           else
             // Ops AND items: status speaks items and this line speaks ops, and forcing the reader to
             // reconcile 4-vs-16 mid-commit was the one vocabulary jolt of the flow.
-            let heldOps = Stdlib.Int.fromInt64(SCM.PackageOps.draftOpCount())
+            let heldOps = SCM.PackageOps.draftOpCount()
             let heldItems = Stdlib.List.length(SCM.PackageOps.draftBindings())
             $"; {Cli.Text.plural(heldOps, "op")} ({Cli.Text.plural(heldItems, "item")}) still in the draft"
 
-        let stamped = Cli.Text.plural(Stdlib.Int.fromInt64(committed), "op")
+        let stamped = Cli.Text.plural(committed, "op")
         Cli.printOk($"  commit {Stdlib.String.first(hash, 8)} -- {stamped}{movedNote}{heldNote}.")
         state
 

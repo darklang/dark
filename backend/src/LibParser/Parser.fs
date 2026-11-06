@@ -95,7 +95,7 @@ let private infixOf (t : Token) : WT.Infix option =
 // `canStartPattern` both build on it so the lists can't drift from each other.
 // Matched EXHAUSTIVELY (no `_`): a new `Token` case won't compile until it's
 // classified here, so a new integer type can't silently fall through to `false`
-// — the drift that once made `| Ok 5y ->` unparseable while `Ok 5y` worked.
+// — the drift that once made `| Ok 5s8 ->` unparseable while `Ok 5s8` worked.
 let private isIntLit (t : Token) : bool =
   match t with
   | TInt _
@@ -110,6 +110,8 @@ let private isIntLit (t : Token) : bool =
   | TInt128 _
   | TUInt128 _ -> true
   | TFloat _
+  | TFloat32 _
+  | TDecimal _
   | TStringLit _
   | TCharLit _
   | TInterpString
@@ -174,6 +176,8 @@ let private canStartAtom (t : Token) : bool =
   isIntLit t
   || (match t with
       | TFloat _
+      | TFloat32 _
+      | TDecimal _
       | TCharLit _
       | TTrue
       | TFalse
@@ -191,7 +195,7 @@ let private canStartAtom (t : Token) : bool =
       | TBitNot -> true
       | _ -> false)
 
-// `TMinus` is included so a negative-literal enum-pattern field (`| Ok -4y ->`)
+// `TMinus` is included so a negative-literal enum-pattern field (`| Ok -4s8 ->`)
 // parses; parsePatternBase's TMinus case handles it.
 let private canStartPattern (t : Token) : bool =
   isIntLit t
@@ -199,6 +203,8 @@ let private canStartPattern (t : Token) : bool =
       | TUnderscore
       | TMinus
       | TFloat _
+      | TFloat32 _
+      | TDecimal _
       | TCharLit _
       | TTrue
       | TFalse
@@ -319,6 +325,15 @@ let private splitTrailingRange
   let boundary = advancePos whole.start text (max 0 (text.Length - trailingLength))
   ({ start = whole.start; end_ = boundary }, { start = boundary; end_ = whole.end_ })
 
+// An int literal's digits and its suffix (`s8` in `5s8`; empty for a bare `5`).
+let private splitIntSuffix
+  (state : ParserState)
+  (i : int)
+  : TokenRange * TokenRange =
+  let text = txt state i
+  let digitCount = text |> Seq.takeWhile System.Char.IsDigit |> Seq.length
+  splitTrailingRange state i (text.Length - digitCount)
+
 let private literalTextRanges
   (state : ParserState)
   (i : int)
@@ -422,9 +437,9 @@ let tooDeep (state : ParserState) (i : int) : bool =
     true
 
 // A sized-int literal whose magnitude is the type's |MinValue| lexes to
-// MinValue (so the NEGATED literal can exist: `-128y`); consumed WITHOUT the
+// MinValue (so the NEGATED literal can exist: `-128s8`); consumed WITHOUT the
 // minus, the written magnitude is out of range — diagnose instead of silently
-// wrapping (`128y` is NOT -128). Only the negating TMinus branches consume
+// wrapping (`128s8` is NOT -128). Only the negating TMinus branches consume
 // these tokens without passing through here.
 let checkBareMinMagnitude (state : ParserState) (i : int) : unit =
   let isMinMagnitude =
@@ -447,13 +462,41 @@ let checkBareMinMagnitude (state : ParserState) (i : int) : unit =
 // Expressions and patterns validate the source's decimal precision before
 // constructing written digits. Formatting never determines literal acceptance
 // or the decimal representation used during lowering.
-let floatParts (state : ParserState) (i : int) (v : float) : string * string =
-  match FloatLiteral.parse (txt state i) v with
+let private literalParts
+  (state : ParserState)
+  (i : int)
+  (format : string)
+  (parsed : Result<string * string, FloatLiteral.Error>)
+  : string * string =
+  match parsed with
   | Ok parts -> parts
+  // the lexer has already reported a malformed literal, as one diagnostic
+  | Error _ when state.toks[i].lexError -> "0", "0"
   | Error error ->
-    let code, message = FloatLiteral.diagnostic error
+    let code, message = FloatLiteral.diagnostic format error
     err state code i message
     "0", "0"
+
+/// A float token's source minus its `f64`/`f32` suffix, checked against its format.
+let private withoutSuffix (suffix : string) (text : string) : string =
+  if text.EndsWith suffix then
+    text.Substring(0, text.Length - suffix.Length)
+  else
+    text
+
+let floatParts (state : ParserState) (i : int) (v : float) : string * string =
+  literalParts
+    state
+    i
+    "binary64"
+    (FloatLiteral.parse (withoutSuffix "f64" (txt state i)) v)
+
+let float32Parts (state : ParserState) (i : int) (v : float32) : string * string =
+  literalParts
+    state
+    i
+    "binary32"
+    (FloatLiteral.parse32 (withoutSuffix "f32" (txt state i)) v)
 
 // Reject invalid escapes / codepoints in string, char, and interpolated-string
 // literals (triple-quoted forms are raw, so skipped). A diagnostic here becomes a
@@ -732,7 +775,7 @@ let withStmtColExact (state : ParserState) (col : int) (f : unit -> 'a) : 'a =
 // parseItems), or -1. Recovery only: a decl-start keyword at or left of this
 // column can never belong to a construct inside the declaration, so an
 // unclosed delimiter above must stop instead of swallowing the next
-// declaration (`let broken = [1L;` must not eat the `let fine …` below it).
+// declaration (`let broken = [1;` must not eat the `let fine …` below it).
 let declBarrier (state : ParserState) (k : int) : bool =
   (match tok state k with
    | TLet
@@ -760,7 +803,7 @@ let offsideContinues (state : ParserState) (headIdx : int) (k : int) : bool =
 
 // A `-` GLUED to a following number, with a space before it, is a negative-literal
 // ARGUMENT (`f a -1`), not subtraction (`f a - 1` = `(f a) - 1`). The application
-// arg loop accepts it so `f a -1.0` / `add 5L -1L` parse correctly
+// arg loop accepts it so `f a -1.0` / `add 5 -1` parse correctly
 // (matches F#'s high-precedence-application rule).
 let isNegLitArg (state : ParserState) (k : int) : bool =
   tok state k = TMinus
@@ -771,7 +814,9 @@ let isNegLitArg (state : ParserState) (k : int) : bool =
       | TInt16 _
       | TInt32 _
       | TInt128 _
-      | TFloat _ -> true
+      | TFloat _
+      | TFloat32 _
+      | TDecimal _ -> true
       | _ -> false)
   && (rng state (k + 1)).start.row = (rng state k).end_.row
   && (rng state (k + 1)).start.column = (rng state k).end_.column // no space after `-`
@@ -1208,39 +1253,39 @@ and parsePatternBase (state : ParserState) (i : int) : WT.MatchPattern * int =
     r
 
 and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * int =
-  checkBareMinMagnitude state i // `128y` etc. — only valid negated
+  checkBareMinMagnitude state i // `128s8` etc. — only valid negated
   match tok state i with
   | TUnderscore -> (WT.MPVariable(rng state i, "_"), i + 1)
   | TInt v -> (WT.MPInt(rng state i, (rng state i, v)), i + 1)
   | TInt64 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPInt64(rng state i, (digits, v), suffix), i + 1)
   | TInt32 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPInt32(rng state i, (digits, v), suffix), i + 1)
   | TInt8 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPInt8(rng state i, (digits, v), suffix), i + 1)
   | TUInt8 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPUInt8(rng state i, (digits, v), suffix), i + 1)
   | TInt16 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPInt16(rng state i, (digits, v), suffix), i + 1)
   | TUInt16 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPUInt16(rng state i, (digits, v), suffix), i + 1)
   | TUInt32 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPUInt32(rng state i, (digits, v), suffix), i + 1)
   | TUInt64 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPUInt64(rng state i, (digits, v), suffix), i + 1)
   | TInt128 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPInt128(rng state i, (digits, v), suffix), i + 1)
   | TUInt128 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.MPUInt128(rng state i, (digits, v), suffix), i + 1)
   // unary minus on a numeric literal pattern: `-5L`, `-1y`, `-2.0` (unsigned
   // types can't be negative, so only the signed literals + float are handled).
@@ -1250,23 +1295,27 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     match tok state (i + 1) with
     | TInt v -> (WT.MPInt(r, (r, -v)), i + 2)
     | TInt64 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.MPInt64(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt32 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.MPInt32(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt8 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.MPInt8(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt16 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.MPInt16(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt128 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.MPInt128(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TFloat v ->
       let (whole, frac) = floatParts state (i + 1) v
       (WT.MPFloat(r, true, whole, frac), i + 2)
+    | TFloat32 v ->
+      let (whole, frac) = float32Parts state (i + 1) v
+      (WT.MPFloat32(r, true, whole, frac), i + 2)
+    | TDecimal v -> (WT.MPDecimal(r, -v), i + 2)
     | _ ->
       errExpected state i "a pattern"
       (WT.MPError(rng state i), i + 1)
@@ -1274,6 +1323,11 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     let r = rng state i
     let (whole, frac) = floatParts state i v
     (WT.MPFloat(r, v < 0.0, whole, frac), i + 1)
+  | TFloat32 v ->
+    let r = rng state i
+    let (whole, frac) = float32Parts state i v
+    (WT.MPFloat32(r, v < 0.0f, whole, frac), i + 1)
+  | TDecimal v -> (WT.MPDecimal(rng state i, v), i + 1)
   | TTrue -> (WT.MPBool(rng state i, true), i + 1)
   | TFalse -> (WT.MPBool(rng state i, false), i + 1)
   | TStringLit s ->
@@ -1748,8 +1802,8 @@ and parseInfixRhs
   while go do
     // The operator must belong to THIS statement: same row as the left
     // operand's end, or inside parens, or an indented continuation. Otherwise
-    // a following statement that starts with a prefix operator (`1L\n-8L …`)
-    // would be wrongly glued on as `1L - 8L …`. On a new line, a pure infix
+    // a following statement that starts with a prefix operator (`1\n-8 …`)
+    // would be wrongly glued on as `1 - 8 …`. On a new line, a pure infix
     // operator at the statement column continues (`x\n* y`: `*` cannot start
     // a statement), but `-` there begins a new statement (a negative literal),
     // so it must be indented PAST it. This rule is identical for every caller.
@@ -2002,7 +2056,7 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
       (i + 1)
   | TDot, TIdent field ->
     parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
-  | TDot, TInt _ when isDigits (txt state (i + 1)) ->
+  | TDot, TInt64 _ when isDigits (txt state (i + 1)) ->
     let field = txt state (i + 1)
     parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
   // The lexer reads `1.2` in `t.1.2` as a float; split it into two accesses.
@@ -2021,11 +2075,11 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
     let bR = { start = at (a.Length + 1); end_ = r.end_ }
     let inner = access e (rng state i) aR a
     parsePostfix state (access inner innerDotR bR b) (i + 2)
-  // Give invalid indices such as `t.1L` and `t.1e0` a specific diagnostic.
+  // Give invalid indices such as `t.1s8` and `t.1e0` a specific diagnostic.
   | TDot,
-    (TInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _) ->
+    (TInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _ | TFloat32 _ | TDecimal _) ->
     let text = txt state (i + 1)
-    // The lexer already reports malformed literals such as `1.2L` or `300y`.
+    // The lexer already reports malformed literals such as `1.2s8` or `300s8`.
     if not state.toks[i + 1].lexError then
       errFull
         state
@@ -2219,38 +2273,38 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
   (WT.EString(spanned.range, Some dollarR, List.ofSeq contents, openQ, closeQ), i + 1)
 
 and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
-  checkBareMinMagnitude state i // `128y` etc. — only valid negated
+  checkBareMinMagnitude state i // `128s8` etc. — only valid negated
   match tok state i with
   | TInt v -> (WT.EInt(rng state i, (rng state i, v)), i + 1)
   | TInt64 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EInt64(rng state i, (digits, v), suffix), i + 1)
   | TInt8 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EInt8(rng state i, (digits, v), suffix), i + 1)
   | TUInt8 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EUInt8(rng state i, (digits, v), suffix), i + 1)
   | TInt16 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EInt16(rng state i, (digits, v), suffix), i + 1)
   | TUInt16 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EUInt16(rng state i, (digits, v), suffix), i + 1)
   | TInt32 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EInt32(rng state i, (digits, v), suffix), i + 1)
   | TUInt32 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EUInt32(rng state i, (digits, v), suffix), i + 1)
   | TUInt64 v ->
-    let (digits, suffix) = splitTrailingRange state i 2
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EUInt64(rng state i, (digits, v), suffix), i + 1)
   | TInt128 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EInt128(rng state i, (digits, v), suffix), i + 1)
   | TUInt128 v ->
-    let (digits, suffix) = splitTrailingRange state i 1
+    let (digits, suffix) = splitIntSuffix state i
     (WT.EUInt128(rng state i, (digits, v), suffix), i + 1)
   // unary minus on a numeric literal: `-5L`, `-2.0` (infix `a - b` is handled in
   // parseInfixRhs, so a `-` reaching here always prefixes a literal)
@@ -2260,23 +2314,27 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     match tok state (i + 1) with
     | TInt v -> (WT.EInt(r, (r, -v)), i + 2)
     | TInt64 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.EInt64(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt8 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.EInt8(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt16 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.EInt16(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt32 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.EInt32(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TInt128 v ->
-      let (digits, suffix) = splitTrailingRange state (i + 1) 1
+      let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.EInt128(r, (span (rng state i) digits, -v), suffix), i + 2)
     | TFloat v ->
       let (whole, frac) = floatParts state (i + 1) v
       (WT.EFloat(r, true, whole, frac), i + 2)
+    | TFloat32 v ->
+      let (whole, frac) = float32Parts state (i + 1) v
+      (WT.EFloat32(r, true, whole, frac), i + 2)
+    | TDecimal v -> (WT.EDecimal(r, -v), i + 2)
     | _ ->
       // unary minus on a non-literal (`-x`, `-(expr)`, `-f x`) → `Builtin.negate`
       // applied to the whole application, so `-f x` groups as `-(f x)`, not `(-f) x`
@@ -2287,6 +2345,11 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     let r = rng state i
     let (whole, frac) = floatParts state i v
     (WT.EFloat(r, v < 0.0, whole, frac), i + 1)
+  | TFloat32 v ->
+    let r = rng state i
+    let (whole, frac) = float32Parts state i v
+    (WT.EFloat32(r, v < 0.0f, whole, frac), i + 1)
+  | TDecimal v -> (WT.EDecimal(rng state i, v), i + 1)
   | TCharLit c ->
     let r = rng state i
     let (openQuote, contents, closeQuote) = literalTextRanges state i "'"
@@ -4153,7 +4216,7 @@ let parseTestFile (source : string) : ParseResult = parse source
 /// Render a diagnostic for humans: code, position, message, a source snippet
 /// with caret markers, related locations, and the hint if any. E.g.
 ///   error[PARSE-UNCLOSED] at 1:9: expected ']' to close the '[' at line 1:9, found end of file
-///     1 | let x = [1L; 2L
+///     1 | let x = [1; 2
 ///       |         ^
 ///     note: the '[' opened here (1:9)
 let renderDiagnostic (source : string) (d : Diagnostic) : string =

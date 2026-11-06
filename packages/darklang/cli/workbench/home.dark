@@ -52,7 +52,7 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
   let here =
     let changed = Stdlib.List.length(draft.bindings)
     let last =
-      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(branchId, 1L)) with
+      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(branchId, 1)) with
       | Some(c) -> "last commit " + (agoText(c.originTs))
       | None -> "no commits yet"
     let desc =
@@ -74,12 +74,12 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
   // Recent work belongs on Home even when the current branch has no commits.
   let recent =
     let commits =
-      SCM.Commits.recent(30L)
+      SCM.Commits.recent(30)
       |> Stdlib.List.take(homeCommitCap)
       |> Stdlib.List.map(fun c ->
         row(c.message, "home-commit", agoText(c.originTs)))
     let total = SCM.Commits.count()
-    let hiddenCommits = (Stdlib.Int.fromInt64(total)) - homeCommitCap
+    let hiddenCommits = (total) - homeCommitCap
     let more =
       if hiddenCommits <= 0 then []
       else
@@ -97,10 +97,10 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
   let branchRow(id: Uuid, name: String): BodyItem =
     let current = id == branchId
     let hasDraft =
-      if current then draft.ops > 0L
-      else SCM.PackageOps.draftOpCountFor(id) > 0L
+      if current then draft.ops > 0
+      else SCM.PackageOps.draftOpCountFor(id) > 0
     let last =
-      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1L)) with
+      match Stdlib.List.head(SCM.PackageOps.commitsOnBranch(id, 1)) with
       | Some(c) -> agoText(c.originTs)
       | None -> ""
     let desc =
@@ -134,7 +134,7 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
 
 /// The selected row's position among the rows of its own kind - the index the
 /// SCM detail helpers take.
-let homeKindIndex(state: State): Int =
+let homeKindIndex(state: State): Int64 =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> 0
   | Some(item) ->

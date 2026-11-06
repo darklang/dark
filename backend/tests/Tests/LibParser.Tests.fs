@@ -250,7 +250,7 @@ let private desugarTests =
           | PT.ELambda(_, pats, _) ->
             Expect.equal (NEList.length pats) 1 "normal lambda arity"
           | other -> failtest $"expected lambda, got {other}"
-          match toPT (lowerExpr "1L |> fun(x, ___) -> x") with
+          match toPT (lowerExpr "1 |> fun(x, ___) -> x") with
           | PT.EPipe(_, _, [ PT.EPipeLambda(_, pats, _) ]) ->
             Expect.equal (NEList.length pats) 1 "pipe lambda arity"
           | other -> failtest $"expected pipe lambda, got {other}")
@@ -262,17 +262,17 @@ let private desugarTests =
           | other -> failtest $"expected a single unit placeholder, got: {other}"
         | other -> failtest $"expected a call with one type arg, got: {other}")
       testCase "`Dict { … }` lowers to EDict, not a record" (fun _ ->
-        match toPT (lowerExpr "Dict { \"a\": 1L, \"b\": 2L }") with
+        match toPT (lowerExpr "Dict { \"a\": 1, \"b\": 2 }") with
         | PT.EDict(_, pairs) ->
           Expect.equal (List.length pairs) 2 "two dict entries"
         | other -> failtest $"expected EDict, got: {other}")
       testCase "record-literal type args survive lowering" (fun _ ->
-        match toPT (lowerExpr "MyType<Int64> { x = 1L }") with
+        match toPT (lowerExpr "MyType<Int64> { x = 1 }") with
         | PT.ERecord(_, _, [ PT.TInt64 ], _) -> ()
         | other ->
           failtest $"expected ERecord with one Int64 type arg, got: {other}")
       testCase "enum-constructor type args survive lowering" (fun _ ->
-        match toPT (lowerExpr "MyType<Int64>.Case 1L") with
+        match toPT (lowerExpr "MyType<Int64>.Case 1") with
         | PT.EEnum(_, _, [ PT.TInt64 ], "Case", [ _ ]) -> ()
         | other -> failtest $"expected EEnum with one Int64 type arg, got: {other}") ]
 
@@ -293,7 +293,7 @@ let private loweringRegressionTests =
           toPTWith
             globalMapPM
             (context (Map [ ("map", 0) ]) Set.empty)
-            (lowerExpr "map 1L")
+            (lowerExpr "map 1")
         with
         | PT.EApply(_, PT.EArg(_, 0), _, _) -> ()
         | other -> failtest $"expected argument callee, got {other}")
@@ -302,7 +302,7 @@ let private loweringRegressionTests =
           toPTWith
             globalMapPM
             (context Map.empty (Set [ "map" ]))
-            (lowerExpr "map 1L")
+            (lowerExpr "map 1")
         with
         | PT.EApply(_, PT.EVariable(_, "map"), _, _) -> ()
         | other -> failtest $"expected local callee, got {other}")
@@ -330,7 +330,7 @@ let private loweringRegressionTests =
               [ "Darklang"; "Test" ]
               globalMapPM
               collisionContext
-              (lowerExpr "let map = (fun x -> map(x)) in map(1L)")
+              (lowerExpr "let map = (fun x -> map(x)) in map(1)")
           with
           | PT.ELet(_, _, PT.ELambda(_, _, PT.EApply(_, PT.EFnName _, _, _)), _) ->
             ()
@@ -340,7 +340,7 @@ let private loweringRegressionTests =
           toPTWith
             globalMapPM
             (context (Map [ ("map", 0) ]) Set.empty)
-            (lowerExpr "1L |> map")
+            (lowerExpr "1 |> map")
         with
         | PT.EPipe(_, _, [ PT.EPipeVariable(_, "map", []) ]) -> ()
         | other -> failtest $"expected variable pipe segment, got {other}") ]
@@ -361,7 +361,7 @@ let private validationTests =
         match
           P.parseFor
             Validation.Script
-            "match x with | Some(value) -> value | None -> 0L"
+            "match x with | Some(value) -> value | None -> 0"
         with
         | Error diagnostics -> failtest $"unexpected diagnostics: {diagnostics}"
         | Ok validated ->
@@ -370,7 +370,7 @@ let private validationTests =
             Validation.Script
             "validated mode")
       testCase "validate gates a manually supplied syntax tree" (fun _ ->
-        let sf = sourceFile "match x with | Some(value) -> value | None -> 0L"
+        let sf = sourceFile "match x with | Some(value) -> value | None -> 0"
         match Validation.validate Validation.Script sf with
         | Error issues -> failtest $"unexpected validation issues: {issues}"
         | Ok validated ->
@@ -383,7 +383,7 @@ let private validationTests =
             sf
             "validated tree")
       testCase "parseFor applies purpose rules without changing parse" (fun _ ->
-        let assertion = "1L = 1L"
+        let assertion = "1 = 1"
         let packageExpressionCode =
           Validation.IssueCode.toString Validation.PackageExpression
         Expect.isEmpty (P.parse assertion).diagnostics "neutral parse"
@@ -396,7 +396,7 @@ let private validationTests =
               diagnostic.code = Validation.IssueCode.toString Validation.TestMode)
             "script purpose diagnostic"
         Expect.isOk (P.parseFor Validation.Test assertion) "test purpose accepts it"
-        match P.parseFor Validation.Package "1L" with
+        match P.parseFor Validation.Package "1" with
         | Ok _ -> failtest "package accepted a trailing expression"
         | Error diagnostics ->
           Expect.exists
@@ -429,7 +429,7 @@ let private validationTests =
       testCase "parser surfaces shared structural validation diagnostics" (fun _ ->
         for (source, expectedCode) in
           [ ("fun(x, x) -> x", Validation.DuplicateBinder)
-            ("let (x, x) = (1L, 2L) in x", Validation.DuplicateBinder)
+            ("let (x, x) = (1, 2) in x", Validation.DuplicateBinder)
             ("let f(x: Int64, x: Int64): Int64 = x", Validation.DuplicateBinder)
             ("match x with | Some(a) | None -> a", Validation.OrBindingMismatch)
             ("match pair with | ((x | _), y) -> x", Validation.OrBindingMismatch) ] do
@@ -440,7 +440,7 @@ let private validationTests =
             $"shared validation diagnostic for {source}")
       testCase "duplicate binders are independently rejected after parsing" (fun _ ->
         let issues =
-          sourceFile "let (x, x) = (1L, 2L) in x"
+          sourceFile "let (x, x) = (1, 2) in x"
           |> validationIssues Validation.Script
         Expect.exists
           issues
@@ -511,13 +511,13 @@ let private validationTests =
             1
             "same first binding")
       testCase "package mode rejects trailing expressions" (fun _ ->
-        let issues = sourceFile "1L" |> validationIssues Validation.Package
+        let issues = sourceFile "1" |> validationIssues Validation.Package
         Expect.exists
           issues
           (fun issue -> issue.code = Validation.PackageExpression)
           "package expression issue")
       testCase "file purpose is classified after a shared parse" (fun _ ->
-        let source = "val x = 1L\nx = 1L"
+        let source = "val x = 1\nx = 1"
         let normal = P.parse source
         let compatibility = P.parseTestFile source
         Expect.equal normal.parsed compatibility.parsed "one parse shape"
@@ -539,7 +539,7 @@ let private validationTests =
       testCase
         "test classification rejects bare expressions and script lets"
         (fun _ ->
-          for source in [ "1L"; "let x = 1L" ] do
+          for source in [ "1"; "let x = 1" ] do
             Expect.exists
               (sourceFile source |> validationIssues Validation.Test)
               (fun issue -> issue.code = Validation.TestAssertion)
@@ -607,6 +607,38 @@ let private literalTests =
             $"{source}: pattern precision diagnostic"
         for source in [ "0.1"; "0.3"; "0.10000000000000001"; "10000000000000002.0" ] do
           Expect.isEmpty (P.parse source).diagnostics $"{source}: accepted")
+      testCase
+        "decimal literals keep their scale and refuse what they would round"
+        (fun _ ->
+          let parsed source =
+            match (P.parse source).parsed with
+            | Some(WT.SourceFile { exprsToEval = [ WT.EDecimal(_, d) ] }) -> Some d
+            | _ -> None
+          for (source, expected) in
+            [ "19.99dec", "19.99"
+              "1.10dec", "1.10"
+              "007.50dec", "7.50"
+              "0dec", "0"
+              "79228162514264337593543950335dec", "79228162514264337593543950335"
+              "0.0000000000000000000000000001dec", "0.0000000000000000000000000001" ] do
+            Expect.isEmpty (P.parse source).diagnostics $"{source}: accepted"
+            Expect.equal
+              (parsed source
+               |> Option.map (fun d ->
+                 d.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+              (Some expected)
+              $"{source}: value and scale"
+          for source in
+            [ "79228162514264337593543950336dec"
+              "0.00000000000000000000000000001dec"
+              "1.0000000000000000000000000000001dec"
+              // a Decimal is its written digits, so it has no exponent form
+              "1e5dec"
+              "1.5e2dec" ] do
+            Expect.isNonEmpty (P.parse source).diagnostics $"{source}: refused"
+          Expect.isNonEmpty
+            (P.parse "1.5decx").diagnostics
+            "glued suffix is one bad literal")
       testCase "float range errors are independent of exponent spelling" (fun _ ->
         for source in [ "1e309"; "1e401"; "1e999999999999999999999" ] do
           Expect.isTrue
@@ -641,7 +673,97 @@ let private literalTests =
         check "-0.0" 0x8000000000000000UL
         check "0e999999999999999999999" 0UL
         check ("1" + String.replicate 417 "0" + "e-401") 0x4341c37937e08000UL
-        check ("0." + String.replicate 416 "0" + "1e401") 0x3c9cd2b297d889bcUL) ]
+        check ("0." + String.replicate 416 "0" + "1e401") 0x3c9cd2b297d889bcUL)
+      testCase "float32 literals take an f32 suffix" (fun _ ->
+        let parses source whole fraction negative =
+          let r = P.parse source
+          Expect.isEmpty r.diagnostics $"{source} parses cleanly"
+          match r.parsed with
+          | Some(WT.SourceFile { exprsToEval = [ WT.EFloat32(_, neg, w, f) ] }) ->
+            Expect.equal (neg, w, f) (negative, whole, fraction) source
+          | other -> failtest $"{source}: {other}"
+        parses "1.5f32" "1" "5" false
+        parses "-0.25f32" "0" "25" true
+        parses "1e3f32" "1000" "0" false
+        parses "1f32" "1" "0" false
+        let refused source code =
+          Expect.isTrue
+            ((P.parse source).diagnostics |> List.exists (fun d -> d.code = code))
+            $"{source}: {code}"
+        // more digits than binary32 holds, though binary64 would hold them
+        refused "0.1234567891f32" "PARSE-FLOAT-PRECISION"
+        refused "1e39f32" "PARSE-FLOAT-OVERFLOW"
+        Expect.isNonEmpty (P.parse "1.5f32x").diagnostics "1.5f32x is refused")
+      testCase "every number suffix names its type" (fun _ ->
+        let tokenOf source =
+          match LibParser.Lexer.tokenize source with
+          | Ok([ token; _eof ], []) -> Some token.token
+          | _ -> None
+        for (source, expected) in
+          [ "1", Tok.TInt64 1L
+            "1s", Tok.TInt64 1L
+            "1s64", Tok.TInt64 1L
+            "1u", Tok.TUInt64 1UL
+            "1u64", Tok.TUInt64 1UL
+            "1s8", Tok.TInt8 1y
+            "1u8", Tok.TUInt8 1uy
+            "1s16", Tok.TInt16 1s
+            "1u16", Tok.TUInt16 1us
+            "1s32", Tok.TInt32 1
+            "1u32", Tok.TUInt32 1u
+            "1s128", Tok.TInt128(System.Int128.One)
+            "1u128", Tok.TUInt128(System.UInt128.One)
+            "1z", Tok.TInt 1I
+            "1.5", Tok.TFloat 1.5
+            "1.5f64", Tok.TFloat 1.5
+            "1e5", Tok.TFloat 100000.0
+            "1.5f32", Tok.TFloat32 1.5f
+            "1e5f32", Tok.TFloat32 100000.0f
+            "19.99dec", Tok.TDecimal 19.99M ] do
+          Expect.equal (tokenOf source) (Some expected) source)
+      testCase "the old suffixes and anything unknown are one bad literal" (fun _ ->
+        for source in
+          [ "1L"
+            "1y"
+            "1uy"
+            "1us"
+            "1ul"
+            "1UL"
+            "1Q"
+            "1Z"
+            "1l"
+            "1m"
+            "1.5f"
+            "1.5m"
+            "123abc"
+            "1s7"
+            "1u256"
+            "1f16"
+            "1.5f16"
+            "1.5s8"
+            "1e5z"
+            "1zz" ] do
+          let parsed = P.parse source
+          Expect.equal
+            (parsed.diagnostics |> List.map _.message)
+            [ $"invalid number literal: {source}" ]
+            $"{source}: one diagnostic, naming the whole literal")
+      testCase "a suffix-shaped word is an identifier" (fun _ ->
+        for source in
+          [ "let s32 = 1s32\ns32"; "let z = 1z\nz"; "let dec = 1dec\ndec" ] do
+          Expect.isEmpty (P.parse source).diagnostics source)
+      testCase "a literal's range is checked against its type" (fun _ ->
+        for (source, message) in
+          [ "256u8", "out of range for UInt8: 256u8"
+            "18446744073709551616u",
+            "out of range for UInt64: 18446744073709551616u"
+            "18446744073709551616", "out of range for Int64: 18446744073709551616" ] do
+          Expect.equal
+            ((P.parse source).diagnostics |> List.map _.message)
+            [ message ]
+            source
+        Expect.isEmpty (P.parse "18446744073709551615u").diagnostics "UInt64 max"
+        Expect.isEmpty (P.parse "-9223372036854775808s64").diagnostics "Int64 min") ]
 
 /// A paren bomb gets one diagnostic instead of a StackOverflow, which would take the
 /// whole process down rather than fail one test.
@@ -653,7 +775,7 @@ let private recoveryTests =
         (fun _ ->
           // recursion-depth guard: a paren bomb must produce ONE diagnostic (the
           // unwind's secondary errors are suppressed), never a StackOverflow
-          let bomb = String.replicate 5000 "(" + "1L" + String.replicate 5000 ")"
+          let bomb = String.replicate 5000 "(" + "1" + String.replicate 5000 ")"
           let r = P.parse bomb
           match r.diagnostics with
           | [ d ] ->
@@ -662,8 +784,7 @@ let private recoveryTests =
             failtest
               $"expected exactly the abandon diagnostic, got {List.length other}"
           // …while realistic nesting (50 levels) is untouched
-          let ok =
-            P.parse (String.replicate 50 "(" + "1L" + String.replicate 50 ")")
+          let ok = P.parse (String.replicate 50 "(" + "1" + String.replicate 50 ")")
           Expect.isEmpty ok.diagnostics "50 levels parse cleanly") ]
 
 /// Lexical-failure handling: a malformed lexeme must surface a diagnostic (never a
@@ -679,12 +800,12 @@ let private callSyntaxTests =
   testList
     "call-syntax"
     [ testCase "commas separate arguments" (fun _ ->
-        Expect.equal (argCount "f(1L, 2L)") 2 "two arguments"
+        Expect.equal (argCount "f(1, 2)") 2 "two arguments"
         Expect.equal (argCount "Stdlib.List.map(xs, fun x -> x)") 2 "a last lambda")
       testCase "a space before the paren is the same call" (fun _ ->
-        Expect.equal (argCount "f (1L, 2L)") 2 "two arguments, not one tuple")
+        Expect.equal (argCount "f (1, 2)") 2 "two arguments, not one tuple")
       testCase "one tuple argument takes its own parens" (fun _ ->
-        match toPT (lowerExpr "f((1L, 2L))") with
+        match toPT (lowerExpr "f((1, 2))") with
         | PT.EApply(_, _, _, args) ->
           match NEList.toList args with
           | [ PT.ETuple _ ] -> ()
@@ -718,32 +839,32 @@ let private callSyntaxTests =
           [ "write `length(a)` rather than `length a`" ]
           "the old form names the new one"
         Expect.equal
-          (hint "f 1L 2L")
+          (hint "f 1 2")
           [ "write `f(a, b)` rather than `f a b`" ]
           "with as many arguments as were written")
       testCase "a constructor's fields go in parentheses" (fun _ ->
         Expect.equal
-          (hint "Ok 5L")
+          (hint "Ok 5")
           [ "write `Ok(a)` rather than `Ok a`" ]
           "the old form names the new one"
         Expect.equal
-          (hint "Stdlib.Result.Result.Error 1L")
+          (hint "Stdlib.Result.Result.Error 1")
           [ "write `Error(a)` rather than `Error a`" ]
           "qualified too")
       testCase "a constructor pattern's fields go in parentheses" (fun _ ->
         Expect.equal
-          (hint "match x with | Ok v -> v | _ -> 0L")
+          (hint "match x with | Ok v -> v | _ -> 0")
           [ "write `Ok(a)` rather than `Ok a`" ]
           "the old form names the new one"
         Expect.equal
-          (hint "match x with | Pair a b -> a | _ -> 0L")
+          (hint "match x with | Pair a b -> a | _ -> 0")
           [ "write `Pair(a, b)` rather than `Pair a b`" ]
           "with as many fields as were written")
       // The qualifier on a constructor pattern is not in the Dark tree.
       testCase "a constructor pattern may be qualified" (fun _ ->
         let r =
           P.parse
-            "match x with | Result.Ok(v) -> v | Stdlib.Result.Result.Error(_) -> 0L"
+            "match x with | Result.Ok(v) -> v | Stdlib.Result.Result.Error(_) -> 0"
         Expect.isEmpty r.diagnostics "both qualified forms parse"
         match r.parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EMatch(_, _, cases, _, _) ] }) ->
@@ -764,7 +885,7 @@ let private callSyntaxTests =
         "a function type with several arguments lists them in parentheses"
         (fun _ ->
           Expect.equal
-            (hint "let f(g: Int64 -> Int64 -> Int64): Int64 = 1L")
+            (hint "let f(g: Int64 -> Int64 -> Int64): Int64 = 1")
             [ "write `(A, B) -> C` for a function of two arguments, or `A -> (B -> C)` for one that returns a function" ]
             "a chain is an error")
       testCase "a declaration lists its parameters once" (fun _ ->
@@ -779,12 +900,12 @@ let private lexicalFailureTests =
   testList
     "lexical-failures"
     [ testCase "bad integer suffix is consumed as one recovered token" (fun _ ->
-        match LibParser.Lexer.tokenize "256uy" with
+        match LibParser.Lexer.tokenize "256u8" with
         | Ok(tokens, diagnostics) ->
           Expect.equal diagnostics.Length 1 "one range diagnostic"
           match tokens with
           | token :: eof :: [] ->
-            Expect.equal token.text "256uy" "the recovered token covers the suffix"
+            Expect.equal token.text "256u8" "the recovered token covers the suffix"
             Expect.equal eof.token Tok.TEOF "then EOF"
           | other -> failtest $"unexpected tokens: {other}"
         | Error error -> failtest error)
@@ -801,7 +922,7 @@ let private lexicalFailureTests =
               "position offset into the outer source"
           | other -> failtest $"expected one diagnostic, got {other}"
           Expect.isEmpty
-            (P.parse "$\"a{ 1L }b\"").diagnostics
+            (P.parse "$\"a{ 1 }b\"").diagnostics
             "clean interpolation unaffected")
       testCase
         "nested-interpolation bomb diagnoses instead of killing the process"
@@ -811,12 +932,12 @@ let private lexicalFailureTests =
           // uncatchable StackOverflow (fresh parser state per level bypassed the
           // expression depth guard)
           let bomb =
-            String.replicate 5000 "$\"{" + "1L" + String.replicate 5000 "}\""
+            String.replicate 5000 "$\"{" + "1" + String.replicate 5000 "}\""
           let r = P.parse bomb
           Expect.isNonEmpty r.diagnostics "reports the nesting error"
           // …while realistic nesting (5 levels) parses cleanly
           let ok =
-            P.parse (String.replicate 5 "$\"{" + "1L" + String.replicate 5 "}\"")
+            P.parse (String.replicate 5 "$\"{" + "1" + String.replicate 5 "}\"")
           Expect.isEmpty ok.diagnostics "5 levels parse cleanly") ]
 
 /// What a diagnostic carries besides its message: code, severity, related spans,
@@ -826,7 +947,7 @@ let private goldenDiagnosticsTests =
   testList
     "diagnostic-details"
     [ testCase "diagnostics carry stable codes, related spans, and hints" (fun _ ->
-        match (P.parse "(1L + 2L").diagnostics with
+        match (P.parse "(1 + 2").diagnostics with
         | [ d ] ->
           Expect.equal d.code P.DiagnosticCode.unclosed "code"
           Expect.equal d.severity P.DiagError "severity"
@@ -836,10 +957,10 @@ let private goldenDiagnosticsTests =
             Expect.equal note "the '(' opened here" "opener note"
           | other -> failtest $"related: {other}"
         | other -> failtest $"expected one diagnostic, got {other}"
-        match (P.parse "128y").diagnostics with
+        match (P.parse "128s8").diagnostics with
         | [ d ] ->
           Expect.equal d.code P.DiagnosticCode.intRange "code"
-          Expect.equal d.hint (Some "write it negated: -128y") "hint"
+          Expect.equal d.hint (Some "write it negated: -128s8") "hint"
         | other -> failtest $"expected one diagnostic, got {other}"
         match (P.parse "\"abc").diagnostics with
         | [ d ] ->
@@ -848,19 +969,19 @@ let private goldenDiagnosticsTests =
             P.DiagnosticCode.lex
             "lex diagnostics carry the LEX code"
         | other -> failtest $"expected one diagnostic, got {other}"
-        match (P.parse "[1L; 2L]").diagnostics with
+        match (P.parse "[1; 2]").diagnostics with
         | [ d ] ->
           Expect.equal d.code P.DiagnosticCode.expected "code"
           Expect.equal d.hint (Some "use ',' instead") "hint"
         | other -> failtest $"expected one diagnostic, got {other}"
-        match (P.parse "print(1L); print(2L)").diagnostics with
+        match (P.parse "print(1); print(2)").diagnostics with
         | [ d ] ->
           Expect.equal d.code P.DiagnosticCode.expected "code"
-          Expect.equal d.range.start.column 9 "points at the ';'"
+          Expect.equal d.range.start.column 8 "points at the ';'"
           Expect.equal d.hint (Some "put the next statement on a new line") "hint"
         | other -> failtest $"expected one diagnostic, got {other}")
       testCase "renderDiagnostic: caret snippet + related + hint" (fun _ ->
-        let src = "let x = (1L +"
+        let src = "let x = (1 +"
         match
           (P.parse src).diagnostics
           |> List.filter (fun d -> d.code = P.DiagnosticCode.unclosed)
@@ -868,11 +989,11 @@ let private goldenDiagnosticsTests =
         | [ d ] ->
           let rendered = P.renderDiagnostic src d
           let expected =
-            "error[PARSE-UNCLOSED] at 1:14: expected ')' to close the '(' at line 1:9, found end of file\n"
-            + "  1 | let x = (1L +\n"
-            + "    |              ^\n"
+            "error[PARSE-UNCLOSED] at 1:13: expected ')' to close the '(' at line 1:9, found end of file\n"
+            + "  1 | let x = (1 +\n"
+            + "    |             ^\n"
             + "  note: the '(' opened here (1:9)\n"
-            + "  1 | let x = (1L +\n"
+            + "  1 | let x = (1 +\n"
             + "    |         ^"
           Expect.equal rendered expected "full rendering"
         | other -> failtest $"expected one diagnostic, got {other}") ]
@@ -881,11 +1002,11 @@ let private goldenDiagnosticsTests =
 /// deterministic (same input → same result), whatever we feed it.
 let private fuzzTests =
   let seeds =
-    [ "let f(x: Int64): Int64 =\n  let y = x + 1L\n  y * 2L"
-      "module A.B\ntype T = { a: Int64, b: List<String> }\nlet v = T { a = 1L, b = [] }"
-      "match xs with\n| [] -> 0L\n| [h, ...t] -> h + (sum t)\n| _ -> $\"n {h} m\""
-      "[1L, 2L] |> Stdlib.List.map(fun x -> x * 2L) |> (fun v -> v + \"s\")"
-      "type E = | A of Int64 * String | B\nlet g(): E = A(1L, \"x\")" ]
+    [ "let f(x: Int64): Int64 =\n  let y = x + 1\n  y * 2"
+      "module A.B\ntype T = { a: Int64, b: List<String> }\nlet v = T { a = 1, b = [] }"
+      "match xs with\n| [] -> 0\n| [h, ...t] -> h + (sum t)\n| _ -> $\"n {h} m\""
+      "[1, 2] |> Stdlib.List.map(fun x -> x * 2) |> (fun v -> v + \"s\")"
+      "type E = | A of Int64 * String | B\nlet g(): E = A(1, \"x\")" ]
   testList
     "fuzz"
     [ testCase "mutated inputs never throw; parsing is deterministic" (fun _ ->
@@ -947,6 +1068,8 @@ let private rangeInvariantTests =
     | WT.EInt128 _
     | WT.EUInt128 _
     | WT.EFloat _
+    | WT.EFloat32 _
+    | WT.EDecimal _
     | WT.EChar _
     | WT.EVariable _
     | WT.EFnName _
@@ -1104,7 +1227,7 @@ let private unwrapTests =
              |> List.exists (fun d -> d.code = "VALIDATION-UNWRAP-CONTEXT"))
             source)
       testCase "a ? at the end of a pipe segment points at the parens" (fun _ ->
-        let parsed = P.parse "fun s -> s |> Stdlib.Int.parse?"
+        let parsed = P.parse "fun s -> s |> Stdlib.Int64.parse?"
         Expect.isTrue
           (parsed.diagnostics
            |> List.exists (fun d ->
@@ -1123,23 +1246,23 @@ let private stackSafetyTests =
           + "Int64"
           + String.replicate 2000 ")"
           "constructor patterns",
-          "match value with | " + String.replicate 2000 "Some " + "x -> 1L"
+          "match value with | " + String.replicate 2000 "Some " + "x -> 1"
           "elif chains",
-          "if true then 1L " + String.replicate 2000 "elif true then 1L " + "else 1L"
-          "module headers", String.replicate 2000 "module M\n" + "val x = 1L"
-          "parentheses", String.replicate 2000 "(" + "1L" + String.replicate 2000 ")"
+          "if true then 1 " + String.replicate 2000 "elif true then 1 " + "else 1"
+          "module headers", String.replicate 2000 "module M\n" + "val x = 1"
+          "parentheses", String.replicate 2000 "(" + "1" + String.replicate 2000 ")"
           "prefix operators", String.replicate 2000 "!" + "true"
-          "right-associated operators", String.replicate 2000 "1L ** " + "1L"
+          "right-associated operators", String.replicate 2000 "1 ** " + "1"
           "validation of left-associated operators",
-          String.replicate 2000 "1L + " + "1L"
+          String.replicate 2000 "1 + " + "1"
           "rest patterns",
-          "match xs with | [" + String.replicate 2000 "x, " + "...rest] -> 1L"
+          "match xs with | [" + String.replicate 2000 "x, " + "...rest] -> 1"
           "let patterns",
           "let "
           + String.replicate 2000 "(x, "
           + "x"
           + String.replicate 2000 ")"
-          + " = v in 1L"
+          + " = v in 1"
           "type arguments",
           "type T = "
           + String.replicate 2000 "List<"
@@ -1357,7 +1480,7 @@ let private traitTests =
             []
             "method type params are allowed"
           Expect.equal
-            (msgs "trait Show =\n  let show (v: Int) : String")
+            (msgs "trait Show =\n  let show (v: Int64) : String")
             [ P.DiagnosticCode.bound ]
             "trait without a type param") ]
 

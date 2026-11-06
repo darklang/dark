@@ -6,7 +6,7 @@ You use the same type and functions whether the data is in memory or saved:
 
 ```dark
 let first = Stdlib.Utf8.encode("hello")
-let second = Stdlib.Bytes.fromList([104uy, 101uy, 108uy, 108uy, 111uy])
+let second = Stdlib.Bytes.fromList([104u8, 101u8, 108u8, 108u8, 111u8])
 first == second // true
 ```
 

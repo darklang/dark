@@ -9,7 +9,7 @@ type DiffLine =
 ///
 /// Row j, column i is the LCS length of the first i old lines and the first j new lines.
 /// Rows are stored back to front because the walk in `trace` starts at the far corner.
-let buildTable(oldLines: List<String>, newLines: List<String>): List<List<Int>> =
+let buildTable(oldLines: List<String>, newLines: List<String>): List<List<Int64>> =
   let zeroRow =
     Stdlib.List.map(
       Stdlib.List.range(0, Stdlib.List.length(oldLines)),
@@ -46,17 +46,17 @@ let buildTable(oldLines: List<String>, newLines: List<String>): List<List<Int>> 
 /// back), `row` is row j from column i, `prevRow` row j-1 from column i, and `rest` the rows
 /// before that in full. Prefers Added over Removed on a tie.
 let trace(
-  width: Int,
+  width: Int64,
   oldRev: List<String>,
   newRev: List<String>,
-  i: Int,
-  row: List<Int>,
-  prevRow: List<Int>,
-  rest: List<List<Int>>,
+  i: Int64,
+  row: List<Int64>,
+  prevRow: List<Int64>,
+  rest: List<List<Int64>>,
   acc: List<DiffLine>)
   : List<DiffLine> =
   // Row j-2 from column c, for when the walk moves up a row and lands on column c.
-  let rowAbove(c: Int): List<Int> =
+  let rowAbove(c: Int64): List<Int64> =
     match rest with
     | [r, ...] -> Stdlib.List.drop(r, width - c)
     | [] -> []

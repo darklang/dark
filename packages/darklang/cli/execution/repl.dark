@@ -49,11 +49,11 @@ let isSimpleName(name: String): Bool =
 ///
 /// A line that starts with whitespace continues the one above it, so a wrapped expression stays whole:
 ///
-///   let a = 21L                        -> ["let a = 21L", "a * 2L"]
-///   a * 2L
+///   let a = 21                        -> ["let a = 21", "a * 2"]
+///   a * 2
 ///
-///   Stdlib.List.map xs                 -> ["Stdlib.List.map xs\n  (fun x -> x * 2L)"]
-///     (fun x -> x * 2L)
+///   Stdlib.List.map xs                 -> ["Stdlib.List.map xs\n  (fun x -> x * 2)"]
+///     (fun x -> x * 2)
 ///
 /// Indentation is the only signal available without parsing, and it matches how Dark is written. Blank lines
 /// separate statements rather than joining them.
@@ -80,7 +80,7 @@ let splitStatements(text: String): List<String> =
 
 /// How many brackets `text` leaves open: `(`, `[` and `{` minus their closers, ignoring anything inside a
 /// string literal (and a `\"` inside one). Negative if it closes more than it opens.
-let openBracketDepth(text: String): Int =
+let openBracketDepth(text: String): Int64 =
   let (depth, _inString, _escaped) =
     Stdlib.String.toList(text)
     |> Stdlib.List.fold((0, false, false), fun(acc, c) ->

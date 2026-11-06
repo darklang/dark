@@ -71,7 +71,7 @@ let handleBranchPickerKey(
   let choices = matchingBranches(picker)
   let keep(next: BranchPicker): Step =
     Step.Continue({ state with overlay = Overlay.Branches(next) })
-  let move(delta: Int): Step =
+  let move(delta: Int64): Step =
     let selected =
       Stdlib.max(0,
         Stdlib.min(picker.selected + delta, (Stdlib.List.length(choices)) - 1))

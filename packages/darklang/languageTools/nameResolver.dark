@@ -127,9 +127,9 @@ let resolveGenericName(
         match Stdlib.String.split(name, "_v") with
         | [ bare, v ] ->
           match Stdlib.Int32.parse(v) with
-          | Ok(n) when n >= 0l -> (bare, n)
-          | _ -> (name, 0l)
-        | _ -> (name, 0l)
+          | Ok(n) when n >= 0s32 -> (bare, n)
+          | _ -> (name, 0s32)
+        | _ -> (name, 0s32)
 
       // the written-name format check (mirrors the F# parse*NameString regexes:
       // a letter then letters/digits/underscores, optional trailing apostrophe):

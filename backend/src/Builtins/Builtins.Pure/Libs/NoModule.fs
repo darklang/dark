@@ -53,6 +53,14 @@ let private negativeExponent (vm : VMState) : 'a =
 let private outOfRange (vm : VMState) : 'a =
   RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
 
+/// Decimal arithmetic raises rather than wrapping or rounding to infinity: a result past
+/// 79,228,162,514,264,337,593,543,950,335 is out of range.
+let private decimalChecked (vm : VMState) (op : unit -> decimal) : Ply<Dval> =
+  try
+    Ply(DDecimal(op ()))
+  with :? System.OverflowException ->
+    RTE.DecimalOutOfRange |> raiseRTE vm.threadID
+
 // Fixed-width integer arithmetic wraps around on overflow (e.g.
 // `127y + 1y == -128y`), so `+`, `-`, `*` use F#'s unchecked operators and
 // `negate`/`divide` let `MinValue` wrap to itself rather than raising.
@@ -164,6 +172,9 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a + b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.add a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a + b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a + b))
+        | _, vm, _, [| DDecimal a; DDecimal b |] ->
+          decimalChecked vm (fun () -> a + b)
         // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
         // lowers to while the package refs are not generated yet, which is how the stdlib's
         // own string concatenation loads on a fresh tree.
@@ -202,6 +213,9 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a - b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.subtract a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a - b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a - b))
+        | _, vm, _, [| DDecimal a; DDecimal b |] ->
+          decimalChecked vm (fun () -> a - b)
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -231,6 +245,9 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a * b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.multiply a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a * b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a * b))
+        | _, vm, _, [| DDecimal a; DDecimal b |] ->
+          decimalChecked vm (fun () -> a * b)
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -296,6 +313,9 @@ let fns () : List<BuiltInFn> =
             Ply(Dval.dint (DarkInt.divide a b))
         // Float division by zero follows IEEE semantics (Infinity/NaN), as before
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a / b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a / b))
+        | _, vm, _, [| DDecimal a; DDecimal b |] ->
+          if b = 0m then divideByZero vm else decimalChecked vm (fun () -> a / b)
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -308,8 +328,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Wraps <param a> around so that {{0 <= res < b}}, for two integers of "
-        + "the same type. The modulus <param b> must be greater than 0."
+        "Wraps <param a> around so that {{0 <= res < b}}, for two integers of the same "
+        + "type or two decimals. The modulus <param b> must be greater than 0."
       fn =
         (function
         | _, vm, _, [| DInt8 v; DInt8 m |] ->
@@ -371,6 +391,15 @@ let fns () : List<BuiltInFn> =
           else
             let r = DarkInt.toBigInt v % m
             Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
+        | _, vm, _, [| DDecimal v; DDecimal m |] ->
+          if m = 0m then
+            zeroModulus vm
+          elif m < 0m then
+            negativeModulus vm
+          else
+            // exact: a decimal remainder is never rounded, and |r| < m, so m + r fits
+            let r = v % m
+            Ply(DDecimal(if r < 0m then m + r else r))
         // No Float arm, on purpose: a float `%` has to choose between flooring and
         // truncating, and what a zero divisor does when our own Float division returns
         // Infinity. Swift and Elm have no float modulo either. A Float pair takes the type
@@ -449,6 +478,8 @@ let fns () : List<BuiltInFn> =
           else
             Ply(Dval.int (number ** (int exp)))
         | _, _, _, [| DFloat number; DFloat exp |] -> Ply(DFloat(number ** exp))
+        | _, _, _, [| DFloat32 number; DFloat32 exp |] ->
+          Ply(DFloat32(float32 (float number ** float exp)))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -472,6 +503,8 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DInt128 a |] -> Ply(DInt128(-a))
         | _, _, _, [| DInt a |] -> Ply(Dval.dint (DarkInt.negate a))
         | _, _, _, [| DFloat a |] -> Ply(DFloat(-a))
+        | _, _, _, [| DFloat32 a |] -> Ply(DFloat32(-a))
+        | _, _, _, [| DDecimal a |] -> Ply(DDecimal(-a))
         | _, vm, _, [| a |] -> numericTypeError vm a a
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -665,6 +698,8 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a > b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b > 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a > b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a > b))
+        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a > b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -692,6 +727,8 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a >= b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b >= 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a >= b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a >= b))
+        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a >= b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -718,6 +755,8 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a < b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b < 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a < b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a < b))
+        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a < b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -745,6 +784,8 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a <= b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b <= 0))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a <= b))
+        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a <= b))
+        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a <= b))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       previewable = Pure

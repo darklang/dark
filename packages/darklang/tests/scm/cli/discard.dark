@@ -36,7 +36,7 @@ test discardOnABranchLeavesMainsDraftAlone =
 test discardingANameLeavesItsCallerOnTheDiscardedVersion =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "base")
       saveNumber(dark, "Tests.App.helper", "2")
       commit(dark, "edit")
@@ -65,7 +65,7 @@ test discardingANameLeavesItsCallerOnTheDiscardedVersion =
 test discardOnABranchThenArchiveLeavesMainUntouched =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "base")
 
       switch(dark, "feat")

@@ -20,7 +20,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         ""
         "Examples:"
         "  dark type Me.Demo.Status '| Active | Inactive'"
-        "  dark type Me.Demo.User '{ name: String, age: Int }'"
+        "  dark type Me.Demo.User '{ name: String, age: Int64 }'"
         ""
       ] |> Cli.Stderr.lines
 
@@ -93,7 +93,7 @@ let createTypeInline(
             ""
             "Make sure your syntax is correct. Examples:"
             "  dark type Me.Demo.Status '| Active | Inactive'"
-            "  dark type Me.Demo.User '{ name: String, age: Int }'"
+            "  dark type Me.Demo.User '{ name: String, age: Int64 }'"
             ""
           ] |> Cli.Stderr.lines
           Cli.exitWith(state, false)
@@ -103,7 +103,7 @@ let createTypeInline(
         ""
         "Make sure your syntax is correct. Examples:"
         "  dark type Me.Demo.Status '| Active | Inactive'"
-        "  dark type Me.Demo.User '{ name: String, age: Int }'"
+        "  dark type Me.Demo.User '{ name: String, age: Int64 }'"
         ""
       ] |> Cli.Stderr.lines
       Cli.exitWith(state, false)
@@ -127,8 +127,8 @@ let help(_state: Cli.AppState): String =
     ""
     "Examples:"
     "  dark type Me.Demo.Status '| Active | Inactive'"
-    "  dark type Me.Demo.Size '| Small | Large of Int'"
-    "  dark type Me.Demo.User '{ name: String, age: Int }'"
+    "  dark type Me.Demo.Size '| Small | Large of Int64'"
+    "  dark type Me.Demo.User '{ name: String, age: Int64 }'"
     "  dark type Me.Demo.UserId 'Uuid'"
     "  dark eval 'Me.Demo.User { name = \"Ada\", age = 36 }'"
     ""
@@ -136,7 +136,7 @@ let help(_state: Cli.AppState): String =
     "  dark type Me.Demo.Account - <<'EOF'"
     "  {"
     "    owner: String"
-    "    balance: Int"
+    "    balance: Int64"
     "  }"
     "  EOF"
     ""

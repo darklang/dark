@@ -1,17 +1,17 @@
 // Lists and lambdas: build, map, filter, fold, reverse. The reference workload, and the shape most
 // optimisation work has targeted, so it stays here as the control.
-let iters(): Int =
+let iters(): Int64 =
   match Stdlib.Env.get("PERF_ITERS") with
   | Some(s) ->
-    match Stdlib.Int.parse(s) with
+    match Stdlib.Int64.parse(s) with
     | Ok(n) -> n
     | Error(_) -> 0
   | None -> 0
 
-let work(n: Int): Int =
+let work(n: Int64): Int64 =
   Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, n), fun x -> x + 1))
 
-let repeat(times: Int, n: Int, acc: Int): Int =
+let repeat(times: Int64, n: Int64, acc: Int64): Int64 =
   if times <= 0 then acc else repeat(times - 1, n, acc + (work(n)))
 
 let _warm = repeat(20, 50, 0)

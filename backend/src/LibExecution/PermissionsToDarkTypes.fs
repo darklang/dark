@@ -34,8 +34,8 @@ module Scope =
   let stringToDT scope = toDT VT.string DString scope
   let stringFromDT dval = fromDT D.string dval
   let intToDT (scope : P.Scope<int>) =
-    toDT VT.int (fun (value : int) -> Dval.int (bigint value)) scope
-  let intFromDT dval = fromDT (D.int64FromInt >> int) dval
+    toDT VT.int64 (fun (value : int) -> Dval.dint64 (int64 value)) scope
+  let intFromDT dval = fromDT D.int dval
 
 module HostRule =
   let typeName () =

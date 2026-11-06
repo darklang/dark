@@ -15,7 +15,7 @@ let ago(then_: DateTime): String =
   let now = Stdlib.DateTime.toSeconds(Stdlib.DateTime.now())
   let seconds = now - (Stdlib.DateTime.toSeconds(then_))
 
-  let plural(n: Int, unit: String): String =
+  let plural(n: Int64, unit: String): String =
     let s = if n == 1 then "" else "s"
     $"{Stdlib.toString(n)} {unit}{s} ago"
 

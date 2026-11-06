@@ -61,9 +61,9 @@ test functionDeclarations =
         "let helloPerson(name: String): String =\n  let greeting = \"Hello \"\n  greeting + name")
       roundTrip(
         "self reference recursive call",
-        "let factorial(n: Int64): Int64 =\n  if n <= 1L then\n    1L\n  else\n    n * (factorial(n - 1L))",
-        "let factorial(n: Int64): Int64 =\n  if n <= 1L then 1L else n * factorial(n - 1L)")
+        "let factorial(n: Int64): Int64 =\n  if n <= 1 then\n    1\n  else\n    n * (factorial(n - 1))",
+        "let factorial(n: Int64): Int64 =\n  if n <= 1 then 1 else n * factorial(n - 1)")
       roundTrip(
         "self reference, shadowed name",
-        "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0L then\n    y\n  else\n    let result = incr(y, z - 1L)\n    let incr = (fun x -> x + 2L)\n    let lambdaResult = incr(z)\n    result + lambdaResult",
-        "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0L then\n    y\n  else\n    let result = incr(y, z - 1L)\n    let incr = (fun x -> x + 2L)\n    let lambdaResult = incr(z)\n    result + lambdaResult") ])
+        "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = (fun x -> x + 2)\n    let lambdaResult = incr(z)\n    result + lambdaResult",
+        "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = (fun x -> x + 2)\n    let lambdaResult = incr(z)\n    result + lambdaResult") ])

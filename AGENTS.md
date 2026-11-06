@@ -152,7 +152,7 @@ one:
 **A stale binary against a re-authored store fails as `FnNotFound` on a hash that exists
 nowhere.** The hash is computed at run time, so grepping the tree AND querying `locations` both
 answer "absent", which reads like a missing function rather than a mismatched pair. Every `eval`
-failed, `1L + 1L` included, and the error could not even be stringified because rendering it
+failed, `1 + 1` included, and the error could not even be stringified because rendering it
 needed a second unresolvable fn. Compare the two mtimes before theorising (in-container paths):
 
     stat -c %y backend/Build/out/Cli/Debug/net10.0/Cli
@@ -326,7 +326,7 @@ stops covering the thing it was written for.
 ### Performance
 
 **AOT or R2R, and why it decides a number.** `scripts/build/build-release-cli-exes.sh` can publish
-either. They are about FIVE TIMES apart on startup (`dark eval 1L`: 40 ms AOT, 276 ms R2R,
+either. They are about FIVE TIMES apart on startup (`dark eval 1`: 40 ms AOT, 276 ms R2R,
 measured), different sizes, and different allocation, so a number taken against one says nothing
 about the other -- and nothing in the binary's filename says which you have.
 
@@ -1034,7 +1034,7 @@ family as the wildcard trap below.
 **Dicts keep the last value on a duplicate key.** `Dict.set`, `fromEntries`, `merge`
 and dict literals all replace. To refuse instead, use `insert`, `fromEntriesUnique` or
 `mergeUnique`, which return `Error (DuplicateKey key)`; `mergeWith` takes a resolver.
-A literal that repeats a constant key (`Dict { "a": 1L, "a": 2L }`) gets a
+A literal that repeats a constant key (`Dict { "a": 1, "a": 2 }`) gets a
 `DuplicateDictKey` error from the at-rest checker, like a record field given twice,
 but it still saves and still runs, keeping the last value.
 

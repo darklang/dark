@@ -46,7 +46,7 @@ let cliBinary(): String =
 
 /// A fresh instance. Fails with a message rather than half-existing.
 let create(): Stdlib.Result.Result<T, String> =
-  let suffix = Stdlib.toString(Stdlib.Int.random(100000, 999999))
+  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
   let dir = $"{root()}/{suffix}/.darklang"
   let src = seedFrom()
 
@@ -139,7 +139,7 @@ let expectContains(i: T, args: List<String>, needle: String): Stdlib.Test.Result
 
 
 /// Asserts a command's exit code.
-let expectExit(i: T, args: List<String>, expected: Int): Stdlib.Test.Result =
+let expectExit(i: T, args: List<String>, expected: Int64): Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")
 
   match run(i, args) with
@@ -158,7 +158,7 @@ let expectExit(i: T, args: List<String>, expected: Int): Stdlib.Test.Result =
 /// Both streams because a refusal and its advice can land on either, and a test
 /// about what a person sees should not depend on which. `-1` when the command could
 /// not start at all.
-let ran(i: T, args: List<String>): (Int * String) =
+let ran(i: T, args: List<String>): (Int64 * String) =
   match run(i, args) with
   | Error(e) -> (-1, $"could not run: {e}")
   | Ok(out) -> (out.exitCode, out.stdout + out.stderr)
@@ -185,7 +185,7 @@ let doesNotSay(out: String, needle: String, why: String): Stdlib.Test.Result =
 
 
 /// A command exited with `expected`; `why` names the case.
-let exitedWith(code: Int, expected: Int, why: String): Stdlib.Test.Result =
+let exitedWith(code: Int64, expected: Int64, why: String): Stdlib.Test.Result =
   if code == expected then
     Stdlib.Test.Result.Pass
   else

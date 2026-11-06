@@ -11,5 +11,5 @@ test testDeclarations =
         "/// Checks the simplest assertion\ntest passes = true")
       roundTrip(
         "named package test expecting a runtime error",
-        "test divisionByZero =\n  1L / 0L\n  => raises \"Cannot divide by 0\"",
-        "test divisionByZero =\n  1L / 0L\n  => raises \"Cannot divide by 0\"") ])
+        "test divisionByZero =\n  1 / 0\n  => raises \"Cannot divide by 0\"",
+        "test divisionByZero =\n  1 / 0\n  => raises \"Cannot divide by 0\"") ])

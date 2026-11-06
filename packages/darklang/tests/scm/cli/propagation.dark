@@ -7,12 +7,12 @@ module Darklang.SCM.Tests.Cli
 test savingAFunctionRepointsItsCallers =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
-      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10L")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "base")
 
       says(
         dark,
-        [ "fn", "Tests.App.helper", "(): Int64 = 2L" ],
+        [ "fn", "Tests.App.helper", "(): Int64 = 2" ],
         "Tests.App.caller follows",
         "the save names the caller it repointed")
       same(draft(dark), [ "followed Tests.App.caller", "updated Tests.App.helper" ], "status marks the caller as following")
@@ -25,8 +25,8 @@ test savingAFunctionRepointsItsCallers =
 test callersOfCallersFollowOnABranchAndThroughTheMerge =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.f", "1")
-      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10L")
-      save(dark, "Tests.App.h", "(): Int64 = Tests.App.g() + 100L")
+      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10")
+      save(dark, "Tests.App.h", "(): Int64 = Tests.App.g() + 100")
       commit(dark, "base: h calls g, g calls f")
 
       switch(dark, "feat")
@@ -48,11 +48,11 @@ test callersOfCallersFollowOnABranchAndThroughTheMerge =
 test editsOnABranchOffABranchFollowAllTheWayToMain =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.f", "1")
-      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10L")
+      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10")
       commit(dark, "base: g calls f")
 
       switch(dark, "feat")
-      save(dark, "Tests.App.x", "(): Int64 = Tests.App.g() + 100L")
+      save(dark, "Tests.App.x", "(): Int64 = Tests.App.g() + 100")
       commit(dark, "feat adds x calling g")
 
       switch(dark, "sub")
@@ -81,7 +81,7 @@ test editsOnABranchOffABranchFollowAllTheWayToMain =
 test aCallerFollowsAFunctionChangedBackAndForthOnMain =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.f", "1")
-      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() * 10L")
+      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() * 10")
       commit(dark, "base: g calls f")
 
       saveNumber(dark, "Tests.App.f", "2")
@@ -102,7 +102,7 @@ test aCallerFollowsAFunctionChangedBackAndForthOnMain =
 test aCallerFollowsAFunctionChangedBackAndForthOnABranch =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.f", "1")
-      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() * 10L")
+      save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() * 10")
       commit(dark, "base: g calls f")
 
       switch(dark, "feat")

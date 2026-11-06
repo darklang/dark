@@ -65,11 +65,11 @@ test decodeLongInputs =
 // These produce strings of bytes which are technically legal it seems
 test decodeRawBytes =
   Stdlib.Test.all(
-    [ decodeBytes("-p") |> Stdlib.Test.equal(Ok([ 250uy ]))
-      decodeBytes("lI") |> Stdlib.Test.equal(Ok([ 148uy ]))
-      decodeBytes("5Sk") |> Stdlib.Test.equal(Ok([ 229uy, 41uy ]))
-      decodeBytes("AA") |> Stdlib.Test.equal(Ok([ 0uy ]))
-      decodeBytes("_w") |> Stdlib.Test.equal(Ok([ 255uy ])) ])
+    [ decodeBytes("-p") |> Stdlib.Test.equal(Ok([ 250u8 ]))
+      decodeBytes("lI") |> Stdlib.Test.equal(Ok([ 148u8 ]))
+      decodeBytes("5Sk") |> Stdlib.Test.equal(Ok([ 229u8, 41u8 ]))
+      decodeBytes("AA") |> Stdlib.Test.equal(Ok([ 0u8 ]))
+      decodeBytes("_w") |> Stdlib.Test.equal(Ok([ 255u8 ])) ])
 
 // Check decoding with incorrect padding.
 test decodeRejectsIncorrectPadding =
@@ -105,11 +105,11 @@ test encode =
 test urlEncode =
   Stdlib.Test.all(
     [ Stdlib.Base64.urlEncode(Stdlib.Bytes.empty) |> Stdlib.Test.equal("")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([251uy]))
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([251u8]))
       |> Stdlib.Test.equal("-w==")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([255uy, 255uy]))
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([255u8, 255u8]))
       |> Stdlib.Test.equal("__8=")
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([251uy, 255uy, 255uy]))
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([251u8, 255u8, 255u8]))
       |> Stdlib.Test.equal("-___")
       Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("abcdef"))
       |> Stdlib.Test.equal("YWJjZGVm")

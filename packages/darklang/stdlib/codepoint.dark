@@ -6,20 +6,20 @@ module Darklang.Stdlib.Codepoint
 
 
 /// The largest codepoint, {{0x10FFFF}}.
-let max(): UInt32 = 1114111ul
+let max(): UInt32 = 1114111u32
 
 
 /// Return whether the value is a Unicode scalar: at most 0x10FFFF and not
 /// a surrogate (0xD800..0xDFFF). Unassigned codepoints are valid scalars.
 let isValidScalar(codepoint: UInt32): Bool =
-  codepoint <= 1114111ul
-  && (codepoint < 55296ul || codepoint > 57343ul)
+  codepoint <= 1114111u32
+  && (codepoint < 55296u32 || codepoint > 57343u32)
 
 
 /// Return {{Some}} codepoint for <param i> if it is a Unicode scalar value,
 /// otherwise {{None}}: negative, past {{0x10FFFF}}, or a surrogate.
-let fromInt(i: Int): Stdlib.Option.Option<UInt32> =
-  match Stdlib.Int.toUInt32(i) with
+let fromInt(i: Int64): Stdlib.Option.Option<UInt32> =
+  match Stdlib.UInt32.fromInt64(i) with
   | Some(codepoint) ->
     if isValidScalar(codepoint) then
       Stdlib.Option.Option.Some(codepoint)

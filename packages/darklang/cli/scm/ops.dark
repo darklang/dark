@@ -18,7 +18,7 @@ let short(s: String): String =
 /// The whole point of a log listing is to be readable without a second command per row, and byte
 /// size never answered anything. Same printer `dark ops show` uses, so the two cannot drift; this
 /// takes the head line and `show` takes all of it.
-let describe(branchId: Uuid, width: Int, s: SCM.PackageOps.OpSummary): String =
+let describe(branchId: Uuid, width: Int64, s: SCM.PackageOps.OpSummary): String =
   match s.op with
   | None -> "(unreadable by this build)"
   | Some(op) ->
@@ -78,7 +78,7 @@ let executeList(state: AppState, limit: Int64): AppState =
     let where =
       if SCM.Branch.isMain(branch) then "on main" else $"on branch {branchName}"
 
-    if shown >= (Stdlib.Int.fromInt64(total)) then
+    if shown >= (total) then
       $"{Stdlib.toString(total)} ops {where}"
     else
       $"{Stdlib.toString(total)} ops {where} - showing the {Stdlib.toString(shown)} most recent"
@@ -135,13 +135,13 @@ let execute(state: AppState, args: List<String>): AppState =
   // log (a million characters), and a refused count names the problem where silent help does not.
   let countOf(n: String): Stdlib.Result.Result<Int64, String> =
     match Stdlib.Int64.parse(n) with
-    | Ok(l) when l > 0L -> Stdlib.Result.Result.Ok(l)
+    | Ok(l) when l > 0 -> Stdlib.Result.Result.Ok(l)
     | Ok(_) -> Stdlib.Result.Result.Error($"ops takes a positive count; got {n}.")
     | Error(_) -> Stdlib.Result.Result.Error($"\"{n}\" isn't a count. `dark ops 50` shows the 50 most recent.")
 
   match args with
-  | [] -> executeList(state, 20L)
-  | [ "list" ] -> executeList(state, 20L)
+  | [] -> executeList(state, 20)
+  | [ "list" ] -> executeList(state, 20)
   | [ "list", n ] ->
     match countOf(n) with
     | Ok(l) -> executeList(state, l)

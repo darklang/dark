@@ -332,7 +332,7 @@ let pending(): List<Conflict> =
 /// How many conflicts are waiting -- the number `dark status` and `dark commit` surface. Runs the same
 /// sweep as `pending`, so the count and the list never disagree about a superseded one.
 let pendingCount(): Int64 =
-  Stdlib.Int.toInt64(Stdlib.List.length(pending())) |> Stdlib.Option.withDefault(0L)
+  Stdlib.List.length(pending())
 
 /// The conflict on THIS branch whose id starts with <param rawPrefix> (ids are short already; a prefix
 /// keeps them typeable).

@@ -1,5 +1,5 @@
 /// Operators the interpreter answers itself, without the builtin's record or the call machinery
-/// around it. Two `Int`s, two `String`s, or two `List`s -- every other pair, including every other
+/// around it. Two `Int64`s, two `Int`s, two `String`s, or two `List`s -- every other pair, including every other
 /// numeric type and every mixed one, goes the ordinary way and gets the ordinary error.
 ///
 /// Not a compiler change: the `Apply` still happens, so a real opcode emitted by `PT2RT` would win
@@ -71,6 +71,8 @@ let evalNegate (a : Dval) : Dval voption =
   | DInt128 x -> ValueSome(DInt128(-x))
   | DInt x -> ValueSome(Dval.dint (DarkInt.negate x))
   | DFloat x -> ValueSome(DFloat(-x))
+  | DFloat32 x -> ValueSome(DFloat32(-x))
+  | DDecimal x -> ValueSome(DDecimal(-x))
   | _ -> ValueNone
 
 /// The operator itself, given a tag from `byName` and two `Int`s.
@@ -97,6 +99,19 @@ let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
     ValueSome(Dval.bool (a <> b))
   else
     ValueNone
+
+/// The operator itself, given a tag from `byName` and two `Int64`s. Wrapping, as the builtins are.
+let eval64 (tag : int) (a : int64) (b : int64) : Dval voption =
+  if tag = add then ValueSome(Dval.dint64 (a + b))
+  elif tag = subtract then ValueSome(Dval.dint64 (a - b))
+  elif tag = multiply then ValueSome(Dval.dint64 (a * b))
+  elif tag = lessThan then ValueSome(Dval.bool (a < b))
+  elif tag = lessThanOrEqualTo then ValueSome(Dval.bool (a <= b))
+  elif tag = greaterThan then ValueSome(Dval.bool (a > b))
+  elif tag = greaterThanOrEqualTo then ValueSome(Dval.bool (a >= b))
+  elif tag = equals then ValueSome(Dval.bool (a = b))
+  elif tag = notEquals then ValueSome(Dval.bool (a <> b))
+  else ValueNone
 
 /// The operator itself, for two `String`s. `stringAppend` reaches this because `"a" + "b"` is
 /// the `Add` impl for String, which names `Stdlib.String.append`, a thin wrapper the elision
@@ -148,6 +163,7 @@ let evalList
 let eval1 (tag : int) (arg : Dval) : Dval voption =
   if tag = intToString then
     match arg with
+    | DInt64 n -> ValueSome(DString(string n))
     | DInt i ->
       // The builtin goes through `Dval.asBigInt`, which allocates a `BigInteger` to stringify a
       // value that usually fits an int64. Same output either way.
@@ -161,7 +177,7 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
     | _ -> ValueNone
   elif tag = listLength then
     match arg with
-    | DList(_, l) -> ValueSome(Dval.int (bigint l.Length))
+    | DList(_, l) -> ValueSome(Dval.dint64 (int64 l.Length))
     | _ -> ValueNone
   elif tag = strIsEmpty then
     match arg with
@@ -216,18 +232,15 @@ let evalListPrepend
   | Error() -> ValueNone
 
 
-/// `String.repeat`: a `String` and an `Int` count, almost always padding a row out to a column.
+/// `String.repeat`: a `String` and an `Int64` count, almost always padding a row out to a column.
 ///
-/// Calls the same `String.repeat` the builtin now calls, so the two cannot drift. Declines a count
-/// that does not fit an `int32`, where the builtin raises `OutOfRange` through `intToInt32`:
-/// reproducing that error here would be restating the builtin's failure behaviour as well as its
-/// success, and the slow path already gets it right.
-let evalStrInt (tag : int) (s : string) (n : DarkInt) : Dval voption =
-  if tag = strRepeat then
-    match n with
-    | DarkInt.Finite i when i >= -1L && i <= 2147483647L ->
-      ValueSome(DString(String.repeat s (int i)))
-    | _ -> ValueNone
+/// Calls the same `String.repeat` the builtin calls, so the two cannot drift. Declines a count
+/// that does not fit an `int32`, where the builtin raises `OutOfRange`: reproducing that error
+/// here would be restating the builtin's failure behaviour as well as its success, and the slow
+/// path already gets it right.
+let evalStrInt (tag : int) (s : string) (n : int64) : Dval voption =
+  if tag = strRepeat && n >= -1L && n <= 2147483647L then
+    ValueSome(DString(String.repeat s (int n)))
   else
     ValueNone
 
@@ -275,11 +288,23 @@ let evalDictSet
     ValueNone
 
 
+/// A Decimal `+`, `-` or `*`, declining on overflow so the impl raises its own error.
+let private decimalOrDecline
+  (op : decimal -> decimal -> decimal)
+  (x : decimal)
+  (y : decimal)
+  : Dval voption =
+  try
+    ValueSome(DDecimal(op x y))
+  with :? System.OverflowException ->
+    ValueNone
+
 /// The arithmetic and ordering operators on the fixed-width, float and String types, for the trait
 /// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.Add.add` is
 /// `a + b` in F#, wrapping), restated here so the operator never pays impl selection when both
 /// operands are the same builtin numeric type. Anything that can fail (`divide`, `modulo`,
-/// `power`) and every mixed pair declines: the impl runs and raises its own error.
+/// `power`) and every mixed pair declines: the impl runs and raises its own error. Decimal's
+/// `+`, `-` and `*` can overflow, and decline when they do.
 let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
   // Nested matches throughout, not `match a, b with`: the pair is an allocation per operator,
   // which is the cost this table exists to avoid.
@@ -334,6 +359,14 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       (match b with
        | DFloat y -> ValueSome(DFloat(x + y))
        | _ -> ValueNone)
+    | DFloat32 x ->
+      (match b with
+       | DFloat32 y -> ValueSome(DFloat32(x + y))
+       | _ -> ValueNone)
+    | DDecimal x ->
+      (match b with
+       | DDecimal y -> decimalOrDecline (+) x y
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = subtract then
     match a with
@@ -381,6 +414,14 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       (match b with
        | DFloat y -> ValueSome(DFloat(x - y))
        | _ -> ValueNone)
+    | DFloat32 x ->
+      (match b with
+       | DFloat32 y -> ValueSome(DFloat32(x - y))
+       | _ -> ValueNone)
+    | DDecimal x ->
+      (match b with
+       | DDecimal y -> decimalOrDecline (-) x y
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = multiply then
     match a with
@@ -427,6 +468,14 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     | DFloat x ->
       (match b with
        | DFloat y -> ValueSome(DFloat(x * y))
+       | _ -> ValueNone)
+    | DFloat32 x ->
+      (match b with
+       | DFloat32 y -> ValueSome(DFloat32(x * y))
+       | _ -> ValueNone)
+    | DDecimal x ->
+      (match b with
+       | DDecimal y -> decimalOrDecline (*) x y
        | _ -> ValueNone)
     | _ -> ValueNone
   elif
@@ -484,6 +533,15 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
         (match b with
          | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
            compare x y
+         | _ -> none)
+      | DFloat32 x ->
+        (match b with
+         | DFloat32 y when not (System.Single.IsNaN x) && not (System.Single.IsNaN y) ->
+           compare x y
+         | _ -> none)
+      | DDecimal x ->
+        (match b with
+         | DDecimal y -> compare x y
          | _ -> none)
       | _ -> none
     if ordering = none then ValueNone
@@ -566,6 +624,7 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "stringAppend" strAppend
   put "listConcat" listConcat
   put "intToString" intToString
+  put "int64ToString" intToString
   put "boolNot" boolNot
   put "listLength" listLength
   put "dictGet" dictGet

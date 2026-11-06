@@ -19,7 +19,7 @@ let frame =
           text = "\u001b[1mcell\u001b[0m and some ordinary text" }))
   |> Stdlib.List.flatten
 
-let draw(n: Int): Int =
+let draw(n: Int64): Int64 =
   Stdlib.List.fold(Stdlib.List.range(1, n), 0, fun(acc, _) ->
     acc + Stdlib.List.length(Darklang.Stdlib.Cli.UI.Canvas.compose(160, 50, frame)))
 

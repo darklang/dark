@@ -11,8 +11,8 @@ module Darklang.Stdlib.Cli.Tui
 
 /// Current terminal viewport dimensions.
 type Size =
-  { width: Int
-    height: Int }
+  { width: Int64
+    height: Int64 }
 
 
 /// Determines how a logical view occupies the terminal.
@@ -30,7 +30,7 @@ type Cursor =
   /// Do not show the terminal cursor.
   | Hidden
   /// Show the cursor at a logical row and column in the view.
-  | Visible of row: Int * column: Int
+  | Visible of row: Int64 * column: Int64
 
 
 /// The complete logical view to render.

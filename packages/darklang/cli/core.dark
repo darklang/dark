@@ -78,7 +78,7 @@ type AppState =
     /// command, a failed `eval`, and the `--json` failure paths do, so scripts and agents can
     /// branch on the exit rather than parse prose. (Most commands still report failure in prose
     /// only; they set this as they are touched.)
-    exitCode: Int }
+    exitCode: Int64 }
 
 /// What the prompt shows to your left: where you are in the package tree, and WHICH BRANCH, when you're on
 /// one.
@@ -238,7 +238,7 @@ module ExecutionError =
     /// names starts in the source: (node id, line, column), both 1-based.
     | TypeCheck of
         report: LanguageTools.AtRestTypeChecker.Report *
-        locations: List<(UInt64 * Int * Int)>
+        locations: List<(UInt64 * Int64 * Int64)>
     | Runtime of
         error: LanguageTools.RuntimeTypes.RuntimeError.Error *
         callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>

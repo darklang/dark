@@ -177,10 +177,10 @@ impl ToString for Int8 =
   let toString(int8: Int8): String = Builtin.int8ToString(int8)
 
 impl Zero for Int8 =
-  let zero(): Int8 = 0y
+  let zero(): Int8 = 0s8
 
 impl One for Int8 =
-  let one(): Int8 = 1y
+  let one(): Int8 = 1s8
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -189,7 +189,7 @@ impl One for Int8 =
 /// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
 let checkedAdd(a: Int8, b: Int8): Stdlib.Result.Result<Int8, Stdlib.Int.Overflow> =
   let sum = a + b
-  let wrapped = if b < 0y then sum > a else sum < a
+  let wrapped = if b < 0s8 then sum > a else sum < a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
 
 
@@ -199,7 +199,7 @@ let checkedSubtract(
   b: Int8)
   : Stdlib.Result.Result<Int8, Stdlib.Int.Overflow> =
   let difference = a - b
-  let wrapped = if b < 0y then difference < a else difference > a
+  let wrapped = if b < 0s8 then difference < a else difference > a
   if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(difference)
 
 
@@ -217,15 +217,15 @@ let checkedMultiply(
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int8): Stdlib.Result.Result<Int8, Stdlib.Int.Overflow> =
-  if a == -128y then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
+  if a == -128s8 then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int8): Stdlib.Result.Result<Int8, Stdlib.Int.Overflow> =
-  if a == -128y then
+  if a == -128s8 then
     Error(Stdlib.Int.Overflow.Overflow)
-  else if a < 0y then
+  else if a < 0s8 then
     Ok(-a)
   else
     Ok(a)

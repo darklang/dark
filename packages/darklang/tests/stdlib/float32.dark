@@ -1,0 +1,283 @@
+module Darklang.Stdlib.Float32.Tests
+
+let nan(): Float32 = 0.0f32 / 0.0f32
+let infinity(): Float32 = 1.0f32 / 0.0f32
+let negativeInfinity(): Float32 = -1.0f32 / 0.0f32
+
+/// Bit patterns spread across every exponent, both signs, subnormals included:
+/// a stride that is prime and not a power of two, so the low bits vary too.
+let sweepBits(): List<UInt32> =
+  Stdlib.List.range(0, 1999)
+  |> Stdlib.List.filterMap(fun i ->
+    Stdlib.UInt32.fromInt64((i * 2147483) % 4294967296))
+
+let isNaNBits(b: UInt32): Bool =
+  Stdlib.Float32.isNaN(Stdlib.Float32.fromBits(b))
+
+
+test literals =
+  Stdlib.Test.all(
+    [ 1.5f32 |> Stdlib.Float32.toFloat |> Stdlib.Test.equal(1.5)
+      // the nearest Float32 to 0.1, widened exactly
+      0.1f32 |> Stdlib.Float32.toFloat |> Stdlib.Test.equal(0.10000000149011612)
+      -2.5f32 |> Stdlib.Float32.toFloat |> Stdlib.Test.equal(-2.5)
+      1e3f32 |> Stdlib.Float32.toFloat |> Stdlib.Test.equal(1000.0)
+      3.4028235e38f32 |> Stdlib.Float32.toBits |> Stdlib.Test.equal(2139095039u32) ])
+
+test arithmetic =
+  Stdlib.Test.all(
+    [ (0.1f32 + 0.2f32) |> Stdlib.Test.equal(0.3f32)
+      (1.5f32 - 2.0f32) |> Stdlib.Test.equal(-0.5f32)
+      (1.5f32 * 3.0f32) |> Stdlib.Test.equal(4.5f32)
+      (1.0f32 / 3.0f32) |> Stdlib.Test.equal(0.33333334f32)
+      (2.0f32 ** 10.0f32) |> Stdlib.Test.equal(1024.0f32)
+      -(1.5f32) |> Stdlib.Test.equal(-1.5f32)
+      Stdlib.Float32.sqrt(2.0f32) |> Stdlib.Test.equal(1.4142135f32)
+      // binary32 rounding, not binary64: 16777217 is not a Float32
+      (16777216.0f32 + 1.0f32) |> Stdlib.Test.equal(16777216.0f32)
+      // overflow goes to infinity
+      (3.4028235e38f32 * 2.0f32) |> Stdlib.Test.equal(infinity()) ])
+
+// The Dark impls are what the checker sees; the interpreter's fast path answers the
+// operators without them. They must agree.
+test arithmeticImplsAgreeWithOperators =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.Add.add(0.1f32, 0.2f32) |> Stdlib.Test.equal(0.1f32 + 0.2f32)
+      Stdlib.Float32.Subtract.subtract(0.1f32, 0.3f32) |> Stdlib.Test.equal(0.1f32 - 0.3f32)
+      Stdlib.Float32.Multiply.multiply(0.1f32, 0.7f32) |> Stdlib.Test.equal(0.1f32 * 0.7f32)
+      Stdlib.Float32.Divide.divide(2.0f32, 3.0f32) |> Stdlib.Test.equal(2.0f32 / 3.0f32) ])
+
+test compare =
+  Stdlib.Test.all(
+    [ (1.5f32 < 2.0f32) |> Stdlib.Test.equal(true)
+      (2.0f32 <= 2.0f32) |> Stdlib.Test.equal(true)
+      (-1.0f32 > 0.0f32) |> Stdlib.Test.equal(false)
+      ((nan()) < 1.0f32) |> Stdlib.Test.equal(false)
+      ((nan()) >= 1.0f32) |> Stdlib.Test.equal(false) ])
+
+test rounding =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.ceiling(1.3f32) |> Stdlib.Test.equal(2)
+      Stdlib.Float32.roundUp(1.3f32) |> Stdlib.Test.equal(2)
+      Stdlib.Float32.floor(-1.5f32) |> Stdlib.Test.equal(-2)
+      Stdlib.Float32.roundDown(-1.5f32) |> Stdlib.Test.equal(-2)
+      // ties to even, as Float.round does
+      Stdlib.Float32.round(2.5f32) |> Stdlib.Test.equal(2)
+      Stdlib.Float32.roundTowardsZero(-1.9f32) |> Stdlib.Test.equal(-1)
+      Stdlib.Float32.truncate(-1.9f32) |> Stdlib.Test.equal(-1)
+      Stdlib.Float32.toInt(16777216.0f32) |> Stdlib.Test.equal(16777216) ])
+
+test conversions =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.fromFloat(0.1) |> Stdlib.Test.equal(0.1f32)
+      Stdlib.Float32.fromFloat(1e40) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float32.fromFloat(1e-50) |> Stdlib.Test.equal(0.0f32)
+      // ties to even: 1 + 2^-24 is halfway between 1 and the next Float32
+      Stdlib.Float32.fromFloat(1.000000059604644775390625) |> Stdlib.Test.equal(1.0f32) ])
+
+test isNaNAndIsFinite =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.isNaN(nan()) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.isNaN(1.0f32) |> Stdlib.Test.equal(false)
+      Stdlib.Float32.isFinite(1.0f32) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.isFinite(infinity()) |> Stdlib.Test.equal(false)
+      Stdlib.Float32.isFinite(nan()) |> Stdlib.Test.equal(false) ])
+
+test clampRefusingNaN =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.clampRefusingNaN(5.0f32, 1.0f32, 3.0f32) |> Stdlib.Test.equal(Ok(3.0f32))
+      Stdlib.Float32.clampRefusingNaN(0.5f32, 3.0f32, 1.0f32) |> Stdlib.Test.equal(Ok(1.0f32))
+      Stdlib.Float32.clampRefusingNaN(2.0f32, nan(), 1.0f32)
+      |> Stdlib.Test.equal(Error("clampRefusingNaN requires limits that are numbers")) ])
+
+test toString =
+  Stdlib.Test.all(
+    [ Stdlib.toString(1.5f32) |> Stdlib.Test.equal("1.5")
+      Stdlib.toString(0.1f32) |> Stdlib.Test.equal("0.1")
+      Stdlib.toString(0.0f32) |> Stdlib.Test.equal("0.0")
+      Stdlib.toString(-0.0f32) |> Stdlib.Test.equal("-0.0")
+      Stdlib.toString(16777216.0f32) |> Stdlib.Test.equal("16777216.0")
+      Stdlib.toString(1e16f32) |> Stdlib.Test.equal("1e+16")
+      Stdlib.toString(1e-5f32) |> Stdlib.Test.equal("1e-5")
+      Stdlib.toString(3.4028235e38f32) |> Stdlib.Test.equal("3.4028235e+38")
+      Stdlib.toString(Stdlib.Float32.fromBits(1u32)) |> Stdlib.Test.equal("1e-45")
+      Stdlib.toString(nan()) |> Stdlib.Test.equal("NaN")
+      Stdlib.toString(infinity()) |> Stdlib.Test.equal("Infinity")
+      Stdlib.toString(negativeInfinity()) |> Stdlib.Test.equal("-Infinity") ])
+
+test toStringRoundTripsAcrossTheRange =
+  let failures =
+    sweepBits()
+    |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(isNaNBits(b)))
+    |> Stdlib.List.filter(fun b ->
+      let f = Stdlib.Float32.fromBits(b)
+      match Stdlib.Float32.parse(Stdlib.toString(f)) with
+      | Ok(back) -> Stdlib.Float32.toBits(back) != b
+      | Error(_) -> true)
+  failures |> Stdlib.Test.equal([])
+
+test bitsRoundTripAcrossTheRange =
+  let failures =
+    sweepBits()
+    |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(isNaNBits(b)))
+    |> Stdlib.List.filter(fun b ->
+      Stdlib.Float32.toBits(Stdlib.Float32.fromBits(b)) != b)
+  failures |> Stdlib.Test.equal([])
+
+test bits =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.toBits(1.0f32) |> Stdlib.Test.equal(1065353216u32)
+      Stdlib.Float32.toBits(-2.0f32) |> Stdlib.Test.equal(3221225472u32)
+      Stdlib.Float32.toBits(0.0f32) |> Stdlib.Test.equal(0u32)
+      Stdlib.Float32.toBits(-0.0f32) |> Stdlib.Test.equal(2147483648u32)
+      Stdlib.Float32.toBits(infinity()) |> Stdlib.Test.equal(2139095040u32)
+      // the smallest subnormal and the largest one
+      Stdlib.Float32.toBits(Stdlib.Float32.fromBits(1u32)) |> Stdlib.Test.equal(1u32)
+      Stdlib.Float32.toBits(Stdlib.Float32.fromBits(8388607u32))
+      |> Stdlib.Test.equal(8388607u32)
+      Stdlib.Float32.isNaN(Stdlib.Float32.fromBits(2143289344u32))
+      |> Stdlib.Test.equal(true)
+      // a NaN with a payload, and a negative one, keep their bits
+      Stdlib.Float32.toBits(Stdlib.Float32.fromBits(2143289345u32))
+      |> Stdlib.Test.equal(2143289345u32)
+      Stdlib.Float32.toBits(Stdlib.Float32.fromBits(4290772992u32))
+      |> Stdlib.Test.equal(4290772992u32) ])
+
+test parse =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.parse("1.5") |> Stdlib.Test.equal(Ok(1.5f32))
+      Stdlib.Float32.parse("-0.5") |> Stdlib.Test.equal(Ok(-0.5f32))
+      Stdlib.Float32.parse(".5") |> Stdlib.Test.equal(Ok(0.5f32))
+      Stdlib.Float32.parse("1e3") |> Stdlib.Test.equal(Ok(1000.0f32))
+      Stdlib.Float32.parse("1e39") |> Stdlib.Test.equal(Ok(infinity()))
+      Stdlib.Float32.parse("-141s")
+      |> Stdlib.Test.equal(Error(Stdlib.Float32.ParseError.BadFormat))
+      Stdlib.Float32.parse("")
+      |> Stdlib.Test.equal(Error(Stdlib.Float32.ParseError.BadFormat)) ])
+
+// A decimal a hair past a Float32 midpoint lands ON the midpoint as a Float, and
+// narrowing that rounds to even, the wrong way. Parsing decides from the decimal.
+test parseRoundsOnceNotTwice =
+  Stdlib.Test.all(
+    [ // just above 1 + 2^-24: the next Float32 up
+      Stdlib.Float32.parse("1.0000000596046447753906250001")
+      |> Stdlib.Test.equal(Ok(1.0000001f32))
+      // just below: 1
+      Stdlib.Float32.parse("1.0000000596046447753906249999")
+      |> Stdlib.Test.equal(Ok(1.0f32))
+      // exactly halfway: to even, which is 1
+      Stdlib.Float32.parse("1.000000059604644775390625")
+      |> Stdlib.Test.equal(Ok(1.0f32))
+      // halfway between two Float32s whose even one is the upper
+      Stdlib.Float32.parse("1.000000178813934326171875")
+      |> Stdlib.Test.equal(Ok(1.0000002f32))
+      // and negative, mirrored
+      Stdlib.Float32.parse("-1.0000000596046447753906250001")
+      |> Stdlib.Test.equal(Ok(-1.0000001f32)) ])
+
+test patternMatch =
+  let describe(x: Float32): String =
+    match x with
+    | 1.5f32 -> "one and a half"
+    | -2.0f32 -> "minus two"
+    | _ -> "other"
+  Stdlib.Test.all(
+    [ describe(1.5f32) |> Stdlib.Test.equal("one and a half")
+      describe(-2.0f32) |> Stdlib.Test.equal("minus two")
+      describe(1.5000001f32) |> Stdlib.Test.equal("other") ])
+
+test json =
+  Stdlib.Test.all(
+    [ Stdlib.Json.serialize<Float32>(0.1f32) |> Stdlib.Test.equal("0.1")
+      Stdlib.Json.parse<Float32>("0.1") |> Stdlib.Test.equal(Ok(0.1f32))
+      Stdlib.Json.serialize<List<Float32>>([ 1.5f32, -0.0f32 ])
+      |> Stdlib.Test.equal("[1.5,-0.0]") ])
+
+test zeroAndOne =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.Zero.zero() |> Stdlib.Test.equal(0.0f32)
+      Stdlib.Float32.One.one() |> Stdlib.Test.equal(1.0f32) ])
+
+
+test fromInt64 =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.fromInt64(3) |> Stdlib.Test.equal(3.0f32)
+      Stdlib.Float32.fromInt64(-16777216) |> Stdlib.Test.equal(-16777216.0f32)
+      // past 2^24 the gap between Float32s is 2, and a tie goes to even
+      Stdlib.Float32.fromInt64(16777217) |> Stdlib.Test.equal(16777216.0f32)
+      Stdlib.Float32.fromInt64(16777219) |> Stdlib.Test.equal(16777220.0f32)
+      // 2^63 - 1 rounds up to 2^63
+      Stdlib.Float32.toBits(Stdlib.Float32.fromInt64(9223372036854775807))
+      |> Stdlib.Test.equal(1593835520u32) ])
+
+test precisionLoss =
+  Stdlib.Test.all(
+    [ // 24 bits: 16777217 is not a Float32 (and `16777217.0f32` does not parse)
+      Stdlib.Float32.fromFloat(16777217.0) |> Stdlib.Test.equal(16777216.0f32)
+      (Stdlib.Float32.toFloat(0.1f32) == 0.1) |> Stdlib.Test.equal(false)
+      // about 7 significant digits survive
+      Stdlib.toString(Stdlib.Float32.fromFloat(1.23456789)) |> Stdlib.Test.equal("1.2345679")
+      Stdlib.toString(Stdlib.Float32.fromFloat(0.1 + 0.2)) |> Stdlib.Test.equal("0.3")
+      // a small addend vanishes against a large one
+      (1e8f32 + 1.0f32) |> Stdlib.Test.equal(1e8f32)
+      // the smallest subnormal, halved, is zero
+      (Stdlib.Float32.fromBits(1u32) / 2.0f32) |> Stdlib.Test.equal(0.0f32) ])
+
+test nanAndInfinities =
+  Stdlib.Test.all(
+    [ ((nan()) == (nan())) |> Stdlib.Test.equal(false)
+      ((nan()) != (nan())) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.isNaN(infinity() - infinity()) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.isNaN(infinity() * 0.0f32) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.isNaN(Stdlib.Float32.sqrt(-1.0f32)) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.sqrt(infinity()) |> Stdlib.Test.equal(infinity())
+      (-(infinity())) |> Stdlib.Test.equal(negativeInfinity())
+      (1.0f32 / infinity()) |> Stdlib.Test.equal(0.0f32)
+      (negativeInfinity() < -3.4028235e38f32) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.parse("Infinity") |> Stdlib.Test.equal(Ok(infinity()))
+      Stdlib.Float32.parse("-Infinity") |> Stdlib.Test.equal(Ok(negativeInfinity()))
+      Stdlib.Float32.parse("NaN")
+      |> Stdlib.Result.map(Stdlib.Float32.isNaN)
+      |> Stdlib.Test.equal(Ok(true))
+      Stdlib.Float32.fromFloat(0.0 / 0.0) |> Stdlib.Float32.isNaN |> Stdlib.Test.equal(true) ])
+
+test truncateRejectsNan =
+  Stdlib.Float32.truncate(nan())
+  => raises "Encountered out-of-range value for type of Int"
+
+test roundRejectsInfinity =
+  Stdlib.Float32.round(infinity())
+  => raises "Encountered out-of-range value for type of Int"
+
+test roundRejectsPastInt64 =
+  Stdlib.Float32.round(3.4028235e38f32)
+  => raises "Encountered out-of-range value for type of Int"
+
+test minMaxAbsClamp =
+  Stdlib.Test.all(
+    [ Stdlib.min(1.5f32, -2.0f32) |> Stdlib.Test.equal(-2.0f32)
+      Stdlib.max(1.5f32, -2.0f32) |> Stdlib.Test.equal(1.5f32)
+      Stdlib.abs(-1.5f32) |> Stdlib.Test.equal(1.5f32)
+      Stdlib.abs(negativeInfinity()) |> Stdlib.Test.equal(infinity())
+      Stdlib.clamp(5.0f32, 3.0f32, 1.0f32) |> Stdlib.Test.equal(3.0f32)
+      Stdlib.clamp(2.0f32, 1.0f32, 3.0f32) |> Stdlib.Test.equal(2.0f32)
+      Stdlib.sum(0.0f32, [ 0.5f32, 0.25f32, 0.125f32 ]) |> Stdlib.Test.equal(0.875f32) ])
+
+// Stored values go through the store's serializer and come back by bits: -0.0 stays
+// negative and the subnormal keeps its one bit.
+val storedFloat32s =
+  [ 0.1f32
+    -0.0f32
+    3.4028235e38f32
+    Stdlib.Float32.fromBits(1u32)
+    1.0f32 / 0.0f32
+    -1.0f32 / 0.0f32 ]
+
+val storedNaN = 0.0f32 / 0.0f32
+
+test storedValuesKeepTheirBits =
+  Stdlib.Test.all(
+    [ Stdlib.List.map(storedFloat32s, Stdlib.Float32.toBits)
+      |> Stdlib.Test.equal(
+        [ 1036831949u32, 2147483648u32, 2139095039u32, 1u32, 2139095040u32, 4286578688u32 ])
+      Stdlib.Float32.isNaN(storedNaN) |> Stdlib.Test.equal(true) ])

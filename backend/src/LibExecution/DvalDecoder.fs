@@ -55,29 +55,15 @@ let darkInt (dv : Dval) : bigint =
   | DInt i -> DarkInt.toBigInt i
   | _ -> f "int" dv
 
-/// Decodes a `DInt`, narrowing to a native `int64`. For values that are
-/// bounded-by-construction to Int64; raises a clear internal error if the
-/// value doesn't fit rather than letting a host `OverflowException` escape.
-let int64FromInt (dv : Dval) : int64 =
-  match dv with
-  | DInt i ->
-    match DarkInt.toInt64 i with
-    | Some v -> v
-    | None ->
-      Exception.raiseInternal "int64FromInt: DInt out of Int64 range" [ "dv", dv ]
-  | _ -> f "int" dv
-
-/// Decodes a `DInt`, narrowing to a native `int` (Int32). For small,
+/// Decodes a `DInt64`, narrowing to a native `int` (Int32). For small,
 /// bounded-by-construction values (counts, indices, arities); raises a clear
 /// internal error if the value doesn't fit rather than letting a host
 /// `OverflowException` escape.
 let int (dv : Dval) : int =
   match dv with
-  | DInt i ->
-    match DarkInt.toInt32 i with
-    | Some v -> v
-    | None -> Exception.raiseInternal "int: DInt out of Int32 range" [ "dv", dv ]
-  | _ -> f "int" dv
+  | DInt64 i when i >= -2147483648L && i <= 2147483647L -> int i
+  | DInt64 _ -> Exception.raiseInternal "int: DInt64 out of Int32 range" [ "dv", dv ]
+  | _ -> f "int64" dv
 
 let uInt64 (dv : Dval) : uint64 =
   match dv with
@@ -98,6 +84,16 @@ let float (dv : Dval) : double =
   match dv with
   | DFloat f -> f
   | _ -> f "double" dv
+
+let float32 (dv : Dval) : float32 =
+  match dv with
+  | DFloat32 f -> f
+  | _ -> f "float32" dv
+
+let decimal (dv : Dval) : decimal =
+  match dv with
+  | DDecimal d -> d
+  | _ -> f "decimal" dv
 
 let bool (dv : Dval) : bool =
   match dv with

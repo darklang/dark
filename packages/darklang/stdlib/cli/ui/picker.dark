@@ -10,14 +10,14 @@ module Darklang.Stdlib.Cli.UI.Picker
 
 type State =
   { labels: List<String>
-    selected: Int
+    selected: Int64
     /// First visible row. Carried on the state so the list doesn't jump when the selection moves back into
     /// a window it never left.
-    scroll: Int }
+    scroll: Int64 }
 
 type Msg =
   /// Enter, with the index into the labels the parent handed in.
-  | Chose of Int
+  | Chose of Int64
   /// Escape.
   | Cancelled
 
@@ -30,12 +30,12 @@ let withLabels(state: State, labels: List<String>): State =
   let selected = Stdlib.max(0, Stdlib.min(count - 1, state.selected))
   State { labels = labels, selected = selected, scroll = state.scroll }
 
-let count(state: State): Int =
+let count(state: State): Int64 =
   Stdlib.List.length(state.labels)
 
 // --- Movement ---
 
-let moveTo(state: State, index: Int): State =
+let moveTo(state: State, index: Int64): State =
   let last = Stdlib.max(0, (count(state)) - 1)
   { state with selected = Stdlib.max(0, Stdlib.min(last, index)) }
 
@@ -52,7 +52,7 @@ let moveToEnd(state: State): State =
   moveTo(state, (count(state)) - 1)
 
 /// Slide the window so the selection sits inside it, moving as little as possible.
-let scrolled(state: State, rows: Int): State =
+let scrolled(state: State, rows: Int64): State =
   let visible = Stdlib.max(1, rows)
   let last = Stdlib.max(0, (count(state)) - visible)
 

@@ -128,7 +128,7 @@ let min<'a: Compare>(a: 'a, b: 'a): 'a = if a < b then a else b
 
 
 /// The distance of <param value> from zero. A fixed-width minimum wraps back to itself, since it
-/// has no positive counterpart: `abs -128y` is `-128y`.
+/// has no positive counterpart: `abs -128s8` is `-128s8`.
 let abs<'a: Compare + Negate + Zero>(value: 'a): 'a =
   if value < Zero.zero() then -value else value
 
@@ -144,7 +144,7 @@ let clamp<'a: Compare>(value: 'a, limitA: 'a, limitB: 'a): 'a =
   else value
 
 
-/// <param xs> added up from <param seed>: `Stdlib.sum 0L [ 1L, 2L ]` is `3L`. The seed is what
+/// <param xs> added up from <param seed>: `Stdlib.sum 0 [ 1, 2 ]` is `3`. The seed is what
 /// `[]` sums to, which is why it is an argument and not `Zero.zero`.
 let sum<'a: Add>(seed: 'a, xs: List<'a>): 'a =
   Stdlib.List.fold(xs, seed, fun(acc, x) -> acc + x)

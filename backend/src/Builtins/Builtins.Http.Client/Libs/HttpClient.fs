@@ -186,7 +186,7 @@ let private guestRequest
         | Ok response ->
           let typ = responseOKType ()
           let fields =
-            [ ("statusCode", Dval.int (bigint response.statusCode))
+            [ ("statusCode", Dval.dint64 (int64 response.statusCode))
               ("headers", headersToDval response.headers)
               ("body", Bytes.newEphemeral response.body) ]
           Ply(resultOk (DRecord(typ, typ, [], Map fields))))
@@ -352,7 +352,7 @@ let fns () : List<BuiltInFn> =
 
                   let typ = streamResponseType ()
                   let fields =
-                    [ ("statusCode", Dval.int (bigint head.statusCode))
+                    [ ("statusCode", Dval.dint64 (int64 head.statusCode))
                       ("headers", headersToDval head.headers)
                       ("body", body) ]
                   Ply(resultOk (DRecord(typ, typ, [], Map fields))))

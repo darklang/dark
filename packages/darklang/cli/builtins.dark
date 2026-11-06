@@ -22,6 +22,7 @@ val knownGroups =
     ("uint64", "UInt64")
     ("uint128", "UInt128")
     ("float", "Float")
+    ("float32", "Float32")
     ("bool", "Bool")
     ("char", "Char")
     ("codepoint", "Codepoint")
@@ -91,7 +92,7 @@ let isKnownGroup(prefix: String): Bool =
 
 
 let versionSuffix(v: Int32): String =
-  if v == 0l then "" else $"_v{Stdlib.toString(v)}"
+  if v == 0s32 then "" else $"_v{Stdlib.toString(v)}"
 
 
 let purityTag(purity: LanguageTools.BuiltinFunctionPurity): String =

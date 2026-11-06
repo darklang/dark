@@ -34,7 +34,7 @@ let aTypeIsUsableByAFunctionAuthoredAfterIt =
           fn
             state
             "Tests.Auth.mk"
-            "let mk(): Tests.Auth.Pair =\n  Tests.Auth.Pair { left = 7401L, right = 7402L }"
+            "let mk(): Tests.Auth.Pair =\n  Tests.Auth.Pair { left = 7401, right = 7402 }"
 
         do!
           evals
@@ -58,7 +58,7 @@ let aParseErrorChangesNothing =
   instanceTest "a parse error saves nothing and exits nonzero" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.Auth.solid" "() : Int64 = 7403L"
+      do! fn state "Tests.Auth.solid" "() : Int64 = 7403"
       do! commit state "auth solid"
 
       do!
@@ -102,7 +102,7 @@ let aNameThatDisagreesWithTheDeclarationIsRefused =
         do!
           showsAll
             state
-            [ "fn"; "Tests.Auth.alpha"; "let beta(): Int64 =\n  7404L" ]
+            [ "fn"; "Tests.Auth.alpha"; "let beta(): Int64 =\n  7404" ]
             [ "beta"; "alpha" ]
             "the refusal names the declaration and the target"
 
@@ -118,10 +118,10 @@ let anOwnerLevelNameNeedsNoModule =
   instanceTest "an Owner.name with no module is a name like any other" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.ownerDouble" "(x: Int64): Int64 = x * 2L"
-      do! value state "Tests.ownerSeed" "7406L"
+      do! fn state "Tests.ownerDouble" "(x: Int64): Int64 = x * 2"
+      do! value state "Tests.ownerSeed" "7406"
       do!
-        shows state [ "view"; "Tests.ownerDouble" ] "x * 2L" "view shows its source"
+        shows state [ "view"; "Tests.ownerDouble" ] "x * 2" "view shows its source"
       do!
         evals
           state
@@ -130,8 +130,8 @@ let anOwnerLevelNameNeedsNoModule =
           "it is callable by its two-part name"
       do! commit state "owner-level"
 
-      do! fn state "Tests.ownerSibling" "(): Int64 = ownerDouble(3L)"
-      do! fn state "Elsewhere.Mod.useIt" "(): Int64 = Tests.ownerDouble(1L)"
+      do! fn state "Tests.ownerSibling" "(): Int64 = ownerDouble(3)"
+      do! fn state "Elsewhere.Mod.useIt" "(): Int64 = Tests.ownerDouble(1)"
       do! commit state "owner-level callers"
       do! evals state "Tests.ownerSibling()" "6" "a sibling reaches it unqualified"
       do!
@@ -156,13 +156,13 @@ let anOwnerLevelConflictIsFoundByName =
   instanceTest "a conflict on an Owner.name is found by its name" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.ownerClash" "(): Int64 = 1L"
+      do! fn state "Tests.ownerClash" "(): Int64 = 1"
       do! commit state "base"
       do! switch state "owner-clash"
-      do! fn state "Tests.ownerClash" "(): Int64 = 2L"
+      do! fn state "Tests.ownerClash" "(): Int64 = 2"
       do! commit state "branch side"
       do! onMain state
-      do! fn state "Tests.ownerClash" "(): Int64 = 3L"
+      do! fn state "Tests.ownerClash" "(): Int64 = 3"
       do! commit state "main side"
       do! switch state "owner-clash"
       do! rebase state "owner-clash"
@@ -178,7 +178,7 @@ let branchPropagationIgnoresMainDraftCallers =
   instanceTest "branch propagation ignores main draft callers" (fun state ->
     task {
       do! start state
-      do! fn state "Tests.MainDraftCaller.foo" "(): Int64 = 86301L"
+      do! fn state "Tests.MainDraftCaller.foo" "(): Int64 = 86301"
       do!
         fn
           state
@@ -189,9 +189,9 @@ let branchPropagationIgnoresMainDraftCallers =
         fn
           state
           "Tests.MainDraftCaller.caller"
-          "(): Int64 = Tests.MainDraftCaller.foo() + 7L"
+          "(): Int64 = Tests.MainDraftCaller.foo() + 7"
       do! switch state "main-draft-caller"
-      do! fn state "Tests.MainDraftCaller.foo" "(): Int64 = 86302L"
+      do! fn state "Tests.MainDraftCaller.foo" "(): Int64 = 86302"
       do!
         evals
           state
@@ -216,8 +216,8 @@ let failedAliasValuesLeaveNoReferenceMetadata =
         do! start state
         let scenario name =
           task {
-            do! fn state $"Tests.{name}.fail" "(): Int64 = 1L / 0L"
-            do! fn state $"Tests.{name}.alias" "(): Int64 = 1L / 0L"
+            do! fn state $"Tests.{name}.fail" "(): Int64 = 1 / 0"
+            do! fn state $"Tests.{name}.alias" "(): Int64 = 1 / 0"
             do! commit state "failing alias fixture"
             do!
               exits
@@ -277,7 +277,7 @@ let authoringFollowsStoredCommits =
             match cmd.ExecuteScalar() with
             | :? string as ts -> ts
             | _ -> "missing")
-        do! fn state "Tests.ClockRegression.main" "(): Int64 = 781563L"
+        do! fn state "Tests.ClockRegression.main" "(): Int64 = 781563"
         let mainStamp =
           "SELECT p.origin_ts AS ts FROM package_ops p JOIN locations l ON l.op_id = p.id "
           + "WHERE l.owner = 'Tests' AND l.modules = 'ClockRegression' "
@@ -287,7 +287,7 @@ let authoringFollowsStoredCommits =
           "2099-"
           "a main edit sorts after the stored commit"
         do! switch state "clock-regression"
-        do! fn state "Tests.ClockRegression.branch" "(): Int64 = 781564L"
+        do! fn state "Tests.ClockRegression.branch" "(): Int64 = 781564"
         let branchStamp =
           "SELECT MIN(p.origin_ts) AS ts FROM package_ops p "
           + "JOIN op_branches ob ON ob.op_id = p.id "
@@ -304,8 +304,8 @@ let branchDiscardRestoresReferenceNames =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.DiscardReference.original" "(): Int64 = 582761L"
-        do! fn state "Tests.DiscardReference.alias" "(): Int64 = 582761L"
+        do! fn state "Tests.DiscardReference.original" "(): Int64 = 582761"
+        do! fn state "Tests.DiscardReference.alias" "(): Int64 = 582761"
         do!
           fn
             state
@@ -331,14 +331,14 @@ let branchDiscardRestoresReferenceNames =
             [ "view"; "Tests.DiscardReference.caller"; "--raw" ]
             "original()"
             "discard restores the committed name"
-        do! fn state "Tests.DiscardReference.alias" "(): Int64 = 582762L"
+        do! fn state "Tests.DiscardReference.alias" "(): Int64 = 582762"
         do!
           evals
             state
             "Tests.DiscardReference.caller()"
             "582761"
             "the discarded alias no longer controls propagation"
-        do! fn state "Tests.DiscardReference.original" "(): Int64 = 582763L"
+        do! fn state "Tests.DiscardReference.original" "(): Int64 = 582763"
         do!
           evals
             state
@@ -358,7 +358,7 @@ let deleteRefusesWhileSomethingStillCallsIt =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Auth.leaf" "() : Int64 = 7407L"
+        do! fn state "Tests.Auth.leaf" "() : Int64 = 7407"
         do! fn state "Tests.Auth.caller" "(): Int64 = Tests.Auth.leaf()"
         do! commit state "auth delete fixture"
 
@@ -399,19 +399,19 @@ let authoringIdenticalSourceReportsUnchanged =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Auth.stable" "() : Int64 = 7414L"
+        do! fn state "Tests.Auth.stable" "() : Int64 = 7414"
         do! commit state "auth stable"
 
         do!
           shows
             state
-            [ "fn"; "Tests.Auth.stable"; "() : Int64 = 7414L" ]
+            [ "fn"; "Tests.Auth.stable"; "() : Int64 = 7414" ]
             "unchanged"
             "an identical re-author says nothing was saved"
         do!
           lacks
             state
-            [ "fn"; "Tests.Auth.stable"; "() : Int64 = 7414L" ]
+            [ "fn"; "Tests.Auth.stable"; "() : Int64 = 7414" ]
             "Updated"
             "and does not claim an update"
 
@@ -420,7 +420,7 @@ let authoringIdenticalSourceReportsUnchanged =
         // folds to nothing. Committing that keeps the name -- see
         // `reAuthoringTheSameSourceSurvivesTheCommit`, which is where it used to lose it.
         let! before = runCliPlain state [ "hash"; "Tests.Auth.stable" ]
-        do! fn state "Tests.Auth.stable" "() : Int64 = 7414L"
+        do! fn state "Tests.Auth.stable" "() : Int64 = 7414"
         let! after = runCliPlain state [ "hash"; "Tests.Auth.stable" ]
         Expect.equal
           after
@@ -461,7 +461,7 @@ let traitsAreAuthoredListedAndDisambiguated =
         do!
           evals
             state
-            "Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1L, y = 2L })"
+            "Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1, y = 2 })"
             "alpha"
             "the implementation dispatches"
         do!
@@ -492,7 +492,7 @@ let traitsAreAuthoredListedAndDisambiguated =
         do!
           evals
             state
-            "Tests.Tr.Describe.describe(Tests.Tr.Other { n = 1L })"
+            "Tests.Tr.Describe.describe(Tests.Tr.Other { n = 1 })"
             "other"
             "and it dispatches"
 
@@ -504,7 +504,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             state
             [ "fn"
               "Tests.Tr.callsIt"
-              "(): String = Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1L, y = 2L })" ]
+              "(): String = Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1, y = 2 })" ]
         do!
           evals
             state
@@ -535,7 +535,7 @@ let traitsAreAuthoredListedAndDisambiguated =
         do!
           evals
             state
-            "Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1L, y = 2L })"
+            "Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1, y = 2 })"
             "beta"
             "the newer implementation runs"
         do!
@@ -594,7 +594,7 @@ let traitsAreAuthoredListedAndDisambiguated =
         do!
           evals
             state
-            "Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1L, y = 2L })"
+            "Tests.Tr.Describe.describe(Tests.Tr.Point { x = 1, y = 2 })"
             // The surviving implementation was edited above, so a fresh call runs its current
             // version, which saved callers have followed automatically too.
             "gamma"
@@ -656,7 +656,7 @@ let aRivalCannotReachAPipedBoundedCall =
         do!
           evals
             state
-            "Tests.PipeBnd.piped(Tests.PipeBnd.Tok { pipeBndWidth = 1L })"
+            "Tests.PipeBnd.piped(Tests.PipeBnd.Tok { pipeBndWidth = 1 })"
             "first"
             "the piped call runs what its argument's type implied"
 
@@ -669,13 +669,13 @@ let aRivalCannotReachAPipedBoundedCall =
         do!
           evals
             state
-            "Tests.PipeBnd.piped(Tests.PipeBnd.Tok { pipeBndWidth = 1L })"
+            "Tests.PipeBnd.piped(Tests.PipeBnd.Tok { pipeBndWidth = 1 })"
             "first"
             "and the saved piped call is untouched by it"
         do!
           evals
             state
-            "Stdlib.toString(Tests.PipeBnd.Tok { pipeBndWidth = 1L })"
+            "Stdlib.toString(Tests.PipeBnd.Tok { pipeBndWidth = 1 })"
             "rival"
             "while a fresh call takes the newer one, so the rival really is the winner"
       })
@@ -695,13 +695,13 @@ let aRivalCannotReachAUnaryOperator =
             state
             [ "impl"
               "Tests.Unary"
-              "Negate for Tok = let negate(t: Tok): Tok = Tok { unaryN = 1L }" ]
+              "Negate for Tok = let negate(t: Tok): Tok = Tok { unaryN = 1 }" ]
         do!
           run
             state
             [ "impl"
               "Tests.Unary"
-              "BitwiseNot for Tok = let bitwiseNot(t: Tok): Tok = Tok { unaryN = 1L }" ]
+              "BitwiseNot for Tok = let bitwiseNot(t: Tok): Tok = Tok { unaryN = 1 }" ]
         do! run state [ "fn"; "Tests.Unary.neg"; "(t: Tok) : Tok = -t" ]
         do! run state [ "fn"; "Tests.Unary.flip"; "(t: Tok) : Tok = ~t" ]
         do!
@@ -716,29 +716,29 @@ let aRivalCannotReachAUnaryOperator =
             state
             [ "impl"
               "Tests.UnaryRival"
-              "Negate for Tests.Unary.Tok = let negate(t: Tests.Unary.Tok): Tests.Unary.Tok = Tests.Unary.Tok { unaryN = 2L }" ]
+              "Negate for Tests.Unary.Tok = let negate(t: Tests.Unary.Tok): Tests.Unary.Tok = Tests.Unary.Tok { unaryN = 2 }" ]
         do!
           run
             state
             [ "impl"
               "Tests.UnaryRival"
-              "BitwiseNot for Tests.Unary.Tok = let bitwiseNot(t: Tests.Unary.Tok): Tests.Unary.Tok = Tests.Unary.Tok { unaryN = 2L }" ]
+              "BitwiseNot for Tests.Unary.Tok = let bitwiseNot(t: Tests.Unary.Tok): Tests.Unary.Tok = Tests.Unary.Tok { unaryN = 2 }" ]
         do!
           evals
             state
-            "(Tests.Unary.neg(Tests.Unary.Tok { unaryN = 0L })).unaryN"
+            "(Tests.Unary.neg(Tests.Unary.Tok { unaryN = 0 })).unaryN"
             "1"
             "the saved `-t` is untouched by an implementation written after it"
         do!
           evals
             state
-            "(Tests.Unary.flip(Tests.Unary.Tok { unaryN = 0L })).unaryN"
+            "(Tests.Unary.flip(Tests.Unary.Tok { unaryN = 0 })).unaryN"
             "1"
             "and so is the saved `~t`"
         do!
           evals
             state
-            "(-(Tests.Unary.Tok { unaryN = 0L })).unaryN"
+            "(-(Tests.Unary.Tok { unaryN = 0 })).unaryN"
             "2"
             "while a fresh `-` takes the newer one, so the rival really is the winner"
       })
@@ -769,7 +769,7 @@ let aRivalCannotReachABoundedCall =
           )
         System.IO.File.WriteAllText(
           file,
-          "let nameIt<'a: Tests.Bnd.Named>(v: 'a): String =\n  Tests.Bnd.Named.name(v)\n\nlet callsBounded(): String =\n  Tests.Bnd.nameIt(Tests.Bnd.Pt { n = 1L })\n"
+          "let nameIt<'a: Tests.Bnd.Named>(v: 'a): String =\n  Tests.Bnd.Named.name(v)\n\nlet callsBounded(): String =\n  Tests.Bnd.nameIt(Tests.Bnd.Pt { n = 1 })\n"
           + ""
           + ""
           + ""
@@ -798,7 +798,7 @@ let aRivalCannotReachABoundedCall =
         do!
           evals
             state
-            "Tests.Bnd.Named.name(Tests.Bnd.Pt { n = 1L })"
+            "Tests.Bnd.Named.name(Tests.Bnd.Pt { n = 1 })"
             "rival"
             "while a fresh call takes the newer one, so the rival really is the winner"
       })
@@ -952,7 +952,7 @@ let aMismatchedImplementationIsReportedAtSave =
         do!
           showsAll
             state
-            (impl "let show(p: Int64): Int64 = 1L")
+            (impl "let show(p: Int64): Int64 = 1")
             [ "[ImplMethodSignature]"
               "the return type differs"
               "expected (Int64) -> String, got (Int64) -> Int64" ]
@@ -977,7 +977,7 @@ let aMismatchedImplementationIsReportedAtSave =
             "type error"
             "a matching implementation reports nothing"
         do! shows state [ "commit"; "matched"; "-y" ] " ops." "and commits"
-        do! evals state "Tests.Mism.Show.show(5L)" "ok" "and dispatches"
+        do! evals state "Tests.Mism.Show.show(5)" "ok" "and dispatches"
       })
 
 
@@ -992,7 +992,7 @@ let aFailedModuleSaveDoesNotEndOnATick =
       do! start state
 
       let source =
-        "type Tick = { n: Int64 }\n\nimpl Compare for Tick =\n  let compare(a: Tick, b: Tick): Int64 = 0L\n"
+        "type Tick = { n: Int64 }\n\nimpl Compare for Tick =\n  let compare(a: Tick, b: Tick): Int64 = 0\n"
         + ""
         + ""
 
@@ -1218,7 +1218,7 @@ let aReplacedImplementationIsNotChosen =
             state
             (modul
               "Tests.ReplO"
-              ("type Mark = { replM: Int64 }\n\nimpl Tests.ReplT.Tag for Mark =\n  let replTag(m: Mark): String = \"mark\"\n\nlet usesExisting(): String = Tests.ReplT.Tag.replTag(Tests.ReplA.Box { replA = 1L })\n"
+              ("type Mark = { replM: Int64 }\n\nimpl Tests.ReplT.Tag for Mark =\n  let replTag(m: Mark): String = \"mark\"\n\nlet usesExisting(): String = Tests.ReplT.Tag.replTag(Tests.ReplA.Box { replA = 1 })\n"
                + ""
                + ""))
             "MissingImpl"
@@ -1231,7 +1231,7 @@ let aReplacedImplementationIsNotChosen =
             (modul
               "Tests.ReplM"
               (aImpl
-               + "\nlet sameAgain(): String = Tests.ReplT.Tag.replTag(Tests.ReplA.Box { replA = 2L })\n"))
+               + "\nlet sameAgain(): String = Tests.ReplT.Tag.replTag(Tests.ReplA.Box { replA = 2 })\n"))
             "MissingImpl"
             "re-saving an implementation unchanged does not count as replacing it"
 
@@ -1248,13 +1248,13 @@ let aReplacedImplementationIsNotChosen =
         do!
           evals
             state
-            "Tests.ReplM.g(Tests.ReplB.Box { replB = 1L })"
+            "Tests.ReplM.g(Tests.ReplB.Box { replB = 1 })"
             "b"
             "the call the new implementation applies to runs it"
         do!
           evals
             state
-            "Tests.ReplM.h(Tests.ReplA.Box { replA = 1L })"
+            "Tests.ReplM.h(Tests.ReplA.Box { replA = 1 })"
             "has no implementation"
             "and the other was not resolved to the implementation the save replaced"
       })
@@ -1275,7 +1275,7 @@ let interpolationRecordsItsImpl =
           state
           [ "fn"
             "Tests.Interp.saved"
-            "(): String = $\"value: {Tests.Interp.Point { n = 1L }}\"" ]
+            "(): String = $\"value: {Tests.Interp.Point { n = 1 }}\"" ]
       do!
         evals
           state
@@ -1303,7 +1303,7 @@ let interpolationRecordsItsImpl =
       do!
         evals
           state
-          "$\"value: {Tests.Interp.Point { n = 1L }}\""
+          "$\"value: {Tests.Interp.Point { n = 1 }}\""
           "value: rival"
           "a fresh interpolation sees the new implementation"
     })
