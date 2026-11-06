@@ -381,6 +381,49 @@ let foundDesc (state : ParserState) (i : int) : string =
     if t.Length > 24 then $"'{t.Substring(0, 24)}…'" else $"'{t}'"
 let errExpected (state : ParserState) (i : int) (what : string) =
   err state DiagnosticCode.expected i $"expected {what}, found {foundDesc state i}"
+// the words the lexer reserves; `true`, `false` and `_` are left out, since
+// where a name is expected they are usually a literal pattern
+let private isKeyword (t : Token) : bool =
+  match t with
+  | TLet
+  | TVal
+  | TIn
+  | TIf
+  | TElif
+  | TThen
+  | TElse
+  | TType
+  | TTrait
+  | TImpl
+  | TOf
+  | TMatch
+  | TWith
+  | TFun
+  | TWhen -> true
+  | _ -> false
+// "; `match` is a keyword, so to use it as a name write ``match``", or "" when
+// the token at `i` is no keyword. `prefix` goes in front of the escaped word. A
+// keyword that starts a line is more likely the next statement after a missing
+// name, so it gets no hint.
+let private keywordHint (state : ParserState) (i : int) (prefix : string) : string =
+  if
+    i > 0
+    && i < state.tokenCount
+    && isKeyword (tok state i)
+    && (rng state i).start.row = (rng state (i - 1)).end_.row
+  then
+    let w = txt state i
+    $"; `{w}` is a keyword, so to use it as a name write {prefix}``{w}``"
+  else
+    ""
+// `errExpected` where a name is wanted, saying how to escape a keyword
+let errExpectedName (state : ParserState) (i : int) (what : string) =
+  let hint = keywordHint state i ""
+  err
+    state
+    DiagnosticCode.expected
+    i
+    $"expected {what}, found {foundDesc state i}{hint}"
 // a missing closing delimiter: point back at its opener
 let errUnclosed
   (state : ParserState)
@@ -575,7 +618,7 @@ let parseQualified
     match tok state i with
     | TIdent s -> { range = rng state i; name = s }
     | _ ->
-      errExpected state i "an identifier"
+      errExpectedName state i "an identifier"
       { range = rng state i; name = "_" }
   let mods = System.Collections.Generic.List<WT.Identifier * TokenRange>()
   let mutable cur = first
@@ -588,6 +631,25 @@ let parseQualified
     match tok state k, tok state (k + 1) with
     | TDot, TIdent s when isUpperIdentifier cur.name ->
       mods.Add(cur, rng state k) // previous segment becomes a module, with the dot range
+      cur <- { range = rng state (k + 1); name = s }
+      k <- k + 2
+    // `M.match`: say how to escape it, then read it as the name it was meant to be
+    // Only directly after the dot: `M.` then a newline is a name still being typed.
+    | TDot, t when
+      isKeyword t
+      && isUpperIdentifier cur.name
+      && (rng state k).end_ = (rng state (k + 1)).start
+      ->
+      let s = txt state (k + 1)
+      // the path as written, backticks included
+      let path = [ for j in i..k -> txt state j ] |> String.concat ""
+      let hint = keywordHint state (k + 1) path
+      err
+        state
+        DiagnosticCode.expected
+        (k + 1)
+        $"expected a name after '.', found '{s}'{hint}"
+      mods.Add(cur, rng state k)
       cur <- { range = rng state (k + 1); name = s }
       k <- k + 2
     | _ -> go <- false
@@ -1172,7 +1234,7 @@ and parsePatternAs
         state
         (WT.MPAs(span (WT.mpRange p) nameR, p, asR, (nameR, name)), j + 2)
     | _ ->
-      errExpected state (j + 1) "a lowercase name after 'as'"
+      errExpectedName state (j + 1) "a lowercase name after 'as'"
       (p, j + 1)
   | _ -> (p, j)
 
@@ -1554,7 +1616,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       "'...' only goes last inside a list pattern, as in `[head, ...tail]`"
     (WT.MPError(rng state i), i + 1)
   | _ ->
-    errExpected state i "a pattern"
+    errExpectedName state i "a pattern"
     // recovery: an explicit error-hole node; leave closing/separating/decl-start
     // tokens for the enclosing construct
     let holeR = { start = (rng state i).start; end_ = (rng state i).start }
@@ -1673,7 +1735,7 @@ and parseLetPattern (state : ParserState) (i : int) : WT.LetPattern * int =
       errUnclosed state j ")" "(" openP
       (first, j)
   | _ ->
-    errExpected state i "a pattern"
+    errExpectedName state i "a pattern"
     // recovery: keep a benign binder (LetPattern has no error case yet);
     // leave closing/separating/decl-start tokens for the enclosing construct
     (WT.LPVariable(rng state i, "_"),
@@ -2055,6 +2117,22 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
       (WT.EUnwrap(span (WT.exprRange e) question, e, question))
       (i + 1)
   | TDot, TIdent field ->
+    parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
+  // `r.type`: say how to escape it, then read it as the field it was meant to be
+  // Only directly after the dot: `r.` then a newline is a name still being typed.
+  | TDot, t when isKeyword t && (rng state i).end_ = (rng state (i + 1)).start ->
+    let field = txt state (i + 1)
+    // the receiver as written, backticks included
+    let receiver =
+      match e with
+      | WT.EVariable _ -> txt state (i - 1)
+      | _ -> ""
+    let hint = keywordHint state (i + 1) (receiver + ".")
+    err
+      state
+      DiagnosticCode.expected
+      (i + 1)
+      $"expected a field name after '.', found '{field}'{hint}"
     parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
   | TDot, TInt64 _ when isDigits (txt state (i + 1)) ->
     let field = txt state (i + 1)
@@ -2544,7 +2622,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         []
         (Some
           $"write `fun({commaList}) ->` rather than `fun {spaceList} ->`; a tuple parameter is `fun((a, b)) ->`")
-    if pats.Count = 0 then errExpected state k "at least one lambda parameter"
+    if pats.Count = 0 then errExpectedName state k "at least one lambda parameter"
     let (arrow, m) =
       if tok state k = TArrow then
         (rng state k, k + 1)
@@ -2848,7 +2926,7 @@ and parseRecord
         else
           go <- false
       | _ ->
-        errExpected state k "a record field 'name = value'"
+        errExpectedName state k "a record field 'name = value'"
         go <- false
     let (closeB, p) =
       if tok state k = TRBrace then
@@ -2959,7 +3037,7 @@ and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
         else
           go <- false
       | _ ->
-        errExpected state k "a record-update field 'name = value'"
+        errExpectedName state k "a record-update field 'name = value'"
         go <- false
     // `{ r with }` updates nothing — reject it rather than lower a degenerate
     // update (both lowerings otherwise have to special-case the empty list).
@@ -3326,7 +3404,7 @@ and parseParamList (state : ParserState) (i : int) : List<WT.FnParam> * int =
         // either form round-trip.
         | TUnderscore -> { range = rng state nameIdx; name = "_" }
         | _ ->
-          errExpected state nameIdx "a parameter name"
+          errExpectedName state nameIdx "a parameter name"
           { range = rng state nameIdx; name = "_" }
       let (colon, afterColon) =
         if tok state (nameIdx + 1) = TColon then
@@ -3415,7 +3493,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
     match tok state nameIdx with
     | TIdent nm -> { range = rng state nameIdx; name = nm }
     | _ ->
-      errExpected state nameIdx "a declaration name"
+      errExpectedName state nameIdx "a declaration name"
       { range = rng state nameIdx; name = "_" }
   let (typeParams, bounds, afterName) = parseTypeParams state (nameIdx + 1)
   if tok state afterName = TLParen then
@@ -3487,7 +3565,7 @@ and parseTestDecl (state : ParserState) (i : int) : WT.Declaration * int =
     match tok state (i + 1) with
     | TIdent name -> { range = rng state (i + 1); name = name }
     | _ ->
-      errExpected state (i + 1) "a test name"
+      errExpectedName state (i + 1) "a test name"
       { range = rng state (i + 1); name = "_" }
   let beforeEq =
     if tok state (i + 2) = TColon then
@@ -3550,7 +3628,7 @@ and parseTypeDecl (state : ParserState) (i : int) : WT.Declaration * int =
     match tok state (i + 1) with
     | TIdent nm -> { range = rng state (i + 1); name = nm }
     | _ ->
-      errExpected state (i + 1) "a type name"
+      errExpectedName state (i + 1) "a type name"
       { range = rng state (i + 1); name = "_" }
   let (typeParams, bounds, afterName) = parseTypeParams state (i + 2)
   let (eq, afterEq) =
@@ -3582,7 +3660,7 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
     match tok state (i + 1) with
     | TIdent nm -> { range = rng state (i + 1); name = nm }
     | _ ->
-      errExpected state (i + 1) "a trait name"
+      errExpectedName state (i + 1) "a trait name"
       { range = rng state (i + 1); name = "_" }
   let (typeParams, bounds, afterName) = parseTypeParams state (i + 2)
   if List.isEmpty typeParams then
@@ -3609,7 +3687,7 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
       match tok state mNameIdx with
       | TIdent nm -> { range = rng state mNameIdx; name = nm }
       | _ ->
-        errExpected state mNameIdx "a method name"
+        errExpectedName state mNameIdx "a method name"
         { range = rng state mNameIdx; name = "_" }
     let (mTypeParams, mBounds, afterMName) = parseTypeParams state (mNameIdx + 1)
     let (ps, kk) = parseParams state afterMName
@@ -3783,7 +3861,7 @@ and parseRecordDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
       else
         go <- false
     | _ ->
-      errExpected state k "a record field 'name : Type'"
+      errExpectedName state k "a record field 'name : Type'"
       go <- false
   // `type X = {}` — an empty record isn't valid. Diagnose so the `"_"` placeholder
   // the normalizer inserts (records need ≥1 field) is honest recovery, not a
@@ -3876,7 +3954,21 @@ and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
   // `type X = |` with no case — diagnose so the `"_"` placeholder the normalizer
   // inserts (enums need ≥1 case) is honest recovery, not a silent phantom case.
   if cases.Count = 0 then
-    err state DiagnosticCode.expected k "an enum type needs at least one case"
+    // `type E = | when` or `| foo` names a case, just not as one can be named
+    let lowerNameHere =
+      k > i
+      && (rng state k).start.row = (rng state (k - 1)).end_.row
+      && (match tok state k with
+          | TIdent name -> name <> ""
+          | t -> isKeyword t)
+    if lowerNameHere then
+      err
+        state
+        DiagnosticCode.expected
+        k
+        $"an enum case name starts with an uppercase letter, found {foundDesc state k}"
+    else
+      err state DiagnosticCode.expected k "an enum type needs at least one case"
   (WT.TDEnum(List.ofSeq cases), k)
 
 // Test-mode only: the expected side of an assertion `actual = expected`. Either

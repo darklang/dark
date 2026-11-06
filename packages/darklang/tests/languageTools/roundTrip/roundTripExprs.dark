@@ -608,3 +608,32 @@ test exprsInfixCallsPretty =
         "fn call with indentation",
         "Stdlib.Tuple3.mapAllThree(\n  (\"one\", 2, \"pi\"),\n  (fun x -> Stdlib.String.toUppercase(x)),\n  (fun x -> x - 2),\n  fun x -> Stdlib.String.toUppercase(x))\n",
         "Stdlib.Tuple3.mapAllThree(\n  (\"one\", 2, \"pi\"),\n  (fun x -> Stdlib.String.toUppercase(x)),\n  (fun x -> x - 2),\n  fun x -> Stdlib.String.toUppercase(x)\n)") ])
+
+test exprsKeywordNames =
+  Stdlib.Test.all(
+    [ roundTrip(
+        "keyword-named let binding",
+        "let ``match`` = \"x\"\n``match``",
+        "let ``match`` = \"x\"\n``match``")
+      roundTrip("keyword-named lambda parameter", "fun ``type`` -> ``type``", "(fun ``type`` -> ``type``)")
+      roundTrip(
+        "keyword-named match binder",
+        "match \"x\" with\n| ``then`` -> ``then``",
+        "match \"x\" with\n| ``then`` -> ``then``")
+      roundTrip(
+        "keyword-named as binder",
+        "match \"x\" with\n| y as ``with`` -> ``with``",
+        "match \"x\" with\n| y as ``with`` -> ``with``")
+      roundTrip("non-ASCII letters stay bare", "let zażółć = \"x\"\nzażółć", "let zażółć = \"x\"\nzażółć")
+      roundTrip("the blank name prints as ___", "let ___ = \"x\"\n___", "let ___ = \"x\"\n___") ])
+
+// Every word the lexer reserves (backend/src/LibParser/Lexer.fs `keyword`), so the
+// printer's list in `formatName` can't fall behind it. `_` is left out: it is the
+// wildcard, printed bare on purpose.
+test exprsEveryKeywordAsName =
+  [ "let", "val", "in", "if", "elif", "then", "else", "type", "trait", "impl", "of"
+    "match", "with", "fun", "when", "true", "false" ]
+  |> Stdlib.List.map(fun word ->
+    let source = $"let ``{word}`` = \"x\"\n``{word}``"
+    roundTrip($"keyword {word} as a name", source, source))
+  |> Stdlib.Test.all

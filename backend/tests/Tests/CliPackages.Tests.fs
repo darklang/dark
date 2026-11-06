@@ -1584,6 +1584,7 @@ let referenceCommandsAnswer =
       do! shows state [ "commands" ] "nav" "commands lists the registry"
       do! shows state [ "docs" ] "for-ai" "docs lists its topics"
       do! sane state [ "docs"; "syntax" ] "and prints one"
+      do! shows state [ "docs"; "syntax" ] "## Keywords" "which lists the keywords"
       do!
         shows
           state

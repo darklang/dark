@@ -383,3 +383,35 @@ test packageRootLetValue =
     "let chars = \"abc\"\n\nlet length(s: String): Int64 = Stdlib.String.length(s)")
   |> Stdlib.Test.equal(
     [ "Module value declarations must use 'val'; 'let' is reserved for functions and local bindings" ])
+
+// A keyword where a name goes says how to escape it.
+test keywordAsName =
+  let escape = fun word -> $"`{word}` is a keyword, so to use it as a name write ``{word}``"
+  Stdlib.Test.all(
+    [ says("let match = \"x\"\nx", "expected a pattern, found 'match'; " + escape("match"))
+      says("fun type -> \"x\"", escape("type"))
+      says("type R = { type: String }", escape("type"))
+      says("let f(in: String): String = in", escape("in"))
+      golden(
+        "r.type",
+        [ "expected a field name after '.', found 'type'; `type` is a keyword, so to use it as a name write r.``type``" ])
+      golden(
+        "M.match(\"x\")",
+        [ "expected a name after '.', found 'match'; `match` is a keyword, so to use it as a name write M.``match``" ])
+      says("type E =\n  | when", "an enum case name starts with an uppercase letter, found 'when'")
+      golden("type E = | foo", [ "an enum case name starts with an uppercase letter, found 'foo'" ])
+      golden("type E = |", [ "an enum type needs at least one case" ])
+      golden(
+        "let a = ``in``.type\na",
+        [ "expected a field name after '.', found 'type'; `type` is a keyword, so to use it as a name write ``in``.``type``" ])
+      // a dot left at the end of a line is a name still being typed, not a keyword field
+      golden("let a = r.\nlet b = \"x\"\nb", [ "expected an expression, found '.'" ])
+      golden("let a = Stdlib.String.\nlet b = \"x\"\nb", [ "expected an expression, found '.'" ])
+      // a keyword starting the next line is the next statement, after a missing name
+      Stdlib.Test.expect(
+        messages("let\nlet x = \"x\"\nx")
+        |> Stdlib.List.any(fun m -> Stdlib.String.contains(m, "is a keyword"))
+        |> Stdlib.Bool.not,
+        "a missing name before the next line's `let` gets no keyword hint")
+      clean("let ``match`` = \"x\"\n``match``")
+      clean("r.``type``") ])
