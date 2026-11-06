@@ -399,3 +399,59 @@ test searchListsAnImplementationOnce =
             [ isTrue(Stdlib.Bool.not(Stdlib.List.isEmpty(impls)), "finds the Modulo implementations")
               Stdlib.List.filter(named("fn"), underAnImpl) |> Stdlib.Test.equal([])
               Stdlib.List.filter(named("module"), underAnImpl) |> Stdlib.Test.equal([]) ]) ]))
+
+
+/// A refusal under `--json`: stdout empty, so a caller parsing it never mistakes the refusal for
+/// a payload; the reason on stderr; exit 1.
+let refusesQuietly(i: Instance.T, args: List<String>, reason: String): Stdlib.Test.Result =
+  let cmd = Stdlib.String.join(args, " ")
+
+  match Instance.run(i, args) with
+  | Error(e) -> Stdlib.Test.fail($"`dark {cmd}` could not run: {e}")
+  | Ok(out) ->
+    about(
+      cmd,
+      Stdlib.Test.all(
+        [ out.stdout |> Stdlib.Test.equal("")
+          isTrue(Stdlib.String.contains(out.stderr, reason), $"should say '{reason}' on stderr. It said: {out.stderr}")
+          out.exitCode |> Stdlib.Test.equal(1) ]))
+
+
+/// `deprecate --json` and `delete --json` answer one object. A dry run, and `--json` without
+/// `--yes`, write nothing and say so; `undeprecate` is how the test asks whether anything was
+/// written. A refusal is not a payload.
+test deprecateAndDeleteAnswerInJson =
+  Instance.withInstance(fun i ->
+    let keys = [ "deprecated", "dryRun", "itemType", "kind", "message", "names", "replacement" ]
+    let dryRun = fun(expected) -> fun(j) -> field(j, "dryRun") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(expected))
+
+    Stdlib.Test.all(
+      [ step(i, [ "fn", "Tests.JsonDep.leaf", "() : Int64 = 7203" ])
+        step(i, [ "fn", "Tests.JsonDep.caller", "(): Int64 = Tests.JsonDep.leaf()" ])
+        step(i, [ "fn", "Tests.JsonDep.alone", "() : Int64 = 7204" ])
+        step(i, [ "fn", "Tests.JsonDep.newer", "() : Int64 = 7205" ])
+        check(
+          i,
+          [ "deprecate", "Tests.JsonDep.alone", "--kind", "superseded-by", "--replacement", "Tests.JsonDep.newer", "--dry-run", "--json" ],
+          [ fun(j) -> hasKeys(j, keys)
+            fun(j) -> string(j, "deprecated") |> Stdlib.Test.equal("Tests.JsonDep.alone")
+            fun(j) -> string(j, "itemType") |> Stdlib.Test.equal("fn")
+            fun(j) -> string(j, "kind") |> Stdlib.Test.equal("superseded-by")
+            fun(j) -> string(j, "replacement") |> Stdlib.Test.equal("Tests.JsonDep.newer")
+            fun(j) ->
+              field(j, "names")
+              |> Stdlib.Test.equal(Stdlib.AltJson.Json.Array([ Stdlib.AltJson.Json.String("Tests.JsonDep.alone") ]))
+            dryRun(true) ])
+        check(i, [ "delete", "Tests.JsonDep.alone", "--json" ], [ dryRun(true) ])
+        Instance.says(Instance.said(i, [ "undeprecate", "Tests.JsonDep.alone" ]), "is not deprecated", "a dry run writes nothing")
+        check(
+          i,
+          [ "delete", "Tests.JsonDep.alone", "-m", "unused", "--json", "--yes" ],
+          [ fun(j) -> hasKeys(j, keys)
+            fun(j) -> string(j, "kind") |> Stdlib.Test.equal("obsolete")
+            fun(j) -> string(j, "message") |> Stdlib.Test.equal("unused")
+            dryRun(false) ])
+        Instance.says(Instance.said(i, [ "undeprecate", "Tests.JsonDep.alone" ]), "Undeprecated", "--yes writes it")
+        refusesQuietly(i, [ "delete", "fn", "Tests.JsonDep.nothing", "--json", "--yes" ], "Could not resolve")
+        refusesQuietly(i, [ "deprecate", "Tests.JsonDep.nothing", "--kind", "obsolete", "--json", "--yes" ], "Could not resolve")
+        refusesQuietly(i, [ "delete", "Tests.JsonDep.leaf", "--json", "--yes" ], "live dependent") ]))

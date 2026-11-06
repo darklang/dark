@@ -3,8 +3,6 @@ module Darklang.Cli.Packages.Delete
 // `delete` is `deprecate --kind obsolete` with one extra guardrail: when the
 // target still has live dependents, it refuses unless `--ignore-dependents`
 // is set. Implementation is a thin shim over `Deprecate.execute`.
-//
-// TODO (v1.5): `--json` output for agents, matching `deprecate`.
 
 
 type ParsedArgs =
@@ -14,6 +12,7 @@ type ParsedArgs =
     autoConfirm: Bool
     ignoreDependents: Bool
     dryRun: Bool
+    json: Bool
     parseErrors: List<FlagParser.ParseError> }
 
 
@@ -23,7 +22,8 @@ val argSpec =
         [ ("--yes", [ "-y" ])
           ("--ignore-dependents", [])
           ("--force", [])
-          ("--dry-run", []) ]
+          ("--dry-run", [])
+          ("--json", []) ]
       valueFlags = [ ("--message", [ "-m" ]) ] }
 
 
@@ -39,6 +39,7 @@ let parseArgs(args: List<String>): ParsedArgs =
       autoConfirm = (FlagParser.hasFlag(p, "--yes")) || forced
       ignoreDependents = (FlagParser.hasFlag(p, "--ignore-dependents")) || forced
       dryRun = FlagParser.hasFlag(p, "--dry-run")
+      json = FlagParser.hasFlag(p, "--json")
       parseErrors = p.errors }
 
 
@@ -71,7 +72,8 @@ let toDeprecateArgs(
     if parsed.message != "" then [ "-m", parsed.message ] else []
   let confirmArgs = if parsed.autoConfirm then [ "--yes" ] else []
   let dryRunArgs = if parsed.dryRun then [ "--dry-run" ] else []
-  Stdlib.List.flatten([ baseArgs, messageArgs, confirmArgs, dryRunArgs ])
+  let jsonArgs = if parsed.json then [ "--json" ] else []
+  Stdlib.List.flatten([ baseArgs, messageArgs, confirmArgs, dryRunArgs, jsonArgs ])
 
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
@@ -141,7 +143,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                   $"""{Cli.Text.plural(depCount, "live dependent")} still {
                     if depCount == 1 then "references" else "reference"
                   } this item."""))
-              Stdlib.printLine(
+              Stdlib.printErrorLine(
                 "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`.")
 
               { state with exitCode = 1 }
@@ -162,6 +164,8 @@ let help(_state: Cli.AppState): String =
     "  --yes, -y                     Skip confirmation prompt"
     "  --force                       Ignore dependents and skip confirmation"
     "  --dry-run                     Print what would happen; emit no ops"
+    "  --json                        Print the result as JSON, the same shape as `deprecate --json`;"
+    "                                without --yes or --force it is a dry run"
     ""
     "Examples:"
     "  delete fn Darklang.Legacy.oldThing -m 'no longer maintained' --yes"

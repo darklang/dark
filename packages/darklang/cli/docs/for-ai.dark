@@ -253,6 +253,7 @@ mismatch), so branch on the exit, not on grepping for "error".
     kinds: superseded-by (requires --replacement), harmful, obsolete
   delete <fn|type|value> <name> [options]     # sugar for --kind obsolete
     options: --ignore-dependents; --force = --ignore-dependents + --yes
+  deprecate/delete ... --json                 # one object; without --yes, a dry run
   undeprecate <name>                          # clear it, any kind, harmful included
   eval --allow-harmful <fn>                   # opt out of harmful halt
   (see: docs deprecation)

@@ -39,8 +39,20 @@ replacement or runtime-halt is wanted.
   -m, --message <text>          Free-form reason; shown in view and search
   --yes, -y                     Skip confirmation prompt
   --dry-run                     Print what would happen; emit no ops
+  --json                        Print the result as JSON (see below)
   --ignore-dependents           (delete only) proceed despite live dependents
   --force                       (delete only) ignore dependents and skip confirmation
+
+## JSON
+
+`deprecate --json` and `delete --json` print one object:
+
+  { "deprecated": "Acme.oldThing", "itemType": "fn", "kind": "obsolete",
+    "replacement": "", "message": "", "names": ["Acme.oldThing"], "dryRun": false }
+
+`names` is every name the deprecation reaches, since it keys on content. Without
+--yes (or --force) nothing is written and `dryRun` is true. A refusal (not found,
+live dependents) prints nothing on stdout, says why on stderr, and exits 1.
 
 ## Runtime behaviour
 

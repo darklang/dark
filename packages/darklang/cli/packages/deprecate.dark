@@ -4,7 +4,6 @@ module Darklang.Cli.Packages.Deprecate
 //
 // TODO (v1.5): interactive kind picker when stdin is a TTY and --kind is
 //   missing (reuse CompletionPicker).
-// TODO (v1.5): `--json` output for agents.
 
 
 type ParsedArgs =
@@ -15,12 +14,13 @@ type ParsedArgs =
     message: String
     autoConfirm: Bool
     dryRun: Bool
+    json: Bool
     parseErrors: List<FlagParser.ParseError> }
 
 
 val argSpec =
   FlagParser.Spec
-    { flags = [ ("--yes", [ "-y" ]), ("--dry-run", []) ]
+    { flags = [ ("--yes", [ "-y" ]), ("--dry-run", []), ("--json", []) ]
       valueFlags =
         [ ("--kind", []), ("--replacement", []), ("--message", [ "-m" ]) ] }
 
@@ -37,6 +37,7 @@ let parseArgs(args: List<String>): ParsedArgs =
       message = FlagParser.getOptionOr(p, "--message", "")
       autoConfirm = FlagParser.hasFlag(p, "--yes")
       dryRun = FlagParser.hasFlag(p, "--dry-run")
+      json = FlagParser.hasFlag(p, "--json")
       parseErrors = p.errors }
 
 
@@ -201,6 +202,19 @@ let namesAtContent(branchId: Uuid, hashStr: String, itemType: String): List<Stri
   SCM.PackageOps.namesAtContent(branchId, hashStr, itemType)
 
 
+/// What `deprecate --json` and `delete --json` print. `dryRun` is true when nothing was written: `--dry-run`,
+/// or `--json` without `--yes`, since there is nobody to ask. `names` is every name the deprecation reaches,
+/// the target included, because it keys on content.
+type DeprecateJson =
+  { deprecated: String
+    itemType: String
+    kind: String
+    replacement: String
+    message: String
+    names: List<String>
+    dryRun: Bool }
+
+
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   let parsed = parseArgs(args)
   let branchId = state.currentBranchId
@@ -278,44 +292,61 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           Cli.printErr(msg)
           Cli.exitWith(state, false)
         | Ok(deprecationKind) ->
-          let fullPath =
-            match Location.parseRelativeTo(currentLoc, target) with
+          let fullPathOf = fun(name) ->
+            match Location.parseRelativeTo(currentLoc, name) with
             | Ok(l) -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(l)
-            | Error(_) -> target
+            | Error(_) -> name
 
-          Stdlib.printLine($"  Will deprecate {itemTypeStr} {fullPath}")
-          Stdlib.printLine($"    kind: {kindStr}")
-          if parsed.message != "" then
-            Stdlib.printLine($"    message: {parsed.message}")
-          match replacementRef with
-          | Some(_) ->
-            match parsed.replacement with
-            | Some(r) -> Stdlib.printLine($"    replacement: {r}")
-            | None -> ()
-          | None -> ()
+          let fullPath = fullPathOf(target)
 
-          // Heads-up when this content is shared by more than one name: deprecation is content-keyed, so all of
-          // them get deprecated together. `affected` always includes the target itself, so exactly one = no
-          // collateral (silent); two or more = list them all so the confirm is informed.
+          // Deprecation is content-keyed, so every name bound to this content is deprecated together.
+          // `affected` always includes the target itself.
           let affected =
             namesAtContent(
               branchId,
               (LanguageTools.ProgramTypes.hashToString(
                 LanguageTools.ProgramTypes.Reference.hash(targetRef))),
               itemTypeStr)
-          match affected with
-          | [] -> ()
-          | [ _ ] -> ()
-          | _ ->
-            Stdlib.printLine(
-              (Stdlib.Cli.UI.Colors.warning(
-                $"  Heads up: this {itemTypeStr}'s content is bound to multiple names -- deprecation keys on content, so ALL of these are deprecated together:")))
-            affected
-            |> Stdlib.List.map(fun a -> $"    - {a}")
-            |> Stdlib.printLines
 
-          if parsed.dryRun then
-            Stdlib.printLine("(dry-run, no op emitted)")
+          let report = fun(dryRun) ->
+            Stdlib.printLine(
+              Stdlib.Json.serialize<DeprecateJson>(
+                DeprecateJson
+                  { deprecated = fullPath
+                    itemType = itemTypeStr
+                    kind = kindStr
+                    replacement =
+                      parsed.replacement |> Stdlib.Option.map(fullPathOf) |> Stdlib.Option.withDefault("")
+                    message = parsed.message
+                    names = affected
+                    dryRun = dryRun }))
+
+          if Stdlib.Bool.not(parsed.json) then
+            Stdlib.printLine($"  Will deprecate {itemTypeStr} {fullPath}")
+            Stdlib.printLine($"    kind: {kindStr}")
+            if parsed.message != "" then
+              Stdlib.printLine($"    message: {parsed.message}")
+            match parsed.replacement with
+            | Some(r) -> Stdlib.printLine($"    replacement: {r}")
+            | None -> ()
+
+            // Two or more names: list them all so the confirm is informed.
+            match affected with
+            | [] -> ()
+            | [ _ ] -> ()
+            | _ ->
+              Stdlib.printLine(
+                (Stdlib.Cli.UI.Colors.warning(
+                  $"  Heads up: this {itemTypeStr}'s content is bound to multiple names -- deprecation keys on content, so ALL of these are deprecated together:")))
+              affected
+              |> Stdlib.List.map(fun a -> $"    - {a}")
+              |> Stdlib.printLines
+
+          if parsed.dryRun || (parsed.json && Stdlib.Bool.not(parsed.autoConfirm)) then
+            if parsed.json then
+              report(true)
+            else
+              Stdlib.printLine("(dry-run, no op emitted)")
             state
           else
             let proceed =
@@ -343,8 +374,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                     itemKind)
                 with
                 | Some(_) ->
-                  Stdlib.printLine(
-                    Stdlib.Cli.UI.Colors.success($"Deprecated {itemTypeStr} {fullPath}"))
+                  if parsed.json then
+                    report(false)
+                  else
+                    Stdlib.printLine(
+                      Stdlib.Cli.UI.Colors.success($"Deprecated {itemTypeStr} {fullPath}"))
                   state
                 | None ->
                   Cli.printErr($"Not deprecated, though the op was written. That is a bug in op restatement -- please report it.")
@@ -490,6 +524,7 @@ let help(_state: Cli.AppState): String =
     "  -m, --message <text>          Free-form reason; tooling surfaces it"
     "  --yes, -y                     Skip confirmation prompt"
     "  --dry-run                     Print what would happen; emit no ops"
+    "  --json                        Print the result as JSON; without --yes it is a dry run"
     ""
     "Examples:"
     "  deprecate fn Darklang.Stdlib.List.oldMap \\"
