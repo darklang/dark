@@ -5,6 +5,10 @@ type BadHeader =
   // Occurs whrn a header key is empty. eg. [ ("", "") ]
   | EmptyKey
   | InvalidContentType
+  /// Occurs when a header name holds a character not allowed in an HTTP token, eg. [ ("X A", "") ]
+  | InvalidName
+  /// Occurs when a header value holds a CR, LF or NUL, eg. [ ("X-A", "a\r\nB: c") ]
+  | InvalidValue
 
 type BadUrlDetails =
   /// Occurs when the URI scheme is not allowed. eg. "ftp://darklang.com"
@@ -42,6 +46,8 @@ let toString(e: RequestError): String =
     match details with
     | EmptyKey -> "Empty key"
     | InvalidContentType -> "Invalid content-type header"
+    | InvalidName -> "Invalid header name"
+    | InvalidValue -> "Header value contains CR, LF or NUL"
   | NetworkError -> "Network Error"
   | TlsError(message) -> message
   | BadMethod -> "Bad Method"

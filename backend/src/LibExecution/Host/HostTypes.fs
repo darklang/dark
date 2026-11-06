@@ -196,6 +196,10 @@ type Operation =
 type HttpBadHeader =
   | EmptyKey
   | InvalidContentType
+  /// A name holds a character an HTTP token can't, such as a space, colon, CR or LF.
+  | InvalidName
+  /// A value holds a CR, LF or NUL.
+  | InvalidValue
 
 [<RequireQualifiedAccess>]
 type HttpBadUrl =

@@ -478,10 +478,29 @@ let private validateAndBuildUri
   | :? System.ArgumentException ->
     Error(HttpRequestError.BadUrl HttpBadUrl.InvalidUri)
 
-/// Validate method, URL, and the profile's allow-lists; return the canonical
-/// URI the permission layer checks and the send uses, with the resolved
-/// profile so the send need not look it up again. `Error` is a guest-visible
-/// typed error.
+/// RFC 9110 token characters, the only ones a header name may hold.
+let private isTokenChar (c : char) : bool =
+  System.Char.IsAsciiLetterOrDigit c || "!#$%&'*+-.^_`|~".Contains c
+
+/// Header text reaches the wire unvalidated (`TryAddWithoutValidation`), so a CR or LF
+/// would end the header line and start another. Refuse rather than repair.
+let private validateHeaders (headers : Headers) : Result<unit, HttpBadHeader> =
+  headers
+  |> List.tryPick (fun (k, v) ->
+    if k = "" || not (Seq.forall isTokenChar k) then
+      Some HttpBadHeader.InvalidName
+    elif Seq.exists (fun c -> c = '\r' || c = '\n' || c = '\000') v then
+      Some HttpBadHeader.InvalidValue
+    else
+      None)
+  |> Option.map Error
+  |> Option.defaultValue (Ok())
+
+/// Validate method, headers, URL, and the profile's allow-lists; return the
+/// canonical URI the permission layer checks and the send uses, with the
+/// resolved profile so the send need not look it up again. Headers are checked
+/// before the metadata guard reads them, so one can't hide inside another's
+/// value. `Error` is a guest-visible typed error.
 let prepare
   (profile : HttpProfile)
   (method : string)
@@ -497,7 +516,9 @@ let prepare
   match method with
   | None -> Error HttpRequestError.BadMethod
   | Some _ ->
-    validateAndBuildUri profile.config url headers
+    validateHeaders headers
+    |> Result.mapError HttpRequestError.BadHeader
+    |> Result.bind (fun () -> validateAndBuildUri profile.config url headers)
     |> Result.map (fun uri -> (uri, profile))
 
 

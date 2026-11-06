@@ -954,6 +954,92 @@ module TimeoutTests =
           } ]
 
 
+/// Header text reaches the wire as written, so `prepare` refuses any that would end a header line
+/// early, before the metadata guard or the network sees it.
+module HeaderValidationTests =
+  module HostHttp = LibExecution.HostHttp
+  module HT = LibExecution.HostTypes
+
+  let private prepare (headers : List<string * string>) =
+    HostHttp.prepare HT.HttpProfile.Guest "GET" "http://192.0.2.1/" headers
+    |> Result.map fst
+
+  let private refused name (expected : HT.HttpBadHeader) headers =
+    test name {
+      match prepare headers with
+      | Error(HT.HttpRequestError.BadHeader e) when e = expected -> ()
+      | other -> failtest $"expected BadHeader {expected}, got {other}"
+    }
+
+  let tests =
+    testList
+      "header validation"
+      [ refused
+          "a CRLF in a value is refused"
+          HT.HttpBadHeader.InvalidValue
+          [ ("X-A", "a\r\nInjected: yes") ]
+        refused
+          "a metadata header hidden in a value is refused"
+          HT.HttpBadHeader.InvalidValue
+          [ ("X-A", "a\r\nMetadata-Flavor: Google") ]
+        refused
+          "a bare LF in a value is refused"
+          HT.HttpBadHeader.InvalidValue
+          [ ("X-A", "a\nB: c") ]
+        refused
+          "a NUL in a value is refused"
+          HT.HttpBadHeader.InvalidValue
+          [ ("X-A", "a\000b") ]
+        refused
+          "a CRLF in a name is refused"
+          HT.HttpBadHeader.InvalidName
+          [ ("X-A\r\nB", "c") ]
+        refused
+          "a space in a name is refused"
+          HT.HttpBadHeader.InvalidName
+          [ ("X A", "c") ]
+        refused
+          "a colon in a name is refused"
+          HT.HttpBadHeader.InvalidName
+          [ ("X:A", "c") ]
+        testTask "legitimate odd values reach the transport unchanged" {
+          let sent =
+            [ ("X-A!#$%&'*+.^_`|~1", "token punctuation in the name")
+              ("Authorization",
+               "Digest username=\"Mufasa\", realm=\"a@b.com\", nonce=\"dcd9\", uri=\"/x;y=1\", qop=auth, nc=00000001, response=\"6629fae4\"")
+              ("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101")
+              ("X-Name", "Zoë Łódź 東京")
+              ("X-Tab", "a\tb")
+              ("X-Empty", "") ]
+          let mutable received : List<string * string> = []
+          let handler =
+            { new System.Net.Http.HttpMessageHandler() with
+                member _.SendAsync(request, _) =
+                  task {
+                    received <-
+                      [ for h in request.Headers.NonValidated do
+                          for v in h.Value do
+                            (h.Key, v) ]
+                    return
+                      new System.Net.Http.HttpResponseMessage(
+                        System.Net.HttpStatusCode.OK
+                      )
+                  } }
+          let client = new System.Net.Http.HttpClient(handler)
+          try
+            let profile : HostHttp.Profile =
+              { config = HostHttp.defaultConfig; client = client }
+            match prepare sent with
+            | Error e -> failtest $"refused: {e}"
+            | Ok uri ->
+              let! result = HostHttp.send profile "GET" uri sent [||]
+              Expect.isOk result "sent"
+              Expect.equal received sent "every header arrives as written"
+          finally
+            client.Dispose()
+        } ]
+
+
 /// Real sockets exercise proxy selection and CONNECT without external DNS or
 /// changing process-wide proxy environment variables or guest configuration.
 module ProxyTests =
@@ -1068,7 +1154,8 @@ let tests =
       ProtocolPolicyTests.tests
       TlsFailureTests.tests
       ProxyTests.tests
-      TimeoutTests.tests ] ]
+      TimeoutTests.tests
+      HeaderValidationTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"
   |> testSequencedGroup "httpclient"
