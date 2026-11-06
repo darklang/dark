@@ -265,6 +265,18 @@ test lengthFastPath =
       Stdlib.String.length("a\r\nb") |> Stdlib.Test.equal(3)
       Stdlib.String.length("") |> Stdlib.Test.equal(0) ])
 
+test lengthCountsClusters =
+  Stdlib.Test.all(
+    [ Stdlib.String.length("\r\n") |> Stdlib.Test.equal(1)
+      Stdlib.String.length("\r\r\n\n\r") |> Stdlib.Test.equal(4)
+      Stdlib.String.length("q\u0301") |> Stdlib.Test.equal(1)
+      Stdlib.String.length("aq\u0301\u0323b") |> Stdlib.Test.equal(3)
+      Stdlib.String.length("🇵🇱🇺🇸") |> Stdlib.Test.equal(2)
+      Stdlib.String.length("🇵🇱🇺") |> Stdlib.Test.equal(2)
+      Stdlib.String.length("👩‍👩‍👧‍👦x") |> Stdlib.Test.equal(2)
+      Stdlib.String.length(Stdlib.String.repeat("ab👍🏽c\r\n", 100))
+      |> Stdlib.Test.equal(500) ])
+
 test splitOnNewline =
   Stdlib.Test.all(
     [ Stdlib.String.splitOnNewline("") |> Stdlib.Test.equal([])

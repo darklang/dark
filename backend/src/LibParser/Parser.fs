@@ -527,9 +527,7 @@ let validateLiterals (state : ParserState) : unit =
           vi
           "Invalid escape sequence or codepoint in character literal"
       match state.toks[vi].token with
-      | TCharLit value when
-        System.Globalization.StringInfo.ParseCombiningCharacters(value).Length <> 1
-        ->
+      | TCharLit value when Option.isNone (String.toEgcChar value) ->
         err
           state
           DiagnosticCode.escape
