@@ -18,7 +18,7 @@ module PM =
     let make hash definition : PT.PackageType.PackageType =
       { hash = PT.Hash hash
         declaration = { typeParams = []; bounds = []; definition = definition }
-        description = "TODO" }
+        description = "" }
 
     module Records =
       let make id fields =
@@ -28,13 +28,13 @@ module PM =
       let nested = "test-record-nested"
 
       let all : List<PT.PackageType.PackageType> =
-        [ make singleField [ { name = "key"; typ = PT.TBool; description = "TODO" } ]
+        [ make singleField [ { name = "key"; typ = PT.TBool; description = "" } ]
 
           make
             nested
             [ { name = "outer"
                 typ = PT.TCustomType(NR.ok (PT.FQTypeName.fqPackage singleField), [])
-                description = "TODO" } ] ]
+                description = "" } ] ]
 
     module Enums =
       let withoutFields = "test-enum-withoutFields"
@@ -46,27 +46,27 @@ module PM =
       let colorEnum =
         make
           withoutFields
-          [ { name = "Red"; fields = []; description = "TODO" }
-            { name = "Green"; fields = []; description = "TODO" }
-            { name = "Blue"; fields = []; description = "TODO" } ]
+          [ { name = "Red"; fields = []; description = "" }
+            { name = "Green"; fields = []; description = "" }
+            { name = "Blue"; fields = []; description = "" } ]
 
       let MyOption =
         make
           withFields
-          [ { name = "None"; fields = []; description = "TODO" }
+          [ { name = "None"; fields = []; description = "" }
             { name = "Some"
-              fields = [ { typ = PT.TInt64; label = None; description = "TODO" } ]
-              description = "TODO" } ]
+              fields = [ { typ = PT.TInt64; label = None; description = "" } ]
+              description = "" } ]
 
       let MyResult =
         make
           resultId
           [ { name = "Ok"
-              fields = [ { typ = PT.TInt64; label = None; description = "TODO" } ]
-              description = "TODO" }
+              fields = [ { typ = PT.TInt64; label = None; description = "" } ]
+              description = "" }
             { name = "Error"
-              fields = [ { typ = PT.TString; label = None; description = "TODO" } ]
-              description = "TODO" } ]
+              fields = [ { typ = PT.TString; label = None; description = "" } ]
+              description = "" } ]
 
       let all : List<PT.PackageType.PackageType> = [ colorEnum; MyOption; MyResult ]
 
@@ -692,7 +692,7 @@ let pm : PT.PackageManager =
   let valueMap =
     let value : PT.PackageValue.PackageValue =
       { hash = PT.Hash Expressions.Values.Package.MySpecialNumber.hash
-        description = "TODO"
+        description = ""
         body = PT.EInt64(gid (), 17L) }
     [ value ] |> List.map (fun v -> v.hash, v) |> Map.ofList
 
@@ -702,11 +702,11 @@ let pm : PT.PackageManager =
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
-            { name = "x"; typ = PT.TVariable "x"; description = "TODO" }
-            [ { name = "_y"; typ = PT.TVariable "y"; description = "TODO" } ]
+            { name = "x"; typ = PT.TVariable "x"; description = "" }
+            [ { name = "_y"; typ = PT.TVariable "y"; description = "" } ]
         returnType = PT.TVariable "x"
         body = eVar "x"
-        description = "TODO"
+        description = ""
         permissionCeiling = None
         bounds = [] }
 
@@ -715,8 +715,8 @@ let pm : PT.PackageManager =
         typeParams = [ "x"; "y" ]
         parameters =
           NEList.ofList
-            { name = "x"; typ = PT.TVariable "x"; description = "TODO" }
-            [ { name = "_y"; typ = PT.TVariable "y"; description = "TODO" } ]
+            { name = "x"; typ = PT.TVariable "x"; description = "" }
+            [ { name = "_y"; typ = PT.TVariable "y"; description = "" } ]
         returnType = PT.TVariable "x"
         body =
           eLet
@@ -726,7 +726,7 @@ let pm : PT.PackageManager =
               [ PT.TString; PT.TBool ]
               [ eStr [ strText "hi" ]; eBool true ])
             (eVar "x")
-        description = "TODO"
+        description = ""
         permissionCeiling = None
         bounds = [] }
 
@@ -735,11 +735,11 @@ let pm : PT.PackageManager =
         typeParams = []
         parameters =
           NEList.ofList
-            { name = "a"; typ = PT.TInt64; description = "TODO" }
-            [ { name = "b"; typ = PT.TInt64; description = "TODO" } ]
+            { name = "a"; typ = PT.TInt64; description = "" }
+            [ { name = "b"; typ = PT.TInt64; description = "" } ]
         returnType = PT.TInt64
         body = eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ]
-        description = "TODO"
+        description = ""
         permissionCeiling = None
         bounds = [] }
 
@@ -747,7 +747,7 @@ let pm : PT.PackageManager =
       { hash = PT.Hash Expressions.Fns.Package.Fact.hash
         typeParams = []
         parameters =
-          NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
+          NEList.ofList { name = "a"; typ = PT.TInt64; description = "" } []
         returnType = PT.TInt64
         body =
           eIf
@@ -764,7 +764,7 @@ let pm : PT.PackageManager =
                     [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
 
-        description = "TODO"
+        description = ""
         permissionCeiling = None
         bounds = [] }
 
@@ -775,7 +775,7 @@ let pm : PT.PackageManager =
       { hash = PT.Hash Expressions.Fns.Package.Recursion.hash
         typeParams = []
         parameters =
-          NEList.ofList { name = "n"; typ = PT.TInt64; description = "TODO" } []
+          NEList.ofList { name = "n"; typ = PT.TInt64; description = "" } []
         returnType = PT.TInt64
         body =
           eIf
@@ -797,7 +797,7 @@ let pm : PT.PackageManager =
                         []
                         [ eVar "n"; eInt64 1L ] ]) ]
             ))
-        description = "TODO"
+        description = ""
         permissionCeiling = None
         bounds = [] }
 
@@ -806,14 +806,14 @@ let pm : PT.PackageManager =
         typeParams = []
         parameters =
           NEList.ofList
-            { name = "x"; typ = PT.TInt64; description = "TODO" }
+            { name = "x"; typ = PT.TInt64; description = "" }
             [ { name = "fn"
                 typ =
                   PT.TFn({ head = PT.TVariable "a"; tail = [] }, PT.TVariable "b")
-                description = "TODO" } ]
+                description = "" } ]
         returnType = PT.TInt64
         body = eApply (eVar "fn") [] [ eVar "x" ]
-        description = "TODO"
+        description = ""
         permissionCeiling = None
         bounds = [] }
 
@@ -821,10 +821,10 @@ let pm : PT.PackageManager =
       { hash = PT.Hash Expressions.Fns.Package.MyFnThatReturnsUnit.hash
         typeParams = []
         parameters =
-          NEList.ofList { name = "unit"; typ = PT.TUnit; description = "TODO" } []
+          NEList.ofList { name = "unit"; typ = PT.TUnit; description = "" } []
         returnType = PT.TUnit
         body = eUnit ()
-        description = "TODO"
+        description = ""
         permissionCeiling = None
         bounds = [] }
 
