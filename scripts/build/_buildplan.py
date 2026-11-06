@@ -118,7 +118,7 @@ def mark(should, f):
     should.shellcheck += [f]
     should.run_migrations = True
 
-  elif f == ".circleci/config.yml":
+  elif f in [".circleci/config.yml", ".circleci/continue.yml"]:
     should.circleci_validate = True
 
   elif (f.startswith("scripts/") or f.endswith(".sh")) and is_script(f):

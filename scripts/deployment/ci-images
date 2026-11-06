@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+
+# The images this tree's CI runs in. Runs in CircleCI's setup workflow, on the host.
+#
+#   scripts/deployment/ci-images             print them, by digest, as the pipeline
+#                                            parameters .circleci/continue.yml takes
+#   scripts/deployment/ci-images --publish   main only: push this commit's to Docker Hub
+#
+# Each image is tagged with scripts/devcontainer/image-tag, a hash of what it's built
+# from, so a Dockerfile change gets new images and nothing else does:
+#
+#   darklang/dark-base:ci-<tag>           what CI jobs run in, the Dockerfile's dark-ci stage
+#   darklang/dark-base:<tag>              the dev container, its last stage
+#   darklang/dark-build-base:<build-tag>  where release artifacts get built
+#
+# Who runs in what:
+#
+#   - Main publishes. Its publish-images job has the push token, from a CircleCI context
+#     only main can use. It builds and pushes an image when the tag is missing, and also
+#     whenever this commit changed the image's inputs, even if the tag is already there:
+#     main only trusts a tag that main pushed, and a tag that exists before main has
+#     built it was pushed by someone else.
+#   - Main and release tags then run in the Docker Hub images and nothing else. A
+#     release tag is cut from a commit main has built, so its images are there. If one
+#     is missing, or anything would hand these builds another registry, this fails.
+#   - Everything else (fork PRs, other branches) has no token and never publishes. It
+#     uses the Docker Hub image when there is one and otherwise builds its own, pushed
+#     to ttl.sh, a public registry that deletes it within a day, under a random name.
+#     The jobs pull it by digest, so whatever else gets pushed under that name, they
+#     run exactly what was built here.
+
+set -euo pipefail
+shopt -s inherit_errexit
+
+cd "$( dirname "${BASH_SOURCE[0]}" )/../.."
+
+die() { echo "ci-images: $*" >&2; exit 1; }
+
+publish=false
+case "${1:-}" in
+  --publish) publish=true ;;
+  "") ;;
+  *) die "unknown argument $1" ;;
+esac
+
+base_tag=$(scripts/devcontainer/image-tag dark-base)
+build_tag=$(scripts/devcontainer/image-tag dark-build-base)
+ci=darklang/dark-base:ci-$base_tag
+dev=darklang/dark-base:$base_tag
+release=darklang/dark-build-base:$build_tag
+
+# Main and release tags. CircleCI reports a fork PR's branch as pull/<number>.
+trusted=false
+if [[ "${CIRCLE_BRANCH:-}" == main || -n "${CIRCLE_TAG:-}" ]]; then trusted=true; fi
+
+# Inline cache metadata lets `scripts/dev/start` build the dev container from the
+# published layers instead of from scratch. The dev image is built first so that every
+# layer in it is built here, which is what gets each one its cache record.
+build() { docker build --build-arg BUILDKIT_INLINE_CACHE=1 "$@" >&2; }
+
+# The image's digest on its registry, as name@sha256:..., or nothing if it isn't there.
+pinned() {
+  local digest
+  digest=$(docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' 2> /dev/null \
+    | jq -r '.digest // empty') || true
+  [[ -n "$digest" ]] && echo "${1%:*}@$digest"
+}
+
+# Whether this commit changed the image's inputs. With no parent to compare, yes.
+changed() {
+  # shellcheck disable=SC2046 # one path per line
+  ! git rev-parse -q --verify HEAD^ > /dev/null \
+    || ! git diff --quiet HEAD^ HEAD -- $(scripts/devcontainer/image-tag --inputs "$1")
+}
+
+needs_push() {
+  if changed "$1"; then
+    echo "$2: this commit changed what it's built from, so building it here." >&2
+  elif [[ -z "$(pinned "$2")" ]]; then
+    echo "$2: not published yet, so building it here." >&2
+  else
+    echo "$2: published by an earlier commit on main." >&2
+    return 1
+  fi
+}
+
+push() {
+  local attempt
+  for attempt in 1 2 3; do
+    docker push -q "$1" >&2 && return 0
+    echo "Push of $1 failed (attempt $attempt)." >&2
+    sleep $(( attempt * 10 ))
+  done
+  die "could not push $1"
+}
+
+if $publish; then
+  [[ "${CIRCLE_BRANCH:-}" == main ]] || die "only main publishes, and this is '${CIRCLE_BRANCH:-}'."
+  [[ -n "${DOCKER_HUB_TOKEN:-}" && -n "${DOCKER_HUB_USER:-}" ]] \
+    || die "DOCKER_HUB_USER and DOCKER_HUB_TOKEN are missing. They come from the dockerhub-publish context."
+  # Inside the functions, so the token is only ever read on stdin.
+  login() { echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin > /dev/null; }
+  logged_in=false
+  ensure_login() { $logged_in || { login; logged_in=true; trap 'docker logout > /dev/null' EXIT; }; }
+
+  # The CI image goes last: it's the one checked, so a push that dies halfway gets
+  # redone by the next build.
+  if needs_push dark-base "$ci"; then
+    build -t "$dev" .
+    build --target dark-ci -t "$ci" .
+    ensure_login
+    push "$dev"
+    push "$ci"
+  fi
+  if needs_push dark-build-base "$release"; then
+    build -f Dockerfile.build-base -t "$release" .
+    ensure_login
+    push "$release"
+  fi
+  exit 0
+fi
+
+# Builds an image this pipeline alone runs in, and prints it by digest.
+scratch() {
+  local name
+  name="ttl.sh/$1-$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n'):24h"
+  shift
+  build "$@" -t "$name" .
+  push "$name"
+  docker inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$name" | grep -m 1 '^ttl\.sh/'
+}
+
+if $trusted; then
+  ci_ref=$(pinned "$ci") || die "$ci is not on Docker Hub. Main's publish-images job pushes it, and a release tag must be a commit main has built."
+  release_ref=$(pinned "$release") || die "$release is not on Docker Hub. Main's publish-images job pushes it, and a release tag must be a commit main has built."
+else
+  if ! ci_ref=$(pinned "$ci"); then
+    echo "No published $ci, and this build doesn't publish. Building one for this pipeline." >&2
+    ci_ref=$(scratch dark-ci --target dark-ci)
+  fi
+  if ! release_ref=$(pinned "$release"); then
+    echo "No published $release, and this build doesn't publish. Building one for this pipeline." >&2
+    release_ref=$(scratch dark-build-base -f Dockerfile.build-base)
+  fi
+fi
+
+# The guard: main and release tags run in Docker Hub images, pinned by digest, and never
+# in anything else, whatever happened above.
+digest='@sha256:[0-9a-f]{64}$'
+for ref in "$ci_ref" "$release_ref"; do
+  if $trusted; then
+    [[ "$ref" =~ ^darklang/dark-(base|build-base)$digest ]] \
+      || die "refusing to run main or a release tag in '$ref': only Docker Hub images are allowed there."
+  else
+    [[ "$ref" =~ ^(darklang/dark-(base|build-base)|ttl\.sh/dark-(ci|build-base)-[0-9a-f]+)$digest ]] \
+      || die "unexpected image '$ref'."
+  fi
+done
+
+jq -n --arg ci "$ci_ref" --arg release "$release_ref" '{"ci-image": $ci, "release-image": $release}'

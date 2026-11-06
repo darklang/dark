@@ -80,7 +80,7 @@ def yamllint(f):
 
 def circleci_validate():
   start = time.time()
-  return run_backend(start, "circleci config validate")
+  return run_backend(start, "circleci config validate && circleci config validate .circleci/continue.yml")
 
 
 ###########

@@ -146,8 +146,9 @@ that clone has no container, they stop and say so rather than running in another
 ### Rebuilding the dev container
 
 Pulling a Dockerfile change and running `scripts/dev/start --recreate` rebuilds as much
-as Docker's cache allows. Without `--recreate` the existing container is reused, which is
-usually what you want.
+as Docker's cache allows. Once that change is on main, CI has published the image for it,
+and `scripts/dev/start` builds from its layers instead of running every step. Without
+`--recreate` the existing container is reused, which is usually what you want.
 
 You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker
 invocations, use the old+running container as opposed to attempting to use the

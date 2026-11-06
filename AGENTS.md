@@ -1349,7 +1349,7 @@ Three things make the next one findable, all in place:
                                      never looks silent to CI's no-output timeout
     scripts/run-backend-tests --debug   names every test as it starts, which is how you
                                      find WHICH one is stuck
-    .circleci/config.yml             `store-ci-diagnostics`, so a failing step still
+    .circleci/continue.yml           `store-ci-diagnostics`, so a failing step still
                                      uploads its logs, test reports and the databases of
                                      the checks that failed, and `timeout 20m` on the test
                                      step so it dies somewhere known
