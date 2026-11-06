@@ -127,6 +127,10 @@ test moduloRejectsZero =
   (5u8 % 0u8)
   => raises "Cannot evaluate modulus against 0"
 
+test builtinModuloRejectsZero =
+  Builtin.modulo(5u8, 0u8)
+  => raises "Cannot evaluate modulus against 0"
+
 test sum =
   Stdlib.Test.all(
     [ Stdlib.sum(0u8, [ 1u8, 2u8 ]) |> Stdlib.Test.equal(3u8)
@@ -321,3 +325,13 @@ test checkedAbsoluteValue =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedAbsoluteValue(255u8) |> Stdlib.Test.equal(Ok(255u8))
       Stdlib.UInt8.checkedAbsoluteValue(0u8) |> Stdlib.Test.equal(Ok(0u8)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.checkedDivide(17u8, 3u8) |> Stdlib.Test.equal(Ok(5u8))
+      Stdlib.UInt8.checkedDivide(5u8, 0u8)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.UInt8.checkedMod(15u8, 6u8) |> Stdlib.Test.equal(Ok(3u8))
+      Stdlib.UInt8.checkedMod(5u8, 0u8)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus)) ])

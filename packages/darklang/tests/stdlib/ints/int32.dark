@@ -31,14 +31,14 @@ test negate =
 /// divisor is 0.
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int32.remainder(15s32, 6s32) |> Stdlib.Test.equal(Ok(3s32))
-      Stdlib.Int32.remainder(20s32, 8s32) |> Stdlib.Test.equal(Ok(4s32))
-      Stdlib.Int32.remainder(-20s32, 8s32) |> Stdlib.Test.equal(Ok(-4s32))
-      Stdlib.Int32.remainder(-20s32, -8s32) |> Stdlib.Test.equal(Ok(-4s32))
-      Stdlib.Int32.remainder(-15s32, 6s32) |> Stdlib.Test.equal(Ok(-3s32))
-      Stdlib.Int32.remainder(-2147483648s32, -1s32) |> Stdlib.Test.equal(Ok(0s32))
-      Stdlib.Int32.remainder(5s32, 0s32)
-      |> Stdlib.Test.equal(Error("Cannot divide by 0")) ])
+    [ Stdlib.Int32.checkedRemainder(15s32, 6s32) |> Stdlib.Test.equal(Ok(3s32))
+      Stdlib.Int32.checkedRemainder(20s32, 8s32) |> Stdlib.Test.equal(Ok(4s32))
+      Stdlib.Int32.checkedRemainder(-20s32, 8s32) |> Stdlib.Test.equal(Ok(-4s32))
+      Stdlib.Int32.checkedRemainder(-20s32, -8s32) |> Stdlib.Test.equal(Ok(-4s32))
+      Stdlib.Int32.checkedRemainder(-15s32, 6s32) |> Stdlib.Test.equal(Ok(-3s32))
+      Stdlib.Int32.checkedRemainder(-2147483648s32, -1s32) |> Stdlib.Test.equal(Ok(0s32))
+      Stdlib.Int32.checkedRemainder(5s32, 0s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
 
 /// `%` wraps into [0, b), and raises when b <= 0.
 test modulo =
@@ -428,3 +428,18 @@ test checkedAbsoluteValue =
       Stdlib.Int32.checkedAbsoluteValue(2147483647s32)
       |> Stdlib.Test.equal(Ok(2147483647s32))
       Stdlib.Int32.checkedAbsoluteValue(0s32) |> Stdlib.Test.equal(Ok(0s32)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.Int32.checkedDivide(17s32, 3s32) |> Stdlib.Test.equal(Ok(5s32))
+      Stdlib.Int32.checkedDivide(-8s32, 5s32) |> Stdlib.Test.equal(Ok(-1s32))
+      Stdlib.Int32.checkedDivide(-2147483648s32, -1s32) |> Stdlib.Test.equal(Ok(-2147483648s32))
+      Stdlib.Int32.checkedDivide(5s32, 0s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.Int32.checkedMod(15s32, 6s32) |> Stdlib.Test.equal(Ok(3s32))
+      Stdlib.Int32.checkedMod(-1s32, 2s32) |> Stdlib.Test.equal(Ok(1s32))
+      Stdlib.Int32.checkedMod(5s32, 0s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
+      Stdlib.Int32.checkedMod(5s32, -1s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])

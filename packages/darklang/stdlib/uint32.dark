@@ -9,8 +9,6 @@ type ParseError =
 impl Modulo for UInt32 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.
-  /// Use <fn UInt32.remainder> if you want the remainder after division, which has
-  /// a different behavior for negative numbers.
   let modulo(a: UInt32, b: UInt32): UInt32 = Builtin.uint32Mod(a, b)
 
 
@@ -213,3 +211,20 @@ let checkedNegate(a: UInt32): Stdlib.Result.Result<UInt32, Stdlib.Math.Overflow>
 let checkedAbsoluteValue(a: UInt32)
   : Stdlib.Result.Result<UInt32, Stdlib.Math.Overflow> =
   Ok(a)
+
+
+// Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
+// these return the reason instead.
+// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
+// builtin in NoModule.fs.
+
+/// Divides <param a> by <param b>, rounding towards zero, or
+/// {{Error DivisionByZero}} where `/` raises.
+let checkedDivide(a: UInt32, b: UInt32): Stdlib.Result.Result<UInt32, Stdlib.Math.DivisionError> =
+  if b == 0u32 then Error(Stdlib.Math.DivisionError.DivisionByZero) else Ok(a / b)
+
+
+/// <param a> wrapped around so that {{0 <= res < b}}, or {{Error ZeroModulus}}
+/// where `%` raises
+let checkedMod(a: UInt32, b: UInt32): Stdlib.Result.Result<UInt32, Stdlib.Math.ModulusError> =
+  if b == 0u32 then Error(Stdlib.Math.ModulusError.ZeroModulus) else Ok(a % b)

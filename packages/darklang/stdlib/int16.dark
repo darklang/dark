@@ -9,22 +9,9 @@ type ParseError =
 impl Modulo for Int16 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.
-  /// Use <fn Int16.remainder> if you want the remainder after division, which has
+  /// Use <fn Int16.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
   let modulo(a: Int16, b: Int16): Int16 = Builtin.int16Mod(a, b)
-
-
-/// Returns the integer remainder left over after dividing <param value> by
-/// <param divisor>, as a <type Result>.
-/// For example, {{Int16.remainder 15 6 == Ok 3}}. The remainder will be
-/// negative only if {{<var value> < 0}}.
-/// The sign of <param divisor> doesn't influence the outcome.
-/// Returns an {{Error}} if <param divisor> is {{0}}.
-let remainder(
-  value: Int16,
-  divisor: Int16)
-  : Stdlib.Result.Result<Int16, String> =
-  Builtin.int16Remainder(value, divisor)
 
 
 impl Add for Int16 =
@@ -233,3 +220,40 @@ let checkedAbsoluteValue(a: Int16)
     Ok(-a)
   else
     Ok(a)
+
+
+// Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
+// these return the reason instead.
+// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
+// builtin in NoModule.fs.
+
+/// Divides <param a> by <param b>, rounding towards zero, or
+/// {{Error DivisionByZero}} where `/` raises.
+/// Dividing the minimum value by -1 wraps back to it, as `/` does.
+let checkedDivide(a: Int16, b: Int16): Stdlib.Result.Result<Int16, Stdlib.Math.DivisionError> =
+  if b == 0s16 then Error(Stdlib.Math.DivisionError.DivisionByZero) else Ok(a / b)
+
+
+/// What is left after dividing <param value> by <param divisor>, rounding towards
+/// zero: negative only if <param value> is, whatever the sign of <param divisor>.
+/// {{Error DivisionByZero}} if <param divisor> is {{0}}.
+/// Use <fn Int16.checkedMod> to wrap around into {{0 <= res < b}} instead.
+let checkedRemainder(
+  value: Int16,
+  divisor: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Math.DivisionError> =
+  if divisor == 0s16 then
+    Error(Stdlib.Math.DivisionError.DivisionByZero)
+  else
+    Ok(value - (value / divisor) * divisor)
+
+
+/// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
+/// {{Error ZeroModulus}} or {{Error NegativeModulus}}
+let checkedMod(a: Int16, b: Int16): Stdlib.Result.Result<Int16, Stdlib.Math.ModulusError> =
+  if b == 0s16 then
+    Error(Stdlib.Math.ModulusError.ZeroModulus)
+  else if b < 0s16 then
+    Error(Stdlib.Math.ModulusError.NegativeModulus)
+  else
+    Ok(a % b)

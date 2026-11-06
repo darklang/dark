@@ -53,7 +53,8 @@ impl Multiply for Decimal =
 
 impl Divide for Decimal =
   /// Divide <param a> by <param b>, to as many places as fit (28 at most).
-  /// {{1dec / 3dec}} is {{0.3333333333333333333333333333dec}}. Raises on division by zero.
+  /// {{1dec / 3dec}} is {{0.3333333333333333333333333333dec}}. Raises on division by zero;
+  /// <fn Decimal.checkedDivide> returns {{Error DivisionByZero}} instead.
   /// To fix the places of a quotient, follow it with <fn Decimal.round>.
   let divide(a: Decimal, b: Decimal): Decimal = Builtin.divide(a, b)
 
@@ -239,19 +240,39 @@ let __powerOf(b: Decimal, n: BigInt): Decimal =
 impl Modulo for Decimal =
   /// <param a> wrapped around so that {{0 <= result < b}}, exactly:
   /// {{-0.5dec % 2dec == 1.5dec}}. The modulus <param b> must be greater than 0.
-  /// Use <fn Decimal.remainder> for a result with <param a>'s sign.
+  /// Use <fn Decimal.checkedRemainder> for a result with <param a>'s sign.
   let modulo(a: Decimal, b: Decimal): Decimal = Builtin.modulo(a, b)
 
 
+/// Divides <param a> by <param b> as `/` does, or {{Error DivisionByZero}} where `/` raises.
+let checkedDivide(
+  a: Decimal,
+  b: Decimal)
+  : Stdlib.Result.Result<Decimal, Stdlib.Math.DivisionError> =
+  if b == 0dec then Error(Stdlib.Math.DivisionError.DivisionByZero) else Ok(a / b)
+
+
+/// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
+/// {{Error ZeroModulus}} or {{Error NegativeModulus}}
+let checkedMod(a: Decimal, b: Decimal): Stdlib.Result.Result<Decimal, Stdlib.Math.ModulusError> =
+  if b == 0dec then
+    Error(Stdlib.Math.ModulusError.ZeroModulus)
+  else if b < 0dec then
+    Error(Stdlib.Math.ModulusError.NegativeModulus)
+  else
+    Ok(a % b)
+
+
 /// What is left after taking whole multiples of <param divisor> out of <param value>,
-/// exactly, with <param value>'s sign: {{Decimal.remainder(-5.5dec, 2dec) == Ok(-1.5dec)}}.
-/// The sign of <param divisor> does not matter. {{Error}} when <param divisor> is zero.
-let remainder(
+/// exactly, with <param value>'s sign:
+/// {{Decimal.checkedRemainder(-5.5dec, 2dec) == Ok(-1.5dec)}}. The sign of <param divisor>
+/// does not matter. {{Error DivisionByZero}} when <param divisor> is zero.
+let checkedRemainder(
   value: Decimal,
   divisor: Decimal)
-  : Stdlib.Result.Result<Decimal, String> =
+  : Stdlib.Result.Result<Decimal, Stdlib.Math.DivisionError> =
   if divisor == 0dec then
-    Stdlib.Result.Result.Error("Cannot divide by 0")
+    Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero)
   else
     let r = Builtin.modulo(Stdlib.abs(value), Stdlib.abs(divisor))
     Stdlib.Result.Result.Ok(if value < 0dec then -(r) else r)

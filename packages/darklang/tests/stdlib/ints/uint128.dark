@@ -264,3 +264,13 @@ test checkedAbsoluteValue =
     [ Stdlib.UInt128.checkedAbsoluteValue(340282366920938463463374607431768211455u128)
       |> Stdlib.Test.equal(Ok(340282366920938463463374607431768211455u128))
       Stdlib.UInt128.checkedAbsoluteValue(0u128) |> Stdlib.Test.equal(Ok(0u128)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.UInt128.checkedDivide(17u128, 3u128) |> Stdlib.Test.equal(Ok(5u128))
+      Stdlib.UInt128.checkedDivide(5u128, 0u128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.UInt128.checkedMod(15u128, 6u128) |> Stdlib.Test.equal(Ok(3u128))
+      Stdlib.UInt128.checkedMod(5u128, 0u128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus)) ])

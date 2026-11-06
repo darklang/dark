@@ -245,10 +245,24 @@ test moduloByNegativeRaises =
 
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.remainder(5.5dec, 2dec) |> Stdlib.Test.equal(Ok(1.5dec))
-      Stdlib.Decimal.remainder(-5.5dec, 2dec) |> Stdlib.Test.equal(Ok(-1.5dec))
-      Stdlib.Decimal.remainder(5.5dec, -2dec) |> Stdlib.Test.equal(Ok(1.5dec))
-      Stdlib.Decimal.remainder(1dec, 0dec) |> Stdlib.Test.equal(Error("Cannot divide by 0")) ])
+    [ Stdlib.Decimal.checkedRemainder(5.5dec, 2dec) |> Stdlib.Test.equal(Ok(1.5dec))
+      Stdlib.Decimal.checkedRemainder(-5.5dec, 2dec) |> Stdlib.Test.equal(Ok(-1.5dec))
+      Stdlib.Decimal.checkedRemainder(5.5dec, -2dec) |> Stdlib.Test.equal(Ok(1.5dec))
+      Stdlib.Decimal.checkedRemainder(1dec, 0dec)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where
+/// they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.Decimal.checkedDivide(1dec, 4dec) |> Stdlib.Test.equal(Ok(0.25dec))
+      Stdlib.Decimal.checkedDivide(1dec, 0dec)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.Decimal.checkedMod(-0.5dec, 2dec) |> Stdlib.Test.equal(Ok(1.5dec))
+      Stdlib.Decimal.checkedMod(1dec, 0dec)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
+      Stdlib.Decimal.checkedMod(1dec, -2dec)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
 
 test int64Conversions =
   Stdlib.Test.all(

@@ -31,16 +31,17 @@ test negate =
 /// divisor is 0.
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int64.remainder(15, 6) |> Stdlib.Test.equal(Ok(3))
-      Stdlib.Int64.remainder(20, 8) |> Stdlib.Test.equal(Ok(4))
-      Stdlib.Int64.remainder(-20, 8) |> Stdlib.Test.equal(Ok(-4))
-      Stdlib.Int64.remainder(-20, -8) |> Stdlib.Test.equal(Ok(-4))
-      Stdlib.Int64.remainder(-15, 6) |> Stdlib.Test.equal(Ok(-3))
-      Stdlib.Int64.remainder(-9223372036854775808, -1) |> Stdlib.Test.equal(Ok(0))
-      Stdlib.Int64.remainder(5, 0) |> Stdlib.Test.equal(Error("Cannot divide by 0"))
+    [ Stdlib.Int64.checkedRemainder(15, 6) |> Stdlib.Test.equal(Ok(3))
+      Stdlib.Int64.checkedRemainder(20, 8) |> Stdlib.Test.equal(Ok(4))
+      Stdlib.Int64.checkedRemainder(-20, 8) |> Stdlib.Test.equal(Ok(-4))
+      Stdlib.Int64.checkedRemainder(-20, -8) |> Stdlib.Test.equal(Ok(-4))
+      Stdlib.Int64.checkedRemainder(-15, 6) |> Stdlib.Test.equal(Ok(-3))
+      Stdlib.Int64.checkedRemainder(-9223372036854775808, -1) |> Stdlib.Test.equal(Ok(0))
+      Stdlib.Int64.checkedRemainder(5, 0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
       ((Stdlib.List.map(
        Stdlib.List.range(-5, 5),
-       fun v -> Stdlib.Int64.remainder(v, -4))))
+       fun v -> Stdlib.Int64.checkedRemainder(v, -4))))
       |> Stdlib.Test.equal(([ Ok(-1)
                               Ok(0)
                               Ok(-3)
@@ -54,7 +55,7 @@ test remainder =
                               Ok(1) ]))
       ((Stdlib.List.map(
        Stdlib.List.range(-5, 5),
-       fun v -> Stdlib.Int64.remainder(v, 4))))
+       fun v -> Stdlib.Int64.checkedRemainder(v, 4))))
       |> Stdlib.Test.equal(([ Ok(-1)
                               Ok(0)
                               Ok(-3)
@@ -285,6 +286,15 @@ test divide =
 test divideOfOneRejectsZero =
   (1 / 0)
   => raises "Cannot divide by 0"
+
+/// The polymorphic builtins behind `/` and `%` raise as the operators do.
+test builtinDivideRejectsZero =
+  Builtin.divide(5, 0)
+  => raises "Cannot divide by 0"
+
+test builtinModuloRejectsNegativeDivisor =
+  Builtin.modulo(5, -1)
+  => raises "Cannot evaluate modulus against a negative number"
 
 test sum =
   Stdlib.sum(0, [ 1, 2 ]) |> Stdlib.Test.equal(3)
@@ -570,3 +580,19 @@ test checkedAbsoluteValue =
       Stdlib.Int64.checkedAbsoluteValue(9223372036854775807)
       |> Stdlib.Test.equal(Ok(9223372036854775807))
       Stdlib.Int64.checkedAbsoluteValue(0) |> Stdlib.Test.equal(Ok(0)) ])
+
+/// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
+test divisionResults =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.checkedDivide(17, 3) |> Stdlib.Test.equal(Ok(5))
+      Stdlib.Int64.checkedDivide(-8, 5) |> Stdlib.Test.equal(Ok(-1))
+      Stdlib.Int64.checkedDivide(-9223372036854775808, -1)
+      |> Stdlib.Test.equal(Ok(-9223372036854775808))
+      Stdlib.Int64.checkedDivide(5, 0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
+      Stdlib.Int64.checkedMod(15, 6) |> Stdlib.Test.equal(Ok(3))
+      Stdlib.Int64.checkedMod(-1, 2) |> Stdlib.Test.equal(Ok(1))
+      Stdlib.Int64.checkedMod(5, 0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
+      Stdlib.Int64.checkedMod(5, -1)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
