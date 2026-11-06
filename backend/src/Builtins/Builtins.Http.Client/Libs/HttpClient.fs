@@ -57,6 +57,8 @@ module BadHeader =
       match err with
       | HostTypes.HttpBadHeader.EmptyKey -> "EmptyKey", []
       | HostTypes.HttpBadHeader.InvalidContentType -> "InvalidContentType", []
+      | HostTypes.HttpBadHeader.InvalidName -> "InvalidName", []
+      | HostTypes.HttpBadHeader.InvalidValue -> "InvalidValue", []
     let typeName =
       FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.badHeader ())
     DEnum(typeName, typeName, [], caseName, fields)

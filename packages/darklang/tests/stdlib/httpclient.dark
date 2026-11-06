@@ -73,6 +73,9 @@ let errBadHeaderEmptyKey(): GetResult =
     Stdlib.HttpClient.RequestError.BadHeader(Stdlib.HttpClient.BadHeader.EmptyKey)
   )
 
+let errBadHeader(e: Stdlib.HttpClient.BadHeader): GetResult =
+  Error(Stdlib.HttpClient.RequestError.BadHeader(e))
+
 let errBadMethod(): GetResult = Error(Stdlib.HttpClient.RequestError.BadMethod)
 
 let errUnsupportedProtocol(): GetResult =
@@ -241,6 +244,18 @@ test disallowedHeaders =
       |> Stdlib.Test.equal(errInvalidRequest())
       get("http://google.com", [ (" x-Google-metaData-Request", " True ") ])
       |> Stdlib.Test.equal(errInvalidRequest()) ])
+
+// a header line can't be ended early to add another
+test rejectsLineBreaksInHeaders =
+  Stdlib.Test.all(
+    [ get("http://google.com", [ ("X-A", "a\r\nInjected: yes") ])
+      |> Stdlib.Test.equal(errBadHeader(Stdlib.HttpClient.BadHeader.InvalidValue))
+      get("http://google.com", [ ("X-A", "a\r\nMetadata-Flavor: Google") ])
+      |> Stdlib.Test.equal(errBadHeader(Stdlib.HttpClient.BadHeader.InvalidValue))
+      get("http://google.com", [ ("X-A", "a\0b") ])
+      |> Stdlib.Test.equal(errBadHeader(Stdlib.HttpClient.BadHeader.InvalidValue))
+      get("http://google.com", [ ("X-A\r\nB", "c") ])
+      |> Stdlib.Test.equal(errBadHeader(Stdlib.HttpClient.BadHeader.InvalidName)) ])
 
 // `.test` cannot resolve publicly. Depending on the DNS environment, that is
 // reported immediately as NetworkError or when the request times out.
