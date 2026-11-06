@@ -423,16 +423,6 @@ module Expect =
     $"{initial}Error was found in: {pathToString path}\nError was:\n{actual})\n\n"
 
   module RT =
-    // CLEANUP remove if unused
-    let dTypeEqualityBaseFn
-      (path : Path)
-      (actual : TypeReference)
-      (expected : TypeReference)
-      (errorFn : Path -> string -> string -> unit)
-      : unit =
-      // as long as TypeReferences don't get IDs, depending on structural equality is OK
-      if actual <> expected then errorFn path (string actual) (string expected)
-
     let rec typeNameEqualityBaseFn
       (path : Path)
       (actual : FQTypeName.FQTypeName)

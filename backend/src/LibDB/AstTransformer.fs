@@ -239,7 +239,8 @@ let rec private transformTypeRef
   (mapping : HashMapping)
   (typeRef : PT.TypeReference)
   : PT.TypeReference =
-  /// CLEANUP introduce `let r = ...`
+  let r = transformTypeRef mapping
+
   match typeRef with
   | PT.TUnit
   | PT.TBool
@@ -264,17 +265,12 @@ let rec private transformTypeRef
   | PT.TBytes
   | PT.TVariable _ -> typeRef
 
-  | PT.TStream inner -> PT.TStream(transformTypeRef mapping inner)
+  | PT.TStream inner -> PT.TStream(r inner)
 
-  | PT.TList inner -> PT.TList(transformTypeRef mapping inner)
-  | PT.TDict(key, value) ->
-    PT.TDict(transformTypeRef mapping key, transformTypeRef mapping value)
+  | PT.TList inner -> PT.TList(r inner)
+  | PT.TDict(key, value) -> PT.TDict(r key, r value)
   | PT.TTuple(first, second, rest) ->
-    PT.TTuple(
-      transformTypeRef mapping first,
-      transformTypeRef mapping second,
-      rest |> List.map (transformTypeRef mapping)
-    )
+    PT.TTuple(r first, r second, rest |> List.map r)
 
   | PT.TCustomType(nr, typeArgs) ->
     PT.TCustomType(
@@ -284,14 +280,10 @@ let rec private transformTypeRef
         PT.FQTypeName.Package
         PackageItem.typePackageHash
         PT.ItemKind.Type,
-      typeArgs |> List.map (transformTypeRef mapping)
+      typeArgs |> List.map r
     )
 
-  | PT.TFn(args, ret) ->
-    PT.TFn(
-      args |> NEList.map (transformTypeRef mapping),
-      transformTypeRef mapping ret
-    )
+  | PT.TFn(args, ret) -> PT.TFn(args |> NEList.map r, r ret)
 
 let rec private transformStringSegment
   (mapping : HashMapping)

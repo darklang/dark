@@ -1758,7 +1758,7 @@ module PackageFn =
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []
           returnType = returnType
-          description = "TODO"
+          description = ""
           permissionCeiling = None
           bounds = [] }
 
@@ -1773,8 +1773,8 @@ module PackageFn =
       t
         "returnSecondParam"
         []
-        [ { name = "a"; typ = PT.TInt64; description = "TODO" }
-          { name = "b"; typ = PT.TInt64; description = "TODO" } ]
+        [ { name = "a"; typ = PT.TInt64; description = "" }
+          { name = "b"; typ = PT.TInt64; description = "" } ]
         PT.TInt64
         (eVar "b")
         (2, [], 1)
@@ -1783,8 +1783,8 @@ module PackageFn =
       t
         "EArgTest"
         []
-        [ { name = "x"; typ = PT.TInt64; description = "TODO" }
-          { name = "y"; typ = PT.TInt64; description = "TODO" } ]
+        [ { name = "x"; typ = PT.TInt64; description = "" }
+          { name = "y"; typ = PT.TInt64; description = "" } ]
         PT.TInt64
         (PT.EArg(gid (), 1)) // Direct EArg(1) for parameter "y"
         (2, [], 1)
@@ -1793,8 +1793,8 @@ module PackageFn =
       t
         "ignoresParamsAndReturnsStr"
         []
-        [ { name = "a"; typ = PT.TInt64; description = "TODO" }
-          { name = "b"; typ = PT.TInt64; description = "TODO" } ]
+        [ { name = "a"; typ = PT.TInt64; description = "" }
+          { name = "b"; typ = PT.TInt64; description = "" } ]
         PT.TInt64
         (eStr [ strText "hello" ])
         (3, [ RT.LoadVal(2, RT.DString "hello") ], 2)
