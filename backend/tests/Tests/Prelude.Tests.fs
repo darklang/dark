@@ -84,6 +84,42 @@ let dateTests =
         [ "2000-10-01T16:01:01Z",
           NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1) ] ]
 
+let stringTests =
+  let samples =
+    [ ""
+      "hello"
+      "\r\n"
+      "a\r\r\n\n\rb"
+      "e\u0301\u0323"
+      "\U0001F1F5\U0001F1F1\U0001F1FA\U0001F1F8"
+      "\U0001F1F5\U0001F1F1\U0001F1FA"
+      "\U0001F469\u200D\U0001F469\u200D\U0001F467"
+      "\U0001F44D\U0001F3FD"
+      "\uD800x" ]
+  testList
+    "String"
+    [ test "lengthInEgcs agrees with StringInfo" {
+        for a in samples do
+          for b in samples do
+            let s = a + "ab" + b + String.replicate 100 a
+            Expect.equal
+              (String.lengthInEgcs s)
+              (System.Globalization.StringInfo(s).LengthInTextElements)
+              s
+      }
+      testMany
+        "toEgcChar"
+        String.toEgcChar
+        [ "", None
+          "a", Some "a"
+          "ab", None
+          "\r\n", Some "\r\n"
+          "e\u0301", Some "e\u0301"
+          "\U0001F1F5\U0001F1F1", Some "\U0001F1F5\U0001F1F1"
+          "\U0001F1F5\U0001F1F1\U0001F1FA", None
+          "\U0001F469\u200D\U0001F469\u200D\U0001F467",
+          Some "\U0001F469\u200D\U0001F469\u200D\U0001F467" ] ]
+
 let textWidthTests =
   testList
     "TextWidth"
@@ -238,6 +274,7 @@ let tests =
       mapTests
       floatTests
       dateTests
+      stringTests
       textWidthTests
       ansiTests
       assertions

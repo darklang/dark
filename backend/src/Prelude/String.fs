@@ -26,11 +26,15 @@ let isCharwise (s : string) : bool =
 
 /// Return Some(c) if the string is a single EGC character, otherwise None
 let toEgcChar (str : string) : Option<string> =
-  let egcs = str |> toEgcSeq
-  match Seq.truncate 2 egcs |> Seq.toList with
-  | [] -> None
-  | [ char ] -> Some char
-  | _ -> None
+  if
+    str <> ""
+    && System.Globalization.StringInfo.GetNextTextElementLength(
+         System.MemoryExtensions.AsSpan str
+       ) = str.Length
+  then
+    Some str
+  else
+    None
 
 
 let splitOnNewline (str : string) : List<string> =
@@ -39,11 +43,22 @@ let splitOnNewline (str : string) : List<string> =
   else
     str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
+/// The number of extended grapheme clusters in `s`. Steps from cluster to cluster rather than
+/// asking `StringInfo` for `LengthInTextElements`, which builds an index of every cluster first.
 let lengthInEgcs (s : string) : int =
   if isCharwise s then
     s.Length
   else
-    System.Globalization.StringInfo(s).LengthInTextElements
+    let mutable count = 0
+    let mutable offset = 0
+    while offset < s.Length do
+      offset <-
+        offset
+        + System.Globalization.StringInfo.GetNextTextElementLength(
+          System.MemoryExtensions.AsSpan(s, offset)
+        )
+      count <- count + 1
+    count
 
 let normalize (s : string) : string = s.Normalize()
 

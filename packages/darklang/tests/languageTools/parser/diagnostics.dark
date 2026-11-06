@@ -172,6 +172,14 @@ test lexicalFailures =
       clean("$\"{\"\"\" } \"\"\"}\"")
       clean("$\"a{ 1 }b\"") ])
 
+test charLiteralsHoldOneCharacter =
+  Stdlib.Test.all(
+    [ clean("'q́'")
+      clean("'👩‍👩‍👧'")
+      clean("'🇵🇱'")
+      clean("'\\u0061\\u0301'")
+      says("'\\u0061\\u0062'", "exactly one grapheme") ])
+
 test operatorsDarkLacksSayWhatToWrite =
   Stdlib.Test.all(
     [ says("match xs with | h :: t -> h", "a list is `[head, ...tail]`")
