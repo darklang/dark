@@ -249,7 +249,7 @@ jobs:
       - show-large-files-and-directories
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - save_cache:
           paths:
             - /home/dark/.nuget
@@ -355,7 +355,7 @@ jobs:
             # prefix match: an older lockfile's downloads still beat starting empty
             - v7-nuget-
       - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - save_cache:
           paths:
             - /home/dark/.nuget
@@ -483,7 +483,7 @@ jobs:
             # prefix match: an older lockfile's downloads still beat starting empty
             - v7-nuget-
       - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - run:
           name: Build LocalExec for migrations (debug mode fine)
           command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
@@ -527,7 +527,7 @@ jobs:
       - checkout
       - attach_workspace: { at: "." }
       - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
 
       # SQLite static archives for the AOT link, built by zig cc from the
       # amalgamation. Keyed on the build script's content, which contains the
@@ -630,7 +630,7 @@ jobs:
       - checkout
       - attach_workspace: { at: "." }
       - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - run:
           name: R2R-publish linux-arm and osx-x64
           command: |
@@ -669,7 +669,7 @@ jobs:
             dotnet --version
       - attach_workspace: { at: "." }
       - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - run:
           name: Build the musl SQLite archive
           command: ./scripts/build/build-sqlite.sh --runtimes=linux-musl-x64
@@ -764,7 +764,7 @@ jobs:
               mkdir -p "$HOME/zig" && ln -sf "$(which zig)" "$HOME/zig/zig"
             fi
       - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - run:
           name: Build SQLite static archives (skips on cache hit)
           command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64

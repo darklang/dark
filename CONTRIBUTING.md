@@ -79,3 +79,4 @@ That said, running tests with debugger support _does_ seem to work -- again, adj
 
 - [Contributor docs](https://docs.darklang.com/contributing/getting-started)
 - [Writing docstrings in the Dark Standard library](docs/writing-docstrings.md)
+- [Dependencies](docs/dependencies.md): how NuGet packages and tools are pinned, and how to bump one

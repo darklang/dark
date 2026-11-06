@@ -13,8 +13,20 @@ updates:
       interval: daily
     open-pull-requests-limit: 10
 
+  # The tool manifest, backend/.config/dotnet-tools.json. Dependabot can't read Paket, so
+  # the packages in paket.lock get no PRs from it; docs/dependencies.md has how to bump them.
   - package-ecosystem: nuget
     directory: "/backend"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+
+  # The SDK in backend/global.json. A bump also needs the version and hashes in the
+  # Dockerfile, which a Dependabot PR does not carry, so its CI fails until someone adds them.
+  - package-ecosystem: dotnet-sdk
+    directory: "/backend"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
