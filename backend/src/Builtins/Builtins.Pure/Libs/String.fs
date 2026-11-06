@@ -24,18 +24,20 @@ module Bytes = LibExecution.Bytes
 let private egcSubstring (s : string) (first : int) (last : int) : string =
   if first >= last then
     ""
+  elif String.isCharwise s then
+    s.Substring(first, last - first)
   else
     let e = System.Globalization.StringInfo.GetTextElementEnumerator(s)
     let mutable startIndex = 0
-    let mutable endIndex = 0
+    let mutable endIndex = s.Length
     let mutable index = 0
 
-    while e.MoveNext() do
+    // Stops at the cluster that starts at `last`: nothing after it changes the answer.
+    while index <= last && e.MoveNext() do
       if index = first then startIndex <- e.ElementIndex
       if index = last then endIndex <- e.ElementIndex
       index <- index + 1
 
-    if endIndex = 0 then endIndex <- s.Length
     s.Substring(startIndex, endIndex - startIndex)
 
 

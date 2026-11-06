@@ -866,6 +866,8 @@ test contains =
 test slice =
   Stdlib.Test.all(
     [ Stdlib.String.slice("abcd", -2, 4) |> Stdlib.Test.equal("cd")
+      Stdlib.String.slice("a\r\nb", 1, 2) |> Stdlib.Test.equal("\r\n")
+      Stdlib.String.last("a\r\n", 1) |> Stdlib.Test.equal("\r\n")
       Stdlib.String.slice("abcd", -5, -6) |> Stdlib.Test.equal("")
       Stdlib.String.slice("abcd", -5, 1) |> Stdlib.Test.equal("a")
       Stdlib.String.slice("abcd", 0, -1) |> Stdlib.Test.equal("abc")
@@ -1047,15 +1049,26 @@ test compare =
 test head =
   Stdlib.Test.all(
     [ Stdlib.String.head("hello world") |> Stdlib.Test.equal(Some('h'))
-      Stdlib.String.head("") |> Stdlib.Test.equal(None) ])
+      Stdlib.String.head("") |> Stdlib.Test.equal(None)
+      Stdlib.String.head(decomposedEx())
+      |> Stdlib.Option.map(Stdlib.String.fromChar)
+      |> Stdlib.Test.equal(Some("e" + acute())) ])
 
-// Commented out as F# parser doesn't like unicode "characters"
-// CLEANUP uncomment when switched to new parser
-// test headUsesWholeGraphemes =
-//   Stdlib.Test.all
-//     [ Stdlib.String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Test.equal (Some '👱')
-//       Stdlib.String.head "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal (Some '🧟')
-//       Stdlib.String.head "👨‍❤️‍💋‍👨" |> Stdlib.Test.equal (Some '👨‍❤️‍💋‍👨') ]
+test charAt =
+  Stdlib.Test.all(
+    [ Stdlib.String.charAt("", 0) |> Stdlib.Test.equal(None)
+      Stdlib.String.charAt("abc", -1) |> Stdlib.Test.equal(None)
+      Stdlib.String.charAt("abc", 0) |> Stdlib.Test.equal(Some('a'))
+      Stdlib.String.charAt("abc", 2) |> Stdlib.Test.equal(Some('c'))
+      Stdlib.String.charAt("abc", 3) |> Stdlib.Test.equal(None)
+      Stdlib.String.charAt("a👨‍❤️‍💋‍👨b", 1) |> Stdlib.Test.equal(Some('👨‍❤️‍💋‍👨'))
+      Stdlib.String.charAt("a👨‍❤️‍💋‍👨b", 2) |> Stdlib.Test.equal(Some('b'))
+      Stdlib.String.charAt(decomposedEx(), 1) |> Stdlib.Test.equal(Some('x'))
+      Stdlib.String.charAt("abc", 9223372036854775807) |> Stdlib.Test.equal(None)
+      Stdlib.String.charAt("a\r\nb", 1)
+      |> Stdlib.Option.map(Stdlib.String.fromChar)
+      |> Stdlib.Test.equal(Some("\r\n"))
+      Stdlib.String.charAt("a\r\nb", 2) |> Stdlib.Test.equal(Some('b')) ])
 
 test repeat =
   Stdlib.Test.all(
