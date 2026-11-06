@@ -203,9 +203,9 @@ test disallowedHosts =
 test disallowedUri =
   get("localhost", []) |> Stdlib.Test.equal(errInvalidUri())
 
-// network error
-test unspecifiedAddressIsNetworkError =
-  get("http://[0:0:0:0:0:0:0:0]", []) |> Stdlib.Test.equal(errNetworkError())
+// `::` reaches the local host on Linux, so it is refused like 0.0.0.0
+test unspecifiedAddressIsRefused =
+  get("http://[0:0:0:0:0:0:0:0]", []) |> Stdlib.Test.equal(errInvalidHost())
 
 // Sneaky banned urls: a hostname that looks fine but resolves somewhere banned.
 // Blocked in the connect callback, after resolution, rather than by the URL
