@@ -495,6 +495,8 @@ type Layer =
   | Run
   | Package of id : string
   | Function of id : string
+  /// A trait method's declared ceiling, on a call through it: `<trait hash>.<method>`.
+  | Trait of id : string
 
 type Denial = { layer : Layer; reason : PolicyDenial }
 
@@ -565,7 +567,8 @@ module Access =
     | Layer.Run
     | Layer.Package _ -> true
     | Layer.Instance
-    | Layer.Function _ -> false
+    | Layer.Function _
+    | Layer.Trait _ -> false
 
   [<RequireQualifiedAccess; Struct>]
   type private CheckMode =

@@ -981,6 +981,195 @@ let aMismatchedImplementationIsReportedAtSave =
       })
 
 
+/// `trait Fetch<'a> = let fetch(u: 'a):{} Bool` promises a caller that whatever `fetch` runs, it
+/// cannot touch the network. A call through it is held to that whichever implementation runs, and
+/// through a bounded generic, as a fn value a builtin applies, over a builtin, and under
+/// `--warn-permissions`. An implementation that declares or needs more is legal: it saves with a
+/// warning, from `impl` and from `module`, commits, and `dark constraints` lists it.
+let aTraitCeilingHoldsWhicheverImplementationRuns =
+  instanceTest
+    "a trait method's ceiling is enforced when a call through it runs"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          run
+            state
+            [ "trait"; "Tests.Ceil.Fetch"; "<'a> = let fetch(u: 'a):{} Bool" ]
+        do!
+          fn
+            state
+            "Tests.CeilImpl.get"
+            "(): Bool = Stdlib.Result.isOk(Stdlib.HttpClient.get(\"http://example.com/\", []))"
+
+        let impl (target : string) (body : string) =
+          [ "impl"; "Tests.CeilImpl"; $"Tests.Ceil.Fetch for {target} = {body}" ]
+
+        do!
+          showsAll
+            state
+            (impl "Int64" "let fetch(u: Int64):{Http} Bool = Tests.CeilImpl.get()")
+            // Single tokens: the message is wrapped to the terminal, at any space.
+            [ "warning:"; "Tests.Ceil.Fetch.fetch"; "Http,"; ":{}" ]
+            "a ceiling wider than the trait's is a warning naming the trait and the effect"
+        do!
+          showsAll
+            state
+            (impl "String" "let fetch(u: String): Bool = Tests.CeilImpl.get()")
+            [ "warning:"; "requires"; "Http," ]
+            "so is a body that needs more, with no ceiling of its own"
+        do!
+          lacks
+            state
+            (impl "Bool" "let fetch(u: Bool): Bool = u")
+            "warning"
+            "an implementation with no ceiling that stays within it is fine"
+        do!
+          shows
+            state
+            [ "commit"; "ceilings"; "-y" ]
+            " ops."
+            "and all of them commit"
+
+        do!
+          showsAll
+            state
+            [ "constraints"; "--kind"; "exceeds-trait-ceiling" ]
+            [ "Tests.CeilImpl.Int64.Fetch"; "Tests.CeilImpl.String.Fetch" ]
+            "constraints lists the two beyond it"
+        do!
+          lacks
+            state
+            [ "constraints"; "--kind"; "exceeds-trait-ceiling" ]
+            "Tests.CeilImpl.Bool.Fetch"
+            "and not the one within it"
+
+        // Allowed everywhere but the trait, so that is the layer that refuses it.
+        do!
+          run
+            state
+            [ "permissions"; "allow"; "http"; "GET"; "http://example.com:80/" ]
+        do!
+          run
+            state
+            [ "permissions"
+              "approve"
+              "Tests.CeilImpl.Int64.Fetch.fetch"
+              "--yes" ]
+        do!
+          showsAll
+            state
+            [ "eval"; "Tests.Ceil.Fetch.fetch(5)" ]
+            [ "trait ceiling"; ".fetch`" ]
+            "an approved implementation is still denied what the trait does not allow"
+        do!
+          exits state [ "eval"; "Tests.Ceil.Fetch.fetch(5)" ] 1L "and the run fails"
+
+        do!
+          fn
+            state
+            "Tests.Ceil.viaBound"
+            "<'a: Tests.Ceil.Fetch>(v: 'a): Bool = Tests.Ceil.Fetch.fetch(v)"
+        do!
+          shows
+            state
+            [ "eval"; "Tests.Ceil.viaBound(5)" ]
+            "trait ceiling"
+            "a bounded generic, whose caller picks the implementation, is held to it too"
+        do!
+          shows
+            state
+            [ "eval"; "Stdlib.List.map([ 5 ], Tests.Ceil.Fetch.fetch)" ]
+            "trait ceiling"
+            "and so is the method passed as a fn value for a builtin to apply"
+        do!
+          evals
+            state
+            "Tests.Ceil.Fetch.fetch(true)"
+            "true"
+            "an implementation within the ceiling runs"
+
+        // An implementation that names a fn over a builtin, which runs without a frame.
+        do!
+          run
+            state
+            [ "trait"
+              "Tests.Ceil.Env"
+              "<'a> = let read(k: 'a):{} Stdlib.Option.Option<String>" ]
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.CeilImpl"
+              "Tests.Ceil.Env for String = let read = Stdlib.Env.get" ]
+        do! run state [ "permissions"; "allow"; "env"; "read"; "HOME" ]
+        do!
+          shows
+            state
+            [ "eval"; "Tests.Ceil.Env.read(\"HOME\")" ]
+            "trait ceiling"
+            "an implementation over a builtin is held to it too"
+
+        let tempFile (contents : string) =
+          let path =
+            System.IO.Path.Combine(
+              System.IO.Path.GetTempPath(),
+              $"dark-test-trait-ceiling-{System.Guid.NewGuid():N}.dark"
+            )
+          System.IO.File.WriteAllText(path, contents)
+          path
+
+        let moduleFile =
+          tempFile (
+            "impl Tests.Ceil.Fetch for Float =\n"
+            + "  let fetch(u: Float):{Http} Bool = false\n"
+          )
+        try
+          do!
+            showsAll
+              state
+              [ "module"; "Tests.CeilMod"; moduleFile ]
+              [ "warning:"; "Http," ]
+              "a module save warns about an implementation beyond the ceiling too"
+        finally
+          System.IO.File.Delete moduleFile
+
+        // A script's own trait and implementation, picked when the call runs. The second call
+        // reuses the first's pick, and is the one that reaches past the ceiling.
+        let script =
+          tempFile (
+            "trait Stamp<'a> =\n  let stamp(v: 'a):{} String\n\n"
+            + "impl Stamp for Int64 =\n"
+            + "  let stamp(v: Int64): String =\n"
+            + "    if v == 0 then \"zero\" else Stdlib.toString(Stdlib.DateTime.now())\n\n"
+            + "Stdlib.printLine(Stamp.stamp(0))\n"
+            + "Stdlib.printLine(Stamp.stamp(1))\n"
+          )
+        try
+          do!
+            showsAll
+              state
+              [ "run"; script ]
+              [ "zero"; "trait ceiling" ]
+              "a script's own implementation is held to its trait's ceiling, on a repeat call too"
+          do!
+            shows
+              state
+              [ "run"; "--warn-permissions"; script ]
+              "trait ceiling"
+              "and audit mode does not waive it"
+          do!
+            exits
+              state
+              [ "run"; "--warn-permissions"; script ]
+              1L
+              "so that run fails too"
+        finally
+          System.IO.File.Delete script
+        do! discardAll state
+      })
+
+
 /// A failed module save must not end on a check mark.
 ///
 /// `module` printed `✓ Defined N declarations` as its LAST line, underneath the reasons the save was
@@ -1328,6 +1517,7 @@ let tests : List<Test> =
     aRefusedImplementationOrBoundSavesNothing
     commitRefusesABoundThatNamesNothing
     aMismatchedImplementationIsReportedAtSave
+    aTraitCeilingHoldsWhicheverImplementationRuns
     aFailedModuleSaveDoesNotEndOnATick
     aReplacedImplementationIsNotChosen ]
   @ helpExamplesRun
