@@ -269,7 +269,8 @@ module LocalAccess =
   // 169.254.0.0/16 — link-local addresses (incl. cloud metadata IPs)
   let private oneSixNine = System.Net.IPNetwork.Parse "169.254.0.0/16"
 
-  let private zero = System.Net.IPAddress.Parse "0.0.0.0"
+  // RFC 1122 "this network"; Linux connects 0.0.0.0 to the local host.
+  let private zero = System.Net.IPNetwork.Parse "0.0.0.0/8"
   // IPv6 unique-local addresses, the IPv6 equivalent of RFC 1918 space.
   let private uniqueLocal = System.Net.IPNetwork.Parse "fc00::/7"
 
@@ -282,7 +283,7 @@ module LocalAccess =
     || oneNineNineFour.Contains ip
     || oneNineNineEight.Contains ip
     || oneSixNine.Contains ip
-    || zero = ip
+    || zero.Contains ip
 
   let bannedIp (ip : System.Net.IPAddress) : bool =
     if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
@@ -293,6 +294,7 @@ module LocalAccess =
         || ip.IsIPv6LinkLocal // ipv6 equivalent of 169.254.*
         || ip.IsIPv6SiteLocal // ipv6 equivalent of 10/172.16/192.168
         || System.Net.IPAddress.IsLoopback ip
+        || ip.Equals System.Net.IPAddress.IPv6Any // `::`, which Linux connects to the local host
     else if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
       bannedIPv4 ip
     else
@@ -326,19 +328,18 @@ module LocalAccess =
 
   /// The non-public ranges the guest default bans, minus the ones no opt-in widens: RFC 1918,
   /// RFC 6598 shared space (`100.64.0.0/10`, which carrier NAT and mesh VPNs both assign from),
-  /// and IPv6 unique-local and site-local. Link-local, cloud-metadata and `0.0.0.0` stay banned.
-  let isPrivateNetwork (ip : System.Net.IPAddress) : bool =
+  /// and IPv6 unique-local and site-local. Link-local, cloud-metadata and 0.0.0.0/8 stay banned.
+  let rec isPrivateNetwork (ip : System.Net.IPAddress) : bool =
     if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
       if ip.IsIPv4MappedToIPv6 then
-        bannedIPv4 (ip.MapToIPv4())
-        && not (System.Net.IPAddress.IsLoopback(ip.MapToIPv4()))
+        isPrivateNetwork (ip.MapToIPv4())
       else
         uniqueLocal.Contains ip || ip.IsIPv6SiteLocal
     elif ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
       bannedIPv4 ip
       && not (System.Net.IPAddress.IsLoopback ip)
       && not (oneSixNine.Contains ip)
-      && zero <> ip
+      && not (zero.Contains ip)
     else
       false
 

@@ -1219,7 +1219,16 @@ let httpWideningsAreScoped =
     // 100.64/10 is RFC 6598 shared space, which mesh VPNs and carrier NAT assign from.
     let privates =
       [ "10.0.0.5"; "172.16.0.5"; "192.168.1.5"; "100.64.0.5"; "fd00::1" ]
-    let never = [ "169.254.169.254"; "0.0.0.0"; "fe80::1" ]
+    // `::` and all of 0.0.0.0/8 reach the local host on Linux. The mapped spellings must not
+    // slip through the private-network opt-in.
+    let never =
+      [ "169.254.169.254"
+        "0.0.0.0"
+        "0.1.2.3"
+        "fe80::1"
+        "::"
+        "::ffff:169.254.169.254"
+        "::ffff:0.0.0.0" ]
 
     for a in loopbacks @ privates @ never do
       Expect.isFalse (off.allowedIP (ip a)) $"default refuses {a}"
