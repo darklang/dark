@@ -51,7 +51,6 @@ backend/src/Cli/lib/libe_sqlite3-*.a
 # Deployment
 ###############
 
-deploy-lock-manual-deploy
 .secrets
 
 clis/

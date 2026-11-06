@@ -3,7 +3,8 @@
 #
 #   curl -fsSL https://wip.darklang.com/install | sh
 #
-# Installs the latest release to ~/.darklang/bin/dark and adds it to your PATH.
+# Installs the latest release to ~/.darklang/bin/dark and adds it to your PATH, after checking
+# the download against the release's checksums file.
 # Afterwards, the CLI manages itself (`dark update`, `dark uninstall`).
 #
 # To pin a release (tags at https://github.com/darklang/dark/releases):
@@ -36,6 +37,14 @@ is_musl() {
   command -v ldd >/dev/null 2>&1 && ldd --version 2>&1 | grep -qi musl
 }
 
+# The browser_download_url of the release asset whose name ends in $2, in release JSON $1.
+asset_url_ending() {
+  printf '%s' "$1" |
+    grep -o "\"browser_download_url\"[[:space:]]*:[[:space:]]*\"[^\"]*$2\"" |
+    head -n1 |
+    sed 's/^"[^"]*"[[:space:]]*:[[:space:]]*"//; s/"$//'
+}
+
 # Extract the value of the first "field":"value" pair in a JSON string.
 # $1 = json, $2 = field name
 json_str_field() {
@@ -66,6 +75,14 @@ main() {
     download() { wget -qO "$2" "$1"; }
   else
     fail "curl or wget is required"
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256() { sha256sum "$1" | cut -d ' ' -f 1; }
+  elif command -v shasum >/dev/null 2>&1; then
+    sha256() { shasum -a 256 "$1" | cut -d ' ' -f 1; }
+  else
+    fail "sha256sum or shasum is required, to check the download"
   fi
 
   # Map OS/arch to the .NET runtime id used in release asset names
@@ -115,11 +132,12 @@ main() {
   fi
 
   # Suffix-match "-$rid.gz" so linux-arm can't match the linux-arm64 asset
-  asset_url=$(printf '%s' "$release_json" |
-    grep -o "\"browser_download_url\"[[:space:]]*:[[:space:]]*\"[^\"]*-$rid\.gz\"" |
-    head -n1 |
-    sed 's/^"[^"]*"[[:space:]]*:[[:space:]]*"//; s/"$//')
+  asset_url=$(asset_url_ending "$release_json" "-$rid\.gz")
   [ -n "$asset_url" ] || fail "release $tag has no prebuilt binary for $rid"
+  asset_name=${asset_url##*/}
+  sums_url=$(asset_url_ending "$release_json" "-sha256sums\.txt")
+  [ -n "$sums_url" ] ||
+    fail "release $tag has no checksums file, so its download can't be checked; nothing was installed"
 
   say "Installing the Darklang CLI ($tag, $rid) to $bin_dir/dark"
 
@@ -153,11 +171,16 @@ main() {
   trap cleanup EXIT
   trap 'exit 1' HUP INT TERM
 
-  # TODO SECURITY: Verify a release signature before installing or executing
-  # this binary. The verification public key must be pinned in this installer
-  # (or obtained through another trust path independent of the GitHub release);
-  # a checksum published alongside the binary is not sufficient authentication.
+  # The checksum catches a download damaged or swapped on the way, or a binary replaced on the
+  # release without its checksums file. TODO SECURITY: it doesn't authenticate the release; a
+  # signature checked against a key pinned here would.
   download "$asset_url" "$tmpdir/dark.gz" || fail "download failed: $asset_url"
+  download "$sums_url" "$tmpdir/sums.txt" || fail "download failed: $sums_url"
+  expected=$(awk -v f="$asset_name" '$2 == f { print $1; exit }' "$tmpdir/sums.txt")
+  [ -n "$expected" ] ||
+    fail "release $tag's checksums file doesn't list $asset_name; nothing was installed"
+  [ "$(sha256 "$tmpdir/dark.gz")" = "$expected" ] ||
+    fail "$asset_name doesn't match the checksum release $tag lists for it, so it was damaged or changed on the way; nothing was installed. Please report this at https://github.com/darklang/dark/issues"
   gunzip "$tmpdir/dark.gz"
 
   mkdir -p "$bin_dir"

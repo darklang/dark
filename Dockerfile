@@ -190,9 +190,9 @@ ENV NUGET_XMLDOC_MODE=skip \
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
 RUN /home/dark/install-dotnet \
-  --version=10.0.102 \
-  --arm64-sha256=1254141153d29b5b926e0e7b0b172a25f9c096b8ed6a182f54062c5e0b41384b30e10e2bf1ebe86ed0f58f4ff762203acd83bcf23fefb59c07af45332d794700 \
-  --amd64-sha256=7adf40e8e5547970391cfbe474c3874c6918ce3575ac398f376c78502134e1c8a2fa3da9aca281fdaeda81671f56c851ebe9e74c5b57c5a298bd45deba63565d \
+  --version=10.0.114 \
+  --arm64-sha256=8eed6c8ab640f06c34f84841f9bdf040c75d9ba4926f823ce2cf56ce009c2a9c11f795332c559b960e4f46ce5777d39ab5a772274edc428601df9eb4df013684 \
+  --amd64-sha256=65d2ea31a31e2fc7e677aad7ac84a42f85dd8383cdd9060f75c469ac553a08fce18c1cb76db92ab0ae84505c72278fd55568f46d6595e6a121d2fd9f0bd024df \
   # Parts of the SDK nothing here runs: `dotnet format` (fantomas formats), `dotnet watch`
   # (scripts/dev/watch has its own watcher), and the .NET Framework test host, which is
   # Windows-only. Removed in the same layer, or they would still be pulled.
@@ -213,25 +213,25 @@ ENV NUGET_SCRATCH=/tmp/NuGetScratch
 # Zig,
 # for cross-compiling native libraries (e.g. SQLite) for the release CLIs.
 # TODO Occasionally, check https://ziglang.org/download to see if we're using the latest version
-# NOTE: `Dockerfile.build-base` pins 0.13.0 and says to keep these in step. They are not, so
-# release SQLite archives and local ones are built with different zig versions.
+# NOTE: release builds use 0.13.0 (scripts/build/install-release-toolchain), so release SQLite
+# archives and local ones are built with different zig versions.
+# The hashes are the ones https://ziglang.org/download/index.json lists.
 ENV ZIG_VERSION=0.11.0
-ENV ZIG_ARM64_MINISIG="RUSGOq2NVecA2XPwbgbN5SvU46UcCmhhfcfrjVC+YvcwUcjAYfIXQmqE//df1Mes7iyGZvGoy2+PSJ8pog7QGLE+3nvP8gtlSAs="
-ENV ZIG_AMD64_MINISIG="RUSGOq2NVecA2X2did6P61CXthPLZEUwi07GDWQ2MWU58W+asm3v85+PRVHN5SljhdsKoAMmbg4fdyseAcbVZayGaV1Iv6chcgE="
 #############
 RUN set -e; \
   case ${TARGETARCH} in \
   arm64) \
   ZIG_ARCH="aarch64"; \
+  ZIG_SHA256="956eb095d8ba44ac6ebd27f7c9956e47d92937c103bf754745d0a39cdaa5d4c6"; \
   ;; \
   amd64) \
   ZIG_ARCH="x86_64"; \
+  ZIG_SHA256="2d00e789fec4f71790a6e7bf83ff91d564943c5ee843c5fd966efc474b423047"; \
   ;; \
   *) exit 1;; \
   esac;  \
-  curl -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz"; \
-  # TODO: verify the download. Needs the .minisig fetched and minisign installed, not just the
-  # call; the values above are the published signatures.
+  curl -fsSL -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz"; \
+  echo "${ZIG_SHA256}  zig.tar.xz" | sha256sum -c -; \
   mkdir ~/zig; \
   # Not the bundled docs (46 MB): nothing builds from them.
   tar -xf zig.tar.xz -C ~/zig --strip-components=1 --exclude="zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/doc"; \
@@ -308,7 +308,24 @@ RUN /home/dark/.local/bin/pip install --no-cache-dir setuptools yq watchfiles ya
 ####################################
 # CircleCI
 ####################################
-RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
+# A release tarball checked against the sha256 in its release's checksums file, rather than
+# piping the project's install script from master into a root shell.
+ARG TARGETARCH
+ARG CIRCLECI_CLI_VERSION=1.11.0
+RUN set -e; \
+  case ${TARGETARCH} in \
+  arm64) SHA256="c1cc8db9d74fa6c892cc056acee816170bb5bf8c5418687f8c3ed0d353a1a839" ;; \
+  amd64) SHA256="70c3a935e0c2d71d42ba65f0005696eb17fd65fb625c678f45311b826d56de47" ;; \
+  *) exit 1 ;; \
+  esac; \
+  NAME="circleci-cli_${CIRCLECI_CLI_VERSION}_linux_${TARGETARCH}"; \
+  curl -fsSL -o /tmp/circleci.tar.gz \
+    "https://github.com/CircleCI-Public/circleci-cli/releases/download/v${CIRCLECI_CLI_VERSION}/${NAME}.tar.gz"; \
+  echo "${SHA256}  /tmp/circleci.tar.gz" | sha256sum -c -; \
+  mkdir /tmp/circleci; \
+  tar -xzf /tmp/circleci.tar.gz -C /tmp/circleci; \
+  sudo install -m 755 /tmp/circleci/circleci /usr/local/bin/circleci; \
+  rm -rf /tmp/circleci.tar.gz /tmp/circleci
 
 # profiling: scripts/perf/alloc-profile and scripts/perf/cpu-profile both drive this
 RUN dotnet tool install dotnet-trace --version 9.0.661903 -g

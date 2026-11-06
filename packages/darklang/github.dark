@@ -100,13 +100,28 @@ module Releases =
   ///
   /// `install.sh` matches `-<rid>.gz` for the same reason: `contains` lets `linux-arm` match the
   /// `linux-arm64` asset, so an armv7l machine is handed an arm64 binary.
+  let assetFor(
+    assets: List<Asset>,
+    platformId: String)
+    : Stdlib.Option.Option<Asset> =
+    assets
+    |> Stdlib.List.findFirst(fun a ->
+      Stdlib.String.endsWith(a.name, $"-{platformId}.gz"))
+
+
+  /// <fn assetFor>, as its download URL.
   let assetUrlFor(
     assets: List<Asset>,
     platformId: String)
     : Stdlib.Option.Option<String> =
+    assetFor(assets, platformId) |> Stdlib.Option.map(fun a -> a.browser_download_url)
+
+
+  /// The release's checksums file, `darklang-alpha-<build>-sha256sums.txt`: what `sha256sum`
+  /// printed for every binary in it.
+  let sumsUrlFor(assets: List<Asset>): Stdlib.Option.Option<String> =
     assets
-    |> Stdlib.List.findFirst(fun a ->
-      Stdlib.String.endsWith(a.name, $"-{platformId}.gz"))
+    |> Stdlib.List.findFirst(fun a -> Stdlib.String.endsWith(a.name, "-sha256sums.txt"))
     |> Stdlib.Option.map(fun a -> a.browser_download_url)
 
 
@@ -122,29 +137,39 @@ module Releases =
     | _, _ -> Stdlib.Result.Result.Error("Unsupported OS or Arch")
 
 
-  /// Get the appropriate URL to download the latest release of the `darklang` cli exe,
-  /// corresponding to the current OS and Architecture
+  /// One binary to download: its asset name, its URL, and the URL of the checksums file that
+  /// lists it.
+  type Download =
+    { name: String
+      url: String
+      sumsUrl: String }
+
+
+  /// The binary in release <param releaseTag> for this host's OS and architecture.
   ///
-  /// TODO typify the error type
-  let getDownloadUrl(
+  /// A release with no checksums file is an error, so nothing installs a download it can't check.
+  let getDownload(
     host: Stdlib.Cli.Host.Host,
     releaseTag: String)
-    : Stdlib.Result.Result<String, String> =
+    : Stdlib.Result.Result<Download, String> =
     match platformId(host) with
+    | Error(e) -> Stdlib.Result.Result.Error($"Couldn't determine host: {e}")
     | Ok(hostStr) ->
-      let fetched =
-        __fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}")
-
-      match fetched with
+      match __fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}") with
+      | Error(_e) -> Stdlib.Result.Result.Error("Couldn't fetch release from GitHub API")
       | Ok(releaseJsonString) ->
         match Stdlib.Json.parse<Release>(releaseJsonString) with
+        | Error(_e) -> Stdlib.Result.Result.Error("Couldn't parse release JSON string")
         | Ok(release) ->
-          match assetUrlFor(release.assets, hostStr) with
-          | Some(url) -> url |> Stdlib.Result.Result.Ok
-          | None ->
+          match assetFor(release.assets, hostStr), sumsUrlFor(release.assets) with
+          | None, _ ->
             Stdlib.Result.Result.Error($"No asset named `-{hostStr}.gz` in this release")
-        | Error(_e) ->
-          Stdlib.Result.Result.Error("Couldn't parse release JSON string")
-      | Error(_e) ->
-        Stdlib.Result.Result.Error("Couldn't fetch release from GitHub API")
-    | Error(e) -> Stdlib.Result.Result.Error($"Couldn't determine host: {e}")
+          | Some(_), None ->
+            Stdlib.Result.Result.Error(
+              $"Release {releaseTag} has no checksums file, so its download can't be checked")
+          | Some(asset), Some(sumsUrl) ->
+            Stdlib.Result.Result.Ok(
+              Download
+                { name = asset.name
+                  url = asset.browser_download_url
+                  sumsUrl = sumsUrl })

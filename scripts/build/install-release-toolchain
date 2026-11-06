@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# The .NET SDK and zig that release artifacts are built with, each checked against a hash
+# held here before it is unpacked.
+#
+#   scripts/build/install-release-toolchain <rid> <dotnet-dir> <zig-dir>
+#
+# <rid> is the machine's own: linux-x64 (Dockerfile.build-base), linux-musl-x64 (the musl
+# job) or osx-arm64 (the macOS job). zig's tarballs are static, so linux-x64's serves musl.
+#
+# The SDK is the version backend/global.json pins. To bump it, change both, with the sha512s
+# from https://builds.dotnet.microsoft.com/dotnet/release-metadata/<major>.0/releases.json.
+# zig's sha256s are in https://ziglang.org/download/index.json.
+
+set -euo pipefail
+
+cd "$( dirname "${BASH_SOURCE[0]}" )/../.."
+
+[[ $# -eq 3 ]] || { echo "usage: $0 <rid> <dotnet-dir> <zig-dir>" >&2; exit 2; }
+rid=$1 dotnet_dir=$2 zig_dir=$3
+
+dotnet_version=10.0.114
+zig_version=0.13.0
+
+case "$rid" in
+  linux-x64)
+    dotnet_sha512=65d2ea31a31e2fc7e677aad7ac84a42f85dd8383cdd9060f75c469ac553a08fce18c1cb76db92ab0ae84505c72278fd55568f46d6595e6a121d2fd9f0bd024df
+    zig_platform=linux-x86_64
+    zig_sha256=d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea ;;
+  linux-musl-x64)
+    dotnet_sha512=f0e381615c713067152834a347b378e157623c4aedb084605b89b623303925b0aca9ce1a68d4c1016ddfdbdd9694cc7b0925dbee849b6a84ef4fe74f4be457dd
+    zig_platform=linux-x86_64
+    zig_sha256=d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea ;;
+  osx-arm64)
+    dotnet_sha512=0f69e32e55107f5e823d38103e24da7fa4279eeda7b94851c88b16de02c0ad4cb2d9a8b8c5560709a0316d18ecc5c6183049acca77cddf5a3498f28d8806e563
+    zig_platform=macos-aarch64
+    zig_sha256=46fae219656545dfaf4dce12fb4e8685cec5b51d721beee9389ab4194d43394c ;;
+  *) echo "$0: no pinned toolchain for $rid" >&2; exit 2 ;;
+esac
+
+pinned=$(grep -oE '"version"[^"]*"[^"]+"' backend/global.json | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+[[ "$pinned" == "$dotnet_version" ]] \
+  || { echo "$0: backend/global.json pins .NET SDK $pinned, this installs $dotnet_version. Bump both." >&2; exit 1; }
+
+# fetch <url> <sha bits> <expected hash>: download to a temp file, check it, print its path.
+# shasum is macOS's; Linux and Alpine have sha256sum and sha512sum.
+fetch() {
+  local file actual
+  file=$(mktemp)
+  curl -fsSL --retry 3 -o "$file" "$1"
+  if command -v "sha$2sum" > /dev/null; then actual=$("sha$2sum" "$file"); else actual=$(shasum -a "$2" "$file"); fi
+  actual=${actual%% *}
+  [[ "$actual" == "$3" ]] || { echo "$0: $1 has sha$2 $actual, expected $3" >&2; exit 1; }
+  echo "$file"
+}
+
+sdk=$(fetch "https://builds.dotnet.microsoft.com/dotnet/Sdk/$dotnet_version/dotnet-sdk-$dotnet_version-$rid.tar.gz" 512 "$dotnet_sha512")
+mkdir -p "$dotnet_dir"
+tar -xzf "$sdk" -C "$dotnet_dir"
+rm "$sdk"
+
+zig=$(fetch "https://ziglang.org/download/$zig_version/zig-$zig_platform-$zig_version.tar.xz" 256 "$zig_sha256")
+mkdir -p "$zig_dir"
+# Not the bundled docs: nothing builds from them.
+tar -xJf "$zig" -C "$zig_dir" --strip-components=1 --exclude="zig-$zig_platform-$zig_version/doc"
+rm "$zig"
+
+echo "Installed .NET SDK $dotnet_version in $dotnet_dir and zig $zig_version in $zig_dir"

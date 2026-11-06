@@ -428,25 +428,22 @@ class TestReleaseImage(unittest.TestCase):
     here = os.path.abspath(__file__)
     return os.path.dirname(os.path.dirname(os.path.dirname(here)))
 
-  def test_release_dockerfile_sdk_matches_global_json(self):
+  def test_release_toolchain_sdk_matches_global_json(self):
     root = self._repo_root()
-    dockerfile = os.path.join(root, "Dockerfile.build-base")
+    script = os.path.join(root, "scripts", "build", "install-release-toolchain")
     globaljson = os.path.join(root, "backend", "global.json")
-    if not os.path.exists(dockerfile):
-      self.skipTest("no Dockerfile.build-base")
 
     with open(globaljson) as f:
       pinned = json.load(f)["sdk"]["version"]
 
-    with open(dockerfile) as f:
+    with open(script) as f:
       contents = f.read()
-    match = re.search(r"ARG DOTNET_SDK_VERSION=([0-9][^\s]*)", contents)
+    match = re.search(r"^dotnet_version=([0-9][^\s]*)", contents, re.MULTILINE)
     self.assertIsNotNone(
-      match, "Dockerfile.build-base should pin the SDK via ARG DOTNET_SDK_VERSION")
+      match, "install-release-toolchain should pin the SDK via dotnet_version=")
     self.assertEqual(
       match.group(1), pinned,
-      "Dockerfile.build-base SDK version must match backend/global.json")
-
+      "install-release-toolchain SDK version must match backend/global.json")
 
 if __name__ == "__main__":
   unittest.main(verbosity=2)

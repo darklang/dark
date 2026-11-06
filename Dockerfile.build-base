@@ -42,20 +42,14 @@ RUN sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list \
   && apt-get install -y --no-install-recommends libssl1.1:arm64 libicu66:arm64 \
   && rm -rf /var/lib/apt/lists/*
 
-# Pinned to match backend/global.json, which sets rollForward: disable.
-# Anything else and dotnet refuses to run. Bump both together.
-ARG DOTNET_SDK_VERSION=10.0.102
-RUN curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
-  && bash /tmp/dotnet-install.sh --version "${DOTNET_SDK_VERSION}" --install-dir /usr/share/dotnet \
+# The .NET SDK backend/global.json pins (it sets rollForward: disable, so dotnet refuses to
+# run under any other), and zig, which builds the SQLite static archives. Both checked
+# against hashes held in the script.
+COPY backend/global.json /tmp/toolchain/backend/
+COPY scripts/build/install-release-toolchain /tmp/toolchain/scripts/build/
+RUN /tmp/toolchain/scripts/build/install-release-toolchain linux-x64 /usr/share/dotnet /root/zig \
   && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
-  && rm /tmp/dotnet-install.sh
-
-# zig builds the SQLite static archives. Keep in step with the dev container.
-ARG ZIG_VERSION=0.13.0
-RUN curl -sSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz \
-  && mkdir -p /root/zig \
-  && tar -xf /tmp/zig.tar.xz -C /root/zig --strip-components=1 \
-  && rm /tmp/zig.tar.xz
+  && rm -rf /tmp/toolchain
 ENV PATH="/root/zig:${PATH}"
 
 # Stops the build scripts re-entering a container; CI is already in this image.
