@@ -58,34 +58,34 @@ test truncate =
       Stdlib.Float.truncate(0.0) |> Stdlib.Test.equal(0)
       Stdlib.Float.truncate(2147483647.000009) |> Stdlib.Test.equal(2147483647) ])
 
-// NaN / Infinity have no Int representation -> Dark error, not a host crash
+// NaN / Infinity have no Int64 representation -> Dark error, not a host crash
 test ceilingRejectsNan =
   Stdlib.Float.ceiling(nan())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test roundUpRejectsInfinity =
   Stdlib.Float.roundUp(infinity())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test floorRejectsNegativeInfinity =
   Stdlib.Float.floor(negativeInfinity())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test roundDownRejectsNan =
   Stdlib.Float.roundDown(nan())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test roundRejectsInfinity =
   Stdlib.Float.round(infinity())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test truncateRejectsNan =
   Stdlib.Float.truncate(nan())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test roundTowardsZeroRejectsNegativeInfinity =
   Stdlib.Float.roundTowardsZero(negativeInfinity())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test isFinite =
   Stdlib.Test.all(
@@ -301,40 +301,40 @@ test toStringRoundTrips =
       |> Stdlib.Result.map(fun f -> Stdlib.toString(f))
       |> Stdlib.Test.equal(Ok("5e-324")) ])
 
-// toInt truncates toward zero.
-test toInt =
+// toInt64 truncates toward zero.
+test toInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Float.toInt(3.0) |> Stdlib.Test.equal(3)
-      Stdlib.Float.toInt(0.0) |> Stdlib.Test.equal(0)
-      Stdlib.Float.toInt(-0.0) |> Stdlib.Test.equal(0)
-      Stdlib.Float.toInt(1.5) |> Stdlib.Test.equal(1)
-      Stdlib.Float.toInt(1.9) |> Stdlib.Test.equal(1)
-      Stdlib.Float.toInt(-1.9) |> Stdlib.Test.equal(-1)
-      Stdlib.Float.toInt(-3.0) |> Stdlib.Test.equal(-3)
-      Stdlib.Float.toInt(0.1) |> Stdlib.Test.equal(0)
-      Stdlib.Float.toInt(2147483648.7) |> Stdlib.Test.equal(2147483648)
-      Stdlib.Float.toInt(2.5)
+    [ Stdlib.Float.toInt64(3.0) |> Stdlib.Test.equal(3)
+      Stdlib.Float.toInt64(0.0) |> Stdlib.Test.equal(0)
+      Stdlib.Float.toInt64(-0.0) |> Stdlib.Test.equal(0)
+      Stdlib.Float.toInt64(1.5) |> Stdlib.Test.equal(1)
+      Stdlib.Float.toInt64(1.9) |> Stdlib.Test.equal(1)
+      Stdlib.Float.toInt64(-1.9) |> Stdlib.Test.equal(-1)
+      Stdlib.Float.toInt64(-3.0) |> Stdlib.Test.equal(-3)
+      Stdlib.Float.toInt64(0.1) |> Stdlib.Test.equal(0)
+      Stdlib.Float.toInt64(2147483648.7) |> Stdlib.Test.equal(2147483648)
+      Stdlib.Float.toInt64(2.5)
       |> Stdlib.Test.equal(Stdlib.Float.roundTowardsZero(2.5))
-      Stdlib.Float.toInt(-2.5)
+      Stdlib.Float.toInt64(-2.5)
       |> Stdlib.Test.equal(Stdlib.Float.roundTowardsZero(-2.5)) ])
 
-// NaN and infinities cannot become Ints.
-test toIntRejectsNan =
-  Stdlib.Float.toInt(nan())
-  => raises "Encountered out-of-range value for type of Int"
+// NaN and infinities cannot become Int64s.
+test toInt64RejectsNan =
+  Stdlib.Float.toInt64(nan())
+  => raises "Encountered an out-of-range integer value"
 
-test toIntRejectsInfinity =
-  Stdlib.Float.toInt(infinity())
-  => raises "Encountered out-of-range value for type of Int"
+test toInt64RejectsInfinity =
+  Stdlib.Float.toInt64(infinity())
+  => raises "Encountered an out-of-range integer value"
 
-test toIntRejectsNegativeInfinity =
-  Stdlib.Float.toInt(negativeInfinity())
-  => raises "Encountered out-of-range value for type of Int"
+test toInt64RejectsNegativeInfinity =
+  Stdlib.Float.toInt64(negativeInfinity())
+  => raises "Encountered an out-of-range integer value"
 
 // Truncation and floor differ for negative values.
-test toIntTruncatesWhereFloorRoundsDown =
+test toInt64TruncatesWhereFloorRoundsDown =
   Stdlib.Test.all(
-    [ Stdlib.Float.toInt(-1.5) |> Stdlib.Test.equal(-1)
+    [ Stdlib.Float.toInt64(-1.5) |> Stdlib.Test.equal(-1)
       Stdlib.Float.floor(-1.5) |> Stdlib.Test.equal(-2) ])
 
 // IEEE 754 binary64 representations.
@@ -386,4 +386,4 @@ test roundAliasesMatch =
 
 test roundTowardsZeroRejectsNan =
   Stdlib.Float.roundTowardsZero(nan())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"

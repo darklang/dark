@@ -1,0 +1,191 @@
+module Darklang.Stdlib.BigInt
+
+// `BigInt` is the arbitrary-precision integer, written with a `z` suffix: `1z` (`z`
+// for ℤ, the integers). A bare `1` is an Int64. The operators (`+`, `-`, `<`,
+// ...) work on it; this module provides the same operations as named functions,
+// plus parse/stringify and conversions to/from the fixed-width integer types.
+
+type ParseError = | BadFormat
+
+
+impl Modulo for BigInt =
+  /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  /// The modulus <param b> must be greater than 0.
+  /// Use <fn BigInt.remainder> if you want the remainder after division, which has
+  /// a different behavior for negative numbers.
+  let modulo(a: BigInt, b: BigInt): BigInt = Builtin.bigIntMod(a, b)
+
+
+/// Returns the integer remainder left over after dividing <param value> by
+/// <param divisor>, as a <type Result>.
+/// For example, {{BigInt.remainder(15z, 6z) == Ok(3z)}}. The remainder will be
+/// negative only if {{<var value> < 0}}.
+/// The sign of <param divisor> doesn't influence the outcome.
+/// Returns an {{Error}} if <param divisor> is {{0}}.
+let remainder(value: BigInt, divisor: BigInt): Stdlib.Result.Result<BigInt, String> =
+  Builtin.bigIntRemainder(value, divisor)
+
+
+impl Add for BigInt =
+  /// Adds two integers together
+  let add(a: BigInt, b: BigInt): BigInt = Builtin.bigIntAdd(a, b)
+
+
+impl Subtract for BigInt =
+  /// Subtracts two integers
+  let subtract(a: BigInt, b: BigInt): BigInt = Builtin.bigIntSubtract(a, b)
+
+
+impl Multiply for BigInt =
+  /// Multiplies two integers
+  let multiply(a: BigInt, b: BigInt): BigInt = Builtin.bigIntMultiply(a, b)
+
+
+impl Divide for BigInt =
+  /// Divides two integers, rounding towards zero
+  let divide(a: BigInt, b: BigInt): BigInt = Builtin.bigIntDivide(a, b)
+
+
+impl Power for BigInt =
+  /// Raise <param base> to the power of <param exponent>.
+  /// Raises an error if <param exponent> is negative.
+  let power(``base``: BigInt, exponent: BigInt): BigInt =
+    Builtin.bigIntPower(``base``, exponent)
+
+
+impl Negate for BigInt =
+  /// Returns the negation of <param a>, {{-a}}
+  let negate(a: BigInt): BigInt = Builtin.bigIntNegate(a)
+
+
+impl Compare for BigInt =
+  /// Returns {{true}} if <param a> is less than <param b>
+  let lessThan(a: BigInt, b: BigInt): Bool = Builtin.bigIntLessThan(a, b)
+  /// Returns {{true}} if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo(a: BigInt, b: BigInt): Bool = Builtin.bigIntLessThanOrEqualTo(a, b)
+  /// Returns {{true}} if <param a> is greater than <param b>
+  let greaterThan(a: BigInt, b: BigInt): Bool = Builtin.bigIntGreaterThan(a, b)
+  /// Returns {{true}} if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo(a: BigInt, b: BigInt): Bool =
+    Builtin.bigIntGreaterThanOrEqualTo(a, b)
+
+
+/// Get the square root of a <type BigInt>
+let sqrt(a: BigInt): Float = Builtin.bigIntSqrt(a)
+
+
+/// Converts a <type BigInt> to a <type Float>
+let toFloat(a: BigInt): Float = Builtin.bigIntToFloat(a)
+
+
+/// Converts a <type Float> to a <type BigInt>, truncating toward zero.
+let fromFloat(a: Float): BigInt = Builtin.bigIntFromFloat(a)
+
+
+/// Returns the <type BigInt> value of a <type String>. Because <type BigInt> is
+/// arbitrary-precision, the only failure is a badly-formatted string.
+let parse(s: String): Stdlib.Result.Result<BigInt, ParseError> =
+  Builtin.bigIntParse(s)
+
+
+// Conversions from the fixed-width integer types into `BigInt` (always succeed).
+
+/// Converts an <type Int8> to an arbitrary-precision <type BigInt>
+let fromInt8(a: Int8): BigInt = Builtin.bigIntFromInt8(a)
+
+/// Converts a <type UInt8> to an arbitrary-precision <type BigInt>
+let fromUInt8(a: UInt8): BigInt = Builtin.bigIntFromUInt8(a)
+
+/// Converts an <type Int16> to an arbitrary-precision <type BigInt>
+let fromInt16(a: Int16): BigInt = Builtin.bigIntFromInt16(a)
+
+/// Converts a <type UInt16> to an arbitrary-precision <type BigInt>
+let fromUInt16(a: UInt16): BigInt = Builtin.bigIntFromUInt16(a)
+
+/// Converts an <type Int32> to an arbitrary-precision <type BigInt>
+let fromInt32(a: Int32): BigInt = Builtin.bigIntFromInt32(a)
+
+/// Converts a <type UInt32> to an arbitrary-precision <type BigInt>
+let fromUInt32(a: UInt32): BigInt = Builtin.bigIntFromUInt32(a)
+
+/// Converts an <type Int64> to an arbitrary-precision <type BigInt>
+let fromInt64(a: Int64): BigInt = Builtin.bigIntFromInt64(a)
+
+/// Converts a <type UInt64> to an arbitrary-precision <type BigInt>
+let fromUInt64(a: UInt64): BigInt = Builtin.bigIntFromUInt64(a)
+
+/// Converts an <type Int128> to an arbitrary-precision <type BigInt>
+let fromInt128(a: Int128): BigInt = Builtin.bigIntFromInt128(a)
+
+/// Converts a <type UInt128> to an arbitrary-precision <type BigInt>
+let fromUInt128(a: UInt128): BigInt = Builtin.bigIntFromUInt128(a)
+
+
+// Conversions from `BigInt` into the fixed-width integer types, returning {{None}}
+// if the value doesn't fit the target range.
+
+/// Converts a <type BigInt> to an <type Int8>, returning {{None}} if it doesn't fit
+let toInt8(a: BigInt): Stdlib.Option.Option<Int8> = Builtin.bigIntToInt8(a)
+
+/// Converts a <type BigInt> to a <type UInt8>, returning {{None}} if it doesn't fit
+let toUInt8(a: BigInt): Stdlib.Option.Option<UInt8> = Builtin.bigIntToUInt8(a)
+
+/// Converts a <type BigInt> to an <type Int16>, returning {{None}} if it doesn't fit
+let toInt16(a: BigInt): Stdlib.Option.Option<Int16> = Builtin.bigIntToInt16(a)
+
+/// Converts a <type BigInt> to a <type UInt16>, returning {{None}} if it doesn't fit
+let toUInt16(a: BigInt): Stdlib.Option.Option<UInt16> = Builtin.bigIntToUInt16(a)
+
+/// Converts a <type BigInt> to an <type Int32>, returning {{None}} if it doesn't fit
+let toInt32(a: BigInt): Stdlib.Option.Option<Int32> = Builtin.bigIntToInt32(a)
+
+/// Converts a <type BigInt> to a <type UInt32>, returning {{None}} if it doesn't fit
+let toUInt32(a: BigInt): Stdlib.Option.Option<UInt32> = Builtin.bigIntToUInt32(a)
+
+/// Converts a <type BigInt> to an <type Int64>, returning {{None}} if it doesn't
+/// fit the 64-bit range
+let toInt64(a: BigInt): Stdlib.Option.Option<Int64> = Builtin.bigIntToInt64(a)
+
+/// Converts a <type BigInt> to a <type UInt64>, returning {{None}} if it doesn't fit
+let toUInt64(a: BigInt): Stdlib.Option.Option<UInt64> = Builtin.bigIntToUInt64(a)
+
+/// Converts a <type BigInt> to an <type Int128>, returning {{None}} if it doesn't fit
+let toInt128(a: BigInt): Stdlib.Option.Option<Int128> = Builtin.bigIntToInt128(a)
+
+/// Converts a <type BigInt> to a <type UInt128>, returning {{None}} if it doesn't fit
+let toUInt128(a: BigInt): Stdlib.Option.Option<UInt128> = Builtin.bigIntToUInt128(a)
+
+
+impl BitwiseAnd for BigInt =
+  let bitwiseAnd(a: BigInt, b: BigInt): BigInt = Builtin.bigIntBitwiseAnd(a, b)
+
+impl BitwiseOr for BigInt =
+  let bitwiseOr(a: BigInt, b: BigInt): BigInt = Builtin.bigIntBitwiseOr(a, b)
+
+impl BitwiseXor for BigInt =
+  let bitwiseXor(a: BigInt, b: BigInt): BigInt = Builtin.bigIntBitwiseXor(a, b)
+
+impl BitwiseNot for BigInt =
+  let bitwiseNot(a: BigInt): BigInt = Builtin.bigIntBitwiseNot(a)
+
+impl ShiftLeft for BigInt =
+  let shiftLeft(a: BigInt, b: BigInt): BigInt = Builtin.bigIntShiftLeft(a, b)
+
+impl ShiftRight for BigInt =
+  let shiftRight(a: BigInt, b: BigInt): BigInt = Builtin.bigIntShiftRight(a, b)
+
+
+/// Returns a random integer between <param start> and <param end> (inclusive)
+let random(start: BigInt, ``end``: BigInt): BigInt =
+  Builtin.bigIntRandom(start, ``end``)
+
+impl ToString for BigInt =
+  /// Stringify <param int>
+  let toString(int: BigInt): String = Builtin.bigIntToString(int)
+
+impl Zero for BigInt =
+  let zero(): BigInt = 0z
+
+impl One for BigInt =
+  let one(): BigInt = 1z
+

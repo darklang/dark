@@ -116,9 +116,9 @@ test truncate =
 
 test conversions =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.toInt(-2.9dec) |> Stdlib.Test.equal(-2z)
-      Stdlib.Decimal.toInt(19.99dec) |> Stdlib.Test.equal(19z)
-      Stdlib.Decimal.fromInt(42z) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(42dec))
+    [ Stdlib.Decimal.toBigInt(-2.9dec) |> Stdlib.Test.equal(-2z)
+      Stdlib.Decimal.toBigInt(19.99dec) |> Stdlib.Test.equal(19z)
+      Stdlib.Decimal.fromBigInt(42z) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(42dec))
       Stdlib.Decimal.toFloat(0.5dec) |> Stdlib.Test.equal(0.5)
       Stdlib.Decimal.fromFloat(0.1) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.1dec))
       Stdlib.Decimal.fromFloat(0.0 / 0.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
@@ -259,7 +259,7 @@ test int64Conversions =
       Stdlib.Decimal.toInt64(9223372036854775807.9dec)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9223372036854775807))
       Stdlib.Decimal.toInt64(9223372036854775808dec) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-      Stdlib.Decimal.fromInt(79228162514264337593543950336z) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.Decimal.fromBigInt(79228162514264337593543950336z) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test float32Conversions =
   Stdlib.Test.all(

@@ -1,8 +1,8 @@
-module Darklang.Stdlib.Int.Tests
+module Darklang.Stdlib.BigInt.Tests
 
-// Arbitrary-precision `Int` — the small/big representation split.
+// Arbitrary-precision `BigInt` — the small/big representation split.
 //
-// `Int` is stored as a small (Int64-backed) value when it fits, and only
+// `BigInt` is stored as a small (Int64-backed) value when it fits, and only
 // promotes to a big representation on overflow. Values are NORMALIZED: any
 // result that fits Int64 always uses the small representation. These tests
 // exercise the boundary, promotion, demotion, normalization, and finite/infinite
@@ -61,85 +61,85 @@ test toStringAndParse =
       |> Stdlib.Test.equal("-9223372036854775809")
       Stdlib.toString(9223372036854775808z)
       |> Stdlib.Test.equal("9223372036854775808")
-      Stdlib.Int.parse("9223372036854775808")
+      Stdlib.BigInt.parse("9223372036854775808")
       |> Stdlib.Test.equal(Ok(9223372036854775808z))
-      Stdlib.Int.parse("5") |> Stdlib.Test.equal(Ok(5z))
-      Stdlib.Int.parse("not a number")
-      |> Stdlib.Test.equal(Error(Stdlib.Int.ParseError.BadFormat))
-      Stdlib.Int.parse("")
-      |> Stdlib.Test.equal(Error(Stdlib.Int.ParseError.BadFormat))
-      Stdlib.Int.parse("5.0")
-      |> Stdlib.Test.equal(Error(Stdlib.Int.ParseError.BadFormat))
-      Stdlib.Int.parse("5_000")
-      |> Stdlib.Test.equal(Error(Stdlib.Int.ParseError.BadFormat))
+      Stdlib.BigInt.parse("5") |> Stdlib.Test.equal(Ok(5z))
+      Stdlib.BigInt.parse("not a number")
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
+      Stdlib.BigInt.parse("")
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
+      Stdlib.BigInt.parse("5.0")
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
+      Stdlib.BigInt.parse("5_000")
+      |> Stdlib.Test.equal(Error(Stdlib.BigInt.ParseError.BadFormat))
       // arbitrary precision: a value past Int64.MinValue still parses
-      Stdlib.Int.parse("-9223372036854775809")
+      Stdlib.BigInt.parse("-9223372036854775809")
       |> Stdlib.Test.equal(Ok(-9223372036854775809z)) ])
 
-// toInt64 relies on the invariant: a small Int always fits, a big Int never does
+// toInt64 relies on the invariant: a small BigInt always fits, a big BigInt never does
 test int64Conversions =
   Stdlib.Test.all(
-    [ Stdlib.Int.fromInt64(5) |> Stdlib.Test.equal(5z)
-      Stdlib.Int.toInt64(5z) |> Stdlib.Test.equal(Some(5))
-      Stdlib.Int.toInt64(9223372036854775808z) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.BigInt.fromInt64(5) |> Stdlib.Test.equal(5z)
+      Stdlib.BigInt.toInt64(5z) |> Stdlib.Test.equal(Some(5))
+      Stdlib.BigInt.toInt64(9223372036854775808z) |> Stdlib.Test.equal(None) ])
 
 // --- conversions from the fixed-width types (always succeed) ---
 test fromFixedWidth =
   Stdlib.Test.all(
-    [ Stdlib.Int.fromInt8(127s8) |> Stdlib.Test.equal(127z)
-      Stdlib.Int.fromUInt8(255u8) |> Stdlib.Test.equal(255z)
-      Stdlib.Int.fromInt16(32767s16) |> Stdlib.Test.equal(32767z)
-      Stdlib.Int.fromUInt32(4294967295u32) |> Stdlib.Test.equal(4294967295z)
+    [ Stdlib.BigInt.fromInt8(127s8) |> Stdlib.Test.equal(127z)
+      Stdlib.BigInt.fromUInt8(255u8) |> Stdlib.Test.equal(255z)
+      Stdlib.BigInt.fromInt16(32767s16) |> Stdlib.Test.equal(32767z)
+      Stdlib.BigInt.fromUInt32(4294967295u32) |> Stdlib.Test.equal(4294967295z)
       // values past Int64 still convert exactly
-      Stdlib.Int.fromUInt64(18446744073709551615u64)
+      Stdlib.BigInt.fromUInt64(18446744073709551615u64)
       |> Stdlib.Test.equal(18446744073709551615z)
-      Stdlib.Int.fromUInt128(340282366920938463463374607431768211455u128)
+      Stdlib.BigInt.fromUInt128(340282366920938463463374607431768211455u128)
       |> Stdlib.Test.equal(340282366920938463463374607431768211455z) ])
 
 // --- conversions into the fixed-width types (Some if it fits, else None) ---
 test toFixedWidth =
   Stdlib.Test.all(
-    [ Stdlib.Int.toInt8(100z) |> Stdlib.Test.equal(Some(100s8))
-      Stdlib.Int.toInt8(200z) |> Stdlib.Test.equal(None)
-      Stdlib.Int.toUInt8(-1z) |> Stdlib.Test.equal(None)
-      Stdlib.Int.toInt32(2z ** 40z) |> Stdlib.Test.equal(None)
-      Stdlib.Int.toInt128(2z ** 100z)
+    [ Stdlib.BigInt.toInt8(100z) |> Stdlib.Test.equal(Some(100s8))
+      Stdlib.BigInt.toInt8(200z) |> Stdlib.Test.equal(None)
+      Stdlib.BigInt.toUInt8(-1z) |> Stdlib.Test.equal(None)
+      Stdlib.BigInt.toInt32(2z ** 40z) |> Stdlib.Test.equal(None)
+      Stdlib.BigInt.toInt128(2z ** 100z)
       |> Stdlib.Test.equal(Some(1267650600228229401496703205376s128))
-      Stdlib.Int.toInt128(2z ** 200z) |> Stdlib.Test.equal(None)
-      Stdlib.Int.toUInt128(2z ** 200z) |> Stdlib.Test.equal(None) ])
+      Stdlib.BigInt.toInt128(2z ** 200z) |> Stdlib.Test.equal(None)
+      Stdlib.BigInt.toUInt128(2z ** 200z) |> Stdlib.Test.equal(None) ])
 
-// --- fromFloat: truncates toward zero; NaN/Infinity have no Int, so OutOfRange ---
+// --- fromFloat: truncates toward zero; NaN/Infinity have no BigInt, so OutOfRange ---
 test fromFloatTruncatesTowardZero =
   Stdlib.Test.all(
-    [ Stdlib.Int.fromFloat(3.9) |> Stdlib.Test.equal(3z)
-      Stdlib.Int.fromFloat(-3.9) |> Stdlib.Test.equal(-3z) ])
+    [ Stdlib.BigInt.fromFloat(3.9) |> Stdlib.Test.equal(3z)
+      Stdlib.BigInt.fromFloat(-3.9) |> Stdlib.Test.equal(-3z) ])
 
-// NaN and the infinities have no Int, so they are out of range.
+// NaN and the infinities have no BigInt, so they are out of range.
 
 test fromFloatRejectsNaN =
-  Stdlib.Int.fromFloat(0.0 / 0.0)
-  => raises "Encountered out-of-range value for type of Int"
+  Stdlib.BigInt.fromFloat(0.0 / 0.0)
+  => raises "Encountered an out-of-range integer value"
 
 test fromFloatRejectsInfinity =
-  Stdlib.Int.fromFloat(1.0 / 0.0)
-  => raises "Encountered out-of-range value for type of Int"
+  Stdlib.BigInt.fromFloat(1.0 / 0.0)
+  => raises "Encountered an out-of-range integer value"
 
 test fromFloatRejectsNegativeInfinity =
-  Stdlib.Int.fromFloat(-1.0 / 0.0)
-  => raises "Encountered out-of-range value for type of Int"
+  Stdlib.BigInt.fromFloat(-1.0 / 0.0)
+  => raises "Encountered an out-of-range integer value"
 
-// --- remainder: Result<Int>; sign follows the dividend; Error only if divisor
+// --- remainder: Result<BigInt>; sign follows the dividend; Error only if divisor
 // is 0 ---
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int.remainder(15z, 6z) |> Stdlib.Test.equal(Ok(3z))
-      Stdlib.Int.remainder(20z, 8z) |> Stdlib.Test.equal(Ok(4z))
-      Stdlib.Int.remainder(-20z, 8z) |> Stdlib.Test.equal(Ok(-4z))
-      Stdlib.Int.remainder(-20z, -8z) |> Stdlib.Test.equal(Ok(-4z))
-      Stdlib.Int.remainder(-15z, 6z) |> Stdlib.Test.equal(Ok(-3z))
-      Stdlib.Int.remainder(5z, 0z) |> Stdlib.Test.equal(Error("Cannot divide by 0"))
+    [ Stdlib.BigInt.remainder(15z, 6z) |> Stdlib.Test.equal(Ok(3z))
+      Stdlib.BigInt.remainder(20z, 8z) |> Stdlib.Test.equal(Ok(4z))
+      Stdlib.BigInt.remainder(-20z, 8z) |> Stdlib.Test.equal(Ok(-4z))
+      Stdlib.BigInt.remainder(-20z, -8z) |> Stdlib.Test.equal(Ok(-4z))
+      Stdlib.BigInt.remainder(-15z, 6z) |> Stdlib.Test.equal(Ok(-3z))
+      Stdlib.BigInt.remainder(5z, 0z) |> Stdlib.Test.equal(Error("Cannot divide by 0"))
       // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
-      Stdlib.Int.remainder(2z ** 100z, 7z) |> Stdlib.Test.equal(Ok(2z)) ])
+      Stdlib.BigInt.remainder(2z ** 100z, 7z) |> Stdlib.Test.equal(Ok(2z)) ])
 
 // The % operator dispatches to mod, which wraps into [0, b) and rejects b <= 0.
 test modulo =
@@ -168,18 +168,18 @@ test shifts =
 
 test shiftLeftRejectsHugeCount =
   (1z << (2z ** 40z))
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test shiftRightRejectsHugeCount =
   (1z >> (2z ** 40z))
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 // --- random ---
 /// Every result lands inside the bounds, whichever order they are given in,
 /// and every value in a small range is reached.
 test randomSmallRange =
   (Stdlib.List.range(1, 100)
-   |> Stdlib.List.map(fun _ -> Stdlib.Int.random(2z, 0z))
+   |> Stdlib.List.map(fun _ -> Stdlib.BigInt.random(2z, 0z))
    |> Stdlib.List.unique
    |> Stdlib.List.sort)
   |> Stdlib.Test.equal([ 0z, 1z, 2z ])
@@ -188,21 +188,21 @@ test randomSmallRange =
 /// whose draws leave the range or all come out the same.
 test randomFullRangeEveryWidth =
   [ ("Int8", -128z, 127z, fun _ ->
-      Stdlib.Int.fromInt8(Stdlib.Int8.random(-128s8, 127s8)))
-    ("UInt8", 0z, 255z, fun _ -> Stdlib.Int.fromUInt8(Stdlib.UInt8.random(0u8, 255u8)))
+      Stdlib.BigInt.fromInt8(Stdlib.Int8.random(-128s8, 127s8)))
+    ("UInt8", 0z, 255z, fun _ -> Stdlib.BigInt.fromUInt8(Stdlib.UInt8.random(0u8, 255u8)))
     ("Int16", -32768z, 32767z, fun _ ->
-      Stdlib.Int.fromInt16(Stdlib.Int16.random(-32768s16, 32767s16)))
+      Stdlib.BigInt.fromInt16(Stdlib.Int16.random(-32768s16, 32767s16)))
     ("UInt16", 0z, 65535z, fun _ ->
-      Stdlib.Int.fromUInt16(Stdlib.UInt16.random(0u16, 65535u16)))
+      Stdlib.BigInt.fromUInt16(Stdlib.UInt16.random(0u16, 65535u16)))
     ("Int32", -2147483648z, 2147483647z, fun _ ->
-      Stdlib.Int.fromInt32(Stdlib.Int32.random(-2147483648s32, 2147483647s32)))
+      Stdlib.BigInt.fromInt32(Stdlib.Int32.random(-2147483648s32, 2147483647s32)))
     ("UInt32", 0z, 4294967295z, fun _ ->
-      Stdlib.Int.fromUInt32(Stdlib.UInt32.random(0u32, 4294967295u32)))
+      Stdlib.BigInt.fromUInt32(Stdlib.UInt32.random(0u32, 4294967295u32)))
     ("Int64", -9223372036854775808z, 9223372036854775807z, fun _ ->
       Stdlib.Int64.random(-9223372036854775808, 9223372036854775807)
-      |> Stdlib.Int.fromInt64)
+      |> Stdlib.BigInt.fromInt64)
     ("UInt64", 0z, 18446744073709551615z, fun _ ->
-      Stdlib.UInt64.random(0u64, 18446744073709551615u64) |> Stdlib.Int.fromUInt64) ]
+      Stdlib.UInt64.random(0u64, 18446744073709551615u64) |> Stdlib.BigInt.fromUInt64) ]
   |> Stdlib.List.filter(fun((_, lo, hi, draw)) ->
     let draws = Stdlib.List.range(1, 20) |> Stdlib.List.map(fun _ -> draw())
     let inRange = Stdlib.List.all(draws, fun x -> (x >= lo) && (x <= hi))

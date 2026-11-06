@@ -53,7 +53,7 @@ let fromRuntimeType(
   | TUInt64 -> LanguageTools.ProgramTypes.TypeReference.TUInt64
   | TInt128 -> LanguageTools.ProgramTypes.TypeReference.TInt128
   | TUInt128 -> LanguageTools.ProgramTypes.TypeReference.TUInt128
-  | TInt -> LanguageTools.ProgramTypes.TypeReference.TInt
+  | TBigInt -> LanguageTools.ProgramTypes.TypeReference.TBigInt
   | TFloat -> LanguageTools.ProgramTypes.TypeReference.TFloat
   | TFloat32 -> LanguageTools.ProgramTypes.TypeReference.TFloat32
   | TDecimal -> LanguageTools.ProgramTypes.TypeReference.TDecimal

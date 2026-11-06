@@ -1576,7 +1576,7 @@ let executeInspect(
     // identity was a uuid and an input line. Every recorded trace writes this index, so it
     // costs a read rather than a replay.
     //
-    // The standard library is left out: a trace goes through `List.map` and `Int.toString` on
+    // The standard library is left out: a trace goes through `List.map` and `Int64.toString` on
     // the way to anything, and listing them buries the two or three functions someone wrote.
     let went =
       (Darklang.Tracing.Store.fnsOf(run.id))

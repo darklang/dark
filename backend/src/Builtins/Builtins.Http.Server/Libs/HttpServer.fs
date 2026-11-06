@@ -851,11 +851,11 @@ let private serve
     // reject every request (treated as over-limit), so reject it. 0 is
     // valid (allow no body).
     if maxBodyBytes < 0L then
-      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
     // A TCP port must be in [0, 65535]. Anything else would reach
     // HttpListener.Start and throw a host exception, so check it up front.
     if port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort then
-      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
 
     // These ambient effects are performed on behalf of the child
     // guest state, so check its access (already narrowed by the

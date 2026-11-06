@@ -59,8 +59,8 @@ impl Compare for UInt64 =
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random(start: UInt64, ``end``: UInt64): UInt64 =
-  Stdlib.Int.random(Stdlib.Int.fromUInt64(start), Stdlib.Int.fromUInt64(``end``))
-  |> Stdlib.Int.toUInt64
+  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt64(start), Stdlib.BigInt.fromUInt64(``end``))
+  |> Stdlib.BigInt.toUInt64
   |> Builtin.unwrap
 
 
@@ -72,11 +72,11 @@ let sqrt(a: UInt64): Float = Builtin.uint64Sqrt(a)
 let toFloat(a: UInt64): Float = Builtin.uint64ToFloat(a)
 
 /// Converts a <type Float> to an <type UInt64>, truncating toward zero like
-/// <fn Int.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
+/// <fn BigInt.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
 let fromFloat(a: Float): Stdlib.Option.Option<UInt64> =
   if Float.isFinite(a) then
-    a |> Stdlib.Int.fromFloat |> Stdlib.Int.toUInt64
+    a |> Stdlib.BigInt.fromFloat |> Stdlib.BigInt.toUInt64
   else
     Stdlib.Option.Option.None
 
@@ -87,7 +87,7 @@ let fromFloat(a: Float): Stdlib.Option.Option<UInt64> =
 let fromFloatRounded(a: Float): Stdlib.Option.Option<UInt64> =
   if Float.isFinite(a) && a >= 9223372036854775808.0 then
     // every Float from 2^63 up is a whole number, so there is nothing to round
-    a |> Stdlib.Int.fromFloat |> Stdlib.Int.toUInt64
+    a |> Stdlib.BigInt.fromFloat |> Stdlib.BigInt.toUInt64
   else if a >= -1.0 && a < 9223372036854775808.0 then
     a |> Float.round |> Stdlib.UInt64.fromInt64
   else
@@ -101,54 +101,54 @@ let fromFloatRounded(a: Float): Stdlib.Option.Option<UInt64> =
 let parse(
   s: String)
   : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
-  match Stdlib.Int.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toUInt64(n), Stdlib.UInt64.ParseError.OutOfRange)
+  match Stdlib.BigInt.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toUInt64(n), Stdlib.UInt64.ParseError.OutOfRange)
   | Error(_) -> Error(Stdlib.UInt64.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt8(i: Int8): Stdlib.Option.Option<UInt64> =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromInt8(i))
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromInt8(i))
 
 
 /// Converts a <type UInt8> to an <type UInt64>.
 let fromUInt8(i: UInt8): UInt64 =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromUInt8(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromUInt8(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int16> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt16(i: Int16): Stdlib.Option.Option<UInt64> =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromInt16(i))
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromInt16(i))
 
 
 /// Converts a <type UInt16> to an <type UInt64>
 let fromUInt16(i: UInt16): UInt64 =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromUInt16(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromUInt16(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int32> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt32(i: Int32): Stdlib.Option.Option<UInt64> =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromInt32(i))
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromInt32(i))
 
 
 /// Converts a <type UInt32> to an <type UInt64>.
 let fromUInt32(i: UInt32): UInt64 =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromUInt32(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromUInt32(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int64> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt64(i: Int64): Stdlib.Option.Option<UInt64> =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromInt64(i))
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromInt64(i))
 
 
 /// Converts an <type Int128> to an <type UInt64>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
 let fromInt128(i: Int128): Stdlib.Option.Option<UInt64> =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromInt128(i))
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromInt128(i))
 
 
 /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
 let fromUInt128(i: UInt128): Stdlib.Option.Option<UInt64> =
-  Stdlib.Int.toUInt64(Stdlib.Int.fromUInt128(i))
+  Stdlib.BigInt.toUInt64(Stdlib.BigInt.fromUInt128(i))
 
 
 impl BitwiseAnd for UInt64 =
@@ -198,38 +198,38 @@ impl One for UInt64 =
 let checkedAdd(
   a: UInt64,
   b: UInt64)
-  : Stdlib.Result.Result<UInt64, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<UInt64, Stdlib.Math.Overflow> =
   let sum = a + b
-  if sum < a then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
+  if sum < a then Error(Stdlib.Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(
   a: UInt64,
   b: UInt64)
-  : Stdlib.Result.Result<UInt64, Stdlib.Int.Overflow> =
-  if b > a then Error(Stdlib.Int.Overflow.Overflow) else Ok(a - b)
+  : Stdlib.Result.Result<UInt64, Stdlib.Math.Overflow> =
+  if b > a then Error(Stdlib.Math.Overflow.Overflow) else Ok(a - b)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(
   a: UInt64,
   b: UInt64)
-  : Stdlib.Result.Result<UInt64, Stdlib.Int.Overflow> =
-  let product = Stdlib.Int.fromUInt64(a) * Stdlib.Int.fromUInt64(b)
-  match Stdlib.Int.toUInt64(product) with
+  : Stdlib.Result.Result<UInt64, Stdlib.Math.Overflow> =
+  let product = Stdlib.BigInt.fromUInt64(a) * Stdlib.BigInt.fromUInt64(b)
+  match Stdlib.BigInt.toUInt64(product) with
   | Some(fits) -> Ok(fits)
-  | None -> Error(Stdlib.Int.Overflow.Overflow)
+  | None -> Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
-let checkedNegate(a: UInt64): Stdlib.Result.Result<UInt64, Stdlib.Int.Overflow> =
-  if a == 0u64 then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+let checkedNegate(a: UInt64): Stdlib.Result.Result<UInt64, Stdlib.Math.Overflow> =
+  if a == 0u64 then Ok(a) else Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always
 /// <param a> itself. Here so every fixed-width type has the same checked set.
 let checkedAbsoluteValue(a: UInt64)
-  : Stdlib.Result.Result<UInt64, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<UInt64, Stdlib.Math.Overflow> =
   Ok(a)

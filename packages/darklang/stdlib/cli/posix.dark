@@ -34,25 +34,25 @@ module OpenFlags =
 
 
 /// Open a file. Returns a file descriptor.
-let openFile(path: String, flags: Int64, mode: Int64): Result.Result<Int, Error> =
+let openFile(path: String, flags: Int64, mode: Int64): Result.Result<BigInt, Error> =
   Builtin.syscallOpen(path, flags, mode)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 
 /// Read up to `count` bytes from an open file descriptor.
-let fdRead(fd: Int, count: Int64): Result.Result<Bytes, Error> =
+let fdRead(fd: BigInt, count: Int64): Result.Result<Bytes, Error> =
   Builtin.syscallRead(fd, count)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
-let fdWrite(fd: Int, bytes: Bytes): Result.Result<Int64, Error> =
+let fdWrite(fd: BigInt, bytes: Bytes): Result.Result<Int64, Error> =
   Stdlib.Cli.Posix.__writeAll((fun chunk -> Builtin.syscallWrite(fd, chunk) |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)), bytes, 0)
 
 
 /// Close an open file descriptor.
-let fdClose(fd: Int): Result.Result<Unit, Error> =
+let fdClose(fd: BigInt): Result.Result<Unit, Error> =
   Builtin.syscallClose(fd)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
@@ -60,7 +60,7 @@ let fdClose(fd: Int): Result.Result<Unit, Error> =
 /// Read all bytes from a file descriptor until EOF.
 /// Accumulates chunks (as Bytes) and concats once at EOF.
 let fdReadAll(
-  fd: Int,
+  fd: BigInt,
   acc: List<Bytes>)
   : Result.Result<Bytes, Error> =
   (fdRead(fd, 4096))
@@ -72,7 +72,7 @@ let fdReadAll(
 
 
 /// Seek to a byte offset from the start of an open file.
-let fdSeekFromStart(fd: Int, offset: Int64): Result.Result<Int64, Error> =
+let fdSeekFromStart(fd: BigInt, offset: Int64): Result.Result<Int64, Error> =
   Builtin.syscallLseek(fd, offset, 0)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
@@ -152,7 +152,7 @@ let isSymlink(path: String): Result.Result<Bool, Error> =
 
 
 /// Create a unique temporary file. Returns (fd, path).
-let mkstemp(prefix: String): Result.Result<(Int * String), Error> =
+let mkstemp(prefix: String): Result.Result<(BigInt * String), Error> =
   Stdlib.Cli.Posix.__tempFile(prefix)
 
 /// Create a unique temporary directory. Returns the path.
@@ -161,7 +161,7 @@ let mkdtemp(prefix: String): Result.Result<String, Error> =
 
 /// Match a string against a glob pattern.
 /// If pathMode is true, * does not match /
-let flock(fd: Int, exclusive: Bool): Result.Result<Unit, Error> =
+let flock(fd: BigInt, exclusive: Bool): Result.Result<Unit, Error> =
   Builtin.syscallFlock(fd, (if exclusive then 2 else 8))
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
@@ -406,7 +406,7 @@ let __kernelEntries(bytes: Bytes, reversed: List<String>)
 
 /// Directory iteration and record decoding over single-call kernel primitives.
 
-let __directoryReadAll(fd: Int, reversed: List<String>)
+let __directoryReadAll(fd: BigInt, reversed: List<String>)
   : Result.Result<List<String>, Int64> =
   match Builtin.syscallGetdents(fd, 32768) with
   | Error(e) ->
@@ -823,7 +823,7 @@ let __tempRetry(
 
 /// Suffix creation and collision policy are shared Dark algorithms. O_EXCL is
 /// what makes creation safe; randomness alone does not protect against races.
-let __tempFile(prefix: String): Result.Result<(Int * String), Stdlib.Cli.Posix.Error> =
+let __tempFile(prefix: String): Result.Result<(BigInt * String), Stdlib.Cli.Posix.Error> =
   __tempRetry((fun _ ->
     __tempCandidate(prefix)
     |> Stdlib.Result.andThen(fun path ->

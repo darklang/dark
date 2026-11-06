@@ -850,7 +850,7 @@ let private fakeAppLambda (closedRegisters : List<RT.Register * RT.Dval>) : RT.D
   )
 
 let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
-  let name = RT.FQFnName.fqBuiltin "intAdd" 0
+  let name = RT.FQFnName.fqBuiltin "bigIntAdd" 0
   RT.DApplicable(
     RT.AppNamedFn
       { name = name

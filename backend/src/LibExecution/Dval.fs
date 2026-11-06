@@ -20,11 +20,11 @@ let uint64 (i : uint64) = DUInt64 i
 let int128 (i : System.Int128) = DInt128 i
 let uint128 (i : System.UInt128) = DUInt128 i
 
-/// The default `Int`. Normalizes the bigint into `DarkInt` (small values use the
+/// A `BigInt`. Normalizes the bigint into `DarkBigInt` (small values use the
 /// Finite/int64 representation; only overflow uses Infinite/bigint).
-let int (b : bigint) : Dval = RuntimeTypes.Dval.int b
+let bigInt (b : bigint) : Dval = RuntimeTypes.Dval.bigInt b
 
-/// The numeric value of an `Int` Dval as a bigint.
+/// The numeric value of a `BigInt` Dval as a bigint.
 let asBigInt (dv : Dval) : bigint = RuntimeTypes.Dval.asBigInt dv
 
 let string (s : string) = DString s
@@ -222,7 +222,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DUInt64 _
   | DInt128 _
   | DUInt128 _
-  | DInt _
+  | DBigInt _
   | DFloat _
   | DFloat32 _
   | DDecimal _
@@ -309,7 +309,7 @@ let rec isInertData (dv : Dval) : bool =
   | DUInt64 _
   | DInt128 _
   | DUInt128 _
-  | DInt _
+  | DBigInt _
   | DFloat _
   | DFloat32 _
   | DDecimal _
@@ -388,7 +388,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUInt64 a, DUInt64 b -> a = b
   | DInt128 a, DInt128 b -> a = b
   | DUInt128 a, DUInt128 b -> a = b
-  | DInt a, DInt b -> a = b
+  | DBigInt a, DBigInt b -> a = b
 
   | DFloat a, DFloat b -> a = b
   | DFloat32 a, DFloat32 b -> a = b
@@ -489,7 +489,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUInt64 _, _
   | DInt128 _, _
   | DUInt128 _, _
-  | DInt _, _
+  | DBigInt _, _
   | DFloat _, _
   | DFloat32 _, _
   | DDecimal _, _
@@ -563,8 +563,8 @@ let private tryHashLeaf (value : Dval) : ValueOption<int> =
     | DUInt128 x ->
       code.Add x
       true
-    | DInt x ->
-      code.Add(DarkInt.toBigInt x)
+    | DBigInt x ->
+      code.Add(DarkBigInt.toBigInt x)
       true
     | DFloat x ->
       code.Add x
@@ -720,7 +720,7 @@ let rec toDebugString (dv : Dval) : string =
   | DUInt64 i -> i.ToString inv
   | DInt128 i -> i.ToString inv
   | DUInt128 i -> i.ToString inv
-  | DInt i -> (DarkInt.toBigInt i).ToString inv
+  | DBigInt i -> (DarkBigInt.toBigInt i).ToString inv
   | DFloat f -> f.ToString inv
   | DFloat32 f -> f.ToString inv
   | DDecimal d -> d.ToString inv

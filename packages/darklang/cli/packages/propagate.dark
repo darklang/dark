@@ -79,7 +79,7 @@ let typeReferenceEqual(
   | (TUInt64, TUInt64) -> true
   | (TInt128, TInt128) -> true
   | (TUInt128, TUInt128) -> true
-  | (TInt, TInt) -> true
+  | (TBigInt, TBigInt) -> true
   | (TFloat, TFloat) -> true
   | (TFloat32, TFloat32) -> true
   | (TDecimal, TDecimal) -> true

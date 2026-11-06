@@ -674,8 +674,7 @@ let private requestsAreProcesses =
       } ]
 
 
-/// The serve builtin narrows `port`/`maxBodyBytes` (arbitrary-precision `Int`)
-/// to native int64 and range-checks them BEFORE binding, turning what would be
+/// The serve builtin range-checks its Int64 `port`/`maxBodyBytes` BEFORE binding, turning what would be
 /// a host `HttpListener`/overflow crash into a Dark `OutOfRange` error. This
 /// asserts that guard: the values are rejected without a socket ever opening.
 let private serveRejectsOutOfRangeArgs =
@@ -705,7 +704,7 @@ let private serveRejectsOutOfRangeArgs =
         $"Builtin.httpServerServe(99999, {handler}, 1048576, false, false, false, {onListening})"
     match tooLargePort with
     | Error msg ->
-      Expect.stringContains msg "out-of-range" "port 99999 -> Int OutOfRange"
+      Expect.stringContains msg "out-of-range" "port 99999 -> OutOfRange"
     | Ok dval -> failtest $"expected OutOfRange for port 99999, got Ok {dval}"
 
     // a negative body limit would reject every request
@@ -714,7 +713,7 @@ let private serveRejectsOutOfRangeArgs =
         $"Builtin.httpServerServe(8000, {handler}, -1, false, false, false, {onListening})"
     match negativeBodyLimit with
     | Error msg ->
-      Expect.stringContains msg "out-of-range" "maxBodyBytes -1 -> Int OutOfRange"
+      Expect.stringContains msg "out-of-range" "maxBodyBytes -1 -> OutOfRange"
     | Ok dval -> failtest $"expected OutOfRange for maxBodyBytes -1, got Ok {dval}"
   }
 

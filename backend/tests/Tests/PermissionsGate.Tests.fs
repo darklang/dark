@@ -19,7 +19,7 @@ let clockCall () =
 
 // Host derives Native from the raw OS number and denies before the kernel call.
 let nativeCall () =
-  eApply (eBuiltinFn "syscallClose" 0) [] [ PT.EInt(gid (), -1I) ]
+  eApply (eBuiltinFn "syscallClose" 0) [] [ PT.EBigInt(gid (), -1I) ]
   |> PT2RT.Expr.toRT Map.empty 0 None
 
 let private denyAllAccess =
@@ -101,7 +101,7 @@ let private ceilingFn
   { hash = PT.Hash hash
     typeParams = []
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
-    returnType = PT.TInt
+    returnType = PT.TBigInt
     body = body
     description = ""
     permissionCeiling = ceiling
@@ -196,7 +196,7 @@ let escapedLambdaKeepsAccess =
     let lambdaBody = eLambda (gid ()) [ lpVar "unit" ] clockBody
     let producer =
       { ceilingFn producerHash None lambdaBody with
-          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
+          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
     let returnedLambda = eApply (ePackageFn producerHash) [] [ eUnit () ]
     let runnerBody = eApply returnedLambda [] [ eUnit () ]
     let runner = ceilingFn runnerHash None runnerBody
@@ -244,7 +244,7 @@ let escapedLambdaKeepsCeiling =
     let lambdaBody = eLambda (gid ()) [ lpVar "unit" ] clockBody
     let producer =
       { ceilingFn producerHash (Some Set.empty) lambdaBody with
-          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
+          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
     let returnedLambda = eApply (ePackageFn producerHash) [] [ eUnit () ]
     let runnerBody = eApply returnedLambda [] [ eUnit () ]
     let runner = ceilingFn runnerHash None runnerBody
@@ -309,13 +309,13 @@ let private deferredCase
     | _ ->
       eApply
         (eBuiltinFn "streamMap" 0)
-        [ PT.TUnit; PT.TInt ]
+        [ PT.TUnit; PT.TBigInt ]
         [ eApply (eBuiltinFn "streamFromList" 0) [ PT.TUnit ] [ eList [ eUnit () ] ]
           unitLambdaClock ]
   let isStream = shape = "stream"
   // A stream crossing a function boundary needs its concrete type: the
   // fn-valued shapes unify with a type variable, a `DStream` does not.
-  let streamOfInt = PT.TStream PT.TInt
+  let streamOfInt = PT.TStream PT.TBigInt
   let producer =
     let fn =
       generic
@@ -327,7 +327,7 @@ let private deferredCase
   // The runner runs the value it is handed.
   let runBody =
     match shape with
-    | "stream" -> eApply (eBuiltinFn "streamToList" 0) [ PT.TInt ] [ eVar "v" ]
+    | "stream" -> eApply (eBuiltinFn "streamToList" 0) [ PT.TBigInt ] [ eVar "v" ]
     | _ -> eApply (eVar "v") [] [ eUnit () ]
   let runner =
     let fn =
@@ -341,7 +341,7 @@ let private deferredCase
           parameters =
             NEList.singleton { name = "v"; typ = streamOfInt; description = "" }
           typeParams = []
-          returnType = PT.TList PT.TInt }
+          returnType = PT.TList PT.TBigInt }
     else
       fn
   // The driver is broad and outermost: make, then run.
@@ -541,7 +541,7 @@ let private clockLambda = eLambda (gid ()) [ lpVar "unit" ] clockBody
 /// An unrestricted fn returning `fun () -> syscallGettimeofday ()`.
 let private lambdaProducer (hash : string) : PT.PackageFn.PackageFn =
   { ceilingFn hash None clockLambda with
-      returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
+      returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
 
 let private producedLambda (producerHash : string) : PT.Expr =
   eApply (ePackageFn producerHash) [] [ eUnit () ]
@@ -553,7 +553,7 @@ let private mapBody (producerHash : string) : PT.Expr =
     []
     [ eList [ eUnit () ]; producedLambda producerHash ]
 
-let private listOfInt = PT.TList PT.TInt
+let private listOfInt = PT.TList PT.TBigInt
 
 let builtinCallbackKeepsInvokingCeiling =
   testTask "a callback applied by a builtin runs under the calling fn's ceiling" {
@@ -589,12 +589,12 @@ let builtinCallbackArity2KeepsCeiling =
     let lambda2 = eLambda (gid ()) [ lpVar "acc"; lpVar "unit" ] clockBody
     let producer =
       { ceilingFn producerHash None lambda2 with
-          returnType = PT.TFn(NEList.ofList PT.TInt [ PT.TUnit ], PT.TInt) }
+          returnType = PT.TFn(NEList.ofList PT.TBigInt [ PT.TUnit ], PT.TBigInt) }
     let foldBody =
       eApply
         (eBuiltinFn "listFold" 0)
         []
-        [ eList [ eUnit () ]; PT.EInt(gid (), 0I); producedLambda producerHash ]
+        [ eList [ eUnit () ]; PT.EBigInt(gid (), 0I); producedLambda producerHash ]
     let runner = ceilingFn runnerHash (Some Set.empty) foldBody
     let! actual = runPackageFn (pmWith [ producer; runner ]) runnerHash
     expectDenied [ "function policy"; "clock" ] actual
@@ -853,10 +853,10 @@ let streamCallbackKeepsCeiling =
     let streamBody =
       eApply
         (eBuiltinFn "streamToList" 0)
-        [ PT.TInt ]
+        [ PT.TBigInt ]
         [ eApply
             (eBuiltinFn "streamMap" 0)
-            [ PT.TUnit; PT.TInt ]
+            [ PT.TUnit; PT.TBigInt ]
             [ eApply
                 (eBuiltinFn "streamFromList" 0)
                 [ PT.TUnit ]

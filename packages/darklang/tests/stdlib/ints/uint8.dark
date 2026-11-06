@@ -284,27 +284,27 @@ test shiftRight =
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedAdd(255u8, 1u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedAdd(255u8, 255u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedAdd(255u8, 0u8) |> Stdlib.Test.equal(Ok(255u8))
       Stdlib.UInt8.checkedAdd(254u8, 1u8) |> Stdlib.Test.equal(Ok(255u8)) ])
 
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedSubtract(0u8, 1u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedSubtract(1u8, 255u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedSubtract(255u8, 255u8) |> Stdlib.Test.equal(Ok(0u8))
       Stdlib.UInt8.checkedSubtract(255u8, 0u8) |> Stdlib.Test.equal(Ok(255u8)) ])
 
 test checkedMultiply =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedMultiply(255u8, 2u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedMultiply(255u8, 255u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedMultiply(255u8, 1u8) |> Stdlib.Test.equal(Ok(255u8))
       Stdlib.UInt8.checkedMultiply(255u8, 0u8) |> Stdlib.Test.equal(Ok(0u8))
       Stdlib.UInt8.checkedMultiply(127u8, 2u8) |> Stdlib.Test.equal(Ok(254u8)) ])
@@ -312,9 +312,9 @@ test checkedMultiply =
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedNegate(1u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedNegate(255u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt8.checkedNegate(0u8) |> Stdlib.Test.equal(Ok(0u8)) ])
 
 test checkedAbsoluteValue =

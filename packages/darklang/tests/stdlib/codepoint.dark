@@ -21,15 +21,15 @@ test scalarBoundaries =
       |> Stdlib.Test.equal(Some(888u32)) ])
 
 
-test fromInt =
+test fromInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Codepoint.fromInt(0) |> Stdlib.Test.equal(Some(0u32))
-      Stdlib.Codepoint.fromInt(255) |> Stdlib.Test.equal(Some(255u32))
-      Stdlib.Codepoint.fromInt(1114111) |> Stdlib.Test.equal(Some(1114111u32))
-      Stdlib.Codepoint.fromInt(55296) |> Stdlib.Test.equal(None)
-      Stdlib.Codepoint.fromInt(1114112) |> Stdlib.Test.equal(None)
-      Stdlib.Codepoint.fromInt(-1) |> Stdlib.Test.equal(None)
-      Stdlib.Codepoint.fromInt(4294967296) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Codepoint.fromInt64(0) |> Stdlib.Test.equal(Some(0u32))
+      Stdlib.Codepoint.fromInt64(255) |> Stdlib.Test.equal(Some(255u32))
+      Stdlib.Codepoint.fromInt64(1114111) |> Stdlib.Test.equal(Some(1114111u32))
+      Stdlib.Codepoint.fromInt64(55296) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt64(1114112) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt64(-1) |> Stdlib.Test.equal(None)
+      Stdlib.Codepoint.fromInt64(4294967296) |> Stdlib.Test.equal(None) ])
 
 
 test properties =

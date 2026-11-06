@@ -6,9 +6,9 @@
 /// candidate applies. The interpreter does the rest (finding the self type, loading
 /// the method's fn).
 ///
-/// Matching is by the type's HEAD: `Point` matches `impl ... for Point`, `List<Int>`
+/// Matching is by the type's HEAD: `Point` matches `impl ... for Point`, `List<Int64>`
 /// matches `impl<'a: Show> ... for List<'a>`. Type arguments are compared only to
-/// break a tie between two candidates with the same head, so `impl for Option<Int>`
+/// break a tie between two candidates with the same head, so `impl for Option<Int64>`
 /// and `impl for Option<String>` can coexist. A blanket impl (`for 'a`) matches
 /// anything and loses to any specific one.
 module LibExecution.Traits
@@ -44,7 +44,7 @@ let private primHeadName (t : TypeReference) : Option<string> =
   | TUInt64 -> Some "UInt64"
   | TInt128 -> Some "Int128"
   | TUInt128 -> Some "UInt128"
-  | TInt -> Some "Int"
+  | TBigInt -> Some "BigInt"
   | TFloat -> Some "Float"
   | TFloat32 -> Some "Float32"
   | TDecimal -> Some "Decimal"
@@ -81,7 +81,7 @@ let headOfKnownType (kt : KnownType) : Head =
   | KTUInt64 -> Head.Prim "UInt64"
   | KTInt128 -> Head.Prim "Int128"
   | KTUInt128 -> Head.Prim "UInt128"
-  | KTInt -> Head.Prim "Int"
+  | KTBigInt -> Head.Prim "BigInt"
   | KTFloat -> Head.Prim "Float"
   | KTFloat32 -> Head.Prim "Float32"
   | KTDecimal -> Head.Prim "Decimal"
@@ -138,7 +138,7 @@ type Selection =
 /// Every candidate that applies to a self type.
 ///
 /// An implementation applies when its head matches AND its type arguments do: `Show for
-/// Option<Int>` must not answer `Show.show (Some "x")`. A blanket `for 'a` is the fallback,
+/// Option<Int64>` must not answer `Show.show (Some "x")`. A blanket `for 'a` is the fallback,
 /// whether nothing specific matched the head or nothing specific fit the arguments.
 ///
 /// `select` narrows this to one. It is also what a receiver call (`p.show`) asks, because

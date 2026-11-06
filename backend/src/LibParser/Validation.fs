@@ -113,7 +113,7 @@ let private matchBindings (pattern : WT.MatchPattern) : List<string * WT.Range> 
       | WT.MPOr(_, [])
       | WT.MPUnit _
       | WT.MPBool _
-      | WT.MPInt _
+      | WT.MPBigInt _
       | WT.MPInt64 _
       | WT.MPInt8 _
       | WT.MPUInt8 _
@@ -198,7 +198,7 @@ let rec private structuralPatternIssues (pattern : WT.MatchPattern) : List<Issue
   | WT.MPUnit _
   | WT.MPVariable _
   | WT.MPBool _
-  | WT.MPInt _
+  | WT.MPBigInt _
   | WT.MPInt64 _
   | WT.MPInt8 _
   | WT.MPUInt8 _
@@ -316,7 +316,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
     recurse first @ (parts |> List.collect (snd >> pipeIssues))
   | WT.EUnit _
   | WT.EBool _
-  | WT.EInt _
+  | WT.EBigInt _
   | WT.EInt64 _
   | WT.EInt8 _
   | WT.EUInt8 _

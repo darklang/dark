@@ -218,7 +218,7 @@ module Hashing =
       PT.EPipe(id, r expr, List.map (normPipe c env) pipes)
 
     // leaves / no Expr children / no bound names: unchanged
-    | PT.EInt _
+    | PT.EBigInt _
     | PT.EInt64 _
     | PT.EUInt64 _
     | PT.EInt8 _

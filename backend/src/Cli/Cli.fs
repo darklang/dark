@@ -859,12 +859,12 @@ let private runCli (args : string[]) : int =
       Telemetry.event name [ "us", string us; "ms", string (us / 1000L) ])
 
     // Exit codes are bounded; narrow safely rather than letting an out-of-Int32 result throw.
-    let intToExitCode (i : RT.DarkInt) : int =
-      match RT.DarkInt.toInt32 i with
+    let bigIntToExitCode (i : RT.DarkBigInt) : int =
+      match RT.DarkBigInt.toInt32 i with
       | Some n -> n
       | None ->
         logError
-          $"main function returned an Int outside exit-code range: {RT.DarkInt.toBigInt i}"
+          $"main function returned a BigInt outside exit-code range: {RT.DarkBigInt.toBigInt i}"
         1
 
     match result with
@@ -913,8 +913,8 @@ let private runCli (args : string[]) : int =
             $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
 
       1
-    | Ok(RT.DInt64 i) -> intToExitCode (RT.DarkInt.Finite i)
-    | Ok(RT.DInt i) -> intToExitCode i
+    | Ok(RT.DInt64 i) -> bigIntToExitCode (RT.DarkBigInt.Finite i)
+    | Ok(RT.DBigInt i) -> bigIntToExitCode i
     | Ok dval ->
       // Result formatting uses trusted Darklang functions shipped with the CLI.
       let state =

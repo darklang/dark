@@ -128,7 +128,7 @@ test escaping =
 // Collections
 test collections =
   Stdlib.Test.all(
-    [ // `List<_>`, not `List<Int>`, even though `emptyInts` is annotated: an empty
+    [ // `List<_>`, not `List<Int64>`, even though `emptyInts` is annotated: an empty
       // list carries no element type at runtime, so there is nothing for the
       // printer to report. See the note in Records below.
       pp(emptyInts()) |> Stdlib.Test.equal("List<_> []")
@@ -263,7 +263,7 @@ test enumTypeNames =
   Stdlib.Test.all(
     [ // Nested wrappers, which is where the old output was worst: this used to be
       // three lines of
-      // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int>>>.Some(...)`.
+      // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int64>>>.Some(...)`.
       pp(Stdlib.Option.Option.Some(Stdlib.Option.Option.Some([ 1, 2, 3 ])))
       |> Stdlib.Test.equal("Some(Some([1, 2, 3]))")
       // A non-wrapper enum keeps its type name.
@@ -271,10 +271,10 @@ test enumTypeNames =
       |> Stdlib.Test.equal(
         "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)")
       // Unless the type has several names and nothing says which.
-      // `Stdlib.Int.ParseError`, `Stdlib.Float.ParseError` and
+      // `Stdlib.BigInt.ParseError`, `Stdlib.Float.ParseError` and
       // `Stdlib.Uuid.ParseError` are all `| BadFormat`, so content-addressing
       // makes them one type with three names; naming one is guessing, and it
-      // used to guess wrong often enough that `Stdlib.Int.parse` would report a
+      // used to guess wrong often enough that `Stdlib.BigInt.parse` would report a
       // `Stdlib.Uuid.ParseError`. The case alone is honest.
       pp(Stdlib.Int64.parse("abc")) |> Stdlib.Test.equal("Error(BadFormat)") ])
 

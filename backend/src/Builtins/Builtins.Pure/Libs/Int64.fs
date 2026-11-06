@@ -23,9 +23,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt64 v; DInt64 m |] ->
           if m = 0L then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.ZeroModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else if m < 0L then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -163,7 +163,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt64 number; DInt64 exp |] ->
           if exp < 0L then
-            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeExponent |> RTE.BigInt |> raiseRTE vm.threadID
           else
             // wrap on overflow via modular exponentiation, which stays cheap
             // even for huge exponents (no enormous bigint is built)
@@ -187,7 +187,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt64 a; DInt64 b |] ->
           if b = 0L then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.DivideByZeroError |> RTE.BigInt |> raiseRTE vm.threadID
           else if a = System.Int64.MinValue && b = -1L then
             // wraps back to MinValue (the division itself would throw)
             Ply(DInt64 System.Int64.MinValue)

@@ -713,7 +713,7 @@ let private literalTests =
             "1u32", Tok.TUInt32 1u
             "1s128", Tok.TInt128(System.Int128.One)
             "1u128", Tok.TUInt128(System.UInt128.One)
-            "1z", Tok.TInt 1I
+            "1z", Tok.TBigInt 1I
             "1.5", Tok.TFloat 1.5
             "1.5f64", Tok.TFloat 1.5
             "1e5", Tok.TFloat 100000.0
@@ -1119,7 +1119,7 @@ let private rangeInvariantTests =
     match e with
     | WT.EUnit _
     | WT.EBool _
-    | WT.EInt _
+    | WT.EBigInt _
     | WT.EInt64 _
     | WT.EInt8 _
     | WT.EUInt8 _

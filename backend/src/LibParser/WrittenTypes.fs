@@ -89,7 +89,7 @@ type QualifiedTypeIdentifier =
 and TypeReference =
   | TUnit of Range
   | TBool of Range
-  | TInt of Range
+  | TBigInt of Range
   | TInt8 of Range
   | TUInt8 of Range
   | TInt16 of Range
@@ -140,7 +140,7 @@ and TypeReference =
 let primTypes : List<string * (Range -> TypeReference)> =
   [ "Unit", TUnit
     "Bool", TBool
-    "Int", TInt
+    "BigInt", TBigInt
     "Int8", TInt8
     "UInt8", TUInt8
     "Int16", TInt16
@@ -179,7 +179,7 @@ type LetPattern =
 /// Match patterns.
 type MatchPattern =
   | MPVariable of Range * string // also `_` (as "_")
-  | MPInt of Range * intPart : (Range * bigint) // arbitrary-precision `Int`
+  | MPBigInt of Range * intPart : (Range * bigint) // arbitrary-precision `BigInt`
   | MPInt8 of Range * intPart : (Range * int8) * suffixPart : Range
   | MPUInt8 of Range * intPart : (Range * uint8) * suffixPart : Range
   | MPInt16 of Range * intPart : (Range * int16) * suffixPart : Range
@@ -247,7 +247,7 @@ type MatchPattern =
 let rec mpRange (p : MatchPattern) : Range =
   match p with
   | MPVariable(r, _)
-  | MPInt(r, _)
+  | MPBigInt(r, _)
   | MPInt8(r, _, _)
   | MPUInt8(r, _, _)
   | MPInt16(r, _, _)
@@ -284,7 +284,7 @@ type StringSegment =
 and Expr =
   | EUnit of Range
   | EBool of Range * bool
-  | EInt of Range * intPart : (Range * bigint) // bare arbitrary-precision `Int`
+  | EBigInt of Range * intPart : (Range * bigint) // bare arbitrary-precision `BigInt`
   | EInt64 of Range * intPart : (Range * int64) * suffixPart : Range
   | EInt8 of Range * intPart : (Range * sbyte) * suffixPart : Range
   | EUInt8 of Range * intPart : (Range * byte) * suffixPart : Range
@@ -437,7 +437,7 @@ type FnParam =
     symbolRightParen : Range *
     description : string
 
-/// `'a: Show<Int>` in a type-param list. The trait is a type name: a bound says
+/// `'a: Show<Int64>` in a type-param list. The trait is a type name: a bound says
 /// "a value of type `Show<'a>` must exist". Several bounds on one param are
 /// written `'a: Show + Compare` and stored as separate entries.
 type TypeParamBound =
@@ -640,7 +640,7 @@ let exprRange (e : Expr) : Range =
   match e with
   | EUnit r -> r
   | EBool(r, _)
-  | EInt(r, _)
+  | EBigInt(r, _)
   | EInt64(r, _, _)
   | EInt8(r, _, _)
   | EUInt8(r, _, _)
@@ -680,7 +680,7 @@ let typeReferenceRange (t : TypeReference) : Range =
   match t with
   | TUnit r
   | TBool r
-  | TInt r
+  | TBigInt r
   | TInt8 r
   | TUInt8 r
   | TInt16 r
@@ -931,7 +931,7 @@ let typeReferenceHeadName (t : TypeReference) : string =
   match t with
   | TUnit _ -> "Unit"
   | TBool _ -> "Bool"
-  | TInt _ -> "Int"
+  | TBigInt _ -> "BigInt"
   | TInt8 _ -> "Int8"
   | TUInt8 _ -> "UInt8"
   | TInt16 _ -> "Int16"

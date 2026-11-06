@@ -326,7 +326,7 @@ module BindingIds =
         Darklang.LanguageTools.ProgramTypes.Expr.EVariable(7, "x")))
 
   // Duplicate binding IDs make the result Incomplete because the checker cannot
-  // distinguish the bindings. With unique IDs, returning x is valid only as Int.
+  // distinguish the bindings. With unique IDs, returning x is valid only as Int64.
   test duplicateBindingIdsAreIncomplete =
     Stdlib.Test.all(
       [ checkPackageOpsSummary([],
@@ -462,7 +462,7 @@ module ConstructorDeclarations =
 
 module LambdaArgumentSlots =
   // EArg refers to a package function's parameter by position. Inside a lambda,
-  // it must be rejected rather than mistaken for the outer function's Int argument.
+  // it must be rejected rather than mistaken for the outer function's Int64 argument.
   // Build the value in a function so its custom type stays current across package reloads.
   let parameters(): List<Darklang.LanguageTools.ProgramTypes.LetPattern> =
     [ Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(11, "text") ]
@@ -585,7 +585,7 @@ module Basics =
     check("let f(value: Int64, other: String): String = other", "f")
     |> Stdlib.Test.equal("checked:")
 
-  // Calling an Int as though it were a function must report NotCallable.
+  // Calling an Int64 as though it were a function must report NotCallable.
   test callingIntIsNotCallable =
     check("let f(x: Int64): Int64 = x(1)", "f")
     |> Stdlib.Test.equal("failed:NotCallable")
@@ -731,7 +731,7 @@ module Declarations =
       "f")
     |> Stdlib.Test.equal("incomplete:AliasCycle")
 
-  // Identity<Identity<Int>> expands to Int and terminates. Reusing an alias in
+  // Identity<Identity<Int64>> expands to Int64 and terminates. Reusing an alias in
   // nested type arguments is valid when the alias definition is not recursive.
   test nestedNonRecursiveAliasesExpand =
     Stdlib.Test.all(
@@ -744,7 +744,7 @@ module Declarations =
           "f")
         |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
-  // Forward<Forward<Int>> also expands to Int through Identity. Accept an Int
+  // Forward<Forward<Int64>> also expands to Int64 through Identity. Accept an Int64
   // return, reject a String return, and still detect the actual Loop cycle below.
   test aliasThroughAliasExpands =
     Stdlib.Test.all(
@@ -771,8 +771,8 @@ module Declarations =
           "f")
         |> Stdlib.Test.equal("incomplete:AliasCycle") ])
 
-  // An unavailable type might be an alias for Int. Report a missing declaration
-  // instead of claiming its value cannot satisfy an Int return type.
+  // An unavailable type might be an alias for Int64. Report a missing declaration
+  // instead of claiming its value cannot satisfy an Int64 return type.
   test unavailableTypeIsMissingNotMismatch =
     checkFunctionAst(
       [],
@@ -1069,7 +1069,7 @@ module InstantiatedDictKeys =
         |> Stdlib.Test.equal("checked:") ])
 
   // Calls through a local alias or lambda must still enforce make's key requirement.
-  // Check each use of g separately, allowing Int and String but rejecting functions.
+  // Check each use of g separately, allowing Int64 and String but rejecting functions.
   test localAliasAndLambdaCalls =
     Stdlib.Test.all(
       [ call([ "  let g = make", "  let _ = g(fun y -> y + 1)", "  ()" ])
@@ -1227,7 +1227,7 @@ module Builtins =
     check("let f(u: Unit): Int64 = Builtin.jsonParse(\"1\")", "f")
     |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
 
-  // jsonParse<Int> supplies the missing type information. Also load the types
+  // jsonParse<Int64> supplies the missing type information. Also load the types
   // named in its signature, including Result and the ParseError error type.
   test jsonParseWithTypeArg =
     check(
@@ -1373,7 +1373,7 @@ module PostfixUnwrap =
           "f")
         |> Stdlib.Test.equal("failed:InvalidUnwrap") ])
 
-  // r? produces the unwrapped Int. The function must explicitly wrap its success
+  // r? produces the unwrapped Int64. The function must explicitly wrap its success
   // value in Ok to satisfy its declared Result return type.
   test successValueMustBeWrapped =
     check(
@@ -1411,7 +1411,7 @@ module PostfixUnwrap =
           "f")
         |> Stdlib.Test.equal("checked:") ])
 
-  // Unwrapping Option<Int> tells the checker that n is Int before checking n + n.
+  // Unwrapping Option<Int64> tells the checker that n is Int64 before checking n + n.
   test unwrapRefinesType =
     check(
       (src(
@@ -1447,7 +1447,7 @@ module PostfixUnwrap =
         |> Stdlib.Test.equal("checked:") ])
 
   // Returning Some tells the checker that x? needs an Option operand. Accept
-  // Some 4 as the argument and reject the plain Int 4.
+  // Some 4 as the argument and reject the plain Int64 4.
   test lambdaReturnDecidesOperand =
     Stdlib.Test.all(
       [ check(
@@ -1496,7 +1496,7 @@ module PostfixUnwrap =
         |> Stdlib.Test.equal("checked:") ])
 
   // Infer the ? operand from row.item after the call supplies the row's type.
-  // Here unwrapping Option<Option<Int>> leaves the Option<Int> the lambda returns.
+  // Here unwrapping Option<Option<Int64>> leaves the Option<Int64> the lambda returns.
   test nestedOptionRow =
     check(
       (rows(
@@ -1532,7 +1532,7 @@ module PostfixUnwrap =
           "f")
         |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
-  // Reject row.item? when the caller supplies a record whose item field is Int.
+  // Reject row.item? when the caller supplies a record whose item field is Int64.
   test scalarFieldRejected =
     check(
       (src(
@@ -1551,7 +1551,7 @@ module PostfixUnwrap =
       oneArg(custom("unwrap-missing-alias", []), optionOf(tInt()), unwrapArg(30)))
     |> Stdlib.Test.equal("incomplete:MissingTypeDeclaration")
 
-  // An Int operand is definitely invalid for ?, even if an unavailable return
+  // An Int64 operand is definitely invalid for ?, even if an unavailable return
   // type also makes part of the check incomplete. Keep both findings.
   test intOperandStaysInvalid =
     checkFunctionAst(
@@ -1669,7 +1669,7 @@ module TupleAccess =
         letBoundChain("3", "Int64", "f(((1, 2), 3))")
         |> Stdlib.Test.equal("failed:UnknownTupleElement") ])
 
-  // Calling f on Int tuples must not force a later call's String elements to be Int.
+  // Calling f on Int64 tuples must not force a later call's String elements to be Int64.
   test callsDoNotShareElementTypes =
     letBoundChain("2", "(Int64 * String)", "(f(((1, 2), 3)), f(((\"a\", \"b\"), 3)))")
     |> Stdlib.Test.equal("checked:")
@@ -1748,7 +1748,7 @@ module DictGeneralization =
         |> Stdlib.Test.equal("checked:") ])
 
   // With a literal key, the dictionary's empty-list values can be used as both
-  // List<Int> and List<String>. A key containing a function call prevents that
+  // List<Int64> and List<String>. A key containing a function call prevents that
   // generalization, so both uses must agree on one element type.
   let dictionaryUses(key: String): String =
     src(
@@ -1973,7 +1973,7 @@ module Patterns =
         check("let f(x: Int64): String = match x with | n as m -> m", "f")
         |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
-  // An Int is not a record: reject field access and record updates on it.
+  // An Int64 is not a record: reject field access and record updates on it.
   test intIsNotRecord =
     Stdlib.Test.all(
       [ check("let f(x: Int64): Int64 = x.field", "f")
@@ -2235,7 +2235,7 @@ module ProvisionalDiagnostics =
         |> Stdlib.Test.equal("failed:TypeMismatch/AmbiguousType,OccursCheckFailed") ])
 
 module Lets =
-  // Generalizing the local identity lambda lets one call use Int and another use
+  // Generalizing the local identity lambda lets one call use Int64 and another use
   // String. Neither call should fix the parameter type for the other.
   test genericLocalLambda =
     check(
@@ -2254,7 +2254,7 @@ module Lets =
       "f")
     |> Stdlib.Test.equal("checked:")
 
-  // A recursive call to loop must use its declared Int parameter; reject the String.
+  // A recursive call to loop must use its declared Int64 parameter; reject the String.
   test recursiveCallArgType =
     check(
       (src(
@@ -2264,7 +2264,7 @@ module Lets =
       "f")
     |> Stdlib.Test.equal("failed:TypeMismatch")
 
-  // If f is already in scope, the new lambda's body refers to that existing Int
+  // If f is already in scope, the new lambda's body refers to that existing Int64
   // binding. Do not mistake the captured f for a recursive call to the new lambda.
   test capturedNameIsNotRecursion =
     check(
@@ -2289,7 +2289,7 @@ module Lets =
       "f")
     |> Stdlib.Test.equal("checked:")
 
-  // Check record.value separately for each call to getValue, allowing an Int field
+  // Check record.value separately for each call to getValue, allowing an Int64 field
   // in RowInt and a String field in RowString.
   test fieldPerCall =
     check(
@@ -2302,8 +2302,8 @@ module Lets =
       "f")
     |> Stdlib.Test.equal("checked:")
 
-  // List.map supplies Option<Int> as get's parameter type. Use it to check the
-  // lambda's Some and None patterns and infer the payload as Int.
+  // List.map supplies Option<Int64> as get's parameter type. Use it to check the
+  // lambda's Some and None patterns and infer the payload as Int64.
   test mapSuppliesParamType =
     check(
       (src(
@@ -2313,7 +2313,7 @@ module Lets =
       "f")
     |> Stdlib.Test.equal("checked:")
 
-  // g calls the captured x.field, whose Box declaration requires Int -> Int.
+  // g calls the captured x.field, whose Box declaration requires Int64 -> Int64.
   // Reject a String argument to g whether requireBox fixes x's type before or
   // after g is defined.
   let boxed(lines: List<String>): String =
@@ -2479,7 +2479,7 @@ module Lets =
         |> Stdlib.Test.equal("failed:EnumFieldCountMismatch") ])
 
   // The final if requires a and b to have the same type. Revisit their earlier
-  // field uses and detect that one requires Int while the other requires Bool.
+  // field uses and detect that one requires Int64 while the other requires Bool.
   test ifJoinsFieldUses =
     check(
       (src(
@@ -2540,7 +2540,7 @@ module Lets =
         check("val f = 1 |> (fun a -> a)", "f")
         |> Stdlib.Test.equal("checked:") ])
 
-  // takes establishes that g accepts an Int first. Checking that argument in g(1)(a)
+  // takes establishes that g accepts an Int64 first. Checking that argument in g(1)(a)
   // exposes a cycle with a g. Keep solving after an argument is consumed, even if no
   // new type is inferred and the number of deferred checks stays the same.
   test consumedArgumentCycle =
@@ -2671,7 +2671,7 @@ module Values =
         "incomplete:MissingValueSignature" ])
 
   // Generalize the package value's empty-list element type so functions can use
-  // the same value as List<Int> and List<String>.
+  // the same value as List<Int64> and List<String>.
   let empties(): String =
     src(
       [ "val empty = []"

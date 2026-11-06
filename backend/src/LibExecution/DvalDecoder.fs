@@ -50,10 +50,10 @@ let int64 (dv : Dval) : int64 =
   | DInt64 i -> i
   | _ -> f "int64" dv
 
-let darkInt (dv : Dval) : bigint =
+let bigInt (dv : Dval) : bigint =
   match dv with
-  | DInt i -> DarkInt.toBigInt i
-  | _ -> f "int" dv
+  | DBigInt i -> DarkBigInt.toBigInt i
+  | _ -> f "bigint" dv
 
 /// Decodes a `DInt64`, narrowing to a native `int` (Int32). For small,
 /// bounded-by-construction values (counts, indices, arities); raises a clear

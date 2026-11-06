@@ -76,7 +76,7 @@ module ParseError =
       + JsonPath.toString(path)
       + "`"
 
-    // Can't parse JSON because argument 4 (`Int`) is missing at path: `root.Enh`
+    // Can't parse JSON because argument 4 (`Int64`) is missing at path: `root.Enh`
     | EnumMissingField(typ, index, path) ->
       "Can't parse JSON because argument "
       + Stdlib.toString(index)

@@ -34,7 +34,7 @@ module Darklang.Stdlib.Http.Tests
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Expires = 5 }
 //   => raises "Expected `Expires` to be a date, but it was `5`"
 //   Stdlib.Http.setCookie "myCookie" "myVal" { ``Max-Age`` = "foo" }
-//   => raises "Expected `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
+//   => raises "Expected `Max-Age` to be an `Int64` representing seconds, but it was `\"foo\"`"
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Domain = 5 }
 //   => raises "Expected ``Path` or `Domain`` to be a String, but it was `5`"
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Path = 5 }

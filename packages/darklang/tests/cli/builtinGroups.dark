@@ -48,6 +48,12 @@ test noDisplayNameIsStale =
   |> Stdlib.List.sort
   |> Stdlib.Test.equal([])
 
+// A known prefix of more than one word groups by the whole of it, not by its first word.
+test aMultiWordPrefixGroupsTogether =
+  [ "bigIntAdd", "bigIntParse", "int64Add", "httpClientRequest" ]
+  |> Stdlib.List.map(fun n -> Darklang.Cli.Builtins.extractGroup(n))
+  |> Stdlib.Test.equal([ "bigInt", "bigInt", "int64", "http" ])
+
 test noPrefixIsNamedTwice =
   let known = BuiltinGroups.knownPrefixes()
   (Stdlib.List.length(Stdlib.List.unique(known))) |> Stdlib.Test.equal(Stdlib.List.length(known))

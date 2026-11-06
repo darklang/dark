@@ -36,13 +36,13 @@ let private httpRule
 
 let private scoped (hash : string) : PolicyStore.ScopedKey = None, hash
 
-/// A `Unit -> Int` package fn with the given body.
+/// A `Unit -> BigInt` package fn with the given body.
 let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
   { hash = PT.Hash hash
     body = body
     typeParams = []
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
-    returnType = PT.TInt
+    returnType = PT.TBigInt
     description = ""
     permissionCeiling = None
     bounds = [] }

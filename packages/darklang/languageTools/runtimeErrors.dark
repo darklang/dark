@@ -16,7 +16,7 @@ module Bools =
     | OrOnlySupportsBooleans(gotLeft: ValueType, gotRight: ValueType)
     | ConditionRequiresBool(actualValueType: ValueType, actualValue: Dval)
 
-module Ints =
+module BigInts =
   type Error =
     | DivideByZeroError
     | OutOfRange
@@ -181,7 +181,7 @@ module CLIs =
 
 type Error =
   | Bool(Bools.Error)
-  | Int(Ints.Error)
+  | BigInt(BigInts.Error)
   | DecimalOutOfRange
   | String(Strings.Error)
 

@@ -60,12 +60,18 @@ module NameResolutionError =
   let source(originalName: List<String>): String =
     Stdlib.String.join(originalName, ".")
 
+  /// What a name that does not exist was probably meant to be.
+  let hint(originalName: List<String>): String =
+    match originalName with
+    | [ "Int" ] -> " (an integer is an Int64, like `1`, or a BigInt, like `1z`)"
+    | _ -> ""
+
   let error(
     originalName: List<String>,
     nre: LanguageTools.ProgramTypes.NameResolutionError)
     : String =
     match nre with
-    | NotFound -> Stdlib.String.join(originalName, ".") + " not found"
+    | NotFound -> Stdlib.String.join(originalName, ".") + " not found" + hint(originalName)
     | InvalidName -> Stdlib.String.join(originalName, ".") + " is not a valid name"
 
 
@@ -472,7 +478,7 @@ let typeReferenceFlatAtPrecedence(
   | TUInt64 -> "UInt64"
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
-  | TInt -> "Int"
+  | TBigInt -> "BigInt"
   | TFloat -> "Float"
   | TFloat32 -> "Float32"
   | TDecimal -> "Decimal"
@@ -610,7 +616,7 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
   | MPUInt64(_id, i) -> Stdlib.toString(i) + "u64"
   | MPInt128(_id, i) -> Stdlib.toString(i) + "s128"
   | MPUInt128(_id, i) -> Stdlib.toString(i) + "u128"
-  | MPInt(_id, i) -> Stdlib.toString(i) + "z"
+  | MPBigInt(_id, i) -> Stdlib.toString(i) + "z"
 
   | MPFloat(_id, sign, whole, remainder) ->
     let remainderPart = PrettyPrinter.processRemainder(remainder)
@@ -1307,7 +1313,7 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | EUInt64(_id, i) -> Stdlib.toString(i) + "u64"
   | EInt128(_id, i) -> Stdlib.toString(i) + "s128"
   | EUInt128(_id, i) -> Stdlib.toString(i) + "u128"
-  | EInt(_id, i) -> Stdlib.toString(i) + "z"
+  | EBigInt(_id, i) -> Stdlib.toString(i) + "z"
 
   | EFloat(_id, sign, whole, remainder) ->
     let signPart = PrettyPrinter.sign(sign)

@@ -152,7 +152,7 @@ module TypeReference =
       | WT.TUInt64 _ -> return PT.TUInt64
       | WT.TInt128 _ -> return PT.TInt128
       | WT.TUInt128 _ -> return PT.TUInt128
-      | WT.TInt _ -> return PT.TInt
+      | WT.TBigInt _ -> return PT.TBigInt
       | WT.TFloat _ -> return PT.TFloat
       | WT.TFloat32 _ -> return PT.TFloat32
       | WT.TDecimal _ -> return PT.TDecimal
@@ -283,7 +283,7 @@ module MatchPattern =
     | WT.MPUInt32(_, (_, i), _) -> (context, PT.MPUInt32(gid (), i))
     | WT.MPInt128(_, (_, i), _) -> (context, PT.MPInt128(gid (), i))
     | WT.MPUInt128(_, (_, i), _) -> (context, PT.MPUInt128(gid (), i))
-    | WT.MPInt(_, (_, i)) -> (context, PT.MPInt(gid (), i))
+    | WT.MPBigInt(_, (_, i)) -> (context, PT.MPBigInt(gid (), i))
     | WT.MPBool(_, b) -> (context, PT.MPBool(gid (), b))
     | WT.MPChar(_, contents, _, _) ->
       (context,
@@ -436,7 +436,7 @@ module Expr =
       | WT.EUInt32(_, (_, num), _) -> return PT.EUInt32(gid (), num)
       | WT.EInt128(_, (_, num), _) -> return PT.EInt128(gid (), num)
       | WT.EUInt128(_, (_, num), _) -> return PT.EUInt128(gid (), num)
-      | WT.EInt(_, (_, num)) -> return PT.EInt(gid (), num)
+      | WT.EBigInt(_, (_, num)) -> return PT.EBigInt(gid (), num)
       | WT.EString(_, _, segments, _, _) ->
         let! segments =
           Ply.List.mapSequentially

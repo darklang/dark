@@ -8,7 +8,7 @@ type TokenRange = { start : Pos; end_ : Pos }
 
 /// Token types for the lexer.
 type Token =
-  | TInt of bigint // arbitrary-precision: 1z
+  | TBigInt of bigint // arbitrary-precision: 1z
   | TInt64 of int64 // 1, 1s, 1s64
   | TInt128 of System.Int128 // 1s128
   | TInt8 of sbyte // 1s8

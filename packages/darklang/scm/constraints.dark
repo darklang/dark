@@ -234,7 +234,7 @@ let detectSupersededDecisions(): Stdlib.Result.Result<List<Finding>, String> =
 /// call runs.
 ///
 /// Reads the same candidates a call reads (`Trait.impls`), grouped by the self type
-/// exactly as written: `Show for List<Int>` and `Show for List<'a>` are not rivals (the
+/// exactly as written: `Show for List<Int64>` and `Show for List<'a>` are not rivals (the
 /// specific one wins at the call), two `Show for Point` are. One finding per pair, keyed
 /// on both names and the type, so an ack survives unrelated churn.
 ///

@@ -73,7 +73,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
   | KTStream vt ->
     w.Write 24uy
     writeValueType w vt
-  | KTInt -> w.Write 25uy
+  | KTBigInt -> w.Write 25uy
 
 and writeApplicableImpl (w : BinaryWriter) (app : Applicable) =
   match app with
@@ -244,11 +244,11 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   // logged holding one.
   | DPromise p when p.Task.IsCompletedSuccessfully -> writeDvalImpl w p.Task.Result
   | DPromise _ -> raiseFormatError "Cannot serialize a read still in flight"
-  // Serialized as the decimal value (via DarkInt), so the wire format doesn't
+  // Serialized as the decimal value (via DarkBigInt), so the wire format doesn't
   // depend on the Finite/Infinite representation.
-  | DInt value ->
+  | DBigInt value ->
     w.Write 25uy
-    String.write w (string (DarkInt.toBigInt value))
+    String.write w (string (DarkBigInt.toBigInt value))
 
 /// The blob's format version reaches the applicable reader, which is the one place in this
 /// file whose layout has changed: v4 added the bounds a call worked out. Every other shape
@@ -309,7 +309,7 @@ and readKnownType (r : BinaryReader) : KnownType =
     KTDict(keyType, valueType)
   | 23uy -> KTBytes
   | 24uy -> KTStream(readValueType r)
-  | 25uy -> KTInt
+  | 25uy -> KTBigInt
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
 and readApplicableImpl (version : uint32) (r : BinaryReader) : Applicable =
@@ -438,7 +438,7 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
     let hash = String.read r
     let length = r.ReadInt64()
     DBytes(Persistent(hash, length))
-  | 25uy -> Dval.int (System.Numerics.BigInteger.Parse(String.read r))
+  | 25uy -> Dval.bigInt (System.Numerics.BigInteger.Parse(String.read r))
   | b -> raiseFormatError $"Invalid Dval tag: {b}"
 
 

@@ -369,7 +369,7 @@ let countdown(n: Int64): Stdlib.Option.Option<Int64> =
 test recursiveNone =
   countdown(3) |> Stdlib.Test.equal(None)
 
-// `?` rejects an Int operand at runtime.
+// `?` rejects an Int64 operand at runtime.
 test intOperandRaises =
   (fun v -> Some(v? + 1))(4)
   => raises "`?` needs an Option or Result, but got 4 (an Int64)"

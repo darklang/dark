@@ -581,7 +581,7 @@ let tokenize
         TInt128
     | "u128" ->
       sized "UInt128" "" System.UInt128.Zero System.UInt128.TryParse TUInt128
-    | "z" -> Some(Ok(TInt(System.Numerics.BigInteger.Parse digits)))
+    | "z" -> Some(Ok(TBigInt(System.Numerics.BigInteger.Parse digits)))
     | _ -> None
 
   let rec scanString (scanIndex : int) (closing : char) : Result<int, string> =

@@ -41,7 +41,7 @@ let private testTerminalPrinterFallback =
                   package =
                     fun hash ->
                       if hash = printer then Ply None else state.fns.package hash } }
-      let! output = Exe.dvalToReprForTerminal state 80 false [] (Dval.int 42I)
+      let! output = Exe.dvalToReprForTerminal state 80 false [] (Dval.bigInt 42I)
       Expect.stringStarts
         output
         "<pretty-print failed for dval:"

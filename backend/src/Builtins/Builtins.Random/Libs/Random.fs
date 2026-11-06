@@ -9,17 +9,17 @@ open LibExecution.Effects
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "intRandom" 0
+  [ { name = fn "bigIntRandom" 0
       typeParams = []
-      parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "start" TBigInt ""; Param.make "end" TBigInt "" ]
+      returnType = TBigInt
       description =
         "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] ->
-          let a = DarkInt.toBigInt a
-          let b = DarkInt.toBigInt b
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          let a = DarkBigInt.toBigInt a
+          let b = DarkBigInt.toBigInt b
           let lower, upper = if a > b then (b, a) else (a, b)
           let range = upper - lower + bigint 1
           // Draw a uniform value in [0, range). Generate extra bytes so the
@@ -32,7 +32,7 @@ let fns () : List<BuiltInFn> =
           RNG.Fill(System.Span<byte>(buf, 0, numBytes))
           buf[numBytes] <- 0uy
           let r = System.Numerics.BigInteger(buf) % range
-          Dval.int (lower + r) |> Ply
+          Dval.bigInt (lower + r) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Random ]

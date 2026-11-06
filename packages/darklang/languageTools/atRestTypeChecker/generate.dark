@@ -249,7 +249,7 @@ let isNonExpansive(expr: LanguageTools.ProgramTypes.Expr): Bool =
   | EUInt64(_, _) -> true
   | EInt128(_, _) -> true
   | EUInt128(_, _) -> true
-  | EInt(_, _) -> true
+  | EBigInt(_, _) -> true
   | EFloat(_, _, _, _) -> true
   | EFloat32(_, _, _, _) -> true
   | EDecimal(_, _) -> true
@@ -353,7 +353,7 @@ let matchPattern(
   | MPUInt64(id, _) -> literal(id, Model.Ty.TUInt64)
   | MPInt128(id, _) -> literal(id, Model.Ty.TInt128)
   | MPUInt128(id, _) -> literal(id, Model.Ty.TUInt128)
-  | MPInt(id, _) -> literal(id, Model.Ty.TInt)
+  | MPBigInt(id, _) -> literal(id, Model.Ty.TBigInt)
   | MPFloat(id, _, _, _) -> literal(id, Model.Ty.TFloat)
   | MPFloat32(id, _, _, _) -> literal(id, Model.Ty.TFloat32)
   | MPDecimal(id, _) -> literal(id, Model.Ty.TDecimal)
@@ -505,7 +505,7 @@ let patternIds(pattern: LanguageTools.ProgramTypes.MatchPattern): List<Int64> =
   | MPUInt64(id, _) -> [ id ]
   | MPInt128(id, _) -> [ id ]
   | MPUInt128(id, _) -> [ id ]
-  | MPInt(id, _) -> [ id ]
+  | MPBigInt(id, _) -> [ id ]
   | MPFloat(id, _, _, _) -> [ id ]
   | MPFloat32(id, _, _, _) -> [ id ]
   | MPDecimal(id, _) -> [ id ]
@@ -574,7 +574,7 @@ let infer(scope: Scope, expr: LanguageTools.ProgramTypes.Expr): (Model.Ty * Mode
   | ERecordFieldAccess(id, record, field) -> inferFieldAccess(scope, id, record, field)
   | EMatch(id, arg, cases) -> inferMatch(scope, id, arg, cases)
   | EInt64(_, _) -> (Model.Ty.TInt64, nothing())
-  | EInt(_, _) -> (Model.Ty.TInt, nothing())
+  | EBigInt(_, _) -> (Model.Ty.TBigInt, nothing())
   | EList(id, elements) -> inferList(scope, id, elements)
   | EIf(id, condition, thenExpr, elseExpr) ->
     inferIf(scope, id, condition, thenExpr, elseExpr)
@@ -1112,7 +1112,7 @@ let constantDictKey(
   | EUInt64(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
   | EInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
   | EUInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EInt(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
+  | EBigInt(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
   | EFloat(_, sign, whole, fraction) ->
     let sign =
       match sign with

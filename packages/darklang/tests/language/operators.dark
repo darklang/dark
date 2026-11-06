@@ -134,16 +134,16 @@ test shifts =
       128u8 >> 7u8 |> Stdlib.Test.equal(1u8)
       1z << 100z |> Stdlib.Test.equal(1267650600228229401496703205376z)
       (1z << 100z) >> 99z |> Stdlib.Test.equal(2z)
-      // fixed-width shifts wrap; `Int` grows instead
+      // fixed-width shifts wrap; `BigInt` grows instead
       1 << 64 |> Stdlib.Test.equal(1)
       1u8 << 8u8 |> Stdlib.Test.equal(1u8) ])
 
-// `Int` has no width to mask a count against, so an unusable one raises
+// `BigInt` has no width to mask a count against, so an unusable one raises
 test negativeLeftShiftRaises =
-  1z << -1z => raises "Encountered out-of-range value for type of Int"
+  1z << -1z => raises "Encountered an out-of-range integer value"
 
 test negativeRightShiftRaises =
-  1z >> -1z => raises "Encountered out-of-range value for type of Int"
+  1z >> -1z => raises "Encountered an out-of-range integer value"
 
 // unary `~` is two's complement on every integer type
 test bitwiseNot =
@@ -177,7 +177,7 @@ test mixedBitwiseWidthsRaises =
   1 & 2s8 => raises "Cannot perform numeric operation on Int64 and Int8"
 
 test mixedShiftWidthsRaises =
-  1 << 2z => raises "Cannot perform numeric operation on Int64 and Int"
+  1 << 2z => raises "Cannot perform numeric operation on Int64 and BigInt"
 
 // precedence: bitwise binds TIGHTER than the comparisons (Python's order, not
 // C's), and looser than the arithmetic operators

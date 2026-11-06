@@ -22,7 +22,7 @@ let builtins () : Builtins =
       Libs.UInt64.builtins ()
       Libs.Int128.builtins ()
       Libs.UInt128.builtins ()
-      Libs.Int.builtins ()
+      Libs.BigInt.builtins ()
 
       Libs.Float.builtins ()
       Libs.Float32.builtins ()

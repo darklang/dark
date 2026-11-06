@@ -88,49 +88,49 @@ let toFloat(a: Int128): Float = Builtin.int128ToFloat(a)
 let parse(
   s: String)
   : Stdlib.Result.Result<Int128, Stdlib.Int128.ParseError> =
-  match Stdlib.Int.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toInt128(n), Stdlib.Int128.ParseError.OutOfRange)
+  match Stdlib.BigInt.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toInt128(n), Stdlib.Int128.ParseError.OutOfRange)
   | Error(_) -> Error(Stdlib.Int128.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int128>.
 let fromInt8(i: Int8): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromInt8(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromInt8(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt8> to an <type Int128>.
 let fromUInt8(i: UInt8): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromUInt8(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromUInt8(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int16> to an <type Int128>.
 let fromInt16(i: Int16): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromInt16(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromInt16(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt16> to an <type Int128>.
 let fromUInt16(i: UInt16): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromUInt16(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromUInt16(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int32> to an <type Int128>.
 let fromInt32(i: Int32): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromInt32(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromInt32(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt32> to an <type Int128>.
 let fromUInt32(i: UInt32): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromUInt32(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromUInt32(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int64> to an <type Int128>.
 let fromInt64(i: Int64): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromInt64(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromInt64(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt64> to an <type Int128>.
 let fromUInt64(i: UInt64): Int128 =
-  Stdlib.Int.toInt128(Stdlib.Int.fromUInt64(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt128(Stdlib.BigInt.fromUInt64(i)) |> Builtin.unwrap
 
 
 impl BitwiseAnd for Int128 =
@@ -180,38 +180,38 @@ impl One for Int128 =
 let checkedAdd(
   a: Int128,
   b: Int128)
-  : Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<Int128, Stdlib.Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0s128 then sum > a else sum < a
-  if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
+  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(
   a: Int128,
   b: Int128)
-  : Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<Int128, Stdlib.Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0s128 then difference < a else difference > a
-  if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(difference)
+  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(
   a: Int128,
   b: Int128)
-  : Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
-  let product = Stdlib.Int.fromInt128(a) * Stdlib.Int.fromInt128(b)
-  match Stdlib.Int.toInt128(product) with
+  : Stdlib.Result.Result<Int128, Stdlib.Math.Overflow> =
+  let product = Stdlib.BigInt.fromInt128(a) * Stdlib.BigInt.fromInt128(b)
+  match Stdlib.BigInt.toInt128(product) with
   | Some(fits) -> Ok(fits)
-  | None -> Error(Stdlib.Int.Overflow.Overflow)
+  | None -> Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
-let checkedNegate(a: Int128): Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
+let checkedNegate(a: Int128): Stdlib.Result.Result<Int128, Stdlib.Math.Overflow> =
   if a == -170141183460469231731687303715884105728s128 then
-    Error(Stdlib.Int.Overflow.Overflow)
+    Error(Stdlib.Math.Overflow.Overflow)
   else
     Ok(-a)
 
@@ -219,9 +219,9 @@ let checkedNegate(a: Int128): Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int128)
-  : Stdlib.Result.Result<Int128, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<Int128, Stdlib.Math.Overflow> =
   if a == -170141183460469231731687303715884105728s128 then
-    Error(Stdlib.Int.Overflow.Overflow)
+    Error(Stdlib.Math.Overflow.Overflow)
   else if a < 0s128 then
     Ok(-a)
   else

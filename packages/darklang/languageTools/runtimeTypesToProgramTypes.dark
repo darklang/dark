@@ -65,7 +65,7 @@ let dvalToExpr(
   match dval with
   | DUnit -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUnit(gid()))
   | DBool(b) -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EBool(gid(), b))
-  | DInt(i) -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt(gid(), i))
+  | DBigInt(i) -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EBigInt(gid(), i))
   | DInt8(i) -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt8(gid(), i))
   | DUInt8(i) -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt8(gid(), i))
   | DInt16(i) -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt16(gid(), i))

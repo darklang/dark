@@ -61,8 +61,8 @@ impl Compare for UInt32 =
 
 /// Returns a random 32-bit unsigned integer between <param start> and <param end> (inclusive)
 let random(start: UInt32, ``end``: UInt32): UInt32 =
-  Stdlib.Int.random(Stdlib.Int.fromUInt32(start), Stdlib.Int.fromUInt32(``end``))
-  |> Stdlib.Int.toUInt32
+  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt32(start), Stdlib.BigInt.fromUInt32(``end``))
+  |> Stdlib.BigInt.toUInt32
   |> Builtin.unwrap
 
 
@@ -81,54 +81,54 @@ let toFloat(a: UInt32): Float = Builtin.uint32ToFloat(a)
 let parse(
   s: String)
   : Stdlib.Result.Result<UInt32, Stdlib.UInt32.ParseError> =
-  match Stdlib.Int.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toUInt32(n), Stdlib.UInt32.ParseError.OutOfRange)
+  match Stdlib.BigInt.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toUInt32(n), Stdlib.UInt32.ParseError.OutOfRange)
   | Error(_) -> Error(Stdlib.UInt32.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to a <type UInt32>. Returns {{None}} if the value is less than 0.
 let fromInt8(i: Int8): Stdlib.Option.Option<UInt32> =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromInt8(i))
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromInt8(i))
 
 
 /// Converts an <type UInt8> to a <type UInt32>.
 let fromUInt8(i: UInt8): UInt32 =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromUInt8(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromUInt8(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int16> to a <type UInt32>. Returns {{None}} if the value is less than 0.
 let fromInt16(i: Int16): Stdlib.Option.Option<UInt32> =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromInt16(i))
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromInt16(i))
 
 
 /// Converts an <type UInt16> to a <type UInt32>.
 let fromUInt16(i: UInt16): UInt32 =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromUInt16(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromUInt16(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int32> to a <type UInt32>. Returns {{None}} if the value is less than 0.
 let fromInt32(i: Int32): Stdlib.Option.Option<UInt32> =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromInt32(i))
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromInt32(i))
 
 
 /// Converts an <type Int64> to a <type UInt32>. Returns {{None}} if the value is less than 0 or greater than 4294967295.
 let fromInt64(i: Int64): Stdlib.Option.Option<UInt32> =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromInt64(i))
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromInt64(i))
 
 
 /// Converts an <type UInt64> to a <type UInt32>. Returns {{None}} if the value is greater than 4294967295.
 let fromUInt64(i: UInt64): Stdlib.Option.Option<UInt32> =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromUInt64(i))
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromUInt64(i))
 
 
 /// Converts an <type Int128> to a <type UInt32>. Returns {{None}} if the value is less than 0 or greater than 4294967295.
 let fromInt128(i: Int128): Stdlib.Option.Option<UInt32> =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromInt128(i))
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromInt128(i))
 
 
 /// Converts an <type UInt128> to a <type UInt32>. Returns {{None}} if the value is greater than 4294967295.
 let fromUInt128(i: UInt128): Stdlib.Option.Option<UInt32> =
-  Stdlib.Int.toUInt32(Stdlib.Int.fromUInt128(i))
+  Stdlib.BigInt.toUInt32(Stdlib.BigInt.fromUInt128(i))
 
 
 impl BitwiseAnd for UInt32 =
@@ -178,38 +178,38 @@ impl One for UInt32 =
 let checkedAdd(
   a: UInt32,
   b: UInt32)
-  : Stdlib.Result.Result<UInt32, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<UInt32, Stdlib.Math.Overflow> =
   let sum = a + b
-  if sum < a then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
+  if sum < a then Error(Stdlib.Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(
   a: UInt32,
   b: UInt32)
-  : Stdlib.Result.Result<UInt32, Stdlib.Int.Overflow> =
-  if b > a then Error(Stdlib.Int.Overflow.Overflow) else Ok(a - b)
+  : Stdlib.Result.Result<UInt32, Stdlib.Math.Overflow> =
+  if b > a then Error(Stdlib.Math.Overflow.Overflow) else Ok(a - b)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(
   a: UInt32,
   b: UInt32)
-  : Stdlib.Result.Result<UInt32, Stdlib.Int.Overflow> =
-  let product = Stdlib.Int.fromUInt32(a) * Stdlib.Int.fromUInt32(b)
-  match Stdlib.Int.toUInt32(product) with
+  : Stdlib.Result.Result<UInt32, Stdlib.Math.Overflow> =
+  let product = Stdlib.BigInt.fromUInt32(a) * Stdlib.BigInt.fromUInt32(b)
+  match Stdlib.BigInt.toUInt32(product) with
   | Some(fits) -> Ok(fits)
-  | None -> Error(Stdlib.Int.Overflow.Overflow)
+  | None -> Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
-let checkedNegate(a: UInt32): Stdlib.Result.Result<UInt32, Stdlib.Int.Overflow> =
-  if a == 0u32 then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+let checkedNegate(a: UInt32): Stdlib.Result.Result<UInt32, Stdlib.Math.Overflow> =
+  if a == 0u32 then Ok(a) else Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always
 /// <param a> itself. Here so every fixed-width type has the same checked set.
 let checkedAbsoluteValue(a: UInt32)
-  : Stdlib.Result.Result<UInt32, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<UInt32, Stdlib.Math.Overflow> =
   Ok(a)

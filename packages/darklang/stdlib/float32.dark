@@ -169,7 +169,7 @@ let isFinite(f: Float32): Bool =
 
 /// Convert <param a> to an <type Int64> by discarding its fractional part.
 /// Raises for NaN and infinities. Alias of <fn Float32.roundTowardsZero>.
-let toInt(a: Float32): Int64 = Stdlib.Float32.roundTowardsZero(a)
+let toInt64(a: Float32): Int64 = Stdlib.Float32.roundTowardsZero(a)
 
 
 /// Return <param a>'s IEEE 754 binary32 bits as an unsigned 32-bit value.

@@ -23,7 +23,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DUInt64 v; DUInt64 m |] ->
           if m = 0UL then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.ZeroModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0UL then m + result else result
@@ -107,7 +107,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DUInt64 a; DUInt64 b |] ->
           if b = 0UL then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.DivideByZeroError |> RTE.BigInt |> raiseRTE vm.threadID
           else
             Ply(DUInt64(a / b))
         | _ -> incorrectArgs ())

@@ -260,7 +260,7 @@ type DisplayOptions =
     /// The module the reader is standing in, owner-first. Names are spelled relative to it.
     currentModule: List<String>
 
-    /// Print type arguments on enum and record values (`Option<Int>.Some(1)`). Off is usually right for
+    /// Print type arguments on enum and record values (`Option<Int64>.Some(1)`). Off is usually right for
     /// a person reading a value, since the payload shows the type; on is useful when the type is the
     /// question being asked.
     showTypeArgs: Bool

@@ -221,7 +221,7 @@ module Bytes =
       | RT.DUInt64 _
       | RT.DInt128 _
       | RT.DUInt128 _
-      | RT.DInt _
+      | RT.DBigInt _
       | RT.DFloat _
       | RT.DFloat32 _
       | RT.DDecimal _

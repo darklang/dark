@@ -27,10 +27,10 @@ let parseError(error: ParseError): Stdlib.Result.Result<Json, ParseError> =
   Error(error)
 // </helpers>
 
-/// `toInt` of whatever `text` parses to, and None when it does not parse.
+/// `toInt64` of whatever `text` parses to, and None when it does not parse.
 let parseInt(text: String): Stdlib.Option.Option<Int64> =
   match parse(text) with
-  | Ok(json) -> Stdlib.AltJson.toInt(json)
+  | Ok(json) -> Stdlib.AltJson.toInt64(json)
   | Error(_) -> None
 
 // tests
@@ -74,62 +74,62 @@ test numberValues =
 
 test intBuilder =
   Stdlib.Test.all(
-    [ Stdlib.AltJson.Builder.addInt([], "n", 9007199254740993)
+    [ Stdlib.AltJson.Builder.addInt64([], "n", 9007199254740993)
       |> Stdlib.Test.equal([ ("n", Json.Integer(9007199254740993)) ])
-      Stdlib.AltJson.Builder.addOptionalInt([], "n", None) |> Stdlib.Test.equal([])
-      Stdlib.AltJson.Builder.addOptionalInt([], "n", Some(9007199254740993))
+      Stdlib.AltJson.Builder.addOptionalInt64([], "n", None) |> Stdlib.Test.equal([])
+      Stdlib.AltJson.Builder.addOptionalInt64([], "n", Some(9007199254740993))
       |> Stdlib.Test.equal([ ("n", Json.Integer(9007199254740993)) ])
       (Stdlib.AltJson.Builder.empty
-       |> Stdlib.AltJson.Builder.addInt("n", 42)
-       |> Stdlib.AltJson.Builder.addOptionalInt("m", Some(7))
+       |> Stdlib.AltJson.Builder.addInt64("n", 42)
+       |> Stdlib.AltJson.Builder.addOptionalInt64("m", Some(7))
        |> Stdlib.AltJson.Builder.toJson
        |> format)
       |> Stdlib.Test.equal("""{"n":42,"m":7}""") ])
 
-/// Only an integer-valued JSON number is an Int: a float form is not, even when
+/// Only an integer-valued JSON number is an Int64: a float form is not, even when
 /// its value is whole.
-test toInt =
+test toInt64 =
   Stdlib.Test.all(
-    [ Stdlib.AltJson.toInt(Json.Integer(42)) |> Stdlib.Test.equal(Some(42))
-      Stdlib.AltJson.toInt(Json.Integer(-42)) |> Stdlib.Test.equal(Some(-42))
-      Stdlib.AltJson.toInt(Json.Integer(9007199254740993))
+    [ Stdlib.AltJson.toInt64(Json.Integer(42)) |> Stdlib.Test.equal(Some(42))
+      Stdlib.AltJson.toInt64(Json.Integer(-42)) |> Stdlib.Test.equal(Some(-42))
+      Stdlib.AltJson.toInt64(Json.Integer(9007199254740993))
       |> Stdlib.Test.equal(Some(9007199254740993))
-      Stdlib.AltJson.toInt(Json.Float(42.0)) |> Stdlib.Test.equal(None)
-      Stdlib.AltJson.toInt(Json.Float(1.5)) |> Stdlib.Test.equal(None)
-      Stdlib.AltJson.toInt(Json.String("1")) |> Stdlib.Test.equal(None)
+      Stdlib.AltJson.toInt64(Json.Float(42.0)) |> Stdlib.Test.equal(None)
+      Stdlib.AltJson.toInt64(Json.Float(1.5)) |> Stdlib.Test.equal(None)
+      Stdlib.AltJson.toInt64(Json.String("1")) |> Stdlib.Test.equal(None)
       parseInt("9007199254740993") |> Stdlib.Test.equal(Some(9007199254740993))
       parseInt("3.7") |> Stdlib.Test.equal(None)
       parseInt("1.0000000000000001") |> Stdlib.Test.equal(None)
       parseInt("1e-10000") |> Stdlib.Test.equal(None)
       parseInt("1e0") |> Stdlib.Test.equal(None) ])
 
-/// Reading a named field as an Int (or a Float): a missing field, a null, and a
+/// Reading a named field as an Int64 (or a Float): a missing field, a null, and a
 /// non-integer value each answer differently.
 test intFieldHelpers =
   Stdlib.Test.all(
-    [ Stdlib.AltJson.Helpers.getIntOption("a", [ ("a", Json.Integer(3)) ])
+    [ Stdlib.AltJson.Helpers.getInt64Option("a", [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Some(3))
-      Stdlib.AltJson.Helpers.getIntOption("a", [ ("a", Json.Float(3.7)) ])
+      Stdlib.AltJson.Helpers.getInt64Option("a", [ ("a", Json.Float(3.7)) ])
       |> Stdlib.Test.equal(None)
-      Stdlib.AltJson.Helpers.getIntOption("b", [ ("a", Json.Integer(3)) ])
+      Stdlib.AltJson.Helpers.getInt64Option("b", [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(None)
-      Stdlib.AltJson.Helpers.getIntResult("a", [ ("a", Json.Integer(3)) ])
+      Stdlib.AltJson.Helpers.getInt64Result("a", [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Ok(3))
-      Stdlib.AltJson.Helpers.getIntResult("a", [ ("a", Json.Float(3.7)) ])
+      Stdlib.AltJson.Helpers.getInt64Result("a", [ ("a", Json.Float(3.7)) ])
       |> Stdlib.Test.equal(Error("Invalid JSON integer field: a"))
-      Stdlib.AltJson.Helpers.getIntResult("a", [ ("a", Json.Float(3.0)) ])
+      Stdlib.AltJson.Helpers.getInt64Result("a", [ ("a", Json.Float(3.0)) ])
       |> Stdlib.Test.equal(Error("Invalid JSON integer field: a"))
-      Stdlib.AltJson.Helpers.getIntResult("b", [ ("a", Json.Integer(3)) ])
+      Stdlib.AltJson.Helpers.getInt64Result("b", [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Error("Missing JSON integer field: b"))
-      Stdlib.AltJson.Helpers.getIntOptionResult("a", [ ("a", Json.Integer(3)) ])
+      Stdlib.AltJson.Helpers.getInt64OptionResult("a", [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Ok(Some(3)))
-      Stdlib.AltJson.Helpers.getIntOptionResult("a", [ ("a", Json.Float(3.7)) ])
+      Stdlib.AltJson.Helpers.getInt64OptionResult("a", [ ("a", Json.Float(3.7)) ])
       |> Stdlib.Test.equal(Error("Invalid JSON integer field: a"))
-      Stdlib.AltJson.Helpers.getIntOptionResult("b", [ ("a", Json.Integer(3)) ])
+      Stdlib.AltJson.Helpers.getInt64OptionResult("b", [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Ok(None))
-      Stdlib.AltJson.Helpers.getIntOptionResult("a", [ ("a", Json.Null) ])
+      Stdlib.AltJson.Helpers.getInt64OptionResult("a", [ ("a", Json.Null) ])
       |> Stdlib.Test.equal(Ok(None))
-      Stdlib.AltJson.Helpers.getIntOptionResult("a", [ ("a", Json.Float(1.0)) ])
+      Stdlib.AltJson.Helpers.getInt64OptionResult("a", [ ("a", Json.Float(1.0)) ])
       |> Stdlib.Test.equal(Error("Invalid JSON integer field: a"))
       Stdlib.AltJson.Helpers.getFloat("a", [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Some(3.0))
@@ -137,15 +137,15 @@ test intFieldHelpers =
       |> Stdlib.Test.equal(None)
       Stdlib.AltJson.Helpers.getFloat("a", [ ("a", Json.Float(1.0)) ])
       |> Stdlib.Test.equal(Some(1.0))
-      Stdlib.AltJson.Helpers.getIntOr("a", 0, [ ("a", Json.Integer(3)) ])
+      Stdlib.AltJson.Helpers.getInt64Or("a", 0, [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Ok(3))
-      Stdlib.AltJson.Helpers.getIntOr("b", 0, [ ("a", Json.Integer(3)) ])
+      Stdlib.AltJson.Helpers.getInt64Or("b", 0, [ ("a", Json.Integer(3)) ])
       |> Stdlib.Test.equal(Ok(0))
-      Stdlib.AltJson.Helpers.getIntOr("a", 7, [ ("a", Json.Null) ])
+      Stdlib.AltJson.Helpers.getInt64Or("a", 7, [ ("a", Json.Null) ])
       |> Stdlib.Test.equal(Ok(7))
-      Stdlib.AltJson.Helpers.getIntOr("a", 0, [ ("a", Json.Float(3.7)) ])
+      Stdlib.AltJson.Helpers.getInt64Or("a", 0, [ ("a", Json.Float(3.7)) ])
       |> Stdlib.Test.equal(Error("Invalid JSON integer field: a"))
-      Stdlib.AltJson.Helpers.getIntOr("a", 0, [ ("a", Json.String("3")) ])
+      Stdlib.AltJson.Helpers.getInt64Or("a", 0, [ ("a", Json.String("3")) ])
       |> Stdlib.Test.equal(Error("Invalid JSON integer field: a")) ])
 
 /// Integer fields past 2^53, where a Float cannot hold the value exactly. `Json.Integer` is
@@ -158,13 +158,13 @@ test intFieldHelpers =
 /// through text below is the part those cases could not reach.
 test largeIntegerFields =
   Stdlib.Test.all(
-    [ Stdlib.AltJson.Helpers.getIntResult("a", [ ("a", Json.Integer(9007199254740993)) ])
+    [ Stdlib.AltJson.Helpers.getInt64Result("a", [ ("a", Json.Integer(9007199254740993)) ])
       |> Stdlib.Test.equal(Ok(9007199254740993))
-      Stdlib.AltJson.Helpers.getIntResult("a", [ ("a", Json.Float(9007199254740992.0)) ])
+      Stdlib.AltJson.Helpers.getInt64Result("a", [ ("a", Json.Float(9007199254740992.0)) ])
       |> Stdlib.Test.equal(Error("Invalid JSON integer field: a"))
       // And through text, which is where a round trip could lose it: formatted, parsed, read back.
       (match parse(format(Json.Object([ ("a", Json.Integer(9007199254740993)) ]))) with
-       | Ok(Object(fields)) -> Stdlib.AltJson.Helpers.getIntResult("a", fields)
+       | Ok(Object(fields)) -> Stdlib.AltJson.Helpers.getInt64Result("a", fields)
        | _ -> Error("did not round trip"))
       |> Stdlib.Test.equal(Ok(9007199254740993)) ])
 

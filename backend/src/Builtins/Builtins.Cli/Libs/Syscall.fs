@@ -33,7 +33,7 @@ let private make name parameters result _kt body : BuiltInFn =
     deprecated = NotDeprecated }
 
 let private integer name = Param.make name TInt64 "Kernel scalar"
-let private descriptor name = Param.make name TInt "Descriptor token"
+let private descriptor name = Param.make name TBigInt "Descriptor token"
 let private bytesParam name = Param.make name TBytes "Bytes"
 let private bytes r = Bytes.newEphemeral (Host.expectBytes r)
 let private unit (_ : Host.Response) = DUnit
@@ -72,7 +72,7 @@ let private poll name constructor =
     name
     [ Param.make
         "descriptors"
-        (TList(TTuple(TInt, TInt64, [])))
+        (TList(TTuple(TBigInt, TInt64, [])))
         "fd and requested events"
       integer "timeoutMs" ]
     TBytes
@@ -83,8 +83,8 @@ let private poll name constructor =
         let descriptors =
           descriptors
           |> List.map (function
-            | DTuple(DInt fd, DInt64 events, []) ->
-              intToDescriptor vm fd, int64ToInt32 vm events
+            | DTuple(DBigInt fd, DInt64 events, []) ->
+              bigIntToDescriptor vm fd, int64ToInt32 vm events
             | _ -> incorrectArgs ())
         perform
           KTBytes
@@ -97,19 +97,23 @@ let fns () : List<BuiltInFn> =
   [ make
       "syscallKqueue"
       [ Param.make "unit" TUnit "" ]
-      TInt
-      KTInt
+      TBigInt
+      KTBigInt
       (fun _ vm values ->
         match values with
         | [| DUnit |] ->
-          perform KTInt vm Op.PosixOp.Kqueue (Host.expectDescriptor >> Dval.int)
+          perform
+            KTBigInt
+            vm
+            Op.PosixOp.Kqueue
+            (Host.expectDescriptor >> Dval.bigInt)
         | _ -> incorrectArgs ())
     make
       "syscallKeventVnode"
       [ descriptor "queue"
         Param.make
           "changes"
-          (TList(TTuple(TInt, TInt64, [ TInt64 ])))
+          (TList(TTuple(TBigInt, TInt64, [ TInt64 ])))
           "fd, flags, vnode mask"
         integer "capacity"
         integer "timeoutMs" ]
@@ -117,33 +121,40 @@ let fns () : List<BuiltInFn> =
       KTBytes
       (fun _ vm values ->
         match values with
-        | [| DInt queue; DList(_, changes); DInt64 capacity; DInt64 timeout |] ->
+        | [| DBigInt queue; DList(_, changes); DInt64 capacity; DInt64 timeout |] ->
           let changes =
             changes
             |> List.map (function
-              | DTuple(DInt fd, DInt64 flags, [ DInt64 mask ]) ->
-                intToDescriptor vm fd, int64ToInt32 vm flags, int64ToInt32 vm mask
+              | DTuple(DBigInt fd, DInt64 flags, [ DInt64 mask ]) ->
+                bigIntToDescriptor vm fd,
+                int64ToInt32 vm flags,
+                int64ToInt32 vm mask
               | _ -> incorrectArgs ())
           perform
             KTBytes
             vm
             (Op.PosixOp.KeventVnode(
-              intToDescriptor vm queue,
+              bigIntToDescriptor vm queue,
               changes,
               int64ToInt32 vm capacity,
               int64ToInt32 vm timeout
             ))
             bytes
         | _ -> incorrectArgs ())
-    make "syscallInotifyInit1" [ integer "flags" ] TInt KTInt (fun _ vm values ->
-      match values with
-      | [| DInt64 flags |] ->
-        perform
-          KTInt
-          vm
-          (Op.PosixOp.InotifyInit1(int64ToInt32 vm flags))
-          (fun response -> Dval.int (Host.expectDescriptor response))
-      | _ -> incorrectArgs ())
+    make
+      "syscallInotifyInit1"
+      [ integer "flags" ]
+      TBigInt
+      KTBigInt
+      (fun _ vm values ->
+        match values with
+        | [| DInt64 flags |] ->
+          perform
+            KTBigInt
+            vm
+            (Op.PosixOp.InotifyInit1(int64ToInt32 vm flags))
+            (fun response -> Dval.bigInt (Host.expectDescriptor response))
+        | _ -> incorrectArgs ())
     make
       "syscallInotifyAddWatch"
       [ descriptor "fd"; Param.make "path" TString "Checked path"; integer "mask" ]
@@ -151,12 +162,12 @@ let fns () : List<BuiltInFn> =
       KTInt64
       (fun _ vm values ->
         match values with
-        | [| DInt fd; DString path; DInt64 mask |] ->
+        | [| DBigInt fd; DString path; DInt64 mask |] ->
           perform
             KTInt64
             vm
             (Op.PosixOp.InotifyAddWatch(
-              intToDescriptor vm fd,
+              bigIntToDescriptor vm fd,
               path,
               int64ToInt32 vm mask
             ))
@@ -212,8 +223,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
     make "syscallFcntlGetPath" [ descriptor "fd" ] TBytes KTBytes (fun _ vm values ->
       match values with
-      | [| DInt fd |] ->
-        perform KTBytes vm (Op.PosixOp.FcntlGetPath(intToDescriptor vm fd)) bytes
+      | [| DBigInt fd |] ->
+        perform KTBytes vm (Op.PosixOp.FcntlGetPath(bigIntToDescriptor vm fd)) bytes
       | _ -> incorrectArgs ())
     make
       "syscallSysctl"
@@ -266,11 +277,11 @@ let fns () : List<BuiltInFn> =
       KTInt64
       (fun _ vm values ->
         match values with
-        | [| DInt source; DInt destination; DInt64 count |] ->
+        | [| DBigInt source; DBigInt destination; DInt64 count |] ->
           let op =
             Op.PosixOp.CopyFileRange(
-              intToDescriptor vm source,
-              intToDescriptor vm destination,
+              bigIntToDescriptor vm source,
+              bigIntToDescriptor vm destination,
               int64ToInt32 vm count
             )
           perform KTInt64 vm op offset
@@ -282,13 +293,13 @@ let fns () : List<BuiltInFn> =
       KTUnit
       (fun _ vm values ->
         match values with
-        | [| DInt source; DInt destination |] ->
+        | [| DBigInt source; DBigInt destination |] ->
           perform
             KTUnit
             vm
             (Op.PosixOp.CloneFile(
-              intToDescriptor vm source,
-              intToDescriptor vm destination
+              bigIntToDescriptor vm source,
+              bigIntToDescriptor vm destination
             ))
             unit
         | _ -> incorrectArgs ())
@@ -301,12 +312,12 @@ let fns () : List<BuiltInFn> =
       KTUnit
       (fun _ vm values ->
         match values with
-        | [| DInt source; DString destination; DInt64 flags |] ->
+        | [| DBigInt source; DString destination; DInt64 flags |] ->
           perform
             KTUnit
             vm
             (Op.PosixOp.FclonefileAt(
-              intToDescriptor vm source,
+              bigIntToDescriptor vm source,
               destination,
               int64ToInt32 vm flags
             ))
@@ -319,11 +330,11 @@ let fns () : List<BuiltInFn> =
       KTUnit
       (fun _ vm values ->
         match values with
-        | [| DInt fd; DInt64 length |] ->
+        | [| DBigInt fd; DInt64 length |] ->
           perform
             KTUnit
             vm
-            (Op.PosixOp.Ftruncate(intToDescriptor vm fd, length))
+            (Op.PosixOp.Ftruncate(bigIntToDescriptor vm fd, length))
             unit
         | _ -> incorrectArgs ())
     make
@@ -333,17 +344,17 @@ let fns () : List<BuiltInFn> =
       KTUnit
       (fun _ vm values ->
         match values with
-        | [| DInt fd; DInt64 mode |] ->
+        | [| DBigInt fd; DInt64 mode |] ->
           perform
             KTUnit
             vm
-            (Op.PosixOp.Fchmod(intToDescriptor vm fd, int64ToInt32 vm mode))
+            (Op.PosixOp.Fchmod(bigIntToDescriptor vm fd, int64ToInt32 vm mode))
             unit
         | _ -> incorrectArgs ())
     make "syscallFstat" [ descriptor "fd" ] TBytes KTBytes (fun _ vm values ->
       match values with
-      | [| DInt fd |] ->
-        perform KTBytes vm (Op.PosixOp.Fstat(intToDescriptor vm fd)) bytes
+      | [| DBigInt fd |] ->
+        perform KTBytes vm (Op.PosixOp.Fstat(bigIntToDescriptor vm fd)) bytes
       | _ -> incorrectArgs ())
     make
       "syscallPread"
@@ -352,11 +363,15 @@ let fns () : List<BuiltInFn> =
       KTBytes
       (fun _ vm values ->
         match values with
-        | [| DInt fd; DInt64 count; DInt64 offset |] ->
+        | [| DBigInt fd; DInt64 count; DInt64 offset |] ->
           perform
             KTBytes
             vm
-            (Op.PosixOp.Pread(intToDescriptor vm fd, int64ToInt32 vm count, offset))
+            (Op.PosixOp.Pread(
+              bigIntToDescriptor vm fd,
+              int64ToInt32 vm count,
+              offset
+            ))
             bytes
         | _ -> incorrectArgs ())
     make
@@ -366,12 +381,12 @@ let fns () : List<BuiltInFn> =
       KTInt64
       (fun state vm values ->
         match values with
-        | [| DInt fd; DBytes reference; DInt64 offset |] ->
+        | [| DBigInt fd; DBytes reference; DInt64 offset |] ->
           Bytes.withBytes state reference (fun bytes ->
             perform
               KTInt64
               vm
-              (Op.PosixOp.Pwrite(intToDescriptor vm fd, bytes, offset))
+              (Op.PosixOp.Pwrite(bigIntToDescriptor vm fd, bytes, offset))
               written)
         | _ -> incorrectArgs ()) ]
 

@@ -434,7 +434,7 @@ let locationOfName(
   | [] -> Stdlib.Option.Option.None
 
 /// One type-check issue as a person reads it: what was wrong first, where at the end in
-/// parentheses. `expected String, got Int (argument 2)`; `expected String, got Int (return value)`.
+/// parentheses. `expected String, got Int64 (argument 2)`; `expected String, got Int64 (return value)`.
 /// The checker's own text leads with the site ("In argument 2: expected ..."); every line a live
 /// host prints puts the site last, so the lines align on the part that matters.
 let issueText(issue: LanguageTools.AtRestTypeChecker.Issue): String =

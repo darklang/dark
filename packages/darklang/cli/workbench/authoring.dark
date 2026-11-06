@@ -4,7 +4,7 @@
 module Darklang.Cli.Workbench
 
 /// Pull the leaf name out of a full declaration's first line: the token right after the `let`/`type`/`val`
-/// keyword, stripped of anything from a `(` or `:` (so `let f(x: Int)` -> `f`). "" if none.
+/// keyword, stripped of anything from a `(` or `:` (so `let f(x: Int64)` -> `f`). "" if none.
 ///
 /// The first line of the DECLARATION, past any doc comment or blank line above it. Taking the buffer's
 /// first line made `/// Adds a number` above `let docme` save a new item named `Adds`.

@@ -261,7 +261,7 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTUInt64
     | KTInt128
     | KTUInt128
-    | KTInt
+    | KTBigInt
     | KTFloat
     | KTFloat32
     | KTDecimal
@@ -566,9 +566,9 @@ and checkAndExtractMatchPattern
     match dv with
     | DUInt128 r -> l = r
     | _ -> false
-  | MPInt l ->
+  | MPBigInt l ->
     match dv with
-    | DInt r -> l = DarkInt.toBigInt r
+    | DBigInt r -> l = DarkBigInt.toBigInt r
     | _ -> false
   | MPFloat l ->
     match dv with
@@ -1776,7 +1776,7 @@ let private completeBuiltin
     invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs
 
 
-/// The result of an `Int` operator, or `ValueNone` to take the ordinary path.
+/// The result of a `FastOps` operator, or `ValueNone` to take the ordinary path.
 ///
 /// Always taken when the shape allows it.
 ///
@@ -1805,9 +1805,9 @@ let private tryFastOp
         | ValueSome(struct (DInt64 b, tail)) when ArgSeq.isEmpty tail ->
           FastOps.eval64 tag a b
         | _ -> ValueNone
-      | ValueSome(struct (DInt a, rest)) ->
+      | ValueSome(struct (DBigInt a, rest)) ->
         match ArgSeq.uncons rest with
-        | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
+        | ValueSome(struct (DBigInt b, tail)) when ArgSeq.isEmpty tail ->
           FastOps.eval tag a b
         | _ -> ValueNone
       | ValueSome(struct (DString a, rest)) ->
@@ -1919,9 +1919,9 @@ let private tryFastOpOn
         match registers[secondReg] with
         | DInt64 y -> FastOps.eval64 tag x y
         | _ -> ValueNone
-      | DInt x ->
+      | DBigInt x ->
         match registers[secondReg] with
-        | DInt y -> FastOps.eval tag x y
+        | DBigInt y -> FastOps.eval tag x y
         | _ -> ValueNone
       | DString x ->
         match registers[secondReg] with
@@ -1967,8 +1967,8 @@ let private tryFastOpDirect
     match applicable.name with
     | FQFnName.Builtin b -> tryFastOpOn threadID registers b argRegs
     // `a + b` on two values of one builtin type: the impl the dispatch would pick
-    // is the type's own wrapper over the same F# operator, so answer it here. An `Int` pair
-    // takes the `Int` table; the rest take `evalNumeric`.
+    // is the type's own wrapper over the same F# operator, so answer it here. A `BigInt` pair
+    // takes the `BigInt` table; the rest take `evalNumeric`.
     | FQFnName.TraitMethod { trait_ = Hash traitHash
                              method_ = methodName
                              implFn = _ } ->
@@ -1978,9 +1978,9 @@ let private tryFastOpDirect
         | ValueSome tag ->
           // Nested, not `match a, b with`: the pair is an allocation per operator.
           match registers[argRegs.head] with
-          | DInt x ->
+          | DBigInt x ->
             match registers[secondReg] with
-            | DInt y -> FastOps.eval tag x y
+            | DBigInt y -> FastOps.eval tag x y
             | _ -> ValueNone
           | a -> FastOps.evalNumeric tag a registers[secondReg]
         | ValueNone -> ValueNone
@@ -3866,7 +3866,7 @@ let private applyInstructionForced
           |> RTE.Apply
           |> raiseRTE vm.threadID
 
-    // An `Int` operator called directly, taken before any of the call machinery: no `ApplyContext`,
+    // A `FastOps` operator called directly, taken before any of the call machinery: no `ApplyContext`,
     // no builtin-table lookup, no `ArgSeq`. `tryFastOp` further down catches the same operators
     // arriving through an elided package wrapper -- `Stdlib.List.length` never reaches here.
     //
@@ -3947,7 +3947,7 @@ let private applyInstructionForced
              let left = Dval.toValueType registers[newArgRegs.head]
              let right = Dval.toValueType registers[secondReg]
              // Heads, not whole types: selection matches on the head, so `xs < []` (a
-             // `List<Int>` against a `List<Unknown>`) is a pair an implementation for `List<'a>`
+             // `List<Int64>` against a `List<Unknown>`) is a pair an implementation for `List<'a>`
              // can take, and comparing the types whole called it a mismatch.
              match left, right with
              | ValueType.Known l, ValueType.Known r when

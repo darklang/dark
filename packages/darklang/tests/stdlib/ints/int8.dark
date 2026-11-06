@@ -381,9 +381,9 @@ test shiftRight =
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.Int8.checkedAdd(127s8, 1s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedAdd(-128s8, -1s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedAdd(127s8, -1s8) |> Stdlib.Test.equal(Ok(126s8))
       Stdlib.Int8.checkedAdd(-128s8, 1s8) |> Stdlib.Test.equal(Ok(-127s8))
       Stdlib.Int8.checkedAdd(127s8, -128s8) |> Stdlib.Test.equal(Ok(-1s8))
@@ -392,11 +392,11 @@ test checkedAdd =
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.Int8.checkedSubtract(-128s8, 1s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedSubtract(127s8, -1s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedSubtract(0s8, -128s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedSubtract(-1s8, -128s8) |> Stdlib.Test.equal(Ok(127s8))
       Stdlib.Int8.checkedSubtract(127s8, 127s8) |> Stdlib.Test.equal(Ok(0s8))
       Stdlib.Int8.checkedSubtract(-128s8, -1s8) |> Stdlib.Test.equal(Ok(-127s8)) ])
@@ -404,13 +404,13 @@ test checkedSubtract =
 test checkedMultiply =
   Stdlib.Test.all(
     [ Stdlib.Int8.checkedMultiply(127s8, 2s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedMultiply(-128s8, -1s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedMultiply(-1s8, -128s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedMultiply(-128s8, 2s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedMultiply(127s8, -1s8) |> Stdlib.Test.equal(Ok(-127s8))
       Stdlib.Int8.checkedMultiply(-128s8, 1s8) |> Stdlib.Test.equal(Ok(-128s8))
       Stdlib.Int8.checkedMultiply(-128s8, 0s8) |> Stdlib.Test.equal(Ok(0s8))
@@ -419,14 +419,14 @@ test checkedMultiply =
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.Int8.checkedNegate(-128s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedNegate(127s8) |> Stdlib.Test.equal(Ok(-127s8))
       Stdlib.Int8.checkedNegate(0s8) |> Stdlib.Test.equal(Ok(0s8)) ])
 
 test checkedAbsoluteValue =
   Stdlib.Test.all(
     [ Stdlib.Int8.checkedAbsoluteValue(-128s8)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int8.checkedAbsoluteValue(-127s8) |> Stdlib.Test.equal(Ok(127s8))
       Stdlib.Int8.checkedAbsoluteValue(127s8) |> Stdlib.Test.equal(Ok(127s8))
       Stdlib.Int8.checkedAbsoluteValue(0s8) |> Stdlib.Test.equal(Ok(0s8)) ])

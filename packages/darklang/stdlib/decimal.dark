@@ -18,14 +18,14 @@ type ParseError =
 
 /// Split <param d> into {{(unscaled, scale)}}, where <param d> is
 /// {{unscaled / 10 ** scale}}: {{Decimal.toParts(1.10dec) == (110z, 2)}}
-let toParts(d: Decimal): (Int * Int64) = Builtin.decimalToParts(d)
+let toParts(d: Decimal): (BigInt * Int64) = Builtin.decimalToParts(d)
 
 
 /// The decimal {{unscaled / 10 ** scale}}, keeping <param scale>:
 /// {{Decimal.fromParts(110z, 2) == Some(1.10dec)}}. {{None}} when <param scale> is outside
 /// 0 to 28 or <param unscaled> needs more than 96 bits.
 let fromParts(
-  unscaled: Int,
+  unscaled: BigInt,
   scale: Int64)
   : Stdlib.Option.Option<Decimal> =
   Builtin.decimalFromParts(unscaled, scale)
@@ -119,7 +119,7 @@ let normalize(d: Decimal): Decimal =
   | Some(n) -> n
   | None -> d
 
-let __stripZeros(unscaled: Int, scale: Int64): (Int * Int64) =
+let __stripZeros(unscaled: BigInt, scale: Int64): (BigInt * Int64) =
   if scale > 0 && unscaled % 10z == 0z then
     __stripZeros(unscaled / 10z, scale - 1)
   else
@@ -154,9 +154,9 @@ let roundWith(d: Decimal, places: Int64, mode: RoundingMode): Decimal =
 
     let rescaled =
       if places >= s then
-        unscaled * (10z ** Stdlib.Int.fromInt64(places - s))
+        unscaled * (10z ** Stdlib.BigInt.fromInt64(places - s))
       else
-        let divisor = 10z ** Stdlib.Int.fromInt64(s - places)
+        let divisor = 10z ** Stdlib.BigInt.fromInt64(s - places)
         let negative = unscaled < 0z
         let magnitude = Stdlib.abs(unscaled)
         let kept = magnitude / divisor
@@ -220,14 +220,14 @@ let precision(d: Decimal): Int64 =
 /// <param exponent> divides: {{Decimal.power(2dec, -2) == 0.25dec}}. Raises when the
 /// result is out of range, or for zero to a negative power.
 let power(``base``: Decimal, exponent: Int64): Decimal =
-  let n = Stdlib.Int.fromInt64(exponent)
+  let n = Stdlib.BigInt.fromInt64(exponent)
 
   if n < 0z then
     1dec / __powerOf(``base``, 0z - n)
   else
     __powerOf(``base``, n)
 
-let __powerOf(b: Decimal, n: Int): Decimal =
+let __powerOf(b: Decimal, n: BigInt): Decimal =
   if n == 0z then
     1dec
   else
@@ -258,24 +258,24 @@ let remainder(
 
 
 /// The integer part of <param d>, rounding towards zero:
-/// {{Decimal.toInt(-2.9dec) == -2z}}
-let toInt(d: Decimal): Int =
+/// {{Decimal.toBigInt(-2.9dec) == -2z}}
+let toBigInt(d: Decimal): BigInt =
   let (unscaled, s) = toParts(d)
-  unscaled / (10z ** Stdlib.Int.fromInt64(s))
+  unscaled / (10z ** Stdlib.BigInt.fromInt64(s))
 
 
 /// <param i> as a decimal with no places, or {{None}} past 96 bits
-let fromInt(i: Int): Stdlib.Option.Option<Decimal> = fromParts(i, 0)
+let fromBigInt(i: BigInt): Stdlib.Option.Option<Decimal> = fromParts(i, 0)
 
 
 /// The integer part of <param d>, rounding towards zero, or {{None}} past Int64:
 /// {{Decimal.toInt64(-2.9dec) == Some(-2)}}
-let toInt64(d: Decimal): Stdlib.Option.Option<Int64> = Stdlib.Int.toInt64(toInt(d))
+let toInt64(d: Decimal): Stdlib.Option.Option<Int64> = Stdlib.BigInt.toInt64(toBigInt(d))
 
 
 /// <param i> as a decimal with no places. Every Int64 fits.
 let fromInt64(i: Int64): Decimal =
-  match fromParts(Stdlib.Int.fromInt64(i), 0) with
+  match fromParts(Stdlib.BigInt.fromInt64(i), 0) with
   | Some(d) -> d
   // unreachable: 64 bits is less than 96
   | None -> 0dec
@@ -331,7 +331,7 @@ let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
     (Stdlib.Bool.not(Stdlib.String.isEmpty(t)))
     && (Stdlib.List.all(Stdlib.String.toList(t), Stdlib.Char.isDigit))
 
-  let exponentOf(e: String): Stdlib.Option.Option<Int> =
+  let exponentOf(e: String): Stdlib.Option.Option<BigInt> =
     let unsigned =
       if Stdlib.String.startsWith(e, "-") || Stdlib.String.startsWith(e, "+") then
         Stdlib.String.dropFirst(e, 1)
@@ -339,7 +339,7 @@ let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
         e
 
     if isDigits(unsigned) then
-      Stdlib.Result.toOption(Stdlib.Int.parse(e))
+      Stdlib.Result.toOption(Stdlib.BigInt.parse(e))
     else
       Stdlib.Option.Option.None
 
@@ -357,7 +357,7 @@ let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
     | _ -> ("", "")
   let places =
     if Stdlib.String.contains(mantissa, ".") then
-      Stdlib.Int.fromInt64(Stdlib.String.length(fraction))
+      Stdlib.BigInt.fromInt64(Stdlib.String.length(fraction))
     else
       0z
 
@@ -370,18 +370,18 @@ let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
       let places = places - exponent
 
       // 29 digits is the most 96 bits can hold, so a larger shift is out of range
-      // anyway; checking first keeps `1e999999999` from building a billion-digit Int
-      if places < -29z || places > 28z + Stdlib.Int.fromInt64(Stdlib.String.length(digits)) then
+      // anyway; checking first keeps `1e999999999` from building a billion-digit BigInt
+      if places < -29z || places > 28z + Stdlib.BigInt.fromInt64(Stdlib.String.length(digits)) then
         Stdlib.Result.Result.Error(ParseError.OutOfRange)
       else
-        let magnitude = Stdlib.Result.withDefault(Stdlib.Int.parse(digits), 0z)
+        let magnitude = Stdlib.Result.withDefault(Stdlib.BigInt.parse(digits), 0z)
         let unscaled = if negative then 0z - magnitude else magnitude
 
         let parts =
           if places < 0z then
             fromParts(unscaled * (10z ** (0z - places)), 0)
           else
-            fromParts(unscaled, Builtin.unwrap(Stdlib.Int.toInt64(places)))
+            fromParts(unscaled, Builtin.unwrap(Stdlib.BigInt.toInt64(places)))
 
         match parts with
         | Some(d) -> Stdlib.Result.Result.Ok(d)

@@ -112,7 +112,7 @@ module MatchPattern =
     | MPOr patterns ->
       w.Write 20uy
       NEList.write write w patterns
-    | MPInt value ->
+    | MPBigInt value ->
       w.Write 21uy
       String.write w (value.ToString())
     | MPAs(pattern, reg) ->
@@ -161,7 +161,7 @@ module MatchPattern =
     | 20uy ->
       let patterns = NEList.read read r
       MPOr(patterns)
-    | 21uy -> MPInt(System.Numerics.BigInteger.Parse(String.read r))
+    | 21uy -> MPBigInt(System.Numerics.BigInteger.Parse(String.read r))
     | 22uy ->
       let pattern = read r
       let reg = r.ReadInt32()

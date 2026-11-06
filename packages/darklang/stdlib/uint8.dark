@@ -61,8 +61,8 @@ impl Compare for UInt8 =
 
 /// Returns a random 8 bit unsigned integer between <param start> and <param end> (inclusive)
 let random(start: UInt8, ``end``: UInt8): UInt8 =
-  Stdlib.Int.random(Stdlib.Int.fromUInt8(start), Stdlib.Int.fromUInt8(``end``))
-  |> Stdlib.Int.toUInt8
+  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt8(start), Stdlib.BigInt.fromUInt8(``end``))
+  |> Stdlib.BigInt.toUInt8
   |> Builtin.unwrap
 
 
@@ -79,54 +79,54 @@ let toFloat(a: UInt8): Float = Builtin.uint8ToFloat(a)
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type UInt8> range).
 let parse(s: String): Stdlib.Result.Result<UInt8, Stdlib.UInt8.ParseError> =
-  match Stdlib.Int.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toUInt8(n), Stdlib.UInt8.ParseError.OutOfRange)
+  match Stdlib.BigInt.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toUInt8(n), Stdlib.UInt8.ParseError.OutOfRange)
   | Error(_) -> Error(Stdlib.UInt8.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to a <type UInt8>. Returns {{None}} if the value is less than 0.
 let fromInt8(i: Int8): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromInt8(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromInt8(i))
 
 
 /// Converts an <type Int16> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
 let fromInt16(i: Int16): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromInt16(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromInt16(i))
 
 
 /// Converts a <type UInt16> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
 let fromUInt16(i: UInt16): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromUInt16(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromUInt16(i))
 
 
 /// Converts an <type Int32> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
 let fromInt32(i: Int32): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromInt32(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromInt32(i))
 
 
 /// Converts a <type UInt32> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
 let fromUInt32(i: UInt32): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromUInt32(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromUInt32(i))
 
 
 /// Converts an <type Int64> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
 let fromInt64(i: Int64): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromInt64(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromInt64(i))
 
 
 /// Converts a <type UInt64> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
 let fromUInt64(i: UInt64): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromUInt64(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromUInt64(i))
 
 
 /// Converts an <type Int128> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
 let fromInt128(i: Int128): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromInt128(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromInt128(i))
 
 
 /// Converts a <type UInt128> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
 let fromUInt128(i: UInt128): Stdlib.Option.Option<UInt8> =
-  Stdlib.Int.toUInt8(Stdlib.Int.fromUInt128(i))
+  Stdlib.BigInt.toUInt8(Stdlib.BigInt.fromUInt128(i))
 
 
 impl BitwiseAnd for UInt8 =
@@ -176,38 +176,38 @@ impl One for UInt8 =
 let checkedAdd(
   a: UInt8,
   b: UInt8)
-  : Stdlib.Result.Result<UInt8, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<UInt8, Stdlib.Math.Overflow> =
   let sum = a + b
-  if sum < a then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
+  if sum < a then Error(Stdlib.Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(
   a: UInt8,
   b: UInt8)
-  : Stdlib.Result.Result<UInt8, Stdlib.Int.Overflow> =
-  if b > a then Error(Stdlib.Int.Overflow.Overflow) else Ok(a - b)
+  : Stdlib.Result.Result<UInt8, Stdlib.Math.Overflow> =
+  if b > a then Error(Stdlib.Math.Overflow.Overflow) else Ok(a - b)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(
   a: UInt8,
   b: UInt8)
-  : Stdlib.Result.Result<UInt8, Stdlib.Int.Overflow> =
-  let product = Stdlib.Int.fromUInt8(a) * Stdlib.Int.fromUInt8(b)
-  match Stdlib.Int.toUInt8(product) with
+  : Stdlib.Result.Result<UInt8, Stdlib.Math.Overflow> =
+  let product = Stdlib.BigInt.fromUInt8(a) * Stdlib.BigInt.fromUInt8(b)
+  match Stdlib.BigInt.toUInt8(product) with
   | Some(fits) -> Ok(fits)
-  | None -> Error(Stdlib.Int.Overflow.Overflow)
+  | None -> Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The negation of <param a>: {{Ok 0}} for 0, and {{Error Overflow}} for
 /// anything else, which has no unsigned negation
-let checkedNegate(a: UInt8): Stdlib.Result.Result<UInt8, Stdlib.Int.Overflow> =
-  if a == 0u8 then Ok(a) else Error(Stdlib.Int.Overflow.Overflow)
+let checkedNegate(a: UInt8): Stdlib.Result.Result<UInt8, Stdlib.Math.Overflow> =
+  if a == 0u8 then Ok(a) else Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The distance of <param a> from zero, which for an unsigned value is always
 /// <param a> itself. Here so every fixed-width type has the same checked set.
 let checkedAbsoluteValue(a: UInt8)
-  : Stdlib.Result.Result<UInt8, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<UInt8, Stdlib.Math.Overflow> =
   Ok(a)

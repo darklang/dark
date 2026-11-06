@@ -60,9 +60,9 @@ let guardItem(
 /// Convert the checker's signed node ID to the report's UInt64 representation.
 /// For negative IDs, add 2^64 to preserve the original 64-bit identifier.
 let toUInt64(id: Int64): UInt64 =
-  let n = Stdlib.Int.fromInt64(id)
+  let n = Stdlib.BigInt.fromInt64(id)
   let unsigned = if n < 0z then n + 18446744073709551616z else n
-  Builtin.unwrap(Stdlib.Int.toUInt64(unsigned))
+  Builtin.unwrap(Stdlib.BigInt.toUInt64(unsigned))
 
 /// Convert a finding to the public report format, replacing type unknowns with
 /// any types the solver determined before formatting expected and actual types.

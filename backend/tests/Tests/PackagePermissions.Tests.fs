@@ -15,18 +15,18 @@ module RT = LibExecution.RuntimeTypes
 
 let private only (item : 'a) : Permission.Scope<'a> = Permission.Scope.Only item
 
-/// A `Unit -> Int` package fn with the given body.
+/// A `Unit -> BigInt` package fn with the given body.
 let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
   { hash = PT.Hash hash
     body = body
     typeParams = []
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
-    returnType = PT.TInt
+    returnType = PT.TBigInt
     description = ""
     permissionCeiling = None
     bounds = [] }
 
-/// A `List<Int> -> (Int -> Int) -> List<Int>` fn: the shape that hands its own
+/// A `List<BigInt> -> (BigInt -> BigInt) -> List<BigInt>` fn: the shape that hands its own
 /// callback parameter to something else.
 let private higherOrderFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
   { hash = PT.Hash hash
@@ -34,11 +34,11 @@ let private higherOrderFn (hash : string) (body : PT.Expr) : PT.PackageFn.Packag
     typeParams = []
     parameters =
       NEList.ofList
-        { name = "xs"; typ = PT.TList PT.TInt; description = "" }
+        { name = "xs"; typ = PT.TList PT.TBigInt; description = "" }
         [ { name = "f"
-            typ = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+            typ = PT.TFn(NEList.singleton PT.TBigInt, PT.TBigInt)
             description = "" } ]
-    returnType = PT.TList PT.TInt
+    returnType = PT.TList PT.TBigInt
     description = ""
     permissionCeiling = None
     bounds = [] }
@@ -144,7 +144,7 @@ let deferredCodeRequirementsAreIncluded =
       { unitFn
           "returns-clock-callback"
           (eLambda (gid ()) [ lpVar "unit" ] (callBuiltin "syscallGettimeofday")) with
-          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
+          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
     let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
     Expect.isTrue result.complete "the closed call graph is complete"
     Expect.equal

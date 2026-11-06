@@ -20,10 +20,16 @@ test dictSet =
       check("dict set overwrite keeps size", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(d, "a", 9)))), "2")
       check("dict set does not mutate", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(d))), "2") ])
 
-test intToString =
+test int64ToString =
   Stdlib.Test.all(
-    [ check("int toString", Stdlib.toString(42), "42")
-      check("int toString negative", Stdlib.toString(-7), "-7") ])
+    [ check("int64 toString", Stdlib.toString(42), "42")
+      check("int64 toString negative", Stdlib.toString(-7), "-7") ])
+
+test bigIntToString =
+  Stdlib.Test.all(
+    [ check("bigint toString", Stdlib.toString(42z), "42")
+      check("bigint toString negative", Stdlib.toString(-7z), "-7")
+      check("bigint toString past Int64", Stdlib.toString(2z ** 70z), "1180591620717411303424") ])
 
 test boolNot =
   check("bool not", (if Stdlib.Bool.not(true) then "y" else "n"), "n")

@@ -158,16 +158,16 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallGetdents" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt "Directory descriptor"
+        [ Param.make "fd" TBigInt "Directory descriptor"
           Param.make "count" TInt64 "Maximum raw bytes" ]
       returnType = TypeReference.result TBytes TInt64
       description = "One getdents64/getdirentries64 call; no record decoding"
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt64 count |] ->
+        | _, vm, _, [| DBigInt fd; DInt64 count |] ->
           let op =
             HostTypes.PosixOp.DirectoryBytes(
-              intToDescriptor vm fd,
+              bigIntToDescriptor vm fd,
               int64ToInt32 vm count
             )
           syscallResult KTBytes vm op (fun r ->
@@ -369,16 +369,16 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallRead" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt "File descriptor to read from"
+        [ Param.make "fd" TBigInt "File descriptor to read from"
           Param.make "count" TInt64 "Max bytes to read" ]
       returnType = TypeReference.result TBytes TInt64
       description =
         "Reads up to count bytes from a file descriptor into an ephemeral Bytes."
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt64 count |] ->
+        | _, vm, _, [| DBigInt fd; DInt64 count |] ->
           let op =
-            HostTypes.PosixOp.FdRead(intToDescriptor vm fd, int64ToInt32 vm count)
+            HostTypes.PosixOp.FdRead(bigIntToDescriptor vm fd, int64ToInt32 vm count)
           syscallResult KTBytes vm op (fun response ->
             Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
@@ -390,7 +390,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallLseek" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt "File descriptor to reposition"
+        [ Param.make "fd" TBigInt "File descriptor to reposition"
           Param.make "offset" TInt64 "Byte offset"
           Param.make
             "whence"
@@ -401,10 +401,10 @@ let fns () : List<BuiltInFn> =
         "Seeks to a new position in an open file and returns the resulting byte offset."
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt64 offset; DInt64 whence |] ->
+        | _, vm, _, [| DBigInt fd; DInt64 offset; DInt64 whence |] ->
           let op =
             HostTypes.PosixOp.FdSeek(
-              intToDescriptor vm fd,
+              bigIntToDescriptor vm fd,
               offset,
               int64ToInt32 vm whence
             )
@@ -419,15 +419,15 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallWrite" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt "File descriptor to write to"
+        [ Param.make "fd" TBigInt "File descriptor to write to"
           Param.make "bytes" TBytes "Bytes to write" ]
       returnType = TypeReference.result TInt64 TInt64
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
-        | state, vm, _, [| DInt fd; DBytes ref |] ->
+        | state, vm, _, [| DBigInt fd; DBytes ref |] ->
           Bytes.withBytes state ref (fun bytes ->
-            let op = HostTypes.PosixOp.FdWrite(intToDescriptor vm fd, bytes)
+            let op = HostTypes.PosixOp.FdWrite(bigIntToDescriptor vm fd, bytes)
             syscallResult KTInt64 vm op (fun response ->
               Dval.dint64 (int64 (Host.expectWritten response))))
         | _ -> incorrectArgs ())
@@ -438,13 +438,13 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "syscallClose" 0
       typeParams = []
-      parameters = [ Param.make "fd" TInt "File descriptor to close" ]
+      parameters = [ Param.make "fd" TBigInt "File descriptor to close" ]
       returnType = TypeReference.result TUnit TInt64
       description = "Closes a file descriptor."
       fn =
         (function
-        | _, vm, _, [| DInt fd |] ->
-          let op = HostTypes.PosixOp.FdClose(intToDescriptor vm fd)
+        | _, vm, _, [| DBigInt fd |] ->
+          let op = HostTypes.PosixOp.FdClose(bigIntToDescriptor vm fd)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -461,15 +461,15 @@ let fns () : List<BuiltInFn> =
             "mode"
             TInt64
             "Permission bits for new files (e.g. 420 for 0644)" ]
-      returnType = TypeReference.result TInt TInt64
+      returnType = TypeReference.result TBigInt TInt64
       description = "Opens a file via kernel open(). Returns a file descriptor."
       fn =
         (function
         | _, vm, _, [| DString path; DInt64 flags; DInt64 mode |] ->
           let op =
             HostTypes.PosixOp.Open(path, int64ToInt32 vm flags, int64ToInt32 vm mode)
-          syscallResult KTInt vm op (fun response ->
-            Dval.int (Host.expectDescriptor response))
+          syscallResult KTBigInt vm op (fun response ->
+            Dval.bigInt (Host.expectDescriptor response))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = fileEffects
@@ -536,15 +536,15 @@ let fns () : List<BuiltInFn> =
     { name = fn "syscallFlock" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt "File descriptor"
+        [ Param.make "fd" TBigInt "File descriptor"
           Param.make "operation" TInt64 "Kernel LOCK_* operation bits" ]
       returnType = TypeReference.result TUnit TInt64
       description = "Locks or unlocks a file via kernel flock()"
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt64 operation |] ->
+        | _, vm, _, [| DBigInt fd; DInt64 operation |] ->
           let lockOp = int64ToInt32 vm operation
-          let op = HostTypes.PosixOp.Flock(intToDescriptor vm fd, lockOp)
+          let op = HostTypes.PosixOp.Flock(bigIntToDescriptor vm fd, lockOp)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure

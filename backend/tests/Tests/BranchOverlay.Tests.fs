@@ -76,7 +76,7 @@ let private darkStringList (code : string) : Task<List<string>> =
 let private darkBranch (branchId : PT.BranchId) : string =
   $"(Stdlib.Uuid.parse(\"{branchId}\") |> Builtin.unwrap)"
 
-/// Run a Dark call answering `Result<Int, String>`, as the count these assertions expect.
+/// Run a Dark call answering `Result<Int64, String>`, as the count these assertions expect.
 let private darkIntResult (code : string) : Task<int64> =
   task {
     match! evalDarkExpr code with

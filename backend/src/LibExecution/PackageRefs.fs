@@ -213,7 +213,7 @@ module Type =
     let localStoreBackup = p [ "LocalStore" ] "Backup"
     let localStoreBackupAction = p [ "LocalStore" ] "BackupAction"
 
-    let intParseError = p [ "Int" ] "ParseError"
+    let bigIntParseError = p [ "BigInt" ] "ParseError"
     let floatParseError = p [ "Float" ] "ParseError"
     let cryptoDigestAlgorithm = p [ "Crypto" ] "DigestAlgorithm"
     let uuidParseError = p [ "Uuid" ] "ParseError"
@@ -418,8 +418,8 @@ module Type =
 
         module Bools =
           let error = p [ "Bools" ] "Error"
-        module Ints =
-          let error = p [ "Ints" ] "Error"
+        module BigInts =
+          let error = p [ "BigInts" ] "Error"
         module Strings =
           let error = p [ "Strings" ] "Error"
         module Lists =

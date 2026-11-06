@@ -588,7 +588,7 @@ test searchMatchesModuleAndOperationName =
 test searchFindsNestedHelpersFromParentModule =
   let output = runWithCommand(["search", "AltJson.get", "--fn"])
 
-  if Stdlib.String.contains(output, "Darklang.Stdlib.AltJson.Helpers.getIntResult") then
+  if Stdlib.String.contains(output, "Darklang.Stdlib.AltJson.Helpers.getInt64Result") then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(

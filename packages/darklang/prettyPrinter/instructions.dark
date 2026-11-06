@@ -63,7 +63,7 @@ let matchPattern(pat: LanguageTools.RuntimeTypes.MatchPattern): String =
   | MPUInt64(i) -> Stdlib.toString(i) + "u64"
   | MPInt128(i) -> Stdlib.toString(i) + "s128"
   | MPUInt128(i) -> Stdlib.toString(i) + "u128"
-  | MPInt(i) -> Stdlib.toString(i) + "z"
+  | MPBigInt(i) -> Stdlib.toString(i) + "z"
   | MPFloat(f) -> Stdlib.toString(f)
   | MPFloat32(f) ->
     if Stdlib.Float32.isFinite(f) then (Stdlib.toString(f)) + "f32" else Stdlib.toString(f)
@@ -114,7 +114,7 @@ let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
   | DString(s) -> "\"" + (clip(Stdlib.String.replaceAll(s, "\n", "\\n"))) + "\""
   | DChar(c) -> $"'{Stdlib.toString(c)}'"
   | DInt64(i) -> Stdlib.toString(i)
-  | DInt(i) -> Stdlib.toString(i) + "z"
+  | DBigInt(i) -> Stdlib.toString(i) + "z"
   | DFloat(f) -> Stdlib.toString(f)
   | DFloat32(f) ->
     if Stdlib.Float32.isFinite(f) then (Stdlib.toString(f)) + "f32" else Stdlib.toString(f)

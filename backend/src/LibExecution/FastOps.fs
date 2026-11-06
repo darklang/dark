@@ -1,5 +1,5 @@
 /// Operators the interpreter answers itself, without the builtin's record or the call machinery
-/// around it. Two `Int64`s, two `Int`s, two `String`s, or two `List`s -- every other pair, including every other
+/// around it. Two `Int64`s, two `BigInt`s, two `String`s, or two `List`s -- every other pair, including every other
 /// numeric type and every mixed one, goes the ordinary way and gets the ordinary error.
 ///
 /// Not a compiler change: the `Apply` still happens, so a real opcode emitted by `PT2RT` would win
@@ -25,9 +25,9 @@ let greaterThan = 4
 let greaterThanOrEqualTo = 5
 let equals = 6
 let notEquals = 7
-/// String tags start here. `eval` handles the `Int` ones and declines these; `evalStr` does the
-/// reverse. So the tag alone says which operand types an operator wants, and neither function
-/// needs a range check -- `equals` and `notEquals` are simply handled by both.
+/// String tags start here. `eval` and `eval64` handle the integer ones and decline these;
+/// `evalStr` does the reverse. So the tag alone says which operand types an operator wants, and
+/// no function needs a range check -- `equals` and `notEquals` are simply handled by all of them.
 let strAppend = 8
 let listConcat = 9
 /// One-argument tags. Same table: `eval1` handles these and the two-argument functions decline
@@ -69,29 +69,29 @@ let evalNegate (a : Dval) : Dval voption =
   | DInt32 x -> ValueSome(DInt32(-x))
   | DInt64 x -> ValueSome(Dval.dint64 (-x))
   | DInt128 x -> ValueSome(DInt128(-x))
-  | DInt x -> ValueSome(Dval.dint (DarkInt.negate x))
+  | DBigInt x -> ValueSome(Dval.dbigint (DarkBigInt.negate x))
   | DFloat x -> ValueSome(DFloat(-x))
   | DFloat32 x -> ValueSome(DFloat32(-x))
   | DDecimal x -> ValueSome(DDecimal(-x))
   | _ -> ValueNone
 
-/// The operator itself, given a tag from `byName` and two `Int`s.
-let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
+/// The operator itself, given a tag from `byName` and two `BigInt`s.
+let eval (tag : int) (a : DarkBigInt) (b : DarkBigInt) : Dval voption =
   if tag = add then
-    ValueSome(Dval.dint (DarkInt.add a b))
+    ValueSome(Dval.dbigint (DarkBigInt.add a b))
   elif tag = subtract then
-    ValueSome(Dval.dint (DarkInt.subtract a b))
+    ValueSome(Dval.dbigint (DarkBigInt.subtract a b))
   elif tag = multiply then
-    ValueSome(Dval.dint (DarkInt.multiply a b))
+    ValueSome(Dval.dbigint (DarkBigInt.multiply a b))
   elif tag = lessThan then
-    ValueSome(Dval.bool (DarkInt.compare a b < 0))
+    ValueSome(Dval.bool (DarkBigInt.compare a b < 0))
   elif tag = lessThanOrEqualTo then
-    ValueSome(Dval.bool (DarkInt.compare a b <= 0))
+    ValueSome(Dval.bool (DarkBigInt.compare a b <= 0))
   elif tag = greaterThan then
-    ValueSome(Dval.bool (DarkInt.compare a b > 0))
+    ValueSome(Dval.bool (DarkBigInt.compare a b > 0))
   elif tag = greaterThanOrEqualTo then
-    ValueSome(Dval.bool (DarkInt.compare a b >= 0))
-  // Structurally, which is what `equals` does for this case: `DarkInt` is `Finite` whenever the
+    ValueSome(Dval.bool (DarkBigInt.compare a b >= 0))
+  // Structurally, which is what `equals` does for this case: `DarkBigInt` is `Finite` whenever the
   // value fits an int64, so equal values have equal representations.
   elif tag = equals then
     ValueSome(Dval.bool (a = b))
@@ -115,7 +115,7 @@ let eval64 (tag : int) (a : int64) (b : int64) : Dval voption =
 
 /// The operator itself, for two `String`s. `stringAppend` reaches this because `"a" + "b"` is
 /// the `Add` impl for String, which names `Stdlib.String.append`, a thin wrapper the elision
-/// already resolves to its builtin; so it arrives here with the same shape an `Int` operator
+/// already resolves to its builtin; so it arrives here with the same shape an integer operator
 /// does, rather than paying the full builtin path to concatenate two strings.
 let evalStr (tag : int) (a : string) (b : string) : Dval voption =
   if tag = strAppend then
@@ -164,12 +164,12 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
   if tag = intToString then
     match arg with
     | DInt64 n -> ValueSome(DString(string n))
-    | DInt i ->
+    | DBigInt i ->
       // The builtin goes through `Dval.asBigInt`, which allocates a `BigInteger` to stringify a
       // value that usually fits an int64. Same output either way.
       match i with
-      | DarkInt.Finite n -> ValueSome(DString(string n))
-      | DarkInt.Infinite b -> ValueSome(DString(string b))
+      | DarkBigInt.Finite n -> ValueSome(DString(string n))
+      | DarkBigInt.Infinite b -> ValueSome(DString(string b))
     | _ -> ValueNone
   elif tag = boolNot then
     match arg with
@@ -623,7 +623,7 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "notEquals" notEquals
   put "stringAppend" strAppend
   put "listConcat" listConcat
-  put "intToString" intToString
+  put "bigIntToString" intToString
   put "int64ToString" intToString
   put "boolNot" boolNot
   put "listLength" listLength
