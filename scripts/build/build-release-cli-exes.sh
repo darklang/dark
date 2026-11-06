@@ -9,6 +9,7 @@
 #   ./scripts/build/build-release-cli-exes.sh --runtimes=linux-x64,osx-arm64  # Build for specific runtimes
 #   ./scripts/build/build-release-cli-exes.sh --mode=aot         # NativeAOT publish (see below)
 #   ./scripts/build/build-release-cli-exes.sh --seed=path/to.db  # Use a pre-exported seed
+#   ./scripts/build/build-release-cli-exes.sh --reuse-libraries  # Compile only Cli (see below)
 #
 # Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64
 #
@@ -40,6 +41,7 @@ GZIP_OUTPUT=false
 MODE="auto"
 SEED_PATH=""
 DRY_RUN=false
+REUSE_LIBRARIES=false
 
 for arg in "$@"; do
   case $arg in
@@ -71,6 +73,14 @@ for arg in "$@"; do
       # the export isn't safe against concurrent use of the store, and doing it
       # N times is N chances to embed a corrupt seed.
       SEED_PATH="${arg#*=}"
+      ;;
+    --reuse-libraries)
+      # Compile only Cli, against the Release libraries an earlier build in this tree left
+      # in backend/Build/out. Without it the publish compiles every library again, because
+      # its global properties (the runtime, PublishAot) differ from a plain build's, and
+      # gets the same bytes. CI's test build uses it; anything that ships doesn't, since
+      # nothing here checks that those libraries are this checkout's.
+      REUSE_LIBRARIES=true
       ;;
     *)
       echo "Unknown argument: $arg"
@@ -287,6 +297,11 @@ build_for_runtime() {
   rt_mode="$(mode_for_runtime "$rt")"
   echo "Building for runtime: $rt (mode: $rt_mode)"
 
+  local reuse_args=()
+  if [[ "$REUSE_LIBRARIES" == "true" ]]; then
+    reuse_args=(/p:BuildProjectReferences=false)
+  fi
+
   if [[ "$rt_mode" == "aot" ]]; then
     # The archive has to be there before ilc, not discovered missing by the
     # linker. build-sqlite.sh above should have produced it; this catches a
@@ -362,6 +377,7 @@ build_for_runtime() {
       /p:PublishAot=true \
       ${cross_args[@]+"${cross_args[@]}"} \
       ${static_args[@]+"${static_args[@]}"} \
+      ${reuse_args[@]+"${reuse_args[@]}"} \
       --self-contained true \
       --runtime "$rt"
   else
@@ -373,6 +389,7 @@ build_for_runtime() {
       /p:PublishSingleFile=true \
       /p:PublishTrimmed=true \
       /p:PublishReadyToRun=true \
+      ${reuse_args[@]+"${reuse_args[@]}"} \
       --self-contained true \
       --runtime "$rt"
   fi

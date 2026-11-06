@@ -18,7 +18,8 @@ version: 2.1
 # Caches: any pipeline in this repo can write any cache key, including one main is about to
 # ask for, because a branch's config picks its own keys. So main and the release jobs restore
 # none, and only branch and PR builds use the NuGet one. Measured: restoring costs 1.5s and
-# saves 4.9s of `tool restore` + `paket restore`, so it earns about 3.4s a job.
+# saves 4.9s of `tool restore` + `paket restore`, so it earns about 3.4s a job. The SQLite
+# archive cache (`sqlite-archive`) follows the same rule.
 
 parameters:
   # Set by .circleci/config.yml from scripts/deployment/ci-images, pinned by digest.
@@ -39,9 +40,12 @@ parameters:
     default: false
 
 executors:
+  # For ok-to-deploy, which only runs `true` and which every pipeline waits on last. A
+  # few-MB image starts in a few seconds; cimg/base was a 250 MiB pull, most of that job.
   simple-executor:
     docker:
-      - image: cimg/base:2023.09
+      - image: alpine:3.22@sha256:bfe7ceb9f09ec0566c48fb93356e45a47a00be5a1dd14fa5b909e7709c66b034
+    resource_class: small
   in-container:
     working_directory: ~/app
     environment:
@@ -151,6 +155,29 @@ commands:
                   - v7-nuget-{{ checksum "../checksum" }}
                   # prefix match: an older lockfile's downloads still beat starting empty
                   - v7-nuget-
+
+  # The SQLite archive the native link needs. It only changes with build-sqlite.sh, which
+  # pins the SQLite version, so it is cached on that file; building it is about 20s of zig.
+  # Branch and PR builds only, like the NuGet cache: see the note at the top of this file.
+  sqlite-archive:
+    steps:
+      - run:
+          name: Hash build-sqlite.sh for cache key
+          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
+      - unless:
+          condition:
+            equal: [main, << pipeline.git.branch >>]
+          steps:
+            - restore_cache:
+                keys:
+                  - v1-sqlite-archive-ci-linux-x64-{{ checksum "../sqlite-checksum" }}
+      - run:
+          name: Build the SQLite archive (skips on cache hit)
+          command: ./scripts/build/build-sqlite.sh --runtimes=linux-x64
+      - save_cache:
+          paths:
+            - backend/src/Cli/lib
+          key: v1-sqlite-archive-ci-linux-x64-{{ checksum "../sqlite-checksum" }}
 
   show-large-files-and-directories:
     steps:
@@ -269,11 +296,15 @@ jobs:
           key: v7-nuget-{{ checksum "../checksum" }}
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
-      # Run package loading with optimizations and reuse unchanged Release
-      # outputs during the solution publish.
+      # Each library is compiled once in this job, by this step; the two builds below reuse it.
+      #
+      # Release, so the package load runs optimized. DarkEmbedPackageRefHashes=false, on every
+      # build here, because the package load rewrites package-ref-hashes.txt: embedded, that
+      # recompiled LibExecution and everything above it. Everything this job runs, the CLI
+      # included, runs in this tree and reads the file instead.
       - run:
           name: Build LocalExec for migrations (Release)
-          command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
+          command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false /p:DarkEmbedPackageRefHashes=false
       - run:
           name: Run migrations to create database
           command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec --published migrations run
@@ -284,7 +315,9 @@ jobs:
           name: Export the seed the publish embeds
           command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec --published export-seed rundir/seed.db
 
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
+      - run:
+          name: Build the tests (Release)
+          command: ./scripts/build/_dotnet-wrapper publish -c Release tests/Tests/Tests.fsproj /p:DebugType=None /p:DebugSymbols=false /p:DarkEmbedPackageRefHashes=false
 
       # The CLI the instance-backed suites drive, built the way we ship it. They start it once
       # per command, a couple of thousand times a run, and the JIT-published one spends most
@@ -292,9 +325,13 @@ jobs:
       # Measured on a 4-core box, the same suite took about half as long on this binary and
       # used about a third of the CPU. It used not to pay, back when a long in-process phase
       # that spawns nothing set the suite's length; that phase is now mostly on instances too.
+      #
+      # --reuse-libraries: only Cli is compiled, against the libraries the steps above built.
+      # The publish would otherwise compile them all again, to the same bytes.
+      - sqlite-archive
       - run:
           name: Build the CLI the tests drive
-          command: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db
+          command: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db --reuse-libraries
 
       # Bounded, so a wedged suite dies at a known point with its log intact rather than
       # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the
@@ -371,15 +408,18 @@ jobs:
 
       # The CLI embeds the Sqlite data.db,
       # so we need to get a copy ready first.
+      #
+      # Release, not Debug: a few seconds more to compile, and the package load takes about
+      # half as long.
       - run:
-          name: Build LocalExec for migrations (debug mode fine)
-          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+          name: Build LocalExec for migrations (Release)
+          command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
       - run:
           name: Run migrations to create database
-          command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec migrations run
+          command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec --published migrations run
       - run:
           name: Load packages into database
-          command: python3 .circleci/collect_diagnostics.py --run packages -- scripts/build/reload-packages
+          command: python3 .circleci/collect_diagnostics.py --run packages -- scripts/build/reload-packages --published
 
       - assert-clean-worktree
       # Just the host build, on main as much as anywhere else. This is a
@@ -388,7 +428,8 @@ jobs:
       # nothing consumed.
       - run:
           name: Export the seed for the CLI build
-          command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec export-seed rundir/seed.db
+          command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec --published export-seed rundir/seed.db
+      - sqlite-archive
       - run: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db
 
       # Allocation for a fixed workload is steady enough to assert on and doesn't care how

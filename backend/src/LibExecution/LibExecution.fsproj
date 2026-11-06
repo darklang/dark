@@ -14,7 +14,11 @@
   <Target Name="EnsurePackageRefHashes" BeforeTargets="PrepareForBuild">
     <Touch Files="package-ref-hashes.txt" AlwaysCreate="true" Condition="!Exists('package-ref-hashes.txt')" />
   </Target>
-  <ItemGroup>
+  <!-- Embedded for a binary run outside the source tree; inside it, PackageRefs reads the file.
+       A build only ever run inside it can pass /p:DarkEmbedPackageRefHashes=false, and then a
+       package reload, which rewrites the file, no longer recompiles this and everything above
+       it. CI's test build does. -->
+  <ItemGroup Condition="'$(DarkEmbedPackageRefHashes)' != 'false'">
     <EmbeddedResource Include="package-ref-hashes.txt" />
   </ItemGroup>
   <ItemGroup>
