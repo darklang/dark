@@ -165,7 +165,7 @@ for i in "${FILES[@]}"; do
     if [[ 0 -eq "$PRETTIER" ]]; then
       # CLEANUP there's no JS/CSS files at the moment
       # all_prettier_files "$i" | do_prettier
-      echo "No JS files at the moment - reenable this"
+      :
     fi
   elif is_allowed "$i"; then
     if is_fsharp "$i"; then

@@ -18,7 +18,7 @@
     <TrimMode>link</TrimMode>
     <!-- Show every trim/AOT warning so latent reflective/dynamic-code paths get surfaced. If a
          warning is genuinely not actionable after audit, suppress it locally via `<NoWarn>` on the
-         offending assembly's project, not globally. -->
+         offending assembly's project, not globally. FSharp.Core's are collapsed: see below. -->
     <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
@@ -67,6 +67,16 @@
     <None Include="paket.references" />
     <TrimmerRootAssembly Include="LibExecution" />
   </ItemGroup>
+
+  <!-- FSharp.Core's printf and reflection give the same trim/AOT warnings on every publish, and
+       they are not ours to fix. One line for that assembly, so a new one from our code stands out. -->
+  <Target Name="OneTrimWarningForFSharpCore" BeforeTargets="WriteIlcRspFileForCompilation">
+    <ItemGroup>
+      <ManagedAssemblyToLink Condition="'%(Filename)' == 'FSharp.Core'">
+        <TrimmerSingleWarn>true</TrimmerSingleWarn>
+      </ManagedAssemblyToLink>
+    </ItemGroup>
+  </Target>
 
   <!-- Static-link SQLite under NativeAOT so the published exe has no libe_sqlite3.so dependency.
        DirectPInvoke binds the managed DllImport("e_sqlite3") calls to the linker; <NativeLibrary>

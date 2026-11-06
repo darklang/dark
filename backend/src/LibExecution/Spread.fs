@@ -203,6 +203,9 @@ let mutable predictedUnknown = 0L
 /// rather than as spreading that quietly stopped being predicted.
 let mutable predictionFailures = 0L
 
+// Not inlined: inlined into another assembly, it reaches for this module's private static
+// field, which NativeAOT cannot load, so the caller's handler always threw instead.
+[<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
 let notePredictionFailure () =
   System.Threading.Interlocked.Increment &predictionFailures |> ignore<int64>
 
