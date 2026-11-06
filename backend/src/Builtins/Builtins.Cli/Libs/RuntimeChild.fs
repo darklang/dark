@@ -30,10 +30,10 @@ let private make name parameters result kt body : BuiltInFn =
     callEffects = set [ Effect.Process ]
     deprecated = NotDeprecated }
 
-let private handle = [ Param.make "handle" TInt "Owned child token" ]
+let private handle = [ Param.make "handle" TBigInt "Owned child token" ]
 let private child name result kt constructor shape =
   make name handle result kt (function
-    | [| DInt token |] -> constructor (DarkInt.toBigInt token), shape
+    | [| DBigInt token |] -> constructor (DarkBigInt.toBigInt token), shape
     | _ -> incorrectArgs ())
 
 let fns () =
@@ -47,8 +47,8 @@ let fns () =
           "inheritTerminal"
           TBool
           "Inherit terminal rather than capture pipes" ]
-      TInt
-      KTInt
+      TBigInt
+      KTBigInt
       (function
        | [| DString program; DList(_, args); DBool inheritTerminal |] ->
          let args =
@@ -58,17 +58,17 @@ let fns () =
              | _ -> incorrectArgs ())
          Op.Operation.ChildStart(program, args, inheritTerminal),
          (function
-         | Op.Response.ChildHandle token -> Dval.int token
+         | Op.Response.ChildHandle token -> Dval.bigInt token
          | _ -> incorrectArgs ())
        | _ -> incorrectArgs ())
     child
       "runtimeChildDescriptors"
-      (TList TInt)
-      (KTList(LibExecution.ValueType.known KTInt))
+      (TList TBigInt)
+      (KTList(LibExecution.ValueType.known KTBigInt))
       Op.Operation.ChildDescriptors
       (function
        | Op.Response.ChildDescriptors tokens ->
-         Dval.list KTInt (List.map Dval.int tokens)
+         Dval.list KTBigInt (List.map Dval.bigInt tokens)
        | _ -> incorrectArgs ())
     child
       "runtimeChildPoll"
@@ -87,28 +87,28 @@ let fns () =
     child "runtimeChildClose" TUnit KTUnit Op.Operation.ChildClose (fun _ -> DUnit)
     make
       "runtimeChildClosePort"
-      [ Param.make "handle" TInt "Owned child token"
+      [ Param.make "handle" TBigInt "Owned child token"
         Param.make "index" TInt64 "stdin=0, stdout=1, stderr=2" ]
       TUnit
       KTUnit
       (function
-       | [| DInt token; DInt64 index |] ->
+       | [| DBigInt token; DInt64 index |] ->
          Op.Operation.ChildClosePort(
-           DarkInt.toBigInt token,
+           DarkBigInt.toBigInt token,
            if index >= 0L && index <= 2L then int index else -1
          ),
          (fun _ -> DUnit)
        | _ -> incorrectArgs ())
     make
       "runtimeChildBufferGet"
-      [ Param.make "handle" TInt "Owned child token"
+      [ Param.make "handle" TBigInt "Owned child token"
         Param.make "index" TInt64 "Owned byte cell, 0 or 1" ]
       TBytes
       KTBytes
       (function
-       | [| DInt token; DInt64 index |] ->
+       | [| DBigInt token; DInt64 index |] ->
          Op.Operation.ChildBufferGet(
-           DarkInt.toBigInt token,
+           DarkBigInt.toBigInt token,
            if index >= 0L && index <= 1L then int index else -1
          ),
          (function
@@ -118,7 +118,7 @@ let fns () =
     { name = fn "runtimeChildBufferSet" 0
       typeParams = []
       parameters =
-        [ Param.make "handle" TInt "Owned child token"
+        [ Param.make "handle" TBigInt "Owned child token"
           Param.make "index" TInt64 "Owned byte cell, 0 or 1"
           Param.make
             "bytes"
@@ -129,11 +129,11 @@ let fns () =
       fn =
         (fun struct (state, vm, _, values) ->
           match values with
-          | [| DInt token; DInt64 index; DBytes reference |] ->
+          | [| DBigInt token; DInt64 index; DBytes reference |] ->
             LibExecution.Bytes.withBytes state reference (fun bytes ->
               let op =
                 Op.Operation.ChildBufferSet(
-                  DarkInt.toBigInt token,
+                  DarkBigInt.toBigInt token,
                   (if index >= 0L && index <= 1L then int index else -1),
                   bytes
                 )

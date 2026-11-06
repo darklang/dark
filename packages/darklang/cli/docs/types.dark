@@ -5,7 +5,7 @@ let content(): String =
 
 ## Primitives
   Int64    5, -42       a bare integer; the other widths are 5s8 ... 5u128
-  Int      5z           arbitrary precision (z for ℤ): no size limit
+  BigInt   5z           arbitrary precision (z for ℤ): no size limit
   Float    3.14, -0.5   a bare fraction or exponent
   Float32  1.5f32, 1e3f32   single precision
   Decimal  19.99dec, -0.05dec   exact base-10: 0.1dec + 0.2dec is 0.3dec. For money.

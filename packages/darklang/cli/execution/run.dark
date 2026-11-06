@@ -1,15 +1,15 @@
 module Darklang.Cli.Run
 
 
-/// Unit succeeds; Int and Int64 supply the script's exit code.
+/// Unit succeeds; BigInt and Int64 supply the script's exit code.
 let exitCode(
   value: LanguageTools.RuntimeTypes.Dval)
   : Stdlib.Result.Result<Int64, ExecutionError.ExecutionError> =
   match value with
   | DUnit -> Ok(0)
   | DInt64(code) -> Ok(code)
-  // an `Int` past Int64 is no exit code the OS could carry, so it fails like any other
-  | DInt(code) -> Ok(Stdlib.Int.toInt64(code) |> Stdlib.Option.withDefault(1))
+  // a `BigInt` past Int64 is no exit code the OS could carry, so it fails like any other
+  | DBigInt(code) -> Ok(Stdlib.BigInt.toInt64(code) |> Stdlib.Option.withDefault(1))
   | _ ->
     Error(
       ExecutionError.ExecutionError.Runtime(

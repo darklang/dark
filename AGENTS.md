@@ -1035,7 +1035,7 @@ A literal that repeats a constant key (`Dict { "a": 1, "a": 2 }`) gets a
 `DuplicateDictKey` error from the at-rest checker, like a record field given twice,
 but it still saves and still runs, keeping the last value.
 
-**A builtin's wrapper can lie about Int width.** A builtin returning `Result<Int, _>` wrapped as
+**A builtin's wrapper can lie about BigInt width.** A builtin returning `Result<BigInt, _>` wrapped as
 `Result<Int64, _>` loads clean and fails at the first call. Match the builtin's declared types
 exactly; the loader will not catch it.
 
@@ -1085,7 +1085,7 @@ is set for any command given on the command line (entry.dark), so it's true even
 perfectly good terminal in front of you. To decide whether a TUI can start, ask
 `Stdlib.Cli.Tui.TerminalSupport.current()`.
 
-**Nested functions.** Only the fully annotated form works: `let helper(x: Int): Int = ...`.
+**Nested functions.** Only the fully annotated form works: `let helper(x: Int64): Int64 = ...`.
 It desugars to a local lambda, can close over outer bindings and can call itself, but mutual
 recursion between nested functions isn't supported. There's no `rec` keyword; top-level
 functions are self-recursive already.
@@ -1361,11 +1361,11 @@ copy nobody runs. Drive the real one from the test instead: `TestUtils.evalDarkE
 expression, builds an execution state and executes it; destructure the `Dval` it hands back.
 
     match! evalDarkExpr code with
-    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DInt n ])) -> ...
+    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DInt64 n ])) -> ...
     | Error(rte, _) -> return failtest $"the Dark call raised: {rte}"
 
 `Draft.Tests.fs` and `BranchOverlay.Tests.fs` both have a small set of these, one per result shape
-(`Result<Int,_>`, `Result<Unit,_>`, `List<String>`), plus a helper that spells a `BranchId` as Dark
+(`Result<Int64,_>`, `Result<Unit,_>`, `List<String>`), plus a helper that spells a `BranchId` as Dark
 source. Copy those rather than writing a fourth variant.
 
 Three things that will cost you a build cycle each:

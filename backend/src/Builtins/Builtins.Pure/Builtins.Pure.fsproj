@@ -22,7 +22,7 @@
     <Compile Include="Libs/UInt64.fs" />
     <Compile Include="Libs/Int128.fs" />
     <Compile Include="Libs/UInt128.fs" />
-    <Compile Include="Libs/Int.fs" />
+    <Compile Include="Libs/BigInt.fs" />
 
     <Compile Include="Libs/Float.fs" />
     <Compile Include="Libs/Float32.fs" />

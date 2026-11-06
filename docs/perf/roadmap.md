@@ -301,8 +301,8 @@ not the dict.
 
 ### Unbox scalar Dvals
 
-Small integers and both booleans are interned, so `1 + 1` allocates nothing. But `DInt` is 56 bytes
-because `DarkInt` is a struct DU carrying space for a `bigint`, so any integer outside -128..1023
+Small integers and both booleans are interned, so `1 + 1` allocates nothing. But `DBigInt` is 56 bytes
+because `DarkInt` is a struct DU carrying space for a `bigint`, so any BigInt outside -128..1023
 costs that. Splitting the representation, or making `Infinite` hold a reference, is the real fix.
 *(estimate: moderate win, wide blast radius)*
 

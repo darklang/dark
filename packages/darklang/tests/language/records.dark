@@ -92,6 +92,16 @@ module InvalidType =
       |> Stdlib.Test.equal("MyNonExistantType not found")
     | _ -> Stdlib.Test.fail("expected a runtime error for an unknown record type")
 
+  // `Int` is not a type; the error names the two it could mean.
+  test intIsNotAType =
+    let branch = Darklang.SCM.PackageOps.currentBranch()
+    let source = "let f(x: Int): Int64 = 1\nf(1)"
+    match Darklang.Cli.Eval.evaluateRaw(None, branch, source, [], false) with
+    | Error(Runtime(error, _)) ->
+      Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString(branch, error)
+      |> Stdlib.Test.equal("Int not found (an integer is an Int64, like `1`, or a BigInt, like `1z`)")
+    | _ -> Stdlib.Test.fail("expected a runtime error for the type `Int`")
+
   test enumIsNotRecordRaises =
     AnEnum { col1 = 2 }
     => raises

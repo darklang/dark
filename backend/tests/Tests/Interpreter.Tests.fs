@@ -270,7 +270,7 @@ module SyncUnify =
     [ RT.TUnit
       RT.TBool
       RT.TInt64
-      RT.TInt
+      RT.TBigInt
       RT.TFloat
       RT.TChar
       RT.TString
@@ -293,7 +293,7 @@ module SyncUnify =
     [ RT.DUnit
       RT.DBool true
       RT.DInt64 1L
-      LibExecution.Dval.int 1I
+      LibExecution.Dval.bigInt 1I
       RT.DFloat 1.0
       RT.DChar "c"
       RT.DString "s"
@@ -559,7 +559,7 @@ module DictKeyOrdering =
       "DUInt64", RT.DUInt64 1UL
       "DInt128", RT.DInt128(System.Int128.op_Implicit 1)
       "DUInt128", RT.DUInt128(System.UInt128.op_Implicit 1u)
-      "DInt", LibExecution.Dval.int 1I
+      "DBigInt", LibExecution.Dval.bigInt 1I
       "DFloat", RT.DFloat 1.0
       "DDecimal", RT.DDecimal 1.5m
       "DChar", RT.DChar "c"
@@ -802,8 +802,8 @@ module ListUnique =
           dict 0.0 (RT.DFloat 1.0), dict -0.0 (RT.DFloat 1.0)
           dict nan (RT.DFloat 1.0), dict -nan (RT.DFloat 1.0)
           lambda 1UL, lambda 1UL
-          named "intAdd" [], named "intAdd" []
-          named "intAdd" [ RT.DInt64 1L ], named "intAdd" [ RT.DInt64 1L ]
+          named "bigIntAdd" [], named "bigIntAdd" []
+          named "bigIntAdd" [ RT.DInt64 1L ], named "bigIntAdd" [ RT.DInt64 1L ]
           RT.DBytes(RT.Persistent("same-hash", 5L)),
           RT.DBytes(RT.Persistent("same-hash", 5L))
           blob,
@@ -1328,7 +1328,7 @@ module DeepValues =
 
       match
         onSmallStack (fun () ->
-          RT.Types.substitute [ "a" ] [ RT.TInt ] typ |> ignore<RT.TypeReference>)
+          RT.Types.substitute [ "a" ] [ RT.TBigInt ] typ |> ignore<RT.TypeReference>)
       with
       | Some(:? System.InsufficientExecutionStackException) -> ()
       | Some ex ->

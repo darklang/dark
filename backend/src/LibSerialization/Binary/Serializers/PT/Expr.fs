@@ -228,7 +228,7 @@ module MatchPattern =
       w.Write 20uy
       w.Write id
       NEList.write write w patterns
-    | MPInt(id, value) ->
+    | MPBigInt(id, value) ->
       w.Write 21uy
       w.Write id
       String.write w (string value)
@@ -341,7 +341,7 @@ module MatchPattern =
     | 21uy ->
       let id = r.ReadUInt64()
       let value = String.read r |> System.Numerics.BigInteger.Parse
-      MPInt(id, value)
+      MPBigInt(id, value)
     | 22uy ->
       let id = r.ReadUInt64()
       let pattern = read r
@@ -509,7 +509,7 @@ module Expr =
       w.Write 9uy
       w.Write id
       String.write w (string value)
-    | EInt(id, value) ->
+    | EBigInt(id, value) ->
       w.Write 35uy
       w.Write id
       String.write w (string value)
@@ -880,7 +880,7 @@ module Expr =
     | 35uy ->
       let id = r.ReadUInt64()
       let value = String.read r |> System.Numerics.BigInteger.Parse
-      EInt(id, value)
+      EBigInt(id, value)
     | 36uy ->
       let id = r.ReadUInt64()
       EUnwrap(id, read version r)

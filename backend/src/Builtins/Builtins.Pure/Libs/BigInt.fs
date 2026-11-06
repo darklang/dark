@@ -1,8 +1,7 @@
-/// Builtins for the arbitrary-precision integer type `Int` (the default,
-/// suffix-less integer). The polymorphic operators in NoModule.fs back the
-/// infix forms (`+`, `<`, ...); these typed builtins give the
-/// `Darklang.Stdlib.Int` package its named functions, mirroring `Int64`.
-module Builtins.Pure.Libs.Int
+/// Builtins for the arbitrary-precision integer type `BigInt`, written `1z`.
+/// The polymorphic operators in NoModule.fs back the infix forms (`+`, `<`, ...);
+/// these typed builtins give `Darklang.Stdlib.BigInt` its named functions, mirroring `Int64`.
+module Builtins.Pure.Libs.BigInt
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -22,7 +21,7 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.bigIntParseError ())
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -31,19 +30,19 @@ let private bigOne = System.Numerics.BigInteger.One
 let private bigMinusOne = System.Numerics.BigInteger.MinusOne
 
 let private divideByZero (vm : VMState) : 'a =
-  RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+  RTE.BigInts.DivideByZeroError |> RTE.BigInt |> raiseRTE vm.threadID
 
 let private zeroModulus (vm : VMState) : 'a =
-  RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
+  RTE.BigInts.ZeroModulus |> RTE.BigInt |> raiseRTE vm.threadID
 
 let private negativeModulus (vm : VMState) : 'a =
-  RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
+  RTE.BigInts.NegativeModulus |> RTE.BigInt |> raiseRTE vm.threadID
 
 let private negativeExponent (vm : VMState) : 'a =
-  RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+  RTE.BigInts.NegativeExponent |> RTE.BigInt |> raiseRTE vm.threadID
 
 let private outOfRange (vm : VMState) : 'a =
-  RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+  RTE.BigInts.OutOfRange |> RTE.BigInt |> raiseRTE vm.threadID
 
 // BigInteger <-> 128-bit conversions (no `bigint`/cast operator covers these)
 let private i128ToBig (a : System.Int128) : bigint =
@@ -55,7 +54,7 @@ let private bigToI128 (b : bigint) : System.Int128 =
 let private bigToU128 (b : bigint) : System.UInt128 =
   System.Numerics.BigInteger.op_Explicit b
 
-/// `Int` -> a fixed-width type: `Some` if the value fits `[lo, hi]`, else `None`.
+/// `BigInt` -> a fixed-width type: `Some` if the value fits `[lo, hi]`, else `None`.
 let private toFixed
   (resultType : KnownType)
   (lo : bigint)
@@ -71,36 +70,36 @@ let private toFixed
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "intMod" 0
+  [ { name = fn "bigIntMod" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < "
         + "b}}. The modulus <param b> must be greater than 0. Use <fn "
-        + "Int.remainder> if you want the remainder after division, which has a "
+        + "BigInt.remainder> if you want the remainder after division, which has a "
         + "different behavior for negative numbers."
       fn =
         (function
-        | _, vm, _, [| DInt a; DInt b |] ->
-          let m = DarkInt.toBigInt b
+        | _, vm, _, [| DBigInt a; DBigInt b |] ->
+          let m = DarkBigInt.toBigInt b
           if m = bigZero then
             zeroModulus vm
           elif m < bigZero then
             negativeModulus vm
           else
-            let r = DarkInt.toBigInt a % m
-            Ply(Dval.int (if r < bigZero then m + r else r))
+            let r = DarkBigInt.toBigInt a % m
+            Ply(Dval.bigInt (if r < bigZero then m + r else r))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intRemainder" 0
+    { name = fn "bigIntRemainder" 0
       typeParams = []
-      parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
-      returnType = TypeReference.result TInt TString
+      parameters = [ Param.make "value" TBigInt ""; Param.make "divisor" TBigInt "" ]
+      returnType = TypeReference.result TBigInt TString
       description =
         "Returns the integer remainder left over after dividing <param value> "
         + "by <param divisor>, as a <type Result>. The remainder will be negative "
@@ -108,260 +107,270 @@ let fns () : List<BuiltInFn> =
         + "influence the outcome. Returns an {{Error}} if <param divisor> is "
         + "{{0}}."
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
+        let resultOk = Dval.resultOk KTBigInt KTString
+        let resultError = Dval.resultError KTBigInt KTString
         (function
-        | _, _, _, [| DInt value; DInt divisor |] ->
-          let d = DarkInt.toBigInt divisor
+        | _, _, _, [| DBigInt value; DBigInt divisor |] ->
+          let d = DarkBigInt.toBigInt divisor
           if d = bigZero then
             // The return type is a `Result`, so surface this as an `Error`
             // rather than raising a runtime error.
             DString "Cannot divide by 0" |> resultError |> Ply
           else
-            DarkInt.toBigInt value % d |> Dval.int |> resultOk |> Ply
+            DarkBigInt.toBigInt value % d |> Dval.bigInt |> resultOk |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intAdd" 0
+    { name = fn "bigIntAdd" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
       description = "Adds two arbitrary-precision integers"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.add a b))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.dbigint (DarkBigInt.add a b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intSubtract" 0
+    { name = fn "bigIntSubtract" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
       description = "Subtracts two arbitrary-precision integers"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.subtract a b))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.dbigint (DarkBigInt.subtract a b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intMultiply" 0
+    { name = fn "bigIntMultiply" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
       description = "Multiplies two arbitrary-precision integers"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.multiply a b))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.dbigint (DarkBigInt.multiply a b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intPower" 0
+    { name = fn "bigIntPower" 0
       typeParams = []
-      parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "base" TBigInt ""; Param.make "exponent" TBigInt "" ]
+      returnType = TBigInt
       description =
         "Raise <param base> to the power of <param exponent>. The "
         + "arbitrary-precision result grows as needed. Raises an error if "
         + "<param exponent> is negative."
       fn =
         (function
-        | _, vm, _, [| DInt b; DInt exp |] ->
-          let number = DarkInt.toBigInt b
-          let exp = DarkInt.toBigInt exp
+        | _, vm, _, [| DBigInt b; DBigInt exp |] ->
+          let number = DarkBigInt.toBigInt b
+          let exp = DarkBigInt.toBigInt exp
           if exp < bigZero then
             negativeExponent vm
           elif exp > bigint System.Int32.MaxValue then
             // `**` needs an Int32 exponent; only trivial bases are representable.
             if number = bigZero then
-              Ply(Dval.int bigZero)
+              Ply(Dval.bigInt bigZero)
             elif number = bigOne then
-              Ply(Dval.int bigOne)
+              Ply(Dval.bigInt bigOne)
             elif number = bigMinusOne then
               Ply(
-                Dval.int (if exp % (bigint 2) = bigZero then bigOne else bigMinusOne)
+                Dval.bigInt (
+                  if exp % (bigint 2) = bigZero then bigOne else bigMinusOne
+                )
               )
             else
               outOfRange vm
           else
-            Ply(Dval.int (number ** (int exp)))
+            Ply(Dval.bigInt (number ** (int exp)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intDivide" 0
+    { name = fn "bigIntDivide" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
       description = "Divides two arbitrary-precision integers, rounding towards zero"
       fn =
         (function
-        | _, vm, _, [| DInt a; DInt b |] ->
-          if DarkInt.isZero b then
+        | _, vm, _, [| DBigInt a; DBigInt b |] ->
+          if DarkBigInt.isZero b then
             divideByZero vm
           else
-            Ply(Dval.dint (DarkInt.divide a b))
+            Ply(Dval.dbigint (DarkBigInt.divide a b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intNegate" 0
+    { name = fn "bigIntNegate" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
-      returnType = TInt
+      parameters = [ Param.make "a" TBigInt "" ]
+      returnType = TBigInt
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, _, _, [| DInt a |] -> Ply(Dval.dint (DarkInt.negate a))
+        | _, _, _, [| DBigInt a |] -> Ply(Dval.dbigint (DarkBigInt.negate a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intGreaterThan" 0
+    { name = fn "bigIntGreaterThan" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
       returnType = TBool
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b > 0))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.bool (DarkBigInt.compare a b > 0))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intGreaterThanOrEqualTo" 0
+    { name = fn "bigIntGreaterThanOrEqualTo" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
       returnType = TBool
       description =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b >= 0))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.bool (DarkBigInt.compare a b >= 0))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intLessThan" 0
+    { name = fn "bigIntLessThan" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
       returnType = TBool
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b < 0))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.bool (DarkBigInt.compare a b < 0))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intLessThanOrEqualTo" 0
+    { name = fn "bigIntLessThanOrEqualTo" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
       returnType = TBool
       description =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.bool (DarkInt.compare a b <= 0))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.bool (DarkBigInt.compare a b <= 0))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intSqrt" 0
+    { name = fn "bigIntSqrt" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TFloat
       description =
-        "Get the square root of an <type Int> as a <type Float>. Note that very "
+        "Get the square root of a <type BigInt> as a <type Float>. Note that very "
         + "large values lose precision when converted to a float."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] -> Ply(DFloat(sqrt (float (Dval.asBigInt v))))
+        | _, _, _, [| (DBigInt _) as v |] ->
+          Ply(DFloat(sqrt (float (Dval.asBigInt v))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToFloat" 0
+    { name = fn "bigIntToFloat" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TFloat
       description =
-        "Converts an <type Int> to a <type Float>. Very large values lose "
+        "Converts a <type BigInt> to a <type Float>. Very large values lose "
         + "precision."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] -> Ply(DFloat(float (Dval.asBigInt v)))
+        | _, _, _, [| (DBigInt _) as v |] -> Ply(DFloat(float (Dval.asBigInt v)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromFloat" 0
+    { name = fn "bigIntFromFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TBigInt
       description =
-        "Converts a <type Float> to an <type Int>, truncating toward zero. "
+        "Converts a <type Float> to a <type BigInt>, truncating toward zero. "
         + "Unlike going via Int64, this preserves the full integer part of the "
         + "float (no 64-bit clamp)."
       fn =
         (function
-        // `bigint f` truncates toward zero; `roundedToInt` adds the NaN/Infinity
+        // `bigint f` truncates toward zero; `roundedToBigInt` adds the NaN/Infinity
         // guard (shared with the Float builtins) so those don't throw a host exn.
-        | _, vm, _, [| DFloat f |] -> roundedToInt vm f
+        | _, vm, _, [| DFloat f |] -> roundedToBigInt vm f
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intParse" 0
+    { name = fn "bigIntParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
         let errorType =
-          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
-        TypeReference.result TInt (TCustomType(NR.ok errorType, []))
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.bigIntParseError ())
+        TypeReference.result TBigInt (TCustomType(NR.ok errorType, []))
       description =
-        "Returns the <type Int> value of a <type String>. Arbitrary precision, "
+        "Returns the <type BigInt> value of a <type String>. Arbitrary precision, "
         + "so the only failure is a badly-formatted string."
       fn =
         let typeName =
-          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
-        let resultOk = Dval.resultOk KTInt (KTCustomType(typeName, []))
-        let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.bigIntParseError ())
+        let resultOk = Dval.resultOk KTBigInt (KTCustomType(typeName, []))
+        let resultError = Dval.resultError KTBigInt (KTCustomType(typeName, []))
         (function
         | _, _, _, [| DString s |] ->
           match System.Numerics.BigInteger.TryParse(s) with
-          | true, i -> i |> Dval.int |> resultOk |> Ply
+          | true, i -> i |> Dval.bigInt |> resultOk |> Ply
           | false, _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -369,21 +378,21 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToString" 0
+    { name = fn "bigIntToString" 0
       typeParams = []
-      parameters = [ Param.make "int" TInt "" ]
+      parameters = [ Param.make "int" TBigInt "" ]
       returnType = TString
       description = "Stringify <param int>"
       fn =
         (function
         // Not via `Dval.asBigInt`: that allocates a `BigInteger` to stringify a value that
         // almost always fits an int64. Same output either way.
-        | _, _, _, [| DInt i |] ->
+        | _, _, _, [| DBigInt i |] ->
           Ply(
             DString(
               match i with
-              | DarkInt.Finite n -> string n
-              | DarkInt.Infinite b -> string b
+              | DarkBigInt.Finite n -> string n
+              | DarkBigInt.Infinite b -> string b
             )
           )
         | _ -> incorrectArgs ())
@@ -392,161 +401,161 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Conversions from the fixed-width integer types into `Int`. Every
+    // Conversions from the fixed-width integer types into `BigInt`. Every
     // fixed-width value fits, so these are total.
 
-    { name = fn "intFromInt8" 0
+    { name = fn "bigIntFromInt8" 0
       typeParams = []
       parameters = [ Param.make "a" TInt8 "" ]
-      returnType = TInt
-      description = "Converts an Int8 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts an Int8 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt8 a |] -> Dval.int (bigint a) |> Ply
+        | _, _, _, [| DInt8 a |] -> Dval.bigInt (bigint a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromUInt8" 0
+    { name = fn "bigIntFromUInt8" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 "" ]
-      returnType = TInt
-      description = "Converts a UInt8 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts a UInt8 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt8 a |] -> Dval.int (bigint a) |> Ply
+        | _, _, _, [| DUInt8 a |] -> Dval.bigInt (bigint a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromInt16" 0
+    { name = fn "bigIntFromInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TInt16 "" ]
-      returnType = TInt
-      description = "Converts an Int16 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts an Int16 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt16 a |] -> Dval.int (bigint a) |> Ply
+        | _, _, _, [| DInt16 a |] -> Dval.bigInt (bigint a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromUInt16" 0
+    { name = fn "bigIntFromUInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 "" ]
-      returnType = TInt
-      description = "Converts a UInt16 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts a UInt16 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt16 a |] -> Dval.int (bigint a) |> Ply
+        | _, _, _, [| DUInt16 a |] -> Dval.bigInt (bigint a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromInt32" 0
+    { name = fn "bigIntFromInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]
-      returnType = TInt
-      description = "Converts an Int32 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts an Int32 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt32 a |] -> Dval.int (bigint a) |> Ply
+        | _, _, _, [| DInt32 a |] -> Dval.bigInt (bigint a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromUInt32" 0
+    { name = fn "bigIntFromUInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt32 "" ]
-      returnType = TInt
-      description = "Converts a UInt32 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts a UInt32 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt32 a |] -> Dval.int (bigint a) |> Ply
+        | _, _, _, [| DUInt32 a |] -> Dval.bigInt (bigint a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromInt64" 0
+    { name = fn "bigIntFromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
-      returnType = TInt
-      description = "Converts an Int64 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts an Int64 to an arbitrary-precision BigInt."
       fn =
         (function
-        // An Int64 is always in `DarkInt.Finite` range.
-        | _, _, _, [| DInt64 a |] -> Dval.dint (DarkInt.Finite a) |> Ply
+        // An Int64 is always in `DarkBigInt.Finite` range.
+        | _, _, _, [| DInt64 a |] -> Dval.dbigint (DarkBigInt.Finite a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromUInt64" 0
+    { name = fn "bigIntFromUInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt64 "" ]
-      returnType = TInt
-      description = "Converts a UInt64 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts a UInt64 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt64 a |] -> Dval.int (bigint a) |> Ply
+        | _, _, _, [| DUInt64 a |] -> Dval.bigInt (bigint a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromInt128" 0
+    { name = fn "bigIntFromInt128" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 "" ]
-      returnType = TInt
-      description = "Converts an Int128 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts an Int128 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt128 a |] -> Dval.int (i128ToBig a) |> Ply
+        | _, _, _, [| DInt128 a |] -> Dval.bigInt (i128ToBig a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intFromUInt128" 0
+    { name = fn "bigIntFromUInt128" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt128 "" ]
-      returnType = TInt
-      description = "Converts a UInt128 to an arbitrary-precision Int."
+      returnType = TBigInt
+      description = "Converts a UInt128 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt128 a |] -> Dval.int (u128ToBig a) |> Ply
+        | _, _, _, [| DUInt128 a |] -> Dval.bigInt (u128ToBig a) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    // Conversions from `Int` into the fixed-width integer types. The value may
+    // Conversions from `BigInt` into the fixed-width integer types. The value may
     // not fit the target range, so each returns an `Option`.
 
-    { name = fn "intToInt8" 0
+    { name = fn "bigIntToInt8" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TInt8
-      description = "Converts an Int to an Int8, returning None if it doesn't fit."
+      description = "Converts a BigInt to an Int8, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTInt8
             (bigint System.SByte.MinValue)
@@ -559,14 +568,14 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToUInt8" 0
+    { name = fn "bigIntToUInt8" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TUInt8
-      description = "Converts an Int to a UInt8, returning None if it doesn't fit."
+      description = "Converts a BigInt to a UInt8, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTUInt8
             (bigint System.Byte.MinValue)
@@ -579,14 +588,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToInt16" 0
+    { name = fn "bigIntToInt16" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TInt16
-      description = "Converts an Int to an Int16, returning None if it doesn't fit."
+      description =
+        "Converts a BigInt to an Int16, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTInt16
             (bigint System.Int16.MinValue)
@@ -599,14 +609,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToUInt16" 0
+    { name = fn "bigIntToUInt16" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TUInt16
-      description = "Converts an Int to a UInt16, returning None if it doesn't fit."
+      description =
+        "Converts a BigInt to a UInt16, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTUInt16
             (bigint System.UInt16.MinValue)
@@ -619,14 +630,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToInt32" 0
+    { name = fn "bigIntToInt32" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TInt32
-      description = "Converts an Int to an Int32, returning None if it doesn't fit."
+      description =
+        "Converts a BigInt to an Int32, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTInt32
             (bigint System.Int32.MinValue)
@@ -639,14 +651,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToUInt32" 0
+    { name = fn "bigIntToUInt32" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TUInt32
-      description = "Converts an Int to a UInt32, returning None if it doesn't fit."
+      description =
+        "Converts a BigInt to a UInt32, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTUInt32
             (bigint System.UInt32.MinValue)
@@ -659,35 +672,37 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToInt64" 0
+    { name = fn "bigIntToInt64" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TInt64
       description =
-        "Converts an Int to an Int64, returning None if it doesn't fit the "
+        "Converts a BigInt to an Int64, returning None if it doesn't fit the "
         + "64-bit range."
       fn =
         let someType = KTInt64
         (function
         // By the invariant, a `Finite` always fits Int64 and an `Infinite` never
         // does.
-        | _, _, _, [| DInt(DarkInt.Finite a) |] ->
+        | _, _, _, [| DBigInt(DarkBigInt.Finite a) |] ->
           Dval.optionSome someType (DInt64 a) |> Ply
-        | _, _, _, [| DInt(DarkInt.Infinite _) |] -> Dval.optionNone someType |> Ply
+        | _, _, _, [| DBigInt(DarkBigInt.Infinite _) |] ->
+          Dval.optionNone someType |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToUInt64" 0
+    { name = fn "bigIntToUInt64" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TUInt64
-      description = "Converts an Int to a UInt64, returning None if it doesn't fit."
+      description =
+        "Converts a BigInt to a UInt64, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTUInt64
             (bigint System.UInt64.MinValue)
@@ -700,14 +715,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToInt128" 0
+    { name = fn "bigIntToInt128" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TInt128
-      description = "Converts an Int to an Int128, returning None if it doesn't fit."
+      description =
+        "Converts a BigInt to an Int128, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTInt128
             (i128ToBig System.Int128.MinValue)
@@ -720,14 +736,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intToUInt128" 0
+    { name = fn "bigIntToUInt128" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TBigInt "" ]
       returnType = TypeReference.option TUInt128
-      description = "Converts an Int to a UInt128, returning None if it doesn't fit."
+      description =
+        "Converts a BigInt to a UInt128, returning None if it doesn't fit."
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] ->
+        | _, _, _, [| (DBigInt _) as v |] ->
           toFixed
             KTUInt128
             (u128ToBig System.UInt128.MinValue)
@@ -740,103 +757,104 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intBitwiseAnd" 0
+    { name = fn "bigIntBitwiseAnd" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Bitwise AND on two <type Int> values"
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
+      description = "Bitwise AND on two <type BigInt> values"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] ->
-          Ply(Dval.int (DarkInt.toBigInt a &&& DarkInt.toBigInt b))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.bigInt (DarkBigInt.toBigInt a &&& DarkBigInt.toBigInt b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intBitwiseOr" 0
+    { name = fn "bigIntBitwiseOr" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Bitwise OR on two <type Int> values"
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
+      description = "Bitwise OR on two <type BigInt> values"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] ->
-          Ply(Dval.int (DarkInt.toBigInt a ||| DarkInt.toBigInt b))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.bigInt (DarkBigInt.toBigInt a ||| DarkBigInt.toBigInt b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intBitwiseXor" 0
+    { name = fn "bigIntBitwiseXor" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Bitwise XOR on two <type Int> values"
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
+      description = "Bitwise XOR on two <type BigInt> values"
       fn =
         (function
-        | _, _, _, [| DInt a; DInt b |] ->
-          Ply(Dval.int (DarkInt.toBigInt a ^^^ DarkInt.toBigInt b))
+        | _, _, _, [| DBigInt a; DBigInt b |] ->
+          Ply(Dval.bigInt (DarkBigInt.toBigInt a ^^^ DarkBigInt.toBigInt b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intBitwiseNot" 0
+    { name = fn "bigIntBitwiseNot" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
-      returnType = TInt
-      description = "Bitwise NOT on an <type Int> value"
+      parameters = [ Param.make "a" TBigInt "" ]
+      returnType = TBigInt
+      description = "Bitwise NOT on a <type BigInt> value"
       fn =
         (function
-        | _, _, _, [| DInt a |] -> Ply(Dval.int (-(DarkInt.toBigInt a) - bigOne))
+        | _, _, _, [| DBigInt a |] ->
+          Ply(Dval.bigInt (-(DarkBigInt.toBigInt a) - bigOne))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intShiftLeft" 0
+    { name = fn "bigIntShiftLeft" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Bitwise left shift of an <type Int> value"
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
+      description = "Bitwise left shift of a <type BigInt> value"
       fn =
         (function
-        | _, vm, _, [| DInt a; DInt b |] ->
+        | _, vm, _, [| DBigInt a; DBigInt b |] ->
           // `<<<` needs a native Int32 shift count; reject anything that
           // wouldn't fit rather than letting the cast overflow. A negative
           // count would silently reverse direction in BigInteger, so reject it.
-          let shift = intToInt32 vm b
+          let shift = bigIntToInt32 vm b
           if shift < 0 then
             outOfRange vm
           else
-            Ply(Dval.int (DarkInt.toBigInt a <<< shift))
+            Ply(Dval.bigInt (DarkBigInt.toBigInt a <<< shift))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "intShiftRight" 0
+    { name = fn "bigIntShiftRight" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Bitwise right shift of an <type Int> value"
+      parameters = [ Param.make "a" TBigInt ""; Param.make "b" TBigInt "" ]
+      returnType = TBigInt
+      description = "Bitwise right shift of a <type BigInt> value"
       fn =
         (function
-        | _, vm, _, [| DInt a; DInt b |] ->
+        | _, vm, _, [| DBigInt a; DBigInt b |] ->
           // `>>>` needs a native Int32 shift count; reject anything that
           // wouldn't fit rather than letting the cast overflow. A negative
           // count would silently reverse direction in BigInteger, so reject it.
-          let shift = intToInt32 vm b
+          let shift = bigIntToInt32 vm b
           if shift < 0 then
             outOfRange vm
           else
-            Ply(Dval.int (DarkInt.toBigInt a >>> shift))
+            Ply(Dval.bigInt (DarkBigInt.toBigInt a >>> shift))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

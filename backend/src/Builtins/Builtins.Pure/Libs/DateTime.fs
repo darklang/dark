@@ -18,7 +18,7 @@ let private inDateRange (vm : VMState) (f : unit -> Dval) : Ply<Dval> =
   with
   | :? System.ArgumentOutOfRangeException
   | :? System.OverflowException ->
-    RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+    RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
 
 
 let fns () : List<BuiltInFn> =

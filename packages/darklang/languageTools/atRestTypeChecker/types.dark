@@ -412,7 +412,7 @@ let fromReferenceInto(
   | TUInt64 -> (Model.Ty.TUInt64, found)
   | TInt128 -> (Model.Ty.TInt128, found)
   | TUInt128 -> (Model.Ty.TUInt128, found)
-  | TInt -> (Model.Ty.TInt, found)
+  | TBigInt -> (Model.Ty.TBigInt, found)
   | TFloat -> (Model.Ty.TFloat, found)
   | TFloat32 -> (Model.Ty.TFloat32, found)
   | TDecimal -> (Model.Ty.TDecimal, found)
@@ -605,7 +605,7 @@ let expandFrom(
           blocked(found, warning(IssueCode.AliasCycle, at, Context.AliasCycleReferenced))
         else
           // Expand argument aliases before adding this alias to the active path.
-          // For Forward<'a> = 'a, Forward<Forward<Int>> must reduce to Int without
+          // For Forward<'a> = 'a, Forward<Forward<Int64>> must reduce to Int64 without
           // mistaking ordinary nesting for a recursive definition. Retain the
           // existing path: Loop = Forward<Loop> must still be detected as a cycle.
           match expandDeepAll(env, subst, at, seen, args, []) with
@@ -649,7 +649,7 @@ let arityMismatch(
 /// missing, an alias has the wrong argument count, or expansion reaches a cycle.
 /// Record and enum fields are not expanded.
 ///
-/// Used before checking variable containment: if Ignore<'a> aliases Int,
+/// Used before checking variable containment: if Ignore<'a> aliases Int64,
 /// Ignore<t> does not actually contain t after expansion. Expand arguments before
 /// entering each alias body, keeping seen as the path of active alias definitions.
 let expandDeep(
@@ -906,7 +906,7 @@ let isUsableDictKey(env: Model.Environment, seen: List<LanguageTools.ProgramType
   | TUInt64
   | TInt128
   | TUInt128
-  | TInt
+  | TBigInt
   | TFloat
   | TFloat32
   | TDecimal
@@ -1035,7 +1035,7 @@ let toStatic(ty: Model.Ty): StaticType =
   | TUInt64 -> StaticType.TUInt64
   | TInt128 -> StaticType.TInt128
   | TUInt128 -> StaticType.TUInt128
-  | TInt -> StaticType.TInt
+  | TBigInt -> StaticType.TBigInt
   | TFloat -> StaticType.TFloat
   | TFloat32 -> StaticType.TFloat32
   | TDecimal -> StaticType.TDecimal

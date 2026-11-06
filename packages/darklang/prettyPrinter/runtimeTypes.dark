@@ -114,9 +114,9 @@ let caseNameStandsAlone(
     // Several names for one type, and nothing in the reader's context to choose between them.
     //
     // Types are content-addressed, so two declarations with the same shape ARE one type:
-    // `Stdlib.Int.ParseError`, `Stdlib.Float.ParseError` and `Stdlib.Uuid.ParseError` are all
+    // `Stdlib.BigInt.ParseError`, `Stdlib.Float.ParseError` and `Stdlib.Uuid.ParseError` are all
     // `| BadFormat`, which makes them a single type with three names. Printing one of those names is
-    // picking arbitrarily, and it picks wrong most of the time -- `Stdlib.Int.parse "abc"` reporting a
+    // picking arbitrarily, and it picks wrong most of the time -- `Stdlib.BigInt.parse "abc"` reporting a
     // `Stdlib.Uuid.ParseError` is a real thing this used to print. The case name alone is the most that
     // can honestly be said, so say that.
     let ambiguous =
@@ -356,7 +356,7 @@ let typeReference(
   | TUInt64 -> "UInt64"
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
-  | TInt -> "Int"
+  | TBigInt -> "BigInt"
 
   | TFloat -> "Float"
   | TFloat32 -> "Float32"
@@ -440,7 +440,7 @@ let knownType(
   | KTUInt64 -> "UInt64"
   | KTInt128 -> "Int128"
   | KTUInt128 -> "UInt128"
-  | KTInt -> "Int"
+  | KTBigInt -> "BigInt"
 
   | KTFloat -> "Float"
   | KTFloat32 -> "Float32"
@@ -508,13 +508,13 @@ let valueType(
 ///
 /// Two sources, each authoritative about a different thing. The `ValueType` is
 /// the authority on shape: it has been through the type symbol table, so where
-/// the declaration said `List<'a>` it says `List<Int>`. The declared
+/// the declaration said `List<'a>` it says `List<Int64>`. The declared
 /// `TypeReference` is the authority on names: a hash bound to one location has
 /// one name and needs no help, but bound to several, every one of those names is
 /// equally true of the type and choosing between them from the hash is a guess.
-/// `Stdlib.Int.ParseError`, `Stdlib.Float.ParseError` and
+/// `Stdlib.BigInt.ParseError`, `Stdlib.Float.ParseError` and
 /// `Stdlib.Uuid.ParseError` are all `| BadFormat`, so they are one type with
-/// three names, and an `Int.parse` failure reported as a `Uuid.ParseError` is a
+/// three names, and a `BigInt.parse` failure reported as a `Uuid.ParseError` is a
 /// real thing this printed.
 ///
 /// So walk the two together, taking shape from the left and names from the
@@ -659,7 +659,7 @@ module Dval =
     | DUInt64(_) -> "UInt64"
     | DInt128(_) -> "Int128"
     | DUInt128(_) -> "UInt128"
-    | DInt(_) -> "Int"
+    | DBigInt(_) -> "BigInt"
     | DFloat(_) -> "Float"
     | DFloat32(_) -> "Float32"
     | DDecimal(_) -> "Decimal"
@@ -826,7 +826,7 @@ module Dval =
     | DUInt64(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u64")
     | DInt128(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s128")
     | DUInt128(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u128")
-    | DInt(i) -> paint(opts.palette.number, Stdlib.toString(i) + "z")
+    | DBigInt(i) -> paint(opts.palette.number, Stdlib.toString(i) + "z")
 
     | DFloat(f) -> paint(opts.palette.number, Stdlib.toString(f))
     | DFloat32(f) ->

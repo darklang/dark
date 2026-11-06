@@ -373,17 +373,17 @@ test secondsRoundTrip =
 // seconds whose ticks are past Int64 can't be represented; surface a Dark error
 test fromSecondsPastInt64Raises =
   (2 ** 62) |> Stdlib.DateTime.fromSeconds
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 // Int64.MaxValue fits int64 but is past NodaTime's instant range; the host
 // exception is turned into a Dark error rather than escaping
 test fromSecondsPastInstantRangeRaises =
   9223372036854775807 |> Stdlib.DateTime.fromSeconds
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test addSecondsPastInstantRangeRaises =
   Stdlib.DateTime.addSeconds(Stdlib.DateTime.fromSeconds(0), 9223372036854775807)
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test todayIsCurrentUtcMidnight =
   let before = Stdlib.DateTime.atStartOfDay(Stdlib.DateTime.now())

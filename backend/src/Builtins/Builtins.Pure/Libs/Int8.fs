@@ -23,9 +23,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt8 v; DInt8 m |] ->
           if m = 0y then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.ZeroModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else if m < 0y then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0y then m + result else result
@@ -120,7 +120,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt8 number; DInt8 exp |] ->
           if exp < 0y then
-            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeExponent |> RTE.BigInt |> raiseRTE vm.threadID
           else
             // wrap on overflow via modular exponentiation
             let m = System.Numerics.BigInteger.Pow(bigint 2, 8)
@@ -143,7 +143,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt8 a; DInt8 b |] ->
           if b = 0y then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.DivideByZeroError |> RTE.BigInt |> raiseRTE vm.threadID
           else
             // widen to int32 so -128y / -1y wraps on narrowing instead of throwing
             Ply(DInt8(int8 (int a / int b)))

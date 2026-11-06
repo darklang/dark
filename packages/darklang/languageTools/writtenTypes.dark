@@ -56,7 +56,7 @@ module TypeReference =
     | TUInt64(Range)
     | TInt128(Range)
     | TUInt128(Range)
-    | TInt(Range)
+    | TBigInt(Range)
     | TFloat(Range)
     | TFloat32(Range)
     | TDecimal(Range)
@@ -145,7 +145,7 @@ type MatchPattern =
   | MPUInt64(Range, intPart: Range * UInt64, suffixPart: Range)
   | MPInt128(Range, intPart: Range * Int128, suffixPart: Range)
   | MPUInt128(Range, intPart: Range * UInt128, suffixPart: Range)
-  | MPInt(Range, intPart: Range * Int)
+  | MPBigInt(Range, intPart: Range * BigInt)
   | MPFloat(Range, Sign, String, String)
   | MPFloat32(Range, Sign, String, String)
   | MPDecimal(Range, Decimal)
@@ -265,7 +265,7 @@ type Expr =
   | EUInt64(Range, intPart: Range * UInt64, suffixPart: Range)
   | EInt128(Range, intPart: Range * Int128, suffixPart: Range)
   | EUInt128(Range, intPart: Range * UInt128, suffixPart: Range)
-  | EInt(Range, intPart: Range * Int)
+  | EBigInt(Range, intPart: Range * BigInt)
   | EFloat(Range, Sign, String, String)
   | EFloat32(Range, Sign, String, String)
   | EDecimal(Range, Decimal)
@@ -428,7 +428,7 @@ module Expr =
     | EUInt64(range, _, _) -> range
     | EInt128(range, _, _) -> range
     | EUInt128(range, _, _) -> range
-    | EInt(range, _) -> range
+    | EBigInt(range, _) -> range
     | EFloat(range, _, _, _) -> range
     | EFloat32(range, _, _, _) -> range
     | EDecimal(range, _) -> range
@@ -476,7 +476,7 @@ module ModuleDeclaration =
 
 
 // Type declaration
-/// `'a: Show<Int>` in a type-param list: the trait is a type name
+/// `'a: Show<Int64>` in a type-param list: the trait is a type name
 type TypeParamBound =
   { range: Range
     param: String

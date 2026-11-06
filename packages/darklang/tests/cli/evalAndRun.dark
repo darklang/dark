@@ -99,7 +99,7 @@ test scriptDeclarationsKeepTheirIdentity =
         prints(
           i,
           [ "eval"
-            "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.Int.ParseError): Int64 = 1\nf(MyErr.BadFormat)" ],
+            "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.BigInt.ParseError): Int64 = 1\nf(MyErr.BadFormat)" ],
           "1") ]))
 
 

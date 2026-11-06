@@ -153,7 +153,7 @@ Skipping runtime checks is a separate rollout. It requires a `Checked` proof for
 checker warnings are warnings even when they belong to a `Failed` item, and each carries its
 issue code. During syntax errors, the parser reports diagnostics and the checker waits.
 
-Checker node IDs are not source locations. Diagnostics use declaration locations from `WrittenTypes`. Until lowering preserves stable source locations in `ProgramTypes`, issues point to the containing declaration body, or the type declaration for type issues. This is exact for a single-expression body such as `let invalid(x: Int): String = x`, but only approximate for nested expressions.
+Checker node IDs are not source locations. Diagnostics use declaration locations from `WrittenTypes`. Until lowering preserves stable source locations in `ProgramTypes`, issues point to the containing declaration body, or the type declaration for type issues. This is exact for a single-expression body such as `let invalid(x: Int64): String = x`, but only approximate for nested expressions.
 
 ## Coverage policy
 

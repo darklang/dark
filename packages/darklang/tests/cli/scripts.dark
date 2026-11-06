@@ -8,12 +8,12 @@ test unitSucceeds =
 
 test integerExitCodes =
   Stdlib.Test.all(
-    [ Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DInt(7z))
+    [ Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DBigInt(7z))
       |> Stdlib.Test.equal(Ok(7))
       Darklang.Cli.Run.exitCode(Darklang.LanguageTools.RuntimeTypes.Dval.DInt64(3))
       |> Stdlib.Test.equal(Ok(3))
       Darklang.Cli.Run.exitCode(
-        Darklang.LanguageTools.RuntimeTypes.Dval.DInt(9223372036854775808z))
+        Darklang.LanguageTools.RuntimeTypes.Dval.DBigInt(9223372036854775808z))
       |> Stdlib.Test.equal(Ok(1)) ])
 
 
@@ -50,7 +50,7 @@ module CallStack =
 
   let builtin(): Darklang.LanguageTools.RuntimeTypes.ExecutionPoint =
     Darklang.LanguageTools.RuntimeTypes.ExecutionPoint.Function(Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(Darklang.LanguageTools.RuntimeTypes.FQFnName.Builtin
-          { name = "intDivide", version = 0s32 }))
+          { name = "bigIntDivide", version = 0s32 }))
 
   let render(
     frames: List<Darklang.LanguageTools.RuntimeTypes.ExecutionPoint>)
@@ -64,7 +64,7 @@ module CallStack =
   test groupsOnlyConsecutiveFrames =
     render([ source(), builtin(), builtin(), source() ])
     |> Stdlib.Test.equal(
-      "Call stack (last call at bottom):\n- Source\n- Builtin Function intDivide (×2)\n- Source")
+      "Call stack (last call at bottom):\n- Source\n- Builtin Function bigIntDivide (×2)\n- Source")
 
   test lambdaLabel =
     Darklang.PrettyPrinter.RuntimeTypes.executionPoint(

@@ -283,18 +283,18 @@ test shiftRight =
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.UInt16.checkedAdd(65535u16, 1u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedAdd(65535u16, 65535u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedAdd(65535u16, 0u16) |> Stdlib.Test.equal(Ok(65535u16))
       Stdlib.UInt16.checkedAdd(65534u16, 1u16) |> Stdlib.Test.equal(Ok(65535u16)) ])
 
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.UInt16.checkedSubtract(0u16, 1u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedSubtract(1u16, 65535u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedSubtract(65535u16, 65535u16)
       |> Stdlib.Test.equal(Ok(0u16))
       Stdlib.UInt16.checkedSubtract(65535u16, 0u16)
@@ -303,9 +303,9 @@ test checkedSubtract =
 test checkedMultiply =
   Stdlib.Test.all(
     [ Stdlib.UInt16.checkedMultiply(65535u16, 2u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedMultiply(65535u16, 65535u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedMultiply(65535u16, 1u16)
       |> Stdlib.Test.equal(Ok(65535u16))
       Stdlib.UInt16.checkedMultiply(65535u16, 0u16) |> Stdlib.Test.equal(Ok(0u16))
@@ -315,9 +315,9 @@ test checkedMultiply =
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.UInt16.checkedNegate(1u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedNegate(65535u16)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.UInt16.checkedNegate(0u16) |> Stdlib.Test.equal(Ok(0u16)) ])
 
 test checkedAbsoluteValue =

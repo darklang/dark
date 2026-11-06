@@ -103,7 +103,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DUInt64 i -> w.WriteNumberValue i
   | DInt128 i -> w.WriteRawValue(i.ToString())
   | DUInt128 i -> w.WriteRawValue(i.ToString())
-  | DInt i -> w.WriteRawValue(string (DarkInt.toBigInt i))
+  | DBigInt i -> w.WriteRawValue(string (DarkBigInt.toBigInt i))
 
   | DFloat f ->
     if System.Double.IsNaN f then w.WriteStringValue "NaN"
@@ -527,13 +527,13 @@ let parse
       else
         raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
 
-    | TInt, JsonValueKind.Number ->
+    | TBigInt, JsonValueKind.Number ->
       // Accept integer-valued decimal/exponent forms (like the fixed-width
       // types do), but parse them EXACTLY — never through a double, which would
       // round values past 2^53 (e.g. `9007199254740993.0`).
       match parseExactJsonInteger (j.GetRawText()) with
-      | Some i -> Dval.int i |> Ply
-      | None -> raiseCantMatchWithType TInt j pathSoFar |> Ply
+      | Some i -> Dval.bigInt i |> Ply
+      | None -> raiseCantMatchWithType TBigInt j pathSoFar |> Ply
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
@@ -798,7 +798,7 @@ let parse
     | TUInt64, _
     | TInt128, _
     | TUInt128, _
-    | TInt, _
+    | TBigInt, _
     | TFloat, _
     | TFloat32, _
     | TDecimal, _

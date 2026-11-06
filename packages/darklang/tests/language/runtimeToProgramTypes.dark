@@ -38,8 +38,8 @@ test literals =
        | Ok(EBool(_, b)) -> b
        | _ -> false)
       |> Stdlib.Test.equal(true)
-      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DInt(42z)) with
-       | Ok(EInt(_, i)) -> i
+      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DBigInt(42z)) with
+       | Ok(EBigInt(_, i)) -> i
        | _ -> -1z)
       |> Stdlib.Test.equal(42z)
       (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DInt64(7)) with

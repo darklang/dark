@@ -53,7 +53,7 @@ module RuntimeTypes =
       RT.TUInt64
       RT.TInt128
       RT.TUInt128
-      RT.TInt
+      RT.TBigInt
 
       RT.TFloat
       RT.TFloat32
@@ -93,7 +93,7 @@ module RuntimeTypes =
       known RT.KnownType.KTUInt64
       known RT.KnownType.KTInt128
       known RT.KnownType.KTUInt128
-      known RT.KnownType.KTInt
+      known RT.KnownType.KTBigInt
       known RT.KnownType.KTFloat
       known RT.KnownType.KTFloat32
       known RT.KnownType.KTChar
@@ -209,9 +209,11 @@ module RuntimeTypes =
       RT.DUInt64 18446744073709551615UL
       RT.DInt128 170141183460469231731687303715884105727Q
       RT.DUInt128 340282366920938463463374607431768211455Z
-      // the default Int, both Finite (Int64 range) and Infinite (past Int64)
-      RT.Dval.int (bigint System.Int64.MaxValue)
-      RT.Dval.int (System.Numerics.BigInteger.Parse "123456789012345678901234567890")
+      // BigInt, both Finite (Int64 range) and Infinite (past Int64)
+      RT.Dval.bigInt (bigint System.Int64.MaxValue)
+      RT.Dval.bigInt (
+        System.Numerics.BigInteger.Parse "123456789012345678901234567890"
+      )
       RT.DFloat(3.14159)
       RT.DFloat32(3.14159f)
       RT.DFloat32(-0.0f)
@@ -277,7 +279,7 @@ module ProgramTypes =
       MPUInt32(id, 4294967295ul)
       MPInt128(id, 170141183460469231731687303715884105727Q)
       MPUInt128(id, 340282366920938463463374607431768211455Z)
-      MPInt(id, System.Numerics.BigInteger.Parse "123456789012345678901234567890")
+      MPBigInt(id, System.Numerics.BigInteger.Parse "123456789012345678901234567890")
       MPBool(id, false)
       MPChar(id, "w")
       MPString(id, "testing testing 123")
@@ -313,7 +315,7 @@ module ProgramTypes =
         TUInt32
         TInt128
         TUInt128
-        TInt
+        TBigInt
         TString
         TList TInt64
         TTuple(TBool, TBool, [ TBool ])
@@ -744,8 +746,8 @@ module ProgramTypes =
         PT.EUInt32(id, 3ul)
         PT.EInt128(id, -1Q)
         PT.EUInt128(id, 1Z)
-        PT.EInt(id, 5I)
-        PT.EInt(
+        PT.EBigInt(id, 5I)
+        PT.EBigInt(
           id,
           System.Numerics.BigInteger.Parse "123456789012345678901234567890"
         ) ]
@@ -767,7 +769,7 @@ module ProgramTypes =
       permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
       bounds = [] }
 
-  /// `let f<'a: Show + Equal<Int>> ...`: two bounds on one param, one with a type arg,
+  /// `let f<'a: Show + Equal<BigInt>> ...`: two bounds on one param, one with a type arg,
   /// and a body that calls a trait method.
   let boundedPackageFn : PackageFn.PackageFn =
     let showRef : TraitRef =
@@ -775,7 +777,7 @@ module ProgramTypes =
         typeArgs = [] }
     let eqRef : TraitRef =
       { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-eq"))
-        typeArgs = [ TInt ] }
+        typeArgs = [ TBigInt ] }
     let traitCall =
       EApply(
         gid (),
@@ -884,11 +886,11 @@ module ProgramTypes =
 
   let traits = [ trait_ ]
 
-  /// `impl<'a: Show> Convert<Int> for List<'a>` naming one method fn.
+  /// `impl<'a: Show> Convert<BigInt> for List<'a>` naming one method fn.
   let impl : TraitImpl.TraitImpl =
     { hash = Hash "impl-convert-list"
       trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-convert"))
-      traitTypeArgs = [ TInt ]
+      traitTypeArgs = [ TBigInt ]
       self = TList(TVariable "a")
       typeParams = [ "a" ]
       bounds =

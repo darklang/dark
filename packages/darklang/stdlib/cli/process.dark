@@ -2,7 +2,7 @@ module Darklang.Stdlib.Cli.Process
 
 
 /// Process handle for interacting with spawned processes
-type ProcessHandle = Int
+type ProcessHandle = BigInt
 
 /// Spawn a new process and return a handle for interaction
 let spawn(command: String): ProcessHandle =
@@ -255,33 +255,33 @@ let __childAppend(buffer: __ChildBuffer, bytes: Bytes): __ChildBuffer =
 
 let __childBytes(buffer: __ChildBuffer): Bytes = Stdlib.Bytes.concatAll(Stdlib.List.reverse(buffer.chunks))
 
-let __childPollChild(child: Int): Result.Result<Stdlib.Option.Option<Int64>, Int64> =
+let __childPollChild(child: BigInt): Result.Result<Stdlib.Option.Option<Int64>, Int64> =
   match Builtin.runtimeChildPoll(child) with
   | Error(4) -> __childPollChild(child)
   | result -> result
 
-let __childWaitChild(child: Int): Result.Result<Int64, Int64> =
+let __childWaitChild(child: BigInt): Result.Result<Int64, Int64> =
   match Builtin.runtimeChildWait(child) with
   | Error(4) -> __childWaitChild(child)
   | result -> result
 
-let __childKillChild(child: Int): Result.Result<Unit, Int64> =
+let __childKillChild(child: BigInt): Result.Result<Unit, Int64> =
   match Builtin.runtimeChildKill(child) with
   | Error(4) -> __childKillChild(child)
   | result -> result
 
-let __childCloseChild(child: Int): Result.Result<Unit, Int64> =
+let __childCloseChild(child: BigInt): Result.Result<Unit, Int64> =
   match Builtin.runtimeChildClose(child) with
   | Error(4) -> __childCloseChild(child)
   | result -> result
 
-let __childFinish(child: Int, result: Result.Result<'a, Int64>): Result.Result<'a, Int64> =
+let __childFinish(child: BigInt, result: Result.Result<'a, Int64>): Result.Result<'a, Int64> =
   let closed = __childCloseChild(child)
   match result with
   | Error(e) -> Error(e)
   | Ok(value) -> closed |> Stdlib.Result.map(fun _ -> value)
 
-let __childRead(fd: Int, eof: Bool): Result.Result<(Bytes * Bool), Int64> =
+let __childRead(fd: BigInt, eof: Bool): Result.Result<(Bytes * Bool), Int64> =
   if eof then Ok((Stdlib.Bytes.empty, true))
   else
     match Builtin.syscallRead(fd, 65536) with
@@ -291,7 +291,7 @@ let __childRead(fd: Int, eof: Bool): Result.Result<(Bytes * Bool), Int64> =
 
 /// One write per turn, interleaved with both readers, so a child producing
 /// output while accepting a large input cannot deadlock on a full pipe.
-let __childWrite(fd: Int, pending: Bytes): Result.Result<Bytes, Int64> =
+let __childWrite(fd: BigInt, pending: Bytes): Result.Result<Bytes, Int64> =
   let length = Stdlib.Bytes.length(pending)
   if length == 0 then Ok(pending)
   else
@@ -304,21 +304,21 @@ let __childWrite(fd: Int, pending: Bytes): Result.Result<Bytes, Int64> =
       if written <= 0 || written > count then Error(5)
       else Ok(Stdlib.Bytes.drop(pending, written))
 
-let __childPoll(fds: List<(Int * Int64)>, milliseconds: Int64): Result.Result<Unit, Int64> =
+let __childPoll(fds: List<(BigInt * Int64)>, milliseconds: Int64): Result.Result<Unit, Int64> =
   let result = if Stdlib.Cli.Posix.__abiMac() then Builtin.syscallPollDarwin(fds, milliseconds) else Builtin.syscallPpoll(fds, milliseconds)
   match result with
   | Error(4) -> __childPoll(fds, milliseconds)
   | Error(e) -> Error(e)
   | Ok(_) -> Ok()
 
-let __childDescriptors(stdin: Int, stdout: Int, stderr: Int, pending: Bytes, outEOF: Bool, errEOF: Bool): List<(Int * Int64)> =
+let __childDescriptors(stdin: BigInt, stdout: BigInt, stderr: BigInt, pending: Bytes, outEOF: Bool, errEOF: Bool): List<(BigInt * Int64)> =
   let input = if Stdlib.Bytes.length(pending) == 0 then [] else [(stdin, 4)]
   let output = if outEOF then [] else [(stdout, 1)]
   let error = if errEOF then [] else [(stderr, 1)]
   Stdlib.List.concat(input, Stdlib.List.concat(output, error))
 
 let __childCapture(
-  child: Int, stdout: Int, stderr: Int, deadline: Stdlib.Option.Option<Int64>,
+  child: BigInt, stdout: BigInt, stderr: BigInt, deadline: Stdlib.Option.Option<Int64>,
   output: __ChildBuffer, error: __ChildBuffer, outEOF: Bool, errEOF: Bool)
   : Result.Result<(Int64 * Bytes * Bytes), Int64> =
   let remaining = match deadline with | None -> 100 | Some(end_) -> end_ - Stdlib.DateTime.__monotonicMilliseconds()
@@ -371,7 +371,7 @@ let __childNewline(bytes: Bytes): Bool =
 /// wait in at most 100 polling turns; complete newline responses can finish
 /// earlier. Each turn drains both streams and advances a partial input write.
 let __childCommunicateLoop(
-  child: Int, ports: (Int * Int * Int), pending: Bytes,
+  child: BigInt, ports: (BigInt * BigInt * BigInt), pending: Bytes,
   turns: Int64, output: __ChildBuffer, error: __ChildBuffer, eof: (Bool * Bool))
   : Result.Result<(Int64 * Bytes * Bytes), Int64> =
   let (stdin, stdout, stderr) = ports
@@ -391,12 +391,12 @@ let __childCommunicateLoop(
             __childPoll(__childDescriptors(stdin, stdout, stderr, pending, outEOF, errEOF), 100)
             |> Stdlib.Result.andThen(fun _ -> __childCommunicateLoop(child, ports, pending, turns - 1, output, error, (outEOF, errEOF)))))))
 
-let __childSaveHistory(child: Int, index: Int64, chunk: Bytes): Result.Result<Unit, Int64> =
+let __childSaveHistory(child: BigInt, index: Int64, chunk: Bytes): Result.Result<Unit, Int64> =
   Builtin.runtimeChildBufferGet(child, index) |> Stdlib.Result.andThen(fun previous ->
     let next = __childAppend(__childAppend(__childEmpty(), previous), chunk)
     Builtin.runtimeChildBufferSet(child, index, __childBytes(next)))
 
-let __childCommunicate(child: Int, input: String): Result.Result<(Int64 * Bytes * Bytes), Int64> =
+let __childCommunicate(child: BigInt, input: String): Result.Result<(Int64 * Bytes * Bytes), Int64> =
   Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->
     match ports with
     | [stdin, stdout, stderr] ->
@@ -412,7 +412,7 @@ let __childCommunicate(child: Int, input: String): Result.Result<(Int64 * Bytes 
 /// After terminating the owned child, drain currently available bytes, not
 /// future output from an unowned grandchild retaining a pipe. Bound draining
 /// turns as well as stored bytes so such a grandchild cannot keep cleanup busy.
-let __childDrain(stdout: Int, stderr: Int, turns: Int64, output: __ChildBuffer, error: __ChildBuffer): Result.Result<(Bytes * Bytes), Int64> =
+let __childDrain(stdout: BigInt, stderr: BigInt, turns: Int64, output: __ChildBuffer, error: __ChildBuffer): Result.Result<(Bytes * Bytes), Int64> =
   if turns <= 0 then Ok((__childBytes(output), __childBytes(error)))
   else
     __childRead(stdout, false) |> Stdlib.Result.andThen(fun out ->
@@ -424,7 +424,7 @@ let __childDrain(stdout: Int, stderr: Int, turns: Int64, output: __ChildBuffer, 
         if Stdlib.Bytes.length(outChunk) == 0 && Stdlib.Bytes.length(errChunk) == 0 then Ok((__childBytes(output), __childBytes(error)))
         else __childDrain(stdout, stderr, turns - 1, output, error)))
 
-let __childTerminate(child: Int): Result.Result<(Int64 * Bytes * Bytes), Int64> =
+let __childTerminate(child: BigInt): Result.Result<(Int64 * Bytes * Bytes), Int64> =
   let result = __childKillChild(child) |> Stdlib.Result.andThen(fun _ ->
     __childWaitChild(child) |> Stdlib.Result.andThen(fun code ->
       Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->

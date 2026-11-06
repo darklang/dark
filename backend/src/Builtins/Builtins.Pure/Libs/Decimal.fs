@@ -21,7 +21,7 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "decimalToParts" 0
       typeParams = []
       parameters = [ Param.make "d" TDecimal "" ]
-      returnType = TTuple(TInt, TInt64, [])
+      returnType = TTuple(TBigInt, TInt64, [])
       description =
         "Split <param d> into {{(unscaled, scale)}}, where <param d> is {{unscaled / 10^scale}}. "
         + "The scale is as written, so {{1.10dec}} is {{(110z, 2)}} and {{1.1dec}} is {{(11z, 1)}}."
@@ -34,7 +34,7 @@ let fns () : List<BuiltInFn> =
             ||| (bigint (uint32 bits[1]) <<< 32)
             ||| bigint (uint32 bits[0])
           let unscaled = if d < 0m then -magnitude else magnitude
-          DTuple(Dval.int unscaled, Dval.dint64 (int64 d.Scale), []) |> Ply
+          DTuple(Dval.bigInt unscaled, Dval.dint64 (int64 d.Scale), []) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -43,15 +43,15 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "decimalFromParts" 0
       typeParams = []
-      parameters = [ Param.make "unscaled" TInt ""; Param.make "scale" TInt64 "" ]
+      parameters = [ Param.make "unscaled" TBigInt ""; Param.make "scale" TInt64 "" ]
       returnType = TypeReference.option TDecimal
       description =
         "The decimal {{<param unscaled> / 10^<param scale>}}, keeping <param scale>. {{None}} "
         + "when <param scale> is outside 0 to 28 or <param unscaled> needs more than 96 bits."
       fn =
         (function
-        | _, _, _, [| DInt unscaled; DInt64 scale |] ->
-          let unscaled = DarkInt.toBigInt unscaled
+        | _, _, _, [| DBigInt unscaled; DInt64 scale |] ->
+          let unscaled = DarkBigInt.toBigInt unscaled
           let magnitude = bigint.Abs unscaled
           if scale < 0L || scale > 28L || magnitude >= magnitudeLimit then
             Dval.optionNone KTDecimal |> Ply

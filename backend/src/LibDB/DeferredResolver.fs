@@ -182,7 +182,7 @@ let rec private reResolveTypeRef
     | PT.TUInt64
     | PT.TInt128
     | PT.TUInt128
-    | PT.TInt
+    | PT.TBigInt
     | PT.TFloat
     | PT.TFloat32
     | PT.TDecimal
@@ -322,7 +322,7 @@ and private reResolveExpr
     | PT.EUInt64 _
     | PT.EInt128 _
     | PT.EUInt128 _
-    | PT.EInt _
+    | PT.EBigInt _
     | PT.EFloat _
     | PT.EFloat32 _
     | PT.EDecimal _

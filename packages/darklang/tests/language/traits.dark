@@ -125,8 +125,8 @@ module Multi =
       "Bool has no implementation of Darklang.Stdlib.Add. Write `impl Add for Bool = ...`, or run `dark impls Add` to see which types do"
 
   // Worth knowing: a trait declared here with the same shape as `Stdlib.Add`
-  // IS `Stdlib.Add` (content addressing), so `impl Add for Int` next to it
-  // would be a second impl for Int and every `1 + 2` an ambiguity.
+  // IS `Stdlib.Add` (content addressing), so `impl Add for Int64` next to it
+  // would be a second impl for Int64 and every `1 + 2` an ambiguity.
   //
   // Receiver call on a two-argument method is a partial application
   test receiverPartialApplication =

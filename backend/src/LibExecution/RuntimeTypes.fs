@@ -176,8 +176,8 @@ type KnownType =
   | KTUInt64
   | KTInt128
   | KTUInt128
-  // arbitrary-precision integer; the default `Int`
-  | KTInt
+  // arbitrary-precision integer, written `1z`
+  | KTBigInt
   | KTFloat
   | KTFloat32
   | KTDecimal
@@ -193,7 +193,7 @@ type KnownType =
   | KTStream of ValueType
 
   /// `let empty =    []` // KTList Unknown
-  /// `let intList = [1]` // KTList (ValueType.Known KTInt)
+  /// `let intList = [1]` // KTList (ValueType.Known KTInt64)
   | KTList of ValueType
 
   /// Intuitively, since `Dval`s generate `KnownType`s, you would think that we can
@@ -206,7 +206,7 @@ type KnownType =
   | KTTuple of ValueType * ValueType * List<ValueType>
 
   /// let f = (fun x -> x)        // KTFn([Unknown], Unknown)
-  /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt], Unknown)
+  /// let intF = (fun (x: BigInt) -> x) // KTFn([Known KTBigInt], Unknown)
   ///
   /// Note that we could theoretically know some return types by analyzing the
   /// code or type signatures of functions. We don't do this yet as it's
@@ -239,142 +239,142 @@ and [<RequireQualifiedAccess>] ValueType =
 
 
 
-/// The payload of the default `Int` (`DInt`).
+/// The payload of a `BigInt` (`DBigInt`).
 /// Int64-range values are `Finite`; larger values are `Infinite`.
-/// Use `DarkInt.ofBigInt` to preserve that invariant.
+/// Use `DarkBigInt.ofBigInt` to preserve that invariant.
 ///
-/// CLEANUP: because this is a DU, small Ints still carry space for the bigint
+/// CLEANUP: because this is a DU, small BigInts still carry space for the bigint
 /// case plus a tag, not just the Int64 value. If profiling shows this matters,
 /// revisit the representation or consider caching common small values.
 [<Struct; RequireQualifiedAccess>]
-type DarkInt =
+type DarkBigInt =
   | Finite of finite : int64
   | Infinite of infinite : bigint
 
-module DarkInt =
+module DarkBigInt =
   let private int64Min = bigint System.Int64.MinValue
   let private int64Max = bigint System.Int64.MaxValue
 
   /// Smart constructor enforcing the invariant: a value fitting Int64 becomes
   /// `Finite`, only overflow becomes `Infinite`.
-  let ofBigInt (b : bigint) : DarkInt =
+  let ofBigInt (b : bigint) : DarkBigInt =
     if b >= int64Min && b <= int64Max then
-      DarkInt.Finite(int64 b)
+      DarkBigInt.Finite(int64 b)
     else
-      DarkInt.Infinite b
+      DarkBigInt.Infinite b
 
-  let toBigInt (di : DarkInt) : bigint =
+  let toBigInt (di : DarkBigInt) : bigint =
     match di with
-    | DarkInt.Finite i -> bigint i
-    | DarkInt.Infinite b -> b
+    | DarkBigInt.Finite i -> bigint i
+    | DarkBigInt.Infinite b -> b
 
   /// Checked narrowing to Int64: `Some` only when the value fits. An `Infinite`
   /// is by invariant always outside Int64 range, so it is always `None`.
-  let toInt64 (di : DarkInt) : int64 option =
+  let toInt64 (di : DarkBigInt) : int64 option =
     match di with
-    | DarkInt.Finite i -> Some i
-    | DarkInt.Infinite _ -> None
+    | DarkBigInt.Finite i -> Some i
+    | DarkBigInt.Infinite _ -> None
 
   /// Checked narrowing to a native `int` (Int32): `Some` only when the value
   /// fits `[Int32.MinValue, Int32.MaxValue]`.
-  let toInt32 (di : DarkInt) : int option =
+  let toInt32 (di : DarkBigInt) : int option =
     match di with
-    | DarkInt.Finite i when
+    | DarkBigInt.Finite i when
       i >= int64 System.Int32.MinValue && i <= int64 System.Int32.MaxValue
       ->
       Some(int i)
     | _ -> None
 
-  let isZero (di : DarkInt) : bool =
+  let isZero (di : DarkBigInt) : bool =
     match di with
-    | DarkInt.Finite i -> i = 0L
-    | DarkInt.Infinite _ -> false // 0 is always Finite, so an Infinite is never zero
+    | DarkBigInt.Finite i -> i = 0L
+    | DarkBigInt.Infinite _ -> false // 0 is always Finite, so an Infinite is never zero
 
   /// Compare by numeric value (NOT by case tag — an Infinite is always outside
   /// Int64 range, so tag order would be wrong).
   /// Both operands out of Int64 range, or one of each. Split out so the Finite/Finite path below
   /// doesn't have a local function or a tuple in it, either of which is an allocation per call.
-  let private compareViaBigInt (a : DarkInt) (b : DarkInt) : int =
+  let private compareViaBigInt (a : DarkBigInt) (b : DarkBigInt) : int =
     let bx = toBigInt a
     let by = toBigInt b
     if bx < by then -1
     elif bx > by then 1
     else 0
 
-  let compare (a : DarkInt) (b : DarkInt) : int =
+  let compare (a : DarkBigInt) (b : DarkBigInt) : int =
     // Nested matches rather than `match a, b with`. The tuple form reads better and allocates the
-    // pair: `DarkInt` is a struct carrying a bigint's worth of space, so the pair is about 64 bytes,
+    // pair: `DarkBigInt` is a struct carrying a bigint's worth of space, so the pair is about 64 bytes,
     // on a function that runs once per comparison in a script.
     match a with
-    | DarkInt.Finite x ->
+    | DarkBigInt.Finite x ->
       match b with
-      | DarkInt.Finite y ->
+      | DarkBigInt.Finite y ->
         if x < y then -1
         elif x > y then 1
         else 0
-      | DarkInt.Infinite _ -> compareViaBigInt a b
-    | DarkInt.Infinite _ -> compareViaBigInt a b
+      | DarkBigInt.Infinite _ -> compareViaBigInt a b
+    | DarkBigInt.Infinite _ -> compareViaBigInt a b
 
   // Arithmetic: int64 fast path on Finite/Finite, promoting to bigint only on
   // overflow; bigint otherwise. Results normalize through `ofBigInt`.
-  let add (a : DarkInt) (b : DarkInt) : DarkInt =
+  let add (a : DarkBigInt) (b : DarkBigInt) : DarkBigInt =
     match a with
-    | DarkInt.Finite x ->
+    | DarkBigInt.Finite x ->
       match b with
-      | DarkInt.Finite y ->
+      | DarkBigInt.Finite y ->
         try
-          DarkInt.Finite(Checked.(+) x y)
+          DarkBigInt.Finite(Checked.(+) x y)
         with :? System.OverflowException ->
           ofBigInt (bigint x + bigint y)
-      | DarkInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
-    | DarkInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
+      | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
+    | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
 
-  let subtract (a : DarkInt) (b : DarkInt) : DarkInt =
+  let subtract (a : DarkBigInt) (b : DarkBigInt) : DarkBigInt =
     match a with
-    | DarkInt.Finite x ->
+    | DarkBigInt.Finite x ->
       match b with
-      | DarkInt.Finite y ->
+      | DarkBigInt.Finite y ->
         try
-          DarkInt.Finite(Checked.(-) x y)
+          DarkBigInt.Finite(Checked.(-) x y)
         with :? System.OverflowException ->
           ofBigInt (bigint x - bigint y)
-      | DarkInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
-    | DarkInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
+      | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
+    | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
 
-  let multiply (a : DarkInt) (b : DarkInt) : DarkInt =
+  let multiply (a : DarkBigInt) (b : DarkBigInt) : DarkBigInt =
     match a with
-    | DarkInt.Finite x ->
+    | DarkBigInt.Finite x ->
       match b with
-      | DarkInt.Finite y ->
+      | DarkBigInt.Finite y ->
         try
-          DarkInt.Finite(Checked.(*) x y)
+          DarkBigInt.Finite(Checked.(*) x y)
         with :? System.OverflowException ->
           ofBigInt (bigint x * bigint y)
-      | DarkInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
-    | DarkInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
+      | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
+    | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
 
   /// Integer division; caller must ensure the divisor is non-zero.
-  let divide (a : DarkInt) (b : DarkInt) : DarkInt =
+  let divide (a : DarkBigInt) (b : DarkBigInt) : DarkBigInt =
     match a with
     // Int64 division overflows only on MinValue / -1; promote that case.
-    | DarkInt.Finite x ->
+    | DarkBigInt.Finite x ->
       match b with
-      | DarkInt.Finite y ->
+      | DarkBigInt.Finite y ->
         try
-          DarkInt.Finite(x / y)
+          DarkBigInt.Finite(x / y)
         with :? System.OverflowException ->
           ofBigInt (bigint x / bigint y)
-      | DarkInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
-    | DarkInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
+      | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
+    | DarkBigInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
 
-  let negate (a : DarkInt) : DarkInt =
+  let negate (a : DarkBigInt) : DarkBigInt =
     match a with
-    | DarkInt.Finite x ->
+    | DarkBigInt.Finite x ->
       if x = System.Int64.MinValue then
         ofBigInt (-(bigint x))
       else
-        DarkInt.Finite(-x)
-    | DarkInt.Infinite b -> ofBigInt (-b)
+        DarkBigInt.Finite(-x)
+    | DarkBigInt.Infinite b -> ofBigInt (-b)
 
 
 type TypeReference =
@@ -390,8 +390,8 @@ type TypeReference =
   | TUInt64
   | TInt128
   | TUInt128
-  // arbitrary-precision integer; the default `Int`
-  | TInt
+  // arbitrary-precision integer, written `1z`
+  | TBigInt
   | TFloat
   | TFloat32
   | TDecimal
@@ -431,7 +431,7 @@ type TypeReference =
       | TUInt64
       | TInt128
       | TUInt128
-      | TInt
+      | TBigInt
       | TFloat
       | TFloat32
       | TDecimal
@@ -688,7 +688,7 @@ type MatchPattern =
   | MPUInt64 of uint64
   | MPInt128 of System.Int128
   | MPUInt128 of System.UInt128
-  | MPInt of bigint
+  | MPBigInt of bigint
   | MPFloat of float
   | MPFloat32 of float32
   | MPDecimal of decimal
@@ -1069,7 +1069,7 @@ and DictKey private () =
     | DUInt64 _ -> 9
     | DInt128 _ -> 10
     | DUInt128 _ -> 11
-    | DInt _ -> 12
+    | DBigInt _ -> 12
     | DFloat _ -> 13
     | DChar _ -> 14
     | DString _ -> 15
@@ -1107,7 +1107,7 @@ and DictKey private () =
     | DUInt64 x -> combine (hash x)
     | DInt128 x -> combine (hash x)
     | DUInt128 x -> combine (hash x)
-    | DInt x -> combine (hash (DarkInt.toBigInt x))
+    | DBigInt x -> combine (hash (DarkBigInt.toBigInt x))
     | DFloat x -> combine (hash x)
     | DFloat32 x -> combine (hash x)
     | DDecimal x -> combine (hash x)
@@ -1172,7 +1172,7 @@ and DvalOrdering private () =
     | DUInt64 x, DUInt64 y -> compare x y
     | DInt128 x, DInt128 y -> compare x y
     | DUInt128 x, DUInt128 y -> compare x y
-    | DInt x, DInt y -> DarkInt.compare x y
+    | DBigInt x, DBigInt y -> DarkBigInt.compare x y
     | DFloat x, DFloat y -> compare x y
     | DFloat32 x, DFloat32 y -> compare x y
     | DDecimal x, DDecimal y -> compare x y
@@ -1542,11 +1542,11 @@ and [<NoComparison>] Dval =
   | DUInt64 of uint64
   | DInt128 of System.Int128
   | DUInt128 of System.UInt128
-  // The default `Int`: arbitrary precision, with the Finite/Infinite split
-  // contained in `DarkInt`.
-  // CLEANUP: small Ints carry the memory overhead of the bigint case plus a tag.
-  // Revisit the representation if profiling shows Int memory or GC pressure.
-  | DInt of DarkInt
+  // `BigInt`: arbitrary precision, with the Finite/Infinite split
+  // contained in `DarkBigInt`.
+  // CLEANUP: small BigInts carry the memory overhead of the bigint case plus a tag.
+  // Revisit the representation if profiling shows BigInt memory or GC pressure.
+  | DBigInt of DarkBigInt
 
   | DFloat of double
   | DFloat32 of float32
@@ -2275,7 +2275,7 @@ module RuntimeError =
       | OrOnlySupportsBooleans of gotRight : ValueType * gotLeft : ValueType
       | ConditionRequiresBool of actualValueType : ValueType * actualValue : Dval
 
-  module Ints =
+  module BigInts =
     type Error =
       | DivideByZeroError
       | OutOfRange // CLEANUP consider including the out-of-range value
@@ -2323,7 +2323,7 @@ module RuntimeError =
     //   | TuplePatternDoesNotMatch
 
     //   /// Tuple pattern has wrong number of elements
-    //   | TuplePatternWrongLength of expected: Int * actual: Int
+    //   | TuplePatternWrongLength of expected: Int64 * actual: Int64
 
     // maybe it'd be better to present:
     // - top-level path we're matching against
@@ -2439,10 +2439,10 @@ module RuntimeError =
       // declaration had variables; `declaredType` supplies only names.
       //
       // Both are needed because a `ValueType` carries content hashes, and one
-      // hash can be bound to several names: `Stdlib.Int`, `Stdlib.Float` and
+      // hash can be bound to several names: `Stdlib.BigInt`, `Stdlib.Float` and
       // `Stdlib.Uuid` all declare `ParseError` as `| BadFormat`, which makes them
       // one type with three names. Choosing between those from the hash alone is
-      // a guess, and it guessed wrong often enough to report an `Int.parse`
+      // a guess, and it guessed wrong often enough to report a `BigInt.parse`
       // failure as a `Uuid.ParseError`. Names are display metadata and never
       // reach the hash, so carrying them costs content addressing nothing.
       | FnParameterNotExpectedType of
@@ -2543,7 +2543,7 @@ module RuntimeError =
 
 
   /// RuntimeError is the major way of representing errors that occur at runtime.
-  /// Most are focused on user errors, such as trying to put an Int in a list of Bools.
+  /// Most are focused on user errors, such as trying to put an Int64 in a list of Bools.
   /// Some cases represent internal failures, not at the fault of a user.
   ///
   /// These are not to be confused with Results, which should be used
@@ -2552,7 +2552,7 @@ module RuntimeError =
   /// See `docs/errors.md` for more discussion.
   type Error =
     | Bool of Bools.Error
-    | Int of Ints.Error
+    | BigInt of BigInts.Error
     /// A Decimal result too large for its 96 bits
     | DecimalOutOfRange
     | String of Strings.Error
@@ -2731,7 +2731,7 @@ module KnownVT =
   let uint64 : ValueType = ValueType.Known KTUInt64
   let int128 : ValueType = ValueType.Known KTInt128
   let uint128 : ValueType = ValueType.Known KTUInt128
-  let int : ValueType = ValueType.Known KTInt
+  let bigInt : ValueType = ValueType.Known KTBigInt
   let float : ValueType = ValueType.Known KTFloat
   let float32 : ValueType = ValueType.Known KTFloat32
   let decimal : ValueType = ValueType.Known KTDecimal
@@ -2748,8 +2748,8 @@ module Dval =
   // instance from a fresh one, and the values a program actually computes cluster hard at the small
   // end: loop counters, indices, lengths, flags.
   //
-  // `DInt` is the expensive one: `DarkInt` is a struct DU whose `Infinite` case carries a `bigint`,
-  // so a `DInt` object is 56 bytes whether the number needs them or not. `DBool` is only 24 bytes,
+  // `DBigInt` is the expensive one: `DarkBigInt` is a struct DU whose `Infinite` case carries a `bigint`,
+  // so a `DBigInt` object is 56 bytes whether the number needs them or not. `DBool` is only 24 bytes,
   // but there are exactly two in the universe, so caching them is free.
   //
   // The tables are built once at startup and never written after.
@@ -2763,19 +2763,19 @@ module Dval =
   [<Literal>]
   let private smallHi = 1023L
 
-  let private smallInts : Dval[] =
+  let private smallBigInts : Dval[] =
     Array.init (int (smallHi - smallLo) + 1) (fun i ->
-      DInt(DarkInt.Finite(int64 i + smallLo)))
+      DBigInt(DarkBigInt.Finite(int64 i + smallLo)))
 
   let private smallInt64s : Dval[] =
     Array.init (int (smallHi - smallLo) + 1) (fun i -> DInt64(int64 i + smallLo))
 
-  /// `DInt`, sharing one instance for the small values.
-  let dint (di : DarkInt) : Dval =
+  /// `DBigInt`, sharing one instance for the small values.
+  let dbigint (di : DarkBigInt) : Dval =
     match di with
-    | DarkInt.Finite i when i >= smallLo && i <= smallHi ->
-      smallInts[int (i - smallLo)]
-    | _ -> DInt di
+    | DarkBigInt.Finite i when i >= smallLo && i <= smallHi ->
+      smallBigInts[int (i - smallLo)]
+    | _ -> DBigInt di
 
   /// `DInt64`, sharing one instance for the small values.
   let dint64 (i : int64) : Dval =
@@ -2784,14 +2784,14 @@ module Dval =
     else
       DInt64 i
 
-  /// Constructs an `Int` Dval from a bigint, normalizing through `DarkInt`.
-  let int (b : bigint) : Dval = dint (DarkInt.ofBigInt b)
+  /// Constructs a `BigInt` Dval from a bigint, normalizing through `DarkBigInt`.
+  let bigInt (b : bigint) : Dval = dbigint (DarkBigInt.ofBigInt b)
 
-  /// The numeric value of an `Int` Dval as a bigint.
+  /// The numeric value of a `BigInt` Dval as a bigint.
   let asBigInt (dv : Dval) : bigint =
     match dv with
-    | DInt i -> DarkInt.toBigInt i
-    | _ -> Exception.raiseInternal "asBigInt called on a non-Int Dval" []
+    | DBigInt i -> DarkBigInt.toBigInt i
+    | _ -> Exception.raiseInternal "asBigInt called on a non-BigInt Dval" []
 
 
   // `ValueType.Known KTBool` and friends are constants, but the `Known` wrapper was
@@ -2811,7 +2811,7 @@ module Dval =
   let private vtUInt64 = KnownVT.uint64
   let private vtInt128 = KnownVT.int128
   let private vtUInt128 = KnownVT.uint128
-  let private vtInt = KnownVT.int
+  let private vtBigInt = KnownVT.bigInt
   let private vtFloat = KnownVT.float
   let private vtFloat32 = KnownVT.float32
   let private vtDecimal = KnownVT.decimal
@@ -2856,7 +2856,7 @@ module Dval =
     | DUInt64 _ -> vtUInt64
     | DInt128 _ -> vtInt128
     | DUInt128 _ -> vtUInt128
-    | DInt _ -> vtInt
+    | DBigInt _ -> vtBigInt
     | DFloat _ -> vtFloat
     | DFloat32 _ -> vtFloat32
     | DDecimal _ -> vtDecimal
@@ -2970,7 +2970,7 @@ module Dval =
     | DUInt64 _
     | DInt128 _
     | DUInt128 _
-    | DInt _
+    | DBigInt _
     | DFloat _
     | DFloat32 _
     | DDecimal _
@@ -3037,7 +3037,7 @@ module Dval =
           | DUInt64 _
           | DInt128 _
           | DUInt128 _
-          | DInt _
+          | DBigInt _
           | DFloat _
           | DFloat32 _
           | DDecimal _
@@ -3169,7 +3169,7 @@ module Dval =
           | KTUInt64
           | KTInt128
           | KTUInt128
-          | KTInt
+          | KTBigInt
           | KTFloat
           | KTFloat32
           | KTDecimal
@@ -4852,7 +4852,7 @@ module Types =
     | TUInt64
     | TInt128
     | TUInt128
-    | TInt
+    | TBigInt
     | TFloat
     | TFloat32
     | TDecimal
@@ -4994,7 +4994,7 @@ module TypeReference =
     | TUInt64 -> Ply KnownVT.uint64
     | TInt128 -> Ply KnownVT.int128
     | TUInt128 -> Ply KnownVT.uint128
-    | TInt -> Ply KnownVT.int
+    | TBigInt -> Ply KnownVT.bigInt
     | TFloat -> Ply KnownVT.float
     | TFloat32 -> Ply KnownVT.float32
     | TDecimal -> Ply KnownVT.decimal
@@ -5082,7 +5082,7 @@ module TypeReference =
     | KTUInt64 -> TUInt64
     | KTInt128 -> TInt128
     | KTUInt128 -> TUInt128
-    | KTInt -> TInt
+    | KTBigInt -> TBigInt
     | KTFloat -> TFloat
     | KTFloat32 -> TFloat32
     | KTDecimal -> TDecimal
@@ -5121,7 +5121,7 @@ module TypeReference =
     | TUInt64
     | TInt128
     | TUInt128
-    | TInt
+    | TBigInt
     | TFloat
     | TFloat32
     | TDecimal

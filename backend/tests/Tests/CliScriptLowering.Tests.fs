@@ -127,7 +127,7 @@ let private testScriptTypeUnifiesWithPackageType =
     let! (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
     let! (reference : CliScript.PTCliScriptModule) =
       parse
-        "let f (e: Darklang.Stdlib.Int.ParseError) : Int64 = 1\n\
+        "let f (e: Darklang.Stdlib.BigInt.ParseError) : Int64 = 1\n\
          0"
 
     match m.types, reference.fns with
@@ -171,7 +171,7 @@ let private testDeclarationsAreNameableAfterLowering =
 /// also a name for every stored declaration of that shape. `pickLocation` breaks
 /// ties by shortest path, and a script's path is one segment, so consulting the
 /// registry first would let `type MyErr = | BadFormat` in a throwaway script
-/// rename `Stdlib.Int.ParseError` for the rest of the process.
+/// rename `Stdlib.BigInt.ParseError` for the rest of the process.
 let private testRegistryDoesNotDisplaceStoredNames =
   testTask "a script's name does not displace the store's" {
     let! (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"

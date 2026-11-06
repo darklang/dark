@@ -1353,7 +1353,7 @@ let useValue(
 // --------------------
 
 /// Collect unresolved variables after expanding aliases throughout t. If Tag<'a>
-/// aliases Int, Tag<t> no longer contains t. Return an empty list when expansion
+/// aliases Int64, Tag<t> no longer contains t. Return an empty list when expansion
 /// fails, since an unavailable type cannot prove a containment cycle here.
 let containedUnknowns(
   s: State,
@@ -2041,7 +2041,7 @@ let isNumeric(t: Model.Ty): Bool =
   | TUInt64
   | TInt128
   | TUInt128
-  | TInt
+  | TBigInt
   | TFloat
   | TFloat32
   | TDecimal -> true
@@ -2055,7 +2055,7 @@ let isSignedNumeric(t: Model.Ty): Bool =
   | TInt32
   | TInt64
   | TInt128
-  | TInt
+  | TBigInt
   | TFloat
   | TFloat32
   | TDecimal -> true

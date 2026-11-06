@@ -18,7 +18,7 @@ let isValidScalar(codepoint: UInt32): Bool =
 
 /// Return {{Some}} codepoint for <param i> if it is a Unicode scalar value,
 /// otherwise {{None}}: negative, past {{0x10FFFF}}, or a surrogate.
-let fromInt(i: Int64): Stdlib.Option.Option<UInt32> =
+let fromInt64(i: Int64): Stdlib.Option.Option<UInt32> =
   match Stdlib.UInt32.fromInt64(i) with
   | Some(codepoint) ->
     if isValidScalar(codepoint) then

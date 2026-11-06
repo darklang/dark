@@ -75,7 +75,7 @@ let isIrrefutable(pattern: LanguageTools.ProgramTypes.MatchPattern): Bool =
 
 /// List every outer constructor and its field types after resolving unknowns and
 /// aliases. A list has two constructors even though it has infinitely many values.
-/// Return None when the checker cannot enumerate the constructors, as for Int or
+/// Return None when the checker cannot enumerate the constructors, as for Int64 or
 /// a type that is still unknown; coverage then requires catch-all patterns.
 let constructors(
   env: Model.Environment,

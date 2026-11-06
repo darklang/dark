@@ -248,7 +248,7 @@ module DeepProgramTypes =
       "deep outbound PT conversion"
       [ refusesToOverflow
           "type references"
-          (fun () -> nested PT.TList PT.TInt)
+          (fun () -> nested PT.TList PT.TBigInt)
           PT2DT.TypeReference.toDT
         refusesToOverflow
           "expressions"

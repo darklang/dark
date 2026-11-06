@@ -20,7 +20,7 @@ module RuntimeError =
   type ErrorSegment =
     // -- Basic types
     | String(String)
-    | Int(Int64)
+    | Int64(Int64)
     | Ordinal(Int64) // 1st, 2nd, etc
     | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
     | Count(Int64, singular: ErrorSegment, plural: ErrorSegment) // 2 errors, 1 error, etc
@@ -91,7 +91,7 @@ module RuntimeError =
         let newSegment =
           match segment with
           | String(s) -> s
-          | Int(i) -> Stdlib.toString(i)
+          | Int64(i) -> Stdlib.toString(i)
           | Ordinal(i) -> Stdlib.English.toOrdinal(i)
           | Count(i, singular, plural) ->
             let count = Stdlib.toString(i)
@@ -167,7 +167,7 @@ module RuntimeError =
     | Known(KTUInt64)
     | Known(KTInt128)
     | Known(KTUInt128)
-    | Known(KTInt)
+    | Known(KTBigInt)
     | Known(KTFloat)
     | Known(KTFloat32)
     | Known(KTDecimal)
@@ -210,12 +210,12 @@ module RuntimeError =
           ES.FullValue(actualValue)
           ES.String(")") ]
 
-    | Int(DivideByZeroError) -> [ ES.String("Cannot divide by 0") ]
-    | Int(OutOfRange) -> [ ES.String("Encountered out-of-range value for type of Int") ]
+    | BigInt(DivideByZeroError) -> [ ES.String("Cannot divide by 0") ]
+    | BigInt(OutOfRange) -> [ ES.String("Encountered an out-of-range integer value") ]
     | DecimalOutOfRange -> [ ES.String("Decimal result is out of range (larger than 79228162514264337593543950335)") ]
-    | Int(NegativeExponent) -> [ ES.String("Cannot raise integer to a negative exponent") ]
-    | Int(NegativeModulus) -> [ ES.String("Cannot evaluate modulus against a negative number") ]
-    | Int(ZeroModulus) -> [ ES.String("Cannot evaluate modulus against 0") ]
+    | BigInt(NegativeExponent) -> [ ES.String("Cannot raise integer to a negative exponent") ]
+    | BigInt(NegativeModulus) -> [ ES.String("Cannot evaluate modulus against a negative number") ]
+    | BigInt(ZeroModulus) -> [ ES.String("Cannot evaluate modulus against 0") ]
 
     | String(NonStringInInterpolation(vt, dv)) ->
       [ ES.String("Expected String in string interpolation, got ")
@@ -234,7 +234,7 @@ module RuntimeError =
         ES.String(") to a list of ")
         ES.ValueType(expectedType)
         ES.String(". Failed at index ")
-        ES.Int(Stdlib.Int64.fromInt32(index))
+        ES.Int64(Stdlib.Int64.fromInt32(index))
         ES.String(".")]
 
     | List(CannotSort(value)) ->
@@ -309,7 +309,8 @@ module RuntimeError =
       let nameStr = Stdlib.String.join(originalName, ".")
 
       match err with
-      | NotFound -> [ES.String(nameStr + " not found")]
+      | NotFound ->
+        [ ES.String(nameStr + " not found" + PrettyPrinter.ProgramTypes.NameResolutionError.hint(originalName)) ]
       | InvalidName -> [ES.String(nameStr + " is not a valid name")]
 
     | TypeNotFound(name) ->
@@ -417,7 +418,7 @@ module RuntimeError =
           ES.String(", but this only works with records and tuples") ]
       | FieldAccessTupleIndexOutOfRange(fieldName, tupleLength) ->
         [ ES.String($"Tried to access element .{fieldName} of a tuple with ")
-          ES.Int(tupleLength)
+          ES.Int64(tupleLength)
           ES.String(" elements; tuple elements are numbered from .1") ]
 
 
@@ -425,13 +426,13 @@ module RuntimeError =
       match err with
       | ConstructionWrongNumberOfFields(typeName, caseName, expectedFieldCount, actualFieldCount) ->
         [ ES.String("Expected ")
-          ES.Int(expectedFieldCount)
+          ES.Int64(expectedFieldCount)
           ES.String(" fields in ")
           ES.TypeName(typeName)
           ES.String(".")
           ES.FieldName(caseName)
           ES.String(", but got ")
-          ES.Int(actualFieldCount) ]
+          ES.Int64(actualFieldCount) ]
 
       | ConstructionCaseNotFound(typeName, caseName) ->
         [ ES.String("There is no case named ")
@@ -444,7 +445,7 @@ module RuntimeError =
           ES.String("Expected ")
           ES.DeclaredValueType(declaredType, expectedType)
           ES.String(" for field ")
-          ES.Int(fieldIndex)
+          ES.Int64(fieldIndex)
           ES.String(" in ")
           ES.FieldName(caseName)
           ES.String(", but got ")
@@ -479,7 +480,7 @@ module RuntimeError =
           ES.String(")") ]
       | MultipleArgs(args) ->
         [ ES.String("Unwrap expects a single argument, but got ")
-          ES.Int(Stdlib.List.length(args)) ]
+          ES.Int64(Stdlib.List.length(args)) ]
 
     | Apply(err) ->
       match err with

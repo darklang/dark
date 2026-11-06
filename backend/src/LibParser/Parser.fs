@@ -98,7 +98,7 @@ let private infixOf (t : Token) : WT.Infix option =
 // — the drift that once made `| Ok 5s8 ->` unparseable while `Ok 5s8` worked.
 let private isIntLit (t : Token) : bool =
   match t with
-  | TInt _
+  | TBigInt _
   | TInt64 _
   | TInt8 _
   | TUInt8 _
@@ -256,9 +256,9 @@ type ParserState =
     // enclosing match's arm row and column so `barStartsArm` leaves arm-position
     // bars for `parseMatch`. Regions where an arm cannot start clear the anchors.
     mutable matchArms : List<int * int>
-    // Closing a nested generic like `Dict<List<Int>>` ends in `>>`, which the
+    // Closing a nested generic like `Dict<List<Int64>>` ends in `>>`, which the
     // lexer produces as ONE token but which must close TWO levels. Closing the
-    // inner `List<Int>` uses only the first `>`, so the second is "left over"
+    // inner `List<Int64>` uses only the first `>`, so the second is "left over"
     // for the outer `Dict<…>` to close. `pendingGt` counts those left-over `>`s;
     // `pendingGtRange` is the source range of the next one to spend.
     mutable pendingGt : int
@@ -708,7 +708,7 @@ let parseTypeParamsWith
     let names = System.Collections.Generic.List<string * TokenRange>()
     let mutable k = i + 1
     let mutable expectingName = true
-    // A bound's own type args can end in `>>` (`'a: Convert<Int>>`), which leaves
+    // A bound's own type args can end in `>>` (`'a: Convert<Int64>>`), which leaves
     // one `>` pending for this list; see `expectGt`.
     while state.pendingGt = 0
           && tok state k <> TGt
@@ -868,7 +868,7 @@ let offsideContinues (state : ParserState) (headIdx : int) (k : int) : bool =
 let isNegLitArg (state : ParserState) (k : int) : bool =
   tok state k = TMinus
   && (match tok state (k + 1) with
-      | TInt _
+      | TBigInt _
       | TInt64 _
       | TInt8 _
       | TInt16 _
@@ -1316,7 +1316,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
   checkBareMinMagnitude state i // `128s8` etc. — only valid negated
   match tok state i with
   | TUnderscore -> (WT.MPVariable(rng state i, "_"), i + 1)
-  | TInt v -> (WT.MPInt(rng state i, (rng state i, v)), i + 1)
+  | TBigInt v -> (WT.MPBigInt(rng state i, (rng state i, v)), i + 1)
   | TInt64 v ->
     let (digits, suffix) = splitIntSuffix state i
     (WT.MPInt64(rng state i, (digits, v), suffix), i + 1)
@@ -1353,7 +1353,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     let r1 = rng state (i + 1)
     let r = span (rng state i) r1
     match tok state (i + 1) with
-    | TInt v -> (WT.MPInt(r, (r, -v)), i + 2)
+    | TBigInt v -> (WT.MPBigInt(r, (r, -v)), i + 2)
     | TInt64 v ->
       let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.MPInt64(r, (span (rng state i) digits, -v), suffix), i + 2)
@@ -2153,7 +2153,7 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
     parsePostfix state (access inner innerDotR bR b) (i + 2)
   // Give invalid indices such as `t.1s8` and `t.1e0` a specific diagnostic.
   | TDot,
-    (TInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _ | TFloat32 _ | TDecimal _) ->
+    (TBigInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _ | TFloat32 _ | TDecimal _) ->
     let text = txt state (i + 1)
     // The lexer already reports malformed literals such as `1.2s8` or `300s8`.
     if not state.toks[i + 1].lexError then
@@ -2351,7 +2351,7 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
 and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
   checkBareMinMagnitude state i // `128s8` etc. — only valid negated
   match tok state i with
-  | TInt v -> (WT.EInt(rng state i, (rng state i, v)), i + 1)
+  | TBigInt v -> (WT.EBigInt(rng state i, (rng state i, v)), i + 1)
   | TInt64 v ->
     let (digits, suffix) = splitIntSuffix state i
     (WT.EInt64(rng state i, (digits, v), suffix), i + 1)
@@ -2388,7 +2388,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     let r1 = rng state (i + 1)
     let r = span (rng state i) r1
     match tok state (i + 1) with
-    | TInt v -> (WT.EInt(r, (r, -v)), i + 2)
+    | TBigInt v -> (WT.EBigInt(r, (r, -v)), i + 2)
     | TInt64 v ->
       let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.EInt64(r, (span (rng state i) digits, -v), suffix), i + 2)
@@ -3318,7 +3318,7 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
       else
         i))
 
-/// The trait in a bound `'a: Show<Int>`: a qualified name, parsed like a type
+/// The trait in a bound `'a: Show<Int64>`: a qualified name, parsed like a type
 /// reference. Anything else (a primitive, a type variable, a fn type) is a
 /// diagnostic, since a bound has to name a trait.
 and parseBoundTrait

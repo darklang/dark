@@ -41,7 +41,7 @@ module WrittenTypesToDarkTypes =
       pointTypeName (),
       pointTypeName (),
       [],
-      // `Point` is `{ row: Int, column: Int }` in WrittenTypes
+      // `Point` is `{ row: Int64, column: Int64 }` in WrittenTypes
       RecordFields.ofList
         [ "row", Dval.dint64 (int64 p.row); "column", Dval.dint64 (int64 p.column) ]
     )
@@ -186,7 +186,7 @@ module WrittenTypesToDarkTypes =
     | WT.TUInt64 r -> builtin "TUInt64" [ rangeToDT r ]
     | WT.TInt128 r -> builtin "TInt128" [ rangeToDT r ]
     | WT.TUInt128 r -> builtin "TUInt128" [ rangeToDT r ]
-    | WT.TInt r -> builtin "TInt" [ rangeToDT r ]
+    | WT.TBigInt r -> builtin "TBigInt" [ rangeToDT r ]
     | WT.TFloat r -> builtin "TFloat" [ rangeToDT r ]
     | WT.TFloat32 r -> builtin "TFloat32" [ rangeToDT r ]
     | WT.TDecimal r -> builtin "TDecimal" [ rangeToDT r ]
@@ -303,13 +303,13 @@ module WrittenTypesToDarkTypes =
     match p with
     | WT.MPVariable(r, name) ->
       DEnum(t, t, [], "MPVariable", [ rangeToDT r; DString name ])
-    | WT.MPInt(r, (ipR, v)) ->
+    | WT.MPBigInt(r, (ipR, v)) ->
       DEnum(
         t,
         t,
         [],
-        "MPInt",
-        [ rangeToDT r; DTuple(rangeToDT ipR, DInt(DarkInt.ofBigInt v), []) ]
+        "MPBigInt",
+        [ rangeToDT r; DTuple(rangeToDT ipR, DBigInt(DarkBigInt.ofBigInt v), []) ]
       )
     | WT.MPInt64(r, (ipR, v), sufR) ->
       DEnum(
@@ -527,13 +527,13 @@ module WrittenTypesToDarkTypes =
     let t = tn WTRefs.expr
     match e with
     | WT.EBool(r, b) -> DEnum(t, t, [], "EBool", [ rangeToDT r; DBool b ])
-    | WT.EInt(r, (ipR, v)) ->
+    | WT.EBigInt(r, (ipR, v)) ->
       DEnum(
         t,
         t,
         [],
-        "EInt",
-        [ rangeToDT r; DTuple(rangeToDT ipR, DInt(DarkInt.ofBigInt v), []) ]
+        "EBigInt",
+        [ rangeToDT r; DTuple(rangeToDT ipR, DBigInt(DarkBigInt.ofBigInt v), []) ]
       )
     | WT.EInt64(r, (ipR, v), sufR) ->
       DEnum(

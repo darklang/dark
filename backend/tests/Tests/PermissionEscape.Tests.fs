@@ -231,7 +231,7 @@ let testUnapprovedPackageFnInValueBodyIsRefused =
         typeParams = []
         parameters =
           NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
-        returnType = PT.TInt
+        returnType = PT.TBigInt
         body = clockCall
         description = ""
         permissionCeiling = None

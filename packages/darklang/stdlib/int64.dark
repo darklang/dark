@@ -75,8 +75,8 @@ impl Compare for Int64 =
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random(start: Int64, ``end``: Int64): Int64 =
-  Stdlib.Int.random(Stdlib.Int.fromInt64(start), Stdlib.Int.fromInt64(``end``))
-  |> Stdlib.Int.toInt64
+  Stdlib.BigInt.random(Stdlib.BigInt.fromInt64(start), Stdlib.BigInt.fromInt64(``end``))
+  |> Stdlib.BigInt.toInt64
   |> Builtin.unwrap
 
 
@@ -89,11 +89,11 @@ let toFloat(a: Int64): Float = Builtin.int64ToFloat(a)
 
 
 /// Converts a <type Float> to an <type Int64>, truncating toward zero like
-/// <fn Int.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
+/// <fn BigInt.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
 let fromFloat(a: Float): Stdlib.Option.Option<Int64> =
   if Float.isFinite(a) then
-    a |> Stdlib.Int.fromFloat |> Stdlib.Int.toInt64
+    a |> Stdlib.BigInt.fromFloat |> Stdlib.BigInt.toInt64
   else
     Stdlib.Option.Option.None
 
@@ -114,54 +114,54 @@ let fromFloatRounded(a: Float): Stdlib.Option.Option<Int64> =
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int64> range).
 let parse(s: String): Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
-  match Stdlib.Int.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.Int.toInt64(n), Stdlib.Int64.ParseError.OutOfRange)
+  match Stdlib.BigInt.parse(s) with
+  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toInt64(n), Stdlib.Int64.ParseError.OutOfRange)
   | Error(_) -> Error(Stdlib.Int64.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int64>.
 let fromInt8(i: Int8): Int64 =
-  Stdlib.Int.toInt64(Stdlib.Int.fromInt8(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt8(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt8> to an <type Int64>.
 let fromUInt8(i: UInt8): Int64 =
-  Stdlib.Int.toInt64(Stdlib.Int.fromUInt8(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt8(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int16> to an <type Int64>.
 let fromInt16(i: Int16): Int64 =
-  Stdlib.Int.toInt64(Stdlib.Int.fromInt16(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt16(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt16> to an <type Int64>.
 let fromUInt16(i: UInt16): Int64 =
-  Stdlib.Int.toInt64(Stdlib.Int.fromUInt16(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt16(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int32> to an <type Int64>.
 let fromInt32(i: Int32): Int64 =
-  Stdlib.Int.toInt64(Stdlib.Int.fromInt32(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt32(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt32> to an <type Int64>.
 let fromUInt32(i: UInt32): Int64 =
-  Stdlib.Int.toInt64(Stdlib.Int.fromUInt32(i)) |> Builtin.unwrap
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt32(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
 let fromUInt64(i: UInt64): Stdlib.Option.Option<Int64> =
-  Stdlib.Int.toInt64(Stdlib.Int.fromUInt64(i))
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt64(i))
 
 
 /// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
 let fromInt128(i: Int128): Stdlib.Option.Option<Int64> =
-  Stdlib.Int.toInt64(Stdlib.Int.fromInt128(i))
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt128(i))
 
 
 /// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
 let fromUInt128(i: UInt128): Stdlib.Option.Option<Int64> =
-  Stdlib.Int.toInt64(Stdlib.Int.fromUInt128(i))
+  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt128(i))
 
 
 impl BitwiseAnd for Int64 =
@@ -211,45 +211,45 @@ impl One for Int64 =
 let checkedAdd(
   a: Int64,
   b: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0 then sum > a else sum < a
-  if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(sum)
+  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(
   a: Int64,
   b: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0 then difference < a else difference > a
-  if wrapped then Error(Stdlib.Int.Overflow.Overflow) else Ok(difference)
+  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
 let checkedMultiply(
   a: Int64,
   b: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
-  let product = Stdlib.Int.fromInt64(a) * Stdlib.Int.fromInt64(b)
-  match Stdlib.Int.toInt64(product) with
+  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
+  let product = Stdlib.BigInt.fromInt64(a) * Stdlib.BigInt.fromInt64(b)
+  match Stdlib.BigInt.toInt64(product) with
   | Some(fits) -> Ok(fits)
-  | None -> Error(Stdlib.Int.Overflow.Overflow)
+  | None -> Error(Stdlib.Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
-let checkedNegate(a: Int64): Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
-  if a == -9223372036854775808 then Error(Stdlib.Int.Overflow.Overflow) else Ok(-a)
+let checkedNegate(a: Int64): Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
+  if a == -9223372036854775808 then Error(Stdlib.Math.Overflow.Overflow) else Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Int.Overflow> =
+  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
   if a == -9223372036854775808 then
-    Error(Stdlib.Int.Overflow.Overflow)
+    Error(Stdlib.Math.Overflow.Overflow)
   else if a < 0 then
     Ok(-a)
   else

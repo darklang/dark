@@ -22,9 +22,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt16 v; DInt16 m |] ->
           if m = 0s then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.ZeroModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else if m < 0s then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0s then m + result else result
@@ -119,7 +119,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt16 number; DInt16 exp |] ->
           if exp < 0s then
-            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeExponent |> RTE.BigInt |> raiseRTE vm.threadID
           else
             // wrap on overflow via modular exponentiation
             let m = System.Numerics.BigInteger.Pow(bigint 2, 16)
@@ -142,7 +142,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt16 a; DInt16 b |] ->
           if b = 0s then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.DivideByZeroError |> RTE.BigInt |> raiseRTE vm.threadID
           else
             // -32768s / -1s divides in int32 then narrows, wrapping instead of throwing
             Ply(DInt16(a / b))

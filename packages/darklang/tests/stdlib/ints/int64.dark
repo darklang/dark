@@ -205,7 +205,7 @@ test toFloat =
 
 test fromFloat =
   Stdlib.Test.all(
-    [ // fromFloat truncates toward zero, like Int.fromFloat; fromFloatRounded rounds
+    [ // fromFloat truncates toward zero, like BigInt.fromFloat; fromFloatRounded rounds
       Stdlib.Int64.fromFloat(3.9) |> Stdlib.Test.equal(Some(3))
       Stdlib.Int64.fromFloat(-3.9) |> Stdlib.Test.equal(Some(-3))
       Stdlib.Int64.fromFloat(1e30)
@@ -507,9 +507,9 @@ test shiftRight =
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.Int64.checkedAdd(9223372036854775807, 1)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedAdd(-9223372036854775808, -1)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedAdd(9223372036854775807, -1)
       |> Stdlib.Test.equal(Ok(9223372036854775806))
       Stdlib.Int64.checkedAdd(-9223372036854775808, 1)
@@ -522,11 +522,11 @@ test checkedAdd =
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.Int64.checkedSubtract(-9223372036854775808, 1)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedSubtract(9223372036854775807, -1)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedSubtract(0, -9223372036854775808)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedSubtract(-1, -9223372036854775808)
       |> Stdlib.Test.equal(Ok(9223372036854775807))
       Stdlib.Int64.checkedSubtract(9223372036854775807, 9223372036854775807)
@@ -537,13 +537,13 @@ test checkedSubtract =
 test checkedMultiply =
   Stdlib.Test.all(
     [ Stdlib.Int64.checkedMultiply(9223372036854775807, 2)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedMultiply(-9223372036854775808, -1)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedMultiply(-1, -9223372036854775808)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedMultiply(-9223372036854775808, 2)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedMultiply(9223372036854775807, -1)
       |> Stdlib.Test.equal(Ok(-9223372036854775807))
       Stdlib.Int64.checkedMultiply(-9223372036854775808, 1)
@@ -556,7 +556,7 @@ test checkedMultiply =
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.Int64.checkedNegate(-9223372036854775808)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedNegate(9223372036854775807)
       |> Stdlib.Test.equal(Ok(-9223372036854775807))
       Stdlib.Int64.checkedNegate(0) |> Stdlib.Test.equal(Ok(0)) ])
@@ -564,7 +564,7 @@ test checkedNegate =
 test checkedAbsoluteValue =
   Stdlib.Test.all(
     [ Stdlib.Int64.checkedAbsoluteValue(-9223372036854775808)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int64.checkedAbsoluteValue(-9223372036854775807)
       |> Stdlib.Test.equal(Ok(9223372036854775807))
       Stdlib.Int64.checkedAbsoluteValue(9223372036854775807)

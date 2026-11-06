@@ -65,7 +65,7 @@ test rounding =
       Stdlib.Float32.round(2.5f32) |> Stdlib.Test.equal(2)
       Stdlib.Float32.roundTowardsZero(-1.9f32) |> Stdlib.Test.equal(-1)
       Stdlib.Float32.truncate(-1.9f32) |> Stdlib.Test.equal(-1)
-      Stdlib.Float32.toInt(16777216.0f32) |> Stdlib.Test.equal(16777216) ])
+      Stdlib.Float32.toInt64(16777216.0f32) |> Stdlib.Test.equal(16777216) ])
 
 test conversions =
   Stdlib.Test.all(
@@ -243,15 +243,15 @@ test nanAndInfinities =
 
 test truncateRejectsNan =
   Stdlib.Float32.truncate(nan())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test roundRejectsInfinity =
   Stdlib.Float32.round(infinity())
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test roundRejectsPastInt64 =
   Stdlib.Float32.round(3.4028235e38f32)
-  => raises "Encountered out-of-range value for type of Int"
+  => raises "Encountered an out-of-range integer value"
 
 test minMaxAbsClamp =
   Stdlib.Test.all(

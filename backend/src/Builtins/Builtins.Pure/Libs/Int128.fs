@@ -24,9 +24,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt128 v; DInt128 m |] ->
           if m = System.Int128.Zero then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.ZeroModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else if m < System.Int128.Zero then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeModulus |> RTE.BigInt |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < System.Int128.Zero then m + result else result
@@ -122,7 +122,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt128 number; DInt128 exp |] ->
           if exp < System.Int128.Zero then
-            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.NegativeExponent |> RTE.BigInt |> raiseRTE vm.threadID
           else
             // `BigInteger.Parse(string n)`, not a conversion: there is no BigInteger
             // overload for Int128.
@@ -146,7 +146,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt128 a; DInt128 b |] ->
           if b = System.Int128.Zero then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+            RTE.BigInts.DivideByZeroError |> RTE.BigInt |> raiseRTE vm.threadID
           elif a = System.Int128.MinValue && b = System.Int128.NegativeOne then
             // wraps back to MinValue (the division itself would throw)
             Ply(DInt128 System.Int128.MinValue)

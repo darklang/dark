@@ -25,7 +25,7 @@ module Propagation = LibDB.Propagation
 open TestUtils.TestUtils
 
 
-/// Run a Dark call answering `Result<Int, String>`, as the F# result these assertions expect.
+/// Run a Dark call answering `Result<Int64, String>`, as the F# result these assertions expect.
 let private runDarkResult (code : string) : Task<Result<int64, string>> =
   task {
     match! evalDarkExpr code with

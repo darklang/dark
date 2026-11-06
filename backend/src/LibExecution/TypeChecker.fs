@@ -82,9 +82,9 @@ let private unifiesTrivially (expected : TypeReference) (actual : ValueType) : b
         (match kt with
          | KTUInt128 -> true
          | _ -> false)
-      | TInt ->
+      | TBigInt ->
         (match kt with
-         | KTInt -> true
+         | KTBigInt -> true
          | _ -> false)
       | TFloat ->
         (match kt with
@@ -171,7 +171,7 @@ let rec unifyValueTypeSync
           | Error() -> Mismatched
 
     // Containers recurse but never need a type lookup, so they stay on this path. Without these a
-    // `List<Int>` argument -- which is most of what the standard library passes around -- would fall to
+    // `List<Int64>` argument -- which is most of what the standard library passes around -- would fall to
     // the async route purely for being a container, which is the common case rather than a rare one.
     | TList innerT ->
       match actual with
@@ -331,7 +331,7 @@ let rec unifyValueType
         | TUInt64, ValueType.Known KTUInt64 -> return Ok tst
         | TInt128, ValueType.Known KTInt128 -> return Ok tst
         | TUInt128, ValueType.Known KTUInt128 -> return Ok tst
-        | TInt, ValueType.Known KTInt -> return Ok tst
+        | TBigInt, ValueType.Known KTBigInt -> return Ok tst
 
         | TFloat, ValueType.Known KTFloat -> return Ok tst
         | TFloat32, ValueType.Known KTFloat32 -> return Ok tst
@@ -688,9 +688,9 @@ let rec tryUnifySync
       (match actual with
        | DBool _ -> ValueSome tst
        | _ -> ValueNone)
-    | TInt ->
+    | TBigInt ->
       (match actual with
-       | DInt _ -> ValueSome tst
+       | DBigInt _ -> ValueSome tst
        | _ -> ValueNone)
     | TInt8 ->
       (match actual with

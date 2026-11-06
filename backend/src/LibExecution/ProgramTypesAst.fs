@@ -20,7 +20,7 @@ let rec subExprs (expr : Expr) : List<Expr> =
   | EUInt64 _
   | EInt128 _
   | EUInt128 _
-  | EInt _
+  | EBigInt _
   | EFloat _
   | EFloat32 _
   | EDecimal _
@@ -92,7 +92,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   | EUInt64 _
   | EInt128 _
   | EUInt128 _
-  | EInt _
+  | EBigInt _
   | EFloat _
   | EFloat32 _
   | EDecimal _
@@ -203,7 +203,7 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
   | EUInt64 _
   | EInt128 _
   | EUInt128 _
-  | EInt _
+  | EBigInt _
   | EFloat _
   | EFloat32 _
   | EDecimal _

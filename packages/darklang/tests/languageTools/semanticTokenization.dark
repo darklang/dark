@@ -463,7 +463,7 @@ test tokenizeExpression =
           (TokenType.Symbol, (0, 1), (0, 2)) ])
       // a bare Int64 has no suffix to paint
       "1" |> tokenize |> Stdlib.Test.equal([ (TokenType.Number, (0, 0), (0, 1)) ])
-      // the `z` of an Int is part of the number
+      // the `z` of a BigInt is part of the number
       "12345678901234567890z" |> tokenize
       |> Stdlib.Test.equal([ (TokenType.Number, (0, 0), (0, 21)) ])
       "1.5f32" |> tokenize |> Stdlib.Test.equal([ (TokenType.Number, (0, 0), (0, 6)) ])
@@ -708,7 +708,7 @@ test tokenizeMatchExpression =
           (TokenType.VariableName, (1, 2), (1, 3))
           (TokenType.Symbol, (1, 4), (1, 6))
           (TokenType.Number, (1, 7), (1, 8)) ])
-      // suffixless Int in both pattern and rhs: Number tokens with no suffix Symbol
+      // suffixless Int64 in both pattern and rhs: Number tokens with no suffix Symbol
       "match x with\n| 1 -> 2" |> tokenize
       |> Stdlib.Test.equal(
         [ (TokenType.Keyword, (0, 0), (0, 5))

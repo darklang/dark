@@ -67,7 +67,7 @@ module TypeIdentifier =
     [ makeToken(t.range, TokenType.TypeName) ]
 
 module QualifiedTypeIdentifier =
-  // Darklang.Stdlib.Option<Int>
+  // Darklang.Stdlib.Option<Int64>
   let tokenize(
     q: WrittenTypes.QualifiedTypeIdentifier)
     : List<SemanticToken> =
@@ -79,7 +79,7 @@ module QualifiedTypeIdentifier =
       // Option
       TypeIdentifier.tokenize(q.typ)
 
-      // <Int>
+      // <Int64>
       (q.typeArgs
         |> Stdlib.List.map(fun typeArg -> TypeReference.tokenize(typeArg))
         |> Stdlib.List.flatten) ]
@@ -128,7 +128,7 @@ module TypeReference =
       | TUInt64(r)
       | TInt128(r)
       | TUInt128(r)
-      | TInt(r)
+      | TBigInt(r)
       | TFloat(r)
       | TFloat32(r)
       | TDecimal(r)
@@ -312,7 +312,7 @@ module FnDeclaration =
       : List<SemanticToken> =
       [ makeToken(p.range, TokenType.Symbol) ]
 
-  // `(a: Int)`
+  // `(a: Int64)`
   module NormalParameter =
     let tokenize(
       p: WrittenTypes.FnDeclaration.NormalParameter)
@@ -323,7 +323,7 @@ module FnDeclaration =
         [ makeToken(p.name.range, TokenType.ParameterName) ]
         // `:`
         [ makeToken(p.symbolColon, TokenType.Symbol) ]
-        // `Int`
+        // `Int64`
         TypeReference.tokenize(p.typ)
         // `)`
         [ makeToken(p.symbolRightParen, TokenType.Symbol) ] ]
@@ -338,7 +338,7 @@ module FnDeclaration =
       | Normal(n) -> NormalParameter.tokenize(n)
 
 
-  /// `(a: Int, b: Int)`. Neighbouring parameters share the `,` between them (one's
+  /// `(a: Int64, b: Int64)`. Neighbouring parameters share the `,` between them (one's
   /// right delimiter, the next one's left), so it is tokenized once.
   let tokenizeParameters(
     ps: List<WrittenTypes.FnDeclaration.Parameter>)
@@ -352,7 +352,7 @@ module FnDeclaration =
       | _ -> Stdlib.List.prepend(acc, token))
     |> Stdlib.List.reverse
 
-  // `let add(a: Int, b: Int): Int = a + b`
+  // `let add(a: Int64, b: Int64): Int64 = a + b`
   let tokenize(
     fn: WrittenTypes.FnDeclaration.FnDeclaration)
     : List<SemanticToken> =
@@ -365,11 +365,11 @@ module FnDeclaration =
         |> Stdlib.List.map(fun((r, typeParam)) ->
           [ makeToken(r, TokenType.TypeParameter) ])
         |> Stdlib.List.flatten)
-      // `(a: Int, b: Int)`
+      // `(a: Int64, b: Int64)`
       tokenizeParameters(fn.parameters)
       // `:`
       [ makeToken(fn.symbolColon, TokenType.Symbol) ]
-      // `Int`
+      // `Int64`
       TypeReference.tokenize(fn.returnType)
       // `=`
       [ makeToken(fn.symbolEquals, TokenType.Symbol) ]
@@ -394,7 +394,7 @@ module ValueDeclaration =
 
 
 module TypeParamBound =
-  // `'a: Show<Int>`
+  // `'a: Show<Int64>`
   let tokenize(b: WrittenTypes.TypeParamBound): List<SemanticToken> =
     [ [ makeToken(b.symbolColon, TokenType.Symbol) ]
       QualifiedTypeIdentifier.tokenize(b.trait_) ]
@@ -488,7 +488,7 @@ module MatchPattern =
     | MPUInt128(_, (intPartRange, _), suffixPartRange) ->
       numberTokens(intPartRange, suffixPartRange)
     // 12z, its suffix part of the number
-    | MPInt(_, (intPartRange, _)) -> [ makeToken(intPartRange, TokenType.Number) ]
+    | MPBigInt(_, (intPartRange, _)) -> [ makeToken(intPartRange, TokenType.Number) ]
     | MPFloat(range, _sign, _whole, _fraction) ->
       [ makeToken(range, TokenType.Number) ]
     | MPFloat32(range, _sign, _whole, _fraction) ->
@@ -740,7 +740,7 @@ module Expr =
       numberTokens(intPartRange, suffixPartRange)
 
     // 12z, its suffix part of the number
-    | EInt(_, (intPartRange, _)) -> [ makeToken(intPartRange, TokenType.Number) ]
+    | EBigInt(_, (intPartRange, _)) -> [ makeToken(intPartRange, TokenType.Number) ]
 
     // 12.0
     | EFloat(range, _sign, _whole, _fraction) ->

@@ -94,3 +94,9 @@ let sinh(angleInRadians: Float): Float = Builtin.mathSinh(angleInRadians)
 
 /// Returns the hyperbolic tangent of <param angleInRadians>
 let tanh(angleInRadians: Float): Float = Builtin.mathTanh(angleInRadians)
+
+
+/// What a fixed-width `checked` function returns where the operator would wrap:
+/// `Int8.checkedAdd(127s8, 1s8)` is {{Error Overflow}}. Going below 0 on an unsigned
+/// type is an Overflow too. <type BigInt> itself never overflows.
+type Overflow = | Overflow

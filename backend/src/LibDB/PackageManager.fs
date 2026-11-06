@@ -194,7 +194,7 @@ let private ptOn (branch : PT.BranchId) : PT.PackageManager =
     // every stored declaration of that shape, and `pickLocation` breaks ties by
     // shortest path, which a script's one-segment path always wins. Consulted
     // ahead of the store, `type MyErr = | BadFormat` in a script would rename
-    // `Stdlib.Int.ParseError` for the rest of the process.
+    // `Stdlib.BigInt.ParseError` for the rest of the process.
     getTypeLocations =
       storedOrEphemeral
         (PMPT.Type.getLocations branch)

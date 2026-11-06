@@ -343,7 +343,7 @@ module TypeReference =
       | TUInt64 -> "TUInt64", []
       | TInt128 -> "TInt128", []
       | TUInt128 -> "TUInt128", []
-      | TInt -> "TInt", []
+      | TBigInt -> "TBigInt", []
       | TFloat -> "TFloat", []
       | TFloat32 -> "TFloat32", []
       | TDecimal -> "TDecimal", []
@@ -392,7 +392,7 @@ module TypeReference =
     | DEnum(_, _, [], "TUInt64", []) -> TUInt64
     | DEnum(_, _, [], "TInt128", []) -> TInt128
     | DEnum(_, _, [], "TUInt128", []) -> TUInt128
-    | DEnum(_, _, [], "TInt", []) -> TInt
+    | DEnum(_, _, [], "TBigInt", []) -> TBigInt
     | DEnum(_, _, [], "TFloat", []) -> TFloat
     | DEnum(_, _, [], "TFloat32", []) -> TFloat32
     | DEnum(_, _, [], "TDecimal", []) -> TDecimal
@@ -502,7 +502,7 @@ module MatchPattern =
       | MPUInt64 i -> "MPUInt64", [ DUInt64 i ]
       | MPInt128 i -> "MPInt128", [ DInt128 i ]
       | MPUInt128 i -> "MPUInt128", [ DUInt128 i ]
-      | MPInt i -> "MPInt", [ Dval.int i ]
+      | MPBigInt i -> "MPBigInt", [ Dval.bigInt i ]
       | MPFloat f -> "MPFloat", [ DFloat f ]
       | MPFloat32 f -> "MPFloat32", [ DFloat32 f ]
       | MPDecimal f -> "MPDecimal", [ DDecimal f ]
@@ -547,7 +547,7 @@ module MatchPattern =
     | DEnum(_, _, [], "MPUInt64", [ DUInt64 i ]) -> MPUInt64 i
     | DEnum(_, _, [], "MPInt128", [ DInt128 i ]) -> MPInt128 i
     | DEnum(_, _, [], "MPUInt128", [ DUInt128 i ]) -> MPUInt128(i)
-    | DEnum(_, _, [], "MPInt", [ (DInt _) as v ]) -> MPInt(Dval.asBigInt v)
+    | DEnum(_, _, [], "MPBigInt", [ (DBigInt _) as v ]) -> MPBigInt(Dval.asBigInt v)
     | DEnum(_, _, [], "MPFloat", [ DFloat f ]) -> MPFloat f
     | DEnum(_, _, [], "MPFloat32", [ DFloat32 f ]) -> MPFloat32 f
     | DEnum(_, _, [], "MPDecimal", [ DDecimal f ]) -> MPDecimal f
@@ -593,7 +593,7 @@ module KnownType =
       | KTUInt64 -> "KTUInt64", []
       | KTInt128 -> "KTInt128", []
       | KTUInt128 -> "KTUInt128", []
-      | KTInt -> "KTInt", []
+      | KTBigInt -> "KTBigInt", []
       | KTFloat -> "KTFloat", []
       | KTFloat32 -> "KTFloat32", []
       | KTDecimal -> "KTDecimal", []
@@ -642,7 +642,7 @@ module KnownType =
     | DEnum(_, _, [], "KTUInt64", []) -> KTUInt64
     | DEnum(_, _, [], "KTInt128", []) -> KTInt128
     | DEnum(_, _, [], "KTUInt128", []) -> KTUInt128
-    | DEnum(_, _, [], "KTInt", []) -> KTInt
+    | DEnum(_, _, [], "KTBigInt", []) -> KTBigInt
     | DEnum(_, _, [], "KTFloat", []) -> KTFloat
     | DEnum(_, _, [], "KTFloat32", []) -> KTFloat32
     | DEnum(_, _, [], "KTDecimal", []) -> KTDecimal
@@ -832,7 +832,7 @@ module Dval =
     | DUInt64 i -> mk "DUInt64" [ DUInt64 i ]
     | DInt128 i -> mk "DInt128" [ DInt128 i ]
     | DUInt128 i -> mk "DUInt128" [ DUInt128 i ]
-    | DInt i -> mk "DInt" [ DInt i ]
+    | DBigInt i -> mk "DBigInt" [ DBigInt i ]
     | DFloat f -> mk "DFloat" [ DFloat f ]
     | DFloat32 f -> mk "DFloat32" [ DFloat32 f ]
     | DDecimal f -> mk "DDecimal" [ DDecimal f ]
@@ -922,10 +922,10 @@ module Dval =
     | DEnum(_, _, [], "DUInt64", [ DUInt64 i ]) -> DUInt64 i
     | DEnum(_, _, [], "DInt128", [ DInt128 i ]) -> DInt128 i
     | DEnum(_, _, [], "DUInt128", [ DUInt128 i ]) -> DUInt128 i
-    // Both forms of Int (small and big) are stored under the one "DInt" name.
-    // Rebuild it with Dval.int so the value always comes back in the right form.
-    | DEnum(_, _, [], "DInt", [ (DInt _) as v ]) ->
-      RuntimeTypes.Dval.int (RuntimeTypes.Dval.asBigInt v)
+    // Both forms of BigInt (small and big) are stored under the one "DBigInt" name.
+    // Rebuild it with Dval.bigInt so the value always comes back in the right form.
+    | DEnum(_, _, [], "DBigInt", [ (DBigInt _) as v ]) ->
+      RuntimeTypes.Dval.bigInt (RuntimeTypes.Dval.asBigInt v)
     | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
     | DEnum(_, _, [], "DFloat32", [ DFloat32 f ]) -> DFloat32 f
     | DEnum(_, _, [], "DDecimal", [ DDecimal f ]) -> DDecimal f
@@ -1179,32 +1179,34 @@ module RuntimeError =
         )
       | _ -> Exception.raiseInternal "Invalid Bools.Error" []
 
-  module Ints =
-    let toDT (e : RuntimeError.Ints.Error) : Dval =
+  module BigInts =
+    let toDT (e : RuntimeError.BigInts.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage (
-          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Ints.error ()
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.BigInts.error ()
         )
 
       let (caseName, fields) =
         match e with
-        | RuntimeError.Ints.DivideByZeroError -> "DivideByZeroError", []
-        | RuntimeError.Ints.OutOfRange -> "OutOfRange", []
-        | RuntimeError.Ints.NegativeExponent -> "NegativeExponent", []
-        | RuntimeError.Ints.NegativeModulus -> "NegativeModulus", []
-        | RuntimeError.Ints.ZeroModulus -> "ZeroModulus", []
+        | RuntimeError.BigInts.DivideByZeroError -> "DivideByZeroError", []
+        | RuntimeError.BigInts.OutOfRange -> "OutOfRange", []
+        | RuntimeError.BigInts.NegativeExponent -> "NegativeExponent", []
+        | RuntimeError.BigInts.NegativeModulus -> "NegativeModulus", []
+        | RuntimeError.BigInts.ZeroModulus -> "ZeroModulus", []
 
       DEnum(typeName, typeName, [], caseName, fields)
 
-    let fromDT (d : Dval) : RuntimeError.Ints.Error =
+    let fromDT (d : Dval) : RuntimeError.BigInts.Error =
       match d with
       | DEnum(_, _, [], "DivideByZeroError", []) ->
-        RuntimeError.Ints.DivideByZeroError
-      | DEnum(_, _, [], "OutOfRange", []) -> RuntimeError.Ints.OutOfRange
-      | DEnum(_, _, [], "NegativeExponent", []) -> RuntimeError.Ints.NegativeExponent
-      | DEnum(_, _, [], "NegativeModulus", []) -> RuntimeError.Ints.NegativeModulus
-      | DEnum(_, _, [], "ZeroModulus", []) -> RuntimeError.Ints.ZeroModulus
-      | _ -> Exception.raiseInternal "Invalid Ints.Error" []
+        RuntimeError.BigInts.DivideByZeroError
+      | DEnum(_, _, [], "OutOfRange", []) -> RuntimeError.BigInts.OutOfRange
+      | DEnum(_, _, [], "NegativeExponent", []) ->
+        RuntimeError.BigInts.NegativeExponent
+      | DEnum(_, _, [], "NegativeModulus", []) ->
+        RuntimeError.BigInts.NegativeModulus
+      | DEnum(_, _, [], "ZeroModulus", []) -> RuntimeError.BigInts.ZeroModulus
+      | _ -> Exception.raiseInternal "Invalid BigInts.Error" []
 
   module Strings =
     let toDT (e : RuntimeError.Strings.Error) : Dval =
@@ -1963,7 +1965,7 @@ module RuntimeError =
     let (caseName, fields) =
       match e with
       | RuntimeError.Bool e -> "Bool", [ Bools.toDT e ]
-      | RuntimeError.Int e -> "Int", [ Ints.toDT e ]
+      | RuntimeError.BigInt e -> "BigInt", [ BigInts.toDT e ]
       | RuntimeError.DecimalOutOfRange -> "DecimalOutOfRange", []
       | RuntimeError.String e -> "String", [ Strings.toDT e ]
       | RuntimeError.List e -> "List", [ Lists.toDT e ]
@@ -2014,7 +2016,7 @@ module RuntimeError =
   let fromDT (d : Dval) : RuntimeError.Error =
     match d with
     | DEnum(_, _, [], "Bool", [ e ]) -> RuntimeError.Bool(Bools.fromDT e)
-    | DEnum(_, _, [], "Int", [ e ]) -> RuntimeError.Int(Ints.fromDT e)
+    | DEnum(_, _, [], "BigInt", [ e ]) -> RuntimeError.BigInt(BigInts.fromDT e)
     | DEnum(_, _, [], "DecimalOutOfRange", []) -> RuntimeError.DecimalOutOfRange
     | DEnum(_, _, [], "String", [ e ]) -> RuntimeError.String(Strings.fromDT e)
     | DEnum(_, _, [], "List", [ e ]) -> RuntimeError.List(Lists.fromDT e)

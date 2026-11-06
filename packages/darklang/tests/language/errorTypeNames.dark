@@ -1,7 +1,7 @@
 module Darklang.Language.Tests.ErrorTypeNames
 
 // Types are content addressed, so one hash can have several names.
-// Stdlib.Int.ParseError, Stdlib.Float.ParseError and Stdlib.Uuid.ParseError all
+// Stdlib.BigInt.ParseError, Stdlib.Float.ParseError and Stdlib.Uuid.ParseError all
 // have the shape | BadFormat. The declaration's written name must decide which
 // one a runtime error prints; the hash alone cannot distinguish them.
 
@@ -10,15 +10,15 @@ module AmbiguousHash =
   // function: their parameter types share a hash, so nothing would distinguish
   // them, they would collapse to one declaration, and this would test whichever
   // one survived rather than each of them.
-  let takesIntParseError(e: Darklang.Stdlib.Int.ParseError): Int64 = 1
+  let takesIntParseError(e: Darklang.Stdlib.BigInt.ParseError): Int64 = 1
   let takesUuidParseError(e: Darklang.Stdlib.Uuid.ParseError): Int64 = 2
-  let returnsIntParseError(n: Int64): Darklang.Stdlib.Int.ParseError = n
+  let returnsIntParseError(n: Int64): Darklang.Stdlib.BigInt.ParseError = n
 
   // One hash, three declarations, three names printed.
   test intParamRaises =
     (takesIntParseError(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.takesIntParseError's 1st parameter `e` expects Darklang.Stdlib.Int.ParseError, but got Int64 (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.takesIntParseError's 1st parameter `e` expects Darklang.Stdlib.BigInt.ParseError, but got Int64 (5)"
 
   test uuidParamRaises =
     (takesUuidParseError(5))
@@ -28,26 +28,26 @@ module AmbiguousHash =
   test intReturnRaises =
     (returnsIntParseError(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.returnsIntParseError's return value expects Darklang.Stdlib.Int.ParseError, but got Int64 (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.returnsIntParseError's return value expects Darklang.Stdlib.BigInt.ParseError, but got Int64 (5)"
 
 module NestedInTypeArguments =
   // The name has to be chosen per position, not once for the whole type. A
   // `ValueType` is a tree of hashes, so every custom type inside it has the same
   // problem as the outermost one.
-  let takesListOfInt(x: List<Darklang.Stdlib.Int.ParseError>): Int64 = 1
+  let takesListOfBigInt(x: List<Darklang.Stdlib.BigInt.ParseError>): Int64 = 1
   let takesListOfUuid(x: List<Darklang.Stdlib.Uuid.ParseError>): Int64 = 2
   let takesDeep(x: Dict<String, List<Darklang.Stdlib.Uuid.ParseError>>): Int64 = 3
 
   // The sharpest case: one hash, two positions, two names, in one type.
   let takesPair(
-    x: (Darklang.Stdlib.Int.ParseError * Darklang.Stdlib.Uuid.ParseError))
+    x: (Darklang.Stdlib.BigInt.ParseError * Darklang.Stdlib.Uuid.ParseError))
     : Int64 =
     4
 
   test listOfIntRaises =
-    (takesListOfInt(5))
+    (takesListOfBigInt(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesListOfInt's 1st parameter `x` expects List<Darklang.Stdlib.Int.ParseError>, but got Int64 (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesListOfBigInt's 1st parameter `x` expects List<Darklang.Stdlib.BigInt.ParseError>, but got Int64 (5)"
 
   test listOfUuidRaises =
     (takesListOfUuid(5))
@@ -62,11 +62,11 @@ module NestedInTypeArguments =
   test pairRaises =
     (takesPair(5))
     => raises
-      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesPair's 1st parameter `x` expects (Darklang.Stdlib.Int.ParseError * Darklang.Stdlib.Uuid.ParseError), but got Int64 (5)"
+      "Darklang.Language.Tests.ErrorTypeNames.NestedInTypeArguments.takesPair's 1st parameter `x` expects (Darklang.Stdlib.BigInt.ParseError * Darklang.Stdlib.Uuid.ParseError), but got Int64 (5)"
 
 module RecordAndEnumFields =
   // Same rule, reached through the other messages that print a declared type.
-  type HasIntParseError = { e: Darklang.Stdlib.Int.ParseError }
+  type HasIntParseError = { e: Darklang.Stdlib.BigInt.ParseError }
   type HasUuidParseErrors = { es: List<Darklang.Stdlib.Uuid.ParseError> }
   type WrapsUuidParseError = | Wrap(Darklang.Stdlib.Uuid.ParseError)
 
@@ -76,14 +76,14 @@ module RecordAndEnumFields =
 
   let updateIntRecord(): HasIntParseError =
     let start =
-      HasIntParseError { e = Darklang.Stdlib.Int.ParseError.BadFormat }
+      HasIntParseError { e = Darklang.Stdlib.BigInt.ParseError.BadFormat }
 
     { start with e = 5 }
 
   test intRecordRaises =
     (makeIntRecord())
     => raises
-      "Failed to create record. Expected Darklang.Stdlib.Int.ParseError for field `e`, but got 5 (an Int64)"
+      "Failed to create record. Expected Darklang.Stdlib.BigInt.ParseError for field `e`, but got 5 (an Int64)"
 
   test uuidRecordRaises =
     (makeUuidRecord())
@@ -98,7 +98,7 @@ module RecordAndEnumFields =
   test updateRaises =
     (updateIntRecord())
     => raises
-      "Failed to create updated record. Expected Darklang.Stdlib.Int.ParseError for field `e`, but got 5 (an Int64)"
+      "Failed to create updated record. Expected Darklang.Stdlib.BigInt.ParseError for field `e`, but got 5 (an Int64)"
 
 module UnambiguousHash =
   // One location, so there is nothing to choose between and the canonical name

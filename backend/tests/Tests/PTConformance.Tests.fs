@@ -119,7 +119,7 @@ let private findFsharp
 
 /// A type's shape in the only terms worth comparing: what kind it is, and its members with their field
 /// counts. Field TYPES are deliberately not compared -- the two sides spell them differently by design
-/// (NEList vs List, Int64 vs Int). Names and arity are where the converters actually break.
+/// (NEList vs List, Int64 vs BigInt). Names and arity are where the converters actually break.
 type private Shape =
   { kind : string // "record", "union" or "alias"
     members : Map<string, int> } // field name -> 0, or case name -> field count

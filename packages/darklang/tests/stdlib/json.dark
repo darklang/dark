@@ -74,51 +74,51 @@ module Bool =
           (Stdlib.Json.parse<Bool>("tRUE")) |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
 
-module Int =
+module BigInt =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int>(0z) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<Int>(12345z) |> Stdlib.Test.equal("12345")
-          Stdlib.Json.serialize<Int>(-12345z) |> Stdlib.Test.equal("-12345") ])
+        [ Stdlib.Json.serialize<BigInt>(0z) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<BigInt>(12345z) |> Stdlib.Test.equal("12345")
+          Stdlib.Json.serialize<BigInt>(-12345z) |> Stdlib.Test.equal("-12345") ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int>("0") |> Stdlib.Test.equal(Result.Ok(0z))
-          Stdlib.Json.parse<Int>("12345") |> Stdlib.Test.equal(Result.Ok(12345z))
-          Stdlib.Json.parse<Int>("-12345") |> Stdlib.Test.equal(Result.Ok(-12345z)) ])
+        [ Stdlib.Json.parse<BigInt>("0") |> Stdlib.Test.equal(Result.Ok(0z))
+          Stdlib.Json.parse<BigInt>("12345") |> Stdlib.Test.equal(Result.Ok(12345z))
+          Stdlib.Json.parse<BigInt>("-12345") |> Stdlib.Test.equal(Result.Ok(-12345z)) ])
 
   module Huge =
     test serialize =
       Stdlib.Test.all(
         [ // arbitrary precision: well past Int64, exact round-trip
-          Stdlib.Json.serialize<Int>(123456789012345678901234567890z)
+          Stdlib.Json.serialize<BigInt>(123456789012345678901234567890z)
           |> Stdlib.Test.equal("123456789012345678901234567890")
-          Stdlib.Json.parse<Int>(Stdlib.Json.serialize<Int>(99999999999999999999999999999999z))
+          Stdlib.Json.parse<BigInt>(Stdlib.Json.serialize<BigInt>(99999999999999999999999999999999z))
           |> Stdlib.Test.equal(Result.Ok(99999999999999999999999999999999z)) ])
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int>("123456789012345678901234567890")
+        [ Stdlib.Json.parse<BigInt>("123456789012345678901234567890")
           |> Stdlib.Test.equal(Result.Ok(123456789012345678901234567890z))
-          Stdlib.Json.parse<Int>("-123456789012345678901234567890")
+          Stdlib.Json.parse<BigInt>("-123456789012345678901234567890")
           |> Stdlib.Test.equal(Result.Ok(-123456789012345678901234567890z)) ])
 
   module PastInt64 =
     test serialize =
-      // Int is unbounded: it serializes/parses values that overflow Int64.
+      // BigInt is unbounded: it serializes/parses values that overflow Int64.
       // Compare the Int64Limits module above, which *errors* on these exact values.
-      Stdlib.Json.serialize<Int>(9223372036854775808z)
+      Stdlib.Json.serialize<BigInt>(9223372036854775808z)
       |> Stdlib.Test.equal("9223372036854775808")
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int>("9223372036854775808")
+        [ Stdlib.Json.parse<BigInt>("9223372036854775808")
           |> Stdlib.Test.equal(Result.Ok(9223372036854775808z))
-          Stdlib.Json.parse<Int>("-9223372036854775809")
+          Stdlib.Json.parse<BigInt>("-9223372036854775809")
           |> Stdlib.Test.equal(Result.Ok(-9223372036854775809z))
           // a float-form just above the Int64 max (Int64 rejects "9.3E18")
-          Stdlib.Json.parse<Int>("9.3E18")
+          Stdlib.Json.parse<BigInt>("9.3E18")
           |> Stdlib.Test.equal(Result.Ok(9300000000000000000z)) ])
 
   module IntegerValuedFloatForms =
@@ -126,38 +126,38 @@ module Int =
       Stdlib.Test.all(
         [ // integer-valued decimal/exponent forms are accepted, parsed EXACTLY
           // (the same forms the fixed-width int parsers accept)
-          Stdlib.Json.parse<Int>("0.0") |> Stdlib.Test.equal(Result.Ok(0z))
-          Stdlib.Json.parse<Int>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1z))
-          Stdlib.Json.parse<Int>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120z))
-          Stdlib.Json.parse<Int>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120z))
-          Stdlib.Json.parse<Int>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120z))
+          Stdlib.Json.parse<BigInt>("0.0") |> Stdlib.Test.equal(Result.Ok(0z))
+          Stdlib.Json.parse<BigInt>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1z))
+          Stdlib.Json.parse<BigInt>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120z))
+          Stdlib.Json.parse<BigInt>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120z))
+          Stdlib.Json.parse<BigInt>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120z))
           // exact even past 2^53 — guards the precision-loss regression
-          Stdlib.Json.parse<Int>("9007199254740993.0")
+          Stdlib.Json.parse<BigInt>("9007199254740993.0")
           |> Stdlib.Test.equal(Result.Ok(9007199254740993z)) ])
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
         [ // genuinely fractional values are rejected, never rounded
-          (Stdlib.Json.parse<Int>("1.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1.5` as type `Int` at path: `root`"))
-          (Stdlib.Json.parse<Int>("9007199254740993.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `9007199254740993.5` as type `Int` at path: `root`"))
-          (Stdlib.Json.parse<Int>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `Int` at path: `root`"))
-          (Stdlib.Json.parse<Int>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Int` at path: `root`"))
+          (Stdlib.Json.parse<BigInt>("1.5")) |> err
+          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1.5` as type `BigInt` at path: `root`"))
+          (Stdlib.Json.parse<BigInt>("9007199254740993.5")) |> err
+          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `9007199254740993.5` as type `BigInt` at path: `root`"))
+          (Stdlib.Json.parse<BigInt>("\"42\"")) |> err
+          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `BigInt` at path: `root`"))
+          (Stdlib.Json.parse<BigInt>("null")) |> err
+          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `BigInt` at path: `root`"))
           // extreme exponents are rejected cleanly, never crash or hang the parser
-          (Stdlib.Json.parse<Int>("1e2147483647")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e2147483647` as type `Int` at path: `root`"))
-          (Stdlib.Json.parse<Int>("1e-2147483647")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e-2147483647` as type `Int` at path: `root`"))
-          (Stdlib.Json.parse<Int>("1e-2147483648")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e-2147483648` as type `Int` at path: `root`")) ])
+          (Stdlib.Json.parse<BigInt>("1e2147483647")) |> err
+          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e2147483647` as type `BigInt` at path: `root`"))
+          (Stdlib.Json.parse<BigInt>("1e-2147483647")) |> err
+          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e-2147483647` as type `BigInt` at path: `root`"))
+          (Stdlib.Json.parse<BigInt>("1e-2147483648")) |> err
+          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e-2147483648` as type `BigInt` at path: `root`")) ])
 
     test parse =
       // ...but zero with an extreme negative exponent is still exactly zero
-      Stdlib.Json.parse<Int>("0e-2147483648") |> Stdlib.Test.equal(Result.Ok(0z))
+      Stdlib.Json.parse<BigInt>("0e-2147483648") |> Stdlib.Test.equal(Result.Ok(0z))
 
 module Int64 =
   module Basic =

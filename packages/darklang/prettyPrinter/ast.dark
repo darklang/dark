@@ -57,7 +57,7 @@ let matchPattern(pat: LanguageTools.ProgramTypes.MatchPattern): String =
   | MPUInt64(_, i) -> Stdlib.toString(i) + "u64"
   | MPInt128(_, i) -> Stdlib.toString(i) + "s128"
   | MPUInt128(_, i) -> Stdlib.toString(i) + "u128"
-  | MPInt(_, i) -> Stdlib.toString(i) + "z"
+  | MPBigInt(_, i) -> Stdlib.toString(i) + "z"
   | MPFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign(sign)
     $"{s}{whole}.{part}"
@@ -121,7 +121,7 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int64, e: LanguageTools
   | EUInt64(_, i) -> here("EUInt64", Stdlib.toString(i))
   | EInt128(_, i) -> here("EInt128", Stdlib.toString(i))
   | EUInt128(_, i) -> here("EUInt128", Stdlib.toString(i))
-  | EInt(_, i) -> here("Int", Stdlib.toString(i))
+  | EBigInt(_, i) -> here("BigInt", Stdlib.toString(i))
   | EFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign(sign)
     here("Float", $"{s}{whole}.{part}")

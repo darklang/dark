@@ -366,9 +366,9 @@ test shiftRight =
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedAdd(2147483647s32, 1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedAdd(-2147483648s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedAdd(2147483647s32, -1s32)
       |> Stdlib.Test.equal(Ok(2147483646s32))
       Stdlib.Int32.checkedAdd(-2147483648s32, 1s32)
@@ -381,11 +381,11 @@ test checkedAdd =
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedSubtract(-2147483648s32, 1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedSubtract(2147483647s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedSubtract(0s32, -2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedSubtract(-1s32, -2147483648s32)
       |> Stdlib.Test.equal(Ok(2147483647s32))
       Stdlib.Int32.checkedSubtract(2147483647s32, 2147483647s32)
@@ -396,13 +396,13 @@ test checkedSubtract =
 test checkedMultiply =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedMultiply(2147483647s32, 2s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedMultiply(-2147483648s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedMultiply(-1s32, -2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedMultiply(-2147483648s32, 2s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedMultiply(2147483647s32, -1s32)
       |> Stdlib.Test.equal(Ok(-2147483647s32))
       Stdlib.Int32.checkedMultiply(-2147483648s32, 1s32)
@@ -414,7 +414,7 @@ test checkedMultiply =
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedNegate(-2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedNegate(2147483647s32)
       |> Stdlib.Test.equal(Ok(-2147483647s32))
       Stdlib.Int32.checkedNegate(0s32) |> Stdlib.Test.equal(Ok(0s32)) ])
@@ -422,7 +422,7 @@ test checkedNegate =
 test checkedAbsoluteValue =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedAbsoluteValue(-2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Int.Overflow.Overflow))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
       Stdlib.Int32.checkedAbsoluteValue(-2147483647s32)
       |> Stdlib.Test.equal(Ok(2147483647s32))
       Stdlib.Int32.checkedAbsoluteValue(2147483647s32)

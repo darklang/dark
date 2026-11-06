@@ -97,7 +97,7 @@ let __dropThroughFirstNewline(bytes: Bytes): Bytes =
 /// of the window and hand back lines that never existed. Loop instead. (`fdReadAll` above loops for the same
 /// reason.)
 let readFully(
-  fd: Int,
+  fd: BigInt,
   count: Int64,
   acc: List<Bytes>)
   : Result.Result<Bytes, Posix.Error> =
@@ -115,7 +115,7 @@ let readFully(
 
 
 let __readTailChunks(
-  fd: Int,
+  fd: BigInt,
   cursor: Int64,
   requiredNewlines: Int64,
   foundNewlines: Int64,
@@ -423,7 +423,7 @@ let watch(
   : Result.Result<Unit, Posix.Error> =
   if intervalMs < 0.0 then Error(Stdlib.Cli.Posix.__fromErrno(22))
   else if Builtin.runtimeTargetOS() == "linux" then
-    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt(intervalMs)
+    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt64(intervalMs)
     match Stdlib.Cli.File.__watchLinux(path, waitMs, shouldStop, fn) with
     | Ok(()) -> Ok()
     | Error(e) ->
@@ -435,7 +435,7 @@ let watch(
         | Error(error) -> Error(error)
       else Error(Stdlib.Cli.Posix.__fromErrno(e))
   else if Builtin.runtimeTargetOS() == "darwin" then
-    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt(intervalMs)
+    let waitMs = if intervalMs < 1.0 then 1 else Stdlib.Float.toInt64(intervalMs)
     Stdlib.Cli.File.__watchDarwin(path, waitMs, shouldStop, fn)
     |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
   else
@@ -481,14 +481,14 @@ let __copyBuffered(
       __copyWriteAt(write, bytes, offset)
       |> Stdlib.Result.andThen(fun _ -> __copyBuffered(read, write, offset + length))
 
-let __copyBufferedBetween(source: Int, destination: Int, offset: Int64)
+let __copyBufferedBetween(source: BigInt, destination: BigInt, offset: Int64)
   : Result.Result<Unit, Int64> =
   __copyBuffered(
     (fun(length, at) -> Builtin.syscallPread(source, length, at)),
     (fun(bytes, at) -> Builtin.syscallPwrite(destination, bytes, at)),
     offset)
 
-let __copyKernelCopy(source: Int, destination: Int, offset: Int64)
+let __copyKernelCopy(source: BigInt, destination: BigInt, offset: Int64)
   : Result.Result<Unit, Int64> =
   match Builtin.syscallCopyFileRange(source, destination, 1048576) with
   | Error(e) ->
@@ -502,7 +502,7 @@ let __copyKernelCopy(source: Int, destination: Int, offset: Int64)
       __copyBufferedBetween(source, destination, offset)
     else __copyKernelCopy(source, destination, offset + count)
 
-let __copyTransfer(source: Int, destination: Int): Result.Result<Unit, Int64> =
+let __copyTransfer(source: BigInt, destination: BigInt): Result.Result<Unit, Int64> =
   match Builtin.syscallCloneFile(source, destination) with
   | Ok(()) -> Ok()
   | Error(e) ->
@@ -516,7 +516,7 @@ let __copyFinish(result: Result.Result<Unit, Posix.Error>,
   | Error(e) -> Error(e)
   | Ok(()) -> closed
 
-let __copyDescriptors(source: Int, destination: Int, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
+let __copyDescriptors(source: BigInt, destination: BigInt, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
   : Result.Result<Unit, Int64> =
   Builtin.syscallFstat(destination)
   |> Stdlib.Result.andThen(Stdlib.Cli.Posix.__kernelMetadata)
@@ -530,7 +530,7 @@ let __copyDescriptors(source: Int, destination: Int, sourceInfo: Stdlib.Cli.Posi
       |> Stdlib.Result.andThen(fun _ ->
         Builtin.syscallFchmod(destination, sourceInfo.mode & 511)))
 
-let __copyOpenDestination(sourceFd: Int, destination: String, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
+let __copyOpenDestination(sourceFd: BigInt, destination: String, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
   : Result.Result<Unit, Posix.Error> =
   // No O_TRUNC until the descriptor identity check above has succeeded.
   let flags = 1 | Stdlib.Cli.Posix.__abiOpenCreate()
@@ -542,7 +542,7 @@ let __copyOpenDestination(sourceFd: Int, destination: String, sourceInfo: Stdlib
     let closed = Posix.fdClose(destinationFd)
     __copyFinish(copied, closed)
 
-let __copyCloneDestination(sourceFd: Int, destination: String, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
+let __copyCloneDestination(sourceFd: BigInt, destination: String, sourceInfo: Stdlib.Cli.Posix.__KernelMetadata)
   : Result.Result<Unit, Posix.Error> =
   match Builtin.syscallFclonefileAt(sourceFd, destination, 3) with
   | Ok(()) -> Posix.chmod(destination, sourceInfo.mode & 511)
@@ -596,14 +596,14 @@ let __watchEvents(bytes: Bytes, at: Int64, changed: Bool, rearm: Bool)
           let nextRearm = rearm || (__watchHas(mask, 1024)) || (__watchHas(mask, 2048)) || (__watchHas(mask, 32768))
           __watchEvents(bytes, at + length, nextChanged, nextRearm)))
 
-let __watchDrain(fd: Int): Result.Result<(Bool * Bool), Int64> =
+let __watchDrain(fd: BigInt): Result.Result<(Bool * Bool), Int64> =
   match Builtin.syscallRead(fd, 65536) with
   | Error(4) -> __watchDrain(fd)
   | Error(11) -> Ok((false, false))
   | Error(e) -> Error(e)
   | Ok(buffer) -> __watchEvents(buffer, 0, false, false)
 
-let __watchLoop(fd: Int, intervalMs: Int64, shouldStop: Unit -> Bool, fn: Unit -> Unit)
+let __watchLoop(fd: BigInt, intervalMs: Int64, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Bool, Int64> =
   if shouldStop() then Ok(false)
   else
@@ -656,7 +656,7 @@ let __watchVnodeEvents(bytes: Bytes, at: Int64, changed: Bool, rearm: Bool)
           let nextRearm = rearm || (__watchHas(mask, 1)) || (__watchHas(mask, 32)) || (__watchHas(mask, 64))
           __watchVnodeEvents(bytes, at + 32, changed || mask != 0, nextRearm)))
 
-let __watchVnodeLoop(queue: Int, intervalMs: Int64, shouldStop: Unit -> Bool, fn: Unit -> Unit)
+let __watchVnodeLoop(queue: BigInt, intervalMs: Int64, shouldStop: Unit -> Bool, fn: Unit -> Unit)
   : Result.Result<Bool, Int64> =
   if shouldStop() then Ok(false)
   else
@@ -670,7 +670,7 @@ let __watchVnodeLoop(queue: Int, intervalMs: Int64, shouldStop: Unit -> Bool, fn
         if changed then fn() else ()
         if rearm then Ok(true) else __watchVnodeLoop(queue, intervalMs, shouldStop, fn))
 
-let __watchCloseBoth(queue: Int, source: Int): Result.Result<Unit, Int64> =
+let __watchCloseBoth(queue: BigInt, source: BigInt): Result.Result<Unit, Int64> =
   let first = Builtin.syscallClose(queue)
   let second = Builtin.syscallClose(source)
   match first with
