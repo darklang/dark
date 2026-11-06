@@ -509,7 +509,13 @@ let persistableRejectsNestedBadShapes =
     let streamDv = Stream.newFromIO LibExecution.ValueType.int64 next None
     let typeName =
       RT.FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.option ())
-    let rec_ = RT.DRecord(typeName, typeName, [], Map.ofList [ ("body", streamDv) ])
+    let rec_ =
+      RT.DRecord(
+        typeName,
+        typeName,
+        [],
+        RT.RecordFields.ofList [ ("body", streamDv) ]
+      )
     Expect.isFalse (Dval.isPersistable rec_) "record with a stream field rejected"
   }
 
@@ -938,14 +944,17 @@ let prepareStubsStreamInsideRecord =
         typeName,
         typeName,
         [],
-        Map.ofList [ ("body", freshStream ()); ("count", RT.DInt64 5L) ]
+        RT.RecordFields.ofList [ ("body", freshStream ()); ("count", RT.DInt64 5L) ]
       )
     let! result = Tracing.prepareDvalForStorage state.blobs.persist dv |> Ply.toTask
     match result with
     | RT.DRecord(_, _, _, fields) ->
-      let body = fields["body"]
+      let body = RT.RecordFields.tryFind "body" fields |> Option.get
       Expect.isTrue (isStubInt64 body) $"stream field stubbed, got {body}"
-      Expect.equal fields["count"] (RT.DInt64 5L) "sibling field preserved"
+      Expect.equal
+        (RT.RecordFields.tryFind "count" fields)
+        (Some(RT.DInt64 5L))
+        "sibling field preserved"
     | _ -> failtest $"expected DRecord, got {result}"
   }
 

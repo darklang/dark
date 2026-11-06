@@ -13,6 +13,22 @@ loads more is a clause, not a section. Anything longer belongs in `playbook.md` 
 
 ---
 
+## 2026-11-05: record fields in a sorted array (#6146)
+
+A record's fields moved from F#'s `Map` to `RecordFields`, one array sorted by name. Building one
+fills that array straight from the registers, and an update copies it once. Native build, `suite` at
+20,000 iterations, bytes per iteration net of an empty loop:
+
+| Workload | Before | After |
+| --- | ---: | ---: |
+| build a 3-field record, read two fields | 686 | 189 |
+| the same, then `{ p with x = ..., y = ... }` | 1,219 | 507 |
+| build a 6-field record, read two fields | 1,382 | 209 |
+| `suite/records.dark` (whole iteration) | 3,948 | 3,021 |
+
+Fields are checked in source order and moved into place as they go, so errors still name the first
+bad field as written. Sorting at compile time would have saved a few string compares and given that up.
+
 ## 2026-10-13: backend CI setup
 
 On `a12a2bafb`, one local Linux ARM64 comparison of the actual CI setup sequence

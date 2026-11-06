@@ -1544,7 +1544,7 @@ module PackageValue =
       let fieldValues =
         fields
         |> List.map (fun (fieldName, fieldExpr) -> (fieldName, recurse fieldExpr))
-        |> Map.ofList
+        |> RT.RecordFields.ofList
       let convertedTypeArgs = List.map TypeReference.toValueType typeArgs
       RT.DRecord(resolvedTypeName, resolvedTypeName, convertedTypeArgs, fieldValues)
     | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Builtin builtin } }) ->

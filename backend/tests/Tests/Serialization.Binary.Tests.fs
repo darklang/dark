@@ -449,6 +449,38 @@ module RT =
         "a 30-entry dict"
     }
 
+  // A record's fields go on the wire in ordinal name order, which is the order the F# `Map` they
+  // used to be held in wrote them. The expected bytes come from that `Map`, so a change to the
+  // order shows here even though a roundtrip would not notice: the reader sorts again.
+  let recordsKeepTheirBytes =
+    test "a record keeps its wire format" {
+      let typeName = RT.FQTypeName.Package(RT.Hash "t")
+      let fields =
+        [ "b"; "B"; "_x"; "a"; "\u00e9" ]
+        |> List.mapi (fun i n -> n, RT.DInt64(int64 i))
+      let value = RT.DRecord(typeName, typeName, [], RT.RecordFields.ofList fields)
+      let asMapWroteIt =
+        use ms = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(ms)
+        w.Write(20uy)
+        LibSerialization.Binary.Serializers.RT.Common.FQTypeName.write w typeName
+        LibSerialization.Binary.Serializers.RT.Common.FQTypeName.write w typeName
+        LibSerialization.Binary.Serializers.Common.List.write w (fun _ _ -> ()) []
+        LibSerialization.Binary.Serializers.Common.Map.write
+          LibSerialization.Binary.Serializers.Common.String.write
+          LibSerialization.Binary.Serializers.RT.Dval.writeDval
+          w
+          (Map.ofList fields)
+        w.Flush()
+        ms.ToArray()
+      let bytes = BS.RT.Dval.serialize "record" value
+      Expect.equal
+        (Array.skip 8 bytes)
+        asMapWroteIt
+        "the bytes a Map of the fields wrote"
+      Expect.equal (BS.RT.Dval.deserialize "record" bytes) value "and it reads back"
+    }
+
   // A closure WITH captured values, byte for byte. The golden corpus and the roundtrip values
   // only carry closures that capture nothing, so neither would notice a change to how captures
   // go on the wire.
@@ -644,6 +676,7 @@ let tests =
       testList
         "RT Roundtrip Tests"
         [ RT.dictsKeepTheirBytes
+          RT.recordsKeepTheirBytes
           RT.closureCapturesKeepTheirBytes
           RT.packageTypeTests
           RT.packageValueTests

@@ -35,6 +35,19 @@ module InvalidCols =
   test duplicateFieldRaises =
     Cols1 { col1 = 1, col1 = 2 } => raises "Duplicate field `col1`"
 
+  // Fields are checked as written, so the first bad one in the source is the one named, whatever
+  // order the record keeps them in.
+  test duplicateOfALaterNameRaises =
+    Cols2 { col2 = 1, col1 = 2, col2 = 3 } => raises "Duplicate field `col2`"
+
+  test unknownBeforeADuplicateRaises =
+    Cols2 { zzz = 1, col1 = 2, col1 = 3 } => raises "No field named `zzz`"
+
+  test firstWrongTypeAsWrittenRaises =
+    Cols2 { col2 = "", col1 = "" }
+    => raises
+      "Failed to create record. Expected Int64 for field `col2`, but got \"\" (a String)"
+
   test emptyKeyRaises =
     Cols2 { col1 = 2, ___ = 3 } => raises "Empty key in record creation"
 

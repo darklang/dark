@@ -176,9 +176,12 @@ module RoundTripExpect =
 
   /// Unresolved names in traversal order, which the canonical serializer omits.
   let rec collectUnresolved (d : RT.Dval) : List<string> =
-    let fromFields (fields : RT.DvalMap) : List<string> =
+    let fromFields (fields : RT.RecordFields) : List<string> =
       let own =
-        match Map.tryFind "originalName" fields, Map.tryFind "resolved" fields with
+        match
+          RT.RecordFields.tryFind "originalName" fields,
+          RT.RecordFields.tryFind "resolved" fields
+        with
         | Some(RT.DList(_, segs)), Some(RT.DEnum(_, _, _, "Error", _)) ->
           let name =
             segs
@@ -190,7 +193,9 @@ module RoundTripExpect =
           [ name ]
         | _ -> []
       own
-      @ (fields |> Map.toList |> List.collect (fun (_, v) -> collectUnresolved v))
+      @ (fields
+         |> RT.RecordFields.toList
+         |> List.collect (fun (_, v) -> collectUnresolved v))
 
     match d with
     | RT.DList(_, items) -> items |> List.collect collectUnresolved

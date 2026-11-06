@@ -210,7 +210,10 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     FQTypeName.write w sourceTypeName
     FQTypeName.write w runtimeTypeName
     List.write w writeValueType typeArgs
-    Map.write String.write writeDval w fields
+    Varint.write w fields.Count
+    for struct (name, value) in fields.Entries do
+      String.write w name
+      writeDval w value
   | DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields) ->
     w.Write 21uy
     FQTypeName.write w sourceTypeName
@@ -418,7 +421,10 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
     let sourceTypeName = FQTypeName.read r
     let runtimeTypeName = FQTypeName.read r
     let typeArgs = List.read r readValueType
-    let fields = Map.read String.read (readDval version) r
+    let count = Varint.read r
+    let fields =
+      [| for _ in 1..count -> struct (String.read r, readDval version r) |]
+      |> RecordFields.ofArray
     DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields)
   | 21uy ->
     let sourceTypeName = FQTypeName.read r

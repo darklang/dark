@@ -338,7 +338,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 typeName,
                 typeName,
                 [],
-                Map
+                RecordFields.ofList
                   [ "futureStamped", DInt64 c.futureStamped
                     "orphanTags", DInt64 c.orphanTags
                     "taggedToNothing", DInt64 c.taggedToNothing

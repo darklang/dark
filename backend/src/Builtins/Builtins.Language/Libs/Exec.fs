@@ -31,7 +31,7 @@ let private enumOf (name : unit -> string) (case : string) (fields : List<Dval>)
 
 let private recordOf (name : unit -> string) (fields : List<string * Dval>) =
   let tn = typ name
-  DRecord(tn, tn, [], Map fields)
+  DRecord(tn, tn, [], RecordFields.ofList fields)
 
 
 let private eventSpecToDT (spec : HE.EventSpec) : Dval =
@@ -167,7 +167,7 @@ let private snapshot () : List<Scheduler.ProcessSummary> =
 /// `Stdlib.Exec.Handle<'a>`: what `spawn` hands back, `{ id }`.
 let private handleOf (pid : Scheduler.ProcessId) : Dval =
   let tn = typ PackageRefs.Type.Stdlib.Exec.handle
-  DRecord(tn, tn, [ ValueType.Unknown ], Map [ "id", DUuid pid ])
+  DRecord(tn, tn, [ ValueType.Unknown ], RecordFields.ofList [ "id", DUuid pid ])
 
 let private handleType () : KnownType =
   KTCustomType(typ PackageRefs.Type.Stdlib.Exec.handle, [ ValueType.Unknown ])
@@ -175,7 +175,7 @@ let private handleType () : KnownType =
 let private pidOfHandle (vm : VMState) (h : Dval) : Scheduler.ProcessId =
   match h with
   | DRecord(_, _, _, fields) ->
-    match Map.tryFind "id" fields with
+    match RecordFields.tryFind "id" fields with
     | Some(DUuid pid) -> pid
     | _ -> RuntimeError.UncaughtException("not a handle", []) |> raiseRTE vm.threadID
   | _ -> RuntimeError.UncaughtException("not a handle", []) |> raiseRTE vm.threadID

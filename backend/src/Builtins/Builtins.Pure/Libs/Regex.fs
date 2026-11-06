@@ -233,7 +233,7 @@ let private scan
       rangeType,
       rangeType,
       [],
-      Map
+      RecordFields.ofList
         [ "start", DInt64(int64 (positions.Floor start))
           "end", DInt64(int64 (positions.Ceiling finish)) ]
     )
@@ -245,7 +245,7 @@ let private scan
           captureType,
           captureType,
           [],
-          Map
+          RecordFields.ofList
             [ "text", DString g.Value; "range", range g.Index (g.Index + g.Length) ]
         )
       )
@@ -268,7 +268,7 @@ let private scan
       matchType,
       matchType,
       [],
-      Map
+      RecordFields.ofList
         [ "text", DString m.Value
           "range", range m.Index (m.Index + m.Length)
           "captures", Dval.list optionCaptureKT captures

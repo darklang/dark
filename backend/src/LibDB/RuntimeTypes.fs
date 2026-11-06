@@ -237,7 +237,8 @@ module Bytes =
         rest |> List.fold go acc
       | RT.DDict(_, _, entries) ->
         entries |> RT.DictMap.fold (fun acc k v -> go (go acc k) v) acc
-      | RT.DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.fold go acc
+      | RT.DRecord(_, _, _, fields) ->
+        fields |> RT.RecordFields.fold (fun acc _ v -> go acc v) acc
       | RT.DEnum(_, _, _, _, fields) -> fields |> List.fold go acc
     go Set.empty dv
 

@@ -54,10 +54,10 @@ module PackageLocation =
 
   let toDT (loc : PT.PackageLocation) : Dval =
     let fields =
-      Map.empty
-      |> Map.add "owner" (DString loc.owner)
-      |> Map.add "modules" (DList(VT.string, List.map DString loc.modules))
-      |> Map.add "name" (DString loc.name)
+      RecordFields.ofList
+        [ "owner", DString loc.owner
+          "modules", DList(VT.string, List.map DString loc.modules)
+          "name", DString loc.name ]
     DRecord(typeName (), typeName (), [], fields)
 
   let fromDT (d : Dval) : PT.PackageLocation =
@@ -87,7 +87,7 @@ module ResolvedName =
       typeName (),
       typeName (),
       [ VT.known nameValueType ],
-      (Map.empty |> Map.add "name" (name) |> Map.add "location" (location))
+      (RecordFields.ofList [ "name", name; "location", location ])
     )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.ResolvedName<'a> =
@@ -161,9 +161,7 @@ module FQFnName =
 
     let toDT (u : PT.FQFnName.Builtin) : Dval =
       let fields =
-        Map.empty
-        |> Map.add "name" (DString u.name)
-        |> Map.add "version" (DInt32 u.version)
+        RecordFields.ofList [ "name", DString u.name; "version", DInt32 u.version ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.FQFnName.Builtin =
@@ -212,7 +210,7 @@ module FQFnName =
         typeName (),
         typeName (),
         [],
-        Map
+        RecordFields.ofList
           [ "param", DString b.param
             "trait_", FQTraitName.Package.toDT b.trait_
             "method_", DString b.method_
@@ -223,16 +221,19 @@ module FQFnName =
       match d with
       | DRecord(_, _, _, fields) ->
         { param =
-            match Map.find "param" fields with
+            match RecordFields.tryFind "param" fields with
             | Some(DString p) -> p
             | _ -> Exception.raiseInternal "Invalid BoundImpl.param" []
           trait_ =
-            FQTraitName.Package.fromDT (Map.find "trait_" fields |> Option.get)
+            FQTraitName.Package.fromDT (
+              RecordFields.tryFind "trait_" fields |> Option.get
+            )
           method_ =
-            match Map.find "method_" fields with
+            match RecordFields.tryFind "method_" fields with
             | Some(DString m) -> m
             | _ -> Exception.raiseInternal "Invalid BoundImpl.method_" []
-          choice = ImplChoice.fromDT (Map.find "choice" fields |> Option.get) }
+          choice =
+            ImplChoice.fromDT (RecordFields.tryFind "choice" fields |> Option.get) }
       | _ -> Exception.raiseInternal "Invalid FQFnName.BoundImpl" []
 
   module TraitMethod =
@@ -242,22 +243,25 @@ module FQFnName =
 
     let toDT (u : PT.FQFnName.TraitMethod) : Dval =
       let fields =
-        Map.empty
-        |> Map.add "trait_" (FQTraitName.Package.toDT u.trait_)
-        |> Map.add "method_" (DString u.method_)
-        |> Map.add "implFn" (ImplChoice.toDT u.implFn)
+        RecordFields.ofList
+          [ "trait_", FQTraitName.Package.toDT u.trait_
+            "method_", DString u.method_
+            "implFn", ImplChoice.toDT u.implFn ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.FQFnName.TraitMethod =
       match d with
       | DRecord(_, _, _, fields) ->
         { trait_ =
-            FQTraitName.Package.fromDT (Map.find "trait_" fields |> Option.get)
+            FQTraitName.Package.fromDT (
+              RecordFields.tryFind "trait_" fields |> Option.get
+            )
           method_ =
-            match Map.find "method_" fields with
+            match RecordFields.tryFind "method_" fields with
             | Some(DString m) -> m
             | _ -> Exception.raiseInternal "Invalid TraitMethod.method_" []
-          implFn = ImplChoice.fromDT (Map.find "implFn" fields |> Option.get) }
+          implFn =
+            ImplChoice.fromDT (RecordFields.tryFind "implFn" fields |> Option.get) }
       | _ -> Exception.raiseInternal "Invalid FQFnName.TraitMethod" []
 
 
@@ -290,9 +294,7 @@ module FQValueName =
         PackageRefs.Type.LanguageTools.ProgramTypes.FQValueName.builtin
     let toDT (u : PT.FQValueName.Builtin) : Dval =
       let fields =
-        Map.empty
-        |> Map.add "name" (DString u.name)
-        |> Map.add "version" (DInt32 u.version)
+        RecordFields.ofList [ "name", DString u.name; "version", DInt32 u.version ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.FQValueName.Builtin =
@@ -364,9 +366,7 @@ module NameResolution =
       typeName (),
       typeName (),
       [ VT.known nameValueType ],
-      (Map.empty
-       |> Map.add "originalName" (originalName)
-       |> Map.add "resolved" (resolved))
+      (RecordFields.ofList [ "originalName", originalName; "resolved", resolved ])
     )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
@@ -1023,7 +1023,7 @@ module Expr =
               matchCaseTypeName,
               matchCaseTypeName,
               [],
-              Map
+              RecordFields.ofList
                 [ ("pat", pattern)
                   ("whenCondition", whenCondition)
                   ("rhs", expr) ]
@@ -1226,10 +1226,12 @@ module Expr =
           match case with
           | DRecord(_, _, _, fields) ->
             let whenCondition =
-              match Map.tryFind "whenCondition" fields with
+              match RecordFields.tryFind "whenCondition" fields with
               | Some dval -> C2DT.Option.fromDT fromDT dval
               | None -> None
-            match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
+            match
+              RecordFields.tryFind "pat" fields, RecordFields.tryFind "rhs" fields
+            with
             | Some pat, Some rhs ->
               [ { pat = MatchPattern.fromDT pat
                   whenCondition = whenCondition
@@ -1351,7 +1353,7 @@ module TraitRef =
       typeName (),
       typeName (),
       [],
-      Map
+      RecordFields.ofList
         [ "trait_",
           NameResolution.toDT (FQTraitName.knownType ()) FQTraitName.toDT t.trait_
           "typeArgs",
@@ -1378,9 +1380,8 @@ module Bound =
       typeName (),
       typeName (),
       [],
-      (Map.empty
-       |> Map.add "param" (DString b.param)
-       |> Map.add "trait_" (TraitRef.toDT b.trait_))
+      (RecordFields.ofList
+        [ "param", DString b.param; "trait_", TraitRef.toDT b.trait_ ])
     )
 
   let fromDT (d : Dval) : PT.Bound =
@@ -1407,10 +1408,10 @@ module TypeDeclaration =
 
     let toDT (rf : PT.TypeDeclaration.RecordField) : Dval =
       let fields =
-        Map.empty
-        |> Map.add "name" (DString rf.name)
-        |> Map.add "typ" (TypeReference.toDT rf.typ)
-        |> Map.add "description" (DString rf.description)
+        RecordFields.ofList
+          [ "name", DString rf.name
+            "typ", TypeReference.toDT rf.typ
+            "description", DString rf.description ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
@@ -1429,10 +1430,10 @@ module TypeDeclaration =
 
     let toDT (ef : PT.TypeDeclaration.EnumField) : Dval =
       let fields =
-        Map.empty
-        |> Map.add "typ" (TypeReference.toDT ef.typ)
-        |> Map.add "label" (ef.label |> Option.map DString |> Dval.option KTString)
-        |> Map.add "description" (DString ef.description)
+        RecordFields.ofList
+          [ "typ", TypeReference.toDT ef.typ
+            "label", ef.label |> Option.map DString |> Dval.option KTString
+            "description", DString ef.description ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =
@@ -1440,7 +1441,7 @@ module TypeDeclaration =
       | DRecord(_, _, _, fields) ->
         { typ = fields |> D.field "typ" |> TypeReference.fromDT
           label =
-            match Map.get "label" fields with
+            match RecordFields.tryFind "label" fields with
             | Some dval ->
               match C2DT.Option.fromDT (fun d -> d) dval with
               | Some(DString s) -> Some s
@@ -1459,15 +1460,14 @@ module TypeDeclaration =
 
     let toDT (ec : PT.TypeDeclaration.EnumCase) : Dval =
       let fields =
-        Map.empty
-        |> Map.add "name" (DString ec.name)
-        |> Map.add
-          "fields"
-          (DList(
-            VT.known (EnumField.knownType ()),
-            List.map EnumField.toDT ec.fields
-          ))
-        |> Map.add "description" (DString ec.description)
+        RecordFields.ofList
+          [ "name", DString ec.name
+            "fields",
+            (DList(
+              VT.known (EnumField.knownType ()),
+              List.map EnumField.toDT ec.fields
+            ))
+            "description", DString ec.description ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
@@ -1525,10 +1525,10 @@ module TypeDeclaration =
 
   let toDT (td : PT.TypeDeclaration.T) : Dval =
     let fields =
-      Map.empty
-      |> Map.add "typeParams" (DList(VT.string, List.map DString td.typeParams))
-      |> Map.add "bounds" (Bound.listToDT td.bounds)
-      |> Map.add "definition" (Definition.toDT td.definition)
+      RecordFields.ofList
+        [ "typeParams", DList(VT.string, List.map DString td.typeParams)
+          "bounds", Bound.listToDT td.bounds
+          "definition", Definition.toDT td.definition ]
     DRecord(typeName (), typeName (), [], fields)
 
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
@@ -1549,10 +1549,10 @@ module PackageType =
 
   let toDT (p : PT.PackageType.PackageType) : Dval =
     let fields =
-      Map.empty
-      |> Map.add "hash" (Hash.toDT p.hash)
-      |> Map.add "declaration" (TypeDeclaration.toDT p.declaration)
-      |> Map.add "description" (DString p.description)
+      RecordFields.ofList
+        [ "hash", Hash.toDT p.hash
+          "declaration", TypeDeclaration.toDT p.declaration
+          "description", DString p.description ]
     DRecord(typeName (), typeName (), [], fields)
 
 
@@ -1572,10 +1572,10 @@ module PackageValue =
 
   let toDT (p : PT.PackageValue.PackageValue) : Dval =
     let fields =
-      Map.empty
-      |> Map.add "hash" (Hash.toDT p.hash)
-      |> Map.add "body" (Expr.toDT p.body)
-      |> Map.add "description" (DString p.description)
+      RecordFields.ofList
+        [ "hash", Hash.toDT p.hash
+          "body", Expr.toDT p.body
+          "description", DString p.description ]
     DRecord(typeName (), typeName (), [], fields)
 
   let fromDT (d : Dval) : PT.PackageValue.PackageValue =
@@ -1601,7 +1601,7 @@ module PackageFn =
         [ "name", DString p.name
           "typ", TypeReference.toDT p.typ
           "description", DString p.description ]
-      DRecord(typeName (), typeName (), [], Map fields)
+      DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
 
 
     let fromDT (d : Dval) : PT.PackageFn.Parameter =
@@ -1636,7 +1636,7 @@ module PackageFn =
          |> Dval.option (Effects2DT.knownType ()))
         ("bounds", Bound.listToDT p.bounds) ]
 
-    DRecord(typeName (), typeName (), [], Map fields)
+    DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
 
 
   let fromDT (d : Dval) : PT.PackageFn.PackageFn =
@@ -1695,7 +1695,7 @@ module PackageTest =
         test.expectedError
         |> Option.map ExpectedError.toDT
         |> Dval.option (ExpectedError.knownType ()) ]
-    DRecord(typeName (), typeName (), [], Map fields)
+    DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
 
   let fromDT (d : Dval) : PT.PackageTest.PackageTest =
     match d with
@@ -1733,7 +1733,7 @@ module Trait =
           |> Option.map Effects2DT.toDT
           |> Dval.option (Effects2DT.knownType ())
           "description", DString m.description ]
-      DRecord(typeName (), typeName (), [], Map fields)
+      DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
 
     let fromDT (d : Dval) : PT.Trait.Method =
       match d with
@@ -1760,19 +1760,17 @@ module Trait =
 
   let toDT (t : PT.Trait.Trait) : Dval =
     let fields =
-      Map.empty
-      |> Map.add "hash" (Hash.toDT t.hash)
-      |> Map.add
-        "typeParams"
-        (DList(VT.string, t.typeParams |> NEList.toList |> List.map DString))
-      |> Map.add "bounds" (Bound.listToDT t.bounds)
-      |> Map.add
-        "methods"
-        (DList(
-          VT.known (Method.knownType ()),
-          t.methods |> NEList.toList |> List.map Method.toDT
-        ))
-      |> Map.add "description" (DString t.description)
+      RecordFields.ofList
+        [ "hash", Hash.toDT t.hash
+          "typeParams",
+          DList(VT.string, t.typeParams |> NEList.toList |> List.map DString)
+          "bounds", Bound.listToDT t.bounds
+          "methods",
+          (DList(
+            VT.known (Method.knownType ()),
+            t.methods |> NEList.toList |> List.map Method.toDT
+          ))
+          "description", DString t.description ]
     DRecord(typeName (), typeName (), [], fields)
 
   let fromDT (d : Dval) : PT.Trait.Trait =
@@ -1801,44 +1799,41 @@ module TraitImpl =
 
   let toDT (i : PT.TraitImpl.TraitImpl) : Dval =
     let fields =
-      Map.empty
-      |> Map.add "hash" (Hash.toDT i.hash)
-      |> Map.add
-        "trait_"
-        (NameResolution.toDT (FQTraitName.knownType ()) FQTraitName.toDT i.trait_)
-      |> Map.add
-        "traitTypeArgs"
-        (DList(
-          VT.known (TypeReference.knownType ()),
-          List.map TypeReference.toDT i.traitTypeArgs
-        ))
-      |> Map.add "self" (TypeReference.toDT i.self)
-      |> Map.add "typeParams" (DList(VT.string, List.map DString i.typeParams))
-      |> Map.add "bounds" (Bound.listToDT i.bounds)
-      |> Map.add
-        "methods"
-        (DList(
-          VT.known (
-            KTTuple(
-              VT.string,
-              VT.known (
-                KTCustomType(
-                  NameResolution.typeName (),
-                  [ VT.known (FQFnName.knownType ()) ]
-                )
-              ),
-              []
-            )
-          ),
-          i.methods
-          |> List.map (fun (m, nr) ->
-            DTuple(
-              DString m,
-              NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT nr,
-              []
-            ))
-        ))
-      |> Map.add "description" (DString i.description)
+      RecordFields.ofList
+        [ "hash", Hash.toDT i.hash
+          "trait_",
+          NameResolution.toDT (FQTraitName.knownType ()) FQTraitName.toDT i.trait_
+          "traitTypeArgs",
+          (DList(
+            VT.known (TypeReference.knownType ()),
+            List.map TypeReference.toDT i.traitTypeArgs
+          ))
+          "self", TypeReference.toDT i.self
+          "typeParams", DList(VT.string, List.map DString i.typeParams)
+          "bounds", Bound.listToDT i.bounds
+          "methods",
+          (DList(
+            VT.known (
+              KTTuple(
+                VT.string,
+                VT.known (
+                  KTCustomType(
+                    NameResolution.typeName (),
+                    [ VT.known (FQFnName.knownType ()) ]
+                  )
+                ),
+                []
+              )
+            ),
+            i.methods
+            |> List.map (fun (m, nr) ->
+              DTuple(
+                DString m,
+                NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT nr,
+                []
+              ))
+          ))
+          "description", DString i.description ]
     DRecord(typeName (), typeName (), [], fields)
 
   let fromDT (d : Dval) : PT.TraitImpl.TraitImpl =
@@ -1976,10 +1971,10 @@ module PropagateRepoint =
 
   let toDT (r : PT.PropagateRepoint) : Dval =
     let fields =
-      Map.empty
-      |> Map.add "location" (PackageLocation.toDT r.location)
-      |> Map.add "fromRef" (Reference.toDT r.fromRef)
-      |> Map.add "toRef" (Reference.toDT r.toRef)
+      RecordFields.ofList
+        [ "location", PackageLocation.toDT r.location
+          "fromRef", Reference.toDT r.fromRef
+          "toRef", Reference.toDT r.toRef ]
     DRecord(typeName (), typeName (), [], fields)
 
   let fromDT (d : Dval) : PT.PropagateRepoint =
@@ -2003,9 +1998,9 @@ module LocatedItem =
     (i : PT.LocatedItem<'T>)
     : Dval =
     let fields =
-      Map.empty
-      |> Map.add "entity" (entityToDT i.entity)
-      |> Map.add "location" (PackageLocation.toDT i.location)
+      RecordFields.ofList
+        [ "entity", entityToDT i.entity
+          "location", PackageLocation.toDT i.location ]
     DRecord(typeName (), typeName (), [ VT.known entityKT ], fields)
 
   let fromDT (entityFromDT : Dval -> 'T) (d : Dval) : PT.LocatedItem<'T> =
@@ -2071,19 +2066,16 @@ module Search =
 
     let toDT (sq : PT.Search.SearchQuery) : Dval =
       let fields =
-        Map.empty
-        |> Map.add
-          "currentModule"
-          (DList(VT.string, List.map DString sq.currentModule))
-        |> Map.add "text" (DString sq.text)
-        |> Map.add "searchDepth" (SearchDepth.toDT sq.searchDepth)
-        |> Map.add
-          "entityTypes"
-          (DList(
-            VT.known (KTCustomType(EntityType.typeName (), [])),
-            sq.entityTypes |> List.map EntityType.toDT
-          ))
-        |> Map.add "exactMatch" (DBool sq.exactMatch)
+        RecordFields.ofList
+          [ "currentModule", DList(VT.string, List.map DString sq.currentModule)
+            "text", DString sq.text
+            "searchDepth", SearchDepth.toDT sq.searchDepth
+            "entityTypes",
+            (DList(
+              VT.known (KTCustomType(EntityType.typeName (), [])),
+              sq.entityTypes |> List.map EntityType.toDT
+            ))
+            "exactMatch", DBool sq.exactMatch ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.Search.SearchQuery =
@@ -2110,43 +2102,36 @@ module Search =
       let fnKT = KTCustomType(PackageFn.typeName (), [])
       let testKT = KTCustomType(PackageTest.typeName (), [])
       let fields =
-        Map.empty
-        |> Map.add
-          "submodules"
-          (sr.submodules
-           |> List.map (fun modules ->
-             modules |> List.map (fun m -> DString m) |> Dval.list KTString)
-           |> Dval.list (KTList VT.string))
-        |> Map.add
-          "types"
-          (sr.types
-           |> List.map (LocatedItem.toDT typeKT PackageType.toDT)
-           |> Dval.list (LocatedItem.knownType typeKT))
-        |> Map.add
-          "values"
-          (sr.values
-           |> List.map (LocatedItem.toDT valueKT PackageValue.toDT)
-           |> Dval.list (LocatedItem.knownType valueKT))
-        |> Map.add
-          "fns"
-          (sr.fns
-           |> List.map (LocatedItem.toDT fnKT PackageFn.toDT)
-           |> Dval.list (LocatedItem.knownType fnKT))
-        |> Map.add
-          "traits"
-          (sr.traits
-           |> List.map (LocatedItem.toDT (Trait.knownType ()) Trait.toDT)
-           |> Dval.list (LocatedItem.knownType (Trait.knownType ())))
-        |> Map.add
-          "impls"
-          (sr.impls
-           |> List.map (LocatedItem.toDT (TraitImpl.knownType ()) TraitImpl.toDT)
-           |> Dval.list (LocatedItem.knownType (TraitImpl.knownType ())))
-        |> Map.add
-          "tests"
-          (sr.tests
-           |> List.map (LocatedItem.toDT testKT PackageTest.toDT)
-           |> Dval.list (LocatedItem.knownType testKT))
+        RecordFields.ofList
+          [ "submodules",
+            (sr.submodules
+             |> List.map (fun modules ->
+               modules |> List.map (fun m -> DString m) |> Dval.list KTString)
+             |> Dval.list (KTList VT.string))
+            "types",
+            (sr.types
+             |> List.map (LocatedItem.toDT typeKT PackageType.toDT)
+             |> Dval.list (LocatedItem.knownType typeKT))
+            "values",
+            (sr.values
+             |> List.map (LocatedItem.toDT valueKT PackageValue.toDT)
+             |> Dval.list (LocatedItem.knownType valueKT))
+            "fns",
+            (sr.fns
+             |> List.map (LocatedItem.toDT fnKT PackageFn.toDT)
+             |> Dval.list (LocatedItem.knownType fnKT))
+            "traits",
+            (sr.traits
+             |> List.map (LocatedItem.toDT (Trait.knownType ()) Trait.toDT)
+             |> Dval.list (LocatedItem.knownType (Trait.knownType ())))
+            "impls",
+            (sr.impls
+             |> List.map (LocatedItem.toDT (TraitImpl.knownType ()) TraitImpl.toDT)
+             |> Dval.list (LocatedItem.knownType (TraitImpl.knownType ())))
+            "tests",
+            (sr.tests
+             |> List.map (LocatedItem.toDT testKT PackageTest.toDT)
+             |> Dval.list (LocatedItem.knownType testKT)) ]
       DRecord(typeName (), typeName (), [], fields)
 
     let fromDT (d : Dval) : PT.Search.SearchResults =
@@ -2250,7 +2235,7 @@ module ReferenceNamesSnapshot =
       name,
       name,
       [],
-      Map.ofList
+      RecordFields.ofList
         [ "location", PackageLocation.toDT snapshot.location
           "target", Reference.toDT snapshot.target
           "names", namesToDT snapshot.names
@@ -2262,13 +2247,13 @@ module ReferenceNamesSnapshot =
     | DRecord(_, _, _, fields) ->
       { location =
           PackageLocation.fromDT (
-            Microsoft.FSharp.Collections.Map.find "location" fields
+            (RecordFields.tryFind "location" fields |> Option.get)
           )
         target =
-          Reference.fromDT (Microsoft.FSharp.Collections.Map.find "target" fields)
-        names = namesFromDT (Microsoft.FSharp.Collections.Map.find "names" fields)
+          Reference.fromDT ((RecordFields.tryFind "target" fields |> Option.get))
+        names = namesFromDT ((RecordFields.tryFind "names" fields |> Option.get))
         restating =
-          match Microsoft.FSharp.Collections.Map.find "restating" fields with
+          match (RecordFields.tryFind "restating" fields |> Option.get) with
           | DEnum(_, _, _, "Some", [ DString stamp ]) -> Some stamp
           | DEnum(_, _, _, "None", []) -> None
           | value ->

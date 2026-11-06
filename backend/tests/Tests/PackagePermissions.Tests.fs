@@ -190,7 +190,8 @@ module ValueReferences =
       typeName,
       typeName,
       [],
-      Map.ofList [ "reset", RT.DString "\u001b[0m"; "red", RT.DString "\u001b[31m" ]
+      RT.RecordFields.ofList
+        [ "reset", RT.DString "\u001b[0m"; "red", RT.DString "\u001b[31m" ]
     )
 
   /// A list in a record in an enum: data, three levels down.
@@ -204,7 +205,7 @@ module ValueReferences =
           typeName,
           typeName,
           [],
-          Map.ofList
+          RT.RecordFields.ofList
             [ "names",
               RT.DList(RT.ValueType.Unknown, [ RT.DString "a"; RT.DString "b" ]) ]
         ) ]
@@ -221,7 +222,7 @@ module ValueReferences =
           typeName,
           typeName,
           [],
-          Map.ofList
+          RT.RecordFields.ofList
             [ "names", RT.DList(RT.ValueType.Unknown, [ RT.DString "a"; namedFn ]) ]
         ) ]
     )

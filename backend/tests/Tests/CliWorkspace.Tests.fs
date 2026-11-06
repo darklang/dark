@@ -1028,7 +1028,7 @@ let private viewFollowsEdits =
         match session with
         | RT.DRecord(_, _, _, fields) ->
           Expect.equal
-            (Map.find "exiting" fields)
+            (RT.RecordFields.tryFind "exiting" fields)
             (Some(RT.DBool true))
             "Escape ends the loop"
         | other -> failtest $"expected a session, got {other}"
@@ -1251,7 +1251,7 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         let hashOf (lg : RT.Dval) =
           match lg with
           | RT.DRecord(_, _, _, fields) ->
-            Map.tryFind "hash" fields
+            RT.RecordFields.tryFind "hash" fields
             |> Option.defaultWith (fun () -> failtest "a LastGood has a hash")
           | other -> failtest $"expected a LastGood, got {other}"
         let good = hashOf lg
@@ -1762,7 +1762,7 @@ let private observeAndShow =
         match shown with
         | RT.DEnum(_, _, _, "Some", [ RT.DRecord(_, _, _, fields) ]) ->
           Expect.equal
-            (Map.tryFind "name" fields)
+            (RT.RecordFields.tryFind "name" fields)
             (Some(RT.DString "LiveObs"))
             "shown reads back"
         | other -> failtest $"expected the shown view, got {other}"

@@ -38,7 +38,7 @@ let private builtinValueToDT (name : FQValueName.Builtin) (data : BuiltInValue) 
     [ "name", RT2DT.FQValueName.Builtin.toDT name
       "description", DString data.description
       "type", RT2DT.TypeReference.toDT data.typ ]
-  DRecord(builtinValue (), builtinValue (), [], Map fields)
+  DRecord(builtinValue (), builtinValue (), [], RecordFields.ofList fields)
 
 let private builtinFnToDT (name : FQFnName.Builtin) (data : BuiltInFn) =
   let parameters =
@@ -46,7 +46,7 @@ let private builtinFnToDT (name : FQFnName.Builtin) (data : BuiltInFn) =
     |> List.map (fun p ->
       let fields =
         [ "name", DString p.name; "type", RT2DT.TypeReference.toDT p.typ ]
-      DRecord(builtinFnParam (), builtinFnParam (), [], Map fields))
+      DRecord(builtinFnParam (), builtinFnParam (), [], RecordFields.ofList fields))
     |> Dval.list (KTCustomType(builtinFnParam (), []))
   let fields =
     [ "name", RT2DT.FQFnName.Builtin.toDT name
@@ -55,7 +55,7 @@ let private builtinFnToDT (name : FQFnName.Builtin) (data : BuiltInFn) =
       "parameters", parameters
       "returnType", RT2DT.TypeReference.toDT data.returnType
       "purity", purityToDT data.previewable ]
-  DRecord(builtinFn (), builtinFn (), [], Map fields)
+  DRecord(builtinFn (), builtinFn (), [], RecordFields.ofList fields)
 
 // Impure though they perform nothing: the builtin table is this binary's, so another release
 // answers differently.

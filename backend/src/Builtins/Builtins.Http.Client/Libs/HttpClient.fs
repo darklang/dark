@@ -191,7 +191,7 @@ let private guestRequest
             [ ("statusCode", Dval.dint64 (int64 response.statusCode))
               ("headers", headersToDval response.headers)
               ("body", Bytes.newEphemeral response.body) ]
-          Ply(resultOk (DRecord(typ, typ, [], Map fields))))
+          Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields))))
 
 let private responseResultType =
   TypeReference.result
@@ -357,7 +357,7 @@ let fns () : List<BuiltInFn> =
                     [ ("statusCode", Dval.dint64 (int64 head.statusCode))
                       ("headers", headersToDval head.headers)
                       ("body", body) ]
-                  Ply(resultOk (DRecord(typ, typ, [], Map fields))))
+                  Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields))))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Http ]

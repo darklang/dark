@@ -1625,6 +1625,10 @@ module DvalCreator =
   /// One field of a record being constructed: validate it, unify it against the declared field
   /// type, and fold what that taught us back into the type arguments and the symbol table.
   ///
+  /// `entries` are the fields in source order from `i` on, and sorted by name before it: each is
+  /// moved into place as it is checked, so the errors come in source order and the array is the
+  /// record's once the last field is in.
+  ///
   /// Top-level and fully parameterised, threading its accumulators as arguments rather than as a
   /// tuple. As a lambda passed to `Ply.List.foldSequentially` it allocated a closure, a state
   /// machine and a three-element accumulator tuple *per field of every record ever built*.
@@ -1632,20 +1636,21 @@ module DvalCreator =
     (types : Types)
     (threadID : ThreadID)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
-    (remaining : List<string * Dval>)
-    (fieldsSoFar : Map<string, Dval>)
+    (entries : (struct (string * Dval))[])
+    (i : int)
     (currentTypeArgs : List<string * ValueType>)
     (tst : TypeSymbolTable)
-    : Ply<struct (Map<string, Dval> * List<string * ValueType> * TypeSymbolTable)> =
-    match remaining with
-    | [] -> Ply(struct (fieldsSoFar, currentTypeArgs, tst))
-    | (fieldName, fieldValue) :: rest ->
+    : Ply<struct (List<string * ValueType> * TypeSymbolTable)> =
+    if i = entries.Length then
+      Ply(struct (currentTypeArgs, tst))
+    else
+      let struct (fieldName, fieldValue) = entries[i]
       // The validations and the lookup are synchronous, so they happen before the builder rather
       // than inside it.
       if fieldName = "" then
         RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
 
-      if Map.containsKey fieldName fieldsSoFar then
+      if not (RecordFields.insertSorted entries i) then
         RTE.Records.CreationDuplicateField fieldName
         |> RTE.Record
         |> raiseRTE threadID
@@ -1681,8 +1686,8 @@ module DvalCreator =
             types
             threadID
             expectedFields
-            rest
-            (Map.add fieldName fieldValue fieldsSoFar)
+            entries
+            (i + 1)
             newTypeArgs
             newTST
         | ValueNone ->
@@ -1744,8 +1749,8 @@ module DvalCreator =
                   types
                   threadID
                   expectedFields
-                  rest
-                  (Map.add fieldName fieldValue fieldsSoFar)
+                  entries
+                  (i + 1)
                   newTypeArgs
                   newTST
           }
@@ -1763,10 +1768,13 @@ module DvalCreator =
     (threadID : ThreadID)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
     (remaining : List<string * Dval>)
-    (fieldsSoFar : Map<string, Dval>)
+    (fieldsSoFar : (struct (string * Dval))[])
     (currentTypeArgs : List<string * ValueType>)
     (tst : TypeSymbolTable)
-    : Ply<struct (Map<string, Dval> * List<string * ValueType> * TypeSymbolTable)> =
+    : Ply<struct ((struct (string * Dval))[] *
+      List<string * ValueType> *
+      TypeSymbolTable)>
+    =
     match remaining with
     | [] -> Ply(struct (fieldsSoFar, currentTypeArgs, tst))
     | (fieldName, fieldValue) :: rest ->
@@ -1807,7 +1815,7 @@ module DvalCreator =
             threadID
             expectedFields
             rest
-            (Map.add fieldName fieldValue fieldsSoFar)
+            (RecordFields.set fieldName fieldValue fieldsSoFar)
             newTypeArgs
             newTST
         | ValueNone ->
@@ -1869,7 +1877,7 @@ module DvalCreator =
                   threadID
                   expectedFields
                   rest
-                  (Map.add fieldName fieldValue fieldsSoFar)
+                  (RecordFields.set fieldName fieldValue fieldsSoFar)
                   newTypeArgs
                   newTST
           }
@@ -1884,24 +1892,29 @@ module DvalCreator =
     (sourceTypeName : FQTypeName.FQTypeName)
     (resolvedTypeName : FQTypeName.FQTypeName)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
-    (processedFields : Map<string, Dval>)
+    (entries : (struct (string * Dval))[])
     (finalTypeArgs : List<string * ValueType>)
     : Dval =
-    match
-      expectedFields
-      |> NEList.find (fun f -> not (Map.containsKey f.name processedFields))
-    with
-    | Some missingField ->
-      RTE.Records.CreationMissingField missingField.name
-      |> RTE.Record
-      |> raiseRTE threadID
-    | None ->
+    // Every field given is a declared one and none is given twice, so none is missing exactly
+    // when there are as many as were declared.
+    if entries.Length = NEList.length expectedFields then
       DRecord(
         sourceTypeName,
         resolvedTypeName,
         finalTypeArgs |> List.map Tuple2.second,
-        processedFields
+        RecordFields entries
       )
+    else
+      match
+        expectedFields
+        |> NEList.find (fun f -> RecordFields.indexOf entries f.name < 0)
+      with
+      | Some missing ->
+        RTE.Records.CreationMissingField missing.name
+        |> RTE.Record
+        |> raiseRTE threadID
+      | None ->
+        Exception.raiseInternal "A record had more fields than its type declares" []
 
   /// The half of record construction after the type is known. Top-level, taking everything
   /// explicitly, for the same reason as `enumAfterResolve`.
@@ -1910,7 +1923,7 @@ module DvalCreator =
     (threadID : ThreadID)
     (tst : TypeSymbolTable)
     (sourceTypeName : FQTypeName.FQTypeName)
-    (fields : List<string * Dval>)
+    (fields : (struct (string * Dval))[])
     (resolvedTypeName : FQTypeName.FQTypeName)
     (resolvedTypeArgs : List<string * ValueType>)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
@@ -1919,51 +1932,56 @@ module DvalCreator =
       resolvedTypeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
 
     let checked' =
-      checkRecordFields
-        types
-        threadID
-        expectedFields
-        fields
-        Map.empty
-        resolvedTypeArgs
-        tst
+      checkRecordFields types threadID expectedFields fields 0 resolvedTypeArgs tst
 
     match Ply.trySync checked' with
-    | ValueSome(struct (processedFields, finalTypeArgs, _updatedTST)) ->
+    | ValueSome(struct (finalTypeArgs, _updatedTST)) ->
       Ply(
         finishRecord
           threadID
           sourceTypeName
           resolvedTypeName
           expectedFields
-          processedFields
+          fields
           finalTypeArgs
       )
     | ValueNone ->
       uply {
-        let! struct (processedFields, finalTypeArgs, _updatedTST) = checked'
+        let! struct (finalTypeArgs, _updatedTST) = checked'
         return
           finishRecord
             threadID
             sourceTypeName
             resolvedTypeName
             expectedFields
-            processedFields
+            fields
             finalTypeArgs
       }
 
+  let rec private holdsRead (fields : (struct (string * Dval))[]) (i : int) : bool =
+    if i = fields.Length then
+      false
+    else
+      let struct (_, v) = fields[i]
+      Pending.isPromise v || holdsRead fields (i + 1)
+
+  /// `fields` in source order, which become the record's own: they are sorted in place, so the
+  /// caller hands over an array it will not use again.
   let rec record
     (types : Types)
     (threadID : ThreadID)
     (tst : TypeSymbolTable)
     (sourceTypeName : FQTypeName.FQTypeName)
     (typeArgs : List<ValueType>)
-    (fields : List<string * Dval>)
+    (fields : (struct (string * Dval))[])
     : Ply<Dval> =
-    if List.exists (fun (_, v) -> Pending.isPromise v) fields then
+    if holdsRead fields 0 then
+      // `recordNow` sorts `fields`, so the check once the reads land runs over a copy taken
+      // first, and reports in source order too.
+      let source = Array.copy fields
       let again _ =
-        fields
-        |> List.map (fun (n, v) -> (n, Pending.settled v))
+        source
+        |> Array.map (fun (struct (n, v)) -> struct (n, Pending.settled v))
         |> record types threadID tst sourceTypeName typeArgs
       recordNow types threadID tst sourceTypeName typeArgs fields
       |> Ply.map (Pending.built again)
@@ -1976,7 +1994,7 @@ module DvalCreator =
     (tst : TypeSymbolTable)
     (sourceTypeName : FQTypeName.FQTypeName)
     (typeArgs : List<ValueType>)
-    (fields : List<string * Dval>)
+    (fields : (struct (string * Dval))[])
     : Ply<Dval> =
     // Same reasoning as `enum`: the type cache is warm and most fields unify without the store, so
     // reading both with `trySync` keeps the common construction out of a builder. The slow paths
@@ -2021,7 +2039,7 @@ module DvalCreator =
     (sourceTypeName : FQTypeName.FQTypeName)
     (resolvedTypeName : FQTypeName.FQTypeName)
     (typeArgsBeforeUpdate : List<ValueType>)
-    (currentFields : Map<string, Dval>)
+    (currentFields : RecordFields)
     (fieldUpdates : List<string * Dval>)
     (resolvedTypeArgs : List<string * ValueType>)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
@@ -2049,7 +2067,7 @@ module DvalCreator =
         threadID
         expectedFields
         fieldUpdates
-        currentFields
+        (Array.copy currentFields.Entries)
         resolvedTypeArgs
         tst
 
@@ -2060,7 +2078,7 @@ module DvalCreator =
           sourceTypeName,
           resolvedTypeName,
           finalTypeArgs |> List.map Tuple2.second,
-          updatedFields
+          RecordFields updatedFields
         )
       )
     | ValueNone ->
@@ -2071,7 +2089,7 @@ module DvalCreator =
             sourceTypeName,
             resolvedTypeName,
             finalTypeArgs |> List.map Tuple2.second,
-            updatedFields
+            RecordFields updatedFields
           )
       }
 
@@ -2082,24 +2100,28 @@ module DvalCreator =
     (sourceTypeName : FQTypeName.FQTypeName)
     (resolvedTypeName : FQTypeName.FQTypeName)
     (typeArgsBeforeUpdate : List<ValueType>)
-    (currentFields : Map<string, Dval>)
+    (currentFields : RecordFields)
     (fieldUpdates : List<string * Dval>)
     : Ply<Dval> =
     let holds (_, v) = Pending.isPromise v
     if
       List.exists holds fieldUpdates
-      || Map.exists (fun _ v -> Pending.isPromise v) currentFields
+      || RecordFields.exists Pending.isPromise currentFields
     then
       // Every field that was a read is checked again once landed, as an update.
       let reads =
-        Map.toList currentFields @ fieldUpdates |> List.filter holds |> List.map fst
+        RecordFields.toList currentFields @ fieldUpdates
+        |> List.filter holds
+        |> List.map fst
       let again _ =
-        let current = Map.map Pending.settled currentFields
+        let current = RecordFields.map Pending.settled currentFields
         let updates = fieldUpdates |> List.map (fun (n, v) -> (n, Pending.settled v))
-        let merged = updates |> List.fold (fun m (n, v) -> Map.add n v m) current
+        let merged =
+          updates |> List.fold (fun m (n, v) -> RecordFields.add n v m) current
         reads
         |> List.distinct
-        |> List.map (fun n -> (n, merged[n]))
+        |> List.choose (fun n ->
+          RecordFields.tryFind n merged |> Option.map (fun v -> (n, v)))
         |> recordUpdate
           types
           threadID
@@ -2136,7 +2158,7 @@ module DvalCreator =
     (sourceTypeName : FQTypeName.FQTypeName)
     (resolvedTypeName : FQTypeName.FQTypeName)
     (typeArgsBeforeUpdate : List<ValueType>)
-    (currentFields : Map<string, Dval>)
+    (currentFields : RecordFields)
     (fieldUpdates : List<string * Dval>)
     : Ply<Dval> =
     // As in `record` and `enum`: stay out of the builder when both lookups are already complete.

@@ -25,7 +25,7 @@ let private tref (f : unit -> string) : TypeReference = TCustomType(NR.ok (tn f)
 
 let private record (f : unit -> string) (fields : List<string * Dval>) : Dval =
   let name = tn f
-  DRecord(name, name, [], Map fields)
+  DRecord(name, name, [], RecordFields.ofList fields)
 
 let private enumCase
   (f : unit -> string)
@@ -41,12 +41,12 @@ let private strings (items : List<Dval>) : List<string> =
     | DString s -> s
     | other -> Exception.raiseInternal "expected a String" [ "got", other ])
 
-let private field (fields : DvalMap) (name : string) : Dval =
-  match Map.tryFind name fields with
+let private field (fields : RecordFields) (name : string) : Dval =
+  match RecordFields.tryFind name fields with
   | Some v -> v
   | None -> Exception.raiseInternal "missing field" [ "field", name ]
 
-let private str (fields : DvalMap) (name : string) : string =
+let private str (fields : RecordFields) (name : string) : string =
   match field fields name with
   | DString s -> s
   | other ->

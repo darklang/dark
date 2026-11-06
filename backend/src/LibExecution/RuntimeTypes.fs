@@ -994,7 +994,62 @@ and DebugSymbols =
   }
 
 
-and DvalMap = Map<string, Dval>
+/// A record's fields, sorted by name (`String.CompareOrdinal`) with no name twice. A
+/// record's fields are few and fixed by its type, so a sorted array is all it needs: reading
+/// one searches in place and allocates nothing, building one fills one array, and an update
+/// copies it once. Equality, hashing, ordering and serialization read the fields in name
+/// order. A struct, so it adds nothing to the `DRecord` that holds it.
+and [<Struct; CustomEquality; NoComparison>] RecordFields =
+  /// Never written to once the record is built.
+  val Entries : (struct (string * Dval))[]
+  /// `entries` must already be sorted by name with no name twice, which nothing checks, so
+  /// it is kept inside LibExecution. `RecordFields.ofList` and `ofArray` take any order.
+  internal new(entries) = { Entries = entries }
+
+  member this.Count = this.Entries.Length
+
+  member this.TryGetValue(name : string, value : byref<Dval>) : bool =
+    let i = RecordFields.indexOf this.Entries name
+    if i >= 0 then
+      let struct (_, v) = this.Entries[i]
+      value <- v
+      true
+    else
+      false
+
+  /// The index of `name` in `entries`, or the bitwise complement of where it would go.
+  static member indexOf
+    (entries : (struct (string * Dval))[])
+    (name : string)
+    : int =
+    let mutable lo = 0
+    let mutable hi = entries.Length - 1
+    let mutable found = -1
+    while found < 0 && lo <= hi do
+      let mid = lo + ((hi - lo) >>> 1)
+      let struct (n, _) = entries[mid]
+      let c = System.String.CompareOrdinal(n, name)
+      if c = 0 then found <- mid
+      elif c < 0 then lo <- mid + 1
+      else hi <- mid - 1
+    if found >= 0 then found else ~~~lo
+
+  override this.Equals(other : obj) : bool =
+    match other with
+    | :? RecordFields as other ->
+      let a = this.Entries
+      let b = other.Entries
+      a.Length = b.Length
+      && Array.forall2
+        (fun (struct (an : string, av : Dval)) (struct (bn, bv)) ->
+          an = bn && av = bv)
+        a
+        b
+    | _ -> false
+
+  override this.GetHashCode() : int =
+    this.Entries
+    |> Array.fold (fun acc (struct (n, v)) -> (acc * 31 + hash n) * 31 + hash v) 17
 
 /// How a dict key is ordered and hashed (`DictMap`). Both are structural and run
 /// inside the runtime, so they cannot call the interpreter or await a `Ply`. Nothing a
@@ -1069,10 +1124,9 @@ and DictKey private () =
         17
       |> combine
     | DRecord(_, tn, _, fields) ->
-      fields
-      |> Map.toList
-      |> List.fold
-        (fun acc (k, v) -> acc * 31 + hash k * 31 + DictKey.hash v)
+      fields.Entries
+      |> Array.fold
+        (fun acc (struct (k, v)) -> acc * 31 + hash k * 31 + DictKey.hash v)
         (hash tn)
       |> combine
     | DEnum(_, tn, _, caseName, fields) ->
@@ -1149,10 +1203,11 @@ and DvalOrdering private () =
       if c <> 0 then
         c
       else
-        DvalOrdering.compareEntries
-          mode
-          (Map.toList xFields |> List.map (fun (k, v) -> DString k, v))
-          (Map.toList yFields |> List.map (fun (k, v) -> DString k, v))
+        let entries (fields : RecordFields) =
+          fields.Entries
+          |> Array.map (fun (struct (k, v)) -> DString k, v)
+          |> List.ofArray
+        DvalOrdering.compareEntries mode (entries xFields) (entries yFields)
 
     | DEnum(_, xType, _, xCase, xFields), DEnum(_, yType, _, yCase, yFields) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
@@ -1520,7 +1575,7 @@ and [<NoComparison>] Dval =
     // What are we even using the source stuff for? error-reporting?
     // Could source stuff be erased in PT2RT, if we dealt with alias-resolution there?
     typeArgs : List<ValueType> *
-    fields : DvalMap
+    fields : RecordFields
 
   | DEnum of
     sourceTypeName : FQTypeName.FQTypeName *
@@ -2061,6 +2116,120 @@ module DictMap =
   let keys (d : DictMap) : List<Dval> = foldBack (fun k _ acc -> k :: acc) d []
 
   let values (d : DictMap) : List<Dval> = foldBack (fun _ v acc -> v :: acc) d []
+
+
+/// Building and reading a record's fields (`RecordFields`), keeping them sorted by name.
+module RecordFields =
+  let empty : RecordFields = RecordFields [||]
+
+  /// Moves `entries[i]` in among `entries[0..i-1]`, which are sorted by name, so that
+  /// `entries[0..i]` are. If its name is already there, returns false and moves nothing.
+  /// An insertion sort one step at a time: a record's fields are few, and arrive in
+  /// source order, which is usually close to sorted already.
+  let insertSorted (entries : (struct (string * Dval))[]) (i : int) : bool =
+    let item = entries[i]
+    let struct (name, _) = item
+    let mutable at = i
+    let mutable duplicate = false
+    let mutable searching = true
+    while searching && at > 0 do
+      let struct (n, _) = entries[at - 1]
+      let c = System.String.CompareOrdinal(n, name)
+      if c > 0 then
+        at <- at - 1
+      else
+        duplicate <- c = 0
+        searching <- false
+    if not duplicate && at < i then
+      Array.blit entries at entries (at + 1) (i - at)
+      entries[at] <- item
+    not duplicate
+
+  /// From fields in any order, sorting `entries` in place, so the caller hands over an array it
+  /// will not use again. A name given twice keeps the LAST value, as repeated `Map.add`s would.
+  let ofArray (entries : (struct (string * Dval))[]) : RecordFields =
+    let nameAt (i : int) : string =
+      let struct (n, _) = entries[i]
+      n
+    // A stable insertion sort: of two equal names the later stays later.
+    for i in 1 .. entries.Length - 1 do
+      let item = entries[i]
+      let struct (name, _) = item
+      let mutable j = i - 1
+      while j >= 0 && System.String.CompareOrdinal(nameAt j, name) > 0 do
+        entries[j + 1] <- entries[j]
+        j <- j - 1
+      entries[j + 1] <- item
+    let mutable kept = 0
+    for i in 0 .. entries.Length - 1 do
+      if i = entries.Length - 1 || nameAt i <> nameAt (i + 1) then
+        entries[kept] <- entries[i]
+        kept <- kept + 1
+    RecordFields(if kept = entries.Length then entries else Array.sub entries 0 kept)
+
+  let ofList (fields : List<string * Dval>) : RecordFields =
+    fields |> List.map (fun (n, v) -> struct (n, v)) |> Array.ofList |> ofArray
+
+  let count (fields : RecordFields) : int = fields.Entries.Length
+
+  let tryFind (name : string) (fields : RecordFields) : Option<Dval> =
+    let i = RecordFields.indexOf fields.Entries name
+    if i >= 0 then
+      let struct (_, v) = fields.Entries[i]
+      Some v
+    else
+      None
+
+  /// `value` written into `entries` in place if `name` is there; otherwise a new array
+  /// with it inserted.
+  let set
+    (name : string)
+    (value : Dval)
+    (entries : (struct (string * Dval))[])
+    : (struct (string * Dval))[] =
+    let i = RecordFields.indexOf entries name
+    if i >= 0 then
+      entries[i] <- struct (name, value)
+      entries
+    else
+      let at = ~~~i
+      let copy = Array.zeroCreate (entries.Length + 1)
+      Array.blit entries 0 copy 0 at
+      copy[at] <- struct (name, value)
+      Array.blit entries at copy (at + 1) (entries.Length - at)
+      copy
+
+  /// Replaces the value if `name` is already there, as `Map.add` does.
+  let add (name : string) (value : Dval) (fields : RecordFields) : RecordFields =
+    RecordFields(set name value (Array.copy fields.Entries))
+
+  let fold
+    (f : 'acc -> string -> Dval -> 'acc)
+    (state : 'acc)
+    (fields : RecordFields)
+    =
+    Array.fold (fun acc (struct (n, v)) -> f acc n v) state fields.Entries
+
+  let iter (f : string -> Dval -> unit) (fields : RecordFields) : unit =
+    Array.iter (fun (struct (n, v)) -> f n v) fields.Entries
+
+  let forall (f : Dval -> bool) (fields : RecordFields) : bool =
+    Array.forall (fun (struct (_, v)) -> f v) fields.Entries
+
+  let exists (f : Dval -> bool) (fields : RecordFields) : bool =
+    Array.exists (fun (struct (_, v)) -> f v) fields.Entries
+
+  /// The values changed, the names kept.
+  let map (f : Dval -> Dval) (fields : RecordFields) : RecordFields =
+    RecordFields(
+      fields.Entries |> Array.map (fun (struct (n, v)) -> struct (n, f v))
+    )
+
+  let toList (fields : RecordFields) : List<string * Dval> =
+    Array.foldBack (fun (struct (n, v)) acc -> (n, v) :: acc) fields.Entries []
+
+  let values (fields : RecordFields) : List<Dval> =
+    Array.foldBack (fun (struct (_, v)) acc -> v :: acc) fields.Entries []
 
 
 /// Parse a field name as a 1-based tuple index; reject "0", "01" and non-digits.
@@ -2786,7 +2955,7 @@ module Dval =
       isUsableDictKey a && isUsableDictKey b && List.forall isUsableDictKey rest
     | DDict(_, _, entries) ->
       entries |> DictMap.forall (fun k v -> isUsableDictKey k && isUsableDictKey v)
-    | DRecord(_, _, _, fields) -> fields |> Map.forall (fun _ v -> isUsableDictKey v)
+    | DRecord(_, _, _, fields) -> fields |> RecordFields.forall isUsableDictKey
     | DEnum(_, _, _, _, fields) -> List.forall isUsableDictKey fields
 
     | DUnit
@@ -2898,12 +3067,12 @@ module Dval =
             return (if same entries' entries then dv else DDict(kt, vt, entries'))
 
           | DRecord(src, rt, typeArgs, fields) ->
-            let! fields' = walkMap fields
+            let! entries = walkFields fields.Entries
             return
-              (if same fields' fields then
+              (if same entries fields.Entries then
                  dv
                else
-                 DRecord(src, rt, typeArgs, fields'))
+                 DRecord(src, rt, typeArgs, RecordFields entries))
 
           | DEnum(src, rt, typeArgs, caseName, fields) ->
             let! fields' = walkItems fields
@@ -2966,16 +3135,20 @@ module Dval =
           return (if isNull copy then rs else copy)
       }
 
-    /// Walk a `Map<string, Dval>`; return the original Map reference
-    /// when nothing changes, otherwise reuse the original map and
-    /// replace only the changed entries.
-    and walkMap (m : Map<string, Dval>) : Ply.Ply<Map<string, Dval>> =
+    /// Walk a record's fields; the original array when nothing changes, otherwise a
+    /// copy with the changed values replaced.
+    and walkFields
+      (entries : (struct (string * Dval))[])
+      : Ply.Ply<(struct (string * Dval))[]> =
       uply {
-        let mutable acc = m
-        for KeyValue(k, v) in m do
+        let mutable copy : (struct (string * Dval))[] = null
+        for i in 0 .. entries.Length - 1 do
+          let struct (n, v) = entries[i]
           let! v' = go v
-          if not (same v' v) then acc <- Map.add k v' acc
-        return acc
+          if not (same v' v) then
+            if isNull copy then copy <- Array.copy entries
+            copy[i] <- struct (n, v')
+        return (if isNull copy then entries else copy)
       }
 
     and walkDictEntries (kt : ValueType) (m : DictMap) : Ply.Ply<DictMap> =

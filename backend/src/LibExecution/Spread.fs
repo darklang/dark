@@ -219,7 +219,7 @@ let rec private holdsNoCode (dv : Dval) : bool =
   | DTuple(a, b, rest) -> holdsNoCode a && holdsNoCode b && listHoldsNoCode rest
   | DDict(_, _, entries) ->
     DictMap.forall (fun k v -> holdsNoCode k && holdsNoCode v) entries
-  | DRecord(_, _, _, fields) -> mapHoldsNoCode fields
+  | DRecord(_, _, _, fields) -> RecordFields.forall holdsNoCode fields
   | DEnum(_, _, _, _, fields) -> listHoldsNoCode fields
   | _ -> LibExecution.Dval.isInertData dv
 
@@ -227,13 +227,6 @@ and private listHoldsNoCode (items : List<Dval>) : bool =
   match items with
   | [] -> true
   | x :: rest -> holdsNoCode x && listHoldsNoCode rest
-
-and private mapHoldsNoCode (m : Map<string, Dval>) : bool =
-  let mutable ok = true
-  let mutable e = (m :> seq<_>).GetEnumerator()
-  while ok && e.MoveNext() do
-    ok <- holdsNoCode e.Current.Value
-  ok
 
 let private both (a : Purity) (b : Purity) : Purity =
   match a, b with

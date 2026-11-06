@@ -139,7 +139,7 @@ let dict (m : Dval -> 'a) (dv : Dval) : Map<string, 'a> =
   | _ -> f "dict" dv
 
 
-let field (name : string) (m : DvalMap) : Dval =
-  match m |> Map.get name with
+let field (name : string) (m : RecordFields) : Dval =
+  match RecordFields.tryFind name m with
   | Some dv -> dv
   | None -> Exception.raiseInternal $"Expected '{name}' field" []

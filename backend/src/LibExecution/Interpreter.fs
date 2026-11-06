@@ -935,6 +935,18 @@ let rec private valuesOfRegisters
   | reg :: rest -> registers[reg] :: valuesOfRegisters registers rest
 
 
+/// A record's fields from its registers, in source order, as `DvalCreator.record` takes them.
+let private recordFieldsOfRegisters
+  (registers : Dval array)
+  (fields : List<string * Register>)
+  : (struct (string * Dval))[] =
+  let entries = Array.zeroCreate (List.length fields)
+  let mutable i = 0
+  for (name, reg) in fields do
+    entries[i] <- struct (name, registers[reg])
+    i <- i + 1
+  entries
+
 /// Each name paired with the value in its register, in order, without a closure over the
 /// register file (see `closedOver`).
 let rec private namedValuesOfRegisters
@@ -4432,8 +4444,7 @@ let private tryBuildSync
     match toVTsSync exeState.types tst [] typeArgs with
     | ValueNone -> false
     | ValueSome typeArgs ->
-      let fields =
-        fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
+      let fields = recordFieldsOfRegisters registers fields
 
       match
         Ply.trySync (
@@ -5596,8 +5607,7 @@ let private runRareOpcode
           |> RTE.Record
           |> raiseRTE vm.threadID
     | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
-      let fields =
-        fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
+      let fields = recordFieldsOfRegisters registers fields
 
       let! typeArgs =
         Ply.toTask (

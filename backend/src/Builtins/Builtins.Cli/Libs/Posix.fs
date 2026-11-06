@@ -37,7 +37,7 @@ let private dPosixError (failure : Host.Failure) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "errno", Dval.dint64 (int64 failure.errno)
         "message", DString failure.message ]
   )

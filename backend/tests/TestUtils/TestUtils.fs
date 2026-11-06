@@ -402,7 +402,7 @@ module Expect =
     | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
     | DDict(_, _, entries) -> entries |> DictMap.forall (fun k v -> r k && r v)
 
-    | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all r
+    | DRecord(_, _, _, fields) -> fields |> RecordFields.forall r
     | DEnum(_, _, _, _, fields) -> fields |> List.all r
 
   type Path = string list
@@ -546,21 +546,21 @@ module Expect =
           (List.length rtypeArgs)
         List.iteri2 (fun i -> checkValueType (string i :: path)) ltypeArgs rtypeArgs
 
-        check ("Length" :: path) (Map.count ls) (Map.count rs)
+        check ("Length" :: path) (RecordFields.count ls) (RecordFields.count rs)
 
         // check keys
         // -- keys from ls are in both, check matching values
-        Map.iterWithIndex
+        RecordFields.iter
           (fun key v1 ->
-            match Map.find key rs with
+            match RecordFields.tryFind key rs with
             | Some v2 -> de (key :: path) v1 v2
             | None -> check (key :: path) ls rs)
           ls
 
         // -- keys from rs are in both
-        Map.iterWithIndex
+        RecordFields.iter
           (fun key _ ->
-            match Map.find key rs with
+            match RecordFields.tryFind key rs with
             | Some _ -> () // already checked
             | None -> check (key :: path) ls rs)
           rs
@@ -946,8 +946,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
 
-    | DRecord(_, _, _, fields) ->
-      Map.values fields |> List.map visit |> ignore<List<unit>>
+    | DRecord(_, _, _, fields) -> RecordFields.iter (fun _ v -> visit v) fields
 
     | DEnum(_, _, _, _, fields) -> fields |> List.map visit |> ignore<List<unit>>
 
@@ -1114,7 +1113,7 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        FQTypeName.Package hash,
        FQTypeName.Package hash,
        [],
-       Map.ofList
+       RecordFields.ofList
          [ "url", DString "https://darklang.com"
            "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
            "body", Dval.list KTUInt8 [] ]
@@ -1142,7 +1141,7 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        FQTypeName.Package hash,
        FQTypeName.Package hash,
        [ VT.unknown; VT.bool ],
-       Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
+       RecordFields.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("record3",
@@ -1150,7 +1149,7 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        FQTypeName.Package hash,
        FQTypeName.Package hash,
        [],
-       Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
+       RecordFields.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     // More Json.NET tests
@@ -1159,7 +1158,7 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        FQTypeName.Package hash,
        FQTypeName.Package hash,
        [ VT.bool; VT.char; (VT.customType (FQTypeName.Package hash)) [] ],
-       Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
+       RecordFields.ofList [ "foo\\\\bar", Dval.int64 5 ]
      ),
      TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("record5",
@@ -1167,7 +1166,7 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        FQTypeName.Package hash,
        FQTypeName.Package hash,
        [],
-       Map.ofList [ "$type", Dval.int64 5 ]
+       RecordFields.ofList [ "$type", Dval.int64 5 ]
      ),
      TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
     ("dict", Dval.stringDict KTInt64 [ "foo", Dval.int64 5 ], TDict(TString, TInt64))

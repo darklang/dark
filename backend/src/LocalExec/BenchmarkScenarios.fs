@@ -45,7 +45,8 @@ let rec private countDvalNodes (dv : RT.Dval) : int =
   | RT.DDict(_, _, m) ->
     1
     + RT.DictMap.fold (fun acc k v -> acc + countDvalNodes k + countDvalNodes v) 0 m
-  | RT.DRecord(_, _, _, m) -> 1 + (m |> Map.values |> Seq.sumBy countDvalNodes)
+  | RT.DRecord(_, _, _, m) ->
+    1 + (m |> RT.RecordFields.values |> List.sumBy countDvalNodes)
   | RT.DEnum(_, _, _, _, fs) -> 1 + List.sumBy countDvalNodes fs
   | _ -> 1
 

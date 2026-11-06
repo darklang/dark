@@ -53,7 +53,7 @@ let private backupToDT (b : LibDB.StoreBackups.Backup) : Dval =
     tn,
     tn,
     [],
-    Map
+    RecordFields.ofList
       [ "name", DString b.name
         "path", DString b.path
         "bytes", Dval.dint64 (int64 b.bytes) ]
