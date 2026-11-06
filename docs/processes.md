@@ -702,22 +702,31 @@ and over, so most rows of a heavy trace share a few values; and a replay serves
 what the run got even after an item has left the store. A blob a trace captured (a request body,
 a file's bytes) is kept in `trace_blobs` with the trace and goes when it goes.
 
-Two secrets are taken out of a row before it is written (`Tracing.Redact`),
-and nothing else is. A request header named `authorization`, `cookie`,
-`set-cookie`, `x-api-key` or `proxy-authorization` is stored as
-`[redacted]`, whatever case it was written in: an argument can be redacted
-freely, since a replay serves results, not arguments. An environment read's
-secret IS its result, so the result is not stored at all, and a replay runs
-that one call again for real instead of serving a value it does not have
-(`ReplayStep.PerformOnce`, decided by the builtin's name in the row) and
-goes on replaying everything else. So a resumed trace reads the environment of
-the machine resuming it, which is also the honest answer on another machine.
+Two kinds of secret are taken out before anything is written
+(`Tracing.Redact`), and nothing else is.
+
+HTTP credentials, on both sides: what HttpClient sent and got back, and a
+served request with the response its handler gave. One rule decides, by name:
+a header or query parameter whose name contains `auth`, `cookie`, `key`,
+`token`, `secret`, `password`, `session` or `credential`, in any case, is
+stored as `[redacted]`. That takes `Authorization`, `Proxy-Authorization`,
+`Cookie`, `Set-Cookie`, `X-API-Key`, `X-Auth-Token` and `?access_token=`. The
+`user:password@` of a URL goes the same way. An argument can be redacted
+freely, since a replay serves results, not arguments; a response's headers and
+a served request are replayed as stored, so a replay sees `[redacted]` where
+the credential was.
+
+An environment read's secret IS its result, so the result is not stored at
+all, and a replay runs that one call again for real instead of serving a value
+it does not have (`ReplayStep.PerformOnce`, decided by the builtin's name in
+the row) and goes on replaying everything else. So a resumed trace reads the
+environment of the machine resuming it, which is also the honest answer on
+another machine.
 
 Everything else the effects were given and returned is in the log as it is: a
-key file's bytes a trace read, a response body, what a trace printed. A secret you
-do not want on disk is one to keep out of an effect, or run with `--no-trace`.
-Redaction covers everything stored, because the impure calls are everything
-stored.
+key file's bytes a trace read, a request or response body, what a trace
+printed. A secret you do not want on disk is one to keep out of an effect, or
+run with `--no-trace`.
 
 ## What a trace is
 

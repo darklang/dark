@@ -120,11 +120,14 @@ when a file it read has changed since. The oldest are dropped once there are
 more than `trace.keep` traces (a served request is one) or `trace.maxMb` of
 log; a suspended trace's never.
 
-What the log holds: what each effect was given and returned. Secret request
-headers (`authorization`, `cookie`, `set-cookie`, `x-api-key`) are stored as
-`[redacted]`, and an environment read's value is not stored at all (a resume
-reads the environment again). Everything else is in the clear: a key file a run
-read, a response body, what it printed.
+What the log holds: what each effect was given and returned. HTTP credentials
+are stored as `[redacted]`, in requests made and requests served alike: any
+header or query parameter whose name contains auth, cookie, key, token, secret,
+password, session or credential (`Authorization`, `Cookie`, `Set-Cookie`,
+`X-API-Key`, `?access_token=`), and a URL's `user:password@`. An environment
+read's value is not stored at all (a resume reads the environment again).
+Everything else is in the clear: a key file a run read, a request or response
+body, what it printed.
 
 What the log does NOT hold: the value of anything pure. `traces show` does not
 read values off a disk, it RE-RUNS the function with every effectful call

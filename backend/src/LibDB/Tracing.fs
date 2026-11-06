@@ -335,9 +335,22 @@ let private newCallId () : string = string (System.Guid.NewGuid())
 
 
 module Redact =
-  let secretHeaders : Set<string> =
-    Set.ofList
-      [ "authorization"; "cookie"; "set-cookie"; "x-api-key"; "proxy-authorization" ]
+  /// A header or query parameter carries a credential when its name says so: it contains one
+  /// of these, in any case. `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`,
+  /// `X-API-Key`, `X-Auth-Token`, `?api_key=` and `?access_token=` all do.
+  let private secretWords =
+    [ "auth"
+      "cookie"
+      "key"
+      "token"
+      "secret"
+      "password"
+      "session"
+      "credential" ]
+
+  let private isSecretName (name : string) : bool =
+    let name = name.ToLowerInvariant()
+    secretWords |> List.exists (fun word -> name.Contains word)
 
   /// Builtins whose result is a secret the log must not keep. Their rows are written with no
   /// result at all.
@@ -368,32 +381,79 @@ module Redact =
   let performAgain : Set<string> =
     Set.union secretResults (Set.ofList [ "execSpawn"; "execStop" ])
 
-  let private redactedText = RT.DString "[redacted]"
+  let private redacted = "[redacted]"
 
-  /// A header list as the HTTP builtins take it: a list of (name, value) tuples.
-  let private headers (dv : RT.Dval) : RT.Dval =
+  /// <param url> without its credentials: the `user:password@` of an absolute URL, and the
+  /// value of each query parameter `isSecretName` picks. Takes a path with a query too, as a
+  /// served request's description has it. Anything else is kept as it was written.
+  let url (url : string) : string =
+    let url =
+      match url.IndexOf "://" with
+      | -1 -> url
+      | scheme ->
+        let start = scheme + 3
+        let authorityEnd =
+          match url.IndexOfAny([| '/'; '?'; '#' |], start) with
+          | -1 -> url.Length
+          | i -> i
+        match url.LastIndexOf('@', authorityEnd - 1, authorityEnd - start) with
+        | -1 -> url
+        | at -> url.Substring(0, start) + redacted + url.Substring at
+    match url.IndexOf '?' with
+    | -1 -> url
+    | q ->
+      let queryEnd =
+        match url.IndexOf('#', q) with
+        | -1 -> url.Length
+        | i -> i
+      let param (p : string) =
+        match p.IndexOf '=' with
+        | -1 -> p
+        | eq when isSecretName (p.Substring(0, eq)) ->
+          p.Substring(0, eq + 1) + redacted
+        | _ -> p
+      let query =
+        url.Substring(q + 1, queryEnd - q - 1).Split '&'
+        |> Array.map param
+        |> String.concat "&"
+      url.Substring(0, q + 1) + query + url.Substring queryEnd
+
+  let private isHeader (dv : RT.Dval) : bool =
     match dv with
-    | RT.DList(vt, items) ->
+    | RT.DTuple(RT.DString _, RT.DString _, []) -> true
+    | _ -> false
+
+  /// An HTTP value as a trace stores it: in every header list (a list of (name, value)
+  /// pairs) a secret header's value is replaced, and so are the credentials in every string
+  /// (`url`), wherever they sit inside it. That covers a request's arguments, the `Response`
+  /// a request returns, a served `Request`, and the `Response` its handler answered.
+  let rec http (dv : RT.Dval) : RT.Dval =
+    match dv with
+    | RT.DString s -> RT.DString(url s)
+    | RT.DList(vt, items) when not (List.isEmpty items) && List.forall isHeader items ->
       let redactOne (item : RT.Dval) : RT.Dval =
         match item with
-        | RT.DTuple(RT.DString name, _value, []) when
-          Set.contains (String.toLowercase name) secretHeaders
-          ->
-          RT.DTuple(RT.DString name, redactedText, [])
+        | RT.DTuple(RT.DString name, _, []) when isSecretName name ->
+          RT.DTuple(RT.DString name, RT.DString redacted, [])
         | other -> other
       RT.DList(vt, List.map redactOne items)
+    | RT.DRecord(tn, original, typeArgs, fields) ->
+      RT.DRecord(tn, original, typeArgs, RT.RecordFields.map http fields)
+    | RT.DEnum(tn, original, typeArgs, case, fields) ->
+      RT.DEnum(tn, original, typeArgs, case, List.map http fields)
     | other -> other
+
+  let private isHttp (builtin : string) : bool = builtin.StartsWith "http"
 
   /// The arguments of `builtin` as they should be stored.
   let args (builtin : string) (args : List<RT.Dval>) : List<RT.Dval> =
-    if builtin.StartsWith "httpClient" || builtin.StartsWith "http" then
-      args |> List.map headers
-    else
-      args
+    if isHttp builtin then List.map http args else args
 
   /// The result of `builtin` as it should be stored.
   let result (builtin : string) (result : RT.Dval) : RT.Dval =
-    if Set.contains builtin secretResults then RT.DUnit else result
+    if Set.contains builtin secretResults then RT.DUnit
+    elif isHttp builtin then http result
+    else result
 
 
 /// Fired when a call completes. Only impure calls reach here -- the interpreter decides, by
