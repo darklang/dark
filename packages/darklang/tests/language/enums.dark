@@ -211,14 +211,12 @@ module Polymorphism =
   let insert'(
     tree: RBTree<'a>,
     value: 'a,
-    cmp: ('a * 'a) -> Int64)
+    cmp: ('a, 'a) -> Int64)
     : RBTree<'a> =
     match tree with
     | Empty -> singleton(value)
     | Node(color, left, v, right) ->
-      // CLEANUP we should allow cmp to call two arguments, and not use a weird
-      // tuple-pipe thing
-      let c = (value, v) |> cmp
+      let c = cmp(value, v)
 
       if c < 0 then
         RBTree.Node(color, insert'(left, value, cmp), v, right)
@@ -230,11 +228,11 @@ module Polymorphism =
   let insert(
     tree: RBTree<'a>,
     value: 'a,
-    cmp: ('a * 'a) -> Int64)
+    cmp: ('a, 'a) -> Int64)
     : RBTree<'a> =
     insert'(tree, value, cmp)
 
-  let ofList(values: List<'a>, cmp: ('a * 'a) -> Int64): RBTree<'a> =
+  let ofList(values: List<'a>, cmp: ('a, 'a) -> Int64): RBTree<'a> =
     Stdlib.List.fold(values, RBTree.Empty, fun(tree, value) -> insert(tree, value, cmp))
 
   let toList'(tree: RBTree<'a>, acc: List<'a>): List<'a> =
@@ -247,7 +245,7 @@ module Polymorphism =
 
   test insertionOrderDoesNotMatter =
     (let intCmp =
-      fun((x, y)) ->
+      fun(x, y) ->
         if x < y then -1
         elif x > y then 1
         else 0

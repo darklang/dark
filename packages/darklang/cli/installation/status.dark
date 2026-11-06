@@ -3,7 +3,7 @@ module Darklang.Cli.Installation.Status
 
 let execute(state: AppState, args: List<String>): AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
-  let version = Helpers.getVersionInfo()
+  let version = Helpers.versionInfoWithUpdateCheck()
 
   let installationStatus =
     match Installation.System.installedBinaryPath(host) with

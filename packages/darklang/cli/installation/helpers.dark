@@ -37,7 +37,3 @@ let versionInfoWithUpdateCheck(): String =
     | None -> $"Darklang CLI {currentVersion} (unable to check for updates)"
   | Error(_) -> $"Darklang CLI {currentVersion} (unable to check for updates)"
 
-/// CLEANUP alias for `versionInfoWithUpdateCheck`, kept because `install-status` and the old_notes
-/// command still call it. Fold them over and delete this.
-let getVersionInfo(): String =
-  versionInfoWithUpdateCheck()
