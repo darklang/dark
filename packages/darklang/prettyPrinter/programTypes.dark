@@ -156,16 +156,6 @@ let packageNameWithContext(
   PrettyPrinter.shortenName(ctx.currentModule, owner, modules, PrettyPrinter.formatName(name))
 
 
-// CLEANUP: this function exists for backwards compatibility
-// Prefer using packageNameWithContext with a proper Context
-let packageName(
-  owner: String,
-  modules: List<String>,
-  name: String)
-  : String =
-  packageNameWithContext(Context.forMain, owner, modules, name)
-
-
 module FQTypeName =
   module Package =
     let atDefinition(

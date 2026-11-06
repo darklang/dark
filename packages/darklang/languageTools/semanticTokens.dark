@@ -880,11 +880,7 @@ module Expr =
       let typeName = QualifiedTypeIdentifier.tokenize(typeName)
       let fields =
         fields
-        |> Stdlib.List.map(fun((symbol, fieldName, value)) ->
-          // TODO: use tuple destructuring, once nested tuple destructuring in a lambda is fixed
-          // i.e. fun (symbol, (range, _), value) -> ... instead of the below code
-          let (range, _) = fieldName
-
+        |> Stdlib.List.map(fun((symbol, (range, _), value)) ->
           [ // name
             [ makeToken(range, TokenType.Property) ]
             // =

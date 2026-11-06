@@ -6,7 +6,7 @@ and infrastructure to make it easy to build backends and CLIs.
 [![Ceasefire Now](https://badge.techforpalestine.org/ceasefire-now)](https://techforpalestine.org/learn-more)
 
 This repo is intended to help Darklang users solve their needs by fixing bugs,
-expanding features, or otherwise contributing. Darklang is [open source](https://blog.darklang.com/TODO)
+expanding features, or otherwise contributing. Darklang is [open source](https://blog.darklang.com/darklang-goes-open-source/)
 under the Apache License 2.0. See our [LICENSE.md](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
 Note that the production version of Darklang, ["Darklang-Classic"](https://github.com/darklang/classic-dark),
