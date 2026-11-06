@@ -670,7 +670,8 @@ let resolveTraitCalls
           | PT.PackageOp.SetName(loc, PT.Reference.PackageTest h, _) ->
             Some(h, String.concat "." (loc.owner :: loc.modules @ [ loc.name ]))
           | _ -> None)
-        |> Map.ofList
+        |> List.groupBy fst
+        |> Map.map (List.map snd >> List.distinct)
 
       // Which callees are bounded, looked up once each.
       let callees =
@@ -693,26 +694,25 @@ let resolveTraitCalls
           | None -> ()
       let isBounded h = Set.contains h bounded
 
+      // Items with identical bodies share a hash, so each hash is counted once and then
+      // reported under every name the save gives it.
       let left =
         resolved
         |> List.choose (fun op ->
-          let hash, count =
-            match op with
-            | PT.PackageOp.AddFn fn -> fn.hash, unresolved isBounded fn.body
-            | PT.PackageOp.AddValue v -> v.hash, unresolved isBounded v.body
-            | PT.PackageOp.AddTest t -> t.hash, unresolved isBounded t.body
-            | _ -> PT.Hash "", 0
-          if count = 0 then
-            None
-          else
-            // A name when the save carries one; `dark fn` saves the body before its name.
-            let (PT.Hash h) = hash
-            let name =
-              Map.tryFind hash names
-              |> Option.defaultValue (
-                if h.Length > 8 then h.Substring(0, 8) else "an item"
-              )
-            Some $"{name} ({count})")
+          match op with
+          | PT.PackageOp.AddFn fn -> Some(fn.hash, unresolved isBounded fn.body)
+          | PT.PackageOp.AddValue v -> Some(v.hash, unresolved isBounded v.body)
+          | PT.PackageOp.AddTest t -> Some(t.hash, unresolved isBounded t.body)
+          | _ -> None)
+        |> List.distinctBy fst
+        |> List.filter (fun (_, count) -> count > 0)
+        |> List.collect (fun (hash, count) ->
+          // A name when the save carries one; `dark fn` saves the body before its name.
+          let (PT.Hash h) = hash
+          Map.tryFind hash names
+          |> Option.defaultValue
+            [ if h.Length > 8 then h.Substring(0, 8) else "an item" ]
+          |> List.map (fun name -> $"{name} ({count})"))
 
       if not (List.isEmpty left) then
         let total = List.length left
