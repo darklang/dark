@@ -4,21 +4,17 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-# DOCKERFILE_REPO: VERY IMPORTANT: this dockerfile is stored in the
-# darklang/dockerfile repo, and is copied into darklang/dark.
-# The copy allows developers to develop Dark directly without pulling a docker
-# image.
+# Nothing here is pinned or copied by hand. Images are tagged with a hash of what they're
+# built from (scripts/devcontainer/image-tag), and CI makes sure the ones a commit needs
+# exist (scripts/deployment/ci-images):
 #
-# Change it here, then copy it over with that repo's own script:
-#
-#   cd ../dockerfile && ./clone-from-dark-repo.sh ../dark
-#
-# Commit and push there, and its CI builds and pushes `darklang/dark-ci`,
-# `darklang/dark-base` and `darklang/dark-build-base` tagged with that repo's
-# short sha. Then bump ALL the pins here, in .circleci/config.yml, under
-# `.executors`: `in-container` uses dark-ci and `release-linux` uses
-# dark-build-base. Bumping one and not the others leaves the images built from
-# different revisions of this file. Search DOCKERFILE_REPO for the spots.
+#   - On a branch or a PR, fork or not, change this file and push. If Docker Hub has no
+#     image for the new hash, the pipeline builds one into ttl.sh, a throwaway registry,
+#     and every job runs in it, pinned by digest. Dockerfile.build-base works the same
+#     way for the release jobs. Locally, `scripts/dev/start --recreate` builds it.
+#   - On merge, main builds the images and pushes them to Docker Hub. Only main holds
+#     the push token, and main rebuilds an image whenever a commit changes its inputs
+#     rather than trust a tag it didn't push. Release tags run in what main pushed.
 #
 # Two stages. `dark-ci` holds what CI jobs run and nothing else, because every
 # CI job pulls it before doing anything. `dark-base` is the dev container: it

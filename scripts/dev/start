@@ -85,10 +85,13 @@ fi
 echo "Starting dev container for $DIR"
 echo "First run pulls and builds; expect a few minutes."
 
+# The image CI published for this Dockerfile, if there is one, so the build reuses its
+# layers rather than running every step here. A Dockerfile CI hasn't seen yet just builds.
 DARK_PORTS="$base-$(( base + 9 ))" \
 DARK_HOST_PORT_BASE="$base" \
 DARK_DEV_WATCH="${DARK_DEV_WATCH:-false}" \
-  devcontainer up "${RECREATE[@]+"${RECREATE[@]}"}" --workspace-folder "$DIR"
+  devcontainer up "${RECREATE[@]+"${RECREATE[@]}"}" --workspace-folder "$DIR" \
+    --cache-from "darklang/dark-base:$("$DIR/scripts/devcontainer/image-tag")"
 
 # After, not before: if a container already existed the block above was never applied.
 id=$(container_for_clone "$DIR")

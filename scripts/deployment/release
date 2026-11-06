@@ -3,7 +3,7 @@
 # Release main: tag its newest commit with the next v0.0.N and push the tag. The
 # tag's own pipeline (release-clis) builds and publishes, so this is all a
 # release takes. Main doesn't release on merge unless the tag-release job is
-# switched back on in .circleci/config.yml.
+# switched back on in .circleci/continue.yml.
 #
 # It pushes with your own git credentials, so it runs wherever you are (host or
 # dev container) rather than entering the container like most scripts here.

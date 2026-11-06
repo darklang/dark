@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# The tag of an image built from this tree: a hash of everything it's built from. Same
+# inputs, same tag, on any machine, so CI and `scripts/dev/start` agree on which
+# published image matches a checkout without anyone pinning one.
+#
+#   scripts/devcontainer/image-tag                    dark-base, from Dockerfile
+#   scripts/devcontainer/image-tag dark-build-base    dark-build-base, from Dockerfile.build-base
+#   scripts/devcontainer/image-tag --inputs [image]   the paths that tag is hashed from
+#
+# Any edit to an input, a comment included, gives a new tag and so a rebuild. To rebuild
+# without changing what's installed, bump FORCE_BUILD in the Dockerfile.
+#
+# Runs on the host, macOS included, hence shasum rather than sha256sum.
+
+set -euo pipefail
+
+cd "$( dirname "${BASH_SOURCE[0]}" )/../.."
+
+list=false
+if [[ "${1:-}" == --inputs ]]; then list=true; shift; fi
+
+case "${1:-dark-base}" in
+  dark-base) inputs=(Dockerfile scripts/installers) ;;
+  dark-build-base) inputs=(Dockerfile.build-base) ;;
+  *) echo "usage: $0 [--inputs] [dark-base|dark-build-base]" >&2; exit 2 ;;
+esac
+
+if $list; then
+  printf '%s\n' "${inputs[@]}"
+  exit 0
+fi
+
+find "${inputs[@]}" -type f \
+  | LC_ALL=C sort \
+  | xargs shasum -a 256 \
+  | shasum -a 256 \
+  | cut -c 1-12

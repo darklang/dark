@@ -8,6 +8,8 @@
 # Carries clang and cross sysroots because ilc links through a C compiler and
 # gcc can't cross-target, so one x64 runner covers every linux artifact. macOS
 # still needs a Mac.
+#
+# CI tags, builds and publishes it like the Dockerfile: see the header there.
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
