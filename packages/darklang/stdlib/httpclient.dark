@@ -21,8 +21,10 @@ type RequestError =
   /// Occurs when the request is cancelled due to a timeout
   | Timeout
   | BadHeader of BadHeader
-  /// Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, certifivate validation error, etc.
+  /// Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, etc.
   | NetworkError
+  /// Occurs when the TLS handshake fails, eg. the server's certificate can't be verified. The message says why.
+  | TlsError of String
   /// Occurs when the request method is not invalid.
   | BadMethod
 
@@ -41,6 +43,7 @@ let toString(e: RequestError): String =
     | EmptyKey -> "Empty key"
     | InvalidContentType -> "Invalid content-type header"
   | NetworkError -> "Network Error"
+  | TlsError(message) -> message
   | BadMethod -> "Bad Method"
 
 

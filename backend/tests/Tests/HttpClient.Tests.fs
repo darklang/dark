@@ -795,6 +795,102 @@ module ProtocolPolicyTests =
             } ]
 
 
+module TlsFailureTests =
+  open System.Net.Http
+  open System.Security.Authentication
+  module HostHttp = LibExecution.HostHttp
+
+  /// .NET's two spellings of a failed chain: the full text, and the resource key
+  /// the native build carries instead.
+  let private chainFailure (status : string) =
+    [ AuthenticationException(
+        $"The remote certificate is invalid because of errors in the certificate chain: {status}"
+      )
+      AuthenticationException($"net_ssl_io_cert_chain_validation, {status}") ]
+
+  let private alert =
+    AuthenticationException(
+      "Authentication failed because the remote party sent a TLS alert: 'HandshakeFailure'."
+    )
+
+  let private messageFor (hasRootCAs : bool) (e : AuthenticationException) =
+    HostHttp.tlsFailureMessage (fun () -> hasRootCAs) e
+
+  let private expectEach
+    (hasRootCAs : bool)
+    (failures : List<AuthenticationException>)
+    (expected : string)
+    =
+    for e in failures do
+      Expect.equal (messageFor hasRootCAs e) expected e.Message
+
+  let tests =
+    testList
+      "TLS failures"
+      [ testTask "a failed handshake is a TlsError, not a NetworkError" {
+          let handler =
+            { new HttpMessageHandler() with
+                member _.SendAsync(_, _) =
+                  raise (
+                    HttpRequestException(
+                      "The SSL connection could not be established, see inner exception.",
+                      AuthenticationException(
+                        "net_ssl_io_cert_chain_validation, UntrustedRoot"
+                      )
+                    )
+                  ) }
+          return!
+            task {
+              use client = new HttpClient(handler)
+              let profile : HostHttp.Profile =
+                { config =
+                    { timeoutInMs = 1000
+                      allowedIP = fun _ -> true
+                      allowedHost = fun _ -> true }
+                  client = client }
+              let! result =
+                HostHttp.send profile "GET" "https://fixture.test/" [] [||]
+              match result with
+              | Error(LibExecution.HostTypes.HttpRequestError.TlsError _) -> ()
+              | other -> failtest $"expected TlsError, got {other}"
+            }
+        }
+
+        test "an empty trust store names the fix" {
+          expectEach
+            false
+            (chainFailure "PartialChain")
+            ("could not verify the server's TLS certificate: no CA certificates "
+             + "found; install your distro's ca-certificates package or set "
+             + "SSL_CERT_FILE")
+        }
+
+        test "an untrusted certificate says no CA trusts it" {
+          expectEach
+            true
+            (chainFailure "UntrustedRoot")
+            ("could not verify the server's TLS certificate: "
+             + "no CA certificate on this system trusts it (UntrustedRoot)")
+        }
+
+        test "an expired certificate says so, not that it is untrusted" {
+          expectEach
+            true
+            (chainFailure "NotTimeValid")
+            ("could not verify the server's TLS certificate: "
+             + "it has expired or is not yet valid (NotTimeValid)")
+        }
+
+        test "a failure that isn't about the certificate keeps .NET's words" {
+          // Even with no CA certificates: the store is not what failed.
+          for hasRootCAs in [ true; false ] do
+            Expect.stringStarts
+              (messageFor hasRootCAs alert)
+              "TLS handshake with the server failed: "
+              "not called a certificate problem"
+        } ]
+
+
 /// The old google.com:79 assertion depended on the network dropping packets.
 /// This transport receives the request and waits for its real cancellation token;
 /// no DNS, proxy, firewall or remote service can decide the outcome.
@@ -969,6 +1065,7 @@ let tests =
     [ StreamDvalTests.tests
       readBuiltinRefusesAWriteMethod
       ProtocolPolicyTests.tests
+      TlsFailureTests.tests
       ProxyTests.tests
       TimeoutTests.tests ] ]
   |> List.concat
