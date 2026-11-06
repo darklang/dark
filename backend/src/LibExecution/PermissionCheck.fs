@@ -20,6 +20,7 @@ let private layerName (layer : Permission.Layer) : string =
   | Permission.Layer.Run -> "run policy"
   | Permission.Layer.Package id -> $"package policy `{id}`"
   | Permission.Layer.Function id -> $"function policy `{id}`"
+  | Permission.Layer.Trait id -> $"trait ceiling `{id}`"
 
 let private reasonText (reason : Permission.PolicyDenial) : string =
   match reason with
@@ -63,6 +64,8 @@ let private denialMessage
       "To approve: `permissions approve <fn>`, naming the function that needs it."
     | Permission.Layer.Function _, _, _ ->
       "The function's declared ceiling does not allow this operation."
+    | Permission.Layer.Trait _, _, _ ->
+      "The trait method's declared ceiling does not allow this operation, whichever implementation runs."
   $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}"
 
 let private raiseDenial

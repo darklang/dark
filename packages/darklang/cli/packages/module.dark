@@ -242,6 +242,15 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
               // so a type error is on screen before anything follows the change.
               AtRestCheck.printSaveReport(branchId, report)
 
+              ops
+              |> Stdlib.List.filterMap(fun op ->
+                match op with
+                | SetName(location, _, _) -> Stdlib.Option.Option.Some(location)
+                | _ -> Stdlib.Option.Option.None)
+              |> Stdlib.List.map(fun location -> Packages.ceilingWarningsAt(branchId, location))
+              |> Stdlib.List.flatten
+              |> Packages.printCeilingWarnings
+
               // Name what did not, so a rejected declaration is something you find out now rather than
               // the next time you call it.
               // `declarationName` returns an Option, so unwrap with filterMap before comparing:

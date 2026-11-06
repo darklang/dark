@@ -122,11 +122,25 @@ denied by "function policy" even under an allow-all instance. `permissions
 show <fn>` prints the ceiling next to the body's analyzed requirements and
 warns when a complete requirement set exceeds it.
 
+### Trait ceilings
+
+A trait method can declare a ceiling the same way
+(`trait Fetch<'a> = let fetch(u: 'a):{} String`). It is the caller's guarantee
+about whichever implementation runs, so it is enforced at the call rather than
+when an implementation is saved: a call through the method appends it as a
+`Layer.Trait` restriction before entering the implementation's fn, which then
+adds its own approval and ceiling. That holds for an implementation saved with
+the caller, one picked when the call runs, a script's own and one over a
+builtin, and it is denied by "trait ceiling". An implementation needs no
+ceiling of its own; one whose fn declares or (by complete analysis) needs more
+than the trait's is saved with a warning and listed by `dark constraints` as
+`exceeds-trait-ceiling`. A method with no ceiling adds nothing.
+
 ## Runtime rule
 
 ```text
 instance policy  AND  run policy  AND  each entered package's approval
-  AND  each entered function's ceiling
+  AND  each entered function's ceiling  AND  each trait method called through
 ```
 
 Implementation does not materialize a complicated intersection. `Access`

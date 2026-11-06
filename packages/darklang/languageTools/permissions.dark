@@ -576,3 +576,9 @@ let render(policy: Permissions.Policy): List<String> =
   Stdlib.List.concat(
     policy.allow |> Stdlib.List.map(Permissions.renderRule),
     policy.deny |> Stdlib.List.map(fun rule -> "deny " + Permissions.renderRule(rule)))
+
+/// The transitive permission requirements of the fn with this hash, and whether the analysis
+/// was complete. Incomplete analysis returns the effects found with `false`. This walks the
+/// fn's closure, so fetch once and pass the result around.
+let requirementsForHash(hash: String) : (List<Effect> * Bool) =
+  Builtin.pmFnPermissionRequirements(hash)

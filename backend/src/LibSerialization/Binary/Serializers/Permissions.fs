@@ -189,6 +189,9 @@ let writeExecutionAccess (writer : BinaryWriter) (access : P.Access) : unit =
       | P.Layer.Function id ->
         writer.Write 3uy
         String.write writer id
+      | P.Layer.Trait id ->
+        writer.Write 4uy
+        String.write writer id
       write writer policy)
     (P.Access.layers access)
 
@@ -200,6 +203,7 @@ let readExecutionAccess (reader : BinaryReader) : P.Access =
       | 1uy -> P.Layer.Run
       | 2uy -> P.Layer.Package(String.read reader)
       | 3uy -> P.Layer.Function(String.read reader)
+      | 4uy -> P.Layer.Trait(String.read reader)
       | tag -> raiseFormatError $"Invalid permission layer tag: {tag}"
     layer, read reader)
   |> P.Access.ofLayers

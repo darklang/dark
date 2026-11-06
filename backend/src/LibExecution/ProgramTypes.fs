@@ -813,15 +813,11 @@ module PackageFn =
 module Trait =
   /// One method's signature. No body: the impls have those.
   ///
-  /// `permissionCeiling` is DECLARED and stored, and it is part of the trait's content hash,
-  /// but nothing enforces it against an implementation: not the at-rest checker and not the
-  /// interpreter. `ImplExceedsCeiling` exists as an issue code with no producer. So an impl
-  /// may declare and perform more than its trait's method allows.
-  ///
-  /// An impl's method fn is still held to its OWN ceiling like any other package fn
-  /// (`Interpreter.packageEntryAccess`), so this is a missing check rather than a way past
-  /// permissions, and because the ceiling is hashed, enforcing it later needs no format
-  /// change. Do not promise enforcement here until something checks it.
+  /// `permissionCeiling` binds every call through the method, whichever impl runs: the
+  /// interpreter adds it as a `Layer.Trait` restriction (`Interpreter.traitCeilingAccess`),
+  /// next to the impl fn's own ceiling. An impl fn that declares or needs more is legal; its
+  /// save and `dark constraints` (`exceeds-trait-ceiling`) warn, and the rest is denied when
+  /// it runs.
   type Method =
     {
       name : string
