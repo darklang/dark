@@ -210,6 +210,8 @@ type HttpRequestError =
   | Timeout
   | BadHeader of HttpBadHeader
   | NetworkError
+  /// The TLS handshake failed; the message says why, in words to act on.
+  | TlsError of message : string
   | BadMethod
 
 type HttpResponse =

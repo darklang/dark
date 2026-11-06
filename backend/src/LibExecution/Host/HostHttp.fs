@@ -10,6 +10,8 @@ module LibExecution.HostHttp
 
 open System.IO
 open System.Net.Http
+open System.Security.Authentication
+open System.Security.Cryptography.X509Certificates
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -581,11 +583,67 @@ let private normalizeResponseHeaders
   headers |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
 
 
+/// Whether the system trust stores hold any root certificate. On Linux the
+/// machine store is OpenSSL's default bundle, or SSL_CERT_FILE / SSL_CERT_DIR.
+/// Read only after a certificate has failed to verify.
+let private systemHasRootCAs () : bool =
+  let count (location : StoreLocation) =
+    use store = new X509Store(StoreName.Root, location)
+    store.Open OpenFlags.ReadOnly
+    store.Certificates.Count
+  try
+    count StoreLocation.LocalMachine + count StoreLocation.CurrentUser > 0
+  with _ ->
+    // Unknown is not empty: don't send someone to install what they may have.
+    true
+
+/// Why a TLS handshake failed. With no CA certificates at all, every server
+/// fails the same way, so that case is named, with the fix.
+///
+/// The native build carries no resource strings, so .NET's message is either
+/// "The remote certificate is invalid because of errors in the certificate
+/// chain: PartialChain" or "net_ssl_io_cert_chain_validation, PartialChain".
+/// Only fragments both share are matched, and the reason is what follows.
+let tlsFailureMessage
+  (hasRootCAs : unit -> bool)
+  (e : AuthenticationException)
+  : string =
+  let message = e.Message
+  let reason =
+    match message.IndexOf ": ", message.IndexOf ", " with
+    | i, _ when i >= 0 -> message.Substring(i + 2)
+    | _, i when i >= 0 -> message.Substring(i + 2)
+    | _ -> message
+  let has (status : string) = reason.Contains status
+  let unverified = "could not verify the server's TLS certificate"
+  if not (message.Contains "cert") then
+    $"TLS handshake with the server failed: {message}"
+  else if not (hasRootCAs ()) then
+    $"{unverified}: no CA certificates found; install your distro's "
+    + "ca-certificates package or set SSL_CERT_FILE"
+  else if has "UntrustedRoot" || has "PartialChain" then
+    $"{unverified}: no CA certificate on this system trusts it ({reason})"
+  else if has "NotTimeValid" then
+    $"{unverified}: it has expired or is not yet valid ({reason})"
+  else if has "RemoteCertificateNameMismatch" then
+    $"{unverified}: it was issued for a different host name ({reason})"
+  else
+    $"{unverified} ({reason})"
+
+/// .NET wraps the handshake failure in an HttpRequestException.
+let rec private (|TlsFailure|_|) (e : exn) : Option<AuthenticationException> =
+  match e with
+  | :? AuthenticationException as e -> Some e
+  | null -> None
+  | e -> (|TlsFailure|_|) e.InnerException
+
 /// Match a send-time exception to the typed error the guest sees; anything
 /// else propagates as a host failure. Shared by the buffered and streaming
 /// paths.
 let private (|SendFailure|_|) (e : exn) : Option<HttpRequestError> =
   match e with
+  | TlsFailure e ->
+    Some(HttpRequestError.TlsError(tlsFailureMessage systemHasRootCAs e))
   | :? TaskCanceledException -> Some HttpRequestError.Timeout
   | :? System.ArgumentException as e when
     e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"

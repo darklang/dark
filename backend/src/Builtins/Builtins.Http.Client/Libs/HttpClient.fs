@@ -84,6 +84,8 @@ module RequestError =
       | HostTypes.HttpRequestError.BadHeader err ->
         "BadHeader", [ BadHeader.toDT err ]
       | HostTypes.HttpRequestError.NetworkError -> "NetworkError", []
+      | HostTypes.HttpRequestError.TlsError message ->
+        "TlsError", [ DString message ]
       | HostTypes.HttpRequestError.BadMethod -> "BadMethod", []
 
     let typeName =
