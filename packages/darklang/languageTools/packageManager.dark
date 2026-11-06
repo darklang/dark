@@ -355,6 +355,39 @@ module Test =
     : List<ProgramTypes.PackageLocation> =
     PackageManager.itemLocations(branchId, ProgramTypes.ItemKind.Test, hash)
 
+  /// Whether <param name> resolved to `Stdlib.Test.all`.
+  let __isAll(name: ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>): Bool =
+    match name.resolved with
+    | Ok(resolved) ->
+      resolved.location
+      == Stdlib.Option.Option.Some(
+        ProgramTypes.PackageLocation
+          { owner = "Darklang"
+            modules = [ "Stdlib", "Test" ]
+            name = "all" })
+    | Error(_) -> false
+
+  /// How many tests the test group <param body> holds, read from its code, so a
+  /// cached or unrun group has a count too. Each item of a `Stdlib.Test.all([ ... ])`
+  /// list is a test, nested `all`s add up, a `let` counts what follows it, and an
+  /// `if` or `match` counts its biggest branch. Anything else is one test, including a list built at run
+  /// time (`Stdlib.List.map(cases, f) |> Stdlib.Test.all`).
+  let testCount(body: ProgramTypes.Expr): Int64 =
+    let sum(items: List<ProgramTypes.Expr>): Int64 =
+      Stdlib.List.fold(items, 0, fun(total, item) -> total + testCount(item))
+    let most(branches: List<ProgramTypes.Expr>): Int64 =
+      Stdlib.List.fold(branches, 1, fun(best, branch) ->
+        let n = testCount(branch)
+        if n > best then n else best)
+    match body with
+    | ELet(_, _, _, next) -> testCount(next)
+    | EStatement(_, _, next) -> testCount(next)
+    | EApply(_, EFnName(_, name, _), _, [ EList(_, items) ]) when __isAll(name) -> sum(items)
+    | EPipe(_, EList(_, items), [ EPipeFnCall(_, name, _, [], _) ]) when __isAll(name) -> sum(items)
+    | EIf(_, _, thenExpr, Some(elseExpr)) -> most([ thenExpr, elseExpr ])
+    | EMatch(_, _, cases) -> most(Stdlib.List.map(cases, fun c -> c.rhs))
+    | _ -> 1
+
   /// Run this test's body with an allow-all test instance policy and ordinary
   /// called-function approvals and ceilings: what it evaluated to,
   /// reflected, or the error it raised. Nothing is judged here; see `execute`.
