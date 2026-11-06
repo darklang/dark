@@ -112,11 +112,16 @@ let prepend(s1: String, s2: String): String = s2 + s1
 /// Was a builtin until `Stdlib.Regex` existed; its own comment had said for years that this
 /// belonged here. The vertical tab is called out separately because `\s` does not cover it.
 let slugify(s: String): String =
-  s
-  |> Stdlib.String.toLowercase
-  |> (fun lowered -> Stdlib.Regex.replaceAll(lowered, "([^a-z0-9\\s_-]|\\x0b)+", ""))
-  |> Stdlib.String.trim
-  |> (fun trimmed -> Stdlib.Regex.replaceAll(trimmed, "[-_\\s]+", "-"))
+  let lowered = Stdlib.String.toLowercase(s)
+
+  let slug =
+    Stdlib.Regex.replaceAll(lowered, "([^a-z0-9\\s_-]|\\x0b)+", "")
+    |> Stdlib.Result.andThen(fun kept ->
+      Stdlib.Regex.replaceAll(Stdlib.String.trim(kept), "[-_\\s]+", "-"))
+
+  // Both patterns are fixed and valid, so only input too large to match in time fails,
+  // and an empty slug is the one that is still safe in a URL.
+  Stdlib.Result.withDefault(slug, "")
 
 
 /// Reverses <param string>

@@ -53,11 +53,14 @@ module Format =
   /// itself.
   let stringText(s: String): String =
     let escaped =
-      if Regex.isMatch(s, needsEscape) then
+      // The patterns in this module are fixed and valid, and none can stop inside a
+      // character, so only input far too large to match in time can fail them.
+      if Regex.isMatch(s, needsEscape) |> Result.withDefault(true) then
         let named =
           List.fold(namedEscapes, s, fun(acc, (c, e)) -> String.replaceAll(acc, c, e))
 
         Regex.findAll(named, control)
+        |> Result.withDefault([])
         |> List.unique
         |> List.fold(named, fun(acc, c) -> String.replaceAll(acc, c, controlEscape(c)))
       else
@@ -149,8 +152,8 @@ module Format =
       | _ -> (mantissa, "")
 
     let all = intPart + fracPart
-    let unpadded = Regex.replace(all, "^0+", "")
-    let digits = Regex.replace(unpadded, "0+$", "")
+    let unpadded = Regex.replace(all, "^0+", "") |> Result.withDefault(all)
+    let digits = Regex.replace(unpadded, "0+$", "") |> Result.withDefault(unpadded)
     let leadingZeros = String.length(all) - String.length(unpadded)
     (negative, digits, String.length(intPart) - 1 - leadingZeros + exp10)
 
@@ -176,7 +179,7 @@ module Parse =
   /// The whole input is one value, with only whitespace and comments around
   /// it. Text that no token covers is not JSON.
   let document(text: String): Option.Option<Json> =
-    let tokens = Regex.findAll(text, token)
+    let tokens = Regex.findAll(text, token) |> Result.withDefault([])
 
     if String.join(tokens, "") != text then
       None
@@ -215,8 +218,10 @@ module Parse =
   /// What a string token holds, with its escapes decoded. {{None}} for an
   /// escaped surrogate with no partner, which names nothing a string can hold.
   let text(t: String): Option.Option<String> =
-    if Regex.isMatch(t, "^\"") then
-      let pieces = Regex.findAll(t, stringPiece) |> List.map(decode)
+    if Regex.isMatch(t, "^\"") |> Result.withDefault(false) then
+      let pieces =
+        Regex.findAll(t, stringPiece) |> Result.withDefault([]) |> List.map(decode)
+
       let decoded = Option.values(pieces)
 
       if List.length(decoded) == List.length(pieces) then
@@ -240,7 +245,7 @@ module Parse =
 
   /// The text one <var stringPiece> stands for.
   let decode(piece: String): Option.Option<String> =
-    if !(Regex.isMatch(piece, "^\\\\")) then
+    if !(Regex.isMatch(piece, "^\\\\") |> Result.withDefault(false)) then
       Some(piece)
     else if piece == "\\/" then
       Some("/")
@@ -248,7 +253,10 @@ module Parse =
       match List.findFirst(Format.namedEscapes, fun((_, e)) -> e == piece) with
       | Some((c, _)) -> Some(c)
       | None ->
-        match List.map(Regex.findAll(piece, "[0-9a-fA-F]{4}"), hexValue) with
+        let units =
+          Regex.findAll(piece, "[0-9a-fA-F]{4}") |> Result.withDefault([])
+
+        match List.map(units, hexValue) with
         | [ high, low ] ->
           codepointText((
             firstSupplementary
@@ -287,7 +295,7 @@ module Parse =
 
 
   let number(t: String): Option.Option<Json> =
-    if Regex.isMatch(t, "[.eE]") then
+    if Regex.isMatch(t, "[.eE]") |> Result.withDefault(false) then
       Float.parse(t) |> Result.toOption |> Option.map(fun f -> Json.Float(f))
     else
       Int.parse(t) |> Result.toOption |> Option.map(fun i -> Json.Integer(i))

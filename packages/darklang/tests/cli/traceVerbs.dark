@@ -506,7 +506,9 @@ test psListsThisInstanceThenTheMachine =
   Instance.withInstance(fun i ->
     // The columns are as wide as their widest cell and the header is bold, so the
     // colour is stripped and the header matched word by word.
-    let out = Stdlib.Regex.replaceAll(Instance.output(i, [ "ps" ]), "\\x1b\\[[0-9;]*m", "")
+    let out =
+      Stdlib.Regex.replaceAll(Instance.output(i, [ "ps" ]), "\\x1b\\[[0-9;]*m", "")
+      |> Stdlib.Result.withDefault("")
     let header =
       lines(out)
       |> Stdlib.List.findFirst(fun(l) -> Stdlib.String.startsWith(l, "id "))

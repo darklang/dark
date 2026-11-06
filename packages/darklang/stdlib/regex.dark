@@ -1,34 +1,238 @@
+/// Regular expressions, matched without backtracking, the way RE2 and Go do it.
+///
+/// Matching takes time linear in the input whatever the pattern, so `(a+)+$` cannot
+/// hang a program. The price is the constructs that need backtracking:
+/// backreferences, lookahead and lookbehind, atomic groups, conditionals and `\G`
+/// are refused as {{UnsupportedSyntax}}.
+///
+/// Every fn returns a {{Result}}: a bad pattern is an {{Error}}, not a crash. No
+/// match is still {{None}} or {{[]}} inside the {{Ok}}. Positions count characters,
+/// the way {{String.length}} and {{String.slice}} do.
 module Darklang.Stdlib.Regex
 
 
-/// Tests if <param input> matches the regex <param pattern>.
-/// Returns {{true}} if a match is found, {{false}} otherwise.
-let isMatch(input: String, pattern: String): Bool =
-  Builtin.regexIsMatch(input, pattern)
+/// Why a pattern could not be used, or a match could not be made.
+type RegexError =
+  /// The pattern does not parse. The message says why, and the position is the
+  /// character of the pattern it points at.
+  | InvalidPattern of message: String * position: Int
+  /// The pattern needs backtracking: a backreference, a lookahead or lookbehind, an
+  /// atomic group, a conditional, or `\G`.
+  | UnsupportedSyntax of construct: String
+  /// A match would start or end between the two halves of an emoji (or any
+  /// character past U+FFFF), and half of one is not text. `.` and `[^x]` step
+  /// through such a character half at a time; `.+` takes it whole.
+  | InvalidUnicodeMatch
+  /// Matching ran out of time. Only very large inputs get here.
+  | MatchLimitExceeded
 
 
-/// Finds the first match of the regex <param pattern> in <param input>.
-/// Returns {{Some match}} if found, {{None}} otherwise.
-let find(input: String, pattern: String): Stdlib.Option.Option<String> =
-  Builtin.regexFind(input, pattern)
+/// Where a match sits in the input, in characters. {{end}} is exclusive. A match
+/// boundary inside a character (between `\r` and `\n`, say) widens the range to
+/// cover it.
+type Range =
+  { start: Int
+    end: Int }
 
 
-/// Finds all matches of the regex <param pattern> in <param input>.
-/// Returns a list of matched strings.
-let findAll(input: String, pattern: String): List<String> =
-  Builtin.regexFindAll(input, pattern)
+/// What one group matched.
+type Capture =
+  { text: String
+    range: Range }
 
 
-/// Replaces the first match of the regex <param pattern> in <param input> with <param replacement>.
-let replace(input: String, pattern: String, replacement: String): String =
-  Builtin.regexReplace(input, pattern, replacement)
+/// One match. A group inside a repetition holds its last capture.
+type Match =
+  { text: String
+    range: Range
+    /// The unnamed groups, in order. {{None}} for a group that took no part in the
+    /// match.
+    captures: List<Stdlib.Option.Option<Capture>>
+    /// The named groups, `(?<name>...)`, by name.
+    namedCaptures: Dict<String, Stdlib.Option.Option<Capture>> }
 
 
-/// Replaces all matches of the regex <param pattern> in <param input> with <param replacement>.
-let replaceAll(input: String, pattern: String, replacement: String): String =
-  Builtin.regexReplaceAll(input, pattern, replacement)
+type Options =
+  { caseInsensitive: Bool
+    /// `^` and `$` match at every line break, not only at the ends of the input.
+    multiline: Bool }
 
 
-/// Splits <param input> by the regex <param pattern>, returning a list of strings.
-let split(input: String, pattern: String): List<String> =
-  Builtin.regexSplit(input, pattern)
+/// A pattern checked by <fn compile>, with its options.
+type Regex =
+  { pattern: String
+    options: Options }
+
+
+val defaultOptions = Options { caseInsensitive = false, multiline = false }
+
+
+/// The text between matches, which always has one more entry than the matches, and
+/// the matches. Every other fn here is built on this. With <param firstOnly>, at
+/// most one match. Without <param withMatches>, the list of matches is empty, which
+/// is much cheaper when only the text between them is needed.
+let scan(
+  input: String,
+  regex: Regex,
+  firstOnly: Bool,
+  withMatches: Bool)
+  : Stdlib.Result.Result<(List<String> * List<Match>), RegexError> =
+  Builtin.regexScan(
+    regex.pattern,
+    regex.options.caseInsensitive,
+    regex.options.multiline,
+    input,
+    firstOnly,
+    withMatches)
+
+
+/// <param pattern> with the default options, unchecked: the fns that take it report
+/// a bad pattern themselves.
+let ofPattern(pattern: String): Regex =
+  Regex { pattern = pattern, options = defaultOptions }
+
+
+/// Checks <param pattern>, for reuse with <fn findMatch> and <fn findAllMatches>.
+let compile(pattern: String): Stdlib.Result.Result<Regex, RegexError> =
+  compileWith(pattern, defaultOptions)
+
+
+/// <fn compile>, with case-insensitive or multiline matching.
+let compileWith(
+  pattern: String,
+  options: Options)
+  : Stdlib.Result.Result<Regex, RegexError> =
+  let regex = Regex { pattern = pattern, options = options }
+  scan("", regex, true, false) |> Stdlib.Result.map(fun _ -> regex)
+
+
+/// The first match of <param regex> in <param input>, with its groups.
+let findMatch(
+  input: String,
+  regex: Regex)
+  : Stdlib.Result.Result<Stdlib.Option.Option<Match>, RegexError> =
+  scan(input, regex, true, true)
+  |> Stdlib.Result.map(fun((_, matches)) -> Stdlib.List.head(matches))
+
+
+/// Every match of <param regex> in <param input>, with its groups.
+let findAllMatches(
+  input: String,
+  regex: Regex)
+  : Stdlib.Result.Result<List<Match>, RegexError> =
+  scan(input, regex, false, true) |> Stdlib.Result.map(fun((_, matches)) -> matches)
+
+
+/// Whether the regex <param pattern> matches anywhere in <param input>.
+let isMatch(
+  input: String,
+  pattern: String)
+  : Stdlib.Result.Result<Bool, RegexError> =
+  // A match rather than Result.map: on a short input the lambda costs more than the regex.
+  match scan(input, ofPattern(pattern), true, false) with
+  | Ok(([ _ ], _)) -> Stdlib.Result.Result.Ok(false)
+  | Ok(_) -> Stdlib.Result.Result.Ok(true)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+
+
+/// The text of the first match of the regex <param pattern> in <param input>.
+let find(
+  input: String,
+  pattern: String)
+  : Stdlib.Result.Result<Stdlib.Option.Option<String>, RegexError> =
+  findMatch(input, ofPattern(pattern))
+  |> Stdlib.Result.map(fun m -> Stdlib.Option.map(m, fun m -> m.text))
+
+
+/// The text of every match of the regex <param pattern> in <param input>.
+let findAll(
+  input: String,
+  pattern: String)
+  : Stdlib.Result.Result<List<String>, RegexError> =
+  findAllMatches(input, ofPattern(pattern))
+  |> Stdlib.Result.map(fun ms -> Stdlib.List.map(ms, fun m -> m.text))
+
+
+/// Replaces the first match of the regex <param pattern> in <param input> with
+/// <param replacement>, as written: `$1` is just those two characters. For the
+/// groups, use <fn replaceWith>.
+let replace(
+  input: String,
+  pattern: String,
+  replacement: String)
+  : Stdlib.Result.Result<String, RegexError> =
+  match scan(input, ofPattern(pattern), true, false) with
+  | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(Stdlib.String.join(pieces, replacement))
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+
+
+/// Replaces every match of the regex <param pattern> in <param input> with <param
+/// replacement>, as written: `$1` is just those two characters. For the groups, use
+/// <fn replaceAllWith>.
+let replaceAll(
+  input: String,
+  pattern: String,
+  replacement: String)
+  : Stdlib.Result.Result<String, RegexError> =
+  match scan(input, ofPattern(pattern), false, false) with
+  | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(Stdlib.String.join(pieces, replacement))
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+
+
+/// Replaces the first match of the regex <param pattern> in <param input> with what
+/// <param fn> makes of it.
+let replaceWith(
+  input: String,
+  pattern: String,
+  fn: Match -> String)
+  : Stdlib.Result.Result<String, RegexError> =
+  replaceMatches(input, ofPattern(pattern), true, fn)
+
+
+/// Replaces every match of the regex <param pattern> in <param input> with what
+/// <param fn> makes of it.
+let replaceAllWith(
+  input: String,
+  pattern: String,
+  fn: Match -> String)
+  : Stdlib.Result.Result<String, RegexError> =
+  replaceMatches(input, ofPattern(pattern), false, fn)
+
+
+/// Replaces each match of <param regex> in <param input> with what <param fn> makes
+/// of it. With <param firstOnly>, only the first match.
+let replaceMatches(
+  input: String,
+  regex: Regex,
+  firstOnly: Bool,
+  fn: Match -> String)
+  : Stdlib.Result.Result<String, RegexError> =
+  scan(input, regex, firstOnly, true)
+  |> Stdlib.Result.map(fun((pieces, matches)) ->
+    match pieces with
+    | [] -> ""
+    | [ first, ...rest ] ->
+      let after =
+        Stdlib.List.map2shortest(matches, rest, fun(m, piece) -> fn(m) + piece)
+
+      first + Stdlib.String.join(after, ""))
+
+
+/// Splits <param input> at every match of the regex <param pattern>. Groups in the
+/// pattern are not included in the result.
+let split(
+  input: String,
+  pattern: String)
+  : Stdlib.Result.Result<List<String>, RegexError> =
+  match scan(input, ofPattern(pattern), false, false) with
+  | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(pieces)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+
+
+/// <param text> with every character a pattern treats specially escaped, so it
+/// matches only itself.
+let escape(text: String): String =
+  // The backslash first, so the escapes the others add are not escaped again. Space
+  // and `#` are special only in `(?x)` mode, and harmless to escape outside it.
+  [ "\\", ".", "*", "+", "?", "|", "{", "}", "[", "]", "(", ")", "^", "$", "#", " " ]
+  |> Stdlib.List.fold(text, fun(acc, c) -> Stdlib.String.replaceAll(acc, c, "\\" + c))
