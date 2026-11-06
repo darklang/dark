@@ -3758,8 +3758,6 @@ let private applyInstructionForced
   : ApplyOutcome =
   let mutable outcome = ApplyDone
   let applyTotalAlloc = allocNow vm
-  // CLEANUP
-  // only the first apply of an applicable should be allowed to provide type args
 
   let applicable =
     let thingToCall = registers[thingToCallReg]

@@ -5,4 +5,3 @@ To run the CLI executable against the local package manager:
 
 
 
-- [ ] TODO: Bring back self-updating

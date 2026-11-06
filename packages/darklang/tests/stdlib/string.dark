@@ -92,7 +92,6 @@ test mapReplacesEveryCharacter =
       Stdlib.String.map("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", fun _ -> 'c')
       |> Stdlib.Test.equal("cccc") ])
 
-// // CLEANUP: it should be a type error on the function not returning a Char
 // test mapRejectsNonCharResult =
 //   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 5)
 //   => raises

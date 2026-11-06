@@ -1393,7 +1393,6 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | ERecordFieldAccess(_id, e, fieldName) ->
     let exprPart = expr(ctx, e)
 
-    // TODO: only sometimes need to wrap exprPart in parens
     match e with
     | EVariable(_, _)
     | EUnwrap(_, _)
@@ -1435,8 +1434,6 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
         let (fieldName, value) = pair
         $"{PrettyPrinter.formatFieldName(fieldName)} = {expr(ctx, value)}")
       |> Stdlib.String.join(", ")
-
-    // TODO: don't always need the parens
 
     $"{{ {recordPart} with {updatePart} }}"
 

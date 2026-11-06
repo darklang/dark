@@ -93,7 +93,6 @@ module Expressions =
 
 
   module Let =
-    // TODO: try to use undefined variable
     // TODO: lpunit
     let simple = eLet (lpVar "x") (eBool true) (eVar "x")
 

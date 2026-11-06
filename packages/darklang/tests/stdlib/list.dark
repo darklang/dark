@@ -779,7 +779,6 @@ test splitLast =
       Stdlib.List.splitLast([ 1, 2, 3 ])
       |> Stdlib.Test.equal(Some(([ 1, 2 ], 3))) ])
 
-// CLEANUP the following tests should fail on having mixed types
 test rejectsMixedListElements =
   [ 1s32, 2.3 ]
   => raises "Cannot add a Float (2.3) to a list of Int32. Failed at index 1."

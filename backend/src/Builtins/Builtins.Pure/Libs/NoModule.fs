@@ -183,10 +183,6 @@ let fns () : List<BuiltInFn> =
           Ply(DString(String.normalize (a + b)))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      // CLEANUP: SQL pushdown for fixed-width integer arithmetic does not match
-      // runtime overflow semantics. Runtime evaluation wraps, but SQLite promotes
-      // overflowing integer arithmetic to REAL for these add/sub/mul/div/pow specs.
-      // DBigInt is arbitrary-precision, so it has no wrap behavior to preserve.
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }

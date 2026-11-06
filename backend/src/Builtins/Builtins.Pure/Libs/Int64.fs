@@ -116,9 +116,6 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a + b))
         | _ -> incorrectArgs ())
-      // CLEANUP: SQL pushdown for Int64 arithmetic does not match runtime
-      // overflow semantics. Runtime evaluation wraps, but SQLite promotes
-      // overflowing integer arithmetic to REAL for these add/sub/mul/div/pow specs.
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }

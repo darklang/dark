@@ -927,8 +927,6 @@ module UInt128 =
               "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"))) ])
 
 module Float =
-  // TODO: test the upper/lower bounds
-  // TODO: test highly-precise numbers
   // TODO: review Float.tests for more values to test against
 
   test serialize =

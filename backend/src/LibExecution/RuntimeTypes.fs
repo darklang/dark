@@ -2336,7 +2336,6 @@ module RuntimeError =
 
   module Matches =
     // TODO "When condition should be a boolean" -- this could warn _or_ error -- which do we want?
-    // CLEANUP "Match must have at least one case"
     type Error =
       /// Could not find matching case for the given value
       | MatchUnmatched of unmatchedValue : Dval
@@ -2670,7 +2669,6 @@ let recordPermissionViolation
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
 /// this type.
-/// CLEANUP return a call stack or vmstate, or something, here
 type ExecutionResult = Result<Dval, RuntimeError.Error * CallStack>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before

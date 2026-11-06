@@ -668,7 +668,6 @@ module Expr =
         |> Stdlib.List.flatten
 
       | EPipeEnum(_, typeName, caseName, fields, symbolDot) ->
-        // CLEANUP: typeName should be tokenized as a QualifiedTypeIdentifier
         let typeName = QualifiedTypeIdentifier.tokenize(typeName)
 
         let caseName =
