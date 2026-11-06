@@ -104,6 +104,53 @@ test drop =
       text(Stdlib.Bytes.drop(bytes, 99)) |> Stdlib.Test.equal(Ok(""))
       text(Stdlib.Bytes.drop(Stdlib.Bytes.empty, 3)) |> Stdlib.Test.equal(Ok("")) ])
 
+// startsWith / endsWith
+test startsAndEndsWith =
+  let b(s: String): Bytes = Stdlib.Utf8.encode(s)
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.startsWith(b("abcdef"), b("abc")) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.startsWith(b("abcdef"), b("bcd")) |> Stdlib.Test.equal(false)
+      Stdlib.Bytes.startsWith(b("abc"), b("abcd")) |> Stdlib.Test.equal(false)
+      Stdlib.Bytes.startsWith(b("abc"), Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.endsWith(b("abcdef"), b("def")) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.endsWith(b("abcdef"), b("cde")) |> Stdlib.Test.equal(false)
+      Stdlib.Bytes.endsWith(b("abc"), b("zabc")) |> Stdlib.Test.equal(false)
+      Stdlib.Bytes.endsWith(b("abc"), Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.endsWith(Stdlib.Bytes.empty, Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(true) ])
+
+// indexOfSegment / indexOfSegmentFrom / contains
+test indexOfSegment =
+  let b(s: String): Bytes = Stdlib.Utf8.encode(s)
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.indexOfSegment(b("abc"), Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(Some(0))
+      Stdlib.Bytes.indexOfSegment(Stdlib.Bytes.empty, Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(Some(0))
+      Stdlib.Bytes.indexOfSegment(b("ab"), b("abc")) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfSegment(b("abcabc"), b("abc"))
+      |> Stdlib.Test.equal(Some(0))
+      Stdlib.Bytes.indexOfSegment(b("xyzabc"), b("abc"))
+      |> Stdlib.Test.equal(Some(3))
+      // At 0, `aab` fails on its third byte; the match is at 1.
+      Stdlib.Bytes.indexOfSegment(b("aaab"), b("aab")) |> Stdlib.Test.equal(Some(1))
+      // Starts with the segment's first byte, but runs off the end.
+      Stdlib.Bytes.indexOfSegment(b("xxab"), b("abc")) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfSegment(b("abcdef"), b("xyz")) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfSegmentFrom(b("abcabc"), b("abc"), 1)
+      |> Stdlib.Test.equal(Some(3))
+      Stdlib.Bytes.indexOfSegmentFrom(b("abc"), Stdlib.Bytes.empty, 3)
+      |> Stdlib.Test.equal(Some(3))
+      Stdlib.Bytes.indexOfSegmentFrom(b("abc"), Stdlib.Bytes.empty, 4)
+      |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfSegmentFrom(b("abc"), b("a"), -1)
+      |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.contains(b("a\r\n\r\nb"), b("\r\n\r\n"))
+      |> Stdlib.Test.equal(true)
+      Stdlib.Bytes.contains(b("a\r\nb"), b("\r\n\r\n"))
+      |> Stdlib.Test.equal(false) ])
+
 // toList / fromList
 test listConversions =
   Stdlib.Test.all(

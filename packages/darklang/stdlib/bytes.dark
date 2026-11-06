@@ -88,6 +88,43 @@ let drop(bytes: Bytes, count: Int64): Bytes =
   Stdlib.Result.withDefault(slice(bytes, start, total), empty)
 
 
+/// Returns {{true}} if <param bytes> begins with <param prefix>. Every Bytes
+/// starts with the empty Bytes.
+let startsWith(bytes: Bytes, prefix: Bytes): Bool =
+  take(bytes, length(prefix)) == prefix
+
+
+/// Returns {{true}} if <param bytes> ends with <param suffix>. Every Bytes
+/// ends with the empty Bytes.
+let endsWith(bytes: Bytes, suffix: Bytes): Bool =
+  length(suffix) <= length(bytes)
+  && drop(bytes, length(bytes) - length(suffix)) == suffix
+
+
+/// Returns {{Some index}} of the first <param segment> in <param bytes> that
+/// starts at or after <param start>, or {{None}} if there is none or
+/// <param start> is out of range. An empty <param segment> is found at
+/// <param start>.
+let indexOfSegmentFrom(
+  bytes: Bytes,
+  segment: Bytes,
+  start: Int64)
+  : Stdlib.Option.Option<Int64> =
+  Builtin.bytesIndexOfSegment(bytes, segment, start)
+
+
+/// Returns {{Some index}} of the first <param segment> in <param bytes>, or
+/// {{None}} if it isn't there. An empty <param segment> is found at 0.
+let indexOfSegment(bytes: Bytes, segment: Bytes): Stdlib.Option.Option<Int64> =
+  indexOfSegmentFrom(bytes, segment, 0)
+
+
+/// Returns {{true}} if <param segment> appears anywhere in <param bytes>. To
+/// look for one byte, use <fn Stdlib.Bytes.indexOf>.
+let contains(bytes: Bytes, segment: Bytes): Bool =
+  Stdlib.Option.isSome(indexOfSegment(bytes, segment))
+
+
 /// Expands <param bytes> into a list of its bytes. Copies every byte, so for
 /// one byte use <fn Stdlib.Bytes.getAt>, to find one use
 /// <fn Stdlib.Bytes.indexOf>, and to join or cut Bytes use
