@@ -341,7 +341,7 @@ got essentially all of it. Low priority; recorded so nobody re-probes it.
 
 ### HTTP routing re-parses a constant -- left for a human
 
-`parseRouteSegments` re-parses a never-changing route pattern on every request, ~32 package calls
+`__parseRouteSegments` re-parses a never-changing route pattern on every request, ~32 package calls
 per handler tested. Fixing it needs public stdlib API (a `makeRouter`, or a parsed field on
 `Handler`), so it is a design decision rather than an optimisation.
 

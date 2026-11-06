@@ -8,8 +8,8 @@ type DiffLine =
 /// The rows of the LCS length table, last row first, each row last column first.
 ///
 /// Row j, column i is the LCS length of the first i old lines and the first j new lines.
-/// Rows are stored back to front because the walk in `trace` starts at the far corner.
-let buildTable(oldLines: List<String>, newLines: List<String>): List<List<Int64>> =
+/// Rows are stored back to front because the walk in `__trace` starts at the far corner.
+let __buildTable(oldLines: List<String>, newLines: List<String>): List<List<Int64>> =
   let zeroRow =
     Stdlib.List.map(
       Stdlib.List.range(0, Stdlib.List.length(oldLines)),
@@ -45,7 +45,7 @@ let buildTable(oldLines: List<String>, newLines: List<String>): List<List<Int64>
 /// At (i, j): `oldRev` and `newRev` start at old line i and new line j (1-based, counting
 /// back), `row` is row j from column i, `prevRow` row j-1 from column i, and `rest` the rows
 /// before that in full. Prefers Added over Removed on a tie.
-let trace(
+let __trace(
   width: Int64,
   oldRev: List<String>,
   newRev: List<String>,
@@ -71,7 +71,7 @@ let trace(
     let restRest = Stdlib.List.drop(rest, 1)
 
     if o == n then
-      trace(
+      __trace(
         width,
         oldRest,
         newRest,
@@ -85,7 +85,7 @@ let trace(
       let left = Stdlib.Option.withDefault(Stdlib.List.getAt(row, 1), 0)
 
       if up >= left then
-        trace(
+        __trace(
           width,
           oldRev,
           newRest,
@@ -95,7 +95,7 @@ let trace(
           restRest,
           Stdlib.List.prepend(acc, DiffLine.Added(n)))
       else
-        trace(
+        __trace(
           width,
           oldRest,
           newRev,
@@ -111,11 +111,11 @@ let lines(oldText: String, newText: String): List<DiffLine> =
   let newLines = Stdlib.String.split(newText, "\n")
   let width = Stdlib.List.length(oldLines)
 
-  match buildTable(oldLines, newLines) with
+  match __buildTable(oldLines, newLines) with
   | [row, ...rest] ->
     let prevRow = Stdlib.Option.withDefault(Stdlib.List.head(rest), [])
 
-    trace(
+    __trace(
       width,
       Stdlib.List.reverse(oldLines),
       Stdlib.List.reverse(newLines),

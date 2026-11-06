@@ -27,19 +27,19 @@ let configGet(key: String): Stdlib.Option.Option<String> = Builtin.configGet(key
 /// take, and the keys it writes itself (`current_branch` moves with `SCM.PackageOps.selectBranch`,
 /// `instance.id` is made once). The Error says why, ready to print. Keys under `test.` are free
 /// for tests.
-let configWrite(key: String, value: Stdlib.Option.Option<String>): Stdlib.Result.Result<Unit, String> =
+let __configWrite(key: String, value: Stdlib.Option.Option<String>): Stdlib.Result.Result<Unit, String> =
   Builtin.configSet(key, value)
 
 
-/// Write a setting. See `configWrite` for what is refused.
+/// Write a setting. See `__configWrite` for what is refused.
 let configSet(key: String, value: String): Stdlib.Result.Result<Unit, String> =
-  configWrite(key, Stdlib.Option.Option.Some(value))
+  __configWrite(key, Stdlib.Option.Option.Some(value))
 
 
 /// Unset a setting, so its reader falls back to the default. Unsetting a key that is not set is
 /// fine; the keys only the runtime writes are refused.
 let configUnset(key: String): Stdlib.Result.Result<Unit, String> =
-  configWrite(key, Stdlib.Option.Option.None)
+  __configWrite(key, Stdlib.Option.Option.None)
 
 
 /// The keys `config get` reads: every setting a person sets, and `instance.id`.

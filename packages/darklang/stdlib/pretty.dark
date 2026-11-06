@@ -128,7 +128,7 @@ let join(ds: List<Doc>, sep: Doc): Doc =
 /// fits) or runs out of room. `HardLine` answers no, which is what makes a group containing one always
 /// break. The pending items after the group are included, so a group isn't kept flat only to have the
 /// text that follows it overflow anyway.
-let fits(room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
+let __fits(room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
   if room < 0 then
     false
   else
@@ -136,10 +136,10 @@ let fits(room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
     | [] -> true
     | [(i, m, d), ...rest] ->
       match d with
-      | Empty -> Pretty.fits(room, rest)
-      | Text(s) -> Pretty.fits(room - (Stdlib.String.displayWidth(s)), rest)
-      | Styled(_, t, _) -> Pretty.fits(room - (Stdlib.String.displayWidth(t)), rest)
-      | LineSuffix(_) -> Pretty.fits(room, rest)
+      | Empty -> Pretty.__fits(room, rest)
+      | Text(s) -> Pretty.__fits(room - (Stdlib.String.displayWidth(s)), rest)
+      | Styled(_, t, _) -> Pretty.__fits(room - (Stdlib.String.displayWidth(t)), rest)
+      | LineSuffix(_) -> Pretty.__fits(room, rest)
 
       // Inside the group being tested (Flat) a hard line means it cannot be one line, so it doesn't
       // fit. After the group (Break) it simply ends the line, so everything measured so far does fit.
@@ -151,28 +151,28 @@ let fits(room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
         | Break -> true
       | Line ->
         match m with
-        | Flat -> Pretty.fits(room - 1, rest)
+        | Flat -> Pretty.__fits(room - 1, rest)
         | Break -> true
       | SoftLine ->
         match m with
-        | Flat -> Pretty.fits(room, rest)
+        | Flat -> Pretty.__fits(room, rest)
         | Break -> true
       | Concat(a, b) ->
-        Pretty.fits(room, Stdlib.List.prepend(Stdlib.List.prepend(rest, (i, m, b)), (i, m, a)))
-      | Nest(j, x) -> Pretty.fits(room, Stdlib.List.prepend(rest, (i + j, m, x)))
-      | Group(x) -> Pretty.fits(room, Stdlib.List.prepend(rest, (i, m, x)))
+        Pretty.__fits(room, Stdlib.List.prepend(Stdlib.List.prepend(rest, (i, m, b)), (i, m, a)))
+      | Nest(j, x) -> Pretty.__fits(room, Stdlib.List.prepend(rest, (i + j, m, x)))
+      | Group(x) -> Pretty.__fits(room, Stdlib.List.prepend(rest, (i, m, x)))
 
 
 /// The output with the held-back line suffixes emitted, for where a line ends.
-let flushSuffixes(acc: List<String>, pending: List<String>): List<String> =
+let __flushSuffixes(acc: List<String>, pending: List<String>): List<String> =
   match pending with
   | [] -> acc
   | _ -> Stdlib.List.fold(pending, acc, fun(a, s) -> Stdlib.List.prepend(a, s))
 
 /// End the line: the held-back suffixes, the newline, then the next line's indentation.
-let breakLine(acc: List<String>, pending: List<String>, indent: Int64): List<String> =
+let __breakLine(acc: List<String>, pending: List<String>, indent: Int64): List<String> =
   Stdlib.List.prepend(
-    Stdlib.List.prepend(Pretty.flushSuffixes(acc, pending), "\n"),
+    Stdlib.List.prepend(Pretty.__flushSuffixes(acc, pending), "\n"),
     Stdlib.String.repeat(" ", indent))
 
 
@@ -181,7 +181,7 @@ let breakLine(acc: List<String>, pending: List<String>, indent: Int64): List<Str
 /// `acc` is the output so far as a reversed list of chunks; `render` joins it once at the end.
 /// Appending to a string per node would copy the whole output each time, quadratic in its length.
 /// `pending` is the line suffixes waiting for the line to end, in order.
-let renderLoop(
+let __renderLoop(
   width: Int64,
   col: Int64,
   acc: List<String>,
@@ -189,38 +189,38 @@ let renderLoop(
   items: List<(Int64 * Mode * Doc)>)
   : List<String> =
   match items with
-  | [] -> Pretty.flushSuffixes(acc, pending)
+  | [] -> Pretty.__flushSuffixes(acc, pending)
   | [(i, m, d), ...rest] ->
     match d with
-    | Empty -> Pretty.renderLoop(width, col, acc, pending, rest)
+    | Empty -> Pretty.__renderLoop(width, col, acc, pending, rest)
 
-    | LineSuffix(s) -> Pretty.renderLoop(width, col, acc, Stdlib.List.append(pending, s), rest)
+    | LineSuffix(s) -> Pretty.__renderLoop(width, col, acc, Stdlib.List.append(pending, s), rest)
 
     | Text(s) ->
-      Pretty.renderLoop(width, col + (Stdlib.String.displayWidth(s)), Stdlib.List.prepend(acc, s), pending, rest)
+      Pretty.__renderLoop(width, col + (Stdlib.String.displayWidth(s)), Stdlib.List.prepend(acc, s), pending, rest)
 
     | Styled(opening, t, closing) ->
-      Pretty.renderLoop(
+      Pretty.__renderLoop(
         width,
         col + (Stdlib.String.displayWidth(t)),
         Stdlib.List.prepend(Stdlib.List.prepend(Stdlib.List.prepend(acc, opening), t), closing),
         pending,
         rest)
 
-    | HardLine -> Pretty.renderLoop(width, i, Pretty.breakLine(acc, pending, i), [], rest)
+    | HardLine -> Pretty.__renderLoop(width, i, Pretty.__breakLine(acc, pending, i), [], rest)
 
     | Line ->
       match m with
-      | Flat -> Pretty.renderLoop(width, col + 1, Stdlib.List.prepend(acc, " "), pending, rest)
-      | Break -> Pretty.renderLoop(width, i, Pretty.breakLine(acc, pending, i), [], rest)
+      | Flat -> Pretty.__renderLoop(width, col + 1, Stdlib.List.prepend(acc, " "), pending, rest)
+      | Break -> Pretty.__renderLoop(width, i, Pretty.__breakLine(acc, pending, i), [], rest)
 
     | SoftLine ->
       match m with
-      | Flat -> Pretty.renderLoop(width, col, acc, pending, rest)
-      | Break -> Pretty.renderLoop(width, i, Pretty.breakLine(acc, pending, i), [], rest)
+      | Flat -> Pretty.__renderLoop(width, col, acc, pending, rest)
+      | Break -> Pretty.__renderLoop(width, i, Pretty.__breakLine(acc, pending, i), [], rest)
 
     | Concat(a, b) ->
-      Pretty.renderLoop(
+      Pretty.__renderLoop(
         width,
         col,
         acc,
@@ -228,20 +228,20 @@ let renderLoop(
         Stdlib.List.prepend(Stdlib.List.prepend(rest, (i, m, b)), (i, m, a)))
 
     | Nest(j, x) ->
-      Pretty.renderLoop(width, col, acc, pending, Stdlib.List.prepend(rest, (i + j, m, x)))
+      Pretty.__renderLoop(width, col, acc, pending, Stdlib.List.prepend(rest, (i + j, m, x)))
 
     | Group(x) ->
       // The one decision this whole module exists to make.
       let flat = Stdlib.List.prepend(rest, (i, Mode.Flat, x))
 
-      if Pretty.fits(width - col, flat) then
-        Pretty.renderLoop(width, col, acc, pending, flat)
+      if Pretty.__fits(width - col, flat) then
+        Pretty.__renderLoop(width, col, acc, pending, flat)
       else
-        Pretty.renderLoop(width, col, acc, pending, Stdlib.List.prepend(rest, (i, Mode.Break, x)))
+        Pretty.__renderLoop(width, col, acc, pending, Stdlib.List.prepend(rest, (i, Mode.Break, x)))
 
 
 /// Lay out `doc` for a page `width` columns wide.
 let render(width: Int64, doc: Doc): String =
-  Pretty.renderLoop(width, 0, [], [], [ ((0, Mode.Break, doc)) ])
+  Pretty.__renderLoop(width, 0, [], [], [ ((0, Mode.Break, doc)) ])
   |> Stdlib.List.reverse
   |> Stdlib.String.join("")

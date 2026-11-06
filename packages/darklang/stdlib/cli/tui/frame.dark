@@ -16,7 +16,7 @@ type RowChange =
 
 
 /// Compare both row lists once while accumulating changes in reverse order.
-let changedRowsFrom(
+let __changedRowsFrom(
   row: Int64,
   previousRows: List<String>,
   nextRows: List<String>,
@@ -32,15 +32,15 @@ let changedRowsFrom(
       else
         Stdlib.List.prepend(changes, RowChange { row = row, content = next })
 
-    changedRowsFrom(row + 1, previousTail, nextTail, changes)
+    __changedRowsFrom(row + 1, previousTail, nextTail, changes)
   | [_previous, ...previousTail], [] ->
-    changedRowsFrom(
+    __changedRowsFrom(
       row + 1,
       previousTail,
       [],
       Stdlib.List.prepend(changes, RowChange { row = row, content = "" }))
   | [], [next, ...nextTail] ->
-    changedRowsFrom(
+    __changedRowsFrom(
       row + 1,
       [],
       nextTail,
@@ -55,11 +55,11 @@ let changedRows(
   previousRows: List<String>,
   nextRows: List<String>)
   : List<RowChange> =
-  changedRowsFrom(0, previousRows, nextRows, [])
+  __changedRowsFrom(0, previousRows, nextRows, [])
 
 
 /// Traverse both lists once while accumulating a complete repaint.
-let fullRedrawRowsFrom(
+let __fullRedrawRowsFrom(
   row: Int64,
   previousRows: List<String>,
   nextRows: List<String>,
@@ -69,19 +69,19 @@ let fullRedrawRowsFrom(
   | [], [] ->
     Stdlib.List.reverse(changes)
   | [_previous, ...previousTail], [next, ...nextTail] ->
-    fullRedrawRowsFrom(
+    __fullRedrawRowsFrom(
       row + 1,
       previousTail,
       nextTail,
       Stdlib.List.prepend(changes, RowChange { row = row, content = next }))
   | [_previous, ...previousTail], [] ->
-    fullRedrawRowsFrom(
+    __fullRedrawRowsFrom(
       row + 1,
       previousTail,
       [],
       Stdlib.List.prepend(changes, RowChange { row = row, content = "" }))
   | [], [next, ...nextTail] ->
-    fullRedrawRowsFrom(
+    __fullRedrawRowsFrom(
       row + 1,
       [],
       nextTail,
@@ -96,7 +96,7 @@ let fullRedrawRows(
   previousRows: List<String>,
   nextRows: List<String>)
   : List<RowChange> =
-  fullRedrawRowsFrom(0, previousRows, nextRows, [])
+  __fullRedrawRowsFrom(0, previousRows, nextRows, [])
 
 
 /// Render one complete row update.

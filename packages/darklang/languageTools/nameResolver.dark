@@ -24,7 +24,7 @@ type NRContext =
 // CLEANUP no-op: both arms return `err`, so OnMissing.ThrowError is never
 // honored — this (tooling) resolver never throws. Either implement ThrowError
 // to match the F# resolver, or drop the OnMissing plumbing as always-allow.
-let throwIfRelevant(
+let __throwIfRelevant(
   onMissing: OnMissing,
   result: ProgramTypes.NameResolution<'a>)
   : ProgramTypes.NameResolution<'a> =
@@ -73,11 +73,11 @@ let namesToTry(
     | _ -> []
 
   let currentModule = Stdlib.List.prepend(currentModule, owner)
-  Stdlib.List.concat(namesToTryHelper(currentModule, given), addl)
+  Stdlib.List.concat(__namesToTryHelper(currentModule, given), addl)
 
 // TODO we can do this without a helper function,
 // by removing the recursion and using a fold.
-let namesToTryHelper(
+let __namesToTryHelper(
   modulesToPrepend: List<String>,
   given: GenericName)
   : List<GenericName> =
@@ -88,7 +88,7 @@ let namesToTryHelper(
       { given with
           modules = Stdlib.List.concat(modulesToPrepend, given.modules) }
 
-    Stdlib.List.prepend(namesToTryHelper(allButLast, given), newNameToTry)
+    Stdlib.List.prepend(__namesToTryHelper(allButLast, given), newNameToTry)
 
 
 /// Generic name resolution that handles the common pattern across Type/Value/Fn resolution.
@@ -197,7 +197,7 @@ let resolveGenericName(
           { originalName = given
             resolved = resolved }
 
-      throwIfRelevant(ctx.onMissing, nr)
+      __throwIfRelevant(ctx.onMissing, nr)
 
 
 module TypeName =
