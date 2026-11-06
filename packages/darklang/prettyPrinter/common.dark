@@ -84,43 +84,57 @@ let escapeSpecialCharacters(s: String): String =
 let escapeCharLiteral(s: String): String =
   (__escapeCommon(s)) |> Stdlib.String.replaceAll("'", "\\'")
 
-/// Format a record/dict field name for source output.
-/// Two reasons a field name needs backticks:
+// Keep this list in sync with the lexer's `keyword` function
+// (backend/src/LibParser/Lexer.fs). `def` is intentionally not reserved.
+val reservedNames =
+  Dict
+    { "let": (), "val": (), "in": (), "if": (), "elif": (), "then": (), "else": ()
+      "type": (), "trait": (), "impl": (), "of": (), "match": (), "with": ()
+      "fun": (), "when": (), "true": (), "false": () }
+
+/// A name the lexer reads as a bare identifier, ASCII only: the common case, and cheaper.
+val bareAsciiName = Stdlib.Regex.ofPattern("\\A[A-Za-z_][A-Za-z0-9_']*\\z")
+
+/// The lexer's full rule for a bare identifier.
+val bareName = Stdlib.Regex.ofPattern("\\A[\\p{L}_][\\p{L}\\p{Nd}_']*\\z")
+
+/// Format a name (a field, variable, parameter or declaration) for source output.
+/// Two reasons a name needs backticks:
 ///  - its shape: a bare identifier is a letter or `_` followed by letters,
-///    digits, `_`, or `'`; a hyphen, a leading digit, or an empty name breaks that.
-///  - it's a reserved word: keywords and `_` lex as their own tokens, so a field
-///    literally named `type` or `match` needs backticks even though its shape is fine.
+///    digits, `_`, or `'`, as the lexer reads them (Unicode letters included); a
+///    hyphen or a leading digit breaks that.
+///  - it's a reserved word: keywords lex as their own tokens, so a name
+///    literally `type` or `match` needs backticks even though its shape is fine.
+/// `_` prints bare, since in a pattern it is the wildcard. The empty name prints as
+/// `___`, the lexer's spelling of it.
 /// Current syntax has no escape inside double-backtick identifiers, so names
 /// containing a newline or closing backticks are not source-round-trippable.
-let formatFieldName(name: String): String =
-  let isStart(c: Char): Bool = (Stdlib.Char.isASCIILetter(c)) || (c == '_')
-  let isCont(c: Char): Bool =
-    (Stdlib.Char.isASCIILetter(c))
-    || (Stdlib.Char.isDigit(c))
-    || (c == '_')
-    || (c == '\'')
-  let hasBareShape =
-    match Stdlib.String.toList(name) with
-    | [] -> false
-    | [first, ...rest] -> (isStart(first)) && (rest |> Stdlib.List.all(isCont))
-
-  // Keep this list in sync with the lexer's `keyword` function
-  // (backend/src/LibParser/Lexer.fs). `def` is intentionally not reserved.
-  let reserved =
-    [ "let", "val", "in", "if", "elif", "then", "else", "type", "trait", "impl", "of"
-      "match", "with", "fun", "when", "true", "false", "_" ]
-  let isReserved =
-    reserved |> Stdlib.List.findFirst(fun k -> k == name) |> Stdlib.Option.isSome
-
-  // An empty name has no valid quoted form either -- `````` is four backticks, not an empty identifier --
-  // so quoting it adds noise without adding validity. Left as-is, like the other names this comment says
-  // aren't source-round-trippable.
-  if name == "" then
+let formatName(name: String): String =
+  // A regex and a lookup rather than a walk over the characters: the printer
+  // runs this for every name it writes. A whole-name match splits the name into two
+  // texts, the empty ones either side of it. The ASCII pattern answers for nearly
+  // every name and allocates less; the second is the lexer's full rule.
+  if name == "_" then
     name
-  else if hasBareShape && (Stdlib.Bool.not(isReserved)) then
-    name
+  else if name == "" then
+    "___"
   else
-    $"``{name}``"
+    let bare =
+      match Stdlib.Regex.scan(name, bareAsciiName, true, false) with
+      | Ok(([ _, _ ], _)) -> true
+      | _ ->
+        match Stdlib.Regex.scan(name, bareName, true, false) with
+        | Ok(([ _, _ ], _)) -> true
+        | _ -> false
+    if bare && Stdlib.Bool.not(Stdlib.Dict.containsKey(reservedNames, name)) then
+      name
+    else
+      $"``{name}``"
+
+/// Format a record/dict field name for source output: <fn formatName>, except that a
+/// field named `_` needs backticks, since `_` alone lexes as the wildcard.
+let formatFieldName(name: String): String =
+  if name == "_" then "``_``" else formatName(name)
 
 /// Print numeric field names without backticks for tuple access such as `t.1`.
 let formatAccessedFieldName(name: String): String =

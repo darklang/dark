@@ -147,7 +147,7 @@ let packageNameWithContext(
   modules: List<String>,
   name: String)
   : String =
-  PrettyPrinter.shortenName(ctx.currentModule, owner, modules, name)
+  PrettyPrinter.shortenName(ctx.currentModule, owner, modules, PrettyPrinter.formatName(name))
 
 
 // CLEANUP: this function exists for backwards compatibility
@@ -230,7 +230,7 @@ module FQValueName =
       hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Value.locations(ctx.branchId, hash)) with
-      | Some(l) -> l.name
+      | Some(l) -> PrettyPrinter.formatName(l.name)
       | None -> shortHash(hash)
 
     let fullForReference(
@@ -277,7 +277,7 @@ module FQFnName =
       hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation(Context.toPickContext(ctx), LanguageTools.PackageManager.Function.locations(ctx.branchId, hash)) with
-      | Some(l) -> l.name
+      | Some(l) -> PrettyPrinter.formatName(l.name)
       | None -> shortHash(hash)
 
     let fullForReference(
@@ -559,7 +559,7 @@ let typeArgumentsDoc(
 let letPattern(lp: LanguageTools.ProgramTypes.LetPattern): String =
   match lp with
   | LPUnit(_id) -> "()"
-  | LPVariable(_id, name) -> name
+  | LPVariable(_id, name) -> PrettyPrinter.formatName(name)
   | LPWildcard(_id) -> "_"
   | LPTuple(_id, first, second, theRest) ->
     (Stdlib.List.concat([ first, second ], theRest))
@@ -594,7 +594,7 @@ let matchPatternConsChain(
 
 let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
   match mp with
-  | MPVariable(_id, name) -> name
+  | MPVariable(_id, name) -> PrettyPrinter.formatName(name)
 
   | MPUnit(_id) -> "()"
 
@@ -674,7 +674,7 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
       | _ -> matchPattern(pat))
     |> Stdlib.String.join(" | ")
 
-  | MPAs(_id, pattern, name) -> $"{matchPattern(pattern)} as {name}"
+  | MPAs(_id, pattern, name) -> $"{matchPattern(pattern)} as {PrettyPrinter.formatName(name)}"
 
 /// A match pattern where it sits among commas, wrapped when it is an or-pattern
 /// or an `as`, which would otherwise take in the commas around it.
@@ -842,8 +842,8 @@ let pipeExprDoc(ctx: Context, p: LanguageTools.ProgramTypes.PipeExpr): Stdlib.Pr
   match p with
   | EPipeVariable(_id, varName, exprs) ->
     match exprs with
-    | [] -> txt(varName)
-    | exprs -> applied(txt(varName), exprs)
+    | [] -> txt(PrettyPrinter.formatName(varName))
+    | exprs -> applied(txt(PrettyPrinter.formatName(varName)), exprs)
 
   | EPipeLambda(_id, pats, body) ->
     // A bare lambda would swallow the remaining pipe stages.
@@ -1395,7 +1395,7 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
       $"{exprPart}.{PrettyPrinter.formatAccessedFieldName(fieldName)}"
     | _ -> $"({exprPart}).{PrettyPrinter.formatAccessedFieldName(fieldName)}"
 
-  | EVariable(_id, name) -> name
+  | EVariable(_id, name) -> PrettyPrinter.formatName(name)
 
   | EArg(_id, index) ->
     // Find the parameter name that corresponds to this index
@@ -1404,7 +1404,7 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
       argMap
       |> Stdlib.Dict.toEntries
       |> Stdlib.List.findFirst(fun((name, idx)) -> idx == index)
-      |> Stdlib.Option.map(fun((name, _)) -> name)
+      |> Stdlib.Option.map(fun((name, _)) -> PrettyPrinter.formatName(name))
       |> Stdlib.Option.withDefault($"earg{Stdlib.toString(index)}")
     | None -> $"earg{Stdlib.toString(index)}"
 
@@ -1664,7 +1664,7 @@ let packageTest(
         Context.toPickContext(ctx),
         LanguageTools.PackageManager.Test.locations(ctx.branchId, test.hash))
   with
-  | Some(location) -> location.name
+  | Some(location) -> PrettyPrinter.formatName(location.name)
   | None -> "test_" + (LanguageTools.ProgramTypes.hashToShort(test.hash))
   let docComment = formatDocComment(test.description)
   let body = expr(ctx, test.body)
@@ -1702,7 +1702,7 @@ module PackageFn =
     if isUnitPlaceholder(p) then
       "()"
     else
-      $"({p.name}: {typeReference(ctx, p.typ)})"
+      $"({PrettyPrinter.formatName(p.name)}: {typeReference(ctx, p.typ)})"
 
   /// Render a function parameter with a breakable type.
   let parameterDoc(
@@ -1716,7 +1716,7 @@ module PackageFn =
         p.description,
         (Stdlib.Pretty.hang(
           2,
-          Stdlib.Pretty.text($"{p.name}:"),
+          Stdlib.Pretty.text($"{PrettyPrinter.formatName(p.name)}:"),
           [ typeReferenceDoc(ctx, p.typ) ])))
 
   /// A fn's parameter list: `(a: T, b: U)`, or `()` for the one unit parameter.
@@ -1807,12 +1807,12 @@ let packageTrait(
         | ps ->
           let inner =
             ps
-            |> Stdlib.List.map(fun p -> $"{p.name}: {typeReference(ctx, p.typ)}")
+            |> Stdlib.List.map(fun p -> $"{PrettyPrinter.formatName(p.name)}: {typeReference(ctx, p.typ)}")
             |> Stdlib.String.join(", ")
           $"({inner})"
       let ownTypeParams = typeParamsWithBounds(ctx, m.typeParams, [])
       let doc = formatDocComment(m.description)
-      $"{doc}let {m.name}{ownTypeParams}{params}:{LanguageTools.Permissions.ceilingRow(m.permissionCeiling)} {typeReference(ctx, m.returnType)}")
+      $"{doc}let {PrettyPrinter.formatName(m.name)}{ownTypeParams}{params}:{LanguageTools.Permissions.ceilingRow(m.permissionCeiling)} {typeReference(ctx, m.returnType)}")
     |> Stdlib.String.join("\n")
   let docComment = formatDocComment(t.description)
   $"{docComment}trait {namePart}{typeParamPart} =\n{PrettyPrinter.indent(methods)}"
@@ -1846,6 +1846,7 @@ let packageImpl(
   let methods =
     i.methods
     |> Stdlib.List.map(fun((name, fn)) ->
+      let method = PrettyPrinter.formatName(name)
       match fn.resolved with
       | Ok(r) ->
         let declaredHere =
@@ -1858,11 +1859,11 @@ let packageImpl(
           | Package(hash) ->
             (match LanguageTools.PackageManager.Function.get(hash) with
              | Some(f) -> packageFn(ctx, f)
-             | None -> $"let {name} = {NameResolution.fnName(ctx, fn)}")
-          | _ -> $"let {name} = {NameResolution.fnName(ctx, fn)}"
+             | None -> $"let {method} = {NameResolution.fnName(ctx, fn)}")
+          | _ -> $"let {method} = {NameResolution.fnName(ctx, fn)}"
         else
-          $"let {name} = {NameResolution.fnName({ ctx with currentModule = [] }, fn)}"
-      | Error(_) -> $"let {name} = <unresolved: {NameResolution.fnName(ctx, fn)}>")
+          $"let {method} = {NameResolution.fnName({ ctx with currentModule = [] }, fn)}"
+      | Error(_) -> $"let {method} = <unresolved: {NameResolution.fnName(ctx, fn)}>")
     |> Stdlib.String.join("\n\n")
   let docComment = formatDocComment(i.description)
   $"{docComment}impl{typeParamPart} {traitPart} for {typeReference(ctx, i.self)} =\n{PrettyPrinter.indent(methods)}"

@@ -122,4 +122,14 @@ by the type checker (`dark typecheck`).
   [ "line 1"
     "line 2"
     "line 3"
-  ] |> Stdlib.printLines"""
+  ] |> Stdlib.printLines
+
+## Keywords
+  let val in if elif then else type trait impl of match with fun when true false _
+
+These can't be names. To use one anyway, put it in double backticks:
+  let ``type`` = "json"
+  metadata.``type``
+A few more words are special only in one place, and free everywhere else:
+`module` and `test` at the start of a declaration, `for` in `impl X for T`,
+`as` in a pattern, `Dict` and `List` before `<`. `def` is not reserved."""
