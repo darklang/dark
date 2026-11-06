@@ -217,6 +217,12 @@ let saveEditing(state: State, es: EditingState): Step =
                 else if committed.reverted then "put " + leaf + " back to an earlier version"
                 else "saved " + leaf
 
+              // The first only: the footer is one line, and `dark constraints` lists them all.
+              let ceilingNote =
+                match Stdlib.List.head(committed.ceilingWarnings) with
+                | Some(first) -> "; warning: " + first
+                | None -> ""
+
               let checked =
                 match Packages.AtRestCheck.summary(committed.report) with
                 | Some(summary) -> " (" + summary + ")"
@@ -238,7 +244,7 @@ let saveEditing(state: State, es: EditingState): Step =
                       else
                         MessageKind.Failed
                     message =
-                      what + checked + (Packages.Propagate.followedNote(committed.followed)) })
+                      what + checked + (Packages.Propagate.followedNote(committed.followed)) + ceilingNote })
             | Error(m) -> keepErr("save failed: " + m)
         | Error(m) -> keepErr(m)
       | None -> keepErr("could not parse")

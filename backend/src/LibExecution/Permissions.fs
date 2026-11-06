@@ -519,6 +519,8 @@ type Layer =
   /// evaluated once, when it is saved (`Execution.evaluateValue`), so an effect would freeze
   /// one machine's answer into the store. `name` is the value's, for the message.
   | Value of name : string
+  /// A trait method's declared ceiling, on a call through it: `<trait hash>.<method>`.
+  | Trait of id : string
 
 type Denial = { layer : Layer; reason : PolicyDenial }
 
@@ -607,7 +609,8 @@ module Access =
     | Layer.Package _ -> true
     | Layer.Instance
     | Layer.Function _
-    | Layer.Value _ -> false
+    | Layer.Value _
+    | Layer.Trait _ -> false
 
   [<RequireQualifiedAccess; Struct>]
   type private CheckMode =

@@ -45,12 +45,18 @@ type Kind =
   /// implementation usually arrives by sync while nobody is looking. Deprecate one to settle it.
   | RivalImplementations
 
+  /// An implementation's method fn that may do more than its trait method's ceiling allows.
+  /// Legal to store: a call through the trait is held to the trait's ceiling when it runs, so
+  /// the part beyond it is denied there. This says so before a call finds out.
+  | ExceedsTraitCeiling
+
 let kindToString(k: Kind): String =
   match k with
   | StaleUsage -> "stale-usage"
   | KindChanged -> "kind-changed"
   | DecisionSuperseded -> "decision-superseded"
   | RivalImplementations -> "rival-implementations"
+  | ExceedsTraitCeiling -> "exceeds-trait-ceiling"
 
 /// The other direction, for reading a kind back out of storage or a CLI argument.
 let kindFromString(s: String): Stdlib.Option.Option<Kind> =
@@ -59,6 +65,7 @@ let kindFromString(s: String): Stdlib.Option.Option<Kind> =
   | "kind-changed" -> Stdlib.Option.Option.Some(Kind.KindChanged)
   | "decision-superseded" -> Stdlib.Option.Option.Some(Kind.DecisionSuperseded)
   | "rival-implementations" -> Stdlib.Option.Option.Some(Kind.RivalImplementations)
+  | "exceeds-trait-ceiling" -> Stdlib.Option.Option.Some(Kind.ExceedsTraitCeiling)
   | _ -> Stdlib.Option.Option.None
 
 /// The ways a finding of this kind can be RESOLVED, named, most-obvious first.
@@ -81,6 +88,8 @@ let resolutionsFor(k: Kind): List<String> =
   // Nothing automatic: the call already runs the newer one, and making that permanent is `deprecate`
   // on the other, its own verb with its own confirmation. Ack it, or pick.
   | RivalImplementations -> []
+  // Nothing automatic: narrowing the fn is an edit, and the trait cannot be widened in place.
+  | ExceedsTraitCeiling -> []
 
 /// Is <param choice> a resolution this kind offers?
 let offersResolution(k: Kind, choice: String): Bool =
@@ -115,6 +124,9 @@ type FindingDetail =
     self: String,
     rival: LanguageTools.ProgramTypes.PackageLocation,
     choice: RivalChoice)
+
+  /// An implementation's method fn beyond its trait method's ceiling: the method, and why.
+  | Ceiling(method: String, why: String)
 
 
 /// One finding: which kind it is, the usage it is about, the dependency involved, and whatever that kind
@@ -289,7 +301,10 @@ let rivalPairs(candidates: List<(String * 'a)>): List<('a * 'a)> =
   pairs
 
 
-let detectRivalImplementations(branchId: Uuid): List<Finding> =
+/// Every trait <param branchId> can see.
+let visibleTraits(
+  branchId: Uuid)
+  : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.Trait.Trait>> =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = []
@@ -298,9 +313,10 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
         entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
         exactMatch = false }
 
-  let traits = (LanguageTools.PackageManager.Search.search(branchId, query)).traits
+  (LanguageTools.PackageManager.Search.search(branchId, query)).traits
 
-  traits
+let detectRivalImplementations(branchId: Uuid): List<Finding> =
+  visibleTraits(branchId)
   |> Stdlib.List.map(fun t ->
     // The self type as printed, and as compared. A name resolution carries the name as
     // WRITTEN (`Point` here, `Scratch.Shapes.Point` there) beside the hash it resolved to,
@@ -348,6 +364,135 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
   |> Stdlib.List.flatten
 
 
+/// Why the fn <param fnHash>, given for a trait method whose ceiling is <param allowed>, may do
+/// more than that ceiling: its own declared ceiling, else its analyzed requirements when the
+/// analysis is complete. None when it stays within. A fn with no ceiling of its own is fine
+/// here: it is held to the trait's when called through it.
+let ceilingExcess(
+  allowed: List<LanguageTools.Permissions.Effect>,
+  fnHash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<String> =
+  let row = ":" + LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(allowed))
+
+  let beyond(effects: List<LanguageTools.Permissions.Effect>): String =
+    effects
+    |> Stdlib.List.filter(fun e -> Stdlib.Bool.not(Stdlib.List.contains(allowed, e)))
+    |> Stdlib.List.map(LanguageTools.Permissions.effectCaseName)
+    |> Stdlib.String.join(", ")
+
+  let declared =
+    match LanguageTools.PackageManager.Function.get(fnHash) with
+    | Some(fn) -> fn.permissionCeiling |> Stdlib.Option.map(beyond)
+    | None -> Stdlib.Option.Option.None
+
+  match declared with
+  | Some(extra) when extra != "" ->
+    Stdlib.Option.Option.Some($"it allows {extra}, which the trait's {row} does not")
+  | _ ->
+    let (effects, complete) =
+      LanguageTools.Permissions.requirementsForHash(
+        LanguageTools.ProgramTypes.hashToString(fnHash))
+    let extra = beyond(effects)
+    if complete && extra != "" then
+      Stdlib.Option.Option.Some(
+        $"its body requires {extra}, which the trait's {row} does not allow")
+    else
+      Stdlib.Option.Option.None
+
+/// Each method of <param trait_> with a ceiling whose fn in <param methods> may do more than
+/// it, as (method, why). A trait method with no ceiling constrains nothing, so a trait that
+/// declares none costs nothing here.
+let ceilingExcesses(
+  trait_: LanguageTools.ProgramTypes.Trait.Trait,
+  methods: List<(String * LanguageTools.ProgramTypes.Hash)>)
+  : List<(String * String)> =
+  methods
+  |> Stdlib.List.filterMap(fun((name, fnHash)) ->
+    match Stdlib.List.findFirst(trait_.methods, fun m -> m.name == name) with
+    | Some(method_) ->
+      match method_.permissionCeiling with
+      | Some(allowed) -> ceilingExcess(allowed, fnHash) |> Stdlib.Option.map(fun why -> (name, why))
+      | None -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None)
+
+/// What a save, `dark constraints` and the runtime say about a fn beyond its trait's ceiling.
+let ceilingExcessMessage(traitName: String, method: String, why: String): String =
+  $"The fn given for `{method}` may do more than {traitName}.{method} allows ({why}); "
+  + "a call through the trait is denied it when it runs"
+
+/// The implementation <param implHash>'s method fns that may do more than their trait methods
+/// allow, as `ceilingExcessMessage`s: what saving it warns about.
+let implCeilingWarnings(
+  branchId: Uuid,
+  implHash: LanguageTools.ProgramTypes.Hash)
+  : List<String> =
+  match LanguageTools.PackageManager.TraitImpl.get(implHash) with
+  | None -> []
+  | Some(implementation) ->
+    match implementation.trait_.resolved with
+    | Error(_) -> []
+    | Ok(resolved) ->
+      match resolved.name with
+      | Package(traitHash) ->
+      match LanguageTools.PackageManager.Trait.get(traitHash) with
+      | None -> []
+      | Some(t) ->
+        let traitName =
+          match
+            LanguageTools.PackageManager.pickLocation(
+              LanguageTools.PackageManager.PickContext.empty,
+              LanguageTools.PackageManager.Trait.locations(branchId, traitHash))
+          with
+          | Some(loc) -> fqnOf(loc)
+          | None -> Stdlib.String.join(implementation.trait_.originalName, ".")
+
+        let methods =
+          implementation.methods
+          |> Stdlib.List.filterMap(fun((name, nr)) ->
+            match nr.resolved with
+            | Ok(fn) ->
+              match fn.name with
+              | Package(h) -> Stdlib.Option.Option.Some((name, h))
+              | _ -> Stdlib.Option.Option.None
+            | Error(_) -> Stdlib.Option.Option.None)
+
+        ceilingExcesses(t, methods)
+        |> Stdlib.List.map(fun((method, why)) -> ceilingExcessMessage(traitName, method, why))
+
+/// Every visible implementation whose method fn may do more than its trait method's ceiling,
+/// one finding per method, keyed on the implementation's version so an edit re-reports.
+let detectTraitCeilingExcess(branchId: Uuid): List<Finding> =
+  visibleTraits(branchId)
+  |> Stdlib.List.filter(fun t ->
+    Stdlib.List.any(t.entity.methods, fun m -> Stdlib.Option.isSome(m.permissionCeiling)))
+  |> Stdlib.List.map(fun t ->
+    LanguageTools.PackageManager.Trait.impls(branchId, t.entity.hash)
+    |> Stdlib.List.map(fun c ->
+      match
+        LanguageTools.PackageManager.pickLocation(
+          LanguageTools.PackageManager.PickContext.empty,
+          LanguageTools.PackageManager.TraitImpl.locations(branchId, c.source))
+      with
+      | None -> []
+      | Some(loc) ->
+        ceilingExcesses(t.entity, Stdlib.Dict.toList(c.methods))
+        |> Stdlib.List.map(fun((method, why)) ->
+          Finding
+            { kind = Kind.ExceedsTraitCeiling
+              id =
+                findingId(
+                  loc,
+                  t.location,
+                  $"{method}|{LanguageTools.ProgramTypes.hashToString(c.source)}")
+              usage = loc
+              usageKind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
+              dependency = t.location
+              dependencyKind = LanguageTools.ProgramTypes.ItemKind.Trait
+              detail = FindingDetail.Ceiling(method, why) }))
+    |> Stdlib.List.flatten)
+  |> Stdlib.List.flatten
+
+
 /// Find outdated references on a non-main branch, including inherited callers.
 let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
   if SCM.Branch.isMain(branchId) then [] else outdatedUsagesOn(branchId)
@@ -374,7 +519,8 @@ let detectWithOutdated(outdated: List<Finding>): Detection =
         Stdlib.List.flatten(
           [ outdated
             decisions
-            detectRivalImplementations(PackageOps.currentBranch()) ])
+            detectRivalImplementations(PackageOps.currentBranch())
+            detectTraitCeilingExcess(PackageOps.currentBranch()) ])
       blocked = decisionsBlocked }
 
 
@@ -428,6 +574,7 @@ let ack(
       | KindChanged -> $"{fqnOf(s.dependency)} is a different kind of item now"
       | DecisionSuperseded -> $"decision on {fqnOf(s.usage)} superseded"
       | RivalImplementations -> $"{fqnOf(s.usage)} is one of two implementations of {fqnOf(s.dependency)}"
+      | ExceedsTraitCeiling -> $"{fqnOf(s.usage)} may do more than {fqnOf(s.dependency)} allows"
 
   let op =
     LanguageTools.ProgramTypes.PackageOp.Decision(

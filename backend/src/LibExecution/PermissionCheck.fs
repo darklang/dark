@@ -43,6 +43,7 @@ let private layerName
   | Permission.Layer.Package id -> $"package policy {fnLabel fnName id}"
   | Permission.Layer.Function id -> $"function policy {fnLabel fnName id}"
   | Permission.Layer.Value name -> $"value `{name}`"
+  | Permission.Layer.Trait id -> $"trait ceiling `{id}`"
 
 let private reasonText (reason : Permission.PolicyDenial) : string =
   match reason with
@@ -99,6 +100,8 @@ let private denialMessage
     | Permission.Layer.Value _, _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "
       + "Make it a function to do this each time it is called."
+    | Permission.Layer.Trait _, _, _ ->
+      "The trait method's declared ceiling does not allow this operation, whichever implementation runs."
   $"permission denied by {layerName fnName layer}: {resource} is {reasonText reason}. {remedy}"
 
 let private raiseDenial

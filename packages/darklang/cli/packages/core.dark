@@ -300,7 +300,32 @@ type Committed =
     followed: Propagate.Followed
     /// The save's own type error, named, if it has one.
     ownIssue: Stdlib.Option.Option<String>
+    /// For an implementation: each method fn that may do more than its trait method allows.
+    ceilingWarnings: List<String>
     report: LanguageTools.AtRestTypeChecker.Report }
+
+
+/// For the implementation bound at <param location>: each method fn that may do more than its
+/// trait method allows (`SCM.Constraints.implCeilingWarnings`). Empty for any other item.
+let ceilingWarningsAt(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation)
+  : List<String> =
+  match Packages.Rename.referenceAt(branchId, location) with
+  | Some(reference) ->
+    match LanguageTools.ProgramTypes.Reference.kind(reference) with
+    | TraitImpl ->
+      SCM.Constraints.implCeilingWarnings(
+        branchId,
+        LanguageTools.ProgramTypes.Reference.hash(reference))
+    | _ -> []
+  | None -> []
+
+/// Not refusals: a trait's ceiling holds when a call through it runs. These say so first.
+let printCeilingWarnings(warnings: List<String>): Unit =
+  warnings
+  |> Stdlib.List.iter(fun warning ->
+    Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.warning, "  ", $"warning: {warning}"))
 
 
 /// Save <param ops>, which bind <param location> (a <param kind>) at the placeholder <param hash>,
@@ -418,6 +443,7 @@ let commitAuthored(
           boundHash = boundHash
           followed = followed
           ownIssue = ownIssue
+          ceilingWarnings = if landed then ceilingWarningsAt(branchId, location) else []
           report = report })
   | Error(msg) -> Stdlib.Result.Result.Error(msg)
 
@@ -492,6 +518,8 @@ let saveAuthored(
           "  ",
           $"type error: {why}; saved as a draft, `dark commit` will refuse it")
       | None -> ()
+
+      printCeilingWarnings(committed.ceilingWarnings)
 
       Propagate.printFollowed(followed)
 

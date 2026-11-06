@@ -565,9 +565,8 @@ module PackageFn =
 module Trait =
   /// One method's signature; no body (the impls have those).
   ///
-  /// The ceiling is DECLARED and stored and hashed with the trait, and nothing enforces it
-  /// against an implementation yet, so an impl may do more than the method allows. See the
-  /// F# mirror for the detail.
+  /// The ceiling binds every call through the method, whichever impl runs, and is enforced
+  /// when it runs. See the F# mirror for the detail.
   type Method =
     { name: String
       typeParams: List<String>

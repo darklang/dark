@@ -37,7 +37,7 @@ let editInstancePolicy(
 let permissionRequirementsForHash(
   hash: String)
   : (List<LanguageTools.Permissions.Effect> * Bool) =
-  Builtin.pmFnPermissionRequirements(hash)
+  LanguageTools.Permissions.requirementsForHash(hash)
 
 /// Take an approval back: a name's approved version, or a hash's approval. They are separate
 /// records; withdrawing one leaves the other.

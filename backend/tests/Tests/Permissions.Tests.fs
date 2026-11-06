@@ -124,7 +124,7 @@ let instanceDenialWinsOverInnerDenial =
 
 let warnModeNeverRelaxesTheAuthorsCeiling =
   test
-    "audit mode waives run and package denials but not the instance or a function ceiling" {
+    "audit mode waives run and package denials but not the instance or a function or trait ceiling" {
     let recorded = ResizeArray<Permission.Layer>()
     let relax = Permission.Relax(fun _ layer _ -> recorded.Add layer)
     let decide layer =
@@ -144,6 +144,10 @@ let warnModeNeverRelaxesTheAuthorsCeiling =
       (decide (Permission.Layer.Function "f") |> Option.map (fun d -> d.layer))
       (Some(Permission.Layer.Function "f"))
       "the author's ceiling still denies"
+    Expect.equal
+      (decide (Permission.Layer.Trait "t.m") |> Option.map (fun d -> d.layer))
+      (Some(Permission.Layer.Trait "t.m"))
+      "and so does a trait method's"
     Expect.equal
       (Permission.Access.decide
         relax

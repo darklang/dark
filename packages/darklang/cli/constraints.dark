@@ -2,7 +2,7 @@ module Darklang.Cli.ConstraintsCmd
 
 // `dark constraints` -- standing checks over the store, and what you've decided about them.
 //
-// Three kinds today (`SCM.Constraints.Kind`), all of them cases of one command rather than commands of
+// The kinds are `SCM.Constraints.Kind`, all of them cases of one command rather than commands of
 // their own, because they share the whole detect / record / ack lifecycle and differ only in what a
 // resolution would mean. The next one should be a case too.
 //
@@ -50,6 +50,9 @@ let line(f: SCM.Constraints.Finding): String =
       $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {r}, the later of the two.\n             Two implementations, not an out-of-date one, so a dependency upgrade leaves it alone.\n             Retire one to settle it:\n               `dark deprecate impl {u}` leaves {r} running\n               `dark deprecate impl {r}` hands it to {u}\n             Leave both: `dark ack #{f.id}`"
     | Neither ->
       $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Neither came from a commit, so no call can choose.\n             Save one of them again, or retire one:\n               `dark deprecate impl {u}` or `dark deprecate impl {r}`"
+  | (ExceedsTraitCeiling, Ceiling(method, why)) ->
+    let message = SCM.Constraints.ceilingExcessMessage(d, method, why)
+    $"  #{f.id}  {u}\n             {message}.\n             Narrow the fn to stay within it, or leave it: `dark ack #{f.id}`"
   | (_, _) -> $"  #{f.id}  {u}"
 
 
@@ -78,6 +81,7 @@ let toJson(f: SCM.Constraints.Finding): String =
         | Neither -> ""
 
       $"\"self\":{Cli.jsonStr(self)},\"rival\":{Cli.jsonStr(SCM.Constraints.fqnOf(rival))},\"runs\":{Cli.jsonStr(runs)}"
+    | Ceiling(method, why) -> $"\"method\":{Cli.jsonStr(method)},\"why\":{Cli.jsonStr(why)}"
 
   $"{{\"id\":{Cli.jsonStr(f.id)},\"kind\":{k},\"usage\":{u},\"usageKind\":{uk},\"dependency\":{d},\"dependencyKind\":{dk},{detail}}}"
 
@@ -106,13 +110,13 @@ let kindArgChecked(args: List<String>): Stdlib.Result.Result<Unit, String> =
     match Stdlib.List.getAt(args, i + 1) with
     | None ->
       Stdlib.Result.Result.Error(
-        "--kind needs a value: stale-usage, kind-changed, decision-superseded, or rival-implementations.")
+        "--kind needs a value: stale-usage, kind-changed, decision-superseded, rival-implementations, or exceeds-trait-ceiling.")
     | Some(wanted) ->
       match SCM.Constraints.kindFromString(wanted) with
       | Some(_) -> Stdlib.Result.Result.Ok()
       | None ->
         Stdlib.Result.Result.Error(
-          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, decision-superseded, or rival-implementations.")
+          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, decision-superseded, rival-implementations, or exceeds-trait-ceiling.")
 
 
 let executeJson(state: AppState, args: List<String>): AppState =
@@ -397,7 +401,8 @@ let executeResolve(state: AppState, args: List<String>): AppState =
           | Ok(_) ->
             Cli.printOk($"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf(f.usage)}")
             true
-        | Rivals(_, _, _) -> false)
+        | Rivals(_, _, _) -> false
+        | Ceiling(_, _) -> false)
 
     Cli.exitWith(state, (Stdlib.List.isEmpty(missing)) && (Stdlib.List.all(results, fun ok -> ok)))
 
@@ -405,7 +410,7 @@ let executeResolve(state: AppState, args: List<String>): AppState =
 
 let help(_state: AppState): String =
   [ ""
-    "  Checks you RUN, not warnings at commit. Four kinds today:"
+    "  Checks you RUN, not warnings at commit. Five kinds today:"
     ""
     "    stale-usage    a live item still uses a version that is not"
     "                   what the name means now. Not a backlog: a caller"
@@ -424,6 +429,11 @@ let help(_state: AppState): String =
     "                   Calls use the later one; this says which, so the"
     "                   other does not surprise you. Retire one with"
     "                   `dark deprecate impl`, or ack it."
+    "    exceeds-trait-ceiling"
+    "                   an implementation's fn may do more than its"
+    "                   trait method's ceiling. A call through the trait"
+    "                   is denied the rest when it runs. Narrow the fn,"
+    "                   or ack it."
     ""
     "  dark constraints                     what's outstanding"
     "  dark constraints --kind <kind>       just one kind"

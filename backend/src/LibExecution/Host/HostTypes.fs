@@ -414,6 +414,7 @@ let private auditLayer (layer : Permission.Layer) : string =
   | Permission.Layer.Package id -> $"Package \"{id}\""
   | Permission.Layer.Function id -> $"Function \"{id}\""
   | Permission.Layer.Value name -> $"Value \"{name}\""
+  | Permission.Layer.Trait id -> $"Trait \"{id}\""
 
 /// One line of the host audit log: `{"decision","detail","layer","op","ts"}`.
 /// Written with the writer, never the reflecting serializer, which the published (AOT)

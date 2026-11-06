@@ -3684,6 +3684,121 @@ let private traitSelfArgIndex
     else
       None)
 
+/// The restriction a trait method's declared ceiling adds to a call through it, or none.
+type private TraitCeiling =
+  { restriction : voption<struct (Permissions.Layer * Permissions.Policy)> }
+
+let private noTraitCeiling : TraitCeiling = { restriction = ValueNone }
+
+/// `TraitCeiling` by the call's own name, compared by reference: the name lives in the
+/// instruction, so a call site pays one lookup that hashes no strings. A trait is its content
+/// hash, so an entry never goes stale.
+let private traitCeilingMemo =
+  System.Runtime.CompilerServices.ConditionalWeakTable<FQFnName.TraitMethod, TraitCeiling>()
+
+/// The same by (trait, method), for a name built at runtime: a fresh one each call would
+/// otherwise fetch the trait each call.
+let private traitCeilingByMethod
+  : System.Collections.Concurrent.ConcurrentDictionary<struct (Hash * string), TraitCeiling> =
+  System.Collections.Concurrent.ConcurrentDictionary()
+
+/// What a call through `tm` adds for the trait method's declared ceiling. Fetches the trait
+/// on a call site's first call, and raises `TraitNotFound` when there is none, as dispatch
+/// does: a ceiling that cannot be read must not become no ceiling.
+let private traitCeilingOf
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (tm : FQFnName.TraitMethod)
+  : Ply<TraitCeiling> =
+  match traitCeilingMemo.TryGetValue tm with
+  | true, entry -> Ply entry
+  | false, _ ->
+    match traitCeilingByMethod.TryGetValue(struct (tm.trait_, tm.method_)) with
+    | true, entry ->
+      traitCeilingMemo.AddOrUpdate(tm, entry)
+      Ply entry
+    | false, _ ->
+      uply {
+        match! exeState.traits.trait_ tm.trait_ with
+        | None ->
+          return
+            RTE.Trait(RTE.Traits.TraitNotFound(FQTraitName.Package tm.trait_))
+            |> raiseRTE vm.threadID
+        | Some t ->
+          let ceiling =
+            t.methods
+            |> NEList.toList
+            |> List.tryFind (fun m -> m.name = tm.method_)
+            |> Option.bind (fun m -> m.permissionCeiling)
+          let entry =
+            match ceiling with
+            | None -> noTraitCeiling
+            | Some effects ->
+              let (Hash traitHash) = tm.trait_
+              { restriction =
+                  ValueSome(
+                    struct (Permissions.Layer.Trait $"{traitHash}.{tm.method_}",
+                            Permissions.Policy.allowEffects effects)
+                  ) }
+          traitCeilingByMethod[struct (tm.trait_, tm.method_)] <- entry
+          traitCeilingMemo.AddOrUpdate(tm, entry)
+          return entry
+      }
+
+/// `access` narrowed by a trait method's ceiling.
+let private withTraitCeiling
+  (ceiling : TraitCeiling)
+  (access : Permissions.Access)
+  : Permissions.Access =
+  match ceiling.restriction with
+  | ValueNone -> access
+  | ValueSome(struct (layer, policy)) ->
+    access |> Permissions.Access.restrict layer policy
+
+/// `ctx` as a call to `implFn`, the impl chosen for a trait call, under `ceiling`. The type
+/// args named the TRAIT's params (the self type first); the impl fn has its own, inferred
+/// from the arguments.
+let private traitImplCtx
+  (ctx : ApplyContext)
+  (ceiling : TraitCeiling)
+  (implFn : FQFnName.Package)
+  : ApplyContext =
+  { ctx with
+      typeArgs = []
+      access = withTraitCeiling ceiling ctx.access
+      applicable =
+        { ctx.applicable with name = FQFnName.Package implFn; typeArgs = [] } }
+
+/// Call `implFn` for the trait call `tm` exactly as a direct call would, under the trait
+/// method's ceiling, whichever impl it is: one saved with the caller, one picked at the call,
+/// a script's own or one over a builtin. The impl fn adds its own approval and ceiling on
+/// entry, as any package fn does. Synchronous once the trait and the fn are in hand, which
+/// after a call site's first call they are.
+let private callTraitImpl
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (tm : FQFnName.TraitMethod)
+  (implFn : FQFnName.Package)
+  : Ply<PackageOutcome> =
+  let ceiling = traitCeilingOf exeState vm tm
+  let fetch = exeState.fns.package implFn
+  match Ply.trySync ceiling, Ply.trySync fetch with
+  | ValueSome c, ValueSome(Some fn) ->
+    callPackage exeState vm currentFrame (traitImplCtx ctx c implFn) fn
+  | ValueSome _, ValueSome None ->
+    RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+  | _ ->
+    uply {
+      let! c = ceiling
+      match! fetch with
+      | Some fn ->
+        return! callPackage exeState vm currentFrame (traitImplCtx ctx c implFn) fn
+      | None ->
+        return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+    }
+
 /// Which argument of a trait method is the self one, by (trait, method). A trait
 /// is its content hash, so this never goes stale; filled by `resolveTraitMethod`,
 /// read by the apply fast path.
@@ -4133,8 +4248,8 @@ let rec private beginRequest
     let named = { named with argsSoFar = named.argsSoFar @ (arg :: moreArgs) }
     // A trait method is resolved to the fn its impl names, and called as that fn. The type args
     // named the TRAIT's params; the impl fn infers its own. Waited for in place, like the fn
-    // fetch below.
-    let named =
+    // fetch below. The trait method's ceiling narrows the access it is entered with.
+    let struct (named, access) =
       match named.name with
       | FQFnName.TraitMethod tm ->
         let implFn =
@@ -4154,8 +4269,14 @@ let rec private beginRequest
             match Ply.trySync resolving with
             | ValueSome implFn -> implFn
             | ValueNone -> (Ply.toTask resolving).Result
-        { named with name = FQFnName.Package implFn; typeArgs = [] }
-      | _ -> named
+        let ceiling =
+          let reading = traitCeilingOf exeState vm tm
+          match Ply.trySync reading with
+          | ValueSome c -> c
+          | ValueNone -> (Ply.toTask reading).Result
+        struct ({ named with name = FQFnName.Package implFn; typeArgs = [] },
+                withTraitCeiling ceiling access)
+      | _ -> struct (named, access)
     let ctx : ApplyContext =
       { applicable = named
         typeArgs = named.typeArgs
@@ -4402,30 +4523,11 @@ let private applyRecordedImpl
   (currentFrame : CallFrame)
   (registers : Dval array)
   (putResultIn : Register)
-  (applicable : ApplicableNamedFn)
   (ctx : ApplyContext)
   (tm : FQFnName.TraitMethod)
   : ApplyOutcome =
   let implFn = (recordedImpl currentFrame tm).Value
-  let implCtx =
-    { ctx with
-        // The type args named the TRAIT's params (the self type first); the impl fn
-        // has its own, inferred from the arguments.
-        typeArgs = []
-        applicable =
-          { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-  let call : Ply<PackageOutcome> =
-    match Ply.trySync (exeState.fns.package implFn) with
-    | ValueSome(Some fn) -> callPackage exeState vm currentFrame implCtx fn
-    | ValueSome None ->
-      RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-    | ValueNone ->
-      uply {
-        match! exeState.fns.package implFn with
-        | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-        | None ->
-          return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-      }
+  let call = callTraitImpl exeState vm currentFrame ctx tm implFn
   match Ply.trySync call with
   | ValueSome(Completed dv) ->
     Registers.set registers putResultIn dv
@@ -4452,9 +4554,7 @@ let private applyTraitMethod
   : ApplyOutcome =
   let traitHash = tm.trait_
   let methodName = tm.method_
-  // Pick the impl, then call its fn exactly as a direct call would: that fn is what
-  // runs, what traces record, and what carries the ceiling.
-  //
+  // Pick the impl, then call its fn exactly as a direct call would (`callTraitImpl`).
   // A mixed-type operator says so up front ("Cannot perform numeric operation on
   // Int64 and Float") rather than dispatching on the left operand and failing inside
   // the impl's parameter check. Matching builtin numeric pairs never reach here, so
@@ -4531,25 +4631,7 @@ let private applyTraitMethod
       vm.stats.traitDispatchMissCount <- vm.stats.traitDispatchMissCount + 1L
   let call : Ply<PackageOutcome> =
     match remembered with
-    | ValueSome implFn ->
-      let implCtx =
-        { ctx with
-            // The type args named the TRAIT's params (the self type first); the impl fn
-            // has its own, inferred from the arguments.
-            typeArgs = []
-            applicable =
-              { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-      match Ply.trySync (exeState.fns.package implFn) with
-      | ValueSome(Some fn) -> callPackage exeState vm currentFrame implCtx fn
-      | ValueSome None ->
-        RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-      | ValueNone ->
-        uply {
-          match! exeState.fns.package implFn with
-          | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-          | None ->
-            return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-        }
+    | ValueSome implFn -> callTraitImpl exeState vm currentFrame ctx tm implFn
     | ValueNone ->
       let allArgs =
         applicable.argsSoFar
@@ -4565,17 +4647,7 @@ let private applyTraitMethod
             typeArgs
             tst
             allArgs
-        let implCtx =
-          { ctx with
-              // The type args named the TRAIT's params (the self type first); the
-              // impl fn has its own, inferred from the arguments.
-              typeArgs = []
-              applicable =
-                { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-        match! exeState.fns.package implFn with
-        | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-        | None ->
-          return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+        return! callTraitImpl exeState vm currentFrame ctx tm implFn
       }
   match Ply.trySync call with
   | ValueSome(Completed dv) ->
@@ -5074,15 +5146,7 @@ let private applyInstructionForced
       // whose self type was known when it was written, which is nearly all of them.
       | FQFnName.TraitMethod tm when (recordedImpl currentFrame tm).IsSome ->
         outcome <-
-          applyRecordedImpl
-            exeState
-            vm
-            currentFrame
-            registers
-            putResultIn
-            applicable
-            ctx
-            tm
+          applyRecordedImpl exeState vm currentFrame registers putResultIn ctx tm
       | FQFnName.TraitMethod tm ->
         outcome <-
           applyTraitMethod
