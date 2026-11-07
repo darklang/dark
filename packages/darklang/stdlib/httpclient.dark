@@ -77,14 +77,17 @@ type StreamResponse =
 let __outgoingHeaders(
   headers: List<(String * String)>)
   : Stdlib.Result.Result<List<(String * String)>, RequestError> =
-  let trimmed =
-    Stdlib.List.map(headers, fun h ->
-      (Stdlib.String.trim(Stdlib.Tuple2.first(h)), Stdlib.Tuple2.second(h)))
+  match headers with
+  | [] -> Stdlib.Result.Result.Ok(headers)
+  | _ ->
+    let trimmed =
+      Stdlib.List.map(headers, fun h ->
+        (Stdlib.String.trim(Stdlib.Tuple2.first(h)), Stdlib.Tuple2.second(h)))
 
-  if Stdlib.List.any(trimmed, fun h -> Stdlib.Tuple2.first(h) == "") then
-    Stdlib.Result.Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
-  else
-    Stdlib.Result.Result.Ok(trimmed)
+    if Stdlib.List.any(trimmed, fun h -> Stdlib.Tuple2.first(h) == "") then
+      Stdlib.Result.Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
+    else
+      Stdlib.Result.Result.Ok(trimmed)
 
 
 /// Make an HTTP call to <param uri> and read the whole response. Returns a <type Result>
