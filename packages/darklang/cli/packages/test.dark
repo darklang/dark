@@ -21,6 +21,8 @@ type Timing =
 type Counts =
   { passed: Int64
     failed: Int64
+    /// The tests inside the judged test groups, as `LanguageTools.PackageManager.Test.testCount` reads them.
+    tests: Int64
     cached: Int64
     ran: Int64
     /// Of those that ran, how many needed their own process and store copy.
@@ -30,7 +32,7 @@ type Counts =
     timings: List<Timing> }
 
 val usage =
-  "Usage: test run [--force] [--jobs <count>] [name-or-module ...]\n       test add <location> <body> | <source-file> | -"
+  "Usage: test run [--force] [--jobs <count>] [name-or-module ...]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
 
 let fullPath(
   item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
@@ -267,6 +269,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     else
       addTest(state, location, definition)
   | ["run", ...runArgs] -> runTests(state, runArgs)
+  | ["count", ...countArgs] -> countTests(state, countArgs)
   | [] ->
     Stdlib.printLine(help(state))
     state
@@ -333,6 +336,7 @@ let finishTest(
   Counts
     { passed = counts.passed + (if isPassed(finished.outcome) then 1 else 0)
       failed = counts.failed + (if isPassed(finished.outcome) then 0 else 1)
+      tests = counts.tests + LanguageTools.PackageManager.Test.testCount(finished.test.body)
       cached = counts.cached + (if finished.wasCached then 1 else 0)
       ran = counts.ran + (if finished.wasCached then 0 else 1)
       isolated =
@@ -424,6 +428,27 @@ let printSlowest(timings: List<Timing>): Unit =
   else
     ()
 
+/// Every test on <param branchId> that is not deprecated: `delete` deprecates
+/// rather than unbinding, so a deleted test would otherwise keep running. Not
+/// `Query.filterHidden`: that keeps items with live callers and, on a branch,
+/// anything the branch deprecated.
+let liveTests(
+  branchId: Uuid)
+  : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>> =
+  let rawResults =
+    LanguageTools.PackageManager.Search.search(
+      branchId,
+      (LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = []
+          text = ""
+          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Test ]
+          exactMatch = false }))
+  let depSets = Query.loadDeprecationSets(branchId)
+  rawResults.tests
+  |> Stdlib.List.filter(fun item ->
+    Stdlib.Bool.not(Query.isDeprecated(depSets, item.entity.hash)))
+
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: Cli.AppState,
@@ -440,32 +465,16 @@ let runTestsInRun(
     Stdlib.printErrorLine(usage)
     { state with exitCode = 1 }
   | Ok(options) ->
-    // Every test, then the filters by whole name segments. Not the package
-    // search's text match: that is fuzzy, so `WbTests.R` matched every test in
-    // every `Tests` module.
-    let rawResults =
-      LanguageTools.PackageManager.Search.search(
-        state.currentBranchId,
-        (LanguageTools.ProgramTypes.Search.SearchQuery
-          { currentModule = []
-            text = ""
-            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-            entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Test ]
-            exactMatch = false }))
-    // `delete` deprecates rather than unbinding, so a deleted test would
-    // otherwise keep running. Not `Query.filterHidden`: that keeps items
-    // with live callers and, on a branch, anything the branch deprecated.
-    let depSets = Query.loadDeprecationSets(state.currentBranchId)
+    // Filtered by whole name segments. Not the package search's text match:
+    // that is fuzzy, so `WbTests.R` matched every test in every `Tests` module.
     let liveTests =
-      rawResults.tests
-      |> Stdlib.List.filter(fun item ->
-        Stdlib.Bool.not(Query.isDeprecated(depSets, item.entity.hash)))
+      liveTests(state.currentBranchId)
       |> Stdlib.List.filter(fun item ->
         Stdlib.List.isEmpty(options.filters)
         || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
 
     let initial =
-      Counts { passed = 0, failed = 0, cached = 0, ran = 0, isolated = 0, reran = 0, timings = [] }
+      Counts { passed = 0, failed = 0, tests = 0, cached = 0, ran = 0, isolated = 0, reran = 0, timings = [] }
     let counts =
       runSelected(
         run,
@@ -488,12 +497,161 @@ let runTestsInRun(
         if counts.reran == 0 then ""
         else $"; {Stdlib.toString(counts.reran)} wrote to the store and reran on a copy"
       Stdlib.printLine(
-        $"{Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached; {Stdlib.toString(counts.isolated)} isolated{reranNote}")
+        $"{Stdlib.toString(total)} test groups ({Stdlib.toString(counts.tests)} tests): {Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached; {Stdlib.toString(counts.isolated)} isolated{reranNote}")
 
     if counts.failed > 0 || total == 0 then
       { state with exitCode = 1 }
     else
       state
+
+/// One row of `test count`: a submodule with everything beneath it, or one test group.
+type CountRow =
+  { name: String
+    groups: Int64
+    tests: Int64 }
+
+/// <param groups> (full name segments, tests) rolled up one level below
+/// <param prefix>: a row per submodule, plus a row per test group directly in
+/// <param prefix> when it has no submodules, or one row for them all when it has.
+let countRows(
+  prefix: List<String>,
+  groups: List<(List<String> * Int64)>)
+  : List<CountRow> =
+  let depth = Stdlib.List.length(prefix)
+  let (direct, nested) =
+    Stdlib.List.partition(groups, fun((path, _)) ->
+      Stdlib.List.length(path) == depth + 1)
+  let row(name: String, group: List<(List<String> * Int64)>): CountRow =
+    CountRow
+      { name = name
+        groups = Stdlib.List.length(group)
+        tests = Stdlib.List.fold(group, 0, fun(total, (_, tests)) -> total + tests) }
+  let modules =
+    nested
+    |> Stdlib.List.groupBy(fun((path, _)) ->
+      Stdlib.Option.withDefault(Stdlib.List.getAt(path, depth), ""))
+    |> Stdlib.List.map(fun((name, group)) -> row(name, group))
+    |> Stdlib.List.sortBy(fun r -> r.name)
+  let here =
+    if Stdlib.List.isEmpty(direct) then
+      []
+    else if Stdlib.List.isEmpty(modules) then
+      direct
+      |> Stdlib.List.map(fun((path, tests)) ->
+        row(Stdlib.Option.withDefault(Stdlib.List.last(path), ""), [ (path, tests) ]))
+      |> Stdlib.List.sortBy(fun r -> r.name)
+    else
+      [ row("(test groups in this module)", direct) ]
+  Stdlib.List.concat(modules, here)
+
+let countLine(groups: Int64, tests: Int64): String =
+  let g = if groups == 1 then "test group" else "test groups"
+  let t = if tests == 1 then "test" else "tests"
+  $"{Stdlib.toString(groups)} {g}, {Stdlib.toString(tests)} {t}"
+
+/// <param prefix>, extended while every test group in <param groups> sits under the
+/// same submodule, so a module holding only `Tests` shows what is inside it.
+let deepestShared(
+  prefix: List<String>,
+  groups: List<(List<String> * Int64)>)
+  : List<String> =
+  let depth = Stdlib.List.length(prefix)
+  let next =
+    groups
+    |> Stdlib.List.map(fun((path, _)) ->
+      if Stdlib.List.length(path) > depth + 1 then Stdlib.List.getAt(path, depth)
+      else Stdlib.Option.Option.None)
+    |> Stdlib.List.unique
+  match next with
+  | [ Some(segment) ] -> deepestShared(Stdlib.List.append(prefix, segment), groups)
+  | _ -> prefix
+
+/// Print the total for <param heading>, then a row per entry of `countRows`
+/// below the deepest module all of <param groups> share.
+let printCounts(
+  heading: String,
+  prefix: List<String>,
+  groups: List<(List<String> * Int64)>)
+  : Unit =
+  let shared = deepestShared(prefix, groups)
+  let rows = countRows(shared, groups)
+  let total = Stdlib.List.fold(groups, 0, fun(total, (_, tests)) -> total + tests)
+  let below =
+    if shared == prefix then "" else $" (all in {Stdlib.String.join(shared, ".")})"
+  Stdlib.printLine($"{heading}: {countLine(Stdlib.List.length(groups), total)}{below}")
+  let width =
+    Stdlib.List.fold(rows, 0, fun(w, r) ->
+      let n = Stdlib.String.length(r.name)
+      if n > w then n else w)
+  rows
+  |> Stdlib.List.iter(fun r ->
+    Stdlib.printLine($"  {Stdlib.String.padEnd(r.name, ' ', width)}  {countLine(r.groups, r.tests)}"))
+
+/// `test count [--for <item>] [module]`: how many test groups and tests are in
+/// <param module> (by full dotted name; everything when omitted), rolled up one
+/// level down. With `--for`, only the test groups that use <item>, directly or
+/// through anything else they call. Reads definitions only; nothing runs.
+let countTests(state: Cli.AppState, args: List<String>): Cli.AppState =
+  let branchId = state.currentBranchId
+  let (forItem, rest) =
+    match args with
+    | ["--for", item, ...rest] -> (Stdlib.Option.Option.Some(item), rest)
+    | [ moduleArg, "--for", item ] -> (Stdlib.Option.Option.Some(item), [ moduleArg ])
+    | _ -> (Stdlib.Option.Option.None, args)
+  let badArgs(message: String): Cli.AppState =
+    Cli.printErr(message)
+    Stdlib.printErrorLine(usage)
+    { state with exitCode = 1 }
+  match rest with
+  | [_, _, ...] -> badArgs("test count takes at most one module")
+  | [arg, ...] when Stdlib.String.startsWith(arg, "-") -> badArgs($"Unknown option: {arg}")
+  | _ ->
+    let prefix =
+      match rest with
+      | [ moduleArg ] ->
+        Stdlib.String.split(moduleArg, ".") |> Stdlib.List.filter(fun seg -> seg != "")
+      | _ -> []
+    let depth = Stdlib.List.length(prefix)
+    let under =
+      liveTests(branchId)
+      |> Stdlib.List.filterMap(fun item ->
+        let path = Stdlib.String.split(fullPath(item), ".")
+        if Stdlib.List.take(path, depth) == prefix then
+          Stdlib.Option.Option.Some(
+            (path, LanguageTools.PackageManager.Test.testCount(item.entity.body)))
+        else
+          Stdlib.Option.Option.None)
+    let place = if depth == 0 then "All tests" else Stdlib.String.join(prefix, ".")
+    match forItem with
+    | None ->
+      if Stdlib.List.isEmpty(under) then
+        Cli.printErr($"No package tests under {place}.")
+        { state with exitCode = 1 }
+      else
+        printCounts(place, prefix, under)
+        state
+    | Some(item) ->
+      match Cli.Deps.resolvePath(branchId, state.packageData.currentLocation, item) with
+      | Error(message) ->
+        Cli.printErr(message)
+        { state with exitCode = 1 }
+      | Ok((_, loc, name, kind)) ->
+        let users =
+          Cli.Deps.getTransitiveDependentsFor(branchId, [ (loc, kind) ])
+          |> Stdlib.List.filterMap(fun((depLoc, depKind)) ->
+            if depKind == LanguageTools.ProgramTypes.ItemKind.Test then
+              Stdlib.Option.Option.Some((Cli.Deps.fqnOf(depLoc), true))
+            else
+              Stdlib.Option.Option.None)
+          |> Stdlib.Dict.fromList
+        let using =
+          Stdlib.List.filter(under, fun((path, _)) ->
+            Stdlib.Dict.containsKey(users, Stdlib.String.join(path, ".")))
+        let heading =
+          if depth == 0 then $"Test groups that use {name}"
+          else $"Test groups in {place} that use {name}"
+        printCounts(heading, prefix, using)
+        state
 
 let help(_state: Cli.AppState): String =
   [ "Run package tests on the current branch, or add one."
@@ -520,10 +678,19 @@ let help(_state: Cli.AppState): String =
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
     "Tests start in name order; results are printed as they finish."
     ""
+    "Each test declaration is a test group. Each item of a"
+    "`Stdlib.Test.all([ ... ])` list is a test, and any other group holds one."
+    "Passed and failed count test groups."
+    "`test count` shows both for a module and each module under it, read from"
+    "the definitions without running anything. `--for <item>` keeps only the"
+    "test groups that use that item, directly or through other code."
+    ""
     "Examples:"
     "  test run"
     "  test run MyApp.Math"
     "  test run --force MyApp.Math.doubles"
+    "  test count Darklang.Stdlib"
+    "  test count --for Stdlib.List.map"
     ""
     "Adding a test:"
     "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double(4) |> Stdlib.Test.equal(8)'"
@@ -539,15 +706,21 @@ let help(_state: Cli.AppState): String =
 
 let complete(_state: Cli.AppState, args: List<String>): List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> [ "run", "add" ] |> Stdlib.List.map(Cli.Completion.simple)
+  | [] -> [ "run", "count", "add" ] |> Stdlib.List.map(Cli.Completion.simple)
   | ["run", ...runArgs] ->
     let partial = Stdlib.Option.withDefault(Stdlib.List.last(runArgs), "")
     [ "--force", "--jobs" ]
     |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, partial))
     |> Stdlib.List.map(Cli.Completion.simple)
   | ["add", ...] -> []
+  | ["count", ...countArgs] ->
+    let partial = Stdlib.Option.withDefault(Stdlib.List.last(countArgs), "")
+    if Stdlib.String.startsWith("--for", partial) && partial != "" then
+      [ Cli.Completion.simple("--for") ]
+    else
+      []
   | [ partial ] ->
-    [ "run", "add" ]
+    [ "run", "count", "add" ]
     |> Stdlib.List.filter(fun command -> Stdlib.String.startsWith(command, partial))
     |> Stdlib.List.map(Cli.Completion.simple)
   | _ -> []
