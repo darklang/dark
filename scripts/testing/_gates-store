@@ -430,7 +430,7 @@ gate_trait_checker_vs_dispatch() {
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   # A field name nobody else would write: a record's hash IS its identity, so a shared shape
-  # would hand us somebody's leftover implementations. See the AGENTS.md note.
+  # would hand us somebody's leftover implementations. See docs/internals.md, Traits.
   $CLI type Stachu.Dep.Dt "= { gateDeprecatedOnly: Int64 }" >/dev/null
   $CLI impl Stachu.Dep \
     "Stdlib.Add for Dt = let add(a: Dt, b: Dt): Dt = Stachu.Dep.Dt { gateDeprecatedOnly = a.gateDeprecatedOnly + b.gateDeprecatedOnly }" \
@@ -784,7 +784,7 @@ gate_trait_deprecation_is_per_branch() {
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
-  # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
+  # A field name nobody else would write: a record's hash IS its identity. See docs/internals.md, Traits.
   $CLI type Stachu.BDep.Pt "= { gateBranchDepOnly: Int64 }" >/dev/null
   $CLI trait Stachu.BDep.Show "<'a> = let show(v: 'a): String" >/dev/null
   $CLI impl Stachu.BDep \
@@ -866,7 +866,7 @@ gate_trait_pin_across_branches() {
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
-  # A field name nobody else would write: a record's hash IS its identity. See the AGENTS.md note.
+  # A field name nobody else would write: a record's hash IS its identity. See docs/internals.md, Traits.
   $CLI type Stachu.Pin.Thing "= { gatePinOnly: Int64 }" >/dev/null
   $CLI trait Stachu.Pin.Tr "<'a> = let go(v: 'a): Int64" >/dev/null
   $CLI impl Stachu.PinA - >/dev/null <<'DARK'

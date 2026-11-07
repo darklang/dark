@@ -1,6 +1,6 @@
 # Permissions: deferred work
 
-The items docs/effects.md and AGENTS.md point at when they say "the todo
+The items docs/effects.md and docs/agent-traps.md point at when they say "the todo
 file" or "future work". Everything here is stated (not decided) in
 docs/effects.md; this file just collects it in one place so the references
 resolve.

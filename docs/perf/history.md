@@ -259,7 +259,7 @@ different publish modes and the numbers do not compare. Every entry above this o
 `build-release-cli-exes.sh` defaulted to R2R, which is not what we ship, so every published number
 in this file describes a binary nobody runs. The default is `auto` now (AOT where a runtime allows
 it), the build writes the mode beside the binary, `budget.json` records which mode its number is
-in, and the gate refuses across modes rather than reporting nonsense. `AGENTS.md` has the rule.
+in, and the gate refuses across modes rather than reporting nonsense. `docs/agent-testing.md` has the rule.
 
 The one genuinely surprising thing: AOT is about five times FASTER to start and allocates about
 6% MORE for the same workload. Startup time and startup allocation are not the same axis, and this

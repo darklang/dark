@@ -286,7 +286,7 @@ and private reResolvePipeExpr
       let! typeArgs =
         Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
       let! args = Ply.List.mapSequentially (reResolveExpr contextModules pm) args
-      // Carried, for the reason AGENTS.md gives about `EFnName`: every authoring through
+      // Carried, for the reason docs/internals.md gives about `EFnName`: every authoring through
       // `WipRefresh` comes down here, and dropping it re-hashes the item without its bounds.
       return PT.EPipeFnCall(id, nr, typeArgs, args, boundImpls)
 

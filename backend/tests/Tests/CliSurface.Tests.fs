@@ -239,7 +239,7 @@ let private soundsLikeMisuse (output : string) : bool =
 /// A runtime error a command caught and PRINTED, so the run itself looked fine. Returns the offending
 /// line. `runCliCatching` already reports an error that escaped; this is for the one that did not: the
 /// Dark-side path where a command prints `ExecutionError.toString` and carries on. The four phrases are
-/// the ones AGENTS.md says to grep a sweep's output for; `Internal error:` is a host exception a command
+/// the ones docs/agent-testing.md says to grep a sweep's output for; `Internal error:` is a host exception a command
 /// What is wrong with a swept command's answer, or `None` if nothing is.
 ///
 /// The sweeps differ in what they hand a command, never in how they judge what comes back: it must
@@ -656,7 +656,7 @@ let private everyExclusionIsReal =
           (stale |> Set.toList |> String.concat ", ")
     })
 
-/// Shape 1 of the four-shape sweep in `AGENTS.md`: every command, BARE.
+/// Shape 1 of the four-shape sweep in `docs/agent-testing.md`: every command, BARE.
 ///
 /// The shape that catches a command going interactive with nothing to read: with no subcommand it
 /// drops into a read loop and blocks on a stdin that never arrives. Every command must instead print
@@ -941,7 +941,7 @@ let everyCommandSurvivesABranch =
 /// lived in exactly that gap: a Dark call site is not type-checked until it executes, so
 /// `traces pin <id>` was dead on arrival with a green build and a green suite behind it.
 ///
-/// This is the fourth shape (`AGENTS.md`, "Sweeping the CLI after a change"): one known-good
+/// This is the fourth shape (`docs/agent-testing.md`, "Sweeping the CLI after a change"): one known-good
 /// invocation per command, against a store seeded with something to name. It asserts what the
 /// other sweeps assert -- nothing printed that looks like a runtime failure, and something
 /// printed at all -- plus the exit code, which for a command that was asked a fair question and
