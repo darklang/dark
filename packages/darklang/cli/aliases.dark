@@ -313,6 +313,40 @@ let executeList(state: AppState): AppState =
       state
 
 
+/// `dark alias rm --all`: every alias, and nothing else in the folder.
+let executeRemoveAll(state: AppState): AppState =
+  match binDir() with
+  | Error(e) ->
+    printErr(e)
+    exitWith(state, false)
+  | Ok(dir) ->
+    match list(dir) with
+    | [] ->
+      printOk("no aliases to remove.")
+      state
+    | aliases ->
+      let failed =
+        aliases
+        |> Stdlib.List.filterMap(fun pair ->
+          let (name, _) = pair
+          match Stdlib.Cli.File.delete($"{dir}/{name}") with
+          | Ok(_) -> Option.None
+          | Error(e) -> Option.Some($"{name}: {e.message}"))
+
+      match failed with
+      | [] ->
+        let names =
+          aliases
+          |> Stdlib.List.map(Stdlib.Tuple2.first)
+          |> Stdlib.String.join(", ")
+
+        printOk($"removed {Stdlib.display(Stdlib.List.length(aliases))}: {names}")
+        state
+      | problems ->
+        problems |> Stdlib.List.iter(fun p -> printErr($"couldn't remove {p}"))
+        exitWith(state, false)
+
+
 /// `dark alias rm <name>`
 let executeRemove(state: AppState, name: String): AppState =
   match binDir() with
@@ -335,18 +369,24 @@ let executeRemove(state: AppState, name: String): AppState =
         exitWith(state, false)
 
 
+let notAForm(state: AppState, args: List<String>): AppState =
+  printErr($"""`dark alias {Stdlib.String.join(args, " ")}` isn't a form of this command.""")
+  printHint("  dark alias | dark alias add <name> <fn> [--pin] | dark alias rm <name>|--all")
+  exitWith(state, false)
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let pin = Stdlib.List.contains(args, "--pin")
-  let words = args |> Stdlib.List.filter(fun a -> a != "--pin")
+  let all = Stdlib.List.contains(args, "--all")
+  let words = args |> Stdlib.List.filter(fun a -> a != "--pin" && a != "--all")
   match words with
   | [] -> executeList(state)
   | ["ls"] | ["list"] -> executeList(state)
   | ["add", name, fnName] -> executeAdd(state, name, fnName, pin)
-  | ["rm", name] | ["remove", name] -> executeRemove(state, name)
-  | _ ->
-    printErr($"""`dark alias {Stdlib.String.join(args, " ")}` isn't a form of this command.""")
-    printHint("  dark alias | dark alias add <name> <fn> [--pin] | dark alias rm <name>")
-    exitWith(state, false)
+  | ["rm"] | ["remove"] -> if all then executeRemoveAll(state) else notAForm(state, args)
+  | ["rm", name] | ["remove", name] ->
+    if all then notAForm(state, args) else executeRemove(state, name)
+  | _ -> notAForm(state, args)
 
 
 let help(_state: AppState): String =
@@ -355,6 +395,7 @@ let help(_state: AppState): String =
     "  dark alias                          the aliases, and what each runs"
     "  dark alias add <name> <fn> [--pin]  make <name> a command that runs <fn>"
     "  dark alias rm <name>                remove one"
+    "  dark alias rm --all                 remove every alias"
     ""
     "An alias is a script in ~/.darklang/bin that runs"
     "`dark --entry-point <fn> --branch main` with its arguments. <fn> takes"
