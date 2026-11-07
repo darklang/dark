@@ -62,7 +62,8 @@ let request(
   url: String,
   headers: List<String * String>)
   : Stdlib.Http.Request =
-  Stdlib.Http.Request { url = url, headers = headers, body = Stdlib.Bytes.empty }
+  Stdlib.Http.Request
+    { method = "GET", url = url, headers = headers, body = Stdlib.Bytes.empty }
 
 // Compare response builders with their expected fields.
 test responseBuilders =

@@ -134,8 +134,7 @@ let private maybeCompress
 
 /// Flatten HttpListener's NameValueCollection into the (key, value) list
 /// shape that `Http.Request` expects. Multi-value keys become multiple
-/// entries. The final `x-http-method` entry is a CLEANUP — Dark handlers
-/// still read it.
+/// entries.
 let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
   let headers = ResizeArray<string * string>()
   for key in req.Headers.AllKeys do
@@ -144,7 +143,7 @@ let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
       if not (isNull values) then
         for value in values do
           headers.Add(key, value)
-  ("x-http-method", req.HttpMethod) :: List.ofSeq headers
+  List.ofSeq headers
 
 
 /// If `X-Forwarded-Proto: https` is present, rewrite scheme → https / port → 443.
@@ -540,7 +539,8 @@ let private handleRequest
               else
                 rawUrl
 
-            let requestDval = Http.Request.fromRequest url reqHeaders reqBody
+            let requestDval =
+              Http.Request.fromRequest ctx.Request.HttpMethod url reqHeaders reqBody
 
             // Per-request tracer — same shape as `eval`/`run` so HTTP traces
             // appear alongside CLI traces with no consumer-side changes.
