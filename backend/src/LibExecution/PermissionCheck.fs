@@ -20,6 +20,7 @@ let private layerName (layer : Permission.Layer) : string =
   | Permission.Layer.Run -> "run policy"
   | Permission.Layer.Package id -> $"package policy `{id}`"
   | Permission.Layer.Function id -> $"function policy `{id}`"
+  | Permission.Layer.Value name -> $"value `{name}`"
 
 let private reasonText (reason : Permission.PolicyDenial) : string =
   match reason with
@@ -63,6 +64,9 @@ let private denialMessage
       "To approve: `permissions approve <fn>`, naming the function that needs it."
     | Permission.Layer.Function _, _, _ ->
       "The function's declared ceiling does not allow this operation."
+    | Permission.Layer.Value _, _, _ ->
+      "A `val` is evaluated once, when it is saved, so it cannot use effects. "
+      + "Make it a function to do this each time it is called."
   $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}"
 
 let private raiseDenial

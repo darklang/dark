@@ -521,9 +521,6 @@ let private runCli (args : string[]) : int =
       use _growing = EmbeddedResources.upgradeLock LibConfig.Config.dbPath
       try
         (LibDB.Seed.growIfNeeded
-          // Bounded by the operator's instance policy. The store can hold values
-          // that arrived by import or sync, and this is where they first run.
-          LibDB.Seed.EvaluationAuthority.underInstancePolicy
           (fun () -> builtinsLazy.Force())
           cliPackageManager
           (fun msg -> System.Console.Error.WriteLine msg))

@@ -26,7 +26,6 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
 module BS = LibSerialization.Binary.Serialization
-module Permission = LibExecution.Permissions
 
 
 /// Whether this process has already said that the store holds ops it cannot read.
@@ -382,83 +381,6 @@ let rebuildProjections () : Task<int64> =
   }
 
 
-/// Remove seed-time access so a stored package value cannot retain the
-/// permissions of the process that created it.
-let private stripCapturedAccess = LibExecution.Dval.stripCapturedAccess
-
-/// The authority a batch of package values is evaluated under.
-///
-/// A value body is code, and evaluating it runs that code. There is exactly one
-/// trusted producer — `LocalExec`, building the bundled seed from the
-/// checked-in `packages/` tree at build time. Every other caller is handling
-/// bodies that may have arrived from a guest (authored through `val`, imported,
-/// or synced), and gets `Guest`.
-type EvaluationAuthority =
-  /// Build-time seed construction from the checked-in `packages/` tree. The
-  /// bodies are the ones shipped with the binary, so they carry full authority.
-  | TrustedSeed
-
-  /// Bodies of unknown provenance. `configure` turns the fresh evaluation
-  /// state into the guest state they run under: the instance policy, the
-  /// consumer's package approvals and the bundled exemption, all installed the
-  /// same way ordinary guest execution installs them (`PolicyStore.guestState`),
-  /// optionally narrowed by a caller's access. A function rather than a value
-  /// because the bundled set and the policy file are only read when something
-  /// is actually pending; and a function of the STATE, not just of the
-  /// access, because a state built by hand kept `Execution.createState`'s
-  /// allow-all package lookup and let a pending `val` call functions the
-  /// consumer had never approved.
-  | Guest of configure : (RT.ExecutionState -> Task<RT.ExecutionState>)
-
-module EvaluationAuthority =
-  let private guest
-    (accountID : Option<System.Guid>)
-    (narrowedBy : Option<Permission.Access>)
-    : EvaluationAuthority =
-    Guest(fun state ->
-      task {
-        // The bundled set is supplied by the host, as `Cli.execute` does; the
-        // approval lookup denies any non-bundled package it does not know.
-        let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
-        let state =
-          { state with isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
-          |> PolicyStore.guestState accountID Permission.Policy.allowAll []
-        return
-          match narrowedBy with
-          | None -> state
-          | Some caller ->
-            { state with
-                access = state.access |> Permission.Access.constrainBy caller }
-      })
-
-  /// The plain guest case: the operator's instance policy and the consumer's
-  /// approvals, and nothing else.
-  let underInstancePolicy : EvaluationAuthority = guest None None
-
-  /// Guest code invoked from somewhere that carries its own access, which must
-  /// also be honoured.
-  ///
-  /// The caller's access alone is NOT enough, which is why the instance policy
-  /// is applied as well: CLI control code deliberately runs allow-all so it can
-  /// manage packages and the policy itself (`Cli.execute`), so inheriting it
-  /// would leave `val x = <denied effect>` escaping exactly as before. Being
-  /// trusted to STORE a body is not being trusted to lend it authority.
-  let underInstancePolicyAnd
-    (accountID : Option<System.Guid>)
-    (caller : Permission.Access)
-    : EvaluationAuthority =
-    guest accountID (Some caller)
-
-let private configureFor
-  (authority : EvaluationAuthority)
-  (state : RT.ExecutionState)
-  : Task<RT.ExecutionState> =
-  match authority with
-  | TrustedSeed ->
-    Task.FromResult
-      { state with access = Permission.Access.start Permission.Policy.allowAll }
-  | Guest configure -> configure state
-
 /// One value that could not be evaluated. Structured rather than pre-formatted
 /// so a caller can tell ITS OWN failures from an unrelated value that was
 /// already sitting unevaluated in the store — `scmAddOps` reports only the
@@ -477,26 +399,76 @@ module ValueEvaluationError =
     | None -> e.message
     | Some(PT.Hash h) -> $"Value {h} ({e.location}): {e.message}"
 
-/// Evaluate all package values that have NULL rt_dval, under `authority`.
+
+/// The state package values are evaluated in. No policy is installed: a value runs under
+/// `Execution.valueAccess` whoever stores it, which allows no effect at all, so neither the
+/// instance policy nor anyone's package approvals could change the outcome.
+let private valueState
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  : RT.ExecutionState =
+  let notify _ _ _ _ = uply { return () }
+  let sendException _ _ _ _ = uply { return () }
+  Execution.createState builtins pm Execution.noTracing sendException notify
+
+/// A failed evaluation as the message `ValueEvaluationError` carries.
+let private failureMessage
+  (state : RT.ExecutionState)
+  (rte : RT.RuntimeError.Error)
+  : Task<string> =
+  task {
+    let! shown = Execution.runtimeErrorMessage state rte
+    return $"evaluation failed - {shown}"
+  }
+
+/// What the store keeps for an evaluated value: its bytes saved, so it can be serialized, and
+/// no access captured, so a stored closure cannot keep the authority it was made under.
+/// Streams cannot be stored, and are refused here with the reason.
+let private prepareForStore
+  (pm : RT.PackageManager)
+  (dval : RT.Dval)
+  : Task<Result<RT.Dval, string>> =
+  task {
+    let! dval = LibExecution.Bytes.promote pm.persistBytes dval
+    let dval = LibExecution.Dval.stripCapturedAccess dval
+    if LibExecution.Dval.isPersistable dval then
+      return Ok dval
+    else
+      let reason =
+        LibExecution.Dval.nonPersistableReason dval
+        |> Option.defaultValue "value is not persistable"
+      return Error $"cannot store in val — {reason}"
+  }
+
+/// Write an evaluated value's result where `getValue` reads it.
+///
+/// TODO: open question W?.1 of the package-tree data design: whether `AddValue` should carry
+/// this result's hash (each machine evaluates and checks it) or the result itself. Until it is
+/// settled, every machine that folds the op evaluates the value again, in `evaluateAllValues`.
+let private storeResult (valueHash : PT.Hash) (dval : RT.Dval) : Task<unit> =
+  let rtHash = PT2RT.Hash.toRT valueHash
+  let rtValue = LibExecution.Dval.packageValue rtHash dval
+  let (Hash defHash) = valueHash
+  Sql.query
+    """
+    UPDATE package_values
+    SET rt_dval = @rt_dval, value_type = @value_type
+    WHERE hash = @hash AND rt_dval IS NULL
+    """
+  |> Sql.parameters
+    [ "hash", Sql.string defHash
+      "rt_dval", Sql.bytes (BS.RT.PackageValue.serialize rtHash rtValue)
+      "value_type", Sql.bytes (BS.RT.ValueType.serialize (RT.Dval.toValueType dval)) ]
+  |> Sql.executeStatementAsync
+
+/// Evaluate all package values that have NULL rt_dval.
 /// Multi-pass: values may depend on other values, so we retry until convergence.
 let evaluateAllValues
-  (authority : EvaluationAuthority)
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
   : Task<Result<unit, List<ValueEvaluationError>>> =
   task {
-    let notify _ _ _ _ = uply { return () }
-    let sendException _ _ _ _ = uply { return () }
-
-    // NOT `Policy.allowAll`. A `val` body is guest code like any other:
-    // evaluating it under the host's own authority let `val x =
-    // Builtin.cliExecute "..."` run commands that the very same expression was
-    // denied at `eval`. `stripCapturedAccess` below keeps the *stored* value
-    // from retaining authority; this keeps the *evaluation* within the policy
-    // and the consumer's approvals.
-    let! exeState =
-      Execution.createState builtins pm Execution.noTracing sendException notify
-      |> configureFor authority
+    let exeState = valueState builtins pm
 
     let maxPasses = 10
 
@@ -526,71 +498,22 @@ let evaluateAllValues
         fullName : string
       ) : Ply<Result<unit, ValueEvaluationError>> =
       uply {
+        let fail message =
+          Error { hash = Some valueHash; location = fullName; message = message }
         try
           let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
-          let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
-          let! result = Execution.executeExpr exeState instrs
-
-          match result with
+          match! Execution.evaluateValue exeState fullName ptValue.body with
           | Error(rte, _callStack) ->
-            let! errorResult = Execution.runtimeErrorToString exeState rte
-            let errorMsg =
-              match errorResult with
-              | Ok(RT.DString s) -> s
-              | Ok other -> LibExecution.Dval.toDebugString other
-              | Error(rte2, _) ->
-                let shown = Execution.runtimeErrorDebugString rte2
-                $"(could not stringify error: {shown})"
-            return
-              Error
-                { hash = Some valueHash
-                  location = fullName
-                  message = $"evaluation failed - {errorMsg}" }
+            let! message = failureMessage exeState rte
+            return fail message
           | Ok dval ->
-            // Save any unsaved Bytes inside the value so it can be
-            // serialized. Streams remain
-            // non-persistable and trip the [isPersistable] guard
-            // below with a clear error.
-            let! dval = LibExecution.Bytes.promote pm.persistBytes dval
-            let dval = stripCapturedAccess dval
-
-            if not (LibExecution.Dval.isPersistable dval) then
-              let reason =
-                LibExecution.Dval.nonPersistableReason dval
-                |> Option.defaultValue "value is not persistable"
-              return
-                Error
-                  { hash = Some valueHash
-                    location = fullName
-                    message = $"cannot store in val — {reason}" }
-            else
-              let rtHash = PT2RT.Hash.toRT valueHash
-              let rtValue = LibExecution.Dval.packageValue rtHash dval
-              let (Hash defHash) = valueHash
-              let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
-              let valueType = RT.Dval.toValueType dval
-              let valueTypeBytes = BS.RT.ValueType.serialize valueType
-
-              do!
-                Sql.query
-                  """
-                  UPDATE package_values
-                  SET rt_dval = @rt_dval, value_type = @value_type
-                  WHERE hash = @hash
-                  """
-                |> Sql.parameters
-                  [ "hash", Sql.string defHash
-                    "rt_dval", Sql.bytes rtDvalBytes
-                    "value_type", Sql.bytes valueTypeBytes ]
-                |> Sql.executeStatementAsync
-
+            match! prepareForStore pm dval with
+            | Error message -> return fail message
+            | Ok dval ->
+              do! storeResult valueHash dval
               return Ok()
         with ex ->
-          return
-            Error
-              { hash = Some valueHash
-                location = fullName
-                message = $"exception - {ex.Message}" }
+          return fail $"exception - {ex.Message}"
       }
 
     // Stops when nothing is left, when a pass evaluates nothing, or after maxPasses.
@@ -631,13 +554,9 @@ let evaluateAllValues
 /// On a warm DB it's a single fast SELECT COUNT. `getBuiltins` is a function, not a value, because builtins
 /// must be constructed AFTER the hashes exist (construction triggers PackageRefs hash lookups).
 ///
-/// `authority` bounds the value evaluation. The store this runs against is not
-/// all bundled — an import or a sync folds in ops from elsewhere, and their
-/// values are evaluated by exactly this call — so a startup that trusted its own
-/// store would run guest code with the host's authority. Callers pass the
-/// instance policy; only build-time seed construction passes `TrustedSeed`.
+/// Values are evaluated as every value is (`evaluateAllValues`), with no effects allowed, so a
+/// value folded in from elsewhere cannot do here what it could not do where it was saved.
 let growIfNeeded
-  (authority : EvaluationAuthority)
   (getBuiltins : unit -> RT.Builtins)
   (pm : RT.PackageManager)
   (log : string -> unit)
@@ -667,7 +586,7 @@ let growIfNeeded
     if appliedCount > 0L || hasUnevaluatedValues then
       let! _evalResult =
         Telemetry.timeTask "seed.evaluateValues" [] (fun () ->
-          evaluateAllValues authority (getBuiltins ()) pm)
+          evaluateAllValues (getBuiltins ()) pm)
       do!
         Telemetry.timeTask "seed.walCheckpoint" [] (fun () ->
           Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatementAsync)

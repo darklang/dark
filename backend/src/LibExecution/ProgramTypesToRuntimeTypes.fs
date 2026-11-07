@@ -1445,165 +1445,6 @@ module PackageType =
   let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
     { hash = Hash.toRT t.hash; declaration = TypeDeclaration.toRT t.declaration }
 
-module PackageValue =
-  // CLEANUP: Replace this partial evaluator with normal package-value evaluation.
-  // Unsupported expressions silently fall through to DUnit below. Reproduce from
-  // the repository root:
-  //   ./scripts/run-cli eval $'val answer = 1L + 2L\nanswer == ()'
-  // This currently prints `true`; `answer` should evaluate to `3L`.
-  let rec evalConstantExpr
-    (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
-    (threadID : RT.ThreadID)
-    (expr : PT.Expr)
-    : RT.Dval =
-    let recurse = evalConstantExpr builtinValues threadID
-    match expr with
-    | PT.EUnit _ -> RT.DUnit
-    | PT.EBool(_, b) -> RT.DBool b
-    | PT.EInt8(_, i) -> RT.DInt8 i
-    | PT.EUInt8(_, i) -> RT.DUInt8 i
-    | PT.EInt16(_, i) -> RT.DInt16 i
-    | PT.EUInt16(_, i) -> RT.DUInt16 i
-    | PT.EInt32(_, i) -> RT.DInt32 i
-    | PT.EUInt32(_, i) -> RT.DUInt32 i
-    | PT.EInt64(_, i) -> RT.DInt64 i
-    | PT.EUInt64(_, i) -> RT.DUInt64 i
-    | PT.EInt128(_, i) -> RT.DInt128 i
-    | PT.EUInt128(_, i) -> RT.DUInt128 i
-    | PT.EBigInt(_, i) -> RT.Dval.bigInt i
-    | PT.EFloat(_, sign, whole, part) ->
-      let str = (if sign = Positive then "" else "-") + whole + "." + part
-      match System.Double.TryParse(str) with
-      | (true, f) -> RT.DFloat f
-      | (false, _) -> RT.DFloat 0.0
-    | PT.EFloat32(_, sign, whole, part) ->
-      let str = (if sign = Positive then "" else "-") + whole + "." + part
-      match
-        System.Single.TryParse(
-          str,
-          System.Globalization.NumberStyles.Float,
-          System.Globalization.CultureInfo.InvariantCulture
-        )
-      with
-      | (true, f) -> RT.DFloat32 f
-      | (false, _) -> RT.DFloat32 0.0f
-    | PT.EDecimal(_, d) -> RT.DDecimal d
-    | PT.EChar(_, c) -> RT.DChar c
-    | PT.EString(_, segments) ->
-      // For values, string segments should only be text, not interpolations
-      let text =
-        segments
-        |> List.map (function
-          | PT.StringText s -> s
-          | PT.StringInterpolation _ -> "")
-        |> String.concat ""
-      RT.DString text
-    | PT.EList(_, exprs) ->
-      let values = exprs |> List.map recurse
-      // TODO: determine proper type for the list
-      RT.DList(RT.ValueType.Unknown, values)
-    | PT.ETuple(_, first, second, rest) ->
-      let firstVal = recurse first
-      let secondVal = recurse second
-      let restVals = rest |> List.map recurse
-      RT.DTuple(firstVal, secondVal, restVals)
-    | PT.EDict(_, entries) ->
-      entries
-      |> List.map (fun (keyExpr, valueExpr) -> (recurse keyExpr, recurse valueExpr))
-      |> TypeChecker.DvalCreator.dict
-        threadID
-        RT.ValueType.Unknown
-        RT.ValueType.Unknown
-    | PT.EEnum(_, typeName, typeArgs, caseName, fields) ->
-      let resolvedTypeName =
-        match typeName.resolved with
-        | Ok resolved -> FQTypeName.toRT resolved.name
-        | Error _ ->
-          Exception.raiseInternal
-            "Cannot resolve enum type name in package constant"
-            []
-      let fieldValues = fields |> List.map recurse
-
-      // Convert provided type args, or infer for known generic types when empty
-      let convertedTypeArgs =
-        match typeArgs with
-        | [] ->
-          // Only infer for well-known generic types when no type args provided
-          match resolvedTypeName with
-          | RT.FQTypeName.Package(RT.Hash hash) when
-            hash = PackageRefs.Type.Stdlib.option ()
-            ->
-            match caseName, fieldValues with
-            | "Some", [ fieldValue ] -> [ RT.Dval.toValueType fieldValue ]
-            | "None", [] -> [ RT.ValueType.Unknown ]
-            | _ -> []
-          | RT.FQTypeName.Package(RT.Hash hash) when
-            hash = PackageRefs.Type.Stdlib.result ()
-            ->
-            match caseName, fieldValues with
-            | "Ok", [ okValue ] ->
-              [ RT.Dval.toValueType okValue; RT.ValueType.Unknown ]
-            | "Error", [ errValue ] ->
-              [ RT.ValueType.Unknown; RT.Dval.toValueType errValue ]
-            | _ -> []
-          | _ -> []
-        | _ -> List.map TypeReference.toValueType typeArgs
-
-      RT.DEnum(
-        resolvedTypeName,
-        resolvedTypeName,
-        convertedTypeArgs,
-        caseName,
-        fieldValues
-      )
-    | PT.ERecord(_, typeName, typeArgs, fields) ->
-      let resolvedTypeName =
-        match typeName.resolved with
-        | Ok resolved -> FQTypeName.toRT resolved.name
-        | Error _ ->
-          Exception.raiseInternal
-            "Cannot resolve record type name in package constant"
-            []
-      let fieldValues =
-        fields
-        |> List.map (fun (fieldName, fieldExpr) -> (fieldName, recurse fieldExpr))
-        |> RT.RecordFields.ofList
-      let convertedTypeArgs = List.map TypeReference.toValueType typeArgs
-      RT.DRecord(resolvedTypeName, resolvedTypeName, convertedTypeArgs, fieldValues)
-    | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Builtin builtin } }) ->
-      let rtBuiltin = FQValueName.Builtin.toRT builtin
-      match builtinValues.TryGetValue rtBuiltin with
-      | true, v -> v.body
-      | false, _ ->
-        Exception.raiseInternal
-          "Builtin value not found in package constant"
-          [ "builtin", rtBuiltin ]
-    // A named fn is a constant: the same value `Expr.toRT` loads for an `EFnName`.
-    // A trait impl is a record of these (`Show<Point> { show = Point.Show.show }`),
-    // so this is what makes `impl` work in scripts and testfiles, where values go
-    // through this evaluator rather than the interpreter.
-    | PT.EFnName(_, { resolved = Ok resolved }, _) ->
-      RT.DApplicable(
-        RT.AppNamedFn
-          { name = FQFnName.toRT resolved.name
-            typeSymbolTable = RT.TST.empty
-            typeArgs = []
-            access = None
-            argsSoFar = []
-            boundImpls = [] }
-      )
-    | _ ->
-      // For more complex expressions, return Unit as fallback
-      RT.DUnit
-
-  let toRT
-    (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
-    (c : PT.PackageValue.PackageValue)
-    : RT.PackageValue.PackageValue =
-    let threadID = System.Guid.NewGuid()
-    let body = evalConstantExpr builtinValues threadID c.body
-    Dval.packageValue (Hash.toRT c.hash) body
-
 module PackageFn =
   module Parameter =
     let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
@@ -1726,17 +1567,14 @@ module ImplCandidate =
 
 
 module PackageManager =
-  let toRT
-    (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
-    (pm : PT.PackageManager)
-    : RT.PackageManager =
+  let toRT (pm : PT.PackageManager) : RT.PackageManager =
     let toPT (RT.Hash h) : PT.Hash = PT.Hash h
     { getType =
         fun id -> pm.getType (toPT id) |> Ply.map (Option.map PackageType.toRT)
-      getValue =
-        fun id ->
-          pm.getValue (toPT id)
-          |> Ply.map (Option.map (PackageValue.toRT builtinValues))
+      // A value's runtime form is its result, and only the interpreter produces that
+      // (`Execution.evaluateValue`), which a conversion cannot run. A caller with values that
+      // are not in the store evaluates them itself (`Execution.evaluatingValueReader`).
+      getValue = fun _ -> Ply None
       getFn = fun id -> pm.getFn (toPT id) |> Ply.map (Option.map PackageFn.toRT)
       getTrait = fun id -> pm.getTrait (toPT id) |> Ply.map (Option.map Trait.toRT)
 

@@ -458,7 +458,6 @@ let refreshedRenameSnapshotsSurviveAProjectionRebuild =
         let! _ = LibDB.Seed.rebuildProjections ()
         let! _ =
           LibDB.Seed.evaluateAllValues
-            LibDB.Seed.TrustedSeed
             (Builtins.CliHost.Libs.Cli.builtinsToUse ())
             LibDB.PackageManager.rt
         let! invalid = LibDB.ReferenceNamesContent.validate after
