@@ -329,6 +329,15 @@ module MatchPattern =
     | WT.MPAs(_, inner, _, (_, name)) ->
       let (context1, inner') = toPT context inner
       (bindLocalName context1 name, PT.MPAs(gid (), inner', name))
+    | WT.MPRecord(_, fields, _, _) ->
+      let (finalContext, convertedFields) =
+        fields
+        |> foldMapContext
+          (fun ctx (((_, name), _) as field) ->
+            let (ctx, pat) = toPT ctx (WT.recordFieldPattern field)
+            (ctx, (name, pat)))
+          context
+      (finalContext, PT.MPRecord(gid (), convertedFields))
     | WT.MPError _ ->
       // Parse-error holes cannot reach execution lowering. Callers reject
       // parses with diagnostics before this point.
@@ -349,6 +358,8 @@ module MatchPattern =
     | WT.MPListCons(_, head, tail, _) -> qualifiedCases head @ qualifiedCases tail
     | WT.MPOr(_, pats) -> List.collect qualifiedCases pats
     | WT.MPAs(_, inner, _, _) -> qualifiedCases inner
+    | WT.MPRecord(_, fields, _, _) ->
+      List.collect (WT.recordFieldPattern >> qualifiedCases) fields
     | _ -> []
 
 

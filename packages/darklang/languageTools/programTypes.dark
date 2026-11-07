@@ -179,6 +179,10 @@ type MatchPattern =
   /// `pattern as name`: matches what `pattern` matches and binds the whole value
   | MPAs(ID, pattern: MatchPattern, name: String)
 
+  /// `{ name = p, … }`: matches a record whose named fields match their patterns.
+  /// Fields left out are ignored; `{ name }` arrives as `name = name`.
+  | MPRecord(ID, fields: List<(String * MatchPattern)>)
+
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr

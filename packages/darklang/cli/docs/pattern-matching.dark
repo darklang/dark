@@ -33,8 +33,10 @@ payload: `Some((a, b))` needs its inner parens -- `Some(a, b)` is two fields.
   | [a, b, ...] -> "two or more"   # `...` goes last; a bare `...` ignores the rest
 
 ## Records
-  Records can't be destructured in match. Use a variable and access fields:
-  | user -> user.name
+  | { name = "Jo", age } -> age  # fields you leave out are ignored
+  | { name } -> name             # short for { name = name }
+  | { pos = (x, y) } -> x        # a tuple field needs its own parentheses
+  A field must exist on the matched record's type; the checker says if not.
 
 ## Several patterns, one arm
   | 1 | 2 | 3 -> "small"

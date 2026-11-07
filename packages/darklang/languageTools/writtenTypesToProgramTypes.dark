@@ -468,7 +468,18 @@ module Expr =
         | [first, ...] -> bindings(first)
         | [] -> []
       | MPAs(_, pattern, _, (_, name)) -> Stdlib.List.append(bindings(pattern), name)
+      | MPRecord(_, fields, _, _) ->
+        fields |> Stdlib.List.map(fun f -> bindings(fieldPattern(f))) |> Stdlib.List.flatten
       | _ -> []
+
+    /// The pattern a record-pattern field matches with: its own, or for `{ name }`
+    /// a variable `name` at the field name.
+    let fieldPattern(
+      field: ((WrittenTypes.Range * String) * Stdlib.Option.Option<(WrittenTypes.Range * WrittenTypes.MatchPattern)>))
+      : WrittenTypes.MatchPattern =
+      match field with
+      | (_, Some((_, p))) -> p
+      | ((nameRange, name), None) -> WrittenTypes.MatchPattern.MPVariable(nameRange, name)
 
     let toPT(
       onMissing: NameResolver.OnMissing,
@@ -538,6 +549,14 @@ module Expr =
 
       | MPAs(_, pattern, _, (_, name)) ->
         ProgramTypes.MatchPattern.MPAs(gid(), toPT(onMissing, pattern), name)
+
+      | MPRecord(_, fields, _, _) ->
+        ProgramTypes.MatchPattern.MPRecord(
+          gid(),
+          Stdlib.List.map(fields, fun f ->
+            let ((_, name), _) = f
+            (name, toPT(onMissing, fieldPattern(f))))
+        )
 
       | MPError(_) ->
         // a parse-error hole (recovery node); execution consumers gate on

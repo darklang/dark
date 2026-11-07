@@ -380,6 +380,14 @@ let writeMatchPattern (w : BinaryWriter) (pattern : PT.MatchPattern) =
     w.Write 22uy
     writeMatchPattern w pattern
     Common.String.write w name
+  | PT.MPRecord(_id, fields) ->
+    w.Write 25uy
+    Common.List.write
+      w
+      (fun w (name, pattern) ->
+        Common.String.write w name
+        writeMatchPattern w pattern)
+      fields
 
 
 // =====================

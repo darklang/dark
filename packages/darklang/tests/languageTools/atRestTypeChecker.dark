@@ -1977,6 +1977,48 @@ module Patterns =
         check("let f(x: Int64): String = match x with | n as m -> m", "f")
         |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
+  // A record pattern's fields are looked up on the matched type, and each binds
+  // that field's type. Fields it leaves out match anything.
+  let account(cases: List<String>, returns: String): String =
+    src(
+      (Stdlib.List.concat(
+        [ "type Status = | Active | Inactive"
+          "type Account = { name: String, age: Int64, status: Status }"
+          $"let f (a: Account) : {returns} ="
+          "  match a with" ],
+        cases)))
+
+  test recordPatterns =
+    Stdlib.Test.all(
+      [ check(account([ "  | { name } -> name" ], "String"), "f")
+        |> Stdlib.Test.equal("checked:")
+        check(account([ "  | { age = 30, name = n } -> n", "  | { name } -> name" ], "String"), "f")
+        |> Stdlib.Test.equal("checked:")
+        check(account([ "  | { age } -> age" ], "String"), "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+        check(account([ "  | { nmae } -> nmae" ], "String"), "f")
+        |> Stdlib.Test.equal("failed:UnknownRecordField")
+        check(account([ "  | { name = 3 } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+        check("let f(x: Int64): Int64 = match x with | { field } -> field", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+  // A partial record pattern covers every value of the fields it leaves out.
+  test recordPatternCoverage =
+    Stdlib.Test.all(
+      [ check(
+          account([ "  | { status = Active } -> 1", "  | { status = Inactive, age } -> age" ], "Int64"),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+        check(account([ "  | { status = Active } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+        issues(account([ "  | { status = Active } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal([ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is { status = Inactive }" ])
+        check(account([ "  | { age = 30 } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+        check(account([ "  | { age = 30 } -> 1", "  | _ -> 0" ], "Int64"), "f")
+        |> Stdlib.Test.equal("checked:") ])
+
   // An Int64 is not a record: reject field access and record updates on it.
   test intIsNotRecord =
     Stdlib.Test.all(

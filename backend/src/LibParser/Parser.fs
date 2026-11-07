@@ -1528,6 +1528,88 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       | WT.MPListCons(_, head, tail, consR) ->
         (WT.MPListCons(span openB closeB, head, tail, consR), p2)
       | _ -> (pat, p2)
+  // `{ name = p, age }`: a record, by the fields it names. The fields it leaves
+  // out are ignored, and a field with no `= p` binds a variable of its own name.
+  // A field takes the same patterns as a constructor field, so a tuple needs its
+  // own parentheses: `{ pos = (x, y) }`.
+  | TLBrace ->
+    let openB = rng state i
+    let fields =
+      System.Collections.Generic.List<(TokenRange * string) *
+      Option<TokenRange * WT.MatchPattern>>()
+    let mutable k = i + 1
+    let mutable go = true
+    while go && tok state k <> TRBrace && tok state k <> TEOF do
+      match tok state k with
+      | TIdent fname ->
+        let fnameR = rng state k
+        if fields |> Seq.exists (fun ((_, n), _) -> n = fname) then
+          err
+            state
+            DiagnosticCode.pattern
+            k
+            $"the field '{fname}' appears twice in this record pattern"
+        let (field, k2) =
+          if tok state (k + 1) = TEquals then
+            let (p, k2) = parsePatternOr state (k + 2)
+            (((fnameR, fname), Some(rng state (k + 1), p)), k2)
+          else
+            if not (System.Char.IsLower fname[0]) then
+              errFull
+                state
+                DiagnosticCode.pattern
+                k
+                $"a field with no '= pattern' binds a variable named after it, and '{fname}' cannot name a variable"
+                []
+                (Some $"write `{fname} = p` to match the field against a pattern")
+            (((fnameR, fname), None), k + 1)
+        fields.Add field
+        let lastR =
+          match field with
+          | (_, Some(_, p)) -> WT.mpRange p
+          | ((r, _), None) -> r
+        if tok state k2 = TComma then
+          k <- k2 + 1
+        elif tok state k2 = TSemicolon then
+          errCollectionSemicolon state k2 "record-pattern fields"
+          k <- k2 + 1
+        elif k2 > k then
+          if tok state k2 <> TRBrace then
+            requireElementSeparator
+              state
+              lastR
+              k2
+              "a comma or newline between record-pattern fields"
+          k <- k2
+        else
+          go <- false
+      | TDotDotDot ->
+        errFull
+          state
+          DiagnosticCode.unexpected
+          k
+          "a record pattern needs no '...': the fields it leaves out are ignored"
+          []
+          (Some "remove the '...'")
+        k <- if tok state (k + 1) = TComma then k + 2 else k + 1
+      | _ ->
+        errExpectedName state k "a record field, as in `name` or `name = pattern`"
+        go <- false
+    let (closeB, p2) =
+      if tok state k = TRBrace then
+        (rng state k, k + 1)
+      else
+        errUnclosed state k "}" "{" openB
+        (zeroWidthAtEnd (rng state k), k)
+    if fields.Count = 0 && tok state (i + 1) = TRBrace then
+      errFull
+        state
+        DiagnosticCode.pattern
+        i
+        "a record pattern names at least one field"
+        []
+        (Some "to match any value, use a variable or `_`")
+    (WT.MPRecord(span openB closeB, List.ofSeq fields, openB, closeB), p2)
   | TIdent name when name.Length > 0 && System.Char.IsUpper name[0] ->
     // enum pattern: `[Mod.Type.]Case(fieldPats…)`; the last segment is the case.
     // A qualified case (`Result.Ok(x)`, `Stdlib.Result.Result.Ok(x)`) matches the

@@ -435,6 +435,11 @@ let rec private matchNeedsValue (pat : MatchPattern) (dv : Dval) : bool =
         pairs (a :: b :: rest) (x :: y :: zs)
       | MPEnum(case, fields), DEnum(_, _, _, actual, fs) when case = actual ->
         pairs fields fs
+      | MPRecord fields, DRecord(_, _, _, actual) ->
+        fields
+        |> List.exists (fun (name, p) ->
+          let mutable v = Unchecked.defaultof<Dval>
+          actual.TryGetValue(name, &v) && matchNeedsValue p v)
       | _ -> false
 
 
@@ -624,6 +629,21 @@ and checkAndExtractMatchPattern
     match Pending.peek dv with
     | DEnum(_, _, _, caseNameActual, fieldsActual) when caseName = caseNameActual ->
       checkMatchPatternList buf fields fieldsActual
+    | _ -> false
+
+  // Only the fields the pattern names; a field the record lacks fails the match.
+  | MPRecord fields ->
+    match Pending.peek dv with
+    | DRecord(_, _, _, actual) ->
+      let rec all (fields : List<string * MatchPattern>) =
+        match fields with
+        | [] -> true
+        | (name, pat) :: rest ->
+          let mutable v = Unchecked.defaultof<Dval>
+          actual.TryGetValue(name, &v)
+          && checkAndExtractMatchPattern buf pat v
+          && all rest
+      all fields
     | _ -> false
 
   | MPOr patterns ->

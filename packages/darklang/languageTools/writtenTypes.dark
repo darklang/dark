@@ -196,6 +196,14 @@ type MatchPattern =
     symbolAs: Range,
     name: Range * String)
 
+  /// `{ name = p, age }`: a record, by the fields it names; the rest are ignored.
+  /// A field with no `= p` binds a variable named after it. The Range is the `=`.
+  | MPRecord(
+    Range,
+    fields: List<((Range * String) * Stdlib.Option.Option<(Range * MatchPattern)>)>,
+    symbolOpenBrace: Range,
+    symbolCloseBrace: Range)
+
   // A recovery hole where a pattern was expected but couldn't be parsed (the
   // parse carries a diagnostic at this range). Tooling renders around it; it
   // never reaches execution.

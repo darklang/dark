@@ -302,6 +302,10 @@ type MatchPattern =
   /// `pattern as name`: matches what `pattern` matches and also binds the whole value
   | MPAs of id * pattern : MatchPattern * name : string
 
+  /// `{ name = p, … }`: matches a record whose named fields match their patterns.
+  /// Fields left out are ignored; `{ name }` arrives as `name = name`.
+  | MPRecord of id * fields : List<string * MatchPattern>
+
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr

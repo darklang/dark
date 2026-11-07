@@ -180,6 +180,7 @@ type MatchPattern =
   | MPVariable(Register)
   | MPOr(List<MatchPattern>)
   | MPAs(MatchPattern, Register)
+  | MPRecord(fields: List<(String * MatchPattern)>)
 
 type Register = Int32
 

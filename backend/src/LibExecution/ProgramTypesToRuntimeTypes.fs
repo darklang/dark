@@ -349,6 +349,17 @@ module MatchPattern =
 
       RT.MPEnum(caseName, fieldPats), symbols, rc
 
+    | PT.MPRecord(_, fields) ->
+      let fields, symbols, rc =
+        fields
+        |> List.fold
+          (fun (fields, symbols, rc) (name, fieldPat) ->
+            let pat, symbols, rc = toRT symbols rc fieldPat
+            (fields @ [ (name, pat) ], symbols, rc))
+          ([], symbols, rc)
+
+      RT.MPRecord fields, symbols, rc
+
     | PT.MPVariable(_, name) ->
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
@@ -441,6 +452,10 @@ module MatchPattern =
               )
             | RT.MPEnum(name, fields) ->
               RT.MPEnum(name, List.map updateRegisters fields)
+            | RT.MPRecord fields ->
+              RT.MPRecord(
+                List.map (fun (name, pat) -> (name, updateRegisters pat)) fields
+              )
             | RT.MPOr patterns -> RT.MPOr(NEList.map updateRegisters patterns)
             | RT.MPAs(inner, reg) ->
               let reg =

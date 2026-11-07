@@ -331,6 +331,12 @@ Pattern forms:
   tuple field is `| Some((a, b))`. The case may be qualified, `| Result.Ok(x)`;
   the qualifier must name a type, and the pattern matches the same values as
   `| Ok(x)`
+- record patterns, by field: `| { name = n, age = 30 }`. Fields left out are
+  ignored, so no `...` is needed (and one is an error). A field with no
+  `= pattern` binds a variable named after it: `{ name }` is `{ name = name }`.
+  A field takes what a constructor field takes, so a tuple needs parentheses,
+  `{ pos = (x, y) }`. At least one field; a field may not appear twice. There is
+  no type name in front yet
 - unit
 
 Names in one pattern cannot be repeated. Every or-pattern branch must bind the

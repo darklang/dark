@@ -408,7 +408,8 @@ module ProgramTypes =
         MPListCons(id, MPString(id, "val2"), MPList(id, [ MPString(id, "val3") ]))
       )
       MPOr(id, NEList.ofList (MPBool(id, true)) [ MPBool(id, false) ])
-      MPAs(id, MPEnum(id, "None", []), "whole") ]
+      MPAs(id, MPEnum(id, "None", []), "whole")
+      MPRecord(id, [ ("name", MPVariable(id, "name")); ("age", MPInt64(id, 30L)) ]) ]
 
 
   // Note: This is aimed to contain all cases of `TypeReference`
@@ -717,6 +718,9 @@ module ProgramTypes =
                                   whenCondition = None
                                   rhs = EBool(id, true) }
                                 { pat = MPAs(id, MPVariable(id, "_"), "whole")
+                                  whenCondition = None
+                                  rhs = EBool(id, true) }
+                                { pat = MPRecord(id, [ ("x", MPVariable(id, "x")) ])
                                   whenCondition = None
                                   rhs = EBool(id, true) } ]
                             ),
