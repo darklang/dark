@@ -42,4 +42,14 @@
          That is a dependency changing without anyone changing it, so it fails the build. -->
     <WarningsAsErrors>$(WarningsAsErrors);NU1603</WarningsAsErrors>
   </PropertyGroup>
+
+  <!-- A Debug build leaves the commit out of every project, so a commit or branch switch
+       recompiles nothing. SourceLink writes the commit into each project's compile inputs, and the
+       SDK appends it to the informational version. Release keeps both. `!= Release` rather than
+       `== Debug`: this file is read before the SDK defaults Configuration to Debug. -->
+  <PropertyGroup Condition="'$(Configuration)' != 'Release'">
+    <EnableSourceLink>false</EnableSourceLink>
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
 </Project>
