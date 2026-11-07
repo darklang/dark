@@ -255,6 +255,7 @@ let rec private matchPatternRegisters (p : MatchPattern) : List<Register> =
   | MPTuple(a, b, rest) -> List.collect matchPatternRegisters (a :: b :: rest)
   | MPOr ps -> ps |> NEList.toList |> List.collect matchPatternRegisters
   | MPAs(p, r) -> r :: matchPatternRegisters p
+  | MPRecord fields -> fields |> List.collect (snd >> matchPatternRegisters)
   | _ -> []
 
 /// The registers an instruction writes, other than by loading a callable (`LoadVal` of an

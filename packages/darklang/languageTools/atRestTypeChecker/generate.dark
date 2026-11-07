@@ -394,6 +394,16 @@ let matchPattern(
   | MPAs(id, inner, name) ->
     let (bindings, constraints) = matchPattern(expected, inner)
     (Stdlib.List.append(bindings, (name, expected, id)), constraints)
+  // Each named field is looked up on the matched type as `x.name` would be, so an
+  // unknown field, or a value that is not a record, is reported the same way.
+  | MPRecord(id, fields) ->
+    let types = Stdlib.List.indexedMap(fields, fun(i, _) -> part(id, i))
+    let lookups =
+      Stdlib.List.indexedMap(fields, fun(i, (name, _)) ->
+        Model.Constraint.GetField(id, expected, name, part(id, i)))
+    let (bindings, constraints) =
+      matchPatterns(types, Stdlib.List.map(fields, fun((_, p)) -> p))
+    (bindings, all(Stdlib.List.append(lookups, constraints)))
 
 /// Check each pattern against its corresponding component type and combine the
 /// results. Callers supply matching list lengths; constructor checks validate arity.
@@ -528,6 +538,10 @@ let patternIds(pattern: LanguageTools.ProgramTypes.MatchPattern): List<Int64> =
       Stdlib.List.flatten(Stdlib.List.map(alternatives, patternIds)),
       id)
   | MPAs(id, inner, _) -> Stdlib.List.prepend(patternIds(inner), id)
+  | MPRecord(id, fields) ->
+    Stdlib.List.prepend(
+      Stdlib.List.flatten(Stdlib.List.map(fields, fun((_, p)) -> patternIds(p))),
+      id)
 
 
 // --------------------

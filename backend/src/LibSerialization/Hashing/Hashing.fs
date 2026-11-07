@@ -88,6 +88,7 @@ module Hashing =
     | PT.MPOr(_, pats) ->
       pats |> NEList.toList |> List.collect matchPatternVars |> List.distinct
     | PT.MPAs(_, pat, name) -> matchPatternVars pat @ [ name ]
+    | PT.MPRecord(_, fields) -> List.collect (snd >> matchPatternVars) fields
     | _ -> [] // literal patterns bind nothing
 
 
@@ -135,6 +136,11 @@ module Hashing =
         id,
         renameMatchPattern m pat,
         Map.tryFind name m |> Option.defaultValue name
+      )
+    | PT.MPRecord(id, fields) ->
+      PT.MPRecord(
+        id,
+        List.map (fun (name, pat) -> (name, renameMatchPattern m pat)) fields
       )
     | _ -> p // literal patterns have no names
 

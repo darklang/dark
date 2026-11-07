@@ -479,6 +479,30 @@ test exprsMatchAsAndOr =
         "match x with\n| Ok((a, _) as pair) -> pair\n| _ -> (0, 0)",
         "match x with\n| Ok((a, _) as pair) -> pair\n| _ -> (0, 0)") ])
 
+test exprsMatchRecord =
+  Stdlib.Test.all(
+    [ roundTrip(
+        "match, record shorthand",
+        "match p with\n| { name } -> name",
+        "match p with\n| { name } -> name")
+      roundTrip(
+        "match, record fields and shorthand",
+        "match p with\n| { name = \"Jo\", age } -> age\n| { age = 30 } -> 0\n| _ -> 1",
+        "match p with\n| { name = \"Jo\", age } -> age\n| { age = 30 } -> 0\n| _ -> 1")
+      // `name = name` is the shorthand spelled out
+      roundTrip(
+        "match, record field bound to its own name",
+        "match p with\n| { name = name, age = a } -> a",
+        "match p with\n| { name, age = a } -> a")
+      roundTrip(
+        "match, record nested, tuple, or and as",
+        "match a with\n| { owner = { name }, pos = (x, _), status = Active | Inactive as s } -> x",
+        "match a with\n| { owner = { name }, pos = (x, _), status = Active | Inactive as s } -> x")
+      roundTrip(
+        "match, record inside enum and tuple",
+        "match x with\n| (Some({ name }), { age = 3 }) -> name",
+        "match x with\n| (Some({ name }), { age = 3 }) -> name") ])
+
 test exprsMatchIntTuple =
   Stdlib.Test.all(
     [ roundTrip(

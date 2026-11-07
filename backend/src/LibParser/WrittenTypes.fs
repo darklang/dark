@@ -239,6 +239,13 @@ type MatchPattern =
     pattern : MatchPattern *
     symbolAs : Range *
     name : (Range * string)
+  /// `{ name = p, age }`: matches a record whose named fields match, ignoring the
+  /// fields it leaves out. A field with no `= p` binds a variable of its own name.
+  | MPRecord of
+    Range *
+    fields : List<(Range * string) * Option<Range * MatchPattern>> *
+    symbolOpenBrace : Range *
+    symbolCloseBrace : Range
   /// Recovery hole where a pattern was expected but could not be parsed. The
   /// parse has a diagnostic at this range, and execution paths reject files with
   /// diagnostics before lowering.
@@ -271,7 +278,17 @@ let rec mpRange (p : MatchPattern) : Range =
   | MPListCons(r, _, _, _)
   | MPOr(r, _)
   | MPAs(r, _, _, _)
+  | MPRecord(r, _, _, _)
   | MPError r -> r
+
+/// The pattern a record-pattern field matches with: its own, or for `{ name }`
+/// a variable `name` at the field name.
+let recordFieldPattern
+  (((nameRange, name), value) : (Range * string) * Option<Range * MatchPattern>)
+  : MatchPattern =
+  match value with
+  | Some(_, p) -> p
+  | None -> MPVariable(nameRange, name)
 
 type StringSegment =
   | StringText of Range * string

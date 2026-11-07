@@ -616,6 +616,29 @@ module MatchPattern =
         [ makeToken(nameRange, TokenType.VariableName) ] ]
       |> Stdlib.List.flatten
 
+    | MPRecord(_range, fields, symbolOpenBrace, symbolCloseBrace) ->
+      let fields =
+        fields
+        |> Stdlib.List.map(fun(((nameRange, _), value)) ->
+          match value with
+          // name = n
+          | Some((symbolEquals, pat)) ->
+            [ [ makeToken(nameRange, TokenType.Property) ]
+              [ makeToken(symbolEquals, TokenType.Symbol) ]
+              tokenize(pat) ]
+            |> Stdlib.List.flatten
+          // name, which also binds `name`
+          | None -> [ makeToken(nameRange, TokenType.VariableName) ])
+        |> Stdlib.List.flatten
+
+      [ // {
+        [ makeToken(symbolOpenBrace, TokenType.Symbol) ]
+        // name = n, age
+        fields
+        // }
+        [ makeToken(symbolCloseBrace, TokenType.Symbol) ] ]
+      |> Stdlib.List.flatten
+
 module Expr =
   module LetPattern =
     let tokenize(lp: WrittenTypes.LetPattern): List<SemanticToken> =

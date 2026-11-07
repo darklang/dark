@@ -114,6 +114,8 @@ let children(node: Node): (Stdlib.Option.Option<Int64> * List<Node>) =
       (Some(id), patNodes(Stdlib.List.concat([ first, second ], rest)))
     | MPOr(_, alternatives) -> (Stdlib.Option.Option.None, patNodes(alternatives))
     | MPAs(_, pattern, _) -> (Stdlib.Option.Option.None, patNodes([ pattern ]))
+    | MPRecord(id, fields) ->
+      (Some(id), patNodes(Stdlib.List.map(fields, fun((_, p)) -> p)))
     | MPVariable(_, _)
     | MPUnit(_)
     | MPBool(_, _)
@@ -390,6 +392,9 @@ let visit(
        pushPats(rest, Stdlib.List.prepend(Stdlib.List.prepend(next, Node.MatchPattern(first)), Node.MatchPattern(second))))
     | MPOr(_, alternatives) -> (ids, pushPats(alternatives, next))
     | MPAs(_, pattern, _) -> (ids, Stdlib.List.prepend(next, Node.MatchPattern(pattern)))
+    | MPRecord(id, fields) ->
+      (Stdlib.List.prepend(ids, id),
+       pushPats(Stdlib.List.map(fields, fun((_, p)) -> p), next))
     | MPVariable(_, _)
     | MPUnit(_)
     | MPBool(_, _)

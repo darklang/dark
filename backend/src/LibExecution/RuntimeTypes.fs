@@ -747,6 +747,7 @@ type MatchPattern =
   | MPVariable of Register
   | MPOr of NEList<MatchPattern>
   | MPAs of MatchPattern * Register
+  | MPRecord of fields : List<string * MatchPattern>
 
 
 type StringSegment =

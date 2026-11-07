@@ -364,6 +364,17 @@ test matchPatterns =
       | _ -> unexpected("(1, 2)")
 
       // in a constructor a bare `,` separates fields
+      // a record pattern: `{ name }` has no `= pattern`
+      match armPatterns("match p with | { name = \"Jo\", age } -> age | _ -> 0") with
+      | [ MPRecord(
+            _,
+            [ ((_, "name"), Some((_, MPString(_, _, _, _))))
+              ((_, "age"), None) ],
+            _,
+            _)
+          _ ] -> ok()
+      | _ -> unexpected("{ name = \"Jo\", age }")
+
       match armPatterns("match x with | Pair(a, b) -> a | _ -> 0") with
       | [ MPEnum(_, (_, "Pair"), [ _, _ ]), _ ] -> ok()
       | _ -> unexpected("Pair(a, b)")

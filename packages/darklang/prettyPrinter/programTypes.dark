@@ -672,6 +672,18 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
 
   | MPAs(_id, pattern, name) -> $"{matchPattern(pattern)} as {PrettyPrinter.formatName(name)}"
 
+  // `name = name` prints as the shorthand `{ name }`
+  | MPRecord(_id, fields) ->
+    fields
+    |> Stdlib.List.map(fun field ->
+      let (name, pat) = field
+      let fieldName = PrettyPrinter.formatFieldName(name)
+      match pat with
+      | MPVariable(_, bound) when bound == name -> fieldName
+      | _ -> fieldName + " = " + matchPattern(pat))
+    |> Stdlib.String.join(", ")
+    |> fun parts -> "{ " + parts + " }"
+
 /// A match pattern where it sits among commas, wrapped when it is an or-pattern
 /// or an `as`, which would otherwise take in the commas around it.
 let matchPatternGrouped(mp: LanguageTools.ProgramTypes.MatchPattern): String =

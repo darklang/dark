@@ -105,6 +105,8 @@ let private matchBindings (pattern : WT.MatchPattern) : List<string * WT.Range> 
       | WT.MPTuple(_, first, _, second, rest, _, _) ->
         loop (first :: second :: (List.map snd rest @ remaining)) bindings
       | WT.MPEnum(_, _, _, fields) -> loop (fields @ remaining) bindings
+      | WT.MPRecord(_, fields, _, _) ->
+        loop (List.map WT.recordFieldPattern fields @ remaining) bindings
       // An or-pattern contributes the first alternative's logical binding set.
       | WT.MPOr(_, first :: _) -> loop (first :: remaining) bindings
       // the name comes after the pattern it names, in source order
@@ -195,6 +197,8 @@ let rec private structuralPatternIssues (pattern : WT.MatchPattern) : List<Issue
     recurse first @ recurse second @ (rest |> List.collect (snd >> recurse))
   | WT.MPEnum(_, _, _, fields) -> fields |> List.collect recurse
   | WT.MPAs(_, inner, _, _) -> recurse inner
+  | WT.MPRecord(_, fields, _, _) ->
+    fields |> List.collect (WT.recordFieldPattern >> recurse)
   | WT.MPUnit _
   | WT.MPVariable _
   | WT.MPBool _

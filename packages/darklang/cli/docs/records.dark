@@ -22,7 +22,7 @@ Fields use commas or newlines. Semicolons are a parse error.
 ## Update
   { person with name = "Jane", age = 31 }
 
-## No pattern matching
-  Records can't be destructured in match. Use a variable and access fields:
+## Pattern matching
   match p with
-  | person -> person.name"""
+  | { age = 0 } -> "newborn"         # fields you leave out are ignored
+  | { name } -> name                 # short for { name = name }"""

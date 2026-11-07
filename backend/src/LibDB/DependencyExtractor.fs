@@ -173,6 +173,9 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
       | PT.MPAs(_, pattern, _) -> work.Push(MatchPattern pattern)
 
+      | PT.MPRecord(_, fields) ->
+        fields |> List.rev |> List.iter (snd >> MatchPattern >> work.Push)
+
     | MatchCase case ->
       work.Push(Expr case.rhs)
       case.whenCondition |> Option.iter (Expr >> work.Push)

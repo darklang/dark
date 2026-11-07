@@ -87,6 +87,20 @@ test goldenMessages =
         [ "expected ']' to close the '[' at line 1:9, found end of file"
           "expected an expression, found end of file" ])
       golden("[1; 2]", [ "expected ',' between list elements, found ';'" ])
+      // record patterns ignore the fields they leave out, so `...` is not needed
+      golden(
+        "match x with | { name, ... } -> name",
+        [ "a record pattern needs no '...': the fields it leaves out are ignored" ])
+      golden("match x with | {} -> 1", [ "a record pattern names at least one field" ])
+      golden(
+        "match x with | { a = 1, a = 2 } -> 1",
+        [ "the field 'a' appears twice in this record pattern" ])
+      golden(
+        "match x with | { ID } -> 1",
+        [ "a field with no '= pattern' binds a variable named after it, and 'ID' cannot name a variable" ])
+      golden(
+        "match x with | { a = 1 b = 2 } -> 1",
+        [ "expected a comma or newline between record-pattern fields, found 'b'" ])
       // `as` is looser than `,` and `|`, so naming one part needs parentheses
       golden(
         "match x with | (a as y, b) -> y",

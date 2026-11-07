@@ -529,6 +529,13 @@ module MatchPattern =
 
       | MPAs(pattern, reg) -> "MPAs", [ toDT pattern; DInt32 reg ]
 
+      | MPRecord fields ->
+        let fields =
+          fields
+          |> List.map (fun (name, pattern) -> DTuple(DString name, toDT pattern, []))
+        "MPRecord",
+        [ DList(VT.tuple VT.string (VT.known (knownType ())) [], fields) ]
+
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : MatchPattern =
@@ -570,6 +577,15 @@ module MatchPattern =
       MPOr(NEList.ofList patterns.Head patterns.Tail)
 
     | DEnum(_, _, [], "MPAs", [ pattern; DInt32 reg ]) -> MPAs(fromDT pattern, reg)
+
+    | DEnum(_, _, [], "MPRecord", [ DList(_vtTODO, fields) ]) ->
+      let fields =
+        fields
+        |> List.map (fun field ->
+          match field with
+          | DTuple(DString name, pattern, []) -> (name, fromDT pattern)
+          | _ -> Exception.raiseInternal "Invalid MPRecord field" [])
+      MPRecord fields
 
     | _ -> Exception.raiseInternal "Invalid MatchPattern" []
 

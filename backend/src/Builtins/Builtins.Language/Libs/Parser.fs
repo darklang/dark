@@ -521,6 +521,30 @@ module WrittenTypesToDarkTypes =
           rangeToDT asR
           rangedString nameR name ]
       )
+    | WT.MPRecord(r, fields, openB, closeB) ->
+      let rangeVT = VT.customType (rangeTypeName ()) []
+      let valueKT = KTTuple(rangeVT, mpListVT, [])
+      let fieldsDval =
+        DList(
+          VT.tuple (VT.tuple rangeVT VT.string []) VT.unknownTODO [],
+          fields
+          |> List.map (fun ((nameR, name), value) ->
+            let valueDval =
+              match value with
+              | Some(eqR, p) ->
+                Dval.optionSome
+                  valueKT
+                  (DTuple(rangeToDT eqR, matchPatternToDT p, []))
+              | None -> Dval.optionNone valueKT
+            DTuple(rangedString nameR name, valueDval, []))
+        )
+      DEnum(
+        t,
+        t,
+        [],
+        "MPRecord",
+        [ rangeToDT r; fieldsDval; rangeToDT openB; rangeToDT closeB ]
+      )
     | WT.MPError r -> DEnum(t, t, [], "MPError", [ rangeToDT r ])
 
   let rec exprToDT (e : WT.Expr) : Dval =

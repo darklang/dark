@@ -2,20 +2,22 @@
 /// describe a missing value when coverage is incomplete.
 ///
 /// Track patterns as rows, with one column for each value being matched. Start
-/// with one column; checking a tuple, enum case, or non-empty list replaces that
-/// column with columns for its fields. Coverage must hold for every possible
+/// with one column; checking a tuple, record, enum case, or non-empty list
+/// replaces that column with columns for its fields. Coverage must hold for every possible
 /// constructor, such as both Bool values or every case of an enum.
 /// Guarded cases cannot establish coverage because their conditions may be false.
 module Darklang.LanguageTools.AtRestTypeChecker.Coverage
 
 /// A value's outer shape. Its fields are checked separately: a non-empty list
-/// has a head and tail, a tuple has elements, and an enum case has payload fields.
+/// has a head and tail, a tuple has elements, a record has its declared fields
+/// in order, and an enum case has payload fields.
 type Constructor =
   | UnitCase
   | BoolCase(Bool)
   | EmptyList
   | ConsList
   | TupleOf(Int64)
+  | RecordOf(List<String>)
   | EnumCase(String)
 
 /// A description of an uncovered value for the diagnostic, rather than a runtime value.
@@ -47,6 +49,16 @@ let render(missing: Missing): String =
       | [ head, tail ] -> $"a list matching [{render(head)}, ...{render(tail)}]"
       | _ -> joined()
     | TupleOf(_) -> "(" + joined() + ")"
+    // only the fields that matter, as a pattern would name them
+    | RecordOf(names) ->
+      let named =
+        (Stdlib.List.zipShortest(names, fields))
+        |> Stdlib.List.filterMap(fun((name, field)) ->
+          match field with
+          | Anything -> Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.Some(name + " = " + render(field)))
+      if Stdlib.List.isEmpty(named) then "…"
+      else "{ " + Stdlib.String.join(named, ", ") + " }"
     | EnumCase(name) ->
       if Stdlib.List.isEmpty(fields) then name else name + "(" + joined() + ")"
 
@@ -59,8 +71,8 @@ let alternatives(pattern: LanguageTools.ProgramTypes.MatchPattern): List<Languag
   | _ -> [ pattern ]
 
 /// Recognize patterns that accept every value of their already-checked type:
-/// variables (including _), tuples of catch-alls, or-patterns containing one,
-/// and `p as x` where `p` is one.
+/// variables (including _), tuples and record patterns of catch-alls, or-patterns
+/// containing one, and `p as x` where `p` is one.
 /// Other exhaustive combinations, such as true | false, need constructor checks.
 let isIrrefutable(pattern: LanguageTools.ProgramTypes.MatchPattern): Bool =
   match pattern with
@@ -71,6 +83,7 @@ let isIrrefutable(pattern: LanguageTools.ProgramTypes.MatchPattern): Bool =
     && Stdlib.List.all(rest, fun p -> isIrrefutable(p))
   | MPOr(_, options) -> Stdlib.List.any(options, fun p -> isIrrefutable(p))
   | MPAs(_, inner, _) -> isIrrefutable(inner)
+  | MPRecord(_, fields) -> Stdlib.List.all(fields, fun((_, p)) -> isIrrefutable(p))
   | _ -> false
 
 /// List every outer constructor and its field types after resolving unknowns and
@@ -101,6 +114,18 @@ let constructors(
     match Types.declaration(env, name) with
     | Some(decl) ->
       match decl.definition with
+      | Record(fields) ->
+        let types =
+          Stdlib.List.map(fields, fun field ->
+            let (t, _) =
+              Types.fieldType(
+                Stdlib.Option.Option.None,
+                decl.typeParams,
+                args,
+                field.typ)
+            t)
+        Stdlib.Option.Option.Some(
+          [ (Constructor.RecordOf(Stdlib.List.map(fields, fun f -> f.name)), types) ])
       | Enum(cases) ->
         // Substitute this enum's type arguments into each case's payload types.
         Stdlib.Option.Option.Some(
@@ -164,6 +189,16 @@ let specialize(
         [ Stdlib.List.concat([ first, second ], rest) ]
       else
         []
+    | _ -> []
+  // A record pattern's fields go in declaration order, and a field it leaves out
+  // matches anything there.
+  | MPRecord(id, fields) ->
+    match constructor with
+    | RecordOf(names) ->
+      [ Stdlib.List.map(names, fun name ->
+          match Stdlib.List.findFirst(fields, fun((n, _)) -> n == name) with
+          | Some((_, p)) -> p
+          | None -> LanguageTools.ProgramTypes.MatchPattern.MPVariable(id, "_")) ]
     | _ -> []
   | MPEnum(_, caseName, fields) ->
     match constructor with

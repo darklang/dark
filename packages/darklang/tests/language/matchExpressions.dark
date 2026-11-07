@@ -1002,3 +1002,89 @@ test nestedOrPatterns =
        | [x, 1 | 2] -> x
        | _ -> 0)
       |> Stdlib.Test.equal(0) ])
+
+// `{ name = p, … }` matches a record by the fields it names and ignores the rest.
+// `{ name }` is short for `{ name = name }`.
+module RecordPatterns =
+  type Person = { name: String, age: Int64 }
+
+  type Status =
+    | Active
+    | Inactive
+
+  type Account =
+    { owner: Person
+      status: Status
+      pos: (Int64 * Int64) }
+
+  let jo(): Person = Person { name = "Jo", age = 30 }
+
+  let account(status: Status): Account =
+    Account { owner = jo(), status = status, pos = (1, 2) }
+
+  test fields =
+    Stdlib.Test.all(
+      [ (match jo() with
+         | { name = n, age = 30 } -> n
+         | _ -> "fail")
+        |> Stdlib.Test.equal("Jo")
+        // fields left out are ignored
+        (match jo() with
+         | { age = a } -> a)
+        |> Stdlib.Test.equal(30)
+        // the order of the fields does not matter
+        (match jo() with
+         | { age = 30, name = "Jo" } -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal("pass")
+        // a field that does not match moves on to the next arm
+        (match jo() with
+         | { age = 31 } -> "fail"
+         | { name = "Al" } -> "fail"
+         | { name = "Jo", age = 30 } -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal("pass") ])
+
+  test shorthand =
+    Stdlib.Test.all(
+      [ (match jo() with
+         | { name } -> name)
+        |> Stdlib.Test.equal("Jo")
+        (match jo() with
+         | { name, age } -> (name, age))
+        |> Stdlib.Test.equal(("Jo", 30))
+        (match jo() with
+         | { name, age = 30 } -> name
+         | _ -> "fail")
+        |> Stdlib.Test.equal("Jo") ])
+
+  test nested =
+    Stdlib.Test.all(
+      [ (match account(Status.Active) with
+         | { owner = { name }, status = Active } -> name
+         | { status = Inactive } -> "inactive")
+        |> Stdlib.Test.equal("Jo")
+        (match account(Status.Inactive) with
+         | { status = Active } -> 0
+         | { status = Inactive, pos = (x, y) } -> x + y)
+        |> Stdlib.Test.equal(3)
+        // or-patterns and `as` inside a field
+        (match account(Status.Inactive) with
+         | { status = Active | Inactive as s, owner = { age } } -> (s, age))
+        |> Stdlib.Test.equal((Status.Inactive, 30))
+        (match account(Status.Active) with
+         | { owner = { name = "Al" } } | { status = Inactive } -> "fail"
+         | { owner } -> owner.name)
+        |> Stdlib.Test.equal("Jo")
+        // inside other patterns
+        (match Stdlib.Option.Option.Some(jo()) with
+         | Some({ age }) -> age
+         | None -> 0)
+        |> Stdlib.Test.equal(30)
+        (match [ jo(), Person { name = "Al", age = 4 } ] with
+         | [ _, { name } ] -> name
+         | _ -> "fail")
+        |> Stdlib.Test.equal("Al")
+        (match (jo(), 1) with
+         | ({ name }, n) -> (name, n))
+        |> Stdlib.Test.equal(("Jo", 1)) ])

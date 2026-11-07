@@ -237,6 +237,15 @@ module MatchPattern =
       w.Write id
       write w pattern
       String.write w name
+    | MPRecord(id, fields) ->
+      w.Write 25uy
+      w.Write id
+      List.write
+        w
+        (fun w (name, pattern) ->
+          String.write w name
+          write w pattern)
+        fields
 
   let rec read (r : BinaryReader) : MatchPattern =
     match r.ReadByte() with
@@ -347,6 +356,14 @@ module MatchPattern =
       let pattern = read r
       let name = String.read r
       MPAs(id, pattern, name)
+    | 25uy ->
+      let id = r.ReadUInt64()
+      let fields =
+        List.read r (fun r ->
+          let name = String.read r
+          let pattern = read r
+          (name, pattern))
+      MPRecord(id, fields)
     | b -> raiseFormatError $"Invalid MatchPattern tag: {b}"
 
 
