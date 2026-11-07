@@ -3,17 +3,19 @@ module Darklang.LanguageTools.RuntimeTypes.RuntimeError
 module TypeChecking =
   type TypeCheckPathPart =
     | ListType
+    | DictKeyType
     | DictValueType
-    | TupleLength(expected : Int32, actual : Int32)
+    | TupleLength(expected: Int32, actual: Int32)
     | TupleAtIndex(Int32)
-    | TypeArg(typeName: FQTypeName.FQTypeName, index : Int32, expected : TypeReference, actual: ValueType, typeArgCount: Int32)
+    | TypeArgLength(typeName: FQTypeName.FQTypeName, expected: Int32, actual: Int32)
+    | TypeArg(typeName: FQTypeName.FQTypeName, typeArgIndex: Int32, typeArgCount: Int32)
 
   type ReverseTypeCheckPath = List<TypeCheckPathPart>
 
 module Bools =
   type Error =
     | AndOnlySupportsBooleans(gotLeft: ValueType, gotRight: ValueType)
-    | OrOnlySupportsBooleans(gotLeft: ValueType, gotRight: ValueType)
+    | OrOnlySupportsBooleans(gotRight: ValueType, gotLeft: ValueType)
     | ConditionRequiresBool(actualValueType: ValueType, actualValue: Dval)
 
 module BigInts =
@@ -147,9 +149,9 @@ module Unwraps =
     | GotNone
     | GotError(err: Dval)
     | NonOptionOrResult(actual: Dval)
+    | MultipleArgs(args: List<Dval>)
     | UnwrapContainerMismatch(actual: Dval)
     | UnwrapOperandNotContainer(actual: Dval)
-    | MultipleArgs(args: List<Dval>)
 
 module Jsons =
   type Error =
@@ -210,12 +212,10 @@ type Error =
 
   | WrongNumberOfTypeArgsForType(fn: FQTypeName.FQTypeName, expected: Int64, actual: Int64)
 
-  | Record(Records.Error)
   | Enum(Enums.Error)
+  | Record(Records.Error)
 
   | Apply(Applications.Error)
-
-  | Statement(Statements.Error)
 
   | Unwrap(Unwraps.Error)
 
@@ -224,6 +224,8 @@ type Error =
   | Trait(Traits.Error)
 
   | CLI(CLIs.Error)
+
+  | Statement(Statements.Error)
 
   | UncaughtException(msg : String, metadata : List<(String * Dval)>)
 

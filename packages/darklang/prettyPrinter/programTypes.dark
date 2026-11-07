@@ -1438,9 +1438,10 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | ESelf(_id) ->
     match ctx.currentFunction with
     | Some((functionName, _argMap)) -> functionName
-    // This should never happen - ESelf should only appear within a function body
-    // CLEANUP: consider making this a runtime error instead
-    | None -> "ESelf"
+    // A self-call printed without the fn it belongs to, so there is no name to give it.
+    // Say so, in the same shape as the fallback below, rather than print `ESelf` as if it
+    // were a name.
+    | None -> "<self-call outside a function>"
 
   // Everything above is a real case; this arm only fires if `Expr` gains one the printer wasn't taught.
   // It used to dump the whole expression as JSON into the middle of the source, which buries the
