@@ -47,6 +47,41 @@ let resolveTrait(
       | Ok(h) -> Stdlib.Result.Result.Ok(h)
       | Error(_) -> Stdlib.Result.Result.Error(msg)
 
+/// Where code calls an implementation's methods: through its trait, never at the impl's
+/// own path. A fn beside the trait named for the method is the shorter call, so
+/// `impl ToString for Int64` gives `[Stdlib.toString]`, which is what someone looking for
+/// `Stdlib.Int64.toString` wanted; otherwise it is the trait's own, `Stdlib.Add.add`.
+/// Empty when the trait is unresolved.
+let methodCalls(
+  branchId: Uuid,
+  i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  : List<String> =
+  match i.trait_.resolved with
+  | Ok(r) ->
+    match r.location with
+    | Some(loc) ->
+      // How a person writes the module: `Stdlib`, not `Darklang.Stdlib`.
+      let written =
+        match (loc.owner, loc.modules) with
+        | ("Darklang", ["Stdlib", ...rest]) -> Stdlib.List.prepend(rest, "Stdlib")
+        | _ -> Stdlib.List.prepend(loc.modules, loc.owner)
+
+      i.methods
+      |> Stdlib.List.map(fun((method, _)) ->
+        let beside =
+          LanguageTools.ProgramTypes.PackageLocation
+            { owner = loc.owner
+              modules = loc.modules
+              name = method }
+
+        match LanguageTools.PackageManager.Function.find(branchId, beside) with
+        | Some(_) -> Stdlib.String.join(Stdlib.List.append(written, method), ".")
+        | None ->
+          Stdlib.String.join(Stdlib.List.flatten([ written, [ loc.name, method ] ]), "."))
+    | None -> []
+  | Error(_) -> []
+
+
 /// The name of the implementation, or its short hash when nothing binds it.
 let sourceNameOf(
   branchId: Uuid,

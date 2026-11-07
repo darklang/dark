@@ -166,6 +166,10 @@ never against what you typed.
 - `|>` passes the value on its left in as the first argument. If that value is
   an `if` or `match`, put it in parentheses, or only its last branch gets piped.
 - Strings concatenate with `+`. Interpolation uses the type's `ToString` implementation.
+- A value becomes a String with `Stdlib.toString(x)`, for every type with a `ToString`
+  impl; there is no `Stdlib.Int64.toString`. Any trait method is called through the
+  trait, not the type: `Stdlib.Add.add(1, 2)`, or receiver first, `x.toString`.
+  `view Stdlib.Int64` lists the type's impls with where each method is called.
 - A bare integer is an `Int64` and a bare `1.5` a `Float`; numeric operands must
   have one type. Other number types take a suffix (table in Critical Syntax).
 - Local values use `let max = 6` without annotations; package values use `val`.

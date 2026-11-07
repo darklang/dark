@@ -236,6 +236,47 @@ let entityRows(
           [ "" ]
         ])
 
+    // An impl's methods are called through its trait, never at the impl's path, so each row
+    // says where: `ToString  Stdlib.toString`, for someone who came looking for
+    // `Stdlib.Int64.toString`.
+    let implRows =
+      match Query.withoutInternalNames(implNames) with
+      | [] -> []
+      | shown ->
+        let width =
+          shown
+          |> Stdlib.List.map(fun name -> Stdlib.String.displayWidth(name))
+          |> Stdlib.List.fold(0, fun(acc, w) -> if w > acc then w else acc)
+
+        let row =
+          fun name ->
+            let calls =
+              match (Query.searchExactMatch(branchId, path, name)).impls with
+              | [item, ...] -> Packages.Impls.methodCalls(branchId, item.entity)
+              | [] -> []
+
+            match calls with
+            | [] -> $"  {name}"
+            | _ ->
+              let padded = Stdlib.Text.padEndToWidth(name, width)
+              // `Stdlib.Compare.lessThan, lessThanOrEqualTo, ...`: the path once.
+              let callText =
+                match calls with
+                | [first, ...rest] ->
+                  rest
+                  |> Stdlib.List.map(fun c ->
+                    Stdlib.Option.withDefault(Stdlib.List.last(Stdlib.String.split(c, ".")), c))
+                  |> Stdlib.List.prepend(first)
+                  |> Stdlib.String.join(", ")
+                | [] -> ""
+              $"  {padded}  {Stdlib.Cli.UI.Colors.dimText(callText)}"
+
+        Stdlib.List.flatten([
+          [ Display.getSectionHeader("impl") ]
+          shown |> Stdlib.List.map(row)
+          [ "" ]
+        ])
+
     // A module named for a type (`Acme.Point`, holding the impls `Point.Show`
     // and `Point.Add`) is also that type, and an impl's module (`Acme.Point.Show`,
     // holding its method fns) is the impl: show the declaration above the listing.
@@ -275,7 +316,7 @@ let entityRows(
       sectionRows("trait", "", traitNames)
       sectionRows("value", "", valueNames)
       sectionRows("function", "", fnNames)
-      sectionRows("impl", "", implNames)
+      implRows
       sectionRows("test", "", testNames)
     ])
 

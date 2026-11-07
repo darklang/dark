@@ -717,6 +717,24 @@ test stdlibSuggestionFindsTheRealName =
       suggest("Bool.not") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
       suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
+// #6024: an impl's methods are called through its trait, never at the type's module, so
+// `view` and `search` say where: the `Stdlib.toString` shortcut beside `ToString`, and the
+// trait's own path for one without a shortcut.
+test implListingsSayWhereTheMethodsAreCalled =
+  let viewed = runWithCommand([ "view", "Stdlib.Int64" ])
+  let searched = runWithCommand([ "search", "Int64.toString", "--impl" ])
+
+  if
+    Stdlib.String.contains(viewed, "Stdlib.toString")
+    && Stdlib.String.contains(viewed, "Stdlib.Add.add")
+    && Stdlib.Bool.not(Stdlib.String.contains(viewed, "Stdlib.Int64.toString"))
+    && Stdlib.String.contains(searched, "impl ToString for Int64; call Stdlib.toString")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected call paths; view={viewed}; search={searched}")
+
+
 test listTypes =
   let output = runWithCommand(["ls", "Stdlib.Option"])
   if Stdlib.String.contains(output, "Types") &&
