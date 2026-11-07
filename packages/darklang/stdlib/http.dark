@@ -148,7 +148,7 @@ type Response =
     body: Bytes }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with HTTP status <param code> and <param response> body.
+/// respond with <param body> and HTTP status <param statusCode>.
 let response(body: Bytes, statusCode: Int64): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -156,8 +156,7 @@ let response(body: Bytes, statusCode: Int64): Stdlib.Http.Response =
       body = body }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with HTTP status <param code>, <param response> body and
-/// <param headers>.
+/// respond with <param body>, <param headers> and HTTP status <param statusCode>.
 let responseWithHeaders(
   body: Bytes,
   headers: List<String * String>,
@@ -169,7 +168,7 @@ let responseWithHeaders(
       body = body }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with HTTP status 200 and <param response> body.
+/// respond with HTTP status 200 and <param body>.
 let success(body: Bytes): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 200
@@ -177,7 +176,7 @@ let success(body: Bytes): Stdlib.Http.Response =
       body = body }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with HTTP status 200, <param response> body, with the
+/// respond with <param body> and HTTP status <param statusCode>, with the
 /// Content-Type header set to "text/html; charset=utf-8".
 let responseWithHtml(
   body: String,
@@ -190,7 +189,7 @@ let responseWithHtml(
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with HTTP status 200, <param response> body, with the
+/// respond with <param text> and HTTP status <param statusCode>, with the
 /// Content-Type header set to "text/plain; charset=utf-8".
 let responseWithText(
   text: String,
@@ -202,7 +201,7 @@ let responseWithText(
       body = Stdlib.Utf8.encode(text) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with HTTP status 200, <param response> body, with the
+/// respond with <param json> and HTTP status <param statusCode>, with the
 /// Content-Type header set to "application/json".
 let responseWithJson(
   json: String,
@@ -222,7 +221,7 @@ let redirectTo(url: String): Stdlib.Http.Response =
       body = Stdlib.Bytes.empty }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with {{400}} status code and <param response> body.
+/// respond with {{400}} status code and <param error> body.
 let badRequest(error: String): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = 400

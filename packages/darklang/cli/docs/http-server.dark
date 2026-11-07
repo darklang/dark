@@ -58,12 +58,13 @@ The path is not a field - it's derived from the url:
 
 ## Response
 
-Body first, status second - the reverse of what you might expect.
+Body first, status last - the reverse of what you might expect. Headers, when
+you give them, go in between.
 
   Stdlib.Http.responseWithText("Hello", 200)
   Stdlib.Http.responseWithHtml("<h1>Hi</h1>", 200)
   Stdlib.Http.responseWithJson(jsonString, 200)
-  Stdlib.Http.responseWithHeaders(body, 200, [ ("x-thing", "value") ])
+  Stdlib.Http.responseWithHeaders(bodyBytes, [ ("x-thing", "value") ], 200)
   Stdlib.Http.response(bodyBytes, 200)          # the raw one; body is a Bytes
   Stdlib.Http.notFound()
 
