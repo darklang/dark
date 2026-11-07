@@ -34,54 +34,59 @@ if the code type-checks, it should never fail in unexpected ways.
 
 ### Using RuntimeError
 
-If you need to raise a RuntimeError, call `RT.raiseRTE`. This throws an exception
-with the RuntimeError in it, which is caught at the execution boundary (e.g.
-`LibExecution.Execution.executeExpr`). At the execution boundaries, the execution
-functions return F# `Result<Dval, RuntimeError>`s, which are then converted to
-`Dval`s so they can be stringified using
-`@darklang.languageTools.runtimeErrors.error.toString`.
+If you need to raise a RuntimeError, call `RT.raiseRTE vm.threadID`, or
+`RT.raiseUntargetedRTE` where there is no VM at hand. Both throw a
+`RuntimeErrorException` holding the error, which is caught at the execution boundary
+(`LibExecution.Execution.execute`, which `executeExpr` and `executeFunction` go
+through). The boundary returns an `RT.ExecutionResult`, a
+`Result<Dval, RuntimeError.Error * CallStack>`. To show the error to a user,
+`Execution.runtimeErrorToString` converts it to a `Dval` with
+`RuntimeTypesToDarkTypes.RuntimeError.toDT` and renders it with the Dark function
+`Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString`.
 
 #### Tips for using RuntimeErrors
 
-We prefer to raise `RuntimeErrorException`s using `raiseRTE` (or module-specific
-variations), instead of returning F# `Result<_, RuntimeError>`.
+We prefer to raise `RuntimeErrorException`s using `raiseRTE`, instead of returning
+F# `Result<_, RuntimeError.Error>`.
 
-Never catch a `RuntimeError` anywhere except at the outer boundaries of code
-execution in `LibExecution.Execution`. That's not how they're intended to be used,
-and will lead to errors being hidden from the user.
+Never catch a `RuntimeErrorException` except at the outer boundaries of code
+execution: `Execution.execute`, the scheduler when a process fails, and the CLI's
+`guestTry`, which reports an evaluated expression's error. Catching it anywhere else
+hides the error from the user.
 
-TODO continue to update this doc, starting here.
+#### Where the error happened
 
-#### Source of the Error
-
-`raiseRTE` takes a `DvalSource` (`Option<tlid*id>`), which allows us to indicate to
-the user where the error originated.
-
-We're trying to get to a place where we always include a valid `DvalSource` with a
-`RuntimeError`, but often it can be hard. We plan to ensure we pass around enough
-information so that `RuntimeError`s always have a `DvalSource`.
+A `RuntimeError` does not carry its location. The boundary pairs it with the call
+stack of the VM that raised it (`Execution.callStackFromVM`), and that is what tells
+the user where it came from.
 
 ### Builtin functions
 
 When writing a builtin function, typically we handle errors by returning a
-`@darklang.stdlib.Result.Result` value. The `Error` case should use a custom type
-appropriate for that function or for general use in the module, defined in a package.
+`Stdlib.Result.Result` value. The `Error` case should use a custom type appropriate
+for that function or for general use in the module, defined in a package.
 
 This sort of error handling is appropriate where the user calls the function
 incorrectly, or something bad happens beyond our control.
 
-Example: `HttpClient.request "mywebsiteisdowntoday.com" = Error HttpClient.NetworkError`
+Example: `Stdlib.HttpClient.get("http://mywebsiteisdowntoday.com", [])` gives
+`Error(Stdlib.HttpClient.RequestError.NetworkError)`
 
-Example: `Float.parse "not a float" = Error Float.Error.InvalidFloatString`
+Example: `Stdlib.Float.parse("not a float")` gives `Error(Stdlib.Float.ParseError.BadFormat)`
 
 #### Raise RuntimeErrors for type errors in builtins
 
-If a builtin has a type error, such as the wrong type being returned by
-`Interpreter.applyFnVal`, use a `TypeChecker.Error` instead of a `Result`.
+If a builtin is given a value that is not the type its signature says, raise
+`RTE.Applications.FnParameterNotExpectedType` instead of returning a `Result` (see
+how `httpClientRequest` checks its headers). Use `Result`s for errorable conditions
+like trying to read a file which doesn't exist.
 
-If you expect a type, as indicated by the type signature, and it is not that type, a
-TypeChecker.Error is appropriate. Use `Result`s for errorable conditions like trying
-to read a file which doesn't exist.
+When a builtin's arguments don't match the patterns it expects at all, the type
+checker should already have stopped the call, so that is a bug in the runtime:
+`RT.incorrectArgs ()`, which raises an internal exception.
+
+The interpreter checks what a lambda returns, so a builtin does not need to
+(`RTE.Applications.LambdaResultNotExpectedType`).
 
 #### Custom errors in Builtins
 
@@ -89,8 +94,8 @@ It's important not to use `Result<_, String>` in Builtins, as those errors are
 difficult for a user to handle resiliently. Instead, create a darklang type for the
 error.
 
-For example `Builtin.HttpClient.request` would return
-`@darklang.stdlib.HttpClient.Request`, which is `Result<_, @darklang.stdilib.HttpClient.Error>`.
+For example `Builtin.httpClientRequest` returns
+`Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError>`.
 
 This is the same best-practice as writing code in a darklang package or user code.
 
@@ -132,44 +137,36 @@ semi-automatically, is still the intention.
 
 ## RuntimeError implementation
 
-Unusually, a `RuntimeError` contains a `Dval`, which corresponds to a type in
-`@darklang.languageTools.runtimeErrors`. Using a `Dval` here allows us define/create
-`RuntimeError`s from anywhere, without worrying about F# module ordering.
+`RuntimeError.Error` is an F# union in `LibExecution/RuntimeTypes.fs`
+(`module RuntimeError`). Its cases are either single errors (`VariableNotFound`,
+`FnNotFound`, ...) or wrap the `Error` type of a submodule for one area (`Bools`,
+`BigInts`, `Lists`, `Records`, `Applications`, ...).
+
+The same type is declared in Dark, as `Darklang.LanguageTools.RuntimeTypes.RuntimeError`
+in `packages/darklang/languageTools/runtimeErrors.dark`, so that Dark code can render
+it.
 
 ### Making a new RuntimeError
 
-To make a new `RuntimeError`, look at `@darklang.languageTools.runtimeErrors.Error`.
-You can either add a new Enum to it, or more commonly to one of the types within it.
-You can also add a new type of `Error` in a submodule of
-`@darklang.languageTools.runtimeErrors` and an Enum wrapping it in
-`@darklang.languageTools.runtimeErrors.Error`.
+Add a case to the F# type: to one of the submodule `Error` types, or to the top-level
+`Error`, or a new submodule with an `Error` and a case wrapping it. Then, in step:
 
-Then you will need a set of functions in F# to produce the `Error` as a `Dval`.
-You'll also need to stringify the error in
-`@darklang.languageTools.runtimeErrors.error.toString`. We commonly also have
-convenience functions to raise the exceptions.
+- the same case in `runtimeErrors.dark`, with the same name and fields
+- its `toDT` and `fromDT` in `RuntimeTypesToDarkTypes.fs` (`module RuntimeError`)
+- for a new submodule, its type in `PackageRefs.fs` (`RuntimeError`)
+- its message in `toSegments`, in `packages/darklang/prettyPrinter/runtimeError.dark`
 
-A good approach is to have an F# type that matches the error, and then functions to
-convert it to a `Dval` (commonly called `toDT` and `toRuntimeError`). Look at the
-code of an existing module's `Error` implementation to see more.
+### Prefer a specific RuntimeError
 
-Most modules will have an `Error` module, such as `TypeChecking.Error`, or
-`Interpreter.ExecutionError`, which have types and functions to allow creating
-`RuntimeError`s easily.
-
-### Getting rid of string-based RuntimeErrors
-
-Many `RuntimeError`s in the codebase at the moment use `string`s, usually via
-`raiseString` or `Runtime.oldError`. We really really want to move away from that.
-Prefer to make a new user-facing `RuntimeError` for your module (or add an extra
-variant to the existing `RuntimeError` enum in a module if there is one and if that
-feels more appropriate).
+`UncaughtException(msg, metadata)` is the catch-all for very unexpected things, and
+anything a builtin throws that isn't caught ends up there. Prefer a specific case
+for your module (or an extra case in the module's existing `Error` type, if that
+feels more appropriate), so the user gets a message written for the error.
 
 ### What to put in a RuntimeError
 
 `RuntimeError`s often have fields that can be used to provide errors to the user.
 When deciding what fields to include, a good approach is to try to write the error
-message you'd like the user to see, and to capture any values you need for it. Note
-that `RuntimeError`s are raised alongside a `DvalSource` (tlid and id of the
-expression/etc it happens in), so you do not need to capture the Expression being
-executed.
+message you'd like the user to see, and to capture any values you need for it. The
+location comes from the call stack, so you do not need to capture the expression
+being executed.
