@@ -130,6 +130,8 @@ let private ensureExistingBodyMatches
 /// `Seed.evaluateAllValues`, which runs once every op in the batch has been applied and
 /// cross-package references can resolve.
 /// <param mayRewriteExisting> is what a BRANCH does not get.
+/// <param incomingFingerprint> is computed only when the hash is already stored, which on a cold
+/// fold is almost never: it rehashes the whole item.
 ///
 /// An existing row and an incoming item with the same hash agree about behaviour by construction --
 /// that is what the hash is -- so the only thing that can differ is the doc comment, and the row is
@@ -144,7 +146,7 @@ let private upsertContentAddressed
   (columns : List<string * obj>)
   (insertOnlyNulls : List<string>)
   (mayRewriteExisting : bool)
-  (incomingFingerprint : Hash)
+  (incomingFingerprint : unit -> Hash)
   (storedFingerprint : byte[] -> Hash)
   : Task<unit> =
   task {
@@ -178,7 +180,7 @@ let private upsertContentAddressed
           kind
           table
           hash
-          incomingFingerprint
+          (incomingFingerprint ())
           storedFingerprint
 
       if mayRewriteExisting then
@@ -222,7 +224,7 @@ let private applyAddType
           "description", box typ.description ]
         []
         mayRewriteExisting
-        (Hashing.computeTypeHash Hashing.Normal typ)
+        (fun () -> Hashing.computeTypeHash Hashing.Normal typ)
         (fun bytes ->
           BS.PT.PackageType.deserialize hash bytes
           |> Hashing.computeTypeHash Hashing.Normal)
@@ -255,7 +257,7 @@ let private applyAddValue
           "description", box value.description ]
         [ "rt_dval"; "value_type" ]
         mayRewriteExisting
-        (Hashing.computeValueHash Hashing.Normal value)
+        (fun () -> Hashing.computeValueHash Hashing.Normal value)
         (fun bytes ->
           BS.PT.PackageValue.deserialize hash bytes
           |> Hashing.computeValueHash Hashing.Normal)
@@ -288,7 +290,7 @@ let private applyAddTrait
           "description", box t.description ]
         []
         mayRewriteExisting
-        (Hashing.computeTraitHash Hashing.Normal t)
+        (fun () -> Hashing.computeTraitHash Hashing.Normal t)
         (fun bytes ->
           BS.PT.Trait.deserialize hash bytes
           |> Hashing.computeTraitHash Hashing.Normal)
@@ -331,7 +333,7 @@ let private applyAddImpl
           "origin_ts", box originTs ]
         []
         mayRewriteExisting
-        (Hashing.computeImplHash Hashing.Normal i)
+        (fun () -> Hashing.computeImplHash Hashing.Normal i)
         (fun bytes ->
           BS.PT.TraitImpl.deserialize hash bytes
           |> Hashing.computeImplHash Hashing.Normal)
@@ -371,7 +373,7 @@ let private applyAddFn
           "description", box fn.description ]
         []
         mayRewriteExisting
-        (Hashing.computeFnHash Hashing.Normal fn)
+        (fun () -> Hashing.computeFnHash Hashing.Normal fn)
         (fun bytes ->
           BS.PT.PackageFn.deserialize hash bytes
           |> Hashing.computeFnHash Hashing.Normal)
@@ -406,7 +408,7 @@ let private applyAddTest
           "description", box test.description ]
         []
         mayRewriteExisting
-        (Hashing.computeTestHash Hashing.Normal test)
+        (fun () -> Hashing.computeTestHash Hashing.Normal test)
         (fun bytes ->
           BS.PT.PackageTest.deserialize hash bytes
           |> Hashing.computeTestHash Hashing.Normal)
