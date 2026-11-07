@@ -52,6 +52,8 @@ module ParseError =
       JsonPath.JsonPath)
     | RecordDuplicateField(fieldName: String, JsonPath.JsonPath)
     | RecordMissingField(fieldName: String, JsonPath.JsonPath)
+    /// A number outside the range of a type such as <type Stdlib.Net.Port>
+    | OutOfRange(Stdlib.Math.OutOfRange, JsonPath.JsonPath)
     | NotJson
 
   let toString(
@@ -120,6 +122,12 @@ module ParseError =
       "Can't parse JSON because `"
       + fieldName
       + "` is defined more than once at path: `"
+      + JsonPath.toString(path)
+      + "`"
+
+    // Can't parse JSON: 70000 is not a valid port (0 to 65535) at path: `root.port`
+    | OutOfRange(range, path) ->
+      $"Can't parse JSON: {range} at path: `"
       + JsonPath.toString(path)
       + "`"
 

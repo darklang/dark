@@ -144,75 +144,75 @@ module Request =
 
 /// An HTTP response status, 100 to 599. Build one with <fn Status.fromInt64>, or name a
 /// common one (<val Status.notFound>); the field is not for constructing directly.
-type Status = { __value: Int64 }
+type Status = { __status: Int64 }
 
 
 module Status =
   /// Returns {{Ok}} the status numbered <param n>, or {{Error}} an
   /// <type Stdlib.Math.OutOfRange> if it is not between 100 and 599.
   let fromInt64(n: Int64): Stdlib.Result.Result<Stdlib.Http.Status, Stdlib.Math.OutOfRange> =
-    Stdlib.Math.__inRange("HTTP status", 100, 599, n, fun v -> Stdlib.Http.Status { __value = v })
+    Stdlib.Math.__inRange("HTTP status", 100, 599, n, fun v -> Stdlib.Http.Status { __status = v })
 
   /// The number of <param status>, which is what <type Stdlib.Http.Response> carries
-  let toInt64(status: Stdlib.Http.Status): Int64 = status.__value
+  let toInt64(status: Stdlib.Http.Status): Int64 = status.__status
 
   /// 200 OK
-  val ok = Stdlib.Http.Status { __value = 200 }
+  val ok = Stdlib.Http.Status { __status = 200 }
   /// 201 Created
-  val created = Stdlib.Http.Status { __value = 201 }
+  val created = Stdlib.Http.Status { __status = 201 }
   /// 204 No Content
-  val noContent = Stdlib.Http.Status { __value = 204 }
+  val noContent = Stdlib.Http.Status { __status = 204 }
   /// 301 Moved Permanently
-  val movedPermanently = Stdlib.Http.Status { __value = 301 }
+  val movedPermanently = Stdlib.Http.Status { __status = 301 }
   /// 302 Found
-  val found = Stdlib.Http.Status { __value = 302 }
+  val found = Stdlib.Http.Status { __status = 302 }
   /// 303 See Other
-  val seeOther = Stdlib.Http.Status { __value = 303 }
+  val seeOther = Stdlib.Http.Status { __status = 303 }
   /// 304 Not Modified
-  val notModified = Stdlib.Http.Status { __value = 304 }
+  val notModified = Stdlib.Http.Status { __status = 304 }
   /// 400 Bad Request
-  val badRequest = Stdlib.Http.Status { __value = 400 }
+  val badRequest = Stdlib.Http.Status { __status = 400 }
   /// 401 Unauthorized
-  val unauthorized = Stdlib.Http.Status { __value = 401 }
+  val unauthorized = Stdlib.Http.Status { __status = 401 }
   /// 403 Forbidden
-  val forbidden = Stdlib.Http.Status { __value = 403 }
+  val forbidden = Stdlib.Http.Status { __status = 403 }
   /// 404 Not Found
-  val notFound = Stdlib.Http.Status { __value = 404 }
+  val notFound = Stdlib.Http.Status { __status = 404 }
   /// 405 Method Not Allowed
-  val methodNotAllowed = Stdlib.Http.Status { __value = 405 }
+  val methodNotAllowed = Stdlib.Http.Status { __status = 405 }
   /// 409 Conflict
-  val conflict = Stdlib.Http.Status { __value = 409 }
+  val conflict = Stdlib.Http.Status { __status = 409 }
   /// 413 Content Too Large
-  val contentTooLarge = Stdlib.Http.Status { __value = 413 }
+  val contentTooLarge = Stdlib.Http.Status { __status = 413 }
   /// 429 Too Many Requests
-  val tooManyRequests = Stdlib.Http.Status { __value = 429 }
+  val tooManyRequests = Stdlib.Http.Status { __status = 429 }
   /// 500 Internal Server Error
-  val internalServerError = Stdlib.Http.Status { __value = 500 }
+  val internalServerError = Stdlib.Http.Status { __status = 500 }
   /// 503 Service Unavailable
-  val serviceUnavailable = Stdlib.Http.Status { __value = 503 }
+  val serviceUnavailable = Stdlib.Http.Status { __status = 503 }
   /// 504 Gateway Timeout
-  val gatewayTimeout = Stdlib.Http.Status { __value = 504 }
+  val gatewayTimeout = Stdlib.Http.Status { __status = 504 }
 
   /// Returns {{true}} for a 2xx status
   let isSuccess(status: Stdlib.Http.Status): Bool =
-    status.__value >= 200 && status.__value <= 299
+    status.__status >= 200 && status.__status <= 299
 
   /// Returns {{true}} for a 3xx status
   let isRedirect(status: Stdlib.Http.Status): Bool =
-    status.__value >= 300 && status.__value <= 399
+    status.__status >= 300 && status.__status <= 399
 
   /// Returns {{true}} for a 4xx status
   let isClientError(status: Stdlib.Http.Status): Bool =
-    status.__value >= 400 && status.__value <= 499
+    status.__status >= 400 && status.__status <= 499
 
   /// Returns {{true}} for a 5xx status
   let isServerError(status: Stdlib.Http.Status): Bool =
-    status.__value >= 500 && status.__value <= 599
+    status.__status >= 500 && status.__status <= 599
 
   /// The reason phrase RFC 9110 gives <param status>, such as {{"Not Found"}} for 404, or
   /// {{""}} for a number it does not name. A phrase is optional on the wire.
   let reason(status: Stdlib.Http.Status): String =
-    match status.__value with
+    match status.__status with
     | 100 -> "Continue"
     | 101 -> "Switching Protocols"
     | 200 -> "OK"
@@ -263,7 +263,7 @@ module Status =
 
 impl ToString for Status =
   /// The status number, {{404}}
-  let toString(status: Status): String = Stdlib.toString(status.__value)
+  let toString(status: Status): String = Stdlib.toString(status.__status)
 
 
 /// What a handler answers. <param statusCode> is a plain number, so any helper below takes

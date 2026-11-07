@@ -3,35 +3,35 @@ module Darklang.Stdlib.Net
 
 /// A TCP or UDP port, 0 to 65535. Build one with <fn Port.fromInt64>; the field is not
 /// for constructing directly. 0 asks the system for any free port.
-type Port = { __value: Int64 }
+type Port = { __port: Int64 }
 
 
 module Port =
   /// Returns {{Ok}} the port numbered <param n>, or {{Error}} an
   /// <type Stdlib.Math.OutOfRange> if it is not between 0 and 65535.
   let fromInt64(n: Int64): Stdlib.Result.Result<Stdlib.Net.Port, Stdlib.Math.OutOfRange> =
-    Stdlib.Math.__inRange("port", 0, 65535, n, fun v -> Stdlib.Net.Port { __value = v })
+    Stdlib.Math.__inRange("port", 0, 65535, n, fun v -> Stdlib.Net.Port { __port = v })
 
   /// The number of <param port>
-  let toInt64(port: Stdlib.Net.Port): Int64 = port.__value
+  let toInt64(port: Stdlib.Net.Port): Int64 = port.__port
 
   /// 80
-  val http = Stdlib.Net.Port { __value = 80 }
+  val http = Stdlib.Net.Port { __port = 80 }
 
   /// 443
-  val https = Stdlib.Net.Port { __value = 443 }
+  val https = Stdlib.Net.Port { __port = 443 }
 
   /// 8080, the usual alternative HTTP port, and what `dark serve` listens on by default
-  val httpAlt = Stdlib.Net.Port { __value = 8080 }
+  val httpAlt = Stdlib.Net.Port { __port = 8080 }
 
 
 impl ToString for Port =
   /// The port number, {{8080}}
-  let toString(port: Port): String = Stdlib.toString(port.__value)
+  let toString(port: Port): String = Stdlib.toString(port.__port)
 
 
 impl Compare for Port =
-  let lessThan(a: Port, b: Port): Bool = a.__value < b.__value
-  let lessThanOrEqualTo(a: Port, b: Port): Bool = a.__value <= b.__value
-  let greaterThan(a: Port, b: Port): Bool = a.__value > b.__value
-  let greaterThanOrEqualTo(a: Port, b: Port): Bool = a.__value >= b.__value
+  let lessThan(a: Port, b: Port): Bool = a.__port < b.__port
+  let lessThanOrEqualTo(a: Port, b: Port): Bool = a.__port <= b.__port
+  let greaterThan(a: Port, b: Port): Bool = a.__port > b.__port
+  let greaterThanOrEqualTo(a: Port, b: Port): Bool = a.__port >= b.__port
