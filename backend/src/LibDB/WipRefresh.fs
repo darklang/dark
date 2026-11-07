@@ -18,7 +18,8 @@ module PackageLocation = LibDB.PackageLocation
 
 
 /// Resolve missing references using each declaration's owner and module.
-/// Use a loop so a large draft doesn't build up nested tasks.
+/// The steps run through `Ply.List.mapSequentially`, which is iterative, so a large draft doesn't
+/// build up nested tasks.
 let private reResolveAllItems
   (pm : PT.PackageManager)
   (ops : List<PT.PackageOp>)
@@ -39,69 +40,65 @@ let private reResolveAllItems
             | None -> state
           | _ -> state)
         referenceNames
-    let result = ResizeArray<PT.PackageOp>()
-    let arr = List.toArray ops
-    let mutable i = 0
+    // The declaration of an Add+SetName pair, re-resolved where it is bound; None for anything else.
+    let reResolve
+      (declaration : PT.PackageOp)
+      (binding : PT.PackageOp)
+      : Option<unit -> Ply<PT.PackageOp>> =
+      match declaration, binding with
+      | PT.PackageOp.AddType t, PT.PackageOp.SetName(loc, PT.PackageType _, _) ->
+        Some(fun () ->
+          ReferenceNames.patchType referenceNames loc t
+          |> DR.reResolveType pm loc.owner loc.modules
+          |> Ply.map PT.PackageOp.AddType)
+      | PT.PackageOp.AddFn f, PT.PackageOp.SetName(loc, PT.PackageFn _, _) ->
+        Some(fun () ->
+          ReferenceNames.patchFn referenceNames loc f
+          |> DR.reResolveFn pm loc.owner loc.modules
+          |> Ply.map PT.PackageOp.AddFn)
+      | PT.PackageOp.AddValue v, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
+        Some(fun () ->
+          ReferenceNames.patchValue referenceNames loc v
+          |> DR.reResolveValue pm loc.owner loc.modules
+          |> Ply.map PT.PackageOp.AddValue)
+      | PT.PackageOp.AddTrait t, PT.PackageOp.SetName(loc, PT.PackageTrait _, _) ->
+        Some(fun () ->
+          ReferenceNames.patchTrait referenceNames loc t
+          |> DR.reResolveTrait pm loc.owner loc.modules
+          |> Ply.map PT.PackageOp.AddTrait)
+      | PT.PackageOp.AddTraitImpl impl,
+        PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
+        Some(fun () ->
+          ReferenceNames.patchImpl referenceNames loc impl
+          |> DR.reResolveImpl pm loc.owner loc.modules loc.name
+          |> Ply.map PT.PackageOp.AddTraitImpl)
+      | PT.PackageOp.AddTest test, PT.PackageOp.SetName(loc, PT.PackageTest _, _) ->
+        Some(fun () ->
+          ReferenceNames.patchTest referenceNames loc test
+          |> DR.reResolveTest pm loc.owner loc.modules
+          |> Ply.map PT.PackageOp.AddTest)
+      | _ -> None
 
-    while i < arr.Length do
-      let pair = if i + 1 < arr.Length then Some(arr[i], arr[i + 1]) else None
+    // One step per Add+SetName pair or other op, in order; each yields the ops it is rewritten to.
+    let rec steps (acc : List<unit -> Ply<List<PT.PackageOp>>>) ops =
+      match ops with
+      | [] -> List.rev acc
+      | op :: rest ->
+        let paired =
+          match rest with
+          | binding :: afterPair ->
+            reResolve op binding
+            |> Option.map (fun declaration -> (binding, declaration, afterPair))
+          | [] -> None
+        match paired with
+        | Some(binding, declaration, afterPair) ->
+          let step () = declaration () |> Ply.map (fun d -> [ d; binding ])
+          steps (step :: acc) afterPair
+        | None -> steps ((fun () -> Ply [ op ]) :: acc) rest
 
-      match pair with
-      | Some(PT.PackageOp.AddType t,
-             PT.PackageOp.SetName(loc, (PT.PackageType _ as target), prev)) ->
-        let t = ReferenceNames.patchType referenceNames loc t
-        let! reResolved = DR.reResolveType pm loc.owner loc.modules t |> Ply.toTask
-        result.Add(PT.PackageOp.AddType reResolved)
-        result.Add(PT.PackageOp.SetName(loc, target, prev))
-        i <- i + 2
-
-      | Some(PT.PackageOp.AddFn f,
-             PT.PackageOp.SetName(loc, (PT.PackageFn _ as target), prev)) ->
-        let f = ReferenceNames.patchFn referenceNames loc f
-        let! reResolved = DR.reResolveFn pm loc.owner loc.modules f |> Ply.toTask
-        result.Add(PT.PackageOp.AddFn reResolved)
-        result.Add(PT.PackageOp.SetName(loc, target, prev))
-        i <- i + 2
-
-      | Some(PT.PackageOp.AddValue v,
-             PT.PackageOp.SetName(loc, (PT.PackageValue _ as target), prev)) ->
-        let v = ReferenceNames.patchValue referenceNames loc v
-        let! reResolved = DR.reResolveValue pm loc.owner loc.modules v |> Ply.toTask
-        result.Add(PT.PackageOp.AddValue reResolved)
-        result.Add(PT.PackageOp.SetName(loc, target, prev))
-        i <- i + 2
-
-      | Some(PT.PackageOp.AddTrait t,
-             PT.PackageOp.SetName(loc, (PT.PackageTrait _ as target), prev)) ->
-        let t = ReferenceNames.patchTrait referenceNames loc t
-        let! reResolved = DR.reResolveTrait pm loc.owner loc.modules t |> Ply.toTask
-        result.Add(PT.PackageOp.AddTrait reResolved)
-        result.Add(PT.PackageOp.SetName(loc, target, prev))
-        i <- i + 2
-
-      | Some(PT.PackageOp.AddTraitImpl impl,
-             PT.PackageOp.SetName(loc, (PT.PackageTraitImpl _ as target), prev)) ->
-        let impl = ReferenceNames.patchImpl referenceNames loc impl
-        let! reResolved =
-          DR.reResolveImpl pm loc.owner loc.modules loc.name impl |> Ply.toTask
-        result.Add(PT.PackageOp.AddTraitImpl reResolved)
-        result.Add(PT.PackageOp.SetName(loc, target, prev))
-        i <- i + 2
-
-      | Some(PT.PackageOp.AddTest test,
-             PT.PackageOp.SetName(loc, (PT.PackageTest _ as target), prev)) ->
-        let test = ReferenceNames.patchTest referenceNames loc test
-        let! reResolved =
-          DR.reResolveTest pm loc.owner loc.modules test |> Ply.toTask
-        result.Add(PT.PackageOp.AddTest reResolved)
-        result.Add(PT.PackageOp.SetName(loc, target, prev))
-        i <- i + 2
-
-      | _ ->
-        result.Add arr[i]
-        i <- i + 1
-
-    return result |> Seq.toList
+    let! rewritten =
+      steps [] ops |> Ply.List.mapSequentially (fun step -> step ()) |> Ply.toTask
+    return List.concat rewritten
   }
 
 
@@ -407,24 +404,23 @@ let refreshWith
     task {
       // Retry if another edit changed the draft while we were refreshing it.
       // Stop after ten attempts rather than retrying indefinitely.
-      let mutable result = None
-      let mutable attempts = 0
-      while Option.isNone result && attempts < 10 do
-        attempts <- attempts + 1
-        let! r = refreshOnce afterRead pm
-        result <- r
-      match result with
-      | Some n -> return n
-      | None ->
-        // The edit is already saved; refreshing the surrounding draft is what failed.
-        // This message follows "Could not save <item>:", so explain that distinction.
-        return
-          Exception.raiseInternal
-            ("it is stored, but the draft kept changing while names across it were "
-             + $"being re-resolved ({attempts} tries), usually another save or your own "
-             + "editor, so references waiting on it may not be linked yet. Run the same "
-             + "save again to finish.")
-            []
+      let rec attempt (attempts : int) : Task<int64> =
+        task {
+          match! refreshOnce afterRead pm with
+          | Some n -> return n
+          | None when attempts < 10 -> return! attempt (attempts + 1)
+          | None ->
+            // The edit is already saved; refreshing the surrounding draft is what failed.
+            // This message follows "Could not save <item>:", so explain that distinction.
+            return
+              Exception.raiseInternal
+                ("it is stored, but the draft kept changing while names across it were "
+                 + $"being re-resolved ({attempts} tries), usually another save or your own "
+                 + "editor, so references waiting on it may not be linked yet. Run the same "
+                 + "save again to finish.")
+                []
+        }
+      return! attempt 1
     })
 
 let refresh (pm : PT.PackageManager) : Task<int64> =

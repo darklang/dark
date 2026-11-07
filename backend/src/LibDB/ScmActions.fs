@@ -87,12 +87,7 @@ let private rows
     use cmd = command conn sql ps
     let! opened = cmd.ExecuteReaderAsync()
     use reader = opened
-    let out = ResizeArray<'a>()
-    let mutable more = true
-    while more do
-      let! has = reader.ReadAsync()
-      if has then out.Add(read reader) else more <- false
-    return List.ofSeq out
+    return Sqlite.readRows read reader
   }
 
 let private textOr (r : SqliteDataReader) (i : int) : string =

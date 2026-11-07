@@ -44,13 +44,10 @@ let private texts
     cmd.Parameters.Clear()
     bind cmd
     use! reader = cmd.ExecuteReaderAsync()
-    let out = ResizeArray()
-    while reader.Read() do
-      out.Add(
-        reader.GetString 0,
-        (if reader.IsDBNull 1 then "" else reader.GetString 1)
-      )
-    return List.ofSeq out
+    return
+      reader
+      |> Sqlite.readRows (fun r ->
+        (r.GetString 0, (if r.IsDBNull 1 then "" else r.GetString 1)))
   }
 
 

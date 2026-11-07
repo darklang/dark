@@ -29,9 +29,6 @@ let private location owner modules name : PT.PackageLocation =
 /// The shared index may contain alias names authored on other branches.
 let private indexedNames (hashes : List<Hash>) =
   task {
-    let mutable indexed = Map.empty
-    let mutable seen = Set.empty
-    let mutable ambiguous = Set.empty
     // One parameter keeps wide graphs independent of SQLite's parameter limit.
     // Write JSON explicitly so this path works in AOT builds too.
     use buffer = new System.IO.MemoryStream()
@@ -59,15 +56,20 @@ let private indexedNames (hashes : List<Hash>) =
           (row.string "depends_on_owner")
           (row.string "depends_on_modules")
           (row.string "depends_on_name"))
-    for (hash, target, name) in rows do
-      if Set.contains (hash, target) seen then ambiguous <- Set.add hash ambiguous
-      seen <- Set.add (hash, target) seen
-      indexed <-
-        Map.add
-          hash
-          ((target, Some name)
-           :: (Map.tryFind hash indexed |> Option.defaultValue []))
-          indexed
+    let indexed, _, ambiguous =
+      rows
+      |> List.fold
+        (fun (indexed, seen, ambiguous) (hash, target, name) ->
+          let ambiguous =
+            if Set.contains (hash, target) seen then
+              Set.add hash ambiguous
+            else
+              ambiguous
+          let named =
+            (target, Some name)
+            :: (Map.tryFind hash indexed |> Option.defaultValue [])
+          (Map.add hash named indexed, Set.add (hash, target) seen, ambiguous))
+        (Map.empty, Set.empty, Set.empty)
     return indexed, ambiguous
   }
 
@@ -119,17 +121,18 @@ let dependents
       else
         task {
           let affectedVersions = state |> Map.keys |> Seq.map snd |> Set.ofSeq
-          let mutable originals = Map.empty
-          let mutable matches = []
-          for d in batchDependents do
-            let target = PT.Reference.fromHashAndKind (d.itemHash, d.itemKind)
-            if
-              not (Set.contains target affectedVersions)
-              && not (Set.contains target.hash ambiguous)
-            then
-              matches <- d :: matches
-            else
-              if not (Map.containsKey target originals) then
+          let targetOf (d : Queries.LocationDependent) =
+            PT.Reference.fromHashAndKind (d.itemHash, d.itemKind)
+          let needsBody (target : PT.Reference) =
+            Set.contains target affectedVersions
+            || Set.contains target.hash ambiguous
+          let! originals =
+            batchDependents
+            |> List.map targetOf
+            |> List.filter needsBody
+            |> List.distinct
+            |> Ply.List.mapSequentially (fun target ->
+              uply {
                 let! names = storedNames target
                 let names =
                   names
@@ -137,16 +140,23 @@ let dependents
                     Exception.raiseInternal
                       "Cannot read reference names: stored declaration is missing"
                       [])
-                originals <- Map.add target names originals
-              let deps =
+                return (target, names)
+              })
+            |> Ply.map Map.ofList
+            |> Ply.toTask
+          return
+            batchDependents
+            |> List.filter (fun d ->
+              let target = targetOf d
+              if not (needsBody target) then
+                true
+              else
                 effectiveNames
                   state
                   d.itemLocation
                   target
                   (Microsoft.FSharp.Collections.Map.find target originals)
                 |> asDependencies
-              let follows =
-                deps
                 |> List.exists (fun edge ->
                   targets
                   |> List.exists (fun t ->
@@ -154,9 +164,7 @@ let dependents
                       match edge.location with
                       | Some loc -> loc = t.location
                       | None -> List.contains edge.hash t.hashes
-                    edge.itemKind = t.itemKind && followsTarget))
-              if follows then matches <- d :: matches
-          return List.rev matches
+                    edge.itemKind = t.itemKind && followsTarget)))
         }
 
     return batchDependents
@@ -192,17 +200,19 @@ let private namedReferencesFrom
       Set.contains target affected || Set.contains target.hash ambiguous
     // A shared index can contain aliases from another branch. Read the body whenever
     // saved names or ambiguous aliases require it, once per content version.
-    let mutable originals = Map.empty
-    let mutable missing = false
-    for (_, target) in live do
-      if needsBody target && not (Map.containsKey target originals) then
-        let! names = storedNames target
-        match names with
-        | Some names -> originals <- Map.add target names originals
-        | None -> missing <- true
-    if missing then
+    let! stored =
+      live
+      |> List.map snd
+      |> List.filter needsBody
+      |> ReferenceNamesContent.storedNamesEach
+    if stored |> List.exists (fun (_, names) -> Option.isNone names) then
       return Error "Cannot read reference names: stored declaration is missing"
     else
+      let originals =
+        stored
+        |> List.choose (fun (target, names) ->
+          names |> Option.map (fun names -> (target, names)))
+        |> Map.ofList
       return
         live
         |> List.collect (fun (name, caller) ->
@@ -258,24 +268,47 @@ let reviewGraph
       edges |> List.groupBy (fun (_, _, _, dependency) -> dependency)
   let callers name = Map.tryFind name reverse |> Option.defaultValue []
   let changedNames = changed |> List.map fst |> Set.ofList
-  let mutable reported = Set.empty
-  let result = ResizeArray<_>()
-  for (seed, target) in changed do
-    let pending = System.Collections.Generic.Queue<PT.PackageLocation>()
-    let seen = System.Collections.Generic.HashSet<PT.PackageLocation>()
-    let enqueue name = if seen.Add name then pending.Enqueue name
-    for (usage, _, using, _) in callers seed do
-      if using.hash <> target.hash then enqueue usage
-    while pending.Count > 0 do
-      let usage = pending.Dequeue()
-      if
-        not (Set.contains usage changedNames) && not (Set.contains usage reported)
-      then
-        reported <- Set.add usage reported
-        result.Add(usage, seed)
-      for (caller, _, _, _) in callers usage do
-        enqueue caller
-  stale, List.ofSeq result
+  // Adds the names not seen yet, in order; `queued` is reversed.
+  let enqueue (seen, queued) name =
+    if Set.contains name seen then
+      (seen, queued)
+    else
+      (Set.add name seen, name :: queued)
+  // Breadth-first, a level at a time: every name reached from the seed, each once, in visit order.
+  let reached (seed, target : PT.Reference) : List<PT.PackageLocation> =
+    let rec walk frontier seen levels =
+      if List.isEmpty frontier then
+        levels |> List.rev |> List.concat
+      else
+        let seen, queued =
+          frontier
+          |> List.collect (fun usage ->
+            callers usage |> List.map (fun (caller, _, _, _) -> caller))
+          |> List.fold enqueue (seen, [])
+        walk (List.rev queued) seen (frontier :: levels)
+    let seen, queued =
+      callers seed
+      |> List.choose (fun (usage, _, using, _) ->
+        if using.hash <> target.hash then Some usage else None)
+      |> List.fold enqueue (Set.empty, [])
+    walk (List.rev queued) seen []
+  let result, _ =
+    changed
+    |> List.fold
+      (fun acc (seed, target) ->
+        reached (seed, target)
+        |> List.fold
+          (fun (result, reported) usage ->
+            if
+              not (Set.contains usage changedNames)
+              && not (Set.contains usage reported)
+            then
+              ((usage, seed) :: result, Set.add usage reported)
+            else
+              (result, reported))
+          acc)
+      ([], Set.empty)
+  stale, List.rev result
 
 /// The dependency index narrows the graph before any edges cross out of SQLite: only callers of a name
 /// whose version in <param branch>'s view is not the one the edge recorded. Saved names and ambiguous
@@ -325,13 +358,13 @@ let private reviewIndexed
     match initial with
     | Error message -> return Error message
     | Ok initial ->
-      let mutable edges = initial
-      let mutable fetched = Set.ofList initialHashes
-      let mutable failure = None
       // Overrides can point to names absent from the index. They are already in
       // `edges`; SQL only discovers the remaining candidates, which are checked
       // against their effective names before traversal follows them.
-      let fetchCallers (names : List<PT.PackageLocation>) =
+      let fetchCallers
+        (edges : List<NamedReference>, fetched : Set<Hash>)
+        (names : List<PT.PackageLocation>)
+        : Task<Result<List<NamedReference> * Set<Hash>, string>> =
         task {
           use buffer = new System.IO.MemoryStream()
           use writer = new System.Text.Json.Utf8JsonWriter(buffer)
@@ -357,47 +390,59 @@ let private reviewIndexed
             |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
           let fresh =
             hashes |> List.filter (fun hash -> not (Set.contains hash fetched))
-          if not (List.isEmpty fresh) then
-            let! result = namedReferencesFrom state (sources fresh)
-            match result with
-            | Error message -> failure <- Some message
+          if List.isEmpty fresh then
+            return Ok(edges, fetched)
+          else
+            match! namedReferencesFrom state (sources fresh) with
+            | Error message -> return Error message
             | Ok extra ->
-              edges <- extra @ edges
-              fetched <- Set.union fetched (Set.ofList fresh)
+              return Ok(extra @ edges, Set.union fetched (Set.ofList fresh))
         }
-      if not (List.isEmpty changed) then
-        let seedNames = changed |> List.map fst |> List.distinct
-        do! fetchCallers seedNames
-        let seeds = changed |> List.groupBy fst
-        let mutable pending =
-          edges
-          |> List.choose (fun (usage, _, target, dependency) ->
-            match Map.tryFind dependency seeds with
-            | Some versions when
-              versions
-              |> List.exists (fun (_, current) -> current.hash <> target.hash)
-              ->
-              Some usage
-            | _ -> None)
-        // A seed reached from another seed must still expand its current edges.
-        let mutable visited = Set.empty
-        while not (List.isEmpty pending) && Option.isNone failure do
+      // A seed reached from another seed must still expand its current edges.
+      let rec expand edges fetched visited pending =
+        task {
           let frontier =
             pending
             |> List.distinct
             |> List.filter (fun name -> not (Set.contains name visited))
-          pending <- []
-          if not (List.isEmpty frontier) then
+          if List.isEmpty frontier then
+            return Ok edges
+          else
             let frontierSet = Set.ofList frontier
-            visited <- Set.union visited frontierSet
-            do! fetchCallers frontier
-            pending <-
-              edges
-              |> List.choose (fun (usage, _, _, dependency) ->
-                if Set.contains dependency frontierSet then Some usage else None)
-      match failure with
-      | Some message -> return Error message
-      | None -> return Ok(reviewGraph live (List.distinct edges) changed)
+            match! fetchCallers (edges, fetched) frontier with
+            | Error message -> return Error message
+            | Ok(edges, fetched) ->
+              let pending =
+                edges
+                |> List.choose (fun (usage, _, _, dependency) ->
+                  if Set.contains dependency frontierSet then Some usage else None)
+              return! expand edges fetched (Set.union visited frontierSet) pending
+        }
+      let! expanded =
+        if List.isEmpty changed then
+          Task.FromResult(Ok initial)
+        else
+          task {
+            let seedNames = changed |> List.map fst |> List.distinct
+            match! fetchCallers (initial, Set.ofList initialHashes) seedNames with
+            | Error message -> return Error message
+            | Ok(edges, fetched) ->
+              let seeds = changed |> List.groupBy fst
+              let pending =
+                edges
+                |> List.choose (fun (usage, _, target, dependency) ->
+                  match Map.tryFind dependency seeds with
+                  | Some versions when
+                    versions
+                    |> List.exists (fun (_, current) -> current.hash <> target.hash)
+                    ->
+                    Some usage
+                  | _ -> None)
+              return! expand edges fetched Set.empty pending
+          }
+      match expanded with
+      | Error message -> return Error message
+      | Ok edges -> return Ok(reviewGraph live (List.distinct edges) changed)
   }
 
 /// Share binding and reference-name state across constraint and propagation review.

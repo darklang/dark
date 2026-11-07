@@ -52,25 +52,22 @@ let private inertValuesIn
   (cache : System.Collections.Generic.Dictionary<PT.Hash, bool>)
   (expr : PT.Expr)
   : Ply<Set<PT.Hash>> =
-  uply {
-    let mutable inert = Set.empty
-    for value in Calls.valueRefs expr do
-      let! isInert =
-        match cache.TryGetValue value with
-        | true, known -> Ply known
-        | false, _ ->
-          uply {
-            let! stored = load.value value
-            let isInert =
-              match stored with
-              | Some dval -> LibExecution.Dval.isInertData dval
-              | None -> false
-            cache[value] <- isInert
-            return isInert
-          }
-      if isInert then inert <- Set.add value inert
-    return inert
-  }
+  Calls.valueRefs expr
+  |> Set.toList
+  |> Ply.List.filterSequentially (fun value ->
+    match cache.TryGetValue value with
+    | true, known -> Ply known
+    | false, _ ->
+      uply {
+        let! stored = load.value value
+        let isInert =
+          match stored with
+          | Some dval -> LibExecution.Dval.isInertData dval
+          | None -> false
+        cache[value] <- isInert
+        return isInert
+      })
+  |> Ply.map Set.ofList
 
 /// Load every package function reachable from the given roots, analyzing each
 /// body once. Missing functions remain absent so requirements stay incomplete.
@@ -282,23 +279,23 @@ let compareContracts
       let oldRequirements =
         Requirements.forFunction callEffectsFor oldClosure oldRoot
       let newRequirements = candidate.rootRequirements
-      let differences = ResizeArray<string>()
-      if signatureOf oldFn <> signatureOf candidate.root then
-        differences.Add "the callable type changed"
-      if oldFn.permissionCeiling <> candidate.root.permissionCeiling then
-        differences.Add "the author's permission ceiling changed"
-      if not (oldRequirements.complete && newRequirements.complete) then
-        differences.Add "permission analysis is incomplete"
-      elif oldRequirements.requiredEffects <> newRequirements.requiredEffects then
-        differences.Add(
-          $"permission requirements changed from "
-          + $"{describeEffects oldRequirements.requiredEffects} to "
-          + $"{describeEffects newRequirements.requiredEffects}"
-        )
-      if differences.Count = 0 then
+      let differences =
+        [ if signatureOf oldFn <> signatureOf candidate.root then
+            "the callable type changed"
+          if oldFn.permissionCeiling <> candidate.root.permissionCeiling then
+            "the author's permission ceiling changed"
+          if not (oldRequirements.complete && newRequirements.complete) then
+            "permission analysis is incomplete"
+          elif
+            oldRequirements.requiredEffects <> newRequirements.requiredEffects
+          then
+            $"permission requirements changed from "
+            + $"{describeEffects oldRequirements.requiredEffects} to "
+            + $"{describeEffects newRequirements.requiredEffects}" ]
+      if List.isEmpty differences then
         return ContractComparison.Match
       else
-        return ContractComparison.Changed(List.ofSeq differences)
+        return ContractComparison.Changed differences
   }
 
 /// Build the policy stored for each approved member. Complete analysis gets an

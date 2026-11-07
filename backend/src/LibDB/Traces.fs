@@ -441,18 +441,14 @@ let idsStartingWith (prefix : string) (limit : int) : Task<List<string>> =
 
 /// When the log a run replays was recorded: its own start, or for a fork, the start of the run
 /// at the root of its lineage, since a fork's log is a copy of that run's.
-let recordedAt (e : Trace) : Task<string> =
+let rec recordedAt (e : Trace) : Task<string> =
   task {
-    let mutable current = e
-    let mutable more = true
-    while more do
-      match current.parent with
-      | Some(pid, _) ->
-        match! get pid with
-        | Some p -> current <- p
-        | None -> more <- false
-      | None -> more <- false
-    return current.created
+    match e.parent with
+    | Some(pid, _) ->
+      match! get pid with
+      | Some p -> return! recordedAt p
+      | None -> return e.created
+    | None -> return e.created
   }
 
 /// The effectful calls a trace recorded, as `(process, ordinal, answer, what was called)`, in

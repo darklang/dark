@@ -233,60 +233,70 @@ let captureForStorage
       return []
     else
       let! state = load branch
-      let mutable canonical = Map.empty
       // The first Add is the blob that insertion keeps, even when several names share it.
-      for (_, names) in captured do
-        match names with
-        | Some(target, names) when not (Map.containsKey target canonical) ->
-          let! stored = storedNames target
-          canonical <- Map.add target (Option.defaultValue names stored) canonical
-        | _ -> ()
-      let result = ResizeArray<PT.PackageOp>()
-      for (location, target, names) in declarations do
-        match Map.tryFind (location, target) state with
-        | Some existing when existing = names -> ()
-        | None when Map.tryFind target canonical = Some names -> ()
-        | existing ->
-          // Keep the original names before the first reference-only edit.
-          // A new alias has no earlier version at this location.
-          if Option.isNone existing then
-            let! current =
-              task {
-                let find =
-                  match target.kind with
-                  | PT.ItemKind.Type -> LibDB.ProgramTypes.Type.find
-                  | PT.ItemKind.Fn -> LibDB.ProgramTypes.Fn.find
-                  | PT.ItemKind.Value -> LibDB.ProgramTypes.Value.find
-                  | PT.ItemKind.Trait -> LibDB.ProgramTypes.Trait.find
-                  | PT.ItemKind.TraitImpl -> LibDB.ProgramTypes.TraitImpl.find
-                  | PT.ItemKind.Test -> LibDB.ProgramTypes.Test.find
-                let! found = find branch location |> Ply.toTask
-                return
-                  found
-                  |> Option.map (fun h ->
-                    PT.Reference.fromHashAndKind (h, target.kind))
-              }
-            if current = Some target then
-              match Map.tryFind target canonical with
-              | Some original ->
-                result.Add(
-                  PT.PackageOp.SetReferenceNames(
-                    location,
-                    target,
-                    original,
-                    Some(OriginTs.next ())
-                  )
+      let! canonical =
+        captured
+        |> List.choose snd
+        |> List.distinctBy fst
+        |> Ply.List.mapSequentially (fun (target, names) ->
+          uply {
+            let! stored = storedNames target
+            return (target, Option.defaultValue names stored)
+          })
+        |> Ply.map Map.ofList
+        |> Ply.toTask
+      let! edits =
+        declarations
+        |> Ply.List.mapSequentially (fun (location, target, names) ->
+          uply {
+            match Map.tryFind (location, target) state with
+            | Some existing when existing = names -> return []
+            | None when Map.tryFind target canonical = Some names -> return []
+            | existing ->
+              // Keep the original names before the first reference-only edit.
+              // A new alias has no earlier version at this location.
+              let! keepOriginal =
+                if Option.isNone existing then
+                  uply {
+                    let find =
+                      match target.kind with
+                      | PT.ItemKind.Type -> LibDB.ProgramTypes.Type.find
+                      | PT.ItemKind.Fn -> LibDB.ProgramTypes.Fn.find
+                      | PT.ItemKind.Value -> LibDB.ProgramTypes.Value.find
+                      | PT.ItemKind.Trait -> LibDB.ProgramTypes.Trait.find
+                      | PT.ItemKind.TraitImpl -> LibDB.ProgramTypes.TraitImpl.find
+                      | PT.ItemKind.Test -> LibDB.ProgramTypes.Test.find
+                    let! found = find branch location
+                    let current =
+                      found
+                      |> Option.map (fun h ->
+                        PT.Reference.fromHashAndKind (h, target.kind))
+                    if current = Some target then
+                      return
+                        Map.tryFind target canonical
+                        |> Option.map (fun original ->
+                          PT.PackageOp.SetReferenceNames(
+                            location,
+                            target,
+                            original,
+                            Some(OriginTs.next ())
+                          ))
+                    else
+                      return None
+                  }
+                else
+                  Ply None
+              let edit =
+                PT.PackageOp.SetReferenceNames(
+                  location,
+                  target,
+                  names,
+                  Some(OriginTs.next ())
                 )
-              | None -> ()
-          result.Add(
-            PT.PackageOp.SetReferenceNames(
-              location,
-              target,
-              names,
-              Some(OriginTs.next ())
-            )
-          )
-      return List.ofSeq result
+              return Option.toList keepOriginal @ [ edit ]
+          })
+        |> Ply.toTask
+      return List.concat edits
   }
 
 
