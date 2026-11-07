@@ -29,7 +29,7 @@ let private policyAdminError () =
 let private accountIDOf (dval : Dval) : Option<System.Guid> =
   CommonToDT.Option.fromDT D.uuid dval
 
-/// The running host's approval-analysis metadata, read once per builtin call:
+/// The running host's approval-analysis metadata, built once per builtin table:
 /// `callEffectsFor` answers analysis by full builtin identity (name, version)
 /// so different-effect versions never collapse. `fingerprint` includes those
 /// effects and the analyzer version, so either kind of semantic change makes
@@ -37,15 +37,24 @@ let private accountIDOf (dval : Dval) : Option<System.Guid> =
 type private BuiltinEffects =
   { callEffectsFor : PackagePermissions.CallEffectsFor; fingerprint : string }
 
+/// A table never changes once made. Building this on every call, which sorts and hashes every
+/// builtin, was a seventh of `search`, which asks once for every function it lists.
+let private builtinEffectsCache =
+  System.Runtime.CompilerServices.ConditionalWeakTable<Dictionary<FQFnName.Builtin, BuiltInFn>, BuiltinEffects>()
+
 let private builtinEffects (state : ExecutionState) : BuiltinEffects =
-  let sorted = state.fns.builtIn |> Dictionary.toSortedList
-  let byIdentity =
-    sorted
-    |> List.map (fun (k, b) -> (k.name, k.version), b.callEffects)
-    |> Map.ofList
-  let fingerprint = PolicyStore.builtinFingerprint state.fns.builtIn
-  { callEffectsFor = (fun key -> Map.tryFind key byIdentity)
-    fingerprint = fingerprint }
+  builtinEffectsCache.GetValue(
+    state.fns.builtIn,
+    fun builtIn ->
+      let sorted = builtIn |> Dictionary.toSortedList
+      let byIdentity =
+        sorted
+        |> List.map (fun (k, b) -> (k.name, k.version), b.callEffects)
+        |> Map.ofList
+      let fingerprint = PolicyStore.builtinFingerprint builtIn
+      { callEffectsFor = (fun key -> Map.tryFind key byIdentity)
+        fingerprint = fingerprint }
+  )
 
 /// A policy builtin: impure, `Native`, never queryable. `impl` receives the
 /// raw argument array and answers `incorrectArgs` itself for a bad shape.
