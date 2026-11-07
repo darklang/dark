@@ -1311,6 +1311,56 @@ let x = Builtin.testRead(311)
       listener.Stop()
   }
 
+let private writesParkOnTheirHostCall =
+  testList
+    "an HTTP call that is not a read parks the process on it"
+    [ for (label, call) in
+        [ "a POST", "Stdlib.HttpClient.post(u, [], Stdlib.Bytes.empty)"
+          "a GET with a body",
+          "Stdlib.HttpClient.request(\"GET\", u, [], Stdlib.Utf8.encode(\"b\"))" ] do
+        testTask label {
+          // The same server as above, which answers only when told. A read would hand the
+          // call back in flight and run on; this has to wait at it, in program order.
+          installTestHttpConfig ()
+          let listener =
+            new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+          listener.Start()
+          let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+          let received = TaskCompletionSource<unit>()
+          let answer = TaskCompletionSource<unit>()
+          let serving =
+            task {
+              use! client = listener.AcceptTcpClientAsync()
+              let stream = client.GetStream()
+              let buffer = Array.zeroCreate<byte> 4096
+              let! _ = stream.ReadAsync(buffer, 0, buffer.Length)
+              received.SetResult()
+              do! answer.Task
+              let response =
+                "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"B
+              do! stream.WriteAsync(response, 0, response.Length)
+            }
+          try
+            let! result =
+              runWith $"""let u = "http://test.dlio.localhost:{port}/"
+let r = {call}
+let _ = Builtin.testTrace("ran on")
+Stdlib.Result.isOk(r)""" (fun p ->
+                waitFor "the request to reach the server" (fun () ->
+                  received.Task.IsCompleted)
+                waitFor "the process to park" (fun () -> isParked p)
+                match p.status with
+                | Scheduler.Parked(Scheduler.OnHost _) -> ()
+                | other -> failtest $"expected a wait on the host call, got {other}"
+                Expect.equal (Trace.take ()) [] "nothing after the call ran"
+                answer.SetResult())
+            expectValue (RT.DBool true) result
+            do! serving
+          finally
+            answer.TrySetResult() |> ignore<bool>
+            listener.Stop()
+        } ]
+
 let private dictValueOfTheWrongTypeRaises =
   testTask
     "a read set into a dict raises where it is waited for if its type is wrong" {
@@ -1655,14 +1705,17 @@ let private execDoneWatcherGoesWithItsWait =
 
 
 let private httpGetIsARead =
-  testTask
-    "the HTTP client's GET and HEAD builtin is a read, and the request builtin is not" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
-    let readsOnly (name : string) : bool =
-      let b = state.fns.builtIn[RT.FQFnName.builtin name 0]
-      LibExecution.Effects.readsOnly b.name.name b.callEffects
-    Expect.isTrue (readsOnly "httpClientRead") "GET and HEAD are reads"
-    Expect.isFalse (readsOnly "httpClientRequest") "the rest keep their order"
+  test
+    "the HTTP client's GET and HEAD with no body are reads, and nothing else it does is" {
+    let http = set [ LibExecution.Effects.Effect.Http ]
+    let isRead (builtin : string) (method : string) =
+      LibExecution.Effects.readsByMethod builtin
+      && LibExecution.Effects.isReadMethod method
+    Expect.isTrue (isRead "httpClientRequest" "GET") "a GET is a read"
+    Expect.isTrue (isRead "httpClientRequest" "head") "so is a HEAD, in any case"
+    Expect.isFalse (isRead "httpClientRequest" "POST") "a POST keeps its order"
+    Expect.isFalse (isRead "httpClientStream" "GET") "an open stream is not a read"
+    Expect.isFalse (LibExecution.Effects.readsOnly http) "nor is every HTTP call"
   }
 
 
@@ -2271,6 +2324,7 @@ let tests =
         unwrapHandsBackTheReadInside
         unwrapErrorShowsTheLandedValue
         readsHostCallIsNotTheProcesssWait
+        writesParkOnTheirHostCall
         dictValueOfTheWrongTypeRaises
         unlookedReadFailsTheRunAtItsEnd
         denialRaisesAtTheCall

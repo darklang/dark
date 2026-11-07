@@ -684,7 +684,6 @@ module Fn =
     let private p addl = p ("Stdlib" :: addl)
 
     module HttpClient =
-      let read = p [ "HttpClient" ] "read"
       let request = p [ "HttpClient" ] "request"
       let stream = p [ "HttpClient" ] "stream"
 

@@ -523,8 +523,8 @@ let prepare
     |> Result.map (fun uri -> (uri, profile))
 
 
-/// Build the request message used for both the buffered and the
-/// streaming path. Header version policy is the same in both cases.
+/// Build the request message for `sendForHeaders`, which both the buffered and
+/// the streaming path go through.
 let private buildHttpRequestMessage
   (method : HttpMethod)
   (reqUri : string)
@@ -661,12 +661,14 @@ let rec private (|TlsFailure|_|) (e : exn) : Option<AuthenticationException> =
 
 /// Match a send-time exception to the typed error the guest sees; anything
 /// else propagates as a host failure. Shared by the buffered and streaming
-/// paths.
+/// paths, and by the buffered path's read of the body.
 let private (|SendFailure|_|) (e : exn) : Option<HttpRequestError> =
   match e with
   | TlsFailure e ->
     Some(HttpRequestError.TlsError(tlsFailureMessage systemHasRootCAs e))
-  | :? TaskCanceledException -> Some HttpRequestError.Timeout
+  // A deadline that fires during the body's read cancels the read rather than the send,
+  // which .NET reports as the base class.
+  | :? System.OperationCanceledException -> Some HttpRequestError.Timeout
   | :? System.ArgumentException as e when
     e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
     ->
@@ -682,11 +684,60 @@ let private (|SendFailure|_|) (e : exn) : Option<HttpRequestError> =
   | _ -> None
 
 
-// ── buffered send ─────────────────────────────────────────────────────────────
+// ── the send ──────────────────────────────────────────────────────────────────
 
-/// Send one validated request and buffer the whole response. `canonicalUri`
-/// and `profile` come from `prepare`; the URI has already passed the
-/// permission check.
+/// Send one validated request and answer as soon as the response's headers are in, its body
+/// still to be read. The one send both `send` and `openStream` make. `canonicalUri` and
+/// `profile` come from `prepare`; the URI has already passed the permission check.
+let private sendForHeaders
+  (profile : Profile)
+  (method : string)
+  (canonicalUri : string)
+  (headers : Headers)
+  (body : byte[])
+  (cancel : System.Threading.CancellationToken)
+  : Task<Result<HttpResponseMessage, HttpRequestError>> =
+  task {
+    use req = buildHttpRequestMessage (HttpMethod method) canonicalUri body
+    match applyRequestHeaders req headers with
+    | Error e -> return Error(HttpRequestError.BadHeader e)
+    | Ok() ->
+      let! response =
+        profile.client.SendAsync(
+          req,
+          HttpCompletionOption.ResponseHeadersRead,
+          cancel
+        )
+      return Ok response
+  }
+
+/// Read all of `body` under `cancel`, refusing past `limit` bytes the way the client's own
+/// buffering does (an `HttpRequestException`, so a `NetworkError`).
+let private readWhole
+  (body : Stream)
+  (limit : int64)
+  (cancel : System.Threading.CancellationToken)
+  : Task<byte[]> =
+  task {
+    use memory = new MemoryStream()
+    let buffer = Array.zeroCreate<byte> 81920
+    let mutable reading = true
+    while reading do
+      let! n = body.ReadAsync(buffer, 0, buffer.Length, cancel)
+      if n = 0 then
+        reading <- false
+      elif memory.Length + int64 n > limit then
+        raise (
+          HttpRequestException $"the response body is larger than {limit} bytes"
+        )
+      else
+        memory.Write(buffer, 0, n)
+    return memory.ToArray()
+  }
+
+/// Send one validated request and read its whole response: the streaming send, drained here.
+/// One deadline covers the exchange, body included, and a failure reading the body is the same
+/// typed error as one sending, so a slow or broken body is a `Timeout` or a `NetworkError`.
 let send
   (profile : Profile)
   (method : string)
@@ -695,29 +746,23 @@ let send
   (body : byte[])
   : Task<Result<HttpResponse, HttpRequestError>> =
   task {
+    use deadline =
+      new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
     try
-      use req = buildHttpRequestMessage (HttpMethod method) canonicalUri body
-
-      match applyRequestHeaders req headers with
-      | Error e -> return Error(HttpRequestError.BadHeader e)
-      | Ok() ->
-        // Allow timeout
-        let source =
-          new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
-
-        use! response = profile.client.SendAsync(req, source.Token)
-
-        use! responseStream = response.Content.ReadAsStreamAsync()
-        use memoryStream = new MemoryStream()
-        do! responseStream.CopyToAsync(memoryStream)
-
+      match!
+        sendForHeaders profile method canonicalUri headers body deadline.Token
+      with
+      | Error e -> return Error e
+      | Ok response ->
+        use response = response
+        use! stream = response.Content.ReadAsStreamAsync(deadline.Token)
+        let! bytes =
+          readWhole stream profile.client.MaxResponseContentBufferSize deadline.Token
         let headers =
           response |> headersForAspNetResponse |> normalizeResponseHeaders
         return
           Ok
-            { statusCode = int response.StatusCode
-              headers = headers
-              body = memoryStream.ToArray() }
+            { statusCode = int response.StatusCode; headers = headers; body = bytes }
     with SendFailure typed ->
       return Error typed
   }
@@ -735,31 +780,27 @@ let mutable private nextStreamId = 1L
 
 /// Open a streaming request: headers arrive now, the body is read lazily via
 /// `readChunk`. `canonicalUri` and `profile` come from `prepare`; the URI has
-/// already passed the permission check.
+/// already passed the permission check. The deadline covers the headers only, so
+/// a long-lived body (server-sent events) is not cut off.
 let openStream
   (profile : Profile)
   (method : string)
   (canonicalUri : string)
   (headers : Headers)
+  (body : byte[])
   : Task<Result<HttpStreamHead, HttpRequestError>> =
   task {
     let mutable responseToDispose : HttpResponseMessage option = None
     try
-      use req = buildHttpRequestMessage (HttpMethod method) canonicalUri [||]
-
-      match applyRequestHeaders req headers with
-      | Error e -> return Error(HttpRequestError.BadHeader e)
-      | Ok() ->
-        use source =
-          new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
-        // No `use!` — the response must outlive this function; it is owned
+      use deadline =
+        new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
+      match!
+        sendForHeaders profile method canonicalUri headers body deadline.Token
+      with
+      | Error e -> return Error e
+      | Ok response ->
+        // Not disposed here: the response must outlive this function; it is owned
         // by the stream table until `closeStream`.
-        let! response =
-          profile.client.SendAsync(
-            req,
-            HttpCompletionOption.ResponseHeadersRead,
-            source.Token
-          )
         responseToDispose <- Some response
 
         let! responseStream = response.Content.ReadAsStreamAsync()

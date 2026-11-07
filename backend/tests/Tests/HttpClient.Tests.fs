@@ -662,7 +662,7 @@ module StreamDvalTests =
           let body = "hello streams"
           let url =
             MockHelpers.registerTestCase "stream-dval-basic" 200 "text/plain" body
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -686,7 +686,7 @@ module StreamDvalTests =
           let body = String.replicate 28000 "x"
           let url =
             MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -701,7 +701,7 @@ module StreamDvalTests =
         testTask "empty body drains to zero bytes; disposer still runs" {
           let url =
             MockHelpers.registerTestCase "stream-dval-empty" 200 "text/plain" ""
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -715,7 +715,7 @@ module StreamDvalTests =
           let body = "unused"
           let url =
             MockHelpers.registerTestCase "stream-dval-close" 200 "text/plain" body
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -1122,35 +1122,167 @@ module ProxyTests =
         } ]
 
 
+/// The buffered send is the streaming send drained by the host, so what can go wrong while the
+/// body is read has to come back as the same typed errors as the send itself. And the stream
+/// carries the request body like the buffered call does.
+module BodyTests =
+  open System.Net.Http
+  module HostHttp = LibExecution.HostHttp
+  module HT = LibExecution.HostTypes
+
+  /// A body that hands out `prefix`, then does what `after` says on the next read.
+  type private Body
+    (prefix : byte[], after : System.Threading.CancellationToken -> Task<int>) =
+    inherit System.IO.Stream()
+    let mutable sent = false
+    override _.CanRead = true
+    override _.CanSeek = false
+    override _.CanWrite = false
+    override _.Length = raise (System.NotSupportedException())
+    override _.Position
+      with get () = raise (System.NotSupportedException())
+      and set _ = raise (System.NotSupportedException())
+    override _.Flush() = ()
+    override _.Seek(_, _) = raise (System.NotSupportedException())
+    override _.SetLength _ = raise (System.NotSupportedException())
+    override _.Write(_, _, _) = raise (System.NotSupportedException())
+    override this.Read(buffer, offset, count) =
+      this.ReadAsync(buffer, offset, count).Result
+    override _.ReadAsync(buffer, offset, _count, cancel) =
+      if not sent then
+        sent <- true
+        System.Array.Copy(prefix, 0, buffer, offset, prefix.Length)
+        Task.FromResult prefix.Length
+      else
+        after cancel
+
+  let private profileAnswering (body : unit -> System.IO.Stream) (limit : int64) =
+    let handler =
+      { new HttpMessageHandler() with
+          member _.SendAsync(_, _) =
+            Task.FromResult(
+              new HttpResponseMessage(
+                System.Net.HttpStatusCode.OK,
+                Content = new StreamContent(body ())
+              )
+            ) }
+    let client = new HttpClient(handler, MaxResponseContentBufferSize = limit)
+    let profile : HostHttp.Profile =
+      { config =
+          { timeoutInMs = 500
+            allowedIP = (fun _ -> true)
+            allowedHost = (fun _ -> true) }
+        client = client }
+    (profile, client)
+
+  let private sendTo
+    (body : unit -> System.IO.Stream)
+    (limit : int64)
+    : Task<Result<HT.HttpResponse, HT.HttpRequestError>> =
+    task {
+      let (profile, client) = profileAnswering body limit
+      try
+        return!
+          (HostHttp.send profile "GET" "http://fixture.test/" [] [||])
+            .WaitAsync(System.TimeSpan.FromSeconds 10.0)
+      finally
+        client.Dispose()
+    }
+
+  let tests =
+    testList
+      "the body"
+      [ testTask "a body that stops arriving is a Timeout" {
+          let! result =
+            sendTo
+              (fun () ->
+                new Body(
+                  "partial"B,
+                  fun cancel ->
+                    task {
+                      do! Task.Delay(System.Threading.Timeout.Infinite, cancel)
+                      return 0
+                    }
+                )
+                :> System.IO.Stream)
+              (1024L * 1024L)
+          match result with
+          | Error HT.HttpRequestError.Timeout -> ()
+          | other -> failtest $"expected Timeout, got {other}"
+        }
+
+        testTask "a connection that breaks mid-body is a NetworkError" {
+          let! result =
+            sendTo
+              (fun () ->
+                new Body(
+                  "partial"B,
+                  fun _ -> Task.FromException<int>(IOException "connection reset")
+                )
+                :> System.IO.Stream)
+              (1024L * 1024L)
+          match result with
+          | Error HT.HttpRequestError.NetworkError -> ()
+          | other -> failtest $"expected NetworkError, got {other}"
+        }
+
+        testTask "a body over the client's buffer limit is a NetworkError" {
+          let! result =
+            sendTo
+              (fun () ->
+                new MemoryStream(Array.zeroCreate<byte> 2048) :> System.IO.Stream)
+              1024L
+          match result with
+          | Error HT.HttpRequestError.NetworkError -> ()
+          | other -> failtest $"expected NetworkError, got {other}"
+        }
+
+        testTask "a body at the limit is read whole" {
+          let! result =
+            sendTo
+              (fun () -> new MemoryStream(Array.create 1024 7uy) :> System.IO.Stream)
+              1024L
+          match result with
+          | Ok(response : HT.HttpResponse) ->
+            Expect.equal response.body (Array.create 1024 7uy) "every byte"
+          | Error e -> failtest $"expected the body, got {e}"
+        }
+
+        testTask "a stream sends its request body" {
+          let mutable received : byte[] = [||]
+          let handler =
+            { new HttpMessageHandler() with
+                member _.SendAsync(request, _) =
+                  task {
+                    let! bytes = request.Content.ReadAsByteArrayAsync()
+                    received <- bytes
+                    return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                  } }
+          let client = new HttpClient(handler)
+          try
+            let profile : HostHttp.Profile =
+              { config = HostHttp.defaultConfig; client = client }
+            let! (result : Result<HT.HttpStreamHead, HT.HttpRequestError>) =
+              HostHttp.openStream profile "POST" "http://fixture.test/" [] "sent"B
+            match result with
+            | Ok head -> HostHttp.closeStream head.handle
+            | Error e -> failtest $"expected a stream, got {e}"
+            Expect.equal received "sent"B "the body reached the transport"
+          finally
+            client.Dispose()
+        } ]
+
+
 /// Sequenced against ITSELF: `testSequencedGroup` runs these one at a time while still running
 /// alongside other groups.
 ///
 /// They share one `HttpListener`, which on Linux is .NET's managed implementation and does not take
 /// forty concurrent requests well: one goes unaccepted and comes back `NetworkError`. Which one
 /// varies, so it presents as a flake. Serialising them is also faster than not.
-/// The GET-and-HEAD builtin refuses a write method rather than performing it as a read.
-let private readBuiltinRefusesAWriteMethod =
-  testTask "httpClientRead answers BadMethod to POST" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT true
-    let request : RT.BuiltInFn =
-      state.fns.builtIn[RT.FQFnName.builtin "httpClientRead" 0]
-    let instrs : RT.Instructions =
-      { registerCount = 1; instructions = []; resultIn = 0 }
-    let vm = RT.VMState.create (None, instrs)
-    let args =
-      [| RT.DString "POST"
-         RT.DString "http://192.0.2.1/"
-         RT.DList(RT.ValueType.Unknown, []) |]
-    let! (answer : RT.Dval) = request.fn (struct (state, vm, [], args)) |> Ply.toTask
-    match answer with
-    | RT.DEnum(_, _, _, "Error", [ RT.DEnum(_, _, _, "BadMethod", []) ]) -> ()
-    | other -> failtest $"expected BadMethod, got {other}"
-  }
-
 let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
     [ StreamDvalTests.tests
-      readBuiltinRefusesAWriteMethod
+      BodyTests.tests
       ProtocolPolicyTests.tests
       TlsFailureTests.tests
       ProxyTests.tests

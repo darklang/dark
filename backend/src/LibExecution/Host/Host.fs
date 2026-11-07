@@ -935,7 +935,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
           let! result = HostHttp.send profile method uri headers body
           return Ok(Response.Http result)
         })
-  | Operation.HttpStreamOpen(profile, method, url, headers) ->
+  | Operation.HttpStreamOpen(profile, method, url, headers, body) ->
     resolveHttp
       profile
       method
@@ -944,7 +944,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       (Error >> Response.HttpStream)
       (fun profile uri () ->
         task {
-          let! result = HostHttp.openStream profile method uri headers
+          let! result = HostHttp.openStream profile method uri headers body
           return Ok(Response.HttpStream result)
         })
   | Operation.HttpServerBind port ->

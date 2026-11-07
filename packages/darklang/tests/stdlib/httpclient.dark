@@ -109,6 +109,19 @@ test rejectsEmptyHeaderKey =
   get("https://darklang.com", [ ("", "") ])
   |> Stdlib.Test.equal(errBadHeaderEmptyKey())
 
+test streamRejectsAKeyThatTrimsToNothing =
+  (match
+    Stdlib.HttpClient.stream(
+      "GET",
+      "https://darklang.com",
+      [ (" ", "") ],
+      Stdlib.Bytes.empty
+    )
+   with
+   | Ok(_) -> "opened"
+   | Error(e) -> Stdlib.HttpClient.toString(e))
+  |> Stdlib.Test.equal("Empty key")
+
 // type errors for bad `method` are OK
 test rejectsBadMethods =
   Stdlib.Test.all(

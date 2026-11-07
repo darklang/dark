@@ -302,7 +302,7 @@ state itself when it is off.
 ## Reads are concurrent
 
 A call whose effects are all reads (a file, env, package or trace read; an
-HTTP GET or HEAD) that has to wait does not stop your program. You get its
+HTTP GET or HEAD with no body) that has to wait does not stop your program. You get its
 result back at once, as a read still in flight, and it is waited for only
 where the value is needed. Passing it to a Dark function, binding it,
 returning it, or storing it in a list, record, tuple, enum, dict value or
@@ -342,10 +342,11 @@ raises where `f` first uses `a`):
 
 How it works (`Interpreter.Promises`, `LibExecution.Pending`):
 
-- A read builtin whose `Ply` is not finished puts a `DPromise` in the
-  register instead of parking (`Effects.readsOnly`: all-read effects, or
-  `httpClientRead`, the GET and HEAD builtin, since `http` stays one word in
-  the permission language). A read that finishes synchronously (most file
+- A read call whose `Ply` is not finished puts a `DPromise` in the
+  register instead of parking (`Interpreter.callReadsOnly`: all-read effects
+  (`Effects.readsOnly`), or an `httpClientRequest` that is a GET or HEAD with
+  no body (`Effects.readsByMethod`), since `http` stays one word in the
+  permission language). A read that finishes synchronously (most file
   reads in this tree) is never a promise.
 - A value built around reads is itself a `DPromise` whose `Shell` is the value
   as built; its task lands as the value rebuilt by the same constructor, so a
@@ -1115,8 +1116,8 @@ rest of this file is what the system does; this section is how to move around in
   `Host.Operation`, the loop performs it under `vm.activeAccess` and drives the
   continuation). `Promises` (`maxInflight`, `settle`) is the read-in-flight machinery.
   The budget is `vm.budget`, counted down in `runSyncInstructions`.
-- `LibExecution/Effects.fs`: `isRead` (which effects overlap), `readsOnly` (the
-  per-builtin exception: `httpClientRead`), `isScoped` (which effects are checked by the
+- `LibExecution/Effects.fs`: `isRead` (which effects overlap), `readsOnly` and
+  `readsByMethod` (the per-call exception: an `httpClientRequest` GET or HEAD), `isScoped` (which effects are checked by the
   body's exact request rather than the ambient gate).
 - `LibExecution/Host/Host.fs`: `perform` (resolve, check, execute, audit), `blocking` (a
   process run or process IO goes to the pool so the scheduler thread is free); only the

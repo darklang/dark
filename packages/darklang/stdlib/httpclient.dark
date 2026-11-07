@@ -70,42 +70,48 @@ type StreamResponse =
     body: Stream<UInt8> }
 
 
-/// A GET or HEAD of <param uri>: a read. It runs concurrently with what follows, and
-/// your code waits for the response where it first looks at it, so `List.map get urls`
-/// has every request in flight at once. Any other method is a `BadMethod` error.
-let read(
-  method: String,
-  uri: String,
+/// The request headers as they go to the network: keys trimmed, and an empty key refused.
+/// `request` and `stream` both pass through here, so this is where a request is shaped on
+/// its way out. Whether it is safe to send (a CR, LF or NUL in a header, the network guard,
+/// your grants) is decided below this, by the host.
+let __outgoingHeaders(
   headers: List<(String * String)>)
-  : Stdlib.Result.Result<Response, RequestError> =
-  Builtin.httpClientRead(method, uri, headers)
+  : Stdlib.Result.Result<List<(String * String)>, RequestError> =
+  let trimmed =
+    Stdlib.List.map(headers, fun h ->
+      (Stdlib.String.trim(Stdlib.Tuple2.first(h)), Stdlib.Tuple2.second(h)))
+
+  if Stdlib.List.any(trimmed, fun h -> Stdlib.Tuple2.first(h) == "") then
+    Stdlib.Result.Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
+  else
+    Stdlib.Result.Result.Ok(trimmed)
 
 
-/// Make an HTTP call to <param uri>. Returns a <type Result> where the response is
-/// wrapped in {{ Ok }} if a response was successfully received and parsed, and is
-/// wrapped in {{ Error }} otherwise. A GET or HEAD is a `read` (concurrent); any other
-/// method is a write and runs in program order.
+/// Make an HTTP call to <param uri> and read the whole response. Returns a <type Result>
+/// where the response is wrapped in {{ Ok }} if a response was successfully received and
+/// read, and is wrapped in {{ Error }} otherwise, including when the body fails or times
+/// out partway.
 ///
-/// <param body> is IGNORED for GET and HEAD. A read goes through `httpClientRead`, which
-/// takes no body, and carrying one would mean deciding whether a GET with a body is still
-/// a read. Use a method that is a write if you need the body sent.
+/// A GET or HEAD is a read: it runs concurrently with what follows, and your code waits for
+/// the response where it first looks at it, so `List.map get urls` has every request in
+/// flight at once. Any other method is a write and runs in program order. <param body> is
+/// sent whatever the method.
 let request(
   method: String,
   uri: String,
   headers: List<(String * String)>,
   body: Bytes)
   : Stdlib.Result.Result<Response, RequestError> =
-  match Stdlib.String.toUppercase(method) with
-  | "GET" -> read("GET", uri, headers)
-  | "HEAD" -> read("HEAD", uri, headers)
-  | _ -> Builtin.httpClientRequest(method, uri, headers, body)
+  match __outgoingHeaders(headers) with
+  | Ok(headers) -> Builtin.httpClientRequest(method, uri, headers, body)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 let get(
   uri: String,
   headers: List<(String * String)>)
   : Stdlib.Result.Result<Response, RequestError> =
-  read("GET", uri, headers)
+  request("GET", uri, headers, Stdlib.Bytes.empty)
 
 
 let post(
@@ -133,22 +139,26 @@ let delete(uri: String): Stdlib.Result.Result<Response, RequestError> =
 
 
 let head(uri: String): Stdlib.Result.Result<Response, RequestError> =
-  read("HEAD", uri, [])
+  request("HEAD", uri, [], Stdlib.Bytes.empty)
 
 
-/// Make a streaming HTTP call to <param uri>. The response's body is
-/// a lazy `Stream<UInt8>` — bytes arrive as the server writes them.
-/// Drain with `Stdlib.Stream.toList`, `Stdlib.Stream.toBytes`, or
-/// compose with `Stdlib.Stream.map` / `Stdlib.Stream.filter` etc.
+/// Make a streaming HTTP call to <param uri>, in program order. The response's body is
+/// a lazy `Stream<UInt8>`: bytes arrive as the server writes them. Drain with
+/// `Stdlib.Stream.toList`, `Stdlib.Stream.toBytes`, or compose with `Stdlib.Stream.map` /
+/// `Stdlib.Stream.filter` etc. The timeout covers the response's headers, not its body,
+/// so a long-lived stream is not cut off.
 ///
 /// The underlying socket is released when the body stream drains to
 /// completion or is explicitly closed with `Stdlib.Stream.close`.
 let stream(
   method: String,
   uri: String,
-  headers: List<(String * String)>)
+  headers: List<(String * String)>,
+  body: Bytes)
   : Stdlib.Result.Result<StreamResponse, RequestError> =
-  Builtin.httpClientStream(method, uri, headers)
+  match __outgoingHeaders(headers) with
+  | Ok(headers) -> Builtin.httpClientStream(method, uri, headers, body)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
 /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
@@ -186,7 +196,7 @@ module Sse =
   // Server-Sent Events parsing over a Stream<UInt8>. Consumers
   // compose with the standard Stream builtins:
   //
-  //     HttpClient.stream "GET" url headers
+  //     HttpClient.stream "GET" url headers Stdlib.Bytes.empty
   //     |> Stdlib.Result.map (fun r -> HttpClient.Sse.parse r.body)
   //
   // Implemented as a true streaming parser via `Stdlib.Stream.unfold`:
