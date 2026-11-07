@@ -81,6 +81,47 @@ let main (args : string array) : int =
   try
     let shard, args = parseShard args
     let kind, args = parseKind args
+
+    // The suite gets a policy of its own, so no test reads or writes the clone's
+    // (`~/.darklang/policy`, the dev store's: a deny-all left there refuses the clone's own
+    // gates and printing). Seeded with what a fresh install gets; a test that sets its own
+    // still can, and this is what it goes back to. Beside the clone's, not in /tmp: the guards
+    // protect a policy directory's ancestors, and /tmp among them would refuse the temp-file
+    // tests.
+    let darklangDir =
+      System.IO.Path.Combine(
+        System.Environment.GetFolderPath System.Environment.SpecialFolder.UserProfile,
+        ".darklang"
+      )
+    // A killed run leaves its own behind; sweep the ones whose run is gone.
+    if System.IO.Directory.Exists darklangDir then
+      for stale in System.IO.Directory.GetDirectories(darklangDir, "test-policy-*") do
+        let alive =
+          match
+            System.Int32.TryParse(System.IO.Path.GetFileName(stale).Substring 12)
+          with
+          | true, pid ->
+            try
+              not (System.Diagnostics.Process.GetProcessById pid).HasExited
+            with _ ->
+              false
+          | _ -> false
+        if not alive then System.IO.Directory.Delete(stale, true)
+    let policyDir =
+      System.IO.Path.Combine(
+        darklangDir,
+        $"test-policy-{System.Environment.ProcessId}"
+      )
+    if System.IO.Directory.Exists policyDir then
+      System.IO.Directory.Delete(policyDir, true)
+    LibExecution.HostSecurity.setPolicyDirectory policyDir
+    LibDB.PolicyStore.seedInstanceIfMissing
+      LibExecution.Permissions.Policy.defaultInstance
+    System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ ->
+      try
+        System.IO.Directory.Delete(policyDir, true)
+      with _ ->
+        ())
     // Tests has no CLI worker entry point. Use the CLI selected by run-fsharp-tests.
     match System.Environment.GetEnvironmentVariable "DARK_TEST_CLI" with
     | null

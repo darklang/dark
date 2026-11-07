@@ -593,10 +593,29 @@ let linkedPolicyAncestorsNeedRoot =
       System.IO.Directory.Delete(temp, true)
   }
 
+/// The suite runs on a policy of its own (`Tests.main`), not the clone's `~/.darklang/policy`.
+/// Every test that did not set a directory of its own used to read, and could write, the dev
+/// store's policy, where a deny-all refuses the clone's own gates and printing.
+let suiteNeverUsesTheClonesPolicy =
+  test "the suite's policy is not the clone's own" {
+    let home =
+      System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile)
+    let clones =
+      System.IO.Path.GetFullPath(System.IO.Path.Combine(home, ".darklang", "policy"))
+    match LibExecution.HostSecurity.policyDirectory () with
+    | Ok dir ->
+      Expect.notEqual (System.IO.Path.GetFullPath dir) clones "a throwaway directory"
+      Expect.isTrue
+        (System.IO.File.Exists(System.IO.Path.Combine(dir, "policies.bin")))
+        "seeded as a fresh install is"
+    | Error e -> failtest e
+  }
+
 let tests =
   testList
     "policyStore"
-    [ policyStoreRoundTripsVersionedPolicies
+    [ suiteNeverUsesTheClonesPolicy
+      policyStoreRoundTripsVersionedPolicies
       policyStoreRejectsTrailingData
       reapprovingASharedHashKeepsTheOtherNamesPinned
       instanceEditsAddAndRemoveInOnePass
