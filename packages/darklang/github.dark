@@ -9,18 +9,55 @@ module Darklang.GitHub
 
 val darklangRepoBaseUrl = "https://api.github.com/repos/darklang/dark"
 
+/// Why a release lookup failed, so `update` and `install` can tell a network
+/// failure from a release that isn't there.
+type ReleaseError =
+  /// The request didn't complete: no network, DNS, TLS, a timeout
+  | RequestFailed(Stdlib.HttpClient.RequestError)
+  /// GitHub answered with a status other than 200
+  | BadStatus(Int64)
+  /// GitHub's answer wasn't the JSON a release has
+  | UnexpectedResponse
+  | NoReleases
+  | ReleaseNotFound(String)
+  /// This OS and architecture have no build
+  | UnsupportedHost
+  /// The release has no binary for this platform id
+  | NoAssetForPlatform(String)
+  /// The release has no checksums file, so its download can't be checked
+  | NoChecksums(String)
+
+/// The sentence a person reads.
+let releaseErrorMessage(e: ReleaseError): String =
+  match e with
+  | RequestFailed(requestError) ->
+    $"Couldn't reach the GitHub API: {Stdlib.HttpClient.toString(requestError)}"
+  | BadStatus(code) ->
+    $"The GitHub API answered with status {Stdlib.toString(code)}"
+  | UnexpectedResponse -> "Couldn't read the GitHub API's answer"
+  | NoReleases -> "No releases found"
+  | ReleaseNotFound(tag) -> $"No release is tagged {tag}"
+  | UnsupportedHost -> "No Darklang build for this OS and architecture"
+  | NoAssetForPlatform(platformId) ->
+    $"No asset named `-{platformId}.gz` in this release"
+  | NoChecksums(tag) ->
+    $"Release {tag} has no checksums file, so its download can't be checked"
+
 /// A baseline function for fetching data from the GitHub API
 let __fetchString(
   url: String)
-  : Stdlib.Result.Result<String, String> =
+  : Stdlib.Result.Result<String, ReleaseError> =
   let headers =
     [ ("accept", "application/vnd.github+json")
       ("user-Agent", "darklang") ]
 
   match Stdlib.HttpClient.get(url, headers) with
   | Ok(r) ->
-    r.body |> Stdlib.Utf8.decodeWithReplacement |> Stdlib.Result.Result.Ok
-  | Error(_e) -> Stdlib.Result.Result.Error("Failed to make GitHub API request")
+    if r.statusCode == 200 then
+      r.body |> Stdlib.Utf8.decodeWithReplacement |> Stdlib.Result.Result.Ok
+    else
+      Stdlib.Result.Result.Error(ReleaseError.BadStatus(r.statusCode))
+  | Error(e) -> Stdlib.Result.Result.Error(ReleaseError.RequestFailed(e))
 
 
 module Releases =
@@ -34,20 +71,16 @@ module Releases =
 
   /// Get tag of the most recent Darklang release, from the GitHub API
   /// (i.e. `v0.0.19`)
-  ///
-  /// TODO: typify the error type
-  let getLatestReleaseTag(): Stdlib.Result.Result<String, String> =
+  let getLatestReleaseTag(): Stdlib.Result.Result<String, ReleaseError> =
     match __fetchString($"{darklangRepoBaseUrl}/releases") with
     | Ok(releasesJsonString) ->
       match Stdlib.Json.parse<List<Release>>(releasesJsonString) with
       | Ok(releases) ->
         match Stdlib.List.head(releases) with
         | Some(latestRelease) -> latestRelease.tag_name |> Stdlib.Result.Result.Ok
-        | None -> Stdlib.Result.Result.Error("No releases found")
-      | Error(_e) ->
-        Stdlib.Result.Result.Error("Couldn't parse releases JSON string")
-    | Error(_e) ->
-      Stdlib.Result.Result.Error("Couldn't fetch releases list from GitHub API")
+        | None -> Stdlib.Result.Result.Error(ReleaseError.NoReleases)
+      | Error(_e) -> Stdlib.Result.Result.Error(ReleaseError.UnexpectedResponse)
+    | Error(e) -> Stdlib.Result.Result.Error(e)
 
   /// The published releases, newest first: the first hundred, which is the most GitHub
   /// returns on one page.
@@ -151,22 +184,23 @@ module Releases =
   let getDownload(
     host: Stdlib.Cli.Host.Host,
     releaseTag: String)
-    : Stdlib.Result.Result<Download, String> =
+    : Stdlib.Result.Result<Download, ReleaseError> =
     match platformId(host) with
-    | Error(e) -> Stdlib.Result.Result.Error($"Couldn't determine host: {e}")
+    | Error(_e) -> Stdlib.Result.Result.Error(ReleaseError.UnsupportedHost)
     | Ok(hostStr) ->
       match __fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}") with
-      | Error(_e) -> Stdlib.Result.Result.Error("Couldn't fetch release from GitHub API")
+      | Error(BadStatus(404)) ->
+        Stdlib.Result.Result.Error(ReleaseError.ReleaseNotFound(releaseTag))
+      | Error(e) -> Stdlib.Result.Result.Error(e)
       | Ok(releaseJsonString) ->
         match Stdlib.Json.parse<Release>(releaseJsonString) with
-        | Error(_e) -> Stdlib.Result.Result.Error("Couldn't parse release JSON string")
+        | Error(_e) -> Stdlib.Result.Result.Error(ReleaseError.UnexpectedResponse)
         | Ok(release) ->
           match assetFor(release.assets, hostStr), sumsUrlFor(release.assets) with
           | None, _ ->
-            Stdlib.Result.Result.Error($"No asset named `-{hostStr}.gz` in this release")
+            Stdlib.Result.Result.Error(ReleaseError.NoAssetForPlatform(hostStr))
           | Some(_), None ->
-            Stdlib.Result.Result.Error(
-              $"Release {releaseTag} has no checksums file, so its download can't be checked")
+            Stdlib.Result.Result.Error(ReleaseError.NoChecksums(releaseTag))
           | Some(asset), Some(sumsUrl) ->
             Stdlib.Result.Result.Ok(
               Download
