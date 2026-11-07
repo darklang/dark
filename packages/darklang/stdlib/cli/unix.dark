@@ -41,6 +41,13 @@ let executeInDirectoryWithOutput(
   : Stdlib.Cli.ExecutionOutcome =
   Cli.execute($"cd -- {quote(directory)} && {command}")
 
+/// Same as `executeInDirectoryWithOutput`, with stdout and stderr kept as bytes.
+let executeInDirectoryWithBytes(
+  directory: String,
+  command: String)
+  : Stdlib.Cli.ExecutionBytes =
+  Cli.executeBytes($"cd -- {quote(directory)} && {command}")
+
 /// Checks if two files are identical.
 let areFilesIdentical(file1: String, file2: String): Bool =
   match Cli.executeWithUnitOrStdErr($"diff -q -- {quote(file1)} {quote(file2)}") with

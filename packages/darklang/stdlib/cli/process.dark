@@ -8,13 +8,18 @@ type ProcessHandle = BigInt
 let spawn(command: String): ProcessHandle =
   Builtin.runtimeChildStart("/bin/sh", ["-c", command], false) |> Builtin.unwrap
 
-let __executionOutcome(result: Result.Result<(Int64 * Bytes * Bytes), Int64>): Stdlib.Cli.ExecutionOutcome =
+let __executionBytes(result: Result.Result<(Int64 * Bytes * Bytes), Int64>): Stdlib.Cli.ExecutionBytes =
   match result with
-  | Error(e) -> Stdlib.Cli.ExecutionOutcome { exitCode = -1, stdout = "", stderr = (Stdlib.Cli.Posix.__fromErrno(e)).message }
+  | Error(e) ->
+    Stdlib.Cli.ExecutionBytes
+      { exitCode = -1
+        stdout = Stdlib.Bytes.empty
+        stderr = Stdlib.Utf8.encode((Stdlib.Cli.Posix.__fromErrno(e)).message) }
   | Ok((code, output, error)) ->
-    Stdlib.Cli.ExecutionOutcome { exitCode = code,
-      stdout = Stdlib.Utf8.decodeWithReplacement(output),
-      stderr = Stdlib.Utf8.decodeWithReplacement(error) }
+    Stdlib.Cli.ExecutionBytes { exitCode = code, stdout = output, stderr = error }
+
+let __executionOutcome(result: Result.Result<(Int64 * Bytes * Bytes), Int64>): Stdlib.Cli.ExecutionOutcome =
+  Stdlib.Cli.executionText(__executionBytes(result))
 
 /// Send input to a process and read any available output (non-blocking)
 /// Use empty string for input to just read output without sending anything
@@ -35,6 +40,21 @@ type Output =
     stderr: String }
 
 
+/// Like `Output`, but with stdout and stderr exactly as the process wrote them
+type BytesOutput =
+  { exitCode: Int64
+    stdout: Bytes
+    stderr: Bytes }
+
+
+/// Decode both streams of <param output> as UTF-8, replacing invalid sequences
+let outputText(output: BytesOutput): Output =
+  Output
+    { exitCode = output.exitCode
+      stdout = Stdlib.Utf8.decodeWithReplacement(output.stdout)
+      stderr = Stdlib.Utf8.decodeWithReplacement(output.stderr) }
+
+
 /// Escape a string for safe use inside single quotes in a shell command.
 /// Replaces ' with '\'' (end quote, escaped quote, start quote).
 let shellQuote(s: String): String =
@@ -43,32 +63,45 @@ let shellQuote(s: String): String =
 
 
 /// Spawn <param program> directly (no shell), wait for it, and return
-/// (exitCode, stdout, stderr). With a timeout the child is killed when it
-/// elapses and the call fails with ETIMEDOUT.
-let spawnAndWait(
+/// (exitCode, stdout, stderr) as bytes. With a timeout the child is killed when
+/// it elapses and the call fails with ETIMEDOUT.
+let spawnAndWaitBytes(
   program: String,
   args: List<String>,
   timeoutMs: Stdlib.Option.Option<Int64>)
-  : Result.Result<(Int64 * String * String), Posix.Error> =
+  : Result.Result<(Int64 * Bytes * Bytes), Posix.Error> =
   Stdlib.Cli.Process.__childRun(program, args, timeoutMs)
   |> Stdlib.Result.mapError(fun errno ->
     if errno == (if Stdlib.Cli.Posix.__abiMac() then 60 else 110) then
       Posix.Error { errno = errno, message = "Process timed out" }
     else Stdlib.Cli.Posix.__fromErrno(errno))
+
+
+/// Same as `spawnAndWaitBytes`, with stdout and stderr decoded as UTF-8.
+let spawnAndWait(
+  program: String,
+  args: List<String>,
+  timeoutMs: Stdlib.Option.Option<Int64>)
+  : Result.Result<(Int64 * String * String), Posix.Error> =
+  (spawnAndWaitBytes(program, args, timeoutMs))
   |> Stdlib.Result.map(fun result ->
     let (code, output, error) = result
     (code, Stdlib.Utf8.decodeWithReplacement(output), Stdlib.Utf8.decodeWithReplacement(error)))
 
 
+/// Run a program with arguments and capture its output as bytes, for output
+/// that isn't UTF-8 text. No bash, no shell. `outputText` decodes it.
+let runBytes(program: String, args: List<String>): Result.Result<BytesOutput, Posix.Error> =
+  (spawnAndWaitBytes(program, args, Stdlib.Option.Option.None))
+  |> Stdlib.Result.map(fun result ->
+    let (code, output, error) = result
+    BytesOutput { exitCode = code, stdout = output, stderr = error })
+
+
 /// Run a program with arguments and capture its output.
 /// No bash, no shell — spawns the process directly.
 let run(program: String, args: List<String>): Result.Result<Output, Posix.Error> =
-  (spawnAndWait(program, args, Stdlib.Option.Option.None))
-  |> Stdlib.Result.map(fun result ->
-    Output
-      { exitCode = Stdlib.Tuple3.first(result)
-        stdout = Stdlib.Tuple3.second(result)
-        stderr = Stdlib.Tuple3.third(result) })
+  (runBytes(program, args)) |> Stdlib.Result.map(fun output -> outputText(output))
 
 
 /// Run a program ON THIS TERMINAL and return its exit code.
