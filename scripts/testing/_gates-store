@@ -1071,7 +1071,7 @@ EOF
 # --- package-tests: every package test in packages/, through `dark test run` ---------------------
 # The package suite as a person runs it, on a copy of the store, so a red package test fails CI
 # instead of waiting for someone to run `dark test run` by hand. The F# harness limits each command
-# to 2 minutes, so this suite has its own CI step and timeout. It runs in build-cli using the
+# to 2 minutes, so this suite has its own CI step and timeout. It runs in CI's build job using the
 # NativeAOT binary already built there, since every test starts a fresh process.
 #
 # `--force`: the result cache lives in the store, so a copied store brings its cached passes

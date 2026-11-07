@@ -39,21 +39,22 @@ from the clone's root. In-container paths: `/home/dark/app` is the clone.
 What CI runs, on `darklang/dark`. Locally, run what your change touches before the push that
 opens or updates a PR:
 
-    build-cli      scripts/linting/shellchecker
-                   scripts/formatting/format check        fix with `format format`, then build again
-                   scripts/testing/test-build-planning.py
-                   scripts/build/build-release-cli-exes.sh && scripts/perf/gate --published
-                   scripts/testing/gates first-day $(ls clis/darklang-*-linux-x64)
-                   CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates ci --parallel
-                   CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates package-tests
-    build-backend  scripts/dev/build --optimize && ./scripts/run-fsharp-tests --published --split
+    build    scripts/linting/shellchecker
+             scripts/formatting/format check        fix with `format format`, then build again
+             scripts/testing/test-build-planning.py
+             scripts/dev/build --optimize
+             scripts/build/build-release-cli-exes.sh && scripts/perf/gate --published
+             ./scripts/run-fsharp-tests --published --split
+             scripts/testing/gates first-day $(ls clis/darklang-*-linux-x64)
+             CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates ci --parallel
+             CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates package-tests
 
 Is a pushed commit green? Ask `darklang/dark`, even for a branch pushed to a fork; nothing runs on
 the fork, so asking it answers `pending` forever:
 
     curl -s https://api.github.com/repos/darklang/dark/commits/<sha>/status   # state + one row per job
 
-`ci/circleci: ok-to-deploy` passes only when both jobs did. On main the release-matrix jobs can report
+`ci/circleci: ok-to-deploy` passes only when `build` did. On main the release-matrix jobs can report
 there too, so read the rows, not just the overall `state`.
 
 The traps that cost the most, one line each. The stories are in `docs/agent-traps.md`.

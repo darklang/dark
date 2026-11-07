@@ -2,7 +2,7 @@
 # Run what CI runs, before you push, and say in one table what passed.
 #
 #   scripts/dev/pre-push           --quick: the checks behind most red PRs, a few minutes
-#   scripts/dev/pre-push --full    what CI's build-backend and build-cli jobs run, as close as
+#   scripts/dev/pre-push --full    what CI's build job runs, as close as
 #                                  this container gets: Release build, the shipped CLI, gates,
 #                                  package tests, the whole suite. Expect half an hour or more.
 #
@@ -15,7 +15,7 @@
 # --full runs the static checks above, then CI's steps: `build --optimize`, a seed exported
 # from a freshly loaded store, the NativeAOT CLI, the allocation gate, first-day, `gates ci`,
 # the package tests, the F# suite with `--published --split`, validate-cli-artifact, and
-# a check that nothing wrote to the source tree. The CLI steps run with CI=true and CLI= set the way build-cli sets
+# a check that nothing wrote to the source tree. The CLI steps run with CI=true and CLI= set the way the build job sets
 # them. It does not call scripts/run-tests: that runs the same three suites against the
 # dev builds CLI, and --full wants CIs NativeAOT binary and fresh seed under them.
 #
@@ -93,7 +93,7 @@ fi
 TREE_BEFORE=$(git status --porcelain)
 echo "pre-push --$MODE on $(git rev-parse --short HEAD)"
 
-# The static checks, the same in both modes. CI runs these first in build-cli.
+# The static checks, the same in both modes. CI runs these first in its build job.
 step shellcheck scripts/linting/shellchecker
 step format scripts/formatting/format check \
   || echo "    fix with: scripts/formatting/format format, then build again"
@@ -109,7 +109,7 @@ if [[ "$MODE" == quick ]]; then
     skip shipped-tree-typechecks "build failed"
   fi
 else
-  # build-cli and build-backend, one after the other.
+  # CI's build job.
   CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64"
   if step build-release scripts/dev/build --optimize \
     && step fresh-seed fresh_seed \

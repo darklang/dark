@@ -238,7 +238,7 @@ doesn't care how loaded the box is; time drifts by more than most individual win
 not byte-identical though, and the store it runs against matters as much as the binary --
 `docs/perf/playbook.md` has the measured noise floor. So
 `gate` asserts allocation and only allocation, against `scripts/perf/budget.json`, and CI runs it
-in the `build-cli` job, on the AOT binary that job builds. When a change earns a lower number,
+in the `build` job, on the AOT binary that job builds. When a change earns a lower number,
 lower the budget in the same commit with `scripts/perf/gate --published --update`, or it stops
 being a gate and becomes a ceiling to drift up to. Only the published build is budgeted: the debug budget was retired because most of
 its overage was an interpreter hook the Release optimiser elides, so it tracked a configuration
