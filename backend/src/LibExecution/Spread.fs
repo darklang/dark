@@ -188,12 +188,20 @@ type Probe(vm : VMState, app : Applicable, floor : int64) =
       else
         true
 
+  /// Whether the elements so far cost less than this probe's floor, which needs no count of
+  /// what is left.
+  member private _.BelowFloor() : bool =
+    floor > 0L
+    && crossover > 0L
+    && instructionsSince proc vm start < floor * int64 finished
+
   /// After an element: `remaining` is the elements still to go.
   ///
   /// `List.length` walks the rest; at a power of two only, so the walks sum to about twice the
-  /// list.
+  /// list. A body under the floor is answered before the walk: on a long list of a cheap body
+  /// the walks were most of what the probe cost.
   member this.Ask(remaining : List<'a>) : bool =
-    this.Due() && this.Weigh(List.length remaining)
+    this.Due() && not (this.BelowFloor()) && this.Weigh(List.length remaining)
 
   /// `Ask`, for an op that knows how many are left (a dict's entries are an array).
   member this.AskLeft(left : int) : bool = this.Due() && this.Weigh left
@@ -548,7 +556,40 @@ let predict
 /// What a spread came back with: the results of the chunks that finished, in order and
 /// concatenated, and the input from the first chunk that did not, to be run serially here.
 /// `leftoverIndex` is where in the spread input `leftover` begins.
-type Outcome = { results : List<Dval>; leftover : List<Dval>; leftoverIndex : int }
+///
+/// For a search (`search`), `found` is the answer of the first chunk, in input order, that found
+/// what it looked for, and nothing is left over.
+type Outcome =
+  { results : List<Dval>
+    leftover : List<Dval>
+    leftoverIndex : int
+    found : Dval voption }
+
+/// What a chunk's answer means to the spread collecting it.
+[<Struct>]
+type ChunkAnswer =
+  /// It finished its stretch, with these results.
+  | Finished of results : List<Dval>
+  /// It found what it looked for: the spread stops here.
+  | Found of answer : Dval
+  /// Not an answer this op gives: run its stretch again here.
+  | NotAnAnswer
+
+/// Where collecting a spread's chunks, in order, stopped.
+[<Struct>]
+type private Stopped =
+  | AllFinished
+  | FoundAt of found : int * answer : Dval
+  | FailedAt of failed : int
+
+/// A list op's chunk: a list of results.
+let private listAnswer (answer : Dval) : ChunkAnswer =
+  match answer with
+  | DList(_, xs) -> Finished xs
+  | _ -> NotAnAnswer
+
+let private nothingSpread (items : List<Dval>) : Outcome =
+  { results = []; leftover = items; leftoverIndex = 0; found = ValueNone }
 
 /// Spread `items` over chunk processes. Each chunk applies the builtin `builtinName` to
 /// `chunkArgs offset chunk` and then to `app`; it must answer a `DList`. `offset` is where the
@@ -562,21 +603,51 @@ let rec run
   (perElement : int64)
   (items : List<Dval>)
   : Ply<Outcome> =
+  spreadIf state vm builtinName chunkArgs listAnswer app perElement items
+
+/// `run`, for a search (`listAny`, `listFindFirst`): `answerOf` reads each chunk's answer, and
+/// the first chunk in input order that `Found` something is the answer. The chunks after it are
+/// cancelled, so what they would have raised or reached is never seen, as serially, where the
+/// search stops at its first hit. A chunk before it that did not finish is run again here, as in
+/// `run`. Each chunk runs the search serially over its stretch, so it stops at its own first hit.
+and search
+  (state : ExecutionState)
+  (vm : VMState)
+  (builtinName : string)
+  (chunkArgs : int -> List<Dval> -> List<Dval>)
+  (answerOf : Dval -> ChunkAnswer)
+  (app : Applicable)
+  (perElement : int64)
+  (items : List<Dval>)
+  : Ply<Outcome> =
+  spreadIf state vm builtinName chunkArgs answerOf app perElement items
+
+and private spreadIf
+  (state : ExecutionState)
+  (vm : VMState)
+  (builtinName : string)
+  (chunkArgs : int -> List<Dval> -> List<Dval>)
+  (answerOf : Dval -> ChunkAnswer)
+  (app : Applicable)
+  (perElement : int64)
+  (items : List<Dval>)
+  : Ply<Outcome> =
   uply {
     // A list holding reads in flight runs where it is: a chunk would carry the parent's
     // reads into a child. About this list, not the callable, so it is not remembered.
     if List.exists Pending.isPromise items then
-      return { results = []; leftover = items; leftoverIndex = 0 }
+      return nothingSpread items
     else
       match! predict state app items with
       | Purity.Impure ->
         // Known to reach something a chunk would refuse: no chunk is started, and the list op runs
         // the whole of it here, as it always did. Not asked again for this callable.
         fellBack.TryAdd(keyOf app, 0uy) |> ignore<bool>
-        return { results = []; leftover = items; leftoverIndex = 0 }
+        return nothingSpread items
       | Purity.Pure
       | Purity.Unknown ->
-        return! spreadChunks state vm builtinName chunkArgs app perElement items
+        return!
+          spreadChunks state vm builtinName chunkArgs answerOf app perElement items
   }
 
 /// The spread itself, once the prediction has allowed it.
@@ -585,6 +656,7 @@ and private spreadChunks
   (vm : VMState)
   (builtinName : string)
   (chunkArgs : int -> List<Dval> -> List<Dval>)
+  (answerOf : Dval -> ChunkAnswer)
   (app : Applicable)
   (perElement : int64)
   (items : List<Dval>)
@@ -667,10 +739,20 @@ and private spreadChunks
     )
     |> ignore<Task>
 
-  // The chunks' results in order, up to the first that failed, and where that one is (-1 if none).
-  let rec collect (i : int) (acc : List<List<Dval>>) : Ply<List<List<Dval>> * int> =
+  let cancelFrom (first : int) =
+    for j in first .. procs.Length - 1 do
+      let struct (_, _, p) = procs[j]
+      sched.Cancel p.id |> ignore<bool>
+      forget p
+
+  // The chunks' results in order, up to the first that found something or failed, and where
+  // collecting stopped.
+  let rec collect
+    (i : int)
+    (acc : List<List<Dval>>)
+    : Ply<List<List<Dval>> * Stopped> =
     if i >= procs.Length then
-      Ply((List.rev acc, -1))
+      Ply((List.rev acc, AllFinished))
     else
       uply {
         let struct (_, copies, p) = procs[i]
@@ -690,39 +772,49 @@ and private spreadChunks
         // failed is counted too, since it ran; one cancelled below is not, being still unfinished.
         vm.stats.AddChunk p.vm.stats
         match result with
-        | Ok(DList(_, xs)) when Interpreter.learnFromChunk atSpawn checks copies ->
-          return! collect (i + 1) (xs :: acc)
-        | _ -> return (List.rev acc, i)
+        | Ok answer when Interpreter.learnFromChunk atSpawn checks copies ->
+          match answerOf answer with
+          | Finished xs -> return! collect (i + 1) (xs :: acc)
+          | Found dv -> return (List.rev acc, FoundAt(i, dv))
+          | NotAnAnswer -> return (List.rev acc, FailedAt i)
+        | _ -> return (List.rev acc, FailedAt i)
       }
 
   uply {
-    let! results, failedAt = collect 0 []
+    let! results, stop = collect 0 []
 
     // Asked to stop while it waited (`Cancel`, `Kill`, a parent finishing): the chunks failed
     // because they were stopped with it, and running the rest here would be doing exactly the
     // work the stop was for. So the stop is what this answers.
-    match me with
-    | Some m when failedAt >= 0 && not (isNull m.stopReason) ->
-      for j in failedAt + 1 .. procs.Length - 1 do
-        let struct (_, _, p) = procs[j]
-        sched.Cancel p.id |> ignore<bool>
-        forget p
+    match me, stop with
+    | Some m, FailedAt failedAt when not (isNull m.stopReason) ->
+      cancelFrom (failedAt + 1)
       RuntimeError.UncaughtException(m.stopReason, []) |> raiseUntargetedRTE
     | _ -> ()
 
-    if failedAt < 0 then
-      return { results = List.concat results; leftover = []; leftoverIndex = count }
-    else
+    match stop with
+    | AllFinished ->
+      return
+        { results = List.concat results
+          leftover = []
+          leftoverIndex = count
+          found = ValueNone }
+    | FoundAt(at, answer) ->
+      cancelFrom (at + 1)
+      return
+        { results = List.concat results
+          leftover = []
+          leftoverIndex = count
+          found = ValueSome answer }
+    | FailedAt failedAt ->
       System.Threading.Interlocked.Increment &fallbacks |> ignore<int64>
       fellBack.TryAdd(keyOf app, 0uy) |> ignore<bool>
-      for j in failedAt + 1 .. procs.Length - 1 do
-        let struct (_, _, p) = procs[j]
-        sched.Cancel p.id |> ignore<bool>
-        forget p
+      cancelFrom (failedAt + 1)
       let struct (offset, _, _) = procs[failedAt]
       let leftover = items |> List.skip offset
       return
         { results = List.concat results
           leftover = leftover
-          leftoverIndex = offset }
+          leftoverIndex = offset
+          found = ValueNone }
   }

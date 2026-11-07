@@ -263,6 +263,59 @@ let private sortByAndMap2ErrorsAsSerial =
       | _ -> failtest $"both should fail: {spread} / {serial}"
   }
 
+/// A search answers its first hit in input order, so the hit is in a late chunk that finishes
+/// first and an early chunk that finishes last: the uneven body.
+let private searches =
+  testTask "any and findFirst spread and answer the first hit in input order" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) == 0)"
+        $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i > 25)"
+        $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i %% 9 == 0 && i > 9)"
+        $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> {uneven}(i) == 0)" ] do
+      let! (spread, moved) = delta spreads (fun () -> run state code)
+      let! serial = runWith state false code
+      Expect.isGreaterThan moved 0L $"spread: {code}"
+      Expect.equal (expectOk spread) (expectOk serial) code
+  }
+
+/// Serially a search stops at its first hit, so what comes after it is never run: an error after
+/// the hit is not raised, and one before it is.
+let private searchErrorsAsSerial =
+  testTask "any and findFirst raise only what serially they reach" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> if i == 38 then 1 / 0 == 0 else {uneven}(i) > 0 && i == 20)"
+        $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> if i > 30 then 1 / 0 == 0 else {uneven}(i) > 0 && i == 12)" ] do
+      let! (spread, serial) = both state code
+      Expect.equal (expectOk spread) (expectOk serial) code
+    for code in
+      [ $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> if i == 20 then 1 / 0 == 0 else {uneven}(i) > 0 && i == 38)"
+        $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> if i > 20 then \"s\" else {uneven}(i) == 0)" ] do
+      let! (spread, serial) = both state code
+      match spread, serial with
+      | Error(e1, s1), Error(e2, s2) ->
+        Expect.equal e1 e2 $"the same error: {code}"
+        Expect.equal s1 s2 $"the same frames: {code}"
+      | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
+/// An effect after the hit never happens; one before it happens once, in order.
+let private searchEffects =
+  testTask "a search reaches the effects a serial one does, in order, and no others" {
+    let! state = executionStateFor pmPT false
+    Trace.take () |> ignore<List<string>>
+    let code =
+      $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> (let (trace, _) = hidden in if i == 10 || i == 39 then (let _ = trace(Stdlib.toString(i)) in false) else {uneven}(i) > 0 && i == 30)))"
+    let! spread = run state code
+    let spreadTrace = Trace.take ()
+    let! serial = runWith state false code
+    let serialTrace = Trace.take ()
+    Expect.equal spreadTrace [ "10" ] "the effect before the hit, once"
+    Expect.equal spreadTrace serialTrace "as serial"
+    Expect.equal (expectOk spread) (expectOk serial) "the same answer"
+  }
+
 /// The failing element is in a cheap late chunk, so it fails long before the expensive chunks
 /// ahead of it finish. Serial raises at it; so must this, with the same error and frames, and
 /// only after everything before it.
@@ -705,6 +758,9 @@ let tests =
         dictEffectsKeepOrder
         sortByAndMap2
         sortByAndMap2ErrorsAsSerial
+        searches
+        searchErrorsAsSerial
+        searchEffects
         errorAsSerial
         earliestErrorWins
         callbackTypeAsSerial

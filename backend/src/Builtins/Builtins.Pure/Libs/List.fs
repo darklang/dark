@@ -77,6 +77,21 @@ module DvalComparator =
       [||]
 
 
+/// A `listAny` chunk's answer, to `Spread.search`.
+let private anyAnswer (answer : Dval) : Spread.ChunkAnswer =
+  match answer with
+  | DBool true -> Spread.Found answer
+  | DBool false -> Spread.Finished []
+  | _ -> Spread.NotAnAnswer
+
+/// A `listFindFirst` chunk's answer, to `Spread.search`: the element it found.
+let private findFirstAnswer (answer : Dval) : Spread.ChunkAnswer =
+  match answer with
+  | DEnum(_, _, _, "Some", [ found ]) -> Spread.Found found
+  | DEnum(_, _, _, "None", []) -> Spread.Finished []
+  | _ -> Spread.NotAnAnswer
+
+
 let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
@@ -794,11 +809,14 @@ let fns () : List<BuiltInFn> =
         + "first one that does"
       fn =
         (function
-        | _, vm, [], [| DList(_, items); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
+          // Spread as `listMap` is, as a search (`Spread.search`): a chunk is this same call over
+          // its stretch, and the first chunk in input order to answer true is the answer.
           match items with
           | [] -> Ply(DBool false)
           | first :: tail ->
             let mutable rest = tail
+            let probe = Spread.probeCostly state vm app
             let rec next (answer : Dval) : Ply<Dval> =
               Interpreter.withValue vm answer landed
             and landed (answer : Dval) : Ply<Dval> =
@@ -808,8 +826,29 @@ let fns () : List<BuiltInFn> =
                 match rest with
                 | [] -> Ply(DBool false)
                 | elem :: elemTail ->
-                  rest <- elemTail
-                  Interpreter.requestApply vm app elem [] next
+                  if not (isNull probe) && probe.Ask rest then
+                    probe.Stop()
+                    uply {
+                      let! spread =
+                        Spread.search
+                          state
+                          vm
+                          "listAny"
+                          (fun _ chunk -> [ DList(vt, chunk) ])
+                          anyAnswer
+                          app
+                          probe.PerElement
+                          rest
+                      match spread.found, spread.leftover with
+                      | ValueSome _, _ -> return DBool true
+                      | ValueNone, [] -> return DBool false
+                      | ValueNone, elem :: elemTail ->
+                        rest <- elemTail
+                        return! Interpreter.requestApply vm app elem [] next
+                    }
+                  else
+                    rest <- elemTail
+                    Interpreter.requestApply vm app elem [] next
               | other -> raiseRTE vm.threadID (predicateNotBool other)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
@@ -863,12 +902,14 @@ let fns () : List<BuiltInFn> =
         "Returns the first value in <param list> for which <param fn> returns true, stopping there"
       fn =
         (function
-        | _, vm, [], [| DList(vt, items); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
+          // Spread as `listAny` is. A chunk's `Some` is the element its own search stopped at.
           match items with
           | [] -> Ply(TypeChecker.DvalCreator.option vm.threadID vt None)
           | first :: tail ->
             let mutable current = first
             let mutable rest = tail
+            let probe = Spread.probeCostly state vm app
             let rec next (answer : Dval) : Ply<Dval> =
               Interpreter.withValue vm answer landed
             and landed (answer : Dval) : Ply<Dval> =
@@ -879,9 +920,34 @@ let fns () : List<BuiltInFn> =
                 match rest with
                 | [] -> Ply(TypeChecker.DvalCreator.option vm.threadID vt None)
                 | elem :: elemTail ->
-                  current <- elem
-                  rest <- elemTail
-                  Interpreter.requestApply vm app elem [] next
+                  if not (isNull probe) && probe.Ask rest then
+                    probe.Stop()
+                    uply {
+                      let! spread =
+                        Spread.search
+                          state
+                          vm
+                          "listFindFirst"
+                          (fun _ chunk -> [ DList(vt, chunk) ])
+                          findFirstAnswer
+                          app
+                          probe.PerElement
+                          rest
+                      match spread.found, spread.leftover with
+                      | ValueSome found, _ ->
+                        return
+                          TypeChecker.DvalCreator.option vm.threadID vt (Some found)
+                      | ValueNone, [] ->
+                        return TypeChecker.DvalCreator.option vm.threadID vt None
+                      | ValueNone, elem :: elemTail ->
+                        current <- elem
+                        rest <- elemTail
+                        return! Interpreter.requestApply vm app elem [] next
+                    }
+                  else
+                    current <- elem
+                    rest <- elemTail
+                    Interpreter.requestApply vm app elem [] next
               | other -> raiseRTE vm.threadID (predicateNotBool other)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
