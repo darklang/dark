@@ -573,8 +573,8 @@ let rec private executionTracingFor
           | RT.ExecutionPoint.Lambda(_, lambdaExprId, _) ->
             let key = int64 lambdaExprId
             lock state.sync (fun () ->
-              let mutable seen = 0
-              state.loopPasses.TryGetValue(key, &seen) |> ignore<bool>
+              let seen =
+                Lookup.tryFindV key state.loopPasses |> ValueOption.defaultValue 0
               state.loopPasses[key] <- seen + 1)
           | _ -> ())
       nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
@@ -1343,10 +1343,13 @@ let createViewTracer
   let lastAnswer = System.Collections.Generic.Dictionary<string, RT.Dval>()
   for (name, argsBytes, result) in rows do
     let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
-    let mutable q = Unchecked.defaultof<System.Collections.Generic.Queue<RT.Dval>>
-    if not (answers.TryGetValue(key, &q)) then
-      q <- System.Collections.Generic.Queue<RT.Dval>()
-      answers[key] <- q
+    let q =
+      match Lookup.tryFindV key answers with
+      | ValueSome q -> q
+      | ValueNone ->
+        let q = System.Collections.Generic.Queue<RT.Dval>()
+        answers[key] <- q
+        q
     q.Enqueue result
     lastAnswer[key] <- result
 
@@ -1368,19 +1371,15 @@ let createViewTracer
           (RT.DList(LibExecution.ValueType.unknownTODO, List.ofArray args))
       let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
       lock answersGate (fun () ->
-        let mutable q =
-          Unchecked.defaultof<System.Collections.Generic.Queue<RT.Dval>>
-        if answers.TryGetValue(key, &q) && q.Count > 0 then
+        match Lookup.tryFindV key answers with
+        | ValueSome q when q.Count > 0 ->
           ValueSome(RT.Tracing.ReplayStep.Serve(q.Dequeue()))
-        else
+        | _ ->
           // Either the code now makes this call more often than the recording did, or it never
           // made it at all. The first degrades to the last recorded value; the second has no
           // answer and the view stops there and says which call stopped it.
-          let mutable last = Unchecked.defaultof<RT.Dval>
-          if lastAnswer.TryGetValue(key, &last) then
-            ValueSome(RT.Tracing.ReplayStep.Serve last)
-          else
-            ValueNone)
+          Lookup.tryFindV key lastAnswer
+          |> ValueOption.map RT.Tracing.ReplayStep.Serve)
 
   // Which iterations of one call site keep their values: the first few and the last few.
   //
@@ -1429,16 +1428,17 @@ let createViewTracer
     System.Collections.Generic.Dictionary<System.Guid, ResizeArray<int64>>()
 
   let dropValuesOf (frameId : System.Guid) : unit =
-    let mutable exprs = Unchecked.defaultof<ResizeArray<int64>>
-    if writtenBy.TryGetValue(frameId, &exprs) then
+    match Lookup.tryFindV frameId writtenBy with
+    | ValueSome exprs ->
       for exprId in exprs do
         collected.Remove(struct (frameId, exprId)) |> ignore<bool>
       writtenBy.Remove frameId |> ignore<bool>
+    | ValueNone -> ()
     // The frame itself stays, with `valuesKept` turned off: the COUNT has to remain honest, so
     // a view can still say a loop went round two thousand times while holding ten of them.
-    let mutable f = Unchecked.defaultof<ViewFrame>
-    if frames.TryGetValue(frameId, &f) then
-      frames[frameId] <- { f with valuesKept = false; args = [] }
+    match Lookup.tryFindV frameId frames with
+    | ValueSome f -> frames[frameId] <- { f with valuesKept = false; args = [] }
+    | ValueNone -> ()
 
   let mutable frameOrd = 0
 
@@ -1461,8 +1461,7 @@ let createViewTracer
     : unit =
     let site = siteKeyOf ep
     lock gate (fun () ->
-      let mutable seen = 0
-      siteCounts.TryGetValue(site, &seen) |> ignore<bool>
+      let seen = Lookup.tryFindV site siteCounts |> ValueOption.defaultValue 0
       siteCounts[site] <- seen + 1
       // `pass` is the ordinal among siblings at this call site, which is what a loop's passes
       // are numbered by. Kept on every frame, including those past the cap, so the view can
@@ -1490,11 +1489,13 @@ let createViewTracer
       // Everything past the head joins the tail window, and the window pushes the oldest out.
       // A focused frame is not queued, so nothing can evict the iteration we came back for.
       if not inHead && not isFocused then
-        let mutable q =
-          Unchecked.defaultof<System.Collections.Generic.Queue<System.Guid>>
-        if not (tailWindow.TryGetValue(site, &q)) then
-          q <- System.Collections.Generic.Queue<System.Guid>()
-          tailWindow[site] <- q
+        let q =
+          match Lookup.tryFindV site tailWindow with
+          | ValueSome q -> q
+          | ValueNone ->
+            let q = System.Collections.Generic.Queue<System.Guid>()
+            tailWindow[site] <- q
+            q
         q.Enqueue frameId
         if q.Count > tailKept then dropValuesOf (q.Dequeue()))
 
@@ -1526,14 +1527,18 @@ let createViewTracer
               // Only for a frame under the cap. Past it the frame is a marker that exists to
               // be counted; the flat view above still holds the last value, which is what a
               // collapsed line shows.
-              let mutable f = Unchecked.defaultof<ViewFrame>
-              if frames.TryGetValue(frameId, &f) && f.valuesKept then
+              match Lookup.tryFindV frameId frames with
+              | ValueSome f when f.valuesKept ->
                 collected[struct (frameId, int64 exprId)] <- dv
-                let mutable exprs = Unchecked.defaultof<ResizeArray<int64>>
-                if not (writtenBy.TryGetValue(frameId, &exprs)) then
-                  exprs <- ResizeArray()
-                  writtenBy[frameId] <- exprs
-                exprs.Add(int64 exprId))
+                let exprs =
+                  match Lookup.tryFindV frameId writtenBy with
+                  | ValueSome exprs -> exprs
+                  | ValueNone ->
+                    let exprs = ResizeArray()
+                    writtenBy[frameId] <- exprs
+                    exprs
+                exprs.Add(int64 exprId)
+              | _ -> ())
         storeFrameEntry = noteFrame
         viewEffect = Some lookup
         forProcess = fun _ -> viewTracing () }

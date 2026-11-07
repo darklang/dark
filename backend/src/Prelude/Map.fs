@@ -15,11 +15,9 @@ let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
   else
     Map.fold
       (fun acc k v ->
-        let mutable existing = Unchecked.defaultof<'v>
-        if acc.TryGetValue(k, &existing) && Unchecked.equals existing v then
-          acc
-        else
-          Map.add k v acc)
+        match Lookup.tryFindV k acc with
+        | ValueSome existing when Unchecked.equals existing v -> acc
+        | _ -> Map.add k v acc)
       m1
       m2
 

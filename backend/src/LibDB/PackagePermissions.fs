@@ -169,13 +169,13 @@ let purity
   // Any non-empty set stands for "refused"; which effect it names is not the question here.
   let refused = Set.singleton LibExecution.Effects.Effect.Native
   let classify (name : string, version : int) =
-    let mutable found = Unchecked.defaultof<RT.BuiltInFn>
-    if builtins.TryGetValue({ name = name; version = version }, &found) then
+    let key : RT.FQFnName.Builtin = { name = name; version = version }
+    match Lookup.tryFindV key builtins with
+    | ValueSome found ->
       Some(
         if LibExecution.Interpreter.spreadRefuses found then refused else Set.empty
       )
-    else
-      None
+    | ValueNone -> None
   fun (RT.Hash h as hash) ->
     match memo.TryGetValue hash with
     | true, known -> Ply known

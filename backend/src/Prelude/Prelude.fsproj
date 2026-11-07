@@ -15,6 +15,7 @@
     <Compile Include="UTF8.fs" />
     <Compile Include="String.fs" />
     <Compile Include="TextWidth.fs" />
+    <Compile Include="Lookup.fs" />
     <Compile Include="Map.fs" />
     <Compile Include="List.fs" />
     <Compile Include="Option.fs" />
