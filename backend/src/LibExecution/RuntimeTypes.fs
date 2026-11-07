@@ -18,13 +18,56 @@ type HashSet<'a> = System.Collections.Generic.HashSet<'a>
 type Stack<'a> = System.Collections.Generic.Stack<'a>
 
 
+/// A hash code for a content hash's hex string, from its first 16 characters.
+///
+/// The string is already uniformly random, so those 64 bits are as good a hash code as all of it.
+/// `String.GetHashCode` runs Marvin over the whole 128 bytes, and the interpreter looks a hash up
+/// in several caches on every package call: for a recursive function that was about a seventh of
+/// its time. Shorter strings, which are not content hashes, fall back to the ordinary hash.
+let contentHashCode (s : string) : int =
+  if isNull s || s.Length < 16 then
+    if isNull s then 0 else s.GetHashCode()
+  else
+    let words =
+      System.Runtime.InteropServices.MemoryMarshal.Cast<char, uint64>(
+        System.MemoryExtensions.AsSpan(s, 0, 16)
+      )
+    System.HashCode.Combine(words[0], words[1], words[2], words[3])
+
 /// Structural hash of a package item's content (shape, not name/location).
+///
+/// Equality and ordering are the string's, ordinal, as the generated ones were; only the hash code
+/// differs (`contentHashCode`).
+[<CustomEquality; CustomComparison>]
 type Hash =
   | Hash of string
   // F#'s default ToString() on unions uses reflection (StructuredPrintfImpl),
   // which fails under AOT trimming. Provide an explicit override so callers
   // like `string (h : Hash)` don't go through that path.
   override this.ToString() = let (Hash s) = this in s
+
+  override this.GetHashCode() = let (Hash s) = this in contentHashCode s
+
+  override this.Equals(other : obj) =
+    match other with
+    | :? Hash as h -> (this :> System.IEquatable<Hash>).Equals h
+    | _ -> false
+
+  interface System.IEquatable<Hash> with
+    member this.Equals(Hash other) =
+      let (Hash s) = this
+      System.String.Equals(s, other)
+
+  interface System.IComparable<Hash> with
+    member this.CompareTo(Hash other) =
+      let (Hash s) = this
+      System.String.CompareOrdinal(s, other)
+
+  interface System.IComparable with
+    member this.CompareTo(other : obj) =
+      match other with
+      | :? Hash as h -> (this :> System.IComparable<Hash>).CompareTo h
+      | _ -> invalidArg "other" "not a Hash"
 
 module Hash =
   let empty : Hash = Hash ""
