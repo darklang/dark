@@ -176,6 +176,24 @@ test docsCoverAliases = Instance.withInstance(fun i ->
         "and that it runs on main") ]))
 
 
+// An alias runs the installed `dark` when there is one, the file `dark update` replaces in place,
+// so every alias picks up the new release; only without an install does it name this binary.
+test aliasRunsTheInstalledDark =
+  let dir =
+    Stdlib.Cli.Path.parent(LanguageTools.LocalStore.path())
+    + "/alias-installed-"
+    + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+
+  let _ = Stdlib.Cli.Unix.ensureDirectoryExists(dir)
+  let without = Darklang.Cli.Aliases.darkFor(dir)
+  let _ = Stdlib.Cli.File.writeText($"{dir}/dark", "")
+  let withInstall = Darklang.Cli.Aliases.darkFor(dir)
+  let _ = Stdlib.Cli.Unix.removeDirectory(dir)
+  Stdlib.Test.all(
+    [ withInstall |> Stdlib.Test.equal($"{dir}/dark")
+      without |> Stdlib.Test.equal(Stdlib.Cli.Sys.currentExecutablePath()) ])
+
+
 test commandNames =
   Stdlib.Test.all(
     [ Darklang.Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)
