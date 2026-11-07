@@ -245,6 +245,29 @@ test recursiveFnKeepsCheckingItsCallback =
   countMatching([ 1, 2, 3 ], fun x -> if x == 3 then 3 else true)
   => raises "Darklang.Language.Tests.Lambdas.countMatching's 2nd parameter `p` returned Int64 (3), but should return Bool"
 
+// A fn that hands its typed callback straight to `List.map` checks it there. A
+// long or costly map may spread across cores; the check is the same either way
+// (`backend/tests/Tests/Spread.Tests.fs` runs both).
+let mapInts(xs: List<Int64>, f: Int64 -> Int64): List<Int64> = Stdlib.List.map(xs, f)
+
+// The same for a dict.
+let mapDictInts(
+  d: Dict<Int64, Int64>,
+  f: (Int64, Int64) -> Int64)
+  : Dict<Int64, Int64> =
+  Stdlib.Dict.map(d, f)
+
+// The same, where the check learns `'b` from the first `Some` it sees.
+let mapOptions(
+  xs: List<Int64>,
+  f: Int64 -> Stdlib.Option.Option<'b>)
+  : List<Stdlib.Option.Option<'b>> =
+  Stdlib.List.map(xs, f)
+
+test callbackPassedOnToMapIsChecked =
+  mapInts([ 1, 2, 3 ], fun x -> if x == 3 then "three" else x)
+  => raises "Darklang.Language.Tests.Lambdas.mapInts's 2nd parameter `f` returned String (\"three\"), but should return Int64"
+
 // The fold starts with an empty dict. The first step returns a dict of Int64s, so
 // every later step must too. Returning a dict of Strings is an error.
 test foldAccumulatorKeepsItsType =

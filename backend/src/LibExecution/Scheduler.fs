@@ -357,7 +357,8 @@ type Scheduler(quantum : int64) =
       instrs : Option<tlid> * RT.Instructions,
       entry : Entry,
       parent : Option<ProcessId>,
-      ?stats : RT.InterpreterStats
+      ?stats : RT.InterpreterStats,
+      ?runId : int64
     ) : Process =
     let vm =
       match
@@ -384,6 +385,11 @@ type Scheduler(quantum : int64) =
         match stats with
         | Some stats -> RT.VMState.createWithStats (instrs, stats)
         | None -> RT.VMState.create instrs
+    // A run id the spawner took beforehand, so what it handed the process can name this run
+    // (`Interpreter.checksInChunk`). Fresh from the same counter, so still one per run.
+    match runId with
+    | Some r -> vm.runId <- r
+    | None -> ()
     Interpreter.seedRootAccess exeState.access vm
     let id = System.Guid.NewGuid()
     let p =
@@ -430,9 +436,17 @@ type Scheduler(quantum : int64) =
       instrs : Option<tlid> * RT.Instructions,
       entry : Entry,
       parent : Option<ProcessId>,
-      ?stats : RT.InterpreterStats
+      ?stats : RT.InterpreterStats,
+      ?runId : int64
     ) : Process =
-    this.Workers.Spawn(exeState, instrs, entry, parent, ?stats = stats)
+    this.Workers.Spawn(
+      exeState,
+      instrs,
+      entry,
+      parent,
+      ?stats = stats,
+      ?runId = runId
+    )
 
   /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
   /// `access` rather than the state's own: the spawner's, at the moment of the spawn, exactly as
@@ -444,7 +458,8 @@ type Scheduler(quantum : int64) =
       arg : RT.Dval,
       parent : Option<ProcessId>,
       access : Permissions.Access,
-      ?stats : RT.InterpreterStats
+      ?stats : RT.InterpreterStats,
+      ?runId : int64
     ) : Process =
     let entry =
       match applicable with
@@ -457,7 +472,8 @@ type Scheduler(quantum : int64) =
         (None, instrs),
         entry,
         parent,
-        ?stats = stats
+        ?stats = stats,
+        ?runId = runId
       )
     p
 
@@ -1214,7 +1230,8 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       instrs : Option<tlid> * RT.Instructions,
       entry : Entry,
       parent : Option<ProcessId>,
-      ?stats : RT.InterpreterStats
+      ?stats : RT.InterpreterStats,
+      ?runId : int64
     ) : Process =
     let w =
       lock startLock (fun () ->
@@ -1223,7 +1240,7 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
           if not started[i] then startThread i
           byIndex[i]
         | None -> workers |> List.minBy (fun w -> w.Live))
-    w.Spawn(exeState, instrs, entry, parent, ?stats = stats)
+    w.Spawn(exeState, instrs, entry, parent, ?stats = stats, ?runId = runId)
 
   /// End every worker's loop. Processes still on them are left as they are.
   member _.Stop() : unit =

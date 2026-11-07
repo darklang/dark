@@ -21,28 +21,16 @@ let private entryPair (dv : Dval) : Dval * Dval =
   | DTuple(k, value, []) -> (k, value)
   | dv -> Exception.raiseInternal "Not pair tuples in fromEntries" [ "dval", dv ]
 
-/// How many of a spread's `answers` are Bools, from the first: `dictFilter` takes no more, since a
-/// serial run raises at the first that is not when an enclosing fn declared its callback's
-/// `Bool`, which a chunk does not check.
-let private leadingBools (answers : List<Dval>) : int =
-  let rec count (n : int) (rest : List<Dval>) : int =
-    match rest with
-    | DBool _ :: tail -> count (n + 1) tail
-    | _ -> n
-  count 0 answers
-
 /// Spreads `fn` over `entries` from `start` on (`LibExecution.Spread`), as `List.map` is: a
 /// chunk is `listMap2shortest` over its keys and its values, which applies `fn` to each pair as
-/// `applyEach` does. Writes the answers it can vouch for into `answers` and answers where
-/// `applyEach` carries on: the first entry of the first chunk that did not finish, or the first
-/// answer a serial run would not have taken as it came. For a map that is one whose type does
-/// not agree with the answers before it (`Spread.agreeing`), and for a filter one that is not a
-/// Bool, since a chunk does not check a callback type an enclosing fn declared.
+/// `applyEach` does. Writes the answers of the chunks that finished into `answers` and answers
+/// where `applyEach` carries on: the first entry of the first chunk that did not. A chunk checks
+/// a callback type an enclosing fn declared (`Stdlib.Dict.filter`'s `Bool`) as a serial run does,
+/// so an answer of the wrong type fails its chunk and is raised here.
 let private spreadRest
   (state : ExecutionState)
   (vm : VMState)
   (app : Applicable)
-  (filtering : bool)
   (keyType : ValueType)
   (valueType : ValueType)
   (entries : (struct (Dval * Dval))[])
@@ -69,14 +57,8 @@ let private spreadRest
         app
         perElement
         (List.init (entries.Length - start) (fun n -> valueAt (start + n)))
-    let accepted =
-      if filtering then
-        leadingBools outcome.results
-      else
-        Spread.agreeing (Spread.mergedType (Seq.take start answers)) outcome.results
-    outcome.results
-    |> List.iteri (fun n answer -> if n < accepted then answers[start + n] <- answer)
-    return start + accepted
+    outcome.results |> List.iteri (fun n answer -> answers[start + n] <- answer)
+    return start + List.length outcome.results
   }
 
 /// Calls `fn` with each entry's key and value, in key order, and hands `finish` its
@@ -113,7 +95,6 @@ let private applyEach
             state
             vm
             app
-            filtering
             keyType
             valueType
             entries
