@@ -402,11 +402,10 @@ let read (version : uint32) (r : BinaryReader) : PackageOp =
 
 
 let serialize (id : uuid) (op : PackageOp) : byte array =
-  use memoryStream = new MemoryStream()
-  use binaryWriter = new BinaryWriter(memoryStream)
-  Guid.write binaryWriter id
-  write binaryWriter op
-  memoryStream.ToArray()
+  Scratch.WithStream(fun memoryStream binaryWriter ->
+    Guid.write binaryWriter id
+    write binaryWriter op
+    memoryStream.ToArray())
 
 let deserialize (id : uuid) (bytes : byte array) : PackageOp =
   use memoryStream = new MemoryStream(bytes)

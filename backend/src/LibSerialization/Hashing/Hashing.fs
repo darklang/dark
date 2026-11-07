@@ -32,15 +32,23 @@ module Hashing =
   // =====================
 
   let private fromSHA256Bytes (bytes : byte array) : Hash =
-    Hash(System.Convert.ToHexString(bytes).ToLowerInvariant())
+    Hash(System.Convert.ToHexStringLower(bytes))
 
-  /// Serialize to bytes using a writer function, then SHA-256 hash to Hash
+  /// Serialize to bytes using a writer function, then SHA-256 hash to Hash. The bytes are hashed
+  /// where they were written, in this thread's reused stream.
   let private hashWithWriter (writerFn : BinaryWriter -> unit) : Hash =
-    use ms = new MemoryStream()
-    use w = new BinaryWriter(ms)
-    writerFn w
-    let bytes = ms.ToArray()
-    SHA256.HashData(bytes) |> fromSHA256Bytes
+    Common.Scratch.WithStream(fun ms w ->
+      writerFn w
+      w.Flush()
+      let digest = Common.Scratch.Bytes 32
+      SHA256.HashData(
+        System.ReadOnlySpan<byte>(ms.GetBuffer(), 0, int ms.Length),
+        System.Span<byte>(digest, 0, 32)
+      )
+      |> ignore<int>
+      Hash(
+        System.Convert.ToHexStringLower(System.ReadOnlySpan<byte>(digest, 0, 32))
+      ))
 
   /// The hash of PROSE, which is said about content rather than being content.
   ///
@@ -502,17 +510,17 @@ module Hashing =
     (mode : Canonical.HashRefMode)
     (item : ItemInfo)
     : byte array =
-    use ms = new MemoryStream()
-    use w = new BinaryWriter(ms)
-    // Alpha-normalize fns/values so the batch (SCC) hash, like the single-item hash, ignores
-    // bound-variable names. Types have no binders, so they pass through unchanged.
-    match item with
-    | TypeItem(t, _, _, _) -> Canonical.writeType mode w t
-    | FnItem(fn, _, _, _) -> Canonical.writeFn mode w (normalizeFn fn)
-    | ValueItem(v, _, _, _) -> Canonical.writeValue mode w (normalizeValue v)
-    | TraitItem(t, _, _, _) -> Canonical.writeTrait mode w t
-    | ImplItem(i, _, _, _) -> Canonical.writeImpl mode w i
-    ms.ToArray()
+    Common.Scratch.WithStream(fun ms w ->
+      // Alpha-normalize fns/values so the batch (SCC) hash, like the single-item hash, ignores
+      // bound-variable names. Types have no binders, so they pass through unchanged.
+      match item with
+      | TypeItem(t, _, _, _) -> Canonical.writeType mode w t
+      | FnItem(fn, _, _, _) -> Canonical.writeFn mode w (normalizeFn fn)
+      | ValueItem(v, _, _, _) -> Canonical.writeValue mode w (normalizeValue v)
+      | TraitItem(t, _, _, _) -> Canonical.writeTrait mode w t
+      | ImplItem(i, _, _, _) -> Canonical.writeImpl mode w i
+      w.Flush()
+      ms.ToArray())
 
 
   /// Given a set of package items (keyed by FQN) and their dependencies, compute hashes, handling SCCs

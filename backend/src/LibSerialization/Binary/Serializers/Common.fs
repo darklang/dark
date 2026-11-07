@@ -14,6 +14,79 @@ open LibSerialization.Binary.BaseFormat
 let raiseFormatError msg = raise (BinaryFormatException(CorruptedData msg))
 
 
+/// This thread's reusable buffers, so a write or read doesn't allocate a byte array of its own.
+///
+/// The cold first run serializes and hashes every item it folds, and byte arrays were a third of
+/// what it allocated: a `MemoryStream` grown by doubling and copied out twice per blob, plus one
+/// array per string, hash and Guid. Everything that borrows here is synchronous and never keeps
+/// the buffer past its own call.
+type Scratch() =
+  /// A buffer kept for reuse is at most this big; a bigger one is made for that call alone.
+  static let keepAtMost = 64 * 1024
+
+  [<System.ThreadStatic; DefaultValue>]
+  static val mutable private bytes : byte[]
+
+  [<System.ThreadStatic; DefaultValue>]
+  static val mutable private stream : MemoryStream
+
+  [<System.ThreadStatic; DefaultValue>]
+  static val mutable private writer : BinaryWriter
+
+  [<System.ThreadStatic; DefaultValue>]
+  static val mutable private streamInUse : bool
+
+  /// At least `size` bytes, valid until this thread's next call here. Leaf use only: nothing that
+  /// holds it may call into another serializer before it's done with it.
+  static member Bytes(size : int) : byte[] =
+    let b = Scratch.bytes
+    if not (isNull b) && b.Length >= size then
+      b
+    elif size > keepAtMost then
+      Array.zeroCreate size
+    else
+      let fresh =
+        Array.zeroCreate (
+          max
+            256
+            (int (System.Numerics.BitOperations.RoundUpToPowerOf2(uint32 size)))
+        )
+      Scratch.bytes <- fresh
+      fresh
+
+  /// Runs `f` with this thread's stream, empty, and a writer on it. A writer that serializes
+  /// something else on the way gets a fresh pair for that, so the outer bytes are never touched.
+  static member WithStream(f : MemoryStream -> BinaryWriter -> 'a) : 'a =
+    if Scratch.streamInUse then
+      use ms = new MemoryStream()
+      use w = new BinaryWriter(ms)
+      f ms w
+    else
+      if isNull Scratch.stream then
+        Scratch.stream <- new MemoryStream(4096)
+        Scratch.writer <- new BinaryWriter(Scratch.stream)
+      let ms = Scratch.stream
+      ms.SetLength 0L
+      ms.Position <- 0L
+      Scratch.streamInUse <- true
+      try
+        f ms Scratch.writer
+      finally
+        Scratch.streamInUse <- false
+        if ms.Capacity > 16 * keepAtMost then
+          ms.SetLength 0L
+          ms.Capacity <- 4096
+
+  /// Fills `buffer[0..count)` from the reader; how many bytes it got, short only at the end.
+  static member ReadInto(r : BinaryReader, buffer : byte[], count : int) : int =
+    let mutable got = 0
+    let mutable more = true
+    while more && got < count do
+      let n = r.Read(buffer, got, count - got)
+      if n = 0 then more <- false else got <- got + n
+    got
+
+
 module Header =
   let write (w : BinaryWriter) (header : BinaryHeader) =
     w.Write header.Version
@@ -61,19 +134,24 @@ module String =
     if isNull value then
       Varint.write w 0
     else
-      let bytes = Encoding.UTF8.GetBytes(value)
-      Varint.write w bytes.Length
-      w.Write bytes
+      let buffer = Scratch.Bytes(Encoding.UTF8.GetMaxByteCount value.Length)
+      let length = Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, 0)
+      Varint.write w length
+      w.Write(buffer, 0, length)
 
   let read (r : BinaryReader) : string =
     let length = Varint.read r
     if length = 0 then
       ""
+    elif length < 0 then
+      // A corrupt length: let `ReadBytes` refuse it as it always has.
+      r.ReadBytes(length) |> ignore<byte[]>
+      ""
     else
-      let bytes = r.ReadBytes(length)
-      if bytes.Length <> length then
+      let buffer = Scratch.Bytes length
+      if Scratch.ReadInto(r, buffer, length) <> length then
         raise (BinaryFormatException(UnexpectedEndOfStream))
-      Encoding.UTF8.GetString bytes
+      Encoding.UTF8.GetString(buffer, 0, length)
 
 
 module Bool =
@@ -178,12 +256,16 @@ module UInt128 =
 
 
 module Guid =
-  let write (w : BinaryWriter) (guid : Guid) = w.Write(guid.ToByteArray())
+  let write (w : BinaryWriter) (guid : Guid) =
+    let buffer = Scratch.Bytes 16
+    guid.TryWriteBytes(Span<byte>(buffer, 0, 16)) |> ignore<bool>
+    w.Write(buffer, 0, 16)
 
   let read (r : BinaryReader) : Guid =
-    let bytes = r.ReadBytes 16
-    if bytes.Length <> 16 then raise (BinaryFormatException UnexpectedEndOfStream)
-    Guid(bytes)
+    let buffer = Scratch.Bytes 16
+    if Scratch.ReadInto(r, buffer, 16) <> 16 then
+      raise (BinaryFormatException UnexpectedEndOfStream)
+    Guid(ReadOnlySpan<byte>(buffer, 0, 16))
 
 
 module Option =

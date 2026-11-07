@@ -21,23 +21,26 @@ module Hash =
   /// that is not 32 bytes of hex (a test fixture, a truncated value) must round-trip rather than
   /// silently corrupt the rest of the stream.
   let write (w : BinaryWriter) (Hash h : Hash) =
-    let bytes =
-      try
-        if h.Length = 64 then Some(System.Convert.FromHexString h) else None
-      with _ ->
-        None
+    let raw = Scratch.Bytes 32
+    let isHex =
+      h.Length = 64
+      && (let (status, _, _) =
+            System.Convert.FromHexString(h.AsSpan(), System.Span<byte>(raw, 0, 32))
+          status = System.Buffers.OperationStatus.Done)
 
-    match bytes with
-    | Some raw ->
+    if isHex then
       w.Write 1uy
-      w.Write raw
-    | None ->
+      w.Write(raw, 0, 32)
+    else
       w.Write 0uy
       String.write w h
 
   let read (r : BinaryReader) : Hash =
     match r.ReadByte() with
-    | 1uy -> Hash(System.Convert.ToHexStringLower(r.ReadBytes 32))
+    | 1uy ->
+      let raw = Scratch.Bytes 32
+      let got = Scratch.ReadInto(r, raw, 32)
+      Hash(System.Convert.ToHexStringLower(System.ReadOnlySpan<byte>(raw, 0, got)))
     | _ -> Hash(String.read r)
 
 
