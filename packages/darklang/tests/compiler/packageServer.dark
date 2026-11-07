@@ -1,0 +1,71 @@
+// The routes `Darklang.Compiler.PackageServer` answers for the native compiler's
+// `--package-server`. Called directly, with no server, against the main branch.
+module Darklang.Compiler.PackageServer.Tests
+
+let get(url: String): (Int64 * String) =
+  let response =
+    Darklang.Compiler.PackageServer.router(
+      Stdlib.Http.Request
+        { method = "GET", url = url, headers = [], body = Stdlib.Bytes.empty })
+
+  (response.statusCode, Stdlib.Utf8.decodeWithReplacement(response.body))
+
+
+let hashOf(name: String): String =
+  match Darklang.Compiler.PackageServer.parseLocation(name) with
+  | Some(loc) ->
+    match LanguageTools.PackageManager.Function.find(
+            SCM.Branch.mainBranchId,
+            loc) with
+    | Some(hash) ->
+      match hash with
+      | Hash(h) -> h
+    | None -> ""
+  | None -> ""
+
+
+test ping = get("/ping") |> Stdlib.Test.equal((200, "pong"))
+
+
+// A name answers with its hash, in the JSON shape the compiler reads.
+test findFunction =
+  let hash = hashOf("Darklang.Stdlib.List.length")
+  let expected = "{\"Hash\":[\"" + hash + "\"]}"
+  get("/function/find/Darklang.Stdlib.List.length")
+  |> Stdlib.Test.equal((200, expected))
+
+
+test findMissing =
+  Stdlib.Tuple2.first(get("/function/find/Darklang.NoSuch.fn"))
+  |> Stdlib.Test.equal(404)
+
+
+// A hash answers with the fn and the name it is listed under.
+test functionWithLocation =
+  let hash = hashOf("Darklang.Stdlib.List.length")
+  let (status, body) = get("/function/get/with-location/" + hash)
+  Stdlib.Test.all(
+    [ status |> Stdlib.Test.equal(200)
+
+      Stdlib.String.contains(
+        body,
+        "\"location\":{\"modules\":[\"Stdlib\",\"List\"],\"name\":\"length\",\"owner\":\"Darklang\"}")
+      |> Stdlib.Test.equal(true) ])
+
+
+// A module name, as `/:location` or `/search`, lists the module's contents.
+test browseModule =
+  let (status, body) = get("/Darklang.Stdlib.List")
+  let (searchStatus, searchBody) =
+    get(
+      "/search?modules=Darklang.Stdlib.List&searchDepth=direct&entityTypes=module")
+
+  Stdlib.Test.all(
+    [ status |> Stdlib.Test.equal(200)
+
+      Stdlib.String.contains(body, "\"name\":\"length\"")
+      |> Stdlib.Test.equal(true)
+
+      searchStatus |> Stdlib.Test.equal(200)
+
+      searchBody |> Stdlib.Test.equal(body) ])

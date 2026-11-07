@@ -1,0 +1,184 @@
+/// The read-only package endpoints the native compiler (pbiggar/darklang-compiler)
+/// reads with `--package-server URL`. It asks for package items by name and by hash and
+/// gets ProgramTypes back as JSON, so nothing here prints Dark source and nothing has to
+/// agree with the compiler's parser.
+///
+///   /ping                                   "pong"
+///   /search?modules=A.B&searchDepth=direct&entityTypes=module
+///   /:location                              a leaf's entity, or the module's contents
+///   /{type,value,function}/find/:name       name -> hash
+///   /{type,value,function}/get/with-location/:hash
+///
+/// Reads the main branch. `dark compile` starts it on a loopback port for the length of
+/// one compile; it is not meant to be served to anyone else.
+module Darklang.Compiler.PackageServer
+
+type Request = Stdlib.Http.Request
+
+type Response = Stdlib.Http.Response
+
+val branchId = SCM.Branch.mainBranchId
+
+
+/// `Owner.Module.Name` -> a location. Needs at least an owner and a name.
+let parseLocation(name: String): Option<LanguageTools.ProgramTypes.PackageLocation> =
+  let parts = Stdlib.String.split(name, ".")
+  match Stdlib.List.head(parts), Stdlib.List.last(parts) with
+  | Some(owner), Some(leaf) when Stdlib.List.length(parts) >= 2 ->
+    Option.Some(
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner
+          modules =
+            parts
+            |> Stdlib.List.drop(1)
+            |> Stdlib.List.dropLast
+          name = leaf })
+  | _ -> Option.None
+
+
+let json(body: Option<String>): Response =
+  match body with
+  | Some(text) -> Stdlib.Http.responseWithJson(200, text)
+  | None -> Stdlib.Http.notFound()
+
+
+let browse(modules: List<String>): Response =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modules
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  let results = LanguageTools.PackageManager.Search.search(branchId, query)
+  Stdlib.Http.responseWithJson(
+    200,
+    Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>(results))
+
+
+/// `/search`: the compiler only ever asks for one module's direct contents.
+let search(req: Request): Response =
+  match Stdlib.Http.Request.queryParam(req, "modules") with
+  | None -> Stdlib.Http.badRequest("Missing query parameter: modules")
+  | Some(modules) -> browse(Stdlib.String.split(modules, "."))
+
+
+/// The entity at <param hash> as JSON, by kind, without its location.
+let entity(
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  hash: LanguageTools.ProgramTypes.Hash)
+  : Option<String> =
+  match kind with
+  | Fn ->
+    LanguageTools.PackageManager.Function.get(hash)
+    |> Stdlib.Option.map(fun item ->
+      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>(item))
+  | Type ->
+    LanguageTools.PackageManager.Type.get(hash)
+    |> Stdlib.Option.map(fun item ->
+      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>(item))
+  | Value ->
+    LanguageTools.PackageManager.Value.get(hash)
+    |> Stdlib.Option.map(fun item ->
+      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>(item))
+  | Trait ->
+    LanguageTools.PackageManager.Trait.get(hash)
+    |> Stdlib.Option.map(fun item ->
+      Stdlib.Json.serialize<LanguageTools.ProgramTypes.Trait.Trait>(item))
+  | TraitImpl ->
+    LanguageTools.PackageManager.TraitImpl.get(hash)
+    |> Stdlib.Option.map(fun item ->
+      Stdlib.Json.serialize<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>(item))
+  | Test ->
+    LanguageTools.PackageManager.Test.get(hash)
+    |> Stdlib.Option.map(fun item ->
+      Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageTest.PackageTest>(item))
+
+
+val locationRoute = "/:location"
+
+
+/// `/:location`: a leaf of any kind if the name has one, else the module's contents.
+let location(req: Request): Response =
+  match Stdlib.HttpServer.getPathParam(req, locationRoute, "location") with
+  | None -> Stdlib.Http.badRequest("Missing location")
+  | Some(name) ->
+    let parts = Stdlib.String.split(name, ".")
+    match parseLocation(name) with
+    | None -> browse(parts)
+    | Some(loc) ->
+      match LanguageTools.PackageManager.findAny(branchId, loc) with
+      | Some((hash, kind)) -> json(entity(kind, hash))
+      | None -> browse(parts)
+
+
+let hashJson(hash: Option<LanguageTools.ProgramTypes.Hash>): Response =
+  hash
+  |> Stdlib.Option.map(fun item -> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>(item))
+  |> json
+
+
+let find(kind: String, req: Request): Response =
+  let route = $"/{kind}/find/:name"
+  match Stdlib.HttpServer.getPathParam(req, route, "name")
+        |> Stdlib.Option.andThen(fun n -> parseLocation(n)) with
+  | None -> Stdlib.Http.badRequest("Expected a name like Owner.Module.name")
+  | Some(loc) ->
+    match kind with
+    | "type" -> hashJson(LanguageTools.PackageManager.Type.find(branchId, loc))
+    | "value" -> hashJson(LanguageTools.PackageManager.Value.find(branchId, loc))
+    | _ -> hashJson(LanguageTools.PackageManager.Function.find(branchId, loc))
+
+
+let withLocation(kind: String, req: Request): Response =
+  let route = $"/{kind}/get/with-location/:hash"
+  match Stdlib.HttpServer.getPathParam(req, route, "hash") with
+  | None -> Stdlib.Http.badRequest("Missing hash")
+  | Some(text) ->
+    let hash = LanguageTools.ProgramTypes.Hash.Hash(text)
+    match kind with
+    | "type" ->
+      LanguageTools.PackageManager.Type.getWithLocation(branchId, hash)
+      |> Stdlib.Option.map(fun item ->
+        Stdlib.Json.serialize<
+          LanguageTools.ProgramTypes.LocatedItem<
+            LanguageTools.ProgramTypes.PackageType.PackageType>>(item))
+      |> json
+    | "value" ->
+      LanguageTools.PackageManager.Value.getWithLocation(branchId, hash)
+      |> Stdlib.Option.map(fun item ->
+        Stdlib.Json.serialize<
+          LanguageTools.ProgramTypes.LocatedItem<
+            LanguageTools.ProgramTypes.PackageValue.PackageValue>>(item))
+      |> json
+    | _ ->
+      LanguageTools.PackageManager.Function.getWithLocation(branchId, hash)
+      |> Stdlib.Option.map(fun item ->
+        Stdlib.Json.serialize<
+          LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>(
+          item))
+      |> json
+
+
+/// Literal single-segment routes come before `/:location`, which matches any of them.
+let handlers(): List<Stdlib.HttpServer.Handler> =
+  let kinds = [ "type", "value", "function" ]
+  let perKind =
+    kinds
+    |> Stdlib.List.map(fun kind ->
+      [ Stdlib.HttpServer.get($"/{kind}/find/:name", fun req -> find(kind, req))
+
+        Stdlib.HttpServer.get($"/{kind}/get/with-location/:hash", fun req ->
+          withLocation(kind, req)) ])
+    |> Stdlib.List.flatten
+
+  Stdlib.List.flatten(
+    [ perKind
+      [ Stdlib.HttpServer.get("/ping", fun _ -> Stdlib.Http.responseWithText(200, "pong"))
+        Stdlib.HttpServer.get("/search", search)
+        Stdlib.HttpServer.get(locationRoute, location) ] ])
+
+
+let router(req: Request): Response =
+  Stdlib.HttpServer.routeRequest(handlers(), req)
