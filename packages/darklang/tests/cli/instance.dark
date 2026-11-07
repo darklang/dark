@@ -94,9 +94,30 @@ let env(i: T): List<(String * String)> =
     ("XDG_CONFIG_HOME", home(i) + "/config") ]
 
 
+/// How long one command in an instance may take before it is stopped. The same limit the F#
+/// harness puts on each command it runs.
+val commandTimeoutMs = 120000
+
+
 /// Run one command in this instance and return everything it said.
+///
+/// Under a timeout, so a command that waits forever (on input, on a lock) fails as itself
+/// rather than leaving the whole suite to stop answering. `env` sets the environment, as in
+/// `Process.runWithEnv`, which has no timeout.
 let run(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
-  Stdlib.Cli.Process.runWithEnv(i.cli, args, env(i))
+  let envArgs = env(i) |> Stdlib.List.map(fun pair -> let (k, v) = pair in $"{k}={v}")
+
+  Stdlib.Cli.Process.runWithTimeout(
+    commandTimeoutMs,
+    "/usr/bin/env",
+    Stdlib.List.concat(envArgs, Stdlib.List.prepend(args, i.cli)))
+  |> Stdlib.Result.mapError(fun e ->
+    if e == "Process timed out" then
+      let cmd = Stdlib.String.join(args, " ")
+      let seconds = Stdlib.toString(commandTimeoutMs / 1000)
+      $"`{cmd}` gave no answer in {seconds}s"
+    else
+      e)
 
 
 /// What a command printed: stdout, or stderr when stdout said nothing.

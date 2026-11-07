@@ -34,7 +34,6 @@ set -euo pipefail
 
 ARTIFACT=""
 COMPARE_AGAINST=""
-SKIP_SUITE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,10 +43,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --compare-against=*)
       COMPARE_AGAINST="${1#*=}"
-      shift
-      ;;
-    --skip-suite)
-      SKIP_SUITE=1
       shift
       ;;
     -*)
@@ -66,7 +61,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$ARTIFACT" ]]; then
-  echo "Usage: $0 <artifact> [--compare-against <other-artifact>] [--skip-suite]"
+  echo "Usage: $0 <artifact> [--compare-against <other-artifact>]"
   exit 1
 fi
 if [[ ! -x "$ARTIFACT" ]]; then
@@ -104,6 +99,8 @@ indent() {
 # that. The watchdog is hand-rolled because `timeout` is GNU coreutils, the same
 # reason `realpath` is avoided above.
 CHECK_TIMEOUT=${CHECK_TIMEOUT:-120}
+# The suite is one command, so it gets one watchdog for all of it.
+SUITE_TIMEOUT=${SUITE_TIMEOUT:-1200}
 
 # Run one command against one binary, in that binary's own home directory.
 # Echoes the combined output; returns the command's exit code, or 124 on timeout.
@@ -312,42 +309,47 @@ rm -rf "$CHILD"
 echo ""
 echo "Dark CLI test suite:"
 
-if [[ $SKIP_SUITE -eq 1 ]]; then
-  echo "  skip (--skip-suite)"
-else
 # Native package tests own discovery and failure reporting. The isolated command
 # fixtures drive the artifact selected by DARK_CLI_UNDER_TEST.
-suite_out=""
-suite_rc=0
-# The home directory has to exist before the binary starts. A single-file R2R
-# build extracts its embedded native libraries to a cache under HOME and fails
-# outright if that path isn't writable ("Failed to determine location for
-# extracting embedded files"). AOT binaries extract nothing, so this only
-# shows up the first time you point the validator at an R2R artifact, which
-# is exactly what --compare-against does.
-mkdir -p "$WORKDIR/suite"
-# Give the native runner its own store and policy as well as its own HOME.
-# The artifact seeds this store with the package tests it carries.
-suite_cli() {
-  DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
-    XDG_CONFIG_HOME="$WORKDIR/suite/config" \
-    "$ARTIFACT" "$@"
-}
-suite_cli permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1
-for suite_process in /bin/bash /usr/bin/env; do
-  suite_cli permissions allow process "$suite_process" > /dev/null 2>&1
-done
-suite_cli permissions allow native > /dev/null 2>&1
-suite_out=$(suite_cli test run --force Darklang.Cli.Tests.TestSuite 2>&1) || suite_rc=$?
-
-if [[ $suite_rc -ne 0 ]]; then
-  echo "  FAIL suite (exit $suite_rc)"
-  echo "$suite_out" | tail -40 | indent
+#
+# Through run_in_home like every check above, so with stdin from /dev/null and
+# under a watchdog. CI gives each step a pty, and a test command that sees one
+# can wait on a person forever.
+#
+# The instance-backed cases copy a store with the sqlite3 command, so without it they all fail,
+# each for a reason that doesn't say so.
+if ! command -v sqlite3 > /dev/null; then
+  echo "  FAIL suite (needs sqlite3 on PATH)"
   failures=$((failures + 1))
 else
-  echo "$suite_out" | tail -5 | indent
-  echo "  ok   suite (exit $suite_rc)"
-fi
+  suite_out=""
+  suite_rc=0
+  # Give the native runner its own store and policy as well as its own HOME.
+  # The artifact seeds this store with the package tests it carries.
+  suite_cli() {
+    DARK_CLI_UNDER_TEST="$ARTIFACT" XDG_CONFIG_HOME="$WORKDIR/suite/config" \
+      run_in_home "$ARTIFACT" "$WORKDIR/suite" "$@"
+  }
+  suite_cli permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1
+  for suite_process in /bin/bash /usr/bin/env; do
+    suite_cli permissions allow process "$suite_process" > /dev/null 2>&1
+  done
+  suite_cli permissions allow native > /dev/null 2>&1
+  suite_out=$(CHECK_TIMEOUT="$SUITE_TIMEOUT" \
+    suite_cli test run --force Darklang.Cli.Tests.TestSuite) || suite_rc=$?
+
+  if [[ $suite_rc -eq 124 ]]; then
+    echo "  FAIL suite (no answer in ${SUITE_TIMEOUT}s)"
+    echo "$suite_out" | tail -40 | indent
+    failures=$((failures + 1))
+  elif [[ $suite_rc -ne 0 ]]; then
+    echo "  FAIL suite (exit $suite_rc)"
+    echo "$suite_out" | tail -40 | indent
+    failures=$((failures + 1))
+  else
+    echo "$suite_out" | tail -5 | indent
+    echo "  ok   suite (exit $suite_rc)"
+  fi
 fi
 
 if [[ -n "$COMPARE_AGAINST" ]]; then

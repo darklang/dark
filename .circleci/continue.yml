@@ -605,13 +605,13 @@ jobs:
               --seed=seed.db \
               --runtimes=linux-x64,linux-arm64
       - run:
-          # TODO: drop --skip-suite (here, musl and macOS) once the CLI test suite runs headless.
-          # Its instance-backed cases hang under CI, so the release checks stop at the smoke set.
           name: Validate the linux-x64 artifact
           command: |
+            # The CLI suite's instance-backed cases copy a store with sqlite3, which the release
+            # image doesn't have.
+            apt-get update -qq && apt-get install -y -qq --no-install-recommends sqlite3 > /dev/null
             ./scripts/testing/validate-cli-artifact \
-              "$(ls clis/darklang-*-linux-x64)" \
-              --skip-suite
+              "$(ls clis/darklang-*-linux-x64)"
       # arm64 can't run natively here, but it can run emulated, and it should.
       # A binary that links is not a binary that works: during this work an
       # armv7 build compiled, linked and started before dying on a struct
@@ -689,9 +689,10 @@ jobs:
             # cmake, openssl-dev and openssl-libs-static: the musl binary links OpenSSL
             # statically, and .NET builds its OpenSSL shim from source to do that. tar and
             # xz unpack the pinned toolchain. git and openssh-client are for `checkout`,
-            # which otherwise falls back to CircleCI's own git client.
+            # which otherwise falls back to CircleCI's own git client. sqlite for the CLI suite
+            # the artifact check runs.
             apk add --no-cache bash git openssh-client curl clang build-base zlib-dev openssl \
-              icu-libs cmake openssl-dev openssl-libs-static tar xz
+              icu-libs cmake openssl-dev openssl-libs-static tar xz sqlite
       - checkout
       - run:
           name: Install the pinned .NET SDK and zig
@@ -720,8 +721,7 @@ jobs:
           name: Validate the musl artifact
           command: |
             ./scripts/testing/validate-cli-artifact \
-              "$(ls clis/darklang-*-linux-musl-x64)" \
-              --skip-suite
+              "$(ls clis/darklang-*-linux-musl-x64)"
       # The point of linking it statically: it needs nothing from the system. musl's
       # `ldd` can't say so (it is the loader itself and lists itself), so read the ELF
       # for a loader or a needed library, then run the binary in an empty root that
@@ -798,8 +798,7 @@ jobs:
           name: Validate the osx-arm64 artifact
           command: |
             ./scripts/testing/validate-cli-artifact \
-              "$(ls clis/darklang-*-osx-arm64)" \
-              --skip-suite
+              "$(ls clis/darklang-*-osx-arm64)"
       - package-clis
 
   publish-release-clis:
