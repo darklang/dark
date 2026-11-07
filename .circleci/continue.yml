@@ -260,21 +260,20 @@ jobs:
   #
   ## All jobs related to the 'build' of Darklang
 
-  # Build server binaries and run tests
-  # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release
-  build-backend:
+  # Build Darklang and run every check a PR waits on.
+  #
+  # One job, because the F# tests and the package tests need the same build: LocalExec, a
+  # loaded store, the seed and the NativeAOT CLI, about four minutes on this class. Split in
+  # two jobs, each would build all of it.
+  build:
     executor: in-container
     # large (4 CPUs, 8 GB) costs half as much as xlarge. With --split, the one-at-a-time
     # tests run alongside the others, so 4 CPUs finish the tests about as fast as 8.
     resource_class: large
     #
-    # One node, the suite. The gate scripts run in `build-cli`, which already has a loaded
-    # store and the shipped binary; a second node here repeated this whole prefix for them.
-    #
-    # The allocation gate is NOT here, though it was. This job publishes with a plain
-    # `dotnet publish -c Release`, and the budget is recorded against a NativeAOT binary,
-    # which is what ships. Measuring one against the other is meaningless, so the gate
-    # lives in `build-cli`, the job that builds the thing users get.
+    # The allocation gate runs against the NativeAOT binary built here, because the budget is
+    # recorded against one: that is what ships. A plain `dotnet publish -c Release` would be
+    # meaningless to measure against it.
     #
     # NOT more nodes with `--shard`, though the runner supports it and it is tested. Measured
     # against the whole suite in one process, sharding LOSES: a sequenced group cannot be
@@ -284,92 +283,8 @@ jobs:
     steps:
       - shallow-checkout
       - setup-app
-      - run:
-          name: Setup backend build environment
-          command: |
-            set -x
-
-      - nuget-cache-restore
-      - show-large-files-and-directories
-      # For tests
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
-      - save_cache:
-          paths:
-            - /home/dark/.nuget
-          key: v7-nuget-{{ checksum "../checksum" }}
-      # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
-
-      # Each library is compiled once in this job, by this step, in Release so the package load
-      # runs optimized. The two builds below reuse them: the package load rewrites
-      # package-ref-hashes.txt, which only Cli embeds.
-      - run:
-          name: Build LocalExec for migrations (Release)
-          command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
-      - run:
-          name: Run migrations to create database
-          command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec --published migrations run
-      - run:
-          name: Load packages into database
-          command: python3 .circleci/collect_diagnostics.py --run packages -- scripts/build/reload-packages --published
-      - run:
-          name: Export the seed the publish embeds
-          command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec --published export-seed rundir/seed.db
-
-      - run:
-          name: Build the tests (Release)
-          command: ./scripts/build/_dotnet-wrapper publish -c Release tests/Tests/Tests.fsproj /p:DebugType=None /p:DebugSymbols=false
-
-      # The CLI the instance-backed suites drive, built the way we ship it. They start it once
-      # per command, a couple of thousand times a run, and the JIT-published one spends most
-      # of a CPU-second starting up each time: on four cores that was most of the suite's CPU.
-      # Measured on a 4-core box, the same suite took about half as long on this binary and
-      # used about a third of the CPU. It used not to pay, back when a long in-process phase
-      # that spawns nothing set the suite's length; that phase is now mostly on instances too.
-      #
-      # --reuse-libraries: only Cli is compiled, against the libraries the steps above built.
-      # The publish would otherwise compile them all again, to the same bytes.
-      - sqlite-archive
-      - run:
-          name: Build the CLI the tests drive
-          command: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db --reuse-libraries
-
-      # Bounded, so a wedged suite dies at a known point with its log intact rather than
-      # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the
-      # default no-output timeout can no longer fire on a healthy-but-slow run.
-      - run:
-          name: Run F# tests
-          command: |
-            # The package load above already exported this build's seed.
-            # Give tests their own copy instead of parsing the same sources again.
-            # --split runs the sequenced tests in a second process alongside the rest.
-            DARK_TEST_CLI="$PWD/$(ls clis/darklang-*-linux-x64)" \
-            DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
-              --run backend-tests -- timeout 20m scripts/run-fsharp-tests --published --split
-
-      ## TODO: too many race conditions. Bring back later
-      # Test package manager/cli integration works
-      # - run: scripts/build/run-migrations --published
-      # - run: sleep 5 # let migrations run
-      # - run: scripts/build/reload-packages --published
-      # - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0
-
-      - assert-clean-worktree
-      - show-large-files-and-directories
-      - store-ci-diagnostics
-
-  # Build cli binaries
-  build-cli:
-    executor: in-container
-    # large (4 CPUs, 8 GB) costs half as much as xlarge. This job mostly uses 2-3 CPUs and
-    # under 3 GB, so it is only slower during short bursts of compiling.
-    resource_class: large
-    steps:
-      - shallow-checkout
-      - setup-app
-      # What used to be the `static-checks` job: lint, format and the CI scripts' own tests.
-      # Under half a minute here, against a job of its own that spent longer starting up
-      # than checking. This job finishes well before build-backend, so it has the room.
+      # Lint, format and the CI scripts' own tests, first: under half a minute, and the
+      # likeliest to fail.
       - run: scripts/linting/shellchecker
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
@@ -400,21 +315,20 @@ jobs:
       - run:
           name: Test the check for a superseded main commit
           command: python3 .circleci/test_ci_superseded.py
-      - show-large-files-and-directories
-      # For tests
+
       - nuget-cache-restore
+      - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - save_cache:
           paths:
             - /home/dark/.nuget
           key: v7-nuget-{{ checksum "../checksum" }}
+      # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
-      # The CLI embeds the Sqlite data.db,
-      # so we need to get a copy ready first.
-      #
-      # Release, not Debug: a few seconds more to compile, and the package load takes about
-      # half as long.
+      # Each library is compiled once in this job, by this step, in Release so the package load
+      # runs optimized. The two builds below reuse them: the package load rewrites
+      # package-ref-hashes.txt, which only Cli embeds.
       - run:
           name: Build LocalExec for migrations (Release)
           command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
@@ -424,40 +338,56 @@ jobs:
       - run:
           name: Load packages into database
           command: python3 .circleci/collect_diagnostics.py --run packages -- scripts/build/reload-packages --published
-
       - assert-clean-worktree
-      # Just the host build, on main as much as anywhere else. This is a
-      # compile check now: release artifacts come from the tag-driven
-      # `release-clis` workflow, so cross-compiling all eight here was work
-      # nothing consumed.
+      # The CLI embeds this seed, and the F# tests get their own copy of it instead of parsing
+      # the same sources again.
       - run:
-          name: Export the seed for the CLI build
+          name: Export the seed the CLI embeds
           command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec --published export-seed rundir/seed.db
-      # --reuse-libraries: only Cli is compiled, against the libraries LocalExec's build left,
-      # which are the same bytes the publish would compile. The release jobs build in full.
+
+      - run:
+          name: Build the tests (Release)
+          command: ./scripts/build/_dotnet-wrapper publish -c Release tests/Tests/Tests.fsproj /p:DebugType=None /p:DebugSymbols=false
+
+      # The host CLI, the way we ship it: `--mode=auto` resolves to NativeAOT on linux-x64. It is
+      # a compile check, the binary the gates and package tests run, and the one the
+      # instance-backed F# suites start a couple of thousand times a run, where the AOT binary
+      # takes about half as long and a third of the CPU of a JIT-published one. Release
+      # artifacts come from the tag-driven `release-clis` workflow.
+      #
+      # --reuse-libraries: only Cli is compiled, against the libraries the steps above built.
+      # The publish would otherwise compile them all again, to the same bytes.
       - sqlite-archive
-      - run: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db --reuse-libraries
+      - run:
+          name: Build the CLI
+          command: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db --reuse-libraries
 
       # Allocation for a fixed workload is steady enough to assert on and doesn't care how
       # loaded the box is, which is more than can be said for time. The gate grows a store of
       # its own, so the first run is cold, and budgets that run's allocation and peak memory
       # too. Time is only compared as a ratio: CPU against the release pinned in
-      # scripts/perf/budget.json, run in turns on this same box.
-      #
-      # It runs HERE rather than in `build-backend` because the budget is recorded in a publish
-      # mode, and only this job produces that mode. The step above defaults to `--mode=auto`,
-      # which for this host's linux-x64 resolves to NativeAOT and writes the marker the gate
-      # checks. AOT is also what the release matrix ships, so this measures what users get.
-      # About half a minute, with the download of the newest release.
+      # scripts/perf/budget.json, run in turns on this same box. First of the checks on the
+      # binary, because its CPU comparison wants the box to itself. About half a minute, with
+      # the download of the newest release.
       - run:
           name: Check allocation, first-run memory, and CPU against the last release
           command: python3 .circleci/collect_diagnostics.py --run allocation -- scripts/perf/gate --published
 
+      # Bounded, so a wedged suite dies at a known point with its log intact rather than
+      # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the
+      # default no-output timeout can no longer fire on a healthy-but-slow run.
+      - run:
+          name: Run F# tests
+          command: |
+            # --split runs the sequenced tests in two processes alongside the parallel ones.
+            DARK_TEST_CLI="$PWD/$(ls clis/darklang-*-linux-x64)" \
+            DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
+              --run backend-tests -- timeout 20m scripts/run-fsharp-tests --published --split
+
       # A fresh install of the binary just built: empty home, the whole SCM workflow, then the
-      # layout the installer leaves. Here and not in `gates ci` because this is the only job with
-      # the single-file binary people download; see CI_GATES in scripts/testing/gates. Nothing in
-      # this workflow gzips clis/ (only the release matrix's package-clis does), so the bare
-      # binary is there.
+      # layout the installer leaves. Here and not in `gates ci` because it needs the single-file
+      # binary people download; see CI_GATES in scripts/testing/gates. Nothing in this workflow
+      # gzips clis/ (only the release matrix's package-clis does), so the bare binary is there.
       - run:
           name: First-day gate on the built CLI
           command: timeout 5m scripts/testing/gates first-day "$(ls clis/darklang-*-linux-x64)"
@@ -465,13 +395,10 @@ jobs:
       # The package tests and the gate scripts, at the same time. Both run the shipped binary,
       # and each gate has its own rundir and HOME, which is what lets `gates all` run every gate
       # at once locally; package-tests is one of those gates. One after the other they were
-      # about three minutes, the longest stretch of this job.
+      # about three minutes.
       #
       # Each package test starts a fresh process, so they use the NativeAOT CLI built here
       # rather than paying managed-runtime startup for every test.
-      #
-      # The gates are end-to-end checks on the shipped binary. Keep them after the perf gate:
-      # its CPU comparison wants the box to itself.
       - run:
           name: Dark package tests and gate scripts (the CI subset)
           command: |
@@ -489,9 +416,16 @@ jobs:
             echo; echo "==> gate scripts (the CI subset)"; cat /tmp/gates-ci.log
             echo; echo "package tests exited $package_tests, gate scripts exited $gates_status"
             [[ "$package_tests" -eq 0 && "$gates_status" -eq 0 ]]
-      # A gate must not write to the source tree; `gates all` runs them at once.
-      - assert-clean-worktree
 
+      ## TODO: too many race conditions. Bring back later
+      # Test package manager/cli integration works
+      # - run: scripts/build/run-migrations --published
+      # - run: sleep 5 # let migrations run
+      # - run: scripts/build/reload-packages --published
+      # - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0
+
+      # Neither the tests nor a gate may write to the source tree.
+      - assert-clean-worktree
       - show-large-files-and-directories
       - store-ci-diagnostics
       # The binary is ~34 MB a build. Kept on main, and on any failure so the binary that
@@ -514,8 +448,7 @@ jobs:
   #
   # NativeAOT runs ilc and then the *platform* linker, so a build host only
   # produces binaries for its own OS family. That's the whole reason this is a
-  # fan-out rather than the single cross-compiling container that `build-cli`
-  # uses for R2R.
+  # fan-out rather than one cross-compiling container.
   #
   ##########################
 
@@ -596,7 +529,6 @@ jobs:
       # symbols that only appeared in ~2.34, which puts its AOT floor well
       # above the one we target. Not something cross-compile flags can fix.
       #
-      # Both keep getting the R2R build from `build-cli`.
       - run:
           name: AOT-publish the linux runtimes
           command: |
@@ -853,16 +785,13 @@ workflows:
   build-and-deploy:
     unless: << pipeline.parameters.superseded-by >>
     jobs:
-      # Build jobs
-      - build-backend
-      - build-cli
+      - build
 
-      # Passes only when both above did. scripts/deployment/release checks
+      # Passes only when the build did. scripts/deployment/release checks
       # it before tagging, and tag-release waits on it.
       - ok-to-deploy:
           requires:
-            - build-backend
-            - build-cli
+            - build
 
       # Release every green merge to main; see the tag-release job.
       # - tag-release:

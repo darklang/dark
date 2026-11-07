@@ -13,8 +13,8 @@
 #
 # With --wait it polls every 30s and ends with one line to match on:
 #
-#   ci-status: success build-backend build-cli ok-to-deploy
-#   ci-status: failure build-cli
+#   ci-status: success build ok-to-deploy
+#   ci-status: failure build
 #
 # and exits 0 on success, 1 on failure. Without --wait the same line says `pending` while
 # anything is still running (exit 2).

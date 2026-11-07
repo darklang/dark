@@ -59,7 +59,7 @@ GATES=(
 # fixing it without running it leaves the next one to rot the same way. So a new gate goes in
 # here unless there is a reason it cannot.
 #
-# first-day is not in this list because it needs the binary's path, so `build-cli` runs it as its
+# first-day is not in this list because it needs the binary's path, so CI's `build` job runs it as its
 # own step. The gates below run later in that same job, against the same binary.
 #
 # Measured locally, for comparison with the 5m per-gate bound CI applies:
@@ -230,7 +230,7 @@ case "$cmd" in
     for g in "${GATES[@]}"; do printf "  %-$((w + 2))s%s\n" "$g" "$(describe "$g")"; done
     echo
     echo "  ci  = ${CI_GATES[*]}" | fold -sw 84 | sed -e '2,$s/^/        /' -e 's/ *$//'
-    echo "        (first-day also runs in CI, in build-cli, on the binary that job builds)"
+    echo "        (first-day also runs in CI, in the build job, on the binary it builds)"
     echo "  all = every gate except gates-are-clean, all at once, with per-gate timings."
     echo "        --serial runs them one after another (the sum, not the slowest)."
     echo "  ci  runs serial; --parallel for the same thing at once, still each bounded by 5m."
@@ -250,8 +250,8 @@ case "$cmd" in
     ;;
   ci)
     # Serial by default, for reading one gate's output as it happens. CI passes --parallel and runs
-    # package-tests beside them: they are the tail of build-cli, and the jobs a PR waits on are
-    # about level now, so a minute off this one is a minute off the wait.
+    # package-tests beside them: they are the tail of CI's build job, the one a PR waits on, so a
+    # minute off this one is a minute off the wait.
     if [[ "${1:-}" == "--parallel" ]]; then
       run_parallel bound "${CI_GATES[@]}"
     else
