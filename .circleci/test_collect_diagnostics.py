@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check complete diagnostics and automatic failure snapshots; no container needed."""
 
-import gzip
+import lzma
 import json
 import os
 import re
@@ -120,9 +120,9 @@ class DiagnosticsTests(unittest.TestCase):
     self.record("backend-tests")
     self.record("gate-trait-choice-survives-rival", "passed")
     diagnostics.failure_databases(self.root)
-    saved = list((self.output / "databases").rglob("*.gz"))
+    saved = list((self.output / "databases").rglob("*.xz"))
     self.assertEqual([p.relative_to(self.output / "databases").as_posix()
-                      for p in saved], ["test-data.db.gz"])
+                      for p in saved], ["test-data.db.xz"])
 
   def test_failed_split_run_saves_every_process_store(self):
     self.database("test-data.db")
@@ -131,9 +131,9 @@ class DiagnosticsTests(unittest.TestCase):
     self.record("backend-tests")
     diagnostics.failure_databases(self.root)
     saved = sorted(p.relative_to(self.output / "databases").as_posix()
-                   for p in (self.output / "databases").rglob("*.gz"))
-    self.assertEqual(saved, ["split-sequenced-2/.darklang/test-data.db.gz",
-                             "split-sequenced/.darklang/test-data.db.gz", "test-data.db.gz"])
+                   for p in (self.output / "databases").rglob("*.xz"))
+    self.assertEqual(saved, ["split-sequenced-2/.darklang/test-data.db.xz",
+                             "split-sequenced/.darklang/test-data.db.xz", "test-data.db.xz"])
 
   def test_successful_run_has_no_database_artifacts(self):
     self.database("test-data.db")
@@ -157,8 +157,8 @@ class DiagnosticsTests(unittest.TestCase):
     diagnostics.failure_databases(self.root)
     diagnostics.collect(self.root)
     restored = Path(self.temporary.name) / "restored.db"
-    restored.write_bytes(gzip.decompress(
-      (self.output / "databases/test-data.db.gz").read_bytes()))
+    restored.write_bytes(lzma.decompress(
+      (self.output / "databases/test-data.db.xz").read_bytes()))
     with sqlite3.connect(restored) as snapshot:
       self.assertEqual(snapshot.execute("SELECT * FROM evidence").fetchall(),
                        [("failure detail",)])
@@ -176,7 +176,7 @@ class DiagnosticsTests(unittest.TestCase):
     # main one is corrupt, and the split ones were never created).
     self.assertEqual(len(results), 5)
     self.assertTrue(all(r["status"].startswith("unavailable:") for r in results))
-    self.assertEqual(list(self.output.rglob("*.db.gz")), [])
+    self.assertEqual(list(self.output.rglob("*.db.xz")), [])
 
   def test_backup_timeout_is_reported_instead_of_a_partial_snapshot(self):
     self.database("test-data.db")
@@ -185,7 +185,7 @@ class DiagnosticsTests(unittest.TestCase):
       diagnostics.failure_databases(self.root)
     results = json.loads((self.output / "databases.json").read_text())["databases"]
     self.assertIn("exceeded", results[0]["status"])
-    self.assertEqual(list(self.output.rglob("*.db.gz")), [])
+    self.assertEqual(list(self.output.rglob("*.db.xz")), [])
 
   def test_interrupted_check_is_saved_and_timeout_exit_is_preserved(self):
     self.database("trait-rival/.darklang/data.db")
@@ -195,8 +195,8 @@ class DiagnosticsTests(unittest.TestCase):
       "timeout", "0.1", sys.executable, "-c", "import time; time.sleep(10)"])
     self.assertEqual(rc, 124)
     diagnostics.failure_databases(self.root)
-    self.assertTrue((self.output / "databases/test-data.db.gz").exists())
-    self.assertTrue((self.output / "databases/trait-rival/.darklang/data.db.gz").exists())
+    self.assertTrue((self.output / "databases/test-data.db.xz").exists())
+    self.assertTrue((self.output / "databases/trait-rival/.darklang/data.db.xz").exists())
 
   def test_real_gate_runner_records_only_failed_gate_stores(self):
     # Real dispatch/recording, fake gate bodies: no Dark build or container needed.
@@ -227,8 +227,8 @@ gate_workbench_views() { return 0; }
                               cwd=work, env=env, capture_output=True, text=True)
       self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
     diagnostics.failure_databases(self.root)
-    self.assertTrue((self.output / "databases/workbench-scm-test/.darklang/data.db.gz").exists())
-    self.assertFalse((self.output / "databases/workbench-views-test/.darklang/data.db.gz").exists())
+    self.assertTrue((self.output / "databases/workbench-scm-test/.darklang/data.db.xz").exists())
+    self.assertFalse((self.output / "databases/workbench-views-test/.darklang/data.db.xz").exists())
 
   def test_every_registered_gate_has_an_explicit_database_mapping(self):
     runner = Path(__file__).resolve().parent.parent / "scripts/testing/gates"
@@ -286,7 +286,7 @@ print('{"id":"abcdef"}')
         self.assertEqual(list((self.root / "first-day").iterdir()), [])
     self.record("gate-first-day")
     diagnostics.failure_databases(self.root)
-    saved = list((self.output / "databases/first-day").rglob("*.gz"))
+    saved = list((self.output / "databases/first-day").rglob("*.xz"))
     self.assertEqual(len(saved), 2, result.stdout + result.stderr)
 
 
