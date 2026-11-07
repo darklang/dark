@@ -49,16 +49,15 @@ type Stabilization =
   }
 
 
-/// Iterate `(fqn, currentHash, location)` over every item in the input.
-let private iterItems
-  (input : Input)
-  (f : string -> Hash -> PT.PackageLocation -> unit)
-  : unit =
-  input.types |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
-  input.fns |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
-  input.values |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
-  input.traits |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
-  input.impls |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
+/// `(fqn, currentHash, location)` of every item in the input.
+let private items (input : Input) : List<string * Hash * PT.PackageLocation> =
+  let entries (m : Map<string, 'item * Hash * PT.PackageLocation>) =
+    m |> Map.toList |> List.map (fun (fqn, (_, h, loc)) -> (fqn, h, loc))
+  entries input.types
+  @ entries input.fns
+  @ entries input.values
+  @ entries input.traits
+  @ entries input.impls
 
 
 /// Extract deps for one item by FQN.
@@ -126,17 +125,16 @@ let stabilize (seedMapping : AT.HashMapping) (input : Input) : Stabilization =
 
   // Prefer location edges; they keep stale refs connected after hash changes.
   let locationToFqn : Map<PT.PackageLocation, string> =
-    let mutable m = Map.empty
-    iterItems input (fun fqn _ loc -> m <- Map.add loc fqn m)
-    m
+    items input |> List.fold (fun m (fqn, _, loc) -> Map.add loc fqn m) Map.empty
 
   // Fallback for deps without location.
   let hashToFqns : Map<Hash, List<string>> =
-    let mutable m = Map.empty
-    iterItems input (fun fqn h _ ->
-      let existing = Map.tryFind h m |> Option.defaultValue []
-      m <- Map.add h (fqn :: existing) m)
-    m
+    items input
+    |> List.fold
+      (fun m (fqn, h, _) ->
+        let existing = Map.tryFind h m |> Option.defaultValue []
+        Map.add h (fqn :: existing) m)
+      Map.empty
 
   let resolveDep (dep : DE.Dependency) : List<string> =
     match dep.location with
@@ -168,20 +166,22 @@ let stabilize (seedMapping : AT.HashMapping) (input : Input) : Stabilization =
 
   // Extend the caller seed with every batched item's final hash.
   let byLocation : Map<PT.PackageLocation, Hash> =
-    let mutable m = seedMapping.byLocation
-    iterItems input (fun fqn _ loc ->
-      match Map.tryFind fqn fqnHashes with
-      | Some newHash -> m <- Map.add loc newHash m
-      | None -> ())
-    m
+    items input
+    |> List.fold
+      (fun m (fqn, _, loc) ->
+        match Map.tryFind fqn fqnHashes with
+        | Some newHash -> Map.add loc newHash m
+        | None -> m)
+      seedMapping.byLocation
 
   let byHash : Map<Hash, Hash> =
-    let mutable m = seedMapping.byHash
-    iterItems input (fun fqn currentHash _ ->
-      match Map.tryFind fqn fqnHashes with
-      | Some newHash -> m <- Map.add currentHash newHash m
-      | None -> ())
-    m
+    items input
+    |> List.fold
+      (fun m (fqn, currentHash, _) ->
+        match Map.tryFind fqn fqnHashes with
+        | Some newHash -> Map.add currentHash newHash m
+        | None -> m)
+      seedMapping.byHash
 
   { fqnHashes = fqnHashes
     mapping =
@@ -240,37 +240,30 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // Walk the op list pairwise to collect items keyed by FQN, paired with
   // their SetName hashes and locations. Add* is always followed by SetName.
   //
-  let mutable typeMap = Map.empty
-  let mutable fnMap = Map.empty
-  let mutable valueMap = Map.empty
-  let mutable traitMap = Map.empty
-  let mutable implMap = Map.empty
+  let input =
+    List.pairwise ops
+    |> List.fold
+      (fun (acc : Input) (declaration, binding) ->
+        match PT.tryDeclarationBinding (declaration, binding) with
+        | None -> acc
+        | Some(loc, target) ->
+          let key = PackageLocation.toFQN loc
+          let hash = target.hash
+          match declaration with
+          | PT.PackageOp.AddType item ->
+            { acc with types = Map.add key (item, hash, loc) acc.types }
+          | PT.PackageOp.AddFn item ->
+            { acc with fns = Map.add key (item, hash, loc) acc.fns }
+          | PT.PackageOp.AddValue item ->
+            { acc with values = Map.add key (item, hash, loc) acc.values }
+          | PT.PackageOp.AddTrait item ->
+            { acc with traits = Map.add key (item, hash, loc) acc.traits }
+          | PT.PackageOp.AddTraitImpl item ->
+            { acc with impls = Map.add key (item, hash, loc) acc.impls }
+          | _ -> acc)
+      emptyInput
 
-  for (declaration, binding) in List.pairwise ops do
-    match PT.tryDeclarationBinding (declaration, binding) with
-    | None -> ()
-    | Some(loc, target) ->
-      let key = PackageLocation.toFQN loc
-      let hash = target.hash
-      match declaration with
-      | PT.PackageOp.AddType item -> typeMap <- Map.add key (item, hash, loc) typeMap
-      | PT.PackageOp.AddFn item -> fnMap <- Map.add key (item, hash, loc) fnMap
-      | PT.PackageOp.AddValue item ->
-        valueMap <- Map.add key (item, hash, loc) valueMap
-      | PT.PackageOp.AddTrait item ->
-        traitMap <- Map.add key (item, hash, loc) traitMap
-      | PT.PackageOp.AddTraitImpl item ->
-        implMap <- Map.add key (item, hash, loc) implMap
-      | _ -> ()
-
-  let s =
-    stabilize
-      AT.emptyMapping
-      { types = typeMap
-        fns = fnMap
-        values = valueMap
-        traits = traitMap
-        impls = implMap }
+  let s = stabilize AT.emptyMapping input
 
   // Walk ops again, replacing SetName hashes with computed hashes and
   // transforming Add* bodies via the substitution. Setting `hash` on the

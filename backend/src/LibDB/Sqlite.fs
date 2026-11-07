@@ -415,3 +415,9 @@ let jsonRows (rows : List<List<string>>) : string =
     for row in rows do
       writeStrings w row
     w.WriteEndArray())
+
+/// Every remaining row of <param reader>, each read with <param read>, in order.
+let readRows (read : SqliteDataReader -> 'a) (reader : SqliteDataReader) : List<'a> =
+  let rec go (acc : List<'a>) =
+    if reader.Read() then go (read reader :: acc) else List.rev acc
+  go []

@@ -290,13 +290,17 @@ module Bytes =
       let orphans =
         allHashes |> List.filter (fun h -> not (Set.contains h referenced))
 
-      let mutable deleted = 0L
-      for h in orphans do
-        let! count =
-          Sql.query "DELETE FROM package_blobs WHERE hash = @hash"
-          |> Sql.parameters [ "hash", Sql.string h ]
-          |> Sql.executeNonQueryAsync
-        deleted <- deleted + int64 count
-
-      return deleted
+      return!
+        orphans
+        |> Ply.List.foldSequentially
+          (fun deleted h ->
+            uply {
+              let! count =
+                Sql.query "DELETE FROM package_blobs WHERE hash = @hash"
+                |> Sql.parameters [ "hash", Sql.string h ]
+                |> Sql.executeNonQueryAsync
+              return deleted + int64 count
+            })
+          0L
+        |> Ply.toTask
     }

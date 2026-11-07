@@ -62,19 +62,20 @@ let private referenceSlots op =
 /// `twice` attached to the second call. Match references by their AST positions:
 /// two calls can have the same target hash and still use different aliases.
 let refreshNames before after =
-  let mutable oldCount = 0
+  let oldIndexes, oldCount =
+    referenceSlots before
+    |> List.mapFold
+      (fun count old ->
+        match old with
+        | Some _ -> (Some count, count + 1)
+        | None -> (None, count))
+      0
   let positions =
     List.map2
-      (fun old current ->
-        let index =
-          old
-          |> Option.map (fun _ ->
-            let index = oldCount
-            oldCount <- oldCount + 1
-            index)
+      (fun index current ->
         current
         |> Option.map (fun (reference, location) -> reference, location, index))
-      (referenceSlots before)
+      oldIndexes
       (referenceSlots after)
     |> List.choose (fun slot -> slot)
   fun (names : Names) ->
@@ -116,22 +117,35 @@ let storedNames target : Task<Option<Names>> =
   | PT.PackageTest hash ->
     read "package_tests" BS.PT.PackageTest.deserialize AT.transformTest hash
 
+/// `storedNames` of each distinct target, read once each, in order.
+let storedNamesEach
+  (targets : List<PT.Reference>)
+  : Task<List<PT.Reference * Option<Names>>> =
+  targets
+  |> List.distinct
+  |> Ply.List.mapSequentially (fun target ->
+    uply {
+      let! names = storedNames target
+      return (target, names)
+    })
+  |> Ply.toTask
+
 /// Read the names from stored declaration bodies, before branch metadata is applied.
 let storedSnapshots (sources : List<PT.PackageLocation * PT.Reference>) =
   task {
-    let result = ResizeArray<PT.ReferenceNamesSnapshot>()
-    let mutable originals = Map.empty
-    for (location, target) in List.distinct sources do
-      if not (Map.containsKey target originals) then
-        let! names = storedNames target
-        originals <- Map.add target names originals
-      let names = Microsoft.FSharp.Collections.Map.find target originals
-      match names with
-      | Some names ->
-        result.Add
-          { location = location; target = target; names = names; restating = None }
-      | None -> ()
-    return List.ofSeq result
+    let sources = List.distinct sources
+    let! originals = sources |> List.map snd |> storedNamesEach
+    let originals = Map.ofList originals
+    return
+      sources
+      |> List.choose (fun (location, target) ->
+        Microsoft.FSharp.Collections.Map.find target originals
+        |> Option.map (fun names ->
+          ({ location = location
+             target = target
+             names = names
+             restating = None }
+          : PT.ReferenceNamesSnapshot)))
   }
 
 /// Check the snapshots before any operations are saved.
@@ -150,26 +164,42 @@ let validate (ops : List<PT.PackageOp>) : Task<Option<string>> =
           (fun map (target, names) ->
             if Map.containsKey target map then map else Map.add target names map)
           Map.empty
-      let mutable storedByTarget = Map.empty
-      let mutable problem = None
-      for snapshot in snapshots do
-        if Option.isNone problem then
-          let target = snapshot.target
-          let names = snapshot.names
-          if not (Map.containsKey target storedByTarget) then
-            let! stored = storedNames target
-            storedByTarget <- Map.add target stored storedByTarget
-          let stored = Microsoft.FSharp.Collections.Map.find target storedByTarget
-          let original =
-            stored |> Option.orElseWith (fun () -> Map.tryFind target bodies)
-          match original with
-          | None ->
-            problem <-
-              Some "reference snapshot names a declaration that is not available"
-          | Some original when List.map fst original <> List.map fst names ->
-            problem <-
-              Some "reference snapshot does not match the declaration's references"
-          | Some _ -> ()
+      // Stops reading at the first problem.
+      let! _, problem =
+        snapshots
+        |> Ply.List.foldSequentially
+          (fun (storedByTarget, problem) snapshot ->
+            uply {
+              if Option.isSome problem then
+                return (storedByTarget, problem)
+              else
+                let target = snapshot.target
+                let names = snapshot.names
+                let! storedByTarget =
+                  if Map.containsKey target storedByTarget then
+                    Ply storedByTarget
+                  else
+                    uply {
+                      let! stored = storedNames target
+                      return Map.add target stored storedByTarget
+                    }
+                let stored =
+                  Microsoft.FSharp.Collections.Map.find target storedByTarget
+                let original =
+                  stored |> Option.orElseWith (fun () -> Map.tryFind target bodies)
+                let problem =
+                  match original with
+                  | None ->
+                    Some
+                      "reference snapshot names a declaration that is not available"
+                  | Some original when List.map fst original <> List.map fst names ->
+                    Some
+                      "reference snapshot does not match the declaration's references"
+                  | Some _ -> None
+                return (storedByTarget, problem)
+            })
+          (Map.empty, None)
+        |> Ply.toTask
       return problem
 
   }

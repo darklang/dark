@@ -194,24 +194,17 @@ let private dropDependencyIndexesIfEmpty
        WHERE type = 'index' AND tbl_name = 'package_dependencies'
          AND sql IS NOT NULL AND sql NOT LIKE 'CREATE UNIQUE%'
          AND NOT EXISTS (SELECT 1 FROM package_dependencies)"
-    let indexes = System.Collections.Generic.List<string * string>()
-    do!
+    let! indexes =
       task {
         use! reader = cmd.ExecuteReaderAsync()
-        let mutable more = true
-        while more do
-          let! found = reader.ReadAsync()
-          if found then
-            indexes.Add(reader.GetString 0, reader.GetString 1)
-          else
-            more <- false
+        return reader |> Sqlite.readRows (fun r -> (r.GetString 0, r.GetString 1))
       }
     for (name, _) in indexes do
       use drop = conn.CreateCommand()
       drop.CommandText <- $"DROP INDEX {name}"
       let! _ = drop.ExecuteNonQueryAsync()
       ()
-    return indexes |> Seq.map snd |> List.ofSeq
+    return List.map snd indexes
   }
 
 
@@ -257,11 +250,9 @@ let foldRead
           let unappliedOps =
             chunk
             |> List.choose (fun (seq, branch, opId, opBlob) ->
-              match BS.PT.PackageOp.tryDeserialize opId opBlob with
-              | Some op -> Some(seq, branch, op)
-              | None ->
-                skipped <- skipped + 1
-                None)
+              BS.PT.PackageOp.tryDeserialize opId opBlob
+              |> Option.map (fun op -> (seq, branch, op)))
+          skipped <- skipped + List.length chunk - List.length unappliedOps
 
           if not (List.isEmpty unappliedOps) then
             if isNull conn then
@@ -508,118 +499,130 @@ let evaluateAllValues
       |> configureFor authority
 
     let maxPasses = 10
-    let mutable pass = 0
-    let mutable keepGoing = true
-    let mutable lastErrors : List<ValueEvaluationError> = []
 
-    while keepGoing do
-      pass <- pass + 1
+    let unevaluated () =
+      Sql.query
+        """
+        SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
+        FROM package_values pv
+        LEFT JOIN locations l ON l.item_hash = pv.hash AND l.live = 1
+        WHERE pv.rt_dval IS NULL
+        GROUP BY pv.hash
+        """
+      |> Sql.executeAsync (fun read ->
+        let hash = Hash(read.string "hash")
+        let ptDef = read.bytes "pt_def"
+        let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
+        let modules = read.stringOrNone "modules" |> Option.defaultValue ""
+        let name = read.stringOrNone "name" |> Option.defaultValue "?"
+        let fullName =
+          if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+        (hash, ptDef, fullName))
 
-      let! unevaluatedValues =
-        Sql.query
-          """
-          SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
-          FROM package_values pv
-          LEFT JOIN locations l ON l.item_hash = pv.hash AND l.live = 1
-          WHERE pv.rt_dval IS NULL
-          GROUP BY pv.hash
-          """
-        |> Sql.executeAsync (fun read ->
-          let hash = Hash(read.string "hash")
-          let ptDef = read.bytes "pt_def"
-          let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
-          let modules = read.stringOrNone "modules" |> Option.defaultValue ""
-          let name = read.stringOrNone "name" |> Option.defaultValue "?"
-          let fullName =
-            if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
-          (hash, ptDef, fullName))
+    let evaluate
+      (
+        valueHash : Hash,
+        ptDefBytes : byte[],
+        fullName : string
+      ) : Ply<Result<unit, ValueEvaluationError>> =
+      uply {
+        try
+          let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
+          let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
+          let! result = Execution.executeExpr exeState instrs
 
-      if List.isEmpty unevaluatedValues then
-        keepGoing <- false
-        lastErrors <- []
-      else if pass > maxPasses then
-        keepGoing <- false
-        lastErrors <-
-          [ { hash = None
-              location = ""
-              message =
-                $"Gave up after {maxPasses} passes with "
-                + $"{List.length unevaluatedValues} values remaining" } ]
-      else
-        let errors = ResizeArray<ValueEvaluationError>()
-        let mutable successCount = 0
-
-        for (valueHash, ptDefBytes, fullName) in unevaluatedValues do
-          try
-            let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
-            let instrs = PT2RT.Expr.toRT Map.empty 0 None ptValue.body
-            let! result = Execution.executeExpr exeState instrs
-
-            match result with
-            | Error(rte, _callStack) ->
-              let! errorResult = Execution.runtimeErrorToString exeState rte
-              let errorMsg =
-                match errorResult with
-                | Ok(RT.DString s) -> s
-                | Ok other -> LibExecution.Dval.toDebugString other
-                | Error(rte2, _) ->
-                  let shown = Execution.runtimeErrorDebugString rte2
-                  $"(could not stringify error: {shown})"
-              errors.Add(
+          match result with
+          | Error(rte, _callStack) ->
+            let! errorResult = Execution.runtimeErrorToString exeState rte
+            let errorMsg =
+              match errorResult with
+              | Ok(RT.DString s) -> s
+              | Ok other -> LibExecution.Dval.toDebugString other
+              | Error(rte2, _) ->
+                let shown = Execution.runtimeErrorDebugString rte2
+                $"(could not stringify error: {shown})"
+            return
+              Error
                 { hash = Some valueHash
                   location = fullName
                   message = $"evaluation failed - {errorMsg}" }
-              )
-            | Ok dval ->
-              // Save any unsaved Bytes inside the value so it can be
-              // serialized. Streams remain
-              // non-persistable and trip the [isPersistable] guard
-              // below with a clear error.
-              let! dval = LibExecution.Bytes.promote pm.persistBytes dval
-              let dval = stripCapturedAccess dval
+          | Ok dval ->
+            // Save any unsaved Bytes inside the value so it can be
+            // serialized. Streams remain
+            // non-persistable and trip the [isPersistable] guard
+            // below with a clear error.
+            let! dval = LibExecution.Bytes.promote pm.persistBytes dval
+            let dval = stripCapturedAccess dval
 
-              if not (LibExecution.Dval.isPersistable dval) then
-                let reason =
-                  LibExecution.Dval.nonPersistableReason dval
-                  |> Option.defaultValue "value is not persistable"
-                errors.Add(
+            if not (LibExecution.Dval.isPersistable dval) then
+              let reason =
+                LibExecution.Dval.nonPersistableReason dval
+                |> Option.defaultValue "value is not persistable"
+              return
+                Error
                   { hash = Some valueHash
                     location = fullName
                     message = $"cannot store in val — {reason}" }
-                )
-              else
-                let rtHash = PT2RT.Hash.toRT valueHash
-                let rtValue : RT.PackageValue.PackageValue =
-                  { hash = rtHash; body = dval }
-                let (Hash defHash) = valueHash
-                let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
-                let valueType = RT.Dval.toValueType dval
-                let valueTypeBytes = BS.RT.ValueType.serialize valueType
+            else
+              let rtHash = PT2RT.Hash.toRT valueHash
+              let rtValue : RT.PackageValue.PackageValue =
+                { hash = rtHash; body = dval }
+              let (Hash defHash) = valueHash
+              let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
+              let valueType = RT.Dval.toValueType dval
+              let valueTypeBytes = BS.RT.ValueType.serialize valueType
 
-                do!
-                  Sql.query
-                    """
-                    UPDATE package_values
-                    SET rt_dval = @rt_dval, value_type = @value_type
-                    WHERE hash = @hash
-                    """
-                  |> Sql.parameters
-                    [ "hash", Sql.string defHash
-                      "rt_dval", Sql.bytes rtDvalBytes
-                      "value_type", Sql.bytes valueTypeBytes ]
-                  |> Sql.executeStatementAsync
+              do!
+                Sql.query
+                  """
+                  UPDATE package_values
+                  SET rt_dval = @rt_dval, value_type = @value_type
+                  WHERE hash = @hash
+                  """
+                |> Sql.parameters
+                  [ "hash", Sql.string defHash
+                    "rt_dval", Sql.bytes rtDvalBytes
+                    "value_type", Sql.bytes valueTypeBytes ]
+                |> Sql.executeStatementAsync
 
-                successCount <- successCount + 1
-          with ex ->
-            errors.Add(
+              return Ok()
+        with ex ->
+          return
+            Error
               { hash = Some valueHash
                 location = fullName
                 message = $"exception - {ex.Message}" }
-            )
+      }
 
-        if successCount = 0 then
-          keepGoing <- false
-          lastErrors <- errors |> List.ofSeq
+    // Stops when nothing is left, when a pass evaluates nothing, or after maxPasses.
+    let rec passes (pass : int) : Task<List<ValueEvaluationError>> =
+      task {
+        let! unevaluatedValues = unevaluated ()
+        if List.isEmpty unevaluatedValues then
+          return []
+        else if pass > maxPasses then
+          return
+            [ { hash = None
+                location = ""
+                message =
+                  $"Gave up after {maxPasses} passes with "
+                  + $"{List.length unevaluatedValues} values remaining" } ]
+        else
+          let! results =
+            Ply.List.mapSequentially evaluate unevaluatedValues |> Ply.toTask
+          let errors =
+            results
+            |> List.choose (fun r ->
+              match r with
+              | Error e -> Some e
+              | Ok() -> None)
+          if List.length errors = List.length results then
+            return errors
+          else
+            return! passes (pass + 1)
+      }
+
+    let! lastErrors = passes 1
 
     if List.isEmpty lastErrors then return Ok() else return Error lastErrors
   }

@@ -288,54 +288,35 @@ let createInMemoryOver
   // Folded in op order, latest wins per location, as the `locations` fold does for main. One name holds
   // ONE item, so binding a fn over a name that held a value drops the value's binding, and an `Unbind`
   // drops whatever the name held.
-  let typeLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
-  let valueLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
-  let fnLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
-  let traitLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
-  let implLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
-  let testLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
-  let unbind loc =
-    typeLocs.Remove loc |> ignore<bool>
-    valueLocs.Remove loc |> ignore<bool>
-    fnLocs.Remove loc |> ignore<bool>
-    traitLocs.Remove loc |> ignore<bool>
-    implLocs.Remove loc |> ignore<bool>
-    testLocs.Remove loc |> ignore<bool>
-  let bind loc target =
-    unbind loc
-    match target with
-    | PT.PackageType h -> typeLocs[loc] <- h
-    | PT.PackageValue h -> valueLocs[loc] <- h
-    | PT.PackageFn h -> fnLocs[loc] <- h
-    | PT.PackageTrait h -> traitLocs[loc] <- h
-    | PT.PackageTraitImpl h -> implLocs[loc] <- h
-    | PT.PackageTest h -> testLocs[loc] <- h
+  let bindings : Map<PT.PackageLocation, PT.Reference> =
+    List.collect PT.packageOpBindingEffects ops
+    |> List.fold
+      (fun bindings op ->
+        match op with
+        | PT.PackageOp.SetName(loc, target, _) -> Map.add loc target bindings
+        | PT.PackageOp.Unbind(loc, _) -> Map.remove loc bindings
+        | PT.PackageOp.AddType _
+        | PT.PackageOp.AddValue _
+        | PT.PackageOp.AddFn _
+        | PT.PackageOp.AddTrait _
+        | PT.PackageOp.AddTraitImpl _
+        | PT.PackageOp.AddTest _ -> bindings
 
-  for op in List.collect PT.packageOpBindingEffects ops do
-    match op with
-    | PT.PackageOp.SetName(loc, target, _) -> bind loc target
-    | PT.PackageOp.Unbind(loc, _) -> unbind loc
-    | PT.PackageOp.AddType _
-    | PT.PackageOp.AddValue _
-    | PT.PackageOp.AddFn _
-    | PT.PackageOp.AddTrait _
-    | PT.PackageOp.AddTraitImpl _
-    | PT.PackageOp.AddTest _ -> ()
+        // None of these change what a name points at -- an ack records what a person decided ABOUT a
+        // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those) -- so
+        // an overlay of bindings has nothing to do here.
+        | PT.PackageOp.Deprecate _
+        | PT.PackageOp.Undeprecate _
+        | PT.PackageOp.Rename _
+        | PT.PackageOp.SetReferenceNames _
+        | PT.PackageOp.UpdateDoc _
+        | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Ack _) -> bindings
 
-    // None of these change what a name points at -- an ack records what a person decided ABOUT a
-    // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those) -- so
-    // an overlay of bindings has nothing to do here.
-    | PT.PackageOp.Deprecate _
-    | PT.PackageOp.Undeprecate _
-    | PT.PackageOp.Rename _
-    | PT.PackageOp.SetReferenceNames _
-    | PT.PackageOp.UpdateDoc _
-    | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Ack _) -> ()
-
-    // An override binds a name like a SetName does; the overlay only cares about the binding.
-    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
-    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
-      bind loc target
+        // An override binds a name like a SetName does; the overlay only cares about the binding.
+        | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Restore(_, target, _))
+        | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
+          Map.add loc target bindings)
+      Map.empty
 
   // Items are keyed by the hash the item CARRIES, which after stabilization is the hash its SetName
   // names. Pairing by ADJACENCY -- "the Add just before this SetName" -- is wrong for an overlay:
@@ -356,19 +337,18 @@ let createInMemoryOver
         |> Option.filter (fun i -> hashOf i <> Hash "")
         |> Option.map (fun i -> (hashOf i, i)))
       |> Map.ofList
-    let mutable map = stamped
-    let mutable pending : Option<'item> = None
-    for op in ops do
-      match isAdd op, isSet op with
-      | Some i, _ when hashOf i = Hash "" -> pending <- Some i
-      | _, Some h when not (Map.containsKey h stamped) ->
-        match pending with
-        | Some i ->
-          map <- Map.add h (withHash i h) map
-          pending <- None
-        | None -> ()
-      | _ -> ()
-    map
+    ops
+    |> List.fold
+      (fun (map, pending : Option<'item>) op ->
+        match isAdd op, isSet op with
+        | Some i, _ when hashOf i = Hash "" -> (map, Some i)
+        | _, Some h when not (Map.containsKey h stamped) ->
+          match pending with
+          | Some i -> (Map.add h (withHash i h) map, None)
+          | None -> (map, pending)
+        | _ -> (map, pending))
+      (stamped, None)
+    |> fst
 
   let typeMap =
     pairItems
@@ -436,14 +416,38 @@ let createInMemoryOver
        | PT.PackageOp.SetName(_, PT.PackageTest h, _) -> Some h
        | _ -> None)
 
-  let toMap (d : System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>) =
-    d |> Seq.map (fun (KeyValue(k, v)) -> (k, v)) |> Map.ofSeq
-  let typeLocMap = toMap typeLocs
-  let valueLocMap = toMap valueLocs
-  let fnLocMap = toMap fnLocs
-  let traitLocMap = toMap traitLocs
-  let implLocMap = toMap implLocs
-  let testLocMap = toMap testLocs
+  let locsOf
+    (hashOf : PT.Reference -> Option<Hash>)
+    : Map<PT.PackageLocation, Hash> =
+    bindings
+    |> Map.toSeq
+    |> Seq.choose (fun (loc, target) ->
+      hashOf target |> Option.map (fun h -> (loc, h)))
+    |> Map.ofSeq
+  let typeLocMap =
+    locsOf (function
+      | PT.PackageType h -> Some h
+      | _ -> None)
+  let valueLocMap =
+    locsOf (function
+      | PT.PackageValue h -> Some h
+      | _ -> None)
+  let fnLocMap =
+    locsOf (function
+      | PT.PackageFn h -> Some h
+      | _ -> None)
+  let traitLocMap =
+    locsOf (function
+      | PT.PackageTrait h -> Some h
+      | _ -> None)
+  let implLocMap =
+    locsOf (function
+      | PT.PackageTraitImpl h -> Some h
+      | _ -> None)
+  let testLocMap =
+    locsOf (function
+      | PT.PackageTest h -> Some h
+      | _ -> None)
 
   // Reverse multi-maps (hash -> every location still bound to it).
   let invert
@@ -572,19 +576,19 @@ let createInMemoryOver
           (items : Map<Hash, 'item>)
           (fetchBelow : Hash -> Ply<Option<'item>>)
           : Ply<List<PT.LocatedItem<'item>>> =
-          uply {
-            let found = ResizeArray<PT.LocatedItem<'item>>()
-            for KeyValue(loc, hash) in locMap do
+          locMap
+          |> Map.toList
+          |> Ply.List.filterMapSequentially (fun (loc, hash) ->
+            uply {
               let! item =
                 match Map.tryFind hash items with
                 | Some item -> Ply(Some item)
                 | None -> fetchBelow hash
-              match item with
-              | Some item ->
-                found.Add({ entity = item; location = loc } : PT.LocatedItem<_>)
-              | None -> ()
-            return List.ofSeq found
-          }
+              return
+                item
+                |> Option.map (fun item ->
+                  ({ entity = item; location = loc } : PT.LocatedItem<_>))
+            })
 
         let none (_ : Hash) : Ply<Option<'item>> = Ply None
         let getTypeBelow =

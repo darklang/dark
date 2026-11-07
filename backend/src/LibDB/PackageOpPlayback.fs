@@ -464,15 +464,11 @@ let private kindInView
     cmd.Parameters.Clear()
     pLoc cmd location
     use! reader = cmd.ExecuteReaderAsync()
-    let rows = System.Collections.Generic.List<string * bool * string>()
-    let mutable more = true
-    while more do
-      let! found = reader.ReadAsync()
-      if found then
-        rows.Add(reader.GetString 0, reader.GetInt64 1 <> 0L, reader.GetString 2)
-      else
-        more <- false
-    return Layers.pick (Layers.chainOf branch) (List.ofSeq rows)
+    let rows =
+      reader
+      |> Sqlite.readRows (fun r ->
+        (r.GetString 0, r.GetInt64 1 <> 0L, r.GetString 2))
+    return Layers.pick (Layers.chainOf branch) rows
   }
 
 let private layerParams (cmd : SqliteCommand) (layer : Layers.Layer) =
