@@ -43,7 +43,14 @@ jobs:
           command: |
             newer=$(scripts/deployment/ci-superseded)
             [[ -z "$newer" ]] || echo "main has moved on to $newer, so this pipeline skips the build"
-            jq --arg newer "$newer" '. + {"superseded-by": $newer}' /tmp/images.json > /tmp/parameters.json
+            jq --arg newer "$newer" '. + {"superseded-by": $newer}' /tmp/images.json > /tmp/superseded.json
+      # Branches and PRs only: one that changes nothing but prose skips the build.
+      - run:
+          name: Check whether this change is prose only
+          command: |
+            docs_only=$(scripts/deployment/ci-docs-only)
+            [[ -z "$docs_only" ]] || echo "Only prose changed since this branch left main, so this pipeline skips the build"
+            jq --argjson docs "${docs_only:-false}" '. + {"docs-only": $docs}' /tmp/superseded.json > /tmp/parameters.json
       - run:
           name: Continue in those images
           command: |

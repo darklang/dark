@@ -34,6 +34,11 @@ parameters:
   superseded-by:
     type: string
     default: ""
+  # Set by .circleci/config.yml on a branch or PR that changes only prose. See
+  # scripts/deployment/ci-docs-only.
+  docs-only:
+    type: boolean
+    default: false
 
   # The release matrix (NativeAOT, every OS) runs only on a pushed tag. Set this
   # to true to run it on every push to a branch as well, which is how it was
@@ -315,6 +320,9 @@ jobs:
       - run:
           name: Test the check for a superseded main commit
           command: python3 .circleci/test_ci_superseded.py
+      - run:
+          name: Test the check for a prose-only change
+          command: python3 .circleci/test_ci_docs_only.py
 
       - nuget-cache-restore
       - show-large-files-and-directories
@@ -766,6 +774,14 @@ jobs:
             echo "main moved on to << pipeline.parameters.superseded-by >> before this build started."
             echo "That commit's pipeline builds and tests this one's changes too."
 
+  # Branches and PRs that change only prose: nothing for the build to check. Never on main.
+  docs-only:
+    executor: simple-executor
+    steps:
+      - run:
+          name: Skip the build
+          command: echo "Only prose changed since this branch left main, so there is nothing to build."
+
   #
   # Switched off. Main releases only when someone runs scripts/deployment/release.
   # Switching it on also needs GITHUB_RELEASES_TOKEN in a context of its own, restricted to
@@ -782,7 +798,10 @@ jobs:
 
 workflows:
   build-and-deploy:
-    unless: << pipeline.parameters.superseded-by >>
+    unless:
+      or:
+        - << pipeline.parameters.superseded-by >>
+        - << pipeline.parameters.docs-only >>
     jobs:
       - build
 
@@ -804,6 +823,11 @@ workflows:
     when: << pipeline.parameters.superseded-by >>
     jobs:
       - superseded
+
+  docs-only:
+    when: << pipeline.parameters.docs-only >>
+    jobs:
+      - docs-only
 
   # The NativeAOT release matrix. Normally tag-only; see the
   # release-matrix-on-every-push parameter at the top of this file.
