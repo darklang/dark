@@ -13,10 +13,11 @@ let overwriteZshrc(content: String): Result.Result<Unit, String> =
   |> Result.mapError(FileSystem.FileError.toString)
 
 
-/// Apply changes to .zshrc
-/// , via `source`
-let applyZshConfigChanges(): Result.Result<Unit, String> =
-  Cli.executeWithUnitOrStdErr("source $HOME/.zshrc")
+/// A program cannot change the shell that started it, so after editing .zshrc
+/// the user has to source it themselves.
+let printSourceHint(): Unit =
+  Stdlib.printLine(
+    "Changes have been made to your .zshrc file.\nTo apply them to your current terminal session, run:\n  source ~/.zshrc")
 
 
 /// Delete an alias from .zshrc
@@ -45,7 +46,9 @@ let addAlias(
     let updatedContent = content + "\n" + aliasDefinition
 
     match overwriteZshrc(updatedContent) with
-    | Ok(()) -> applyZshConfigChanges()
+    | Ok(()) ->
+      printSourceHint()
+      Result.Result.Ok()
     | Error(e) -> Result.Result.Error(e))
 
 
@@ -68,6 +71,8 @@ let addToPath(dir: String): Result.Result<Unit, String> =
       let updatedContent = content + "\n" + exportLine
 
       match overwriteZshrc(updatedContent) with
-      | Ok(()) -> applyZshConfigChanges()
+      | Ok(()) ->
+        printSourceHint()
+        Result.Result.Ok()
       | Error(e) -> Result.Result.Error(e)
   | Error(e) -> Result.Result.Error(e)
