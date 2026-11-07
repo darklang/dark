@@ -156,7 +156,13 @@ let makeTest versionName filename =
     withoutPrefix |> String.dropRight 5 // ".test"
 
   let filename = $"{baseDirectory}/{versionName}/{filename}"
-  let content = System.IO.File.ReadAllBytes filename |> UTF8.ofBytesUnsafe
+  // Leading `//` lines are comments, e.g. why an `_` file is disabled.
+  let content =
+    System.IO.File.ReadAllBytes filename
+    |> UTF8.ofBytesUnsafe
+    |> String.split "\n"
+    |> List.skipWhile (String.startsWith "//")
+    |> String.concat "\n"
 
   // Parse Handler code, expected HTTP request, and (static) HTTP response to return
   let expectedRequest, response, darkCode =
