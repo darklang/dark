@@ -231,9 +231,10 @@ decide scheduling: a call whose effects are all reads may be handed back as a
 read in flight and forced at its first use, so several run at once
 (`docs/processes.md`, "Reads are concurrent"). `http` is not in that set,
 since the one word covers every method and a policy grants a URL, not a
-method; the HTTP client's GET and HEAD builtin (`httpClientRead`, behind
-`HttpClient.get`/`head`) is named a read on its own (`Effects.readsOnly`),
-and the rest of the methods keep their order. `clock` and `random` are not
+method; a GET or HEAD with no body through the HTTP client's buffered builtin
+(`httpClientRequest`, behind `HttpClient.request`/`get`/`head`) is named a
+read on its own (`Effects.readsByMethod`), and every other call keeps its
+order, a stream's included. `clock` and `random` are not
 either: reading them never waits, so there is nothing to overlap, and
 `sleep`, the one clock call that does wait, is a wait the program means to
 take.

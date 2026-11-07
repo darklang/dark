@@ -169,7 +169,8 @@ type Operation =
     profile : HttpProfile *
     method : string *
     url : string *
-    headers : List<string * string>
+    headers : List<string * string> *
+    body : byte[]
   /// Bind an HTTP listener and return an opaque host-owned handle.
   | HttpServerBind of port : int
   | ChildStart of program : string * args : List<string> * inheritTerminal : bool
@@ -381,7 +382,7 @@ let describeOperation (op : Operation) : string =
   | Operation.EnvGet name -> $"env-get {name}"
   | Operation.EnvList -> "env-list"
   | Operation.HttpRequest(_, method, url, _, _) -> $"http {method} {redactUrl url}"
-  | Operation.HttpStreamOpen(_, method, url, _) ->
+  | Operation.HttpStreamOpen(_, method, url, _, _) ->
     $"http-stream {method} {redactUrl url}"
   | Operation.HttpServerBind port -> $"http-server-bind {port}"
   | Operation.ChildStart(program, _, _) -> $"child-start {program}"

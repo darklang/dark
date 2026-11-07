@@ -1078,7 +1078,7 @@ let private secretHeadersAreRedacted =
       )
     let stored =
       LibDB.Tracing.Redact.args
-        "httpClientRead"
+        "httpClientRequest"
         [ RT.DString "GET"; RT.DString "https://example.com/"; headers ]
     match stored with
     | [ _; _; RT.DList(_, items) ] ->

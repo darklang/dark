@@ -129,7 +129,7 @@ let fromName (wanted : string) : Option<Effect> =
 /// may run concurrently and complete in any order; the interpreter hands such a call back as a
 /// promise when it has to wait (`docs/processes.md`, "Reads are concurrent"). `Http` is not one
 /// here, since the one word covers every method and a policy grants it whole; the GET and HEAD
-/// builtin is named a read below (`readsOnly`). `Stdin` consumes input, so it is not one either.
+/// call is named a read below (`readsByMethod`). `Stdin` consumes input, so it is not one either.
 /// `Clock` and `Random` are left out on purpose: reading the clock or a random number never
 /// waits, so nothing is gained, and the one `Clock` call that does wait, `sleep`, is a wait the
 /// program means to take, not a read to overlap.
@@ -154,21 +154,24 @@ let isRead (effect : Effect) : bool =
   | Effect.Runtime
   | Effect.Native -> false
 
-/// Non-empty, and nothing but reads.
-let private allReads (effects : Set<Effect>) : bool =
+/// Whether every call of a builtin with these effects is a read: non-empty, and nothing but
+/// reads. What decides if a call whose result is not ready is handed back as a promise rather
+/// than parking the process; `readsByMethod` names the builtins with calls that are reads too.
+let readsOnly (effects : Set<Effect>) : bool =
   not (Set.isEmpty effects) && Set.forall isRead effects
 
-/// Builtins whose declared effect is not a read but whose every call is one: the HTTP client's
-/// GET and HEAD builtin. `Http` stays one word in the permission language (a policy allows a
-/// URL, not a method), so the read-ness of a GET is stated here, per builtin, rather than by a
-/// second effect name every policy and older binary would have to know.
-let private readsOnlyByName : Set<string> = set [ "httpClientRead" ]
+/// Builtins whose declared effect is not a read but some of whose calls are: the HTTP client's
+/// buffered call, whose GET or HEAD with no body is a read (`isReadMethod`; the interpreter
+/// reads the arguments). `Http` stays one word in the permission language (a policy allows a
+/// URL, not a method), so the read-ness of a GET is stated here, by the call, rather than by a
+/// second effect name every policy would have to know. The streaming call is not one: an open
+/// stream is not a value a read can hand back. A GET that carries a body is sent in order.
+let readsByMethod (builtinName : string) : bool = builtinName = "httpClientRequest"
 
-/// Whether every call of this builtin is a read: its effects are all reads, or it is one of the
-/// builtins named above. What decides if a call whose result is not ready is handed back as a
-/// promise rather than parking the process.
-let readsOnly (builtinName : string) (effects : Set<Effect>) : bool =
-  allReads effects || Set.contains builtinName readsOnlyByName
+/// GET or HEAD, in any case.
+let isReadMethod (method : string) : bool =
+  System.String.Equals(method, "GET", System.StringComparison.OrdinalIgnoreCase)
+  || System.String.Equals(method, "HEAD", System.StringComparison.OrdinalIgnoreCase)
 
 /// A scoped effect names a resource (a path, a URL, a variable, an executable),
 /// so its exact request can only be built by the builtin body — or, for the

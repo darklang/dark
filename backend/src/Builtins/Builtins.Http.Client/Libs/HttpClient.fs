@@ -1,30 +1,23 @@
-/// HTTP client builtins.
+/// HTTP client builtins: one call, read two ways.
 ///
-/// Two builtins, two API surfaces:
-/// - `httpClientRequest` returns a Response with `body : Bytes` —
-///   buffers the whole body up front; the simple/common case.
-/// - `httpClientStream` returns a StreamResponse with
-///   `body : Stream<UInt8>` — lazy/chunked; for large bodies, SSE, etc.
+/// - `httpClientRequest` reads the whole response and returns a Response with
+///   `body : Bytes`. A GET or HEAD is a read, handed back in flight
+///   (`Effects.callReadsOnly`); any other method is a write, in program order.
+/// - `httpClientStream` returns a StreamResponse whose `body : Stream<UInt8>`
+///   is pulled as it arrives; for large bodies, server-sent events, etc.
+///
+/// Both take the same arguments and make the same host call: the buffered one is
+/// the streaming send drained by the host (`HostHttp.send`), under one deadline and
+/// with a failure mid-body reported as a typed error. Two builtins rather than one
+/// because the scheduler and a resume treat them differently: a buffered response
+/// is a value the log can hand back, and an open stream is not.
 ///
 /// The network machinery lives behind the checked host boundary
 /// (`LibExecution.HostHttp`): these builtins parse Dvals, build a
 /// `Host.Operation`, and map the structured result back to the
-/// Stdlib.HttpClient types. Guest requests run under the host's guest HTTP
-/// configuration (`HostTypes.HttpProfile.Guest`); the trusted sync pull
-/// under `Sync`.
-///
-/// TODO collapse into a single builtin: `httpClientStream` becomes the only F#
-/// builtin, and `Stdlib.HttpClient.request` a Dark-side wrapper that streams,
-/// drains via `Stream.toBytes`, and repacks into a `Response`. Four gates before
-/// the collapse stops regressing existing callers:
-///   (1) a `body : Bytes` param on the stream builtin (today it always sends `[||]`);
-///   (2) a body-read timeout (`ResponseHeadersRead` means the cancel token only
-///       covers header arrival, so a drain can hang indefinitely);
-///   (3) drain-time error translation (an IOException during the drain must become
-///       `Result.Error NetworkError`, not an uncaught RuntimeError);
-///   (4) telemetry parity with `makeRequest` (one span through the drain, same tags).
-/// Until those land, the buffered builtin stays; request construction is shared via
-/// the helpers below, so the remaining duplication is small.
+/// Stdlib.HttpClient types. What makes a request safe to send (header names and
+/// values, the network guard, the grant) is checked there, below any Dark code;
+/// what shapes it (`Stdlib.HttpClient.request` and `stream`) is Dark.
 module Builtins.Http.Client.Libs.HttpClient
 
 open System.Threading.Tasks
@@ -103,23 +96,18 @@ let private headersToDval (headers : List<string * string>) : Dval =
     DTuple(DString(String.toLowercase k), DString(String.toLowercase v), []))
   |> Dval.list (KTTuple(VT.string, VT.string, []))
 
-/// Parse the Dval header list. A non-pair element is a type error (RTE); an
-/// empty key is the guest-visible EmptyKey error.
+/// The Dval header list, as written. A non-pair element is a type error (RTE).
+/// Trimming and the empty-key check are Dark's (`Stdlib.HttpClient`); the host
+/// refuses anything unsafe to send.
 let private parseHeaders
   (vm : VMState)
   (fnName : FQFnName.FQFnName)
   (reqHeaders : List<Dval>)
-  : Result<List<string * string>, HostTypes.HttpBadHeader> =
+  : List<string * string> =
   reqHeaders
   |> List.map (fun item ->
     match item with
-    | DTuple(DString k, DString v, []) ->
-      let k = String.trim k
-      if k = "" then
-        // CLEANUP reconsider if we should error here
-        Error HostTypes.HttpBadHeader.EmptyKey
-      else
-        Ok((k, v))
+    | DTuple(DString k, DString v, []) -> (k, v)
     | notAPair ->
       RTE.Applications.FnParameterNotExpectedType(
         fnName,
@@ -132,145 +120,89 @@ let private parseHeaders
       )
       |> RTE.Apply
       |> raiseRTE vm.threadID)
-  |> Result.collect
 
 open LibExecution.Builtin.Shortcuts
 
 
-/// `Result<Response, RequestError>`, the answer of `read` and `request`.
-let private responseOk (response : Dval) : Dval =
-  Dval.resultOk
-    (KTCustomType(responseOKType (), []))
-    (KTCustomType(responseErrorType (), []))
-    response
+let private resultOf (okType : FQTypeName.FQTypeName) =
+  let ok = KTCustomType(okType, [])
+  let error = KTCustomType(responseErrorType (), [])
+  (Dval.resultOk ok error, Dval.resultError ok error)
 
-let private responseError (error : Dval) : Dval =
-  Dval.resultError
-    (KTCustomType(responseOKType (), []))
-    (KTCustomType(responseErrorType (), []))
-    error
-
-/// One guest-profile request, named for the loop to perform: the shared body of
-/// `httpClientRead` and `httpClientRequest`. `wrapper` is the Dark fn a bad header names.
-let private guestRequest
-  (vm : VMState)
-  (wrapper : unit -> string)
-  (method : string)
-  (uri : string)
-  (reqHeaders : List<Dval>)
-  (body : byte[])
-  : Ply<Dval> =
-  let resultOk = responseOk
-  let resultError = responseError
-  match parseHeaders vm (FQFnName.fqPackage (wrapper ())) reqHeaders with
-  | Error headerError ->
-    Ply(
-      resultError (
-        RequestError.toDT (HostTypes.HttpRequestError.BadHeader headerError)
-      )
-    )
-  | Ok headers ->
-    let op =
-      Host.Operation.HttpRequest(
-        HostTypes.HttpProfile.Guest,
-        method,
-        uri,
-        headers,
-        body
-      )
-    Interpreter.requestHost vm op (fun outcome ->
-      match outcome with
-      | Error failure ->
-        Exception.raiseInternal
-          "http request failed outside the typed error surface"
-          [ "message", failure.message ]
-      | Ok response ->
-        match Host.expectHttp response with
-        | Error err -> Ply(resultError (RequestError.toDT err))
-        | Ok response ->
-          let typ = responseOKType ()
-          let fields =
-            [ ("statusCode", Dval.dint64 (int64 response.statusCode))
-              ("headers", headersToDval response.headers)
-              ("body", Bytes.newEphemeral response.body) ]
-          Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields))))
-
-let private responseResultType =
+let private resultTypeOf (okType : FQTypeName.FQTypeName) =
   TypeReference.result
-    (TCustomType(NR.ok (responseOKType ()), []))
+    (TCustomType(NR.ok okType, []))
     (TCustomType(NR.ok (responseErrorType ()), []))
+
+let private parameters =
+  [ Param.make "method" TString ""
+    Param.make "uri" TString ""
+    Param.make "headers" headersType ""
+    Param.make "body" TBytes "" ]
+
+/// Name the request to the host and hand its answer to `answer`. `wrapper` is the Dark fn a
+/// header of the wrong shape names.
+let private send
+  (state : ExecutionState)
+  (vm : VMState)
+  (wrapper : FQFnName.FQFnName)
+  (args : Dval[])
+  (operation : string -> string -> List<string * string> -> byte[] -> Host.Operation)
+  (answer : Host.Response -> Ply<Dval>)
+  : Ply<Dval> =
+  match args with
+  | [| DString method; DString uri; DList(_, reqHeaders); DBytes bodyRef |] ->
+    let headers = parseHeaders vm wrapper reqHeaders
+    Bytes.withBytes state bodyRef (fun body ->
+      Interpreter.requestHost vm (operation method uri headers body) (fun outcome ->
+        match outcome with
+        | Error failure ->
+          Exception.raiseInternal
+            "http request failed outside the typed error surface"
+            [ "message", failure.message ]
+        | Ok response -> answer response))
+  | _ -> incorrectArgs ()
 
 
 let fns () : List<BuiltInFn> =
-  [ // A GET or HEAD observes and changes nothing, so it is a read: the interpreter hands it back
-    // in flight and the program runs on until it looks at the response (`docs/processes.md`,
-    // "Reads are concurrent"; `Effects.readsOnly` names this builtin). `Http` stays one word in
-    // the permission language; the split is what lets the table say which calls are reads.
-    { name = fn "httpClientRead" 0
+  [ { name = fn "httpClientRequest" 0
       typeParams = []
-      parameters =
-        [ Param.make "method" TString "GET or HEAD"
-          Param.make "uri" TString ""
-          Param.make "headers" headersType "" ]
-      returnType = responseResultType
+      parameters = parameters
+      returnType = resultTypeOf (responseOKType ())
       description =
-        "A GET or HEAD of <param uri>: a read, so it runs concurrently with what follows and is "
-        + "waited for where the response is first looked at. Any other method is a BadMethod "
-        + "error; `httpClientRequest` is for those."
+        "Make an HTTP call to <param uri> and read the whole response. A GET or HEAD is a "
+        + "read: it runs concurrently with what follows and is waited for where the response "
+        + "is first looked at. Any other method runs in program order. Returns the response in "
+        + "{{ Ok }}, or why there is none in {{ Error }}."
       fn =
-        (function
-        | _, vm, _, [| DString method; DString uri; DList(_, reqHeaders) |] ->
-          match method.ToUpperInvariant() with
-          | "GET"
-          | "HEAD" as method ->
-            guestRequest
-              vm
-              PackageRefs.Fn.Stdlib.HttpClient.read
-              method
-              uri
-              reqHeaders
-              [||]
-          | _ ->
-            Ply(
-              responseError (RequestError.toDT HostTypes.HttpRequestError.BadMethod)
-            )
-        | _ -> incorrectArgs ())
+        let (resultOk, resultError) = resultOf (responseOKType ())
+        (fun (struct (state, vm, _, args)) ->
+          send
+            state
+            vm
+            (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.request ()))
+            args
+            (fun method uri headers body ->
+              Host.Operation.HttpRequest(
+                HostTypes.HttpProfile.Guest,
+                method,
+                uri,
+                headers,
+                body
+              ))
+            (fun response ->
+              match Host.expectHttp response with
+              | Error err -> Ply(resultError (RequestError.toDT err))
+              | Ok response ->
+                let typ = responseOKType ()
+                let fields =
+                  [ ("statusCode", Dval.dint64 (int64 response.statusCode))
+                    ("headers", headersToDval response.headers)
+                    ("body", Bytes.newEphemeral response.body) ]
+                Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))
       previewable = Impure
       callEffects = set [ Effect.Http ]
       deprecated = NotDeprecated }
-
-
-    { name = fn "httpClientRequest" 0
-      typeParams = []
-      parameters =
-        [ Param.make "method" TString ""
-          Param.make "uri" TString ""
-          Param.make "headers" headersType ""
-          Param.make "body" TBytes "" ]
-      returnType = responseResultType
-      description =
-        "Make an HTTP call to <param uri>, in program order (a write). Returns a <type Result> "
-        + "where the response is wrapped in {{ Ok }} if a response was successfully received "
-        + "and parsed, and is wrapped in {{ Error }} otherwise"
-      fn =
-        (function
-        | state,
-          vm,
-          _,
-          [| DString method; DString uri; DList(_, reqHeaders); DBytes bodyRef |] ->
-          Bytes.withBytes state bodyRef (fun body ->
-            guestRequest
-              vm
-              PackageRefs.Fn.Stdlib.HttpClient.request
-              method
-              uri
-              reqHeaders
-              body)
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.Http ]
-      deprecated = NotDeprecated }
-
 
 
     // ——————————————————————————————————————————————————————————
@@ -292,75 +224,51 @@ let fns () : List<BuiltInFn> =
     // ——————————————————————————————————————————————————————————
     { name = fn "httpClientStream" 0
       typeParams = []
-      parameters =
-        [ Param.make "method" TString ""
-          Param.make "uri" TString ""
-          Param.make "headers" headersType "" ]
-      returnType =
-        TypeReference.result
-          (TCustomType(NR.ok (streamResponseType ()), []))
-          (TCustomType(NR.ok (responseErrorType ()), []))
+      parameters = parameters
+      returnType = resultTypeOf (streamResponseType ())
       description =
-        "Make a streaming HTTP call to <param uri>. Returns a <type "
+        "Make a streaming HTTP call to <param uri>, in program order. Returns a <type "
         + "StreamResponse> whose `body` is a lazy <type Stream> that yields bytes "
         + "as they arrive. Drain with `Builtin.streamToList`/`streamToBytes`, or "
         + "compose with `streamMap`/`streamFilter`/etc. The underlying HTTP "
         + "response is released when the stream is drained to completion or "
         + "`Builtin.streamClose`d."
       fn =
-        let streamTypeOk = KTCustomType(streamResponseType (), [])
-        let streamTypeErr = KTCustomType(responseErrorType (), [])
-        let resultOk = Dval.resultOk streamTypeOk streamTypeErr
-        let resultError = Dval.resultError streamTypeOk streamTypeErr
-        (function
-        | _, vm, _, [| DString method; DString uri; DList(_, reqHeaders) |] ->
-          let headers =
-            parseHeaders
-              vm
-              (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.stream ()))
-              reqHeaders
-          match headers with
-          | Error headerError ->
-            Ply(
-              resultError (
-                RequestError.toDT (HostTypes.HttpRequestError.BadHeader headerError)
-              )
-            )
-          | Ok headers ->
-            let op =
+        let (resultOk, resultError) = resultOf (streamResponseType ())
+        (fun (struct (state, vm, _, args)) ->
+          send
+            state
+            vm
+            (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.stream ()))
+            args
+            (fun method uri headers body ->
               Host.Operation.HttpStreamOpen(
                 HostTypes.HttpProfile.Guest,
                 method,
                 uri,
-                headers
-              )
-            Interpreter.requestHost vm op (fun outcome ->
-              match outcome with
-              | Error failure ->
-                Exception.raiseInternal
-                  "http stream open failed outside the typed error surface"
-                  [ "message", failure.message ]
-              | Ok response ->
-                match Host.expectHttpStream response with
-                | Error err -> Ply(resultError (RequestError.toDT err))
-                | Ok head ->
-                  let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
-                    uply {
-                      let! chunk = Host.httpStreamRead head.handle maxBytes
-                      return chunk
-                    }
+                headers,
+                body
+              ))
+            (fun response ->
+              match Host.expectHttpStream response with
+              | Error err -> Ply(resultError (RequestError.toDT err))
+              | Ok head ->
+                let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
+                  uply {
+                    let! chunk = Host.httpStreamRead head.handle maxBytes
+                    return chunk
+                  }
 
-                  let disposer () = Host.httpStreamClose head.handle
+                let disposer () = Host.httpStreamClose head.handle
 
-                  let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
+                let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
 
-                  let typ = streamResponseType ()
-                  let fields =
-                    [ ("statusCode", Dval.dint64 (int64 head.statusCode))
-                      ("headers", headersToDval head.headers)
-                      ("body", body) ]
-                  Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields))))
-        | _ -> incorrectArgs ())
+                let typ = streamResponseType ()
+                let fields =
+                  [ ("statusCode", Dval.dint64 (int64 head.statusCode))
+                    ("headers", headersToDval head.headers)
+                    ("body", body) ]
+                Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))
       previewable = Impure
       callEffects = set [ Effect.Http ]
       deprecated = NotDeprecated } ]

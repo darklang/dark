@@ -1532,6 +1532,33 @@ let private finishFor
     Unchecked.defaultof<_>
 
 
+/// Whether this call is a read (`docs/processes.md`, "Reads are concurrent"): every call of a
+/// builtin whose effects are all reads, or a call of the HTTP client's buffered builtin that is a
+/// GET or HEAD with no body (`Effects.readsByMethod`). Its arguments are read here because
+/// `Effects` sits below the runtime's values.
+let private callReadsOnly (fn : BuiltInFn) (args : Dval[]) : bool =
+  Effects.readsOnly fn.callEffects
+  || (Effects.readsByMethod fn.name.name
+      && args.Length = 4
+      // Nested rather than `match a, b with`, which allocates the pair.
+      && match args[0] with
+         | DString method when Effects.isReadMethod method ->
+           (match args[3] with
+            | DBytes(Ephemeral e) -> e.count = 0
+            | DBytes(Persistent(_, length)) -> length = 0L
+            | _ -> false)
+         | _ -> false)
+
+/// `callReadsOnly` for a call still in its context. The list is only built for the one builtin
+/// whose arguments decide it.
+let private contextReadsOnly (fn : BuiltInFn) (ctx : ApplyContext) : bool =
+  Effects.readsOnly fn.callEffects
+  || (Effects.readsByMethod fn.name.name
+      && callReadsOnly
+        fn
+        (List.toArray (ctx.applicable.argsSoFar @ ArgSeq.toList ctx.args)))
+
+
 /// Everything from "we have the arguments and a checked symbol table" to "we have a checked result".
 ///
 /// Shared by the synchronous path and the fallback below it, so there is one copy of the permission gate,
@@ -1670,11 +1697,7 @@ let private invokeBuiltin
     // back is the body's real result, waited for like any other.
     let body =
       if hostRequested vm then
-        performRequested
-          exeState
-          vm
-          (not (Effects.readsOnly fn.name.name fn.callEffects))
-          body
+        performRequested exeState vm (not (callReadsOnly fn allArgs)) body
       else
         body
 
@@ -1708,7 +1731,7 @@ let private invokeBuiltin
       // A read's wait may have been handed back as a promise that lands on another thread while
       // the VM runs on, mid-way through some other builtin. So once it has waited it looks at
       // nothing on the VM: a request there is that builtin's, not this one's (`performRequested`).
-      let owns = not (Effects.readsOnly fn.name.name fn.callEffects)
+      let owns = not (callReadsOnly fn allArgs)
       uply {
         let! result = body
         // A host operation named after the body's first wait (a request read, then a file):
@@ -3114,7 +3137,7 @@ let inline private consumedByNextApply
 
 /// Reads in flight, handed back as promises (`docs/processes.md`, "Reads are concurrent").
 ///
-/// A builtin whose every call is a read (`Effects.readsOnly`) and whose result is not ready
+/// A builtin call that is a read (`callReadsOnly`) and whose result is not ready
 /// when it returns, gives the calling frame a `DPromise` instead of parking the process. The
 /// process runs on; the first instruction that inspects, stores or passes the value forces it, and
 /// so does the end of the run. Writes are never deferred, so they keep program order.
@@ -4135,9 +4158,9 @@ let private applyBuiltin
         | ValueNone ->
           // A read that has to wait becomes a promise and the frame runs on; anything else
           // parks the process here, in program order.
-          // Deferrable when every call of the builtin is a read; the same test
-          // `invokeBuiltin` makes of a request after the body's first wait.
-          if Effects.readsOnly fn.name.name fn.callEffects then
+          // Deferrable when this call is a read; the same test `invokeBuiltin` makes of
+          // a request after the body's first wait.
+          if contextReadsOnly fn ctx then
             match
               Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
             with
