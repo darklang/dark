@@ -211,6 +211,16 @@ test aliasRunsTheInstalledDark =
       without |> Stdlib.Test.equal(Stdlib.Cli.Sys.currentExecutablePath()) ])
 
 
+test listingShortensThePinnedHash =
+  let hash = "f2fd0e0c69ac2bb88d60a9cdec94b43bb1d31bb4816feebff9d5a31cce343801"
+  Stdlib.Test.all(
+    [ Darklang.Cli.Aliases.shortNote($"pinned to Me.x at #{hash}")
+      |> Stdlib.Test.equal("pinned to Me.x at #f2fd0e0c")
+
+      Darklang.Cli.Aliases.shortNote("follows Me.x")
+      |> Stdlib.Test.equal("follows Me.x") ])
+
+
 test commandNames =
   Stdlib.Test.all(
     [ Darklang.Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)
@@ -314,13 +324,15 @@ test aliasFollowsTheNameAndPinKeepsTheVersion = Instance.withInstance(fun i ->
       Instance.exitedWith(pinnedAfter, 0, "and keeps the old exit code")
       Instance.says(
         listed,
-        "greet  follows Tests.Greet.main",
+        "greet         follows Tests.Greet.main",
         "ls lists the alias")
 
       Instance.says(
         listed,
         "greet-pinned  pinned to Tests.Greet.main at #",
-        "and the pinned one") ]))
+        "and the pinned one, in a column")
+
+      Instance.doesNotSay(listed, "!", "neither is marked as broken") ]))
 
 
 /// Author `/Tests.Where.main` in <param i>: it prints <param greeting> and whether the process
@@ -438,6 +450,48 @@ test scriptAliasFollowsTheFile = Instance.withInstance(fun i ->
       Instance.exitedWith(missingCode, 1, "a missing file is refused")
       Instance.says(missingOut, "no file at", "and the refusal says so")
       Instance.says(listed, $"greet  runs the script {file}", "ls lists it") ]))
+
+
+// `dark alias` says which aliases would not run, and why: the fn renamed away on main, the
+// script file deleted, the `dark` it names gone.
+test listingSaysWhatWontRun = Instance.withInstance(fun i ->
+  let _ = define(i, "hello", 0)
+  let file = Instance.home(i) + "/greet.dark"
+  let _ = writeGreeting(file, "hi")
+  let _ = Instance.ran(i, [ "alias", "add", "greet", "Tests.Greet.main" ])
+  let _ = Instance.ran(i, [ "alias", "add", "hi", file ])
+  let _ = Instance.ran(i, [ "alias", "add", "ok", "Tests.Greet.main" ])
+  let _ =
+    Stdlib.Cli.File.writeText(
+      $"{bin(i)}/old",
+      Darklang.Cli.Aliases.script(
+        "/nowhere/dark",
+        Darklang.Cli.Aliases.Target.Follows("Tests.Greet.main")))
+
+  let before = Instance.said(i, [ "alias" ])
+  let (renameCode, renamed) =
+    Instance.ran(i, [ "rename", "Tests.Greet.main", "Tests.Greet.start" ])
+
+  let _ = Stdlib.Cli.File.delete(file)
+  let broken = Instance.said(i, [ "alias" ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        before,
+        "! the dark it runs is gone (/nowhere/dark)",
+        "a missing dark is marked")
+
+      Instance.exitedWith(renameCode, 0, $"the fn is renamed: {renamed}")
+      Instance.says(
+        broken,
+        "! no Tests.Greet.main on main any more",
+        "a fn renamed away is marked")
+
+      Instance.says(broken, "! the file is gone", "a deleted script is marked")
+
+      Instance.says(
+        broken,
+        "won't run as it is",
+        "and the listing says what to do") ]))
 
 
 // The instance policy is the ceiling for an alias, as for `dark run`: a file read `run` refuses

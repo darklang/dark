@@ -321,6 +321,88 @@ let executeAdd(state: AppState, name: String, fnName: String, pin: Bool): AppSta
             state
 
 
+/// The `dark` the alias script <param text> runs: the quoted path after `exec`.
+let darkOf(text: String): Option<String> =
+  text
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.findFirst(fun line -> Stdlib.String.startsWith(line, "exec '"))
+  |> Stdlib.Option.andThen(fun line ->
+    Stdlib.List.head(Stdlib.String.split(Stdlib.String.dropFirst(line, 6), "'")))
+
+
+/// What would stop the alias with <param note> and script <param text> from running, said in a
+/// few words, or None when nothing would: the `dark` it runs is gone, its fn is no longer on main
+/// or no longer of the shape an alias runs, or its script file is gone. A pinned alias names a
+/// hash, which stays, so only its `dark` is checked.
+let problemOf(state: AppState, note: String, text: String): Option<String> =
+  let darkGone =
+    match darkOf(text) with
+    | Some(dark) ->
+      if Stdlib.Cli.File.exists(dark) then
+        Option.None
+      else
+        Option.Some($"the dark it runs is gone ({dark}); add it again")
+    | None -> Option.None
+
+  match darkGone with
+  | Some(problem) -> Option.Some(problem)
+  | None ->
+    if Stdlib.String.startsWith(note, "follows ") then
+      let name = Stdlib.String.dropFirst(note, 8)
+      match resolveOn(state, SCM.Branch.mainBranchId, name) with
+      | Ok(_) -> Option.None
+      | Error(_) ->
+        match Packages.Traversal.traverse(
+                SCM.Branch.mainBranchId,
+                state.packageData.currentLocation,
+                name) with
+        | Ok(Function(_)) -> Option.Some($"{name} isn't (args: List<String>): Int64 any more")
+        | _ -> Option.Some($"no {name} on main any more")
+    else if Stdlib.String.startsWith(note, "runs the script ") then
+      let path = Stdlib.String.dropFirst(note, 16)
+      if Stdlib.Cli.File.exists(path) then
+        Option.None
+      else
+        Option.Some("the file is gone")
+    else
+      Option.None
+
+
+/// <param note> as `dark alias` shows it: a pinned hash cut to its first 8 characters, as `add` says it.
+let shortNote(note: String): String =
+  match Stdlib.String.indexOf(note, " at #") with
+  | Some(at) ->
+    let hashStart = at + 5
+    if Stdlib.String.length(note) > hashStart + 8 then
+      Stdlib.String.slice(note, 0, hashStart + 8)
+    else
+      note
+  | None -> note
+
+
+/// The lines `dark alias` prints for <param aliases> (name, note, problem): the names in one
+/// column, what each runs beside it, and on the line below any that would not run, why.
+let listing(aliases: List<(String * String * Option<String>)>): List<String> =
+  let width =
+    aliases
+    |> Stdlib.List.map(fun a ->
+      let (name, _, _) = a
+      Stdlib.String.length(name))
+    |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
+
+  aliases
+  |> Stdlib.List.map(fun a ->
+    let (name, note, problem) = a
+    let padded = Stdlib.String.padEnd(name, ' ', width)
+    let indent = Stdlib.String.repeat(" ", width)
+    let shown = shortNote(note)
+    let line = $"  {padded}  {shown}"
+    match problem with
+    | None -> [ line ]
+    | Some(p) -> [ line, $"  {indent}  ! {p}" ])
+  |> Stdlib.List.flatten
+
+
 /// `dark alias` / `dark alias ls`
 let executeList(state: AppState): AppState =
   match binDir() with
@@ -334,10 +416,23 @@ let executeList(state: AppState): AppState =
       printHint("  dark alias add <name> <fn>   run a fn of yours from any terminal")
       state
     | aliases ->
-      aliases
-      |> Stdlib.List.iter(fun pair ->
-        let (name, note) = pair
-        Stdlib.printLine($"  {name}  {note}"))
+      let checked =
+        aliases
+        |> Stdlib.List.map(fun pair ->
+          let (name, note) = pair
+          let text = Stdlib.Cli.File.readText($"{dir}/{name}") |> Stdlib.Result.withDefault("")
+          (name, note, problemOf(state, note, text)))
+
+      listing(checked) |> Stdlib.List.iter(fun line -> Stdlib.printLine(line))
+      let broken =
+        checked
+        |> Stdlib.List.filter(fun a ->
+          let (_, _, problem) = a
+          Stdlib.Option.isSome(problem))
+        |> Stdlib.List.length
+
+      if broken > 0 then
+        printHint("  ! won't run as it is; `dark alias add` it again, or `dark alias rm` it")
 
       state
 
