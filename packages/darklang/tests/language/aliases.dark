@@ -40,6 +40,39 @@ module SimpleEnumAlias =
   test enumAliases =
     (GuestRole.Guest == AdminRole.Guest) |> Stdlib.Test.equal(true)
 
+// A value built through an alias carries the alias as its source type name and the
+// aliased type as its runtime one, and Dark reads them by those names.
+module ReflectedTypeNames =
+  type Name = Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+
+  let unknown(): Name =
+    Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+      Darklang.LanguageTools.RuntimeTypes.Hash.Hash(""))
+
+  let typeNames(value: 'a): (Name * Name) =
+    match Darklang.LanguageTools.RuntimeTypes.reflect(value) with
+    | DRecord(sourceTypeName, runtimeTypeName, _, _) -> (sourceTypeName, runtimeTypeName)
+    | DEnum(sourceTypeName, runtimeTypeName, _, _, _) -> (sourceTypeName, runtimeTypeName)
+    | _ -> (unknown(), unknown())
+
+  test recordSourceIsTheAlias =
+    let (aliasSource, aliasRuntime) =
+      typeNames(SimpleRecordAlias.MyPerson { name = "test" })
+    let (personSource, personRuntime) =
+      typeNames(SimpleRecordAlias.Person { name = "test" })
+    Stdlib.Test.all(
+      [ (personSource == personRuntime) |> Stdlib.Test.equal(true)
+        (aliasRuntime == personRuntime) |> Stdlib.Test.equal(true)
+        (aliasSource == personSource) |> Stdlib.Test.equal(false) ])
+
+  test enumSourceIsTheAlias =
+    let (aliasSource, aliasRuntime) = typeNames(SimpleEnumAlias.AdminRole.Admin)
+    let (roleSource, roleRuntime) = typeNames(SimpleEnumAlias.UserRole.Admin)
+    Stdlib.Test.all(
+      [ (roleSource == roleRuntime) |> Stdlib.Test.equal(true)
+        (aliasRuntime == roleRuntime) |> Stdlib.Test.equal(true)
+        (aliasSource == roleSource) |> Stdlib.Test.equal(false) ])
+
 module NestedAlias =
   type UserCredential = (String * Id)
   type EmployeeCredential = UserCredential
