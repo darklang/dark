@@ -1084,14 +1084,42 @@ gate_package_tests() {
   ROOT=$(realpath -m rundir/package-tests)
 
   rm -rf "$ROOT"; mkdir -p "$ROOT/.darklang"
+
+  # The processes the tests start: about a thousand isolated tests each start a worker, and many
+  # of those start the CLI again, a dozen or more times for an SCM test. A Debug CLI spends most
+  # of its 0.8 s start compiling itself, so with a Debug CLI they start a ReadyToRun copy of it
+  # instead, which starts in 0.35 s. The libraries in it are the Debug build's own files compiled
+  # ahead (`--no-dependencies` builds nothing else), and only Cli is compiled again, for the
+  # runtime, from the same source. The runner stays the Debug CLI. Remade each run, which costs
+  # about 5 s when nothing changed and 15 s when every library did; if that fails, everything
+  # runs on the Debug CLI as before. Before HOME moves: dotnet keeps its packages under it.
+  CHILD_CLI="$CLI"
+  case "$(uname -m)" in
+    x86_64) RID=linux-x64 ;;
+    aarch64 | arm64) RID=linux-arm64 ;;
+    *) RID="" ;;
+  esac
+  if [[ "$CLI" == "$PWD/backend/Build/out/Cli/Debug/net10.0/Cli" && -n "$RID" ]]; then
+    if (cd backend && dotnet publish src/Cli/Cli.fsproj --configuration Debug \
+          --runtime "$RID" --self-contained false -p:PublishReadyToRun=true \
+          --no-dependencies --output "$ROOT/child-cli" --verbosity quiet) \
+        < /dev/null > "$ROOT/child-cli.log" 2>&1 \
+        && [[ -x "$ROOT/child-cli/Cli" ]]; then
+      CHILD_CLI="$ROOT/child-cli/Cli"
+    else
+      echo "package-tests: could not make a ReadyToRun CLI, so the tests start the Debug one" \
+        "(why: $ROOT/child-cli.log)" >&2
+    fi
+  fi
+
   scripts/testing/_copy-store "$ROOT/.darklang/data.db"
   sqlite3 "$ROOT/.darklang/data.db" 'DELETE FROM config_v0;'
   # This disposable installation has its own policy and home. Tests must
   # succeed without grants on the saved installation policy.
   export HOME="$ROOT"
-  # The CLI fixtures start the binary themselves; their default path is relative to the repo
-  # root, which is not where every caller runs.
-  export DARK_CLI_UNDER_TEST="$CLI"
+  # The workers and the CLI fixtures start this binary; the fixtures' default path is relative
+  # to the repo root, which is not where every caller runs.
+  export DARK_CLI_UNDER_TEST="$CHILD_CLI"
 
   "$CLI" permissions clear < /dev/null > /dev/null
 
