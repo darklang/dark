@@ -90,16 +90,31 @@ let contains(list: List<'a>, value: 'a): Bool =
   Builtin.listContains(list, value)
 
 
-/// Returns a list containing <param val> repeated <param times> times
-let repeat(
+// TODO: `repeat` may become the checked version; see #6056.
+/// Returns a list of <param value> repeated <param times> times, or {{[]}} if
+/// <param times> is 0 or less. Use <fn List.checkedRepeat> to get an error for a
+/// negative count.
+let repeat(times: Int64, value: 'a): List<'a> =
+  if times <= 0 then
+    []
+  else
+    Stdlib.List.map(Stdlib.List.range(1, times), fun _ -> value)
+
+
+/// What <fn List.checkedRepeat> returns for a count below 0
+type RepeatError = | NegativeCount
+
+/// Returns {{Ok}} a list of <param value> repeated <param times> times, or
+/// {{Error NegativeCount}} if <param times> is below 0. A count of 0 gives
+/// {{Ok []}}.
+let checkedRepeat(
   times: Int64,
   value: 'a)
-  : Result.Result<List<'a>, String> =
+  : Result.Result<List<'a>, RepeatError> =
   if times < 0 then
-    Result.Result.Error(
-      $"Expected `times` to be positive, but it was `{times |> Stdlib.toString}`")
+    Result.Result.Error(RepeatError.NegativeCount)
   else
-    Result.Result.Ok(Stdlib.List.map(Stdlib.List.range(1, times), fun _ -> value))
+    Result.Result.Ok(repeat(times, value))
 
 
 /// Returns the number of values in <param list>

@@ -457,20 +457,27 @@ test range =
 
 test repeat =
   Stdlib.Test.all(
-    [ Stdlib.List.repeat(0, 1) |> Stdlib.Test.equal(Ok([]))
-      Stdlib.List.repeat(1, "a") |> Stdlib.Test.equal(Ok([ "a" ]))
-      Stdlib.List.repeat(1, 1) |> Stdlib.Test.equal(Ok([ 1 ]))
-      Stdlib.List.repeat(3, 1) |> Stdlib.Test.equal(Ok([ 1, 1, 1 ]))
-      Stdlib.List.repeat(3, 3) |> Stdlib.Test.equal(Ok([ 3, 3, 3 ]))
-      Stdlib.List.repeat(5, "a")
-      |> Stdlib.Test.equal(Ok([ "a", "a", "a", "a", "a" ]))
-      Stdlib.List.repeat(-4, "a")
-      |> Stdlib.Test.equal(
-        Error("Expected `times` to be positive, but it was `-4`"))
+    [ Stdlib.List.repeat(0, 1) |> Stdlib.Test.equal([])
+      Stdlib.List.repeat(1, "a") |> Stdlib.Test.equal([ "a" ])
+      Stdlib.List.repeat(1, 1) |> Stdlib.Test.equal([ 1 ])
+      Stdlib.List.repeat(3, 1) |> Stdlib.Test.equal([ 1, 1, 1 ])
+      Stdlib.List.repeat(3, 3) |> Stdlib.Test.equal([ 3, 3, 3 ])
+      Stdlib.List.repeat(5, "a") |> Stdlib.Test.equal([ "a", "a", "a", "a", "a" ])
+      // A negative count clamps to empty, as String.repeat does.
+      Stdlib.List.repeat(-4, "a") |> Stdlib.Test.equal([])
+      Stdlib.List.repeat(-3000000000, "a") |> Stdlib.Test.equal([])
       Stdlib.List.repeat(3, [ 1, 2, 3 ])
-      |> Stdlib.Test.equal(
-        Ok([ [ 1, 2, 3 ], [ 1, 2, 3 ], [ 1, 2, 3 ] ]))
-      Stdlib.List.repeat(3, []) |> Stdlib.Test.equal(Ok([ [], [], [] ])) ])
+      |> Stdlib.Test.equal([ [ 1, 2, 3 ], [ 1, 2, 3 ], [ 1, 2, 3 ] ])
+      Stdlib.List.repeat(3, []) |> Stdlib.Test.equal([ [], [], [] ]) ])
+
+test checkedRepeat =
+  Stdlib.Test.all(
+    [ Stdlib.List.checkedRepeat(0, 1) |> Stdlib.Test.equal(Ok([]))
+      Stdlib.List.checkedRepeat(3, "a") |> Stdlib.Test.equal(Ok([ "a", "a", "a" ]))
+      Stdlib.List.checkedRepeat(-1, "a")
+      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount))
+      Stdlib.List.checkedRepeat(-4, "a")
+      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount)) ])
 
 test reverse =
   Stdlib.Test.all(

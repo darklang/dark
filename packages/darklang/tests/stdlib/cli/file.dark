@@ -8,7 +8,7 @@ let vnodeEvents(bytes: List<UInt8>): Stdlib.Result.Result<(Bool * Bool), Int64> 
 
 /// <param n> zero bytes.
 let zeros(n: Int64): List<UInt8> =
-  Stdlib.Result.withDefault(Stdlib.List.repeat(n, 0u8), [])
+  Stdlib.List.repeat(n, 0u8)
 
 /// A 16-byte inotify header with <param mask> and no name.
 let inotify(mask: List<UInt8>): List<UInt8> =
