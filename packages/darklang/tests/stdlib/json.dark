@@ -29,7 +29,7 @@ module Unit =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<Int64>("()")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
           (Stdlib.Json.parse<Unit>("0")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `0` as type `Unit` at path: `root`")))
@@ -58,11 +58,11 @@ module Bool =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<Bool>("tru")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
           (Stdlib.Json.parse<Bool>("null")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Bool` at path: `root`"))
           (Stdlib.Json.parse<Bool>("")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
           (Stdlib.Json.parse<Bool>("\"true\"")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"true\"` as type `Bool` at path: `root`"))
           (Stdlib.Json.parse<Bool>("0")) |> err
@@ -70,9 +70,9 @@ module Bool =
           (Stdlib.Json.parse<Bool>("1")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1` as type `Bool` at path: `root`"))
           (Stdlib.Json.parse<Bool>("False")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
           (Stdlib.Json.parse<Bool>("tRUE")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2")) ])
 
 module BigInt =
   module Basic =
@@ -238,11 +238,11 @@ module Int64 =
       Stdlib.Test.all(
         [ // not ints
           (Stdlib.Json.parse<Int64>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int64>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int64>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int64>("null")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Int64` at path: `root`"))
           (Stdlib.Json.parse<Int64>("true")) |> err
@@ -258,7 +258,7 @@ module Int64 =
           (Stdlib.Json.parse<Int64>("42.5")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `Int64` at path: `root`"))
           (Stdlib.Json.parse<Int64>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
 
 module UInt64 =
   module Basic =
@@ -319,11 +319,11 @@ module UInt64 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<UInt64>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt64>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt64>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt64>("null")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `null` as type `UInt64` at path: `root`")))
@@ -346,7 +346,7 @@ module UInt64 =
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `42.5` as type `UInt64` at path: `root`")))
           (Stdlib.Json.parse<UInt64>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
 
 module Int8 =
   module Basic =
@@ -388,11 +388,11 @@ module Int8 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<Int8>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int8>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int8>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int8>("null")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Int8` at path: `root`"))
           (Stdlib.Json.parse<Int8>("true")) |> err
@@ -408,7 +408,7 @@ module Int8 =
           (Stdlib.Json.parse<Int8>("42.5")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `Int8` at path: `root`"))
           (Stdlib.Json.parse<Int8>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
 
 module UInt8 =
   module Basic =
@@ -450,11 +450,11 @@ module UInt8 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<UInt8>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt8>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt8>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt8>("null")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `UInt8` at path: `root`"))
           (Stdlib.Json.parse<UInt8>("true")) |> err
@@ -470,7 +470,7 @@ module UInt8 =
           (Stdlib.Json.parse<UInt8>("42.5")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `UInt8` at path: `root`"))
           (Stdlib.Json.parse<UInt8>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
 
 module Int16 =
   module Basic =
@@ -514,11 +514,11 @@ module Int16 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<Int16>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int16>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int16>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int16>("null")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `null` as type `Int16` at path: `root`")))
@@ -541,7 +541,7 @@ module Int16 =
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `42.5` as type `Int16` at path: `root`")))
           (Stdlib.Json.parse<Int16>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
 
 module UInt16 =
   module Basic =
@@ -584,13 +584,13 @@ module UInt16 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<UInt16>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt16>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt16>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt16>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
           (Stdlib.Json.parse<UInt16>("null")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `UInt16` at path: `root`"))
           (Stdlib.Json.parse<UInt16>("true")) |> err
@@ -650,13 +650,13 @@ module Int32 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<Int32>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int32>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int32>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int32>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
           (Stdlib.Json.parse<Int32>("null")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Int32` at path: `root`"))
           (Stdlib.Json.parse<Int32>("true")) |> err
@@ -715,11 +715,11 @@ module UInt32 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<UInt32>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt32>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt32>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt32>("null")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `null` as type `UInt32` at path: `root`")))
@@ -742,7 +742,7 @@ module UInt32 =
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `42.5` as type `UInt32` at path: `root`")))
           (Stdlib.Json.parse<UInt32>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
 
 module Int128 =
   module Basic =
@@ -806,11 +806,11 @@ module Int128 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<Int128>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int128>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int128>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Int128>("null")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `null` as type `Int128` at path: `root`")))
@@ -833,7 +833,7 @@ module Int128 =
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `42.5` as type `Int128` at path: `root`")))
           (Stdlib.Json.parse<Int128>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
           (Stdlib.Json.parse<Int128>("170141183460469231731687303715884105800")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `170141183460469231731687303715884105800` as type `Int128` at path: `root`"))) ])
@@ -894,11 +894,11 @@ module UInt128 =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<UInt128>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt128>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt128>("- 42")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<UInt128>("null")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `null` as type `UInt128` at path: `root`")))
@@ -921,7 +921,7 @@ module UInt128 =
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `42.5` as type `UInt128` at path: `root`")))
           (Stdlib.Json.parse<UInt128>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
           (Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211456")) |> err
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"))) ])
@@ -1011,20 +1011,20 @@ module Float =
     test parseErrors =
       Stdlib.Test.all(
         [ (Stdlib.Json.parse<Float>("e")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
           (Stdlib.Json.parse<Float>("pi")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
           (Stdlib.Json.parse<Float>(" -42 . 0 ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 6"))
           (Stdlib.Json.parse<Float>("0")) |> err |> Stdlib.Test.equal(Result.Ok(0.0))
           (Stdlib.Json.parse<Float>(" ")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Float>("4a")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Float>("- 42.0")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Float>("-141s")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 5"))
           (Stdlib.Json.parse<Float>("null")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Float` at path: `root`"))
           (Stdlib.Json.parse<Float>("true")) |> err
@@ -1038,15 +1038,15 @@ module Float =
           (Stdlib.Json.parse<Float>("{ \"key\": 42 }")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"))
           (Stdlib.Json.parse<Float>("\"42\n\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
           (Stdlib.Json.parse<Float>("000000.9")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Float>("-000000.9")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
           (Stdlib.Json.parse<Float>("-00000000.000")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
           (Stdlib.Json.parse<Float>("00000000.000")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
           (Stdlib.Json.parse<Float>("\"65.0\"")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"65.0\"` as type `Float` at path: `root`")) ])
 
@@ -1293,7 +1293,7 @@ module List =
 
   test parseErrors =
     (Stdlib.Json.parse<List<Int64>>("[1,2,3,]")) |> err
-    |> Stdlib.Test.equal(Result.Error("Not JSON"))
+    |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 8"))
 
   module Errors =
     test rejects1 =
@@ -1305,7 +1305,7 @@ module List =
         [ (Stdlib.Json.parse<List<Int64>>("[1, 2, \"three\"]")) |> err
           |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"three\"` as type `Int64` at path: `root[2]`"))
           (Stdlib.Json.parse<List<Int64>>("[1, 2, ]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON"))
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 8"))
           (Stdlib.Json.parse<List<List<List<Int64>>>>("[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]"))
           |> err
           |> Stdlib.Test.equal((Result.Error(
@@ -1523,7 +1523,7 @@ module Dict =
   module Errors =
     test parseErrors =
       (Stdlib.Json.parse<Dict<String, Int64>>("""{1:"b",2:"d"}""")) |> err
-      |> Stdlib.Test.equal(Result.Error("Not JSON"))
+      |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
 
 module UserDefinedEnums =
   // TODO: more nesting...
@@ -1861,8 +1861,31 @@ module RestoredArchive =
       "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})" ]
     |> Stdlib.List.map(fun text ->
       Stdlib.Json.parse<Int64>(text) |> err
-      |> Stdlib.Test.equal(Error("Not JSON")))
+      |> Stdlib.Result.mapError(fun m ->
+        Stdlib.String.startsWith(m, "Not JSON at line "))
+      |> Stdlib.Test.equal(Error(true)))
     |> Stdlib.Test.all
+
+  // Where the text broke: the line and column of the first character that
+  // isn't JSON, both counted from 1, the column in characters, not bytes
+  test notJsonSaysWhere =
+    let at = fun text ->
+      match Stdlib.Json.parse<List<String>>(text) with
+      | Error(Stdlib.Json.ParseError.ParseError.NotJson(line, column)) ->
+        Stdlib.Option.Option.Some((line, column))
+      | _ -> Stdlib.Option.Option.None
+    Stdlib.Test.all(
+      [ at("x") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 1)))
+        at("") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 1)))
+        at("[\"a\", x]") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 7)))
+        at("[\n  \"a\",\n  \"b\" \"c\"\n]")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some((3, 7)))
+        at("[\r\n\"a\",\r\n x]")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some((3, 2)))
+        at("[\"é🎉\", x]") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 8)))
+        at("[\"a\"") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 5)))
+        (Stdlib.Json.parse<List<String>>("[\n1 2]")) |> err
+        |> Stdlib.Test.equal(Error("Not JSON at line 2, column 3")) ])
 
   test scalarAndLargeRecordValues =
     Stdlib.Test.all(

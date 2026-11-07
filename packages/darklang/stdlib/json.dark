@@ -54,7 +54,9 @@ module ParseError =
     | RecordMissingField(fieldName: String, JsonPath.JsonPath)
     /// A number outside the range of a type such as <type Stdlib.Net.Port>
     | OutOfRange(Stdlib.Math.OutOfRange, JsonPath.JsonPath)
-    | NotJson
+    /// The text isn't JSON: the line and column where it broke, both counted
+    /// from 1, the column in characters
+    | NotJson(line: Int64, column: Int64)
 
   let toString(
     branchId: Uuid,
@@ -131,4 +133,9 @@ module ParseError =
       + JsonPath.toString(path)
       + "`"
 
-    | NotJson -> "Not JSON"
+    // Not JSON at line 1, column 4
+    | NotJson(line, column) ->
+      "Not JSON at line "
+      + Stdlib.toString(line)
+      + ", column "
+      + Stdlib.toString(column)

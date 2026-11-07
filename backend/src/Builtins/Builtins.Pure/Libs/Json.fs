@@ -239,14 +239,16 @@ module ParseError =
       min : int64 *
       max : int64 *
       JsonPath.JsonPath
-    | NotJson
+    /// The text isn't JSON. Where it broke, both counted from 1; the column
+    /// counts characters, not bytes
+    | NotJson of line : int64 * column : int64
 
   exception JsonException of ParseError
 
   let toDT (e : ParseError) : Dval =
     let (caseName, fields) =
       match e with
-      | NotJson -> "NotJson", []
+      | NotJson(line, column) -> "NotJson", [ Dval.dint64 line; Dval.dint64 column ]
 
       | CantMatchWithType(typ, json, errorPath) ->
         "CantMatchWithType",
@@ -295,6 +297,42 @@ module ParseError =
 
     let typeName = typeName ()
     DEnum(typeName, typeName, [], caseName, fields)
+
+/// Where System.Text.Json stopped, as a `NotJson`. It reports a line counted
+/// from 0 and a column in UTF-8 bytes; this walks to that line and counts
+/// characters instead, so `é` or an emoji counts once. Only runs on failure,
+/// so a successful parse pays nothing for it.
+let private notJsonAt
+  (s : string)
+  (line : System.Nullable<int64>)
+  (bytesInLine : System.Nullable<int64>)
+  : ParseError.ParseError =
+  let line = if line.HasValue then line.Value else 0L
+  let bytesInLine = if bytesInLine.HasValue then bytesInLine.Value else 0L
+  // IndexOf is vectorised: on a 15 MB document broken on its last line, a
+  // char-by-char loop here added a sixth to the failed parse
+  let mutable i = 0
+  let mutable seen = 0L
+  while seen < line && i < s.Length do
+    let next = s.IndexOf('\n', i)
+    i <- if next < 0 then s.Length else next + 1
+    seen <- seen + 1L
+  let mutable bytes = 0L
+  let mutable column = 1L
+  while bytes < bytesInLine && i < s.Length && s[i] <> '\n' do
+    let c = s[i]
+    if System.Char.IsHighSurrogate c && i + 1 < s.Length then
+      bytes <- bytes + 4L
+      i <- i + 2
+    else
+      bytes <-
+        bytes
+        + (if c < '\u0080' then 1L
+           elif c < '\u0800' then 2L
+           else 3L)
+      i <- i + 1
+    column <- column + 1L
+  ParseError.NotJson(line + 1L, column)
 
 let raiseError (e : ParseError.ParseError) : 'a = raise (ParseError.JsonException e)
 
@@ -937,8 +975,10 @@ let parse
   let parsed =
     try
       Ok(parseJson str)
-    with _ex ->
-      Error ParseError.NotJson
+    with
+    | :? System.Text.Json.JsonException as ex ->
+      Error(notJsonAt str ex.LineNumber ex.BytePositionInLine)
+    | _ -> Error(ParseError.NotJson(1L, 1L))
 
   match parsed with
   | Error err -> Error err |> Ply
