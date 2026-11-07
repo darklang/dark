@@ -39,7 +39,7 @@ gate_hosted_db() {
 let countOf (book: DB<Note>) : Int = Stdlib.DB.count book
 
 let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  match Stdlib.HttpServer.getMethod req with
+  match req.method with
   | "POST" ->
     let note = Stdlib.String.fromBlobWithReplacement req.body
     let _ = Stdlib.DB.set (Note { hostedDbGateNote = note }) note HostedDbNotes

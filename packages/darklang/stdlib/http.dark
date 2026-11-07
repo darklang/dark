@@ -2,7 +2,8 @@ module Darklang.Stdlib.Http
 
 
 type Request =
-  { url: String
+  { method: String
+    url: String
     headers: List<String * String>
     body: Bytes }
 
