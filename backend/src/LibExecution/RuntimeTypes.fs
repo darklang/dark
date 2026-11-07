@@ -2347,6 +2347,10 @@ module RuntimeError =
 
       | UnsupportedKeyType of keyType : ValueType * key : Dval
 
+      /// A key that is or holds a NaN. NaN is not equal to itself, so no lookup
+      /// could find it.
+      | NaNKey of key : Dval
+
       | MismatchedKeyType of
         expectedType : ValueType *
         actualType : ValueType *
@@ -2982,11 +2986,15 @@ module Dval =
 
   /// A key must mean what `==` means. Bytes compare by content, so they are keys;
   /// the reflected `Dval` holds Bytes and is itself a key type. See docs/bytes.md.
+  /// A NaN is not equal to itself, so it is not a key, nor is a value holding one.
   let rec isUsableDictKey (dv : Dval) : bool =
     match dv with
     | DApplicable _
     | DStream _
     | DPromise _ -> false
+
+    | DFloat f -> not (System.Double.IsNaN f)
+    | DFloat32 f -> not (System.Single.IsNaN f)
 
     | DList(_, items) -> List.forall isUsableDictKey items
     | DTuple(a, b, rest) ->
@@ -3009,8 +3017,6 @@ module Dval =
     | DInt128 _
     | DUInt128 _
     | DBigInt _
-    | DFloat _
-    | DFloat32 _
     | DDecimal _
     | DChar _
     | DString _
@@ -3018,12 +3024,27 @@ module Dval =
     | DUuid _
     | DBytes _ -> true
 
+  /// Whether <param dv> is or holds a NaN, looking where a key comparison would.
+  let rec private holdsNaN (dv : Dval) : bool =
+    match dv with
+    | DFloat f -> System.Double.IsNaN f
+    | DFloat32 f -> System.Single.IsNaN f
+    | DList(_, items) -> List.exists holdsNaN items
+    | DTuple(a, b, rest) -> holdsNaN a || holdsNaN b || List.exists holdsNaN rest
+    | DDict(_, _, entries) ->
+      entries |> DictMap.exists (fun k v -> holdsNaN k || holdsNaN v)
+    | DRecord(_, _, _, fields) -> fields |> RecordFields.exists holdsNaN
+    | DEnum(_, _, _, _, fields) -> List.exists holdsNaN fields
+    | _ -> false
+
   let assertUsableDictKey (key : Dval) : unit =
     if not (isUsableDictKey key) then
-      RuntimeError.Error.Dict(
-        RuntimeError.Dicts.UnsupportedKeyType(toValueType key, key)
-      )
-      |> raiseUntargetedRTE
+      let error =
+        if holdsNaN key then
+          RuntimeError.Dicts.NaNKey key
+        else
+          RuntimeError.Dicts.UnsupportedKeyType(toValueType key, key)
+      RuntimeError.Error.Dict error |> raiseUntargetedRTE
 
 
   /// Generic Dval-rewriting walker. At each node, asks `f`:

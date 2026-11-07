@@ -669,14 +669,15 @@ test uniqueDeduplicatesSameShapedValues =
   |> Stdlib.List.length
   |> Stdlib.Test.equal(1500)
 
-// Equality is `==`, so NaN is unequal to itself and both are kept. `uniqueBy`
-// keys a Dict instead, where NaN is one key.
+// Equality is `==`, so NaN is unequal to itself and both are kept.
 test uniqueUsesEqualityNotDictKeys =
-  Stdlib.Test.all(
-    [ Stdlib.List.length(Stdlib.List.unique([ (0.0 / 0.0), (0.0 / 0.0) ]))
-      |> Stdlib.Test.equal(2)
-      Stdlib.List.length(Stdlib.List.uniqueBy([ (0.0 / 0.0), (0.0 / 0.0) ], fun x -> x))
-      |> Stdlib.Test.equal(1) ])
+  Stdlib.List.length(Stdlib.List.unique([ (0.0 / 0.0), (0.0 / 0.0) ]))
+  |> Stdlib.Test.equal(2)
+
+// `uniqueBy` keys a Dict instead, and a Dict refuses a NaN key.
+test uniqueByRaisesOnNaN =
+  Stdlib.List.uniqueBy([ (0.0 / 0.0), (0.0 / 0.0) ], fun x -> x)
+  => raises "Cannot use NaN as a dict key. NaN is not equal to itself, so a key holding it could never be found."
 
 test unzip =
   Stdlib.Test.all(

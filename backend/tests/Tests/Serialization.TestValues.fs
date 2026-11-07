@@ -144,6 +144,7 @@ module RuntimeTypes =
       RTE.List(RTE.Lists.CannotSort dv)
       RTE.Dict(RTE.Dicts.TriedToAddMismatchedData(RT.DString "k", vt, vt2, dv))
       RTE.Dict(RTE.Dicts.UnsupportedKeyType(vt, dv))
+      RTE.Dict(RTE.Dicts.NaNKey dv)
       RTE.Dict(RTE.Dicts.MismatchedKeyType(vt, vt2, dv))
       RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, RT.LPVariable 0))
       RTE.VariableNotFound "x"

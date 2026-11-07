@@ -633,6 +633,21 @@ module DictKeyOrdering =
         (isValid (RT.DTuple(RT.DUnit, bad, [])))
         "nor a tuple holding one"
       Expect.isFalse (isValid dictOfBad) "nor a dict holding one as a value"
+      Expect.isFalse (isValid (RT.DFloat nan)) "NaN is not a key"
+      Expect.isFalse (isValid (RT.DFloat32 nanf)) "nor a Float32 NaN"
+      Expect.isFalse
+        (isValid (RT.DList(VT.unknown, [ RT.DFloat 1.0; RT.DFloat nan ])))
+        "nor a list holding one"
+      Expect.isFalse
+        (isValid (
+          RT.DDict(
+            VT.unknown,
+            VT.unknown,
+            RT.DictMap.ofList [ RT.DUnit, RT.DFloat nan ]
+          )
+        ))
+        "nor a dict holding one as a value"
+      Expect.isTrue (isValid (RT.DFloat infinity)) "infinity is still a key"
       Expect.isTrue
         (isValid (RT.DList(VT.unknown, [ RT.DInt64 1L ])))
         "a list of ordinary values is still a key")
@@ -717,7 +732,10 @@ module DictKeyOrdering =
     testCase "the two divergences from == are deliberate" (fun _ ->
       let nan = RT.DFloat(0.0 / 0.0)
       Expect.isFalse (LibExecution.Dval.equals nan nan) "== says NaN <> NaN"
-      Expect.isTrue (sameKey nan nan) "as a key, NaN must find itself"
+      Expect.isTrue (sameKey nan nan) "the key order still needs NaN to find itself"
+      Expect.isFalse
+        (LibExecution.RuntimeTypes.Dval.isUsableDictKey nan)
+        "so a NaN is refused as a key rather than stored"
 
       let tn = RT.FQTypeName.Package(RT.Hash "some-enum")
       let withArg vt = RT.DEnum(tn, tn, [ vt ], "None", [])

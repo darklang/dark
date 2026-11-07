@@ -50,6 +50,10 @@ module Dicts =
 
     | UnsupportedKeyType(keyType: ValueType, key: Dval)
 
+    /// A key that is or holds a NaN. NaN is not equal to itself, so no lookup
+    /// could find it.
+    | NaNKey(key: Dval)
+
     | MismatchedKeyType(
       expectedType: ValueType,
       actualType: ValueType,

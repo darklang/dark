@@ -1307,6 +1307,7 @@ module RuntimeError =
             Dval.toDT actualValue ]
         | RuntimeError.Dicts.UnsupportedKeyType(keyType, key) ->
           "UnsupportedKeyType", [ ValueType.toDT keyType; Dval.toDT key ]
+        | RuntimeError.Dicts.NaNKey key -> "NaNKey", [ Dval.toDT key ]
         | RuntimeError.Dicts.MismatchedKeyType(expectedType, actualType, actualKey) ->
           "MismatchedKeyType",
           [ ValueType.toDT expectedType
@@ -1333,6 +1334,8 @@ module RuntimeError =
           ValueType.fromDT keyType,
           Dval.fromDT key
         )
+      | DEnum(_, _, [], "NaNKey", [ key ]) ->
+        RuntimeError.Dicts.NaNKey(Dval.fromDT key)
       | DEnum(_, _, [], "MismatchedKeyType", [ expectedType; actualType; actualKey ]) ->
         RuntimeError.Dicts.MismatchedKeyType(
           ValueType.fromDT expectedType,

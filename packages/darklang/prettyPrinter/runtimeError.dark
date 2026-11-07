@@ -267,6 +267,11 @@ module RuntimeError =
           ES.FullValue(key)
           ES.String(" as a dict key. Functions, streams,")
           ES.String(" and values containing them cannot be keys.") ]
+      | NaNKey(key) ->
+        [ ES.String("Cannot use ")
+          ES.FullValue(key)
+          ES.String(" as a dict key. NaN is not equal to itself,")
+          ES.String(" so a key holding it could never be found.") ]
       | MismatchedKeyType(expectedType, actualType, actualKey) ->
         [ ES.String("This dict uses keys of type ")
           ES.ValueType(expectedType)
