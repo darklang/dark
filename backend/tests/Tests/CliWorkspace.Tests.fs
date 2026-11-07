@@ -650,7 +650,7 @@ let private previewOfAServedRequest =
           do!
             author
               "Tests.PrevHttp.router"
-              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  let body = Tests.PrevHttp.page()\n  Stdlib.Http.responseWithText(body, 200)"
+              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  let body = Tests.PrevHttp.page()\n  Stdlib.Http.responseWithText(200, body)"
 
           do!
             withLiveServer
@@ -697,7 +697,7 @@ let private serveFollowsEdits =
       do!
         author
           "Tests.LiveHttp.router"
-          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.LiveHttp.page(), 200)"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Tests.LiveHttp.page())"
 
       do!
         withLiveServer
@@ -759,7 +759,7 @@ let private serveFollowsEdits =
               do!
                 author
                   "Tests.LiveHttp.router"
-                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.LiveHttp.page(), 201)"
+                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(201, Tests.LiveHttp.page())"
               let! (status, _) = getText port
               Expect.equal
                 status
@@ -1047,7 +1047,7 @@ let private serveFollowsEditsOnABranch =
         do!
           author
             "Tests.LiveBranchHttp.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.LiveBranchHttp.page(), 200)"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Tests.LiveBranchHttp.page())"
         do!
           withLiveServer
             state
@@ -1241,7 +1241,7 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         do!
           author
             $"Tests.{m}.router"
-            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Tests.{m}.page(), 200)"
+            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Tests.{m}.page())"
 
         let routerLoc = "(" + locSource [ m ] "router" + ")"
         let! lg =
@@ -1311,7 +1311,7 @@ let private devStreamReportsAnEditAfterTheServe =
         do!
           author
             "Tests.LiveStream.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithHtml(Tests.LiveStream.page(), 200)"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithHtml(200, Tests.LiveStream.page())"
         do!
           withLiveServer
             state
@@ -1369,7 +1369,7 @@ let private devErrorPageCarriesTheListener =
         do!
           author
             "Tests.LiveDev.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.toString(1 / 0), 200)"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Stdlib.toString(1 / 0))"
         do!
           withLiveServer
             state

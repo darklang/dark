@@ -573,7 +573,7 @@ let private concurrentEphemeralBytesRequests =
     let bodyFor (i : int) : byte[] = UTF8.toBytes (String.replicate 64 $"req{i:D4}-")
     let! results =
       runRequestsAgainst
-        "Darklang.Stdlib.Http.response(request.body, 200)"
+        "Darklang.Stdlib.Http.response(200, request.body)"
         "POST"
         ([ 1..64 ] |> List.map (fun i -> "/", bodyFor i))
     results
@@ -595,10 +595,10 @@ let private pathRouter =
   """(match request.url with
       | url when Darklang.Stdlib.String.contains(url, "/slow") ->
         let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
-        Darklang.Stdlib.Http.responseWithText("slow done", 200)
+        Darklang.Stdlib.Http.responseWithText(200, "slow done")
       | url when Darklang.Stdlib.String.contains(url, "/boom") ->
-        Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.toString(1 / 0), 200)
-      | _ -> Darklang.Stdlib.Http.responseWithText("fast", 200))"""
+        Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.toString(1 / 0))
+      | _ -> Darklang.Stdlib.Http.responseWithText(200, "fast"))"""
 
 /// `pathRouter` with the answer stamped with the millisecond it was made: `slow <ms>` or
 /// `fast <ms>`, so a test can tell which finished first.
@@ -607,12 +607,12 @@ let private stampedRouter =
       | url when Darklang.Stdlib.String.contains(url, "/slow") ->
         let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
         Darklang.Stdlib.Http.responseWithText(
-          "slow " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())),
-          200)
+          200,
+          "slow " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())))
       | _ ->
         Darklang.Stdlib.Http.responseWithText(
-          "fast " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())),
-          200))"""
+          200,
+          "fast " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now()))))"""
 
 // Sequenced: the timeout test lowers the process-wide `requestTimeoutMs` for its own server.
 let private requestsAreProcesses =

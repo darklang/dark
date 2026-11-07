@@ -74,12 +74,12 @@ test responseBuilders =
   Stdlib.Test.all(
     [ Stdlib.Http.badRequest("Your request resulted in an error")
       |> Stdlib.Test.equal(expected(400, [], "Your request resulted in an error"))
-      Stdlib.Http.response(Stdlib.Utf8.encode("test"), 200)
+      Stdlib.Http.response(200, Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(expected(200, [], "test"))
       Stdlib.Http.responseWithHeaders(
-        Stdlib.Utf8.encode("test"),
+        200,
         [ ("Content-Type", "text/html; charset=utf-8") ],
-        200)
+        Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "text/html; charset=utf-8") ], "test"))
       Stdlib.Http.notFound()
@@ -90,13 +90,13 @@ test responseBuilders =
       |> Stdlib.Test.equal(expected(403, [], ""))
       Stdlib.Http.success(Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(expected(200, [], "test"))
-      Stdlib.Http.responseWithHtml("test", 200)
+      Stdlib.Http.responseWithHtml(200, "test")
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "text/html; charset=utf-8") ], "test"))
-      Stdlib.Http.responseWithText("test", 200)
+      Stdlib.Http.responseWithText(200, "test")
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "text/plain; charset=utf-8") ], "test"))
-      Stdlib.Http.responseWithJson("test", 200)
+      Stdlib.Http.responseWithJson(200, "test")
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "application/json") ], "test")) ])
 

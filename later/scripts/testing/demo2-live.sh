@@ -38,7 +38,7 @@ else
 fi
 echo "--- A authors the site (each save autopushes${BRANCH:+, on branch $BRANCH})"
 x A fn Demo.Site.page '(): String = "site v1"' | grep -E "✓|autopush|Pushed|refus" | head -4
-x A fn Demo.Site.router '(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Demo.Site.page ()) 200' | grep -E "✓|autopush|Pushed" | head -3
+x A fn Demo.Site.router '(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText 200 (Demo.Site.page ())' | grep -E "✓|autopush|Pushed" | head -3
 echo "--- B syncs once, then follows on the sync daemon"
 x B sync | tail -1
 # The auto-sync daemon: `dark sync` every apps.sync.intervalMs, as a detached `dark apps daemon-main

@@ -396,7 +396,7 @@ let query (req: Stdlib.Http.Request) (key: String) : Stdlib.Option.Option<String
   Stdlib.Dict.get (Stdlib.Http.parseQueryString req.url) key
 
 let statusHandler (_req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.Http.responseWithText (statusText ()) 200
+  Stdlib.Http.responseWithText 200 (statusText ())
 
 /// `/changes?since=<n>`: the events after n, then the number to ask from next time.
 let changesHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
@@ -413,15 +413,15 @@ let changesHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   let body =
     if newer == [] then "nothing" else Stdlib.String.join newer "\n"
 
-  Stdlib.Http.responseWithText $"{body}\nnext: /changes?since={Stdlib.toString (lastSeq ())}\n" 200
+  Stdlib.Http.responseWithText 200 $"{body}\nnext: /changes?since={Stdlib.toString (lastSeq ())}\n"
 
 let prHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   match Stdlib.HttpServer.getPathParam req "/pr/:n" "n" |> Stdlib.Option.andThen (fun s -> Stdlib.Int.parse s |> Stdlib.Result.toOption) with
-  | None -> Stdlib.Http.responseWithText "which pull request?\n" 400
+  | None -> Stdlib.Http.responseWithText 400 "which pull request?\n"
   | Some n ->
     match ciOf (savedCi ()) n with
-    | None -> Stdlib.Http.responseWithText $"#{Stdlib.toString n}: not on the board\n" 404
-    | Some c -> Stdlib.Http.responseWithText $"#{Stdlib.toString n}: {ciPhrase c}\n" 200
+    | None -> Stdlib.Http.responseWithText 404 $"#{Stdlib.toString n}: not on the board\n"
+    | Some c -> Stdlib.Http.responseWithText 200 $"#{Stdlib.toString n}: {ciPhrase c}\n"
 
 /// `/wait?pr=<n>`: hold the request until that pull request's CI finishes, checking what the
 /// watcher recorded every few seconds; past `maxMs` it answers "still running" and the caller
@@ -433,29 +433,29 @@ let waitHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   let loop (waited: Int) : Stdlib.Http.Response =
     match pr |> Stdlib.Option.andThen (fun n -> ciOf (savedCi ()) n) with
     | Some c when isFinished c ->
-      Stdlib.Http.responseWithText $"#{Stdlib.toString c.pr}: {ciPhrase c}\n" 200
+      Stdlib.Http.responseWithText 200 $"#{Stdlib.toString c.pr}: {ciPhrase c}\n"
     | _ ->
       if waited >= maxMs then
-        Stdlib.Http.responseWithText "still running\n" 200
+        Stdlib.Http.responseWithText 200 "still running\n"
       else
         Stdlib.Cli.Posix.sleep 3000.0
         loop (waited + 3000)
 
   match pr with
-  | None -> Stdlib.Http.responseWithText "wait for which pull request? /wait?pr=<n>\n" 400
+  | None -> Stdlib.Http.responseWithText 400 "wait for which pull request? /wait?pr=<n>\n"
   | Some n ->
     match ciOf (savedCi ()) n with
     | None ->
       Stdlib.Http.responseWithText
-        $"#{Stdlib.toString n}: not on the board, so nothing is watching it\n"
         404
+        $"#{Stdlib.toString n}: not on the board, so nothing is watching it\n"
     | Some _ -> loop 0
 
 /// The host posts its board and its tabs here, since neither is visible from inside.
 let postFile (name: String) (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   write name (Stdlib.String.fromBlobWithReplacement req.body)
   write "pushed" (Stdlib.toString (nowSeconds ()))
-  Stdlib.Http.responseWithText "ok\n" 200
+  Stdlib.Http.responseWithText 200 "ok\n"
 
 let postBoard (req: Stdlib.Http.Request) : Stdlib.Http.Response = postFile "board" req
 let postTabs (req: Stdlib.Http.Request) : Stdlib.Http.Response = postFile "tabs" req

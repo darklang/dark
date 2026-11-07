@@ -12,7 +12,7 @@ type HttpResponse = Stdlib.Http.Response
 type HttpRequest = Stdlib.Http.Request
 
 let pingHandlerFn (_req: HttpRequest) : HttpResponse =
-  Stdlib.Http.responseWithText "pong" 200
+  Stdlib.Http.responseWithText 200 "pong"
 
 
 /// Hand out ops as portable wire records. `?sinceSeq=<n>` makes it INCREMENTAL, paging by the RELAY's OWN
@@ -35,8 +35,8 @@ let pullHandlerFn (req: HttpRequest) : HttpResponse =
   match parsed with
   | Error raw ->
     Stdlib.Http.responseWithText
-      $"?sinceSeq= has to be a number, and \"{raw}\" isn't one"
       400
+      $"?sinceSeq= has to be a number, and \"{raw}\" isn't one"
   | Ok sinceSeq ->
 
   let owner =
@@ -46,11 +46,11 @@ let pullHandlerFn (req: HttpRequest) : HttpResponse =
     // The common case by far, and the one a first sync spends all its time in: everything the relay
     // holds, encoded natively rather than through 2,000 Dark values per page.
     let (json, _cursor) = SCM.Wire.exportPageJsonSince sinceSeq
-    Stdlib.Http.responseWithJson json 200
+    Stdlib.Http.responseWithJson 200 json
   else
     // Owner-filtered pages are rare and small, so they keep the Dark path.
     let (ops, cursor) = SCM.Wire.exportOwnedSince owner sinceSeq
-    Stdlib.Http.responseWithJson (SCM.Wire.wireEncodeAt cursor ops) 200
+    Stdlib.Http.responseWithJson 200 (SCM.Wire.wireEncodeAt cursor ops)
 
 /// Park until the op count moves, or until <param deadlineMs>. The head as of waking.
 ///
@@ -117,9 +117,9 @@ let headHandlerFn (req: HttpRequest) : HttpResponse =
   if (waitMs > 0) && (knownCount == Stdlib.toString head.count) then
     Stdlib.Host.begin ()
     let woken = waitForCount head.count ((Cli.Telemetry.now ()) + waitMs)
-    Stdlib.Http.responseWithJson (SCM.Wire.headEncode woken) 200
+    Stdlib.Http.responseWithJson 200 (SCM.Wire.headEncode woken)
   else
-    Stdlib.Http.responseWithJson (SCM.Wire.headEncode head) 200
+    Stdlib.Http.responseWithJson 200 (SCM.Wire.headEncode head)
 
 
 /// May this request write?
@@ -180,7 +180,7 @@ let writeAllowed (req: HttpRequest) : Stdlib.Result.Result<Unit, String> =
 /// so a re-push is a no-op.
 let pushHandlerFn (req: HttpRequest) : HttpResponse =
   match writeAllowed req with
-  | Error why -> Stdlib.Http.responseWithText why 401
+  | Error why -> Stdlib.Http.responseWithText 401 why
   | Ok _ ->
 
   let owner =
@@ -200,8 +200,8 @@ let pushHandlerFn (req: HttpRequest) : HttpResponse =
       // A JSON body, not a sentence: the client acts on this count, and a protocol a client
       // parses out of English is one wording change from silent breakage.
       Stdlib.Http.responseWithText
-        $"{{\"stored\": {Stdlib.toString n}, \"owner\": \"{owner}\"}}"
         200
+        $"{{\"stored\": {Stdlib.toString n}, \"owner\": \"{owner}\"}}"
     | Error e -> Stdlib.Http.serverError e
   | Error _ ->
     Stdlib.Http.badRequest "expected a versioned SyncBundle {formatVersion, darkBuild, ops, commits}"
@@ -229,7 +229,7 @@ let branchAccessAllowed (req: HttpRequest) : Stdlib.Result.Result<Unit, String> 
 /// body = the export JSON. The relay is a dumb store; it never folds or runs the branch.
 let branchPushHandlerFn (req: HttpRequest) : HttpResponse =
   match writeAllowed req with
-  | Error why -> Stdlib.Http.responseWithText why 401
+  | Error why -> Stdlib.Http.responseWithText 401 why
   | Ok _ ->
 
   let owner =
@@ -244,39 +244,39 @@ let branchPushHandlerFn (req: HttpRequest) : HttpResponse =
 
   if owner == "" || branch == "" then
     Stdlib.Http.responseWithText
-      "branch push needs ?owner= and ?branch="
       400
+      "branch push needs ?owner= and ?branch="
   else if body == "" then
-    Stdlib.Http.responseWithText $"branch push for \"{branch}\" had an empty body" 400
+    Stdlib.Http.responseWithText 400 $"branch push for \"{branch}\" had an empty body"
   // A BRANCH bundle, not a sync bundle: `exportBranch` emits {"branchId":..,"name":..,"ops":[..]}, which
   // `wireDecode` rightly rejects, so validate the shape THIS endpoint receives instead.
   else if Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim body) "{") then
-    Stdlib.Http.responseWithText "branch push body wasn't JSON" 400
+    Stdlib.Http.responseWithText 400 "branch push body wasn't JSON"
   else if Stdlib.Bool.not (Stdlib.String.contains body "\"ops\"") then
-    Stdlib.Http.responseWithText "branch push body had no ops" 400
+    Stdlib.Http.responseWithText 400 "branch push body had no ops"
   else
     // A URL is text and a branch id is a Uuid, so this is where one becomes the other. Refusing a
     // non-id here rather than storing under it keeps the relay's branch table keyed on real ids.
     match Stdlib.Uuid.parse branch with
     | Error _ ->
       Stdlib.Http.responseWithText
-        $"branch push needs ?branch= to be a branch id, and \"{branch}\" isn't one"
         400
+        $"branch push needs ?branch= to be a branch id, and \"{branch}\" isn't one"
     | Ok branchId ->
       // A push that loses to a newer stored bundle is ANSWERED, not silently dropped: the pusher is
       // usually a machine that has fallen behind, and the one thing it must not conclude is that
       // the relay now serves what it just sent.
       if SCM.PackageOps.relayStoreBranch owner branchId body then
-        Stdlib.Http.responseWithText $"stored branch \"{branch}\" for \"{owner}\"" 200
+        Stdlib.Http.responseWithText 200 $"stored branch \"{branch}\" for \"{owner}\""
       else
         Stdlib.Http.responseWithText
-          $"kept the newer copy of branch \"{branch}\" for \"{owner}\"; nothing was replaced"
           409
+          $"kept the newer copy of branch \"{branch}\" for \"{owner}\"; nothing was replaced"
 
 /// Serve a stored branch bundle (`?owner=X&branch=Y`), or "" if none.
 let branchPullHandlerFn (req: HttpRequest) : HttpResponse =
   match branchAccessAllowed req with
-  | Error why -> Stdlib.Http.responseWithText why 401
+  | Error why -> Stdlib.Http.responseWithText 401 why
   | Ok _ ->
 
   let owner =
@@ -297,12 +297,12 @@ let branchPullHandlerFn (req: HttpRequest) : HttpResponse =
       Stdlib.Http.badRequest
         $"branch pull needs ?branch= to be a branch id, and \"{branch}\" isn't one"
     | Ok branchId ->
-      Stdlib.Http.responseWithText (SCM.PackageOps.relayGetBranch owner branchId) 200
+      Stdlib.Http.responseWithText 200 (SCM.PackageOps.relayGetBranch owner branchId)
 
 /// List the branch ids an owner has pushed (`?owner=X`), newline-joined.
 let branchListHandlerFn (req: HttpRequest) : HttpResponse =
   match branchAccessAllowed req with
-  | Error why -> Stdlib.Http.responseWithText why 401
+  | Error why -> Stdlib.Http.responseWithText 401 why
   | Ok _ ->
 
   let owner =
@@ -311,11 +311,11 @@ let branchListHandlerFn (req: HttpRequest) : HttpResponse =
   if owner == "" then
     Stdlib.Http.badRequest "branch list needs ?owner="
   else
-    Stdlib.Http.responseWithText (SCM.PackageOps.relayListBranches owner) 200
+    Stdlib.Http.responseWithText 200 (SCM.PackageOps.relayListBranches owner)
 
 /// Every hosted branch with its owner (`owner branch-id` per line). Same secret as the other branch
 /// reads: whose branches exist is itself unpublished work.
 let branchOwnersHandlerFn (req: HttpRequest) : HttpResponse =
   match branchAccessAllowed req with
-  | Error why -> Stdlib.Http.responseWithText why 401
-  | Ok _ -> Stdlib.Http.responseWithText (SCM.PackageOps.relayListAllBranches ()) 200
+  | Error why -> Stdlib.Http.responseWithText 401 why
+  | Ok _ -> Stdlib.Http.responseWithText 200 (SCM.PackageOps.relayListAllBranches ())

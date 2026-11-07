@@ -1,5 +1,5 @@
 [http-handler GET /a]
-Darklang.Stdlib.Http.response(Darklang.Stdlib.Utf8.encode(request.url + " " + Darklang.Stdlib.HttpServer.getPath(request)), 200)
+Darklang.Stdlib.Http.response(200, Darklang.Stdlib.Utf8.encode(request.url + " " + Darklang.Stdlib.HttpServer.getPath(request)))
 
 [request]
 GET http://HOST/a?b=1 HTTP/1.1

@@ -1196,7 +1196,7 @@ let private servedRequestsKeepNoCredentials =
         let cookie = secret "cookie"
         let! exeState = executionStateFor pmPT true
         let source =
-          $"fun request -> {{ Darklang.Stdlib.Http.responseWithText(\"ok\", 200) with headers = [(\"Set-Cookie\", \"sid={setCookie}\")] }}"
+          $"fun request -> {{ Darklang.Stdlib.Http.responseWithText(200, \"ok\") with headers = [(\"Set-Cookie\", \"sid={setCookie}\")] }}"
         let! ptExpr = parsePTExpr source
         let! router =
           LibExecution.Execution.executeExpr

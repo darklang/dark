@@ -21,7 +21,7 @@ let _smokeNotice =
 let iterations = if smoke then 1 else 3000
 
 let hello(req: Stdlib.Http.Request): Stdlib.Http.Response =
-  Stdlib.Http.responseWithText("hello", 200)
+  Stdlib.Http.responseWithText(200, "hello")
 
 let handlers =
   [ Stdlib.HttpServer.Handler { route = "/hello", method = "GET", handler = hello }

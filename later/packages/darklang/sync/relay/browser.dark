@@ -264,7 +264,7 @@ let pageWithStatus (title: String) (body: String) (status: Int) : HttpResponse =
     + "<a href=\"/stats\">What this relay holds</a>.</footer>"
     + "</div></body></html>"
 
-  Stdlib.Http.responseWithHtml html status
+  Stdlib.Http.responseWithHtml status html
 
 
 /// A page that was found. Almost every page is this one.
