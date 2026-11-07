@@ -106,7 +106,7 @@ test basicAuthRejectsHyphenInUsername =
 // ... but first, some helpers
 type GetResult =
   Stdlib.Result.Result<
-    Stdlib.HttpClient.Response,
+    Stdlib.HttpClient.Response<Bytes>,
     Stdlib.HttpClient.RequestError>
 
 
@@ -437,4 +437,475 @@ test missingHostFails =
    | _ -> false)
   |> Stdlib.Test.equal(true)
 
+
 // TODO: http2, http3
+// ---------------------------
+// Middleware, over a send that never reaches the network
+// ---------------------------
+
+let __request(
+  url: String,
+  headers: List<(String * String)>)
+  : Stdlib.HttpClient.Request =
+  Stdlib.HttpClient.Request.make("GET", url, headers, Stdlib.Bytes.empty)
+
+
+let __response(
+  status: Int64,
+  headers: List<(String * String)>,
+  body: String)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  Stdlib.Result.Result.Ok(
+    Stdlib.HttpClient.Response
+      { statusCode = status
+        headers = headers
+        body = Stdlib.Utf8.encode(body) })
+
+
+/// Answers 200 with the request it was sent: its headers as the response's, and
+/// "METHOD url timeout" as the body.
+let __echo(
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  let timeout =
+    match req.timeoutMs with
+    | Some(ms) -> Stdlib.display(ms)
+    | None -> "none"
+
+  __response(200, req.headers, req.method + " " + req.url + " " + timeout)
+
+
+let __body(
+  result:
+    Stdlib.Result.Result<
+      Stdlib.HttpClient.Response<Bytes>,
+      Stdlib.HttpClient.RequestError>)
+  : String =
+  match result with
+  | Ok(r) -> Stdlib.Utf8.decodeWithReplacement(r.body)
+  | Error(e) -> "error: " + Stdlib.HttpClient.toString(e)
+
+
+let __headers(
+  result:
+    Stdlib.Result.Result<
+      Stdlib.HttpClient.Response<Bytes>,
+      Stdlib.HttpClient.RequestError>)
+  : List<(String * String)> =
+  match result with
+  | Ok(r) -> r.headers
+  | Error(_) -> []
+
+
+let __through(
+  middlewares: List<Stdlib.HttpClient.Middleware<Bytes>>,
+  send: Stdlib.HttpClient.Send<Bytes>,
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  let s = Stdlib.HttpClient.Middleware.wrap(middlewares, send)
+  s(req)
+
+
+test responseHeaderIsCaseInsensitive =
+  let r =
+    Stdlib.HttpClient.Response
+      { statusCode = 200
+        headers =
+          [ ("ETag", "\"AbC\""), ("Set-Cookie", "a=1"), ("set-cookie", "b=2") ]
+        body = Stdlib.Bytes.empty }
+
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.Response.header(r, "etag")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("\"AbC\""))
+
+      Stdlib.HttpClient.Response.header(r, "ETAG")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("\"AbC\""))
+
+      Stdlib.HttpClient.Response.header(r, "location")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.HttpClient.Response.headers(r, "Set-Cookie")
+      |> Stdlib.Test.equal([ "a=1", "b=2" ]) ])
+
+
+test responseText =
+  Stdlib.Test.all(
+    [ (match __response(200, [], "héllo") with
+       | Ok(r) -> Stdlib.HttpClient.Response.text(r)
+       | Error(e) -> Stdlib.Result.Result.Error(e))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("héllo"))
+
+      Stdlib.HttpClient.Response.text(
+        Stdlib.HttpClient.Response
+          { statusCode = 200
+            headers = []
+            body = Stdlib.Bytes.fromList([ 255u8 ]) })
+      |> Stdlib.Result.isError
+      |> Stdlib.Test.equal(true) ])
+
+
+test stackRunsFirstListedOutermost =
+  let tag = fun name ->
+    Stdlib.HttpClient.Middleware.onRequest(fun req ->
+      { req with headers = Stdlib.List.append(req.headers, ("x-seen", name)) })
+
+  __through(
+    [ tag("outer"), tag("inner") ],
+    __echo,
+    __request("https://a.test/", []))
+  |> __headers
+  |> Stdlib.Test.equal([ ("x-seen", "outer"), ("x-seen", "inner") ])
+
+
+test emptyStackIsTheSendItself =
+  __through([], __echo, __request("https://a.test/", [ ("A", "1") ]))
+  |> __headers
+  |> Stdlib.Test.equal([ ("A", "1") ])
+
+
+test onResponseRewritesTheResponse =
+  __through(
+    [ Stdlib.HttpClient.Middleware.onResponse(fun r ->
+        { r with statusCode = 299 }) ],
+    __echo,
+    __request("https://a.test/", []))
+  |> Stdlib.Result.map(fun r -> r.statusCode)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(299))
+
+
+test trimNames =
+  __through(
+    [ Stdlib.HttpClient.Middleware.trimNames() ],
+    __echo,
+    __request("https://a.test/", [ (" X-A ", " v ") ]))
+  |> __headers
+  |> Stdlib.Test.equal([ ("X-A", " v ") ])
+
+
+test refuseEmptyNames =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.refuseEmptyNames() ],
+        __echo,
+        __request("https://a.test/", [ ("", "v") ]))
+      |> __body
+      |> Stdlib.Test.equal("error: Empty key")
+
+      // A name of spaces is only empty once trimmed, so the order of the defaults matters.
+      __through(
+        [ Stdlib.HttpClient.Middleware.refuseEmptyNames() ],
+        __echo,
+        __request("https://a.test/", [ (" ", "v") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ (" ", "v") ]) ])
+
+
+test lowercaseNamesKeepsValues =
+  __through(
+    [ Stdlib.HttpClient.Middleware.lowercaseNames() ],
+    (fun _ ->
+       __response(
+         200,
+         [ ("ETag", "\"AbC123\"")
+           ("Set-Cookie", "a=1")
+           ("Set-Cookie", "b=2") ],
+         "")),
+    __request("https://a.test/", []))
+  |> __headers
+  |> Stdlib.Test.equal(
+    [ ("etag", "\"AbC123\""), ("set-cookie", "a=1"), ("set-cookie", "b=2") ])
+
+
+test theDefaultStack =
+  Stdlib.Test.all(
+    [ __through(
+        Stdlib.HttpClient.Middleware.defaults(),
+        __echo,
+        __request("https://a.test/", [ (" Accept ", "Text/HTML") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("Accept", "Text/HTML") ])
+
+      __through(
+        Stdlib.HttpClient.Middleware.defaults(),
+        __echo,
+        __request("https://a.test/", [ ("  ", "v") ]))
+      |> __body
+      |> Stdlib.Test.equal("error: Empty key")
+
+      // Request side only: the url, method and timeout go out as given.
+      __through(
+        Stdlib.HttpClient.Middleware.defaults(),
+        __echo,
+        __request("https://a.test/X?Y=Z", []))
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/X?Y=Z none")
+
+      // And the host is asked to follow up to 10 redirects.
+      __through(
+        Stdlib.HttpClient.Middleware.defaults(),
+        __policy,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("redirects 10, retry none") ])
+
+
+test timeoutSetsTheField =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.timeout(250) ],
+        __echo,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/ 250")
+
+      // The one listed last is the nearest the send, so it wins.
+      __through(
+        [ Stdlib.HttpClient.Middleware.timeout(250)
+          Stdlib.HttpClient.Middleware.timeout(10) ],
+        __echo,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/ 10") ])
+
+
+test theCallersOwnValuesWin =
+  let caller =
+    { __request("https://a.test/", []) with
+        timeoutMs = Stdlib.Option.Option.Some(5)
+        redirects = Stdlib.Option.Option.Some(0) }
+
+  let afterMiddleware =
+    { __request("https://a.test/", []) with
+        timeoutMs = Stdlib.Option.Option.Some(250)
+        redirects = Stdlib.Option.Option.Some(10)
+        retry =
+          Stdlib.Option.Option.Some(
+            Stdlib.HttpClient.RetryPolicy { attempts = 3, delayMs = 100 }) }
+
+  let sent = Stdlib.HttpClient.Request.__callerWins(caller, afterMiddleware)
+  (sent.timeoutMs, sent.redirects, Stdlib.Option.isSome(sent.retry))
+  |> Stdlib.Test.equal(
+    (Stdlib.Option.Option.Some(5), Stdlib.Option.Option.Some(0), true))
+
+
+test headerAddsUnlessPresent =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.header("User-Agent", "dark") ],
+        __echo,
+        __request("https://a.test/", [ ("Accept", "*/*") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("Accept", "*/*"), ("User-Agent", "dark") ])
+
+      __through(
+        [ Stdlib.HttpClient.Middleware.header("User-Agent", "dark") ],
+        __echo,
+        __request("https://a.test/", [ ("user-agent", "mine") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("user-agent", "mine") ]) ])
+
+
+test baseUrlResolves =
+  let via = fun url ->
+    __through(
+      [ Stdlib.HttpClient.Middleware.baseUrl("https://api.example.com/v1/") ],
+      __echo,
+      __request(url, []))
+    |> __body
+
+  Stdlib.Test.all(
+    [ via("users")
+      |> Stdlib.Test.equal("GET https://api.example.com/v1/users none")
+
+      via("/users")
+      |> Stdlib.Test.equal("GET https://api.example.com/users none")
+
+      via("https://other.test/x")
+      |> Stdlib.Test.equal("GET https://other.test/x none") ])
+
+
+/// `__echo` of the request as it reaches the host, its origin headers added.
+let __echoFinal(
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  __echo(Stdlib.HttpClient.Request.__final(req))
+
+
+test bearerOnlyToItsOrigin =
+  let via = fun url ->
+    __through(
+      [ Stdlib.HttpClient.Middleware.bearer("https://api.example.com", "t0k") ],
+      __echoFinal,
+      __request(url, []))
+    |> __headers
+
+  Stdlib.Test.all(
+    [ via("https://api.example.com/a")
+      |> Stdlib.Test.equal([ ("Authorization", "Bearer t0k") ])
+
+      via("https://API.example.com:443/b")
+      |> Stdlib.Test.equal([ ("Authorization", "Bearer t0k") ])
+
+      via("http://api.example.com/a") |> Stdlib.Test.equal([])
+
+      via("https://api.example.com.evil.test/a") |> Stdlib.Test.equal([])
+
+      via("https://api.example.com:8443/a") |> Stdlib.Test.equal([]) ])
+
+
+test bearerSeesTheUrlTheRequestIsSentTo =
+  let via = fun middlewares ->
+    __through(middlewares, __echoFinal, __request("users", [])) |> __headers
+
+  Stdlib.Test.all(
+    [ via(
+        [ Stdlib.HttpClient.Middleware.bearer("https://api.example.com", "t0k")
+          Stdlib.HttpClient.Middleware.baseUrl("https://api.example.com/v1/") ])
+      |> Stdlib.Test.equal([ ("Authorization", "Bearer t0k") ])
+
+      via(
+        [ Stdlib.HttpClient.Middleware.baseUrl("https://api.example.com/v1/")
+          Stdlib.HttpClient.Middleware.bearer(
+            "https://api.example.com",
+            "t0k") ])
+      |> Stdlib.Test.equal([ ("Authorization", "Bearer t0k") ])
+
+      // One the request carries is kept.
+      __through(
+        [ Stdlib.HttpClient.Middleware.bearer(
+            "https://api.example.com",
+            "t0k") ],
+        __echoFinal,
+        __request("https://api.example.com/", [ ("authorization", "Basic x") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("authorization", "Basic x") ]) ])
+
+
+/// Answers 200 with what the request asks of the host beyond one send, as its body.
+let __policy(
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  let redirects =
+    match req.redirects with
+    | Some(n) -> Stdlib.display(n)
+    | None -> "none"
+
+  let retry =
+    match req.retry with
+    | Some(r) ->
+      Stdlib.display(r.attempts) + " from " + Stdlib.display(r.delayMs) + "ms"
+    | None -> "none"
+
+  __response(200, [], "redirects " + redirects + ", retry " + retry)
+
+
+/// `__defaults`, as a send: what `get` does before it sends, beside the stack it stands for.
+let __viaDefaults(
+  send: Stdlib.HttpClient.Send<Bytes>,
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  match Stdlib.HttpClient.__defaults(req) with
+  | Ok(r) -> send(r)
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+
+
+test defaultsAreTheDefaultStack =
+  let both = fun(send, req) ->
+    let viaStack = __through(Stdlib.HttpClient.Middleware.defaults(), send, req)
+    let viaDefaults = __viaDefaults(send, req)
+    let shown = fun r ->
+      let names =
+        Stdlib.List.map(__headers(r), fun h ->
+          Stdlib.Tuple2.first(h) + ":" + Stdlib.Tuple2.second(h))
+
+      __body(r) + " " + Stdlib.String.join(names, ",")
+
+    (shown(viaStack), shown(viaDefaults))
+
+  Stdlib.Test.all(
+    [ both(__echo, __request("https://a.test/", [ (" Accept ", "Text/HTML") ]))
+      |> (fun pair ->
+            let (a, b) = pair
+            (a == b, Stdlib.String.contains(a, "Accept")))
+      |> Stdlib.Test.equal((true, true))
+
+      both(__echo, __request("https://a.test/", [ ("  ", "v") ]))
+      |> (fun pair ->
+            let (a, b) = pair
+            (a == b, Stdlib.String.startsWith(a, "error: Empty key")))
+      |> Stdlib.Test.equal((true, true))
+
+      both(__policy, __request("https://a.test/", []))
+      |> (fun pair ->
+            let (a, b) = pair
+            (a == b, Stdlib.String.startsWith(a, "redirects 10, retry none")))
+      |> Stdlib.Test.equal((true, true)) ])
+
+
+test followRedirectsAndRetrySetTheRequest =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.followRedirects(5)
+          Stdlib.HttpClient.Middleware.retry(3, 100) ],
+        __policy,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("redirects 5, retry 3 from 100ms")
+
+      // The one listed last wins, as with `timeout`.
+      __through(
+        [ Stdlib.HttpClient.Middleware.followRedirects(0)
+          Stdlib.HttpClient.Middleware.followRedirects(10) ],
+        __policy,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("redirects 10, retry none")
+
+      // So one appended to the defaults turns their redirects off.
+      __through(
+        Stdlib.List.append(
+          Stdlib.HttpClient.Middleware.defaults(),
+          Stdlib.HttpClient.Middleware.followRedirects(0)),
+        __policy,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("redirects 0, retry none")
+
+      __through(
+        [ Stdlib.HttpClient.Middleware.retry(3, 100)
+          Stdlib.HttpClient.Middleware.retry(5, 10) ],
+        __policy,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("redirects none, retry 5 from 10ms")
+
+      __through([], __policy, __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("redirects none, retry none") ])
+
+
+test newRequestErrorsSayWhat =
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.toString(
+        Stdlib.HttpClient.RequestError.TooManyRedirects)
+      |> Stdlib.Test.equal("Too many redirects")
+
+      Stdlib.HttpClient.toString(
+        Stdlib.HttpClient.RequestError.Decode("not UTF-8"))
+      |> Stdlib.Test.equal("not UTF-8") ])
+
+
+test whenReadyAppliesAValueAtOnce =
+  Stdlib.__whenReady(41, fun x -> x + 1) |> Stdlib.Test.equal(42)

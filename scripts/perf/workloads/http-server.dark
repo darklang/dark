@@ -52,10 +52,9 @@ let serve(port: Stdlib.Net.Port): Int64 =
       (Stdlib.HttpServer.Config.Config
         { port = port
           maxBodyBytes = 1048576
-          injectStandardHeaders = true
-          canonicalizeFromForwardedProto = false
-          // Off: a stdout line per request would be most of what we're measuring.
-          logRequests = false }),
+          // The standard headers only: a log line per request would be most of what we're
+          // measuring.
+          middleware = [ Stdlib.HttpServer.Middleware.standardHeaders() ] }),
       router,
       fun () -> Stdlib.printLine("LISTENING"))
   with

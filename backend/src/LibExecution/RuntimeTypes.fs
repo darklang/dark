@@ -3983,6 +3983,11 @@ module RuntimeError =
       /// there is nothing to call.
       | LambdaNotAvailable of lambdaExprId : id
 
+      /// A builtin with effects, called where only computing may happen: in a chunk of a spread
+      /// list op, or in a function of a read in flight (`Stdlib.__whenReady`), which runs when the
+      /// read lands, after the program has moved on.
+      | EffectWhereOnlyComputing of fn : FQFnName.FQFnName
+
   module Statements =
     type Error =
       | FirstExpressionMustBeUnit of

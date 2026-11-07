@@ -1842,6 +1842,560 @@ let private execDoneWatcherGoesWithItsWait =
   }
 
 
+// -- A function of a read, without waiting for it: `Stdlib.__whenReady`, and the HTTP client on it --
+
+let private whenReadyKeepsTheReadInFlight =
+  testTask
+    "whenReady over a read in flight hands back a read, and applies the function on landing" {
+    let! result =
+      runReleasing
+        """let r = Stdlib.__whenReady(Builtin.testRead(331), fun x -> x + 1)
+let _ = Builtin.testTrace("ran on")
+r + 0"""
+        [ 331L ]
+        [ "ran on" ]
+    expectValue (RT.DInt64 332L) result
+  }
+
+let private whenReadyRefusesAnEffectAfterTheFact =
+  testTask "whenReady's function may only compute once the program has moved on" {
+    let! result =
+      runReleasing
+        """let r = Stdlib.__whenReady(Builtin.testRead(332), fun x -> Stdlib.printLine(Stdlib.display(x)))
+let _ = Builtin.testTrace("ran on")
+Stdlib.await(r)"""
+        [ 332L ]
+        [ "ran on" ]
+    match result with
+    | Error(RTE.Apply(RTE.Applications.EffectWhereOnlyComputing(RT.FQFnName.Builtin b)),
+            _) -> Expect.equal b.name "printLine" "names the call it refused"
+    | other -> failtest $"expected the refusal, got {other}"
+  }
+
+let private whenReadyRefusesAnEffectOnALandedRead =
+  testTask "whenReady refuses an effect even when the read has landed already" {
+    let! result =
+      runReleasing
+        """let x = Builtin.testRead(333)
+let _ = Stdlib.await(x)
+let r = Stdlib.__whenReady(x, fun v -> Stdlib.printLine(Stdlib.display(v)))
+Stdlib.await(r)"""
+        [ 333L ]
+        []
+    match result with
+    | Error(RTE.Apply(RTE.Applications.EffectWhereOnlyComputing _), _) -> ()
+    | other -> failtest $"expected the refusal, got {other}"
+  }
+
+let private whenReadyOfAValueOnlyComputes =
+  testTask "whenReady over a plain value refuses an effect too" {
+    let code = "Stdlib.__whenReady(1, fun x -> Stdlib.printLine(Stdlib.display(x)))"
+    let! result = runWith code (fun _ -> ())
+    match result with
+    | Error(RTE.Apply(RTE.Applications.EffectWhereOnlyComputing _), _) -> ()
+    | other -> failtest $"expected the refusal, got {other}"
+  }
+
+/// A server on loopback that holds every response until `count` requests have arrived, then
+/// answers them all. A client that sends them one at a time gets its first answer only after 3s,
+/// once the server gives up waiting. Answers whether every response went out because all the
+/// requests were in, rather than because the server gave up.
+let private serveOnceAllArrive
+  (listener : System.Net.Sockets.TcpListener)
+  (count : int)
+  =
+  task {
+    let all = TaskCompletionSource<unit>()
+    // A counter the connections share; a ref cell, since a task cannot capture a mutable.
+    let arrived = ref 0
+    let one () =
+      task {
+        use! client = listener.AcceptTcpClientAsync()
+        let stream = client.GetStream()
+        let buffer = Array.zeroCreate<byte> 4096
+        let! _ = stream.ReadAsync(buffer, 0, buffer.Length)
+        if Interlocked.Increment &arrived.contents = count then
+          all.TrySetResult() |> ignore<bool>
+        // Answered once all have come, or after 3s, so a run that sends them one at a time
+        // still finishes, and fails on the count rather than hanging.
+        let! first = Task.WhenAny(all.Task, Task.Delay 3000)
+        let response =
+          "HTTP/1.1 200 OK\r\nETag: \"AbC\"\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"B
+        do! stream.WriteAsync(response, 0, response.Length)
+        return obj.ReferenceEquals(first, all.Task)
+      }
+    let! together = Task.WhenAll [ for _ in 1..count -> one () ]
+    return Array.forall (fun answeredTogether -> answeredTogether) together
+  }
+
+let private parallelGetsThrough (stack : string) (count : int) =
+  task {
+    installTestHttpConfig ()
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    try
+      let serving = serveOnceAllArrive listener count
+      let started = System.Diagnostics.Stopwatch.StartNew()
+      let code =
+        """let send = STACK
+let urls = Stdlib.List.map(Stdlib.List.range(1, COUNT), fun i -> "http://test.dlio.localhost:PORT/" + Stdlib.display(i))
+let responses =
+  Stdlib.List.map(urls, fun u ->
+    send(Stdlib.HttpClient.Request.make("GET", u, [], Stdlib.Bytes.empty)))
+Stdlib.List.map(responses, fun r ->
+  match r with
+  | Ok(response) -> Stdlib.HttpClient.Response.header(response, "etag") |> Builtin.unwrap
+  | Error(e) -> Stdlib.HttpClient.toString(e))"""
+      let code =
+        code
+          .Replace("STACK", stack)
+          .Replace("COUNT", string count)
+          .Replace("PORT", string port)
+      let! result = runWith code (fun _ -> ())
+      let! together = serving
+      return (together, started.ElapsedMilliseconds, result)
+    finally
+      listener.Stop()
+  }
+
+let private defaultStackKeepsGetsParallel =
+  testTask
+    "GETs through the default stack, response middleware and all, are in flight at once" {
+    let! (together, _, result) =
+      parallelGetsThrough
+        "Stdlib.HttpClient.client(Stdlib.HttpClient.Middleware.defaults())"
+        4
+    Expect.isTrue
+      together
+      "all four requests reached the server before any was answered"
+    match expectOk result "the program" with
+    | RT.DList(_, RT.Items etags) ->
+      Expect.equal
+        etags
+        (List.replicate 4 (RT.DString "\"AbC\""))
+        "every ETag, case kept"
+    | other -> failtest $"expected a list, got {other}"
+  }
+
+let private responseMiddlewareKeepsGetsParallel =
+  testTask "GETs through onResponse, retries and redirects are in flight at once" {
+    let! (together, _, result) =
+      parallelGetsThrough
+        "Stdlib.HttpClient.client(Stdlib.List.flatten([ Stdlib.HttpClient.Middleware.defaults(), [ Stdlib.HttpClient.Middleware.retry(3, 100), Stdlib.HttpClient.Middleware.lowercaseNames() ] ]))"
+        4
+    Expect.isTrue
+      together
+      "all four requests reached the server before any was answered"
+    match expectOk result "the program" with
+    | RT.DList(_, RT.Items etags) ->
+      Expect.equal etags (List.replicate 4 (RT.DString "\"AbC\"")) "every ETag"
+    | other -> failtest $"expected a list, got {other}"
+  }
+
+/// A server on loopback that counts the connections open at once, holding each for 50ms.
+let private countConcurrentConnections (listener : System.Net.Sockets.TcpListener) =
+  let open' = ref 0
+  let most = ref 0
+  let served = ref 0
+  let one (client : System.Net.Sockets.TcpClient) : Task =
+    task {
+      use client = client
+      let now = Interlocked.Increment &open'.contents
+      let mutable seen = most.Value
+      while now > seen
+            && Interlocked.CompareExchange(&most.contents, now, seen) <> seen do
+        seen <- most.Value
+      let stream = client.GetStream()
+      let buffer = Array.zeroCreate<byte> 4096
+      let! _ = stream.ReadAsync(buffer, 0, buffer.Length)
+      do! Task.Delay 50
+      let response =
+        "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"B
+      do! stream.WriteAsync(response, 0, response.Length)
+      Interlocked.Decrement &open'.contents |> ignore<int>
+      Interlocked.Increment &served.contents |> ignore<int>
+    }
+  let pending = ResizeArray<Task>()
+  task {
+    let mutable listening = true
+    while listening do
+      try
+        let! client = listener.AcceptTcpClientAsync()
+        pending.Add(one client)
+      with _ ->
+        listening <- false
+    do! Task.WhenAll pending
+    return (most.Value, served.Value)
+  }
+
+let private getsPerHostAreCapped =
+  testTask "GETs to one host share 50 connections, and the rest wait their turn" {
+    installTestHttpConfig ()
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    let counting = countConcurrentConnections listener
+    let code =
+      """let urls = Stdlib.List.map(Stdlib.List.range(1, 120), fun i -> "http://test.dlio.localhost:PORT/" + Stdlib.display(i))
+let responses = Stdlib.List.map(urls, fun u -> Stdlib.HttpClient.get(u, []))
+Stdlib.List.map(responses, fun r ->
+  match r with
+  | Ok(response) -> response.statusCode
+  | Error(e) -> 0)"""
+    let! result = runWith (code.Replace("PORT", string port)) (fun _ -> ())
+    listener.Stop()
+    let! (most, served) = counting
+    match expectOk result "the program" with
+    | RT.DList(_, RT.Items codes) ->
+      Expect.equal
+        codes
+        (List.replicate 120 (RT.DInt64 200L))
+        "every request answered"
+    | other -> failtest $"expected a list, got {other}"
+    Expect.equal served 120 "one connection per request"
+    Expect.isLessThanOrEqual most 50 $"at most 50 at once ({most})"
+    Expect.isGreaterThan most 1 $"but more than one ({most})"
+  }
+
+/// A request as a scripted server saw it.
+type private Seen =
+  { method : string; path : string; headers : List<string * string>; body : string }
+
+/// A server on loopback that answers each request with `answer`, one connection per request.
+/// Runs until the listener stops.
+let private scriptedServer
+  (listener : System.Net.Sockets.TcpListener)
+  (answer : Seen -> string)
+  : Task =
+  let one (client : System.Net.Sockets.TcpClient) : Task =
+    task {
+      use client = client
+      let stream = client.GetStream()
+      let buffer = Array.zeroCreate<byte> 65536
+      let mutable got = 0
+      let mutable seen = None
+      while Option.isNone seen do
+        let! n = stream.ReadAsync(buffer, got, buffer.Length - got)
+        got <- got + n
+        let text = System.Text.Encoding.UTF8.GetString(buffer, 0, got)
+        match text.IndexOf "\r\n\r\n" with
+        | -1 when n > 0 -> ()
+        | -1 -> seen <- Some { method = ""; path = ""; headers = []; body = "" }
+        | ends ->
+          let lines = text.Substring(0, ends).Split("\r\n")
+          let parts = lines[0].Split(' ')
+          let headers =
+            lines
+            |> Array.skip 1
+            |> Array.map (fun line ->
+              let i = line.IndexOf ':'
+              (line.Substring(0, i), line.Substring(i + 1).Trim()))
+            |> Array.toList
+          let length =
+            headers
+            |> List.tryFind (fun (k, _) ->
+              String.equalsCaseInsensitive k "Content-Length")
+            |> Option.map (snd >> int)
+            |> Option.defaultValue 0
+          let body = text.Substring(ends + 4)
+          if body.Length >= length || n = 0 then
+            seen <-
+              Some
+                { method = parts[0]
+                  path = parts[1]
+                  headers = headers
+                  body = body }
+      let response = System.Text.Encoding.UTF8.GetBytes(answer seen.Value)
+      do! stream.WriteAsync(response, 0, response.Length)
+    }
+  let pending = ResizeArray<Task>()
+  task {
+    let mutable listening = true
+    while listening do
+      try
+        let! client = listener.AcceptTcpClientAsync()
+        pending.Add(one client)
+      with _ ->
+        listening <- false
+    do! Task.WhenAll pending
+  }
+
+let private httpAnswer (status : string) (headers : List<string>) (body : string) =
+  let lines = String.concat "" [ for h in headers -> h + "\r\n" ]
+  $"HTTP/1.1 {status}\r\n{lines}Content-Length: {body.Length}\r\nConnection: close\r\n\r\n{body}"
+
+/// Runs `code` against a scripted server: `PORT` in it is the server's port. A second one, on
+/// another port (another origin), answers the same way; `answer` is told its port.
+let private againstServer (answer : int -> Seen -> string) (code : string) =
+  task {
+    installTestHttpConfig ()
+    let listen () =
+      let listener =
+        new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+      listener.Start()
+      (listener, (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port)
+    let (listener, port) = listen ()
+    let (other, otherPort) = listen ()
+    let serving =
+      [ scriptedServer listener (answer otherPort)
+        scriptedServer other (answer otherPort) ]
+    try
+      return! runWith (code.Replace("PORT", string port)) (fun _ -> ())
+    finally
+      listener.Stop()
+      other.Stop()
+      (Task.WhenAll serving).Wait(5000) |> ignore<bool>
+  }
+
+/// What each redirect test needs: a chain, a 303 and a 307 to `/done`, a hop to another
+/// origin (`otherPort`), and a loop. `/done` says what it was sent.
+let private redirecting (otherPort : int) (seen : Seen) : string =
+  let goTo status location = httpAnswer status [ $"Location: {location}" ] ""
+  match seen.path with
+  | "/r3" -> goTo "301 Moved Permanently" "/r2"
+  | "/r2" -> goTo "302 Found" "/r1"
+  | "/r1" -> goTo "303 See Other" "/done"
+  | "/see" -> goTo "303 See Other" "/done"
+  | "/temp" -> goTo "307 Temporary Redirect" "/done"
+  | "/moved" -> goTo "301 Moved Permanently" "/done"
+  | "/found" -> goTo "302 Found" "/done"
+  | "/away" -> goTo "302 Found" $"http://test.dlio.localhost:{otherPort}/done"
+  | "/loop" -> goTo "302 Found" "/loop"
+  | _ ->
+    let auth =
+      seen.headers
+      |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive k "Authorization")
+      |> Option.map snd
+      |> Option.defaultValue "-"
+    httpAnswer "200 OK" [] $"{seen.method} {seen.body} auth={auth}"
+
+let private exchangeOutcomes =
+  """let base = "http://test.dlio.localhost:PORT"
+let say = fun r ->
+  match r with
+  | Ok(response) -> Stdlib.display(response.statusCode) + " " + Stdlib.Utf8.decodeWithReplacement(response.body)
+  | Error(e) -> Stdlib.HttpClient.toString(e)
+let auth = [ ("Authorization", "Bearer x") ]
+"""
+
+let private redirectsAreFollowed =
+  testTask "the default stack follows redirects by the fetch and curl -L rule" {
+    let! result =
+      againstServer
+        redirecting
+        (exchangeOutcomes
+         + """[ say(Stdlib.HttpClient.request("GET", base + "/r3", auth, Stdlib.Bytes.empty))
+  say(Stdlib.HttpClient.request("POST", base + "/see", [], Stdlib.Utf8.encode("hi")))
+  say(Stdlib.HttpClient.request("POST", base + "/temp", [], Stdlib.Utf8.encode("hi")))
+  say(Stdlib.HttpClient.request("POST", base + "/moved", [], Stdlib.Utf8.encode("hi")))
+  say(Stdlib.HttpClient.request("PUT", base + "/moved", [], Stdlib.Utf8.encode("hi")))
+  say(Stdlib.HttpClient.request("DELETE", base + "/found", [], Stdlib.Utf8.encode("hi")))
+  say(Stdlib.HttpClient.request("PUT", base + "/see", [], Stdlib.Utf8.encode("hi")))
+  say(Stdlib.HttpClient.request("GET", base + "/away", auth, Stdlib.Bytes.empty))
+  say(Stdlib.HttpClient.request("GET", base + "/loop", [], Stdlib.Bytes.empty))
+  say((Stdlib.HttpClient.client([]))(Stdlib.HttpClient.Request.make("GET", base + "/r3", [], Stdlib.Bytes.empty))) ]""")
+    match expectOk result "the program" with
+    | RT.DList(_, RT.Items outcomes) ->
+      Expect.equal
+        outcomes
+        ([ "200 GET  auth=Bearer x" // a chain on one origin keeps the credentials
+           "200 GET  auth=-" // a 303 makes a POST a GET with no body
+           "200 POST hi auth=-" // a 307 keeps the method and body
+           "200 GET  auth=-" // a 301 makes a POST a GET
+           "200 PUT hi auth=-" // but keeps any other method, and its body
+           "200 DELETE hi auth=-" // and so does a 302
+           "200 GET  auth=-" // a 303 makes anything but a GET or HEAD a GET
+           "200 GET  auth=-" // leaving the origin leaves the credentials behind
+           "Too many redirects"
+           "301 " ] // the raw builtin follows none
+         |> List.map RT.DString)
+        "each exchange"
+    | other -> failtest $"expected a list, got {other}"
+  }
+
+let private retriesWaitAndStop =
+  testTask "retry tries an idempotent request again, within its timeout" {
+    let attempts = System.Collections.Concurrent.ConcurrentDictionary<string, int>()
+    let answer (_ : int) (seen : Seen) =
+      let n = attempts.AddOrUpdate(seen.path, 1, (fun _ n -> n + 1))
+      match seen.path with
+      | "/busy" when n < 3 ->
+        httpAnswer "503 Service Unavailable" [ "Retry-After: 0" ] ""
+      | "/busy" -> httpAnswer "200 OK" [] $"ok after {n}"
+      // A date already past: retry at once. Read as anything else, the 2s backoff would not
+      // fit in the 1.5s timeout, and the 503 would come back.
+      | "/dated" when n < 2 ->
+        httpAnswer
+          "503 Service Unavailable"
+          [ "Retry-After: Wed, 21 Oct 2015 07:28:00 GMT" ]
+          ""
+      | "/dated" -> httpAnswer "200 OK" [] "ok after a date"
+      | "/limited" when n < 2 ->
+        httpAnswer "429 Too Many Requests" [ "Retry-After: 0" ] ""
+      | "/limited" -> httpAnswer "200 OK" [] "ok after a 429"
+      | _ -> httpAnswer "503 Service Unavailable" [] ""
+    let started = System.Diagnostics.Stopwatch.StartNew()
+    let! result =
+      againstServer
+        answer
+        (exchangeOutcomes
+         + """let retrying = fun ms ->
+  Stdlib.HttpClient.client(
+    [ Stdlib.HttpClient.Middleware.timeout(ms), Stdlib.HttpClient.Middleware.retry(5, 2000) ])
+[ say((retrying(0))(Stdlib.HttpClient.Request.make("GET", base + "/busy", [], Stdlib.Bytes.empty)))
+  say((retrying(0))(Stdlib.HttpClient.Request.make("POST", base + "/post", [], Stdlib.Bytes.empty)))
+  say((retrying(500))(Stdlib.HttpClient.Request.make("GET", base + "/always", [], Stdlib.Bytes.empty)))
+  say((retrying(1500))(Stdlib.HttpClient.Request.make("GET", base + "/dated", [], Stdlib.Bytes.empty)))
+  say((retrying(1500))(Stdlib.HttpClient.Request.make("GET", base + "/limited", [], Stdlib.Bytes.empty))) ]""")
+    match expectOk result "the program" with
+    | RT.DList(_, RT.Items outcomes) ->
+      Expect.equal
+        outcomes
+        ([ "200 ok after 3"
+           "503 "
+           "503 "
+           "200 ok after a date"
+           "200 ok after a 429" ]
+         |> List.map RT.DString)
+        "each exchange"
+    | other -> failtest $"expected a list, got {other}"
+    Expect.equal attempts["/post"] 1 "a POST is sent once"
+    Expect.equal attempts["/always"] 1 "a retry 2s away does not fit in 500ms"
+    Expect.isLessThan
+      started.ElapsedMilliseconds
+      10_000L
+      "Retry-After: 0 was honoured, and the 2s backoff never waited"
+  }
+
+
+/// A server whose `/drip` redirects to `/done` with a body that never ends, a chunk every 50ms.
+/// Answers whether the client closed the redirect's connection, which it can only do by dropping
+/// the response it left behind.
+let private dripThenDone (listener : System.Net.Sockets.TcpListener) =
+  let closed = TaskCompletionSource<bool>()
+  let one (client : System.Net.Sockets.TcpClient) : Task =
+    task {
+      use client = client
+      let stream = client.GetStream()
+      let buffer = Array.zeroCreate<byte> 4096
+      let! n = stream.ReadAsync(buffer, 0, buffer.Length)
+      let request = System.Text.Encoding.UTF8.GetString(buffer, 0, n)
+      if request.StartsWith "GET /drip" then
+        let head =
+          "HTTP/1.1 302 Found\r\nLocation: /done\r\nTransfer-Encoding: chunked\r\n\r\n"B
+        do! stream.WriteAsync(head, 0, head.Length)
+        let chunk = "1\r\nx\r\n"B
+        let mutable writing = true
+        let started = System.Diagnostics.Stopwatch.StartNew()
+        while writing do
+          try
+            do! stream.WriteAsync(chunk, 0, chunk.Length)
+            do! Task.Delay 50
+            if started.ElapsedMilliseconds > 20_000L then
+              closed.TrySetResult false |> ignore<bool>
+              writing <- false
+          with _ ->
+            closed.TrySetResult true |> ignore<bool>
+            writing <- false
+      else
+        let response =
+          "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\ndone"B
+        do! stream.WriteAsync(response, 0, response.Length)
+    }
+  let pending = ResizeArray<Task>()
+  let serving =
+    task {
+      let mutable listening = true
+      while listening do
+        try
+          let! client = listener.AcceptTcpClientAsync()
+          pending.Add(one client)
+        with _ ->
+          listening <- false
+    }
+  (closed.Task, serving)
+
+let private droppedStreamsAreClosed =
+  testTask "a stream left behind by a redirect is closed" {
+    installTestHttpConfig ()
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    let (closed, _serving) = dripThenDone listener
+    try
+      let code =
+        """match Stdlib.HttpClient.stream("GET", "http://test.dlio.localhost:PORT/drip", [], Stdlib.Bytes.empty) with
+| Ok(r) -> Stdlib.Utf8.decodeWithReplacement(Stdlib.Stream.toBytes(r.body))
+| Error(e) -> Stdlib.HttpClient.toString(e)"""
+      let! result = runWith (code.Replace("PORT", string port)) (fun _ -> ())
+      expectValue (RT.DString "done") result
+      let! closedIt = closed.WaitAsync(System.TimeSpan.FromSeconds 30.0)
+      Expect.isTrue
+        closedIt
+        "the redirect's connection was closed, not left dripping"
+    finally
+      listener.Stop()
+  }
+
+
+let private onResponseOnlyComputesOnAPost =
+  testTask "a printing onResponse fails a POST as it fails a GET" {
+    let! result =
+      againstServer
+        (fun _ _ -> httpAnswer "200 OK" [] "ok")
+        (exchangeOutcomes
+         + """let send =
+  Stdlib.HttpClient.client(
+    [ Stdlib.HttpClient.Middleware.onResponse(fun r ->
+        let _ = Stdlib.printLine("got one")
+        r) ])
+say(send(Stdlib.HttpClient.Request.make("POST", base + "/p", [], Stdlib.Bytes.empty)))""")
+    match result with
+    | Error(RTE.Apply(RTE.Applications.EffectWhereOnlyComputing(RT.FQFnName.Builtin b)),
+            _) -> Expect.equal b.name "printLine" "names the call it refused"
+    | other -> failtest $"expected the refusal, got {other}"
+  }
+
+let private middlewareTimeoutReachesTheHost =
+  testTask "Middleware.timeout is enforced by the host" {
+    installTestHttpConfig ()
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    let release = TaskCompletionSource<unit>()
+    let serving =
+      task {
+        use! client = listener.AcceptTcpClientAsync()
+        let stream = client.GetStream()
+        let buffer = Array.zeroCreate<byte> 4096
+        let! _ = stream.ReadAsync(buffer, 0, buffer.Length)
+        do! release.Task
+      }
+    try
+      let started = System.Diagnostics.Stopwatch.StartNew()
+      let code =
+        """let send = Stdlib.HttpClient.client([ Stdlib.HttpClient.Middleware.timeout(300) ])
+match send(Stdlib.HttpClient.Request.make("GET", "http://test.dlio.localhost:PORT/", [], Stdlib.Bytes.empty)) with
+| Ok(_) -> "answered"
+| Error(e) -> Stdlib.HttpClient.toString(e)"""
+      let! result = runWith (code.Replace("PORT", string port)) (fun _ -> ())
+      expectValue (RT.DString "Timeout") result
+      Expect.isLessThan
+        started.ElapsedMilliseconds
+        10_000L
+        "cut at 300ms, not the default 30s"
+    finally
+      release.TrySetResult() |> ignore<bool>
+      listener.Stop()
+    do! serving
+  }
+
+
 let private httpGetIsARead =
   test
     "the HTTP client's GET and HEAD with no body are reads, and nothing else it does is" {
@@ -2542,6 +3096,18 @@ let tests =
         execDoneWakesForAFinishInTheGap
         execDoneWatcherGoesWithItsWait
         httpGetIsARead
+        whenReadyKeepsTheReadInFlight
+        whenReadyRefusesAnEffectAfterTheFact
+        whenReadyRefusesAnEffectOnALandedRead
+        whenReadyOfAValueOnlyComputes
+        defaultStackKeepsGetsParallel
+        responseMiddlewareKeepsGetsParallel
+        getsPerHostAreCapped
+        redirectsAreFollowed
+        retriesWaitAndStop
+        onResponseOnlyComputesOnAPost
+        droppedStreamsAreClosed
+        middlewareTimeoutReachesTheHost
         parkedInsideMapShowsTheLambda
         budgetYieldInsideMap
         errorInsideMapNamesTheLambda

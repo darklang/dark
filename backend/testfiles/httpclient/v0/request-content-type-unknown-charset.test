@@ -16,14 +16,14 @@ Hello back
 [test]
 (let reqHeaders = [("Content-Type", "application/json; charset=invalid")]
  let response = (Darklang.Stdlib.HttpClient.request("get", "http://URL", reqHeaders, Darklang.Stdlib.Bytes.empty) |> Builtin.unwrap)
- let respHeaders = (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.Tuple2.first(h)) != "date"))
+ let respHeaders = (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.Tuple2.first(h)) != "Date"))
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
       headers =
         [
-          ("server", "kestrel")
-          ("content-length", "LENGTH")
-          ("content-type", "text/plain; charset=utf-8")
+          ("Server", "kestrel")
+          ("Content-Length", "LENGTH")
+          ("Content-Type", "text/plain; charset=utf-8")
         ]
       body = ("Hello back" |> Darklang.Stdlib.Utf8.encode) }

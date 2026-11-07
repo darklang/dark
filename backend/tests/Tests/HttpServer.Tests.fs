@@ -221,6 +221,24 @@ let bindFreshListener () = bindListenerWith allocateFreePort
 /// handler that returns the wrong shape still flows through F#'s
 /// `toHttpResponse` / `wrongTypeResponse`. All current fixtures have
 /// exactly one handler.
+/// The server middleware the fixtures run under, as Dark builds it: the url as the client used
+/// it behind an https proxy, and the standard headers (`Stdlib.HttpServer.Middleware`). Not the
+/// log line, to keep the tests quiet.
+let private fixtureMiddleware (exeState : RT.ExecutionState) : Task<RT.Dval> =
+  task {
+    let source =
+      "[ Darklang.Stdlib.HttpServer.Middleware.trustForwardedProto(), Darklang.Stdlib.HttpServer.Middleware.standardHeaders() ]"
+    let! ptExpr = TestUtils.TestUtils.parsePTExpr source
+    let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
+    match! Execution.executeExpr exeState rtInstrs with
+    | Ok dval -> return dval
+    | Error(rte, _) ->
+      return Exception.raiseInternal "fixtureMiddleware failed" [ "rte", string rte ]
+  }
+
+/// No middleware: the handler's response, as it answered it.
+let private noMiddleware = RT.DList(RT.ValueType.Unknown, RT.DvalList.empty)
+
 let private buildRouterForTest
   (exeState : RT.ExecutionState)
   (test : Test)
@@ -455,6 +473,7 @@ let private runFixture (test : Test) : Task<unit> =
     let! exeState = executionStateFor pmPT true
 
     let! handler = buildRouterForTest exeState test
+    let! middleware = fixtureMiddleware exeState
 
     let cts = new CancellationTokenSource()
 
@@ -468,9 +487,7 @@ let private runFixture (test : Test) : Task<unit> =
         handler
         HttpServer.defaultMaxBodyBytes
         HttpServer.defaultRequestTimeoutMs
-        true // injectStandardHeaders
-        true // canonicalizeFromForwardedProto
-        false // logRequests — keep tests quiet
+        middleware
         cts.Token
 
     try
@@ -520,9 +537,7 @@ let private runParsedRequestsAgainst
         handler
         maxBodyBytes
         requestTimeoutMs
-        false // injectStandardHeaders
-        false // canonicalizeFromForwardedProto
-        false // logRequests
+        noMiddleware
         cts.Token
     let oneRequest (path : string, body : byte[]) : Task<Http.T> =
       task {
@@ -687,10 +702,10 @@ let private requestsAreProcesses =
           "the body names the failure"
         Expect.stringContains (snd results[0]) "divide" "the body carries the error"
         output.Check(fun stdout stderr ->
-          Expect.equal
+          Expect.stringStarts
             stderr
-            "[HttpServer] the handler failed: Cannot divide by 0\n"
-            "the serve terminal carries the handler error too"
+            "[HttpServer] the handler failed: Cannot divide by 0\n[HttpServer] GET /boom 500 "
+            "the serve terminal carries the handler error too, and the server's log line"
           Expect.equal stdout "" "the handler error stays off stdout")
       } ]
 
@@ -777,6 +792,60 @@ let private serveRejectsNegativeMaxBodyBytes =
   }
 
 
+/// What `serve` checks against the server's grants before it binds: the effects its middleware
+/// can reach. The default log line reads the clock and prints; the standard headers and the
+/// forwarded-proto rewrite only compute.
+let private middlewareEffectsAreWhatItReaches =
+  testTask "serve checks the effects its middleware can reach" {
+    let! exeState = executionStateFor pmPT true
+    let effectsOf (source : string) =
+      task {
+        let! ptExpr = TestUtils.TestUtils.parsePTExpr source
+        match!
+          Execution.executeExpr exeState (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
+        with
+        | Ok middleware ->
+          let! effects =
+            HttpServer.middlewareEffects exeState middleware |> Ply.toTask
+          return LibExecution.Effects.permissionEffects effects
+        | Error(rte, _) -> return failtest $"the middleware: {rte}"
+      }
+    let! defaults = effectsOf "Darklang.Stdlib.HttpServer.Middleware.defaults()"
+    Expect.isTrue
+      (Set.isSubset
+        (set
+          [ LibExecution.Effects.Effect.Clock; LibExecution.Effects.Effect.Stdout ])
+        defaults)
+      $"the log line's clock and stdout: {defaults}"
+    let! quiet =
+      effectsOf
+        "[ Darklang.Stdlib.HttpServer.Middleware.trustForwardedProto(), Darklang.Stdlib.HttpServer.Middleware.standardHeaders() ]"
+    Expect.equal quiet Set.empty "the others only compute"
+  }
+
+/// The responses the server writes itself get the standard headers when the middleware gives
+/// them to every other response, and not otherwise.
+let private serverResponsesFollowTheMiddleware =
+  testTask "the server's own responses carry HSTS only with standardHeaders" {
+    let! exeState = executionStateFor pmPT true
+    let has (source : string) =
+      task {
+        let! ptExpr = TestUtils.TestUtils.parsePTExpr source
+        match!
+          Execution.executeExpr exeState (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
+        with
+        | Ok middleware -> return HttpServer.servesStandardHeaders middleware
+        | Error(rte, _) -> return failtest $"the middleware: {rte}"
+      }
+    let! defaults = has "Darklang.Stdlib.HttpServer.Middleware.defaults()"
+    Expect.isTrue defaults "the defaults do"
+    let! none = has "[]"
+    Expect.isFalse none "no middleware does not"
+    let! logOnly = has "[ Darklang.Stdlib.HttpServer.Middleware.logRequests() ]"
+    Expect.isFalse logOnly "nor a log line alone"
+  }
+
+
 let private bindRetriesATakenPort =
   testTask "a test listener whose probed port is taken binds on another" {
     let squatter = new TcpListener(IPAddress.Any, 0)
@@ -829,6 +898,8 @@ let tests =
   testList
     "HttpServer"
     (serveRejectsNegativeMaxBodyBytes
+     :: middlewareEffectsAreWhatItReaches
+     :: serverResponsesFollowTheMiddleware
      :: bindRetriesATakenPort
      :: noResponseNamesDotNet
      :: concurrentEphemeralBytesRequests

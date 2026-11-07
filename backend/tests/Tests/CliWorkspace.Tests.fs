@@ -784,13 +784,18 @@ let private withLiveServer
             dev
             Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
             Builtins.Http.Server.Libs.HttpServer.defaultRequestTimeoutMs
-            false
-            false
-            false
+            (RT.DList(RT.ValueType.Unknown, RT.DvalList.empty))
             cts.Token
         if bodyPassed then
           output.Check(fun stdout stderr ->
             let expected = expectedOutput |> List.map (fun s -> s + "\n")
+            // A log line's duration is whatever it took.
+            let stderr =
+              System.Text.RegularExpressions.Regex.Replace(
+                stderr,
+                " [0-9]+ms\n",
+                " Nms\n"
+              )
             Expect.equal stderr (String.concat "" expected) "server diagnostics"
             Expect.equal stdout "" "the server's diagnostics stay off stdout")
       }
@@ -1645,7 +1650,8 @@ let private devErrorPageCarriesTheListener =
             "Darklang.SCM.Branch.mainBranchId"
             (locSource [ "LiveDev" ] "router")
             true
-            [ "[HttpServer] the handler failed: Cannot divide by 0" ]
+            [ "[HttpServer] the handler failed: Cannot divide by 0"
+              "[HttpServer] GET / 500 Nms" ]
             (fun port ->
               task {
                 use client = new System.Net.Http.HttpClient()

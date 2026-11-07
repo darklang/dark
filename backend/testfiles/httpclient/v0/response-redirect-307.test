@@ -10,16 +10,17 @@ Location: /v0/response-redirect-destination
 
 
 [test]
+// Followed (`Middleware.followRedirects`, in the default stack): the answer is where it led.
 (let response = (Darklang.Stdlib.HttpClient.request("get", "http://URL", [], Stdlib.Bytes.empty) |> Builtin.unwrap)
- let respHeaders = (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.Tuple2.first(h)) != "date"))
+ let respHeaders = (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.Tuple2.first(h)) != "Date"))
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
-    { statusCode = 307
+    { statusCode = 200
       headers =
         [
-          ("server", "kestrel")
-          ("location", "/v0/response-redirect-destination")
-          ("transfer-encoding", "chunked")
+          ("Server", "kestrel")
+          ("Arbitrary-header", "Test value")
+          ("Content-Length", "28")
+          ("Content-Type", "text/plain; charset=utf-8")
         ]
-      body = Darklang.Stdlib.Bytes.empty }
-
+      body = "Redirect destination reached" |> Darklang.Stdlib.Utf8.encode }

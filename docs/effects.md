@@ -252,8 +252,9 @@ Each operation:
 4. records a structured audit event;
 5. returns a structured result.
 
-HTTP redirects are disabled, executables are resolved before checking, and
-arguments preserve order. Raw OS descriptor numbers and arbitrary PIDs require
+HTTP redirects are followed by the HTTP client's builtin, each hop as its own
+checked operation, so a redirect reaches nowhere a direct request could not.
+Executables are resolved before checking, and arguments preserve order. Raw OS descriptor numbers and arbitrary PIDs require
 the deliberately broad `Native` boundary. Execution-owned descriptor and child
 tokens instead carry scoped grants, which are checked again on use. Tokens from
 another execution and unknown or closed tokens cannot name owned resources.

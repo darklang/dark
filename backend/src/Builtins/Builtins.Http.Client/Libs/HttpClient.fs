@@ -2,22 +2,20 @@
 ///
 /// - `httpClientRequest` reads the whole response and returns a Response with
 ///   `body : Bytes`. A GET or HEAD is a read, handed back in flight
-///   (`Effects.callReadsOnly`); any other method is a write, in program order.
-/// - `httpClientStream` returns a StreamResponse whose `body : Stream<UInt8>`
-///   is pulled as it arrives; for large bodies, server-sent events, etc.
+///   (`Interpreter.callReadsOnly`); any other method is a write, in program order.
+/// - `httpClientStream` returns a Response whose `body : Stream<UInt8>` is
+///   pulled as it arrives; for large bodies, server-sent events, etc.
 ///
-/// Both take the same arguments and make the same host call: the buffered one is
-/// the streaming send drained by the host (`HostHttp.send`), under one deadline and
-/// with a failure mid-body reported as a typed error. Two builtins rather than one
-/// because the scheduler and a resume treat them differently: a buffered response
-/// is a value the log can hand back, and an open stream is not.
+/// Both answer the one generic `Stdlib.HttpClient.Response<'body>`, with the
+/// headers as the server sent them: names unchanged, values unchanged, a
+/// repeated header as separate pairs.
 ///
-/// The network machinery lives behind the checked host boundary
-/// (`LibExecution.HostHttp`): these builtins parse Dvals, build a
-/// `Host.Operation`, and map the structured result back to the
-/// Stdlib.HttpClient types. What makes a request safe to send (header names and
-/// values, the network guard, the grant) is checked there, below any Dark code;
-/// what shapes it (`Stdlib.HttpClient.request` and `stream`) is Dark.
+/// A call is an exchange (`exchange`): the request, then the redirects it follows and the
+/// retries it makes, under one deadline. Following and retrying are here rather than in Dark
+/// middleware because both must look at a response, and a GET that waited for its response where
+/// it was sent would no longer be in flight. Dark decides whether and how often
+/// (`Stdlib.HttpClient.Middleware.followRedirects`, `retry`); each send is its own checked host
+/// operation (`LibExecution.HostHttp`), so the grants and the network guard apply to every hop.
 module Builtins.Http.Client.Libs.HttpClient
 
 open System.Threading.Tasks
@@ -40,8 +38,6 @@ let responseOKType () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.response ())
 let responseErrorType () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.requestError ())
-let streamResponseType () =
-  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.streamResponse ())
 
 
 module BadHeader =
@@ -121,8 +117,8 @@ let private headersToDval (headers : List<string * string>) : Dval =
   headers
   |> List.map (fun (k, v) ->
     DTuple(
-      DString(String.normalizeOutside (String.toLowercase k)),
-      DString(String.normalizeOutside (String.toLowercase v)),
+      DString(String.normalizeOutside k),
+      DString(String.normalizeOutside v),
       []
     ))
   |> Dval.list (KTTuple(VT.string, VT.string, []))
@@ -140,41 +136,323 @@ let private parseHeaders (reqHeaders : List<Dval>) : List<string * string> =
 open LibExecution.Builtin.Shortcuts
 
 
-let private resultOf (okType : FQTypeName.FQTypeName) =
-  let ok = KTCustomType(okType, [])
+/// `Ok` and `Error` of a `Result<Response<'body>, RequestError>`, for a body of `bodyType`.
+let private resultOf (bodyType : ValueType) =
+  let ok = KTCustomType(responseOKType (), [ bodyType ])
   let error = KTCustomType(responseErrorType (), [])
   (Dval.resultOk ok error, Dval.resultError ok error)
 
-let private resultTypeOf (okType : FQTypeName.FQTypeName) =
+let private resultTypeOf (bodyType : TypeReference) =
   TypeReference.result
-    (TCustomType(NR.ok okType, []))
+    (TCustomType(NR.ok (responseOKType ()), [ bodyType ]))
     (TCustomType(NR.ok (responseErrorType ()), []))
+
+/// A `Response<'body>` record, headers as the host answered them.
+let private responseOf
+  (bodyType : ValueType)
+  (statusCode : int)
+  (headers : List<string * string>)
+  (body : Dval)
+  : Dval =
+  let typ = responseOKType ()
+  let fields =
+    [ ("statusCode", Dval.dint64 (int64 statusCode))
+      ("headers", headersToDval headers)
+      ("body", body) ]
+  DRecord(typ, typ, [ bodyType ], RecordFields.ofList fields)
 
 let private parameters =
   [ Param.make "method" TString ""
     Param.make "uri" TString ""
     Param.make "headers" headersType ""
-    Param.make "body" TBytes "" ]
+    Param.make "body" TBytes ""
+    Param.make
+      "timeoutMs"
+      (TypeReference.option TInt64)
+      "How long the exchange may take in milliseconds, redirects and retries included: all of it for a buffered response, until the last response's headers for a stream. {{None}} is the host's default (30s); 0 is no limit"
+    Param.make
+      "redirects"
+      TInt64
+      "How many redirects to follow; 0 answers a redirect as it came"
+    Param.make
+      "retries"
+      TInt64
+      "How many more times an idempotent request may be sent after a failure worth retrying"
+    Param.make
+      "retryDelayMs"
+      TInt64
+      "The wait before the first retry, doubled for each one after" ]
 
-/// Name the request to the host and hand its answer to `answer`.
-let private send
+/// Milliseconds as the host takes them. Past `Int32.MaxValue` (24 days) is as good as forever.
+let private clampMs (ms : int64) : int =
+  int (max 0L (min ms (int64 System.Int32.MaxValue)))
+
+/// One send of an exchange.
+type Hop =
+  { method : string; uri : string; headers : List<string * string>; body : byte[] }
+
+/// What the request asks of its exchange beyond the first send. `deadline` is on
+/// `Environment.TickCount64`, `None` for no limit.
+type private Policy =
+  { deadline : Option<int64>
+    redirects : int64
+    retries : int64
+    retryDelayMs : int64 }
+
+let private headerValue
+  (name : string)
+  (headers : List<string * string>)
+  : Option<string> =
+  headers
+  |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive k name)
+  |> Option.map snd
+
+let private withoutHeaders
+  (names : List<string>)
+  (headers : List<string * string>)
+  : List<string * string> =
+  headers
+  |> List.filter (fun (k, _) ->
+    not (List.exists (String.equalsCaseInsensitive k) names))
+
+let private originOf (uri : System.Uri) =
+  (uri.Scheme.ToLowerInvariant(), uri.IdnHost.ToLowerInvariant(), uri.Port)
+
+/// The next send after `status`, when it is a redirect with a `Location`: there, resolved against
+/// where this one went. As fetch and curl -L do, a POST after a 301 or 302, and anything but a
+/// GET or HEAD after a 303, becomes a GET with no body; otherwise the method and body are kept.
+/// Credentials and cookies stay behind when it leaves the origin (scheme, host and port).
+let redirectOf
+  (hop : Hop)
+  (status : int)
+  (headers : List<string * string>)
+  : Option<Hop> =
+  match status, headerValue "Location" headers with
+  | (301 | 302 | 303 | 307 | 308), Some location ->
+    match System.Uri.TryCreate(hop.uri, System.UriKind.Absolute) with
+    | true, from ->
+      match System.Uri.TryCreate(from, location) with
+      | true, next ->
+        let asGet =
+          match status with
+          | 301
+          | 302 -> String.equalsCaseInsensitive hop.method "POST"
+          | 303 ->
+            not (
+              String.equalsCaseInsensitive hop.method "GET"
+              || String.equalsCaseInsensitive hop.method "HEAD"
+            )
+          | _ -> false
+        let headers =
+          if asGet then
+            withoutHeaders
+              [ "Content-Type"
+                "Content-Length"
+                "Content-Encoding"
+                "Content-Language"
+                "Content-Location" ]
+              hop.headers
+          else
+            hop.headers
+        let headers =
+          if originOf from = originOf next then
+            headers
+          else
+            withoutHeaders
+              [ "Authorization"; "Cookie"; "Proxy-Authorization" ]
+              headers
+        Some
+          { method = if asGet then "GET" else hop.method
+            uri = next.AbsoluteUri
+            headers = headers
+            body = if asGet then [||] else hop.body }
+      | _ -> None
+    | _ -> None
+  | _ -> None
+
+/// RFC 9110's idempotent methods: sending one twice does what sending it once does.
+let private isIdempotent (method : string) : bool =
+  [ "GET"; "HEAD"; "PUT"; "DELETE"; "OPTIONS"; "TRACE" ]
+  |> List.exists (String.equalsCaseInsensitive method)
+
+let private retryableStatus (status : int) : bool =
+  status = 429 || status = 502 || status = 503 || status = 504
+
+let private retryableError (err : HostTypes.HttpRequestError) : bool =
+  match err with
+  | HostTypes.HttpRequestError.Timeout
+  | HostTypes.HttpRequestError.NetworkError _ -> true
+  | _ -> false
+
+/// The longest a retry waits, whatever a `Retry-After` asks and with no deadline to stop it.
+let private longestWaitMs = 60_000L
+
+/// How long a `Retry-After` asks for, seconds or an HTTP date, up to `longestWaitMs`.
+let private retryAfterMs (headers : List<string * string>) : Option<int64> =
+  headerValue "Retry-After" headers
+  |> Option.bind (fun value ->
+    let value = value.Trim()
+    match System.Int64.TryParse value with
+    | true, seconds when seconds >= 0L -> Some(min (seconds * 1000L) longestWaitMs)
+    | _ ->
+      match
+        System.DateTimeOffset.TryParse(
+          value,
+          System.Globalization.CultureInfo.InvariantCulture,
+          System.Globalization.DateTimeStyles.AssumeUniversal
+        )
+      with
+      | true, at ->
+        let ms = int64 (at - System.DateTimeOffset.UtcNow).TotalMilliseconds
+        Some(min (max 0L ms) longestWaitMs)
+      | _ -> None)
+
+/// The wait before retry `n` (0 for the first): `delayMs` doubled `n` times, up to
+/// `longestWaitMs`, then a random point in its upper half, so clients that failed together do not
+/// all come back together.
+let private backoffMs (delayMs : int64) (n : int64) : int64 =
+  let full = min (min delayMs longestWaitMs <<< int (min n 16L)) longestWaitMs
+  full / 2L + System.Random.Shared.NextInt64(full / 2L + 1L)
+
+let private tooManyRedirects () : Dval =
+  let typ = responseErrorType ()
+  DEnum(typ, typ, [], "TooManyRedirects", [])
+
+/// Send `first`, following redirects and retrying as `policy` allows, all under its one deadline.
+/// Each send is its own checked host operation, so every hop is checked against the grants and the
+/// network guard for wherever it goes. The first is named to the interpreter (`requestHost`), as
+/// every builtin's is, so `ps` can say what the process waits on; the hops after it are performed
+/// here, from its continuation, which a read's has to be. A response left behind (a redirect, a
+/// 503 tried again) is `drop`ped, which for a stream closes it.
+let private exchange
+  (state : ExecutionState)
+  (vm : VMState)
+  (policy : Policy)
+  (operation : Hop -> int -> Host.Operation)
+  (expect : Host.Response -> Result<'r, HostTypes.HttpRequestError>)
+  (head : 'r -> int * List<string * string>)
+  (drop : 'r -> unit)
+  (finish : Result<'r, Dval> -> Dval)
+  (first : Hop)
+  : Ply<Dval> =
+  let access = vm.activeAccess
+  let remaining () =
+    policy.deadline |> Option.map (fun at -> at - System.Environment.TickCount64)
+  let fits (waitMs : int64) =
+    match remaining () with
+    | Some left -> waitMs < left
+    | None -> true
+  // What the host takes: what is left of the deadline, and 0 for no limit.
+  let timeoutMs () =
+    remaining () |> Option.map (max 1L >> clampMs) |> Option.defaultValue 0
+  let answerOf (outcome : Result<Host.Response, Host.Failure>) =
+    match outcome with
+    | Error failure ->
+      Exception.raiseInternal
+        "http request failed outside the typed error surface"
+        [ "message", failure.message ]
+    | Ok response -> expect response
+  let send (hop : Hop) : Ply<Result<'r, HostTypes.HttpRequestError>> =
+    match remaining () with
+    | Some left when left <= 0L -> Ply(Error HostTypes.HttpRequestError.Timeout)
+    | _ ->
+      PermissionCheck.performHostWithAccess
+        state
+        vm
+        access
+        (operation hop (timeoutMs ()))
+      |> Ply.map answerOf
+  let rec settle
+    (hop : Hop)
+    (redirects : int64)
+    (retries : int64)
+    (answer : Result<'r, HostTypes.HttpRequestError>)
+    : Ply<Result<'r, Dval>> =
+    uply {
+      let again = retries > 0L && isIdempotent hop.method
+      let backoff () = backoffMs policy.retryDelayMs (policy.retries - retries)
+      match answer with
+      | Error err when again && retryableError err ->
+        let wait = backoff ()
+        if fits wait then
+          do! Task.Delay(clampMs wait)
+          let! answer = send hop
+          return! settle hop redirects (retries - 1L) answer
+        else
+          return Error(RequestError.toDT err)
+      | Error err -> return Error(RequestError.toDT err)
+      | Ok r ->
+        let (status, headers) = head r
+        let next =
+          if policy.redirects > 0L then redirectOf hop status headers else None
+        match next with
+        | Some _ when redirects = 0L ->
+          drop r
+          return Error(tooManyRedirects ())
+        | Some next ->
+          drop r
+          let! answer = send next
+          return! settle next (redirects - 1L) retries answer
+        | None ->
+          if again && retryableStatus status then
+            let wait = retryAfterMs headers |> Option.defaultWith backoff
+            if fits wait then
+              drop r
+              do! Task.Delay(clampMs wait)
+              let! answer = send hop
+              return! settle hop redirects (retries - 1L) answer
+            else
+              return Ok r
+          else
+            return Ok r
+    }
+  Interpreter.requestHost vm (operation first (timeoutMs ())) (fun outcome ->
+    settle first policy.redirects policy.retries (answerOf outcome)
+    |> Ply.map finish)
+
+/// The builtins' shared body: read the arguments, run the exchange, and answer its last
+/// response with `answer`, or why there is none.
+let private run
   (state : ExecutionState)
   (vm : VMState)
   (args : Dval[])
-  (operation : string -> string -> List<string * string> -> byte[] -> Host.Operation)
-  (answer : Host.Response -> Ply<Dval>)
+  (operation : Hop -> int -> Host.Operation)
+  (expect : Host.Response -> Result<'r, HostTypes.HttpRequestError>)
+  (head : 'r -> int * List<string * string>)
+  (drop : 'r -> unit)
+  (answer : 'r -> Dval)
+  (failed : Dval -> Dval)
   : Ply<Dval> =
   match args with
-  | [| DString method; DString uri; DList(_, Items(reqHeaders)); DBytes bodyRef |] ->
+  | [| DString method
+       DString uri
+       DList(_, Items(reqHeaders))
+       DBytes bodyRef
+       timeout
+       DInt64 redirects
+       DInt64 retries
+       DInt64 retryDelayMs |] ->
+    let overall =
+      match timeout with
+      | DEnum(_, _, _, "Some", [ DInt64 ms ]) -> ms
+      | _ -> int64 HostTypes.defaultHttpTimeoutMs
+    let policy =
+      { deadline =
+          if overall > 0L then
+            Some(System.Environment.TickCount64 + int64 (clampMs overall))
+          else
+            None
+        redirects = max 0L redirects
+        retries = max 0L retries
+        retryDelayMs = max 0L retryDelayMs }
     let headers = parseHeaders reqHeaders
+    let finish result =
+      match result with
+      | Ok r -> answer r
+      | Error e -> failed e
     Bytes.withBytes state bodyRef (fun body ->
-      Interpreter.requestHost vm (operation method uri headers body) (fun outcome ->
-        match outcome with
-        | Error failure ->
-          Exception.raiseInternal
-            "http request failed outside the typed error surface"
-            [ "message", failure.message ]
-        | Ok response -> answer response))
+      { method = method; uri = uri; headers = headers; body = body }
+      |> exchange state vm policy operation expect head drop finish)
   | _ -> incorrectArgs ()
 
 
@@ -182,37 +460,39 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "httpClientRequest" 0
       typeParams = []
       parameters = parameters
-      returnType = resultTypeOf (responseOKType ())
+      returnType = resultTypeOf TBytes
       description =
         "Make an HTTP call to <param uri> and read the whole response. A GET or HEAD is a "
         + "read: it runs concurrently with what follows and is waited for where the response "
         + "is first looked at. Any other method runs in program order. Returns the response in "
         + "{{ Ok }}, or why there is none in {{ Error }}."
       fn =
-        let (resultOk, resultError) = resultOf (responseOKType ())
+        let (resultOk, resultError) = resultOf VT.bytes
         (fun (struct (state, vm, _, args)) ->
-          send
+          run
             state
             vm
             args
-            (fun method uri headers body ->
+            (fun hop timeoutMs ->
               Host.Operation.HttpRequest(
                 HostTypes.HttpProfile.Guest,
-                method,
-                uri,
-                headers,
-                body
+                hop.method,
+                hop.uri,
+                hop.headers,
+                hop.body,
+                Some timeoutMs
               ))
-            (fun response ->
-              match Host.expectHttp response with
-              | Error err -> Ply(resultError (RequestError.toDT err))
-              | Ok response ->
-                let typ = responseOKType ()
-                let fields =
-                  [ ("statusCode", Dval.dint64 (int64 response.statusCode))
-                    ("headers", headersToDval response.headers)
-                    ("body", Bytes.newEphemeral response.body) ]
-                Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))
+            Host.expectHttp
+            (fun (r : HostTypes.HttpResponse) -> (r.statusCode, r.headers))
+            ignore<HostTypes.HttpResponse>
+            (fun r ->
+              responseOf
+                VT.bytes
+                r.statusCode
+                r.headers
+                (Bytes.newEphemeral r.body)
+              |> resultOk)
+            resultError)
       previewable = Impure
       callEffects = set [ Effect.Http; Effect.Raise ]
       deprecated = NotDeprecated }
@@ -238,49 +518,46 @@ let fns () : List<BuiltInFn> =
     { name = fn "httpClientStream" 0
       typeParams = []
       parameters = parameters
-      returnType = resultTypeOf (streamResponseType ())
+      returnType = resultTypeOf (TStream TUInt8)
       description =
         "Make a streaming HTTP call to <param uri>, in program order. Returns a <type "
-        + "StreamResponse> whose `body` is a lazy <type Stream> that yields bytes "
+        + "Response> whose `body` is a lazy <type Stream> that yields bytes "
         + "as they arrive. Drain with `Builtin.streamToList`/`streamToBytes`, or "
         + "compose with `streamMap`/`streamFilter`/etc. The underlying HTTP "
         + "response is released when the stream is drained to completion or "
         + "`Builtin.streamClose`d."
       fn =
-        let (resultOk, resultError) = resultOf (streamResponseType ())
+        let streamOfBytes = ValueType.Known(KTStream VT.uint8)
+        let (resultOk, resultError) = resultOf streamOfBytes
         (fun (struct (state, vm, _, args)) ->
-          send
+          run
             state
             vm
             args
-            (fun method uri headers body ->
+            (fun hop timeoutMs ->
               Host.Operation.HttpStreamOpen(
                 HostTypes.HttpProfile.Guest,
-                method,
-                uri,
-                headers,
-                body
+                hop.method,
+                hop.uri,
+                hop.headers,
+                hop.body,
+                Some timeoutMs
               ))
-            (fun response ->
-              match Host.expectHttpStream response with
-              | Error err -> Ply(resultError (RequestError.toDT err))
-              | Ok head ->
-                let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
-                  uply {
-                    let! chunk = Host.httpStreamRead head.handle maxBytes
-                    return chunk
-                  }
-
-                let disposer () = Host.httpStreamClose head.handle
-
-                let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
-
-                let typ = streamResponseType ()
-                let fields =
-                  [ ("statusCode", Dval.dint64 (int64 head.statusCode))
-                    ("headers", headersToDval head.headers)
-                    ("body", body) ]
-                Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))
+            Host.expectHttpStream
+            (fun (head : HostTypes.HttpStreamHead) ->
+              (head.statusCode, head.headers))
+            (fun head -> Host.httpStreamClose head.handle)
+            (fun head ->
+              let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
+                uply {
+                  let! chunk = Host.httpStreamRead head.handle maxBytes
+                  return chunk
+                }
+              let disposer () = Host.httpStreamClose head.handle
+              let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
+              responseOf streamOfBytes head.statusCode head.headers body
+              |> resultOk)
+            resultError)
       previewable = Impure
       callEffects = set [ Effect.Http; Effect.Raise ]
       deprecated = NotDeprecated } ]

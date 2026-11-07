@@ -42,7 +42,8 @@ let auditRecordsOperationsAndDecisions =
           "GET",
           "https://x/y?token=s",
           [],
-          [||]
+          [||],
+          None
         )
       ))
       "http GET https://x/y?<redacted>"
@@ -53,7 +54,8 @@ let auditRecordsOperationsAndDecisions =
         "GET",
         "https://x/y?token=s",
         [],
-        [||]
+        [||],
+        None
       )
     Expect.equal
       (HT.redactAuditDetail httpOp "GET https://x/y?token=s")
@@ -72,7 +74,8 @@ let auditLineIsJsonWithTheLoggedFields =
         "GET",
         "https://x/y?token=s",
         [],
-        [||]
+        [||],
+        None
       )
     let access = Permission.Access.start Permission.Policy.denyAll
     let! outcome = LibExecution.Host.perform access op

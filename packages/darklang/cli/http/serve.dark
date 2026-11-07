@@ -128,8 +128,8 @@ let execute(state: AppState, args: List<String>): AppState =
         match LanguageTools.Live.applicableByName(state.currentBranchId, parsed.routerPath) with
         | Ok(router) ->
           // Announce only once the port is actually bound (via onListening), so a taken port never prints a
-          // "Listening" that then turns out to be false. Requests are logged (Config.defaults sets
-          // logRequests), but nothing ever said so — leaving you to wonder whether a request arrived at all.
+          // "Listening" that then turns out to be false. Requests are logged (Config.defaults puts
+          // Middleware.logRequests in the stack), but nothing ever said so — leaving you to wonder whether a request arrived at all.
           // In the dev container the host reaches this port on a per-clone offset, set as
           // DARK_HOST_PORT_BASE at startup. Unset outside it, so there's nothing to add.
           let hostPort =
