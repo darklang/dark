@@ -990,7 +990,6 @@ module Dval =
 
 
 
-// TODO: make sure we've tested all of these RTEs
 // One-way: nothing constructs instructions Dark-side yet.
 module StringSegment =
   let typeName () =
@@ -2082,8 +2081,8 @@ module RuntimeError =
         msg,
         metadata
         |> List.map (fun d ->
-          match Dval.fromDT d with
-          | DTuple(DString k, v, []) -> (k, v)
+          match d with
+          | DTuple(DString k, v, []) -> (k, Dval.fromDT v)
           | _ -> Exception.raiseInternal "Invalid metadata" [])
       )
     | DEnum(_, _, [], "Condition", [ DString message ]) ->
