@@ -111,59 +111,63 @@ let hardened : Set<string> =
 // form through `AddFn`, so adding a field to any AST case moves it. That is routine, and `PackageLocation`,
 // which it contains, still trips on the alarming kind of move.
 
-/// Mutable hash cache. Loaded on first access, can be reloaded after
-/// the hash file is regenerated (e.g. during reload-packages in CI).
-let mutable private hashCache : Map<string, string> option = None
+/// The hashes and the generation they belong to. The generation is bumped whenever the hashes
+/// are replaced. Each ref closure caches its resolved hash against the generation it resolved
+/// under, so a reload invalidates every cached ref without tracking them.
+[<NoComparison; NoEquality>]
+type private HashState = { generation : int; hashes : Map<string, string> }
 
-/// Bumped whenever `hashCache` is replaced. Each ref closure caches its resolved hash against the
-/// generation it resolved under, so a reload invalidates every cached ref without tracking them.
-let mutable private hashGeneration = 0
+/// Loaded on first access, can be replaced after the hash file is regenerated (e.g. during
+/// reload-packages in CI). One reference, so a reader never pairs a new generation with an
+/// old map: checker workers resolve refs concurrently.
+let mutable private hashState : HashState option = None
 
-let private getHashes () : Map<string, string> =
-  match hashCache with
-  | Some h -> h
+/// Replaces the hashes, one generation past whatever is current.
+let private publish (hashes : Map<string, string>) : unit =
+  let rec go () =
+    let prev = System.Threading.Volatile.Read(&hashState)
+    let generation =
+      match prev with
+      | Some s -> s.generation + 1
+      | None -> 1
+    let next = Some { generation = generation; hashes = hashes }
+    let seen = System.Threading.Interlocked.CompareExchange(&hashState, next, prev)
+    if not (obj.ReferenceEquals(seen, prev)) then go ()
+  go ()
+
+let private getState () : HashState =
+  match System.Threading.Volatile.Read(&hashState) with
+  | Some s -> s
   | None ->
-    let h = loadHashes ()
-    hashCache <- Some h
-    hashGeneration <- hashGeneration + 1
-    h
+    let first = Some { generation = 1; hashes = loadHashes () }
+    // A concurrent first load or `setHashes` may have published already; theirs wins.
+    match System.Threading.Interlocked.CompareExchange(&hashState, first, None) with
+    | Some s -> s
+    | None -> first.Value
+
+let private getHashes () : Map<string, string> = (getState ()).hashes
 
 /// Every hash the runtime resolves by name. Read by tooling that has to treat an F#-side call as
 /// a root: nothing in `packages/` names these, so a reachability walk over package bodies alone
 /// reports them, and everything only they reach, as dead.
 let allHashes () : Set<string> = getHashes () |> Map.values |> Set.ofSeq
 
-let currentGeneration () : int =
-  // Touch the cache first, so a lazy first load is reflected in the generation the caller records.
-  getHashes () |> ignore<Map<string, string>>
-  hashGeneration
+let currentGeneration () : int = (getState ()).generation
 
 /// Force-reload hashes from disk. Call after PackageRefsGenerator writes
 /// the hash file so that subsequent PackageRefs calls get real values.
-let reloadHashes () : unit =
-  hashCache <- Some(loadHashes ())
-  hashGeneration <- hashGeneration + 1
+let reloadHashes () : unit = publish (loadHashes ())
 
 /// Set hashes directly from a map (for installed CLIs where the
 /// source tree isn't available to write/read the hashes file).
-let setHashes (hashes : Map<string, string>) : unit =
-  hashCache <- Some hashes
-  hashGeneration <- hashGeneration + 1
+let setHashes (hashes : Map<string, string>) : unit = publish hashes
 
 
-/// Shared body of `Type.p` and `Fn.p`: a closure resolving `<kind>/<modules>.<name>`
-/// against the hash file. Resolution is cached once per hash generation: the answer
-/// cannot change while the generation is stable, and resolving per call costs an
-/// interpolated key, a Map walk and a Map.add -- these sit under Option and Result
-/// construction, so they run constantly. Each resolved hash is reported through
-/// `record` so the calling module's `_lookup` (read by PackageRefsGenerator) sees
-/// real values. Returns "" if the hash file is empty (CI before reload-packages).
-let private makeRef
-  (kind : string)
-  (record : string -> unit)
-  (modules : string list)
-  (name : string)
-  : unit -> string =
+/// A closure resolving `fqn` against the hash file. Resolution is cached once per hash
+/// generation: the answer cannot change while the generation is stable, and resolving per
+/// call costs a Map walk -- these sit under Option and Result construction, so they run
+/// constantly. Returns "" if the hash file is empty (CI before reload-packages).
+let private makeRef (fqn : string) : unit -> string =
   // Publish the generation and hash together: checker workers resolve refs concurrently.
   // Separate writes let a reader see the new generation with an empty or stale hash.
   let mutable cached = (-1, "")
@@ -174,11 +178,9 @@ let private makeRef
     if gen = cachedGen then
       cachedHash
     else
-      let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
       let h = getHashes ()
       match Map.tryFind fqn h with
       | Some hash ->
-        record hash
         System.Threading.Volatile.Write(&cached, (gen, hash))
         hash
       | None ->
@@ -191,20 +193,22 @@ let private makeRef
             $"PackageRefs: {fqn} hash not found. The hash file is stale; run `scripts/dev/build backend/global.json` to regenerate it."
             [ "fqn", fqn ]
 
+/// Every ref FQN declared below. Written only while this module initializes, which runs once
+/// on one thread, so it never changes after the first read.
+let mutable private declared : Set<string> = Set.empty
+
+let private declare (kind : string) (modules : string list) (name : string) =
+  let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
+  declared <- Set.add fqn declared
+  makeRef fqn
+
+/// The FQN (`<kind>/<modules>.<name>`) of every ref this runtime declares. Used by
+/// PackageRefsGenerator.
+let declaredNames () : Set<string> = declared
+
 
 module Type =
-  /// All type refs registered by `p`. Used by PackageRefsGenerator.
-  let mutable _lookup : Map<string list * string, string> = Map []
-
-  /// Registers the FQN in `_lookup` at module init (for PackageRefsGenerator),
-  /// but defers the actual hash lookup to `makeRef`'s returned closure.
-  let private p modules name : (unit -> string) =
-    _lookup <- _lookup |> Map.add (modules, name) ""
-    makeRef
-      "type"
-      (fun h -> _lookup <- _lookup |> Map.add (modules, name) h)
-      modules
-      name
+  let private p modules name : (unit -> string) = declare "type" modules name
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
@@ -648,17 +652,9 @@ module Type =
     let candidate = p [ "SCM"; "Conflicts" ] "Candidate"
 
 
-/// Traits are their own item kind, so their refs are their own table.
+/// Traits are their own item kind.
 module Trait =
-  let mutable _lookup : Map<string list * string, string> = Map []
-
-  let private p modules name : (unit -> string) =
-    _lookup <- _lookup |> Map.add (modules, name) ""
-    makeRef
-      "trait"
-      (fun h -> _lookup <- _lookup |> Map.add (modules, name) h)
-      modules
-      name
+  let private p modules name : (unit -> string) = declare "trait" modules name
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
@@ -682,18 +678,7 @@ module Trait =
 
 
 module Fn =
-  /// All fn refs registered by `p`. Used by PackageRefsGenerator.
-  let mutable _lookup : Map<string list * string, string> = Map []
-
-  /// Registers the FQN in `_lookup` at module init (for PackageRefsGenerator),
-  /// but defers the actual hash lookup to `makeRef`'s returned closure.
-  let private p modules name : (unit -> string) =
-    _lookup <- _lookup |> Map.add (modules, name) ""
-    makeRef
-      "fn"
-      (fun h -> _lookup <- _lookup |> Map.add (modules, name) h)
-      modules
-      name
+  let private p modules name : (unit -> string) = declare "fn" modules name
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
@@ -754,18 +739,14 @@ module Fn =
       let parseSingleTestFromFile = p [] "parseSingleTestFromFile"
 
 
-/// Missing or empty entries among the refs registered by this runtime.
+/// Missing or empty entries among the refs declared by this runtime.
 let missingNames (hashes : Map<string, string>) : List<string> =
-  [ "type", Type._lookup; "fn", Fn._lookup; "trait", Trait._lookup ]
-  |> List.collect (fun (kind, refs) ->
-    refs
-    |> Map.toList
-    |> List.choose (fun ((modules, name), _) ->
-      let fqn = kind + "/" + String.concat "." (modules @ [ name ])
-      match Map.tryFind fqn hashes with
-      | Some hash when not (System.String.IsNullOrWhiteSpace hash) -> None
-      | _ -> Some fqn))
-  |> List.sort
+  declared
+  |> Set.toList
+  |> List.filter (fun fqn ->
+    match Map.tryFind fqn hashes with
+    | Some hash -> System.String.IsNullOrWhiteSpace hash
+    | None -> true)
 
 /// Refuse to export a seed with refs that cannot support this runtime.
 let validate () : unit =
