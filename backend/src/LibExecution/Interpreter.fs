@@ -2374,6 +2374,53 @@ let private callbackParam
   | TFn(_, ret) -> Some(struct (i, name, ret))
   | _ -> None
 
+/// The operator calls in <param instrs>, at the index of each one's `LoadVal`: a `LoadVal` of an
+/// operator `FastOps` knows, straight followed by the `Apply` that calls it. That pair is what
+/// `PT2RT` emits for `a + b`, and the `Apply` answers it with `tryFastOpDirect` before anything
+/// else, so the drain can do the same from the registers and step past both
+/// ("quickening": CPython rewrites its instructions this way when it loads them).
+let private quicken (generation : int) (instrs : Instruction array) : QuickOps =
+  let quickAt (i : int) : QuickOp =
+    if i + 1 >= instrs.Length then
+      null
+    else
+      match instrs[i], instrs[i + 1] with
+      | LoadVal(fnReg, DApplicable(AppNamedFn fn)), Apply(dst, callee, [], args) when
+        callee = fnReg
+        && fn.access.IsNone
+        && List.isEmpty fn.argsSoFar
+        && List.isEmpty fn.typeArgs
+        ->
+        match fn.name with
+        | FQFnName.TraitMethod { trait_ = Hash traitHash; method_ = methodName } ->
+          match FastOps.traitTag traitHash methodName with
+          | ValueSome tag -> QuickOp(true, tag, args, dst)
+          | ValueNone -> null
+        | FQFnName.Builtin b ->
+          match FastOps.byName.TryGetValue b with
+          | true, tag -> QuickOp(false, tag, args, dst)
+          | false, _ -> null
+        | FQFnName.Package _ -> null
+      | _ -> null
+  let ops = Array.init instrs.Length quickAt
+  QuickOps(generation, (if Array.forall isNull ops then Array.empty else ops))
+
+
+/// The operator calls of a frame's instructions. Worked out when the function's or lambda's
+/// `InstrData` was built, and worked out again, uncached, if the package refs have reloaded
+/// since: the trait hashes, and so the tags, move with the stdlib.
+let private quickOpsFor (instrData : InstrData) : QuickOp[] =
+  let known = instrData.quick
+  if known.Ops.Length = 0 then
+    known.Ops
+  else
+    let generation = PackageRefs.currentGeneration ()
+    if known.Generation = generation then
+      known.Ops
+    else
+      (quicken generation instrData.instructions).Ops
+
+
 /// Cached data needed to enter a package function. Built once per function to
 /// avoid rebuilding its instructions and permission layers on every call.
 let private packageFnCallData
@@ -2385,14 +2432,15 @@ let private packageFnCallData
     cached
   else
     let id = string fn.hash
+    let instructions = List.toArray fn.body.instructions
     let d : PackageFnCallData =
       { instrData =
-          { instructions = List.toArray fn.body.instructions
+          { instructions = instructions
             resultReg = fn.body.resultIn
             // A package function's frame carries the table that maps its instructions back to
             // the expressions they came from.
             symbols = fn.symbols
-            quick = null }
+            quick = quicken (PackageRefs.currentGeneration ()) instructions }
         packageLayer = Permissions.Layer.Package id
         ceiling =
           match fn.permissionCeiling with
@@ -3433,8 +3481,9 @@ let inline private pushLambdaFrame
     if vm.lambdaInstrDataCache.TryGetValue(exprId, &hit) then
       hit
     else
+      let instructions = List.toArray foundLambda.instructions.instructions
       let d : InstrData =
-        { instructions = List.toArray foundLambda.instructions.instructions
+        { instructions = instructions
           resultReg = foundLambda.instructions.resultIn
           // The lambda's OWN table. Its body is its own instruction list with its own program
           // counter, so the enclosing function's indices do not reach it, and without this
@@ -3449,7 +3498,7 @@ let inline private pushLambdaFrame
                   | true, table -> table
                   | false, _ -> Map.empty
                 lambdas = Map.empty }
-          quick = null }
+          quick = quicken (PackageRefs.currentGeneration ()) instructions }
       vm.lambdaInstrDataCache[exprId] <- d
       d
 
@@ -4549,57 +4598,6 @@ let private tryBuildSync
     Exception.raiseInternal
       "tryBuildSync given an opcode it does not handle"
       [ "opcode", Opcode.index inst ]
-
-
-/// The operator calls in <param instrs>, at the index of each one's `LoadVal`: a `LoadVal` of an
-/// operator `FastOps` knows, straight followed by the `Apply` that calls it. That pair is what
-/// `PT2RT` emits for `a + b`, and the `Apply` answers it with `tryFastOpDirect` before anything
-/// else, so the drain can do the same from the registers and step past both
-/// ("quickening": CPython rewrites its instructions this way when it loads them).
-let private quicken (generation : int) (instrs : Instruction array) : QuickOps =
-  let ops : QuickOp[] = Array.zeroCreate instrs.Length
-  let mutable any = false
-  for i in 0 .. instrs.Length - 2 do
-    match instrs[i], instrs[i + 1] with
-    | LoadVal(fnReg, DApplicable(AppNamedFn fn)), Apply(dst, callee, [], args) when
-      callee = fnReg
-      && fn.access.IsNone
-      && List.isEmpty fn.argsSoFar
-      && List.isEmpty fn.typeArgs
-      ->
-      let tag =
-        match fn.name with
-        | FQFnName.TraitMethod { trait_ = Hash traitHash; method_ = methodName } ->
-          match FastOps.traitTag traitHash methodName with
-          | ValueSome tag -> ValueSome(struct (true, tag))
-          | ValueNone -> ValueNone
-        | FQFnName.Builtin b ->
-          let mutable tag = 0
-          if FastOps.byName.TryGetValue(b, &tag) then
-            ValueSome(struct (false, tag))
-          else
-            ValueNone
-        | FQFnName.Package _ -> ValueNone
-      match tag with
-      | ValueSome(struct (isTrait, tag)) ->
-        ops[i] <- QuickOp(isTrait, tag, args, dst)
-        any <- true
-      | ValueNone -> ()
-    | _ -> ()
-  QuickOps(generation, (if any then ops else Array.empty))
-
-
-/// The operator calls of a frame's instructions, worked out the first time a frame runs them, and
-/// again after the package refs reload: the trait hashes, and so the tags, move with the stdlib.
-let private quickOpsFor (instrData : InstrData) : QuickOp[] =
-  let generation = PackageRefs.currentGeneration ()
-  let known = instrData.quick
-  if not (isNull known) && known.Generation = generation then
-    known.Ops
-  else
-    let fresh = quicken generation instrData.instructions
-    instrData.quick <- fresh
-    fresh.Ops
 
 
 /// An operator call answered as its `Apply` would answer it in `tryFastOpDirect`: true when it
