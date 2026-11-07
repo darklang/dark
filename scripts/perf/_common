@@ -68,12 +68,42 @@ no_release_exe() {
   } >&2
 }
 
+# The git tree hash of the working tree as it is on disk: uncommitted changes and untracked files
+# included, ignored files not. Built in a scratch index, so the real one is left alone.
+# `build-release-cli-exes.sh` records it in each binary's `.key`.
+release_tree_hash() {
+  local index status=0
+  index="$(mktemp)"
+  cp "$(git rev-parse --git-path index)" "$index" 2>/dev/null || true
+  GIT_INDEX_FILE="$index" git add -A . && GIT_INDEX_FILE="$index" git write-tree || status=$?
+  rm -f "$index"
+  return "$status"
+}
+
 # Refuse a published CLI that predates the source it is meant to contain. A stale artifact does not
 # produce a stale-looking number -- it produces a plausible one, for the previous build, and a budget
-# compared against it says nothing. `find -print -quit` stops at the first newer file, so this costs
-# nothing on a warm tree.
+# compared against it says nothing.
+#
+# A binary with a `.key` is compared by content: fresh when `packages/` and `backend/src/` on disk
+# are what it was built from, whatever the file times say. One without falls back to times:
+# `find -print -quit` stops at the first newer file, so this costs nothing on a warm tree.
 assert_release_exe_fresh() {
-  local exe=$1 tool=$2 newer
+  local exe=$1 tool=$2 newer built now
+  local key="${exe%.gz}"; key="${key%.exe}.key"
+  if [[ -f "$key" ]]; then
+    built="$(sed -n 's/^tree //p' "$key")"
+    now="$(release_tree_hash)"
+    # Fails only if git has pruned the recorded tree; then the file times decide.
+    if built="$(git rev-parse "$built:packages" "$built:backend/src" 2>/dev/null)"; then
+      [[ "$built" == "$(git rev-parse "$now:packages" "$now:backend/src")" ]] && return 0
+      {
+        echo "$tool: $(basename "$exe") was built from different source than what is on disk."
+        echo "  It would be measured instead of your change. Rebuild it:"
+        echo "    scripts/build/build-release-cli-exes.sh"
+      } >&2
+      return 1
+    fi
+  fi
   newer=$(find packages backend/src -type f \( -name '*.dark' -o -name '*.fs' \) \
     -newer "$exe" -print -quit 2>/dev/null || true)
   [[ -z "$newer" ]] && return 0

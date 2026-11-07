@@ -9,6 +9,7 @@
 #   ./scripts/build/build-release-cli-exes.sh --runtimes=linux-x64,osx-arm64  # Build for specific runtimes
 #   ./scripts/build/build-release-cli-exes.sh --mode=aot         # NativeAOT publish (see below)
 #   ./scripts/build/build-release-cli-exes.sh --seed=path/to.db  # Use a pre-exported seed
+#   ./scripts/build/build-release-cli-exes.sh --rebuild          # Publish even if clis/ has this build
 #   ./scripts/build/build-release-cli-exes.sh --reuse-libraries  # Compile only Cli (see below)
 #
 # Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64
@@ -26,8 +27,18 @@
 # (an arm64 mac targeting osx-x64) is allowed and left to ilc to accept or
 # reject; cross-OS is refused up front, because the failure is otherwise a
 # confusing link error several minutes in.
+#
+# A runtime whose binary in clis/ was built from this exact input is not built again:
+# same tree (uncommitted and untracked files included), commit, seed, sqlite archive,
+# package-ref hashes, mode, gzip and toolchain. Each binary has a `.key` beside it listing
+# those, and when it matches, the seed export and the publish are both skipped. --rebuild
+# builds anyway, and --reuse-libraries always does, since the libraries it links aren't in
+# the key.
 
 set -euo pipefail
+
+# shellcheck source=scripts/perf/_common
+. ./scripts/perf/_common  # release_tree_hash
 
 # Parse arguments
 RUNTIMES_ARG=""
@@ -41,6 +52,7 @@ GZIP_OUTPUT=false
 MODE="auto"
 SEED_PATH=""
 DRY_RUN=false
+REBUILD=false
 REUSE_LIBRARIES=false
 
 for arg in "$@"; do
@@ -49,6 +61,9 @@ for arg in "$@"; do
       # Print the per-runtime publish plan and stop. Cheap way to check mode
       # selection, and what the guards would say, without a publish.
       DRY_RUN=true
+      ;;
+    --rebuild)
+      REBUILD=true
       ;;
     --runtimes=*)
       RUNTIMES_ARG="${arg#*=}"
@@ -242,6 +257,77 @@ if [[ "$DRY_RUN" == "true" ]]; then
   exit 0
 fi
 
+sha256_of() {
+  if [[ ! -f "$1" ]]; then
+    echo "none"
+  elif command -v sha256sum >/dev/null; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+# Everything that goes into one runtime's binary, one `name value` per line. The tree
+# covers the source, paket.lock and global.json; the rest are inputs git ignores, or
+# that come from the build host.
+#
+# The seed is named by its bytes when it's passed in. One exported here is named by the
+# tree instead: it is this checkout's packages, and two exports of one tree still differ
+# in their bytes, because every package reload adds a commit row stamped with the time.
+TREE_HASH="$(release_tree_hash)"
+if [[ -n "$SEED_PATH" ]]; then
+  SEED_KEY="$(sha256_of "$SEED_PATH")"
+else
+  SEED_KEY="exported from the tree"
+fi
+build_key() {
+  local rt="$1" rt_mode="$2" triple linker
+  triple="$(cross_triple_for_runtime "$rt")"
+  if [[ -n "$triple" ]]; then linker="$(clang --version 2>/dev/null | head -1)"; else linker="$(cc --version 2>/dev/null | head -1)"; fi
+  echo "tree $TREE_HASH"
+  echo "commit $(git rev-parse HEAD)"
+  echo "seed $SEED_KEY"
+  echo "package-ref-hashes $(sha256_of backend/src/LibExecution/package-ref-hashes.txt)"
+  echo "sqlite $(sha256_of "backend/src/Cli/lib/libe_sqlite3-$rt.a")"
+  echo "runtime $rt"
+  echo "mode $rt_mode"
+  echo "gzip $GZIP_OUTPUT"
+  echo "host $(uname -sm)"
+  echo "dotnet $(cd backend && dotnet --version)"
+  echo "linker ${linker:-unknown}"
+}
+
+# The file a runtime's build ends up as.
+output_for_runtime() {
+  local out="clis/darklang-$release-$1"
+  if [[ $1 == win-* ]]; then out="$out.exe"; fi
+  if [[ "$GZIP_OUTPUT" == "true" ]]; then out="$out.gz"; fi
+  echo "$out"
+}
+
+# Leave out each runtime already built from this exact input, before the seed export, the
+# SQLite archives and the publish, which are what take the time.
+if [[ "$REBUILD" != "true" && "$REUSE_LIBRARIES" != "true" ]]; then
+  pending=""
+  for rt in $runtimes; do
+    output="$(output_for_runtime "$rt")"
+    key_file="clis/darklang-$release-$rt.key"
+    if [[ -f "$output" && -f "$key_file" ]] \
+      && [[ "$(cat "$key_file")" == "$(build_key "$rt" "$(mode_for_runtime "$rt")")" ]]; then
+      echo "Skipping $rt: $output is already built from this exact input ($key_file). --rebuild to publish anyway."
+      # Newest again, so tools that pick the newest binary, or compare its age to the source, see it.
+      touch "$output"
+    else
+      pending+="${pending:+ }$rt"
+    fi
+  done
+  runtimes="$pending"
+  if [[ -z "$runtimes" ]]; then
+    echo "Nothing to build."
+    exit 0
+  fi
+fi
+
 mkdir -p clis
 
 # Export a seed (smaller DB) and use it as the embedded data.db for smaller exes.
@@ -295,6 +381,10 @@ build_for_runtime() {
   local rt="$1"
   local rt_mode
   rt_mode="$(mode_for_runtime "$rt")"
+
+  target="clis/darklang-$release-$rt"
+  # Gone until the new binary is in place, so a publish that fails leaves no key for the old one.
+  rm -f "$target.key"
   echo "Building for runtime: $rt (mode: $rt_mode)"
 
   local reuse_args=()
@@ -400,7 +490,6 @@ build_for_runtime() {
   local build_dir="${DarkBuildDir:-backend/Build}"
   local publish_dir="$build_dir/out/Cli/Release/net10.0/$rt/publish"
 
-  target="clis/darklang-$release-$rt"
   echo "Moving to $target"
 
   if [[ $rt == win-* ]]; then
@@ -420,6 +509,12 @@ build_for_runtime() {
   # and nothing in the binary's name says which it is. `scripts/perf/_common` reads this and
   # refuses to compare a budget against a binary from the other mode.
   echo "$rt_mode" > "$target.mode"
+
+  # Taken now rather than before the build: the reload may have rewritten
+  # package-ref-hashes.txt and build-sqlite.sh may have made the archive.
+  if [[ "$REUSE_LIBRARIES" != "true" ]]; then
+    build_key "$rt" "$rt_mode" > "$target.key"
+  fi
 }
 
 # Build for each runtime
