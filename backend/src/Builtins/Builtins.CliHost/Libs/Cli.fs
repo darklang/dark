@@ -979,6 +979,7 @@ let executeWith
           let e = resume.run
           let tracer =
             Tracing.createReplayTracer
+              parentState.traceCaps
               (AT.TraceID.fromUUID e.id)
               traceDesc
               inputName
@@ -998,7 +999,13 @@ let executeWith
           tracer, Some e.id, Some e.status
         | None ->
           let traceID = AT.TraceID.create ()
-          let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
+          let tracer =
+            Tracing.createCliTracer
+              parentState.traceCaps
+              traceID
+              traceDesc
+              inputName
+              inputValue
           if tracer.enabled then
             // The row goes in now, at the run's start, so `dark traces` shows a run while it is
             // still going and Ctrl-C has something to mark suspended. The recorder upserts the

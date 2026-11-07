@@ -645,7 +645,7 @@ let private previewOfAServedRequest =
         // `cliTest` leaves the suite default, which is `off`; `cliTestWithFreshTraces` is the
         // harness that sets a rung. This test is about what a recorded trace can show, so it
         // needs one.
-        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+        LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
         try
           do! author "Tests.PrevHttp.page" "(): String = \"hello\""
           do!
@@ -684,7 +684,7 @@ let private previewOfAServedRequest =
                     "the handler's own call, with the value that request produced"
                 })
         finally
-          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+          LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
       })
 
 

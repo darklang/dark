@@ -4993,6 +4993,21 @@ module Tracing =
     | PerformOnwards
     | Diverged of message : string
 
+  /// How much a host lets its runs record, worked out once at startup and handed to every
+  /// tracer it makes (`LibDB.Tracing`). 0 on any of them is no cap.
+  type Caps =
+    {
+      /// Events one trace keeps; past it they are counted, not kept.
+      maxEvents : int
+      /// Traces the store keeps (`trace.keep`).
+      keep : int64
+      /// Bytes the store's traces may hold (`trace.maxMb`).
+      maxBytes : int64
+    }
+
+  let defaultCaps : Caps =
+    { maxEvents = 10_000; keep = 200L; maxBytes = 256L * 1024L * 1024L }
+
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
     {
@@ -6203,6 +6218,8 @@ and [<RequireQualifiedAccess>] Purity =
 and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
+    /// What a tracer made under this state may keep.
+    traceCaps : Tracing.Caps
     test : TestContext
 
     /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.

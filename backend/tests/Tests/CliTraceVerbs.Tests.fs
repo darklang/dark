@@ -367,6 +367,7 @@ let private aChildLoggedBeforeItsSpawnStillReplays =
         call "uuidGenerate" None ]
     let tracer =
       LibDB.Tracing.createReplayTracer
+        RT.Tracing.defaultCaps
         (LibExecution.AnalysisTypes.TraceID.create ())
         "eval"
         "expression"
@@ -437,39 +438,38 @@ let private retentionKeepsTheNewestAndTheSuspended =
     "retention drops the oldest runs past trace.keep but never a suspended one"
     (fun state ->
       task {
-        let keep, bytes =
-          LibDB.Tracing.TraceRetention.keep, LibDB.Tracing.TraceRetention.maxBytes
-        LibDB.Tracing.TraceRetention.setForTesting 2L 0L
-        try
-          // Four runs; the first is suspended by hand so it must survive.
-          let! _ = runCli state [ "eval"; "1" ]
-          let! first = latest ()
-          Traces.setStatus first.id Traces.Suspended
-          let! _ = runCli state [ "eval"; "2" ]
-          let! _ = runCli state [ "eval"; "3" ]
-          // The pass runs at most every ten seconds; the seam reset its clock, and it ran on
-          // the fourth store, which is the one past the cap.
-          LibDB.Tracing.TraceRetention.setForTesting 2L 0L
-          let! _ = runCli state [ "eval"; "4" ]
-          let! traces =
-            Sql.query "SELECT id FROM traces ORDER BY timestamp"
-            |> Sql.executeAsync (fun read -> read.string "id")
-          Expect.isTrue
-            (List.contains (string first.id) traces)
-            "the suspended run's trace is kept whatever its age"
-          Expect.isLessThanOrEqual
-            (List.length traces)
-            3
-            "at most the cap plus the exempt one"
-          let! rows = Traces.list 10
-          Expect.isTrue
-            (rows |> List.exists (fun e -> e.id = first.id))
-            "the suspended execution is still listed"
-          Expect.isTrue
-            (rows |> List.forall (fun e -> List.contains (string e.id) traces))
-            "every listed execution still has its trace: the rows went together"
-        finally
-          LibDB.Tracing.TraceRetention.setForTesting keep bytes
+        let state =
+          InProcess
+            { executionState state with
+                traceCaps = { RT.Tracing.defaultCaps with keep = 2L; maxBytes = 0L } }
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        // Four runs; the first is suspended by hand so it must survive.
+        let! _ = runCli state [ "eval"; "1" ]
+        let! first = latest ()
+        Traces.setStatus first.id Traces.Suspended
+        let! _ = runCli state [ "eval"; "2" ]
+        let! _ = runCli state [ "eval"; "3" ]
+        // The pass runs at most every ten seconds; the seam reset its clock, and it ran on
+        // the fourth store, which is the one past the cap.
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        let! _ = runCli state [ "eval"; "4" ]
+        let! traces =
+          Sql.query "SELECT id FROM traces ORDER BY timestamp"
+          |> Sql.executeAsync (fun read -> read.string "id")
+        Expect.isTrue
+          (List.contains (string first.id) traces)
+          "the suspended run's trace is kept whatever its age"
+        Expect.isLessThanOrEqual
+          (List.length traces)
+          3
+          "at most the cap plus the exempt one"
+        let! rows = Traces.list 10
+        Expect.isTrue
+          (rows |> List.exists (fun e -> e.id = first.id))
+          "the suspended execution is still listed"
+        Expect.isTrue
+          (rows |> List.forall (fun e -> List.contains (string e.id) traces))
+          "every listed execution still has its trace: the rows went together"
       })
 
 
@@ -638,23 +638,23 @@ let private byteCapActsBelowFiftyTraces =
     "the byte cap applies however few traces there are"
     (fun state ->
       task {
-        let keep, bytes =
-          LibDB.Tracing.TraceRetention.keep, LibDB.Tracing.TraceRetention.maxBytes
-        try
-          LibDB.Tracing.TraceRetention.setForTesting 200L 1L
-          let! _ = runCli state [ "eval"; "Stdlib.printLine(\"one\")" ]
-          LibDB.Tracing.TraceRetention.setForTesting 200L 1L
-          let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
-          let! newest = latest ()
-          let! traces =
-            Sql.query "SELECT id FROM traces"
-            |> Sql.executeAsync (fun read -> read.string "id")
-          Expect.equal
-            traces
-            [ string newest.id ]
-            "two traces over a one-byte cap: the pass after the second store took the first"
-        finally
-          LibDB.Tracing.TraceRetention.setForTesting keep bytes
+        let state =
+          InProcess
+            { executionState state with
+                traceCaps =
+                  { RT.Tracing.defaultCaps with keep = 200L; maxBytes = 1L } }
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        let! _ = runCli state [ "eval"; "Stdlib.printLine(\"one\")" ]
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
+        let! newest = latest ()
+        let! traces =
+          Sql.query "SELECT id FROM traces"
+          |> Sql.executeAsync (fun read -> read.string "id")
+        Expect.equal
+          traces
+          [ string newest.id ]
+          "two traces over a one-byte cap: the pass after the second store took the first"
       })
 
 
