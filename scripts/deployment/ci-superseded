@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+# Whether main has already moved past this commit. Runs in CircleCI's setup workflow on main,
+# on the host, after the commit (and its parent) has been fetched.
+#
+#   scripts/deployment/ci-superseded    prints main's newer tip, or nothing
+#
+# Merges to main come in bursts, often several a minute, and each one starts a pipeline. When
+# main's tip is a newer commit by the time this runs, that commit's own pipeline builds and
+# tests a tree holding every change in this one, so this one skips the build. It also gets no
+# ok-to-deploy, so scripts/deployment/release, which only ever releases main's tip, cannot
+# release it. The tip of main always runs everything.
+#
+# Prints nothing, so the pipeline builds as usual, whenever that is not certain: not on main,
+# a tag, main unchanged, a tip that does not descend from this commit, or a tip whose message
+# asks CircleCI to skip it (then nothing newer would build).
+
+set -euo pipefail
+shopt -s inherit_errexit
+
+[[ "${CIRCLE_BRANCH:-}" == main && -z "${CIRCLE_TAG:-}" && -n "${CIRCLE_SHA1:-}" ]] || exit 0
+
+tip=$(git ls-remote origin refs/heads/main 2> /dev/null | cut -f1) || exit 0
+[[ -n "$tip" && "$tip" != "$CIRCLE_SHA1" ]] || exit 0
+
+# Commits and trees only, deep enough to reach this commit from a tip a burst of merges ahead.
+git fetch -q --depth=100 --filter=blob:none origin "$tip" 2> /dev/null || exit 0
+git merge-base --is-ancestor "$CIRCLE_SHA1" "$tip" 2> /dev/null || exit 0
+
+# CircleCI skips a push whose newest commit says so, title or body.
+if git log -1 --format=%B "$tip" | grep -qiE '\[(skip ci|ci skip)\]'; then exit 0; fi
+
+echo "$tip"

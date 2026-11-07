@@ -35,7 +35,15 @@ jobs:
       - fetch-commit
       - run:
           name: Find or build the images
-          command: scripts/deployment/ci-images > /tmp/parameters.json
+          command: scripts/deployment/ci-images > /tmp/images.json
+      # On main only: a commit main has already moved past skips the build, since the newer
+      # commit's pipeline builds this one's changes too. See the script.
+      - run:
+          name: Check whether main has moved past this commit
+          command: |
+            newer=$(scripts/deployment/ci-superseded)
+            [[ -z "$newer" ]] || echo "main has moved on to $newer, so this pipeline skips the build"
+            jq --arg newer "$newer" '. + {"superseded-by": $newer}' /tmp/images.json > /tmp/parameters.json
       - run:
           name: Continue in those images
           command: |
