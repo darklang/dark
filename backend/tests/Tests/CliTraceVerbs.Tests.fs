@@ -1101,6 +1101,180 @@ let private secretHeadersAreRedacted =
   }
 
 
+let private headerList (pairs : List<string * string>) : RT.Dval =
+  RT.DList(
+    RT.ValueType.Unknown,
+    pairs |> List.map (fun (k, v) -> RT.DTuple(RT.DString k, RT.DString v, []))
+  )
+
+let private headerValue (name : string) (headers : RT.Dval) : Option<string> =
+  match headers with
+  | RT.DList(_, items) ->
+    items
+    |> List.tryPick (fun item ->
+      match item with
+      | RT.DTuple(RT.DString n, RT.DString v, []) when n = name -> Some v
+      | _ -> None)
+  | _ -> None
+
+/// The rule is the header's name, not a list of names: anything that says it carries a
+/// credential is blanked, in a request's headers and URL and in a response's headers.
+let private credentialsAreRedactedByName =
+  testTask
+    "credentials are redacted from HTTP arguments and responses by their names" {
+    let stored =
+      LibDB.Tracing.Redact.args
+        "httpClientRequest"
+        [ RT.DString "POST"
+          RT.DString
+            "https://me:hunter2@example.com/a?api_key=K1&q=dogs&access_token=T1#top"
+          headerList
+            [ "X-Goog-Api-Key", "k"
+              "X-Auth-Token", "t"
+              "Proxy-Authorization", "Basic p"
+              "Accept", "text/plain" ]
+          RT.DBytes(RT.Persistent("", 0L)) ]
+    match stored with
+    | [ _; RT.DString url; headers; _ ] ->
+      Expect.equal
+        url
+        "https://[redacted]@example.com/a?api_key=[redacted]&q=dogs&access_token=[redacted]#top"
+        "the URL keeps its shape and loses its credentials"
+      for name in [ "X-Goog-Api-Key"; "X-Auth-Token"; "Proxy-Authorization" ] do
+        Expect.equal (headerValue name headers) (Some "[redacted]") $"{name} is gone"
+      Expect.equal
+        (headerValue "Accept" headers)
+        (Some "text/plain")
+        "an ordinary header is untouched"
+    | other -> failtest $"expected four arguments, got {other}"
+
+    let responseType =
+      RT.FQTypeName.fqPackage (
+        LibExecution.PackageRefs.Type.Stdlib.HttpClient.response ()
+      )
+    let response =
+      RT.DRecord(
+        responseType,
+        responseType,
+        [],
+        RT.RecordFields.ofList
+          [ "statusCode", RT.DInt64 200L
+            "headers",
+            headerList [ "Set-Cookie", "sid=s"; "Content-Type", "text/plain" ]
+            "body", RT.DBytes(RT.Persistent("", 0L)) ]
+      )
+    let ok = LibExecution.Dval.resultOk RT.KTUnit RT.KTUnit response
+    match LibDB.Tracing.Redact.result "httpClientRequest" ok with
+    | RT.DEnum(_, _, _, "Ok", [ RT.DRecord(_, _, _, fields) ]) ->
+      let headers = RT.RecordFields.tryFind "headers" fields |> Option.get
+      Expect.equal
+        (headerValue "Set-Cookie" headers)
+        (Some "[redacted]")
+        "the response's cookie is gone"
+      Expect.equal
+        (headerValue "Content-Type" headers)
+        (Some "text/plain")
+        "and its other headers are kept"
+    | other -> failtest $"expected Ok(Response), got {other}"
+  }
+
+/// A served request's trace: its input (the request), its result (the handler's response)
+/// and its description keep no credential the client sent or the handler set.
+let private servedRequestsKeepNoCredentials =
+  cliTestWithFreshTraces
+    "a served request's trace keeps no credential from either side"
+    (fun _ ->
+      task {
+        let marker = string (System.Guid.NewGuid())
+        let secrets =
+          [ "bearer"; "cookie"; "apikey"; "query"; "setcookie" ]
+          |> List.map (fun s -> $"{s}-{marker}")
+        let secret (s : string) = $"{s}-{marker}"
+        let setCookie = secret "setcookie"
+        let query = secret "query"
+        let bearer = secret "bearer"
+        let cookie = secret "cookie"
+        let! exeState = executionStateFor pmPT true
+        let source =
+          $"fun request -> {{ Darklang.Stdlib.Http.responseWithText(\"ok\", 200) with headers = [(\"Set-Cookie\", \"sid={setCookie}\")] }}"
+        let! ptExpr = parsePTExpr source
+        let! router =
+          LibExecution.Execution.executeExpr
+            exeState
+            (LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
+              Map.empty
+              0
+              None
+              ptExpr)
+        let handler =
+          match router with
+          | Ok(RT.DApplicable a) -> a
+          | other -> failtest $"the router did not evaluate: {other}"
+        let cts = new System.Threading.CancellationTokenSource()
+        let! port, listener = Tests.HttpServer.bindFreshListener ()
+        let serving =
+          Builtins.Http.Server.Libs.HttpServer.runListener
+            exeState
+            listener
+            (int64 port)
+            handler
+            Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            false
+            false
+            false
+            cts.Token
+        try
+          use client = new System.Net.Http.HttpClient()
+          use request =
+            new System.Net.Http.HttpRequestMessage(
+              System.Net.Http.HttpMethod.Get,
+              $"http://127.0.0.1:{port}/probe-{marker}?token={query}&page=2"
+            )
+          request.Headers.TryAddWithoutValidation(
+            "Authorization",
+            $"Bearer {bearer}"
+          )
+          |> ignore<bool>
+          request.Headers.TryAddWithoutValidation("Cookie", $"sid={cookie}")
+          |> ignore<bool>
+          request.Headers.TryAddWithoutValidation("X-Api-Key", secret "apikey")
+          |> ignore<bool>
+          let! response = client.SendAsync request
+          Expect.equal (int response.StatusCode) 200 "the handler answered"
+        finally
+          cts.Cancel()
+          try
+            serving.Wait 2000 |> ignore<bool>
+          with _ ->
+            ()
+        let! rows =
+          Sql.query
+            "SELECT handler_desc, input_value, COALESCE(result_value, X'') AS result_value FROM traces
+             WHERE handler_desc LIKE @probe"
+          |> Sql.parameters [ "probe", Sql.string $"%%probe-{marker}%%" ]
+          |> Sql.executeAsync (fun read ->
+            read.string "handler_desc",
+            read.bytes "input_value",
+            read.bytes "result_value")
+        Expect.equal (List.length rows) 1 "the request was traced"
+        for (desc, input, result) in rows do
+          let text =
+            desc
+            + UTF8.ofBytesWithReplacement input
+            + UTF8.ofBytesWithReplacement result
+          for s in secrets do
+            Expect.isFalse (text.Contains s) $"{s} is not in the trace"
+          Expect.stringContains
+            desc
+            "page=2"
+            "the description keeps the rest of the query"
+          Expect.stringContains
+            (UTF8.ofBytesWithReplacement input)
+            "[redacted]"
+            "the input says what it left out"
+      })
+
+
 /// `dark ps` as a command: the captioned table, and a refusal that says what to do.
 /// Secrets: a request header the log must not keep, and an env read whose value it must not
 /// keep. The header is redacted in the stored arguments; the env read is not stored at all and
@@ -1188,4 +1362,6 @@ let tests =
     deletingEveryTraceEmptiesEveryTraceTable
     replayEchoesAndRefuses
     secretsAreNotInTheLog
-    secretHeadersAreRedacted ]
+    secretHeadersAreRedacted
+    credentialsAreRedactedByName
+    servedRequestsKeepNoCredentials ]

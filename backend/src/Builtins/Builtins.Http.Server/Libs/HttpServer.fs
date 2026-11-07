@@ -553,9 +553,9 @@ let private handleRequest
             let tracer =
               Tracing.createCliTracer
                 traceID
-                traceDesc
+                (Tracing.Redact.url traceDesc)
                 LibDB.Traces.servedRequestInputName
-                requestDval
+                (Tracing.Redact.http requestDval)
 
             // Resolved per request, not per server: this is what makes an edit show up on the next
             // request. For a fixed router it is a match on a constant.
@@ -601,7 +601,7 @@ let private handleRequest
                     (Tracing.TraceStorage.keepBytesIn runId)
                     dv
                   |> Ply.toTask
-                LibDB.Traces.setResult runId prepared
+                LibDB.Traces.setResult runId (Tracing.Redact.http prepared)
               | Direct _ -> ()
               if response.statusCode >= 500 then
                 LibDB.Traces.setStatus runId LibDB.Traces.Failed
