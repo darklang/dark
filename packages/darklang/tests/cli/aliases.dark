@@ -358,6 +358,78 @@ test aliasRunsMainWhateverTheBranch = Instance.withInstance(fun i ->
       Instance.exitedWith(ranCode, 0, "and exits with its code") ]))
 
 
+/// Author `/Tests.Reader.main` in <param i>: it prints the file at <param file>, exit 0, or exits 5
+/// when the read is refused as an error value.
+let defineReader(i: Instance.T, file: String): (Int64 * String) =
+  let source =
+    [ "let main(args: List<String>): Int64 ="
+      $"  match Stdlib.Cli.File.readText(\"{file}\") with"
+      "  | Ok(text) ->"
+      "    Stdlib.printLine(\"read: \" + text)"
+      "    0"
+      "  | Error(_) -> 5"
+      "" ]
+    |> Stdlib.String.join("\n")
+
+  let path = Instance.home(i) + "/reader.dark"
+  let _ = Stdlib.Cli.File.writeText(path, source)
+  Instance.ran(i, [ "module", "/Tests.Reader", path ])
+
+
+// The instance policy is the ceiling for an alias, as for `dark run`: a file read `run` refuses
+// is refused through the alias, and through a bare `--entry-point`, and the grant `run` names
+// lets both through.
+test aliasRunsUnderTheInstancePolicy = Instance.withInstance(fun i ->
+  let note = Instance.home(i) + "/note.txt"
+  let _ = Stdlib.Cli.File.writeText(note, "secret")
+  let script = Instance.home(i) + "/read.dark"
+  let _ =
+    Stdlib.Cli.File.writeText(
+      script,
+      $"match Stdlib.Cli.File.readText(\"{note}\") with\n| Ok(t) -> Stdlib.printLine(\"read: \" + t)\n| Error(_) -> Stdlib.printLine(\"err\")\n")
+
+  let (definedCode, defined) = defineReader(i, note)
+  let (addCode, added) =
+    Instance.ran(i, [ "alias", "add", "rd", "Tests.Reader.main" ])
+
+  let (runCode, runOut) = Instance.ran(i, [ "run", script ])
+  let (aliasCode, aliasOut) = runAlias(i, "rd")
+  let (bareCode, bareOut) =
+    Instance.ran(i, [ "--entry-point", "Tests.Reader.main" ])
+
+  let (allowCode, allowed) =
+    Instance.ran(i, [ "permissions", "allow", "file", "read", note ])
+
+  let (grantedCode, grantedOut) = runAlias(i, "rd")
+  Stdlib.Test.all(
+    [ Instance.exitedWith(definedCode, 0, $"the reader is authored: {defined}")
+      Instance.exitedWith(addCode, 0, $"the alias is made: {added}")
+      Instance.exitedWith(runCode, 1, $"dark run refuses the read: {runOut}")
+      Instance.says(runOut, "not allowed", "and says the policy refused it")
+      Instance.exitedWith(aliasCode, 1, $"so does the alias: {aliasOut}")
+      Instance.says(aliasOut, "not allowed", "with the same reason")
+
+      Instance.says(
+        aliasOut,
+        "dark permissions allow file read",
+        "and the rule that would allow it")
+
+      Instance.doesNotSay(aliasOut, "read: secret", "nothing was read")
+      Instance.exitedWith(
+        bareCode,
+        1,
+        $"so does a bare --entry-point: {bareOut}")
+
+      Instance.doesNotSay(
+        bareOut,
+        "read: secret",
+        "nothing was read there either")
+
+      Instance.exitedWith(allowCode, 0, $"the read is granted: {allowed}")
+      Instance.exitedWith(grantedCode, 0, $"then the alias runs: {grantedOut}")
+      Instance.says(grantedOut, "read: secret", "and reads the file") ]))
+
+
 // A fn only a branch has can't be what an alias runs: refused at `add`, not at the first run.
 test aliasRefusesAFnOnlyOnABranch = Instance.withInstance(fun i ->
   let (switchCode, _) = Instance.ran(i, [ "switch", "feat" ])
