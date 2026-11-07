@@ -24,12 +24,12 @@ let private instrsFor (code : string) : Task<RT.Instructions> =
     return PT2RT.Expr.toRT Map.empty 0 None ptExpr
   }
 
-/// Run `code` as a process on a fresh scheduler, with spreading forced or off, its VM
-/// counting into `stats` when given.
-let private runInstrsCounting
+/// Run `code` as a process on a fresh scheduler, at this crossover (0 forces a spread, -1 turns it
+/// off), its VM counting into `stats` when given.
+let private runInstrsCountingAt
   (stats : Option<RT.InterpreterStats>)
   (state : RT.ExecutionState)
-  (spread : bool)
+  (crossover : int64)
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
@@ -37,7 +37,7 @@ let private runInstrsCounting
     let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None, ?stats = stats)
     let saved = Spread.crossover
     let savedChunk = Spread.minChunk
-    Spread.crossover <- (if spread then 0L else -1L)
+    Spread.crossover <- crossover
     // One element a chunk where there are cores for it, so order and failure are exercised
     // across many chunks rather than within one.
     Spread.minChunk <- 0L
@@ -62,6 +62,17 @@ let private runInstrsCounting
       Spread.crossover <- saved
       Spread.minChunk <- savedChunk
   }
+
+/// Run `code` as a process on a fresh scheduler, with spreading forced or off.
+let private runInstrsCounting
+  (stats : Option<RT.InterpreterStats>)
+  (state : RT.ExecutionState)
+  (spread : bool)
+  (instrs : RT.Instructions)
+  : Task<RT.ExecutionResult> =
+  runInstrsCountingAt stats state (if spread then 0L else -1L) instrs
+
+let private runInstrsAt = runInstrsCountingAt None
 
 let private runInstrs = runInstrsCounting None
 
@@ -131,6 +142,80 @@ let private siblings =
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
       Expect.equal (expectOk spread) (expectOk serial) code
+  }
+
+/// A dict of `n` entries keyed and valued 1 to `n`, built without a list op that could spread.
+let private dictOf (n : int) =
+  $"Stdlib.Dict.fromEntries(Stdlib.List.zipShortest(Stdlib.List.range(1, {n}), Stdlib.List.range(1, {n})))"
+
+let private dictOps =
+  testTask "Dict.map and Dict.filter spread and agree with serial" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.Dict.map({dictOf 40}, fun(k, v) -> {uneven}(k) + v)"
+        $"Stdlib.Dict.filter({dictOf 40}, fun(k, v) -> ({uneven}(k) + v) %% 3 == 0)" ] do
+      let! (spread, moved) = delta spreads (fun () -> run state code)
+      let! serial = runWith state false code
+      Expect.isGreaterThan moved 0L $"spread: {code}"
+      Expect.equal (expectOk spread) (expectOk serial) code
+  }
+
+/// At the shipped crossover the ops after `List.map` spread only a body that costs at least
+/// `Spread.minPerElement`: a one-operation body stays serial however long the dict, and an
+/// expensive one spreads.
+let private cheapDictBodyStaysSerial =
+  testTask "at the shipped crossover a cheap Dict.map body stays serial" {
+    let! state = executionStateFor pmPT false
+    let! cheap =
+      instrsFor
+        $"Stdlib.Dict.size(Stdlib.Dict.map({dictOf 20000}, fun(k, v) -> v + 1))"
+    let! (_, cheapSpreads) =
+      delta spreads (fun () -> runInstrsAt state Spread.crossover cheap)
+    Expect.equal cheapSpreads 0L "a cheap body did not spread"
+    let! costly =
+      instrsFor
+        $"Stdlib.Dict.size(Stdlib.Dict.map({dictOf 40}, fun(k, v) -> {uneven}(k)))"
+    let! (_, costlySpreads) =
+      delta spreads (fun () -> runInstrsAt state Spread.crossover costly)
+    Expect.isGreaterThan costlySpreads 0L "an expensive one did"
+  }
+
+/// `Dict.filter` checks its answers once they are all in, so a later entry's error comes before
+/// an earlier entry's non-Bool. `Stdlib.Dict.filter` declares its callback's `Bool`, so a non-Bool
+/// raises where it is returned, which a chunk does not check: from half way on, every chunk
+/// answers non-Bools and none fails. And a map whose answers change type half way raises when the
+/// dict is built.
+let private dictErrorsAsSerial =
+  testTask "Dict.map and Dict.filter raise as serially" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.Dict.map({dictOf 40}, fun(k, v) -> if k == 35 then 1 / 0 else {uneven}(k))"
+        $"Stdlib.Dict.filter({dictOf 40}, fun(k, v) -> if k == 3 then 1 else if k == 35 then 1 / 0 else {uneven}(k) > 0)"
+        $"Stdlib.Dict.filter({dictOf 40}, fun(k, v) -> if k == 30 then \"no\" else {uneven}(k) > 0)"
+        $"Stdlib.Dict.filter({dictOf 40}, fun(k, v) -> if k > 20 then \"no\" else {uneven}(k) > 0)"
+        $"Stdlib.Dict.map({dictOf 40}, fun(k, v) -> if k > 20 then \"s\" else {uneven}(k))" ] do
+      let! (spread, serial) = both state code
+      match spread, serial with
+      | Error(e1, s1), Error(e2, s2) ->
+        Expect.equal e1 e2 $"the same error: {code}"
+        Expect.equal s1 s2 $"the same frames: {code}"
+      | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
+let private dictEffectsKeepOrder =
+  testTask "a Dict.map body that reaches an effect runs it in order, here" {
+    let! state = executionStateFor pmPT false
+    Trace.take () |> ignore<List<string>>
+    let code =
+      $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.Dict.map({dictOf 30}, fun(k, v) -> (let (trace, _) = hidden in if k %% 7 == 0 then (let _ = trace(Stdlib.toString(k)) in v) else v * 2)))"
+    let! (spread, fellBack) = delta fallbacks (fun () -> run state code)
+    let spreadTrace = Trace.take ()
+    let! serial = runWith state false code
+    let serialTrace = Trace.take ()
+    Expect.equal fellBack 1L "the spread fell back"
+    Expect.equal spreadTrace [ "7"; "14"; "21"; "28" ] "each effect once, in order"
+    Expect.equal spreadTrace serialTrace "as serial"
+    Expect.equal (expectOk spread) (expectOk serial) "the same dict"
   }
 
 /// The failing element is in a cheap late chunk, so it fails long before the expensive chunks
@@ -482,11 +567,9 @@ type private Counts =
 /// The chunks run at once on other threads. Counting into the spreader's set from all of them
 /// lost increments, so the counts moved from run to run: 400 `stringJoin` calls counted as 390
 /// to 397. Each chunk counts into a set of its own, added in when it is collected.
-let private countsAreExact =
-  testTask "a spread map counts every call and instruction, the same on every run" {
+let private countsAreExact (op : string) (code : string) =
+  testTask $"a spread {op} counts every call and instruction, the same on every run" {
     let! state = executionStateFor pmPT false
-    let code =
-      "Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.toString(i + j)), \",\"))"
     let! instrs = instrsFor code
     let counted (spread : bool) : Task<Counts> =
       task {
@@ -511,7 +594,7 @@ let private countsAreExact =
     let! first = counted true
     Expect.isGreaterThan first.spreads 0L "the map spread"
     Expect.equal first.joins 400L "one join per element, spread"
-    // A chunk is one more `listMap` call, over its part of the list, applied by a
+    // A chunk is one more builtin call, over its part of the list, applied by a
     // three-instruction program (`Execution.instructionsForApply`). Beyond that, a spread run
     // does exactly the serial run's work.
     let chunks = first.builtinCalls - serial.builtinCalls
@@ -531,6 +614,10 @@ let tests =
       "spread"
       [ inOrder
         siblings
+        dictOps
+        cheapDictBodyStaysSerial
+        dictErrorsAsSerial
+        dictEffectsKeepOrder
         errorAsSerial
         earliestErrorWins
         effectsKeepOrder
@@ -545,5 +632,10 @@ let tests =
         visibleEffectStartsNothing
         packageFnsAnsweredByTheStore
         wrongPureFallsBack
-        countsAreExact ]
+        countsAreExact
+          "map"
+          "Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.toString(i + j)), \",\"))"
+        countsAreExact
+          "Dict.map"
+          "Stdlib.Dict.map(Stdlib.Dict.fromEntries(Stdlib.List.zipShortest(Stdlib.List.range(1, 400), Stdlib.List.range(1, 400))), fun(k, v) -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.toString(k + j)), \",\"))" ]
   )

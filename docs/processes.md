@@ -381,16 +381,21 @@ Measured in `Scheduler.Tests.fs`, the reads group.
 
 ## Computation spreads by itself
 
-`List.map`, `filter`, `filterMap` and `indexedMap` decide for themselves
-whether to spread across cores. Nobody writes anything for it. A list op
-starts serially, as it always did, and after 2, 4, 8... elements it asks
-whether the rest is worth spreading: the interpreted instructions the elements
-so far took, times how many are left, against a crossover (`Spread.crossover`).
-Instructions rather than time, so the decision, and what a run allocates, is
-the same on a loaded box as on an idle one. The first element is not counted,
-since the first call of a body is the one that loads what it calls. So the decision
-depends on the body's cost as well as the count, and a short or cheap map
-never spreads.
+`List.map`, `filter`, `filterMap` and `indexedMap`, and `Dict.map` and
+`Dict.filter`, decide for themselves whether to spread across cores. Nobody
+writes anything for it. A list op starts serially, as it always did, and after
+2, 4, 8... elements it asks whether the rest is worth spreading: the
+interpreted instructions the elements so far took, times how many are left,
+against a crossover (`Spread.crossover`). Instructions rather than time, so
+the decision, and what a run allocates, is the same on a loaded box as on an
+idle one. The first element is not counted, since the first call of a body is
+the one that loads what it calls. So the decision depends on the body's cost
+as well as the count, and a short or cheap map never spreads.
+
+`Dict.map` and `Dict.filter` also need each element to cost at least
+`Spread.minPerElement` (20) instructions, so a one-operation body over a long
+dict stays serial. Spread, such a body finishes sooner only when the op is
+little but the body, and spends about twice the CPU either way.
 
 It can predict before it spreads, with `exec.spreadPredict on`; the shipped
 default is off, which observes: try, and fall back on an effect. The A/B is in
@@ -438,6 +443,12 @@ What keeps it from changing any program:
   and an error is raised by the element that raises it serially, under the
   same frames. A callable that made a spread fall back is not spread again in
   this process.
+- An op that hands back what its callable answered (`Dict.map`) takes a
+  spread's answers only while their types agree, and runs the rest here. A
+  chunk checks answers against its own builtin's parameter, not against a
+  callback type an enclosing fn declared, and a chunk whose answers are all of
+  one other type merges fine, where serially the first of them raises
+  (`Spread.agreeing`). `Dict.filter` takes them only while they are Bools.
 - A stop wins. A process asked to stop while its chunks run answers the stop
   rather than falling back, and its chunks go with it.
 - A chunk never spreads again, so a map inside a spread map runs serially in

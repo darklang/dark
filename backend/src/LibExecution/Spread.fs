@@ -1,4 +1,4 @@
-/// `List.map` and its siblings deciding for themselves to spread across cores.
+/// `List.map`, `Dict.map` and their siblings deciding for themselves to spread across cores.
 ///
 /// Nobody asks for this. A list op starts serially, as it always did, and after a few elements
 /// it asks whether the rest is worth spreading: the interpreted instructions the elements so far
@@ -60,6 +60,13 @@ let mutable minRemaining = 2
 /// core waiting on it.
 let mutable chunksPerWorker = 2
 
+/// The least an element must cost, in interpreted instructions, before an op that asks with
+/// `probeCostly` spreads. In the grid (`docs/perf/history.md`) a 3-instruction body never paid
+/// at any length, and a 26-instruction one first did. Over 100,000 elements a cheap body that
+/// spreads finishes sooner only when the op is little but the body, and spends about twice the
+/// CPU either way. Not applied while `crossover` is 0, which tests use to force a spread.
+let minPerElement = 20L
+
 /// The least work, in interpreted instructions, worth a chunk of its own. A chunk is a process,
 /// and starting one costs about what a few hundred interpreted operations do, so a chunk smaller
 /// than this spends more starting than it saves. Measured: a chunk costs 3.3 to 5 KB to start,
@@ -98,33 +105,37 @@ let private keyOf (app : Applicable) : CallableKey =
   | AppLambda l -> CallableKey.Lambda(int64 l.exprId)
   | AppNamedFn n -> CallableKey.Named n.name
 
-/// Whether a list op over `app` may spread at all, under this state. Cheap: called once per list
-/// op with more than one element.
-let eligible (state : ExecutionState) (app : Applicable) : bool =
+/// Whether a list op may spread at all, under this state. Cheap: called once per list op with
+/// more than one element, so whether `app` has fallen back is asked only once a probe says yes.
+let eligible (state : ExecutionState) : bool =
   crossover >= 0L
   && not state.spreadChild
   && not state.tracing.collectFrames
   && Option.isNone state.tracing.viewEffect
   && Sched.defaultWorkers > 1
-  && not (fellBack.ContainsKey(keyOf app))
 
 
 /// Instructions this VM has run, as of now: its budget counts down one per instruction and is
 /// refilled to `Scheduler.defaultQuantum` at every slice, so the slices so far make up the rest.
-/// A VM nobody schedules starts at -1 and only counts down. Read where a frame has just returned,
-/// which is where a list op's continuation runs, so the budget has been written back.
-let private instructionsSoFar (vm : VMState) : struct (int64 * int64) =
+/// A VM nobody schedules (`proc` is `None`) starts at -1 and only counts down. Read where a frame
+/// has just returned, which is where a list op's continuation runs, so the budget has been
+/// written back.
+let private instructionsSoFar
+  (proc : Option<Sched.Process>)
+  (vm : VMState)
+  : struct (int64 * int64) =
   let slices =
-    match Sched.Scheduler.CurrentProcess with
+    match proc with
     | Some p -> p.slices
     | None -> 0L
   struct (slices, vm.budget)
 
 let private instructionsSince
+  (proc : Option<Sched.Process>)
   (vm : VMState)
   (struct (slices0, budget0) : struct (int64 * int64))
   : int64 =
-  let struct (slices1, budget1) = instructionsSoFar vm
+  let struct (slices1, budget1) = instructionsSoFar proc vm
   (slices1 - slices0) * Sched.defaultQuantum + budget0 - budget1
 
 
@@ -136,32 +147,51 @@ let private instructionsSince
 /// the one that loads and converts what it calls. So the earliest answer is after two measured
 /// elements.
 [<AllowNullLiteral>]
-type Probe(vm : VMState) =
+type Probe(vm : VMState, app : Applicable, floor : int64) =
+  // The process stepping this VM, read once: it is the same one for the whole list op, and
+  // finding it is an `AsyncLocal` lookup.
+  let proc = Sched.Scheduler.CurrentProcess
   let mutable start = struct (0L, 0L)
   let mutable finished = -1
   let mutable off = false
   let mutable perElement = 0L
 
-  /// After an element: `remaining` is the elements still to go.
-  member _.Ask(remaining : List<'a>) : bool =
+  /// Counts an element, and says whether this is one the rest is weighed at.
+  member private _.Due() : bool =
     finished <- finished + 1
     if finished = 0 then
-      start <- instructionsSoFar vm
-      false
-    elif off || finished < 2 || (finished &&& (finished - 1)) <> 0 then
+      start <- instructionsSoFar proc vm
       false
     else
-      // `List.length` walks the rest; at a power of two only, so the walks sum to about twice
-      // the list.
-      let left = List.length remaining
-      if left < minRemaining then
+      not (off || finished < 2 || (finished &&& (finished - 1)) <> 0)
+
+  member private _.Weigh(left : int) : bool =
+    if left < minRemaining then
+      off <- true
+      false
+    else
+      let ran = instructionsSince proc vm start
+      perElement <- ran / int64 finished
+      // ran / finished * left >= crossover, without the division.
+      if ran * int64 left < crossover * int64 finished then
+        false
+      elif perElement < floor && crossover > 0L then
+        false
+      elif fellBack.ContainsKey(keyOf app) then
         off <- true
         false
       else
-        let ran = instructionsSince vm start
-        perElement <- ran / int64 finished
-        // ran / finished * left >= crossover, without the division.
-        ran * int64 left >= crossover * int64 finished
+        true
+
+  /// After an element: `remaining` is the elements still to go.
+  ///
+  /// `List.length` walks the rest; at a power of two only, so the walks sum to about twice the
+  /// list.
+  member this.Ask(remaining : List<'a>) : bool =
+    this.Due() && this.Weigh(List.length remaining)
+
+  /// `Ask`, for an op that knows how many are left (a dict's entries are an array).
+  member this.AskLeft(left : int) : bool = this.Due() && this.Weigh left
 
   /// A list op that has spread does not ask again.
   member _.Stop() = off <- true
@@ -170,7 +200,11 @@ type Probe(vm : VMState) =
   member _.PerElement = perElement
 
 let probe (state : ExecutionState) (vm : VMState) (app : Applicable) : Probe =
-  if eligible state app then Probe vm else null
+  if eligible state then Probe(vm, app, 0L) else null
+
+/// `probe`, for an op that spreads only a body of at least `minPerElement` instructions.
+let probeCostly (state : ExecutionState) (vm : VMState) (app : Applicable) : Probe =
+  if eligible state then Probe(vm, app, minPerElement) else null
 
 
 // -- Prediction --
@@ -494,6 +528,43 @@ let predict
 /// concatenated, and the input from the first chunk that did not, to be run serially here.
 /// `leftoverIndex` is where in the spread input `leftover` begins.
 type Outcome = { results : List<Dval>; leftover : List<Dval>; leftoverIndex : int }
+
+/// The one type every value in `values` merges into, or `ValueNone` if two of them do not.
+let mergedType (values : seq<Dval>) : ValueType voption =
+  values
+  |> Seq.fold
+    (fun merged v ->
+      match merged with
+      | ValueSome vt ->
+        match LibExecution.ValueType.merge vt (RuntimeTypes.Dval.toValueType v) with
+        | Ok vt -> ValueSome vt
+        | Error() -> ValueNone
+      | ValueNone -> ValueNone)
+    (ValueSome LibExecution.ValueType.unknown)
+
+/// How many of a spread's `answers`, from the first, a serial run would have taken as they came,
+/// after answers that merge into `before`: up to the first whose type does not merge with all of
+/// those. None, if the answers before did not merge.
+///
+/// A chunk checks its callable's answers against the parameter of the builtin it runs, not against
+/// a callback type an enclosing fn declared (`fn: ... -> Int64`), and a chunk whose answers are all
+/// of one other type merges fine. Serially the first of them raises. So an op that hands back what
+/// its callable answered takes a spread's answers only while they agree, and runs the rest where
+/// that check is made.
+let agreeing (before : ValueType voption) (answers : List<Dval>) : int =
+  let rec taken (vt : ValueType) (n : int) (rest : List<Dval>) : int =
+    match rest with
+    | [] -> n
+    | answer :: tail ->
+      match
+        LibExecution.ValueType.merge vt (RuntimeTypes.Dval.toValueType answer)
+      with
+      | Ok vt -> taken vt (n + 1) tail
+      | Error() -> n
+  match before with
+  | ValueSome vt -> taken vt 0 answers
+  | ValueNone -> 0
+
 
 /// Spread `items` over chunk processes. Each chunk applies the builtin `builtinName` to
 /// `chunkArgs offset chunk` and then to `app`; it must answer a `DList`. `offset` is where the
