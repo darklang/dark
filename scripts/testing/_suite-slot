@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# A box-wide slot for the heavy test suites, so a shared machine runs at most a few at once.
+#
+#   . scripts/testing/_suite-slot
+#   suite_slot_take "run-fsharp-tests"     returns once this process holds a slot
+#
+# Every clone's container mounts the same host directory at /home/dark/.suite-slots
+# (devcontainer.json), so the slots are counted across clones, not per clone.
+#
+#   DARK_SUITE_SLOTS=<n>   how many heavy suites may run at once on the machine; 0 turns the
+#                          slot off. The default is one per 24 hardware threads, at least 1
+#                          (2 on a 48-thread box, 1 on a laptop): one suite keeps about 24 busy.
+#
+# Fair: waiters queue in the order they arrived, and only the head of the queue takes a free
+# slot. No deadlock: a slot is a `flock` held by a small watcher that exits when the process
+# that took the slot does, however that process ends, so a crashed or killed run frees its
+# slot within a second and a waiter that died leaves the queue. A suite started by another
+# suite (`run-tests` starts `run-fsharp-tests` and `gates package-tests`) runs under the slot
+# its parent holds rather than waiting for a second one.
+#
+# Not taken in CI, which has a machine per job, or when the directory is not mounted (a
+# container made before the mount; `scripts/dev/start --recreate` adds it).
+
+SUITE_SLOT_DIR="${SUITE_SLOT_DIR:-/home/dark/.suite-slots}"
+
+# One slot per 24 hardware threads, at least 1. The container sees the host's threads, unless a
+# cgroup CPU limit is set, and then that limit counts.
+_suite_slot_default() {
+  local threads quota period
+  threads=$(nproc 2>/dev/null) || threads=1
+  if [[ -r /sys/fs/cgroup/cpu.max ]] && read -r quota period </sys/fs/cgroup/cpu.max \
+    && [[ "$quota" =~ ^[0-9]+$ && "$period" =~ ^[0-9]+$ && "$period" -gt 0 ]]; then
+    local limit=$(((quota + period - 1) / period))
+    [[ "$limit" -ge "$threads" ]] || threads=$limit
+  fi
+  local n=$((threads / 24))
+  [[ "$n" -ge 1 ]] || n=1
+  echo "$n"
+}
+
+suite_slot_take() {
+  local what="$1"
+  [[ -z "${DARK_SUITE_SLOT_HELD:-}" ]] || return 0
+  [[ "${CI:-}" != "true" ]] || return 0
+  local slots="${DARK_SUITE_SLOTS:-$(_suite_slot_default)}"
+  if ! [[ "$slots" =~ ^[0-9]+$ ]]; then
+    echo "DARK_SUITE_SLOTS must be a number, got: $slots" >&2
+    return 2
+  fi
+  [[ "$slots" -gt 0 ]] || return 0
+  if [[ ! -d "$SUITE_SLOT_DIR" || ! -w "$SUITE_SLOT_DIR" ]] || ! command -v flock >/dev/null; then
+    echo "No shared test-slot directory at $SUITE_SLOT_DIR, so not waiting for a slot." >&2
+    echo "  On the host: scripts/dev/start --recreate" >&2
+    # Said once: the suites this one starts go ahead without saying it again.
+    export DARK_SUITE_SLOT_HELD=none
+    return 0
+  fi
+
+  local dir="$SUITE_SLOT_DIR" owner=$$
+  local me
+  me="${DARK_CLONE:-$(hostname)} ($what)"
+  mkdir -p "$dir/queue"
+
+  # A ticket: the next number, and a queue file named after it that a watcher holds locked for as
+  # long as this process lives, made together under the directory's lock. A queue file nobody
+  # holds belongs to a waiter that has gone.
+  local entry
+  entry=$(
+    exec 9>"$dir/.lock"
+    flock 9
+    n=$(cat "$dir/.next" 2>/dev/null || echo 0)
+    [[ "$n" =~ ^[0-9]+$ ]] || n=0
+    echo $((n + 1)) >"$dir/.next"
+    e="$dir/queue/$(printf '%012d' "$n")"
+    echo "$me" >"$e"
+    _suite_slot_hold "$e" "$owner" && echo "$e"
+  )
+  [[ -n "$entry" ]] || { echo "could not join the test-slot queue in $dir" >&2; return 1; }
+
+  local said=""
+  while true; do
+    local took
+    took=$(
+      exec 9>"$dir/.lock"
+      flock 9
+      # Drop the entries of waiters that have gone, then see who is at the head.
+      head=""
+      for e in "$dir"/queue/*; do
+        [[ -e "$e" ]] || continue
+        if flock -n "$e" true 2>/dev/null; then
+          rm -f "$e"
+          continue
+        fi
+        head="$e"
+        break
+      done
+      if [[ "$head" == "$entry" ]]; then
+        for ((i = 0; i < slots; i++)); do
+          if _suite_slot_hold "$dir/slot-$i" "$owner"; then
+            echo "$me since $(date -u '+%H:%M:%S UTC')" >"$dir/slot-$i.holder"
+            echo "$i"
+            break
+          fi
+        done
+      fi
+    )
+    if [[ -n "$took" ]]; then
+      rm -f "$entry"
+      export DARK_SUITE_SLOT_HELD="$took"
+      [[ -z "$said" ]] || echo "got test slot $took" >&2
+      return 0
+    fi
+    local holders
+    holders=$(_suite_slot_holders "$dir" "$slots")
+    if [[ "$holders" != "$said" ]]; then
+      echo "waiting for a test slot (held by $holders)" >&2
+      said="$holders"
+    fi
+    sleep 2
+  done
+}
+
+# Lock <file> in a watcher that holds it until process <owner> exits. Fails at once when
+# someone else holds it. The watcher closes the lock before running its loop (`flock -o`), so
+# nothing it starts can keep the lock after it, and does not inherit the directory's lock (fd 9),
+# which its caller may be holding.
+_suite_slot_hold() {
+  local file="$1" owner="$2" ready
+  ready=$(mktemp)
+  # shellcheck disable=SC2016  # expanded by the watcher's own shell
+  flock -n -o "$file" bash -c 'echo held >"$1"; while kill -0 "$2" 2>/dev/null; do sleep 1; done' \
+    _ "$ready" "$owner" </dev/null >/dev/null 2>&1 9>&- &
+  local watcher=$!
+  while [[ ! -s "$ready" ]] && kill -0 "$watcher" 2>/dev/null; do sleep 0.05; done
+  local held=1
+  [[ -s "$ready" ]] && held=0
+  rm -f "$ready"
+  return "$held"
+}
+
+# Who holds the slots now, from the notes their takers left: "a (x) since 10:02, b (y) since 10:05".
+_suite_slot_holders() {
+  local dir="$1" slots="$2" i out=()
+  for ((i = 0; i < slots; i++)); do
+    if ! flock -n "$dir/slot-$i" true 2>/dev/null; then
+      out+=("$(cat "$dir/slot-$i.holder" 2>/dev/null || echo "slot $i")")
+    fi
+  done
+  if [[ ${#out[@]} -eq 0 ]]; then
+    echo "nobody; queued behind earlier waiters"
+  else
+    local joined
+    joined=$(printf '%s, ' "${out[@]}")
+    echo "${joined%, }"
+  fi
+}
