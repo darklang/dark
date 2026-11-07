@@ -93,8 +93,10 @@ module Expressions =
 
 
   module Let =
-    // TODO: lpunit
     let simple = eLet (lpVar "x") (eBool true) (eVar "x")
+
+    /// `let () = ()` then `true`
+    let unitPattern = eLet (lpUnit ()) (eUnit ()) (eBool true)
 
     let tuple =
       eLet
@@ -169,7 +171,6 @@ module Expressions =
         (eBool true)
         [ eTuple (eBool true) (eBool false) [] ]
 
-  // TODO: test MPEnum
   module Match =
     /// match true with
     /// | false -> "first branch"
@@ -192,6 +193,19 @@ module Expressions =
         [ { pat = PT.MPBool(gid (), false)
             whenCondition = None
             rhs = eStr [ strText "first branch" ] } ]
+
+    /// match Test.MyOption.Some 1 with
+    /// | Some x -> x
+    /// | None -> 0
+    let enumPattern =
+      eMatch
+        (eEnum (typeNamePkg PM.Types.Enums.withFields) [] "Some" [ eInt64 1 ])
+        [ { pat = PT.MPEnum(gid (), "Some", [ PT.MPVariable(gid (), "x") ])
+            whenCondition = None
+            rhs = eVar "x" }
+          { pat = PT.MPEnum(gid (), "None", [])
+            whenCondition = None
+            rhs = eInt64 0 } ]
 
     /// match true with
     /// | x -> x
@@ -486,9 +500,9 @@ module Expressions =
       eEnum (typeNamePkg PM.Types.Enums.withFields) [] "Some" [ eInt64 1 ]
 
   module Values =
-    // CLEANUP we don't really have builtin values, so not bothering to test for now
-    // module Builtin =
-    //   let infinity = eBuiltinValue "infinity" 0
+    module Builtin =
+      /// `Builtin.bytesEmpty`, the one builtin value
+      let bytesEmpty = eBuiltinValue "bytesEmpty" 0
 
     module Package =
       module MySpecialNumber =

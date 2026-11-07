@@ -116,9 +116,20 @@ module Expr =
            ) ],
          6)
 
+    let unitPattern =
+      t
+        "let () = ()\ntrue"
+        E.Let.unitPattern
+        (2,
+         [ RT.LoadVal(0, RT.DUnit)
+           RT.CheckLetPatternAndExtractVars(0, RT.LPUnit)
+           RT.LoadVal(1, RT.DBool true) ],
+         1)
+
     let undefinedVar = t "a" E.Let.undefinedVar (1, [ RT.VarNotFound(0, "a") ], 0)
 
-    let tests = testList "Let" [ simple; tuple; tupleNested; undefinedVar ]
+    let tests =
+      testList "Let" [ simple; unitPattern; tuple; tupleNested; undefinedVar ]
 
 
   module List =
@@ -376,6 +387,39 @@ module Expr =
            // handle the case where no branches match
            RT.MatchUnmatched 0 ],
          1)
+
+    let enumPattern =
+      t
+        "match Test.MyOption.Some 1 with\n| Some x -> x\n| None -> 0"
+        E.Match.enumPattern
+        (4,
+         [ // the value we're matching on
+           RT.LoadVal(1, RT.DInt64 1L)
+           RT.CreateEnum(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Enums.withFields,
+             [],
+             "Some",
+             [ 1 ]
+           )
+
+           // FIRST BRANCH
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             RT.MPEnum("Some", [ RT.MPVariable 3 ]),
+             2
+           )
+           RT.CopyVal(2, 3)
+           RT.JumpBy 5
+
+           // SECOND BRANCH
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPEnum("None", []), 3)
+           RT.LoadVal(3, RT.DInt64 0L)
+           RT.CopyVal(2, 3)
+           RT.JumpBy 1
+
+           RT.MatchUnmatched 0 ],
+         2)
 
     let withVar =
       t
@@ -640,6 +684,7 @@ module Expr =
         "Match"
         [ simple
           notMatched
+          enumPattern
           withVar
           withVarAndWhenCondition
           list
@@ -1101,6 +1146,19 @@ module Expr =
 
 
   module Values =
+    module Builtin =
+      let bytesEmpty =
+        t
+          "Builtin.bytesEmpty"
+          E.Values.Builtin.bytesEmpty
+          (1,
+           [ RT.LoadValue(
+               0,
+               RT.FQValueName.Builtin(RT.FQValueName.builtin "bytesEmpty" 0)
+             ) ],
+           0)
+      let tests = testList "Builtin" [ bytesEmpty ]
+
     module Package =
       let mySpecialNumber =
         t
@@ -1113,7 +1171,7 @@ module Expr =
              ) ],
            0)
       let tests = testList "Package" [ mySpecialNumber ]
-    let tests = testList "Values" [ Package.tests ]
+    let tests = testList "Values" [ Builtin.tests; Package.tests ]
 
 
   module Lambda =

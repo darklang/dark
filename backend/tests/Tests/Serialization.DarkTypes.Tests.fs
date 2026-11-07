@@ -5,6 +5,7 @@ open Expecto
 open Prelude
 
 open TestUtils.TestUtils
+open Microsoft.FSharp.Reflection
 
 module File = LibConfig.File
 module Config = LibConfig.Dirs
@@ -204,10 +205,40 @@ module RoundtripTests =
           RT2DT.Dval.fromDT
           (Some Expect.RT.equalDval)
 
+        testRoundtripList
+          "RT.RuntimeError"
+          (pkg (PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error ()))
+          V.RuntimeTypes.runtimeErrors
+          RT2DT.RuntimeError.toDT
+          RT2DT.RuntimeError.fromDT
+          None
 
-        // CLEANUP: consider roundtripping RuntimeErrors here; blocked on F#
-        // models existing for them.
-        ]
+        // The list above is only worth something if it keeps up with the type, nested
+        // errors included.
+        test "RT.RuntimeError values cover every case" {
+          let isNested (t : System.Type) = FSharpType.IsUnion t && t.Name = "Error"
+          let rteType = typeof<RT.RuntimeError.Error>
+          let nameOf (e : RT.RuntimeError.Error) =
+            let (case, fields) = FSharpValue.GetUnionFields(e, rteType)
+            match case.GetFields() with
+            | [| f |] when isNested f.PropertyType ->
+              let (inner, _) = FSharpValue.GetUnionFields(fields[0], f.PropertyType)
+              $"{case.Name}.{inner.Name}"
+            | _ -> case.Name
+          let all =
+            FSharpType.GetUnionCases rteType
+            |> Array.collect (fun c ->
+              match c.GetFields() with
+              | [| f |] when isNested f.PropertyType ->
+                FSharpType.GetUnionCases f.PropertyType
+                |> Array.map (fun inner -> $"{c.Name}.{inner.Name}")
+              | _ -> [| c.Name |])
+            |> Set.ofArray
+          let covered = V.RuntimeTypes.runtimeErrors |> List.map nameOf |> Set.ofList
+          Expect.isEmpty
+            (Set.difference all covered)
+            "RuntimeError cases with no value in SerializationTestValues"
+        } ]
 
 
 /// Exercise stored-AST conversion on a small stack. Tests built from Dark values

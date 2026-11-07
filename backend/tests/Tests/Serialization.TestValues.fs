@@ -12,6 +12,7 @@ module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module RTNR = LibExecution.RuntimeTypes.NameResolution
+module RTE = LibExecution.RuntimeTypes.RuntimeError
 
 module BS = LibSerialization.Binary.Serialization
 
@@ -119,6 +120,118 @@ module RuntimeTypes =
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields ->
         RT.DRecord(typeName, typeName, [], RT.RecordFields.ofList fields)
+
+  /// Every RuntimeError case, nested ones included, at least once.
+  let runtimeErrors : List<RT.RuntimeError.Error> =
+    let vt = RT.ValueType.Known RT.KnownType.KTInt64
+    let vt2 = RT.ValueType.Known RT.KnownType.KTString
+    let dv = RT.DInt64 5L
+    let typeName = RT.FQTypeName.Package hashRT
+    let fnName = RT.FQFnName.Package hashRT
+    let traitName = RT.FQTraitName.Package hashRT
+    let declared = Some RT.TInt64
+    [ RTE.Bool(RTE.Bools.AndOnlySupportsBooleans(vt, vt2))
+      RTE.Bool(RTE.Bools.OrOnlySupportsBooleans(vt, vt2))
+      RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv))
+      RTE.BigInt RTE.BigInts.DivideByZeroError
+      RTE.BigInt RTE.BigInts.OutOfRange
+      RTE.BigInt RTE.BigInts.NegativeExponent
+      RTE.BigInt RTE.BigInts.NegativeModulus
+      RTE.BigInt RTE.BigInts.ZeroModulus
+      RTE.DecimalOutOfRange
+      RTE.String(RTE.Strings.NonStringInInterpolation(vt, dv))
+      RTE.List(RTE.Lists.TriedToAddMismatchedData(1, vt, vt2, dv))
+      RTE.List(RTE.Lists.CannotSort dv)
+      RTE.Dict(RTE.Dicts.TriedToAddMismatchedData(RT.DString "k", vt, vt2, dv))
+      RTE.Dict(RTE.Dicts.UnsupportedKeyType(vt, dv))
+      RTE.Dict(RTE.Dicts.MismatchedKeyType(vt, vt2, dv))
+      RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, RT.LPVariable 0))
+      RTE.VariableNotFound "x"
+      RTE.EqualityCheckOnIncompatibleTypes(vt, vt2)
+      RTE.NumericOperationOnIncompatibleTypes(vt, vt2)
+      RTE.IfConditionNotBool(dv, vt)
+      RTE.Match(RTE.Matches.MatchUnmatched dv)
+      RTE.ParseTimeNameResolution([ "A"; "b" ], RT.NameResolutionError.NotFound)
+      RTE.ParseTimeNameResolution([ "a-b" ], RT.NameResolutionError.InvalidName)
+      RTE.TypeNotFound typeName
+      RTE.FnNotFound fnName
+      RTE.ValueNotFound(RT.FQValueName.Package hashRT)
+      RTE.DeprecatedItemHalted hashRT
+      RTE.WrongNumberOfTypeArgsForType(typeName, 1, 2)
+      RTE.Enum(RTE.Enums.ConstructionWrongNumberOfFields(typeName, "C", 1, 2))
+      RTE.Enum(RTE.Enums.ConstructionCaseNotFound(typeName, "C"))
+      RTE.Enum(RTE.Enums.ConstructionFieldOfWrongType("C", 0, declared, vt, vt2, dv))
+      RTE.Enum(RTE.Enums.ConstructionFieldOfWrongType("C", 1, None, vt, vt2, dv))
+      RTE.Record(RTE.Records.CreationTypeNotRecord typeName)
+      RTE.Record RTE.Records.CreationEmptyKey
+      RTE.Record(RTE.Records.CreationMissingField "f")
+      RTE.Record(RTE.Records.CreationDuplicateField "f")
+      RTE.Record(RTE.Records.CreationFieldNotExpected "f")
+      RTE.Record(RTE.Records.CreationFieldOfWrongType("f", declared, vt, vt2, dv))
+      RTE.Record(RTE.Records.UpdateNotRecord vt)
+      RTE.Record RTE.Records.UpdateEmptyKey
+      RTE.Record(RTE.Records.UpdateDuplicateField "f")
+      RTE.Record(RTE.Records.UpdateFieldNotExpected "f")
+      RTE.Record(RTE.Records.UpdateFieldOfWrongType("f", None, vt, vt2, dv))
+      RTE.Record RTE.Records.FieldAccessEmptyFieldName
+      RTE.Record(RTE.Records.FieldAccessFieldNotFound "f")
+      RTE.Record(RTE.Records.FieldAccessNotRecord vt)
+      RTE.Record(RTE.Records.FieldAccessTupleIndexOutOfRange("3", 2))
+      RTE.Apply(RTE.Applications.ExpectedApplicableButNot(vt, dv))
+      RTE.Apply(RTE.Applications.WrongNumberOfTypeArgsForFn(fnName, 1, 2))
+      RTE.Apply RTE.Applications.CannotApplyTypeArgsMoreThanOnce
+      RTE.Apply(RTE.Applications.TooManyArgsForFn(fnName, 1, 2))
+      RTE.Apply(RTE.Applications.TooFewArgsForFn(fnName, 2, 1))
+      RTE.Apply(
+        RTE.Applications.FnParameterNotExpectedType(
+          fnName,
+          0,
+          "p",
+          declared,
+          vt,
+          vt2,
+          dv
+        )
+      )
+      RTE.Apply(
+        RTE.Applications.FnResultNotExpectedType(fnName, declared, vt, vt2, dv)
+      )
+      RTE.Apply(
+        RTE.Applications.LambdaResultNotExpectedType(
+          fnName,
+          1,
+          "fn",
+          None,
+          vt,
+          vt2,
+          dv
+        )
+      )
+      RTE.Apply RTE.Applications.CannotApplyTypeArgsToLambda
+      RTE.Apply(RTE.Applications.TooManyArgsForLambda(id, 1, 2))
+      RTE.Apply(RTE.Applications.TooFewArgsForLambda(id, 2, 1))
+      RTE.Apply(RTE.Applications.LambdaNotAvailable id)
+      RTE.Unwrap RTE.Unwraps.GotNone
+      RTE.Unwrap(RTE.Unwraps.GotError dv)
+      RTE.Unwrap(RTE.Unwraps.NonOptionOrResult dv)
+      RTE.Unwrap(RTE.Unwraps.MultipleArgs [ dv; RT.DString "s" ])
+      RTE.Unwrap(RTE.Unwraps.UnwrapContainerMismatch dv)
+      RTE.Unwrap(RTE.Unwraps.UnwrapOperandNotContainer dv)
+      RTE.Json(RTE.Jsons.UnsupportedType RT.TInt64)
+      RTE.Json(RTE.Jsons.CannotSerializeValue dv)
+      RTE.Trait(RTE.Traits.MissingImpl(traitName, vt))
+      RTE.Trait(
+        RTE.Traits.DispatchAmbiguous(traitName, vt, [ hashRT; RT.Hash "beef" ])
+      )
+      RTE.Trait(RTE.Traits.MethodAmbiguous("m", vt, [ traitName ]))
+      RTE.Trait(RTE.Traits.SelfTypeUnknown(traitName, "m"))
+      RTE.Trait(RTE.Traits.NoSuchMethod(traitName, "m"))
+      RTE.Trait(RTE.Traits.TraitNotFound traitName)
+      RTE.CLI RTE.CLIs.NoExpressionsToExecute
+      RTE.CLI(RTE.CLIs.NonIntReturned dv)
+      RTE.Statement(RTE.Statements.FirstExpressionMustBeUnit(id, vt, vt2, dv))
+      RTE.UncaughtException("msg", [ ("k", dv) ])
+      RTE.Condition "c" ]
 
   let typeDeclarations : List<RT.TypeDeclaration.T> =
     [ // Alias type
