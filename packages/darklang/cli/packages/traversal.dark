@@ -95,56 +95,99 @@ let resolveEntity(
   basePath: List<String>,
   name: String)
   : Stdlib.Result.Result<PackageLocation, String> =
-  // First see if it's a module
-  let modulePath = Stdlib.List.append(basePath, name)
-  let moduleResults = Query.allDirectDescendants(branchId, modulePath)
+  let (resolved, _implsInside) =
+    resolveEntityKnowing(branchId, basePath, name, Stdlib.Option.Option.None)
 
-  let isAModule = Query.hasContent(moduleResults)
+  resolved
+
+
+/// `resolveEntity`, given the names of the implementations stored directly in `basePath` when the
+/// caller already has them, and returning the same for `basePath.name`, which it lists anyway to
+/// find out whether that is a module. `applyPath` hands one segment's answer to the next, so a path
+/// costs one names-only listing per segment and no search of its own for implementations.
+let resolveEntityKnowing(
+  branchId: Uuid,
+  basePath: List<String>,
+  name: String,
+  implsInBase: Stdlib.Option.Option<List<String>>)
+  : (Stdlib.Result.Result<PackageLocation, String> * List<String>) =
+  // First see if it's a module. Names and hashes only: whether anything is under `basePath.name`
+  // is the whole question, and materializing every definition there as a Dark value to ask it was
+  // most of what `ls` and `view` spent.
+  let modulePath = Stdlib.List.append(basePath, name)
+  let (subs, types, values, fns, traits, impls, tests) =
+    Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
+
+  let isAModule =
+    Stdlib.Bool.not(
+      Stdlib.List.isEmpty(subs)
+      && Stdlib.List.isEmpty(types)
+      && Stdlib.List.isEmpty(values)
+      && Stdlib.List.isEmpty(fns)
+      && Stdlib.List.isEmpty(traits)
+      && Stdlib.List.isEmpty(impls)
+      && Stdlib.List.isEmpty(tests))
+
+  let implsInside = impls |> Stdlib.List.map(fun((implName, _hash)) -> implName)
 
   // An implementation wins over the module of the same name, because that module IS the
   // implementation: its methods are ordinary fns beneath the impl's member path. Letting the
   // module win would make `view Acme.Point.Show` print the implementation and then list its
   // own method fns underneath, the same thing twice.
+  //
+  // When the previous segment listed `basePath`, its implementation names say whether there is
+  // one here, and the search below only runs to fetch its location.
+  let worthSearching =
+    match implsInBase with
+    | Some(names) -> Stdlib.List.contains(names, name)
+    | None -> true
+
   let implHere =
-    match (Query.searchExactMatch(branchId, basePath, name)).impls with
-    | [item, ...] -> Stdlib.Option.Option.Some(item.location)
-    | [] -> Stdlib.Option.Option.None
+    if worthSearching then
+      match (Query.searchExactImpl(branchId, basePath, name)).impls with
+      | [item, ...] -> Stdlib.Option.Option.Some(item.location)
+      | [] -> Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.None
 
-  match implHere with
-  | Some(loc) -> Stdlib.Result.Result.Ok(PackageLocation.Impl(loc))
-  | None ->
+  let resolved =
+    match implHere with
+    | Some(loc) -> Stdlib.Result.Result.Ok(PackageLocation.Impl(loc))
+    | None ->
 
-  if isAModule then
-    Stdlib.Result.Result.Ok(PackageLocation.Module(modulePath))
-  // Not a module -- check if it's a type/value/fn
-  else
-    let entityResults = Query.searchExactMatch(branchId, basePath, name)
+    if isAModule then
+      Stdlib.Result.Result.Ok(PackageLocation.Module(modulePath))
+    // Not a module -- check if it's a type/value/fn
+    else
+      let entityResults = Query.searchExactMatch(branchId, basePath, name)
 
-    // Access lists directly to avoid type parameter loss
-    match entityResults.types with
-    | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Type(item.location))
-    | [] ->
-      match entityResults.fns with
-      | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Function(item.location))
+      // Access lists directly to avoid type parameter loss
+      match entityResults.types with
+      | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Type(item.location))
       | [] ->
-        match entityResults.values with
-        | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Value(item.location))
+        match entityResults.fns with
+        | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Function(item.location))
         | [] ->
-          match entityResults.traits with
-          | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Trait(item.location))
+          match entityResults.values with
+          | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Value(item.location))
           | [] ->
-            match entityResults.impls with
-            | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Impl(item.location))
+            match entityResults.traits with
+            | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Trait(item.location))
             | [] ->
-              match entityResults.tests with
-              | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Test(item.location))
+              match entityResults.impls with
+              | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Impl(item.location))
               | [] ->
-                // The path, not just "Not found": that same sentence otherwise covers a
-                // typo, an unauthored name, and a path resolved from somewhere unexpected.
-                let looked =
-                  Stdlib.String.join(Stdlib.List.append(basePath, name), ".")
+                match entityResults.tests with
+                | [item, ...] -> Stdlib.Result.Result.Ok(PackageLocation.Test(item.location))
+                | [] ->
+                  // The path, not just "Not found": that same sentence otherwise covers a
+                  // typo, an unauthored name, and a path resolved from somewhere unexpected.
+                  let looked =
+                    Stdlib.String.join(Stdlib.List.append(basePath, name), ".")
 
-                Stdlib.Result.Result.Error($"Not found: {looked}")
+                  Stdlib.Result.Result.Error($"Not found: {looked}")
+
+  (resolved, implsInside)
 
 
 let applyPath(
@@ -152,11 +195,39 @@ let applyPath(
   start: PackageLocation,
   segments: List<PathSegment>)
   : Stdlib.Result.Result<PackageLocation, String> =
-  segments
-  |> Stdlib.List.fold(Stdlib.Result.Result.Ok(start), fun(accResult, segment) ->
-    match accResult with
-    | Error(e) -> Stdlib.Result.Result.Error(e)
-    | Ok(loc) -> applySegment(branchId, loc, segment))
+  // Beside the location so far: the module the last segment listed and the implementation names
+  // stored directly in it, which answer the next segment's "is this an implementation?".
+  let (result, _listed) =
+    segments
+    |> Stdlib.List.fold(
+      (Stdlib.Result.Result.Ok(start), Stdlib.Option.Option.None),
+      fun(acc, segment) ->
+        let (accResult, listed) = acc
+
+        match accResult with
+        | Error(e) -> (Stdlib.Result.Result.Error(e), Stdlib.Option.Option.None)
+        | Ok(loc) ->
+          match segment with
+          | Into(name) ->
+            let basePath = getCurrentModulePath(loc)
+
+            let implsInBase =
+              match listed with
+              | Some((path, names)) ->
+                if path == basePath then
+                  Stdlib.Option.Option.Some(names)
+                else
+                  Stdlib.Option.Option.None
+              | None -> Stdlib.Option.Option.None
+
+            let (resolved, implsInside) =
+              resolveEntityKnowing(branchId, basePath, name, implsInBase)
+
+            (resolved,
+             Stdlib.Option.Option.Some((Stdlib.List.append(basePath, name), implsInside)))
+          | _ -> (applySegment(branchId, loc, segment), Stdlib.Option.Option.None))
+
+  result
 
 
 // Search for modules globally where a segment starts with the prefix
