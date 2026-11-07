@@ -202,8 +202,10 @@ type StringSegment =
 type Instruction =
   | LoadVal(loadTo: Register, value: Dval)
   | CopyVal(copyTo: Register, copyFrom: Register)
-  | Or(createTo: Register, lhs: Register, rhs: Register)
-  | And(createTo: Register, lhs: Register, rhs: Register)
+  /// One side of `a || b`. The left side's has `skipRhs`, to skip the right side.
+  | Or(createTo: Register, operand: Register, skipRhs: Stdlib.Option.Option<Int32>)
+  /// One side of `a && b`, as `Or`.
+  | And(createTo: Register, operand: Register, skipRhs: Stdlib.Option.Option<Int32>)
   | CreateString(createTo: Register, segments: List<StringSegment>)
   | CheckLetPatternAndExtractVars(valueReg: Register, pat: LetPattern)
   | JumpByIfFalse(instrsToJump: Int32, conditionReg: Register)

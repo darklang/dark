@@ -1042,8 +1042,10 @@ module Instruction =
       match i with
       | LoadVal(r, v) -> "LoadVal", [ reg r; Dval.toDT v ]
       | CopyVal(t, s) -> "CopyVal", [ reg t; reg s ]
-      | Or(t, l, r) -> "Or", [ reg t; reg l; reg r ]
-      | And(t, l, r) -> "And", [ reg t; reg l; reg r ]
+      | Or(t, o, skip) ->
+        "Or", [ reg t; reg o; skip |> Option.map DInt32 |> Dval.option KTInt32 ]
+      | And(t, o, skip) ->
+        "And", [ reg t; reg o; skip |> Option.map DInt32 |> Dval.option KTInt32 ]
       | CreateString(t, segs) ->
         "CreateString",
         [ reg t

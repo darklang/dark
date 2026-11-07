@@ -4819,42 +4819,40 @@ let private runSyncInstructions
             DApplicable(AppNamedFn { fn with access = Some currentFrame.access })
           | _ -> value
       | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
-      | Or(createTo, left, right) ->
-        match registers[left] with
-        | DBool true -> registers[createTo] <- DBool true
-        | DBool false ->
-          match registers[right] with
-          | DBool true -> registers[createTo] <- DBool true
-          | DBool false -> registers[createTo] <- DBool false
-          | DPromise p -> parkOnRead vm registers right p &retry &force &forceReg
-          | r ->
-            RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType r)
-            |> RTE.Bool
-            |> raiseRTE vm.threadID
-        | DPromise p -> parkOnRead vm registers left p &retry &force &forceReg
-        | l ->
-          let r = registers[right]
-          RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
-          |> RTE.Bool
-          |> raiseRTE vm.threadID
-      | And(createTo, left, right) ->
-        match registers[left] with
-        | DBool false -> registers[createTo] <- DBool false
+      // `skipRhs` is set on the left side's check. If that one raises, the right side
+      // hasn't run, so the error gives its type as unknown.
+      | Or(createTo, operand, skipRhs) ->
+        match registers[operand] with
         | DBool true ->
-          match registers[right] with
-          | DBool true -> registers[createTo] <- DBool true
-          | DBool false -> registers[createTo] <- DBool false
-          | DPromise p -> parkOnRead vm registers right p &retry &force &forceReg
-          | r ->
-            RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType r)
-            |> RTE.Bool
-            |> raiseRTE vm.threadID
-        | DPromise p -> parkOnRead vm registers left p &retry &force &forceReg
-        | l ->
-          let r = registers[right]
-          RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
-          |> RTE.Bool
-          |> raiseRTE vm.threadID
+          registers[createTo] <- DBool true
+          match skipRhs with
+          | Some skip -> counter <- counter + skip
+          | None -> ()
+        | DBool false -> registers[createTo] <- DBool false
+        | DPromise p -> parkOnRead vm registers operand p &retry &force &forceReg
+        | v ->
+          let err =
+            match skipRhs with
+            | Some _ ->
+              RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType v, VT.unknown)
+            | None -> RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType v)
+          raiseRTE vm.threadID (RTE.Bool err)
+      | And(createTo, operand, skipRhs) ->
+        match registers[operand] with
+        | DBool false ->
+          registers[createTo] <- DBool false
+          match skipRhs with
+          | Some skip -> counter <- counter + skip
+          | None -> ()
+        | DBool true -> registers[createTo] <- DBool true
+        | DPromise p -> parkOnRead vm registers operand p &retry &force &forceReg
+        | v ->
+          let err =
+            match skipRhs with
+            | Some _ ->
+              RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType v, VT.unknown)
+            | None -> RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType v)
+          raiseRTE vm.threadID (RTE.Bool err)
 
 
       // == Working with Variables ==

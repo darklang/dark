@@ -1051,10 +1051,26 @@ module Expr =
           E.Infix.And.mixed
           (3,
            [ RT.LoadVal(0, RT.DBool true)
+             // false skips the right side and its check
+             RT.And(2, 0, Some 2)
              RT.LoadVal(1, RT.DBool false)
-             RT.And(2, 0, 1) ],
+             RT.And(2, 1, None) ],
            2)
       let tests = testList "And" [ mixed ]
+
+    module Or =
+      let mixed =
+        t
+          "true || false"
+          E.Infix.Or.mixed
+          (3,
+           [ RT.LoadVal(0, RT.DBool true)
+             // true skips the right side and its check
+             RT.Or(2, 0, Some 2)
+             RT.LoadVal(1, RT.DBool false)
+             RT.Or(2, 1, None) ],
+           2)
+      let tests = testList "Or" [ mixed ]
 
     module Add =
       let simple =
@@ -1081,7 +1097,7 @@ module Expr =
       let tests = testList "Add" [ simple ]
 
 
-    let tests = testList "Infix" [ And.tests; Add.tests ]
+    let tests = testList "Infix" [ And.tests; Or.tests; Add.tests ]
 
 
   module Values =
@@ -2055,8 +2071,35 @@ module MarkerStripping =
           $"%d{List.length failures} stripped jumps land somewhere else:\n%s{detail}"
     }
 
+  /// `&&` skips its right side with a jump of its own, which stripping has to rewrite like
+  /// the others. Here the right side is another `&&`, so its marker sits inside the skip.
+  let andSkipsOverMarkers =
+    testTask "the left side of && still skips exactly the right side once markers go" {
+      let expr = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool false) E.Infix.And.mixed
+      let compiled = PT2RT.Expr.toRT Map.empty 0 None expr
+      let struct (kept, _) = RT.DebugSymbols.split compiled.instructions
+      let skipAt, skip =
+        kept
+        |> List.indexed
+        |> List.pick (fun (i, instr) ->
+          match instr with
+          | RT.And(_, _, Some skip) -> Some(i, skip)
+          | _ -> None)
+      // The outer right-side check is the last `And` in the stream, and the left side's
+      // jump should land just after it.
+      let lastCheck =
+        kept
+        |> List.findIndexBack (fun i ->
+          match i with
+          | RT.And(_, _, None) -> true
+          | _ -> false)
+      Expect.equal (skipAt + skip + 1) (lastCheck + 1) "lands after the right side"
+    }
+
   let tests =
-    testList "MarkerStripping" [ jumpsLandWhereTheyDid; jumpsSurviveSeveralMarkers ]
+    testList
+      "MarkerStripping"
+      [ jumpsLandWhereTheyDid; jumpsSurviveSeveralMarkers; andSkipsOverMarkers ]
 
 
 let tests =

@@ -1019,16 +1019,24 @@ module Expr =
 
       let resultReg, rcAfterResult = right.registerCount, right.registerCount + 1
 
-      let opInstr =
+      // The left side's check skips the right side's instructions and its check, so
+      // `false && b` and `true || b` never run `b`.
+      let skipRhs = List.length right.instructions + 1
+      let leftCheck, rightCheck =
         match op with
-        | PT.BinOpOr -> RT.Or(resultReg, left.resultIn, right.resultIn)
-        | PT.BinOpAnd -> RT.And(resultReg, left.resultIn, right.resultIn)
+        | PT.BinOpOr ->
+          RT.Or(resultReg, left.resultIn, Some skipRhs),
+          RT.Or(resultReg, right.resultIn, None)
+        | PT.BinOpAnd ->
+          RT.And(resultReg, left.resultIn, Some skipRhs),
+          RT.And(resultReg, right.resultIn, None)
 
       { registerCount = rcAfterResult
         instructions =
           left.instructions
+          @ [ leftCheck ]
           @ right.instructions
-          @ [ opInstr; RT.TraceExpr(id, resultReg) ]
+          @ [ rightCheck; RT.TraceExpr(id, resultReg) ]
         resultIn = resultReg }
 
 
