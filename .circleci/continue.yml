@@ -431,17 +431,18 @@ jobs:
       - run: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db --reuse-libraries
 
       # Allocation for a fixed workload is steady enough to assert on and doesn't care how
-      # loaded the box is, which is more than can be said for time. The store is freshly
-      # loaded above, and that matters: the same binary on a working store allocates a couple
-      # of percent more.
+      # loaded the box is, which is more than can be said for time. The gate grows a store of
+      # its own, so the first run is cold, and budgets that run's allocation and peak memory
+      # too. Time is only compared as a ratio: CPU against the release pinned in
+      # scripts/perf/budget.json, run in turns on this same box.
       #
       # It runs HERE rather than in `build-backend` because the budget is recorded in a publish
       # mode, and only this job produces that mode. The step above defaults to `--mode=auto`,
       # which for this host's linux-x64 resolves to NativeAOT and writes the marker the gate
       # checks. AOT is also what the release matrix ships, so this measures what users get.
-      # Costs a couple of seconds: the binary is already built.
+      # About half a minute, with the download of the pinned release.
       - run:
-          name: Check the reference workload is within its allocation budget
+          name: Check allocation, first-run memory, and CPU against the last release
           command: python3 .circleci/collect_diagnostics.py --run allocation -- scripts/perf/gate --published
 
       # A fresh install of the binary just built: empty home, the whole SCM workflow, then the
@@ -461,8 +462,8 @@ jobs:
       # Each package test starts a fresh process, so they use the NativeAOT CLI built here
       # rather than paying managed-runtime startup for every test.
       #
-      # The gates are end-to-end checks on the shipped binary. Keep them after the allocation
-      # check: they write to the store it measures.
+      # The gates are end-to-end checks on the shipped binary. Keep them after the perf gate:
+      # its CPU comparison wants the box to itself.
       - run:
           name: Dark package tests and gate scripts (the CI subset)
           command: |

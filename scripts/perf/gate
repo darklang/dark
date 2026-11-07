@@ -2,7 +2,14 @@
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 # Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
-# deliberately: one script, a couple of seconds. A long perf job gets ignored and then disabled.
+# deliberately: one script, under a minute. A long perf job gets ignored and then disabled.
+#
+# The published gate checks three things, all on the binary just built:
+#   - steady.dark's allocation, warm (the number this gate started with)
+#   - the cold first run's allocation and peak memory, on a store grown from nothing
+#   - CPU for `fib 24` and `ls Darklang.Stdlib.List`, paired against a pinned release (_paired.py)
+# Allocation can't see a call getting slower, and the warm run can't see the first run getting
+# bigger, which is how the October regressions got through.
 #
 #   scripts/perf/gate              the debug build's allocation, reported but NOT gated
 #   scripts/perf/gate --published  against the published one, as CI does. This is the gate.
@@ -51,6 +58,14 @@ fi
 BUDGET_FILE="scripts/perf/budget.json"
 WORKLOAD="scripts/perf/workloads/steady.dark"
 
+# The published gate grows its own store, so the first run is cold and the number doesn't depend on
+# whose store this is. The debug build keeps the dev store: it has no budget to be cold against.
+if [[ "$PUBLISHED" == "true" ]]; then
+  GATE_HOME=$(mktemp -d "${TMPDIR:-/tmp}/perf-gate.XXXXXX")
+  trap 'rm -rf "$GATE_HOME"' EXIT
+  export HOME="$GATE_HOME"
+fi
+
 TELEMETRY=$(telemetry_path)
 
 # Recording off: a dev shell sets it on, a user's run has it off, and with it on the interpreter
@@ -67,9 +82,20 @@ run_workload() {
   DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" --no-trace run "$WORKLOAD"
 }
 
-# One throwaway run first: against an empty store the first invocation seeds it, which on the
-# published binary is an extra ~470 MB that would otherwise be recorded as the budget.
-run_workload > /dev/null
+# The first run grows the store from the embedded seed, so it isn't counted in steady's number. It
+# is budgeted on its own instead: it is what every new user's first command costs.
+#
+# Peak memory depends on the GC's settings as much as on the program, and those depend on the
+# machine: gen0's size follows the CPU cache (1 MB to 64 MB moved this run from 294 to 371 MB), and
+# a container memory limit, which a CI container may have and a laptop doesn't, turns on a hard
+# heap limit (477 MB).
+# Both are pinned here so the reading is the same on any box. Allocation doesn't move with either.
+# The values are hex with no 0x: with one, .NET ignores the setting without saying so.
+COLD=$(DOTNET_GCgen0size=1000000 DOTNET_GCHeapHardLimit=180000000 \
+  DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off \
+  python3 ./scripts/perf/_rusage.py "$EXE" --no-trace run "$WORKLOAD") || exit 2
+COLD_PEAK_MB=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["peak_rss_mb"])' "$COLD")
+COLD_ALLOC=$(python3 ./scripts/perf/_total-alloc.py "$TELEMETRY") || exit 2
 rm -f "$TELEMETRY"
 OUTPUT=$(run_workload)
 echo "$OUTPUT" | head -c 200
@@ -83,11 +109,13 @@ MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
 # One parser for this, shared with `suite`: see scripts/perf/_total-alloc.py.
 MEASURED=$(python3 ./scripts/perf/_total-alloc.py "$TELEMETRY") || exit 2
 
-python3 - "$BUDGET_FILE" "$MEASURED" "$UPDATE" "$MODE" <<'PY'
+BUDGET_STATUS=0
+python3 - "$BUDGET_FILE" "$MEASURED" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" <<'PY' || BUDGET_STATUS=$?
 import json, sys
 
 budget_file, update = sys.argv[1], sys.argv[3] == "true"
 measured = int(sys.argv[2])
+cold_alloc, cold_peak_mb = int(sys.argv[5]), float(sys.argv[6])
 
 budget = json.load(open(budget_file))
 mode = sys.argv[4]
@@ -107,16 +135,37 @@ if mode == "debug":
     # reading only the exit code would take a 0 for a budget that held. 2 is what the rest of
     # this script uses for "could not do the job", as against 1 for "over budget".
     print(f"steady.dark (debug) allocated {mb(measured)}; not budgeted, so this does not gate.")
+    print(f"first run allocated {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB (on the dev store, so not cold).")
     print("The published build is what is budgeted: `scripts/perf/gate --published`.")
     sys.exit(2)
 
 if update:
     budget["steady"][mode] = measured
+    budget["cold"]["allocated"] = cold_alloc
+    budget["cold"]["peakRssMB"] = round(cold_peak_mb)
     with open(budget_file, "w") as f:
         json.dump(budget, f, indent=2)
         f.write("\n")
-    print(f"{mode} budget updated to {mb(measured)}")
+    print(f"{mode} budget updated to {mb(measured)}; first run {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB")
     sys.exit(0)
+
+# The first run, on a store grown from nothing, with tolerances of its own: allocation repeats to
+# the MB in 900, peak memory to a few MB in 480. The regressions this is for were 50% and 90%.
+cold = budget["cold"]
+cold_failed = False
+for label, got, base, tol, show in (
+    ("allocated", cold_alloc, cold["allocated"], cold["allocatedTolerance"], mb),
+    ("peak memory", cold_peak_mb, cold["peakRssMB"], cold["peakRssTolerance"], lambda v: f"{v:.0f} MB"),
+):
+    top = base * (1 + tol)
+    print(f"first run {label} {show(got)}; budget {show(base)}, ceiling {show(top)}")
+    if got > top:
+        print(f"FAIL: first run {label} {(got / base - 1) * 100:.1f}% over budget.")
+        cold_failed = True
+    elif got < base * (1 - tol):
+        print(f"  {(1 - got / base) * 100:.1f}% under -- lower it with `scripts/perf/gate --published --update`.")
+if cold_failed:
+    print("If it is intended, raise the budget in the same commit and say why.")
 
 # A budget nobody has recorded yet reports and passes. Better than a number carried over from the
 # other build mode, which would be wrong in a way that looks right.
@@ -124,7 +173,7 @@ if limit is None:
     print(f"steady.dark ({mode}) allocated {mb(measured)}; no budget recorded yet.")
     flag = " --published" if mode == "published" else ""
     print(f"Pin it with `scripts/perf/gate{flag} --update`.")
-    sys.exit(0)
+    sys.exit(1 if cold_failed else 0)
 
 ceiling = int(limit * (1 + tolerance))
 print(f"steady.dark ({mode}) allocated {mb(measured)}; budget {mb(limit)}, ceiling {mb(ceiling)}")
@@ -133,15 +182,21 @@ if measured > ceiling:
     over = (measured / limit - 1) * 100
     print(f"FAIL: {over:.1f}% over budget.")
     print("If the regression is intended, raise the budget in the same commit and say why.")
-    print("Before calling this a regression: measured on this box, the same binary and")
-    print("workload reads 2.1 MB higher against a working dev store than against one the")
-    print("published binary grew itself, which is 22% of the budget. CI is in the second")
-    print("case, so re-run there before believing this. Locally:")
-    print("  HOME=$(mktemp -d) scripts/perf/gate --published")
-    print("docs/perf/playbook.md has the four readings and what each part of the gap was.")
+    print("This ran against a store the binary grew itself, as CI does, so a working dev")
+    print("store (2.1 MB higher) is not the reason. docs/perf/playbook.md has the readings.")
     sys.exit(1)
 
 if measured < limit * (1 - tolerance):
     under = (1 - measured / limit) * 100
     print(f"{under:.1f}% under budget -- lower it with `scripts/perf/gate --published --update`.")
+
+sys.exit(1 if cold_failed else 0)
 PY
+
+# `--update` rewrites the allocation budgets only. The paired check has no number to update: it is a
+# ratio against a release.
+[[ "$PUBLISHED" == "true" && "$UPDATE" == "false" && "$BUDGET_STATUS" -ne 2 ]] || exit "$BUDGET_STATUS"
+echo
+PAIRED_STATUS=0
+python3 ./scripts/perf/_paired.py "$EXE" "$HOME" || PAIRED_STATUS=$?
+exit $(( BUDGET_STATUS > PAIRED_STATUS ? BUDGET_STATUS : PAIRED_STATUS ))

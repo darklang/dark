@@ -1,0 +1,5 @@
+// Recursive calls and integer operators, nothing else: what an interpreted call costs. Allocation
+// can't see this (fib allocates the same on every version); `_paired.py` times it against a release.
+let fib(n: Int64): Int64 = if n < 2 then n else (fib(n - 1)) + (fib(n - 2))
+
+Stdlib.printLine(Stdlib.toString(fib(24)))

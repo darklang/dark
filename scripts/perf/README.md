@@ -64,8 +64,10 @@ because the same workload has three different right answers.
 
 ## The tools
 
-- `gate` is the CI assertion: `workloads/steady.dark`, allocation against `budget.json`.
-  `--published` is the real one; bare is debug and does not gate.
+- `gate` is the CI assertion: `workloads/steady.dark`, allocation against `budget.json`, warm and
+  on the cold first run (with its peak memory), then CPU for `workloads/fib.dark` and `ls` against
+  the release `budget.json` pins, paired (`_paired.py`). `--published` is the real one; bare is
+  debug and does not gate.
 - `suite` runs the seven shapes in `workloads/suite/`, allocation and time per iteration, with
   startup differenced out.
 - `bench` (and `_bench.py`) is repeatable CLI timing from a pinned store fixture. `bench ab`
