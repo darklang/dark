@@ -69,6 +69,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       wget \
       ca-certificates \
       git \
+      # CircleCI's `checkout` step clones with git over ssh, and without ssh it
+      # falls back to its own git client
+      openssh-client \
       sudo \
       locales \
       sqlite3 \

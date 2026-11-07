@@ -19,6 +19,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates curl unzip xz-utils git \
+    # CircleCI's `checkout` clones with git over ssh, or falls back to its own client
+    openssh-client \
     tzdata libicu66 \
     clang lld \
     gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
