@@ -610,8 +610,13 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
               renderSection("impl", searchText, resultCap, results.impls, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
+                // Where to call it, since that is never the impl's own path.
+                let calls =
+                  match Packages.Impls.methodCalls(state.currentBranchId, item.entity) with
+                  | [] -> ""
+                  | names -> $"; call {Stdlib.String.join(names, ", ")}"
                 let header =
-                  $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}"
+                  $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}{calls}"
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(header)}{mark}", item.entity.description))
             | "test" ->
               renderSection("test", searchText, resultCap, results.tests, fun item ->
