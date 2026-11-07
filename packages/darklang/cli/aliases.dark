@@ -145,6 +145,47 @@ let runnable(fn: LanguageTools.ProgramTypes.PackageFn.PackageFn): Bool =
   | _ -> false
 
 
+/// What to write instead of <param fn>, which can't be aliased: a `main` of the shape an alias runs,
+/// calling <param qualifiedName>. A fn of `List<String>` gets the arguments as they are, one of a
+/// `String` gets them joined, one of no arguments gets `()`, and anything else a placeholder to fill
+/// in from `args`. A `String` result is printed; any other is dropped for an exit code of 0.
+let wrapperFor(qualifiedName: String, fn: LanguageTools.ProgramTypes.PackageFn.PackageFn): String =
+  let call =
+    match fn.parameters with
+    | [p] ->
+      match p.typ with
+      | TList(TString) -> $"{qualifiedName}(args)"
+      | TString -> $"{qualifiedName}(Stdlib.String.join(args, \" \"))"
+      | TUnit -> $"{qualifiedName}()"
+      | _ -> $"{qualifiedName}(...)  // built from args"
+    | _ -> $"{qualifiedName}(...)  // built from args"
+
+  let body =
+    match fn.returnType with
+    | TInt64 -> [ $"  {call}" ]
+    | TString -> [ $"  Stdlib.printLine({call})", "  0" ]
+    | _ -> [ $"  let _ = {call}", "  0" ]
+
+  Stdlib.List.flatten([ [ "let main(args: List<String>): Int64 =" ], body ])
+  |> Stdlib.String.join("\n")
+
+
+/// Why the fn at <param qualifiedName> can't be aliased, with a wrapper that could be.
+let notRunnable(qualifiedName: String, fn: LanguageTools.ProgramTypes.PackageFn.PackageFn): String =
+  let ctx = Packages.Signatures.rootContext(SCM.Branch.mainBranchId, [])
+  let wrapper =
+    wrapperFor(qualifiedName, fn)
+    |> Stdlib.String.split("\n")
+    |> Stdlib.List.map(fun line -> "    " + line)
+    |> Stdlib.String.join("\n")
+
+  [ $"{qualifiedName} can't be run from a shell: it is {Packages.Signatures.formatFn(ctx, fn)}, and an alias runs a fn of (args: List<String>): Int64, the exit code."
+    "  A wrapper to start from, to save with `dark module` and alias instead:"
+    ""
+    wrapper ]
+  |> Stdlib.String.join("\n")
+
+
 /// The fn <param name> names on <param branchId>, resolved the way `view` resolves it, with its
 /// hash.
 let resolveOn(state: AppState, branchId: Uuid, name: String): Result<(String * String), String> =
@@ -154,16 +195,13 @@ let resolveOn(state: AppState, branchId: Uuid, name: String): Result<(String * S
     match LanguageTools.PackageManager.Function.find(branchId, loc) with
     | None -> Result.Error($"no function named {name}")
     | Some(hash) ->
-      let runs =
-        LanguageTools.PackageManager.Function.getSignature(hash)
-        |> Stdlib.Option.map(runnable)
-        |> Stdlib.Option.withDefault(false)
-
-      if runs then
-        Result.Ok((qualified(loc), LanguageTools.ProgramTypes.hashToString(hash)))
-      else
-        Result.Error(
-          $"{qualified(loc)} can't be run from a shell: an alias runs a fn of (args: List<String>): Int64, the exit code")
+      match LanguageTools.PackageManager.Function.getSignature(hash) with
+      | Some(fn) ->
+        if runnable(fn) then
+          Result.Ok((qualified(loc), LanguageTools.ProgramTypes.hashToString(hash)))
+        else
+          Result.Error(notRunnable(qualified(loc), fn))
+      | None -> Result.Error($"no function named {name}")
   | Ok(_) -> Result.Error($"{name} isn't a function")
 
 

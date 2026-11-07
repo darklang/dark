@@ -65,6 +65,63 @@ test otherFilesAreNotAliases =
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
+// The wrapper `add` offers for a fn it can't alias: args passed through when the fn takes them,
+// joined for a String, `()` when it takes nothing; a String result printed, any other dropped.
+module Wrapper =
+  let fn(
+    params: List<LanguageTools.ProgramTypes.TypeReference>,
+    returns: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("wrapper")
+        body = LanguageTools.ProgramTypes.Expr.EInt64(1, 0)
+        typeParams = []
+        parameters =
+          params
+          |> Stdlib.List.map(fun t ->
+            LanguageTools.ProgramTypes.PackageFn.Parameter
+              { name = "x", typ = t, description = "" })
+        returnType = returns
+        description = ""
+        bounds = [] }
+
+
+test wrapperFitsTheFn =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Aliases.wrapperFor(
+        "Me.run",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TList(
+              LanguageTools.ProgramTypes.TypeReference.TString) ],
+          LanguageTools.ProgramTypes.TypeReference.TUnit))
+      |> Stdlib.Test.equal(
+        "let main(args: List<String>): Int64 =\n  let _ = Me.run(args)\n  0")
+
+      Darklang.Cli.Aliases.wrapperFor(
+        "Me.go",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TUnit ],
+          LanguageTools.ProgramTypes.TypeReference.TInt64))
+      |> Stdlib.Test.equal("let main(args: List<String>): Int64 =\n  Me.go()")
+
+      Darklang.Cli.Aliases.wrapperFor(
+        "Me.up",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TString ],
+          LanguageTools.ProgramTypes.TypeReference.TString))
+      |> Stdlib.Test.equal(
+        "let main(args: List<String>): Int64 =\n  Stdlib.printLine(Me.up(Stdlib.String.join(args, \" \")))\n  0")
+
+      Darklang.Cli.Aliases.wrapperFor(
+        "Me.add",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TInt64
+            LanguageTools.ProgramTypes.TypeReference.TInt64 ],
+          LanguageTools.ProgramTypes.TypeReference.TInt64))
+      |> Stdlib.Test.equal(
+        "let main(args: List<String>): Int64 =\n  Me.add(...)  // built from args") ])
+
+
 test commandNames =
   Stdlib.Test.all(
     [ Darklang.Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)
@@ -271,6 +328,13 @@ test aliasRefusesWhatItCannotRun = Instance.withInstance(fun i ->
         wrongOut,
         "List<String>",
         "and the refusal says what an alias runs")
+
+      Instance.says(wrongOut, "it is (list: List<'a>)", "and what the fn is")
+
+      Instance.says(
+        wrongOut,
+        "let main(args: List<String>): Int64 =\n      let _ = Darklang.Stdlib.List.head(...)",
+        "and offers a wrapper that calls it")
 
       Instance.exitedWith(badName, 1, "a name starting with - is refused")
       Stdlib.Cli.File.exists($"{bin(i)}/nope") |> Stdlib.Test.equal(false)
