@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Stop the backend test run in this clone's dev container, and free its lock.
+#
+#   scripts/dev/stop-tests
+#
+# Kills the `run-backend-tests` that holds rundir/test.lock and every `Tests` process, by pid
+# and inside the container: TERM, then KILL for anything still there after 5 seconds. Then it
+# removes the lock if what it names is gone, or is no longer a test runner.
+#
+# Use it after a run you abandoned. Killing the host-side wrapper (or a host `timeout` around
+# it) leaves `Tests` running in the container, still holding the lock, and every run after
+# that exits at once with no output, which reads like a pass.
+#
+# Only this clone's container: each clone has its own, so its own pids.
+
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/_help"
+help_if_asked "$@"
+reject_unknown_flags "--help" "$@"
+if [[ $# -gt 0 ]]; then
+  echo "stop-tests takes no arguments. Try: $0 --help" >&2
+  exit 2
+fi
+
+set -euo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
+
+# Runs in the container. The lock lives in the dark user's ~/.darklang, which is the
+# clone's rundir.
+# shellcheck disable=SC2016  # expanded in the container, not here
+SCRIPT='
+set -u
+LOCK="$HOME/.darklang/test.lock"
+
+# The runner the lock names, only if it is one: a reused pid could be anything, and pid 1
+# is the container itself.
+runner() {
+  local p
+  p=$(cat "$LOCK" 2>/dev/null)
+  [[ "$p" =~ ^[0-9]+$ && "$p" != 1 && -r /proc/$p/cmdline ]] || return 0
+  tr "\0" " " < "/proc/$p/cmdline" | grep -q run-backend-tests && echo "$p"
+}
+
+targets() {
+  [[ -f "$LOCK" ]] && runner
+  pgrep -x Tests || true
+}
+
+pids=$(targets | sort -u | tr "\n" " ")
+pids=${pids% }
+if [[ -z "$pids" ]]; then
+  echo "No test run in this clone."
+else
+  echo "Stopping:"
+  ps -o pid=,etime=,args= -p "${pids// /,}" | cut -c1-120 | sed "s/^/    /"
+  # shellcheck disable=SC2086
+  kill -TERM $pids 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    left=""
+    for p in $pids; do [[ -d /proc/$p ]] && left="$left $p"; done
+    [[ -z "$left" ]] && break
+    sleep 0.5
+  done
+  if [[ -n "$left" ]]; then
+    echo "Still running after TERM, sending KILL:$left"
+    # shellcheck disable=SC2086
+    kill -KILL $left 2>/dev/null || true
+  fi
+  # TERM on the runner skips its own cleanup trap, so the lock is ours to clear.
+  pgrep -x Tests >/dev/null && echo "A Tests process is still running: $(pgrep -x Tests | tr "\n" " ")"
+fi
+
+if [[ -f "$LOCK" ]]; then
+  p=$(cat "$LOCK" 2>/dev/null)
+  if [[ -n "$(runner)" ]]; then
+    echo "The lock still names a live test runner ($p); left it alone." >&2
+    exit 1
+  fi
+  rm -f "$LOCK"
+  echo "Removed the stale lock (it named ${p:-nothing}, which is no test runner now)."
+fi
+! pgrep -x Tests >/dev/null
+'
+
+exec "$DIR/scripts/dev/exec" bash -c "$SCRIPT"

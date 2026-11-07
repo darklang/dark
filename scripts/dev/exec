@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Run a command in this clone's dev container.
+#
+#   scripts/dev/exec <command> [args...]
+#   scripts/dev/exec --timeout 300 ./scripts/run-backend-tests --filter-test-list Foo
+#   scripts/dev/exec -e DARK_CONFIG_TRACE_DETAIL=on ./scripts/run-cli eval 1
+#   scripts/dev/exec ps -eo pid,etime,args
+#   scripts/dev/exec sqlite3 rundir/data.db 'select count(*) from locations'
+#
+# It runs where you are: from the host's current directory if that is inside this clone,
+# otherwise from the repo root (/home/dark/app). Options go before the command.
+#
+#   --timeout <seconds>  stop the command after that long, from INSIDE the container. A host
+#                        `timeout` around `docker exec` only kills the docker client, so the
+#                        command keeps running there, and a test run keeps holding its lock.
+#                        This one sends TERM to the command and everything it started, then
+#                        KILL 10 seconds later. Exits 124 when it fired.
+#   -e NAME=VALUE        set an env var for the command (repeatable)
+#   -i                   pass stdin through. Without it the command gets no stdin, so
+#                        nothing can sit waiting on a terminal nobody types into.
+#   --help               this text
+#
+# The exit status is the command's.
+
+set -euo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
+
+usage_error() {
+  {
+    echo "$1"
+    echo "Try: $0 --help"
+  } >&2
+  exit 2
+}
+
+TIMEOUT=""
+INTERACTIVE=false
+ENV_FLAGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      # shellcheck source=scripts/dev/_help
+      source "$DIR/scripts/dev/_help"
+      _dev_header "${BASH_SOURCE[0]}"
+      exit 0
+      ;;
+    --timeout)
+      [[ $# -ge 2 ]] || usage_error "--timeout needs a number of seconds"
+      TIMEOUT="$2"
+      shift 2
+      ;;
+    --timeout=*)
+      TIMEOUT="${1#--timeout=}"
+      shift
+      ;;
+    -e)
+      [[ $# -ge 2 ]] || usage_error "-e needs NAME=VALUE"
+      [[ "$2" == ?*=* ]] || usage_error "-e needs NAME=VALUE, got: $2"
+      ENV_FLAGS+=(-e "$2")
+      shift 2
+      ;;
+    -i)
+      INTERACTIVE=true
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      usage_error "Unknown option: $1 (options go before the command)"
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+[[ $# -gt 0 ]] || usage_error "No command given."
+
+if [[ -n "$TIMEOUT" && ! "$TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+  usage_error "--timeout takes a whole number of seconds, got: $TIMEOUT"
+fi
+
+# shellcheck source=scripts/devcontainer/_container-for-clone
+source "$DIR/scripts/devcontainer/_container-for-clone"
+
+C=$(container_for_clone "$DIR")
+if [[ -z "$C" ]]; then
+  {
+    echo "No dev container running for this clone: $DIR"
+    echo "Start it with: scripts/dev/start"
+  } >&2
+  exit 1
+fi
+
+WORKDIR=/home/dark/app
+case "$PWD/" in
+  "$DIR"/*) WORKDIR="/home/dark/app${PWD#"$DIR"}" ;;
+esac
+
+CMD=("$@")
+if [[ -n "$TIMEOUT" ]]; then
+  # Without --foreground, timeout puts the command in a process group of its own and
+  # signals the whole group, so children the command started go too.
+  CMD=(timeout --kill-after=10 "$TIMEOUT" "${CMD[@]}")
+fi
+
+if [[ "$INTERACTIVE" == "true" ]]; then
+  exec docker exec -i ${ENV_FLAGS[@]+"${ENV_FLAGS[@]}"} -w "$WORKDIR" "$C" "${CMD[@]}"
+else
+  exec docker exec ${ENV_FLAGS[@]+"${ENV_FLAGS[@]}"} -w "$WORKDIR" "$C" "${CMD[@]}" </dev/null
+fi
