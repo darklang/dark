@@ -3828,8 +3828,8 @@ module Tracing =
 type Registers = Dval array
 
 /// An operator call the interpreter answers from the registers, without the call machinery: a
-/// `LoadVal` of an operator `FastOps` knows, then the `Apply` of it. Found in a frame's
-/// instructions when it first runs them (`Interpreter.quicken`), and never stored.
+/// `LoadVal` of an operator `FastOps` knows, then the `Apply` of it. Found in a function's or a
+/// lambda's instructions when its `InstrData` is built (`Interpreter.quicken`), and never stored.
 [<Sealed; AllowNullLiteral>]
 type QuickOp(isTrait : bool, tag : int, args : NEList<Register>, dst : Register) =
   /// A trait method (`a + b`), as against a builtin called by name (`==`).
@@ -3848,6 +3848,9 @@ type QuickOps(generation : int, ops : QuickOp[]) =
   member _.Generation = generation
   member _.Ops = ops
 
+  /// For instructions that run once, as a root's do: there is nothing to gain from looking.
+  static member val None = QuickOps(-1, Array.empty)
+
 type InstrData =
   {
     instructions : Instruction array
@@ -3859,9 +3862,8 @@ type InstrData =
     /// and forced only when something is collecting values.
     symbols : Lazy<DebugSymbols>
 
-    /// The operator calls in `instructions`, null until a frame first runs them
-    /// (`Interpreter.quickOpsFor`).
-    mutable quick : QuickOps
+    /// The operator calls in `instructions` (`Interpreter.quickOpsFor`).
+    quick : QuickOps
   }
 
 /// Cached consumer policy and the policy function that produced it. The owner
@@ -4503,7 +4505,7 @@ type VMState =
       { instructions = List.toArray rootInstrs
         resultReg = instrs.resultIn
         symbols = lazy rootSymbols
-        quick = null }
+        quick = QuickOps.None }
 
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID

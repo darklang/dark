@@ -349,7 +349,7 @@ let private applyInstrsFor (argCount : int) : struct (RT.InstrData * int) =
             resultReg = 0
             // Synthesised, not compiled from anyone's source, so there is nothing to point at.
             symbols = RT.DebugSymbols.emptyLazy
-            quick = null }
+            quick = RT.QuickOps.None }
         struct (instrData, n + 2)
     )
 
