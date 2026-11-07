@@ -7,7 +7,7 @@
 # The published gate checks three things, all on the binary just built:
 #   - steady.dark's allocation, warm (the number this gate started with)
 #   - the cold first run's allocation and peak memory, on a store grown from nothing
-#   - CPU for `fib 24` and `ls Darklang.Stdlib.List`, paired against a pinned release (_paired.py)
+#   - CPU for `fib 24` and `ls Darklang.Stdlib.List`, paired against the newest release (_paired.py)
 # Allocation can't see a call getting slower, and the warm run can't see the first run getting
 # bigger, which is how the October regressions got through.
 #

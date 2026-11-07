@@ -448,7 +448,7 @@ jobs:
       # mode, and only this job produces that mode. The step above defaults to `--mode=auto`,
       # which for this host's linux-x64 resolves to NativeAOT and writes the marker the gate
       # checks. AOT is also what the release matrix ships, so this measures what users get.
-      # About half a minute, with the download of the pinned release.
+      # About half a minute, with the download of the newest release.
       - run:
           name: Check allocation, first-run memory, and CPU against the last release
           command: python3 .circleci/collect_diagnostics.py --run allocation -- scripts/perf/gate --published
