@@ -348,7 +348,8 @@ let private applyInstrsFor (argCount : int) : struct (RT.InstrData * int) =
               [| RT.Apply(0, 1, [], argRegs |> NEList.ofListUnsafe "" []) |]
             resultReg = 0
             // Synthesised, not compiled from anyone's source, so there is nothing to point at.
-            symbols = RT.DebugSymbols.emptyLazy }
+            symbols = RT.DebugSymbols.emptyLazy
+            quick = null }
         struct (instrData, n + 2)
     )
 

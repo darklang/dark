@@ -372,7 +372,8 @@ type Scheduler(quantum : int64) =
         let instrData : RT.InstrData =
           { instructions = List.toArray rootInstrs
             resultReg = program.resultIn
-            symbols = lazy rootSymbols }
+            symbols = lazy rootSymbols
+            quick = null }
         RT.VMState.reuseFor (spare, tlid, instrData, program.registerCount)
       | ValueNone -> RT.VMState.create instrs
     Interpreter.seedRootAccess exeState.access vm
