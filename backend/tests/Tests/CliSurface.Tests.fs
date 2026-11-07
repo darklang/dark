@@ -1329,6 +1329,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "traces", [ "inspect"; seed.run ]
       "conflicts", [ "list" ]
       "backups", [ "list" ]
+      "alias", [ "ls" ]
       "permissions", [ "show"; seed.fn ]
       "effects", [ seed.fn ]
       // Scoped to a module that is clean. The shared store holds failing fixtures other tests

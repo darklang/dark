@@ -407,6 +407,16 @@ module Registry =
     Accepts.flagsOnly([ "--live" ])
 
 
+  let acceptsAlias(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("ls", Accepts.nothing())
+        ("list", Accepts.nothing())
+        ("add", Accepts.between(2, 2, [ "--pin" ]))
+        ("rm", Accepts.between(1, 1, []))
+        ("remove", Accepts.between(1, 1, [])) ],
+      Accepts.nothing())
+
+
   let allCommands(): List<CommandHandler> =
     [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
       ("help", "Show help for commands", [ "commands", "?", "--help", "-h" ], acceptsHelp, Help.execute, Help.help, Help.complete)
@@ -473,6 +483,7 @@ module Registry =
       ("effects", "See what code might do and why", [], acceptsEffects, Effects.execute, Effects.help, Effects.complete)
       ("permissions", "Review effects and runtime permission policies", [ "perms" ], acceptsPermissions, Permissions.Command.execute, Permissions.Command.help, Permissions.Command.complete)
       ("ops", "Read this instance's op log", [], acceptsOps, Ops.execute, Ops.help, Ops.complete)
+      ("alias", "Put your own functions on your PATH as commands", [ "aliases" ], acceptsAlias, Aliases.execute, Aliases.help, Aliases.complete)
       ("ps", "What is running: this instance's own processes, then every other Dark on this machine", [ "processes" ], acceptsPs, Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
       ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map((
@@ -632,7 +643,7 @@ module Registry =
           "ops" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
-      ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])
+      ("Execution", [ "run-script", "eval", "alias", "ps", "traces", "serve", "format" ])
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "effects", "permissions" ])
       (
