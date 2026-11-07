@@ -213,8 +213,7 @@ commands:
 
   # The same tree in about 3s instead of about 40s, for the jobs every PR waits on.
   #
-  # The built-in `checkout` needs ssh, which dark-base doesn't have, so it falls back to
-  # CircleCI's own git client and clones the whole history (over 250k objects) every job.
+  # The built-in `checkout` clones the whole history (over 250k objects) every job.
   # Nothing in these jobs reads history: they ask git for HEAD and for `status`, both of
   # which a one-commit fetch answers. The repo is public, so this goes over https and needs
   # no key. A fork's PR commit is fetchable from darklang/dark through its `refs/pull` ref.
@@ -680,9 +679,10 @@ jobs:
           command: |
             # cmake, openssl-dev and openssl-libs-static: the musl binary links OpenSSL
             # statically, and .NET builds its OpenSSL shim from source to do that. tar and
-            # xz unpack the pinned toolchain.
-            apk add --no-cache bash git curl clang build-base zlib-dev openssl icu-libs \
-              cmake openssl-dev openssl-libs-static tar xz
+            # xz unpack the pinned toolchain. git and openssh-client are for `checkout`,
+            # which otherwise falls back to CircleCI's own git client.
+            apk add --no-cache bash git openssh-client curl clang build-base zlib-dev openssl \
+              icu-libs cmake openssl-dev openssl-libs-static tar xz
       - checkout
       - run:
           name: Install the pinned .NET SDK and zig
