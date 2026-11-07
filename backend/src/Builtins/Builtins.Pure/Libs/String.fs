@@ -409,14 +409,23 @@ let fns () : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, _, [| DList(_, l); DString sep |] ->
+        | _, vm, _, [| DList(_, l) as list; DString sep |] ->
           l
           |> List.map (fun s ->
             match s with
             | DString st -> st
-            | dv ->
-              // CLEANUP should be a proper "bad param" RTE
-              Exception.raiseInternal "expected string in join" [ "dval", dv ])
+            | _ ->
+              RuntimeError.Applications.FnParameterNotExpectedType(
+                FQFnName.fqBuiltin "stringJoin" 0,
+                0,
+                "l",
+                None,
+                VT.list VT.string,
+                Dval.toValueType list,
+                list
+              )
+              |> RuntimeError.Apply
+              |> raiseRTE vm.threadID)
           |> String.concat sep
           |> String.normalize
           |> DString
