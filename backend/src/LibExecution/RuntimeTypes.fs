@@ -4152,9 +4152,9 @@ module InterpreterStatsSink =
 
   let mutable private retained = 0
 
+  /// VMs are made on every worker thread at once, so the count is taken atomically.
   let add (s : obj) : unit =
-    if retained < maxRetained then
-      retained <- retained + 1
+    if System.Threading.Interlocked.Increment &retained <= maxRetained then
       all.Add s
 
 
@@ -4242,10 +4242,16 @@ type InterpreterStats =
     /// O(k) in a growing k -- which would make Apply's cost superlinear in depth rather than constant.
     mutable tstSizeSum : int64
     mutable tstSizeMax : int64
+
+    /// Made for one VM by [ForOneVM] or [ForChunk]: not shared, and not in the sink, so only the
+    /// one who made it reads it. A VM holding one is not pooled for another process to reuse, as
+    /// that process would count into a set nobody reads.
+    ownedByOneVM : bool
   }
 
-  static member private fresh(enabled : bool) =
+  static member private fresh(enabled : bool, ownedByOneVM : bool) =
     { enabled = enabled
+      ownedByOneVM = ownedByOneVM
       instructionCount = 0L
       builtinCallCount = 0L
       packageCallCount = 0L
@@ -4280,15 +4286,75 @@ type InterpreterStats =
   /// ever touches them -- and a fresh set is thirteen `Dictionary`s and seven arrays. That is
   /// invisible while a process builds one VM, and it is not: `executeApplicable` builds one per
   /// lambda application, so a `List.map` over a long list built one per element.
-  static member val private sharedDisabled = InterpreterStats.fresh false
+  static member val private sharedDisabled = InterpreterStats.fresh (false, false)
 
   static member create() =
     if Telemetry.isEnabled () then
-      let s = InterpreterStats.fresh true
+      let s = InterpreterStats.fresh (true, false)
       InterpreterStatsSink.add (box s)
       s
     else
       InterpreterStats.sharedDisabled
+
+  /// A counting set for one VM, read by whoever made it. For a host or test that wants the
+  /// counts of one run and nothing else running at the same time.
+  static member ForOneVM() = InterpreterStats.fresh (true, true)
+
+  /// The set for a spread chunk (`LibExecution.Spread`) started by a VM counting into [parent].
+  ///
+  /// A chunk runs on another worker thread, at the same time as its siblings. Counting into the
+  /// spreader's set from all of them at once lost increments (`x <- x + 1` on one field from
+  /// several threads) and could corrupt its dictionaries, so a chunk counts into a set of its
+  /// own and the spreader adds it to [parent] when it collects the chunk ([AddChunk]), on the
+  /// spreader's thread. None when [parent] is not counting: the chunk then takes the set any VM
+  /// gets, and can run on a pooled VM.
+  static member ForChunk(parent : InterpreterStats) : Option<InterpreterStats> =
+    if parent.enabled then
+      let s = InterpreterStats.fresh (true, true)
+      s.detailedTiming <- parent.detailedTiming
+      Some s
+    else
+      None
+
+  /// Add a collected chunk's counts ([ForChunk]) to these. Only once the chunk has finished, and
+  /// only from the thread that owns this set.
+  member this.AddChunk(chunk : InterpreterStats) : unit =
+    let addInto
+      (into : Dictionary<string, int64>)
+      (from : Dictionary<string, int64>)
+      =
+      for kv in from do
+        let mutable prev = 0L
+        into.TryGetValue(kv.Key, &prev) |> ignore<bool>
+        into[kv.Key] <- prev + kv.Value
+    let addArray (into : int64[]) (from : int64[]) =
+      for i in 0 .. (min into.Length from.Length) - 1 do
+        into[i] <- into[i] + from[i]
+    if chunk.ownedByOneVM && not (obj.ReferenceEquals(this, chunk)) then
+      this.instructionCount <- this.instructionCount + chunk.instructionCount
+      this.builtinCallCount <- this.builtinCallCount + chunk.builtinCallCount
+      this.packageCallCount <- this.packageCallCount + chunk.packageCallCount
+      this.framePushCount <- this.framePushCount + chunk.framePushCount
+      this.packageFnLoadCount <- this.packageFnLoadCount + chunk.packageFnLoadCount
+      this.traitDispatchCount <- this.traitDispatchCount + chunk.traitDispatchCount
+      this.traitDispatchMissCount <-
+        this.traitDispatchMissCount + chunk.traitDispatchMissCount
+      addInto this.builtinTiming chunk.builtinTiming
+      addInto this.builtinCounts chunk.builtinCounts
+      addInto this.packageFnTiming chunk.packageFnTiming
+      addInto this.packageFnCounts chunk.packageFnCounts
+      addArray this.allocByOpcode chunk.allocByOpcode
+      addArray this.countByOpcode chunk.countByOpcode
+      addArray this.syncHitByOpcode chunk.syncHitByOpcode
+      addArray this.syncMissByOpcode chunk.syncMissByOpcode
+      this.registersAllocated <- this.registersAllocated + chunk.registersAllocated
+      this.builtinBodyAlloc <- this.builtinBodyAlloc + chunk.builtinBodyAlloc
+      addInto this.builtinAlloc chunk.builtinAlloc
+      addInto this.builtinCallsByName chunk.builtinCallsByName
+      addArray this.allocByStage chunk.allocByStage
+      addArray this.countByStage chunk.countByStage
+      this.tstSizeSum <- this.tstSizeSum + chunk.tstSizeSum
+      this.tstSizeMax <- max this.tstSizeMax chunk.tstSizeMax
 
   member this.reset() =
     this.instructionCount <- 0L
@@ -4495,6 +4561,14 @@ type VMState =
   }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
+    VMState.createWithStats (instrs, InterpreterStats.create ())
+
+  /// [create], counting into [stats] rather than the set [InterpreterStats.create] picks.
+  static member createWithStats
+    (
+      instrs : Option<tlid> * Instructions,
+      stats : InterpreterStats
+    ) : VMState =
     let tlid, instrs = instrs
 
     let rootCallFrameID = System.Guid.NewGuid()
@@ -4536,7 +4610,7 @@ type VMState =
       lambdaInstrDataCache = Dictionary()
       lambdaSymbols = Dictionary()
       lambdaEpCache = Dictionary()
-      stats = InterpreterStats.create ()
+      stats = stats
       frameToPush = ValueNone
       frameIdCounter = 0L
       runId = VMRuns.next ()

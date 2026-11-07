@@ -24,15 +24,17 @@ let private instrsFor (code : string) : Task<RT.Instructions> =
     return PT2RT.Expr.toRT Map.empty 0 None ptExpr
   }
 
-/// Run `code` as a process on a fresh scheduler, with spreading forced or off.
-let private runInstrs
+/// Run `code` as a process on a fresh scheduler, with spreading forced or off, its VM
+/// counting into `stats` when given.
+let private runInstrsCounting
+  (stats : Option<RT.InterpreterStats>)
   (state : RT.ExecutionState)
   (spread : bool)
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
+    let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None, ?stats = stats)
     let saved = Spread.crossover
     let savedChunk = Spread.minChunk
     Spread.crossover <- (if spread then 0L else -1L)
@@ -60,6 +62,8 @@ let private runInstrs
       Spread.crossover <- saved
       Spread.minChunk <- savedChunk
   }
+
+let private runInstrs = runInstrsCounting None
 
 /// Compiled once per call: compare two runs of the SAME program, since lambda ids differ between
 /// two compilations of one source and a frame names its lambda by id.
@@ -471,6 +475,56 @@ let private wrongPureFallsBack =
         })
   }
 
+/// What one run of `countsAreExact` counted.
+type private Counts =
+  { spreads : int64; joins : int64; builtinCalls : int64; instructions : int64 }
+
+/// The chunks run at once on other threads. Counting into the spreader's set from all of them
+/// lost increments, so the counts moved from run to run: 400 `stringJoin` calls counted as 390
+/// to 397. Each chunk counts into a set of its own, added in when it is collected.
+let private countsAreExact =
+  testTask "a spread map counts every call and instruction, the same on every run" {
+    let! state = executionStateFor pmPT false
+    let code =
+      "Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.toString(i + j)), \",\"))"
+    let! instrs = instrsFor code
+    let counted (spread : bool) : Task<Counts> =
+      task {
+        let stats = RT.InterpreterStats.ForOneVM()
+        let! (result, moved) =
+          delta spreads (fun () ->
+            runInstrsCounting (Some stats) state spread instrs)
+        expectOk result |> ignore<RT.Dval>
+        let calls name =
+          match stats.builtinCallsByName.TryGetValue name with
+          | true, n -> n
+          | false, _ -> 0L
+        return
+          { spreads = moved
+            joins = calls "stringJoin"
+            builtinCalls = stats.builtinCallCount
+            instructions = stats.instructionCount }
+      }
+    let! serial = counted false
+    Expect.equal serial.spreads 0L "the serial run did not spread"
+    Expect.equal serial.joins 400L "serial: one join per element"
+    let! first = counted true
+    Expect.isGreaterThan first.spreads 0L "the map spread"
+    Expect.equal first.joins 400L "one join per element, spread"
+    // A chunk is one more `listMap` call, over its part of the list, applied by a
+    // three-instruction program (`Execution.instructionsForApply`). Beyond that, a spread run
+    // does exactly the serial run's work.
+    let chunks = first.builtinCalls - serial.builtinCalls
+    Expect.isGreaterThan chunks 1L "more than one chunk"
+    Expect.equal
+      first.instructions
+      (serial.instructions + 3L * chunks)
+      "instructions: serial's, plus each chunk's three"
+    for _ in 1..10 do
+      let! again = counted true
+      Expect.equal again first "the same counts on every run"
+  }
+
 let tests =
   testSequenced (
     testList
@@ -490,5 +544,6 @@ let tests =
         syncFallbackIsPreempted
         visibleEffectStartsNothing
         packageFnsAnsweredByTheStore
-        wrongPureFallsBack ]
+        wrongPureFallsBack
+        countsAreExact ]
   )

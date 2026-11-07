@@ -581,13 +581,16 @@ and private spreadChunks
             access = None
             argsSoFar = chunkArgs offset chunk
             boundImpls = [] }
+      // Counts of its own, added to this VM's when the chunk is collected below: the chunks
+      // run at once on other threads, and counting into one set from all of them lost counts.
       let p =
         sched.SpawnApply(
           childState,
           entry,
           DApplicable app,
           parent,
-          vm.activeAccess
+          vm.activeAccess,
+          ?stats = InterpreterStats.ForChunk vm.stats
         )
       struct (offset, chunk, p))
     |> Array.ofList
@@ -619,6 +622,9 @@ and private spreadChunks
         m.instructionsTaken <- m.instructionsTaken + p.instructionsTaken
         m.allocated <- m.allocated + p.allocated
       | None -> ()
+      // And what it counted, here on this VM's thread, once the chunk is done. A chunk that
+      // failed is counted too, since it ran; one cancelled below is not, being still unfinished.
+      vm.stats.AddChunk p.vm.stats
       match result with
       | Ok(DList(_, xs)) ->
         results.Add xs
