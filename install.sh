@@ -91,8 +91,8 @@ main() {
   case "$os" in
     Linux)
       case "$arch" in
-        x86_64 | amd64)
-          if is_musl; then rid="linux-musl-x64"; else rid="linux-x64"; fi ;;
+        # The musl build is fully static (OpenSSL included), so it runs on glibc systems too.
+        x86_64 | amd64) rid="linux-musl-x64" ;;
         aarch64 | arm64)
           if is_musl; then
             fail "no prebuilt binary for musl-based Linux (e.g. Alpine) on arm64 yet"
