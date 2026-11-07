@@ -73,3 +73,26 @@ test workbenchBranchPicker =
      && (cancelled.items == base.items)
   then Stdlib.Test.Result.Pass
   else Stdlib.Test.fail("picker must filter all branches, cancel and reject no matches")
+
+// A first run lands on Home. While nothing is in progress, Home ends with where to begin, and
+// each of those rows opens the view it names.
+test workbenchHomeSaysWhereToBegin =
+  let start = Darklang.Cli.Workbench.homeStartRows(true, 0, 0, 0)
+  let kinds = start |> Stdlib.List.map(fun item -> item.kind)
+  let gone =
+    [ Darklang.Cli.Workbench.homeStartRows(false, 0, 0, 0)
+      Darklang.Cli.Workbench.homeStartRows(true, 1, 0, 0)
+      Darklang.Cli.Workbench.homeStartRows(true, 0, 1, 0)
+      Darklang.Cli.Workbench.homeStartRows(true, 0, 0, 1) ]
+    |> Stdlib.List.all(fun rows -> Stdlib.List.isEmpty(rows))
+  let base = workbenchState()
+  let opens(index: Int64): Int64 =
+    let state = { base with items = start, selected = index }
+    (wbKey(state, Stdlib.Cli.Stdin.Key.Key.Enter)).state.activeView
+  if (kinds == [ "home-start-repl", "home-start-code", "home-start-docs" ])
+     && gone
+     && (opens(0) == Darklang.Cli.Workbench.vScratch)
+     && (opens(1) == Darklang.Cli.Workbench.vMatter)
+     && (opens(2) == Darklang.Cli.Workbench.vDocs)
+  then Stdlib.Test.Result.Pass
+  else Stdlib.Test.fail("Home must say where to begin while nothing is in progress, and open each view")
