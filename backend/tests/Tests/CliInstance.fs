@@ -26,7 +26,7 @@ let private homeOf (dir : string) : string = System.IO.Path.GetDirectoryName dir
 
 /// The binary under test.
 ///
-/// `run-backend-tests` sets this, because only it knows whether this is a `--published`
+/// `run-fsharp-tests` sets this, because only it knows whether this is a `--published`
 /// run. The fallback is the debug build, which is what a bare `dotnet run` of the suite
 /// would have.
 let private cliPath () : string =
@@ -41,7 +41,7 @@ let private cliPath () : string =
   // neither says so on its own.
   if not (System.IO.File.Exists path) then
     Expecto.Tests.failtestf
-      "no CLI to drive at %s (DARK_TEST_CLI); build it, or run through scripts/run-backend-tests"
+      "no CLI to drive at %s (DARK_TEST_CLI); build it, or run through scripts/run-fsharp-tests"
       path
 
   path

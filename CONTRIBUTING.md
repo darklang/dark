@@ -31,10 +31,11 @@ unless you ask for it with `scripts/dev/watch`.
 
 ## Run tests
 
-- `scripts/run-backend-tests` runs all of them; `--groups` and `--find` help you run
+- `scripts/run-tests` runs the F# tests, the Dark package tests and the gate scripts at once
+- `scripts/run-fsharp-tests` runs the F# tests; `--groups` and `--find` help you run
   part of them and print the command to do it
 - [Running unit tests](docs/unittests.md), for the filter flags and their traps
-- [Dark unit tests](backend/testfiles/README.md), for the `.dark` test files
+- [Package tests](docs/package-tests.md), for the Dark tests in `packages/darklang/tests`
 
 ### Using Dark scripts
 

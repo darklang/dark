@@ -26,10 +26,11 @@ from the clone's root. In-container paths: `/home/dark/app` is the clone.
     scripts/build/reload-packages         the reload alone, e.g. after truncating package-ref-hashes.txt
     scripts/dev/build backend/global.json a genuine full build: compile, migrate, reload
 
-    ./scripts/run-backend-tests --find <text>               find an F# test, and the command to run it
-    ./scripts/run-backend-tests --filter tests/Interpreter  one F# group (a path prefix); Debug is fine
-    ./scripts/run-cli test run Stdlib.Float                 Dark package tests, by whole name segments
-    ./scripts/run-cli test run --force Stdlib.Float         ... ignoring cached passes
+    ./scripts/run-tests --published                         every suite CI tests, at once, one summary
+    ./scripts/run-fsharp-tests --find <text>                find an F# test, and the command to run it
+    ./scripts/run-fsharp-tests --filter tests/Interpreter   one F# group (a path prefix); Debug is fine
+    ./scripts/run-cli test run Stdlib.Float                  Dark package tests, by whole name segments
+    ./scripts/run-cli test run --force Stdlib.Float          ... ignoring cached passes
 
     scripts/testing/gates list            the gates, one line each
     scripts/testing/gates <name>          one gate (first-day, package-tests, workbench-scm, ...)
@@ -45,7 +46,7 @@ opens or updates a PR:
                    scripts/testing/gates first-day $(ls clis/darklang-*-linux-x64)
                    CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates ci --parallel
                    CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates package-tests
-    build-backend  scripts/dev/build --optimize && ./scripts/run-backend-tests --published --split
+    build-backend  scripts/dev/build --optimize && ./scripts/run-fsharp-tests --published --split
 
 Is a pushed commit green? Ask `darklang/dark`, even for a branch pushed to a fork; nothing runs on
 the fork, so asking it answers `pending` forever:
@@ -58,8 +59,8 @@ there too, so read the rows, not just the overall `state`.
 The traps that cost the most, one line each. The stories are in `docs/agent-traps.md`.
 
 - An exit 0 is not a pass. `build --optimize --test` skips the tests when nothing it compiles
-  changed; run `./scripts/run-backend-tests --published` and read its `EXPECTO!` line AND exit code.
-- `run-backend-tests` does not compile. Build first, or the `.fs` change is not in the run.
+  changed; run `./scripts/run-fsharp-tests --published` and read its `EXPECTO!` line AND exit code.
+- `run-fsharp-tests` does not compile. Build first, or the `.fs` change is not in the run.
 - A test run that returns in 0s is a held lock, not a pass. Never wrap the runner in a host
   `timeout`; stop a run by pid inside the container.
 - Wait on `scripts/dev/status`, never on `ps`/`pgrep`, and never send a build's output to
@@ -151,14 +152,18 @@ know is stale; `docs/agent-traps.md` says when you need it.
 
 ## Tests
 
-    ./scripts/run-backend-tests                       all of them, a few minutes
-    ./scripts/run-backend-tests --published --split   all of them, faster: the one-at-a-time
+    ./scripts/run-tests --published                   everything CI tests: the F# tests, the Dark
+                                                      package tests and `gates ci`, all at once,
+                                                      with one summary. Without --published, Debug
+    ./scripts/run-fsharp-tests                        the F# tests, a few minutes
+    ./scripts/run-fsharp-tests --published --split    the F# tests, faster: the one-at-a-time
                                                       tests run in a second process at the
                                                       same time as the rest. What CI runs
     scripts/dev/build --optimize --test               the same, published and much faster
-    ./scripts/run-backend-tests --groups              the tree, with counts
-    ./scripts/run-backend-tests --groups Interpreter  just that part of it
-    ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
+    ./scripts/run-fsharp-tests --groups               the tree, with counts
+    ./scripts/run-fsharp-tests --groups Interpreter   just that part of it
+    ./scripts/run-fsharp-tests --find mergeFavoring   what matches, and how to run it
+    ./scripts/testing/gates package-tests             the Dark package tests (`dark test run`)
     ./scripts/testing/test-build-planning.py          tests of the build itself
     ./scripts/testing/gates list                      the gate scripts, one line each
     ./scripts/testing/gates <name>                    one gate (first-day, workbench-scm, ...)

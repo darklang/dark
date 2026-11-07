@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Stop the backend test run in this clone's dev container, and free its lock.
+# Stop the F# test run in this clone's dev container, and free its lock.
 #
 #   scripts/dev/stop-tests
 #
-# Kills the `run-backend-tests` that holds rundir/test.lock and every `Tests` process, by pid
+# Kills the `run-fsharp-tests` that holds rundir/test.lock and every `Tests` process, by pid
 # and inside the container: TERM, then KILL for anything still there after 5 seconds. Then it
 # removes the lock if what it names is gone, or is no longer a test runner.
 #
@@ -39,7 +39,7 @@ runner() {
   local p
   p=$(cat "$LOCK" 2>/dev/null)
   [[ "$p" =~ ^[0-9]+$ && "$p" != 1 && -r /proc/$p/cmdline ]] || return 0
-  tr "\0" " " < "/proc/$p/cmdline" | grep -q run-backend-tests && echo "$p"
+  tr "\0" " " < "/proc/$p/cmdline" | grep -q run-fsharp-tests && echo "$p"
 }
 
 targets() {

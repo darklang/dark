@@ -169,9 +169,9 @@ testing"); the same run from a pipe passes, which is why it survives local testi
 
 Three things make the next one findable, all in place:
 
-    scripts/run-backend-tests        under CI, a heartbeat every 2min, so a live run
+    scripts/run-fsharp-tests         under CI, a heartbeat every 2min, so a live run
                                      never looks silent to CI's no-output timeout
-    scripts/run-backend-tests --debug   names every test as it starts, which is how you
+    scripts/run-fsharp-tests --debug names every test as it starts, which is how you
                                      find WHICH one is stuck
     .circleci/continue.yml           `store-ci-diagnostics`, so a failing step still
                                      uploads its logs, test reports and the databases of

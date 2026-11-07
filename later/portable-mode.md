@@ -31,7 +31,7 @@ it made a `.darklang` beside itself, so one person could have several stores. `D
   `.circleci/config.yml` (`rm -rf clis/.darklang` in `package-clis`).
 - `DARK_HOME` users, now given their own HOME instead: `config/dev`, `config/circleci`, the gates
   and expect fixtures, `LibDB/TestProcess.fs`, `tests/Tests/CliInstance.fs`,
-  `tests/cli/instance.dark`, `scripts/perf/*`, `scripts/run-backend-tests`,
+  `tests/cli/instance.dark`, `scripts/perf/*`, `scripts/run-fsharp-tests`,
   `validate-cli-artifact` and the `.circleci` Python tests.
 
 ## Migrating an old portable store, if we ever want to

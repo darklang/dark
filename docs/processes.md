@@ -1199,7 +1199,7 @@ values (`noteValue` and `storeExprResult` in `Interpreter.fs`, `DebugSymbols` in
 
 - `scripts/dev/build --optimize --test` is the full published suite, about 5m45s. It needs
   the seed export first after a `PackageRefs` change.
-- Groups worth knowing (`./scripts/run-backend-tests --filter <group>`, seconds after
+- Groups worth knowing (`./scripts/run-fsharp-tests --filter <group>`, seconds after
   the reload): `tests/scheduler` (about 10 s, `testSequenced` because gates, trace and
   the fake key source are process-wide), `tests/LibExecution` (the stdlib testfiles,
   about 40 s), `tests/HttpClient` (4 s), `tests/CliWorkspace` (16 s, the workbench and

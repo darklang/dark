@@ -9,9 +9,9 @@ believing you had run a suite you hadn't.
 
 This answers "what can I run" and "what runs this", and prints the exact command.
 
-  scripts/run-backend-tests --groups            the tree, with counts
-  scripts/run-backend-tests --groups <substr>   just the part you mean
-  scripts/run-backend-tests --find <substr>     which tests match, and how to run them
+  scripts/run-fsharp-tests --groups            the tree, with counts
+  scripts/run-fsharp-tests --groups <substr>   just the part you mean
+  scripts/run-fsharp-tests --find <substr>     which tests match, and how to run them
 """
 
 import os
@@ -117,7 +117,7 @@ def cmd_groups(args):
 
   if not shown:
     print(f"No test group matching '{substring}'.")
-    print("Try: scripts/run-backend-tests --find " + (substring or ""))
+    print("Try: scripts/run-fsharp-tests --find " + (substring or ""))
     return 1
 
   # A match brings its children along, so you can see what's inside it.
@@ -137,9 +137,9 @@ def cmd_groups(args):
     print(f"{line}{' ' * gap}{counts[path]:>6}")
 
   print("\nRun one with:")
-  print(f"    scripts/run-backend-tests --filter {shown[0]}")
+  print(f"    scripts/run-fsharp-tests --filter {shown[0]}")
   if substring is None:
-    print("\nNarrow this list with: scripts/run-backend-tests --groups <substring>")
+    print("\nNarrow this list with: scripts/run-fsharp-tests --groups <substring>")
   return 0
 
 
@@ -154,7 +154,7 @@ def cmd_find(args):
   if not matches:
     print(f"Nothing matches '{args[0]}'.")
     print("Case matching is on the whole slash-separated name; try a shorter term,")
-    print("or browse with: scripts/run-backend-tests --groups")
+    print("or browse with: scripts/run-fsharp-tests --groups")
     return 1
 
   groups = {}
@@ -171,13 +171,13 @@ def cmd_find(args):
 
   print("\nRun them with:")
   if len(groups) == 1:
-    print(f"    scripts/run-backend-tests --filter {next(iter(groups))}")
+    print(f"    scripts/run-fsharp-tests --filter {next(iter(groups))}")
   else:
     common = os.path.commonprefix(sorted(groups)).rsplit("/", 1)[0]
     if common:
-      print(f"    scripts/run-backend-tests --filter {common}"
+      print(f"    scripts/run-fsharp-tests --filter {common}"
             "        # all of them, plus siblings")
-  print(f"    scripts/run-backend-tests --filter-test-case {args[0]}"
+  print(f"    scripts/run-fsharp-tests --filter-test-case {args[0]}"
         "   # just the matching cases")
   return 0
 

@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Every suite at once: the F# tests, the Dark package tests and the gate scripts CI runs, then
+# one summary with each suite's counts. Exits nonzero if any suite failed.
+#
+#     scripts/run-tests               against the Debug build (`scripts/dev/build`)
+#     scripts/run-tests --published   against the published build (`scripts/dev/build --optimize`)
+#
+# The suites share nothing they write: the F# tests use rundir/test-data.db and
+# rundir/split-sequenced/, package-tests uses rundir/package-tests/, and each gate its own rundir
+# and HOME. Each suite's output goes to rundir/logs/run-tests/<suite>.log.
+#
+# Not here: first-day, which needs a release binary (`gates first-day <binary>`), and the build's
+# own Python tests (scripts/testing/test-build-planning.py, .circleci/test_*.py).
+
+set -uo pipefail
+
+PUBLISHED=false
+case "${1:-}" in
+  "") ;;
+  --published) PUBLISHED=true ;;
+  *) echo "usage: scripts/run-tests [--published]" >&2; exit 2 ;;
+esac
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  FSHARP=(scripts/run-fsharp-tests --published --split)
+  export CLI=backend/Build/out/Cli/Release/net10.0/publish/Cli
+else
+  FSHARP=(scripts/run-fsharp-tests --split)
+  export CLI=backend/Build/out/Cli/Debug/net10.0/Cli
+fi
+
+# The gates check the build once per invocation; do it here, before anything starts.
+python3.12 scripts/build/_dev.py check || exit 1
+export GATES_BUILD_CHECKED=1
+
+LOGS=rundir/logs/run-tests
+rm -rf "$LOGS"; mkdir -p "$LOGS"
+
+SUITES=(fsharp package-tests gates)
+declare -A PIDS
+started=$SECONDS
+start() {  # start <suite> <command...>: in the background, recording how long it took
+  local suite="$1"; shift
+  (
+    s=$SECONDS
+    "$@" > "$LOGS/$suite.log" 2>&1
+    rc=$?
+    echo $((SECONDS - s)) > "$LOGS/$suite.time"
+    exit $rc
+  ) &
+  PIDS[$suite]=$!
+}
+start fsharp "${FSHARP[@]}"
+start package-tests scripts/testing/gates package-tests
+start gates scripts/testing/gates ci --parallel
+echo "Running ${SUITES[*]} at once; output in $LOGS/"
+
+plain() { sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' -e 's/\r/\n/g' "$1"; }
+
+counts() {
+  local log="$LOGS/$1.log"
+  case "$1" in
+    fsharp)
+      plain "$log" | grep -oE '(\[sequenced\] )?.*EXPECTO! [0-9,]+ tests run.*errored' \
+        | sed -E 's/.*(\[sequenced\]).*EXPECTO! /sequenced: /; s/.*EXPECTO! /parallel: /' \
+        | sed -E 's/ in [0-9:.]+ for tests –/:/' | paste -sd ';' | sed 's/;/; /' ;;
+    package-tests)
+      plain "$log" | grep -E '[0-9,]+ passed, [0-9,]+ failed' | tail -1 | cut -d';' -f1 ;;
+    gates)
+      plain "$log" | grep -E '^(all [0-9]+ gate\(s\) passed|FAILED:)' | tail -1 ;;
+  esac
+}
+
+failed=0
+echo
+for s in "${SUITES[@]}"; do
+  wait "${PIDS[$s]}"; rc=$?
+  verdict=ok
+  [[ "$rc" -eq 0 ]] || { verdict=FAIL; failed=1; }
+  took=$(cat "$LOGS/$s.time" 2>/dev/null || echo 0)
+  printf '  %-5s %-14s %dm%02ds  %s\n' "$verdict" "$s" $((took / 60)) $((took % 60)) "$(counts "$s")"
+done
+took=$((SECONDS - started))
+printf 'wall time %dm%02ds\n' $((took / 60)) $((took % 60))
+[[ "$failed" -eq 0 ]] || echo "Read the failing suite's log in $LOGS/."
+exit "$failed"

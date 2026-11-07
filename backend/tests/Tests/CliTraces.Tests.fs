@@ -470,7 +470,7 @@ let private testPermissionProfiles =
 /// and commit real items (6s each). They are the slowest AND among the most valuable here, which is why
 /// they are on by default and the lever skips them rather than the reverse:
 ///
-///     DARK_FAST_TESTS=1 ./scripts/run-backend-tests     # cheaper, and blind to these
+///     DARK_FAST_TESTS=1 ./scripts/run-fsharp-tests     # cheaper, and blind to these
 ///
 /// Ranked on warm runs: the frame-rendering cases look like 22s cold but are 2.5s warm.
 let private slowCliTests =

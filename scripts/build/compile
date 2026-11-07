@@ -94,7 +94,7 @@ def backend_test():
     configuration = " --published"
   else:
     configuration = ""
-  build = f"scripts/run-backend-tests {configuration}"
+  build = f"scripts/run-fsharp-tests {configuration}"
   return run_test(start, build)
 
 

@@ -1,27 +1,39 @@
 # Unit tests
 
-The repository has an F# backend suite and Dark package tests. This guide covers
+The repository has an F# suite and Dark package tests. This guide covers
 running and filtering them. See [Package tests](package-tests.md) for the design,
 including storage, isolation, permissions and caching.
 
-## Backend tests
+## Everything at once
+
+```sh
+scripts/dev/build --optimize
+scripts/run-tests --published
+```
+
+This runs the F# tests, the package tests and the CI gate subset at the same time,
+then prints each suite's counts and exits nonzero if any failed. Without
+`--published` it uses the Debug build. Each suite's output is in
+`rundir/logs/run-tests/`.
+
+## F# tests
 
 The runner uses existing binaries, so build first. Use the published build for a
 full suite run:
 
 ```sh
 scripts/dev/build --optimize
-scripts/run-backend-tests --published
+scripts/run-fsharp-tests --published
 ```
 
 For a focused run, a Debug build is also useful:
 
 ```sh
 scripts/dev/build
-scripts/run-backend-tests --filter tests/Interpreter
+scripts/run-fsharp-tests --filter tests/Interpreter
 ```
 
-The backend suite includes runtime, integration and raw HTTP tests. Its entry
+The F# suite includes runtime, integration and raw HTTP tests. Its entry
 point is [Tests.fs](../backend/tests/Tests/Tests.fs); add new F# test groups there.
 See the [testfiles README](../backend/testfiles/README.md) for the HTTP test files.
 
@@ -42,14 +54,14 @@ one half, use `--kind sequenced` or `--kind parallel`.
 Local runs reload packages into a fresh test database. CI copies the seed built
 earlier in the job instead.
 
-## Finding and filtering backend tests
+## Finding and filtering F# tests
 
 Use the discovery commands to find a group or case before choosing a filter:
 
 ```sh
-scripts/run-backend-tests --groups              # test groups and counts
-scripts/run-backend-tests --groups Interpreter  # one part of the tree
-scripts/run-backend-tests --find mergeFavoring  # matching cases and run commands
+scripts/run-fsharp-tests --groups              # test groups and counts
+scripts/run-fsharp-tests --groups Interpreter  # one part of the tree
+scripts/run-fsharp-tests --find mergeFavoring  # matching cases and run commands
 ```
 
 Discovery uses the Debug test binary, so it needs a Debug build even if you run
