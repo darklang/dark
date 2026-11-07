@@ -159,3 +159,44 @@ test setFileTimes =
   Stdlib.Test.all(
     [ setTimes(missing, 0, 0) |> Stdlib.Test.equal(Error(2))
       stamped |> Stdlib.Test.equal(Ok(Ok(5678))) ])
+
+
+test pidFromInt64 =
+  Stdlib.Test.all(
+    [ (Stdlib.Cli.Posix.Pid.fromInt64(1)) |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
+      |> Stdlib.Test.equal(Ok(1))
+      (Stdlib.Cli.Posix.Pid.fromInt64(2147483647))
+      |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
+      |> Stdlib.Test.equal(Ok(2147483647))
+      // 0 and negatives name process groups to kill(2), not a process.
+      Stdlib.Cli.Posix.Pid.fromInt64(0)
+      |> Stdlib.Result.mapError(Stdlib.toString)
+      |> Stdlib.Test.equal(Error("0 is not a valid process ID (1 to 2147483647)"))
+      Stdlib.Cli.Posix.Pid.fromInt64(-1) |> Stdlib.Result.isError |> Stdlib.Test.equal(true)
+      Stdlib.Cli.Posix.Pid.fromInt64(2147483648)
+      |> Stdlib.Result.isError
+      |> Stdlib.Test.equal(true) ])
+
+test exitCodeFromInt64 =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.ExitCode.fromInt64(0)
+      |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.success))
+      Stdlib.Cli.Posix.ExitCode.fromInt64(1)
+      |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.failure))
+      (Stdlib.Cli.Posix.ExitCode.fromInt64(255))
+      |> Stdlib.Result.map(Stdlib.Cli.Posix.ExitCode.toInt64)
+      |> Stdlib.Test.equal(Ok(255))
+      Stdlib.Cli.Posix.ExitCode.fromInt64(256)
+      |> Stdlib.Result.mapError(Stdlib.toString)
+      |> Stdlib.Test.equal(Error("256 is not a valid exit code (0 to 255)"))
+      Stdlib.Cli.Posix.ExitCode.isSuccess(Stdlib.Cli.Posix.ExitCode.success)
+      |> Stdlib.Test.equal(true)
+      Stdlib.Cli.Posix.ExitCode.isSuccess(Stdlib.Cli.Posix.ExitCode.failure)
+      |> Stdlib.Test.equal(false)
+      Stdlib.toString(Stdlib.Cli.Posix.ExitCode.failure) |> Stdlib.Test.equal("1") ])
+
+// Signal 0 checks existence; the current process is always running.
+test isProcessRunningSelf =
+  match Stdlib.Cli.Posix.Pid.fromInt64(Stdlib.Cli.Sys.currentPid()) with
+  | Ok(me) -> Stdlib.Cli.Posix.isProcessRunning(me) |> Stdlib.Test.equal(true)
+  | Error(e) -> Stdlib.Test.expect(false, Stdlib.toString(e))

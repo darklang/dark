@@ -267,12 +267,17 @@ let signalMachine(
       $"no Dark process on this machine has pid {pidText} -- `dark ps` lists them")
   | [m, ...] ->
     let signal = if hard then Stdlib.Cli.Posix.sigkill else Stdlib.Cli.Posix.sigint
-    match Stdlib.Cli.Posix.kill(pid, signal) with
-    | Ok(()) ->
-      if hard then Stdlib.Result.Result.Ok($"killed {m.title} (pid {pidText})")
-      else Stdlib.Result.Result.Ok($"asked {m.title} (pid {pidText}) to stop")
-    | Error(_) ->
+    // A pid on the machine list came from the OS, so it is in range.
+    let sent =
+      match Stdlib.Cli.Posix.Pid.fromInt64(pid) with
+      | Ok(p) -> Stdlib.Result.isOk(Stdlib.Cli.Posix.kill(p, signal))
+      | Error(_) -> false
+    if !sent then
       Stdlib.Result.Result.Error($"could not signal pid {pidText}")
+    else if hard then
+      Stdlib.Result.Result.Ok($"killed {m.title} (pid {pidText})")
+    else
+      Stdlib.Result.Result.Ok($"asked {m.title} (pid {pidText}) to stop")
 
 /// Stop a process in this instance by id prefix: `cancel` at its next turn, `kill` now.
 let stopLocal(

@@ -251,3 +251,55 @@ test parseHeaders =
         Stdlib.Dict.fromEntries([ ("Foo", "bar") ]))
       // Empty input → empty dict.
       Stdlib.Http.parseHeaders("") |> Stdlib.Test.equal(Stdlib.Dict.empty) ])
+
+
+test statusFromInt64 =
+  Stdlib.Test.all(
+    [ Stdlib.Http.Status.fromInt64(404) |> Stdlib.Test.equal(Ok(Stdlib.Http.Status.notFound))
+      (Stdlib.Http.Status.fromInt64(100)) |> Stdlib.Result.map(Stdlib.Http.Status.toInt64)
+      |> Stdlib.Test.equal(Ok(100))
+      (Stdlib.Http.Status.fromInt64(599)) |> Stdlib.Result.map(Stdlib.Http.Status.toInt64)
+      |> Stdlib.Test.equal(Ok(599))
+      Stdlib.Http.Status.fromInt64(99)
+      |> Stdlib.Result.mapError(Stdlib.toString)
+      |> Stdlib.Test.equal(Error("99 is not a valid HTTP status (100 to 599)"))
+      Stdlib.Http.Status.fromInt64(600) |> Stdlib.Result.isError |> Stdlib.Test.equal(true) ])
+
+test statusNamed =
+  Stdlib.Test.all(
+    [ Stdlib.Http.Status.toInt64(Stdlib.Http.Status.ok) |> Stdlib.Test.equal(200)
+      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.noContent) |> Stdlib.Test.equal(204)
+      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.found) |> Stdlib.Test.equal(302)
+      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.tooManyRequests) |> Stdlib.Test.equal(429)
+      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.internalServerError)
+      |> Stdlib.Test.equal(500)
+      Stdlib.toString(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("404") ])
+
+test statusClasses =
+  Stdlib.Test.all(
+    [ Stdlib.Http.Status.isSuccess(Stdlib.Http.Status.created) |> Stdlib.Test.equal(true)
+      Stdlib.Http.Status.isSuccess(Stdlib.Http.Status.found) |> Stdlib.Test.equal(false)
+      Stdlib.Http.Status.isRedirect(Stdlib.Http.Status.notModified) |> Stdlib.Test.equal(true)
+      Stdlib.Http.Status.isClientError(Stdlib.Http.Status.conflict) |> Stdlib.Test.equal(true)
+      Stdlib.Http.Status.isClientError(Stdlib.Http.Status.gatewayTimeout)
+      |> Stdlib.Test.equal(false)
+      Stdlib.Http.Status.isServerError(Stdlib.Http.Status.serviceUnavailable)
+      |> Stdlib.Test.equal(true) ])
+
+test statusReason =
+  Stdlib.Test.all(
+    [ Stdlib.Http.Status.reason(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("Not Found")
+      Stdlib.Http.Status.reason(Stdlib.Http.Status.ok) |> Stdlib.Test.equal("OK")
+      (Stdlib.Http.Status.fromInt64(418)) |> Stdlib.Result.map(Stdlib.Http.Status.reason)
+      |> Stdlib.Test.equal(Ok("")) ])
+
+// The fixed-status helpers carry the number their name says.
+test namedResponses =
+  Stdlib.Test.all(
+    [ (Stdlib.Http.success(Stdlib.Bytes.empty)).statusCode |> Stdlib.Test.equal(200)
+      (Stdlib.Http.redirectTo("/x")).statusCode |> Stdlib.Test.equal(302)
+      (Stdlib.Http.badRequest("no")).statusCode |> Stdlib.Test.equal(400)
+      (Stdlib.Http.unauthorized()).statusCode |> Stdlib.Test.equal(401)
+      (Stdlib.Http.forbidden()).statusCode |> Stdlib.Test.equal(403)
+      (Stdlib.Http.notFound()).statusCode |> Stdlib.Test.equal(404)
+      (Stdlib.Http.serverError("no")).statusCode |> Stdlib.Test.equal(500) ])

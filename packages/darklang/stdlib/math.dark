@@ -113,3 +113,35 @@ type DivisionError =
 type ModulusError =
   | ZeroModulus
   | NegativeModulus
+
+
+/// What a smart constructor such as `Net.Port.fromInt64` returns for a number outside its
+/// range: <param value> was given, and a <param what> runs from <param min> to <param max>.
+type OutOfRange =
+  { what: String
+    value: Int64
+    min: Int64
+    max: Int64 }
+
+
+impl ToString for OutOfRange =
+  /// {{65536 is not a valid port (0 to 65535)}}
+  let toString(e: OutOfRange): String =
+    $"{e.value} is not a valid {e.what} ({e.min} to {e.max})"
+
+
+/// Returns {{Ok}} of <param make> applied to <param value> when it lies between <param min>
+/// and <param max> inclusive, or {{Error}} an <type OutOfRange> naming <param what>. The body of
+/// every `fromInt64` smart constructor.
+let __inRange(
+  what: String,
+  min: Int64,
+  max: Int64,
+  value: Int64,
+  make: Int64 -> 'a)
+  : Stdlib.Result.Result<'a, OutOfRange> =
+  if value < min || value > max then
+    Stdlib.Result.Result.Error(
+      OutOfRange { what = what, value = value, min = min, max = max })
+  else
+    Stdlib.Result.Result.Ok(make(value))
