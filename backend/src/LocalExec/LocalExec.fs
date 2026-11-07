@@ -107,7 +107,7 @@ module HandleCommand =
           exeState
           BranchId.Main
           PM.pt
-          true
+          (Some(LibExecution.HostProcess.runtimeHash ()))
           ops
       // The choices are written at the hashes in hand, then moved by the rehash, exactly as the
       // authoring path does it.

@@ -25,6 +25,7 @@
     <Compile Include="Deprecations.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="TestResults.fs" />
+    <Compile Include="TraitCallCache.fs" />
     <Compile Include="StoreHealth.fs" />
     <Compile Include="PackageLocation.fs" />
     <Compile Include="Purge.fs" />

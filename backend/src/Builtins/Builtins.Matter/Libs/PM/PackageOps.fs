@@ -197,7 +197,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let! resolved =
-              TraitCalls.resolveTraitCalls exeState exeState.branchId pm false ptOps
+              TraitCalls.resolveTraitCalls exeState exeState.branchId pm None ptOps
             return
               Dval.list (packageOpKT ()) (resolved |> List.map PT2DT.PackageOp.toDT)
           }

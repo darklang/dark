@@ -104,6 +104,9 @@ let private hashCoupledSurvivors =
     // The `dark test run` result cache. A pass keyed on the test's hash, the runtime, the branch
     // and the result type's binding stays true across a reload.
     "package_test_results"
+    // The reload's trait-call cache: what the checker answered for a body, keyed on the body's hash
+    // and on everything else the answer depends on, so it stays true across a reload.
+    "trait_call_resolutions"
     "schema_state_v0" // describes the SCHEMA, not the log
     "trace_fn_calls" // observations of past runs; deliberately outlive their code
     // Same: a run is a trace, and `entry_hash` records which handler served a request as a
