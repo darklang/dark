@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Build the pinned native compiler and put it where `dark compile` looks for it:
+#   rundir/compiler/<first 9 of the commit>/darkc   (~/.darklang/compiler/... in the container)
+#
+# Runs on the HOST, not in the dev container: it needs docker. The commit is in
+# scripts/compiler/COMPILER_COMMIT and must match `Darklang.Cli.Compile.pinnedCommit`.
+#
+#   scripts/compiler/build            build the pinned commit
+#   scripts/compiler/build <commit>   build another one (set DARK_COMPILER to use it)
+
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+COMMIT="${1:-$(tr -d '[:space:]' < "$DIR/scripts/compiler/COMPILER_COMMIT")}"
+SHORT="${COMMIT:0:9}"
+OUT="$DIR/rundir/compiler/$SHORT"
+IMAGE="dark-compiler:$SHORT"
+
+if [[ -x "$OUT/darkc" ]]; then
+  echo "Already built: $OUT/darkc"
+  exit 0
+fi
+
+docker build --build-arg COMPILER_COMMIT="$COMMIT" -t "$IMAGE" "$DIR/scripts/compiler"
+mkdir -p "$OUT"
+CONTAINER=$(docker create "$IMAGE")
+trap 'docker rm "$CONTAINER" > /dev/null' EXIT
+docker cp "$CONTAINER:/src/_build/default/bin/dark.exe" "$OUT/darkc"
+chmod +x "$OUT/darkc"
+echo "Built $OUT/darkc"
