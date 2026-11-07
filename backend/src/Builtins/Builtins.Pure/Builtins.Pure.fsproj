@@ -33,6 +33,7 @@
     <Compile Include="Libs/Bytes.fs" />
     <Compile Include="Libs/Stream.fs" />
 
+    <Compile Include="CaseMapping.fs" />
     <Compile Include="Libs/Char.fs" />
     <Compile Include="Libs/String.fs" />
     <Compile Include="Libs/Regex.fs" />

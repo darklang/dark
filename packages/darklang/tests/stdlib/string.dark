@@ -652,25 +652,52 @@ test toUppercase =
       Stdlib.String.toUppercase("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿")
       |> Stdlib.Test.equal("ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿")
       Stdlib.String.toUppercase("ჾ") |> Stdlib.Test.equal("Ჾ")
-      // should be "FIFL"
-      // TODO: There are two types of unicode case "mapping" (conversion), "simple"
-      // and "full". .NET supports simple mapping, which maps a single character to a
-      // single character. It does not support "full" mapping, which maps a single
-      // character to multiple characters.
-      //
-      // Discussed at https://github.com/dotnet/runtime/issues/30960, specifially
-      // https://github.com/dotnet/runtime/issues/30960#issuecomment-535274401
-      //
-      // A possible solution is to write our own case mapper, or reuse an existing
-      // one. A potential candidate is
-      // https://github.com/dotnet/corefxlab/tree/archive/src/System.Text.CaseFolding
-      // (packaged at
-      // https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
-      Stdlib.String.toUppercase("ﬁﬂ") |> Stdlib.Test.equal("ﬁﬂ")
-      // should be "ԵՒ"
-      Stdlib.String.toUppercase("և") |> Stdlib.Test.equal("և")
+      Stdlib.String.toUppercase("ﬁﬂ") |> Stdlib.Test.equal("FIFL")
+      Stdlib.String.toUppercase("և") |> Stdlib.Test.equal("ԵՒ")
       Stdlib.String.toUppercase("z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
       |> Stdlib.Test.equal("Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇") ])
+
+// Full case mapping: one character can become several, the rules are Unicode's defaults
+// on every machine, and no language's own rules apply.
+test toUppercaseFullMapping =
+  Stdlib.Test.all(
+    [ Stdlib.String.toUppercase("straße") |> Stdlib.Test.equal("STRASSE")
+      Stdlib.String.toUppercase("ß") |> Stdlib.Test.equal("SS")
+      Stdlib.String.length(Stdlib.String.toUppercase("ß")) |> Stdlib.Test.equal(2)
+      Stdlib.String.toUppercase("ﬁ") |> Stdlib.Test.equal("FI")
+      Stdlib.String.toUppercase("ﬃ") |> Stdlib.Test.equal("FFI")
+      Stdlib.String.toUppercase("ᾳ") |> Stdlib.Test.equal("ΑΙ")
+      // a letter and its marks: one Char in, one Char out
+      Stdlib.String.length(Stdlib.String.toUppercase("ΐ")) |> Stdlib.Test.equal(1)
+      Stdlib.String.toUppercase("ǰ") |> Stdlib.Test.equal("J̌")
+      // Turkish letters, without Turkish rules
+      Stdlib.String.toUppercase("i") |> Stdlib.Test.equal("I")
+      Stdlib.String.toUppercase("ı") |> Stdlib.Test.equal("I")
+      Stdlib.String.toUppercase("İ") |> Stdlib.Test.equal("İ")
+      Stdlib.String.toUppercase("👍🏽🇵🇷")
+      |> Stdlib.Test.equal("👍🏽🇵🇷") ])
+
+test toLowercaseFullMapping =
+  Stdlib.Test.all(
+    [ Stdlib.String.toLowercase("I") |> Stdlib.Test.equal("i")
+      Stdlib.String.toLowercase("İstanbul") |> Stdlib.Test.equal("i̇stanbul")
+      Stdlib.String.length(Stdlib.String.toLowercase("İ")) |> Stdlib.Test.equal(1)
+      Stdlib.String.toLowercase("ı") |> Stdlib.Test.equal("ı")
+      Stdlib.String.toLowercase("ẞ") |> Stdlib.Test.equal("ß")
+      Stdlib.String.toLowercase("ﬁ") |> Stdlib.Test.equal("ﬁ")
+      Stdlib.String.toLowercase("👍🏽") |> Stdlib.Test.equal("👍🏽") ])
+
+// A capital sigma lowercases to the final form at the end of a word, looking past
+// punctuation inside the word, and to the ordinary one anywhere else.
+test toLowercaseFinalSigma =
+  Stdlib.Test.all(
+    [ Stdlib.String.toLowercase("ΟΔΥΣΣΕΥΣ")
+      |> Stdlib.Test.equal("οδυσσευς")
+      Stdlib.String.toLowercase("ΑΣ ΒΣ") |> Stdlib.Test.equal("ας βς")
+      Stdlib.String.toLowercase("ΑΣ.") |> Stdlib.Test.equal("ας.")
+      Stdlib.String.toLowercase("ΑΣ.Β") |> Stdlib.Test.equal("ασ.β")
+      Stdlib.String.toLowercase("Σ") |> Stdlib.Test.equal("σ")
+      Stdlib.String.toLowercase("ΣΑ") |> Stdlib.Test.equal("σα") ])
 
 test toUppercaseCombiningMarks =
   Stdlib.Test.all(
