@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+# What CI says about a PR, a branch or a commit, without hand-written curl.
+#
+#   scripts/dev/ci-status                 this clone's HEAD
+#   scripts/dev/ci-status 6192            a PR on darklang/dark
+#   scripts/dev/ci-status my-branch       a branch (its PR, if it has one)
+#   scripts/dev/ci-status 17e3f6abc1      a commit, full or abbreviated
+#   scripts/dev/ci-status --job 77326     one job, with the log of any step that failed
+#   scripts/dev/ci-status --wait 6192     block until every job is done
+#
+# One line per job, newest run of each. Any failed job also gets the last lines of each
+# step that failed (--lines N, default 40), so you rarely need the web UI.
+#
+# With --wait it polls every 30s and ends with one line to match on:
+#
+#   ci-status: success build-backend build-cli ok-to-deploy
+#   ci-status: failure build-cli
+#
+# and exits 0 on success, 1 on failure. Without --wait the same line says `pending` while
+# anything is still running (exit 2).
+#
+# CI runs on darklang/dark, never on the fork, whatever remote you pushed to. Jobs come from
+# CircleCI's public v1.1 API; GitHub's commit statuses are added through `gh` when it's
+# installed. Runs on the host; no container needed.
+
+import json
+import re
+import subprocess
+import sys
+import time
+import urllib.request
+
+REPO = "darklang/dark"
+API = f"https://circleci.com/api/v1.1/project/github/{REPO}"
+SETUP_JOBS = {"images", "publish-images"}  # finish before the real jobs even exist
+PASSED = {"success", "fixed", "no_tests"}
+
+
+def get(url):
+  req = urllib.request.Request(url, headers={"Accept": "application/json"})
+  with urllib.request.urlopen(req, timeout=30) as r:
+    return json.load(r)
+
+
+def sh(*args):
+  try:
+    return subprocess.run(args, capture_output=True, text=True, check=True).stdout.strip()
+  except (OSError, subprocess.CalledProcessError):
+    return ""
+
+
+def have_gh():
+  return sh("gh", "--version") != ""
+
+
+def resolve(target):
+  """(tree to list, revision to keep or None, label)"""
+  if target is None:
+    sha = sh("git", "rev-parse", "HEAD")
+    if not sha:
+      sys.exit("ci-status: not in a git checkout; name a PR, branch or sha")
+    return None, sha, f"HEAD {sha[:10]}"
+  if target.isdigit() and len(target) < 7:
+    return f"pull/{target}", None, f"PR #{target}"
+  if re.fullmatch(r"[0-9a-f]{7,40}", target):
+    return None, target, f"commit {target[:10]}"
+  # A fork branch builds as pull/N, so find its PR first.
+  if have_gh():
+    pr = sh("gh", "pr", "list", "--repo", REPO, "--head", target, "--state", "all",
+            "--json", "number", "--jq", ".[0].number")
+    if pr:
+      return f"pull/{pr}", None, f"branch {target} (PR #{pr})"
+  return target, None, f"branch {target}"
+
+
+def jobs_for(tree, sha):
+  if tree:
+    builds = get(f"{API}/tree/{tree.replace('/', '%2F')}?shallow=true&limit=50")
+    if builds and sha is None:
+      sha = builds[0]["vcs_revision"]  # newest push
+  else:
+    builds = get(f"{API}?shallow=true&limit=100")
+  if sha:
+    builds = [b for b in builds if b["vcs_revision"].startswith(sha)]
+  newest = {}
+  for b in builds:  # newest first, so the first of each name is the latest rerun
+    name = (b.get("workflows") or {}).get("job_name") or f"job-{b['build_num']}"
+    newest.setdefault(name, b)
+  full = builds[0]["vcs_revision"] if builds else sha
+  return full, sorted(newest.items(), key=lambda kv: kv[1]["build_num"])
+
+
+def github_statuses(sha):
+  if not sha or len(sha) != 40 or not have_gh():
+    return None
+  out = sh("gh", "api", f"repos/{REPO}/commits/{sha}/status")
+  return json.loads(out) if out else None
+
+
+def is_done(b):
+  return b.get("lifecycle") == "finished" or b["status"] in PASSED | {
+    "failed", "canceled", "infrastructure_fail", "timedout", "not_run"}
+
+
+def failed_step_tails(build_num, lines):
+  detail = get(f"{API}/{build_num}")
+  for step in detail.get("steps", []):
+    for action in step["actions"]:
+      if action["status"] in PASSED or action["status"] == "running":
+        continue
+      if not action.get("output_url"):
+        continue
+      out = get(action["output_url"])
+      text = "".join(m.get("message", "") for m in out)
+      text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text).replace("\r", "")
+      tail = text.rstrip("\n").split("\n")[-lines:]
+      print(f"\n---- {build_num} step '{action['name']}' ({action['status']}), "
+            f"last {len(tail)} lines ----")
+      print("\n".join(tail))
+
+
+def report(jobs, gh_state):
+  for name, b in jobs:
+    secs = (b.get("build_time_millis") or 0) // 1000
+    took = f"{secs // 60}m{secs % 60:02d}s" if is_done(b) and secs else ""
+    print(f"  {b['status']:<12} {name:<28} {took:>7}  https://circleci.com/gh/{REPO}/{b['build_num']}")
+  if gh_state:
+    others = [s for s in gh_state["statuses"] if not s["context"].startswith("ci/circleci")]
+    for s in others:
+      print(f"  {s['state']:<12} {s['context']:<28} {'':>7}  {s.get('target_url') or ''}")
+
+
+def verdict(jobs, gh_state):
+  if not jobs:
+    return "pending"
+  if any(is_done(b) and b["status"] not in PASSED for _, b in jobs):
+    return "failure"
+  if gh_state and gh_state["state"] == "failure":
+    return "failure"
+  if not all(is_done(b) for _, b in jobs):
+    return "pending"
+  if all(name in SETUP_JOBS for name, _ in jobs):
+    return "pending"  # the build jobs haven't been created yet
+  if gh_state and gh_state["state"] == "pending" and gh_state["statuses"]:
+    return "pending"
+  return "success"
+
+
+def main(argv):
+  if "-h" in argv or "--help" in argv:
+    with open(__file__) as f:
+      next(f)
+      for line in f:
+        if not line.startswith("#"):
+          break
+        print(line[2:].rstrip())
+    return 0
+  wait = "--wait" in argv
+  lines, job, target, rest = 40, None, None, [a for a in argv if a != "--wait"]
+  while rest:
+    a = rest.pop(0)
+    if a == "--lines":
+      lines = int(rest.pop(0))
+    elif a == "--job":
+      job = rest.pop(0)
+    elif a.startswith("-"):
+      sys.exit(f"ci-status: unknown flag {a}; try --help")
+    elif target is None:
+      target = a
+    else:
+      sys.exit("ci-status: one target only")
+
+  if job:
+    b = get(f"{API}/{job}")
+    name = (b.get("workflows") or {}).get("job_name") or b.get("job_name")
+    print(f"ci-status: job {job} {name} on {b['vcs_revision'][:10]}")
+    report([(name, b)], None)
+    if is_done(b) and b["status"] not in PASSED:
+      failed_step_tails(job, lines)
+    return 0 if b["status"] in PASSED else 1
+
+  tree, sha, label = resolve(target)
+  printed = None
+  while True:
+    full, jobs = jobs_for(tree, sha)
+    gh_state = github_statuses(full)
+    state = verdict(jobs, gh_state)
+    snapshot = [(n, b["status"]) for n, b in jobs]
+    if snapshot != printed:
+      print(f"ci-status: {label}, {(full or '?')[:10]}, {time.strftime('%H:%M:%S')}")
+      report(jobs, gh_state)
+      printed = snapshot
+    if state != "pending" or not wait:
+      break
+    time.sleep(30)
+
+  failed = [(n, b) for n, b in jobs if is_done(b) and b["status"] not in PASSED]
+  for _, b in failed:
+    failed_step_tails(b["build_num"], lines)
+  names = [n for n, _ in (failed if state == "failure" else jobs)]
+  print(f"\nci-status: {state} {' '.join(names)}".rstrip())
+  return {"success": 0, "failure": 1}.get(state, 2)
+
+
+if __name__ == "__main__":
+  sys.exit(main(sys.argv[1:]))
