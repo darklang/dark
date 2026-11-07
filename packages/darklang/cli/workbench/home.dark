@@ -1,5 +1,6 @@
 /// Home shows what needs you, the branch you are on, recent commits, and the
 /// open branches. A single full-width overview; Enter opens the row's thing.
+/// While nothing is in progress, it ends with where to begin.
 ///
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
@@ -29,6 +30,27 @@ let agoText(ts: String): String =
   match Stdlib.DateTime.parse(ts) with
   | Ok(d) -> ago(d)
   | Error(_) -> ts
+
+
+/// Where to begin, while nothing is in progress: on main, nothing uncommitted, no conflict and
+/// no other branch. A first run lands on Home with nothing else to go on, as the rest of Home is
+/// the store's own history. So does a store whose work is all committed to main, where the rows
+/// cost three lines at the bottom and nothing else. They go once you start a change or a
+/// branch, and each only opens a view the strip above already has.
+let homeStartRows(
+  onMain: Bool,
+  uncommittedOps: Int64,
+  conflicts: Int64,
+  otherBranches: Int64)
+  : List<BodyItem> =
+  let row(name: String, kind: String, desc: String): BodyItem =
+    BodyItem { name = name, kind = kind, isModule = false, desc = desc }
+  if onMain && (uncommittedOps == 0) && (conflicts == 0) && (otherBranches == 0) then
+    [ row("try an expression", "home-start-repl", "4 REPL · run a line of Dark")
+      row("write a function", "home-start-code", "2 Code · n starts a new one")
+      row("read the docs", "home-start-docs", "6 Docs · syntax, types, the stdlib") ]
+  else
+    []
 
 
 /// How many commits Home lists before a "more" row.
@@ -122,6 +144,12 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
       let label = if hidden == 1 then " more branch" else " more branches"
       [ row("+ " + (Stdlib.toString(hidden)) + label,
           "home-more", "⏎ choose a branch") ]
+  let start =
+    homeStartRows(
+      SCM.Branch.isMain(branchId),
+      draft.ops,
+      conflictCount,
+      Stdlib.List.length(openBranches))
   let section(label: String, rows: List<BodyItem>): List<BodyItem> =
     if Stdlib.List.isEmpty(rows) then []
     else Stdlib.List.concat([ homeHeader(""), homeHeader(label) ], rows)
@@ -129,7 +157,9 @@ let loadHomeItemsFrom(branchId: Uuid, draft: SCM.Draft.Picture): List<BodyItem> 
     [ section("needs attention", attention)
       section("this branch", here)
       section("recent commits", recent)
-      section("branches", Stdlib.List.concat(branches, more)) ])
+      section("branches", Stdlib.List.concat(branches, more))
+      // Last, so the cursor still opens on your branch and a store you have used reads as before.
+      section("start here", start) ])
   |> Stdlib.List.drop(1)
 
 /// The selected row's position among the rows of its own kind - the index the
@@ -155,12 +185,19 @@ let homeRowIsCurrentBranch(state: State): Bool =
 /// ⏎ opens a Home row; → stays on the list.
 /// The conflict summary and the branch you are on open Changes (conflicts sit
 /// at its top); a commit opens its ops in the reader, and the "more" rows
-/// open the full lists there; another branch switches to it.
+/// open the full lists there; another branch switches to it. A "start here"
+/// row opens the view it names.
 let openHomeRow(state: State): Step =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Step.Continue(state)
   | Some(item) ->
-    if (item.kind == "home-conflicts") || (item.kind == "home-here") then
+    if item.kind == "home-start-repl" then
+      Step.Continue(goTo(state, mkDest(vScratch, 0), false))
+    else if item.kind == "home-start-code" then
+      Step.Continue(goTo(state, mkDest(vMatter, 0), false))
+    else if item.kind == "home-start-docs" then
+      Step.Continue(goTo(state, mkDest(vDocs, 0), false))
+    else if (item.kind == "home-conflicts") || (item.kind == "home-here") then
       let moved = goTo(state, mkDest(vSCM, 0), false)
       Step.Continue({ moved with selected = 0 })
     else if item.kind == "home-constraints" then
