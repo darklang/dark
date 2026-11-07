@@ -1400,14 +1400,39 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
 
     let args = NEList.singleton (RT.DString code)
     let! execResult = LibExecution.Execution.executeFunction state name [] args
-
-    match execResult with
-    | Ok dval ->
-      match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
-      | Ok expr -> return expr
+    let! dval =
+      match execResult with
+      | Ok dval -> Ply dval
       | Error _ ->
-        return Exception.raiseInternal "Error converting Dval to PT.Expr" []
-    | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
+        uply {
+          let! rte = unwrapExecutionResult state execResult
+          return
+            Exception.raiseInternal
+              "parsePTExpr raised a runtime error"
+              [ "code", code; "error", rte ]
+        }
+
+    match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+    | Ok expr -> return expr
+    | Error parseError ->
+      let toStringFn =
+        RT.FQFnName.fqPackage (
+          PackageRefs.Fn.LanguageTools.Parser.parseErrorToString ()
+        )
+      let! message =
+        LibExecution.Execution.executeFunction
+          state
+          toStringFn
+          []
+          (NEList.singleton parseError)
+      let message =
+        match message with
+        | Ok(RT.DString message) -> message
+        | _ -> string parseError
+      return
+        Exception.raiseInternal
+          $"parsePTExpr refused the code: {message}"
+          [ "code", code ]
   }
   |> Ply.toTask
 

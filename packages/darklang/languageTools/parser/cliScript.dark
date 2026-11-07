@@ -47,11 +47,9 @@ let parseDecls(
   : Stdlib.Result.Result<WTCliScriptModule, ParseError> =
   // A parse error blocks declaration extraction — the recovered tree would be broken.
   match diagnostics with
-  | [(range, message), ...] ->
-    let rendered =
-      $"Parse error at line {Stdlib.toString(range.start.row + 1)}, column {Stdlib.toString(range.start.column)}: {message}"
-
-    Stdlib.Result.Result.Error(ParseError.Message(rendered))
+  | [ first, ... ] ->
+    Stdlib.Result.Result.Error(
+      ParseError.Message(Parse.ParseError.diagnosticToString(first)))
 
   | [] ->
     // `ParsedFile` is a single-case DU (`SourceFile of ...`). No `| _` fallback.
@@ -404,9 +402,14 @@ let parse(
   source: String)
   : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), ParseError> =
   match source |> LanguageTools.Parser.Parse.initialParse with
-  | Error(e) -> Stdlib.Result.Result.Error(ParseError.Message(e))
-  | Ok(parsedFile) ->
-    parseFromWT(ctx, scriptName, Parse.diagnostics(source), parsedFile)
+  // The first diagnostic only, as `parseDecls` reports it: the rest are often the parser's
+  // recovery tripping over the same mistake.
+  | Error(Syntax([ first, ... ])) ->
+    Stdlib.Result.Result.Error(
+      ParseError.Message(Parse.ParseError.diagnosticToString(first)))
+  | Error(e) ->
+    Stdlib.Result.Result.Error(ParseError.Message(Parse.ParseError.toString(e)))
+  | Ok(parsedFile) -> parseFromWT(ctx, scriptName, [], parsedFile)
 
 
 /// Single-shot parse for CLI use: creates PM and NRContext internally
@@ -438,12 +441,15 @@ let pmWithExtras(
   source: String)
   : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, ParseError> =
   // The range-complete parser, matching the rest of the LSP.
-  match Parse.toWrittenTypes(source) with
-  | None -> Stdlib.Result.Result.Error(ParseError.Message("parse failed"))
-  | Some(parsedFile) ->
-    match
-      parseDecls(ctx.owner, scriptName, Parse.diagnostics(source), parsedFile)
-    with
+  match Parse.parse(LanguageTools.Parser.FileKind.Script, source) with
+  | (None, []) ->
+    Stdlib.Result.Result.Error(
+      ParseError.Message(Parse.ParseError.toString(Parse.ParseError.NoTree)))
+  | (None, [ first, ... ]) ->
+    Stdlib.Result.Result.Error(
+      ParseError.Message(Parse.ParseError.diagnosticToString(first)))
+  | (Some(parsedFile), diagnostics) ->
+    match parseDecls(ctx.owner, scriptName, diagnostics, parsedFile) with
     | Error(e) -> Stdlib.Result.Result.Error(e)
     | Ok(moduleWT) ->
       let (_, ops, _) = toPT(ctx, moduleWT)

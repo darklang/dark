@@ -21,22 +21,59 @@ let diagnostics(code: String): List<(Parser.Range * String)> =
   (parse(Parser.FileKind.Script, code)) |> Stdlib.Tuple2.second
 
 
-let initialParse(
+/// Why a parser entry point refused its source.
+type ParseError =
+  /// The parser's syntax diagnostics, as (range, message) pairs, in source order. Never empty.
+  | Syntax(diagnostics: List<(Parser.Range * String)>)
+  /// The tokenizer failed outright, so there is no tree and nothing more specific to say.
+  | NoTree
+  /// `parsePTExpr` wants exactly one expression, and the source held this many.
+  | NotOneExpression(count: Int64)
+
+
+module ParseError =
+  /// One diagnostic as a line a person can act on. The line and column count from 1, as in
+  /// the parser messages and the CLI diagnostics.
+  let diagnosticToString(diagnostic: (Parser.Range * String)): String =
+    let (range, message) = diagnostic
+    $"Parse error at line {Stdlib.toString(range.start.row + 1)}, column {Stdlib.toString(range.start.column + 1)}: {message}"
+
+  let toString(err: ParseError): String =
+    match err with
+    | Syntax(diagnostics) ->
+      diagnostics
+      |> Stdlib.List.map(fun d -> diagnosticToString(d))
+      |> Stdlib.String.join("\n")
+    | NoTree -> "Couldn't parse the source at all"
+    | NotOneExpression(count) ->
+      $"Expected exactly one expression, but found {Stdlib.toString(count)}"
+
+
+/// The range-complete parser's tree for <param code>, or why not. Every consumer of this fn
+/// (canvas modules, CLI scripts, the package-test runner, parsePTExpr) parses through it.
+///
+/// A source with any syntax diagnostic is an `Error`, even though the parser recovered a tree:
+/// lowering turns the recovery holes into `()`, so passing that tree on would run something
+/// other than what was written.
+let initialParse(code: String): Stdlib.Result.Result<WrittenTypes.ParsedFile, ParseError> =
+  initialParseAs(Parser.FileKind.Script, code)
+
+
+/// `initialParse` for a <param kind> other than a script, such as a package file, where named
+/// tests are allowed.
+let initialParseAs(
+  kind: Parser.FileKind,
   code: String)
-  : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
-  // The range-complete parser. Every consumer of this fn (canvas modules, CLI scripts, the
-  // package-test runner, parsePTExpr) parses through it. `toWrittenTypes` above is the same
-  // builtin as an Option; this is it as a Result, and going through that one keeps the builtin
-  // named once.
-  match toWrittenTypes(code) with
-  | Some(parsedFile) -> Stdlib.Result.Result.Ok(parsedFile)
-  | None -> Stdlib.Result.Result.Error("parse failed")
+  : Stdlib.Result.Result<WrittenTypes.ParsedFile, ParseError> =
+  match parse(kind, code) with
+  | (Some(parsedFile), []) -> Stdlib.Result.Result.Ok(parsedFile)
+  | (None, []) -> Stdlib.Result.Result.Error(ParseError.NoTree)
+  | (_, diagnostics) -> Stdlib.Result.Result.Error(ParseError.Syntax(diagnostics))
 
 
-// TODO: maybe use a proper type instead of string?
 let parsePTExpr(
   code: String)
-  : Stdlib.Result.Result<ProgramTypes.Expr, String> =
+  : Stdlib.Result.Result<ProgramTypes.Expr, ParseError> =
   // context-free lowering is just the in-context lowering with an empty context, against main
   parsePTExprInContext(SCM.Branch.mainBranchId, "", [], [], [], code)
 
@@ -57,7 +94,7 @@ let parsePTExprInContext(
   currentFnName: List<String>,
   paramNames: List<String>,
   code: String)
-  : Stdlib.Result.Result<ProgramTypes.Expr, String> =
+  : Stdlib.Result.Result<ProgramTypes.Expr, ParseError> =
   match code |> initialParse with
   | Ok(sourceFile) ->
     let exprs =
@@ -93,7 +130,7 @@ let parsePTExprInContext(
       let (expr, _) = WrittenTypesToProgramTypes.Expr.toPT(ctx, wtCtx, expr)
       expr |> Stdlib.Result.Result.Ok
     | _ ->
-      "Expected exactly one expression to be parsed"
+      ParseError.NotOneExpression(Stdlib.List.length(exprs))
       |> Stdlib.Result.Result.Error
   | Error(e) -> Stdlib.Result.Result.Error(e)
 
@@ -103,7 +140,7 @@ let parsePTSourceFileWithOps(
   code: String)
   : Stdlib.Result.Result<
     (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
-    String
+    ParseError
   > =
   match code |> initialParse with
   | Ok(parsedFile) ->
