@@ -184,10 +184,10 @@ let getPathParam(req: Http.Request, routePattern: String, paramName: String): Op
 
 
 /// Configuration for `serve`. Build defaults with `Config.defaults port`, then override any field with
-/// record-update, e.g. `{ HttpServer.Config.defaults 8080 with logRequests = false }`.
+/// record-update, e.g. `{ HttpServer.Config.defaults(Net.Port.httpAlt) with logRequests = false }`.
 module Config =
   type Config =
-    { port: Int64
+    { port: Stdlib.Net.Port
       /// Maximum request body size in bytes (over-limit → 413).
       maxBodyBytes: Int64
       /// Auto-add `Server: darklang` + HSTS unless the handler set them.
@@ -201,7 +201,7 @@ module Config =
   val defaultMaxBodyBytes = 31457280
 
   /// Sensible serve defaults for `port`: 30 MB max body, standard headers, proto canonicalization, logging.
-  let defaults(port: Int64): Config =
+  let defaults(port: Stdlib.Net.Port): Config =
     Config
       { port = port
         maxBodyBytes = defaultMaxBodyBytes
@@ -218,7 +218,7 @@ let serve(
   onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
   Builtin.httpServerServe(
-    config.port,
+    Stdlib.Net.Port.toInt64(config.port),
     handler,
     config.maxBodyBytes,
     config.injectStandardHeaders,
@@ -244,7 +244,7 @@ let serveLive(
   onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
   Builtin.httpServerServeLive(
-    config.port,
+    Stdlib.Net.Port.toInt64(config.port),
     init,
     step,
     first,

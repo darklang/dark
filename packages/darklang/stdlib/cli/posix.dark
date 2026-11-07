@@ -14,6 +14,52 @@ type StatResult =
     size: Int64
     mtimeSec: Int64 }
 
+/// A process ID, 1 to 2147483647. Build one with <fn Pid.fromInt64>; the field is not for
+/// constructing directly. 0 and the negative numbers `kill(2)` reads as process groups are
+/// not process IDs, so they are refused here.
+type Pid = { __value: Int64 }
+
+module Pid =
+  /// Returns {{Ok}} the process ID <param n>, or {{Error}} an
+  /// <type Stdlib.Math.OutOfRange> if it is not between 1 and 2147483647.
+  let fromInt64(n: Int64): Result.Result<Stdlib.Cli.Posix.Pid, Stdlib.Math.OutOfRange> =
+    Stdlib.Math.__inRange("process ID", 1, 2147483647, n, fun v -> Stdlib.Cli.Posix.Pid { __value = v })
+
+  /// The number of <param pid>
+  let toInt64(pid: Stdlib.Cli.Posix.Pid): Int64 = pid.__value
+
+impl ToString for Pid =
+  /// The process ID, {{4242}}
+  let toString(pid: Pid): String = Stdlib.toString(pid.__value)
+
+
+/// A process exit status, 0 to 255. Build one with <fn ExitCode.fromInt64>, or name one
+/// (<val ExitCode.success>); the field is not for constructing directly.
+type ExitCode = { __value: Int64 }
+
+module ExitCode =
+  /// Returns {{Ok}} the exit status <param n>, or {{Error}} an
+  /// <type Stdlib.Math.OutOfRange> if it is not between 0 and 255.
+  let fromInt64(n: Int64): Result.Result<Stdlib.Cli.Posix.ExitCode, Stdlib.Math.OutOfRange> =
+    Stdlib.Math.__inRange("exit code", 0, 255, n, fun v -> Stdlib.Cli.Posix.ExitCode { __value = v })
+
+  /// The number of <param code>
+  let toInt64(code: Stdlib.Cli.Posix.ExitCode): Int64 = code.__value
+
+  /// 0
+  val success = Stdlib.Cli.Posix.ExitCode { __value = 0 }
+
+  /// 1
+  val failure = Stdlib.Cli.Posix.ExitCode { __value = 1 }
+
+  /// Returns {{true}} for 0
+  let isSuccess(code: Stdlib.Cli.Posix.ExitCode): Bool = code.__value == 0
+
+impl ToString for ExitCode =
+  /// The exit status, {{1}}
+  let toString(code: ExitCode): String = Stdlib.toString(code.__value)
+
+
 /// Standard permission modes
 module Modes =
   /// 0755 — owner rwx, group rx, others rx
@@ -191,8 +237,8 @@ let uname(): Result.Result<(String * String * String), Error> =
 
 
 /// Send a signal to a process
-let kill(pid: Int64, signal: Int64): Result.Result<Unit, Error> =
-  Builtin.syscallKill(pid, signal)
+let kill(pid: Pid, signal: Int64): Result.Result<Unit, Error> =
+  Builtin.syscallKill(Stdlib.Cli.Posix.Pid.toInt64(pid), signal)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 val sigterm = 15
@@ -245,7 +291,7 @@ let isDirectory(path: String): Bool =
 
 /// Check if a process is running via kill(pid, 0).
 /// Signal 0 checks process existence without sending a signal.
-let isProcessRunning(pid: Int64): Bool =
+let isProcessRunning(pid: Pid): Bool =
   match kill(pid, 0) with
   | Ok(_) -> true
   | Error(e) ->

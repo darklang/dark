@@ -136,12 +136,12 @@ let exec(program: String, args: List<String>): Result.Result<String, String> =
 
 
 /// Kill a process by PID.
-let kill(pid: Int64): Result.Result<Unit, Posix.Error> =
+let kill(pid: Posix.Pid): Result.Result<Unit, Posix.Error> =
   Posix.kill(pid, Posix.sigterm)
 
 
 /// Force-kill a process by PID.
-let forceKill(pid: Int64): Result.Result<Unit, Posix.Error> =
+let forceKill(pid: Posix.Pid): Result.Result<Unit, Posix.Error> =
   Posix.kill(pid, Posix.sigkill)
 
 
@@ -257,12 +257,12 @@ let shellPipeline(commands: List<String>): Result.Result<Output, Posix.Error> =
 
 
 /// Check if a process is running.
-let isRunning(pid: Int64): Bool =
+let isRunning(pid: Posix.Pid): Bool =
   Posix.isProcessRunning(pid)
 
 
 /// Wait for a process to finish by polling.
-let waitFor(pid: Int64): Unit =
+let waitFor(pid: Posix.Pid): Unit =
   if Posix.isProcessRunning(pid) then
     let _ = Posix.sleep(100.0)
     waitFor(pid)

@@ -38,7 +38,7 @@ let handlers =
 let router(req: Stdlib.Http.Request): Stdlib.Http.Response =
   Stdlib.HttpServer.routeRequest(handlers, req)
 
-let port(): Int64 =
+let portNumber(): Int64 =
   match Stdlib.Env.get("PERF_HTTP_PORT") with
   | Some(s) ->
     match Stdlib.Int64.parse(s) with
@@ -46,11 +46,11 @@ let port(): Int64 =
     | Error(_) -> 9095
   | None -> 9095
 
-let main(): Int64 =
+let serve(port: Stdlib.Net.Port): Int64 =
   match
     Stdlib.HttpServer.serve(
       (Stdlib.HttpServer.Config.Config
-        { port = port()
+        { port = port
           maxBodyBytes = 1048576
           injectStandardHeaders = true
           canonicalizeFromForwardedProto = false
@@ -62,6 +62,13 @@ let main(): Int64 =
   | Ok(_) -> 0
   | Error(e) ->
     Stdlib.printLine("serve failed: " + e)
+    1
+
+let main(): Int64 =
+  match Stdlib.Net.Port.fromInt64(portNumber()) with
+  | Ok(port) -> serve(port)
+  | Error(e) ->
+    Stdlib.printLine($"serve failed: PERF_HTTP_PORT {e}")
     1
 
 main()

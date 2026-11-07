@@ -142,6 +142,132 @@ module Request =
     | items -> Stdlib.Option.Option.Some(Stdlib.String.join(items, ","))
 
 
+/// An HTTP response status, 100 to 599. Build one with <fn Status.fromInt64>, or name a
+/// common one (<val Status.notFound>); the field is not for constructing directly.
+type Status = { __value: Int64 }
+
+
+module Status =
+  /// Returns {{Ok}} the status numbered <param n>, or {{Error}} an
+  /// <type Stdlib.Math.OutOfRange> if it is not between 100 and 599.
+  let fromInt64(n: Int64): Stdlib.Result.Result<Stdlib.Http.Status, Stdlib.Math.OutOfRange> =
+    Stdlib.Math.__inRange("HTTP status", 100, 599, n, fun v -> Stdlib.Http.Status { __value = v })
+
+  /// The number of <param status>, which is what <type Stdlib.Http.Response> carries
+  let toInt64(status: Stdlib.Http.Status): Int64 = status.__value
+
+  /// 200 OK
+  val ok = Stdlib.Http.Status { __value = 200 }
+  /// 201 Created
+  val created = Stdlib.Http.Status { __value = 201 }
+  /// 204 No Content
+  val noContent = Stdlib.Http.Status { __value = 204 }
+  /// 301 Moved Permanently
+  val movedPermanently = Stdlib.Http.Status { __value = 301 }
+  /// 302 Found
+  val found = Stdlib.Http.Status { __value = 302 }
+  /// 303 See Other
+  val seeOther = Stdlib.Http.Status { __value = 303 }
+  /// 304 Not Modified
+  val notModified = Stdlib.Http.Status { __value = 304 }
+  /// 400 Bad Request
+  val badRequest = Stdlib.Http.Status { __value = 400 }
+  /// 401 Unauthorized
+  val unauthorized = Stdlib.Http.Status { __value = 401 }
+  /// 403 Forbidden
+  val forbidden = Stdlib.Http.Status { __value = 403 }
+  /// 404 Not Found
+  val notFound = Stdlib.Http.Status { __value = 404 }
+  /// 405 Method Not Allowed
+  val methodNotAllowed = Stdlib.Http.Status { __value = 405 }
+  /// 409 Conflict
+  val conflict = Stdlib.Http.Status { __value = 409 }
+  /// 413 Content Too Large
+  val contentTooLarge = Stdlib.Http.Status { __value = 413 }
+  /// 429 Too Many Requests
+  val tooManyRequests = Stdlib.Http.Status { __value = 429 }
+  /// 500 Internal Server Error
+  val internalServerError = Stdlib.Http.Status { __value = 500 }
+  /// 503 Service Unavailable
+  val serviceUnavailable = Stdlib.Http.Status { __value = 503 }
+  /// 504 Gateway Timeout
+  val gatewayTimeout = Stdlib.Http.Status { __value = 504 }
+
+  /// Returns {{true}} for a 2xx status
+  let isSuccess(status: Stdlib.Http.Status): Bool =
+    status.__value >= 200 && status.__value <= 299
+
+  /// Returns {{true}} for a 3xx status
+  let isRedirect(status: Stdlib.Http.Status): Bool =
+    status.__value >= 300 && status.__value <= 399
+
+  /// Returns {{true}} for a 4xx status
+  let isClientError(status: Stdlib.Http.Status): Bool =
+    status.__value >= 400 && status.__value <= 499
+
+  /// Returns {{true}} for a 5xx status
+  let isServerError(status: Stdlib.Http.Status): Bool =
+    status.__value >= 500 && status.__value <= 599
+
+  /// The reason phrase RFC 9110 gives <param status>, such as {{"Not Found"}} for 404, or
+  /// {{""}} for a number it does not name. A phrase is optional on the wire.
+  let reason(status: Stdlib.Http.Status): String =
+    match status.__value with
+    | 100 -> "Continue"
+    | 101 -> "Switching Protocols"
+    | 200 -> "OK"
+    | 201 -> "Created"
+    | 202 -> "Accepted"
+    | 203 -> "Non-Authoritative Information"
+    | 204 -> "No Content"
+    | 205 -> "Reset Content"
+    | 206 -> "Partial Content"
+    | 300 -> "Multiple Choices"
+    | 301 -> "Moved Permanently"
+    | 302 -> "Found"
+    | 303 -> "See Other"
+    | 304 -> "Not Modified"
+    | 305 -> "Use Proxy"
+    | 307 -> "Temporary Redirect"
+    | 308 -> "Permanent Redirect"
+    | 400 -> "Bad Request"
+    | 401 -> "Unauthorized"
+    | 402 -> "Payment Required"
+    | 403 -> "Forbidden"
+    | 404 -> "Not Found"
+    | 405 -> "Method Not Allowed"
+    | 406 -> "Not Acceptable"
+    | 407 -> "Proxy Authentication Required"
+    | 408 -> "Request Timeout"
+    | 409 -> "Conflict"
+    | 410 -> "Gone"
+    | 411 -> "Length Required"
+    | 412 -> "Precondition Failed"
+    | 413 -> "Content Too Large"
+    | 414 -> "URI Too Long"
+    | 415 -> "Unsupported Media Type"
+    | 416 -> "Range Not Satisfiable"
+    | 417 -> "Expectation Failed"
+    | 421 -> "Misdirected Request"
+    | 422 -> "Unprocessable Content"
+    | 426 -> "Upgrade Required"
+    | 429 -> "Too Many Requests"
+    | 500 -> "Internal Server Error"
+    | 501 -> "Not Implemented"
+    | 502 -> "Bad Gateway"
+    | 503 -> "Service Unavailable"
+    | 504 -> "Gateway Timeout"
+    | 505 -> "HTTP Version Not Supported"
+    | _ -> ""
+
+
+impl ToString for Status =
+  /// The status number, {{404}}
+  let toString(status: Status): String = Stdlib.toString(status.__value)
+
+
+/// What a handler answers. <param statusCode> is a plain number, so any helper below takes
+/// one; <fn Status.toInt64> of a <type Status> gives it for a named status.
 type Response =
   { statusCode: Int64
     headers: List<String * String>
@@ -172,7 +298,7 @@ let responseWithHeaders(
 /// respond with HTTP status 200 and <param response> body.
 let success(body: Bytes): Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 200
+    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.ok)
       headers = []
       body = body }
 
@@ -217,7 +343,7 @@ let responseWithJson(
 /// respond with {{302}} status code and redirect to <param url>.
 let redirectTo(url: String): Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 302
+    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.found)
       headers = [ ("Location", url) ]
       body = Stdlib.Bytes.empty }
 
@@ -225,7 +351,7 @@ let redirectTo(url: String): Stdlib.Http.Response =
 /// respond with {{400}} status code and <param response> body.
 let badRequest(error: String): Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 400
+    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.badRequest)
       headers = []
       body = Stdlib.Utf8.encode(error) }
 
@@ -233,7 +359,7 @@ let badRequest(error: String): Stdlib.Http.Response =
 /// respond with {{404}} status code.
 let notFound(): Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 404
+    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.notFound)
       headers = []
       body = Stdlib.Bytes.empty }
 
@@ -241,7 +367,7 @@ let notFound(): Stdlib.Http.Response =
 /// respond with {{401}} status code.
 let unauthorized(): Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 401
+    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.unauthorized)
       headers = []
       body = Stdlib.Bytes.empty }
 
@@ -249,7 +375,7 @@ let unauthorized(): Stdlib.Http.Response =
 /// respond with {{403}} status code.
 let forbidden(): Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 403
+    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.forbidden)
       headers = []
       body = Stdlib.Bytes.empty }
 
@@ -257,7 +383,7 @@ let forbidden(): Stdlib.Http.Response =
 /// respond with {{500}} status code and <param error> body.
 let serverError(error: String): Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 500
+    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.internalServerError)
       headers = []
       body = Stdlib.Utf8.encode(error) }
 

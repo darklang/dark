@@ -67,6 +67,10 @@ Body first, status second - the reverse of what you might expect.
   Stdlib.Http.response(bodyBytes, 200)          # the raw one; body is a Bytes
   Stdlib.Http.notFound()
 
+A status is a plain number here. `Stdlib.Http.Status` names the common ones and
+checks the rest: `Status.toInt64(Status.tooManyRequests)` is 429, and
+`Status.fromInt64(n)` is an Error outside 100 to 599.
+
 ## Route params
 
   # given route "/user/:id" and a request for "/user/42"
