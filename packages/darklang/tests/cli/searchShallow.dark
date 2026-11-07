@@ -1,0 +1,45 @@
+/// `search <query> --shallow` with a qualified query searches inside the module the
+/// query names, not the current location.
+module Darklang.Cli.Tests.SearchShallow
+
+let scope(here: List<String>, query: String): (List<String> * String) =
+  Darklang.Cli.Packages.Search.shallowScope(
+    Darklang.SCM.Branch.mainBranchId,
+    Darklang.Cli.Packages.PackageLocation.Module(here),
+    query)
+
+// A query that names a module searches all of it; one that runs past a module
+// searches that module for the rest. Anything else stays where you are.
+test shallowScopeFollowsTheQuery =
+  Stdlib.Test.all(
+    [ scope([], "Darklang.Stdlib.List")
+      |> Stdlib.Test.equal(([ "Darklang", "Stdlib", "List" ], ""))
+      scope([ "Darklang" ], "Stdlib.List.ma")
+      |> Stdlib.Test.equal(([ "Darklang", "Stdlib", "List" ], "ma"))
+      scope([ "Darklang" ], "List") |> Stdlib.Test.equal(([ "Darklang" ], "List"))
+      scope([ "Darklang" ], "..") |> Stdlib.Test.equal(([ "Darklang" ], ".."))
+      scope([], "Nope.Nothing.Here")
+      |> Stdlib.Test.equal(([], "Nope.Nothing.Here")) ])
+
+// From the root, `--shallow` used to find nothing for a qualified query, because
+// nothing lives directly at the root.
+test shallowSearchListsTheNamedModule =
+  Instance.withInstance(fun i ->
+    JsonShapes.check(
+      i,
+      [ "search", "Darklang.Stdlib.List", "--shallow", "--json" ],
+      [ fun(j) ->
+          let fns =
+            JsonShapes.rows(JsonShapes.field(j, "results"))
+            |> Stdlib.List.filter(fun(r) -> JsonShapes.string(r, "kind") == "fn")
+            |> Stdlib.List.map(fun(r) -> JsonShapes.string(r, "name"))
+          let direct = fun(name) ->
+            match Stdlib.String.stripPrefix(name, "Darklang.Stdlib.List.") with
+            | Some(rest) -> Stdlib.Bool.not(Stdlib.String.contains(rest, "."))
+            | None -> false
+
+          Stdlib.Test.all(
+            [ Stdlib.List.contains(fns, "Darklang.Stdlib.List.map")
+              |> Stdlib.Test.equal(true)
+              Stdlib.List.filter(fns, fun(n) -> Stdlib.Bool.not(direct(n)))
+              |> Stdlib.Test.equal([]) ]) ]))

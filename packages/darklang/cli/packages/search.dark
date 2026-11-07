@@ -228,8 +228,6 @@ type ParsedArgs =
     parseErrors: List<FlagParser.ParseError> }
 
 
-// TODO: `--shallow` is current-location scoped, which is confusing for
-// qualified queries like `search Darklang.Stdlib.List --shallow`.
 val argSpec =
   FlagParser.Spec
     { flags =
@@ -388,6 +386,43 @@ let hiddenTestsHint(count: Int64): Unit =
     ()
 
 
+/// Where `--shallow` searches, and for what. A qualified query names its own module:
+/// `search Darklang.Stdlib.List --shallow` lists what is directly in
+/// `Darklang.Stdlib.List`, and `search Stdlib.List.ma --shallow` (from `Darklang`) what
+/// in `Darklang.Stdlib.List` matches `ma`. The module is resolved from <param location>,
+/// the way `nav` resolves it. Any other query searches <param location> itself.
+let shallowScope(
+  branchId: Uuid,
+  location: PackageLocation,
+  query: String)
+  : (List<String> * String) =
+  let here = Traversal.getCurrentModulePath(location)
+  let parts = Stdlib.String.split(query, ".")
+  // Names only: `..` and `/` mean something to `nav`, and a space makes it words.
+  let isPath =
+    (Stdlib.List.length(parts) > 1)
+    && Stdlib.List.all(parts, fun p ->
+      Stdlib.Bool.not(
+        Stdlib.String.isEmpty(p)
+        || Stdlib.String.contains(p, " ")
+        || Stdlib.String.contains(p, "/")))
+
+  let moduleAt = fun path ->
+    match Traversal.traverse(branchId, location, Stdlib.String.join(path, ".")) with
+    | Ok(Module(m)) -> Stdlib.Option.Option.Some(m)
+    | _ -> Stdlib.Option.Option.None
+
+  if Stdlib.Bool.not(isPath) then
+    (here, query)
+  else
+    match moduleAt(parts) with
+    | Some(m) -> (m, "")
+    | None ->
+      match moduleAt(Stdlib.List.dropLast(parts)) with
+      | Some(m) -> (m, Stdlib.Option.withDefault(Stdlib.List.last(parts), query))
+      | None -> (here, query)
+
+
 let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
   match args with
   | [] ->
@@ -435,13 +470,22 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           else
             LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
 
-        let currentModule =
-          Traversal.getCurrentModulePath(state.packageData.currentLocation)
+        // What is searched for, and where. Also what results are ranked by, so a
+        // scoped search ranks by the item part of the query, not the module part.
+        let (currentModule, searchText) =
+          if parsed.shallow then
+            shallowScope(
+              state.currentBranchId,
+              state.packageData.currentLocation,
+              queryText)
+          else
+            (Traversal.getCurrentModulePath(state.packageData.currentLocation),
+             queryText)
 
         let query =
           LanguageTools.ProgramTypes.Search.SearchQuery
             { currentModule = currentModule
-              text = queryText
+              text = searchText
               searchDepth = searchDepth
               entityTypes = parsed.entityTypes
               exactMatch = parsed.exactMatch }
@@ -513,7 +557,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
 
           let moduleRank =
             if Stdlib.List.isEmpty(parsed.entityTypes) then
-              bestModuleRank(queryText, results.submodules)
+              bestModuleRank(searchText, results.submodules)
             else
               9
 
@@ -522,12 +566,12 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           // matches shouldn't precede an equally-ranked fn/type/value hit.
           let sectionKeys =
             [ ($"{Stdlib.toString(moduleRank)}4", "module")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.types))}1", "type")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.values))}2", "value")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.fns))}3", "function")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.traits))}0", "trait")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.impls))}5", "impl")
-              ($"{Stdlib.toString(bestItemRank(queryText, results.tests))}6", "test") ]
+              ($"{Stdlib.toString(bestItemRank(searchText, results.types))}1", "type")
+              ($"{Stdlib.toString(bestItemRank(searchText, results.values))}2", "value")
+              ($"{Stdlib.toString(bestItemRank(searchText, results.fns))}3", "function")
+              ($"{Stdlib.toString(bestItemRank(searchText, results.traits))}0", "trait")
+              ($"{Stdlib.toString(bestItemRank(searchText, results.impls))}5", "impl")
+              ($"{Stdlib.toString(bestItemRank(searchText, results.tests))}6", "test") ]
 
           let order =
             sectionKeys
@@ -538,7 +582,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           |> Stdlib.List.iter(fun tag ->
             match tag with
             | "function" ->
-              renderSection("function", queryText, resultCap, results.fns, fun item ->
+              renderSection("function", searchText, resultCap, results.fns, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 let sigBody = Signatures.formatFn(ctx, item.entity)
@@ -549,28 +593,28 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
                   $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(sigBody)}{mark} {badge}"
                 withOptionalDoc(parsed.withDocs, line, item.entity.description))
             | "value" ->
-              renderSection("value", queryText, resultCap, results.values, fun item ->
+              renderSection("value", searchText, resultCap, results.values, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
             | "type" ->
-              renderSection("type", queryText, resultCap, results.types, fun item ->
+              renderSection("type", searchText, resultCap, results.types, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 let defn = Signatures.formatType(ctx, fullPathOf(item), item.entity)
                 withOptionalDoc(parsed.withDocs, $"{defn}{mark}", item.entity.description))
             | "trait" ->
-              renderSection("trait", queryText, resultCap, results.traits, fun item ->
+              renderSection("trait", searchText, resultCap, results.traits, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
             | "impl" ->
-              renderSection("impl", queryText, resultCap, results.impls, fun item ->
+              renderSection("impl", searchText, resultCap, results.impls, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 let header =
                   $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}"
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(header)}{mark}", item.entity.description))
             | "test" ->
-              renderSection("test", queryText, resultCap, results.tests, fun item ->
+              renderSection("test", searchText, resultCap, results.tests, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
             | "module" ->
@@ -582,7 +626,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
                     let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
                     let owner = Stdlib.Option.withDefault(Stdlib.List.head(modulePath), "")
                     let mods = Stdlib.Option.withDefault(Stdlib.List.tail(modulePath), [])
-                    sortKey(queryText, owner, mods, modName))
+                    sortKey(searchText, owner, mods, modName))
                 let shownMods = Stdlib.List.take(sortedMods, resultCap)
                 shownMods
                 |> Stdlib.List.iter(fun modulePath ->
@@ -660,7 +704,8 @@ let help(state: Cli.AppState): String =
     "  --test                 Search only tests"
     "  --include-tests        Also list tests (left out by default)"
     "  --exact                Require exact match (default: fuzzy)"
-    "  --shallow              Search only direct descendants (default: all descendants)"
+    "  --shallow              Search only direct children (default: all descendants);"
+    "                         a qualified query searches inside the module it names"
     "  --with-docs            Also show doc comments"
     "  --include-deprecated   Include items deprecated with no live callers"
     "  --include-internal     Include internal helpers (names starting with __)"
@@ -670,6 +715,8 @@ let help(state: Cli.AppState): String =
     "  search                      # Launch interactive search mode"
     "  search List                 # Find all items matching 'List' (recursively)"
     "  search List --shallow       # Find all items matching 'List' (direct descendants only)"
+    "  search Darklang.Stdlib.List --shallow"
+    "                              # Everything directly in Darklang.Stdlib.List"
     "  search map --fn             # Find functions matching 'map' (with param names)"
     "  search map --fn --with-docs # ...and doc comments too"
     "  search --batch \"List.map\" \"Json.serialize\" \"String.slice\" --fn"
@@ -681,7 +728,8 @@ let help(state: Cli.AppState): String =
     "  search ceiling --include-tests  # Everything matching, tests too"
     ""
     "By default, search looks in the current module and ALL nested descendants recursively."
-    "Use --shallow to search only direct children of the current module."
+    "Use --shallow to search only direct children of the current module, or of the"
+    "module a qualified query names."
     "Use 'nav' to change your current location first if needed."
     ""
   ] |> Stdlib.String.join("\n")
