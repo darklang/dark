@@ -562,6 +562,14 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
 let mutable private traitTags : int * Dictionary<struct (string * string), int> =
   (-1, Dictionary())
 
+/// The default comparer hashes all 64 characters of the trait's hash with Marvin, once per
+/// operator. The method names of one trait differ in length, so the length is enough beside it.
+let private traitKeyComparer =
+  { new System.Collections.Generic.IEqualityComparer<struct (string * string)> with
+      member _.Equals(struct (h1, m1), struct (h2, m2)) =
+        System.String.Equals(h1, h2) && System.String.Equals(m1, m2)
+      member _.GetHashCode(struct (h, m)) = contentHashCode h ^^^ m.Length }
+
 let traitTag (traitHash : string) (methodName : string) : int voption =
   let gen = PackageRefs.currentGeneration ()
   let (tableGen, table) = traitTags
@@ -569,7 +577,7 @@ let traitTag (traitHash : string) (methodName : string) : int voption =
     if gen = tableGen then
       table
     else
-      let fresh = Dictionary<struct (string * string), int>()
+      let fresh = Dictionary<struct (string * string), int>(traitKeyComparer)
       let put (hash : string) (methodName : string) (tag : int) =
         if hash <> "" then fresh[struct (hash, methodName)] <- tag
       put (PackageRefs.Trait.Stdlib.Traits.add ()) "add" add
