@@ -5,7 +5,8 @@
 /// the `Option` package type when constructing the `DEnum` value.
 ///
 /// Hashes are loaded lazily from `package-ref-hashes.txt` on first access. The file lives in
-/// the source tree alongside this file, and in a release binary as an embedded resource.
+/// the source tree alongside this file, and in the CLI binary as an embedded resource. The CLI
+/// embeds it, not this library, so a reload, which rewrites the file, recompiles only the CLI.
 ///
 /// NOT tracked in git: an MSBuild target creates an empty one if missing (fresh clone,
 /// or CI before reload-packages), and `reload-packages` fills it. Two branches that both
@@ -63,11 +64,13 @@ let private loadHashes () : Map<string, string> =
       else
         content |> parseLines
     else
-      // Release binary: source tree not available, use embedded resource
+      // Release binary: source tree not available, use the copy the CLI embeds
+      let entry = System.Reflection.Assembly.GetEntryAssembly()
       use stream =
-        System.Reflection.Assembly
-          .GetExecutingAssembly()
-          .GetManifestResourceStream("LibExecution.package-ref-hashes.txt")
+        if isNull entry then
+          null
+        else
+          entry.GetManifestResourceStream("package-ref-hashes.txt")
       if stream <> null then
         use reader = new System.IO.StreamReader(stream)
         reader.ReadToEnd().Split('\n') |> parseLines

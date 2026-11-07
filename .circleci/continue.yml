@@ -296,15 +296,12 @@ jobs:
           key: v7-nuget-{{ checksum "../checksum" }}
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
-      # Each library is compiled once in this job, by this step; the two builds below reuse it.
-      #
-      # Release, so the package load runs optimized. DarkEmbedPackageRefHashes=false, on every
-      # build here, because the package load rewrites package-ref-hashes.txt: embedded, that
-      # recompiled LibExecution and everything above it. Everything this job runs, the CLI
-      # included, runs in this tree and reads the file instead.
+      # Each library is compiled once in this job, by this step, in Release so the package load
+      # runs optimized. The two builds below reuse them: the package load rewrites
+      # package-ref-hashes.txt, which only Cli embeds.
       - run:
           name: Build LocalExec for migrations (Release)
-          command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false /p:DarkEmbedPackageRefHashes=false
+          command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
       - run:
           name: Run migrations to create database
           command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec --published migrations run
@@ -317,7 +314,7 @@ jobs:
 
       - run:
           name: Build the tests (Release)
-          command: ./scripts/build/_dotnet-wrapper publish -c Release tests/Tests/Tests.fsproj /p:DebugType=None /p:DebugSymbols=false /p:DarkEmbedPackageRefHashes=false
+          command: ./scripts/build/_dotnet-wrapper publish -c Release tests/Tests/Tests.fsproj /p:DebugType=None /p:DebugSymbols=false
 
       # The CLI the instance-backed suites drive, built the way we ship it. They start it once
       # per command, a couple of thousand times a run, and the JIT-published one spends most
@@ -429,8 +426,10 @@ jobs:
       - run:
           name: Export the seed for the CLI build
           command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec --published export-seed rundir/seed.db
+      # --reuse-libraries: only Cli is compiled, against the libraries LocalExec's build left,
+      # which are the same bytes the publish would compile. The release jobs build in full.
       - sqlite-archive
-      - run: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db
+      - run: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db --reuse-libraries
 
       # Allocation for a fixed workload is steady enough to assert on and doesn't care how
       # loaded the box is, which is more than can be said for time. The store is freshly

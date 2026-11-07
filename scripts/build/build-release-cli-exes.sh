@@ -78,8 +78,8 @@ for arg in "$@"; do
       # Compile only Cli, against the Release libraries an earlier build in this tree left
       # in backend/Build/out. Without it the publish compiles every library again, because
       # its global properties (the runtime, PublishAot) differ from a plain build's, and
-      # gets the same bytes. CI's test build uses it; anything that ships doesn't, since
-      # nothing here checks that those libraries are this checkout's.
+      # gets the same bytes. CI's build jobs use it; the release jobs don't, since nothing
+      # here checks that those libraries are this checkout's.
       REUSE_LIBRARIES=true
       ;;
     *)
