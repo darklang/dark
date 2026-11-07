@@ -120,8 +120,6 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
       let completions = Registry.getCompletions(state, state.prompt.text)
       Telemetry.logWithContext("tabComplete", tTab, [("resultCount", Stdlib.toString(Stdlib.List.length(completions))), ("input", state.prompt.text)])
 
-      // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
-      // Tab should complete up to the common part ("filter") rather than just showing options
       match completions with
       | [] -> state  // No completions available
       | [singleCompletion] ->
@@ -130,18 +128,24 @@ let handleKeyInput(state: AppState, key: Stdlib.Cli.Stdin.Key.Key, modifiers: St
         let newPromptText = Completion.buildCompletedCommand(parsed, singleCompletion.value)
         { state with prompt = Prompt.Editing.setText(state.prompt, newPromptText) }
       | multiple ->
-        // Multiple completions - open interactive picker
-        let released = releasePromptRegion(state)
-        Stdlib.printLine("")
-        let pickerState = CompletionPicker.create(state.prompt.text, multiple)
-        let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
-        match CompletionPicker.startAtSize(pickerState, size) with
-        | Ok(session) ->
-          { released with
-              currentPage = Page.CompletionPicker(session) }
-        | Error(message) ->
-          Stdlib.printLine(message)
-          released
+        match Completion.extendToCommonPrefix(state.prompt.text, multiple) with
+        | Some(newPromptText) ->
+          // They share more than was typed: complete that far first.
+          // The next Tab opens the picker.
+          { state with prompt = Prompt.Editing.setText(state.prompt, newPromptText) }
+        | None ->
+          // Multiple completions - open interactive picker
+          let released = releasePromptRegion(state)
+          Stdlib.printLine("")
+          let pickerState = CompletionPicker.create(state.prompt.text, multiple)
+          let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
+          match CompletionPicker.startAtSize(pickerState, size) with
+          | Ok(session) ->
+            { released with
+                currentPage = Page.CompletionPicker(session) }
+          | Error(message) ->
+            Stdlib.printLine(message)
+            released
 
     | UpArrow ->
       { state with

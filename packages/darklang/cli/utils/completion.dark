@@ -144,6 +144,26 @@ let findCommonPrefix(strings: List<String>): String =
       Stdlib.String.slice(acc, 0, commonLen))
 
 
+/// The prompt text after Tab when several completions share more than was typed,
+/// e.g. `fil` with `filter` and `filterMap` gives `filter`, as shells do. None when
+/// the shared part adds nothing, so the caller shows the choices instead.
+let extendToCommonPrefix(
+  input: String,
+  completions: List<CompletionItem>)
+  : Stdlib.Option.Option<String> =
+  let parsed = parseInput(input)
+  let partial = getPartialCompletion(parsed)
+  let prefix = findCommonPrefix(completions |> Stdlib.List.map(fun c -> c.value))
+
+  if
+    Stdlib.String.startsWith(prefix, partial)
+    && Stdlib.String.length(prefix) > Stdlib.String.length(partial)
+  then
+    Stdlib.Option.Option.Some(buildCompletedCommand(parsed, prefix))
+  else
+    Stdlib.Option.Option.None
+
+
 // Filesystem completion helpers
 
 /// Add trailing slashes to directory names in a file list
