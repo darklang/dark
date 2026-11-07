@@ -2,85 +2,101 @@
 // encode / urlEncode take Bytes; the *Text fns go through UTF-8.
 module Darklang.Stdlib.Base64.Tests
 
-// CLEANUP: Dark compares blobs by identity, so these helpers compare byte lists.
-// Compare blobs directly and remove the helpers once blob equality compares content.
-let decodeBytes(text: String): Stdlib.Result.Result<List<UInt8>, String> =
-  Stdlib.Base64.decode(text) |> Stdlib.Result.map(Stdlib.Bytes.toList)
-
-let bytesOf(text: String): List<UInt8> =
-  Stdlib.Bytes.toList(Stdlib.Utf8.encode(text))
-
 // Base64.decode
 test decode =
   Stdlib.Test.all(
-    [ decodeBytes("") |> Stdlib.Test.equal(Ok(bytesOf("")))
-      decodeBytes("garbage text")
+    [ Stdlib.Base64.decode("") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("")))
+      Stdlib.Base64.decode("garbage text")
       |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("Kw") |> Stdlib.Test.equal(Ok(bytesOf("+")))
-      decodeBytes("yLo") |> Stdlib.Test.equal(Ok(bytesOf("Ⱥ")))
-      decodeBytes("xbzDs8WCdw") |> Stdlib.Test.equal(Ok(bytesOf("żółw")))
-      decodeBytes("LyotKygmQDk4NTIx")
-      |> Stdlib.Test.equal(Ok(bytesOf("/*-+(&@98521"))) ])
+      Stdlib.Base64.decode("Kw") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("+")))
+      Stdlib.Base64.decode("yLo") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("Ⱥ")))
+      Stdlib.Base64.decode("xbzDs8WCdw")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("żółw")))
+      Stdlib.Base64.decode("LyotKygmQDk4NTIx")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("/*-+(&@98521"))) ])
 
 // some failures
 test decodeFailures =
   Stdlib.Test.all(
-    [ decodeBytes("illegal-chars&@:")
+    [ Stdlib.Base64.decode("illegal-chars&@:")
       |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("x") |> Stdlib.Test.equal(Error("Not a valid base64 string")) ])
+      Stdlib.Base64.decode("x")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string")) ])
 
 // empty case
 // Test cases from the spec with padding added
 test decodeSpecCases =
   Stdlib.Test.all(
-    [ decodeBytes("Zg") |> Stdlib.Test.equal(Ok(bytesOf("f")))
-      decodeBytes("Zg==") |> Stdlib.Test.equal(Ok(bytesOf("f")))
-      decodeBytes("Zm8") |> Stdlib.Test.equal(Ok(bytesOf("fo")))
-      decodeBytes("Zm8=") |> Stdlib.Test.equal(Ok(bytesOf("fo")))
-      decodeBytes("Zm9v") |> Stdlib.Test.equal(Ok(bytesOf("foo")))
-      decodeBytes("Zm9vYg") |> Stdlib.Test.equal(Ok(bytesOf("foob")))
-      decodeBytes("Zm9vYg==") |> Stdlib.Test.equal(Ok(bytesOf("foob")))
-      decodeBytes("Zm9vYmE") |> Stdlib.Test.equal(Ok(bytesOf("fooba")))
-      decodeBytes("Zm9vYmE=") |> Stdlib.Test.equal(Ok(bytesOf("fooba")))
-      decodeBytes("Zm9vYmFy") |> Stdlib.Test.equal(Ok(bytesOf("foobar"))) ])
+    [ Stdlib.Base64.decode("Zg") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("f")))
+      Stdlib.Base64.decode("Zg==") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("f")))
+      Stdlib.Base64.decode("Zm8") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("fo")))
+      Stdlib.Base64.decode("Zm8=") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("fo")))
+      Stdlib.Base64.decode("Zm9v")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("foo")))
+      Stdlib.Base64.decode("Zm9vYg")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("foob")))
+      Stdlib.Base64.decode("Zm9vYg==")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("foob")))
+      Stdlib.Base64.decode("Zm9vYmE")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("fooba")))
+      Stdlib.Base64.decode("Zm9vYmE=")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("fooba")))
+      Stdlib.Base64.decode("Zm9vYmFy")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("foobar"))) ])
 
 // "Impossible cases" from apache
 // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
 test decodeImpossibleCases =
   Stdlib.Test.all(
-    [ decodeBytes("ZE==") |> Stdlib.Test.equal(Ok(bytesOf("d")))
-      decodeBytes("ZmC=") |> Stdlib.Test.equal(Ok(bytesOf("f`")))
-      decodeBytes("Zm9vYE==") |> Stdlib.Test.equal(Ok(bytesOf("foo`")))
-      decodeBytes("Zm9vYmC=") |> Stdlib.Test.equal(Ok(bytesOf("foob`"))) ])
+    [ Stdlib.Base64.decode("ZE==") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("d")))
+      Stdlib.Base64.decode("ZmC=") |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("f`")))
+      Stdlib.Base64.decode("Zm9vYE==")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("foo`")))
+      Stdlib.Base64.decode("Zm9vYmC=")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("foob`"))) ])
 
 // longer tests
 test decodeLongInputs =
   Stdlib.Test.all(
-    [ decodeBytes(
+    [ Stdlib.Base64.decode(
         "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig")
-      |> Stdlib.Test.equal(Ok(bytesOf("from=06/07/2013 query=\"Καλώς ορίσατε\"")))
-      decodeBytes("8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78")
-      |> Stdlib.Test.equal(Ok(bytesOf("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))) ])
+      |> Stdlib.Test.equal(
+        Ok(Stdlib.Utf8.encode("from=06/07/2013 query=\"Καλώς ορίσατε\"")))
+      Stdlib.Base64.decode(
+        "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78")
+      |> Stdlib.Test.equal(Ok(Stdlib.Utf8.encode("👱👱🏻👱🏼👱🏽👱🏾👱🏿"))) ])
 
 // These produce strings of bytes which are technically legal it seems
 test decodeRawBytes =
   Stdlib.Test.all(
-    [ decodeBytes("-p") |> Stdlib.Test.equal(Ok([ 250u8 ]))
-      decodeBytes("lI") |> Stdlib.Test.equal(Ok([ 148u8 ]))
-      decodeBytes("5Sk") |> Stdlib.Test.equal(Ok([ 229u8, 41u8 ]))
-      decodeBytes("AA") |> Stdlib.Test.equal(Ok([ 0u8 ]))
-      decodeBytes("_w") |> Stdlib.Test.equal(Ok([ 255u8 ])) ])
+    [ Stdlib.Base64.decode("-p")
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 250u8 ])))
+      Stdlib.Base64.decode("lI")
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 148u8 ])))
+      Stdlib.Base64.decode("5Sk")
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 229u8, 41u8 ])))
+      Stdlib.Base64.decode("AA")
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 0u8 ])))
+      Stdlib.Base64.decode("_w")
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 255u8 ]))) ])
 
 // Check decoding with incorrect padding.
 test decodeRejectsIncorrectPadding =
   Stdlib.Test.all(
-    [ decodeBytes("=") |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("====") |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("Z=g=") |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("Zg===") |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("Zm=8") |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("Zm9v=") |> Stdlib.Test.equal(Error("Not a valid base64 string"))
-      decodeBytes("A===") |> Stdlib.Test.equal(Error("Not a valid base64 string")) ])
+    [ Stdlib.Base64.decode("=")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string"))
+      Stdlib.Base64.decode("====")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string"))
+      Stdlib.Base64.decode("Z=g=")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string"))
+      Stdlib.Base64.decode("Zg===")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string"))
+      Stdlib.Base64.decode("Zm=8")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string"))
+      Stdlib.Base64.decode("Zm9v=")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string"))
+      Stdlib.Base64.decode("A===")
+      |> Stdlib.Test.equal(Error("Not a valid base64 string")) ])
 
 // Base64.encode
 test encode =
