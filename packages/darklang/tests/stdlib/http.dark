@@ -50,12 +50,16 @@ module Darklang.Stdlib.Http.Tests
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"}
 //   => raises "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
-// CLEANUP: Dark compares blobs by identity. Convert the response body to a string
-// for comparison, then compare responses directly once blob equality compares content.
-let responseView(
-  response: Stdlib.Http.Response)
-  : (Int64 * List<String * String> * Stdlib.Result.Result<String, String>) =
-  (response.statusCode, response.headers, Stdlib.Utf8.decode(response.body))
+// The response a builder should return, with a text body.
+let expected(
+  statusCode: Int64,
+  headers: List<String * String>,
+  body: String)
+  : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = statusCode
+      headers = headers
+      body = Stdlib.Utf8.encode(body) }
 
 // Build a request with an empty body.
 let request(
@@ -69,58 +73,44 @@ let request(
 test responseBuilders =
   Stdlib.Test.all(
     [ Stdlib.Http.badRequest("Your request resulted in an error")
-      |> responseView
-      |> Stdlib.Test.equal((400, [], Ok("Your request resulted in an error")))
+      |> Stdlib.Test.equal(expected(400, [], "Your request resulted in an error"))
       Stdlib.Http.response(Stdlib.Utf8.encode("test"), 200)
-      |> responseView
-      |> Stdlib.Test.equal((200, [], Ok("test")))
+      |> Stdlib.Test.equal(expected(200, [], "test"))
       Stdlib.Http.responseWithHeaders(
         Stdlib.Utf8.encode("test"),
         [ ("Content-Type", "text/html; charset=utf-8") ],
         200)
-      |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok("test")))
+        expected(200, [ ("Content-Type", "text/html; charset=utf-8") ], "test"))
       Stdlib.Http.notFound()
-      |> responseView
-      |> Stdlib.Test.equal((404, [], Ok("")))
+      |> Stdlib.Test.equal(expected(404, [], ""))
       Stdlib.Http.unauthorized()
-      |> responseView
-      |> Stdlib.Test.equal((401, [], Ok("")))
+      |> Stdlib.Test.equal(expected(401, [], ""))
       Stdlib.Http.forbidden()
-      |> responseView
-      |> Stdlib.Test.equal((403, [], Ok("")))
+      |> Stdlib.Test.equal(expected(403, [], ""))
       Stdlib.Http.success(Stdlib.Utf8.encode("test"))
-      |> responseView
-      |> Stdlib.Test.equal((200, [], Ok("test")))
+      |> Stdlib.Test.equal(expected(200, [], "test"))
       Stdlib.Http.responseWithHtml("test", 200)
-      |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok("test")))
+        expected(200, [ ("Content-Type", "text/html; charset=utf-8") ], "test"))
       Stdlib.Http.responseWithText("test", 200)
-      |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "text/plain; charset=utf-8") ], Ok("test")))
+        expected(200, [ ("Content-Type", "text/plain; charset=utf-8") ], "test"))
       Stdlib.Http.responseWithJson("test", 200)
-      |> responseView
       |> Stdlib.Test.equal(
-        (200, [ ("Content-Type", "application/json") ], Ok("test"))) ])
+        expected(200, [ ("Content-Type", "application/json") ], "test")) ])
 
 test redirectTo =
   Stdlib.Test.all(
     [ Stdlib.Http.redirectTo("")
-      |> responseView
-      |> Stdlib.Test.equal((302, [ ("Location", "") ], Ok("")))
+      |> Stdlib.Test.equal(expected(302, [ ("Location", "") ], ""))
       Stdlib.Http.redirectTo("bad url")
-      |> responseView
-      |> Stdlib.Test.equal((302, [ ("Location", "bad url") ], Ok("")))
+      |> Stdlib.Test.equal(expected(302, [ ("Location", "bad url") ], ""))
       Stdlib.Http.redirectTo("http://someothersite.com")
-      |> responseView
       |> Stdlib.Test.equal(
-        (302, [ ("Location", "http://someothersite.com") ], Ok("")))
+        expected(302, [ ("Location", "http://someothersite.com") ], ""))
       Stdlib.Http.redirectTo("/relativeUrl")
-      |> responseView
-      |> Stdlib.Test.equal((302, [ ("Location", "/relativeUrl") ], Ok(""))) ])
+      |> Stdlib.Test.equal(expected(302, [ ("Location", "/relativeUrl") ], "")) ])
 
 // parseQueryString: ports the old _middleware.dark fixture.
 test parseQueryString =
