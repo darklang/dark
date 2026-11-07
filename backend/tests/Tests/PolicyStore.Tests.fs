@@ -548,6 +548,51 @@ let originNamesTheApprovingRoots =
       "another account's approvals are not this account's origin"
   }
 
+let linkedPolicyAncestorsNeedRoot =
+  test "a linked policy ancestor is refused unless root placed it" {
+    let temp =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-policy-links-{System.Guid.NewGuid()}"
+      )
+    let real = System.IO.Path.Combine(temp, "real")
+    let link = System.IO.Path.Combine(temp, "link")
+    System.IO.Directory.CreateDirectory real |> ignore<System.IO.DirectoryInfo>
+    try
+      System.IO.Directory.CreateSymbolicLink(link, real)
+      |> ignore<System.IO.FileSystemInfo>
+      Expect.equal
+        (LocalFile.checkDirectoryChain (System.IO.Path.Combine(real, "policy")))
+        (Ok())
+        "a plain directory is accepted"
+      Expect.isError
+        (LocalFile.checkDirectoryChain link)
+        "the policy directory itself is never a link"
+      // As root, a link root made is one only root could have placed.
+      if LibExecution.HostPosix.getuid () <> 0u then
+        Expect.isError
+          (LocalFile.checkDirectoryChain (System.IO.Path.Combine(link, "policy")))
+          "an ancestor link the user made is refused"
+      // Debian and Ubuntu ship `/bin` as a root-owned link, like macOS's `/var`.
+      let systemLink = if System.OperatingSystem.IsMacOS() then "/var" else "/bin"
+      if
+        not (isNull (System.IO.DirectoryInfo systemLink).LinkTarget)
+        && LibExecution.HostPosix.fileOwner systemLink = Ok "0"
+      then
+        Expect.equal
+          (LocalFile.checkDirectoryChain (
+            System.IO.Path.Combine(
+              systemLink,
+              $"dark-{System.Guid.NewGuid()}",
+              "policy"
+            )
+          ))
+          (Ok())
+          "a root-owned system link is accepted"
+    finally
+      System.IO.Directory.Delete(temp, true)
+  }
+
 let tests =
   testList
     "policyStore"
@@ -557,6 +602,7 @@ let tests =
       instanceEditsAddAndRemoveInOnePass
       policyStoreRejectsOlderFormat
       seedClassifiesTheFileFailClosed
+      linkedPolicyAncestorsNeedRoot
       revokingOneRootKeepsSharedDependencies
       revokingARootDropsPinsToIt
       reapprovingWithSmallerClosureDropsObsoleteDeps

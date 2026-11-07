@@ -27,28 +27,59 @@ let private resolve (fileName : string) : string =
   | Ok filePath -> filePath
   | Error message -> invalidArg (nameof fileName) message
 
-let private rejectLinkedDirectoryChain (directory : string) : unit =
+/// A link only root could have placed: the link and the directory holding it
+/// are both owned by root. macOS ships `/var`, `/tmp` and `/etc` as links like
+/// this into `/private`, and every temporary directory there sits under one.
+let private placedByRoot (link : string) (parent : string) : bool =
+  (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+  && LibExecution.HostPosix.fileOwner link = Ok "0"
+  && LibExecution.HostPosix.fileOwner parent = Ok "0"
+
+/// Reject the policy directory if it, or any ancestor, is a link someone other
+/// than root could have made. The directory itself must never be a link, which
+/// is also what `read` checks. Links are followed one hop at a time, so a
+/// root-owned link cannot lead on through a user-owned one.
+let checkDirectoryChain (directory : string) : Result<unit, string> =
   let full = Path.GetFullPath directory
   let root = Path.GetPathRoot full
   if String.IsNullOrWhiteSpace root then
-    invalidOp $"Policy directory has no filesystem root: {directory}"
-  let parts =
-    full
-      .Substring(root.Length)
-      .Split(
+    Error $"Policy directory has no filesystem root: {directory}"
+  else
+    let split (path : string) =
+      path.Split(
         [| Path.DirectorySeparatorChar; Path.AltDirectorySeparatorChar |],
         StringSplitOptions.RemoveEmptyEntries
       )
-  let mutable current = root
-  for part in parts do
-    current <- Path.Combine(current, part)
-    if Directory.Exists current then
-      let info = DirectoryInfo current
-      if
-        info.LinkTarget <> null
-        || info.Attributes.HasFlag(FileAttributes.ReparsePoint)
-      then
-        invalidOp $"Refusing to use linked policy directory: {current}"
+      |> List.ofArray
+    let rec walk (resolved : string) (parts : List<string>) (hops : int) =
+      match parts with
+      | [] -> Ok()
+      | "." :: rest -> walk resolved rest hops
+      | ".." :: rest ->
+        let parent = Path.GetDirectoryName resolved
+        walk (if isNull parent then resolved else parent) rest hops
+      | part :: rest ->
+        let current = Path.Combine(resolved, part)
+        let info = DirectoryInfo current
+        let isLink =
+          not (isNull info.LinkTarget)
+          || (info.Exists && info.Attributes.HasFlag FileAttributes.ReparsePoint)
+        if not isLink then
+          if info.Exists then walk current rest hops else Ok()
+        elif
+          List.isEmpty rest || hops >= 40 || not (placedByRoot current resolved)
+        then
+          Error $"Refusing to use linked policy directory: {current}"
+        else
+          let target = info.LinkTarget
+          let start = if Path.IsPathRooted target then root else resolved
+          walk start (split target @ rest) (hops + 1)
+    walk root (split (full.Substring root.Length)) 0
+
+let private rejectLinkedDirectoryChain (directory : string) : unit =
+  match checkDirectoryChain directory with
+  | Ok() -> ()
+  | Error message -> invalidOp message
 
 let private secureDirectory (directory : string) : unit =
   // Check before and after creation so linked parent directories cannot redirect
