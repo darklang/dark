@@ -24,11 +24,14 @@ let releaseToInstall(
   let tag =
     match pinned with
     | Some(tag) -> Stdlib.Result.Result.Ok(tag)
-    | None -> Darklang.GitHub.Releases.getLatestReleaseTag()
+    | None ->
+      Darklang.GitHub.Releases.getLatestReleaseTag()
+      |> Stdlib.Result.mapError(Darklang.GitHub.releaseErrorMessage)
 
   tag
   |> Stdlib.Result.andThen(fun tag ->
     Darklang.GitHub.Releases.getDownload(host, tag)
+    |> Stdlib.Result.mapError(Darklang.GitHub.releaseErrorMessage)
     |> Stdlib.Result.map(fun download -> ReleaseAsset { tag = tag, download = download }))
 
 
