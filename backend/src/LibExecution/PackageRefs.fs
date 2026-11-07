@@ -224,6 +224,13 @@ module Type =
     module Http =
       let request = p [ "Http" ] "Request"
       let response = p [ "Http" ] "Response"
+      let status = p [ "Http" ] "Status"
+
+    module Net =
+      let port = p [ "Net" ] "Port"
+
+    module Math =
+      let outOfRange = p [ "Math" ] "OutOfRange"
 
     module HttpClient =
       let private p addl = p ("HttpClient" :: addl)
@@ -264,6 +271,8 @@ module Type =
       module Posix =
         let private p addl = p ("Posix" :: addl)
         let error = p [] "Error"
+        let pid = p [] "Pid"
+        let exitCode = p [] "ExitCode"
 
       module OS =
         let private p addl = p ("OS" :: addl)

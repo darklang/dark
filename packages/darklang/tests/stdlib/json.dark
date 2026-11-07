@@ -1905,3 +1905,88 @@ module RestoredArchive =
     Stdlib.Json.serialize<Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>(value)
     |> Stdlib.Json.parse<Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>
     |> Stdlib.Test.equal(Ok(value))
+
+
+/// `Net.Port`, `Http.Status`, `Cli.Posix.Pid` and `Cli.Posix.ExitCode` are bare numbers in
+/// JSON, and parsing runs the same range check as their `fromInt64`.
+module RangedInts =
+  type Server = { port: Stdlib.Net.Port, status: Stdlib.Http.Status }
+
+  test serializeAsNumbers =
+    Stdlib.Test.all(
+      [ Stdlib.Json.serialize<Stdlib.Net.Port>(Stdlib.Net.Port.httpAlt)
+        |> Stdlib.Test.equal("8080")
+        Stdlib.Json.serialize<Stdlib.Http.Status>(Stdlib.Http.Status.notFound)
+        |> Stdlib.Test.equal("404")
+        Stdlib.Json.serialize<Stdlib.Cli.Posix.ExitCode>(Stdlib.Cli.Posix.ExitCode.failure)
+        |> Stdlib.Test.equal("1")
+        (Stdlib.Cli.Posix.Pid.fromInt64(4242))
+        |> Stdlib.Result.map(fun p -> Stdlib.Json.serialize<Stdlib.Cli.Posix.Pid>(p))
+        |> Stdlib.Test.equal(Ok("4242"))
+        Stdlib.Json.serialize<Server>(
+          Server { port = Stdlib.Net.Port.https, status = Stdlib.Http.Status.ok })
+        |> Stdlib.Test.equal("{\"port\":443,\"status\":200}") ])
+
+  test parseNumbers =
+    Stdlib.Test.all(
+      [ Stdlib.Json.parse<Stdlib.Net.Port>("8080")
+        |> Stdlib.Test.equal(Ok(Stdlib.Net.Port.httpAlt))
+        Stdlib.Json.parse<Stdlib.Http.Status>("404.0")
+        |> Stdlib.Test.equal(Ok(Stdlib.Http.Status.notFound))
+        Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>("0")
+        |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.success))
+        Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>("4242")
+        |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
+        |> Stdlib.Test.equal(Ok(4242))
+        Stdlib.Json.parse<Server>("{\"port\":443,\"status\":200}")
+        |> Stdlib.Test.equal(
+          Ok(Server { port = Stdlib.Net.Port.https, status = Stdlib.Http.Status.ok })) ])
+
+  test roundTrip =
+    let value = Server { port = Stdlib.Net.Port.http, status = Stdlib.Http.Status.created }
+    Stdlib.Json.serialize<Server>(value) |> Stdlib.Json.parse<Server>
+    |> Stdlib.Test.equal(Ok(value))
+
+  // Each type's ends and one past them, against its `fromInt64`: the F# range table has to
+  // agree with the Dark one.
+  test rangesMatchFromInt64 =
+    Stdlib.Test.all(
+      [ [ -1, 0, 65535, 65536 ]
+        |> Stdlib.List.map(fun n ->
+          Stdlib.Json.parse<Stdlib.Net.Port>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(Stdlib.Net.Port.fromInt64(n) |> Stdlib.Result.isOk))
+        [ 99, 100, 599, 600 ]
+        |> Stdlib.List.map(fun n ->
+          Stdlib.Json.parse<Stdlib.Http.Status>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(Stdlib.Http.Status.fromInt64(n) |> Stdlib.Result.isOk))
+        [ 0, 1, 2147483647, 2147483648 ]
+        |> Stdlib.List.map(fun n ->
+          Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(Stdlib.Cli.Posix.Pid.fromInt64(n) |> Stdlib.Result.isOk))
+        [ -1, 0, 255, 256 ]
+        |> Stdlib.List.map(fun n ->
+          Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(Stdlib.Cli.Posix.ExitCode.fromInt64(n) |> Stdlib.Result.isOk)) ]
+      |> Stdlib.List.flatten)
+
+  module Errors =
+    test parseErrors =
+      Stdlib.Test.all(
+        [ (Stdlib.Json.parse<Server>("{\"port\":70000,\"status\":200}")) |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON: 70000 is not a valid port (0 to 65535) at path: `root.port`"))
+          (Stdlib.Json.parse<Stdlib.Http.Status>("42")) |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON: 42 is not a valid HTTP status (100 to 599) at path: `root`"))
+          (Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>("256")) |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON: 256 is not a valid exit code (0 to 255) at path: `root`"))
+          (Stdlib.Json.parse<Stdlib.Net.Port>("{\"__value\":80}")) |> Stdlib.Result.isError
+          |> Stdlib.Test.equal(true)
+          (Stdlib.Json.parse<Stdlib.Net.Port>("80.5")) |> Stdlib.Result.isError
+          |> Stdlib.Test.equal(true)
+          (Stdlib.Json.parse<Stdlib.Net.Port>("\"80\"")) |> Stdlib.Result.isError
+          |> Stdlib.Test.equal(true) ])

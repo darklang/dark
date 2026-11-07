@@ -85,6 +85,50 @@ module JsonPath =
 
 
 
+/// The stdlib's range-checked integers: `Net.Port`, `Http.Status`, `Cli.Posix.Pid` and
+/// `Cli.Posix.ExitCode`. Each is a record of one field, and JSON writes and reads it as the
+/// bare number, so a port is `8080`, not `{"__port":8080}`. Parsing refuses a number outside
+/// the type's range, the same range its `fromInt64` checks.
+module RangedInt =
+  [<Struct>]
+  type Range = { field : string; what : string; min : int64; max : int64 }
+
+  /// The F# side of each type's `fromInt64`; `tests/stdlib/json.dark` checks they agree.
+  let find (typeName : FQTypeName.FQTypeName) : ValueOption<Range> =
+    match typeName with
+    | FQTypeName.Package(Hash h) ->
+      if h = PackageRefs.Type.Stdlib.Net.port () then
+        ValueSome { field = "__port"; what = "port"; min = 0L; max = 65535L }
+      else if h = PackageRefs.Type.Stdlib.Http.status () then
+        ValueSome
+          { field = "__status"; what = "HTTP status"; min = 100L; max = 599L }
+      else if h = PackageRefs.Type.Stdlib.Cli.Posix.pid () then
+        ValueSome
+          { field = "__pid"; what = "process ID"; min = 1L; max = 2147483647L }
+      else if h = PackageRefs.Type.Stdlib.Cli.Posix.exitCode () then
+        ValueSome { field = "__exitCode"; what = "exit code"; min = 0L; max = 255L }
+      else
+        ValueNone
+
+  /// The number inside a record of one of these types.
+  let valueOf
+    (typeName : FQTypeName.FQTypeName)
+    (fields : RecordFields)
+    : ValueOption<int64> =
+    if RecordFields.count fields <> 1 then
+      ValueNone
+    else
+      match find typeName with
+      | ValueNone -> ValueNone
+      | ValueSome range ->
+        match RecordFields.tryFind range.field fields with
+        | Some(DInt64 n) -> ValueSome n
+        | _ -> ValueNone
+
+  let make (typeName : FQTypeName.FQTypeName) (range : Range) (n : int64) : Dval =
+    DRecord(typeName, typeName, [], RecordFields.ofList [ range.field, DInt64 n ])
+
+
 let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit =
   let r = serialize threadID w
   match dv with
@@ -151,13 +195,16 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
       w.WritePropertyName caseName
       w.writeArray (fun () -> fields |> List.iter r))
 
-  | DRecord(_, _, _, fields) ->
-    // See `DDict` above.
-    w.writeObject (fun () ->
-      fields
-      |> RecordFields.iter (fun fieldName dval ->
-        w.WritePropertyName fieldName
-        r dval))
+  | DRecord(_, typeName, _, fields) ->
+    match RangedInt.valueOf typeName fields with
+    | ValueSome n -> w.WriteNumberValue n
+    | ValueNone ->
+      // See `DDict` above.
+      w.writeObject (fun () ->
+        fields
+        |> RecordFields.iter (fun fieldName dval ->
+          w.WritePropertyName fieldName
+          r dval))
 
   // Not supported
   | DApplicable _
@@ -185,6 +232,13 @@ module ParseError =
       JsonPath.JsonPath
     | RecordMissingField of fieldName : string * JsonPath.JsonPath
     | RecordDuplicateField of fieldName : string * JsonPath.JsonPath
+    /// A number outside the range of a type such as `Net.Port`
+    | OutOfRange of
+      what : string *
+      value : int64 *
+      min : int64 *
+      max : int64 *
+      JsonPath.JsonPath
     | NotJson
 
   exception JsonException of ParseError
@@ -222,6 +276,22 @@ module ParseError =
 
       | RecordDuplicateField(fieldName, errorPath) ->
         "RecordDuplicateField", [ DString fieldName; JsonPath.toDT errorPath ]
+
+      | OutOfRange(what, value, min, max, errorPath) ->
+        let rangeType =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Math.outOfRange ())
+        let range =
+          DRecord(
+            rangeType,
+            rangeType,
+            [],
+            RecordFields.ofList
+              [ "what", DString what
+                "value", DInt64 value
+                "min", DInt64 min
+                "max", DInt64 max ]
+          )
+        "OutOfRange", [ range; JsonPath.toDT errorPath ]
 
     let typeName = typeName ()
     DEnum(typeName, typeName, [], caseName, fields)
@@ -642,6 +712,34 @@ let parse
       |> Seq.toList
       |> Ply.List.flatten
       |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
+
+    | TCustomType({ resolved = Ok typeName }, _), jsonValueKind when
+      (RangedInt.find typeName).IsSome
+      ->
+      let range = (RangedInt.find typeName).Value
+      let mutable n = 0L
+      let mutable d = 0.0
+      let number =
+        if jsonValueKind <> JsonValueKind.Number then
+          ValueNone
+        else if j.TryGetInt64(&n) then
+          ValueSome n
+        else if
+          j.TryGetDouble(&d)
+          && System.Double.IsInteger d
+          && d <= float System.Int64.MaxValue
+          && d >= float System.Int64.MinValue
+        then
+          ValueSome(int64 d)
+        else
+          ValueNone
+      match number with
+      | ValueNone -> raiseCantMatchWithType typ j pathSoFar
+      | ValueSome n when n < range.min || n > range.max ->
+        raiseError (
+          ParseError.OutOfRange(range.what, n, range.min, range.max, pathSoFar)
+        )
+      | ValueSome n -> RangedInt.make typeName range n |> Ply
 
     | TCustomType({ resolved = Ok typeName }, typeArgs), jsonValueKind ->
       uply {
