@@ -348,8 +348,45 @@ let fileSnapshot
           System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit }
 
 
+/// How many times slower than an idle machine a child runs right now: the 1-minute load
+/// average per core, at least 1 and at most <param ceiling>. 1 where there is no
+/// `/proc/loadavg`.
+let private loadFactor (ceiling : float) : float =
+  try
+    let load1 =
+      System.Double.Parse(
+        (File.ReadAllText "/proc/loadavg").Split(' ')[0],
+        System.Globalization.CultureInfo.InvariantCulture
+      )
+    load1 / float System.Environment.ProcessorCount |> max 1.0 |> min ceiling
+  with _ ->
+    1.0
+
+/// Wait for <param task> for <param timeoutMs> of idle-machine time. Each second waited
+/// counts as 1/<c loadFactor> of a second, so on a machine running five times more work
+/// than it has cores the wait lasts up to five times as long, and never more than that:
+/// a child that is stuck rather than slow is still stopped. Returns the wall-clock
+/// milliseconds waited when the budget ran out.
+let private waitScaledByLoad
+  (task : System.Threading.Tasks.Task)
+  (timeoutMs : int)
+  : Option<int64> =
+  let maxFactor = 5.0
+  let clock = System.Diagnostics.Stopwatch.StartNew()
+  let mutable budget = float timeoutMs
+  let mutable finished = false
+  while not finished && budget > 0.0 do
+    let factor = loadFactor maxFactor
+    let slice = min 1000.0 (budget * factor) |> ceil |> int
+    if task.Wait slice then
+      finished <- true
+    else
+      budget <- budget - float slice / factor
+  if finished then None else Some clock.ElapsedMilliseconds
+
 /// Supervise a child and its descendants in a disposable directory. Preparation
 /// happens before the deadline, which covers both process exit and output pipes.
+/// The deadline stretches with machine load (see <c waitScaledByLoad>).
 let runInWorkspace
   (launcher : string)
   (prefix : string)
@@ -435,12 +472,13 @@ let runInWorkspace
               [| p.WaitForExitAsync(cancellation.Token)
                  stdout :> System.Threading.Tasks.Task
                  stderr :> System.Threading.Tasks.Task |]
-          if not (finished.Wait timeoutMs) then
+          match waitScaledByLoad finished timeoutMs with
+          | Some waited ->
             Error(
               110,
-              $"Child process timed out after {timeoutMs} ms (worker or output still open)"
+              $"Child process timed out after {waited} ms, a {timeoutMs} ms budget stretched for machine load (worker or output still open)"
             )
-          else
+          | None ->
             let result =
               if File.Exists resultPath then
                 if (FileInfo resultPath).Length > int64 maxCapturedOutput then
