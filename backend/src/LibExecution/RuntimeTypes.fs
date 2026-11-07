@@ -3340,7 +3340,9 @@ module PackageType =
   type PackageType = { hash : Hash; declaration : TypeDeclaration.T }
 
 module PackageValue =
-  type PackageValue = { hash : Hash; body : Dval }
+  /// `isInert` is `Dval.isInertData body`, worked out once when the value is made, so a read
+  /// need not walk the body to find out. Make one with `Dval.packageValue`, which sets it.
+  type PackageValue = { hash : Hash; body : Dval; isInert : bool }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }

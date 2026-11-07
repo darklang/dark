@@ -1043,8 +1043,7 @@ let executeWith
                 let instructions = PT2RT.Expr.toRT Map.empty 0 None value.body
                 match! Exe.executeExpr (scriptState ()) instructions with
                 | Ok body ->
-                  let value : RT.PackageValue.PackageValue =
-                    { hash = hash; body = body }
+                  let value = LibExecution.Dval.packageValue hash body
                   evaluated.Add(hash, value)
                   return Some value
                 | Error(error, _) -> return raiseUntargetedRTE error

@@ -264,9 +264,11 @@ module RuntimeTypes =
       { hash = RT.Hash "def456"; declaration = typeDeclarations[1] } ]
 
   let packageValues : List<RT.PackageValue.PackageValue> =
-    [ { hash = RT.Hash "val1"; body = RT.DString "Hello RT PackageValue" }
-      { hash = RT.Hash "val2"; body = RT.DInt64 42L }
-      { hash = RT.Hash "val3"; body = RT.DBool true } ]
+    [ LibExecution.Dval.packageValue
+        (RT.Hash "val1")
+        (RT.DString "Hello RT PackageValue")
+      LibExecution.Dval.packageValue (RT.Hash "val2") (RT.DInt64 42L)
+      LibExecution.Dval.packageValue (RT.Hash "val3") (RT.DBool true) ]
 
   let instructions : List<RT.Instructions> =
     [ { registerCount = 1; instructions = [ RT.CopyVal(0, 1) ]; resultIn = 0 }

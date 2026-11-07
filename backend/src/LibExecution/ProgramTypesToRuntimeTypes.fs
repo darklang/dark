@@ -1602,7 +1602,7 @@ module PackageValue =
     : RT.PackageValue.PackageValue =
     let threadID = System.Guid.NewGuid()
     let body = evalConstantExpr builtinValues threadID c.body
-    { hash = Hash.toRT c.hash; body = body }
+    Dval.packageValue (Hash.toRT c.hash) body
 
 module PackageFn =
   module Parameter =

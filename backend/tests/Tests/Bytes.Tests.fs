@@ -542,8 +542,7 @@ let sweepDeletesOrphansButKeepsReferenced =
 
       // Plant a package_value row whose rt_dval references refHash.
       let referencingDval = RT.DBytes(RT.Persistent(refHash, int64 refBytes.Length))
-      let pv : RT.PackageValue.PackageValue =
-        { hash = fakeHash; body = referencingDval }
+      let pv = LibExecution.Dval.packageValue fakeHash referencingDval
       let rtDvalBytes = BS.RT.PackageValue.serialize fakeHash pv
       let valueTypeBytes =
         BS.RT.ValueType.serialize (RT.Dval.toValueType referencingDval)

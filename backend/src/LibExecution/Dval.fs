@@ -327,6 +327,10 @@ let rec isInertData (dv : Dval) : bool =
   | DRecord(_, _, _, fields) -> fields |> RecordFields.forall isInertData
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isInertData
 
+/// A package value, with `isInert` worked out from its body once, here.
+let packageValue (hash : Hash) (body : Dval) : PackageValue.PackageValue =
+  { hash = hash; body = body; isInert = isInertData body }
+
 
 let byteArrayToDvalList (bytes : byte[]) : Dval =
   bytes
