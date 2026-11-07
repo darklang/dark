@@ -34,6 +34,35 @@ let contentHashCode (s : string) : int =
       )
     System.HashCode.Combine(words[0], words[1], words[2], words[3])
 
+/// Folds `name` into `h` four characters at a time, then one at a time for the rest.
+let rec private foldNameWords (name : string) (i : int) (h : uint64) : uint64 =
+  if i + 4 <= name.Length then
+    let word =
+      System.Runtime.InteropServices.MemoryMarshal.Read<uint64>(
+        System.Runtime.InteropServices.MemoryMarshal.AsBytes(
+          System.MemoryExtensions.AsSpan(name, i, 4)
+        )
+      )
+    foldNameWords name (i + 4) ((h ^^^ word) * 0x9E3779B97F4A7C15UL)
+  elif i < name.Length then
+    foldNameWords name (i + 1) ((h ^^^ uint64 name[i]) * 0x9E3779B97F4A7C15UL)
+  else
+    h
+
+/// A hash code for a builtin's name and version, over the whole name.
+///
+/// The interpreter looks a builtin up by name and version several times per call (its table, the
+/// operator table, how its arguments are forced, the forwarder cache), and the generated hash code
+/// ran `String.GetHashCode`, which is Marvin, over the name each time. Names are short, so one
+/// multiply per four characters is enough. Unlike `contentHashCode` it reads every character:
+/// `uint8BitwiseAnd` and `uint16BitwiseAnd` differ only in the middle.
+let builtinNameHashCode (name : string) (version : int) : int =
+  if isNull name then
+    version
+  else
+    let h = foldNameWords name 0 (uint64 (uint32 version) * 0x9E3779B97F4A7C15UL)
+    int h ^^^ int (h >>> 32)
+
 /// Structural hash of a package item's content (shape, not name/location).
 ///
 /// Equality and ordering are the string's, ordinal, as the generated ones were; only the hash code
@@ -140,7 +169,38 @@ module FQValueName =
 /// Used to reference a function defined by the runtime or in a Package
 module FQFnName =
   /// A function built into the runtime
-  type Builtin = { name : string; version : int }
+  ///
+  /// Equality and ordering are the generated ones: the name, ordinal, then the version. Only the
+  /// hash code differs (`builtinNameHashCode`).
+  [<CustomEquality; CustomComparison>]
+  type Builtin =
+    { name : string
+      version : int }
+
+    override this.GetHashCode() = builtinNameHashCode this.name this.version
+
+    override this.Equals(other : obj) =
+      match other with
+      | :? Builtin as b -> (this :> System.IEquatable<Builtin>).Equals b
+      | _ -> false
+
+    interface System.IEquatable<Builtin> with
+      member this.Equals(other : Builtin) =
+        this.version = other.version && System.String.Equals(this.name, other.name)
+
+    interface System.IComparable<Builtin> with
+      member this.CompareTo(other : Builtin) =
+        let byName = System.String.CompareOrdinal(this.name, other.name)
+        if byName <> 0 then byName
+        elif this.version < other.version then -1
+        elif this.version > other.version then 1
+        else 0
+
+    interface System.IComparable with
+      member this.CompareTo(other : obj) =
+        match other with
+        | :? Builtin as b -> (this :> System.IComparable<Builtin>).CompareTo b
+        | _ -> invalidArg "other" "not a Builtin"
 
   type Package = Hash
 
