@@ -134,8 +134,7 @@ let private refuseToOpen
 let upgradeLock (dbPath : string) : System.IDisposable =
   let path = dbPath + ".upgrade-lock"
   let deadline = System.DateTime.UtcNow.AddMinutes 5.0
-  let mutable said = false
-  let rec acquire () : System.IDisposable =
+  let rec acquire (said : bool) : System.IDisposable =
     try
       new FileStream(
         path,
@@ -152,25 +151,14 @@ let upgradeLock (dbPath : string) : System.IDisposable =
           "another dark has been upgrading this store for five minutes"
           e.Message
       if not said then
-        said <- true
         eprintfn "Waiting for another dark to finish upgrading the store..."
       System.Threading.Thread.Sleep 100
-      acquire ()
-  acquire ()
+      acquire true
+  acquire false
 
 
-/// Bindings this store holds that the embedded seed did not write, captured before an upgrade folds.
-///
-/// `locations.op_id` is the op the fold credited with each binding, so an op the seed does not carry is one
-/// authored here or pulled from a peer. Upgrading must not silently take those back: the seed's version of a
-/// name you edited is newer by stamp and would win LWW.
-///
-/// (owner, modules, name, item_type, item_hash, source). `source` separates a name you edited from one
-/// that merely followed it through propagation, which matters only for what gets reported: one edit to
-/// a core function repoints hundreds of callers.
-let mutable locallyAuthored
-  : List<string * string * string * string * string * string> =
-  []
+/// (owner, modules, name, item_type, item_hash, source) of one binding in `locations`.
+type HeldBinding = string * string * string * string * string * string
 
 
 /// Top up an existing store with this binary's embedded package ops.
@@ -182,9 +170,18 @@ let mutable locallyAuthored
 ///
 /// Failure is not fatal on purpose: a store that could not be topped up is no worse off than before. It
 /// answers whether it worked, so a failure leaves the store unstamped and the next start tries again.
-let private reseedFromEmbedded (dbPath : string) : bool =
+///
+/// It also answers which bindings were locally authored (see `Extracted.locallyAuthored`), captured
+/// before the top-up and kept even when the top-up itself then fails.
+let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
   let temp =
     Path.Combine(Path.GetTempPath(), $"dark-seed-{System.Guid.NewGuid()}.db")
+
+  let failed (e : exn) : bool =
+    System.Console.Error.WriteLine(
+      $"could not top up the package store: {e.Message}"
+    )
+    false
 
   try
     try
@@ -209,81 +206,88 @@ let private reseedFromEmbedded (dbPath : string) : bool =
         detach.CommandText <- "DETACH DATABASE seed;"
         detach.ExecuteNonQuery() |> ignore<int>
 
-        if pending > 0 then
-          // Captured while `seed` is still attached and before anything folds, because afterwards the
-          // seed's own SetName may already have taken the name.
-          //
-          // Against the LEDGER, not against this seed: comparing against the current seed alone would
-          // call the entire previous package set locally authored.
-          //
-          // `extract` runs before migrations, so on an older store this table does not exist yet and
-          // every query against it is a startup crash. Declaring it here is the only place that can
-          // be true of both a fresh store and one that predates the ledger.
-          use ensure = conn.CreateCommand()
-          ensure.CommandText <-
-            "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY)"
-          ensure.ExecuteNonQuery() |> ignore<int>
-
-          use ledger = conn.CreateCommand()
-          ledger.CommandText <- "SELECT COUNT(*) FROM seed_ops"
-          let known = ledger.ExecuteScalar() |> string |> int
-
-          use mine = conn.CreateCommand()
-
-          if known = 0 then
-            // First run on a store that predates the ledger: nothing here can say which ops came
-            // from a build, so claim none rather than guess. Every upgrade after this has provenance.
-            locallyAuthored <- []
+        // Captured while `seed` is still attached and before anything folds, because afterwards the
+        // seed's own SetName may already have taken the name.
+        //
+        // Against the LEDGER, not against this seed: comparing against the current seed alone would
+        // call the entire previous package set locally authored.
+        //
+        // `extract` runs before migrations, so on an older store this table does not exist yet and
+        // every query against it is a startup crash. Declaring it here is the only place that can
+        // be true of both a fresh store and one that predates the ledger.
+        let held : List<HeldBinding> =
+          if pending = 0 then
+            []
           else
-            mine.CommandText <-
-              $"SELECT owner, modules, name, item_type, item_hash, source
-               FROM locations
-               WHERE live = 1 AND item_hash <> '' AND branch_id = '{string LibExecution.ProgramTypes.BranchId.Main}'
-                 AND op_id NOT IN (SELECT op_id FROM seed_ops)"
-            let held = ResizeArray()
-            use r = mine.ExecuteReader()
-            while r.Read() do
-              held.Add(
-                r.GetString 0,
-                r.GetString 1,
-                r.GetString 2,
-                r.GetString 3,
-                r.GetString 4,
-                r.GetString 5
-              )
-            r.Close()
-            locallyAuthored <- List.ofSeq held
+            use ensure = conn.CreateCommand()
+            ensure.CommandText <-
+              "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY)"
+            ensure.ExecuteNonQuery() |> ignore<int>
 
-          // Record what THIS seed carries, whichever branch ran above.
-          use remember = conn.CreateCommand()
-          remember.CommandText <-
-            "ATTACH DATABASE $seed AS seed2;
-             INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM seed2.package_ops;
-             DETACH DATABASE seed2;"
-          remember.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
-          remember.ExecuteNonQuery() |> ignore<int>
+            use ledger = conn.CreateCommand()
+            ledger.CommandText <- "SELECT COUNT(*) FROM seed_ops"
+            let known = ledger.ExecuteScalar() |> string |> int
 
-        use cmd = conn.CreateCommand()
-        // The seed's ops arrive COMMITTED, under its baseline commit, and have to stay that way:
-        // dropping `commit_hash` leaves them in the draft, so the first `dark status` after an upgrade
-        // reports thousands of items changed. Commit rows come first so the reference has a target.
-        cmd.CommandText <-
-          "ATTACH DATABASE $seed AS seed;
-           INSERT OR IGNORE INTO commits (hash, branch_id, message, origin_ts, parent, housekeeping)
-             SELECT hash, branch_id, message, origin_ts, parent, housekeeping FROM seed.commits;
-           INSERT OR IGNORE INTO package_ops
-             (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts, commit_hash, source)
-             SELECT id, branch_id, authored_on, op_blob, op_kind, 0, origin_ts, commit_hash, source
-             FROM seed.package_ops;
-           DETACH DATABASE seed;"
-        cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
-        cmd.ExecuteNonQuery() |> ignore<int>
-      true
+            if known = 0 then
+              // First run on a store that predates the ledger: nothing here can say which ops came
+              // from a build, so claim none rather than guess. Every upgrade after this has provenance.
+              []
+            else
+              use mine = conn.CreateCommand()
+              mine.CommandText <-
+                $"SELECT owner, modules, name, item_type, item_hash, source
+                 FROM locations
+                 WHERE live = 1 AND item_hash <> '' AND branch_id = '{string LibExecution.ProgramTypes.BranchId.Main}'
+                   AND op_id NOT IN (SELECT op_id FROM seed_ops)"
+              use r = mine.ExecuteReader()
+              let rows =
+                [ while r.Read() do
+                    yield
+                      (r.GetString 0,
+                       r.GetString 1,
+                       r.GetString 2,
+                       r.GetString 3,
+                       r.GetString 4,
+                       r.GetString 5) ]
+              r.Close()
+              rows
+
+        let toppedUp =
+          try
+            if pending > 0 then
+              // Record what THIS seed carries, whichever branch ran above.
+              use remember = conn.CreateCommand()
+              remember.CommandText <-
+                "ATTACH DATABASE $seed AS seed2;
+                 INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM seed2.package_ops;
+                 DETACH DATABASE seed2;"
+              remember.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+              remember.ExecuteNonQuery() |> ignore<int>
+
+            use cmd = conn.CreateCommand()
+            // The seed's ops arrive COMMITTED, under its baseline commit, and have to stay that way:
+            // dropping `commit_hash` leaves them in the draft, so the first `dark status` after an upgrade
+            // reports thousands of items changed. Commit rows come first so the reference has a target.
+            cmd.CommandText <-
+              "ATTACH DATABASE $seed AS seed;
+               INSERT OR IGNORE INTO commits (hash, branch_id, message, origin_ts, parent, housekeeping)
+                 SELECT hash, branch_id, message, origin_ts, parent, housekeeping FROM seed.commits;
+               INSERT OR IGNORE INTO package_ops
+                 (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts, commit_hash, source)
+                 SELECT id, branch_id, authored_on, op_blob, op_kind, 0, origin_ts, commit_hash, source
+                 FROM seed.package_ops;
+               DETACH DATABASE seed;"
+            cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+            cmd.ExecuteNonQuery() |> ignore<int>
+            true
+          with e ->
+            failed e
+
+        (toppedUp, held)
+      else
+        (true, [])
     with e ->
-      System.Console.Error.WriteLine(
-        $"could not top up the package store: {e.Message}"
-      )
-      false
+      (failed e, [])
   finally
     try
       if File.Exists temp then File.Delete temp
@@ -291,16 +295,29 @@ let private reseedFromEmbedded (dbPath : string) : bool =
       ()
 
 
-/// Sub-timings for `extract`, in Stopwatch ticks. Collected rather than logged because `extract` runs
-/// before telemetry has an output path: it's what chooses the store directory, where the log lives.
-/// `Cli.Main` drains this once telemetry is up.
-let timings : ResizeArray<string * int64> = ResizeArray()
+/// What `extract` found that `Cli.Main` acts on later.
+type Extracted =
+  {
+    /// Sub-timings for `extract`, in Stopwatch ticks. Returned rather than logged because `extract` runs
+    /// before telemetry has an output path: it's what chooses the store directory, where the log lives.
+    /// `Cli.Main` logs them once telemetry is up.
+    timings : List<string * int64>
 
-let inline private timed (label : string) (f : unit -> 'a) : 'a =
+    /// Bindings this store holds that the embedded seed did not write, captured before an upgrade folds.
+    ///
+    /// `locations.op_id` is the op the fold credited with each binding, so an op the seed does not carry is one
+    /// authored here or pulled from a peer. Upgrading must not silently take those back: the seed's version of a
+    /// name you edited is newer by stamp and would win LWW.
+    ///
+    /// `source` separates a name you edited from one that merely followed it through propagation, which
+    /// matters only for what gets reported: one edit to a core function repoints hundreds of callers.
+    locallyAuthored : List<HeldBinding>
+  }
+
+let inline private timed (label : string) (f : unit -> 'a) : 'a * (string * int64) =
   let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
   let r = f ()
-  timings.Add(label, System.Diagnostics.Stopwatch.GetTimestamp() - t0)
-  r
+  (r, (label, System.Diagnostics.Stopwatch.GetTimestamp() - t0))
 
 /// Which build last reconciled this store with its own embedded seed.
 ///
@@ -347,10 +364,14 @@ let private recordStoreStamp (dbPath : string) (build : string) : unit =
   with _ ->
     () // failing to record it costs the next run the top-up it just did, nothing worse
 
-let extract () : unit =
+let extract () : Extracted =
   // On first run, decompress the embedded seed db to `~/.darklang/data.db`; afterwards the
   // file exists and grow/init proceeds against the local copy.
-  if timed "extract.hasResource" (fun () -> hasEmbeddedResource "data.db.gz") then
+  let hasResource, hasResourceTiming =
+    timed "extract.hasResource" (fun () -> hasEmbeddedResource "data.db.gz")
+  if not hasResource then
+    { timings = [ hasResourceTiming ]; locallyAuthored = [] }
+  else
     let darklangDir = LibConfig.StoreLocation.defaultDirectory ()
 
     // Straight to `LibConfig`, not through the environment: a variable set here is inherited
@@ -388,45 +409,59 @@ let extract () : unit =
     // In this order, and each one only if the one before it worked: back up, run the steps, top up,
     // stamp. A step that fails stops dark here (`refuseToOpen`), unstamped, so the next start tries
     // again; carrying on would run every command against a half-upgraded store.
-    if File.Exists(dbPath) && not reconciled then
-      use _upgrading = upgradeLock dbPath
-      // Another dark may have done all of this while this one waited for the lock.
-      if not (build <> "dev" && storeStamp dbPath = Some build) then
-        let backup =
-          match backupBeforeUpgrade dbPath build with
-          | Ok backup -> backup
-          | Error reason ->
-            refuseToOpen
-              dbPath
-              None
-              "the backup taken before upgrading failed"
-              reason
+    let upgradeTimings, locallyAuthored =
+      if File.Exists(dbPath) && not reconciled then
+        use _upgrading = upgradeLock dbPath
+        // Another dark may have done all of this while this one waited for the lock.
+        if not (build <> "dev" && storeStamp dbPath = Some build) then
+          let backup =
+            match backupBeforeUpgrade dbPath build with
+            | Ok backup -> backup
+            | Error reason ->
+              refuseToOpen
+                dbPath
+                None
+                "the backup taken before upgrading failed"
+                reason
 
-        try
-          match embeddedSchema () with
-          | Some sql ->
-            timed "extract.reset" (fun () -> LibDB.Releases.resetIfOlderShape dbPath)
-            |> ignore<Option<string>>
-            timed "extract.schema" (fun () -> LibDB.Releases.applySchemaTables sql)
-            timed "extract.releases" (fun () -> LibDB.Releases.runPending ())
-            timed "extract.indexes" (fun () -> LibDB.Releases.applySchemaIndexes sql)
-          | None -> ()
-        with
-        | LibDB.Releases.StepFailed(step, inner) ->
-          refuseToOpen dbPath (Some backup) $"release step: {step}" inner.Message
-        | e ->
-          refuseToOpen
-            dbPath
-            (Some backup)
-            "bringing the store's tables up to date"
-            e.Message
+          let schemaTimings =
+            try
+              match embeddedSchema () with
+              | Some sql ->
+                let (_ : Option<string>), reset =
+                  timed "extract.reset" (fun () ->
+                    LibDB.Releases.resetIfOlderShape dbPath)
+                let (), schema =
+                  timed "extract.schema" (fun () ->
+                    LibDB.Releases.applySchemaTables sql)
+                let (), releases =
+                  timed "extract.releases" (fun () -> LibDB.Releases.runPending ())
+                let (), indexes =
+                  timed "extract.indexes" (fun () ->
+                    LibDB.Releases.applySchemaIndexes sql)
+                [ reset; schema; releases; indexes ]
+              | None -> []
+            with
+            | LibDB.Releases.StepFailed(step, inner) ->
+              refuseToOpen dbPath (Some backup) $"release step: {step}" inner.Message
+            | e ->
+              refuseToOpen
+                dbPath
+                (Some backup)
+                "bringing the store's tables up to date"
+                e.Message
 
-        // Top up an existing store with this binary's own package code (see
-        // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
-        // it; without this, upgrading the binary would mean wiping the store.
-        let toppedUp =
-          timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
-        if toppedUp && build <> "dev" then recordStoreStamp dbPath build
+          // Top up an existing store with this binary's own package code (see
+          // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
+          // it; without this, upgrading the binary would mean wiping the store.
+          let (toppedUp, held), topUp =
+            timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
+          if toppedUp && build <> "dev" then recordStoreStamp dbPath build
+          (schemaTimings @ [ topUp ], held)
+        else
+          ([], [])
+      else
+        ([], [])
 
     // Only one process should create the store. After taking the lock, check again in case
     // another process finished setting it up while we were waiting.
@@ -477,3 +512,6 @@ let extract () : unit =
         recordStoreStamp dbPath LibConfig.Config.buildHash
 
         eprintfn "CLI data directory setup complete"
+
+    { timings = hasResourceTiming :: upgradeTimings
+      locallyAuthored = locallyAuthored }

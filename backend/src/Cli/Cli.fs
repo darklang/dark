@@ -399,7 +399,7 @@ let private runCli (args : string[]) : int =
     // Extract embedded resources FIRST: this chooses the store directory, which
     // LibConfig.Config fixes the first time anything reads it.
     let extractStart = System.Diagnostics.Stopwatch.GetTimestamp()
-    EmbeddedResources.extract ()
+    let extracted = EmbeddedResources.extract ()
     let extractTicks = System.Diagnostics.Stopwatch.GetTimestamp() - extractStart
     initSerializers ()
 
@@ -482,7 +482,7 @@ let private runCli (args : string[]) : int =
     let ticksToMs (t : int64) = t * 1000L / System.Diagnostics.Stopwatch.Frequency
     Telemetry.event "cli.extractResources" [ "ms", string (ticksToMs extractTicks) ]
     // Resource extraction happened before telemetry had an output path.
-    for (label, ticks) in EmbeddedResources.timings do
+    for (label, ticks) in extracted.timings do
       Telemetry.event $"cli.{label}" [ "ms", string (ticksToMs ticks) ]
 
     use _totalSpan = Telemetry.span "cli.total" []
@@ -554,7 +554,7 @@ let private runCli (args : string[]) : int =
     // the name to the build's newer stamp, and this puts it back. Said out loud, since it is a
     // default rather than anything you asked for.
     Telemetry.time "cli.keepLocalEdits" [] (fun () ->
-      match EmbeddedResources.locallyAuthored with
+      match extracted.locallyAuthored with
       | [] -> ()
       | held ->
         let kept = (LibDB.UpgradeKeep.restore held).Result
@@ -771,12 +771,10 @@ let private runCli (args : string[]) : int =
       // Per-opcode allocation. Names come from reflection over the Instruction DU, so tag order
       // can't drift out of sync with a hand-written list.
       let opcodeNames = RT.Opcode.names
-      let totalAlloc = Array.zeroCreate 32
-      let totalCount = Array.zeroCreate 32
-      for s in stats do
-        for i in 0..31 do
-          totalAlloc[i] <- totalAlloc[i] + s.allocByOpcode[i]
-          totalCount[i] <- totalCount[i] + s.countByOpcode[i]
+      let totalAlloc =
+        Array.init 32 (fun i -> stats |> List.sumBy (fun s -> s.allocByOpcode[i]))
+      let totalCount =
+        Array.init 32 (fun i -> stats |> List.sumBy (fun s -> s.countByOpcode[i]))
       for i in 0..31 do
         if totalCount[i] > 0L then
           let name = if i < opcodeNames.Length then opcodeNames[i] else string i
@@ -788,31 +786,27 @@ let private runCli (args : string[]) : int =
 
       // Per-builtin allocation. Nearly all of what the process allocates happens inside builtin
       // bodies, not the interpreter around them.
-      let byBuiltin = System.Collections.Generic.Dictionary<string, int64>()
-      for s in stats do
-        for kv in s.builtinAlloc do
-          match byBuiltin.TryGetValue kv.Key with
-          | true, v -> byBuiltin[kv.Key] <- v + kv.Value
-          | false, _ -> byBuiltin[kv.Key] <- kv.Value
-      let callsByBuiltin = System.Collections.Generic.Dictionary<string, int64>()
-      for s in stats do
-        for kv in s.builtinCallsByName do
-          match callsByBuiltin.TryGetValue kv.Key with
-          | true, v -> callsByBuiltin[kv.Key] <- v + kv.Value
-          | false, _ -> callsByBuiltin[kv.Key] <- kv.Value
-      byBuiltin
-      |> Seq.sortByDescending (fun kv -> kv.Value)
-      |> Seq.truncate 20
-      |> Seq.iter (fun kv ->
-        let calls =
-          match callsByBuiltin.TryGetValue kv.Key with
-          | true, c -> c
-          | false, _ -> 0L
+      // Totals per builtin name, in the order each name first appears.
+      let sumByName
+        (counters :
+          RT.InterpreterStats -> System.Collections.Generic.Dictionary<string, int64>)
+        : List<string * int64> =
+        stats
+        |> Seq.collect counters
+        |> Seq.groupBy (fun kv -> kv.Key)
+        |> Seq.map (fun (name, kvs) -> (name, kvs |> Seq.sumBy (fun kv -> kv.Value)))
+        |> List.ofSeq
+      let callsByBuiltin = sumByName (fun s -> s.builtinCallsByName) |> Map.ofList
+      sumByName (fun s -> s.builtinAlloc)
+      |> List.sortByDescending snd
+      |> List.truncate 20
+      |> List.iter (fun (name, bytes) ->
+        let calls = Map.tryFind name callsByBuiltin |> Option.defaultValue 0L
         Telemetry.event
-          $"builtinAlloc.{kv.Key}"
-          [ "bytes", string kv.Value
+          $"builtinAlloc.{name}"
+          [ "bytes", string bytes
             "calls", string calls
-            "bytesPerCall", string (if calls = 0L then 0L else kv.Value / calls) ])
+            "bytesPerCall", string (if calls = 0L then 0L else bytes / calls) ])
 
       for i in 0 .. min (RT.ApplyStage.names.Length - 1) 31 do
         let total = stats |> List.sumBy (fun s -> s.allocByStage[i])
