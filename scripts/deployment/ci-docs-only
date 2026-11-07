@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# Whether a branch or PR changes only prose. Runs in CircleCI's setup workflow, on the host,
+# after the commit has been fetched.
+#
+#   scripts/deployment/ci-docs-only    prints `true` if so, or nothing
+#
+# Prose is anything under later/, which nothing builds, loads or lints, and any .md file
+# outside backend/ and packages/ (the CLI embeds a README from backend/). Such a change skips
+# the build: there is nothing in it for the build to check.
+#
+# Compared with where the branch left main, so the answer covers the whole PR, not just its
+# last push. Main and tags always build, and so does anything this can't be sure of: a
+# merge-base it can't find, or an empty diff.
+
+set -euo pipefail
+shopt -s inherit_errexit
+
+[[ "${CIRCLE_BRANCH:-}" != main && -z "${CIRCLE_TAG:-}" && -n "${CIRCLE_SHA1:-}" ]] || exit 0
+
+# Commits and trees only, deep enough to find where a branch of a couple of hundred commits
+# left main: about 3s, where the blobs too took 12.
+fetch() { git fetch -q --depth=200 --filter=blob:none origin "$@" 2> /dev/null; }
+fetch "+refs/heads/main:refs/remotes/origin/main" || exit 0
+fetch "$CIRCLE_SHA1" || fetch "refs/pull/${CIRCLE_PULL_REQUEST##*/}/head" || exit 0
+base=$(git merge-base refs/remotes/origin/main "$CIRCLE_SHA1" 2> /dev/null) || exit 0
+
+changed=$(git diff --name-only --no-renames "$base" "$CIRCLE_SHA1") || exit 0
+[[ -n "$changed" ]] || exit 0
+
+prose='^(later/.*|([^/]+|(?!backend/|packages/)[^/]+/.*)\.md)$'
+if grep -qvP "$prose" <<< "$changed"; then exit 0; fi
+
+echo true
