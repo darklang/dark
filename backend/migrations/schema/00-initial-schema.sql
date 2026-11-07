@@ -91,7 +91,9 @@ CREATE TABLE IF NOT EXISTS package_ops (
   -- What wrote it: 'op' = authored, 'propagation' = a repoint that followed an edit, 'resolution' = a
   -- conflict settled or a pin rolled back.
   source TEXT NOT NULL DEFAULT 'op',
-  created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
+  -- When it was inserted here, to the millisecond. What a live watcher reads the log by
+  -- (`SCM.PackageOps.landedSince`); milliseconds keep the ops sharing its newest instant few.
+  created_at TIMESTAMP NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
   -- Authoring stamp, from the process clock (`LibDB.OriginTs`). Last-writer-wins orders by it.
   origin_ts TEXT NOT NULL,
   PRIMARY KEY (id, branch_id)

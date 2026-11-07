@@ -269,17 +269,15 @@ let private opFilterFromDT (f : Dval) : Ops.Filter =
   | DEnum(_, _, _, "IdPrefix", [ DString p ]) -> Ops.IdPrefix p
   | DEnum(_, _, _, "InCommit", [ DString h ]) -> Ops.InCommit h
   | DEnum(_, _, _, "Visible", [ DUuid g ]) -> Ops.Visible(b g)
-  | DEnum(_, _, _, "LandedSince", [ DUuid g; DString since; DBool andAtSince ]) ->
-    Ops.LandedSince(b g, since, andAtSince)
-  | DEnum(_, _, _, "LandedAt", [ DString at ]) -> Ops.LandedAt at
+  | DEnum(_, _, _, "LandedSince", [ DUuid g; DString since ]) ->
+    Ops.LandedSince(b g, since)
+  | DEnum(_, _, _, "LandedLast", []) -> Ops.LandedLast
   | DEnum(_, _, _, "Ids", [ DList(_, ids) ]) -> Ops.Ids(strings ids)
   | DEnum(_, _, _, "Draft", [ DUuid g ]) -> Ops.Draft(b g)
   | DEnum(_, _, _, "DraftIds", [ DUuid g ]) -> Ops.DraftIds(b g)
   | DEnum(_, _, _, "Own", [ DUuid g ]) -> Ops.Own(b g)
   | DEnum(_, _, _, "MergedFrom", [ DUuid g ]) -> Ops.MergedFrom(b g)
   | DEnum(_, _, _, "Main", []) -> Ops.Main
-  | DEnum(_, _, _, "NewestLanded", []) -> Ops.NewestLanded
-  | DEnum(_, _, _, "StoreNow", []) -> Ops.StoreNow
   | DEnum(_, _, _, "NextStamp", []) -> Ops.NextStamp
   | other -> Exception.raiseInternal "unknown OpFilter" [ "got", other ]
 

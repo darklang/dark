@@ -35,10 +35,10 @@ nothing; "same as last time" or "moved" does, and only within one process.
 A config write or a trace write moves it too. `Stdlib.Live.poll` tells those apart from
 an edit by asking the op log what landed (below), and answers `None` for them.
 
-## What changed (`Stdlib.Live.poll`, `SCM.PackageOps.idsLandedSince`)
+## What changed (`Stdlib.Live.poll`, `SCM.PackageOps.landedSince`)
 
 A `Watch` is a branch, the last counter seen, the newest insert time (`created_at`,
-second resolution) reported so far, and the ids already reported at that second.
+millisecond resolution) seen so far, and the ids already seen at that instant.
 `poll` returns the next `Watch` and, when something landed, a `Change`: the ops, the
 names they bound or unbound (`touched`), or `unknown` when it will not describe them
 (more than 500 ops in one poll, which a host treats as "everything changed").
@@ -56,10 +56,17 @@ sees a flood and reports `unknown`, and the host re-runs everything. Correct, no
 precise. A rewrite that preserved `created_at` for unchanged ops (it already preserves
 `origin_ts`) would make it precise; that is a `LibDB/Inserts.fs` change and is not done.
 
-The ids at the newest second are held only while that second is still the current one.
-A reload lands thousands of ops in one second; reading them back on every poll for as
-long as the watch lived cost 400 ms a poll, and nothing can land in a second that has
-passed.
+Every poll reads from that instant on, the instant itself included, and drops the ids
+it has already seen there. The clock moving past the instant does not close it: writes
+take the store's one write lock in turn, so a transaction still in flight stamps no
+earlier than what is committed, but it can stamp the same instant and commit after the
+clock has moved on. A watch that stopped reading an instant once the clock passed it
+missed such an op for good. The stamps are milliseconds so that the ids held are a
+handful: at second resolution a reload put thousands in one second, and reading them
+back on every poll cost 400 ms a poll.
+
+The watch's next instant and ids come from the rows that poll read, not from the log
+read again, so an op that lands between the two reads is still ahead of the watch.
 
 `poll` drops the name caches (`LibDB.Caching.invalidateAll`, via
 `SCM.Draft.invalidateCaches`) BEFORE reporting a change, so the caller's next name

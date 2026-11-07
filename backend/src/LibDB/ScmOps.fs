@@ -30,10 +30,12 @@ type Filter =
   | InCommit of hash : string
   /// The ops a branch can SEE (its own and its ancestors', up to main's), newest first.
   | Visible of branchId : PT.BranchId
-  /// The ids of the ops a branch can see that landed after (or at) a `created_at`, oldest first.
-  | LandedSince of branchId : PT.BranchId * since : string * andAtSince : bool
-  /// The ids of the ops that landed at exactly this `created_at`.
-  | LandedAt of at : string
+  /// The ops a branch can see that landed at or after a `created_at`, oldest first: ids, with `ts`
+  /// the `created_at` itself.
+  | LandedSince of branchId : PT.BranchId * since : string
+  /// The ops that landed at the newest `created_at` in the log, on any branch: ids, with `ts` that
+  /// `created_at`. One statement, so the instant and its ids are read together.
+  | LandedLast
   /// These ops, oldest first. Ids the log does not hold are skipped.
   | Ids of ids : List<string>
   /// A branch's draft: its uncommitted ops, oldest first.
@@ -47,16 +49,13 @@ type Filter =
   | MergedFrom of branchId : PT.BranchId
   /// Every op of main's, oldest first.
   | Main
-  /// One row whose `ts` is the newest `created_at` among landed ops, or "".
-  | NewestLanded
-  /// One row whose `ts` is the store's clock, in `created_at` form.
-  | StoreNow
   /// One row whose `ts` sorts after everything in the log: its latest stamp plus a second, or now
   /// for an empty log.
   | NextStamp
 
 
-/// One op row. `ts` is the authoring stamp (`origin_ts`), "" where the case did not read it;
+/// One op row. `ts` is the authoring stamp (`origin_ts`), or when the op landed here (`created_at`)
+/// for the `Landed` cases, "" where the case did not read it;
 /// `sizeBytes` is the blob's size, 0 where the case did not read the blob; `source` is what put the
 /// op on the branch, for `Own` only ("" elsewhere); `op` is the decoded op, None where the case did not
 /// read the blob or this build cannot read it.
@@ -92,6 +91,8 @@ let private withBlobRows = "id, origin_ts AS ts, op_blob, source"
 
 let private withBlob = "id, origin_ts AS ts, op_blob"
 
+let private landedCols = "id, created_at AS ts"
+
 
 let private shape (f : Filter) : Shape =
   let s cols from order ps =
@@ -120,24 +121,24 @@ let private shape (f : Filter) : Shape =
       order = "ORDER BY rowid DESC"
       parameters = Layers.sqlParams b true }
 
-  | LandedSince(b, since, andAtSince) ->
+  | LandedSince(b, since) ->
     // APPLIED ops only: reporting an op before it folds would let a watcher check the old version
     // and never look again.
-    let comparison = if andAtSince then ">=" else ">"
     { prefix = Layers.cte "@"
-      cols = "id"
+      cols = landedCols
       from =
         "FROM package_ops WHERE branch_id IN (SELECT bid FROM chain) AND applied = 1 "
-        + $"AND created_at {comparison} @since"
+        + "AND created_at >= @since"
       order = "ORDER BY created_at, rowid"
       parameters = ("since", Sql.string since) :: Layers.sqlParams b true }
 
-  | LandedAt at ->
+  | LandedLast ->
     s
-      "id"
-      "FROM package_ops WHERE created_at = @at AND applied = 1"
-      ""
-      [ "at", Sql.string at ]
+      landedCols
+      "FROM package_ops WHERE applied = 1
+         AND created_at = (SELECT max(created_at) FROM package_ops WHERE applied = 1)"
+      "ORDER BY rowid"
+      []
 
   | Ids ids ->
     s
@@ -182,18 +183,12 @@ let private shape (f : Filter) : Shape =
       "ORDER BY origin_ts, rowid"
       [ branchParam PT.BranchId.Main ]
 
-  | NewestLanded
-  | StoreNow
   | NextStamp -> Exception.raiseInternal "a stamp case has no row shape" []
 
 
 /// The one-value cases: the statement, whose single column is `ts`.
 let private stampSql (f : Filter) : Option<string> =
   match f with
-  | NewestLanded ->
-    Some
-      "SELECT COALESCE(max(created_at), '') AS ts FROM package_ops WHERE applied = 1"
-  | StoreNow -> Some "SELECT datetime('now') AS ts"
   | NextStamp ->
     Some
       "SELECT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', MAX(origin_ts), '+1 second'),

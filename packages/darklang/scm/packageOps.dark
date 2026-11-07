@@ -200,11 +200,12 @@ type OpFilter =
   | InCommit(hash: String)
   /// The ops a branch can SEE (its own and its ancestors', up to main's), newest first.
   | Visible(branchId: Uuid)
-  /// The ids of the ops a branch can see that landed after <param since> (a `created_at`), or at it
-  /// too when <param andAtSince>, oldest first. See `idsLandedSince`.
-  | LandedSince(branchId: Uuid, since: String, andAtSince: Bool)
-  /// The ids of the ops that landed at exactly this `created_at`.
-  | LandedAt(at: String)
+  /// The ops a branch can see that landed at or after <param since> (a `created_at`), oldest first:
+  /// ids, with `ts` the `created_at`. See `landedSince`.
+  | LandedSince(branchId: Uuid, since: String)
+  /// The ops that landed at the newest `created_at` in the log, on any branch: ids, with `ts` that
+  /// `created_at`. See `landedLast`.
+  | LandedLast
   /// These ops, oldest first. An id the log does not hold is skipped.
   | Ids(ids: List<String>)
   /// A branch's draft: its uncommitted ops, oldest first.
@@ -217,18 +218,14 @@ type OpFilter =
   | MergedFrom(branchId: Uuid)
   /// Every op of main's, oldest first.
   | Main
-  /// One row whose `ts` is the newest `created_at` among landed ops, or "".
-  | NewestLanded
-  /// One row whose `ts` is the store's clock, in `created_at` form.
-  | StoreNow
   /// One row whose `ts` sorts after everything in the log: its latest stamp plus a second, or now
   /// for an empty log.
   | NextStamp
 
 
-/// One op-log row. `ts` is the authoring stamp, "" where the case does not read it; `sizeBytes` is the
-/// blob's size, 0 where the case does not read the blob; `source` is what put the op on the branch, for
-/// `Own` only.
+/// One op-log row. `ts` is the authoring stamp (for the `Landed` cases, when the op landed here), ""
+/// where the case does not read it; `sizeBytes` is the blob's size, 0 where the case does not read the
+/// blob; `source` is what put the op on the branch, for `Own` only.
 type OpRow =
   { id: String
     ts: String
