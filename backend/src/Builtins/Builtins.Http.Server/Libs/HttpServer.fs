@@ -24,6 +24,10 @@ module Tracing = LibDB.Tracing
 /// Default request body cap (30 MB).
 let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 
+/// How long a request's handler may run before the server answers 504 and cancels it, when the
+/// store's `http.requestTimeoutMs` is unset (30 s). 0 means no limit.
+let defaultRequestTimeoutMs : int = 30_000
+
 /// HSTS header value matching the historical default for HTTP services.
 let private hstsHeaderValue = "max-age=31536000; includeSubDomains; preload"
 
@@ -136,14 +140,10 @@ let private maybeCompress
 /// shape that `Http.Request` expects. Multi-value keys become multiple
 /// entries.
 let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
-  let headers = ResizeArray<string * string>()
-  for key in req.Headers.AllKeys do
-    if not (isNull key) then
-      let values = req.Headers.GetValues(key)
-      if not (isNull values) then
-        for value in values do
-          headers.Add(key, value)
-  List.ofSeq headers
+  [ for key in req.Headers.AllKeys do
+      if not (isNull key) then
+        let values = req.Headers.GetValues(key)
+        if not (isNull values) then for value in values -> key, value ]
 
 
 /// If `X-Forwarded-Proto: https` is present, rewrite scheme → https / port → 443.
@@ -302,10 +302,6 @@ let private resolveRouting
 
 // ───────── per-request dispatch ─────────
 
-/// How long a request's handler may run before the server answers 504 and cancels it. The
-/// store's `http.requestTimeoutMs`, read once when `serve` starts; 30 s unset; 0 means no limit.
-let mutable requestTimeoutMs : int = 30_000
-
 /// What a handler's process came to: a value for `toHttpResponse`, or a response the server
 /// writes itself because there is no value (the handler failed, timed out, or was stopped).
 type private HandlerOutcome =
@@ -335,6 +331,7 @@ let private textResponse
 /// from outside (`dark ps cancel`/`kill`) gets a 503 naming the reason. A handler that raises
 /// gets a 500 with the error, not a complaint about the response's type.
 let private executeHandler
+  (requestTimeoutMs : int)
   (exeState : ExecutionState)
   (handler : Applicable)
   (arg : Dval)
@@ -490,6 +487,7 @@ let private handleRequest
   (invokerAccess : LibExecution.Permissions.Access)
   (routing : Routing)
   (maxBodyBytes : int64)
+  (requestTimeoutMs : int)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
   (logRequests : bool)
@@ -569,7 +567,8 @@ let private handleRequest
 
             let! outcome =
               match resolved with
-              | Ok(_, handler) -> executeHandler perRequestState handler requestDval
+              | Ok(_, handler) ->
+                executeHandler requestTimeoutMs perRequestState handler requestDval
               | Error msg ->
                 // No usable version: say so, keep listening. The diagnostic is on stdout already
                 // (Dark prints it when the verdict changes), so the wire gets a plain 503.
@@ -705,6 +704,7 @@ let private runListenerWith
   (port : int64)
   (routing : Routing)
   (maxBodyBytes : int64)
+  (requestTimeoutMs : int)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
   (logRequests : bool)
@@ -741,6 +741,7 @@ let private runListenerWith
                   invokerAccess
                   routing
                   maxBodyBytes
+                  requestTimeoutMs
                   injectStandardHeaders
                   canonicalizeFromForwardedProto
                   logRequests
@@ -769,6 +770,7 @@ let runListener
   (port : int64)
   (handler : Applicable)
   (maxBodyBytes : int64)
+  (requestTimeoutMs : int)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
   (logRequests : bool)
@@ -781,6 +783,7 @@ let runListener
     port
     (Fixed handler)
     maxBodyBytes
+    requestTimeoutMs
     injectStandardHeaders
     canonicalizeFromForwardedProto
     logRequests
@@ -796,6 +799,7 @@ let runListenerLive
   (step : Applicable)
   (dev : bool)
   (maxBodyBytes : int64)
+  (requestTimeoutMs : int)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
   (logRequests : bool)
@@ -808,6 +812,7 @@ let runListenerLive
     port
     (Live { step = step; state = init; guest = None; stepState = None; dev = dev })
     maxBodyBytes
+    requestTimeoutMs
     injectStandardHeaders
     canonicalizeFromForwardedProto
     logRequests
@@ -871,12 +876,14 @@ let private serve
         "httpServerServe"
     use _serveSpan = Telemetry.span "httpserver.serve" [ "port", string port ]
     // The store's `http.requestTimeoutMs`, read once per `serve`.
-    match! LibDB.Config.get "http.requestTimeoutMs" with
-    | Some s ->
-      match System.Int32.TryParse s with
-      | true, n when n >= 0 -> requestTimeoutMs <- n
-      | _ -> ()
-    | None -> ()
+    let! configuredTimeout = LibDB.Config.get "http.requestTimeoutMs"
+    let requestTimeoutMs =
+      match configuredTimeout with
+      | Some s ->
+        match System.Int32.TryParse s with
+        | true, n when n >= 0 -> n
+        | _ -> defaultRequestTimeoutMs
+      | None -> defaultRequestTimeoutMs
 
     // Bind through the checked host boundary using the guest access,
     // so the instance policy applies instead of the trusted CLI's.
@@ -918,6 +925,7 @@ let private serve
           port
           routing
           maxBodyBytes
+          requestTimeoutMs
           injectStandardHeaders
           canonicalizeFromForwardedProto
           logRequests

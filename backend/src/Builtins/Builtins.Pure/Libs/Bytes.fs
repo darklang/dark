@@ -101,10 +101,7 @@ let fns () : List<BuiltInFn> =
             let len = int64 bs.Length
             let safeStart = max 0L (min startD len)
             let safeLen = max 0L (min lenD (len - safeStart))
-            let slice = Array.zeroCreate<byte> (int safeLen)
-            if safeLen > 0L then
-              System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
-            Ply(Bytes.newEphemeral slice))
+            Ply(Bytes.newEphemeral (Array.sub bs (int safeStart) (int safeLen))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -114,113 +114,80 @@ let fns () : List<BuiltInFn> =
           let nsPerTick =
             1_000_000_000.0 / float System.Diagnostics.Stopwatch.Frequency
           let toNs (ticks : int64) : int64 = int64 (float ticks * nsPerTick)
-          let sb = System.Text.StringBuilder()
-          sb.Append("{") |> ignore<System.Text.StringBuilder>
-          sb.Append($"\"instructions\":{s.instructionCount}")
-          |> ignore<System.Text.StringBuilder>
-          sb.Append($",\"builtinCalls\":{s.builtinCallCount}")
-          |> ignore<System.Text.StringBuilder>
-          sb.Append($",\"packageCalls\":{s.packageCallCount}")
-          |> ignore<System.Text.StringBuilder>
-          sb.Append($",\"framePushes\":{s.framePushCount}")
-          |> ignore<System.Text.StringBuilder>
-          sb.Append($",\"traitDispatches\":{s.traitDispatchCount}")
-          |> ignore<System.Text.StringBuilder>
-          sb.Append($",\"traitDispatchMisses\":{s.traitDispatchMissCount}")
-          |> ignore<System.Text.StringBuilder>
+          let jsonObject (entries : List<string>) : string =
+            "{" + String.concat "," entries + "}"
           let dtStr = if s.detailedTiming then "true" else "false"
-          sb.Append($",\"detailedTiming\":{dtStr}")
-          |> ignore<System.Text.StringBuilder>
-          sb.Append($",\"buildMode\":\"{buildMode}\"")
-          |> ignore<System.Text.StringBuilder>
-
-          // What the numbers above cover. Telemetry off: every VM shares one set, so 0 means the
-          // whole process. Telemetry on: one set per VM, so a positive count means this is the
-          // calling VM's share and `Cli.fs`'s exit dump is what totals them.
-          sb.Append($",\"statSets\":{InterpreterStatsSink.all.Count}")
-          |> ignore<System.Text.StringBuilder>
 
           // Which opcode produced the garbage, which a flat allocation profile cannot answer.
           // Non-zero entries only.
-          let anyOpcode = s.countByOpcode |> Array.exists (fun c -> c > 0L)
-          if anyOpcode then
-            sb.Append(",\"byOpcode\":{") |> ignore<System.Text.StringBuilder>
-            let mutable firstOp = true
-            for i in 0 .. s.countByOpcode.Length - 1 do
-              if s.countByOpcode[i] > 0L then
-                let name =
-                  if i < LibExecution.RuntimeTypes.Opcode.names.Length then
-                    LibExecution.RuntimeTypes.Opcode.names[i]
-                  else
-                    string i
-                if not firstOp then
-                  sb.Append(",") |> ignore<System.Text.StringBuilder>
-                let syncPart =
-                  if s.syncHitByOpcode[i] > 0L || s.syncMissByOpcode[i] > 0L then
-                    $",\"syncHit\":{s.syncHitByOpcode[i]},\"syncMiss\":{s.syncMissByOpcode[i]}"
-                  else
-                    ""
-                sb.Append(
-                  $"\"{name}\":{{\"bytes\":{s.allocByOpcode[i]},\"n\":{s.countByOpcode[i]}{syncPart}}}"
-                )
-                |> ignore<System.Text.StringBuilder>
-                firstOp <- false
-            sb.Append("}") |> ignore<System.Text.StringBuilder>
+          let byOpcode =
+            [ for i in 0 .. s.countByOpcode.Length - 1 do
+                if s.countByOpcode[i] > 0L then
+                  let name =
+                    if i < LibExecution.RuntimeTypes.Opcode.names.Length then
+                      LibExecution.RuntimeTypes.Opcode.names[i]
+                    else
+                      string i
+                  let syncPart =
+                    if s.syncHitByOpcode[i] > 0L || s.syncMissByOpcode[i] > 0L then
+                      $",\"syncHit\":{s.syncHitByOpcode[i]},\"syncMiss\":{s.syncMissByOpcode[i]}"
+                    else
+                      ""
+                  $"\"{name}\":{{\"bytes\":{s.allocByOpcode[i]},\"n\":{s.countByOpcode[i]}{syncPart}}}" ]
 
           // Per-stage bytes and counts for the Apply path. Read the fine-grained stages only: the
           // three totals (`apply.total`, `bi.total`, `lambda.total`) bracket across the builtin's
           // `Ply`, so they measure nested execution and can exceed what the process allocated.
           // `stats.builtinAlloc` has the same defect, so it is collected but not reported.
-          let anyStage = s.countByStage |> Array.exists (fun c -> c > 0L)
-          if anyStage then
-            sb.Append(",\"byStage\":{") |> ignore<System.Text.StringBuilder>
-            let mutable firstStage = true
-            for i in 0 .. s.countByStage.Length - 1 do
-              if s.countByStage[i] > 0L then
-                let name =
-                  if i < LibExecution.RuntimeTypes.ApplyStage.names.Length then
-                    LibExecution.RuntimeTypes.ApplyStage.names[i]
-                  else
-                    string i
-                if not firstStage then
-                  sb.Append(",") |> ignore<System.Text.StringBuilder>
-                sb.Append(
-                  $"\"{name}\":{{\"bytes\":{s.allocByStage[i]},\"n\":{s.countByStage[i]}}}"
-                )
-                |> ignore<System.Text.StringBuilder>
-                firstStage <- false
-            sb.Append("}") |> ignore<System.Text.StringBuilder>
+          let byStage =
+            [ for i in 0 .. s.countByStage.Length - 1 do
+                if s.countByStage[i] > 0L then
+                  let name =
+                    if i < LibExecution.RuntimeTypes.ApplyStage.names.Length then
+                      LibExecution.RuntimeTypes.ApplyStage.names[i]
+                    else
+                      string i
+                  $"\"{name}\":{{\"bytes\":{s.allocByStage[i]},\"n\":{s.countByStage[i]}}}" ]
 
-          if s.detailedTiming && s.builtinTiming.Count > 0 then
-            sb.Append(",\"builtinTiming\":{") |> ignore<System.Text.StringBuilder>
-            let mutable first = true
-            for kv in s.builtinTiming do
-              if not first then sb.Append(",") |> ignore<System.Text.StringBuilder>
-              let count =
-                match s.builtinCounts.TryGetValue(kv.Key) with
-                | true, c -> c
-                | _ -> 0L
-              sb.Append($"\"{kv.Key}\":{{\"ns\":{toNs kv.Value},\"n\":{count}}}")
-              |> ignore<System.Text.StringBuilder>
-              first <- false
-            sb.Append("}") |> ignore<System.Text.StringBuilder>
+          let timings
+            (timing : System.Collections.Generic.Dictionary<string, int64>)
+            (counts : System.Collections.Generic.Dictionary<string, int64>)
+            : List<string> =
+            if s.detailedTiming then
+              [ for kv in timing do
+                  let count =
+                    match counts.TryGetValue(kv.Key) with
+                    | true, c -> c
+                    | _ -> 0L
+                  $"\"{kv.Key}\":{{\"ns\":{toNs kv.Value},\"n\":{count}}}" ]
+            else
+              []
 
-          if s.detailedTiming && s.packageFnTiming.Count > 0 then
-            sb.Append(",\"packageFnTiming\":{") |> ignore<System.Text.StringBuilder>
-            let mutable first = true
-            for kv in s.packageFnTiming do
-              if not first then sb.Append(",") |> ignore<System.Text.StringBuilder>
-              let count =
-                match s.packageFnCounts.TryGetValue(kv.Key) with
-                | true, c -> c
-                | _ -> 0L
-              sb.Append($"\"{kv.Key}\":{{\"ns\":{toNs kv.Value},\"n\":{count}}}")
-              |> ignore<System.Text.StringBuilder>
-              first <- false
-            sb.Append("}") |> ignore<System.Text.StringBuilder>
+          let section (name : string) (entries : List<string>) : List<string> =
+            if List.isEmpty entries then
+              []
+            else
+              [ $"\"{name}\":{jsonObject entries}" ]
 
-          sb.Append("}") |> ignore<System.Text.StringBuilder>
-          DString(sb.ToString()) |> Ply
+          [ $"\"instructions\":{s.instructionCount}"
+            $"\"builtinCalls\":{s.builtinCallCount}"
+            $"\"packageCalls\":{s.packageCallCount}"
+            $"\"framePushes\":{s.framePushCount}"
+            $"\"traitDispatches\":{s.traitDispatchCount}"
+            $"\"traitDispatchMisses\":{s.traitDispatchMissCount}"
+            $"\"detailedTiming\":{dtStr}"
+            $"\"buildMode\":\"{buildMode}\""
+            // What the numbers above cover. Telemetry off: every VM shares one set, so 0 means
+            // the whole process. Telemetry on: one set per VM, so a positive count means this is
+            // the calling VM's share and `Cli.fs`'s exit dump is what totals them.
+            $"\"statSets\":{InterpreterStatsSink.all.Count}" ]
+          @ section "byOpcode" byOpcode
+          @ section "byStage" byStage
+          @ section "builtinTiming" (timings s.builtinTiming s.builtinCounts)
+          @ section "packageFnTiming" (timings s.packageFnTiming s.packageFnCounts)
+          |> jsonObject
+          |> DString
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
