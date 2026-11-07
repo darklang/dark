@@ -1149,12 +1149,12 @@ let executeFindInspect(state: Cli.AppState, pattern: String): Cli.AppState =
     let rows = Darklang.Tracing.Store.find(pattern, 1)
     match rows with
     | [] ->
-      Stdlib.printLine($"no kept trace matches {pattern}")
+      Cli.printErr($"no kept trace matches {pattern}")
       printRecordingOffHint()
-      state
+      { state with exitCode = 1 }
     | [row, ...] ->
-      Stdlib.printLine($"the newest trace matching {pattern}: {row.id}")
-      Stdlib.printLine("")
+      Cli.Stderr.line($"the newest trace matching {pattern}: {row.id}")
+      Cli.Stderr.line("")
       executeInspect(state, row.id, defaultViewOptions)
 
 
@@ -1350,8 +1350,8 @@ let executeFollow(
       match routeFilter with
       | Some(r) -> $"route '{r}'"
       | None -> "all routes"
-    Stdlib.printLine($"Following traces for {label}. Ctrl+C to stop.")
-    Stdlib.printLine("")
+    Cli.Stderr.line($"Following traces for {label}. Ctrl+C to stop.")
+    Cli.Stderr.line("")
 
   // Anchor: ignore traces that already existed when we started.
   let initialRows = Darklang.Tracing.Store.list(1)
@@ -1615,7 +1615,7 @@ let executeInspect(
       | [] ->
         Stdlib.printLine(
           "  did       nothing: every call this trace made was pure")
-        Stdlib.printLine(
+        Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.dimText(
             ("            so there is nothing to replay; `dark traces show <fn>` still has its "
              + "values, which are recomputed"))))
@@ -1665,12 +1665,12 @@ let executeReplay(state: Cli.AppState, traceID: String): Cli.AppState =
       match input with
       | Eval(source, _) -> source
       | Script(_, source, _, _) -> source
-    Stdlib.printLine($"rerunning {Cli.Text.shortIdText(traceID)}: {Cli.Text.oneLine(source)}")
-    Stdlib.printLine("")
+    Cli.Stderr.line($"rerunning {Cli.Text.shortIdText(traceID)}: {Cli.Text.oneLine(source)}")
+    Cli.Stderr.line("")
     let result = Cli.TraceVerbs.executeScriptOrEval(state, input)
     if result.exitCode == 0 then
-      Stdlib.printLine("")
-      Stdlib.printLine(
+      Cli.Stderr.line("")
+      Cli.Stderr.line(
         "rerun complete; it was kept as a trace of its own (`dark traces` lists it)")
     else
       ()
@@ -1760,7 +1760,7 @@ let executePruneKeep(state: Cli.AppState, keepN: Int64): Cli.AppState =
     let deleted = Darklang.Tracing.Store.pruneKeep(keepN)
     match deleted with
     | 0 ->
-      Stdlib.printLine(
+      Cli.Stderr.line(
         $"already at or below {Stdlib.toString(keepN)} traces; nothing to delete")
       state
     | _ ->

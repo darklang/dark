@@ -1355,7 +1355,21 @@ let private refusalsOnStderr : List<string * List<string>> =
     "traces show --json, no such function",
     [ "traces"; "show"; "Zzz.Nope.nope"; "--json" ]
     "traces inspect --json, no such trace",
-    [ "traces"; "inspect"; "zzznope"; "--json" ] ]
+    [ "traces"; "inspect"; "zzznope"; "--json" ]
+    "traces find --inspect, nothing matches",
+    [ "traces"; "find"; "Zzz.NothingRanThis"; "--inspect" ]
+    "traces fork, no such trace", [ "traces"; "fork"; "zzznope" ]
+    "traces pin, no such trace", [ "traces"; "pin"; "zzznope" ]
+    "traces resume, no such trace", [ "traces"; "resume"; "zzznope" ]
+    "ps kill, no such process", [ "ps"; "kill"; "zzznope" ]
+    "ps show, no id", [ "ps"; "show" ]
+    "permissions approve, no such function",
+    [ "permissions"; "approve"; "Zzz.Nope.nope" ]
+    "permissions update, never approved",
+    [ "permissions"; "update"; "Zzz.Nope.nope" ]
+    "permissions unapprove, never approved",
+    [ "permissions"; "unapprove"; "Zzz.Nope.nope" ]
+    "permissions profile, no such profile", [ "permissions"; "profile"; "zzznope" ] ]
 
 let private refusalsKeepStdoutEmpty =
   instanceTest
