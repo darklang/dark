@@ -9,8 +9,9 @@ rundir/perf/reference/ and checked against the sha256 GitHub lists for it. When 
 reached, it is the release pinned in budget.json (`paired.reference`).
 
 Allocation can't see this. `fib 27` allocates 8 MB on every version while its CPU went up 27%, and
-listings got 1.8x slower in the same step. So: two scenarios, a recursive `fib 24` and
-`ls Darklang.Stdlib.List`, run on both binaries in alternating order, `rounds` times. Each round
+listings got 1.8x slower in the same step. So: three scenarios, a recursive `fib 24`, a lists
+workload (map, filter, fold, a dict built and read back) and `ls Darklang.Stdlib.List`, run on both
+binaries in alternating order, `rounds` times. Each round
 gives a ratio, this binary's CPU over the reference's, and the gate fails when the median ratio is
 over `maxRatio`. The two halves of a pair run seconds apart on the same runner, so the runner's
 speed and load cancel in the ratio; a median of 11 keeps one slow pair out of it.
@@ -47,6 +48,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BUDGET_FILE = os.path.join(ROOT, "scripts", "perf", "budget.json")
 CACHE = os.path.join(ROOT, "rundir", "perf", "reference")
 FIB = os.path.join(ROOT, "scripts", "perf", "workloads", "fib.dark")
+LISTS = os.path.join(ROOT, "scripts", "perf", "workloads", "lists.dark")
 RELEASES_URL = os.environ.get(
     "DARK_PERF_RELEASES_URL", "https://api.github.com/repos/darklang/dark/releases?per_page=10")
 # darklang-alpha-<commit>-linux-x64.gz; the musl build is a different asset.
@@ -55,6 +57,7 @@ ASSET = re.compile(r"^darklang-alpha-([0-9a-f]+)-linux-x64\.gz$")
 # name -> (CLI arguments, runs per sample, text the output must contain)
 SCENARIOS = {
     "fib 24": (["run", FIB], 1, "46368"),
+    "lists": (["run", LISTS], 1, "237517500"),
     "ls Darklang.Stdlib.List": (["ls", "Darklang.Stdlib.List"], 3, "map"),
 }
 

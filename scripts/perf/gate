@@ -8,7 +8,8 @@
 #   - steady.dark's allocation, warm, net of startup (the number this gate started with)
 #   - startup's allocation, warm: `run` of a one-line script (workloads/startup.dark)
 #   - the cold first run's allocation and peak memory, on a store grown from nothing
-#   - CPU for `fib 24` and `ls Darklang.Stdlib.List`, paired against the newest release (_paired.py)
+#   - CPU for `fib 24`, `lists.dark` and `ls Darklang.Stdlib.List`, paired against the newest
+#     release (_paired.py)
 # Allocation can't see a call getting slower, and the warm run can't see the first run getting
 # bigger, which is how the October regressions got through.
 #

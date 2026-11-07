@@ -1,0 +1,19 @@
+// List and dict builtins called with lambdas, and `%` and `/` on Int64: the shape most programs have,
+// which `fib` does not. `_paired.py` times it against a release.
+let lookup(d: Dict<String, Int64>, k: String): Int64 =
+  match Stdlib.Dict.get(d, k) with
+  | Some(v) -> v
+  | None -> 0
+
+let xs = Stdlib.List.range(1, 30000)
+let evens = Stdlib.List.filter(Stdlib.List.map(xs, fun x -> x * 3), fun x -> x % 2 == 0)
+let total = Stdlib.List.fold(evens, 0, fun(acc, x) -> acc + x / 3)
+
+let d =
+  Stdlib.List.fold(Stdlib.List.range(1, 5000), Stdlib.Dict.empty, fun(acc, i) ->
+    Stdlib.Dict.set(acc, Stdlib.toString(i), i))
+
+let hits =
+  Stdlib.List.fold(Stdlib.List.range(1, 5000), 0, fun(acc, i) -> acc + lookup(d, Stdlib.toString(i)))
+
+Stdlib.printLine(Stdlib.toString(total + hits))

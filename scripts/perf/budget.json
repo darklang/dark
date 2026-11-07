@@ -25,6 +25,6 @@
       "asset": "darklang-alpha-924c50d759-linux-x64.gz",
       "sha256": "4894084c2fe114c309ae96f61833ba3f57ab70e585421302d79b16bff8ff1ffe"
     },
-    "note": "CPU of fib 24 and ls, over the same on the reference release, median of paired rounds; see scripts/perf/_paired.py. The reference is the newest release on GitHub; this pin is only the fallback for when GitHub cannot be reached, so it never needs moving."
+    "note": "CPU of fib 24, lists and ls, over the same on the reference release, median of paired rounds; see scripts/perf/_paired.py. The reference is the newest release on GitHub; this pin is only the fallback for when GitHub cannot be reached, so it never needs moving."
   }
 }
