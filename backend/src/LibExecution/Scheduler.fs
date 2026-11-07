@@ -1152,22 +1152,31 @@ type Scheduler(quantum : int64) =
 /// host that wants to (tests).
 and Workers(root : Scheduler, quantum : int64, count : int) =
   let workers = List.init (max 1 count) (fun _ -> Scheduler(quantum))
+  let byIndex = Array.ofList workers
+  /// Which workers have a thread. A worker's starts the first time a spawn picks it, so a spread
+  /// of four chunks starts four threads rather than one per core: each has a 16 MB stack, and
+  /// starting all of them on a 48-core box was about a tenth of a `view`.
+  let started = Array.zeroCreate<bool> byIndex.Length
+  let startLock = obj ()
 
-  /// Join the root and the workers into one group and start the worker threads. Once, by the
-  /// root's `Workers` property.
+  let startThread (i : int) =
+    let w = byIndex[i]
+    let thread =
+      Thread(
+        (fun () -> w.RunUntilStopped()),
+        HE.threadStackBytes,
+        IsBackground = true,
+        Name = $"dark-worker-{i}"
+      )
+    thread.Start()
+    started[i] <- true
+
+  /// Join the root and the workers into one group. Once, by the root's `Workers` property. The
+  /// threads start as spawns need them (`Spawn`).
   member this.Start() : unit =
     root.Group <- Some this
-    workers
-    |> List.iteri (fun i w ->
+    for w in workers do
       w.Group <- Some this
-      let thread =
-        Thread(
-          (fun () -> w.RunUntilStopped()),
-          HE.threadStackBytes,
-          IsBackground = true,
-          Name = $"dark-worker-{i}"
-        )
-      thread.Start())
 
   /// The workers, without the root.
   member _.Members : Scheduler list = workers
@@ -1175,7 +1184,8 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
   /// Root first, then the workers.
   member _.All : Scheduler list = root :: workers
 
-  /// Spawn on the least loaded worker.
+  /// Spawn on the least loaded worker, starting its thread if it has none yet. The first idle
+  /// one is the one `List.minBy` would pick.
   member _.Spawn
     (
       exeState : RT.ExecutionState,
@@ -1183,7 +1193,13 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       entry : Entry,
       parent : Option<ProcessId>
     ) : Process =
-    let w = workers |> List.minBy (fun w -> w.Live)
+    let w =
+      lock startLock (fun () ->
+        match byIndex |> Array.tryFindIndex (fun w -> w.Live = 0) with
+        | Some i ->
+          if not started[i] then startThread i
+          byIndex[i]
+        | None -> workers |> List.minBy (fun w -> w.Live))
     w.Spawn(exeState, instrs, entry, parent)
 
   /// End every worker's loop. Processes still on them are left as they are.
