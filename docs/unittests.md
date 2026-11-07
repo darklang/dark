@@ -16,6 +16,27 @@ then prints each suite's counts and exits nonzero if any failed. Without
 `--published` it uses the Debug build. Each suite's output is in
 `rundir/logs/run-tests/`.
 
+## Taking turns on a shared machine
+
+The heavy runs take a machine-wide test slot first: `scripts/run-tests`, a whole
+`scripts/run-fsharp-tests`, and `gates ci`, `gates all` and `gates package-tests`.
+Clones on one box queue for it in the order they asked, and a waiter says who it is
+waiting on:
+
+```
+waiting for a test slot (held by suite-slot (run-tests) since 10:42:07 UTC)
+```
+
+`DARK_SUITE_SLOTS` says how many may run at once; 0 turns it off. The default is
+one per 24 hardware threads, at least 1, so 2 on a 48-thread box and 1 on a
+laptop: one suite keeps about 24 threads busy. A filtered run (`--filter`,
+`--filter-test-list`, a single gate other than package-tests) skips the queue, and
+a suite started by another (`run-tests` starts three) runs under its parent's
+slot. The slots are files in a host directory every container mounts at
+`/home/dark/.suite-slots`; a container made before that mount says so and runs
+without waiting (`scripts/dev/start --recreate` adds it). CI has a machine per
+job and never waits.
+
 ## F# tests
 
 The runner uses existing binaries, so build first. Use the published build for a

@@ -210,6 +210,16 @@ if [[ "$cmd" != "list" && "${CI:-}" != "true" && -z "${GATES_BUILD_CHECKED:-}" ]
   export GATES_BUILD_CHECKED=1
 fi
 
+# The long runs take a machine-wide test slot (scripts/testing/_suite-slot). `ci` and `all`
+# re-invoke this script per gate, and those inherit the slot rather than queue for another.
+case "$cmd" in
+  ci|all|package-tests)
+    # shellcheck source=scripts/testing/_suite-slot
+    . scripts/testing/_suite-slot
+    suite_slot_take "gates $cmd" || exit 1
+    ;;
+esac
+
 case "$cmd" in
   list)
     echo "gates (scripts/testing/gates <name>):"

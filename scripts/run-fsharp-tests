@@ -78,6 +78,14 @@ cleanup() {
 }
 trap cleanup EXIT INT
 
+# The whole suite takes a machine-wide test slot, so clones on one box take turns instead of
+# all running at once (scripts/testing/_suite-slot). A filtered run is small and goes ahead.
+if [[ "$FILTERED" != "true" && "$LISTING" != "true" ]]; then
+  # shellcheck source=scripts/testing/_suite-slot
+  . scripts/testing/_suite-slot
+  suite_slot_take "run-fsharp-tests" || exit 1
+fi
+
 # Anything still running is a leftover from a crashed run: the lock above means no
 # live run of our own.
 killall -9 Tests 2>/dev/null || true

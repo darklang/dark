@@ -35,6 +35,11 @@ fi
 python3.12 scripts/build/_dev.py check || exit 1
 export GATES_BUILD_CHECKED=1
 
+# One slot for all three suites: they start under it, so none of them waits for another.
+# shellcheck source=scripts/testing/_suite-slot
+. scripts/testing/_suite-slot
+suite_slot_take "run-tests" || exit 1
+
 LOGS=rundir/logs/run-tests
 rm -rf "$LOGS"; mkdir -p "$LOGS"
 

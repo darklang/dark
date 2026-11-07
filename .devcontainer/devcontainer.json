@@ -41,8 +41,13 @@
   "forwardPorts": [9090, 9091, 9092, 9093, 9094, 9095, 9096, 9097, 9098, 9099],
 
   "containerEnv": {
-    "IN_DEV_CONTAINER": "true"
+    "IN_DEV_CONTAINER": "true",
+    // Which clone this is, for the "held by" line a test-slot waiter prints.
+    "DARK_CLONE": "${localWorkspaceFolderBasename}"
   },
+
+  // The test-slot directory below has to exist on the host before it can be mounted.
+  "initializeCommand": "mkdir -p \"${localEnv:HOME}/.cache/darklang/suite-slots\"",
 
   "runArgs": [
     // Google's resolvers, not the host's, so names only a VPN or corporate resolver knows will
@@ -103,6 +108,11 @@
     // A dark keeps everything in `~/.darklang`. Here that is the clone's `rundir`, mounted
     // rather than linked: a dark refuses a policy directory reached through a link.
     "type=bind,src=${localWorkspaceFolder}/rundir,dst=/home/dark/.darklang",
+
+    // Shared on purpose: every clone's container on this machine counts heavy test suites
+    // against the same slots (scripts/testing/_suite-slot). A host directory rather than a
+    // volume, so it is writable by `dark` and a host shell can see who holds them.
+    "type=bind,src=${localEnv:HOME}/.cache/darklang/suite-slots,dst=/home/dark/.suite-slots",
 
     // VS Code extensions
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
