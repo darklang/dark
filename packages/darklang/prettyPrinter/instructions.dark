@@ -171,14 +171,29 @@ let opcode(i: LanguageTools.RuntimeTypes.Instruction): String =
   | TraceExpr(_, _) -> "TraceExpr"
 
 
+/// Where the left side of `&&` or `||` jumps when it decides, past the right side.
+let boolSkip(
+  index: Int64,
+  skip: Stdlib.Option.Option<Int32>,
+  decidesOn: String)
+  : String =
+  match skip with
+  | Some(n) ->
+    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(n)) + 1)
+    $"  if {decidesOn} -> {target}"
+  | None -> ""
+
+
 /// Everything after the opcode. <param index> is the instruction's own position: jump offsets are stored
 /// relative, and a relative jump is unreadable in a listing, so they're shown both ways.
 let operands(branchId: Uuid, index: Int64, i: LanguageTools.RuntimeTypes.Instruction): String =
   match i with
   | LoadVal(r, v) -> $"{register(r)} <- {inlineDval(branchId, v)}"
   | CopyVal(t, s) -> $"{register(t)} <- {register(s)}"
-  | Or(t, l, r) -> $"{register(t)} <- {register(l)} || {register(r)}"
-  | And(t, l, r) -> $"{register(t)} <- {register(l)} && {register(r)}"
+  | Or(t, o, skip) ->
+    $"{register(t)} <- {register(o)}{boolSkip(index, skip, "true")}"
+  | And(t, o, skip) ->
+    $"{register(t)} <- {register(o)}{boolSkip(index, skip, "false")}"
   | CreateString(t, segs) ->
     let parts =
       (Stdlib.List.map(segs, fun s -> segment(branchId, s)))

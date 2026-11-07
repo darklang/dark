@@ -32,13 +32,20 @@ test and =
       (false && true) |> Stdlib.Test.equal(false)
       (false && false) |> Stdlib.Test.equal(false)
       (false && 5) |> Stdlib.Test.equal(false)
-      //TODO bring back short-circuiting
-      // (false && Stdlib.Test.raiseRuntimeError "msg")
-      // |> Stdlib.Test.equal false
       (true |> (fun v -> v && true)) |> Stdlib.Test.equal(true)
       (true |> (fun v -> v && false)) |> Stdlib.Test.equal(false)
       (false |> (fun v -> v && true)) |> Stdlib.Test.equal(false)
       (false |> (fun v -> v && false)) |> Stdlib.Test.equal(false) ])
+
+test andShortCircuits =
+  (false && Stdlib.Test.raiseRuntimeError("msg")) |> Stdlib.Test.equal(false)
+
+test andSkipsDivideByZero =
+  (false && ((1 / 0) == 1)) |> Stdlib.Test.equal(false)
+
+test andShortCircuitsNested =
+  (false && (true && Stdlib.Test.raiseRuntimeError("msg")))
+  |> Stdlib.Test.equal(false)
 
 test andEvaluatesRightOperand =
   (true && Stdlib.Test.raiseRuntimeError("msg"))
@@ -72,9 +79,16 @@ test orRejectsNonBooleanRight =
 test orRejectsNonBooleanLeft =
   (5 || true) => raises "|| only supports Booleans"
 
-// TODO bring back short-circuiting
-// test orShortCircuits =
-//   (true || Stdlib.Test.raiseRuntimeError "msg") |> Stdlib.Test.equal true
+test orShortCircuits =
+  (true || Stdlib.Test.raiseRuntimeError("msg")) |> Stdlib.Test.equal(true)
+
+test orSkipsDivideByZero =
+  (true || ((1 / 0) == 1)) |> Stdlib.Test.equal(true)
+
+test orShortCircuitsNested =
+  (true || (false || Stdlib.Test.raiseRuntimeError("msg")))
+  |> Stdlib.Test.equal(true)
+
 test orEvaluatesRightOperand =
   (false || Stdlib.Test.raiseRuntimeError("msg"))
   => raises "Uncaught exception: msg"

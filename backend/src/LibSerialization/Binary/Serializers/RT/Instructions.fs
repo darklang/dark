@@ -229,16 +229,16 @@ module Instruction =
       w.Write 1uy
       w.Write(copyTo : int)
       w.Write(copyFrom : int)
-    | Or(createTo, lhs, rhs) ->
+    | Or(createTo, operand, skipRhs) ->
       w.Write 2uy
       w.Write(createTo : int)
-      w.Write(lhs : int)
-      w.Write(rhs : int)
-    | And(createTo, lhs, rhs) ->
+      w.Write(operand : int)
+      Option.write w (fun w (skip : int) -> w.Write skip) skipRhs
+    | And(createTo, operand, skipRhs) ->
       w.Write 3uy
       w.Write(createTo : int)
-      w.Write(lhs : int)
-      w.Write(rhs : int)
+      w.Write(operand : int)
+      Option.write w (fun w (skip : int) -> w.Write skip) skipRhs
     | CreateString(createTo, segments) ->
       w.Write 4uy
       w.Write(createTo : int)
@@ -363,14 +363,14 @@ module Instruction =
       CopyVal(copyTo, copyFrom)
     | 2uy ->
       let createTo = r.ReadInt32()
-      let lhs = r.ReadInt32()
-      let rhs = r.ReadInt32()
-      Or(createTo, lhs, rhs)
+      let operand = r.ReadInt32()
+      let skipRhs = Option.read r (fun r -> r.ReadInt32())
+      Or(createTo, operand, skipRhs)
     | 3uy ->
       let createTo = r.ReadInt32()
-      let lhs = r.ReadInt32()
-      let rhs = r.ReadInt32()
-      And(createTo, lhs, rhs)
+      let operand = r.ReadInt32()
+      let skipRhs = Option.read r (fun r -> r.ReadInt32())
+      And(createTo, operand, skipRhs)
     | 4uy ->
       let createTo = r.ReadInt32()
       let segments = List.read r StringSegment.read

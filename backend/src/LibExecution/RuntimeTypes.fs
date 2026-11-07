@@ -827,15 +827,14 @@ type Instruction =
 
   | CopyVal of copyTo : Register * copyFrom : Register
 
-  // TODO: update both of these to take a _single_ arg,
-  // and replace the 'rhs' component with a 'jumpIfFalse' component
-  // hmm or maybe jumpIfTrue.
-  // the point here is to allow for short-circuiting, allowing the RHS instructions to be skipped
-  // if the first argument resolves the condition.
-  // So I guess Or needs jumpIfTrue, and And needs jumpIfFalse.
-  // and the jumpIfFalse/jumpIfTrue might have a 0-instr skip for the RHS.
-  | Or of createTo : Register * lhs : Register * rhs : Register
-  | And of createTo : Register * lhs : Register * rhs : Register
+  /// One side of `a || b`. Each side gets one, so `b` only runs when `a` is false:
+  /// `Or(createTo, a, Some n)` comes right after `a`, and if `a` is true it skips the
+  /// `n` instructions that compute `b` and check it. `Or(createTo, b, None)` checks `b`.
+  /// Either way `createTo` gets the operand, which has to be a Bool.
+  | Or of createTo : Register * operand : Register * skipRhs : Option<int>
+
+  /// One side of `a && b`, as `Or` above, skipping `b` when `a` is false.
+  | And of createTo : Register * operand : Register * skipRhs : Option<int>
 
   // == Working with Basic Types ==
   | CreateString of createTo : Register * segments : List<StringSegment>
@@ -3323,6 +3322,10 @@ module DebugSymbols =
           table <- Map.add newIndex[i - 1] (struct (exprId, reg)) table
 
       | JumpBy offset -> kept.Add(JumpBy(rejump i offset))
+      | Or(createTo, operand, Some offset) ->
+        kept.Add(Or(createTo, operand, Some(rejump i offset)))
+      | And(createTo, operand, Some offset) ->
+        kept.Add(And(createTo, operand, Some(rejump i offset)))
       | JumpByIfFalse(offset, condReg) ->
         kept.Add(JumpByIfFalse(rejump i offset, condReg))
       | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
