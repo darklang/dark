@@ -1,9 +1,9 @@
-/// `dark alias`: put your own Dark functions on your PATH.
+/// `dark alias`: put your own Dark functions and scripts on your PATH.
 ///
 /// An alias is a short shell script in `~/.darklang/bin`, beside the installed `dark`, that runs
-/// `dark --entry-point <fn> --branch main "$@"`. Nothing new in the boot path: the one-invocation
-/// overrides the test runner already uses do the work, and `dark uninstall` takes the scripts with
-/// the folder.
+/// `dark --entry-point <fn> --branch main "$@"`, or `dark --branch main run <file> "$@"` for a
+/// `.dark` file. Nothing new in the boot path: the one-invocation overrides the test runner
+/// already uses do the work, and `dark uninstall` takes the scripts with the folder.
 ///
 /// An alias always runs against `main`, whatever branch is current where it runs: a command on your
 /// PATH should not change because a shell switched to a branch to try something. So `add` resolves
@@ -26,13 +26,8 @@ type Target =
   | Follows(name: String)
   /// The fn at <param hash>, which was <param name> when the alias was made.
   | Pinned(name: String, hash: String)
-
-
-/// The `--entry-point` argument for <param target>: the name, or `#<hash>`.
-let entryPoint(target: Target): String =
-  match target with
-  | Follows(name) -> name
-  | Pinned(_, hash) -> "#" + hash
+  /// The `.dark` file at <param path>, run by `dark run` as it is each time, so it follows the file.
+  | Script(path: String)
 
 
 /// How `ls` and `add` describe <param target>.
@@ -40,6 +35,17 @@ let describe(target: Target): String =
   match target with
   | Follows(name) -> name
   | Pinned(name, hash) -> $"{name}, pinned at #{Stdlib.String.slice(hash, 0, 8)}"
+  | Script(path) -> $"the script {path}"
+
+
+/// What `dark` is asked to do for <param target>, after the binary, before the arguments.
+let invocation(target: Target): String =
+  match target with
+  | Follows(name) -> $"--entry-point {Stdlib.Cli.Process.shellQuote(name)} --branch main"
+  | Pinned(_, hash) ->
+    let pinned = "#" + hash
+    $"--entry-point {Stdlib.Cli.Process.shellQuote(pinned)} --branch main"
+  | Script(path) -> $"--branch main run {Stdlib.Cli.Process.shellQuote(path)}"
 
 
 /// The script for an alias that runs <param target> with the `dark` at <param dark>.
@@ -48,13 +54,10 @@ let script(dark: String, target: Target): String =
     match target with
     | Follows(name) -> $"follows {name}"
     | Pinned(name, hash) -> $"pinned to {name} at #{hash}"
+    | Script(path) -> $"runs the script {path}"
 
   let darkQuoted = Stdlib.Cli.Process.shellQuote(dark)
-  let entryQuoted = Stdlib.Cli.Process.shellQuote(entryPoint(target))
-  [ "#!/bin/sh"
-    $"{marker()} {note}"
-    $"exec {darkQuoted} --entry-point {entryQuoted} --branch main \"$@\""
-    "" ]
+  [ "#!/bin/sh", $"{marker()} {note}", $"exec {darkQuoted} {invocation(target)} \"$@\"", "" ]
   |> Stdlib.String.join("\n")
 
 
@@ -221,6 +224,36 @@ let resolve(state: AppState, name: String): Result<(String * String), String> =
       | Error(_) -> Result.Error(e)
 
 
+/// Is <param what> a script file rather than a fn name: does it end in `.dark`?
+let isScript(what: String): Bool =
+  Stdlib.String.endsWith(what, ".dark")
+
+
+/// What `add` makes an alias of: the `.dark` file <param what> names, by its absolute path, or the
+/// fn, by name or with <param pin> by hash. A script has no version to pin, so `--pin` with one is
+/// refused rather than ignored.
+let targetFor(state: AppState, what: String, pin: Bool): Result<Target, String> =
+  if isScript(what) then
+    if pin then
+      Result.Error("--pin is for a fn: a script alias runs the file as it is each time")
+    else
+      match Stdlib.Cli.Path.resolveToAbsolute(what) with
+      | Error(_) -> Result.Error($"couldn't find where {what} is")
+      | Ok(path) ->
+        if Stdlib.Cli.File.exists(path) then
+          Result.Ok(Target.Script(path))
+        else
+          Result.Error($"no file at {path}")
+  else
+    resolve(state, what)
+    |> Stdlib.Result.map(fun found ->
+      let (qualifiedName, hash) = found
+      if pin then
+        Target.Pinned(qualifiedName, hash)
+      else
+        Target.Follows(qualifiedName))
+
+
 /// The `dark` an alias runs: the installed one when there is one, so a downloaded binary can be
 /// deleted afterwards; otherwise this one.
 let darkFor(dir: String): String =
@@ -254,17 +287,11 @@ let executeAdd(state: AppState, name: String, fnName: String, pin: Bool): AppSta
         printErr($"{name} is already a command on your PATH ({other}/{name}); pick another name.")
         exitWith(state, false)
       | None ->
-        match resolve(state, fnName) with
+        match targetFor(state, fnName, pin) with
         | Error(e) ->
           printErr(e)
           exitWith(state, false)
-        | Ok((qualifiedName, hash)) ->
-          let target =
-            if pin then
-              Target.Pinned(qualifiedName, hash)
-            else
-              Target.Follows(qualifiedName)
-
+        | Ok(target) ->
           let written =
             Stdlib.Cli.Unix.ensureDirectoryExists(dir)
             |> Stdlib.Result.andThen(fun _ ->
@@ -280,11 +307,13 @@ let executeAdd(state: AppState, name: String, fnName: String, pin: Bool): AppSta
             exitWith(state, false)
           | Ok(_) ->
             printOk($"{name} -> {describe(target)}  ({file})")
-            if pin then
+            match target with
+            | Pinned(qualifiedName, _) ->
               printHint(
                 $"  it runs this version until you add it again; without --pin it follows {qualifiedName}")
-            else
+            | Follows(qualifiedName) ->
               printHint($"  it follows {qualifiedName}, so edits show up; --pin keeps this version")
+            | Script(_) -> printHint("  it runs the file as it is each time, so edits show up")
 
             if Stdlib.Bool.not(onPath(dir, path)) then
               printHint($"  {dir} isn't on your PATH yet; `dark install` puts it there")
@@ -394,12 +423,16 @@ let help(_state: AppState): String =
     ""
     "  dark alias                          the aliases, and what each runs"
     "  dark alias add <name> <fn> [--pin]  make <name> a command that runs <fn>"
+    "  dark alias add <name> <file.dark>   ... that runs the script, with `dark run`"
     "  dark alias rm <name>                remove one"
     "  dark alias rm --all                 remove every alias"
     ""
     "An alias is a script in ~/.darklang/bin that runs"
     "`dark --entry-point <fn> --branch main` with its arguments. <fn> takes"
-    "(args: List<String>) and returns the exit code as an Int64."
+    "(args: List<String>) and returns the exit code as an Int64. For a"
+    ".dark file it runs `dark --branch main run <file>`, the file as it is"
+    "each time. Either way it runs under the instance policy, as `dark run`"
+    "does, and at a terminal offers to save a rule it was refused."
     ""
     "An alias always runs main's <fn>, whichever branch you are on, so <fn>"
     "has to be on main when you add it. It follows the NAME: once an edit"
