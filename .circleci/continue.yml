@@ -717,8 +717,8 @@ jobs:
       # The point of linking it statically: it needs nothing from the system. musl's
       # `ldd` can't say so (it is the loader itself and lists itself), so read the ELF
       # for a loader or a needed library, then run the binary in an empty root that
-      # holds only it, the CA bundle, the DNS config and the basic device nodes. That
-      # is a `FROM scratch` container without needing docker here.
+      # holds only it, the CA bundle, the DNS config and a random source. That is a
+      # `FROM scratch` container without needing docker here.
       - run:
           name: Confirm the musl artifact needs no system libraries
           command: |
@@ -732,8 +732,14 @@ jobs:
             ROOT=$(mktemp -d)
             mkdir -p "$ROOT/etc/ssl/certs" "$ROOT/tmp" "$ROOT/dev"
             cp "$B" "$ROOT/dark"
-            # The device nodes every container has. .NET reads its random bytes from here.
-            cp -a /dev/null /dev/zero /dev/random /dev/urandom "$ROOT/dev/"
+            # .NET reads its random bytes from /dev/urandom and won't start without it. CI's
+            # container can't make device nodes (no CAP_MKNOD), so a FIFO fed from the real
+            # one stands in for it. Each reader's exit ends one `cat` with SIGPIPE, hence the
+            # loop and the `|| true` (steps run under `bash -e`).
+            mkfifo "$ROOT/dev/urandom"
+            ( while :; do cat /dev/urandom > "$ROOT/dev/urandom" || true; done ) > /dev/null 2>&1 &
+            FEEDER=$!
+            trap 'kill "$FEEDER"' EXIT
             cp /etc/ssl/certs/ca-certificates.crt "$ROOT/etc/ssl/certs/"
             cp /etc/resolv.conf /etc/hosts "$ROOT/etc/"
             in_empty_root() { HOME=/tmp chroot "$ROOT" /dark "$@" < /dev/null; }
