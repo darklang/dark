@@ -348,6 +348,37 @@ test aliasRefusesWhatItCannotRun = Instance.withInstance(fun i ->
       Stdlib.Cli.File.exists($"{bin(i)}/sh") |> Stdlib.Test.equal(false) ]))
 
 
+// `rm --all` takes every alias and leaves the rest of the folder; a name and --all together, or
+// neither, is refused rather than guessed at.
+test aliasRemoveAll = Instance.withInstance(fun i ->
+  let _ = define(i, "hello", 0)
+  let _ = Stdlib.Cli.Unix.ensureDirectoryExists(bin(i))
+  let other = $"{bin(i)}/tool"
+  let _ = Stdlib.Cli.File.writeText(other, "#!/bin/sh\necho mine\n")
+  let _ = Instance.ran(i, [ "alias", "add", "one", "Tests.Greet.main" ])
+
+  let _ =
+    Instance.ran(i, [ "alias", "add", "two", "Tests.Greet.main", "--pin" ])
+
+  let (neither, _) = Instance.ran(i, [ "alias", "rm" ])
+
+  let (both, _) = Instance.ran(i, [ "alias", "rm", "one", "--all" ])
+
+  let (allCode, allOut) = Instance.ran(i, [ "alias", "rm", "--all" ])
+
+  let (againCode, againOut) = Instance.ran(i, [ "alias", "rm", "--all" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(neither, 1, "rm with no name and no --all is refused")
+      Instance.exitedWith(both, 1, "a name and --all together is refused")
+      Instance.exitedWith(allCode, 0, $"rm --all works: {allOut}")
+      Instance.says(allOut, "removed 2: one, two", "and says what it removed")
+      Stdlib.Cli.File.exists($"{bin(i)}/one") |> Stdlib.Test.equal(false)
+      Stdlib.Cli.File.exists($"{bin(i)}/two") |> Stdlib.Test.equal(false)
+      Stdlib.Cli.File.exists(other) |> Stdlib.Test.equal(true)
+      Instance.exitedWith(againCode, 0, "with none left it is not an error")
+      Instance.says(againOut, "no aliases to remove", "and says so") ]))
+
+
 // The folder also holds the installed `dark`: a file that is not an alias is never replaced or
 // removed by `alias`, and is not listed as one.
 test aliasLeavesOtherFilesAlone = Instance.withInstance(fun i ->

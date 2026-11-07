@@ -412,8 +412,8 @@ module Registry =
       [ ("ls", Accepts.nothing())
         ("list", Accepts.nothing())
         ("add", Accepts.between(2, 2, [ "--pin" ]))
-        ("rm", Accepts.between(1, 1, []))
-        ("remove", Accepts.between(1, 1, [])) ],
+        ("rm", Accepts.upTo(1, [ "--all" ]))
+        ("remove", Accepts.upTo(1, [ "--all" ])) ],
       Accepts.nothing())
 
 
