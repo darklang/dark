@@ -348,16 +348,15 @@ let rec private ofApplicable
         let! own =
           match named.name with
           | FQFnName.Builtin b ->
-            let mutable found = Unchecked.defaultof<BuiltInFn>
-            if state.fns.builtIn.TryGetValue(b, &found) then
+            match Lookup.tryFindV b state.fns.builtIn with
+            | ValueSome found ->
               Ply(
                 if Interpreter.spreadRefuses found then
                   Purity.Impure
                 else
                   Purity.Pure
               )
-            else
-              Ply Purity.Unknown
+            | ValueNone -> Ply Purity.Unknown
           // A bound implementation the caller supplies is not something the store can answer for.
           | FQFnName.Package p when List.isEmpty named.boundImpls -> state.fnPurity p
           | FQFnName.TraitMethod { implFn = FQFnName.Chosen p } -> state.fnPurity p

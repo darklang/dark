@@ -544,15 +544,10 @@ type TypeSymbolTable =
   }
 
   member this.TryFind(name : string) : ValueType voption =
-    if this.Count > 0 && this.Var0 = name then
-      ValueSome this.Bound0
-    elif this.Count > 1 && this.Var1 = name then
-      ValueSome this.Bound1
-    elif this.Count > 2 then
-      let mutable found = Unchecked.defaultof<ValueType>
-      if this.Overflow.TryGetValue(name, &found) then ValueSome found else ValueNone
-    else
-      ValueNone
+    if this.Count > 0 && this.Var0 = name then ValueSome this.Bound0
+    elif this.Count > 1 && this.Var1 = name then ValueSome this.Bound1
+    elif this.Count > 2 then Lookup.tryFindV name this.Overflow
+    else ValueNone
 
   member this.ToList() : List<string * ValueType> =
     match this.Count with
@@ -2903,23 +2898,24 @@ module Dval =
     | DUuid _ -> vtUuid
 
     | DList(t, _) ->
-      let mutable hit = Unchecked.defaultof<ValueType>
-      if listVTs.TryGetValue(t, &hit) then
-        hit
-      else
+      match Lookup.tryFindV t listVTs with
+      | ValueSome hit -> hit
+      | ValueNone ->
         let vt = ValueType.Known(KTList t)
         listVTs.AddOrUpdate(t, vt)
         vt
 
     | DDict(kt, vt, _) ->
-      let mutable byValue = Unchecked.defaultof<Cache<ValueType, ValueType>>
-      if not (dictVTs.TryGetValue(kt, &byValue)) then
-        byValue <- Cache<ValueType, ValueType>()
-        dictVTs.AddOrUpdate(kt, byValue)
-      let mutable hit = Unchecked.defaultof<ValueType>
-      if byValue.TryGetValue(vt, &hit) then
-        hit
-      else
+      let byValue =
+        match Lookup.tryFindV kt dictVTs with
+        | ValueSome byValue -> byValue
+        | ValueNone ->
+          let byValue = Cache<ValueType, ValueType>()
+          dictVTs.AddOrUpdate(kt, byValue)
+          byValue
+      match Lookup.tryFindV vt byValue with
+      | ValueSome hit -> hit
+      | ValueNone ->
         let result = ValueType.Known(KTDict(kt, vt))
         byValue.AddOrUpdate(vt, result)
         result
@@ -2932,10 +2928,9 @@ module Dval =
     // (name, args) shape, and structural hashing of that costs more than the two objects it saves.
     | DRecord(_, typeName, typeArgs, _) ->
       if List.isEmpty typeArgs then
-        let mutable hit = Unchecked.defaultof<ValueType>
-        if customVTs.TryGetValue(typeName, &hit) then
-          hit
-        else
+        match Lookup.tryFindV typeName customVTs with
+        | ValueSome hit -> hit
+        | ValueNone ->
           let vt = KTCustomType(typeName, []) |> ValueType.Known
           customVTs.AddOrUpdate(typeName, vt)
           vt
@@ -2944,10 +2939,9 @@ module Dval =
 
     | DEnum(_, typeName, typeArgs, _, _) ->
       if List.isEmpty typeArgs then
-        let mutable hit = Unchecked.defaultof<ValueType>
-        if customVTs.TryGetValue(typeName, &hit) then
-          hit
-        else
+        match Lookup.tryFindV typeName customVTs with
+        | ValueSome hit -> hit
+        | ValueNone ->
           let vt = KTCustomType(typeName, []) |> ValueType.Known
           customVTs.AddOrUpdate(typeName, vt)
           vt
@@ -3572,20 +3566,24 @@ type PackageManager =
 
     { getType =
         fun id ->
-          let mutable hit = Unchecked.defaultof<Option<PackageType.PackageType>>
-          if typeMap.TryGetValue(id, &hit) then Ply hit else pm.getType id
+          match Lookup.tryFindV id typeMap with
+          | ValueSome hit -> Ply hit
+          | ValueNone -> pm.getType id
       getValue =
         fun id ->
-          let mutable hit = Unchecked.defaultof<Option<PackageValue.PackageValue>>
-          if valueMap.TryGetValue(id, &hit) then Ply hit else pm.getValue id
+          match Lookup.tryFindV id valueMap with
+          | ValueSome hit -> Ply hit
+          | ValueNone -> pm.getValue id
       getFn =
         fun id ->
-          let mutable hit = Unchecked.defaultof<Option<PackageFn.PackageFn>>
-          if fnMap.TryGetValue(id, &hit) then Ply hit else pm.getFn id
+          match Lookup.tryFindV id fnMap with
+          | ValueSome hit -> Ply hit
+          | ValueNone -> pm.getFn id
       getTrait =
         fun id ->
-          let mutable hit = Unchecked.defaultof<Option<Trait.Trait>>
-          if traitMap.TryGetValue(id, &hit) then Ply hit else pm.getTrait id
+          match Lookup.tryFindV id traitMap with
+          | ValueSome hit -> Ply hit
+          | ValueNone -> pm.getTrait id
       getBytes = pm.getBytes
       persistBytes = pm.persistBytes
       isHarmful = pm.isHarmful
@@ -4846,10 +4844,9 @@ module Types =
     // one place the cache for a `Types` is created.
     let cache = declCache.GetValue(types, newDeclCache)
 
-    let mutable hit = Unchecked.defaultof<Option<TypeDeclaration.T>>
-    if cache.TryGetValue(name, &hit) then
-      Ply hit
-    else
+    match Lookup.tryFindV name cache with
+    | ValueSome hit -> Ply hit
+    | ValueNone ->
       match name with
       | FQTypeName.Package pkg ->
         let fetch = types.package pkg
@@ -4958,14 +4955,9 @@ module TypeReference =
     (types : Types)
     (typ : TypeReference)
     : TypeReference voption =
-    let mutable cache = Unchecked.defaultof<AliasCache>
-    let mutable resolved = Unchecked.defaultof<TypeReference>
-    if
-      aliasCaches.TryGetValue(types, &cache) && cache.TryGetValue(typ, &resolved)
-    then
-      ValueSome resolved
-    else
-      ValueNone
+    match Lookup.tryFindV types aliasCaches with
+    | ValueSome cache -> Lookup.tryFindV typ cache
+    | ValueNone -> ValueNone
 
   let rec unwrapAlias (types : Types) (typ : TypeReference) : Ply<TypeReference> =
     match typ with

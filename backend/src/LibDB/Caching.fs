@@ -58,14 +58,12 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
   clearActions.Add(fun () -> cache.Clear())
 
   fun (key : 'key) ->
-    // Out-param, not `match cache.TryGetValue k with | true, v ->`, which allocates a
-    // tuple per lookup (docs/perf/history.md).
-    let mutable cached = Unchecked.defaultof<Option<'value>>
-    if cache.TryGetValue(key, &cached) then
+    match Lookup.tryFindV key cache with
+    | ValueSome cached ->
       // Deliberately outside the computation expression. Once a script is warm nearly every call lands
       // here, and entering the builder to hand over a value already in hand costs more than the lookup.
       Ply cached
-    else
+    | ValueNone ->
       uply {
         let generationAtStart = generation ()
         let! result = f key
@@ -86,10 +84,9 @@ let withNegativeCache (f : 'key -> Ply<Option<'value>>) =
   clearActions.Add(fun () -> cache.Clear())
 
   fun (key : 'key) ->
-    let mutable cached = Unchecked.defaultof<Option<'value>>
-    if cache.TryGetValue(key, &cached) then
-      Ply cached
-    else
+    match Lookup.tryFindV key cache with
+    | ValueSome cached -> Ply cached
+    | ValueNone ->
       uply {
         let generationAtStart = generation ()
         let! result = f key
