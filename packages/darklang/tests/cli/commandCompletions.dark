@@ -76,3 +76,53 @@ test profileNames =
       |> Stdlib.Test.equal([ "--yes" ])
       PermissionProfiles.values([ "profile", "local-dev", "/tmp" ])
       |> Stdlib.Test.equal([ "--yes" ]) ])
+
+// --- Tab completes to the shared prefix before opening the picker ---
+
+module CommonPrefix =
+  let items(values: List<String>): List<Darklang.Cli.Completion.CompletionItem> =
+    values |> Stdlib.List.map(Darklang.Cli.Completion.simple)
+
+  let extend(input: String, values: List<String>): Stdlib.Option.Option<String> =
+    Darklang.Cli.Completion.extendToCommonPrefix(input, items(values))
+
+  let pressTab(text: String): String =
+    let state = Darklang.Cli.initState()
+
+    let state =
+      { state with
+          prompt = Darklang.Cli.Prompt.Editing.setText(state.prompt, text) }
+
+    let mods =
+      Stdlib.Cli.Stdin.Modifiers.Modifiers
+        { alt = false, ctrl = false, shift = false }
+
+    (Darklang.Cli.handleKeyInput(
+      state,
+      Stdlib.Cli.Stdin.Key.Key.Tab,
+      mods,
+      Stdlib.Option.Option.None)).prompt.text
+
+// `fil` with `filter` and `filterMap` completes to `filter`
+test commonPrefixExtendsPartial =
+  CommonPrefix.extend("fil", [ "filter", "filterMap" ])
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("filter"))
+
+// once the shared part is typed, there is nothing to add, so the picker opens
+test commonPrefixAlreadyTyped =
+  CommonPrefix.extend("filter", [ "filter", "filterMap" ])
+  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+// only the last argument is replaced
+test commonPrefixInArgument =
+  CommonPrefix.extend("branch switch fea", [ "feature-a", "feature-b" ])
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some("branch switch feature-"))
+
+// completions that match without starting with the partial are left to the picker
+test commonPrefixNotAPrefixMatch =
+  CommonPrefix.extend("Map", [ "filterMap", "flatMap" ])
+  |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+// through the key handler: `commi` matches `commit` and `commits`
+test tabCompletesCommandToCommonPrefix =
+  CommonPrefix.pressTab("commi") |> Stdlib.Test.equal("commit")
