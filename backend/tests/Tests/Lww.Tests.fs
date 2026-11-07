@@ -328,9 +328,9 @@ let private conflictIdsNormaliseLikeDark =
       (decomposed.IsNormalized System.Text.NormalizationForm.FormC)
       "the name under test really is not NFC"
     let code =
-      "let name = (Stdlib.Utf8.decode((Stdlib.Hex.decode(\"63616665cc81\") |> Builtin.unwrap)) |> Builtin.unwrap)\n"
+      "let name = (Stdlib.Utf8.decode((Stdlib.Base16.decode(\"63616665cc81\") |> Builtin.unwrap)) |> Builtin.unwrap)\n"
       + "let material = $\"Zz/W/{name}|\" + (Stdlib.String.join(Stdlib.List.sort([ \"bbb\", \"aaa\" ]), \",\"))\n"
-      + "Stdlib.String.toLowercase(Stdlib.String.first(Stdlib.Hex.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(material))), 8))"
+      + "Stdlib.String.toLowercase(Stdlib.String.first(Stdlib.Base16.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(material))), 8))"
     match! evalDarkExpr code with
     | Ok(RT.DString fromDark) ->
       Expect.equal

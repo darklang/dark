@@ -809,7 +809,7 @@ let __tempEntropy(remaining: Int64, reversed: List<Bytes>): Result.Result<Bytes,
 let __tempCandidate(prefix: String): Result.Result<String, Stdlib.Cli.Posix.Error> =
   __tempEntropy(12, [])
   |> Stdlib.Result.mapError(__fromErrno)
-  |> Stdlib.Result.map(fun bytes -> Stdlib.String.append(prefix, Stdlib.Hex.encode(bytes)))
+  |> Stdlib.Result.map(fun bytes -> Stdlib.String.append(prefix, Stdlib.Base16.encode(bytes)))
 
 let __tempRetry(
   create: Int64 -> Result.Result<'a, Stdlib.Cli.Posix.Error>,

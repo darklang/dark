@@ -77,7 +77,7 @@ let verifyChecksum(
       match Stdlib.Cli.File.readBytes(path) with
       | Error(e) -> Stdlib.Result.Result.Error($"Couldn't read the download to check it ({e.message}), {refused}")
       | Ok(bytes) ->
-        let actual = bytes |> Stdlib.Crypto.sha256 |> Stdlib.Hex.encode |> Stdlib.String.toLowercase
+        let actual = bytes |> Stdlib.Crypto.sha256 |> Stdlib.Base16.encode |> Stdlib.String.toLowercase
 
         if actual == expected then
           Stdlib.Result.Result.Ok()

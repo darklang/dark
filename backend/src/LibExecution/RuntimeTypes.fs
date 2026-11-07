@@ -4747,7 +4747,7 @@ and Values =
 /// content-addressed hash to bytes (or None if the hash is missing);
 /// `persist` writes bytes to `package_blobs` via INSERT OR IGNORE.
 /// Needed inside builtins that manipulate blobs — eg.
-/// `Hex.encode : Bytes -> String` has to dereference its arg.
+/// `Base16.encode : Bytes -> String` has to dereference its arg.
 and BytesStore =
   { get : string -> Ply<Option<byte[]>>; persist : string -> byte[] -> Ply<unit> }
 

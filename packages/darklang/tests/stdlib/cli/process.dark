@@ -32,7 +32,7 @@ test runBytesKeepsRawOutput =
   (match Stdlib.Cli.Process.runBytes("/bin/sh",
      [ "-c", "printf '\\377a'; printf '\\376' >&2; exit 3" ]) with
    | Ok(output) ->
-     (output.exitCode, Stdlib.Hex.encode(output.stdout), Stdlib.Hex.encode(output.stderr))
+     (output.exitCode, Stdlib.Base16.encode(output.stdout), Stdlib.Base16.encode(output.stderr))
    | Error(_) -> (-1, "", ""))
   |> Stdlib.Test.equal((3, "FF61", "FE"))
 
@@ -44,7 +44,7 @@ test outputTextReplacesInvalidUtf8 =
 
 test executeBytesKeepsRawOutput =
   let outcome = Stdlib.Cli.executeBytes("printf '\\377\\000'; printf '\\376' >&2")
-  (outcome.exitCode, Stdlib.Hex.encode(outcome.stdout), Stdlib.Hex.encode(outcome.stderr))
+  (outcome.exitCode, Stdlib.Base16.encode(outcome.stdout), Stdlib.Base16.encode(outcome.stderr))
   |> Stdlib.Test.equal((0, "FF00", "FE"))
 
 test executionTextMatchesExecute =

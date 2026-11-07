@@ -650,11 +650,11 @@ let percentDecode(s: String): String =
     |> Stdlib.List.fold([ Stdlib.Utf8.encode(first) ], fun(reversed, piece) ->
       let hex = Stdlib.String.slice(piece, 0, 2)
 
-      // The length check is not redundant: `Hex.decode ""` succeeds, so a `%`
+      // The length check is not redundant: `Base16.decode ""` succeeds, so a `%`
       // at the very end of the string decodes to no bytes at all and vanishes.
       match
         (if (Stdlib.String.length(hex)) == 2 then
-           Stdlib.Hex.decode(hex)
+           Stdlib.Base16.decode(hex)
          else
            Stdlib.Result.Result.Error("not an escape"))
       with
@@ -686,5 +686,5 @@ let percentEncode(s: String): String =
   |> Stdlib.List.map(fun b ->
     match Stdlib.Char.fromCodepoint(Stdlib.UInt32.fromUInt8(b)) with
     | Some(c) when b < 128u8 && isUnreserved(c) -> Stdlib.String.fromChar(c)
-    | _ -> "%" + Stdlib.Hex.encode(Stdlib.Bytes.fromList([ b ])))
+    | _ -> "%" + Stdlib.Base16.encode(Stdlib.Bytes.fromList([ b ])))
   |> Stdlib.String.join("")
