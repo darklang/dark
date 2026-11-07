@@ -13,6 +13,17 @@ loads more is a clause, not a section. Anything longer belongs in `playbook.md` 
 
 ---
 
+## 2026-11-07: the steady budget leaves out startup (#5916)
+
+`steady.dark` allocated 10.30 MB in all, and `startup.dark`, one `printLine`, 7.00 MB of that. A 3%
+tolerance on the total was about 9% of the workload, and with the slack main had under its budget
+the room was 22%: making each of the 200 lists 50% longer (a 19% regression in the workload) read
+11.00 MB against an 11.03 MB ceiling, and passed. The gate now takes three warm readings of each,
+alternated, and budgets the medians apart: startup 7,000,520 bytes at 3%, `steady.dark` net of it
+3,353,112 at 5%. The same regression fails at 19.3% over. Three gate runs on main read 3.29, 3.30
+and 3.35 MB net; single readings move about 4%, because startup lands in one of two clusters (6.95
+or 7.00 MB), which is why there are three.
+
 ## 2026-11-05: record fields in a sorted array (#6146)
 
 A record's fields moved from F#'s `Map` to `RecordFields`, one array sorted by name. Building one
