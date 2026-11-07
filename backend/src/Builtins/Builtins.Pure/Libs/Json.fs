@@ -317,6 +317,10 @@ let private parseExactJsonDecimal (raw : string) : decimal option =
       | _ -> None
 
 
+/// What a record field of type `Option` parses from when the JSON leaves it out.
+let private noneJson : JsonElement = JsonDocument.Parse("{\"None\":[]}").RootElement
+
+
 let parse
   (threadID : ThreadID)
   (types : Types)
@@ -325,6 +329,22 @@ let parse
   : Ply<Result<Dval, ParseError.ParseError>> =
 
   let tst = TST.empty // TODO consider passing this in.. somehow?
+
+  /// Whether <param typ> is `Option`, directly or through aliases.
+  let rec isOption (typ : TypeReference) : Ply<bool> =
+    uply {
+      match typ with
+      | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, _) when
+        h = PackageRefs.Type.Stdlib.option ()
+        ->
+        return true
+      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+        match! Types.find types typeName with
+        | Some({ definition = TypeDeclaration.Alias alias } as decl) ->
+          return! isOption (Types.substitute decl.typeParams typeArgs alias)
+        | _ -> return false
+      | _ -> return false
+    }
 
   let rec convert
     (typ : TypeReference)
@@ -731,31 +751,36 @@ let parse
 
             let enumerated = j.EnumerateObject() |> Seq.toList
 
-            // We allow the user to add extra fields to a record, but we don't allow
-            // fields to be omitted, so use the definition to get the expected fields
-            // and then look at the json to match it
+            // Extra fields are allowed, and so is leaving out an `Option` field, which
+            // parses as `None`. Any other field has to be there, so go by the
+            // definition's fields and look each one up in the JSON.
             let! fields =
               fields
               |> NEList.toList
               |> List.map (fun def ->
                 uply {
-                  let correspondingValue =
-                    let matchingFieldDef =
-                      // TODO: allow Option<>al fields to be omitted
-                      enumerated |> List.filter (fun v -> v.Name = def.name)
-
-                    match matchingFieldDef with
-                    | [] ->
-                      raiseError (
-                        ParseError.RecordMissingField(def.name, pathSoFar)
-                      )
-                    | [ matchingFieldDef ] -> matchingFieldDef.Value
-                    | _ ->
-                      raiseError (
-                        ParseError.RecordDuplicateField(def.name, pathSoFar)
-                      )
-
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
+                  let! correspondingValue =
+                    uply {
+                      match
+                        enumerated |> List.filter (fun v -> v.Name = def.name)
+                      with
+                      | [] ->
+                        match! isOption typ with
+                        | true -> return noneJson
+                        | false ->
+                          return
+                            raiseError (
+                              ParseError.RecordMissingField(def.name, pathSoFar)
+                            )
+                      | [ matchingFieldDef ] -> return matchingFieldDef.Value
+                      | _ ->
+                        return
+                          raiseError (
+                            ParseError.RecordDuplicateField(def.name, pathSoFar)
+                          )
+                    }
+
                   let! converted =
                     convert
                       typ

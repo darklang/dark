@@ -1699,6 +1699,34 @@ module UserDefinedRecords =
     { GroupName: String
       People: List<Person> }
 
+  /// `Nickname` goes through this file's `Option` alias, `Age` names the stdlib type.
+  type Profile =
+    { Name: String
+      Nickname: Option<String>
+      Age: Stdlib.Option.Option<Int64> }
+
+  module OptionalFields =
+    test missingOptionFieldsAreNone =
+      Stdlib.Json.parse<Profile>("""{ "Name": "Bob" }""")
+      |> Stdlib.Test.equal(
+        Result.Ok(Profile { Name = "Bob", Nickname = Option.None, Age = Option.None }))
+
+    test presentOptionFieldsStillParse =
+      Stdlib.Json.parse<Profile>(
+        """{ "Name": "Bob", "Nickname": { "Some": ["B"] }, "Age": { "None": [] } }""")
+      |> Stdlib.Test.equal(
+        Result.Ok(
+          Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None }))
+
+    test missingTypeArgOptionIsNone =
+      Stdlib.Json.parse<Combo<Int64, Option<Int64>>>("""{ "e1": 1 }""")
+      |> Stdlib.Test.equal(Result.Ok(Combo { e1 = 1, e2 = Option.None }))
+
+    test otherMissingFieldsStillFail =
+      (Stdlib.Json.parse<Profile>("""{ "Nickname": { "None": [] } }""")) |> err
+      |> Stdlib.Test.equal(
+        Result.Error("Can't parse JSON because `Name` field is not provided at path: `root`"))
+
   type Combo<'e1, 'e2> = { e1: 'e1, e2: 'e2 }
 
   module Errors =
