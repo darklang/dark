@@ -215,6 +215,9 @@ let private dropDependencyIndexesIfEmpty
   }
 
 
+/// How many ops `foldRead` deserializes and folds at a time.
+let private foldChunkSize = 1000
+
 /// Fold the rows `readPending` returned, each into its own branch, and mark exactly those applied.
 /// Returns the count folded.
 let foldRead
@@ -228,16 +231,95 @@ let foldRead
       // Deserialize per-op; SKIP + log any that fail rather than aborting, so one bad op cannot brick a
       // store. They stay `applied = 0`, which is the truth -- nothing folded them -- and means a build
       // that CAN read them still will.
+      //
+      // A chunk at a time: a cold start folds every op in the store, and all of them deserialized at
+      // once is most of its peak memory.
       let mutable skipped = 0
+      let mutable folded = 0L
 
-      let unappliedOps =
-        rawOps
-        |> List.choose (fun (seq, branch, opId, opBlob) ->
-          match BS.PT.PackageOp.tryDeserialize opId opBlob with
-          | Some op -> Some(seq, branch, op)
-          | None ->
-            skipped <- skipped + 1
-            None)
+      // Opened at the first op that deserializes, so a store holding only ops this build cannot
+      // read never takes the write lock.
+      let mutable conn : SqliteConnection = null
+      let mutable tx : SqliteTransaction = null
+      let mutable droppedIndexes : List<string> = []
+      let runRaw (conn : SqliteConnection) (sql : string) : Task<unit> =
+        task {
+          use cmd = conn.CreateCommand()
+          cmd.CommandText <- sql
+          let! _ = cmd.ExecuteNonQueryAsync()
+          return ()
+        }
+      use _bulk =
+        Telemetry.span "seed.applyOps.bulk" [ "ops", string (List.length rawOps) ]
+
+      try
+        for chunk in List.chunkBySize foldChunkSize rawOps do
+          let unappliedOps =
+            chunk
+            |> List.choose (fun (seq, branch, opId, opBlob) ->
+              match BS.PT.PackageOp.tryDeserialize opId opBlob with
+              | Some op -> Some(seq, branch, op)
+              | None ->
+                skipped <- skipped + 1
+                None)
+
+          if not (List.isEmpty unappliedOps) then
+            if isNull conn then
+              // All ops + the applied=1 sweep in ONE transaction: for 9000+ ops that collapses ~20k
+              // WAL commits into one.
+              conn <- new SqliteConnection(LibDB.Sqlite.connString)
+              do! conn.OpenAsync()
+              // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter
+              // update, which poisons the page cache of a concurrent reader on another connection.
+              //
+              // 16 MB of page cache rather than SQLite's 2 MB: most of the fold's writes land in
+              // indexes keyed on random hashes, and with the default nearly every one of them misses
+              // the cache.
+              do!
+                runRaw
+                  conn
+                  "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
+                   PRAGMA cache_size=-16384;"
+              tx <- conn.BeginTransaction()
+              // Before the first chunk folds, so the check sees the table as the fold found it.
+              let! dropped = dropDependencyIndexesIfEmpty conn
+              droppedIndexes <- dropped
+
+            // By ROW, never by predicate: a `serve` committing an op between the read and here
+            // matches `applied = 0` too, and a predicate sweep would mark it applied with nothing
+            // having folded it.
+            for rows in
+              unappliedOps
+              |> List.map (fun (seq, _, _) -> seq)
+              |> List.chunkBySize 500 do
+              let listed = rows |> List.map string |> String.concat ", "
+              do!
+                runRaw
+                  conn
+                  $"UPDATE package_ops SET applied = 1 WHERE rowid IN ({listed})"
+
+            // Each run of consecutive ops on one branch folds into that branch, in log order.
+            let runs =
+              unappliedOps
+              |> List.fold
+                (fun (acc : List<PT.BranchId * List<PT.PackageOp>>) (_, branch, op) ->
+                  match acc with
+                  | (b, ops) :: rest when b = branch -> (b, op :: ops) :: rest
+                  | _ -> (branch, [ op ]) :: acc)
+                []
+              |> List.rev
+              |> List.map (fun (b, ops) -> (b, List.rev ops))
+            for (branch, ops) in runs do
+              do! PackageOpPlayback.applyOpsOnConnection conn branch ops
+            folded <- folded + int64 (List.length unappliedOps)
+
+        if not (isNull tx) then
+          for sql in droppedIndexes do
+            do! runRaw conn sql
+          tx.Commit()
+      finally
+        if not (isNull tx) then tx.Dispose()
+        if not (isNull conn) then conn.Dispose()
 
       // ONE line, not one per op: these are re-examined on every startup.
       if skipped > 0 && not warnedAboutUnreadableOps then
@@ -247,60 +329,7 @@ let foldRead
           + "read, and are being skipped. They are kept, not dropped, so a later build can apply them."
         )
 
-      if List.isEmpty unappliedOps then
-        return 0L
-      else
-        // All ops + the applied=1 sweep in ONE transaction: for 9000+ ops that collapses ~20k WAL
-        // commits into one.
-        use conn = new SqliteConnection(LibDB.Sqlite.connString)
-        do! conn.OpenAsync()
-        let runRaw (sql : string) : Task<unit> =
-          task {
-            use cmd = conn.CreateCommand()
-            cmd.CommandText <- sql
-            let! _ = cmd.ExecuteNonQueryAsync()
-            return ()
-          }
-        // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter update, which
-        // poisons the page cache of a concurrent reader on another connection.
-        //
-        // 16 MB of page cache rather than SQLite's 2 MB: most of the fold's writes land in indexes
-        // keyed on random hashes, and with the default nearly every one of them misses the cache.
-        do!
-          runRaw
-            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
-             PRAGMA cache_size=-16384;"
-        let opCount = List.length unappliedOps
-        use _bulk = Telemetry.span "seed.applyOps.bulk" [ "ops", string opCount ]
-        use tx = conn.BeginTransaction()
-        let! droppedIndexes = dropDependencyIndexesIfEmpty conn
-
-        // By ROW, never by predicate: a `serve` committing an op between the read and here matches
-        // `applied = 0` too, and a predicate sweep would mark it applied with nothing having folded it.
-        for chunk in
-          unappliedOps |> List.map (fun (seq, _, _) -> seq) |> List.chunkBySize 500 do
-          let listed = chunk |> List.map string |> String.concat ", "
-          do! runRaw $"UPDATE package_ops SET applied = 1 WHERE rowid IN ({listed})"
-
-        // Each run of consecutive ops on one branch folds into that branch, in log order.
-        let runs =
-          unappliedOps
-          |> List.fold
-            (fun (acc : List<PT.BranchId * List<PT.PackageOp>>) (_, branch, op) ->
-              match acc with
-              | (b, ops) :: rest when b = branch -> (b, op :: ops) :: rest
-              | _ -> (branch, [ op ]) :: acc)
-            []
-          |> List.rev
-          |> List.map (fun (b, ops) -> (b, List.rev ops))
-        for (branch, ops) in runs do
-          do! PackageOpPlayback.applyOpsOnConnection conn branch ops
-
-        for sql in droppedIndexes do
-          do! runRaw sql
-
-        tx.Commit()
-        return int64 opCount
+      return folded
   }
 
 
