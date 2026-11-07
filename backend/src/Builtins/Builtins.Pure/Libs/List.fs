@@ -399,14 +399,15 @@ let fns () : List<BuiltInFn> =
             let mutable current = first
             let mutable rest = tail
             let rec next (key : Dval) : Ply<Dval> =
-              Interpreter.withValue vm key (fun key ->
-                keyed <- struct (key, current) :: keyed
-                match rest with
-                | [] -> sortedByKeyLanding vm vt (List.rev keyed)
-                | elem :: elemTail ->
-                  current <- elem
-                  rest <- elemTail
-                  Interpreter.requestApply vm app elem [] next)
+              Interpreter.withValue vm key landed
+            and landed (key : Dval) : Ply<Dval> =
+              keyed <- struct (key, current) :: keyed
+              match rest with
+              | [] -> sortedByKeyLanding vm vt (List.rev keyed)
+              | elem :: elemTail ->
+                current <- elem
+                rest <- elemTail
+                Interpreter.requestApply vm app elem [] next
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -640,38 +641,41 @@ let fns () : List<BuiltInFn> =
             let mutable current = first
             let mutable rest = tail
             let probe = Spread.probe state vm app
+            // `landed` is one closure for the whole list, where a lambda here would be one per
+            // element.
             let rec next (answer : Dval) : Ply<Dval> =
-              Interpreter.withValue vm answer (fun answer ->
-                match answer with
-                | DBool keep -> if keep then acc <- current :: acc
-                | other -> raiseRTE vm.threadID (predicateNotBool other)
-                match rest with
-                | [] -> Ply(DList(vt, List.rev acc))
-                | elem :: elemTail ->
-                  if not (isNull probe) && probe.Ask rest then
-                    probe.Stop()
-                    uply {
-                      let! spread =
-                        Spread.run
-                          state
-                          vm
-                          "listFilter"
-                          (fun _ chunk -> [ DList(vt, chunk) ])
-                          app
-                          probe.PerElement
-                          rest
-                      acc <- List.rev spread.results @ acc
-                      match spread.leftover with
-                      | [] -> return DList(vt, List.rev acc)
-                      | elem :: elemTail ->
-                        current <- elem
-                        rest <- elemTail
-                        return! Interpreter.requestApply vm app elem [] next
-                    }
-                  else
-                    current <- elem
-                    rest <- elemTail
-                    Interpreter.requestApply vm app elem [] next)
+              Interpreter.withValue vm answer landed
+            and landed (answer : Dval) : Ply<Dval> =
+              match answer with
+              | DBool keep -> if keep then acc <- current :: acc
+              | other -> raiseRTE vm.threadID (predicateNotBool other)
+              match rest with
+              | [] -> Ply(DList(vt, List.rev acc))
+              | elem :: elemTail ->
+                if not (isNull probe) && probe.Ask rest then
+                  probe.Stop()
+                  uply {
+                    let! spread =
+                      Spread.run
+                        state
+                        vm
+                        "listFilter"
+                        (fun _ chunk -> [ DList(vt, chunk) ])
+                        app
+                        probe.PerElement
+                        rest
+                    acc <- List.rev spread.results @ acc
+                    match spread.leftover with
+                    | [] -> return DList(vt, List.rev acc)
+                    | elem :: elemTail ->
+                      current <- elem
+                      rest <- elemTail
+                      return! Interpreter.requestApply vm app elem [] next
+                  }
+                else
+                  current <- elem
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -727,16 +731,17 @@ let fns () : List<BuiltInFn> =
           | first :: tail ->
             let mutable rest = tail
             let rec next (answer : Dval) : Ply<Dval> =
-              Interpreter.withValue vm answer (fun answer ->
-                match answer with
-                | DBool true -> Ply(DBool true)
-                | DBool false ->
-                  match rest with
-                  | [] -> Ply(DBool false)
-                  | elem :: elemTail ->
-                    rest <- elemTail
-                    Interpreter.requestApply vm app elem [] next
-                | other -> raiseRTE vm.threadID (predicateNotBool other))
+              Interpreter.withValue vm answer landed
+            and landed (answer : Dval) : Ply<Dval> =
+              match answer with
+              | DBool true -> Ply(DBool true)
+              | DBool false ->
+                match rest with
+                | [] -> Ply(DBool false)
+                | elem :: elemTail ->
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next
+              | other -> raiseRTE vm.threadID (predicateNotBool other)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -796,18 +801,19 @@ let fns () : List<BuiltInFn> =
             let mutable current = first
             let mutable rest = tail
             let rec next (answer : Dval) : Ply<Dval> =
-              Interpreter.withValue vm answer (fun answer ->
-                match answer with
-                | DBool true ->
-                  Ply(TypeChecker.DvalCreator.option vm.threadID vt (Some current))
-                | DBool false ->
-                  match rest with
-                  | [] -> Ply(TypeChecker.DvalCreator.option vm.threadID vt None)
-                  | elem :: elemTail ->
-                    current <- elem
-                    rest <- elemTail
-                    Interpreter.requestApply vm app elem [] next
-                | other -> raiseRTE vm.threadID (predicateNotBool other))
+              Interpreter.withValue vm answer landed
+            and landed (answer : Dval) : Ply<Dval> =
+              match answer with
+              | DBool true ->
+                Ply(TypeChecker.DvalCreator.option vm.threadID vt (Some current))
+              | DBool false ->
+                match rest with
+                | [] -> Ply(TypeChecker.DvalCreator.option vm.threadID vt None)
+                | elem :: elemTail ->
+                  current <- elem
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next
+              | other -> raiseRTE vm.threadID (predicateNotBool other)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       previewable = Pure
