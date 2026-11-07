@@ -4,5 +4,22 @@
     "published": 10705824,
     "publishedMode": "aot",
     "note": "scripts/perf/workloads/steady.dark, trace detail off. `publishedMode` is which publish mode the published number was taken in; the gate refuses a binary from the other one. Lower these whenever a change earns it (scripts/perf/gate --published --update). Method and history: docs/perf/history.md. Do not add historical comments to this line, basically never change this comment."
+  },
+  "cold": {
+    "allocated": 904572704,
+    "peakRssMB": 477,
+    "allocatedTolerance": 0.03,
+    "peakRssTolerance": 0.05,
+    "note": "The first run of steady.dark on a store grown from nothing, with the GC settings the gate pins. Recorded by `scripts/perf/gate --published --update` with the steady number."
+  },
+  "paired": {
+    "maxRatio": 1.15,
+    "rounds": 11,
+    "reference": {
+      "tag": "v0.0.106",
+      "asset": "darklang-alpha-924c50d759-linux-x64.gz",
+      "sha256": "4894084c2fe114c309ae96f61833ba3f57ab70e585421302d79b16bff8ff1ffe"
+    },
+    "note": "CPU of fib 24 and ls, over the same on the reference release, median of paired rounds; see scripts/perf/_paired.py. Move the reference to a newer release when one is cut, never to the build being measured."
   }
 }
