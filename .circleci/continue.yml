@@ -20,6 +20,9 @@ version: 2.1
 # none, and only branch and PR builds use the NuGet one. Measured: restoring costs 1.5s and
 # saves 4.9s of `tool restore` + `paket restore`, so it earns about 3.4s a job. The SQLite
 # archive cache (`sqlite-archive`) follows the same rule.
+#
+# Main saves none either. Nothing on main reads one, and a fork PR cannot read main's (CircleCI
+# keeps fork caches apart), so each new key was stored twice and main's copy was never used.
 
 parameters:
   # Set by .circleci/config.yml from scripts/deployment/ci-images, pinned by digest.
@@ -184,10 +187,14 @@ commands:
       - run:
           name: Build the SQLite archive (skips on cache hit)
           command: ./scripts/build/build-sqlite.sh --runtimes=linux-x64
-      - save_cache:
-          paths:
-            - backend/src/Cli/lib
-          key: v1-sqlite-archive-ci-linux-x64-{{ checksum "../sqlite-checksum" }}
+      - unless:
+          condition:
+            equal: [main, << pipeline.git.branch >>]
+          steps:
+            - save_cache:
+                paths:
+                  - backend/src/Cli/lib
+                key: v1-sqlite-archive-ci-linux-x64-{{ checksum "../sqlite-checksum" }}
 
   show-large-files-and-directories:
     steps:
@@ -328,10 +335,14 @@ jobs:
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
-      - save_cache:
-          paths:
-            - /home/dark/.nuget
-          key: v7-nuget-{{ checksum "../checksum" }}
+      - unless:
+          condition:
+            equal: [main, << pipeline.git.branch >>]
+          steps:
+            - save_cache:
+                paths:
+                  - /home/dark/.nuget
+                key: v7-nuget-{{ checksum "../checksum" }}
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
       # Each library is compiled once in this job, by this step, in Release so the package load
@@ -436,19 +447,17 @@ jobs:
       - assert-clean-worktree
       - show-large-files-and-directories
       - store-ci-diagnostics
-      # The binary is ~34 MB a build. Kept on main, and on any failure so the binary that
-      # failed can be run. A passing PR's is cheaper to rebuild locally: check out the
-      # branch, `scripts/dev/build`, export the seed, then `build-release-cli-exes.sh`.
-      # This one is linux-x64 only, so most reviewers could not run it anyway.
+      # The binary is ~37 MB a build, uncompressed. Kept only on a failure, so the binary that
+      # failed can be run. A passing build's is cheaper to rebuild locally: check out the
+      # commit, `scripts/dev/build`, export the seed, then `build-release-cli-exes.sh`.
+      # Main's too: releases are downloaded from GitHub, nothing fetches main's from here,
+      # and at every push to main it was most of the project's artifact storage.
       #
       # No `when:` on the step, so it is skipped once anything has failed. The upload
       # below runs either way: job #75213's did after its publish step failed.
       - run:
-          name: Drop the CLI binary from passing PR builds
-          command: |
-            if [[ "$CIRCLE_BRANCH" != "main" ]]; then
-              rm -rf clis && mkdir clis
-            fi
+          name: Drop the CLI binary from passing builds
+          command: rm -rf clis && mkdir clis
       - store_artifacts: { path: clis }
 
   ##########################

@@ -9,8 +9,8 @@ Uses only the Python standard library; fixture tests need no dev container.
 
 import argparse
 from contextlib import closing
-import gzip
 import json
+import lzma
 import os
 from pathlib import Path
 import shutil
@@ -23,6 +23,9 @@ import time
 
 MIB = 1024 * 1024
 DATABASE_TIMEOUT = 15
+# Failure databases are xz preset 3, not gzip -1: 42% smaller on an 86 MB store, about 13 s more
+# each. Only failed jobs pay it; unpack with `unxz`.
+DATABASE_PRESET = 3
 OUTPUT = "ci-diagnostics"
 CHECKS = "ci-checks"
 
@@ -137,7 +140,7 @@ def record_check(rundir, name, command):
 
 
 def snapshot_database(rundir, relative):
-  archive = rundir / OUTPUT / "databases" / (str(relative) + ".gz")
+  archive = rundir / OUTPUT / "databases" / (str(relative) + ".xz")
   result = {"path": str(relative)}
   try:
     source = (rundir / relative).resolve()
@@ -158,7 +161,7 @@ def snapshot_database(rundir, relative):
            closing(sqlite3.connect(snapshot)) as dest:
         src.backup(dest, pages=256, progress=progress, sleep=0.05)
       archive.parent.mkdir(parents=True, exist_ok=True)
-      with snapshot.open("rb") as src, gzip.open(archive, "wb", compresslevel=1) as dst:
+      with snapshot.open("rb") as src, lzma.open(archive, "wb", preset=DATABASE_PRESET) as dst:
         shutil.copyfileobj(src, dst)
       result.update(status="saved", snapshot_bytes=snapshot.stat().st_size,
                     archive_bytes=archive.stat().st_size)
