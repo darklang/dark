@@ -349,18 +349,23 @@ type Scheduler(quantum : int64) =
   // -- Spawning --
 
   /// A new process that runs `instrs` under `exeState`, from its access. Runnable at once, on
-  /// this scheduler.
+  /// this scheduler. Given `stats`, its VM counts into them, and is a new VM rather than a
+  /// pooled one, which has a set of its own.
   member this.Spawn
     (
       exeState : RT.ExecutionState,
       instrs : Option<tlid> * RT.Instructions,
       entry : Entry,
-      parent : Option<ProcessId>
+      parent : Option<ProcessId>,
+      ?stats : RT.InterpreterStats
     ) : Process =
     let vm =
       match
-        lock sync (fun () ->
-          if spareVMs.Count > 0 then ValueSome(spareVMs.Pop()) else ValueNone)
+        match stats with
+        | Some _ -> ValueNone
+        | None ->
+          lock sync (fun () ->
+            if spareVMs.Count > 0 then ValueSome(spareVMs.Pop()) else ValueNone)
       with
       | ValueSome spare ->
         let tlid, program = instrs
@@ -375,7 +380,10 @@ type Scheduler(quantum : int64) =
             symbols = lazy rootSymbols
             quick = null }
         RT.VMState.reuseFor (spare, tlid, instrData, program.registerCount)
-      | ValueNone -> RT.VMState.create instrs
+      | ValueNone ->
+        match stats with
+        | Some stats -> RT.VMState.createWithStats (instrs, stats)
+        | None -> RT.VMState.create instrs
     Interpreter.seedRootAccess exeState.access vm
     let id = System.Guid.NewGuid()
     let p =
@@ -421,9 +429,10 @@ type Scheduler(quantum : int64) =
       exeState : RT.ExecutionState,
       instrs : Option<tlid> * RT.Instructions,
       entry : Entry,
-      parent : Option<ProcessId>
+      parent : Option<ProcessId>,
+      ?stats : RT.InterpreterStats
     ) : Process =
-    this.Workers.Spawn(exeState, instrs, entry, parent)
+    this.Workers.Spawn(exeState, instrs, entry, parent, ?stats = stats)
 
   /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
   /// `access` rather than the state's own: the spawner's, at the moment of the spawn, exactly as
@@ -434,7 +443,8 @@ type Scheduler(quantum : int64) =
       applicable : RT.Applicable,
       arg : RT.Dval,
       parent : Option<ProcessId>,
-      access : Permissions.Access
+      access : Permissions.Access,
+      ?stats : RT.InterpreterStats
     ) : Process =
     let entry =
       match applicable with
@@ -442,7 +452,13 @@ type Scheduler(quantum : int64) =
       | RT.AppLambda _ -> EntryExpr
     let instrs = Execution.instructionsForApply applicable arg
     let p =
-      this.SpawnOn({ exeState with access = access }, (None, instrs), entry, parent)
+      this.SpawnOn(
+        { exeState with access = access },
+        (None, instrs),
+        entry,
+        parent,
+        ?stats = stats
+      )
     p
 
   /// The process with this id, anywhere in the group.
@@ -753,7 +769,11 @@ type Scheduler(quantum : int64) =
       // needs; one with a read still in flight would have that read's landing count against
       // the next process.
       match result with
-      | Ok _ when spareVMs.Count < 8 && Volatile.Read &p.vm.inflight = 0 ->
+      | Ok _ when
+        spareVMs.Count < 8
+        && Volatile.Read &p.vm.inflight = 0
+        && not p.vm.stats.ownedByOneVM
+        ->
         spareVMs.Push p.vm
       | _ -> ()
       finished.Enqueue p.id
@@ -1192,7 +1212,8 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       exeState : RT.ExecutionState,
       instrs : Option<tlid> * RT.Instructions,
       entry : Entry,
-      parent : Option<ProcessId>
+      parent : Option<ProcessId>,
+      ?stats : RT.InterpreterStats
     ) : Process =
     let w =
       lock startLock (fun () ->
@@ -1201,7 +1222,7 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
           if not started[i] then startThread i
           byIndex[i]
         | None -> workers |> List.minBy (fun w -> w.Live))
-    w.Spawn(exeState, instrs, entry, parent)
+    w.Spawn(exeState, instrs, entry, parent, ?stats = stats)
 
   /// End every worker's loop. Processes still on them are left as they are.
   member _.Stop() : unit =
