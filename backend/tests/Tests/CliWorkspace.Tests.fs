@@ -602,6 +602,7 @@ let private withLiveServer
             step
             dev
             Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            Builtins.Http.Server.Libs.HttpServer.defaultRequestTimeoutMs
             false
             false
             false

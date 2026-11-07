@@ -325,60 +325,76 @@ let private containing
            inputBytes = read.bytes "input_value"
            resultBytes = read.bytesOrNone "result_value" |})
 
-    let mutable hits : List<Dval> = []
-    let mutable cursor = 0
+    let! (_, hits) =
+      traces
+      |> Ply.List.foldSequentially
+        (fun (count : int64, hits : List<Dval>) t ->
+          if count >= limit then
+            uply { return (count, hits) }
+          else
+            uply {
+              let inputDval =
+                BinarySer.RT.Dval.deserialize "traces.input_value" t.inputBytes
+              let! inputHit = containsPattern inputDval
+              // What the run answered counts as the run's own text too: a pure computation
+              // logs no calls, so its result is the only place its value appears.
+              let! resultHit =
+                match t.resultBytes with
+                | Some bytes ->
+                  containsPattern (
+                    BinarySer.RT.Dval.deserialize "traces.result_value" bytes
+                  )
+                | None -> uply { return false }
+              let inputMatches = inputHit || resultHit
 
-    while cursor < List.length traces && int64 (List.length hits) < limit do
-      let t = traces[cursor]
-      cursor <- cursor + 1
+              let! matchesViaCalls =
+                if inputMatches then
+                  uply { return true }
+                else
+                  uply {
+                    let! callRows =
+                      Sql.query
+                        "SELECT c.args, r.bytes AS result
+                         FROM trace_fn_calls c
+                         JOIN trace_blobs r
+                           ON r.trace_id = c.trace_id AND r.hash = c.result
+                         WHERE c.trace_id = @traceId"
+                      |> Sql.parameters [ "traceId", Sql.string t.id ]
+                      |> Sql.executeAsync (fun read ->
+                        {| argsBytes = read.bytes "args"
+                           resultBytes = read.bytes "result" |})
 
-      let inputDval = BinarySer.RT.Dval.deserialize "traces.input_value" t.inputBytes
-      let! inputHit = containsPattern inputDval
-      // What the run answered counts as the run's own text too: a pure computation
-      // logs no calls, so its result is the only place its value appears.
-      let! resultHit =
-        match t.resultBytes with
-        | Some bytes ->
-          containsPattern (BinarySer.RT.Dval.deserialize "traces.result_value" bytes)
-        | None -> uply { return false }
-      let inputMatches = inputHit || resultHit
+                    return!
+                      callRows
+                      |> Ply.List.foldSequentially
+                        (fun found row ->
+                          if found then
+                            uply { return true }
+                          else
+                            uply {
+                              let argsDval =
+                                BinarySer.RT.Dval.deserialize
+                                  "trace_fn_calls.args"
+                                  row.argsBytes
+                              let resultDval =
+                                BinarySer.RT.Dval.deserialize
+                                  "trace_fn_calls.result"
+                                  row.resultBytes
+                              let! argsMatch = containsPattern argsDval
+                              if argsMatch then
+                                return true
+                              else
+                                return! containsPattern resultDval
+                            })
+                        false
+                  }
 
-      let! matchesViaCalls =
-        if inputMatches then
-          uply { return true }
-        else
-          uply {
-            let! callRows =
-              Sql.query
-                "SELECT c.args, r.bytes AS result
-                 FROM trace_fn_calls c
-                 JOIN trace_blobs r
-                   ON r.trace_id = c.trace_id AND r.hash = c.result
-                 WHERE c.trace_id = @traceId"
-              |> Sql.parameters [ "traceId", Sql.string t.id ]
-              |> Sql.executeAsync (fun read ->
-                {| argsBytes = read.bytes "args"
-                   resultBytes = read.bytes "result" |})
-
-            let mutable found = false
-            let mutable i = 0
-            while not found && i < List.length callRows do
-              let row = callRows[i]
-              i <- i + 1
-              let argsDval =
-                BinarySer.RT.Dval.deserialize "trace_fn_calls.args" row.argsBytes
-              let resultDval =
-                BinarySer.RT.Dval.deserialize "trace_fn_calls.result" row.resultBytes
-              let! argsMatch = containsPattern argsDval
-              if argsMatch then
-                found <- true
+              if matchesViaCalls then
+                return (count + 1L, t.row :: hits)
               else
-                let! resultMatch = containsPattern resultDval
-                if resultMatch then found <- true
-            return found
-          }
-
-      if matchesViaCalls then hits <- t.row :: hits
+                return (count, hits)
+            })
+        (0L, [])
 
     return List.rev hits
   }

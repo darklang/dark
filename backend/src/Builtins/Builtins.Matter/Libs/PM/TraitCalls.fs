@@ -320,17 +320,22 @@ let private worthChecking
           | _ -> [])
         |> List.distinct
 
-      // Whether any of them is bounded. Sequential and short-circuiting by hand, because a
-      // batch that reaches here is an authoring batch of one or two items with a handful of
-      // calls, and the lookups are what the store caches anyway.
-      let mutable bounded = false
-      for h in called do
-        if not bounded then
-          match! pm.getFn h with
-          | Some fn -> bounded <- not (List.isEmpty fn.bounds)
-          | None -> ()
-
-      return bounded
+      // Whether any of them is bounded. Sequential and short-circuiting, because a batch that
+      // reaches here is an authoring batch of one or two items with a handful of calls, and the
+      // lookups are what the store caches anyway.
+      return!
+        called
+        |> Ply.List.foldSequentially
+          (fun bounded h ->
+            if bounded then
+              uply { return true }
+            else
+              uply {
+                match! pm.getFn h with
+                | Some fn -> return not (List.isEmpty fn.bounds)
+                | None -> return false
+              })
+          false
   }
 
 
@@ -452,89 +457,123 @@ let private resolveIn
                       | _ -> None))
           }
 
-        let implsByItem = Dictionary<PT.Hash, Map<id, PT.FQFnName.ImplChoice>>()
-        let boundsByItem =
-          Dictionary<PT.Hash, Map<id, List<PT.FQFnName.BoundImpl>>>()
+        let addBound
+          (at : id)
+          (entry : PT.FQFnName.BoundImpl)
+          (bounds : Map<id, List<PT.FQFnName.BoundImpl>>)
+          : Map<id, List<PT.FQFnName.BoundImpl>> =
+          let existing = Map.tryFind at bounds |> Option.defaultValue []
+          Map.add at (entry :: existing) bounds
 
-        for KeyValue(itemHash, resolutions) in resolved do
-          // Accumulated in loops rather than folds: the trait and the impl fn are both awaited,
-          // so the fold version is three nested `uply` continuations deep.
-          let mutable impls = Map.empty
-          let mutable bounds = Map.empty
+        let mappingOf
+          (resolutions : List<Resolution>)
+          : Ply<Option<LibDB.AstTransformer.HashMapping>> =
+          uply {
+            let! chosen =
+              resolutions
+              |> Ply.List.foldSequentially
+                (fun impls resolution ->
+                  match resolution with
+                  | Call(at, method_, implHashes) ->
+                    uply {
+                      match! implFnFor method_ implHashes with
+                      | Some implFn ->
+                        return Map.add at (PT.FQFnName.Chosen implFn) impls
+                      | None -> return impls
+                    }
+                  | _ -> uply { return impls })
+                Map.empty
 
-          for resolution in resolutions do
-            match resolution with
-            | Call(at, method_, implHashes) ->
-              match! implFnFor method_ implHashes with
-              | Some implFn -> impls <- Map.add at (PT.FQFnName.Chosen implFn) impls
-              | None -> ()
-            | _ -> ()
+            // A call whose self type is one of the item's own type params is not a call nobody
+            // could work out: it is waiting for its caller, and it says so. Second, so that a
+            // call the checker actually resolved wins over a deferral at the same node.
+            let impls =
+              resolutions
+              |> List.fold
+                (fun impls resolution ->
+                  match resolution with
+                  | Deferred(at, param) when not (Map.containsKey at impls) ->
+                    Map.add at (PT.FQFnName.FromTypeParam param) impls
+                  | _ -> impls)
+                chosen
 
-          // A call whose self type is one of the item's own type params is not a call nobody
-          // could work out: it is waiting for its caller, and it says so. Second, so that a
-          // call the checker actually resolved wins over a deferral at the same node.
-          for resolution in resolutions do
-            match resolution with
-            | Deferred(at, param) ->
-              if not (Map.containsKey at impls) then
-                impls <- Map.add at (PT.FQFnName.FromTypeParam param) impls
-            | _ -> ()
+            // The other half: what this item's CALLS worked out for the bounds of the fns they
+            // name. That is what makes a call into a bounded fn static: the callee's body defers
+            // to its type param, and the call says which implementation that param implied.
+            let! bounds =
+              resolutions
+              |> Ply.List.foldSequentially
+                (fun bounds resolution ->
+                  match resolution with
+                  | CallerBound(at, param, traitHash, implHashes) ->
+                    uply {
+                      match! getTrait traitHash with
+                      | Some trait_ ->
+                        // One entry per method of the trait, so the callee's body finds a fn for
+                        // whichever method it calls without reading the implementation item at
+                        // run time.
+                        return!
+                          NEList.toList trait_.methods
+                          |> Ply.List.foldSequentially
+                            (fun bounds (m : PT.Trait.Method) ->
+                              uply {
+                                match! implFnFor m.name implHashes with
+                                | Some implFn ->
+                                  let entry : PT.FQFnName.BoundImpl =
+                                    { param = param
+                                      trait_ = traitHash
+                                      method_ = m.name
+                                      choice = PT.FQFnName.Chosen implFn }
+                                  return addBound at entry bounds
+                                | None -> return bounds
+                              })
+                            bounds
+                      | None -> return bounds
+                    }
+                  | CallerBoundDeferred(at, param, traitHash, fromParam) ->
+                    uply {
+                      match! getTrait traitHash with
+                      | Some trait_ ->
+                        return
+                          NEList.toList trait_.methods
+                          |> List.fold
+                            (fun bounds (m : PT.Trait.Method) ->
+                              let entry : PT.FQFnName.BoundImpl =
+                                { param = param
+                                  trait_ = traitHash
+                                  method_ = m.name
+                                  choice = PT.FQFnName.FromTypeParam fromParam }
+                              addBound at entry bounds)
+                            bounds
+                      | None -> return bounds
+                    }
+                  | _ -> uply { return bounds })
+                Map.empty
 
-          // The other half: what this item's CALLS worked out for the bounds of the fns they
-          // name. That is what makes a call into a bounded fn static: the callee's body defers
-          // to its type param, and the call says which implementation that param implied.
-          for resolution in resolutions do
-            match resolution with
-            | CallerBound(at, param, traitHash, implHashes) ->
-              match! getTrait traitHash with
-              | Some trait_ ->
-                // One entry per method of the trait, so the callee's body finds a fn for
-                // whichever method it calls without reading the implementation item at run time.
-                for m in NEList.toList trait_.methods do
-                  match! implFnFor m.name implHashes with
-                  | Some implFn ->
-                    let entry : PT.FQFnName.BoundImpl =
-                      { param = param
-                        trait_ = traitHash
-                        method_ = m.name
-                        choice = PT.FQFnName.Chosen implFn }
-                    let existing = Map.tryFind at bounds |> Option.defaultValue []
-                    bounds <- Map.add at (entry :: existing) bounds
-                  | None -> ()
-              | None -> ()
-            | CallerBoundDeferred(at, param, traitHash, fromParam) ->
-              match! getTrait traitHash with
-              | Some trait_ ->
-                for m in NEList.toList trait_.methods do
-                  let entry : PT.FQFnName.BoundImpl =
-                    { param = param
-                      trait_ = traitHash
-                      method_ = m.name
-                      choice = PT.FQFnName.FromTypeParam fromParam }
-                  let existing = Map.tryFind at bounds |> Option.defaultValue []
-                  bounds <- Map.add at (entry :: existing) bounds
-              | None -> ()
-            | _ -> ()
+            if Map.isEmpty impls && Map.isEmpty bounds then
+              return None
+            else
+              return
+                Some
+                  { LibDB.AstTransformer.emptyMapping with
+                      resolvedImpls = impls
+                      boundImpls = bounds }
+          }
 
-          if not (Map.isEmpty impls) then implsByItem[itemHash] <- impls
-          if not (Map.isEmpty bounds) then boundsByItem[itemHash] <- bounds
+        let! mappings =
+          resolved
+          |> Map.toList
+          |> Ply.List.foldSequentially
+            (fun mappings (itemHash, resolutions) ->
+              uply {
+                match! mappingOf resolutions with
+                | Some mapping -> return Map.add itemHash mapping mappings
+                | None -> return mappings
+              })
+            Map.empty
 
         let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
-          let impls =
-            match implsByItem.TryGetValue hash with
-            | true, impls -> impls
-            | _ -> Map.empty
-          let bounds =
-            match boundsByItem.TryGetValue hash with
-            | true, bounds -> bounds
-            | _ -> Map.empty
-          if Map.isEmpty impls && Map.isEmpty bounds then
-            None
-          else
-            Some
-              { LibDB.AstTransformer.emptyMapping with
-                  resolvedImpls = impls
-                  boundImpls = bounds }
+          Map.tryFind hash mappings
 
         let transformed =
           ops
@@ -682,16 +721,18 @@ let resolveTraitCalls
           | PT.PackageOp.AddTest t -> calledPackageFns t.body
           | _ -> [])
         |> List.distinct
-      let mutable bounded = Set.empty
-      for h in callees do
-        match Map.tryFind h batchFns with
-        | Some fn ->
-          if not (List.isEmpty fn.bounds) then bounded <- Set.add h bounded
-        | None ->
-          match! pm.getFn h with
-          | Some fn ->
-            if not (List.isEmpty fn.bounds) then bounded <- Set.add h bounded
-          | None -> ()
+      let! boundedCallees =
+        callees
+        |> Ply.List.filterSequentially (fun h ->
+          match Map.tryFind h batchFns with
+          | Some fn -> Ply(not (List.isEmpty fn.bounds))
+          | None ->
+            uply {
+              match! pm.getFn h with
+              | Some fn -> return not (List.isEmpty fn.bounds)
+              | None -> return false
+            })
+      let bounded = Set.ofList boundedCallees
       let isBounded h = Set.contains h bounded
 
       // Items with identical bodies share a hash, so each hash is counted once and then

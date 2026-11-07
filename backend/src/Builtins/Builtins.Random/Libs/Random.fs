@@ -30,7 +30,6 @@ let fns () : List<BuiltInFn> =
           let numBytes = range.GetByteCount(true) + 8
           let buf = Array.zeroCreate<byte> (numBytes + 1)
           RNG.Fill(System.Span<byte>(buf, 0, numBytes))
-          buf[numBytes] <- 0uy
           let r = System.Numerics.BigInteger(buf) % range
           Dval.bigInt (lower + r) |> Ply
         | _ -> incorrectArgs ())

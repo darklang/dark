@@ -176,15 +176,24 @@ let repoint
     | Ok(Some(propagationResult, ops)) ->
       do! persistPropagation branch ops
       let moved = propagationResult.repoints
-      let mutable failure = None
-      for r in moved do
-        if Option.isNone failure then
-          let! now = findOn branch r.toRef.kind r.location
-          if now <> Some r.toRef.hash then
-            let! rebound = rebind branch r.location r.toRef.kind r.toRef.hash
-            match rebound with
-            | Error e -> failure <- Some e
-            | Ok() -> ()
+      let! failure =
+        moved
+        |> Ply.List.foldSequentially
+          (fun failure r ->
+            match failure with
+            | Some _ -> uply { return failure }
+            | None ->
+              uply {
+                let! now = findOn branch r.toRef.kind r.location
+                if now <> Some r.toRef.hash then
+                  let! rebound = rebind branch r.location r.toRef.kind r.toRef.hash
+                  match rebound with
+                  | Error e -> return Some e
+                  | Ok() -> return None
+                else
+                  return None
+              })
+          None
       match failure with
       | Some e -> return Error e
       | None -> return Ok moved

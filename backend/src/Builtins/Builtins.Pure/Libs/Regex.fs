@@ -67,12 +67,9 @@ let private errorToDT (e : RegexError) : Dval =
 /// first use, and never for a string whose clusters are its chars.
 type private Positions(s : string) =
   let charwise = String.isCharwise s
-  let mutable starts : int[] = null
+  let starts = lazy (System.Globalization.StringInfo.ParseCombiningCharacters s)
 
-  member private _.Starts =
-    if isNull starts then
-      starts <- System.Globalization.StringInfo.ParseCombiningCharacters s
-    starts
+  member private _.Starts = starts.Value
 
   /// The character a boundary at UTF-16 offset `i` starts: the one containing it.
   member this.Floor(i : int) : int =
@@ -257,13 +254,15 @@ let private scan
     || not (splitsPair input g.Index || splitsPair input (g.Index + g.Length))
 
   let toDT (m : Match) : Dval =
-    let mutable captures = []
-    let mutable named = []
-    for struct (n, name) in Array.rev groups do
-      let c = Dval.option captureKT (capture m.Groups[n])
-      match name with
-      | None -> captures <- c :: captures
-      | Some name -> named <- (name, c) :: named
+    let captures, named =
+      Array.foldBack
+        (fun (struct (n : int, name : Option<string>)) (captures, named) ->
+          let c = Dval.option captureKT (capture m.Groups[n])
+          match name with
+          | None -> c :: captures, named
+          | Some name -> captures, (name, c) :: named)
+        groups
+        ([], [])
     DRecord(
       matchType,
       matchType,
@@ -283,9 +282,7 @@ let private scan
     let mutable broken = false
     while m.Success && not broken do
       // Group 0 is the match itself.
-      let mutable valid = true
-      for i in 0 .. m.Groups.Count - 1 do
-        if valid && not (validGroup m.Groups[i]) then valid <- false
+      let valid = Seq.forall validGroup (m.Groups :> seq<Group>)
       if valid then
         pieces <- DString(input.Substring(last, m.Index - last)) :: pieces
         matches <- toDT m :: matches

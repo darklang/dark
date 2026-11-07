@@ -91,37 +91,46 @@ let private declarationsToModule
     let baseModules = if scriptName = "" then [] else [ scriptName ]
 
     // Build WT package declarations + top-level expressions.
-    let wtFns = ResizeArray<WT.PackageFn.PackageFn>()
-    let wtTypes = ResizeArray<WT.PackageType.PackageType>()
-    let wtValues = ResizeArray<WT.PackageValue.PackageValue>()
-    let wtTraits = ResizeArray<WT.PackageTrait.PackageTrait>()
-    let wtImpls = ResizeArray<WT.PackageTraitImpl.PackageTraitImpl>()
+    let fnList =
+      sourceItems
+      |> List.choose (function
+        | WTSourceFile.Fn(declPath, fn) ->
+          Some(WT.packageFn owner (baseModules @ declPath) fn)
+        | _ -> None)
+    let typeList =
+      sourceItems
+      |> List.choose (function
+        | WTSourceFile.Type(declPath, t) ->
+          Some(WT.packageType owner (baseModules @ declPath) t)
+        | _ -> None)
+    let valueList =
+      sourceItems
+      |> List.choose (function
+        | WTSourceFile.Value(declPath, v) ->
+          Some(WT.packageValue owner (baseModules @ declPath) v)
+        | _ -> None)
+    let traitList =
+      sourceItems
+      |> List.choose (function
+        | WTSourceFile.Trait(declPath, t) ->
+          Some(WT.packageTrait owner (baseModules @ declPath) t)
+        | _ -> None)
+    let implList =
+      sourceItems
+      |> List.choose (function
+        | WTSourceFile.Impl(memberPath, impl) ->
+          Some(WT.packageImpl owner (baseModules @ memberPath) impl)
+        | _ -> None)
     // Each trailing expr keeps its module path, so an expr inside `module M =`
-    // can still resolve M's declarations by short name.
-    let wtExprs = ResizeArray<List<string> * WT.Expr>()
-    for item in sourceItems do
-      match item with
-      | WTSourceFile.Fn(declPath, fn) ->
-        wtFns.Add(WT.packageFn owner (baseModules @ declPath) fn)
-      | WTSourceFile.Type(declPath, t) ->
-        wtTypes.Add(WT.packageType owner (baseModules @ declPath) t)
-      | WTSourceFile.Value(declPath, v) ->
-        wtValues.Add(WT.packageValue owner (baseModules @ declPath) v)
-      | WTSourceFile.Trait(declPath, t) ->
-        wtTraits.Add(WT.packageTrait owner (baseModules @ declPath) t)
-      | WTSourceFile.Impl(memberPath, impl) ->
-        wtImpls.Add(WT.packageImpl owner (baseModules @ memberPath) impl)
-      | WTSourceFile.Expr(declPath, e) -> wtExprs.Add(baseModules @ declPath, e)
-      // Test decls are produced only by test-mode parsing, not the CLI path.
-      | WTSourceFile.Test _
-      | WTSourceFile.Assertion _ -> ()
+    // can still resolve M's declarations by short name. Test decls are produced only by
+    // test-mode parsing, not the CLI path, so `Test` and `Assertion` items are not collected.
+    let wtExprs =
+      sourceItems
+      |> List.choose (function
+        | WTSourceFile.Expr(declPath, e) -> Some(baseModules @ declPath, e)
+        | _ -> None)
 
     let onMissing = NRslv.OnMissing.Allow
-    let fnList = List.ofSeq wtFns
-    let typeList = List.ofSeq wtTypes
-    let valueList = List.ofSeq wtValues
-    let traitList = List.ofSeq wtTraits
-    let implList = List.ofSeq wtImpls
 
     // Graft locations are derived from names only, so they're identical across
     // both lowering passes (pass 2 keeps each decl's name, changing only body/hash).
@@ -370,7 +379,6 @@ let private declarationsToModule
         WT2PT.Context.sourceRanges = Some sourceRanges }
     let! exprs =
       wtExprs
-      |> List.ofSeq
       |> Ply.List.mapSequentially (fun (modules, e) ->
         uply {
           let! expr =

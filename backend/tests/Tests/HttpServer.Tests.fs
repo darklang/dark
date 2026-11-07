@@ -468,6 +468,7 @@ let private runFixture (test : Test) : Task<unit> =
         (int64 port)
         handler
         HttpServer.defaultMaxBodyBytes
+        HttpServer.defaultRequestTimeoutMs
         true // injectStandardHeaders
         true // canonicalizeFromForwardedProto
         false // logRequests — keep tests quiet
@@ -496,6 +497,7 @@ let private runFixture (test : Test) : Task<unit> =
 /// `requests` are (path, body) pairs sent with `method`, all at once. Returns (status line,
 /// body) per request, in request order.
 let private runRequestsAgainst
+  (requestTimeoutMs : int)
   (routerCode : string)
   (method : string)
   (requests : (string * byte[]) list)
@@ -517,6 +519,7 @@ let private runRequestsAgainst
         (int64 port)
         handler
         HttpServer.defaultMaxBodyBytes
+        requestTimeoutMs
         false // injectStandardHeaders
         false // canonicalizeFromForwardedProto
         false // logRequests
@@ -573,6 +576,7 @@ let private concurrentEphemeralBytesRequests =
     let bodyFor (i : int) : byte[] = UTF8.toBytes (String.replicate 64 $"req{i:D4}-")
     let! results =
       runRequestsAgainst
+        HttpServer.defaultRequestTimeoutMs
         "Darklang.Stdlib.Http.response(200, request.body)"
         "POST"
         ([ 1..64 ] |> List.map (fun i -> "/", bodyFor i))
@@ -614,7 +618,6 @@ let private stampedRouter =
           200,
           "fast " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now()))))"""
 
-// Sequenced: the timeout test lowers the process-wide `requestTimeoutMs` for its own server.
 let private requestsAreProcesses =
   testSequenced
   <| testList
@@ -624,6 +627,7 @@ let private requestsAreProcesses =
         // requests finished in is on the wire, not in a wall-clock guess.
         let! results =
           runRequestsAgainst
+            HttpServer.defaultRequestTimeoutMs
             stampedRouter
             "GET"
             [ "/slow", [||]; "/fast", [||]; "/fast", [||]; "/fast", [||] ]
@@ -639,25 +643,25 @@ let private requestsAreProcesses =
             $"fast request {i} answered before the slow one finished"
       }
       testTask "a handler past the request timeout gets a 504" {
-        let before = HttpServer.requestTimeoutMs
-        HttpServer.requestTimeoutMs <- 200
-        try
-          let! results =
-            runRequestsAgainst pathRouter "GET" [ "/slow", [||]; "/fast", [||] ]
-          let results = Array.map textOf results
-          Expect.stringContains (fst results[0]) "504" "the slow request timed out"
-          Expect.stringContains
-            (snd results[0])
-            "ran for more than 200 ms"
-            "the body says why"
-          Expect.equal (snd results[1]) "fast" "the fast request was unaffected"
-        finally
-          HttpServer.requestTimeoutMs <- before
+        let! results =
+          runRequestsAgainst 200 pathRouter "GET" [ "/slow", [||]; "/fast", [||] ]
+        let results = Array.map textOf results
+        Expect.stringContains (fst results[0]) "504" "the slow request timed out"
+        Expect.stringContains
+          (snd results[0])
+          "ran for more than 200 ms"
+          "the body says why"
+        Expect.equal (snd results[1]) "fast" "the fast request was unaffected"
       }
       testTask
         "a handler that raises gets a 500 with the error, not a type complaint" {
         use output = new OutputCapture()
-        let! results = runRequestsAgainst pathRouter "GET" [ "/boom", [||] ]
+        let! results =
+          runRequestsAgainst
+            HttpServer.defaultRequestTimeoutMs
+            pathRouter
+            "GET"
+            [ "/boom", [||] ]
         let results = Array.map textOf results
         Expect.stringContains (fst results[0]) "500" "a failed handler is a 500"
         Expect.stringContains

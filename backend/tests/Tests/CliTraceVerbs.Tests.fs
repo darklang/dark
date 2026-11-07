@@ -1219,6 +1219,7 @@ let private servedRequestsKeepNoCredentials =
             (int64 port)
             handler
             Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            Builtins.Http.Server.Libs.HttpServer.defaultRequestTimeoutMs
             false
             false
             false
