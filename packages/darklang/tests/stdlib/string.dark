@@ -1088,11 +1088,23 @@ test repeat =
       Stdlib.String.repeat("", 5) |> Stdlib.Test.equal("")
       Stdlib.String.repeat("ab", 0) |> Stdlib.Test.equal("")
       Stdlib.String.repeat("ab", 0 - 1) |> Stdlib.Test.equal("")
+      // Too negative for Int32: still clamps rather than raising.
+      Stdlib.String.repeat("ab", -3000000000) |> Stdlib.Test.equal("")
       // Grapheme clusters survive: repeat works on the string, not its code units.
       Stdlib.String.repeat("é", 2) |> Stdlib.Test.equal("éé")
       Stdlib.String.repeat("👨‍👩‍👧‍👦", 2)
       |> Stdlib.Test.equal("👨‍👩‍👧‍👦👨‍👩‍👧‍👦")
       Stdlib.String.length(Stdlib.String.repeat("─", 80)) |> Stdlib.Test.equal(80) ])
+
+test checkedRepeat =
+  Stdlib.Test.all(
+    [ Stdlib.String.checkedRepeat("ab", 3) |> Stdlib.Test.equal(Ok("ababab"))
+      Stdlib.String.checkedRepeat("ab", 0) |> Stdlib.Test.equal(Ok(""))
+      Stdlib.String.checkedRepeat("", 5) |> Stdlib.Test.equal(Ok(""))
+      Stdlib.String.checkedRepeat("ab", -1)
+      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.NegativeCount))
+      Stdlib.String.checkedRepeat("ab", -3000000000)
+      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.NegativeCount)) ])
 
 test toCodepoints =
   Stdlib.Test.all(

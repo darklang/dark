@@ -253,7 +253,7 @@ test arrayValues =
 // Check a large array.
 test largeArrayRoundTrip =
   let value =
-    Json.Array(Stdlib.List.repeat(10000, Json.String("large")) |> Builtin.unwrap)
+    Json.Array(Stdlib.List.repeat(10000, Json.String("large")))
   parse(format(value)) |> Stdlib.Test.equal(Ok(value))
 
 test objectValues =

@@ -402,10 +402,24 @@ let lastIndexOf(
     Option.Option.Some(lastIndex)
 
 
-/// Returns the <param string> repeated for a specified <param count> times.
-/// If <param count> is less than or equal to 0, returns an empty string.
+// TODO: `repeat` may become the checked version; see #6056.
+/// Returns <param string> repeated <param count> times, or {{""}} if <param count>
+/// is 0 or less. Use <fn String.checkedRepeat> to get an error for a negative count.
 let repeat(string: String, count: Int64): String =
-  Builtin.stringRepeat(string, count)
+  if count <= 0 then "" else Builtin.stringRepeat(string, count)
+
+
+/// What <fn String.checkedRepeat> returns for a count below 0
+type RepeatError = | NegativeCount
+
+/// Returns {{Ok}} <param string> repeated <param count> times, or
+/// {{Error NegativeCount}} if <param count> is below 0. A count of 0 gives
+/// {{Ok ""}}.
+let checkedRepeat(string: String, count: Int64): Result.Result<String, RepeatError> =
+  if count < 0 then
+    Result.Result.Error(RepeatError.NegativeCount)
+  else
+    Result.Result.Ok(repeat(string, count))
 
 
 /// Splits the given <param str> at each line ending (LF or CRLF) and returns a

@@ -563,7 +563,7 @@ test formatRejectsUnknownDirectives =
 test clockSyscalls =
   let interruptedOnce = fun(seconds, _) ->
     if seconds == 1 then
-      (-4, Stdlib.Bytes.fromList(Stdlib.Result.withDefault(Stdlib.List.repeat(16, 0u8), [])))
+      (-4, Stdlib.Bytes.fromList(Stdlib.List.repeat(16, 0u8)))
     else
       (0, Stdlib.Bytes.empty)
   Stdlib.Test.all(

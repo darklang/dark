@@ -7,7 +7,6 @@ module Darklang.Language.Tests.Interpreter
 // Let's keep this around to ensure we never regress.
 test mapsRepeatedListWithoutOverflow =
   (Stdlib.List.repeat(348, 1)
-   |> Builtin.unwrap
    |> Stdlib.List.map(fun _f -> 1)
    |> Stdlib.List.length)
   |> Stdlib.Test.equal(348)
@@ -17,7 +16,6 @@ test mapsRepeatedListWithoutOverflow =
 // regressions.
 test mapsLargerRepeatedListWithoutOverflow =
   (Stdlib.List.repeat(3480, 1)
-   |> Builtin.unwrap
    |> Stdlib.List.map(fun _f -> 1)
    |> Stdlib.List.length)
   |> Stdlib.Test.equal(3480)
