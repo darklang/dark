@@ -94,6 +94,41 @@ let searchExactMatch(
   LanguageTools.PackageManager.Search.search(branchId, query)
 
 
+/// The implementation named `entityName` directly in `modulePath`, if there is one:
+/// `searchExactMatch` for implementations alone, so no other kind of item is read or converted.
+let searchExactImpl(
+  branchId: Uuid,
+  modulePath: List<String>,
+  entityName: String)
+  : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = entityName
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.TraitImpl ]
+        exactMatch = true }
+
+  LanguageTools.PackageManager.Search.search(branchId, query)
+
+
+/// Every implementation stored anywhere under `modulePath`, with its location. One search for a
+/// listing that wants the implementations of several of its types.
+let implsBelow(
+  branchId: Uuid,
+  modulePath: List<String>)
+  : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.TraitImpl ]
+        exactMatch = false }
+
+  (LanguageTools.PackageManager.Search.search(branchId, query)).impls
+
+
 /// Check if search results contain any content
 let hasContent(r: LanguageTools.ProgramTypes.Search.SearchResults): Bool =
   (r.submodules != []) || (r.types != []) || (r.fns != []) || (r.values != [])

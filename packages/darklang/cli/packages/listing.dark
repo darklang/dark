@@ -71,17 +71,32 @@ let listModule(
   // in `ls Acme.Pt`, which is deliberate -- the type's module is a sub-listing of this one and
   // seeing an implementation in both is what a reader expects. Do not "fix" the duplicate.
   //
-  // One query per type that is ALSO a submodule here. An implementation at `M.T.Trait` makes `M.T`
-  // a module, so a type with no submodule has no implementations and needs no query; the submodule
-  // names are already in hand from the one call above. `Darklang.Stdlib` declares no types at all,
-  // so its listing pays nothing, and `LanguageTools.ProgramTypes` declares 31 and pays for the two
-  // that have implementations rather than for all of them.
+  // Only a type that is ALSO a submodule here can have implementations under it: one at
+  // `M.T.Trait` makes `M.T` a module, and the submodule names are already in hand from the one
+  // call above. `Darklang.Stdlib` declares no types at all, so its listing pays nothing. The types
+  // that do qualify share ONE search for the implementations below this module, rather than a
+  // listing each.
+  let implTypes =
+    types
+    |> Stdlib.List.map(fun((typeName, _hash)) -> typeName)
+    |> Stdlib.List.filter(fun typeName -> Stdlib.List.contains(allSubmodules, typeName))
+
+  let implsBelow =
+    if Stdlib.List.isEmpty(implTypes) then
+      []
+    else
+      Query.implsBelow(branchId, modulePath)
+
   let implsUnder(
     typeName: String)
     : List<(String * String * LanguageTools.ProgramTypes.Hash * List<String>)> =
     let childPath = Stdlib.List.append(modulePath, typeName)
-    let (_subs, _t, _v, _f, _tr, childImpls, _te) =
-      Query.allDirectDescendantNamesAndHashes(branchId, childPath)
+
+    let childImpls =
+      implsBelow
+      |> Stdlib.List.filter(fun item ->
+        Stdlib.List.prepend(item.location.modules, item.location.owner) == childPath)
+      |> Stdlib.List.map(fun item -> (item.location.name, item.entity.hash))
 
     Query.filterHiddenPairs(childImpls, depSets, includeDeprecated, includeInternal)
     |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, typeName, hash, childPath))
@@ -97,23 +112,8 @@ let listModule(
     impls
     |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, selfType, hash, modulePath))
 
-  // Measured, because choosing a module-level section was made conditional on this being cheap
-  // and the measurement had not been done: `ls Stdlib` 1051ms, `Stdlib.Int64` 1074ms,
-  // `Stdlib.List` 1081ms, `Stdlib.AltJson` (no impls, the control) 1083ms, three runs each.
-  // Flat, and the control is the slowest, so the spread is noise on a ~1050ms startup.
-  //
-  // The reason it is flat is the filter below rather than luck: the fan-out is one query per type
-  // that is ALSO a submodule, meaning a type that actually carries implementations, not one per
-  // type in the module. `ls Stdlib` renders no impl section at all, because Stdlib's children are
-  // modules. Nothing in the tree has more than one impl-carrying type in a module, so the shape
-  // that could still cost something is a module holding many of them, which does not exist here
-  // and would want measuring if it ever does.
   let childImplEntries =
-    types
-    |> Stdlib.List.map(fun((typeName, _hash)) -> typeName)
-    |> Stdlib.List.filter(fun typeName -> Stdlib.List.contains(allSubmodules, typeName))
-    |> Stdlib.List.map(implsUnder)
-    |> Stdlib.List.flatten
+    implTypes |> Stdlib.List.map(implsUnder) |> Stdlib.List.flatten
 
   let implEntries =
     Stdlib.List.concat(ownImplEntries, childImplEntries)
