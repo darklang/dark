@@ -4,7 +4,7 @@ module Darklang.Stdlib.Bytes
 // Saving values handles persistence automatically; there is only one Bytes type.
 
 // TODO no Bytes literal syntax — embedding small binary data in source
-// today requires `Hex.decode "..."` or `Utf8.encode "..."`. A
+// today requires `Base16.decode "..."` or `Utf8.encode "..."`. A
 // `b"\x00\x01..."` form would be the natural fix, plus tokenizer +
 // parser + runtime literal handling. Cross-cutting language change.
 

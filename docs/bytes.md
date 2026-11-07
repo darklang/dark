@@ -35,7 +35,7 @@ Trace replay checks reuse the cached hash too.
 
 Bytes cannot be sorted, like Go, Java and JS: `List.sort` raises rather than
 load saved bytes mid-sort or hand out a meaningless order. Pick one with
-`List.sortBy` (`Stdlib.Hex.encode` gives byte order). `List.unique` still
+`List.sortBy` (`Stdlib.Base16.encode` gives byte order). `List.unique` still
 works, since it compares with `==` and never orders anything.
 
 Bytes can be dictionary keys. Independently created bytes with the same contents

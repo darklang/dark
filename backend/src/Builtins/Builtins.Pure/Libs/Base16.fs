@@ -1,6 +1,5 @@
-// CLEANUP consider renaming module as `Base16Encoding` to be more clear
-// ("Hex" is perhaps unclear -- it isn't obvious to me, anyway)
-module Builtins.Pure.Libs.Hex
+/// Base16 ("hex") encoding of bytes, RFC 4648 section 8.
+module Builtins.Pure.Libs.Base16
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -11,12 +10,12 @@ module Bytes = LibExecution.Bytes
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "hexEncode" 0
+  [ { name = fn "base16Encode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
       description =
-        "Hex (Base16) encodes <param bytes> using an uppercase alphabet. "
+        "Base16 (hex) encodes <param bytes> using an uppercase alphabet. "
         + "Complies with [RFC 4648 section "
         + "8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
       fn =
@@ -30,12 +29,12 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "hexDecode" 0
+    { name = fn "base16Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TypeReference.result TBytes TString
       description =
-        "Parses <param s> as an uppercase or lowercase hex string into Bytes."
+        "Parses <param s> as an uppercase or lowercase Base16 (hex) string into Bytes."
       fn =
         let ok b = Dval.resultOk KTBytes KTString b
         let err s = Dval.resultError KTBytes KTString (DString s)
