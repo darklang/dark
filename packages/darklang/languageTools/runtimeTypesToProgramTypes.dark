@@ -130,7 +130,7 @@ let dvalToExpr(
     match Stdlib.Result.collect(converted) with
     | Ok(kvs) -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EDict(gid(), kvs))
     | Error(e) -> Stdlib.Result.Result.Error(e)
-  | DRecord(_runtimeTypeName, sourceTypeName, _typeArgs, fields) ->
+  | DRecord(sourceTypeName, _runtimeTypeName, _typeArgs, fields) ->
     let converted =
       fields
       |> Stdlib.Dict.toEntries
@@ -144,7 +144,7 @@ let dvalToExpr(
       Stdlib.Result.Result.Ok(
         ProgramTypes.Expr.ERecord(gid(), typeNameToPT(branchId, sourceTypeName), [], kvs))
     | Error(e) -> Stdlib.Result.Result.Error(e)
-  | DEnum(_runtimeTypeName, sourceTypeName, _typeArgs, caseName, fields) ->
+  | DEnum(sourceTypeName, _runtimeTypeName, _typeArgs, caseName, fields) ->
     match fields |> Stdlib.List.map(fun d -> dvalToExpr(branchId, d)) |> Stdlib.Result.collect with
     | Ok(exprs) ->
       Stdlib.Result.Result.Ok(

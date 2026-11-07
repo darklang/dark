@@ -163,6 +163,47 @@ test recordsAndEnums =
       ))
       |> Stdlib.Test.equal(true) ])
 
+// The expression names the source type (the alias, if one was used), not the
+// runtime one it resolved to.
+let sourceHashOf(
+  e: Stdlib.Result.Result<Darklang.LanguageTools.ProgramTypes.Expr, String>)
+  : String =
+  let nameHash(
+    n: Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+    : String =
+    match n.resolved with
+    | Ok(resolved) ->
+      match resolved.name with
+      | Package(Hash(h)) -> h
+    | Error(_) -> "unresolved"
+  match e with
+  | Ok(ERecord(_, typeName, _, _)) -> nameHash(typeName)
+  | Ok(EEnum(_, typeName, _, _, _)) -> nameHash(typeName)
+  | _ -> "FAIL"
+
+test recordsAndEnumsUseTheSourceTypeName =
+  let source =
+    Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+      Darklang.LanguageTools.RuntimeTypes.Hash.Hash("cafef00d"))
+  Stdlib.Test.all(
+    [ sourceHashOf(
+        promote(
+          Darklang.LanguageTools.RuntimeTypes.Dval.DRecord(
+            source,
+            fakeType(),
+            [],
+            Stdlib.Dict.fromEntries([ ("a", intValue(1)) ]))))
+      |> Stdlib.Test.equal("cafef00d")
+      sourceHashOf(
+        promote(
+          Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(
+            source,
+            fakeType(),
+            [],
+            "Some",
+            [ intValue(1) ])))
+      |> Stdlib.Test.equal("cafef00d") ])
+
 // --- values with no literal syntax fail (Error), so the caller can fall back ---
 test valuesWithoutLiteralSyntax =
   Stdlib.Test.all(

@@ -325,14 +325,14 @@ type Dval =
   | DDict(keyType: ValueType, valueType: ValueType, entries: DictMap)
 
   | DRecord(
-    runtimeTypeName: FQTypeName.FQTypeName,
     sourceTypeName: FQTypeName.FQTypeName,
+    runtimeTypeName: FQTypeName.FQTypeName,
     typeArgs: List<ValueType>,
     fields: DvalMap)
 
   | DEnum(
-    runtimeTypeName: FQTypeName.FQTypeName,
     sourceTypeName: FQTypeName.FQTypeName,
+    runtimeTypeName: FQTypeName.FQTypeName,
     typeArgs: List<ValueType>,
     caseName: String,
     fields: List<Dval>)

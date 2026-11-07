@@ -867,21 +867,21 @@ module Dval =
             |> DictMap.ofList
           ) ]
 
-    | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
+    | DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields) ->
       mk
         "DRecord"
-        [ FQTypeName.toDT runtimeTypeName
-          FQTypeName.toDT sourceTypeName
+        [ FQTypeName.toDT sourceTypeName
+          FQTypeName.toDT runtimeTypeName
           DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
           Dval.stringDict
             (knownType ())
             (RecordFields.toList (RecordFields.map toDT fields)) ]
 
-    | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
+    | DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields) ->
       mk
         "DEnum"
-        [ FQTypeName.toDT runtimeTypeName
-          FQTypeName.toDT sourceTypeName
+        [ FQTypeName.toDT sourceTypeName
+          FQTypeName.toDT runtimeTypeName
           DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
           DString caseName
           DList(VT.known (knownType ()), List.map toDT fields) ]
@@ -954,10 +954,10 @@ module Dval =
             _,
             [],
             "DRecord",
-            [ runtimeTypeName; sourceTypeName; typeArgs; entries ]) ->
+            [ sourceTypeName; runtimeTypeName; typeArgs; entries ]) ->
       DRecord(
-        FQTypeName.fromDT runtimeTypeName,
         FQTypeName.fromDT sourceTypeName,
+        FQTypeName.fromDT runtimeTypeName,
         typeArgs |> D.list ValueType.fromDT,
         entries |> D.dict fromDT |> Map.toList |> RecordFields.ofList
       )
@@ -966,10 +966,10 @@ module Dval =
             _,
             [],
             "DEnum",
-            [ runtimeTypeName; sourceTypeName; typeArgs; caseName; fields ]) ->
+            [ sourceTypeName; runtimeTypeName; typeArgs; caseName; fields ]) ->
       DEnum(
-        FQTypeName.fromDT runtimeTypeName,
         FQTypeName.fromDT sourceTypeName,
+        FQTypeName.fromDT runtimeTypeName,
         typeArgs |> D.list ValueType.fromDT,
         D.string caseName,
         fields |> D.list fromDT

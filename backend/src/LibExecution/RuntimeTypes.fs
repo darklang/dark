@@ -1562,9 +1562,6 @@ and [<NoComparison>] Dval =
   | DTuple of first : Dval * second : Dval * theRest : List<Dval>
   | DDict of keyType : ValueType * valueType : ValueType * entries : DictMap
 
-  // TODO: go through all instances of DRecord and DEnum
-  // and make sure the typeNames are in the correct order
-
   // -- custom types --
   | DRecord of
     sourceTypeName : FQTypeName.FQTypeName *
