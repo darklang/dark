@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# Run what CI runs, before you push, and say in one table what passed.
+#
+#   scripts/dev/pre-push           --quick: the checks behind most red PRs, a few minutes
+#   scripts/dev/pre-push --full    what CI's build-backend and build-cli jobs run, as close as
+#                                  this container gets: Release build, the shipped CLI, gates,
+#                                  package tests, the whole suite. Expect half an hour or more.
+#
+# --quick runs, in order:
+#   lint (shellcheck), format check, the build-planning tests, the .circleci python tests (one of them
+#   fails when a gate has no entry in collect_diagnostics.py), a Debug build (the typecheck),
+#   the `builtin` test list (access rules, one package caller per builtin), and the
+#   shipped-tree-typechecks gate (every shipped fn, which only `gates ci` checks otherwise).
+#
+# --full runs the static checks above, then CI's steps: `build --optimize`, a seed exported
+# from a freshly loaded store, the NativeAOT CLI, the allocation gate, first-day, `gates ci`,
+# the package tests, the backend suite with `--published --split`, validate-cli-artifact, and
+# a check that nothing wrote to the source tree. The CLI steps run with CI=true and CLI= set the way build-cli sets
+# them.
+#
+# Every step logs to rundir/logs/pre-push/<step>.log; a failing step prints its tail. A step
+# whose build failed is skipped, not run against a stale one. The last line is
+#
+#   pre-push: pass
+#   pre-push: fail format builtin-rules
+#
+# and the exit code is nonzero on any failure. Watch the PR afterwards with scripts/dev/ci-status.
+
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/_help"
+help_if_asked "$@"
+reject_unknown_flags "--quick --full --help" "$@"
+
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -uo pipefail
+
+MODE=quick
+[[ " $* " == *" --full "* ]] && MODE=full
+
+LOGS=rundir/logs/pre-push
+rm -rf "$LOGS" && mkdir -p "$LOGS"
+ROWS=()
+FAILED=()
+STARTED=$SECONDS
+
+# step <name> <command...>: run it, log it, record pass or fail.
+step() {
+  local name="$1"; shift
+  local log="$LOGS/$name.log" s=$SECONDS rc
+  printf '==> %-26s' "$name"
+  "$@" >"$log" 2>&1 </dev/null
+  rc=$?
+  local took=$((SECONDS - s))
+  if [[ $rc -eq 0 ]]; then
+    printf 'pass  %4ds\n' "$took"
+    ROWS+=("$(printf '  pass  %-26s %4ds' "$name" "$took")")
+  else
+    printf 'FAIL  %4ds  (exit %d, %s)\n' "$took" "$rc" "$log"
+    tail -n 30 "$log" | sed 's/^/    | /'
+    ROWS+=("$(printf '  FAIL  %-26s %4ds  %s' "$name" "$took" "$log")")
+    FAILED+=("$name")
+  fi
+  return $rc
+}
+
+skip() {
+  printf '==> %-26sskipped (%s)\n' "$1" "$2"
+  ROWS+=("$(printf '  skip  %-26s       %s' "$1" "$2")")
+}
+
+ci_python_tests() {
+  python3 .circleci/test_collect_diagnostics.py && python3 .circleci/test_artifact_validation.py
+}
+
+# CI exports its seed from a store it has just loaded from nothing. The dev store has been
+# reloaded many times, so its newest commit can hold no ops, and a test reading the seed's
+# baseline commit fails here and nowhere else. So load a fresh store of our own, in a subshell
+# so the dev store's name comes back after.
+fresh_seed() (
+  export DARK_CONFIG_DB_NAME=pre-push-seed.db
+  rm -f rundir/pre-push-seed.db rundir/pre-push-seed.db-wal rundir/pre-push-seed.db-shm
+  scripts/run-local-exec --published migrations run \
+    && scripts/build/reload-packages --published \
+    && scripts/run-local-exec --published export-seed rundir/seed.db
+)
+
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "note: uncommitted changes; this checks the working tree, not HEAD."
+fi
+TREE_BEFORE=$(git status --porcelain)
+echo "pre-push --$MODE on $(git rev-parse --short HEAD)"
+
+# The static checks, the same in both modes. CI runs these first in build-cli.
+step shellcheck scripts/linting/shellchecker
+step format scripts/formatting/format check \
+  || echo "    fix with: scripts/formatting/format format, then build again"
+step build-planning-tests scripts/testing/test-build-planning.py
+step ci-python-tests ci_python_tests
+
+if [[ "$MODE" == quick ]]; then
+  if step build scripts/dev/build; then
+    step builtin-rules scripts/run-backend-tests --filter-test-list builtin
+    step shipped-tree-typechecks scripts/testing/gates shipped-tree-typechecks
+  else
+    skip builtin-rules "build failed"
+    skip shipped-tree-typechecks "build failed"
+  fi
+else
+  # build-cli and build-backend, one after the other.
+  CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64"
+  if step build-release scripts/dev/build --optimize \
+    && step fresh-seed fresh_seed \
+    && step build-aot-cli scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db; then
+    export CI=true CLI
+    step allocation-gate scripts/perf/gate --published
+    step first-day timeout 5m scripts/testing/gates first-day "$CLI"
+    step gates-ci timeout 15m scripts/testing/gates ci --parallel
+    step package-tests timeout 20m scripts/testing/gates package-tests
+    step backend-tests env DARK_TEST_CLI="$PWD/$CLI" DARK_CONFIG_PACKAGES_SOURCE=seed \
+      timeout 20m scripts/run-backend-tests --published --split
+    step validate-cli-artifact scripts/testing/validate-cli-artifact "$CLI"
+    unset CI CLI
+  else
+    for s in allocation-gate first-day gates-ci package-tests backend-tests validate-cli-artifact; do
+      skip "$s" "build failed"
+    done
+  fi
+  # CI's assert-clean-worktree: a build or gate must not write to the source tree.
+  tree_unchanged() { diff <(echo "$TREE_BEFORE") <(git status --porcelain); }
+  step worktree-unchanged tree_unchanged
+fi
+
+took=$((SECONDS - STARTED))
+echo
+printf '%s\n' "${ROWS[@]}"
+printf '  total %dm%02ds, logs in %s\n\n' $((took / 60)) $((took % 60)) "$LOGS"
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+  echo "pre-push: fail ${FAILED[*]}"
+  exit 1
+fi
+echo "pre-push: pass"

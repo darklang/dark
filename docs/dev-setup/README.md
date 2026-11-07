@@ -119,6 +119,16 @@ If the build fails:
 - Sometimes simply trying again will work.
 - If you're still stuck, please ask for help in [Discord](https://darklang.com/discord-invite) or create a [GitHub issue](https://github.com/darklang/dark/issues).
 
+## Before you push
+
+`scripts/dev/pre-push` runs the checks behind most red PRs in a few minutes: lint, format,
+the `.circleci` python tests, a build, the builtin rules and the shipped-tree typecheck.
+`--full` runs what CI runs, Release build, gates and the whole suite included. Both end
+with one table and a `pre-push: pass` or `pre-push: fail <steps>` line.
+
+Once it's pushed, `scripts/dev/ci-status <PR|branch|sha>` shows each CI job, with the tail
+of any step that failed. `--wait` blocks until CI is done.
+
 ## Formatting
 
 You will also want to support formatting in your client. Dark uses Prettier for
