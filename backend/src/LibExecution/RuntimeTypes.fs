@@ -3407,23 +3407,27 @@ module DebugSymbols =
   /// jump that spans a removed marker has to be rewritten or it lands somewhere else. That is
   /// the whole of the difficulty here, and getting it wrong breaks arithmetic rather than
   /// tracing: `1 + 2` compiles to a jump over nothing in particular.
+  ///
+  /// `onLambda` rewrites each `CreateLambda`, threading `lambdas` through in order.
   let private stripFrom
     (instrs : List<Instruction>)
-    (onLambda : Instruction -> Instruction)
-    : struct (List<Instruction> * Map<int, struct (id * Register)>) =
+    (lambdas : 'lambdas)
+    (onLambda : 'lambdas -> Instruction -> struct (Instruction * 'lambdas))
+    : struct (List<Instruction> * Map<int, struct (id * Register)> * 'lambdas) =
     let originals = List.toArray instrs
 
     // originalIndex -> index in the list being built, or -1 for a marker that is going away.
     // One extra slot: a jump may target one past the end, which is how a block ends.
-    let newIndex = Array.zeroCreate (originals.Length + 1)
-    let mutable next = 0
-    for i in 0 .. originals.Length - 1 do
-      match originals[i] with
-      | TraceExpr _ -> newIndex[i] <- -1
-      | _ ->
-        newIndex[i] <- next
-        next <- next + 1
-    newIndex[originals.Length] <- next
+    let newIndex =
+      let indices, keptCount =
+        originals
+        |> Array.mapFold
+          (fun next instr ->
+            match instr with
+            | TraceExpr _ -> -1, next
+            | _ -> next, next + 1)
+          0
+      Array.append indices [| keptCount |]
 
     /// A relative jump from <param at>, rewritten for the list being built.
     let rejump (at : int) (offset : int) : int =
@@ -3439,60 +3443,68 @@ module DebugSymbols =
       let landing = max 0 (min (at + offset + 1) originals.Length)
       // A jump that lands ON a removed marker lands on what follows it instead; scanning
       // forward is what "what follows it" means.
-      let mutable t = landing
-      while t < originals.Length && newIndex[t] = -1 do
-        t <- t + 1
-      newIndex[t] - newIndex[at] - 1
+      let rec firstKept (t : int) : int =
+        if t < originals.Length && newIndex[t] = -1 then firstKept (t + 1) else t
+      newIndex[firstKept landing] - newIndex[at] - 1
 
-    let kept = ResizeArray<Instruction>()
-    let mutable table = Map.empty
+    let struct (keptReversed, table, lambdas) =
+      originals
+      |> Array.indexed
+      |> Array.fold
+        (fun (struct (kept, table, lambdas)) (i, instr) ->
+          let keep instr = struct (instr :: kept, table, lambdas)
+          match instr with
+          // The value of the instruction BEFORE it, which is the call that produced it.
+          | TraceExpr(exprId, reg) ->
+            if i > 0 && newIndex[i - 1] >= 0 then
+              struct (kept,
+                      Map.add newIndex[i - 1] (struct (exprId, reg)) table,
+                      lambdas)
+            else
+              struct (kept, table, lambdas)
 
-    for i in 0 .. originals.Length - 1 do
-      match originals[i] with
-      // The value of the instruction BEFORE it, which is the call that produced it.
-      | TraceExpr(exprId, reg) ->
-        if i > 0 && newIndex[i - 1] >= 0 then
-          table <- Map.add newIndex[i - 1] (struct (exprId, reg)) table
+          | JumpBy offset -> keep (JumpBy(rejump i offset))
+          | Or(createTo, operand, Some offset) ->
+            keep (Or(createTo, operand, Some(rejump i offset)))
+          | And(createTo, operand, Some offset) ->
+            keep (And(createTo, operand, Some(rejump i offset)))
+          | JumpByIfFalse(offset, condReg) ->
+            keep (JumpByIfFalse(rejump i offset, condReg))
+          | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
+            keep (CheckMatchPatternAndExtractVars(valueReg, pat, rejump i failJump))
 
-      | JumpBy offset -> kept.Add(JumpBy(rejump i offset))
-      | Or(createTo, operand, Some offset) ->
-        kept.Add(Or(createTo, operand, Some(rejump i offset)))
-      | And(createTo, operand, Some offset) ->
-        kept.Add(And(createTo, operand, Some(rejump i offset)))
-      | JumpByIfFalse(offset, condReg) ->
-        kept.Add(JumpByIfFalse(rejump i offset, condReg))
-      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
-        kept.Add(CheckMatchPatternAndExtractVars(valueReg, pat, rejump i failJump))
+          | CreateLambda _ ->
+            let struct (rewritten, lambdas) = onLambda lambdas instr
+            struct (rewritten :: kept, table, lambdas)
 
-      | CreateLambda _ as instr -> kept.Add(onLambda instr)
+          | instr -> keep instr)
+        (struct ([], Map.empty, lambdas))
 
-      | instr -> kept.Add instr
-
-    struct (List.ofSeq kept, table)
+    struct (List.rev keptReversed, table, lambdas)
 
 
   let split
     (instrs : List<Instruction>)
     : struct (List<Instruction> * DebugSymbols) =
-    let mutable lambdas = Map.empty
-
-    let rec go (instrs : List<Instruction>) =
-      stripFrom instrs (fun instr ->
+    let rec go lambdas (instrs : List<Instruction>) =
+      stripFrom instrs lambdas (fun lambdas instr ->
         match instr with
         | CreateLambda(createTo, lambda) ->
           // A lambda's body is its OWN instruction list, run in its own frame with its own
           // program counter. Missing this is missing every value inside a loop, which is most
           // of what anyone opens a trace for.
-          let struct (inner, innerTable) = go lambda.instructions.instructions
-          lambdas <- Map.add lambda.exprId innerTable lambdas
-          CreateLambda(
-            createTo,
-            { lambda with
-                instructions = { lambda.instructions with instructions = inner } }
-          )
-        | other -> other)
+          let struct (inner, innerTable, lambdas) =
+            go lambdas lambda.instructions.instructions
+          struct (CreateLambda(
+                    createTo,
+                    { lambda with
+                        instructions =
+                          { lambda.instructions with instructions = inner } }
+                  ),
+                  Map.add lambda.exprId innerTable lambdas)
+        | other -> struct (other, lambdas))
 
-    let struct (kept, table) = go instrs
+    let struct (kept, table, lambdas) = go Map.empty instrs
     struct (kept, { exprAt = table; lambdas = lambdas })
 
 
@@ -4433,7 +4445,7 @@ module private VMRuns =
 /// `ExecutionState` instead, and is either immutable or a `ConditionalWeakTable`.
 type VMState =
   {
-    mutable threadID : uuid
+    threadID : uuid
 
     callFrames : Dictionary<uuid, CallFrame>
     mutable currentFrameID : uuid
@@ -4456,7 +4468,7 @@ type VMState =
     /// The root frame of a pooled VM, kept so `reuseFor` can re-point it rather than build another.
     mutable pooledRootFrame : CallFrame voption
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
-    mutable lambdaInstrDataCache : Dictionary<id, InstrData>
+    lambdaInstrDataCache : Dictionary<id, InstrData>
 
     /// Each lambda's symbol table, by the lambda's expression id.
     ///
@@ -4466,7 +4478,7 @@ type VMState =
     /// unique, so there is nothing to collide.
     ///
     /// Only filled when something is collecting values; empty on an ordinary run.
-    mutable lambdaSymbols : Dictionary<id, Map<int, struct (id * Register)>>
+    lambdaSymbols : Dictionary<id, Map<int, struct (id * Register)>>
 
     /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and holding
     /// the calling frame's execution point they derive from. See the note at the use site in

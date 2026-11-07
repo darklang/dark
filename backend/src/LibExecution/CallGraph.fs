@@ -58,24 +58,9 @@ module private Analysis =
       calledWithoutBounds =
         Set.union left.calledWithoutBounds right.calledWithoutBounds }
 
+  /// Combined from the right, so each item's names are copied once.
   let collect (f : 'a -> Analysis) (items : List<'a>) : Analysis =
-    let names = ResizeArray<PT.FQFnName.FQFnName>()
-    let mutable complete = true
-    let mutable escapes = false
-    let mutable defers = false
-    let mutable withoutBounds = Set.empty
-    for item in items do
-      let analysis = f item
-      names.AddRange analysis.names
-      complete <- complete && analysis.complete
-      escapes <- escapes || analysis.escapesOwnCallback
-      defers <- defers || analysis.defersToTypeParam
-      withoutBounds <- Set.union withoutBounds analysis.calledWithoutBounds
-    { names = List.ofSeq names
-      complete = complete
-      escapesOwnCallback = escapes
-      defersToTypeParam = defers
-      calledWithoutBounds = withoutBounds }
+    List.foldBack combine (List.map f items) empty
 
 /// A package fn entered with `bounds` recorded for its type params.
 let private packageRef
@@ -252,6 +237,12 @@ module Requirements =
 
   type Result = { requiredEffects : Set<E.Effect>; complete : bool }
 
+  /// How far a walk of the package functions has got.
+  type private Walk =
+    { visited : Set<PT.FQFnName.Package>
+      requiredEffects : Set<E.Effect>
+      complete : bool }
+
   /// The loaded, immutable dependency closure of one root: every package fn
   /// statically reachable from it (the root included) that could be loaded,
   /// with its body's call analysis computed once at load. A member missing
@@ -274,54 +265,59 @@ module Requirements =
     (closure : Closure)
     (body : Analysis)
     : Result =
-    let mutable visited = Set.empty
-    let mutable requiredEffects = Set.empty
-    let mutable complete = true
+    let incomplete (w : Walk) : Walk = { w with complete = false }
 
-    let incomplete () : unit = complete <- false
-
-    let rec visit (name : PT.FQFnName.Package) : unit =
-      if not (Set.contains name visited) then
-        visited <- Set.add name visited
+    let rec visit (w : Walk) (name : PT.FQFnName.Package) : Walk =
+      if Set.contains name w.visited then
+        w
+      else
+        let w = { w with visited = Set.add name w.visited }
         match Map.tryFind name closure with
-        | None -> incomplete ()
-        | Some(_, calls) -> visitCalls calls
+        | None -> incomplete w
+        | Some(_, calls) -> visitCalls w calls
 
-    and visitCalls (calls : Analysis) : unit =
+    and visitCalls (w : Walk) (calls : Analysis) : Walk =
       // `calls.escapesOwnCallback` is deliberately not consulted here; see the
       // note on the field and on this module. Only the body's own is checked.
-      if not calls.complete then incomplete ()
-      for called in calls.names do
-        match called with
-        | PT.FQFnName.Package package when
-          Set.contains package calls.calledWithoutBounds
-          && (match Map.tryFind package closure with
-              | Some(_, callee) -> callee.defersToTypeParam
-              | None -> false)
-          ->
-          incomplete ()
-          visit package
-        | PT.FQFnName.Builtin builtin ->
-          // TODO consider specializing a scoped effect when the resource
-          // argument is a literal at the call site (a hardcoded path or
-          // URL), so approve-time review can show an exact rule instead
-          // of the bare effect. See docs/permissions-todos.md.
-          match callEffectsFor (builtin.name, builtin.version) with
-          | Some found -> requiredEffects <- Set.union requiredEffects found
-          | None -> incomplete ()
-        | PT.FQFnName.Package package -> visit package
-        // `analyze` replaces a trait call with the implementation it
-        // resolved to, so none reach here. Conservative if one does.
-        | PT.FQFnName.TraitMethod _ -> incomplete ()
+      let w = if calls.complete then w else incomplete w
+      calls.names
+      |> List.fold
+        (fun w called ->
+          match called with
+          | PT.FQFnName.Package package when
+            Set.contains package calls.calledWithoutBounds
+            && (match Map.tryFind package closure with
+                | Some(_, callee) -> callee.defersToTypeParam
+                | None -> false)
+            ->
+            visit (incomplete w) package
+          | PT.FQFnName.Builtin builtin ->
+            // TODO consider specializing a scoped effect when the resource
+            // argument is a literal at the call site (a hardcoded path or
+            // URL), so approve-time review can show an exact rule instead
+            // of the bare effect. See docs/permissions-todos.md.
+            match callEffectsFor (builtin.name, builtin.version) with
+            | Some found ->
+              { w with requiredEffects = Set.union w.requiredEffects found }
+            | None -> incomplete w
+          | PT.FQFnName.Package package -> visit w package
+          // `analyze` replaces a trait call with the implementation it
+          // resolved to, so none reach here. Conservative if one does.
+          | PT.FQFnName.TraitMethod _ -> incomplete w)
+        w
 
-    visitCalls body
+    let walked =
+      visitCalls
+        { visited = Set.empty; requiredEffects = Set.empty; complete = true }
+        body
 
     // The body must account for callbacks and bound implementations supplied
     // by its caller.
     let owesCaller =
       (body.escapesOwnCallback && not callbacksSupplied) || body.defersToTypeParam
 
-    { requiredEffects = requiredEffects; complete = complete && not owesCaller }
+    { requiredEffects = walked.requiredEffects
+      complete = walked.complete && not owesCaller }
 
   /// `forExpressionWith`, for a body whose callbacks nobody has accounted for.
   let forExpression

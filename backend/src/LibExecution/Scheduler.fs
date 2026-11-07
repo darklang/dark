@@ -573,78 +573,82 @@ type Scheduler(quantum : int64) =
     let stdinRefusal (msg : string) : exn =
       RT.RuntimeErrorException(None, RTE.UncaughtException(msg, []))
     let refuse (msg : string) = wake.SetException(stdinRefusal msg)
-    let subscribed = ref false
-    lock sync (fun () ->
-      let wantsKey = List.contains HE.EventSpec.Key specs
-      let wantsStore = List.contains HE.EventSpec.StoreChanged specs
-      // One read of stdin per wait: two would race each other for the same input.
-      let stdinProblem =
-        match stdinWanted with
-        | []
-        | [ _ ] -> None
-        | _ -> Some "a wait can ask for one read of stdin, not several"
-      // A read already decided (landed, or in flight) is the next input; a wait for something
-      // else would take it as the wrong thing.
-      let stdinMismatch =
-        match stdinWanted with
-        | [ wanted ] ->
-          let ahead =
-            if pendingStdin.Count > 0 then
-              Some(fst (pendingStdin.Peek()))
-            else
-              stdinOutstanding
-          match ahead with
-          | Some other when other <> wanted ->
-            let asked = HE.StdinRequest.describe wanted
-            let ahead = HE.StdinRequest.describe other
-            Some
-              $"a stdin wait asked for {asked} while a read for {ahead} is already outstanding"
+    let subscribed =
+      lock sync (fun () ->
+        let wantsKey = List.contains HE.EventSpec.Key specs
+        let wantsStore = List.contains HE.EventSpec.StoreChanged specs
+        // One read of stdin per wait: two would race each other for the same input.
+        let stdinProblem =
+          match stdinWanted with
+          | []
+          | [ _ ] -> None
+          | _ -> Some "a wait can ask for one read of stdin, not several"
+        // A read already decided (landed, or in flight) is the next input; a wait for something
+        // else would take it as the wrong thing.
+        let stdinMismatch =
+          match stdinWanted with
+          | [ wanted ] ->
+            let ahead =
+              if pendingStdin.Count > 0 then
+                Some(fst (pendingStdin.Peek()))
+              else
+                stdinOutstanding
+            match ahead with
+            | Some other when other <> wanted ->
+              let asked = HE.StdinRequest.describe wanted
+              let ahead = HE.StdinRequest.describe other
+              Some
+                $"a stdin wait asked for {asked} while a read for {ahead} is already outstanding"
+            | _ -> None
           | _ -> None
-        | _ -> None
-      let problem = stdinProblem |> Option.orElse stdinMismatch
-      if problem.IsSome then
-        refuse problem.Value
-      elif wantsKey && pendingKeys.Count > 0 then
-        wake.SetResult(HE.HostEvent.Key(pendingKeys.Dequeue()))
-      elif not stdinWanted.IsEmpty && pendingStdin.Count > 0 then
-        wake.SetResult(HE.HostEvent.Stdin(pendingStdin.Dequeue()))
-      elif wantsStore && p.storeGenSeen < storeGen then
-        p.storeGenSeen <- storeGen
-        wake.SetResult HE.HostEvent.StoreChanged
-      else
-        // Only when it will actually park: a wake delivered above completes the builtin
-        // synchronously and the process never parks, so a hint set then would describe the
-        // next, unrelated park.
-        p.parkHint <- ValueSome(OnEvent specs)
-        let sub = { proc = p; specs = specs; wake = wake; timers = [] }
-        subscriptions.Add sub
-        subscribed.Value <- true
-        for spec in specs do
-          match spec with
-          | HE.EventSpec.Key -> HE.Shared.requestKey queue
-          | HE.EventSpec.StoreChanged -> HE.Shared.watchStore queue storePollMs
-          | HE.EventSpec.Timer ms ->
-            let id = Interlocked.Increment &nextTimerId
-            sub.timers <- (id, queue.ArmTimer(id, ms)) :: sub.timers
-          | HE.EventSpec.StdinLine
-          | HE.EventSpec.StdinBytes _ ->
-            match stdinOutstanding, stdinWanted with
-            | Some _, _ -> ()
-            | None, [ wanted ] ->
-              match HE.Shared.requestStdin queue wanted with
-              | Ok() -> stdinOutstanding <- Some wanted
-              | Error e ->
-                this.Drop sub |> ignore<bool>
-                wake.TrySetException(stdinRefusal e) |> ignore<bool>
-            | None, _ -> ()
-          | HE.EventSpec.ExecDone pid ->
-            // Already over (or forgotten): a post may never come, so answer now. One that
-            // does come later finds no subscription and does nothing.
-            if Set.contains pid alreadyOver then
-              this.Satisfy(sub, HE.HostEvent.ExecDone pid))
+        let problem = stdinProblem |> Option.orElse stdinMismatch
+        if problem.IsSome then
+          refuse problem.Value
+          false
+        elif wantsKey && pendingKeys.Count > 0 then
+          wake.SetResult(HE.HostEvent.Key(pendingKeys.Dequeue()))
+          false
+        elif not stdinWanted.IsEmpty && pendingStdin.Count > 0 then
+          wake.SetResult(HE.HostEvent.Stdin(pendingStdin.Dequeue()))
+          false
+        elif wantsStore && p.storeGenSeen < storeGen then
+          p.storeGenSeen <- storeGen
+          wake.SetResult HE.HostEvent.StoreChanged
+          false
+        else
+          // Only when it will actually park: a wake delivered above completes the builtin
+          // synchronously and the process never parks, so a hint set then would describe the
+          // next, unrelated park.
+          p.parkHint <- ValueSome(OnEvent specs)
+          let sub = { proc = p; specs = specs; wake = wake; timers = [] }
+          subscriptions.Add sub
+          for spec in specs do
+            match spec with
+            | HE.EventSpec.Key -> HE.Shared.requestKey queue
+            | HE.EventSpec.StoreChanged -> HE.Shared.watchStore queue storePollMs
+            | HE.EventSpec.Timer ms ->
+              let id = Interlocked.Increment &nextTimerId
+              sub.timers <- (id, queue.ArmTimer(id, ms)) :: sub.timers
+            | HE.EventSpec.StdinLine
+            | HE.EventSpec.StdinBytes _ ->
+              match stdinOutstanding, stdinWanted with
+              | Some _, _ -> ()
+              | None, [ wanted ] ->
+                match HE.Shared.requestStdin queue wanted with
+                | Ok() -> stdinOutstanding <- Some wanted
+                | Error e ->
+                  this.Drop sub |> ignore<bool>
+                  wake.TrySetException(stdinRefusal e) |> ignore<bool>
+              | None, _ -> ()
+            | HE.EventSpec.ExecDone pid ->
+              // Already over (or forgotten): a post may never come, so answer now. One that
+              // does come later finds no subscription and does nothing.
+              if Set.contains pid alreadyOver then
+                this.Satisfy(sub, HE.HostEvent.ExecDone pid)
+          true)
     // Answered before a subscription was made: the watchers are not needed, and one for a
     // process already over would stay in the table for good, since only a finish takes them.
-    if not subscribed.Value then
+    if not subscribed then
       for pid in watched do
         this.Unwatch pid
     wake.Task
@@ -656,19 +660,20 @@ type Scheduler(quantum : int64) =
       | [] -> []
       | s :: rest when obj.ReferenceEquals(s, this) -> rest
       | s :: rest -> s :: dropOne rest
-    let mutable settled = false
-    while not settled do
+    let rec retry () =
       match execDoneWatchers.TryGetValue pid with
-      | false, _ -> settled <- true
+      | false, _ -> ()
       | true, ws ->
         let rest = dropOne ws
-        settled <-
+        let settled =
           if List.isEmpty rest then
             execDoneWatchers.TryRemove(
               System.Collections.Generic.KeyValuePair(pid, ws)
             )
           else
             execDoneWatchers.TryUpdate(pid, rest, ws)
+        if not settled then retry ()
+    retry ()
 
   /// Take a subscription out with its timers and `ExecDone` watchers, whatever ends it: a
   /// watcher left behind would stay until that process finishes, one more per pass of a loop
@@ -1007,14 +1012,10 @@ type Scheduler(quantum : int64) =
             | Some id when runnable |> Seq.exists (fun p -> p.id = id) ->
               // The pick leaves the queue; the rest keep their order.
               let rest = List.ofSeq runnable
+              let at = rest |> List.findIndex (fun p -> p.id = id)
               runnable.Clear()
-              let mutable chosen = None
-              for p in rest do
-                if p.id = id && chosen.IsNone then
-                  chosen <- Some p
-                else
-                  runnable.Enqueue p
-              chosen
+              rest |> List.iteri (fun j p -> if j <> at then runnable.Enqueue p)
+              Some(List.item at rest)
             | _ -> if runnable.Count = 0 then None else Some(runnable.Dequeue()))
         match next with
         | Some p -> this.Step p
