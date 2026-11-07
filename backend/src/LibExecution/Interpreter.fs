@@ -3909,7 +3909,6 @@ let private applyRecordedImpl
   (ctx : ApplyContext)
   (tm : FQFnName.TraitMethod)
   : ApplyOutcome =
-  let mutable outcome = ApplyDone
   let implFn = (recordedImpl currentFrame tm).Value
   let implCtx =
     { ctx with
@@ -3931,10 +3930,13 @@ let private applyRecordedImpl
           return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
       }
   match Ply.trySync call with
-  | ValueSome(Completed dv) -> registers[putResultIn] <- dv
-  | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
-  | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
-  outcome
+  | ValueSome(Completed dv) ->
+    registers[putResultIn] <- dv
+    ApplyDone
+  | ValueSome(PushFrame frame) ->
+    vm.frameToPush <- ValueSome frame
+    ApplyDone
+  | ValueNone -> AwaitPackage(call, putResultIn)
 
 
 /// `Apply` of a trait method dispatched at run time.
@@ -3951,7 +3953,6 @@ let private applyTraitMethod
   (ctx : ApplyContext)
   (tm : FQFnName.TraitMethod)
   : ApplyOutcome =
-  let mutable outcome = ApplyDone
   let traitHash = tm.trait_
   let methodName = tm.method_
   // Pick the impl, then call its fn exactly as a direct call would: that fn is what
@@ -4080,10 +4081,13 @@ let private applyTraitMethod
           return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
       }
   match Ply.trySync call with
-  | ValueSome(Completed dv) -> registers[putResultIn] <- dv
-  | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
-  | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
-  outcome
+  | ValueSome(Completed dv) ->
+    registers[putResultIn] <- dv
+    ApplyDone
+  | ValueSome(PushFrame frame) ->
+    vm.frameToPush <- ValueSome frame
+    ApplyDone
+  | ValueNone -> AwaitPackage(call, putResultIn)
 
 
 /// `Apply` of a builtin.
@@ -4097,7 +4101,6 @@ let private applyBuiltin
   (ctx : ApplyContext)
   (builtin : FQFnName.Builtin)
   : ApplyOutcome =
-  let mutable outcome = ApplyDone
   let biTotalAlloc = allocNow vm
   let biLookupAlloc = allocNow vm
   // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit. F#'s Map
@@ -4111,10 +4114,10 @@ let private applyBuiltin
     // Builtins push no frame; their permission checks read this instead.
     vm.activeAccess <- access
     let call = callBuiltin exeState vm currentFrame ctx fn
-    if requested vm then
-      // The builtin asked for a callable to be applied: its frame goes on this stack, and
-      // the builtin's real result comes through the continuation.
-      outcome <-
+    let outcome =
+      if requested vm then
+        // The builtin asked for a callable to be applied: its frame goes on this stack, and
+        // the builtin's real result comes through the continuation.
         beginRequest
           exeState
           vm
@@ -4123,23 +4126,29 @@ let private applyBuiltin
           (currentFrame.programCounter + 1)
           (takeFinish vm)
           false
-    else
-      // Usually already finished, in which case there's no bind to pay for.
-      match Ply.trySync call with
-      | ValueSome dv -> registers[putResultIn] <- dv
-      | ValueNone ->
-        // A read that has to wait becomes a promise and the frame runs on; anything else
-        // parks the process here, in program order.
-        // Deferrable when every call of the builtin is a read; the same test
-        // `invokeBuiltin` makes of a request after the body's first wait.
-        if Effects.readsOnly fn.name.name fn.callEffects then
-          match Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call with
-          | ValueSome promise -> registers[putResultIn] <- promise
-          | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
-        else
-          outcome <- AwaitBuiltin(call, putResultIn)
+      else
+        // Usually already finished, in which case there's no bind to pay for.
+        match Ply.trySync call with
+        | ValueSome dv ->
+          registers[putResultIn] <- dv
+          ApplyDone
+        | ValueNone ->
+          // A read that has to wait becomes a promise and the frame runs on; anything else
+          // parks the process here, in program order.
+          // Deferrable when every call of the builtin is a read; the same test
+          // `invokeBuiltin` makes of a request after the body's first wait.
+          if Effects.readsOnly fn.name.name fn.callEffects then
+            match
+              Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
+            with
+            | ValueSome promise ->
+              registers[putResultIn] <- promise
+              ApplyDone
+            | ValueNone -> AwaitBuiltin(call, putResultIn)
+          else
+            AwaitBuiltin(call, putResultIn)
     recordStage vm ApplyStage.BiTotal biTotalAlloc
-  outcome
+    outcome
 
 
 /// `Apply` of a package fn.
@@ -4157,7 +4166,6 @@ let private applyPackageFn
   (ctx : ApplyContext)
   (pkg : FQFnName.Package)
   : ApplyOutcome =
-  let mutable outcome = ApplyDone
   // Harmful-deprecation runtime halt.
   // Checked before even fetching the fn so the error is surfaced
   // whether or not the fn definition is still available.
@@ -4229,6 +4237,7 @@ let private applyPackageFn
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
       registers[putResultIn] <- result
+      ApplyDone
 
     | ValueNone ->
 
@@ -4250,19 +4259,20 @@ let private applyPackageFn
       let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
 
       if requested vm then
-        outcome <-
-          beginRequest
-            exeState
-            vm
-            currentFrame
-            putResultIn
-            (currentFrame.programCounter + 1)
-            (takeFinish vm)
-            false
+        beginRequest
+          exeState
+          vm
+          currentFrame
+          putResultIn
+          (currentFrame.programCounter + 1)
+          (takeFinish vm)
+          false
       else
         match Ply.trySync call with
-        | ValueSome dv -> registers[putResultIn] <- dv
-        | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+        | ValueSome dv ->
+          registers[putResultIn] <- dv
+          ApplyDone
+        | ValueNone -> AwaitBuiltin(call, putResultIn)
 
   | _ ->
 
@@ -4289,28 +4299,25 @@ let private applyPackageFn
             return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
         }
     recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
-    // Overwritten on the next line either way; F# needs something to start from.
-    // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
-    // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
-    // cheaper than the cell.
     match Ply.trySync call with
     | ValueSome(Completed dv) ->
       if requested vm then
         // The elided builtin behind this wrapper asked for an apply.
-        outcome <-
-          beginRequest
-            exeState
-            vm
-            currentFrame
-            putResultIn
-            (currentFrame.programCounter + 1)
-            (takeFinish vm)
-            false
+        beginRequest
+          exeState
+          vm
+          currentFrame
+          putResultIn
+          (currentFrame.programCounter + 1)
+          (takeFinish vm)
+          false
       else
         registers[putResultIn] <- dv
-    | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
-    | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
-  outcome
+        ApplyDone
+    | ValueSome(PushFrame frame) ->
+      vm.frameToPush <- ValueSome frame
+      ApplyDone
+    | ValueNone -> AwaitPackage(call, putResultIn)
 
 
 /// One `Apply` instruction, run without entering the interpreter's computation expression.
