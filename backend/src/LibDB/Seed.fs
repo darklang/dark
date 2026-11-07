@@ -180,6 +180,41 @@ let readPending () : Task<List<int64 * PT.BranchId * System.Guid * byte[]>> =
            read.bytes "op_blob"))
   }
 
+/// Drop `package_dependencies`' secondary indexes when the table is empty, and return the SQL that
+/// builds them again. A cold start writes every edge in the store, about 40,000 of them, and keeping
+/// four indexes over random hashes up to date row by row costs more than building them once from the
+/// finished table. The unique index stays: the inserts rely on it to skip duplicates.
+let private dropDependencyIndexesIfEmpty
+  (conn : SqliteConnection)
+  : Task<List<string>> =
+  task {
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      "SELECT name, sql FROM sqlite_master
+       WHERE type = 'index' AND tbl_name = 'package_dependencies'
+         AND sql IS NOT NULL AND sql NOT LIKE 'CREATE UNIQUE%'
+         AND NOT EXISTS (SELECT 1 FROM package_dependencies)"
+    let indexes = System.Collections.Generic.List<string * string>()
+    do!
+      task {
+        use! reader = cmd.ExecuteReaderAsync()
+        let mutable more = true
+        while more do
+          let! found = reader.ReadAsync()
+          if found then
+            indexes.Add(reader.GetString 0, reader.GetString 1)
+          else
+            more <- false
+      }
+    for (name, _) in indexes do
+      use drop = conn.CreateCommand()
+      drop.CommandText <- $"DROP INDEX {name}"
+      let! _ = drop.ExecuteNonQueryAsync()
+      ()
+    return indexes |> Seq.map snd |> List.ofSeq
+  }
+
+
 /// Fold the rows `readPending` returned, each into its own branch, and mark exactly those applied.
 /// Returns the count folded.
 let foldRead
@@ -228,12 +263,17 @@ let foldRead
           }
         // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter update, which
         // poisons the page cache of a concurrent reader on another connection.
+        //
+        // 16 MB of page cache rather than SQLite's 2 MB: most of the fold's writes land in indexes
+        // keyed on random hashes, and with the default nearly every one of them misses the cache.
         do!
           runRaw
-            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
+            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
+             PRAGMA cache_size=-16384;"
         let opCount = List.length unappliedOps
         use _bulk = Telemetry.span "seed.applyOps.bulk" [ "ops", string opCount ]
         use tx = conn.BeginTransaction()
+        let! droppedIndexes = dropDependencyIndexesIfEmpty conn
 
         // By ROW, never by predicate: a `serve` committing an op between the read and here matches
         // `applied = 0` too, and a predicate sweep would mark it applied with nothing having folded it.
@@ -255,6 +295,9 @@ let foldRead
           |> List.map (fun (b, ops) -> (b, List.rev ops))
         for (branch, ops) in runs do
           do! PackageOpPlayback.applyOpsOnConnection conn branch ops
+
+        for sql in droppedIndexes do
+          do! runRaw sql
 
         tx.Commit()
         return int64 opCount
