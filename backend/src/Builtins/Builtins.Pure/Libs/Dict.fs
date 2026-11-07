@@ -9,6 +9,7 @@ module VT = LibExecution.ValueType
 module RTE = RuntimeError
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
+module Spread = LibExecution.Spread
 
 let varK = TVariable "k"
 let varA = TVariable "a"
@@ -20,24 +21,112 @@ let private entryPair (dv : Dval) : Dval * Dval =
   | DTuple(k, value, []) -> (k, value)
   | dv -> Exception.raiseInternal "Not pair tuples in fromEntries" [ "dval", dv ]
 
-/// Calls `fn` with each entry's key and value, in key order, and hands `finish` its
-/// answers. With `wait`, an answer that is a read in flight is waited for first.
-let private applyEach
+/// How many of a spread's `answers` are Bools, from the first: `dictFilter` takes no more, since a
+/// serial run raises at the first that is not when an enclosing fn declared its callback's
+/// `Bool`, which a chunk does not check.
+let private leadingBools (answers : List<Dval>) : int =
+  let rec count (n : int) (rest : List<Dval>) : int =
+    match rest with
+    | DBool _ :: tail -> count (n + 1) tail
+    | _ -> n
+  count 0 answers
+
+/// Spreads `fn` over `entries` from `start` on (`LibExecution.Spread`), as `List.map` is: a
+/// chunk is `listMap2shortest` over its keys and its values, which applies `fn` to each pair as
+/// `applyEach` does. Writes the answers it can vouch for into `answers` and answers where
+/// `applyEach` carries on: the first entry of the first chunk that did not finish, or the first
+/// answer a serial run would not have taken as it came. For a map that is one whose type does
+/// not agree with the answers before it (`Spread.agreeing`), and for a filter one that is not a
+/// Bool, since a chunk does not check a callback type an enclosing fn declared.
+let private spreadRest
+  (state : ExecutionState)
   (vm : VMState)
   (app : Applicable)
-  (wait : bool)
+  (filtering : bool)
+  (keyType : ValueType)
+  (valueType : ValueType)
+  (entries : (struct (Dval * Dval))[])
+  (answers : Dval[])
+  (start : int)
+  (perElement : int64)
+  : Ply<int> =
+  let keyAt j =
+    let struct (k, _) = entries[j]
+    k
+  let valueAt j =
+    let struct (_, v) = entries[j]
+    v
+  uply {
+    let! outcome =
+      Spread.run
+        state
+        vm
+        "listMap2shortest"
+        (fun offset chunk ->
+          let first = start + offset
+          let keys = List.init (List.length chunk) (fun n -> keyAt (first + n))
+          [ DList(keyType, keys); DList(valueType, chunk) ])
+        app
+        perElement
+        (List.init (entries.Length - start) (fun n -> valueAt (start + n)))
+    let accepted =
+      if filtering then
+        leadingBools outcome.results
+      else
+        Spread.agreeing (Spread.mergedType (Seq.take start answers)) outcome.results
+    outcome.results
+    |> List.iteri (fun n answer -> if n < accepted then answers[start + n] <- answer)
+    return start + accepted
+  }
+
+/// Calls `fn` with each entry's key and value, in key order, and hands `finish` its
+/// answers. `filtering` (`dictFilter`) waits for an answer that is a read in flight first.
+///
+/// Once the rest looks worth it, it is spread across cores (`spreadRest`), and whatever the spread
+/// did not finish carries on here. `finish` sees every answer either way, so a check it makes
+/// (`dictFilter`'s Bool) is made where it always was.
+let private applyEach
+  (state : ExecutionState)
+  (vm : VMState)
+  (app : Applicable)
+  (filtering : bool)
+  (keyType : ValueType)
+  (valueType : ValueType)
   (entries : (struct (Dval * Dval))[])
   (finish : Dval[] -> Dval)
   : Ply<Dval> =
   let answers = Array.zeroCreate entries.Length
   let mutable i = 0
+  let probe = if entries.Length > 1 then Spread.probeCostly state vm app else null
   let rec next (answer : Dval) : Ply<Dval> =
-    if wait then Interpreter.withValue vm answer store else store answer
+    if filtering then Interpreter.withValue vm answer store else store answer
   and store (answer : Dval) : Ply<Dval> =
     answers[i] <- answer
     i <- i + 1
     if i = entries.Length then
       Ply(finish answers)
+    elif not (isNull probe) && probe.AskLeft(entries.Length - i) then
+      probe.Stop()
+      uply {
+        let! carryOn =
+          spreadRest
+            state
+            vm
+            app
+            filtering
+            keyType
+            valueType
+            entries
+            answers
+            i
+            probe.PerElement
+        i <- carryOn
+        if i = entries.Length then
+          return finish answers
+        else
+          let struct (k, v) = entries[i]
+          return! Interpreter.requestApply vm app k [ v ] next
+      }
     else
       let struct (k, v) = entries[i]
       Interpreter.requestApply vm app k [ v ] next
@@ -157,9 +246,9 @@ let fns () : List<BuiltInFn> =
         + "keys with what it returned"
       fn =
         (function
-        | _, vm, [], [| DDict(kt, _, o); DApplicable app |] ->
+        | state, vm, [], [| DDict(kt, vt, o); DApplicable app |] ->
           let entries = o.Entries
-          applyEach vm app false entries (fun answers ->
+          applyEach state vm app false kt vt entries (fun answers ->
             List.init entries.Length (fun i ->
               let struct (k, _) = entries[i]
               (k, answers[i]))
@@ -185,9 +274,9 @@ let fns () : List<BuiltInFn> =
         + "which it returned true"
       fn =
         (function
-        | _, vm, [], [| DDict(kt, vt, o); DApplicable app |] ->
+        | state, vm, [], [| DDict(kt, vt, o); DApplicable app |] ->
           let entries = o.Entries
-          applyEach vm app true entries (fun answers ->
+          applyEach state vm app true kt vt entries (fun answers ->
             let kept =
               entries
               |> Array.indexed
