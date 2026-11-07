@@ -511,7 +511,7 @@ CREATE TABLE IF NOT EXISTS config_v0 (
 -- ---------------------------------------------------------------------------
 
 -- A trace IS a run, and this file is everything the run half of that needs that `08-traces.sql`
--- cannot hold. That file has merged, so it is frozen (`AGENTS.md`, "Changing the schema"): the
+-- cannot hold. That file has merged, so it is frozen (`docs/internals.md`, "Changing the schema"): the
 -- COLUMNS this PR adds to `traces` and `trace_fn_calls` therefore come from steps in
 -- `LibDB/Releases.fs`, which is the only thing that can widen a table that already exists. What
 -- CAN live here is a new table and any index, so both are here.
