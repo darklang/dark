@@ -455,7 +455,7 @@ let showVersionRequirements(heading: String, hash: String): Bool =
   Stdlib.printLine(
     $"  permission requirements: {Command.describeRequirements(requirements)}")
   if Stdlib.Bool.not(complete) then
-    Stdlib.printLine(
+    Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.warning(
         "  some calls in this function could not be followed (a callback, a package value, or an implementation picked at run time), so the list above may be short. The instance and run policies still bound whatever it does.")))
   else
@@ -498,7 +498,7 @@ let profile(args: List<String>): Bool =
           Command.writePolicy(policy)
           Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"✓ applied profile {name}"))
         else
-          Stdlib.printLine("Preview only. Repeat with --yes to apply.")
+          Cli.Stderr.hint("Preview only. Repeat with --yes to apply.")
         true
 
 /// The rules given after a name on `approve`/`update`, `;`-separated like
@@ -559,7 +559,7 @@ let approveReporting(
     (true, Stdlib.Option.Option.None)
   | Error(Refused(message)) ->
     Cli.printErr(message)
-    if kept != "" then Stdlib.printLine(kept) else ()
+    if kept != "" then Cli.Stderr.line(kept) else ()
     (false, Stdlib.Option.Option.None)
   | Error(ContractChanged(diffs)) -> (false, Stdlib.Option.Option.Some(diffs))
 
@@ -631,8 +631,7 @@ let updateNamed(
   | Ok(givenRules) ->
     match Command.approvedVersionOf(accountID, name) with
     | None ->
-      Stdlib.printLine(
-        $"{name} has no approved version; run `permissions approve {name}` first")
+      Cli.printErr($"{name} has no approved version; run `permissions approve {name}` first")
       false
     | Some(approved) ->
       match Command.latestVersion(state.currentBranchId, name) with
@@ -841,7 +840,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     // tell those two apart.
     Command.printListOrNone(Command.namedApprovals(state.accountID, state.currentBranchId))
     if Command.approvalsStale() then
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.warning(
           "! approval analysis changed since these were approved; re-review with `permissions approve <fn>`")))
     else

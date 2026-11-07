@@ -398,7 +398,7 @@ let resume(state: AppState, prefix: String): AppState =
     | None ->
       if e.servedRequest then
         Cli.printErr($"{Cli.Text.shortIdText(e.id)} was a served request ({e.entry}); resume only re-runs eval and scripts.")
-        Stdlib.printLine(
+        Cli.Stderr.line(
           $"  `dark traces show <fn> {Cli.Text.shortIdText(e.id)}` shows what it did.")
       else
         Cli.printErr($"{Cli.Text.shortIdText(e.id)} has no complete CLI invocation to resume; inspect its log or run the code again.")
@@ -431,7 +431,7 @@ let fork(prefix: String, at: Stdlib.Option.Option<Int64>): Bool =
     match Darklang.Tracing.Store.fork(e.id, at) with
     | Ok(child) ->
       Stdlib.printLine($"forked {Cli.Text.shortIdText(e.id)} as {Cli.Text.shortIdText(child)}")
-      Stdlib.printLine($"  resume it with: dark traces resume {Cli.Text.shortIdText(child)}")
+      Cli.Stderr.line($"  resume it with: dark traces resume {Cli.Text.shortIdText(child)}")
       true
     | Error(msg) ->
       Cli.printErr(msg)
