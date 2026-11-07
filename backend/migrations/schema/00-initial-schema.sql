@@ -385,13 +385,12 @@ CREATE TABLE IF NOT EXISTS package_dependencies (
 );
 CREATE INDEX IF NOT EXISTS idx_package_dependencies_depends_on
   ON package_dependencies(depends_on_hash);
-CREATE INDEX IF NOT EXISTS idx_package_dependencies_item
-  ON package_dependencies(item_hash);
 -- Partial index for the propagation query: "who depends on this
 -- location?" Excludes the NULL backlog so it stays small.
 CREATE INDEX IF NOT EXISTS idx_package_dependencies_depends_on_location
   ON package_dependencies(depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name)
   WHERE depends_on_owner IS NOT NULL;
+-- Also the index for lookups by `item_hash`: it leads with it, so a separate one would be a copy.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_package_dependencies_unique
   ON package_dependencies(
     item_hash,
