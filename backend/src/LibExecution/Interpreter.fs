@@ -2390,6 +2390,9 @@ let private packageFnCallData
             )
         policy =
           { owner = null; policy = Permissions.Policy.denyAll; isAllowAll = false }
+        freeTVars = FreeTVars.ofPackage fn
+        paramList = FreeTVars.paramsOfPackage fn
+        executionPoint = FreeTVars.packageExecutionPoint fn.hash
         // The parameters that take a callback. If a parameter has a named type, like
         // `Check`, it might be a function, so we leave this null and work it out
         // on the first call instead.
@@ -2468,6 +2471,7 @@ let private completePackage
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
+  (callData : PackageFnCallData)
   (implicitTypeParams : Set<string>)
   (newlyBound : TypeSymbolTable)
   (allArgs : ArgSeq)
@@ -2515,7 +2519,7 @@ let private completePackage
       if vm.stats.detailedTiming then
         vm.framePushTimestamps[newFrameId] <-
           System.Diagnostics.Stopwatch.GetTimestamp()
-    let pkgEp = FreeTVars.packageExecutionPoint fn.hash
+    let pkgEp = callData.executionPoint
     if exeState.tracing.collectFrames then
       exeState.tracing.storeFrameEntry
         newFrameId
@@ -2525,8 +2529,6 @@ let private completePackage
     // Names only, and only when something is recording: this is what lets `traces calls <fn>`
     // find the runs that went through a function, where the call itself is not recorded.
     if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
-    // We already hold the fn here, so the loop needn't fetch it.
-    let callData = packageFnCallData exeState fn
     if vm.stats.enabled then
       vm.stats.registersAllocated <-
         vm.stats.registersAllocated + int64 fn.body.registerCount
@@ -2676,6 +2678,7 @@ let private callPackageViaFrame
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
+  (callData : PackageFnCallData)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
   : Ply<PackageOutcome> =
   // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
@@ -2690,7 +2693,7 @@ let private callPackageViaFrame
   let pkgShadowAlloc = allocNow vm
   // Used to strip names from `tst` here and from the parent's table when building `frameTst` below.
   // Both empty means both strips are no-ops, so don't compute it.
-  let fnFreeTVars = FreeTVars.ofPackage fn
+  let fnFreeTVars = callData.freeTVars
   let implicitTypeParams : Set<string> =
     if TST.isEmpty tst && TST.isEmpty currentFrame.typeSymbolTable then
       Set.empty
@@ -2737,7 +2740,7 @@ let private callPackageViaFrame
           | ValueNone -> acc
           | ValueSome(struct (a, aRest)) ->
             inferPkg (inferTVarsFromDval acc p.typ a) pRest aRest
-      inferPkg explicitlyBound (FreeTVars.paramsOfPackage fn) allArgs
+      inferPkg explicitlyBound callData.paramList allArgs
   if not (TST.isEmpty newlyBound) then
     tst <- TST.mergeFavoringRight tst newlyBound
   recordStage vm ApplyStage.PkgInfer pkgInferAlloc
@@ -2747,7 +2750,7 @@ let private callPackageViaFrame
   // no zip.
   let pkgTcAlloc = allocNow vm
   let alreadyApplied = List.length applicable.argsSoFar
-  let pkgParams = FreeTVars.paramsOfPackage fn |> List.skip alreadyApplied
+  let pkgParams = callData.paramList |> List.skip alreadyApplied
   recordStage vm ApplyStage.PkgTypeCheckArgs pkgTcAlloc
 
   let pkgTcRunAlloc = allocNow vm
@@ -2766,6 +2769,7 @@ let private callPackageViaFrame
           currentFrame
           ctx
           fn
+          callData
           implicitTypeParams
           newlyBound
           allArgs
@@ -2783,6 +2787,7 @@ let private callPackageViaFrame
           currentFrame
           ctx
           fn
+          callData
           implicitTypeParams
           newlyBound
           allArgs
@@ -2802,6 +2807,7 @@ let private callPackageViaFrame
             currentFrame
             ctx
             fn
+            callData
             implicitTypeParams
             newlyBound
             allArgs
@@ -2843,6 +2849,7 @@ let private callPackageViaFrame
           currentFrame
           ctx
           fn
+          callData
           implicitTypeParams
           newlyBound
           allArgs
@@ -2882,6 +2889,7 @@ let private callPackageResolvedReady
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
+  (callData : PackageFnCallData)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
   : Ply<PackageOutcome> =
   // A bare forwarder to a builtin of the same signature runs that builtin here, instead of pushing a
@@ -2911,7 +2919,6 @@ let private callPackageResolvedReady
     // apply to the builtin it forwards to, and to any callback that builtin
     // applies. This also caches the call data, which is what lets the early
     // elision in the `Apply` handler do the same without fetching the fn.
-    let callData = packageFnCallData exeState fn
     let entryAccess = packageEntryAccess exeState callData fn.hash ctx.access
     // The elided builtin reads `vm.activeAccess`, and nothing else on this
     // path writes it.
@@ -2933,7 +2940,14 @@ let private callPackageResolvedReady
         return Completed dv
       }
   | _ ->
-    callPackageViaFrame exeState vm currentFrame ctx fn resolvedExplicitTypeArgsVT
+    callPackageViaFrame
+      exeState
+      vm
+      currentFrame
+      ctx
+      fn
+      callData
+      resolvedExplicitTypeArgsVT
 
 
 /// Run a package-fn call whose explicit type args are resolved. On the first call, work
@@ -2957,6 +2971,7 @@ let private callPackageResolved
           currentFrame
           ctx
           fn
+          callData
           resolvedExplicitTypeArgsVT
     }
   else
@@ -2966,6 +2981,7 @@ let private callPackageResolved
       currentFrame
       ctx
       fn
+      callData
       resolvedExplicitTypeArgsVT
 
 

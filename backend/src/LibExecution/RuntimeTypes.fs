@@ -3789,6 +3789,13 @@ type PackageFnCallData =
     /// (`Interpreter.resolveFnParams`). Use `Volatile` to read and write it, since
     /// several threads share it.
     mutable fnParams : (struct (int * string * TypeReference))[]
+
+    /// What entering the fn needs on every call -- its free type variables, its parameters as a
+    /// list, the execution point its frames run under -- worked out once with the rest of this, so
+    /// a call looks the fn up once rather than once for each.
+    freeTVars : Set<string>
+    paramList : List<PackageFn.Parameter>
+    executionPoint : ExecutionPoint
   }
 
 /// One activation of a function, lambda or the root script.
