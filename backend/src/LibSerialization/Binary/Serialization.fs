@@ -22,8 +22,6 @@ let wrap (idF : unit -> string) (f : unit -> 'a) : 'a =
   try
     f ()
   with e ->
-    Exception.callExceptionCallback e
-
     let id =
       try
         idF ()

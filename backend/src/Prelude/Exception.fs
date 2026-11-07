@@ -45,12 +45,6 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
   member _.metadata = metadata
 
 
-// This is for tracing
-let mutable exceptionCallback = (fun (_e : exn) -> ())
-
-let mutable sendRollbarError = (fun (_message : string) (_metadata : Metadata) -> ())
-
-
 /// Returns a list of exceptions of this exception, and all nested inner
 /// exceptions.
 let rec getMessages (e : exn) : List<string> =
@@ -78,23 +72,11 @@ let rec nestedMetadata (e : exn) : Metadata =
   thisMetadata @ innerMetadata
 
 
-let callExceptionCallback (e : exn) =
-  try
-    exceptionCallback e
-  with e ->
-    // We're completely screwed at this point
-    System.Console.WriteLine "Exception calling callExceptionCallback"
-    System.Console.WriteLine(e.Message)
-    System.Console.WriteLine e.StackTrace
-
-
 // CLEANUP reduce usages of all of these raiseInternal fns
 // and/or map them to an UncaughtException or something, not sure.
 
 let raiseInternal (msg : string) (tags : Metadata) =
-  let e = InternalException(msg, tags)
-  callExceptionCallback e
-  raise e
+  raise (InternalException(msg, tags))
 
 /// See `StoreConditionException`. Not reported anywhere: this is the machine's state, not a defect.
 let raiseStoreCondition (msg : string) (tags : Metadata) =
@@ -121,9 +103,7 @@ let unwrapResultInternal (tags : Metadata) (r : Result<'a, 'msg>) : 'a =
   | Error msg -> raiseInternal (string msg) tags
 
 let reraiseAsPageable (msg : string) (tags : Metadata) (e : exn) =
-  let e = PageableException(msg, tags, e)
-  callExceptionCallback e
-  raise e
+  raise (PageableException(msg, tags, e))
 
 let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
   task {

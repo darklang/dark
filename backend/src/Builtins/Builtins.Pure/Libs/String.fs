@@ -369,9 +369,9 @@ let fns () : List<BuiltInFn> =
 
             let rec r (strRemaining : List<string>, inProgress) : unit =
               if strRemaining = [] then
-                result |> ResizeArray.append (inProgress.ToString())
+                result.Add(inProgress.ToString())
               elif startsWithSeparator strRemaining then
-                result |> ResizeArray.append (inProgress.ToString())
+                result.Add(inProgress.ToString())
 
                 r (List.skip sep.Length strRemaining, StringBuilder())
               else
@@ -379,7 +379,7 @@ let fns () : List<BuiltInFn> =
 
             r (str, StringBuilder())
 
-            result |> ResizeArray.toList
+            List.ofSeq result
 
           let parts =
             if sep = "" then

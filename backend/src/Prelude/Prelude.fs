@@ -44,7 +44,7 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 type NEList<'a> = NEList.NEList<'a>
 type Metadata = Exception.Metadata
 
-type HashSet<'a> = HashSet.HashSet<'a>
+type HashSet<'a> = System.Collections.Generic.HashSet<'a>
 
 type Ply<'a> = Ply.Ply<'a>
 let uply = Ply.uply
@@ -407,12 +407,7 @@ type NodaTime.Instant with
   // Convert to an LocalDateTime with an implicit Utc timezone
   member this.toUtcLocalTimeZone() : NodaTime.LocalDateTime =
     let utc = NodaTime.DateTimeZone.Utc
-    let zonedDateTime = NodaTime.ZonedDateTime(this, utc)
-    let mutable localDateTime = NodaTime.LocalDateTime()
-    let mutable (tz : NodaTime.DateTimeZone) = null
-    let mutable (offset : NodaTime.Offset) = NodaTime.Offset()
-    zonedDateTime.Deconstruct(&localDateTime, &tz, &offset)
-    localDateTime
+    NodaTime.ZonedDateTime(this, utc).LocalDateTime
 
   member this.toIsoString() : string =
     let dt = this.ToDateTimeUtc()

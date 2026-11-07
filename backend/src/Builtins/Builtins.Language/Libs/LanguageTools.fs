@@ -71,7 +71,9 @@ let fns () : List<BuiltInFn> =
         | exeState, _, _, [| DUnit |] ->
           let vals =
             exeState.values.builtIn
-            |> Dictionary.toSortedList
+            |> Seq.map (fun (KeyValue(k, v)) -> k, v)
+            |> List.ofSeq
+            |> List.sortBy fst
             |> List.map (fun (name, data) -> builtinValueToDT name data)
 
           DList(VT.customType (builtinValue ()) [], vals) |> Ply
@@ -92,7 +94,9 @@ let fns () : List<BuiltInFn> =
         | exeState, _, _, [| DUnit |] ->
           let fns =
             exeState.fns.builtIn
-            |> Dictionary.toSortedList
+            |> Seq.map (fun (KeyValue(k, v)) -> k, v)
+            |> List.ofSeq
+            |> List.sortBy fst
             |> List.map (fun (name, data) -> builtinFnToDT name data)
 
           DList(VT.customType (builtinFn ()) [], fns) |> Ply

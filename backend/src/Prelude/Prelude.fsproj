@@ -19,9 +19,6 @@
     <Compile Include="List.fs" />
     <Compile Include="Option.fs" />
     <Compile Include="Result.fs" />
-    <Compile Include="HashSet.fs" />
-    <Compile Include="Dictionary.fs" />
-    <Compile Include="ResizeArray.fs" />
     <Compile Include="Task.fs" />
     <Compile Include="Ply.fs" />
     <Compile Include="NonBlockingConsole.fs" />

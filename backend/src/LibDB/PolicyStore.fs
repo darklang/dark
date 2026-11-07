@@ -369,7 +369,9 @@ let builtinFingerprint
   let lines =
     $"analysis={LibExecution.CallGraph.analysisVersion}"
     :: (builtIn
-        |> Dictionary.toSortedList
+        |> Seq.map (fun (KeyValue(k, b)) -> k, b)
+        |> List.ofSeq
+        |> List.sortBy fst
         |> List.map (fun (k, b) ->
           let effects =
             b.callEffects

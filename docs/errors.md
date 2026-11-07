@@ -127,10 +127,8 @@ should be impossible and is a bug in the runtime.
 about.
 
 `Exception.raiseInternal` carries a stacktrace and a set of metadata for debugging.
-Nothing collects them at the moment: `Prelude.Exception.sendRollbarError` is a hook
-that was left behind when Rollbar was removed, and nothing ever assigns to it, so it
-is a no-op. Treat an internal exception as something you find out about by hitting
-it, not something anyone gets alerted to.
+Nothing collects them at the moment. Treat an internal exception as something you
+find out about by hitting it, not something anyone gets alerted to.
 
 Connecting the CLI runtime to a reporting flow, so users can send these
 semi-automatically, is still the intention.
