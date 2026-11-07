@@ -69,6 +69,8 @@ let dictKeyTypes(env: Model.Environment, ty: Model.Ty): List<Model.Ty> =
   match ty with
   | TDict(key, value) -> Stdlib.List.prepend(many([ key, value ]), key)
   | TList(inner) -> dictKeyTypes(env, inner)
+  // A set's elements are kept in order, as a dict's keys are.
+  | TSet(inner) -> Stdlib.List.prepend(dictKeyTypes(env, inner), inner)
   | TStream(inner) -> dictKeyTypes(env, inner)
   | TTuple(first, second, rest) -> many(Stdlib.List.concat([ first, second ], rest))
   | TFn(parameters, ret) -> many(Stdlib.List.prepend(parameters, ret))
@@ -173,6 +175,7 @@ let checkTypeStructure(
   match ty with
   | TStream(inner) -> checkTypeStructure(env, at, names, found, inner)
   | TList(inner) -> checkTypeStructure(env, at, names, found, inner)
+  | TSet(inner) -> checkTypeStructure(env, at, names, found, inner)
   | TDict(key, value) ->
     let found = checkDictKey(env, at, found, key)
     checkTypeStructures(env, at, names, found, [ key, value ])
@@ -239,6 +242,7 @@ let aliasEdges(
       | None -> found
     | None -> found
   | TList(inner) -> aliasEdges(env, found, inner)
+  | TSet(inner) -> aliasEdges(env, found, inner)
   | TStream(inner) -> aliasEdges(env, found, inner)
   | TDict(key, value) -> aliasEdges(env, aliasEdges(env, found, key), value)
   | TTuple(first, second, rest) ->

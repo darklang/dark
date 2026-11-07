@@ -25,6 +25,7 @@ type Head =
   | Custom of FQTypeName.Package
   | List
   | Dict
+  | Set
   | Tuple
   | Fn
   | Stream
@@ -61,6 +62,7 @@ let headOfTypeReference (t : TypeReference) : Option<Head> =
   | TCustomType({ resolved = Error _ }, _) -> None
   | TList _ -> Some Head.List
   | TDict _ -> Some Head.Dict
+  | TSet _ -> Some Head.Set
   | TTuple _ -> Some Head.Tuple
   | TFn _ -> Some Head.Fn
   | TStream _ -> Some Head.Stream
@@ -96,6 +98,7 @@ let headOfKnownType (kt : KnownType) : Head =
   | KTFn _ -> Head.Fn
   | KTCustomType(FQTypeName.Package h, _) -> Head.Custom h
   | KTDict _ -> Head.Dict
+  | KTSet _ -> Head.Set
 
 
 /// Does a candidate's self type agree with the value's type beyond the head? A type
@@ -108,6 +111,7 @@ let rec private argsAgree (t : TypeReference) (vt : ValueType) : bool =
   | TList a, ValueType.Known(KTList b) -> argsAgree a b
   | TStream a, ValueType.Known(KTStream b) -> argsAgree a b
   | TDict(k, v), ValueType.Known(KTDict(k', v')) -> argsAgree k k' && argsAgree v v'
+  | TSet a, ValueType.Known(KTSet b) -> argsAgree a b
   | TTuple(a, b, rest), ValueType.Known(KTTuple(a', b', rest')) ->
     argsAgree a a'
     && argsAgree b b'

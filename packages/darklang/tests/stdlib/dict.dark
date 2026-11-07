@@ -268,79 +268,78 @@ test mergeWith =
 
 test intersectKeys =
   Stdlib.Test.all(
-    [ Stdlib.Dict.intersectKeys(Dict {}, Dict { "a": true })
+    [ Stdlib.Dict.intersectKeys(Dict {}, Set { "a" })
       |> Stdlib.Test.equal(Dict {})
 
-      Stdlib.Dict.intersectKeys(Dict { "a": 1 }, Dict {})
+      Stdlib.Dict.intersectKeys(Dict { "a": 1 }, Set {})
       |> Stdlib.Test.equal(Dict {})
 
-      // Values come from the first dict; the second's only contribute keys,
-      // and can be of another type.
+      // Values come from the dict; the set only says which keys.
       Stdlib.Dict.intersectKeys(
         Dict { "a": 1, "b": 2, "c": 3 },
-        Dict { "b": "x", "c": "y", "d": "z" })
+        Set { "b", "c", "d" })
       |> Stdlib.Test.equal(Dict { "b": 2, "c": 3 })
 
-      Stdlib.Dict.intersectKeys(Dict { 1: "one", 2: "two" }, Dict { 2: () })
+      Stdlib.Dict.intersectKeys(Dict { 1: "one", 2: "two" }, Set { 2 })
       |> Stdlib.Test.equal(Dict { 2: "two" })
 
       Stdlib.Dict.intersectKeys(
         Dict { (1, "a"): "first", (1, "b"): "second" },
-        Dict { (1, "b"): true })
+        Set { (1, "b") })
       |> Stdlib.Test.equal(Dict { (1, "b"): "second" })
 
       Stdlib.Dict.intersectKeys(
         Dict { [ 1 ]: "one", [ 1, 2 ]: "onetwo" },
-        Dict { [ 1 ]: true })
+        Set { [ 1 ] })
       |> Stdlib.Test.equal(Dict { [ 1 ]: "one" })
 
       Stdlib.Dict.intersectKeys(
         Dict { Colour.Red: "r", Colour.Blue(1): "b1", Colour.Blue(2): "b2" },
-        Dict { Colour.Blue(2): true })
+        Set { Colour.Blue(2) })
       |> Stdlib.Test.equal(Dict { Colour.Blue(2): "b2" })
 
       Stdlib.Dict.intersectKeys(
         Dict { Point { px = 1, py = 2 }: "p12"
                Point { px = 2, py = 1 }: "p21" },
-        Dict { Point { px = 2, py = 1 }: true })
+        Set { Point { px = 2, py = 1 } })
       |> Stdlib.Test.equal(Dict { Point { px = 2, py = 1 }: "p21" }) ])
 
 
 test differenceKeys =
   Stdlib.Test.all(
-    [ Stdlib.Dict.differenceKeys(Dict {}, Dict { "a": true })
+    [ Stdlib.Dict.differenceKeys(Dict {}, Set { "a" })
       |> Stdlib.Test.equal(Dict {})
 
-      Stdlib.Dict.differenceKeys(Dict { "a": 1 }, Dict {})
+      Stdlib.Dict.differenceKeys(Dict { "a": 1 }, Set {})
       |> Stdlib.Test.equal(Dict { "a": 1 })
 
       Stdlib.Dict.differenceKeys(
         Dict { "a": 1, "b": 2, "c": 3 },
-        Dict { "b": "x", "c": "y", "d": "z" })
+        Set { "b", "c", "d" })
       |> Stdlib.Test.equal(Dict { "a": 1 })
 
-      Stdlib.Dict.differenceKeys(Dict { 1: "one", 2: "two" }, Dict { 2: () })
+      Stdlib.Dict.differenceKeys(Dict { 1: "one", 2: "two" }, Set { 2 })
       |> Stdlib.Test.equal(Dict { 1: "one" })
 
       Stdlib.Dict.differenceKeys(
         Dict { (1, "a"): "first", (1, "b"): "second" },
-        Dict { (1, "b"): true })
+        Set { (1, "b") })
       |> Stdlib.Test.equal(Dict { (1, "a"): "first" })
 
       Stdlib.Dict.differenceKeys(
         Dict { [ 1 ]: "one", [ 1, 2 ]: "onetwo" },
-        Dict { [ 1 ]: true })
+        Set { [ 1 ] })
       |> Stdlib.Test.equal(Dict { [ 1, 2 ]: "onetwo" })
 
       Stdlib.Dict.differenceKeys(
         Dict { Colour.Red: "r", Colour.Blue(1): "b1", Colour.Blue(2): "b2" },
-        Dict { Colour.Blue(2): true })
+        Set { Colour.Blue(2) })
       |> Stdlib.Test.equal(Dict { Colour.Red: "r", Colour.Blue(1): "b1" })
 
       Stdlib.Dict.differenceKeys(
         Dict { Point { px = 1, py = 2 }: "p12"
                Point { px = 2, py = 1 }: "p21" },
-        Dict { Point { px = 2, py = 1 }: true })
+        Set { Point { px = 2, py = 1 } })
       |> Stdlib.Test.equal(Dict { Point { px = 1, py = 2 }: "p12" }) ])
 
 

@@ -170,6 +170,8 @@ module TypeReference =
       let value = toPT value
       PT.TDict(key, value)
 
+    | WT.TSet(_, _, _, inner, _) -> toPT inner |> PT.TSet
+
     | WT.TVariable(_, _, (_, name)) -> PT.TVariable name
 
     | WT.TTuple(_, first, _, second, rest, _, _) ->
@@ -739,6 +741,10 @@ module Expr =
           let v = toPT context v
           (k, v))
       PT.EDict(id, pairs)
+    | WT.ESet(_, contents, _, _, _) ->
+      let id = gid ()
+      let exprs = List.map (toPT context) contents
+      PT.ESet(id, exprs)
     | WT.ERecord(_, tn, fields, _, _) ->
       let id = gid ()
       let entries = fields |> List.map (fun (_, (_, name), v) -> (name, v))
@@ -1244,7 +1250,8 @@ module PackageFn =
     | PT.TVariable name when not (List.contains name acc) -> acc @ [ name ]
     | PT.TVariable _ -> acc
     | PT.TList inner
-    | PT.TStream inner -> collectTVars acc inner
+    | PT.TStream inner
+    | PT.TSet inner -> collectTVars acc inner
     | PT.TDict(key, value) -> collectTVars (collectTVars acc key) value
     | PT.TTuple(a, b, rest) ->
       let acc = collectTVars acc a

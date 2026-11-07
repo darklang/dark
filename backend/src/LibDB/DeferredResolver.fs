@@ -201,6 +201,8 @@ let rec private reResolveTypeRef
     let value = reResolveTypeRef contextModules pm value
     PT.TDict(key, value)
 
+  | PT.TSet inner -> PT.TSet(reResolveTypeRef contextModules pm inner)
+
   | PT.TTuple(first, second, rest) ->
     let first = reResolveTypeRef contextModules pm first
     let second = reResolveTypeRef contextModules pm second
@@ -346,6 +348,9 @@ and private reResolveExpr
   | PT.EList(id, items) ->
     let items = List.map (reResolveExpr contextModules pm) items
     PT.EList(id, items)
+
+  | PT.ESet(id, items) ->
+    PT.ESet(id, List.map (reResolveExpr contextModules pm) items)
 
   | PT.EDict(id, pairs) ->
     let pairs =

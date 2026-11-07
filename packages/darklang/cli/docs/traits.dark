@@ -98,8 +98,8 @@ builtin type already has implementations. Yours join with one `impl`.
 
   Every builtin numeric type implements the arithmetic, comparison and bitwise
   operators; String implements Add (`"a" + "b"`) and Compare, so `"a" < "b"` works;
-  Char and DateTime implement Compare too. Zero also covers String, List and Dict
-  (`""`, `[]`, `Dict { }`).
+  Char and DateTime implement Compare too. Zero also covers String, List, Dict and
+  Set (`""`, `[]`, `Dict { }`, `Set { }`).
 
   Two things worth knowing. Your own implementation of a stdlib trait for a builtin
   type is stored, and whether it runs depends on the operator: `+ - *` and the

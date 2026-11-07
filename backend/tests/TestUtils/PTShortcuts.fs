@@ -41,6 +41,7 @@ let eDict (entries : List<string * Expr>) : Expr =
   )
 
 let eDictOf (entries : List<Expr * Expr>) : Expr = EDict(gid (), entries)
+let eSet (items : List<Expr>) : Expr = ESet(gid (), items)
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
 
