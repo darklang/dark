@@ -384,7 +384,7 @@ let fns () : List<BuiltInFn> =
         "Returns a copy of <param list>, sorted by the value <param fn> returns for each element"
       fn =
         (function
-        | _, vm, [], [| DList(vt, items); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Was two interpreted passes and a tuple per element around a native sort: one `map` to
           // build `(key, value)`, the sort, then a second `map` of `Tuple2.second`, which is why
           // `Tuple2.second` showed up in profiles of code that never mentions it. Only the key
@@ -392,12 +392,16 @@ let fns () : List<BuiltInFn> =
           //
           // The result keeps the source list's ValueType: sorting is a permutation, so the elements
           // are exactly the ones already merged into it. `listSort` does the same.
+          //
+          // The keys are spread as `listMap` is, a chunk being `listMap` over its elements; the
+          // sort itself runs here, once every key is in, as it always did.
           match items with
           | [] -> Ply(sortedByKey vt [])
           | first :: tail ->
             let mutable keyed = []
             let mutable current = first
             let mutable rest = tail
+            let probe = Spread.probeCostly state vm app
             let rec next (key : Dval) : Ply<Dval> =
               Interpreter.withValue vm key landed
             and landed (key : Dval) : Ply<Dval> =
@@ -405,9 +409,36 @@ let fns () : List<BuiltInFn> =
               match rest with
               | [] -> sortedByKeyLanding vm vt (List.rev keyed)
               | elem :: elemTail ->
-                current <- elem
-                rest <- elemTail
-                Interpreter.requestApply vm app elem [] next
+                if not (isNull probe) && probe.Ask rest then
+                  probe.Stop()
+                  uply {
+                    let! spread =
+                      Spread.run
+                        state
+                        vm
+                        "listMap"
+                        (fun _ chunk -> [ DList(vt, chunk) ])
+                        app
+                        probe.PerElement
+                        rest
+                    let elems, after = List.splitAt spread.leftoverIndex rest
+                    keyed <-
+                      List.fold2
+                        (fun acc k e -> struct (k, e) :: acc)
+                        keyed
+                        spread.results
+                        elems
+                    match after with
+                    | [] -> return! sortedByKeyLanding vm vt (List.rev keyed)
+                    | elem :: elemTail ->
+                      current <- elem
+                      rest <- elemTail
+                      return! Interpreter.requestApply vm app elem [] next
+                  }
+                else
+                  current <- elem
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -537,22 +568,60 @@ let fns () : List<BuiltInFn> =
         + "out"
       fn =
         (function
-        | _, vm, [], [| DList(_, listA); DList(_, listB); DApplicable app |] ->
+        | state, vm, [], [| DList(vtA, listA); DList(vtB, listB); DApplicable app |] ->
           // The Dark version recursed with `append`, which copies the accumulator every element,
           // so it was quadratic on top of the package call and the two-argument lambda application.
           // Built back to front and reversed once, as `listMap` and `listIndexedMap` do.
+          //
+          // Spread as `listMap` is, a chunk being this same call over its stretch of both lists.
           match listA, listB with
           | a :: tailA, b :: tailB ->
             let mutable acc = []
             let mutable restA = tailA
             let mutable restB = tailB
+            let probe = Spread.probeCostly state vm app
             let rec next (mapped : Dval) : Ply<Dval> =
               acc <- mapped :: acc
               match restA, restB with
               | a :: tA, b :: tB ->
-                restA <- tA
-                restB <- tB
-                Interpreter.requestApply vm app a [ b ] next
+                // `Spread.run` keeps a list holding reads in flight here; this is the other list.
+                if
+                  not (isNull probe)
+                  && probe.Ask restA
+                  && not (List.exists Pending.isPromise restB)
+                then
+                  probe.Stop()
+                  // Only as far as both go. The other list's stretch for a chunk is found by
+                  // where the chunk begins, so it is an array.
+                  let count = min (List.length restA) (List.length restB)
+                  let firstA = List.truncate count restA
+                  let bs = restB |> List.truncate count |> Array.ofList
+                  uply {
+                    let! spread =
+                      Spread.run
+                        state
+                        vm
+                        "listMap2shortest"
+                        (fun offset chunk ->
+                          let chunkB = Array.sub bs offset (List.length chunk)
+                          [ DList(vtA, chunk); DList(vtB, List.ofArray chunkB) ])
+                        app
+                        probe.PerElement
+                        firstA
+                    acc <- List.rev spread.results @ acc
+                    restA <- List.skip spread.leftoverIndex restA
+                    restB <- List.skip spread.leftoverIndex restB
+                    match restA, restB with
+                    | a :: tA, b :: tB ->
+                      restA <- tA
+                      restB <- tB
+                      return! Interpreter.requestApply vm app a [ b ] next
+                    | _ -> return mappedList vm (List.rev acc)
+                  }
+                else
+                  restA <- tA
+                  restB <- tB
+                  Interpreter.requestApply vm app a [ b ] next
               | _ -> Ply(mappedList vm (List.rev acc))
             Interpreter.requestApply vm app a [ b ] next
           | _ -> Ply(mappedList vm [])
