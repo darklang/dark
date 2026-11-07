@@ -5976,7 +5976,13 @@ let private runRareOpcode
           // Stored package values must not leak the seeder's authority. When
           // one is loaded, attach this frame's access recursively to every
           // callable inside it, so later calls use the loader's permissions.
-          registers[createTo] <- Dval.captureValueAccess currentFrame.access v.body
+          // An inert value has no callable to attach it to, and the copy would
+          // equal the original, so it is handed over as it is stored.
+          registers[createTo] <-
+            if v.isInert then
+              v.body
+            else
+              Dval.captureValueAccess currentFrame.access v.body
         | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
     // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
     // `FrameRareOpcode` for the five above. Loud rather than silent if that ever stops holding.

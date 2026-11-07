@@ -565,8 +565,7 @@ let evaluateAllValues
                     message = $"cannot store in val — {reason}" }
             else
               let rtHash = PT2RT.Hash.toRT valueHash
-              let rtValue : RT.PackageValue.PackageValue =
-                { hash = rtHash; body = dval }
+              let rtValue = LibExecution.Dval.packageValue rtHash dval
               let (Hash defHash) = valueHash
               let rtDvalBytes = BS.RT.PackageValue.serialize rtHash rtValue
               let valueType = RT.Dval.toValueType dval

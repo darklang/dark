@@ -447,7 +447,7 @@ and private ofLambdaBody
               | Some pv ->
                 match pv.body with
                 | DApplicable a -> return! ofApplicable state (depth + 1) a
-                | body when LibExecution.Dval.isInertData body -> return Purity.Pure
+                | _ when pv.isInert -> return Purity.Pure
                 | _ -> return Purity.Unknown
               | None -> return Purity.Unknown
             }

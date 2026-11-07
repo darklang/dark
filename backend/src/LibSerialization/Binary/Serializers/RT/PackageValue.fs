@@ -16,4 +16,4 @@ let write (w : BinaryWriter) (c : PackageValue.PackageValue) : unit =
 let read (version : uint32) (r : BinaryReader) : PackageValue.PackageValue =
   let hash = Hash.read r
   let body = Dval.read version r
-  { hash = hash; body = body }
+  LibExecution.Dval.packageValue hash body
