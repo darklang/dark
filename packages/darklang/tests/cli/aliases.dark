@@ -156,6 +156,26 @@ test completion =
   result
 
 
+// `dark docs alias` finds the section on aliases.
+test docsCoverAliases = Instance.withInstance(fun i ->
+  let out = Instance.said(i, [ "docs", "alias" ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        out,
+        "## A command of your own",
+        "docs alias opens the scripts page")
+
+      Instance.says(
+        out,
+        "dark alias add <name> <fn>",
+        "which shows how to make one")
+
+      Instance.says(
+        out,
+        "always runs main's version",
+        "and that it runs on main") ]))
+
+
 test commandNames =
   Stdlib.Test.all(
     [ Darklang.Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)
