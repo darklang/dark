@@ -2,23 +2,27 @@ module LibConfig.Config
 
 open ConfigDsl
 
-/// <summary>
-/// Read the git commit hash from the embedded resource.
-/// Falls back to "dev" for local development builds.
-/// </summary>
+/// The commit this CLI was built from, as 7 characters, or "dev" when nothing says.
+/// A Release CLI embeds it (see Cli.fsproj). A Debug build doesn't, so a commit doesn't
+/// recompile anything, and reads the GIT_COMMIT that `scripts/run-cli` exports.
 let buildHash : string =
-  try
-    use stream =
-      System.Reflection.Assembly
-        .GetExecutingAssembly()
-        .GetManifestResourceStream("LibConfig.build-hash.txt")
-    if stream <> null then
-      use reader = new System.IO.StreamReader(stream)
-      reader.ReadToEnd().Trim()
-    else
-      "dev"
-  with _ ->
-    "dev"
+  let embedded =
+    try
+      match System.Reflection.Assembly.GetEntryAssembly() with
+      | null -> None
+      | entry ->
+        use stream = entry.GetManifestResourceStream("build-hash.txt")
+        if isNull stream then
+          None
+        else
+          use reader = new System.IO.StreamReader(stream)
+          Some(reader.ReadToEnd().Trim())
+    with _ ->
+      None
+  match embedded, getEnv "GIT_COMMIT" with
+  | Some hash, _ when hash <> "" -> hash
+  | _, Some hash when hash <> "" -> hash.Substring(0, min 7 hash.Length)
+  | _ -> "dev"
 
 /// The directory the CLI chose for its store, if it chose one. Read once, here.
 let private chosenRunDir = StoreLocation.take ()
