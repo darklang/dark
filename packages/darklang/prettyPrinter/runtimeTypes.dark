@@ -315,6 +315,7 @@ let typeReference(branchId: Uuid, t: LanguageTools.RuntimeTypes.TypeReference): 
     |> Stdlib.String.join(" * ")
     |> (fun parts -> "(" + parts + ")")
   | TList(inner) -> $"List<{typeReference(branchId, inner)}>"
+  | TSet(inner) -> $"Set<{typeReference(branchId, inner)}>"
   | TDict(key, value) ->
     let k = typeReference(branchId, key)
     let v = typeReference(branchId, value)
@@ -381,6 +382,7 @@ let knownType(branchId: Uuid, t: LanguageTools.RuntimeTypes.KnownType): String =
     |> Stdlib.String.join(" * ")
     |> (fun s -> $"({s})")
   | KTList(typ) -> $"List<{valueType(branchId, typ)}>"
+  | KTSet(typ) -> $"Set<{valueType(branchId, typ)}>"
   | KTDict(key, value) ->
     let k = valueType(branchId, key)
     let v = valueType(branchId, value)
@@ -463,6 +465,8 @@ let declaredKnownType(
     $"Stream<{declaredValueType(branchId, Option.Some(dInner), inner)}>"
   | KTList(inner), Some(TList(dInner)) ->
     $"List<{declaredValueType(branchId, Option.Some(dInner), inner)}>"
+  | KTSet(inner), Some(TSet(dInner)) ->
+    $"Set<{declaredValueType(branchId, Option.Some(dInner), inner)}>"
   | KTDict(key, value), Some(TDict(dKey, dValue)) ->
     let k = declaredValueType(branchId, Option.Some(dKey), key)
     let v = declaredValueType(branchId, Option.Some(dValue), value)
@@ -577,6 +581,7 @@ module Dval =
       |> Stdlib.String.join(" * ")
       |> (fun parts -> "(" + parts + ")")
     | DList(vt, _) -> $"List<{valueType(branchId, vt)}>"
+    | DSet(vt, _) -> $"Set<{valueType(branchId, vt)}>"
     | DDict(kt, vt, _) ->
       let k = valueType(branchId, kt)
       let v = valueType(branchId, vt)
@@ -766,6 +771,14 @@ module Dval =
                 Stdlib.Pretty.concat(Stdlib.Pretty.concat(child(key), txt(": ")), child(value)))
 
             braced("{", "}", parts)
+        // `Set { 1, 2 }`, in the set's order, so what is printed reads back as the same set.
+        | DSet(_, s) ->
+          match Stdlib.Set.toList(s) with
+          | [] -> txt("Set { }")
+          | items ->
+            Stdlib.Pretty.concat(
+              txt("Set "),
+              braced("{", "}", items |> Stdlib.List.map(fun i -> child(i))))
         // Unsaved bytes are already in memory, so show the first 16 as hex, the way
         // Node.js prints a Buffer. Saved bytes show only their length: a preview
         // would load the whole value, which may be megabytes, from the store.

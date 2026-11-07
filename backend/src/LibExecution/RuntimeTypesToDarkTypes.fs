@@ -362,6 +362,7 @@ module TypeReference =
           DList(VT.known (knownType ()), Items(List.map toDT theRest)) ]
 
       | TDict(key, value) -> "TDict", [ toDT key; toDT value ]
+      | TSet inner -> "TSet", [ toDT inner ]
 
       | TCustomType(typeName, typeArgs) ->
         "TCustomType",
@@ -408,6 +409,7 @@ module TypeReference =
     | DEnum(_, _, [], "TList", [ inner ]) -> TList(fromDT inner)
 
     | DEnum(_, _, [], "TDict", [ key; value ]) -> TDict(fromDT key, fromDT value)
+    | DEnum(_, _, [], "TSet", [ inner ]) -> TSet(fromDT inner)
 
     | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, Items(typeArgs)) ]) ->
       TCustomType(
@@ -635,6 +637,7 @@ module KnownType =
           ) ]
       | KTList inner -> "KTList", [ ValueType.toDT inner ]
       | KTDict(key, value) -> "KTDict", [ ValueType.toDT key; ValueType.toDT value ]
+      | KTSet inner -> "KTSet", [ ValueType.toDT inner ]
 
       | KTCustomType(typeName, typeArgs) ->
         "KTCustomType",
@@ -689,6 +692,7 @@ module KnownType =
     | DEnum(_, _, [], "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
     | DEnum(_, _, [], "KTDict", [ key; value ]) ->
       KTDict(ValueType.fromDT key, ValueType.fromDT value)
+    | DEnum(_, _, [], "KTSet", [ inner ]) -> KTSet(ValueType.fromDT inner)
 
     | DEnum(_, _, [], "KTCustomType", [ typeName; DList(_vtTODO, Items(typeArgs)) ]) ->
       KTCustomType(FQTypeName.fromDT typeName, List.map ValueType.fromDT typeArgs)
@@ -901,6 +905,18 @@ module Dval =
             |> DictMap.ofList
           ) ]
 
+    | DSet(et, elements) ->
+      mk
+        "DSet"
+        [ ValueType.toDT et
+          DSet(
+            VT.known (knownType ()),
+            elements
+            |> DictMap.keys
+            |> List.map (fun e -> toDT e, DUnit)
+            |> DictMap.ofList
+          ) ]
+
     | DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields) ->
       mk
         "DRecord"
@@ -987,6 +1003,15 @@ module Dval =
         map
         |> DictMap.toList
         |> List.map (fun (k, v) -> fromDT k, fromDT v)
+        |> DictMap.ofList
+      )
+
+    | DEnum(_, _, [], "DSet", [ et; DSet(_etTODO, elements) ]) ->
+      DSet(
+        ValueType.fromDT et,
+        elements
+        |> DictMap.keys
+        |> List.map (fun e -> fromDT e, DUnit)
         |> DictMap.ofList
       )
 
@@ -1110,6 +1135,7 @@ module Instruction =
         "CreateTuple", [ reg t; reg a; reg b; regs rest ]
       | CreateList(t, items) -> "CreateList", [ reg t; regs items ]
       | CreateDict(t, entries) -> "CreateDict", [ reg t; regPairs entries ]
+      | CreateSet(t, items) -> "CreateSet", [ reg t; regs items ]
       | CreateRecord(t, name, targs, fields) ->
         "CreateRecord",
         [ reg t; FQTypeName.toDT name; typeArgs targs; namedRegs fields ]
@@ -1436,6 +1462,46 @@ module RuntimeError =
           Dval.fromDT actualKey
         )
       | _ -> Exception.raiseInternal "Invalid Dicts.Error" []
+
+  module Sets =
+    let toDT (e : RuntimeError.Sets.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage (
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Sets.error ()
+        )
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Sets.TriedToAddMismatchedData(expectedType,
+                                                     actualType,
+                                                     actualValue) ->
+          "TriedToAddMismatchedData",
+          [ ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+        | RuntimeError.Sets.UnsupportedElementType(elementType, value) ->
+          "UnsupportedElementType", [ ValueType.toDT elementType; Dval.toDT value ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Sets.Error =
+      match d with
+      | DEnum(_,
+              _,
+              [],
+              "TriedToAddMismatchedData",
+              [ expectedType; actualType; actualValue ]) ->
+        RuntimeError.Sets.TriedToAddMismatchedData(
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+      | DEnum(_, _, [], "UnsupportedElementType", [ elementType; value ]) ->
+        RuntimeError.Sets.UnsupportedElementType(
+          ValueType.fromDT elementType,
+          Dval.fromDT value
+        )
+      | _ -> Exception.raiseInternal "Invalid Sets.Error" []
 
   module Lets =
     let toDT (e : RuntimeError.Lets.Error) : Dval =
@@ -2083,6 +2149,7 @@ module RuntimeError =
       | RuntimeError.String e -> "String", [ Strings.toDT e ]
       | RuntimeError.List e -> "List", [ Lists.toDT e ]
       | RuntimeError.Dict e -> "Dict", [ Dicts.toDT e ]
+      | RuntimeError.Set e -> "Set", [ Sets.toDT e ]
       | RuntimeError.Let e -> "Let", [ Lets.toDT e ]
       | RuntimeError.VariableNotFound attemptedVarName ->
         "VariableNotFound", [ DString attemptedVarName ]
@@ -2137,6 +2204,7 @@ module RuntimeError =
     | DEnum(_, _, [], "String", [ e ]) -> RuntimeError.String(Strings.fromDT e)
     | DEnum(_, _, [], "List", [ e ]) -> RuntimeError.List(Lists.fromDT e)
     | DEnum(_, _, [], "Dict", [ e ]) -> RuntimeError.Dict(Dicts.fromDT e)
+    | DEnum(_, _, [], "Set", [ e ]) -> RuntimeError.Set(Sets.fromDT e)
     | DEnum(_, _, [], "Let", [ e ]) -> RuntimeError.Let(Lets.fromDT e)
     | DEnum(_, _, [], "VariableNotFound", [ DString attemptedVarName ]) ->
       RuntimeError.VariableNotFound attemptedVarName

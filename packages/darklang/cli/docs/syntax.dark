@@ -106,6 +106,16 @@ A key only known at run time replaces an earlier equal key, as
 `Stdlib.Dict.set` does; two keys written as the same constant are reported
 by the type checker (`dark typecheck`).
 
+## Sets
+  Set { 1, 2, 3 }
+  Stdlib.Set.contains(s, 2)
+  Stdlib.Set.union(a, b)
+
+A set keeps one of each element, in the order a dict keeps its keys, so
+`Set { 3, 1, 1 }` is `Set { 1, 3 }` and two sets are equal when their elements
+are. An element can be any value a dict key can be. There are no set patterns:
+use `Stdlib.Set.isEmpty` or `Stdlib.Set.toList`.
+
 ## Strings
   "hello" + " world"     // concat
   $"value: {x}"          // interpolation
@@ -146,4 +156,5 @@ Where only a name can go, a keyword needs no backticks:
 A name can't hold spaces: write hello_world or helloWorld, not `hello world`.
 A few more words are special only in one place, and free everywhere else:
 `module` and `test` at the start of a declaration, `for` in `impl X for T`,
-`as` in a pattern, `Dict` and `List` before `<`. `def` is not reserved."""
+`as` in a pattern, `Dict`, `List` and `Set` before `<`, and `Dict` and `Set`
+before `{`. `def` is not reserved."""

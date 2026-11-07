@@ -206,6 +206,10 @@ let rec private reResolveTypeRef
       let! value = reResolveTypeRef contextModules pm value
       return PT.TDict(key, value)
 
+    | PT.TSet inner ->
+      let! inner = reResolveTypeRef contextModules pm inner
+      return PT.TSet inner
+
     | PT.TTuple(first, second, rest) ->
       let! first = reResolveTypeRef contextModules pm first
       let! second = reResolveTypeRef contextModules pm second
@@ -369,6 +373,10 @@ and private reResolveExpr
     | PT.EList(id, items) ->
       let! items = Ply.List.mapSequentially (reResolveExpr contextModules pm) items
       return PT.EList(id, items)
+
+    | PT.ESet(id, items) ->
+      let! items = Ply.List.mapSequentially (reResolveExpr contextModules pm) items
+      return PT.ESet(id, items)
 
     | PT.EDict(id, pairs) ->
       let! pairs =

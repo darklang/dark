@@ -883,6 +883,42 @@ module Constructors =
         |> Stdlib.Test.equal("checked:") ])
 
 
+  // A set literal is checked as a list literal is, with the elements held to what a dict key
+  // can be, and an element written twice as the same constant reported as a repeated key is.
+  test setLiterals =
+    let setFn(body: String): String = "let f (k: Int64) : Set<Int64> = " + body
+    Stdlib.Test.all(
+      [ check(setFn("Set { 1, 2, k }"), "f") |> Stdlib.Test.equal("checked:")
+
+        check(setFn("Set { }"), "f") |> Stdlib.Test.equal("checked:")
+
+        check(setFn("Set { k, k }"), "f") |> Stdlib.Test.equal("checked:")
+
+        check(setFn("Set { 1, \"two\" }"), "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let f (k: Int64) : List<Int64> = Set { 1 }", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(setFn("Set { 1, 2, 1 }"), "f")
+        |> Stdlib.Test.equal("failed:DuplicateSetElement")
+
+        issues(setFn("Set { 1, 2, 1 }"), "f")
+        |> Stdlib.Test.equal(
+          [ "DuplicateSetElement: '1' is listed in a set more than once" ])
+
+        check("let f (u: Unit) : Set<Int64 -> Int64> = Set { fun x -> x }", "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        check(
+          "let f (s: Set<String>) : Bool = Stdlib.Set.contains(s, \"a\")",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f (s: Set<String>) : Bool = Stdlib.Set.contains(s, 1)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
   // Resolve 'a in Box<'a>.Box using the enclosing function's type parameters.
   test constructorUsesFunctionTypeParams =
     check(

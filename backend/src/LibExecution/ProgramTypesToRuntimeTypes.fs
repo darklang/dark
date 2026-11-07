@@ -128,6 +128,7 @@ module TypeReference =
     | PT.TTuple(first, second, theRest) ->
       RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
     | PT.TDict(key, value) -> RT.TDict(toRT key, toRT value)
+    | PT.TSet inner -> RT.TSet(toRT inner)
 
     | PT.TCustomType(typeName, typeArgs) ->
       RT.TCustomType(
@@ -175,6 +176,7 @@ module TypeReference =
       )
     | PT.TDict(key, value) ->
       RT.ValueType.Known(RT.KTDict(toValueType key, toValueType value))
+    | PT.TSet inner -> RT.ValueType.Known(RT.KTSet(toValueType inner))
     | PT.TCustomType(typeName, typeArgs) ->
       match typeName.resolved with
       | Ok resolved ->
@@ -811,6 +813,25 @@ module Expr =
       { registerCount = regCounter
         instructions = instrs @ [ RT.CreateDict(dictReg, entryPairs) ]
         resultIn = dictReg }
+
+
+    | PT.ESet(_id, items) ->
+      let setReg = rc
+      let init = (rc + 1, [], [])
+
+      let (regCounter, instrs, itemResultRegs) =
+        items
+        |> List.fold
+          (fun (rc, instrs, itemResultRegs) item ->
+            let itemInstrs = toRT symbols rc currentFnName item
+            (itemInstrs.registerCount,
+             instrs @ itemInstrs.instructions,
+             itemResultRegs @ [ itemInstrs.resultIn ]))
+          init
+
+      { registerCount = regCounter
+        instructions = instrs @ [ RT.CreateSet(setReg, itemResultRegs) ]
+        resultIn = setReg }
 
 
     | PT.ETuple(_id, first, second, theRest) ->

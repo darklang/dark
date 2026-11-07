@@ -27,6 +27,7 @@ let inTypeRef(t: ProgramTypes.TypeReference): List<String> =
   match t with
   | TStream(inner) -> inTypeRef(inner)
   | TList(inner) -> inTypeRef(inner)
+  | TSet(inner) -> inTypeRef(inner)
   | TDict(key, value) -> Stdlib.List.concat(inTypeRef(key), inTypeRef(value))
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten([ inTypeRef(first), inTypeRef(second), inTypeRefs(rest) ])
@@ -50,6 +51,7 @@ let inExpr(expr: ProgramTypes.Expr): List<String> =
   | EMatch(_, arg, cases) -> Stdlib.List.concat(inExpr(arg), inMatchCases(cases))
   | ELet(_, _, value, body) -> Stdlib.List.concat(inExpr(value), inExpr(body))
   | EList(_, items) -> inExprs(items)
+  | ESet(_, items) -> inExprs(items)
   // As the F# walk: only the values, never the keys.
   | EDict(_, pairs) -> inExprs(Stdlib.List.map(pairs, fun((_, e)) -> e))
   | ETuple(_, first, second, rest) ->

@@ -225,6 +225,14 @@ let rec mapCallables
   | DTuple(first, second, rest) ->
     DTuple(walk first, walk second, List.map walk rest)
   | DDict(kt, vt, entries) -> DDict(kt, vt, DictMap.map walk entries)
+  | DSet(et, elements) ->
+    DSet(
+      et,
+      elements
+      |> DictMap.keys
+      |> List.map (fun e -> (walk e, DUnit))
+      |> DictMap.ofList
+    )
   | DRecord(sourceType, runtimeType, typeArgs, fields) ->
     DRecord(sourceType, runtimeType, typeArgs, RecordFields.map walk fields)
   | DEnum(sourceType, runtimeType, typeArgs, caseName, fields) ->
@@ -309,6 +317,7 @@ let rec isPersistable (dv : Dval) : bool =
     isPersistable a && isPersistable b && List.forall isPersistable rest
   | DDict(_, _, entries) ->
     entries |> DictMap.forall (fun k v -> isPersistable k && isPersistable v)
+  | DSet(_, elements) -> elements |> DictMap.forall (fun k _ -> isPersistable k)
   | DRecord(_, _, _, fields) -> fields |> RecordFields.forall isPersistable
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isPersistable
 
@@ -340,6 +349,8 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
       match nonPersistableReason k with
       | Some r -> Some r
       | None -> nonPersistableReason v)
+  | DSet(_, elements) ->
+    elements |> DictMap.keys |> List.tryPick nonPersistableReason
   | DRecord(_, _, _, fields) ->
     fields |> RecordFields.values |> List.tryPick nonPersistableReason
   | DEnum(_, _, _, _, fields) -> fields |> List.tryPick nonPersistableReason
@@ -385,6 +396,7 @@ let rec isInertData (dv : Dval) : bool =
     isInertData a && isInertData b && List.forall isInertData rest
   | DDict(_, _, entries) ->
     entries |> DictMap.forall (fun k v -> isInertData k && isInertData v)
+  | DSet(_, elements) -> elements |> DictMap.forall (fun k _ -> isInertData k)
   | DRecord(_, _, _, fields) -> fields |> RecordFields.forall isInertData
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isInertData
 
@@ -487,6 +499,13 @@ let rec equals (a : Dval) (b : Dval) : bool =
           | Some vb -> r va vb
           | None -> false))
 
+  | DSet(typeA, a), DSet(typeB, b) ->
+    ensureSufficientExecutionStack ()
+    // Both are in the one structural order, so equal sets line up element by element.
+    Result.isOk (ValueType.merge typeA typeB)
+    && DictMap.count a = DictMap.count b
+    && List.forall2 r (DictMap.keys a) (DictMap.keys b)
+
   | DRecord(_, typeNameA, typeArgsA, fieldsA),
     DRecord(_, typeNameB, typeArgsB, fieldsB) ->
     ensureSufficientExecutionStack ()
@@ -563,6 +582,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DList _, _
   | DTuple _, _
   | DDict _, _
+  | DSet _, _
   | DRecord _, _
   | DEnum _, _
   | DApplicable _, _
@@ -682,6 +702,7 @@ let private tryHashLeaf (value : Dval) : ValueOption<int> =
     | DList _
     | DTuple _
     | DDict _
+    | DSet _
     | DRecord _
     | DEnum _
     | DApplicable(AppNamedFn _) -> false
@@ -725,6 +746,8 @@ let hash (dv : Dval) : int =
             | DTuple(a, b, rest) -> pending.Push(HashList(frame, a :: b :: rest))
             | DDict(_, _, entries) ->
               pending.Push(HashDict(frame, entries.Entries, 0))
+            | DSet(_, elements) ->
+              pending.Push(HashList(frame, DictMap.keys elements))
             | DRecord(_, name, _, fields) ->
               frame.code.Add name
               pending.Push(HashRecord(frame, fields.Entries, 0))
@@ -816,6 +839,10 @@ let rec toDebugString (dv : Dval) : string =
       |> List.map (fun (k, v) -> $"{r k}: {r v}")
       |> String.concat ", "
     $"Dict {{ {shown} }}"
+  | DSet(_, elements) ->
+    match DictMap.keys elements with
+    | [] -> "Set { }"
+    | items -> $"Set {{ {join items} }}"
   | DRecord(_, _, _, fields) ->
     let shown =
       fields

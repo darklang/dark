@@ -63,6 +63,7 @@ type Ty =
   | TBytes
   | TStream(Ty)
   | TList(Ty)
+  | TSet(Ty)
   | TTuple(Ty, Ty, List<Ty>)
   | TDict(Ty, Ty)
   | TCustom(ProgramTypes.Hash, List<Ty>)

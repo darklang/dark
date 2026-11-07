@@ -39,6 +39,7 @@ let builtins () : Builtins =
 
       Libs.List.builtins ()
       Libs.Dict.builtins ()
+      Libs.Set.builtins ()
 
       Libs.DateTime.builtins ()
       Libs.Uuid.builtins ()

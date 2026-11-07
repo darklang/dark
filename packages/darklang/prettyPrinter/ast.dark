@@ -169,6 +169,9 @@ let expr(ctx: Context, depth: Int64, e: LanguageTools.ProgramTypes.Expr): List<L
   | EList(_, items) ->
     let n = Stdlib.display(Stdlib.List.length(items))
     Stdlib.List.concat(here("List", $"{n} items"), children(items))
+  | ESet(_, items) ->
+    let n = Stdlib.display(Stdlib.List.length(items))
+    Stdlib.List.concat(here("Set", $"{n} items"), children(items))
   | EDict(_, pairs) ->
     let n = Stdlib.display(Stdlib.List.length(pairs))
     let pairLines =

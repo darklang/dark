@@ -50,6 +50,7 @@ let sizeHint(dv: LanguageTools.RuntimeTypes.Dval): Option<String> =
   | DList(_, items) -> Option.Some($"{Stdlib.display(Stdlib.List.length(items))} items")
   | DDict(_, _, entries) ->
     Option.Some($"{Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
+  | DSet(_, elements) -> Option.Some($"{Stdlib.display(Stdlib.Set.size(elements))} items")
   | DString(s) -> Option.Some($"{Stdlib.display(Stdlib.String.length(s))} characters")
   | _ -> Option.None
 

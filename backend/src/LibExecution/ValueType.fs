@@ -39,6 +39,7 @@ let stream (inner : ValueType) : ValueType = known (KTStream inner)
 let list (inner : ValueType) : ValueType = known (KTList inner)
 let dict (key : ValueType) (value : ValueType) : ValueType =
   known (KTDict(key, value))
+let set (element : ValueType) : ValueType = known (KTSet element)
 let tuple
   (first : ValueType)
   (second : ValueType)
@@ -96,6 +97,7 @@ let rec private mergeKnownTypes
       match merge lk rk, merge lv rv with
       | Ok k, Ok v -> Ok(KTDict(k, v))
       | _ -> Error()
+    | KTSet left, KTSet right -> merge left right |> Result.map KTSet
     | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
       let firstMerged = merge l1 r1
       let secondMerged = merge l2 r2

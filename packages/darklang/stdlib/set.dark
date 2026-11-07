@@ -1,0 +1,133 @@
+/// A set: values with no repeats, written `Set { 1, 2, 3 }`.
+///
+/// Elements are kept in one order, the order a <type Dict>'s keys are kept in, so
+/// walking a set, printing it and comparing two of them always go the same way.
+/// An element can be any value a dict key can be: not a function or a stream.
+module Darklang.Stdlib.Set
+
+/// The set with no elements
+val empty = Set {}
+
+
+/// The empty set, for the same reason an empty list is a zero
+impl Zero for Set<'a> =
+  let zero(): Set<'a> =
+    Set {}
+
+
+/// `Set { 1, 2 }`, each element as its own <fn Stdlib.display> writes it
+impl<'a: Display> Display for Set<'a> =
+  let display(set: Set<'a>): String =
+    Set.display(set)
+
+
+/// Returns a set of the elements of <param list>. A repeated element is kept once.
+let fromList(list: List<'a>): Set<'a> =
+  Builtin.setFromList(list)
+
+
+/// Returns the elements of <param set> in a <type List>, in the set's order
+let toList(set: Set<'a>): List<'a> =
+  Builtin.setToList(set)
+
+
+/// Returns a set holding only <param element>
+let singleton(element: 'a): Set<'a> =
+  Set { element }
+
+
+/// Returns the number of elements in <param set>
+let size(set: Set<'a>): Int64 =
+  Builtin.setSize(set)
+
+
+/// Returns {{true}} if <param set> has no elements
+let isEmpty(set: Set<'a>): Bool =
+  size(set) == 0
+
+
+/// Returns {{true}} if <param element> is in <param set>
+let contains(set: Set<'a>, element: 'a): Bool =
+  Builtin.setContains(set, element)
+
+
+/// Returns <param set> with <param element> in it. Adding an element that is
+/// already there returns the set unchanged.
+let add(set: Set<'a>, element: 'a): Set<'a> =
+  Builtin.setAdd(set, element)
+
+
+/// Returns <param set> without <param element>. Removing an element that is not
+/// there returns the set unchanged.
+let remove(set: Set<'a>, element: 'a): Set<'a> =
+  Builtin.setRemove(set, element)
+
+
+/// Returns the elements in <param left>, in <param right>, or in both
+let union(left: Set<'a>, right: Set<'a>): Set<'a> =
+  Builtin.setUnion(left, right)
+
+
+/// Returns the elements in both <param left> and <param right>
+let intersection(left: Set<'a>, right: Set<'a>): Set<'a> =
+  filter(left, fun e -> contains(right, e))
+
+
+/// Returns the elements of <param left> that are not in <param right>
+let difference(left: Set<'a>, right: Set<'a>): Set<'a> =
+  filter(left, fun e -> Bool.not(contains(right, e)))
+
+
+/// Returns {{true}} if every element of <param set> is also in <param other>.
+/// The empty set is a subset of every set, and every set is a subset of itself.
+let isSubset(set: Set<'a>, other: Set<'a>): Bool =
+  size(set) <= size(other) && List.all(toList(set), fun e -> contains(other, e))
+
+
+/// Returns {{true}} if <param left> and <param right> have no element in common
+let isDisjoint(left: Set<'a>, right: Set<'a>): Bool =
+  Bool.not(List.any(toList(left), fun e -> contains(right, e)))
+
+
+/// Calls <param fn> on every element of <param set> and returns a set of the
+/// results. Two elements that map to the same result leave one element, so the
+/// result can be smaller than <param set>.
+let map(set: Set<'a>, fn: 'a -> 'b): Set<'b> =
+  fromList(List.map(toList(set), fn))
+
+
+/// Returns the elements of <param set> for which <param fn> returns {{true}}
+let filter(set: Set<'a>, fn: 'a -> Bool): Set<'a> =
+  fromList(List.filter(toList(set), fn))
+
+
+/// Splits <param set> into the elements for which <param fn> returns {{true}} and
+/// those for which it returns {{false}}
+let partition(set: Set<'a>, fn: 'a -> Bool): (Set<'a> * Set<'a>) =
+  let (yes, no) = List.partition(toList(set), fn)
+  (fromList(yes), fromList(no))
+
+
+/// Combines the elements of <param set> into one value, starting from <param init>
+/// and calling <param fn> with the value so far and each element, in the set's order
+let fold(set: Set<'a>, init: 'b, fn: ('b, 'a) -> 'b): 'b =
+  List.fold(toList(set), init, fn)
+
+
+/// Calls <param fn> on every element of <param set>, in the set's order
+let iter(set: Set<'a>, fn: 'a -> Unit): Unit =
+  List.iter(toList(set), fn)
+
+
+/// <param set> as text, `Set { 1, 2 }`, each element as its own <fn Stdlib.display>
+/// writes it. The empty set is `Set { }`.
+let display<'a: Display>(set: Set<'a>): String =
+  match toList(set) with
+  | [] -> "Set { }"
+  | elements ->
+    let shown =
+      elements
+      |> List.map(fun e -> Stdlib.display(e))
+      |> String.join(", ")
+
+    "Set { " + shown + " }"

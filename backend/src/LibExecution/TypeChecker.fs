@@ -188,6 +188,10 @@ let rec unifyValueTypeSync
         | Unified tst -> unifyValueTypeSync tst valueT valueV
         | notUnified -> notUnified
       | _ -> Undecided
+    | TSet innerT ->
+      match actual with
+      | ValueType.Known(KTSet innerV) -> unifyValueTypeSync tst innerT innerV
+      | _ -> Undecided
 
     | TTuple(tFirst, tSecond, tRest) ->
       match actual with
@@ -352,6 +356,9 @@ let rec unifyValueType
             return!
               r tst (TypeCheckPathPart.DictValueType :: pathSoFar) valueT valueV
           | error -> return error
+
+        | TSet innerT, ValueType.Known(KTSet innerV) ->
+          return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
 
         | TTuple(tFirst, tSecond, tRest),
           ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
@@ -598,6 +605,10 @@ let private unifyDvalSync
       match unifyValueTypeSync tst keyT keyV with
       | Unified tst -> unifyValueTypeSync tst valueT valueV
       | notUnified -> notUnified
+    | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
+  | TSet innerT ->
+    match actual with
+    | DSet(innerV, _) -> unifyValueTypeSync tst innerT innerV
     | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
   | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
 
@@ -1164,6 +1175,42 @@ module DvalCreator =
         Ply(dict threadID keyType valueType landed))
     else
       made
+
+  /// The element type <param remaining> agree on, merged into <param typ>; raises at the
+  /// first element that does not, or that cannot be kept in order.
+  let rec private setElementType
+    (threadID : ThreadID)
+    (typ : ValueType)
+    (remaining : List<Dval>)
+    : ValueType =
+    match remaining with
+    | [] -> typ
+    | dv :: rest ->
+      Dval.assertUsableSetElement dv
+      let dvalType = Dval.toValueType dv
+      match VT.merge typ dvalType with
+      | Ok newType -> setElementType threadID newType rest
+      | Error() ->
+        RTE.Sets.Error.TriedToAddMismatchedData(typ, dvalType, dv)
+        |> RTE.Error.Set
+        |> raiseRTE threadID
+
+  /// A set of <param items>, typed by what they agree on. A repeated item is kept
+  /// once. Items are compared, so none can be a read in flight: callers land them
+  /// first, as a dict's keys are.
+  let set (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
+    let elementType = setElementType threadID typ items
+    DSet(elementType, items |> List.map (fun i -> (i, DUnit)) |> DictMap.ofList)
+
+  /// <param element> added to a set of <param elementType>.
+  let setAdd
+    (threadID : ThreadID)
+    (elementType : ValueType)
+    (elements : DictMap)
+    (element : Dval)
+    : Dval =
+    let elementType = setElementType threadID elementType [ element ]
+    DSet(elementType, DictMap.add element DUnit elements)
 
   /// A list or dict a builtin built around reads, built again from the landed values, so its
   /// element type is worked out and a value of the wrong type raises where it is waited for.

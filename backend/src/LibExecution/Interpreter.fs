@@ -43,7 +43,8 @@ module private FreeTVars =
     match tr with
     | TVariable name -> Set.add name acc
     | TList inner
-    | TStream inner -> collect acc inner
+    | TStream inner
+    | TSet inner -> collect acc inner
     | TDict(key, value) -> collect (collect acc key) value
     | TTuple(a, b, rest) ->
       let acc = collect acc a
@@ -302,7 +303,8 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTDateTime
     | KTBytes -> true
     | KTList inner
-    | KTStream inner -> isFullyKnown inner
+    | KTStream inner
+    | KTSet inner -> isFullyKnown inner
     | KTDict(key, value) -> isFullyKnown key && isFullyKnown value
     | KTTuple(a, b, rest) ->
       isFullyKnown a && isFullyKnown b && List.forall isFullyKnown rest
@@ -363,6 +365,10 @@ let rec private inferTVarsFromArg
     match vt with
     | ValueType.Known(KTDict(keyV, valueV)) ->
       inferTVarsFromArg (inferTVarsFromArg acc keyT keyV) valueT valueV
+    | _ -> acc
+  | TSet tr' ->
+    match vt with
+    | ValueType.Known(KTSet vt') -> inferTVarsFromArg acc tr' vt'
     | _ -> acc
 
   | TTuple(a, b, rest) ->
@@ -434,6 +440,10 @@ let rec private inferTVarsFromDval
     | DTuple(a', b', rest') when List.length rest = List.length rest' ->
       let acc = inferTVarsFromDval (inferTVarsFromDval acc a a') b b'
       List.fold2 inferTVarsFromDval acc rest rest'
+    | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+  | TSet tr' ->
+    match dv with
+    | DSet(vt', _) -> inferTVarsFromArg acc tr' vt'
     | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
   | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
 
@@ -2593,7 +2603,8 @@ let rec private sameType (a : TypeReference) (b : TypeReference) : bool =
   | TCustomType(aName, aArgs), TCustomType(bName, bArgs) ->
     aName.resolved = bName.resolved && sameTypes aArgs bArgs
   | TStream x, TStream y
-  | TList x, TList y -> sameType x y
+  | TList x, TList y
+  | TSet x, TSet y -> sameType x y
   | TDict(aKey, aValue), TDict(bKey, bValue) ->
     sameType aKey bKey && sameType aValue bValue
   | TTuple(a1, a2, aRest), TTuple(b1, b2, bRest) ->
@@ -6066,6 +6077,26 @@ let private runSyncInstructions
             registers
             dictReg
             (TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries)
+      | CreateSet(setReg, itemRegs) ->
+        // Items are compared to be kept in order, so each lands first, as a dict key does.
+        let mutable rest = itemRegs
+        while not retry && not (List.isEmpty rest) do
+          match rest with
+          | itemReg :: tail ->
+            (match registers[itemReg] with
+             | DPromise p ->
+               parkOnRead vm registers itemReg p &retry &force &forceReg
+             | _ -> ())
+            rest <- tail
+          | [] -> ()
+        if not retry then
+          Registers.set
+            registers
+            setReg
+            (TypeChecker.DvalCreator.set
+              vm.threadID
+              VT.unknown
+              (readRegs registers itemRegs))
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
         // Parts are stored as they are; holding a read makes the tuple a promise.
         let first = registers[firstReg]

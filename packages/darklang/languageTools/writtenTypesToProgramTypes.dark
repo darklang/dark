@@ -239,6 +239,9 @@ module TypeReference =
         (
           ProgramTypes.TypeReference.TDict(keyType, valueType),
           Stdlib.List.concat(keyUnresolvedNames, valueUnresolvedNames))
+      | TSet(_range, _, _, typ, _) ->
+        let (typ, unresolvedNames) = TypeReference.toPT(ctx, typ)
+        (ProgramTypes.TypeReference.TSet(typ), unresolvedNames)
       | TTuple(_range, first, _, second, theRest, _, _) ->
         let (first, firstUnresolvedNames) = TypeReference.toPT(ctx, first)
         let (second, secondUnresolvedNames) = TypeReference.toPT(ctx, second)
@@ -746,6 +749,11 @@ module Expr =
         |> Stdlib.List.unzip
 
       (ProgramTypes.Expr.EDict(gid(), contents), unresolvedNames |> Stdlib.List.flatten)
+    | ESet(_, contents, _, _, _) ->
+      let (contents, unresolvedNames) =
+        Stdlib.List.map(contents, fun expr -> toPT(ctx, context, expr)) |> Stdlib.List.unzip
+
+      (ProgramTypes.Expr.ESet(gid(), contents), unresolvedNames |> Stdlib.List.flatten)
     | ETuple(_, first, _, second, rest, _, _) ->
       let (first, fstUnresolvedNames) = toPT(ctx, context, first)
       let (second, sndUnresolvedNames) = toPT(ctx, context, second)
@@ -1306,6 +1314,7 @@ module FunctionDeclaration =
       if Stdlib.List.contains(acc, name) then acc else Stdlib.List.append(acc, name)
     | TList(inner) -> collectTVarsInTypeRef(acc, inner)
     | TStream(inner) -> collectTVarsInTypeRef(acc, inner)
+    | TSet(inner) -> collectTVarsInTypeRef(acc, inner)
     | TDict(key, value) ->
       let acc = collectTVarsInTypeRef(acc, key)
       collectTVarsInTypeRef(acc, value)
@@ -1489,6 +1498,7 @@ module ImplDeclaration =
       | TStream(_, _, _, _, _) -> "Stream"
       | TList(_, _, _, _, _) -> "List"
       | TDict(_, _, _, _, _, _, _) -> "Dict"
+      | TSet(_, _, _, _, _) -> "Set"
       | TTuple(_, _, _, _, _, _, _) -> "Tuple"
       | TFn(_, _, _) -> "Fn"
       | TVariable(_, _, (_, name)) -> name

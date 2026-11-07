@@ -276,6 +276,9 @@ let writeTypeReference
     w.Write 25uy
     writeTypeReference mode w inner
   | PT.TBigInt -> w.Write 26uy
+  | PT.TSet inner ->
+    w.Write 29uy
+    writeTypeReference mode w inner
 
 
 // =====================
@@ -594,6 +597,9 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
         writeExpr mode w key
         writeExpr mode w value)
       pairs
+  | PT.ESet(_id, items) ->
+    w.Write 39uy
+    Common.List.write w (writeExpr mode) items
   | PT.EFnName(_id, nameRes, boundImpls, typeArgs) ->
     w.Write 31uy
     writeNameResolution (writeFQFnName mode) w nameRes
