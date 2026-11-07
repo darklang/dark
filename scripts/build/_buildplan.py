@@ -90,8 +90,8 @@ def mark(should, f):
   elif f.startswith("backend/") and f.endswith("paket.references"):
     should.fsharp_paket_restore = True
 
-  elif f.startswith("backend/") and \
-    (f.endswith(".fsproj") or f.endswith(".sln")):
+  elif f == "backend/Directory.Build.targets" or \
+      (f.startswith("backend/") and (f.endswith(".fsproj") or f.endswith(".sln"))):
     should.backend_full_build = True
 
   elif f.startswith("backend/") and \
