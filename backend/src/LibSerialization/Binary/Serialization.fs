@@ -45,26 +45,19 @@ let makeSerializer<'T, 'ID>
   : 'ID -> 'T -> byte[] =
   fun id value ->
     wrap (fun () -> string id) (fun () ->
-      // First, write payload to get length for header
-      use payloadStream = new MemoryStream()
-      use payloadWriter = new BinaryWriter(payloadStream)
+      // One pass into this thread's reused stream: the header with a zero length, the payload,
+      // then the length patched in. The one array made is the blob itself.
+      Scratch.WithStream(fun stream w ->
+        Header.write w { Version = CurrentVersion; DataLength = 0u }
+        writer w value
+        w.Flush()
 
-      writer payloadWriter value
-      payloadWriter.Flush()
-      let payloadBytes = payloadStream.ToArray()
-
-      // Now write header + payload
-      use finalStream = new MemoryStream()
-      use finalWriter = new BinaryWriter(finalStream)
-
-      let header =
-        { Version = CurrentVersion; DataLength = uint32 payloadBytes.Length }
-
-      Header.write finalWriter header
-      finalWriter.Write(payloadBytes)
-      finalWriter.Flush()
-
-      finalStream.ToArray())
+        let buffer = stream.GetBuffer()
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+          System.Span<byte>(buffer, 4, 4),
+          uint32 (stream.Length - 8L)
+        )
+        stream.ToArray()))
 
 
 /// Version-dispatched deserializer: the reader receives the blob's format version, so a type whose
@@ -223,11 +216,10 @@ module RT =
 
   module ValueType =
     let serialize (vt : LibExecution.RuntimeTypes.ValueType) : byte[] =
-      use stream = new MemoryStream()
-      use w = new BinaryWriter(stream)
-      RT.ValueType.write w vt
-      w.Flush()
-      stream.ToArray()
+      Scratch.WithStream(fun stream w ->
+        RT.ValueType.write w vt
+        w.Flush()
+        stream.ToArray())
 
     let deserialize (data : byte[]) : LibExecution.RuntimeTypes.ValueType =
       use stream = new MemoryStream(data)
