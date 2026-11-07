@@ -92,6 +92,40 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "charToUppercase" 0
+      typeParams = []
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TChar
+      description =
+        "Returns <param c> uppercased with Unicode's simple case mapping, one Char "
+        + "to one"
+      fn =
+        (function
+        | _, _, _, [| DChar c |] ->
+          Ply(DChar(Builtins.Pure.CaseMapping.charToUppercase c))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "charToLowercase" 0
+      typeParams = []
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TChar
+      description =
+        "Returns <param c> lowercased with Unicode's simple case mapping, one Char "
+        + "to one"
+      fn =
+        (function
+        | _, _, _, [| DChar c |] ->
+          Ply(DChar(Builtins.Pure.CaseMapping.charToLowercase c))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "charFromCodepoint" 0
       typeParams = []
       parameters = [ Param.make "codepoint" TUInt32 "" ]

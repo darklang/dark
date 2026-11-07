@@ -1,18 +1,19 @@
 module Darklang.Stdlib.Char
 
 
-/// Return the uppercase value of <param c>. If <param c> does not have an uppercase value, returns <param c>
-let toUppercase(c: Char): Char =
-  match Stdlib.String.head(Stdlib.String.toUppercase(Stdlib.toString(c))) with
-  | Some(upper) -> upper
-  | None -> c
+/// Return <param c> uppercased by Unicode's simple case mapping, one Char to one. A
+/// Char whose uppercase is longer is returned unchanged: {{toUppercase('ß')}} is
+/// {{'ß'}}, where <fn Stdlib.String.toUppercase> gives {{"SS"}}. No language's own
+/// rules apply: {{'i'}} and the Turkish dotless {{'ı'}} both become {{'I'}}. A Char
+/// with no case, such as a digit or an emoji, is returned as it is.
+let toUppercase(c: Char): Char = Builtin.charToUppercase(c)
 
 
-/// Return the lowercase value of <param c>. If <param c> does not have a lowercase value, returns <param c>
-let toLowercase(c: Char): Char =
-  match Stdlib.String.head(Stdlib.String.toLowercase(Stdlib.toString(c))) with
-  | Some(lower) -> lower
-  | None -> c
+/// Return <param c> lowercased by Unicode's simple case mapping, one Char to one.
+/// {{'İ'}} becomes {{'i'}}, where <fn Stdlib.String.toLowercase> keeps its dot as a
+/// combining mark, and {{'Σ'}} is always {{'σ'}}, since a lone Char ends no word. A
+/// Char with no case is returned as it is.
+let toLowercase(c: Char): Char = Builtin.charToLowercase(c)
 
 
 /// Return whether <param c> is a lowercase character.

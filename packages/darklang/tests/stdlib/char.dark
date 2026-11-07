@@ -34,7 +34,13 @@ test toLowercase =
       Stdlib.Char.toLowercase('Ł') |> Stdlib.Test.equal('ł')
       Stdlib.Char.toLowercase(hand()) |> Stdlib.Test.equal(hand())
       Stdlib.Char.toLowercase('Ჾ') |> Stdlib.Test.equal('ჾ')
-      Stdlib.Char.toLowercase('ჾ') |> Stdlib.Test.equal('ჾ') ])
+      Stdlib.Char.toLowercase('ჾ') |> Stdlib.Test.equal('ჾ')
+      Stdlib.Char.toLowercase('ẞ') |> Stdlib.Test.equal('ß')
+      // no Turkish rules, and no combining dot: one Char to one
+      Stdlib.Char.toLowercase('I') |> Stdlib.Test.equal('i')
+      Stdlib.Char.toLowercase('İ') |> Stdlib.Test.equal('i')
+      // no word for it to end
+      Stdlib.Char.toLowercase('Σ') |> Stdlib.Test.equal('σ') ])
 
 test toUppercase =
   Stdlib.Test.all(
@@ -48,7 +54,16 @@ test toUppercase =
       Stdlib.Char.toUppercase('ł') |> Stdlib.Test.equal('Ł')
       Stdlib.Char.toUppercase(hand()) |> Stdlib.Test.equal(hand())
       Stdlib.Char.toUppercase('ჾ') |> Stdlib.Test.equal('Ჾ')
-      Stdlib.Char.toUppercase('Ჾ') |> Stdlib.Test.equal('Ჾ') ])
+      Stdlib.Char.toUppercase('Ჾ') |> Stdlib.Test.equal('Ჾ')
+      // one Char to one: a longer uppercase leaves the Char alone, where
+      // Stdlib.String.toUppercase gives "SS" and "FI"
+      Stdlib.Char.toUppercase('ß') |> Stdlib.Test.equal('ß')
+      Stdlib.Char.toUppercase('ﬁ') |> Stdlib.Test.equal('ﬁ')
+      Stdlib.Char.toUppercase('ΐ') |> Stdlib.Test.equal('ΐ')
+      // no Turkish rules
+      Stdlib.Char.toUppercase('i') |> Stdlib.Test.equal('I')
+      Stdlib.Char.toUppercase('ı') |> Stdlib.Test.equal('I')
+      Stdlib.Char.toUppercase('ς') |> Stdlib.Test.equal('Σ') ])
 
 test isLowercase =
   Stdlib.Test.all(

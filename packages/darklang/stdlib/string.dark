@@ -49,11 +49,21 @@ let replaceAll(s: String, searchFor: String, replaceWith: String): String =
   Builtin.stringReplaceAll(s, searchFor, replaceWith)
 
 
-/// Returns the string, uppercased
+/// Returns <param s> uppercased by Unicode's full case mapping, so one character can
+/// become several: {{"straße"}} becomes {{"STRASSE"}} and {{"ﬁ"}} becomes {{"FI"}},
+/// and the result can be longer. The rules are the same on every machine, whatever
+/// its locale, and no language's own rules apply: {{"i"}} becomes {{"I"}}, never the
+/// Turkish {{"İ"}}. Characters with no case, emoji among them, are left as they are.
+/// <fn Stdlib.Char.toUppercase> maps one Char to one Char instead, and leaves
+/// {{'ß'}} alone.
 let toUppercase(s: String): String = Builtin.stringToUppercase(s)
 
 
-/// Returns the string, lowercased
+/// Returns <param s> lowercased by Unicode's full case mapping, the same on every
+/// machine and with no language's own rules: {{"I"}} becomes {{"i"}}, never the
+/// Turkish {{"ı"}}, and {{"İ"}} becomes {{"i̇"}}, an i and a combining dot. A Greek
+/// {{"Σ"}} that ends a word becomes the final {{"ς"}}: {{"ΟΔΟΣ"}} is {{"οδος"}}.
+/// <fn Stdlib.Char.toLowercase> maps one Char to one Char instead.
 let toLowercase(s: String): String = Builtin.stringToLowercase(s)
 
 

@@ -260,10 +260,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
-      description = "Returns the string, uppercased"
+      description =
+        "Returns <param s> uppercased with Unicode's full case mapping, which can "
+        + "make it longer"
       fn =
         (function
-        | _, _, _, [| DString s |] -> Ply(DString(String.toUppercase s))
+        | _, _, _, [| DString s |] ->
+          Ply(DString(Builtins.Pure.CaseMapping.toUppercase s))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -274,10 +277,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
-      description = "Returns the string, lowercased"
+      description =
+        "Returns <param s> lowercased with Unicode's full case mapping, which can "
+        + "make it longer"
       fn =
         (function
-        | _, _, _, [| DString s |] -> Ply(DString(String.toLowercase s))
+        | _, _, _, [| DString s |] ->
+          Ply(DString(Builtins.Pure.CaseMapping.toLowercase s))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
