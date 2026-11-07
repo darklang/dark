@@ -6,8 +6,8 @@ module Darklang.Stdlib.HttpServer.Tests
 // status and body text.
 let routeNotes(method: String, headers: List<String * String>): (Int64 * String) =
   let handlers =
-    [ Stdlib.HttpServer.get("/notes", fun req -> Stdlib.Http.responseWithText("list", 200))
-      Stdlib.HttpServer.post("/notes", fun req -> Stdlib.Http.responseWithText("created", 200)) ]
+    [ Stdlib.HttpServer.get("/notes", fun req -> Stdlib.Http.responseWithText(200, "list"))
+      Stdlib.HttpServer.post("/notes", fun req -> Stdlib.Http.responseWithText(200, "created")) ]
 
   let response =
     Stdlib.HttpServer.routeRequest(

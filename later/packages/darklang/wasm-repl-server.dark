@@ -36,7 +36,7 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   if Stdlib.String.contains path ".." then
     Stdlib.Http.forbidden ()
   else if method != "GET" && method != "HEAD" then
-    Stdlib.Http.responseWithText "method not allowed" 405
+    Stdlib.Http.responseWithText 405 "method not allowed"
   else
     let file = if path == "/" then "/index.html" else path
 
@@ -45,7 +45,7 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
       // HEAD gets the same headers/status as GET, minus the body
       let body = if method == "HEAD" then Stdlib.String.toBlob "" else blob
       Stdlib.Http.responseWithHeaders
-        body
-        [ ("Content-Type", contentType file) ]
         200
+        [ ("Content-Type", contentType file) ]
+        body
     | Error _ -> Stdlib.Http.notFound ()

@@ -1,6 +1,6 @@
 [http-handler PATCH /]
 (let fake = request.headers |> Darklang.Stdlib.List.any(fun((k, _v)) -> k == "x-http-method")
- Darklang.Stdlib.Http.response(Darklang.Stdlib.Utf8.encode(request.method + " " + Darklang.Stdlib.toString(fake)), 200))
+ Darklang.Stdlib.Http.response(200, Darklang.Stdlib.Utf8.encode(request.method + " " + Darklang.Stdlib.toString(fake))))
 
 [request]
 PATCH / HTTP/1.1

@@ -371,7 +371,7 @@ demo 1, TUI follows edits
 
 The same beats on one machine, by hand: `dark fn Me.Demo.page '(): String = "v1"'`, `dark fn
 Me.Demo.router '(req: Stdlib.Http.Request): Stdlib.Http.Response =
-Stdlib.Http.responseWithText(Me.Demo.page(), 200)'`, `dark permissions allow http-server
+Stdlib.Http.responseWithText(200, Me.Demo.page())'`, `dark permissions allow http-server
 9095`, `dark serve Me.Demo.router --port 9095 --live`; then `dark fn Me.Demo.page '():
 String = "v2"'` in another terminal and the next `curl` has it; `dark fn Me.Demo.page '():
 String = 3'` leaves the page on v2 and prints the diagnostic in the serve terminal.

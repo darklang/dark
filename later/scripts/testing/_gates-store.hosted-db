@@ -43,12 +43,12 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   | "POST" ->
     let note = Stdlib.String.fromBlobWithReplacement req.body
     let _ = Stdlib.DB.set (Note { hostedDbGateNote = note }) note HostedDbNotes
-    Stdlib.Http.responseWithText $"signed, {Stdlib.toString (countOf HostedDbNotes)} so far" 201
+    Stdlib.Http.responseWithText 201 $"signed, {Stdlib.toString (countOf HostedDbNotes)} so far"
   | _ ->
     Stdlib.DB.getAll HostedDbNotes
     |> Stdlib.List.map (fun n -> n.hostedDbGateNote)
     |> Stdlib.List.sort
-    |> (fun notes -> Stdlib.Http.responseWithText (Stdlib.String.join notes ",") 200)
+    |> (fun notes -> Stdlib.Http.responseWithText 200 (Stdlib.String.join notes ","))
 DARK
 )
   want "a parameter typed DB<Note> saves" "Defined 2 declarations" "$saved"

@@ -274,19 +274,19 @@ type Response =
     body: Bytes }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with <param body> and HTTP status <param statusCode>.
-let response(body: Bytes, statusCode: Int64): Stdlib.Http.Response =
+/// respond with HTTP status <param statusCode> and <param body>.
+let response(statusCode: Int64, body: Bytes): Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = []
       body = body }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with <param body>, <param headers> and HTTP status <param statusCode>.
+/// respond with HTTP status <param statusCode>, <param headers> and <param body>.
 let responseWithHeaders(
-  body: Bytes,
+  statusCode: Int64,
   headers: List<String * String>,
-  statusCode: Int64)
+  body: Bytes)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -302,11 +302,11 @@ let success(body: Bytes): Stdlib.Http.Response =
       body = body }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with <param body> and HTTP status <param statusCode>, with the
+/// respond with HTTP status <param statusCode> and <param body>, with the
 /// Content-Type header set to "text/html; charset=utf-8".
 let responseWithHtml(
-  body: String,
-  statusCode: Int64)
+  statusCode: Int64,
+  body: String)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -315,11 +315,11 @@ let responseWithHtml(
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with <param text> and HTTP status <param statusCode>, with the
+/// respond with HTTP status <param statusCode> and <param text>, with the
 /// Content-Type header set to "text/plain; charset=utf-8".
 let responseWithText(
-  text: String,
-  statusCode: Int64)
+  statusCode: Int64,
+  text: String)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -327,11 +327,11 @@ let responseWithText(
       body = Stdlib.Utf8.encode(text) }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
-/// respond with <param json> and HTTP status <param statusCode>, with the
+/// respond with HTTP status <param statusCode> and <param json>, with the
 /// Content-Type header set to "application/json".
 let responseWithJson(
-  json: String,
-  statusCode: Int64)
+  statusCode: Int64,
+  json: String)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode

@@ -26,7 +26,7 @@ Handlers are values; `routeRequest` dispatches to them by method and path.
   module MyApp
 
   let helloFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
-    Stdlib.Http.responseWithText("Hello, World!", 200)
+    Stdlib.Http.responseWithText(200, "Hello, World!")
 
   val hello =
     Stdlib.HttpServer.Handler
@@ -58,14 +58,13 @@ The path is not a field - it's derived from the url:
 
 ## Response
 
-Body first, status last - the reverse of what you might expect. Headers, when
-you give them, go in between.
+Status first, then the body. Headers, when you give them, go in between.
 
-  Stdlib.Http.responseWithText("Hello", 200)
-  Stdlib.Http.responseWithHtml("<h1>Hi</h1>", 200)
-  Stdlib.Http.responseWithJson(jsonString, 200)
-  Stdlib.Http.responseWithHeaders(bodyBytes, [ ("x-thing", "value") ], 200)
-  Stdlib.Http.response(bodyBytes, 200)          # the raw one; body is a Bytes
+  Stdlib.Http.responseWithText(200, "Hello")
+  Stdlib.Http.responseWithHtml(200, "<h1>Hi</h1>")
+  Stdlib.Http.responseWithJson(200, jsonString)
+  Stdlib.Http.responseWithHeaders(200, [ ("x-thing", "value") ], bodyBytes)
+  Stdlib.Http.response(200, bodyBytes)  # the raw one; body is a Bytes
   Stdlib.Http.notFound()
 
 A status is a plain number here. `Stdlib.Http.Status` names the common ones and
@@ -76,7 +75,7 @@ checks the rest: `Status.toInt64(Status.tooManyRequests)` is 429, and
 
   # given route "/user/:id" and a request for "/user/42"
   match Stdlib.HttpServer.getPathParam(req, "/user/:id", "id") with
-  | Some(id) -> Stdlib.Http.responseWithText($"user {id}", 200)
+  | Some(id) -> Stdlib.Http.responseWithText(200, $"user {id}")
   | None -> Stdlib.Http.notFound()
 
 `matchRoute pattern path` is the lower-level form. It returns a record, not an
