@@ -5,12 +5,12 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 
 test testDeclarations =
   Stdlib.Test.all(
-    [ roundTrip("keyword-named test", "test ``type`` = true", "test ``type`` = true")
-      roundTrip(
+    [ roundTripPackage("keyword-named test", "test ``type`` = true", "test ``type`` = true")
+      roundTripPackage(
         "named package test",
         "/// Checks the simplest assertion\ntest passes = true",
         "/// Checks the simplest assertion\ntest passes = true")
-      roundTrip(
+      roundTripPackage(
         "named package test expecting a runtime error",
         "test divisionByZero =\n  1 / 0\n  => raises \"Cannot divide by 0\"",
         "test divisionByZero =\n  1 / 0\n  => raises \"Cannot divide by 0\"") ])

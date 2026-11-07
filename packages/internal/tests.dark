@@ -40,7 +40,8 @@ let parseSingleTestFromFile(
   testSource: String)
   : Stdlib.Result.Result<PTTest, String> =
   match testSource |> LanguageTools.Parser.Parse.initialParse with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) ->
+    Stdlib.Result.Result.Error(LanguageTools.Parser.Parse.ParseError.toString(e))
   | Ok(parsedFile) ->
     match Test.parseTest(parsedFile) with
     | Error(e) -> Stdlib.Result.Result.Error(e)

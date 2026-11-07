@@ -161,6 +161,26 @@ test exprsInvalidEscapeSequences =
         "match x with\n| Stdlib.Result.Result.Ok n -> 1\n| _ -> 0",
         "a constructor pattern's fields go in parentheses, separated by commas") ])
 
+test exprEntryPointsRejectSyntaxErrors =
+  Stdlib.Test.all(
+    [ exprRejected("garbage tokens", "@@@")
+      exprRejected(
+        "a spaced constructor-pattern field",
+        "match x with\n| Ok n -> 1\n| _ -> 0")
+      sourceFileRejected(
+        "a fn whose body has a syntax error",
+        "let f(x: Int64): Int64 =\n  match x with\n  | Ok n -> 1\n  | _ -> 0")
+      sourceFileRejected("garbage after a declaration", "let f(): Int64 = 1\n@@@") ])
+
+// The line and column in the message count from 1, as the position in the parser message does.
+test parseErrorMessageCountsFromOne =
+  match LanguageTools.Parser.Parse.parsePTExpr("Stdlib.Int64.add(1, 2") with
+  | Error(e) ->
+    Stdlib.Test.equal(
+      LanguageTools.Parser.Parse.ParseError.toString(e),
+      "Parse error at line 1, column 22: expected ')' to close the '(' at line 1:17, found end of file")
+  | Ok(_) -> Stdlib.Test.fail("parsed, but should have been rejected")
+
 test exprsWellFormedEscapes =
   Stdlib.Test.all(
     [ // Well-formed escapes that are not valid Unicode scalars are rejected:
@@ -281,7 +301,7 @@ test exprsRecordWithType =
         "{ person with age = 31, hasPet = false }",
         "{ person with age = 31, hasPet = false }")
       // enum literal
-      roundTrip("enum with type args", "Generic<Int64>.A 1", "Generic<Int64>.A(1)")
+      roundTrip("enum with type args", "Generic<Int64>.A(1)", "Generic<Int64>.A(1)")
       // Literal braces in an interpolated string are written doubled; printed back, they must be
       // doubled again, or `{{x}}` (the text `{x}`) comes back as an interpolation of `x`.
       roundTrip("interpolated string, literal braces", "$\"{{x}} = {x}\"", "$\"{{x}} = {x}\"")
@@ -291,7 +311,7 @@ test exprsRecordWithType =
       roundTrip("custom enum fn params", "MyEnum.D(1, 2)", "MyEnum.D(1, 2)")
       roundTrip(
         "enum with indented field",
-        "Stdlib.Result.Result.Error\n  Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero",
+        "Stdlib.Result.Result.Error(\n  Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)",
         "Result.Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)") ])
 
 test exprsQualifiedValue =
@@ -524,7 +544,7 @@ test exprsThePrefixOperators =
       roundTrip("prefix bang", "!true", "Builtin.boolNot(true)")
       roundTrip("prefix tilde", "~1", "Builtin.bitwiseNot(1)")
       roundTrip("unary minus on a non-literal", "-x", "Builtin.negate(x)")
-      roundTrip("prefix bang takes a whole application", "!f x", "Builtin.boolNot(f(x))")
+      roundTrip("prefix bang takes a whole application", "!f(x)", "Builtin.boolNot(f(x))")
       // `|` is the match-arm separator inside a match, so a bitwise-or in an arm
       // body has to come back parenthesised or it re-parses as the next arm.
       roundTrip(

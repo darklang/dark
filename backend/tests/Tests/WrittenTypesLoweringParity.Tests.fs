@@ -339,10 +339,10 @@ let tests =
              [],
              [ "x" ],
              "x |> Stdlib.Json.serialize<Bool>")
-            ("bare-some", [ "M" ], [], [], "Some 5")
+            ("bare-some", [ "M" ], [], [], "Some(5)")
             ("bare-none", [ "M" ], [], [], "None")
-            ("bare-ok", [ "M" ], [], [], "Ok 5")
-            ("bare-error", [ "M" ], [], [], "Error \"no\"")
+            ("bare-ok", [ "M" ], [], [], "Ok(5)")
+            ("bare-error", [ "M" ], [], [], "Error(\"no\")")
             // Cover bare and qualified enum constructors in pipes.
             ("pipe-bare-some", [ "M" ], [], [], "5 |> Some")
             ("pipe-bare-error", [ "M" ], [], [], "\"no\" |> Error")

@@ -45,7 +45,7 @@ let private runHash (h : string) : Task<string> =
   task {
     let code =
       "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, "
-      + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{h}\")"
+      + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{h}\"))"
     match! evalAsCli code with
     | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Pass", []) ])) -> return "pass"
     | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Fail", [ RT.DList(_, ms) ]) ])) ->
@@ -268,7 +268,7 @@ test failsAfterObservation =
         { owner = "Darklang"; modules = [ m ]; name = "failsAfterObservation" }
     let execute h =
       "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, "
-      + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{h}\")"
+      + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{h}\"))"
     let check h = $"({execute h}) |> Stdlib.Test.equal(Ok(Stdlib.Test.pass()))"
     let countHash = Option.get countHash
     let emptyHash = Option.get emptyHash
@@ -287,7 +287,7 @@ test failsAfterObservation =
     for result in concurrentResults do
       Expect.equal result "pass" "concurrent executions have separate counters"
 
-    for name in [ "incrementCounter ()"; "counterValue ()" ] do
+    for name in [ "incrementCounter()"; "counterValue()" ] do
       let! outside = evalDarkExpr $"Stdlib.Test.{name}"
       match outside with
       | Error(RT.RuntimeError.UncaughtException(message, _), _) ->
@@ -302,7 +302,7 @@ test failsAfterObservation =
       let! safe =
         evalDarkExpr (
           "Darklang.LanguageTools.PackageManager.Test.isCacheSafe("
-          + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{hash}\")"
+          + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{hash}\"))"
         )
       match safe with
       | Ok(RT.DBool false) -> ()

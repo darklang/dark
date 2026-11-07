@@ -777,24 +777,26 @@ let theDeclarationCheckReadsArgumentsRight =
       task {
         let A = "Darklang.Cli.Accepts."
         let cases =
-          [ $"{A}upTo 1 [ \"--json\" ]", [ "x"; "--json" ], false
-            $"{A}upTo 1 [ \"--json\" ]", [ "x"; "y" ], true
-            $"{A}flagsOnly []", [ "--zzz" ], true
-            $"{A}withValues [ \"--depth\" ] ({A}upTo 1 [])", [ "--depth=1" ], false
-            $"{A}withValues [ \"--depth\" ] ({A}upTo 1 [])",
+          [ $"{A}upTo(1, [ \"--json\" ])", [ "x"; "--json" ], false
+            $"{A}upTo(1, [ \"--json\" ])", [ "x"; "y" ], true
+            $"{A}flagsOnly([])", [ "--zzz" ], true
+            $"{A}withValues([ \"--depth\" ], {A}upTo(1, []))",
+            [ "--depth=1" ],
+            false
+            $"{A}withValues([ \"--depth\" ], {A}upTo(1, []))",
             [ "--depth"; "3"; "path" ],
             false
-            $"{A}withValues [ \"--depth\" ] ({A}upTo 1 [])", [ "--depth" ], true
+            $"{A}withValues([ \"--depth\" ], {A}upTo(1, []))", [ "--depth" ], true
             // A lone "-" is a word: standard input.
-            $"{A}between 2 2 []", [ "Some.Module"; "-" ], false
+            $"{A}between(2, 2, [])", [ "Some.Module"; "-" ], false
             // Every word a word: an expression may start with a minus.
-            $"{A}text 1", [ "-1L"; "+"; "2" ], false
-            $"{A}between 1 1 []", [], true
+            $"{A}text(1)", [ "-1L"; "+"; "2" ], false
+            $"{A}between(1, 1, [])", [], true
             // The subcommand is the first word that is not a flag.
-            $"{A}everywhere [ \"--json\" ] [] ({A}subcommands [ (\"list\", {A}upTo 1 []) ] ({A}nothing ()))",
+            $"{A}everywhere([ \"--json\" ], [], {A}subcommands([ (\"list\", {A}upTo(1, [])) ], {A}nothing()))",
             [ "--json"; "list"; "3" ],
             false
-            $"{A}everywhere [ \"--json\" ] [] ({A}subcommands [ (\"list\", {A}upTo 1 []) ] ({A}nothing ()))",
+            $"{A}everywhere([ \"--json\" ], [], {A}subcommands([ (\"list\", {A}upTo(1, [])) ], {A}nothing()))",
             [ "zzz" ],
             true ]
 

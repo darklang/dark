@@ -189,8 +189,18 @@ let branchWith(prelude: String): Uuid =
 
 /// `Parse.parsePTSourceFileWithOps`, keeping the unresolved names it drops, with real hashes.
 let parseOn(branchId: Uuid, source: String): Stdlib.Result.Result<Parsed, String> =
-  match LanguageTools.Parser.Parse.initialParse(source) with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  parseOnAs(LanguageTools.Parser.FileKind.Script, branchId, source)
+
+
+/// `parseOn`, parsing <param source> as a <param kind> file.
+let parseOnAs(
+  kind: LanguageTools.Parser.FileKind,
+  branchId: Uuid,
+  source: String)
+  : Stdlib.Result.Result<Parsed, String> =
+  match LanguageTools.Parser.Parse.initialParseAs(kind, source) with
+  | Error(e) ->
+    Stdlib.Result.Result.Error(LanguageTools.Parser.Parse.ParseError.toString(e))
   | Ok(parsedFile) ->
     let (tree, ops, unresolved) =
       LanguageTools.WrittenTypesToProgramTypes.parsedFileAsSourceFile(branchId, parsedFile)
@@ -263,11 +273,22 @@ let roundTripWith(
   source: String,
   expected: String)
   : Stdlib.Test.Result =
+  roundTripAs(LanguageTools.Parser.FileKind.Script, prelude, name, source, expected)
+
+
+/// `roundTripWith`, parsing as a <param kind> file.
+let roundTripAs(
+  kind: LanguageTools.Parser.FileKind,
+  prelude: String,
+  name: String,
+  source: String,
+  expected: String)
+  : Stdlib.Test.Result =
   let fail = fun message -> Stdlib.Test.fail($"{name}: {message}")
   // Every parse happens on a branch that never holds the case's own declarations.
   let parseBranch = branchWith(prelude)
 
-  match parseOn(parseBranch, source) with
+  match parseOnAs(kind, parseBranch, source) with
   | Error(e) -> fail("parse error: " + e)
   | Ok(first) ->
     let firstBranch = branchWith(prelude)
@@ -277,7 +298,7 @@ let roundTripWith(
     if firstPrint != expected then
       fail($"didn't round-trip as expected.\nexpected:\n{expected}\ngot:\n{firstPrint}")
     else
-      match parseOn(parseBranch, firstPrint) with
+      match parseOnAs(kind, parseBranch, firstPrint) with
       | Error(e) -> fail("re-parsing the printed source: " + e)
       | Ok(second) ->
         let secondBranch = branchWith(prelude)
@@ -292,7 +313,7 @@ let roundTripWith(
         let widthPrint = printAt(firstBranch, width, first)
 
         let widthProblems =
-          match parseOn(parseBranch, widthPrint) with
+          match parseOnAs(kind, parseBranch, widthPrint) with
           | Error(e) -> [ $"width {Stdlib.toString(width)}: re-parse failed: {e}\n{widthPrint}" ]
           | Ok(atWidth) ->
             sameProgram($"printed at width {Stdlib.toString(width)}\n{widthPrint}\n", atWidth, first)
@@ -313,6 +334,11 @@ let roundTripWith(
 
 let roundTrip(name: String, source: String, expected: String): Stdlib.Test.Result =
   roundTripWith("", name, source, expected)
+
+
+/// `roundTrip` for source only a package file may hold, such as a named test.
+let roundTripPackage(name: String, source: String, expected: String): Stdlib.Test.Result =
+  roundTripAs(LanguageTools.Parser.FileKind.Package, "", name, source, expected)
 
 
 // Declarations some cases refer to, as `Tests.X` from an expression or `X` from a declaration.
@@ -350,7 +376,9 @@ let decodesToString(name: String, source: String, expected: String): Stdlib.Test
     match e with
     | EString(_, _) -> decoded(e) |> Stdlib.Test.equal(expected)
     | _ -> Stdlib.Test.fail($"{name}: not a string literal")
-  | Error(e) -> Stdlib.Test.fail($"{name}: parse error: {e}")
+  | Error(e) ->
+    Stdlib.Test.fail(
+      $"{name}: parse error: {LanguageTools.Parser.Parse.ParseError.toString(e)}")
 
 let decodesToChar(name: String, source: String, expected: String): Stdlib.Test.Result =
   match LanguageTools.Parser.Parse.parsePTExpr(source) with
@@ -358,11 +386,31 @@ let decodesToChar(name: String, source: String, expected: String): Stdlib.Test.R
     match e with
     | EChar(_, c) -> c |> Stdlib.Test.equal(expected)
     | _ -> Stdlib.Test.fail($"{name}: not a char literal")
-  | Error(e) -> Stdlib.Test.fail($"{name}: parse error: {e}")
+  | Error(e) ->
+    Stdlib.Test.fail(
+      $"{name}: parse error: {LanguageTools.Parser.Parse.ParseError.toString(e)}")
 
 
-/// The CLI's parse path, which reports a per-declaration syntax error as `Error` where
-/// `parsePTSourceFileWithOps` would set it aside and return `Ok`.
+/// <param source> as an expression is refused. The parser recovers a tree from most syntax errors,
+/// and `parsePTExpr` used to lower that tree, holes and all, and return `Ok`.
+let exprRejected(name: String, source: String): Stdlib.Test.Result =
+  match LanguageTools.Parser.Parse.parsePTExpr(source) with
+  | Error(_) -> Stdlib.Test.pass()
+  | Ok(_) -> Stdlib.Test.fail($"{name}: parsed, but should have been rejected")
+
+/// <param source> as a source file is refused with its syntax diagnostics.
+let sourceFileRejected(name: String, source: String): Stdlib.Test.Result =
+  match
+    LanguageTools.Parser.Parse.parsePTSourceFileWithOps(SCM.Branch.mainBranchId, source)
+  with
+  | Error(Syntax([ _, ... ])) -> Stdlib.Test.pass()
+  | Error(e) ->
+    Stdlib.Test.fail(
+      $"{name}: rejected, but not for its syntax: {LanguageTools.Parser.Parse.ParseError.toString(e)}")
+  | Ok(_) -> Stdlib.Test.fail($"{name}: parsed, but should have been rejected")
+
+
+/// The CLI's parse path.
 let cliParse(
   source: String)
   : Stdlib.Result.Result<

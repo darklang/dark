@@ -705,6 +705,7 @@ module Fn =
       let parsePTExpr = p [ "Parse" ] "parsePTExpr"
       let parsePTExprInContext = p [ "Parse" ] "parsePTExprInContext"
       let parsePTSourceFileWithOps = p [ "Parse" ] "parsePTSourceFileWithOps"
+      let parseErrorToString = p [ "Parse"; "ParseError" ] "toString"
 
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
