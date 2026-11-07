@@ -207,8 +207,8 @@ let interleave(lA: List<'a>, lB: List<'a>): List<'a> =
 /// Keeps what it has seen in a <type Dict> keyed on {{fn value}} rather than
 /// scanning a list per element, so this is O(n log n) and not quadratic.
 /// Uniqueness is therefore decided by <type Dict> key comparison rather than by
-/// {{==}}: {{NaN}} collapses, and a {{fn value}} no <type Dict> can key (a
-/// lambda, a stream) raises.
+/// {{==}}, and a {{fn value}} no <type Dict> can key (a lambda, a stream, a
+/// {{NaN}}) raises.
 let uniqueBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
   list
   |> fold(([], Dict { }), fun((unique, seen), value) ->
