@@ -100,34 +100,11 @@ let initializeFromOps (ops : List<LibExecution.ProgramTypes.PackageOp>) : unit =
 /// answer for whoever starts next.
 let generate (writeSourceFile : bool) : Ply<unit> =
   uply {
-    // Collect all referenced items from PackageRefs _lookup maps
-    let typeRefKeys =
-      PackageRefs.Type._lookup
-      |> Map.toList
-      |> List.map (fun ((modules, name), _hash) ->
-        buildKey "type" (String.concat "." modules) name)
-      |> Set.ofList
-
-    let fnRefKeys =
-      PackageRefs.Fn._lookup
-      |> Map.toList
-      |> List.map (fun ((modules, name), _hash) ->
-        buildKey "fn" (String.concat "." modules) name)
-      |> Set.ofList
-
-    let traitRefKeys =
-      PackageRefs.Trait._lookup
-      |> Map.toList
-      |> List.map (fun ((modules, name), _hash) ->
-        buildKey "trait" (String.concat "." modules) name)
-      |> Set.ofList
-
     // Include keys from disk: this process may not have registered every ref yet.
     let existingKeys =
       readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
 
-    let allRefKeys =
-      Set.unionMany [ typeRefKeys; fnRefKeys; traitRefKeys; existingKeys ]
+    let allRefKeys = Set.union (PackageRefs.declaredNames ()) existingKeys
 
     // Query all Darklang-owned locations from DB
     let! dbRows =
