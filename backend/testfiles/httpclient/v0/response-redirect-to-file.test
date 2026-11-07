@@ -18,7 +18,7 @@ Location: file:////etc/passwd
       headers =
         [
           ("server", "kestrel")
-          ("location", "file://etc/passwd")
+          ("location", "file:////etc/passwd")
           ("transfer-encoding", "chunked")
         ]
       body = Darklang.Stdlib.Bytes.empty }

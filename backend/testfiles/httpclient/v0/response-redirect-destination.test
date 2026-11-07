@@ -22,7 +22,7 @@ Redirect destination reached
       headers =
         [
           ("server", "kestrel")
-          ("arbitrary-header", "test value")
+          ("arbitrary-header", "Test value")
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]

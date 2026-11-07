@@ -1,0 +1,96 @@
+module Darklang.Cli.Docs.HttpClient
+
+let content(): String =
+  """# HTTP Client
+
+## Requests
+
+  Stdlib.HttpClient.get(url, [ ("Accept", "application/json") ])
+  Stdlib.HttpClient.post(url, [ Stdlib.HttpClient.ContentType.json ], body)
+  Stdlib.HttpClient.request("PATCH", url, headers, body)   # any method; body is Bytes
+  Stdlib.HttpClient.stream("GET", url, headers, Stdlib.Bytes.empty)
+
+Each answers `Result<Response<'body>, RequestError>`:
+
+  type Stdlib.HttpClient.Response<'body> =
+    { statusCode: Int64, headers: List<String * String>, body: 'body }
+
+`body` is Bytes from `request`, `get` and the rest, and a lazy `Stream<UInt8>`
+from `stream`. Header values come back as the server sent them, and a header
+sent twice (`Set-Cookie`) is two pairs. Look one up whatever its case:
+
+  Stdlib.HttpClient.Response.header(r, "ETag")       # Some("\"AbC\"")
+  Stdlib.HttpClient.Response.headers(r, "Set-Cookie") # every value
+  Stdlib.HttpClient.Response.text(r)                  # body as UTF-8, or Decode
+
+A GET or HEAD with no body is a read: it runs while your program goes on, and
+waits only where you look at the response, so `List.map(urls, get)` has them
+all in flight at once. Every other request runs in program order.
+
+## Middleware
+
+A request is a record, and sending is a function:
+
+  type Request = { method, url, headers, body, timeoutMs: Option<Int64> }
+  type Send<'body> = Request -> Result<Response<'body>, RequestError>
+  type Middleware<'body> = Send<'body> -> Send<'body>
+
+`get` and friends send through `Stdlib.HttpClient.defaultMiddleware()`: trim header
+names, refuse an empty one, and lowercase the response's names. Build your own
+client from a list, first listed outermost:
+
+  let send =
+    Stdlib.HttpClient.client(
+      Stdlib.List.flatten(
+        [ Stdlib.HttpClient.defaultMiddleware()
+          [ Stdlib.HttpClient.Middleware.baseUrl("https://api.example.com/v1/")
+            Stdlib.HttpClient.Middleware.bearer("https://api.example.com", token)
+            Stdlib.HttpClient.Middleware.timeout(5000)
+            Stdlib.HttpClient.Middleware.followRedirects(5)
+            Stdlib.HttpClient.Middleware.retry(3, 200) ] ]))
+
+  send(Stdlib.HttpClient.Request { method = "GET", url = "users", headers = [],
+    body = Stdlib.Bytes.empty, timeoutMs = Stdlib.Option.Option.None })
+
+`client([])` is the raw builtin, `Stdlib.HttpClient.sendRaw`, which reshapes
+nothing; `streamClient` is the same for streams.
+
+  Middleware.onRequest(f)        rewrite every request
+  Middleware.onResponse(f)       rewrite every response, without waiting for it
+  Middleware.header(n, v)        add a header unless the request has one
+  Middleware.timeout(ms)         the host gives up after ms: `Timeout`
+  Middleware.baseUrl(base)       resolve relative urls against base
+  Middleware.bearer(origin, t)   Authorization: Bearer, to that origin only
+  Middleware.followRedirects(n)  301/302/303/307/308, then `TooManyRedirects`
+  Middleware.retry(n, ms)        idempotent methods only, backing off from ms
+
+A middleware is any function from a `Send` to a `Send`, so your own is a few
+lines, used as `logged()` in the list:
+
+  let logged(): Stdlib.HttpClient.Middleware<Bytes> =
+    fun next ->
+      fun req ->
+        let r = next(req)
+        Stdlib.printLine(req.method + " " + req.url)
+        r
+
+That one waits for the response where it is sent, and so do `followRedirects`
+and `retry`: each has to look at the response to decide. A GET through them is
+no longer in flight while your program goes on. `onResponse` does not wait: its
+function runs when the response arrives (`Stdlib.whenReady`), which is why it
+may only compute, and why the default stack keeps a GET concurrent.
+
+## What middleware cannot do
+
+Your grants, the network guard, and the refusal of CR, LF or NUL in a header
+are the host's, below every middleware. A redirect or a retry is a fresh send,
+checked again for wherever it goes. Traces record each send, so every hop and
+every attempt shows in `traces show`.
+
+## Errors
+
+  BadUrl(...)  Timeout  BadHeader(...)  NetworkError  TlsError(msg)  BadMethod
+  TooManyRedirects  Decode(msg)
+
+`Stdlib.HttpClient.toString(e)` says one in words.
+"""

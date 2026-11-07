@@ -28,9 +28,6 @@ let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 /// store's `http.requestTimeoutMs` is unset (30 s). 0 means no limit.
 let defaultRequestTimeoutMs : int = 30_000
 
-/// HSTS header value matching the historical default for HTTP services.
-let private hstsHeaderValue = "max-age=31536000; includeSubDomains; preload"
-
 
 // ───────── pure stateless helpers ─────────
 
@@ -146,46 +143,11 @@ let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
         if not (isNull values) then for value in values -> key, value ]
 
 
-/// If `X-Forwarded-Proto: https` is present, rewrite scheme → https / port → 443.
-let private canonicalizeUrlFromForwardedProto
-  (url : string)
-  (headers : List<string * string>)
-  : string =
-  let isHttps =
-    headers
-    |> List.exists (fun (k, v) ->
-      String.equalsCaseInsensitive k "x-forwarded-proto"
-      && String.equalsCaseInsensitive v "https")
-  if isHttps then
-    try
-      let uri = System.UriBuilder(url)
-      uri.Port <- 443
-      uri.Scheme <- "https"
-      string uri.Uri
-    with _ ->
-      url
-  else
-    url
-
-
-/// Add `Server: darklang` + HSTS unless the handler already set them.
-let private maybeInjectStandardHeaders
-  (inject : bool)
-  (headers : List<string * string>)
-  : List<string * string> =
-  if not inject then
-    headers
-  else
-    let hasKey name =
-      headers |> List.exists (fun (k, _) -> String.equalsCaseInsensitive k name)
-    let extras =
-      [ if not (hasKey "server") then ("Server", "darklang")
-        if not (hasKey "strict-transport-security") then
-          ("Strict-Transport-Security", hstsHeaderValue) ]
-    headers @ extras
-
-
-let private logRequest
+/// A line for a request the server answered itself without saying why anywhere else: a body
+/// over the limit (413) or a handler past its time (504). A handler that failed, and a router
+/// with no usable version, print their own diagnostic. Every response a handler gives is logged
+/// by Dark middleware (`Stdlib.HttpServer.Middleware.logRequests`), which never sees these.
+let private logRequestLine
   (ctx : HttpListenerContext)
   (status : int)
   (started : System.DateTime)
@@ -204,6 +166,17 @@ let private logRequest
       "path", pathAndQuery
       "status", string status
       "duration_ms", string durationMs ]
+
+/// `logRequestLine`, never failing the request it reports on.
+let private logRequest
+  (ctx : HttpListenerContext)
+  (status : int)
+  (started : System.DateTime)
+  : unit =
+  try
+    logRequestLine ctx status started
+  with _ ->
+    ()
 
 
 // ───────── how a request finds its handler ─────────
@@ -363,6 +336,25 @@ let private textResponse
 /// The state is the per-request one (its own tracer); the spawn keeps that and stamps the process
 /// id on it. The access is the guest's, narrowed by the frame that called `serve`.
 ///
+/// The handler as it runs: `Stdlib.HttpServer.Middleware.handle(middleware, handler, request)`,
+/// so the server's middleware wraps it in Dark while `handler` itself stays what the approval
+/// root and the trace's entry hash are read from (`rootOf`). No middleware, no wrapping.
+let private wrapHandler (middleware : Dval) (handler : Applicable) : Applicable =
+  match middleware with
+  | DList(_, l) when DvalList.isEmpty l -> handler
+  | _ ->
+    AppNamedFn
+      { name =
+          FQFnName.fqPackage (
+            LibExecution.PackageRefs.Fn.Stdlib.HttpServer.handle ()
+          )
+        typeSymbolTable = TST.empty
+        typeArgs = []
+        access = None
+        approvalName = None
+        argsSoFar = [ middleware; DApplicable handler ]
+        boundImpls = [] }
+
 /// A handler that runs past `requestTimeoutMs` is cancelled (politely: what it has on the host
 /// completes, then it stops, its children with it) and the client gets a 504. A handler stopped
 /// from outside (`dark ps cancel`/`kill`) gets a 503 naming the reason. A handler that raises
@@ -525,13 +517,11 @@ let private handleRequest
   (routing : Routing)
   (maxBodyBytes : int64)
   (requestTimeoutMs : int)
-  (injectStandardHeaders : bool)
-  (canonicalizeFromForwardedProto : bool)
-  (logRequests : bool)
+  (middleware : Dval)
   (ctx : HttpListenerContext)
   : Task<unit> =
   task {
-    let started = if logRequests then Some System.DateTime.UtcNow else None
+    let started = System.DateTime.UtcNow
     // Ephemeral blobs carry their bytes inline (lifetime is GC), so there's no
     // shared blob store for concurrent requests to race over.
     let dev =
@@ -557,6 +547,7 @@ let private handleRequest
           match bodyResult with
           | Error() ->
             ctx.Response.StatusCode <- 413
+            logRequest ctx 413 started
             let msg = UTF8.toBytes "413 Payload Too Large"
             ctx.Response.ContentLength64 <- int64 msg.Length
             do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
@@ -572,11 +563,8 @@ let private handleRequest
               | null -> ctx.Request.Url.ToString()
               | raw when not (raw.StartsWith "/") && raw.Contains "://" -> raw
               | raw -> $"{ctx.Request.Url.Scheme}://{ctx.Request.Url.Authority}{raw}"
-            let url =
-              if canonicalizeFromForwardedProto then
-                canonicalizeUrlFromForwardedProto rawUrl reqHeaders
-              else
-                rawUrl
+            // `X-Forwarded-Proto` is Dark's (`Stdlib.HttpServer.Middleware.trustForwardedProto`).
+            let url = rawUrl
 
             let requestDval =
               Http.Request.fromRequest ctx.Request.HttpMethod url reqHeaders reqBody
@@ -610,7 +598,11 @@ let private handleRequest
             let! outcome =
               match resolved with
               | Ok(_, handler) ->
-                executeHandler requestTimeoutMs perRequestState handler requestDval
+                executeHandler
+                  requestTimeoutMs
+                  perRequestState
+                  (wrapHandler middleware handler)
+                  requestDval
               | Error msg ->
                 // No usable version: say so, keep listening. The diagnostic is on stdout already
                 // (Dark prints it when the verdict changes), so the wire gets a plain 503.
@@ -621,7 +613,12 @@ let private handleRequest
             let! response =
               match outcome with
               | Value result -> Http.Response.toHttpResponse perRequestState result
-              | Direct response -> Task.FromResult response
+              | Direct response ->
+                // A timeout says nothing else on the terminal; a failed handler and an
+                // unusable router have printed why already.
+                if response.statusCode = 504 then
+                  logRequest ctx response.statusCode started
+                Task.FromResult response
             do! tracer.storeTraceResults perRequestState |> Ply.toTask
 
             // A served request is a run like any other (`dark traces`), so it says how it went
@@ -653,8 +650,8 @@ let private handleRequest
                 | _ -> ()
               | Error _ -> ()
 
-            let respHeaders =
-              maybeInjectStandardHeaders injectStandardHeaders response.headers
+            // `Server` and HSTS are Dark's (`Stdlib.HttpServer.Middleware.standardHeaders`).
+            let respHeaders = response.headers
 
             // Only when the client asked (`maybeCompress` has the ratios and floor).
             // Never on a body the handler already encoded (double-wrap), and always
@@ -718,13 +715,6 @@ let private handleRequest
             ()
         | _ -> ()
     finally
-      match started with
-      | Some started when not isLiveStream ->
-        try
-          logRequest ctx ctx.Response.StatusCode started
-        with _ ->
-          ()
-      | _ -> ()
       try
         ctx.Response.OutputStream.Close()
         ctx.Response.Close()
@@ -752,9 +742,7 @@ let private runListenerWith
   (routing : Routing)
   (maxBodyBytes : int64)
   (requestTimeoutMs : int)
-  (injectStandardHeaders : bool)
-  (canonicalizeFromForwardedProto : bool)
-  (logRequests : bool)
+  (middleware : Dval)
   (cancellationToken : CancellationToken)
   : Task<unit> =
   task {
@@ -762,9 +750,10 @@ let private runListenerWith
       "httpserver.listening"
       [ "port", string port
         "maxBodyBytes", string maxBodyBytes
-        "injectStandardHeaders", string injectStandardHeaders
-        "canonicalizeFromForwardedProto", string canonicalizeFromForwardedProto
-        "logRequests", string logRequests ]
+        "middleware",
+        (match middleware with
+         | DList(_, ms) -> string (DvalList.length ms)
+         | _ -> "?") ]
 
     // Cancellation → listener.Stop() unblocks pending GetContextAsync
     // by raising HttpListenerException / ObjectDisposedException, both
@@ -789,9 +778,7 @@ let private runListenerWith
                   routing
                   maxBodyBytes
                   requestTimeoutMs
-                  injectStandardHeaders
-                  canonicalizeFromForwardedProto
-                  logRequests
+                  middleware
                   ctx
             with _ ->
               ()
@@ -818,9 +805,7 @@ let runListener
   (handler : Applicable)
   (maxBodyBytes : int64)
   (requestTimeoutMs : int)
-  (injectStandardHeaders : bool)
-  (canonicalizeFromForwardedProto : bool)
-  (logRequests : bool)
+  (middleware : Dval)
   (cancellationToken : CancellationToken)
   : Task<unit> =
   runListenerWith
@@ -831,9 +816,7 @@ let runListener
     (Fixed(handler, None))
     maxBodyBytes
     requestTimeoutMs
-    injectStandardHeaders
-    canonicalizeFromForwardedProto
-    logRequests
+    middleware
     cancellationToken
 
 /// `runListenerWith` for a handler resolved per request by a Dark `step` (see `LiveRouting`),
@@ -847,9 +830,7 @@ let runListenerLive
   (dev : bool)
   (maxBodyBytes : int64)
   (requestTimeoutMs : int)
-  (injectStandardHeaders : bool)
-  (canonicalizeFromForwardedProto : bool)
-  (logRequests : bool)
+  (middleware : Dval)
   (cancellationToken : CancellationToken)
   : Task<unit> =
   runListenerWith
@@ -860,9 +841,7 @@ let runListenerLive
     (Live { step = step; state = init; guest = None; stepState = None; dev = dev })
     maxBodyBytes
     requestTimeoutMs
-    injectStandardHeaders
-    canonicalizeFromForwardedProto
-    logRequests
+    middleware
     cancellationToken
 
 
@@ -876,9 +855,7 @@ let private serve
   (routing : Routing)
   (approvalRoot : Applicable)
   (maxBodyBytes : int64)
-  (injectStandardHeaders : bool)
-  (canonicalizeFromForwardedProto : bool)
-  (logRequests : bool)
+  (middleware : Dval)
   (onListening : Applicable)
   : Ply<Dval> =
   uply {
@@ -913,18 +890,6 @@ let private serve
     if port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort then
       Exception.raiseInternal "port out of range" [ "port", port ]
 
-    // These ambient effects are performed on behalf of the child
-    // guest state, so check its access (already narrowed by the
-    // invoker's, above) rather than only the ordinary builtin gate,
-    // which from `dark serve` sees the broader outer VM. Clock and
-    // stdout are only used when request logging is enabled.
-    if logRequests then
-      LibExecution.PermissionCheck.requireBuiltinEffectsWithAccess
-        exeState
-        vm
-        exeState.access
-        (set [ Effect.Clock; Effect.Stdout ])
-        "httpServerServe"
     use _serveSpan = Telemetry.span "httpserver.serve" [ "port", string port ]
     // The store's `http.requestTimeoutMs`, read once per `serve`.
     let! configuredTimeout = LibDB.Config.get "http.requestTimeoutMs"
@@ -977,9 +942,7 @@ let private serve
           routing
           maxBodyBytes
           requestTimeoutMs
-          injectStandardHeaders
-          canonicalizeFromForwardedProto
-          logRequests
+          middleware
           cts.Token
 
       listenerTask.Wait()
@@ -1012,17 +975,9 @@ let private commonParams =
       TInt64
       "Maximum request body size in bytes (over-limit → 413)"
     Param.make
-      "injectStandardHeaders"
-      TBool
-      "If true, auto-add `Server: darklang` and HSTS to responses unless the handler set them"
-    Param.make
-      "canonicalizeFromForwardedProto"
-      TBool
-      "If true, rewrite request.url to https:// when X-Forwarded-Proto: https is present"
-    Param.make
-      "logRequests"
-      TBool
-      "If true, emit a per-request stdout line and Telemetry.event 'httpserver.request' with method/path/status/duration_ms"
+      "middleware"
+      (TList(TFn(NEList.singleton handlerType, handlerType)))
+      "Wraps the handler, first listed outermost (`Stdlib.HttpServer.Middleware`); run per request as `Stdlib.HttpServer.Middleware.handle`"
     Param.makeWithArgs
       "onListening"
       (TFn(NEList.singleton TUnit, TUnit))
@@ -1055,9 +1010,7 @@ let fns () : List<BuiltInFn> =
              DInt64 portArg
              DApplicable handler
              DInt64 maxBodyBytesArg
-             DBool injectStandardHeaders
-             DBool canonicalizeFromForwardedProto
-             DBool logRequests
+             DList(_, _) as middleware
              DApplicable onListening |] ->
           serve
             exeState
@@ -1067,9 +1020,7 @@ let fns () : List<BuiltInFn> =
             (Fixed(handler, None))
             handler
             maxBodyBytesArg
-            injectStandardHeaders
-            canonicalizeFromForwardedProto
-            logRequests
+            middleware
             onListening
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -1122,9 +1073,7 @@ let fns () : List<BuiltInFn> =
              DApplicable first
              DBool dev
              DInt64 maxBodyBytesArg
-             DBool injectStandardHeaders
-             DBool canonicalizeFromForwardedProto
-             DBool logRequests
+             DList(_, _) as middleware
              DApplicable onListening |] ->
           serve
             exeState
@@ -1139,9 +1088,7 @@ let fns () : List<BuiltInFn> =
                 dev = dev })
             first
             maxBodyBytesArg
-            injectStandardHeaders
-            canonicalizeFromForwardedProto
-            logRequests
+            middleware
             onListening
         | _ -> incorrectArgs ())
       previewable = Impure

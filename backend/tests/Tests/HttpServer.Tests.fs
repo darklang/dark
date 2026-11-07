@@ -221,6 +221,24 @@ let bindFreshListener () = bindListenerWith allocateFreePort
 /// handler that returns the wrong shape still flows through F#'s
 /// `toHttpResponse` / `wrongTypeResponse`. All current fixtures have
 /// exactly one handler.
+/// The server middleware the fixtures run under, as Dark builds it: the url as the client used
+/// it behind an https proxy, and the standard headers (`Stdlib.HttpServer.Middleware`). Not the
+/// log line, to keep the tests quiet.
+let private fixtureMiddleware (exeState : RT.ExecutionState) : Task<RT.Dval> =
+  task {
+    let source =
+      "[ Darklang.Stdlib.HttpServer.Middleware.trustForwardedProto(), Darklang.Stdlib.HttpServer.Middleware.standardHeaders() ]"
+    let! ptExpr = TestUtils.TestUtils.parsePTExpr source
+    let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
+    match! Execution.executeExpr exeState rtInstrs with
+    | Ok dval -> return dval
+    | Error(rte, _) ->
+      return Exception.raiseInternal "fixtureMiddleware failed" [ "rte", string rte ]
+  }
+
+/// No middleware: the handler's response, as it answered it.
+let private noMiddleware = RT.DList(RT.ValueType.Unknown, RT.DvalList.empty)
+
 let private buildRouterForTest
   (exeState : RT.ExecutionState)
   (test : Test)
@@ -455,6 +473,7 @@ let private runFixture (test : Test) : Task<unit> =
     let! exeState = executionStateFor pmPT true
 
     let! handler = buildRouterForTest exeState test
+    let! middleware = fixtureMiddleware exeState
 
     let cts = new CancellationTokenSource()
 
@@ -468,9 +487,7 @@ let private runFixture (test : Test) : Task<unit> =
         handler
         HttpServer.defaultMaxBodyBytes
         HttpServer.defaultRequestTimeoutMs
-        true // injectStandardHeaders
-        true // canonicalizeFromForwardedProto
-        false // logRequests — keep tests quiet
+        middleware
         cts.Token
 
     try
@@ -520,9 +537,7 @@ let private runParsedRequestsAgainst
         handler
         maxBodyBytes
         requestTimeoutMs
-        false // injectStandardHeaders
-        false // canonicalizeFromForwardedProto
-        false // logRequests
+        noMiddleware
         cts.Token
     let oneRequest (path : string, body : byte[]) : Task<Http.T> =
       task {

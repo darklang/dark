@@ -1,0 +1,40 @@
+[expected-request]
+GET PATH HTTP/1.1
+Host: HOST
+Content-Length: 0
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: LENGTH
+ETag: "abc"
+
+Hello back
+
+[test]
+// `get` lowercases the name and keeps the value; `client([])` keeps the name as sent. Either
+// way `Response.header` finds it whatever case it's asked in.
+(let viaGet = Darklang.Stdlib.HttpClient.get("http://URL", []) |> Builtin.unwrap
+ let send = Darklang.Stdlib.HttpClient.client([])
+ let raw =
+   send(
+     Darklang.Stdlib.HttpClient.Request
+       { method = "GET"
+         url = "http://URL"
+         headers = []
+         body = Stdlib.Bytes.empty
+         timeoutMs = Stdlib.Option.Option.None })
+   |> Builtin.unwrap
+ let lookups = fun r ->
+   [ Darklang.Stdlib.HttpClient.Response.header(r, "ETag")
+     Darklang.Stdlib.HttpClient.Response.header(r, "etag")
+     Darklang.Stdlib.HttpClient.Response.header(r, "ETAG") ]
+ (viaGet.headers |> Darklang.Stdlib.List.filter(fun h -> Darklang.Stdlib.Tuple2.first(h) == "etag"),
+  lookups(viaGet),
+  raw.headers |> Darklang.Stdlib.List.filter(fun h -> Darklang.Stdlib.Tuple2.first(h) == "ETag"),
+  lookups(raw))) ==
+   ([ ("etag", "\"abc\"") ],
+    [ Stdlib.Option.Option.Some("\"abc\""), Stdlib.Option.Option.Some("\"abc\""), Stdlib.Option.Option.Some("\"abc\"") ],
+    [ ("ETag", "\"abc\"") ],
+    [ Stdlib.Option.Option.Some("\"abc\""), Stdlib.Option.Option.Some("\"abc\""), Stdlib.Option.Option.Some("\"abc\"") ])

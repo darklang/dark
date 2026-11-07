@@ -166,40 +166,142 @@ let getPathParam(req: Http.Request, routePattern: String, paramName: String): Op
         | None -> Option.None)
 
 
+/// A function wrapping a handler: it may change the request before handing it on, change the
+/// response on its way back, or answer itself. The server's counterpart of
+/// <type Stdlib.HttpClient.Middleware>.
+type Middleware = (Http.Request -> Http.Response) -> (Http.Request -> Http.Response)
+
+
+module Middleware =
+  /// <param handler> wrapped in <param middlewares>. The first listed is the outermost: it sees
+  /// the request first and the response last.
+  let wrap(
+    middlewares: List<Stdlib.HttpServer.Middleware>,
+    handler: Http.Request -> Http.Response)
+    : Http.Request -> Http.Response =
+    List.fold(List.reverse(middlewares), handler, fun(inner, m) -> m(inner))
+
+
+  /// What the server runs per request: <param handler> through <param middlewares>, on
+  /// <param request>. The handler reaches the server bare, so its approvals and its trace are
+  /// its own, and is wrapped here.
+  let handle(
+    middlewares: List<Stdlib.HttpServer.Middleware>,
+    handler: Http.Request -> Http.Response,
+    request: Http.Request)
+    : Http.Response =
+    let wrapped = wrap(middlewares, handler)
+    wrapped(request)
+
+
+  /// A middleware that rewrites every request with <param f> before the handler sees it.
+  let onRequest(f: Http.Request -> Http.Request): Stdlib.HttpServer.Middleware =
+    (fun next -> (fun req -> next(f(req))))
+
+
+  /// A middleware that rewrites every response with <param f>.
+  let onResponse(f: Http.Response -> Http.Response): Stdlib.HttpServer.Middleware =
+    (fun next -> (fun req -> f(next(req))))
+
+
+  /// {{Server: darklang}} and HSTS ({{Strict-Transport-Security}}) on every response that does
+  /// not set them itself. In <fn Config.defaults>.
+  let standardHeaders(): Stdlib.HttpServer.Middleware =
+    onResponse(fun response ->
+      let has = fun name ->
+        List.any(response.headers, fun h -> String.toLowercase(Tuple2.first(h)) == name)
+
+      let server = if has("server") then [] else [ ("Server", "darklang") ]
+
+      let hsts =
+        if has("strict-transport-security") then
+          []
+        else
+          [ ("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload") ]
+
+      { response with headers = List.flatten([ response.headers, server, hsts ]) })
+
+
+  /// A request that came through a proxy speaking https ({{X-Forwarded-Proto: https}}) has its
+  /// url rewritten to {{https://}} on port 443, so the handler sees the url the client used.
+  /// In <fn Config.defaults>; leave it out when nothing in front of the server sets that header,
+  /// since any client could.
+  let trustForwardedProto(): Stdlib.HttpServer.Middleware =
+    onRequest(fun req ->
+      let https =
+        List.any(req.headers, fun h ->
+          String.toLowercase(Tuple2.first(h)) == "x-forwarded-proto"
+          && String.toLowercase(String.trim(Tuple2.second(h))) == "https")
+
+      if https then
+        match Url.parse(req.url) with
+        | Ok(u) ->
+          { req with
+              url = Url.toString({ u with scheme = Option.Some("https"), port = Option.None }) }
+        | Error(_) -> req
+      else
+        req)
+
+
+  /// A line on stderr per request the handler answers: method, path, status and how long it
+  /// took, as {{[HttpServer] GET /a 200 3ms}}. In <fn Config.defaults>. A response the server
+  /// writes itself (a body over the limit, a handler that failed or timed out) is logged by the
+  /// server either way.
+  let logRequests(): Stdlib.HttpServer.Middleware =
+    (fun next ->
+       (fun req ->
+          let started = DateTime.now()
+          let response = next(req)
+          let ms = DateTime.subtractMs(DateTime.now(), started)
+          let target = Http.requestTarget(req.url)
+          let path =
+            match target.query with
+            | Some(q) -> target.path + "?" + q
+            | None -> target.path
+
+          let path = if String.startsWith(path, "/") then path else "/" + path
+          printErrorLine(
+            $"[HttpServer] {req.method} {path} {display(response.statusCode)} {display(ms)}ms")
+
+          response))
+
+
 /// Configuration for `serve`. Build defaults with `Config.defaults port`, then override any field with
-/// record-update, e.g. `{ HttpServer.Config.defaults(Net.Port.httpAlt) with logRequests = false }`.
+/// record-update, e.g. `{ HttpServer.Config.defaults(Net.Port.httpAlt) with middleware = [] }`.
 module Config =
   type Config =
     { address: String
       port: Net.Port
       /// Maximum request body size in bytes (over-limit → 413).
       maxBodyBytes: Int64
-      /// Auto-add `Server: darklang` + HSTS unless the handler set them.
-      injectStandardHeaders: Bool
-      /// Rewrite request.url to https:// when X-Forwarded-Proto: https is present.
-      canonicalizeFromForwardedProto: Bool
-      /// Emit a per-request stdout line + telemetry event.
-      logRequests: Bool }
+      /// Wraps every handler, first listed outermost (<type Stdlib.HttpServer.Middleware>).
+      middleware: List<Stdlib.HttpServer.Middleware> }
 
 
   /// Default max request body size: 30 MB.
   val defaultMaxBodyBytes = 31457280
 
 
-  /// Sensible serve defaults for `port`: 30 MB max body, standard headers, proto canonicalization, logging.
+  /// What <fn defaults> wraps a handler in: a log line per request, the url as the client
+  /// used it behind an https proxy, and the standard headers on the way out.
+  let defaultMiddleware(): List<Stdlib.HttpServer.Middleware> =
+    [ Stdlib.HttpServer.Middleware.logRequests()
+      Stdlib.HttpServer.Middleware.trustForwardedProto()
+      Stdlib.HttpServer.Middleware.standardHeaders() ]
+
+
+  /// Sensible serve defaults for `port`: 30 MB max body, and <fn defaultMiddleware>.
   let defaults(port: Net.Port): Config =
     Config
       { address = "127.0.0.1"
         port = port
         maxBodyBytes = defaultMaxBodyBytes
-        injectStandardHeaders = true
-        canonicalizeFromForwardedProto = true
-        logRequests = true }
+        middleware = defaultMiddleware() }
 
 
 /// Start an HTTP server: bind `handler` per `config`, run `onListening` once the port is bound (announce
 /// there, so a banner is never a lie), and serve until SIGTERM (blocks). Returns Error with a plain message
-/// if the port can't be bound.
+/// if the port can't be bound. Every request runs through `config.middleware`.
 let serve(
   config: Config.Config,
   handler: Http.Request -> Http.Response,
@@ -213,9 +315,7 @@ let serve(
       Net.Port.toInt64(config.port),
       handler,
       config.maxBodyBytes,
-      config.injectStandardHeaders,
-      config.canonicalizeFromForwardedProto,
-      config.logRequests,
+      config.middleware,
       onListening)
 
 
@@ -258,7 +358,5 @@ let serveLive(
       first,
       dev,
       config.maxBodyBytes,
-      config.injectStandardHeaders,
-      config.canonicalizeFromForwardedProto,
-      config.logRequests,
+      config.middleware,
       onListening)

@@ -947,3 +947,65 @@ type Walk<'acc>
 /// Runs `op` over `items`, starting from `empty` (`Walk`).
 let walk (op : Walk<'acc>) (empty : 'acc) (items : DvalList) : Ply<Dval> =
   op.Run(empty, items)
+
+
+// -- Off the program's order: a function of a read still in flight --
+//
+// `Stdlib.whenReady(x, f)` over a read in flight must not wait for it there, or a response
+// middleware would make every GET wait where it is sent, and `List.map(urls, get)` would run one
+// request at a time. So its call is a read (`Interpreter.callReadsOnly`), handed back in flight,
+// and this is its body: wait for the read, then apply `f` in a process of its own, as a chunk is
+// (`spreadChild`). It runs whenever the read lands, by which time the program has moved on, so an
+// effect there would land out of order; a chunk refuses it before it does anything, and the
+// refusal is what the read fails with, where the program waits for it.
+
+/// What the read lands as, waiting again while it lands as another read. A failed read raises
+/// its own failure. Nothing on the VM is looked at: by now it belongs to whatever ran on.
+let rec private landedValue (dv : Dval) : Ply<Dval> =
+  match dv with
+  | DPromise p ->
+    uply {
+      let! landed = p.Task
+      return! landedValue landed
+    }
+  | v -> Ply v
+
+/// `app` applied to what `read` lands as, computed in a chunk's process once it lands: the body of
+/// `Stdlib.whenReady` over a read in flight. Everything it needs from the caller (the scheduler,
+/// the parent process, the access) is taken now, before the first wait.
+let whenLanded
+  (state : ExecutionState)
+  (vm : VMState)
+  (app : Applicable)
+  (read : Dval)
+  : Ply<Dval> =
+  let sched = Sched.Scheduler.CurrentOrShared
+  let parent = Sched.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
+  let access = vm.activeAccess
+  let threadID = vm.threadID
+  let childState = { state with spreadChild = true }
+  uply {
+    let! value = landedValue read
+    let p = sched.SpawnApply(childState, app, value, parent, access)
+    let! result = p.completion.Task
+    sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
+    match result with
+    | Ok v -> return v
+    | Error(RuntimeError.UncaughtException(message, _), _) when
+      message.EndsWith Interpreter.refusedInChunk
+      ->
+      let called =
+        message
+          .Substring(0, message.Length - Interpreter.refusedInChunk.Length)
+          .Trim()
+      return
+        RuntimeError.UncaughtException(
+          $"The function given to `Stdlib.whenReady` called {called}, which has effects. "
+          + "It ran once the value it was waiting for arrived, after the program had moved on, "
+          + "so it may only compute. To take an effect, wait for the value first "
+          + "(`Stdlib.await`) and call the function on it.",
+          []
+        )
+        |> raiseRTE threadID
+    | Error(rte, _) -> return raiseRTE threadID rte
+  }

@@ -672,7 +672,8 @@ module StreamDvalTests =
           let body = "hello streams"
           let url =
             MockHelpers.registerTestCase "stream-dval-basic" 200 "text/plain" body
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
+          let! setup =
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -696,7 +697,8 @@ module StreamDvalTests =
           let body = String.replicate 28000 "x"
           let url =
             MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
+          let! setup =
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -711,7 +713,8 @@ module StreamDvalTests =
         testTask "empty body drains to zero bytes; disposer still runs" {
           let url =
             MockHelpers.registerTestCase "stream-dval-empty" 200 "text/plain" ""
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
+          let! setup =
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -725,7 +728,8 @@ module StreamDvalTests =
           let body = "unused"
           let url =
             MockHelpers.registerTestCase "stream-dval-close" 200 "text/plain" body
-          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||]
+          let! setup =
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -791,7 +795,13 @@ module ProtocolPolicyTests =
                         allowedHost = fun _ -> true }
                     client = client }
                 let! response =
-                  HostHttp.send profile "GET" $"{scheme}://fixture.test/" [] [||]
+                  HostHttp.send
+                    profile
+                    "GET"
+                    $"{scheme}://fixture.test/"
+                    []
+                    [||]
+                    None
                 match response with
                 | Ok(response : LibExecution.HostTypes.HttpResponse) ->
                   Expect.equal response.statusCode 200 "successful response"
@@ -860,7 +870,7 @@ module TlsFailureTests =
                       allowedHost = fun _ -> true }
                   client = client }
               let! result =
-                HostHttp.send profile "GET" "https://fixture.test/" [] [||]
+                HostHttp.send profile "GET" "https://fixture.test/" [] [||] None
               match result with
               | Error(LibExecution.HostTypes.HttpRequestError.TlsError _) -> ()
               | other -> failtest $"expected TlsError, got {other}"
@@ -942,7 +952,7 @@ module TimeoutTests =
                       allowedHost = fun _ -> true }
                   client = client }
               let! result =
-                (HostHttp.send profile method "http://fixture.test/" [] [||])
+                (HostHttp.send profile method "http://fixture.test/" [] [||] None)
                   .WaitAsync(System.TimeSpan.FromSeconds 10.0)
               match result with
               | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
@@ -962,6 +972,92 @@ module TimeoutTests =
             finally
               client.Dispose()
           } ]
+
+
+  /// The request's own `timeoutMs` (`Stdlib.HttpClient.Middleware.timeout`), over the profile's,
+  /// both ways: a shorter one cuts a request the profile would have waited for, and a longer one
+  /// lets through a response the profile would have cut.
+  let private answeringAfter (delayMs : int) =
+    { new HttpMessageHandler() with
+        member _.SendAsync(_request, cancellation) =
+          task {
+            do! Task.Delay(delayMs, cancellation)
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+          } }
+
+  let private profileWith (timeoutInMs : int) (handler : HttpMessageHandler) =
+    let client = new HttpClient(handler)
+    let profile : HostHttp.Profile =
+      { config =
+          { timeoutInMs = timeoutInMs
+            allowedIP = fun _ -> true
+            allowedHost = fun _ -> true }
+        client = client }
+    (profile, client)
+
+  let perRequestTests =
+    testList
+      "a request's own timeout"
+      [ testTask "a shorter one is a Timeout the profile would not have given" {
+          let (profile, client) =
+            profileWith 60_000 (answeringAfter Timeout.Infinite)
+          try
+            let started = System.Diagnostics.Stopwatch.StartNew()
+            let! result =
+              (HostHttp.send profile "GET" "http://fixture.test/" [] [||] (Some 200))
+                .WaitAsync(System.TimeSpan.FromSeconds 20.0)
+            match result with
+            | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
+            | other -> failtest $"expected Timeout, got {other}"
+            Expect.isLessThan
+              started.ElapsedMilliseconds
+              10_000L
+              "cut at the request's deadline, not the profile's"
+          finally
+            client.Dispose()
+        }
+        testTask "a longer one waits past the profile's" {
+          let (profile, client) = profileWith 100 (answeringAfter 600)
+          try
+            let! result =
+              HostHttp.send
+                profile
+                "GET"
+                "http://fixture.test/"
+                []
+                [||]
+                (Some 10_000)
+            match result with
+            | Ok(response : LibExecution.HostTypes.HttpResponse) ->
+              Expect.equal response.statusCode 200 "answered"
+            | Error e -> failtest $"expected the response, got {e}"
+            let! cut =
+              HostHttp.send profile "GET" "http://fixture.test/" [] [||] None
+            match cut with
+            | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
+            | other -> failtest $"without one, the profile's 100ms cuts it: {other}"
+          finally
+            client.Dispose()
+        }
+        testTask "a stream's covers its headers" {
+          let (profile, client) =
+            profileWith 60_000 (answeringAfter Timeout.Infinite)
+          try
+            let! result =
+              (HostHttp.openStream
+                profile
+                "GET"
+                "http://fixture.test/"
+                []
+                [||]
+                (Some 200))
+                .WaitAsync(System.TimeSpan.FromSeconds 20.0)
+            match result with
+            | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
+            | other -> failtest $"expected Timeout, got {other}"
+          finally
+            client.Dispose()
+        } ]
 
 
 /// Header text reaches the wire as written, so `prepare` refuses any that would end a header line
@@ -1042,7 +1138,7 @@ module HeaderValidationTests =
             match prepare sent with
             | Error e -> failtest $"refused: {e}"
             | Ok uri ->
-              let! result = HostHttp.send profile "GET" uri sent [||]
+              let! result = HostHttp.send profile "GET" uri sent [||] None
               Expect.isOk result "sent"
               Expect.equal received sent "every header arrives as written"
           finally
@@ -1090,7 +1186,13 @@ module ProxyTests =
                     return firstLine
                   }
                 let! result =
-                  (HostHttp.send profile "GET" $"{scheme}://fixture.test/zen" [] [||])
+                  (HostHttp.send
+                    profile
+                    "GET"
+                    $"{scheme}://fixture.test/zen"
+                    []
+                    [||]
+                    None)
                     .WaitAsync(deadline.Token)
                 let! firstLine = received
                 Expect.equal
@@ -1122,7 +1224,7 @@ module ProxyTests =
               let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
               use _client = profile.client
               let! result =
-                (HostHttp.send profile "GET" $"http://localhost:{port}/" [] [||])
+                (HostHttp.send profile "GET" $"http://localhost:{port}/" [] [||] None)
                   .WaitAsync(System.TimeSpan.FromSeconds 5.0)
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
@@ -1145,7 +1247,7 @@ module ProxyTests =
               let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
               use _client = profile.client
               let! result =
-                HostHttp.send profile "GET" "http://fixture.test/" [] [||]
+                HostHttp.send profile "GET" "http://fixture.test/" [] [||] None
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
@@ -1169,7 +1271,13 @@ module ProxyTests =
               let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
               use _client = profile.client
               let! result =
-                HostHttp.openStream profile "GET" "https://fixture.test/" [] [||]
+                HostHttp.openStream
+                  profile
+                  "GET"
+                  "https://fixture.test/"
+                  []
+                  [||]
+                  None
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
@@ -1204,7 +1312,7 @@ module ProxyTests =
               let profile = HostHttp.profileWithProxy config proxy
               use _client = profile.client
               let! result =
-                HostHttp.send profile "GET" $"http://127.0.0.1:{port}/" [] [||]
+                HostHttp.send profile "GET" $"http://127.0.0.1:{port}/" [] [||] None
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
@@ -1280,7 +1388,7 @@ module BodyTests =
       let (profile, client) = profileAnswering body limit
       try
         return!
-          (HostHttp.send profile "GET" "http://fixture.test/" [] [||])
+          (HostHttp.send profile "GET" "http://fixture.test/" [] [||] None)
             .WaitAsync(System.TimeSpan.FromSeconds 10.0)
       finally
         client.Dispose()
@@ -1367,7 +1475,13 @@ module BodyTests =
             let profile : HostHttp.Profile =
               { config = HostHttp.defaultConfig; client = client }
             let! (result : Result<HT.HttpStreamHead, HT.HttpRequestError>) =
-              HostHttp.openStream profile "POST" "http://fixture.test/" [] "sent"B
+              HostHttp.openStream
+                profile
+                "POST"
+                "http://fixture.test/"
+                []
+                "sent"B
+                None
             match result with
             | Ok head -> HostHttp.closeStream head.handle
             | Error e -> failtest $"expected a stream, got {e}"
@@ -1391,6 +1505,7 @@ let tests =
       TlsFailureTests.tests
       ProxyTests.tests
       TimeoutTests.tests
+      TimeoutTests.perRequestTests
       HeaderValidationTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"

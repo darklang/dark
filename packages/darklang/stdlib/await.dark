@@ -6,3 +6,15 @@ module Darklang.Stdlib
 /// `Exec.spawn`.)
 let await(x: 'a): 'a =
   Builtin.runtimeForce(x)
+
+
+/// <param fn> applied to <param x>, without waiting for <param x> here when it is a read still
+/// in flight (an `HttpClient.get`, say): the answer is then a read in flight too, and
+/// <param fn> runs when <param x> arrives. So a function of a response does not make the
+/// request wait where it was sent. A value that is not in flight is applied at once.
+///
+/// What runs when the read arrives runs after your program has moved on, so <param fn> may
+/// only compute: one that prints, writes or sends fails, where the result is waited for. To
+/// take an effect, wait first (<fn Stdlib.await>) and call <param fn> on the value.
+let whenReady(x: 'a, fn: 'a -> 'b): 'b =
+  Builtin.runtimeWhenReady(x, fn)

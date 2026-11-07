@@ -91,3 +91,102 @@ test getPath =
         { method = "GET", url = url, headers = [], body = Stdlib.Bytes.empty })
     |> Stdlib.Test.equal(expected))
   |> Stdlib.Test.all
+
+
+// ---------------------------
+// Middleware: Handler -> Handler
+// ---------------------------
+
+let __req(url: String, headers: List<(String * String)>): Stdlib.Http.Request =
+  Stdlib.Http.Request
+    { method = "GET", url = url, headers = headers, body = Stdlib.Bytes.empty }
+
+
+/// Answers with the url it saw as the body, and its request headers as its own.
+let __echoHandler(req: Stdlib.Http.Request): Stdlib.Http.Response =
+  Stdlib.Http.responseWithHeaders(200, req.headers, Stdlib.Utf8.encode(req.url))
+
+
+let __run(
+  middlewares: List<Stdlib.HttpServer.Middleware>,
+  req: Stdlib.Http.Request)
+  : Stdlib.Http.Response =
+  Stdlib.HttpServer.Middleware.handle(middlewares, __echoHandler, req)
+
+
+test serverStackRunsFirstListedOutermost =
+  let tag = fun name ->
+    Stdlib.HttpServer.Middleware.onResponse(fun r ->
+      { r with headers = Stdlib.List.append(r.headers, ("x-seen", name)) })
+
+  (__run([ tag("outer"), tag("inner") ], __req("http://a.test/", []))).headers
+  |> Stdlib.Test.equal([ ("x-seen", "inner"), ("x-seen", "outer") ])
+
+
+test serverEmptyStackIsTheHandler =
+  (__run([], __req("http://a.test/x", []))).body
+  |> Stdlib.Test.equal(Stdlib.Utf8.encode("http://a.test/x"))
+
+
+test standardHeadersUnlessSet =
+  Stdlib.Test.all(
+    [ (__run(
+         [ Stdlib.HttpServer.Middleware.standardHeaders() ],
+         __req("http://a.test/", []))).headers
+      |> Stdlib.Test.equal(
+        [ ("Server", "darklang")
+          (
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains; preload") ])
+
+      (__run(
+         [ Stdlib.HttpServer.Middleware.standardHeaders() ],
+         __req("http://a.test/", [ ("server", "mine") ]))).headers
+      |> Stdlib.Test.equal(
+        [ ("server", "mine")
+          (
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains; preload") ]) ])
+
+
+test forwardedProtoRewritesTheUrl =
+  let urlFor = fun headers ->
+    Stdlib.Utf8.decodeWithReplacement(
+      (__run(
+         [ Stdlib.HttpServer.Middleware.trustForwardedProto() ],
+         __req("http://a.test:8080/p?q=1", headers))).body)
+
+  Stdlib.Test.all(
+    [ urlFor([ ("X-Forwarded-Proto", "https") ])
+      |> Stdlib.Test.equal("https://a.test/p?q=1")
+
+      urlFor([ ("x-forwarded-proto", " HTTPS ") ])
+      |> Stdlib.Test.equal("https://a.test/p?q=1")
+
+      urlFor([ ("X-Forwarded-Proto", "http") ])
+      |> Stdlib.Test.equal("http://a.test:8080/p?q=1")
+
+      urlFor([]) |> Stdlib.Test.equal("http://a.test:8080/p?q=1") ])
+
+
+test logRequestsPassesTheResponseThrough =
+  let r =
+    __run(
+      [ Stdlib.HttpServer.Middleware.logRequests() ],
+      __req("http://a.test/x", [ ("A", "1") ]))
+
+  (r.statusCode, r.headers) |> Stdlib.Test.equal((200, [ ("A", "1") ]))
+
+
+test onRequestRewritesForTheHandler =
+  (__run(
+     [ Stdlib.HttpServer.Middleware.onRequest(fun req ->
+         { req with url = req.url + "#seen" }) ],
+     __req("http://a.test/", []))).body
+  |> Stdlib.Test.equal(Stdlib.Utf8.encode("http://a.test/#seen"))
+
+
+test configDefaultsCarryTheStack =
+  Stdlib.List.length(
+    (Stdlib.HttpServer.Config.defaults(Stdlib.Net.Port.httpAlt)).middleware)
+  |> Stdlib.Test.equal(3)
