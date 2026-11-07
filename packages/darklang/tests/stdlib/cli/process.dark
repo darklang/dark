@@ -27,6 +27,36 @@ test capturesOutputAndExit =
    | Error(_) -> (-1, "", ""))
   |> Stdlib.Test.equal((7, "out", "err"))
 
+// \377 isn't valid UTF-8 on its own, so it only survives as bytes.
+test runBytesKeepsRawOutput =
+  (match Stdlib.Cli.Process.runBytes("/bin/sh",
+     [ "-c", "printf '\\377a'; printf '\\376' >&2; exit 3" ]) with
+   | Ok(output) ->
+     (output.exitCode, Stdlib.Hex.encode(output.stdout), Stdlib.Hex.encode(output.stderr))
+   | Error(_) -> (-1, "", ""))
+  |> Stdlib.Test.equal((3, "FF61", "FE"))
+
+test outputTextReplacesInvalidUtf8 =
+  (match Stdlib.Cli.Process.runBytes("/bin/sh", [ "-c", "printf '\\377a'" ]) with
+   | Ok(output) -> (Stdlib.Cli.Process.outputText(output)).stdout
+   | Error(_) -> "")
+  |> Stdlib.Test.equal("\uFFFDa")
+
+test executeBytesKeepsRawOutput =
+  let outcome = Stdlib.Cli.executeBytes("printf '\\377\\000'; printf '\\376' >&2")
+  (outcome.exitCode, Stdlib.Hex.encode(outcome.stdout), Stdlib.Hex.encode(outcome.stderr))
+  |> Stdlib.Test.equal((0, "FF00", "FE"))
+
+test executionTextMatchesExecute =
+  Stdlib.Cli.executionText(Stdlib.Cli.executeBytes("printf out; printf err >&2; exit 2"))
+  |> Stdlib.Test.equal(Stdlib.Cli.execute("printf out; printf err >&2; exit 2"))
+
+test executeInDirectoryWithBytes =
+  let outcome = Stdlib.Cli.Unix.executeInDirectoryWithBytes("/", "pwd")
+  (outcome.exitCode, Stdlib.Utf8.decodeWithReplacement(outcome.stdout))
+  |> Stdlib.Test.equal((0, "/\n"))
+
+
 test closesStdin =
   (match Stdlib.Cli.Process.run("/bin/cat", []) with
    | Ok(output) -> (output.exitCode, output.stdout)
