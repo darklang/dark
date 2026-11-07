@@ -1137,9 +1137,10 @@ let private modelSavesAndResumes =
 
 
 /// The window a live host must never observe: an op is in the log but not yet folded into
-/// `locations`. An op is reported only once it is applied. Authoring inserts, folds, then marks
-/// applied in three steps; a poll that took the op between the insert and the fold would resolve
-/// the name to the previous hash and never look again.
+/// `locations`. An op is reported only once it is applied. Here the insert, the fold and the
+/// applied mark are three steps; a poll that took the op between the insert and the fold would
+/// resolve the name to the previous hash and never look again. The op can be marked applied after
+/// the clock has left the instant it was inserted at, and is still reported.
 let private pollIgnoresAnOpUntilItIsApplied =
   cliTest
     "a poll between an op's insert and its fold reports nothing; the poll after reports it"
@@ -1175,7 +1176,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
 
         let! watch = pollQuiet state watch
 
-        // The fold, then the applied mark, as `insertAndApplyOps` does them.
+        // The fold, then the applied mark.
         do! LibDB.PackageOpPlayback.applyOps PT.BranchId.Main ops
         ops
         |> List.map (fun op ->

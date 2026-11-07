@@ -56,27 +56,28 @@ let summariesFor(branchId: Uuid, limit: Int64): List<OpSummary> =
   (query(OpFilter.Visible(branchId), limit)).ops |> Stdlib.List.map(summaryOf)
 
 
-/// The ids of the ops this branch can see that LANDED here after <param since> (a `created_at`, local
-/// insert time, second resolution), oldest first; and the ones AT <param since> too when
-/// <param andAtSince> says that second may still be filling. Ids only, no blobs: the caller drops
-/// the ones it has seen before and asks `summariesByIds` about the rest.
+/// The ops this branch can see that LANDED here at or after <param since> (a `created_at`, local
+/// insert time, millisecond resolution), oldest first, as (id, `created_at`). Ids only, no blobs: the
+/// caller drops the ones it has seen before and asks `summariesByIds` about the rest.
 ///
 /// The "what changed?" query for a process that stays up (`Stdlib.Live.poll`). By insert time, not
 /// `origin_ts` and not `rowid`: the origin stamp is a logical clock that runs ahead after a big batch
 /// (a package reload mints thousands a millisecond apart) and arrives from peers with THEIR clocks, so
 /// "newer than the log's newest" misses real edits; a rowid is reused after a delete. Insert time only
-/// moves forward on this store. What it cannot do is tell a new op from an old one handed back by a
-/// draft rewrite (`WipRefresh` deletes and re-inserts main's draft, with a fresh insert time and the
-/// same id); that is rare, and the caller treats a flood as "everything changed".
+/// moves forward on this store: writes take the store's one write lock in turn, so a transaction still
+/// in flight stamps no earlier than anything already committed. It can stamp the SAME instant, and
+/// commit after the clock has moved on, which is why `since` itself is always included. What it cannot
+/// do is tell a new op from an old one handed back by a draft rewrite (`WipRefresh` deletes and
+/// re-inserts main's draft, with a fresh insert time and the same id); that is rare, and the caller
+/// treats a flood as "everything changed".
 ///
-/// APPLIED ops only. An op is inserted before it is folded into `locations` and marked applied after
-/// (authoring: two transactions; a pull: one), so between the two a reader sees the op in the log while
-/// the name still resolves to the previous hash. A host that took the op then would check the old
-/// version, keep it, and never look again: the fold's own commit moves the store's counter, but the
-/// next poll would find no op it had not already reported. Reporting an op only once it is applied
-/// means a host that looks mid-fold sees nothing new, and the poll after the fold sees the op.
-let idsLandedSince(branchId: Uuid, since: String, andAtSince: Bool): List<String> =
-  idsOf(OpFilter.LandedSince(branchId, since, andAtSince))
+/// APPLIED ops only. An op is inserted before it is folded into `locations` and marked applied, so a
+/// reader that saw it inserted but not folded would see the op in the log while the name still
+/// resolves to the previous hash. A host that took the op then would check the old version, keep it,
+/// and never look again. Reporting an op only once it is applied means a host that looks mid-fold sees
+/// nothing new, and the poll after the fold sees the op.
+let landedSince(branchId: Uuid, since: String): List<(String * String)> =
+  rowsOf(OpFilter.LandedSince(branchId, since)) |> Stdlib.List.map(fun r -> (r.id, r.ts))
 
 
 /// The summaries for <param ids>, in the order given. An id the log does not hold is skipped.
@@ -90,21 +91,15 @@ let summariesByIds(ids: List<String>): List<OpSummary> =
     |> Stdlib.List.filterMap(fun id -> found |> Stdlib.List.findFirst(fun s -> s.id == id))
 
 
-/// When the newest APPLIED op in the log landed here (`created_at`), or "" for an empty log. Where a
-/// watcher starts from. Applied only, as `idsLandedSince`: an op inserted and not yet folded must not
-/// advance a watcher past itself.
-/// An op counts as landed once it is applied, on any branch: the same rule `idsLandedSince` reports by.
-let newestInsert(): String = stampOf(OpFilter.NewestLanded)
+/// The newest instant an APPLIED op landed here (`created_at`), on any branch, and the ids that
+/// landed at it; ("", []) for an empty log. Where a watcher starts from. Applied only, as
+/// `landedSince`: an op inserted and not yet folded must not advance a watcher past itself.
+let landedLast(): (String * List<String>) =
+  let rows = rowsOf(OpFilter.LandedLast)
 
-
-/// The ids of the ops that landed at exactly <param at> (a `created_at`). A watcher that resumes from
-/// `at` while that second may still be filling gets these back, and drops them.
-let idsInsertedAt(at: String): List<String> = idsOf(OpFilter.LandedAt(at))
-
-
-/// The store's clock, in `created_at` form, so a watcher can tell whether the second it last saw an
-/// insert in is still the current one.
-let storeNow(): String = stampOf(OpFilter.StoreNow)
+  match Stdlib.List.head(rows) with
+  | Some(first) -> (first.ts, rows |> Stdlib.List.map(fun r -> r.id))
+  | None -> ("", [])
 
 
 /// How many commits this branch has, without decoding any of them.
