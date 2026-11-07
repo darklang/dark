@@ -357,3 +357,29 @@ test bytesShowAPreview =
         Darklang.SCM.Branch.mainBranchId,
         persistent)
       |> Stdlib.Test.equal("<Bytes: 0 bytes>") ])
+
+
+// Runtime errors print as sentences. This one was the case the printer had no arm for, and printed
+// as "RTE pretty-printing TODO" followed by its JSON.
+test wrongNumberOfTypeArgsForTypeReadsAsASentence =
+  let rte =
+    Darklang.LanguageTools.RuntimeTypes.RuntimeError.Error.WrongNumberOfTypeArgsForType(
+      Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        Darklang.LanguageTools.RuntimeTypes.Hash.Hash("no-such-type")),
+      1,
+      2)
+
+  Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString(
+    Darklang.SCM.Branch.mainBranchId,
+    rte)
+  |> Stdlib.String.endsWith(" expects 1 type argument, but got 2 type arguments")
+  |> Stdlib.Test.equal(true)
+
+
+// A self-call printed with no fn to name it says so, rather than printing `ESelf` as though it
+// were a name.
+test selfCallOutsideAFunction =
+  Darklang.PrettyPrinter.ProgramTypes.expr(
+    Darklang.PrettyPrinter.ProgramTypes.Context.forBranch(Darklang.SCM.Branch.mainBranchId),
+    Darklang.LanguageTools.ProgramTypes.Expr.ESelf(1))
+  |> Stdlib.Test.equal("<self-call outside a function>")

@@ -178,6 +178,23 @@ module RuntimeError =
     | _ -> ""
 
 
+  /// `&&` or `||` met a non-Bool. Names the side that wasn't a Bool, and only that one: when
+  /// the left side isn't a Bool, the right may never have been evaluated.
+  let boolOperandSegments(
+    op: String,
+    left: ValueType,
+    right: ValueType)
+    : ErrorSegments =
+    let (side, vt) =
+      match left with
+      | Known(KTBool) -> ("right", right)
+      | _ -> ("left", left)
+
+    [ ES.String($"`{op}` only works on Bools, but its {side} side is ")
+      ES.IndefiniteArticle
+      ES.ValueType(vt) ]
+
+
   // The only exhaustive match over RuntimeError on the Dark side. A new RuntimeError case needs an
   // arm here, and Dark says nothing at build time: the first error of that kind raises right here.
   let toSegments(
@@ -186,21 +203,10 @@ module RuntimeError =
     match e with
     | Bool(err) ->
       match err with
-      | AndOnlySupportsBooleans(_gotLeft, _gotRight) ->
-        // CLEANUP something like this:
-        // [ ES.String "Cannot use `&&` with "
-        //   ES.ValueType gotLeft
-        //   ES.String " and "
-        //   ES.ValueType gotRight ]
-        [ ES.String("&& only supports Booleans") ]
-
-      | OrOnlySupportsBooleans(_gotLeft, _gotRight) ->
-        // CLEANUP something like this:
-        // [ ES.String "Cannot use `||` with "
-        //   ES.ValueType gotLeft
-        //   ES.String " and "
-        //   ES.ValueType gotRight ]
-        [ ES.String("|| only supports Booleans") ]
+      | AndOnlySupportsBooleans(left, right) -> boolOperandSegments("&&", left, right)
+      // F# names these fields (gotRight, gotLeft), but the interpreter passes the left
+      // operand first, as it does for `&&`.
+      | OrOnlySupportsBooleans(left, right) -> boolOperandSegments("||", left, right)
 
       | ConditionRequiresBool(actualValueType, actualValue) ->
         [ ES.String("Encountered a condition that must be a Bool, but got ")
@@ -325,6 +331,13 @@ module RuntimeError =
       [ ES.String("Function ")
         ES.FunctionName(name)
         ES.String(" couldn't be found") ]
+
+    | WrongNumberOfTypeArgsForType(typeName, expected, actual) ->
+      [ ES.TypeName(typeName)
+        ES.String(" expects ")
+        ES.Count(expected, ES.String("type argument"), ES.String("type arguments"))
+        ES.String(", but got ")
+        ES.Count(actual, ES.String("type argument"), ES.String("type arguments")) ]
 
     | DeprecatedItemHalted(_target) ->
       [ ES.String("Refusing to run a function marked Harmful. ")
@@ -674,9 +687,10 @@ module RuntimeError =
     // Its own sentence and nothing else: it is a refusal, written for whoever ran the command.
     | Condition(message) -> [ ES.String(message) ]
 
+    // Every case above has a message, so this only fires for a case added without one.
     | unhandled ->
       let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
-      [ ES.String($"RTE pretty-printing TODO: {serialized}") ]
+      [ ES.String($"A runtime error with no message written for it yet: {serialized}") ]
 
 
 

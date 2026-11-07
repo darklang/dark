@@ -52,14 +52,14 @@ test andEvaluatesRightOperand =
   => raises "Uncaught exception: msg"
 
 test andRejectsNonBooleanRight =
-  (true && 5) => raises "&& only supports Booleans"
+  (true && 5) => raises "`&&` only works on Bools, but its right side is an Int64"
 
 test andRaisesLeftOperandErrorFirst =
   (Stdlib.Test.raiseRuntimeError("msg1") && Stdlib.Test.raiseRuntimeError("msg2"))
   => raises "Uncaught exception: msg1"
 
 test andRejectsNonBooleanLeft =
-  (5 && true) => raises "&& only supports Booleans"
+  (5 && true) => raises "`&&` only works on Bools, but its left side is an Int64"
 
 test or =
   Stdlib.Test.all(
@@ -74,10 +74,10 @@ test or =
       (false |> (fun v -> v || false)) |> Stdlib.Test.equal(false) ])
 
 test orRejectsNonBooleanRight =
-  (false || 5) => raises "|| only supports Booleans"
+  (false || 5) => raises "`||` only works on Bools, but its right side is an Int64"
 
 test orRejectsNonBooleanLeft =
-  (5 || true) => raises "|| only supports Booleans"
+  (5 || true) => raises "`||` only works on Bools, but its left side is an Int64"
 
 test orShortCircuits =
   (true || Stdlib.Test.raiseRuntimeError("msg")) |> Stdlib.Test.equal(true)
