@@ -122,6 +122,40 @@ test wrapperFitsTheFn =
         "let main(args: List<String>): Int64 =\n  Me.add(...)  // built from args") ])
 
 
+// Tab offers the subcommands, then the aliases there are to remove, and each form's flag.
+test completion =
+  let dir =
+    Stdlib.Cli.Path.parent(LanguageTools.LocalStore.path())
+    + "/alias-completion-"
+    + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+
+  let _ = Stdlib.Cli.Unix.ensureDirectoryExists(dir)
+  let _ =
+    Stdlib.Cli.File.writeText(
+      $"{dir}/greet",
+      Darklang.Cli.Aliases.script(
+        "/opt/dark",
+        Darklang.Cli.Aliases.Target.Follows("Me.x")))
+
+  let _ = Stdlib.Cli.File.writeText($"{dir}/tool", "#!/bin/sh\necho mine\n")
+  let result =
+    Stdlib.Test.all(
+      [ Darklang.Cli.Aliases.completeIn(dir, [])
+        |> Stdlib.Test.equal([ "ls", "add", "rm" ])
+
+        Darklang.Cli.Aliases.completeIn(dir, [ "rm" ])
+        |> Stdlib.Test.equal([ "greet", "--all" ])
+
+        Darklang.Cli.Aliases.completeIn(dir, [ "add", "g", "Me.x" ])
+        |> Stdlib.Test.equal([ "--pin" ])
+
+        Darklang.Cli.Aliases.completeIn(dir, [ "ls" ])
+        |> Stdlib.Test.equal([]) ])
+
+  let _ = Stdlib.Cli.Unix.removeDirectory(dir)
+  result
+
+
 test commandNames =
   Stdlib.Test.all(
     [ Darklang.Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)

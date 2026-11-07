@@ -413,7 +413,22 @@ let help(_state: AppState): String =
   |> Stdlib.String.join("\n")
 
 
-let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
+/// Tab completion, given the words already typed: the subcommands, then the alias names in
+/// <param dir> for `rm`, and the flag each form takes. The fn name in `add` is left to the shell's
+/// own word, since `add` reads it on main whatever branch is current.
+let completeIn(dir: String, args: List<String>): List<String> =
   match args with
-  | [] -> [ "ls", "add", "rm" ] |> Stdlib.List.map(Completion.simple)
+  | [] -> [ "ls", "add", "rm" ]
+  | ["rm"] | ["remove"] ->
+    Stdlib.List.append(list(dir) |> Stdlib.List.map(Stdlib.Tuple2.first), "--all")
+  | ["add", _, _] -> [ "--pin" ]
   | _ -> []
+
+
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  let dir =
+    match binDir() with
+    | Ok(d) -> d
+    | Error(_) -> ""
+
+  completeIn(dir, args) |> Stdlib.List.map(Completion.simple)
