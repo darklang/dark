@@ -648,6 +648,10 @@ module Constructors =
           "f")
         |> Stdlib.Test.equal("failed:DuplicateRecordField")
         check(
+          src([ "type R = { a: Int64 }", "let f(r: R): R = { r with a = 1, a = 2 }" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:DuplicateRecordField")
+        check(
           src([ "type R = { a: Int64 }", "let f(r: R): Int64 = r.nope" ]),
           "f")
         |> Stdlib.Test.equal("failed:UnknownRecordField")

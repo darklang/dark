@@ -139,9 +139,6 @@ module Update =
         (let myRec = RecordForUpdate { x = 4, y = 1 }
          { myRec with y = 2 })
         |> Stdlib.Test.equal(RecordForUpdate { x = 4, y = 2 })
-        (let myRec = RecordForUpdate { x = 4, y = 1 }
-         { myRec with y = 22, y = 42 })
-        |> Stdlib.Test.equal(RecordForUpdate { x = 4, y = 42 })
         (let myRec = RecordForUpdateMultiple { x = 4, y = 1, z = 0 }
          { myRec with y = 2, z = 42 })
         |> Stdlib.Test.equal(RecordForUpdateMultiple { x = 4, y = 2, z = 42 })
@@ -182,6 +179,17 @@ module Update =
       (let myRec = RecordForUpdate { x = 4, y = 1 }
        { myRec with other = 2 })
       => raises "No field named `other`"
+
+    test duplicateFieldRaises =
+      (let myRec = RecordForUpdate { x = 4, y = 1 }
+       { myRec with x = 2, x = 3 })
+      => raises "Duplicate field `x`"
+
+    // As in construction, the first bad field as written is the one named.
+    test unknownBeforeADuplicateRaises =
+      (let myRec = RecordForUpdate { x = 4, y = 1 }
+       { myRec with x = 2, zzz = 1, x = 3 })
+      => raises "No field named `zzz`"
 
     test wrongFieldTypeRaises =
       (let myRec = RecordForUpdate { x = 4, y = 1 }
