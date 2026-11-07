@@ -124,7 +124,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           else
             { baseConfig with maxBodyBytes = parsed.maxBodyBytes }
 
-        // Resolve the router to a callable value and call serve directly.
+        // Resolve the router to a callable value (eval of its name) and call serve directly.
         // Resolve BEFORE announcing "Listening" so a bad router name reports cleanly, never a false start.
         // This resolved VALUE is the whole router without `--live`; the live server holds the
         // location and resolves per request, and uses this one for the bind-time approval root.

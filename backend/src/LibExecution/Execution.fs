@@ -688,29 +688,6 @@ let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     [ RT2DT.Dval.toDT dval ]
 
 
-/// Like `dvalToRepr`, but laid out for a line `width` columns wide and painted for a terminal.
-///
-/// The width is passed in rather than looked up, because the printers are deliberately unable to read
-/// the terminal: that is what keeps rendering reproducible in tests and lets a pane pass its own width
-/// rather than the screen's.
-///
-/// Goes through the CLI's own `Terminal.renderValue`, which supplies the palette, so nothing here has
-/// to know what a color is or build a `Palette` to ask for one.
-let dvalToReprForTerminal
-  (state : RT.ExecutionState)
-  (width : int)
-  (color : bool)
-  (currentModule : List<string>)
-  (dval : RT.Dval)
-  : Task<string> =
-  let currentModule = currentModule |> List.map RT.DString |> Dval.list RT.KTString
-  callStringPrinter
-    state
-    (PackageRefs.Fn.Cli.renderValue ())
-    "dval"
-    [ RT.DInt64(int64 width); RT.DBool color; currentModule; RT2DT.Dval.toDT dval ]
-
-
 let typeRefToString
   (state : RT.ExecutionState)
   (typeRef : RT.TypeReference)

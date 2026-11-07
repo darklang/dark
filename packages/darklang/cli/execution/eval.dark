@@ -2,6 +2,17 @@
 module Darklang.Cli.Eval
 
 
+/// Evaluate an expression and hand back the value it produced, not its printed text. A fn's name
+/// evaluates to the fn.
+let evaluateValue(
+  accountID: Stdlib.Option.Option<Uuid>,
+  branchId: Uuid,
+  expr: String,
+  allowHarmful: Bool)
+  : Stdlib.Result.Result<'a, ExecutionError.ExecutionError> =
+  Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful)
+
+
 /// Evaluate an expression, keeping errors structured for the caller.
 let evaluateRaw(
   accountID: Stdlib.Option.Option<Uuid>,
@@ -12,13 +23,19 @@ let evaluateRaw(
   : Stdlib.Result.Result<
       Stdlib.Option.Option<String>,
       ExecutionError.ExecutionError> =
-  let (width, _rows) = Terminal.getSize()
-  let color = Stdlib.Cli.Sys.isTerminal(1)
-  match
-    Builtin.cliEvaluateExpression(
-      accountID, branchId, expr, currentModule, width, color, allowHarmful)
-  with
-  | Ok(value) -> Stdlib.Result.Result.Ok(value)
+  match evaluateValue(accountID, branchId, expr, allowHarmful) with
+  | Ok(value) ->
+    // Unit has no output, and a string prints without its quotes.
+    match LanguageTools.RuntimeTypes.reflect(value) with
+    | DUnit -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
+    | DString(text) -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(text))
+    | dv ->
+      let (width, _rows) = Terminal.getSize()
+      let color = Stdlib.Cli.Sys.isTerminal(1)
+
+      Stdlib.Result.Result.Ok(
+        Stdlib.Option.Option.Some(
+          Terminal.renderValue(branchId, width, color, currentModule, dv)))
   | Error(error) ->
     match error with
     | Runtime(_, _) -> ExecutionError.printCallStack(branchId, "expression", error)

@@ -413,8 +413,29 @@ let applicable(lg: LastGood): Stdlib.Result.Result<'f, String> =
 /// Resolve a dotted fn name to a callable, as it is bound right now. The startup check for a host
 /// that takes a name on the command line: a name that resolves to nothing is reported before
 /// anything starts, and a host that follows edits then holds the LOCATION, not this value.
+///
+/// Eval does the resolving: a fn's name, evaluated, is the fn. Only a dotted name of plain
+/// identifiers gets that far, so the name cannot run code.
 let applicableByName(branchId: Uuid, name: String): Stdlib.Result.Result<'a -> 'b, String> =
-  Builtin.applicableByName(branchId, name)
+  let isIdentifier(segment: String): Bool =
+    (segment != "")
+    && (Stdlib.String.toList(segment)
+        |> Stdlib.List.all(fun c -> (Stdlib.Char.isAlphanumeric(c)) || (c == '_')))
+
+  let notFound = Stdlib.Result.Result.Error($"No function named {name}")
+
+  match locationOfName(name) with
+  | None -> Stdlib.Result.Result.Error($"Not a package function name: {name}")
+  | Some(_) ->
+    if Stdlib.List.all(Stdlib.String.split(name, "."), isIdentifier) then
+      match Darklang.Cli.Eval.evaluateValue(Stdlib.Option.Option.None, branchId, name, false) with
+      | Ok(f) ->
+        match LanguageTools.RuntimeTypes.reflect(f) with
+        | DApplicable(AppNamedFn(_)) -> Stdlib.Result.Result.Ok(f)
+        | _ -> notFound
+      | Error(_) -> notFound
+    else
+      Stdlib.Result.Result.Error($"Not a package function name: {name}")
 
 /// A dotted name as a location: `Owner.Module.fn` -> `{ owner, modules, name }`. `None` for a name
 /// with fewer than two segments, which cannot be a package fn.
