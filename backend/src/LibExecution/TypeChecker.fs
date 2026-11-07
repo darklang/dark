@@ -1768,6 +1768,7 @@ module DvalCreator =
     (threadID : ThreadID)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
     (remaining : List<string * Dval>)
+    (updatedSoFar : List<string>)
     (fieldsSoFar : (struct (string * Dval))[])
     (currentTypeArgs : List<string * ValueType>)
     (tst : TypeSymbolTable)
@@ -1782,7 +1783,9 @@ module DvalCreator =
       if fieldName = "" then
         RTE.Records.UpdateEmptyKey |> RTE.Record |> raiseRTE threadID
 
-      // CLEANUP duplicate updates for the same field should raise `UpdateDuplicateField`
+      // `fieldsSoFar` starts with the original record's fields, so it can't tell a repeat.
+      if List.contains fieldName updatedSoFar then
+        RTE.Records.UpdateDuplicateField fieldName |> RTE.Record |> raiseRTE threadID
 
       match findExpectedField expectedFields fieldName with
       | ValueNone ->
@@ -1815,6 +1818,7 @@ module DvalCreator =
             threadID
             expectedFields
             rest
+            (fieldName :: updatedSoFar)
             (RecordFields.set fieldName fieldValue fieldsSoFar)
             newTypeArgs
             newTST
@@ -1877,6 +1881,7 @@ module DvalCreator =
                   threadID
                   expectedFields
                   rest
+                  (fieldName :: updatedSoFar)
                   (RecordFields.set fieldName fieldValue fieldsSoFar)
                   newTypeArgs
                   newTST
@@ -2067,6 +2072,7 @@ module DvalCreator =
         threadID
         expectedFields
         fieldUpdates
+        []
         (Array.copy currentFields.Entries)
         resolvedTypeArgs
         tst
