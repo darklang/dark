@@ -44,7 +44,47 @@ let sha256Hex (bytes : byte[]) : string =
 /// Takes ownership of [bytes]: the array is stored as-is (not copied),
 /// so the caller must not mutate it afterwards.
 let newEphemeral (bytes : byte[]) : Dval =
-  DBytes(Ephemeral { id = System.Guid.NewGuid(); bytes = bytes; hash = null })
+  DBytes(
+    Ephemeral
+      { id = System.Guid.NewGuid()
+        buffer = bytes
+        offset = 0
+        count = bytes.Length
+        hash = null }
+  )
+
+
+/// Slices of this many bytes or fewer are copied rather than shared. A copy this
+/// small costs about what a view does, and keeps nothing else alive.
+let sliceCopyAtMost = 64
+
+/// A slice is also copied when it is under 1/[sliceShareRatio] of the array it would
+/// share, so a small piece cannot keep a much bigger one alive: a view never holds
+/// more than this many times its own size. Repeated slicing still copies at most
+/// once per factor of this ratio the value shrinks by, so the work stays linear.
+let sliceShareRatio = 8
+
+
+/// [count] bytes of [parent] from [start], which the caller has already clamped to
+/// the parent. Shares the parent's array unless the piece is small, absolutely or
+/// next to that array (see [sliceCopyAtMost] and [sliceShareRatio]).
+let sliceEphemeral (parent : EphemeralBytes) (start : int) (count : int) : Dval =
+  if start = 0 && count = parent.count then
+    DBytes(Ephemeral parent)
+  elif
+    count <= sliceCopyAtMost
+    || int64 count * int64 sliceShareRatio < int64 parent.buffer.Length
+  then
+    newEphemeral (parent.Span.Slice(start, count).ToArray())
+  else
+    DBytes(
+      Ephemeral
+        { id = System.Guid.NewGuid()
+          buffer = parent.buffer
+          offset = parent.offset + start
+          count = count
+          hash = null }
+    )
 
 
 /// Resolve a BytesRef to its bytes. Ephemerals carry their bytes inline;
@@ -52,11 +92,14 @@ let newEphemeral (bytes : byte[]) : Dval =
 /// accessor. Shared by every builtin that dereferences a DBytes.
 ///
 /// For ephemerals this returns the blob's own array, not a copy — treat
-/// the result as read-only; mutating it mutates the blob.
+/// the result as read-only; mutating it mutates the blob. A slice that shares a
+/// bigger array gets a copy of its own bytes instead (see
+/// [EphemeralBytes.ToArray]); builtins that only read a span match `Ephemeral`
+/// first and skip that.
 let readBytes (state : ExecutionState) (ref : BytesRef) : Ply.Ply<byte[]> =
   uply {
     match ref with
-    | Ephemeral eph -> return eph.bytes
+    | Ephemeral eph -> return eph.ToArray()
     | Persistent(hash, _length) when hash = emptyHash -> return [||]
     | Persistent(hash, _length) ->
       let! got = state.blobs.get hash
@@ -80,7 +123,7 @@ let withBytes
   (k : byte[] -> Ply.Ply<Dval>)
   : Ply.Ply<Dval> =
   match ref with
-  | Ephemeral eph -> k eph.bytes
+  | Ephemeral eph -> k (eph.ToArray())
   | Persistent(hash, _) when hash = emptyHash -> k [||]
   | Persistent _ ->
     uply {
@@ -101,7 +144,8 @@ let promoteEphemeralLeaf
   uply {
     match dv with
     | DBytes(Ephemeral eph) ->
-      let bs = eph.bytes
+      // A view saves its own bytes, not the array it shares.
+      let bs = eph.ToArray()
       let h = eph.ContentHash
       let n : int64 = System.Convert.ToInt64 bs.Length
       do! insert h bs

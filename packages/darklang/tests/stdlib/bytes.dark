@@ -257,3 +257,43 @@ test workerCarriesUnsavedBytes =
       Stdlib.Test.all(
         [ output.exitCode |> Stdlib.Test.equal(0)
           Stdlib.Utf8.decode(bytes) |> Stdlib.Test.equal(Ok("cba")) ])
+
+// A slice of more than 64 bytes that is at least an eighth of what it comes from shares
+// that array, and a slice of it shares it too. Each one is still exactly its own bytes.
+test sharedSlices =
+  let whole = Stdlib.Utf8.encode(Stdlib.String.repeat("0123456789", 100))
+  let middle = Stdlib.Bytes.take(Stdlib.Bytes.drop(whole, 200), 500)
+  let inner =
+    Stdlib.Bytes.slice(middle, 100, 400)
+    |> Stdlib.Result.withDefault(Stdlib.Bytes.empty)
+  let fresh = Stdlib.Utf8.encode(Stdlib.String.repeat("0123456789", 30))
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.length(inner) |> Stdlib.Test.equal(300)
+      inner |> Stdlib.Test.equal(fresh)
+      Stdlib.Utf8.decode(inner)
+      |> Stdlib.Test.equal(Ok(Stdlib.String.repeat("0123456789", 30)))
+      Stdlib.Bytes.getAt(inner, 0) |> Stdlib.Test.equal(Some(48u8))
+      Stdlib.Bytes.getAt(inner, 299) |> Stdlib.Test.equal(Some(57u8))
+      Stdlib.Bytes.getAt(inner, 300) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfFrom(inner, 57u8, 0) |> Stdlib.Test.equal(Some(9))
+      Stdlib.Bytes.indexOfSegment(inner, Stdlib.Utf8.encode("90"))
+      |> Stdlib.Test.equal(Some(9))
+      Stdlib.List.length(Stdlib.Bytes.toList(inner)) |> Stdlib.Test.equal(300)
+      Stdlib.Bytes.concat(inner, inner)
+      |> Stdlib.Test.equal(Stdlib.Bytes.concat(fresh, fresh))
+      Dict { (inner): 1 } |> Stdlib.Test.equal(Dict { (fresh): 1 })
+      Stdlib.Bytes.startsWith(middle, Stdlib.Bytes.take(inner, 100))
+      |> Stdlib.Test.equal(true) ])
+
+// A shared slice reaches a test worker as its own bytes, not the array it shares.
+test workerCarriesSharedSlice =
+  let whole = Stdlib.Utf8.encode(Stdlib.String.repeat("ab", 500))
+  let input = Stdlib.Bytes.drop(whole, 600)
+  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), reversed, input) with
+  | Error(message) -> Stdlib.Test.fail(message)
+  | Ok(output) ->
+    match output.result with
+    | Error(message) -> Stdlib.Test.fail(message)
+    | Ok(bytes) ->
+      Stdlib.Utf8.decode(bytes)
+      |> Stdlib.Test.equal(Ok(Stdlib.String.repeat("ba", 200)))
