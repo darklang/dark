@@ -635,6 +635,94 @@ let rec private unifyTypeArgsSync
   | Undecided -> ValueNone
 
 
+/// Whether <param actual> is a value of the primitive type <param expected>, for `tryUnifySync`.
+///
+/// Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
+let private primitiveFits (expected : TypeReference) (actual : Dval) : bool =
+  match expected with
+  | TUnit ->
+    (match actual with
+     | DUnit -> true
+     | _ -> false)
+  | TBool ->
+    (match actual with
+     | DBool _ -> true
+     | _ -> false)
+  | TBigInt ->
+    (match actual with
+     | DBigInt _ -> true
+     | _ -> false)
+  | TInt8 ->
+    (match actual with
+     | DInt8 _ -> true
+     | _ -> false)
+  | TUInt8 ->
+    (match actual with
+     | DUInt8 _ -> true
+     | _ -> false)
+  | TInt16 ->
+    (match actual with
+     | DInt16 _ -> true
+     | _ -> false)
+  | TUInt16 ->
+    (match actual with
+     | DUInt16 _ -> true
+     | _ -> false)
+  | TInt32 ->
+    (match actual with
+     | DInt32 _ -> true
+     | _ -> false)
+  | TUInt32 ->
+    (match actual with
+     | DUInt32 _ -> true
+     | _ -> false)
+  | TInt64 ->
+    (match actual with
+     | DInt64 _ -> true
+     | _ -> false)
+  | TUInt64 ->
+    (match actual with
+     | DUInt64 _ -> true
+     | _ -> false)
+  | TInt128 ->
+    (match actual with
+     | DInt128 _ -> true
+     | _ -> false)
+  | TUInt128 ->
+    (match actual with
+     | DUInt128 _ -> true
+     | _ -> false)
+  | TFloat ->
+    (match actual with
+     | DFloat _ -> true
+     | _ -> false)
+  | TFloat32 ->
+    (match actual with
+     | DFloat32 _ -> true
+     | _ -> false)
+  | TDecimal ->
+    (match actual with
+     | DDecimal _ -> true
+     | _ -> false)
+  | TChar ->
+    (match actual with
+     | DChar _ -> true
+     | _ -> false)
+  | TString ->
+    (match actual with
+     | DString _ -> true
+     | _ -> false)
+  | TUuid ->
+    (match actual with
+     | DUuid _ -> true
+     | _ -> false)
+  | TDateTime ->
+    (match actual with
+     | DDateTime _ -> true
+     | _ -> false)
+  | _ -> false
+
+
 let rec tryUnifySync
   (tst : TypeSymbolTable)
   (expected : TypeReference)
@@ -679,87 +767,28 @@ let rec tryUnifySync
     // builtin call makes this check on every argument and on its result, which ablation puts at a
     // sizable fraction of what the call costs.
     //
-    // Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
-    | TUnit ->
-      (match actual with
-       | DUnit -> ValueSome tst
-       | _ -> ValueNone)
-    | TBool ->
-      (match actual with
-       | DBool _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TBigInt ->
-      (match actual with
-       | DBigInt _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TInt8 ->
-      (match actual with
-       | DInt8 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TUInt8 ->
-      (match actual with
-       | DUInt8 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TInt16 ->
-      (match actual with
-       | DInt16 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TUInt16 ->
-      (match actual with
-       | DUInt16 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TInt32 ->
-      (match actual with
-       | DInt32 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TUInt32 ->
-      (match actual with
-       | DUInt32 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TInt64 ->
-      (match actual with
-       | DInt64 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TUInt64 ->
-      (match actual with
-       | DUInt64 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TInt128 ->
-      (match actual with
-       | DInt128 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TUInt128 ->
-      (match actual with
-       | DUInt128 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TFloat ->
-      (match actual with
-       | DFloat _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TFloat32 ->
-      (match actual with
-       | DFloat32 _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TDecimal ->
-      (match actual with
-       | DDecimal _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TChar ->
-      (match actual with
-       | DChar _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TString ->
-      (match actual with
-       | DString _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TUuid ->
-      (match actual with
-       | DUuid _ -> ValueSome tst
-       | _ -> ValueNone)
-    | TDateTime ->
-      (match actual with
-       | DDateTime _ -> ValueSome tst
-       | _ -> ValueNone)
+    // One arm for all of them, and the check in a function of its own: an arm per type, each with
+    // its own `ValueSome tst`, gave this function a 2.7 KB stack frame, cleared on every call.
+    | TUnit
+    | TBool
+    | TBigInt
+    | TInt8
+    | TUInt8
+    | TInt16
+    | TUInt16
+    | TInt32
+    | TUInt32
+    | TInt64
+    | TUInt64
+    | TInt128
+    | TUInt128
+    | TFloat
+    | TFloat32
+    | TDecimal
+    | TChar
+    | TString
+    | TUuid
+    | TDateTime -> if primitiveFits expected actual then ValueSome tst else ValueNone
 
     | _ ->
 
