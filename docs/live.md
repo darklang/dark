@@ -109,14 +109,14 @@ signature; checking the entry alone would adopt a version that fails on its firs
 So a broken save never blanks a screen or a site: the previous version is still in the
 store, and it still runs, on the callees it was built against.
 
-`Live.applicable(lg)` is the callable for the held hash (`Builtin.applicableByHash`, the
-by-hash twin of `applicableByName`). `Live.diagnostic(lg)` is the one line for a band or
+`Live.applicable(lg)` is the callable for the held hash (`Builtin.applicableByHash`;
+`Live.applicableByName` gets one by name, by evaluating the name). `Live.diagnostic(lg)` is the one line for a band or
 a log.
 
 ## `serve` follows edits
 
-`dark serve <router>` resolves the router by name at start (the "no such fn" check and
-the bind-time approval root), then hands `Stdlib.HttpServer.serveLive` a
+`dark serve <router>` resolves the router by name at start (`Live.applicableByName`, which
+evaluates the name: the "no such fn" check and the bind-time approval root), then hands `Stdlib.HttpServer.serveLive` a
 `Stdlib.Live.Router.State` and `Router.step`. Per request the server runs `step` over
 the state it keeps between requests; `step` polls, and when the change reaches the
 router it refreshes `LastGood` and answers with the handler for this request. The
@@ -243,7 +243,7 @@ once per interval, waiting through `Host.await([StoreChanged, Timer])` in betwee
 edit that reaches the step is resolved through `LastGood` before the next tick and a
 broken version is skipped with the reason in the log. A daemon written as one
 long-running fn cannot follow anything, scheduler or not: its frames call callees by
-hash, and only a name lookup (`Live`, `applicableByName`) sees a new binding, so the
+hash, and only a name lookup (`Live`, `Live.applicableByName`) sees a new binding, so the
 budget yield changes nothing for it.
 
 Nothing in the tree launches a daemon today. The runner is here because it is one of the three

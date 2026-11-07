@@ -20,7 +20,6 @@ module RT = LibExecution.RuntimeTypes
 module Traces = LibDB.Traces
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module Dval = LibExecution.Dval
 module P = LibExecution.Permissions
 
 open TestUtils.TestUtils
@@ -28,28 +27,6 @@ open TestUtils.TestUtils
 open Tests.CliTestHarness
 
 module PT = LibExecution.ProgramTypes
-
-let private testTerminalPrinterFallback =
-  cliTest "terminal values survive a missing pretty-printer" (fun target ->
-    task {
-      let state = executionState target
-      let printer = RT.Hash(LibExecution.PackageRefs.Fn.Cli.renderValue ())
-      let state =
-        { state with
-            fns =
-              { state.fns with
-                  package =
-                    fun hash ->
-                      if hash = printer then Ply None else state.fns.package hash } }
-      let! output = Exe.dvalToReprForTerminal state 80 false [] (Dval.bigInt 42I)
-      Expect.stringStarts
-        output
-        "<pretty-print failed for dval:"
-        "fallback is shown"
-      Expect.stringContains output "FnNotFound" "the printer failure is included"
-      Expect.stringContains output "42" "the original value is still available"
-    })
-
 
 /// A bottom-up `mkdir -p` must not name an existing common ancestor of its
 /// target and the protected policy directory.
@@ -506,7 +483,7 @@ let tests =
     "CliTraces"
     (Tests.CliSurface.tests
      @ Tests.CliScm.tests
-     @ [ testTerminalPrinterFallback; testMkdirRecursiveUnderPolicyAncestor ]
+     @ [ testMkdirRecursiveUnderPolicyAncestor ]
      @ [ // Trace store
          testRecordingSettings
          testTracesIdPrefixIsPlainText

@@ -587,72 +587,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       (fun fn -> PT2DT.PackageFn.toDT { fn with body = PT.EUnit 0UL })
 
 
-    // Resolve a package fn's dotted name to a callable value (Applicable), so a name that only exists as a
-    // STRING (a CLI arg) can be passed as a function without eval'ing a source string. This is what lets
-    // `dark serve` hand a router to `Stdlib.HttpServer.serve` directly (no `cliEvaluateExpression`).
-    // CLEANUP(applicableByName): fold into eval and delete this builtin; wrinkle: an
-    // expression that produces nothing must keep printing nothing.
-    { name = fn "applicableByName" 0
-      typeParams = []
-      parameters =
-        [ branchParam
-          Param.make "name" TString "dotted package fn name, e.g. Stdlib.List.map" ]
-      returnType =
-        TypeReference.result
-          (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
-          TString
-      description =
-        "Resolves a package function by its dotted <param name> to a callable value, "
-        + "as a Result — Error (a plain-English message) if there's no such function. "
-        + "Lets a caller (e.g. `dark serve`) report a bad name cleanly instead of "
-        + "crashing."
-      fn =
-        (function
-        | _, _, _, [| DUuid branchId; DString name |] ->
-          uply {
-            let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
-            let err (msg : string) = Dval.resultError okKT KTString (DString msg)
-            // dotted name → owner.modules….fnName (native pattern-match; Prelude's List.last is Option-safe)
-            match name.Split('.') |> Array.toList |> List.rev with
-            | fnName :: revOwnerMods ->
-              match List.rev revOwnerMods with
-              | owner :: modules ->
-                let location : PT.PackageLocation =
-                  { owner = owner; modules = modules; name = fnName }
-                // Through the branch's view, like `pmSearch` and `pmFind`. The closure `pm` is
-                // MAIN's package manager; asked about a router authored on a branch it answers "No
-                // function named ..." about a fn that is plainly there.
-                let branchPM =
-                  LibDB.PackageManager.ptForBranch (branchOfParam branchId)
-                match! branchPM.findFn location with
-                | Some fqPkg ->
-                  let rtName = FQFnName.Package(PT2RT.FQFnName.Package.toRT fqPkg)
-                  let namedFn : ApplicableNamedFn =
-                    { name = rtName
-                      typeSymbolTable = TST.empty
-                      typeArgs = []
-                      boundImpls = []
-                      // Do not capture the resolver's access here. The code
-                      // that calls or receives this reference supplies its
-                      // own frame access (for example, an HTTP server).
-                      access = None
-                      argsSoFar = [] }
-                  return
-                    Dval.resultOk okKT KTString (DApplicable(AppNamedFn namedFn))
-                | None -> return err $"No function named {name}"
-              | [] -> return err $"Not a package function name: {name}"
-            | [] -> return err "Empty router name"
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-
-    // The by-hash twin of `applicableByName`, for a host that follows edits (`Stdlib.Live`). A name
-    // resolves to whatever is bound NOW; a host that wants to keep running the last version that passed
-    // its checks while a broken edit sits at the name needs to call by hash. Every version is still in
-    // the store, so this is a lookup, not a resurrection.
+    // A package fn by hash, for a host that follows edits (`Stdlib.Live`). A name, which eval
+    // resolves, is whatever is bound NOW; a host that wants to keep running the last version that
+    // passed its checks while a broken edit sits at the name needs to call by hash. Every version is
+    // still in the store, so this is a lookup, not a resurrection.
     { name = fn "applicableByHash" 0
       typeParams = []
       parameters =
@@ -677,7 +615,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 { name = FQFnName.Package(Hash hash)
                   typeSymbolTable = TST.empty
                   typeArgs = []
-                  // As in `applicableByName`: whoever applies this supplies the frame access.
+                  // Whoever applies this supplies the frame access.
                   access = None
                   argsSoFar = []
                   boundImpls = [] }

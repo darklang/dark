@@ -1251,11 +1251,11 @@ module Builtins =
       "f")
     |> Stdlib.Test.equal("checked:")
 
-  // applicableByName returns a type variable that its inputs do not determine
+  // applicableByHash returns a type variable that its inputs do not determine
   // and its signature does not declare. Report Incomplete for that unknown result.
   test undeterminedResultIsIncomplete =
     check(
-      "let f(b: Uuid): Int64 = match Builtin.applicableByName(b, \"x\") with | Ok(_) -> 1 | Error(_) -> 0",
+      "let f(h: String): Int64 = match Builtin.applicableByHash(h) with | Ok(_) -> 1 | Error(_) -> 0",
       "f")
     |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
 

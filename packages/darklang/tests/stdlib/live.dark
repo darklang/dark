@@ -116,3 +116,40 @@ test dependents =
        (Stdlib.List.length(reached))
        == (Stdlib.List.length(Stdlib.List.unique(reached))))
       |> Stdlib.Test.equal(true) ])
+
+
+// `Live.applicableByName` resolves a name by evaluating it. Only a dotted name of plain
+// identifiers is evaluated, and only a fn comes back.
+module ApplicableByName =
+  let resolve(name: String): Stdlib.Result.Result<String -> Int64, String> =
+    Stdlib.Live.applicableByName(Darklang.SCM.Branch.mainBranchId, name)
+
+  let errorOf(name: String): String =
+    match resolve(name) with
+    | Ok(_) -> "resolved"
+    | Error(e) -> e
+
+  test resolvesAFn =
+    match resolve("Darklang.Stdlib.String.length") with
+    | Ok(f) -> f("four") |> Stdlib.Test.equal(4)
+    | Error(e) -> Stdlib.Test.fail(e)
+
+  test missingFn =
+    errorOf("Darklang.Stdlib.String.noSuchFn")
+    |> Stdlib.Test.equal("No function named Darklang.Stdlib.String.noSuchFn")
+
+  // A value evaluates fine, but it is not a fn.
+  test valueIsNotAFn =
+    errorOf("Darklang.Stdlib.Math.pi")
+    |> Stdlib.Test.equal("No function named Darklang.Stdlib.Math.pi")
+
+  // Anything but a dotted name is refused before eval sees it.
+  test codeIsNotEvaluated =
+    Stdlib.Test.all(
+      [ errorOf("Darklang.Stdlib.String.length(\"four\")")
+        |> Stdlib.Test.equal(
+          "Not a package function name: Darklang.Stdlib.String.length(\"four\")")
+        errorOf("length")
+        |> Stdlib.Test.equal("Not a package function name: length")
+        errorOf("")
+        |> Stdlib.Test.equal("Not a package function name: ") ])

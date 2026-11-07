@@ -1841,6 +1841,9 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Hands back the value itself, not its printed text: printing is the caller's (`Cli.Eval`),
+    // and so is "Unit prints nothing". A caller that holds a fn's name as a string (`dark serve`'s
+    // router) evaluates the name and gets the fn.
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
       parameters =
@@ -1851,39 +1854,31 @@ let fns () : List<BuiltInFn> =
             "the branch to resolve names against (main is `SCM.Branch.mainBranchId`). A parameter rather than ambient state so a caller can parse against a branch it isn't sitting on"
           Param.make "expression" TString ""
           Param.make
-            "currentModule"
-            (TList TString)
-            "Names are relative to this module"
-          Param.make "width" TInt64 "Columns available for the result"
-          Param.make "color" TBool "Whether to use terminal colors"
-          Param.make
             "allowHarmful"
             TBool
             "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
-      returnType =
-        TypeReference.result
-          (TypeReference.option TString)
-          (ExecutionError.typeRef ())
+      // Any type: the value is only known once the expression has run.
+      returnType = TypeReference.result (TVariable "a") (ExecutionError.typeRef ())
       description =
-        "Evaluates an expression. Unit has no output; strings print without quotes."
+        "Evaluates an expression and returns its value. A bare package fn name evaluates to "
+        + "that fn, which runs under the access of whoever applies it."
       fn =
         let errType = KTCustomType(ExecutionError.fqTypeName (), [])
-        let okKT = KTCustomType(Dval.optionType (), [ VT.known KTString ])
-        let resultOk = Dval.resultOk okKT errType
-        let resultError = Dval.resultError okKT errType
-        let okSome (s : string) = resultOk (Dval.optionSome KTString (DString s))
-        let okNone () = resultOk (Dval.optionNone KTString)
+        let result (okType : ValueType) (case : string) (value : Dval) =
+          DEnum(
+            Dval.resultType (),
+            Dval.resultType (),
+            [ okType; ValueType.Known errType ],
+            case,
+            [ value ]
+          )
+        let resultOk (value : Dval) = result (Dval.toValueType value) "Ok" value
+        let resultError = result ValueType.Unknown "Error"
         (function
         | exeState,
-          vm,
+          _,
           [],
-          [| accountIDDval
-             DUuid branchId
-             DString expression
-             DList(_, currentModule)
-             DInt64 width
-             DBool color
-             DBool allowHarmful |] ->
+          [| accountIDDval; DUuid branchId; DString expression; DBool allowHarmful |] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
@@ -1923,19 +1918,17 @@ let fns () : List<BuiltInFn> =
                     let exeState = createGuestState exeState mod' input
                     let exeState = { exeState with deniedRequests = denied }
                     match! execute exeState mod' input with
-                    | Ok DUnit -> return okNone ()
-                    | Ok(DString text) -> return okSome text
-                    | Ok result ->
-                      let currentModule = List.map D.string currentModule
-                      // Keep the host's fallback if the Dark pretty-printer fails.
-                      let! text =
-                        Exe.dvalToReprForTerminal
-                          exeState
-                          (int64ToInt32 vm width)
-                          color
-                          currentModule
-                          result
-                      return okSome text
+                    // A bare package fn name escaped the guest's frame, so it captured the
+                    // guest's access. It carries nothing else from the guest: drop the capture,
+                    // and whoever applies it supplies the access, as for any fn reference it
+                    // names itself. A partial application or a lambda keeps the guest's.
+                    | Ok(DApplicable(AppNamedFn({ name = FQFnName.Package _
+                                                  argsSoFar = [] } as named))) ->
+                      return
+                        resultOk (
+                          DApplicable(AppNamedFn { named with access = None })
+                        )
+                    | Ok result -> return resultOk result
                     | Error(e, callStack) ->
                       return
                         ExecutionError.classify denied e
