@@ -156,6 +156,10 @@ test join =
       Stdlib.String.join([ "🇵", "🇷" ], "") |> Stdlib.Test.equal("🇵🇷")
       Stdlib.String.join([ "👍", "🏽" ], "") |> Stdlib.Test.equal("👍🏽") ])
 
+test joinRejectsNonStrings =
+  Stdlib.String.join([ 1, 2 ], ",")
+  => raises "Darklang.Stdlib.String.join's 1st parameter `l` expects List<String>, but got List<Int64> ([1, 2])"
+
 test interpolationNormalizesLikeAppend =
   let pr = [ "🇵", "🇷" ]
   let thumb = "👍"
