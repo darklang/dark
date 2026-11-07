@@ -7,9 +7,11 @@ let readBashrc(): Result.Result<String, String> =
   |> Result.map(Stdlib.Utf8.decodeWithReplacement)
   |> Result.mapError(Stdlib.Cli.FileSystem.FileError.toString)
 
-/// Apply changes to .bashrc
-let applyBashConfigChanges(): Result.Result<Unit, String> =
-  Cli.executeWithUnitOrStdErr("source $HOME/.bashrc")
+/// A program cannot change the shell that started it, so after editing .bashrc
+/// the user has to source it themselves.
+let printSourceHint(): Unit =
+  Stdlib.printLine(
+    "Changes have been made to your .bashrc file.\nTo apply them to your current terminal session, run:\n  source ~/.bashrc")
 
 
 /// Write content to .bashrc file
@@ -45,12 +47,8 @@ let addAlias(
 
     match overwriteBashrc(updatedContent) with
     | Ok(()) ->
-      // CLEANUP: in bash `source ~/.bashrc` doesn't work from a subprocess, This is why we need to print a message to the user to run the command manually
-      // one workaround is adding `[[ -f ~/.bashrc ]] && . ~/.bashrc` which makes sure .bashrc exists and sources it, applying it configuration to the current shell session.
-      Stdlib.printLine(
-        "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n ")
-
-      applyBashConfigChanges()
+      printSourceHint()
+      Result.Result.Ok()
     | Error(e) -> Result.Result.Error(e)
   | Error(e) -> Result.Result.Error(e)
 
@@ -75,9 +73,7 @@ let addToPath(dir: String): Result.Result<Unit, String> =
 
       match overwriteBashrc(updatedContent) with
       | Ok(()) ->
-        Stdlib.printLine(
-          "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n ")
-
-        applyBashConfigChanges()
+        printSourceHint()
+        Result.Result.Ok()
       | Error(e) -> Result.Result.Error(e)
   | Error(e) -> Result.Result.Error(e)

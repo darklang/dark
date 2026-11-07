@@ -1,0 +1,52 @@
+/// `Stdlib.Cli.Bash` edits the `.bashrc` in HOME and tells the user to source it. A
+/// program cannot change the shell that started it, so it does not try.
+module Darklang.Cli.Tests.Bashrc
+
+/// What editing `.bashrc` needs, and no more. No process grant: running
+/// `source ~/.bashrc` in a child shell, which changed nothing, is refused here.
+let grant(i: Instance.T): Unit =
+  let rc = Instance.home(i) + "/.bashrc"
+  [ [ "env", "read", "HOME" ]
+    [ "file", "read", rc ]
+    [ "file", "write", rc ]
+    [ "stdout" ]
+    [ "package-read" ] ]
+  |> Stdlib.List.iter(fun rule ->
+    let _ = Instance.ran(i, Stdlib.List.concat([ "permissions", "allow" ], rule))
+    ())
+
+let bashrc(i: Instance.T): String =
+  match Stdlib.Cli.FileSystem.readFile(Instance.home(i) + "/.bashrc") with
+  | Ok(bytes) -> Stdlib.Utf8.decodeWithReplacement(bytes)
+  | Error(_) -> ""
+
+let count(haystack: String, needle: String): Int64 =
+  Stdlib.List.length(Stdlib.String.split(haystack, needle)) - 1
+
+// A PATH entry is added once, however often it is asked for, and each edit ends with
+// the line the user has to run.
+test addToPathEditsOnceAndSaysToSource =
+  Instance.withInstance(fun i ->
+    let _ = grant(i)
+    let call = [ "eval", "Stdlib.Cli.Bash.addToPath(\"/opt/demo/bin\")" ]
+    let (firstCode, first) = Instance.ran(i, call)
+    let (secondCode, _) = Instance.ran(i, call)
+    let rc = bashrc(i)
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(firstCode, 0, "the first edit succeeds")
+        Instance.exitedWith(secondCode, 0, "and so does the repeat")
+        Instance.says(first, "source ~/.bashrc", "it says how to apply the change")
+        count(rc, "export PATH=\"/opt/demo/bin:$PATH\"") |> Stdlib.Test.equal(1) ]))
+
+test addAliasEditsAndSaysToSource =
+  Instance.withInstance(fun i ->
+    let _ = grant(i)
+    let _ = Stdlib.Cli.File.writeText(Instance.home(i) + "/.bashrc", "# existing\n")
+    let (code, out) =
+      Instance.ran(i, [ "eval", "Stdlib.Cli.Bash.addAlias(\"ll\", \"ls -l\")" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "the edit succeeds")
+        Instance.says(out, "source ~/.bashrc", "it says how to apply the change")
+        count(bashrc(i), "alias ll='ls -l'") |> Stdlib.Test.equal(1) ]))
