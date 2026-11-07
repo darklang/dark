@@ -121,10 +121,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           else
             { baseConfig with maxBodyBytes = parsed.maxBodyBytes }
 
-        // Resolve the router to a callable value and call serve DIRECTLY — no string-eval. The CLI expression
-        // parser mis-tokenizes an int literal in argument position (`defaults 8080` → "no variable named: I"),
-        // which breaks the string-eval form of serve; applicableByName sidesteps it.
-        // TODO(serve-parser): fix the underlying parser (NI-literal in argument position) — pre-existing platform bug.
+        // Resolve the router to a callable value and call serve directly.
         // Resolve BEFORE announcing "Listening" so a bad router name reports cleanly, never a false start.
         // This resolved VALUE is the whole router without `--live`; the live server holds the
         // location and resolves per request, and uses this one for the bind-time approval root.
