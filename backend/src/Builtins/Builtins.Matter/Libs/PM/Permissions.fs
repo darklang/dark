@@ -46,7 +46,11 @@ let private builtinEffects (state : ExecutionState) : BuiltinEffects =
   builtinEffectsCache.GetValue(
     state.fns.builtIn,
     fun builtIn ->
-      let sorted = builtIn |> Dictionary.toSortedList
+      let sorted =
+        builtIn
+        |> Seq.map (fun (KeyValue(k, b)) -> k, b)
+        |> List.ofSeq
+        |> List.sortBy fst
       let byIdentity =
         sorted
         |> List.map (fun (k, b) -> (k.name, k.version), b.callEffects)

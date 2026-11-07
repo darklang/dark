@@ -124,21 +124,24 @@ type private State =
 /// cannot see the state half set up.
 let private printLoop (s : State) () : unit =
   while true do
-    let mutable wrote = false
-
-    lock s.printLock (fun () ->
-      try
-        let mutable v = struct (Out, null)
-        // Don't block (eg with `Take`) while holding the lock
-        if s.queue.TryTake(&v) then
-          match v with
-          | struct (Out, text) -> System.Console.Out.Write(s.forOut.Force () text)
-          | struct (Err, text) -> System.Console.Error.Write(s.forErr.Force () text)
-          wrote <- true
-      with e ->
-        System.Console.Error.WriteLine(
-          $"Exception in blocking queue thread: {e.Message}"
-        ))
+    let wrote =
+      lock s.printLock (fun () ->
+        try
+          let mutable v = struct (Out, null)
+          // Don't block (eg with `Take`) while holding the lock
+          if s.queue.TryTake(&v) then
+            match v with
+            | struct (Out, text) -> System.Console.Out.Write(s.forOut.Force () text)
+            | struct (Err, text) ->
+              System.Console.Error.Write(s.forErr.Force () text)
+            true
+          else
+            false
+        with e ->
+          System.Console.Error.WriteLine(
+            $"Exception in blocking queue thread: {e.Message}"
+          )
+          false)
 
     // Sleep OUTSIDE the lock. Sleeping inside means holding `printLock` for essentially the whole
     // millisecond of every idle iteration, and `wait()` spins acquiring the same lock; .NET's Monitor
@@ -189,9 +192,8 @@ type private Private =
 
   static member wait() : unit =
     let s = Instance.Get()
-    let mutable shouldWait = true
-    while shouldWait do
-      lock s.printLock (fun () -> shouldWait <- s.queue.Count > 0)
+    while lock s.printLock (fun () -> s.queue.Count > 0) do
+      ()
 
   static member SetBrowserSink(sink : string -> unit) : unit =
     (Instance.Get()).browserSink <- Some sink
