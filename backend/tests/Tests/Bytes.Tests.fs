@@ -290,7 +290,7 @@ let peekDoesNotReadStorage =
     let big = mkEphemeral (Array.create 1_000_000 7uy)
     match! call big with
     | RT.DEnum(_, _, _, "Some", [ RT.DBytes(RT.Ephemeral prefix) ]) ->
-      Expect.equal prefix.bytes.Length 16 "only the prefix is copied"
+      Expect.equal prefix.count 16 "only the prefix is copied"
     | other -> failtest $"expected Some prefix, got {other}"
     match dbytesRef big with
     | RT.Ephemeral eph -> Expect.isFalse eph.IsHashed "the preview does not hash"
@@ -728,19 +728,188 @@ let byteHashingIsLazy =
       Expect.equal ref.Length 3L "length is available without hashing"
       Expect.isTrue (Equals.equals original original) "reflexive equality"
       Expect.isFalse e.IsHashed "self-comparison does not hash"
-      let expectedHash = Bytes.sha256Hex e.bytes
+      let expectedHash = Bytes.sha256Hex (e.ToArray())
       Expect.equal ref.ContentHash expectedHash "content hash matches storage format"
       Expect.isTrue e.IsHashed "hash is now cached"
       let mutable writes = 0
       let insert h bytes =
         writes <- writes + 1
         Expect.equal h expectedHash "saving uses the cached content hash"
-        Expect.equal bytes e.bytes "saving preserves contents"
+        Expect.equal bytes (e.ToArray()) "saving preserves contents"
         uply { return () }
       let! saved = Bytes.promote insert original |> Ply.toTask
       Expect.equal writes 1 "only saving writes to the store"
       Expect.equal (dbytesRef saved).ContentHash expectedHash "saved hash agrees"
     | _ -> failtest "expected in-memory bytes"
+  }
+
+// ─────────────────────────────────────────────────────────────────────
+// Slices share the parent's array
+// ─────────────────────────────────────────────────────────────────────
+
+let private ephemeralOf (dv : RT.Dval) : RT.EphemeralBytes =
+  match dv with
+  | RT.DBytes(RT.Ephemeral eph) -> eph
+  | _ -> failtest $"expected DBytes(Ephemeral _), got {dv}"
+
+/// Calls a Bytes builtin by name with a state that fails on any store access.
+let private callBytesBuiltin (name : string) (args : RT.Dval[]) : Task<RT.Dval> =
+  let builtin =
+    (Builtins.Pure.Libs.Bytes.fns ())
+    |> List.find (fun fn -> fn.name.name = name)
+    |> Option.defaultWith (fun () -> failtest $"{name} is missing")
+  let state =
+    { freshState () with
+        blobs =
+          { get = (fun _ -> failtest $"{name} fetched the blob store")
+            persist = (fun _ _ -> failtest $"{name} wrote the blob store") } }
+  builtin.fn (struct (state, Unchecked.defaultof<RT.VMState>, [], args))
+  |> Ply.toTask
+
+/// Random but repeatable, so a segment from one place does not recur somewhere else.
+let private randomBytes (n : int) : byte[] =
+  let bs = Array.zeroCreate n
+  System.Random(6145).NextBytes(bs)
+  bs
+
+let sliceSharesTheParent =
+  testTask "a large slice shares the parent's array, and a slice of it does too" {
+    let parentBytes = randomBytes 4096
+    let parent = mkEphemeral parentBytes
+    let! slice =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 100L; RT.DInt64 3000L |]
+    let view = ephemeralOf slice
+    Expect.isTrue (obj.ReferenceEquals(view.buffer, parentBytes)) "shares the array"
+    Expect.equal (view.offset, view.count) (100, 3000) "offset and count"
+    Expect.isTrue view.IsView "is a view"
+    let! inner =
+      callBytesBuiltin "bytesSlice" [| slice; RT.DInt64 50L; RT.DInt64 2000L |]
+    let innerView = ephemeralOf inner
+    Expect.isTrue
+      (obj.ReferenceEquals(innerView.buffer, parentBytes))
+      "a slice of a view shares the same array"
+    Expect.equal (innerView.offset, innerView.count) (150, 2000) "offsets add up"
+    Expect.equal
+      (innerView.ToArray())
+      (Array.sub parentBytes 150 2000)
+      "the view reads its own bytes"
+    let! whole =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 0L; RT.DInt64 4096L |]
+    Expect.isTrue
+      (obj.ReferenceEquals(ephemeralOf whole, ephemeralOf parent))
+      "the whole value is the value itself"
+  }
+
+let smallSlicesCopy =
+  testTask
+    "a slice of 64 bytes or under 1/8 of the array is copied, so it keeps nothing alive" {
+    let parentBytes = randomBytes 100_000
+    let parent = mkEphemeral parentBytes
+    let! tiny =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 10L; RT.DInt64 64L |]
+    Expect.isFalse (ephemeralOf tiny).IsView "64 bytes are copied"
+    Expect.equal
+      (ephemeralOf tiny).buffer
+      (Array.sub parentBytes 10 64)
+      "copied bytes"
+    // 12,499 * 8 < 100,000: under an eighth of the array
+    let! small =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 5L; RT.DInt64 12_499L |]
+    Expect.isFalse
+      (ephemeralOf small).IsView
+      "a small share of a big array is copied"
+    let! eighth =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 5L; RT.DInt64 12_500L |]
+    Expect.isTrue (ephemeralOf eighth).IsView "an eighth of the array is shared"
+    // The ratio is against the array the view would hold, not the parent view's length.
+    let! viewSlice =
+      callBytesBuiltin "bytesSlice" [| eighth; RT.DInt64 0L; RT.DInt64 10_000L |]
+    Expect.isFalse
+      (ephemeralOf viewSlice).IsView
+      "10,000 bytes of a view on 100,000 are copied"
+  }
+
+let viewsBehaveLikeCopies =
+  testTask
+    "a view compares, hashes, reads and saves exactly like a copy of its bytes" {
+    let parentBytes = randomBytes 4096
+    let parent = mkEphemeral parentBytes
+    let! slice =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 1000L; RT.DInt64 1024L |]
+    let view = ephemeralOf slice
+    Expect.isTrue view.IsView "precondition: a view"
+    let copy = mkEphemeral (Array.sub parentBytes 1000 1024)
+    Expect.isTrue (Equals.equals slice copy) "equal to a copy"
+    Expect.equal (dbytesRef slice) (dbytesRef copy) "BytesRef equality"
+    Expect.equal
+      ((dbytesRef slice).GetHashCode())
+      ((dbytesRef copy).GetHashCode())
+      "same hash code"
+    Expect.equal (dbytesRef slice).Length 1024L "length is the view's"
+    Expect.isFalse (Equals.equals slice parent) "not equal to the parent"
+
+    let! at = callBytesBuiltin "bytesGetAt" [| slice; RT.DInt64 5L |]
+    Expect.equal
+      at
+      (Dval.optionSome RT.KTUInt8 (RT.DUInt8 parentBytes[1005]))
+      "getAt"
+    let! past = callBytesBuiltin "bytesGetAt" [| slice; RT.DInt64 1024L |]
+    Expect.equal past (Dval.optionNone RT.KTUInt8) "getAt past the view's end"
+    let target = parentBytes[1010]
+    let! found =
+      callBytesBuiltin "bytesIndexOf" [| slice; RT.DUInt8 target; RT.DInt64 0L |]
+    Expect.equal
+      found
+      (Dval.optionSome
+        RT.KTInt64
+        (RT.DInt64(
+          int64 (System.Array.IndexOf(Array.sub parentBytes 1000 1024, target))
+        )))
+      "indexOf is view-relative"
+    // This segment starts before the view and ends inside it, so it is not in the view.
+    let! missing =
+      callBytesBuiltin
+        "bytesIndexOfSegment"
+        [| slice; mkEphemeral (Array.sub parentBytes 970 70); RT.DInt64 0L |]
+    Expect.equal
+      missing
+      (Dval.optionNone RT.KTInt64)
+      "indexOfSegment stays in the view"
+    let! seg =
+      callBytesBuiltin
+        "bytesIndexOfSegment"
+        [| slice; mkEphemeral (Array.sub parentBytes 1500 70); RT.DInt64 0L |]
+    Expect.equal seg (Dval.optionSome RT.KTInt64 (RT.DInt64 500L)) "indexOfSegment"
+    let! joined =
+      callBytesBuiltin
+        "bytesConcat"
+        [| RT.DList(LibExecution.ValueType.bytes, [ slice; slice ]) |]
+    Expect.equal
+      (ephemeralOf joined).buffer
+      (Array.append
+        (Array.sub parentBytes 1000 1024)
+        (Array.sub parentBytes 1000 1024))
+      "concat writes the view's bytes only"
+    let! peeked = callBytesBuiltin "bytesPeek" [| slice; RT.DInt64 4L |]
+    Expect.equal
+      peeked
+      (Dval.optionSome RT.KTBytes (mkEphemeral (Array.sub parentBytes 1000 4)))
+      "peek"
+
+    let expected = Array.sub parentBytes 1000 1024
+    let insert h bytes =
+      Expect.equal
+        bytes
+        expected
+        "saving a view saves its own bytes, not the array it shares"
+      Expect.equal h (Bytes.sha256Hex expected) "under the hash of those bytes"
+      uply { return () }
+    let! promoted = Bytes.promote insert slice |> Ply.toTask
+    Expect.equal
+      (dbytesRef promoted).ContentHash
+      (Bytes.sha256Hex expected)
+      "saved hash"
+    Expect.equal (dbytesRef promoted).Length 1024L "saved length"
   }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1001,6 +1170,9 @@ let tests =
       reflectionIgnoresByteStorage
       byteLengthDoesNotReadStorage
       peekDoesNotReadStorage
+      sliceSharesTheParent
+      smallSlicesCopy
+      viewsBehaveLikeCopies
       packageBytesInsertLookup
       packageBytesDedupesOnSameHash
       packageBytesMissingHashReturnsNone

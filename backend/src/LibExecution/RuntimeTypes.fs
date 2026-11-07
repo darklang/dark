@@ -821,26 +821,47 @@ type StringSegment =
 /// and reused on promotion. `Bytes.newEphemeral` takes ownership of the array;
 /// callers must not mutate it.
 ///
-/// CLEANUP: `bytes` can still be mutated if a caller keeps or receives the
+/// The value is `buffer[offset .. offset + count - 1]`. A slice made by
+/// `Bytes.sliceEphemeral` shares its parent's `buffer` instead of copying it, so
+/// reading a big value in pieces does not copy the rest of it at every step.
+///
+/// CLEANUP: `buffer` can still be mutated if a caller keeps or receives the
 /// array, and a hand-built record can reuse an `id`. Both are by
 /// convention — not reachable from Dark, only from future internal code.
 [<CustomEquality; NoComparison>]
 type EphemeralBytes =
   {
     id : uuid
-    bytes : byte[]
+    /// The backing array, shared with every slice of it. It can be longer than
+    /// the value; read the value through [Span] or [ToArray].
+    buffer : byte[]
+    offset : int
+    count : int
     /// Null until [ContentHash] first computes it. A plain field rather than a
     /// `Lazy`, so bytes that are never compared allocate nothing for it. Two
     /// threads asking at once both compute the same string, which is harmless.
     mutable hash : string
   }
 
+  /// Whether this value shares a larger array, which only a slice does.
+  member this.IsView : bool = this.offset <> 0 || this.count <> this.buffer.Length
+
+  /// The bytes, without copying.
+  member this.Span : System.ReadOnlySpan<byte> =
+    System.ReadOnlySpan<byte>(this.buffer, this.offset, this.count)
+
+  /// The bytes as an array of exactly [count] bytes: the buffer itself, or a new
+  /// copy when this is a view. Treat it as read-only. A view copies on every
+  /// call, so use [Span] where a span will do.
+  member this.ToArray() : byte[] =
+    if this.IsView then this.Span.ToArray() else this.buffer
+
   /// SHA-256 of the bytes as lowercase hex, the same key `package_blobs` uses.
   member this.ContentHash : string =
     if isNull this.hash then
       this.hash <-
         System.Convert.ToHexStringLower(
-          System.Security.Cryptography.SHA256.HashData this.bytes
+          System.Security.Cryptography.SHA256.HashData this.Span
         )
     this.hash
 
@@ -851,22 +872,16 @@ type EphemeralBytes =
     match o with
     | :? EphemeralBytes as other ->
       obj.ReferenceEquals(this, other)
-      || (this.bytes.Length = other.bytes.Length
-          && this.ContentHash = other.ContentHash)
+      || (this.count = other.count && this.ContentHash = other.ContentHash)
     | _ -> false
   override this.GetHashCode() : int =
-    hash this.ContentHash * 31 + hash (int64 this.bytes.Length)
+    hash this.ContentHash * 31 + hash (int64 this.count)
 
 /// Where the bytes of a DBytes live. Ephemeral refs carry their bytes
 /// inline ([EphemeralBytes]); persistent refs hold a content hash and
 /// resolve via the package manager's `blobs` lookup against
-/// `package_blobs`.
-///
-/// TODO BEAM-style sub-blob sharing: add
-///   `| Subblob of parent: BytesRef * offset: int64 * length: int64`
-/// so `Bytes.slice` returns a view rather than copying. `readBytes`
-/// would walk to the root; promotion would promote just the slice
-/// (default) or the parent. Skip until a profile shows slice-copy is hot.
+/// `package_blobs`. An ephemeral slice shares its parent's array (see
+/// [EphemeralBytes]); slicing a persistent ref still reads it and copies.
 [<CustomEquality; NoComparison>]
 type BytesRef =
   | Ephemeral of EphemeralBytes
@@ -879,7 +894,7 @@ type BytesRef =
 
   member this.Length : int64 =
     match this with
-    | Ephemeral e -> int64 e.bytes.Length
+    | Ephemeral e -> int64 e.count
     | Persistent(_, length) -> length
 
   // Two BytesRefs are equal when they hold the same bytes, whether ephemeral or

@@ -56,7 +56,7 @@ type IndexError =
   | IndexOutOfBounds
 
 
-/// Returns {{Ok}} a copy of the bytes from <param start> up to, but not
+/// Returns {{Ok}} the bytes from <param start> up to, but not
 /// including, <param end>. Returns {{Error IndexOutOfBounds}} unless
 /// {{0 <= start <= end <= length}}.
 let slice(

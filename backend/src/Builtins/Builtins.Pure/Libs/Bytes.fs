@@ -42,8 +42,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DBytes(Ephemeral eph); DInt64 count |] ->
-          let n = max 0L (min count (int64 eph.bytes.Length))
-          let prefix = Array.truncate (int n) eph.bytes
+          let n = max 0L (min count (int64 eph.count))
+          let prefix = eph.Span.Slice(0, int n).ToArray()
           Ply(Dval.optionSome KTBytes (Bytes.newEphemeral prefix))
         | _, _, _, [| DBytes(Persistent _); DInt64 _ |] ->
           Ply(Dval.optionNone KTBytes)
@@ -65,6 +65,7 @@ let fns () : List<BuiltInFn> =
             use collected = new System.IO.MemoryStream()
             for item in items do
               match item with
+              | DBytes(Ephemeral eph) -> collected.Write(eph.Span)
               | DBytes ref ->
                 let! bs = Bytes.readBytes state ref
                 collected.Write(bs, 0, bs.Length)
@@ -81,10 +82,9 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO copy-free slicing via a `Subblob` BytesRef variant (see
-    // RuntimeTypes.fs:BytesRef). Today's slice always allocates a
-    // fresh byte[]; fine at current sizes, wasteful for 100MB chunked
-    // processing. Reopen when a profile flags slice-copy as hot.
+    // In-memory bytes are sliced without copying when the piece is big enough
+    // (`Bytes.sliceEphemeral`), so `take`, `drop` and a cursor over a large buffer
+    // don't copy the rest of it each step. Saved bytes are read whole and copied.
     { name = fn "bytesSlice" 0
       typeParams = []
       parameters =
@@ -93,9 +93,14 @@ let fns () : List<BuiltInFn> =
           Param.make "length" TInt64 "0 or more" ]
       returnType = TBytes
       description =
-        "Copies <param length> bytes starting at <param start> into Bytes. Out-of-range slices are clamped."
+        "Returns <param length> bytes starting at <param start>. Out-of-range slices are clamped."
       fn =
         (function
+        | _, _, _, [| DBytes(Ephemeral eph); DInt64 startD; DInt64 lenD |] ->
+          let len = int64 eph.count
+          let safeStart = max 0L (min startD len)
+          let safeLen = max 0L (min lenD (len - safeStart))
+          Ply(Bytes.sliceEphemeral eph (int safeStart) (int safeLen))
         | state, _, _, [| DBytes ref; DInt64 startD; DInt64 lenD |] ->
           Bytes.withBytes state ref (fun bs ->
             let len = int64 bs.Length
@@ -119,6 +124,11 @@ let fns () : List<BuiltInFn> =
         "Returns {{Some byte}} at <param index> in <param bytes>, or {{None}} if out of bounds."
       fn =
         (function
+        | _, _, _, [| DBytes(Ephemeral eph); DInt64 index |] ->
+          if index >= 0L && index < int64 eph.count then
+            Ply(Dval.optionSome KTUInt8 (DUInt8 eph.buffer[eph.offset + int index]))
+          else
+            Ply(Dval.optionNone KTUInt8)
         | state, _, _, [| DBytes ref; DInt64 index |] ->
           Bytes.withBytes state ref (fun bs ->
             if index >= 0L && index < int64 bs.Length then
@@ -144,6 +154,13 @@ let fns () : List<BuiltInFn> =
         "Returns {{Some index}} of the first <param byte> in <param bytes> at or after <param start>, or {{None}} if there is none or <param start> is out of range."
       fn =
         (function
+        | _, _, _, [| DBytes(Ephemeral eph); DUInt8 b; DInt64 startD |] ->
+          if startD >= 0L && startD < int64 eph.count then
+            match System.MemoryExtensions.IndexOf(eph.Span.Slice(int startD), b) with
+            | -1 -> Ply(Dval.optionNone KTInt64)
+            | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (startD + int64 i)))
+          else
+            Ply(Dval.optionNone KTInt64)
         | state, _, _, [| DBytes ref; DUInt8 b; DInt64 startD |] ->
           Bytes.withBytes state ref (fun bs ->
             if startD >= 0L && startD < int64 bs.Length then
@@ -171,6 +188,15 @@ let fns () : List<BuiltInFn> =
         "Returns {{Some index}} of the first <param segment> in <param bytes> at or after <param start>, or {{None}} if there is none or <param start> is out of range. An empty <param segment> is found at <param start>."
       fn =
         (function
+        | _, _, _, [| DBytes(Ephemeral eph); DBytes(Ephemeral seg); DInt64 start |] ->
+          if start >= 0L && start <= int64 eph.count then
+            match
+              System.MemoryExtensions.IndexOf(eph.Span.Slice(int start), seg.Span)
+            with
+            | -1 -> Ply(Dval.optionNone KTInt64)
+            | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (start + int64 i)))
+          else
+            Ply(Dval.optionNone KTInt64)
         | state, _, _, [| DBytes ref; DBytes segmentRef; DInt64 start |] ->
           Bytes.withBytes state ref (fun bs ->
             Bytes.withBytes state segmentRef (fun segment ->
