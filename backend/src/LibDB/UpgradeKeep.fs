@@ -3,7 +3,7 @@
 /// A binary carries a package set, and topping a store up folds those ops like any others: each name goes
 /// to whichever op has the later `origin_ts`. A build cut after your edit is later, so it takes the name
 /// back silently. The names you wrote are recorded before the fold
-/// (`EmbeddedResources.locallyAuthored`) and re-asserted here afterwards, for names the fold moved.
+/// (`locallyAuthored` from `EmbeddedResources.extract`) and re-asserted here afterwards, for names the fold moved.
 ///
 /// The re-assertion is a `Resolve`, not another `SetName`: re-authoring the original produces an op that
 /// already exists, which dedups and folds nothing. It also keeps the choice in the log rather than as a

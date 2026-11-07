@@ -301,56 +301,80 @@ module HandleCommand =
       // A body's own references, by kind. `CallGraph.analyze` walks the PT expression, lambda
       // bodies and dictionary keys included, which is the same walk the permission analyzer
       // trusts.
-      let builtinsOf = System.Collections.Generic.Dictionary<string, Set<string>>()
-      let pkgRefsOf = System.Collections.Generic.Dictionary<string, Set<string>>()
-      let mutable analyzed = 0
-      let mutable missing = 0
-      let mutable incomplete = 0
-
       // A body's VALUE references, which `Analysis.names` does not carry: it collects fn names
       // only. Without these, `DemoData.HttpServerTest.router` reaches its three handlers through a
       // `val` of them and the handlers read as unreachable.
-      let valueRefsOf = System.Collections.Generic.Dictionary<string, Set<string>>()
-
-      let record (h : string) (a : LibExecution.CallGraph.Analysis) =
-        analyzed <- analyzed + 1
-        if not a.complete then incomplete <- incomplete + 1
-
-        builtinsOf[h] <-
-          a.names
-          |> List.choose (function
-            | FQFnName.Builtin b -> Some $"{b.name}_v{b.version}"
-            | _ -> None)
-          |> Set.ofList
-
-        pkgRefsOf[h] <-
-          a.names
-          |> List.choose (function
-            | FQFnName.Package(Hash p) -> Some p
-            | _ -> None)
-          |> Set.ofList
-
+      //
       // Values as well as functions. A `val` body can name a builtin that no fn names, and a
       // fn-only walk would then report that builtin as having no caller at all.
-      for (h, _, _, _, t) in rows do
-        match t with
-        | "fn" ->
-          match! PM.pt.getFn (Hash h) with
-          | None -> missing <- missing + 1
-          | Some fn ->
-            record h (LibExecution.CallGraph.analyzeFn Set.empty fn)
+      //
+      // One entry per fn or value row; `None` when its body could not be loaded.
+      let! (bodies :
+        List<string * Option<LibExecution.CallGraph.Analysis * Set<string>>>) =
+        rows
+        |> Ply.List.mapSequentially (fun (h, _, _, _, t) ->
+          uply {
+            match t with
+            | "fn" ->
+              match! PM.pt.getFn (Hash h) with
+              | None -> return Some(h, None)
+              | Some fn ->
+                return
+                  Some(
+                    h,
+                    Some(
+                      LibExecution.CallGraph.analyzeFn Set.empty fn,
+                      LibExecution.CallGraph.valueRefs fn.body
+                      |> Set.map (fun (Hash v) -> v)
+                    )
+                  )
+            | "value" ->
+              match! PM.pt.getValue (Hash h) with
+              | None -> return Some(h, None)
+              | Some v ->
+                return
+                  Some(
+                    h,
+                    Some(
+                      LibExecution.CallGraph.analyze Set.empty Set.empty v.body,
+                      LibExecution.CallGraph.valueRefs v.body
+                      |> Set.map (fun (Hash x) -> x)
+                    )
+                  )
+            | _ -> return None
+          })
+        |> Ply.map (List.choose identity)
 
-            valueRefsOf[h] <-
-              LibExecution.CallGraph.valueRefs fn.body |> Set.map (fun (Hash v) -> v)
-        | "value" ->
-          match! PM.pt.getValue (Hash h) with
-          | None -> missing <- missing + 1
-          | Some v ->
-            record h (LibExecution.CallGraph.analyze Set.empty Set.empty v.body)
+      let loaded =
+        bodies |> List.choose (fun (h, b) -> b |> Option.map (fun b -> (h, b)))
+      let analyzed = List.length loaded
+      let missing = List.length bodies - analyzed
+      let incomplete =
+        loaded |> List.filter (fun (_, (a, _)) -> not a.complete) |> List.length
 
-            valueRefsOf[h] <-
-              LibExecution.CallGraph.valueRefs v.body |> Set.map (fun (Hash x) -> x)
-        | _ -> ()
+      // A body's own references, by kind. `CallGraph.analyze` walks the PT expression, lambda
+      // bodies and dictionary keys included, which is the same walk the permission analyzer
+      // trusts.
+      let refsOf
+        (pick : FQFnName.FQFnName -> Option<string>)
+        : Map<string, Set<string>> =
+        loaded
+        |> List.map (fun (h, (a, _)) ->
+          (h, a.names |> List.choose pick |> Set.ofList))
+        |> Map.ofList
+
+      let builtinsOf =
+        refsOf (function
+          | FQFnName.Builtin b -> Some $"{b.name}_v{b.version}"
+          | _ -> None)
+
+      let pkgRefsOf =
+        refsOf (function
+          | FQFnName.Package(Hash p) -> Some p
+          | _ -> None)
+
+      let valueRefsOf =
+        loaded |> List.map (fun (h, (_, values)) -> (h, values)) |> Map.ofList
 
       print
         $"analyzed {analyzed} fn and value bodies ({missing} could not be loaded, {incomplete} statically incomplete)"
@@ -366,40 +390,30 @@ module HandleCommand =
           |> Sql.executeAsync (fun read ->
             read.string "item_hash", read.string "depends_on_hash")
 
-        let deps = System.Collections.Generic.Dictionary<string, HashSet<string>>()
+        let edgesOf (refs : Map<string, Set<string>>) =
+          refs
+          |> Map.toList
+          |> List.collect (fun (a, bs) ->
+            bs |> Set.toList |> List.map (fun b -> (a, b)))
 
-        let addEdge (a : string) (b : string) =
-          match deps.TryGetValue a with
-          | true, s -> s.Add b |> ignore<bool>
-          | _ ->
-            let s = HashSet<string>()
-            s.Add b |> ignore<bool>
-            deps[a] <- s
+        let deps : Map<string, Set<string>> =
+          depRows @ edgesOf pkgRefsOf @ edgesOf valueRefsOf
+          |> List.fold
+            (fun deps (a, b) ->
+              let existing = Map.tryFind a deps |> Option.defaultValue Set.empty
+              Map.add a (Set.add b existing) deps)
+            Map.empty
 
-        for (a, b) in depRows do
-          addEdge a b
+        let rec visit (seen : Set<string>) (stack : List<string>) : Set<string> =
+          match stack with
+          | [] -> seen
+          | h :: rest when Set.contains h seen -> visit seen rest
+          | h :: rest ->
+            let next =
+              Map.tryFind h deps |> Option.map Set.toList |> Option.defaultValue []
+            visit (Set.add h seen) (next @ rest)
 
-        for KeyValue(a, ps) in pkgRefsOf do
-          for p in ps do
-            addEdge a p
-
-        for KeyValue(a, vs) in valueRefsOf do
-          for v in vs do
-            addEdge a v
-
-        let seen = HashSet<string>()
-        let stack = System.Collections.Generic.Stack<string>()
-        for r in roots do
-          stack.Push r
-
-        while stack.Count > 0 do
-          let h = stack.Pop()
-          if seen.Add h then
-            match deps.TryGetValue h with
-            | true, s ->
-              for n in s do
-                stack.Push n
-            | _ -> ()
+        let seen = visit Set.empty (Set.toList roots)
 
         let reached =
           seen |> Seq.filter (fun h -> Map.containsKey h nameOf) |> Set.ofSeq
@@ -550,12 +564,11 @@ module HandleCommand =
         // Builtins: named by a reachable item, named only by an unreachable one, or named nowhere.
         let namedByReachable =
           builtinsOf
-          |> Seq.filter (fun kv -> Set.contains kv.Key reached)
-          |> Seq.collect (fun kv -> kv.Value)
-          |> Set.ofSeq
+          |> Map.filterWithIndex (fun h _ -> Set.contains h reached)
+          |> Map.values
+          |> Set.unionMany
 
-        let namedAnywhere =
-          builtinsOf |> Seq.collect (fun kv -> kv.Value) |> Set.ofSeq
+        let namedAnywhere = builtinsOf |> Map.values |> Set.unionMany
         print ""
         print $"builtins named by a REACHABLE item: {Set.count namedByReachable}"
         print

@@ -145,20 +145,14 @@ let private formatBytes (n : int64) : string =
 
 /// Group results by scenario family (prefix before '/'); preserves
 /// first-occurrence order for both the family list and the rows.
-/// (Prelude's `List.groupBy` returns a Map, which sorts by key.)
+/// (Prelude's `List.groupBy` returns a Map, which sorts by key; `Seq.groupBy` keeps order.)
 let private groupByFamily
   (results : List<Scenarios.Result>)
   : List<string * List<Scenarios.Result>> =
-  let dict =
-    System.Collections.Generic.Dictionary<string, ResizeArray<Scenarios.Result>>()
-  let order = ResizeArray<string>()
-  for r in results do
-    let group = r.scenario.Split('/')[0]
-    if not (dict.ContainsKey(group)) then
-      order.Add(group)
-      dict[group] <- ResizeArray()
-    dict[group].Add(r)
-  order |> Seq.map (fun g -> (g, List.ofSeq dict[g])) |> Seq.toList
+  results
+  |> Seq.groupBy (fun r -> r.scenario.Split('/')[0])
+  |> Seq.map (fun (group, rows) -> (group, List.ofSeq rows))
+  |> Seq.toList
 
 
 let private renderSnapshotBody (results : List<Scenarios.Result>) : List<string> =
