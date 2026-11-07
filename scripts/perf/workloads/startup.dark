@@ -1,0 +1,3 @@
+// Nothing but one line of output: what `run` costs before a workload does anything. `gate` takes
+// this off steady.dark's number so the budget is the workload, not process startup.
+Stdlib.printLine("startup")

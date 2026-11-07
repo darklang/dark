@@ -33,8 +33,8 @@ From the command line, `dark eval --stats <expr>` and `dark run --stats <file>` 
 block, after whatever the expression or script printed. Note what they measure: evaluating an
 expression or running a script parses and resolves it too, and for anything small that is most of
 the allocation, while the instruction count is execution only. Inside a script, `Perf.measure`
-brackets the work alone. Neither counts process startup, which is what `gate`'s number is mostly
-made of (see below).
+brackets the work alone. Neither counts process startup, which `gate` measures on its own and takes
+off its workload's number (see below).
 
 To compare two pieces of Dark, `Perf.ab(a, b, rounds)` alternates them so drift lands on both
 sides, takes the harness off each reading and keeps the lowest of each field per side:
@@ -65,8 +65,10 @@ because the same workload has three different right answers.
 ## The tools
 
 - `gate` is the CI assertion: `workloads/steady.dark`, allocation against `budget.json`, warm and
-  on the cold first run (with its peak memory), then CPU for `workloads/fib.dark` and `ls` against
-  the newest release, paired (`_paired.py`); offline, against the one `budget.json` pins.
+  on the cold first run (with its peak memory). The warm number is net of startup
+  (`workloads/startup.dark`), which has a budget of its own. Then CPU for `workloads/fib.dark` and
+  `ls` against the newest release, paired (`_paired.py`); offline, against the one `budget.json`
+  pins.
   `--published` is the real one; bare is debug and does not gate.
 - `suite` runs the seven shapes in `workloads/suite/`, allocation and time per iteration, with
   startup differenced out.
@@ -89,9 +91,10 @@ because the same workload has three different right answers.
 
 Three different contracts, which is why they are in three places:
 
-- `workloads/steady.dark` and `workloads/http-server.dark` are owned by a tool. `steady.dark` is the
-  gated workload, named in `budget.json`, so changing it changes what the budget means. Do not edit
-  it to make a number look better.
+- `workloads/steady.dark`, `workloads/startup.dark` and `workloads/http-server.dark` are owned by a
+  tool. `steady.dark` is the gated workload and `startup.dark` the baseline taken off it, both
+  named in `budget.json`, so changing either changes what the budget means. Do not edit them to
+  make a number look better.
 - `workloads/suite/` is the differenced set. Each file reads `PERF_ITERS` and gets run twice, at 0
   and at N, so startup cancels and the result is per-iteration. A new file here is picked up
   automatically.
@@ -129,8 +132,9 @@ The playbook has the long version. The four that cost the most time here:
   dev store than against one the published binary grew itself. CI is in the second case.
 - **A zero-second run is a lock, not a result**, and a suspiciously good number usually means the
   thing you think produced it did not run.
-- **`gate` measures the whole process**, so startup, opening the store, loading packages and
-  parsing the file are all inside its number. Measured on an AOT binary with a warm store:
-  `Stdlib.printLine "baseline"` allocates 6.6 MB and all of `steady.dark` allocates 10.3 MB, so
-  about two thirds of the budget is not the loop under test. `suite` differences two runs and does
-  not have this problem.
+- **A whole run is mostly startup.** On an AOT binary with a warm store, `startup.dark` (one
+  `printLine`) allocates 7.0 MB and all of `steady.dark` 10.3 MB, so two thirds of a whole run is
+  not the loop under test, and a 3% tolerance on the total let a 19% regression in the workload
+  through. So `gate` budgets the two apart: startup at 3%, and `steady.dark` minus startup (3.35
+  MB, parsing the file and the loop) at 5%, each the median of three warm runs. It prints the
+  total too. `suite` differences 0 against N iterations, so its numbers leave out parsing as well.

@@ -4,12 +4,17 @@
 # Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
 # deliberately: one script, under a minute. A long perf job gets ignored and then disabled.
 #
-# The published gate checks three things, all on the binary just built:
-#   - steady.dark's allocation, warm (the number this gate started with)
+# The published gate checks four things, all on the binary just built:
+#   - steady.dark's allocation, warm, net of startup (the number this gate started with)
+#   - startup's allocation, warm: `run` of a one-line script (workloads/startup.dark)
 #   - the cold first run's allocation and peak memory, on a store grown from nothing
 #   - CPU for `fib 24` and `ls Darklang.Stdlib.List`, paired against the newest release (_paired.py)
 # Allocation can't see a call getting slower, and the warm run can't see the first run getting
 # bigger, which is how the October regressions got through.
+#
+# Startup is two thirds of a whole steady.dark run, so a budget on the total diluted a regression
+# in the workload threefold. The two are budgeted apart instead: a startup regression still
+# fails, and the workload's own number is no longer mostly something else.
 #
 #   scripts/perf/gate              the debug build's allocation, reported but NOT gated
 #   scripts/perf/gate --published  against the published one, as CI does. This is the gate.
@@ -57,6 +62,11 @@ fi
 
 BUDGET_FILE="scripts/perf/budget.json"
 WORKLOAD="scripts/perf/workloads/steady.dark"
+STARTUP="scripts/perf/workloads/startup.dark"
+# Warm readings of each, alternated. A single reading lands in one of the clusters
+# docs/perf/playbook.md describes, and a difference of two single readings moves about 4%; the
+# median of three each holds it inside the tolerance.
+SAMPLES=3
 
 # The published gate grows its own store, so the first run is cold and the number doesn't depend on
 # whose store this is. The debug build keeps the dev store: it has no budget to be cold against.
@@ -78,8 +88,8 @@ TELEMETRY=$(telemetry_path)
 # -- the env var below was silently overridden and the gate measured a recording run. That is worth
 # 2.1 MB on this workload, 22% of the budget, and it is why a local red here has looked like a
 # regression all week. The flag pins the setting for the run and beats both.
-run_workload() {
-  DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" --no-trace run "$WORKLOAD"
+run_script() {
+  DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" --no-trace run "$1"
 }
 
 # The first run grows the store from the embedded seed, so it isn't counted in steady's number. It
@@ -96,8 +106,17 @@ COLD=$(DOTNET_GCgen0size=1000000 DOTNET_GCHeapHardLimit=180000000 \
   python3 ./scripts/perf/_rusage.py "$EXE" --no-trace run "$WORKLOAD") || exit 2
 COLD_PEAK_MB=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["peak_rss_mb"])' "$COLD")
 COLD_ALLOC=$(python3 ./scripts/perf/_total-alloc.py "$TELEMETRY") || exit 2
-rm -f "$TELEMETRY"
-OUTPUT=$(run_workload)
+# One parser for this, shared with `suite`: see scripts/perf/_total-alloc.py.
+STARTUP_READINGS=""
+TOTAL_READINGS=""
+for _ in $(seq "$SAMPLES"); do
+  rm -f "$TELEMETRY"
+  run_script "$STARTUP" > /dev/null
+  STARTUP_READINGS="$STARTUP_READINGS $(python3 ./scripts/perf/_total-alloc.py "$TELEMETRY")" || exit 2
+  rm -f "$TELEMETRY"
+  OUTPUT=$(run_script "$WORKLOAD")
+  TOTAL_READINGS="$TOTAL_READINGS $(python3 ./scripts/perf/_total-alloc.py "$TELEMETRY")" || exit 2
+done
 echo "$OUTPUT" | head -c 200
 echo
 
@@ -106,23 +125,28 @@ echo
 echo "store    ${HOME}/.darklang"
 
 MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
-# One parser for this, shared with `suite`: see scripts/perf/_total-alloc.py.
-MEASURED=$(python3 ./scripts/perf/_total-alloc.py "$TELEMETRY") || exit 2
 
 BUDGET_STATUS=0
-python3 - "$BUDGET_FILE" "$MEASURED" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" <<'PY' || BUDGET_STATUS=$?
-import json, sys
+python3 - "$BUDGET_FILE" "$TOTAL_READINGS" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" "$STARTUP_READINGS" <<'PY' || BUDGET_STATUS=$?
+import json, statistics, sys
 
 budget_file, update = sys.argv[1], sys.argv[3] == "true"
-measured = int(sys.argv[2])
+readings = lambda s: [int(x) for x in s.split()]
+total = int(statistics.median(readings(sys.argv[2])))
+startup = int(statistics.median(readings(sys.argv[7])))
+# What the budget is on: the workload, with startup taken off.
+measured = total - startup
 cold_alloc, cold_peak_mb = int(sys.argv[5]), float(sys.argv[6])
 
 budget = json.load(open(budget_file))
 mode = sys.argv[4]
 # `.get`, not `[...]`: debug has no budget any more and a missing key must not be a crash.
 limit = budget["steady"].get(mode)
-tolerance = budget["tolerance"]
+tolerance = budget["steady"]["tolerance"]
+startup_limit = budget["startup"].get(mode)
+startup_tolerance = budget["startup"]["tolerance"]
 mb = lambda b: f"{b/1e6:.1f} MB"
+mb2 = lambda b: f"{b/1e6:.2f} MB"
 
 # Retired on purpose, so `--update` does not quietly put it back.
 if mode == "debug" and update:
@@ -134,25 +158,28 @@ if mode == "debug":
     # Exit 2, not 0. This run measured something and checked it against nothing, and a caller
     # reading only the exit code would take a 0 for a budget that held. 2 is what the rest of
     # this script uses for "could not do the job", as against 1 for "over budget".
-    print(f"steady.dark (debug) allocated {mb(measured)}; not budgeted, so this does not gate.")
+    print(f"steady.dark (debug) allocated {mb2(measured)} net of startup ({mb2(startup)}), "
+          f"{mb2(total)} in all; not budgeted, so this does not gate.")
     print(f"first run allocated {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB (on the dev store, so not cold).")
     print("The published build is what is budgeted: `scripts/perf/gate --published`.")
     sys.exit(2)
 
 if update:
     budget["steady"][mode] = measured
+    budget["startup"][mode] = startup
     budget["cold"]["allocated"] = cold_alloc
     budget["cold"]["peakRssMB"] = round(cold_peak_mb)
     with open(budget_file, "w") as f:
         json.dump(budget, f, indent=2)
         f.write("\n")
-    print(f"{mode} budget updated to {mb(measured)}; first run {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB")
+    print(f"{mode} budget updated to {mb2(measured)} net of startup, startup {mb2(startup)}; "
+          f"first run {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB")
     sys.exit(0)
 
 # The first run, on a store grown from nothing, with tolerances of its own: allocation repeats to
 # the MB in 900, peak memory to a few MB in 480. The regressions this is for were 50% and 90%.
 cold = budget["cold"]
-cold_failed = False
+failed = False
 for label, got, base, tol, show in (
     ("allocated", cold_alloc, cold["allocated"], cold["allocatedTolerance"], mb),
     ("peak memory", cold_peak_mb, cold["peakRssMB"], cold["peakRssTolerance"], lambda v: f"{v:.0f} MB"),
@@ -161,36 +188,36 @@ for label, got, base, tol, show in (
     print(f"first run {label} {show(got)}; budget {show(base)}, ceiling {show(top)}")
     if got > top:
         print(f"FAIL: first run {label} {(got / base - 1) * 100:.1f}% over budget.")
-        cold_failed = True
+        failed = True
     elif got < base * (1 - tol):
         print(f"  {(1 - got / base) * 100:.1f}% under -- lower it with `scripts/perf/gate --published --update`.")
-if cold_failed:
-    print("If it is intended, raise the budget in the same commit and say why.")
 
 # A budget nobody has recorded yet reports and passes. Better than a number carried over from the
 # other build mode, which would be wrong in a way that looks right.
-if limit is None:
-    print(f"steady.dark ({mode}) allocated {mb(measured)}; no budget recorded yet.")
+if limit is None or startup_limit is None:
+    print(f"steady.dark ({mode}) allocated {mb2(measured)} net of startup ({mb2(startup)}); no budget recorded yet.")
     flag = " --published" if mode == "published" else ""
     print(f"Pin it with `scripts/perf/gate{flag} --update`.")
-    sys.exit(1 if cold_failed else 0)
+    sys.exit(1 if failed else 0)
 
-ceiling = int(limit * (1 + tolerance))
-print(f"steady.dark ({mode}) allocated {mb(measured)}; budget {mb(limit)}, ceiling {mb(ceiling)}")
+print(f"steady.dark ({mode}) allocated {mb2(total)} in all, median of {len(readings(sys.argv[2]))} warm runs")
+for label, got, base, tol in (
+    ("startup", startup, startup_limit, startup_tolerance),
+    ("steady.dark net of startup", measured, limit, tolerance),
+):
+    top = int(base * (1 + tol))
+    print(f"  {label} {mb2(got)}; budget {mb2(base)}, ceiling {mb2(top)}")
+    if got > top:
+        print(f"FAIL: {label} {(got / base - 1) * 100:.1f}% over budget.")
+        failed = True
+    elif got < base * (1 - tol):
+        print(f"    {(1 - got / base) * 100:.1f}% under -- lower it with `scripts/perf/gate --published --update`.")
 
-if measured > ceiling:
-    over = (measured / limit - 1) * 100
-    print(f"FAIL: {over:.1f}% over budget.")
+if failed:
     print("If the regression is intended, raise the budget in the same commit and say why.")
     print("This ran against a store the binary grew itself, as CI does, so a working dev")
     print("store (2.1 MB higher) is not the reason. docs/perf/playbook.md has the readings.")
-    sys.exit(1)
-
-if measured < limit * (1 - tolerance):
-    under = (1 - measured / limit) * 100
-    print(f"{under:.1f}% under budget -- lower it with `scripts/perf/gate --published --update`.")
-
-sys.exit(1 if cold_failed else 0)
+sys.exit(1 if failed else 0)
 PY
 
 # `--update` rewrites the allocation budgets only. The paired check has no number to update: it is a

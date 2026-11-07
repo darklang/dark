@@ -8,8 +8,8 @@
 #
 # Each workload reads its iteration count from PERF_ITERS and is run twice, at 0 and at N; the
 # difference is the body. Startup, parsing and package loading appear in both and cancel, which is
-# most of the total on a short run. `scripts/perf/gate` deliberately does not difference: a regression in
-# startup is still a regression.
+# most of the total on a short run. `scripts/perf/gate` takes startup off its workload too, and
+# budgets startup on its own, since a regression there is still a regression.
 #
 #   scripts/perf/suite                  all workloads
 #   scripts/perf/suite lists json       just these

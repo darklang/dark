@@ -245,8 +245,9 @@ before every publish, so each binary's name is a tree you can name back.
 
 ## 12. Leave the next person a gate, not a story
 
-`scripts/perf/gate` asserts allocation against a checked-in budget, separately for Debug and
-published, and CI runs it. **Lower the budget in the same commit that earns it** -- a budget nobody
+`scripts/perf/gate` asserts allocation against a checked-in budget, on the published build only,
+and CI runs it. Startup and the workload net of startup have separate budgets, so neither dilutes
+the other. **Lower the budget in the same commit that earns it** -- a budget nobody
 tightens stops being a gate and becomes a ceiling to drift up to.
 
 **Keep CI's share small.** The gate is deliberately one script and a couple of seconds. Don't put
