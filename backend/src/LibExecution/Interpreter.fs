@@ -1892,6 +1892,77 @@ let rec private landWhere
     | ValueNone, _ -> landWhere vm asIs (i + 1) (x :: acc) rest
 
 
+/// A builtin operator, by its `FastOps.byName` tag, on the caller's registers.
+let private fastBuiltinOp
+  (threadID : ThreadID)
+  (registers : Dval array)
+  (tag : int)
+  (argRegs : NEList<Register>)
+  : Dval voption =
+  match argRegs.tail with
+  | [] -> FastOps.eval1 tag registers[argRegs.head]
+
+  | [ secondReg ] ->
+    // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
+    // operator or not. The pair alone was worth several percent of both the gate and a view build.
+    match registers[argRegs.head] with
+    | DInt64 x ->
+      match registers[secondReg] with
+      | DInt64 y -> FastOps.eval64 tag x y
+      | _ -> ValueNone
+    | DBigInt x ->
+      match registers[secondReg] with
+      | DBigInt y -> FastOps.eval tag x y
+      | _ -> ValueNone
+    | DString x ->
+      match registers[secondReg] with
+      | DString y -> FastOps.evalStr tag x y
+      | DInt64 n -> FastOps.evalStrInt tag x n
+      | _ -> ValueNone
+    | DList(vt1, l1) ->
+      match registers[secondReg] with
+      | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
+      // `contains` and `prepend` take a list and a bare value, so they are the entries whose second
+      // operand is not constrained by the first's shape.
+      | other ->
+        if tag = FastOps.listPrepend then
+          FastOps.evalListPrepend vt1 l1 other
+        else
+          FastOps.evalListContains tag l1 other
+    | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
+    | _ -> ValueNone
+
+  | [ secondReg; thirdReg ] ->
+    match registers[argRegs.head] with
+    | DDict(kt, vt, o) ->
+      FastOps.evalDictSet tag kt vt o registers[secondReg] registers[thirdReg]
+    | _ -> ValueNone
+
+  | _ -> ValueNone
+
+
+/// A trait operator (`a + b`, `-x`), by its `FastOps.traitTag` tag, on two values of one builtin
+/// type: the impl the dispatch would pick is the type's own wrapper over the same F# operator. A
+/// `BigInt` pair takes the `BigInt` table; the rest take `evalNumeric`.
+let private fastTraitOp
+  (registers : Dval array)
+  (tag : int)
+  (argRegs : NEList<Register>)
+  : Dval voption =
+  match argRegs.tail with
+  | [ secondReg ] ->
+    // Nested, not `match a, b with`: the pair is an allocation per operator.
+    match registers[argRegs.head] with
+    | DBigInt x ->
+      match registers[secondReg] with
+      | DBigInt y -> FastOps.eval tag x y
+      | _ -> ValueNone
+    | a -> FastOps.evalNumeric tag a registers[secondReg]
+  // `-x` on a signed builtin numeric
+  | [] when tag = FastOps.negate -> FastOps.evalNegate registers[argRegs.head]
+  | _ -> ValueNone
+
+
 /// The operator table, dispatched straight off the caller's registers for a known builtin name.
 ///
 /// Split out from `tryFastOpDirect` so the elided-wrapper path can reach it too. That path used to
@@ -1908,46 +1979,7 @@ let private tryFastOpOn
   if not (FastOps.byName.TryGetValue(b, &tag)) then
     ValueNone
   else
-    match argRegs.tail with
-    | [] -> FastOps.eval1 tag registers[argRegs.head]
-
-    | [ secondReg ] ->
-      // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
-      // operator or not. The pair alone was worth several percent of both the gate and a view build.
-      match registers[argRegs.head] with
-      | DInt64 x ->
-        match registers[secondReg] with
-        | DInt64 y -> FastOps.eval64 tag x y
-        | _ -> ValueNone
-      | DBigInt x ->
-        match registers[secondReg] with
-        | DBigInt y -> FastOps.eval tag x y
-        | _ -> ValueNone
-      | DString x ->
-        match registers[secondReg] with
-        | DString y -> FastOps.evalStr tag x y
-        | DInt64 n -> FastOps.evalStrInt tag x n
-        | _ -> ValueNone
-      | DList(vt1, l1) ->
-        match registers[secondReg] with
-        | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
-        // `contains` and `prepend` take a list and a bare value, so they are the entries whose second
-        // operand is not constrained by the first's shape.
-        | other ->
-          if tag = FastOps.listPrepend then
-            FastOps.evalListPrepend vt1 l1 other
-          else
-            FastOps.evalListContains tag l1 other
-      | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
-      | _ -> ValueNone
-
-    | [ secondReg; thirdReg ] ->
-      match registers[argRegs.head] with
-      | DDict(kt, vt, o) ->
-        FastOps.evalDictSet tag kt vt o registers[secondReg] registers[thirdReg]
-      | _ -> ValueNone
-
-    | _ -> ValueNone
+    fastBuiltinOp threadID registers tag argRegs
 
 
 /// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
@@ -1966,31 +1998,12 @@ let private tryFastOpDirect
   else
     match applicable.name with
     | FQFnName.Builtin b -> tryFastOpOn threadID registers b argRegs
-    // `a + b` on two values of one builtin type: the impl the dispatch would pick
-    // is the type's own wrapper over the same F# operator, so answer it here. A `BigInt` pair
-    // takes the `BigInt` table; the rest take `evalNumeric`.
     | FQFnName.TraitMethod { trait_ = Hash traitHash
                              method_ = methodName
                              implFn = _ } ->
-      match argRegs.tail with
-      | [ secondReg ] ->
-        match FastOps.traitTag traitHash methodName with
-        | ValueSome tag ->
-          // Nested, not `match a, b with`: the pair is an allocation per operator.
-          match registers[argRegs.head] with
-          | DBigInt x ->
-            match registers[secondReg] with
-            | DBigInt y -> FastOps.eval tag x y
-            | _ -> ValueNone
-          | a -> FastOps.evalNumeric tag a registers[secondReg]
-        | ValueNone -> ValueNone
-      | [] ->
-        // `-x` on a signed builtin numeric
-        match FastOps.traitTag traitHash methodName with
-        | ValueSome tag when tag = FastOps.negate ->
-          FastOps.evalNegate registers[argRegs.head]
-        | _ -> ValueNone
-      | _ -> ValueNone
+      match FastOps.traitTag traitHash methodName with
+      | ValueSome tag -> fastTraitOp registers tag argRegs
+      | ValueNone -> ValueNone
     | _ -> ValueNone
 
 
@@ -2378,7 +2391,8 @@ let private packageFnCallData
             resultReg = fn.body.resultIn
             // A package function's frame carries the table that maps its instructions back to
             // the expressions they came from.
-            symbols = fn.symbols }
+            symbols = fn.symbols
+            quick = null }
         packageLayer = Permissions.Layer.Package id
         ceiling =
           match fn.permissionCeiling with
@@ -3434,7 +3448,8 @@ let inline private pushLambdaFrame
                   match vm.lambdaSymbols.TryGetValue exprId with
                   | true, table -> table
                   | false, _ -> Map.empty
-                lambdas = Map.empty } }
+                lambdas = Map.empty }
+          quick = null }
       vm.lambdaInstrDataCache[exprId] <- d
       d
 
@@ -4536,6 +4551,80 @@ let private tryBuildSync
       [ "opcode", Opcode.index inst ]
 
 
+/// The operator calls in <param instrs>, at the index of each one's `LoadVal`: a `LoadVal` of an
+/// operator `FastOps` knows, straight followed by the `Apply` that calls it. That pair is what
+/// `PT2RT` emits for `a + b`, and the `Apply` answers it with `tryFastOpDirect` before anything
+/// else, so the drain can do the same from the registers and step past both
+/// ("quickening": CPython rewrites its instructions this way when it loads them).
+let private quicken (generation : int) (instrs : Instruction array) : QuickOps =
+  let ops : QuickOp[] = Array.zeroCreate instrs.Length
+  let mutable any = false
+  for i in 0 .. instrs.Length - 2 do
+    match instrs[i], instrs[i + 1] with
+    | LoadVal(fnReg, DApplicable(AppNamedFn fn)), Apply(dst, callee, [], args) when
+      callee = fnReg
+      && fn.access.IsNone
+      && List.isEmpty fn.argsSoFar
+      && List.isEmpty fn.typeArgs
+      ->
+      let tag =
+        match fn.name with
+        | FQFnName.TraitMethod { trait_ = Hash traitHash; method_ = methodName } ->
+          match FastOps.traitTag traitHash methodName with
+          | ValueSome tag -> ValueSome(struct (true, tag))
+          | ValueNone -> ValueNone
+        | FQFnName.Builtin b ->
+          let mutable tag = 0
+          if FastOps.byName.TryGetValue(b, &tag) then
+            ValueSome(struct (false, tag))
+          else
+            ValueNone
+        | FQFnName.Package _ -> ValueNone
+      match tag with
+      | ValueSome(struct (isTrait, tag)) ->
+        ops[i] <- QuickOp(isTrait, tag, args, dst)
+        any <- true
+      | ValueNone -> ()
+    | _ -> ()
+  QuickOps(generation, (if any then ops else Array.empty))
+
+
+/// The operator calls of a frame's instructions, worked out the first time a frame runs them, and
+/// again after the package refs reload: the trait hashes, and so the tags, move with the stdlib.
+let private quickOpsFor (instrData : InstrData) : QuickOp[] =
+  let generation = PackageRefs.currentGeneration ()
+  let known = instrData.quick
+  if not (isNull known) && known.Generation = generation then
+    known.Ops
+  else
+    let fresh = quicken generation instrData.instructions
+    instrData.quick <- fresh
+    fresh.Ops
+
+
+/// An operator call answered as its `Apply` would answer it in `tryFastOpDirect`: true when it
+/// was, with the result in the `Apply`'s register. False changes nothing, and the `LoadVal` and
+/// the `Apply` then run as usual.
+let private tryQuickOp
+  (threadID : ThreadID)
+  (registers : Dval array)
+  (op : QuickOp)
+  : bool =
+  if anyPromiseIn registers op.Args then
+    false
+  else
+    let result =
+      if op.IsTrait then
+        fastTraitOp registers op.Tag op.Args
+      else
+        fastBuiltinOp threadID registers op.Tag op.Args
+    match result with
+    | ValueSome v ->
+      registers[op.Dst] <- v
+      true
+    | ValueNone -> false
+
+
 /// The drain's one way to park on a read still in flight: settle the promise, remember which
 /// register held it, and ask for the instruction to be run again -- now if the read had already
 /// landed, or once it lands.
@@ -4593,6 +4682,14 @@ let private runSyncInstructions
   let mutable retry = false
   let mutable force : Task<Dval> = null
   let mutable forceReg = 0
+
+  // The operator calls this drain answers itself (`quicken`). None while something is collecting
+  // values: the pair's `LoadVal` would not report the operator it loaded.
+  let quick =
+    if exeState.tracing.collectExprValues then
+      Array.empty
+    else
+      quickOpsFor instrData
 
   /// Hand the value the instruction at <param at> produced to whatever is watching.
   ///
@@ -4687,6 +4784,25 @@ let private runSyncInstructions
       elif not landedRetry then running <- false
 
     | LoadValue _ -> running <- false
+
+    // An operator call: this `LoadVal` and the `Apply` after it, answered from the registers.
+    // Only when the budget would have run the `Apply` too, so preemption falls where it did, and
+    // counted as the two instructions and one builtin call they are.
+    | LoadVal _ when
+      quick.Length > 0
+      && not (isNull quick[counter])
+      && budget <> 0L
+      && tryQuickOp vm.threadID registers quick[counter]
+      ->
+      budget <- budget - 1L
+      if vm.stats.enabled then
+        vm.stats.instructionCount <- vm.stats.instructionCount + 2L
+        vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+        for at in counter .. counter + 1 do
+          let tag = Opcode.index instrData.instructions[at]
+          if tag >= 0 && tag < vm.stats.countByOpcode.Length then
+            vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
+      counter <- counter + 2
 
     // A field that exists is read here; a miss (no such field, or not a record) leaves
     // the drain so `runRareOpcode` can try it as a receiver call (`p.show`), which
