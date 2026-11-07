@@ -46,6 +46,23 @@ test pinnedScriptNamesTheHash =
       |> Stdlib.Test.equal("Me.Demo.main, pinned at #f2fd0e0c") ])
 
 
+test scriptAliasRunsTheFile =
+  let text =
+    Darklang.Cli.Aliases.script(
+      "/opt/dark",
+      Darklang.Cli.Aliases.Target.Script("/home/me/greet.dark"))
+
+  Stdlib.Test.all(
+    [ Stdlib.String.contains(
+        text,
+        "exec '/opt/dark' --branch main run '/home/me/greet.dark' \"$@\"")
+      |> Stdlib.Test.equal(true)
+
+      Darklang.Cli.Aliases.noteOf(text)
+      |> Stdlib.Test.equal(
+        Stdlib.Option.Option.Some("runs the script /home/me/greet.dark")) ])
+
+
 // A path with a quote in it stays one word to the shell.
 test scriptQuotesTheBinary =
   Darklang.Cli.Aliases.script(
@@ -374,6 +391,53 @@ let defineReader(i: Instance.T, file: String): (Int64 * String) =
   let path = Instance.home(i) + "/reader.dark"
   let _ = Stdlib.Cli.File.writeText(path, source)
   Instance.ran(i, [ "module", "/Tests.Reader", path ])
+
+
+/// Write a script to <param file> that greets its arguments with <param greeting> and exits 3.
+let writeGreeting(file: String, greeting: String): Unit =
+  let _ =
+    Stdlib.Cli.File.writeText(
+      file,
+      $"Stdlib.printLine(\"{greeting}, \" + Stdlib.String.join(args, \" \"))\n3\n")
+
+  ()
+
+
+// A .dark file can be an alias too: it runs with its arguments and exit code, on the file as it
+// is each time; `--pin` and a missing file are refused.
+test scriptAliasFollowsTheFile = Instance.withInstance(fun i ->
+  let file = Instance.home(i) + "/greet.dark"
+  let _ = writeGreeting(file, "hello")
+  let (addCode, added) = Instance.ran(i, [ "alias", "add", "greet", file ])
+  let (before, beforeOut) = runAlias(i, "greet")
+  let _ = writeGreeting(file, "bye")
+  let (_, afterOut) = runAlias(i, "greet")
+  let (pinCode, pinOut) =
+    Instance.ran(i, [ "alias", "add", "greet2", file, "--pin" ])
+
+  let (missingCode, missingOut) =
+    Instance.ran(i, [ "alias", "add", "nope", Instance.home(i) + "/nope.dark" ])
+
+  let listed = Instance.said(i, [ "alias", "ls" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(addCode, 0, $"the alias is made: {added}")
+      Instance.says(
+        added,
+        $"greet -> the script {file}",
+        "it says what the alias runs")
+
+      Instance.says(
+        beforeOut,
+        "hello, world",
+        "the alias runs the script with its arguments")
+
+      Instance.exitedWith(before, 3, "and exits with the script's code")
+      Instance.says(afterOut, "bye, world", "an edit to the file shows up")
+      Instance.exitedWith(pinCode, 1, "--pin with a script is refused")
+      Instance.says(pinOut, "--pin is for a fn", "and the refusal says why")
+      Instance.exitedWith(missingCode, 1, "a missing file is refused")
+      Instance.says(missingOut, "no file at", "and the refusal says so")
+      Instance.says(listed, $"greet  runs the script {file}", "ls lists it") ]))
 
 
 // The instance policy is the ceiling for an alias, as for `dark run`: a file read `run` refuses
