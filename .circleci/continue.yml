@@ -29,6 +29,11 @@ parameters:
   release-image:
     type: string
     default: ""
+  # Set by .circleci/config.yml on main when main's tip is already a newer commit: that
+  # commit, whose own pipeline builds this one's changes too. See scripts/deployment/ci-superseded.
+  superseded-by:
+    type: string
+    default: ""
 
   # The release matrix (NativeAOT, every OS) runs only on a pushed tag. Set this
   # to true to run it on every push to a branch as well, which is how it was
@@ -392,6 +397,9 @@ jobs:
       - run:
           name: Test artifact validation timeouts
           command: python3 .circleci/test_artifact_validation.py
+      - run:
+          name: Test the check for a superseded main commit
+          command: python3 .circleci/test_ci_superseded.py
       - show-large-files-and-directories
       # For tests
       - nuget-cache-restore
@@ -816,6 +824,17 @@ jobs:
           name: No operation
           command: "true"
 
+  # Main only, for a commit main had already moved past when its pipeline started. Says which
+  # newer commit builds its changes. There is no ok-to-deploy for it, so it is never released.
+  superseded:
+    executor: simple-executor
+    steps:
+      - run:
+          name: Skip the build
+          command: |
+            echo "main moved on to << pipeline.parameters.superseded-by >> before this build started."
+            echo "That commit's pipeline builds and tests this one's changes too."
+
   #
   # Switched off. Main releases only when someone runs scripts/deployment/release.
   # Switching it on also needs GITHUB_RELEASES_TOKEN in a context of its own, restricted to
@@ -832,6 +851,7 @@ jobs:
 
 workflows:
   build-and-deploy:
+    unless: << pipeline.parameters.superseded-by >>
     jobs:
       # Build jobs
       - build-backend
@@ -851,6 +871,11 @@ workflows:
       #         only: main
       #     requires: [ok-to-deploy]
 
+
+  superseded:
+    when: << pipeline.parameters.superseded-by >>
+    jobs:
+      - superseded
 
   # The NativeAOT release matrix. Normally tag-only; see the
   # release-matrix-on-every-push parameter at the top of this file.

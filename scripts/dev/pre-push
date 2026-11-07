@@ -71,7 +71,8 @@ skip() {
 }
 
 ci_python_tests() {
-  python3 .circleci/test_collect_diagnostics.py && python3 .circleci/test_artifact_validation.py
+  python3 .circleci/test_collect_diagnostics.py && python3 .circleci/test_artifact_validation.py \
+    && python3 .circleci/test_ci_superseded.py
 }
 
 # CI exports its seed from a store it has just loaded from nothing. The dev store has been
