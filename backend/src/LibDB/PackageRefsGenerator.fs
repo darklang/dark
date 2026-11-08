@@ -53,9 +53,10 @@ let private readExistingFile () : Map<string, string> =
 
 /// Keep aliases without locations only if their content is still in the store.
 let retainStoredReferences (refs : Map<string, string>) : Ply<Map<string, string>> =
-  uply {
-    let mutable retained = Map.empty
-    for KeyValue(key, hash) in refs do
+  refs
+  |> Map.toList
+  |> Ply.List.filterSequentially (fun (_, hash) ->
+    uply {
       let! exists =
         Sql.query
           """
@@ -68,9 +69,9 @@ let retainStoredReferences (refs : Map<string, string>) : Ply<Map<string, string
           """
         |> Sql.parameters [ "hash", Sql.string hash ]
         |> Sql.executeRowAsync (fun read -> read.int64 "present" <> 0L)
-      if exists then retained <- Map.add key hash retained
-    return retained
-  }
+      return exists
+    })
+  |> Ply.map Map.ofList
 
 
 /// Initialize refs from a complete source reload before storing its functions.
