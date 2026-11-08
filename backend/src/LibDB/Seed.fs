@@ -130,6 +130,10 @@ let export (outputPath : string) : Task<unit> =
       -- dangles.
       DELETE FROM config_v0;
 
+      -- The reload's trait-call cache is the builder's, keyed on the builder's build, and no
+      -- install reloads packages from source.
+      DELETE FROM trait_call_resolutions;
+
       -- The builder's DRAFT: a seed is committed history by definition
       -- (`check-seed-carries-refs` asserts it), and an uncommitted op is instance
       -- state like the rows above. Stripped HERE rather than left to the guard: the

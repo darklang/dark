@@ -111,45 +111,235 @@ module private Decode =
       | _ -> None
     | _ -> None
 
-  /// `LanguageTools.AtRestTypeChecker.Report` -> what each item resolved, by item hash.
+  /// `LanguageTools.AtRestTypeChecker.Report` -> what each item resolved, by item hash. An item
+  /// that resolved nothing is kept, with no resolutions: the reload's cache records that answer too.
   let report (d : Dval) : Map<PT.Hash, List<Resolution>> =
     match d with
     | DRecord(_, _, _, fields) ->
       match field "items" fields with
-      | Some(DList(_, items)) ->
-        items
-        |> List.choose itemReport
-        |> List.filter (fun (_, resolutions) -> not (List.isEmpty resolutions))
-        |> Map.ofList
+      | Some(DList(_, items)) -> items |> List.choose itemReport |> Map.ofList
       | _ -> Map.empty
     | _ -> Map.empty
 
 // --------------------
-// Why there is no cache here
+// The reload's cache
 // --------------------
 //
-// A whole-tree check is about 84 seconds of interpreted Dark, and the dev reload pays it on
-// every `.dark` change because that is how it learns what each trait call resolves to. The
-// obvious fix is to reuse what the last reload worked out, keyed by each item's
-// content-addressed hash, and it does not work. Written down because the design looks right and
-// fails in a way that reports success.
+// A whole-tree check is the biggest part of a package reload, and most bodies are the same as last
+// time. So a reload keeps what the checker answered for each body (`LibDB.TraitCallCache`) and
+// asks it only about the others.
 //
-// A resolution is keyed BY NODE ID, and the parser generates node ids fresh on every parse:
-// the same source parsed twice gives one `EInfix` id of 574556921872619684 and then
-// 55962466547940726. Content hashing ignores ids, which is what makes the content hash a
-// stable cache KEY, and is exactly why the cached VALUE is worthless: the entry hits, hands
-// back resolutions addressed to nodes this parse never created, and `AstTransformer` applies
-// none of them. Measured: 3,653 resolutions reused across 5,870 items, 0 ops rewritten, against
-// 4,586 rewritten by the same tree with no cache. Fast, agreed with itself, and wrong.
+// An answer is addressed BY NODE ID, and the parser makes new ids on every parse: the same source
+// parsed twice gives one `EInfix` id of 574556921872619684 and then 55962466547940726. Caching the
+// ids themselves was tried, and it failed while looking fine: it hit for 3,653 items and rewrote 0
+// ops, because no id matched (`notes/traits/warm-vs-cold.sh` caught it by comparing the RESOLVED
+// COUNT, not the time). So the cache keeps each node as its POSITION in the body (`Positions`),
+// and a hit turns positions back into this parse's ids. A content hash ignores ids but not shape,
+// so two bodies with one hash have their nodes in the same places. The node count is stored too,
+// and a body that disagrees is a miss.
 //
-// What would work, and is a follow-up rather than a line: cache the finished REWRITTEN OP rather
-// than the resolutions. An op carries its own ids, ids do not participate in hashing, so
-// substituting last run's rewritten op for this run's unrewritten one yields the same content
-// hash as resolving it afresh. That needs the binary serializer and its own correctness argument.
+// Only the checker's answer is cached, applied to this parse's op. The op itself is never reused:
+// docs are in the op but not in its hash, so last run's op could carry last run's docs. Which
+// implementation wins among several (`implFnFor`) is still worked out every time, from the store.
 //
-// `notes/traits/warm-vs-cold.sh` is what caught this, by comparing the RESOLVED COUNT rather than
-// the time. A cache that never hits and a cache that hits uselessly both look like a cache
-// that works if you only measure agreement or only measure speed.
+// The key is the body's own hash and `environmentOf`. The body's hash covers everything it names,
+// by hash, all the way down. `environmentOf` covers what the checker reads any other way: the
+// implementations of a trait, names of types and traits (`Option`, `Result`), deprecations, the
+// checker's own code and the build. Change any of those and every body is checked again.
+//
+// Only a reload uses it. A save is one or two items, and its batch is not in the store yet.
+
+/// Where each node of a body is, so an answer can outlive the parse that produced it.
+module private Positions =
+  let private pipePartId (part : PT.PipeExpr) : id =
+    match part with
+    | PT.EPipeLambda(id, _, _)
+    | PT.EPipeInfix(id, _, _, _)
+    | PT.EPipeFnCall(id, _, _, _, _)
+    | PT.EPipeEnum(id, _, _, _)
+    | PT.EPipeVariable(id, _, _) -> id
+
+  /// The ids a resolution can be at, in pre-order: each expression, then the parts of its pipe if
+  /// it is one. An `at` that is not here makes the answer uncacheable rather than wrong.
+  let ofBody (body : PT.Expr) : List<id> =
+    let rec go (found : List<id>) (expr : PT.Expr) : List<id> =
+      let found = PT.Expr.toID expr :: found
+      let found =
+        match expr with
+        | PT.EPipe(_, _, parts) ->
+          parts |> List.fold (fun found part -> pipePartId part :: found) found
+        | _ -> found
+      PTAst.subExprs expr |> List.fold go found
+    go [] body |> List.rev
+
+  /// The body of a fn, value or test op, with the key its answer is cached under.
+  let bodyOf (op : PT.PackageOp) : Option<string * PT.Hash * PT.Expr> =
+    match op with
+    | PT.PackageOp.AddFn fn ->
+      let (PT.Hash h) = fn.hash
+      Some($"fn {h}", fn.hash, fn.body)
+    | PT.PackageOp.AddValue value ->
+      let (PT.Hash h) = value.hash
+      Some($"value {h}", value.hash, value.body)
+    | PT.PackageOp.AddTest test ->
+      let (PT.Hash h) = test.hash
+      Some($"test {h}", test.hash, test.body)
+    | _ -> None
+
+
+/// An answer as text: one line per resolution, tab-separated, each node as its position.
+module private Encoding =
+  let private writable (s : string) = not (s.Contains '\t' || s.Contains '\n')
+
+  let private hashes (hs : List<PT.Hash>) : string =
+    hs |> List.map (fun (PT.Hash h) -> h) |> String.concat " "
+
+  let private readHashes (s : string) : List<PT.Hash> =
+    s.Split(' ', System.StringSplitOptions.RemoveEmptyEntries)
+    |> List.ofArray
+    |> List.map PT.Hash
+
+  /// <param resolutions> with each node as its index in <param body>'s positions. None when a node
+  /// is not among them, or a name cannot be written.
+  let encode (body : List<id>) (resolutions : List<Resolution>) : Option<string> =
+    let positionOf =
+      body
+      |> List.indexed
+      |> List.fold
+        (fun found (i, id) ->
+          if Map.containsKey id found then found else Map.add id i found)
+        Map.empty
+    let line (resolution : Resolution) : Option<string> =
+      let at (id : id) (rest : List<string>) =
+        Map.tryFind id positionOf |> Option.map (fun p -> string p :: rest)
+      let fields =
+        match resolution with
+        | Call(id, method_, impls) ->
+          at id [ method_; hashes impls ] |> Option.map (fun f -> "call" :: f)
+        | Deferred(id, param) ->
+          at id [ param ] |> Option.map (fun f -> "deferred" :: f)
+        | CallerBound(id, param, PT.Hash trait_, impls) ->
+          at id [ param; trait_; hashes impls ] |> Option.map (fun f -> "bound" :: f)
+        | CallerBoundDeferred(id, param, PT.Hash trait_, fromParam) ->
+          at id [ param; trait_; fromParam ]
+          |> Option.map (fun f -> "boundDeferred" :: f)
+      fields
+      |> Option.filter (List.forall writable)
+      |> Option.map (String.concat "\t")
+    let lines = resolutions |> List.map line
+    if List.forall Option.isSome lines then
+      Some(lines |> List.choose identity |> String.concat "\n")
+    else
+      None
+
+  /// What <param text> says, with each position as its id in <param body>. None when anything in
+  /// it does not read, which makes it a miss.
+  let decode (body : List<id>) (text : string) : Option<List<Resolution>> =
+    let ids = Array.ofList body
+    let at (p : string) : Option<id> =
+      match System.Int32.TryParse p with
+      | true, i when i >= 0 && i < ids.Length -> Some ids[i]
+      | _ -> None
+    let line (l : string) : Option<Resolution> =
+      match l.Split('\t') |> List.ofArray with
+      | [ "call"; p; method_; impls ] ->
+        at p |> Option.map (fun id -> Call(id, method_, readHashes impls))
+      | [ "deferred"; p; param ] ->
+        at p |> Option.map (fun id -> Deferred(id, param))
+      | [ "bound"; p; param; trait_; impls ] ->
+        at p
+        |> Option.map (fun id ->
+          CallerBound(id, param, PT.Hash trait_, readHashes impls))
+      | [ "boundDeferred"; p; param; trait_; fromParam ] ->
+        at p
+        |> Option.map (fun id ->
+          CallerBoundDeferred(id, param, PT.Hash trait_, fromParam))
+      | _ -> None
+    if text = "" then
+      Some []
+    else
+      let lines = text.Split('\n') |> List.ofArray |> List.map line
+      if List.forall Option.isSome lines then
+        Some(List.choose identity lines)
+      else
+        None
+
+
+/// Everything a body's answer depends on that the body's own hash does not cover, as one hash.
+///
+/// The body's hash covers what it names, by hash and transitively, so fns, values and tests stay out:
+/// editing one changes the hash of every body that reaches it, and those miss on their own. What
+/// is in here is what the checker reads another way. The types, traits and implementations, and
+/// the names bound to them, because it finds implementations and the standard types by name. The
+/// deprecations and the stamps, since they decide which implementations count. The checker's own
+/// entry point, whose hash covers the Dark it runs; and <param build>, the reload's
+/// `HostProcess.runtimeHash`,
+/// which covers the F# it runs on, this module included.
+///
+/// Docs and reference names are left out: they say what something is called, not what it does.
+let private environmentOf
+  (build : string)
+  (branchId : PT.BranchId)
+  (deprecated : Set<string>)
+  (stamps : Map<string, string>)
+  (ops : List<PT.PackageOp>)
+  : string =
+  let hash (PT.Hash h) = h
+  let location (l : PT.PackageLocation) =
+    String.concat "." (l.owner :: l.modules @ [ l.name ])
+  let reference (r : PT.Reference) =
+    match r with
+    | PT.Reference.PackageType h -> $"type {hash h}"
+    | PT.Reference.PackageValue h -> $"value {hash h}"
+    | PT.Reference.PackageFn h -> $"fn {hash h}"
+    | PT.Reference.PackageTrait h -> $"trait {hash h}"
+    | PT.Reference.PackageTraitImpl h -> $"impl {hash h}"
+    | PT.Reference.PackageTest h -> $"test {hash h}"
+  let namesABody (r : PT.Reference) =
+    match r with
+    | PT.Reference.PackageFn _
+    | PT.Reference.PackageValue _
+    | PT.Reference.PackageTest _ -> true
+    | _ -> false
+  let fromOps =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.AddFn _
+      | PT.PackageOp.AddValue _
+      | PT.PackageOp.AddTest _
+      | PT.PackageOp.UpdateDoc _
+      | PT.PackageOp.SetReferenceNames _ -> None
+      | PT.PackageOp.SetName(_, target, _) when namesABody target -> None
+      | PT.PackageOp.AddType t -> Some $"add type {hash t.hash}"
+      | PT.PackageOp.AddTrait t -> Some $"add trait {hash t.hash}"
+      | PT.PackageOp.AddTraitImpl i -> Some $"add impl {hash i.hash}"
+      | PT.PackageOp.SetName(loc, target, _) ->
+        Some $"name {location loc} {reference target}"
+      // Unbind, Deprecate, Undeprecate, Rename, Decision: rare, small, and all of them can change
+      // what a name or an implementation means.
+      | other -> Some(sprintf "%A" other))
+    |> List.sort
+  // By stamp, then hash, as `Lww.winnerOf` would order them.
+  let byStamp =
+    stamps
+    |> Map.toList
+    |> List.sortBy (fun (h, stamp) -> (stamp, h))
+    |> List.map fst
+    |> String.concat " "
+  let checker = PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOpsOn ()
+  let lines =
+    [ "trait-call-cache 1"
+      $"runtime {build}"
+      $"branch {branchId.Guid}"
+      $"checker {checker}"
+      $"stamps {byStamp}" ]
+    @ (deprecated |> Set.toList |> List.map (fun h -> $"deprecated {h}"))
+    @ fromOps
+  String.concat "\n" lines
+  |> System.Text.Encoding.UTF8.GetBytes
+  |> System.Security.Cryptography.SHA256.HashData
+  |> System.Convert.ToHexStringLower
 
 // --------------------
 // Resolving.
@@ -171,12 +361,13 @@ let private packageOpKT () =
 ///
 /// A checker that fails to answer leaves the batch alone, the same way a call it could not
 /// resolve does. This is dev tooling and an authoring path, not a place to lose a save over
-/// the checker having a bad day.
+/// the checker having a bad day. None is that failure, so the reload's cache does not record
+/// it as an answer.
 let private askChecker
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Ply<Map<PT.Hash, List<Resolution>>> =
+  : Ply<Option<Map<PT.Hash, List<Resolution>>>> =
   uply {
     // The branch explicitly, not whatever `exeState` happens to carry: a call resolves to the
     // implementation live on the branch being SAVED to.
@@ -189,7 +380,7 @@ let private askChecker
       let decoded = Decode.report report
       // An empty report and an empty answer are the same zero here; `guarded` puts the
       // reason in `warnings`, which this decoder otherwise drops.
-      if Map.isEmpty decoded then
+      if decoded |> Map.forall (fun _ resolutions -> List.isEmpty resolutions) then
         let warnings =
           match report with
           | DRecord(_, _, _, fields) ->
@@ -200,7 +391,11 @@ let private askChecker
         if warnings > 0 then
           printErr
             $"  [traitcalls] the checker reported no resolutions and {warnings} warning(s); the batch was not checked"
-      return decoded
+          return None
+        else
+          return Some decoded
+      else
+        return Some decoded
     | Error(rte, _) ->
       // A swallowed checker failure and a checker with nothing to say are the same zero, and
       // the zero is what nobody re-checks, so say which one happened. Kept deliberately: the
@@ -208,7 +403,7 @@ let private askChecker
       // the only place a SYSTEMIC failure of the check would otherwise be invisible.
       let shown = Exe.runtimeErrorDebugString rte
       printErr $"  [traitcalls] the at-rest checker did not answer: {shown}"
-      return Map.empty
+      return None
   }
 
 
@@ -342,15 +537,18 @@ let private worthChecking
 /// Write onto each trait-method call in <param ops> the implementation it resolves to.
 ///
 /// <param branchId> separately from <param pm>, because `pm` carries the branch's names and
-/// not its deprecations. <param storeHoldsOps> lets a large batch be checked in parallel.
+/// not its deprecations. <param reload> is the build a package reload runs on, None for a save:
+/// a reload's batch is already in the store, which lets it be checked in parallel, and the build
+/// keys its cache.
 let private resolveIn
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (pm : PT.PackageManager)
-  (storeHoldsOps : bool)
+  (reload : Option<string>)
   (ops : List<PT.PackageOp>)
   : Ply<List<PT.PackageOp>> =
   uply {
+    let storeHoldsOps = Option.isSome reload
     let! worth = worthChecking pm ops
     if not worth then
       return ops
@@ -394,23 +592,106 @@ let private resolveIn
               Map.add h (LibDB.OriginTs.next ()) found)
           storedStamps
 
+      // The reload's cache (see "The reload's cache" above). Each body's answer is looked up
+      // for its LAST copy: two items with one hash are resolved through whichever copy the
+      // checker reported, and a later report replaces an earlier one, chunk after chunk and
+      // inside the checker's own fold, so that is the last.
+      let environment =
+        reload
+        |> Option.map (fun build ->
+          environmentOf build branchId deprecated storedStamps ops)
+      let! cached =
+        match environment with
+        | Some environment -> LibDB.TraitCallCache.load environment
+        | None -> System.Threading.Tasks.Task.FromResult Map.empty
+      let lastCopies =
+        ops
+        |> List.choose Positions.bodyOf
+        |> List.fold
+          (fun found (key, hash, body) -> Map.add key (hash, body) found)
+          Map.empty
+      let reused =
+        lastCopies
+        |> Map.toList
+        |> List.choose (fun (key, (hash, body)) ->
+          Map.tryFind key cached
+          |> Option.bind (fun (entry : LibDB.TraitCallCache.Entry) ->
+            let positions = Positions.ofBody body
+            if List.length positions <> entry.nodes then
+              None
+            else
+              Encoding.decode positions entry.resolutions
+              |> Option.map (fun resolutions -> (key, (hash, resolutions)))))
+        |> Map.ofList
+      let isReused (op : PT.PackageOp) =
+        match Positions.bodyOf op with
+        | Some(key, _, _) -> Map.containsKey key reused
+        | None -> false
+      let toCheck = ops |> List.filter (isReused >> not)
+      let nothingToCheck =
+        storeHoldsOps
+        && not (List.exists (Positions.bodyOf >> Option.isSome) toCheck)
+
       // Chunks load what they do not carry from the store, so only a caller whose batch is
       // already in the store can split it; an authoring batch is not, and stays whole. The
       // count is fixed rather than per-core so every machine resolves the same tree: two
       // items with one hash get only one copy resolved, and which one depends on the split.
       let size =
         if storeHoldsOps then
-          max 256 (List.length ops / 32 + 1)
+          max 256 (List.length toCheck / 32 + 1)
         else
-          max 1 (List.length ops)
+          max 1 (List.length toCheck)
       let! chunks =
-        ops
-        |> List.chunkBySize size
-        |> List.map (fun chunk ->
-          System.Threading.Tasks.Task.Run<Map<PT.Hash, List<Resolution>>>(fun () ->
-            Ply.toTask (askChecker exeState branchId chunk)))
-        |> System.Threading.Tasks.Task.WhenAll
-      let resolved = chunks |> Array.fold (Map.foldBack Map.add) Map.empty
+        if nothingToCheck then
+          System.Threading.Tasks.Task.FromResult [||]
+        else
+          toCheck
+          |> List.chunkBySize size
+          |> List.map (fun chunk ->
+            System.Threading.Tasks.Task.Run<Option<Map<PT.Hash, List<Resolution>>>>
+              (fun () -> Ply.toTask (askChecker exeState branchId chunk)))
+          |> System.Threading.Tasks.Task.WhenAll
+      let answered =
+        chunks
+        |> Array.choose identity
+        |> Array.fold (Map.foldBack Map.add) Map.empty
+      let resolved =
+        reused
+        |> Map.fold
+          (fun found _ (hash, resolutions) -> Map.add hash resolutions found)
+          answered
+
+      // What the checker just answered, for the bodies it was asked about, beside what was
+      // reused. A body it did not report, or whose answer names a node its last copy does not
+      // have, is left out, and is checked again next time.
+      let saveCache (environment : string) : unit =
+        let fresh =
+          lastCopies
+          |> Map.toList
+          |> List.choose (fun (key, (hash, body)) ->
+            if Map.containsKey key reused then
+              None
+            else
+              Map.tryFind hash answered
+              |> Option.bind (fun resolutions ->
+                let positions = Positions.ofBody body
+                Encoding.encode positions resolutions
+                |> Option.map (fun text ->
+                  (key,
+                   ({ nodes = List.length positions; resolutions = text }
+                   : LibDB.TraitCallCache.Entry)))))
+        let kept =
+          cached
+          |> Map.toList
+          |> List.filter (fun (key, _) -> Map.containsKey key reused)
+        try
+          LibDB.TraitCallCache.replace environment (kept @ fresh)
+        with e ->
+          printErr $"  [traitcalls] the cache was not saved: {e.Message}"
+        let left = Map.count lastCopies - Map.count reused - List.length fresh
+        print
+          $"  [traitcalls] cache: {Map.count reused} of {Map.count lastCopies} bodies reused, {List.length fresh} checked and saved, {left} not saved"
+      environment |> Option.iter saveCache
 
       if Map.isEmpty resolved then
         return ops
@@ -683,18 +964,22 @@ let rec private unresolved (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int 
 /// The count is what makes a partly resolved save visible. A save the checker could not settle at
 /// all printed a line; one it settled partly printed nothing, and its unsettled calls ran whichever
 /// implementation was newest, which a later rival could change without anyone being told.
+///
+/// <param reload> is Some build (`HostProcess.runtimeHash`) on a package reload, None on a save.
+/// The caller passes it in because a builtin may not read the executable itself
+/// (`tests/hostBoundary`).
 let resolveTraitCalls
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (pm : PT.PackageManager)
-  (storeHoldsOps : bool)
+  (reload : Option<string>)
   (ops : List<PT.PackageOp>)
   : Ply<List<PT.PackageOp>> =
   uply {
-    let! resolved = resolveIn exeState branchId pm storeHoldsOps ops
+    let! resolved = resolveIn exeState branchId pm reload ops
 
     // A reload has its own report (`Resolved trait calls: ...`); this is for a person saving.
-    if not storeHoldsOps then
+    if Option.isNone reload then
       let batchFns =
         resolved
         |> List.choose (function
