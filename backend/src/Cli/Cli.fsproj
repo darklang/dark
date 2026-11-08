@@ -117,6 +117,9 @@
   <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-arm64'">
     <NativeLibrary Include="lib/libe_sqlite3-linux-arm64.a" />
   </ItemGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-musl-arm64'">
+    <NativeLibrary Include="lib/libe_sqlite3-linux-musl-arm64.a" />
+  </ItemGroup>
   <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-arm'">
     <NativeLibrary Include="lib/libe_sqlite3-linux-arm.a" />
   </ItemGroup>

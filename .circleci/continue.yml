@@ -88,6 +88,8 @@ executors:
 
   # musl has to be built ON musl: cross-compiling to it from glibc is the part
   # that fights you, and this way clang, the loader and the libc all agree.
+  # arm64 is cross-linked here too, against an Alpine aarch64 sysroot, so it
+  # needs no arm runner.
   # Stock Microsoft image plus a few apk packages, so no custom image needed.
   release-musl:
     working_directory: ~/app
@@ -639,9 +641,10 @@ jobs:
             # statically, and .NET builds its OpenSSL shim from source to do that. tar and
             # xz unpack the pinned toolchain. git and openssh-client are for `checkout`,
             # which otherwise falls back to CircleCI's own git client. sqlite for the CLI suite
-            # the artifact check runs.
+            # the artifact check runs. lld and llvm (for llvm-objcopy) cross-link arm64, and
+            # qemu-aarch64 runs the result.
             apk add --no-cache bash git openssh-client curl clang build-base zlib-dev openssl \
-              icu-libs cmake openssl-dev openssl-libs-static tar xz sqlite
+              icu-libs cmake openssl-dev openssl-libs-static tar xz sqlite lld llvm qemu-aarch64
       - checkout
       - run:
           name: Install the pinned .NET SDK and zig
@@ -652,18 +655,24 @@ jobs:
             scripts/build/install-release-toolchain linux-musl-x64 /usr/share/dotnet "$HOME/zig"
             dotnet --version
       - attach_workspace: { at: "." }
+      - run:
+          name: Install the aarch64 musl sysroot
+          command: scripts/build/install-musl-sysroot aarch64
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
       - run:
-          name: Build the musl SQLite archive
-          command: ./scripts/build/build-sqlite.sh --runtimes=linux-musl-x64
+          name: Build the musl SQLite archives
+          command: ./scripts/build/build-sqlite.sh --runtimes=linux-musl-x64,linux-musl-arm64
       - run:
-          name: AOT-publish linux-musl-x64
+          name: AOT-publish linux-musl-x64 and linux-musl-arm64
           command: |
+            # zig on PATH: the arm64 syscall transport is cross-compiled with it
+            # (backend/native/build.sh).
+            export PATH="$HOME/zig:$PATH"
             ./scripts/build/build-release-cli-exes.sh \
               --mode=aot \
               --seed=seed.db \
-              --runtimes=linux-musl-x64
+              --runtimes=linux-musl-x64,linux-musl-arm64
       # Natively runnable here, unlike the cross-built targets: this job *is*
       # Alpine. The binary no longer needs that, which the next step checks.
       - run:
@@ -677,15 +686,17 @@ jobs:
       # holds only it, the CA bundle, the DNS config and a random source. That is a
       # `FROM scratch` container without needing docker here.
       - run:
-          name: Confirm the musl artifact needs no system libraries
+          name: Confirm the musl artifacts need no system libraries
           command: |
+            for B in clis/darklang-*-linux-musl-x64 clis/darklang-*-linux-musl-arm64; do
+              if readelf -lW "$B" | grep -q INTERP || readelf -dW "$B" | grep -q NEEDED; then
+                echo "$B is dynamically linked:"
+                readelf -lW "$B" | grep -A1 INTERP || true
+                readelf -dW "$B" | grep NEEDED || true
+                exit 1
+              fi
+            done
             B="$(ls clis/darklang-*-linux-musl-x64)"
-            if readelf -lW "$B" | grep -q INTERP || readelf -dW "$B" | grep -q NEEDED; then
-              echo "$B is dynamically linked:"
-              readelf -lW "$B" | grep -A1 INTERP || true
-              readelf -dW "$B" | grep NEEDED || true
-              exit 1
-            fi
             ROOT=$(mktemp -d)
             mkdir -p "$ROOT/etc/ssl/certs" "$ROOT/tmp" "$ROOT/dev"
             cp "$B" "$ROOT/dark"
@@ -710,6 +721,27 @@ jobs:
                 'Stdlib.HttpClient.get("https://example.com", []) |> Stdlib.Result.map(fun r -> r.statusCode)' \
                 | tee /tmp/https.out
               grep -q 'Ok(200)' /tmp/https.out && break
+              [ "$attempt" = 3 ] && exit 1
+              sleep 5
+            done
+      # Cross-linked, so it has never run until here. A smoke run under qemu rather than the
+      # suite, as for the glibc arm64 build: emulation is slow, and what a cross build gets
+      # wrong shows at startup. The HTTPS request checks the OpenSSL shim, which is the part
+      # built for arm64 separately (scripts/build/cross-openssl-shim.cmake).
+      - run:
+          name: Smoke-test the linux-musl-arm64 artifact under emulation
+          command: |
+            A="$(ls clis/darklang-*-linux-musl-arm64)"
+            export HOME="$(mktemp -d)"
+            qemu-aarch64 "$A" version
+            answer=$(qemu-aarch64 "$A" eval "1 + 2")
+            [ "$answer" = 3 ] || { echo "eval 1 + 2 answered: $answer"; exit 1; }
+            qemu-aarch64 "$A" permissions allow all > /dev/null
+            for attempt in 1 2 3; do
+              qemu-aarch64 "$A" eval \
+                'Stdlib.HttpClient.get("https://example.com", []) |> Stdlib.Result.map(fun r -> r.statusCode)' \
+                | tee /tmp/https-arm64.out
+              grep -q 'Ok(200)' /tmp/https-arm64.out && break
               [ "$attempt" = 3 ] && exit 1
               sleep 5
             done

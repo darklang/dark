@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# An Alpine sysroot for another architecture, to cross-link a static musl CLI against.
+#
+#   scripts/build/install-musl-sysroot aarch64
+#
+# Installs into /usr/<arch>-linux-musl, where build-release-cli-exes.sh looks for it. Runs on
+# Alpine, as root: it is apk installing that architecture's packages into a directory, with the
+# host's own release, so the sysroot's libc and OpenSSL are the ones the host's would be.
+#
+# What the link takes from it: musl's static libc and crt files, gcc's libgcc and crtbegin
+# (clang finds them under usr/lib/gcc), and OpenSSL's static libraries and headers, which the
+# OpenSSL shim is compiled against and the binary carries.
+
+set -euo pipefail
+
+[[ $# -eq 1 ]] || { echo "usage: $0 <arch>" >&2; exit 2; }
+arch=$1
+root="/usr/$arch-linux-musl"
+
+# alpine-keys carries every architecture's signing keys; the host trusts only its own.
+apk add --no-cache alpine-keys > /dev/null
+mkdir -p "$root/etc/apk/keys"
+cp "/usr/share/apk/keys/$arch/"* "$root/etc/apk/keys/"
+cp /etc/apk/repositories "$root/etc/apk/"
+# --no-scripts: the packages' install scripts are the target's binaries, which can't run here.
+apk add --root "$root" --arch "$arch" --initdb --no-cache --no-scripts \
+  musl-dev gcc linux-headers openssl-dev openssl-libs-static > /dev/null
+
+echo "Installed an $arch musl sysroot in $root"

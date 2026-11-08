@@ -12,7 +12,8 @@
 #   ./scripts/build/build-release-cli-exes.sh --rebuild          # Publish even if clis/ has this build
 #   ./scripts/build/build-release-cli-exes.sh --reuse-libraries  # Compile only Cli (see below)
 #
-# Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64
+# Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-musl-arm64, linux-arm, osx-x64,
+# osx-arm64
 #
 # Publish modes:
 #   r2r    ReadyToRun + single-file + trimmed. The explicit fast path.
@@ -119,7 +120,7 @@ release="alpha-$sha"
 export GIT_COMMIT="$sha"
 
 # All supported runtimes.
-ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64"
+ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-musl-arm64 linux-arm osx-x64 osx-arm64"
 
 # Which runtimes we can NativeAOT at all.
 #
@@ -135,9 +136,10 @@ ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64"
 # rather than a toolchain gap, so it isn't going to be fixed by better
 # cross-compile flags. armv7 keeps the R2R build.
 #
-# linux-musl-x64 IS supported, but only from a musl host: cross-compiling to
-# musl from glibc is the part that fights you. CI builds it in an Alpine job.
-AOT_CAPABLE_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 osx-x64 osx-arm64"
+# The musl runtimes ARE supported, but only from a musl host: cross-compiling to
+# musl from glibc is the part that fights you. CI builds both in one x64 Alpine
+# job, linux-musl-arm64 cross-linked against an Alpine aarch64 sysroot.
+AOT_CAPABLE_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-musl-arm64 osx-x64 osx-arm64"
 
 # OS family of a runtime identifier, for the cross-OS guard.
 rid_os_family() {
@@ -182,6 +184,7 @@ cross_triple_for_runtime() {
   host_arch=$(uname -m)
   case "$rid" in
     linux-arm64) [[ "$host_arch" == "aarch64" ]] || echo "aarch64-linux-gnu" ;;
+    linux-musl-arm64) [[ "$host_arch" == "aarch64" ]] || echo "aarch64-linux-musl" ;;
     linux-arm)   [[ "$host_arch" == "armv7l" ]] || echo "arm-linux-gnueabihf" ;;
     *)           echo "" ;;
   esac
@@ -424,16 +427,19 @@ build_for_runtime() {
       # ObjCopyName is the third piece. After linking, ilc strips the binary
       # with objcopy, and the host x86_64 objcopy can't read an aarch64 file
       # ("Unable to recognise the format of the input file"). The cross
-      # binutils ship a target-prefixed one.
+      # binutils ship a target-prefixed one; Alpine has none, and llvm-objcopy
+      # reads every architecture.
+      local objcopy="$triple-objcopy"
+      command -v "$objcopy" > /dev/null || objcopy=llvm-objcopy
       cross_args=(
         /p:CppCompilerAndLinker=clang
         "/p:SysRoot=/usr/$triple"
         /p:LinkerFlavor=lld
-        "/p:ObjCopyName=$triple-objcopy"
+        "/p:ObjCopyName=$objcopy"
       )
     fi
 
-    # linux-musl-x64 links fully static, OpenSSL included, so the same binary runs
+    # The musl runtimes link fully static, OpenSSL included, so the same binary runs
     # on Alpine, on glibc distros and in a `FROM scratch` container.
     # Without this, it needs musl's loader (which a glibc system doesn't have),
     # and .NET dlopens the system's libssl/libcrypto on first TLS use.
@@ -448,18 +454,30 @@ build_for_runtime() {
     # /etc/ssl (Alpine's OpenSSL is built with that OPENSSLDIR). The host's
     # openssl.cnf is NOT read unless OPENSSL_CONF names one: it was written for
     # the host's OpenSSL, and Fedora's aborts ours. See StaticOpenSsl in Cli.fs.
-    local static_args=()
-    if [[ "$rt" == "linux-musl-x64" ]]; then
+    #
+    # That shim is built by cmake, which knows nothing of the cross flags above and
+    # would build it for the host. A cross build hands cmake a toolchain file, which
+    # cmake reads from the environment, so the shim is compiled for the target
+    # against the sysroot's OpenSSL.
+    local static_args=() shim_env=()
+    if [[ "$rt" == linux-musl-* ]]; then
       echo "  linking statically, OpenSSL included"
       static_args=(
         /p:StaticExecutable=true
         /p:StaticOpenSslLinking=true
       )
+      if [[ -n "$triple" ]]; then
+        shim_env=(
+          "CMAKE_TOOLCHAIN_FILE=$PWD/scripts/build/cross-openssl-shim.cmake"
+          "DARK_CROSS_TRIPLE=$triple"
+          "DARK_CROSS_SYSROOT=/usr/$triple"
+        )
+      fi
     fi
 
     # AOT mode: native compilation, no PublishReadyToRun, no PublishSingleFile
     # (AOT already produces a single native binary).
-    ./scripts/build/_dotnet-wrapper publish \
+    env ${shim_env[@]+"${shim_env[@]}"} ./scripts/build/_dotnet-wrapper publish \
       -c Release \
       src/Cli/Cli.fsproj \
       /p:DebugType=None \
