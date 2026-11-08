@@ -496,10 +496,16 @@ type Expr =
   /// A fn by name, and what this call worked out for the fn's bounds: `display 56L` records
   /// that `display`'s `'a: ToString` is `ToString for Int64` here. Empty for everything
   /// unbounded, which is nearly every call.
+  ///
+  /// `typeArgs` are for a reference that names its type arguments but is not called:
+  /// `let h = Stdlib.List.map<Int64, Int64>` is a fn value specialised to them, checked and
+  /// applied when it is called. A call keeps its type args on the `EApply`, so they are
+  /// empty here for every call.
   | EFnName of
     id *
     NameResolution<FQFnName.FQFnName> *
-    boundImpls : List<FQFnName.BoundImpl>
+    boundImpls : List<FQFnName.BoundImpl> *
+    typeArgs : List<TypeReference>
 
   // Composed of a parameters * the expression itself
   // The id in the varname list is the analysis id, used to get a livevalue
@@ -680,7 +686,7 @@ module Expr =
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _, _)
     | ELambda(id, _, _)
-    | EFnName(id, _, _)
+    | EFnName(id, _, _, _)
     | EVariable(id, _)
     | EArg(id, _)
     | EApply(id, _, _, _)

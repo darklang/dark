@@ -67,7 +67,7 @@ let inExpr(expr: ProgramTypes.Expr): List<String> =
   | EApply(_, fnExpr, typeArgs, args) ->
     Stdlib.List.flatten([ inExpr(fnExpr), inTypeRefs(typeArgs), inExprs(args) ])
 
-  | EFnName(_, name, _) -> inName(name)
+  | EFnName(_, name, _, typeArgs) -> Stdlib.List.concat(inName(name), inTypeRefs(typeArgs))
 
   | ELambda(_, _, body) -> inExpr(body)
 

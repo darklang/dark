@@ -160,7 +160,7 @@ let rec analyze
   : Analysis =
   let own =
     match expr with
-    | PT.EFnName(_, nr, bounds) -> nameRef nr bounds
+    | PT.EFnName(_, nr, bounds, _) -> nameRef nr bounds
     | PT.EInfix(_, infix, _, _, implFn) -> infixRef infix implFn
     // A passed callback may be called by the receiving function.
     | PT.EArg(_, index) when Set.contains index callbacks -> Analysis.callbackEscape

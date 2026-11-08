@@ -348,7 +348,14 @@ type Expr =
   // they definitely don't _always_ make sense.
   | EApply(ID, Expr, typeArgs: List<TypeReference>, args: List<Expr>)
 
-  | EFnName(ID, NameResolution<FQFnName.FQFnName>, List<FQFnName.BoundImpl>)
+  /// A fn by name. `typeArgs` are for a reference that is not called:
+  /// `let h = Stdlib.List.map<Int64, Int64>` is the fn as a value, specialised to them.
+  /// A call keeps its type args on the `EApply`, so they are empty for every call.
+  | EFnName(
+    ID,
+    NameResolution<FQFnName.FQFnName>,
+    List<FQFnName.BoundImpl>,
+    typeArgs: List<TypeReference>)
 
   | ERecordUpdate(ID, record: Expr, updates: List<String * Expr>)
 
@@ -386,7 +393,7 @@ module Expr =
     | EVariable(id, _)
     | EArg(id, _)
     | EValue(id, _)
-    | EFnName(id, _, _)
+    | EFnName(id, _, _, _)
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)

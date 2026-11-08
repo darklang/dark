@@ -288,7 +288,42 @@ let private loweringRegressionTests =
       sourceRanges = None }
   testList
     "lowering-regressions"
-    [ testCase "applied argument shadows a same-named package function" (fun _ ->
+    [ testCase "an uncalled fn with type args is a fn value carrying them" (fun _ ->
+        match
+          toPTWith
+            globalMapPM
+            (context Map.empty Set.empty)
+            (lowerExpr "Stdlib.List.map<Int64, String>")
+        with
+        | PT.EFnName(_, { resolved = Ok _ }, [], [ PT.TInt64; PT.TString ]) -> ()
+        | other -> failtest $"expected a typed fn value, got {other}")
+      testCase "a fn with type args and args is still a call" (fun _ ->
+        match
+          toPTWith
+            globalMapPM
+            (context Map.empty Set.empty)
+            (lowerExpr "Stdlib.List.map<Int64, Int64>(xs, f)")
+        with
+        | PT.EApply(_, PT.EFnName(_, _, _, []), [ PT.TInt64; PT.TInt64 ], args) when
+          NEList.length args = 2
+          ->
+          ()
+        | other -> failtest $"expected a call, got {other}")
+      testCase
+        "a local with type args and no args is still applied to unit"
+        (fun _ ->
+          match
+            toPTWith
+              globalMapPM
+              (context Map.empty (Set [ "map" ]))
+              (lowerExpr "map<Int64>")
+          with
+          | PT.EApply(_,
+                      PT.EVariable(_, "map"),
+                      [ PT.TInt64 ],
+                      { head = PT.EUnit _; tail = [] }) -> ()
+          | other -> failtest $"expected a unit call on the local, got {other}")
+      testCase "applied argument shadows a same-named package function" (fun _ ->
         match
           toPTWith
             globalMapPM

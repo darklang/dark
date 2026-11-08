@@ -251,7 +251,7 @@ let interpolationContext(body: LanguageTools.ProgramTypes.Expr, outcome: Outcome
         | Expression(EString(_, segments)) ->
           Stdlib.List.fold(segments, ids, fun(ids, segment) ->
             match segment with
-            | StringInterpolation(EApply(callId, EFnName(nameId, name, _), [], [ _ ])) when
+            | StringInterpolation(EApply(callId, EFnName(nameId, name, _, _), [], [ _ ])) when
                 name.originalName == [ "Darklang", "Stdlib", "ToString", "toString" ] ->
               Stdlib.List.concat([ toUInt64(callId), toUInt64(nameId) ], ids)
             | _ -> ids)

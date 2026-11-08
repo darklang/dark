@@ -1091,13 +1091,17 @@ module Expr =
           )
           DList(VT.known (knownType ()), args |> NEList.toList |> List.map toDT) ]
 
-      | PT.EFnName(id, name, boundImpls) ->
+      | PT.EFnName(id, name, boundImpls, typeArgs) ->
         "EFnName",
         [ DInt64(int64 id)
           NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT name
           DList(
             VT.known (FQFnName.BoundImpl.knownType ()),
             List.map FQFnName.BoundImpl.toDT boundImpls
+          )
+          DList(
+            VT.known (TypeReference.knownType ()),
+            List.map TypeReference.toDT typeArgs
           ) ]
 
       | PT.ERecordUpdate(id, record, updates) ->
@@ -1292,11 +1296,16 @@ module Expr =
         args |> NEList.ofListUnsafe "EApply" [] |> NEList.map fromDT
       )
 
-    | DEnum(_, _, [], "EFnName", [ DInt64 id; name; DList(_, boundImpls) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "EFnName",
+            [ DInt64 id; name; DList(_, boundImpls); DList(_, typeArgs) ]) ->
       PT.EFnName(
         uint64 id,
         NameResolution.fromDT FQFnName.fromDT name,
-        List.map FQFnName.BoundImpl.fromDT boundImpls
+        List.map FQFnName.BoundImpl.fromDT boundImpls,
+        List.map TypeReference.fromDT typeArgs
       )
 
     | DEnum(_,

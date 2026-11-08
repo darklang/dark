@@ -1012,7 +1012,7 @@ module Expr =
               id,
               // Carried, not dropped: this is what the save recorded for a piped call into a
               // bounded generic, and the callee reads it to find the implementation.
-              PT.EFnName(id, fnName, boundImpls),
+              PT.EFnName(id, fnName, boundImpls, []),
               typeArgs,
               NEList.ofList lhs args
             )
@@ -1109,11 +1109,13 @@ module Expr =
 
 
     // functions
-    | PT.EFnName(_, { resolved = Ok resolved }, boundImpls) ->
+    | PT.EFnName(_, { resolved = Ok resolved }, boundImpls, typeArgs) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT resolved.name
           typeSymbolTable = RT.TST.empty
-          typeArgs = []
+          // `Stdlib.List.map<Int64, Int64>` uncalled: checked and applied when the value is
+          // called, by the same path that takes a call's own type args.
+          typeArgs = List.map TypeReference.toRT typeArgs
           access = None
           argsSoFar = []
           // What the call worked out for the callee's bounds, carried into the frame when this
@@ -1133,7 +1135,7 @@ module Expr =
         instructions = [ RT.LoadVal(rc, applicable) ]
         resultIn = rc }
 
-    | PT.EFnName(_, { originalName = names; resolved = Error nre }, _) ->
+    | PT.EFnName(_, { originalName = names; resolved = Error nre }, _, _) ->
       // CLEANUP make it ok to _reference_ a bad name, so long as we don't try to `apply` it.
       { registerCount = rc
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]

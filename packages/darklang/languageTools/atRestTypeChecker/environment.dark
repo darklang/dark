@@ -758,7 +758,8 @@ let exprRefsInto(
   | ELambda(_, _, body) -> exprRefsInto(env, body, acc)
   | EApply(_, callee, typeArgs, args) ->
     manyRefsInto(env, args, pushRefs(typeListRefs(typeArgs), exprRefsInto(env, callee, acc)))
-  | EFnName(_, name, _) -> pushRefs(functionNameRefs(env, name), acc)
+  | EFnName(_, name, _, typeArgs) ->
+    pushRefs(typeListRefs(typeArgs), pushRefs(functionNameRefs(env, name), acc))
   | ERecordUpdate(_, record, updates) ->
     Stdlib.List.fold(updates, exprRefsInto(env, record, acc), fun(acc, (_, v)) -> exprRefsInto(env, v, acc))
   | EStatement(_, first, next) -> exprRefsInto(env, next, exprRefsInto(env, first, acc))

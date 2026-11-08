@@ -425,7 +425,7 @@ let private isUnaryOperator (nr : PT.NameResolution<PT.FQFnName.FQFnName>) : boo
 let rec private hasInfix (expr : PT.Expr) : bool =
   match expr with
   | PT.EInfix _ -> true
-  | PT.EFnName(_, nr, _) when isUnaryOperator nr -> true
+  | PT.EFnName(_, nr, _, _) when isUnaryOperator nr -> true
   | PT.EPipe(_, first, parts) ->
     hasInfix first
     || parts
@@ -440,7 +440,8 @@ let rec private hasInfix (expr : PT.Expr) : bool =
 /// A trait method named outright (`Show.show x`), as opposed to an operator.
 let rec private namesATraitMethod (expr : PT.Expr) : bool =
   match expr with
-  | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.TraitMethod _ } }, _) -> true
+  | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.TraitMethod _ } }, _, _) ->
+    true
   | _ -> PTAst.subExprs expr |> List.exists namesATraitMethod
 
 
@@ -453,7 +454,8 @@ let rec private namesATraitMethod (expr : PT.Expr) : bool =
 let rec private calledPackageFns (expr : PT.Expr) : List<PT.Hash> =
   let here =
     match expr with
-    | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }, _) -> [ h ]
+    | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }, _, _) ->
+      [ h ]
     | PT.EPipe(_, _, parts) ->
       parts
       |> List.choose (function
@@ -943,7 +945,7 @@ let rec private unresolved (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int 
     | _ -> 0
   let here =
     match expr with
-    | PT.EFnName(_, nr, boundImpls) -> named nr (not (List.isEmpty boundImpls))
+    | PT.EFnName(_, nr, boundImpls, _) -> named nr (not (List.isEmpty boundImpls))
     | PT.EInfix(_, infix, _, _, PT.FQFnName.Unknown) when traitOperator infix -> 1
     | PT.EPipe(_, _, parts) ->
       parts

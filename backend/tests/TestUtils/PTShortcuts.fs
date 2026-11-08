@@ -97,10 +97,10 @@ let ePackageValue hash : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqPackage hash))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
-  EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version), [])
+  EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version), [], [])
 
 let ePackageFn hash : Expr =
-  EFnName(gid (), NameResolution.ok (FQFnName.fqPackage hash), [])
+  EFnName(gid (), NameResolution.ok (FQFnName.fqPackage hash), [], [])
 
 let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
   let pats = NEList.ofListUnsafe "eLambda" [] pats

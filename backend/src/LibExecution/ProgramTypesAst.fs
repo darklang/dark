@@ -163,7 +163,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
 
   // things that can be applied
   | EInfix(_, _, left, right, _) -> Set.union (r left) (r right)
-  | EFnName(_, _, _) -> Set.empty
+  | EFnName(_, _, _, _) -> Set.empty
   | ELambda(_, _, body) -> r body
   | EApply(_, thingToApply, _, args) ->
     Set.unionMany
@@ -273,7 +273,8 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
   // the references we're collecting
   | EValue(_, { originalName = [ name ]; resolved = Ok _ }) -> Set.singleton name
   | EValue _ -> Set.empty
-  | EFnName(_, { originalName = [ name ]; resolved = Ok _ }, _) -> Set.singleton name
+  | EFnName(_, { originalName = [ name ]; resolved = Ok _ }, _, _) ->
+    Set.singleton name
   | EFnName _ -> Set.empty
 
   // things that can be applied

@@ -24,6 +24,7 @@ let dictionaryKeyReferences =
             PT.EFnName(
               3UL,
               PT.NameResolution.ok (PT.FQFnName.Package(hash "fn")),
+              [],
               []
             ),
             [ PT.TCustomType(

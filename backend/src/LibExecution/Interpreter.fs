@@ -5247,14 +5247,25 @@ let private runSyncInstructions
         // access value. If the next instruction calls that reference, the
         // new frame supplies the current access. If the reference escapes as
         // a value, capture the current access here so a later call stays
-        // authorized. Already-captured values are left unchanged.
+        // authorized. Already-captured values are left unchanged. A reference
+        // with type args (`Stdlib.List.map<'a, 'b>`) captures this frame's type
+        // symbols too, so its `'a` means the same wherever it is called.
         registers[reg] <-
           match value with
           | DApplicable(AppNamedFn fn) when
             fn.access.IsNone
             && not (consumedByNextApply instrData.instructions counter reg)
             ->
-            DApplicable(AppNamedFn { fn with access = Some currentFrame.access })
+            DApplicable(
+              AppNamedFn
+                { fn with
+                    access = Some currentFrame.access
+                    typeSymbolTable =
+                      if List.isEmpty fn.typeArgs then
+                        fn.typeSymbolTable
+                      else
+                        currentFrame.typeSymbolTable }
+            )
           | _ -> value
       | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
       // `skipRhs` is set on the left side's check. If that one raises, the right side

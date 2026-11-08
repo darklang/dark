@@ -490,7 +490,7 @@ module Expr =
                 currentModule
                 (WT.Unresolved(NEList.singleton var))
             match fnResult.resolved with
-            | Ok _ -> return PT.EFnName(id, fnResult, [])
+            | Ok _ -> return PT.EFnName(id, fnResult, [], [])
             | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(_, obj, (_, fieldname), _) ->
         let id = gid ()
@@ -526,7 +526,7 @@ module Expr =
               let! fnResult =
                 resolveFnAllow builtins pm currentModule (WT.Unresolved fullPath)
               match fnResult.resolved with
-              | Ok _ -> return PT.EFnName(id, fnResult, [])
+              | Ok _ -> return PT.EFnName(id, fnResult, [], [])
               | Error _ ->
                 let! obj = toPT context obj
                 return PT.ERecordFieldAccess(id, obj, fieldname)
@@ -538,8 +538,9 @@ module Expr =
         let name = qualifiedFnName q
         let! processedTypeArgs = Ply.List.mapSequentially typeRefToPT typeArgs
         // Every Darklang fn has at least one parameter, so a call always has at
-        // least one arg. A type-args-only `f<T>` is really `f<T> ()`: seed the
-        // implicit unit arg. Same in serializer lowering.
+        // least one arg. A type-args-only `f<T>` with no args is not a call: when
+        // it names a fn it is that fn as a value, specialised to the type args
+        // (below). Anything else gets the implicit unit arg.
         let! processedArgs =
           match args with
           | [] -> Ply(NEList.singleton (PT.EUnit(gid ())))
@@ -576,11 +577,13 @@ module Expr =
               // bindings and self-recursion have had a chance to shadow them.
               let! fnName = resolveFnAllow builtins pm currentModule name
               match fnName.resolved with
+              | Ok _ when List.isEmpty args && not (List.isEmpty typeArgs) ->
+                return PT.EFnName(id, fnName, [], processedTypeArgs)
               | Ok _ ->
                 return
                   PT.EApply(
                     id,
-                    PT.EFnName(gid (), fnName, []),
+                    PT.EFnName(gid (), fnName, [], []),
                     processedTypeArgs,
                     processedArgs
                   )
@@ -597,11 +600,20 @@ module Expr =
           // behavior while allowing `Mod.f x` to call the function even when a
           // same-named value exists.
           let! fnNameResolved = resolveFnAllow builtins pm currentModule name
-          let! expr =
-            match fnNameResolved.resolved with
-            | Ok _ -> Ply(PT.EFnName(gid (), fnNameResolved, []))
-            | Error _ -> toPT context callee
-          return PT.EApply(id, expr, processedTypeArgs, processedArgs)
+          match fnNameResolved.resolved with
+          | Ok _ when List.isEmpty args && not (List.isEmpty typeArgs) ->
+            return PT.EFnName(id, fnNameResolved, [], processedTypeArgs)
+          | Ok _ ->
+            return
+              PT.EApply(
+                id,
+                PT.EFnName(gid (), fnNameResolved, [], []),
+                processedTypeArgs,
+                processedArgs
+              )
+          | Error _ ->
+            let! expr = toPT context callee
+            return PT.EApply(id, expr, processedTypeArgs, processedArgs)
       | WT.EApply(_, lhs, typeArgs, args) ->
         let id = gid ()
         let! name = toPT context lhs
@@ -637,13 +649,13 @@ module Expr =
         | _ ->
           let! fnName = resolveFnAllow builtins pm currentModule name
           match fnName.resolved, valueResolved with
-          | Ok _, _ -> return PT.EFnName(id, fnName, [])
+          | Ok _, _ -> return PT.EFnName(id, fnName, [], [])
           // A bare qualified name that resolves to neither value nor fn returns
           // EValue(Error),
           // so DeferredResolver can later refresh forward references to values.
           // KnownBuiltin operator names stay EFnName.
           | Error _, Some value -> return PT.EValue(id, value)
-          | Error _, None -> return PT.EFnName(id, fnName, [])
+          | Error _, None -> return PT.EFnName(id, fnName, [], [])
       | WT.ELambda(_, pats, body, _, _) ->
         let id = gid ()
         // Lambda params do not inherit function arg slots. The enclosing
@@ -859,7 +871,7 @@ module Expr =
           PT.StringInterpolation(
             PT.EApply(
               gid (),
-              PT.EFnName(gid (), conversion, []),
+              PT.EFnName(gid (), conversion, [], []),
               [],
               NEList.singleton interpolated
             )
