@@ -52,7 +52,7 @@ let terminalTextTests =
       test "clipToWidth keeps styling, drops other escapes, never splits a cluster" {
         Expect.equal
           (TerminalText.clipToWidth $"{red}abcdef" 3)
-          $"{red}abc"
+          $"{red}abc{reset}"
           "styling is retained and costs no columns"
         Expect.equal
           (TerminalText.clipToWidth "界界" 3)
@@ -62,6 +62,28 @@ let terminalTextTests =
           (TerminalText.clipToWidth "abc" 0)
           ""
           "a zero width clips everything"
+      }
+      test "clipToWidth closes styling the cut left open" {
+        Expect.equal
+          (TerminalText.clipToWidth $"\u001b[1mabc{reset}def" 3)
+          $"\u001b[1mabc{reset}"
+          "a reset past the cut is still there"
+        Expect.equal
+          (TerminalText.clipToWidth $"{red}ab{reset}cdef" 3)
+          $"{red}ab{reset}c"
+          "styling already closed before the cut needs no second reset"
+        Expect.equal
+          (TerminalText.clipToWidth $"{red}ab\u001b[mcdef" 3)
+          $"{red}ab\u001b[mc"
+          "the short reset counts too"
+        Expect.equal
+          (TerminalText.clipToWidth $"{red}abc" 5)
+          $"{red}abc"
+          "a row that fits is left as it is"
+        Expect.equal
+          (TerminalText.clipToWidth $"{red}a界" 2)
+          $"{red}a{reset}"
+          "a wide cluster that doesn't fit is a cut too"
       }
       test "wrapAtColumn reapplies active styling on each row" {
         Expect.equal
@@ -77,15 +99,52 @@ let terminalTextTests =
           [ "界"; "界" ]
           "a row holds whole clusters only"
       }
-      testMany2
-        "positionAfter"
-        TerminalText.positionAfter
-        [ "", 4, (0, 0)
-          "abc", 4, (0, 3)
-          // a cursor exactly past the last column belongs at the start of the next row
-          "abcd", 4, (1, 0)
-          "abcde", 4, (1, 1)
-          "界界", 4, (1, 0) ] ]
+      test "wrapWithCursor: the end of input is the end of the last drawn row" {
+        for width in [ 1; 2; 3; 4; 5; 7; 10; 13; 20; 80 ] do
+          for text in
+            [ ""
+              "> echo hello world"
+              "> a bb ccc dddd eeeee ffffff"
+              "> two  spaces   here "
+              "> 界界 漢字 かな 界"
+              "> 🙂 👩‍💻 ok 🙂🙂 go"
+              $"{red}> styled{reset} words and 界 🙂 mixed" ] do
+            let (rows, row, column) = TerminalText.wrapWithCursor text "" width
+            let last =
+              TerminalText.styledWidth (List.item (List.length rows - 1) rows)
+            let expected =
+              if last >= width then
+                (List.length rows, 0)
+              else
+                (List.length rows - 1, last)
+            Expect.equal (row, column) expected $"{text} at {width}: rows {rows}"
+            Expect.equal
+              rows
+              (TerminalText.wrapAtColumn text width)
+              "the same rows as wrapAtColumn"
+      }
+      test "wrapWithCursor follows a word that moves down" {
+        Expect.equal
+          (TerminalText.wrapWithCursor "> echo hello world" "" 10)
+          ([ "> echo"; "hello"; "world" ], 2, 5)
+          "the cursor sits after the last drawn word"
+        Expect.equal
+          (TerminalText.wrapWithCursor "> echo hello wo" "rld" 10)
+          ([ "> echo"; "hello"; "world" ], 2, 2)
+          "a cursor inside a word that moved goes with it"
+        Expect.equal
+          (TerminalText.wrapWithCursor "> echo" " hello world" 10)
+          ([ "> echo"; "hello"; "world" ], 0, 6)
+          "a cursor on the break space stays at the end of its row"
+        Expect.equal
+          (TerminalText.wrapWithCursor "abcd" "" 4)
+          ([ "abcd" ], 1, 0)
+          "exactly past a full row is the start of the next one"
+        Expect.equal
+          (TerminalText.wrapWithCursor $"{red}ab" "cd" 2)
+          ([ $"{red}ab"; $"{red}cd" ], 1, 0)
+          "styling costs no columns"
+      } ]
 
 
 /// The LSP's `Content-Length` counts bytes. Every case reads a framed body and

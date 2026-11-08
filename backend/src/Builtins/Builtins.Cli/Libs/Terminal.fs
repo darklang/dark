@@ -264,20 +264,26 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliTerminalPositionAfter" 0
+    { name = fn "cliTerminalWrapWithCursor" 0
       typeParams = []
       parameters =
-        [ Param.make "text" TString "Plain, control-free text"
-          Param.make "maxWidth" TInt64 "Terminal columns per row" ]
-      returnType = TTuple(TInt64, TInt64, [])
+        [ Param.make "before" TString "Text before the cursor, maybe styled"
+          Param.make "after" TString "Text after the cursor, maybe styled"
+          Param.make "maxWidth" TInt64 "Terminal columns to wrap at" ]
+      returnType = TTuple(TList TString, TInt64, [ TInt64 ])
       description =
-        "Zero-based (row, column) cursor position immediately after plain text at a given width"
+        "Wrap before + after as cliTerminalWrapAtColumn does, with the zero-based (row, column) of the cursor between them"
       fn =
         (function
-        | _, vm, _, [| DString text; DInt64 maxWidth |] ->
-          let (row, column) =
-            TerminalText.positionAfter text (int64ToInt32 vm maxWidth)
-          DTuple(Dval.dint64 (int64 row), Dval.dint64 (int64 column), []) |> Ply
+        | _, vm, _, [| DString before; DString after; DInt64 maxWidth |] ->
+          let (rows, row, column) =
+            TerminalText.wrapWithCursor before after (int64ToInt32 vm maxWidth)
+          DTuple(
+            DList(VT.string, List.map DString rows),
+            Dval.dint64 (int64 row),
+            [ Dval.dint64 (int64 column) ]
+          )
+          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

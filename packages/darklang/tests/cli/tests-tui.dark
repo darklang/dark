@@ -145,7 +145,7 @@ test textWrapReappliesStyleAcrossRows =
 test textCursorAfterFullRowWraps =
   // Text that exactly fills the width leaves the cursor at the start of the following row, matching what
   // the terminal does. Prompt cursor placement depends on this.
-  let (row, column) = Stdlib.Cli.Tui.Text.positionAfter("abcd", 4)
+  let (_rows, row, column) = Stdlib.Cli.Tui.Text.wrapWithCursor("abcd", "", 4)
 
   if row == 1 && column == 0 then
     Stdlib.Test.Result.Pass
@@ -153,6 +153,23 @@ test textCursorAfterFullRowWraps =
     Stdlib.Test.fail(
       $"Expected (1, 0), got ({Stdlib.toString(row)}, {Stdlib.toString(column)})")
 
+
+
+test promptCursorFollowsWordWrap =
+  // At 10 columns "> echo hello world" draws as "> echo", "hello", "world": the cursor belongs after
+  // "world", not where a column wrap would have put it.
+  let state = Darklang.Cli.Prompt.Editing.setText(Darklang.Cli.Prompt.initState(), "echo hello world")
+  let size = Stdlib.Cli.Tui.Size { width = 10, height = 5 }
+  let view = Darklang.Cli.Prompt.Display.viewAtSize(state, "", "", size)
+
+  match view.cursor with
+  | Visible(row, column) ->
+    if row == 2 && column == 5 then
+      Stdlib.Test.Result.Pass
+    else
+      Stdlib.Test.fail(
+        $"Expected (2, 5), got ({Stdlib.toString(row)}, {Stdlib.toString(column)})")
+  | Hidden -> Stdlib.Test.fail("Expected a visible cursor")
 
 test textFitPadsByColumnsNotCharacters =
   // A wide glyph is one character in two columns, so padding by character count comes out short.
