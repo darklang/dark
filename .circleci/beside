@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Runs a command beside the build job's other steps, and hands its verdict to a later step.
+#
+#   .circleci/beside start <name> -- <command...>   in a `background: true` step
+#   .circleci/beside wait <name> [<limit>]          in the step that needs it done
+#
+# `start` runs the command, keeps its output, and records its exit status. `wait` blocks until
+# that status is there, then exits with it, so the job fails at the wait when the command did,
+# whatever CircleCI does with a failed background step. On a failure it prints the output again,
+# so the reason is in the step that failed. A command that never started, or runs past the
+# limit (10m by default, `sleep` units), fails the wait instead of hanging the job.
+
+set -uo pipefail
+
+DIR="${BESIDE_DIR:-/tmp/ci-beside}"
+
+usage() {
+  echo "usage: $0 start <name> -- <command...> | $0 wait <name> [<limit>]" >&2
+  exit 2
+}
+
+case "${1:-}" in
+  start)
+    [[ $# -ge 4 && "$3" == "--" ]] || usage
+    name=$2
+    shift 3
+    mkdir -p "$DIR"
+    rm -f "$DIR/$name.status"
+    : > "$DIR/$name.started"
+    "$@" < /dev/null 2>&1 | tee "$DIR/$name.log"
+    status=${PIPESTATUS[0]}
+    # Written whole and then moved, so a wait never reads half a status.
+    echo "$status" > "$DIR/$name.status.tmp"
+    mv "$DIR/$name.status.tmp" "$DIR/$name.status"
+    exit "$status"
+    ;;
+  wait)
+    [[ $# -ge 2 ]] || usage
+    name=$2
+    limit=${3:-10m}
+    # shellcheck disable=SC2016  # expanded by the inner bash, from its own "$1"
+    until_file() { timeout "$1" bash -c 'until [[ -f "$1" ]]; do sleep 1; done' _ "$2"; }
+    if ! until_file 1m "$DIR/$name.started"; then
+      echo "$name: never started; its \`beside start\` step did not run." >&2
+      exit 1
+    fi
+    if ! until_file "$limit" "$DIR/$name.status"; then
+      echo "$name: still running after $limit. Its output so far:" >&2
+      cat "$DIR/$name.log" >&2
+      exit 1
+    fi
+    status=$(cat "$DIR/$name.status")
+    if [[ "$status" -ne 0 ]]; then
+      echo "$name: failed (exit $status). Its output:" >&2
+      cat "$DIR/$name.log" >&2
+      exit "$status"
+    fi
+    echo "$name: passed"
+    ;;
+  *) usage ;;
+esac

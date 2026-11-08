@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# The build job's checks that need no build: lint, formatting, and the CI scripts' own tests.
+# About half a minute, and the likeliest to fail. The job runs this beside the restore and the
+# first compile (`.circleci/beside`), which leave a CPU free, and fails at the wait after it.
+#
+# Every check runs even when one fails, so one push shows every failure; the exit is the
+# first failure's.
+
+set -uo pipefail
+
+first_failure=0
+check() {
+  local name="$1"
+  shift
+  echo "==> $name"
+  "$@"
+  local status=$?
+  if [[ "$status" -ne 0 ]]; then
+    echo "==> FAILED: $name (exit $status)"
+    [[ "$first_failure" -ne 0 ]] || first_failure=$status
+  fi
+  echo
+}
+
+# shellcheck disable=SC2317  # reached through `check`
+format_check() {
+  fantomas --version
+  dotnet --list-runtimes
+  if scripts/formatting/format check; then
+    return 0
+  else
+    local format_status=$?
+  fi
+  # On failure, format the CI copy and print the diff for diagnosis, then put the sources back.
+  # Still fail, so formatting errors cannot pass silently.
+  scripts/formatting/format format --fsharp-only
+  git diff -- '*.fs' '*.fsi'
+  git checkout -- '*.fs' '*.fsi'
+  return "$format_status"
+}
+
+check "Lint the shell scripts" scripts/linting/shellchecker
+check "Check formatting" format_check
+check "Test the build's planning and readiness logic" scripts/testing/test-build-planning.py
+check "Test CI diagnostic collection" python3 .circleci/test_collect_diagnostics.py
+check "Test artifact validation timeouts" python3 .circleci/test_artifact_validation.py
+check "Test the check for a superseded main commit" python3 .circleci/test_ci_superseded.py
+check "Test the check for an already-proven tree" python3 .circleci/test_ci_proven.py
+check "Test the check for a prose-only change" python3 .circleci/test_ci_docs_only.py
+check "Test running steps beside each other" python3 .circleci/test_beside.py
+
+exit "$first_failure"
