@@ -706,6 +706,81 @@ let expectGt (state : ParserState) (j : int) : TokenRange * int =
 // one `>` pending for the enclosing generic.
 // declaration type parameters `<'a, 'b>` — collect the (tick-stripped) names
 // so generic types/fns keep their params (needed for runtime type unification).
+/// The traits of a `'a: Show + Compare` bound from `k`, after its `:`: each is one bound on
+/// `name`, prepended to `boundsRev`.
+let rec private typeParamBoundsFrom
+  (parseBoundTrait : ParserState -> int -> Option<WT.QualifiedTypeIdentifier> * int)
+  (state : ParserState)
+  (name : string)
+  (colon : TokenRange)
+  (boundsRev : List<WT.TypeParamBound>)
+  (k : int)
+  : List<WT.TypeParamBound> * int =
+  let (traitId, k2) = parseBoundTrait state k
+  let boundsRev =
+    match traitId with
+    | Some t ->
+      let bound : WT.TypeParamBound =
+        { range = span colon t.range; param = name; trait_ = t; symbolColon = colon }
+      bound :: boundsRev
+    | None -> boundsRev
+  let k = if k2 > k then k2 else k + 1
+  if tok state k = TPlus then
+    typeParamBoundsFrom parseBoundTrait state name colon boundsRev (k + 1)
+  else
+    (boundsRev, k)
+
+/// The parameters of a `<'a, 'b>` list from `k` up to its `>`: the names and the bounds, each
+/// last first, whether a name was still expected, and where the list stopped.
+let rec private typeParamsFrom
+  (parseBoundTrait : ParserState -> int -> Option<WT.QualifiedTypeIdentifier> * int)
+  (state : ParserState)
+  (namesRev : List<string * TokenRange>)
+  (boundsRev : List<WT.TypeParamBound>)
+  (expectingName : bool)
+  (k : int)
+  : List<string * TokenRange> * List<WT.TypeParamBound> * bool * int =
+  // A bound's own type args can end in `>>` (`'a: Convert<Int64>>`), which leaves
+  // one `>` pending for this list; see `expectGt`.
+  if
+    state.pendingGt <> 0
+    || tok state k = TGt
+    || tok state k = TShr
+    || tok state k = TEOF
+  then
+    (namesRev, boundsRev, expectingName, k)
+  else
+    match expectingName, tok state k with
+    | true, TIdent name ->
+      if not ((txt state k).StartsWith "'") then
+        err
+          state
+          DiagnosticCode.expected
+          k
+          "Declared type parameters must start with an apostrophe, such as 'a"
+      let namesRev = (name, rng state k) :: namesRev
+      // `'a: Show + Compare`: each trait after the colon is one bound on this param.
+      let (boundsRev, k) =
+        if tok state (k + 1) = TColon then
+          typeParamBoundsFrom
+            parseBoundTrait
+            state
+            name
+            (rng state (k + 1))
+            boundsRev
+            (k + 2)
+        else
+          (boundsRev, k + 1)
+      typeParamsFrom parseBoundTrait state namesRev boundsRev false k
+    | false, TComma ->
+      typeParamsFrom parseBoundTrait state namesRev boundsRev true (k + 1)
+    | false, TIdent _ ->
+      errExpected state k "a comma between type parameters"
+      typeParamsFrom parseBoundTrait state namesRev boundsRev true k
+    | _ ->
+      errExpected state k "a type parameter"
+      typeParamsFrom parseBoundTrait state namesRev boundsRev expectingName (k + 1)
+
 /// `<'a, 'b: Show + Compare>`: the declared type params, and each `: Trait [+ Trait]`
 /// bound as its own entry. `parseBoundTrait` is passed in because the type
 /// parser is defined later in the file (mutual recursion via a parameter rather
@@ -715,7 +790,6 @@ let parseTypeParamsWith
   (state : ParserState)
   (i : int)
   : List<string * TokenRange> * List<WT.TypeParamBound> * int =
-  let bounds = System.Collections.Generic.List<WT.TypeParamBound>()
   if tok state i <> TLt then
     ([], [], i)
   else
@@ -729,54 +803,12 @@ let parseTypeParamsWith
         DiagnosticCode.expected
         i
         "Generic type parameters must be adjacent to the declaration name"
-    let names = System.Collections.Generic.List<string * TokenRange>()
-    let mutable k = i + 1
-    let mutable expectingName = true
-    // A bound's own type args can end in `>>` (`'a: Convert<Int64>>`), which leaves
-    // one `>` pending for this list; see `expectGt`.
-    while state.pendingGt = 0
-          && tok state k <> TGt
-          && tok state k <> TShr
-          && tok state k <> TEOF do
-      match expectingName, tok state k with
-      | true, TIdent name ->
-        if not ((txt state k).StartsWith "'") then
-          err
-            state
-            DiagnosticCode.expected
-            k
-            "Declared type parameters must start with an apostrophe, such as 'a"
-        names.Add(name, rng state k)
-        expectingName <- false
-        k <- k + 1
-        // `'a: Show + Compare`: each trait after the colon is one bound on this param.
-        if tok state k = TColon then
-          let colon = rng state k
-          k <- k + 1
-          let mutable moreBounds = true
-          while moreBounds do
-            let (traitId, k2) = parseBoundTrait state k
-            match traitId with
-            | Some t ->
-              bounds.Add
-                { range = span colon t.range
-                  param = name
-                  trait_ = t
-                  symbolColon = colon }
-            | None -> ()
-            k <- (if k2 > k then k2 else k + 1)
-            if tok state k = TPlus then k <- k + 1 else moreBounds <- false
-      | false, TComma ->
-        expectingName <- true
-        k <- k + 1
-      | false, TIdent _ ->
-        errExpected state k "a comma between type parameters"
-        expectingName <- true
-      | _ ->
-        errExpected state k "a type parameter"
-        k <- k + 1
-    if names.Count = 0 then errExpected state (i + 1) "at least one type parameter"
-    elif expectingName then errExpected state k "a type parameter after ','"
+    let (namesRev, boundsRev, expectingName, k) =
+      typeParamsFrom parseBoundTrait state [] [] true (i + 1)
+    if List.isEmpty namesRev then
+      errExpected state (i + 1) "at least one type parameter"
+    elif expectingName then
+      errExpected state k "a type parameter after ','"
     let k2 =
       if state.pendingGt > 0 then
         state.pendingGt <- state.pendingGt - 1
@@ -791,7 +823,7 @@ let parseTypeParamsWith
       else
         (errExpected state k "'>' to close the type-parameter list"
          k)
-    (List.ofSeq names, List.ofSeq bounds, k2)
+    (List.rev namesRev, List.rev boundsRev, k2)
 
 // --- offside scope stack ---
 // One scope = `stmtCol` (the current statement's anchor column; -1 = none) +
@@ -1024,6 +1056,16 @@ let rec private lastAtOrBefore
     else
       lastAtOrBefore starts off lo (mid - 1)
 
+/// The `.Name` segments of a module name from `nk`, prepended to `partsRev`.
+let rec private moduleNameParts
+  (state : ParserState)
+  (partsRev : List<string>)
+  (nk : int)
+  : List<string> * int =
+  match tok state nk, tok state (nk + 1) with
+  | TDot, TIdent s -> moduleNameParts state (s :: partsRev) (nk + 2)
+  | _ -> (partsRev, nk)
+
 let rec parseExpr (state : ParserState) (i : int) : WT.Expr * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   if tooDeep state i || outOfFuel state i then
@@ -1190,54 +1232,74 @@ and parseMatch (state : ParserState) (i : int) : WT.Expr * int =
     else
       errExpected state j "'with' in match"
       (zeroWidthAtEnd (rng state j), j)
-  let cases = System.Collections.Generic.List<WT.MatchCase>()
   // arms align on the first `|`'s column; a `|` LESS indented than that belongs
   // to an enclosing match (so a nested match doesn't swallow the outer's arms).
   let armCol =
     if tok state afterWith = TBar then (rng state afterWith).start.column else 0
   let armRow =
     if tok state afterWith = TBar then (rng state afterWith).start.row else -1
-  let mutable k = afterWith
   // While the arm BODIES are parsed, a `|` on this match's arm row or at its
   // arm column is an arm separator, not the bitwise-or operator. The subject
   // expression above is parsed outside the anchor, where `|` is still an
   // operator (`match a | b with …`).
   let savedArms = state.matchArms
   state.matchArms <- (armRow, armCol) :: savedArms
-  try
-    while (tok state k = TBar
-           && ((rng state k).start.row = armRow
-               || (rng state k).start.column = armCol)) do
-      let barR = rng state k
-      let (pat, k2) = parseMatchPattern state (k + 1)
-      let (whenCond, k3) =
-        if tok state k2 = TWhen then
-          let whenR = rng state k2
-          let (g, kg) = parseExpr state (k2 + 1)
-          (Some(whenR, g), kg)
-        else
-          (None, k2)
-      let (arrowR, k4) =
-        if tok state k3 = TArrow then
-          (rng state k3, k3 + 1)
-        else
-          errExpected state k3 "'->' in match case"
-          (zeroWidthAtEnd (rng state k3), k3)
-      let (rhs, k5) = parseBlock state k4
-      cases.Add(
-        { barRange = barR
-          pat = pat
-          arrowRange = arrowR
-          whenCondition = whenCond
-          rhs = rhs }
-      )
-      if k5 > k then k <- k5 else k <- k + 1
-  finally
-    state.matchArms <- savedArms
-  if cases.Count = 0 then
-    errExpected state afterWith "at least one match case starting with '|'"
-  let endR = if cases.Count > 0 then WT.exprRange (Seq.last cases).rhs else kwWith
-  (WT.EMatch(span kwMatch endR, expr, List.ofSeq cases, kwMatch, kwWith), k)
+  let (casesRev, k) =
+    try
+      parseMatchArms state armRow armCol [] afterWith
+    finally
+      state.matchArms <- savedArms
+  let endR =
+    match casesRev with
+    | last :: _ -> WT.exprRange last.rhs
+    | [] ->
+      errExpected state afterWith "at least one match case starting with '|'"
+      kwWith
+  (WT.EMatch(span kwMatch endR, expr, List.rev casesRev, kwMatch, kwWith), k)
+
+// The arms of a match from `k`, last first: each starts with a `|` on the match's
+// arm row or at its arm column.
+and private parseMatchArms
+  (state : ParserState)
+  (armRow : int)
+  (armCol : int)
+  (casesRev : List<WT.MatchCase>)
+  (k : int)
+  : List<WT.MatchCase> * int =
+  if
+    tok state k = TBar
+    && ((rng state k).start.row = armRow || (rng state k).start.column = armCol)
+  then
+    let barR = rng state k
+    let (pat, k2) = parseMatchPattern state (k + 1)
+    let (whenCond, k3) =
+      if tok state k2 = TWhen then
+        let whenR = rng state k2
+        let (g, kg) = parseExpr state (k2 + 1)
+        (Some(whenR, g), kg)
+      else
+        (None, k2)
+    let (arrowR, k4) =
+      if tok state k3 = TArrow then
+        (rng state k3, k3 + 1)
+      else
+        errExpected state k3 "'->' in match case"
+        (zeroWidthAtEnd (rng state k3), k3)
+    let (rhs, k5) = parseBlock state k4
+    let case : WT.MatchCase =
+      { barRange = barR
+        pat = pat
+        arrowRange = arrowR
+        whenCondition = whenCond
+        rhs = rhs }
+    parseMatchArms
+      state
+      armRow
+      armCol
+      (case :: casesRev)
+      (if k5 > k then k5 else k + 1)
+  else
+    (casesRev, k)
 
 // or-level: `p1 | p2 | …` (stops at `->` / `when`)
 // top level: a bare tuple `a, b` (comma-separated, no parens); else an or-pattern
@@ -1506,69 +1568,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       | _ -> (inner, p2)
   | TLBracket ->
     let openB = rng state i
-    let elems =
-      System.Collections.Generic.List<WT.MatchPattern * Option<TokenRange>>()
-    // `...tail` binds the rest of the list, and a bare `...` ignores it; only the
-    // last element may be one
-    let mutable rest : Option<TokenRange * WT.MatchPattern> = None
-    // where the rest element is, until an element after it has been reported
-    let mutable restAt = -1
-    let mutable k = i + 1
-    let mutable go = true
-    while go && tok state k <> TRBracket && tok state k <> TEOF do
-      let isRest = tok state k = TDotDotDot
-      if restAt >= 0 then
-        err
-          state
-          DiagnosticCode.unexpected
-          restAt
-          "'...' must be the last element of a list pattern"
-        restAt <- -1
-      // a bare `...` ignores the rest, the same as `..._`
-      let bareRest =
-        isRest && (tok state (k + 1) = TRBracket || tok state (k + 1) = TComma)
-      let (p, k2) =
-        if bareRest then
-          (WT.MPVariable(rng state k, "_"), k + 1)
-        elif isRest then
-          parsePatternBase state (k + 1)
-        else
-          // an element is a full field pattern: `[1 | 2]`, `[Some(_) as o]`
-          parsePatternOr state k
-      if isRest then
-        match p with
-        | WT.MPVariable _ -> ()
-        | _ ->
-          err
-            state
-            DiagnosticCode.unexpected
-            (k + 1)
-            "'...' takes a name for the rest of the list, or nothing to ignore it"
-        if Option.isNone rest then restAt <- k
-        rest <- Some(rng state k, p)
-      if k2 = k then
-        err
-          state
-          DiagnosticCode.unexpected
-          k
-          $"unexpected {foundDesc state k} in list pattern"
-        go <- false
-      elif tok state k2 = TComma then
-        elems.Add(p, Some(rng state k2))
-        k <- k2 + 1
-      elif tok state k2 = TSemicolon then
-        errCollectionSemicolon state k2 "list-pattern elements"
-        elems.Add(p, Some(rng state k2))
-        k <- k2 + 1
-      else
-        elems.Add(p, None)
-        if tok state k2 <> TRBracket then
-          requireElementSeparator
-            state
-            (WT.mpRange p)
-            k2
-            "a comma or newline between list-pattern elements"
-        k <- k2
+    let (elemsRev, rest, k) = parseListPatternElems state [] None (-1) (i + 1)
     let (closeB, p2) =
       if tok state k = TRBracket then
         (rng state k, k + 1)
@@ -1576,11 +1576,13 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
         errUnclosed state k "]" "[" openB
         (zeroWidthAtEnd (rng state k), k)
     match rest with
-    | None -> (WT.MPList(span openB closeB, List.ofSeq elems, openB, closeB), p2)
+    | None -> (WT.MPList(span openB closeB, List.rev elemsRev, openB, closeB), p2)
     | Some(dotsR, tailPat) ->
       // `[a, b, ...t]` is `a :: b :: t`, so it lowers through the cons node
       let heads =
-        elems |> Seq.map fst |> Seq.truncate (elems.Count - 1) |> Seq.toList
+        match elemsRev with
+        | _ :: earlier -> earlier |> List.rev |> List.map fst
+        | [] -> []
       if List.isEmpty heads then
         err
           state
@@ -1608,74 +1610,14 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
   // own parentheses: `{ pos = (x, y) }`.
   | TLBrace ->
     let openB = rng state i
-    let fields =
-      System.Collections.Generic.List<(TokenRange * string) *
-      Option<TokenRange * WT.MatchPattern>>()
-    let mutable k = i + 1
-    let mutable go = true
-    while go && tok state k <> TRBrace && tok state k <> TEOF do
-      match tok state k with
-      | TIdent fname ->
-        let fnameR = rng state k
-        if fields |> Seq.exists (fun ((_, n), _) -> n = fname) then
-          err
-            state
-            DiagnosticCode.pattern
-            k
-            $"the field '{fname}' appears twice in this record pattern"
-        let (field, k2) =
-          if tok state (k + 1) = TEquals then
-            let (p, k2) = parsePatternOr state (k + 2)
-            (((fnameR, fname), Some(rng state (k + 1), p)), k2)
-          else
-            if not (System.Char.IsLower fname[0]) then
-              errFull
-                state
-                DiagnosticCode.pattern
-                k
-                $"a field with no '= pattern' binds a variable named after it, and '{fname}' cannot name a variable"
-                []
-                (Some $"write `{fname} = p` to match the field against a pattern")
-            (((fnameR, fname), None), k + 1)
-        fields.Add field
-        let lastR =
-          match field with
-          | (_, Some(_, p)) -> WT.mpRange p
-          | ((r, _), None) -> r
-        if tok state k2 = TComma then
-          k <- k2 + 1
-        elif tok state k2 = TSemicolon then
-          errCollectionSemicolon state k2 "record-pattern fields"
-          k <- k2 + 1
-        elif k2 > k then
-          if tok state k2 <> TRBrace then
-            requireElementSeparator
-              state
-              lastR
-              k2
-              "a comma or newline between record-pattern fields"
-          k <- k2
-        else
-          go <- false
-      | TDotDotDot ->
-        errFull
-          state
-          DiagnosticCode.unexpected
-          k
-          "a record pattern needs no '...': the fields it leaves out are ignored"
-          []
-          (Some "remove the '...'")
-        k <- if tok state (k + 1) = TComma then k + 2 else k + 1
-      | _ ->
-        errExpectedName state k "a record field, as in `name` or `name = pattern`"
-        go <- false
+    let (fieldsRev, k) = parseRecordPatternFields state [] (i + 1)
     let (closeB, p2) =
       if tok state k = TRBrace then
         (rng state k, k + 1)
       else
         errUnclosed state k "}" "{" openB
         (zeroWidthAtEnd (rng state k), k)
-    if fields.Count = 0 && tok state (i + 1) = TRBrace then
+    if List.isEmpty fieldsRev && tok state (i + 1) = TRBrace then
       errFull
         state
         DiagnosticCode.pattern
@@ -1683,7 +1625,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
         "a record pattern names at least one field"
         []
         (Some "to match any value, use a variable or `_`")
-    (WT.MPRecord(span openB closeB, List.ofSeq fields, openB, closeB), p2)
+    (WT.MPRecord(span openB closeB, List.rev fieldsRev, openB, closeB), p2)
   | TIdent name when name.Length > 0 && System.Char.IsUpper name[0] ->
     // enum pattern: `[Mod.Type.]Case(fieldPats…)`; the last segment is the case.
     // A qualified case (`Result.Ok(x)`, `Stdlib.Result.Result.Ok(x)`) matches the
@@ -1696,68 +1638,48 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     // whether or not there's a space before the `(`, as for a call.
     if tok state j = TLParen then
       let openParen = rng state j
-      let fieldPats = System.Collections.Generic.List<WT.MatchPattern>()
-      let mutable k = j + 1
-      let mutable go = true
-      while go && tok state k <> TRParen && tok state k <> TEOF do
-        let (p, k2) = parsePatternOr state k
-        fieldPats.Add p
-        if tok state k2 = TComma then
-          k <- k2 + 1
-        elif k2 > k then
-          if tok state k2 <> TRParen then
-            requireElementSeparator
-              state
-              (WT.mpRange p)
-              k2
-              "a comma or newline between constructor-pattern fields"
-          k <- k2
-        else
-          go <- false
+      let (fieldPatsRev, k) = parseCtorPatternFields state [] (j + 1)
       let k3 =
         if tok state k = TRParen then
           k + 1
         else
           (errUnclosed state k ")" "(" openParen
            k)
-      // `Case()` is one unit field (`Case` applied to unit)
-      if fieldPats.Count = 0 then
-        fieldPats.Add(WT.MPUnit(span openParen (rng state (max j (k3 - 1)))))
+      let fieldPats =
+        match fieldPatsRev with
+        // `Case()` is one unit field (`Case` applied to unit)
+        | [] -> [ WT.MPUnit(span openParen (rng state (max j (k3 - 1)))) ]
+        | _ -> List.rev fieldPatsRev
       (WT.MPEnum(
         span (rng state i) (rng state (max j (k3 - 1))),
         typePath,
         (final.range, final.name),
-        List.ofSeq fieldPats
+        fieldPats
        ),
        k3)
     else
       // `| Ok x` is not Dark. The fields are still parsed, so recovery sees the
       // shape the author meant; the diagnostic is what makes it an error.
-      let fieldPats = System.Collections.Generic.List<WT.MatchPattern>()
-      let mutable k = j
-      // `None as n` names the case; it is not a spaced field
-      while canStartPattern (tok state k)
-            && tok state k <> TIdent "as"
-            && offsideContinues state i k do
-        let (p, k2) = parsePatternBase state k
-        fieldPats.Add p
-        if k2 > k then k <- k2 else k <- k + 1
+      let (fieldPatsRev, k) = parseSpacedPatternFields state i [] j
       let endR =
-        if fieldPats.Count > 0 then WT.mpRange (Seq.last fieldPats) else final.range
-      if fieldPats.Count > 0 then
-        state.diagnostics.Add
-          { code = DiagnosticCode.pattern
-            severity = DiagError
-            range = span (rng state i) endR
-            message =
-              "a constructor pattern's fields go in parentheses, separated by commas"
-            related = []
-            hint = Some(spacedFieldsHint final.name fieldPats.Count) }
+        match fieldPatsRev with
+        | last :: _ ->
+          let endR = WT.mpRange last
+          state.diagnostics.Add
+            { code = DiagnosticCode.pattern
+              severity = DiagError
+              range = span (rng state i) endR
+              message =
+                "a constructor pattern's fields go in parentheses, separated by commas"
+              related = []
+              hint = Some(spacedFieldsHint final.name (List.length fieldPatsRev)) }
+          endR
+        | [] -> final.range
       (WT.MPEnum(
         span (rng state i) endR,
         typePath,
         (final.range, final.name),
-        List.ofSeq fieldPats
+        List.rev fieldPatsRev
        ),
        k)
   | TIdent name -> (WT.MPVariable(rng state i, name), i + 1)
@@ -1779,6 +1701,198 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
         i + 1
       else
         i))
+
+// The elements of a list pattern from `k`, last first, and its `...` rest element if it has
+// one. Only the last element may be a rest element; `restAt` is where an earlier one is, until
+// an element after it has been reported.
+and private parseListPatternElems
+  (state : ParserState)
+  (elemsRev : List<WT.MatchPattern * Option<TokenRange>>)
+  (rest : Option<TokenRange * WT.MatchPattern>)
+  (restAt : int)
+  (k : int)
+  : List<WT.MatchPattern * Option<TokenRange>> *
+    Option<TokenRange * WT.MatchPattern> *
+    int
+  =
+  if tok state k = TRBracket || tok state k = TEOF then
+    (elemsRev, rest, k)
+  else
+    let isRest = tok state k = TDotDotDot
+    if restAt >= 0 then
+      err
+        state
+        DiagnosticCode.unexpected
+        restAt
+        "'...' must be the last element of a list pattern"
+    // a bare `...` ignores the rest, the same as `..._`
+    let bareRest =
+      isRest && (tok state (k + 1) = TRBracket || tok state (k + 1) = TComma)
+    let (p, k2) =
+      if bareRest then
+        (WT.MPVariable(rng state k, "_"), k + 1)
+      elif isRest then
+        parsePatternBase state (k + 1)
+      else
+        // an element is a full field pattern: `[1 | 2]`, `[Some(_) as o]`
+        parsePatternOr state k
+    let (rest, restAt) =
+      if isRest then
+        match p with
+        | WT.MPVariable _ -> ()
+        | _ ->
+          err
+            state
+            DiagnosticCode.unexpected
+            (k + 1)
+            "'...' takes a name for the rest of the list, or nothing to ignore it"
+        (Some(rng state k, p), (if Option.isNone rest then k else -1))
+      else
+        (rest, -1)
+    if k2 = k then
+      err
+        state
+        DiagnosticCode.unexpected
+        k
+        $"unexpected {foundDesc state k} in list pattern"
+      (elemsRev, rest, k)
+    elif tok state k2 = TComma then
+      parseListPatternElems
+        state
+        ((p, Some(rng state k2)) :: elemsRev)
+        rest
+        restAt
+        (k2 + 1)
+    elif tok state k2 = TSemicolon then
+      errCollectionSemicolon state k2 "list-pattern elements"
+      parseListPatternElems
+        state
+        ((p, Some(rng state k2)) :: elemsRev)
+        rest
+        restAt
+        (k2 + 1)
+    else
+      if tok state k2 <> TRBracket then
+        requireElementSeparator
+          state
+          (WT.mpRange p)
+          k2
+          "a comma or newline between list-pattern elements"
+      parseListPatternElems state ((p, None) :: elemsRev) rest restAt k2
+
+// The fields of a record pattern from `k`, last first.
+and private parseRecordPatternFields
+  (state : ParserState)
+  (fieldsRev : List<(TokenRange * string) * Option<TokenRange * WT.MatchPattern>>)
+  (k : int)
+  : List<(TokenRange * string) * Option<TokenRange * WT.MatchPattern>> * int =
+  if tok state k = TRBrace || tok state k = TEOF then
+    (fieldsRev, k)
+  else
+    match tok state k with
+    | TIdent fname ->
+      let fnameR = rng state k
+      if fieldsRev |> List.exists (fun ((_, n), _) -> n = fname) then
+        err
+          state
+          DiagnosticCode.pattern
+          k
+          $"the field '{fname}' appears twice in this record pattern"
+      let (field, k2) =
+        if tok state (k + 1) = TEquals then
+          let (p, k2) = parsePatternOr state (k + 2)
+          (((fnameR, fname), Some(rng state (k + 1), p)), k2)
+        else
+          if not (System.Char.IsLower fname[0]) then
+            errFull
+              state
+              DiagnosticCode.pattern
+              k
+              $"a field with no '= pattern' binds a variable named after it, and '{fname}' cannot name a variable"
+              []
+              (Some $"write `{fname} = p` to match the field against a pattern")
+          (((fnameR, fname), None), k + 1)
+      let fieldsRev = field :: fieldsRev
+      let lastR =
+        match field with
+        | (_, Some(_, p)) -> WT.mpRange p
+        | ((r, _), None) -> r
+      if tok state k2 = TComma then
+        parseRecordPatternFields state fieldsRev (k2 + 1)
+      elif tok state k2 = TSemicolon then
+        errCollectionSemicolon state k2 "record-pattern fields"
+        parseRecordPatternFields state fieldsRev (k2 + 1)
+      elif k2 > k then
+        if tok state k2 <> TRBrace then
+          requireElementSeparator
+            state
+            lastR
+            k2
+            "a comma or newline between record-pattern fields"
+        parseRecordPatternFields state fieldsRev k2
+      else
+        (fieldsRev, k)
+    | TDotDotDot ->
+      errFull
+        state
+        DiagnosticCode.unexpected
+        k
+        "a record pattern needs no '...': the fields it leaves out are ignored"
+        []
+        (Some "remove the '...'")
+      parseRecordPatternFields
+        state
+        fieldsRev
+        (if tok state (k + 1) = TComma then k + 2 else k + 1)
+    | _ ->
+      errExpectedName state k "a record field, as in `name` or `name = pattern`"
+      (fieldsRev, k)
+
+// The parenthesized fields of a constructor pattern from `k`, last first.
+and private parseCtorPatternFields
+  (state : ParserState)
+  (fieldPatsRev : List<WT.MatchPattern>)
+  (k : int)
+  : List<WT.MatchPattern> * int =
+  if tok state k = TRParen || tok state k = TEOF then
+    (fieldPatsRev, k)
+  else
+    let (p, k2) = parsePatternOr state k
+    let fieldPatsRev = p :: fieldPatsRev
+    if tok state k2 = TComma then
+      parseCtorPatternFields state fieldPatsRev (k2 + 1)
+    elif k2 > k then
+      if tok state k2 <> TRParen then
+        requireElementSeparator
+          state
+          (WT.mpRange p)
+          k2
+          "a comma or newline between constructor-pattern fields"
+      parseCtorPatternFields state fieldPatsRev k2
+    else
+      (fieldPatsRev, k)
+
+// Space-separated fields after the constructor at `i` (`| Ok x`, an error), from `k`, last first.
+and private parseSpacedPatternFields
+  (state : ParserState)
+  (i : int)
+  (fieldPatsRev : List<WT.MatchPattern>)
+  (k : int)
+  : List<WT.MatchPattern> * int =
+  // `None as n` names the case; it is not a spaced field
+  if
+    canStartPattern (tok state k)
+    && tok state k <> TIdent "as"
+    && offsideContinues state i k
+  then
+    let (p, k2) = parsePatternBase state k
+    parseSpacedPatternFields
+      state
+      i
+      (p :: fieldPatsRev)
+      (if k2 > k then k2 else k + 1)
+  else
+    (fieldPatsRev, k)
 
 and parseIf (state : ParserState) (minCol : int) (i : int) : WT.Expr * int =
   let kwIf = rng state i
@@ -2006,85 +2120,92 @@ and parseInfixRhs
   (j0 : int)
   : WT.Expr * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
-  let mutable left = left0
-  let mutable j = j0
-  let mutable go = true
-  while go do
-    // The operator must belong to THIS statement: same row as the left
-    // operand's end, or inside parens, or an indented continuation. Otherwise
-    // a following statement that starts with a prefix operator (`1\n-8 …`)
-    // would be wrongly glued on as `1 - 8 …`. On a new line, a pure infix
-    // operator at the statement column continues (`x\n* y`: `*` cannot start
-    // a statement), but `-` there begins a new statement (a negative literal),
-    // so it must be indented PAST it. This rule is identical for every caller.
-    let opContinues =
-      let s = state.scopes.Peek()
-      let so = s.stmtCol
-      let col = (rng state j).start.column
-      (rng state j).start.row = (WT.exprRange left).end_.row
-      || so < 0
-      || (if s.stmtExact then tok state j <> TMinus || col <> so
-          elif tok state j = TMinus then col > so
-          else col >= so)
-    match infixBindingPower (tok state j) with
-    // A `|` belonging to an enclosing match is that match's arm separator, not
-    // bitwise-or; leave it for `parseMatch`.
-    | Some _ when tok state j = TBar && barStartsArm state j -> go <- false
-    | Some(bp, rightAssoc) when bp >= minBp && opContinues ->
-      let opTok = tok state j
-      let opRange = rng state j
-      let (rhs0, k0) = parseApp state (j + 1)
-      // climb: the RHS folds in everything binding tighter (or equally
-      // tight, for a right-assoc op) before this level continues.
-      let (right, k) =
-        parseInfixRhs state (if rightAssoc then bp else bp + 1) rhs0 k0
-      let range = span (WT.exprRange left) (WT.exprRange right)
-      left <- WT.EInfix(range, (opRange, (infixOf opTok).Value), left, right)
-      j <- k
-    | _ -> go <- false
-  (left, j)
+  parseInfixFrom state minBp left0 j0
+
+// The operators from `j` binding at least `minBp`, folded onto `left`.
+and private parseInfixFrom
+  (state : ParserState)
+  (minBp : int)
+  (left : WT.Expr)
+  (j : int)
+  : WT.Expr * int =
+  // The operator must belong to THIS statement: same row as the left
+  // operand's end, or inside parens, or an indented continuation. Otherwise
+  // a following statement that starts with a prefix operator (`1\n-8 …`)
+  // would be wrongly glued on as `1 - 8 …`. On a new line, a pure infix
+  // operator at the statement column continues (`x\n* y`: `*` cannot start
+  // a statement), but `-` there begins a new statement (a negative literal),
+  // so it must be indented PAST it. This rule is identical for every caller.
+  let opContinues =
+    let s = state.scopes.Peek()
+    let so = s.stmtCol
+    let col = (rng state j).start.column
+    (rng state j).start.row = (WT.exprRange left).end_.row
+    || so < 0
+    || (if s.stmtExact then tok state j <> TMinus || col <> so
+        elif tok state j = TMinus then col > so
+        else col >= so)
+  match infixBindingPower (tok state j) with
+  // A `|` belonging to an enclosing match is that match's arm separator, not
+  // bitwise-or; leave it for `parseMatch`.
+  | Some _ when tok state j = TBar && barStartsArm state j -> (left, j)
+  | Some(bp, rightAssoc) when bp >= minBp && opContinues ->
+    let opTok = tok state j
+    let opRange = rng state j
+    let (rhs0, k0) = parseApp state (j + 1)
+    // climb: the RHS folds in everything binding tighter (or equally
+    // tight, for a right-assoc op) before this level continues.
+    let (right, k) = parseInfixRhs state (if rightAssoc then bp else bp + 1) rhs0 k0
+    let range = span (WT.exprRange left) (WT.exprRange right)
+    parseInfixFrom
+      state
+      minBp
+      (WT.EInfix(range, (opRange, (infixOf opTok).Value), left, right))
+      k
+  | _ -> (left, j)
 
 // A parenthesized list, `(e1, e2, …)` with `i` at the `(`: a call's arguments or
 // a constructor's fields. Commas or newlines separate the items (so `f(a, b)` is
 // two, and one tuple needs double parens). Items are anchored exactly like a paren
-// body (stmtExact: the `)` is the real delimiter), sunk into `sink`; returns the
+// body (stmtExact: the `)` is the real delimiter). Returns the items and the
 // index after the `)`. An empty list gives the one unit item: `f()`, `Ctor()`.
-and parseParenList
-  (state : ParserState)
-  (i : int)
-  (sink : System.Collections.Generic.List<WT.Expr>)
-  : int =
+and parseParenList (state : ParserState) (i : int) : List<WT.Expr> * int =
   let openParen = rng state i
   withStmtColExact (state) (rng state (i + 1)).start.column (fun () ->
-    let mutable m = i + 1
-    let mutable go = true
-    while go
-          && tok state m <> TRParen
-          && tok state m <> TEOF
-          && not (declBarrier state m) do
-      let (a, m2) = parseExpr state m
-      sink.Add a
-      if tok state m2 = TComma then
-        m <- m2 + 1
-      elif m2 > m then
-        if tok state m2 <> TRParen then
-          requireElementSeparator
-            state
-            (WT.exprRange a)
-            m2
-            "a comma or newline between arguments"
-        m <- m2
-      else
-        go <- false
+    let (itemsRev, m) = parseParenItems state [] (i + 1)
     let m =
       if tok state m = TRParen then
         m + 1
       else
         (errUnclosed state m ")" "(" openParen
          m)
+    match itemsRev with
     // `Ctor()` is `Ctor` applied to unit — one unit field, not zero
-    if sink.Count = 0 then sink.Add(WT.EUnit(span openParen (rng state (m - 1))))
-    m)
+    | [] -> ([ WT.EUnit(span openParen (rng state (m - 1))) ], m)
+    | _ -> (List.rev itemsRev, m))
+
+// The items of a parenthesized list from `m`, last first.
+and private parseParenItems
+  (state : ParserState)
+  (itemsRev : List<WT.Expr>)
+  (m : int)
+  : List<WT.Expr> * int =
+  if tok state m = TRParen || tok state m = TEOF || declBarrier state m then
+    (itemsRev, m)
+  else
+    let (a, m2) = parseExpr state m
+    if tok state m2 = TComma then
+      parseParenItems state (a :: itemsRev) (m2 + 1)
+    elif m2 > m then
+      if tok state m2 <> TRParen then
+        requireElementSeparator
+          state
+          (WT.exprRange a)
+          m2
+          "a comma or newline between arguments"
+      parseParenItems state (a :: itemsRev) m2
+    else
+      (a :: itemsRev, m)
 
 // A prefix operator: `op operand` → `Builtin.<name> operand`, with the operand
 // parsed as a whole APPLICATION so `op f x` is `op (f x)`. Shared by `!`, `~`
@@ -2126,8 +2247,6 @@ and isCallee (e : WT.Expr) : bool =
 // what makes it an error.
 and parseApp (state : ParserState) (i : int) : WT.Expr * int =
   let (callee, j) = parseAtom state i
-  let args = System.Collections.Generic.List<WT.Expr>()
-  let mutable k = j
   // A constructor's parenthesized fields were taken by the enum branch of
   // parsePrimary, so a nullary EEnum followed by atoms is `Ok 5`: an error below,
   // with the fields still folded in so tooling sees the shape the author meant.
@@ -2135,28 +2254,54 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
     match callee with
     | WT.EEnum(_, _, _, [], _) -> true
     | _ -> isCallee callee
-  if acceptsArgs then
-    while (canStartAtom (tok state k) || isNegLitArg state k)
-          && offsideContinues state i k do
-      let (a, k2) = parseAtom state k
-      args.Add a
-      k <- k2
+  if acceptsArgs && startsSpacedArg state i j then
+    let (argsRev, k) = parseSpacedArgs state i [] j
+    parseSpacedApp state callee argsRev k
+  else
+    (callee, j)
+
+// Does the token at `k` start a space-separated argument of the application at `i`?
+and private startsSpacedArg (state : ParserState) (i : int) (k : int) : bool =
+  (canStartAtom (tok state k) || isNegLitArg state k)
+  && offsideContinues state i k
+
+// The space-separated arguments of the application at `i` from `k`, last first.
+and private parseSpacedArgs
+  (state : ParserState)
+  (i : int)
+  (argsRev : List<WT.Expr>)
+  (k : int)
+  : List<WT.Expr> * int =
+  if startsSpacedArg state i k then
+    let (a, k2) = parseAtom state k
+    parseSpacedArgs state i (a :: argsRev) k2
+  else
+    (argsRev, k)
+
+// `callee` applied to space-separated arguments (`argsRev`, last first, never empty): an
+// error, built into the call it was meant to be.
+and private parseSpacedApp
+  (state : ParserState)
+  (callee : WT.Expr)
+  (argsRev : List<WT.Expr>)
+  (k : int)
+  : WT.Expr * int =
+  let args = List.rev argsRev
+  let argCount = List.length args
+  let endR = WT.exprRange (Seq.head argsRev)
   match callee with
-  | _ when args.Count = 0 -> (callee, k)
   // `Ok 5` is not Dark: a constructor's fields go in parentheses, like a call's
   // arguments.
   | WT.EEnum(er, tname, (cr, cn), [], dot) ->
-    let endR = WT.exprRange (Seq.last args)
     state.diagnostics.Add
       { code = DiagnosticCode.unexpected
         severity = DiagError
         range = span er endR
         message = "a constructor's fields go in parentheses, separated by commas"
         related = []
-        hint = Some(spacedFieldsHint cn args.Count) }
-    (WT.EEnum(span er endR, tname, (cr, cn), List.ofSeq args, dot), k)
+        hint = Some(spacedFieldsHint cn argCount) }
+    (WT.EEnum(span er endR, tname, (cr, cn), args, dot), k)
   | _ ->
-    let endR = WT.exprRange (Seq.last args)
     let calleeText =
       match callee with
       | WT.EVariable(_, name) -> name
@@ -2171,22 +2316,22 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
         hint =
           // as many placeholder names as there were arguments: `f(a)` for `f a`
           let names =
-            [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h" ] |> List.truncate args.Count
-          let shown = if args.Count > names.Length then names @ [ "..." ] else names
+            [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h" ] |> List.truncate argCount
+          let shown = if argCount > names.Length then names @ [ "..." ] else names
           let commaList = String.concat ", " shown
           let spaceList = String.concat " " shown
           Some
             $"write `{calleeText}({commaList})` rather than `{calleeText} {spaceList}`" }
     match callee with
     | WT.EApply(cr, fn, typeArgs, []) ->
-      (WT.EApply(span cr endR, fn, typeArgs, List.ofSeq args), k)
+      (WT.EApply(span cr endR, fn, typeArgs, args), k)
     | _ ->
       let lhs =
         match callee with
         | WT.EVariable(r, name) ->
           WT.EFnName(r, { range = r; modules = []; fn = { range = r; name = name } })
         | other -> other
-      (WT.EApply(span (WT.exprRange lhs) endR, lhs, [], List.ofSeq args), k)
+      (WT.EApply(span (WT.exprRange lhs) endR, lhs, [], args), k)
 
 /// Calls: `callee(a, b)`, as many times as they follow (`f(a)(b)`), each followed by
 /// any postfix (`f(x).field`, `f(x)?`). `f()` gives the unit argument, so it calls
@@ -2207,23 +2352,21 @@ and parseCalls
     && tok state j = TLParen
     && (glued || offsideContinues state headIdx j)
   then
-    let args = System.Collections.Generic.List<WT.Expr>()
-    let k = parseParenList state j args
+    let (args, k) = parseParenList state j
     let closeR = rng state (k - 1)
     let called =
       match e with
       // a callee carrying explicit type args (`parse<T>`) takes the args itself
       | WT.EApply(cr, fn, typeArgs, []) ->
-        WT.EApply(span cr closeR, fn, typeArgs, List.ofSeq args)
+        WT.EApply(span cr closeR, fn, typeArgs, args)
       | WT.EVariable(r, name) ->
         WT.EApply(
           span r closeR,
           WT.EFnName(r, { range = r; modules = []; fn = { range = r; name = name } }),
           [],
-          List.ofSeq args
+          args
         )
-      | other ->
-        WT.EApply(span (WT.exprRange other) closeR, other, [], List.ofSeq args)
+      | other -> WT.EApply(span (WT.exprRange other) closeR, other, [], args)
     let (after, k2) = parsePostfix state called k
     parseCalls state headIdx after k2
   else
@@ -2662,8 +2805,6 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
           let z = zeroWidthAtEnd (rng state i)
           ({ range = z; modules = []; typ = { range = z; name = "" }; typeArgs = [] },
            z)
-      let fields = System.Collections.Generic.List<WT.Expr>()
-      let mutable k = j
       // `Case(e1, e2, …)`: fields go in parentheses, the same as a call's
       // arguments, so commas separate FIELDS (`EInt64(r, n, s)` is three fields,
       // not one tuple; a tuple field is `Case((a, b))`). A space before the `(`
@@ -2674,17 +2815,20 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         tok state j = TLParen
         && (rng state j).start.row = final.range.end_.row
         && (rng state j).start.column = final.range.end_.column
-      if tok state j = TLParen && (glued || offsideContinues state i j) then
-        k <- parseParenList state j fields
+      let (fields, k) =
+        if tok state j = TLParen && (glued || offsideContinues state i j) then
+          parseParenList state j
+        else
+          ([], j)
       let endR =
         if tok state j = TLParen && k > j then rng state (k - 1)
-        elif fields.Count > 0 then WT.exprRange (Seq.last fields)
+        elif not (List.isEmpty fields) then WT.exprRange (Seq.last fields)
         else final.range
       (WT.EEnum(
         span (rng state i) endR,
         typeName,
         (final.range, final.name),
-        List.ofSeq fields,
+        fields,
         symbolDot
        ),
        k)
@@ -2713,50 +2857,29 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     // `fun(acc, x) -> …` takes two, and a tuple parameter is `fun((a, b)) -> …`.
     // `fun () -> …` takes the unit value.
     let kwFun = rng state i
-    let pats = System.Collections.Generic.List<WT.LetPattern>()
-    let mutable k = i + 1
-    match tok state k with
-    | TLParen when tok state (k + 1) <> TRParen ->
-      let openP = rng state k
-      let mutable m = k + 1
-      let mutable go = true
-      while go && tok state m <> TRParen && tok state m <> TEOF do
-        let (p, m2) = parseLetPattern state m
-        pats.Add p
-        if tok state m2 = TComma then
-          m <- m2 + 1
-        elif m2 > m then
-          if tok state m2 <> TRParen then
-            errExpected state m2 "',' or ')' in the lambda's parameters"
-            go <- false
-          m <- m2
+    let (patsRev, k) =
+      match tok state (i + 1) with
+      | TLParen when tok state (i + 2) <> TRParen ->
+        let openP = rng state (i + 1)
+        let (patsRev, m) = parseLambdaParamList state [] (i + 2)
+        if tok state m = TRParen then
+          (patsRev, m + 1)
         else
-          go <- false
-      if tok state m = TRParen then
-        k <- m + 1
-      else
-        errUnclosed state m ")" "(" openP
-        k <- m
-    | TIdent _
-    | TUnderscore
-    | TLParen ->
-      let (p, k2) = parseLetPattern state k
-      pats.Add p
-      k <- k2
-    | _ -> ()
+          errUnclosed state m ")" "(" openP
+          (patsRev, m)
+      | TIdent _
+      | TUnderscore
+      | TLParen ->
+        let (p, k2) = parseLetPattern state (i + 1)
+        ([ p ], k2)
+      | _ -> ([], i + 1)
     // `fun a b -> …` is not Dark. The parameters are still parsed, so recovery
     // sees the shape the author meant; the diagnostic is what makes it an error.
     let firstExtra = k
-    while (match tok state k with
-           | TIdent _
-           | TUnderscore
-           | TLParen -> true
-           | _ -> false) do
-      let (p, k2) = parseLetPattern state k
-      pats.Add p
-      if k2 = k then k <- k + 1 else k <- k2
+    let (patsRev, k) = parseSpacedLambdaParams state patsRev k
+    let patCount = List.length patsRev
     if k > firstExtra then
-      let shown = placeholders pats.Count
+      let shown = placeholders patCount
       let commaList = String.concat ", " shown
       let spaceList = String.concat " " shown
       errFull
@@ -2767,7 +2890,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         []
         (Some
           $"write `fun({commaList}) ->` rather than `fun {spaceList} ->`; a tuple parameter is `fun((a, b)) ->`")
-    if pats.Count = 0 then errExpectedName state k "at least one lambda parameter"
+    if patCount = 0 then errExpectedName state k "at least one lambda parameter"
     let (arrow, m) =
       if tok state k = TArrow then
         (rng state k, k + 1)
@@ -2775,7 +2898,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         errExpected state k "'->' in lambda"
         (zeroWidthAtEnd (rng state k), k)
     let (body, p) = parseBlock state m
-    (WT.ELambda(span kwFun (WT.exprRange body), List.ofSeq pats, body, kwFun, arrow),
+    (WT.ELambda(span kwFun (WT.exprRange body), List.rev patsRev, body, kwFun, arrow),
      p)
   // bare `{` — anonymous record `{ f = v }` (or `{ }`) vs update `{ r with … }`
   | TLBrace ->
@@ -2868,14 +2991,7 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
       if tok state j = TComma then
         let comma = rng state j
         let (second, k) = parseExpr state (j + 1)
-        let rest = System.Collections.Generic.List<TokenRange * WT.Expr>()
-        let mutable m = k
-        let mutable go = true
-        while go && tok state m = TComma do
-          let cr = rng state m
-          let (e, m2) = parseExpr state (m + 1)
-          rest.Add(cr, e)
-          if m2 = m + 1 && tok state m2 = tok state m then go <- false else m <- m2
+        let (restRev, m) = parseParenTupleRest state [] k
         let (closeP, p) =
           if tok state m = TRParen then
             (rng state m, m + 1)
@@ -2887,42 +3003,97 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
           first,
           comma,
           second,
-          List.ofSeq rest,
+          List.rev restRev,
           openP,
           closeP
          ),
          p)
       else
         // group or statement block: fold newline-separated statements
-        let stmts = System.Collections.Generic.List<WT.Expr>()
-        stmts.Add first
-        let mutable m = j
-        let mutable go = true
-        while go
-              && tok state m <> TRParen
-              && tok state m <> TEOF
-              && tok state m <> TComma
-              && not (declBarrier state m) do
-          if tok state m = TSemicolon then
-            errStatementSemicolon state m
-            m <- m + 1
-          let bm = m
-          let (s, m2) = parseExpr state m
-          if m2 > bm then
-            stmts.Add s
-            m <- m2
-          else
-            go <- false
-        let folded =
-          stmts
-          |> List.ofSeq
-          |> List.reduceBack (fun s acc ->
-            WT.EStatement(span (WT.exprRange s) (WT.exprRange acc), s, acc))
+        let (stmtsRev, m) = parseParenStatements state [ first ] j
+        let folded = foldStatements stmtsRev
         if tok state m = TRParen then
           (folded, m + 1)
         else
           errUnclosed state m ")" "(" openP
           (folded, m))
+
+// The parameters in a lambda's parentheses from `m`, last first.
+and private parseLambdaParamList
+  (state : ParserState)
+  (patsRev : List<WT.LetPattern>)
+  (m : int)
+  : List<WT.LetPattern> * int =
+  if tok state m = TRParen || tok state m = TEOF then
+    (patsRev, m)
+  else
+    let (p, m2) = parseLetPattern state m
+    let patsRev = p :: patsRev
+    if tok state m2 = TComma then
+      parseLambdaParamList state patsRev (m2 + 1)
+    elif m2 > m then
+      if tok state m2 <> TRParen then
+        errExpected state m2 "',' or ')' in the lambda's parameters"
+        (patsRev, m2)
+      else
+        parseLambdaParamList state patsRev m2
+    else
+      (patsRev, m)
+
+// Space-separated lambda parameters from `k` (`fun a b ->`, an error), prepended to `patsRev`.
+and private parseSpacedLambdaParams
+  (state : ParserState)
+  (patsRev : List<WT.LetPattern>)
+  (k : int)
+  : List<WT.LetPattern> * int =
+  match tok state k with
+  | TIdent _
+  | TUnderscore
+  | TLParen ->
+    let (p, k2) = parseLetPattern state k
+    parseSpacedLambdaParams state (p :: patsRev) (if k2 = k then k + 1 else k2)
+  | _ -> (patsRev, k)
+
+// A parenthesized tuple's elements after its second, from `m`, each with the `,` before it,
+// last first.
+and private parseParenTupleRest
+  (state : ParserState)
+  (restRev : List<TokenRange * WT.Expr>)
+  (m : int)
+  : List<TokenRange * WT.Expr> * int =
+  if tok state m <> TComma then
+    (restRev, m)
+  else
+    let cr = rng state m
+    let (e, m2) = parseExpr state (m + 1)
+    let restRev = (cr, e) :: restRev
+    if m2 = m + 1 && tok state m2 = tok state m then
+      (restRev, m)
+    else
+      parseParenTupleRest state restRev m2
+
+// The statements of a parenthesized block from `m`, prepended to `stmtsRev`.
+and private parseParenStatements
+  (state : ParserState)
+  (stmtsRev : List<WT.Expr>)
+  (m : int)
+  : List<WT.Expr> * int =
+  if
+    tok state m = TRParen
+    || tok state m = TEOF
+    || tok state m = TComma
+    || declBarrier state m
+  then
+    (stmtsRev, m)
+  else
+    let m =
+      if tok state m = TSemicolon then
+        errStatementSemicolon state m
+        m + 1
+      else
+        m
+    let (s, m2) = parseExpr state m
+    if m2 > m then parseParenStatements state (s :: stmtsRev) m2 else (stmtsRev, m)
 
 // `[ e , e , … ]` (or newline separators); each element keeps its
 // trailing-separator range
@@ -2932,47 +3103,8 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
   // (else an element swallows the next one as an application, e.g. inside `( … )`:
   // `[ [a]\n (f x) ]` must not read as `[a] (f x)`). Mirrors parseRecord.
   withElementScope state (fun () ->
-    let elems = System.Collections.Generic.List<WT.Expr * Option<TokenRange>>()
-    // which elements are `...e`, and the first `...`
-    let spreads = System.Collections.Generic.HashSet<int>()
-    let mutable firstDots = None
-    let mutable k = i + 1
-    let mutable go = true
-    while go
-          && tok state k <> TRBracket
-          && tok state k <> TEOF
-          && not (declBarrier state k) do
-      // each element is its own offside statement, so a wrapped element's args
-      // don't grab the NEXT element (`[ f a\n f b ]` stays two elements)
-      setStmtCol state (rng state k).start.column
-      let isSpread = tok state k = TDotDotDot
-      let (e, k2) = parseExpr state (if isSpread then k + 1 else k)
-      if isSpread then
-        spreads.Add elems.Count |> ignore
-        if Option.isNone firstDots then firstDots <- Some(rng state k)
-      if k2 = k then
-        err
-          state
-          DiagnosticCode.unexpected
-          k
-          $"unexpected {foundDesc state k} in list"
-        go <- false
-      elif tok state k2 = TComma then
-        elems.Add(e, Some(rng state k2))
-        k <- k2 + 1
-      elif tok state k2 = TSemicolon then
-        errCollectionSemicolon state k2 "list elements"
-        elems.Add(e, Some(rng state k2))
-        k <- k2 + 1
-      else
-        elems.Add(e, None)
-        if tok state k2 <> TRBracket then
-          requireElementSeparator
-            state
-            (WT.exprRange e)
-            k2
-            "a comma or newline between list elements"
-        k <- k2
+    let (elemsRev, spreads, firstDots, k) =
+      parseListElems state [] 0 Set.empty None (i + 1)
     let (closeB, p) =
       if tok state k = TRBracket then
         (rng state k, k + 1)
@@ -2981,9 +3113,58 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
         (zeroWidthAtEnd (rng state k), k)
     let r = span openB closeB
     match firstDots with
-    | None -> (WT.EList(r, List.ofSeq elems, openB, closeB), p)
-    | Some dotsR ->
-      (spreadList r openB closeB dotsR (List.ofSeq elems) (Set.ofSeq spreads), p))
+    | None -> (WT.EList(r, List.rev elemsRev, openB, closeB), p)
+    | Some dotsR -> (spreadList r openB closeB dotsR (List.rev elemsRev) spreads, p))
+
+// The elements of a list from `k`, last first, with how many there are, which are `...e`
+// spreads, and the first `...`.
+and private parseListElems
+  (state : ParserState)
+  (elemsRev : List<WT.Expr * Option<TokenRange>>)
+  (count : int)
+  (spreads : Set<int>)
+  (firstDots : Option<TokenRange>)
+  (k : int)
+  : List<WT.Expr * Option<TokenRange>> * Set<int> * Option<TokenRange> * int =
+  if tok state k = TRBracket || tok state k = TEOF || declBarrier state k then
+    (elemsRev, spreads, firstDots, k)
+  else
+    // each element is its own offside statement, so a wrapped element's args
+    // don't grab the NEXT element (`[ f a\n f b ]` stays two elements)
+    setStmtCol state (rng state k).start.column
+    let isSpread = tok state k = TDotDotDot
+    let (e, k2) = parseExpr state (if isSpread then k + 1 else k)
+    let spreads = if isSpread then Set.add count spreads else spreads
+    let firstDots =
+      if isSpread && Option.isNone firstDots then Some(rng state k) else firstDots
+    if k2 = k then
+      err state DiagnosticCode.unexpected k $"unexpected {foundDesc state k} in list"
+      (elemsRev, spreads, firstDots, k)
+    elif tok state k2 = TComma then
+      parseListElems
+        state
+        ((e, Some(rng state k2)) :: elemsRev)
+        (count + 1)
+        spreads
+        firstDots
+        (k2 + 1)
+    elif tok state k2 = TSemicolon then
+      errCollectionSemicolon state k2 "list elements"
+      parseListElems
+        state
+        ((e, Some(rng state k2)) :: elemsRev)
+        (count + 1)
+        spreads
+        firstDots
+        (k2 + 1)
+    else
+      if tok state k2 <> TRBracket then
+        requireElementSeparator
+          state
+          (WT.exprRange e)
+          k2
+          "a comma or newline between list elements"
+      parseListElems state ((e, None) :: elemsRev) (count + 1) spreads firstDots k2
 
 // `[a, ...b, c]` lowers to `Stdlib.List.flatten([[a], b, [c]])`, and `[...a, ...b]`
 // to `Stdlib.List.concat(a, b)`: runs of plain elements become list literals and
@@ -3043,44 +3224,51 @@ and parseRecord
   // record fields are offside-delimited in their own scope
   // (else a field value swallows the next field name, e.g. inside `( … )`)
   withElementScope state (fun () ->
-    let fields =
-      System.Collections.Generic.List<TokenRange * (TokenRange * string) * WT.Expr>()
-    let mutable k = i + 1
-    let mutable go = true
-    while go && tok state k <> TRBrace && tok state k <> TEOF do
-      match tok state k, tok state (k + 1) with
-      | TIdent fname, TEquals ->
-        let fnameR = rng state k
-        // each field is its own offside statement (value args don't grab the next field)
-        setStmtCol state (rng state k).start.column
-        let (value, k2) = parseExpr state (k + 2)
-        fields.Add(span fnameR (WT.exprRange value), (fnameR, fname), value)
-        if tok state k2 = TComma then
-          k <- k2 + 1
-        elif tok state k2 = TSemicolon then
-          errCollectionSemicolon state k2 "record fields"
-          k <- k2 + 1
-        elif k2 > k then
-          if tok state k2 <> TRBrace then
-            requireElementSeparator
-              state
-              (WT.exprRange value)
-              k2
-              "a comma or newline between record fields"
-          k <- k2
-        else
-          go <- false
-      | _ ->
-        errExpectedName state k "a record field 'name = value'"
-        go <- false
+    let (fieldsRev, k) = parseRecordFields state [] (i + 1)
     let (closeB, p) =
       if tok state k = TRBrace then
         (rng state k, k + 1)
       else
         errUnclosed state k "}" "{" openB
         (zeroWidthAtEnd (rng state k), k)
-    (WT.ERecord(span nameRange closeB, typeName, List.ofSeq fields, openB, closeB),
+    (WT.ERecord(span nameRange closeB, typeName, List.rev fieldsRev, openB, closeB),
      p))
+
+// The `name = value` fields of a record from `k`, last first.
+and private parseRecordFields
+  (state : ParserState)
+  (fieldsRev : List<TokenRange * (TokenRange * string) * WT.Expr>)
+  (k : int)
+  : List<TokenRange * (TokenRange * string) * WT.Expr> * int =
+  if tok state k = TRBrace || tok state k = TEOF then
+    (fieldsRev, k)
+  else
+    match tok state k, tok state (k + 1) with
+    | TIdent fname, TEquals ->
+      let fnameR = rng state k
+      // each field is its own offside statement (value args don't grab the next field)
+      setStmtCol state (rng state k).start.column
+      let (value, k2) = parseExpr state (k + 2)
+      let fieldsRev =
+        (span fnameR (WT.exprRange value), (fnameR, fname), value) :: fieldsRev
+      if tok state k2 = TComma then
+        parseRecordFields state fieldsRev (k2 + 1)
+      elif tok state k2 = TSemicolon then
+        errCollectionSemicolon state k2 "record fields"
+        parseRecordFields state fieldsRev (k2 + 1)
+      elif k2 > k then
+        if tok state k2 <> TRBrace then
+          requireElementSeparator
+            state
+            (WT.exprRange value)
+            k2
+            "a comma or newline between record fields"
+        parseRecordFields state fieldsRev k2
+      else
+        (fieldsRev, k)
+    | _ ->
+      errExpectedName state k "a record field 'name = value'"
+      (fieldsRev, k)
 
 and parseDict
   (state : ParserState)
@@ -3089,43 +3277,7 @@ and parseDict
   : WT.Expr * int =
   let openB = rng state i
   withElementScope state (fun () ->
-    let entries =
-      System.Collections.Generic.List<TokenRange * WT.Expr * TokenRange * WT.Expr>()
-    let mutable k = i + 1
-    let mutable go = true
-    while go && tok state k <> TRBrace && tok state k <> TEOF do
-      setStmtCol state (rng state k).start.column
-      let (key, kAfterKey) = parseExpr state k
-      if kAfterKey <= k then
-        errExpected state k "a dict entry 'key: value'"
-        go <- false
-      elif tok state kAfterKey <> TColon then
-        errExpected state kAfterKey "`:` between a dict key and its value"
-        go <- false
-      else
-        let colonR = rng state kAfterKey
-        let (value, k2) = parseExpr state (kAfterKey + 1)
-        entries.Add(
-          span (WT.exprRange key) (WT.exprRange value),
-          key,
-          colonR,
-          value
-        )
-        if tok state k2 = TComma then
-          k <- k2 + 1
-        elif tok state k2 = TSemicolon then
-          errCollectionSemicolon state k2 "dict entries"
-          k <- k2 + 1
-        elif k2 > kAfterKey then
-          if tok state k2 <> TRBrace then
-            requireElementSeparator
-              state
-              (WT.exprRange value)
-              k2
-              "a comma or newline between dict entries"
-          k <- k2
-        else
-          go <- false
+    let (entriesRev, k) = parseDictEntries state [] (i + 1)
     let (closeB, p) =
       if tok state k = TRBrace then
         (rng state k, k + 1)
@@ -3134,12 +3286,51 @@ and parseDict
         (zeroWidthAtEnd (rng state k), k)
     (WT.EDict(
       span keywordDict closeB,
-      List.ofSeq entries,
+      List.rev entriesRev,
       keywordDict,
       openB,
       closeB
      ),
      p))
+
+// The `key: value` entries of a dict from `k`, last first.
+and private parseDictEntries
+  (state : ParserState)
+  (entriesRev : List<TokenRange * WT.Expr * TokenRange * WT.Expr>)
+  (k : int)
+  : List<TokenRange * WT.Expr * TokenRange * WT.Expr> * int =
+  if tok state k = TRBrace || tok state k = TEOF then
+    (entriesRev, k)
+  else
+    setStmtCol state (rng state k).start.column
+    let (key, kAfterKey) = parseExpr state k
+    if kAfterKey <= k then
+      errExpected state k "a dict entry 'key: value'"
+      (entriesRev, k)
+    elif tok state kAfterKey <> TColon then
+      errExpected state kAfterKey "`:` between a dict key and its value"
+      (entriesRev, k)
+    else
+      let colonR = rng state kAfterKey
+      let (value, k2) = parseExpr state (kAfterKey + 1)
+      let entriesRev =
+        (span (WT.exprRange key) (WT.exprRange value), key, colonR, value)
+        :: entriesRev
+      if tok state k2 = TComma then
+        parseDictEntries state entriesRev (k2 + 1)
+      elif tok state k2 = TSemicolon then
+        errCollectionSemicolon state k2 "dict entries"
+        parseDictEntries state entriesRev (k2 + 1)
+      elif k2 > kAfterKey then
+        if tok state k2 <> TRBrace then
+          requireElementSeparator
+            state
+            (WT.exprRange value)
+            k2
+            "a comma or newline between dict entries"
+        parseDictEntries state entriesRev k2
+      else
+        (entriesRev, k)
 
 // record update `{ expr with name = value, … }`. `i` is the `{`.
 and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
@@ -3154,39 +3345,10 @@ and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
       else
         errExpected state j "'with' in record update"
         (zeroWidthAtEnd (rng state j), j)
-    let updates =
-      System.Collections.Generic.List<(TokenRange * string) * TokenRange * WT.Expr>()
-    let mutable k = afterWith
-    let mutable go = true
-    while go && tok state k <> TRBrace && tok state k <> TEOF do
-      match tok state k, tok state (k + 1) with
-      | TIdent fname, TEquals ->
-        let fnameR = rng state k
-        let eqR = rng state (k + 1)
-        setStmtCol state (rng state k).start.column
-        let (value, k2) = parseExpr state (k + 2)
-        updates.Add((fnameR, fname), eqR, value)
-        if tok state k2 = TComma then
-          k <- k2 + 1
-        elif tok state k2 = TSemicolon then
-          errCollectionSemicolon state k2 "record-update fields"
-          k <- k2 + 1
-        elif k2 > k then
-          if tok state k2 <> TRBrace then
-            requireElementSeparator
-              state
-              (WT.exprRange value)
-              k2
-              "a comma or newline between record-update fields"
-          k <- k2
-        else
-          go <- false
-      | _ ->
-        errExpectedName state k "a record-update field 'name = value'"
-        go <- false
+    let (updatesRev, k) = parseRecordUpdateFields state [] afterWith
     // `{ r with }` updates nothing — reject it rather than lower a degenerate
     // update (both lowerings otherwise have to special-case the empty list).
-    if updates.Count = 0 then
+    if List.isEmpty updatesRev then
       errExpected state afterWith "at least one 'field = value' in a record update"
     let (closeB, p) =
       if tok state k = TRBrace then
@@ -3197,12 +3359,47 @@ and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
     (WT.ERecordUpdate(
       span openB closeB,
       recordExpr,
-      List.ofSeq updates,
+      List.rev updatesRev,
       openB,
       closeB,
       kwWith
      ),
      p))
+
+// The `name = value` fields of a record update from `k`, last first.
+and private parseRecordUpdateFields
+  (state : ParserState)
+  (updatesRev : List<(TokenRange * string) * TokenRange * WT.Expr>)
+  (k : int)
+  : List<(TokenRange * string) * TokenRange * WT.Expr> * int =
+  if tok state k = TRBrace || tok state k = TEOF then
+    (updatesRev, k)
+  else
+    match tok state k, tok state (k + 1) with
+    | TIdent fname, TEquals ->
+      let fnameR = rng state k
+      let eqR = rng state (k + 1)
+      setStmtCol state (rng state k).start.column
+      let (value, k2) = parseExpr state (k + 2)
+      let updatesRev = ((fnameR, fname), eqR, value) :: updatesRev
+      if tok state k2 = TComma then
+        parseRecordUpdateFields state updatesRev (k2 + 1)
+      elif tok state k2 = TSemicolon then
+        errCollectionSemicolon state k2 "record-update fields"
+        parseRecordUpdateFields state updatesRev (k2 + 1)
+      elif k2 > k then
+        if tok state k2 <> TRBrace then
+          requireElementSeparator
+            state
+            (WT.exprRange value)
+            k2
+            "a comma or newline between record-update fields"
+        parseRecordUpdateFields state updatesRev k2
+      else
+        (updatesRev, k)
+    | _ ->
+      errExpectedName state k "a record-update field 'name = value'"
+      (updatesRev, k)
 
 // Type references. Precedence (loosest first): function `A -> B`, tuple
 // `A * B`, then atoms (prim / List / Dict / custom / `'a` / parenthesized).
@@ -3232,11 +3429,8 @@ and parseFnType (state : ParserState) (i : int) : WT.TypeReference * int =
   if tok state j <> TArrow || state.pendingGt > 0 then
     (first, j)
   else
-    let args = System.Collections.Generic.List<WT.TypeReference * TokenRange>()
-    args.Add(first, rng state j)
     let (second, k0) = parseTupleType state (j + 1)
-    let mutable cur = second
-    let mutable k = if k0 > j then k0 else j + 1
+    let k = if k0 > j then k0 else j + 1
     // a second arrow: `A -> B -> C`, or `(A, B) -> C -> D`
     if tok state k = TArrow && state.pendingGt = 0 then
       errFull
@@ -3247,17 +3441,46 @@ and parseFnType (state : ParserState) (i : int) : WT.TypeReference * int =
         []
         (Some
           "write `(A, B) -> C` for a function of two arguments, or `A -> (B -> C)` for one that returns a function")
-    while tok state k = TArrow && state.pendingGt = 0 do
-      args.Add(cur, rng state k)
-      let (next, k2) = parseTupleType state (k + 1)
-      cur <- next
-      k <- if k2 > k then k2 else k + 1
+    let (argsRev, last, k) =
+      parseTypeChain
+        TArrow
+        true
+        parseTupleType
+        state
+        [ (first, rng state j) ]
+        second
+        k
     (WT.TFn(
-      span (WT.typeReferenceRange first) (WT.typeReferenceRange cur),
-      List.ofSeq args,
-      cur
+      span (WT.typeReferenceRange first) (WT.typeReferenceRange last),
+      List.rev argsRev,
+      last
      ),
      k)
+
+// `sep T sep T …` from `k`, after the type `cur`: each type but the last with the `sep` after
+// it, prepended to `argsRev`, then the last type. A `>` left pending by a split `>>` ends the
+// chain when `stopAtPendingGt`.
+and private parseTypeChain
+  (sep : Token)
+  (stopAtPendingGt : bool)
+  (parse : ParserState -> int -> WT.TypeReference * int)
+  (state : ParserState)
+  (argsRev : List<WT.TypeReference * TokenRange>)
+  (cur : WT.TypeReference)
+  (k : int)
+  : List<WT.TypeReference * TokenRange> * WT.TypeReference * int =
+  if tok state k = sep && not (stopAtPendingGt && state.pendingGt > 0) then
+    let (next, k2) = parse state (k + 1)
+    parseTypeChain
+      sep
+      stopAtPendingGt
+      parse
+      state
+      ((cur, rng state k) :: argsRev)
+      next
+      (if k2 > k then k2 else k + 1)
+  else
+    (argsRev, cur, k)
 
 // `A * B * C` (bare tuple, e.g. inside `List<…>`); parenthesized tuples fill
 // in real paren ranges at the atom level.
@@ -3313,14 +3536,8 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
     let (inner, j) = parseFnType state (i + 1)
     if tok state j = TComma then
       // each argument carries the `,` after it; the last one the `->`
-      let args = System.Collections.Generic.List<WT.TypeReference * TokenRange>()
-      let mutable cur = inner
-      let mutable m = j
-      while tok state m = TComma do
-        args.Add(cur, rng state m)
-        let (next, m2) = parseFnType state (m + 1)
-        cur <- next
-        m <- if m2 > m then m2 else m + 1
+      let (argsRev, cur, m) =
+        parseTypeChain TComma false parseFnType state [] inner j
       let afterClose =
         if tok state m = TRParen then
           m + 1
@@ -3328,9 +3545,9 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
           errUnclosed state m ")" "(" openP
           m
       if tok state afterClose = TArrow then
-        args.Add(cur, rng state afterClose)
+        let args = List.rev ((cur, rng state afterClose) :: argsRev)
         let (ret, k) = parseTupleType state (afterClose + 1)
-        (WT.TFn(span openP (WT.typeReferenceRange ret), List.ofSeq args, ret),
+        (WT.TFn(span openP (WT.typeReferenceRange ret), args, ret),
          (if k > afterClose then k else afterClose + 1))
       else
         errFull
@@ -3341,9 +3558,9 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
           []
           (Some "write `(A, B) -> C` for a function, or `A * B` for a tuple")
         let ret = WT.TUnit(zeroWidthAtEnd (rng state (afterClose - 1)))
-        args.Add(cur, zeroWidthAtEnd (rng state (afterClose - 1)))
-        (WT.TFn(span openP (rng state (afterClose - 1)), List.ofSeq args, ret),
-         afterClose)
+        let args =
+          List.rev ((cur, zeroWidthAtEnd (rng state (afterClose - 1))) :: argsRev)
+        (WT.TFn(span openP (rng state (afterClose - 1)), args, ret), afterClose)
     elif tok state j = TRParen then
       let closeP = rng state j
       match inner with
@@ -3486,22 +3703,9 @@ and parseTypeParams
 /// newlines. A second list after the first (`(a: T) (b: U)`) is an error, and is
 /// read as more parameters so the rest of the declaration still parses.
 and parseParams (state : ParserState) (i : int) : List<WT.FnParam> * int =
-  let ps = System.Collections.Generic.List<WT.FnParam>()
   let (first, k1) = parseParamList state i
-  ps.AddRange first
-  let mutable k = k1
-  let mutable more = true
-  while more && tok state k = TLParen do
-    let (extra, k2) = parseParamList state k
-    errFull
-      state
-      DiagnosticCode.unexpected
-      k
-      "a function's parameters go in one list, separated by commas"
-      []
-      (Some "write `let f(a: T, b: U)` rather than `let f (a: T) (b: U)`")
-    ps.AddRange extra
-    if k2 = k then more <- false else k <- k2
+  let (extrasRev, k) = parseExtraParamLists state [] k1
+  let ps = first @ List.concat (List.rev extrasRev)
   for parameter in ps do
     match parameter with
     | WT.FPNormal(_, name, _, _, _, _, _) when name.name = "" ->
@@ -3513,7 +3717,29 @@ and parseParams (state : ParserState) (i : int) : List<WT.FnParam> * int =
           related = []
           hint = Some "use () for a unit parameter or give the parameter a name" }
     | _ -> ()
-  (List.ofSeq ps, k)
+  (ps, k)
+
+// Parameter lists after a fn's first, from `k` (an error), last first.
+and private parseExtraParamLists
+  (state : ParserState)
+  (extrasRev : List<List<WT.FnParam>>)
+  (k : int)
+  : List<List<WT.FnParam>> * int =
+  if tok state k <> TLParen then
+    (extrasRev, k)
+  else
+    let (extra, k2) = parseParamList state k
+    errFull
+      state
+      DiagnosticCode.unexpected
+      k
+      "a function's parameters go in one list, separated by commas"
+      []
+      (Some "write `let f(a: T, b: U)` rather than `let f (a: T) (b: U)`")
+    if k2 = k then
+      (extra :: extrasRev, k)
+    else
+      parseExtraParamLists state (extra :: extrasRev) k2
 
 /// One parenthesized parameter list starting at the `(` at `i`. Each parameter
 /// keeps the list's `(` (the first) or the `,` before it as its left delimiter, and
@@ -3523,61 +3749,62 @@ and parseParamList (state : ParserState) (i : int) : List<WT.FnParam> * int =
   if tok state (i + 1) = TRParen then
     ([ WT.FPUnit(span lparen (rng state (i + 1))) ], i + 2)
   else
-    let ps = System.Collections.Generic.List<WT.FnParam>()
-    let mutable k = i + 1
-    let mutable left = lparen
-    let mutable go = true
-    while go do
-      let nameIdx = k
-      let nameId : WT.Identifier =
-        match tok state nameIdx with
-        | TIdent nm -> { range = rng state nameIdx; name = nm }
-        // `_` names a parameter you don't intend to use. It's also what `()` is stored as, so
-        // accepting it here is what makes `(_: Unit)` and `()` both parse to the same thing and
-        // either form round-trip.
-        | TUnderscore -> { range = rng state nameIdx; name = "_" }
-        | _ ->
-          errExpectedName state nameIdx "a parameter name"
-          { range = rng state nameIdx; name = "_" }
-      let (colon, afterColon) =
-        if tok state (nameIdx + 1) = TColon then
-          (rng state (nameIdx + 1), nameIdx + 2)
-        else
-          errExpected state (nameIdx + 1) "':'"
-          (zeroWidthAtEnd (rng state (nameIdx + 1)), nameIdx + 1)
-      let (typ, afterTyp) = parseTypeRef state afterColon
-      // A `///` for a parameter attaches to the token after it: the `(` or `,` when it is
-      // written on the line above, the name when it is written just inside the list.
-      let description =
-        let atLeft = if nameIdx = i + 1 then docOf state i else ""
-        if atLeft <> "" then atLeft else docOf state nameIdx
-      let (right, next, finished) =
-        match tok state afterTyp with
-        | TComma -> (rng state afterTyp, afterTyp + 1, false)
-        | TRParen -> (rng state afterTyp, afterTyp + 1, true)
-        // a newline separates parameters as a comma does
-        | TIdent _
-        | TUnderscore when
-          (rng state afterTyp).start.row > (rng state (afterTyp - 1)).end_.row
-          ->
-          (zeroWidthAtEnd (rng state (afterTyp - 1)), afterTyp, false)
-        | _ ->
-          errUnclosed state afterTyp ")" "(" lparen
-          (zeroWidthAtEnd (rng state afterTyp), afterTyp, true)
-      ps.Add(
-        WT.FPNormal(span left right, nameId, typ, left, colon, right, description)
-      )
-      left <- right
-      // a trailing comma before the `)`
-      if not finished && tok state next = TRParen then
-        k <- next + 1
-        go <- false
-      elif finished || next = nameIdx then
-        k <- next
-        go <- false
-      else
-        k <- next
-    (List.ofSeq ps, k)
+    let (psRev, k) = parseParamsFrom state i lparen [] lparen (i + 1)
+    (List.rev psRev, k)
+
+// The parameters of the list whose `(` at `i` has range `lparen`, from `k`, last first. `left`
+// is the delimiter before the parameter at `k`.
+and private parseParamsFrom
+  (state : ParserState)
+  (i : int)
+  (lparen : TokenRange)
+  (psRev : List<WT.FnParam>)
+  (left : TokenRange)
+  (k : int)
+  : List<WT.FnParam> * int =
+  let nameIdx = k
+  let nameId : WT.Identifier =
+    match tok state nameIdx with
+    | TIdent nm -> { range = rng state nameIdx; name = nm }
+    // `_` names a parameter you don't intend to use. It's also what `()` is stored as, so
+    // accepting it here is what makes `(_: Unit)` and `()` both parse to the same thing and
+    // either form round-trip.
+    | TUnderscore -> { range = rng state nameIdx; name = "_" }
+    | _ ->
+      errExpectedName state nameIdx "a parameter name"
+      { range = rng state nameIdx; name = "_" }
+  let (colon, afterColon) =
+    if tok state (nameIdx + 1) = TColon then
+      (rng state (nameIdx + 1), nameIdx + 2)
+    else
+      errExpected state (nameIdx + 1) "':'"
+      (zeroWidthAtEnd (rng state (nameIdx + 1)), nameIdx + 1)
+  let (typ, afterTyp) = parseTypeRef state afterColon
+  // A `///` for a parameter attaches to the token after it: the `(` or `,` when it is
+  // written on the line above, the name when it is written just inside the list.
+  let description =
+    let atLeft = if nameIdx = i + 1 then docOf state i else ""
+    if atLeft <> "" then atLeft else docOf state nameIdx
+  let (right, next, finished) =
+    match tok state afterTyp with
+    | TComma -> (rng state afterTyp, afterTyp + 1, false)
+    | TRParen -> (rng state afterTyp, afterTyp + 1, true)
+    // a newline separates parameters as a comma does
+    | TIdent _
+    | TUnderscore when
+      (rng state afterTyp).start.row > (rng state (afterTyp - 1)).end_.row
+      ->
+      (zeroWidthAtEnd (rng state (afterTyp - 1)), afterTyp, false)
+    | _ ->
+      errUnclosed state afterTyp ")" "(" lparen
+      (zeroWidthAtEnd (rng state afterTyp), afterTyp, true)
+  let psRev =
+    WT.FPNormal(span left right, nameId, typ, left, colon, right, description)
+    :: psRev
+  // a trailing comma before the `)`
+  if not finished && tok state next = TRParen then (psRev, next + 1)
+  elif finished || next = nameIdx then (psRev, next)
+  else parseParamsFrom state i lparen psRev right next
 
 // A declaration-scope function (`let f (p: T) … : R = body`) or value
 // (`val x = body`). Legacy module-level `let x = body` also comes through here
@@ -3592,32 +3819,43 @@ and parseEffectRow
   if tok state i <> TLBrace then
     (None, i)
   else
-    let names = System.Collections.Generic.List<WT.Identifier>()
-    let mutable j = i + 1
-    let mutable more = tok state j <> TRBrace
-    while more do
-      match tok state j with
-      | TIdent name ->
-        if not (List.contains name effectCaseNames) then
-          let known = String.concat ", " effectCaseNames
-          err
-            state
-            DiagnosticCode.effect
-            j
-            $"unknown effect '{name}'; effects are {known}"
-        names.Add { range = rng state j; name = name }
-        j <- j + 1
-        if tok state j = TComma then
-          j <- j + 1
-        elif tok state j <> TRBrace then
-          errExpected state j "',' or '}' in the effect row"
-          more <- false
-      | _ ->
-        errExpected state j "an effect name"
-        more <- false
-      if tok state j = TRBrace then more <- false
+    let (namesRev, j) =
+      if tok state (i + 1) = TRBrace then
+        ([], i + 1)
+      else
+        parseEffectNames state [] (i + 1)
     let close = if tok state j = TRBrace then j + 1 else j
-    (Some(List.ofSeq names), close)
+    (Some(List.rev namesRev), close)
+
+// The names of an effect row from `j`, which is not its `}`, last first.
+and private parseEffectNames
+  (state : ParserState)
+  (namesRev : List<WT.Identifier>)
+  (j : int)
+  : List<WT.Identifier> * int =
+  match tok state j with
+  | TIdent name ->
+    if not (List.contains name effectCaseNames) then
+      let known = String.concat ", " effectCaseNames
+      err
+        state
+        DiagnosticCode.effect
+        j
+        $"unknown effect '{name}'; effects are {known}"
+    let namesRev = ({ range = rng state j; name = name } : WT.Identifier) :: namesRev
+    let j = j + 1
+    if tok state j = TComma then
+      if tok state (j + 1) = TRBrace then
+        (namesRev, j + 1)
+      else
+        parseEffectNames state namesRev (j + 1)
+    else
+      if tok state j <> TRBrace then
+        errExpected state j "',' or '}' in the effect row"
+      (namesRev, j)
+  | _ ->
+    errExpected state j "an effect name"
+    (namesRev, j)
 
 and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let keywordLet = rng state i
@@ -3810,10 +4048,33 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
     else
       errExpected state afterName "'=' after the trait name"
       (zeroWidthAtEnd (rng state afterName), afterName)
-  let methods = System.Collections.Generic.List<WT.TraitMethodDecl>()
-  let mutable k = afterEq
-  let mutable go = true
-  while go && tok state k = TLet && (rng state k).start.column > kwCol do
+  let (methodsRev, k) = parseTraitMethods state kwCol [] afterEq
+  if List.isEmpty methodsRev then
+    errExpected
+      state
+      afterEq
+      "at least one method signature, indented under the trait"
+  let endR = if k > 0 then rng state (k - 1) else eq
+  (WT.DTrait
+    { range = span kwTrait endR
+      name = nameId
+      typeParams = typeParams
+      bounds = bounds
+      methods = List.rev methodsRev
+      keywordTrait = kwTrait
+      symbolEquals = eq
+      description = docOf state i },
+   k)
+
+// The method signatures of a trait from `k`, each a `let` indented past the trait keyword's
+// column `kwCol`, last first.
+and private parseTraitMethods
+  (state : ParserState)
+  (kwCol : int)
+  (methodsRev : List<WT.TraitMethodDecl>)
+  (k : int)
+  : List<WT.TraitMethodDecl> * int =
+  if tok state k = TLet && (rng state k).start.column > kwCol then
     let kwLet = rng state k
     let mNameIdx = k + 1
     let mName : WT.Identifier =
@@ -3850,7 +4111,7 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
       match body with
       | Some b -> WT.exprRange b
       | None -> WT.typeReferenceRange returnType
-    methods.Add
+    let methodDecl : WT.TraitMethodDecl =
       { range = span kwLet endR
         name = mName
         typeParams = mTypeParams
@@ -3862,23 +4123,13 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
         keywordLet = kwLet
         symbolColon = colon
         description = docOf state k }
-    if afterBody > k then k <- afterBody else go <- false
-  if methods.Count = 0 then
-    errExpected
-      state
-      afterEq
-      "at least one method signature, indented under the trait"
-  let endR = if k > 0 then rng state (k - 1) else eq
-  (WT.DTrait
-    { range = span kwTrait endR
-      name = nameId
-      typeParams = typeParams
-      bounds = bounds
-      methods = List.ofSeq methods
-      keywordTrait = kwTrait
-      symbolEquals = eq
-      description = docOf state i },
-   k)
+    let methodsRev = methodDecl :: methodsRev
+    if afterBody > k then
+      parseTraitMethods state kwCol methodsRev afterBody
+    else
+      (methodsRev, k)
+  else
+    (methodsRev, k)
 
 /// `impl[<'a: B>] Trait<Args> for Type =` followed by an indented block with one
 /// entry per method: a full fn declaration, or `let name = Existing.fn` naming a
@@ -3910,27 +4161,8 @@ and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
       errExpected state afterType "'=' after the type"
       (zeroWidthAtEnd (rng state afterType), afterType)
   // ONE list, in source order: the order reaches the content hash.
-  let members = System.Collections.Generic.List<WT.ImplMember>()
-  let mutable k = afterEq
-  let mutable go = true
-  while go && tok state k = TLet && (rng state k).start.column > kwCol do
-    let (d, k2) = parseDecl state k
-    match d with
-    | WT.DFunction fn -> members.Add(WT.IMethod fn)
-    | WT.DValue({ body = WT.EVariable _ } as v)
-    | WT.DValue({ body = WT.EFnName _ } as v) -> members.Add(WT.IAlias v)
-    | _ ->
-      state.diagnostics.Add
-        { code = DiagnosticCode.bound
-          severity = DiagError
-          range = rng state k
-          message =
-            "An impl body holds method functions (`let name (p: T) : R = …`) or "
-            + "aliases of existing ones (`let name = Module.fn`)"
-          related = []
-          hint = None }
-    if k2 > k then k <- k2 else go <- false
-  if members.Count = 0 then
+  let (membersRev, k) = parseImplMembers state kwCol [] afterEq
+  if List.isEmpty membersRev then
     errExpected state afterEq "at least one method, indented under the impl"
   let endR = if k > 0 then rng state (k - 1) else eq
   (WT.DImpl
@@ -3939,12 +4171,42 @@ and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
       bounds = bounds
       trait_ = traitId
       forType = forType
-      members = List.ofSeq members
+      members = List.rev membersRev
       keywordImpl = kwImpl
       keywordFor = kwFor
       symbolEquals = eq
       description = docOf state i },
    k)
+
+// The members of an impl from `k`, each a `let` indented past the impl keyword's column
+// `kwCol`, last first.
+and private parseImplMembers
+  (state : ParserState)
+  (kwCol : int)
+  (membersRev : List<WT.ImplMember>)
+  (k : int)
+  : List<WT.ImplMember> * int =
+  if tok state k = TLet && (rng state k).start.column > kwCol then
+    let (d, k2) = parseDecl state k
+    let membersRev =
+      match d with
+      | WT.DFunction fn -> WT.IMethod fn :: membersRev
+      | WT.DValue({ body = WT.EVariable _ } as v)
+      | WT.DValue({ body = WT.EFnName _ } as v) -> WT.IAlias v :: membersRev
+      | _ ->
+        state.diagnostics.Add
+          { code = DiagnosticCode.bound
+            severity = DiagError
+            range = rng state k
+            message =
+              "An impl body holds method functions (`let name (p: T) : R = …`) or "
+              + "aliases of existing ones (`let name = Module.fn`)"
+            related = []
+            hint = None }
+        membersRev
+    if k2 > k then parseImplMembers state kwCol membersRev k2 else (membersRev, k)
+  else
+    (membersRev, k)
 
 and parseTypeDefinition (state : ParserState) (i : int) : WT.TypeDefinition * int =
   let isEnumStart =
@@ -3959,11 +4221,30 @@ and parseTypeDefinition (state : ParserState) (i : int) : WT.TypeDefinition * in
   | _ -> let (t, j) = parseTypeRef state i in (WT.TDAlias t, j)
 
 and parseRecordDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
-  let fields =
-    System.Collections.Generic.List<WT.RecordFieldSyntax * Option<TokenRange>>()
-  let mutable k = i + 1
-  let mutable go = true
-  while go && tok state k <> TRBrace && tok state k <> TEOF do
+  let (fieldsRev, k) = parseRecordDefFields state [] (i + 1)
+  // `type X = {}` — an empty record isn't valid. Diagnose so the `"_"` placeholder
+  // the normalizer inserts (records need ≥1 field) is honest recovery, not a
+  // silently-accepted phantom field. (A `{ garbage }` already errored in the loop
+  // and won't be at `}` here, so this only fires for a genuinely empty record.)
+  if List.isEmpty fieldsRev && tok state k = TRBrace then
+    err state DiagnosticCode.expected k "a record type needs at least one field"
+  let kk =
+    if tok state k = TRBrace then
+      k + 1
+    else
+      errUnclosed state k "}" "{" (rng state i)
+      k
+  (WT.TDRecord(List.rev fieldsRev), kk)
+
+// The `name: Type` fields of a record type from `k`, last first.
+and private parseRecordDefFields
+  (state : ParserState)
+  (fieldsRev : List<WT.RecordFieldSyntax * Option<TokenRange>>)
+  (k : int)
+  : List<WT.RecordFieldSyntax * Option<TokenRange>> * int =
+  if tok state k = TRBrace || tok state k = TEOF then
+    (fieldsRev, k)
+  else
     match tok state k, tok state (k + 1) with
     | TIdent fname, TColon ->
       let fnameR = rng state k
@@ -3976,39 +4257,29 @@ and parseRecordDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
           description = docOf state k
           symbolColon = colon }
       if tok state k2 = TComma then
-        fields.Add(field, Some(rng state k2))
-        k <- k2 + 1
+        parseRecordDefFields
+          state
+          ((field, Some(rng state k2)) :: fieldsRev)
+          (k2 + 1)
       elif tok state k2 = TSemicolon then
         errCollectionSemicolon state k2 "record-type fields"
-        fields.Add(field, Some(rng state k2))
-        k <- k2 + 1
+        parseRecordDefFields
+          state
+          ((field, Some(rng state k2)) :: fieldsRev)
+          (k2 + 1)
       elif k2 > k then
-        fields.Add(field, None)
         if tok state k2 <> TRBrace then
           requireElementSeparator
             state
             (WT.typeReferenceRange typ)
             k2
             "a comma or newline between record-type fields"
-        k <- k2
+        parseRecordDefFields state ((field, None) :: fieldsRev) k2
       else
-        go <- false
+        (fieldsRev, k)
     | _ ->
       errExpectedName state k "a record field 'name : Type'"
-      go <- false
-  // `type X = {}` — an empty record isn't valid. Diagnose so the `"_"` placeholder
-  // the normalizer inserts (records need ≥1 field) is honest recovery, not a
-  // silently-accepted phantom field. (A `{ garbage }` already errored in the loop
-  // and won't be at `}` here, so this only fires for a genuinely empty record.)
-  if fields.Count = 0 && tok state k = TRBrace then
-    err state DiagnosticCode.expected k "a record type needs at least one field"
-  let kk =
-    if tok state k = TRBrace then
-      k + 1
-    else
-      errUnclosed state k "}" "{" (rng state i)
-      k
-  (WT.TDRecord(List.ofSeq fields), kk)
+      (fieldsRev, k)
 
 and parseEnumField
   (state : ParserState)
@@ -4038,29 +4309,10 @@ and parseEnumField
 and parseEnumFields
   (state : ParserState)
   (i : int)
-  (fields : System.Collections.Generic.List<WT.EnumFieldSyntax>)
-  : int =
+  : List<WT.EnumFieldSyntax> * int =
   let openP = rng state i
-  // A `|` or the end of the file ends the case even without its `)`, so the
-  // cases after an unclosed one are still found.
-  let endsCase k = tok state k = TBar || tok state k = TEOF
-  let mutable k = i + 1
-  let mutable go = true
-  while go && tok state k <> TRParen && not (endsCase k) do
-    let (f, k2) = parseEnumField state parseFnType k
-    fields.Add f
-    if tok state k2 = TComma then
-      k <- k2 + 1
-    elif tok state k2 = TRParen || endsCase k2 then
-      k <- k2
-      go <- false
-    else
-      errExpected state k2 "',' or ')' between a case's fields"
-      k <- k2
-      while tok state k <> TRParen && not (endsCase k) do
-        k <- k + 1
-      go <- false
-  if fields.Count = 0 && tok state k = TRParen then
+  let (fieldsRev, k) = parseEnumFieldsFrom state [] (i + 1)
+  if List.isEmpty fieldsRev && tok state k = TRParen then
     errFull
       state
       DiagnosticCode.expected
@@ -4069,10 +4321,41 @@ and parseEnumFields
       []
       None
   if tok state k = TRParen then
-    k + 1
+    (List.rev fieldsRev, k + 1)
   else
     errUnclosed state k ")" "(" openP
+    (List.rev fieldsRev, k)
+
+// A `|` or the end of the file ends an enum case even without its `)`, so the
+// cases after an unclosed one are still found.
+and private endsEnumCase (state : ParserState) (k : int) : bool =
+  tok state k = TBar || tok state k = TEOF
+
+// The first index from `k` at a `)` or the end of an enum case.
+and private skipToEnumFieldsEnd (state : ParserState) (k : int) : int =
+  if tok state k = TRParen || endsEnumCase state k then
     k
+  else
+    skipToEnumFieldsEnd state (k + 1)
+
+// The parenthesized fields of an enum case from `k`, last first.
+and private parseEnumFieldsFrom
+  (state : ParserState)
+  (fieldsRev : List<WT.EnumFieldSyntax>)
+  (k : int)
+  : List<WT.EnumFieldSyntax> * int =
+  if tok state k = TRParen || endsEnumCase state k then
+    (fieldsRev, k)
+  else
+    let (f, k2) = parseEnumField state parseFnType k
+    let fieldsRev = f :: fieldsRev
+    if tok state k2 = TComma then
+      parseEnumFieldsFrom state fieldsRev (k2 + 1)
+    elif tok state k2 = TRParen || endsEnumCase state k2 then
+      (fieldsRev, k2)
+    else
+      errExpected state k2 "',' or ')' between a case's fields"
+      (fieldsRev, skipToEnumFieldsEnd state k2)
 
 /// `| Seg of Point * Point` is not Dark. The fields are still parsed (split by
 /// `*`, each at atom level), so recovery sees the shape the author meant.
@@ -4080,90 +4363,42 @@ and parseOfFields
   (state : ParserState)
   (caseIdx : int)
   (i : int)
-  (fields : System.Collections.Generic.List<WT.EnumFieldSyntax>)
-  : int =
+  : List<WT.EnumFieldSyntax> * int =
   let (f0, k0) = parseEnumField state parseAtomType (i + 1)
-  fields.Add f0
-  let mutable k = k0
-  while tok state k = TStar do
-    let (fi, ki) = parseEnumField state parseAtomType (k + 1)
-    fields.Add fi
-    k <- ki
+  let (fieldsRev, k) = parseStarFields state [ f0 ] k0
   let caseName = txt state caseIdx
-  let typed = placeholders fields.Count |> List.map (fun p -> p.ToUpperInvariant())
+  let typed =
+    placeholders (List.length fieldsRev) |> List.map (fun p -> p.ToUpperInvariant())
   let commaList = String.concat ", " typed
   let starList = String.concat " * " typed
   state.diagnostics.Add
     { code = DiagnosticCode.unexpected
       severity = DiagError
-      range = span (rng state caseIdx) (Seq.last fields).range
+      range = span (rng state caseIdx) (Seq.head fieldsRev).range
       message = "an enum case's fields go in parentheses, separated by commas"
       related = []
       hint =
         Some
           $"write `{caseName}({commaList})` rather than `{caseName} of {starList}`" }
-  k
+  (List.rev fieldsRev, k)
+
+// `* field * field …` from `k`, prepended to `fieldsRev`.
+and private parseStarFields
+  (state : ParserState)
+  (fieldsRev : List<WT.EnumFieldSyntax>)
+  (k : int)
+  : List<WT.EnumFieldSyntax> * int =
+  if tok state k = TStar then
+    let (f, k2) = parseEnumField state parseAtomType (k + 1)
+    parseStarFields state (f :: fieldsRev) k2
+  else
+    (fieldsRev, k)
 
 and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
-  let cases = System.Collections.Generic.List<TokenRange * WT.EnumCaseSyntax>()
-  let mutable k = i
-  let mutable go = true
-  let mutable first = true
-  while go do
-    // Only the first case may omit the leading `|` (`type X = A | B`); every case
-    // after it REQUIRES a `|`. Otherwise the following statement — which often
-    // starts with an uppercase name (`type X = | A | B | C` then `Foo.bar = …`) —
-    // would be swallowed as another case, orphaning the rest of that line.
-    if tok state k <> TBar && not first then
-      go <- false
-    else
-      // A `///` above a case attaches to whichever token starts it: the leading `|` usually, or the
-      // case name itself when the first case omits its bar (`type X = A | B`).
-      let barDoc = docOf state k
-      let barRange =
-        if tok state k = TBar then
-          (let r = rng state k in
-           k <- k + 1
-           r)
-        else
-          zeroWidthAtEnd (rng state k)
-      match tok state k with
-      | TIdent cname when cname.Length > 0 && System.Char.IsUpper cname[0] ->
-        first <- false
-        let cnameR = rng state k
-        let cnameIdx = k
-        k <- k + 1
-        let fields = System.Collections.Generic.List<WT.EnumFieldSyntax>()
-        // A space before the `(` is allowed, as for a constructor. A `(` on a later
-        // line, indented at least as far as the case, is still taken as its
-        // fields for recovery, but is an error; a less indented one is the next
-        // statement.
-        if tok state k = TLParen && (rng state k).start.row = cnameR.end_.row then
-          k <- parseEnumFields state k fields
-        elif
-          tok state k = TLParen
-          && (rng state k).start.column >= barRange.start.column
-        then
-          err
-            state
-            DiagnosticCode.unexpected
-            k
-            "a case's fields start on the same line as its name"
-          k <- parseEnumFields state k fields
-        elif tok state k = TOf then
-          k <- parseOfFields state cnameIdx k fields
-        let lastR = if k > cnameIdx + 1 then rng state (k - 1) else cnameR
-        cases.Add(
-          barRange,
-          { range = span cnameR lastR
-            name = (cnameR, cname)
-            fields = List.ofSeq fields
-            description = (if barDoc <> "" then barDoc else docOf state cnameIdx) }
-        )
-      | _ -> go <- false
+  let (casesRev, k) = parseEnumCases state [] true i
   // `type X = |` with no case — diagnose so the `"_"` placeholder the normalizer
   // inserts (enums need ≥1 case) is honest recovery, not a silent phantom case.
-  if cases.Count = 0 then
+  if List.isEmpty casesRev then
     // `type E = | when` or `| foo` names a case, just not as one can be named
     let lowerNameHere =
       k > i
@@ -4179,7 +4414,62 @@ and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
         $"an enum case name starts with an uppercase letter, found {foundDesc state k}"
     else
       err state DiagnosticCode.expected k "an enum type needs at least one case"
-  (WT.TDEnum(List.ofSeq cases), k)
+  (WT.TDEnum(List.rev casesRev), k)
+
+// The cases of an enum type from `k`, last first. `first` is whether no case has been read.
+and private parseEnumCases
+  (state : ParserState)
+  (casesRev : List<TokenRange * WT.EnumCaseSyntax>)
+  (first : bool)
+  (k : int)
+  : List<TokenRange * WT.EnumCaseSyntax> * int =
+  // Only the first case may omit the leading `|` (`type X = A | B`); every case
+  // after it REQUIRES a `|`. Otherwise the following statement — which often
+  // starts with an uppercase name (`type X = | A | B | C` then `Foo.bar = …`) —
+  // would be swallowed as another case, orphaning the rest of that line.
+  if tok state k <> TBar && not first then
+    (casesRev, k)
+  else
+    // A `///` above a case attaches to whichever token starts it: the leading `|` usually, or the
+    // case name itself when the first case omits its bar (`type X = A | B`).
+    let barDoc = docOf state k
+    let barRange =
+      if tok state k = TBar then rng state k else zeroWidthAtEnd (rng state k)
+    let k = if tok state k = TBar then k + 1 else k
+    match tok state k with
+    | TIdent cname when cname.Length > 0 && System.Char.IsUpper cname[0] ->
+      let cnameR = rng state k
+      let cnameIdx = k
+      let k = k + 1
+      // A space before the `(` is allowed, as for a constructor. A `(` on a later
+      // line, indented at least as far as the case, is still taken as its
+      // fields for recovery, but is an error; a less indented one is the next
+      // statement.
+      let (fields, k) =
+        if tok state k = TLParen && (rng state k).start.row = cnameR.end_.row then
+          parseEnumFields state k
+        elif
+          tok state k = TLParen
+          && (rng state k).start.column >= barRange.start.column
+        then
+          err
+            state
+            DiagnosticCode.unexpected
+            k
+            "a case's fields start on the same line as its name"
+          parseEnumFields state k
+        elif tok state k = TOf then
+          parseOfFields state cnameIdx k
+        else
+          ([], k)
+      let lastR = if k > cnameIdx + 1 then rng state (k - 1) else cnameR
+      let case : WT.EnumCaseSyntax =
+        { range = span cnameR lastR
+          name = (cnameR, cname)
+          fields = fields
+          description = (if barDoc <> "" then barDoc else docOf state cnameIdx) }
+      parseEnumCases state ((barRange, case) :: casesRev) false k
+    | _ -> (casesRev, k)
 
 // Test-mode only: the expected side of an assertion `actual = expected`. Either
 // an `error="msg"` marker (also the bare `error "msg"` shape)
@@ -4222,150 +4512,144 @@ and parseItemsBody
   (start : int)
   (minCol : int)
   : List<WT.Declaration> * List<WT.Expr> * int =
-  let decls = System.Collections.Generic.List<WT.Declaration>()
-  let exprs = System.Collections.Generic.List<WT.Expr>()
-  let mutable k = start
-  let mutable go = true
-  while go && tok state k <> TEOF do
-    if (rng state k).start.column < minCol then
-      go <- false
+  let (declsRev, exprsRev, k) = parseItemsFrom state itemScope minCol [] [] start
+  (List.rev declsRev, List.rev exprsRev, k)
+
+// The items from `k` whose start column is at least `minCol`: the declarations and the
+// expressions, each prepended to its list.
+and private parseItemsFrom
+  (state : ParserState)
+  (itemScope : ItemScope)
+  (minCol : int)
+  (declsRev : List<WT.Declaration>)
+  (exprsRev : List<WT.Expr>)
+  (k : int)
+  : List<WT.Declaration> * List<WT.Expr> * int =
+  if tok state k = TEOF || (rng state k).start.column < minCol then
+    (declsRev, exprsRev, k)
+  else
+    let before = k
+    setStmtCol state (rng state k).start.column
+    state.declAnchor <- (rng state k).start.column
+    // the item at `k`: the lists with it added, where it ends, and whether it ends the scope
+    let (declsRev, exprsRev, k, scopeEnds) =
+      match tok state k, tok state (k + 1) with
+      | TVal, TIdent _ ->
+        // `val x = …` is ALWAYS a value DECLARATION (the explicit value-decl
+        // keyword), in a module or at file top level alike.
+        let (d, k2) = parseDecl state k
+        match d with
+        | WT.DFunction _ ->
+          err
+            state
+            DiagnosticCode.expected
+            k
+            "'val' declares a value and cannot have function parameters"
+        | _ -> ()
+        (d :: declsRev, exprsRev, k2, false)
+      | TLet, TIdent _ ->
+        // the decl parse below is speculative (a top-level no-param `let` is
+        // reparsed as an expression) — drop its diagnostics on reparse so
+        // errors aren't reported twice
+        let diagnosticsBefore = state.diagnostics.Count
+        let (d, k2) = parseDecl state k
+        // A no-param `let x = …` is a script EXPRESSION at file top level and
+        // with explicit `in`. At module declaration scope it is retained as a
+        // DValue recovery node with a diagnostic requiring `val`; `let f (p) …`
+        // is a DFunction and is never reparsed.
+        let asExpr =
+          match d with
+          | WT.DValue _ -> tok state k2 = TIn || itemScope = ItemScope.Script
+          | _ -> false
+        if asExpr then
+          state.diagnostics.RemoveRange(
+            diagnosticsBefore,
+            state.diagnostics.Count - diagnosticsBefore
+          )
+          let (e, k3) = parseExpr state k
+          (declsRev, e :: exprsRev, k3, false)
+        else
+          match d with
+          | WT.DValue _ when itemScope = ItemScope.Module ->
+            state.diagnostics.Add
+              { code = DiagnosticCode.unexpected
+                severity = DiagError
+                range = rng state k
+                message =
+                  "Module value declarations must use 'val'; 'let' is reserved for functions and local bindings"
+                related = []
+                hint = Some "replace 'let' with 'val'" }
+          | _ -> ()
+          (d :: declsRev, exprsRev, k2, false)
+      | TType, TIdent _ ->
+        let (d, k2) = parseTypeDecl state k
+        (d :: declsRev, exprsRev, k2, false)
+      | TTrait, TIdent _ ->
+        let (d, k2) = parseTraitDecl state k
+        (d :: declsRev, exprsRev, k2, false)
+      | TImpl, _ ->
+        let (d, k2) = parseImplDecl state k
+        (d :: declsRev, exprsRev, k2, false)
+      | TIdent "test", TIdent _ when
+        tok state (k + 2) = TEquals
+        || tok state (k + 2) = TColon
+        || tok state (k + 2) = TIdent "raises"
+        ->
+        let (d, k2) = parseTestDecl state k
+        (d :: declsRev, exprsRev, k2, false)
+      | TIdent "module", TIdent first ->
+        let kwModule = rng state k
+        let moduleCol = (rng state k).start.column
+        let (partsRev, nk) = moduleNameParts state [ first ] (k + 2)
+        let nameRange = span (rng state (k + 1)) (rng state (nk - 1))
+        let nameStr = String.concat "." (List.rev partsRev)
+        // `module X =`: body is offside-indented under the keyword.
+        // `module Darklang.X` (no `=`): file-level header wrapping the rest.
+        let (mdecls, mexprs, k2) =
+          if tok state nk = TEquals then
+            parseItems state ItemScope.Module (nk + 1) (moduleCol + 1)
+          else
+            parseItems state ItemScope.Module nk minCol
+        if tok state nk = TEquals && List.isEmpty mdecls && List.isEmpty mexprs then
+          errExpected state (nk + 1) "an indented module body"
+        // A module's trailing expressions belong to the module (as `DExpr`
+        // declarations), not the enclosing scope — so they pretty-print nested.
+        // span the whole module (header through last child), like other decls —
+        // a header-only range makes range-gated walkers (hover) skip the body
+        let moduleEndR = if k2 > 0 then rng state (k2 - 1) else nameRange
+        let d =
+          WT.DModule
+            { range = span kwModule moduleEndR
+              name = (nameRange, nameStr)
+              declarations = mdecls @ (mexprs |> List.map WT.DExpr)
+              keywordModule = kwModule }
+        // a file header consumes the rest
+        (d :: declsRev, exprsRev, k2, tok state nk <> TEquals)
+      | TSemicolon, _ ->
+        errStatementSemicolon state k
+        (declsRev, exprsRev, k + 1, false)
+      | _ ->
+        let (e, k2) = parseExpr state k
+        // A source-level `actual = expected` is represented as a test node.
+        // Its validity for this caller is decided after parsing.
+        if tok state k2 = TEquals then
+          let (expected, k3) = parseTestExpected state (k2 + 1)
+          let endR = if k3 > 0 then rng state (k3 - 1) else rng state k2
+          let d =
+            WT.DAssertion
+              { range = span (WT.exprRange e) endR; actual = e; expected = expected }
+          (d :: declsRev, exprsRev, k3, false)
+        else
+          (declsRev, e :: exprsRev, k2, false)
+    if scopeEnds then
+      (declsRev, exprsRev, k)
+    elif k = before then
+      if tok state k = TEOF then
+        (declsRev, exprsRev, k)
+      else
+        parseItemsFrom state itemScope minCol declsRev exprsRev (k + 1)
     else
-      let before = k
-      setStmtCol state (rng state k).start.column
-      state.declAnchor <- (rng state k).start.column
-      (match tok state k, tok state (k + 1) with
-       | TVal, TIdent _ ->
-         // `val x = …` is ALWAYS a value DECLARATION (the explicit value-decl
-         // keyword), in a module or at file top level alike.
-         let (d, k2) = parseDecl state k
-         match d with
-         | WT.DFunction _ ->
-           err
-             state
-             DiagnosticCode.expected
-             k
-             "'val' declares a value and cannot have function parameters"
-         | _ -> ()
-         decls.Add d
-         k <- k2
-       | TLet, TIdent _ ->
-         // the decl parse below is speculative (a top-level no-param `let` is
-         // reparsed as an expression) — drop its diagnostics on reparse so
-         // errors aren't reported twice
-         let diagnosticsBefore = state.diagnostics.Count
-         let (d, k2) = parseDecl state k
-         // A no-param `let x = …` is a script EXPRESSION at file top level and
-         // with explicit `in`. At module declaration scope it is retained as a
-         // DValue recovery node with a diagnostic requiring `val`; `let f (p) …`
-         // is a DFunction and is never reparsed.
-         let asExpr =
-           match d with
-           | WT.DValue _ -> tok state k2 = TIn || itemScope = ItemScope.Script
-           | _ -> false
-         if asExpr then
-           state.diagnostics.RemoveRange(
-             diagnosticsBefore,
-             state.diagnostics.Count - diagnosticsBefore
-           )
-           let (e, k3) = parseExpr state k
-           exprs.Add e
-           k <- k3
-         else
-           match d with
-           | WT.DValue _ when itemScope = ItemScope.Module ->
-             state.diagnostics.Add
-               { code = DiagnosticCode.unexpected
-                 severity = DiagError
-                 range = rng state k
-                 message =
-                   "Module value declarations must use 'val'; 'let' is reserved for functions and local bindings"
-                 related = []
-                 hint = Some "replace 'let' with 'val'" }
-           | _ -> ()
-           decls.Add d
-           k <- k2
-       | TType, TIdent _ ->
-         let (d, k2) = parseTypeDecl state k
-         decls.Add d
-         k <- k2
-       | TTrait, TIdent _ ->
-         let (d, k2) = parseTraitDecl state k
-         decls.Add d
-         k <- k2
-       | TImpl, _ ->
-         let (d, k2) = parseImplDecl state k
-         decls.Add d
-         k <- k2
-       | TIdent "test", TIdent _ when
-         tok state (k + 2) = TEquals
-         || tok state (k + 2) = TColon
-         || tok state (k + 2) = TIdent "raises"
-         ->
-         let (d, k2) = parseTestDecl state k
-         decls.Add d
-         k <- k2
-       | TIdent "module", TIdent _ ->
-         let kwModule = rng state k
-         let moduleCol = (rng state k).start.column
-         let parts = System.Collections.Generic.List<string>()
-         (match tok state (k + 1) with
-          | TIdent s -> parts.Add s
-          | _ -> ())
-         let mutable nk = k + 2
-         let mutable go2 = true
-         while go2 do
-           match tok state nk, tok state (nk + 1) with
-           | TDot, TIdent s ->
-             parts.Add s
-             nk <- nk + 2
-           | _ -> go2 <- false
-         let nameRange = span (rng state (k + 1)) (rng state (nk - 1))
-         let nameStr = System.String.Join(".", parts)
-         // `module X =`: body is offside-indented under the keyword.
-         // `module Darklang.X` (no `=`): file-level header wrapping the rest.
-         let (mdecls, mexprs, k2) =
-           if tok state nk = TEquals then
-             parseItems state ItemScope.Module (nk + 1) (moduleCol + 1)
-           else
-             parseItems state ItemScope.Module nk minCol
-         if tok state nk = TEquals && List.isEmpty mdecls && List.isEmpty mexprs then
-           errExpected state (nk + 1) "an indented module body"
-         // A module's trailing expressions belong to the module (as `DExpr`
-         // declarations), not the enclosing scope — so they pretty-print nested.
-         // span the whole module (header through last child), like other decls —
-         // a header-only range makes range-gated walkers (hover) skip the body
-         let moduleEndR = if k2 > 0 then rng state (k2 - 1) else nameRange
-         decls.Add(
-           WT.DModule
-             { range = span kwModule moduleEndR
-               name = (nameRange, nameStr)
-               declarations = mdecls @ (mexprs |> List.map WT.DExpr)
-               keywordModule = kwModule }
-         )
-         k <- k2
-         if tok state nk <> TEquals then go <- false // file header consumed the rest
-       | TSemicolon, _ ->
-         errStatementSemicolon state k
-         k <- k + 1
-       | _ ->
-         let (e, k2) = parseExpr state k
-         // A source-level `actual = expected` is represented as a test node.
-         // Its validity for this caller is decided after parsing.
-         if tok state k2 = TEquals then
-           let (expected, k3) = parseTestExpected state (k2 + 1)
-           let endR = if k3 > 0 then rng state (k3 - 1) else rng state k2
-           decls.Add(
-             WT.DAssertion
-               { range = span (WT.exprRange e) endR
-                 actual = e
-                 expected = expected }
-           )
-           k <- k3
-         else
-           exprs.Add e
-           k <- k2)
-      if k = before then if tok state k = TEOF then go <- false else k <- k + 1
-  (List.ofSeq decls, List.ofSeq exprs, k)
+      parseItemsFrom state itemScope minCol declsRev exprsRev k
 
 and parseFile (rootScope : ItemScope) (state : ParserState) : ParseResult =
   validateLiterals state
