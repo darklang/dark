@@ -115,7 +115,7 @@ module InvalidFnCalls =
   test wrongArgTypeRaises =
     stringFn(5)
     => raises
-      "Darklang.Language.Tests.Apply.stringFn's 1st parameter `key` expects String, but got Int64 (5)"
+      "Darklang.Language.Tests.Apply.stringFn's 1st parameter `key` expects String, but got Int64 (5). Try wrapping it with `Stdlib.toString`."
 
   test argTypeFollowsTypeArgRaises =
     fnWithTypeArgAndOneParam<Int64>("str2")
@@ -126,13 +126,13 @@ module InvalidFnCalls =
   test wrongReturnTypeRaises =
     (shouldReturnStringButDoesNot())
     => raises
-      "Darklang.Language.Tests.Apply.shouldReturnStringButDoesNot's return value expects String, but got Int64 (5)"
+      "Darklang.Language.Tests.Apply.shouldReturnStringButDoesNot's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.toString`."
 
   // A function must return the type chosen by its type argument.
   test wrongTypedReturnRaises =
     fnWithTypedReturn<String>()
     => raises
-      "Darklang.Language.Tests.Apply.fnWithTypedReturn's return value expects String, but got Int64 (5)"
+      "Darklang.Language.Tests.Apply.fnWithTypedReturn's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.toString`."
 
   // errors around type args take priority over ones about args
   test typeArgErrorComesFirst =

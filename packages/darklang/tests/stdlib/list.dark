@@ -833,7 +833,7 @@ test interleaveRejectsMixedElementTypes =
 
 test interposeRejectsWrongSeparatorType =
   Stdlib.List.interpose([ "a", "b", "c" ], 0)
-  => raises "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
+  => raises "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0). Try wrapping it with `Stdlib.toString`."
 
 test partitionRejectsStringCondition =
   Stdlib.List.partition([ true, false, true ], fun _ -> "a")

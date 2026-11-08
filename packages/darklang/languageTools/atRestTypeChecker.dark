@@ -704,11 +704,51 @@ let contextToStringWith(
     | _ -> $"Needs an implementation of {traitName}"
 
 
+/// Points at `Stdlib.toString` when a String was expected and the type found
+/// has a ToString impl; the same hint a run gives (<fn PrettyPrinter.RuntimeTypes.RuntimeError.toStringHint>).
+let stringExpectedHint(expected: StaticType, actual: StaticType): String =
+  let convertible =
+    match actual with
+    | TInt8
+    | TUInt8
+    | TInt16
+    | TUInt16
+    | TInt32
+    | TUInt32
+    | TInt64
+    | TUInt64
+    | TInt128
+    | TUInt128
+    | TBigInt
+    | TFloat
+    | TFloat32
+    | TDecimal
+    | TBool
+    | TChar
+    | TDateTime
+    | TUuid -> true
+    | _ -> false
+  match expected with
+  | TString when convertible -> " (wrap it in `Stdlib.toString`)"
+  | _ -> ""
+
+
 let issueToStringWith(
   customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>,
   issue: Issue)
   : String =
+  // Only where a value is handed over: an Int64 where `?` wanted a String error wants `mapError`.
+  let hint =
+    fun(expected, actual) ->
+      match (issue.code, issue.context) with
+      | (TypeMismatch, At(FunctionArgument(_)))
+      | (TypeMismatch, At(FunctionReturnValue))
+      | (TypeMismatch, At(LambdaReturnValue))
+      | (TypeMismatch, At(ValueBody))
+      | (TypeMismatch, At(Expression))
+      | (TypeMismatch, At(PipelineStringConcatenation)) -> stringExpectedHint(expected, actual)
+      | _ -> ""
   let detail =
     match issue.expected with
     | Some(expected) ->
@@ -718,6 +758,7 @@ let issueToStringWith(
         + staticTypeToStringWith(customTypeName, expected)
         + ", got "
         + staticTypeToStringWith(customTypeName, actual)
+        + hint(expected, actual)
       | None -> ""
     | None -> ""
   let actualName =

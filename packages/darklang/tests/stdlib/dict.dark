@@ -346,7 +346,7 @@ test literalRejectsValueOfAnotherType =
 
 test setRejectsWrongValueType =
   Stdlib.Dict.set(Dict { "key1": "val1" }, "key2", 2)
-  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (2)"
+  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (2). Try wrapping it with `Stdlib.toString`."
 
 test singleton =
   Stdlib.Test.all(
@@ -555,7 +555,7 @@ test nonStringKeysFromEntriesInfersKeyType =
 
 test nonStringKeysFromEntriesUniqueInfersValueType =
   Stdlib.Dict.set(Builtin.unwrap(Stdlib.Dict.fromEntriesUnique([ (1, "a") ])), 2, 3)
-  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (3)"
+  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (3). Try wrapping it with `Stdlib.toString`."
 
 test nonStringKeysFromEntriesUniqueRejectsLambdaKey =
   Stdlib.Dict.fromEntriesUnique([ (1, "a"), ((fun x -> x), "b") ])
