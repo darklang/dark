@@ -207,24 +207,31 @@ module Fn =
   let getLocations branch = getItemLocations branch "fn"
   let getLocationsEverNamed branch = getItemLocationsEverNamed branch "fn"
 
-  /// Active function hashes bound under `owner` on any branch. The CLI uses this to skip consumer
-  /// approval for bundled Darklang functions; the instance policy, run policy, and function ceilings
-  /// still apply. A hash set keeps checking bundled function hashes fast.
-  let hashesOwnedBy
-    (owner : string)
-    : Ply<System.Collections.Generic.HashSet<string>> =
-    uply {
-      let! hashes =
+  /// Whether a function hash is active and bound under `owner` on any branch, asked one hash at a
+  /// time. The CLI uses this to skip consumer approval for bundled Darklang functions; the instance
+  /// policy, run policy, and function ceilings still apply.
+  ///
+  /// One indexed lookup per hash (`idx_locations_item_hash`), rather than every bundled hash read
+  /// up front: a command asks about the few dozen functions it calls, and loading all of them (a
+  /// string and a set entry for each of thousands of rows) was the largest allocation of a short
+  /// run.
+  let ownedBy (owner : string) : string -> bool =
+    let ask =
+      System.Func<string, bool>(fun hash ->
         Sql.query
           """
-          SELECT DISTINCT item_hash
-          FROM locations
-          WHERE owner = @owner AND item_type = 'fn' AND live = 1 AND item_hash <> ''
+          SELECT 1 FROM locations
+          WHERE item_hash = @hash AND owner = @owner AND item_type = 'fn' AND live = 1
+            AND item_hash <> ''
+          LIMIT 1
           """
-        |> Sql.parameters [ "owner", Sql.string owner ]
-        |> Sql.executeAsync (fun read -> read.string "item_hash")
-      return System.Collections.Generic.HashSet<string>(hashes)
-    }
+        |> Sql.parameters [ "hash", Sql.string hash; "owner", Sql.string owner ]
+        |> Sql.executeExistsSync)
+    // Hot path, so answers are remembered for the life of this function: `callerIsBundled` asks
+    // about every frame of the chain on each call of a native builtin. Concurrent because spread
+    // workers ask too.
+    let known = System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
+    fun hash -> known.GetOrAdd(hash, ask)
 
 module Test =
   let find branch = findItem branch "test"
