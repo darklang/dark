@@ -84,6 +84,144 @@ let dateTests =
         [ "2000-10-01T16:01:01Z",
           NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1) ] ]
 
+/// The cluster walks in `String` skip `StringInfo` where they can: a whole string below U+0300
+/// with no CR, and any two such chars in a row. These pin them to the general path, which is
+/// `StringInfo` alone, on text built from the pieces that join clusters.
+let graphemeTests =
+  let reference (s : string) : List<string> =
+    let e = System.Globalization.StringInfo.GetTextElementEnumerator(s)
+    [ while e.MoveNext() do
+        yield e.GetTextElement() ]
+
+  // What `String.slice` computed before it had a fast path: clamp against the cluster count,
+  // then join the clusters in range.
+  let referenceSlice (s : string) (first : int64) (last : int64) : string =
+    let clusters = reference s |> Array.ofList
+    let norm (i : int64) =
+      let i = if i < 0L then int64 clusters.Length + i else i
+      int (max 0L (min i (int64 clusters.Length)))
+    let first = norm first
+    let last = max first (norm last)
+    String.concat "" clusters[first .. last - 1]
+
+  let pieces =
+    [| "a"
+       "Z"
+       " "
+       "\t"
+       "\n"
+       "\r"
+       "\r\n"
+       "\u00E9"
+       "\u00FF"
+       "\u02FF"
+       "\u00AD"
+       "\u00A9"
+       "\u0300"
+       "e\u0301"
+       "\u036F"
+       "\u200D"
+       "\uFE0F"
+       "\U0001F469"
+       "\U0001F44D"
+       "\U0001F3FD"
+       "\U0001F1F5"
+       "\U0001F1F1"
+       "\u1100"
+       "\u1161"
+       "\u11A8"
+       "\uAC00"
+       "\u0915"
+       "\u094D"
+       "\u0903"
+       "\u0600"
+       "\uD800"
+       "\uDC00"
+       "\u4E16" |]
+
+  let random = System.Random(6147)
+
+  let samples =
+    [ for _ in 1..3000 do
+        let n = random.Next(0, 12)
+        yield
+          String.concat "" [ for _ in 1..n -> pieces[random.Next(pieces.Length)] ] ]
+    @ [ ""
+        "plain ascii"
+        "caf\u00E9 na\u00EFve"
+        "\U0001F469\u200D\U0001F469\u200D\U0001F467" ]
+
+  testList
+    "graphemes"
+    [ test "two chars below U+0300, neither CR, are two clusters" {
+        let simple =
+          [ for c in 0..0x2FF do
+              if c <> 13 then yield char c ]
+        for a in simple do
+          for b in simple do
+            let pair = [| a; b |]
+            if
+              System.Globalization.StringInfo.GetNextTextElementLength(
+                System.ReadOnlySpan<char>(pair)
+              )
+              <> 1
+            then
+              failtest $"U+{int a:X4} U+{int b:X4} is one cluster"
+      }
+
+      test "egcs, lengthInEgcs and isCharwise agree with StringInfo" {
+        for s in samples do
+          let expected = reference s
+          Expect.equal (String.egcs s) expected $"egcs {s}"
+          Expect.equal (String.egcsReversed s) (List.rev expected) $"reversed {s}"
+          Expect.equal (String.lengthInEgcs s) expected.Length $"length {s}"
+          if String.isCharwise s then
+            Expect.equal expected.Length s.Length $"isCharwise {s}"
+      }
+
+      test "sliceEgcs and dropFirstEgcs agree with StringInfo" {
+        for s in samples do
+          let len = int64 (reference s).Length
+          let indices =
+            [ -len - 2L .. len + 2L ]
+            @ [ System.Int64.MaxValue; System.Int64.MinValue ]
+          for first in indices do
+            for last in indices do
+              Expect.equal
+                (String.sliceEgcs s first last)
+                (referenceSlice s first last)
+                $"slice {s} {first} {last}"
+            let dropped = if first < 0L then s else referenceSlice s first len
+            Expect.equal
+              (String.dropFirstEgcs s first)
+              dropped
+              $"dropFirst {s} {first}"
+      }
+
+      test "startsWithEgcs agrees with slicing" {
+        let others = samples |> List.take 200
+        for s in samples do
+          // Every ordinal prefix, cut at a cluster boundary or not, and some unrelated strings.
+          let prefixes = [ for i in 0 .. s.Length -> s.Substring(0, i) ] @ others
+          for prefix in prefixes do
+            let expected =
+              referenceSlice s 0L (int64 (reference prefix).Length) = prefix
+            Expect.equal
+              (String.startsWithEgcs s prefix)
+              expected
+              $"startsWith {s} {prefix}"
+      }
+
+      testMany
+        "egcs on the joining pieces"
+        String.egcs
+        [ "a\r\nb", [ "a"; "\r\n"; "b" ]
+          "e\u0301x", [ "e\u0301"; "x" ]
+          "\u00A9\u200D\u00A9", [ "\u00A9\u200D\u00A9" ]
+          "\U0001F1F5\U0001F1F1\U0001F1FA", [ "\U0001F1F5\U0001F1F1"; "\U0001F1FA" ]
+          "\U0001F469\u200D\U0001F469\u200D\U0001F467",
+          [ "\U0001F469\u200D\U0001F469\u200D\U0001F467" ] ] ]
+
 let stringTests =
   let samples =
     [ ""
@@ -118,7 +256,8 @@ let stringTests =
           "\U0001F1F5\U0001F1F1", Some "\U0001F1F5\U0001F1F1"
           "\U0001F1F5\U0001F1F1\U0001F1FA", None
           "\U0001F469\u200D\U0001F469\u200D\U0001F467",
-          Some "\U0001F469\u200D\U0001F469\u200D\U0001F467" ] ]
+          Some "\U0001F469\u200D\U0001F469\u200D\U0001F467" ]
+      graphemeTests ]
 
 let textWidthTests =
   testList
