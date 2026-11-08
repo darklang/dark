@@ -574,6 +574,36 @@ module Access =
       resource : (unit -> string) *
       record : (string -> Layer -> PolicyDenial -> unit)
 
+  /// The denials of `remaining`, after `standing` (the first that could not be waived so far):
+  /// see `findEffectiveDenial`. Tail-recursive, so it runs as a loop.
+  let rec private walkDenials
+    (mode : CheckMode)
+    (request : Request)
+    (standing : voption<Denial>)
+    (remaining : List<Restriction>)
+    : Option<Denial> =
+    match remaining with
+    | [] -> ValueOption.toOption standing
+    | restriction :: rest ->
+      match Policy.denial request restriction.policy with
+      | None -> walkDenials mode request standing rest
+      | Some reason ->
+        if restriction.layer = Layer.Instance then
+          Some { layer = restriction.layer; reason = reason }
+        else
+          let waived =
+            match mode with
+            | CheckMode.Audit(resource, record) when isCallerOwned restriction.layer ->
+              record (resource ()) restriction.layer reason
+              true
+            | _ -> false
+          let standing =
+            if not waived && standing.IsNone then
+              ValueSome { layer = restriction.layer; reason = reason }
+            else
+              standing
+          walkDenials mode request standing rest
+
   /// The one traversal behind `check` and `decide`.
   ///
   /// An instance denial always wins because it is the operator's hard maximum.
@@ -592,37 +622,7 @@ module Access =
     : Option<Denial> =
     match restrictions with
     | [ only ] when Policy.isAllowAll only.policy -> None
-    | _ ->
-      let mutable instance = ValueNone
-      let mutable standing = ValueNone
-      let mutable remaining = restrictions
-      while ValueOption.isNone instance && not (List.isEmpty remaining) do
-        match remaining with
-        | [] -> ()
-        | restriction :: rest ->
-          remaining <- rest
-          match Policy.denial request restriction.policy with
-          | None -> ()
-          | Some reason ->
-            if restriction.layer = Layer.Instance then
-              instance <- ValueSome { layer = restriction.layer; reason = reason }
-            else
-              let waived =
-                match mode with
-                | CheckMode.Audit(resource, record) when
-                  isCallerOwned restriction.layer
-                  ->
-                  record (resource ()) restriction.layer reason
-                  true
-                | _ -> false
-              if not waived && standing.IsNone then
-                standing <- ValueSome { layer = restriction.layer; reason = reason }
-      match instance with
-      | ValueSome denial -> Some denial
-      | ValueNone ->
-        match standing with
-        | ValueSome denial -> Some denial
-        | ValueNone -> None
+    | _ -> walkDenials mode request ValueNone restrictions
 
   /// Report the first (innermost) denial, with the instance denial taking
   /// precedence over any inner one. See `findEffectiveDenial`.

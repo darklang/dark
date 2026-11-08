@@ -123,18 +123,14 @@ type Queue() =
   /// wants any more, and the scheduler drops it.
   member this.ArmTimer(id : TimerId, ms : int64) : System.IDisposable =
     let ms = max 0L ms
-    let mutable timer : Timer = null
-    timer <-
-      new Timer(
-        (fun _ ->
-          this.Post(HostEvent.Timer id)
-          if not (isNull timer) then timer.Dispose()),
-        null,
-        ms,
-        int64 Timeout.Infinite
-      )
-    { new System.IDisposable with
-        member _.Dispose() = timer.Dispose() }
+    // One-shot, so a timer that has fired holds nothing; its subscription disposes it either way.
+    new Timer(
+      (fun _ -> this.Post(HostEvent.Timer id)),
+      null,
+      ms,
+      int64 Timeout.Infinite
+    )
+    :> System.IDisposable
 
 
 

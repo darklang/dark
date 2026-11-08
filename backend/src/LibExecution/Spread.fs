@@ -54,11 +54,11 @@ module Sched = LibExecution.Scheduler
 let mutable crossover : int64 = 10_000L
 
 /// Fewer elements left than this and the rest runs where it is.
-let mutable minRemaining = 2
+let minRemaining = 2
 
 /// Chunks per worker. More than one so a chunk of expensive elements does not leave every other
 /// core waiting on it.
-let mutable chunksPerWorker = 2
+let chunksPerWorker = 2
 
 /// The least an element must cost, in interpreted instructions, before an op that asks with
 /// `probeCostly` spreads. In the grid (`docs/perf/history.md`) a 3-instruction body never paid
@@ -357,12 +357,18 @@ let private ofUndecidedTraitCall
       let! candidates = state.fns.implCandidates state.branchId tm.trait_
       let methods =
         candidates |> List.choose (fun c -> Map.tryFind tm.method_ c.methods)
-      let mutable answer =
-        if List.isEmpty methods then Purity.Unknown else Purity.Pure
-      for m in methods do
-        if answer = Purity.Pure then
-          let! one = state.fnPurity m
-          if one <> Purity.Pure then answer <- Purity.Unknown
+      let! answer =
+        methods
+        |> Ply.List.foldSequentially
+          (fun answer m ->
+            if answer <> Purity.Pure then
+              Ply answer
+            else
+              uply {
+                let! one = state.fnPurity m
+                return if one = Purity.Pure then Purity.Pure else Purity.Unknown
+              })
+          (if List.isEmpty methods then Purity.Unknown else Purity.Pure)
       traitMemo[key] <- answer
       return answer
     }
@@ -430,19 +436,22 @@ and private ofValues
   (depth : int)
   (values : List<Dval>)
   : Ply<Purity> =
-  uply {
-    let mutable answer = Purity.Pure
-    for v in values do
-      if answer <> Purity.Impure then
-        let! one =
-          match v with
-          | DApplicable a -> ofApplicable state (depth + 1) a
-          | v when holdsNoCode v -> Ply Purity.Pure
-          // Code inside a structure: a record of callbacks, say. Not followed.
-          | _ -> Ply Purity.Unknown
-        answer <- both answer one
-    return answer
-  }
+  values
+  |> Ply.List.foldSequentially
+    (fun answer v ->
+      if answer = Purity.Impure then
+        Ply answer
+      else
+        uply {
+          let! one =
+            match v with
+            | DApplicable a -> ofApplicable state (depth + 1) a
+            | v when holdsNoCode v -> Ply Purity.Pure
+            // Code inside a structure: a record of callbacks, say. Not followed.
+            | _ -> Ply Purity.Unknown
+          return both answer one
+        })
+    Purity.Pure
 
 /// A lambda's body: every callable it loads or creates, and every call it makes. A call through a
 /// register that is not a loaded or created callable (a parameter, a field, a call's result, a
@@ -466,36 +475,43 @@ and private ofLambdaBody
       |> Set.ofList
     // Captured registers are filled at the frame's start, with values `ofApplicable` judges.
     let captured = impl.registersToCloseOver |> List.map snd |> Set.ofList
-    let mutable answer = Purity.Pure
-    for i in instrs do
-      if answer <> Purity.Impure then
-        let! one =
-          match i with
-          | LoadVal(_, DApplicable a) -> ofApplicable state (depth + 1) a
-          | LoadVal(_, v) when LibExecution.Dval.isInertData v -> Ply Purity.Pure
-          | LoadVal _ -> Ply Purity.Unknown
-          | CreateLambda(_, inner) -> ofLambdaBody state (depth + 1) inner
-          | LoadValue(_, FQValueName.Package v) ->
+    return!
+      instrs
+      |> Ply.List.foldSequentially
+        (fun answer i ->
+          if answer = Purity.Impure then
+            Ply answer
+          else
             uply {
-              match! state.values.package v with
-              | Some pv ->
-                match pv.body with
-                | DApplicable a -> return! ofApplicable state (depth + 1) a
-                | _ when pv.isInert -> return Purity.Pure
-                | _ -> return Purity.Unknown
-              | None -> return Purity.Unknown
-            }
-          | LoadValue _ -> Ply Purity.Unknown
-          | Apply(_, target, _, _) when
-            (Set.contains target loaded || Set.contains target captured)
-            && not (Set.contains target otherwise)
-            ->
-            Ply Purity.Pure
-          | Apply _
-          | VarNotFound _ -> Ply Purity.Unknown
-          | _ -> Ply Purity.Pure
-        answer <- both answer one
-    return answer
+              let! one =
+                match i with
+                | LoadVal(_, DApplicable a) -> ofApplicable state (depth + 1) a
+                | LoadVal(_, v) when LibExecution.Dval.isInertData v ->
+                  Ply Purity.Pure
+                | LoadVal _ -> Ply Purity.Unknown
+                | CreateLambda(_, inner) -> ofLambdaBody state (depth + 1) inner
+                | LoadValue(_, FQValueName.Package v) ->
+                  uply {
+                    match! state.values.package v with
+                    | Some pv ->
+                      match pv.body with
+                      | DApplicable a -> return! ofApplicable state (depth + 1) a
+                      | _ when pv.isInert -> return Purity.Pure
+                      | _ -> return Purity.Unknown
+                    | None -> return Purity.Unknown
+                  }
+                | LoadValue _ -> Ply Purity.Unknown
+                | Apply(_, target, _, _) when
+                  (Set.contains target loaded || Set.contains target captured)
+                  && not (Set.contains target otherwise)
+                  ->
+                  Ply Purity.Pure
+                | Apply _
+                | VarNotFound _ -> Ply Purity.Unknown
+                | _ -> Ply Purity.Pure
+              return both answer one
+            })
+        Purity.Pure
   }
 
 /// The prediction for spreading `app` over `items`. The items are its arguments, so they are
@@ -618,14 +634,13 @@ and private spreadChunks
   let chunks =
     let baseSize = count / chunkCount
     let extra = count % chunkCount
-    let mutable rest = items
-    let mutable offset = 0
-    [ for i in 0 .. chunkCount - 1 do
-        let size = baseSize + (if i < extra then 1 else 0)
+    List.init chunkCount (fun i -> baseSize + (if i < extra then 1 else 0))
+    |> List.mapFold
+      (fun (offset, rest) size ->
         let chunk, after = List.splitAt size rest
-        yield struct (offset, chunk)
-        offset <- offset + size
-        rest <- after ]
+        struct (offset, chunk), (offset + size, after))
+      (0, items)
+    |> fst
 
   let sched = Sched.Scheduler.CurrentOrShared
   let me = Sched.Scheduler.CurrentProcess
@@ -675,32 +690,35 @@ and private spreadChunks
     )
     |> ignore<Task>
 
+  // The chunks' results in order, up to the first that failed, and where that one is (-1 if none).
+  let rec collect (i : int) (acc : List<List<Dval>>) : Ply<List<List<Dval>> * int> =
+    if i >= procs.Length then
+      Ply((List.rev acc, -1))
+    else
+      uply {
+        let struct (_, _, p) = procs[i]
+        match me with
+        | Some m -> m.parkHint <- ValueSome(Sched.OnProcess p.id)
+        | None -> ()
+        let! result = p.completion.Task
+        sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
+        // What the chunk spent counts against the process that asked for it, so a per-process cap
+        // (`exec.maxInstructions`, `exec.maxBytes`) caps a spread map as it caps a serial one.
+        match me with
+        | Some m ->
+          m.instructionsTaken <- m.instructionsTaken + p.instructionsTaken
+          m.allocated <- m.allocated + p.allocated
+        | None -> ()
+        // And what it counted, here on this VM's thread, once the chunk is done. A chunk that
+        // failed is counted too, since it ran; one cancelled below is not, being still unfinished.
+        vm.stats.AddChunk p.vm.stats
+        match result with
+        | Ok(DList(_, xs)) -> return! collect (i + 1) (xs :: acc)
+        | _ -> return (List.rev acc, i)
+      }
+
   uply {
-    let results = ResizeArray<List<Dval>>()
-    let mutable i = 0
-    let mutable failedAt = -1
-    while failedAt < 0 && i < procs.Length do
-      let struct (_, _, p) = procs[i]
-      match me with
-      | Some m -> m.parkHint <- ValueSome(Sched.OnProcess p.id)
-      | None -> ()
-      let! result = p.completion.Task
-      sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
-      // What the chunk spent counts against the process that asked for it, so a per-process cap
-      // (`exec.maxInstructions`, `exec.maxBytes`) caps a spread map as it caps a serial one.
-      match me with
-      | Some m ->
-        m.instructionsTaken <- m.instructionsTaken + p.instructionsTaken
-        m.allocated <- m.allocated + p.allocated
-      | None -> ()
-      // And what it counted, here on this VM's thread, once the chunk is done. A chunk that
-      // failed is counted too, since it ran; one cancelled below is not, being still unfinished.
-      vm.stats.AddChunk p.vm.stats
-      match result with
-      | Ok(DList(_, xs)) ->
-        results.Add xs
-        i <- i + 1
-      | _ -> failedAt <- i
+    let! results, failedAt = collect 0 []
 
     // Asked to stop while it waited (`Cancel`, `Kill`, a parent finishing): the chunks failed
     // because they were stopped with it, and running the rest here would be doing exactly the

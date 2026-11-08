@@ -21,6 +21,7 @@ let renameFunctions
   // A rename can name a function that is itself the target of an earlier rename, so look in what
   // this fold has produced before falling back to the real ones. Merging the two maps to ask would
   // rebuild the whole table once per rename.
+  // Mutable for allocation on a hot path: every startup runs this over every builtin.
   let existingByName = Dictionary<FQFnName.Builtin, BuiltInFn>()
   existing |> List.iter (fun fn -> existingByName[fn.name] <- fn)
 
