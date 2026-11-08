@@ -28,7 +28,7 @@ let moveRows(fromRow: Int64, toRow: Int64): String =
 /// Clearing before writing preserves the final cell of full-width content.
 /// Resets prevent background colors and row styling from leaking.
 let renderContentAtWidth(width: Int64, content: String): String =
-  let content = Text.normalizeToWidth(content, width)
+  let content = Text.clipToWidth(content, width)
   "\r\u001b[0m\u001b[K" + content + "\u001b[0m"
 
 

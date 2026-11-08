@@ -118,12 +118,12 @@ test textNeverSplitsAWideGlyph =
 
 test textDropsNonSgrEscapes =
   // A cursor-forward escape in dynamic content must not survive into a row: rows are text, not commands.
-  let normalized = Stdlib.Cli.Tui.Text.normalizeToWidth("a\u001b[5Cb", 10)
+  let clipped = Stdlib.Cli.Tui.Text.clipToWidth("a\u001b[5Cb", 10)
 
-  if normalized == "ab" then
+  if clipped == "ab" then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected non-SGR escapes to be stripped, got '{normalized}'")
+    Stdlib.Test.fail($"Expected non-SGR escapes to be stripped, got '{clipped}'")
 
 
 test textWrapReappliesStyleAcrossRows =

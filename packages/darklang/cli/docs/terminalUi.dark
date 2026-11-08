@@ -140,8 +140,8 @@ across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ
 
 ## Safety and degradation
 
-- Dynamic content is sanitized on the way out: clipping a row (`Text.normalizeToWidth` ->
-  `clipToWidth`, native) keeps only numeric SGR and discards every other CSI, and anything else that
+- Dynamic content is sanitized on the way out: clipping a row (`Text.clipToWidth`,
+  native) keeps only numeric SGR and discards every other CSI, and anything else that
   looks like an escape loses its ESC byte and renders as ordinary text. So a package name or
   description can't move your cursor or reset your terminal. The renderer is the single boundary.
 - `TerminalSession.armRestoreGuard` registers a restore sequence with the host before entering a

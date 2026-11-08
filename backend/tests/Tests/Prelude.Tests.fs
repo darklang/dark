@@ -277,11 +277,7 @@ let textWidthTests =
           // VS16 asks for emoji presentation, so two columns
           "♥️", 2
           "·", 1
-          "A界🙂e\u0301", 6 ]
-      testMany
-        "containsControl"
-        TextWidth.containsControl
-        [ "plain界", false; "before\u001b[2Jafter", true; "tab\there", true ] ]
+          "A界🙂e\u0301", 6 ] ]
 
 
 let ansiTests =

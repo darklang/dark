@@ -11,12 +11,6 @@
 module Darklang.Stdlib.Cli.Tui.Text
 
 
-/// Measure a row and report whether it holds control characters. The width is only meaningful when
-/// the flag is false, and the two come back together because the frame fast path wants both.
-let inspect(text: String): (Int64 * Bool) =
-  Builtin.cliTerminalInspectRow(text)
-
-
 /// Terminal columns occupied by a row that may carry SGR styling.
 let styledWidth(text: String): Int64 =
   Builtin.cliTerminalStyledWidth(text)
@@ -58,18 +52,6 @@ let wrapAtColumn(text: String, maxWidth: Int64): List<String> =
 /// column zero of the next row, matching what the terminal does.
 let positionAfter(text: String, maxWidth: Int64): (Int64 * Int64) =
   Builtin.cliTerminalPositionAfter(text, maxWidth)
-
-
-/// Clip, but skip the work for a row already plain and within bounds. That is the common case, and
-/// it costs one measurement.
-let normalizeToWidth(text: String, maxWidth: Int64): String =
-  let width = Stdlib.max(0, maxWidth)
-  let (measuredWidth, containsControl) = inspect(text)
-
-  if Stdlib.Bool.not(containsControl) && measuredWidth <= width then
-    text
-  else
-    clipToWidth(text, width)
 
 
 /// Pad or clip text to exactly the requested terminal-column width.
