@@ -6,101 +6,131 @@
 ///
 /// Native because each of these walks a row a character at a time, and a Dark loop pays a builtin
 /// call per character. Layout above the level of one row stays in Dark, measuring whole spans.
+///
+/// Each walk is a module-level tail-recursive function over its index and state. The compiler turns
+/// a self tail call into a jump, so it runs as the same loop a `mutable` version would, with no
+/// closure. Output rows are still built in a StringBuilder, one cluster at a time.
 module Builtins.Cli.Libs.TerminalText
+
+open System.Text
 
 /// The byte that terminates a CSI sequence.
 let inline private isCsiFinal (c : char) = c >= '@' && c <= '~'
 
+/// A printable ASCII character followed by another ASCII character cannot be part of a longer
+/// grapheme cluster, so it is exactly one column and needs no cluster extracted. The only
+/// multi-character ASCII cluster is CRLF, and both of its halves are control characters, which
+/// callers catch first. `TextWidth.ofCluster` already fast-paths the *width* of an ASCII cluster;
+/// this skips building the cluster at all, which `GetNextTextElement` does one allocation per
+/// character.
+let inline private isPlainAscii (text : string) (i : int) =
+  let c = text[i]
+  c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
+
+
+/// The index just past the CSI final byte at or after `j`, or the end of the text if there is none.
+let rec private csiEnd (text : string) (j : int) : int =
+  if j >= text.Length then text.Length
+  elif isCsiFinal text[j] then j + 1
+  else csiEnd text (j + 1)
 
 /// Skip one escape or control character at `i`. Like `skipEscape` but without deciding whether the
 /// sequence is SGR: `styledWidth` and `stripSgr` discard it, so the per-character IsDigit scan is
 /// wasted there. Returns the same index.
 let private skipEscapeOnly (text : string) (i : int) : int =
-  let len = text.Length
+  if i + 1 < text.Length && text[i + 1] = '[' then csiEnd text (i + 2) else i + 1
 
-  if i + 1 < len && text[i + 1] = '[' then
-    let mutable j = i + 2
-    let mutable ended = false
-    while j < len && not ended do
-      if isCsiFinal text[j] then ended <- true else j <- j + 1
-    if ended then j + 1 else len
+
+/// `csiEnd`, also saying whether the sequence is SGR: only digits, `;` and `:` before a final `m`.
+let rec private sgrCsiEnd
+  (text : string)
+  (j : int)
+  (validParams : bool)
+  : struct (int * bool) =
+  if j >= text.Length then
+    struct (text.Length, false)
   else
-    i + 1
+    let c = text[j]
+    if isCsiFinal c then
+      struct (j + 1, validParams && c = 'm')
+    else
+      sgrCsiEnd
+        text
+        (j + 1)
+        (validParams && (System.Char.IsDigit c || c = ';' || c = ':'))
 
-
-/// Skip one escape or control character at `i`, returning the next index.
+/// Skip one escape or control character at `i`, returning the next index and whether the skipped
+/// span is an SGR sequence worth preserving.
 ///
-/// `keep` receives the START and LENGTH of an SGR sequence worth preserving. Everything else is
-/// dropped: a non-SGR CSI whole, a non-CSI escape just its ESC byte, so ordinary text after it stays
-/// visible.
-///
-/// Bounds rather than a string: two of the four callers discard the sequence, and this runs once
-/// per escape per frame.
-let private skipEscape (text : string) (i : int) (keep : int -> int -> unit) : int =
-  let len = text.Length
-
-  if i + 1 < len && text[i + 1] = '[' then
-    let mutable j = i + 2
-    let mutable validParams = true
-    let mutable ended = false
-    while j < len && not ended do
-      let c = text[j]
-      if isCsiFinal c then
-        ended <- true
-      else
-        if not (System.Char.IsDigit c || c = ';' || c = ':') then
-          validParams <- false
-        j <- j + 1
-    if ended && text[j] = 'm' && validParams then keep i (j - i + 1)
-    if ended then j + 1 else len
+/// Everything else is dropped: a non-SGR CSI whole, a non-CSI escape just its ESC byte, so ordinary
+/// text after it stays visible. A caller that keeps the SGR reads it as `text[i .. next - 1]`.
+let private skipEscape (text : string) (i : int) : struct (int * bool) =
+  if i + 1 < text.Length && text[i + 1] = '[' then
+    sgrCsiEnd text (i + 2) true
   else
-    i + 1
+    struct (i + 1, false)
+
+
+let rec private widthFrom (text : string) (i : int) (total : int) : int =
+  if i >= text.Length then
+    total
+  elif text[i] = '\u001b' then
+    widthFrom text (skipEscapeOnly text i) total
+  elif System.Char.IsControl text[i] then
+    widthFrom text (i + 1) total
+  elif isPlainAscii text i then
+    widthFrom text (i + 1) (total + 1)
+  else
+    let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+    widthFrom text (i + cluster.Length) (total + TextWidth.ofCluster cluster)
 
 /// Terminal columns occupied by a row that may carry SGR styling.
 ///
 /// `TextWidth.ofString` only means anything on control-free text; this skips the escapes for you.
-let styledWidth (text : string) : int =
-  let mutable total = 0
-  let mutable i = 0
+let styledWidth (text : string) : int = widthFrom text 0 0
 
-  while i < text.Length do
-    let c = text[i]
-    if c = '\u001b' then
-      i <- skipEscapeOnly text i
-    elif System.Char.IsControl c then
-      i <- i + 1
-    // A printable ASCII character followed by another ASCII character cannot be part of a longer
-    // grapheme cluster, so it is exactly one column and needs no cluster extracted. The only
-    // multi-character ASCII cluster is CRLF, and both of its halves are control characters caught
-    // above. `TextWidth.ofCluster` already fast-paths the *width* of an ASCII cluster; this skips
-    // building the cluster at all, which `GetNextTextElement` does one allocation per character.
-    elif
-      c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
-    then
-      total <- total + 1
-      i <- i + 1
+
+let rec private appendVisible
+  (text : string)
+  (out : StringBuilder)
+  (i : int)
+  : unit =
+  if i < text.Length then
+    if text[i] = '\u001b' then
+      appendVisible text out (skipEscapeOnly text i)
+    elif System.Char.IsControl text[i] then
+      appendVisible text out (i + 1)
     else
-      let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
-      total <- total + TextWidth.ofCluster cluster
-      i <- i + cluster.Length
-
-  total
+      out.Append(text[i]) |> ignore<StringBuilder>
+      appendVisible text out (i + 1)
 
 /// Drop all styling and control sequences, leaving the text a reader would see.
 let stripSgr (text : string) : string =
-  let out = System.Text.StringBuilder()
-  let mutable i = 0
-
-  while i < text.Length do
-    if text[i] = '\u001b' then
-      i <- skipEscapeOnly text i
-    elif System.Char.IsControl text[i] then
-      i <- i + 1
-    else
-      out.Append(text[i]) |> ignore<System.Text.StringBuilder>
-      i <- i + 1
-
+  let out = StringBuilder()
+  appendVisible text out 0
   out.ToString()
+
+
+let rec private appendClipped
+  (text : string)
+  (out : StringBuilder)
+  (i : int)
+  (remaining : int)
+  : unit =
+  if i < text.Length && remaining > 0 then
+    if text[i] = '\u001b' then
+      let struct (next, sgr) = skipEscape text i
+      if sgr then out.Append(text, i, next - i) |> ignore<StringBuilder>
+      appendClipped text out next remaining
+    elif System.Char.IsControl text[i] then
+      appendClipped text out (i + 1) remaining
+    else
+      let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+      let width = TextWidth.ofCluster cluster
+      // A cluster that doesn't fit ends the row: a double-width one is never split in half.
+      if width <= remaining then
+        out.Append(cluster) |> ignore<StringBuilder>
+        appendClipped text out (i + cluster.Length) (remaining - width)
 
 /// Clip a row to `maxWidth` columns, keeping SGR and dropping everything else.
 ///
@@ -110,29 +140,114 @@ let clipToWidth (text : string) (maxWidth : int) : string =
   if maxWidth <= 0 then
     ""
   else
-    let out = System.Text.StringBuilder()
-    let append (v : string) = out.Append(v) |> ignore<System.Text.StringBuilder>
-    let keepSgr (start : int) (len : int) =
-      out.Append(text, start, len) |> ignore<System.Text.StringBuilder>
-    let mutable remaining = maxWidth
-    let mutable i = 0
-
-    while i < text.Length && remaining > 0 do
-      if text[i] = '\u001b' then
-        i <- skipEscape text i keepSgr
-      elif System.Char.IsControl text[i] then
-        i <- i + 1
-      else
-        let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
-        let width = TextWidth.ofCluster cluster
-        if width > remaining then
-          remaining <- 0
-        else
-          append cluster
-          remaining <- remaining - width
-          i <- i + cluster.Length
-
+    let out = StringBuilder()
+    appendClipped text out 0 maxWidth
     out.ToString()
+
+
+/// One step of `wrapAtColumn`. `current` is the row being built, `completed` the rows before it,
+/// newest first. `lastSpaceEnd` is where the row could break at a word boundary: the builder index
+/// just past the last space, with `widthAtSpaceEnd` the display width up to and including it, and -1
+/// when the row has no space yet.
+let rec private wrapFrom
+  (text : string)
+  (width : int)
+  (current : StringBuilder)
+  (completed : string list)
+  (activeStyle : string)
+  (currentWidth : int)
+  (wrapPending : bool)
+  (lastSpaceEnd : int)
+  (widthAtSpaceEnd : int)
+  (i : int)
+  : string list =
+  if i >= text.Length then
+    List.rev (current.ToString() :: completed)
+  elif text[i] = '\u001b' then
+    let struct (next, sgr) = skipEscape text i
+    let activeStyle =
+      if sgr then
+        let kept = text.Substring(i, next - i)
+        current.Append(kept) |> ignore<StringBuilder>
+        // A full reset clears the accumulated styling; anything else retained appends to it.
+        if kept = "\u001b[0m" then "" else activeStyle + kept
+      else
+        activeStyle
+    wrapFrom
+      text
+      width
+      current
+      completed
+      activeStyle
+      currentWidth
+      wrapPending
+      lastSpaceEnd
+      widthAtSpaceEnd
+      next
+  elif System.Char.IsControl text[i] then
+    wrapFrom
+      text
+      width
+      current
+      completed
+      activeStyle
+      currentWidth
+      wrapPending
+      lastSpaceEnd
+      widthAtSpaceEnd
+      (i + 1)
+  else
+    let plain = isPlainAscii text i
+    let cluster =
+      if plain then
+        ""
+      else
+        System.Globalization.StringInfo.GetNextTextElement(text, i)
+    let charWidth = if plain then 1 else TextWidth.ofCluster cluster
+    let shouldWrap =
+      wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
+
+    let struct (completed, currentWidth, lastSpaceEnd, widthAtSpaceEnd) =
+      if not shouldWrap then
+        struct (completed, currentWidth, lastSpaceEnd, widthAtSpaceEnd)
+      // Break at the row's last space when one exists (and it is not the very end, which would
+      // carry nothing): the head keeps everything before the space, the tail moves down with the
+      // active styling restated. A row with no space -- one word wider than the pane -- still
+      // breaks at the column.
+      elif lastSpaceEnd > activeStyle.Length && lastSpaceEnd < current.Length then
+        let whole = current.ToString()
+        let head = whole.Substring(0, lastSpaceEnd - 1) // drop the break space itself
+        let tail = whole.Substring(lastSpaceEnd)
+        current.Clear().Append(activeStyle).Append(tail) |> ignore<StringBuilder>
+        struct (head :: completed, currentWidth - widthAtSpaceEnd, -1, 0)
+      else
+        let row = current.ToString()
+        current.Clear().Append(activeStyle) |> ignore<StringBuilder>
+        struct (row :: completed, 0, -1, 0)
+
+    if plain then
+      current.Append(text[i]) |> ignore<StringBuilder>
+    else
+      current.Append(cluster) |> ignore<StringBuilder>
+
+    let currentWidth = currentWidth + charWidth
+    let struct (lastSpaceEnd, widthAtSpaceEnd) =
+      if plain && text[i] = ' ' then
+        struct (current.Length, currentWidth)
+      else
+        struct (lastSpaceEnd, widthAtSpaceEnd)
+
+    wrapFrom
+      text
+      width
+      current
+      completed
+      activeStyle
+      currentWidth
+      (currentWidth >= width)
+      lastSpaceEnd
+      widthAtSpaceEnd
+      (i + (if plain then 1 else cluster.Length))
 
 /// Break a row into terminal-width rows at the column, keeping any styling it carries.
 ///
@@ -141,104 +256,37 @@ let clipToWidth (text : string) (maxWidth : int) : string =
 /// prefers the last space in the row, and falls back to the exact column only for a word wider than
 /// the whole row. Empty input yields one empty row.
 let wrapAtColumn (text : string) (maxWidth : int) : string list =
-  let width = max 1 maxWidth
-  let completed = ResizeArray<string>()
-  let current = System.Text.StringBuilder()
-  let mutable activeStyle = ""
-  let mutable currentWidth = 0
-  let mutable wrapPending = false
-  // Where the row could break at a word boundary: the builder index just past the last space, and
-  // the display width consumed up to and including it. -1 = no space in this row yet.
-  let mutable lastSpaceEnd = -1
-  let mutable widthAtSpaceEnd = 0
-  let mutable i = 0
+  wrapFrom text (max 1 maxWidth) (StringBuilder()) [] "" 0 false -1 0 0
 
-  while i < text.Length do
-    if text[i] = '\u001b' then
-      let mutable kept = ""
-      let next =
-        skipEscape text i (fun start len -> kept <- text.Substring(start, len))
-      // A full reset clears the accumulated styling; anything else retained appends to it.
-      if kept = "\u001b[0m" then activeStyle <- ""
-      elif kept <> "" then activeStyle <- activeStyle + kept
-      current.Append(kept) |> ignore<System.Text.StringBuilder>
-      i <- next
-    elif System.Char.IsControl text[i] then
-      i <- i + 1
-    else
-      let c = text[i]
-      // ASCII fast path: same rule and reason as in `styledWidth`.
-      let plain =
-        c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
-      let cluster =
-        if plain then
-          ""
-        else
-          System.Globalization.StringInfo.GetNextTextElement(text, i)
-      let charWidth = if plain then 1 else TextWidth.ofCluster cluster
-      let shouldWrap =
-        wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
 
-      if shouldWrap then
-        // Break at the row's last space when one exists (and it is not the very end, which would
-        // carry nothing): the head keeps everything before the space, the tail moves down with the
-        // active styling restated. A row with no space -- one word wider than the pane -- still
-        // breaks at the column.
-        if lastSpaceEnd > activeStyle.Length && lastSpaceEnd < current.Length then
-          let whole = current.ToString()
-          let head = whole.Substring(0, lastSpaceEnd - 1) // drop the break space itself
-          let tail = whole.Substring(lastSpaceEnd)
-          completed.Add head
-          current.Clear() |> ignore<System.Text.StringBuilder>
-          current.Append(activeStyle) |> ignore<System.Text.StringBuilder>
-          current.Append(tail) |> ignore<System.Text.StringBuilder>
-          currentWidth <- currentWidth - widthAtSpaceEnd
-        else
-          completed.Add(current.ToString())
-          current.Clear() |> ignore<System.Text.StringBuilder>
-          current.Append(activeStyle) |> ignore<System.Text.StringBuilder>
-          currentWidth <- 0
-
-        lastSpaceEnd <- -1
-        widthAtSpaceEnd <- 0
-
-      if plain then
-        current.Append(c) |> ignore<System.Text.StringBuilder>
-      else
-        current.Append(cluster) |> ignore<System.Text.StringBuilder>
-
-      currentWidth <- currentWidth + charWidth
-
-      if plain && c = ' ' then
-        lastSpaceEnd <- current.Length
-        widthAtSpaceEnd <- currentWidth
-
-      wrapPending <- currentWidth >= width
-      i <- i + (if plain then 1 else cluster.Length)
-
-  completed.Add(current.ToString())
-  List.ofSeq completed
+let rec private positionFrom
+  (text : string)
+  (width : int)
+  (row : int)
+  (column : int)
+  (wrapPending : bool)
+  (i : int)
+  : int * int =
+  if i >= text.Length then
+    if wrapPending then (row + 1, 0) else (row, column)
+  else
+    let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+    let charWidth = TextWidth.ofCluster cluster
+    let startRow = if wrapPending then row + 1 else row
+    let startColumn = if wrapPending then 0 else column
+    let shouldWrap = startColumn > 0 && startColumn + charWidth > width
+    let column = if shouldWrap then charWidth else startColumn + charWidth
+    positionFrom
+      text
+      width
+      (if shouldWrap then startRow + 1 else startRow)
+      column
+      (column >= width)
+      (i + cluster.Length)
 
 /// Zero-based cursor position immediately after plain text.
 ///
 /// A cursor exactly past the final column is reported at column zero of the next row, matching what
 /// the terminal does. Plain text only: callers pass an already-stripped prompt prefix.
 let positionAfter (text : string) (maxWidth : int) : int * int =
-  let width = max 1 maxWidth
-  let mutable row = 0
-  let mutable column = 0
-  let mutable wrapPending = false
-  let mutable i = 0
-
-  while i < text.Length do
-    let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
-    let charWidth = TextWidth.ofCluster cluster
-    let startRow = if wrapPending then row + 1 else row
-    let startColumn = if wrapPending then 0 else column
-    let shouldWrap = startColumn > 0 && startColumn + charWidth > width
-    row <- if shouldWrap then startRow + 1 else startRow
-    column <- if shouldWrap then charWidth else startColumn + charWidth
-    wrapPending <- column >= width
-    i <- i + cluster.Length
-
-  if wrapPending then (row + 1, 0) else (row, column)
+  positionFrom text (max 1 maxWidth) 0 0 false 0
