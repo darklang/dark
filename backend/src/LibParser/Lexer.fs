@@ -129,7 +129,7 @@ let unescape (source : string) : string =
           builder.Append source[index] |> ignore
           index <- index + 1
       builder.ToString()
-  decoded.Normalize()
+  String.normalize decoded
 
 /// Does the raw inner text of a regular string/char contain an invalid escape?
 let hasInvalidEscape (content : string) : bool =
@@ -951,7 +951,7 @@ let tokenize
           let (spannedToken, nextIndex, nextPosition) =
             emit
               (TStringLit(
-                (input.Substring(index + 3, endIndex - index - 6)).Normalize()
+                String.normalize (input.Substring(index + 3, endIndex - index - 6))
               ))
               index
               endIndex
@@ -962,7 +962,9 @@ let tokenize
           let (spannedToken, nextIndex, nextPosition) =
             emit
               (TStringLit(
-                (input.Substring(index + 3, inputLength - index - 3)).Normalize()
+                String.normalize (
+                  input.Substring(index + 3, inputLength - index - 3)
+                )
               ))
               index
               inputLength

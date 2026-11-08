@@ -204,14 +204,12 @@ let private isFinalSigma (runes : Rune[]) (i : int) : bool =
 
 
 /// Map each scalar of <paramref name="s"/> to a string, given the whole sequence for
-/// context, then normalize the result, as string literals are. In the shipped CLI that
-/// normalization does nothing, since it is built with `InvariantGlobalization=true`,
-/// so a mapping that leaves a letter and marks keeps them apart: `ΐ` uppercases to
-/// `Ι` and two combining marks, not to a composed form.
+/// context, then normalize the result, as string literals are, so a mapping that leaves a
+/// letter and marks composes them where Unicode has a composed form.
 let private mapScalars (f : Rune[] -> int -> string) (s : string) : string =
   let runes = s.EnumerateRunes() |> Array.ofSeq
   let mapped = Array.init runes.Length (f runes)
-  System.String.Concat(mapped).Normalize()
+  System.String.Concat(mapped) |> String.normalize
 
 
 /// `Stdlib.String.toUppercase`: the full mapping, so the result can be longer.

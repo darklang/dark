@@ -105,22 +105,20 @@ test mapReplacesEveryCharacter =
 test appendOperator =
   Stdlib.Test.all(
     [ ("" + "") |> Stdlib.Test.equal("")
-      // CLEANUP: Re-enable these NFC assertions after setting InvariantGlobalization=false
-      // in the CLI and Wasm builds and verifying ICU packaging. Invariant mode skips normalization.
-      // ("a" + "̂") |> Stdlib.Test.equal "â"
+      ("a" + "̂") |> Stdlib.Test.equal("â")
       ("hello" + " world") |> Stdlib.Test.equal("hello world")
-      // ("ᄀ" + "ᅡᆨ") |> Stdlib.Test.equal "각"
+      ("ᄀ" + "ᅡᆨ") |> Stdlib.Test.equal("각")
       ("" + "a") |> Stdlib.Test.equal("a")
       ("a" + "") |> Stdlib.Test.equal("a") ])
 
 test append =
   Stdlib.Test.all(
-    [ //Stdlib.String.append "a" "̂" = "â"
+    [ Stdlib.String.append("a", "̂") |> Stdlib.Test.equal("â")
       Stdlib.String.append("", "") |> Stdlib.Test.equal("")
       Stdlib.String.append("hello", " world") |> Stdlib.Test.equal("hello world")
       // Stdlib.String.append works for ASCII range
       Stdlib.String.append("hello", "world") |> Stdlib.Test.equal("helloworld")
-      //Stdlib.String.append "ᄀ" "ᅡᆨ" = "각"
+      Stdlib.String.append("ᄀ", "ᅡᆨ") |> Stdlib.Test.equal("각")
       // Stdlib.String.append works on non-ascii strings
       Stdlib.String.append("żółw", "😄") |> Stdlib.Test.equal("żółw😄")
       Stdlib.String.append("🧑🏼‍💻", "🧑🏻‍🍼") |> Stdlib.Test.equal("🧑🏼‍💻🧑🏻‍🍼")
@@ -134,10 +132,9 @@ test append =
 test join =
   Stdlib.Test.all(
     [ Stdlib.String.join([ "a", "b", "c", "d" ], "|") |> Stdlib.Test.equal("a|b|c|d")
-      // CLEANUP: Re-enable after setting InvariantGlobalization=false in CLI and Wasm
-      // and verifying ICU packaging; this checks NFC composition across joined strings.
-      // Stdlib.String.join [ "a", "̂" ] ""
-      // |> Stdlib.Base64.urlEncodeTextUnpadded |> Stdlib.Test.equal "w6I"
+      Stdlib.String.join([ "a", "̂" ], "")
+      |> Stdlib.Base64.urlEncodeTextUnpadded
+      |> Stdlib.Test.equal("w6I")
       Stdlib.String.join([ "hello", " world" ], "") |> Stdlib.Test.equal("hello world")
       Stdlib.String.join([ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽", "🧟‍♀️" ], "")
       |> Stdlib.Test.equal("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️")
@@ -589,7 +586,9 @@ test replaceAll =
       Stdlib.String.replaceAll("👩‍👩‍👧", "👧", "x") |> Stdlib.Test.equal("👩‍👩‍👧")
       Stdlib.String.replaceAll("🇵🇷🇺🇸", "🇷🇺", "x") |> Stdlib.Test.equal("🇵🇷🇺🇸")
       Stdlib.String.replaceAll("🇵🇷🇺🇸🇵🇷", "🇵🇷", "x") |> Stdlib.Test.equal("x🇺🇸x")
-      Stdlib.String.replaceAll(decomposedEx(), "e", "a") |> Stdlib.Test.equal(decomposedEx())
+      // The `e` under the accent is not a whole character, so it stays; the result is
+      // normalized, so it comes back composed.
+      Stdlib.String.replaceAll(decomposedEx(), "e", "a") |> Stdlib.Test.equal("e" + acute() + "x")
       Stdlib.String.replaceAll(decomposedEx(), "x", "y") |> Stdlib.String.length |> Stdlib.Test.equal(2)
       Stdlib.String.replaceAll("éxé", "é", "a") |> Stdlib.Test.equal("axa")
       Stdlib.String.replaceAll("<p>👍🏽</p>", "<", "[") |> Stdlib.Test.equal("[p>👍🏽[/p>")
@@ -1112,9 +1111,10 @@ test head =
   Stdlib.Test.all(
     [ Stdlib.String.head("hello world") |> Stdlib.Test.equal(Some('h'))
       Stdlib.String.head("") |> Stdlib.Test.equal(None)
+      // The whole cluster, as it is in the text: `e` and the accent, not composed.
       Stdlib.String.head(decomposedEx())
-      |> Stdlib.Option.map(Stdlib.String.fromChar)
-      |> Stdlib.Test.equal(Some("e" + acute())) ])
+      |> Stdlib.Option.map(fun c -> Stdlib.Utf8.encode(Stdlib.String.fromChar(c)) |> Stdlib.Bytes.toList)
+      |> Stdlib.Test.equal(Some([ 101u8, 204u8, 129u8 ])) ])
 
 test charAt =
   Stdlib.Test.all(
@@ -1256,14 +1256,17 @@ module MapEffects =
         'c')
     (value, Stdlib.Test.counterValue()) |> Stdlib.Test.equal(("cccccccc", 8))
 
-// CLEANUP: Re-enable after setting InvariantGlobalization=false in CLI and Wasm
-// and verifying ICU packaging. These byte assertions require NFC composition.
-// test appendComposesUnicode =
-//   Stdlib.Test.all
-//     [ Stdlib.String.append "a" "̂" |> Stdlib.Utf8.encode
-//       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [195u8, 162u8]
-//       Stdlib.String.append "ᄀ" "ᅡᆨ" |> Stdlib.Utf8.encode
-//       |> Stdlib.Bytes.toList |> Stdlib.Test.equal [234u8, 176u8, 129u8] ]
+// Appending composes: the bytes are the composed characters'.
+test appendComposesUnicode =
+  Stdlib.Test.all(
+    [ Stdlib.String.append("a", "̂")
+      |> Stdlib.Utf8.encode
+      |> Stdlib.Bytes.toList
+      |> Stdlib.Test.equal([ 195u8, 162u8 ])
+      Stdlib.String.append("ᄀ", "ᅡᆨ")
+      |> Stdlib.Utf8.encode
+      |> Stdlib.Bytes.toList
+      |> Stdlib.Test.equal([ 234u8, 176u8, 129u8 ]) ])
 
 // head returns the whole grapheme cluster.
 test headUsesWholeGraphemes =

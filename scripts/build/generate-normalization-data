@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Writes backend/src/Prelude/NormalizationData.fs, the Unicode tables `Normalization` reads.
+
+    scripts/build/generate-normalization-data [<dir with UnicodeData.txt and DerivedNormalizationProps.txt>]
+
+Without a directory it downloads the two files for VERSION from unicode.org.
+
+VERSION is the Unicode version of the ICU in the dev container (ICU 74 is Unicode 15.1), so the
+tests can compare against `String.Normalize` there codepoint by codepoint. Moving it forward is
+safe: Unicode never changes the normal form of a character it has already assigned.
+
+Everything is worked out here and written as sorted arrays of constants, which the compiler stores
+as data. So the first string that needs the tables costs nothing to load them, where parsing text
+and building dictionaries at that point cost 0.09 billion CPU instructions.
+"""
+import os
+import sys
+import urllib.request
+
+VERSION = "15.1.0"
+OUT = os.path.join(
+  os.path.dirname(os.path.abspath(__file__)), "..", "..", "backend", "src", "Prelude",
+  "NormalizationData.fs")
+
+# The bits of a `propertyValues` entry above the combining class: each says the quick check for
+# that form fails on the codepoint (UAX #15 section 9), with No or Maybe.
+FAILS = {"NFD_QC": 0x100, "NFKD_QC": 0x200, "NFC_QC": 0x400, "NFKC_QC": 0x800}
+
+S_BASE, L_BASE, V_BASE, T_BASE = 0xAC00, 0x1100, 0x1161, 0x11A7
+L_COUNT, V_COUNT, T_COUNT = 19, 21, 28
+S_COUNT = L_COUNT * V_COUNT * T_COUNT
+
+
+def read(name, src):
+  if src:
+    with open(os.path.join(src, name), encoding="utf-8") as f:
+      return f.read()
+  with urllib.request.urlopen(f"https://www.unicode.org/Public/{VERSION}/ucd/{name}") as r:
+    return r.read().decode("utf-8")
+
+
+def codepoint_range(field):
+  first, _, last = field.partition("..")
+  return range(int(first, 16), int(last or first, 16) + 1)
+
+
+def main():
+  src = sys.argv[1] if len(sys.argv) > 1 else None
+
+  props = {}  # codepoint -> class | fail bits
+  excluded = set()
+  for line in read("DerivedNormalizationProps.txt", src).splitlines():
+    fields = [f.strip() for f in line.split("#")[0].split(";")]
+    if len(fields) >= 2 and fields[1] == "Full_Composition_Exclusion":
+      excluded.update(codepoint_range(fields[0]))
+    if len(fields) >= 3 and fields[1] in FAILS:
+      for cp in codepoint_range(fields[0]):
+        props[cp] = props.get(cp, 0) | FAILS[fields[1]]
+
+  canonical_one, compat_one = {}, {}  # one level deep, as UnicodeData has them
+  for line in read("UnicodeData.txt", src).splitlines():
+    fields = line.split(";")
+    cp = int(fields[0], 16)
+    if int(fields[3]):
+      props[cp] = props.get(cp, 0) | int(fields[3])
+    if fields[5]:
+      parts = fields[5].split()
+      if parts[0].startswith("<"):
+        compat_one[cp] = [int(p, 16) for p in parts[1:]]
+      else:
+        canonical_one[cp] = [int(p, 16) for p in parts]
+
+  def full(tables, cp):
+    for table in tables:
+      if cp in table:
+        return [d for c in table[cp] for d in full(tables, c)]
+    return [cp]
+
+  canonical = {cp: full([canonical_one], cp) for cp in canonical_one}
+  compat = {}
+  for cp in sorted(canonical_one.keys() | compat_one.keys()):
+    mapping = full([compat_one, canonical_one], cp)
+    if mapping != canonical.get(cp):
+      compat[cp] = mapping
+  compositions = {
+    (to[0] << 21) | to[1]: cp
+    for cp, to in canonical_one.items() if len(to) == 2 and cp not in excluded}
+
+  # Check the arithmetic Hangul rules against the file's quick-check values.
+  for cp in (S_BASE, S_BASE + S_COUNT - 1):
+    assert props[cp] & FAILS["NFD_QC"] and props[cp] & FAILS["NFKD_QC"]
+  for cp in (V_BASE, T_BASE + 1):
+    assert props[cp] & FAILS["NFC_QC"]
+
+  starts, values = [], []
+  for cp in range(0x110000):
+    value = props.get(cp, 0)
+    if not values or values[-1] != value:
+      starts.append(cp)
+      values.append(value)
+
+  def flat(table):
+    keys = sorted(table)
+    offsets, data = [], []
+    for cp in keys:
+      offsets.append(len(data))
+      data.extend(table[cp])
+    offsets.append(len(data))
+    return keys, offsets, data
+
+  def array(name, numbers, doc, suffix="", hexadecimal=True):
+    fmt = (lambda n: f"0x{n:X}{suffix}") if hexadecimal else (lambda n: f"{n}{suffix}")
+    rows = ["; ".join(fmt(n) for n in numbers[i:i + 12]) for i in range(0, len(numbers), 12)]
+    body = "\n     ".join(rows)
+    return (doc + "\n" if doc else "") + f"let {name} =\n  [| {body} |]\n"
+
+  canonical_keys, canonical_offsets, canonical_data = flat(canonical)
+  compat_keys, compat_offsets, compat_data = flat(compat)
+  pair_keys = sorted(compositions)
+
+  sections = [
+    f"""/// Unicode {VERSION} tables for `Normalization`, from UnicodeData.txt and
+/// DerivedNormalizationProps.txt. Written by scripts/build/generate-normalization-data: change
+/// that, not this.
+module NormalizationData
+
+let unicodeVersion = "{VERSION}"
+
+/// Bits of a `propertyValues` entry, above the combining class in the low byte: the quick check
+/// for that form fails on the codepoint (NFD_QC or NFKD_QC is No, NFC_QC or NFKC_QC No or Maybe).
+[<Literal>]
+let nfdFails = 0x{FAILS["NFD_QC"]:X}
+
+[<Literal>]
+let nfkdFails = 0x{FAILS["NFKD_QC"]:X}
+
+[<Literal>]
+let nfcFails = 0x{FAILS["NFC_QC"]:X}
+
+[<Literal>]
+let nfkcFails = 0x{FAILS["NFKC_QC"]:X}
+""",
+    array("propertyStarts", starts,
+          "/// Every codepoint's combining class and quick-check bits, by range: `propertyValues[i]`\n"
+          "/// holds from `propertyStarts[i]` up to the next start."),
+    array("propertyValues", values, ""),
+    array("canonicalKeys", canonical_keys,
+          "/// Full canonical decompositions, Hangul syllables aside: `canonicalKeys[i]` decomposes to\n"
+          "/// `canonicalData[canonicalOffsets[i] .. canonicalOffsets[i + 1] - 1]`."),
+    array("canonicalOffsets", canonical_offsets, "", hexadecimal=False),
+    array("canonicalData", canonical_data, ""),
+    array("compatibilityKeys", compat_keys,
+          "/// Full compatibility decompositions, laid out the same way, for the codepoints where they\n"
+          "/// differ from the canonical one."),
+    array("compatibilityOffsets", compat_offsets, "", hexadecimal=False),
+    array("compatibilityData", compat_data, ""),
+    array("compositionPairs", pair_keys,
+          "/// Primary composites, Hangul aside: the two codepoints `compositionPairs[i]` packs as\n"
+          "/// `first <<< 21 ||| second` compose to `compositionValues[i]`.", suffix="L"),
+    array("compositionValues", [compositions[k] for k in pair_keys], ""),
+  ]
+  text = "\n".join(sections)
+  with open(OUT, "w", encoding="utf-8", newline="\n") as f:
+    f.write(text)
+  print(f"{len(starts)} property ranges, {len(canonical)} canonical and {len(compat)} "
+        f"compatibility decompositions, {len(compositions)} compositions")
+
+
+main()

@@ -191,7 +191,8 @@ let startsWithEgcs (subject : string) (prefix : string) : bool =
       || (isSimple subject[p - 1] && isSimple subject[p])
       || landsOn subject p 0)
 
-let normalize (s : string) : string = s.Normalize()
+/// NFC. Not `s.Normalize()`, which does nothing in the released CLI: see `Normalization`.
+let normalize (s : string) : string = Normalization.normalize s
 
 /// <param a> then <param b>, normalized: two normalized strings can join into one that is not.
 /// What `stringAppend` and String `+` compute, in the builtins and in the VM.
