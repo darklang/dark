@@ -566,7 +566,6 @@ self-merge, but the fix is now a four-site change.
 
 - `run-in-docker` hangs after the command finishes (`cat <&0` waits for EOF); pass `< /dev/null`.
 - Re-enable the `CliTraces` suite once its network call is stubbed.
-- Decide what `dark version` should do when the network is slow or absent; it costs ~700 ms.
 - Unify `callBuiltinResolved` and `callPackageResolved`: same five steps, different types. Needs
   `BuiltInParam` and `PackageFn.Parameter` to share an interface.
 - Make builtins opt-in, as installable extensions. Would cut startup and the builtins table.
