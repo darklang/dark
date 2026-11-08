@@ -3888,37 +3888,6 @@ type InstrData =
 type PackagePolicyMemo =
   { owner : obj; policy : Permissions.Policy; isAllowAll : bool }
 
-/// Cached data needed to call a package function: its instructions and the
-/// restrictions applied when entering its frame.
-type PackageFnCallData =
-  {
-    instrData : InstrData
-
-    /// The layer used for the consumer's package policy.
-    packageLayer : Permissions.Layer
-
-    /// The author's `permissionCeiling`, if declared.
-    ceiling : voption<struct (Permissions.Layer * Permissions.Policy)>
-
-    /// The last resolved consumer policy, paired with its owner.
-    mutable policy : PackagePolicyMemo
-
-    /// The parameters that take a callback, as (index, name, what the callback should
-    /// return). Empty for most fns.
-    ///
-    /// Null until we've worked it out, which for some fns happens on the first call
-    /// (`Interpreter.resolveFnParams`). Use `Volatile` to read and write it, since
-    /// several threads share it.
-    mutable fnParams : (struct (int * string * TypeReference))[]
-
-    /// What entering the fn needs on every call -- its free type variables, its parameters as a
-    /// list, the execution point its frames run under -- worked out once with the rest of this, so
-    /// a call looks the fn up once rather than once for each.
-    freeTVars : Set<string>
-    paramList : List<PackageFn.Parameter>
-    executionPoint : ExecutionPoint
-  }
-
 /// One activation of a function, lambda or the root script.
 ///
 /// Every field is mutable because frames are pooled: a popped frame goes back into
@@ -4776,6 +4745,42 @@ type BuiltInFn =
     /// construct an exact `Permissions.Request` in their body.
     callEffects : Set<Effects.Effect>
     fn : BuiltInFnSig
+  }
+
+/// Cached data needed to call a package function: its instructions and the
+/// restrictions applied when entering its frame.
+and PackageFnCallData =
+  {
+    instrData : InstrData
+
+    /// The layer used for the consumer's package policy.
+    packageLayer : Permissions.Layer
+
+    /// The author's `permissionCeiling`, if declared.
+    ceiling : voption<struct (Permissions.Layer * Permissions.Policy)>
+
+    /// The last resolved consumer policy, paired with its owner.
+    mutable policy : PackagePolicyMemo
+
+    /// The parameters that take a callback, as (index, name, what the callback should
+    /// return). Empty for most fns.
+    ///
+    /// Null until we've worked it out, which for some fns happens on the first call
+    /// (`Interpreter.resolveFnParams`). Use `Volatile` to read and write it, since
+    /// several threads share it.
+    mutable fnParams : (struct (int * string * TypeReference))[]
+
+    /// What entering the fn needs on every call -- its free type variables, its parameters as a
+    /// list, the execution point its frames run under -- worked out once with the rest of this, so
+    /// a call looks the fn up once rather than once for each.
+    freeTVars : Set<string>
+    paramList : List<PackageFn.Parameter>
+    executionPoint : ExecutionPoint
+
+    /// The builtin this fn is a bare forwarder for (`Interpreter.thinWrapperOf`), resolved
+    /// against the table of the execution state whose cache holds this, which every state
+    /// sharing that cache also has. A call to a forwarder runs the builtin with no frame.
+    thinWrapper : BuiltInFn voption
   }
 
 and BuiltInFnSig =
