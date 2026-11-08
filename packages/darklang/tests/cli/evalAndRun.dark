@@ -187,6 +187,34 @@ test scriptArgumentsAndExitCodes =
 
 /// `run --stats` reports what the run cost after the script's own output. After the path,
 /// `--stats` is the script's argument like any other flag, and reports nothing.
+/// Runner options end at the script path or at `--`; `--branch` and `--entry-point` take the next
+/// argument whatever it is; everything from the path on is the script's.
+test splitArgumentsLikeTheHost =
+  let split(args: List<String>): (List<String> * List<String>) =
+    Darklang.Cli.Run.splitArguments(args)
+  Stdlib.Test.all(
+    [ split([]) |> Stdlib.Test.equal(([], []))
+      split([ "s.dark" ]) |> Stdlib.Test.equal(([], [ "s.dark" ]))
+      split([ "--sandbox", "s.dark", "--x", "y" ])
+      |> Stdlib.Test.equal(([ "--sandbox" ], [ "s.dark", "--x", "y" ]))
+      split([ "--branch", "main", "s.dark" ])
+      |> Stdlib.Test.equal(([ "--branch", "main" ], [ "s.dark" ]))
+      split([ "--branch", "-v", "s.dark" ])
+      |> Stdlib.Test.equal(([ "--branch", "-v" ], [ "s.dark" ]))
+      split([ "--entry-point", "--", "s.dark" ])
+      |> Stdlib.Test.equal(([ "--entry-point", "--" ], [ "s.dark" ]))
+      split([ "--branch" ]) |> Stdlib.Test.equal(([ "--branch" ], []))
+      split([ "--branch=main", "s.dark" ])
+      |> Stdlib.Test.equal(([ "--branch=main" ], [ "s.dark" ]))
+      split([ "-v", "--", "--sandbox" ])
+      |> Stdlib.Test.equal(([ "-v", "--" ], [ "--sandbox" ]))
+      split([ "-", "s.dark" ]) |> Stdlib.Test.equal(([ "-" ], [ "s.dark" ]))
+      split([ "", "-v" ]) |> Stdlib.Test.equal(([], [ "", "-v" ]))
+      // a `-` with a combining mark on it is still a flag; an en dash is not
+      split([ "-́x", "s.dark" ]) |> Stdlib.Test.equal(([ "-́x" ], [ "s.dark" ]))
+      split([ "–v", "s.dark" ]) |> Stdlib.Test.equal(([], [ "–v", "s.dark" ])) ])
+
+
 test runStatsReportsTheCost =
   Instance.withInstance(fun i ->
     let path =

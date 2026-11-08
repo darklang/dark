@@ -73,9 +73,31 @@ let permissionWarningLines(
 //
 // For calling package fns, use `eval` instead.
 
-/// Split runner options from the script path and its arguments.
+/// Split runner options from the script path and its arguments. Everything after the path stays
+/// with the script, flags included; `--` ends the options and stays with them. The same rule as the
+/// host's `ScriptArguments.split`, which splits the command line before any Dark runs.
 let splitArguments(args: List<String>): (List<String> * List<String>) =
-  Builtin.cliSplitScriptArguments(args)
+  splitArgumentsAfter([], args)
+
+
+/// The split of <param remaining>, with <param options> (newest first) already taken.
+let splitArgumentsAfter(
+  options: List<String>,
+  remaining: List<String>)
+  : (List<String> * List<String>) =
+  match remaining with
+  | [ "--", ...rest ] -> (Stdlib.List.reverse(Stdlib.List.prepend(options, "--")), rest)
+  | [ flag, value, ...rest ] when flag == "--branch" || flag == "--entry-point" ->
+    splitArgumentsAfter(Stdlib.List.prepend(Stdlib.List.prepend(options, flag), value), rest)
+  | [ flag, ...rest ] when isFlag(flag) ->
+    splitArgumentsAfter(Stdlib.List.prepend(options, flag), rest)
+  | _ -> (Stdlib.List.reverse(options), remaining)
+
+
+/// Whether <param arg> starts with a `-`. By its first byte, not its first character, so a `-`
+/// that a combining mark follows still counts, as it does for the host.
+let isFlag(arg: String): Bool =
+  Stdlib.String.getByteAt(arg, 0) == Stdlib.Option.Option.Some(45u8)
 
 let execute(state: AppState, args: List<String>): AppState =
   let (options, script) = splitArguments(args)

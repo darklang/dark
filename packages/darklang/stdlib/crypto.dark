@@ -17,7 +17,27 @@ let digest(algorithm: DigestAlgorithm, data: Bytes): Bytes =
 /// Computes the HMAC (hash-based message authentication code, RFC 2104) of <param data> under
 /// <param key>, over the <param algorithm> digest.
 let hmac(algorithm: DigestAlgorithm, key: Bytes, data: Bytes): Bytes =
-  Builtin.cryptoHmac(algorithm, key, data)
+  let size = __blockSize(algorithm)
+  // A key longer than a block is hashed first; then it is zero-padded to a block.
+  let short = if Stdlib.Bytes.length(key) > size then digest(algorithm, key) else key
+  let padding = Stdlib.List.repeat(size - Stdlib.Bytes.length(short), 0u8)
+  let block = Stdlib.Bytes.toList(Stdlib.Bytes.concat(short, Stdlib.Bytes.fromList(padding)))
+  let inner = digest(algorithm, Stdlib.Bytes.concat(__xorEach(block, 54u8), data))
+  digest(algorithm, Stdlib.Bytes.concat(__xorEach(block, 92u8), inner))
+
+
+/// The block size of <param algorithm> in bytes, which HMAC pads its key to.
+let __blockSize(algorithm: DigestAlgorithm): Int64 =
+  match algorithm with
+  | Md5 -> 64
+  | Sha1 -> 64
+  | Sha256 -> 64
+  | Sha384 -> 128
+
+
+/// Every byte of <param block> XORed with <param pad>.
+let __xorEach(block: List<UInt8>, pad: UInt8): Bytes =
+  block |> Stdlib.List.map(fun b -> b ^ pad) |> Stdlib.Bytes.fromList
 
 
 /// Computes the SHA-256 digest of the given <param data>

@@ -95,8 +95,9 @@ module Month =
 
 
 // A DateTime is a count of 100ns ticks since the Unix epoch, read and built by the two
-// builtins below. Apart from the three string formatters, everything else is arithmetic on that
-// count, over the proleptic Gregorian calendar. Follows Paul's compiler stdlib (`dateTime.dark`).
+// builtins below. Apart from `toString`, which stays native because telemetry calls it on every
+// keystroke, everything else is arithmetic on that count, over the proleptic Gregorian calendar.
+// Follows Paul's compiler stdlib (`dateTime.dark`).
 
 let __ticks(date: DateTime): Int64 = Builtin.dateTimeToUnixTicks(date)
 
@@ -263,6 +264,20 @@ let parse(s: String): Stdlib.Result.Result<DateTime, String> =
   | _ -> Stdlib.Result.Result.Error("Invalid date format")
 
 
+/// The date as {{YYYYMMDD}}. A year before 1 gets a leading {{-}}, as {{format}} writes it.
+let __basicDate(date: DateTime): String =
+  let (year, month, day) = __civilFromDays(__daysSinceEpoch(date))
+  let yearText = if year < 0 then "-" + zeroPadded(0 - year, 4) else zeroPadded(year, 4)
+  yearText + zeroPadded(month, 2) + zeroPadded(day, 2)
+
+/// The time of day as {{hhmmss}}.
+let __basicTime(date: DateTime): String =
+  let ticks = __ticksWithinDay(date)
+  zeroPadded(ticks / __ticksPerHour(), 2)
+  + zeroPadded((ticks / __ticksPerMinute()) % 60, 2)
+  + zeroPadded((ticks / __ticksPerSecond()) % 60, 2)
+
+
 impl ToString for DateTime =
   /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
   let toString(date: DateTime): String = Builtin.dateTimeToString(date)
@@ -270,12 +285,11 @@ impl ToString for DateTime =
 
 /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
 let toStringISO8601BasicDateTime(date: DateTime): String =
-  Builtin.dateTimeToStringISO8601BasicDateTime(date)
+  __basicDate(date) + "T" + __basicTime(date) + "Z"
 
 
 /// Stringify <param date> to the ISO 8601 basic format YYYYMMDD
-let toStringISO8601BasicDate(date: DateTime): String =
-  Builtin.dateTimeToStringISO8601BasicDate(date)
+let toStringISO8601BasicDate(date: DateTime): String = __basicDate(date)
 
 
 /// Returns the current time

@@ -81,39 +81,6 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "dateTimeToStringISO8601BasicDateTime" 0
-      typeParams = []
-      parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TString
-      description =
-        "Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}"
-      fn =
-        (function
-        | _, _, _, [| DDateTime d |] ->
-          (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMddTHHmmssZ")
-          |> DString
-          |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "dateTimeToStringISO8601BasicDate" 0
-      typeParams = []
-      parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TString
-      description = "Stringify <param date> to the ISO 8601 basic format YYYYMMDD"
-      fn =
-        (function
-        | _, _, _, [| DDateTime d |] ->
-          (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMdd") |> DString |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

@@ -7,6 +7,7 @@ module PT = LibExecution.ProgramTypes
 
 /// Split options from the command or script path.
 /// Keep arguments after the path unchanged, including flags.
+/// `Cli.Run.splitArguments` is the same rule in Dark, for `run-script`'s own options.
 module ScriptArguments =
   let split (args : List<string>) : List<string> * List<string> =
     let rec loop options remaining =
