@@ -151,6 +151,36 @@ test indexOfSegment =
       Stdlib.Bytes.contains(b("a\r\nb"), b("\r\n\r\n"))
       |> Stdlib.Test.equal(false) ])
 
+// replaceAll
+test replaceAll =
+  let b(s: String): Bytes = Stdlib.Utf8.encode(s)
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.replaceAll(b("a\r\nb\r\nc"), b("\r\n"), b("\n"))
+      |> Stdlib.Test.equal(b("a\nb\nc"))
+      Stdlib.Bytes.replaceAll(b("abcabc"), b("abc"), b("x"))
+      |> Stdlib.Test.equal(b("xx"))
+      Stdlib.Bytes.replaceAll(b("abc"), b("b"), Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(b("ac"))
+      Stdlib.Bytes.replaceAll(b("aaa"), b("aa"), b("b"))
+      |> Stdlib.Test.equal(b("ba"))
+      Stdlib.Bytes.replaceAll(b("abc"), b("x"), b("y")) |> Stdlib.Test.equal(b("abc"))
+      Stdlib.Bytes.replaceAll(b("ab"), b("abc"), b("y")) |> Stdlib.Test.equal(b("ab"))
+      Stdlib.Bytes.replaceAll(b("a"), b("a"), b("aa")) |> Stdlib.Test.equal(b("aa"))
+      Stdlib.Bytes.replaceAll(b("ab"), Stdlib.Bytes.empty, b("-"))
+      |> Stdlib.Test.equal(b("-a-b-"))
+      Stdlib.Bytes.replaceAll(Stdlib.Bytes.empty, Stdlib.Bytes.empty, b("-"))
+      |> Stdlib.Test.equal(b("-"))
+      Stdlib.Bytes.replaceAll(Stdlib.Bytes.empty, b("a"), b("-"))
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
+// replaceAll goes through many matches in a large Bytes
+test replaceAllLarge =
+  Stdlib.Bytes.replaceAll(
+    Stdlib.Utf8.encode(Stdlib.String.repeat("ab", 50000)),
+    Stdlib.Utf8.encode("b"),
+    Stdlib.Bytes.empty)
+  |> Stdlib.Test.equal(Stdlib.Utf8.encode(Stdlib.String.repeat("a", 50000)))
+
 // toList / fromList
 test listConversions =
   Stdlib.Test.all(
