@@ -338,31 +338,6 @@ let private getByHashFn
     deprecated = NotDeprecated }
 
 
-/// Mirrors `Query.getDirectSubmodules`: drop the query's current path, keep the next segment,
-/// dedupe, sort. Reduced here rather than in Dark because at the root of a large store this is
-/// hundreds of module paths collapsing to a handful of names, and the search already has them all.
-let private directSubmodules
-  (query : PT.Search.SearchQuery)
-  (results : PT.Search.SearchResults)
-  : List<string> =
-  let depth = List.length query.currentModule
-  // `List.skip` throws past the end; Dark's `List.drop` yields []. Match Dark.
-  let rec dropN n (xs : List<string>) =
-    if n <= 0 then
-      xs
-    else
-      match xs with
-      | [] -> []
-      | _ :: rest -> dropN (n - 1) rest
-  results.submodules
-  |> List.choose (fun modulePath ->
-    match dropN depth modulePath with
-    | next :: _ when next <> "" -> Some next
-    | _ -> None)
-  |> List.distinct
-  |> List.sort
-
-
 /// Strings as a Dark `List<String>`.
 let private toDList (xs : List<string>) : Dval =
   xs |> List.map DString |> Dval.list KTString
@@ -772,39 +747,32 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            // Through the branch's view, not a scope to walk up.
-            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
-            let! results = pm.search searchQuery
+            // Through the branch's view, not a scope to walk up. Straight to the store rather than
+            // through `ptForBranch`'s `search`: that one reads and decodes every matched item's
+            // definition and patches its docs, and this answer is names and hashes, which are the same
+            // either way.
+            let! results =
+              PMPT.searchNamesAndHashes (branchOfParam branchId) searchQuery
 
-            let submodules = directSubmodules searchQuery results
 
             let pairKT =
               KTTuple(VT.string, ValueType.Known(PT2DT.Hash.knownType ()), [])
 
-            let pairs
-              (locations : List<PT.LocatedItem<'a>>)
-              (hashOf : 'a -> PT.Hash)
-              =
-              locations
-              |> List.map (fun i ->
-                DTuple(
-                  DString i.location.name,
-                  PT2DT.Hash.toDT (hashOf i.entity),
-                  []
-                ))
+            let pairs (items : List<string * PT.Hash>) =
+              items
+              |> List.map (fun (name, hash) ->
+                DTuple(DString name, PT2DT.Hash.toDT hash, []))
               |> Dval.list pairKT
 
             return
               DTuple(
-                toDList submodules,
-                pairs results.types (fun (t : PT.PackageType.PackageType) -> t.hash),
-                [ pairs results.values (fun (v : PT.PackageValue.PackageValue) ->
-                    v.hash)
-                  pairs results.fns (fun (f : PT.PackageFn.PackageFn) -> f.hash)
-                  pairs results.traits (fun (t : PT.Trait.Trait) -> t.hash)
-                  pairs results.impls (fun (i : PT.TraitImpl.TraitImpl) -> i.hash)
-                  pairs results.tests (fun (test : PT.PackageTest.PackageTest) ->
-                    test.hash) ]
+                toDList results.submodules,
+                pairs results.types,
+                [ pairs results.values
+                  pairs results.fns
+                  pairs results.traits
+                  pairs results.impls
+                  pairs results.tests ]
               )
           }
         | _ -> incorrectArgs ()
