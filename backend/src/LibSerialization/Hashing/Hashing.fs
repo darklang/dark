@@ -149,6 +149,8 @@ module Hashing =
 
   // The counter is threaded as a `ref` mutated in a FIXED structural traversal order, so two
   // alpha-equivalent trees (identical structure, different names) get identical `$n` assignments.
+  // A ref on purpose: handing the counter back with every result allocated 0.8 MB more hashing a
+  // 3,000-fn script.
 
   let private mergeEnv
     (env : Map<string, string>)
@@ -400,6 +402,15 @@ module Hashing =
   // Tarjan's SCC algorithm
   // =====================
 
+  /// Where Tarjan's walk has got to: each step returns a new one.
+  type private TarjanState<'id when 'id : comparison> =
+    { nextIndex : int
+      stack : List<'id>
+      indices : Map<'id, int>
+      lowlinks : Map<'id, int>
+      onStack : Set<'id>
+      result : List<NEList<'id>> }
+
   /// Find all strongly-connected components in a dependency graph.
   /// Returns list of SCCs, each an NEList of node IDs.
   let findSCCs
@@ -407,58 +418,81 @@ module Hashing =
     (edges : 'id -> List<'id>)
     : List<NEList<'id>> when 'id : equality and 'id : comparison =
 
-    let mutable index = 0
-    let mutable stack : List<'id> = []
-    let mutable indices = Map.empty<'id, int>
-    let mutable lowlinks = Map.empty<'id, int>
-    let mutable onStack = Set.empty<'id>
-    let mutable result : List<NEList<'id>> = []
-
     let nodeSet = Set.ofList nodes
 
-    let rec strongConnect (v : 'id) =
-      indices <- Map.add v index indices
-      lowlinks <- Map.add v index lowlinks
-      index <- index + 1
-      stack <- v :: stack
-      onStack <- Set.add v onStack
+    let lowerLowlink (v : 'id) (candidate : int) (st : TarjanState<'id>) =
+      { st with
+          lowlinks =
+            Map.add v (min (Map.findUnsafe v st.lowlinks) candidate) st.lowlinks }
 
-      for w in edges v do
-        if Set.contains w nodeSet then
-          if not (Map.containsKey w indices) then
-            strongConnect w
-            lowlinks <-
-              Map.add
-                v
-                (min (Map.findUnsafe v lowlinks) (Map.findUnsafe w lowlinks))
-                lowlinks
-          elif Set.contains w onStack then
-            lowlinks <-
-              Map.add
-                v
-                (min (Map.findUnsafe v lowlinks) (Map.findUnsafe w indices))
-                lowlinks
+    // Pops the stack down to and including `v`: the SCC rooted at `v`.
+    let rec popComponent
+      (v : 'id)
+      (stack : List<'id>)
+      (onStack : Set<'id>)
+      (scc : List<'id>)
+      : List<'id> * Set<'id> * List<'id> =
+      match stack with
+      | w :: rest ->
+        let onStack = Set.remove w onStack
+        if w = v then
+          (rest, onStack, w :: scc)
+        else
+          popComponent v rest onStack (w :: scc)
+      | [] -> ([], onStack, scc)
 
-      if Map.findUnsafe v lowlinks = Map.findUnsafe v indices then
-        let mutable scc = []
-        let mutable keepPopping = true
-        while keepPopping do
-          match stack with
-          | w :: rest ->
-            stack <- rest
-            onStack <- Set.remove w onStack
-            scc <- w :: scc
-            if w = v then keepPopping <- false
-          | [] -> keepPopping <- false
+    let rec strongConnect (st : TarjanState<'id>) (v : 'id) : TarjanState<'id> =
+      let st =
+        { st with
+            indices = Map.add v st.nextIndex st.indices
+            lowlinks = Map.add v st.nextIndex st.lowlinks
+            nextIndex = st.nextIndex + 1
+            stack = v :: st.stack
+            onStack = Set.add v st.onStack }
 
-        match scc with
-        | head :: tail -> result <- { head = head; tail = tail } :: result
-        | [] -> ()
+      let st =
+        edges v
+        |> List.fold
+          (fun st w ->
+            if not (Set.contains w nodeSet) then
+              st
+            elif not (Map.containsKey w st.indices) then
+              let st = strongConnect st w
+              lowerLowlink v (Map.findUnsafe w st.lowlinks) st
+            elif Set.contains w st.onStack then
+              lowerLowlink v (Map.findUnsafe w st.indices) st
+            else
+              st)
+          st
 
-    for node in nodes do
-      if not (Map.containsKey node indices) then strongConnect node
+      if Map.findUnsafe v st.lowlinks = Map.findUnsafe v st.indices then
+        let (stack, onStack, scc) = popComponent v st.stack st.onStack []
+        let result =
+          match scc with
+          | head :: tail ->
+            let scc : NEList<'id> = { head = head; tail = tail }
+            scc :: st.result
+          | [] -> st.result
+        { st with stack = stack; onStack = onStack; result = result }
+      else
+        st
 
-    result |> List.rev
+    let start : TarjanState<'id> =
+      { nextIndex = 0
+        stack = []
+        indices = Map.empty
+        lowlinks = Map.empty
+        onStack = Set.empty
+        result = [] }
+
+    let final =
+      nodes
+      |> List.fold
+        (fun st node ->
+          if Map.containsKey node st.indices then st else strongConnect st node)
+        start
+
+    final.result |> List.rev
 
 
   // =====================
@@ -576,23 +610,29 @@ module Hashing =
     // Detect SCCs (operating on FQN strings as node IDs)
     let sccs = findSCCs allIds getDeps
 
-    // FQN -> finalHash result map
-    let mutable hashMap = Map.empty<string, Hash>
-    // Seed grows as we hash each SCC; later SCCs see all prior new hashes.
-    let mutable subst = seed
-
-    // Record an item's hash transition in both substitution maps so
-    // later SCCs see the new hash via either lookup path.
-    let recordSubstitution (item : ItemInfo) (newHash : Hash) =
+    // Record an item's hash: in the FQN -> finalHash result map, and in both substitution maps
+    // so later SCCs see the new hash via either lookup path.
+    let record
+      (struct (hashMap : Map<string, Hash>, subst : Canonical.Substitution))
+      (fqn : string)
+      (item : ItemInfo)
+      (newHash : Hash)
+      : struct (Map<string, Hash> * Canonical.Substitution) =
       let oldHash = getItemOldHash item
       let byHash' = Map.add oldHash newHash subst.byHash
       let byLocation' =
         match getItemLocation item with
         | Some loc -> Map.add loc newHash subst.byLocation
         | None -> subst.byLocation
-      subst <- { byLocation = byLocation'; byHash = byHash' }
+      let subst : Canonical.Substitution =
+        { byLocation = byLocation'; byHash = byHash' }
+      struct (Map.add fqn newHash hashMap, subst)
 
-    for scc in sccs do
+    // The seed grows as each SCC is hashed; later SCCs see all prior new hashes.
+    let hashScc
+      (struct (_, subst) as acc : struct (Map<string, Hash> * Canonical.Substitution))
+      (scc : NEList<string>)
+      : struct (Map<string, Hash> * Canonical.Substitution) =
       let sccIds = scc.head :: scc.tail
 
       // A size-1 SCC without a self-loop is a true singleton: hash normally.
@@ -610,23 +650,25 @@ module Hashing =
         let mode : Canonical.HashRefMode =
           { subst = subst; sccNames = Canonical.emptySccNames }
 
-        let hash = computeItemHash mode item
-        hashMap <- Map.add fqn hash hashMap
-        recordSubstitution item hash
+        record acc fqn item (computeItemHash mode item)
       else
         // Multi-item SCC: batch hash with FQN substitution + finalized deps.
         // Location-keyed cycle refs avoid same-hash collisions inside the SCC;
         // hash-keyed lookup remains only for null-location refs.
         let sccNameMap : Canonical.SccNames =
-          let mutable byLocation = Map.empty
-          let mutable byHash = Map.empty
-          for fqn in sccIds do
-            let item = Map.findUnsafe fqn items
-            match getItemLocation item with
-            | Some loc -> byLocation <- Map.add loc fqn byLocation
-            | None -> ()
-            byHash <- Map.add (getItemOldHash item) fqn byHash
-          { byLocation = byLocation; byHash = byHash }
+          sccIds
+          |> List.fold
+            (fun (names : Canonical.SccNames) fqn ->
+              let item = Map.findUnsafe fqn items
+              let byLocation =
+                match getItemLocation item with
+                | Some loc -> Map.add loc fqn names.byLocation
+                | None -> names.byLocation
+              let names : Canonical.SccNames =
+                { byLocation = byLocation
+                  byHash = Map.add (getItemOldHash item) fqn names.byHash }
+              names)
+            Canonical.emptySccNames
 
         let mode : Canonical.HashRefMode = { subst = subst; sccNames = sccNameMap }
 
@@ -645,13 +687,16 @@ module Hashing =
         let groupHash = SHA256.HashData(groupBytes) |> fromSHA256Bytes
 
         // Each item's hash = hash(groupHash + FQN)
-        for (fqn, item) in sortedItems do
-          let itemFQN = getItemFQN item
-          let itemHash =
-            hashWithWriter (fun w ->
-              PTC.Hash.write w groupHash
-              Common.String.write w itemFQN)
-          hashMap <- Map.add fqn itemHash hashMap
-          recordSubstitution item itemHash
+        sortedItems
+        |> List.fold
+          (fun acc (fqn, item) ->
+            let itemFQN = getItemFQN item
+            let itemHash =
+              hashWithWriter (fun w ->
+                PTC.Hash.write w groupHash
+                Common.String.write w itemFQN)
+            record acc fqn item itemHash)
+          acc
 
+    let struct (hashMap, _) = sccs |> List.fold hashScc (struct (Map.empty, seed))
     hashMap

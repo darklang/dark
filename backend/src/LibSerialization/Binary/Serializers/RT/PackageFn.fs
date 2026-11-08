@@ -39,15 +39,21 @@ module DebugSymbols =
       UInt64.writeUInt64 w exprId
       Varint.write w reg)
 
-  let private readTable (r : BinaryReader) : Map<int, struct (id * Register)> =
-    let count = Varint.read r
-    let mutable table = Map.empty
-    for _ in 1..count do
+  let rec private readEntries
+    (r : BinaryReader)
+    (remaining : int)
+    (table : Map<int, struct (id * Register)>)
+    : Map<int, struct (id * Register)> =
+    if remaining = 0 then
+      table
+    else
       let idx = Varint.read r
       let exprId = UInt64.readUInt64 r
       let reg = Varint.read r
-      table <- Map.add idx (struct (exprId, reg)) table
-    table
+      readEntries r (remaining - 1) (Map.add idx (struct (exprId, reg)) table)
+
+  let private readTable (r : BinaryReader) : Map<int, struct (id * Register)> =
+    readEntries r (Varint.read r) Map.empty
 
   let write (w : BinaryWriter) (symbols : DebugSymbols) =
     writeTable w symbols.exprAt
@@ -58,14 +64,20 @@ module DebugSymbols =
       UInt64.writeUInt64 w exprId
       writeTable w table)
 
+  let rec private readLambdas
+    (r : BinaryReader)
+    (remaining : int)
+    (lambdas : Map<id, Map<int, struct (id * Register)>>)
+    : Map<id, Map<int, struct (id * Register)>> =
+    if remaining = 0 then
+      lambdas
+    else
+      let exprId = UInt64.readUInt64 r
+      readLambdas r (remaining - 1) (Map.add exprId (readTable r) lambdas)
+
   let read (r : BinaryReader) : DebugSymbols =
     let exprAt = readTable r
-    let count = Varint.read r
-    let mutable lambdas = Map.empty
-    for _ in 1..count do
-      let exprId = UInt64.readUInt64 r
-      lambdas <- Map.add exprId (readTable r) lambdas
-    { exprAt = exprAt; lambdas = lambdas }
+    { exprAt = exprAt; lambdas = readLambdas r (Varint.read r) Map.empty }
 
 
 let write (w : BinaryWriter) (fn : PackageFn.PackageFn) =

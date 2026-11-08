@@ -14,12 +14,28 @@ open LibSerialization.Binary.BaseFormat
 let raiseFormatError msg = raise (BinaryFormatException(CorruptedData msg))
 
 
+/// Fills `buffer[got..count)` from the reader; how many bytes it got, short only at the end.
+let rec private readInto
+  (r : BinaryReader)
+  (buffer : byte[])
+  (count : int)
+  (got : int)
+  : int =
+  if got >= count then
+    got
+  else
+    match r.Read(buffer, got, count - got) with
+    | 0 -> got
+    | n -> readInto r buffer count (got + n)
+
+
 /// This thread's reusable buffers, so a write or read doesn't allocate a byte array of its own.
 ///
 /// The cold first run serializes and hashes every item it folds, and byte arrays were a third of
 /// what it allocated: a `MemoryStream` grown by doubling and copied out twice per blob, plus one
 /// array per string, hash and Guid. Everything that borrows here is synchronous and never keeps
 /// the buffer past its own call.
+// Mutable on purpose: one buffer per thread, reused by every blob, keeps byte arrays off the heap.
 type Scratch() =
   /// A buffer kept for reuse is at most this big; a bigger one is made for that call alone.
   static let keepAtMost = 64 * 1024
@@ -79,12 +95,7 @@ type Scratch() =
 
   /// Fills `buffer[0..count)` from the reader; how many bytes it got, short only at the end.
   static member ReadInto(r : BinaryReader, buffer : byte[], count : int) : int =
-    let mutable got = 0
-    let mutable more = true
-    while more && got < count do
-      let n = r.Read(buffer, got, count - got)
-      if n = 0 then more <- false else got <- got + n
-    got
+    readInto r buffer count 0
 
 
 module Header =
@@ -103,29 +114,28 @@ module Header =
 
 /// Variable-length integer (varint encoding)
 module Varint =
-  let write (w : BinaryWriter) (value : int) =
-    let mutable remaining = uint32 value
-    while remaining >= 128u do
+  let rec private writeFrom (w : BinaryWriter) (remaining : uint32) : unit =
+    if remaining >= 128u then
       w.Write(byte (remaining ||| 128u))
-      remaining <- remaining >>> 7
-    w.Write(byte remaining)
+      writeFrom w (remaining >>> 7)
+    else
+      w.Write(byte remaining)
+
+  let write (w : BinaryWriter) (value : int) = writeFrom w (uint32 value)
 
 
-  let read (r : BinaryReader) : int =
-    let mutable result = 0u
-    let mutable shift = 0
-    let mutable continueReading = true
+  let rec private readFrom (r : BinaryReader) (result : uint32) (shift : int) : int =
+    if shift >= 32 then
+      raise (BinaryFormatException(CorruptedData "Varint too long"))
 
-    while continueReading do
-      if shift >= 32 then
-        raise (BinaryFormatException(CorruptedData "Varint too long"))
+    let b = r.ReadByte()
+    let result = result ||| ((uint32 (b &&& Varint.ValueMask)) <<< shift)
+    if (b &&& Varint.ContinuationBit) <> 0uy then
+      readFrom r result (shift + 7)
+    else
+      int result
 
-      let b = r.ReadByte()
-      result <- result ||| ((uint32 (b &&& Varint.ValueMask)) <<< shift)
-      shift <- shift + 7
-      continueReading <- (b &&& Varint.ContinuationBit) <> 0uy
-
-    int result
+  let read (r : BinaryReader) : int = readFrom r 0u 0
 
 
 /// Write/read a string with length prefix

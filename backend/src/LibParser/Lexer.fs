@@ -91,6 +91,17 @@ let private decodeEscape
     | 'U' -> scalar (escapeStartIndex + 2) 8 |> Option.map (fun text -> (10, text)) // \UHHHHHHHH
     | _ -> None
 
+/// Is there an invalid escape in `content` at or after `index`? Tail-recursive, so a loop.
+let rec private badEscapeFrom (content : string) (index : int) : bool =
+  if index >= content.Length then
+    false
+  elif content[index] = '\\' then
+    match decodeEscape content index with
+    | Some(charsConsumed, _) -> badEscapeFrom content (index + charsConsumed)
+    | None -> true
+  else
+    badEscapeFrom content (index + 1)
+
 /// Process escape sequences in regular string/char content. Triple-quoted
 /// strings stay raw. Invalid escapes keep the backslash as-is.
 /// Module-level so the parser can reuse it for interpolated-string literal parts.
@@ -101,6 +112,7 @@ let unescape (source : string) : string =
     if not (source.Contains '\\') then
       source
     else
+      // A builder and an index on purpose: this decodes every escaped literal, in one pass.
       let builder = System.Text.StringBuilder(source.Length)
       let sourceLength = source.Length
       let mutable index = 0
@@ -121,86 +133,227 @@ let unescape (source : string) : string =
 
 /// Does the raw inner text of a regular string/char contain an invalid escape?
 let hasInvalidEscape (content : string) : bool =
-  if not (content.Contains '\\') then
-    false
+  if not (content.Contains '\\') then false else badEscapeFrom content 0
+
+// The scanners below are tail-recursive, so they compile to loops: no mutable, and no
+// allocation.
+
+/// The index of the first `\n` at or after `index`, or `endLimit`.
+let rec private lineEnd (source : string) (endLimit : int) (index : int) : int =
+  if index < endLimit && source[index] <> '\n' then
+    lineEnd source endLimit (index + 1)
   else
-    let contentLength = content.Length
-    let mutable index = 0
-    let mutable hasBadEscape = false
-    while index < contentLength && not hasBadEscape do
-      if content[index] = '\\' then
-        match decodeEscape content index with
-        | Some(charsConsumed, _) -> index <- index + charsConsumed
-        | None -> hasBadEscape <- true
-      else
-        index <- index + 1
-    hasBadEscape
+    index
 
 let private skipLineComment
   (source : string)
   (endLimit : int)
   (startIndex : int)
   : int =
-  let mutable index = startIndex + 2
-  while index < endLimit && source[index] <> '\n' do
-    index <- index + 1
-  index
+  lineEnd source endLimit (startIndex + 2)
+
+let rec private skipBlockCommentFrom
+  (source : string)
+  (endLimit : int)
+  (index : int)
+  (commentDepth : int)
+  : int =
+  if index >= endLimit || commentDepth <= 0 then
+    index
+  elif index + 1 < endLimit && source[index] = '(' && source[index + 1] = '*' then
+    skipBlockCommentFrom source endLimit (index + 2) (commentDepth + 1)
+  elif index + 1 < endLimit && source[index] = '*' && source[index + 1] = ')' then
+    skipBlockCommentFrom source endLimit (index + 2) (commentDepth - 1)
+  else
+    skipBlockCommentFrom source endLimit (index + 1) commentDepth
 
 let private skipBlockComment
   (source : string)
   (endLimit : int)
   (startIndex : int)
   : int =
-  let mutable index = startIndex + 2
-  let mutable commentDepth = 1
-  while index < endLimit && commentDepth > 0 do
-    if index + 1 < endLimit && source[index] = '(' && source[index + 1] = '*' then
-      commentDepth <- commentDepth + 1
-      index <- index + 2
-    elif index + 1 < endLimit && source[index] = '*' && source[index + 1] = ')' then
-      commentDepth <- commentDepth - 1
-      index <- index + 2
-    else
-      index <- index + 1
-  index
+  skipBlockCommentFrom source endLimit (startIndex + 2) 1
+
+let rec private skipRawStringFrom
+  (source : string)
+  (endLimit : int)
+  (index : int)
+  : int =
+  if index >= endLimit then
+    index
+  elif
+    index + 2 < endLimit
+    && source[index] = '"'
+    && source[index + 1] = '"'
+    && source[index + 2] = '"'
+  then
+    index + 3
+  else
+    skipRawStringFrom source endLimit (index + 1)
 
 let private skipRawString
   (source : string)
   (endLimit : int)
   (startIndex : int)
   : int =
-  let mutable index = startIndex + 3
-  let mutable stillScanning = true
-  while stillScanning && index < endLimit do
-    if
-      index + 2 < endLimit
-      && source[index] = '"'
-      && source[index + 1] = '"'
-      && source[index + 2] = '"'
-    then
-      index <- index + 3
-      stillScanning <- false
-    else
-      index <- index + 1
-  index
+  skipRawStringFrom source endLimit (startIndex + 3)
+
+/// Past the closing `quote` at or after `index`, skipping `\` escapes; `endLimit` (or a
+/// little past it, after a trailing `\`) when there is none.
+let rec private skipQuotedFrom
+  (source : string)
+  (endLimit : int)
+  (quote : char)
+  (index : int)
+  : int =
+  if index >= endLimit then index
+  elif source[index] = '\\' then skipQuotedFrom source endLimit quote (index + 2)
+  elif source[index] = quote then index + 1
+  else skipQuotedFrom source endLimit quote (index + 1)
 
 let private skipRegularString
   (source : string)
   (endLimit : int)
   (startIndex : int)
   : int =
-  let mutable index = startIndex + 1
-  let mutable stillScanning = true
-  while stillScanning && index < endLimit do
-    if source[index] = '\\' then
-      index <- index + 2
-    elif source[index] = '"' then
-      index <- index + 1
-      stillScanning <- false
-    else
-      index <- index + 1
-  index
+  skipQuotedFrom source endLimit '"' (startIndex + 1)
 
+/// The end of the identifier characters (letters, digits, `_` and `'`) from `index`.
+let rec private identEnd (source : string) (index : int) : int =
+  if
+    index < source.Length
+    && (System.Char.IsLetterOrDigit source[index]
+        || source[index] = '_'
+        || source[index] = '\'')
+  then
+    identEnd source (index + 1)
+  else
+    index
+
+/// The end of a type variable's name (letters, digits and `_`) from `index`.
+let rec private typeVariableEnd (source : string) (index : int) : int =
+  if
+    index < source.Length
+    && (System.Char.IsLetterOrDigit source[index] || source[index] = '_')
+  then
+    typeVariableEnd source (index + 1)
+  else
+    index
+
+/// The end of the run of digits from `index`.
+let rec private digitsEnd (source : string) (index : int) : int =
+  if index < source.Length && System.Char.IsDigit source[index] then
+    digitsEnd source (index + 1)
+  else
+    index
+
+/// From `index`, the index of the closing ``` `` ``` of a backtick identifier, or of the line's
+/// end (or the source's last char) when there is none.
+let rec private backtickClose (source : string) (index : int) : int =
+  if
+    index + 1 < source.Length
+    && not (source[index] = '`' && source[index + 1] = '`')
+    && source[index] <> '\n'
+  then
+    backtickClose source (index + 1)
+  else
+    index
+
+/// `position` moved over `source[index..endIndex)`.
+let rec private advanceOver
+  (source : string)
+  (position : Pos)
+  (index : int)
+  (endIndex : int)
+  : Pos =
+  if index >= endIndex then
+    position
+  else
+    let position =
+      if source[index] = '\n' then
+        { row = position.row + 1; column = 0 }
+      else
+        { position with column = position.column + 1 }
+    advanceOver source position (index + 1) endIndex
+
+
+let rec private interpCloseFrom
+  (source : string)
+  (endLimit : int)
+  (scanIndex : int)
+  (braceDepth : int)
+  : int =
+  if scanIndex >= endLimit then
+    -1
+  // Comments are code trivia, so braces inside them cannot close an
+  // interpolation. Block comments nest just like top-level lexer comments.
+  elif
+    source[scanIndex] = '/'
+    && scanIndex + 1 < endLimit
+    && source[scanIndex + 1] = '/'
+  then
+    interpCloseFrom
+      source
+      endLimit
+      (skipLineComment source endLimit scanIndex)
+      braceDepth
+  elif
+    source[scanIndex] = '('
+    && scanIndex + 1 < endLimit
+    && source[scanIndex + 1] = '*'
+  then
+    interpCloseFrom
+      source
+      endLimit
+      (skipBlockComment source endLimit scanIndex)
+      braceDepth
+  // A raw triple-quoted string may contain unescaped quotes and braces.
+  elif
+    source[scanIndex] = '"'
+    && scanIndex + 2 < endLimit
+    && source[scanIndex + 1] = '"'
+    && source[scanIndex + 2] = '"'
+  then
+    interpCloseFrom
+      source
+      endLimit
+      (skipRawString source endLimit scanIndex)
+      braceDepth
+  elif source[scanIndex] = '"' then
+    interpCloseFrom
+      source
+      endLimit
+      (skipRegularString source endLimit scanIndex)
+      braceDepth
+  // Skip char literals so braces inside them do not affect interpolation
+  // depth. A leading `'` that is not a char literal, such as type var `'a` or
+  // tick-ident tail `x'`, falls through harmlessly.
+  elif
+    source[scanIndex] = '\''
+    && scanIndex + 1 < endLimit
+    && source[scanIndex + 1] = '\\'
+  then
+    // Start at the `\` so `'\''` skips the escape before looking for the
+    // closing quote.
+    interpCloseFrom
+      source
+      endLimit
+      (skipQuotedFrom source endLimit '\'' (scanIndex + 1))
+      braceDepth
+  elif
+    source[scanIndex] = '\''
+    && scanIndex + 2 < endLimit
+    && source[scanIndex + 2] = '\''
+  then
+    interpCloseFrom source endLimit (scanIndex + 3) braceDepth
+  elif source[scanIndex] = '{' then
+    interpCloseFrom source endLimit (scanIndex + 1) (braceDepth + 1)
+  elif source[scanIndex] = '}' && braceDepth = 0 then
+    scanIndex
+  elif source[scanIndex] = '}' then
+    interpCloseFrom source endLimit (scanIndex + 1) (braceDepth - 1)
+  else
+    interpCloseFrom source endLimit (scanIndex + 1) braceDepth
 
 /// Find the `}` that closes an interpolation expression region.
 /// `startIndex` is just past the opening `{`. The scan tracks nested braces and skips
@@ -208,120 +361,65 @@ let private skipRegularString
 /// scan. Returns `-1` if unclosed. The tokenizer, escape validator, and parser
 /// all use this scanner so they agree on where interpolation regions end.
 let findInterpExprClose (source : string) (endLimit : int) (startIndex : int) : int =
-  let mutable scanIndex = startIndex
-  let mutable braceDepth = 0
-  let mutable closingBraceIndex = -1
-  while closingBraceIndex < 0 && scanIndex < endLimit do
-    // Comments are code trivia, so braces inside them cannot close an
-    // interpolation. Block comments nest just like top-level lexer comments.
-    if
-      source[scanIndex] = '/'
-      && scanIndex + 1 < endLimit
-      && source[scanIndex + 1] = '/'
-    then
-      scanIndex <- skipLineComment source endLimit scanIndex
-    elif
-      source[scanIndex] = '('
-      && scanIndex + 1 < endLimit
-      && source[scanIndex + 1] = '*'
-    then
-      scanIndex <- skipBlockComment source endLimit scanIndex
-    // A raw triple-quoted string may contain unescaped quotes and braces.
-    elif
-      source[scanIndex] = '"'
-      && scanIndex + 2 < endLimit
-      && source[scanIndex + 1] = '"'
-      && source[scanIndex + 2] = '"'
-    then
-      scanIndex <- skipRawString source endLimit scanIndex
-    elif source[scanIndex] = '"' then
-      scanIndex <- skipRegularString source endLimit scanIndex
-    // Skip char literals so braces inside them do not affect interpolation
-    // depth. A leading `'` that is not a char literal, such as type var `'a` or
-    // tick-ident tail `x'`, falls through harmlessly.
-    elif
-      source[scanIndex] = '\''
-      && scanIndex + 1 < endLimit
-      && source[scanIndex + 1] = '\\'
-    then
-      // Start at the `\` so `'\''` skips the escape before looking for the
-      // closing quote.
-      let mutable charIndex = scanIndex + 1
-      let mutable scanningChar = true
-      while scanningChar && charIndex < endLimit do
-        if source[charIndex] = '\\' then
-          charIndex <- charIndex + 2
-        elif source[charIndex] = '\'' then
-          charIndex <- charIndex + 1
-          scanningChar <- false
-        else
-          charIndex <- charIndex + 1
-      scanIndex <- charIndex
-    elif
-      source[scanIndex] = '\''
-      && scanIndex + 2 < endLimit
-      && source[scanIndex + 2] = '\''
-    then
-      scanIndex <- scanIndex + 3
-    elif source[scanIndex] = '{' then
-      braceDepth <- braceDepth + 1
-      scanIndex <- scanIndex + 1
-    elif source[scanIndex] = '}' && braceDepth = 0 then
-      closingBraceIndex <- scanIndex
-    elif source[scanIndex] = '}' then
-      braceDepth <- braceDepth - 1
-      scanIndex <- scanIndex + 1
-    else
-      scanIndex <- scanIndex + 1
-  closingBraceIndex
+  interpCloseFrom source endLimit startIndex 0
 
+
+let rec private badEscapeInterpFrom (inner : string) (index : int) : bool =
+  let innerLength = inner.Length
+  if index >= innerLength then
+    false
+  elif index + 1 < innerLength && inner[index] = '{' && inner[index + 1] = '{' then
+    badEscapeInterpFrom inner (index + 2)
+  elif index + 1 < innerLength && inner[index] = '}' && inner[index + 1] = '}' then
+    badEscapeInterpFrom inner (index + 2)
+  elif inner[index] = '{' then
+    // skip the `{ … }` interpolation region
+    let closeIndex = findInterpExprClose inner innerLength (index + 1)
+    badEscapeInterpFrom
+      inner
+      (if closeIndex < 0 then innerLength else closeIndex + 1)
+  elif inner[index] = '\\' then
+    match decodeEscape inner index with
+    | Some(charsConsumed, _) -> badEscapeInterpFrom inner (index + charsConsumed)
+    | None -> true
+  else
+    badEscapeInterpFrom inner (index + 1)
 
 /// Like `hasInvalidEscape`, but for regular `$"…"` interpolated strings.
 /// `{{`/`}}` are literal braces and `{ … }` regions are code, so only literal
 /// string text is escape-checked.
-let hasInvalidEscapeInterp (inner : string) : bool =
+let hasInvalidEscapeInterp (inner : string) : bool = badEscapeInterpFrom inner 0
+
+let rec private singleCloseBraceFrom
+  (inner : string)
+  (isRaw : bool)
+  (index : int)
+  : bool =
   let innerLength = inner.Length
-  let mutable index = 0
-  let mutable hasBadEscape = false
-  while index < innerLength && not hasBadEscape do
-    if index + 1 < innerLength && inner[index] = '{' && inner[index + 1] = '{' then
-      index <- index + 2
-    elif index + 1 < innerLength && inner[index] = '}' && inner[index + 1] = '}' then
-      index <- index + 2
-    elif inner[index] = '{' then
-      // skip the `{ … }` interpolation region
-      let closeIndex = findInterpExprClose inner innerLength (index + 1)
-      index <- if closeIndex < 0 then innerLength else closeIndex + 1
-    elif inner[index] = '\\' then
-      match decodeEscape inner index with
-      | Some(charsConsumed, _) -> index <- index + charsConsumed
-      | None -> hasBadEscape <- true
-    else
-      index <- index + 1
-  hasBadEscape
+  if index >= innerLength then
+    false
+  elif index + 1 < innerLength && inner[index] = '{' && inner[index + 1] = '{' then
+    singleCloseBraceFrom inner isRaw (index + 2)
+  elif index + 1 < innerLength && inner[index] = '}' && inner[index + 1] = '}' then
+    singleCloseBraceFrom inner isRaw (index + 2)
+  elif inner[index] = '{' then
+    let closeIndex = findInterpExprClose inner innerLength (index + 1)
+    singleCloseBraceFrom
+      inner
+      isRaw
+      (if closeIndex < 0 then innerLength else closeIndex + 1)
+  elif inner[index] = '}' then
+    true
+  elif inner[index] = '\\' && not isRaw && index + 1 < innerLength then
+    singleCloseBraceFrom inner isRaw (index + 2)
+  else
+    singleCloseBraceFrom inner isRaw (index + 1)
 
 /// Does interpolated-string literal text contain a single unescaped `}`?
 /// Literal braces must be doubled (`}}`) or escaped (`\}` in regular strings).
 /// Braces inside `{ expression }` regions are code and are skipped.
 let hasSingleCloseBraceInterp (inner : string) (isRaw : bool) : bool =
-  let innerLength = inner.Length
-  let mutable index = 0
-  let mutable hasSingleCloseBrace = false
-  while index < innerLength && not hasSingleCloseBrace do
-    if index + 1 < innerLength && inner[index] = '{' && inner[index + 1] = '{' then
-      index <- index + 2
-    elif index + 1 < innerLength && inner[index] = '}' && inner[index + 1] = '}' then
-      index <- index + 2
-    elif inner[index] = '{' then
-      let closeIndex = findInterpExprClose inner innerLength (index + 1)
-      index <- if closeIndex < 0 then innerLength else closeIndex + 1
-    elif inner[index] = '}' then
-      hasSingleCloseBrace <- true
-    elif inner[index] = '\\' && not isRaw && index + 1 < innerLength then
-      index <- index + 2
-    else
-      index <- index + 1
-  hasSingleCloseBrace
+  singleCloseBraceFrom inner isRaw 0
 
 
 /// The parser parses each `{expr}` body recursively. Nested interpolated strings
@@ -337,6 +435,7 @@ let tokenize
 
   // `///` doc comments lex as trivia, but their text also lands on the next
   // emitted token. `emit` consumes and clears this.
+  // Mutable on purpose, like the two below: threading them through `go` costs a tuple per token.
   let mutable pendingDocComment : string option = None
 
   // Comments scanned since the last emitted token. `emit` drains them into
@@ -356,12 +455,7 @@ let tokenize
       { position with column = position.column + 1 }
 
   let advance (position : Pos) (startIndex : int) (endIndex : int) : Pos =
-    let mutable currentPosition = position
-    let mutable index = startIndex
-    while index < endIndex do
-      currentPosition <- step currentPosition input[index]
-      index <- index + 1
-    currentPosition
+    advanceOver input position startIndex endIndex
 
   let rec skipTrivia (index : int) (position : Pos) : int * Pos =
     if index >= inputLength then
@@ -373,9 +467,7 @@ let tokenize
       then
         skipTrivia (index + 1) (step position character)
       elif character = '/' && index + 1 < inputLength && input[index + 1] = '/' then
-        let mutable lineEndIndex = index
-        while lineEndIndex < inputLength && input[lineEndIndex] <> '\n' do
-          lineEndIndex <- lineEndIndex + 1
+        let lineEndIndex = lineEnd input inputLength index
         // `/// …` is a doc comment for the next declaration. `////` and plain
         // `//` are ordinary comments.
         let isDocComment =
@@ -673,11 +765,7 @@ let tokenize
         go nextIndex nextPosition (spannedToken :: tokensRev)
       // backtick identifiers: ``name``
       elif character = '`' && index + 1 < inputLength && input[index + 1] = '`' then
-        let mutable closeIndex = index + 2
-        while closeIndex + 1 < inputLength
-              && not (input[closeIndex] = '`' && input[closeIndex + 1] = '`')
-              && input[closeIndex] <> '\n' do
-          closeIndex <- closeIndex + 1
+        let closeIndex = backtickClose input (index + 2)
         if
           closeIndex + 1 < inputLength
           && input[closeIndex] = '`'
@@ -703,12 +791,7 @@ let tokenize
           go nextIndex nextPosition (spannedToken :: tokensRev)
       // identifiers / keywords
       elif System.Char.IsLetter character || character = '_' then
-        let mutable endIndex = index + 1
-        while endIndex < inputLength
-              && (System.Char.IsLetterOrDigit input[endIndex]
-                  || input[endIndex] = '_'
-                  || input[endIndex] = '\'') do
-          endIndex <- endIndex + 1
+        let endIndex = identEnd input (index + 1)
         let (spannedToken, nextIndex, nextPosition) =
           emit
             (keyword (input.Substring(index, endIndex - index)))
@@ -719,23 +802,13 @@ let tokenize
       // numbers: digits, an optional fraction and exponent, then a suffix naming
       // the type (`1s8`, `1.5f32`, `19.99dec`). No suffix is Int64 or Float.
       elif System.Char.IsDigit character then
-        let isIdentifierContinue boundaryIndex =
-          boundaryIndex < inputLength
-          && (System.Char.IsLetterOrDigit input[boundaryIndex]
-              || input[boundaryIndex] = '_'
-              || input[boundaryIndex] = '\'')
-        let skipDigits from =
-          let mutable i = from
-          while i < inputLength && System.Char.IsDigit input[i] do
-            i <- i + 1
-          i
-        let digitEndIndex = skipDigits (index + 1)
+        let digitEndIndex = digitsEnd input (index + 1)
         let hasFraction =
           digitEndIndex + 1 < inputLength
           && input[digitEndIndex] = '.'
           && System.Char.IsDigit input[digitEndIndex + 1]
         let fractionEndIndex =
-          if hasFraction then skipDigits (digitEndIndex + 1) else digitEndIndex
+          if hasFraction then digitsEnd input (digitEndIndex + 1) else digitEndIndex
         // `e` is an exponent only when digits follow it, so `1e` stays one bad literal
         let exponentEndIndex =
           let signIndex = fractionEndIndex + 1
@@ -753,15 +826,13 @@ let tokenize
             && digitsIndex < inputLength
             && System.Char.IsDigit input[digitsIndex]
           then
-            skipDigits digitsIndex
+            digitsEnd input digitsIndex
           else
             fractionEndIndex
         let hasExponent = exponentEndIndex > fractionEndIndex
         // A number token ends at a non-identifier boundary: glued text like `123abc`
         // is one malformed literal, not two tokens.
-        let mutable endIndex = exponentEndIndex
-        while isIdentifierContinue endIndex do
-          endIndex <- endIndex + 1
+        let endIndex = identEnd input exponentEndIndex
         let suffix = input.Substring(exponentEndIndex, endIndex - exponentEndIndex)
         let body = input.Substring(index, exponentEndIndex - index)
         let invariant = System.Globalization.CultureInfo.InvariantCulture
@@ -912,11 +983,7 @@ let tokenize
           && index + 1 < inputLength
           && (System.Char.IsLetter input[index + 1] || input[index + 1] = '_')
         then
-          let mutable typeVariableEndIndex = index + 1
-          while (typeVariableEndIndex < inputLength
-                 && (System.Char.IsLetterOrDigit input[typeVariableEndIndex]
-                     || input[typeVariableEndIndex] = '_')) do
-            typeVariableEndIndex <- typeVariableEndIndex + 1
+          let typeVariableEndIndex = typeVariableEnd input (index + 1)
           // A quoted grapheme wins over a type variable. Combining marks are
           // not identifier characters, so the name scan alone misses 'é'.
           let graphemeEndIndex =
@@ -959,13 +1026,11 @@ let tokenize
                 typeVariableEndIndex
                 position
             go nextIndex nextPosition (spannedToken :: tokensRev)
-        else if
-          // Char literal: read one char, or one escape, then the closing quote.
-          // `'''` is the apostrophe char, not an empty literal.
-          index + 1 < inputLength && input[index + 1] = '\\'
-        then
-          // Escaped char: scan to the closing quote so multi-char escapes decode,
-          // such as `'\x41'` or `'\U0001F600'`.
+        // Char literal: read one char, or one escape, then the closing quote.
+        // `'''` is the apostrophe char, not an empty literal.
+        // Escaped char: scan to the closing quote so multi-char escapes decode,
+        // such as `'\x41'` or `'\U0001F600'`.
+        else if index + 1 < inputLength && input[index + 1] = '\\' then
           match scanString (index + 1) '\'' with
           | Ok endIndex ->
             let (spannedToken, nextIndex, nextPosition) =
@@ -1060,10 +1125,14 @@ let tokenize
 
   match go 0 { row = 0; column = 0 } [] with
   | Ok tokens ->
-    let diagnosed = diagnostics |> Seq.map fst |> System.Collections.Generic.HashSet
+    let diagnostics = List.ofSeq diagnostics
     let tokens =
-      tokens
-      |> List.map (fun t ->
-        if diagnosed.Contains t.range then { t with lexError = true } else t)
-    Ok(tokens, List.ofSeq diagnostics)
+      match diagnostics with
+      | [] -> tokens
+      | _ ->
+        let diagnosed = diagnostics |> List.map fst |> Set.ofList
+        tokens
+        |> List.map (fun t ->
+          if Set.contains t.range diagnosed then { t with lexError = true } else t)
+    Ok(tokens, diagnostics)
   | Error message -> Error message
