@@ -19,6 +19,8 @@
 1 Darklang.Cli.Installation.Download.verifyChecksum Darklang.Stdlib.Cli.File.readBytes
 1 Darklang.Cli.Installation.Download.verifyChecksum Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Installation.Helpers.runtimeHash Builtin.getRuntimeHash
+1 Darklang.Cli.Installation.Helpers.versionInfo Darklang.Stdlib.Json.serialize
+1 Darklang.Cli.Installation.Helpers.versionLine Darklang.Stdlib.DateTime.fromSeconds
 1 Darklang.Cli.Installation.System.installFromCurrentBinary Darklang.Stdlib.Cli.Unix.addToPath
 1 Darklang.Cli.Installation.System.installFromCurrentBinary Darklang.Stdlib.Cli.Unix.copyFile
 1 Darklang.Cli.Installation.System.installFromCurrentBinary Darklang.Stdlib.Cli.Unix.ensureDirectoryExists
