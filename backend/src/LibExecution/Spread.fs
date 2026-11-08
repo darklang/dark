@@ -25,6 +25,11 @@
 ///   A chunk's failure is therefore a signal to this module, and nothing in the chunk may turn
 ///   it into a value: a builtin that catches its callee's failure re-raises under `spreadChild`
 ///   (`atRestCheckGuarded`, `applicableTryApply`).
+/// - **A chunk checks the callable's results as serially.** A fn that declares what its callback
+///   returns (`f: Int64 -> Int64`) checks it on this VM, so each chunk gets its own copy of that
+///   check, and what the copies learn about a type comes back in input order
+///   (`Interpreter.learnFromChunk`). A result of the wrong type fails its chunk, which then runs
+///   here and raises what serially it raises.
 /// - **Nothing spreads while somebody is watching.** A recorded or viewed run keeps every pass of
 ///   every loop in its own frame tree, as before.
 /// - **A chunk does not spread again.** A map inside a spread map runs serially in its chunk, so
@@ -545,43 +550,6 @@ let predict
 /// `leftoverIndex` is where in the spread input `leftover` begins.
 type Outcome = { results : List<Dval>; leftover : List<Dval>; leftoverIndex : int }
 
-/// The one type every value in `values` merges into, or `ValueNone` if two of them do not.
-let mergedType (values : seq<Dval>) : ValueType voption =
-  values
-  |> Seq.fold
-    (fun merged v ->
-      match merged with
-      | ValueSome vt ->
-        match LibExecution.ValueType.merge vt (RuntimeTypes.Dval.toValueType v) with
-        | Ok vt -> ValueSome vt
-        | Error() -> ValueNone
-      | ValueNone -> ValueNone)
-    (ValueSome LibExecution.ValueType.unknown)
-
-/// How many of a spread's `answers`, from the first, a serial run would have taken as they came,
-/// after answers that merge into `before`: up to the first whose type does not merge with all of
-/// those. None, if the answers before did not merge.
-///
-/// A chunk checks its callable's answers against the parameter of the builtin it runs, not against
-/// a callback type an enclosing fn declared (`fn: ... -> Int64`), and a chunk whose answers are all
-/// of one other type merges fine. Serially the first of them raises. So an op that hands back what
-/// its callable answered takes a spread's answers only while they agree, and runs the rest where
-/// that check is made.
-let agreeing (before : ValueType voption) (answers : List<Dval>) : int =
-  let rec taken (vt : ValueType) (n : int) (rest : List<Dval>) : int =
-    match rest with
-    | [] -> n
-    | answer :: tail ->
-      match
-        LibExecution.ValueType.merge vt (RuntimeTypes.Dval.toValueType answer)
-      with
-      | Ok vt -> taken vt (n + 1) tail
-      | Error() -> n
-  match before with
-  | ValueSome vt -> taken vt 0 answers
-  | ValueNone -> 0
-
-
 /// Spread `items` over chunk processes. Each chunk applies the builtin `builtinName` to
 /// `chunkArgs offset chunk` and then to `app`; it must answer a `DList`. `offset` is where the
 /// chunk begins in `items`.
@@ -656,6 +624,11 @@ and private spreadChunks
 
   System.Threading.Interlocked.Increment &spreads |> ignore<int64>
 
+  // The callback checks an enclosing fn set up go with every chunk, each its own copy, and
+  // what they learn comes back in order (`Interpreter.learnFromChunk`).
+  let checks = Interpreter.checksForChunk vm app
+  let atSpawn = checks |> List.map (fun x -> x.typeSymbolTable)
+
   let procs =
     chunks
     |> List.map (fun (struct (offset, chunk)) ->
@@ -667,18 +640,22 @@ and private spreadChunks
             access = None
             argsSoFar = chunkArgs offset chunk
             boundImpls = [] }
+      // Its run id taken here, so the checks it is handed can name its run.
+      let runId = VMRuns.next ()
+      let struct (chunkApp, copies) = Interpreter.checksInChunk runId checks app
       // Counts of its own, added to this VM's when the chunk is collected below: the chunks
       // run at once on other threads, and counting into one set from all of them lost counts.
       let p =
         sched.SpawnApply(
           childState,
           entry,
-          DApplicable app,
+          DApplicable chunkApp,
           parent,
           vm.activeAccess,
-          ?stats = InterpreterStats.ForChunk vm.stats
+          ?stats = InterpreterStats.ForChunk vm.stats,
+          runId = runId
         )
-      struct (offset, chunk, p))
+      struct (offset, copies, p))
     |> Array.ofList
 
   // Its answer is kept for an `Exec.await` until taken; nobody else will take it.
@@ -696,7 +673,7 @@ and private spreadChunks
       Ply((List.rev acc, -1))
     else
       uply {
-        let struct (_, _, p) = procs[i]
+        let struct (_, copies, p) = procs[i]
         match me with
         | Some m -> m.parkHint <- ValueSome(Sched.OnProcess p.id)
         | None -> ()
@@ -713,7 +690,8 @@ and private spreadChunks
         // failed is counted too, since it ran; one cancelled below is not, being still unfinished.
         vm.stats.AddChunk p.vm.stats
         match result with
-        | Ok(DList(_, xs)) -> return! collect (i + 1) (xs :: acc)
+        | Ok(DList(_, xs)) when Interpreter.learnFromChunk atSpawn checks copies ->
+          return! collect (i + 1) (xs :: acc)
         | _ -> return (List.rev acc, i)
       }
 

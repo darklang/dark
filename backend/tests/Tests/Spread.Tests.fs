@@ -182,9 +182,8 @@ let private cheapDictBodyStaysSerial =
 
 /// `Dict.filter` checks its answers once they are all in, so a later entry's error comes before
 /// an earlier entry's non-Bool. `Stdlib.Dict.filter` declares its callback's `Bool`, so a non-Bool
-/// raises where it is returned, which a chunk does not check: from half way on, every chunk
-/// answers non-Bools and none fails. And a map whose answers change type half way raises when the
-/// dict is built.
+/// raises where it is returned, in a chunk as serially: from half way on, every chunk answers
+/// non-Bools. And a map whose answers change type half way raises when the dict is built.
 let private dictErrorsAsSerial =
   testTask "Dict.map and Dict.filter raise as serially" {
     let! state = executionStateFor pmPT false
@@ -200,6 +199,22 @@ let private dictErrorsAsSerial =
         Expect.equal e1 e2 $"the same error: {code}"
         Expect.equal s1 s2 $"the same frames: {code}"
       | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
+/// A callback type an enclosing fn declares (`mapDictInts`'s `f: (Int64, Int64) -> Int64`) is
+/// checked in a `Dict.map` chunk as serially.
+let private dictCallbackTypeAsSerial =
+  testTask "a Dict.map callback type an enclosing fn declares is checked as serially" {
+    let! state = executionStateFor pmPT false
+    let code =
+      $"Darklang.Language.Tests.Lambdas.mapDictInts({dictOf 40}, fun(k, v) -> if k == 35 then \"wrong\" else {uneven}(k) + v)"
+    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    Expect.isGreaterThan moved 0L "the map spread"
+    match spread, serial with
+    | Error(e1, s1), Error(e2, s2) ->
+      Expect.equal e1 e2 "the same error"
+      Expect.equal s1 s2 "the same frames"
+    | _ -> failtest $"both should fail: {spread} / {serial}"
   }
 
 let private dictEffectsKeepOrder =
@@ -230,6 +245,45 @@ let private errorAsSerial =
       + "(i)))"
     let! ((spread, serial), fellBack) = delta fallbacks (fun () -> both state code)
     Expect.equal fellBack 1L "the spread fell back"
+    match spread, serial with
+    | Error(e1, s1), Error(e2, s2) ->
+      Expect.equal e1 e2 "the same error"
+      Expect.equal s1 s2 "the same frames"
+    | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
+/// A callback whose type an enclosing fn declares (`mapInts`'s `f: Int64 -> Int64`) is checked
+/// in a chunk as it is serially. A chunk is another VM, where the check the enclosing fn set up
+/// does not apply by itself; without carrying it, the wrong result got through the chunk and
+/// failed later with a different error.
+let private callbackTypeAsSerial =
+  testTask "a callback type an enclosing fn declares is checked as serially" {
+    let! state = executionStateFor pmPT false
+    let code =
+      "Darklang.Language.Tests.Lambdas.mapInts(Stdlib.List.range(1, 40), fun i -> if i == 35 then \"wrong\" else "
+      + uneven
+      + "(i))"
+    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    Expect.isGreaterThan moved 0L "the map spread"
+    match spread, serial with
+    | Error(e1, s1), Error(e2, s2) ->
+      Expect.equal e1 e2 "the same error"
+      Expect.equal s1 s2 "the same frames"
+    | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
+/// A check that learns its type as it goes learns it across chunks as it would serially: `'b`
+/// is settled by element 20's `Some(1)`, so element 35's `Some("x")` raises. The chunk holding 35
+/// never saw 20, and learns `String` from it on its own; that disagreement sends it back here.
+let private checkLearnsAsSerial =
+  testTask "a callback check learns its type across chunks as serially" {
+    let! state = executionStateFor pmPT false
+    let code =
+      "Darklang.Language.Tests.Lambdas.mapOptions(Stdlib.List.range(1, 40), fun i -> let _ = "
+      + uneven
+      + "(i) in if i == 20 then Stdlib.Option.Option.Some(1) else if i == 35 then Stdlib.Option.Option.Some(\"x\") else Stdlib.Option.Option.None)"
+    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    Expect.isGreaterThan moved 0L "the map spread"
     match spread, serial with
     | Error(e1, s1), Error(e2, s2) ->
       Expect.equal e1 e2 "the same error"
@@ -617,9 +671,12 @@ let tests =
         dictOps
         cheapDictBodyStaysSerial
         dictErrorsAsSerial
+        dictCallbackTypeAsSerial
         dictEffectsKeepOrder
         errorAsSerial
         earliestErrorWins
+        callbackTypeAsSerial
+        checkLearnsAsSerial
         effectsKeepOrder
         namedFallbackIsRemembered
         refusalGetsThrough "Darklang.LanguageTools.AtRestTypeChecker.guard"

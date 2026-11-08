@@ -4403,7 +4403,7 @@ type InterpreterStats =
     this.addTiming this.packageFnTiming this.packageFnCounts hash elapsedTicks
 
 /// Source of `VMState.runId`. Global, so atomic, but taken once per VM run rather than per frame.
-module private VMRuns =
+module VMRuns =
   let private last = ref 0L
   let next () : int64 = System.Threading.Interlocked.Increment(&last.contents)
 

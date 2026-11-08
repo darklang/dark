@@ -782,10 +782,16 @@ let inline private nextFrameId (vm : VMState) : uuid =
     0uy
   )
 
+/// The `frameId` of a check that applies for the whole of its run rather than while one frame
+/// lives: a check a spread chunk inherits (`checksInChunk`). No frame has it: pushed frames count
+/// up from 1 and root frames are random.
+let private wholeRun = System.Guid.Empty
+
 /// Whether the fn that set up this check is still running. Once it returns, its
 /// types no longer apply, so a lambda kept and called later is not checked.
 let inline private isLive (vm : VMState) (x : LambdaReturnExpectation) : bool =
-  x.runId = vm.runId && vm.callFrames.ContainsKey x.frameId
+  x.runId = vm.runId
+  && (vm.callFrames.ContainsKey x.frameId || x.frameId = wholeRun)
 
 /// Drops the checks whose fn has already returned, and gives back the rest.
 let rec private liveExpectation
@@ -812,6 +818,108 @@ let private alreadyExpects
     found <- x.paramIndex = paramIndex && x.fnName = fnName && isLive vm x
     link <- x.outer
   found
+
+/// The checks `app` is under here (`expectLambdaReturns`), innermost first, for a spread chunk
+/// that applies it on a VM of its own (`Spread`). A check belongs to the frame of the fn that set
+/// it up, on this VM, so in a chunk it would not apply, and a result of the wrong type would get
+/// through the chunk to fail later as something else. The chunk takes copies (`checksInChunk`).
+let checksForChunk
+  (vm : VMState)
+  (app : Applicable)
+  : List<LambdaReturnExpectation> =
+  match app with
+  | AppNamedFn _ -> []
+  | AppLambda l ->
+    let mutable link = l.expectedReturn
+    let mutable live = []
+    while link.IsSome do
+      let x = link.Value
+      if isLive vm x then live <- x :: live
+      link <- x.outer
+    List.rev live
+
+/// `app` under copies of `checks` that apply for the whole of run `runId`, the chunk's own VM,
+/// and the copies, in the order of `checks`. Copies, so each chunk learns into its own
+/// (`typeSymbolTable`), and what it learned is read once it has finished (`learnFromChunk`).
+let checksInChunk
+  (runId : int64)
+  (checks : List<LambdaReturnExpectation>)
+  (app : Applicable)
+  : struct (Applicable * List<LambdaReturnExpectation>) =
+  match app, checks with
+  | AppLambda l, _ :: _ ->
+    let chain =
+      List.foldBack
+        (fun (x : LambdaReturnExpectation) outer ->
+          ValueSome { x with runId = runId; frameId = wholeRun; outer = outer })
+        checks
+        ValueNone
+    let rec copies (e : LambdaReturnExpectation voption) =
+      match e with
+      | ValueSome x -> x :: copies x.outer
+      | ValueNone -> []
+    struct (AppLambda { l with expectedReturn = chain }, copies chain)
+  | _ -> struct (app, [])
+
+/// What one chunk's copy of a check learned (`learned`, from `atSpawn`), on top of what the
+/// chunks before it taught the check (`sofar`). `ValueNone` when it learned something else for
+/// a type they had already settled: serially, an element of this chunk would have been checked
+/// against theirs.
+let private learnedOnTop
+  (atSpawn : TypeSymbolTable)
+  (sofar : TypeSymbolTable)
+  (learned : TypeSymbolTable)
+  : TypeSymbolTable voption =
+  learned.ToList()
+  |> List.fold
+    (fun (acc : TypeSymbolTable voption) (name, vt) ->
+      match acc with
+      | ValueNone -> ValueNone
+      | ValueSome acc ->
+        let before = TST.tryFind name atSpawn
+        if before = ValueSome vt then
+          ValueSome acc
+        else
+          match TST.tryFind name acc with
+          | ValueSome known when known = vt -> ValueSome acc
+          | known when known = before -> ValueSome(TST.add name vt acc)
+          | _ -> ValueNone)
+    (ValueSome sofar)
+
+/// After a chunk finished, in input order: take what its copies of `checks` learned
+/// (`checksInChunk`) into `checks`, as its elements would have taught them serially, so the next
+/// chunk, a serial rest, and any later call under the same checks see what serially they would.
+/// `atSpawn` is what each check knew when the chunks started.
+///
+/// A check learns a type from the first result that settles it, and a chunk starts from what
+/// the check knew at the spread, not from what the chunks before it taught it. So a chunk that
+/// settled a type differently from those before it passed where serially an element of it
+/// raises. Then nothing is taken, the answer is `false`, and the chunk runs again here, from
+/// its first element, under exactly what serially it would have been checked against.
+let learnFromChunk
+  (atSpawn : List<TypeSymbolTable>)
+  (checks : List<LambdaReturnExpectation>)
+  (copies : List<LambdaReturnExpectation>)
+  : bool =
+  match copies with
+  | [] -> true
+  | _ ->
+    let merged =
+      List.map3
+        (fun t0 (x : LambdaReturnExpectation) (c : LambdaReturnExpectation) ->
+          learnedOnTop t0 x.typeSymbolTable c.typeSymbolTable)
+        atSpawn
+        checks
+        copies
+    if merged |> List.forall (fun m -> m.IsSome) then
+      List.iter2
+        (fun (x : LambdaReturnExpectation) (m : TypeSymbolTable voption) ->
+          x.typeSymbolTable <- m.Value)
+        checks
+        merged
+      true
+    else
+      false
 
 /// When a lambda is passed to a fn, remember what that fn says the lambda should
 /// return, so we can check the lambda's result each time it is called.
