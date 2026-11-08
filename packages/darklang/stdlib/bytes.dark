@@ -88,6 +88,22 @@ let drop(bytes: Bytes, count: Int64): Bytes =
   Stdlib.Result.withDefault(slice(bytes, start, total), empty)
 
 
+/// Returns {{Ok}} <param bytes> with the byte at <param index> replaced by
+/// <param byte>. Returns {{Error IndexOutOfBounds}} unless
+/// {{0 <= index < length}}.
+let setAt(
+  bytes: Bytes,
+  index: Int64,
+  byte: UInt8)
+  : Stdlib.Result.Result<Bytes, IndexError> =
+  if index < 0 || index >= length(bytes) then
+    Stdlib.Result.Result.Error(IndexError.IndexOutOfBounds)
+  else
+    Stdlib.Result.Result.Ok(
+      concatAll([ take(bytes, index), fromList([ byte ]), drop(bytes, index + 1) ])
+    )
+
+
 /// Returns {{true}} if <param bytes> begins with <param prefix>. Every Bytes
 /// starts with the empty Bytes.
 let startsWith(bytes: Bytes, prefix: Bytes): Bool =
