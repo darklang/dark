@@ -275,9 +275,10 @@ CREATE TABLE IF NOT EXISTS package_blobs (
 
 -- Op ids that arrived from a BUILD's embedded seed rather than authored here or pulled from a peer.
 -- Append-only and local: provenance that no later fold can re-derive.
+-- WITHOUT ROWID, so each id is stored once rather than in a table and again in its key's index.
 CREATE TABLE IF NOT EXISTS seed_ops (
   op_id TEXT PRIMARY KEY
-);
+) WITHOUT ROWID;
 
 -- ---------------------------------------------------------------------------
 -- Names, deprecations and docs: LAYERED
@@ -371,37 +372,26 @@ CREATE INDEX IF NOT EXISTS idx_location_docs_layer ON location_docs(branch_id, d
 
 -- Dependency edges between package items. Records the user-typed FQN alongside the content hash, so
 -- two distinct FQNs sharing a hash (e.g. multiple `val ... = 200L`) stay separate edges rather than
--- collapse under an INSERT OR IGNORE on hash alone. Fully derived from package items: no PK,
--- uniqueness enforced by the index below, and rebuilt freely.
+-- collapse under an INSERT OR IGNORE on hash alone. Fully derived from package items, and rebuilt
+-- freely.
 --
--- The UNIQUE INDEX wraps the location columns in `COALESCE(col, '')` because SQLite treats NULLs as
--- distinct in a UNIQUE index without it, which would let duplicate NULL-location rows accumulate on
--- every `updateDependencies` reinsert.
+-- The whole row is the key, so the table is its own unique index, ordered by `item_hash` for the
+-- lookups by caller: as a rowid table with a UNIQUE index over every column, each edge was stored
+-- twice. A key column can't be NULL, so an edge with no name (a reference by hash alone) stores ''
+-- in all three location columns.
 CREATE TABLE IF NOT EXISTS package_dependencies (
   item_hash TEXT NOT NULL,
   depends_on_hash TEXT NOT NULL,
   depends_on_item_type TEXT NOT NULL,
-  depends_on_owner TEXT,
-  depends_on_modules TEXT,
-  depends_on_name TEXT
-);
+  depends_on_owner TEXT NOT NULL,
+  depends_on_modules TEXT NOT NULL,
+  depends_on_name TEXT NOT NULL,
+  PRIMARY KEY (
+    item_hash, depends_on_hash, depends_on_item_type,
+    depends_on_owner, depends_on_modules, depends_on_name)
+) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_package_dependencies_depends_on
   ON package_dependencies(depends_on_hash);
--- Partial index for the propagation query: "who depends on this
--- location?" Excludes the NULL backlog so it stays small.
-CREATE INDEX IF NOT EXISTS idx_package_dependencies_depends_on_location
-  ON package_dependencies(depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name)
-  WHERE depends_on_owner IS NOT NULL;
--- Also the index for lookups by `item_hash`: it leads with it, so a separate one would be a copy.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_package_dependencies_unique
-  ON package_dependencies(
-    item_hash,
-    depends_on_hash,
-    depends_on_item_type,
-    COALESCE(depends_on_owner, ''),
-    COALESCE(depends_on_modules, ''),
-    COALESCE(depends_on_name, '')
-  );
 
 -- ---------------------------------------------------------------------------
 -- from 08-traces.sql
@@ -618,9 +608,12 @@ CREATE INDEX IF NOT EXISTS idx_package_trait_impls_trait ON package_trait_impls(
 -- Without it that query visits every edge in the store and looks each one's name up in
 -- `locations`: about 32,000 lookups on a fresh store, to return nothing. With it the question
 -- is asked per distinct (name, version) instead, from the index alone.
+--
+-- It is also the index for "who depends on this name?" (propagation, reference names). An index on
+-- a WITHOUT ROWID table carries the rest of the key, so `item_hash` and `depends_on_item_type` are
+-- in it without being named. Not partial: SQLite can't tell that `depends_on_owner = ?` excludes ''.
 CREATE INDEX IF NOT EXISTS idx_package_dependencies_target
-  ON package_dependencies(depends_on_owner, depends_on_modules, depends_on_name, depends_on_hash, item_hash)
-  WHERE depends_on_owner IS NOT NULL;
+  ON package_dependencies(depends_on_owner, depends_on_modules, depends_on_name, depends_on_hash);
 
 -- ---------------------------------------------------------------------------
 -- from 11-op-log-commit-index.sql

@@ -75,9 +75,10 @@ let updateDependencies
               p cmd $"$modules_{i}" (String.concat "." loc.modules)
               p cmd $"$name_{i}" loc.name
             | None ->
-              p cmd $"$owner_{i}" System.DBNull.Value
-              p cmd $"$modules_{i}" System.DBNull.Value
-              p cmd $"$name_{i}" System.DBNull.Value))
+              // '' rather than NULL: the location columns are part of the table's key.
+              p cmd $"$owner_{i}" ""
+              p cmd $"$modules_{i}" ""
+              p cmd $"$name_{i}" ""))
   }
 
 
