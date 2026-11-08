@@ -49,7 +49,7 @@ let ofCluster (cluster : string) : int =
 
 /// Cells occupied by plain, single-line text. Strip escapes first; controls measure zero.
 ///
-/// `String.toEgcSeq |> Seq.sumBy ofCluster` allocates a string for every grapheme cluster, which for
+/// `String.egcs |> List.sumBy ofCluster` allocates a string for every grapheme cluster, which for
 /// ASCII text is one per character, to hand `ofCluster` something whose width it answers by
 /// comparison. A printable ASCII character followed by another ASCII character is one column and
 /// cannot be part of a longer cluster, so it needs no cluster built at all -- the same rule

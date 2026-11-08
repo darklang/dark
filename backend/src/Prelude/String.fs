@@ -1,40 +1,106 @@
 module String
 
-/// Returns a seq of EGC
-/// (extended grapheme cluster - essentially a visible screen character)
-/// https://stackoverflow.com/a/4556612/104021
-let toEgcSeq (s : string) : seq<string> =
-  seq {
-    let tee = System.Globalization.StringInfo.GetTextElementEnumerator(s)
+/// Whether `c` is a cluster boundary on both sides when its neighbour is one of these too: every
+/// char below U+0300 except CR. That is ASCII, Latin-1 and Latin Extended, so precomposed accented
+/// letters as well as plain text.
+///
+/// Every such char has Grapheme_Cluster_Break Other, Control or LF, and no Indic_Conjunct_Break.
+/// The rules that join two chars all need one of them to be something else: CR before LF, an
+/// Extend, ZWJ or SpacingMark after, a Prepend before, a Hangul or regional-indicator pair. U+0300
+/// is the first combining mark. `Prelude.Tests` checks every pair against `StringInfo`.
+let inline private isSimple (c : char) : bool = c < '\u0300' && c <> '\r'
 
-    while tee.MoveNext() do
-      yield tee.GetTextElement()
-  }
+/// The UTF-16 offset just past the cluster that starts at `offset`, which is below `s.Length`.
+///
+/// Two simple chars in a row end a cluster without asking `StringInfo`, which is most of the cost
+/// of walking text that is mostly letters.
+let clusterEnd (s : string) (offset : int) : int =
+  let next = offset + 1
+  if isSimple s[offset] && (next = s.Length || isSimple s[next]) then
+    next
+  else
+    offset
+    + System.Globalization.StringInfo.GetNextTextElementLength(
+      System.MemoryExtensions.AsSpan(s, offset)
+    )
+
+/// The offset `count` clusters on from the boundary `offset`, or `s.Length` if the text runs out
+/// first.
+let rec clusterOffset (s : string) (offset : int) (count : int) : int =
+  if count <= 0 || offset >= s.Length then
+    offset
+  else
+    clusterOffset s (clusterEnd s offset) (count - 1)
 
 /// True when the string's extended grapheme clusters are exactly its chars, so a char-wise
 /// operation gives the same answer as the EGC-correct one.
 ///
 /// Purely a performance guard: the EGC implementations build one string per cluster, and most
-/// strings a program splits or measures are paths, keys and identifiers. Correctness never depends
-/// on which branch is taken, so if in doubt, return false.
+/// strings a program splits or measures are paths, keys, identifiers and words. Correctness never
+/// depends on which branch is taken, so if in doubt, return false.
 ///
-/// CR is rejected along with non-ASCII, because CRLF is a single cluster. Rejecting outright rather
-/// than looking ahead keeps this to two vectorized scans.
+/// CR is rejected along with everything from U+0300 up, because CRLF is a single cluster.
+/// Rejecting outright rather than looking ahead keeps this to a few vectorized scans. The ASCII
+/// check goes first because it is the cheapest scan, and it answers for most text.
 let isCharwise (s : string) : bool =
-  System.Text.Ascii.IsValid(System.MemoryExtensions.AsSpan s)
+  let span = System.MemoryExtensions.AsSpan s
+  (System.Text.Ascii.IsValid span
+   || System.MemoryExtensions.IndexOfAnyExceptInRange(span, char 0, '\u02FF') < 0)
   && s.IndexOf('\r') < 0
+
+/// One string for each char below U+0300, so splitting text into its characters allocates no
+/// string for a letter.
+let private simpleStrings : string array =
+  Array.init 0x300 (fun i -> System.String(char i, 1))
+
+/// The cluster of `s` from `start` to `stop`.
+let private cluster (s : string) (start : int) (stop : int) : string =
+  if stop = start + 1 && s[start] < '\u0300' then
+    simpleStrings[int s[start]]
+  else
+    s.Substring(start, stop - start)
+
+let rec private clustersOnto
+  (f : string -> 'a)
+  (s : string)
+  (offset : int)
+  (acc : List<'a>)
+  : List<'a> =
+  if offset >= s.Length then
+    acc
+  else
+    let stop = clusterEnd s offset
+    clustersOnto f s stop (f (cluster s offset stop) :: acc)
+
+let rec private charsOnto
+  (f : string -> 'a)
+  (s : string)
+  (i : int)
+  (acc : List<'a>)
+  : List<'a> =
+  if i < 0 then acc else charsOnto f s (i - 1) (f simpleStrings[int s[i]] :: acc)
+
+/// `f` of each cluster of `s`, last first.
+let mapEgcsReversed (f : string -> 'a) (s : string) : List<'a> =
+  clustersOnto f s 0 []
+
+/// `f` of each extended grapheme cluster (essentially a visible screen character) of `s`, in order.
+let mapEgcs (f : string -> 'a) (s : string) : List<'a> =
+  if isCharwise s then
+    // Built from the end, so the list needs no reversing.
+    charsOnto f s (s.Length - 1) []
+  else
+    List.rev (mapEgcsReversed f s)
+
+/// The extended grapheme clusters of `s`, in order.
+let egcs (s : string) : List<string> = mapEgcs id s
+
+/// The extended grapheme clusters of `s`, last first.
+let egcsReversed (s : string) : List<string> = mapEgcsReversed id s
 
 /// Return Some(c) if the string is a single EGC character, otherwise None
 let toEgcChar (str : string) : Option<string> =
-  if
-    str <> ""
-    && System.Globalization.StringInfo.GetNextTextElementLength(
-      System.MemoryExtensions.AsSpan str
-    ) = str.Length
-  then
-    Some str
-  else
-    None
+  if str <> "" && clusterEnd str 0 = str.Length then Some str else None
 
 
 let splitOnNewline (str : string) : List<string> =
@@ -43,22 +109,87 @@ let splitOnNewline (str : string) : List<string> =
   else
     str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
+let rec private countClusters (s : string) (offset : int) (count : int) : int =
+  if offset >= s.Length then
+    count
+  else
+    countClusters s (clusterEnd s offset) (count + 1)
+
 /// The number of extended grapheme clusters in `s`. Steps from cluster to cluster rather than
 /// asking `StringInfo` for `LengthInTextElements`, which builds an index of every cluster first.
 let lengthInEgcs (s : string) : int =
+  if isCharwise s then s.Length else countClusters s 0 0
+
+/// Clamp a Dark `Int64` index against a cluster length, the way `String.slice` always has: a negative
+/// index counts from the end, then the result is clamped to [0, len].
+///
+/// Clamps in the `Int64` domain and only then narrows -- narrowing first raises `OutOfRange` on an
+/// index past int32, where this clamps. `String.slice "abc" 0 4503599627370498` is "abc", and there
+/// is a testfile line for it.
+let private normalizeEgcIndex (len : int) (i : int64) : int =
+  // `len + i` cannot overflow for a negative `i`: `len` is at most int32.
+  let i = if i < 0L then int64 len + i else i
+  if i < 0L then 0
+  elif i > int64 len then len
+  else int i
+
+/// A non-negative index, clamped to `s.Length`. No string has more clusters than chars, so a
+/// walk from the start that runs out of text stops where clamping to the length would.
+let private clampToChars (s : string) (i : int64) : int =
+  if i > int64 s.Length then s.Length else int i
+
+/// The clusters of `s` from index `first` up to `last`, as `String.slice` counts them: a negative
+/// index counts from the end, and both are clamped to the string.
+///
+/// With both indices from the start there is no need to know the length, so the walk stops at
+/// `last` rather than going on to the end of the string.
+let sliceEgcs (s : string) (first : int64) (last : int64) : string =
   if isCharwise s then
-    s.Length
+    let first = normalizeEgcIndex s.Length first
+    let last = normalizeEgcIndex s.Length last
+    if first >= last then "" else s.Substring(first, last - first)
   else
-    let mutable count = 0
-    let mutable offset = 0
-    while offset < s.Length do
-      offset <-
-        offset
-        + System.Globalization.StringInfo.GetNextTextElementLength(
-          System.MemoryExtensions.AsSpan(s, offset)
-        )
-      count <- count + 1
-    count
+    let first, last =
+      if first >= 0L && last >= 0L then
+        clampToChars s first, clampToChars s last
+      else
+        let len = lengthInEgcs s
+        normalizeEgcIndex len first, normalizeEgcIndex len last
+    if first >= last then
+      ""
+    else
+      let start = clusterOffset s 0 first
+      s.Substring(start, clusterOffset s start (last - first) - start)
+
+/// `s` without its first `count` clusters, or all of it when `count` is negative.
+let dropFirstEgcs (s : string) (count : int64) : string =
+  if count <= 0L then
+    s
+  elif isCharwise s then
+    (if count >= int64 s.Length then "" else s.Substring(int count))
+  else
+    s.Substring(clusterOffset s 0 (clampToChars s count))
+
+/// Whether walking clusters from the boundary `offset` lands exactly on `target`.
+let rec landsOn (s : string) (target : int) (offset : int) : bool =
+  if offset >= target then
+    offset = target
+  else
+    landsOn s target (clusterEnd s offset)
+
+/// Whether the first clusters of `subject` are the clusters of `prefix`.
+///
+/// Prefix tests are cluster tests in Dark, not char tests: "\U0001F471" is an ordinal prefix of
+/// "\U0001F471\U0001F3FB" but not a cluster-prefix of it. An ordinal prefix whose end is a cluster
+/// boundary of `subject` is a cluster-prefix: every cluster before it was found looking only at
+/// chars the two strings share.
+let startsWithEgcs (subject : string) (prefix : string) : bool =
+  let p = prefix.Length
+  subject.StartsWith(prefix, System.StringComparison.Ordinal)
+  && (p = 0
+      || p = subject.Length
+      || (isSimple subject[p - 1] && isSimple subject[p])
+      || landsOn subject p 0)
 
 let normalize (s : string) : string = s.Normalize()
 

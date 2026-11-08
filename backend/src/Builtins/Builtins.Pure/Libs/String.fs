@@ -14,68 +14,15 @@ module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 module Bytes = LibExecution.Bytes
 
-/// The substring of `s` between cluster indices `first` and `last`, both already clamped to
-/// [0, length] with `first <= last`.
-///
-/// Shared by `stringSlice` and `stringStartsWith` so the two cannot drift.
-/// Prefix and suffix tests are cluster tests in Dark, not byte tests: `String.startsWith` was
-/// `slice subject 0 (length prefix) == prefix`, and ordinal `StartsWith` is NOT equivalent -- "\U0001F471"
-/// is a byte-prefix of "\U0001F471\U0001F3FB" but not a cluster-prefix of it.
-let private egcSubstring (s : string) (first : int) (last : int) : string =
-  if first >= last then
-    ""
-  elif String.isCharwise s then
-    s.Substring(first, last - first)
-  else
-    let e = System.Globalization.StringInfo.GetTextElementEnumerator(s)
-    let mutable startIndex = 0
-    let mutable endIndex = s.Length
-    let mutable index = 0
-
-    // Stops at the cluster that starts at `last`: nothing after it changes the answer.
-    while index <= last && e.MoveNext() do
-      if index = first then startIndex <- e.ElementIndex
-      if index = last then endIndex <- e.ElementIndex
-      index <- index + 1
-
-    s.Substring(startIndex, endIndex - startIndex)
-
-
-/// Clamp a Dark `Int64` index against a cluster length, the way `String.slice` always has: a negative
-/// index counts from the end, then the result is clamped to [0, len].
-///
-/// Clamps in the `Int64` domain and only then narrows -- narrowing first raises `OutOfRange` on an
-/// index past int32, where this clamps. `String.slice "abc" 0 4503599627370498` is "abc", and there
-/// is a testfile line for it.
-let private normalizeEgcIndex (len : int) (i : int64) : int =
-  // `len + i` cannot overflow for a negative `i`: `len` is at most int32.
-  let i = if i < 0L then int64 len + i else i
-  if i < 0L then 0
-  elif i > int64 len then len
-  else int i
-
-
-/// The UTF-16 length of the cluster that starts at `offset`.
-let private clusterLength (s : string) (offset : int) : int =
-  StringInfo.GetNextTextElementLength(System.MemoryExtensions.AsSpan(s, offset))
-
-/// The first offset at or after `offset` whose char is not ASCII or is CR, or `s.Length`. Every
-/// char before it, except perhaps the last, is a cluster of its own: that one may combine with
-/// the char after.
-let private asciiRunEnd (s : string) (offset : int) : int =
+/// The first offset at or after `offset` whose char is U+0300 or above or is CR, or `s.Length`.
+/// Every char before it, except perhaps the last, is a cluster of its own: that one may combine
+/// with the char after. See `String.clusterEnd`.
+let private simpleRunEnd (s : string) (offset : int) : int =
   let rest = System.MemoryExtensions.AsSpan(s, offset)
-  let nonAscii =
-    System.MemoryExtensions.IndexOfAnyExceptInRange(rest, char 0, char 0x7F)
-  let runEnd = if nonAscii < 0 then s.Length else offset + nonAscii
+  let other = System.MemoryExtensions.IndexOfAnyExceptInRange(rest, char 0, '\u02FF')
+  let runEnd = if other < 0 then s.Length else offset + other
   let cr = s.IndexOf('\r', offset, runEnd - offset)
   if cr < 0 then runEnd else cr
-
-/// Whether walking clusters from the boundary `start` lands exactly on `target`.
-let private endsOnBoundary (s : string) (start : int) (target : int) : bool =
-  let mutable offset = start
-  while offset < target do
-    offset <- offset + clusterLength s offset
-  offset = target
 
 /// The UTF-16 offset of the first `needle` in `s` at or after `from` that starts and ends on
 /// cluster boundaries, or -1. `needle` is not empty.
@@ -83,7 +30,7 @@ let private endsOnBoundary (s : string) (start : int) (target : int) : bool =
 /// `offset` is a cluster boundary at or before `from`, and `index` the number of clusters before
 /// it. Both move forward as the search walks, so a search that carries on from a match does not
 /// walk the text again. Searches ordinally and walks only as far as a hit, so a miss costs what
-/// ordinal `IndexOf` does, and a run of ASCII is jumped rather than walked.
+/// ordinal `IndexOf` does, and a run of simple chars is jumped rather than walked.
 let private nextEgcMatch
   (s : string)
   (needle : string)
@@ -96,16 +43,16 @@ let private nextEgcMatch
   let mutable runEnd = offset
   while found < 0 && at >= 0 do
     while offset < at do
-      if offset >= runEnd then runEnd <- asciiRunEnd s offset
-      // Jump over ASCII, one cluster per char, rather than asking for each cluster.
+      if offset >= runEnd then runEnd <- simpleRunEnd s offset
+      // Jump over simple chars, one cluster per char, rather than asking for each cluster.
       let jump = min at (runEnd - 1)
       if jump > offset then
         index <- index + (jump - offset)
         offset <- jump
       else
-        offset <- offset + clusterLength s offset
+        offset <- String.clusterEnd s offset
         index <- index + 1
-    if offset = at && endsOnBoundary s at (at + needle.Length) then
+    if offset = at && String.landsOn s (at + needle.Length) at then
       found <- at
     else
       at <- s.IndexOf(needle, at + 1, System.StringComparison.Ordinal)
@@ -200,12 +147,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s |] ->
-          s
-          |> String.toEgcSeq
-          |> Seq.map DChar
-          |> Seq.toList
-          |> Dval.list KTChar
-          |> Ply
+          s |> String.mapEgcs DChar |> Dval.list KTChar |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -231,7 +173,7 @@ let fns () : List<BuiltInFn> =
             if search = "" then
               // `replace` around and between the clusters.
               let sb = StringBuilder(replace)
-              for egc in String.toEgcSeq s do
+              for egc in String.egcs s do
                 sb.Append(egc).Append(replace) |> ignore<StringBuilder>
               sb.ToString()
             elif String.isCharwise s then
@@ -350,7 +292,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s |] ->
-          String.toEgcSeq s |> Seq.rev |> String.concat "" |> DString |> Ply
+          if String.isCharwise s then
+            let chars = s.ToCharArray()
+            System.Array.Reverse chars
+            Ply(DString(System.String chars))
+          else
+            String.egcsReversed s |> String.concat "" |> DString |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -389,16 +336,14 @@ let fns () : List<BuiltInFn> =
 
           let parts =
             if sep = "" then
-              s |> String.toEgcSeq |> Seq.toList
+              String.egcs s
             // When both sides are charwise, splitting by cluster and splitting by char give the
             // same answer, and the framework's split does it without building a string per
             // character of the input. Paths, keys and identifiers all take this route.
             elif String.isCharwise s && String.isCharwise sep then
               s.Split([| sep |], System.StringSplitOptions.None) |> Array.toList
             else
-              ecgStringSplit
-                (s |> String.toEgcSeq |> Seq.toList)
-                (sep |> String.toEgcSeq |> Seq.toList)
+              ecgStringSplit (String.egcs s) (String.egcs sep)
 
           parts |> List.map DString |> Dval.list KTString |> Ply
         | _ -> incorrectArgs ())
@@ -452,16 +397,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s; DInt64 countD |] ->
-          // The Dark version was two `String.length` calls, two comparisons and a `slice`. The
-          // "count is longer than the string" case needs no branch here: `normalizeEgcIndex` clamps
-          // it to the length, and an empty range gives "". A NEGATIVE count does need one, because
-          // a negative index counts from the end rather than clamping to zero.
-          if countD < 0L then
-            Ply(DString s)
-          else
-            let len = String.lengthInEgcs s
-            let first = normalizeEgcIndex len countD
-            egcSubstring s first len |> DString |> Ply
+          // The Dark version was two `String.length` calls, two comparisons and a `slice`.
+          Ply(DString(String.dropFirstEgcs s countD))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -492,19 +429,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString subject; DString prefix |] ->
           // Exactly what the Dark version computed -- `slice subject 0 (length prefix) == prefix` --
-          // but without the three package calls. Cluster-aware, so NOT `String.StartsWith`: see the
-          // note on `egcSubstring`.
-          //
-          // When both sides are charwise every cluster is one character, so a cluster-prefix and an
-          // ordinal prefix coincide and the walk can be skipped. That is nearly every call.
-          if prefix = "" then
-            Ply(DBool true)
-          elif String.isCharwise subject && String.isCharwise prefix then
-            Ply(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
-          else
-            let subjectLen = String.lengthInEgcs subject
-            let last = min (String.lengthInEgcs prefix) subjectLen
-            Ply(DBool(egcSubstring subject 0 last = prefix))
+          // but without the three package calls, and without walking either string to its end.
+          Ply(DBool(String.startsWithEgcs subject prefix))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -525,18 +451,9 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s; DInt64 firstD; DInt64 lastD |] ->
-          // `String.lengthInEgcs`, not `StringInfo(_).LengthInTextElements`: the former checks
-          // `isCharwise` first and answers with `s.Length` for text that has no multi-char clusters,
-          // which is nearly all of it. Going straight to `StringInfo` measurably regressed the CLI.
-          let len = String.lengthInEgcs s
-
-          // Normalizing here rather than in the Dark wrapper, which built a lambda and applied it
-          // twice to do exactly this. That wrapper is a bare forwarder now, so it elides.
-          let first = normalizeEgcIndex len firstD
-          let last = normalizeEgcIndex len lastD
-          let last = if first > last then first else last
-
-          egcSubstring s first last |> DString |> Ply
+          // Normalizing the indices here rather than in the Dark wrapper, which built a lambda and
+          // applied it twice to do exactly this. That wrapper is a bare forwarder now, so it elides.
+          String.sliceEgcs s firstD lastD |> DString |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
