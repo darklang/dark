@@ -911,6 +911,54 @@ let viewsBehaveLikeCopies =
     Expect.equal (dbytesRef promoted).Length 1024L "saved length"
   }
 
+/// The result is one array of exactly the output's size, whatever the pieces are:
+/// views of a shared array, empty pieces, and saved bytes read from the store.
+let concatWritesOneExactArray =
+  testTask
+    "bytesConcat fills one array of the output's size from views and saved bytes" {
+    let builtin =
+      (Builtins.Pure.Libs.Bytes.fns ())
+      |> List.find (fun fn -> fn.name.name = "bytesConcat")
+      |> Option.defaultWith (fun () -> failtest "bytesConcat is missing")
+    let parentBytes = randomBytes 4096
+    let parent = mkEphemeral parentBytes
+    let! left =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 0L; RT.DInt64 2000L |]
+    let! right =
+      callBytesBuiltin "bytesSlice" [| parent; RT.DInt64 2000L; RT.DInt64 2096L |]
+    Expect.isTrue (ephemeralOf left).IsView "left is a view"
+    Expect.isTrue (ephemeralOf right).IsView "right is a view"
+    let savedBytes = [| 1uy; 2uy; 3uy |]
+    let saved = RT.DBytes(RT.Persistent("concat-saved", 3L))
+    let state =
+      { freshState () with
+          blobs =
+            { get =
+                (fun h ->
+                  Expect.equal h "concat-saved" "reads only the saved piece"
+                  uply { return Some savedBytes })
+              persist = (fun _ _ -> failtest "concat wrote the blob store") } }
+    let call items =
+      builtin.fn (
+        struct (state,
+                Unchecked.defaultof<RT.VMState>,
+                [],
+                [| RT.DList(LibExecution.ValueType.bytes, items) |])
+      )
+      |> Ply.toTask
+    let empty = mkEphemeral [||]
+    let! joined = call [ right; empty; saved; left; empty ]
+    Expect.equal
+      (ephemeralOf joined).buffer
+      (Array.concat
+        [ Array.sub parentBytes 2000 2096; savedBytes; Array.sub parentBytes 0 2000 ])
+      "the pieces in order, in an array of exactly their total length"
+    let! none = call []
+    Expect.equal (ephemeralOf none).buffer [||] "no pieces"
+    let! empties = call [ empty; empty ]
+    Expect.equal (ephemeralOf empties).buffer [||] "only empty pieces"
+  }
+
 // ─────────────────────────────────────────────────────────────────────
 // Dval.rewriteWith structural sharing
 // ─────────────────────────────────────────────────────────────────────
@@ -1172,6 +1220,7 @@ let tests =
       sliceSharesTheParent
       smallSlicesCopy
       viewsBehaveLikeCopies
+      concatWritesOneExactArray
       packageBytesInsertLookup
       packageBytesDedupesOnSameHash
       packageBytesMissingHashReturnsNone

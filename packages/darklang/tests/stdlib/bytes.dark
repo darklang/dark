@@ -96,6 +96,30 @@ test concatAll =
       |> Stdlib.Test.equal(Ok("foo-bar"))
       Stdlib.Bytes.concatAll([]) |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
 
+test concatAllEdges =
+  // 800 bytes, so a slice of 403 or 397 shares this array instead of copying it.
+  let parent = Stdlib.Utf8.encode(Stdlib.String.repeat("abcdefgh", 100))
+  let left = Stdlib.Bytes.take(parent, 403)
+  let right = Stdlib.Bytes.drop(parent, 403)
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.concatAll([ Stdlib.Bytes.empty ])
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.concatAll([ Stdlib.Bytes.empty, Stdlib.Bytes.empty ])
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.concatAll(
+        [ Stdlib.Bytes.empty, Stdlib.Utf8.encode("a"), Stdlib.Bytes.empty ])
+      |> Stdlib.Test.equal(Stdlib.Utf8.encode("a"))
+      Stdlib.Bytes.concatAll([ left ]) |> Stdlib.Test.equal(left)
+      Stdlib.Bytes.concatAll([ left, right ]) |> Stdlib.Test.equal(parent)
+      Stdlib.Bytes.concatAll([ right, Stdlib.Bytes.empty, left ])
+      |> Stdlib.Test.equal(Stdlib.Utf8.encode(Stdlib.String.repeat("defghabc", 100)))
+      Stdlib.Bytes.concatAll([ left, left ])
+      |> Stdlib.Bytes.drop(403)
+      |> Stdlib.Test.equal(left)
+      Stdlib.Bytes.concatAll([ Stdlib.Bytes.take(right, 5), Stdlib.Bytes.drop(left, 400) ])
+      |> Stdlib.Utf8.decode
+      |> Stdlib.Test.equal(Ok("defghabc")) ])
+
 // map
 test map =
   Stdlib.Test.all(
