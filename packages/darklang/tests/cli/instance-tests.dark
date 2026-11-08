@@ -81,3 +81,29 @@ test workbenchPaints =
           Interactive.Step.Await("quit")
           Interactive.Step.Send("q") ],
         30))
+
+
+/// The harness tells a running child from one that has exited, on this platform.
+///
+/// It read /proc for this, so on macOS every child looked gone and `workbenchPaints`
+/// failed there before the CLI had started. A live `sleep` must read as running; once
+/// killed it is a zombie until reaped, and must read as gone.
+test interactiveSeesWhetherTheChildIsRunning =
+  if Stdlib.Bool.not(Interactive.available()) then
+    Stdlib.Test.fail("expect is not installed, so the interactive tests cannot run")
+  else
+    Instance.withInstance(fun i ->
+      let script =
+        [ Interactive.childGone
+          "spawn sleep 30"
+          "set child [exp_pid]"
+          "if {[child_gone $child]} { puts \"A RUNNING CHILD READ AS GONE\"; exit 1 }"
+          "exec kill $child"
+          "set by [expr {[clock milliseconds] + 10000}]"
+          "while {![child_gone $child]} {\n  if {[clock milliseconds] > $by} { puts \"AN EXITED CHILD READ AS RUNNING\"; exit 1 }\n  after 50\n}"
+          "exit 0" ]
+        |> Stdlib.String.join("\n")
+
+      match Interactive.runScript($"{i.dir}/liveness.exp", script) with
+      | Ok(_) -> Stdlib.Test.Result.Pass
+      | Error(out) -> Stdlib.Test.fail(out))

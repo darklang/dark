@@ -317,9 +317,13 @@ echo "Dark CLI test suite:"
 # can wait on a person forever.
 #
 # The instance-backed cases copy a store with the sqlite3 command, so without it they all fail,
-# each for a reason that doesn't say so.
-if ! command -v sqlite3 > /dev/null; then
-  echo "  FAIL suite (needs sqlite3 on PATH)"
+# each for a reason that doesn't say so. The interactive cases need expect for a pty.
+missing_tools=""
+for tool in sqlite3 expect; do
+  command -v "$tool" > /dev/null || missing_tools="$missing_tools $tool"
+done
+if [[ -n "$missing_tools" ]]; then
+  echo "  FAIL suite (needs${missing_tools} on PATH)"
   failures=$((failures + 1))
 else
   suite_out=""

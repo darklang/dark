@@ -83,10 +83,11 @@ echo "$$" >> "$FIXTURE_TIMER_PIDS"
 exec /bin/sleep "$@"
 """)
     sleep.chmod(0o755)
-    # The suite needs sqlite3 on PATH; the fake suite doesn't use it.
-    sqlite3 = self.bin / "sqlite3"
-    sqlite3.write_text("#!/usr/bin/env bash\n")
-    sqlite3.chmod(0o755)
+    # The suite needs sqlite3 and expect on PATH; the fake suite uses neither.
+    for tool in ("sqlite3", "expect"):
+      stub = self.bin / tool
+      stub.write_text("#!/usr/bin/env bash\n")
+      stub.chmod(0o755)
 
   def run_validator(self, mode, check_timeout=TIMER, compare=False, suite="pass",
                     suite_timeout=TIMER, stdin=subprocess.DEVNULL):

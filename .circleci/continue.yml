@@ -570,9 +570,9 @@ jobs:
       - run:
           name: Validate the linux-x64 artifact
           command: |
-            # The CLI suite's instance-backed cases copy a store with sqlite3, which the release
-            # image doesn't have.
-            apt-get update -qq && apt-get install -y -qq --no-install-recommends sqlite3 > /dev/null
+            # The CLI suite's instance-backed cases copy a store with sqlite3, and its
+            # interactive cases get a pty from expect. The release image has neither.
+            apt-get update -qq && apt-get install -y -qq --no-install-recommends sqlite3 expect > /dev/null
             ./scripts/testing/validate-cli-artifact \
               "$(ls clis/darklang-*-linux-x64)"
       # arm64 can't run natively here, but it can run emulated, and it should.
@@ -654,11 +654,11 @@ jobs:
             # cmake, openssl-dev and openssl-libs-static: the musl binary links OpenSSL
             # statically, and .NET builds its OpenSSL shim from source to do that. tar and
             # xz unpack the pinned toolchain. git and openssh-client are for `checkout`,
-            # which otherwise falls back to CircleCI's own git client. sqlite for the CLI suite
-            # the artifact check runs. lld and llvm (for llvm-objcopy) cross-link arm64, and
-            # qemu-aarch64 runs the result.
+            # which otherwise falls back to CircleCI's own git client. sqlite and expect for the
+            # CLI suite the artifact check runs. lld and llvm (for llvm-objcopy) cross-link
+            # arm64, and qemu-aarch64 runs the result.
             apk add --no-cache bash git openssh-client curl clang build-base zlib-dev openssl \
-              icu-libs cmake openssl-dev openssl-libs-static tar xz sqlite lld llvm qemu-aarch64
+              icu-libs cmake openssl-dev openssl-libs-static tar xz sqlite expect lld llvm qemu-aarch64
       - checkout
       - run:
           name: Install the pinned .NET SDK and zig
