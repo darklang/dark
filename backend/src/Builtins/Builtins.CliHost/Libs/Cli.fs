@@ -949,15 +949,11 @@ let executeWith
     // as candidates ahead of the store's. (The branch's impls the branch's package
     // manager serves itself.)
     let scriptImpls = mod'.impls |> List.choose PT2RT.ImplCandidate.ofImpl
+    // The script's values are not among the extras: they have no result until they are
+    // evaluated, which `getValue` below does.
     let pm =
       pmRT
-      |> PackageManager.withExtras
-        types
-        // `values` is bound as PT here, since the only other use of it wants that form;
-        // `withExtras` takes RT, so convert at the call rather than changing the binding.
-        (values |> List.map (PT2RT.PackageValue.toRT parentState.values.builtIn))
-        fns
-        traits
+      |> PackageManager.withExtras types [] fns traits
       |> PackageManager.withExtraImpls scriptImpls
 
     let (traceDesc, inputName, inputValue) = ScriptOrEvalInput.toTraceParams input
@@ -1015,42 +1011,28 @@ let executeWith
           else
             tracer, None, None
 
-    // Initialize referenced script values when they are read, even inside functions.
-    // Reuse successful results so each initializer runs only once.
-    // If a value is already being initialized, return None to stop the dependency
-    // cycle; the caller reports it as a missing value.
+    // A script's values are evaluated when they are first read, even inside functions, the same
+    // way a saved value is (`Exe.evaluateValue`): once, and with no effects.
     let definitions =
       values
-      |> List.map (fun value -> PT2RT.Hash.toRT value.hash, value)
+      |> List.map (fun value ->
+        let name =
+          match LibDB.EphemeralPackages.valueLocations value.hash with
+          | location :: _ -> location.name
+          | [] ->
+            let (PT.Hash h) = value.hash
+            h
+        PT2RT.Hash.toRT value.hash, (name, value.body))
       |> Map.ofList
-    let evaluated = Dictionary<RT.Hash, RT.PackageValue.PackageValue>()
-    let evaluating = HashSet<RT.Hash>()
 
-    let rec scriptState () : RT.ExecutionState =
+    let stateWith getValue : RT.ExecutionState =
       childState parentState { pm with getValue = getValue } tracer.executionTracing
-
-    and getValue (hash : RT.Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
-      uply {
-        match evaluated.TryGetValue hash with
-        | true, value -> return Some value
-        | false, _ ->
-          match Map.tryFind hash definitions with
-          | None -> return! pm.getValue hash
-          | Some value ->
-            if not (evaluating.Add hash) then
-              return None
-            else
-              try
-                let instructions = PT2RT.Expr.toRT Map.empty 0 None value.body
-                match! Exe.executeExpr (scriptState ()) instructions with
-                | Ok body ->
-                  let value = LibExecution.Dval.packageValue hash body
-                  evaluated.Add(hash, value)
-                  return Some value
-                | Error(error, _) -> return raiseUntargetedRTE error
-              finally
-                evaluating.Remove hash |> ignore<bool>
-      }
+    let getValue =
+      Exe.evaluatingValueReader
+        (fun hash -> Ply(Map.tryFind hash definitions))
+        pm.getValue
+        stateWith
+    let scriptState () = stateWith getValue
 
     let state = scriptState ()
 

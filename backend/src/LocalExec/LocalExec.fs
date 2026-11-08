@@ -82,10 +82,9 @@ module HandleCommand =
       let exeState =
         let notify _ _ _ _ = uply { return () }
         let reportException _ _ _ _ = uply { return () }
-        // `allowAll`, for the same reason `evaluateAllValues` runs as `TrustedSeed` a few lines
-        // below: this is the one trusted producer. The code being checked is the checked-in
-        // `packages/` tree that was just parsed off disk, not a guest's, and the checker has to
-        // read the package store to answer which implementations exist. Without this the
+        // `allowAll`, because this is the one trusted producer. The code being checked is the
+        // checked-in `packages/` tree that was just parsed off disk, not a guest's, and the
+        // checker has to read the package store to answer which implementations exist. Without this the
         // reload's own policy refuses `package-read` and 795 items come back Incomplete, with
         // the chosen implementations silently absent rather than any error.
         //
@@ -135,11 +134,9 @@ module HandleCommand =
         let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
         do! LibDB.PackageRefsGenerator.generate true
 
-      // Evaluate all values now that all definitions are in the DB
-      // The one trusted producer: these bodies come from the checked-in
-      // `packages/` tree that was just parsed off disk, not from a guest.
-      let! evalResult =
-        evaluateAllValues LibDB.Seed.TrustedSeed (Builtins.all ()) PM.rt
+      // Evaluate all values now that all definitions are in the DB. As anywhere else, with no
+      // effects allowed: a shipped value is evaluated again on every machine that folds it.
+      let! evalResult = evaluateAllValues (Builtins.all ()) PM.rt
       match evalResult with
       | Error errors ->
         for e in errors do

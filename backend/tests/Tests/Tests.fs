@@ -153,9 +153,6 @@ let main (args : string array) : int =
     // Grow the DB from seed if needed. Builtins are deferred (constructed after
     // hashes are generated) because builtin construction triggers hash lookups.
     (LibDB.Seed.growIfNeeded
-      // The test store is built from this repo's own `packages/`, so it is the
-      // trusted-seed case; PermissionEscape.Tests covers the guest one.
-      LibDB.Seed.TrustedSeed
       (fun () -> TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT)
       TestUtils.TestUtils.pmRT
       (fun msg -> System.Console.Error.WriteLine msg))

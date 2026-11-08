@@ -345,22 +345,18 @@ let private scriptValueExecution =
         | Error(RT.RuntimeError.ValueNotFound _, _) -> ()
         | other -> failtest $"Expected an unavailable cyclic value, got %A{other}"
       }
-      testTask "initializers inherit script permissions" {
+      testTask "initializers are pure, whatever the script may do" {
+        // The test state allows every effect, so only the value's own ceiling can refuse.
         let code = "val now = Builtin.syscallGettimeofday()\nnow"
         let! state = executionStateFor pmPT false
         let! script = parse code
-        let restricted =
-          LibExecution.Execution.restrictRun
-            LibExecution.Permissions.Policy.denyAll
-            state
-        let! result =
-          Cli.execute restricted script (scriptInput code []) |> Ply.toTask
-        Expect.isError result "a value initializer cannot bypass the run policy"
+        let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
+        Expect.isError result "a value initializer cannot perform an effect"
         Expect.isTrue
           (state.deniedRequests
            |> Seq.exists (fun denial ->
-             denial.layer = LibExecution.Permissions.Layer.Run))
-          "the failure comes from the inherited run policy"
+             denial.layer = LibExecution.Permissions.Layer.Value "now"))
+          "the failure comes from the value's ceiling, naming it"
       } ]
 
 let private testScriptArgumentsAreInvocationSpecific =

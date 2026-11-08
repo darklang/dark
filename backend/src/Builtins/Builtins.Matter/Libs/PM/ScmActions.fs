@@ -228,7 +228,6 @@ let private ok () : Result<unit, Actions.Failure> = Ok()
 /// answer, so the caller never reports a conflict settled while its record is still open.
 let private settle
   (exeState : ExecutionState)
-  (vm : VMState)
   (pm : PT.PackageManager)
   (branchId : PT.BranchId)
   (c : Detect.Conflict)
@@ -236,14 +235,13 @@ let private settle
   (resolvedBy : string)
   : Ply<Result<unit, Actions.Failure>> =
   uply {
-    match! PackageOps.authorOps exeState vm pm branchId [ op ] with
+    match! PackageOps.authorOps exeState pm branchId [ op ] with
     | Error e -> return Error(Actions.Failed e)
     | Ok _ -> return! Actions.setConflictStatus c.id "overridden" resolvedBy
   }
 
 let private resolve
   (exeState : ExecutionState)
-  (vm : VMState)
   (pm : PT.PackageManager)
   (r : Dval)
   : Ply<Result<unit, Actions.Failure>> =
@@ -288,7 +286,7 @@ let private resolve
                   "",
                   PT.DecisionKind.Override(referenceOf c.itemType chosen)
                 )
-              match! settle exeState vm pm (branch b) c op hash with
+              match! settle exeState pm (branch b) c op hash with
               | Error e -> return Error e
               | Ok() ->
                 // Cascade, the way an edit does: an override rebinds the NAME, and the callers that
@@ -321,7 +319,7 @@ let private resolve
               Actions.locationOfConflict c,
               optionString previous |> Option.map PT.Hash
             )
-          settle exeState vm pm (branch b) c op "")
+          settle exeState pm (branch b) c op "")
 
     | DEnum(_, _, _, "Reword", [ DUuid b; DString id; DString text ]) ->
       return!
@@ -348,7 +346,7 @@ let private resolve
                   previous,
                   None
                 )
-              return! settle exeState vm pm (branch b) c op ""
+              return! settle exeState pm (branch b) c op ""
           })
 
     | other -> return Exception.raiseInternal "unknown Resolution" [ "got", other ]
@@ -449,7 +447,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "against the rule the fold applies."
       fn =
         (function
-        | exeState, vm, _, [| action |] ->
+        | exeState, _, _, [| action |] ->
           uply {
             let reconciled = outcome (kt Refs.reconciled) reconciledToDT
             // One repoint, on the branch: a whole propagation, as an edit there would make.
@@ -473,7 +471,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               let repoints = listOf repointFromDT repoints
               let! r =
                 Actions.merge (branch b) repoints (repointOn b) (fun () ->
-                  PackageOps.evaluateLandedValues exeState vm |> Ply.toTask)
+                  PackageOps.evaluateLandedValues exeState |> Ply.toTask)
               return reconciled r
             | DEnum(_, _, _, "Rebase", [ DUuid b; repoints ]) ->
               let repoints = listOf repointFromDT repoints
@@ -537,9 +535,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "the losing version. Ack and supersede close the record."
       fn =
         (function
-        | exeState, vm, _, [| r |] ->
+        | exeState, _, _, [| r |] ->
           uply {
-            let! result = resolve exeState vm pm r
+            let! result = resolve exeState pm r
             return outcome KTUnit (fun () -> DUnit) result
           }
         | _ -> incorrectArgs ())

@@ -495,6 +495,10 @@ type Layer =
   | Run
   | Package of id : string
   | Function of id : string
+  /// The ceiling every package `val` is evaluated under: no effects at all. A value is
+  /// evaluated once, when it is saved (`Execution.evaluateValue`), so an effect would freeze
+  /// one machine's answer into the store. `name` is the value's, for the message.
+  | Value of name : string
 
 type Denial = { layer : Layer; reason : PolicyDenial }
 
@@ -565,7 +569,8 @@ module Access =
     | Layer.Run
     | Layer.Package _ -> true
     | Layer.Instance
-    | Layer.Function _ -> false
+    | Layer.Function _
+    | Layer.Value _ -> false
 
   [<RequireQualifiedAccess; Struct>]
   type private CheckMode =

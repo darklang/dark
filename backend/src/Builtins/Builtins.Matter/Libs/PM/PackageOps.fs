@@ -74,7 +74,6 @@ let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : str
 /// what landed, and evaluate new values.
 let authorOps
   (exeState : ExecutionState)
-  (vm : VMState)
   (pm : PT.PackageManager)
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
@@ -121,16 +120,11 @@ let authorOps
           let! _refreshed = LibDB.WipRefresh.refresh pm
           ()
 
-        // Evaluate values whose runtime form is still missing, bounded by the instance policy and by
-        // this caller's access -- otherwise `val x = <denied effect>` performs the effect that
-        // `eval <denied effect>` refuses.
+        // Evaluate the values whose result is still missing, once, with no effects allowed
+        // (`Execution.evaluateValue`). A value that fails is reported, and the caller takes its
+        // binding back out (`SCM.PackageOps`), so it is refused rather than saved.
         let! evaluated =
-          LibDB.Seed.evaluateAllValues
-            (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
-              exeState.accountID
-              vm.activeAccess)
-            exeState.builtins
-            LibDB.PackageManager.rt
+          LibDB.Seed.evaluateAllValues exeState.builtins LibDB.PackageManager.rt
 
         match ownEvaluationFailures ops evaluated with
         | [] -> return Ok insertedCount
@@ -138,20 +132,13 @@ let authorOps
   }
 
 
-/// Evaluate the values a merge just folded into main, bounded by the instance policy and this
-/// caller's access: their bodies are code from elsewhere. What fails stays unevaluated, as it would
+/// Evaluate the values a merge just folded into main. What fails stays unevaluated, as it would
 /// after any fold.
-let evaluateLandedValues (exeState : ExecutionState) (vm : VMState) : Ply<unit> =
+let evaluateLandedValues (exeState : ExecutionState) : Ply<unit> =
   uply {
     let builtins : Builtins =
       { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
-    let! _ =
-      LibDB.Seed.evaluateAllValues
-        (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
-          exeState.accountID
-          vm.activeAccess)
-        builtins
-        LibDB.PackageManager.rt
+    let! _ = LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
     return ()
   }
 
@@ -225,11 +212,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
         (function
-        | exeState, vm, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
+        | exeState, _, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
-              match! authorOps exeState vm pm (PT.BranchId.Id branchId) ops with
+              match! authorOps exeState pm (PT.BranchId.Id branchId) ops with
               | Ok n -> return resultOk (Dval.dint64 (int64 n))
               | Error message -> return resultError (Dval.string message)
             with ex ->

@@ -242,22 +242,29 @@ let executionStateFor
 
     let builtins = localBuiltIns pmPT
     let state =
-      let converted = PT2RT.PackageManager.toRT builtins.values pmPT
-      // Read a value from the store, where its evaluated result is, as the CLI does.
-      // Converting its body handles only constants and turns anything else into `()`.
-      // Values that are not in the store (in-memory test extras) still use the conversion.
-      let pmRT =
-        { converted with
-            getValue =
-              fun hash ->
-                uply {
-                  match! LibDB.PackageManager.rt.getValue hash with
-                  | Some value -> return Some value
-                  | None -> return! converted.getValue hash
-                } }
-      Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier
-      // Ordinary tests use allow-all; security tests install narrower access.
-      |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
+      let converted = PT2RT.PackageManager.toRT pmPT
+      // Read a value from the store, where its evaluated result is, as the CLI does. One that
+      // is not in the store (an in-memory test extra) is evaluated on first read, the way a
+      // script's own values are.
+      let stateWith getValue =
+        Exe.createState
+          builtins
+          { converted with getValue = getValue }
+          Exe.noTracing
+          exceptionReporter
+          notifier
+        // Ordinary tests use allow-all; security tests install narrower access.
+        |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
+      let stored = LibDB.PackageManager.rt.getValue
+      let notStored (RT.Hash h as hash) =
+        uply {
+          match! stored hash with
+          | Some _ -> return None
+          | None ->
+            let! value = pmPT.getValue (PT.Hash h)
+            return value |> Option.map (fun value -> h, value.body)
+        }
+      stateWith (Exe.evaluatingValueReader notStored stored stateWith)
     let state = { state with test = testContext }
     return state
   }

@@ -874,7 +874,7 @@ let branchValueContentFoldIsolatesName =
     Expect.isSome onBranch "and it is the branch's"
 
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
-    let! _ = Seed.evaluateAllValues Seed.TrustedSeed builtins PM.rt
+    let! _ = Seed.evaluateAllValues builtins PM.rt
     let! (evaluated : Option<RT.PackageValue.PackageValue>) =
       LibDB.RuntimeTypes.Value.get (RT.Hash valueHash) |> Ply.toTask
     match evaluated with

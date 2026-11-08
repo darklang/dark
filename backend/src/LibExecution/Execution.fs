@@ -277,6 +277,69 @@ let executeToplevel
   : Task<RT.ExecutionResult> =
   execute exeState (Some tlid, instrs)
 
+
+/// What a package `val` may do while it is evaluated: nothing with an effect. Whatever the
+/// state allowed is replaced, not narrowed, because no grant could make an effect right here:
+/// a value is evaluated once, when it is saved, and every reader gets that one result. So the
+/// message names the value, not a policy someone could widen.
+let valueAccess (name : string) : LibExecution.Permissions.Access =
+  LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
+  |> LibExecution.Permissions.Access.restrict
+    (LibExecution.Permissions.Layer.Value name)
+    LibExecution.Permissions.Policy.denyAll
+
+/// Evaluate a `val`'s body with the interpreter, under `valueAccess`. The one way a value
+/// gets its result: a value saved to the store (`LibDB.Seed`), one a script declares
+/// (`Cli.executeWith`), and one a test keeps in memory all come through here. `name` is
+/// only for the message when the body reaches for an effect.
+let evaluateValue
+  (state : RT.ExecutionState)
+  (name : string)
+  (body : ProgramTypes.Expr)
+  : Task<RT.ExecutionResult> =
+  ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None body
+  |> executeExpr { state with access = valueAccess name }
+
+/// A `getValue` for values that are not in the store, such as a script's own: each is
+/// evaluated by `evaluateValue` the first time it is read, and that result is kept. A value
+/// that is read again while it is still being evaluated is a cycle, and reads as missing.
+/// One that fails raises its error where it was read.
+///
+/// `definition` finds the body (and the name, for messages) of a value this reader owns;
+/// anything it does not own goes to `otherwise`. `stateWith` builds the state the values run
+/// in from the reader itself, so a value can read another one.
+let evaluatingValueReader
+  (definition : RT.Hash -> Ply<Option<string * ProgramTypes.Expr>>)
+  (otherwise : RT.Hash -> Ply<Option<RT.PackageValue.PackageValue>>)
+  (stateWith :
+    (RT.Hash -> Ply<Option<RT.PackageValue.PackageValue>>) -> RT.ExecutionState)
+  : RT.Hash -> Ply<Option<RT.PackageValue.PackageValue>> =
+  let evaluated =
+    System.Collections.Concurrent.ConcurrentDictionary<RT.Hash, RT.PackageValue.PackageValue>()
+  let evaluating = System.Collections.Generic.HashSet<RT.Hash>()
+  let rec read (hash : RT.Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
+    uply {
+      match evaluated.TryGetValue hash with
+      | true, value -> return Some value
+      | false, _ ->
+        match! definition hash with
+        | None -> return! otherwise hash
+        | Some(name, body) ->
+          if not (lock evaluating (fun () -> evaluating.Add hash)) then
+            return None
+          else
+            try
+              match! evaluateValue (stateWith read) name body with
+              | Ok body ->
+                let value = Dval.packageValue hash body
+                evaluated[hash] <- value
+                return Some value
+              | Error(error, _) -> return RT.raiseUntargetedRTE error
+            finally
+              lock evaluating (fun () -> evaluating.Remove hash |> ignore<bool>)
+    }
+  read
+
 /// Spare VMs per thread, for `executeApplicable` to borrow.
 ///
 /// A VM's interpreter loop is single-threaded, so a thread-static store needs no synchronisation

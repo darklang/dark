@@ -63,8 +63,6 @@ let perElement(label: String, small: Int64, large: Int64, n: Int64): Unit =
   let ns = ((large - small) * 1000000) / (iterations * n)
   Stdlib.printLine(label + "  " + (Stdlib.toString(ns)) + " ns")
 
-// `let`, not `val`: a `val` whose body is not a literal silently evaluates to unit.
-// See the CLEANUP in ProgramTypesToRuntimeTypes.fs, `PackageValue.evalConstantExpr`.
 let small = Stdlib.List.range(1, 50)
 let large = Stdlib.List.range(1, 250)
 
