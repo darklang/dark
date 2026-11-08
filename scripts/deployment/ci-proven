@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# Whether this commit's tree already passed the build in another pipeline. Runs in CircleCI's
+# setup workflow, on the host, after the commit (and its parents) has been fetched.
+#
+#   scripts/deployment/ci-proven    prints the passing ok-to-deploy job's URL, or nothing
+#
+# The build checks a tree, not a commit: the same files, config and images give the same
+# answer. So a commit whose tree a green build-and-deploy already checked skips the build, and
+# that job is its proof. Two cases come up:
+#
+#   - On main, a PR merged while it was up to date with main. The merge commit's tree is the
+#     PR head's tree, and the PR's own pipeline built and tested exactly that tree.
+#   - On a branch or PR, a push of a tree an earlier push of the same branch already passed:
+#     an amended message, or a rebase that changed nothing.
+#
+# The proof must be the ok-to-deploy job of a build-and-deploy workflow, which runs only once
+# the whole build has passed. A pipeline that was itself skipped this way is not proof, so a
+# proof is always one step from a real build.
+#
+# Prints nothing, so the pipeline builds as usual, whenever that is not certain: a tag, a main
+# commit that is not a PR's merge, no green build for the candidate, a tree that differs, or a
+# CircleCI or GitHub request that fails.
+
+set -euo pipefail
+shopt -s inherit_errexit
+
+[[ -n "${CIRCLE_BRANCH:-}" && -z "${CIRCLE_TAG:-}" && -n "${CIRCLE_SHA1:-}" ]] || exit 0
+
+tree=$(git rev-parse -q --verify "$CIRCLE_SHA1^{tree}") || exit 0
+
+if [[ "$CIRCLE_BRANCH" == main ]]; then
+  # GitHub's merge commit names the PR, and its second parent is the PR's head.
+  subject=$(git log -1 --format=%s "$CIRCLE_SHA1")
+  [[ "$subject" =~ ^Merge\ pull\ request\ \#([0-9]+)\  ]] || exit 0
+  branch="pull/${BASH_REMATCH[1]}"
+  want=$(git rev-parse -q --verify "$CIRCLE_SHA1^2") || exit 0
+else
+  branch=$CIRCLE_BRANCH
+  want=""
+fi
+
+# Public, read-only, and no token: the project is open source. The newest 100 jobs of the
+# branch cover every push a PR gets.
+encoded=$(jq -rn --arg b "$branch" '$b | @uri')
+url="https://circleci.com/api/v1.1/project/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/tree/${encoded}?limit=100&shallow=true&filter=successful"
+jobs=$(curl -fsS --retry 3 --max-time 30 "$url" 2> /dev/null) || exit 0
+
+green=$(jq -r --arg self "$CIRCLE_SHA1" --arg want "$want" '
+  .[]
+  | select(.status == "success"
+      and .workflows.workflow_name == "build-and-deploy"
+      and .workflows.job_name == "ok-to-deploy"
+      and .vcs_revision != $self
+      and ($want == "" or .vcs_revision == $want))
+  | "\(.vcs_revision) \(.build_url)"' <<< "$jobs" 2> /dev/null) || exit 0
+
+while read -r revision job; do
+  [[ -n "$revision" ]] || continue
+  # A branch's earlier pushes are not in the setup job's shallow fetch; their trees are enough.
+  if ! git cat-file -e "$revision^{tree}" 2> /dev/null; then
+    git fetch -q --depth=1 --filter=blob:none origin "$revision" 2> /dev/null || continue
+  fi
+  if [[ "$(git rev-parse -q --verify "$revision^{tree}")" == "$tree" ]]; then
+    echo "$job"
+    exit 0
+  fi
+done <<< "$green"

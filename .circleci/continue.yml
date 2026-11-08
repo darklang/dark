@@ -37,6 +37,11 @@ parameters:
   superseded-by:
     type: string
     default: ""
+  # Set by .circleci/config.yml when a green build already checked this commit's tree: the
+  # ok-to-deploy job that says so. See scripts/deployment/ci-proven.
+  proven-by:
+    type: string
+    default: ""
   # Set by .circleci/config.yml on a branch or PR that changes only prose. See
   # scripts/deployment/ci-docs-only.
   docs-only:
@@ -327,6 +332,9 @@ jobs:
       - run:
           name: Test the check for a superseded main commit
           command: python3 .circleci/test_ci_superseded.py
+      - run:
+          name: Test the check for an already-proven tree
+          command: python3 .circleci/test_ci_proven.py
       - run:
           name: Test the check for a prose-only change
           command: python3 .circleci/test_ci_docs_only.py
@@ -763,7 +771,8 @@ jobs:
 
   #
   # Does nothing itself. The workflow runs it only after every build job has
-  # passed, so a green ok-to-deploy on a commit means the whole build passed.
+  # passed, so a green ok-to-deploy on a commit means the whole build passed on
+  # its tree: in this pipeline, or in the one the `proven` job links to.
   # scripts/deployment/release checks for that before releasing a commit.
   ok-to-deploy:
     executor: simple-executor
@@ -782,6 +791,17 @@ jobs:
           command: |
             echo "main moved on to << pipeline.parameters.superseded-by >> before this build started."
             echo "That commit's pipeline builds and tests this one's changes too."
+
+  # A commit whose tree a green build already checked: on main, a PR merged while up to date
+  # with main; on a branch, a push that changes no file. Links to that build's ok-to-deploy.
+  proven:
+    executor: simple-executor
+    steps:
+      - run:
+          name: Skip the build
+          command: |
+            echo "This tree already passed the build: << pipeline.parameters.proven-by >>"
+            echo "The same files give the same answer, so this pipeline doesn't build them again."
 
   # Branches and PRs that change only prose: nothing for the build to check. Never on main.
   docs-only:
@@ -810,6 +830,7 @@ workflows:
     unless:
       or:
         - << pipeline.parameters.superseded-by >>
+        - << pipeline.parameters.proven-by >>
         - << pipeline.parameters.docs-only >>
     jobs:
       - build
@@ -832,6 +853,15 @@ workflows:
     when: << pipeline.parameters.superseded-by >>
     jobs:
       - superseded
+
+  # Gets an ok-to-deploy like a build would, so main's tip stays releasable when it is a
+  # proven merge: scripts/deployment/release looks for that check on the tip.
+  proven:
+    when: << pipeline.parameters.proven-by >>
+    jobs:
+      - proven
+      - ok-to-deploy:
+          requires: [proven]
 
   docs-only:
     when: << pipeline.parameters.docs-only >>

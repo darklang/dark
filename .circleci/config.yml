@@ -44,13 +44,26 @@ jobs:
             newer=$(scripts/deployment/ci-superseded)
             [[ -z "$newer" ]] || echo "main has moved on to $newer, so this pipeline skips the build"
             jq --arg newer "$newer" '. + {"superseded-by": $newer}' /tmp/images.json > /tmp/superseded.json
+      # A tree a green build already checked, here or in its PR, skips the build. See the script.
+      - run:
+          name: Check whether this tree already passed the build
+          command: |
+            proof=""
+            if [[ -z "$(jq -r '."superseded-by"' /tmp/superseded.json)" ]]; then
+              proof=$(scripts/deployment/ci-proven)
+            fi
+            [[ -z "$proof" ]] || echo "This tree already passed in $proof, so this pipeline skips the build"
+            jq --arg proof "$proof" '. + {"proven-by": $proof}' /tmp/superseded.json > /tmp/proven.json
       # Branches and PRs only: one that changes nothing but prose skips the build.
       - run:
           name: Check whether this change is prose only
           command: |
-            docs_only=$(scripts/deployment/ci-docs-only)
+            docs_only=""
+            if [[ -z "$(jq -r '."proven-by"' /tmp/proven.json)" ]]; then
+              docs_only=$(scripts/deployment/ci-docs-only)
+            fi
             [[ -z "$docs_only" ]] || echo "Only prose changed since this branch left main, so this pipeline skips the build"
-            jq --argjson docs "${docs_only:-false}" '. + {"docs-only": $docs}' /tmp/superseded.json > /tmp/parameters.json
+            jq --argjson docs "${docs_only:-false}" '. + {"docs-only": $docs}' /tmp/proven.json > /tmp/parameters.json
       - run:
           name: Continue in those images
           command: |
