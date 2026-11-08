@@ -198,7 +198,9 @@ let private makeRef (fqn : string) : unit -> string =
 let mutable private declared : Set<string> = Set.empty
 
 let private declare (kind : string) (modules : string list) (name : string) =
-  let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
+  // Concatenated rather than interpolated: a triple-quoted interpolation goes through F#'s format
+  // parser, and every ref is declared during startup.
+  let fqn = kind + "/" + String.concat "." modules + "." + name
   declared <- Set.add fqn declared
   makeRef fqn
 
