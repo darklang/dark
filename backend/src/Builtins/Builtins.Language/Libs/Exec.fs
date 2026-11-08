@@ -181,8 +181,11 @@ let private pidOfHandle (vm : VMState) (h : Dval) : Scheduler.ProcessId =
   | _ -> RuntimeError.UncaughtException("not a handle", []) |> raiseRTE vm.threadID
 
 /// The result a finished process gives its awaiter: its value, or its error raised again here
-/// with the frames it failed in kept below the caller's.
+/// with the frames it failed in kept below the caller's. First, the counts of the finished
+/// processes the caller spawned (the awaited one among them, when the caller spawned it) are
+/// added to the caller's, on its thread: an await or select is where a spawner joins.
 let private resultOf (vm : VMState) (result : ExecutionResult) : Dval =
+  vm.stats.JoinFinished()
   match result with
   | Ok dv -> dv
   | Error(rte, stack) ->
@@ -319,7 +322,17 @@ let fns () : List<BuiltInFn> =
           let s = Scheduler.Scheduler.CurrentOrShared
           let parent =
             Scheduler.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
-          let p = s.SpawnApply(state, f, DUnit, parent, vm.activeAccess)
+          // Counts of its own when this VM is counting: it runs on another worker at the same
+          // time as this one. Added to this VM's when it finishes and this VM next joins.
+          let p =
+            s.SpawnApply(
+              state,
+              f,
+              DUnit,
+              parent,
+              vm.activeAccess,
+              ?stats = InterpreterStats.ForProcess vm.stats
+            )
           handleOf p.id |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure

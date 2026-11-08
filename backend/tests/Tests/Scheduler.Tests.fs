@@ -2004,6 +2004,57 @@ let private childrenDieWithTheParent =
   }
 
 
+/// What one run of `spawnedCountsReachTheSpawner` counted.
+type private SpawnCounts =
+  { joins : int64; builtinCalls : int64; instructions : int64 }
+
+/// Spawned processes run on other workers, at the same time as their spawner. They each count
+/// into a set of their own, handed to the spawner's as they finish and added in on the
+/// spawner's thread when it next awaits. So the spawner's counts are exact, whether it awaits
+/// its children itself or another process does, and the same on every run.
+let private spawnedCountsReachTheSpawner =
+  testTask "the processes a run spawns count into its counts, exactly" {
+    let! state = executionStateFor pmPT false
+    let n = 200L
+    // Each child makes two `stringJoin` calls.
+    let spawnAll =
+      $"""let hs = Stdlib.List.fold(Stdlib.List.range(1, {n}), [], fun(acc, i) -> Stdlib.List.prepend(acc, Stdlib.Exec.spawn(fun () -> Stdlib.String.join([ Stdlib.String.join([ "a", Stdlib.toString(i) ], "-"), "b" ], ","))))"""
+    let sum =
+      "Stdlib.List.fold(hs, 0, fun(n, h) -> n + Stdlib.String.length(Stdlib.Exec.await(h)))"
+    let awaitedHere = $"{spawnAll}\n{sum}"
+    let awaitedBySibling =
+      $"{spawnAll}\nlet collector = Stdlib.Exec.spawn(fun () -> {sum})\nStdlib.Exec.await(collector)"
+    let counted (code : string) : Task<SpawnCounts> =
+      task {
+        let! instrs = instrsFor code
+        let stats = RT.InterpreterStats.ForOneVM()
+        do!
+          withWorkers 4 (fun root ->
+            task {
+              let p =
+                root.Spawn(state, (None, instrs), Scheduler.EntryExpr, None, stats)
+              let! result = runOnThread root p
+              expectOk result "the spawner" |> ignore<RT.Dval>
+            })
+        return
+          { joins =
+              match stats.builtinCallsByName.TryGetValue "stringJoin" with
+              | true, c -> c
+              | false, _ -> 0L
+            builtinCalls = stats.builtinCallCount
+            instructions = stats.instructionCount }
+      }
+    for (what, code) in
+      [ "awaited by the spawner", awaitedHere
+        "awaited by a sibling", awaitedBySibling ] do
+      let! first = counted code
+      Expect.equal first.joins (2L * n) $"{what}: two joins per child"
+      for _ in 1..4 do
+        let! again = counted code
+        Expect.equal again first $"{what}: the same counts on every run"
+  }
+
+
 let private awaitWithinTimesOut =
   testTask "awaitWithin gives up on a slow child, which then can be cancelled" {
     Gates.reset ()
@@ -2345,6 +2396,7 @@ let tests =
         parkedOnAHostOperation
         cancelLetsTheWaitLand
         childrenDieWithTheParent
+        spawnedCountsReachTheSpawner
         awaitWithinTimesOut
         killCascadesHard
         capsEndARunaway
