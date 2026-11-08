@@ -2006,6 +2006,12 @@ let private fastTraitOp
   | _ -> ValueNone
 
 
+/// The builtin's tag in the operator table, if it has one.
+let private fastOpTagOf (b : FQFnName.Builtin) : int voption =
+  let mutable tag = 0
+  if FastOps.byName.TryGetValue(b, &tag) then ValueSome tag else ValueNone
+
+
 /// The operator table, dispatched straight off the caller's registers for a known builtin name.
 ///
 /// Split out from `tryFastOpDirect` so the elided-wrapper path can reach it too. That path used to
@@ -2018,11 +2024,9 @@ let private tryFastOpOn
   (b : FQFnName.Builtin)
   (argRegs : NEList<Register>)
   : Dval voption =
-  let mutable tag = 0
-  if not (FastOps.byName.TryGetValue(b, &tag)) then
-    ValueNone
-  else
-    fastBuiltinOp threadID registers tag argRegs
+  match fastOpTagOf b with
+  | ValueSome tag -> fastBuiltinOp threadID registers tag argRegs
+  | ValueNone -> ValueNone
 
 
 /// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
@@ -4231,7 +4235,11 @@ let private applyPackageFn
     // The operator table, before the context exists. `callBuiltinResolved` checks the same
     // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
     // and nearly every `Stdlib.x` call in Dark arrives down this path.
-    let early = tryFastOpOn vm.threadID registers biFn.name newArgRegs
+    let opTag = fastOpTagOf biFn.name
+    let early =
+      match opTag with
+      | ValueSome tag -> fastBuiltinOp vm.threadID registers tag newArgRegs
+      | ValueNone -> ValueNone
 
     match early with
     | ValueSome result ->
@@ -4257,7 +4265,14 @@ let private applyPackageFn
       // The builtin pushes no frame; its effect check and callbacks read
       // `vm.activeAccess`, so the elided entry must update it explicitly.
       vm.activeAccess <- entryAccess
-      let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+      let call =
+        if opTag.IsSome then
+          callBuiltinResolved exeState vm currentFrame ctx biFn []
+        else
+          // Where `callBuiltinResolved` would end up, without asking again: nothing was applied
+          // before and no argument is a read in flight (both checked above), and there is no
+          // operator to try.
+          callBuiltinResolvedSlow exeState vm currentFrame ctx biFn []
 
       if requested vm then
         beginRequest
