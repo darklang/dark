@@ -10,8 +10,9 @@ module Dval = LibExecution.Dval
 
 /// Apply a Unicode predicate, returning false for invalid scalars.
 let private checkCodepoint (pred : System.Text.Rune -> bool) (cp : uint32) : bool =
-  let mutable rune = System.Text.Rune(0)
-  System.Text.Rune.TryCreate(cp, &rune) && pred rune
+  match System.Text.Rune.TryCreate(cp) with
+  | true, rune -> pred rune
+  | false, _ -> false
 
 
 let fns () : List<BuiltInFn> =
@@ -137,12 +138,9 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DUInt32 cp |] ->
-          // TryCreate needs a mutable output variable; zero is just its initial value.
-          let mutable rune = System.Text.Rune(0)
-          if System.Text.Rune.TryCreate(cp, &rune) then
-            Dval.optionSome KTChar (DChar(rune.ToString())) |> Ply
-          else
-            Dval.optionNone KTChar |> Ply
+          match System.Text.Rune.TryCreate(cp) with
+          | true, rune -> Dval.optionSome KTChar (DChar(rune.ToString())) |> Ply
+          | false, _ -> Dval.optionNone KTChar |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
