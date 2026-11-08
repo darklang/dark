@@ -279,9 +279,11 @@ jobs:
   # two jobs, each would build all of it.
   build:
     executor: in-container
-    # large (4 CPUs, 8 GB) costs half as much as xlarge. With --split, the one-at-a-time
-    # tests run alongside the others, so 4 CPUs finish the tests about as fast as 8.
-    resource_class: large
+    # medium+ (3 CPUs, 6 GB) at 15 credits a minute, against large's 20. The compiles
+    # barely use a fourth CPU and only the test suites slow down, so the job takes about
+    # an eleventh longer and costs about a sixth less. medium (2 CPUs, 4 GB) costs less
+    # again but takes about three minutes longer and reaches its memory limit in the tests.
+    resource_class: medium+
     #
     # The allocation gate runs against the NativeAOT binary built here, because the budget is
     # recorded against one: that is what ships. A plain `dotnet publish -c Release` would be
@@ -478,7 +480,8 @@ jobs:
   # embedded a corrupt seed into every artifact it produced.
   seed-db:
     executor: in-container
-    resource_class: large
+    # medium+, like build: one compile at a time, which a fourth CPU barely speeds up.
+    resource_class: medium+
     steps:
       - darkcheckout
       - setup-app
@@ -522,7 +525,8 @@ jobs:
   # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
   build-cli-linux-glibc:
     executor: release-linux
-    resource_class: large
+    # medium+, like build: one compile at a time, which a fourth CPU barely speeds up.
+    resource_class: medium+
     steps:
       - checkout
       - attach_workspace: { at: "." }
@@ -613,7 +617,8 @@ jobs:
   # - osx-x64: R2R doesn't need a Mac, so it's built here, where it costs far less.
   build-cli-r2r-extras:
     executor: release-linux
-    resource_class: large
+    # medium+, like build: one compile at a time, which a fourth CPU barely speeds up.
+    resource_class: medium+
     steps:
       - checkout
       - attach_workspace: { at: "." }
@@ -630,7 +635,8 @@ jobs:
 
   build-cli-linux-musl:
     executor: release-musl
-    resource_class: large
+    # medium+, like build: one compile at a time, which a fourth CPU barely speeds up.
+    resource_class: medium+
     steps:
       - run:
           name: Install build dependencies
