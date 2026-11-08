@@ -1,0 +1,79 @@
+# Weekly check of the backend's NuGet packages. CI itself is on CircleCI; this is the only
+# GitHub workflow, because it needs GITHUB_TOKEN to write the dependency graph.
+#
+# scan:   fails when `dotnet list package --vulnerable` reports any known advisory, direct
+#         or transitive. `paket outdated` goes in the run summary, for information.
+# submit: sends paket.lock's resolved versions to the dependency graph
+#         (scripts/deployment/paket-snapshot), so Dependabot alerts cover them.
+#
+# Fork safety: no pull_request or pull_request_target trigger, every job checks the repo,
+# permissions are per job and minimal, only GITHUB_TOKEN is used, actions are pinned by SHA.
+name: dependencies
+
+"on":
+  schedule:
+    - cron: "17 6 * * 1"  # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions: { }
+
+concurrency:
+  group: dependencies
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    if: github.repository == 'darklang/dark'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          global-json-file: backend/global.json
+      - run: dotnet tool restore
+      - run: dotnet paket restore --fail-on-checks
+      # Writes obj/project.assets.json, which `dotnet list` reads.
+      - run: dotnet restore fsdark.sln
+      - name: Vulnerable packages
+        run: |
+          dotnet list fsdark.sln package --vulnerable --include-transitive --format json > vulnerable.json
+          n=$(jq '[.projects[].frameworks[]? | (.topLevelPackages[]?, .transitivePackages[]?) | select(.vulnerabilities)] | length' vulnerable.json)
+          {
+            echo "## Vulnerable packages: $n"
+            echo '```'
+            dotnet list fsdark.sln package --vulnerable --include-transitive
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$n" -eq 0
+      - name: Outdated (information only)
+        if: always()
+        continue-on-error: true
+        run: |
+          {
+            echo "## paket outdated"
+            echo '```'
+            dotnet paket outdated
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  submit:
+    if: github.repository == 'darklang/dark' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write  # the dependency snapshots API requires it
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 -I scripts/deployment/paket-snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

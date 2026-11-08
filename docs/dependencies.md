@@ -35,7 +35,15 @@ To move a transitive package, add it to `paket.dependencies` with the version yo
 ## Updates and advisories
 
 Dependabot opens PRs for the tool manifest and the SDK, but it can't read Paket, so
-nothing tells you about a newer package. Restore runs NuGet's audit and prints NU1901 to
+nothing tells you about a newer package.
+
+A weekly GitHub workflow, `.github/workflows/dependencies.yml`, covers advisories. It
+sends `paket.lock`'s resolved versions to GitHub's dependency graph
+(`scripts/deployment/paket-snapshot`), so Dependabot raises alerts for them, though it
+opens no fix PRs. It also fails when the `--vulnerable` list below is not empty, and puts
+`paket outdated` in the run's summary.
+
+Restore runs NuGet's audit and prints NU1901 to
 NU1904 for known advisories, transitive packages included. To list them, and packages
 nuget.org marks deprecated, from `backend/` in the dev container:
 

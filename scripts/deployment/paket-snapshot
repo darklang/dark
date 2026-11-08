@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+
+# Sends the NuGet packages in backend/paket.lock to GitHub's dependency graph, so Dependabot
+# can raise alerts for them. Runs weekly in .github/workflows/dependencies.yml.
+#
+#   scripts/deployment/paket-snapshot --dry-run    prints the snapshot, sends nothing
+#   scripts/deployment/paket-snapshot              POSTs it (needs GITHUB_TOKEN with contents: write)
+#
+# GitHub's own graph can't read paket.lock, and its automatic submission (component-detection)
+# reads constraint lines like `FSharp.Core (>= 7.0.200)` as versions, so it would report old
+# versions we don't use. This reads the lock the way Paket writes it: under NUGET, a line
+# indented 4 spaces is a resolved package with its exact version, and the 6-space lines under
+# it are that package's constraints. Which packages are direct comes from paket.dependencies.
+# Alerts only: Dependabot can't edit Paket files, so it opens no fix PRs.
+
+import json
+import os
+import re
+import sys
+import urllib.request
+from datetime import datetime, timezone
+
+LOCK = "backend/paket.lock"
+DEPS = "backend/paket.dependencies"
+
+
+def nuget_version(v):
+  # Paket drops trailing zeros (`Expecto (10.1)`); NuGet's normal form has at least 3 parts.
+  parts = v.split("-", 1)
+  nums = parts[0].split(".")
+  while len(nums) < 3:
+    nums.append("0")
+  return ".".join(nums) + ("-" + parts[1] if len(parts) > 1 else "")
+
+
+def read_lock(lock_text):
+  resolved, deps, cur, in_nuget = {}, {}, None, False
+  for line in lock_text.splitlines():
+    if re.match(r"^(GROUP|NUGET|GITHUB|HTTP|GIT)\b", line):
+      in_nuget = line.startswith("NUGET")
+      cur = None
+      continue
+    if not in_nuget:
+      continue
+    if m := re.match(r"^    (\S+) \(([^)\s]+)\)", line):
+      cur = m[1].lower()
+      resolved[cur] = (m[1], nuget_version(m[2]))
+      deps.setdefault(cur, [])
+    elif cur and (m := re.match(r"^      (\S+) \(", line)):
+      deps[cur].append(m[1].lower())
+  return resolved, deps
+
+
+def snapshot(lock_text, deps_text, env):
+  direct = {m[1].lower() for m in re.finditer(r"^\s*nuget\s+(\S+)", deps_text, re.M)}
+  resolved, deps = read_lock(lock_text)
+
+  def purl(key):
+    return "pkg:nuget/%s@%s" % resolved[key]
+
+  packages = {
+    name: {
+      "package_url": purl(key),
+      "relationship": "direct" if key in direct else "indirect",
+      "scope": "runtime",
+      "dependencies": sorted({purl(d) for d in deps[key] if d in resolved}),
+    }
+    for key, (name, _) in sorted(resolved.items())
+  }
+  repo = env.get("GITHUB_REPOSITORY", "darklang/dark")
+  return {
+    "version": 0,
+    "sha": env.get("GITHUB_SHA", "0" * 40),
+    "ref": env.get("GITHUB_REF", "refs/heads/main"),
+    "job": {
+      "correlator": "%s-paket" % env.get("GITHUB_WORKFLOW", "dependencies"),
+      "id": env.get("GITHUB_RUN_ID", "0"),
+    },
+    "detector": {
+      "name": "paket-snapshot",
+      "version": "1.0.0",
+      "url": "https://github.com/%s/blob/main/scripts/deployment/paket-snapshot" % repo,
+    },
+    "scanned": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    "manifests": {
+      LOCK: {"name": LOCK, "file": {"source_location": LOCK}, "resolved": packages},
+    },
+  }
+
+
+def main():
+  os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+  with open(LOCK) as f:
+    lock_text = f.read()
+  with open(DEPS) as f:
+    deps_text = f.read()
+  snap = snapshot(lock_text, deps_text, os.environ)
+  if not snap["manifests"][LOCK]["resolved"]:
+    sys.exit("paket-snapshot: found no packages in %s" % LOCK)
+
+  if "--dry-run" in sys.argv[1:]:
+    print(json.dumps(snap, indent=2))
+    return
+
+  req = urllib.request.Request(
+    "https://api.github.com/repos/%s/dependency-graph/snapshots" % os.environ["GITHUB_REPOSITORY"],
+    data=json.dumps(snap).encode(),
+    method="POST",
+    headers={
+      "Authorization": "Bearer %s" % os.environ["GITHUB_TOKEN"],
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    })
+  with urllib.request.urlopen(req) as r:
+    print(r.status, r.read().decode())
+  print("paket-snapshot: sent %d packages" % len(snap["manifests"][LOCK]["resolved"]))
+
+
+if __name__ == "__main__":
+  main()
