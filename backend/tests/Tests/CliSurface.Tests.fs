@@ -189,6 +189,55 @@ let private hintsAndLogsStayOffStdout =
       Expect.stringContains (CliDsl.plain err) "--with-docs" "which is on stderr"
     })
 
+/// A save's answer is the line that says what it saved. A warning about it, the note that a dry run
+/// wrote nothing, and the preview a prompt asks about all go to stderr, so `dark fn ... | next`
+/// gets the one line, and a delete nobody could confirm leaves stdout empty.
+let private warningsAndPreviewsStayOffStdout =
+  instanceTest
+    "save warnings, dry-run notes and prompt previews go to stderr"
+    (fun target ->
+      task {
+        let! (out, err, status) =
+          runCliStreams
+            target
+            [ "fn"
+              "Tests.Streams.f"
+              "(x: Int64): Int64 = Zzz.Streams.nope(x) + 41" ]
+        Expect.equal status 0 "the fn saved"
+        Expect.stringContains
+          out
+          "Created function Tests.Streams.f"
+          "stdout says what was saved"
+        Expect.isFalse (out.Contains "Unresolved") "but not the warning"
+        Expect.stringContains
+          (CliDsl.plain err)
+          "Not found: Zzz.Streams.nope"
+          "which is on stderr"
+
+        let! (out, err, status) =
+          runCliStreams target [ "delete"; "Tests.Streams.f"; "--dry-run" ]
+        Expect.equal status 0 "the dry run answered"
+        Expect.stringContains
+          out
+          "Will deprecate fn Tests.Streams.f"
+          "the preview is the answer"
+        Expect.isFalse (out.Contains "dry-run") "the dry-run note is not"
+        Expect.stringContains (CliDsl.plain err) "no op emitted" "it is on stderr"
+
+        let! (out, err, status) =
+          runCliStreams target [ "delete"; "Tests.Streams.f" ]
+        Expect.equal status 1 "nobody could confirm, so it refused"
+        Expect.equal out "" "and stdout is empty"
+        Expect.stringContains
+          (CliDsl.plain err)
+          "Will deprecate"
+          "the preview is on stderr"
+        Expect.stringContains
+          (CliDsl.plain err)
+          "`-y`"
+          "with the flag that gets past the prompt"
+      })
+
 let private testHelpCommand =
   instanceTest "help command" (fun state ->
     task {
@@ -976,7 +1025,6 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "version", [ "--local" ]
       "nav", [ "Darklang.Stdlib.List" ]
       "ls", [ "Darklang.Stdlib.List" ]
-      "back", []
       "eval", [ "1 + 1" ]
       "view", [ seed.fn ]
       "tree", [ "Darklang.Stdlib"; "--depth"; "1" ]
@@ -1038,7 +1086,9 @@ let private unsafeWithArguments : Map<string, string> =
       "undeprecate", "puts one back"
       "undo", "steps a real item back a version"
       "resolve", "writes a Resolve op"
-      "ack", "closes a finding other tests assert on" ]
+      "ack", "closes a finding other tests assert on"
+      "back",
+      "a one-shot run has no history to go back to, so it refuses; it is a refusal row below" ]
 
 /// Seed the store, run every command with a known-good invocation, and check the drift both ways.
 let everyCommandWorksWithValidArguments =
@@ -1371,7 +1421,10 @@ let private refusalsOnStderr : List<string * List<string>> =
     [ "permissions"; "update"; "Zzz.Nope.nope" ]
     "permissions unapprove, never approved",
     [ "permissions"; "unapprove"; "Zzz.Nope.nope" ]
-    "permissions profile, no such profile", [ "permissions"; "profile"; "zzznope" ] ]
+    "permissions profile, no such profile", [ "permissions"; "profile"; "zzznope" ]
+    "back, nowhere to go back to", [ "back" ]
+    "traces delete --before, nobody to confirm it",
+    [ "traces"; "delete"; "--before"; "1d" ] ]
 
 let private refusalsKeepStdoutEmpty =
   instanceTest
@@ -2209,6 +2262,7 @@ let tests : List<Test> =
     stderrIsCapturedInOrder
     diagnosticsStayOffStdout
     hintsAndLogsStayOffStdout
+    warningsAndPreviewsStayOffStdout
     testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender

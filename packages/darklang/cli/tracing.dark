@@ -185,6 +185,15 @@ let parseViewOptions(
 let confirmDestructive(autoConfirm: Bool, action: String): Bool =
   Cli.Prompt.confirmExplicit(autoConfirm, $"{action} [y/N]: ")
 
+/// What a no from <fn confirmDestructive> says, and the exit it hands back. With nobody there to
+/// answer, "Cancelled." alone reads as if someone said no; it names the flag that gets past it.
+let cancelled(state: Cli.AppState): Cli.AppState =
+  if Stdlib.Cli.UI.Prompt.canAsk() then
+    Cli.Stderr.line("Cancelled.")
+  else
+    Cli.Stderr.line("Cancelled. (`--yes` deletes without the prompt -- a piped stdin can't answer it.)")
+  { state with exitCode = 1 }
+
 
 /// Does this argument look like a TRACE id rather than a function name?
 ///
@@ -699,8 +708,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     if confirmDestructive(autoConfirm, "Delete all traces?") then
       executeClear(state)
     else
-      Cli.Stderr.line("Cancelled.")
-      { state with exitCode = 1 }
+      cancelled(state)
 
   | [ "delete", "--before", durationStr ] ->
     if confirmDestructive(
@@ -708,8 +716,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
          $"Delete traces older than {durationStr}?") then
       executeClearBefore(state, durationStr)
     else
-      Cli.Stderr.line("Cancelled.")
-      { state with exitCode = 1 }
+      cancelled(state)
 
   | [ "delete", "--keep", nStr ] ->
     match Stdlib.Int64.parse(nStr) with
@@ -719,8 +726,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
            $"Keep the {Stdlib.toString(n)} most-recent traces and drop the rest?") then
         executePruneKeep(state, n)
       else
-        Cli.Stderr.line("Cancelled.")
-        { state with exitCode = 1 }
+        cancelled(state)
     | Error(_) ->
       Cli.printErr(parsePositionalErr(nStr, "--keep N"))
       { state with exitCode = 1 }
@@ -731,8 +737,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       if confirmDestructive(autoConfirm, $"Delete trace {full}?") then
         executeDelete(state, full)
       else
-        Cli.Stderr.line("Cancelled.")
-        { state with exitCode = 1 }
+        cancelled(state)
     | None -> { state with exitCode = 1 }
 
   // Focused usage messages for the remaining "flag without arg" cases

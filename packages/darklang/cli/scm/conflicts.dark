@@ -355,11 +355,8 @@ let executeOverride(
     if choice == "-" then
       Cli.printOk($"#{c.id}  {dotted} -- hand-authoring. Both wordings:")
       let _ = executeShow(state, idPrefix)
-      Stdlib.printLine("")
-
-      Stdlib.printLine(
-        (Stdlib.Cli.UI.Colors.hint(
-          $"  write the wording you want, then `dark conflicts ack {c.id}`.")))
+      Cli.Stderr.line("")
+      Cli.printHint($"  write the wording you want, then `dark conflicts ack {c.id}`.")
 
       state
     else
@@ -390,10 +387,9 @@ let executeOverride(
       // it closes when you've actually written the merged version and acked it.
       Cli.printOk($"#{c.id}  {dotted} -- hand-authoring. Both versions:")
       let _ = executeShow(state, idPrefix)
-      Stdlib.printLine("")
-      Stdlib.printLine(
-        (Stdlib.Cli.UI.Colors.hint(
-          $"  write the merged version yourself (`dark {c.itemType} {dotted} ...`), then `dark conflicts ack {c.id}`.")))
+      Cli.Stderr.line("")
+      Cli.printHint(
+        $"  write the merged version yourself (`dark {c.itemType} {dotted} ...`), then `dark conflicts ack {c.id}`.")
       state
     else
       match pickCandidate(c, choice) with

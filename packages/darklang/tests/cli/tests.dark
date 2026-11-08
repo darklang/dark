@@ -624,8 +624,9 @@ test unresolvedNameGuidance =
   let branchName = "cli-name-guidance-test-" + suffix
   let moduleName = "Tests.CliNameGuidance"
   let _ = runWithCommand(["branch", "create", branchName])
+  // Both streams: the suggestion is a warning, so it is on stderr beside the "Created" line.
   let stdlibOutput =
-    runWithCommand(
+    runWithBothStreams(
       [ "--branch"
         branchName
         "fn"

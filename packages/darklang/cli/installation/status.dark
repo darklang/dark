@@ -14,12 +14,11 @@ let execute(state: AppState, args: List<String>): AppState =
       else
         Stdlib.Cli.UI.Colors.warning("Status: ") + "Not installed (run 'install' to put dark on your PATH)"
 
-  let statusText =
-    Stdlib.Cli.UI.Colors.info("Version: ") + version + "\n" +
-    installationStatus + "\n\n" +
-    "Type " + Stdlib.Cli.UI.Colors.hint("'help'") + " for available commands"
-
-  Stdlib.printLine(statusText)
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.info("Version: ") + version)
+  Stdlib.printLine(installationStatus)
+  // A hint, not part of the status, so a pipe gets the two lines above and nothing else.
+  Stdlib.printErrorLine("")
+  Stdlib.printErrorLine("Type " + Stdlib.Cli.UI.Colors.hint("'help'") + " for available commands")
   state
 
 
