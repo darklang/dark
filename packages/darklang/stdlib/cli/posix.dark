@@ -236,14 +236,39 @@ let uname(): Result.Result<(String * String * String), Error> =
   Stdlib.Cli.Posix.__uname()
 
 
-/// Send a signal to a process
-let kill(pid: Pid, signal: Int64): Result.Result<Unit, Error> =
-  Builtin.syscallKill(Stdlib.Cli.Posix.Pid.toInt64(pid), signal)
+/// A signal <fn kill> sends. These are the ones with the same number on Linux and macOS.
+type Signal =
+  /// The terminal went away (1)
+  | SIGHUP
+  /// Ctrl-C (2)
+  | SIGINT
+  /// Quit, and dump core (3)
+  | SIGQUIT
+  /// Stop now; it cannot be caught or ignored (9)
+  | SIGKILL
+  /// Please stop; the polite one (15)
+  | SIGTERM
+
+module Signal =
+  /// The number of <param signal>
+  let toInt64(signal: Stdlib.Cli.Posix.Signal): Int64 =
+    match signal with
+    | SIGHUP -> 1
+    | SIGINT -> 2
+    | SIGQUIT -> 3
+    | SIGKILL -> 9
+    | SIGTERM -> 15
+
+/// Send <param signal> to the process <param pid>
+let kill(pid: Pid, signal: Signal): Result.Result<Unit, Error> =
+  Builtin.syscallKill(Stdlib.Cli.Posix.Pid.toInt64(pid), Stdlib.Cli.Posix.Signal.toInt64(signal))
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
-val sigterm = 15
-val sigkill = 9
-val sigint = 2
+/// {{SIGKILL}}
+val sigkill = Stdlib.Cli.Posix.Signal.SIGKILL
+
+/// {{SIGINT}}
+val sigint = Stdlib.Cli.Posix.Signal.SIGINT
 
 /// Common errno values (Linux/macOS)
 module Errno =
@@ -292,12 +317,10 @@ let isDirectory(path: String): Bool =
 /// Check if a process is running via kill(pid, 0).
 /// Signal 0 checks process existence without sending a signal.
 let isProcessRunning(pid: Pid): Bool =
-  match kill(pid, 0) with
+  // EPERM means the process exists but we lack permission to signal it
+  match Builtin.syscallKill(Stdlib.Cli.Posix.Pid.toInt64(pid), 0) with
   | Ok(_) -> true
-  | Error(e) ->
-    // EPERM means the process exists but we lack permission to signal it
-    if e.errno == Errno.eperm then true
-    else false
+  | Error(errno) -> errno == Errno.eperm
 
 
 /// Create a directory and all missing parents (like mkdir -p).

@@ -137,12 +137,12 @@ let exec(program: String, args: List<String>): Result.Result<String, String> =
 
 /// Kill a process by PID.
 let kill(pid: Posix.Pid): Result.Result<Unit, Posix.Error> =
-  Posix.kill(pid, Posix.sigterm)
+  Posix.kill(pid, Posix.Signal.SIGTERM)
 
 
 /// Force-kill a process by PID.
 let forceKill(pid: Posix.Pid): Result.Result<Unit, Posix.Error> =
-  Posix.kill(pid, Posix.sigkill)
+  Posix.kill(pid, Posix.Signal.SIGKILL)
 
 
 /// Run a program in a specific directory.

@@ -195,6 +195,16 @@ test exitCodeFromInt64 =
       |> Stdlib.Test.equal(false)
       Stdlib.toString(Stdlib.Cli.Posix.ExitCode.failure) |> Stdlib.Test.equal("1") ])
 
+// A signal is sent as its number, the same on Linux and macOS
+test signalNumbers =
+  [ Stdlib.Cli.Posix.Signal.SIGHUP
+    Stdlib.Cli.Posix.Signal.SIGINT
+    Stdlib.Cli.Posix.Signal.SIGQUIT
+    Stdlib.Cli.Posix.Signal.SIGKILL
+    Stdlib.Cli.Posix.Signal.SIGTERM ]
+  |> Stdlib.List.map(Stdlib.Cli.Posix.Signal.toInt64)
+  |> Stdlib.Test.equal([ 1, 2, 3, 9, 15 ])
+
 // Signal 0 checks existence; the current process is always running.
 test isProcessRunningSelf =
   match Stdlib.Cli.Posix.Pid.fromInt64(Stdlib.Cli.Sys.currentPid()) with
