@@ -105,10 +105,9 @@ let initialState(
   branchId: Uuid,
   accountId: Stdlib.Option.Option<Uuid>,
   instanceName: String,
-  live: Bool)
+  updates: Updates)
   : State =
-  initialStateFrom(branchId, accountId, instanceName, live,
-    SCM.Draft.read())
+  initialStateFrom(branchId, accountId, instanceName, updates, SCM.Draft.read())
 
 /// `initialState` over a draft already read. `execute` reads the draft once and hands the same
 /// picture to Home and to the SCM status row; reading it per consumer ran constraint detection twice.
@@ -116,14 +115,14 @@ let initialStateFrom(
   branchId: Uuid,
   accountId: Stdlib.Option.Option<Uuid>,
   instanceName: String,
-  live: Bool,
+  updates: Updates,
   draft: SCM.Draft.Picture)
   : State =
   let rootLoc = Packages.PackageLocation.Module([])
   let homeItems = loadHomeItemsFrom(branchId, draft)
   State
       { activeView = vHome
-        live = live
+        live = updates == Updates.Live
         location = rootLoc
         items = homeItems
         selected = selectableRow(homeItems, 0, 1)
@@ -191,7 +190,7 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
       branchId,
       cliState.accountID,
       instanceName,
-      Stdlib.List.contains(args, "--live"),
+      (if Stdlib.List.contains(args, "--live") then Updates.Live else Updates.Manual),
       draft)
   // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no
   // seeding - the first frame is Home, which has no `render` fn to peek at.

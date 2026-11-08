@@ -192,19 +192,19 @@ let openHomeRow(state: State): Step =
   | None -> Step.Continue(state)
   | Some(item) ->
     if item.kind == "home-start-repl" then
-      Step.Continue(goTo(state, mkDest(vScratch, 0), false))
+      Step.Continue(goTo(state, mkDest(vScratch, 0)))
     else if item.kind == "home-start-code" then
-      Step.Continue(goTo(state, mkDest(vMatter, 0), false))
+      Step.Continue(goTo(state, mkDest(vMatter, 0)))
     else if item.kind == "home-start-docs" then
-      Step.Continue(goTo(state, mkDest(vDocs, 0), false))
+      Step.Continue(goTo(state, mkDest(vDocs, 0)))
     else if (item.kind == "home-conflicts") || (item.kind == "home-here") then
-      let moved = goTo(state, mkDest(vSCM, 0), false)
+      let moved = goTo(state, mkDest(vSCM, 0))
       Step.Continue({ moved with selected = 0 })
     else if item.kind == "home-constraints" then
       runCommandInFrame(state, "constraints", [])
     else if item.kind == "home-commit" then
       // Home's commits are the head of the same store-wide order the reader indexes.
-      openReader(state, commitOpsText(state.branchId, homeKindIndex(state)), false)
+      openReader(state, commitOpsText(state.branchId, homeKindIndex(state)), Reader.Prose)
     else if item.kind == "home-branch" then
       match branchRowTarget(state) with
       | Some(target) ->
@@ -213,12 +213,12 @@ let openHomeRow(state: State): Step =
           // The branch you're on: nothing to switch to, so ⏎ opens its
           // uncommitted work. A toast saying "already on it" answered a
           // question nobody had asked.
-          Step.Continue(goTo(state, mkDest(vSCM, 0), false))
+          Step.Continue(goTo(state, mkDest(vSCM, 0)))
         else
           Step.Continue(switchWorkbenchBranch(state, id, name))
       | None -> Step.Continue(state)
     else if item.kind == "home-more-commits" then
-      openReader(state, commitListText(), false)
+      openReader(state, commitListText(), Reader.Prose)
     else if item.kind == "home-more" then
       openBranchPicker(state)
     else

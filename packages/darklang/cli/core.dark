@@ -128,6 +128,19 @@ module Stderr =
   let ok(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.success(msg))
   let hint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
 
+/// Whether a command asks before it does something it cannot take back, or has its yes already.
+type Confirm =
+  /// Ask, and take only `y` as yes.
+  | Ask
+  /// Go ahead without asking: the command line said `-y` or `--yes`.
+  | Assume
+
+module Confirm =
+  /// {{Assume}} when <param yes>, the way a command reads `-y` or `--yes`.
+  let assumeIf(yes: Bool): Darklang.Cli.Confirm =
+    if yes then Darklang.Cli.Confirm.Assume else Darklang.Cli.Confirm.Ask
+
+
 /// The state a command hands back, given whether it did what it was asked.
 ///
 /// A refusal that prints a reason and then reports success is invisible to everything that is
@@ -137,7 +150,11 @@ module Stderr =
 /// An empty ANSWER is not a refusal: a command asked a question and told the truth about it
 /// succeeded, however little there was to say.
 let exitWith(state: AppState, ok: Bool): AppState =
-  if ok then state else { state with exitCode = 1 }
+  if ok then state else failed(state)
+
+/// The state a command hands back when it could not do what it was asked, and has printed why:
+/// exit code 1. <fn exitWith> is for when that is worked out at run time.
+let failed(state: AppState): AppState = { state with exitCode = 1 }
 
 
 /// First 8 hex chars of a hash, for human-readable display.

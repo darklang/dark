@@ -7,8 +7,10 @@ module Darklang.Cli.Workbench
 /// nothing else. Conflicts sit at the top of the same list, since they need a
 /// decision before anything commits. Branches and history live on Home.
 let renderScm(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+  let listFocused =
+    Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+  let detailFocused =
+    Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
   let conflicts = state.items |> Stdlib.List.filter(fun it -> it.kind == "conflict") |> Stdlib.List.length
   let trailer =
     if Stdlib.List.isEmpty(state.items) then [ state.scmStatus.branchName ]
@@ -143,9 +145,12 @@ let renderRepl(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.C
     paneTitle(
       "",
       [ (if typing then "⏎ runs · esc leaves the prompt" else "⏎ to type · f clears") ],
-      state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+      Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First))
   let sessionTitle =
-    paneTitle("Session", [ "x clears" ], state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
+    paneTitle(
+      "Session",
+      [ "x clears" ],
+      Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second))
   paneSplit(
     region,
     62,

@@ -213,7 +213,7 @@ let renderCommandCompletions(state: State, screen: Stdlib.Cli.UI.Layout.Region):
         let top = Stdlib.max(screen.top, footerRow - boxRows)
         // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
         let region = Stdlib.Cli.UI.Layout.Region { top = top, left = screen.left, rows = boxRows, cols = screen.cols }
-        Stdlib.Cli.UI.Box.panel(region, "complete  ·  tab to accept", true, fun inner ->
+        Stdlib.Cli.UI.Box.panel(region, "complete  ·  tab to accept", Stdlib.Cli.UI.Focus.Focused, fun inner ->
           let rows =
             items
             |> Stdlib.List.indexedMap(fun(i, item) ->

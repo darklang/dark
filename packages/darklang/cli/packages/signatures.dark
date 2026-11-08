@@ -152,8 +152,8 @@ let renderModule(
 type ParsedArgs =
   { root: List<String>
     includeTypes: Bool
-    includeDeprecated: Bool
-    includeInternal: Bool
+    deprecated: Cli.Packages.Query.Deprecated
+    internal: Cli.Packages.Query.Internal
     filter: Stdlib.Option.Option<String>
     all: Bool
     parseErrors: List<FlagParser.ParseError> }
@@ -177,8 +177,9 @@ let parseArgs(args: List<String>): ParsedArgs =
   ParsedArgs
     { root = root
       includeTypes = FlagParser.hasFlag(p, "--types")
-      includeDeprecated = FlagParser.hasFlag(p, "--include-deprecated")
-      includeInternal = FlagParser.hasFlag(p, "--include-internal")
+      deprecated =
+        Cli.Packages.Query.Deprecated.showIf(FlagParser.hasFlag(p, "--include-deprecated"))
+      internal = Cli.Packages.Query.Internal.showIf(FlagParser.hasFlag(p, "--include-internal"))
       filter = Stdlib.List.head(p.positionals)
       all = FlagParser.hasFlag(p, "--all")
       parseErrors = p.errors }
@@ -188,8 +189,8 @@ let executeFiltered(
   state: Cli.AppState,
   rootPath: List<String>,
   includeTypes: Bool,
-  includeDeprecated: Bool,
-  includeInternal: Bool,
+  deprecated: Cli.Packages.Query.Deprecated,
+  internal: Cli.Packages.Query.Internal,
   filterText: Stdlib.Option.Option<String>)
   : Cli.AppState =
   let rootName = Stdlib.String.join(rootPath, ".")
@@ -208,7 +209,7 @@ let executeFiltered(
 
   let raw = LanguageTools.PackageManager.Search.search(branchId, query)
   let depSets = Cli.Packages.Query.loadDeprecationSets(branchId)
-  let unfiltered = Cli.Packages.Query.filterHidden(raw, depSets, includeDeprecated, includeInternal)
+  let unfiltered = Cli.Packages.Query.filterHidden(raw, depSets, deprecated, internal)
 
   let results =
     match filterText with
@@ -269,7 +270,7 @@ let executeFiltered(
     && Stdlib.List.isEmpty(raw.tests)
   then
     Cli.printErr($"no module named {rootName} on this branch")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
     let title =
       match filterText with
@@ -312,7 +313,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
     Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
     Stdlib.printErrorLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else if isUnscoped then
     Darklang.Cli.Docs.StdlibOverview.execute(state, args)
   else
@@ -320,8 +321,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       state,
       parsed.root,
       parsed.includeTypes,
-      parsed.includeDeprecated,
-      parsed.includeInternal,
+      parsed.deprecated,
+      parsed.internal,
       parsed.filter)
 
 

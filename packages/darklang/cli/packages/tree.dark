@@ -117,9 +117,9 @@ let execute(state: AppState, args: List<String>): AppState =
 
   // Check for --toc flag
   let showToc = Stdlib.List.any(args, fun arg -> arg == "--toc")
-  let includeDeprecated =
-    Stdlib.List.contains(args, "--include-deprecated")
-  let includeInternal = Stdlib.List.contains(args, "--include-internal")
+  let deprecated =
+    Query.Deprecated.showIf(Stdlib.List.contains(args, "--include-deprecated"))
+  let internal = Query.Internal.showIf(Stdlib.List.contains(args, "--include-internal"))
 
   if showToc then
     displayTableOfContents()
@@ -138,7 +138,7 @@ let execute(state: AppState, args: List<String>): AppState =
     match depth with
     | None ->
       Cli.printErr("--depth takes a number from 1 to 10.")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Some(maxDepth) ->
 
     let branchId = state.currentBranchId
@@ -161,7 +161,7 @@ let execute(state: AppState, args: List<String>): AppState =
     match startLocation with
     | Error(e) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot show a tree: {e}"))
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Ok(startLocation) ->
       // Load deprecation sets once for the whole tree render.
       let depSets = Query.loadDeprecationSets(branchId)
@@ -169,16 +169,16 @@ let execute(state: AppState, args: List<String>): AppState =
       let locationStr = Packages.formatLocation(startLocation)
       Stdlib.printLine($"Package tree from {locationStr}:")
       Stdlib.printLine("")
-      displayTree(branchId, startLocation, maxDepth, 0, "", depSets, includeDeprecated, includeInternal)
+      displayTree(branchId, startLocation, maxDepth, 0, "", depSets, deprecated, internal)
 
       state
 
 
 // Display tree recursively from a given location.
 //
-// `depSets` lets us mark deprecated rows with ⚠ and (unless includeDeprecated)
+// `depSets` lets us mark deprecated rows with ⚠ and (unless `deprecated` says Show)
 // hide items whose hash is in the "hidden" set per the visibility rule. Internal
-// `__` helpers are hidden unless includeInternal.
+// `__` helpers are hidden unless `internal` says Show.
 let displayTree(
   branchId: Uuid,
   location: PackageLocation,
@@ -186,8 +186,8 @@ let displayTree(
   currentDepth: Int64,
   prefix: String,
   depSets: Query.DeprecationSets,
-  includeDeprecated: Bool,
-  includeInternal: Bool)
+  deprecated: Query.Deprecated,
+  internal: Query.Internal)
   : Unit =
   if remainingDepth <= 0 then
     ()
@@ -200,12 +200,12 @@ let displayTree(
       Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
 
     // Entity names paired with their hash, so we can mark deprecated rows.
-    let fnEntries = Query.filterHiddenPairs(rawFns, depSets, includeDeprecated, includeInternal)
-    let typeEntries = Query.filterHiddenPairs(rawTypes, depSets, includeDeprecated, includeInternal)
-    let valueEntries = Query.filterHiddenPairs(rawValues, depSets, includeDeprecated, includeInternal)
-    let traitEntries = Query.filterHiddenPairs(rawTraits, depSets, includeDeprecated, includeInternal)
-    let implEntries = Query.filterHiddenPairs(rawImpls, depSets, includeDeprecated, includeInternal)
-    let testEntries = Query.filterHiddenPairs(rawTests, depSets, includeDeprecated, includeInternal)
+    let fnEntries = Query.filterHiddenPairs(rawFns, depSets, deprecated, internal)
+    let typeEntries = Query.filterHiddenPairs(rawTypes, depSets, deprecated, internal)
+    let valueEntries = Query.filterHiddenPairs(rawValues, depSets, deprecated, internal)
+    let traitEntries = Query.filterHiddenPairs(rawTraits, depSets, deprecated, internal)
+    let implEntries = Query.filterHiddenPairs(rawImpls, depSets, deprecated, internal)
+    let testEntries = Query.filterHiddenPairs(rawTests, depSets, deprecated, internal)
 
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.
@@ -284,8 +284,8 @@ let displayTree(
           currentDepth + 1,
           newPrefix,
           depSets,
-          includeDeprecated,
-          includeInternal))
+          deprecated,
+          internal))
     |> Stdlib.List.iter(fun _ -> ())
 
 

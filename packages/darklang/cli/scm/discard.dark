@@ -20,8 +20,9 @@ let help(_state: AppState): String =
   |> Stdlib.String.join("\n")
 
 let execute(state: AppState, args: List<String>): AppState =
-  let autoConfirm =
-    (Stdlib.List.contains(args, "-y")) || (Stdlib.List.contains(args, "--yes"))
+  let confirm =
+    Cli.Confirm.assumeIf(
+      (Stdlib.List.contains(args, "-y")) || (Stdlib.List.contains(args, "--yes")))
 
   let named =
     args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
@@ -39,7 +40,7 @@ let execute(state: AppState, args: List<String>): AppState =
     match Packages.Location.parseRelativeTo(state.packageData.currentLocation, arg) with
     | Error(e) ->
       Cli.printErr(e)
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Ok(loc) ->
       let dotted = PropagateCmd.dotted(loc)
       let mods = Stdlib.String.join(loc.modules, ".")
@@ -61,13 +62,13 @@ let execute(state: AppState, args: List<String>): AppState =
       else if
         Stdlib.Bool.not((
           Cli.Prompt.confirmExplicit(
-            autoConfirm,
+            confirm,
             Stdlib.Cli.UI.Colors.warning($"\n  Drop {dotted} from your draft? [y/N]: "))
         ))
       then
         Cli.Stderr.ok(
           $"  kept. (`dark discard {dotted} -y` if you mean it -- a piped stdin can't answer this.)")
-        Cli.exitWith(state, false)
+        Cli.failed(state)
       else
         match SCM.PackageOps.discardDraftName(loc.owner, loc.modules, loc.name) with
         | Ok(n) ->
@@ -75,11 +76,11 @@ let execute(state: AppState, args: List<String>): AppState =
           state
         | Error(e) ->
           Cli.printErr($"couldn't drop {dotted}: {e}")
-          Cli.exitWith(state, false)
+          Cli.failed(state)
   | [_, _, ...] ->
     Cli.printErr("dark discard takes at most one name.")
     Cli.printHint("  `dark discard` drops the whole draft; `dark discard <name>` drops one item.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | [] ->
 
   let changed = SCM.PackageOps.draftBindings()
@@ -123,12 +124,12 @@ let execute(state: AppState, args: List<String>): AppState =
   if
     Stdlib.Bool.not((
       Cli.Prompt.confirmExplicit(
-        autoConfirm,
+        confirm,
         Stdlib.Cli.UI.Colors.warning("\n  Drop these? [y/N]: "))
     ))
   then
     Cli.Stderr.ok("  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
 
   match SCM.PackageOps.discardDraft() with
@@ -137,7 +138,7 @@ let execute(state: AppState, args: List<String>): AppState =
     state
   | Error(e) ->
     Cli.printErr($"couldn't discard: {e}")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 let complete(
   _state: AppState,

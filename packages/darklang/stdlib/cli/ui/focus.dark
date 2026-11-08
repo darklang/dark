@@ -1,0 +1,13 @@
+/// The one focus flag the widgets share: a box's border, a picker's row and a text
+/// field's cursor each draw differently while they have the keyboard.
+module Darklang.Stdlib.Cli.UI
+
+/// Whether a widget, pane or row is the one with the keyboard.
+type Focus =
+  | Focused
+  | Unfocused
+
+module Focus =
+  /// {{Focused}} when <param focused> is true, for focus worked out from state.
+  let fromBool(focused: Bool): Stdlib.Cli.UI.Focus =
+    if focused then Stdlib.Cli.UI.Focus.Focused else Stdlib.Cli.UI.Focus.Unfocused

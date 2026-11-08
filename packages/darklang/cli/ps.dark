@@ -257,7 +257,7 @@ let printMachineShow(target: String, json: Bool): Bool =
 /// is suspended (`dark traces` keeps it), a daemon or a serve ends. `kill` is KILL.
 let signalMachine(
   pid: Int64,
-  hard: Bool)
+  how: Stdlib.Exec.Stop)
   : Stdlib.Result.Result<String, String> =
   let known = Stdlib.Exec.machineList() |> Stdlib.List.filter(fun m -> (m.pid) == pid)
   let pidText = Stdlib.toString(pid)
@@ -266,7 +266,10 @@ let signalMachine(
     Stdlib.Result.Result.Error(
       $"no Dark process on this machine has pid {pidText} -- `dark ps` lists them")
   | [m, ...] ->
-    let signal = if hard then Stdlib.Cli.Posix.sigkill else Stdlib.Cli.Posix.sigint
+    let signal =
+      match how with
+      | Cancel -> Stdlib.Cli.Posix.Signal.SIGINT
+      | Kill -> Stdlib.Cli.Posix.Signal.SIGKILL
     // A pid on the machine list came from the OS, so it is in range.
     let sent =
       match Stdlib.Cli.Posix.Pid.fromInt64(pid) with
@@ -274,25 +277,26 @@ let signalMachine(
       | Error(_) -> false
     if !sent then
       Stdlib.Result.Result.Error($"could not signal pid {pidText}")
-    else if hard then
-      Stdlib.Result.Result.Ok($"killed {m.title} (pid {pidText})")
     else
-      Stdlib.Result.Result.Ok($"asked {m.title} (pid {pidText}) to stop")
+      match how with
+      | Kill -> Stdlib.Result.Result.Ok($"killed {m.title} (pid {pidText})")
+      | Cancel -> Stdlib.Result.Result.Ok($"asked {m.title} (pid {pidText}) to stop")
 
 /// Stop a process in this instance by id prefix: `cancel` at its next turn, `kill` now.
 let stopLocal(
   prefix: String,
-  hard: Bool)
+  how: Stdlib.Exec.Stop)
   : Stdlib.Result.Result<String, String> =
   match find(prefix) with
   | Error(e) -> Stdlib.Result.Result.Error(e)
   | Ok(p) ->
-    let ok = Stdlib.Exec.stop(Stdlib.Exec.Handle { id = p.id }, hard)
+    let ok = Stdlib.Exec.stop(Stdlib.Exec.Handle { id = p.id }, how)
     if ok then
-      if hard then
+      match how with
+      | Kill ->
         Stdlib.Result.Result.Ok(
           $"killed {Cli.Text.shortId(p.id)} without waiting for what it was doing")
-      else
+      | Cancel ->
         Stdlib.Result.Result.Ok(
           $"asked {Cli.Text.shortId(p.id)} to stop; it will, as soon as the work it is doing finishes")
     else
@@ -300,10 +304,10 @@ let stopLocal(
         $"{Cli.Text.shortId(p.id)} finished while you were asking -- `dark ps` for what is left")
 
 /// A pid names another Dark process on this machine; anything else is an id prefix in this one.
-let stop(target: String, hard: Bool): Stdlib.Result.Result<String, String> =
+let stop(target: String, how: Stdlib.Exec.Stop): Stdlib.Result.Result<String, String> =
   match Stdlib.Int64.parse(target) with
-  | Ok(pid) -> signalMachine(pid, hard)
-  | Error(_) -> stopLocal(target, hard)
+  | Ok(pid) -> signalMachine(pid, how)
+  | Error(_) -> stopLocal(target, how)
 
 /// Everything `ps` knows, as JSON, for something that is not a person: this instance's
 /// processes and the machine's other Dark processes, in the same two groups the tables print.
@@ -371,7 +375,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | [ "show", prefix, "--full" ] ->
     Cli.exitWith(state, printShowWith(state.currentBranchId, prefix, true))
   | [ "cancel", target ] ->
-    match stop(target, false) with
+    match stop(target, Stdlib.Exec.Stop.Cancel) with
     | Ok(msg) ->
       Stdlib.printLine(msg)
       state
@@ -379,7 +383,7 @@ let execute(state: AppState, args: List<String>): AppState =
       Cli.printErr(e)
       { state with exitCode = 1 }
   | [ "kill", target ] ->
-    match stop(target, true) with
+    match stop(target, Stdlib.Exec.Stop.Kill) with
     | Ok(msg) ->
       Stdlib.printLine(msg)
       state
@@ -468,12 +472,12 @@ module Watch =
     | Ok(msg) -> msg
     | Error(e) -> Stdlib.Cli.UI.Colors.error(e)
 
-  let act(m: Model, hard: Bool): Model =
+  let act(m: Model, how: Stdlib.Exec.Stop): Model =
     match Stdlib.List.getAt(m.rows, m.cursor) with
     | None -> m
-    | Some(Machine(pid, _)) -> { m with note = noteOf(signalMachine(pid, hard)) }
+    | Some(Machine(pid, _)) -> { m with note = noteOf(signalMachine(pid, how)) }
     | Some(Local(id, _)) ->
-      { m with note = noteOf(stopLocal(Cli.Text.shortId(id), hard)) }
+      { m with note = noteOf(stopLocal(Cli.Text.shortId(id), how)) }
 
   let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
     match event with
@@ -484,8 +488,8 @@ module Watch =
       | DownArrow -> clamp({ m with cursor = m.cursor + 1, note = "" })
       | _ ->
         match k.char with
-        | Some("c") -> act(m, false)
-        | Some("k") -> act(m, true)
+        | Some("c") -> act(m, Stdlib.Exec.Stop.Cancel)
+        | Some("k") -> act(m, Stdlib.Exec.Stop.Kill)
         | _ -> { m with note = "" }
 
   let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =

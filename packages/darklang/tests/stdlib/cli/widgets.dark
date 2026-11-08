@@ -110,13 +110,42 @@ module Picker =
   // A selected row is marked, not just coloured: colour alone is invisible on a monochrome terminal.
   test selectedRowIsMarked =
     Stdlib.Test.all(
-      [ Stdlib.String.contains(Darklang.Stdlib.Cli.UI.Picker.rowFor("x", true), "> x")
+      [ Stdlib.String.contains(
+          Darklang.Stdlib.Cli.UI.Picker.rowFor("x", Darklang.Stdlib.Cli.UI.Focus.Focused),
+          "> x")
         |> Stdlib.Test.equal(true)
         Stdlib.String.startsWith(
-          Darklang.Stdlib.Cli.UI.Picker.rowFor("x", true),
+          Darklang.Stdlib.Cli.UI.Picker.rowFor("x", Darklang.Stdlib.Cli.UI.Focus.Focused),
           Darklang.Stdlib.Cli.UI.Colors.selection)
         |> Stdlib.Test.equal(true)
-        Darklang.Stdlib.Cli.UI.Picker.rowFor("x", false) |> Stdlib.Test.equal("  x") ])
+        Darklang.Stdlib.Cli.UI.Picker.rowFor("x", Darklang.Stdlib.Cli.UI.Focus.Unfocused)
+        |> Stdlib.Test.equal("  x") ])
+
+  // Focus.fromBool turns focus worked out from state into the enum the widgets take.
+  test focusFromBool =
+    Stdlib.Test.all(
+      [ Darklang.Stdlib.Cli.UI.Focus.fromBool(true)
+        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.Focus.Focused)
+        Darklang.Stdlib.Cli.UI.Focus.fromBool(false)
+        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.Focus.Unfocused) ])
+
+  // A focused text field draws its cursor; an unfocused empty one shows the placeholder.
+  test textFieldFocus =
+    let empty = Darklang.Stdlib.Cli.UI.TextField.empty
+
+    Stdlib.Test.all(
+      [ Darklang.Stdlib.Cli.UI.TextField.renderMaybeFocused(
+          empty,
+          Darklang.Stdlib.Cli.UI.Focus.Unfocused,
+          "name",
+          10)
+        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.Colors.dimText("name"))
+        Darklang.Stdlib.Cli.UI.TextField.renderMaybeFocused(
+          empty,
+          Darklang.Stdlib.Cli.UI.Focus.Focused,
+          "name",
+          10)
+        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.TextField.renderInline(empty, 10)) ])
 
 module Confirm =
   let question(): Darklang.Stdlib.Cli.UI.Confirm.State =

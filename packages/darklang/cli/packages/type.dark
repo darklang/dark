@@ -24,7 +24,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         ""
       ] |> Cli.Stderr.lines
 
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
       createTypeInline(
         state.packageData.currentLocation,
@@ -86,7 +86,7 @@ let createTypeInline(
         // a precise parse error was already printed above; don't stack the
         // generic hint on top of it
         if hasParseError then
-          Cli.exitWith(state, false)
+          Cli.failed(state)
         else
           [
             (Stdlib.Cli.UI.Colors.error("Failed to parse type definition"))
@@ -96,7 +96,7 @@ let createTypeInline(
             "  dark type Me.Demo.User '{ name: String, age: Int64 }'"
             ""
           ] |> Cli.Stderr.lines
-          Cli.exitWith(state, false)
+          Cli.failed(state)
     | None ->
       [
         (Stdlib.Cli.UI.Colors.error("Failed to parse type definition"))
@@ -106,10 +106,10 @@ let createTypeInline(
         "  dark type Me.Demo.User '{ name: String, age: Int64 }'"
         ""
       ] |> Cli.Stderr.lines
-      Cli.exitWith(state, false)
+      Cli.failed(state)
   | Error(msg) ->
     Cli.printErr($"Invalid location: {msg}")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 
 let help(_state: Cli.AppState): String =

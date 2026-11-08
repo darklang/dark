@@ -89,8 +89,10 @@ let processTree(state: State): Stdlib.Cli.UI.Node.Node<Unit> =
 
 /// The table on the left, the selected process's stack on the right.
 let renderProcesses(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+  let listFocused =
+    Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+  let detailFocused =
+    Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
 
   paneSplit(
     region,

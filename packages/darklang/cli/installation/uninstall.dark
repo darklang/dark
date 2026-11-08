@@ -43,17 +43,18 @@ let execute(state: AppState, args: List<String>): AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
 
   // Parse flags
-  let autoConfirm =
-    (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y"))
+  let confirm =
+    Cli.Confirm.assumeIf(
+      (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y")))
 
-  match Installation.System.uninstallWithConfirmation(host, autoConfirm) with
+  match Installation.System.uninstallWithConfirmation(host, confirm) with
   | Ok(message) ->
     Stdlib.printLine(View.formatSuccess(message))
     // Exit after successful uninstall since the executable is being removed
     { state with isExiting = true }
   | Error(e) ->
     Stdlib.printErrorLine(View.formatError(e))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

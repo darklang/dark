@@ -8,11 +8,11 @@ let hasFlag(args: List<String>, longFlag: String, shortFlag: String): Bool =
 
 let execute(state: AppState, args: List<String>): AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
-  let autoConfirm = hasFlag(args, "--yes", "-y")
+  let confirm = Cli.Confirm.assumeIf(hasFlag(args, "--yes", "-y"))
   match Installation.System.installedBinaryPath(host) with
   | Error(e) ->
     Stdlib.printErrorLine(View.formatError(e))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | Ok(target) ->
 
   if Installation.System.isRunningInstalled(target) then
@@ -22,7 +22,7 @@ let execute(state: AppState, args: List<String>): AppState =
     let go =
       if Installation.System.isInstalled(target) then
         Cli.Prompt.confirmExplicit(
-          autoConfirm,
+          confirm,
           $"A dark is already installed at {target}. Replace it with this one? (y/n): ")
       else
         true
@@ -38,7 +38,7 @@ let execute(state: AppState, args: List<String>): AppState =
     else
       Cli.printErr("Nothing installed.")
       Cli.printHint("  dark install --yes replaces it without asking")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

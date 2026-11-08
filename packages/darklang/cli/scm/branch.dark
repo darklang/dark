@@ -208,11 +208,11 @@ let parentOf(branchId: Uuid): (Uuid * String) =
 /// point at the id.
 let executeRename(state: AppState, branchRef: String, newName: String): AppState =
   match resolveRef(branchRef) with
-  | None -> Cli.exitWith(state, false)
+  | None -> Cli.failed(state)
   | Some(branchId) ->
     if SCM.Branch.isMain(branchId) then
       Cli.printErr("main is the trunk; it has no name to change.")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
       let was = SCM.PackageOps.branchName(branchId)
 
@@ -230,7 +230,7 @@ let executeRename(state: AppState, branchRef: String, newName: String): AppState
         state
       | Error(e) ->
         Cli.printErr(e)
-        Cli.exitWith(state, false)
+        Cli.failed(state)
 
 /// Archive (soft-delete) a branch: its unmerged ops are discarded and it leaves every listing, `--all`
 /// included. So it asks the same way `discard` and `merge` do: say what would go, then take an explicit
@@ -241,10 +241,10 @@ let executeRename(state: AppState, branchRef: String, newName: String): AppState
 let executeArchive(
   state: AppState,
   branchRef: String,
-  autoConfirm: Bool)
+  confirm: Cli.Confirm)
   : AppState =
   match resolveRef(branchRef) with
-  | None -> Cli.exitWith(state, false)
+  | None -> Cli.failed(state)
   // A child resolves names through its parent chain, so archiving a parent takes the parent's work
   // out from under it: the child's code stops resolving, its listing shows a parent "not in this
   // store", and merging it lands ops whose dependencies are gone. Merge has refused this since it
@@ -255,12 +255,12 @@ let executeArchive(
       $"cannot archive \"{branchRef}\": {Cli.Text.plural(Stdlib.List.length(kids), "branch")} still branch off it.")
     kids |> Stdlib.List.iter(fun k -> Cli.printHint($"    - {k}"))
     Cli.printHint("  merge or archive them first, and this one can go.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | Some(branchId) ->
     let entries = SCM.PackageOps.branchDiffEntries(branchId)
 
     let confirmed =
-      if (entries == []) || autoConfirm then
+      if (entries == []) || (confirm == Cli.Confirm.Assume) then
         true
       else
         // Warning-colored like DISCARDING: this listing is what is about to be destroyed, and
@@ -278,14 +278,14 @@ let executeArchive(
         Cli.Stderr.hint("  `dark merge` first if you meant to keep them.")
 
         Cli.Prompt.confirmExplicit(
-          autoConfirm,
+          confirm,
           Stdlib.Cli.UI.Colors.warning("\n  Archive it? [y/N]: "))
 
     if Stdlib.Bool.not(confirmed) then
       Cli.Stderr.ok(
         "  kept. (`dark branch archive <name> -y` if you mean it -- a piped stdin can't answer this.)")
 
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
 
     // The parent, read BEFORE the archive: an archived branch drops out of the listing `parentOf`
@@ -306,7 +306,7 @@ let executeArchive(
         state
     | Error(e) ->
       Cli.printErr($"couldn't archive: {e}")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
 
 /// The page for `dark branch` AND for the root commands that share this file's subject: `branches`,
 /// `switch`, `rebase`, `diff`, `log`, `resolve`. They are one thing seen from six angles, and the "Also
@@ -357,19 +357,21 @@ let execute(state: AppState, args: List<String>): AppState =
   // `new` and `create` are the same thing as a bare switch: a branch is created by switching to a name
   // nothing holds.
   | [ "create", id ] -> executeSwitch(state, id)
-  | [ "archive", id ] -> executeArchive(state, id, false)
+  | [ "archive", id ] -> executeArchive(state, id, Cli.Confirm.Ask)
   | [ "archive", id, "-y" ] | [ "archive", id, "--yes" ] ->
-    executeArchive(state, id, true)
+    executeArchive(state, id, Cli.Confirm.Assume)
   | [ "rename", id, newName ] -> executeRename(state, id, newName)
   | [ "diff", id ] -> executeDiff(state, id, false)
   | [ "diff", id, "--source" ] -> executeDiff(state, id, true)
   | [ "log", id ] -> executeLog(state, id)
-  | [ "merge", id ] -> executeMerge(state, id, false, false)
+  | [ "merge", id ] -> executeMerge(state, id, Cli.Confirm.Ask, TypeErrors.Refuse)
   | [ "merge", id, "-y" ] | [ "merge", id, "--yes" ] ->
-    executeMerge(state, id, true, false)
-  | [ "merge", id, "--allow-type-errors" ] -> executeMerge(state, id, false, true)
+    executeMerge(state, id, Cli.Confirm.Assume, TypeErrors.Refuse)
+  | [ "merge", id, "--allow-type-errors" ] ->
+    executeMerge(state, id, Cli.Confirm.Ask, TypeErrors.Allow)
   | [ "merge", id, "--allow-type-errors", "-y" ]
-  | [ "merge", id, "-y", "--allow-type-errors" ] -> executeMerge(state, id, true, true)
+  | [ "merge", id, "-y", "--allow-type-errors" ] ->
+    executeMerge(state, id, Cli.Confirm.Assume, TypeErrors.Allow)
   | [ "merge", id, "--dry-run" ] -> executeMergeDryRun(state, id)
   | [ "rebase", id ] -> executeRebase(state, id)
   | [ "resolve", id, name, choice ] -> executeResolve(state, id, name, choice)
@@ -383,7 +385,7 @@ let execute(state: AppState, args: List<String>): AppState =
       Cli.printHint($"  to start or switch to a branch actually named \"{id}\": dark switch {id}")
       // Help because the arguments were wrong is the refusal; only help someone ASKED for is an answer.
       Stdlib.printErrorLine(help(state))
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else if Stdlib.List.contains(commandShapedWords, id) then
       // A question-shaped word must not CHANGE STATE: `dark branch status` from a git reflex would
       // otherwise start a branch named "status" and switch onto it.
@@ -396,13 +398,13 @@ let execute(state: AppState, args: List<String>): AppState =
       | Some(sub) ->
         Cli.printErr($"`dark branch {id}` isn't a subcommand. Did you mean `dark branch {sub}`?")
         Cli.printHint($"  to start or switch to a branch actually named \"{id}\": dark switch {id}")
-        Cli.exitWith(state, false)
+        Cli.failed(state)
       | None -> executeSwitch(state, id)
   | _ ->
     // Printing help alone reads as though nothing happened, so say what was not understood first.
     Cli.printErr($"`dark branch {Stdlib.String.join(args, " ")}` isn't a form of this command.")
     Stdlib.printErrorLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 /// Subcommands `dark branch` knows, for telling a typo from a branch name.
 val knownSubcommands =
@@ -453,7 +455,7 @@ let executeSwitchCmd(state: AppState, args: List<String>): AppState =
   | [ id ] -> executeSwitch(state, id)
   | _ ->
     Cli.printErr("usage: dark switch <branch>   (`dark switch main` returns to main)")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 /// One `complete` is shared by branch/switch/merge/rebase/branches/resolve, so it can't tell which
 /// word was typed. Branch names are the right answer for nearly all of them, so offer those plus the

@@ -87,14 +87,14 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
 
 // --- Rendering ---
 
-/// One row, marked and highlighted when it's the selection.
+/// One row, marked and highlighted when it's the selection, the row with the cursor.
 ///
 /// The marker is not decoration: selection used to be colour alone, which is invisible on a monochrome
 /// terminal and on e-ink.
-let rowFor(label: String, isSelected: Bool): String =
-  let line = (if isSelected then "> " else "  ") + label
-
-  if isSelected then Colors.colorize(Colors.selection, line) else line
+let rowFor(label: String, focus: Stdlib.Cli.UI.Focus): String =
+  match focus with
+  | Focused -> Colors.colorize(Colors.selection, "> " + label)
+  | Unfocused -> "  " + label
 
 let view(state: State, region: Layout.Region): List<Layout.Span> =
   let windowed = scrolled(state, region.rows)
@@ -106,7 +106,8 @@ let view(state: State, region: Layout.Region): List<Layout.Span> =
     |> Stdlib.List.take(region.rows)
     |> Stdlib.List.map(fun pair ->
       let (i, label) = pair
-      Layout.at(region, i - windowed.scroll, 0, rowFor(label, i == state.selected)))
+      let focus = Stdlib.Cli.UI.Focus.fromBool(i == state.selected)
+      Layout.at(region, i - windowed.scroll, 0, rowFor(label, focus)))
     |> Stdlib.List.flatten
 
   let thumb =

@@ -244,7 +244,7 @@ let executeAck(state: AppState, args: List<String>): AppState =
   if onBranch() then
     Cli.printErr("constraints are a property of the store, not of a branch -- switch to main to ack.")
     Cli.printHint("  detection runs over main's bindings, so there's nothing branch-local here to answer.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
     let (targets, missing) = selectTargets(args)
     let why = whyFrom(args)
@@ -359,7 +359,7 @@ let executeResolve(state: AppState, args: List<String>): AppState =
   if onBranch() then
     Cli.printErr("constraints are a property of the store, not of a branch -- switch to main to resolve.")
     Cli.printHint("  detection runs over main's bindings, so there's nothing branch-local here to answer.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
 
   let (targets, missing) = selectTargets(args)
@@ -382,7 +382,7 @@ let executeResolve(state: AppState, args: List<String>): AppState =
   | Error(e) ->
     Cli.printErr(e)
     Cli.printHint("  `dark ack <id>...` leaves them for now, which needs no choice.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | Ok(resolution) ->
     let results =
       targets
@@ -446,7 +446,7 @@ let executeAckCmd(state: AppState, args: List<String>): AppState =
   | [] ->
     Cli.printErr("which findings? `dark ack <id>...`, or `dark ack --all`.")
     Cli.printHint("  `dark constraints` lists them.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | _ -> executeAck(state, args)
 
 /// The arguments the listing understands. Anything else is refused rather than listed past: `dark
@@ -470,13 +470,13 @@ let execute(state: AppState, args: List<String>): AppState =
     if Stdlib.Bool.not(listingUnderstands(args)) then
       Cli.printErr($"`dark constraints` doesn't take \"{Stdlib.String.join(args, " ")}\".")
       Cli.printHint("  dark constraints [--kind <kind>] [--json]   list; `resolve` and `ack` take ids")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
 
     match kindArgChecked(args) with
     | Error(why) ->
       Cli.printErr(why)
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Ok(_) ->
 
     if Stdlib.List.contains(args, "--json") then

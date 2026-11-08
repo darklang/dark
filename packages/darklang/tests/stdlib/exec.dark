@@ -12,3 +12,23 @@ test selectAfterManyOthersFinish =
   let _ = Stdlib.List.map(others, fun h -> Stdlib.Exec.await(h))
   let (_, value) = Stdlib.Exec.select([ early ])
   value |> Stdlib.Test.equal(42)
+
+
+/// `stop` finds a process that is still running, either way of asking: `kill` does not wait
+/// for the host sleep to finish, and `cancel` finds the one it is told about.
+test stopARunningProcess =
+  let killed = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Posix.sleep(1000.0))
+  let cancelled = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Posix.sleep(1000.0))
+  (Stdlib.Exec.stop(killed, Stdlib.Exec.Stop.Kill),
+   Stdlib.Exec.stop(cancelled, Stdlib.Exec.Stop.Cancel))
+  |> Stdlib.Test.equal((true, true))
+
+
+/// A handle no process has is not there to stop, however it is asked.
+test stopAnUnknownHandle =
+  let h = Stdlib.Exec.Handle { id = Stdlib.Uuid.generate() }
+  (Stdlib.Exec.stop(h, Stdlib.Exec.Stop.Cancel),
+   Stdlib.Exec.stop(h, Stdlib.Exec.Stop.Kill),
+   Stdlib.Exec.cancel(h),
+   Stdlib.Exec.kill(h))
+  |> Stdlib.Test.equal((false, false, false, false))

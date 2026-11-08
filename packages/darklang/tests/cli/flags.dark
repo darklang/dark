@@ -1,0 +1,74 @@
+// The small enums CLI fns take in place of a bare `true` or `false`, and the helpers that
+// turn a parsed flag into one.
+module Darklang.Cli.Tests.Flags
+
+// `failed` is exit code 1; `exitWith` still decides it from a computed Bool.
+test failedExitsOne =
+  let state = Darklang.Cli.initState()
+
+  Stdlib.Test.all(
+    [ (Darklang.Cli.failed(state)).exitCode |> Stdlib.Test.equal(1)
+      (Darklang.Cli.exitWith(state, false)).exitCode |> Stdlib.Test.equal(1)
+      (Darklang.Cli.exitWith(state, true)).exitCode |> Stdlib.Test.equal(state.exitCode) ])
+
+// `-y` assumes the yes, and an assumed yes is a yes with nobody asked.
+test confirm =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Confirm.assumeIf(true) |> Stdlib.Test.equal(Darklang.Cli.Confirm.Assume)
+      Darklang.Cli.Confirm.assumeIf(false) |> Stdlib.Test.equal(Darklang.Cli.Confirm.Ask)
+      Darklang.Cli.Prompt.confirmExplicit(Darklang.Cli.Confirm.Assume, "go?")
+      |> Stdlib.Test.equal(true) ])
+
+
+module Query =
+  let hash(text: String): Darklang.LanguageTools.ProgramTypes.Hash =
+    Darklang.LanguageTools.ProgramTypes.Hash.Hash(text)
+
+  // `old` is deprecated with no live caller, so a listing hides it by default.
+  let sets(): Darklang.Cli.Packages.Query.DeprecationSets =
+    Darklang.Cli.Packages.Query.DeprecationSets
+      { allDeprecated = Darklang.Cli.Packages.Query.hashListToDict([ hash("aa") ])
+        hidden = Darklang.Cli.Packages.Query.hashListToDict([ hash("aa") ]) }
+
+  let shown(
+    deprecated: Darklang.Cli.Packages.Query.Deprecated,
+    internal: Darklang.Cli.Packages.Query.Internal)
+    : List<String> =
+    Darklang.Cli.Packages.Query.filterHiddenPairs(
+      [ ("old", hash("aa")), ("__helper", hash("bb")), ("plain", hash("cc")) ],
+      sets(),
+      deprecated,
+      internal)
+    |> Stdlib.List.map(fun((name, _)) -> name)
+
+  // Each enum shows or hides its own kind of item, and only that kind.
+  test filterHiddenPairs =
+    Stdlib.Test.all(
+      [ shown(
+          Darklang.Cli.Packages.Query.Deprecated.Hide,
+          Darklang.Cli.Packages.Query.Internal.Hide)
+        |> Stdlib.Test.equal([ "plain" ])
+        shown(
+          Darklang.Cli.Packages.Query.Deprecated.Show,
+          Darklang.Cli.Packages.Query.Internal.Hide)
+        |> Stdlib.Test.equal([ "old", "plain" ])
+        shown(
+          Darklang.Cli.Packages.Query.Deprecated.Hide,
+          Darklang.Cli.Packages.Query.Internal.Show)
+        |> Stdlib.Test.equal([ "__helper", "plain" ])
+        shown(
+          Darklang.Cli.Packages.Query.Deprecated.Show,
+          Darklang.Cli.Packages.Query.Internal.Show)
+        |> Stdlib.Test.equal([ "old", "__helper", "plain" ]) ])
+
+  // The flag a command parsed picks the case.
+  test showIf =
+    Stdlib.Test.all(
+      [ Darklang.Cli.Packages.Query.Deprecated.showIf(true)
+        |> Stdlib.Test.equal(Darklang.Cli.Packages.Query.Deprecated.Show)
+        Darklang.Cli.Packages.Query.Deprecated.showIf(false)
+        |> Stdlib.Test.equal(Darklang.Cli.Packages.Query.Deprecated.Hide)
+        Darklang.Cli.Packages.Query.Internal.showIf(true)
+        |> Stdlib.Test.equal(Darklang.Cli.Packages.Query.Internal.Show)
+        Darklang.Cli.Packages.Query.Internal.showIf(false)
+        |> Stdlib.Test.equal(Darklang.Cli.Packages.Query.Internal.Hide) ])

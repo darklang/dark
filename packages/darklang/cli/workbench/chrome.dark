@@ -17,8 +17,10 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
       if state.matter.lens == Lens.ValuesOnly then "values only"
       else if state.matter.lens == Lens.Changed then "changed"
       else ""
-    let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-    let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+    let listFocused =
+      Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+    let detailFocused =
+      Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
     paneSplit(
       region,
       matterSplitFor(state),
@@ -51,7 +53,7 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
     | None ->
       titledLines(
         region,
-        paneTitle(viewLabel(state.activeView), [], false),
+        paneTitle(viewLabel(state.activeView), [], Stdlib.Cli.UI.Focus.Unfocused),
         [ Stdlib.Cli.UI.Colors.dimText((viewLabel(state.activeView)) + " - coming soon") ])
 
 /// The multiline editor, under a title naming what's being written: a spacious authoring surface (not
@@ -59,7 +61,8 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
 /// with a reverse-video cursor at (row, col).
 let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   let inner = paneContent(region)
-  let title = paneTitle(es.nameStr, [ es.kind, "^s saves · esc cancels" ], true)
+  let title =
+    paneTitle(es.nameStr, [ es.kind, "^s saves · esc cancels" ], Stdlib.Cli.UI.Focus.Focused)
   let errSpans =
     if es.err != "" then Stdlib.Cli.UI.Layout.at(inner, 0, 0, Stdlib.Cli.UI.Colors.error(es.err)) else []
   let bodyTop = if es.err != "" then 1 else 0
@@ -86,7 +89,11 @@ let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<S
 
 /// The jumpable search-results list. ⏎ navigates to the hit.
 let renderSearchResults(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  let title = paneTitle("Search", [ plural(Stdlib.List.length(state.search.hits), "result"), "⏎ jump · esc close" ], true)
+  let title =
+    paneTitle(
+      "Search",
+      [ plural(Stdlib.List.length(state.search.hits), "result"), "⏎ jump · esc close" ],
+      Stdlib.Cli.UI.Focus.Focused)
   let inner = paneContent(region)
   let lines =
     state.search.hits
@@ -247,7 +254,7 @@ let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.L
   let region = Stdlib.Cli.UI.Layout.Region { top = top, left = left, rows = h, cols = w }
   Stdlib.List.flatten(
     [ Stdlib.Cli.UI.Layout.clearRegion(region)
-      Stdlib.Cli.UI.Box.panel(region, "Keys  ·  any key closes", true, fun inner ->
+      Stdlib.Cli.UI.Box.panel(region, "Keys  ·  any key closes", Stdlib.Cli.UI.Focus.Focused, fun inner ->
         helpGroups
         |> Stdlib.List.indexedMap(fun(i, pair) -> (i, pair))
         |> Stdlib.List.map(fun ipair ->

@@ -20,6 +20,12 @@ test shellQuote =
       |> Stdlib.Test.equal("'`backtick`'") ])
 
 
+// A child on this process's own terminal still hands back its exit code.
+test inheritedChildExitCode =
+  Stdlib.Cli.Process.__childInteractive("/bin/sh", [ "-c", "exit 5" ])
+  |> Stdlib.Test.equal(Ok(5))
+
+
 test capturesOutputAndExit =
   (match Stdlib.Cli.Process.run("/bin/sh",
      [ "-c", "printf out; printf err >&2; exit 7" ]) with

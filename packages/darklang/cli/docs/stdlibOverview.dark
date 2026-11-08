@@ -35,7 +35,11 @@ let execute(state: Cli.AppState, _args: List<String>): Cli.AppState =
 
   let raw = LanguageTools.PackageManager.Search.search(branchId, query)
   let depSets = Cli.Packages.Query.loadDeprecationSets(branchId)
-  let results = Cli.Packages.Query.filterHidden(raw, depSets, false, false)
+  let results = Cli.Packages.Query.filterHidden(
+      raw,
+      depSets,
+      Cli.Packages.Query.Deprecated.Hide,
+      Cli.Packages.Query.Internal.Hide)
 
   let topLevels =
     (Stdlib.List.concat(

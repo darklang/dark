@@ -48,7 +48,7 @@ let base =
     // Home down a different and much dearer path -- see the `isFirstRun` note in the roadmap.
     "perf-instance",
     // not live: a --live view polls the store, which is not what is being timed here
-    false)
+    Darklang.Cli.Workbench.Updates.Manual)
 
 // 120x40 is the smallest size that lays out every pane; below it the workbench drops panes and the
 // numbers stop meaning what they look like they mean.

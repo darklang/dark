@@ -182,8 +182,8 @@ let parseViewOptions(
 /// script the deletion happened: with no terminal to answer the prompt, `traces delete <id>`
 /// cancelled, printed one line nobody was reading, and reported success. An agent cleaning up
 /// after itself would have believed it every time.
-let confirmDestructive(autoConfirm: Bool, action: String): Bool =
-  Cli.Prompt.confirmExplicit(autoConfirm, $"{action} [y/N]: ")
+let confirmDestructive(confirm: Cli.Confirm, action: String): Bool =
+  Cli.Prompt.confirmExplicit(confirm, $"{action} [y/N]: ")
 
 /// What a no from <fn confirmDestructive> says, and the exit it hands back. With nobody there to
 /// answer, "Cancelled." alone reads as if someone said no; it names the flag that gets past it.
@@ -304,7 +304,7 @@ let showFromTrace(
         Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.dimText(
             $"  dark traces show {fn} {Cli.Text.shortIdText(id)}"))))
-      Cli.exitWith(state, false)
+      Cli.failed(state)
 
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
@@ -315,8 +315,9 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   // Hoist boolean flags out to single bools so each subcommand's arms
   // don't have to enumerate their position. `--yes`/`-y` for destructive
   // confirmations; `--json` for output format; `--log` is find-only.
-  let autoConfirm =
-    (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y"))
+  let confirm =
+    Cli.Confirm.assumeIf(
+      (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y")))
   let wantsJson = Stdlib.List.contains(args, "--json")
   // `--full` lifts the per-value cap for `--json`. Refused by name without `--json`, because the
   // page caps a value at sixty characters to fit a line of code, which is a layout limit and not
@@ -705,14 +706,14 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   // `delete` covers all four shapes: by ID, --keep N, --before <duration>, and --all.
   | [ "delete", "--all" ] ->
-    if confirmDestructive(autoConfirm, "Delete all traces?") then
+    if confirmDestructive(confirm, "Delete all traces?") then
       executeClear(state)
     else
       cancelled(state)
 
   | [ "delete", "--before", durationStr ] ->
     if confirmDestructive(
-         autoConfirm,
+         confirm,
          $"Delete traces older than {durationStr}?") then
       executeClearBefore(state, durationStr)
     else
@@ -722,7 +723,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     match Stdlib.Int64.parse(nStr) with
     | Ok(n) ->
       if confirmDestructive(
-           autoConfirm,
+           confirm,
            $"Keep the {Stdlib.toString(n)} most-recent traces and drop the rest?") then
         executePruneKeep(state, n)
       else
@@ -734,7 +735,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | [ "delete", traceID ] ->
     match resolveTraceID(traceID) with
     | Some(full) ->
-      if confirmDestructive(autoConfirm, $"Delete trace {full}?") then
+      if confirmDestructive(confirm, $"Delete trace {full}?") then
         executeDelete(state, full)
       else
         cancelled(state)
@@ -1664,7 +1665,7 @@ let executeReplay(state: Cli.AppState, traceID: String): Cli.AppState =
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.dimText(
         $"  for a served request, `dark traces show <fn> {Cli.Text.shortIdText(traceID)}` shows what it did")))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | Some(input) ->
     let source =
       match input with

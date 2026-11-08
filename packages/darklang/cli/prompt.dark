@@ -1,11 +1,13 @@
 module Darklang.Cli.Prompt
 
 /// Ask a yes/no question. Only `y` is yes: an empty answer, end of input, and nobody being able
-/// to answer are all no, and every caller exits 1 on a no. `-y` skips the question.
-let confirmExplicit(autoConfirm: Bool, question: String): Bool =
-  if autoConfirm then
-    true
-  else if Stdlib.Bool.not(Stdlib.Cli.UI.Prompt.canAsk()) then
+/// to answer are all no, and every caller exits 1 on a no. {{Confirm.Assume}} (`-y`) skips the
+/// question.
+let confirmExplicit(confirm: Cli.Confirm, question: String): Bool =
+  match confirm with
+  | Assume -> true
+  | Ask ->
+  if Stdlib.Bool.not(Stdlib.Cli.UI.Prompt.canAsk()) then
     false
   else
     Stdlib.printErrorLine(question)

@@ -1619,7 +1619,7 @@ let private liveValuesStayBounded =
         let! wb =
           evalUnder
             state
-            """let base = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Darklang.Stdlib.Option.Option.None, "t", false)
+            """let base = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Darklang.Stdlib.Option.Option.None, "t", Darklang.Cli.Workbench.Updates.Manual)
 let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module(["Tests", "LiveBound"]) }
 let items = Darklang.Cli.Workbench.reloadItems(s0)
 let idx = (Darklang.Stdlib.List.findFirstIndex(items, fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault(0)

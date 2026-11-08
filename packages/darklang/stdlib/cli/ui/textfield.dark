@@ -177,13 +177,15 @@ let renderInline(state: State, width: Int64): String =
 /// For forms, where several fields are on screen and one has the cursor.
 let renderMaybeFocused(
   state: State,
-  focused: Bool,
+  focus: Stdlib.Cli.UI.Focus,
   placeholder: String,
   width: Int64)
   : String =
-  if focused then renderInline(state, width)
-  else if state.text == "" then Colors.dimText(placeholder)
-  else Tui.Text.clipToWidth(state.text, width)
+  match focus with
+  | Focused -> renderInline(state, width)
+  | Unfocused ->
+    if state.text == "" then Colors.dimText(placeholder)
+    else Tui.Text.clipToWidth(state.text, width)
 
 /// The text edits only: `Some` for a key the field consumed, `None` for everything else.
 ///

@@ -29,7 +29,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         ""
       ] |> Cli.Stderr.lines
 
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
       // Parse and create function immediately
       createFnInline(

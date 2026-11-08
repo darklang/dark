@@ -117,15 +117,15 @@ let executeOptions(
     | [scriptPath, ...scriptArgs] ->
       if options.sandbox && options.warnPermissions then
         Cli.printErr("--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")
-        Cli.exitWith(state, false)
+        Cli.failed(state)
       else
         executeScript(state, scriptPath, scriptArgs, options, stats)
     | [] ->
       Stdlib.printLine(help(state))
-      Cli.exitWith(state, false)
+      Cli.failed(state)
   | [flag, ...] ->
     Stdlib.printErrorLine($"Unknown run-script option: {flag}. Put script arguments after the file path; use -- before a path starting with '-'.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 
 // Recognize a dotted package name so `run` can suggest `eval` instead of
