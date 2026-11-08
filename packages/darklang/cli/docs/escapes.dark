@@ -1,0 +1,58 @@
+module Darklang.Cli.Docs.Escapes
+
+// A raw string can't hold three double quotes, so the page writes them as three
+// single quotes and swaps them in at the end.
+let content(): String =
+  """# String escapes
+
+A backslash in a "..." string or a '...' char starts an escape.
+
+## Single characters
+  \n   newline (10)            \0   NUL (0)
+  \t   tab (9)                 \\   backslash
+  \r   carriage return (13)    \"   double quote
+  \a   bell (7)                \'   single quote
+  \b   backspace (8)           \/   slash
+  \v   vertical tab (11)       \{   {
+  \f   form feed (12)          \}   }
+
+  "name:\tJo\n"    a tab, then a newline at the end
+
+## Code points
+  \xHH         2 hex digits    "\x41" is "A"
+  \uHHHH       4 hex digits    "\u00e9" is "é"
+  \XHHHH       the same as \u
+  \UHHHHHHHH   8 hex digits    "\U0001F600" is "😀"
+
+Hex digits may be upper or lower case. Each escape names a Unicode code point,
+not a byte: "\xff" is "ÿ", which UTF-8 stores as the two bytes 195 191. To
+write raw bytes, use `Stdlib.Bytes.fromList([ 255u8 ])`.
+
+There are no octal escapes. `\0` is NUL on its own, so "\012" is NUL followed
+by "12".
+
+## Mistakes are errors
+  "a\qb"   error[PARSE-ESCAPE]: Invalid escape sequence or codepoint in string literal
+
+An unknown letter, too few hex digits ("\x4") and a code point that isn't a
+Unicode scalar value (a surrogate like "\uD800", or anything above
+"\U0010FFFF") are all errors. The backslash is never kept as a literal; write
+\\ for one.
+
+## Chars
+  '\n'   '\''   '\x41'   '\u00e9'
+
+Char literals take the same escapes.
+
+## Interpolated strings
+  $"total:\t{x}\n"    escapes work as in "..."
+  $"{{x}} is {x}"     {{ and }} are literal braces: "{x} is 5"
+  $"\{x\} is {x}"     and so are \{ and \}
+
+## Raw strings
+  '''a\nb'''          no escapes: 4 chars, a \ n b
+  $'''{x}\n'''        interpolates, but \n stays as typed
+
+Use them for text full of backslashes, such as regexes and Windows paths.
+`docs syntax` has the other string forms."""
+  |> Stdlib.String.replaceAll("'''", "\"\"\"")

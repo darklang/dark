@@ -108,6 +108,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "escapes"
+          description = "String escapes: what a backslash means in a string or char"
+          aliases = [ "escape", "string-escapes" ]
+          context = "general"
+          content = Docs.Escapes.content
+          subtopics = [] }
+
+      DocTopic
         { name = "stdlib"
           description = "Live: Stdlib module overview (counts + drill-in hints)"
           aliases = [ "lib" ]

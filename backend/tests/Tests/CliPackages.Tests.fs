@@ -1588,6 +1588,12 @@ let referenceCommandsAnswer =
       do!
         shows
           state
+          [ "docs"; "escapes" ]
+          "\"\"\"a\\nb\"\"\""
+          "the escapes page shows a raw string with its quotes"
+      do!
+        shows
+          state
           [ "docs"; "nosuchtopic" ]
           "nosuchtopic"
           "an unknown topic names itself back"
