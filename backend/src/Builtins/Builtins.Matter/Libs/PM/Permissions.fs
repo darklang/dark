@@ -39,6 +39,7 @@ type private BuiltinEffects =
 
 /// A table never changes once made. Building this on every call, which sorts and hashes every
 /// builtin, was a seventh of `search`, which asks once for every function it lists.
+/// Shared cache, weakly keyed on the table, so a dropped table takes its entry with it.
 let private builtinEffectsCache =
   System.Runtime.CompilerServices.ConditionalWeakTable<Dictionary<FQFnName.Builtin, BuiltInFn>, BuiltinEffects>()
 

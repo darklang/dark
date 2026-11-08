@@ -163,6 +163,7 @@ let private provablyEffectFree
     return result.complete && Set.isEmpty result.requiredEffects
   }
 
+// Shared state: concurrent runs read and write it, and it keeps a stopped test `false` for good.
 let private inProcessMemo =
   System.Collections.Concurrent.ConcurrentDictionary<PT.Hash, bool>()
 
@@ -379,6 +380,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     with
                     | Ok value -> return value
                     | Error(error, stack) ->
+                      // VM error protocol: the callback's frames wait here for the raise.
                       vm.nestedCallStack <- stack
                       return raiseRTE vm.threadID error
                   })
@@ -506,6 +508,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           requireRunningPackageTest
             state
             (if increment then "incrementCounter" else "counterValue")
+          // Atomic: spawned children share their test's counter.
           let count =
             if increment then
               System.Threading.Interlocked.Increment(&state.test.sideEffectCount)

@@ -44,6 +44,7 @@ let private requireThePerson (state : ExecutionState) (key : string) : unit =
 /// because one host loop runs per process. A second loop in the same process would share it
 /// and see the first's "already reported" state; make it per-process state if that day comes.
 module HostWatch =
+  // Shared state: it must outlive every Dark call, and one reference write needs no lock.
   let mutable watch : Option<Dval> = None
 
 
