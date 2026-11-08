@@ -38,6 +38,28 @@ test indexOf =
       Stdlib.Bytes.indexOfFrom(bytes, 10u8, -1) |> Stdlib.Test.equal(None)
       Stdlib.Bytes.indexOfFrom(bytes, 10u8, 99) |> Stdlib.Test.equal(None) ])
 
+// lastIndexOf / lastIndexOfFrom
+test lastIndexOf =
+  let bytes = Stdlib.Utf8.encode("ab\nc\n")
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.lastIndexOf(bytes, 10u8) |> Stdlib.Test.equal(Some(4))
+      Stdlib.Bytes.lastIndexOf(bytes, 97u8) |> Stdlib.Test.equal(Some(0))
+      Stdlib.Bytes.lastIndexOf(bytes, 0u8) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.lastIndexOf(Stdlib.Bytes.empty, 10u8) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 4) |> Stdlib.Test.equal(Some(4))
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 3) |> Stdlib.Test.equal(Some(2))
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, -1) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 99) |> Stdlib.Test.equal(None) ])
+
+// lastIndexOf walks back through a large Bytes
+test lastIndexOfLarge =
+  let bytes =
+    Stdlib.Bytes.concat(
+      Stdlib.Utf8.encode("x"),
+      Stdlib.Utf8.encode(Stdlib.String.repeat("a", 100000)))
+  Stdlib.Bytes.lastIndexOf(bytes, 120u8) |> Stdlib.Test.equal(Some(0))
+
 // concat
 test concat =
   Stdlib.Test.all(
