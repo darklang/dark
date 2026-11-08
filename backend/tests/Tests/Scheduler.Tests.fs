@@ -1415,6 +1415,76 @@ let _ = Builtin.testTrace("after the call")
   }
 
 
+/// A run that fails does not wait for its reads, so what a trace view kept from it can still be
+/// a read in flight. The view waits for those to finish before it shows anything: converting one
+/// still in flight was "a read still in flight reached toDT".
+let private viewWaitsForReadsAFailedRunLeft =
+  testTask
+    "what a view kept from a run that failed is shown once the reads it left have finished" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false
+    let collected =
+      System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>()
+    let frames =
+      System.Collections.Generic.Dictionary<System.Guid, LibDB.Tracing.ViewFrame>()
+    let lastByExpr = System.Collections.Generic.Dictionary<int64, RT.Dval>()
+    let view = LibDB.Tracing.createViewTracer [] collected frames lastByExpr []
+    // The view tracer, collecting as it does, but performing these test reads rather than
+    // looking them up in a recorded log, which this run does not have.
+    let rec watching () : RT.Tracing.Tracing =
+      { view.executionTracing with
+          viewEffect = None
+          forProcess = fun _ -> watching () }
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        { state with tracing = watching () }
+        """let a = Builtin.testRead(81)
+let c = Builtin.testFailingRead(83)
+let b = Builtin.testFailingRead(82)
+Stdlib.await(b)"""
+    let running = runOnThread s p
+    waitFor "the reads in flight" (fun () -> Gates.waiting () = [ 81L; 82L; 83L ])
+    Gates.release 82L
+    let! result = running
+    match result with
+    | Error(RTE.UncaughtException(msg, _), _) ->
+      Expect.stringContains msg "read 82 failed" "the run failed at the await"
+    | other -> failtest $"expected read 82's failure, got {other}"
+    let kept () =
+      seq {
+        yield! lastByExpr.Values
+        yield! collected.Values
+        for f in frames.Values do
+          yield! f.args
+      }
+      |> List.ofSeq
+    Expect.isTrue
+      (kept ()
+       |> List.exists (fun dv ->
+         match dv with
+         | RT.DPromise p -> not p.Task.IsCompleted
+         | _ -> false))
+      "the view kept a read the failed run left in flight"
+    let finishing = LibExecution.Pending.allFinished (kept ())
+    Expect.isFalse finishing.IsCompleted "it waits for the reads still in flight"
+    Gates.release 81L
+    Gates.release 83L
+    do! finishing
+    let shown = kept () |> List.map LibExecution.Pending.finished
+    let landed = shown |> List.choose ValueOption.toOption
+    Expect.contains landed (RT.DInt64 81L) "the read that landed shows its value"
+    Expect.isTrue
+      (List.exists ValueOption.isNone shown)
+      "a read that failed has no value to show"
+    // What the view hands to Dark, now that nothing in it is in flight.
+    for dv in landed do
+      LibExecution.RuntimeTypesToDarkTypes.Dval.toDT dv |> ignore<RT.Dval>
+  }
+
+
 let private denialRaisesAtTheCall =
   testTask
     "a read the policy denies raises at the call, before anything is in flight" {
@@ -2327,6 +2397,7 @@ let tests =
         writesParkOnTheirHostCall
         dictValueOfTheWrongTypeRaises
         unlookedReadFailsTheRunAtItsEnd
+        viewWaitsForReadsAFailedRunLeft
         denialRaisesAtTheCall
         inflightBoundHolds
         spawnAwaitSelect

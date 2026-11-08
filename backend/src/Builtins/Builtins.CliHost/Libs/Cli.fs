@@ -22,6 +22,7 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PTAst = LibExecution.ProgramTypesAst
 module Exe = LibExecution.Execution
+module Pending = LibExecution.Pending
 module Scheduler = LibExecution.Scheduler
 module PackageRefs = LibExecution.PackageRefs
 module Json = Builtins.Pure.Libs.Json
@@ -1680,12 +1681,20 @@ let fns () : List<BuiltInFn> =
             let emptyAnswer (problem : Option<ReplayStop.ReplayStop>) =
               answer noValues noFrames noFrameValues problem
 
-            /// The frame tree and the per-frame values, as Dark sees them.
+            /// The frame tree and the per-frame values, as Dark sees them. Every read in them
+            /// has finished (`answerOf`); one that failed is left out, and so are the arguments
+            /// of a frame it was handed to.
             let treeOf
               (frames : System.Collections.Generic.Dictionary<_, Tracing.ViewFrame>)
               (collected :
                 System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>)
               =
+              let argsOf (f : Tracing.ViewFrame) =
+                let args = List.map Pending.finished f.args
+                if List.forall ValueOption.isSome args then
+                  List.map (ValueOption.get >> RT2DT.Dval.toDT) args
+                else
+                  []
               let frameRows =
                 frames
                 |> Seq.map (fun kv ->
@@ -1718,24 +1727,60 @@ let fns () : List<BuiltInFn> =
                       DString kind
                       DString callee
                       DInt64(int64 f.ord)
-                      Dval.list
-                        (RT2DT.Dval.knownType ())
-                        (f.args |> List.map RT2DT.Dval.toDT) ]
+                      Dval.list (RT2DT.Dval.knownType ()) (argsOf f) ]
                   ))
                 |> List.ofSeq
                 |> Dval.list frameKt
               let valueRows =
                 collected
-                |> Seq.map (fun kv ->
+                |> Seq.choose (fun kv ->
                   let struct (frameId, exprId) = kv.Key
-                  DTuple(
-                    DString(string frameId),
-                    DInt64 exprId,
-                    [ RT2DT.Dval.toDT kv.Value ]
-                  ))
+                  Pending.finished kv.Value
+                  |> ValueOption.map (fun dv ->
+                    DTuple(
+                      DString(string frameId),
+                      DInt64 exprId,
+                      [ RT2DT.Dval.toDT dv ]
+                    ))
+                  |> ValueOption.toOption)
                 |> List.ofSeq
                 |> Dval.list frameValueKt
               frameRows, valueRows
+
+            /// What the replay collected, as Dark sees it: the values, the frame tree and the
+            /// per-frame values.
+            ///
+            /// A value can still be a read in flight when the replay has returned
+            /// (`Pending.allFinished` says why), so this waits for every one to finish first.
+            let answerOf
+              (frames : System.Collections.Generic.Dictionary<_, Tracing.ViewFrame>)
+              (collected :
+                System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>)
+              (lastByExpr : System.Collections.Generic.Dictionary<int64, RT.Dval>)
+              (problem : Option<ReplayStop.ReplayStop>)
+              : Ply<Dval> =
+              uply {
+                do!
+                  Pending.allFinished (
+                    seq {
+                      yield! lastByExpr.Values
+                      yield! collected.Values
+                      for f in frames.Values do
+                        yield! f.args
+                    }
+                  )
+                let values =
+                  lastByExpr
+                  |> Seq.choose (fun kv ->
+                    Pending.finished kv.Value
+                    |> ValueOption.map (fun dv ->
+                      DTuple(DInt64 kv.Key, RT2DT.Dval.toDT dv, []))
+                    |> ValueOption.toOption)
+                  |> List.ofSeq
+                  |> Dval.list kt
+                let frameRows, valueRows = treeOf frames collected
+                return answer values frameRows valueRows problem
+              }
             match System.Guid.TryParse traceID with
             | false, _ -> return emptyAnswer (Some(ReplayStop.InvalidId))
             | true, id ->
@@ -1765,28 +1810,21 @@ let fns () : List<BuiltInFn> =
                         branchId = PT.BranchId.Id branchId }
                   let branchState = createBranchState exeState false
                   let! parsed = parseScriptOrEvalInput branchState input
-                  let values () =
-                    lastByExpr
-                    |> Seq.map (fun kv ->
-                      DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
-                    |> List.ofSeq
-                    |> Dval.list kt
-                  let answerWithTree () (problem : Option<ReplayStop.ReplayStop>) =
-                    let frameRows, valueRows = treeOf frames collected
-                    answer (values ()) frameRows valueRows problem
                   match parsed with
                   | Error _ ->
                     return emptyAnswer (Some(ReplayStop.InputNoLongerParses))
                   | Ok mod' ->
                     let viewState = createGuestState exeState mod' input
-                    try
-                      match! executeWith viewState mod' input (Some tracer) with
-                      | Ok _ -> return answerWithTree () None
-                      | Error(rte, _) ->
-                        return answerWithTree () (Some(ReplayStop.Raised rte))
-                    with e ->
-                      return
-                        answerWithTree () (Some(ReplayStop.HostFailure e.Message))
+                    let! problem =
+                      uply {
+                        try
+                          match! executeWith viewState mod' input (Some tracer) with
+                          | Ok _ -> return None
+                          | Error(rte, _) -> return Some(ReplayStop.Raised rte)
+                        with e ->
+                          return Some(ReplayStop.HostFailure e.Message)
+                      }
+                    return! answerOf frames collected lastByExpr problem
                 | None ->
                   let requestDval = run.input
                   // A served request: its input is a record, so there is no source to re-run.
@@ -1805,15 +1843,6 @@ let fns () : List<BuiltInFn> =
                       System.Collections.Generic.Dictionary<int64, RT.Dval>()
                     let tracer =
                       Tracing.createViewTracer log collected frames lastByExpr focus
-                    let values () =
-                      lastByExpr
-                      |> Seq.map (fun kv ->
-                        DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
-                      |> List.ofSeq
-                      |> Dval.list kt
-                    let answerWithTree () (problem : Option<ReplayStop.ReplayStop>) =
-                      let frameRows, valueRows = treeOf frames collected
-                      answer (values ()) frameRows valueRows problem
                     let applicable =
                       AppNamedFn
                         { name = FQFnName.Package(Hash hash)
@@ -1825,20 +1854,22 @@ let fns () : List<BuiltInFn> =
                     let viewState =
                       { PolicyStore.rootState exeState exeState.access [ Hash hash ] with
                           tracing = tracer.executionTracing }
-                    try
-                      match!
-                        Exe.executeApplicable
-                          viewState
-                          viewState.access
-                          applicable
-                          (NEList.singleton requestDval)
-                      with
-                      | Ok _ -> return answerWithTree () None
-                      | Error(rte, _) ->
-                        return answerWithTree () (Some(ReplayStop.Raised rte))
-                    with e ->
-                      return
-                        answerWithTree () (Some(ReplayStop.HostFailure e.Message))
+                    let! problem =
+                      uply {
+                        try
+                          match!
+                            Exe.executeApplicable
+                              viewState
+                              viewState.access
+                              applicable
+                              (NEList.singleton requestDval)
+                          with
+                          | Ok _ -> return None
+                          | Error(rte, _) -> return Some(ReplayStop.Raised rte)
+                        with e ->
+                          return Some(ReplayStop.HostFailure e.Message)
+                      }
+                    return! answerOf frames collected lastByExpr problem
           }
         | _ -> incorrectArgs ())
       previewable = Impure

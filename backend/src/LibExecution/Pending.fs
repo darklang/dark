@@ -56,6 +56,36 @@ let settled (dv : Dval) : Dval =
   | DPromise p when p.Task.IsCompletedSuccessfully -> p.Task.Result
   | _ -> dv
 
+/// Done once every read among `values` has finished, landed or failed.
+///
+/// For whatever looks at a run's values after the run has returned, as a trace view does. A
+/// run that fails does not wait for its reads: they go on running. One that ends well waits
+/// for every read it started, but not for a value holding reads, which can land a moment later.
+/// So a value kept from the run can still be a read in flight when the run returns.
+let allFinished (values : seq<Dval>) : Task =
+  let running =
+    values
+    |> Seq.choose (fun dv ->
+      match dv with
+      | DPromise p when not p.Task.IsCompleted -> Some(p.Task :> Task)
+      | _ -> None)
+    |> Array.ofSeq
+  if running.Length = 0 then
+    Task.CompletedTask
+  else
+    // A read that failed is the caller's to look at; this only says they are all over.
+    Task
+      .WhenAll(running)
+      .ContinueWith(ignore<Task>, TaskContinuationOptions.ExecuteSynchronously)
+
+/// `dv` as a value, once `allFinished` is done: a landed read as its value, and `ValueNone` for
+/// a read that failed, which has no value to show.
+let finished (dv : Dval) : Dval voption =
+  match dv with
+  | DPromise p when p.Task.IsCompletedSuccessfully -> ValueSome p.Task.Result
+  | DPromise _ -> ValueNone
+  | _ -> ValueSome dv
+
 /// `dv` with its landed reads as their values. A list's element type (what a `DList` holds)
 /// is worked out again, since a read counted as `Unknown` when it was built.
 let private fill (dv : Dval) : Dval =
