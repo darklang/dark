@@ -75,6 +75,15 @@ let available(): Bool = Stdlib.Cli.Unix.isCommandAvailable("expect")
 val startupSeconds = 60
 
 
+/// Tcl for `child_gone pid`: 1 once the child has exited, whether or not it is reaped yet.
+///
+/// Asks `ps` rather than reading /proc, which macOS doesn't have: there every child read as
+/// gone, so each drive failed with "EXITED BEFORE: the CLI was ready" before the child had
+/// loaded. An exited child stays a zombie (state Z) until the script's `wait`.
+val childGone =
+  "proc child_gone {pid} {\n  if {[catch {exec ps -o stat= -p $pid} s]} { return 1 }\n  return [string match Z* [string trim $s]]\n}"
+
+
 /// Tcl that waits until the child has started, then returns.
 ///
 /// "Started" is the `cli.pmInit` line in the child's telemetry log: the CLI writes it once
@@ -83,7 +92,7 @@ val startupSeconds = 60
 /// watched, so one that dies before it is ready says so at once instead of after the
 /// whole startup budget.
 let awaitStartup(telemetryLog: String): List<String> =
-  [ "proc child_gone {pid} {\n  if {[catch {set f [open /proc/$pid/stat]; set s [read $f]; close $f}]} { return 1 }\n  return [expr {[lindex [split [string range $s [string last \")\" $s] end] \" \"] 1] eq \"Z\"}]\n}"
+  [ childGone
     "set ready_by [expr {[clock milliseconds] + "
     + (Stdlib.toString(startupSeconds * 1000))
     + "}]"
@@ -94,6 +103,20 @@ let awaitStartup(telemetryLog: String): List<String> =
     + "]} {\n    set f [open "
     + (quoted(telemetryLog))
     + "]; set seen [read $f]; close $f\n    if {[string first \"\\\"cli.pmInit\\\"\" $seen] >= 0} break\n  }\n  if {$gone} { puts \"\\nEXITED BEFORE: the CLI was ready\"; exit 3 }\n  if {[clock milliseconds] > $ready_by} { puts \"\\nTIMED OUT waiting for the CLI to start\"; exit 2 }\n  after 50\n}" ]
+
+
+/// Write an expect script to `path` and run it: Ok with its output if it exits 0.
+let runScript(path: String, script: String): Stdlib.Result.Result<String, String> =
+  match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(script)) with
+  | Error(e) -> Stdlib.Result.Result.Error($"could not write {path}: {e}")
+  | Ok(_) ->
+    let outcome =
+      Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"expect -f {path} 2>&1")
+
+    if outcome.exitCode == 0 then
+      Stdlib.Result.Result.Ok(outcome.stdout)
+    else
+      Stdlib.Result.Result.Error(outcome.stdout)
 
 
 /// Run `dark <args>` on a real terminal in `i`, walk `steps`, return the transcript.
@@ -155,18 +178,7 @@ let drive(
       (Stdlib.List.concat(header, Stdlib.List.concat(body, footer)))
       |> Stdlib.String.join("\n")
 
-    let path = $"{i.dir}/drive.exp"
-
-    match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(script)) with
-    | Error(e) -> Stdlib.Result.Result.Error($"could not write {path}: {e}")
-    | Ok(_) ->
-      let outcome =
-        Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"expect -f {path} 2>&1")
-
-      if outcome.exitCode == 0 then
-        Stdlib.Result.Result.Ok(outcome.stdout)
-      else
-        Stdlib.Result.Result.Error(outcome.stdout)
+    runScript($"{i.dir}/drive.exp", script)
 
 
 /// `drive`, as a test result.
