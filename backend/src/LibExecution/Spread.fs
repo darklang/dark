@@ -818,3 +818,144 @@ and private spreadChunks
           leftoverIndex = offset
           found = ValueNone }
   }
+
+
+/// What a list op makes of one element's answer (`Walk`).
+[<Struct>]
+type Step<'acc> =
+  /// Go on to the next element, with this so far.
+  | Next of acc : 'acc
+  /// This is the op's answer, and no element after this one runs.
+  | Done of answer : Dval
+
+/// A list op over a callable: the op says how to run one element and what its answer means, and
+/// this owns the rest. Element by element, as a serial run does, until the probe says the rest is
+/// worth spreading; then the rest is spread (`search`), and whatever the spread did not finish
+/// carries on here, element by element, as before.
+///
+/// `builtinName` is the builtin a chunk runs over its stretch: the op itself, or one that applies
+/// the callable the same way (`listMap` for `sortBy`'s keys). `floor` is the least an element must
+/// cost before the op spreads: 0, or `minPerElement`.
+///
+/// One per call of the op, and it is the continuation each element's answer comes back to, so a
+/// call allocates it and the probe and nothing else per list.
+[<AbstractClass>]
+type Walk<'acc>
+  (
+    state : ExecutionState,
+    vm : VMState,
+    app : Applicable,
+    builtinName : string,
+    floor : int64
+  ) =
+  inherit FSharpFunc<Dval, Ply<Dval>>()
+
+  // Where the walk is: what the op has so far, the element whose answer is awaited and its index,
+  // and the elements after it.
+  let mutable acc = Unchecked.defaultof<'acc>
+  let mutable current = DUnit
+  let mutable index = 0L
+  let mutable rest : List<Dval> = []
+  let mutable probe : Probe = null
+  // This, as the function it is: F# has no static coercion to a function type.
+  let mutable next : Dval -> Ply<Dval> = Unchecked.defaultof<_>
+
+  /// Runs the callable on `elem`, the element at `index`, and hands `next` its answer.
+  abstract Apply :
+    index : int64 * elem : Dval * next : (Dval -> Ply<Dval>) -> Ply<Dval>
+
+  /// Takes an answer to `Landed`. By default as it is, so a read stays in flight, as a map's
+  /// results do; an op that looks inside its answers waits for them (`Value`).
+  abstract Settle : answer : Dval -> Ply<Dval>
+  default this.Settle answer = this.Landed answer
+
+  /// What `answer`, the callable's for `elem`, makes of what the op has so far.
+  abstract Step : acc : 'acc * elem : Dval * answer : Dval -> Step<'acc>
+
+  /// A chunk's arguments, before the callable: `index` is where `chunk` begins in the list.
+  abstract ChunkArgs : index : int64 * chunk : List<Dval> -> List<Dval>
+
+  /// What a chunk's answer means. By default a list of results, one per element or fewer.
+  abstract AnswerOf : answer : Dval -> ChunkAnswer
+  default _.AnswerOf answer = listAnswer answer
+
+  /// What the op has so far, once a spread over `spread` came back with `outcome`.
+  abstract Absorb : acc : 'acc * spread : List<Dval> * outcome : Outcome -> 'acc
+
+  /// The op's answer, from what a chunk found. Only an op whose `AnswerOf` finds asks.
+  abstract Found : found : Dval -> Dval
+  default _.Found found = found
+
+  /// The op's answer once every element has run.
+  abstract Finish : acc : 'acc -> Ply<Dval>
+
+  override this.Invoke(answer : Dval) : Ply<Dval> = this.Settle answer
+
+  /// `Landed` with `answer` once it is a value (`Interpreter.withValue`).
+  member this.Value(answer : Dval) : Ply<Dval> =
+    match answer with
+    | DPromise _ -> Interpreter.withValue vm answer this.Landed
+    | _ -> this.Landed answer
+
+  member this.Landed(answer : Dval) : Ply<Dval> =
+    match this.Step(acc, current, answer) with
+    | Done result -> Ply result
+    | Next stepped ->
+      acc <- stepped
+      match rest with
+      | [] -> this.Finish acc
+      | elem :: elemTail ->
+        if not (isNull probe) && probe.Ask rest then
+          probe.Stop()
+          this.SpreadRest()
+        else
+          this.CarryOn(index + 1L, elem, elemTail)
+
+  member private this.SpreadRest() : Ply<Dval> =
+    let start = index + 1L
+    let spread = rest
+    uply {
+      let! outcome =
+        search
+          state
+          vm
+          builtinName
+          (fun offset chunk -> this.ChunkArgs(start + int64 offset, chunk))
+          this.AnswerOf
+          app
+          probe.PerElement
+          spread
+      match outcome.found with
+      | ValueSome found -> return this.Found found
+      | ValueNone ->
+        acc <- this.Absorb(acc, spread, outcome)
+        match outcome.leftover with
+        | [] -> return! this.Finish acc
+        | elem :: elemTail ->
+          return! this.CarryOn(start + int64 outcome.leftoverIndex, elem, elemTail)
+    }
+
+  member private this.CarryOn
+    (
+      at : int64,
+      elem : Dval,
+      elemTail : List<Dval>
+    ) : Ply<Dval> =
+    current <- elem
+    index <- at
+    rest <- elemTail
+    this.Apply(at, elem, next)
+
+  /// Runs the op over `items`, starting from `empty`.
+  member this.Run(empty : 'acc, items : List<Dval>) : Ply<Dval> =
+    match items with
+    | [] -> this.Finish empty
+    | first :: tail ->
+      acc <- empty
+      next <- box this :?> (Dval -> Ply<Dval>)
+      probe <- if eligible state then Probe(vm, app, floor) else null
+      this.CarryOn(0L, first, tail)
+
+/// Runs `op` over `items`, starting from `empty` (`Walk`).
+let walk (op : Walk<'acc>) (empty : 'acc) (items : List<Dval>) : Ply<Dval> =
+  op.Run(empty, items)
