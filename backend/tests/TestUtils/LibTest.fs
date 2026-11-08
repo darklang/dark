@@ -52,6 +52,28 @@ module Gates =
     gates.Clear()
 
 
+/// Reads in flight that land on the thread that lands them, with whatever context that thread
+/// has: no continuation of theirs is queued or carries the waiter's context. A read from the
+/// host can land like that; `Gates` cannot, since a gate's waiters always go to the pool.
+module RawReads =
+  let private reads =
+    System.Collections.Concurrent.ConcurrentDictionary<int64, TaskCompletionSource<Dval>>()
+
+  let private read (n : int64) : TaskCompletionSource<Dval> =
+    reads.GetOrAdd(n, (fun _ -> TaskCompletionSource<Dval>()))
+
+  let task (n : int64) : Task<Dval> = (read n).Task
+
+  /// Lands read `n` with `value`, here, on the calling thread.
+  let finish (n : int64) (value : Dval) : unit =
+    (read n).TrySetResult value |> ignore<bool>
+
+  let waiting (n : int64) : bool =
+    match reads.TryGetValue n with
+    | true, r -> not r.Task.IsCompleted
+    | false, _ -> false
+
+
 /// What ran, in what order, across processes. Test-only.
 module Trace =
   let private entries = System.Collections.Concurrent.ConcurrentQueue<string>()
@@ -118,6 +140,24 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    /// A read in flight that lands where the test lands it (`RawReads.finish`), on the test's own
+    /// thread: answers what the test gives it.
+    { name = fn "testRawRead" 0
+      typeParams = []
+      parameters = [ Param.make "read" TInt64 "" ]
+      returnType = TInt64
+      description = "A read in flight until the test lands it on its own thread."
+      fn =
+        (function
+        | _, vm, _, [| DInt64 n |] ->
+          let site = vm.callFrames[vm.currentFrameID].executionPoint
+          let name = FQFnName.Builtin(FQFnName.builtin "testRawRead" 0)
+          Ply(DPromise(Promise(RawReads.task n, name, site)))
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     /// `testRead`, landing as any value: a tuple to destructure, a record field of the wrong

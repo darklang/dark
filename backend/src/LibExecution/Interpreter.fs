@@ -6365,6 +6365,15 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
 /// blocks on `Task.InternalWait` when it resumes, which is fatal on the browser's one thread
 /// ("Cannot wait on monitors on this runtime"). So a wait that has landed is consumed in place,
 /// and one that hasn't gets a continuation; nothing here waits.
+///
+/// The continuation runs in the `ExecutionContext` the run waited in, as it would after an
+/// `await`. `UnsafeOnCompleted` alone runs it in whatever context the thread that ended the wait
+/// has, which for a wait ended on the pool is none: the run woke up with no `Scheduler.Current`.
+/// The package test runner runs like this, inside `withStoreSnapshot`; woken so, its next
+/// `Exec.select` asked the process-wide scheduler about tests spawned in the CLI's, and said "no
+/// process has this handle". Only under load, when a wait was still out when it was asked.
+/// `Capture` reads the context rather than copying it, and the callback is made once per run,
+/// so a wait allocates nothing more than it did.
 let private driveToEnd
   (exeState : ExecutionState)
   (vm : VMState)
@@ -6381,6 +6390,7 @@ let private driveToEnd
   // the builder's did, rather than a closure per suspension.
   let pendingWait = ref Unchecked.defaultof<Task>
   let pendingResume = ref ignore<unit>
+  let pendingContext = ref (null : System.Threading.ExecutionContext)
   let landed = ref Unchecked.defaultof<System.Action>
   let rec run (from : StepOutcome) : unit =
     try
@@ -6404,20 +6414,26 @@ let private driveToEnd
           stop <- true
           pendingWait.Value <- wait
           pendingResume.Value <- resume
+          pendingContext.Value <- System.Threading.ExecutionContext.Capture()
           // The registration `await` itself makes, without the state machine around it.
           wait.GetAwaiter().UnsafeOnCompleted landed.Value
     with e ->
       fail e
+  let carryOn () =
+    let wait = pendingWait.Value
+    let resume = pendingResume.Value
+    try
+      wait.GetAwaiter().GetResult()
+      resume ()
+      run (executeSync exeState vm)
+    with e ->
+      fail e
+  let carryOnIn = System.Threading.ContextCallback(fun _ -> carryOn ())
   landed.Value <-
     System.Action(fun () ->
-      let wait = pendingWait.Value
-      let resume = pendingResume.Value
-      try
-        wait.GetAwaiter().GetResult()
-        resume ()
-        run (executeSync exeState vm)
-      with e ->
-        fail e)
+      match pendingContext.Value with
+      | null -> carryOn ()
+      | context -> System.Threading.ExecutionContext.Run(context, carryOnIn, null))
   run first
   finished.Task
 
