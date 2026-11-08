@@ -233,6 +233,36 @@ let private dictEffectsKeepOrder =
     Expect.equal (expectOk spread) (expectOk serial) "the same dict"
   }
 
+let private sortByAndMap2 =
+  testTask "sortBy and map2shortest spread and agree with serial" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> {uneven}(i) %% 7)"
+        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 45), fun(a, b) -> {uneven}(a) + b)"
+        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 45), Stdlib.List.range(1, 40), fun(a, b) -> {uneven}(b) + a)" ] do
+      let! (spread, moved) = delta spreads (fun () -> run state code)
+      let! serial = runWith state false code
+      Expect.isGreaterThan moved 0L $"spread: {code}"
+      Expect.equal (expectOk spread) (expectOk serial) code
+  }
+
+/// Keys of two types raise where the sort compares them, and an error in a key raises there.
+let private sortByAndMap2ErrorsAsSerial =
+  testTask "sortBy and map2shortest raise as serially" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 else {uneven}(i))"
+        $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> if i > 20 then \"s\" else {uneven}(i))"
+        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 40), fun(a, b) -> if a == 35 then 1 / 0 else {uneven}(a))"
+        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 40), fun(a, b) -> if a > 20 then \"s\" else {uneven}(a))" ] do
+      let! (spread, serial) = both state code
+      match spread, serial with
+      | Error(e1, s1), Error(e2, s2) ->
+        Expect.equal e1 e2 $"the same error: {code}"
+        Expect.equal s1 s2 $"the same frames: {code}"
+      | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
 /// The failing element is in a cheap late chunk, so it fails long before the expensive chunks
 /// ahead of it finish. Serial raises at it; so must this, with the same error and frames, and
 /// only after everything before it.
@@ -673,6 +703,8 @@ let tests =
         dictErrorsAsSerial
         dictCallbackTypeAsSerial
         dictEffectsKeepOrder
+        sortByAndMap2
+        sortByAndMap2ErrorsAsSerial
         errorAsSerial
         earliestErrorWins
         callbackTypeAsSerial
