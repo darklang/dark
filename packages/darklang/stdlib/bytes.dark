@@ -125,6 +125,42 @@ let contains(bytes: Bytes, segment: Bytes): Bool =
   Stdlib.Option.isSome(indexOfSegment(bytes, segment))
 
 
+/// Returns <param bytes> with every <param segment> replaced by
+/// <param replacement>. Matches are found from the start and never overlap, so
+/// replacing {{aa}} in {{aaa}} replaces only the first two bytes. An empty
+/// <param segment> matches between every two bytes and at both ends, as in
+/// <fn Stdlib.String.replaceAll>.
+let replaceAll(bytes: Bytes, segment: Bytes, replacement: Bytes): Bytes =
+  if isEmpty(segment) then
+    let singles = Stdlib.List.map(toList(bytes), fun b -> fromList([ b ]))
+    concatAll(Stdlib.List.interpose([ empty, ...singles, empty ], replacement))
+  else
+    __replaceAllFrom(bytes, segment, replacement, 0, [])
+
+
+/// The rest of <fn Stdlib.Bytes.replaceAll>: replaces each non-empty
+/// <param segment> found at or after <param start>. <param pieces> holds the
+/// output so far, last piece first.
+let __replaceAllFrom(
+  bytes: Bytes,
+  segment: Bytes,
+  replacement: Bytes,
+  start: Int64,
+  pieces: List<Bytes>)
+  : Bytes =
+  match indexOfSegmentFrom(bytes, segment, start) with
+  | None -> concatAll(Stdlib.List.reverse([ drop(bytes, start), ...pieces ]))
+  | Some(found) ->
+    // Never out of range: `start <= found`, and both are within the Bytes.
+    let before = Stdlib.Result.withDefault(slice(bytes, start, found), empty)
+    __replaceAllFrom(
+      bytes,
+      segment,
+      replacement,
+      found + length(segment),
+      [ replacement, before, ...pieces ])
+
+
 /// Expands <param bytes> into a list of its bytes. Copies every byte, so for
 /// one byte use <fn Stdlib.Bytes.getAt>, to find one use
 /// <fn Stdlib.Bytes.indexOf>, and to join or cut Bytes use
