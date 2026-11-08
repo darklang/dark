@@ -2279,7 +2279,8 @@ type private PackageOutcome =
 /// `Configuration`, so two execution states can hold two different `BuiltInFn` values under one name
 /// -- one of which blocks localhost, private ranges and non-http schemes, and one of which does not.
 /// A process-wide cache of the resolved fn hands whichever was seen first to everyone afterwards.
-/// Resolving per call is one dictionary lookup against the table the caller is actually using.
+/// The resolved one is kept per execution state instead, on the fn's `PackageFnCallData`, against
+/// the table that state is actually using.
 let private thinWrapperCache =
   System.Collections.Concurrent.ConcurrentDictionary<Hash, FQFnName.Builtin voption>()
 
@@ -2360,35 +2361,12 @@ let private detectThinWrapper
 /// `List<'a>` to `List<TraceSummary>` is doing real work: its param types decide what is accepted, and
 /// its return type is what `checkFrameReturnType` applies to the result. With the signatures equal,
 /// running the builtin directly checks the same things against the same types.
-/// The builtin a package hash is a known forwarder for, from the cache only.
-///
-/// `thinWrapperOf` needs the `PackageFn` because it may have to *detect*. This one answers from what
-/// has already been detected, so `Apply` can ask before fetching the fn at all -- and a forwarder is
-/// the one case where fetching it was pointless, since nothing but its hash gets used.
-///
-/// Resolved against this execution state's table, never a remembered `BuiltInFn`; see the note on
-/// `thinWrapperCache` for what that mistake cost.
-let private thinWrapperCachedFor
-  (exeState : ExecutionState)
-  (hash : Hash)
-  : BuiltInFn voption =
-  let mutable cached = ValueNone
-  if not (thinWrapperCache.TryGetValue(hash, &cached)) then
-    ValueNone
-  else
-    match cached with
-    | ValueNone -> ValueNone
-    | ValueSome b ->
-      let mutable bi = Unchecked.defaultof<BuiltInFn>
-      if exeState.fns.builtIn.TryGetValue(b, &bi) then ValueSome bi else ValueNone
-
-
 let private thinWrapperOf
   (exeState : ExecutionState)
   (fn : PackageFn.PackageFn)
   : BuiltInFn voption =
-  // Explicit byref, not `match ... with | true, v`, which allocates the tuple: this runs on every
-  // package call.
+  // Explicit byref, not `match ... with | true, v`, which allocates the tuple. Runs once per fn and
+  // execution state, when its call data is built.
   let mutable cached = ValueNone
   let name =
     if thinWrapperCache.TryGetValue(fn.hash, &cached) then
@@ -2516,7 +2494,8 @@ let private packageFnCallData
             |> NEList.toList
             |> List.indexed
             |> List.choose (fun (i, p) -> callbackParam i p.name p.typ)
-            |> Array.ofList }
+            |> Array.ofList
+        thinWrapper = thinWrapperOf exeState fn }
     exeState.packageFnCallCache[fn.hash] <- d
     d
 
@@ -2999,7 +2978,7 @@ let private callPackageResolvedReady
   : Ply<PackageOutcome> =
   // A bare forwarder to a builtin of the same signature runs that builtin here, instead of pushing a
   // frame whose whole job is to run the two instructions that would.
-  match thinWrapperOf exeState fn with
+  match callData.thinWrapper with
   // `collectExprValues`: not while something is watching. Eliding a forwarder skips its frame,
   // and the frame is how a reader knows a lambda was passed to `List.map` rather than to
   // `List.fold`. The same guard is on the early elision above.
@@ -4221,18 +4200,17 @@ let private applyPackageFn
       && List.isEmpty applicable.argsSoFar
       && not exeState.tracing.collectExprValues
     then
-      match thinWrapperCachedFor exeState pkg with
-      | ValueSome biFn ->
-        let mutable callData = Unchecked.defaultof<PackageFnCallData>
+      let mutable callData = Unchecked.defaultof<PackageFnCallData>
+      if exeState.packageFnCallCache.TryGetValue(pkg, &callData) then
+        match callData.thinWrapper with
         // Also only once its callback parameters are known, which the long way does.
-        if
-          exeState.packageFnCallCache.TryGetValue(pkg, &callData)
-          && not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
-        then
+        | ValueSome biFn when
+          not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
+          ->
           ValueSome(struct (biFn, callData))
-        else
-          ValueNone
-      | ValueNone -> ValueNone
+        | _ -> ValueNone
+      else
+        ValueNone
     else
       ValueNone
 
