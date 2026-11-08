@@ -25,6 +25,21 @@ test getAt =
       Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
       |> Stdlib.Test.equal(None) ])
 
+// setAt
+test setAt =
+  let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.setAt(bytes, 0, 1u8)
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 1u8, 20u8, 30u8 ])))
+      Stdlib.Bytes.setAt(bytes, 2, 3u8)
+      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 10u8, 20u8, 3u8 ])))
+      Stdlib.Bytes.setAt(bytes, 3, 1u8)
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      Stdlib.Bytes.setAt(bytes, -1, 1u8)
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      Stdlib.Bytes.setAt(Stdlib.Bytes.empty, 0, 1u8)
+      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
+
 // indexOf / indexOfFrom
 test indexOf =
   let bytes = Stdlib.Utf8.encode("ab\nc\n")
