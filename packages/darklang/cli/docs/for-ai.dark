@@ -32,7 +32,9 @@ writes.
 
 Batch search caps each result section at three items. Use `--fn`, `--type`,
 `--val`, or `--test` to focus results; `--with-docs` shows full comments, `docs signatures
-<module>` browses a known module, and `view <name>` shows source.
+<module>` browses a known module, and `view <name>` shows source. To find a
+function by what it takes and returns, search the types: `search bytes to string`
+or `search String->Int64`.
 
 Answers go on stdout; errors, hints and logs go on stderr; a refusal exits
 non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
@@ -95,7 +97,8 @@ One test at a time, quoting the body so the shell leaves `|>` alone:
   test add Me.Example.Tests.doubles 'Me.Example.double(4) |> Stdlib.Test.equal(8)'
 
 Run all tests with `test run`, or filter by name/module with `test run Example`.
-`search` leaves tests out; add `--include-tests`, or `--test` for tests only.
+`search` leaves tests and `Tests` modules out; add `--include-tests`, or `--test`
+for tests only.
 Tests use an allow-all instance policy for the test run and its disposable
 workers; the installation's saved policy is unchanged. Each called function's
 ordinary package approval and permission ceiling still applies. Tests have no

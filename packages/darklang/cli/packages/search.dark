@@ -92,44 +92,197 @@ let joinedQuery(query: String): String =
     |> Stdlib.String.join("")
 
 
+// The query's words, lowercased, the way the store matched them: split on spaces
+// and dots, and short filler like `of` and `to` dropped unless every word is short.
+let queryWords(query: String): List<String> =
+  let words =
+    query
+    |> Stdlib.String.toLowercase
+    |> Stdlib.String.replaceAll(".", " ")
+    |> Stdlib.String.split(" ")
+    |> Stdlib.List.filter(fun token ->
+      Stdlib.Bool.not(Stdlib.String.isEmpty(token)))
+  let kept = words |> Stdlib.List.filter(fun w -> Stdlib.String.length(w) > 2)
+  if Stdlib.List.isEmpty(kept) then words else kept
+
+
+// A query read once for ranking, since a search ranks every result against it.
+type Ranker =
+  { item: String
+    joined: String
+    // Each word ranks too, unless the query is dotted: `List.map` names its item last.
+    words: List<String> }
+
+
+let rankerFor(query: String): Ranker =
+  Ranker
+    { item = itemQuery(query)
+      joined = joinedQuery(query)
+      words = if Stdlib.String.contains(query, ".") then [] else queryWords(query) }
+
+
 // A name's rank against the item token or the joined words, whichever is better.
 // The item token alone gives `read file` nothing but "file" to rank by, so
 // `overwriteFile` ties with `readFile`, and a type called `ReadFileParams` beats
 // both. Taking the better of the two never lowers a name's rank, so an exact or
 // prefix match on the item token keeps the rank it had.
-let nameRank(query: String, name: String): Int64 =
-  let byItem = matchRank(itemQuery(query), name)
-  let byWords = matchRank(joinedQuery(query), name)
-  if byWords < byItem then byWords else byItem
+//
+// Plain words also rank by each word: in `parse int` and `length of list` the name
+// is the first word, not the last.
+let rankName(ranker: Ranker, name: String): Int64 =
+  let byItem = matchRank(ranker.item, name)
+  let byWords = matchRank(ranker.joined, name)
+  let best = if byWords < byItem then byWords else byItem
+  ranker.words
+  |> Stdlib.List.fold(best, fun(acc, word) ->
+    let r = matchRank(word, name)
+    if r < acc then r else acc)
 
 
-// Sort key: match quality first, then Stdlib-first, and finally the full path
-// for deterministic ordering. Both ranks are a single digit, so plain string
-// ordering under `sortBy` gives the intended result.
+let nameRank(query: String, name: String): Int64 = rankName(rankerFor(query), name)
+
+
+// 0 when a word of the query that is not in the name is in the item's module name:
+// `parse int` is asking for `Int64.parse` before `Url.parse`, and `http get` for
+// `HttpClient.get`. A word the name already has says nothing about the module, or
+// `search parse` would put `FlagParser.parse` first.
+let moduleHit(ranker: Ranker, modules: List<String>, name: String): Int64 =
+  let moduleName =
+    modules
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault("")
+    |> Stdlib.String.toLowercase
+  let lowerName = Stdlib.String.toLowercase(name)
+  let hit =
+    ranker.words
+    |> Stdlib.List.any(fun w ->
+      Stdlib.String.contains(moduleName, w)
+      && Stdlib.Bool.not(Stdlib.String.contains(lowerName, w)))
+  if hit then 0 else 1
+
+
+// The Stdlib modules most programs reach for, most common first. On an equal match
+// these come before the rest of Stdlib, so `split` is `String.split` before
+// `Regex.split`, and `parse` is `Int64.parse` before `AltJson.parse`.
+val commonModules =
+  [ "String"
+    "List"
+    "Dict"
+    "Option"
+    "Result"
+    "Int64"
+    "Float"
+    "Bool"
+    "Char"
+    "Json"
+    "Utf8"
+    "Bytes"
+    "DateTime"
+    "Math"
+    "HttpClient"
+    "Uuid"
+    "Regex" ]
+
+
+// How likely somebody is to want an item from this module, as a sort key: the
+// common Stdlib modules in order, then the rest of Stdlib, then other owners'
+// packages, then the rest of Darklang (the CLI, the tools), which a program rarely
+// calls.
+let commonness(owner: String, modules: List<String>): String =
+  if isStdlib(owner, modules) then
+    let rest = Stdlib.String.join(Stdlib.List.drop(modules, 1), ".")
+    match Stdlib.List.indexOf(commonModules, rest) with
+    | Some(i) -> "0" + Stdlib.String.padStart(Stdlib.toString(i), '0', 2)
+    | None -> "100"
+  else if owner == "Darklang" then
+    "300"
+  else
+    "200"
+
+
+// Sort key: match quality first, then whether the module is named by the query,
+// then how common the module is, and finally the full path for deterministic
+// ordering. Each part is fixed-width, so plain string ordering under `sortBy` gives
+// the intended result.
+let rankKey(
+  ranker: Ranker,
+  owner: String,
+  modules: List<String>,
+  name: String)
+  : String =
+  let mr = Stdlib.toString(rankName(ranker, name))
+  let mh = Stdlib.toString(moduleHit(ranker, modules, name))
+  let common = commonness(owner, modules)
+  let path =
+    [ [owner], modules, [name] ]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join(".")
+  $"{mr}{mh}{common}:{path}"
+
+
 let sortKey(
   query: String,
   owner: String,
   modules: List<String>,
   name: String)
   : String =
-  let mr = Stdlib.toString(nameRank(query, name))
-  let st = if isStdlib(owner, modules) then "0" else "1"
-  let path =
-    [ [owner], modules, [name] ]
-    |> Stdlib.List.flatten
-    |> Stdlib.String.join(".")
-  $"{mr}{st}:{path}"
+  rankKey(rankerFor(query), owner, modules, name)
 
 
-// Used to rank result sections; empty sections sort last.
-let bestItemRank(
-  query: String,
+// Test helpers: anything inside a `Tests` module. `AltJson.Tests.parse` is a
+// fixture, but it used to be the first answer to `search parse`.
+let inTestModule(modules: List<String>): Bool = Stdlib.List.contains(modules, "Tests")
+
+
+// A search hides test helpers the way it hides tests, unless the query or the
+// current module is itself about tests.
+let showsTestHelpers(query: String, currentModule: List<String>): Bool =
+  inTestModule(currentModule)
+  || Stdlib.List.contains(queryWords(query), "tests")
+
+
+// How many types, values, fns, traits and impls the results hold.
+let itemCount(results: LanguageTools.ProgramTypes.Search.SearchResults): Int64 =
+  (Stdlib.List.length(results.types))
+  + (Stdlib.List.length(results.values))
+  + (Stdlib.List.length(results.fns))
+  + (Stdlib.List.length(results.traits))
+  + (Stdlib.List.length(results.impls))
+
+
+// The results without test helpers, and how many were left out.
+let withoutTestHelpers(
+  results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : (LanguageTools.ProgramTypes.Search.SearchResults * Int64) =
+  let kept =
+    LanguageTools.ProgramTypes.Search.SearchResults
+      { submodules =
+          results.submodules
+          |> Stdlib.List.filter(fun m -> Stdlib.Bool.not(inTestModule(m)))
+        types = results.types |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(inTestModule(i.location.modules)))
+        values = results.values |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(inTestModule(i.location.modules)))
+        fns = results.fns |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(inTestModule(i.location.modules)))
+        traits = results.traits |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(inTestModule(i.location.modules)))
+        impls = results.impls |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(inTestModule(i.location.modules)))
+        tests = results.tests }
+  (kept, itemCount(results) - itemCount(kept))
+
+
+// Used to order result sections: the head of the best item's rank key (match,
+// module hit, commonness), so a section led by a common Stdlib function prints before
+// one led by a CLI internal that matches as well. Empty sections sort last.
+let bestItemKey(
+  ranker: Ranker,
   items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
-  : Int64 =
+  : String =
   items
-  |> Stdlib.List.fold(9, fun(acc, item) ->
-    let r = nameRank(query, item.location.name)
-    if r < acc then r else acc)
+  |> Stdlib.List.map(fun item ->
+    Stdlib.String.first(
+      rankKey(ranker, item.location.owner, item.location.modules, item.location.name),
+      5))
+  |> Stdlib.List.sort
+  |> Stdlib.List.head
+  |> Stdlib.Option.withDefault("99999")
 
 
 let bestModuleRank(query: String, modules: List<List<String>>): Int64 =
@@ -138,6 +291,298 @@ let bestModuleRank(query: String, modules: List<List<String>>): Int64 =
     let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
     let r = matchRank(query, modName)
     if r < acc then r else acc)
+
+
+// ---- Searching by type ----
+//
+// `bytes to string`, `string -> int` and `String -> Int64` ask for a function by
+// what it takes and returns, which no name or doc comment spells. The answer is
+// the Stdlib functions whose first parameter has the one type and whose result has
+// the other: `Utf8.decode` for the first, `Int64.parse` for the second.
+
+// The type a word names, in one spelling per type: the everyday words for the
+// common ones and the type's own name for every builtin type.
+let typeWord(word: String): Stdlib.Option.Option<String> =
+  match Stdlib.String.toLowercase(word) with
+  | "string" -> Stdlib.Option.Option.Some("string")
+  | "str" -> Stdlib.Option.Option.Some("string")
+  | "text" -> Stdlib.Option.Option.Some("string")
+  | "int" -> Stdlib.Option.Option.Some("int64")
+  | "integer" -> Stdlib.Option.Option.Some("int64")
+  | "number" -> Stdlib.Option.Option.Some("int64")
+  | "int64" -> Stdlib.Option.Option.Some("int64")
+  | "float" -> Stdlib.Option.Option.Some("float")
+  | "double" -> Stdlib.Option.Option.Some("float")
+  | "bool" -> Stdlib.Option.Option.Some("bool")
+  | "boolean" -> Stdlib.Option.Option.Some("bool")
+  | "char" -> Stdlib.Option.Option.Some("char")
+  | "character" -> Stdlib.Option.Option.Some("char")
+  | "bytes" -> Stdlib.Option.Option.Some("bytes")
+  | "binary" -> Stdlib.Option.Option.Some("bytes")
+  | "list" -> Stdlib.Option.Option.Some("list")
+  | "array" -> Stdlib.Option.Option.Some("list")
+  | "dict" -> Stdlib.Option.Option.Some("dict")
+  | "dictionary" -> Stdlib.Option.Option.Some("dict")
+  | "datetime" -> Stdlib.Option.Option.Some("datetime")
+  | "date" -> Stdlib.Option.Option.Some("datetime")
+  | "uuid" -> Stdlib.Option.Option.Some("uuid")
+  | "unit" -> Stdlib.Option.Option.Some("unit")
+  | "decimal" -> Stdlib.Option.Option.Some("decimal")
+  | "bigint" -> Stdlib.Option.Option.Some("bigint")
+  | "float32" -> Stdlib.Option.Option.Some("float32")
+  | "int8" -> Stdlib.Option.Option.Some("int8")
+  | "uint8" -> Stdlib.Option.Option.Some("uint8")
+  | "int16" -> Stdlib.Option.Option.Some("int16")
+  | "uint16" -> Stdlib.Option.Option.Some("uint16")
+  | "int32" -> Stdlib.Option.Option.Some("int32")
+  | "uint32" -> Stdlib.Option.Option.Some("uint32")
+  | "uint64" -> Stdlib.Option.Option.Some("uint64")
+  | "int128" -> Stdlib.Option.Option.Some("int128")
+  | "uint128" -> Stdlib.Option.Option.Some("uint128")
+  | _ -> Stdlib.Option.Option.None
+
+
+// The <fn typeWord> spelling of a type, for the types a word can name.
+let typeWordOf(
+  t: LanguageTools.ProgramTypes.TypeReference)
+  : Stdlib.Option.Option<String> =
+  match t with
+  | TString -> Stdlib.Option.Option.Some("string")
+  | TInt64 -> Stdlib.Option.Option.Some("int64")
+  | TFloat -> Stdlib.Option.Option.Some("float")
+  | TBool -> Stdlib.Option.Option.Some("bool")
+  | TChar -> Stdlib.Option.Option.Some("char")
+  | TBytes -> Stdlib.Option.Option.Some("bytes")
+  | TList(_) -> Stdlib.Option.Option.Some("list")
+  | TDict(_, _) -> Stdlib.Option.Option.Some("dict")
+  | TDateTime -> Stdlib.Option.Option.Some("datetime")
+  | TUuid -> Stdlib.Option.Option.Some("uuid")
+  | TUnit -> Stdlib.Option.Option.Some("unit")
+  | TDecimal -> Stdlib.Option.Option.Some("decimal")
+  | TBigInt -> Stdlib.Option.Option.Some("bigint")
+  | TFloat32 -> Stdlib.Option.Option.Some("float32")
+  | TInt8 -> Stdlib.Option.Option.Some("int8")
+  | TUInt8 -> Stdlib.Option.Option.Some("uint8")
+  | TInt16 -> Stdlib.Option.Option.Some("int16")
+  | TUInt16 -> Stdlib.Option.Option.Some("uint16")
+  | TInt32 -> Stdlib.Option.Option.Some("int32")
+  | TUInt32 -> Stdlib.Option.Option.Some("uint32")
+  | TUInt64 -> Stdlib.Option.Option.Some("uint64")
+  | TInt128 -> Stdlib.Option.Option.Some("int128")
+  | TUInt128 -> Stdlib.Option.Option.Some("uint128")
+  | _ -> Stdlib.Option.Option.None
+
+
+// How a <fn typeWord> spelling is written in Dark, for the section header.
+let typeLabel(word: String): String =
+  match word with
+  | "int64" -> "Int64"
+  | "datetime" -> "DateTime"
+  | "bigint" -> "BigInt"
+  | "uuid" -> "Uuid"
+  | "float32" -> "Float32"
+  | "int8" -> "Int8"
+  | "uint8" -> "UInt8"
+  | "int16" -> "Int16"
+  | "uint16" -> "UInt16"
+  | "int32" -> "Int32"
+  | "uint32" -> "UInt32"
+  | "uint64" -> "UInt64"
+  | "int128" -> "Int128"
+  | "uint128" -> "UInt128"
+  | w ->
+    Stdlib.String.toUppercase(Stdlib.String.first(w, 1))
+    + Stdlib.String.dropFirst(w, 1)
+
+
+// The two types of a by-type query, as <fn typeWord> spells them: `bytes to string`,
+// `string -> int`, `String->Int64`. None for anything else, which is most queries.
+let typeQuery(query: String): Stdlib.Option.Option<(String * String)> =
+  let words =
+    query
+    |> Stdlib.String.replaceAll("->", " -> ")
+    |> Stdlib.String.split(" ")
+    |> Stdlib.List.filter(fun w -> Stdlib.Bool.not(Stdlib.String.isEmpty(w)))
+  let pair = fun(a, b) ->
+    match (typeWord(a), typeWord(b)) with
+    | (Some(source), Some(target)) -> Stdlib.Option.Option.Some((source, target))
+    | _ -> Stdlib.Option.Option.None
+  match words with
+  | [ a, "to", b ] -> pair(a, b)
+  | [ a, "->", b ] -> pair(a, b)
+  | _ -> Stdlib.Option.Option.None
+
+
+// Whether a function's result is <param target>, bare or as the first type
+// argument of what it returns: `Result<Int64, _>` or `Option<Int64>`.
+let returnsType(
+  target: String,
+  t: LanguageTools.ProgramTypes.TypeReference)
+  : Bool =
+  if typeWordOf(t) == Stdlib.Option.Option.Some(target) then
+    true
+  else
+    match t with
+    | TCustomType(_, [ arg, ... ]) -> typeWordOf(arg) == Stdlib.Option.Option.Some(target)
+    | _ -> false
+
+
+// Whether a function's name says it converts: `parse`, `toString`, `fromList`,
+// `decode`. `String.length` also takes a String and returns an Int64, but nobody
+// asking for `string to int` wants it first.
+let convertsByName(name: String): Bool =
+  let n = Stdlib.String.toLowercase(name)
+  [ "parse", "to", "from", "of", "as", "decode", "encode", "convert" ]
+  |> Stdlib.List.any(fun prefix -> Stdlib.String.startsWith(n, prefix))
+
+
+// The sort key of a function for a by-type query, or None when it does not take
+// <param source> first and return <param target>, bare or in a Result or Option. A
+// function named for converting comes first, then one taking nothing else, then the
+// common modules.
+let typeMatchKey(
+  source: String,
+  target: String,
+  item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  : Stdlib.Option.Option<String> =
+  match item.entity.parameters with
+  | [] -> Stdlib.Option.Option.None
+  | [ first, ...rest ] ->
+    if
+      (typeWordOf(first.typ) == Stdlib.Option.Option.Some(source))
+      && returnsType(target, item.entity.returnType)
+    then
+      let named = if convertsByName(item.location.name) then "0" else "1"
+      let arity = if Stdlib.List.isEmpty(rest) then "0" else "1"
+      let common = commonness(item.location.owner, item.location.modules)
+      let path = Stdlib.String.join(Stdlib.List.flatten([ [ item.location.owner ], item.location.modules, [ item.location.name ] ]), ".")
+      Stdlib.Option.Option.Some($"{named}{arity}{common}:{path}")
+    else
+      Stdlib.Option.Option.None
+
+
+// The Stdlib functions a by-type query asks for, best first.
+let byType(
+  branchId: Uuid,
+  source: String,
+  target: String)
+  : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = [ "Darklang", "Stdlib" ]
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+        exactMatch = false }
+  let found = Query.withoutInternal(LanguageTools.PackageManager.Search.search(branchId, query))
+  found.fns
+  |> Stdlib.List.filterMap(fun item ->
+    if inTestModule(item.location.modules) then
+      Stdlib.Option.Option.None
+    else
+      typeMatchKey(source, target, item) |> Stdlib.Option.map(fun key -> (key, item)))
+  |> Stdlib.List.sortBy(fun((key, _)) -> key)
+  |> Stdlib.List.map(fun((_, item)) -> item)
+
+
+// ---- When nothing matched ----
+
+// Names within a couple of typos of <param word>, closest first: `lenght` is
+// `length`. One edit for a short word, two for a longer one, so a short word does
+// not suggest every other short word. Only names starting with the same letter are
+// measured: a typo rarely starts a word, and measuring every name is slow.
+let nearNames(word: String, names: List<String>): List<String> =
+  let w = Stdlib.String.toLowercase(word)
+  let len = Stdlib.String.length(w)
+  let limit = if len <= 4 then 1 else 2
+  let initial = Stdlib.String.first(w, 1)
+  names
+  |> Stdlib.List.filter(fun n ->
+    let diff = Stdlib.String.length(n) - len
+    (diff <= limit)
+    && (diff >= 0 - limit)
+    && (Stdlib.String.toLowercase(Stdlib.String.first(n, 1)) == initial))
+  |> Stdlib.List.unique
+  |> Stdlib.List.filterMap(fun n ->
+    let d = Darklang.Cli.Config.editDistance(w, Stdlib.String.toLowercase(n))
+    if (d <= limit) && (d > 0) then
+      Stdlib.Option.Option.Some((d, n))
+    else
+      Stdlib.Option.Option.None)
+  |> Stdlib.List.sortBy(fun((d, n)) -> $"{Stdlib.toString(d)}{n}")
+  |> Stdlib.List.map(fun((_, n)) -> n)
+  |> Stdlib.List.take(3)
+
+
+// The names of everything a search from <param currentModule> could find.
+let namesUnder(
+  branchId: Uuid,
+  currentModule: List<String>)
+  : List<String> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = currentModule
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes =
+          [ LanguageTools.ProgramTypes.Search.EntityType.Fn
+            LanguageTools.ProgramTypes.Search.EntityType.Type
+            LanguageTools.ProgramTypes.Search.EntityType.Value ]
+        exactMatch = false }
+  let (_, types, values, fns, _, _, _) =
+    LanguageTools.PackageManager.Search.searchNames(branchId, query)
+  Query.withoutInternalNames(Stdlib.List.flatten([ fns, types, values ]))
+
+
+// What to try when <param query> found nothing. Each word of a several-word query
+// on its own, since every word has to match and one may be what ruled everything
+// out; and for a word that finds nothing alone, the names it is a typo of.
+let nothingFoundHints(
+  branchId: Uuid,
+  query: LanguageTools.ProgramTypes.Search.SearchQuery)
+  : List<String> =
+  let words = queryWords(query.text)
+  let countFor = fun word ->
+    let found =
+      LanguageTools.PackageManager.Search.search(branchId, { query with text = word })
+      |> Query.withoutInternal
+    let (kept, _) = withoutTestHelpers(found)
+    itemCount(kept)
+  let several = Stdlib.List.length(words) > 1
+  let counts =
+    if several then
+      words |> Stdlib.List.map(fun w -> (w, countFor(w)))
+    else
+      [ (query.text, 0) ]
+
+  let alone =
+    if several then
+      let each =
+        counts
+        |> Stdlib.List.map(fun((w, n)) -> $"`search {w}` finds {Stdlib.toString(n)}")
+        |> Stdlib.String.join(", ")
+      [ $"  No item matches every word. One word at a time: {each}" ]
+    else
+      []
+
+  let typos =
+    match Stdlib.List.filter(counts, fun((_, n)) -> n == 0) with
+    | [] -> []
+    | missing ->
+      let names = namesUnder(branchId, query.currentModule)
+      missing
+      |> Stdlib.List.filterMap(fun((w, _)) ->
+        match nearNames(w, names) with
+        | [] -> Stdlib.Option.Option.None
+        | near ->
+          let shown =
+            near
+            |> Stdlib.List.map(fun n -> $"`{n}`")
+            |> Stdlib.String.join(", ")
+          let forWord = if several then $" (for `{w}`)" else ""
+          Stdlib.Option.Option.Some($"  Did you mean {shown}?{forWord}"))
+
+  Stdlib.List.flatten([ alone, typos ])
 
 
 let docBlock(desc: String, indent: String): String =
@@ -204,10 +649,11 @@ let renderSection(
     ()
   else
     Stdlib.printLine(Display.getSectionHeader(header))
+    let ranker = rankerFor(query)
     let sorted =
       items
       |> Stdlib.List.sortBy(fun i ->
-        sortKey(query, i.location.owner, i.location.modules, i.location.name))
+        rankKey(ranker, i.location.owner, i.location.modules, i.location.name))
     let shown = Stdlib.List.take(sorted, cap)
     shown |> Stdlib.List.iter(fun item -> Stdlib.printLine(renderItem(item)))
     overflowNote(Stdlib.List.length(sorted), Stdlib.List.length(shown))
@@ -386,6 +832,17 @@ let hiddenTestsHint(count: Int64): Unit =
     ()
 
 
+/// The same, for test helpers: what lives in a `Tests` module and isn't a test.
+let hiddenHelpersHint(count: Int64): Unit =
+  if count > 0 then
+    let noun = if count == 1 then "test helper" else "test helpers"
+    Stdlib.printErrorLine(
+      (Stdlib.Cli.UI.Colors.hint(
+        $"  ({Stdlib.toString(count)} {noun} matched; --include-tests shows them)")))
+  else
+    ()
+
+
 /// Where `--shallow` searches, and for what. A qualified query names its own module:
 /// `search Darklang.Stdlib.List --shallow` lists what is directly in
 /// `Darklang.Stdlib.List`, and `search Stdlib.List.ma --shallow` (from `Darklang`) what
@@ -521,6 +978,32 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
             LanguageTools.ProgramTypes.Search.EntityType.Test)
         let hiddenTests = if showTests then 0 else Stdlib.List.length(results.tests)
         let results = if showTests then results else { results with tests = [] }
+        // Test helpers go with the tests, unless the search is about tests.
+        let (results, hiddenHelpers) =
+          if showTests || showsTestHelpers(searchText, currentModule) then
+            (results, 0)
+          else
+            withoutTestHelpers(results)
+
+        // `bytes to string`: the Stdlib functions by what they take and return. They
+        // print in a section of their own, so they leave the name matches.
+        let wantsFns =
+          Stdlib.List.isEmpty(parsed.entityTypes)
+          || Stdlib.List.contains(
+            parsed.entityTypes,
+            LanguageTools.ProgramTypes.Search.EntityType.Fn)
+        let typed =
+          match typeQuery(searchText) with
+          | Some((source, target)) when wantsFns ->
+            byType(state.currentBranchId, source, target)
+            |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(Query.isHidden(depSets, f.entity.hash)))
+          | _ -> []
+        let typedPaths = typed |> Stdlib.List.map(fun f -> fullPathOf(f))
+        let results =
+          { results with
+              fns =
+                results.fns
+                |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(Stdlib.List.contains(typedPaths, fullPathOf(f)))) }
 
         // Only count submodules when no entity type filter is specified
         let submodulesCount =
@@ -536,13 +1019,21 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           + (Stdlib.List.length(results.traits))
           + (Stdlib.List.length(results.impls))
           + (Stdlib.List.length(results.tests))
+          + (Stdlib.List.length(typed))
           + submodulesCount
 
         if parsed.asJson then
-          Stdlib.printLine(jsonOutput(state.currentBranchId, queryText, results))
+          Stdlib.printLine(
+            jsonOutput(
+              state.currentBranchId,
+              queryText,
+              { results with fns = Stdlib.List.flatten([ typed, results.fns ]) }))
         else if totalResults == 0 then
           Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
           hiddenTestsHint(hiddenTests)
+          hiddenHelpersHint(hiddenHelpers)
+          nothingFoundHints(state.currentBranchId, query)
+          |> Stdlib.List.iter(fun line -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(line)))
           Stdlib.printLine("")
         else
           Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
@@ -555,6 +1046,21 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           // Key format: match rank followed by the fixed section order.
           let resultCap = if parsed.batch then batchDisplayCap else displayCap
 
+          match typeQuery(searchText) with
+          | Some((source, target)) when Stdlib.Bool.not(Stdlib.List.isEmpty(typed)) ->
+            Stdlib.printLine(
+              $"{Darklang.Cli.Glyphs.forKind("fn")} Functions from {typeLabel(source)} to {typeLabel(target)}:")
+            let shownTyped = Stdlib.List.take(typed, resultCap)
+            shownTyped
+            |> Stdlib.List.iter(fun item ->
+              let ctx = contextFor(state.currentBranchId, item)
+              let sigBody = Signatures.formatFn(ctx, item.entity)
+              let line = $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(sigBody)}"
+              Stdlib.printLine(withOptionalDoc(parsed.withDocs, line, item.entity.description)))
+            overflowNote(Stdlib.List.length(typed), Stdlib.List.length(shownTyped))
+            Stdlib.printLine("")
+          | _ -> ()
+
           let moduleRank =
             if Stdlib.List.isEmpty(parsed.entityTypes) then
               bestModuleRank(searchText, results.submodules)
@@ -564,14 +1070,15 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           // Suffix orders sections on a rank tie. Modules are navigation, not the
           // usual discovery target, so they sort last - a wall of namespace
           // matches shouldn't precede an equally-ranked fn/type/value hit.
+          let ranker = rankerFor(searchText)
           let sectionKeys =
-            [ ($"{Stdlib.toString(moduleRank)}4", "module")
-              ($"{Stdlib.toString(bestItemRank(searchText, results.types))}1", "type")
-              ($"{Stdlib.toString(bestItemRank(searchText, results.values))}2", "value")
-              ($"{Stdlib.toString(bestItemRank(searchText, results.fns))}3", "function")
-              ($"{Stdlib.toString(bestItemRank(searchText, results.traits))}0", "trait")
-              ($"{Stdlib.toString(bestItemRank(searchText, results.impls))}5", "impl")
-              ($"{Stdlib.toString(bestItemRank(searchText, results.tests))}6", "test") ]
+            [ ($"{Stdlib.toString(moduleRank)}19994", "module")
+              ($"{bestItemKey(ranker, results.types)}1", "type")
+              ($"{bestItemKey(ranker, results.values)}2", "value")
+              ($"{bestItemKey(ranker, results.fns)}3", "function")
+              ($"{bestItemKey(ranker, results.traits)}0", "trait")
+              ($"{bestItemKey(ranker, results.impls)}5", "impl")
+              ($"{bestItemKey(ranker, results.tests)}6", "test") ]
 
           let order =
             sectionKeys
@@ -631,7 +1138,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
                     let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
                     let owner = Stdlib.Option.withDefault(Stdlib.List.head(modulePath), "")
                     let mods = Stdlib.Option.withDefault(Stdlib.List.tail(modulePath), [])
-                    sortKey(searchText, owner, mods, modName))
+                    rankKey(ranker, owner, mods, modName))
                 let shownMods = Stdlib.List.take(sortedMods, resultCap)
                 shownMods
                 |> Stdlib.List.iter(fun modulePath ->
@@ -644,6 +1151,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
             | _ -> ())
 
           hiddenTestsHint(hiddenTests)
+          hiddenHelpersHint(hiddenHelpers)
           if (Stdlib.Bool.not(parsed.withDocs)) && (Stdlib.Bool.not(parsed.batch)) then
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
           else
@@ -707,7 +1215,7 @@ let help(state: Cli.AppState): String =
     "  --trait                Search only traits"
     "  --impl                 Search only implementations of traits"
     "  --test                 Search only tests"
-    "  --include-tests        Also list tests (left out by default)"
+    "  --include-tests        Also list tests and test helpers (left out by default)"
     "  --exact                Require exact match (default: fuzzy)"
     "  --shallow              Search only direct children (default: all descendants);"
     "                         a qualified query searches inside the module it names"
@@ -731,6 +1239,8 @@ let help(state: Cli.AppState): String =
     "  search Http --fn --val      # Find functions and values matching 'Http'"
     "  search doubles --test       # Find tests matching 'doubles'"
     "  search ceiling --include-tests  # Everything matching, tests too"
+    "  search bytes to string      # Stdlib functions taking Bytes and returning a String"
+    "  search String->Int64        # The same, by type name"
     ""
     "By default, search looks in the current module and ALL nested descendants recursively."
     "Use --shallow to search only direct children of the current module, or of the"
