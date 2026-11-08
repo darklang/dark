@@ -21,6 +21,8 @@ type Context =
     // When set, where each lowered expression came from, by its new node id. Node ids are
     // minted here and carry no position, so this is the only way back to the source for a
     // finding about a node (the CLI uses it to give a type error before a run a line).
+    // A mutable table on purpose: returning ranges from every lowering call would cost
+    // every lowering, and almost none asks for them.
     sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>> }
 
 /// The builtin name sets that name resolution checks against.

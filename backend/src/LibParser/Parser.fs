@@ -247,6 +247,8 @@ let private isRecoveryBarrier (t : Token) : bool =
 /// All parser state, threaded explicitly through every parse function (no
 /// closure): the token stream, the diagnostics sink, and the offside/recovery
 /// registers. One value per parse; `parseTokens` constructs it.
+// Mutable on purpose: every parse function reads and writes it, and returning a new one from
+// each would add an allocation to every token's parse.
 type ParserState =
   { toks : SpannedToken[] // the token stream being parsed
     tokenCount : int // = toks.Length, cached (read on every bounds check)
@@ -306,14 +308,24 @@ let zeroWidthAtEnd (r : TokenRange) : TokenRange = { start = r.end_; end_ = r.en
 let span (a : TokenRange) (b : TokenRange) : TokenRange =
   { start = a.start; end_ = b.end_ }
 
+let rec private advancePosFrom
+  (pos : Pos)
+  (text : string)
+  (count : int)
+  (index : int)
+  : Pos =
+  if index >= count || index >= text.Length then
+    pos
+  else
+    let pos =
+      if text[index] = '\n' then
+        { row = pos.row + 1; column = 0 }
+      else
+        { pos with column = pos.column + 1 }
+    advancePosFrom pos text count (index + 1)
+
 let private advancePos (start : Pos) (text : string) (count : int) : Pos =
-  let mutable pos = start
-  for index in 0 .. min count text.Length - 1 do
-    if text[index] = '\n' then
-      pos <- { row = pos.row + 1; column = 0 }
-    else
-      pos <- { pos with column = pos.column + 1 }
-  pos
+  advancePosFrom start text count 0
 
 let private splitTrailingRange
   (state : ParserState)
@@ -607,6 +619,51 @@ let private isUpperIdentifier (name : string) =
   let index = if name.StartsWith "__" then 2 else 0
   name.Length > index && System.Char.IsUpper name[index]
 
+// The segments of a qualified name from `k`: `modsRev` holds those so far, last first, and
+// `cur` is the one being read. `i` is where the name starts.
+let rec private qualifiedSegments
+  (state : ParserState)
+  (i : int)
+  (modsRev : List<WT.Identifier * TokenRange>)
+  (cur : WT.Identifier)
+  (k : int)
+  : (List<WT.Identifier * TokenRange> * WT.Identifier * int) =
+  // only step into `.seg` as a module path when the CURRENT segment is
+  // uppercase (a module); a lowercase ident's `.field` is postfix access,
+  // left for parsePostfix to handle.
+  match tok state k, tok state (k + 1) with
+  | TDot, TIdent s when isUpperIdentifier cur.name ->
+    // previous segment becomes a module, with the dot range
+    qualifiedSegments
+      state
+      i
+      ((cur, rng state k) :: modsRev)
+      { range = rng state (k + 1); name = s }
+      (k + 2)
+  // `M.match`: say how to escape it, then read it as the name it was meant to be
+  // Only directly after the dot: `M.` then a newline is a name still being typed.
+  | TDot, t when
+    isKeyword t
+    && isUpperIdentifier cur.name
+    && (rng state k).end_ = (rng state (k + 1)).start
+    ->
+    let s = txt state (k + 1)
+    // the path as written, backticks included
+    let path = [ for j in i..k -> txt state j ] |> String.concat ""
+    let hint = keywordHint state (k + 1) path
+    err
+      state
+      DiagnosticCode.expected
+      (k + 1)
+      $"expected a name after '.', found '{s}'{hint}"
+    qualifiedSegments
+      state
+      i
+      ((cur, rng state k) :: modsRev)
+      { range = rng state (k + 1); name = s }
+      (k + 2)
+  | _ -> (List.rev modsRev, cur, k)
+
 // qualified name: ident (. ident)*  → (modules, finalIdent, nextIndex)
 let parseQualified
   (state : ParserState)
@@ -618,40 +675,7 @@ let parseQualified
     | _ ->
       errExpectedName state i "an identifier"
       { range = rng state i; name = "_" }
-  let mods = System.Collections.Generic.List<WT.Identifier * TokenRange>()
-  let mutable cur = first
-  let mutable k = i + 1
-  let mutable go = true
-  while go do
-    // only step into `.seg` as a module path when the CURRENT segment is
-    // uppercase (a module); a lowercase ident's `.field` is postfix access,
-    // left for parsePostfix to handle.
-    match tok state k, tok state (k + 1) with
-    | TDot, TIdent s when isUpperIdentifier cur.name ->
-      mods.Add(cur, rng state k) // previous segment becomes a module, with the dot range
-      cur <- { range = rng state (k + 1); name = s }
-      k <- k + 2
-    // `M.match`: say how to escape it, then read it as the name it was meant to be
-    // Only directly after the dot: `M.` then a newline is a name still being typed.
-    | TDot, t when
-      isKeyword t
-      && isUpperIdentifier cur.name
-      && (rng state k).end_ = (rng state (k + 1)).start
-      ->
-      let s = txt state (k + 1)
-      // the path as written, backticks included
-      let path = [ for j in i..k -> txt state j ] |> String.concat ""
-      let hint = keywordHint state (k + 1) path
-      err
-        state
-        DiagnosticCode.expected
-        (k + 1)
-        $"expected a name after '.', found '{s}'{hint}"
-      mods.Add(cur, rng state k)
-      cur <- { range = rng state (k + 1); name = s }
-      k <- k + 2
-    | _ -> go <- false
-  (List.ofSeq mods, cur, k)
+  qualifiedSegments state i [] first (i + 1)
 
 // Matches a written type name against the primitive types.
 let (|PrimTypeName|_|) (s : string) : (WT.Range -> WT.TypeReference) option =
@@ -933,6 +957,73 @@ let private spacedFieldsHint (caseName : string) (count : int) : string =
 let private effectCaseNames : List<string> =
   LibExecution.Effects.all |> List.map LibExecution.Effects.caseName
 
+/// `sep item sep item …` from `m`, each item with the range of the `sep` before it. A parse
+/// that makes no progress ends the list there.
+let rec private separatedFrom
+  (sep : Token)
+  (parse : ParserState -> int -> 'a * int)
+  (state : ParserState)
+  (itemsRev : List<TokenRange * 'a>)
+  (m : int)
+  : List<TokenRange * 'a> * int =
+  if tok state m <> sep then
+    (List.rev itemsRev, m)
+  else
+    let (item, m2) = parse state (m + 1)
+    let itemsRev = (rng state m, item) :: itemsRev
+    if m2 > m then
+      separatedFrom sep parse state itemsRev m2
+    else
+      (List.rev itemsRev, m)
+
+/// Like `separatedFrom`, but a parse that makes no progress skips the separator and goes on,
+/// and a `>` left pending by a split `>>` ends the list when `stopAtPendingGt`.
+let rec private separatedSkipping
+  (sep : Token)
+  (stopAtPendingGt : bool)
+  (parse : ParserState -> int -> 'a * int)
+  (state : ParserState)
+  (itemsRev : List<TokenRange * 'a>)
+  (m : int)
+  : List<TokenRange * 'a> * int =
+  if tok state m <> sep || (stopAtPendingGt && state.pendingGt > 0) then
+    (List.rev itemsRev, m)
+  else
+    let (item, m2) = parse state (m + 1)
+    separatedSkipping
+      sep
+      stopAtPendingGt
+      parse
+      state
+      ((rng state m, item) :: itemsRev)
+      (if m2 > m then m2 else m + 1)
+
+/// Statements, last first, folded right-nested into one `EStatement` chain.
+let private foldStatements (stmtsRev : List<WT.Expr>) : WT.Expr =
+  match stmtsRev with
+  | [] -> failwith "foldStatements: no statements"
+  | last :: earlier ->
+    earlier
+    |> List.fold
+      (fun acc s -> WT.EStatement(span (WT.exprRange s) (WT.exprRange acc), s, acc))
+      last
+
+/// The last index in `lo..hi` of the sorted `starts` whose value is at most `off` (binary search).
+let rec private lastAtOrBefore
+  (starts : ResizeArray<int>)
+  (off : int)
+  (lo : int)
+  (hi : int)
+  : int =
+  if lo >= hi then
+    lo
+  else
+    let mid = (lo + hi + 1) / 2
+    if starts[mid] <= off then
+      lastAtOrBefore starts off mid hi
+    else
+      lastAtOrBefore starts off lo (mid - 1)
+
 let rec parseExpr (state : ParserState) (i : int) : WT.Expr * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   if tooDeep state i || outOfFuel state i then
@@ -961,15 +1052,26 @@ and parsePipe (state : ParserState) (i : int) : WT.Expr * int =
   if tok state j <> TPipe then
     (expr, j)
   else
-    let pipeExprs = System.Collections.Generic.List<TokenRange * WT.PipeExpr>()
-    let mutable k = j
-    while tok state k = TPipe do
-      let pipeR = rng state k
-      let (rhs, k2) = parseInfix state (k + 1)
-      (match toPipeExpr rhs with
-       | Some seg -> pipeExprs.Add(pipeR, seg)
-       | None ->
-         match rhs with
+    let (pipeExprs, k) = parsePipeSegments state [] j
+    let endR = if k > 0 then rng state (k - 1) else rng state j
+    (WT.EPipe(span (WT.exprRange expr) endR, expr, pipeExprs), k)
+
+// `|> seg |> seg …` from `k`
+and private parsePipeSegments
+  (state : ParserState)
+  (segmentsRev : List<TokenRange * WT.PipeExpr>)
+  (k : int)
+  : List<TokenRange * WT.PipeExpr> * int =
+  if tok state k <> TPipe then
+    (List.rev segmentsRev, k)
+  else
+    let pipeR = rng state k
+    let (rhs, k2) = parseInfix state (k + 1)
+    let segmentsRev =
+      match toPipeExpr rhs with
+      | Some seg -> (pipeR, seg) :: segmentsRev
+      | None ->
+        (match rhs with
          | WT.EUnwrap _ ->
            errFull
              state
@@ -980,9 +1082,8 @@ and parsePipe (state : ParserState) (i : int) : WT.Expr * int =
              (Some "wrap the whole pipeline: `(value |> transform)?`")
          | _ ->
            err state DiagnosticCode.pipeSegment (k + 1) "unsupported pipe segment") // → diagnostic
-      if k2 > k then k <- k2 else k <- k + 1
-    let endR = if k > 0 then rng state (k - 1) else rng state j
-    (WT.EPipe(span (WT.exprRange expr) endR, expr, List.ofSeq pipeExprs), k)
+        segmentsRev
+    parsePipeSegments state segmentsRev (if k2 > k then k2 else k + 1)
 
 // convert a parsed pipe RHS expression into a structured pipe segment
 and toPipeExpr (e : WT.Expr) : WT.PipeExpr option =
@@ -1023,28 +1124,27 @@ and parseBlock (state : ParserState) (i : int) : WT.Expr * int =
 // iterative (a 10k-statement body must not recurse 10k deep); statements
 // fold right-nested into EStatement afterwards
 and parseBlockAt (state : ParserState) (col : int) (i : int) : WT.Expr * int =
-  let stmts = System.Collections.Generic.List<WT.Expr>()
-  let mutable k = i
-  let mutable go = true
-  while go do
-    let (stmt, j) = parseExpr state k
-    stmts.Add stmt
-    if j = k then
-      go <- false // no progress — stop (avoids a spin)
-    elif tok state j = TSemicolon then
-      errStatementSemicolon state j
-      k <- j + 1
-    elif hasNextStmt state col j then
-      k <- j
-    else
-      k <- j
-      go <- false
-  let folded =
-    stmts
-    |> List.ofSeq
-    |> List.reduceBack (fun s acc ->
-      WT.EStatement(span (WT.exprRange s) (WT.exprRange acc), s, acc))
-  (folded, k)
+  let (stmtsRev, k) = parseStatementsAt state col [] i
+  (foldStatements stmtsRev, k)
+
+// the statements from `k`, last first (tail-recursive, so a loop)
+and private parseStatementsAt
+  (state : ParserState)
+  (col : int)
+  (stmtsRev : List<WT.Expr>)
+  (k : int)
+  : List<WT.Expr> * int =
+  let (stmt, j) = parseExpr state k
+  let stmtsRev = stmt :: stmtsRev
+  if j = k then
+    (stmtsRev, k) // no progress — stop (avoids a spin)
+  elif tok state j = TSemicolon then
+    errStatementSemicolon state j
+    parseStatementsAt state col stmtsRev (j + 1)
+  elif hasNextStmt state col j then
+    parseStatementsAt state col stmtsRev j
+  else
+    (stmtsRev, j)
 
 and hasNextStmt (state : ParserState) (col : int) (k : int) : bool =
   tok state k <> TEOF
@@ -1071,22 +1171,15 @@ and parseMatch (state : ParserState) (i : int) : WT.Expr * int =
     else
       let comma = rng state j0
       let (second, k) = parseExpr state (j0 + 1)
-      let rest = System.Collections.Generic.List<TokenRange * WT.Expr>()
-      let mutable m = k
-      let mutable go = true
-      while go && tok state m = TComma do
-        let cr = rng state m
-        let (e, m2) = parseExpr state (m + 1)
-        rest.Add(cr, e)
-        if m2 > m then m <- m2 else go <- false
+      let (rest, m) = separatedFrom TComma parseExpr state [] k
       let z = zeroWidthAtEnd (WT.exprRange first)
-      let endE = if rest.Count > 0 then snd (Seq.last rest) else second
+      let endE = if List.isEmpty rest then second else snd (Seq.last rest)
       (WT.ETuple(
         span (WT.exprRange first) (WT.exprRange endE),
         first,
         comma,
         second,
-        List.ofSeq rest,
+        rest,
         z,
         z
        ),
@@ -1241,15 +1334,9 @@ and parseMatchPatternOr (state : ParserState) (i : int) : WT.MatchPattern * int 
   if tok state j <> TBar then
     (first, j)
   else
-    let pats = System.Collections.Generic.List<WT.MatchPattern>()
-    pats.Add first
-    let mutable k = j
-    while tok state k = TBar do
-      let (p, k2) = parsePatternTuple state (k + 1)
-      pats.Add p
-      if k2 > k then k <- k2 else k <- k + 1
-    (WT.MPOr(span (WT.mpRange first) (WT.mpRange (Seq.last pats)), List.ofSeq pats),
-     k)
+    let (alts, k) = separatedSkipping TBar false parsePatternTuple state [] j
+    let pats = first :: List.map snd alts
+    (WT.MPOr(span (WT.mpRange first) (WT.mpRange (Seq.last pats)), pats), k)
 
 // tuple level: `p1, p2, …` (bare — no parens). Elements are base patterns; `|`
 // binds looser (handled above) so it can't appear as a bare tuple element.
@@ -1260,22 +1347,15 @@ and parsePatternTuple (state : ParserState) (i : int) : WT.MatchPattern * int =
   else
     let comma = rng state j
     let (second, k) = parsePatternBase state (j + 1)
-    let rest = System.Collections.Generic.List<TokenRange * WT.MatchPattern>()
-    let mutable m = k
-    let mutable go = true
-    while go && tok state m = TComma do
-      let cr = rng state m
-      let (p, m2) = parsePatternBase state (m + 1)
-      rest.Add(cr, p)
-      if m2 > m then m <- m2 else go <- false
+    let (rest, m) = separatedFrom TComma parsePatternBase state [] k
     let z = zeroWidthAtEnd (WT.mpRange first) // bare tuple: no parens
-    let endP = if rest.Count > 0 then snd (Seq.last rest) else second
+    let endP = if List.isEmpty rest then second else snd (Seq.last rest)
     (WT.MPTuple(
       span (WT.mpRange first) (WT.mpRange endP),
       first,
       comma,
       second,
-      List.ofSeq rest,
+      rest,
       z,
       z
      ),
@@ -1290,15 +1370,9 @@ and parsePatternOr (state : ParserState) (i : int) : WT.MatchPattern * int =
 and parsePatternOrNoAs (state : ParserState) (i : int) : WT.MatchPattern * int =
   let (first, j) = parsePatternBase state i
   if tok state j = TBar then
-    let pats = System.Collections.Generic.List<WT.MatchPattern>()
-    pats.Add first
-    let mutable k = j
-    while tok state k = TBar do
-      let (p, k2) = parsePatternBase state (k + 1)
-      pats.Add p
-      if k2 > k then k <- k2 else k <- k + 1
-    (WT.MPOr(span (WT.mpRange first) (WT.mpRange (Seq.last pats)), List.ofSeq pats),
-     k)
+    let (alts, k) = separatedSkipping TBar false parsePatternBase state [] j
+    let pats = first :: List.map snd alts
+    (WT.MPOr(span (WT.mpRange first) (WT.mpRange (Seq.last pats)), pats), k)
   else
     (first, j)
 
@@ -1786,13 +1860,7 @@ and parseLetPattern (state : ParserState) (i : int) : WT.LetPattern * int =
     if tok state j = TComma then
       let comma = rng state j
       let (second, k) = parseLetPattern state (j + 1)
-      let rest = System.Collections.Generic.List<TokenRange * WT.LetPattern>()
-      let mutable m = k
-      while tok state m = TComma do
-        let cr = rng state m
-        let (p, m2) = parseLetPattern state (m + 1)
-        rest.Add(cr, p)
-        m <- if m2 > m then m2 else m + 1
+      let (rest, m) = separatedSkipping TComma false parseLetPattern state [] k
       let (closeP, p2) =
         if tok state m = TRParen then
           (rng state m, m + 1)
@@ -2261,6 +2329,8 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
   // offsets of each line start within fullText, computed once — posAt is then
   // a binary search instead of a from-zero rescan (which was O(len²) across a
   // long interpolated string's many segment boundaries)
+  // A ResizeArray on purpose: an array comprehension here cost 3 million more instructions on a
+  // script of 1,500 interpolated strings.
   let lineStarts =
     let acc = ResizeArray<int>()
     acc.Add 0
@@ -2269,12 +2339,7 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
     acc
   let posAt (off : int) : Pos =
     let off = min off m
-    // last line start <= off
-    let mutable lo = 0
-    let mutable hi = lineStarts.Count - 1
-    while lo < hi do
-      let mid = (lo + hi + 1) / 2
-      if lineStarts[mid] <= off then lo <- mid else hi <- mid - 1
+    let lo = lastAtOrBefore lineStarts off 0 (lineStarts.Count - 1)
     let lineOff = off - lineStarts[lo]
     if lo = 0 then
       { row = basePos.row; column = basePos.column + lineOff }
@@ -3206,21 +3271,15 @@ and parseTupleType (state : ParserState) (i : int) : WT.TypeReference * int =
   else
     let star1 = rng state j
     let (second, k) = parseAtomType state (j + 1)
-    let rest = System.Collections.Generic.List<TokenRange * WT.TypeReference>()
-    let mutable m = k
-    while tok state m = TStar && state.pendingGt = 0 do
-      let sr = rng state m
-      let (t, m2) = parseAtomType state (m + 1)
-      rest.Add(sr, t)
-      m <- if m2 > m then m2 else m + 1
-    let endT = if rest.Count > 0 then snd (Seq.last rest) else second
+    let (rest, m) = separatedSkipping TStar true parseAtomType state [] k
+    let endT = if List.isEmpty rest then second else snd (Seq.last rest)
     let z = zeroWidthAtEnd (WT.typeReferenceRange first) // bare tuple: no parens
     (WT.TTuple(
       span (WT.typeReferenceRange first) (WT.typeReferenceRange endT),
       first,
       star1,
       second,
-      List.ofSeq rest,
+      rest,
       z,
       z
      ),
@@ -3236,19 +3295,13 @@ and parseTypeArgs
   if tok state i <> TLt then
     ([], None, i)
   else
-    let args = System.Collections.Generic.List<WT.TypeReference>()
     let (first, j) = parseTypeRef state (i + 1)
-    args.Add first
-    let mutable k = j
     // stop taking args once a `>>` has left a `>` pending for THIS level, else a
     // nested `Option<Result<T,S>>` would swallow the enclosing type's next arg
     // (`Option<Result<T,S>, S>`). Mirrors the tuple loop's `state.pendingGt = 0` guard.
-    while tok state k = TComma && state.pendingGt = 0 do
-      let (a, k2) = parseTypeRef state (k + 1)
-      args.Add a
-      k <- if k2 > k then k2 else k + 1
+    let (rest, k) = separatedSkipping TComma true parseTypeRef state [] j
     let (closeR, k3) = expectGt state k
-    (List.ofSeq args, Some closeR, k3)
+    (first :: List.map snd rest, Some closeR, k3)
 
 and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
