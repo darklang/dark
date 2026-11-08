@@ -436,7 +436,8 @@ let private watchedRunsDoNotSpread =
   }
 
 /// Cancelled mid-spread: the map's process ends cancelled, with no list, and the chunks go with
-/// it.
+/// it. The stop is the answer: the cancelled chunks are not taken for a fallback, which would run
+/// the rest of the map here and only then notice the cancel.
 let private cancelledLeavesNothing =
   testTask "a cancelled spread map answers no list and leaves no chunk running" {
     let! state = executionStateFor pmPT false
@@ -449,6 +450,7 @@ let private cancelledLeavesNothing =
     Spread.crossover <- 0L
     try
       let before = Spread.spreads
+      let fallbacksBefore = Spread.fallbacks
       let thread =
         Thread(
           (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
@@ -459,15 +461,14 @@ let private cancelledLeavesNothing =
       while Spread.spreads = before && System.DateTime.UtcNow < deadline do
         Thread.Sleep 5
       Expect.isGreaterThan Spread.spreads before "the map spread"
-      let sw = System.Diagnostics.Stopwatch.StartNew()
-      s.Cancel p.id |> ignore<bool>
+      Expect.isTrue (s.Cancel p.id) "the map was still running when it was cancelled"
       let! result = p.completion.Task
-      // Before the stop was checked at the fallback, a cancel here waited out the whole rest of
-      // the program; after, it takes well under a second. Ten seconds is far from both.
-      Expect.isLessThan
-        sw.ElapsedMilliseconds
-        10_000L
-        "the cancel took effect promptly"
+      // Not a time limit, which a loaded machine breaks. Before the stop was checked at the
+      // fallback, the cancelled chunks were taken for one, and the rest of the map ran here.
+      Expect.equal
+        (Spread.fallbacks - fallbacksBefore)
+        0L
+        "the cancel did not fall back to running the rest here"
       match result with
       | Error _ -> ()
       | Ok v -> failtest $"a cancelled map answered {v}"

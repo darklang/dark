@@ -284,46 +284,65 @@ let private suspendThenResume =
     "a run suspended midway resumes with its first effects answered from the log"
     (fun state ->
       task {
-        // The second uuid comes after a pause long enough to suspend during.
+        // The pause between the two uuids waits for a file this test creates, and the run says
+        // it has reached the pause by writing another. So the suspend lands after the first
+        // uuid and before the second however slow the machine is; a fixed sleep raced it. The
+        // wait polls with reads and sleeps, which a resume answers from the log; a shell would
+        // be a process, which it cannot.
+        let dir =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-suspend-{System.Guid.NewGuid()}"
+          )
+        System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+        let started = System.IO.Path.Combine(dir, "started")
+        let gate = System.IO.Path.Combine(dir, "gate")
+        let release () = System.IO.File.WriteAllText(gate, "")
         let program =
-          "let a = Stdlib.Uuid.generate()\nlet _ = Stdlib.Cli.Posix.sleep(800.0)\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
-        let running = runCli state [ "eval"; program ]
-        // Until the run is in the foreground, then a moment more for the first uuid (made in
-        // the first few milliseconds; the tracer holds it until a flush, so there is nothing
-        // to poll for).
-        let deadline = System.DateTime.UtcNow.AddSeconds 5.
-        while (Traces.Foreground.currentId ()).IsNone
-              && System.DateTime.UtcNow < deadline do
-          do! Task.Delay 10
-        do! Task.Delay 300
-        let! suspended = Traces.Foreground.suspend ()
-        Expect.isSome suspended "the foreground run was suspended"
-        let! e = latest ()
-        Expect.equal e.status Traces.Suspended "and marked so"
-        let! log = Traces.log e.id
-        // Sleep now reads the target ABI clock before entering nanosleep, so
-        // the prefix also contains clock inputs. Count UUID effects, not rows.
-        Expect.equal
-          (log
-           |> List.filter (fun (_, _, _, call) -> call.builtin = "uuidGenerate")
-           |> List.length)
-          1
-          "the log has the first uuid and nothing after the pause"
-        // The interrupted run goes on (in the CLI it would have exited) and must not overwrite
-        // what the suspend stored.
-        let! first = running
-        let! e = latest ()
-        Expect.equal
-          e.status
-          Traces.Suspended
-          "the run's own ending left the suspend alone"
-        let! resumed = runCli state [ "exec"; "resume"; prefixOf e ]
-        let last = resumed.Split('\n') |> Array.last
-        match words first, words last with
-        | [ a1; _ ], [ a2; b2 ] ->
-          Expect.equal a2 a1 "the first uuid came from the log"
-          Expect.isTrue (b2.Length > 30) "the second was made live"
-        | _ -> failtest $"unexpected outputs: {first} / {last}"
+          $"let a = Stdlib.Uuid.generate()\nlet _ = Stdlib.Cli.FileSystem.writeFile(\"{started}\", Stdlib.Utf8.encode(\"\"))\nlet _ = Stdlib.List.fold(Stdlib.List.range(1, 6000), false, fun(opened, _) -> if opened then true else if Stdlib.Result.isOk(Stdlib.Cli.FileSystem.readFile(\"{gate}\")) then true else (let _ = Stdlib.Cli.Posix.sleep(20.0) in false))\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
+        // The grant lands in the shared store, so it is taken back whatever happens.
+        let grant = [ "file"; "read+write"; dir ]
+        let! _ = runCli state ([ "permissions"; "allow" ] @ grant)
+        try
+          let running = runCli state [ "eval"; program ]
+          let deadline = System.DateTime.UtcNow.AddMinutes 2.
+          while not (System.IO.File.Exists started)
+                && System.DateTime.UtcNow < deadline do
+            do! Task.Delay 10
+          Expect.isTrue (System.IO.File.Exists started) "the run reached the pause"
+          let! suspended = Traces.Foreground.suspend ()
+          Expect.isSome suspended "the foreground run was suspended"
+          let! e = latest ()
+          Expect.equal e.status Traces.Suspended "and marked so"
+          let! log = Traces.log e.id
+          Expect.equal
+            (log
+             |> List.filter (fun (_, _, _, call) -> call.builtin = "uuidGenerate")
+             |> List.length)
+            1
+            "the log has the first uuid and nothing after the pause"
+          // The interrupted run goes on (in the CLI it would have exited) and must not
+          // overwrite what the suspend stored.
+          release ()
+          let! first = running
+          let! e = latest ()
+          Expect.equal
+            e.status
+            Traces.Suspended
+            "the run's own ending left the suspend alone"
+          // The log ends inside the pause, so the resume reads on live and finds the gate open.
+          let! resumed = runCli state [ "exec"; "resume"; prefixOf e ]
+          let last = resumed.Split('\n') |> Array.last
+          match words first, words last with
+          | [ a1; _ ], [ a2; b2 ] ->
+            Expect.equal a2 a1 "the first uuid came from the log"
+            Expect.isTrue (b2.Length > 30) "the second was made live"
+          | _ -> failtest $"unexpected outputs: {first} / {last}"
+        finally
+          // Open even if a check failed, so the run still in flight can finish.
+          release ()
+          (runCli state ([ "permissions"; "remove" ] @ grant)).Wait()
+          System.IO.Directory.Delete(dir, true)
       })
 
 
