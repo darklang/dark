@@ -289,3 +289,111 @@ test aValueMadeOnABranchWorksAfterTheMerge =
       evals(dark, "Tests.App.plusOne()", "43", "and so does its caller")
       draftIsEmpty(dark, "nothing is left in main's draft")
       same(conflicts(dark), [], "and nothing collided") ])
+
+
+/// A function, two tests of things it might use, and a commit, on main. `Tests.App.f` is 1 and
+/// `fIsOne` checks it; `gIsFive` checks `Tests.App.g`, which no branch below touches.
+let twoTestedFunctions(dark: Cli.Tests.Instance.T): Stdlib.Test.Result =
+  Stdlib.Test.all(
+    [ saveNumber(dark, "Tests.App.f", "1")
+      saveNumber(dark, "Tests.App.g", "5")
+      run(
+        dark,
+        [ "test"
+          "add"
+          "Tests.App.Tests.fIsOne"
+          "Tests.App.f() |> Stdlib.Test.equal(1)" ])
+
+      run(
+        dark,
+        [ "test"
+          "add"
+          "Tests.App.Tests.gIsFive"
+          "Tests.App.g() |> Stdlib.Test.equal(5)" ])
+
+      commit(dark, "base") ])
+
+
+test aMergeRunsTheTestsTheBranchTouchesAndWarnsWhenOneFails =
+  scenario(fun dark ->
+    [ twoTestedFunctions(dark)
+      switch(dark, "feat")
+      saveNumber(dark, "Tests.App.f", "2")
+      commit(dark, "f is 2")
+      printsAndOmits(
+        dark,
+        [ "merge", "feat", "-y" ],
+        [ "Running the 1 test group that \"feat\" touches"
+          "FAIL Tests.App.Tests.fIsOne"
+          "1 touched test group failed"
+          "Merged" ],
+        [ "gIsFive" ],
+        "the merge runs the test that uses f, warns that it fails, skips the other, and lands")
+
+      evals(dark, "Tests.App.f()", "2", "the branch's f is on main") ])
+
+
+test aMergeRunsNoTestsWhenNoneIsTouchedOrWhenToldNotTo =
+  scenario(fun dark ->
+    [ twoTestedFunctions(dark)
+      switch(dark, "other")
+      saveNumber(dark, "Tests.App.unused", "3")
+      commit(dark, "unused")
+      printsAndOmits(
+        dark,
+        [ "merge", "other", "-y" ],
+        [ "no tests use what this branch changes", "Merged" ],
+        [ "Running", "fIsOne", "gIsFive" ],
+        "a branch that changes nothing a test uses runs none")
+
+      switch(dark, "feat")
+      saveNumber(dark, "Tests.App.f", "2")
+      commit(dark, "f is 2")
+      printsAndOmits(
+        dark,
+        [ "merge", "feat", "-y", "--skip-tests" ],
+        [ "Merged" ],
+        [ "Running", "fIsOne", "no tests use" ],
+        "--skip-tests merges without running the touched test")
+
+      switch(dark, "again")
+      saveNumber(dark, "Tests.App.f", "3")
+      commit(dark, "f is 3")
+      printsAndOmits(
+        dark,
+        [ "merge", "again", "-y", "--run-all-tests" ],
+        [ "Running the 1 test group that \"again\" touches"
+          "FAIL Tests.App.Tests.fIsOne"
+          "Merged" ],
+        [ "over the cap", "gIsFive" ],
+        "--run-all-tests runs the touched test as usual below the cap") ])
+
+
+test aMergeLeavesTouchedTestsOverTheCapToThePerson =
+  let ux = Darklang.Cli.Branch.TouchedTestRun.UpToCap
+  let all = Darklang.Cli.Branch.TouchedTestRun.All
+  let skip = Darklang.Cli.Branch.TouchedTestRun.Skip
+  Stdlib.Test.all(
+    [ same(
+        Darklang.Cli.Branch.overTheCap(ux, 50),
+        false,
+        "50 isolated test groups still run")
+
+      same(Darklang.Cli.Branch.overTheCap(ux, 51), true, "51 are over the cap")
+
+      same(
+        Darklang.Cli.Branch.overTheCap(all, 51),
+        false,
+        "--run-all-tests runs them anyway")
+
+      same(
+        Darklang.Cli.Branch.overTheCap(skip, 51),
+        false,
+        "--skip-tests runs nothing to cap")
+
+      same(
+        Darklang.Cli.Branch.testRunCommand(
+          "feat",
+          [ "A.Tests.one", "A.Tests.two" ]),
+        "dark --branch feat test run A.Tests.one A.Tests.two",
+        "the printed command runs exactly the touched tests") ])

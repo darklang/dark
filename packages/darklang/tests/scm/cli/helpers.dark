@@ -146,6 +146,36 @@ let doesNotSay(
     Stdlib.Test.Result.Pass
 
 
+/// One run of `dark <args>` succeeds, prints every one of <param present> and none of
+/// <param absent>. For a command that changes something, so it cannot be run twice.
+let printsAndOmits(
+  dark: Cli.Tests.Instance.T,
+  args: List<String>,
+  present: List<String>,
+  absent: List<String>,
+  why: String)
+  : Stdlib.Test.Result =
+  let (code, _, said) = exec(dark, args)
+  let missing =
+    Stdlib.List.filter(present, fun n ->
+      Stdlib.Bool.not(Stdlib.String.contains(said, n)))
+
+  let extra =
+    Stdlib.List.filter(absent, fun n -> Stdlib.String.contains(said, n))
+
+  if code != 0 then
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` exited {Stdlib.display(code)}: {said}")
+  else if Stdlib.Bool.not(Stdlib.List.isEmpty(missing)) then
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` should say {Stdlib.inspect(missing)}. It said: {said}")
+  else if Stdlib.Bool.not(Stdlib.List.isEmpty(extra)) then
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` should not say {Stdlib.inspect(extra)}. It said: {said}")
+  else
+    Stdlib.Test.Result.Pass
+
+
 /// `dark <args>` fails (nonzero exit) and its output includes <param reason>.
 let refuses(
   dark: Cli.Tests.Instance.T,

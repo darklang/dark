@@ -487,17 +487,77 @@ let liveTests(
     Stdlib.Bool.not(Query.isDeprecatedAtLocation(depSets, item.location, item.entity.hash)))
 
 
+/// The options a run starts from. One test per core, at most 16: every slot owns a
+/// process and a store copy. A test process holds about 90 MB (one outlier reaches
+/// ~750 MB), so 16 stay near 2 GB. `exec.workers` lowers the core count; --jobs
+/// overrides both.
+let defaultRunOptions(): RunOptions =
+  let cores = LanguageTools.Exec.workers()
+  RunOptions { force = false, jobs = if cores < 16 then cores else 16, filters = [] }
+
+
+/// Run <param tests> on <param branchId> as `test run` does: from the cache where it
+/// allows, in parallel, each printed as it finishes, then one summary line. Prints
+/// nothing for no tests; the caller says what an empty selection means.
+let runAndSummarize(
+  run: LanguageTools.PackageManager.Test.Run,
+  branchId: Uuid,
+  options: RunOptions,
+  tests:
+    List<
+      LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
+  : Counts =
+  let initial =
+    Counts
+      { passed = 0
+        failed = 0
+        tests = 0
+        cached = 0
+        ran = 0
+        isolated = 0
+        reran = 0
+        timings = [] }
+
+  let selected = Stdlib.List.sortBy(tests, fullPath)
+  // One analysis for the whole run: the tests share most of what they call.
+  let cacheSafe =
+    LanguageTools.PackageManager.Test.areCacheSafe(
+      Stdlib.List.map(selected, fun item -> item.entity.hash))
+
+  let counts =
+    runSelected(
+      run,
+      branchId,
+      options,
+      cacheContext(branchId),
+      Stdlib.List.zipShortest(selected, cacheSafe),
+      [],
+      initial)
+
+  let total = counts.passed + counts.failed
+  if total > 0 then
+    printSlowest(counts.timings)
+    Stdlib.printLine("")
+    // Said only when it happened, so a run where every test started writing
+    // shows up here rather than only as a slower run.
+    let reranNote =
+      if counts.reran == 0 then
+        ""
+      else
+        $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
+
+    Stdlib.printLine(
+      $"{Stdlib.display(total)} test groups ({Stdlib.display(counts.tests)} tests): {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
+
+  counts
+
+
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: AppState,
   args: List<String>)
   : AppState =
-  // One test per core, at most 16: every slot owns a process and a store copy.
-  // A test process holds about 90 MB (one outlier reaches ~750 MB), so 16 stay
-  // near 2 GB. `exec.workers` lowers the core count; --jobs overrides both.
-  let cores = LanguageTools.Exec.workers()
-  let defaults = RunOptions { force = false, jobs = if cores < 16 then cores else 16, filters = [] }
-  match parseRunOptions(defaults, args) with
+  match parseRunOptions(defaultRunOptions(), args) with
   | Error(message) ->
     printErr(message)
     Stdlib.printErrorLine(usage)
@@ -511,50 +571,9 @@ let runTestsInRun(
         Stdlib.List.isEmpty(options.filters)
         || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
 
-    let selected = Stdlib.List.sortBy(liveTests, fullPath)
-    // One analysis for the whole run: the tests share most of what they call.
-    let cacheSafe =
-      LanguageTools.PackageManager.Test.areCacheSafe(
-        Stdlib.List.map(selected, fun item -> item.entity.hash))
-
-    let initial =
-      Counts
-        { passed = 0
-          failed = 0
-          tests = 0
-          cached = 0
-          ran = 0
-          isolated = 0
-          reran = 0
-          timings = [] }
-
-    let counts =
-      runSelected(
-        run,
-        state.currentBranchId,
-        options,
-        cacheContext(state.currentBranchId),
-        Stdlib.List.zipShortest(selected, cacheSafe),
-        [],
-        initial)
-
+    let counts = runAndSummarize(run, state.currentBranchId, options, liveTests)
     let total = counts.passed + counts.failed
-    if total == 0 then
-      printErr("No package tests matched.")
-    else
-      printSlowest(counts.timings)
-      Stdlib.printLine("")
-      // Said only when it happened, so a run where every test started writing
-      // shows up here rather than only as a slower run.
-      let reranNote =
-        if counts.reran == 0 then
-          ""
-        else
-          $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
-
-      Stdlib.printLine(
-        $"{Stdlib.display(total)} test groups ({Stdlib.display(counts.tests)} tests): {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
-
+    if total == 0 then printErr("No package tests matched.")
     if counts.failed > 0 || total == 0 then { state with exitCode = 1 } else state
 
 

@@ -189,7 +189,9 @@ module Registry =
 
 
   let acceptsMerge(): Accepts.Accepts =
-    Accepts.upTo(1, [ "-y", "--yes", "--allow-type-errors", "--dry-run" ])
+    Accepts.upTo(
+      1,
+      [ "-y", "--yes", "--allow-type-errors", "--skip-tests", "--run-all-tests", "--dry-run" ])
 
 
   let acceptsBranches(): Accepts.Accepts = Accepts.flagsOnly([ "--all", "--json" ])
