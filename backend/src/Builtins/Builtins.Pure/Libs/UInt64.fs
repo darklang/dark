@@ -172,22 +172,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-
-
-    { name = fn "uint64Sqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt64 "" ]
-      returnType = TFloat
-      description = "Get the square root of an <type UInt64>"
-      fn =
-        (function
-        | _, _, _, [| DUInt64 a |] -> Ply(DFloat(sqrt (float a)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "uint64ToFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt64 "" ]

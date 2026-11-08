@@ -207,20 +207,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "int16Sqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt16 "" ]
-      returnType = TFloat
-      description = "Get the square root of an <type Int16>"
-      fn =
-        (function
-        | _, _, _, [| DInt16 a |] -> Ply(DFloat(sqrt (float a)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "int16ToFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TInt16 "" ]

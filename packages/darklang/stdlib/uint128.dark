@@ -54,7 +54,7 @@ impl Compare for UInt128 =
 
 
 /// Get the square root of an <type UInt128>
-let sqrt(a: UInt128): Float = Builtin.uint128Sqrt(a)
+let sqrt(a: UInt128): Float = Stdlib.Float.sqrt(Stdlib.UInt128.toFloat(a))
 
 
 /// Converts a <type UInt128> to a <type Float>

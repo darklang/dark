@@ -272,23 +272,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "bigIntSqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TBigInt "" ]
-      returnType = TFloat
-      description =
-        "Get the square root of a <type BigInt> as a <type Float>. Note that very "
-        + "large values lose precision when converted to a float."
-      fn =
-        (function
-        | _, _, _, [| (DBigInt _) as v |] ->
-          Ply(DFloat(sqrt (float (Dval.asBigInt v))))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "bigIntToFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TBigInt "" ]

@@ -68,7 +68,7 @@ let random(start: Int64, ``end``: Int64): Int64 =
 
 
 /// Get the square root of an <type Int64>
-let sqrt(a: Int64): Float = Builtin.int64Sqrt(a)
+let sqrt(a: Int64): Float = Stdlib.Float.sqrt(Stdlib.Int64.toFloat(a))
 
 
 /// Converts an <type Int64> to a <type Float>

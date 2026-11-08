@@ -61,7 +61,7 @@ impl Compare for BigInt =
 
 
 /// Get the square root of a <type BigInt>
-let sqrt(a: BigInt): Float = Builtin.bigIntSqrt(a)
+let sqrt(a: BigInt): Float = Stdlib.Float.sqrt(Stdlib.BigInt.toFloat(a))
 
 
 /// Converts a <type BigInt> to a <type Float>

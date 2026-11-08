@@ -65,7 +65,7 @@ let random(start: UInt16, ``end``: UInt16): UInt16 =
 
 
 /// Get the square root of an <type UInt16>
-let sqrt(a: UInt16): Float = Builtin.uint16Sqrt(a)
+let sqrt(a: UInt16): Float = Stdlib.Float.sqrt(Stdlib.UInt16.toFloat(a))
 
 
 /// Converts an <type UInt16> to a <type Float>
