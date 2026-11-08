@@ -101,6 +101,7 @@ by the type checker (`dark typecheck`).
 ## Strings
   "hello" + " world"     // concat
   $"value: {x}"          // interpolation
+  "tab\tthen newline\n"  // escapes: `docs escapes` has them all
 
 ## Lambda
   fun x -> x + 1
