@@ -183,8 +183,6 @@ module InvalidFnCalls =
   // misc errors
   test runtimeErrorPropagates =
     derrorFn("msg") => raises "Uncaught exception: msg"
-  // test throwsExceptionRaises =
-  //   throwsException () => raises "Unknown error"
 
 // this is making sure that generic type args aren't "carried" into incorrect
 // contexts. specifically, that if `'x` is resolved in one place, it won't be
