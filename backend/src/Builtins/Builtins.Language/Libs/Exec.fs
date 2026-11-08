@@ -111,17 +111,17 @@ let private detailToDT (p : Scheduler.ProcessSummary) : Dval =
     [ "summary", summaryToDT p
       "frames", Dval.list (RT2DT.ExecutionPoint.knownType ()) frames ]
 
-/// A scheduling policy written in Dark, as the scheduler's `Chooser`: `fn` takes the runnable
-/// processes (`List<Stdlib.Exec.Summary>`, oldest first) and answers `Some id` to step next, or
-/// `None` for no preference. It runs on the scheduler's own thread, unscheduled, between slices,
-/// so it should be quick and should not wait; a failure or an answer of another shape counts as
-/// no preference for that turn, and the first failure is said once on stderr.
 /// What stderr says once when `exec.policy` cannot be used for a turn: the setting, what went
 /// wrong, and how to put it back.
 let policyComplaint (policy : string) (what : string) : string =
   $"exec.policy: {policy} {what}; round robin for this turn. "
   + "`dark config unset exec.policy` resets it."
 
+/// A scheduling policy written in Dark, as the scheduler's `Chooser`: `fn` takes the runnable
+/// processes (`List<Stdlib.Exec.Summary>`, oldest first) and answers `Some id` to step next, or
+/// `None` for no preference. It runs on the scheduler's own thread, unscheduled, between slices,
+/// so it should be quick and should not wait; a failure or an answer of another shape counts as
+/// no preference for that turn, and the first failure is said once on stderr.
 let chooserFor
   (state : ExecutionState)
   (fn : FQFnName.FQFnName)
@@ -169,9 +169,6 @@ let private handleOf (pid : Scheduler.ProcessId) : Dval =
   let tn = typ PackageRefs.Type.Stdlib.Exec.handle
   DRecord(tn, tn, [ ValueType.Unknown ], RecordFields.ofList [ "id", DUuid pid ])
 
-let private handleType () : KnownType =
-  KTCustomType(typ PackageRefs.Type.Stdlib.Exec.handle, [ ValueType.Unknown ])
-
 let private pidOfHandle (vm : VMState) (h : Dval) : Scheduler.ProcessId =
   match h with
   | DRecord(_, _, _, fields) ->
@@ -200,6 +197,32 @@ let private noSuchProcess () : RuntimeError.Error =
     + "that its answer was dropped",
     []
   )
+
+/// Where the process behind a handle is: still in the scheduler's table, or gone from it with
+/// its answer kept until somebody takes it, which is what makes a long `List.parallelMap` work.
+type private Found =
+  | Running of Scheduler.Process
+  | Finished of ExecutionResult
+
+/// Look up `pid`, taking its kept answer if its row has gone. Raises for a handle nobody has.
+let private find
+  (vm : VMState)
+  (sched : Scheduler.Scheduler)
+  (pid : Scheduler.ProcessId)
+  : Found =
+  match sched.Find pid with
+  | Some p -> Running p
+  | None ->
+    match sched.TakeResult pid with
+    | Some result -> Finished result
+    | None -> noSuchProcess () |> raiseRTE vm.threadID
+
+/// `Option<'a>` for a handle's `'a`, which nothing here knows: an unknown.
+let private optionOfAny (dv : Option<Dval>) : Dval =
+  let tn = Dval.optionType ()
+  match dv with
+  | Some dv -> DEnum(tn, tn, [ ValueType.Unknown ], "Some", [ dv ])
+  | None -> DEnum(tn, tn, [ ValueType.Unknown ], "None", [])
 
 /// Tell `ps` what the calling process is about to park on.
 let private parkOn (p : Scheduler.Process) : unit =
@@ -357,16 +380,11 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| handle |] ->
-          let pid = pidOfHandle vm handle
-          let sched = Scheduler.Scheduler.CurrentOrShared
-          match sched.Find pid with
-          | Some p -> awaitProcess vm p
-          | None ->
-            // Finished and dropped from the display table, but its answer is kept until
-            // somebody takes it, which is what makes a long `List.parallelMap` work.
-            match sched.TakeResult pid with
-            | Some result -> Ply(resultOf vm result)
-            | None -> noSuchProcess () |> raiseRTE vm.threadID
+          match
+            find vm Scheduler.Scheduler.CurrentOrShared (pidOfHandle vm handle)
+          with
+          | Running p -> awaitProcess vm p
+          | Finished result -> Ply(resultOf vm result)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -391,40 +409,24 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DInt64 ms; handle |] ->
-          let pid = pidOfHandle vm handle
           let sched = Scheduler.Scheduler.CurrentOrShared
-          match sched.Find pid with
-          | Some p ->
-            // The inner type is the handle's `'a`, which nothing here knows: an unknown.
-            let optionOf (dv : Option<Dval>) : Dval =
-              let tn = Dval.optionType ()
-              match dv with
-              | Some dv -> DEnum(tn, tn, [ ValueType.Unknown ], "Some", [ dv ])
-              | None -> DEnum(tn, tn, [ ValueType.Unknown ], "None", [])
-            let some (result : ExecutionResult) = optionOf (Some(resultOf vm result))
+          let some (result : ExecutionResult) =
+            optionOfAny (Some(resultOf vm result))
+          match find vm sched (pidOfHandle vm handle) with
+          | Finished result -> Ply(some result)
+          | Running p ->
             let task = p.completion.Task
             if task.IsCompletedSuccessfully then
               Ply(some task.Result)
             elif ms <= 0L then
-              Ply(optionOf None)
+              Ply(optionOfAny None)
             else
               parkOn p
               uply {
-                match!
-                  Scheduler.Scheduler.CurrentOrShared.AwaitWithin(p, int ms)
-                with
+                match! sched.AwaitWithin(p, int ms) with
                 | Some result -> return some result
-                | None -> return optionOf None
+                | None -> return optionOfAny None
               }
-          | None ->
-            let optionOf (dv : Option<Dval>) : Dval =
-              let tn = Dval.optionType ()
-              match dv with
-              | Some dv -> DEnum(tn, tn, [ ValueType.Unknown ], "Some", [ dv ])
-              | None -> DEnum(tn, tn, [ ValueType.Unknown ], "None", [])
-            match sched.TakeResult pid with
-            | Some result -> Ply(optionOf (Some(resultOf vm result)))
-            | None -> noSuchProcess () |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -466,12 +468,9 @@ let fns () : List<BuiltInFn> =
           let forgotten =
             handles
             |> List.tryPick (fun h ->
-              match s.Find(pidOfHandle vm h) with
-              | Some _ -> None
-              | None ->
-                match s.TakeResult(pidOfHandle vm h) with
-                | Some result -> Some(h, result)
-                | None -> noSuchProcess () |> raiseRTE vm.threadID)
+              match find vm s (pidOfHandle vm h) with
+              | Running _ -> None
+              | Finished result -> Some(h, result))
           let procs =
             handles
             |> List.choose (fun h ->
