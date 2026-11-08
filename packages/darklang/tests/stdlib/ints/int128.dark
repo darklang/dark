@@ -382,6 +382,36 @@ test checkedAbsoluteValue =
       |> Stdlib.Test.equal(Ok(170141183460469231731687303715884105727s128))
       Stdlib.Int128.checkedAbsoluteValue(0s128) |> Stdlib.Test.equal(Ok(0s128)) ])
 
+/// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
+test checkedPower =
+  Stdlib.Test.all(
+    [ Stdlib.Int128.checkedPower(2s128, 126s128)
+      |> Stdlib.Test.equal(Ok(85070591730234615865843651857942052864s128))
+      Stdlib.Int128.checkedPower(2s128, 127s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.Int128.checkedPower(-2s128, 127s128)
+      |> Stdlib.Test.equal(Ok(-170141183460469231731687303715884105728s128))
+      Stdlib.Int128.checkedPower(-2s128, 126s128)
+      |> Stdlib.Test.equal(Ok(85070591730234615865843651857942052864s128))
+      Stdlib.Int128.checkedPower(3s128, 0s128) |> Stdlib.Test.equal(Ok(1s128))
+      Stdlib.Int128.checkedPower(0s128, 0s128) |> Stdlib.Test.equal(Ok(1s128))
+      Stdlib.Int128.checkedPower(0s128, 170141183460469231731687303715884105727s128)
+      |> Stdlib.Test.equal(Ok(0s128))
+      Stdlib.Int128.checkedPower(1s128, 170141183460469231731687303715884105727s128)
+      |> Stdlib.Test.equal(Ok(1s128))
+      Stdlib.Int128.checkedPower(2s128, 170141183460469231731687303715884105727s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.Int128.checkedPower(-1s128, 170141183460469231731687303715884105727s128)
+      |> Stdlib.Test.equal(Ok(-1s128))
+      Stdlib.Int128.checkedPower(-1s128, 170141183460469231731687303715884105726s128)
+      |> Stdlib.Test.equal(Ok(1s128))
+      Stdlib.Int128.checkedPower(2s128, -1s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
+      Stdlib.Int128.checkedPower(0s128, -1s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
+      Stdlib.Int128.checkedPower(1s128, -170141183460469231731687303715884105728s128)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent)) ])
+
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(

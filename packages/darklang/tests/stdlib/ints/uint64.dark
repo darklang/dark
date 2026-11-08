@@ -358,6 +358,23 @@ test checkedAbsoluteValue =
       |> Stdlib.Test.equal(Ok(18446744073709551615u64))
       Stdlib.UInt64.checkedAbsoluteValue(0u64) |> Stdlib.Test.equal(Ok(0u64)) ])
 
+/// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
+test checkedPower =
+  Stdlib.Test.all(
+    [ Stdlib.UInt64.checkedPower(2u64, 63u64) |> Stdlib.Test.equal(Ok(9223372036854775808u64))
+      Stdlib.UInt64.checkedPower(2u64, 64u64)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.UInt64.checkedPower(4294967295u64, 2u64)
+      |> Stdlib.Test.equal(Ok(18446744065119617025u64))
+      Stdlib.UInt64.checkedPower(4294967296u64, 2u64)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.UInt64.checkedPower(3u64, 0u64) |> Stdlib.Test.equal(Ok(1u64))
+      Stdlib.UInt64.checkedPower(0u64, 0u64) |> Stdlib.Test.equal(Ok(1u64))
+      Stdlib.UInt64.checkedPower(0u64, 18446744073709551615u64) |> Stdlib.Test.equal(Ok(0u64))
+      Stdlib.UInt64.checkedPower(1u64, 18446744073709551615u64) |> Stdlib.Test.equal(Ok(1u64))
+      Stdlib.UInt64.checkedPower(2u64, 18446744073709551615u64)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow)) ])
+
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(
