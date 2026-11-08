@@ -106,6 +106,7 @@ let showDependents(
 /// Transitive traversal, collecting dependents via batched FQN-keyed queries. Each level's results carry
 /// their own location, so the next level feeds straight back in without a hash -> location round-trip.
 let collectTransitiveDependents(
+  branch: Uuid,
   processed: List<String>,
   pending: List<Item>,
   accumulated: List<Item>)
@@ -123,7 +124,7 @@ let collectTransitiveDependents(
     match toProcess with
     | [] -> Result.Ok(accumulated)
     | targets ->
-      match SCM.Deps.dependents(SCM.PackageOps.currentBranch(), targets) with
+      match SCM.Deps.dependents(branch, targets) with
       | Error(e) -> Result.Error(e)
       | Ok(batchResults) ->
         // Each result already carries its own location, so this level's dependents are
@@ -142,12 +143,18 @@ let collectTransitiveDependents(
               $"{fqn(loc)}:{LanguageTools.ProgramTypes.ItemKind.toString(kind)}"))
 
         let newAccumulated = Stdlib.List.concat(accumulated, newDeps)
-        collectTransitiveDependents(newProcessed, newDeps, newAccumulated)
+        collectTransitiveDependents(branch, newProcessed, newDeps, newAccumulated)
 
 
 /// Get all transitive dependents of one or more targets.
 let getTransitiveDependentsFor(_branchId: Uuid, targets: List<Item>): Result<List<Item>, String> =
-  collectTransitiveDependents([], targets, []) |> Stdlib.Result.map(Stdlib.List.unique)
+  getTransitiveDependentsOn(SCM.PackageOps.currentBranch(), targets)
+
+
+/// The same, on a branch named outright rather than the process's: `dark merge <branch>`
+/// asks about the branch it merges, wherever it is run from.
+let getTransitiveDependentsOn(branch: Uuid, targets: List<Item>): Result<List<Item>, String> =
+  collectTransitiveDependents(branch, [], targets, []) |> Stdlib.Result.map(Stdlib.List.unique)
 
 
 /// Get all transitive dependents (everything that could break if this changes).

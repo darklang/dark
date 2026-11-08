@@ -436,24 +436,26 @@ let execute(state: AppState, args: List<String>): AppState =
     { state with exitCode = 1 }
 
 
+/// The options a run starts from. One test per core, at most 16: every slot owns a
+/// process and a store copy. A test process holds about 90 MB (one outlier reaches
+/// ~750 MB), so 16 stay near 2 GB. `exec.workers` lowers the core count; --jobs
+/// overrides both.
+let defaultRunOptions(): RunOptions =
+  let cores = LanguageTools.Exec.workers()
+  RunOptions
+    { force = false
+      json = false
+      brief = false
+      jobs = if cores < 16 then cores else 16
+      seed = Option.None
+      filters = [] }
+
+
 /// `dark test run [--force] [--jobs <count>] [--seed <n>] [filters]`: run the matching tests,
 /// from the cache where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests(state: AppState, args: List<String>): AppState =
-  // One test per core, at most 16: every slot owns a process and a store copy.
-  // A test process holds about 90 MB (one outlier reaches ~750 MB), so 16 stay
-  // near 2 GB. `exec.workers` lowers the core count; --jobs overrides both.
-  let cores = LanguageTools.Exec.workers()
-  let defaults =
-    RunOptions
-      { force = false
-        json = false
-        brief = false
-        jobs = if cores < 16 then cores else 16
-        seed = Option.None
-        filters = [] }
-
-  match parseRunOptions(defaults, args) with
+  match parseRunOptions(defaultRunOptions(), args) with
   | Error(message) ->
     printErr(message)
     Stdlib.printErrorLine(usage)
@@ -927,14 +929,16 @@ let testItemsUnder(
       Option.None)
 
 
-let runTestsInRun(
+/// Run <param selected> on <param branchId> as `test run` does: from the cache where it
+/// allows, in parallel, each printed as it finishes, then the counts. The counts, and
+/// whether the answer printed.
+let runAndReport(
   run: LanguageTools.PackageManager.Test.Run,
-  state: AppState,
+  branchId: Uuid,
   options: RunOptions,
-  selected:
-    List<
-      LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
-  : AppState =
+  selected: List<
+    LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
+  : (Counts * Bool) =
   // One analysis for the whole run: the tests share most of what they call.
   let cacheSafe =
     LanguageTools.PackageManager.Test.areCacheSafe(
@@ -954,9 +958,9 @@ let runTestsInRun(
   let counts =
     runSelected(
       run,
-      state.currentBranchId,
+      branchId,
       options,
-      cacheContext(state.currentBranchId),
+      cacheContext(branchId),
       Stdlib.List.zipShortest(selected, cacheSafe),
       [],
       initial)
@@ -1000,6 +1004,18 @@ let runTestsInRun(
 
       true
 
+  (counts, printed)
+
+
+let runTestsInRun(
+  run: LanguageTools.PackageManager.Test.Run,
+  state: AppState,
+  options: RunOptions,
+  selected: List<
+    LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
+  : AppState =
+  let (counts, printed) = runAndReport(run, state.currentBranchId, options, selected)
+  let total = counts.passed + counts.failed
   if Stdlib.Bool.not(printed) || counts.failed > 0 || total == 0 then
     { state with exitCode = 1 }
   else
