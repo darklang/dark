@@ -723,7 +723,24 @@ let private primitiveFits (expected : TypeReference) (actual : Dval) : bool =
   | _ -> false
 
 
+/// Whether <param actual> is a value of <param expected>, and the symbol table with whatever that
+/// bound, or `ValueNone` if only the async unifier can say.
+///
+/// A primitive that fits is answered here, before the general case: every builtin call checks
+/// each argument and its result this way, and most of those are primitives. The general case has
+/// a frame of several hundred bytes, cleared on entry, which cost more than the check itself.
 let rec tryUnifySync
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : TypeSymbolTable voption =
+  if primitiveFits expected actual then
+    ValueSome tst
+  else
+    tryUnifyGeneral tst expected actual
+
+/// `tryUnifySync` for everything but a primitive that fits.
+and private tryUnifyGeneral
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
@@ -763,9 +780,8 @@ let rec tryUnifySync
 
     // A primitive expected type, answered here rather than through `unwrapAliasSync` and
     // `unifyDvalSync`. Neither can do anything for a type with no variables in it: a primitive is
-    // never an alias, and there is nothing to bind, so the symbol table comes back untouched. Every
-    // builtin call makes this check on every argument and on its result, which ablation puts at a
-    // sizable fraction of what the call costs.
+    // never an alias, and there is nothing to bind. One that fits never gets here
+    // (`tryUnifySync`), so this is a mismatch.
     //
     // One arm for all of them, and the check in a function of its own: an arm per type, each with
     // its own `ValueSome tst`, gave this function a 2.7 KB stack frame, cleared on every call.
