@@ -96,13 +96,19 @@ test wordNamesModule =
       |> Stdlib.Test.equal(0) ])
 
 
-// On an equal match the common Stdlib modules come first, then the rest of
-// Stdlib, then other packages, then Darklang's own tools.
-test commonModulesFirst =
+// On an equal match Stdlib comes first, then other packages, then Darklang's own
+// tools; within each, the most called first.
+test tiersThenCallers =
+  let uses =
+    Stdlib.Dict.fromList(
+      [ ("Darklang.Stdlib.String.split", 114)
+        ("Darklang.Stdlib.Regex.split", 1)
+        ("Darklang.Cli.Repl.split", 500) ])
   let order = fun(query, candidates) ->
+    let ranker = Darklang.Cli.Packages.Search.rankerWith(query, [], uses)
     candidates
     |> Stdlib.List.sortBy(fun((owner, m, n)) ->
-      Darklang.Cli.Packages.Search.sortKey(query, owner, Stdlib.String.split(m, "."), n))
+      Darklang.Cli.Packages.Search.rankKey(ranker, owner, Stdlib.String.split(m, "."), n))
     |> Stdlib.List.map(fun((owner, m, _)) -> owner + "." + m)
   Stdlib.Test.all(
     [ order(
@@ -118,6 +124,46 @@ test commonModulesFirst =
           "Darklang.Stdlib.Url"
           "Me.Text"
           "Darklang.Cli.Repl" ]) ])
+
+
+// A word Stdlib spells another way is searched that way too, and ranks by the name it
+// stands for: `size of string` is `String.length`, `replace` is `String.replaceAll`.
+test synonyms =
+  let order = fun(query, uses, candidates) ->
+    let targets =
+      Darklang.Cli.Packages.Search.synonymQueries(query)
+      |> Stdlib.List.map(fun((_, target)) -> target)
+    let ranker = Darklang.Cli.Packages.Search.rankerWith(query, targets, Stdlib.Dict.fromList(uses))
+    candidates
+    |> Stdlib.List.sortBy(fun((m, n)) ->
+      Darklang.Cli.Packages.Search.rankKey(ranker, "Darklang", Stdlib.String.split(m, "."), n))
+    |> Stdlib.List.map(fun((m, n)) -> m + "." + n)
+  Stdlib.Test.all(
+    [ Darklang.Cli.Packages.Search.synonymQueries("size of string")
+      |> Stdlib.Test.equal([ ("length string", "length") ])
+      Darklang.Cli.Packages.Search.synonymQueries("concat strings")
+      |> Stdlib.Test.equal([ ("join strings", "join"), ("append strings", "append") ])
+      Darklang.Cli.Packages.Search.synonymQueries("random number")
+      |> Stdlib.Test.equal([ ("Int64.random", "Int64.random") ])
+      Darklang.Cli.Packages.Search.synonymQueries("String.size")
+      |> Stdlib.Test.equal([])
+      Darklang.Cli.Packages.Search.synonymQueries("split")
+      |> Stdlib.Test.equal([])
+      order(
+        "size of string",
+        [],
+        [ ("Stdlib.Crypto", "digestText"), ("Stdlib.List", "length"), ("Stdlib.String", "length") ])
+      |> Stdlib.Test.equal([ "Stdlib.String.length", "Stdlib.List.length", "Stdlib.Crypto.digestText" ])
+      order(
+        "replace",
+        [ ("Darklang.Stdlib.String.replaceAll", 30), ("Darklang.Stdlib.Regex.replace", 1) ],
+        [ ("Stdlib.Regex", "replace"), ("Stdlib.String", "replaceAll") ])
+      |> Stdlib.Test.equal([ "Stdlib.String.replaceAll", "Stdlib.Regex.replace" ])
+      order(
+        "random number",
+        [ ("Darklang.Stdlib.BigInt.random", 8), ("Darklang.Stdlib.Int64.random", 4) ],
+        [ ("Stdlib.BigInt", "random"), ("Stdlib.Int64", "random") ])
+      |> Stdlib.Test.equal([ "Stdlib.Int64.random", "Stdlib.BigInt.random" ]) ])
 
 
 // What lives in a `Tests` module is left out unless the search is about tests.
