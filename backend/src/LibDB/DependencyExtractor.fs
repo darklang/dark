@@ -43,6 +43,7 @@ type private Work =
   | MatchCase of PT.MatchCase
   | PipeExpr of PT.PipeExpr
 
+// Runs on every op of a reload: a Stack keeps deep ASTs off the call stack, no list cell per node.
 let private extract (roots : List<Work>) : List<Dependency> =
   let work = System.Collections.Generic.Stack<Work>()
   let mutable dependencies : List<Dependency> = []

@@ -250,6 +250,7 @@ type RecordedCall =
   { builtin : string; args : Option<List<RT.Dval>>; spawned : Option<System.Guid> }
 
 
+// Written on every traced call under `sync`; mutable collections keep that write allocation-free.
 type TracerState =
   {
     events : System.Collections.Generic.List<CompletedEvent>
@@ -283,7 +284,7 @@ type TracerState =
     expected :
       System.Collections.Generic.Dictionary<struct (System.Guid * int64), RecordedCall>
     /// The run being resumed, for the message a refusal prints. Empty for a fresh run.
-    mutable resuming : string
+    resuming : string
     /// Wall clock for the whole run, started when the tracer was made. What `traces inspect` prints
     /// as `took`, and the only honest source for it: the row's `timestamp` and `updated` are
     /// both the store instant for a served request, and on a resumed run they span however long
@@ -293,7 +294,7 @@ type TracerState =
   }
 
 
-let private newState () : TracerState =
+let private newState (resuming : string) : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
     fns = System.Collections.Generic.HashSet<RT.Hash>()
     dropped = 0
@@ -302,7 +303,7 @@ let private newState () : TracerState =
     replay = System.Collections.Generic.Dictionary()
     replayEnded = System.Collections.Generic.HashSet()
     expected = System.Collections.Generic.Dictionary()
-    resuming = ""
+    resuming = resuming
     loopPasses = System.Collections.Generic.Dictionary()
     elapsed = System.Diagnostics.Stopwatch.StartNew()
     sync = obj () }
@@ -721,25 +722,29 @@ module TraceRetention =
     // about how many runs are here -- but not toward the BYTE cap. Counting its bytes would
     // let a handful of big pinned runs fill `trace.maxMb` on their own and evict every
     // ordinary run behind them, forever, which is the opposite of what pinning one asks for.
-    let mutable seenCount = 0L
-    let mutable seenBytes = 0L
-    let entries = System.Collections.Generic.HashSet<string>()
     let doomed =
       rows
-      |> List.filter (fun (_, bytes', needed, entry) ->
-        seenCount <- seenCount + 1L
-        if not needed then seenBytes <- seenBytes + bytes'
-        let newestOfEntry = entries.Count < floorEntries && entries.Add entry
-        let overCount =
-          match keepTraces with
-          | Some n -> seenCount > n && not newestOfEntry
-          | None -> false
-        let overBytes =
-          match bytes with
-          | Some n -> seenBytes > n && seenCount > 1L
-          | None -> false
-        (overCount || overBytes) && not needed)
-    deleteTraces (doomed |> List.map (fun (id, _, _, _) -> id))
+      |> List.mapFold
+        (fun (seenCount, seenBytes, entries) (id, bytes', needed, entry) ->
+          let seenCount = seenCount + 1L
+          let seenBytes = if needed then seenBytes else seenBytes + bytes'
+          let newestOfEntry =
+            Set.count entries < floorEntries && not (Set.contains entry entries)
+          let entries = if newestOfEntry then Set.add entry entries else entries
+          let overCount =
+            match keepTraces with
+            | Some n -> seenCount > n && not newestOfEntry
+            | None -> false
+          let overBytes =
+            match bytes with
+            | Some n -> seenBytes > n && seenCount > 1L
+            | None -> false
+          let isDoomed = (overCount || overBytes) && not needed
+          (if isDoomed then Some id else None), (seenCount, seenBytes, entries))
+        (0L, 0L, Set.empty)
+      |> fst
+      |> List.choose identity
+    deleteTraces doomed
     List.length doomed
 
   /// The pass after a store: at most every ten seconds, and only when a cap is exceeded. Both
@@ -1141,7 +1146,7 @@ let createCliTracer
   (inputVarName : string)
   (inputDval : RT.Dval)
   : T =
-  let state = newState ()
+  let state = newState ""
 
   // With detail off, collect nothing. `storeTrace` refuses to write in that case, so installing the
   // hooks anyway means building an event per frame and holding every argument and result alive for the
@@ -1179,16 +1184,14 @@ let createReplayTracer
   (inputDval : RT.Dval)
   (log : List<System.Guid * int64 * RT.Tracing.ReplayStep * RecordedCall>)
   : T =
-  let state = newState ()
-  state.resuming <- (string (AT.TraceID.toUUID traceID)).Substring(0, 8)
+  let state = newState ((string (AT.TraceID.toUUID traceID)).Substring(0, 8))
   // Each recorded spawn's child, by the process that spawned it and the spawn's ordinal.
   let spawnedAt =
-    System.Collections.Generic.Dictionary<struct (System.Guid * int64), System.Guid>()
-  for (pid, ord, _, recorded) in log do
-    match recorded.spawned with
-    | Some child -> spawnedAt[struct (pid, ord)] <- child
-    | None -> ()
-  let spawned = System.Collections.Generic.HashSet<System.Guid>(spawnedAt.Values)
+    log
+    |> List.choose (fun (pid, ord, _, recorded) ->
+      recorded.spawned |> Option.map (fun child -> struct (pid, ord), child))
+    |> Map.ofList
+  let spawned = spawnedAt |> Map.values |> Set.ofSeq
   // The recorded processes, in the order they first appear in the log. `Guid.Empty` is NOT one
   // of them: those rows are the unscheduled root's, seeded below and answered through the root
   // hooks. Leaving it in the list would hand the FIRST spawned child the root's rows, and the
@@ -1200,7 +1203,7 @@ let createReplayTracer
     |> List.map (fun (pid, _, _, _) -> pid)
     |> List.distinct
     |> List.filter (fun pid ->
-      pid <> System.Guid.Empty && not (spawned.Contains pid))
+      pid <> System.Guid.Empty && not (Set.contains pid spawned))
   // The recorded process each new one replays.
   let replays = System.Collections.Generic.Dictionary<System.Guid, System.Guid>()
   replays[System.Guid.Empty] <- System.Guid.Empty
@@ -1226,9 +1229,7 @@ let createReplayTracer
       let viaSpawn =
         match replays.TryGetValue parent, state.ordinals.TryGetValue parent with
         | (true, recordedParent), (true, next) ->
-          match spawnedAt.TryGetValue(struct (recordedParent, next.Value - 1L)) with
-          | true, child -> Some child
-          | false, _ -> None
+          Map.tryFind (struct (recordedParent, next.Value - 1L)) spawnedAt
         | _ -> None
       match viaSpawn, unmatched with
       | Some recorded, _ -> seed pid recorded

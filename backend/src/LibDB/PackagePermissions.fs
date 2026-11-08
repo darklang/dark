@@ -46,28 +46,38 @@ module Load =
           } }
 
 /// Whether each package value `expr` references holds only data, read
-/// through `cache` so a value shared by several bodies is read once.
+/// through `cache` so a value shared by several bodies is read once. Returns the
+/// inert ones and the cache with this body's values added.
 let private inertValuesIn
   (load : Load)
-  (cache : System.Collections.Generic.Dictionary<PT.Hash, bool>)
+  (cache : Map<PT.Hash, bool>)
   (expr : PT.Expr)
-  : Ply<Set<PT.Hash>> =
+  : Ply<Set<PT.Hash> * Map<PT.Hash, bool>> =
   Calls.valueRefs expr
   |> Set.toList
-  |> Ply.List.filterSequentially (fun value ->
-    match cache.TryGetValue value with
-    | true, known -> Ply known
-    | false, _ ->
-      uply {
-        let! stored = load.value value
-        let isInert =
-          match stored with
-          | Some dval -> LibExecution.Dval.isInertData dval
-          | None -> false
-        cache[value] <- isInert
-        return isInert
-      })
-  |> Ply.map Set.ofList
+  |> Ply.List.foldSequentially
+    (fun (inert, cache) value ->
+      let keep isInert = if isInert then Set.add value inert else inert
+      match Map.tryFind value cache with
+      | Some known -> Ply((keep known, cache))
+      | None ->
+        uply {
+          let! stored = load.value value
+          let isInert =
+            match stored with
+            | Some dval -> LibExecution.Dval.isInertData dval
+            | None -> false
+          return (keep isInert, Map.add value isInert cache)
+        })
+    (Set.empty, cache)
+
+/// What `loadClosureFrom` has seen so far. `visited` also holds hashes that
+/// failed to load, so a missing dependency shared by several members is fetched
+/// once; `valueIsInert` is whether each value referenced so far holds only data.
+type private Walk =
+  { loaded : Requirements.Closure
+    visited : Set<PT.Hash>
+    valueIsInert : Map<PT.Hash, bool> }
 
 /// Load every package function reachable from the given roots, analyzing each
 /// body once. Missing functions remain absent so requirements stay incomplete.
@@ -75,38 +85,40 @@ let private loadClosureFrom
   (load : Load)
   (roots : List<PT.Hash>)
   : Ply<Requirements.Closure> =
-  uply {
-    let loaded =
-      System.Collections.Generic.Dictionary<PT.Hash, PT.PackageFn.PackageFn *
-      Calls.Analysis>()
-    // Also holds hashes that failed to load, so a missing dependency shared
-    // by several members is fetched once.
-    let visited = System.Collections.Generic.HashSet<PT.Hash>()
-    // Whether each value referenced so far holds only data, read once.
-    let valueIsInert = System.Collections.Generic.Dictionary<PT.Hash, bool>()
-
-    let rec loadMember (h : PT.Hash) : Ply<unit> =
+  let rec loadMember (walk : Walk) (h : PT.Hash) : Ply<Walk> =
+    if Set.contains h walk.visited then
+      Ply walk
+    else
       uply {
-        if visited.Add h then
-          match! load.fn h with
-          | None -> ()
-          | Some fn ->
-            let! inertValues = inertValuesIn load valueIsInert fn.body
-            let calls = Calls.analyzeFn inertValues fn
-            loaded[h] <- (fn, calls)
-            for callee in calls.names do
-              match callee with
-              | PT.FQFnName.Package dependency -> do! loadMember dependency
-              | PT.FQFnName.Builtin _ -> ()
-              // CallGraph reports a trait call as the implementation it resolved
-              // to, or marks the analysis incomplete; none reach here.
-              | PT.FQFnName.TraitMethod _ -> ()
+        let walk = { walk with visited = Set.add h walk.visited }
+        match! load.fn h with
+        | None -> return walk
+        | Some fn ->
+          let! inertValues, valueIsInert =
+            inertValuesIn load walk.valueIsInert fn.body
+          let calls = Calls.analyzeFn inertValues fn
+          let walk =
+            { walk with
+                loaded = Map.add h (fn, calls) walk.loaded
+                valueIsInert = valueIsInert }
+          return!
+            calls.names
+            |> Ply.List.foldSequentially
+              (fun walk callee ->
+                match callee with
+                | PT.FQFnName.Package dependency -> loadMember walk dependency
+                | PT.FQFnName.Builtin _ -> Ply walk
+                // CallGraph reports a trait call as the implementation it resolved
+                // to, or marks the analysis incomplete; none reach here.
+                | PT.FQFnName.TraitMethod _ -> Ply walk)
+              walk
       }
 
-    for root in roots do
-      do! loadMember root
-    return loaded |> Seq.map (fun (KeyValue(h, entry)) -> h, entry) |> Map.ofSeq
-  }
+  roots
+  |> Ply.List.foldSequentially
+    loadMember
+    { loaded = Map.empty; visited = Set.empty; valueIsInert = Map.empty }
+  |> Ply.map (fun walk -> walk.loaded)
 
 /// Load every package function reachable from `root`, analyze each body once,
 /// and return the closure keyed by hash. Approval covers this whole closure so
@@ -123,8 +135,7 @@ let cacheSafetyForExpression
   (body : PT.Expr)
   : Ply<Requirements.Result> =
   uply {
-    let! inertValues =
-      inertValuesIn load (System.Collections.Generic.Dictionary()) body
+    let! inertValues, _ = inertValuesIn load Map.empty body
     let calls = Calls.analyze Set.empty inertValues body
     let roots =
       calls.names
