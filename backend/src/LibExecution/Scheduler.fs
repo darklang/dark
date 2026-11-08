@@ -783,6 +783,8 @@ type Scheduler(quantum : int64) =
     p.pendingResume <- None
     p.parkedTask <- null
     Interlocked.Decrement &live |> ignore<int>
+    // Its counts go to its spawner's set before an awaiter can see it finish (`completion`).
+    p.vm.stats.Finished()
     // Does nothing in non-tests.
     p.exeState.test.postTestExecutionHook p.exeState.test
     lock sync (fun () ->

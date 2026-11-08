@@ -105,6 +105,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DUnit |] ->
           let s = vm.stats
+          // With the processes it spawned that have finished.
+          s.JoinFinished()
           // The accumulators hold raw Stopwatch ticks, so that the hot path has no division in it.
           // Convert once, here. Reporting ticks as microseconds would be wrong by `Frequency / 1e6`,
           // which varies by clocksource, so it's worse than being uniformly wrong.

@@ -4241,15 +4241,32 @@ type InterpreterStats =
     mutable tstSizeSum : int64
     mutable tstSizeMax : int64
 
-    /// Made for one VM by [ForOneVM] or [ForChunk]: not shared, and not in the sink, so only the
-    /// one who made it reads it. A VM holding one is not pooled for another process to reuse, as
-    /// that process would count into a set nobody reads.
+    /// Made for one VM by [ForOneVM], [ForChunk] or [ForProcess]: not shared, and not in the
+    /// sink, so only the one who made it reads it. A VM holding one is not pooled for another
+    /// process to reuse, as that process would count into a set nobody reads.
     ownedByOneVM : bool
+
+    /// For a spawned process's set ([ForProcess]), the spawner's, which it is handed to when the
+    /// process finishes.
+    joinInto : InterpreterStats voption
+
+    /// The sets of processes this one spawned that have finished and are not yet added in. A
+    /// process pushes its set here as it finishes, on its own thread; the spawner adds them on
+    /// its own thread ([JoinFinished]).
+    finishedProcesses :
+      System.Collections.Concurrent.ConcurrentStack<InterpreterStats>
   }
 
-  static member private fresh(enabled : bool, ownedByOneVM : bool) =
+  static member private fresh
+    (
+      enabled : bool,
+      ownedByOneVM : bool,
+      joinInto : InterpreterStats voption
+    ) =
     { enabled = enabled
       ownedByOneVM = ownedByOneVM
+      joinInto = joinInto
+      finishedProcesses = System.Collections.Concurrent.ConcurrentStack()
       instructionCount = 0L
       builtinCallCount = 0L
       packageCallCount = 0L
@@ -4284,11 +4301,12 @@ type InterpreterStats =
   /// ever touches them -- and a fresh set is thirteen `Dictionary`s and seven arrays. That is
   /// invisible while a process builds one VM, and it is not: `executeApplicable` builds one per
   /// lambda application, so a `List.map` over a long list built one per element.
-  static member val private sharedDisabled = InterpreterStats.fresh (false, false)
+  static member val private sharedDisabled =
+    InterpreterStats.fresh (false, false, ValueNone)
 
   static member create() =
     if Telemetry.isEnabled () then
-      let s = InterpreterStats.fresh (true, false)
+      let s = InterpreterStats.fresh (true, false, ValueNone)
       InterpreterStatsSink.add (box s)
       s
     else
@@ -4296,7 +4314,7 @@ type InterpreterStats =
 
   /// A counting set for one VM, read by whoever made it. For a host or test that wants the
   /// counts of one run and nothing else running at the same time.
-  static member ForOneVM() = InterpreterStats.fresh (true, true)
+  static member ForOneVM() = InterpreterStats.fresh (true, true, ValueNone)
 
   /// The set for a spread chunk (`LibExecution.Spread`) started by a VM counting into [parent].
   ///
@@ -4308,7 +4326,23 @@ type InterpreterStats =
   /// gets, and can run on a pooled VM.
   static member ForChunk(parent : InterpreterStats) : Option<InterpreterStats> =
     if parent.enabled then
-      let s = InterpreterStats.fresh (true, true)
+      let s = InterpreterStats.fresh (true, true, ValueNone)
+      s.detailedTiming <- parent.detailedTiming
+      Some s
+    else
+      None
+
+  /// The set for a process `Exec.spawn` starts from a VM counting into [parent].
+  ///
+  /// The process runs on another worker, at the same time as its spawner, so like a chunk it
+  /// counts into a set of its own. Unlike a chunk it has no one place it is collected: it may be
+  /// awaited, selected, awaited by someone else, or never. So as it finishes it pushes its set
+  /// onto [parent]'s [finishedProcesses], and the spawner adds what is there on its own thread
+  /// when it next awaits or selects, when it reads its counts, and when it finishes itself. None
+  /// when [parent] is not counting.
+  static member ForProcess(parent : InterpreterStats) : Option<InterpreterStats> =
+    if parent.enabled then
+      let s = InterpreterStats.fresh (true, true, ValueSome parent)
       s.detailedTiming <- parent.detailedTiming
       Some s
     else
@@ -4353,6 +4387,25 @@ type InterpreterStats =
       addArray this.countByStage chunk.countByStage
       this.tstSizeSum <- this.tstSizeSum + chunk.tstSizeSum
       this.tstSizeMax <- max this.tstSizeMax chunk.tstSizeMax
+
+  /// Add in the sets of finished spawned processes ([ForProcess]). Only from the thread that owns
+  /// this set. Each set is popped once, so each is added once, by whoever pops it.
+  member this.JoinFinished() : unit =
+    let rec addAll () =
+      match this.finishedProcesses.TryPop() with
+      | true, child ->
+        this.AddChunk child
+        addAll ()
+      | false, _ -> ()
+    if not this.finishedProcesses.IsEmpty then addAll ()
+
+  /// What a spawned process does with its set as it finishes, on its own thread: add in its own
+  /// finished children, then hand the whole to its spawner ([ForProcess]).
+  member this.Finished() : unit =
+    this.JoinFinished()
+    match this.joinInto with
+    | ValueSome into -> into.finishedProcesses.Push this
+    | ValueNone -> ()
 
   member this.reset() =
     this.instructionCount <- 0L
