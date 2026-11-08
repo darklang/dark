@@ -98,21 +98,30 @@ test parse =
 
 test round =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.round(2.345dec, 2) |> Stdlib.Test.equal(2.35dec)
-      Stdlib.Decimal.round(-2.345dec, 2) |> Stdlib.Test.equal(-2.35dec)
-      Stdlib.Decimal.round(2.344dec, 2) |> Stdlib.Test.equal(2.34dec)
-      Stdlib.Decimal.round(0.5dec, 0) |> Stdlib.Test.equal(1dec)
-      Stdlib.toString(Stdlib.Decimal.round(5dec, 2)) |> Stdlib.Test.equal("5.00")
-      Stdlib.toString(Stdlib.Decimal.round(10dec / 3dec, 2)) |> Stdlib.Test.equal("3.33") ])
+    [ Stdlib.Decimal.round(2.345dec, 2) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.35dec))
+      Stdlib.Decimal.round(-2.345dec, 2) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2.35dec))
+      Stdlib.Decimal.round(2.344dec, 2) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.34dec))
+      Stdlib.Decimal.round(0.5dec, 0) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1dec))
+      Stdlib.Decimal.round(5dec, 2)
+      |> Stdlib.Result.map(Stdlib.toString)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("5.00"))
+      Stdlib.Decimal.round(10dec / 3dec, 2)
+      |> Stdlib.Result.map(Stdlib.toString)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("3.33")) ])
 
 test roundRefusesBadPlaces =
-  Stdlib.Decimal.round(1dec, 29)
-  => raises "Cannot unwrap Error: \"Decimal places must be between 0 and 28, got 29\""
+  Stdlib.Test.all(
+    [ Stdlib.Decimal.round(1dec, 29)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.RoundError.PlacesOutOfRange))
+      Stdlib.Decimal.round(1dec, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.RoundError.PlacesOutOfRange))
+      Stdlib.Decimal.truncate(1dec, 29)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.RoundError.PlacesOutOfRange)) ])
 
 test truncate =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.truncate(2.349dec, 2) |> Stdlib.Test.equal(2.34dec)
-      Stdlib.Decimal.truncate(-2.349dec, 2) |> Stdlib.Test.equal(-2.34dec) ])
+    [ Stdlib.Decimal.truncate(2.349dec, 2) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.34dec))
+      Stdlib.Decimal.truncate(-2.349dec, 2) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2.34dec)) ])
 
 test conversions =
   Stdlib.Test.all(
@@ -167,7 +176,7 @@ test multiplyOverflowRaises =
 
 test roundWith =
   let r(d: Decimal, mode: Stdlib.Decimal.RoundingMode): Decimal =
-    Stdlib.Decimal.roundWith(d, 0, mode)
+    Stdlib.Decimal.roundWith(d, 0, mode) |> Builtin.unwrap
 
   Stdlib.Test.all(
     [ r(2.5dec, Stdlib.Decimal.RoundingMode.HalfAwayFromZero) |> Stdlib.Test.equal(3dec)
@@ -186,13 +195,14 @@ test roundWith =
       r(2.1dec, Stdlib.Decimal.RoundingMode.Ceiling) |> Stdlib.Test.equal(3dec)
       r(-2.9dec, Stdlib.Decimal.RoundingMode.Ceiling) |> Stdlib.Test.equal(-2dec)
       Stdlib.Decimal.roundWith(2.345dec, 2, Stdlib.Decimal.RoundingMode.HalfEven)
-      |> Stdlib.Test.equal(2.34dec)
-      Stdlib.toString(Stdlib.Decimal.roundWith(1dec, 28, Stdlib.Decimal.RoundingMode.Floor))
-      |> Stdlib.Test.equal("1.0000000000000000000000000000") ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.34dec))
+      Stdlib.Decimal.roundWith(1dec, 28, Stdlib.Decimal.RoundingMode.Floor)
+      |> Stdlib.Result.map(Stdlib.toString)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("1.0000000000000000000000000000")) ])
 
 test roundWithRefusesWhatCannotBePadded =
   Stdlib.Decimal.round(79228162514264337593543950335dec, 1)
-  => raises "Cannot unwrap Error: \"Decimal result is out of range (more than 96 bits)\""
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.RoundError.OutOfRange))
 
 test floorAndCeiling =
   Stdlib.Test.all(
