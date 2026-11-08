@@ -1526,6 +1526,34 @@ Stdlib.Exec.await(slow)"""
   }
 
 
+/// A run a builtin drives to its end itself (`Stdlib.Live.apply` here; the package test runner's
+/// `withStoreSnapshot` in the wild) carries on after a wait in the context it waited in, so on
+/// the scheduler it started on. It used to carry on in whatever context the thread that ended
+/// the wait had: here the test's thread, which has no scheduler, so `Exec.await` asked the
+/// process-wide one about a process spawned in this one and found none.
+let private drivenRunKeepsItsScheduler =
+  testTask "a run a builtin drives keeps its scheduler across a wait" {
+    let! state = executionStateFor pmPT false
+    do!
+      withWorkers 2 (fun root ->
+        task {
+          let! (p : Scheduler.Process) =
+            spawn
+              root
+              state
+              """let h = Stdlib.Exec.spawn(fun () -> 41 + 1)
+Stdlib.Live.apply((fun _ -> (let n = Builtin.testRawRead(61) + 0 in Stdlib.Exec.await(h) + n - 61)), ())"""
+          let running = runOnThread root p
+          waitFor "the driven run waits on its read" (fun () ->
+            TestUtils.LibTest.RawReads.waiting 61L)
+          TestUtils.LibTest.RawReads.finish 61L (RT.DInt64 61L)
+          let! result = running
+          match expectOk result "the process" with
+          | RT.DEnum(_, _, _, "Ok", [ RT.DInt64 42L ]) -> ()
+          | other -> failtest $"expected Ok(42), got %A{other}"
+        })
+  }
+
 let private spawnTakesACapturedRead =
   testTask "a closure capturing a read in flight is spawned without waiting for it" {
     Gates.reset ()
@@ -2330,6 +2358,7 @@ let tests =
         denialRaisesAtTheCall
         inflightBoundHolds
         spawnAwaitSelect
+        drivenRunKeepsItsScheduler
         spawnTakesACapturedRead
         spawnedErrorReachesAwait
         execDoneAnswersAFinishedProcess

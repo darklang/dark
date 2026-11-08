@@ -349,6 +349,7 @@ let private unusedAllowlist : Set<string> =
       "testTrace"
       "testRead"
       "testReadOf"
+      "testRawRead"
       "testSlowStream"
       "testFailingRead"
       // Its callers are the Dark programs embedded as strings in `Stream.Tests.fs`.
