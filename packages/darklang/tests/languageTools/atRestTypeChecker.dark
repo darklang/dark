@@ -1395,6 +1395,12 @@ module PostfixUnwrap =
       "f")
     |> Stdlib.Test.equal([ "TypeMismatch: In the error returned by ?: expected String, got Bool" ])
 
+  // #6024: an Int64 handed where a String is expected names the conversion.
+  test intWhereStringExpectedNamesToString =
+    issues("let f(n: Int64): String = n", "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In the function's return value: expected String, got Int64 (wrap it in `Stdlib.toString`)" ])
+
   // Apply the same ? rules when the operand uses a type alias or the Result
   // error type is a declared type parameter.
   test aliasesAndTypeParams =

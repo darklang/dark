@@ -669,11 +669,13 @@ let evalOutcome(expr: String): Stdlib.Cli.ExecutionOutcome =
 // should say so. A name with nothing near it gets no guess.
 test notFoundSuggestsTheEnclosingStdlibName =
   let moved = evalOutcome("Stdlib.Int64.toString(5)")
+  let unprefixed = evalOutcome("Int64.toString(5)")
   let nowhere = evalOutcome("Stdlib.Nope.zzz(5)")
 
   if
     moved.exitCode != 0
     && Stdlib.String.contains(moved.stderr, "Did you mean `Stdlib.toString`?")
+    && Stdlib.String.contains(unprefixed.stderr, "Did you mean `Stdlib.toString`?")
     && nowhere.exitCode != 0
     && Stdlib.String.contains(nowhere.stderr, "Stdlib.Nope.zzz not found")
     && Stdlib.Bool.not(Stdlib.String.contains(nowhere.stderr, "Did you mean"))
@@ -682,7 +684,7 @@ test notFoundSuggestsTheEnclosingStdlibName =
   else
     Stdlib.Test.fail(
       ($"Expected a suggestion for the moved name only; moved={moved.stderr}; "
-       + $"nowhere={nowhere.stderr}"))
+       + $"unprefixed={unprefixed.stderr}; nowhere={nowhere.stderr}"))
 
 
 /// The written names <fn Darklang.Cli.Packages.Errors.stdlibSuggestion> would try, in order.
@@ -693,7 +695,10 @@ let suggestionCandidates(name: String): List<String> =
 
 test stdlibSuggestionCandidatesWalkUpWithinStdlib =
   Stdlib.Test.all(
-    [ suggestionCandidates("Bool.not") |> Stdlib.Test.equal([ "Stdlib.Bool.not" ])
+    [ suggestionCandidates("Bool.not") |> Stdlib.Test.equal([ "Stdlib.Bool.not", "Stdlib.not" ])
+      suggestionCandidates("Int64.toString")
+      |> Stdlib.Test.equal([ "Stdlib.Int64.toString", "Stdlib.toString" ])
+      suggestionCandidates("Me.Utils.render") |> Stdlib.Test.equal([ "Stdlib.Me.Utils.render" ])
       suggestionCandidates("Stdlib.Int64.toString") |> Stdlib.Test.equal([ "Stdlib.toString" ])
       suggestionCandidates("Stdlib.A.B.name")
       |> Stdlib.Test.equal([ "Stdlib.A.name", "Stdlib.name" ])

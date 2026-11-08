@@ -178,6 +178,30 @@ module RuntimeError =
     | _ -> ""
 
 
+  /// <fn toStringHint> for a value that went where a String was expected, and nothing otherwise.
+  let stringExpectedHint(expected: ValueType, actual: ValueType): String =
+    match expected with
+    | Known(KTString) -> toStringHint(actual)
+    | _ -> ""
+
+
+  /// `"total: " + 5` is the usual way a newcomer meets this error, so when one side is a String
+  /// and the other has a ToString impl, say how to join them.
+  let joinWithStringHint(left: ValueType, right: ValueType): ErrorSegments =
+    let other =
+      match (left, right) with
+      | (Known(KTString), Known(KTString)) -> Stdlib.Option.Option.None
+      | (Known(KTString), other) -> Stdlib.Option.Option.Some(other)
+      | (other, Known(KTString)) -> Stdlib.Option.Option.Some(other)
+      | _ -> Stdlib.Option.Option.None
+    match other with
+    | Some(vt) when toStringHint(vt) != "" ->
+      [ ES.String(". To join them, make the ")
+        ES.ValueType(vt)
+        ES.String(" a String with `Stdlib.toString`, or interpolate it: `$\"total: {n}\"`.") ]
+    | _ -> []
+
+
   /// `&&` or `||` met a non-Bool. Names the side that wasn't a Bool, and only that one: when
   /// the left side isn't a Bool, the right may never have been evaluated.
   let boolOperandSegments(
@@ -297,10 +321,12 @@ module RuntimeError =
         ES.ValueType(right) ]
 
     | NumericOperationOnIncompatibleTypes(left, right) ->
-      [ ES.String("Cannot perform numeric operation on ")
-        ES.ValueType(left)
-        ES.String(" and ")
-        ES.ValueType(right) ]
+      Stdlib.List.concat(
+        [ ES.String("Cannot perform numeric operation on ")
+          ES.ValueType(left)
+          ES.String(" and ")
+          ES.ValueType(right) ],
+        joinWithStringHint(left, right))
 
     | IfConditionNotBool(actualValue, actualValueType) ->
       [ ES.String("If condition must be a Bool, but got ")
@@ -543,7 +569,7 @@ module RuntimeError =
           ES.ValueType(actualType)
           ES.String(" (")
           ES.FullValue(actualValue)
-          ES.String(")") ]
+          ES.String(")" + stringExpectedHint(expectedType, actualType)) ]
       | FnResultNotExpectedType(fnName, declaredType, expectedType, actualType, actualValue) ->
         [ ES.FunctionName(fnName)
           ES.String("'s return value expects ")
@@ -552,7 +578,7 @@ module RuntimeError =
           ES.ValueType(actualType)
           ES.String(" (")
           ES.FullValue(actualValue)
-          ES.String(")") ]
+          ES.String(")" + stringExpectedHint(expectedType, actualType)) ]
 
 
 

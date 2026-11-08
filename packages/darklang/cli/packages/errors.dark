@@ -61,8 +61,9 @@ let enclosingModules(modules: List<String>): List<List<String>> =
 ///
 /// A name without a `Stdlib.` prefix gets one: `Bool.not` -> `Stdlib.Bool.not`. A name already under
 /// `Stdlib.` tries its final name in each enclosing module, nearest first, down to the `Stdlib` root:
-/// `Stdlib.Int64.toString` -> `Stdlib.toString`. Only standard-library names walk up, because an
-/// unprefixed one may be the user's own module that does not exist yet.
+/// `Stdlib.Int64.toString` -> `Stdlib.toString`. An unprefixed name walks up only from one module,
+/// so `Int64.toString` also tries `Stdlib.toString`: a deeper one may be the user's own module that
+/// does not exist yet.
 let stdlibSuggestionCandidates(
   originalName: List<String>)
   : List<(String * LanguageTools.ProgramTypes.PackageLocation)> =
@@ -80,6 +81,10 @@ let stdlibSuggestionCandidates(
     | ["Darklang", "Stdlib", ...inner] -> walkUp([ "Darklang", "Stdlib" ], inner)
     | ["Darklang", ...] -> []
     | ["PACKAGE", ...] -> []
+    | [ _ ] ->
+      Stdlib.List.prepend(
+        walkUp([ "Stdlib" ], modules),
+        stdlibCandidate([ "Stdlib" ], modules, name))
     | _ -> [ stdlibCandidate([ "Stdlib" ], modules, name) ]
 
 
