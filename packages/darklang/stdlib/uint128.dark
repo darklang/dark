@@ -182,6 +182,26 @@ let checkedAbsoluteValue(a: UInt128)
   Ok(a)
 
 
+/// <param base> raised to the power of <param exponent>, or {{Error Overflow}}
+/// where `**` would wrap
+let checkedPower(
+  ``base``: UInt128,
+  exponent: UInt128)
+  : Stdlib.Result.Result<UInt128, Stdlib.Math.PowerError> =
+  if ``base`` == 0u128 || ``base`` == 1u128 then
+    // 0 and 1 never grow, so `**` is exact whatever the exponent
+    Ok(``base`` ** exponent)
+  else if exponent >= 128u128 then
+    // any other base is at least 2 from zero, and 2 ** 128 is past the UInt128 range
+    Error(Stdlib.Math.PowerError.Overflow)
+  else
+    let result = Stdlib.BigInt.fromUInt128(``base``) ** Stdlib.BigInt.fromUInt128(exponent)
+
+    match Stdlib.BigInt.toUInt128(result) with
+    | Some(fits) -> Ok(fits)
+    | None -> Error(Stdlib.Math.PowerError.Overflow)
+
+
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
 // TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`

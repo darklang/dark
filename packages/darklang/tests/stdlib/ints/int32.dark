@@ -429,6 +429,29 @@ test checkedAbsoluteValue =
       |> Stdlib.Test.equal(Ok(2147483647s32))
       Stdlib.Int32.checkedAbsoluteValue(0s32) |> Stdlib.Test.equal(Ok(0s32)) ])
 
+/// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
+test checkedPower =
+  Stdlib.Test.all(
+    [ Stdlib.Int32.checkedPower(2s32, 30s32) |> Stdlib.Test.equal(Ok(1073741824s32))
+      Stdlib.Int32.checkedPower(2s32, 31s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.Int32.checkedPower(-2s32, 31s32) |> Stdlib.Test.equal(Ok(-2147483648s32))
+      Stdlib.Int32.checkedPower(-2s32, 30s32) |> Stdlib.Test.equal(Ok(1073741824s32))
+      Stdlib.Int32.checkedPower(3s32, 0s32) |> Stdlib.Test.equal(Ok(1s32))
+      Stdlib.Int32.checkedPower(0s32, 0s32) |> Stdlib.Test.equal(Ok(1s32))
+      Stdlib.Int32.checkedPower(0s32, 2147483647s32) |> Stdlib.Test.equal(Ok(0s32))
+      Stdlib.Int32.checkedPower(1s32, 2147483647s32) |> Stdlib.Test.equal(Ok(1s32))
+      Stdlib.Int32.checkedPower(2s32, 2147483647s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.Int32.checkedPower(-1s32, 2147483647s32) |> Stdlib.Test.equal(Ok(-1s32))
+      Stdlib.Int32.checkedPower(-1s32, 2147483646s32) |> Stdlib.Test.equal(Ok(1s32))
+      Stdlib.Int32.checkedPower(2s32, -1s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
+      Stdlib.Int32.checkedPower(0s32, -1s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
+      Stdlib.Int32.checkedPower(1s32, -2147483648s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent)) ])
+
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(

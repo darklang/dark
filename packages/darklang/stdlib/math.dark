@@ -115,6 +115,13 @@ type ModulusError =
   | NegativeModulus
 
 
+/// What `checkedPower` returns, for every fixed-width integer type, where `**` raises
+/// on a negative exponent or wraps on overflow
+type PowerError =
+  | NegativeExponent
+  | Overflow
+
+
 /// What a smart constructor such as `Net.Port.fromInt64` returns for a number outside its
 /// range: <param value> was given, and a <param what> runs from <param min> to <param max>.
 type OutOfRange =

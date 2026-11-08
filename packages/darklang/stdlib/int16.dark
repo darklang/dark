@@ -222,6 +222,28 @@ let checkedAbsoluteValue(a: Int16)
     Ok(a)
 
 
+/// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
+/// {{Error NegativeExponent}} or {{Error Overflow}}
+let checkedPower(
+  ``base``: Int16,
+  exponent: Int16)
+  : Stdlib.Result.Result<Int16, Stdlib.Math.PowerError> =
+  if exponent < 0s16 then
+    Error(Stdlib.Math.PowerError.NegativeExponent)
+  else if ``base`` == 0s16 || ``base`` == 1s16 || ``base`` == -1s16 then
+    // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
+    Ok(``base`` ** exponent)
+  else if exponent >= 16s16 then
+    // any other base is at least 2 from zero, and 2 ** 16 is past the Int16 range
+    Error(Stdlib.Math.PowerError.Overflow)
+  else
+    let result = Stdlib.BigInt.fromInt16(``base``) ** Stdlib.BigInt.fromInt16(exponent)
+
+    match Stdlib.BigInt.toInt16(result) with
+    | Some(fits) -> Ok(fits)
+    | None -> Error(Stdlib.Math.PowerError.Overflow)
+
+
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
 // TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`

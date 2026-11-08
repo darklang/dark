@@ -327,6 +327,22 @@ test checkedAbsoluteValue =
       |> Stdlib.Test.equal(Ok(4294967295u32))
       Stdlib.UInt32.checkedAbsoluteValue(0u32) |> Stdlib.Test.equal(Ok(0u32)) ])
 
+/// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
+test checkedPower =
+  Stdlib.Test.all(
+    [ Stdlib.UInt32.checkedPower(2u32, 31u32) |> Stdlib.Test.equal(Ok(2147483648u32))
+      Stdlib.UInt32.checkedPower(2u32, 32u32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.UInt32.checkedPower(65535u32, 2u32) |> Stdlib.Test.equal(Ok(4294836225u32))
+      Stdlib.UInt32.checkedPower(65536u32, 2u32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
+      Stdlib.UInt32.checkedPower(3u32, 0u32) |> Stdlib.Test.equal(Ok(1u32))
+      Stdlib.UInt32.checkedPower(0u32, 0u32) |> Stdlib.Test.equal(Ok(1u32))
+      Stdlib.UInt32.checkedPower(0u32, 4294967295u32) |> Stdlib.Test.equal(Ok(0u32))
+      Stdlib.UInt32.checkedPower(1u32, 4294967295u32) |> Stdlib.Test.equal(Ok(1u32))
+      Stdlib.UInt32.checkedPower(2u32, 4294967295u32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow)) ])
+
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(
