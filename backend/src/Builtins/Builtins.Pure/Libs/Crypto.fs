@@ -1,7 +1,7 @@
 /// <summary>
 /// Builtin functions for cryptography
 ///
-/// Digests and HMACs, picked by `Stdlib.Crypto.DigestAlgorithm`.
+/// Digests, picked by `Stdlib.Crypto.DigestAlgorithm`. HMAC is Dark over the digest.
 /// </summary>
 module Builtins.Pure.Libs.Crypto
 
@@ -16,7 +16,7 @@ module Dval = LibExecution.Dval
 module Bytes = LibExecution.Bytes
 module PackageRefs = LibExecution.PackageRefs
 
-/// `Stdlib.Crypto.DigestAlgorithm`, which picks the hash for both builtins below. The case
+/// `Stdlib.Crypto.DigestAlgorithm`, which picks the hash for `cryptoDigest`. The case
 /// names are matched as strings.
 let private digestAlgorithmType () =
   TCustomType(
@@ -47,39 +47,6 @@ let fns () : List<BuiltInFn> =
             | "Sha384" -> SHA384.HashData span
             | _ -> incorrectArgs ()
           Bytes.withBytes state ref (fun data -> Ply(Bytes.newEphemeral (hash data)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "cryptoHmac" 0
-      typeParams = []
-      parameters =
-        [ Param.make "algorithm" (digestAlgorithmType ()) ""
-          Param.make "key" TBytes ""
-          Param.make "data" TBytes "" ]
-      returnType = TBytes
-      description =
-        "Computes the HMAC (hash-based message authentication code, RFC 2104) of <param data> under <param key>, over the <param algorithm> digest."
-      fn =
-        (function
-        | state,
-          _,
-          _,
-          [| DEnum(_, _, [], algorithm, []); DBytes keyRef; DBytes dataRef |] ->
-          let hmac (key : byte[]) (data : byte[]) : byte[] =
-            let key = System.ReadOnlySpan key
-            let data = System.ReadOnlySpan data
-            match algorithm with
-            | "Md5" -> HMACMD5.HashData(key, data)
-            | "Sha1" -> HMACSHA1.HashData(key, data)
-            | "Sha256" -> HMACSHA256.HashData(key, data)
-            | "Sha384" -> HMACSHA384.HashData(key, data)
-            | _ -> incorrectArgs ()
-          Bytes.withBytes state keyRef (fun key ->
-            Bytes.withBytes state dataRef (fun data ->
-              Ply(Bytes.newEphemeral (hmac key data))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

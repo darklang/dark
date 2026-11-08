@@ -343,6 +343,35 @@ test toSeconds =
       Stdlib.DateTime.toSeconds(d("2075-11-14T11:01:35Z"))
       |> Stdlib.Test.equal(3340954895) ])
 
+// Every field padded, milliseconds only when there are some and truncated, never rounded, and the
+// ends of the range.
+test toStringEdges =
+  let t(ticks: Int64): DateTime = Stdlib.DateTime.__fromTicks(ticks)
+  Stdlib.Test.all(
+    [ Stdlib.toString(t(0)) |> Stdlib.Test.equal("1970-01-01T00:00:00Z")
+      Stdlib.toString(t(9999)) |> Stdlib.Test.equal("1970-01-01T00:00:00Z")
+      Stdlib.toString(t(10000)) |> Stdlib.Test.equal("1970-01-01T00:00:00.001Z")
+      Stdlib.toString(t(9999999)) |> Stdlib.Test.equal("1970-01-01T00:00:00.999Z")
+      Stdlib.toString(t(-1)) |> Stdlib.Test.equal("1969-12-31T23:59:59.999Z")
+      Stdlib.toString(t(-10000000)) |> Stdlib.Test.equal("1969-12-31T23:59:59Z")
+      Stdlib.toString(t(2534023007999999999)) |> Stdlib.Test.equal("9999-12-31T23:59:59.999Z")
+      Stdlib.toString(t(-621355968000000000)) |> Stdlib.Test.equal("0001-01-01T00:00:00Z")
+      Stdlib.toString(d("2000-02-29T05:06:07.080Z")) |> Stdlib.Test.equal("2000-02-29T05:06:07.080Z")
+      Stdlib.DateTime.toStringISO8601BasicDateTime(t(-1)) |> Stdlib.Test.equal("19691231T235959Z")
+      Stdlib.DateTime.toStringISO8601BasicDateTime(t(-621355968000000000))
+      |> Stdlib.Test.equal("00010101T000000Z")
+      Stdlib.DateTime.toStringISO8601BasicDateTime(t(2534023007999999999))
+      |> Stdlib.Test.equal("99991231T235959Z")
+      Stdlib.DateTime.toStringISO8601BasicDate(t(-1)) |> Stdlib.Test.equal("19691231")
+      Stdlib.DateTime.toStringISO8601BasicDate(t(-621355968000000000)) |> Stdlib.Test.equal("00010101") ])
+
+// Before year 1 the year is signed, as `format` writes it.
+test basicFormatsBeforeYearOne =
+  Stdlib.Test.all(
+    [ Stdlib.DateTime.toStringISO8601BasicDateTime(civil(0, 1, 1))
+      |> Stdlib.Test.equal("00000101T000000Z")
+      Stdlib.DateTime.toStringISO8601BasicDate(civil(-1, 6, 15)) |> Stdlib.Test.equal("-00010615") ])
+
 test toStringISO8601BasicDateTime =
   Stdlib.Test.all(
     [ Stdlib.DateTime.toStringISO8601BasicDateTime(d("2019-07-28T22:42:36Z"))

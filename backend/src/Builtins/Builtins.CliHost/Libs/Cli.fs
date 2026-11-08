@@ -1249,24 +1249,7 @@ let private createGuestState
           None }
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "cliSplitScriptArguments" 0
-      typeParams = []
-      parameters = [ Param.make "args" (TList TString) "Arguments after run-script" ]
-      returnType = TTuple(TList TString, TList TString, [])
-      description = "Split runner options from the script path and its arguments."
-      fn =
-        (function
-        | _, _, [], [| DList(_, args) |] ->
-          let options, script =
-            args |> List.map D.string |> Utils.ScriptArguments.split
-          let strings values = Dval.list KTString (List.map DString values)
-          Ply(DTuple(strings options, strings script, []))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-    { name = fn "testRunIsolated" 0
+  [ { name = fn "testRunIsolated" 0
       typeParams = [ "a"; "b" ]
       parameters =
         [ Param.make "branch" (TypeReference.option TUuid) ""
