@@ -43,6 +43,29 @@ let indexOf(bytes: Bytes, byte: UInt8): Stdlib.Option.Option<Int64> =
   indexOfFrom(bytes, byte, 0)
 
 
+/// Returns {{Some index}} of the last <param byte> in <param bytes> at or
+/// before <param start>, or {{None}} if there is none or <param start> is
+/// out of range.
+let lastIndexOfFrom(
+  bytes: Bytes,
+  byte: UInt8,
+  start: Int64)
+  : Stdlib.Option.Option<Int64> =
+  match getAt(bytes, start) with
+  | None -> Stdlib.Option.Option.None
+  | Some(found) ->
+    if found == byte then
+      Stdlib.Option.Option.Some(start)
+    else
+      lastIndexOfFrom(bytes, byte, start - 1)
+
+
+/// Returns {{Some index}} of the last <param byte> in <param bytes>, or
+/// {{None}} if it isn't there.
+let lastIndexOf(bytes: Bytes, byte: UInt8): Stdlib.Option.Option<Int64> =
+  lastIndexOfFrom(bytes, byte, length(bytes) - 1)
+
+
 /// Concatenates a list of Bytes into a single Bytes.
 let concatAll(values: List<Bytes>): Bytes = Builtin.bytesConcat(values)
 
