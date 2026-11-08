@@ -25,6 +25,9 @@
     <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
     <!-- Additional aggressive settings -->
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- No translated satellite assemblies: with invariant globalization they are never loaded,
+         and FSharp.Core's 13 were compiled into the binary. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
 
     <!-- Disable optional .NET runtime subsystems we don't use under AOT.
@@ -88,6 +91,11 @@
        AOT targets; a hand-rolled `dotnet publish /p:PublishAot=true` needs the archives first. -->
   <ItemGroup Condition="'$(PublishAot)' == 'true'">
     <DirectPInvoke Include="e_sqlite3" />
+  </ItemGroup>
+
+  <!-- The F# metadata in Ply and Fumble; see the file. -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
+    <IlcArg Include="--substitution:$(MSBuildThisFileDirectory)FSharpMetadata.Substitutions.xml" />
   </ItemGroup>
 
   <!-- The statically linked musl build (StaticOpenSslLinking, set by

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- F# compiler metadata in the F# NuGet packages, which they ship without the substitutions that
+     drop it (our own projects embed theirs; see backend/Directory.Build.targets). Only the F#
+     compiler reads it. Passed to the AOT compiler by Cli.fsproj. -->
+<linker>
+  <assembly fullname="Ply">
+    <resource name="FSharpSignatureData.Ply" action="remove" />
+    <resource name="FSharpOptimizationData.Ply" action="remove" />
+  </assembly>
+  <assembly fullname="Fumble">
+    <resource name="FSharpSignatureData.Fumble" action="remove" />
+    <resource name="FSharpOptimizationData.Fumble" action="remove" />
+  </assembly>
+</linker>

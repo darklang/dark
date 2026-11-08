@@ -105,4 +105,16 @@
     <DarkStableRefMvid Assembly="@(IntermediateRefAssembly->'%(FullPath)')" />
     <Touch Files="$(IntermediateOutputPath)DarkStableRefMvid.done" AlwaysCreate="true" />
   </Target>
+  <!-- Strip each assembly's F# compiler metadata (FSharpSignatureData, FSharpOptimizationData)
+       from a trimmed or AOT publish. Only the F# compiler reads it, and it was about 0.7 MB of the
+       binary. The F# SDK writes an ILLink.Substitutions.xml that removes it, but hands it to the
+       `Embed` item (source files embedded in the PDB), so it never reaches the assembly and the
+       trimmer never sees it. This embeds it the way the trimmer looks for it. -->
+  <Target Name="DarkEmbedFSharpILLinkSubstitutions" AfterTargets="GenerateFSharpILLinkSubstitutions">
+    <ItemGroup>
+      <AdditionalEmbeddedResource Include="@(Embed)" Condition="'%(Filename)%(Extension)' == 'ILLink.Substitutions.xml'">
+        <LogicalName>ILLink.Substitutions.xml</LogicalName>
+      </AdditionalEmbeddedResource>
+    </ItemGroup>
+  </Target>
 </Project>
