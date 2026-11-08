@@ -48,7 +48,7 @@ let homeRowIs(state: State, kind: String): Bool =
 /// scroll and the filter, all of which indexed the list the lens just replaced.
 let withLens(state: State, lens: Lens): State =
   moveToPoint(state,
-    { (returnPointOf(state)) with lens = lens, selected = 0, filter = "" }, true)
+    { (returnPointOf(state)) with lens = lens, selected = 0, filter = "" }, History.Record)
 
 /// Movement and view actions when no modal layer owns the key.
 let handleViewKey(
@@ -75,15 +75,15 @@ let handleViewKey(
       // Docs: open the selected topic in the full-body reader (prose, not code). By name, not by index - the
       // list is filterable, see `selectedDocTopic`.
       match selectedDocTopic(state) with
-      | Some(t) -> openReader(state, t.content(), false)
+      | Some(t) -> openReader(state, t.content(), Reader.Prose)
       | None -> Step.Continue(state)
     else if state.activeView == vSCM then
       // Changes: a conflict opens its versions; a change opens its current source.
       match Stdlib.List.getAt(state.items, state.selected) with
       | Some(it) ->
-        if it.kind == "conflict" then openReader(state, conflictDetail(state), false)
+        if it.kind == "conflict" then openReader(state, conflictDetail(state), Reader.Prose)
         else if it.kind == "removed" then Step.Continue(state)
-        else openReader(state, changesSourceText(state.branchId, Stdlib.Option.Option.Some(it)), true)
+        else openReader(state, changesSourceText(state.branchId, Stdlib.Option.Option.Some(it)), Reader.Code)
       | None -> Step.Continue(state)
     else if state.activeView == vScratch then
       // Scratch: open the eval prompt; the result appends to the log.
@@ -92,7 +92,7 @@ let handleViewKey(
             input = Stdlib.Option.Option.Some(InputState { prompt = "repl> ", field = Stdlib.Cli.UI.TextField.fromText(""), action = "scratch" }) })
     else if state.activeView == vTraces then
       // Traces: ⏎ opens the selected trace's detail.
-      openReader(state, traceDetail(state), false)
+      openReader(state, traceDetail(state), Reader.Prose)
     else if state.activeView == vMatter then
       // Matter: Enter descends into a module, or opens a leaf's source full-screen.
       match Stdlib.List.getAt(state.items, state.selected) with
@@ -114,7 +114,7 @@ let handleViewKey(
              + "\n\n"
              + (Stdlib.List.concat(highlightSourceLines(detailLines(state)), selectedFunctionTestRows(state))
                 |> Stdlib.String.join("\n"))),
-            false)
+            Reader.Prose)
       | None -> descend(state)
     else
       descend(state)
@@ -227,7 +227,7 @@ let handleViewKey(
       else if state.activeView == vMatter then
         match Stdlib.List.getAt(state.items, state.selected) with
         | Some(item) ->
-          if item.isModule then Step.Continue(state) else openReader(state, tracesText(state), false)
+          if item.isModule then Step.Continue(state) else openReader(state, tracesText(state), Reader.Prose)
         | None -> Step.Continue(state)
       else if state.activeView == vScratch then
         Step.Continue(
@@ -275,18 +275,18 @@ let handleViewKey(
       // see them; otherwise the key does nothing rather than opening a view that isn't there.
       let builtins = extViewIndex("builtins")
       if (state.activeView == vMatter) && (Stdlib.List.contains(visibleViews(state), builtins)) then
-        Step.Continue(goTo(state, mkDest(builtins, 0), false))
+        Step.Continue(goTo(state, mkDest(builtins, 0)))
       else Step.Continue(state)
     | Some("E") ->
       // Traces: the errors, the other half of what running software leaves behind. `5` comes back.
       if state.activeView == vTraces then
-        Step.Continue(goTo(state, mkDest(extViewIndex("errors"), 0), false))
+        Step.Continue(goTo(state, mkDest(extViewIndex("errors"), 0)))
       else Step.Continue(state)
     | Some("P") ->
       // Traces: what the scheduler is running right NOW, where Traces is what it already ran.
       // This key used to be on the Apps view, which is how Processes briefly had no route at all.
       if state.activeView == vTraces then
-        Step.Continue(goTo(state, mkDest(extViewIndex("processes"), 0), false))
+        Step.Continue(goTo(state, mkDest(extViewIndex("processes"), 0)))
       else Step.Continue(state)
     | Some("R") ->
       // Reload now: what `--live` would have done for you. The footer says when there is

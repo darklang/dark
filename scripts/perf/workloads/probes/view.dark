@@ -31,7 +31,7 @@ let base =
     Stdlib.Option.Option.None,
     "perf-instance",
     // not live: a --live view polls the store, which is not what is being timed here
-    false)
+    Darklang.Cli.Workbench.Updates.Manual)
 
 let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
 

@@ -198,23 +198,22 @@ let focusContent(state: State): State =
 
 /// Go to `d`: switch view and section, reload the list (cursor clamped, so
 /// hopping around doesn't lose your place), drop the filter and scroll, and
-/// remember `d` as where you were in its item. Focus lands on the content
-/// unless `stayInNavbar`. The place left is pushed for esc.
-let goTo(state: State, d: Dest, stayInNavbar: Bool): State =
+/// remember `d` as where you were in its item. Focus lands on the content.
+/// The place left is pushed for esc.
+let goTo(state: State, d: Dest): State =
   let point =
     { (returnPointOf(state)) with
         view = d.view
         lens = if d.view == vMatter then Lens.WholeTree else state.matter.lens
         filter = "" }
-  let moved = moveToPoint(state, point, true)
-  if stayInNavbar then focusNavbar(moved) else focusContent(moved)
+  focusContent(moveToPoint(state, point, History.Record))
 
 /// Jump to an item's view. Its number again, on it already, does nothing.
 let jumpToWorkspace(state: State, n: Int64): State =
   match workspaceEntry(state, n - 1) with
   | None -> state
   | Some(d) ->
-    if d.view != state.activeView then goTo(state, d, false)
+    if d.view != state.activeView then goTo(state, d)
     else state
 
 /// Keys while the nav has the keyboard. The arrows follow how the rows sit
@@ -258,7 +257,7 @@ let handleNavbarKey(
     let rows = rowsNow()
     match Stdlib.List.getAt(rows, selIn(rows)) with
     | None -> Step.Continue(state)
-    | Some(row) -> Step.Continue(goTo(state, row.dest, false))
+    | Some(row) -> Step.Continue(goTo(state, row.dest))
 
   let strip = navFitsNow()
   let stay = Step.Continue(state)
@@ -387,4 +386,4 @@ let renderNavbarOverlay(state: State, wip: Int64, conflicts: Int64, screen: Stdl
   let region = Stdlib.Cli.UI.Layout.Region { top = top, left = left, rows = h, cols = w }
   Stdlib.List.flatten(
     [ Stdlib.Cli.UI.Layout.clearRegion(region)
-      Stdlib.Cli.UI.Box.panel(region, "⏎ go · esc", true, fun inner -> renderNavbarRows(state, rows, inner)) ])
+      Stdlib.Cli.UI.Box.panel(region, "⏎ go · esc", Stdlib.Cli.UI.Focus.Focused, fun inner -> renderNavbarRows(state, rows, inner)) ])

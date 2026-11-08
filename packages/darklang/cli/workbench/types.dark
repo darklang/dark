@@ -164,6 +164,26 @@ type PreviewCache =
   { key: PreviewKey
     lines: List<String> }
 
+/// How the full-screen reader shows what it is given.
+type Reader =
+  /// Source: syntax-highlighted.
+  | Code
+  /// Docs, help, search results, ops: shown as they are.
+  | Prose
+
+/// Whether a move is remembered, so esc can come back to where it left.
+type History =
+  | Record
+  /// Back navigation: it must not make a return trip of its own.
+  | Skip
+
+/// Whether the workbench follows the store (`--live`) or waits for `R`. See `State.live`.
+type Updates =
+  /// Reload when something changes the store under you.
+  | Live
+  /// Nothing is said and nothing moves until you press `R`.
+  | Manual
+
 type State =
   { activeView: Int64
     /// `--live`: reload when something changes the store under you. Off, nothing is said and

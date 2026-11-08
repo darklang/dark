@@ -64,7 +64,7 @@ let view(state: State, region: Layout.Region): List<Layout.Span> =
   let box = centred(region, (if hasDetail then 7 else 6), width)
   let title = if state.danger then "confirm" else "question"
 
-  Box.panel(box, title, true, fun inner ->
+  Box.panel(box, title, Stdlib.Cli.UI.Focus.Focused, fun inner ->
     let detail =
       if hasDetail then Layout.at(inner, 2, 1, Colors.dimText(state.detail)) else []
 

@@ -143,12 +143,12 @@ let execute(state: AppState, args: List<String>): AppState =
   match (args, limit) with
   | ([ n ], Some(l)) when l <= 0 ->
     Cli.printErr($"`dark commits` takes a positive count; got {n}.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | ([ n ], None) ->
     Cli.printErr("`dark commits` takes a count, not a branch name.")
     Cli.printHint("  this branch's commits:  dark commits")
     Cli.printHint($"  that branch's history:  dark log {n}")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | (_, _) ->
 
   let limit = limit |> Stdlib.Option.withDefault(20)
@@ -168,7 +168,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | _ ->
     Cli.printErr("`dark commits` takes at most a count.")
     Stdlib.printErrorLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 /// Print a commit: its metadata, then the ops it committed.
 let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
@@ -222,7 +222,7 @@ let executeShow(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
     Stdlib.printErrorLine(helpShow(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | [ prefix ] ->
     match SCM.Commits.byHashPrefix(prefix) with
     | Some(c) ->
@@ -240,7 +240,7 @@ let executeShow(state: AppState, args: List<String>): AppState =
         else
           Cli.printHint("  `dark commits` lists commits, `dark ops` lists ops.")
 
-        Cli.exitWith(state, false)
+        Cli.failed(state)
       | ops ->
         ops
         |> Stdlib.List.iter(fun op ->
@@ -250,7 +250,7 @@ let executeShow(state: AppState, args: List<String>): AppState =
         state
   | _ ->
     Stdlib.printErrorLine(helpShow(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 /// Shared by `commits` and `show`, whose arguments are a count and a hash. Neither is worth offering:
 /// a count has no candidates, and a hash prefix is what `dark commits` just printed.

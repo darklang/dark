@@ -32,13 +32,13 @@ let returnPointOf(state: State): ReturnPoint =
       selected = state.selected
       filter = state.filter }
 
-/// The only navigation transition: remember where you were once, restore
-/// all destination coordinates, then load and clamp its filtered list.
-/// Back navigation passes false so it cannot create a return trip of its own.
-let moveToPoint(state: State, point: ReturnPoint, recordHistory: Bool): State =
+/// The only navigation transition: remember where you were once (unless
+/// <param history> says {{Skip}}), restore all destination coordinates, then
+/// load and clamp its filtered list.
+let moveToPoint(state: State, point: ReturnPoint, history: History): State =
   let here = returnPointOf(state)
   let back =
-    if recordHistory && (here != point) then
+    if (history == History.Record) && (here != point) then
       Stdlib.List.take(Stdlib.List.prepend(state.back, here), backCap)
     else state.back
   let dest = mkDest(point.view, 0)
@@ -88,10 +88,10 @@ let goBack(state: State): Step =
     else
       // The bottom of the stack: Home, without remembering the view just left, or esc would
       // ping-pong between the two.
-      let moved = goTo(state, mkDest(vHome, 0), false)
+      let moved = goTo(state, mkDest(vHome, 0))
       Step.Continue({ moved with back = [] })
   | [p, ...rest] ->
-    Step.Continue(moveToPoint({ state with back = rest }, p, false))
+    Step.Continue(moveToPoint({ state with back = rest }, p, History.Skip))
 
 /// Enter a tree module, remembering its parent and cursor.
 let descend(state: State): Step =
@@ -106,7 +106,7 @@ let descend(state: State): Step =
             lens = Lens.WholeTree
             selected = 0
             filter = "" }
-      Step.Continue(moveToPoint(state, point, true))
+      Step.Continue(moveToPoint(state, point, History.Record))
     else Step.Continue(state)
   | None -> Step.Continue(state)
 
@@ -122,7 +122,7 @@ let ascend(state: State): Step =
           lens = Lens.WholeTree
           selected = 0
           filter = "" }
-    Step.Continue(moveToPoint(state, point, true))
+    Step.Continue(moveToPoint(state, point, History.Record))
 
 // ── Movement (the arrows, Home/End and PageUp/PageDown; there is no second key set) ──
 
@@ -214,13 +214,13 @@ let navBottom(state: State): Step =
   let maxIdx = Stdlib.max(0, (Stdlib.List.length(state.items)) - 1)
   Step.Continue({ state with selected = maxIdx, detailScroll = 0 })
 
-/// Open the full-screen reader on `content`. `isCode` toggles syntax highlighting (true for source, false for
-/// docs/help/search/ops). Resets scroll.
-let openReader(state: State, content: String, isCode: Bool): Step =
+/// Open the full-screen reader on `content`, highlighted when <param reader> is {{Reader.Code}}.
+/// Resets scroll.
+let openReader(state: State, content: String, reader: Reader): Step =
   Step.Continue(
     { state with
         reading = Stdlib.Option.Option.Some(content)
-        readingIsCode = isCode
+        readingIsCode = reader == Reader.Code
         detailScroll = 0 })
 
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
@@ -273,7 +273,7 @@ let runCommandInFrame(state: State, command: String, args: List<String>): Step =
   // Forced, not compared: the command may have landed committed ops and conflicts without moving
   // this branch's draft count.
   let refreshed = forceScmRefresh(state)
-  openReader(refreshed, shown, false)
+  openReader(refreshed, shown, Reader.Prose)
 
 
 /// Jump from a search result to its home in the Tree: open the containing module, select the leaf, close the
@@ -294,7 +294,7 @@ let jumpToHit(state: State, hit: SearchHit): Step =
         lens = Lens.WholeTree
         selected = idx
         filter = "" }
-  let moved = moveToPoint(state, point, true)
+  let moved = moveToPoint(state, point, History.Record)
   Step.Continue(
     { moved with
         items = items

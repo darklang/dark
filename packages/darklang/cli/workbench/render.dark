@@ -234,11 +234,11 @@ let paneGeometry(
     (list, detail, ruleCol, false)
 
 /// A column's name, styled: the accent colour while it has the keyboard, bold otherwise.
-let paneName(name: String, focused: Bool): String =
-  if focused then
+let paneName(name: String, focus: Stdlib.Cli.UI.Focus): String =
+  match focus with
+  | Focused ->
     Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.purple, name)
-  else
-    Stdlib.Cli.UI.Colors.boldText(name)
+  | Unfocused -> Stdlib.Cli.UI.Colors.boldText(name)
 
 /// What trails a column's name, dim: a count, a path, a filter. Empty parts
 /// are dropped, so a caller can pass what it has and let this decide.
@@ -254,9 +254,9 @@ let paneTrailer(parts: List<String>): String = paneTrailerWith(" · ", parts)
 /// A column's title: its name, then its trailer. An empty name is allowed -
 /// the nav already says which view this is, so most first columns have
 /// only a trailer - and then the parts stand alone.
-let paneTitle(name: String, parts: List<String>, focused: Bool): String =
+let paneTitle(name: String, parts: List<String>, focus: Stdlib.Cli.UI.Focus): String =
   if name == "" then paneTrailerWith("", parts)
-  else (paneName(name, focused)) + (paneTrailer(parts))
+  else (paneName(name, focus)) + (paneTrailer(parts))
 
 /// One run of the top edge, `width` columns: `─ title ───`, or all dashes for
 /// an empty title. The dashes are dim; the title keeps its own styling.
@@ -387,8 +387,10 @@ let splitListPreview(
   previewTitle: String,
   emptyMsg: String)
   : List<Stdlib.Cli.UI.Layout.Span> =
-  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+  let listFocused =
+    Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+  let detailFocused =
+    Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
   let trailer = if Stdlib.List.isEmpty(state.items) then [] else listTrailer(state, noun)
   splitListPreviewTitled(
     state,

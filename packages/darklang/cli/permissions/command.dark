@@ -763,7 +763,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | [ subcommand ] when Stdlib.Option.isSome(Command.usageOf(subcommand)) ->
     let usage = Stdlib.Option.withDefault(Command.usageOf(subcommand), "")
     Cli.printErr($"missing argument; usage: permissions {usage}")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | ["allow", ...rule] ->
     Cli.exitWith(state, (Command.editRules(
       rule,
@@ -791,14 +791,14 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Cli.exitWith(state, Command.approveNamed(state, acceptWithoutPrompt, name, rules))
     | (_, []) ->
       Cli.printErr("approve needs a function name")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
   | ["update", ...rest] ->
     match Command.takeYesFlag(rest) with
     | (acceptWithoutPrompt, [name, ...rules]) ->
       Cli.exitWith(state, Command.updateNamed(state, acceptWithoutPrompt, name, rules))
     | (_, []) ->
       Cli.printErr("update needs a function name")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
   | [ "unapprove", name ] ->
     // An approval is keyed by the name as it was approved, so an unmatched name withdraws nothing;
     // say so rather than report a release that did not happen.
@@ -813,7 +813,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       state
     else
       Cli.printErr($"{name} has no approved version; `permissions approved` lists the ones that do")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
   | [ "approved" ] ->
     Command.printListOrNone(
       ((Command.approvedVersions(state.accountID))
@@ -834,7 +834,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       state
     else
       Cli.printErr($"{hash} has no approval; `permissions approvals` lists the ones that do")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
   | [ "approvals" ] ->
     // Name the ones an approved version points at. The rest are dependencies approved as part of
     // some root's closure and have no name of their own, but a page of bare hashes gave no way to
@@ -850,7 +850,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | _ ->
     Cli.printErr("unknown permissions command: " + Stdlib.String.join(args, " "))
     Stdlib.printErrorLine(Command.help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 let complete(
   _state: Cli.AppState,

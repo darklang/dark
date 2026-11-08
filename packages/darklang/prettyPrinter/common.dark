@@ -117,11 +117,13 @@ let formatName(name: String): String =
   else if name == "" then
     "___"
   else
+    let first = Stdlib.Regex.Limit.First
+    let textOnly = Stdlib.Regex.Collect.TextOnly
     let bare =
-      match Stdlib.Regex.scan(name, bareAsciiName, true, false) with
+      match Stdlib.Regex.scan(name, bareAsciiName, first, textOnly) with
       | Ok(([ _, _ ], _)) -> true
       | _ ->
-        match Stdlib.Regex.scan(name, bareName, true, false) with
+        match Stdlib.Regex.scan(name, bareName, first, textOnly) with
         | Ok(([ _, _ ], _)) -> true
         | _ -> false
     if bare && Stdlib.Bool.not(Stdlib.Dict.containsKey(reservedNames, name)) then

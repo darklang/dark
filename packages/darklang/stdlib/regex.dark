@@ -67,16 +67,42 @@ type Regex =
 val defaultOptions = Options { caseInsensitive = false, multiline = false }
 
 
+/// How many matches <fn scan> and <fn replaceMatches> look for.
+type Limit =
+  /// At most one: the first.
+  | First
+  /// Every match.
+  | All
+
+
+/// What <fn scan> hands back besides the text between matches.
+type Collect =
+  /// The matches too, with their groups.
+  | Matches
+  /// An empty list of matches, which is much cheaper when only the text between them
+  /// is needed.
+  | TextOnly
+
+
 /// The text between matches, which always has one more entry than the matches, and
-/// the matches. Every other fn here is built on this. With <param firstOnly>, at
-/// most one match. Without <param withMatches>, the list of matches is empty, which
-/// is much cheaper when only the text between them is needed.
+/// the matches. Every other fn here is built on this. <param limit> says how many
+/// matches, and <param collect> whether to build them or only the text between.
 let scan(
   input: String,
   regex: Regex,
-  firstOnly: Bool,
-  withMatches: Bool)
+  limit: Limit,
+  collect: Collect)
   : Stdlib.Result.Result<(List<String> * List<Match>), RegexError> =
+  let firstOnly =
+    match limit with
+    | First -> true
+    | All -> false
+
+  let withMatches =
+    match collect with
+    | Matches -> true
+    | TextOnly -> false
+
   Builtin.regexScan(
     regex.pattern,
     regex.options.caseInsensitive,
@@ -103,7 +129,7 @@ let compileWith(
   options: Options)
   : Stdlib.Result.Result<Regex, RegexError> =
   let regex = Regex { pattern = pattern, options = options }
-  scan("", regex, true, false) |> Stdlib.Result.map(fun _ -> regex)
+  scan("", regex, Limit.First, Collect.TextOnly) |> Stdlib.Result.map(fun _ -> regex)
 
 
 /// The first match of <param regex> in <param input>, with its groups.
@@ -111,7 +137,7 @@ let findMatch(
   input: String,
   regex: Regex)
   : Stdlib.Result.Result<Stdlib.Option.Option<Match>, RegexError> =
-  scan(input, regex, true, true)
+  scan(input, regex, Limit.First, Collect.Matches)
   |> Stdlib.Result.map(fun((_, matches)) -> Stdlib.List.head(matches))
 
 
@@ -120,7 +146,8 @@ let findAllMatches(
   input: String,
   regex: Regex)
   : Stdlib.Result.Result<List<Match>, RegexError> =
-  scan(input, regex, false, true) |> Stdlib.Result.map(fun((_, matches)) -> matches)
+  scan(input, regex, Limit.All, Collect.Matches)
+  |> Stdlib.Result.map(fun((_, matches)) -> matches)
 
 
 /// Whether the regex <param pattern> matches anywhere in <param input>.
@@ -129,7 +156,7 @@ let isMatch(
   pattern: String)
   : Stdlib.Result.Result<Bool, RegexError> =
   // A match rather than Result.map: on a short input the lambda costs more than the regex.
-  match scan(input, ofPattern(pattern), true, false) with
+  match scan(input, ofPattern(pattern), Limit.First, Collect.TextOnly) with
   | Ok(([ _ ], _)) -> Stdlib.Result.Result.Ok(false)
   | Ok(_) -> Stdlib.Result.Result.Ok(true)
   | Error(e) -> Stdlib.Result.Result.Error(e)
@@ -161,7 +188,7 @@ let replace(
   pattern: String,
   replacement: String)
   : Stdlib.Result.Result<String, RegexError> =
-  match scan(input, ofPattern(pattern), true, false) with
+  match scan(input, ofPattern(pattern), Limit.First, Collect.TextOnly) with
   | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(Stdlib.String.join(pieces, replacement))
   | Error(e) -> Stdlib.Result.Result.Error(e)
 
@@ -174,7 +201,7 @@ let replaceAll(
   pattern: String,
   replacement: String)
   : Stdlib.Result.Result<String, RegexError> =
-  match scan(input, ofPattern(pattern), false, false) with
+  match scan(input, ofPattern(pattern), Limit.All, Collect.TextOnly) with
   | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(Stdlib.String.join(pieces, replacement))
   | Error(e) -> Stdlib.Result.Result.Error(e)
 
@@ -186,7 +213,7 @@ let replaceWith(
   pattern: String,
   fn: Match -> String)
   : Stdlib.Result.Result<String, RegexError> =
-  replaceMatches(input, ofPattern(pattern), true, fn)
+  replaceMatches(input, ofPattern(pattern), Limit.First, fn)
 
 
 /// Replaces every match of the regex <param pattern> in <param input> with what
@@ -196,18 +223,18 @@ let replaceAllWith(
   pattern: String,
   fn: Match -> String)
   : Stdlib.Result.Result<String, RegexError> =
-  replaceMatches(input, ofPattern(pattern), false, fn)
+  replaceMatches(input, ofPattern(pattern), Limit.All, fn)
 
 
 /// Replaces each match of <param regex> in <param input> with what <param fn> makes
-/// of it. With <param firstOnly>, only the first match.
+/// of it, as many as <param limit> says.
 let replaceMatches(
   input: String,
   regex: Regex,
-  firstOnly: Bool,
+  limit: Limit,
   fn: Match -> String)
   : Stdlib.Result.Result<String, RegexError> =
-  scan(input, regex, firstOnly, true)
+  scan(input, regex, limit, Collect.Matches)
   |> Stdlib.Result.map(fun((pieces, matches)) ->
     match pieces with
     | [] -> ""
@@ -224,7 +251,7 @@ let split(
   input: String,
   pattern: String)
   : Stdlib.Result.Result<List<String>, RegexError> =
-  match scan(input, ofPattern(pattern), false, false) with
+  match scan(input, ofPattern(pattern), Limit.All, Collect.TextOnly) with
   | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(pieces)
   | Error(e) -> Stdlib.Result.Result.Error(e)
 

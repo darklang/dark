@@ -27,8 +27,8 @@ let render(
   renderFirst: Layout.Region -> List<Layout.Span>,
   renderSecond: Layout.Region -> List<Layout.Span>)
   : List<Layout.Span> =
-  let firstFocused = focused == Focus.First
-  let secondFocused = focused == Focus.Second
+  let firstFocused = Stdlib.Cli.UI.Focus.fromBool(focused == Focus.First)
+  let secondFocused = Stdlib.Cli.UI.Focus.fromBool(focused == Focus.Second)
   let minTotal = 46
 
   let tooNarrow =
@@ -39,9 +39,9 @@ let render(
   if tooNarrow then
     // Collapse: show only the focused pane, full region, with a which-of-two hint in the title.
     let (title, renderFn) =
-      if secondFocused then (titleSecond + " ‹2/2›", renderSecond)
+      if focused == Focus.Second then (titleSecond + " ‹2/2›", renderSecond)
       else (titleFirst + " ‹1/2›", renderFirst)
-    Box.panel(region, title, focused != Focus.Neither, renderFn)
+    Box.panel(region, title, Stdlib.Cli.UI.Focus.fromBool(focused != Focus.Neither), renderFn)
   else
     match orientation with
     | Horizontal ->

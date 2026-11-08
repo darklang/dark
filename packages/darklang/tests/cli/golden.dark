@@ -60,7 +60,7 @@ let goldenviewRender(): Unit =
       Darklang.SCM.Branch.mainBranchId,
       Stdlib.Option.Option.None,
       "perf-instance",
-      false)
+      Darklang.Cli.Workbench.Updates.Manual)
 
   let base = fixedHome(loadedBase)
 
@@ -206,7 +206,7 @@ let goldenkeysRender(): Unit =
       Darklang.SCM.Branch.mainBranchId,
       Stdlib.Option.Option.None,
       "perf-instance",
-      false)
+      Darklang.Cli.Workbench.Updates.Manual)
 
   let base = fixedHome(loadedBase)
 

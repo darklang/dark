@@ -634,7 +634,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
     if
       Stdlib.Bool.not((
         Cli.Prompt.confirmExplicit(
-          parsed.autoConfirm,
+          Cli.Confirm.assumeIf(parsed.autoConfirm),
           Stdlib.Cli.UI.Colors.warning("\n  Commit this change? [y/N]: "))
       ))
     then
@@ -642,7 +642,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
         Cli.Stderr.ok("  left as a draft.")
       else
         Cli.Stderr.ok("  left as a draft. (`dark commit <message> -y` commits without the prompt -- a piped stdin can't answer it.)")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
       let outcome =
         if Stdlib.List.isEmpty(parsed.include) then

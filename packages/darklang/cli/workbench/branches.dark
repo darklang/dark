@@ -115,7 +115,7 @@ let renderBranchPicker(
         rows = h, cols = w }
   Stdlib.List.flatten(
     [ Stdlib.Cli.UI.Layout.clearRegion(region)
-      Stdlib.Cli.UI.Box.panel(region, "Switch branch", true, fun inner ->
+      Stdlib.Cli.UI.Box.panel(region, "Switch branch", Stdlib.Cli.UI.Focus.Focused, fun inner ->
         let list =
           Stdlib.Cli.UI.Layout.Region
             { top = inner.top + 2, left = inner.left

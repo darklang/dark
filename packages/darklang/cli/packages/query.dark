@@ -64,17 +64,47 @@ let allDirectDescendantNamesAndHashes(
   LanguageTools.PackageManager.Search.searchNamesAndHashes(branchId, query)
 
 
+/// Whether a listing shows what a deprecation hides. `--include-deprecated` asks for it.
+type Deprecated =
+  | Show
+  | Hide
+
+module Deprecated =
+  /// {{Show}} when <param asked>, the way a command reads `--include-deprecated`.
+  let showIf(asked: Bool): Darklang.Cli.Packages.Query.Deprecated =
+    if asked then
+      Darklang.Cli.Packages.Query.Deprecated.Show
+    else
+      Darklang.Cli.Packages.Query.Deprecated.Hide
+
+/// Whether a listing shows internal `__` helpers. `--include-internal` asks for them.
+type Internal =
+  | Show
+  | Hide
+
+module Internal =
+  /// {{Show}} when <param asked>, the way a command reads `--include-internal`.
+  let showIf(asked: Bool): Darklang.Cli.Packages.Query.Internal =
+    if asked then
+      Darklang.Cli.Packages.Query.Internal.Show
+    else
+      Darklang.Cli.Packages.Query.Internal.Hide
+
+
 /// Drop what a listing hides by default, for a (name, hash) listing. See `filterHidden`.
 let filterHiddenPairs(
   items: List<(String * LanguageTools.ProgramTypes.Hash)>,
   sets: DeprecationSets,
-  includeDeprecated: Bool,
-  includeInternal: Bool)
+  deprecated: Deprecated,
+  internal: Internal)
   : List<(String * LanguageTools.ProgramTypes.Hash)> =
+  let showDeprecated = deprecated == Deprecated.Show
+  let showInternal = internal == Internal.Show
+
   items
   |> Stdlib.List.filter(fun((name, hash)) ->
-    (includeDeprecated || Stdlib.Bool.not(isHidden(sets, hash)))
-    && (includeInternal || Stdlib.Bool.not(isInternalName(name))))
+    (showDeprecated || Stdlib.Bool.not(isHidden(sets, hash)))
+    && (showInternal || Stdlib.Bool.not(isInternalName(name))))
 
 
 /// Search for a specific entity by name in a given module path (exact match)
@@ -153,7 +183,7 @@ let getDirectSubmodules(results: LanguageTools.ProgramTypes.Search.SearchResults
 
 /// Deprecation filters for `ls`/`tree`/`search`.
 ///
-/// Default (includeDeprecated = false):
+/// Default (Deprecated.Hide):
 ///   * Items whose hash is in "hidden" (deprecated AND no live caller) are dropped.
 ///   * Items whose hash is in "deprecated but shown" are returned with their
 ///     location marked; the UI can render an icon.
@@ -238,18 +268,21 @@ let withoutInternal(
 
 
 /// Filter SearchResults by the default visibility rule: hidden deprecations and internal helpers
-/// are dropped unless <param includeDeprecated> / <param includeInternal> ask for them.
+/// are dropped unless <param deprecated> / <param internal> say {{Show}}.
 let filterHidden(
   results: LanguageTools.ProgramTypes.Search.SearchResults,
   sets: DeprecationSets,
-  includeDeprecated: Bool,
-  includeInternal: Bool)
+  deprecated: Deprecated,
+  internal: Internal)
   : LanguageTools.ProgramTypes.Search.SearchResults =
-  let results = if includeInternal then results else withoutInternal(results)
+  let results =
+    match internal with
+    | Show -> results
+    | Hide -> withoutInternal(results)
 
-  if includeDeprecated then
-    results
-  else
+  match deprecated with
+  | Show -> results
+  | Hide ->
     LanguageTools.ProgramTypes.Search.SearchResults
       { submodules = results.submodules
         types = results.types |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))

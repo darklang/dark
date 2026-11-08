@@ -223,17 +223,17 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | _ when Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) ->
     Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
     Stdlib.printErrorLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
   | (None, _) ->
     Stdlib.printLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
   | (_, None) ->
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.error(
         "Error: Missing --kind. Use: superseded-by, harmful, or obsolete")))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
   | (Some(first), Some(kindStr)) ->
     let currentLoc = state.packageData.currentLocation
@@ -241,7 +241,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     match resolveKindAndTarget(branchId, currentLoc, first, parsed.target) with
     | Error(msg) ->
       Cli.printErr(msg)
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Ok(found) ->
       let itemKind = found.itemKind
       let itemTypeStr = found.itemTypeStr
@@ -284,13 +284,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         match replacementResult with
         | Error(msg) ->
           Cli.printErr(msg)
-          Cli.exitWith(state, false)
+          Cli.failed(state)
         | Ok(replacementRef) ->
 
         match parseKind(itemKind, kindStr, replacementRef) with
         | Error(msg) ->
           Cli.printErr(msg)
-          Cli.exitWith(state, false)
+          Cli.failed(state)
         | Ok(deprecationKind) ->
           let fullPathOf = fun(name) ->
             match Location.parseRelativeTo(currentLoc, name) with
@@ -356,7 +356,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           else
             let proceed =
               Cli.Prompt.confirmExplicit(
-                parsed.autoConfirm,
+                Cli.Confirm.assumeIf(parsed.autoConfirm),
                 Stdlib.Cli.UI.Colors.warning("Proceed? (y/n): "))
 
             if proceed then
@@ -387,16 +387,16 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                   state
                 | None ->
                   Cli.printErr($"Not deprecated, though the op was written. That is a bug in op restatement -- please report it.")
-                  Cli.exitWith(state, false)
+                  Cli.failed(state)
               | Error(e) ->
                 Cli.printErr($"Deprecation failed: {e}")
-                Cli.exitWith(state, false)
+                Cli.failed(state)
             else
               if Stdlib.Cli.UI.Prompt.canAsk() then
                 Cli.Stderr.line("Deprecation cancelled.")
               else
                 Cli.Stderr.line("Deprecation cancelled. (`-y` deprecates without the prompt -- a piped stdin can't answer it.)")
-              Cli.exitWith(state, false)
+              Cli.failed(state)
 
 
 /// `dark undeprecate <name>` -- put something back on the shelf.
@@ -430,7 +430,7 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
         "  puts a deprecated fn, type, value, trait, impl or test back on the shelf. `dark ls --include-deprecated` finds them.")))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | [ target ] ->
     let currentLoc = state.packageData.currentLocation
 
@@ -451,13 +451,13 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  deprecated items are hidden; `dark ls --include-deprecated` shows them."))
 
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | [_, _, ...] ->
       Cli.printErr($"{target} names more than one kind of item")
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  say which: `dark deprecate <fn|type|value|trait|impl> <name>`"))
 
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | [ pair ] ->
       let (itemKind, targetRef) = pair
 
@@ -490,13 +490,13 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
           | Some(_) ->
             Cli.printErr($"Still deprecated, though the op was written. That is a bug in op restatement -- please report it.")
 
-            Cli.exitWith(state, false)
+            Cli.failed(state)
         | Error(e) ->
           Cli.printErr($"Undeprecate failed: {e}")
-          Cli.exitWith(state, false)
+          Cli.failed(state)
   | _ ->
     Cli.printErr("usage: dark undeprecate <name>")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 
 /// `undeprecate`'s own help. Registered against `undeprecate`, not shared with `deprecate`, whose flags

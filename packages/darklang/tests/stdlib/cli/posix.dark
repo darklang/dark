@@ -36,6 +36,22 @@ test unlinkAtRemovesDirectory =
     (created, removed, Stdlib.Cli.File.exists(path)))
   |> Stdlib.Test.equal(Ok((Ok(), Ok(), false)))
 
+// flock takes the exclusive lock and lets it go; withLock runs its fn holding it
+test flockLocksAndUnlocks =
+  Stdlib.Cli.Dir.withTemp(fun dir ->
+    let path = Stdlib.Cli.Path.join([ dir, "lock" ])
+    let flags =
+      (Stdlib.Cli.Posix.OpenFlags.wronly()) | (Stdlib.Cli.Posix.OpenFlags.creat())
+
+    match Stdlib.Cli.Posix.openFile(path, flags, Stdlib.Cli.Posix.Modes.defaultFile) with
+    | Ok(fd) ->
+      let locked = Stdlib.Cli.Posix.flock(fd, Stdlib.Cli.Posix.Lock.Exclusive)
+      let unlocked = Stdlib.Cli.Posix.flock(fd, Stdlib.Cli.Posix.Lock.Unlock)
+      let _ = Stdlib.Cli.Posix.fdClose(fd)
+      (locked, unlocked, Stdlib.Cli.File.withLock(path, fun _ -> 42))
+    | Error(e) -> (Error(e), Error(e), Error(e)))
+  |> Stdlib.Test.equal(Ok((Ok(), Ok(), Ok(42))))
+
 // readlinkat truncates to the buffer it is given
 test readlinkAtTruncates =
   Stdlib.Cli.Dir.withTemp(fun dir ->

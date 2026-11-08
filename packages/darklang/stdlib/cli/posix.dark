@@ -205,10 +205,21 @@ let mkstemp(prefix: String): Result.Result<(BigInt * String), Error> =
 let mkdtemp(prefix: String): Result.Result<String, Error> =
   Stdlib.Cli.Posix.__tempDirectory(prefix)
 
-/// Match a string against a glob pattern.
-/// If pathMode is true, * does not match /
-let flock(fd: BigInt, exclusive: Bool): Result.Result<Unit, Error> =
-  Builtin.syscallFlock(fd, (if exclusive then 2 else 8))
+/// What <fn flock> does to a file's lock.
+type Lock =
+  /// Take the exclusive lock, waiting while another holder has it (LOCK_EX).
+  | Exclusive
+  /// Let go of the lock this fd holds (LOCK_UN).
+  | Unlock
+
+/// Take or release an advisory lock on the open file <param fd>.
+let flock(fd: BigInt, lock: Lock): Result.Result<Unit, Error> =
+  let operation =
+    match lock with
+    | Exclusive -> 2
+    | Unlock -> 8
+
+  Builtin.syscallFlock(fd, operation)
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
 
 /// Get the owner username of a file.
@@ -263,12 +274,6 @@ module Signal =
 let kill(pid: Pid, signal: Signal): Result.Result<Unit, Error> =
   Builtin.syscallKill(Stdlib.Cli.Posix.Pid.toInt64(pid), Stdlib.Cli.Posix.Signal.toInt64(signal))
   |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
-
-/// {{SIGKILL}}
-val sigkill = Stdlib.Cli.Posix.Signal.SIGKILL
-
-/// {{SIGINT}}
-val sigint = Stdlib.Cli.Posix.Signal.SIGINT
 
 /// Common errno values (Linux/macOS)
 module Errno =

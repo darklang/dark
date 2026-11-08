@@ -10,7 +10,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | [bad, ...] ->
     Cli.printErr($"version: unknown option `{bad}`")
     Stdlib.printErrorLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | [] ->
 
   // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of

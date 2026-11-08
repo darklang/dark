@@ -185,7 +185,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 // `--live` is one flag: following edits and telling an open page to reload are
                 // the same intent, and a page that reloads itself to fetch a pinned version is
                 // nothing.
-                true,
+                Stdlib.HttpServer.Reload.OnSave,
                 announce)
             | _ -> Stdlib.HttpServer.serve(config, router, announce)
 

@@ -19,7 +19,12 @@ let inner(region: Layout.Region): Layout.Region =
 /// just the pill.
 ///
 /// Returns spans; colour codes carry no width (clipping goes through `Tui.Text`).
-let draw(region: Layout.Region, title: String, focused: Bool): List<Layout.Span> =
+let draw(
+  region: Layout.Region,
+  title: String,
+  focus: Stdlib.Cli.UI.Focus)
+  : List<Layout.Span> =
+  let focused = focus == Stdlib.Cli.UI.Focus.Focused
   let color = if focused then Colors.purple else Colors.brightBlack
   let paint = fun s -> Colors.colorize(color, s)
 
@@ -81,11 +86,12 @@ let draw(region: Layout.Region, title: String, focused: Bool): List<Layout.Span>
       sides
       Layout.at(region, region.rows - 1, 0, paint(bottom)) ])
 
-/// Draw a box and render content into its inner region in one call. `focused` picks the bright/dim border.
+/// Draw a box and render content into its inner region in one call. <param focus> picks the
+/// bright/dim border.
 let panel(
   region: Layout.Region,
   title: String,
-  focused: Bool,
+  focus: Stdlib.Cli.UI.Focus,
   renderInner: Layout.Region -> List<Layout.Span>)
   : List<Layout.Span> =
-  Stdlib.List.flatten([ draw(region, title, focused), renderInner(inner(region)) ])
+  Stdlib.List.flatten([ draw(region, title, focus), renderInner(inner(region)) ])

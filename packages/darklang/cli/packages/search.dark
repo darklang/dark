@@ -221,8 +221,8 @@ type ParsedArgs =
     exactMatch: Bool
     withDocs: Bool
     shallow: Bool
-    includeDeprecated: Bool
-    includeInternal: Bool
+    deprecated: Query.Deprecated
+    internal: Query.Internal
     includeTests: Bool
     asJson: Bool
     parseErrors: List<FlagParser.ParseError> }
@@ -284,8 +284,8 @@ let parseArgs(args: List<String>): ParsedArgs =
       exactMatch = FlagParser.hasFlag(p, "--exact")
       withDocs = FlagParser.hasFlag(p, "--with-docs")
       shallow = FlagParser.hasFlag(p, "--shallow")
-      includeDeprecated = FlagParser.hasFlag(p, "--include-deprecated")
-      includeInternal = FlagParser.hasFlag(p, "--include-internal")
+      deprecated = Query.Deprecated.showIf(FlagParser.hasFlag(p, "--include-deprecated"))
+      internal = Query.Internal.showIf(FlagParser.hasFlag(p, "--include-internal"))
       includeTests = FlagParser.hasFlag(p, "--include-tests")
       asJson = FlagParser.hasFlag(p, "--json")
       parseErrors = p.errors }
@@ -445,7 +445,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
       Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
       Stdlib.printErrorLine("")
       Stdlib.printErrorLine(usage)
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
       let rawQueryText = Stdlib.String.join(parsed.queryParts, " ")
 
@@ -462,7 +462,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
 
         Stdlib.printErrorLine("")
         Stdlib.printErrorLine(usage)
-        Cli.exitWith(state, false)
+        Cli.failed(state)
       else
         let searchDepth =
           if parsed.shallow then
@@ -492,7 +492,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
 
         let rawResults = LanguageTools.PackageManager.Search.search(state.currentBranchId, query)
         let depSets = Query.loadDeprecationSets(state.currentBranchId)
-        let results = Query.filterHidden(rawResults, depSets, parsed.includeDeprecated, parsed.includeInternal)
+        let results = Query.filterHidden(rawResults, depSets, parsed.deprecated, parsed.internal)
 
         // An implementation is one result. Its method fns live under it and its path reads as a
         // module, so without this each one was listed three times.
@@ -667,7 +667,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Cli.printErr("Error: Batch search requires at least one query")
       Stdlib.printErrorLine("")
       Stdlib.printErrorLine(usage)
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
       // FlagParser has no value-taking flags in this command, so retaining the
       // original flag arguments is sufficient to give every query the same

@@ -278,7 +278,7 @@ let workbenchState(): Darklang.Cli.Workbench.State =
     Darklang.SCM.Branch.mainBranchId,
     Stdlib.Option.Option.None,
     "test-instance",
-    false)
+    Darklang.Cli.Workbench.Updates.Manual)
 
 
 /// Render one view and report whether it produced a plausible frame.

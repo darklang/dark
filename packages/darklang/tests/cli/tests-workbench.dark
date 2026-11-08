@@ -1,6 +1,34 @@
 /// Navigation regressions that need real key dispatch and populated views.
 module Darklang.Cli.Tests.TestSuite
 
+// A move with History.Record leaves a way back and one with History.Skip (back's own) does
+// not; the reader highlights what it is given only for Reader.Code.
+test workbenchNavigationEnums =
+  let base = workbenchState()
+  let point =
+    { (Darklang.Cli.Workbench.returnPointOf(base)) with
+        view = Darklang.Cli.Workbench.vMatter }
+  let recorded =
+    Darklang.Cli.Workbench.moveToPoint(base, point, Darklang.Cli.Workbench.History.Record)
+  let skipped =
+    Darklang.Cli.Workbench.moveToPoint(base, point, Darklang.Cli.Workbench.History.Skip)
+  let code =
+    match Darklang.Cli.Workbench.openReader(base, "x", Darklang.Cli.Workbench.Reader.Code) with
+    | Continue(s) -> Stdlib.Option.Option.Some(s.readingIsCode)
+    | _ -> Stdlib.Option.Option.None
+  let prose =
+    match Darklang.Cli.Workbench.openReader(base, "x", Darklang.Cli.Workbench.Reader.Prose) with
+    | Continue(s) -> Stdlib.Option.Option.Some(s.readingIsCode)
+    | _ -> Stdlib.Option.Option.None
+
+  Stdlib.Test.all(
+    [ Stdlib.List.length(recorded.back) |> Stdlib.Test.equal(1)
+      Stdlib.List.length(skipped.back) |> Stdlib.Test.equal(0)
+      recorded.activeView |> Stdlib.Test.equal(Darklang.Cli.Workbench.vMatter)
+      skipped.activeView |> Stdlib.Test.equal(Darklang.Cli.Workbench.vMatter)
+      code |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
+      prose |> Stdlib.Test.equal(Stdlib.Option.Option.Some(false)) ])
+
 test workbenchHistoryRoundTrip =
   let base = workbenchState()
   let hit = Darklang.Cli.Workbench.SearchHit

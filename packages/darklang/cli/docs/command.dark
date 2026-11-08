@@ -323,7 +323,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown topic: {topicName}"))
         Stdlib.printErrorLine("")
         Stdlib.printErrorLine(Topics.formatTopicList())
-        Cli.exitWith(state, false)
+        Cli.failed(state)
 
 
 let help(_state: Cli.AppState): String =

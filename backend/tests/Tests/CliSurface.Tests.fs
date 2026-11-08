@@ -310,7 +310,7 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =
-  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"test-instance\", false) in let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let frame = fun(v, w, h) -> (Darklang.Cli.Workbench.viewAtSize({ s with activeView = v }, Darklang.Stdlib.Cli.Tui.Size { width = w, height = h })).rows in "
+  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"test-instance\", Darklang.Cli.Workbench.Updates.Manual) in let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let frame = fun(v, w, h) -> (Darklang.Cli.Workbench.viewAtSize({ s with activeView = v }, Darklang.Stdlib.Cli.Tui.Size { width = w, height = h })).rows in "
   + ""
   + ""
   + body
@@ -344,7 +344,7 @@ let private hintRowKeepsTheWayOut =
     (fun state ->
       task {
         let lastRow (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in let s = { s1 with items = Darklang.Cli.Workbench.reloadItems(s1) } in "
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", Darklang.Cli.Workbench.Updates.Manual) in let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in let s = { s1 with items = Darklang.Cli.Workbench.reloadItems(s1) } in "
           + ""
           + ""
           + ""
@@ -396,7 +396,7 @@ let private headerKeepsTheBranchWhenNarrow =
         // A deliberately long instance name, so the row is over-full whatever the shared
         // store holds: the test creates the condition rather than hoping.
         let row (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"inst-with-a-deliberately-long-name-for-this-test\", false) in let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in let s = { s1 with items = Darklang.Cli.Workbench.reloadItems(s1) } in "
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"inst-with-a-deliberately-long-name-for-this-test\", Darklang.Cli.Workbench.Updates.Manual) in let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let s1 = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in let s = { s1 with items = Darklang.Cli.Workbench.reloadItems(s1) } in "
           + ""
           + ""
           + ""
@@ -428,7 +428,7 @@ let private workbenchBranchActionsWork =
     (fun state ->
       task {
         let act (action : string) (text : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"t\", false) in "
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"t\", Darklang.Cli.Workbench.Updates.Manual) in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in "
           + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + $"match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText(\"{text}\"), action = \"{action}\" }}) with "
@@ -466,7 +466,7 @@ let private mergeAndRebaseRefuseOnMain =
     (fun state ->
       task {
         let act (action : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"t\", false) in "
+          "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"t\", Darklang.Cli.Workbench.Updates.Manual) in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus(st, st) in "
           + "let s = { s0 with activeView = Darklang.Cli.Workbench.vSCM } in "
           + $"match Darklang.Cli.Workbench.performInputAction(s, Darklang.Cli.Workbench.InputState {{ prompt = \"p\", field = Stdlib.Cli.UI.TextField.fromText(\"y\"), action = \"{action}\" }}) with "
@@ -1689,7 +1689,7 @@ let private workbenchEdit
   (replace : string)
   : string =
   let path = modules |> List.map darkString |> String.concat ", "
-  "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\n"
+  "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", Darklang.Cli.Workbench.Updates.Manual) in\n"
   + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path} ]) }} in\n"
   + "let items = Darklang.Cli.Workbench.reloadItems(st) in\n"
   + $"match Stdlib.List.findFirst(items, fun i -> i.name == {darkString item}) with\n"
@@ -1737,7 +1737,7 @@ let private workbenchNew
   (source : string)
   : string =
   let path xs = xs |> List.map darkString |> String.concat ", "
-  "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\n"
+  "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", Darklang.Cli.Workbench.Updates.Manual) in\n"
   + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path location} ]) }} in\n"
   + $"match Darklang.Cli.Workbench.openNewEditor(st, {darkString kind}, [ {path target} ]) with\n"
   + "| Continue(opened) ->\n"
@@ -1910,7 +1910,7 @@ let private workbenchRefusalsAreMarkedAsRefusals =
   cliTest "the workbench marks a refusal as a refusal, not a success" (fun state ->
     task {
       let code =
-        "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", false) in\nlet st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\nlet kindOf = fun step -> match step with | Continue(s) -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\nlet input = fun(action, text) -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(text), action = action } in\nStdlib.String.join([ kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"author-fn\", \" \"))), kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"search\", \"zzzWbNothingIsCalledThis\"))), kindOf(Darklang.Cli.Workbench.resolveConflict(st, \"ok\")) ], \"\\n\")"
+        "let st0 = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"i\", Darklang.Cli.Workbench.Updates.Manual) in\nlet st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\nlet kindOf = fun step -> match step with | Continue(s) -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\nlet input = fun(action, text) -> Darklang.Cli.Workbench.InputState { prompt = \"\", field = Stdlib.Cli.UI.TextField.fromText(text), action = action } in\nStdlib.String.join([ kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"author-fn\", \" \"))), kindOf(Darklang.Cli.Workbench.performInputAction(st, input(\"search\", \"zzzWbNothingIsCalledThis\"))), kindOf(Darklang.Cli.Workbench.resolveConflict(st, \"ok\")) ], \"\\n\")"
         + ""
         + ""
         + ""

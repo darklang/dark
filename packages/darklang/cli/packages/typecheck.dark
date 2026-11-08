@@ -252,15 +252,15 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   if Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
     Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
     Stdlib.printErrorLine(usage)
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else if (Stdlib.List.length(parsed.positionals)) > 1 then
     Cli.printErr("Error: typecheck takes at most one module to scope the audit to")
     Stdlib.printErrorLine(usage)
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else if parsed.conflictingFilters then
     Cli.printErr("Error: --all cannot be combined with --failed or --incomplete")
     Cli.printErr(usage)
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
     // A module scopes the audit to that subtree. Without one it is the whole branch, which
     // on a full store is thousands of declarations and tens of seconds; a caller that wants

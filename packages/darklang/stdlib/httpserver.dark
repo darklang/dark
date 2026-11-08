@@ -227,22 +227,33 @@ let serve(
     onListening)
 
 
+/// Whether an open page reloads itself when what served it is saved.
+type Reload =
+  /// An open page reloads when the router it came from, or anything it calls, is saved
+  /// (`GET /__live` is an event stream; HTML responses carry the script that listens). For a
+  /// dev site, not production.
+  | OnSave
+  /// Pages are served as they are, with no script and no `/__live`.
+  | Off
+
 /// `serve` for a server that follows edits: the handler is not fixed at start. Per request the server
 /// runs <param step> over a state it keeps between requests, and <param step> answers with the handler
 /// to use this time. <param first> is the handler as resolved at start, for the bind-time approval
-/// root. `Stdlib.Live.Router` is the step a router-by-name wants.
-///
-/// <param dev>: an open page reloads when the router it came from, or anything it calls, is saved
-/// (`GET /__live` is an event stream; HTML responses carry the script that listens). For a dev
-/// site, not production.
+/// root. `Stdlib.Live.Router` is the step a router-by-name wants. <param reload> says whether an open
+/// page reloads itself on a save.
 let serveLive(
   config: Config.Config,
   init: 's,
   step: 's -> ('s * Stdlib.Result.Result<Http.Request -> Http.Response, String>),
   first: Http.Request -> Http.Response,
-  dev: Bool,
+  reload: Reload,
   onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
+  let dev =
+    match reload with
+    | OnSave -> true
+    | Off -> false
+
   Builtin.httpServerServeLive(
     Stdlib.Net.Port.toInt64(config.port),
     init,

@@ -331,10 +331,10 @@ let withLock(path: String, fn: Unit -> 'a): Result.Result<'a, Posix.Error> =
 
   match Posix.openFile(path, flags, Posix.Modes.defaultFile) with
   | Ok(fd) ->
-    match Posix.flock(fd, true) with
+    match Posix.flock(fd, Posix.Lock.Exclusive) with
     | Ok(_) ->
       let result = fn()
-      let _ = Posix.flock(fd, false)
+      let _ = Posix.flock(fd, Posix.Lock.Unlock)
       let _ = Posix.fdClose(fd)
       Stdlib.Result.Result.Ok(result)
     | Error(e) ->

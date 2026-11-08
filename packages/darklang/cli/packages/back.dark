@@ -19,7 +19,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
   | None ->
     Cli.printErr("No previous location in history")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

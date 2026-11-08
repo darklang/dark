@@ -4,9 +4,29 @@ module Darklang.Stdlib.Cli.Process
 /// Process handle for interacting with spawned processes
 type ProcessHandle = BigInt
 
+/// Where a child process's stdin, stdout and stderr go.
+type Stdio =
+  /// Pipes this process reads and writes.
+  | Capture
+  /// This process's own terminal, for a child the user types into.
+  | Inherit
+
+/// Start <param program> with <param args>, its standard streams wired as <param stdio> says.
+let __childStart(
+  program: String,
+  args: List<String>,
+  stdio: Stdio)
+  : Result.Result<BigInt, Int64> =
+  let inheritTerminal =
+    match stdio with
+    | Capture -> false
+    | Inherit -> true
+
+  Builtin.runtimeChildStart(program, args, inheritTerminal)
+
 /// Spawn a new process and return a handle for interaction
 let spawn(command: String): ProcessHandle =
-  Builtin.runtimeChildStart("/bin/sh", ["-c", command], false) |> Builtin.unwrap
+  __childStart("/bin/sh", ["-c", command], Stdio.Capture) |> Builtin.unwrap
 
 let __executionBytes(result: Result.Result<(Int64 * Bytes * Bytes), Int64>): Stdlib.Cli.ExecutionBytes =
   match result with
@@ -381,7 +401,7 @@ let __childCapture(
             |> Stdlib.Result.andThen(fun _ -> __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)))))
 
 let __childRun(program: String, args: List<String>, timeoutMs: Stdlib.Option.Option<Int64>): Result.Result<(Int64 * Bytes * Bytes), Int64> =
-  Builtin.runtimeChildStart(program, args, false) |> Stdlib.Result.andThen(fun child ->
+  __childStart(program, args, Stdio.Capture) |> Stdlib.Result.andThen(fun child ->
     let result = Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->
       match ports with
       | [_stdin, stdout, stderr] ->
@@ -393,7 +413,8 @@ let __childRun(program: String, args: List<String>, timeoutMs: Stdlib.Option.Opt
     __childFinish(child, result))
 
 let __childInteractive(program: String, args: List<String>): Result.Result<Int64, Int64> =
-  Builtin.runtimeChildStart(program, args, true) |> Stdlib.Result.andThen(fun child -> __childFinish(child, __childWaitChild(child)))
+  __childStart(program, args, Stdio.Inherit)
+  |> Stdlib.Result.andThen(fun child -> __childFinish(child, __childWaitChild(child)))
 
 let __childNewline(bytes: Bytes): Bool =
   // An empty Bytes asks for index -1, which is None.

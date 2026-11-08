@@ -84,10 +84,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | _ when Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) ->
     Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
     Stdlib.printErrorLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | (None, _) ->
     Stdlib.printLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | (Some(itemTypeStr), targetOpt) ->
     // `delete <name>` with no kind: the store knows what kind lives at a name, so asking is
     // ceremony -- infer it (each kind tried, at most one resolves, the same way `undeprecate`
@@ -117,23 +117,23 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         (Stdlib.Cli.UI.Colors.error(
           $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value|trait|impl|test> <name-or-hash>`.")))
       Stdlib.printErrorLine("Usage: delete [fn|type|value|trait|impl|test] <name-or-hash> [options]")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Some(itemKind) ->
       match targetOpt with
       | None ->
         Cli.printErr("Error: Missing target (location or hash)")
-        Cli.exitWith(state, false)
+        Cli.failed(state)
       | Some(target) ->
         let currentLoc = state.packageData.currentLocation
         match Location.parseRelativeTo(currentLoc, target) with
         | Error(errMsg) ->
           Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}: {errMsg}"))
-          Cli.exitWith(state, false)
+          Cli.failed(state)
         | Ok(targetLoc) ->
           match Deprecate.resolveTarget(branchId, currentLoc, itemKind, target) with
           | None ->
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}"))
-            Cli.exitWith(state, false)
+            Cli.failed(state)
           | Some(_targetRef) ->
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.

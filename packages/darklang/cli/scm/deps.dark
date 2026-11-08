@@ -329,7 +329,7 @@ let execute(state: AppState, args: List<String>): AppState =
   if Stdlib.Bool.not(Stdlib.List.isEmpty(unknownFlags)) then
     let f = Stdlib.String.join(unknownFlags, " ")
     Cli.printErr($"deps doesn't understand {f}. The flags are --deep and --json.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
 
   match filteredArgs with
@@ -344,7 +344,7 @@ let execute(state: AppState, args: List<String>): AppState =
       "  --deep              - Show transitive dependents (everything that could break)"
       "  --all               - Show every row; listings are capped at 20 otherwise" ]
     |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(l))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
   | ["uses", pathArg] ->
     match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
@@ -352,7 +352,7 @@ let execute(state: AppState, args: List<String>): AppState =
       // Name what you ASKED for, not just where the path stopped resolving: "Not found: Zzz" is true and
       // unhelpful when you typed `Zzz.Nope.nope`, and both together tell a typo from a missing name.
       Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Ok(result) ->
       let (hash, loc, name, entityType) = result
 
@@ -369,7 +369,7 @@ let execute(state: AppState, args: List<String>): AppState =
     | Error(errMsg) ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
       Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Ok(result) ->
       let (hash, loc, name, entityType) = result
 
@@ -391,7 +391,7 @@ let execute(state: AppState, args: List<String>): AppState =
     | Error(errMsg) ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
       Cli.printErr($"Cannot show deps for {pathArg}: {errMsg}")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     | Ok(result) ->
       let (hash, loc, name, entityType) = result
 
@@ -411,7 +411,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
   | _ ->
     Stdlib.printErrorLine(help(state))
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =

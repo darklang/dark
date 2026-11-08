@@ -83,15 +83,17 @@ let updateIfAvailable(
     | Error(e) -> Stdlib.Result.Result.Error(e)
 
 
-/// Uninstall the CLI with user confirmation
-/// If autoConfirm is true, skips confirmation prompt
-let uninstallWithConfirmation(host: Stdlib.Cli.Host.Host, autoConfirm: Bool): Stdlib.Result.Result<String, String> =
+/// Uninstall the CLI with user confirmation, which {{Confirm.Assume}} skips
+let uninstallWithConfirmation(
+  host: Stdlib.Cli.Host.Host,
+  confirm: Cli.Confirm)
+  : Stdlib.Result.Result<String, String> =
   match Config.getDarklangHomeDir(host) with
   | Error(e) -> Stdlib.Result.Result.Error($"refusing to uninstall: {e}")
   | Ok(darklangHomeDir) ->
 
   if Cli.Prompt.confirmExplicit(
-       autoConfirm,
+       confirm,
        $"Uninstall removes {darklangHomeDir}, including everything you've made. Are you sure? (y/n): ") then
     Stdlib.printErrorLine("Uninstalling...")
     match Uninstall.runUninstall(host) with

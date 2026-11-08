@@ -1383,7 +1383,7 @@ let private workbenchAt (modules : List<string>) (row : string) : string =
   // These tests open Matter directly. Skip Home's dependency and constraint reads.
   let draft =
     "Darklang.SCM.Draft.Picture { bindings = [], propagated = [], removed = [], repoints = [], conflicts = [], constraints = 0, ops = 0 }"
-  $"let st = Darklang.Cli.Workbench.initialStateFrom(Darklang.SCM.PackageOps.currentBranch(), Stdlib.Option.Option.None, \"i\", false, {draft}) in "
+  $"let st = Darklang.Cli.Workbench.initialStateFrom(Darklang.SCM.PackageOps.currentBranch(), Stdlib.Option.Option.None, \"i\", Darklang.Cli.Workbench.Updates.Manual, {draft}) in "
   + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module([ {path} ]) }} in "
   + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems(s0) } in "
   + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap(s1.items, fun(i, it) -> (i, it.name)) |> Stdlib.List.findFirst(fun((_, nm)) -> nm == \"{row}\") |> Stdlib.Option.map(fun((i, _)) -> i) |> Stdlib.Option.withDefault(0)) }} in "

@@ -50,11 +50,11 @@ let executeNow(state: AppState): AppState =
 
 /// `dark backups restore <name> [-y]`. Puts the named backup in place of the store. The store as it is
 /// now is copied aside first (`data.db.pre-restore-<stamp>`), so a restore is itself undoable.
-let executeRestore(state: AppState, name: String, autoConfirm: Bool): AppState =
+let executeRestore(state: AppState, name: String, confirm: Cli.Confirm): AppState =
   if Stdlib.Bool.not(Stdlib.List.contains(names(), name)) then
     Cli.printErr($"no backup named \"{name}\".")
     Cli.printHint("  `dark backups` lists them.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
 
   // Warning like DISCARDING: green on "replaces the store" reads as "already fine".
@@ -62,11 +62,11 @@ let executeRestore(state: AppState, name: String, autoConfirm: Bool): AppState =
   Cli.Stderr.hint("  the store as it is now is copied aside first, so this is undoable.")
 
   let confirmed =
-    Cli.Prompt.confirmExplicit(autoConfirm, Stdlib.Cli.UI.Colors.warning("\n  Restore it? [y/N]: "))
+    Cli.Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Restore it? [y/N]: "))
 
   if Stdlib.Bool.not(confirmed) then
     Cli.Stderr.ok("  kept. (`dark backups restore <name> -y` if you mean it -- a piped stdin can't answer this.)")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   else
     match Stdlib.LocalStore.backups(Stdlib.LocalStore.BackupAction.Restore(name)) with
     | Ok(asides) ->
@@ -85,15 +85,15 @@ let executeRestore(state: AppState, name: String, autoConfirm: Bool): AppState =
 /// `dark backups prune <keep> [-y]`. Deletes the oldest, keeping the newest <keep>. Shows what would go
 /// and takes an explicit yes, like every other verb that destroys something: a backup is the thing you
 /// reach for AFTER a mistake, and the one command that must not make one.
-let executePrune(state: AppState, keepArg: String, autoConfirm: Bool): AppState =
+let executePrune(state: AppState, keepArg: String, confirm: Cli.Confirm): AppState =
   match Stdlib.Int64.parse(keepArg) with
   | Error(_) ->
     Cli.printErr($"\"{keepArg}\" isn't a number of backups to keep.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | Ok(keep) ->
     if keep < 0 then
       Cli.printErr("keep a non-negative number of backups.")
-      Cli.exitWith(state, false)
+      Cli.failed(state)
     else
       let all = names()
       let doomed = Stdlib.List.drop(all, keep)
@@ -111,11 +111,11 @@ let executePrune(state: AppState, keepArg: String, autoConfirm: Bool): AppState 
       doomed |> Stdlib.List.iter(fun name -> Cli.Stderr.line(Stdlib.Cli.UI.Colors.dimText($"    - {name}")))
 
       let confirmed =
-        Cli.Prompt.confirmExplicit(autoConfirm, Stdlib.Cli.UI.Colors.warning("\n  Delete them? [y/N]: "))
+        Cli.Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Delete them? [y/N]: "))
 
       if Stdlib.Bool.not(confirmed) then
         Cli.Stderr.ok("  kept. (`dark backups prune <n> -y` if you mean it -- a piped stdin can't answer this.)")
-        Cli.exitWith(state, false)
+        Cli.failed(state)
       else
         let deleted =
           doomed
@@ -136,23 +136,23 @@ let execute(state: AppState, args: List<String>): AppState =
   | [] -> executeList(state)
   | [ "list" ] -> executeList(state)
   | [ "now" ] -> executeNow(state)
-  | [ "prune", keep ] -> executePrune(state, keep, false)
+  | [ "prune", keep ] -> executePrune(state, keep, Cli.Confirm.Ask)
   | [ "prune", keep, "-y" ]
-  | [ "prune", keep, "--yes" ] -> executePrune(state, keep, true)
-  | [ "restore", name ] -> executeRestore(state, name, false)
+  | [ "prune", keep, "--yes" ] -> executePrune(state, keep, Cli.Confirm.Assume)
+  | [ "restore", name ] -> executeRestore(state, name, Cli.Confirm.Ask)
   | [ "restore", name, "-y" ]
-  | [ "restore", name, "--yes" ] -> executeRestore(state, name, true)
+  | [ "restore", name, "--yes" ] -> executeRestore(state, name, Cli.Confirm.Assume)
   | [ "restore" ] ->
     Cli.printErr("restore needs a backup's name: `dark backups restore <name>`.")
     Cli.printHint("  `dark backups` lists them.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | [ "prune" ] ->
     Cli.printErr("prune needs how many to keep: `dark backups prune 3`.")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
   | _ ->
     Cli.printErr($"""`dark backups {Stdlib.String.join(args, " ")}` isn't a form of this command.""")
     Cli.printHint("  dark backups | dark backups now | dark backups restore <name> | dark backups prune <n>")
-    Cli.exitWith(state, false)
+    Cli.failed(state)
 
 
 let help(_state: AppState): String =

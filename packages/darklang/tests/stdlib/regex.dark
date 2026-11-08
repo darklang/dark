@@ -270,6 +270,39 @@ test replacementIsLiteral =
       |> Stdlib.Test.equal(Ok("${0} ${0}")) ])
 
 
+/// The text between the digits of <param input> and the digits matched, from a scan.
+let scanDigits(
+  input: String,
+  limit: Stdlib.Regex.Limit,
+  collect: Stdlib.Regex.Collect)
+  : Stdlib.Result.Result<(List<String> * List<String>), Stdlib.Regex.RegexError> =
+  Stdlib.Regex.scan(input, Stdlib.Regex.ofPattern("\\d"), limit, collect)
+  |> Stdlib.Result.map(fun((pieces, matches)) ->
+    (pieces, Stdlib.List.map(matches, fun m -> m.text)))
+
+// scan finds the first match or all of them, and builds the matches only when asked
+test scanLimitAndCollect =
+  Stdlib.Test.all(
+    [ scanDigits("a1b2c", Stdlib.Regex.Limit.All, Stdlib.Regex.Collect.Matches)
+      |> Stdlib.Test.equal(Ok(([ "a", "b", "c" ], [ "1", "2" ])))
+      scanDigits("a1b2c", Stdlib.Regex.Limit.First, Stdlib.Regex.Collect.Matches)
+      |> Stdlib.Test.equal(Ok(([ "a", "b2c" ], [ "1" ])))
+      scanDigits("a1b2c", Stdlib.Regex.Limit.All, Stdlib.Regex.Collect.TextOnly)
+      |> Stdlib.Test.equal(Ok(([ "a", "b", "c" ], [])))
+      scanDigits("a1b2c", Stdlib.Regex.Limit.First, Stdlib.Regex.Collect.TextOnly)
+      |> Stdlib.Test.equal(Ok(([ "a", "b2c" ], []))) ])
+
+// replaceMatches replaces the first match or every one, as its Limit says
+test replaceMatchesLimit =
+  let digits = Stdlib.Regex.ofPattern("\\d")
+  let bracket = fun m -> "[" + m.text + "]"
+
+  Stdlib.Test.all(
+    [ Stdlib.Regex.replaceMatches("a1b2", digits, Stdlib.Regex.Limit.First, bracket)
+      |> Stdlib.Test.equal(Ok("a[1]b2"))
+      Stdlib.Regex.replaceMatches("a1b2", digits, Stdlib.Regex.Limit.All, bracket)
+      |> Stdlib.Test.equal(Ok("a[1]b[2]")) ])
+
 test replaceWithACallback =
   let swap(m: Stdlib.Regex.Match): String =
     Stdlib.String.join(Stdlib.List.reverse(Stdlib.Option.values(captureTexts(m))), "")
