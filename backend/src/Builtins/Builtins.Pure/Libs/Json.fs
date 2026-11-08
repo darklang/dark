@@ -347,9 +347,8 @@ let private maxJsonIntDigits = 1_000_000L
 
 /// Parses a JSON number literal to an exact `bigint`, without going through a
 /// double (which would round values past 2^53). Accepts integer-valued decimal
-/// and exponent forms — `1.0`, `1.2E2`, `1200E-1`, `9007199254740993.0` — the
-/// same forms the fixed-width int parsers accept, but exactly. Returns None for
-/// genuinely fractional values (`1.5`) or malformed input.
+/// and exponent forms — `1.0`, `1.2E2`, `1200E-1`, `9007199254740993.0` — and
+/// returns None for genuinely fractional values (`1.5`) or malformed input.
 ///
 /// `BigInteger.TryParse` with `NumberStyles.Float` does the exact format parsing
 /// (no double, integral-via-exponent accepted, true fractions rejected); we only
@@ -423,17 +422,95 @@ let private parseExactJsonDecimal (raw : string) : decimal option =
       | _ -> None
 
 
-/// A number written in float form (`1.0`, `1E+0`) whose value is a whole number
-/// in [min, max]. JSON numbers are floats, and whoever wrote a field we read as an
-/// int may have printed it that way.
-let private integralDouble
+/// A JSON number whose value is a whole number, read exactly. Whoever wrote a field we
+/// read as an int may have printed it in float form (`1.0`, `1.2E2`), and going through a
+/// double would round it past 2^53. The plain form is by far the commonest, so it is tried
+/// first, without the string; `integer` below does the same without the `bigint`.
+let private jsonInteger (j : JsonElement) : bigint option =
+  match j.TryGetInt64() with
+  | true, n -> Some(bigint n)
+  | false, _ -> parseExactJsonInteger (j.GetRawText())
+
+/// One of the fixed-width integer types: its range, and how to make one from a number in
+/// it. `lo` and `hi` are the range clamped to Int64, which is all a plain-form number can be,
+/// so that form is checked and built without a `bigint`.
+type private IntegerType =
+  { min : bigint
+    max : bigint
+    lo : int64
+    hi : int64
+    ofInt64 : int64 -> Dval
+    ofBigint : bigint -> Dval }
+
+/// A type whose whole range fits in Int64.
+let private narrow
+  (lo : int64)
+  (hi : int64)
+  (ofInt64 : int64 -> Dval)
+  : IntegerType =
+  { min = bigint lo
+    max = bigint hi
+    lo = lo
+    hi = hi
+    ofInt64 = ofInt64
+    ofBigint = fun n -> ofInt64 (int64 n) }
+
+/// A type whose range goes past Int64's.
+let private wide
+  (min : bigint)
+  (max : bigint)
+  (ofBigint : bigint -> Dval)
+  : IntegerType =
+  { min = min
+    max = max
+    lo =
+      if min > bigint System.Int64.MinValue then int64 min else System.Int64.MinValue
+    hi = System.Int64.MaxValue
+    ofInt64 = fun n -> ofBigint (bigint n)
+    ofBigint = ofBigint }
+
+let private int8Type =
+  narrow (int64 System.SByte.MinValue) (int64 System.SByte.MaxValue) (fun n ->
+    DInt8(int8 n))
+let private uint8Type =
+  narrow 0L (int64 System.Byte.MaxValue) (fun n -> DUInt8(uint8 n))
+let private int16Type =
+  narrow (int64 System.Int16.MinValue) (int64 System.Int16.MaxValue) (fun n ->
+    DInt16(int16 n))
+let private uint16Type =
+  narrow 0L (int64 System.UInt16.MaxValue) (fun n -> DUInt16(uint16 n))
+let private int32Type =
+  narrow (int64 System.Int32.MinValue) (int64 System.Int32.MaxValue) (fun n ->
+    DInt32(int32 n))
+let private uint32Type =
+  narrow 0L (int64 System.UInt32.MaxValue) (fun n -> DUInt32(uint32 n))
+let private int64Type = narrow System.Int64.MinValue System.Int64.MaxValue DInt64
+let private uint64Type =
+  wide 0I (bigint System.UInt64.MaxValue) (fun n -> DUInt64(uint64 n))
+let private int128Type =
+  wide
+    (System.Numerics.BigInteger.op_Implicit System.Int128.MinValue)
+    (System.Numerics.BigInteger.op_Implicit System.Int128.MaxValue)
+    (fun n -> DInt128(System.Numerics.BigInteger.op_Explicit n))
+let private uint128Type =
+  wide 0I (System.Numerics.BigInteger.op_Implicit System.UInt128.MaxValue) (fun n ->
+    DUInt128(System.Numerics.BigInteger.op_Explicit n))
+
+/// A JSON number read as an integer type.
+let private integer
+  (t : IntegerType)
+  (typ : TypeReference)
+  (path : JsonPath.JsonPath)
   (j : JsonElement)
-  (min : float)
-  (max : float)
-  : voption<float> =
-  match j.TryGetDouble() with
-  | true, d when d <= max && d >= min && System.Double.IsInteger d -> ValueSome d
-  | _ -> ValueNone
+  : Ply<Dval> =
+  match j.TryGetInt64() with
+  | true, n when n >= t.lo && n <= t.hi -> Ply(t.ofInt64 n)
+  | true, _ -> raiseCantMatchWithType typ j path
+  | false, _ ->
+    match parseExactJsonInteger (j.GetRawText()) with
+    | Some n when n >= t.min && n <= t.max -> Ply(t.ofBigint n)
+    | _ -> raiseCantMatchWithType typ j path
+
 
 /// What a record field of type `Option` parses from when the JSON leaves it out.
 let private noneJson : JsonElement = JsonDocument.Parse("{\"None\":[]}").RootElement
@@ -477,167 +554,19 @@ let parse
     | TBool, JsonValueKind.True -> DBool true |> Ply
     | TBool, JsonValueKind.False -> DBool false |> Ply
 
-    | TInt64, JsonValueKind.Number ->
-      // dotnet will wrap 9223372036854775808 to be -9223372036854775808 instead, we
-      // don't want that and will error instead
-      match j.TryGetUInt64() with
-      | true, ui64 when ui64 <= uint64 System.Int64.MaxValue ->
-        DInt64(int64 ui64) |> Ply
-      | true, _ -> raiseCantMatchWithType TInt64 j pathSoFar |> Ply
-      | false, _ ->
-        match j.TryGetInt64() with
-        | true, i64 -> DInt64 i64 |> Ply
-        | false, _ ->
-          match
-            integralDouble
-              j
-              (float System.Int64.MinValue)
-              (float System.Int64.MaxValue)
-          with
-          | ValueSome d -> int64 d |> DInt64 |> Ply
-          | ValueNone -> raiseCantMatchWithType TInt64 j pathSoFar |> Ply
-
-    | TUInt64, JsonValueKind.Number ->
-      // Parse decimal/exponent forms exactly. Double rounds UInt64.MaxValue
-      // up to 2^64, accepting overflow and losing low bits near the boundary.
-      match parseExactJsonInteger (j.GetRawText()) with
-      | Some n when n >= 0I && n <= bigint System.UInt64.MaxValue ->
-        DUInt64(uint64 n) |> Ply
-      | _ -> raiseCantMatchWithType TUInt64 j pathSoFar |> Ply
-
-    | TInt8, JsonValueKind.Number ->
-      match j.TryGetUInt64() with
-      | true, ui64 when
-        ui64 >= uint64 System.SByte.MinValue && ui64 <= uint64 System.SByte.MaxValue
-        ->
-        DInt8(int8 ui64) |> Ply
-      | _ ->
-        match j.TryGetInt64() with
-        | true, i64 when
-          i64 >= int System.SByte.MinValue && i64 <= int System.SByte.MaxValue
-          ->
-          DInt8(int8 i64) |> Ply
-        | _ ->
-          match
-            integralDouble
-              j
-              (float System.SByte.MinValue)
-              (float System.SByte.MaxValue)
-          with
-          | ValueSome d -> int8 d |> DInt8 |> Ply
-          | ValueNone -> raiseCantMatchWithType TInt8 j pathSoFar |> Ply
-
-    | TUInt8, JsonValueKind.Number ->
-      match j.TryGetUInt64() with
-      | true, ui64 when ui64 <= uint64 System.Byte.MaxValue ->
-        DUInt8(uint8 ui64) |> Ply
-      | _ ->
-        match j.TryGetInt64() with
-        | true, i64 when
-          i64 >= int System.Byte.MinValue && i64 <= int System.Byte.MaxValue
-          ->
-          DUInt8(uint8 i64) |> Ply
-        | _ ->
-          match
-            integralDouble
-              j
-              (float System.Byte.MinValue)
-              (float System.Byte.MaxValue)
-          with
-          | ValueSome d -> uint8 d |> DUInt8 |> Ply
-          | ValueNone -> raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
-
-    | TInt16, JsonValueKind.Number ->
-      match j.TryGetInt16() with
-      | true, i16 -> DInt16 i16 |> Ply
-      | false, _ ->
-        match
-          integralDouble
-            j
-            (float System.Int16.MinValue)
-            (float System.Int16.MaxValue)
-        with
-        | ValueSome d -> int16 d |> DInt16 |> Ply
-        | ValueNone -> raiseCantMatchWithType TInt16 j pathSoFar |> Ply
-
-    | TUInt16, JsonValueKind.Number ->
-      match j.TryGetUInt16() with
-      | true, ui16 -> DUInt16 ui16 |> Ply
-      | false, _ ->
-        match
-          integralDouble
-            j
-            (float System.UInt16.MinValue)
-            (float System.UInt16.MaxValue)
-        with
-        | ValueSome d -> uint16 d |> DUInt16 |> Ply
-        | ValueNone -> raiseCantMatchWithType TUInt16 j pathSoFar |> Ply
-
-    | TInt32, JsonValueKind.Number ->
-      match j.TryGetInt32() with
-      | true, i32 -> DInt32 i32 |> Ply
-      | false, _ ->
-        match
-          integralDouble
-            j
-            (float System.Int32.MinValue)
-            (float System.Int32.MaxValue)
-        with
-        | ValueSome d -> int32 d |> DInt32 |> Ply
-        | ValueNone -> raiseCantMatchWithType TInt32 j pathSoFar |> Ply
-
-    | TUInt32, JsonValueKind.Number ->
-      match j.TryGetUInt32() with
-      | true, ui32 -> DUInt32 ui32 |> Ply
-      | false, _ ->
-        match
-          integralDouble
-            j
-            (float System.UInt32.MinValue)
-            (float System.UInt32.MaxValue)
-        with
-        | ValueSome d -> uint32 d |> DUInt32 |> Ply
-        | ValueNone -> raiseCantMatchWithType TUInt32 j pathSoFar |> Ply
-
-
-    | TInt128, JsonValueKind.Number ->
-      match System.Int128.TryParse(j.GetRawText()) with
-      | true, i128 -> DInt128 i128 |> Ply
-      | false, _ ->
-        match j.TryGetDouble() with
-        | true, d when System.Double.IsInteger d ->
-          try
-            System.Int128.Parse(
-              d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
-            )
-            |> DInt128
-            |> Ply
-          with :? System.OverflowException ->
-            raiseCantMatchWithType TInt128 j pathSoFar |> Ply
-        | _ -> raiseCantMatchWithType TInt128 j pathSoFar |> Ply
-
-    | TUInt128, JsonValueKind.Number ->
-      match System.UInt128.TryParse(j.GetRawText()) with
-      | true, ui128 -> DUInt128 ui128 |> Ply
-      | false, _ ->
-        match j.TryGetDouble() with
-        | true, d when System.Double.IsInteger d ->
-          try
-            System.UInt128.Parse(
-              d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
-            )
-            |> DUInt128
-            |> Ply
-          with :? System.OverflowException ->
-            raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
-        | _ -> raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
-
+    | TInt8, JsonValueKind.Number -> integer int8Type typ pathSoFar j
+    | TUInt8, JsonValueKind.Number -> integer uint8Type typ pathSoFar j
+    | TInt16, JsonValueKind.Number -> integer int16Type typ pathSoFar j
+    | TUInt16, JsonValueKind.Number -> integer uint16Type typ pathSoFar j
+    | TInt32, JsonValueKind.Number -> integer int32Type typ pathSoFar j
+    | TUInt32, JsonValueKind.Number -> integer uint32Type typ pathSoFar j
+    | TInt64, JsonValueKind.Number -> integer int64Type typ pathSoFar j
+    | TUInt64, JsonValueKind.Number -> integer uint64Type typ pathSoFar j
+    | TInt128, JsonValueKind.Number -> integer int128Type typ pathSoFar j
+    | TUInt128, JsonValueKind.Number -> integer uint128Type typ pathSoFar j
     | TBigInt, JsonValueKind.Number ->
-      // Accept integer-valued decimal/exponent forms (like the fixed-width
-      // types do), but parse them EXACTLY — never through a double, which would
-      // round values past 2^53 (e.g. `9007199254740993.0`).
-      match parseExactJsonInteger (j.GetRawText()) with
-      | Some i -> Dval.bigInt i |> Ply
+      match jsonInteger j with
+      | Some n -> Dval.bigInt n |> Ply
       | None -> raiseCantMatchWithType TBigInt j pathSoFar |> Ply
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
@@ -736,14 +665,10 @@ let parse
         if jsonValueKind <> JsonValueKind.Number then
           ValueNone
         else
-          match j.TryGetInt64() with
-          | true, n -> ValueSome n
-          | false, _ ->
-            integralDouble
-              j
-              (float System.Int64.MinValue)
-              (float System.Int64.MaxValue)
-            |> ValueOption.map int64
+          match jsonInteger j with
+          | Some n when n >= int64Type.min && n <= int64Type.max ->
+            ValueSome(int64 n)
+          | _ -> ValueNone
       match number with
       | ValueNone -> raiseCantMatchWithType typ j pathSoFar
       | ValueSome n when n < range.min || n > range.max ->
