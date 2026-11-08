@@ -16,3 +16,7 @@ type Range = { start: Point, end_: Point }
 type FileKind =
   | Script
   | Package
+
+/// The words the parser reserves, from the lexer itself: each one is a name only in
+/// double backticks (``match``). `_` is among them.
+val keywords = Builtin.parserKeywords

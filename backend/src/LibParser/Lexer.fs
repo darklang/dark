@@ -428,6 +428,38 @@ let hasSingleCloseBraceInterp (inner : string) (isRaw : bool) : bool =
 /// `scanInterp` skips `{expr}` regions iteratively.
 let maxInterpNesting = 64
 
+/// The reserved words, each lexed as its own token. A reserved word is a name only
+/// when written in double backticks: ``match``. This is the one list: Dark reads it
+/// as `Builtin.parserKeywords`, so the pretty printer escapes these words and
+/// `docs syntax` lists them.
+///
+/// `def` is left out on purpose, so `(def: Type)` works. Words that are special in
+/// one place only (`module`, `test`, `for`, `as`, `Dict`, `List`) lex as names, and
+/// the parser reads them where they matter.
+let keywords : List<string * Token> =
+  [ "let", TLet
+    // `val x = e` is a value declaration. `let` is reserved for functions and
+    // local/script bindings. The distinct token lets `parseItems` keep them apart.
+    "val", TVal
+    "in", TIn
+    "if", TIf
+    "elif", TElif
+    "then", TThen
+    "else", TElse
+    "type", TType
+    "trait", TTrait
+    "impl", TImpl
+    "of", TOf
+    "match", TMatch
+    "with", TWith
+    "fun", TFun
+    "when", TWhen
+    "true", TTrue
+    "false", TFalse
+    "_", TUnderscore ]
+
+let private keywordTokens = readOnlyDict keywords
+
 let tokenize
   (input : string)
   : Result<List<SpannedToken> * List<TokenRange * string>, string> =
@@ -576,32 +608,11 @@ let tokenize
       "++", "'++' is not Dark; join Strings with `+`" ]
 
   let keyword (text : string) : Token =
-    match text with
-    | "let" -> TLet
-    // `val x = e` is a value declaration. `let` is reserved for functions and
-    // local/script bindings. The distinct token lets `parseItems` keep them apart.
-    | "val" -> TVal
-    | "in" -> TIn
-    | "if" -> TIf
-    | "elif" -> TElif
-    | "then" -> TThen
-    | "else" -> TElse
-    // `def` is not a keyword in the interpreter dialect. It remains a valid
-    // identifier, for example `(def: Type)`.
-    | "type" -> TType
-    | "trait" -> TTrait
-    | "impl" -> TImpl
-    | "of" -> TOf
-    | "match" -> TMatch
-    | "with" -> TWith
-    | "fun" -> TFun
-    | "when" -> TWhen
-    | "true" -> TTrue
-    | "false" -> TFalse
-    | "_" -> TUnderscore
+    match keywordTokens.TryGetValue text with
+    | true, token -> token
     // `___` is the blank-name placeholder: an identifier with an empty name.
-    | "___" -> TIdent ""
-    | _ -> TIdent text
+    | false, _ when text = "___" -> TIdent ""
+    | false, _ -> TIdent text
 
   let matchesAt (text : string) (index : int) : bool =
     index + text.Length <= inputLength

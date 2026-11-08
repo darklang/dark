@@ -126,7 +126,9 @@ by the type checker (`dark typecheck`).
   ] |> Stdlib.printLines
 
 ## Keywords
-  let val in if elif then else type trait impl of match with fun when true false _
+  """
+  + Stdlib.String.join(LanguageTools.Parser.keywords, " ")
+  + """
 
 These can't be names. To use one anyway, put it in double backticks:
   let ``type`` = "json"
