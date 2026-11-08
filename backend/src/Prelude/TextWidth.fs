@@ -71,6 +71,3 @@ let ofString (text : string) : int =
       i <- i + cluster.Length
 
   total
-
-/// Whether text contains an ASCII/Unicode control character.
-let containsControl (text : string) : bool = text |> Seq.exists System.Char.IsControl

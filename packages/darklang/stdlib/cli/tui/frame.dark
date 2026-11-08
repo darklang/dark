@@ -112,7 +112,7 @@ let renderRowChangeAtWidth(
   change: RowChange)
   : String =
   let terminalRow = Stdlib.toString(change.row + 1)
-  let content = Text.normalizeToWidth(change.content, width)
+  let content = Text.clipToWidth(change.content, width)
   $"\u001b[{terminalRow};1H\u001b[0m\u001b[K{content}\u001b[0m\r"
 
 
