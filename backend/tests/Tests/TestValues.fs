@@ -87,7 +87,7 @@ module Expressions =
 
   // let onePlusTwo =
   //   eApply
-  //     (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0), []))
+  //     (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0), [], []))
   //     []
   //     [ eInt64 1; eInt64 2 ]
 
@@ -228,12 +228,18 @@ module Expressions =
             whenCondition =
               Some(
                 eApply
-                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0), []))
+                  (PT.EFnName(
+                    gid (),
+                    NR.ok (PT.FQFnName.fqBuiltIn "equals" 0),
+                    [],
+                    []
+                  ))
                   []
                   [ eApply
                       (PT.EFnName(
                         gid (),
                         NR.ok (PT.FQFnName.fqBuiltIn "int64Mod" 0),
+                        [],
                         []
                       ))
                       []
@@ -374,7 +380,12 @@ module Expressions =
             whenCondition =
               Some(
                 eApply
-                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0), []))
+                  (PT.EFnName(
+                    gid (),
+                    NR.ok (PT.FQFnName.fqBuiltIn "equals" 0),
+                    [],
+                    []
+                  ))
                   []
                   [ eVar "x"; eInt64 1 ]
               )

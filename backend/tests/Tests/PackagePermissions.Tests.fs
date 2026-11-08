@@ -495,6 +495,7 @@ module private Operators =
                 method_ = "show"
                 implFn = PT.FQFnName.FromTypeParam "a" }
           ),
+          [],
           []
         ))
         []
@@ -505,7 +506,8 @@ module private Operators =
       (PT.EFnName(
         gid (),
         PT.NameResolution.ok (PT.FQFnName.fqPackage "deferring-display"),
-        bounds
+        bounds,
+        []
       ))
       []
       [ eUnit () ]
@@ -560,6 +562,7 @@ module private Operators =
                       method_ = "add"
                       implFn = chosen "effectful-add" }
                 ),
+                [],
                 []
               ))
               []

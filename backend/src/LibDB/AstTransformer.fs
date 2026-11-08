@@ -147,7 +147,8 @@ let private withResolvedUnary
     PT.EFnName(nameId,
                ({ resolved = Ok { name = PT.FQFnName.Builtin { name = builtin
                                                                version = 0 } } } as nr),
-               boundImpls) ->
+               boundImpls,
+               typeArgs) ->
     // Where the trait lives, as `PackageRefs` names it, so the stored call prints as
     // `Stdlib.Negate.negate x` rather than as the trait's hash.
     let traitMethod =
@@ -176,7 +177,8 @@ let private withResolvedUnary
                       { owner = "Darklang"
                         modules = [ "Stdlib" ]
                         name = traitName } } },
-        boundImpls
+        boundImpls,
+        typeArgs
       )
     | None -> fnExpr
   | _ -> fnExpr
@@ -430,7 +432,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
       args |> NEList.map (transformExpr mapping)
     )
 
-  | PT.EFnName(id, nr, boundImpls) ->
+  | PT.EFnName(id, nr, boundImpls, typeArgs) ->
     PT.EFnName(
       id,
       transformFnName mapping nr |> withResolvedImpl mapping id,
@@ -439,7 +441,8 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
        | None ->
          boundImpls
          |> List.map (fun (b : PT.FQFnName.BoundImpl) ->
-           { b with choice = moveChoice mapping b.choice }))
+           { b with choice = moveChoice mapping b.choice })),
+      typeArgs |> List.map (transformTypeRef mapping)
     )
 
   | PT.ELambda(id, pats, body) -> PT.ELambda(id, pats, transformExpr mapping body)

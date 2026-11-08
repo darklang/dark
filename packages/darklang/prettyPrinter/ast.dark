@@ -140,7 +140,7 @@ let expr(ctx: PrettyPrinter.ProgramTypes.Context, depth: Int64, e: LanguageTools
   | EArg(_, index) -> here("Arg", $"#{Stdlib.toString(index)}")
   | ESelf(_) -> here("Self", "")
 
-  | EFnName(_, name, _) ->
+  | EFnName(_, name, _, _) ->
     here(
       "FnName",
       PrettyPrinter.ProgramTypes.NameResolution.fnName(ctx, name))

@@ -751,7 +751,7 @@ module Expr =
                 WrittenTypes.Name.Unresolved(range,
                   [ "Darklang", "Stdlib", "ToString", "toString" ]))
             let converted = ProgramTypes.Expr.EApply(gid(),
-              ProgramTypes.Expr.EFnName(gid(), conversion, []), [], [ expr ])
+              ProgramTypes.Expr.EFnName(gid(), conversion, [], []), [], [ expr ])
             (ProgramTypes.StringSegment.StringInterpolation(converted),
               unresolvedNames))
         |> Stdlib.List.unzip
@@ -951,7 +951,7 @@ module Expr =
                 WrittenTypes.Name.Unresolved(range, [ var ]))
 
             match asFn.resolved with
-            | Ok(_) -> (ProgramTypes.Expr.EFnName(gid(), asFn, []), [])
+            | Ok(_) -> (ProgramTypes.Expr.EFnName(gid(), asFn, [], []), [])
             | Error(_) -> (ProgramTypes.Expr.EVariable(gid(), var), [])
 
     | EUnwrap(_, operand, _) ->
@@ -1128,7 +1128,7 @@ module Expr =
         if Stdlib.List.contains(context.localBindings, fnName.fn.name) then
           (ProgramTypes.Expr.EVariable(gid(), fnName.fn.name), [])
         else
-          (ProgramTypes.Expr.EFnName(gid(), resolvedFnName, []), unresolvedNames)
+          (ProgramTypes.Expr.EFnName(gid(), resolvedFnName, [], []), unresolvedNames)
       | Error(_) ->
         // Qualified fn resolution failed. The parser emits EFnName for *any*
         // qualified reference, including standalone VALUES (e.g. `Stdlib.Bytes.empty`
@@ -1153,7 +1153,7 @@ module Expr =
           (ProgramTypes.Expr.EValue(gid(), asValue), unresolvedNames)
       | _ ->
         // Function resolution succeeded, keep as EFnName
-        (ProgramTypes.Expr.EFnName(gid(), resolvedFnName, []), unresolvedNames)
+        (ProgramTypes.Expr.EFnName(gid(), resolvedFnName, [], []), unresolvedNames)
 
     | EApply(_, fn, typeArgs, args) ->
       // Parse typeArgs and args once (shared across all branches)
@@ -1161,6 +1161,17 @@ module Expr =
         typeArgs
         |> Stdlib.List.map(fun t -> TypeReference.toPT(ctx, t))
         |> Stdlib.List.unzip
+
+      // A type-args-only `f<T>` has no args. When it names a fn it is that fn as a
+      // value, specialised to the type args; anything else gets the implicit unit arg.
+      let uncalled =
+        Stdlib.List.isEmpty(args) && Stdlib.Bool.not(Stdlib.List.isEmpty(typeArgs))
+
+      let args =
+        if Stdlib.List.isEmpty(args) then
+          [ WrittenTypes.Expr.EUnit(WrittenTypes.Expr.range(fn)) ]
+        else
+          args
 
       let (args, argsUnresolvedNames) =
         args
@@ -1196,7 +1207,7 @@ module Expr =
         let unresolvedName = WrittenTypes.Name.Unresolved(range, [ name ])
         let fnName = NameResolver.FnName.resolve(ctx, unresolvedName)
         match fnName.resolved with
-        | Ok(_) -> ProgramTypes.Expr.EFnName(gid(), fnName, [])
+        | Ok(_) -> ProgramTypes.Expr.EFnName(gid(), fnName, [], [])
         | Error(_) ->
           let valueName = NameResolver.ValueName.resolve(ctx, unresolvedName)
           match valueName.resolved with
@@ -1237,7 +1248,11 @@ module Expr =
             | _ -> toPT(ctx, context, fn)
 
           let unresolvedNames = Stdlib.List.concat(baseUnresolved, fnUnresolvedNames)
-          (ProgramTypes.Expr.EApply(gid(), fnExpr, typeArgs, args), unresolvedNames)
+
+          match fnExpr with
+          | EFnName(id, name, boundImpls, []) when uncalled ->
+            (ProgramTypes.Expr.EFnName(id, name, boundImpls, typeArgs), unresolvedNames)
+          | _ -> (ProgramTypes.Expr.EApply(gid(), fnExpr, typeArgs, args), unresolvedNames)
 
     | EStatement(_, first, next) ->
       let (first, firstUnresolvedNames) = toPT(ctx, context, first)

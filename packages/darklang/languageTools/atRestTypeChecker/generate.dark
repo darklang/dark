@@ -254,7 +254,7 @@ let isNonExpansive(expr: LanguageTools.ProgramTypes.Expr): Bool =
   | EFloat32(_, _, _, _) -> true
   | EDecimal(_, _) -> true
   | EChar(_, _) -> true
-  | EFnName(_, _, _) -> true
+  | EFnName(_, _, _, _) -> true
   | EValue(_, _) -> true
   | EArg(_, _) -> true
   | EVariable(_, _) -> true
@@ -581,7 +581,7 @@ let infer(scope: Scope, expr: LanguageTools.ProgramTypes.Expr): (Model.Ty * Mode
   | EVariable(id, name) -> inferVariable(scope, id, name)
   | EApply(id, callee, typeArgs, args) -> inferApply(scope, id, callee, typeArgs, args)
   | EArg(id, index) -> inferArg(scope, id, index)
-  | EFnName(id, name, _) -> useFunction(scope, id, name, [], resultOf(id))
+  | EFnName(id, name, _, typeArgs) -> useFunction(scope, id, name, typeArgs, resultOf(id))
   | EString(_, segments) -> inferString(scope, segments)
   | ELet(id, pattern, value, body) -> inferLet(scope, id, pattern, value, body)
   | EPipe(_, lhs, parts) -> inferPipe(scope, lhs, parts)
@@ -671,7 +671,7 @@ let inferApply(
   | None ->
     let (calleeType, calleeConstraints) =
       match callee with
-      | EFnName(nameId, name, _) ->
+      | EFnName(nameId, name, _, _) ->
         useFunction(scope, nameId, name, typeArgs, resultOf(nameId))
       | _ ->
         let (t, constraints) = infer(scope, callee)
@@ -1272,7 +1272,7 @@ let specialApplication(
   args: List<LanguageTools.ProgramTypes.Expr>)
   : Stdlib.Option.Option<(Model.Ty * Model.Constraint)> =
   match callee with
-  | EFnName(_, name, _) ->
+  | EFnName(_, name, _, _) ->
     match resolvedFn(name) with
     | Some(fn) ->
       if Stdlib.List.isEmpty(typeArgs) then

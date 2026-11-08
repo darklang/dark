@@ -27,8 +27,11 @@ open System
 /// of `Decimal.GetBits`. Nothing existing changed layout, so a v6 blob reads, but its meaning
 /// moved: a bare integer literal reads as an Int64 rather than a `BigInt`, and the stdlib with it,
 /// so there is no migration and a store from before v7 is started afresh.
+/// v8 (2026-11): `EFnName` ends with the type args of a reference that is not called
+/// (`let h = Stdlib.List.map<Int64, Int64>`). A v7 blob ends after the bounds and reads
+/// `typeArgs = []`.
 [<Literal>]
-let CurrentVersion = 7u
+let CurrentVersion = 8u
 
 /// The oldest version this binary still reads.
 [<Literal>]

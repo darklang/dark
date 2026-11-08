@@ -899,13 +899,9 @@ module WrittenTypesToDarkTypes =
     | WT.EFnName(r, q) ->
       DEnum(t, t, [], "EFnName", [ rangeToDT r; qualifiedFnIdentifierToDT q ])
     | WT.EApply(r, lhs, typeArgs, args) ->
-      // Every Darklang fn has ≥1 parameter (a "no-arg" fn `f () =` has one Unit param),
-      // so a call always has ≥1 arg and EApply's args is a NEList. A type-args-only
-      // `f<T>` is really `f<T> ()` — seed the implicit unit arg. (Same in the WT2PT lowering.)
-      let argsDval =
-        match args with
-        | [] -> [ exprToDT (WT.EUnit r) ]
-        | _ -> args |> List.map exprToDT
+      // Args as written. A type-args-only `f<T>` has none: the lowering makes it the fn as
+      // a value, specialised to the type args, or seeds the unit arg when it is no fn.
+      let argsDval = args |> List.map exprToDT
       DEnum(
         t,
         t,

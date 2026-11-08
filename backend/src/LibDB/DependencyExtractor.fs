@@ -264,7 +264,8 @@ let private extract (roots : List<Work>) : List<Dependency> =
         pushTypesInOrder typeArgs
         work.Push(Expr fnExpr)
 
-      | PT.EFnName(_, nr, boundImpls) ->
+      | PT.EFnName(_, nr, boundImpls, typeArgs) ->
+        pushTypesInOrder typeArgs
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
         // What this call worked out for the callee's bounds is a fn this item now depends on:
         // that edge is what offers a newer implementation through `propagate` rather than

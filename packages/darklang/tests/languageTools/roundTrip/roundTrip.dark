@@ -362,7 +362,7 @@ let decoded(e: LanguageTools.ProgramTypes.Expr): String =
         // Lowering wraps the literal in a ToString call. Inspect the literal
         // itself here: this helper checks escape decoding, not execution.
         match inner with
-        | EApply(_, EFnName(_, name, _), [], [ literal ]) when
+        | EApply(_, EFnName(_, name, _, _), [], [ literal ]) when
             name.originalName == [ "Darklang", "Stdlib", "ToString", "toString" ] ->
           decoded(literal)
         | _ -> decoded(inner))

@@ -487,7 +487,20 @@ module ProgramTypes =
                   ELet(
                     id,
                     LPVariable(id, "n"),
-                    EUnit id,
+                    // An uncalled fn reference with type args.
+                    ELet(
+                      id,
+                      LPVariable(id, "specialised"),
+                      EFnName(
+                        id,
+                        NameResolution.ok (
+                          FQFnName.Builtin { name = "int64ToString"; version = 0 }
+                        ),
+                        [],
+                        [ typeReference ]
+                      ),
+                      EUnit id
+                    ),
                     ELet(
                       id,
                       LPVariable(id, "i"),
@@ -501,6 +514,7 @@ module ProgramTypes =
                               FQFnName.Builtin
                                 { name = "int64ToString"; version = 0 }
                             ),
+                            [],
                             []
                           ),
                           [ typeReference ],
@@ -552,6 +566,7 @@ module ProgramTypes =
                                     FQFnName.Builtin
                                       { name = "int64Add"; version = 0 }
                                   ),
+                                  [],
                                   []
                                 ),
                                 [],
@@ -637,6 +652,7 @@ module ProgramTypes =
                                     FQFnName.Builtin
                                       { name = "modFunction"; version = 2 }
                                   ),
+                                  [],
                                   []
                                 ),
                                 [],
@@ -922,7 +938,8 @@ module ProgramTypes =
                 FQFnName.Chosen
                   { name = Hash "impl-show-fn"
                     location =
-                      Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } } } ]
+                      Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } } } ],
+          []
         ),
         [],
         NEList.singleton (EArg(gid (), 0))

@@ -838,8 +838,13 @@ module Expect =
           typeArgs'
         eqNEList path args args'
 
-      | EFnName(_, name, _), EFnName(_, name', _) ->
+      | EFnName(_, name, _, typeArgs), EFnName(_, name', _, typeArgs') ->
         check path (stripNRLocation name) (stripNRLocation name')
+        check path (List.length typeArgs) (List.length typeArgs')
+        List.iteri2
+          (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
+          typeArgs
+          typeArgs'
 
       | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
         check path record record'

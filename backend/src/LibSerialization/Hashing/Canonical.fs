@@ -594,7 +594,7 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
         writeExpr mode w key
         writeExpr mode w value)
       pairs
-  | PT.EFnName(_id, nameRes, boundImpls) ->
+  | PT.EFnName(_id, nameRes, boundImpls, typeArgs) ->
     w.Write 31uy
     writeNameResolution (writeFQFnName mode) w nameRes
     // What the call worked out for the callee's bounds is part of what the call means, for the
@@ -610,6 +610,10 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
           Common.String.write w b.method_
           writeImplChoice mode w b.choice)
         boundImpls
+    // The type args of an uncalled `f<T>`, likewise written only when there are any.
+    if not (List.isEmpty typeArgs) then
+      w.Write(0xB2uy)
+      Common.List.write w (writeTypeReference mode) typeArgs
   | PT.EUnwrap(_id, operand) ->
     w.Write 36uy
     writeExpr mode w operand

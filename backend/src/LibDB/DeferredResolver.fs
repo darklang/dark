@@ -394,13 +394,15 @@ and private reResolveExpr
       let! args = Ply.NEList.mapSequentially (reResolveExpr contextModules pm) args
       return PT.EApply(id, fnExpr, typeArgs, args)
 
-    | PT.EFnName(id, nr, boundImpls) ->
+    | PT.EFnName(id, nr, boundImpls, typeArgs) ->
       let! nr = reResolveFnName contextModules pm.findFn nr
+      let! typeArgs =
+        Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
       // Carry the bounds the CALL worked out. Re-resolution is about names that could not be
       // resolved at parse time; what this call decided for the callee's bounds was decided
       // once, by the checker, and dropping it here silently un-decides it -- the item is
       // re-hashed without it and every bounded call falls back to resolving at run time.
-      return PT.EFnName(id, nr, boundImpls)
+      return PT.EFnName(id, nr, boundImpls, typeArgs)
 
     | PT.ELambda(id, pats, body) ->
       let! body = reResolveExpr contextModules pm body
@@ -461,7 +463,7 @@ and private reResolveExpr
             resolved = Error PT.NameResolutionError.NotFound }
         let! fnNr = reResolveFnName contextModules pm.findFn fnNr
         match fnNr.resolved with
-        | Ok _ -> return PT.EFnName(id, fnNr, [])
+        | Ok _ -> return PT.EFnName(id, fnNr, [], [])
         | Error _ -> return PT.EValue(id, nr)
       | _ -> return PT.EValue(id, nr)
 

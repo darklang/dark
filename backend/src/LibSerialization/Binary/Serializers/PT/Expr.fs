@@ -662,7 +662,7 @@ module Expr =
           write w key
           write w value)
         pairs
-    | EFnName(id, nameRes, boundImpls) ->
+    | EFnName(id, nameRes, boundImpls, typeArgs) ->
       w.Write 31uy
       w.Write id
       NameResolution.write FQFnName.write w nameRes
@@ -675,6 +675,8 @@ module Expr =
           String.write w b.method_
           FQFnName.ImplChoice.write w b.choice)
         boundImpls
+      // The type args of an uncalled `f<T>`: v8 and later.
+      List.write w TypeReference.write typeArgs
     | EUnwrap(id, operand) ->
       w.Write 36uy
       w.Write id
@@ -881,7 +883,9 @@ module Expr =
             : FQFnName.BoundImpl))
         else
           []
-      EFnName(id, nameRes, boundImpls)
+      // A v7 blob ends after the bounds.
+      let typeArgs = if version >= 8u then List.read r TypeReference.read else []
+      EFnName(id, nameRes, boundImpls, typeArgs)
     | 32uy ->
       let id = r.ReadUInt64()
       let first = read version r

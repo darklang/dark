@@ -344,6 +344,26 @@ test exprsQualifiedValue =
       roundTrip("field access 1", "person.name", "person.name")
       roundTrip("tuple element access", "pair.2", "pair.2") ])
 
+// A fn named with type args and not called keeps them, and stays uncalled.
+test exprsTypedFnValue =
+  Stdlib.Test.all(
+    [ roundTrip(
+        "typed fn value",
+        "Stdlib.List.map<Int64, Int64>",
+        "Stdlib.List.map<Int64, Int64>")
+      roundTrip(
+        "typed fn value, bound",
+        "let h = Stdlib.List.map<Int64, String>\nh",
+        "let h = Stdlib.List.map<Int64, String>\nh")
+      roundTrip(
+        "typed fn value, passed",
+        "Stdlib.List.map([1], Stdlib.Option.map<Int64, Int64>)",
+        "Stdlib.List.map([1], Stdlib.Option.map<Int64, Int64>)")
+      roundTrip(
+        "typed fn call, unchanged",
+        "Stdlib.List.map<Int64, Int64>([1], fun x -> x)",
+        "Stdlib.List.map<Int64, Int64>([1], fun x -> x)") ])
+
 test exprsPreserveBothAccesses =
   Stdlib.Test.all(
     [ // Preserve both accesses despite the lexer reading `1.2` as a float.

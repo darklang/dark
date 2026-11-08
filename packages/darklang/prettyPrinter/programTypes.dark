@@ -737,7 +737,7 @@ let stringSegment(ctx: Context, s: LanguageTools.ProgramTypes.StringSegment): St
   | StringInterpolation(interpolationExpr) ->
     let body =
       match interpolationExpr with
-      | EApply(_, EFnName(_, name, _), [], [ inner ]) when
+      | EApply(_, EFnName(_, name, _, _), [], [ inner ]) when
           name.originalName == [ "Darklang", "Stdlib", "ToString", "toString" ] -> inner
       | _ -> interpolationExpr
     $"{{{expr(ctx, body)}}}"
@@ -1421,8 +1421,18 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
 
     $"(fun{lambdaParams(pats)} ->\n{PrettyPrinter.indent(bodyPart)})"
 
-  | EFnName(_id, fnName, _) ->
-    NameResolution.fnName(ctx, fnName)
+  // `Stdlib.List.map<Int64, Int64>`, uncalled, keeps its type args.
+  | EFnName(_id, fnName, _, typeArgs) ->
+    let typeArgsPart =
+      match typeArgs with
+      | [] -> ""
+      | _ ->
+        typeArgs
+        |> Stdlib.List.map(fun typeArg -> typeReference(ctx, typeArg))
+        |> Stdlib.String.join(", ")
+        |> fun parts -> $"<{parts}>"
+
+    $"{NameResolution.fnName(ctx, fnName)}{typeArgsPart}"
 
   // LanguageTools.ID *
   // record: LanguageTools.ProgramTypes.Expr *

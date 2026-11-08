@@ -1280,6 +1280,7 @@ module Builtins =
                   { name = "missing", version = 0s32 }
               )
             )),
+            [],
             []
           ),
           [],
@@ -1300,6 +1301,25 @@ module Builtins =
           "f")
         |> Stdlib.Test.equal("checked:")
         check("let f(u: Unit): Int64 = Stdlib.List.length<Int64, Int64, Int64>([])", "f")
+        |> Stdlib.Test.equal("failed:ExplicitTypeArgumentCountMismatch") ])
+
+  // A fn named with type args and not called is a value of the specialised fn type:
+  // the type args are counted, and calls through it are checked against them.
+  test uncalledFnWithTypeArgs =
+    Stdlib.Test.all(
+      [ check(
+          src([ "let same(x: 'a): 'a = x"
+                "let f(u: Unit): Int64 =\n  let h = same<Int64>\n  h(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+        check(
+          src([ "let same(x: 'a): 'a = x"
+                "let f(u: Unit): Int64 =\n  let h = same<String>\n  h(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+        check(
+          "let f(u: Unit): Int64 =\n  let h = Stdlib.List.length<Int64, Int64, Int64>\n  h([])",
+          "f")
         |> Stdlib.Test.equal("failed:ExplicitTypeArgumentCountMismatch") ])
 
 // ----------------------------------------------------------------------------------
@@ -1798,7 +1818,7 @@ module Unresolved =
             tUnit(),
             tInt(),
             (Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
-              1, unresolved([ "Missing", "fn" ]), [])))))
+              1, unresolved([ "Missing", "fn" ]), [], [])))))
         |> Stdlib.Test.equal("incomplete:UnresolvedFunctionName")
         checkFunctionAst(
           [],

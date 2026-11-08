@@ -91,6 +91,46 @@ test definedPolyFnInfersTypeArgs =
       definedPolyFn<String>(X.B("str"))
       |> Stdlib.Test.equal(definedPolyFn(X.B("str"))) ])
 
+// A fn named with type args and not called is that fn as a value, specialised to them.
+module TypedFnValues =
+  let twice(f: (List<Int64> * (Int64 -> Int64)) -> List<Int64>): List<Int64> =
+    f(f([ 1, 2 ], fun x -> x + 1), fun x -> x * 10)
+
+  test calledThroughALet =
+    (let h = Stdlib.List.map<Int64, Int64>
+     h([ 1, 2 ], fun x -> x + 1))
+    |> Stdlib.Test.equal([ 2, 3 ])
+
+  test userFnThroughALet =
+    (let h = fnWithTypeArgAndOneParam<Int64>
+     h(4))
+    |> Stdlib.Test.equal(4)
+
+  test passedToAnotherFn =
+    twice(Stdlib.List.map<Int64, Int64>) |> Stdlib.Test.equal([ 20, 30 ])
+
+  test passedAsACallback =
+    [ 1, 2 ]
+    |> Stdlib.List.map(fnWithTypeArgAndOneParam<Int64>)
+    |> Stdlib.Test.equal([ 1, 2 ])
+
+  test argsCheckedAgainstTheTypeArgs =
+    (let h = fnWithTypeArgAndOneParam<Int64>
+     h("str"))
+    => raises
+      "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str\")"
+
+  test wrongNumberOfTypeArgsRaises =
+    (let h = fnWithTypeArgAndOneParam<Int64, String>
+     h(1))
+    => raises
+      "Darklang.Language.Tests.Apply.fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+
+  test typeArgsCannotBeGivenTwice =
+    (let h = fnWithTypeArgAndOneParam<Int64>
+     h<Int64>(1))
+    => raises "Cannot apply type arguments more than once"
+
 module InvalidFnCalls =
   test missingFunctionRaises =
     (functionWhichDoesntExist(6))

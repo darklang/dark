@@ -36,7 +36,7 @@ let children(node: Node): (Stdlib.Option.Option<Int64> * List<Node>) =
     let id = Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Expr.toID(e))
     match e with
     | EVariable(_, _)
-    | EFnName(_, _, _)
+    | EFnName(_, _, _, _)
     | EValue(_, _) -> (id, [])
     | ELambda(_, parameters, body) ->
       (id, Stdlib.List.append(letNodes(parameters), Node.Expression(body)))
@@ -288,7 +288,7 @@ let visit(
   | Expression(e) ->
     match e with
     | EVariable(_, _)
-    | EFnName(_, _, _)
+    | EFnName(_, _, _, _)
     | EValue(_, _) -> (Stdlib.List.prepend(ids, LanguageTools.ProgramTypes.Expr.toID(e)), next)
     | ELambda(_, parameters, body) ->
       (Stdlib.List.prepend(ids, LanguageTools.ProgramTypes.Expr.toID(e)),

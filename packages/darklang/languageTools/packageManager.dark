@@ -382,7 +382,7 @@ module Test =
     match body with
     | ELet(_, _, _, next) -> testCount(next)
     | EStatement(_, _, next) -> testCount(next)
-    | EApply(_, EFnName(_, name, _), _, [ EList(_, items) ]) when __isAll(name) -> sum(items)
+    | EApply(_, EFnName(_, name, _, _), _, [ EList(_, items) ]) when __isAll(name) -> sum(items)
     | EPipe(_, EList(_, items), [ EPipeFnCall(_, name, _, [], _) ]) when __isAll(name) -> sum(items)
     | EIf(_, _, thenExpr, Some(elseExpr)) -> most([ thenExpr, elseExpr ])
     | EMatch(_, _, cases) -> most(Stdlib.List.map(cases, fun c -> c.rhs))

@@ -265,7 +265,7 @@ let private fnHashTests =
               resolved = Error PT.NameResolutionError.NotFound }
           PT.EApply(
             gid (),
-            PT.EFnName(gid (), nr, []),
+            PT.EFnName(gid (), nr, [], []),
             [],
             NEList.singleton (eVar "x")
           )
@@ -302,6 +302,24 @@ let private fnHashTests =
           "a fn with no bounds hashes as it did before bounds existed"
       }
 
+      // `Stdlib.List.map<Int64, Int64>` uncalled is a different value from `Stdlib.List.map`,
+      // and from the same name with other type args, so the type args reach the hash.
+      test "an uncalled fn reference's type args are part of its hash" {
+        let fnRef (typeArgs : List<PT.TypeReference>) : PT.Expr =
+          PT.EFnName(
+            gid (),
+            PT.NameResolution.ok (PT.FQFnName.Package(PT.Hash "map")),
+            [],
+            typeArgs
+          )
+        let bare = h [] (fnRef [])
+        let ints = h [] (fnRef [ PT.TInt64; PT.TInt64 ])
+        let strs = h [] (fnRef [ PT.TInt64; PT.TString ])
+        Expect.notEqual bare ints "type args are meaning"
+        Expect.notEqual ints strs "which type args is meaning"
+        Expect.equal ints (h [] (fnRef [ PT.TInt64; PT.TInt64 ])) "deterministic"
+      }
+
       test "a TraitMethod call hashes by trait hash and method name" {
         let call (traitHash : string) (m : string) : PT.Expr =
           let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
@@ -313,7 +331,7 @@ let private fnHashTests =
             )
           PT.EApply(
             gid (),
-            PT.EFnName(gid (), nr, []),
+            PT.EFnName(gid (), nr, [], []),
             [],
             NEList.singleton (eVar "x")
           )
@@ -337,7 +355,7 @@ let private fnHashTests =
             )
           PT.EApply(
             gid (),
-            PT.EFnName(gid (), nr, []),
+            PT.EFnName(gid (), nr, [], []),
             [],
             NEList.singleton (eVar "x")
           )
