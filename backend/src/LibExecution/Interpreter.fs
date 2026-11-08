@@ -55,6 +55,34 @@ module private FreeTVars =
       collect acc ret
     | _ -> acc
 
+  /// Whether <param tr> mentions a type variable: `collect` without building the set, or a
+  /// closure for the lists in it.
+  let rec private mentions (tr : TypeReference) : bool =
+    match tr with
+    | TVariable _ -> true
+    | TList inner
+    | TStream inner -> mentions inner
+    | TDict(key, value) -> mentions key || mentions value
+    | TTuple(a, b, rest) -> mentions a || mentions b || mentionsAny rest
+    | TCustomType(_, args) -> mentionsAny args
+    | TFn(args, ret) -> mentions args.head || mentionsAny args.tail || mentions ret
+    | _ -> false
+
+  and private mentionsAny (trs : List<TypeReference>) : bool =
+    match trs with
+    | [] -> false
+    | t :: rest -> mentions t || mentionsAny rest
+
+  let rec private anyParamMentions (ps : List<BuiltInParam>) : bool =
+    match ps with
+    | [] -> false
+    | p :: rest -> mentions p.typ || anyParamMentions rest
+
+  /// Whether `ofBuiltin` would be non-empty, without its lookup. Most builtins have no type
+  /// variables, and the walk over their signature is cheaper than hashing the name.
+  let builtinHasAny (fn : BuiltInFn) : bool =
+    anyParamMentions fn.parameters || mentions fn.returnType
+
   // `TryGetValue(key, &out)` rather than `match d.TryGetValue key with | true, v ->`. The tuple form
   // reads better but allocates a `Tuple<bool, 'v>` on every lookup, hit or miss -- measured at 35 bytes
   // a call, which on a per-call cache lookup is more than the thing being cached.
@@ -2150,7 +2178,8 @@ and private callBuiltinResolvedSlow
   // without shadowing, an outer fn's `'a := X` would silently constrain a builtin's unrelated `'a`
   // (e.g. `==` with `'a` polluted to a tuple type from a parent List<(...)> context).
   let biShadowAlloc = allocNow vm
-  let fnFreeTVars = FreeTVars.ofBuiltin fn
+  let fnFreeTVars =
+    if FreeTVars.builtinHasAny fn then FreeTVars.ofBuiltin fn else Set.empty
   // Only used to strip names from `tst`, so with nothing in `tst` there's nothing to strip and not even
   // the memo lookup is worth doing.
   let implicitTypeParams : Set<string> =
