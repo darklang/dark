@@ -50,12 +50,7 @@ let append(list: List<'a>, value: 'a): List<'a> =
 
 /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
 let last(list: List<'a>): Option.Option<'a> =
-  match list with
-  | [] -> Option.Option.None
-  | [head, ...tail] ->
-    match tail with
-    | [] -> Option.Option.Some(head)
-    | _ -> last(tail)
+  getAt(list, length(list) - 1)
 
 
 /// Returns a reversed copy of <param list>
