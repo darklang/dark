@@ -54,10 +54,15 @@ let wrapAtColumn(text: String, maxWidth: Int64): List<String> =
   Builtin.cliTerminalWrapAtColumn(text, maxWidth)
 
 
-/// Zero-based cursor position immediately after plain text. Exactly past the last column reads as
-/// column zero of the next row, matching what the terminal does.
-let positionAfter(text: String, maxWidth: Int64): (Int64 * Int64) =
-  Builtin.cliTerminalPositionAfter(text, maxWidth)
+/// `wrapAtColumn` over `before + after`, with the zero-based row and column of the cursor between
+/// them. Both come from the one wrap, so the cursor stays on the text when a word moves down. Exactly
+/// past a full last row reads as column zero of the next row, matching what the terminal does.
+let wrapWithCursor(
+  before: String,
+  after: String,
+  maxWidth: Int64)
+  : (List<String> * Int64 * Int64) =
+  Builtin.cliTerminalWrapWithCursor(before, after, maxWidth)
 
 
 /// Clip, but skip the work for a row already plain and within bounds. That is the common case, and

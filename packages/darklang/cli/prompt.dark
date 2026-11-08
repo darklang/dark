@@ -176,30 +176,15 @@ module History =
 
 
 module Display =
-  let plainPrefix(locationStr: String): String =
-    if Stdlib.String.isEmpty(locationStr) then
-      "> "
-    else
-      locationStr + " > "
-
   let styledPrefix(locationStr: String): String =
     if Stdlib.String.isEmpty(locationStr) then
       "> "
     else
       Stdlib.Cli.UI.Colors.dimText($"{locationStr} ") + "> "
 
-  /// Format the complete prompt with input and optional hint
-  let formatPromptWithInput(
-    locationStr: String,
-    text: String,
-    hint: String)
-    : String =
-    if Stdlib.String.isEmpty(hint) then
-      styledPrefix(locationStr) + text
-    else
-      styledPrefix(locationStr) + text + (Stdlib.Cli.UI.Colors.hint(hint))
-
   /// Build the complete prompt region and Unicode-correct logical cursor.
+  ///
+  /// The rows and the cursor come from one wrap, so a word that moves down takes the cursor with it.
   let viewAtSize(
     state: State,
     locationStr: String,
@@ -207,18 +192,13 @@ module Display =
     size: Stdlib.Cli.Tui.Size)
     : Stdlib.Cli.Tui.View =
     let width = Stdlib.max(1, size.width)
-    let styled =
-      formatPromptWithInput(locationStr, state.text, hint)
     let beforeCursor =
-      Stdlib.String.slice(
-        state.text,
-        0,
-        state.cursorPosition)
-    let cursorText =
-      plainPrefix(locationStr) + beforeCursor
-    let (cursorRow, cursorColumn) =
-      Stdlib.Cli.Tui.Text.positionAfter(cursorText, width)
-    let wrapped = Stdlib.Cli.Tui.Text.wrapAtColumn(styled, width)
+      styledPrefix(locationStr) + Stdlib.String.slice(state.text, 0, state.cursorPosition)
+    let rest = Stdlib.String.dropFirst(state.text, state.cursorPosition)
+    let afterCursor =
+      if Stdlib.String.isEmpty(hint) then rest else rest + (Stdlib.Cli.UI.Colors.hint(hint))
+    let (wrapped, cursorRow, cursorColumn) =
+      Stdlib.Cli.Tui.Text.wrapWithCursor(beforeCursor, afterCursor, width)
     let requiredHeight =
       Stdlib.max(
         Stdlib.List.length(wrapped),
