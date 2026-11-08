@@ -51,6 +51,11 @@ let concatAll(values: List<Bytes>): Bytes = Builtin.bytesConcat(values)
 let concat(a: Bytes, b: Bytes): Bytes = concatAll([ a, b ])
 
 
+/// Returns <param bytes> with <param fn> applied to each byte.
+let map(bytes: Bytes, fn: UInt8 -> UInt8): Bytes =
+  fromList(Stdlib.List.map(toList(bytes), fn))
+
+
 type IndexError =
   /// The range was outside the bounds of the Bytes.
   | IndexOutOfBounds

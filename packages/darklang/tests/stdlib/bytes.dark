@@ -59,6 +59,16 @@ test concatAll =
       |> Stdlib.Test.equal(Ok("foo-bar"))
       Stdlib.Bytes.concatAll([]) |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
 
+// map
+test map =
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.map(Stdlib.Utf8.encode("abc"), fun b -> b + 1u8)
+      |> Stdlib.Test.equal(Stdlib.Utf8.encode("bcd"))
+      Stdlib.Bytes.map(Stdlib.Bytes.fromList([ 0u8, 255u8 ]), fun _ -> 7u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.fromList([ 7u8, 7u8 ]))
+      Stdlib.Bytes.map(Stdlib.Bytes.empty, fun b -> b + 1u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
 // slice: start inclusive, end exclusive, strict
 test slice =
   let bytes = Stdlib.Utf8.encode("abcdef")
