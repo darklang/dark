@@ -18,28 +18,150 @@ let cliVersion(): String =
   "alpha-" + buildHash()
 
 
-/// The local version plus a check against the latest published release.
-///
-/// Costs a network round trip, which dominates the command. That's deliberate: both callers (`version`
-/// and `install-status`) exist to tell you whether your install is current, so the check is the point
-/// rather than a side errand. Worth knowing it's there before adding a third caller.
-///
-/// The same list names the release this binary is, when it is one: the tag is nowhere in the
-/// binary, only the build.
-let versionInfoWithUpdateCheck(): String =
-  let currentVersion = cliVersion()
-  match GitHub.Releases.list() with
-  | Ok(releases) ->
-    let named(build: String): String =
-      match GitHub.Releases.tagFor(releases, build) with
-      | Some(tag) -> $"{tag}, {build}"
-      | None -> build
+/// What GitHub's release list last said, kept in the config key `update.check` so `version` and
+/// `install-status` answer without the round trip, which was most of their time.
+type LastCheck =
+  { /// The build that asked. Another binary asks again: its own tag may differ.
+    build: String
+    /// When GitHub last answered, in Unix seconds. 0 when it never has for this build.
+    answeredAt: Int64
+    /// When we last asked, answered or not. A failed ask waits <fn retryAfter> before the next.
+    askedAt: Int64
+    /// The tag of `build`, or "" when it is no release (a dev build).
+    currentTag: String
+    latestTag: String
+    /// The newest release's build, or "" when GitHub has never answered.
+    latestBuild: String }
 
-    match Stdlib.List.head(releases) |> Stdlib.Option.andThen(GitHub.Releases.buildOf) with
-    | Some(latestVersion) ->
-      if currentVersion == latestVersion then
-        $"Darklang CLI {named(currentVersion)} (up to date)"
+
+/// How old an answer may be before it is asked again: a day.
+let maxAge(): Int64 =
+  86400
+
+
+/// How long a failed ask waits before the next one: an hour, so no network costs one slow call an
+/// hour rather than one every call.
+let retryAfter(): Int64 =
+  3600
+
+
+let lastCheckKey(): String =
+  "update.check"
+
+
+/// The stored check, or None when there is none or it can't be read.
+let readLastCheck(): Option<LastCheck> =
+  LanguageTools.LocalStore.configGet(lastCheckKey())
+  |> Stdlib.Option.andThen(fun json -> Stdlib.Json.parse<LastCheck>(json) |> Stdlib.Result.toOption)
+
+
+/// Should this call ask GitHub? Yes for a build that never has, or one whose answer is older than
+/// <fn maxAge> and whose last ask is older than <fn retryAfter>.
+let shouldAsk(last: Option<LastCheck>, build: String, now: Int64): Bool =
+  match last with
+  | None -> true
+  | Some(l) -> l.build != build || now - l.answeredAt >= maxAge() && now - l.askedAt >= retryAfter()
+
+
+/// A check that has asked once and never been answered.
+let noAnswer(build: String, now: Int64): LastCheck =
+  LastCheck
+    { build = build
+      answeredAt = 0
+      askedAt = now
+      currentTag = ""
+      latestTag = ""
+      latestBuild = "" }
+
+
+/// The check after asking: <param fetched> is what `GitHub.Releases.list` returned. A failed ask
+/// keeps the last answer, if this build had one, and records only that it asked.
+let afterAsking(
+  last: Option<LastCheck>,
+  build: String,
+  now: Int64,
+  fetched: Result<List<GitHub.Releases.Release>, String>)
+  : LastCheck =
+  let unanswered =
+    match last with
+    | Some(l) -> if l.build == build then { l with askedAt = now } else noAnswer(build, now)
+    | None -> noAnswer(build, now)
+
+  match fetched with
+  | Error(_) -> unanswered
+  | Ok(releases) ->
+    match Stdlib.List.head(releases) with
+    | None -> unanswered
+    | Some(latest) ->
+      match GitHub.Releases.buildOf(latest) with
+      | None -> unanswered
+      | Some(latestBuild) ->
+        LastCheck
+          { build = build
+            answeredAt = now
+            askedAt = now
+            currentTag = GitHub.Releases.tagFor(releases, build) |> Stdlib.Option.withDefault("")
+            latestTag = latest.tag_name
+            latestBuild = latestBuild }
+
+
+/// The check to answer from: the stored one when it is current enough, otherwise a new ask through
+/// <param fetch>, which is never called otherwise. <param force> asks whatever is stored.
+let currentCheck(
+  last: Option<LastCheck>,
+  build: String,
+  now: Int64,
+  force: Bool,
+  fetch: Unit -> Result<List<GitHub.Releases.Release>, String>)
+  : LastCheck =
+  match last with
+  | Some(l) ->
+    if Stdlib.Bool.not(force) && Stdlib.Bool.not(shouldAsk(last, build, now)) then
+      l
+    else
+      afterAsking(last, build, now, fetch())
+  | None -> afterAsking(last, build, now, fetch())
+
+
+/// The `version` line for <param check>. An answer from before this minute says how old it is.
+/// <param force> is `--check`: a failed ask then says so rather than showing the last answer.
+let versionLine(check: LastCheck, now: Int64, force: Bool): String =
+  let build = check.build
+  let named(b: String, tag: String): String = if tag == "" then b else $"{tag}, {b}"
+  let current = named(build, check.currentTag)
+  if check.latestBuild == "" || force && check.answeredAt != now then
+    $"Darklang CLI {build} (unable to check for updates)"
+  else
+    let checked =
+      if now - check.answeredAt < 60 then
+        ""
       else
-        $"Darklang CLI {named(currentVersion)} (latest: {named(latestVersion)} - update available!)"
-    | None -> $"Darklang CLI {currentVersion} (unable to check for updates)"
-  | Error(_) -> $"Darklang CLI {currentVersion} (unable to check for updates)"
+        $", checked {RelativeTime.ago(Stdlib.DateTime.fromSeconds(check.answeredAt))}"
+
+    if build == check.latestBuild then
+      $"Darklang CLI {current} (up to date{checked})"
+    else
+      $"Darklang CLI {current} (latest: {named(check.latestBuild, check.latestTag)} - update available!{checked})"
+
+
+/// The local version and whether a newer release exists, from the last check when it is under a day
+/// old. Otherwise this asks GitHub, a round trip that costs more than the rest of the command; with
+/// no network that ask fails and is not retried for an hour. <param force> always asks.
+///
+/// `update` never reads this: it is about to download, so it asks GitHub itself.
+let versionInfo(force: Bool): String =
+  let build = cliVersion()
+  let now = Stdlib.DateTime.toSeconds(Stdlib.DateTime.now())
+  let last = readLastCheck()
+  let check = currentCheck(last, build, now, force, fun () -> GitHub.Releases.list())
+
+  // Quiet when it can't be kept: the next call just asks again.
+  if last != Option.Some(check) then
+    let _ =
+      LanguageTools.LocalStore.configSet(lastCheckKey(), Stdlib.Json.serialize<LastCheck>(check))
+
+    ()
+  else
+    ()
+
+  versionLine(check, now, force)
