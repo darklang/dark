@@ -964,7 +964,7 @@ test replCapturesRealValues =
   let branch = Darklang.SCM.Branch.mainBranchId
   let cases =
     [ (Darklang.Cli.Repl.captureValue(branch, 42), "ok:42")
-      (Darklang.Cli.Repl.captureValue(branch, [ 1, 2 ]), "ok:[1, 2]")
+      (Darklang.Cli.Repl.captureValue(branch, [ 1, 2 ]), "ok:[ 1, 2 ]")
       (Darklang.Cli.Repl.captureValue(branch, "hi"), "ok:\"hi\"")
       // An enum renders under a shortened package name, so `Option.Some(1)`. That and the
       // fully-qualified spelling both parse back to the same value, which is what matters here: the

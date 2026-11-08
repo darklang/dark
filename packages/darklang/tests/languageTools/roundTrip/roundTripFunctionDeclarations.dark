@@ -42,11 +42,11 @@ test functionDeclarations =
       roundTrip(
         "single type param",
         "let myFn<'a>(param: 'a): Unit  = ()",
-        "let myFn<'a>(param: 'a): Unit =\n  ()")
+        "let myFn(param: 'a): Unit =\n  ()")
       roundTrip(
         "two type params",
         "let myFn<'a, 'b>(paramOne: 'a, paramTwo: 'b): Unit = ()",
-        "let myFn<'a, 'b>(paramOne: 'a, paramTwo: 'b): Unit =\n  ()")
+        "let myFn(paramOne: 'a, paramTwo: 'b): Unit =\n  ()")
       roundTrip(
         "package fn call",
         "let sum(a : Int64, b : Int64): Int64 =\n  a + b",
@@ -66,7 +66,7 @@ test functionDeclarations =
       roundTrip(
         "self reference, shadowed name",
         "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = (fun x -> x + 2)\n    let lambdaResult = incr(z)\n    result + lambdaResult",
-        "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = (fun x -> x + 2)\n    let lambdaResult = incr(z)\n    result + lambdaResult")
+        "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = fun x -> x + 2\n    let lambdaResult = incr(z)\n    result + lambdaResult")
       roundTrip(
         "keyword-named parameter",
         "let f(`in`: String): String = `in`",

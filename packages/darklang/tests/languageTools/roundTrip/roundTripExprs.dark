@@ -214,23 +214,23 @@ test exprsCharLiterals =
       roundTrip("a tab char", "'\t'", "'\\t'")
       // list literal
       roundTrip("empty list", "[]", "[]")
-      roundTrip("string list", "[\"hello\"]", "[\"hello\"]")
-      roundTrip("int list 2", "[1, 2]", "[1, 2]")
-      roundTrip("int list 3", "[1, 2, 3,]", "[1, 2, 3]")
-      roundTrip("bool list", "[true, false, true, false]", "[true, false, true, false]")
-      roundTrip("int list list", "[[1, 2], [3, 4]]", "[[1, 2], [3, 4]]")
+      roundTrip("string list", "[\"hello\"]", "[ \"hello\" ]")
+      roundTrip("int list 2", "[1, 2]", "[ 1, 2 ]")
+      roundTrip("int list 3", "[1, 2, 3,]", "[ 1, 2, 3 ]")
+      roundTrip("bool list", "[true, false, true, false]", "[ true, false, true, false ]")
+      roundTrip("int list list", "[[1, 2], [3, 4]]", "[ [ 1, 2 ], [ 3, 4 ] ]")
       roundTrip(
         "list with newline as a separator",
         "[ true\n false\n true ]",
-        "[true, false, true]")
+        "[ true, false, true ]")
       roundTrip(
         "list of function calls",
         "[\n  Stdlib.Tuple2.second((4, 5))\n  Stdlib.Int64.remainder(1, 2)\n  Stdlib.List.head([1, 2])\n]",
-        "[\n  Stdlib.Tuple2.second((4, 5)),\n  Stdlib.Int64.remainder(1, 2),\n  Stdlib.List.head([1, 2])\n]")
+        "[ Stdlib.Tuple2.second((4, 5))\n  Stdlib.Int64.remainder(1, 2)\n  Stdlib.List.head([ 1, 2 ]) ]")
       roundTrip(
         "list of function calls -indented",
         "[\n  Stdlib.Tuple2.second((4, 5))\n  (Stdlib.Int64.remainder(\n    1,\n    2))\n  Stdlib.List.head([1, 2])\n]",
-        "[\n  Stdlib.Tuple2.second((4, 5)),\n  Stdlib.Int64.remainder(1, 2),\n  Stdlib.List.head([1, 2])\n]") ])
+        "[ Stdlib.Tuple2.second((4, 5))\n  Stdlib.Int64.remainder(1, 2)\n  Stdlib.List.head([ 1, 2 ]) ]") ])
 
 test exprsDictLiteral =
   Stdlib.Test.all(
@@ -330,7 +330,7 @@ test exprsQualifiedValue =
       roundTrip(
         "nested function definition (desugars to lambda)",
         "let result =\n  let double(x: Int64): Int64 = x * 2\n  double(5)\nresult",
-        "let result =\n  let double = (fun x -> x * 2)\n  double(5)\nresult")
+        "let result =\n  let double = fun x -> x * 2\n  double(5)\n\nresult")
       roundTrip("let expr with indent", "let x =\n  1\nx", "let x = 1\nx")
       roundTrip(
         "tuple destructuring",
@@ -358,11 +358,11 @@ test exprsTypedFnValue =
       roundTrip(
         "typed fn value, passed",
         "Stdlib.List.map([1], Stdlib.Option.map<Int64, Int64>)",
-        "Stdlib.List.map([1], Stdlib.Option.map<Int64, Int64>)")
+        "Stdlib.List.map([ 1 ], Stdlib.Option.map<Int64, Int64>)")
       roundTrip(
         "typed fn call, unchanged",
         "Stdlib.List.map<Int64, Int64>([1], fun x -> x)",
-        "Stdlib.List.map<Int64, Int64>([1], fun x -> x)") ])
+        "Stdlib.List.map<Int64, Int64>([ 1 ], fun x -> x)") ])
 
 test exprsPreserveBothAccesses =
   Stdlib.Test.all(
@@ -400,26 +400,26 @@ test exprsIfExpressions =
       roundTrip(
         "if, 3",
         "if a < b then 1 else if c > d then 2",
-        "if a < b then 1 else if c > d then 2")
+        "if a < b then\n  1\nelse if c > d then\n  2")
       roundTrip(
         "if, 4",
         "if a < b then 1 else if c > d then 2 else 3",
-        "if a < b then 1 else if c > d then 2 else 3")
+        "if a < b then\n  1\nelse if c > d then\n  2\nelse\n  3")
       roundTrip("if, 5", "if true then\n 1", "if true then 1")
       roundTrip("if, 6", "if true then\n 1\nelse\n 2", "if true then 1 else 2")
       roundTrip(
         "if, 7",
         "if true then\n a\nelse if false then\n c",
-        "if true then a else if false then c")
+        "if true then\n  a\nelse if false then\n  c")
       roundTrip(
         "if, 8",
         "if a > b then\n a\nelse if c > d then\n c\nelse d",
-        "if a > b then a else if c > d then c else d")
+        "if a > b then\n  a\nelse if c > d then\n  c\nelse\n  d")
       roundTrip("if, 9", "if true then\n\ta\nelse\n\tb", "if true then a else b")
       roundTrip(
         "if, many branches",
         "if true then\n  a\nelse if false then\n  c\nelse if true then\n  d",
-        "if true then a else if false then c else if true then d")
+        "if true then\n  a\nelse if false then\n  c\nelse if true then\n  d")
       roundTrip(
         "else for inner if",
         "\nif a > b then\n  if c > d then\n    c\n  else\n    b",
@@ -431,7 +431,7 @@ test exprsIfExpressions =
       roundTrip(
         "nested if",
         "if a > b then\n  a\nelse\n  if c > d then\n    c\n  else\n    if e > f then\n      e\n    else\n      if g > h then\n        g\n      else\n        h",
-        "if a > b then\n  a\nelse if c > d then c else if e > f then e else if g > h then g else h") ])
+        "if a > b then\n  a\nelse if c > d then\n  c\nelse if e > f then\n  e\nelse if g > h then\n  g\nelse\n  h") ])
 
 test exprsMatchExpressions =
   Stdlib.Test.all(
@@ -466,11 +466,11 @@ test exprsMatchExpressions =
       roundTrip(
         "match, int list 1",
         "match [1, 2] with\n| [1, 2] -> true",
-        "match [1, 2] with\n| [1, 2] -> true")
+        "match [ 1, 2 ] with\n| [1, 2] -> true")
       roundTrip(
         "match, int list 2",
         "match [1, 2, 3] with\n| [head, ...tail] ->\n \"pass\"",
-        "match [1, 2, 3] with\n| [head, ...tail] -> \"pass\"") ])
+        "match [ 1, 2, 3 ] with\n| [head, ...tail] -> \"pass\"") ])
 
 test exprsMatchAsAndOr =
   Stdlib.Test.all(
@@ -481,11 +481,11 @@ test exprsMatchAsAndOr =
       roundTrip(
         "match, as and or inside a tuple",
         "match (2, 3) with\n| ((1 | 2), y) -> y\n| ((x as z), _) -> z",
-        "match (2, 3) with\n| ((1 | 2), y) -> y\n| ((x as z), _) -> z")
+        "match 2, 3 with\n| (1 | 2), y -> y\n| (x as z), _ -> z")
       roundTrip(
         "match, as and or in list elements",
         "match [2] with\n| [1 | 2] -> true\n| [a as b, ...] -> false\n| _ -> false",
-        "match [2] with\n| [1 | 2] -> true\n| [a as b, ...] -> false\n| _ -> false")
+        "match [ 2 ] with\n| [1 | 2] -> true\n| [a as b, ...] -> false\n| _ -> false")
       roundTrip(
         "match, as in or alternatives",
         "match x with\n| (Ok(y) as r) | (Error(y) as r) -> y",
@@ -521,14 +521,14 @@ test exprsMatchRecord =
       roundTrip(
         "match, record inside enum and tuple",
         "match x with\n| (Some({ name }), { age = 3 }) -> name",
-        "match x with\n| (Some({ name }), { age = 3 }) -> name") ])
+        "match x with\n| Some({ name }), { age = 3 } -> name") ])
 
 test exprsMatchIntTuple =
   Stdlib.Test.all(
     [ roundTrip(
         "match, int tuple",
         "match (1, 2) with\n| (1, 2) -> true",
-        "match (1, 2) with\n| (1, 2) -> true")
+        "match 1, 2 with\n| 1, 2 -> true")
       roundTrip(
         "match, enum",
         "match Stdlib.Result.Result.Ok(5) with\n| Ok(5) -> true\n| Error(e) -> false",
@@ -561,7 +561,7 @@ test exprsMatchIntTuple =
       roundTrip(
         "match, multiple patterns",
         "match (1, 2) with\n| (1, 2) | (2, 1) -> true\n| _ -> false",
-        "match (1, 2) with\n| (1, 2) | (2, 1) -> true\n| _ -> false") ])
+        "match 1, 2 with\n| (1, 2) | (2, 1) -> true\n| _ -> false") ])
 
 test exprsPipeExpression =
   Stdlib.Test.all(
@@ -583,12 +583,12 @@ test exprsPipeExpression =
 
 test exprsThePrefixOperators =
   Stdlib.Test.all(
-    [ // The prefix operators desugar to the call they are, so the NORMAL FORM prints
-      // that call rather than the operator.
-      roundTrip("prefix bang", "!true", "Builtin.boolNot(true)")
+    [ // `!` desugars to its builtin and prints back as `!`. `~` and unary `-` desugar to the
+      // trait method they run, which the NORMAL FORM prints as the call.
+      roundTrip("prefix bang", "!true", "!true")
       roundTrip("prefix tilde", "~1", "Stdlib.BitwiseNot.bitwiseNot(1)")
       roundTrip("unary minus on a non-literal", "-x", "Stdlib.Negate.negate(x)")
-      roundTrip("prefix bang takes a whole application", "!f(x)", "Builtin.boolNot(f(x))")
+      roundTrip("prefix bang takes a whole application", "!f(x)", "!f(x)")
       // `|` is the match-arm separator inside a match, so a bitwise-or in an arm
       // body has to come back parenthesised or it re-parses as the next arm.
       roundTrip(
@@ -602,11 +602,11 @@ test exprsThePrefixOperators =
       roundTrip(
         "a bracketed bitwise or in a match arm needs no extra parens",
         "match x with\n| 0 -> [1 | 2]\n| n -> n",
-        "match x with\n| 0 -> [1 | 2]\n| n -> n")
+        "match x with\n| 0 -> [ 1 | 2 ]\n| n -> n")
       roundTrip(
         "pipe, computed arg",
         "[1, 2] |> Stdlib.List.take(2 - 1)",
-        "[1, 2] |> Stdlib.List.take(2 - 1)")
+        "[ 1, 2 ] |> Stdlib.List.take(2 - 1)")
       roundTrip(
         "pipe, if head",
         "(if true then 1 else 2) |> (fun v -> v + 1)",
@@ -618,7 +618,7 @@ test exprsThePrefixOperators =
       roundTrip(
         "pipe, lambda then another stage",
         "1 |> (fun x -> x + 1) |> (fun v -> v + 2)",
-        "1 |> (fun x -> x + 1) |> (fun v -> v + 2)")
+        "1\n|> (fun x -> x + 1)\n|> (fun v -> v + 2)")
       roundTrip("pipe, into fn call", "1 |> (fun v -> v + 2)", "1 |> (fun v -> v + 2)")
       roundTrip("pipe, into fn call 2", "1 |> Stdlib.display", "1 |> Stdlib.display")
       roundTrip(
@@ -632,7 +632,7 @@ test exprsThePrefixOperators =
       roundTrip(
         "pipe, into fn call 5",
         "[1, 2] |> Stdlib.List.last |> Builtin.unwrap",
-        "[1, 2] |> Stdlib.List.last |> Builtin.unwrap") ])
+        "[ 1, 2 ]\n|> Stdlib.List.last\n|> Builtin.unwrap") ])
 
 test exprsInfixCallsPretty =
   Stdlib.Test.all(
@@ -671,7 +671,7 @@ test exprsInfixCallsPretty =
       roundTrip(
         "fn call with indentation",
         "Stdlib.Tuple3.mapAllThree(\n  (\"one\", 2, \"pi\"),\n  (fun x -> Stdlib.String.toUppercase(x)),\n  (fun x -> x - 2),\n  fun x -> Stdlib.String.toUppercase(x))\n",
-        "Stdlib.Tuple3.mapAllThree(\n  (\"one\", 2, \"pi\"),\n  (fun x -> Stdlib.String.toUppercase(x)),\n  (fun x -> x - 2),\n  fun x -> Stdlib.String.toUppercase(x)\n)") ])
+        "Stdlib.Tuple3.mapAllThree(\n  (\"one\", 2, \"pi\"),\n  (fun x -> Stdlib.String.toUppercase(x)),\n  (fun x -> x - 2),\n  fun x -> Stdlib.String.toUppercase(x))") ])
 
 test exprsKeywordNames =
   Stdlib.Test.all(

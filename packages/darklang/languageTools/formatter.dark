@@ -1,0 +1,645 @@
+/// `dark format`: a `.dark` file laid out the one way the printer lays it out. The parse comes
+/// from `Builtin.formatterParse`: each declaration lowered the way the package loader lowers it,
+/// with what lowering drops kept beside it -- the comments and where they are, where every node
+/// is, and the signatures of local fns. Everything after the parse is here.
+module Darklang.LanguageTools.Formatter
+
+/// A `//` comment, and the line of code it belongs with.
+type Comment =
+  { /// The 0-based line of the code it goes above: the next line of code. For one that
+    /// goes after code, the line it is on.
+    row: Int64
+    /// The 0-based line the comment itself is on.
+    line: Int64
+    /// After code on the same line, rather than on a line of its own above it.
+    trailing: Bool
+    /// The id of the node it goes with: for one on its own line, the one the next line of code
+    /// starts; for one after code, the last to end before it. Empty if there is none.
+    node: String
+    /// The source had a blank line before it.
+    blankBefore: Bool
+    /// From the `//` on, as written.
+    text: String }
+
+
+/// A comment as the parse found it, with what is around it; `placeComments` makes a `Comment`
+/// of it.
+type RawComment =
+  { /// From the `//` on, as written.
+    text: String
+    /// Where it starts, 0-based.
+    line: Int64
+    column: Int64
+    /// The line the last thing before it ended on, a comment or code; -1 at the start.
+    previousLine: Int64
+    /// The token before it, as written, and the line that token ends on; "" and -1 at the start.
+    previousToken: String
+    previousEnd: Int64
+    /// The line the code after it starts on, and where that token and the rest of that line's
+    /// first few start, packed (`row * 1000000 + column`).
+    nextLine: Int64
+    nextStarts: List<Int64> }
+
+
+/// A local fn as written, `let f(x: T): R =`. Lowering keeps only the lambda.
+type LocalFn =
+  { parameters: List<(String * ProgramTypes.TypeReference)>
+    returnType: Option<ProgramTypes.TypeReference> }
+
+
+type Item =
+  /// `module Name =` and what it holds, or, with <field header>, the `module A.B` that
+  /// opens a file and holds the rest of it.
+  | Module(name: String, header: Bool, declarations: List<Declaration>)
+  | Fn(name: String, fn: ProgramTypes.PackageFn.PackageFn)
+  | Type(name: String, typ: ProgramTypes.PackageType.PackageType)
+  | Value(name: String, value: ProgramTypes.PackageValue.PackageValue)
+  | Test(name: String, test: ProgramTypes.PackageTest.PackageTest)
+  | Trait(name: String, trait_: ProgramTypes.Trait.Trait)
+  /// The impl, the module its methods live in (owner first), and its methods as the block
+  /// wrote them.
+  | Impl(
+    implementation: ProgramTypes.TraitImpl.TraitImpl,
+    memberPath: List<String>,
+    members: List<ImplMember>)
+  /// Printed as written: a trailing expression, or something lowering refused.
+  | Verbatim
+
+
+/// One method of an impl block, as written.
+type ImplMember =
+  /// `let show(p: Point): String = ...`, declared in the block.
+  | Declared(name: String, fn: ProgramTypes.PackageFn.PackageFn)
+  /// `let add = Stdlib.String.append`: a method that is a fn from elsewhere.
+  | Named(name: String)
+
+
+type Declaration =
+  { item: Item
+    /// The 0-based lines it spans in the source, its `///` lines included.
+    row: Int64
+    endRow: Int64
+    /// The column its code starts at: its indentation.
+    column: Int64
+    /// Where those lines start and end in the source text.
+    startOffset: Int64
+    endOffset: Int64 }
+
+
+type File =
+  { declarations: List<Declaration>
+    /// The source, as read.
+    text: String
+    rawComments: List<RawComment>
+    /// Every expression, pattern and pipe stage: its id and where it starts and ends, packed
+    /// (`row * 1000000 + column`), in the order lowering noted them, a node's parts before it.
+    ranges: List<(String * Int64 * Int64)>
+    /// The signature of each local fn, by the id of the lambda it lowers to.
+    localFns: Dict<String, LocalFn>
+    /// The ids of the strings written between triple quotes.
+    tripleQuoted: List<String>
+    /// What lowering a list written with `...` left; see `PrettyPrinter.ProgramTypes.Context.spreads`.
+    spreads: Dict<String, String>
+    /// How each plain string and char literal was written, by node id.
+    spellings: Dict<String, String>
+    /// The text between the interpolations of each `$"..."`, as written, by node id.
+    textParts: Dict<String, List<String>> }
+
+
+/// A formatted file.
+type Formatted =
+  { text: String
+    /// The declarations printed as written: the ones the printer can't print yet (traits and
+    /// impls), and any where printing would have lost a comment.
+    asWritten: List<String> }
+
+
+/// <param d>'s lines of <param file>, less its own indentation and any trailing spaces: what is
+/// printed when the item can't be, or when printing it would lose a comment.
+let sourceOf(file: File, d: Declaration): String =
+  Stdlib.String.slice(file.text, d.startOffset, d.endOffset)
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.map(fun line ->
+    let trimmed = Stdlib.String.trimEnd(line)
+    let lead =
+      Stdlib.String.length(trimmed) - Stdlib.String.length(Stdlib.String.trimStart(trimmed))
+
+    Stdlib.String.dropFirst(trimmed, Stdlib.min(d.column, lead)))
+  |> Stdlib.String.join("\n")
+
+
+/// A packed position's row.
+let rowOf(packed: Int64): Int64 =
+  packed / 1000000
+
+
+/// A packed position's column.
+let columnOf(packed: Int64): Int64 =
+  packed % 1000000
+
+
+/// A line ending in one of these opens something whose contents go on the lines below, so a
+/// comment after it is about what follows.
+val opensLine =
+  [ "(", "[", "{", "=", "->", "if", "elif", "then", "else", "with", "match", "fun", "|>" ]
+
+
+/// Each comment with the code it belongs to. A comment after code on its line belongs to the
+/// last node that ends there, and prints after it. Otherwise -- on a line of its own, or after
+/// code that opens something (`[ // ...`) -- it belongs with the next line of code, and prints
+/// above it.
+let placeComments(file: File): List<Comment> =
+  match file.rawComments with
+  | [] -> []
+  | raws ->
+    let trailingOf(c: RawComment): Bool =
+      c.previousEnd >= 0
+      && Stdlib.Bool.not(Stdlib.List.contains(opensLine, c.previousToken))
+      && c.line == c.previousEnd
+
+    // Only the rows and positions some comment asks about, collected in one walk of the nodes.
+    let rowsAsked =
+      raws
+      |> Stdlib.List.filter(trailingOf)
+      |> Stdlib.List.map(fun c -> (Stdlib.display(c.line), ()))
+      |> Stdlib.Dict.fromList
+
+    let startsAsked =
+      raws
+      |> Stdlib.List.filter(fun c -> Stdlib.Bool.not(trailingOf(c)))
+      |> Stdlib.List.map(fun c -> c.nextStarts)
+      |> Stdlib.List.flatten
+      |> Stdlib.List.map(fun p -> (Stdlib.display(p), ()))
+      |> Stdlib.Dict.fromList
+
+    // The outermost node starting at each asked position (the first of the widest, in the order
+    // lowering noted them), and the nodes ending on each asked row, as (end column, start, id).
+    let (startingAt, endingOn) =
+      file.ranges
+      |> Stdlib.List.fold((Stdlib.Dict.empty, Stdlib.Dict.empty), fun(acc, node) ->
+        let (starting, ending) = acc
+        let (id, start, finish) = node
+        let startKey = Stdlib.display(start)
+        let starting =
+          if Stdlib.Dict.containsKey(startsAsked, startKey) then
+            match Stdlib.Dict.get(starting, startKey) with
+            | Some((_, widest)) when widest >= finish -> starting
+            | _ -> Stdlib.Dict.set(starting, startKey, (id, finish))
+          else
+            starting
+
+        let rowKey = Stdlib.display(rowOf(finish))
+        let ending =
+          if Stdlib.Dict.containsKey(rowsAsked, rowKey) then
+            let earlier = Stdlib.Dict.get(ending, rowKey) |> Stdlib.Option.withDefault([])
+            Stdlib.Dict.set(
+              ending,
+              rowKey,
+              Stdlib.List.append(earlier, (columnOf(finish), start, id)))
+          else
+            ending
+
+        (starting, ending))
+
+    let lastEndingBefore(row: Int64, column: Int64): String =
+      Stdlib.Dict.get(endingOn, Stdlib.display(row))
+      |> Stdlib.Option.withDefault([])
+      |> Stdlib.List.filter(fun n ->
+        let (endColumn, _, _) = n
+        endColumn <= column)
+      |> Stdlib.List.sortBy(fun n ->
+        let (endColumn, start, _) = n
+        (0 - endColumn, start))
+      |> Stdlib.List.head
+      |> Stdlib.Option.map(fun n ->
+        let (_, _, id) = n
+        id)
+      |> Stdlib.Option.withDefault("")
+
+    let nodeFrom(c: RawComment): String =
+      c.nextStarts
+      |> Stdlib.List.filterMap(fun p ->
+        Stdlib.Dict.get(startingAt, Stdlib.display(p))
+        |> Stdlib.Option.map(fun found ->
+          let (id, _) = found
+          id))
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault("")
+
+    raws
+    |> Stdlib.List.map(fun c ->
+      let trailing = trailingOf(c)
+      Comment
+        { row = if trailing then c.line else c.nextLine
+          line = c.line
+          trailing = trailing
+          node = if trailing then lastEndingBefore(c.line, c.column) else nodeFrom(c)
+          blankBefore = c.previousLine >= 0 && c.line > c.previousLine + 1
+          text = c.text })
+
+
+/// Every `///` line in <param source>, in order and trimmed.
+let docLines(source: String): List<String> =
+  source
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.map(fun l -> Stdlib.String.trim(l))
+  |> Stdlib.List.filter(fun l -> Stdlib.String.startsWith(l, "///"))
+
+
+/// What <param d> is called, for saying it was printed as written.
+let declarationName(file: File, d: Declaration): String =
+  match d.item with
+  | Module(name, _, _) -> name
+  | Fn(name, _) -> name
+  | Type(name, _) -> name
+  | Value(name, _) -> name
+  | Test(name, _) -> name
+  | Trait(name, _) -> name
+  | Impl(_, _, _) -> "impl"
+  | Verbatim ->
+    sourceOf(file, d)
+    |> Stdlib.String.split("\n")
+    |> Stdlib.List.filter(fun l ->
+      Stdlib.Bool.not(Stdlib.String.startsWith(Stdlib.String.trim(l), "//")))
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault("")
+    |> Stdlib.String.trim
+
+
+/// <param s> with every line that has text indented by <param n> spaces.
+let indentLines(s: String, n: Int64): String =
+  let pad = Stdlib.String.repeat(" ", n)
+  s
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.map(fun l -> if l == "" then l else pad + l)
+  |> Stdlib.String.join("\n")
+
+
+/// <param cs> grouped by <param key>, in order.
+let byKey(cs: List<Comment>, key: Comment -> String): Dict<String, List<Comment>> =
+  cs
+  |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, c) ->
+    let k = key(c)
+    let earlier = Stdlib.Dict.get(acc, k) |> Stdlib.Option.withDefault([])
+    Stdlib.Dict.set(acc, k, Stdlib.List.append(earlier, c)))
+
+
+/// The line <param d>'s code starts on, after its `///` lines.
+let codeRow(file: File, d: Declaration): Int64 =
+  let lines = Stdlib.String.split(sourceOf(file, d), "\n")
+  let docLines =
+    lines
+    |> Stdlib.List.takeWhile(fun l ->
+      let t = Stdlib.String.trim(l)
+      t == "" || Stdlib.String.startsWith(t, "//"))
+    |> Stdlib.List.length
+
+  d.row + docLines
+
+
+/// `impl Show for Point =` and its methods, each as the block wrote it.
+let implBlock(
+  ctx: PrettyPrinter.ProgramTypes.Context,
+  memberPath: List<String>,
+  i: ProgramTypes.TraitImpl.TraitImpl,
+  members: List<ImplMember>)
+  : String =
+  let typeParamPart = PrettyPrinter.ProgramTypes.typeParamsWithBounds(ctx, i.typeParams, i.bounds)
+  let traitPart =
+    let name = PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, i.trait_)
+    match i.traitTypeArgs with
+    | [] -> name
+    | args ->
+      let argsPart =
+        args
+        |> Stdlib.List.map(fun a -> PrettyPrinter.ProgramTypes.typeReference(ctx, a))
+        |> Stdlib.String.join(", ")
+
+      $"{name}<{argsPart}>"
+
+  let head =
+    $"impl{typeParamPart} {traitPart} for {PrettyPrinter.ProgramTypes.typeReference(ctx, i.self)} ="
+
+  // A method's fn lives under the impl's member path, `Point.Show`.
+  let memberCtx = { ctx with width = ctx.width - 2, currentModule = memberPath }
+  let body =
+    members
+    |> Stdlib.List.map(fun m ->
+      match m with
+      | Declared(name, fn) -> PrettyPrinter.ProgramTypes.packageFnNamed(memberCtx, name, fn)
+      | Named(name) ->
+        let target =
+          i.methods
+          |> Stdlib.List.findFirst(fun pair -> Stdlib.Tuple2.first(pair) == name)
+          |> Stdlib.Option.map(fun pair ->
+            PrettyPrinter.ProgramTypes.NameResolution.fnName(
+              { ctx with currentModule = [] },
+              Stdlib.Tuple2.second(pair)))
+          |> Stdlib.Option.withDefault(name)
+
+        $"let {PrettyPrinter.formatName(name)} = {target}")
+    |> Stdlib.String.join("\n\n")
+
+  PrettyPrinter.ProgramTypes.formatDocComment(i.description) + head + "\n" + indentLines(body, 2)
+
+
+/// One declaration, printed at <param path> (owner first) for a page <param width> wide: the
+/// comments above it, its text, and the names of what in it was printed as written.
+let declaration(
+  branchId: Uuid,
+  known: PrettyPrinter.ProgramTypes.KnownBindings,
+  width: Int64,
+  file: File,
+  path: List<String>,
+  compact: Bool,
+  own: List<Comment>,
+  d: Declaration)
+  : (String * String * List<String>) =
+  let start = codeRow(file, d)
+
+  // Comments on lines of their own before the declaration's code go above it, and above its
+  // `///`. Printed as written, a declaration's source already holds the ones inside it.
+  let (above, inside) =
+    own
+    |> Stdlib.List.partition(fun c ->
+      c.row == start
+      && Stdlib.Bool.not(c.trailing)
+      && (c.line < d.row
+          || (match d.item with
+              | Verbatim -> false
+              | _ -> true)))
+
+  let (trailingInside, leadingInside) = inside |> Stdlib.List.partition(fun c -> c.trailing)
+
+  // With the blank line the source had between them and the declaration, if it had one.
+  let aboveText =
+    let text =
+      above
+      |> Stdlib.List.map(fun c -> c.text + "\n")
+      |> Stdlib.String.join("")
+
+    match Stdlib.List.last(above) with
+    | Some(last) -> if last.line + 1 < d.row then text + "\n" else text
+    | None -> text
+
+  let ctx =
+    { PrettyPrinter.ProgramTypes.Context.forModule(branchId, path) with
+        width = width
+        localFns = file.localFns
+        tripleQuoted = PrettyPrinter.ProgramTypes.nameSet(file.tripleQuoted)
+        spreads = file.spreads
+        spellings = file.spellings
+        textParts = file.textParts
+        comments = byKey(leadingInside, fun c -> c.node)
+        trailingComments = byKey(trailingInside, fun c -> c.node)
+        compactFnBody = compact
+        hasComments = Stdlib.Bool.not(Stdlib.List.isEmpty(inside))
+        knownBindings = Option.Some(known) }
+
+  let asWritten = (aboveText, sourceOf(file, d), [ declarationName(file, d) ])
+  let printed =
+    match d.item with
+    | Fn(name, fn) -> Option.Some(PrettyPrinter.ProgramTypes.packageFnNamed(ctx, name, fn))
+    | Type(name, t) -> Option.Some(PrettyPrinter.ProgramTypes.packageTypeNamed(ctx, name, t))
+    | Value(name, v) -> Option.Some(PrettyPrinter.ProgramTypes.packageValueNamed(ctx, name, v))
+    | Test(name, t) -> Option.Some(PrettyPrinter.ProgramTypes.packageTestNamed(ctx, name, t))
+    | Trait(name, t) -> Option.Some(PrettyPrinter.ProgramTypes.packageTraitNamed(ctx, name, t))
+    | Impl(i, memberPath, members) -> Option.Some(implBlock(ctx, memberPath, i, members))
+    | Module(_, _, _) -> Option.None
+    | Verbatim -> Option.None
+
+  match d.item with
+  | Module(name, header, inner) ->
+    // A module's `///` lines are its own; nothing lowers them, so they come from the source.
+    let docText =
+      sourceOf(file, d)
+      |> Stdlib.String.split("\n")
+      |> Stdlib.List.take(start - d.row)
+      |> Stdlib.List.map(fun l -> l + "\n")
+      |> Stdlib.String.join("")
+
+    let innerPath = Stdlib.List.concat(path, Stdlib.String.split(name, "."))
+    if header then
+      let (body, names) = declarations(branchId, known, width, file, innerPath, own, inner)
+      (aboveText, docText + $"module {name}\n\n" + body, names)
+    else
+      let (body, names) = declarations(branchId, known, width - 2, file, innerPath, own, inner)
+      (aboveText, docText + $"module {name} =\n" + indentLines(body, 2), names)
+  | _ ->
+    match printed with
+    | Some(text) ->
+      // Every comment has to have found its place; one left out means printing as written.
+      // So does every `///` line: one the declaration can't store, on an enum case's field or a
+      // local fn, isn't printed.
+      if
+        Stdlib.List.all(inside, fun c -> Stdlib.String.contains(text, c.text))
+        && docLines(text) == docLines(sourceOf(file, d))
+      then
+        (aboveText, text, [])
+      else
+        asWritten
+    | None -> asWritten
+
+
+/// How many columns narrower test code is laid out than other code, so that more of it fits on a
+/// screen beside the code it tests.
+val testNarrowing = 20
+
+
+/// The width <param d>, at <param path>, is printed for: narrower for a test, and for anything in a
+/// `Tests` module, than for other code. A module passes the width on to what is in it.
+let widthFor(width: Int64, path: List<String>, d: Declaration): Int64 =
+  match d.item with
+  | Module(_, _, _) -> width
+  | Test(_, _) -> width - testNarrowing
+  | _ -> if Stdlib.List.contains(path, "Tests") then width - testNarrowing else width
+
+
+/// Declarations in order, with the blank lines between them: one between two that each fit on
+/// a line (comments above them aside), so a run of short ones reads as a list, and two
+/// otherwise.
+let declarations(
+  branchId: Uuid,
+  known: PrettyPrinter.ProgramTypes.KnownBindings,
+  width: Int64,
+  file: File,
+  path: List<String>,
+  comments: List<Comment>,
+  ds: List<Declaration>)
+  : (String * List<String>) =
+  // Each declaration's comments, those on its rows. Both lists run in source order, so one walk
+  // splits them.
+  let owns =
+    ds
+    |> Stdlib.List.fold(([], comments), fun(acc, d) ->
+      let (out, rest) = acc
+      let rest = rest |> Stdlib.List.dropWhile(fun c -> c.row < d.row)
+      let own = rest |> Stdlib.List.takeWhile(fun c -> c.row <= d.endRow)
+      (Stdlib.List.prepend(out, own), Stdlib.List.drop(rest, Stdlib.List.length(own))))
+    |> Stdlib.Tuple2.first
+    |> Stdlib.List.reverse
+
+  // A fn's body goes on a line of its own, except in a run of three or more short fns with no
+  // `///` and no comment above them, each written on one line and still fitting on one: those
+  // read as a list.
+  let short =
+    Stdlib.List.zipShortest(ds, owns)
+    |> Stdlib.List.map(fun pair ->
+      let (d, own) = pair
+      match d.item with
+      | Fn(_, fn) ->
+        if fn.description == "" && codeRow(file, d) == d.row && d.endRow == d.row then
+          let (above, text, names) =
+            declaration(branchId, known, widthFor(width, path, d), file, path, true, own, d)
+
+          if
+            above == ""
+            && Stdlib.List.isEmpty(names)
+            && Stdlib.Bool.not(Stdlib.String.contains(text, "\n"))
+          then
+            Option.Some((above, text, names))
+          else
+            Option.None
+        else
+          Option.None
+      | _ -> Option.None)
+
+  // The length of the run of short fns each one is in.
+  let runs =
+    short
+    |> Stdlib.List.fold([], fun(acc, s) ->
+      match s, acc with
+      | Some(_), [n, ...] when n > 0 -> Stdlib.List.prepend(acc, n + 1)
+      | Some(_), _ -> Stdlib.List.prepend(acc, 1)
+      | None, _ -> Stdlib.List.prepend(acc, 0))
+    |> (fun counts ->
+          // `counts` is reversed, each entry the run's length so far; spread each run's total back
+          // over its members.
+          counts
+          |> Stdlib.List.fold(([], 0), fun(acc, n) ->
+            let (out, total) = acc
+            let t =
+              if n == 0 then
+                0
+              else if total > n then
+                total
+              else
+                n
+
+            (Stdlib.List.prepend(out, t), if n <= 1 then 0 else t))
+          |> Stdlib.Tuple2.first)
+
+  let printed =
+    Stdlib.List.zipShortest(Stdlib.List.zipShortest(Stdlib.List.zipShortest(ds, owns), short), runs)
+    |> Stdlib.List.map(fun quad ->
+      let (((d, own), s), run) = quad
+      match s with
+      | Some(compact) when run >= 3 -> compact
+      | _ -> declaration(branchId, known, widthFor(width, path, d), file, path, false, own, d))
+
+  // One blank line between two declarations that each fit on a line, and two otherwise, or
+  // between all of a run of tests when any of the run takes several lines.
+  let lines =
+    Stdlib.List.zipShortest(printed, ds)
+    |> Stdlib.List.map(fun pair ->
+      let ((above, text, _), d) = pair
+      let kind =
+        match d.item with
+        | Test(_, _) -> "test"
+        | _ -> ""
+
+      (above, text, kind, Stdlib.String.contains(text, "\n")))
+
+  let wide =
+    lines
+    |> Stdlib.List.map(fun l ->
+      let (_, _, kind, multi) = l
+      (multi, kind, false))
+    |> Stdlib.Pretty.blanksBetween
+
+  let text =
+    match lines with
+    | [] -> ""
+    | [(above, text, _, _), ...rest] ->
+      Stdlib.List.zipShortest(rest, wide)
+      |> Stdlib.List.fold(above + text, fun(out, pair) ->
+        let ((above, text, _, multi), blank) = pair
+        let sep = if blank || multi then "\n\n\n" else "\n\n"
+        out + sep + above + text)
+
+  let names =
+    printed
+    |> Stdlib.List.map(fun p ->
+      let (_, _, n) = p
+      n)
+    |> Stdlib.List.flatten
+
+  (text, names)
+
+
+/// The words of <param source>, and the owner names a reference can resolve through without
+/// writing: every name a reference in it can be printed with.
+let namesIn(source: String): List<String> =
+  let words =
+    match Stdlib.Regex.scan(
+            source,
+            nonWord,
+            Stdlib.Regex.Limit.All,
+            Stdlib.Regex.Collect.TextOnly) with
+    | Ok((pieces, _)) -> pieces
+    | Error(_) -> []
+
+  Stdlib.List.append(Stdlib.List.append(words, "Darklang"), "Stdlib") |> Stdlib.List.unique
+
+
+val nonWord = Stdlib.Regex.ofPattern("[^A-Za-z0-9_]+")
+
+
+/// The text of every `//` comment in <param source>, in order and trimmed.
+let commentTexts(source: String): List<String> =
+  Builtin.formatterComments(source)
+
+
+/// <param source>, a package `.dark` file, formatted for a page <param width> wide, or the
+/// parser's complaint.
+let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, String> =
+  match Builtin.formatterParse(source) with
+  | Error(e) -> Result.Error(e)
+  | Ok(file) ->
+    let comments = placeComments(file)
+    let known = PrettyPrinter.ProgramTypes.knownBindings(branchId, namesIn(source))
+    let (body, asWritten) =
+      declarations(branchId, known, width, file, [], comments, file.declarations)
+
+    // Comments after the last line of code.
+    let lastRow =
+      file.declarations |> Stdlib.List.fold(0 - 1, fun(acc, d) -> Stdlib.max(acc, d.endRow))
+
+    let trailing =
+      comments
+      |> Stdlib.List.filter(fun c -> c.row > lastRow)
+      |> Stdlib.List.map(fun c -> c.text)
+
+    let text =
+      match trailing with
+      | [] -> body + "\n"
+      | lines -> body + "\n\n" + Stdlib.String.join(lines, "\n") + "\n"
+
+    // Every comment kept, in order: the one thing a hash can't vouch for.
+    // `//` and `///` each keep their order; a `//` above a declaration moves above its `///`.
+    // The parse already lexed the source, so its comments come from there.
+    let before = file.rawComments |> Stdlib.List.map(fun c -> Stdlib.String.trim(c.text))
+    let after = commentTexts(text)
+    let docsBefore = docLines(source)
+    let docsAfter = docLines(text)
+    if before == after && docsBefore == docsAfter then
+      Result.Ok(Formatted { text = text, asWritten = asWritten })
+    else
+      let lost =
+        Stdlib.List.concat(before, docsBefore)
+        |> Stdlib.List.filter(fun c ->
+          Stdlib.Bool.not(Stdlib.List.contains(after, c) || Stdlib.List.contains(docsAfter, c)))
+        |> Stdlib.List.head
+        |> Stdlib.Option.withDefault("(their order)")
+
+      Result.Error($"formatting would change its comments, starting with: {lost}")

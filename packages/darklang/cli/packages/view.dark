@@ -3,10 +3,7 @@ module Darklang.Cli.Packages.View
 
 /// Resolve a replacement Reference to a human-readable location name for the
 /// current branch, falling back to a short hash if no location is bound.
-let resolveReplacementName(
-  branchId: Uuid,
-  ref: LanguageTools.ProgramTypes.Reference)
-  : String =
+let resolveReplacementName(branchId: Uuid, ref: LanguageTools.ProgramTypes.Reference): String =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch(branchId)
   let hash = LanguageTools.ProgramTypes.Reference.hash(ref)
   let locs =
@@ -31,18 +28,16 @@ let resolveReplacementName(
 ///
 /// Reading an item and writing it back should be a pipe. Stripping a trailer and a
 /// prefix with `sed` is a screen-scrape: it works until the display changes.
-let rawSource(
-  branchId: Uuid,
-  location: PackageLocation)
-  : Stdlib.Result.Result<String, String> =
+let rawSource(branchId: Uuid, location: PackageLocation): Stdlib.Result.Result<String, String> =
   let sourceOf(
     loc: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Result.Result<String, String> =
+    let modulePath = Stdlib.List.prepend(loc.modules, loc.owner)
     // `preferredLocation`, so a shared body is headed with the name asked for.
     let ctx =
-      { terminalContext(branchId, Stdlib.List.prepend(loc.modules, loc.owner)) with
+      { PrettyPrinter.ProgramTypes.Context.forModule(branchId, modulePath) with
+          width = PrettyPrinter.ProgramTypes.sourceWidth
           preferredLocation = Stdlib.Option.Option.Some(loc) }
-    let modulePath = Stdlib.List.prepend(loc.modules, loc.owner)
     let results = Query.searchExactMatch(branchId, modulePath, loc.name)
 
     match (results.fns, results.types, results.values, results.tests) with
@@ -643,10 +638,7 @@ let astRows(
 
 /// The disassembly, plus any lambdas defined inside it. Lambdas get their own section rather than being
 /// inlined, because `CreateLambda` is otherwise a dead end in the listing.
-let instructionRows(
-  branchId: Uuid,
-  instrs: LanguageTools.RuntimeTypes.Instructions)
-  : List<String> =
+let instructionRows(branchId: Uuid, instrs: LanguageTools.RuntimeTypes.Instructions): List<String> =
   let renderBody(is: LanguageTools.RuntimeTypes.Instructions): List<String> =
     let opcodeWidth =
       is.instructions
@@ -691,11 +683,7 @@ let instructionRows(
 
 
 /// Render one of the compiler views of the function at <param location>.
-let viewCompiled(
-  branchId: Uuid,
-  location: PackageLocation,
-  mode: ViewMode)
-  : Unit =
+let viewCompiled(branchId: Uuid, location: PackageLocation, mode: ViewMode): Unit =
   match fnAt(branchId, location) with
   | Error(e) -> Cli.printErr($"Cannot {modeName(mode)}: {e}")
   | Ok(fn) ->
@@ -738,9 +726,7 @@ let isItemHash(s: String): Bool =
 /// Resolve an item hash (see `isItemHash`) to the location main binds it to, wrapped by
 /// the KIND the store records for it, so the viewer renders it as itself. Errors when no
 /// live name binds the hash.
-let resolveHashArg(
-  hash: String)
-  : Stdlib.Result.Result<PackageLocation, String> =
+let resolveHashArg(hash: String): Stdlib.Result.Result<PackageLocation, String> =
   match SCM.Deps.mainLocationOf(hash) with
   | Some(loc) ->
     let kind =

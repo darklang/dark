@@ -4,7 +4,6 @@
 
 module Darklang.PrettyPrinter
 
-
 let indent(s: String): String =
   s
   |> Stdlib.String.split("\n")
@@ -13,6 +12,7 @@ let indent(s: String): String =
     | "" -> ""
     | line -> "  " + line)
   |> Stdlib.String.join("\n")
+
 
 let indentByLevel(level: Int64, s: String): String =
   let indentStr = (Stdlib.String.checkedRepeat("  ", level) |> Stdlib.Result.withDefault(""))
@@ -25,64 +25,130 @@ let indentByLevel(level: Int64, s: String): String =
     | line -> indentStr + line)
   |> Stdlib.String.join("\n")
 
+
 let sign(s: LanguageTools.Sign): String =
   match s with
   | Positive -> ""
   | Negative -> "-"
 
-// One-hex-digit (0-15) to its source character.
+
+/// Escape for `"..."` string literals: backslashes, control characters and the closing `"`,
+/// symmetric with the parser's `decodeStringContent`.
+let escapeSpecialCharacters(s: String): String =
+  escapeLiteral(s, "\"")
+
+
+/// Escape for `'...'` char literals: the same, with `'` as the quote.
+let escapeCharLiteral(s: String): String =
+  escapeLiteral(s, "'")
+
+
+/// One hex digit (0-15) as its source character.
 let __hexDigitChar(n: Int64): String =
   Stdlib.String.slice("0123456789ABCDEF", n, n + 1)
 
-// Escape backslashes and ASCII controls within a grapheme, preserving the
-// remaining text. The caller handles quotes for string and char literals.
-let __encodeChar(c: Char): String =
-  match Stdlib.Char.toAsciiCode(c) with
-  | None ->
-    // A grapheme of several code points can hold a backslash plus combining
-    // marks, or CRLF. `replaceAll` matches whole graphemes only, so escape it
-    // code point by code point, keeping the rest of the grapheme.
+
+/// Text a `"..."` literal holds as it is: printable ASCII but `"` and `\`.
+val __plainForString = Stdlib.Regex.ofPattern("\\A[ !#-\\[\\]-~]*\\z")
+
+
+/// Text a `'...'` literal holds as it is: printable ASCII but `'` and `\`.
+val __plainForChar = Stdlib.Regex.ofPattern("\\A[ -&(-\\[\\]-~]*\\z")
+
+
+/// Whether <param s> matches <param pattern> whole.
+let __matchesWhole(s: String, pattern: Stdlib.Regex.Regex): Bool =
+  match Stdlib.Regex.scan(s, pattern, Stdlib.Regex.Limit.First, Stdlib.Regex.Collect.TextOnly) with
+  | Ok(([_, _], _)) -> true
+  | _ -> false
+
+
+/// <param n> as <param digits> upper-case hex digits, in front of <param acc>.
+let __hexDigits(n: Int64, digits: Int64, acc: String): String =
+  if digits == 0 then
+    acc
+  else
+    let q = Stdlib.Int64.checkedDivide(n, 16) |> Stdlib.Result.withDefault(0)
+    let r = Stdlib.Int64.checkedMod(n, 16) |> Stdlib.Result.withDefault(0)
+    __hexDigits(q, digits - 1, __hexDigitChar(r) + acc)
+
+
+/// One code point under 128, <param c>, as written inside a literal closed by <param quote>.
+let __escapeAscii(code: Int64, c: String, quote: String): String =
+  if code == 92 then
+    "\\\\"
+  else if code == 7 then
+    "\\a"
+  else if code == 8 then
+    "\\b"
+  else if code == 9 then
+    "\\t"
+  else if code == 10 then
+    "\\n"
+  else if code == 11 then
+    "\\v"
+  else if code == 12 then
+    "\\f"
+  else if code == 13 then
+    "\\r"
+  else if c == quote then
+    "\\" + c
+  else if code < 32 || code == 127 then
+    "\\u" + __hexDigits(code, 4, "")
+  else
     c
-    |> Stdlib.display
-    |> Stdlib.String.toCodepoints
-    |> Stdlib.List.map(fun cp ->
-      match Stdlib.Char.fromCodepoint(cp) with
-      | Some(one) -> if cp < 128u32 then __encodeChar(one) else Stdlib.display(one)
-      | None -> "")
+
+
+/// Code point <param cp> as an escape: `\uXXXX`, or `\UXXXXXXXX` past 16 bits.
+let __codepointEscape(cp: Int64): String =
+  if cp > 65535 then
+    "\\U" + __hexDigits(cp, 8, "")
+  else
+    "\\u" + __hexDigits(cp, 4, "")
+
+
+/// One grapheme, <param g>, as written inside a literal closed by <param quote>. One that starts
+/// with an ASCII character has its other code points written as escapes, so a quote and a
+/// combining accent can't hide the quote from the lexer. U+FFFD is what a bad escape decodes to;
+/// written raw it would read as one, so it is always escaped.
+let __escapeGrapheme(g: String, quote: String): String =
+  let codepoints = Stdlib.String.toCodepoints(g) |> Stdlib.List.map(Stdlib.Int64.fromUInt32)
+
+  match codepoints with
+  | [cp] when cp < 128 -> __escapeAscii(cp, g, quote)
+  | [] -> g
+  | [first, ...] ->
+    let asciiFirst = first < 128
+
+    codepoints
+    |> Stdlib.List.indexedMap(fun(i, cp) ->
+      let one =
+        Stdlib.Char.fromCodepoint(Stdlib.UInt32.fromInt64(cp) |> Stdlib.Option.withDefault(0u32))
+        |> Stdlib.Option.map(Stdlib.display)
+        |> Stdlib.Option.withDefault("")
+
+      if cp < 128 then
+        __escapeAscii(cp, one, quote)
+      else if asciiFirst && i > 0 || cp == 65533 then
+        __codepointEscape(cp)
+      else
+        one)
     |> Stdlib.String.join("")
-  | Some(code) ->
-    if code == 92u8 then "\\\\"
-    else if code == 7u8 then "\\a"
-    else if code == 8u8 then "\\b"
-    else if code == 9u8 then "\\t"
-    else if code == 10u8 then "\\n"
-    else if code == 11u8 then "\\v"
-    else if code == 12u8 then "\\f"
-    else if code == 13u8 then "\\r"
-    else if code < 32u8 || code == 127u8 then
-      let n = Stdlib.Int64.fromUInt8(code)
-      let hi = Stdlib.Int64.checkedDivide(n, 16) |> Stdlib.Result.withDefault(0)
-      let lo = Stdlib.Int64.checkedMod(n, 16) |> Stdlib.Result.withDefault(0)
-      $"\\x{__hexDigitChar(hi)}{__hexDigitChar(lo)}"
-    else
-      Stdlib.display(c)
 
-// Encode special characters back to source-form. Symmetric with the parser's
-// `decodeStringContent`. Quote escapes are added per quote style — `"` for
-// string literals, `'` for char literals — so the common path skips them.
-let __escapeCommon(s: String): String =
-  s
-  |> Stdlib.String.toList
-  |> Stdlib.List.map(__encodeChar)
-  |> Stdlib.String.join("")
 
-/// Escape for `"..."` string literals: common specials plus the closing `"`.
-let escapeSpecialCharacters(s: String): String =
-  (__escapeCommon(s)) |> Stdlib.String.replaceAll("\"", "\\\"")
+/// <param s> as it is written inside a literal closed by <param quote>: backslashes, controls
+/// (as `\uXXXX`) and the quote escaped.
+let escapeLiteral(s: String, quote: String): String =
+  let plain = if quote == "'" then __plainForChar else __plainForString
 
-/// Escape for `'...'` char literals: common specials plus the closing `'`.
-let escapeCharLiteral(s: String): String =
-  (__escapeCommon(s)) |> Stdlib.String.replaceAll("'", "\\'")
+  if s == "" || __matchesWhole(s, plain) then
+    s
+  else
+    s
+    |> Stdlib.String.toList
+    |> Stdlib.List.map(fun g -> __escapeGrapheme(Stdlib.display(g), quote))
+    |> Stdlib.String.join("")
+
 
 /// The lexer's reserved words, as a set.
 val reservedNames =
@@ -90,11 +156,14 @@ val reservedNames =
   |> Stdlib.List.map(fun word -> (word, ()))
   |> Stdlib.Dict.fromList
 
+
 /// A name the lexer reads as a bare identifier, ASCII only: the common case, and cheaper.
 val bareAsciiName = Stdlib.Regex.ofPattern("\\A[A-Za-z_][A-Za-z0-9_']*\\z")
 
+
 /// The lexer's full rule for a bare identifier.
 val bareName = Stdlib.Regex.ofPattern("\\A[\\p{L}_][\\p{L}\\p{Nd}_']*\\z")
+
 
 /// Whether the lexer reads <param name> as one bare identifier: a letter or `_`
 /// followed by letters, digits, `_`, or `'` (Unicode letters included). A regex
@@ -141,12 +210,17 @@ let formatFieldName(name: String): String =
   else
     $"`{name}`"
 
+
 /// Print numeric field names without backticks for tuple access such as `t.1`.
 let formatAccessedFieldName(name: String): String =
   let isDigits =
-    (Stdlib.Bool.not(Stdlib.String.isEmpty(name)))
-    && (name |> Stdlib.String.toList |> Stdlib.List.all(Stdlib.Char.isDigit))
+    Stdlib.Bool.not(Stdlib.String.isEmpty(name))
+    && (name
+        |> Stdlib.String.toList
+        |> Stdlib.List.all(Stdlib.Char.isDigit))
+
   if isDigits then name else formatFieldName(name)
+
 
 /// The fraction of a float literal with its trailing zeros dropped (`1.50` -> `1.5`), by parsing and
 /// reprinting it. Only trusted when that comes back as a plain `0.xxx` decimal: `00001` reprints as
@@ -158,13 +232,14 @@ let processRemainder(remainder: String): String =
     let isPlainDecimal =
       printed
       |> Stdlib.String.toList
-      |> Stdlib.List.all(fun c -> Stdlib.Char.isDigit(c) || (Stdlib.display(c)) == ".")
-    if isPlainDecimal && (Stdlib.String.startsWith(printed, "0.")) then
+      |> Stdlib.List.all(fun c -> Stdlib.Char.isDigit(c) || Stdlib.display(c) == ".")
+
+    if isPlainDecimal && Stdlib.String.startsWith(printed, "0.") then
       Stdlib.String.dropFirst(printed, 2)
     else
       remainder
-  | Error(_) ->
-    remainder
+  | Error(_) -> remainder
+
 
 /// Shorten a fully-qualified package name for display from inside `currentModule`.
 ///
@@ -194,15 +269,13 @@ let shortenName(
 
   // `Option` / `Result` and nothing else: the resolver gives these an unconditional stdlib fallback.
   let isAlwaysBare =
-    (fullPath == [ "Darklang", "Stdlib", "Option" ] && name == "Option")
-    || (fullPath == [ "Darklang", "Stdlib", "Result" ] && name == "Result")
+    fullPath == [ "Darklang", "Stdlib", "Option" ] && name == "Option"
+    || fullPath == [ "Darklang", "Stdlib", "Result" ] && name == "Result"
 
   if isAlwaysBare then
     name
   else
-    let shared =
-      Darklang.LanguageTools.PackageManager.countMatchingPrefix(currentModule, fullPath)
-
+    let shared = LanguageTools.PackageManager.countMatchingPrefix(currentModule, fullPath)
     let remaining = Stdlib.List.drop(fullPath, shared)
 
     // Nothing shared: the resolver implies `Darklang.` in front of `Stdlib.` and nothing else, so
@@ -211,7 +284,6 @@ let shortenName(
     // and `""` come off for a different reason: they are scaffolding the parser stamped on, not
     // names anything can be reached by, so printing them tells the reader nothing.
     let scaffoldingOwner = owner == "Tests" || owner == "CliScript" || owner == ""
-
     let remaining =
       match fullPath with
       | ["Darklang", "Stdlib", ...] when shared == 0 -> Stdlib.List.drop(fullPath, 1)
@@ -220,7 +292,7 @@ let shortenName(
 
     match remaining with
     | [] -> name
-    | segments -> (Stdlib.String.join(segments, ".")) + "." + name
+    | segments -> Stdlib.String.join(segments, ".") + "." + name
 
 
 /// How to paint the pieces of a rendered value.
@@ -238,16 +310,11 @@ type Palette =
     /// Emitted after every painted piece, so it has to end whatever the others start.
     reset: String }
 
+
 module Palette =
   /// No decoration at all. The default, because a printer's output is text until someone says otherwise.
   val plain =
-    Palette
-      { string_ = ""
-        number = ""
-        typeName = ""
-        caseName = ""
-        keyword = ""
-        reset = "" }
+    Palette { string_ = "", number = "", typeName = "", caseName = "", keyword = "", reset = "" }
 
 
 /// How to render something, threaded through the printers rather than read from anywhere.
@@ -278,6 +345,7 @@ type DisplayOptions =
     maxDepth: Stdlib.Option.Option<Int64>
   }
 
+
 module DisplayOptions =
   /// The defaults every existing caller gets. 80 columns because that is what the printers assumed
   /// before this record existed, not because it is a good width; callers that know better should say so.
@@ -300,14 +368,17 @@ module DisplayOptions =
               reset = "" }
         maxDepth = Stdlib.Option.Option.None }
 
+
   /// The defaults, printed from inside `path`.
   let inModule(path: List<String>): DisplayOptions =
-    { DisplayOptions.default with currentModule = path }
+    { default with currentModule = path }
+
 
   /// The defaults, painted with `p`.
   let painted(p: Palette): DisplayOptions =
-    { DisplayOptions.default with palette = p }
+    { default with palette = p }
+
 
   /// The defaults at a given width.
   let atWidth(width: Int64): DisplayOptions =
-    { DisplayOptions.default with width = width }
+    { default with width = width }

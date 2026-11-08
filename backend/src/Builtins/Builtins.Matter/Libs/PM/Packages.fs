@@ -313,6 +313,54 @@ let private findFn () : BuiltInFn =
     deprecated = NotDeprecated }
 
 
+/// `pmBindingsNamed`: every binding <param branchId> sees whose name is in <param names>, and the
+/// kind of item each holds. `pmFind` for a set of names in one read of the store.
+let private bindingsNamedFn () : BuiltInFn =
+  { name = fn "pmBindingsNamed" 0
+    typeParams = []
+    parameters = [ branchParam; Param.make "names" (TList TString) "" ]
+    returnType =
+      TList(
+        TTuple(
+          TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+          TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []),
+          []
+        )
+      )
+    description =
+      "Every binding whose name is one of <param names>, with the kind of item it holds"
+    fn =
+      (function
+      | _, _, _, [| DUuid branchId; DList(_, Items names) |] ->
+        uply {
+          let names =
+            names
+            |> List.choose (function
+              | DString n -> Some n
+              | _ -> None)
+          let! found = PMPT.bindingsNamed (branchOfParam branchId) names
+          return
+            found
+            |> List.map (fun (location, kind) ->
+              DTuple(
+                PT2DT.PackageLocation.toDT location,
+                PT2DT.ItemKind.toDT kind,
+                []
+              ))
+            |> Dval.list (
+              KTTuple(
+                ValueType.Known(PT2DT.PackageLocation.knownType ()),
+                ValueType.Known(PT2DT.ItemKind.knownType ()),
+                []
+              )
+            )
+        }
+      | _ -> incorrectArgs ())
+    previewable = Impure
+    callEffects = set [ Effect.PackageRead ]
+    deprecated = NotDeprecated }
+
+
 /// An item read by hash, as the Dark-side type <param typeName> names.
 let private foundItem
   (typeName : FQTypeName.FQTypeName)
@@ -375,6 +423,7 @@ let private toDList (xs : List<string>) : Dval =
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ // location -> hash, hash -> every location, and hash -> item, for any item kind
     findFn ()
+    bindingsNamedFn ()
     locationsFn pm
     getFn pm
 

@@ -53,6 +53,53 @@ let private findItem
       | _ -> None
   }
 
+/// Every binding <param branch> sees whose name is one of <param names>, with the kind it holds:
+/// `findItem` for many names in one query, for a caller that would otherwise ask name by name.
+let bindingsNamed
+  (branch : PT.BranchId)
+  (names : List<string>)
+  : Ply<List<PT.PackageLocation * PT.ItemKind>> =
+  uply {
+    let chain = Layers.chainOf branch
+    let! chunks =
+      names
+      |> List.distinct
+      |> List.chunkBySize 500
+      |> Ply.List.mapSequentially (fun chunk ->
+        let parameters = chunk |> List.mapi (fun i n -> $"n{i}", Sql.string n)
+        let placeholders =
+          parameters |> List.map (fun (p, _) -> "@" + p) |> String.concat ", "
+        uply {
+          return!
+            Sql.query (
+              "SELECT owner, modules, name, branch_id, draft, item_hash, item_type FROM locations
+           WHERE live = 1 AND name IN ("
+              + placeholders
+              + ")"
+            )
+            |> Sql.parameters parameters
+            |> Sql.executeAsync (fun read ->
+              ((read.string "owner", read.string "modules", read.string "name"),
+               (read.string "branch_id",
+                read.int64 "draft" <> 0L,
+                (read.string "item_hash", read.string "item_type"))))
+        })
+    return
+      chunks
+      |> List.concat
+      |> List.groupBy fst
+      |> Map.toList
+      |> List.choose (fun ((owner, modules, name), rows) ->
+        match Layers.pick chain (List.map snd rows) with
+        | Some(h, t) when h <> "" ->
+          let location : PT.PackageLocation =
+            { owner = owner
+              modules = PackageLocation.modulesOfColumn modules
+              name = name }
+          Some(location, PT.ItemKind.fromString t)
+        | _ -> None)
+  }
+
 let private getItem<'a>
   (table : string)
   (lookupColumn : string)

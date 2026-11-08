@@ -293,7 +293,7 @@ rule. Every primitive still needs a real Dark caller; unused primitives are remo
 ## Style
 
 `///` for doc comments on types, DU cases and fns, in both F# and Dark. `//` for inline
-notes. 85 columns, for both languages.
+notes. 85 columns for F#; Dark is 100.
 
 `scripts/formatting/format` holds the F# side to it. **It is a pre-merge step, not a
 per-commit one.** Run it once when the branch is being readied to merge; do not run it
@@ -302,9 +302,8 @@ formatting on every commit while more work is coming costs a cycle each time and
 nothing a reviewer sees. Pre-merge does not mean optional: CI runs `format check` and fails on
 it, so run `scripts/formatting/format format` before the push that opens or updates a PR, then
 build once, because the formatter can change the program. Bare `scripts/formatting/format` prints
-usage and exits 255. It reports `.dark` as `ignored`, so Dark is on you. Aim for 85
-there anyway. Some existing Dark files
-don't: `scm/packageOps.dark` is written wider, and is not worth reflowing just to close the gap.
+usage and exits 255. It reports `.dark` as `ignored` unless given `--dark-only`, which runs
+`dark format` over `packages/`. Nothing checks `.dark` formatting.
 
 Don't take a Bool that callers pass as a bare `true`/`false`; use a two-case enum named
 for what it means (see #6150). `backend/tests/bool-flag-sites.txt` lists the calls left, and a

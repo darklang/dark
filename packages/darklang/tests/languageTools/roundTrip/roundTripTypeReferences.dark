@@ -6,135 +6,137 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 test typeReferencesAllBuiltIns =
   Stdlib.Test.all(
     [ // all built-ins
-      roundTrip("unit alias", "type MyUnit = Unit", "type MyUnit =\n  Unit")
-      roundTrip("bool alias", "type MyBool = Bool", "type MyBool =\n  Bool")
-      roundTrip("int8 alias", "type MyInt8 = Int8", "type MyInt8 =\n  Int8")
-      roundTrip("uint8 alias", "type MyUInt8 = UInt8", "type MyUInt8 =\n  UInt8")
-      roundTrip("int16 alias", "type MyInt16 = Int16", "type MyInt16 =\n  Int16")
-      roundTrip("uint16 alias", "type MyUInt16 = UInt16", "type MyUInt16 =\n  UInt16")
-      roundTrip("int32 alias", "type MyInt32 = Int32", "type MyInt32 =\n  Int32")
-      roundTrip("uint32 alias", "type MyUInt32 = UInt32", "type MyUInt32 =\n  UInt32")
-      roundTrip("int64 alias", "type MyInt64 = Int64", "type MyInt64 =\n  Int64")
-      roundTrip("uint64 alias", "type MyUInt64 = UInt64", "type MyUInt64 =\n  UInt64")
-      roundTrip("int128 alias", "type MyInt128 = Int128", "type MyInt128 =\n  Int128")
-      roundTrip("uint128 alias", "type MyUInt128 = UInt128", "type MyUInt128 =\n  UInt128")
-      roundTrip("float alias", "type MyFloat = Float", "type MyFloat =\n  Float")
-      roundTrip("char alias", "type MyChar = Char", "type MyChar =\n  Char")
-      roundTrip("string alias", "type MyString = String", "type MyString =\n  String")
-      roundTrip("datetime alias", "type MyDateTime = DateTime", "type MyDateTime =\n  DateTime")
-      roundTrip("uuid alias", "type MyUuid = Uuid", "type MyUuid =\n  Uuid")
-      roundTrip("blob alias", "type MyBytes = Bytes", "type MyBytes =\n  Bytes")
+      roundTrip("unit alias", "type MyUnit = Unit", "type MyUnit = Unit")
+      roundTrip("bool alias", "type MyBool = Bool", "type MyBool = Bool")
+      roundTrip("int8 alias", "type MyInt8 = Int8", "type MyInt8 = Int8")
+      roundTrip("uint8 alias", "type MyUInt8 = UInt8", "type MyUInt8 = UInt8")
+      roundTrip("int16 alias", "type MyInt16 = Int16", "type MyInt16 = Int16")
+      roundTrip("uint16 alias", "type MyUInt16 = UInt16", "type MyUInt16 = UInt16")
+      roundTrip("int32 alias", "type MyInt32 = Int32", "type MyInt32 = Int32")
+      roundTrip("uint32 alias", "type MyUInt32 = UInt32", "type MyUInt32 = UInt32")
+      roundTrip("int64 alias", "type MyInt64 = Int64", "type MyInt64 = Int64")
+      roundTrip("uint64 alias", "type MyUInt64 = UInt64", "type MyUInt64 = UInt64")
+      roundTrip("int128 alias", "type MyInt128 = Int128", "type MyInt128 = Int128")
+      roundTrip("uint128 alias", "type MyUInt128 = UInt128", "type MyUInt128 = UInt128")
+      roundTrip("float alias", "type MyFloat = Float", "type MyFloat = Float")
+      roundTrip("char alias", "type MyChar = Char", "type MyChar = Char")
+      roundTrip("string alias", "type MyString = String", "type MyString = String")
+      roundTrip("datetime alias", "type MyDateTime = DateTime", "type MyDateTime = DateTime")
+      roundTrip("uuid alias", "type MyUuid = Uuid", "type MyUuid = Uuid")
+      roundTrip("blob alias", "type MyBytes = Bytes", "type MyBytes = Bytes")
       roundTrip(
         "stream of primitive alias",
         "type MyStream = Stream<UInt8>",
-        "type MyStream =\n  Stream<UInt8>")
+        "type MyStream = Stream<UInt8>")
       roundTrip(
         "stream of blob alias",
         "type MyStream = Stream<Bytes>",
-        "type MyStream =\n  Stream<Bytes>") ])
+        "type MyStream = Stream<Bytes>") ])
+
 
 test typeReferencesStreamOfGeneric =
   Stdlib.Test.all(
     [ roundTrip(
         "stream of generic alias",
         "type MyStream = Stream<'a>",
-        "type MyStream =\n  Stream<'a>")
-      roundTrip("string list alias", "type MyList = List<String>", "type MyList =\n  List<String>")
+        "type MyStream = Stream<'a>")
+      roundTrip("string list alias", "type MyList = List<String>", "type MyList = List<String>")
       roundTrip(
         "string list list alias",
         "type MyList = List<List<String>>",
-        "type MyList =\n  List<List<String>>")
+        "type MyList = List<List<String>>")
       roundTripWith(
         myString,
         "custom type list alias",
         "type MyList = List<MyString>",
-        "type MyList =\n  List<MyString>")
-      roundTrip("generic list alias", "type MyList = List<'a>", "type MyList =\n  List<'a>")
+        "type MyList = List<MyString>")
+      roundTrip("generic list alias", "type MyList = List<'a>", "type MyList = List<'a>")
       roundTrip(
         "int64 dict alias",
         "type MyDict = Dict<String, Int64>",
-        "type MyDict =\n  Dict<String, Int64>")
+        "type MyDict = Dict<String, Int64>")
       roundTripWith(
         myString,
         "custom type dict alias",
         "type MyDict = Dict<MyString, Int64>",
-        "type MyDict =\n  Dict<MyString, Int64>")
+        "type MyDict = Dict<MyString, Int64>")
       roundTrip(
         "tuple2 alias",
         "type MyTuple2 = (String * Int64)",
-        "type MyTuple2 =\n  (String * Int64)")
+        "type MyTuple2 = (String * Int64)")
       roundTrip(
         "tuple3 alias",
         "type MyTuple3 = (String * Int64 * Bool)",
-        "type MyTuple3 =\n  (String * Int64 * Bool)")
+        "type MyTuple3 = (String * Int64 * Bool)")
       roundTrip(
         "tuple4 alias",
         "type MyTuple = (String * Int64 * Bool * Unit)",
-        "type MyTuple =\n  (String * Int64 * Bool * Unit)")
-      roundTrip("fn with one arg", "type MyFn = 'a -> String", "type MyFn =\n  'a -> String")
-      roundTrip("fn with two args", "type MyFn = ('a, 'b) -> 'c", "type MyFn =\n  ('a, 'b) -> 'c")
+        "type MyTuple = (String * Int64 * Bool * Unit)")
+      roundTrip("fn with one arg", "type MyFn = 'a -> String", "type MyFn = 'a -> String")
+      roundTrip("fn with two args", "type MyFn = ('a, 'b) -> 'c", "type MyFn = ('a, 'b) -> 'c")
       roundTrip(
         "fn with three args",
         "type MyFn = ('a, 'b, 'c) -> 'd",
-        "type MyFn =\n  ('a, 'b, 'c) -> 'd")
+        "type MyFn = ('a, 'b, 'c) -> 'd")
       roundTrip(
         "fn with tuple arg",
         "type MyFn = ((String * Int64 * Bool), Dict<String, Int64>) -> List<List<String>>",
-        "type MyFn =\n  ((String * Int64 * Bool), Dict<String, Int64>) -> List<List<String>>")
+        "type MyFn = ((String * Int64 * Bool), Dict<String, Int64>) -> List<List<String>>")
       roundTrip(
         "fn with generics",
         "type MyFn = (LanguageTools.ID, 'a) -> 'b",
-        "type MyFn =\n  (LanguageTools.ID, 'a) -> 'b")
+        "type MyFn = (LanguageTools.ID, 'a) -> 'b")
       roundTrip(
         "fn with fn arg",
         "type HigherOrder = (Int64 -> String) -> Bool",
-        "type HigherOrder =\n  (Int64 -> String) -> Bool")
+        "type HigherOrder = (Int64 -> String) -> Bool")
       roundTrip(
         "fn with fn return",
         "type Curried = Int64 -> (String -> Bool)",
-        "type Curried =\n  Int64 -> (String -> Bool)")
+        "type Curried = Int64 -> (String -> Bool)")
       roundTrip(
         "tuple containing fn",
         "type FunctionAndFlag = ((Int64 -> String) * Bool)",
-        "type FunctionAndFlag =\n  ((Int64 -> String) * Bool)")
-      roundTrip("generic alias", "type MyBox = Box<'a>", "type MyBox =\n  Box<'a>")
+        "type FunctionAndFlag = ((Int64 -> String) * Bool)")
+      roundTrip("generic alias", "type MyBox = Box<'a>", "type MyBox = Box<'a>")
       roundTripWith(
         person,
         "generic alias with custom type",
         "type MyBox = Box<Person>",
-        "type MyBox =\n  Box<Person>") ])
+        "type MyBox = Box<Person>") ])
+
 
 test typeReferencesGenericAlias =
   Stdlib.Test.all(
-    [ roundTrip("generic alias 2", "type MyBox<'a> = Box<'a>", "type MyBox<'a> =\n  Box<'a>")
+    [ roundTrip("generic alias 2", "type MyBox<'a> = Box<'a>", "type MyBox<'a> = Box<'a>")
       roundTrip(
         "generic alias applied",
         "type GenericBox = Box<Generic<String>>",
-        "type GenericBox =\n  Box<Generic<String>>")
-      roundTrip("variable", "type MyVar = 'a", "type MyVar =\n  'a")
+        "type GenericBox = Box<Generic<String>>")
+      roundTrip("variable", "type MyVar = 'a", "type MyVar = 'a")
       // single-part qualified name
       roundTripWith(
         person,
         "unknown single-part qualified name",
         "type ID = Person",
-        "type ID =\n  Person")
+        "type ID = Person")
       // fully-qualified package name (multi-part)
       roundTrip(
         "option alias, shortcut name",
         "type MyOption = Stdlib.Option.Option",
-        "type MyOption =\n  Option")
+        "type MyOption = Option")
       roundTrip(
         "option alias, unapplied",
         "type MyOption = Stdlib.Option.Option",
-        "type MyOption =\n  Option")
+        "type MyOption = Option")
       roundTrip(
         "option alias, applied",
         "type MyOption = Stdlib.Option.Option<Int64>",
-        "type MyOption =\n  Option<Int64>")
+        "type MyOption = Option<Int64>")
       roundTrip(
         "json alias",
         "type Json =\n  Stdlib.AltJson.Json",
-        "type Json =\n  Stdlib.AltJson.Json")
+        "type Json = Stdlib.AltJson.Json")
       // Unqualified Result/Option type names resolve via the stdlib fallback from any
       // module, mirroring how their constructors (Ok/Error, Some/None) already
       // resolve unqualified everywhere. The printer knows about that fallback too, so
@@ -144,12 +146,12 @@ test typeReferencesGenericAlias =
       roundTrip(
         "unqualified Result resolves through stdlib fallback",
         "type MyResult = Result<Int64, String>",
-        "type MyResult =\n  Result<Int64, String>")
+        "type MyResult = Result<Int64, String>")
       roundTrip(
         "unqualified Option resolves through stdlib fallback",
         "type MyOpt = Option<Int64>",
-        "type MyOpt =\n  Option<Int64>")
+        "type MyOpt = Option<Int64>")
       roundTrip(
         "unqualified Result unapplied resolves through stdlib fallback",
         "type MyResult = Result",
-        "type MyResult =\n  Result") ])
+        "type MyResult = Result") ])

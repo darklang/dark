@@ -95,6 +95,15 @@ let findItem(
   Builtin.pmFind(branchId, kind, location)
 
 
+/// Every binding on <param branchId> whose name is one of <param names>, with the kind of item it
+/// holds: `findItem` for many names at once.
+let bindingsNamed(
+  branchId: Uuid,
+  names: List<String>)
+  : List<(ProgramTypes.PackageLocation * ProgramTypes.ItemKind)> =
+  Builtin.pmBindingsNamed(branchId, names)
+
+
 /// The stored item of <param kind> at <param hash>. The per-kind `Type.get`, `Value.get`, ...
 /// are this with the kind and the item's type filled in.
 let getItem(

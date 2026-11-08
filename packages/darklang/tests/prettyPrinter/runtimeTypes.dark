@@ -120,7 +120,7 @@ test escaping =
       pp("日本") |> Stdlib.Test.equal("\"日本\"")
       // Escape special characters inside a grapheme without losing its other
       // characters: the combining accent after a backslash, or the LF in CRLF.
-      pp("a\\́b") |> Stdlib.Test.equal("\"a\\\\́b\"")
+      pp("a\\́b") |> Stdlib.Test.equal("\"a\\\\\\u0301b\"")
       pp("a\r\nb") |> Stdlib.Test.equal("\"a\\r\\nb\"")
       // Escaping happens at every depth, not just the top level.
       pp([ "a\nb" ]) |> Stdlib.Test.equal("[\"a\\nb\"]") ])

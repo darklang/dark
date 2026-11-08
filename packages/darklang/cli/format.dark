@@ -1,0 +1,189 @@
+/// `dark format` (alias `fmt`): `.dark` source laid out the one way the printer lays it out.
+module Darklang.Cli.Format
+
+/// The `.dark` files at <param path>: the file itself, or every one under the directory, in
+/// order.
+let darkFiles(path: String): List<String> =
+  if Stdlib.Cli.FileSystem.isDirectory(path) then
+    Stdlib.Cli.FileSystem.listDirectory(path)
+    |> Stdlib.Result.withDefault([])
+    |> Stdlib.List.sort
+    |> Stdlib.List.map(fun p -> darkFiles(p))
+    |> Stdlib.List.flatten
+  else if Stdlib.String.endsWith(path, ".dark") then
+    [ path ]
+  else
+    []
+
+
+/// What happened to one file.
+type Outcome =
+  | Unchanged
+  | Changed
+  | Failed(String)
+
+
+/// Format <param path>, already read as <param read>, and write it back unless <param check>.
+/// Returns what happened, and the declarations in it printed as written.
+let settle(
+  path: String,
+  read: Result<String, String>,
+  formatted: Result<LanguageTools.Formatter.Formatted, String>,
+  check: Bool)
+  : (Outcome * List<String>) =
+  match read, formatted with
+  | Error(e), _ -> (Outcome.Failed(e), [])
+  | _, Error(e) -> (Outcome.Failed(e), [])
+  | Ok(text), Ok(formatted) ->
+    if formatted.text == text then
+      (Outcome.Unchanged, formatted.asWritten)
+    else if check then
+      (Outcome.Changed, formatted.asWritten)
+    else
+      match Stdlib.Cli.File.writeText(path, formatted.text) with
+      | Ok(_) -> (Outcome.Changed, formatted.asWritten)
+      | Error(e) -> (Outcome.Failed(e.message), [])
+
+
+/// Every file in <param files>, read, formatted and settled. The formatting, which is all
+/// computation, runs across the cores; reading and writing stay in order here.
+let formatFiles(
+  branchId: Uuid,
+  files: List<String>,
+  check: Bool)
+  : List<(String * (Outcome * List<String>))> =
+  let reads =
+    files
+    |> Stdlib.List.map(fun f ->
+      (f, Stdlib.Cli.File.readText(f) |> Stdlib.Result.mapError(fun e -> e.message)))
+
+  // Longest first, so the cores finish together instead of one of them starting the biggest file
+  // last; then back in order.
+  let formatted =
+    reads
+    |> Stdlib.List.indexedMap(fun (i, pair) -> (i, Stdlib.Tuple2.second(pair)))
+    |> Stdlib.List.sortBy(fun job ->
+      match Stdlib.Tuple2.second(job) with
+      | Ok(text) -> 0 - Stdlib.String.length(text)
+      | Error(_) -> 0)
+    |> Stdlib.List.parallelMap(fun job ->
+      let (i, read) = job
+
+      (i,
+       read
+       |> Stdlib.Result.andThen(fun text ->
+         LanguageTools.Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, text))))
+    |> Stdlib.List.sortBy(fun done -> Stdlib.Tuple2.first(done))
+    |> Stdlib.List.map(fun done -> Stdlib.Tuple2.second(done))
+
+  Stdlib.List.zipShortest(reads, formatted)
+  |> Stdlib.List.map(fun pair ->
+    let ((f, read), result) = pair
+    (f, settle(f, read, result, check)))
+
+
+let execute(state: AppState, args: List<String>): AppState =
+  let check = Stdlib.List.contains(args, "--check")
+  let showAsWritten = Stdlib.List.contains(args, "--as-written")
+  let paths =
+    args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "--")))
+
+  match paths with
+  | ["-"] ->
+    let result =
+      Stdlib.Cli.Stdin.readAll()
+      |> Stdlib.Result.andThen(fun text ->
+        LanguageTools.Formatter.source(
+          state.currentBranchId,
+          PrettyPrinter.ProgramTypes.sourceWidth,
+          text))
+
+    match result with
+    | Ok(formatted) ->
+      Stdlib.print(formatted.text)
+      state
+    | Error(e) ->
+      printErr(e)
+      { state with exitCode = 1 }
+  | [] ->
+    printErr("Usage: format [--check] <file-or-directory>...")
+    { state with exitCode = 1 }
+  | paths ->
+    match paths
+          |> Stdlib.List.filter(fun p -> Stdlib.Bool.not(Stdlib.Cli.FileSystem.pathExists(p))) with
+    | [missing, ...] ->
+      printErr($"Nothing at {missing}.")
+      { state with exitCode = 1 }
+    | [] -> formatAll(state, paths, check, showAsWritten)
+
+
+/// Format every `.dark` file under <param paths>, writing them back unless <param check>, and say
+/// how it went.
+let formatAll(state: AppState, paths: List<String>, check: Bool, showAsWritten: Bool): AppState =
+  let files =
+    paths
+    |> Stdlib.List.map(fun p -> darkFiles(p))
+    |> Stdlib.List.flatten
+
+  let results = formatFiles(state.currentBranchId, files, check)
+  let count(want: Outcome -> Bool): Int64 =
+    results
+    |> Stdlib.List.filter(fun r -> want(Stdlib.Tuple2.first(Stdlib.Tuple2.second(r))))
+    |> Stdlib.List.length
+
+  let changed = count(fun o ->
+    match o with
+    | Changed -> true
+    | _ -> false)
+
+  let failed = count(fun o ->
+    match o with
+    | Failed(_) -> true
+    | _ -> false)
+
+  let unchanged = Stdlib.List.length(files) - changed - failed
+
+  results
+  |> Stdlib.List.iter(fun r ->
+    let (file, (outcome, asWritten)) = r
+
+    match outcome with
+    | Failed(e) -> printErr($"{file}: {e}")
+    | Changed -> if check then Stdlib.printLine($"{file}: not formatted") else ()
+    | Unchanged -> ()
+    if showAsWritten then
+      asWritten
+      |> Stdlib.List.iter(fun name -> Stdlib.printLine($"{file}: {name} printed as written"))
+    else
+      ())
+  let summary =
+    if check then
+      $"{Stdlib.display(changed)} not formatted, {Stdlib.display(unchanged)} formatted"
+    else
+      $"{Stdlib.display(changed)} formatted, {Stdlib.display(unchanged)} already were"
+
+  let failures = if failed == 0 then "" else $", {Stdlib.display(failed)} failed"
+  printQuiet(summary + failures)
+  if failed > 0 || check && changed > 0 then
+    { state with exitCode = 1 }
+  else
+    state
+
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
+  []
+
+
+let help(_state: AppState): String =
+  [ "Usage: format [--check] [--as-written] <file-or-directory>..."
+    "       format -"
+    ""
+    "Lays out .dark files the way the printer does: 100 columns, comments where you put them."
+    "A directory means every .dark file under it. `-` formats stdin to stdout."
+    ""
+    "  --check        change nothing; list the files that aren't formatted, and exit 1 if any"
+    "  --as-written   also list the declarations kept as written: a trait or an impl, or one"
+    "                 where a comment couldn't be placed"
+    ""
+    "Formatting never changes what code means: every declaration hashes as it did." ]
+  |> Stdlib.String.join("\n")

@@ -11,4 +11,4 @@ test moduleDeclarations =
       roundTrip(
         "unqualified Result resolves inside a non-Stdlib module",
         "module MyModule =\n  type MyResult = Result<Int64, String>",
-        "module MyModule =\n  type MyResult =\n    Result<Int64, String>") ])
+        "module MyModule =\n  type MyResult = Result<Int64, String>") ])

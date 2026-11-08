@@ -6,6 +6,7 @@ set -euo pipefail
 CHECK=255 # (0 mean check, 1 means format, 255 means error)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
+DARK=1 # (0 means check .dark files, 1 means don't; only --dark-only checks them)
 FILES=()
 
 #######################
@@ -19,6 +20,7 @@ function print_help ()
 	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
   printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
+  printf '\t%s\n' "--dark-only: Only check .dark files (under packages/, with the dev CLI). Without it, .dark is not checked"
 }
 
 FILES=()
@@ -32,9 +34,16 @@ for val in "${@}"; do
         ;;
     --prettier-only)
         FSHARP=1
+        DARK=1
         ;;
     --fsharp-only)
         PRETTIER=1
+        DARK=1
+        ;;
+    --dark-only)
+        FSHARP=1
+        PRETTIER=1
+        DARK=0
         ;;
     check)
       CHECK=0
@@ -69,6 +78,10 @@ is_dir() {
 
 is_fsharp() {
   [[ $1 == *.fs || $1 == *.fsi ]]
+}
+
+is_dark() {
+  [[ $1 == *.dark ]]
 }
 
 is_allowed() {
@@ -154,6 +167,47 @@ do_prettier() {
   fi
 }
 
+# `.dark` is formatted by `dark format`, so it needs the dev CLI built. Only packages/: it is package
+# source, which is what `dark format` reads.
+DARK_CLI=backend/Build/out/Cli/Debug/net10.0/Cli
+DARK_PATHS=()
+
+# The .dark files under <paths> that scripts/formatting/dark-format-skip doesn't leave as written.
+dark_files() {
+  local skip
+  skip=$(grep -v -e '^#' -e '^$' scripts/formatting/dark-format-skip)
+  find "$@" -name '*.dark' -type f | sort | while IFS= read -r f; do
+    f=${f#./}
+    local keep=1
+    while IFS= read -r s; do
+      [[ -n "$s" && "$f" == "$s"* ]] && keep=0
+    done <<<"$skip"
+    [[ "$keep" == 1 ]] && echo "$f"
+  done
+}
+
+do_dark() {
+  if [[ ${#DARK_PATHS[@]} -eq 0 ]]; then
+    return 0
+  fi
+  if [[ ! -x "$DARK_CLI" ]]; then
+    echo "skipped .dark: no dev CLI built (scripts/dev/build makes one)"
+    return 0
+  fi
+  local files=()
+  mapfile -t files < <(dark_files "${DARK_PATHS[@]}")
+  if [[ ${#files[@]} -eq 0 ]]; then
+    return 0
+  fi
+  # A collector per core: formatting many files spreads over the cores, which otherwise wait on
+  # the one collector. Not the CLI's default, since for a short command it costs more than it saves.
+  if [[ 0 -eq "$CHECK" ]]; then
+    DOTNET_gcServer=1 ./scripts/run-cli format --check "${files[@]}"
+  else
+    DOTNET_gcServer=1 ./scripts/run-cli format "${files[@]}"
+  fi
+}
+
 # TODO sqlfmt for sql
 # TODO add python
 # TODO bash formatter
@@ -171,6 +225,16 @@ for i in "${FILES[@]}"; do
       # all_prettier_files "$i" | do_prettier
       :
     fi
+    if [[ 0 -eq "$DARK" ]]; then
+      dir=$(realpath --relative-to=. "$i")
+      if [[ "$dir" == "." ]]; then
+        DARK_PATHS+=("packages")
+      elif [[ "$dir" == packages || "$dir" == packages/* ]]; then
+        DARK_PATHS+=("$dir")
+      fi
+    fi
+  elif [[ 0 -eq "$DARK" ]] && is_dark "$i"; then
+    DARK_PATHS+=("$i")
   elif is_allowed "$i"; then
     if is_fsharp "$i"; then
       if [[ 0 -eq "$FSHARP" ]]; then
@@ -186,3 +250,4 @@ for i in "${FILES[@]}"; do
   fi
 done
 
+do_dark
