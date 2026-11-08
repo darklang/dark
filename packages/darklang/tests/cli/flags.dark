@@ -24,18 +24,21 @@ module Query =
   let hash(text: String): Darklang.LanguageTools.ProgramTypes.Hash =
     Darklang.LanguageTools.ProgramTypes.Hash.Hash(text)
 
-  // `old` is deprecated with no live caller, so a listing hides it by default.
+  // `old` is deprecated with no live caller, so a listing hides it by default. `gone` was deleted
+  // by name while `plain` holds the same content, so it is hidden and `plain` is not.
   let sets(): Darklang.Cli.Packages.Query.DeprecationSets =
     Darklang.Cli.Packages.Query.DeprecationSets
       { allDeprecated = Darklang.Cli.Packages.Query.hashListToDict([ hash("aa") ])
-        hidden = Darklang.Cli.Packages.Query.hashListToDict([ hash("aa") ]) }
+        hidden = Darklang.Cli.Packages.Query.hashListToDict([ hash("aa") ])
+        marked = Stdlib.Dict.fromList([ ("aa", [ "M.old" ]), ("cc", [ "M.gone" ]) ]) }
 
   let shown(
     deprecated: Darklang.Cli.Packages.Query.Deprecated,
     internal: Darklang.Cli.Packages.Query.Internal)
     : List<String> =
     Darklang.Cli.Packages.Query.filterHiddenPairs(
-      [ ("old", hash("aa")), ("__helper", hash("bb")), ("plain", hash("cc")) ],
+      [ "M" ],
+      [ ("old", hash("aa")), ("__helper", hash("bb")), ("plain", hash("cc")), ("gone", hash("cc")) ],
       sets(),
       deprecated,
       internal)
@@ -51,7 +54,7 @@ module Query =
         shown(
           Darklang.Cli.Packages.Query.Deprecated.Show,
           Darklang.Cli.Packages.Query.Internal.Hide)
-        |> Stdlib.Test.equal([ "old", "plain" ])
+        |> Stdlib.Test.equal([ "old", "plain", "gone" ])
         shown(
           Darklang.Cli.Packages.Query.Deprecated.Hide,
           Darklang.Cli.Packages.Query.Internal.Show)
@@ -59,7 +62,7 @@ module Query =
         shown(
           Darklang.Cli.Packages.Query.Deprecated.Show,
           Darklang.Cli.Packages.Query.Internal.Show)
-        |> Stdlib.Test.equal([ "old", "__helper", "plain" ]) ])
+        |> Stdlib.Test.equal([ "old", "__helper", "plain", "gone" ]) ])
 
   // The flag a command parsed picks the case.
   test showIf =

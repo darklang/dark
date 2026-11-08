@@ -1723,6 +1723,7 @@ let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
       let! _ =
         LibDB.Inserts.insertAndApplyOps
           [ PT.PackageOp.Deprecate(
+              boxImplAt,
               PT.Reference.PackageTraitImpl boxImpl,
               PT.DeprecationKind.Obsolete,
               "bound memo test",

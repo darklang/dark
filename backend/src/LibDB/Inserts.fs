@@ -107,10 +107,11 @@ let private docIn
       p cmd "$within" (Docs.within part)
       Layers.bind cmd branch true)
 
-/// The deprecation <param branch> sees standing on an item.
+/// The deprecation <param branch> sees standing on an item at a name.
 let private deprecationIn
   (ctx : Ctx)
   (branch : PT.BranchId)
+  (loc : PT.PackageLocation)
   (target : PT.Reference)
   : Task<Option<PT.DeprecationKind * string>> =
   task {
@@ -120,8 +121,10 @@ let private deprecationIn
         ctx
         (Layers.view "$" Layers.deprecations
          + " SELECT CASE WHEN state = 'deprecated' THEN annotation_blob ELSE NULL END
-             FROM visible WHERE item_hash = $item_hash AND item_kind = $item_kind")
+             FROM visible WHERE owner = $owner AND modules = $modules AND name = $name
+               AND item_hash = $item_hash AND item_kind = $item_kind")
         (fun cmd ->
+          pLoc cmd loc
           p cmd "$item_hash" h
           p cmd "$item_kind" (target.kind.toString ())
           Layers.bind cmd branch true)
@@ -157,11 +160,11 @@ let private restateOrDrop
             | PT.PackageOp.UpdateDoc(loc, part, text, _, _) ->
               let! said = docIn ctx branch loc part
               return said <> Some text
-            | PT.PackageOp.Deprecate(target, kind, message, _) ->
-              let! standing = deprecationIn ctx branch target
+            | PT.PackageOp.Deprecate(loc, target, kind, message, _) ->
+              let! standing = deprecationIn ctx branch loc target
               return standing <> Some(kind, message)
-            | PT.PackageOp.Undeprecate(target, _) ->
-              let! standing = deprecationIn ctx branch target
+            | PT.PackageOp.Undeprecate(loc, target, _) ->
+              let! standing = deprecationIn ctx branch loc target
               return standing <> None
             | _ -> return false
           }

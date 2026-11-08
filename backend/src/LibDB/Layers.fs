@@ -189,7 +189,7 @@ let locations =
 /// The newer statement, and on a tie the later arrival.
 let deprecations =
   { name = "deprecations"
-    key = [ "item_hash"; "item_kind" ]
+    key = [ "owner"; "modules"; "name"; "item_hash"; "item_kind" ]
     newestFirst = "x.origin_ts DESC, x.rowid DESC" }
 
 let docs =

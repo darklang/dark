@@ -782,22 +782,27 @@ type PackageOp =
       target: Reference,
       previous: Stdlib.Option.Option<Hash>)
   /// A name stops existing. Unlists whatever is live at the location and nothing else: the content stays
-  /// reachable by hash. `previous` is the hash it unbound. Not a Deprecate, which is about content and would
-  /// mark every other name on the same body; a deprecated name still resolves, an unbound one does not.
+  /// reachable by hash. `previous` is the hash it unbound. Not a Deprecate: a deprecated name still
+  /// resolves, an unbound one does not.
   | Unbind(location: PackageLocation, previous: Stdlib.Option.Option<Hash>)
-  /// Author-initiated deprecation annotation on a specific hash.
+  /// Author-initiated deprecation of a NAME, and the content it held. Keyed on the location, like
+  /// `UpdateDoc`, because content is shared: deprecating `Probe.v = 5` leaves every other `= 5` alone.
   ///
   /// `restating` is empty except on the restatement path, same hole as `UpdateDoc`'s one axis over:
   /// `Deprecate` and `Undeprecate` are each other's inverse, so saying one again after the other
   /// produces the op that said it the first time. It matters more on `Undeprecate`, which carries
   /// nothing else, so without it there is exactly one possible undeprecate per item for all time.
   | Deprecate(
+      location: PackageLocation,
       target: Reference,
       kind: DeprecationKind,
       message: String,
       restating: Stdlib.Option.Option<String>)
-  /// Clear any prior deprecation on a target.
-  | Undeprecate(target: Reference, restating: Stdlib.Option.Option<String>)
+  /// Clear any prior deprecation of `target` at `location`.
+  | Undeprecate(
+      location: PackageLocation,
+      target: Reference,
+      restating: Stdlib.Option.Option<String>)
   /// What the thing at a NAME says about itself, or one named part of it.
   ///
   /// Scoped to a location, not to content, and that is the point: content is shared. Ten names hold
