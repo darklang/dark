@@ -98,9 +98,9 @@ let fns () : List<BuiltInFn> =
         + "counts per opcode, and bytes and counts per named region of the Apply path (read the "
         + "fine-grained stages, not the totals -- see the note in the implementation). "
         + "When detailed timing is enabled, also includes per-builtin and per-package-fn "
-        + "cumulative nanoseconds and call counts. Also reports `buildMode`, so a number can "
-        + "say which build produced it, and `statSets`, which says whether these counters are "
-        + "the whole process or one VM's share."
+        + "cumulative nanoseconds and call counts. Also reports `buildMode` and `buildHash`, so "
+        + "a number can say which build produced it, and `statSets`, which says whether these "
+        + "counters are the whole process or one VM's share."
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
@@ -177,6 +177,9 @@ let fns () : List<BuiltInFn> =
             $"\"traitDispatchMisses\":{s.traitDispatchMissCount}"
             $"\"detailedTiming\":{dtStr}"
             $"\"buildMode\":\"{buildMode}\""
+            // The commit, so two readings of the same mode can still say whether they are the
+            // same build. "dev" for a Debug CLI run without `scripts/run-cli`.
+            $"\"buildHash\":\"{LibConfig.Config.buildHash}\""
             // What the numbers above cover. Telemetry off: every VM shares one set, so 0 means
             // the whole process. Telemetry on: one set per VM, so a positive count means this is
             // the calling VM's share and `Cli.fs`'s exit dump is what totals them.
