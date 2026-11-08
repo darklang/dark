@@ -64,6 +64,8 @@ type Status =
   | Done of RT.Dval
   | Failed of RTE.Error * RT.CallStack
 
+/// The mutable fields are the scheduler's per-process bookkeeping, written every slice on the
+/// hot path; a fresh record per slice would allocate on every yield.
 type Process =
   {
     id : ProcessId
@@ -109,6 +111,7 @@ type private Subscription =
     specs : HE.EventSpec list
     wake : TaskCompletionSource<HE.HostEvent>
     /// Timers armed for `Timer ms` specs, disposed when anything satisfies the subscription.
+    /// Mutable because they are armed after the subscription is registered, under `sync`.
     mutable timers : list<HE.TimerId * System.IDisposable>
   }
 
@@ -150,11 +153,13 @@ let defaultQuantum = 10_000L
 ///
 /// Measured against a live view, op to repaint: 1,430 ms at 2,000; 154 ms at 200; 40 ms at 25.
 /// `exec.storePollMs` in the store's config overrides it (`Cli.fs` reads it).
+// Host settings: `Cli.fs` writes these once at startup from the store's config.
 let mutable storePollMs = 25
 
 /// Test-only: called by `Subscribe` with the waiting process and the one it waits on, after
 /// the `ExecDone` watcher is registered and before the check for a process already over, so
 /// a test can finish the awaited process in exactly that gap.
+// A test hook, installed by the test that needs it.
 let mutable betweenWatchAndCheck : ProcessId -> ProcessId -> unit = fun _ _ -> ()
 
 /// How many worker schedulers a group starts: one per core unless the host says otherwise
@@ -180,6 +185,7 @@ type Policy =
   | Chooser of (list<ProcessSummary> -> Option<ProcessId>)
 
 /// The policy every scheduler consults. Process-wide, set by the host before it starts running.
+// Mutable so the host can install its chooser after startup.
 let mutable policy : Policy = RoundRobin
 
 
@@ -218,6 +224,7 @@ type Scheduler(quantum : int64) =
     System.Collections.Concurrent.ConcurrentDictionary<ProcessId, int>()
 
   let queue = new HE.Queue()
+  // The scheduler's tables: shared with `ps`, `kill` and spawns from other threads, under `sync`.
   let processes = System.Collections.Generic.Dictionary<ProcessId, Process>()
   let runnable = System.Collections.Generic.Queue<Process>()
   // Touched by the scheduler thread (dispatch) and by builtins subscribing, which run on the
@@ -238,6 +245,7 @@ type Scheduler(quantum : int64) =
   /// been told about the latest one is woken at once: a change that lands while a host loop is
   /// rendering is not lost.
   let mutable storeGen = 0L
+  // Counters and loop state of this scheduler's thread, read by others for placement and `Stop`.
   let mutable nextTimerId = 0L
   let mutable thread = -1
   /// Set by `Stop`; the loop leaves at its next turn.
@@ -1196,6 +1204,7 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
   /// Which workers have a thread. A worker's starts the first time a spawn picks it, so a spread
   /// of four chunks starts four threads rather than one per core: each has a 16 MB stack, and
   /// starting all of them on a 48-core box was about a tenth of a `view`.
+  /// Written under `startLock`, by whichever spawn starts the thread.
   let started = Array.zeroCreate<bool> byIndex.Length
   let startLock = obj ()
 

@@ -183,9 +183,13 @@ let sysctl_raw (mib : byte[], buf : IntPtr, size : IntPtr) =
     int (call 25 p (int64 (mib.Length / 4)) (pointer buf) (pointer size) 0L 0L))
 let setattrlistat_raw (fd : int, path : string, attrs : byte[]) =
   // ATTR_CMN_ACCTIME | ATTR_CMN_MODTIME; both set to the caller's timestamp.
-  let attributes = Array.zeroCreate<byte> 24
-  BitConverter.GetBytes(5us).CopyTo(attributes, 0)
-  BitConverter.GetBytes(0x1400u).CopyTo(attributes, 4)
+  // struct attrlist: bitmapcount, reserved, commonattr, then four zeroed attribute groups.
+  let attributes =
+    Array.concat
+      [ BitConverter.GetBytes(5us)
+        Array.zeroCreate<byte> 2
+        BitConverter.GetBytes(0x1400u)
+        Array.zeroCreate<byte> 16 ]
   withText path (fun p ->
     withBytes attributes (fun a ->
       withBytes attrs (fun b ->

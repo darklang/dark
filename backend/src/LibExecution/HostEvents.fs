@@ -91,6 +91,7 @@ type HostEvent =
 /// installs what it has, once per OS process. A queue without a source for some spec still works:
 /// a process parked on it waits forever, exactly as a blocking read with nobody typing would.
 type Sources =
+  // Mutable fields: the host installs these after this module has loaded, and tests swap them.
   {
     /// Block until one key is available and return it as `KeyRead`, or `None` when stdin is not a
     /// terminal (the reader thread then never starts; `readKey` answers as it always did).
@@ -161,6 +162,7 @@ let threadStackBytes = 16 * 1024 * 1024
 type private KeyReader(readKey : unit -> RT.Dval) =
   let requests = new SemaphoreSlim(0)
   let waiting = ConcurrentQueue<Queue>()
+  // 1 while a read is outstanding; claimed with Interlocked by requesters and the reader thread.
   let mutable inFlight = 0
 
   do
@@ -215,6 +217,7 @@ type private StdinReader(readStdin : StdinRequest -> StdinResult) =
   let requests = new SemaphoreSlim(0)
   /// Who asked, oldest first, and for what. Each entry is one read.
   let waiting = System.Collections.Generic.Queue<Queue * StdinRequest>()
+  // Shared by the reader thread and requesters, always under `sync`.
   let mutable inFlight : Option<StdinRequest> = None
   /// End of input was read: every later request is answered at once, without a read.
   let mutable ended = false
@@ -299,6 +302,7 @@ type private StorePoll(version : unit -> int64, intervalMs : int) =
   let watchers = ConcurrentDictionary<Queue, unit>()
   let maxHoldMs = 500L
 
+  // Carried from one timer tick to the next; only the timer callback writes them.
   let mutable lastVersion =
     try
       version ()
@@ -348,6 +352,7 @@ type private StorePoll(version : unit -> int64, intervalMs : int) =
 /// its own, and one left blocked in an earlier test's read cannot starve it.
 module Shared =
   let private sync = obj ()
+  // Process-wide singletons, started lazily under `sync`.
   let mutable private reader : Option<(unit -> RT.Dval) * KeyReader> = None
   let mutable private poll : Option<(unit -> int64) * StorePoll> = None
   let mutable private stdinReader

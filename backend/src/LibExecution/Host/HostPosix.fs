@@ -31,6 +31,9 @@ do
       )
     )
 
+// An `Array.zeroCreate` handed to a `_raw` call is for the kernel to fill: writing into the
+// caller's buffer is the syscall ABI. Buffers the kernel only reads are built whole instead.
+
 // -- Open flags (platform-specific) --------------------------------
 let O_RDONLY = 0
 let O_WRONLY = 1
@@ -112,6 +115,7 @@ module private Managed =
   /// could not see a file the same tab had just written through
   /// `Stdlib.Cli.FileSystem`. 0 to 2 are the terminal's and stay refused; the browser
   /// builtins own stdin and output.
+  // The tab's descriptor table, shared by every open/read/close: state a kernel would hold.
   let private files = Collections.Generic.Dictionary<int, IO.FileStream>()
   let mutable private nextFd = 3
 
@@ -216,27 +220,25 @@ let private withParent
   if parts.Length = 0 then
     Error(22, "path has no final component")
   else
-    let mutable dirFd = open_raw ("/", O_RDONLY ||| O_DIRECTORY, 0)
-    if dirFd < 0 then
-      failed ()
-    else
-      let mutable failure = None
-      let mutable i = 0
-      while failure.IsNone && i < parts.Length - 1 do
+    // Holds one directory at a time: each step opens the next component under the one it
+    // holds, then closes the one it held.
+    let rec walk (dirFd : int) (i : int) =
+      if i = parts.Length - 1 then
+        let result = action dirFd parts[i]
+        close_raw dirFd |> ignore<int>
+        result
+      else
         let next =
           openat_raw (dirFd, parts[i], O_RDONLY ||| O_DIRECTORY ||| O_NOFOLLOW, 0)
         if next < 0 then
-          failure <- Some(lastError ())
+          let e = lastError ()
+          close_raw dirFd |> ignore<int>
+          Error e
         else
           close_raw dirFd |> ignore<int>
-          dirFd <- next
-        i <- i + 1
-      let result =
-        match failure with
-        | Some e -> Error e
-        | None -> action dirFd parts[parts.Length - 1]
-      close_raw dirFd |> ignore<int>
-      result
+          walk next (i + 1)
+    let root = open_raw ("/", O_RDONLY ||| O_DIRECTORY, 0)
+    if root < 0 then failed () else walk root 0
 
 /// The root directory itself, for the operations that read it. `withParent`
 /// is a walk to a parent plus a final name, which the root does not have;
@@ -327,40 +329,34 @@ let readlinkBytes (path : string) (count : int) : Result<byte[], int * string> =
 /// Six random name characters, as mkstemp uses.
 let private randomSuffix () : string =
   let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-  let bytes = Array.zeroCreate<byte> 6
-  System.Security.Cryptography.RandomNumberGenerator.Fill bytes
-  bytes |> Array.map (fun b -> alphabet[int b % alphabet.Length]) |> String
+  System.Security.Cryptography.RandomNumberGenerator.GetBytes 6
+  |> Array.map (fun b -> alphabet[int b % alphabet.Length])
+  |> String
 
 /// One exclusive creation attempt; retry behavior belongs to Darklang.
 let private createUnique
   (prefix : string)
   (create : int -> string -> int)
-  : Result<string, int * string> =
+  : Result<int * string, int * string> =
   let directory = System.IO.Path.GetDirectoryName prefix
   withParent prefix (fun d basePrefix ->
     let name = basePrefix + randomSuffix ()
-    if create d name >= 0 then
-      Ok(System.IO.Path.Combine(directory, name))
-    else
-      failed ())
+    let rc = create d name
+    if rc >= 0 then Ok(rc, System.IO.Path.Combine(directory, name)) else failed ())
 
 let mkstemp (prefix : string) : Result<int * string, int * string> =
   if isWasm then
     Managed.enosys ()
   else
-    let mutable opened = -1
     createUnique prefix (fun d name ->
-      let fd =
-        openat_raw (d, name, O_RDWR ||| O_CREAT ||| O_EXCL ||| O_NOFOLLOW, 0o600)
-      opened <- fd
-      fd)
-    |> Result.map (fun path -> opened, path)
+      openat_raw (d, name, O_RDWR ||| O_CREAT ||| O_EXCL ||| O_NOFOLLOW, 0o600))
 
 let mkdtemp (prefix : string) : Result<string, int * string> =
   if isWasm then
     Managed.enosys ()
   else
     createUnique prefix (fun d name -> mkdirat_raw (d, name, 0o700))
+    |> Result.map snd
 
 let openFile (path : string) (flags : int) (mode : int) : Result<int, int * string> =
   if isWasm then
@@ -501,25 +497,30 @@ let pollDescriptors
   then
     Error(22, "invalid poll arguments")
   else
-    let bytes = Array.zeroCreate<byte> (max 1 (List.length fds * 8))
-    fds
-    |> List.iteri (fun index (fd, events) ->
-      BitConverter.GetBytes(fd).CopyTo(bytes, index * 8)
-      BitConverter.GetBytes(int16 events).CopyTo(bytes, index * 8 + 4))
+    // struct pollfd: fd, events, then revents, which the kernel writes back into this buffer.
+    let bytes =
+      match fds with
+      | [] -> [| 0uy |]
+      | _ ->
+        fds
+        |> List.collect (fun (fd, events) ->
+          [ BitConverter.GetBytes(fd)
+            BitConverter.GetBytes(int16 events)
+            Array.zeroCreate<byte> 2 ])
+        |> Array.concat
     let rc =
       if darwin then
         pollDarwin_raw (bytes, List.length fds, timeoutMs)
       else
-        let width = if isArm32 then 4 else 8
-        let timeout = Array.zeroCreate<byte> (width * 2)
-        if width = 4 then
-          BitConverter.GetBytes(timeoutMs / 1000).CopyTo(timeout, 0)
-          BitConverter.GetBytes((timeoutMs % 1000) * 1000000).CopyTo(timeout, width)
-        else
-          BitConverter.GetBytes(int64 (timeoutMs / 1000)).CopyTo(timeout, 0)
-          BitConverter
-            .GetBytes(int64 ((timeoutMs % 1000) * 1000000))
-            .CopyTo(timeout, width)
+        let timeout =
+          if isArm32 then
+            Array.append
+              (BitConverter.GetBytes(timeoutMs / 1000))
+              (BitConverter.GetBytes((timeoutMs % 1000) * 1000000))
+          else
+            Array.append
+              (BitConverter.GetBytes(int64 (timeoutMs / 1000)))
+              (BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)))
         ppoll_raw (bytes, List.length fds, timeout)
     if rc < 0 then failed () else Ok(bytes |> Array.take (List.length fds * 8))
 
@@ -549,17 +550,25 @@ let keventVnode
   then
     Error(22, "invalid kevent arguments")
   else
-    let input = Array.zeroCreate<byte> (max 1 (List.length changes * 32))
-    changes
-    |> List.iteri (fun index (source, flags, mask) ->
-      BitConverter.GetBytes(int64 source).CopyTo(input, index * 32)
-      BitConverter.GetBytes(-4s).CopyTo(input, index * 32 + 8)
-      BitConverter.GetBytes(uint16 flags).CopyTo(input, index * 32 + 10)
-      BitConverter.GetBytes(mask).CopyTo(input, index * 32 + 12))
+    // struct kevent: ident, filter (EVFILT_VNODE), flags, fflags, then data and udata zeroed.
+    let input =
+      match changes with
+      | [] -> [| 0uy |]
+      | _ ->
+        changes
+        |> List.collect (fun (source, flags, mask) ->
+          [ BitConverter.GetBytes(int64 source)
+            BitConverter.GetBytes(-4s)
+            BitConverter.GetBytes(uint16 flags)
+            BitConverter.GetBytes(mask)
+            Array.zeroCreate<byte> 16 ])
+        |> Array.concat
+    // Filled by the kernel.
     let output = Array.zeroCreate<byte> (max 1 (capacity * 32))
-    let timeout = Array.zeroCreate<byte> 16
-    BitConverter.GetBytes(int64 (timeoutMs / 1000)).CopyTo(timeout, 0)
-    BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)).CopyTo(timeout, 8)
+    let timeout =
+      Array.append
+        (BitConverter.GetBytes(int64 (timeoutMs / 1000)))
+        (BitConverter.GetBytes(int64 ((timeoutMs % 1000) * 1000000)))
     let count =
       kevent_raw (fd, input, List.length changes, output, capacity, timeout)
     if count < 0 then failed ()
@@ -638,10 +647,10 @@ let setattrlistTimes
   else
     withParent path (fun d n ->
       // XNU attribute order is MODTIME followed by ACCTIME.
-      let times = Array.zeroCreate<byte> 32
-      [ modifySec; modifyNanos; accessSec; accessNanos ]
-      |> List.iteri (fun index value ->
-        BitConverter.GetBytes(value).CopyTo(times, index * 8))
+      let times =
+        [ modifySec; modifyNanos; accessSec; accessNanos ]
+        |> List.map (fun (value : int64) -> BitConverter.GetBytes value)
+        |> Array.concat
       unitResult (setattrlistat_raw (d, n, times)))
 
 /// Extracts (mode, size, mtimeSec) from a struct stat buffer. Offsets are
@@ -692,7 +701,7 @@ let machTimebaseInfo () = clockRecord 8 machTimebaseInfo_raw
 /// Return the one-shot status AND remainder, including EINTR; Dark retries.
 let nanosleep (seconds : int64) (nanos : int64) : int * byte[] =
   let width = if isArm32 then 4 else 8
-  let request = Array.zeroCreate<byte> (width * 2)
+  // Filled by the kernel when the sleep is interrupted.
   let remaining = Array.zeroCreate<byte> (width * 2)
   if isWasm then
     (-38, remaining)
@@ -705,12 +714,13 @@ let nanosleep (seconds : int64) (nanos : int64) : int * byte[] =
   then
     (-75, remaining)
   else
-    if width = 4 then
-      BitConverter.GetBytes(int seconds).CopyTo(request, 0)
-      BitConverter.GetBytes(int nanos).CopyTo(request, width)
-    else
-      BitConverter.GetBytes(seconds).CopyTo(request, 0)
-      BitConverter.GetBytes(nanos).CopyTo(request, width)
+    let request =
+      if width = 4 then
+        Array.append
+          (BitConverter.GetBytes(int seconds))
+          (BitConverter.GetBytes(int nanos))
+      else
+        Array.append (BitConverter.GetBytes seconds) (BitConverter.GetBytes nanos)
     let rc = nanosleep_raw (request, remaining)
     (if rc < 0 then - Marshal.GetLastPInvokeError() else rc), remaining
 
@@ -941,43 +951,40 @@ let listDir (path : string) : Result<List<string>, int * string> =
     Managed.listDir path
   else
     withDirectory path (fun fd ->
+      // Refilled by the kernel on every read; the position is the kernel's cursor.
       let bytes = Array.zeroCreate<byte> 32768
       let position = Marshal.AllocHGlobal(8)
+      let nameOffset = if isMac then 21 else 19
+      let recordOffset = 16
+      // The records in the first `count` bytes, from `offset`, consed onto `found` (newest first).
+      let rec records count offset (found : List<string>) =
+        if offset >= count then
+          Ok found
+        elif offset + nameOffset >= count then
+          Error(5, "Invalid directory record")
+        else
+          let length = int (BitConverter.ToUInt16(bytes, offset + recordOffset))
+          if length <= nameOffset || offset + length > count then
+            Error(5, "Invalid directory record length")
+          else
+            let start = offset + nameOffset
+            let terminator = Array.IndexOf(bytes, 0uy, start, length - nameOffset)
+            if terminator < 0 then
+              Error(5, "Unterminated directory entry")
+            else
+              let name =
+                Text.Encoding.UTF8.GetString(bytes, start, terminator - start)
+              let found =
+                if name <> "." && name <> ".." then name :: found else found
+              records count (offset + length) found
+      let rec reads (found : List<string>) =
+        let count = getdents_raw (fd, bytes, position)
+        if count < 0 then Error(lastError ())
+        elif count = 0 then Ok(List.rev found)
+        else records count 0 found |> Result.bind reads
       try
         Marshal.WriteInt64(position, 0L)
-        let entries = Collections.Generic.List<string>()
-        let mutable error = None
-        let mutable count = getdents_raw (fd, bytes, position)
-        while count > 0 && error.IsNone do
-          let mutable offset = 0
-          while offset < count && error.IsNone do
-            let nameOffset = if isMac then 21 else 19
-            let recordOffset = 16
-            if offset + nameOffset >= count then
-              error <- Some(5, "Invalid directory record")
-            else
-              let length = int (BitConverter.ToUInt16(bytes, offset + recordOffset))
-              if length <= nameOffset || offset + length > count then
-                error <- Some(5, "Invalid directory record length")
-              else
-                let start = offset + nameOffset
-                let mutable finish = start
-                while finish < offset + length && bytes[finish] <> 0uy do
-                  finish <- finish + 1
-                if finish = offset + length then
-                  error <- Some(5, "Unterminated directory entry")
-                else
-                  let name =
-                    Text.Encoding.UTF8.GetString(bytes, start, finish - start)
-                  if name <> "." && name <> ".." then entries.Add name
-                offset <- offset + length
-          if error.IsNone then count <- getdents_raw (fd, bytes, position)
-        if count < 0 then
-          Error(lastError ())
-        else
-          match error with
-          | Some e -> Error e
-          | None -> Ok(List.ofSeq entries)
+        reads []
       finally
         Marshal.FreeHGlobal position)
 
@@ -999,6 +1006,8 @@ let private RESOLVE_NO_SYMLINKS = 0x04UL
 [<Literal>]
 let private ENOSYS = 38
 
+// A per-process kernel probe: cleared once by the first ENOSYS so later opens skip straight to
+// the fallback. A racing reader that still sees `true` only makes one more failing call.
 let mutable private openat2Available = true
 
 /// Open an absolute path rejecting any symlink component, atomically. None
@@ -1012,10 +1021,11 @@ let private openNoSymlinks
   if not (openat2Available && RuntimeInformation.IsOSPlatform OSPlatform.Linux) then
     None
   else
-    let how = Array.zeroCreate 24
-    System.BitConverter.GetBytes(uint64 flags).CopyTo(how, 0)
-    System.BitConverter.GetBytes(mode).CopyTo(how, 8)
-    System.BitConverter.GetBytes(RESOLVE_NO_SYMLINKS).CopyTo(how, 16)
+    // struct open_how: flags, mode, resolve.
+    let how =
+      [ uint64 flags; mode; RESOLVE_NO_SYMLINKS ]
+      |> List.map (fun (field : uint64) -> System.BitConverter.GetBytes field)
+      |> Array.concat
     let fd = openat2_raw (AT_FDCWD, path, how, unativeint 24)
     if fd >= 0L then
       Some(new SafeFileHandle(nativeint fd, ownsHandle = true))

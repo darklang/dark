@@ -12,6 +12,8 @@ type Entry =
     reads : bool
     writes : bool }
 
+// Leases are shared by every caller holding the token: `closed` and `entry` change in place
+// under the lease's gate so all of them see a close or a new watch at once.
 type private Lease = { mutable entry : Entry; gate : obj; mutable closed : bool }
 
 type ChildEntry =
@@ -23,6 +25,7 @@ let tokenFloor : bigint = 1I <<< 128
 
 type Session(close : int -> Result<unit, int * string>) =
   let gate = obj ()
+  // The session's tables, shared across threads under `gate`.
   let entries = System.Collections.Generic.Dictionary<bigint, Lease>()
   let children = System.Collections.Generic.Dictionary<bigint, ChildLease>()
   let mutable disposed = false
