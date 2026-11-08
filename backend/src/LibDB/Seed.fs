@@ -250,6 +250,12 @@ let foldRead
 
       try
         for chunk in List.chunkBySize foldChunkSize rawOps do
+          // What the last chunk left behind, collected before this one deserializes. Concurrent GC
+          // is off (`Cli.fsproj`), so collections are rare during a fold and each chunk's syntax
+          // trees were promoted and kept to the end of it: most of a cold start's peak memory.
+          if folded > 0L then
+            System.GC.Collect(1, System.GCCollectionMode.Forced, true)
+
           let unappliedOps =
             chunk
             |> List.choose (fun (seq, branch, opId, opBlob) ->

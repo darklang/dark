@@ -33,6 +33,13 @@ open LibDB.PreparedBatch
 // Dependency table maintenance.
 // ------------------------------------------------------------------
 
+/// One callee row, prepared once per batch and run once per callee. A VALUES list sized to each item
+/// built new SQL text and parameter names for every item: about a tenth of a cold start's work.
+let private dependencyInsert =
+  "INSERT OR IGNORE INTO package_dependencies "
+  + "(item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name) "
+  + "VALUES ($item_hash, $hash, $kind, $owner, $modules, $name)"
+
 /// Record what an item's body calls: one row per callee, by hash AND by the name this parse resolved
 /// it through.
 ///
@@ -45,40 +52,23 @@ let updateDependencies
   (deps : List<DE.Dependency>)
   : Task<unit> =
   task {
-    if List.isEmpty deps then
-      ()
-    else
-      // Each dep contributes 6 placeholders to the VALUES list.
-      let placeholders =
-        deps
-        |> List.mapi (fun i _ ->
-          $"($item_hash, $hash_{i}, $kind_{i}, $owner_{i}, $modules_{i}, $name_{i})")
-        |> String.concat ", "
-
-      let sql =
-        "INSERT OR IGNORE INTO package_dependencies "
-        + "(item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name) "
-        + "VALUES "
-        + placeholders
-
+    for dep in deps do
       do!
-        exec ctx sql (fun cmd ->
+        exec ctx dependencyInsert (fun cmd ->
+          let (Hash hashStr) = dep.hash
           p cmd "$item_hash" itemHash
-          deps
-          |> List.iteri (fun i dep ->
-            let (Hash hashStr) = dep.hash
-            p cmd $"$hash_{i}" hashStr
-            p cmd $"$kind_{i}" (dep.itemKind.toString ())
-            match dep.location with
-            | Some loc ->
-              p cmd $"$owner_{i}" loc.owner
-              p cmd $"$modules_{i}" (String.concat "." loc.modules)
-              p cmd $"$name_{i}" loc.name
-            | None ->
-              // '' rather than NULL: the location columns are part of the table's key.
-              p cmd $"$owner_{i}" ""
-              p cmd $"$modules_{i}" ""
-              p cmd $"$name_{i}" ""))
+          p cmd "$hash" hashStr
+          p cmd "$kind" (dep.itemKind.toString ())
+          match dep.location with
+          | Some loc ->
+            p cmd "$owner" loc.owner
+            p cmd "$modules" (String.concat "." loc.modules)
+            p cmd "$name" loc.name
+          | None ->
+            // '' rather than NULL: the location columns are part of the table's key.
+            p cmd "$owner" ""
+            p cmd "$modules" ""
+            p cmd "$name" "")
   }
 
 
