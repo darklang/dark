@@ -2555,7 +2555,7 @@ let private quicken (generation : int) (instrs : Instruction array) : QuickOps =
         ->
         match fn.name with
         | FQFnName.TraitMethod { trait_ = Hash traitHash; method_ = methodName } ->
-          match FastOps.traitTag traitHash methodName with
+          match FastOps.quickTraitTag traitHash methodName with
           | ValueSome tag -> QuickOp(true, tag, args, dst)
           | ValueNone -> null
         | FQFnName.Builtin b ->
@@ -4936,7 +4936,17 @@ let private tryQuickOp
     false
   else
     let result =
-      if op.IsTrait then
+      if
+        op.IsTrait && (op.Tag = FastOps.int64Divide || op.Tag = FastOps.int64Modulo)
+      then
+        match op.Args.tail with
+        | [ secondReg ] ->
+          FastOps.evalInt64Checked
+            op.Tag
+            registers[op.Args.head]
+            registers[secondReg]
+        | _ -> ValueNone
+      elif op.IsTrait then
         fastTraitOp registers op.Tag op.Args
       else
         fastBuiltinOp threadID registers op.Tag op.Args

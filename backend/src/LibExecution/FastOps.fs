@@ -60,6 +60,10 @@ let shiftLeft = 26
 let shiftRight = 27
 /// `List.prepend`: a list and a value of its element type.
 let listPrepend = 28
+/// `Int64` `/` and `%`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, for
+/// quickened operator calls only, and `evalInt64Checked` answers the inputs where they cannot.
+let int64Divide = 29
+let int64Modulo = 30
 
 /// `-x` on a signed builtin numeric; anything else declines and dispatches.
 let evalNegate (a : Dval) : Dval voption =
@@ -643,3 +647,47 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "listIsEmpty" listIsEmpty
   put "listPrepend" listPrepend
   d
+
+
+/// `traitTag`, and `/` and `%` too. For `Interpreter.quicken`, which looks a call up once per
+/// function, not once per call. `traitTag` itself leaves them out because it decides more than
+/// whether `FastOps` can answer: an operator in it reports a mixed pair of operands up front, and
+/// `/` and `%` report theirs from the impl.
+let quickTraitTag (traitHash : string) (methodName : string) : int voption =
+  match traitTag traitHash methodName with
+  | ValueSome tag -> ValueSome tag
+  | ValueNone ->
+    if
+      methodName = "divide" && traitHash = PackageRefs.Trait.Stdlib.Traits.divide ()
+    then
+      ValueSome int64Divide
+    elif
+      methodName = "modulo" && traitHash = PackageRefs.Trait.Stdlib.Traits.modulo ()
+    then
+      ValueSome int64Modulo
+    else
+      ValueNone
+
+
+/// What `Builtin.int64Divide` and `Builtin.int64Mod` return, for the inputs where they return rather
+/// than raise. A zero divisor, a modulus that is not positive, and anything not two `Int64`s
+/// decline, and the impl runs and raises its own error.
+let evalInt64Checked (tag : int) (a : Dval) (b : Dval) : Dval voption =
+  match a with
+  | DInt64 x ->
+    match b with
+    | DInt64 y ->
+      if tag = int64Divide then
+        if y = 0L then
+          ValueNone
+        elif x = System.Int64.MinValue && y = -1L then
+          ValueSome(DInt64 System.Int64.MinValue)
+        else
+          ValueSome(Dval.dint64 (x / y))
+      elif tag = int64Modulo && y > 0L then
+        let r = x % y
+        ValueSome(DInt64(if r < 0L then y + r else r))
+      else
+        ValueNone
+    | _ -> ValueNone
+  | _ -> ValueNone
