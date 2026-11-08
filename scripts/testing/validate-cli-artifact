@@ -339,8 +339,11 @@ else
     suite_cli permissions allow process "$suite_process" > /dev/null 2>&1
   done
   suite_cli permissions allow native > /dev/null 2>&1
-  suite_out=$(CHECK_TIMEOUT="$SUITE_TIMEOUT" \
-    suite_cli test run --force Darklang.Cli.Tests.TestSuite) || suite_rc=$?
+  # Without TERM, as in CircleCI's macOS shell, so a local run sees what a release job does.
+  suite_out=$(
+    unset TERM
+    CHECK_TIMEOUT="$SUITE_TIMEOUT" suite_cli test run --force Darklang.Cli.Tests.TestSuite
+  ) || suite_rc=$?
 
   if [[ $suite_rc -eq 124 ]]; then
     echo "  FAIL suite (no answer in ${SUITE_TIMEOUT}s)"

@@ -77,11 +77,13 @@ val startupSeconds = 60
 
 /// Tcl for `child_gone pid`: 1 once the child has exited, whether or not it is reaped yet.
 ///
-/// Asks `ps` rather than reading /proc, which macOS doesn't have: there every child read as
-/// gone, so each drive failed with "EXITED BEFORE: the CLI was ready" before the child had
-/// loaded. An exited child stays a zombie (state Z) until the script's `wait`.
+/// Reads /proc where there is one, and asks `ps` where there isn't. Each alone breaks one
+/// release platform, and there every child reads as gone, so each drive fails with "EXITED
+/// BEFORE: the CLI was ready" before the child has loaded: macOS has no /proc, and Alpine's
+/// BusyBox `ps` has no `-p`. An exited child stays a zombie (state Z) until the script's
+/// `wait`.
 val childGone =
-  "proc child_gone {pid} {\n  if {[catch {exec ps -o stat= -p $pid} s]} { return 1 }\n  return [string match Z* [string trim $s]]\n}"
+  "proc child_gone {pid} {\n  if {[file isdirectory /proc/self]} {\n    if {[catch {set f [open /proc/$pid/stat]; set s [read $f]; close $f}]} { return 1 }\n    set fields [split [string range $s [string last \")\" $s] end] \" \"]\n    return [expr {[lindex $fields 1] eq \"Z\"}]\n  }\n  if {[catch {exec ps -o stat= -p $pid} s]} { return 1 }\n  return [string match Z* [string trim $s]]\n}"
 
 
 /// Tcl that waits until the child has started, then returns.
@@ -138,9 +140,13 @@ let drive(
   else
     // Parenthesised: Dark parses pipes greedily, so `Instance.env i |> ...` reads the
     // qualified name as the pipe's left-hand side and fails. Telemetry is on because its
-    // log is how the script knows the child has started.
+    // log is how the script knows the child has started. TERM is set because the pty is a
+    // terminal whatever shell started the test: CircleCI's macOS shell has no TERM, and
+    // the workbench rightly refuses to start without one.
     let envPrefix =
-      (Stdlib.List.append(Instance.env(i), ("DARK_TELEMETRY", "1")))
+      (Stdlib.List.concat(
+        Instance.env(i),
+        [ ("TERM", "xterm-256color"), ("DARK_TELEMETRY", "1") ]))
       |> Stdlib.List.map(fun pair ->
         let (k, v) = pair
         quoted($"{k}={v}"))
