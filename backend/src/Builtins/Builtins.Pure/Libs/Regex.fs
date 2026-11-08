@@ -93,6 +93,8 @@ type private Positions(s : string) =
       if k >= 0 then k else ~~~k
 
 
+/// Compiled patterns, shared by every call on every thread; an immutable map would
+/// need a lock or a CAS loop around each insert for no gain.
 let private cache =
   System.Collections.Concurrent.ConcurrentDictionary<struct (string * RegexOptions), Regex>()
 
@@ -275,26 +277,19 @@ let private scan
     )
 
   try
-    let mutable pieces = []
-    let mutable matches = []
-    let mutable last = 0
-    let mutable m = regex.Match input
-    let mutable broken = false
-    while m.Success && not broken do
+    let rec go (m : Match) (last : int) pieces matches =
+      if not m.Success then
+        Ok(List.rev (DString(input.Substring last) :: pieces), List.rev matches)
       // Group 0 is the match itself.
-      let valid = Seq.forall validGroup (m.Groups :> seq<Group>)
-      if valid then
-        pieces <- DString(input.Substring(last, m.Index - last)) :: pieces
-        matches <- toDT m :: matches
-        last <- m.Index + m.Length
-        m <- if firstOnly then Match.Empty else m.NextMatch()
+      elif Seq.forall validGroup (m.Groups :> seq<Group>) then
+        go
+          (if firstOnly then Match.Empty else m.NextMatch())
+          (m.Index + m.Length)
+          (DString(input.Substring(last, m.Index - last)) :: pieces)
+          (toDT m :: matches)
       else
-        broken <- true
-    if broken then
-      Error InvalidUnicodeMatch
-    else
-      pieces <- DString(input.Substring last) :: pieces
-      Ok(List.rev pieces, List.rev matches)
+        Error InvalidUnicodeMatch
+    go (regex.Match input) 0 [] []
   with :? RegexMatchTimeoutException ->
     Error MatchLimitExceeded
 
@@ -308,6 +303,8 @@ let private scanPieces
   (firstOnly : bool)
   : Result<List<Dval>, RegexError> =
   try
+    // A while loop over mutable locals: the match enumerator is a ref struct that
+    // MoveNext advances in place, so it can't be handed to a recursive function.
     let mutable pieces = []
     let mutable last = 0
     let mutable broken = false
