@@ -95,7 +95,7 @@ main() {
         x86_64 | amd64) rid="linux-musl-x64" ;;
         aarch64 | arm64)
           if is_musl; then
-            fail "no prebuilt binary for musl-based Linux (e.g. Alpine) on arm64 yet"
+            fail "this script doesn't install on musl-based Linux (e.g. Alpine) on arm64 yet; download the linux-musl-arm64 file from https://github.com/darklang/dark/releases"
           fi
           rid="linux-arm64" ;;
         armv7l)

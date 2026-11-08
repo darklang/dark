@@ -64,6 +64,7 @@ get_zig_target() {
     linux-x64)        echo "x86_64-linux-gnu" ;;
     linux-musl-x64)   echo "x86_64-linux-musl" ;;
     linux-arm64)      echo "aarch64-linux-gnu" ;;
+    linux-musl-arm64) echo "aarch64-linux-musl" ;;
     linux-arm)        echo "arm-linux-gnueabihf" ;;
     osx-x64)          echo "x86_64-macos-none" ;;
     osx-arm64)        echo "aarch64-macos-none" ;;
@@ -71,7 +72,7 @@ get_zig_target() {
   esac
 }
 
-ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64"
+ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-musl-arm64 linux-arm osx-x64 osx-arm64"
 
 # Detect the host's runtime identifier — used as the local-dev default so a
 # fresh checkout doesn't burn six cross-compiles for archives nobody will
