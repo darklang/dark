@@ -60,7 +60,7 @@ let fns () : List<BuiltInFn> =
       description = "Concatenates a list of Bytes into a single Bytes."
       fn =
         (function
-        | state, _, _, [| DList(_, items) |] ->
+        | state, _, _, [| DList(_, Items(items)) |] ->
           // Every BytesRef knows its length, so the output's size is known before
           // anything is read. The pieces are copied straight into one array of that
           // size: no buffer that grows by doubling and no copy out of it at the end.
@@ -267,7 +267,7 @@ let fns () : List<BuiltInFn> =
       description = "Collects a List<UInt8> into Bytes, copying every byte."
       fn =
         (function
-        | _, _, _, [| DList(_, items) |] ->
+        | _, _, _, [| DList(_, Items(items)) |] ->
           let bs = Dval.dlistToByteArray items
           Bytes.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())

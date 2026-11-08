@@ -291,7 +291,7 @@ module NameResolution =
     (f : 'p -> Dval)
     (nr : NameResolution<'p>)
     : Dval =
-    let originalName = DList(VT.string, List.map DString nr.originalName)
+    let originalName = DList(VT.string, Items(List.map DString nr.originalName))
     let resolved =
       C2DT.Result.toDT
         nameValueType
@@ -360,14 +360,14 @@ module TypeReference =
         "TTuple",
         [ toDT first
           toDT second
-          DList(VT.known (knownType ()), List.map toDT theRest) ]
+          DList(VT.known (knownType ()), Items(List.map toDT theRest)) ]
 
       | TDict(key, value) -> "TDict", [ toDT key; toDT value ]
 
       | TCustomType(typeName, typeArgs) ->
         "TCustomType",
         [ NameResolution.toDT (FQTypeName.knownType ()) FQTypeName.toDT typeName
-          DList(VT.known (knownType ()), List.map toDT typeArgs) ]
+          DList(VT.known (knownType ()), Items(List.map toDT typeArgs)) ]
 
       | TFn(args, ret) ->
         let args = args |> NEList.toList |> List.map toDT |> Dval.list (knownType ())
@@ -403,20 +403,20 @@ module TypeReference =
     | DEnum(_, _, [], "TBytes", []) -> TBytes
     | DEnum(_, _, [], "TStream", [ inner ]) -> TStream(fromDT inner)
 
-    | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, Items(theRest)) ]) ->
       TTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
     | DEnum(_, _, [], "TList", [ inner ]) -> TList(fromDT inner)
 
     | DEnum(_, _, [], "TDict", [ key; value ]) -> TDict(fromDT key, fromDT value)
 
-    | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
+    | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, Items(typeArgs)) ]) ->
       TCustomType(
         NameResolution.fromDT FQTypeName.fromDT typeName,
         List.map fromDT typeArgs
       )
 
-    | DEnum(_, _, [], "TFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
+    | DEnum(_, _, [], "TFn", [ DList(_vtTODO, Items(firstArg :: otherArgs)); ret ]) ->
       TFn(NEList.ofList (fromDT firstArg) (List.map fromDT otherArgs), fromDT ret)
 
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
@@ -464,7 +464,7 @@ module LetPattern =
         "LPTuple",
         [ toDT first
           toDT second
-          DList(VT.known (knownType ()), List.map toDT theRest) ]
+          DList(VT.known (knownType ()), Items(List.map toDT theRest)) ]
 
     DEnum(typeName (), typeName (), [], caseName, fields)
 
@@ -473,7 +473,7 @@ module LetPattern =
     | DEnum(_, _, [], "LPVariable", [ DInt32 reg ]) -> LPVariable(reg)
     | DEnum(_, _, [], "LPWildcard", []) -> LPWildcard
     | DEnum(_, _, [], "LPUnit", []) -> LPUnit
-    | DEnum(_, _, [], "LPTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "LPTuple", [ first; second; DList(_vtTODO, Items(theRest)) ]) ->
       LPTuple(fromDT first, fromDT second, List.map fromDT theRest)
     | _ -> Exception.raiseInternal "Invalid LetPattern" []
 
@@ -513,19 +513,20 @@ module MatchPattern =
         "MPTuple",
         [ toDT first
           toDT second
-          DList(VT.known (knownType ()), List.map toDT theRest) ]
+          DList(VT.known (knownType ()), Items(List.map toDT theRest)) ]
 
       | MPList inner ->
-        "MPList", [ DList(VT.known (knownType ()), List.map toDT inner) ]
+        "MPList", [ DList(VT.known (knownType ()), Items(List.map toDT inner)) ]
       | MPListCons(head, tail) -> "MPListCons", [ toDT head; toDT tail ]
 
       | MPEnum(caseName, fieldPats) ->
         "MPEnum",
-        [ DString caseName; DList(VT.known (knownType ()), List.map toDT fieldPats) ]
+        [ DString caseName
+          DList(VT.known (knownType ()), Items(List.map toDT fieldPats)) ]
 
       | MPOr patterns ->
         let patterns = patterns |> NEList.toList |> List.map toDT
-        "MPOr", [ DList(VT.known (knownType ()), patterns) ]
+        "MPOr", [ DList(VT.known (knownType ()), Items(patterns)) ]
 
       | MPAs(pattern, reg) -> "MPAs", [ toDT pattern; DInt32 reg ]
 
@@ -534,7 +535,7 @@ module MatchPattern =
           fields
           |> List.map (fun (name, pattern) -> DTuple(DString name, toDT pattern, []))
         "MPRecord",
-        [ DList(VT.tuple VT.string (VT.known (knownType ())) [], fields) ]
+        [ DList(VT.tuple VT.string (VT.known (knownType ())) [], Items(fields)) ]
 
     DEnum(typeName (), typeName (), [], caseName, fields)
 
@@ -561,24 +562,28 @@ module MatchPattern =
     | DEnum(_, _, [], "MPChar", [ DString c ]) -> MPChar c
     | DEnum(_, _, [], "MPString", [ DString s ]) -> MPString s
 
-    | DEnum(_, _, [], "MPTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "MPTuple", [ first; second; DList(_vtTODO, Items(theRest)) ]) ->
       MPTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, [], "MPList", [ DList(_vtTODO, inner) ]) ->
+    | DEnum(_, _, [], "MPList", [ DList(_vtTODO, Items(inner)) ]) ->
       MPList(List.map fromDT inner)
     | DEnum(_, _, [], "MPListCons", [ head; tail ]) ->
       MPListCons(fromDT head, fromDT tail)
 
-    | DEnum(_, _, [], "MPEnum", [ DString caseName; DList(_vtTODO, fieldPats) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "MPEnum",
+            [ DString caseName; DList(_vtTODO, Items(fieldPats)) ]) ->
       MPEnum(caseName, List.map fromDT fieldPats)
 
-    | DEnum(_, _, [], "MPOr", [ DList(_vtTODO, patterns) ]) ->
+    | DEnum(_, _, [], "MPOr", [ DList(_vtTODO, Items(patterns)) ]) ->
       let patterns = patterns |> List.map fromDT
       MPOr(NEList.ofList patterns.Head patterns.Tail)
 
     | DEnum(_, _, [], "MPAs", [ pattern; DInt32 reg ]) -> MPAs(fromDT pattern, reg)
 
-    | DEnum(_, _, [], "MPRecord", [ DList(_vtTODO, fields) ]) ->
+    | DEnum(_, _, [], "MPRecord", [ DList(_vtTODO, Items(fields)) ]) ->
       let fields =
         fields
         |> List.map (fun field ->
@@ -624,14 +629,20 @@ module KnownType =
         "KTTuple",
         [ ValueType.toDT first
           ValueType.toDT second
-          DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT theRest) ]
+          DList(
+            VT.known (ValueType.knownType ()),
+            Items(List.map ValueType.toDT theRest)
+          ) ]
       | KTList inner -> "KTList", [ ValueType.toDT inner ]
       | KTDict(key, value) -> "KTDict", [ ValueType.toDT key; ValueType.toDT value ]
 
       | KTCustomType(typeName, typeArgs) ->
         "KTCustomType",
         [ FQTypeName.toDT typeName
-          DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs) ]
+          DList(
+            VT.known (ValueType.knownType ()),
+            Items(List.map ValueType.toDT typeArgs)
+          ) ]
 
       | KTFn(args, ret) ->
         let args =
@@ -669,7 +680,7 @@ module KnownType =
     | DEnum(_, _, [], "KTBytes", []) -> KTBytes
     | DEnum(_, _, [], "KTStream", [ inner ]) -> KTStream(ValueType.fromDT inner)
 
-    | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, Items(theRest)) ]) ->
       KTTuple(
         ValueType.fromDT first,
         ValueType.fromDT second,
@@ -679,10 +690,10 @@ module KnownType =
     | DEnum(_, _, [], "KTDict", [ key; value ]) ->
       KTDict(ValueType.fromDT key, ValueType.fromDT value)
 
-    | DEnum(_, _, [], "KTCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
+    | DEnum(_, _, [], "KTCustomType", [ typeName; DList(_vtTODO, Items(typeArgs)) ]) ->
       KTCustomType(FQTypeName.fromDT typeName, List.map ValueType.fromDT typeArgs)
 
-    | DEnum(_, _, [], "KTFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
+    | DEnum(_, _, [], "KTFn", [ DList(_vtTODO, Items(firstArg :: otherArgs)); ret ]) ->
       KTFn(
         NEList.ofList
           (ValueType.fromDT firstArg)
@@ -725,10 +736,13 @@ module ApplicableNamedFn =
         "typeArgs",
         DList(
           VT.known (TypeReference.knownType ()),
-          List.map TypeReference.toDT namedFn.typeArgs
+          Items(List.map TypeReference.toDT namedFn.typeArgs)
         )
         "argsSoFar",
-        DList(VT.known (Dval.knownType ()), List.map Dval.toDT namedFn.argsSoFar) ]
+        DList(
+          VT.known (Dval.knownType ()),
+          Items(List.map Dval.toDT namedFn.argsSoFar)
+        ) ]
 
     DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
@@ -759,9 +773,11 @@ module ApplicableLambda =
         ("closedRegisters",
          DList(
            VT.tuple VT.int32 (VT.known (Dval.knownType ())) [],
-           lambda.closedRegisters
-           |> Captures.toList
-           |> List.map (fun (reg, dv) -> DTuple(DInt32 reg, Dval.toDT dv, []))
+           Items(
+             lambda.closedRegisters
+             |> Captures.toList
+             |> List.map (fun (reg, dv) -> DTuple(DInt32 reg, Dval.toDT dv, []))
+           )
          ))
         ("typeSymbolTable",
          Dval.stringDictFromMap
@@ -862,12 +878,13 @@ module Dval =
         "DTuple"
         [ toDT first
           toDT second
-          DList(VT.known (knownType ()), List.map toDT theRest) ]
+          DList(VT.known (knownType ()), Items(List.map toDT theRest)) ]
 
-    | DList(vt, items) ->
+    | DList(vt, Items(items)) ->
       mk
         "DList"
-        [ ValueType.toDT vt; DList(VT.known (knownType ()), List.map toDT items) ]
+        [ ValueType.toDT vt
+          DList(VT.known (knownType ()), Items(List.map toDT items)) ]
 
     | DDict(kt, vt, entries) ->
       mk
@@ -888,7 +905,10 @@ module Dval =
         "DRecord"
         [ FQTypeName.toDT sourceTypeName
           FQTypeName.toDT runtimeTypeName
-          DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
+          DList(
+            VT.known (ValueType.knownType ()),
+            Items(List.map ValueType.toDT typeArgs)
+          )
           Dval.stringDict
             (knownType ())
             (RecordFields.toList (RecordFields.map toDT fields)) ]
@@ -898,9 +918,12 @@ module Dval =
         "DEnum"
         [ FQTypeName.toDT sourceTypeName
           FQTypeName.toDT runtimeTypeName
-          DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
+          DList(
+            VT.known (ValueType.knownType ()),
+            Items(List.map ValueType.toDT typeArgs)
+          )
           DString caseName
-          DList(VT.known (knownType ()), List.map toDT fields) ]
+          DList(VT.known (knownType ()), Items(List.map toDT fields)) ]
 
     | DApplicable applicable -> mk "DApplicable" [ Applicable.toDT applicable ]
 
@@ -950,11 +973,11 @@ module Dval =
     | DEnum(_, _, [], "DDateTime", [ DDateTime d ]) -> DDateTime d
     | DEnum(_, _, [], "DUuid", [ DUuid u ]) -> DUuid u
 
-    | DEnum(_, _, [], "DTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "DTuple", [ first; second; DList(_vtTODO, Items(theRest)) ]) ->
       DTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, [], "DList", [ vt; DList(_vtTODO, l) ]) ->
-      DList(ValueType.fromDT vt, List.map fromDT l)
+    | DEnum(_, _, [], "DList", [ vt; DList(_vtTODO, Items(l)) ]) ->
+      DList(ValueType.fromDT vt, Items(List.map fromDT l))
 
     | DEnum(_, _, [], "DDict", [ kt; vt; DDict(_ktTODO, _vtTODO, map) ]) ->
       DDict(
@@ -1846,7 +1869,7 @@ module RuntimeError =
           "UnwrapOperandNotContainer", [ Dval.toDT actual ]
         | RuntimeError.Unwraps.MultipleArgs args ->
           "MultipleArgs",
-          [ DList(VT.known (Dval.knownType ()), List.map Dval.toDT args) ]
+          [ DList(VT.known (Dval.knownType ()), Items(List.map Dval.toDT args)) ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1904,14 +1927,14 @@ module RuntimeError =
           "DispatchAmbiguous",
           [ FQTraitName.toDT trait_
             ValueType.toDT self
-            DList(VT.known (Hash.knownType ()), List.map Hash.toDT candidates) ]
+            DList(VT.known (Hash.knownType ()), Items(List.map Hash.toDT candidates)) ]
         | RuntimeError.Traits.MethodAmbiguous(method_, self, traits) ->
           "MethodAmbiguous",
           [ DString method_
             ValueType.toDT self
             DList(
               VT.known (FQTraitName.knownType ()),
-              List.map FQTraitName.toDT traits
+              Items(List.map FQTraitName.toDT traits)
             ) ]
         | RuntimeError.Traits.SelfTypeUnknown(trait_, method_) ->
           "SelfTypeUnknown", [ FQTraitName.toDT trait_; DString method_ ]
@@ -2005,7 +2028,8 @@ module RuntimeError =
       | RuntimeError.Match e -> "Match", [ Matches.toDT e ]
       | RuntimeError.ParseTimeNameResolution(names, e) ->
         "ParseTimeNameResolution",
-        [ DList(VT.string, names |> List.map DString); NameResolutionError.toDT e ]
+        [ DList(VT.string, Items(names |> List.map DString))
+          NameResolutionError.toDT e ]
       | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
       | RuntimeError.ValueNotFound name -> "ValueNotFound", [ FQValueName.toDT name ]
       | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
@@ -2027,7 +2051,9 @@ module RuntimeError =
         [ DString msg
           DList(
             VT.tuple VT.string (VT.known (Dval.knownType ())) [],
-            metadata |> List.map (fun (k, v) -> DTuple(DString k, Dval.toDT v, []))
+            Items(
+              metadata |> List.map (fun (k, v) -> DTuple(DString k, Dval.toDT v, []))
+            )
           ) ]
       | RuntimeError.Condition message -> "Condition", [ DString message ]
 
@@ -2063,7 +2089,7 @@ module RuntimeError =
     | DEnum(_, _, [], "ParseTimeNameResolution", [ names; e ]) ->
       let namesList =
         match names with
-        | DList(_, items) ->
+        | DList(_, Items(items)) ->
           items
           |> List.map (fun d ->
             match d with
@@ -2095,7 +2121,7 @@ module RuntimeError =
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
     | DEnum(_, _, [], "Trait", [ e ]) -> RuntimeError.Trait(Traits.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
-    | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, metadata) ]) ->
+    | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, Items(metadata)) ]) ->
       RuntimeError.UncaughtException(
         msg,
         metadata

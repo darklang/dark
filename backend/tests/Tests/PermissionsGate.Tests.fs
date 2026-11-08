@@ -446,7 +446,7 @@ let guestCodeCanCallPolicyReads =
         [| LibExecution.Dval.optionNone RT.KTUuid
            LibExecution.Dval.optionSome RT.KTString (RT.DString hash) |]
     match approvals with
-    | RT.DList(_, [ RT.DRecord(_, _, _, fields) ]) ->
+    | RT.DList(_, RT.Items([ RT.DRecord(_, _, _, fields) ])) ->
       Expect.equal
         (RT.RecordFields.tryFind "hash" fields)
         (Some(RT.DString hash))
@@ -510,7 +510,7 @@ let evaluatedNamedFnInContainerCannotWidenReentry =
       |> PT2RT.Expr.toRT Map.empty 0 None
     let! produced = LibExecution.Execution.executeExpr (denyAll exeState) expr
     match produced with
-    | Ok(RT.DList(_, [ RT.DApplicable(RT.AppNamedFn namedFn) ])) ->
+    | Ok(RT.DList(_, RT.Items([ RT.DApplicable(RT.AppNamedFn namedFn) ]))) ->
       Expect.isSome
         namedFn.access
         "evaluating the function reference captures before list construction"

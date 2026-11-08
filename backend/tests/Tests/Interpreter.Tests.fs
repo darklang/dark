@@ -298,10 +298,13 @@ module SyncUnify =
       RT.DChar "c"
       RT.DString "s"
       RT.DUuid(System.Guid.NewGuid())
-      RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L ])
-      RT.DList(RT.ValueType.Known RT.KTString, [ RT.DString "s" ])
-      RT.DList(RT.ValueType.Unknown, [])
-      RT.DList(RT.ValueType.Known(RT.KTList(RT.ValueType.Known RT.KTInt64)), [])
+      RT.DList(RT.ValueType.Known RT.KTInt64, RT.Items([ RT.DInt64 1L ]))
+      RT.DList(RT.ValueType.Known RT.KTString, RT.Items([ RT.DString "s" ]))
+      RT.DList(RT.ValueType.Unknown, RT.Items([]))
+      RT.DList(
+        RT.ValueType.Known(RT.KTList(RT.ValueType.Known RT.KTInt64)),
+        RT.Items([])
+      )
       RT.DDict(
         RT.ValueType.Known RT.KTString,
         RT.ValueType.Known RT.KTInt64,
@@ -508,8 +511,8 @@ module AliasChecks =
                       declaration targetName [ "b" ] (RT.TList(RT.TVariable "b"))
                   Ply.Ply(Some decl) }
           for actual in
-            [ RT.DList(VT.known RT.KTInt64, [ RT.DInt64 1L ])
-              RT.DList(VT.known RT.KTString, [ RT.DString "text" ]) ] do
+            [ RT.DList(VT.known RT.KTInt64, RT.Items([ RT.DInt64 1L ]))
+              RT.DList(VT.known RT.KTString, RT.Items([ RT.DString "text" ])) ] do
             let! accepted = check types expected actual
             match accepted with
             | Ok tst ->
@@ -566,7 +569,7 @@ module DictKeyOrdering =
       "DString", RT.DString "s"
       "DDateTime", RT.DDateTime(LibExecution.DarkDateTime.T(2026, 8, 31, 0, 0, 0))
       "DUuid", RT.DUuid(System.Guid.NewGuid())
-      "DList", RT.DList(VT.unknown, [])
+      "DList", RT.DList(VT.unknown, RT.Items([]))
       "DTuple", RT.DTuple(RT.DUnit, RT.DUnit, [])
       "DDict", RT.DDict(VT.unknown, VT.unknown, RT.DictMap.empty)
       "DRecord",
@@ -628,7 +631,9 @@ module DictKeyOrdering =
       let dictOfBad =
         RT.DDict(VT.unknown, VT.unknown, RT.DictMap.ofList [ RT.DUnit, bad ])
       Expect.isFalse (isValid bad) "a stream is not a key"
-      Expect.isFalse (isValid (RT.DList(VT.unknown, [ bad ]))) "nor a list of one"
+      Expect.isFalse
+        (isValid (RT.DList(VT.unknown, RT.Items([ bad ]))))
+        "nor a list of one"
       Expect.isFalse
         (isValid (RT.DTuple(RT.DUnit, bad, [])))
         "nor a tuple holding one"
@@ -636,7 +641,7 @@ module DictKeyOrdering =
       Expect.isFalse (isValid (RT.DFloat nan)) "NaN is not a key"
       Expect.isFalse (isValid (RT.DFloat32 nanf)) "nor a Float32 NaN"
       Expect.isFalse
-        (isValid (RT.DList(VT.unknown, [ RT.DFloat 1.0; RT.DFloat nan ])))
+        (isValid (RT.DList(VT.unknown, RT.Items([ RT.DFloat 1.0; RT.DFloat nan ]))))
         "nor a list holding one"
       Expect.isFalse
         (isValid (
@@ -649,7 +654,7 @@ module DictKeyOrdering =
         "nor a dict holding one as a value"
       Expect.isTrue (isValid (RT.DFloat infinity)) "infinity is still a key"
       Expect.isTrue
-        (isValid (RT.DList(VT.unknown, [ RT.DInt64 1L ])))
+        (isValid (RT.DList(VT.unknown, RT.Items([ RT.DInt64 1L ]))))
         "a list of ordinary values is still a key")
 
   let private seamPairs : List<string * RT.Dval * RT.Dval> =
@@ -701,8 +706,8 @@ module DictKeyOrdering =
 
   let nestedIncompatibilityIsReported =
     testCase "nested incompatible values are reported" (fun _ ->
-      let left = RT.DList(VT.unknown, [ RT.DInt64 1L ])
-      let right = RT.DList(VT.unknown, [ RT.DString "one" ])
+      let left = RT.DList(VT.unknown, RT.Items([ RT.DInt64 1L ]))
+      let right = RT.DList(VT.unknown, RT.Items([ RT.DString "one" ]))
       try
         RT.DvalOrdering.compareForSort left right |> ignore<int>
         failtest "expected the incompatible nested values"
@@ -808,7 +813,7 @@ module ListUnique =
         RT.DDict(VT.unknown, VT.unit, RT.DictMap.ofList [ key, RT.DUnit ])
       let pairs =
         [ RT.DFloat 0.0, RT.DFloat -0.0
-          RT.DList(VT.unknown, []), RT.DList(VT.int64, [])
+          RT.DList(VT.unknown, RT.Items([])), RT.DList(VT.int64, RT.Items([]))
           record alias [ VT.unknown ], record name [ VT.int64 ]
           enum alias [ VT.unknown ], enum name [ VT.int64 ]
           // Dict keys ignore type arguments even when `equals` would distinguish
@@ -835,7 +840,8 @@ module ListUnique =
       for a, b in pairs do
         let wrappers =
           [ a, b
-            RT.DList(VT.unknown, [ a ]), RT.DList(VT.unknown, [ b ])
+            RT.DList(VT.unknown, RT.Items([ a ])),
+            RT.DList(VT.unknown, RT.Items([ b ]))
             RT.DTuple(a, RT.DUnit, []), RT.DTuple(b, RT.DUnit, [])
             RT.DRecord(name, name, [], RT.RecordFields.ofList [ "value", a ]),
             RT.DRecord(alias, name, [], RT.RecordFields.ofList [ "value", b ])
@@ -855,7 +861,7 @@ module ListUnique =
     test "long shared prefixes do not require quadratic equality calls" {
       let prefix = List.replicate 64 (RT.DInt64 0L)
       let name = RT.FQTypeName.fqPackage "record"
-      let list xs = RT.DList(VT.int64, xs)
+      let list xs = RT.DList(VT.int64, RT.Items(xs))
       let tuple xs = RT.DTuple(RT.DUnit, RT.DUnit, xs)
       let enum xs = RT.DEnum(name, name, [], "Values", xs)
       let dict xs =
@@ -873,7 +879,9 @@ module ListUnique =
         )
       let nested xs =
         [ 1..64 ]
-        |> List.fold (fun value _ -> RT.DList(VT.unknown, [ value ])) (list xs)
+        |> List.fold
+          (fun value _ -> RT.DList(VT.unknown, RT.Items([ value ])))
+          (list xs)
       for make in [ list; tuple; enum; dict; record; nested; named "partial" ] do
         let mutable comparisons = 0
         let counted =
@@ -905,9 +913,11 @@ module ListUnique =
         |> List.map (fun i ->
           RT.DList(
             VT.string,
-            [ RT.DString "owner"
-              RT.DString "modules"
-              RT.DString(string (i % 1500)) ]
+            RT.Items(
+              [ RT.DString "owner"
+                RT.DString "modules"
+                RT.DString(string (i % 1500)) ]
+            )
           ))
       let kept = rows |> List.filter seen.Add
       Expect.equal kept.Length 1500 "one copy of each row survives"
@@ -949,7 +959,10 @@ module ListUnique =
   let private collisionsStillCompare =
     test "collisions preserve distinct values and first occurrences" {
       let make last =
-        RT.DList(VT.int64, List.replicate 40 (RT.DInt64 0L) @ [ RT.DInt64 last ])
+        RT.DList(
+          VT.int64,
+          RT.Items(List.replicate 40 (RT.DInt64 0L) @ [ RT.DInt64 last ])
+        )
       let first = make 1L
       let second = make 2L
       let colliding =
@@ -983,7 +996,7 @@ module ListUnique =
 
   let private forkMakers : List<RT.Dval -> RT.Dval -> RT.Dval> =
     let name = RT.FQTypeName.fqPackage "shared"
-    [ (fun a b -> RT.DList(VT.unknown, [ a; b ]))
+    [ (fun a b -> RT.DList(VT.unknown, RT.Items([ a; b ])))
       (fun a b -> RT.DTuple(a, b, []))
       (fun a b ->
         RT.DDict(
@@ -1307,7 +1320,10 @@ module DeepValues =
   /// A list and its element type, both nested `depth` levels deep.
   let private deepList () : RT.Dval =
     let rec build (n : int) (value : RT.Dval) (typ : RT.ValueType) : RT.Dval =
-      if n = 0 then value else build (n - 1) (RT.DList(typ, [ value ])) (VT.list typ)
+      if n = 0 then
+        value
+      else
+        build (n - 1) (RT.DList(typ, RT.Items([ value ]))) (VT.list typ)
 
     build depth (RT.DInt64 1L) (VT.known RT.KTInt64)
 
@@ -1370,7 +1386,7 @@ module DeepValues =
         |> List.fold
           (fun inner i ->
             match i % 6 with
-            | 0 -> RT.DList(VT.unknown, [ inner ])
+            | 0 -> RT.DList(VT.unknown, RT.Items([ inner ]))
             | 1 -> RT.DTuple(RT.DUnit, inner, [])
             | 2 ->
               RT.DDict(VT.unit, VT.unknown, RT.DictMap.ofList [ RT.DUnit, inner ])
@@ -1727,7 +1743,7 @@ module DebugText =
         RT.DTuple(
           RT.DInt64 5L,
           RT.DString "hi",
-          [ RT.DList(RT.ValueType.Unknown, [ RT.DBool true; RT.DUnit ])
+          [ RT.DList(RT.ValueType.Unknown, RT.Items([ RT.DBool true; RT.DUnit ]))
             RT.DEnum(tn, tn, [], "Some", [ RT.DFloat 1.5 ])
             RT.DRecord(tn, tn, [], RT.RecordFields.ofList [ "a", RT.DChar "x" ]) ]
         )

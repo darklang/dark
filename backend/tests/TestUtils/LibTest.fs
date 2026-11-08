@@ -191,7 +191,7 @@ let fns () : List<BuiltInFn> =
       description = "The items as a stream, each pull waiting on the host first."
       fn =
         (function
-        | _, _, _, [| DList(_, items) |] ->
+        | _, _, _, [| DList(_, Items(items)) |] ->
           let remaining = ref items
           let next () : Ply<Option<Dval>> =
             uply {
@@ -218,7 +218,7 @@ let fns () : List<BuiltInFn> =
       description = "The items as a stream that logs each pull and its disposal."
       fn =
         (function
-        | _, _, _, [| DString label; DList(_, items) |] ->
+        | _, _, _, [| DString label; DList(_, Items(items)) |] ->
           let remaining = ref items
           let next () : Ply<Option<Dval>> =
             uply {

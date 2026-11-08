@@ -626,7 +626,7 @@ module ExecutionError =
     let metadataDval =
       u.metadata
       |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-      |> fun items -> DList(VT.known pairKT, items)
+      |> fun items -> DList(VT.known pairKT, Items(items))
     let fields = [ "message", DString u.message; "metadata", metadataDval ]
     DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
@@ -702,7 +702,7 @@ let private reportedNodeIds (report : Dval) : List<id> =
     | _ -> None
   let list d =
     match d with
-    | Some(DList(_, items)) -> items
+    | Some(DList(_, Items(items))) -> items
     | _ -> []
   list (field "items" report)
   |> List.collect (fun item -> list (field "diagnostics" item))
@@ -788,7 +788,7 @@ let private checkGuest
       let args =
         NEList.ofList
           (DUuid state.branchId.Guid)
-          [ DList(VT.customType (PT2DT.PackageOp.typeName ()) [], converted) ]
+          [ DList(VT.customType (PT2DT.PackageOp.typeName ()) [], Items(converted)) ]
       match! Exe.executeFunction state fnName [] args with
       | Ok(DRecord(_, _, _, fields) as report) ->
         match RecordFields.tryFind "verdict" fields with
@@ -1344,7 +1344,10 @@ let fns () : List<BuiltInFn> =
                         DString output.stdout,
                         [ DString output.stderr
                           Dval.dint64 (int64 output.exitCode)
-                          DList(VT.string, List.map DString output.cleanupErrors) ]
+                          DList(
+                            VT.string,
+                            Items(List.map DString output.cleanupErrors)
+                          ) ]
                       ))
 
               | _ ->
@@ -1416,7 +1419,7 @@ let fns () : List<BuiltInFn> =
              DUuid branchId
              DString filename
              DString code
-             DList(_vtTODO, scriptArgs)
+             DList(_vtTODO, Items(scriptArgs))
              DBool allowHarmful
              DBool sandbox
              DBool warnPermissions |] ->
@@ -1515,7 +1518,7 @@ let fns () : List<BuiltInFn> =
                         resultOk (
                           DTuple(
                             RT2DT.Dval.toDT result,
-                            DList(VT.known violationKT, violations),
+                            DList(VT.known violationKT, Items(violations)),
                             []
                           )
                         )
@@ -1589,7 +1592,10 @@ let fns () : List<BuiltInFn> =
         | exeState,
           _,
           _,
-          [| accountIDDval; DUuid branchId; DString traceID; DList(_, focusRows) |] ->
+          [| accountIDDval
+             DUuid branchId
+             DString traceID
+             DList(_, Items(focusRows)) |] ->
           uply {
             // Parsing and replay must use the same account as the invoking CLI or editor.
             let exeState =

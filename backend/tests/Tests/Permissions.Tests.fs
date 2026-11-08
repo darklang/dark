@@ -520,9 +520,12 @@ let materializedValuesCaptureCallablesRecursively =
         argsSoFar = []
         boundImpls = [] }
     let stored =
-      RT.DList(RT.ValueType.Unknown, [ RT.DApplicable(RT.AppNamedFn named) ])
+      RT.DList(
+        RT.ValueType.Unknown,
+        RT.Items([ RT.DApplicable(RT.AppNamedFn named) ])
+      )
     match LibExecution.Dval.captureValueAccess denyAll stored with
-    | RT.DList(_, [ RT.DApplicable(RT.AppNamedFn captured) ]) ->
+    | RT.DList(_, RT.Items([ RT.DApplicable(RT.AppNamedFn captured) ])) ->
       match captured.access with
       | Some access ->
         Expect.isFalse

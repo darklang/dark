@@ -360,7 +360,7 @@ let fns () : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, vm, _, [| DList(_, l) as list; DString sep |] ->
+        | _, vm, _, [| DList(_, Items(l)) as list; DString sep |] ->
           l
           |> List.map (fun s ->
             match s with

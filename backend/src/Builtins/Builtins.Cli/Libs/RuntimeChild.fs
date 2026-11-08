@@ -50,7 +50,7 @@ let fns () =
       TBigInt
       KTBigInt
       (function
-       | [| DString program; DList(_, args); DBool inheritTerminal |] ->
+       | [| DString program; DList(_, Items(args)); DBool inheritTerminal |] ->
          let args =
            args
            |> List.map (function

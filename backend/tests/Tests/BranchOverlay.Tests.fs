@@ -65,8 +65,9 @@ let private darkStringList (code : string) : Task<List<string>> =
         | other -> $"{other}")
 
     match! evalDarkExpr code with
-    | Ok(RT.DList(_, items)) -> return strings items
-    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DList(_, items) ])) -> return strings items
+    | Ok(RT.DList(_, RT.Items(items))) -> return strings items
+    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DList(_, RT.Items(items)) ])) ->
+      return strings items
     | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString e ])) ->
       return failtest $"the Dark call failed: {e}"
     | Ok other -> return failtest $"unexpected result shape: {other}"

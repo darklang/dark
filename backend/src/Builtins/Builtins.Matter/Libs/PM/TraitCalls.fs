@@ -65,7 +65,7 @@ module private Decode =
 
   let hashes (d : Dval) : List<PT.Hash> =
     match d with
-    | DList(_, items) -> items |> List.choose hash
+    | DList(_, Items(items)) -> items |> List.choose hash
     | _ -> []
 
   let private nodeId (d : Dval) : Option<id> =
@@ -103,7 +103,7 @@ module private Decode =
     | DRecord(_, _, _, fields) ->
       let resolutions =
         match field "resolutions" fields with
-        | Some(DList(_, items)) -> items |> List.choose resolution
+        | Some(DList(_, Items(items))) -> items |> List.choose resolution
         | _ -> []
       match field "item" fields with
       | Some(DEnum(_, _, _, ("PackageFn" | "PackageValue" | "PackageTest"), [ h ])) ->
@@ -117,7 +117,7 @@ module private Decode =
     match d with
     | DRecord(_, _, _, fields) ->
       match field "items" fields with
-      | Some(DList(_, items)) -> items |> List.choose itemReport |> Map.ofList
+      | Some(DList(_, Items(items))) -> items |> List.choose itemReport |> Map.ofList
       | _ -> Map.empty
     | _ -> Map.empty
 
@@ -385,7 +385,7 @@ let private askChecker
           match report with
           | DRecord(_, _, _, fields) ->
             match RecordFields.tryFind "warnings" fields with
-            | Some(DList(_, ws)) -> List.length ws
+            | Some(DList(_, Items(ws))) -> List.length ws
             | _ -> 0
           | _ -> 0
         if warnings > 0 then

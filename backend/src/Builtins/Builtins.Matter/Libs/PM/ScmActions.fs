@@ -163,7 +163,7 @@ let private nameBaseFromDT (d : Dval) : Detect.NameBase =
 
 let private listOf (f : Dval -> 'a) (d : Dval) : List<'a> =
   match d with
-  | DList(_, items) -> List.map f items
+  | DList(_, Items(items)) -> List.map f items
   | other -> Exception.raiseInternal "expected a List" [ "got", other ]
 
 
@@ -194,7 +194,7 @@ let private discardWhatFromDT (d : Dval) : Actions.DiscardWhat =
   | DEnum(_, _, _, "All", []) -> Actions.All
   | DEnum(_, _, _, "Name", [ loc ]) -> Actions.Name(PT2DT.PackageLocation.fromDT loc)
   | DEnum(_, _, _, "Collapse", []) -> Actions.Collapse
-  | DEnum(_, _, _, "Ops", [ DList(_, ids) ]) -> Actions.Ops(strings ids)
+  | DEnum(_, _, _, "Ops", [ DList(_, Items(ids)) ]) -> Actions.Ops(strings ids)
   | other -> Exception.raiseInternal "unknown DiscardWhat" [ "got", other ]
 
 let private repointFromDT (d : Dval) : Actions.Repoint =
@@ -373,7 +373,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let scope =
               match field f "scope" with
               | DEnum(_, _, _, "Whole", []) -> Actions.Whole
-              | DEnum(_, _, _, "Only", [ DList(_, ids) ]) ->
+              | DEnum(_, _, _, "Only", [ DList(_, Items(ids)) ]) ->
                 Actions.Only(strings ids)
               | other ->
                 Exception.raiseInternal "unknown CommitScope" [ "got", other ]

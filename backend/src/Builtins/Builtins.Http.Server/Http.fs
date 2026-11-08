@@ -61,7 +61,9 @@ module Response =
       let body = RT.RecordFields.tryFind "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBytes bodyRef) ->
+      | Some(RT.DInt64 code),
+        Some(RT.DList(_, RT.Items(headers))),
+        Some(RT.DBytes bodyRef) ->
         let headers =
           headers
           |> List.fold

@@ -115,7 +115,7 @@ let fns () : List<BuiltInFn> =
         "Constructs a stream that yields the given list's items in order, then Done."
       fn =
         (function
-        | state, _, [ elemType ], [| DList(elemVT, items) |] ->
+        | state, _, [ elemType ], [| DList(elemVT, Items(items)) |] ->
           uply {
             // A stream is consumed by pulling, so its position is state that each pull moves.
             let remaining = ref items
@@ -221,11 +221,11 @@ let fns () : List<BuiltInFn> =
           // back to the declared type-arg for empty results.
           let finish () : Ply<Dval> =
             if collected.Count > 0 then
-              Ply(DList(Dval.toValueType collected[0], List.ofSeq collected))
+              Ply(DList(Dval.toValueType collected[0], Items(List.ofSeq collected)))
             else
               uply {
                 let! elemVT = resolveElemVT state elemType
-                return DList(elemVT, [])
+                return DList(elemVT, Items([]))
               }
           let rec onPulled (r : Option<Dval>) : Ply<Dval> =
             match r with
@@ -411,7 +411,7 @@ let fns () : List<BuiltInFn> =
         + "advancing to the next sub-stream when the current one is exhausted."
       fn =
         (function
-        | _, _, _, [| DList(_, items) |] ->
+        | _, _, _, [| DList(_, Items(items)) |] ->
           let impls =
             items
             |> List.map (fun dv ->

@@ -48,7 +48,11 @@ let private runHash (h : string) : Task<string> =
       + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{h}\"))"
     match! evalAsCli code with
     | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Pass", []) ])) -> return "pass"
-    | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Fail", [ RT.DList(_, ms) ]) ])) ->
+    | Ok(RT.DEnum(_,
+                  _,
+                  _,
+                  "Ok",
+                  [ RT.DEnum(_, _, _, "Fail", [ RT.DList(_, RT.Items(ms)) ]) ])) ->
       let messages =
         ms
         |> List.map (function

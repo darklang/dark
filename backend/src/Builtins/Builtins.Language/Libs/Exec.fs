@@ -60,7 +60,7 @@ let private parkedToDT (parked : Scheduler.Parked) : Dval =
           ValueType.Known(
             KTCustomType(typ PackageRefs.Type.Stdlib.Host.eventSpec, [])
           ),
-          specs
+          Items(specs)
         ) ]
   | Scheduler.OnProcess pid -> case "Process" [ DUuid pid ]
 
@@ -136,7 +136,7 @@ let chooserFor
       System.Console.Error.WriteLine(policyComplaint name what)
   fun runnable ->
     let arg =
-      DList(ValueType.Known(summaryType ()), runnable |> List.map summaryToDT)
+      DList(ValueType.Known(summaryType ()), Items(runnable |> List.map summaryToDT))
     try
       match
         (LibExecution.Execution.executeFunction state fn [] (NEList.singleton arg))
@@ -259,7 +259,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let rows = LibExecution.HostRegistry.list () |> List.map machineProcessToDT
-          DList(ValueType.Known(machineProcessType ()), rows) |> Ply
+          DList(ValueType.Known(machineProcessType ()), Items(rows)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       deprecated = NotDeprecated
@@ -278,7 +278,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let rows = snapshot () |> List.map summaryToDT
-          DList(ValueType.Known(summaryType ()), rows) |> Ply
+          DList(ValueType.Known(summaryType ()), Items(rows)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceRead ]
@@ -459,7 +459,7 @@ let fns () : List<BuiltInFn> =
         + "is an error."
       fn =
         (function
-        | _, vm, _, [| DList(_, handles) |] ->
+        | _, vm, _, [| DList(_, Items(handles)) |] ->
           let s = Scheduler.Scheduler.CurrentOrShared
           // A handle whose row has left the capped display table has finished, and its
           // answer is kept until taken, so it wins the race outright. Rows go once 64

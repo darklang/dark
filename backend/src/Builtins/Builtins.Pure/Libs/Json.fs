@@ -81,7 +81,7 @@ module JsonPath =
 
   let toDT (path : JsonPath) : Dval =
     let partType = VT.customType (Part.typeName ()) []
-    path |> List.map Part.toDT |> (fun parts -> DList(partType, parts))
+    path |> List.map Part.toDT |> (fun parts -> DList(partType, Items(parts)))
 
 
 
@@ -175,7 +175,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   // Nested types
   | DTuple(d1, d2, rest) -> w.writeArray (fun () -> List.iter r (d1 :: d2 :: rest))
 
-  | DList(_, items) -> w.writeArray (fun () -> List.iter r items)
+  | DList(_, Items(items)) -> w.writeArray (fun () -> List.iter r items)
 
   | DDict(_, _, fields) ->
     // `iter` rather than `toList |> List.iter`: the latter builds a tuple and a cons per

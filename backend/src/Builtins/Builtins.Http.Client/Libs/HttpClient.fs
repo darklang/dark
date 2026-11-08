@@ -151,7 +151,7 @@ let private send
   (answer : Host.Response -> Ply<Dval>)
   : Ply<Dval> =
   match args with
-  | [| DString method; DString uri; DList(_, reqHeaders); DBytes bodyRef |] ->
+  | [| DString method; DString uri; DList(_, Items(reqHeaders)); DBytes bodyRef |] ->
     let headers = parseHeaders vm wrapper reqHeaders
     Bytes.withBytes state bodyRef (fun body ->
       Interpreter.requestHost vm (operation method uri headers body) (fun outcome ->

@@ -487,7 +487,7 @@ let log
         let args =
           try
             match BinarySer.RT.Dval.deserialize "trace_fn_calls.args" argBytes with
-            | RT.DList(_, items) -> Some items
+            | RT.DList(_, RT.Items(items)) -> Some items
             | _ -> None
           with _ ->
             None

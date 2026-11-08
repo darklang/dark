@@ -1855,7 +1855,7 @@ let private parkedInsideShowsTheLambda
   }
 
 let private mapped =
-  RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 2L; RT.DInt64 3L ])
+  RT.DList(RT.ValueType.Known RT.KTInt64, RT.Items([ RT.DInt64 2L; RT.DInt64 3L ]))
 
 let private parkedInsideMapShowsTheLambda =
   parkedInsideShowsTheLambda
@@ -1888,7 +1888,7 @@ let private budgetYieldInsideMap =
       (expectOk result "the map")
       (RT.DList(
         RT.ValueType.Known RT.KTInt64,
-        [ RT.DInt64 200010000L; RT.DInt64 450015000L ]
+        RT.Items([ RT.DInt64 200010000L; RT.DInt64 450015000L ])
       ))
       "both spins summed"
     Expect.isGreaterThan
@@ -1943,7 +1943,7 @@ let private transformAfterTheSourceWaits =
     let expected =
       RT.DList(
         RT.ValueType.Known RT.KTInt64,
-        [ RT.DInt64 20L; RT.DInt64 30L; RT.DInt64 40L ]
+        RT.Items([ RT.DInt64 20L; RT.DInt64 30L; RT.DInt64 40L ])
       )
     // Scheduled: the wait parks the process; the landing pushes the lambda's frame.
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
@@ -2379,27 +2379,39 @@ let private cancelStopsAnEmptyLambdaMap =
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     // `fun x -> x` compiles to no instructions: each element is a frame pushed and returned. Long
     // enough to take seconds if nothing preempts it.
-    let! (p : Scheduler.Process) =
-      spawn
-        s
-        state
-        "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(0, 5000000), fun x -> x))"
-    let running = runOnThread s p
-    // Preempted at least once, so it is mid-map rather than still building the range.
-    let deadline = System.DateTime.UtcNow.AddSeconds 60.
-    while p.slices < 2L
-          && not running.IsCompleted
-          && System.DateTime.UtcNow < deadline do
-      Thread.Sleep 1
-    if running.IsCompleted then
-      failtest $"the map finished in {p.slices} slice(s), never preempted"
-    Expect.isTrue (s.Cancel p.id) "cancel found it"
-    let sw = System.Diagnostics.Stopwatch.StartNew()
-    let! result = running
-    match result with
-    | Error(RTE.UncaughtException("cancelled", _), _) -> ()
-    | other -> failtest $"expected cancelled, got {other}"
-    Expect.isLessThan sw.ElapsedMilliseconds 1000L "it stopped within a slice or so"
+    //
+    // Serial: spread, the map runs on other cores, and what this is about is the budget preempting
+    // it on this one. It used to pass spread too, only because `length` walked the five million
+    // results afterwards for long enough for the cancel to land.
+    let saved = LibExecution.Spread.crossover
+    LibExecution.Spread.crossover <- -1L
+    try
+      let! (p : Scheduler.Process) =
+        spawn
+          s
+          state
+          "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(0, 5000000), fun x -> x))"
+      let running = runOnThread s p
+      // Preempted at least once, so it is mid-map rather than still building the range.
+      let deadline = System.DateTime.UtcNow.AddSeconds 60.
+      while p.slices < 2L
+            && not running.IsCompleted
+            && System.DateTime.UtcNow < deadline do
+        Thread.Sleep 1
+      if running.IsCompleted then
+        failtest $"the map finished in {p.slices} slice(s), never preempted"
+      Expect.isTrue (s.Cancel p.id) "cancel found it"
+      let sw = System.Diagnostics.Stopwatch.StartNew()
+      let! result = running
+      match result with
+      | Error(RTE.UncaughtException("cancelled", _), _) -> ()
+      | other -> failtest $"expected cancelled, got {other}"
+      Expect.isLessThan
+        sw.ElapsedMilliseconds
+        1000L
+        "it stopped within a slice or so"
+    finally
+      LibExecution.Spread.crossover <- saved
   }
 
 

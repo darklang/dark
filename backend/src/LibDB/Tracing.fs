@@ -431,13 +431,15 @@ module Redact =
   let rec http (dv : RT.Dval) : RT.Dval =
     match dv with
     | RT.DString s -> RT.DString(url s)
-    | RT.DList(vt, items) when not (List.isEmpty items) && List.forall isHeader items ->
+    | RT.DList(vt, RT.Items(items)) when
+      not (List.isEmpty items) && List.forall isHeader items
+      ->
       let redactOne (item : RT.Dval) : RT.Dval =
         match item with
         | RT.DTuple(RT.DString name, _, []) when isSecretName name ->
           RT.DTuple(RT.DString name, RT.DString redacted, [])
         | other -> other
-      RT.DList(vt, List.map redactOne items)
+      RT.DList(vt, RT.Items(List.map redactOne items))
     | RT.DRecord(tn, original, typeArgs, fields) ->
       RT.DRecord(tn, original, typeArgs, RT.RecordFields.map http fields)
     | RT.DEnum(tn, original, typeArgs, case, fields) ->
@@ -806,7 +808,7 @@ module TraceStorage =
   /// `Unknown` value type is fine — args don't carry coherent type
   /// info at the trace boundary, and the reader just unwraps the list.
   let private serializeArgs (args : List<RT.Dval>) : byte[] =
-    let asList = RT.DList(LibExecution.ValueType.unknownTODO, args)
+    let asList = RT.DList(LibExecution.ValueType.unknownTODO, RT.Items(args))
     BinarySer.RT.Dval.serialize "trace_fn_calls.args" asList
 
   let private serializeDval (id : string) (dv : RT.Dval) : byte[] =
@@ -1369,7 +1371,7 @@ let createViewTracer
       let argsBytes =
         BinarySer.RT.Dval.serialize
           "trace_fn_calls.args"
-          (RT.DList(LibExecution.ValueType.unknownTODO, List.ofArray args))
+          (RT.DList(LibExecution.ValueType.unknownTODO, RT.Items(List.ofArray args)))
       let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
       lock answersGate (fun () ->
         match Lookup.tryFindV key answers with

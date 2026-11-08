@@ -137,7 +137,7 @@ let private parseDvalBytes (bytes : byte[]) : Dval =
 /// each element through the darklang-typed Dval pipeline.
 let private parseArgsBytes (bytes : byte[]) : List<Dval> =
   match BinarySer.RT.Dval.deserialize "trace_fn_calls.args" bytes with
-  | DList(_, items) -> items |> List.map RT2DT.Dval.toDT
+  | DList(_, Items(items)) -> items |> List.map RT2DT.Dval.toDT
   | other ->
     Exception.raiseInternal "trace_fn_calls.args was not a DList" [ "actual", other ]
 

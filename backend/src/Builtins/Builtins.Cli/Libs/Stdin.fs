@@ -689,7 +689,7 @@ let fns () : List<BuiltInFn> =
         + "it. The contract every host loop is written against (docs/processes.md)."
       fn =
         (function
-        | _, vm, _, [| DList(_, specs) |] ->
+        | _, vm, _, [| DList(_, Items(specs)) |] ->
           let specs = specs |> List.map (eventSpecOfDval vm)
           if List.contains HE.EventSpec.Key specs then installKeySource ()
           if
