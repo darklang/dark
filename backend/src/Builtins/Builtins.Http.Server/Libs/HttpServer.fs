@@ -538,6 +538,10 @@ let private handleRequest
       | Live live -> live.dev
       | Fixed _ -> false
     let isLiveStream = dev && ctx.Request.Url.AbsolutePath = "/__live"
+    // `HttpListener` writes `Server: Microsoft-NetCore/2.0` on any response without a `Server`
+    // header, and has no switch to leave it off. So every response starts with `Server: darklang`,
+    // including the 413, 500 and 504 written here. A handler's own `Server` replaces it.
+    ctx.Response.Headers.Set(HttpResponseHeader.Server, "darklang")
     // Set once this request has a recorder, so the 500 handler below can still write what was
     // recorded before things went wrong. A request that crashed the server is the one you most
     // want to find in `dark traces`, and it is the one that never reached the store.
@@ -673,6 +677,11 @@ let private handleRequest
                 respHeaders, response.body
 
             ctx.Response.StatusCode <- response.statusCode
+            if
+              respHeaders
+              |> List.exists (fun (k, _) -> String.equalsCaseInsensitive k "Server")
+            then
+              ctx.Response.Headers.Remove HttpResponseHeader.Server
             for (key, value) in respHeaders do
               ctx.Response.Headers.Add(key, value)
 
