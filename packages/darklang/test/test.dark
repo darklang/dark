@@ -23,9 +23,6 @@ let returnsResultOk(): Stdlib.Result.Result<Int64, String> =
 let returnsResultError(): Stdlib.Result.Result<Char, Bool> =
   Stdlib.Result.Result.Error(false)
 
-let throwsException(): DateTime =
-  Builtin.testRaiseException("throwsException message")
-
 type X<'a> =
   | A(Int64)
   | B('a)

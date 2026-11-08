@@ -285,20 +285,6 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "testRaiseException" 0
-      typeParams = []
-      parameters = [ Param.make "message" TString "" ]
-      returnType = TVariable "a"
-      description = "A function that raises an F# exception"
-      fn =
-        (function
-        | _, _, _, [| DString message |] -> raise (System.Exception message)
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
