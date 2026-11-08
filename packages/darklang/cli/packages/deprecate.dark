@@ -321,32 +321,37 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                     names = affected
                     dryRun = dryRun }))
 
+          // Under --dry-run the preview is the answer, so it goes to stdout. Otherwise it is what the
+          // prompt asks about, and goes to stderr with the prompt, so a refusal leaves stdout empty.
+          let preview = fun(line) ->
+            if parsed.dryRun then Stdlib.printLine(line) else Stdlib.printErrorLine(line)
+
           if Stdlib.Bool.not(parsed.json) then
-            Stdlib.printLine($"  Will deprecate {itemTypeStr} {fullPath}")
-            Stdlib.printLine($"    kind: {kindStr}")
+            preview($"  Will deprecate {itemTypeStr} {fullPath}")
+            preview($"    kind: {kindStr}")
             if parsed.message != "" then
-              Stdlib.printLine($"    message: {parsed.message}")
+              preview($"    message: {parsed.message}")
             match parsed.replacement with
-            | Some(r) -> Stdlib.printLine($"    replacement: {r}")
+            | Some(r) -> preview($"    replacement: {r}")
             | None -> ()
 
-            // Two or more names: list them all so the confirm is informed.
+            // Two or more names: list them all so the confirm is informed. The warning is on
+            // stderr; the names are what would be deprecated, so they go with the preview.
             match affected with
             | [] -> ()
             | [ _ ] -> ()
             | _ ->
-              Stdlib.printLine(
+              Stdlib.printErrorLine(
                 (Stdlib.Cli.UI.Colors.warning(
                   $"  Heads up: this {itemTypeStr}'s content is bound to multiple names -- deprecation keys on content, so ALL of these are deprecated together:")))
               affected
-              |> Stdlib.List.map(fun a -> $"    - {a}")
-              |> Stdlib.printLines
+              |> Stdlib.List.iter(fun a -> preview($"    - {a}"))
 
           if parsed.dryRun || (parsed.json && Stdlib.Bool.not(parsed.autoConfirm)) then
             if parsed.json then
               report(true)
             else
-              Stdlib.printLine("(dry-run, no op emitted)")
+              Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("(dry-run, no op emitted)"))
             state
           else
             let proceed =
@@ -387,7 +392,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 Cli.printErr($"Deprecation failed: {e}")
                 Cli.exitWith(state, false)
             else
-              Cli.Stderr.line("Deprecation cancelled.")
+              if Stdlib.Cli.UI.Prompt.canAsk() then
+                Cli.Stderr.line("Deprecation cancelled.")
+              else
+                Cli.Stderr.line("Deprecation cancelled. (`-y` deprecates without the prompt -- a piped stdin can't answer it.)")
               Cli.exitWith(state, false)
 
 

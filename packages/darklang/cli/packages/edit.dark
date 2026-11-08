@@ -149,7 +149,7 @@ let execute(state: AppState, args: List<String>): AppState =
         // A non-zero editor is how you say "forget it" in most of them. The store
         // is left alone and so is the file, so a long edit is not thrown away on a
         // stray exit code.
-        Stdlib.printLine(
+        Stdlib.printErrorLine(
           $"`{editor}` exited {Stdlib.toString(code)}; nothing applied.")
 
         Stdlib.printErrorLine(

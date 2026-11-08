@@ -683,7 +683,8 @@ let updateNamed(
             match review with
             | None -> approvedFirst
             | Some(diffs) ->
-              Stdlib.printLine(
+              // What the next question asks about, so on stderr with the question.
+              Stdlib.printErrorLine(
                 (Command.approvalFailureText(
                   LanguageTools.Permissions.ApprovalFailure.ContractChanged(diffs))))
               // The differences were shown; accepting them is the review.
