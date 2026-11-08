@@ -41,8 +41,9 @@ let content(): String =
   Decimal (`19.99dec`) is exact base-10 with up to 28 places: `+ - * / %`, unary `-` and
   comparisons. No `**`; `Stdlib.Decimal.power(d, n)` takes a whole Int64 power. A result
   past 96 bits raises; `/` gives as many places as fit, so follow it with
-  `Stdlib.Decimal.round(q, 2)` (or `roundWith` and a `RoundingMode`) to fix them. The
-  places written are kept (`1.10dec` prints 1.10) but `1.10dec == 1.1dec`.
+  `Stdlib.Decimal.round(q, 2)` (or `roundWith` and a `RoundingMode`) to fix them; both
+  return a Result, an Error for places outside 0 to 28. The places written are kept
+  (`1.10dec` prints 1.10) but `1.10dec == 1.1dec`.
 
 ## Bitwise (every integer type; Float has no implementation)
   & | ^ << >>   and unary ~x

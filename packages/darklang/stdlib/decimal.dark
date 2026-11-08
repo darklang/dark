@@ -31,11 +31,6 @@ let fromParts(
   Builtin.decimalFromParts(unscaled, scale)
 
 
-/// Raises with <param message>, for a result the caller asked for that cannot exist.
-let __refuse(message: String): Decimal =
-  Builtin.unwrap(Stdlib.Result.Result.Error(message))
-
-
 impl Add for Decimal =
   /// Add <param a> and <param b>; the result has the larger of their scales
   let add(a: Decimal, b: Decimal): Decimal = Builtin.add(a, b)
@@ -143,13 +138,25 @@ type RoundingMode =
   | Ceiling
 
 
+/// Why <fn Decimal.roundWith>, <fn Decimal.round> or <fn Decimal.truncate> has no result.
+type RoundError =
+  /// The places asked for are outside 0 to 28
+  | PlacesOutOfRange
+  /// Padding to the places asked for needs more than 96 bits
+  | OutOfRange
+
+
 /// <param d> at exactly <param places> places, the dropped digits settled by <param mode>:
-/// {{Decimal.roundWith(2.345dec, 2, RoundingMode.HalfEven) == 2.34dec}}. More places than
-/// <param d> has pads with zeros. Raises when <param places> is outside 0 to 28, or the
-/// padded value needs more than 96 bits.
-let roundWith(d: Decimal, places: Int64, mode: RoundingMode): Decimal =
+/// {{Decimal.roundWith(2.345dec, 2, RoundingMode.HalfEven) == Ok(2.34dec)}}. More places
+/// than <param d> has pads with zeros. {{Error PlacesOutOfRange}} when <param places> is
+/// outside 0 to 28, and {{Error OutOfRange}} when the padded value needs more than 96 bits.
+let roundWith(
+  d: Decimal,
+  places: Int64,
+  mode: RoundingMode)
+  : Stdlib.Result.Result<Decimal, RoundError> =
   if places < 0 || places > 28 then
-    __refuse($"Decimal places must be between 0 and 28, got {Stdlib.toString(places)}")
+    Error(RoundError.PlacesOutOfRange)
   else
     let (unscaled, s) = toParts(d)
 
@@ -177,36 +184,48 @@ let roundWith(d: Decimal, places: Int64, mode: RoundingMode): Decimal =
         if negative then 0z - kept else kept
 
     match fromParts(rescaled, places) with
-    | Some(r) -> r
-    | None -> __refuse("Decimal result is out of range (more than 96 bits)")
+    | Some(r) -> Ok(r)
+    | None -> Error(RoundError.OutOfRange)
 
 
 /// <param d> rounded to exactly <param places> places, half away from zero, the way
-/// prices are rounded: {{Decimal.round(2.345dec, 2) == 2.35dec}},
-/// {{Decimal.round(-2.345dec, 2) == -2.35dec}}. Fewer places than <param d> has rounds;
-/// more pads, so {{Stdlib.toString(Decimal.round(5dec, 2)) == "5.00"}}. Raises when
-/// <param places> is outside 0 to 28, or the padded value needs more than 96 bits.
-/// <fn Decimal.roundWith> takes the other rounding modes.
-let round(d: Decimal, places: Int64): Decimal =
+/// prices are rounded: {{Decimal.round(2.345dec, 2) == Ok(2.35dec)}},
+/// {{Decimal.round(-2.345dec, 2) == Ok(-2.35dec)}}. Fewer places than <param d> has
+/// rounds; more pads, so {{Decimal.round(5dec, 2)}} prints as 5.00. {{Error PlacesOutOfRange}}
+/// when <param places> is outside 0 to 28, and {{Error OutOfRange}} when the padded value
+/// needs more than 96 bits. <fn Decimal.roundWith> takes the other rounding modes.
+let round(
+  d: Decimal,
+  places: Int64)
+  : Stdlib.Result.Result<Decimal, RoundError> =
   roundWith(d, places, RoundingMode.HalfAwayFromZero)
 
 
 /// <param d> cut to <param places> places, dropping the rest without rounding:
-/// {{Decimal.truncate(2.349dec, 2) == 2.34dec}}, {{Decimal.truncate(-2.349dec, 2) == -2.34dec}}.
-/// Raises when <param places> is outside 0 to 28.
-let truncate(d: Decimal, places: Int64): Decimal =
+/// {{Decimal.truncate(2.349dec, 2) == Ok(2.34dec)}},
+/// {{Decimal.truncate(-2.349dec, 2) == Ok(-2.34dec)}}. {{Error PlacesOutOfRange}} when
+/// <param places> is outside 0 to 28, and {{Error OutOfRange}} when the padded value
+/// needs more than 96 bits.
+let truncate(
+  d: Decimal,
+  places: Int64)
+  : Stdlib.Result.Result<Decimal, RoundError> =
   roundWith(d, places, RoundingMode.TowardsZero)
 
 
 /// The largest whole number not above <param d>, as a decimal with no places:
 /// {{Decimal.floor(-2.1dec) == -3dec}}. A decimal, not an <type Int64>: a decimal's
 /// whole part can be past Int64.
-let floor(d: Decimal): Decimal = roundWith(d, 0, RoundingMode.Floor)
+let floor(d: Decimal): Decimal =
+  // dropping every place never needs more bits, so this cannot fail
+  roundWith(d, 0, RoundingMode.Floor) |> Builtin.unwrap
 
 
 /// The smallest whole number not below <param d>, as a decimal with no places:
 /// {{Decimal.ceiling(2.1dec) == 3dec}}
-let ceiling(d: Decimal): Decimal = roundWith(d, 0, RoundingMode.Ceiling)
+let ceiling(d: Decimal): Decimal =
+  // dropping every place never needs more bits, so this cannot fail
+  roundWith(d, 0, RoundingMode.Ceiling) |> Builtin.unwrap
 
 
 /// How many significant digits <param d> carries, trailing zeros included:
