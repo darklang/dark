@@ -85,9 +85,9 @@ test workbenchPaints =
 
 /// The harness tells a running child from one that has exited, on this platform.
 ///
-/// It read /proc for this, so on macOS every child looked gone and `workbenchPaints`
-/// failed there before the CLI had started. A live `sleep` must read as running; once
-/// killed it is a zombie until reaped, and must read as gone.
+/// Without /proc (macOS), or with BusyBox's `ps` (Alpine), every child once looked gone,
+/// and `workbenchPaints` failed there before the CLI had started. A live `sleep` must read
+/// as running; once killed it is a zombie until reaped, and must read as gone.
 test interactiveSeesWhetherTheChildIsRunning =
   if Stdlib.Bool.not(Interactive.available()) then
     Stdlib.Test.fail("expect is not installed, so the interactive tests cannot run")

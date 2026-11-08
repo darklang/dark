@@ -50,6 +50,8 @@ fi
 # The CLI test suite. In CI the validator's stdin is a pty; the suite must not get it.
 if [[ "$1" == test ]]; then
   if [[ -t 0 ]]; then echo 'suite fixture: stdin is a terminal'; exit 9; fi
+  # printenv: bash gives itself an unexported TERM=dumb when the environment has none.
+  if printenv TERM > /dev/null; then echo "suite fixture: TERM is $(printenv TERM)"; exit 9; fi
   case "$FIXTURE_SUITE" in
     fail) echo 'FAIL Darklang.Cli.Tests.TestSuite.fixture'; echo '0 passed, 1 failed'; exit 1 ;;
     hang)
@@ -201,6 +203,14 @@ exec /bin/sleep "$@"
       os.close(terminal)
     self.assertEqual(rc, 0, output)
     self.assertNotIn("stdin is a terminal", output)
+    self.assertIn("ok   suite (exit 0)", output)
+
+  def test_suite_runs_without_term_as_on_ci(self):
+    os.environ["TERM"] = "xterm-256color"
+    self.addCleanup(os.environ.pop, "TERM", None)
+    rc, output = self.run_validator("success")
+    self.assertEqual(rc, 0, output)
+    self.assertNotIn("TERM is", output)
     self.assertIn("ok   suite (exit 0)", output)
 
 
