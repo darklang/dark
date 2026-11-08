@@ -778,12 +778,13 @@ test evalStringExpression =
 // fails on every unrelated codegen improvement.
 
 test viewAst =
-  let output = runWithCommand(["view", "Stdlib.List.last", "--ast"])
+  let output = runWithCommand(["view", "Stdlib.List.dropLast", "--ast"])
 
-  // A signature line, then the body tree with its node kinds. `Match`/`Arg` are what `last` is made of.
+  // A signature line, then the body tree with its node kinds. `Match`/`Arg` are what `dropLast` is made
+  // of.
   // Label and detail are coloured separately, so a row's text isn't contiguous in the output. Match on
   // the pieces rather than on a whole rendered line.
-  if Stdlib.String.contains(output, "last<'a> (list: List<'a>) ->")
+  if Stdlib.String.contains(output, "dropLast<'a> (list: List<'a>) ->")
     && Stdlib.String.contains(output, "Match")
     && Stdlib.String.contains(output, "on Arg #0, 2 cases")
     && Stdlib.String.contains(output, "[head, ...tail]")
