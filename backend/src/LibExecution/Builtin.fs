@@ -67,7 +67,11 @@ let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
       byName
         (libs |> List.collect (fun lib -> lib.values.Values |> List.ofSeq))
         _.name
-    fns = byName (fns |> renameFunctions fnRenames) _.name }
+    // Nearly every combine has no renames, and `renameFunctions` indexes every fn before it looks.
+    fns =
+      byName
+        (if List.isEmpty fnRenames then fns else renameFunctions fnRenames fns)
+        _.name }
 
 
 let make (values : List<BuiltInValue>) (fns : List<BuiltInFn>) : Builtins =

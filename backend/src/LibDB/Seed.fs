@@ -573,7 +573,8 @@ let growIfNeeded
     // migration that re-marks ops applied without evaluating, or a store copied/built without a final grow
     // (the test seed does exactly this). Gating evaluation on `appliedCount > 0` alone leaves those values
     // NULL forever, and a NULL `rt_dval` reads as "value not found". Evaluate whenever any value is
-    // unevaluated so the store self-heals on startup.
+    // unevaluated so the store self-heals on startup. Answered from `idx_package_values_unevaluated`,
+    // which holds only those values, so a warm start does not read the table to find none.
     let! hasUnevaluatedValues =
       Sql.query
         "SELECT EXISTS(SELECT 1 FROM package_values WHERE rt_dval IS NULL) AS has_null"

@@ -11,7 +11,6 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
-module BuiltinCli = Builtins.Cli.Builtin
 
 // Log to stderr and, when possible, to cli.log.
 let private logError (message : string) : unit =
@@ -40,13 +39,11 @@ let private logError (message : string) : unit =
 /// at that point -- `Seed.growIfNeeded` regenerates it. A plain module-level value is built by F#'s
 /// per-file static initializer, before `main` runs at all, so every ref would resolve to "" and the
 /// builtins would disagree with the freshly grown package DB. Force it after the grow.
+///
+/// `builtinsToUse` already holds the CLI host's own fns and `Builtins.Cli`'s, so it is the whole
+/// table; combining it with those two again built both a second time to replace them with copies.
 let private builtinsLazy : Lazy<RT.Builtins> =
-  lazy
-    (LibExecution.Builtin.combine
-      [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
-        Builtins.CliHost.Builtin.builtins ()
-        BuiltinCli.builtins () ]
-      [])
+  lazy (Builtins.CliHost.Libs.Cli.builtinsToUse ())
 
 
 
