@@ -47,6 +47,22 @@ assert_release_exe_mode() {
   return 1
 }
 
+# Which build a number came from, as `<mode> <commit>`: `debug`, `release-aot` or `release-r2r`,
+# and the short commit. The same workload has a different right answer in each mode, so every
+# reading a tool prints or records carries this. A published binary's commit is the one in its
+# `.key`, not HEAD, since the tree may have moved on; a Debug build is HEAD.
+exe_build_tag() {
+  local exe="$1" key mode commit
+  if [[ "$exe" == *"/Debug/"* ]]; then
+    echo "debug $(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
+    return
+  fi
+  mode="$(release_exe_mode "$exe")"
+  key="${exe%.gz}"; key="${key%.exe}.key"
+  commit="$(sed -n 's/^commit //p' "$key" 2>/dev/null | cut -c1-7)"
+  echo "release-$mode ${commit:-unknown}"
+}
+
 # The newest published CLI, or empty if there isn't one.
 release_exe() {
   # shellcheck disable=SC2012 # need mtime order, and no filename here has a space in it

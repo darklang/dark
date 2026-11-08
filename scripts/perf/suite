@@ -87,6 +87,8 @@ run_once() {
 # per-iteration figure.
 run_once "$SUITE/${NAMES[0]}.dark" 0 > /dev/null 2>&1 || true
 
+BUILD=$(exe_build_tag "$EXE")
+echo "measured on $BUILD ($EXE)"
 printf '%-12s %12s %12s %10s\n' workload "alloc/iter" "total alloc" "ms"
 printf '%-12s %12s %12s %10s\n' ------------ ------------ ------------ ----------
 
@@ -126,14 +128,15 @@ fi
 # benchmarks/results/history.jsonl is the long-term record: append-only, committed, and rendered
 # into benchmarks/results.md by `./scripts/run-local-exec bench-render`. Prefer --record --release,
 # since that is what ships. Schema is the shared one: inputBytes is iterations, allocBytes is PER
-# ITERATION with startup differenced out, dvalNodes is -1 because it means nothing here.
+# ITERATION with startup differenced out, dvalNodes is -1 because it means nothing here. `build` is
+# the binary's mode and commit, which for --release is not necessarily HEAD.
 if [[ "$RECORD" == "true" ]]; then
   echo
   python3 - "$results" benchmarks/results/history.jsonl \
            "$(git rev-parse HEAD 2>/dev/null || echo unknown)" \
-           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MODE" <<'PY'
+           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MODE" "$BUILD" <<'PY'
 import json, sys
-rows, history, commit, stamp, mode = json.loads(sys.argv[1]), *sys.argv[2:6]
+rows, history, commit, stamp, mode, build = json.loads(sys.argv[1]), *sys.argv[2:7]
 results = [{"scenario": f"interp.{r['workload']}.{mode}",
             "inputBytes": r["iters"],
             "allocBytes": r["bytesPerIter"],
@@ -141,7 +144,7 @@ results = [{"scenario": f"interp.{r['workload']}.{mode}",
             "dvalNodes": -1,
             "note": "alloc is per iteration, startup differenced out"} for r in rows]
 with open(history, "a") as f:
-    f.write(json.dumps({"timestamp": stamp, "commit": commit, "results": results}) + "\n")
-print(f"appended {len(results)} rows ({mode}) at {stamp}")
+    f.write(json.dumps({"timestamp": stamp, "commit": commit, "build": build, "results": results}) + "\n")
+print(f"appended {len(results)} rows ({build}) at {stamp}")
 PY
 fi

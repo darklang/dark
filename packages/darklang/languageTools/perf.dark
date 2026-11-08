@@ -11,6 +11,7 @@ type Counters =
     packageCalls: Int64
     framePushes: Int64
     buildMode: String
+    buildHash: String
     statSets: Int64 }
 
 
@@ -27,6 +28,9 @@ type Measurement =
     /// to 3x and 5x apart, so a number without it cannot be compared with another number.
     buildMode: String
 
+    /// The commit the build came from, short, or "dev" when the build does not say.
+    buildHash: String
+
     /// 0 when these are the whole process (telemetry off), positive when they are the calling VM's
     /// share of that many counter sets (telemetry on).
     statSets: Int64 }
@@ -39,6 +43,7 @@ let noCounters(): Counters =
       packageCalls = 0
       framePushes = 0
       buildMode = "unknown"
+      buildHash = "unknown"
       statSets = 0 }
 
 
@@ -71,6 +76,7 @@ let measure(f: Unit -> 'a): (Measurement * 'a) =
         packageCalls = c.packageCalls
         framePushes = c.framePushes
         buildMode = c.buildMode
+        buildHash = c.buildHash
         statSets = c.statSets }
 
   (m, result)
@@ -144,7 +150,7 @@ let ab(a: Unit -> 'a, b: Unit -> 'b, rounds: Int64): (Measurement * Measurement)
 /// A measurement as a block of lines, for a terminal.
 let render(m: Measurement): String =
   let lines =
-    [ $"  build           {m.buildMode}"
+    [ $"  build           {m.buildMode} {m.buildHash}"
       $"  allocated       {Stdlib.toString(m.allocBytes)} bytes"
       $"  time            {Stdlib.toString(m.ms)} ms"
       $"  instructions    {Stdlib.toString(m.instructions)}"

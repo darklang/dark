@@ -124,6 +124,7 @@ echo
 # The store is measured too, not just the binary: a working rundir carrying your own ops allocates a
 # couple of percent more than a freshly loaded one, which is enough to read as a regression.
 echo "store    ${HOME}/.darklang"
+echo "build    $(exe_build_tag "$EXE")"
 
 MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
 

@@ -45,9 +45,11 @@ test minusClampsAtZero =
 test measurementCarriesItsBuild =
   (let (m, _) = LanguageTools.Perf.measure(fun () -> ())
 
-   (m.buildMode == "debug")
-   || (m.buildMode == "release-aot")
-   || (m.buildMode == "release-r2r"))
+   ((m.buildMode == "debug")
+    || (m.buildMode == "release-aot")
+    || (m.buildMode == "release-r2r"))
+   && (m.buildHash != "")
+   && (m.buildHash != "unknown"))
   |> Stdlib.Test.equal(true)
 
 test bestKeepsTheLowestOfEachField =

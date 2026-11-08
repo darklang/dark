@@ -43,8 +43,36 @@ sides, takes the harness off each reading and keeps the lowest of each field per
     Perf.render(old)
     Perf.render(new)
 
-Every measurement carries the build that produced it (`debug`, `release-r2r`, `release-aot`),
-because the same workload has three different right answers.
+Every measurement carries the build that produced it, its mode (`debug`, `release-r2r`,
+`release-aot`) and its commit, because the same workload has three different right answers. `gate`
+and `suite` print the same pair for the binary they ran, and `suite --record` stores it.
+
+## What the interpreter counts
+
+`InterpreterStats.get ()` returns all of it as one JSON object; `Perf.measure` and `--stats` read
+the first few fields. Counting starts at the first `InterpreterStats.reset ()` (which `measure`
+does), and the per-fn and per-builtin timing only after `InterpreterStats.enableDetailedTiming
+true`, because a clock read can cost more than the call it times.
+
+| Field | What it is |
+| --- | --- |
+| `instructions` | VM instructions executed. Exact for a fixed workload, unlike allocation. |
+| `builtinCalls`, `packageCalls` | Calls into F# builtins and into package fns. |
+| `framePushes` | Call frames pushed: one per package fn or lambda application. |
+| `traitDispatches`, `traitDispatchMisses` | Trait calls resolved at run time, and how many of those missed the cache. |
+| `buildMode`, `buildHash` | Which build: mode and commit (`dev` for a Debug CLI not run through `scripts/run-cli`). |
+| `statSets` | 0: the counters are the whole process. Positive: they are the calling VM's share (see below). |
+| `byOpcode` | Per opcode, bytes allocated and count; `syncHit`/`syncMiss` where an opcode has a synchronous fast path. |
+| `byStage` | Per region of the Apply path, bytes and count. Read the fine-grained stages; the three `*.total` ones bracket nested execution and can exceed what the process allocated. |
+| `builtinTiming`, `packageFnTiming` | With detailed timing on: nanoseconds and calls, per builtin by name and per package fn by hash. `fnprofile` turns the second into a ranked table with names. |
+
+With telemetry off, every VM shares one counter set and a read sees everything. With
+`DARK_TELEMETRY=1`, each VM gets its own, a read sees one VM's share (`statSets` says so), and the
+process total is in the exit dump in `logs/telemetry.jsonl` (under `rundir/` for the dev CLI,
+`~/.darklang/` for a published one), which `view-telemetry.py` reads. So the more instrumented mode
+tells you less from inside the script. That dump also has what `get` leaves out: allocation and
+calls per builtin by name (`builtinAlloc.*`), register slots allocated, type-symbol-table sizes, and
+the per-opcode totals across every VM.
 
 ## The recipe
 
