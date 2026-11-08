@@ -130,6 +130,108 @@ let mergeRefusal(branchId: Uuid, branchRef: String, typeErrors: TypeErrors): Boo
     | Incomplete -> false
 
 
+/// The tests a merge of <param branchId> touches: the tests it changes, and every test that
+/// uses something it changes, directly or through other code, read on the branch. The rest
+/// cannot have changed, so a merge does not run them.
+let touchedTests(
+  branchId: Uuid)
+  : List<
+  LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>> =
+  let changed =
+    SCM.PackageOps.branchDiffEntries(branchId)
+    |> Stdlib.List.filterMap(fun e ->
+      match SCM.Branches.parseFqn(e.name), LanguageTools.ProgramTypes.ItemKind.fromString(
+              e.kind) with
+      | Some((owner, modules, name)), Some(kind) ->
+        Option.Some((SCM.Deps.locationOf(owner, modules, name), kind))
+      | _ -> Option.None)
+
+  let names =
+    Stdlib.List.concat(changed, Cli.Deps.getTransitiveDependentsOn(branchId, changed))
+    |> Stdlib.List.filterMap(fun((loc, kind)) ->
+      if kind == LanguageTools.ProgramTypes.ItemKind.Test then
+        Option.Some((Deps.fqnOf(loc), true))
+      else
+        Option.None)
+    |> Stdlib.Dict.fromList
+
+  // Listing every test is the slow part, and most merges touch none.
+  if Stdlib.Dict.isEmpty(names) then
+    []
+  else
+    Packages.Test.liveTests(branchId)
+    |> Stdlib.List.filter(fun item -> Stdlib.Dict.containsKey(names, Packages.Test.fullPath(item)))
+
+
+/// Which of the touched tests a merge runs. `--skip-tests` is `Skip`, `--run-all-tests` is
+/// `All`, and the default runs them unless there are more isolated ones than the cap.
+type TouchedTestRun =
+  | Skip
+  | UpToCap
+  | All
+
+
+/// Over this many isolated test groups -- each its own process and store copy -- a merge prints
+/// the command that runs them instead of running them: 662 that drive the CLI took 75 s.
+val touchedTestCap = 50
+
+
+/// Whether a merge leaves its <param isolated> touched isolated test groups to the person.
+let overTheCap(run: TouchedTestRun, isolated: Int64): Bool =
+  match run with
+  | UpToCap -> isolated > touchedTestCap
+  | Skip | All -> false
+
+
+/// The command that runs <param names> on <param branchRef>, as a person would type it.
+let testRunCommand(branchRef: String, names: List<String>): String =
+  Stdlib.String.join(
+    Stdlib.List.concat([ "dark", "--branch", branchRef, "test", "run" ], names),
+    " ")
+
+
+/// Run the tests merging <param branchId> touches, the way `dark test run` runs them: only
+/// those, in parallel, reusing cached passes. A failure is a warning, not a refusal: the
+/// merge still asks, and still goes ahead on a yes. Over the cap, it prints the command instead.
+let runTouchedTests(branchId: Uuid, branchRef: String, run: TouchedTestRun): Unit =
+  match run with
+  | Skip -> ()
+  | _ ->
+    match touchedTests(branchId) with
+    | [] -> printQuiet("  no tests use what this branch changes.")
+    | tests ->
+      let n = Text.plural(Stdlib.List.length(tests), "test group")
+      let isolated =
+        tests
+        |> Stdlib.List.filter(fun item ->
+          Stdlib.Bool.not(LanguageTools.PackageManager.Test.runsInProcess(item.entity.hash)))
+        |> Stdlib.List.length
+
+      if overTheCap(run, isolated) then
+        printOk(
+          $"\"{branchRef}\" touches {n}, {Stdlib.display(isolated)} of them isolated: over the cap of {Stdlib.display(touchedTestCap)}, so the merge does not run them.")
+
+        printQuiet("  to run them:")
+        Stdlib.printLine(
+          "  " + testRunCommand(branchRef, Stdlib.List.map(tests, Packages.Test.fullPath)))
+
+        printQuiet($"  or `dark merge {branchRef} --run-all-tests` runs them before the merge.")
+      else
+        printOk($"Running the {n} that \"{branchRef}\" touches:")
+        let counts =
+          LanguageTools.PackageManager.Test.withStoreSnapshot(branchId, fun snapshot ->
+            Packages.Test.runAndSummarize(
+              snapshot,
+              branchId,
+              Packages.Test.defaultRunOptions(),
+              tests))
+
+        if counts.failed > 0 then
+          let failed = Text.plural(counts.failed, "touched test group")
+          printErr($"warning: {failed} failed on \"{branchRef}\". Merging lands them failing.")
+          printHint($"  `dark --branch {branchRef} test run <name>` reruns one after a fix.")
+
+
 /// `dark merge <branch>`.
 ///
 /// Asks the same way the bare form does. Naming the branch is not the confirmation: a merge moves
@@ -140,7 +242,8 @@ let executeMerge(
   state: AppState,
   branchRef: String,
   confirm: Confirm,
-  typeErrors: TypeErrors)
+  typeErrors: TypeErrors,
+  tests: TouchedTestRun)
   : AppState =
   match resolveRef(branchRef) with
   | None -> failed(state)
@@ -160,6 +263,8 @@ let executeMerge(
       printErr($"couldn't merge: {SCM.Branches.refusalMessage(r)}")
       failed(state)
     | Ok(_) ->
+      // Before the question, so whoever answers it has seen the results.
+      let _ = runTouchedTests(branchId, branchRef, tests)
       if
         Stdlib.Bool.not(
           Prompt.confirmExplicit(
@@ -282,6 +387,13 @@ let mergeHelp(_state: AppState): String =
     "  dark merge <branch>        merge that one"
     "  dark merge --dry-run       show what would land, change nothing"
     "  dark merge <branch> --dry-run"
+    "  dark merge --skip-tests    merge without running the tests it touches"
+    "  dark merge --run-all-tests run them even over the cap"
+    ""
+    "  Before it asks, a merge runs the tests the branch touches: the ones it"
+    "  changes, and every one that uses something it changes. A failure is"
+    "  reported, and the merge still goes ahead on a yes. Over 50 isolated"
+    "  test groups it prints the `dark test run` command instead."
     ""
     "  Conflicts do not block a merge. Both sides are folded, the later edit wins by"
     "  recency, and the version that lost is recorded rather than dropped --"
@@ -311,11 +423,27 @@ let bareTargetBranch(verb: String): Result<String, Unit> =
 /// `dark discard` does. Naming a branch is already a deliberate act and goes straight through.
 ///
 /// An explicit yes, not a default-yes: a stray Return or a piped stdin must not move work into main.
-let executeMergeBare(state: AppState, confirm: Confirm, typeErrors: TypeErrors): AppState =
+let executeMergeBare(
+  state: AppState,
+  confirm: Confirm,
+  typeErrors: TypeErrors,
+  tests: TouchedTestRun)
+  : AppState =
   match bareTargetBranch("merge") with
   | Error(_) -> failed(state)
   | Ok(name) ->
     let previewed = executeMergePreview(state, name, Preview.BeforeAsking)
+
+    // Here rather than in `executeMerge`, which this calls after the question: the results
+    // belong before it. Not for a branch the preview already said cannot merge.
+    let _ =
+      if previewed.exitCode == 0 then
+        match resolveRef(name) with
+        | Some(branchId) -> runTouchedTests(branchId, name, tests)
+        | None -> ()
+      else
+        ()
+
     if
       Stdlib.Bool.not(
         Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Merge it? [y/N]: ")))
@@ -325,10 +453,10 @@ let executeMergeBare(state: AppState, confirm: Confirm, typeErrors: TypeErrors):
 
       failed(previewed)
     else
-      executeMerge(previewed, name, Confirm.Assume, typeErrors)
+      executeMerge(previewed, name, Confirm.Assume, typeErrors, TouchedTestRun.Skip)
 
 
-/// `dark merge [branch] [-y] [--allow-type-errors] [--dry-run]`
+/// `dark merge [branch] [-y] [--allow-type-errors] [--skip-tests] [--run-all-tests] [--dry-run]`
 ///
 /// One parse for every combination, rather than an arm per spelling: the arm list missed
 /// `merge <branch> -y` entirely, so the named form had no way to say yes in advance.
@@ -344,15 +472,30 @@ let executeMergeCmd(state: AppState, args: List<String>): AppState =
       TypeErrors.Refuse
 
   let dryRun = Stdlib.List.contains(flags, "--dry-run")
+  let tests =
+    if Stdlib.List.contains(flags, "--skip-tests") then
+      TouchedTestRun.Skip
+    else if Stdlib.List.contains(flags, "--run-all-tests") then
+      TouchedTestRun.All
+    else
+      TouchedTestRun.UpToCap
+
   let unknown =
     flags
     |> Stdlib.List.filter(fun f ->
-      f != "-y" && f != "--yes" && f != "--allow-type-errors" && f != "--dry-run")
+      f != "-y"
+      && f != "--yes"
+      && f != "--allow-type-errors"
+      && f != "--skip-tests"
+      && f != "--run-all-tests"
+      && f != "--dry-run")
 
   match unknown with
   | [bad, ...] ->
     printErr($"unknown flag: {bad}")
-    printHint("usage: dark merge [branch] [-y] [--allow-type-errors] [--dry-run]")
+    printHint(
+      "usage: dark merge [branch] [-y] [--allow-type-errors] [--skip-tests] [--run-all-tests] [--dry-run]")
+
     { state with exitCode = 1 }
   | [] ->
     match rest with
@@ -362,12 +505,12 @@ let executeMergeCmd(state: AppState, args: List<String>): AppState =
         | Ok(name) -> executeMergeDryRun(state, name)
         | Error(_) -> failed(state)
       else
-        executeMergeBare(state, confirm, typeErrors)
+        executeMergeBare(state, confirm, typeErrors, tests)
     | [id] ->
       if dryRun then
         executeMergeDryRun(state, id)
       else
-        executeMerge(state, id, confirm, typeErrors)
+        executeMerge(state, id, confirm, typeErrors, tests)
     | _ ->
       printErr("usage: dark merge <branch>")
       printHint("  `dark branches` lists them.")
