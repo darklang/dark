@@ -671,12 +671,11 @@ test exprsKeywordNames =
       roundTrip("non-ASCII letters stay bare", "let zażółć = \"x\"\nzażółć", "let zażółć = \"x\"\nzażółć")
       roundTrip("the blank name prints as ___", "let ___ = \"x\"\n___", "let ___ = \"x\"\n___") ])
 
-// Every word the lexer reserves (backend/src/LibParser/Lexer.fs `keyword`), so the
-// printer's list in `formatName` can't fall behind it. `_` is left out: it is the
+// Every word the lexer reserves prints back escaped. `_` is left out: it is the
 // wildcard, printed bare on purpose.
 test exprsEveryKeywordAsName =
-  [ "let", "val", "in", "if", "elif", "then", "else", "type", "trait", "impl", "of"
-    "match", "with", "fun", "when", "true", "false" ]
+  LanguageTools.Parser.keywords
+  |> Stdlib.List.filter(fun word -> word != "_")
   |> Stdlib.List.map(fun word ->
     let source = $"let ``{word}`` = \"x\"\n``{word}``"
     roundTrip($"keyword {word} as a name", source, source))

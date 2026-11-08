@@ -84,13 +84,11 @@ let escapeSpecialCharacters(s: String): String =
 let escapeCharLiteral(s: String): String =
   (__escapeCommon(s)) |> Stdlib.String.replaceAll("'", "\\'")
 
-// Keep this list in sync with the lexer's `keyword` function
-// (backend/src/LibParser/Lexer.fs). `def` is intentionally not reserved.
+/// The lexer's reserved words, as a set.
 val reservedNames =
-  Dict
-    { "let": (), "val": (), "in": (), "if": (), "elif": (), "then": (), "else": ()
-      "type": (), "trait": (), "impl": (), "of": (), "match": (), "with": ()
-      "fun": (), "when": (), "true": (), "false": () }
+  LanguageTools.Parser.keywords
+  |> Stdlib.List.map(fun word -> (word, ()))
+  |> Stdlib.Dict.fromList
 
 /// A name the lexer reads as a bare identifier, ASCII only: the common case, and cheaper.
 val bareAsciiName = Stdlib.Regex.ofPattern("\\A[A-Za-z_][A-Za-z0-9_']*\\z")

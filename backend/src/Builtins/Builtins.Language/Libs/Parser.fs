@@ -1497,4 +1497,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins () = LibExecution.Builtin.make [] (fns ())
+let values () : List<BuiltInValue> =
+  [ { name = value "parserKeywords" 0
+      typ = TList TString
+      description =
+        "The words the parser reserves, each a name only in double backticks (``match``). "
+        + "The lexer's own list, so the pretty printer and docs can't drift from it."
+      deprecated = NotDeprecated
+      body =
+        DList(VT.string, Lex.keywords |> List.map (fun (word, _) -> DString word)) } ]
+
+
+let builtins () = LibExecution.Builtin.make (values ()) (fns ())

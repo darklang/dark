@@ -381,26 +381,14 @@ let foundDesc (state : ParserState) (i : int) : string =
     if t.Length > 24 then $"'{t.Substring(0, 24)}…'" else $"'{t}'"
 let errExpected (state : ParserState) (i : int) (what : string) =
   err state DiagnosticCode.expected i $"expected {what}, found {foundDesc state i}"
-// the words the lexer reserves; `true`, `false` and `_` are left out, since
-// where a name is expected they are usually a literal pattern
+// the words the lexer reserves (`Lexer.keywords`); `true`, `false` and `_` are left
+// out, since where a name is expected they are usually a literal pattern
 let private isKeyword (t : Token) : bool =
   match t with
-  | TLet
-  | TVal
-  | TIn
-  | TIf
-  | TElif
-  | TThen
-  | TElse
-  | TType
-  | TTrait
-  | TImpl
-  | TOf
-  | TMatch
-  | TWith
-  | TFun
-  | TWhen -> true
-  | _ -> false
+  | TTrue
+  | TFalse
+  | TUnderscore -> false
+  | _ -> keywords |> List.exists (fun (_, k) -> k = t)
 // "; `match` is a keyword, so to use it as a name write ``match``", or "" when
 // the token at `i` is no keyword. `prefix` goes in front of the escaped word. A
 // keyword that starts a line is more likely the next statement after a missing
