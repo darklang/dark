@@ -28,7 +28,7 @@ let withServer(args: List<String>): Result<Stdlib.Cli.Process.Output, String> =
       $"No compiler at {compiler}. Build the pinned one with scripts/compiler/build, or set DARK_COMPILER.")
   else
     match Stdlib.Net.Port.fromInt64(port) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Result.Error(Stdlib.display(e))
     | Ok(p) ->
       let defaults = Stdlib.HttpServer.Config.defaults(p)
       let config = { defaults with logRequests = false }
