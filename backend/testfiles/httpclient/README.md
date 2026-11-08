@@ -12,3 +12,7 @@ These files are read, parsed, and evaluated by `HttpClient.Tests.fs`.
 This all works almost exactly how the `HttpClient::` functions are tested, in the
 corresponding `httpclient` directory. Please refer to the `README.md` there for
 details on how these tests are set up.
+
+A file whose name starts with `_` is disabled: it is parsed but skipped. Lines at the top of a
+file that start with `//` are comments; a disabled file starts with a `// CLEANUP:` line saying what
+would let it come back.
