@@ -127,6 +127,13 @@ let executePretty(state: AppState): AppState =
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  -> `dark commit` to review + commit (it asks first)"))
 
+  // Sync with another machine, when it is on: one line, never a list.
+  let syncLine = Builtin.scmSyncLine()
+  if syncLine == "" then
+    ()
+  else
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(syncLine))
+
   // Store health, reported here rather than behind a verb: a check you have to remember to run is a check
   // nobody runs. Silent when the store is fine, which is almost always. On stderr, as a warning: the
   // draft line above is the answer, and a pipe reading it should not get the store's health too.

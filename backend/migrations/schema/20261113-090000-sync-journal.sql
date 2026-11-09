@@ -1,4 +1,4 @@
--- The sync journal (`LibDB.OpSync`): an append-only record of every change to the op log, the
+-- The sync journal (`LibDB.OpSync`): a record of every change to the op log, the
 -- commits and the branch registry, so a removal travels to another store instead of coming back
 -- from it.
 --
@@ -13,13 +13,22 @@
 -- `at` is milliseconds, and never less than one past the newest entry the store holds, its own or
 -- one that arrived: an entry made here after an import sorts after everything imported. Ties are
 -- broken by `id`, so every store orders the same entries the same way. `seq` is this store's own
--- order.
+-- order, and never reused, through a purge or a trim too: another store's cursor into this journal
+-- stays a point in it.
+--
+-- `came_from` is '' for an entry this store made, and otherwise the `instance.id` of the store it
+-- arrived from: what `dark status` counts as not on the other machine yet, and what is never sent
+-- back to where it came from.
+--
+-- Once every store this one syncs with has said it holds an entry (`sync_peers.acked_journal`),
+-- the entry is dropped if a later one for the same row replaced it. The latest entry for every row
+-- stays, so the journal is never smaller than one entry a row, and never needs to be.
 --
 -- Canonical, like the log it describes: not a projection, and a schema change keeps it. A purge
 -- and a seed export empty it. A new table, so an existing store gets it from this file at
 -- startup; the triggers run in the pass after the release steps.
 CREATE TABLE IF NOT EXISTS sync_journal (
-  seq INTEGER PRIMARY KEY,
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
   id TEXT NOT NULL UNIQUE,
   at INTEGER NOT NULL,
   kind TEXT NOT NULL,
@@ -29,13 +38,27 @@ CREATE TABLE IF NOT EXISTS sync_journal (
   commit_hash TEXT NULL,
   name TEXT NULL,
   merged_at TEXT NULL,
-  archived_at TEXT NULL
+  archived_at TEXT NULL,
+  came_from TEXT NOT NULL DEFAULT ''
 );
 
 -- Holds a row only inside an import's transaction, while it applies entries that arrived with
 -- their own ids. The triggers stay quiet then, so an imported change is not journalled again.
 CREATE TABLE IF NOT EXISTS sync_replaying (
   held INTEGER PRIMARY KEY
+);
+
+-- Each store this one has synced with, by its `instance.id`. `received_*` is how far into ITS
+-- journal and blobs this store holds everything, so the next session starts there instead of
+-- comparing whole stores. `acked_journal` is how far into THIS store's journal it said it holds
+-- everything. `seen_at` is the last time it said so.
+CREATE TABLE IF NOT EXISTS sync_peers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  received_journal INTEGER NULL,
+  received_blobs INTEGER NULL,
+  acked_journal INTEGER NOT NULL DEFAULT 0,
+  seen_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_journal_at ON sync_journal(at);
