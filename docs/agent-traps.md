@@ -10,10 +10,12 @@ and traits internals in `docs/internals.md`.
 **Half of every F# build is a package reload.** The timings in `AGENTS.md`, under "Builds", say
 a `.dark` change costs about 34s and a `.fs` change about 74s: 39s compiling, then that same
 reload of the whole package set. So half the cost of any F# change is reloading packages
-that usually didn't need reloading. It's unconditional because a `.fs` change *can*
-alter the serialized package format, and there's no cheap way to ask whether this one
-did. Narrowing it is the biggest remaining win in the loop, and it's entangled with
-`package-ref-hashes.txt`, so coordinate before starting.
+that usually didn't need reloading. A `.fs` change *can* alter the serialized package format,
+and there's no cheap way to ask whether this one did, so the build asks a narrower question:
+whether anything the reload reads changed (LocalExec's build, the `.dark` files, the schema, the
+settings; `scripts/build/_reloadstamp.py`), and whether any op was written to the store since. If
+neither, it skips the reload and says so. An edit that leaves LocalExec's assemblies alone (the
+Cli, the F# tests) costs its compile and no reload; anything else still reloads.
 
 The figure has moved in between, which is why it is worth re-measuring before acting on
 it. Resolving trait calls at save added a whole-tree type check to the reload and took it to about

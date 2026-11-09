@@ -18,6 +18,7 @@ import sys
 import tempfile
 import json
 import re
+import sqlite3
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +27,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "build"))
 import _buildindex  # noqa: E402
 import _buildplan  # noqa: E402
 import _buildstate  # noqa: E402
+import _reloadstamp  # noqa: E402
 
 
 class TempTree:
@@ -413,6 +415,141 @@ class TestState(unittest.TestCase):
       self.assertFalse(ready)
       self.assertTrue(fatal)
       self.assertIn("didn't finish", " ".join(lines))
+
+
+class TestReloadStamp(unittest.TestCase):
+  """When the build may skip its package reload. Only when a reload now would rebuild the
+  store as it stands: the same inputs, and no op written since the last one."""
+
+  def tree(self):
+    t = TempTree()
+    t.__enter__()
+    self.addCleanup(t.__exit__)
+    home = os.path.join(t.dir, "home")
+    os.makedirs(os.path.join(home, ".darklang"))
+    env = Env(HOME=home, DARK_CONFIG_DB_NAME=None)
+    env.__enter__()
+    self.addCleanup(env.__exit__)
+    t.write("backend/Build/out/LocalExec/Debug/net10.0/LocalExec.dll", "builtins v1")
+    t.write("packages/darklang/stdlib/list.dark", "let length (l: List<'a>): Int64 = 0")
+    t.write("backend/migrations/schema/00-initial-schema.sql", "CREATE TABLE package_ops (id)")
+    t.write("scripts/build/reload-packages", "#!/usr/bin/env bash")
+    t.write("scripts/run-local-exec", "#!/usr/bin/env bash")
+    t.write(_reloadstamp.REF_HASHES, "Stdlib.List = abc")
+    con = sqlite3.connect(_reloadstamp.db_path())
+    con.execute("CREATE TABLE package_ops (id TEXT, branch_id TEXT, commit_hash TEXT)")
+    con.execute("INSERT INTO package_ops VALUES ('op1', 'main', 'c1'), ('op2', 'main', 'c1')")
+    con.commit()
+    con.close()
+    return t
+
+  def reloaded(self):
+    """What the build does now: a reload, which records itself, or a skip."""
+    inputs = _reloadstamp.inputs(optimize=False)
+    if _reloadstamp.unchanged(inputs):
+      return False
+    _reloadstamp.record(inputs)
+    return True
+
+  def test_nothing_changed_skips(self):
+    self.tree()
+    self.assertTrue(self.reloaded())
+    self.assertFalse(self.reloaded())
+
+  def test_no_record_reloads(self):
+    self.tree()
+    self.assertFalse(_reloadstamp.unchanged(_reloadstamp.inputs(optimize=False)))
+
+  def test_an_edited_dark_file_reloads(self):
+    t = self.tree()
+    self.reloaded()
+    t.write("packages/darklang/stdlib/list.dark", "let length (l: List<'a>): Int64 = 1")
+    self.assertTrue(self.reloaded())
+
+  def test_a_new_dark_file_reloads(self):
+    t = self.tree()
+    self.reloaded()
+    t.write("packages/darklang/stdlib/new.dark", "let x = 1")
+    self.assertTrue(self.reloaded())
+
+  def test_a_builtin_signature_change_reloads(self):
+    # Builtins are compiled into the assemblies beside LocalExec.
+    t = self.tree()
+    self.reloaded()
+    t.write("backend/Build/out/LocalExec/Debug/net10.0/LocalExec.dll", "builtins v2")
+    self.assertTrue(self.reloaded())
+
+  def test_a_schema_change_reloads(self):
+    t = self.tree()
+    self.reloaded()
+    t.write("backend/migrations/schema/20261109-000000-new.sql", "ALTER TABLE x ADD y")
+    self.assertTrue(self.reloaded())
+
+  def test_a_changed_setting_reloads(self):
+    self.tree()
+    self.reloaded()
+    with Env(DARK_CONFIG_ROOT_DIR="/somewhere/else"):
+      self.assertTrue(self.reloaded())
+
+  def test_a_release_reload_is_not_a_debug_one(self):
+    t = self.tree()
+    self.reloaded()
+    t.write("backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec.dll", "builtins v1")
+    self.assertFalse(_reloadstamp.unchanged(_reloadstamp.inputs(optimize=True)))
+
+  def test_a_changed_ref_hash_file_reloads(self):
+    t = self.tree()
+    self.reloaded()
+    t.write(_reloadstamp.REF_HASHES, "Stdlib.List = def")
+    self.assertTrue(self.reloaded())
+
+  def write_ops(self, sql):
+    con = sqlite3.connect(_reloadstamp.db_path())
+    con.execute(sql)
+    con.commit()
+    con.close()
+
+  def test_an_op_written_since_reloads(self):
+    # `dark fn`, `dark edit`, a test: anything a reload would wipe.
+    self.tree()
+    self.reloaded()
+    self.write_ops("INSERT INTO package_ops VALUES ('op3', 'main', NULL)")
+    self.assertTrue(self.reloaded())
+
+  def test_an_op_on_another_branch_reloads(self):
+    self.tree()
+    self.reloaded()
+    self.write_ops("INSERT INTO package_ops VALUES ('op3', 'feature', NULL)")
+    self.assertTrue(self.reloaded())
+
+  def test_a_deleted_op_reloads(self):
+    self.tree()
+    self.reloaded()
+    self.write_ops("DELETE FROM package_ops WHERE id = 'op2'")
+    self.assertTrue(self.reloaded())
+
+  def test_a_recommitted_op_reloads(self):
+    self.tree()
+    self.reloaded()
+    self.write_ops("UPDATE package_ops SET commit_hash = 'c2' WHERE id = 'op2'")
+    self.assertTrue(self.reloaded())
+
+  def test_a_missing_store_reloads(self):
+    self.tree()
+    self.reloaded()
+    os.remove(_reloadstamp.db_path())
+    self.assertFalse(_reloadstamp.unchanged(_reloadstamp.inputs(optimize=False)))
+
+  def test_a_reload_removes_the_record_as_it_starts(self):
+    # One that fails or is killed half way must not leave a record vouching for the store.
+    self.tree()
+    self.reloaded()
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    with open(os.path.join(root, "scripts", "build", "reload-packages")) as f:
+      script = f.read()
+    self.assertIn('rm -f "${HOME}/.darklang/${DARK_CONFIG_DB_NAME:-data.db}.reload-stamp.json"',
+                  script)
+    self.assertTrue(_reloadstamp.record_path().endswith("/.darklang/data.db.reload-stamp.json"))
 
 
 class TestReleaseImage(unittest.TestCase):
