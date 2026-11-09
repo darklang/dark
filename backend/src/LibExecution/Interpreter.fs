@@ -4184,9 +4184,9 @@ let private applyTraitMethod
   // A mixed-type operator says so up front ("Cannot perform numeric operation on
   // Int64 and Float") rather than dispatching on the left operand and failing inside
   // the impl's parameter check. Matching builtin numeric pairs never reach here, so
-  // the check costs a dispatch only.
+  // the check costs a dispatch only. `quickTraitTag`, so `/`, `%` and `**` say it too.
   let (Hash traitHashStr) = traitHash
-  (match FastOps.traitTag traitHashStr methodName with
+  (match FastOps.quickTraitTag traitHashStr methodName with
    | ValueSome _ when List.isEmpty applicable.argsSoFar ->
      match newArgRegs.tail with
      | [ secondReg ] ->

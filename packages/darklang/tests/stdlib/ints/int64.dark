@@ -273,7 +273,8 @@ test multiply =
       8 * 8 |> Stdlib.Test.equal(64) ])
 
 test multiplyByFloatRaises =
-  1 * 1.0 => raises "Cannot perform numeric operation on Int64 and Float"
+  1 * 1.0
+  => raises "Cannot perform numeric operation on Int64 and Float. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
 
 test divide =
   Stdlib.Test.all(

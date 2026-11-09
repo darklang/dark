@@ -362,10 +362,10 @@ test optionsAndResults =
       |> Stdlib.Test.equal(true) ])
 
 test floatEqualsInt64Raises =
-  (5.7 != 6) => raises "Cannot perform equality check on Float and Int64"
+  (5.7 != 6) => raises "Cannot perform equality check on Float and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
 
 test floatEqualsSameValueInt64Raises =
-  (5.7 != 5) => raises "Cannot perform equality check on Float and Int64"
+  (5.7 != 5) => raises "Cannot perform equality check on Float and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
 
 test uint16EqualsInt16Raises =
   (5u16 == 5s16) => raises "Cannot perform equality check on UInt16 and Int16"

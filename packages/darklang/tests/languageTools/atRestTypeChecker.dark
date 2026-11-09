@@ -1421,6 +1421,19 @@ module PostfixUnwrap =
     |> Stdlib.Test.equal(
       [ "TypeMismatch: In the function's return value: expected String, got Int64 (wrap it in `Stdlib.toString`)" ])
 
+  // An operator given an Int64 and a Float says both sides must match and how to convert.
+  test mixedNumbersNameTheOperatorAndTheConversion =
+    Stdlib.Test.all(
+      [ issues("let f(n: Int64): Int64 = n / 2.0", "f")
+        |> Stdlib.Test.equal(
+          [ "TypeMismatch: `/` needs both sides to be the same type, but got Int64 and Float. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`." ])
+        issues("let f(x: Float): Bool = x == 2", "f")
+        |> Stdlib.Test.equal(
+          [ "TypeMismatch: `==` needs both sides to be the same type, but got Float and Int64. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`." ])
+        issues("let f(a: Int64, b: Int32): Int64 = a + b", "f")
+        |> Stdlib.Test.equal(
+          [ "TypeMismatch: `+` needs both sides to be the same type, but got Int64 and Int32." ]) ])
+
   // Apply the same ? rules when the operand uses a type alias or the Result
   // error type is a declared type parameter.
   test aliasesAndTypeParams =

@@ -37,7 +37,20 @@ test int64PlusBoolRaises =
   5 + true => raises "Cannot perform numeric operation on Int64 and Bool"
 
 test int64PlusFloatRaises =
-  1 + 2.0 => raises "Cannot perform numeric operation on Int64 and Float"
+  1 + 2.0
+  => raises "Cannot perform numeric operation on Int64 and Float. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+
+// `/`, `%` and `**` say so as well, rather than failing inside the left side's implementation
+test int64DividedByFloatRaises =
+  5 / 2.0
+  => raises "Cannot perform numeric operation on Int64 and Float. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+
+test floatToThePowerOfInt64Raises =
+  2.0 ** 3
+  => raises "Cannot perform numeric operation on Float and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+
+test int32ModuloInt64Raises =
+  7s32 % 2 => raises "Cannot perform numeric operation on Int32 and Int64"
 
 // #6024: joining a String and an Int is how a newcomer meets this, so it says how to convert
 test stringPlusInt64SaysHowToJoin =
