@@ -247,3 +247,76 @@ let normalizeTo (form : NormalizationForm) (s : string) : string =
 
 /// NFC, the form Dark keeps every string in.
 let normalize (s : string) : string = normalizeTo NormalizationForm.FormC s
+
+/// True when a codepoint starts at `i` that is a starter no composition can absorb: NFC never
+/// changes anything across it, so the NFC of `s` is the NFC of the text before it followed by
+/// the NFC of the text from it.
+let private isNfcBoundary (s : string) (i : int) : bool =
+  int s[i] < 0x300
+  || match Rune.DecodeFromUtf16(System.MemoryExtensions.AsSpan(s, i)) with
+     | System.Buffers.OperationStatus.Done, rune, _ ->
+       properties rune.Value &&& (0xFF ||| D.nfcFails) = 0
+     | _ -> false
+
+/// `s`, made of `count` pieces, `piece 0` to `piece (count - 1)`, each already NFC, as every Dark
+/// string is: in NFC. Text can change only around a join, between the last boundary before it
+/// and the first one after it, so only that is normalized. The cost then follows the pieces, not
+/// the whole result, which keeps building a string piece by piece linear.
+let private normalizeJoins
+  (s : string)
+  (count : int)
+  (piece : int -> string)
+  : string =
+  let rec boundaryBefore (i : int) =
+    if i <= 0 || isNfcBoundary s i then max i 0 else boundaryBefore (i - 1)
+  let rec boundaryAfter (i : int) =
+    if i >= s.Length || isNfcBoundary s i then i else boundaryAfter (i + 1)
+  // The windows around each join, merged where they overlap, last first.
+  let rec windows (k : int) (join : int) (acc : list<int * int>) =
+    if k >= count - 1 then
+      acc
+    else
+      let join = join + piece(k).Length
+      if join <= 0 || join >= s.Length || isNfcBoundary s join then
+        windows (k + 1) join acc
+      else
+        let start, stop = boundaryBefore join, boundaryAfter join
+        match acc with
+        | (prevStart, prevStop) :: rest when start < prevStop ->
+          windows (k + 1) join ((prevStart, max prevStop stop) :: rest)
+        | _ -> windows (k + 1) join ((start, stop) :: acc)
+  match windows 0 0 [] with
+  | [] -> s
+  | lastFirst ->
+    let normalized =
+      lastFirst
+      |> List.rev
+      |> List.map (fun (start, stop) ->
+        let window = s.Substring(start, stop - start)
+        start, stop, window, normalize window)
+    if
+      normalized
+      |> List.forall (fun (_, _, window, n) -> obj.ReferenceEquals(window, n))
+    then
+      s
+    else
+      let sb = StringBuilder(s.Length)
+      let copied =
+        normalized
+        |> List.fold
+          (fun from (start, stop, _, n) ->
+            sb.Append(s, from, start - from).Append(n : string) |> ignore
+            stop)
+          0
+      sb.Append(s, copied, s.Length - copied).ToString()
+
+/// The NFC of `pieces` joined, each already NFC.
+let concat (pieces : string[]) : string =
+  normalizeJoins (System.String.Concat pieces) pieces.Length (fun i -> pieces[i])
+
+/// The NFC of `parts` joined with `separator` between each, all already NFC.
+let join (separator : string) (parts : string[]) : string =
+  normalizeJoins
+    (System.String.Join(separator, parts))
+    (2 * parts.Length - 1)
+    (fun i -> if i % 2 = 0 then parts[i / 2] else separator)

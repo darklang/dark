@@ -187,6 +187,33 @@ let tests =
           "a change at the end keeps the start"
       }
 
+      test "joining NFC pieces, as normalizing the whole" {
+        // Each line split at every position, and each line followed by the next.
+        let lines = conformanceLines.Force() |> List.map (fun c -> c[0])
+        let splits =
+          lines
+          |> List.collect (fun s ->
+            [ for i in 0 .. s.Length do
+                if i = s.Length || not (System.Char.IsLowSurrogate s[i]) then
+                  [| s.Substring(0, i); s.Substring i |] ])
+        let adjacent = List.pairwise lines |> List.map (fun (a, b) -> [| a; b |])
+        let random = System.Random(6324)
+        let pieces = randomStrings |> Array.ofSeq
+        let randomJoins =
+          [ for _ in 1..50000 ->
+              Array.init (random.Next(0, 6)) (fun _ ->
+                pieces[random.Next pieces.Length]) ]
+        let failures =
+          splits @ adjacent @ randomJoins
+          |> List.map (Array.map Normalization.normalize)
+          |> List.filter (fun parts ->
+            Normalization.concat parts
+            <> Normalization.normalize (String.concat "" parts))
+          |> List.truncate 20
+          |> List.map (Array.map codepointsOf >> String.concat " | ")
+        Expect.equal failures [] "joins that differ"
+      }
+
       test "a lone surrogate or U+FFFE is an error, as it is for ICU" {
         // Built at runtime: the compiler turns a lone surrogate in a literal into U+FFFD.
         let refused =

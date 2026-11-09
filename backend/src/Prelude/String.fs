@@ -194,9 +194,17 @@ let startsWithEgcs (subject : string) (prefix : string) : bool =
 /// NFC. Not `s.Normalize()`, which does nothing in the released CLI: see `Normalization`.
 let normalize (s : string) : string = Normalization.normalize s
 
+/// The NFC of `pieces` joined, each already NFC: what `normalize (String.concat "" pieces)`
+/// gives, without re-checking the whole result.
+let concatNormalized (pieces : string[]) : string = Normalization.concat pieces
+
+/// `concatNormalized` of `parts` with `separator` between each.
+let joinNormalized (separator : string) (parts : List<string>) : string =
+  Normalization.join separator (List.toArray parts)
+
 /// <param a> then <param b>, normalized: two normalized strings can join into one that is not.
 /// What `stringAppend` and String `+` compute, in the builtins and in the VM.
-let append (a : string) (b : string) : string = normalize (a + b)
+let append (a : string) (b : string) : string = concatNormalized [| a; b |]
 
 /// Orders two strings by code point, which is also the order of their UTF-8 bytes. Only the sign
 /// of the result is meaningful.

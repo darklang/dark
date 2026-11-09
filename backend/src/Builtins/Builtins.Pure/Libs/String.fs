@@ -375,8 +375,7 @@ let fns () : List<BuiltInFn> =
               )
               |> RuntimeError.Apply
               |> raiseRTE vm.threadID)
-          |> String.concat sep
-          |> String.normalize
+          |> String.joinNormalized sep
           |> DString
           |> Ply
         | _ -> incorrectArgs ())

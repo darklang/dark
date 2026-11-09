@@ -5820,7 +5820,7 @@ let private runSyncInstructions
 
       // == Working with Basic Types ==
       | CreateString(targetReg, segments) ->
-        let sb = new System.Text.StringBuilder()
+        let pieces = ResizeArray<string>()
 
         // A loop, not `List.iter` with a lambda: the lambda would capture the force locals
         // above and turn them into heap cells.
@@ -5829,10 +5829,10 @@ let private runSyncInstructions
           match rest with
           | seg :: tail ->
             (match seg with
-             | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
+             | Text s -> pieces.Add s
              | Interpolated reg ->
                match registers[reg] with
-               | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
+               | DString s -> pieces.Add s
                | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
                | dv ->
                  let vt = Dval.toValueType dv
@@ -5847,7 +5847,7 @@ let private runSyncInstructions
           Registers.set
             registers
             targetReg
-            (DString(String.normalize (sb.ToString())))
+            (DString(String.concatNormalized (pieces.ToArray())))
 
 
       // == Flow Control ==
