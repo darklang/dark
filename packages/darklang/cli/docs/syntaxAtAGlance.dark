@@ -1,0 +1,37 @@
+module Darklang.Cli.Docs.SyntaxAtAGlance
+
+/// How Dark writes the things a newcomer writes most. It opens `docs for-ai` and
+/// `docs scripts`, so a reader who stops early has still seen it.
+let content(): String =
+  """## Dark syntax at a glance
+
+  Stdlib.String.trim(s)   add(a, b)   main()   calls take parentheses and commas
+  "n = " + Stdlib.toString(n)                  `+` joins Strings
+  2   -7   1.5   255u8   3s32   10z   9.5dec   a plain integer is an Int64
+  [1, 2, 3]   Point { x = 1, y = 2 }           commas, or one item per line
+  [x, ...xs]   [...xs, ...ys]                  prepend an item; join two lists
+  Stdlib.List.append(xs, x)                    add one item at the end
+  Stdlib.List.map(xs, fun x -> x + 1)          the list comes first
+  Ok(n)   Error(e)   Some(x)   None            fields go in parentheses
+  | Ok(n) -> ...   | [x, ...rest] -> ...       the same shapes in a match
+  type Shape = | Dot | Circle(Float) | Rect(Float, Float)
+  let f(p: String * Int64): Option<String * Int64> = Some(p)   tuple types use `*`
+  let down(n: Int64): Int64 = if n <= 0 then 0 else down(n - 1)
+
+A function calls itself by name; there is no `rec` keyword. Each statement goes
+on its own line, and every line of a block but the last returns Unit. Name your
+own types apart from the built-in ones (`Unit`, `String`, `Int64`, ...).
+
+Tests live in a package module. Save the declarations, add tests, and run them:
+
+  module /Me.Tool - <<'EOF'
+  let double(n: Int64): Int64 = n * 2
+  EOF
+  module /Me.Tool.Tests - <<'EOF'
+  test doubles =
+    Me.Tool.double(4) |> Stdlib.Test.equal(8)
+  EOF
+  test run Me.Tool
+
+`docs syntax` has the full rules.
+"""

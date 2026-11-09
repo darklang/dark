@@ -3,6 +3,9 @@ module Darklang.Cli.Docs.Scripts
 let content(): String =
   """# Running .dark scripts
 
+"""
+  + SyntaxAtAGlance.content()
+  + """
 Save your code in a .dark file and run it with `dark run <file> [args...]`.
 `run-script` is another name for `run`.
 
