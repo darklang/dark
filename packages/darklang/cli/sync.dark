@@ -1,0 +1,37 @@
+module Darklang.Cli.Sync
+
+// `dark sync` is run by the host before any Dark code (`backend/src/Cli/SyncCommand.fs`): turning
+// it on sends the whole store to another machine, so package code never reaches it. What is here is
+// its help, for `dark help sync`, and the answer inside the interactive prompt.
+
+let execute(state: AppState, _args: List<String>): AppState =
+  printErr("`dark sync` runs from your shell, not inside this prompt.")
+  printHint("  dark sync add <host>   keep this store in step with a machine you own")
+  failed(state)
+
+
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  match args with
+  | [] -> [ "add", "off" ] |> Stdlib.List.map(Completion.simple)
+  | _ -> []
+
+
+let help(_state: AppState): String =
+  [ ""
+    "  dark sync                                how the link stands"
+    "  dark sync add <host> [--command <dark>]  keep this store in step with <host>"
+    "  dark sync off                            stop; nothing goes or comes after this"
+    ""
+    "  <host> is a machine you own that `ssh <host>` reaches without a prompt. There"
+    "  is no server to run: ssh starts the same dark there, so your ssh key is the"
+    "  only key. `--command` says where dark is on that machine, if not on its PATH."
+    ""
+    "  `add` catches up both ways once, then a background process keeps one ssh"
+    "  connection open: what you save here is there within about a second, drafts"
+    "  included, on every branch, and the same the other way."
+    ""
+    "  Nothing is printed unless it needs you: a name changed on both machines"
+    "  (kept the newer; `dark conflicts` to choose), a refused key, or the other"
+    "  machine out of reach for ten minutes. Each is one line, at your next command."
+    "" ]
+  |> Stdlib.String.join("\n")

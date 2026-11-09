@@ -415,6 +415,10 @@ module Registry =
     Accepts.flagsOnly([ "--live" ])
 
 
+  let acceptsSync(): Accepts.Accepts =
+    Accepts.text(0)
+
+
   let allCommands(): List<CommandHandler> =
     [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
       (
@@ -691,267 +695,36 @@ module Registry =
       // `commits`, not `log`: every noun in this CLI says what it lists (`ops`, `branches`, `conflicts`), and
       // `log` only reads as "commits" if you've used git. `log` is its own command, meaning whichever
       // history you're standing in.
-      (
-        "commits",
-        "Your commits, newest first",
-        [ "history" ],
-        acceptsCommits,
-        Commits.execute,
-        Commits.help,
-        Commits.complete)
-
-      (
-        "commit",
-        "Review your draft, propagate, and commit it",
-        [],
-        acceptsCommit,
-        Commit.execute,
-        Commit.help,
-        Commit.complete)
-
-      (
-        "discard",
-        "Drop your draft: everything authored since the last commit",
-        [ "reset" ],
-        acceptsDiscard,
-        Discard.execute,
-        Discard.help,
-        Discard.complete)
-
-      (
-        "show",
-        "Show what a commit contains, or what one op does",
-        [],
-        acceptsShow,
-        Commits.executeShow,
-        Commits.helpShow,
-        Commits.complete)
-
-      (
-        "branch",
-        "Work on an isolated line of work (create / switch / inspect)",
-        [ "br" ],
-        acceptsBranch,
-        Branch.execute,
-        Branch.help,
-        Branch.complete)
-
-      (
-        "rebase",
-        "Accept the parent's changes into a branch",
-        [],
-        acceptsRebase,
-        Branch.executeRebaseCmd,
-        Branch.help,
-        Branch.complete)
-
-      (
-        "merge",
-        "Merge a branch into its parent",
-        [],
-        acceptsMerge,
-        Branch.executeMergeCmd,
-        Branch.mergeHelp,
-        Branch.complete)
-
-      (
-        "branches",
-        "List your branches",
-        [],
-        acceptsBranches,
-        Branch.executeBranchesCmd,
-        Branch.help,
-        Branch.complete)
-
-      (
-        "switch",
-        "Move onto a branch (`switch main` returns)",
-        [ "checkout" ],
-        acceptsSwitch,
-        Branch.executeSwitchCmd,
-        Branch.help,
-        Branch.complete)
-
-      (
-        "diff",
-        "What a branch changes vs its parent",
-        [],
-        acceptsDiff,
-        Branch.executeDiffCmd,
-        Branch.help,
-        Branch.complete)
-
-      (
-        "log",
-        "History: commits on main, a branch's ops on a branch",
-        [],
-        acceptsLog,
-        Branch.executeLogCmd,
-        Branch.help,
-        Branch.complete)
-
-      (
-        "resolve",
-        "Settle one conflicted name on a branch",
-        [],
-        acceptsResolve,
-        Branch.executeResolveCmd,
-        Branch.help,
-        Branch.complete)
-
-      (
-        "constraints",
-        "Standing findings: stale usages, kind changes, rival impls",
-        [],
-        acceptsConstraints,
-        ConstraintsCmd.execute,
-        ConstraintsCmd.help,
-        ConstraintsCmd.complete)
-
-      (
-        "ack",
-        "Leave a constraint finding for now (`dark ack --all`)",
-        [],
-        acceptsAck,
-        ConstraintsCmd.executeAckCmd,
-        ConstraintsCmd.help,
-        ConstraintsCmd.complete)
-
-      (
-        "undeprecate",
-        "Put a deprecated fn/type/value/trait/impl/test back on the shelf",
-        [ "restore" ],
-        acceptsUndeprecate,
-        Packages.Deprecate.executeUndeprecate,
-        Packages.Deprecate.undeprecateHelp,
-        (fun(_, args) -> Packages.Deprecate.completeItemTypes(args)))
-
-      (
-        "backups",
-        "Copies of the store: what exists, take one, prune",
-        [],
-        acceptsBackups,
-        Backups.execute,
-        Backups.help,
-        Backups.complete)
-
-      (
-        "builtins",
-        "List all builtin functions and values",
-        [],
-        acceptsBuiltins,
-        Builtins.execute,
-        Builtins.help,
-        Builtins.complete)
-
-      (
-        "find-values",
-        "Find values of a given type",
-        [],
-        acceptsFindValues,
-        Packages.FindValues.execute,
-        Packages.FindValues.help,
-        Packages.FindValues.complete)
-
-      (
-        "impls",
-        "List the implementations of a trait on this branch",
-        [],
-        acceptsImpls,
-        Packages.Impls.execute,
-        Packages.Impls.help,
-        Packages.Impls.complete)
-
-      (
-        "serve",
-        "Start an HTTP server",
-        [ "http-server" ],
-        acceptsServe,
-        Http.Serve.execute,
-        Http.Serve.help,
-        Http.Serve.complete)
-
-      (
-        "docs",
-        "Browse in-CLI documentation",
-        [ "doc", "man" ],
-        acceptsDocs,
-        Docs.Command.execute,
-        Docs.Command.help,
-        Docs.Command.complete)
-
-      (
-        "undo",
-        "Step an item back to its previous version",
-        [],
-        acceptsUndo,
-        Undo.execute,
-        Undo.help,
-        Undo.complete)
-
-      (
-        "deprecate",
-        "Mark a fn/type/value/trait/impl/test as deprecated",
-        [],
-        acceptsDeprecate,
-        Packages.Deprecate.execute,
-        Packages.Deprecate.help,
-        Packages.Deprecate.complete)
-
-      (
-        "delete",
-        "Deprecate items with a live-dependents check",
-        [],
-        acceptsDelete,
-        Packages.Delete.execute,
-        Packages.Delete.help,
-        Packages.Delete.complete)
-
-      (
-        "export-seed",
-        "Export minimal seed.db from current database",
-        [],
-        acceptsExportSeed,
-        ExportSeed.execute,
-        ExportSeed.help,
-        ExportSeed.complete)
-
-      (
-        "traces",
-        "The runs this instance has kept: what ran, what it did, and resuming one",
-        [ "trace", "exec", "runs" ],
-        acceptsTraces,
-        Tracing.execute,
-        Tracing.help,
-        Tracing.complete)
-
-      (
-        "conflicts",
-        "Review what a merge or rebase auto-resolved",
-        [],
-        acceptsConflicts,
-        Conflicts.execute,
-        Conflicts.help,
-        Conflicts.complete)
-
-      (
-        "effects",
-        "See what code might do and why",
-        [],
-        acceptsEffects,
-        Effects.execute,
-        Effects.help,
-        Effects.complete)
-
-      (
-        "permissions",
-        "Review effects and runtime permission policies",
-        [ "perms" ],
-        acceptsPermissions,
-        Permissions.Command.execute,
-        Permissions.Command.help,
-        Permissions.Command.complete)
-
+      ("commits", "Your commits, newest first", [ "history" ], acceptsCommits, Cli.Commits.execute, Cli.Commits.help, Cli.Commits.complete)
+      ("commit", "Review your draft, propagate, and commit it", [], acceptsCommit, Cli.Commit.execute, Cli.Commit.help, Cli.Commit.complete)
+      ("discard", "Drop your draft: everything authored since the last commit", [ "reset" ], acceptsDiscard, Cli.Discard.execute, Cli.Discard.help, Cli.Discard.complete)
+      ("show", "Show what a commit contains, or what one op does", [], acceptsShow, Cli.Commits.executeShow, Cli.Commits.helpShow, Cli.Commits.complete)
+      ("branch", "Work on an isolated line of work (create / switch / inspect)", [ "br" ], acceptsBranch, Cli.Branch.execute, Cli.Branch.help, Cli.Branch.complete)
+      ("rebase", "Accept the parent's changes into a branch", [], acceptsRebase, Cli.Branch.executeRebaseCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("merge", "Merge a branch into its parent", [], acceptsMerge, Cli.Branch.executeMergeCmd, Cli.Branch.mergeHelp, Cli.Branch.complete)
+      ("branches", "List your branches", [], acceptsBranches, Cli.Branch.executeBranchesCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("switch", "Move onto a branch (`switch main` returns)", [ "checkout" ], acceptsSwitch, Cli.Branch.executeSwitchCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("diff", "What a branch changes vs its parent", [], acceptsDiff, Cli.Branch.executeDiffCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("log", "History: commits on main, a branch's ops on a branch", [], acceptsLog, Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("resolve", "Settle one conflicted name on a branch", [], acceptsResolve, Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("constraints", "Standing findings: stale usages, kind changes, rival impls", [], acceptsConstraints, Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], acceptsAck, Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("undeprecate", "Put a deprecated fn/type/value/trait/impl/test back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, (fun(_, args) -> Packages.Deprecate.completeItemTypes(args)))
+      ("backups", "Copies of the store: what exists, take one, prune", [], acceptsBackups, Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
+      ("sync", "Keep this store in step with a machine you own, over ssh", [], acceptsSync, Cli.Sync.execute, Cli.Sync.help, Cli.Sync.complete)
+      ("builtins", "List all builtin functions and values", [], acceptsBuiltins, Builtins.execute, Builtins.help, Builtins.complete)
+      ("find-values", "Find values of a given type", [], acceptsFindValues, Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
+      ("impls", "List the implementations of a trait on this branch", [], acceptsImpls, Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
+      ("serve", "Start an HTTP server", [ "http-server" ], acceptsServe, Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
+      ("docs", "Browse in-CLI documentation", [ "doc", "man" ], acceptsDocs, Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
+      ("undo", "Step an item back to its previous version", [], acceptsUndo, Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
+      ("deprecate", "Mark a fn/type/value/trait/impl/test as deprecated", [], acceptsDeprecate, Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
+      ("delete", "Deprecate items with a live-dependents check", [], acceptsDelete, Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
+      ("export-seed", "Export minimal seed.db from current database", [], acceptsExportSeed, ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
+      ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "runs" ], acceptsTraces, Tracing.execute, Tracing.help, Tracing.complete)
+      ("conflicts", "Review what a merge or rebase auto-resolved", [], acceptsConflicts, Conflicts.execute, Conflicts.help, Conflicts.complete)
+      ("effects", "See what code might do and why", [], acceptsEffects, Effects.execute, Effects.help, Effects.complete)
+      ("permissions", "Review effects and runtime permission policies", [ "perms" ], acceptsPermissions, Permissions.Command.execute, Permissions.Command.help, Permissions.Command.complete)
       ("ops", "Read this instance's op log", [], acceptsOps, Ops.execute, Ops.help, Ops.complete)
       (
         "ps",
@@ -1164,7 +937,8 @@ module Registry =
           "conflicts"
           "constraints"
           "ack"
-          "ops" ])
+          "ops"
+          "sync" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
       ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])

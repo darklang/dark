@@ -96,7 +96,7 @@ let private draftCount (store : string) (ids : List<string>) : Task<int64> =
 let private heldCount (store : string) (ids : List<string>) : Task<int64> =
   countIn
     store
-    "SELECT COUNT(*) FROM package_ops WHERE id IN (SELECT value FROM json_each($ids))"
+    "SELECT COUNT(DISTINCT id) FROM package_ops WHERE id IN (SELECT value FROM json_each($ids))"
     ids
 
 /// Make <param store> one from before the journal: no triggers, no table.
@@ -359,7 +359,9 @@ let importTwice =
                 branches = 0L
                 bases = 0L
                 blobs = 0L
-                journal = 0L }
+                journal = 0L
+                conflicts = []
+                journalBefore = first.upTo.journal }
             "the second import counts nothing"
           let! opsAfter = rowCount b "package_ops"
           let! journalAfter = rowCount b "sync_journal"
@@ -443,6 +445,427 @@ let wrongFile =
         })
   }
 
+// ------------------
+// Two stores linked by a session (`LibDB.SyncLink`), as two machines are over ssh
+// ------------------
+
+module SyncLink = LibDB.SyncLink
+
+/// A text from <param store>.
+let private textIn (store : string) (sql : string) : Task<string> =
+  task {
+    use conn =
+      new Microsoft.Data.Sqlite.SqliteConnection(
+        $"Data Source={store};Pooling=false"
+      )
+    do! conn.OpenAsync()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- sql
+    let! v = cmd.ExecuteScalarAsync()
+    return
+      match v with
+      | null -> ""
+      | :? System.DBNull -> ""
+      | v -> string v
+  }
+
+/// Wait for <param condition> to hold, up to ten seconds, or fail saying <param what>.
+let private eventually
+  (what : string)
+  (condition : unit -> Task<bool>)
+  : Task<unit> =
+  task {
+    let deadline = System.DateTime.UtcNow.AddSeconds 10.0
+    let rec go () =
+      task {
+        let! ok = condition ()
+        if ok then
+          return ()
+        elif System.DateTime.UtcNow > deadline then
+          return failtest $"never happened: {what}"
+        else
+          do! Task.Delay 50
+          return! go ()
+      }
+    return! go ()
+  }
+
+/// One end of a test session: the store, quick polling, and the lines it would say kept in <param said>.
+let private sideOf
+  (dir : string)
+  (name : string)
+  (store : string)
+  (keepGoing : unit -> bool)
+  (said : System.Collections.Concurrent.ConcurrentQueue<string>)
+  : SyncLink.Side =
+  { store = store
+    workDir = System.IO.Path.Combine(dir, name)
+    afterImport = fun _ -> ()
+    say = said.Enqueue
+    connected = fun _ -> ()
+    log =
+      fun line ->
+        said.Enqueue(
+          "log " + System.DateTime.UtcNow.ToString("HH:mm:ss.fff") + " " + line
+        )
+    keepGoing = keepGoing
+    pollMs = 20 }
+
+/// Run a session between <param a> and <param b> over in-process pipes while <param body> runs,
+/// then end it. <param stopA> turns A's side off, as `dark sync off` does. Answers how each end ended.
+let private linked
+  (dir : string)
+  (a : string)
+  (b : string)
+  (stopA : System.Threading.ManualResetEventSlim)
+  (body :
+    System.Collections.Concurrent.ConcurrentQueue<string>
+      -> System.Collections.Concurrent.ConcurrentQueue<string>
+      -> Task<unit>)
+  : Task<SyncLink.Ended * SyncLink.Ended> =
+  task {
+    let saidA = System.Collections.Concurrent.ConcurrentQueue<string>()
+    let saidB = System.Collections.Concurrent.ConcurrentQueue<string>()
+    use done_ = new System.Threading.ManualResetEventSlim(false)
+    use aToB =
+      new System.IO.Pipes.AnonymousPipeServerStream(
+        System.IO.Pipes.PipeDirection.Out
+      )
+    use bFromA =
+      new System.IO.Pipes.AnonymousPipeClientStream(
+        System.IO.Pipes.PipeDirection.In,
+        aToB.ClientSafePipeHandle
+      )
+    use bToA =
+      new System.IO.Pipes.AnonymousPipeServerStream(
+        System.IO.Pipes.PipeDirection.Out
+      )
+    use aFromB =
+      new System.IO.Pipes.AnonymousPipeClientStream(
+        System.IO.Pipes.PipeDirection.In,
+        bToA.ClientSafePipeHandle
+      )
+    let endOf
+      (side : SyncLink.Side)
+      (input : System.IO.Stream)
+      (output : System.IO.Stream)
+      : Task<SyncLink.Ended> =
+      Task.Factory.StartNew(
+        (fun () ->
+          let ended = SyncLink.run side input output false
+          // As a process exiting does: the other end reads the end of its stream.
+          output.Dispose()
+          ended),
+        TaskCreationOptions.LongRunning
+      )
+    let endA =
+      endOf
+        (sideOf dir "a" a (fun () -> not stopA.IsSet && not done_.IsSet) saidA)
+        aFromB
+        aToB
+    let endB = endOf (sideOf dir "b" b (fun () -> not done_.IsSet) saidB) bFromA bToA
+    let! failed =
+      task {
+        try
+          do! body saidA saidB
+          return None
+        with e ->
+          return Some e
+      }
+    done_.Set()
+    let! endedA = endA
+    let! endedB = endB
+    match failed with
+    | None -> return endedA, endedB
+    | Some e ->
+      // What each end did, so a failure here says where the exchange stopped.
+      let lines (q : System.Collections.Concurrent.ConcurrentQueue<string>) =
+        q |> Seq.filter (fun l -> l.StartsWith "log ") |> String.concat "\n  "
+      return
+        failtest
+          $"{e.Message}\nA ended {endedA}:\n  {lines saidA}\nB ended {endedB}:\n  {lines saidB}"
+  }
+
+let private noStop () = new System.Threading.ManualResetEventSlim(false)
+
+let private bindingOn (store : string) (name : string) : Task<string> =
+  textIn
+    store
+    $"SELECT item_hash FROM locations
+      WHERE owner = 'Tests' AND modules = 'OpSync' AND name = '{name}'
+        AND branch_id = '{PT.BranchId.Main}' AND live = 1
+      ORDER BY draft DESC LIMIT 1"
+
+let linkedEditArrives =
+  testTask "linked: an edit on one store arrives on the other while they are linked" {
+    do!
+      withTwoStores (fun dir a b ->
+        task {
+          use stop = noStop ()
+          let location : PT.PackageLocation =
+            { owner = "Tests"; modules = [ "OpSync" ]; name = "linkedEdit" }
+          let! _ =
+            linked dir a b stop (fun _ _ ->
+              task {
+                let! ids =
+                  authorOn a "module Tests.OpSync\nlet linkedEdit(): Int64 = 8111"
+                do!
+                  eventually "the edit reaches the other store" (fun () ->
+                    task {
+                      let! held = heldCount b ids
+                      return held = int64 (List.length ids)
+                    })
+                do! commitOn a
+                do!
+                  eventually "its commit follows" (fun () ->
+                    task {
+                      let! inDraft = draftCount b ids
+                      return inDraft = 0L
+                    })
+              })
+          let! found = findOn b location
+          Expect.isSome found "the other store binds the name once folded"
+        })
+  }
+
+let linkedDiscardArrives =
+  testTask "linked: a discard on one store removes the edit on the other" {
+    do!
+      withTwoStores (fun dir a b ->
+        task {
+          use stop = noStop ()
+          let location : PT.PackageLocation =
+            { owner = "Tests"; modules = [ "OpSync" ]; name = "linkedDiscard" }
+          let! _ =
+            linked dir a b stop (fun _ _ ->
+              task {
+                let! ids =
+                  authorOn
+                    a
+                    "module Tests.OpSync\nlet linkedDiscard(): Int64 = 8117"
+                do!
+                  eventually "the edit arrives" (fun () ->
+                    task {
+                      let! held = heldCount b ids
+                      return held = int64 (List.length ids)
+                    })
+                do! discardOn a ids
+                do!
+                  eventually "the discard arrives" (fun () ->
+                    task {
+                      let! held = heldCount b ids
+                      return held = 0L
+                    })
+                // A moment more, for anything that would carry it back.
+                do! Task.Delay 300
+                let! back = heldCount a ids
+                Expect.equal
+                  back
+                  0L
+                  "it does not come back to where it was discarded"
+              })
+          let! found = findOn b location
+          Expect.isNone found "the name is unbound on the other store too"
+        })
+  }
+
+let linkedConflict =
+  testTask
+    "linked: a name changed on both while apart is a conflict on both, and its resolution travels" {
+    do!
+      withTwoStores (fun dir a b ->
+        task {
+          // Unique to this run: the stores are copies of the shared test store, which other tests
+          // and earlier runs write to, and ops are content-addressed.
+          let run = System.Guid.NewGuid().ToString("N").Substring(0, 8)
+          let name = $"both{run}"
+          let seed = int64 (System.Random.Shared.Next(1_000_000, 900_000_000))
+          let location : PT.PackageLocation =
+            { owner = "Tests"; modules = [ "OpSync" ]; name = name }
+          // Both start from the same version.
+          let! _ = authorOn a $"module Tests.OpSync\nlet {name}(): Int64 = {seed}"
+          let! _ = sync dir a b
+          let! _ = findOn b location
+          // Apart: each changes it.
+          let! editA =
+            authorOn a $"module Tests.OpSync\nlet {name}(): Int64 = {seed + 1L}"
+          let! hashA = bindingOn a name
+          do! Task.Delay 5
+          let! editB =
+            authorOn b $"module Tests.OpSync\nlet {name}(): Int64 = {seed + 2L}"
+          let! hashB = bindingOn b name
+          Expect.notEqual hashA hashB "the two versions differ"
+
+          let pending =
+            $"SELECT id FROM conflicts WHERE name = '{name}' AND status = 'pending'"
+          use stop = noStop ()
+          let! _ =
+            linked dir a b stop (fun saidA saidB ->
+              task {
+                do!
+                  eventually "each store receives the other's edit" (fun () ->
+                    task {
+                      let! onA = heldCount a editB
+                      let! onB = heldCount b editA
+                      return
+                        onA = int64 (List.length editB)
+                        && onB = int64 (List.length editA)
+                    })
+                let! idA = textIn a pending
+                let! idB = textIn b pending
+                let everything =
+                  $"SELECT COALESCE(group_concat(id || ':' || status), 'none') FROM conflicts
+                   WHERE name = '{name}'"
+                let! allA = textIn a everything
+                let! allB = textIn b everything
+                let! nowA = bindingOn a name
+                let! nowB = bindingOn b name
+                Expect.notEqual
+                  idA
+                  ""
+                  $"the store that edited first records it (A: {allA}, B: {allB}; A binds {nowA}, B binds {nowB}; A made {hashA}, B made {hashB})"
+                Expect.equal idB idA "the other records the same conflict"
+                Expect.isTrue
+                  (saidA |> Seq.exists (fun l -> l.Contains $"Tests.OpSync.{name}"))
+                  "and says so, in one line"
+                Expect.isTrue
+                  (saidB |> Seq.exists (fun l -> l.Contains $"Tests.OpSync.{name}"))
+                  "on both"
+
+                // Both fold to the same winner: the later edit, B's.
+                let! _ = findOn a location
+                let! _ = findOn b location
+                let! wonA = bindingOn a name
+                let! wonB = bindingOn b name
+                Expect.equal wonA hashB "A keeps the newer version"
+                Expect.equal wonB hashB "and so does B"
+
+                // Resolved on A, for A's version: a decision, which travels as an op.
+                useStore a
+                let decision =
+                  PT.PackageOp.Decision(
+                    idA,
+                    location,
+                    "",
+                    PT.DecisionKind.Override(PT.Reference.PackageFn(PT.Hash hashA))
+                  )
+                let! _ =
+                  LibDB.Inserts.authorOn PT.BranchId.Main "resolution" [ decision ]
+                let decisionId = [ string (LibDB.Inserts.computeOpHash decision) ]
+                do!
+                  eventually "the resolution reaches B" (fun () ->
+                    task {
+                      let! held = heldCount b decisionId
+                      return held = 1L
+                    })
+              })
+          let! _ = findOn b location
+          let settled = $"SELECT status FROM conflicts WHERE name = '{name}'"
+          let! statusA = textIn a settled
+          let! statusB = textIn b settled
+          Expect.equal statusA "overridden" "settled where it was resolved"
+          Expect.equal statusB "overridden" "and on the other store"
+          let! nowB = bindingOn b name
+          Expect.equal nowB hashA "B binds the version A chose"
+        })
+  }
+
+let linkedOff =
+  testTask "linked: turning sync off ends the session, and nothing travels after" {
+    do!
+      withTwoStores (fun dir a b ->
+        task {
+          use stop = noStop ()
+          let! (endedA, endedB) =
+            linked dir a b stop (fun _ _ ->
+              task {
+                let! first =
+                  authorOn a "module Tests.OpSync\nlet beforeOff(): Int64 = 8123"
+                do!
+                  eventually "an edit travels while on" (fun () ->
+                    task {
+                      let! held = heldCount b first
+                      return held = int64 (List.length first)
+                    })
+                stop.Set()
+                // A's next poll sees it.
+                do! Task.Delay 500
+                let! fromA =
+                  authorOn a "module Tests.OpSync\nlet afterOffA(): Int64 = 8129"
+                let! fromB =
+                  authorOn b "module Tests.OpSync\nlet afterOffB(): Int64 = 8147"
+                do! Task.Delay 1000
+                let! onB = heldCount b fromA
+                let! onA = heldCount a fromB
+                Expect.equal onB 0L "nothing goes from A after off"
+                Expect.equal onA 0L "nothing comes to A after off"
+              })
+          Expect.equal
+            endedA
+            SyncLink.Stopped
+            "A's end stopped because sync was turned off"
+          match endedB with
+          | SyncLink.PeerGone _ -> ()
+          | other -> failtest $"B's end should see A go, not {other}"
+        })
+  }
+
+let peerDown =
+  testTask
+    "a peer that is down or stalled never holds up local work, and is said once" {
+    do!
+      withTwoStores (fun dir a _ ->
+        task {
+          for (what, transport) in
+            [ "down",
+              { SyncLink.program = "sh"; SyncLink.arguments = [ "-c"; "exit 255" ] }
+              "stalled",
+              { SyncLink.program = "sh"; SyncLink.arguments = [ "-c"; "sleep 30" ] } ] do
+            use stop = noStop ()
+            let said = System.Collections.Concurrent.ConcurrentQueue<string>()
+            let watcher =
+              Task.Factory.StartNew(
+                (fun () ->
+                  SyncLink.watch
+                    { side = sideOf dir what a (fun () -> not stop.IsSet) said
+                      transport = transport
+                      peer = "peer"
+                      patience = System.TimeSpan.Zero
+                      writeState = fun _ -> () }),
+                TaskCreationOptions.LongRunning
+              )
+            do! Task.Delay 300
+            let clock = System.Diagnostics.Stopwatch.StartNew()
+            let! ids =
+              authorOn a $"module Tests.OpSync\nlet whilePeer{what}(): Int64 = 8161"
+            do! commitOn a
+            let! held = heldCount a ids
+            Expect.equal
+              held
+              (int64 (List.length ids))
+              $"local work lands with the peer {what}"
+            Expect.isLessThan
+              clock.ElapsedMilliseconds
+              10000L
+              $"and is not held up ({what})"
+            if what = "down" then
+              // Several attempts by now; out of reach is said once, not per attempt.
+              do! Task.Delay 2000
+              let lines =
+                said
+                |> Seq.filter (fun l -> l.Contains "can't reach peer")
+                |> Seq.length
+              Expect.equal lines 1 "out of reach is said once"
+            let stopped = System.Diagnostics.Stopwatch.StartNew()
+            stop.Set()
+            let! _ = watcher
+            Expect.isLessThan
+              stopped.ElapsedMilliseconds
+              3000L
+              $"turning off stops it at once ({what})"
+        })
+  }
+
 let tests =
   testSequenced
   <| testList
@@ -454,4 +877,9 @@ let tests =
       importTwice
       mergeTravels
       storeWithoutJournal
-      wrongFile ]
+      wrongFile
+      linkedEditArrives
+      linkedDiscardArrives
+      linkedConflict
+      linkedOff
+      peerDown ]
