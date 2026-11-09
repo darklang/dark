@@ -849,8 +849,8 @@ let private prepareGuest
     | Error diagnostics ->
       let message =
         match diagnostics with
-        | d :: _ -> P.renderDiagnostic source d
         | [] -> "Parse error"
+        | _ -> P.renderDiagnostics source diagnostics
       return Error(ExecutionError.Parse(ParseError.Message message))
   }
 

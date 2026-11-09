@@ -1432,9 +1432,15 @@ and parsePatternBase (state : ParserState) (i : int) : WT.MatchPattern * int =
     (WT.MPError(rng state i), state.tokenCount - 1)
   else
     state.depth <- state.depth + 1
-    let r = parsePatternBaseInner state i
+    let (p, j) = parsePatternBaseInner state i
     state.depth <- state.depth - 1
-    r
+    // `head :: tail`: the lexer has already reported the `::`, so skip it and
+    // the tail, and the rest of the arm parses as if `[head, ...tail]` were written.
+    if j < state.tokenCount && state.toks[j].lexError && txt state j = "::" then
+      let (_, k) = parsePatternBase state (j + 1)
+      (p, k)
+    else
+      (p, j)
 
 and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * int =
   checkBareMinMagnitude state i // `128s8` etc. — only valid negated
@@ -4825,3 +4831,41 @@ let renderDiagnostic (source : string) (d : Diagnostic) : string =
     | Some h -> yield $"  hint: {h}"
     | None -> () ]
   |> String.concat "\n"
+
+/// Render all of a parse's diagnostics, so that one run shows every mistake to fix. They
+/// go in source order. A mistake made more than once (the same code and message, with
+/// numbers ignored, as for `1L` and `2L`) is shown once, with the other places it
+/// occurs listed under it. At most `maxShown` mistakes are shown; a last line counts
+/// the rest.
+let renderDiagnostics (source : string) (diagnostics : List<Diagnostic>) : string =
+  let maxShown = 10
+  let maxPlaces = 20
+  let kind (d : Diagnostic) =
+    (d.code, d.message |> String.filter (fun c -> not (System.Char.IsDigit c)))
+  let position (d : Diagnostic) =
+    $"{d.range.start.row + 1}:{d.range.start.column + 1}"
+  let groups =
+    diagnostics
+    |> List.distinct
+    |> List.sortBy (fun d -> (d.range.start.row, d.range.start.column))
+    // in order of first occurrence (Prelude's `List.groupBy` gives a Map)
+    |> Microsoft.FSharp.Collections.List.groupBy kind
+    |> List.map snd
+  let renderGroup (group : List<Diagnostic>) =
+    match group with
+    | [] -> ""
+    | [ d ] -> renderDiagnostic source d
+    | d :: rest ->
+      let places = rest |> List.truncate maxPlaces |> List.map position
+      let unlisted = rest.Length - places.Length
+      let places =
+        if unlisted > 0 then places @ [ $"and {unlisted} more" ] else places
+      renderDiagnostic source d + "\n  the same at " + String.concat ", " places
+  let shown = List.truncate maxShown groups
+  let hidden = groups |> List.skip shown.Length |> List.sumBy List.length
+  let more =
+    match hidden with
+    | 0 -> []
+    | 1 -> [ "1 more error not shown" ]
+    | n -> [ $"{n} more errors not shown" ]
+  (List.map renderGroup shown @ more) |> String.concat "\n"
