@@ -72,7 +72,11 @@ let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : str
 ///
 /// Stabilize, store and fold through the guarded path, then -- on main -- re-resolve the draft around
 /// what landed, and evaluate new values.
-let authorOps
+let private authorOpsWith
+  (insert :
+    PT.BranchId
+      -> List<PT.PackageOp>
+      -> System.Threading.Tasks.Task<Result<int64, string>>)
   (exeState : ExecutionState)
   (pm : PT.PackageManager)
   (branchId : PT.BranchId)
@@ -111,7 +115,7 @@ let authorOps
 
       // These package changes came from running Dark code, so they land through the guarded path:
       // reserved bundled names and placeholder hashes are rejected here.
-      match! LibDB.Inserts.insertUntrustedOps branchId stabilizedOps with
+      match! insert branchId stabilizedOps with
       | Error reason -> return Error reason
       | Ok insertedCount ->
         // Refresh main's draft: re-resolve names and recompute SCC-aware hashes now that new items
@@ -132,6 +136,9 @@ let authorOps
   }
 
 
+let authorOps = authorOpsWith LibDB.Inserts.insertUntrustedOps
+
+
 /// Evaluate the values a merge just folded into main. What fails stays unevaluated, as it would
 /// after any fold.
 let evaluateLandedValues (exeState : ExecutionState) : Ply<unit> =
@@ -141,6 +148,52 @@ let evaluateLandedValues (exeState : ExecutionState) : Ply<unit> =
     let! _ = LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
     return ()
   }
+
+let private addOpsFn
+  (insert :
+    PT.BranchId
+      -> List<PT.PackageOp>
+      -> System.Threading.Tasks.Task<Result<int64, string>>)
+  (pm : PT.PackageManager)
+  : BuiltInFn =
+  { name = fn "scmAddOps" 0
+    typeParams = []
+    parameters =
+      [ Param.make
+          "branchId"
+          TUuid
+          "the branch these ops land on (main is `SCM.Branch.mainBranchId`). Passed rather than ambient so a caller can author onto a branch it isn't sitting on -- which is what sync does"
+        Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
+    returnType = TypeReference.result TInt64 TString
+    description =
+      "Add package ops to <param branchId>, uncommitted. Returns the "
+      + "number inserted; duplicates are skipped, since an op's id is its content."
+    fn =
+      let resultOk = Dval.resultOk KTInt64 KTString
+      let resultError = Dval.resultError KTInt64 KTString
+      (function
+      | exeState, _, _, [| DUuid branchId; DList(_vtTODO, Items(ops)) |] ->
+        uply {
+          try
+            let ops = ops |> List.choose PT2DT.PackageOp.fromDT
+            match!
+              authorOpsWith insert exeState pm (PT.BranchId.Id branchId) ops
+            with
+            | Ok n -> return resultOk (Dval.dint64 (int64 n))
+            | Error message -> return resultError (Dval.string message)
+          with ex ->
+            return resultError (Dval.string ex.Message)
+        }
+      | _ -> incorrectArgs ())
+    previewable = Impure
+    callEffects = set [ Effect.PackageWrite ]
+    deprecated = NotDeprecated }
+
+/// `scmAddOps` as `LocalExec apply-package-edits` installs it, letting `Darklang` names change
+/// (`LibDB.Inserts.insertBundledOps`). Nothing else installs it.
+let bundledAddOps (pm : PT.PackageManager) : BuiltInFn =
+  addOpsFn LibDB.Inserts.insertBundledOps pm
+
 
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmStabilizeHashes" 0
@@ -196,36 +249,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmAddOps" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "branchId"
-            TUuid
-            "the branch these ops land on (main is `SCM.Branch.mainBranchId`). Passed rather than ambient so a caller can author onto a branch it isn't sitting on -- which is what sync does"
-          Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
-      returnType = TypeReference.result TInt64 TString
-      description =
-        "Add package ops to <param branchId>, uncommitted. Returns the "
-        + "number inserted; duplicates are skipped, since an op's id is its content."
-      fn =
-        let resultOk = Dval.resultOk KTInt64 KTString
-        let resultError = Dval.resultError KTInt64 KTString
-        (function
-        | exeState, _, _, [| DUuid branchId; DList(_vtTODO, Items(ops)) |] ->
-          uply {
-            try
-              let ops = ops |> List.choose PT2DT.PackageOp.fromDT
-              match! authorOps exeState pm (PT.BranchId.Id branchId) ops with
-              | Ok n -> return resultOk (Dval.dint64 (int64 n))
-              | Error message -> return resultError (Dval.string message)
-            with ex ->
-              return resultError (Dval.string ex.Message)
-          }
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = set [ Effect.PackageWrite ]
-      deprecated = NotDeprecated }
+    addOpsFn LibDB.Inserts.insertUntrustedOps pm
 
 
     // Which branch is THIS process on. Set by `--branch <id>` or the persistent

@@ -277,6 +277,84 @@ let inTransaction (f : Ctx -> Task<'a>) : Task<'a> =
       disposeCtx ctx
   }
 
+/// Record each repointed item's callees under every name its previous version reached them through.
+///
+/// Two names can hold one body, and a reload parses each and records the callees under both. A
+/// repoint rewrites the one stored body, so the rows written from it have only that body's names;
+/// this copies the rest from the previous version. <param edited> is the edit that started the
+/// repoint, as (location, kind, previous hash, hash), one per previous hash.
+let carryDependencyNames
+  (edited : List<PT.PackageLocation * PT.ItemKind * Hash * Hash>)
+  (repoints : List<PT.PropagateRepoint>)
+  : Task<unit> =
+  task {
+    let moved =
+      edited
+      @ (repoints
+         |> List.map (fun r ->
+           (r.location, r.toRef.kind, r.fromRef.hash, r.toRef.hash)))
+    let byLocation =
+      moved
+      |> List.fold
+        (fun m (loc : PT.PackageLocation, kind : PT.ItemKind, _, Hash toHash) ->
+          Map.add
+            (kind.toString (), loc.owner, String.concat "." loc.modules, loc.name)
+            toHash
+            m)
+        Map.empty
+    let byHash =
+      moved |> List.fold (fun m (_, _, Hash f, Hash t) -> Map.add f t m) Map.empty
+    // A callee recorded without a name moves by hash, through every step: the edit, then the
+    // re-hash of a cycle it is in.
+    let rec latest (steps : int) (h : string) =
+      match Map.tryFind h byHash with
+      | Some next when next <> h && steps < List.length moved ->
+        latest (steps + 1) next
+      | _ -> h
+    let froms =
+      repoints
+      |> List.map (fun r -> let (Hash h) = r.fromRef.hash in [ h ])
+      |> List.distinct
+    let! previous =
+      Sql.query
+        "SELECT d.item_hash, d.depends_on_hash, d.depends_on_item_type, d.depends_on_owner,
+                d.depends_on_modules, d.depends_on_name
+         FROM json_each(@froms) j JOIN package_dependencies d
+           ON d.item_hash = json_extract(j.value, '$[0]')"
+      |> Sql.parameters [ "froms", Sql.string (jsonRows froms) ]
+      |> Sql.executeAsync (fun read ->
+        ({ itemHash = read.string "item_hash"
+           hash = read.string "depends_on_hash"
+           kind = read.string "depends_on_item_type"
+           owner = read.string "depends_on_owner"
+           modules = read.string "depends_on_modules"
+           name = read.string "depends_on_name" }
+        : PackageOpPlayback.DependencyRow))
+    let previousOf =
+      previous
+      |> List.groupBy (fun (r : PackageOpPlayback.DependencyRow) -> r.itemHash)
+    let rows =
+      repoints
+      |> List.collect (fun r ->
+        let (Hash fromHash) = r.fromRef.hash
+        let (Hash toHash) = r.toRef.hash
+        Map.tryFind fromHash previousOf
+        |> Option.defaultValue []
+        |> List.map (fun (row : PackageOpPlayback.DependencyRow) ->
+          let callee =
+            match
+              Map.tryFind (row.kind, row.owner, row.modules, row.name) byLocation
+            with
+            | Some h -> h
+            | None when row.owner = "" -> latest 0 row.hash
+            | None -> row.hash
+          { row with itemHash = toHash; hash = callee }))
+    if not (List.isEmpty rows) then
+      do!
+        inTransaction (fun ctx ->
+          task { PackageOpPlayback.writeDependencies ctx.conn rows })
+  }
+
 /// Store <param ops> on <param branch>'s draft exactly as given, each stamped by <param tsFor>, and
 /// fold them, in one transaction. No restating: for a caller replaying ops that already have their
 /// identities and stamps. Returns how many were newly stored.
@@ -361,21 +439,21 @@ let placeholderHashViolation (ops : List<PT.PackageOp>) : Option<string> =
 let insertAndApplyOps (ops : List<PT.PackageOp>) : Task<int64> =
   authorOn PT.BranchId.Main "op" ops
 
-/// Safely insert package operations submitted by RUNNING Dark code. On main, rejects protected
-/// `Darklang` bindings and unstabilized hashes before insertion; trusted seeding does not come through
-/// here.
-let insertUntrustedOps
+let private insertCheckedOps
+  (reservedOwnersAllowed : bool)
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Task<Result<int64, string>> =
   task {
     // Reserved names on every branch: bundled code changes only by propagation, which does not come
-    // through here. Placeholder hashes are main's question; a branch repairs them before a merge.
+    // through here, and by `insertBundledOps`. Placeholder hashes are main's question; a branch
+    // repairs them before a merge.
+    let reserved = if reservedOwnersAllowed then None else reservedOwnerViolation ops
     let violation =
       if branch.IsMain then
-        Option.orElse (placeholderHashViolation ops) (reservedOwnerViolation ops)
+        Option.orElse (placeholderHashViolation ops) reserved
       else
-        reservedOwnerViolation ops
+        reserved
     match violation with
     | Some reason -> return Error reason
     | None ->
@@ -385,6 +463,18 @@ let insertUntrustedOps
         let! count = authorOn branch "op" ops
         return Ok count
   }
+
+/// Safely insert package operations submitted by RUNNING Dark code. On main, rejects protected
+/// `Darklang` bindings and unstabilized hashes before insertion; trusted seeding does not come through
+/// here.
+let insertUntrustedOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
+  insertCheckedOps false branch ops
+
+/// `insertUntrustedOps` that lets `Darklang` names change, for `LocalExec apply-package-edits`
+/// alone: the dev build landing edits to `packages/`, the source a reload loads them from. No
+/// `dark` process can reach it.
+let insertBundledOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
+  insertCheckedOps true branch ops
 
 
 /// Replace the ops <param ops0> of main's draft with <param ops>, but only if the draft still holds

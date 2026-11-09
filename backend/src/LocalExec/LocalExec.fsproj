@@ -28,6 +28,7 @@
     <Compile Include="Utils.fs" />
     <Compile Include="Builtins.fs" />
     <Compile Include="LoadPackagesFromDisk.fs" />
+    <Compile Include="PackageEdits.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="BenchmarkScenarios.fs" />
     <Compile Include="Benchmarks.fs" />

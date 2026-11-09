@@ -31,7 +31,8 @@ module HandleCommand =
       // Keep the disk file to detect changes to protected type hashes.
       LibExecution.PackageRefs.setHashes Map.empty
       // Load packages from disk, ensuring all parse well
-      let! ops = LoadPackagesFromDisk.load (Builtins.all ())
+      let files = LoadPackagesFromDisk.files ()
+      let! ops = LoadPackagesFromDisk.load (Builtins.all ()) files
 
       // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 
@@ -180,6 +181,8 @@ module HandleCommand =
             $"WARNING: {opsBefore - opsAfter} op(s) did not survive this reload. A reload replaces \
               the log with what `packages/` produces; ops authored here are not in it, and nothing in the base tree sends them anywhere else first."
 
+        // What the store was loaded from, so the dev build can apply the next edit as a difference.
+        do! PackageEdits.writeRecord files
         return Ok()
     }
 
@@ -660,6 +663,11 @@ let main (args : string[]) : int =
         "Reload packages from `packages` directory"
         (HandleCommand.reloadPackages ())
 
+    | [ "apply-package-edits" ] ->
+      handleCommand
+        "applying the edits to `packages` since the last reload"
+        (PackageEdits.apply ())
+
     | [ "migrations"; "run" ] ->
       // Not "deleting the database": an unchanged schema hash makes this a no-op, and even a
       // changed one only drops the regenerable projections. Nothing you authored is at risk, and
@@ -698,6 +706,7 @@ let main (args : string[]) : int =
       print "Invalid arguments"
       print "Available commands:"
       print "  reload-packages"
+      print "  apply-package-edits"
       print "  migrations run"
       print "  migrations list"
       print "  export-seed <output-path>"
