@@ -111,9 +111,10 @@ let row(width: Int64, e: Darklang.Tracing.Trace): List<String> =
     Cli.Text.oneLineAt(22, Darklang.Tracing.Format.inputText(e)) ]
 
 
-/// Any list of traces, as a table. The ONE renderer: `dark traces`, `traces list --fn`,
-/// `traces find` and `traces calls` all come through here, so none of them can drift into
-/// showing a different set of columns for the same rows.
+/// Any list of traces, as a table. The ONE renderer: `dark traces`, `traces list --fn`
+/// and `traces find` all come through here, and `traces calls` adds its two columns to the
+/// same `row`, so none of them can drift into showing a different set of columns for the
+/// same rows.
 let printTable(traces: List<Darklang.Tracing.Trace>): Unit =
   let width = idWidth(traces |> Stdlib.List.map(fun e -> e.id))
   Stdlib.Cli.UI.Table.print(
@@ -488,11 +489,82 @@ let printCalls(branchId: Uuid, typed: String): Unit =
     |> Stdlib.List.iter(fun line ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
   | traces ->
-    printTable(traces)
+    let costs = Darklang.Tracing.Store.timeInNamed(branchId, fnName, 25)
+    let width = idWidth(traces |> Stdlib.List.map(fun e -> e.id))
+
+    Stdlib.Cli.UI.Table.print(
+      [ " id", "status", "when", "what ran", "input", "calls", "time in it" ],
+      traces
+      |> Stdlib.List.map(fun e ->
+        let (calls, time) =
+          match timeInFor(costs, e.id) with
+          | Some(c) -> (Stdlib.toString(c.calls), microsText(c.totalUs))
+          | None -> ("", "")
+
+        Stdlib.List.flatten([ row(width, e), [ calls, time ] ])))
+
     Stdlib.printErrorLine("")
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.dimText(
         "  dark traces show <fn> <trace>  the code, with that trace's values beside it")))
+
+
+/// What one run spent in the function, from `timeInNamed`'s rows.
+let timeInFor(
+  costs: List<Darklang.Tracing.Store.TimeInFn>,
+  traceId: String)
+  : Stdlib.Option.Option<Darklang.Tracing.Store.TimeInFn> =
+  costs |> Stdlib.List.findFirst(fun c -> c.traceId == traceId)
+
+
+/// Microseconds as a person reads them: `640 µs`, `4.2 ms`, `37 ms`, `1.8 s`. "" for 0, which
+/// is a function with no frame of its own, or a run recorded before the time was kept.
+let microsText(us: Int64): String =
+  let tenths(n: Int64, unit: String): String =
+    let whole = n / 10
+    let frac = n - whole * 10
+    $"{Stdlib.toString(whole)}.{Stdlib.toString(frac)} {unit}"
+
+  if us <= 0 then ""
+  else if us < 1000 then $"{Stdlib.toString(us)} µs"
+  else if us < 10000 then tenths(us / 100, "ms")
+  else if us < 1000000 then $"{Stdlib.toString(us / 1000)} ms"
+  else tenths(us / 100000, "s")
+
+
+/// What one run spent in the function `traces calls --json` was asked about.
+type TimeInJson =
+  { calls: Int64
+    /// Wall clock inside it, counted from the outermost call only.
+    totalUs: Int64
+    slowestUs: Int64 }
+
+
+/// One row of `traces calls --json`: the trace, and what it spent in the function.
+type TraceInFnJson =
+  { trace: TraceJson
+    inFn: TimeInJson }
+
+
+/// `traces calls <fn> --json`.
+let printCallsJson(branchId: Uuid, fnName: String): Unit =
+  let costs = Darklang.Tracing.Store.timeInNamed(branchId, fnName, 25)
+
+  let rows =
+    Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 25)
+    |> Stdlib.List.map(fun t ->
+      let inFn =
+        match timeInFor(costs, t.id) with
+        | Some(c) ->
+          TimeInJson
+            { calls = c.calls
+              totalUs = c.totalUs
+              slowestUs = c.slowestUs }
+        | None -> TimeInJson { calls = 0, totalUs = 0, slowestUs = 0 }
+
+      TraceInFnJson { trace = traceJson(branchId, t), inFn = inFn })
+
+  Stdlib.printLine(Stdlib.Json.serialize<List<TraceInFnJson>>(rows))
 
 
 /// The values `traces show` would print beside the code, as JSON: the ids and the values,

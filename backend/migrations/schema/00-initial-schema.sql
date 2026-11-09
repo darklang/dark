@@ -541,10 +541,18 @@ CREATE TABLE IF NOT EXISTS config_v0 (
 -- `fn_hash` is the version the run actually went through. A resume replays the recorded log
 -- against whatever those names mean NOW, so comparing the two is what lets `traces resume` say
 -- which of the run's callees have been edited since.
+--
+-- `calls` is how many times the run called it; `total_us` the wall clock inside it, counted from
+-- the outermost call only so recursion is not counted once per level; `slowest_us` the longest of
+-- those outermost calls. 0 for a function answered without a frame of its own (a forwarder to a
+-- builtin), which has calls but no time.
 CREATE TABLE IF NOT EXISTS trace_fns (
   trace_id TEXT NOT NULL,
   fn_name TEXT NOT NULL,
   fn_hash TEXT NOT NULL DEFAULT '',
+  calls INTEGER NOT NULL DEFAULT 0,
+  total_us INTEGER NOT NULL DEFAULT 0,
+  slowest_us INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (trace_id, fn_name)
 );
 CREATE INDEX IF NOT EXISTS idx_trace_fns_fn_name ON trace_fns(fn_name);

@@ -220,6 +220,7 @@ type private Query =
   | Newest of limit : int64
   | Calling of fnName : string * limit : int64
   | WentThrough of fnName : string * fnHash : string * limit : int64
+  | TimeIn of fnName : string * fnHash : string * limit : int64
   | ById of traceID : string
   | Containing of pattern : string * limit : int64
   | Detail of traceID : string
@@ -238,6 +239,8 @@ let private queryFromDT (q : Dval) : Query =
     Calling(fnName, limit)
   | DEnum(_, _, _, "WentThrough", [ DString fnName; DString fnHash; DInt64 limit ]) ->
     WentThrough(fnName, fnHash, limit)
+  | DEnum(_, _, _, "TimeIn", [ DString fnName; DString fnHash; DInt64 limit ]) ->
+    TimeIn(fnName, fnHash, limit)
   | DEnum(_, _, _, "ById", [ DString traceID ]) -> ById traceID
   | DEnum(_, _, _, "Containing", [ DString pattern; DInt64 limit ]) ->
     Containing(pattern, limit)
@@ -514,6 +517,39 @@ let private hotspots (traceLimit : int64) : Ply<List<Dval>> =
   }
 
 
+/// What each of the runs `WentThrough` finds spent in that function: (trace id, calls, total
+/// microseconds, slowest call's microseconds), newest first. The same runs in the same order,
+/// so a caller can lay the two side by side.
+let private timeIn
+  (fnName : string)
+  (fnHash : string)
+  (limit : int64)
+  : Ply<List<Dval>> =
+  uply {
+    let! rows =
+      Sql.query
+        "SELECT t.id AS id, f.calls AS calls, f.total_us AS total_us,
+                f.slowest_us AS slowest_us
+         FROM traces t
+         JOIN trace_fns f ON f.trace_id = t.id
+         WHERE f.fn_name = @fn
+            OR (@hash <> '' AND f.fn_hash = @hash)
+         ORDER BY t.timestamp DESC, t.rowid DESC LIMIT @limit"
+      |> Sql.parameters
+        [ "fn", Sql.string fnName
+          "hash", Sql.string fnHash
+          "limit", Sql.int64 limit ]
+      |> Sql.executeAsync (fun read ->
+        DTuple(
+          DString(read.string "id"),
+          Dval.dint64 (read.int64 "calls"),
+          [ Dval.dint64 (read.int64 "total_us")
+            Dval.dint64 (read.int64 "slowest_us") ]
+        ))
+    return rows
+  }
+
+
 /// The package functions one run went through: each one's name, and the hash the run actually
 /// went through. The names are what lets `traces show <run>` offer the code the run ran; the
 /// hashes are how a resume tells you which of them have been edited since.
@@ -636,6 +672,9 @@ let private answer (exeState : ExecutionState) (query : Query) : Ply<Answer> =
     | FnsOf traceID ->
       let! rows = fnsOf traceID
       return { noAnswer with fns = rows }
+    | TimeIn(fnName, fnHash, limit) ->
+      let! rows = timeIn fnName fnHash limit
+      return { noAnswer with totals = rows }
     | LoopPasses traceID ->
       let! rows = loopPasses traceID
       return { noAnswer with counts = rows }

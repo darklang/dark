@@ -250,6 +250,20 @@ type RecordedCall =
   { builtin : string; args : Option<List<RT.Dval>>; spawned : Option<System.Guid> }
 
 
+/// What a run spent in one package function: how many times it was called, and the wall clock
+/// inside it, in Stopwatch ticks.
+///
+/// The time is counted from the OUTERMOST call only. A recursive function's inner calls are
+/// inside the outer one's span, and adding them again would count the same instant once per
+/// level of recursion. `slowest` is the longest of those outermost calls.
+[<Struct>]
+type FnCost = { calls : int64; ticks : int64; slowest : int64 }
+
+/// `FnCost` while the run is going, for one process: plus how deep the process is in the
+/// function right now, and when its outermost call started.
+[<Struct>]
+type FnSpan = { cost : FnCost; depth : int; started : int64 }
+
 // Written on every traced call under `sync`; mutable collections keep that write allocation-free.
 type TracerState =
   {
@@ -265,9 +279,11 @@ type TracerState =
     /// ordinal. Empty for a fresh run.
     replay :
       System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Tracing.ReplayStep>
-    /// The package functions this run went through, by hash, for the `trace_fns` index. A
-    /// hash-set add per call, resolved to names once at store time.
-    fns : System.Collections.Generic.HashSet<RT.Hash>
+    /// The package functions this run went through and what it spent in each, by process and
+    /// hash, for the `trace_fns` index. One read and one write per frame push and per pop,
+    /// added up by hash and resolved to names once at store time.
+    fns :
+      System.Collections.Generic.Dictionary<struct (System.Guid * RT.Hash), FnSpan>
     /// How many times each loop went round, by the lambda's own expression id.
     ///
     /// A COUNT, not a tree. The only question anyone asks of a recorded run's shape is how many
@@ -296,7 +312,7 @@ type TracerState =
 
 let private newState (resuming : string) : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
-    fns = System.Collections.Generic.HashSet<RT.Hash>()
+    fns = System.Collections.Generic.Dictionary()
     dropped = 0
     nextSeq = 0L
     ordinals = System.Collections.Generic.Dictionary()
@@ -307,6 +323,66 @@ let private newState (resuming : string) : TracerState =
     loopPasses = System.Collections.Generic.Dictionary()
     elapsed = System.Diagnostics.Stopwatch.StartNew()
     sync = obj () }
+
+
+let private noSpan : FnSpan =
+  { cost = { calls = 0L; ticks = 0L; slowest = 0L }; depth = 0; started = 0L }
+
+let private spanOf
+  (state : TracerState)
+  (key : struct (System.Guid * RT.Hash))
+  : FnSpan =
+  match state.fns.TryGetValue key with
+  | true, span -> span
+  | false, _ -> noSpan
+
+
+/// One more call of <param hash> by <param pid>, answered without a frame. Under `sync`.
+let private countCall
+  (state : TracerState)
+  (pid : System.Guid)
+  (hash : RT.Hash)
+  : unit =
+  let key = struct (pid, hash)
+  let span = spanOf state key
+  state.fns[key] <-
+    { span with cost = { span.cost with calls = span.cost.calls + 1L } }
+
+
+/// <param pid> entered a frame of <param hash>. Under `sync`.
+///
+/// The clock is read only for the outermost call, here and in `leave`: a clock read is a system
+/// call on a host whose clock source is HPET, about 1.3 us, which on a recursive function was
+/// most of what recording cost.
+let private enter (state : TracerState) (pid : System.Guid) (hash : RT.Hash) : unit =
+  let key = struct (pid, hash)
+  let span = spanOf state key
+  state.fns[key] <-
+    { cost = { span.cost with calls = span.cost.calls + 1L }
+      depth = span.depth + 1
+      started =
+        if span.depth = 0 then
+          System.Diagnostics.Stopwatch.GetTimestamp()
+        else
+          span.started }
+
+
+/// <param pid> left a frame of <param hash>; the outermost one adds its span. Under `sync`.
+/// A frame pushed before recording began (depth 0 here) is ignored.
+let private leave (state : TracerState) (pid : System.Guid) (hash : RT.Hash) : unit =
+  let key = struct (pid, hash)
+  let span = spanOf state key
+  if span.depth = 1 then
+    let took = System.Diagnostics.Stopwatch.GetTimestamp() - span.started
+    state.fns[key] <-
+      { span with
+          depth = 0
+          cost =
+            { span.cost with
+                ticks = span.cost.ticks + took
+                slowest = max span.cost.slowest took } }
+  elif span.depth > 1 then
+    state.fns[key] <- { span with depth = span.depth - 1 }
 
 
 /// The next ordinal for `pid`'s effectful calls. Under `sync`.
@@ -558,7 +634,9 @@ let rec private executionTracingFor
   { Exe.noTracing with
       storeFnResult = makeStoreFnResult state pid
       noteFunction =
-        (fun hash -> lock state.sync (fun () -> state.fns.Add hash |> ignore<bool>))
+        (fun hash -> lock state.sync (fun () -> countCall state pid hash))
+      enterFunction = (fun hash -> lock state.sync (fun () -> enter state pid hash))
+      leaveFunction = (fun hash -> lock state.sync (fun () -> leave state pid hash))
       collectExprValues = false
       collectFrames = true
       traceEffects = true
@@ -610,6 +688,24 @@ let rec private executionTracingFor
                 state.replayEnded.Add pid |> ignore<bool>
                 RT.Tracing.ReplayStep.PerformOnwards))
       forProcess = executionTracingFor state }
+
+
+/// What the run spent in each function, across its processes. A process's spans are its own, so
+/// recursion in one is not mistaken for nesting in another; the store wants one row per function.
+let private addedUpByFunction
+  (fns :
+    System.Collections.Generic.Dictionary<struct (System.Guid * RT.Hash), FnSpan>)
+  : List<RT.Hash * FnCost> =
+  fns
+  |> Seq.map (fun (KeyValue(struct (_, hash), span)) -> hash, span.cost)
+  |> Seq.groupBy fst
+  |> Seq.map (fun (hash, costs) ->
+    let costs = costs |> Seq.map snd |> List.ofSeq
+    hash,
+    { calls = costs |> List.sumBy (fun c -> c.calls)
+      ticks = costs |> List.sumBy (fun c -> c.ticks)
+      slowest = costs |> List.map (fun c -> c.slowest) |> List.max })
+  |> List.ofSeq
 
 
 /// Keeps the trace tables bounded: after a store, the oldest traces past the caps go, except
@@ -820,7 +916,7 @@ module TraceStorage =
     /// The blobs the trace captured, one per hash. Kept in `trace_blobs`, with the trace.
     (blobs : List<string * byte[]>)
     (events : List<CompletedEvent>)
-    (fns : List<RT.Hash>)
+    (fns : List<RT.Hash * FnCost>)
     /// How many times each loop went round, by the lambda's expression id.
     (loopPasses : System.Collections.Generic.Dictionary<int64, int>)
     (accountID : Option<System.Guid>)
@@ -992,20 +1088,29 @@ module TraceStorage =
                 "passes", Sql.int64 (int64 n) ]) ]
 
       // Which functions the run went through (`trace_fns`), by name AND by the hash the run
-      // actually went through. `INSERT OR REPLACE`, not IGNORE: a resume rewrites its trace in
-      // place, and its live half may have gone through a newer hash for a name already there.
+      // actually went through, with what it spent in each. `INSERT OR REPLACE`, not IGNORE: a
+      // resume rewrites its trace in place, and its live half may have gone through a newer hash
+      // for a name already there.
+      let micros (ticks : int64) : int64 =
+        int64 (
+          float ticks * 1_000_000.0 / float System.Diagnostics.Stopwatch.Frequency
+        )
       let fnStmt =
         match fns with
         | [] -> []
         | _ ->
-          [ "INSERT OR REPLACE INTO trace_fns (trace_id, fn_name, fn_hash)
-             VALUES (@traceId, @fnName, @fnHash)",
+          [ "INSERT OR REPLACE INTO trace_fns
+               (trace_id, fn_name, fn_hash, calls, total_us, slowest_us)
+             VALUES (@traceId, @fnName, @fnHash, @calls, @totalUs, @slowestUs)",
             fns
-            |> List.map (fun hash ->
+            |> List.map (fun (hash, cost) ->
               [ "traceId", Sql.string traceIdStr
                 "fnName",
                 Sql.string (fnNameToSimpleString (RT.FQFnName.Package hash))
-                "fnHash", Sql.string (string hash) ]) ]
+                "fnHash", Sql.string (string hash)
+                "calls", Sql.int64 cost.calls
+                "totalUs", Sql.int64 (micros cost.ticks)
+                "slowestUs", Sql.int64 (micros cost.slowest) ]) ]
 
       let _ =
         Sql.executeTransactionSync (
@@ -1091,7 +1196,7 @@ let private storeTrace
           struct (state.events.ToArray(),
                   state.dropped,
                   state.nextSeq,
-                  List.ofSeq state.fns,
+                  addedUpByFunction state.fns,
                   System.Collections.Generic.Dictionary(state.loopPasses)))
       if dropped > 0 then
         Telemetry.event

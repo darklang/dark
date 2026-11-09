@@ -17,7 +17,7 @@ state resets between calls; package changes persist.
   ps --watch                                      # a live view; your edits repaint it
   ps                                              # what is running
   traces                                          # what ran, and what it did
-  traces calls <fn>                               # the runs that went through a function
+  traces calls <fn>                               # the runs through a function, and its time in each
   traces show <fn> [<run>]                        # that function's code, with a run's values
   traces resume <id>                              # pick a Ctrl-C'd run back up
 

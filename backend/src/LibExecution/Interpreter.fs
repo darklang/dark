@@ -2783,9 +2783,10 @@ let private completePackage
         vm.currentFrameID
         pkgEp
         (landedForTrace (ArgSeq.toList allArgs))
-    // Names only, and only when something is recording: this is what lets `traces calls <fn>`
-    // find the runs that went through a function, where the call itself is not recorded.
-    if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
+    // Names and time only, and only when something is recording: this is what lets `traces
+    // calls <fn>` find the runs that went through a function, and say how long each spent in it,
+    // where the call itself is not recorded. `returnFromFrame` is the other half.
+    if exeState.tracing.traceEffects then exeState.tracing.enterFunction fn.hash
     if vm.stats.enabled then
       vm.stats.registersAllocated <-
         vm.stats.registersAllocated + int64 fn.body.registerCount
@@ -6355,6 +6356,12 @@ let inline private popFrame
   : ApplyOutcome =
   match currentFrame.parent with
   | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
+    // Every package fn frame has a parent, so this is the one place its pop is seen.
+    if exeState.tracing.traceEffects then
+      match currentFrame.executionPoint with
+      | Function(FQFnName.Package hash) -> exeState.tracing.leaveFunction hash
+      | _ -> ()
+
     // Record per-package-fn timing on frame return
     if vm.stats.enabled && vm.stats.detailedTiming then
       match vm.framePushTimestamps.TryGetValue(vm.currentFrameID) with

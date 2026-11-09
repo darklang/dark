@@ -123,6 +123,8 @@ type TraceQuery =
   /// The newest runs that went through a function: by its name, or by its hash when that is
   /// not "". `Tracing.Store.wentThrough` says why it takes both.
   | WentThrough(fnName: String, fnHash: String, limit: Int64)
+  /// What each of the runs `WentThrough` finds spent in that function, in the same order.
+  | TimeIn(fnName: String, fnHash: String, limit: Int64)
   /// One run by its full id.
   | ById(traceID: String)
   /// The newest runs whose input, result or any recorded call's args or result contains this
@@ -161,7 +163,7 @@ type TraceAnswer =
     /// `LoopPasses`: (call site, passes). `FnCounts`: (function name, runs).
     counts: List<(String * Int64)>
     /// `Hotspots`: (function name, calls, total ms, max ms). `StatsByHandler`: (entry, runs,
-    /// total ms, max ms).
+    /// total ms, max ms). `TimeIn`: (trace id, calls, total µs, slowest call's µs).
     totals: List<(String * Int64 * Int64 * Int64)> }
 
 

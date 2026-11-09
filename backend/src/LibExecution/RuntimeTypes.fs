@@ -3828,6 +3828,12 @@ module Tracing =
       /// few hundred bytes per run. It is what answers "which runs went through this function"
       /// at the shipped recording level, where a package call is otherwise not recorded at all.
       noteFunction : Hash -> unit
+      /// A package function's frame was pushed, then popped: what lets a recorded run say how
+      /// long it spent in each function. Every frame push calls `enterFunction` instead of
+      /// `noteFunction`, and every pop calls `leaveFunction`. A call answered without a frame (a
+      /// forwarder to a builtin) is `noteFunction` alone, and has no time of its own.
+      enterFunction : Hash -> unit
+      leaveFunction : Hash -> unit
       /// Replay: what to do with the effectful call about to be made at this ordinal, given
       /// the builtin's name and its arguments, so a call the log did not record there is not
       /// handed another call's answer.

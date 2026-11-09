@@ -916,7 +916,11 @@ The pieces:
   served request's input is a record, so the row carries `entry_hash`, the handler that served
   it, and the preview applies that handler to the recorded request.
 - `trace_fns`: which functions a trace went through, name and hash, written while recording. Without it, "which runs went through this sub-router" is
-  unanswerable, because a package call is never recorded.
+  unanswerable, because a package call is never recorded. Each row also says how many times the
+  trace called the function and how long it spent inside it (`calls`, `total_us`, `slowest_us`):
+  a clock read and a dictionary write at each frame push and pop, timed from the outermost call
+  so recursion is not counted once per level. A call answered without a frame (a forwarder to a
+  builtin) is counted and has no time. `traces calls <fn>` shows both.
 
 What a preview does not do: it does not write, it is not a trace, and it does not echo a logged
 print (that echo belongs to a resume, where somebody is taking the trace forward).
