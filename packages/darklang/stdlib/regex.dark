@@ -240,7 +240,7 @@ let replaceMatches(
     | [] -> ""
     | [ first, ...rest ] ->
       let after =
-        Stdlib.List.map2shortest(matches, rest, fun(m, piece) -> fn(m) + piece)
+        Stdlib.List.map2Shortest(matches, rest, fun(m, piece) -> fn(m) + piece)
 
       first + Stdlib.String.join(after, ""))
 

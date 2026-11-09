@@ -523,7 +523,7 @@ let viewAtSize(
 
   let bodyRows =
     if regions.sideBySide then
-      Stdlib.List.map2shortest(
+      Stdlib.List.map2Shortest(
         fittedItemRows,
         fittedFocusRows,
         fun(itemRow, focusRow) ->

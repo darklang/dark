@@ -234,12 +234,12 @@ let private dictEffectsKeepOrder =
   }
 
 let private sortByAndMap2 =
-  testTask "sortBy and map2shortest spread and agree with serial" {
+  testTask "sortBy and map2Shortest spread and agree with serial" {
     let! state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> {uneven}(i) %% 7)"
-        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 45), fun(a, b) -> {uneven}(a) + b)"
-        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 45), Stdlib.List.range(1, 40), fun(a, b) -> {uneven}(b) + a)" ] do
+        $"Stdlib.List.map2Shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 45), fun(a, b) -> {uneven}(a) + b)"
+        $"Stdlib.List.map2Shortest(Stdlib.List.range(1, 45), Stdlib.List.range(1, 40), fun(a, b) -> {uneven}(b) + a)" ] do
       let! (spread, moved) = delta spreads (fun () -> run state code)
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
@@ -248,13 +248,13 @@ let private sortByAndMap2 =
 
 /// Keys of two types raise where the sort compares them, and an error in a key raises there.
 let private sortByAndMap2ErrorsAsSerial =
-  testTask "sortBy and map2shortest raise as serially" {
+  testTask "sortBy and map2Shortest raise as serially" {
     let! state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 else {uneven}(i))"
         $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> if i > 20 then \"s\" else {uneven}(i))"
-        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 40), fun(a, b) -> if a == 35 then 1 / 0 else {uneven}(a))"
-        $"Stdlib.List.map2shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 40), fun(a, b) -> if a > 20 then \"s\" else {uneven}(a))" ] do
+        $"Stdlib.List.map2Shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 40), fun(a, b) -> if a == 35 then 1 / 0 else {uneven}(a))"
+        $"Stdlib.List.map2Shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 40), fun(a, b) -> if a > 20 then \"s\" else {uneven}(a))" ] do
       let! (spread, serial) = both state code
       match spread, serial with
       | Error(e1, s1), Error(e2, s2) ->

@@ -405,7 +405,6 @@ let indexedMap(list: List<'a>, fn: (Int64, 'a) -> 'b): List<'b> =
   Builtin.listIndexedMap(list, fn)
 
 
-// Helper function for map2shortest
 /// Maps <param fn> over <param as> and <param bs> in parallel, calling {{fn a
 /// b}} on every pair of values from <param as> and <param bs>.
 /// If the lists differ in length, values from the longer list are dropped.
@@ -413,7 +412,7 @@ let indexedMap(list: List<'a>, fn: (Int64, 'a) -> 'b): List<'b> =
 /// {{["x", "y", "z"]}}, returns {{[fn 1 "x", fn 2 "y"]}}.
 /// Use <fn map2> if you want to enforce equivalent lengths for <param as>
 /// and <param bs>.
-let map2shortest(
+let map2Shortest(
   as_: List<'a>,
   bs: List<'b>,
   fn: ('a, 'b) -> 'c)
@@ -434,7 +433,7 @@ type LengthMismatch =
 /// For example, if <param as> is {{[1,2,3]}} and <param bs> is
 /// {{["x", "y", "z"]}}, returns {{Ok [fn 1 "x", fn 2 "y", fn 3 "z"]}}.
 /// If the lists differ in length, returns {{Error}} with both lengths (consider
-/// <fn map2shortest> if you want to drop values from the longer list instead).
+/// <fn map2Shortest> if you want to drop values from the longer list instead).
 let map2(
   as_: List<'a>,
   bs: List<'b>,
@@ -446,7 +445,7 @@ let map2(
   if left != right then
     Result.Result.Error(LengthMismatch { left = left, right = right })
   else
-    Result.Result.Ok(map2shortest(as_, bs, fn))
+    Result.Result.Ok(map2Shortest(as_, bs, fn))
 
 
 /// Returns a list of parallel pairs from <param as> and <param bs>.

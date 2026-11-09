@@ -382,7 +382,7 @@ Measured in `Scheduler.Tests.fs`, the reads group.
 
 ## Computation spreads by itself
 
-`List.map`, `filter`, `filterMap`, `indexedMap` and `map2shortest`, the keys
+`List.map`, `filter`, `filterMap`, `indexedMap` and `map2Shortest`, the keys
 of `List.sortBy` (the sort itself stays serial), the searches `List.any` and
 `findFirst`, and `Dict.map` and `Dict.filter` decide for themselves whether to
 spread across cores. Nobody writes anything for it. A list op starts serially,
@@ -395,7 +395,7 @@ first call of a body is the one that loads what it calls. So the decision
 depends on the body's cost as well as the count, and a short or cheap map
 never spreads.
 
-`Dict.map`, `Dict.filter`, `sortBy`'s keys, `map2shortest`, `any` and
+`Dict.map`, `Dict.filter`, `sortBy`'s keys, `map2Shortest`, `any` and
 `findFirst` also need each element to cost at least `Spread.minPerElement`
 (20) instructions, so a one-operation body over a long collection stays
 serial. Spread, such a body finishes sooner only when the op is little but the
@@ -554,7 +554,7 @@ nested VM on the host stack, remains for the callers in the Edges section.)
   lambda without `nestedCallStack`.
 
 The list builtins that take a callable: `List.map`, `indexedMap`,
-`map2shortest`, `fold`, `filter`, `filterMap`, `findFirst`, `any`, `sortBy`
+`map2Shortest`, `fold`, `filter`, `filterMap`, `findFirst`, `any`, `sortBy`
 (`Builtins.Pure/Libs/List.fs`), each with one continuation over two mutable
 cells rather than a closure per element. `Dict`, `Option`, `Result` and
 `String` take no callable in F# (they are Dark).
