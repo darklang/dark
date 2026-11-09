@@ -57,21 +57,19 @@ let private getItem<'a>
   (table : string)
   (lookupColumn : string)
   (deserialize : Hash -> byte[] -> 'a)
-  (hash : Hash)
-  : Ply<Option<'a>> =
-  uply {
-    let (Hash hashStr) = hash
-    return!
-      Sql.query
-        $"""
-        SELECT pt_def
-        FROM {table}
-        WHERE {lookupColumn} = @hash
-        """
-      |> Sql.parameters [ "hash", Sql.string hashStr ]
-      |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-      |> Task.map (Option.map (deserialize hash))
-  }
+  : Hash -> Ply<Option<'a>> =
+  // Built once per item kind, not per item: a triple-quoted interpolation goes through F#'s format
+  // parser, and this runs for every item loaded.
+  let sql = "SELECT pt_def FROM " + table + " WHERE " + lookupColumn + " = @hash"
+  fun (hash : Hash) ->
+    uply {
+      let (Hash hashStr) = hash
+      return!
+        Sql.query sql
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
+        |> Task.map (Option.map (deserialize hash))
+    }
 
 /// The names <param hash> holds on <param branch>: the nearest layer's first (a branch's own names
 /// before what it inherits), newest binding first. A caller that labels content for display and wants

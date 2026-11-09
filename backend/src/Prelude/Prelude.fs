@@ -477,7 +477,14 @@ let randomSeeded () : System.Random =
 
 let gid () : uint64 =
   try
-    let rand64 = RNG.GetBytes(8) |> System.BitConverter.ToUInt64
+    // From the OS generator behind `Guid.NewGuid`, not `RNG`: on Linux `RNG` is OpenSSL, and
+    // its first call loads libssl and libcrypto and reads openssl.cnf, which every `dark eval`
+    // paid for at startup. A v4 guid fixes six of its bits, at different places in each half, so the
+    // halves XORed are 64 random bits.
+    let bytes = System.Guid.NewGuid().ToByteArray()
+    let rand64 =
+      System.BitConverter.ToUInt64(bytes, 0)
+      ^^^ System.BitConverter.ToUInt64(bytes, 8)
     // Dark only has 63 bits of positive numbers, so to make it easier to convert IDs
     // to dark, we keep IDs in that range.
     let mask =
