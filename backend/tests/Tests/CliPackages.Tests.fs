@@ -1421,6 +1421,73 @@ let readToo(path: String): String =
       do! discardAll state
     })
 
+/// `run` takes a package function's name where it takes a script path: the arguments come in
+/// as a `List<String>`, and the Int64 it returns is the exit code.
+let runCallsAPackageFunctionByName =
+  instanceTest "run calls a package function by name" (fun state ->
+    task {
+      do! start state
+      let dir =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-run-fn-{System.Guid.NewGuid():N}"
+        )
+      System.IO.Directory.CreateDirectory dir |> ignore
+      let source =
+        """let main(args: List<String>): Int64 =
+  match args with
+  | [ "add", item ] ->
+    Stdlib.printLine("added " + item)
+    0
+  | _ -> 2
+let hello(): Unit = Stdlib.printLine("hello")
+"""
+      let sourceFile = System.IO.Path.Combine(dir, "app.dark")
+      try
+        System.IO.File.WriteAllText(sourceFile, source)
+        do!
+          exits
+            state
+            [ "module"; "Tests.RunFn"; sourceFile ]
+            0L
+            "author the program"
+        do! run state [ "permissions"; "approve"; "Tests.RunFn.main"; "--yes" ]
+        do! run state [ "permissions"; "approve"; "Tests.RunFn.hello"; "--yes" ]
+        do!
+          shows
+            state
+            [ "run"; "Tests.RunFn.main"; "add"; "milk" ]
+            "added milk"
+            "the arguments reach the function"
+        do!
+          exits
+            state
+            [ "run"; "Tests.RunFn.main"; "remove" ]
+            2L
+            "its result is the exit code"
+        do!
+          shows
+            state
+            [ "run"; "Tests.RunFn.hello" ]
+            "hello"
+            "a function that takes nothing"
+        do!
+          shows
+            state
+            [ "run"; "Tests.RunFn.hello"; "x" ]
+            "takes no arguments"
+            "arguments to a function that takes none are refused"
+        do!
+          shows
+            state
+            [ "run"; "Tests.RunFn.nope" ]
+            "No script file or function named Tests.RunFn.nope"
+            "a name that is neither"
+      finally
+        System.IO.Directory.Delete(dir, true)
+      do! discardAll state
+    })
+
 /// Search leaves tests out unless asked: a test is usually named after what it tests, so
 /// every search for a function would list its tests too. Left out is not hidden, though:
 /// the output says how many matched, so a search with only test hits never reads as empty.
@@ -2309,6 +2376,7 @@ let tests : List<Test> =
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies
     approvedFunctionReadsAFile
+    runCallsAPackageFunctionByName
     upgradeRestoresSeedOperationKinds
     workbenchShowsTests
     workbenchRenameEndsTheOldName

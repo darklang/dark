@@ -69,9 +69,7 @@ let permissionWarningLines(
       "warning: this run went beyond the configured permission policy:")
 
 
-// `run-script <path> [args...]` — execute a Dark script file.
-//
-// For calling package fns, use `eval` instead.
+// `run-script <path> [args...]` — execute a Dark script file, or a package function by name.
 
 /// Split runner options from the script path and its arguments. Everything after the path stays
 /// with the script, flags included; `--` ends the options and stays with them. The same rule as the
@@ -165,18 +163,11 @@ let executeScript(
   stats: Bool)
   : AppState =
   match Stdlib.Cli.FileSystem.readFile(scriptPath) with
+  | Error(NotFound) when looksLikePackageName(scriptPath) ->
+    executePackageFn(state, scriptPath, args, options, stats)
   | Error(e) ->
     match e with
-    | NotFound ->
-      if looksLikePackageName(scriptPath) then
-        let argsStr = Stdlib.String.join(args, " ")
-        let evalCmd = Stdlib.String.trim($"dark eval {scriptPath} {argsStr}")
-
-        [ $"{scriptPath} isn't a script file."
-          $"  `run` executes a script; that looks like a package function. Try:  {evalCmd}" ]
-        |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(l))
-      else
-        Stdlib.printErrorLine($"Script not found: {scriptPath}")
+    | NotFound -> Stdlib.printErrorLine($"Script not found: {scriptPath}")
     | OsAccessDenied -> Stdlib.printErrorLine($"Permission denied: {scriptPath}")
     | Other(msg) -> Stdlib.printErrorLine($"Could not read script {scriptPath}: {msg}")
     // Every branch above printed a reason the script did not run, so this is a failure. Saying
@@ -192,6 +183,42 @@ let executeScript(
       options,
       true,
       stats)
+
+
+/// Run the package function <param name> the way a script runs: under the same policy, with
+/// <param args> as its argument, and its Int64 result as the exit code. A function that takes
+/// nothing is called with `()`.
+let executePackageFn(
+  state: AppState,
+  name: String,
+  args: List<String>,
+  options: Darklang.Tracing.ScriptOptions,
+  stats: Bool)
+  : AppState =
+  let branchId = state.currentBranchId
+  let fnName = TraceVerbs.canonicalFnName(branchId, name)
+  let location = LanguageTools.ProgramTypes.parsePackageLocation(fnName)
+
+  match LanguageTools.PackageManager.Function.find(branchId, location) with
+  | None ->
+    Stdlib.printErrorLine($"No script file or function named {name}")
+    { state with exitCode = 1 }
+  | Some(hash) ->
+    let takesArgs =
+      match LanguageTools.PackageManager.Function.getSignature(hash) with
+      | Some(fn) ->
+        fn.parameters
+        |> Stdlib.List.any(fun p -> p.typ != LanguageTools.ProgramTypes.TypeReference.TUnit)
+      | None -> true
+
+    if takesArgs then
+      runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats)
+    else
+      match args with
+      | [] -> runScriptMeasured(state, name, $"{fnName}()", args, options, true, stats)
+      | _ ->
+        Stdlib.printErrorLine($"{name} takes no arguments")
+        { state with exitCode = 1 }
 
 
 let allowAlways(): String = "Allow future runs (save to the instance policy)"
@@ -334,8 +361,8 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
 
 
 let help(_state: AppState): String =
-  [ "Usage: run-script [options] <path> [args...]"
-    "Execute a Dark script file."
+  [ "Usage: run-script [options] <path or function> [args...]"
+    "Execute a Dark script file, or a package function by name."
     ""
     "Examples:"
     "  run-script script.dark            - Run a script"
@@ -357,6 +384,7 @@ let help(_state: AppState): String =
     "                       with the build they came from. Includes parsing the script;"
     "                       call Perf.measure inside it to measure the work alone."
     ""
-    "To call a package function, use 'eval' instead:"
-    "  eval (5 + 3)" ]
+    "A package function runs the same way, by name. It takes the arguments as a"
+    "List<String>, or nothing, and its Int64 result is the exit code:"
+    "  run-script Me.Todo.main add milk" ]
   |> Stdlib.String.join("\n")
