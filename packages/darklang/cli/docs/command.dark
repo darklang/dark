@@ -33,7 +33,7 @@ module Topics =
           aliases = [ "ai", "agent" ]
           context = "cli"
           content = Docs.ForAI.content
-          subtopics = [] }
+          subtopics = forAISubtopics() }
 
       DocTopic
         { name = "scripts"
@@ -237,6 +237,48 @@ module Topics =
           content = fun () -> "Run `docs signatures` to render. See `docs signatures --help`."
           subtopics = [] } ]
 
+  /// The reference sections `docs for-ai` leaves out, so its first read stays short:
+  /// `docs for-ai tests` and the rest.
+  let forAISubtopics(): List<DocTopic> =
+    [ subtopic("packages", "Saving declarations, changing what exists, the type checker", [ "authoring", "edit" ], Docs.ForAIParts.packages)
+      subtopic("tests", "Package tests in full", [ "test", "testing" ], Docs.ForAIParts.tests)
+      subtopic("permissions", "Rules, profiles and package approvals", [ "perms", "http", "files" ], Docs.ForAIParts.permissions)
+      subtopic("traces", "What a run did, and things that run at once", [ "live", "processes" ], Docs.ForAIParts.traces)
+      subtopic("scm", "Drafts, commits, branches, deprecation", [ "branches", "commits" ], Docs.ForAIParts.scm)
+      subtopic("syntax", "The full syntax notes and name resolution", [ "names" ], Docs.ForAIParts.syntax) ]
+
+  let subtopic(
+    name: String,
+    description: String,
+    aliases: List<String>,
+    content: Unit -> String)
+    : DocTopic =
+    DocTopic
+      { name = name
+        description = description
+        aliases = aliases
+        context = "cli"
+        content = content
+        subtopics = [] }
+
+  /// The topic in <param topics> called <param name>, or with it as an alias.
+  let findIn(topics: List<DocTopic>, name: String): Stdlib.Option.Option<DocTopic> =
+    let lowerName = Stdlib.String.toLowercase(name)
+
+    match Stdlib.List.findFirst(topics, fun t -> Stdlib.String.toLowercase(t.name) == lowerName) with
+    | Some(t) -> Stdlib.Option.Option.Some(t)
+    | None ->
+      topics
+      |> Stdlib.List.findFirst(fun t ->
+        t.aliases
+        |> Stdlib.List.any(fun a -> Stdlib.String.toLowercase(a) == lowerName))
+
+  /// `docs <topic>`'s subtopics, one per line, for when a name is not one of them.
+  let formatSubtopicList(topic: DocTopic): String =
+    topic.subtopics
+    |> Stdlib.List.map(fun t -> $"  docs {topic.name} {t.name} - {t.description}")
+    |> Stdlib.String.join("\n")
+
   let findTopic(name: String): Stdlib.Option.Option<DocTopic> =
     let topics = allTopics()
     let lowerName = Stdlib.String.toLowercase(name)
@@ -316,9 +358,39 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     | None ->
       match Topics.findTopic(topicName) with
       | Some(topic) ->
-        let contentFn = topic.content
-        Stdlib.printLine(contentFn())
-        state
+        match (topic.subtopics, rest) with
+        | ([ _, ... ], [ _, ... ]) ->
+          // Several parts in one call, so a reader needs one more turn at most.
+          let unknown =
+            rest
+            |> Stdlib.List.filter(fun name ->
+              Stdlib.Option.isNone(Topics.findIn(topic.subtopics, name)))
+
+          match unknown with
+          | [] ->
+            rest
+            |> Stdlib.List.filterMap(fun name -> Topics.findIn(topic.subtopics, name))
+            |> Stdlib.List.uniqueBy(fun sub -> sub.name)
+            |> Stdlib.List.map(fun sub ->
+              let contentFn = sub.content
+              contentFn())
+            |> Stdlib.String.join("\n\n")
+            |> Stdlib.printLine
+
+            state
+          | _ ->
+            let names = Stdlib.String.join(unknown, ", ")
+            let noun = if Stdlib.List.length(unknown) == 1 then "part" else "parts"
+
+            Stdlib.printErrorLine(
+              Stdlib.Cli.UI.Colors.error($"Unknown {noun} of docs {topic.name}: {names}"))
+            Stdlib.printErrorLine("")
+            Stdlib.printErrorLine(Topics.formatSubtopicList(topic))
+            Cli.failed(state)
+        | _ ->
+          let contentFn = topic.content
+          Stdlib.printLine(contentFn())
+          state
       | None ->
         Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown topic: {topicName}"))
         Stdlib.printErrorLine("")
@@ -333,6 +405,8 @@ let help(_state: Cli.AppState): String =
     Stdlib.Cli.UI.Colors.info("Examples:")
     "  " + Stdlib.Cli.UI.Colors.command("docs") + "         - List all topics"
     "  " + Stdlib.Cli.UI.Colors.command("docs for-ai") + "  - AI agent quick start"
+    "  " + Stdlib.Cli.UI.Colors.command("docs for-ai tests") + "  - One of its longer sections"
+    "  " + Stdlib.Cli.UI.Colors.command("docs for-ai tests scm") + "  - Several sections at once"
     "  " + Stdlib.Cli.UI.Colors.command("docs syntax") + "  - Language syntax reference"
     "  " + Stdlib.Cli.UI.Colors.command("docs errors") + "  - Common errors and fixes" ]
   |> Stdlib.String.join("\n")
@@ -359,4 +433,14 @@ let complete(
           |> Stdlib.List.any(fun a ->
             Stdlib.String.startsWith(Stdlib.String.toLowercase(a), lowerPartial))))
     |> Stdlib.List.map(fun t -> Cli.Completion.withDescription(t.name, t.description))
+  | [ topicName, partial ] ->
+    match Topics.findTopic(topicName) with
+    | Some(topic) ->
+      let lowerPartial = Stdlib.String.toLowercase(partial)
+
+      topic.subtopics
+      |> Stdlib.List.filter(fun t ->
+        Stdlib.String.startsWith(Stdlib.String.toLowercase(t.name), lowerPartial))
+      |> Stdlib.List.map(fun t -> Cli.Completion.withDescription(t.name, t.description))
+    | None -> []
   | _ -> []

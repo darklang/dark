@@ -1664,7 +1664,18 @@ let private emptyCommitIsARefusal =
 /// else checks. Narrow by design: only the WORD after `dark`, which is what is verifiable
 /// mechanically. It cannot tell you the prose is wrong, only that the commands are real.
 let private docTopicsToCheck =
-  [ "scm"; "for-ai"; "cli"; "processes"; "live"; "http-server" ]
+  [ "scm"
+    "for-ai"
+    "for-ai packages"
+    "for-ai tests"
+    "for-ai permissions"
+    "for-ai traces"
+    "for-ai scm"
+    "for-ai syntax"
+    "cli"
+    "processes"
+    "live"
+    "http-server" ]
 
 let private documentedCommandsAreReal =
   instanceTest "every command the docs mention exists" (fun state ->
@@ -1689,7 +1700,7 @@ let private documentedCommandsAreReal =
       let mutable failures : List<string * string> = []
 
       for topic in docTopicsToCheck do
-        let! doc = runCli state [ "docs"; topic ]
+        let! doc = runCli state ("docs" :: List.ofArray (topic.Split(' ')))
 
         let mentioned =
           doc.Split([| ' '; '\n'; '\t' |])

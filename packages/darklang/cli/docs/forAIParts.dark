@@ -1,0 +1,462 @@
+module Darklang.Cli.Docs.ForAIParts
+
+// The reference sections `docs for-ai` used to carry in full. Each is one part,
+// `docs for-ai <part>`, so the first read stays short.
+
+/// `docs for-ai packages`: saving declarations and changing them.
+let packages(): String =
+  """# Darklang AI: packages
+
+## Authoring
+
+A name is Owner.name, or Owner.Module.name to put it in a module. Use an owner
+of your own, such as `Me`: `Darklang` is reserved for the standard library and
+refuses a save.
+
+Create several declarations atomically:
+
+  module /Me.Example - <<'EOF'
+  type State = { count: Int64 }
+  let double(n: Int64): Int64 = n * 2
+  let main(n: Int64): Int64 = double(n)
+  EOF
+
+For one function, stdin accepts a complete declaration; the shorter signature
+and body fragment remains valid:
+
+  fn /Me.Example.double - <<'EOF'
+  let double(n: Int64): Int64 = n * 2
+  EOF
+
+At module scope values use `val name = value`; `let` declares functions. Inside
+a function, local values use `let`. Nested helpers annotate every parameter
+(the return type is optional; neither is checked): `let helper(x: Int64): Int64 = ...`.
+
+`fn`, `type`, `val` and `module` run the at-rest type checker on what they save
+and print its findings; the save goes through regardless (WIP is yours to break).
+Updating existing items also re-checks their visible transitive dependents after
+all propagation finishes and lists any that have definite type errors. Reports
+count package locations rather than shared content hashes and do not misattribute
+errors that already existed.
+`commit` re-checks what it is committing and refuses a definite type error;
+`commit --allow-type-errors` overrides that. An incomplete proof is reported but
+never blocks: it means the checker lacked evidence, not that the declaration is
+wrong. `typecheck` summarizes the whole branch, the standard library
+included, so name your owner or module (`typecheck Me`) to see only yours;
+`--all` also lists successful items, `--failed` or `--incomplete` lists only
+that verdict.
+
+## Changing something that exists
+
+Read it, transform it, write it back. Do not retype a declaration to change one
+line of it:
+
+  view Some.fn --raw > /tmp/f.dark  # the declaration alone, nothing around it
+                                    # ...edit /tmp/f.dark...
+  edit Some.fn /tmp/f.dark          # applies it; no editor, no terminal needed
+
+`--raw` prints exactly what `edit` and `module` accept, so this is a pipe rather
+than a screen-scrape. Plain `view` is for a person to read and carries a
+capabilities line you would have to strip. `edit <name>` with no file opens
+$EDITOR instead, which is the shape for a human, not for you. And `--raw` is
+the stored NORMAL FORM, not your keystrokes: formatting, redundant parens and
+annotated nested lets come back normalized, so diff against a fresh `--raw`,
+never against what you typed.
+"""
+
+/// `docs for-ai tests`: package tests in full.
+let tests(): String =
+  """# Darklang AI: tests
+
+## Package tests
+
+Tests are ordinary Dark declarations stored separately from production
+functions. They must return `Stdlib.Test.Result`:
+
+  module /Me.Example.Tests - <<'EOF'
+  test doubles =
+    Me.Example.double(4)
+    |> Stdlib.Test.equal(8)
+  EOF
+
+One test at a time, quoting the body so the shell leaves `|>` alone:
+
+  test add Me.Example.Tests.doubles 'Me.Example.double(4) |> Stdlib.Test.equal(8)'
+
+Run all tests with `test run`, or filter by name/module with `test run Example`.
+`search` leaves tests and `Tests` modules out; add `--include-tests`, or `--test`
+for tests only.
+Tests use an allow-all instance policy for the test run and its disposable
+workers; the installation's saved policy is unchanged. Each called function's
+ordinary package approval and permission ceiling still applies. Tests have no
+permission rows or grants of their own. A passing
+ordinary test is reused when its calls are proven safe to reuse, on the same
+branch with the same `Stdlib.Test.Result` binding, until the test body, one of
+its followed dependencies, the runtime build, or the judging code changes.
+Failed tests and expected-error tests rerun; so do tests with incomplete
+cache-safety analysis.
+`equal` and `notEqual` use branch-dependent formatting and rerun conservatively;
+use `expect` with a fixed message for checks that can be cached.
+`test run --force` reruns cached tests.
+
+Tests may use the effects the called functions allow them.
+
+Every test execution runs in its own disposable process with an isolated store.
+Ordinary `test name = ...` declarations provide isolation automatically, including
+for tests that change the local store, branches, or environment. Safe cached
+passes can still be reused. One starting snapshot per `test run` command is
+shared read-only; a test that writes to it reruns on a private copy and is marked
+`(reran on a copy)`, so anything it does outside its own home and temporary
+directory happens twice. A command answered entirely from cache creates no
+snapshot. Nested workers start from their calling test's current store.
+Use `Stdlib.Test.Process.run` only when a test needs custom process options or
+must inspect a child's output, result, or exit status.
+
+To count evaluations or callbacks, use `Stdlib.Test.incrementCounter(value)` (returns
+the value unchanged) and `Stdlib.Test.counterValue()`. The counter is
+in memory and starts at zero for each test execution, including reruns.
+These helpers work only in package tests, need no host permissions, and make
+the test rerun rather than reuse a cached pass.
+
+
+A test that expects a runtime error declares the expected outcome after its
+body; the body may be any expression and passes only when the rendered message
+matches exactly:
+
+  test divisionByZero =
+    (1 / 0)
+    => raises "Cannot divide by 0"
+"""
+
+/// `docs for-ai permissions`: the instance policy and package approvals.
+let permissions(): String =
+  """# Darklang AI: permissions
+
+Host permissions are managed with the `permissions` command (alias `perms`).
+The instance policy is local, machine-wide, and deny-by-default. A fresh
+installation permits package/local-store access, stdio, clock, and randomness;
+rules allow (or deny) additional effects and resources:
+
+  permissions list
+  permissions profile                         # list starting policies
+  permissions profile read-only /home/me/project       # preview: reads, HTTPS GET
+  permissions profile local-dev /home/me/project --yes # apply: adds writes, serving
+  permissions allow clock
+  permissions allow http GET https://api.stripe.com/v1
+  permissions allow file write /home/me/project/data   # absolute; ~ not expanded
+  permissions deny http POST https://api.stripe.com/v1
+  permissions allow native             # raw fds, process handles: cannot be scoped,
+                                       # so it is granted whole or not at all
+  permissions requirements <fn|hash>   # complete transitive permission requirements
+  permissions show <fn|hash>           # requirements, approvals, and effective policies
+
+Consumer approvals are local to this installation, like the instance policy,
+with one approved version per logical function name. The
+normal workflow uses the logical function name; immutable hashes stay behind
+the approval:
+
+  permissions approve Vendor.Package.function
+  permissions update Vendor.Package.function
+  permissions approved                  # name  shorthash
+  permissions unapprove Vendor.Package.function
+  permissions approvals                 # approved hashes; revoke-package <hash> drops one
+
+Approval computes the function's inferred transitive needs; changing the code
+changes its hash and requires a new decision, without changing the user's
+logical name. An approved version is what the name RESOLVES to when you run
+something, so approving is how you stay on a reviewed version while the package
+moves on. `unapprove` only releases the name; the version's approval stays until
+`revoke-package`.
+"""
+
+/// `docs for-ai traces`: reading a run back, and things that run at once.
+let traces(): String =
+  """# Darklang AI: traces
+
+## Looking at what your code did
+
+**You do not need any of this for something small.** Write it, run it, read the
+output. Every command below costs a step, and a step you did not need is slower
+than the print statement you were going to write anyway.
+
+Reach for it when the thing you are building is slow to run, or involved enough
+that you cannot hold what it did in your head: a handler with several calls in
+it, something that talks to an API, anything you have run more than twice.
+
+The loop, then:
+
+  dark traces record on            keep a record of every run (off by default)
+  dark run thing.dark              ... so this run is kept, with what it did
+  dark traces                      the runs, newest first
+  dark traces show <fn>            that function's code, with the values from
+                                   the newest run that went through it
+
+`traces show` is the one that replaces a print statement. It replays the run
+with every impure call answered from what was recorded, so nothing is performed
+a second time -- no second charge, no second write -- and the pure code is
+recomputed, so the values are the values of the code as it is NOW. Edit a
+callee, run it again, and the numbers move without re-running the world.
+
+A line inside a loop carries ONE value, the last time round. To see another
+iteration, name the loop:
+
+  dark traces show <fn> --iteration map:3          that loop's third iteration
+  dark traces show <fn> --iteration map:3,fold:3   two loops, same iteration
+
+Names come from the code: `map` and `fold` are the function the lambda was
+passed to. Two of a name are `map` and `map#2`. The footer says which iteration
+each loop is showing. To read a function the run CALLED, just view it:
+`dark traces show <that fn>`.
+
+**For you, do not navigate.** `dark traces show <fn> --json` returns every loop,
+every iteration and all of their values in ONE call, each carrying the
+`iteration` string a person would type. A person goes a step at a time because several
+answers to one question on one screen is confusing; you have no such problem and
+a round trip costs you more than the bytes do.
+
+Discovery goes both ways. `dark view <fn>` says how many traces went through a
+function, and so does `dark edit <fn>` once the edit lands; `dark traces calls
+<fn>` lists them; `dark traces inspect <id>` says which functions a trace ran, so
+you can go from a run back to the code.
+
+When a run stopped partway, `traces resume <id>` carries on from where it got
+to rather than starting over, and `traces fork <id> --at <n>` runs a different
+tail from the same recorded beginning: three variations cost one real run.
+
+`traces calls` and `traces inspect` take `--json`, and so does `ps`. Use it:
+the tables are laid out for a person and their columns will change. `resume`
+and `fork` report in prose; they do work rather than answer a question.
+
+Exit codes are the other thing you can branch on without reading English.
+`eval` and `run` exit 0 when the code ran and gave an answer, and non-zero
+when it raised, when the script was not there, or when the script itself
+ended non-zero. A permission refusal is non-zero too.
+
+## Live, and processes
+
+Running things follow your edits WHEN ASKED. `serve <router> --live` runs the
+newest router that passes its checks on every request; a broken save keeps the
+previous one serving. `ps --watch` and `traces show <fn> --watch` are live
+views over the same host loop. The workbench shows `// = value` beside calls
+from the last recorded run.
+
+Every run is a process: reads run at once with no code change, writes keep order,
+`Stdlib.await(x)` waits here; `Exec.spawn`/`await`/`cancel` when you want control;
+`ps` shows what is running on the machine, `traces resume <id>` picks a Ctrl-C'd
+run back up, `traces fork` branches one. `docs processes` and `docs live` have the
+short versions; `docs/processes.md` and `docs/live.md` in the repo have the design.
+"""
+
+/// `docs for-ai scm`: drafts, commits, branches and deprecation.
+let scm(): String =
+  """# Darklang AI: scm
+
+## SCM (version control)
+
+Your edits are LIVE the moment you author them. `commit` doesn't make them
+real -- it reviews them and records them. Before that they're your draft: running,
+changeable, not yet anyone else's.
+
+Editing an item repoints all its callers immediately, across owners. That's
+PROPAGATION, and it's the one behaviour to know about, because it means a
+`status` after one edit can show two changed items.
+
+  status [--json]      what changed, what FOLLOWED, what's waiting
+  commit <msg> [-y]    review + commit; -y skips the prompt
+  commit --json        a dry review -- exactly what committing would do
+  discard [-y]         drop the whole draft
+  undo <name>          step ONE item back one version
+  deps <name> --json   what it uses and what uses it, each flagged `behind`
+  ack --all            leave every constraint finding for now
+
+Every question-answering command takes `--json` (status, commit's dry review,
+conflicts, constraints, branches, diff, deps, search, typecheck), and it's the
+same data the human view renders. `status --json` flags each changed item
+`followed` or not, which is how you tell what you did from what propagation did.
+Authoring commands exit nonzero when nothing was saved (a parse error, a name
+mismatch), so branch on the exit, not on grepping for "error".
+  (see: docs scm -- the full model, branches, merge, conflicts)
+
+## Branches
+
+A branch is its own layer of names over its parent's, in the same store, invisible to main until it merges, and it sees only COMMITTED work from main and its parents -- a draft is private to where it was authored.
+Several agents on several branches is the case this is built for: one process
+each, and they never see each other's work until someone merges.
+
+  dark switch feature              # persists; the next `dark` starts here
+  dark --branch feature <cmd>      # ONE command, without switching
+  dark branches [--json]           # what exists
+  dark diff feature                # what it changes vs its parent
+  dark rebase feature              # take the parent's current state
+  dark merge feature -y            # fold it in (-y: nothing is there to answer the prompt)
+
+Conflicts never block. Both sides converge on the same winner, the loser is
+kept, and `dark conflicts` is where you review it after.
+  (see: docs scm)
+
+## Your history
+
+  dark commits                     # THIS branch's commits, newest first
+  dark ops                         # the op log itself
+  dark show <hash>                 # what one commit contains, or what one op does
+
+Ops are content-addressed and the log is append-only, so nothing you have
+committed can be rewritten, only superseded.
+  (see: docs scm)
+
+## Deprecation (mark items as unused / dangerous / obsolete)
+  deprecate <fn|type|value> <name> --kind <k> [options]
+    kinds: superseded-by (requires --replacement), harmful, obsolete
+  delete <fn|type|value> <name> [options]     # sugar for --kind obsolete
+    options: --ignore-dependents; --force = --ignore-dependents + --yes
+  deprecate/delete ... --json                 # one object; without --yes, a dry run
+  undeprecate <name>                          # clear it, any kind, harmful included
+  eval --allow-harmful <fn>                   # opt out of harmful halt
+  (see: docs deprecation)
+"""
+
+/// `docs for-ai syntax`: the full syntax notes and name resolution.
+let syntax(): String =
+  """# Darklang AI: syntax
+
+## Names and syntax
+
+- `Stdlib.X` expands to `Darklang.Stdlib.X`. Cross-owner names need a full path.
+- Never write `PACKAGE.` in source or search; it is internal notation.
+- A package item named `__name` is an internal helper, not public API. `ls`,
+  `tree`, `search`, `docs` and completion hide it (`--include-internal` shows
+  it); `view`, calls and `deps` reach it by its full name.
+- Lists use commas: `[1, 2]`; chars use single quotes: `'a'`.
+- `|>` passes the value on its left in as the first argument. If that value is
+  an `if` or `match`, put it in parentheses, or only its last branch gets piped.
+- Strings concatenate with `+`. Interpolation uses the type's `ToString` implementation.
+- A value becomes a String with `Stdlib.toString(x)`, for every type with a `ToString`
+  impl; there is no `Stdlib.Int64.toString`. Lists, tuples and Unit have none;
+  `Stdlib.toRepr(x)` shows any value. Any trait method is called through the
+  trait, not the type: `Stdlib.Add.add(1, 2)`, or receiver first, `x.toString`.
+  `view Stdlib.Int64` lists the type's impls with where each method is called.
+- A bare integer is an `Int64` and a bare `1.5` a `Float`; numeric operands must
+  have one type. Other number types take a suffix (table in Critical Syntax).
+- Local values use `let max = 6` without annotations; package values use `val`.
+- A keyword (`type`, `match`, `in`, ...; `docs syntax` lists them) is a name only
+  in double backticks: `let ``type`` = "json"`, `r.``type```.
+- Record construction is `State { count = 0 }`; update is `{ state with count = 1 }`.
+- `f(x)?` extracts Ok/Some or immediately returns Error/None from the
+  nearest function/lambda. Return Result/Option and still write Ok/Some on
+  success; Result error types must agree.
+- Option/Result cases work bare: `Some(x)`, `None`, `Ok(x)`, `Error(e)`.
+- A constructor's fields go in parentheses, as a call's arguments do:
+  `Pair(1, 2)`, `| Ok(x) ->`. `Ok x` is a parse error.
+- User enum construction uses `TypeName.Case`; match cases may be bare or
+  qualified (`| Result.Ok(x)`).
+- A tuple payload needs double parentheses: `Some((a, b))`.
+- Lambda parameters take the call shape: `fun x ->`, `fun(acc, x) ->`; one
+  tuple parameter is `fun((a, b)) ->`.
+- A function type with several arguments is `(A, B) -> C`; `A -> B` takes one.
+- A function may declare a permission ceiling as an effect row on the return
+  colon: `let fetch(url: String):{Http, Clock} String = ...`. It only
+  restricts (`:{}` means effect-free); names are effect cases like `FileRead`.
+
+## Critical Syntax
+- Whitespace-sensitive (like Python)
+- Calls put the arguments in parentheses: `Stdlib.String.length(s)`,
+  `Stdlib.List.map(xs, fun x -> x + 1)`. `f()` calls a fn declared `let f(): T`.
+  `f a b` is a parse error.
+- No partial application: a call gives every argument, and too few is an error,
+  not a function. To supply the rest later, write a lambda: `fun x -> Stdlib.max(1, x)`.
+- Declarations list their parameters the same way: `let add(a: Int64, b: Int64): Int64 = a + b`.
+- Nested function definitions need PARENTHESIZED, annotated params:
+  `let helper(x: Int64): Int64 = ...`. The return type is optional, and neither
+  annotation is checked. The parser desugars this to a local lambda, so
+  use it for task-local helpers. A nested fn can call one defined above it; a FORWARD
+  reference to one defined below fails, and so does mutual recursion.
+- NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid --
+  modules are not first-class values. Use the full path each time.)
+- Pipe |> feeds the left value as the FIRST argument of the right fn; any
+  args in its parentheses come after it: `[1, 2] |> Stdlib.List.map(toString)`
+  is `Stdlib.List.map([1, 2], toString)`, and `x |> f()` is `f(x)`. You can't
+  pipe straight into an operator (`n |> + 1` won't parse), so write `n + 1`, or
+  use a lambda mid-pipe: `|> (fun v -> v + 1)`. If the left side is an `if` or
+  `match`, wrap it in parentheses: `(if c then a else b) |> fn`.
+- Every line of a block except the last must return Unit; drop any other value with
+  `let _ = f(x)`. `run` and `eval` type-check code with more than one statement first, and
+  run none of it when a line drops a value or has another definite type error, even in a
+  branch that is not taken.
+- Lists: [1, 2, 3] (commas; a semicolon is a parse error)
+- Spread joins lists: `[x, ...xs]`, `[...a, ...b]`. There is no `::` or `@`.
+- Dicts and records use commas or newlines, never semicolons:
+  `Dict { "a": 1, "b": 2 }`, `Point { x = 1, y = 2 }`,
+  `type Point = { x: Int64, y: Int64 }`, `{ point with x = 3, y = 4 }`.
+- Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
+  double quotes; "a" is not 'a')
+- Tuples destructure inline in `let` and in lambda params:
+  `let (a, b) = pair`, `fun((name, done)) -> ...`
+- Tuple elements by position, counting from 1: `pair.1`, `triple.3`,
+  `nested.1.2`. `.0` and past-the-end are errors.
+- String concat: +
+- String interpolation: $"x = {expr}; total = {a + b}" -- requires `ToString`;
+  its implementation is resolved and recorded when saved.
+- Most operators are traits: `+ - * / % **` and `-x` are Add Subtract Multiply Divide Modulo
+  Power Negate; `< <= > >=` are Compare; `& | ^ << >>` and `~x` are BitwiseAnd BitwiseOr
+  BitwiseXor ShiftLeft ShiftRight BitwiseNot. `==` and `!=` are NOT traits: structural on
+  every value, always, and no type can override them.
+  Operands must match (`1 + 2`, `1.0 + 2.0`; `1 + 2.0` is an error). `/` is
+  integer division on ints, float on floats; `**` is power; a bare `1` is an
+  `Int64`, which wraps on overflow. `"a" + "b"` is `"ab"`.
+  `19.99dec` is a `Decimal`: exact base-10, the type for money; `Stdlib.Decimal.round`,
+  `roundWith` (a `RoundingMode`), `floor`, `ceiling`, `power`, `parse`, `toParts`.
+- Number literals. The suffix decides the type; nothing infers it:
+    1, 1s, 1s64   Int64          1u, 1u64   UInt64
+    1s8 1s16 1s32 1s128          1u8 1u16 1u32 1u128
+    1z            BigInt         1.5, 1e5, 1.5f64   Float
+    1.5f32        Float32        19.99dec   Decimal (no exponent)
+  `z` is for ℤ, the integers: `1z` is a BigInt, with no size limit.
+  Values print with their suffix except Int64 and Float, so output pastes back as itself.
+- Traits: `impl Add for Vec = let add(a: Vec, b: Vec): Vec = ...` gives Vec
+  a `+`; `impl ToString for Point = let toString(p: Point): String = ...`
+  gives `p.toString`; your own with `trait Area<'a> = let area(s: 'a): Float`.
+  A bound is `let f<'a: ToString>(v: 'a) = ...`. Author with `dark trait` /
+  `dark impl`; `dark impls <Trait> --json` lists implementations with the status a
+  call sees (active, shadowed, unordered); `dark constraints --json` has the rival
+  pairs; `docs traits`.
+- Bitwise operators have implementations for every integer type and none for
+  Float or Float32; both operands (the shift count included) must be the same type.
+  The count is taken modulo the bit width, as in Rust: `1u8 << 9u8` is `2u8`.
+- `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
+  there needs parens: `| A -> (a | b)`.
+
+## Records
+  MyRecord { a = 1, b = 2 }
+  # { must not be left of type name
+
+## Enums
+  type Shape = | Dot | Seg(Point, Point)   # declare: fields in parentheses, like a call
+  Option.Some(5)     # construct: TypeName.Case, fields in parentheses
+  | Some(x) -> ...           # match: Case, or Type.Case
+  | (Ok(x), Ok(y)) -> ...    # tuple of constructors
+  | Some(Ok(v)) -> ...       # constructor of a constructor
+  | Some((a, b)) -> ...      # constructor wrapping a tuple NEEDS its inner parens
+  | [x, ...rest] -> ...      # head and rest of a list; `...rest` goes last
+
+## Name Resolution
+Names resolve relative to the current module, searching from
+most-specific to least-specific.
+
+In `module Darklang.Stdlib.List`, writing `Option.Option` tries:
+  1. Darklang.Stdlib.List.Option.Option
+  2. Darklang.Stdlib.Option.Option   <-- found here
+  3. Darklang.Option.Option
+  4. Option.Option
+
+Rules:
+  - Same module: no qualifier needed
+    (in Darklang.Stdlib.List, `map` finds Darklang.Stdlib.List.map)
+  - Parent/sibling modules: use relative name
+    (in Darklang.Stdlib.List, `Option.Option` finds
+     Darklang.Stdlib.Option.Option)
+  - `Stdlib.X` shortcut: always expands to `Darklang.Stdlib.X`
+    (works from any module, even outside Darklang)
+  - `Builtin.X`: resolves to F# builtins (fns/values only, not types)
+  - Cross-owner: must use full path
+    (from Tests.*, write `Darklang.SCM.PackageOps.currentBranch`)
+"""
