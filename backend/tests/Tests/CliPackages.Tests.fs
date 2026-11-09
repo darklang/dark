@@ -1272,6 +1272,18 @@ test callerCeiling = Tests.PermissionUse.caller()
             selected
             "package policy"
             "unapproved functions are denied in either execution mode"
+        do!
+          shows
+            state
+            selected
+            "package policy for `Tests.PermissionUse.clock`"
+            "a denial names the function, not its hash"
+        do!
+          shows
+            state
+            selected
+            "To approve: `permissions approve Tests.PermissionUse.clock`."
+            "the remedy names the function to approve"
         do! exits state selected 1L "denials fail the test run"
         do!
           run

@@ -106,6 +106,8 @@ let createState
 
     packagePolicyOrigin = fun _ -> None
 
+    policyFnName = fun _ -> None
+
     canManagePolicies = false
 
     // Deny-all by default: only a host that knows its bundled set opts fns in.

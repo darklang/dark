@@ -3715,6 +3715,10 @@ type PackageManager =
 /// builtin declarations than this binary's: how a policy that was enough stops being enough.
 type PackagePolicyOrigin = { approvedAs : List<string>; stale : bool }
 
+/// The name a denial gives the function behind a package or function policy. `current` is false
+/// for an older version that the name no longer points at, which the hash has to tell apart.
+type PolicyFnName = { name : string; current : bool }
+
 
 /// Whether a builtin always answers the same way, for a reader who wants to know.
 ///
@@ -4969,6 +4973,9 @@ and ExecutionState =
 
     /// For a denial to name the approval behind a package policy. `None` where none covers it.
     packagePolicyOrigin : string -> Option<PackagePolicyOrigin>
+
+    /// For a denial to name the function a policy id belongs to. `None` where it has no name.
+    policyFnName : string -> Option<PolicyFnName>
 
     /// Host-only permission to modify stored policies. Guest executions never
     /// receive it.

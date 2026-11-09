@@ -630,6 +630,28 @@ let unapproveVersion (accountID : Option<Guid>) (location : string) : unit =
 
 // ── guest execution ───────────────────────────────────────────────────────────
 
+/// The name of the function `policyId` (its hash) on `branch`, for a denial message: a live
+/// name, a script's own name, or else a name it used to have. Only read on a denial.
+let private policyFnNameOn
+  (branch : LibExecution.ProgramTypes.BranchId)
+  (policyId : string)
+  : Option<RT.PolicyFnName> =
+  let hash = LibExecution.ProgramTypes.Hash policyId
+  let named isCurrent (locations : List<LibExecution.ProgramTypes.PackageLocation>) =
+    locations
+    |> List.tryHead
+    |> Option.map (fun loc ->
+      { RT.PolicyFnName.name = PackageLocation.toFQN loc
+        RT.PolicyFnName.current = isCurrent })
+  try
+    named true (ProgramTypes.Fn.getLocations branch hash).Result
+    |> Option.orElseWith (fun () -> named true (EphemeralPackages.fnLocations hash))
+    |> Option.orElseWith (fun () ->
+      named false (ProgramTypes.Fn.getLocationsEverNamed branch hash).Result)
+  with _ ->
+    // A message that falls back to the hash beats a denial that fails to say anything
+    None
+
 /// Build the execution state for guest code. The persisted instance policy is
 /// the hard maximum; run, package, bundled-function, and requested-function
 /// policies are layered beneath it. Policy administration is disabled.
@@ -657,7 +679,8 @@ let guestState
       accountID = accountID
       canManagePolicies = false
       packagePolicyOrigin =
-        fun policyId -> originOfIn (get ()) accountID (fingerprint.Force()) policyId }
+        fun policyId -> originOfIn (get ()) accountID (fingerprint.Force()) policyId
+      policyFnName = policyFnNameOn state.branchId }
   |> Execution.setInstancePolicy (instancePolicy ())
   |> Execution.restrictRun runPolicy
   |> Execution.setPackagePolicies lookup
