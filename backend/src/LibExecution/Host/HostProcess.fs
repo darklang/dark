@@ -31,6 +31,7 @@ type Child =
     args : List<string>
     descriptors : List<int>
     waitGate : obj
+    // Shared by the waiters and disposal, under `waitGate`.
     mutable waiters : int
     mutable closing : bool }
 
@@ -63,10 +64,12 @@ let startChild
   psi.RedirectStandardOutput <- not inheritTerminal
   psi.RedirectStandardError <- not inheritTerminal
   let proc = System.Diagnostics.Process.Start psi
+  // Filled as each descriptor is made, so a failure partway closes the ones already made.
   let duplicated = System.Collections.Generic.List<int>()
   let duplicate (stream : System.IO.Stream) =
     let pipe = stream :?> System.IO.Pipes.PipeStream
     let handle = pipe.SafePipeHandle
+    // DangerousAddRef reports through a byref whether it took the reference.
     let mutable held = false
     try
       handle.DangerousAddRef(&held)
@@ -167,6 +170,7 @@ let private runtimeHashValue =
 
 let runtimeHash () : string = runtimeHashValue.Value
 
+// Set once at startup, by a host whose worker entry point is another executable.
 let mutable private processLauncher : Option<string> = None
 
 /// Configure at host startup when another executable provides the worker entry point.
@@ -216,6 +220,7 @@ let private readCappedWithCancellation
   task {
     let builder = System.Text.StringBuilder()
     let buffer = Array.zeroCreate<char> 8192
+    // A loop, not a recursive task: reads that complete synchronously would grow the stack.
     let mutable reading = true
     while reading do
       let! n = reader.ReadAsync(System.Memory<char>(buffer), cancellation)
@@ -234,6 +239,7 @@ let fileSnapshot
   (snapshot : string -> Result<unit, string>)
   : HostTypes.FileSnapshot =
   let gate = obj ()
+  // Shared by every copy, link and close, under `gate`.
   let mutable disposed = false
   let mutable directory : Option<string> = None
   // Copies run outside the lock so that several can happen at once. Closing
@@ -373,16 +379,14 @@ let private waitScaledByLoad
   : Option<int64> =
   let maxFactor = 5.0
   let clock = System.Diagnostics.Stopwatch.StartNew()
-  let mutable budget = float timeoutMs
-  let mutable finished = false
-  while not finished && budget > 0.0 do
-    let factor = loadFactor maxFactor
-    let slice = min 1000.0 (budget * factor) |> ceil |> int
-    if task.Wait slice then
-      finished <- true
+  let rec wait (budget : float) : Option<int64> =
+    if budget <= 0.0 then
+      Some clock.ElapsedMilliseconds
     else
-      budget <- budget - float slice / factor
-  if finished then None else Some clock.ElapsedMilliseconds
+      let factor = loadFactor maxFactor
+      let slice = min 1000.0 (budget * factor) |> ceil |> int
+      if task.Wait slice then None else wait (budget - float slice / factor)
+  wait (float timeoutMs)
 
 /// Supervise a child and its descendants in a disposable directory. Preparation
 /// happens before the deadline, which covers both process exit and output pipes.
@@ -394,36 +398,42 @@ let runInWorkspace
   (timeoutMs : int)
   : Result<int * string * string * Option<byte[]> * List<string>, int * string> =
   let dir = Directory.CreateTempSubdirectory(prefix).FullName
+  // Shared with the Ctrl-C and exit handlers below, which stop whatever child is running.
   let mutable child : System.Diagnostics.Process option = None
   use cancellation = new System.Threading.CancellationTokenSource()
   let stop () =
-    let errors = ResizeArray<string>()
     let stopGroup (p : System.Diagnostics.Process) =
       if HostPosix.isPosix then
         // The launcher creates a group whose ID is its PID; that group remains
         // addressable after the worker exits and its children are reparented.
         match HostPosix.kill (-p.Id) 9 with
         | Ok()
-        | Error(3, _) -> () // ESRCH: no group, including a launcher not yet ready
+        | Error(3, _) -> [] // ESRCH: no group, including a launcher not yet ready
         | Error(_, message) ->
-          errors.Add $"Could not stop child process process group: {message}"
+          [ $"Could not stop child process process group: {message}" ]
+      else
+        []
     match child with
     | Some p ->
-      try
-        // Traverse while the worker is alive: nested workers may own separate
-        // groups. Also handles cancellation before the launcher is ready.
-        if not p.HasExited then p.Kill true
-        if not (p.WaitForExit 5000) then
-          errors.Add "Child process worker did not exit after being killed"
-      with e ->
-        errors.Add $"Could not stop child process worker: {e.Message}"
-      try
-        // The group survives its leader and catches reparented descendants.
-        stopGroup p
-      with e ->
-        errors.Add $"Could not stop child process process group: {e.Message}"
-    | None -> ()
-    List.ofSeq errors
+      let workerErrors =
+        try
+          // Traverse while the worker is alive: nested workers may own separate
+          // groups. Also handles cancellation before the launcher is ready.
+          if not p.HasExited then p.Kill true
+          if p.WaitForExit 5000 then
+            []
+          else
+            [ "Child process worker did not exit after being killed" ]
+        with e ->
+          [ $"Could not stop child process worker: {e.Message}" ]
+      let groupErrors =
+        try
+          // The group survives its leader and catches reparented descendants.
+          stopGroup p
+        with e ->
+          [ $"Could not stop child process process group: {e.Message}" ]
+      workerErrors @ groupErrors
+    | None -> []
   let removeDirectory () =
     try
       Directory.Delete(dir, true)
@@ -438,75 +448,75 @@ let runInWorkspace
       removeDirectory () |> ignore<List<string>>)
   System.Console.CancelKeyPress.AddHandler onCancel
   System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
-  let mutable cleanupErrors = []
-  let outcome =
-    try
-      try
-        match prepare dir with
-        | Error message -> Error(-1, message)
-        | Ok spec ->
-          for directory in spec.directories do
-            Directory.CreateDirectory(Path.Combine(dir, directory))
-            |> ignore<DirectoryInfo>
-          for path, bytes in spec.files do
-            File.WriteAllBytes(Path.Combine(dir, path), bytes)
-          let resultPath = Path.Combine(dir, spec.resultFile)
-          let psi =
-            startInfo
-              launcher
-              ([ "--process-launch"; spec.program ] @ spec.arguments)
-              true
-          for key, value in spec.environment do
-            match value with
-            | None -> psi.Environment.Remove key |> ignore<bool>
-            | Some value -> psi.Environment[key] <- value
-          let p = System.Diagnostics.Process.Start psi
-          child <- Some p
-          p.StandardInput.Close()
-          let stdout = readCappedWithCancellation cancellation.Token p.StandardOutput
-          let stderr = readCappedWithCancellation cancellation.Token p.StandardError
-          // One deadline covers exit AND both pipes. A descendant can hold a
-          // pipe open after the worker exits, so waiting only for exit is unsafe.
-          let finished =
-            System.Threading.Tasks.Task.WhenAll
-              [| p.WaitForExitAsync(cancellation.Token)
-                 stdout :> System.Threading.Tasks.Task
-                 stderr :> System.Threading.Tasks.Task |]
-          match waitScaledByLoad finished timeoutMs with
-          | Some waited ->
-            Error(
-              110,
-              $"Child process timed out after {waited} ms, a {timeoutMs} ms budget stretched for machine load (worker or output still open)"
-            )
-          | None ->
-            let result =
-              if File.Exists resultPath then
-                if (FileInfo resultPath).Length > int64 maxCapturedOutput then
-                  Exception.raiseInternal
-                    "Child process result exceeds the size limit"
-                    []
-                Some(File.ReadAllBytes resultPath)
-              else
-                None
-            Ok(p.ExitCode, stdout.Result, stderr.Result, result)
-      with e ->
-        Error(-1, $"Child process failed: {e.Message}")
-    finally
-      cancellation.Cancel()
-      cleanupErrors <- stop ()
+  let cleanup () : List<string> =
+    cancellation.Cancel()
+    let stopErrors = stop ()
+    let disposeErrors =
       match child with
       | Some p ->
         try
           p.Dispose()
+          []
         with e ->
-          cleanupErrors <-
-            cleanupErrors
-            @ [ $"Could not dispose child process worker: {e.Message}" ]
-      | None -> ()
-      child <- None
-      System.Console.CancelKeyPress.RemoveHandler onCancel
-      System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit
-      cleanupErrors <- cleanupErrors @ removeDirectory ()
+          [ $"Could not dispose child process worker: {e.Message}" ]
+      | None -> []
+    child <- None
+    System.Console.CancelKeyPress.RemoveHandler onCancel
+    System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit
+    stopErrors @ disposeErrors @ removeDirectory ()
+  // Every failure is caught and becomes an `Error`, so cleanup always runs next.
+  let outcome =
+    try
+      match prepare dir with
+      | Error message -> Error(-1, message)
+      | Ok spec ->
+        for directory in spec.directories do
+          Directory.CreateDirectory(Path.Combine(dir, directory))
+          |> ignore<DirectoryInfo>
+        for path, bytes in spec.files do
+          File.WriteAllBytes(Path.Combine(dir, path), bytes)
+        let resultPath = Path.Combine(dir, spec.resultFile)
+        let psi =
+          startInfo
+            launcher
+            ([ "--process-launch"; spec.program ] @ spec.arguments)
+            true
+        for key, value in spec.environment do
+          match value with
+          | None -> psi.Environment.Remove key |> ignore<bool>
+          | Some value -> psi.Environment[key] <- value
+        let p = System.Diagnostics.Process.Start psi
+        child <- Some p
+        p.StandardInput.Close()
+        let stdout = readCappedWithCancellation cancellation.Token p.StandardOutput
+        let stderr = readCappedWithCancellation cancellation.Token p.StandardError
+        // One deadline covers exit AND both pipes. A descendant can hold a
+        // pipe open after the worker exits, so waiting only for exit is unsafe.
+        let finished =
+          System.Threading.Tasks.Task.WhenAll
+            [| p.WaitForExitAsync(cancellation.Token)
+               stdout :> System.Threading.Tasks.Task
+               stderr :> System.Threading.Tasks.Task |]
+        match waitScaledByLoad finished timeoutMs with
+        | Some waited ->
+          Error(
+            110,
+            $"Child process timed out after {waited} ms, a {timeoutMs} ms budget stretched for machine load (worker or output still open)"
+          )
+        | None ->
+          let result =
+            if File.Exists resultPath then
+              if (FileInfo resultPath).Length > int64 maxCapturedOutput then
+                Exception.raiseInternal
+                  "Child process result exceeds the size limit"
+                  []
+              Some(File.ReadAllBytes resultPath)
+            else
+              None
+          Ok(p.ExitCode, stdout.Result, stderr.Result, result)
+    with e ->
+      Error(-1, $"Child process failed: {e.Message}")
+  let cleanupErrors = cleanup ()
   match outcome with
   | Ok(code, stdout, stderr, result) ->
     Ok(code, stdout, stderr, result, cleanupErrors)
