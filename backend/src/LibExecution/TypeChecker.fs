@@ -1012,12 +1012,10 @@ module DvalCreator =
     match remaining with
     | [] -> struct (typ, i)
     | dv :: rest ->
-      let dvalType = Dval.toValueType dv
-
-      match VT.merge typ dvalType with
+      match VT.mergeDval typ dv with
       | Ok newType -> listElementType threadID (i + 1) newType rest
       | Error() ->
-        RTE.Lists.Error.TriedToAddMismatchedData(i, typ, dvalType, dv)
+        RTE.Lists.Error.TriedToAddMismatchedData(i, typ, Dval.toValueType dv, dv)
         |> RTE.Error.List
         |> raiseRTE threadID
 
@@ -1124,7 +1122,7 @@ module DvalCreator =
   /// `List.prepend`: <param value> on the front of a list whose element type is <param vt>.
   /// `ValueNone` when the types do not merge, where `list` names the element at fault.
   let tryPrepend (vt : ValueType) (l : DvalList) (value : Dval) : Dval voption =
-    match VT.merge vt (Dval.toValueType value) with
+    match VT.mergeDval vt value with
     | Ok merged -> ValueSome(DList(merged, DvalList.cons value l))
     | Error() -> ValueNone
 
@@ -1140,9 +1138,9 @@ module DvalCreator =
     if not (Dval.isUsableDictKey k) then
       ValueNone
     else
-      match VT.merge valueType (Dval.toValueType v) with
+      match VT.mergeDval valueType v with
       | Ok valueType ->
-        match VT.merge keyType (Dval.toValueType k) with
+        match VT.mergeDval keyType k with
         | Ok keyType -> ValueSome(DDict(keyType, valueType, DictMap.add k v entries))
         | Error() -> ValueNone
       | Error() -> ValueNone

@@ -148,7 +148,7 @@ let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
       (fun acc item ->
         match acc with
         | Ok accVt ->
-          match VT.merge accVt (Dval.toValueType item) with
+          match VT.mergeDval accVt item with
           | Ok m -> Ok m
           | Error() -> Error()
         | Error() -> Error())
@@ -961,7 +961,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DList(vt, l); value |] ->
           // Still O(n): the list is copied to append. Native for the same reason as `prepend`.
-          match VT.merge vt (Dval.toValueType value) with
+          match VT.mergeDval vt value with
           | Ok merged -> Ply(DList(merged, DvalList.snoc l value))
           | Error() ->
             Ply(

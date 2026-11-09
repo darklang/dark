@@ -93,7 +93,7 @@ let private fill (dv : Dval) : Dval =
   | DList(elemType, Items(items)) ->
     let items = List.map settled items
     let merge (acc : ValueType) item =
-      match VT.merge acc (Dval.toValueType item) with
+      match VT.mergeDval acc item with
       | Ok merged -> merged
       | Error() -> acc
     DList(List.fold merge elemType items, Items(items))
