@@ -762,6 +762,25 @@ let stringExpectedHint(expected: StaticType, actual: StaticType): String =
   | _ -> ""
 
 
+/// Says what `append` is for when its second argument is a whole list of the element type,
+/// as `Stdlib.List.append(xs, [x])` written to join two lists.
+let appendListHint(
+  callee: String,
+  expected: StaticType,
+  actual: StaticType)
+  : String =
+  let isAppend =
+    Stdlib.List.contains(
+      [ "Stdlib.List.append"
+        "Darklang.Stdlib.List.append"
+        "PACKAGE.Darklang.Stdlib.List.append" ],
+      callee)
+  match actual with
+  | TList(element) when isAppend && element == expected ->
+    " (`append` adds one item; to join two lists use `Stdlib.List.concat(a, b)` or `[...a, ...b]`)"
+  | _ -> ""
+
+
 let issueToStringWith(
   customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>,
@@ -771,6 +790,8 @@ let issueToStringWith(
   let hint =
     fun(expected, actual) ->
       match (issue.code, issue.context) with
+      | (TypeMismatch, At(FunctionArgument(1, Some(callee)))) ->
+        (stringExpectedHint(expected, actual)) + appendListHint(callee, expected, actual)
       | (TypeMismatch, At(FunctionArgument(_, _)))
       | (TypeMismatch, At(FunctionReturnValue))
       | (TypeMismatch, At(LambdaReturnValue))

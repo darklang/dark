@@ -1324,6 +1324,12 @@ module Builtins =
           "f")
         |> Stdlib.Test.equal("failed:ExplicitTypeArgumentCountMismatch") ])
 
+  // `append` adds one value; a whole list as its second argument was meant to join two lists.
+  test appendGivenAListPointsAtConcat =
+    issues("let f(xs: List<Int64>): List<Int64> = Stdlib.List.append(xs, [ 1 ])", "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.append`, argument 2: expected Int64, got List<Int64> (`append` adds one item; to join two lists use `Stdlib.List.concat(a, b)` or `[...a, ...b]`)" ])
+
 // ----------------------------------------------------------------------------------
 // Postfix `?`
 // ----------------------------------------------------------------------------------
