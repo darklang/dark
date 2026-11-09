@@ -1,0 +1,21 @@
+module Darklang.Cli.Docs.TestRecipe
+
+/// The shortest way to a test for someone who has just written a script. A script runs code and
+/// holds no tests, so its functions go into a package module first. `docs for-ai` shows this near
+/// the top, and `dark run` points at it.
+let content(): String =
+  """## Add a test
+
+A script holds no tests. Save its functions as a module (a file of declarations,
+without the lines that run them), add a test, and run it:
+
+  module /Me.Tool - < lib.dark
+  test add Me.Tool.Tests.doubles 'Me.Tool.double(4) |> Stdlib.Test.equal(8)'
+  test run Me.Tool
+
+The script then calls `Me.Tool.double`.
+"""
+
+/// The one line `dark run` prints after a script that declares functions of its own runs cleanly.
+let runHint(): String =
+  "add a test: dark module /Me.Tool - < lib.dark (the functions only), dark test add, dark test run Me.Tool"

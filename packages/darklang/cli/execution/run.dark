@@ -184,14 +184,42 @@ let executeScript(
     { state with exitCode = 1 }
   | Ok(script) ->
     let scriptSourceCode = Stdlib.Utf8.decodeWithReplacement(script)
-    runScriptMeasured(
-      state,
-      scriptPath,
-      scriptSourceCode,
-      args,
-      options,
-      true,
-      stats)
+    let newState =
+      runScriptMeasured(
+        state,
+        scriptPath,
+        scriptSourceCode,
+        args,
+        options,
+        true,
+        stats)
+    // After a clean run only, so it never sits among the errors someone is fixing.
+    if newState.exitCode == 0 && declaresFunctions(scriptSourceCode) then
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(Docs.TestRecipe.runHint()))
+    else
+      ()
+    newState
+
+
+/// Whether a script declares a function of its own: a line at the left margin that reads
+/// `let name(` or `let name<`. A look at the text rather than a second parse, so a run pays
+/// nothing for it.
+let declaresFunctions(code: String): Bool =
+  Stdlib.String.splitOnNewline(code) |> Stdlib.List.any(declaresFunction)
+
+
+/// <fn declaresFunctions> for one line.
+let declaresFunction(line: String): Bool =
+  if Stdlib.String.startsWith(line, "let ") then
+    let afterName =
+      Stdlib.String.toList(Stdlib.String.dropFirst(line, 4))
+      |> Stdlib.List.dropWhile(fun c -> Stdlib.Char.isAlphanumeric(c) || c == '_')
+    match afterName with
+    | ['(', ...] -> true
+    | ['<', ...] -> true
+    | _ -> false
+  else
+    false
 
 
 let allowAlways(): String = "Allow future runs (save to the instance policy)"

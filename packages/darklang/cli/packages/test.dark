@@ -450,6 +450,16 @@ let liveTests(
   |> Stdlib.List.filter(fun item ->
     Stdlib.Bool.not(Query.isDeprecated(depSets, item.entity.hash)))
 
+/// `test run app.dark` reads the path as a name to match, and a script holds no tests anyway, so
+/// say where they go instead of only that none matched.
+let scriptFilterHint(filters: List<String>): Unit =
+  if Stdlib.List.any(filters, fun f -> Stdlib.String.endsWith(f, ".dark")) then
+    Stdlib.printErrorLine(
+      Stdlib.Cli.UI.Colors.hint(
+        "  A script holds no tests: they live in a package module. `docs for-ai` shows how to add one."))
+  else
+    ()
+
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: Cli.AppState,
@@ -489,6 +499,7 @@ let runTestsInRun(
     let total = counts.passed + counts.failed
     if total == 0 then
       Cli.printErr("No package tests matched.")
+      scriptFilterHint(options.filters)
     else
       printSlowest(counts.timings)
       Stdlib.printLine("")

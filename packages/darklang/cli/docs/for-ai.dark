@@ -6,6 +6,9 @@ let content(): String =
 Darklang is a persistent package tree, not a directory of scripts. CLI process
 state resets between calls; package changes persist.
 
+"""
+  + TestRecipe.content()
+  + """
 ## Workflow
 
   search --batch "List.map" "Json.serialize" --fn # related searches

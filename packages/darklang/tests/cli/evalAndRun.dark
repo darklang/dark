@@ -469,3 +469,37 @@ test codeCannotChangeTheNetworkGuard =
             Instance.doesNotSay(priv, "= on", "http.private is unchanged")
             Instance.exitedWith(Stdlib.Tuple2.first(byThePerson), 0, "`config set` still works")
             Instance.says(after, "http.loopback = on", "and the setting took") ] ])))
+
+
+/// None of 13 benchmark sessions wrote a test: nothing on the way pointed at one. A script that
+/// declares functions gets one dim line after a clean run; a script without functions, or a run
+/// that failed, gets none. And `test run app.dark` says where tests go instead of only that none
+/// matched.
+test runPointsAtATest =
+  Instance.withInstance(fun i ->
+    let double = "let double(n: Int64): Int64 = n * 2\n"
+    let withFns = script(i, "double.dark", double + "Stdlib.printLine(Stdlib.toString(double(4)))\n")
+    let noFns = script(i, "hello.dark", "Stdlib.printLine(\"hi\")\n")
+    let failing = script(i, "fails.dark", double + "Stdlib.printLine(Stdlib.toString(double(4)))\n3\n")
+    let testRun = Instance.said(i, [ "test", "run", withFns ])
+
+    Stdlib.Test.all(
+      [ Instance.says(Instance.said(i, [ "run", withFns ]), "add a test: dark module /Me.Tool", "a script with functions")
+        Instance.doesNotSay(Instance.said(i, [ "run", noFns ]), "add a test", "a script without")
+        Instance.doesNotSay(Instance.said(i, [ "run", failing ]), "add a test", "a failed run")
+        Instance.says(testRun, "A script holds no tests", "test run on a script")
+        Stdlib.Test.expect(
+          Stdlib.String.contains(
+            Darklang.Cli.Docs.ForAI.content(),
+            "## Add a test\n\nA script holds no tests."),
+          "docs for-ai carries the recipe")
+        Stdlib.Test.expect(
+          Stdlib.List.all(
+            [ "let f(x: Int64): Int64 = x", "let id<'a>(x: 'a): 'a = x", "let my_fn2() = 1" ],
+            Darklang.Cli.Run.declaresFunction),
+          "function lines are seen")
+        Stdlib.Test.expect(
+          Stdlib.List.all(
+            [ "let x = f(1)", "  let f(x: Int64): Int64 = x", "Stdlib.printLine(\"let f(\")" ],
+            fun line -> Stdlib.Bool.not(Darklang.Cli.Run.declaresFunction(line))),
+          "other lines are not") ]))
