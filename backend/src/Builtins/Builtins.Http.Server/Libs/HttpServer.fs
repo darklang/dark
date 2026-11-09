@@ -220,9 +220,10 @@ type private LiveRouting =
   {
     step : Applicable
     mutable state : Dval
-    /// The guest state built for the router hash last handed out. Rebuilt when the hash moves, since
-    /// the router is the approval root and the root is a hash.
-    mutable guest : Option<Hash * ExecutionState>
+    /// The guest state built for the router hash last handed out, and the policy store it was built
+    /// from. Rebuilt when the hash moves, since the router is the approval root and the root is a
+    /// hash, and when the policy store changes, so an approval counts from the next request.
+    mutable guest : Option<(Hash * LibDB.PolicyStore.Store) * ExecutionState>
     /// The state the routing step runs under: the caller of `serve`, whose code the step is.
     /// `None` until `serve` sets it; the router's guest state is no place to run it.
     mutable stepState : Option<ExecutionState>
@@ -232,7 +233,10 @@ type private LiveRouting =
   }
 
 type private Routing =
-  | Fixed of Applicable
+  /// One handler for the server's life. With the policy store the server's state was built from,
+  /// the state is rebuilt for a request once the store has changed (an approval, a policy edit);
+  /// without one (the tests' entry point), it runs under the state as given.
+  | Fixed of Applicable * builtFrom : Option<LibDB.PolicyStore.Store>
   | Live of LiveRouting
 
 let private rootOf = LibDB.PolicyStore.rootOf
@@ -257,6 +261,45 @@ let private guestStateFor
           guest.access |> LibExecution.Permissions.Access.constrainBy invokerAccess }
   | roots -> LibDB.PolicyStore.rootState exeState invokerAccess roots
 
+/// Whether <param store> is the policy store as it is now. The store is read through a cache that
+/// hands back the same value until the file changes, so this is one stat and a reference check.
+let private policyIsStill (store : LibDB.PolicyStore.Store) : bool =
+  obj.ReferenceEquals(store, LibDB.PolicyStore.get ())
+
+/// The state a fixed handler runs under. Once the policy store has changed since the server
+/// started, the request runs under the policy as it is now; every request after a change pays for
+/// that rebuild, which is a few map copies.
+let private fixedState
+  (serverState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (handler : Applicable)
+  (builtFrom : Option<LibDB.PolicyStore.Store>)
+  : ExecutionState =
+  match builtFrom with
+  | Some builtFrom when not (policyIsStill builtFrom) ->
+    guestStateFor serverState invokerAccess handler
+  | _ -> serverState
+
+/// The guest state a live handler runs under: the one last built, while the router hash and the
+/// policy store are what it was built for, and otherwise a new one, kept for the next request.
+let private liveGuestState
+  (serverState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (live : LiveRouting)
+  (handler : Applicable)
+  : ExecutionState =
+  let root = rootOf handler
+  match live.guest, root with
+  | Some((h, builtFrom), guest), [ hash ] when h = hash && policyIsStill builtFrom ->
+    guest
+  | _, _ ->
+    // Read before building, so a change that lands during the build is seen next time.
+    let builtFrom = LibDB.PolicyStore.get ()
+    let guest = guestStateFor serverState invokerAccess handler
+    live.guest <-
+      (root |> List.tryHead |> Option.map (fun h -> ((h, builtFrom), guest)))
+    guest
+
 /// Which handler this request runs, and under what state. `Error` carries what Dark said when no
 /// version is usable, which becomes a 503 rather than a crash.
 let private resolveRouting
@@ -266,7 +309,8 @@ let private resolveRouting
   : Task<Result<ExecutionState * Applicable, string>> =
   task {
     match routing with
-    | Fixed handler -> return Ok(serverState, handler)
+    | Fixed(handler, builtFrom) ->
+      return Ok(fixedState serverState invokerAccess handler builtFrom, handler)
     | Live live ->
       let stepState = defaultArg live.stepState serverState
       let! stepped =
@@ -279,15 +323,7 @@ let private resolveRouting
       match stepped with
       | Ok(DTuple(next, DEnum(_, _, _, "Ok", [ DApplicable handler ]), [])) ->
         live.state <- next
-        let root = rootOf handler
-        let guest =
-          match live.guest, root with
-          | Some(h, guest), [ hash ] when h = hash -> guest
-          | _, _ ->
-            let guest = guestStateFor serverState invokerAccess handler
-            live.guest <- (root |> List.tryHead |> Option.map (fun h -> (h, guest)))
-            guest
-        return Ok(guest, handler)
+        return Ok(liveGuestState serverState invokerAccess live handler, handler)
       | Ok(DTuple(next, DEnum(_, _, _, "Error", [ DString msg ]), [])) ->
         live.state <- next
         return Error msg
@@ -781,7 +817,7 @@ let runListener
     exeState.access
     listener
     port
-    (Fixed handler)
+    (Fixed(handler, None))
     maxBodyBytes
     requestTimeoutMs
     injectStandardHeaders
@@ -846,12 +882,19 @@ let private serve
     // logging and callback checks.
     //
     // A live server re-derives this per router hash (`resolveRouting`); the one built here is for
-    // the bind, the announce, and the routing step itself.
+    // the bind, the announce, and the routing step itself. Either kind re-derives it once the
+    // policy store has changed, so an approval or a policy edit made while the server runs counts
+    // from the next request.
     let invokerAccess = vm.activeAccess
     match routing with
     | Live live -> live.stepState <- Some { exeState with access = invokerAccess }
     | Fixed _ -> ()
+    let builtFrom = LibDB.PolicyStore.get ()
     let exeState = guestStateFor exeState invokerAccess approvalRoot
+    let routing =
+      match routing with
+      | Fixed(handler, _) -> Fixed(handler, Some builtFrom)
+      | Live _ -> routing
     // maxBodyBytes is a comparison threshold; a negative limit would
     // reject every request (treated as over-limit), so reject it. 0 is
     // valid (allow no body).
@@ -1010,7 +1053,7 @@ let fns () : List<BuiltInFn> =
             exeState
             vm
             portArg
-            (Fixed handler)
+            (Fixed(handler, None))
             handler
             maxBodyBytesArg
             injectStandardHeaders
