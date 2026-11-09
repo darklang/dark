@@ -11,7 +11,7 @@ state resets between calls; package changes persist.
   search --batch "List.map" "Json.serialize" --fn # related searches
   module /Me.Example -                           # declarations from stdin
   eval 'Me.Example.main(21)'                      # test an expression
-  typecheck                                       # audit declarations on the branch
+  typecheck Me                                    # audit your own declarations
   status                                          # inspect changes
   commit "message" -y                            # save them
   ps --watch                                      # a live view; your edits repaint it
@@ -71,13 +71,31 @@ errors that already existed.
 `commit` re-checks what it is committing and refuses a definite type error;
 `commit --allow-type-errors` overrides that. An incomplete proof is reported but
 never blocks: it means the checker lacked evidence, not that the declaration is
-wrong. `typecheck` summarizes the whole branch; `--all` also lists successful
-items, `--failed` or `--incomplete` lists only that verdict.
+wrong. `typecheck` summarizes the whole branch, the standard library
+included, so name your owner or module (`typecheck Me`) to see only yours;
+`--all` also lists successful items, `--failed` or `--incomplete` lists only
+that verdict.
 
 ## Running .dark files
 
 Use `run-script [options] file.dark [args...]` (`run` is an alias).
 See `docs scripts` for examples, arguments, exit codes and permissions.
+
+## Files, HTTP and JSON
+
+  Stdlib.Cli.FileSystem.readFileAsString(path)       # Result<String, FileError>
+  Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(text))
+  Stdlib.String.splitOnNewline(text)
+  Stdlib.HttpClient.get(url, [("user-agent", "me")]) # r.statusCode, r.body (Bytes)
+  Stdlib.Json.parse<Profile>(text)                   # Result<Profile, ParseError>
+  Stdlib.Json.serialize<Profile>(value)
+
+A JSON object parses into a record: extra fields are ignored, and a field that
+may be absent is an `Option` field. A `null` is refused.
+
+Files and the network are denied until allowed. One step covers a project:
+
+  permissions profile local-dev /abs/path/to/project --yes
 
 ## Package tests
 
