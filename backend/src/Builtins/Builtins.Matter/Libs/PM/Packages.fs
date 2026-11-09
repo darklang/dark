@@ -74,8 +74,8 @@ let persistPropagation
   }
 
 
-/// The `kind` parameter of `pmFind` and `pmLocations`. A function, not a value: its type is a package
-/// ref, which is not resolved yet when this module initializes.
+/// The `kind` parameter of `pmFind`, `pmLocations` and `pmGet`. A function, not a value: its type
+/// is a package ref, which is not resolved yet when this module initializes.
 let private kindParam () : Param =
   Param.make
     "kind"
@@ -313,28 +313,52 @@ let private findFn () : BuiltInFn =
     deprecated = NotDeprecated }
 
 
-/// `pmGet{Type,Value,Fn}`: hash -> the stored item, decoded to its Dark-side type.
-let private getByHashFn
-  (builtinName : string)
-  (itemWord : string)
-  (typeName : unit -> FQTypeName.FQTypeName)
-  (get : PT.Hash -> Ply<Option<'a>>)
+/// An item read by hash, as the Dark-side type <param typeName> names.
+let private foundItem
+  (typeName : FQTypeName.FQTypeName)
   (toDT : 'a -> Dval)
-  : BuiltInFn =
-  { name = fn builtinName 0
-    typeParams = []
+  (item : Option<'a>)
+  : Dval =
+  item |> Option.map toDT |> Dval.option (KTCustomType(typeName, []))
+
+
+/// `pmGet`: hash -> the stored item of <param kind>, decoded to its Dark-side type.
+let private getFn (pm : PT.PackageManager) : BuiltInFn =
+  { name = fn "pmGet" 0
+    typeParams = [ "a" ]
     parameters =
-      [ Param.make "hash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) "" ]
-    returnType = TypeReference.option (TCustomType(NR.ok (typeName ()), []))
-    description = $"Returns a package {itemWord}, by hash, if it exists"
+      [ kindParam ()
+        Param.make "hash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) "" ]
+    // The kind decides the item's type; each Dark wrapper names it.
+    returnType = TypeReference.option (TVariable "a")
+    description = "Returns a package item of the given kind, by hash, if it exists"
     fn =
       (function
-      | _, _, _, [| hashDval |] ->
+      | _, _, _, [| kindDval; hashDval |] ->
         uply {
           let hash = PT2DT.Hash.fromDT hashDval
-          let! result = get hash
-          return
-            result |> Option.map toDT |> Dval.option (KTCustomType(typeName (), []))
+          match PT2DT.ItemKind.fromDT kindDval with
+          | PT.ItemKind.Type ->
+            let! item = pm.getType hash
+            return
+              foundItem (PT2DT.PackageType.typeName ()) PT2DT.PackageType.toDT item
+          | PT.ItemKind.Value ->
+            let! item = pm.getValue hash
+            return
+              foundItem (PT2DT.PackageValue.typeName ()) PT2DT.PackageValue.toDT item
+          | PT.ItemKind.Fn ->
+            let! item = pm.getFn hash
+            return foundItem (PT2DT.PackageFn.typeName ()) PT2DT.PackageFn.toDT item
+          | PT.ItemKind.Trait ->
+            let! item = pm.getTrait hash
+            return foundItem (PT2DT.Trait.typeName ()) PT2DT.Trait.toDT item
+          | PT.ItemKind.TraitImpl ->
+            let! item = pm.getTraitImpl hash
+            return foundItem (PT2DT.TraitImpl.typeName ()) PT2DT.TraitImpl.toDT item
+          | PT.ItemKind.Test ->
+            let! item = pm.getTest hash
+            return
+              foundItem (PT2DT.PackageTest.typeName ()) PT2DT.PackageTest.toDT item
         }
       | _ -> incorrectArgs ())
     previewable = Impure
@@ -349,27 +373,10 @@ let private toDList (xs : List<string>) : Dval =
 
 // TODO: review/reconsider the accessibility of these fns
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
-  [ // location -> hash, and hash -> every location, for any item kind
+  [ // location -> hash, hash -> every location, and hash -> item, for any item kind
     findFn ()
     locationsFn pm
-
-    // types
-    getByHashFn
-      "pmGetType"
-      "type"
-      PT2DT.PackageType.typeName
-      pm.getType
-      PT2DT.PackageType.toDT
-
-
-    // values
-    getByHashFn
-      "pmGetValue"
-      "value"
-      PT2DT.PackageValue.typeName
-      pm.getValue
-      PT2DT.PackageValue.toDT
-
+    getFn pm
 
     { name = fn "pmFindValuesByValueType" 0
       typeParams = []
@@ -425,22 +432,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
-
-
-    // traits and impls
-    getByHashFn
-      "pmGetTrait"
-      "trait"
-      PT2DT.Trait.typeName
-      pm.getTrait
-      PT2DT.Trait.toDT
-
-    getByHashFn
-      "pmGetTraitImpl"
-      "impl"
-      PT2DT.TraitImpl.typeName
-      pm.getTraitImpl
-      PT2DT.TraitImpl.toDT
 
 
     // Every impl of a trait visible on a branch, as dispatch sees them
@@ -557,22 +548,31 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Functions
-    getByHashFn
-      "pmGetFn"
-      "function"
-      PT2DT.PackageFn.typeName
-      pm.getFn
-      PT2DT.PackageFn.toDT
-
     // The same fn with its body left out, before it becomes a Dark value: for a caller that reads
     // only the signature, which is how the at-rest checker loads a declaration's dependencies.
-    getByHashFn
-      "pmGetFnSignature"
-      "function, without its body,"
-      PT2DT.PackageFn.typeName
-      pm.getFn
-      (fun fn -> PT2DT.PackageFn.toDT { fn with body = PT.EUnit 0UL })
+    { name = fn "pmGetFnSignature" 0
+      typeParams = []
+      parameters =
+        [ Param.make "hash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) "" ]
+      returnType =
+        TypeReference.option (TCustomType(NR.ok (PT2DT.PackageFn.typeName ()), []))
+      description =
+        "Returns a package function, without its body, by hash, if it exists"
+      fn =
+        (function
+        | _, _, _, [| hashDval |] ->
+          uply {
+            let! item = pm.getFn (PT2DT.Hash.fromDT hashDval)
+            return
+              foundItem
+                (PT2DT.PackageFn.typeName ())
+                (fun fn -> PT2DT.PackageFn.toDT { fn with body = PT.EUnit 0UL })
+                item
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
 
 
     // A package fn by hash, for a host that follows edits (`Stdlib.Live`). A name, which eval
@@ -615,15 +615,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
-
-    // Tests are a separate package namespace: discoverable and executable,
-    // but never returned as a callable production function.
-    getByHashFn
-      "pmGetTest"
-      "test"
-      PT2DT.PackageTest.typeName
-      pm.getTest
-      PT2DT.PackageTest.toDT
 
     // Apply a fn a host resolved live, and get its failure back as a value. A host loop that shows
     // the last good frame with the error under it cannot let an RTE from user code unwind the loop;
@@ -788,7 +779,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // Hands the compiled instruction stream to Dark so it can be rendered there
     // (`PrettyPrinter.RuntimeTypes.instructions`). Data only: no formatting happens in F#, because a
     // disassembly listing is exactly the kind of thing Dark should own. The PT side needs no equivalent
-    // builtin -- `pmGetFn` already returns the tree.
+    // builtin -- `pmGet` already returns the tree.
     { name = fn "pmFnInstructions" 0
       typeParams = []
       parameters =

@@ -95,6 +95,15 @@ let findItem(
   Builtin.pmFind(branchId, kind, location)
 
 
+/// The stored item of <param kind> at <param hash>. The per-kind `Type.get`, `Value.get`, ...
+/// are this with the kind and the item's type filled in.
+let getItem(
+  kind: ProgramTypes.ItemKind,
+  hash: ProgramTypes.Hash)
+  : Stdlib.Option.Option<'a> =
+  Builtin.pmGet(kind, hash)
+
+
 /// Every name a hash of <param kind> is bound to on <param branchId>. The per-kind
 /// `Type.locations`, `Value.locations`, ... are this with the kind filled in.
 let itemLocations(
@@ -115,7 +124,7 @@ module Type =
   let get(
     hash: ProgramTypes.FQTypeName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
-    Builtin.pmGetType(hash)
+    PackageManager.getItem(ProgramTypes.ItemKind.Type, hash)
 
   /// Every name this type is bound to on <param branchId>. More than one
   /// when structurally identical types share a hash.
@@ -151,7 +160,7 @@ module Trait =
   let get(
     hash: ProgramTypes.FQTraitName.Package)
     : Stdlib.Option.Option<ProgramTypes.Trait.Trait> =
-    Builtin.pmGetTrait(hash)
+    PackageManager.getItem(ProgramTypes.ItemKind.Trait, hash)
 
   /// Every name this trait is bound to on <param branchId>.
   let locations(
@@ -190,7 +199,7 @@ module TraitImpl =
     PackageManager.findItem(branchId, ProgramTypes.ItemKind.TraitImpl, location)
 
   let get(hash: ProgramTypes.Hash): Stdlib.Option.Option<ProgramTypes.TraitImpl.TraitImpl> =
-    Builtin.pmGetTraitImpl(hash)
+    PackageManager.getItem(ProgramTypes.ItemKind.TraitImpl, hash)
 
   /// Every name this impl is bound to on <param branchId>.
   let locations(
@@ -216,7 +225,7 @@ module Value =
   let get(
     hash: ProgramTypes.FQValueName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
-    Builtin.pmGetValue(hash)
+    PackageManager.getItem(ProgramTypes.ItemKind.Value, hash)
 
   /// Every name this value is bound to on <param branchId>.
   let locations(
@@ -299,7 +308,7 @@ module Function =
   let get(
     hash: ProgramTypes.FQFnName.Package)
     : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
-    Builtin.pmGetFn(hash)
+    PackageManager.getItem(ProgramTypes.ItemKind.Fn, hash)
 
   /// The fn at <param hash> with its body replaced by `()`, for a caller that only reads the
   /// signature. Cheaper than `get`: the body is never converted into Dark values.
@@ -395,7 +404,7 @@ module Test =
   let get(
     hash: ProgramTypes.Hash)
     : Stdlib.Option.Option<ProgramTypes.PackageTest.PackageTest> =
-    Builtin.pmGetTest(hash)
+    PackageManager.getItem(ProgramTypes.ItemKind.Test, hash)
 
   let locations(
     branchId: Uuid,

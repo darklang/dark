@@ -468,13 +468,11 @@ module Redact =
         "runtimeEnvironmentGetAll" ]
 
   /// Reads of a package item by its content hash. The answer is the item at that hash, and a
-  /// traced type check reads the same items over and over: on one dev store these five were
+  /// traced type check reads the same items over and over: on one dev store these reads were
   /// 571 MB of 795 MB of logged results, 20 MB of it distinct per trace. So each distinct
   /// answer is serialized once (`TraceStorage`), and a replay gets exactly what the run got,
   /// whether or not the store still holds the item.
-  let fromTheStore : Set<string> =
-    Set.ofList
-      [ "pmGetFn"; "pmGetType"; "pmGetValue"; "pmGetTrait"; "pmGetTraitImpl" ]
+  let fromTheStore : Set<string> = Set.ofList [ "pmGet" ]
 
   /// Builtins a replay performs again instead of serving from the log, going on replaying
   /// after (`ReplayStep.PerformOnce`). Two reasons land a name here:

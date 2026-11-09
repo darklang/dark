@@ -719,7 +719,7 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
         let! e = latest ()
         let! rows =
           Sql.query
-            "SELECT result FROM trace_fn_calls WHERE trace_id = @t AND fn_hash = 'pmGetFn'"
+            "SELECT result FROM trace_fn_calls WHERE trace_id = @t AND fn_hash = 'pmGet'"
           |> Sql.parameters [ "t", Sql.uuid e.id ]
           |> Sql.executeAsync (fun read -> read.string "result")
         let referred = List.distinct rows
@@ -760,7 +760,7 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
             state
             [ "traces"
               "show"
-              "Darklang.LanguageTools.PackageManager.Function.get"
+              "Darklang.LanguageTools.PackageManager.getItem"
               prefix ]
         // Put it back before asserting, so a failure here leaves the next test a whole store.
         do!
@@ -771,11 +771,11 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
 
         Expect.stringContains
           inspected
-          "pmGetFn(Hash("
+          "pmGet(Darklang.LanguageTools.ProgramTypes.ItemKind.Fn, Hash("
           "the read is in the log, with what it was asked for"
         Expect.stringContains
           viewed
-          "Builtin.pmGetFn(hash) // = Some( Darklang.LanguageTools.ProgramTypes.PackageFn"
+          "Builtin.pmGet(kind, hash) // = Some( Darklang.LanguageTools.ProgramTypes.PackageFn"
           "the replay got the fn the run got, with the store no longer holding it"
       })
 
