@@ -47,7 +47,7 @@ RUNTIMES_ARG=""
 GZIP_OUTPUT=false
 # `auto`, not `r2r`: R2R is not the artifact we ship, and a binary nobody runs is one every
 # measurement and every gate then describes instead of the real thing. AOT costs about 40 seconds
-# more on the one-runtime default (1m50 against 1m8, measured). `auto` rather than `aot` because
+# more on the one-runtime default. `auto` rather than `aot` because
 # `aot` errors out on a runtime this host cannot AOT-build, and `--runtimes=all` on Linux contains
 # several; auto falls back per runtime, which is what the release matrix already does.
 # `--mode=r2r` is the explicit fast path.
@@ -172,8 +172,8 @@ can_aot() {
 
 # Cross-architecture AOT needs an explicit linker toolchain. NativeAOT drives
 # the final link through a C compiler, and the default gcc cannot cross-target
-# at all: ilc passes `--target=<triple>` and gcc rejects it outright (measured
-# 2026-08-06). clang takes --target, so a cross RID gets clang plus a sysroot.
+# at all: ilc passes `--target=<triple>` and gcc rejects it outright. clang takes
+# --target, so a cross RID gets clang plus a sysroot.
 #
 # Same-arch builds are left alone: they link with the default toolchain, which
 # is what the validated linux-x64 path already uses.

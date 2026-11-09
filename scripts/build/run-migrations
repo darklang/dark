@@ -5,11 +5,6 @@ set -euo pipefail
 
 # Bring the dev database up to date. A build step, called from
 # scripts/build/compile; you rarely want it by hand.
-#
-# It was scripts/run-backend-server until BwdServer was replaced by the in-Dark
-# `darklang serve <fn>` flow, after which the name described a server it no longer
-# started. Its `--restart=no` flag went at the same time: nothing passed it, and
-# there was nothing left to restart.
 
 PUBLISHED=false
 for i in "$@"; do

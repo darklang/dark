@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuild on save. Opt-in: the container no longer starts this for you.
+# Rebuild on save. Opt-in: the container does not start this for you.
 #
 #   scripts/dev/watch                in the foreground; Ctrl+C stops it
 #   scripts/dev/watch --background   detached, logging to rundir/logs/watch.log

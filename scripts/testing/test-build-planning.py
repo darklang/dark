@@ -168,8 +168,7 @@ class TestSatisfiedBy(unittest.TestCase):
 class TestIgnores(unittest.TestCase):
 
   def test_editor_temp_files_are_ignored(self):
-    # Two missing commas in this list used to concatenate the neighbouring patterns,
-    # so these three reached the build.
+    # A missing comma in the ignore list joins two patterns, and these reach the build.
     with TempTree():
       spec = _buildplan.spec()
       self.assertTrue(spec.match_file("packages/x.dark.tmp.123.abc"))

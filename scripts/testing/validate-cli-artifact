@@ -20,10 +20,8 @@
 #   3. Optionally, an output diff against a second artifact (the R2R build of
 #      the same commit).
 #
-# On (3): checking exit codes is not enough. A failing run is fast, and during
-# the perf campaign a broken binary was mistaken for a fast one three times.
-# Both times the tell was output (`ls` printing 5 lines where the other printed
-# 7), not timing or exit status.
+# On (3): checking exit codes is not enough. A broken binary can exit cleanly and
+# fast; only its output gives it away.
 #
 # Each artifact gets its own HOME, which is what decides where a binary keeps
 # its store (`~/.darklang`). Two binaries sharing one .darklang directory corrupt
@@ -236,10 +234,6 @@ check "version check"  ""    version
 # tree it was COMPILED in, and falls back to the embedded copy only when that
 # path is missing. So inside the checkout a wrong or empty embedded copy is
 # invisible: the on-disk file wins, and the first run regenerates it anyway.
-#
-# That is not academic. The first tagged release shipped with an empty embedded
-# hash file and failed with `FnNotFound` on every command, while passing every
-# check above.
 echo ""
 echo "Outside the source tree (what a user actually gets):"
 
@@ -280,10 +274,8 @@ fi
 rm -rf "$WHERE"
 
 # A store is the instance's own, so a second binary started from inside this one must
-# not inherit it. It used to: the binary told itself where its store was by setting
-# the store variable in its own environment, every process it started inherited that,
-# and a second copy run from a script opened the parent's store. The child gets its
-# own HOME here, so it opens the parent's store only if that leak is back.
+# not inherit it through the environment. The child gets its own HOME here, so it
+# opens the parent's store only if the store's location leaks to it.
 CHILD=$(mktemp -d /tmp/dark-artifact-child.XXXXXX)
 mkdir -p "$CHILD/parent" "$CHILD/child"
 cp "$ARTIFACT" "$CHILD/parent/dark"

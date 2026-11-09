@@ -55,21 +55,11 @@ GATES=(
 
 # What CI runs, in one config line: the gates that need only the build CI already has.
 #
-# The lesson this list came from: a gate was found RED on main having never once run in CI,
-# leaking a server that reached 42.6 GB over 28 hours. A gate nobody runs is not a gate, and
-# fixing it without running it leaves the next one to rot the same way. So a new gate goes in
-# here unless there is a reason it cannot.
+# A new gate goes in here unless there is a reason it cannot: a gate CI never runs rots unseen.
 #
 # first-day is not in this list because it needs the binary's path, so CI's `build` job runs it as its
-# own step. The gates below run later in that same job, against the same binary.
-#
-# Measured locally, for comparison with the 5m per-gate bound CI applies:
-#   workbench-views 14s, first-day 24s, workbench-scm 35s, backups-restore 11s
-#   trait-choice-survives-rival 6s, trait-deprecation-is-per-branch 10s,
-#   trait-checker-vs-dispatch 16s, trait-pin-across-branches 21s
-# These are durations, so they drift with whatever else is on the box; the trait four were taken
-# while another clone was running perf experiments. Treat them as orders of magnitude against the
-# 5m bound, not as a budget. A gate reporting 0s has not run at all.
+# own step. The gates below run later in that same job, against the same binary. CI bounds each
+# gate at 5m; a gate reporting 0s has not run at all.
 CI_GATES=(workbench-scm workbench-views old-store-resets backups-restore
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches
@@ -174,11 +164,9 @@ run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
   # What makes this safe is that a gate shares NOTHING it writes with another gate: its own
   # process, its own rundir under rundir/, its own HOME where it touches `caps`, and any port it
   # takes is its alone. That list is the whole claim, so a new gate that writes anywhere else has
-  # to be added to it or it breaks this mode. The one that did was not a rundir or a port but a
-  # file in the SOURCE TREE: a package reload rewrote `package-ref-hashes.txt`, which every CLI
-  # in the checkout reads at startup, and every gate running beside reload-is-reproducible
-  # failed with FnNotFound. The reload no longer writes that file unless its contents changed;
-  # see `PackageRefsGenerator.generate`.
+  # to be added to it or it breaks this mode. That includes the source tree: a package reload
+  # writes `package-ref-hashes.txt`, which every CLI in the checkout reads at startup, only when
+  # its contents change (`PackageRefsGenerator.generate`).
   local bound="$1"; shift
   local total=$#
   local failed=() skipped=()
@@ -254,8 +242,7 @@ esac
 case "$cmd" in
   list)
     echo "gates (scripts/testing/gates <name>):"
-    # Width from the longest name. The old fixed 24 was already too narrow for
-    # `trait-choice-survives-rival`, whose description ran straight into its name.
+    # Width from the longest name.
     w=0
     for g in "${GATES[@]}"; do [[ ${#g} -gt $w ]] && w=${#g}; done
     for g in "${GATES[@]}"; do printf "  %-$((w + 2))s%s\n" "$g" "$(describe "$g")"; done

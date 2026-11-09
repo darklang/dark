@@ -4,11 +4,6 @@
 set -euo pipefail
 
 # Lint the shell scripts you name, or every one in the repo if you name none.
-#
-# It used to take exactly one file and fall through to the whole repo for any other
-# count, so `shellchecker a b` linted a, b, and a few thousand files under
-# node_modules, and always failed. The dev loop called it that way whenever two shell
-# scripts changed together.
 
 # SC2002: useless cat. SC2044: for loops over find. SC2086: unquoted variables.
 EXCLUDE=(-e SC2002 -e SC2044 -e SC2086)

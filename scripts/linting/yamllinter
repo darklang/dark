@@ -4,21 +4,8 @@
 set -euo pipefail
 
 all_yaml_files() {
-  # Two things were wrong with the walk this replaced, and only one of them is the obvious one.
-  #
-  # The real bug was PATH SPELLING. It walked `find ./*`, which yields `./rundir`, while four of
-  # its six prunes were spelled without the `./` (`-path "rundir"`, `-path ".git"`,
-  # `-path "backend/paket-files"`, `-path ".circleci/config.yml"`). Those four could never match
-  # anything the walk produced. Two `./`-prefixed duplicates in the same list did match, which is
-  # why it looked like it worked. And `later` and `node_modules` were not in the list at all, so
-  # `later/vscode-extension/node_modules` got linted: a few hundred vendored yaml files nobody
-  # here wrote, with errors in them that are not ours to fix. Measured against this tree, the old
-  # expression returns 21 files, all 21 of them vendored, and NONE of the repo's own yaml.
-  #
-  # Prune order is NOT the bug, contrary to what an earlier version of this comment said. A
-  # prune after `-type f` works fine: a directory fails the `-type f` test and falls through to
-  # the `-o` prune branch. Both orders were checked in a sandbox and both prune correctly. The
-  # order here is the conventional one because it reads better, not because the other is broken.
+  # Each prune is spelled the way `find .` yields paths, with the leading `./`. One spelled
+  # without it never matches, and the walk then lints vendored yaml instead of ours.
   find . \
     \( -path ./.git \
     -o -path ./later \
@@ -36,12 +23,8 @@ if [[ "$#" -eq 1 ]]; then
 else
   echo "linting yaml files ..."
   files=$(all_yaml_files)
-  # A check that the walk found the repo's own yaml, because a mistake in the prunes above
-  # presents as a clean run. A COUNT is the wrong instrument for this: the walk yields exactly
-  # three files today, so a `-lt 3` floor has no headroom and deleting one `.github` file would
-  # turn the linter into a hard failure. Name the file that matters instead. `.circleci/config.yml`
-  # is the one anybody actually edits, and the old walk pruned it by accident, so its presence is
-  # both the thing worth asserting and the exact regression worth guarding.
+  # A mistake in the prunes above presents as a clean run, so check that the walk found the
+  # file anybody actually edits. A count would not do: there are only three files to count.
   n=$(echo "$files" | grep -c . || true)
   if [[ -z "$files" ]] || ! echo "$files" | grep -qx "./.circleci/config.yml"; then
     echo "yamllinter: the walk matched $n file(s) and did not include ./.circleci/config.yml," >&2
