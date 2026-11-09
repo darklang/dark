@@ -799,8 +799,9 @@ let rec private sequence (exprs : List<PT.Expr>) : PT.Expr =
   | first :: rest -> PT.EStatement(gid (), first, sequence rest)
 
 /// Type-check a parsed script or eval expression without running any of it. Returns the
-/// checker's report when it found a definite error, which stops the run before its first
-/// effect; otherwise None, and the run goes ahead with its runtime checks.
+/// checker's report when it found a definite error or a name that resolves to nothing, which
+/// stops the run before its first effect; otherwise None, and the run goes ahead with its
+/// runtime checks.
 ///
 /// The top-level expressions become the body of one temporary function, in order, so each
 /// one but the last must return Unit exactly as it must when they run, and a branch or a
@@ -864,7 +865,7 @@ let private checkGuest
             None)
       let fnName =
         FQFnName.fqPackage (
-          PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOpsOn ()
+          PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkScriptOpsOn ()
         )
       let args =
         NEList.ofList
