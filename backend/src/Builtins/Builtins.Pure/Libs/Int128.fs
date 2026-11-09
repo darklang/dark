@@ -65,7 +65,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-
     { name = fn "int128Multiply" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
@@ -221,20 +220,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DInt128 a |] -> Ply(DFloat(float a))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "int128Sqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt128 "" ]
-      returnType = TFloat
-      description = "Get the square root of an <type Int128>"
-      fn =
-        (function
-        | _, _, _, [| DInt128 a |] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

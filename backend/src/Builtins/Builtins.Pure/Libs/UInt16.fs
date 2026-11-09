@@ -200,20 +200,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "uint16Sqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt16 "" ]
-      returnType = TFloat
-      description = "Get the square root of an <type UInt16>"
-      fn =
-        (function
-        | _, _, _, [| DUInt16 a |] -> Ply(DFloat(sqrt (float a)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "uint16BitwiseAnd" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]

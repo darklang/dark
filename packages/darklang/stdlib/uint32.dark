@@ -65,7 +65,7 @@ let random(start: UInt32, ``end``: UInt32): UInt32 =
 
 
 /// Get the square root of an <type UInt32>
-let sqrt(a: UInt32): Float = Builtin.uint32Sqrt(a)
+let sqrt(a: UInt32): Float = Stdlib.Float.sqrt(Stdlib.UInt32.toFloat(a))
 
 
 /// Converts an <type UInt32> to a <type Float>

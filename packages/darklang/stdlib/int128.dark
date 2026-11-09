@@ -61,7 +61,7 @@ impl Compare for Int128 =
 
 
 /// Get the square root of an <type Int128>
-let sqrt(a: Int128): Float = Builtin.int128Sqrt(a)
+let sqrt(a: Int128): Float = Stdlib.Float.sqrt(Stdlib.Int128.toFloat(a))
 
 
 /// Converts an <type Int128> to a <type Float>

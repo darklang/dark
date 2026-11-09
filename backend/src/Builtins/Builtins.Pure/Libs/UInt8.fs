@@ -199,22 +199,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-
-
-    { name = fn "uint8Sqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt8 "" ]
-      returnType = TFloat
-      description = "Get the square root of an <type UInt8>"
-      fn =
-        (function
-        | _, _, _, [| DUInt8 a |] -> Ply(DFloat(sqrt (float a)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "uint8BitwiseAnd" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]

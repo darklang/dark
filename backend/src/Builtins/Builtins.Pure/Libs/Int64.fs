@@ -40,41 +40,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // See above for when to uncomment this
-    // TODO: A future version should support all non-0 values and should include the infix "%"
-    // { name = fn "mod" 0
-    //   parameters = [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
-    //   returnType = TypeReference.result TInt64 TString
-    //   description =
-    //     "Returns the result of wrapping <param dividend> around so that {{0 <= res < divisor}}, as a <type Result>.
-    //      If <param divisor> is positive, returns {{Ok res}}. Returns an {{Error}} if <param divisor> is {{0}} or negative.
-    //     Use <fn Int64.remainder> if you want the remainder after division, which has a different behavior for negative numbers."
-    //   fn =
-    //     (function
-    //     | _, [ DInt64 v; DInt64 m ] ->
-    //       (try
-    //         Ply(Dval.resultOk(DInt64(v % m)))
-    //        with
-    //        | e ->
-    //          if m <= 0L then
-    //            Ply(
-    //              DResult(
-    //                Error(
-    //                  DString(
-    //                    "`modulus` must be positive but was "
-    //                    + DvalReprDeveloper.toRepr (DInt64 m)
-    //                  )
-    //                )
-    //              )
-    //            )
-    //          else // In case there's another failure mode, rollbar
-    //            Exception.raiseInternal "Unexpected failiure mode" [] e)
-    //     | _ -> incorrectArgs ())
-    //   previewable = Pure
-    //   deprecated = NotDeprecated
-    //   accessibility = Any }
-
-
     { name = fn "int64Add" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
@@ -230,20 +195,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.bool (a <= b))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "int64Sqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt64 "" ]
-      returnType = TFloat
-      description = "Get the square root of an <type Int64>"
-      fn =
-        (function
-        | _, _, _, [| DInt64 a |] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

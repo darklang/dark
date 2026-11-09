@@ -196,20 +196,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "int32Sqrt" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt32 "" ]
-      returnType = TFloat
-      description = "Get the square root of an <type Int32>"
-      fn =
-        (function
-        | _, _, _, [| DInt32 a |] -> Ply(DFloat(sqrt (float a)))
-        | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "int32ToFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]
