@@ -77,11 +77,17 @@ let private beforeLayers : List<string> =
     "package_trait_impls"
     "package_dependencies"
     "seed_ops"
+    "package_ops_applied_through"
+    "package_ops_unapplied"
     "package_ops" ]
 
 let private isOlderShape () : bool =
   (tableExists "package_ops"
-   && not (hasColumn "package_ops" "branch_id" && hasColumn "package_ops" "op_kind"))
+   && not (
+     hasColumn "package_ops" "branch_id"
+     && hasColumn "package_ops" "op_kind"
+     && hasColumn "package_ops" "seq"
+   ))
   || (tableExists "locations" && not (hasColumn "locations" "draft"))
 
 /// Reset the package tables of the store at <param dbPath> when it is older than the layered shape,

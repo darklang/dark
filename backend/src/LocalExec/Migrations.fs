@@ -100,8 +100,8 @@ let private dropProjectionTables () : unit =
 /// recreated projections. Re-folding (with value evaluation) needs the runtime, which the migration
 /// phase doesn't have — so we defer the fold to startup, exactly like a fresh seed does.
 let private markOpsUnapplied () : unit =
-  if tableExists "package_ops" then
-    Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementSync
+  if tableExists "package_ops_applied_through" then
+    Sql.query LibDB.AppliedOps.reset |> Sql.executeStatementSync
 
 let private opCount () : int =
   if tableExists "package_ops" then

@@ -1230,10 +1230,10 @@ let private modelSavesAndResumes =
 
 
 /// The window a live host must never observe: an op is in the log but not yet folded into
-/// `locations`. An op is reported only once it is applied. Here the insert, the fold and the
-/// applied mark are three steps; a poll that took the op between the insert and the fold would
-/// resolve the name to the previous hash and never look again. The op can be marked applied after
-/// the clock has left the instant it was inserted at, and is still reported.
+/// `locations`. An op is reported only once it is applied. Here the insert and the fold are two
+/// steps; a poll that took the op between them would resolve the name to the previous hash and never
+/// look again. The op can be applied after the clock has left the instant it was inserted at, and is
+/// still reported.
 let private pollIgnoresAnOpUntilItIsApplied =
   cliTest
     "a poll between an op's insert and its fold reports nothing; the poll after reports it"
@@ -1260,8 +1260,8 @@ let private pollIgnoresAnOpUntilItIsApplied =
             let opId = LibDB.Inserts.computeOpHash op
             let blob =
               LibSerialization.Binary.Serialization.PT.PackageOp.serialize opId op
-            ("INSERT INTO package_ops (id, branch_id, authored_on, op_blob, applied, origin_ts)
-              VALUES (@id, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', @op_blob, 0, @ts)",
+            ("INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
+              VALUES (@id, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', @op_blob, @ts)",
              [ [ "id", Sql.uuid opId
                  "op_blob", Sql.bytes blob
                  "ts", Sql.string (LibDB.Inserts.nextOriginTs ()) ] ]))
@@ -1269,14 +1269,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
 
         let! watch = pollQuiet state watch
 
-        // The fold, then the applied mark.
-        do! LibDB.PackageOpPlayback.applyOps PT.BranchId.Main ops
-        ops
-        |> List.map (fun op ->
-          ("UPDATE package_ops SET applied = 1 WHERE id = @id AND branch_id = '00000000-0000-0000-0000-000000000001'",
-           [ [ "id", Sql.uuid (LibDB.Inserts.computeOpHash op) ] ]))
-        |> Sql.executeTransactionSync
-        |> ignore<List<int>>
+        let! _ = LibDB.Seed.applyUnappliedOps ()
 
         let! (_, change) = pollChange state watch "the folded op was not reported"
         let! names =

@@ -18,6 +18,7 @@
   <ItemGroup>
     <Compile Include="OriginTs.fs" />
     <Compile Include="Sqlite.fs" />
+    <Compile Include="AppliedOps.fs" />
     <Compile Include="StoreBackups.fs" />
     <Compile Include="PreparedBatch.fs" />
     <Compile Include="Caching.fs" />
