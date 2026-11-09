@@ -1,6 +1,6 @@
 /// Operators the interpreter answers itself, without the builtin's record or the call machinery
-/// around it. Two `Int64`s, two `BigInt`s, two `String`s, or two `List`s -- every other pair, including every other
-/// numeric type and every mixed one, goes the ordinary way and gets the ordinary error.
+/// around it. Two values of one builtin numeric type, two `String`s, or two `List`s -- every mixed
+/// pair goes the ordinary way and gets the ordinary error.
 ///
 /// Not a compiler change: the `Apply` still happens, so a real opcode emitted by `PT2RT` would win
 /// more again. This is the part that needed no new instruction.
@@ -47,9 +47,9 @@ let listIsEmpty = 19
 let multiply = 20
 /// `Negate.negate`, one argument; `evalNegate` handles it.
 let negate = 21
-/// The bitwise operators. They have no arms in `eval`, `evalNumeric` or `evalNegate`, which
-/// decline them, so a bitwise call dispatches like any other trait method. They are in the
-/// TABLE because that is what tells the interpreter an operator is an operator: it is how
+/// The bitwise operators. `evalInt` and `evalBitwiseNot` answer them for the fixed-width
+/// integers; `eval` declines them, so a `BigInt` one dispatches like any other trait method.
+/// Being in the table is also what tells the interpreter an operator is an operator: it is how
 /// `1L & 2y` says "Cannot perform numeric operation on Int64 and Int8" rather than
 /// failing inside the implementation's parameter check.
 let bitwiseAnd = 22
@@ -60,10 +60,12 @@ let shiftLeft = 26
 let shiftRight = 27
 /// `List.prepend`: a list and a value of its element type.
 let listPrepend = 28
-/// `Int64` `/` and `%`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, for
-/// quickened operator calls only, and `evalInt64Checked` answers the inputs where they cannot.
-let int64Divide = 29
-let int64Modulo = 30
+/// `/`, `%` and `**`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, for
+/// quickened operator calls only, and `evalInt` answers the inputs where they cannot. The highest
+/// tags, so the drain can send them straight there.
+let divide = 29
+let modulo = 30
+let power = 31
 
 /// `-x` on a signed builtin numeric; anything else declines and dispatches.
 let evalNegate (a : Dval) : Dval voption =
@@ -303,12 +305,249 @@ let private decimalOrDecline
   with :? System.OverflowException ->
     ValueNone
 
+/// `base ** exponent` in 64 wrapping bits, by squaring, from `acc`. The builtins take
+/// `BigInteger.ModPow(base, exponent, 2^bits)` and narrow it. Wrapping multiplication in 64 bits
+/// keeps the same low bits, since `2^bits` divides `2^64`, so narrowing this gives the same value,
+/// with or without a sign extended into the high bits.
+let rec private powWrap64 (acc : uint64) (b : uint64) (e : uint64) : uint64 =
+  if e = 0UL then
+    acc
+  else
+    powWrap64 (if e &&& 1UL = 1UL then acc * b else acc) (b * b) (e >>> 1)
+
+/// `powWrap64` for `Int128`, whose own multiplication wraps.
+let rec private powWrapInt128
+  (acc : System.Int128)
+  (b : System.Int128)
+  (e : System.Int128)
+  : System.Int128 =
+  if e = System.Int128.Zero then
+    acc
+  else
+    powWrapInt128
+      (if e &&& System.Int128.One = System.Int128.One then acc * b else acc)
+      (b * b)
+      (e >>> 1)
+
+/// `powWrap64` for `UInt128`, whose own multiplication wraps.
+let rec private powWrapUInt128
+  (acc : System.UInt128)
+  (b : System.UInt128)
+  (e : System.UInt128)
+  : System.UInt128 =
+  if e = System.UInt128.Zero then
+    acc
+  else
+    powWrapUInt128
+      (if e &&& System.UInt128.One = System.UInt128.One then acc * b else acc)
+      (b * b)
+      (e >>> 1)
+
+/// One fixed-width integer type's `/`, `%`, `**` and two-argument bitwise operators: what its
+/// builtin returns (`Builtin.int8Divide` ... `Builtin.uint128ShiftRight`), declining wherever it
+/// raises. A zero divisor, a modulus that is not positive and a negative exponent decline, and the
+/// impl raises its own error. <param div>, <param pow> and the shifts are the parts that differ by
+/// type; each restates its builtin's expression, so `MIN / -1` and the shift-count masking come
+/// out as the builtin's do.
+let inline private intOp
+  ([<InlineIfLambda>] mk : ^T -> Dval)
+  ([<InlineIfLambda>] div : ^T -> ^T -> ^T)
+  ([<InlineIfLambda>] pow : ^T -> ^T -> ^T)
+  ([<InlineIfLambda>] shl : ^T -> ^T -> ^T)
+  ([<InlineIfLambda>] shr : ^T -> ^T -> ^T)
+  (tag : int)
+  (x : ^T)
+  (y : ^T)
+  : Dval voption =
+  let zero = LanguagePrimitives.GenericZero< ^T>
+  if tag = divide then
+    if y = zero then ValueNone else ValueSome(mk (div x y))
+  elif tag = modulo then
+    // Unsigned, `y > zero` is `y <> zero`, and `r` is never negative: the builtins' own tests.
+    if y > zero then
+      let r = x % y
+      ValueSome(mk (if r < zero then y + r else r))
+    else
+      ValueNone
+  elif tag = power then
+    // Never true unsigned, whose builtins take every exponent.
+    if y < zero then ValueNone else ValueSome(mk (pow x y))
+  elif tag = bitwiseAnd then
+    ValueSome(mk (x &&& y))
+  elif tag = bitwiseOr then
+    ValueSome(mk (x ||| y))
+  elif tag = bitwiseXor then
+    ValueSome(mk (x ^^^ y))
+  elif tag = shiftLeft then
+    ValueSome(mk (shl x y))
+  elif tag = shiftRight then
+    ValueSome(mk (shr x y))
+  else
+    ValueNone
+
+/// `/`, `%`, `**`, `&`, `|`, `^`, `<<` and `>>` on two integers of one fixed-width type. Every
+/// other pair, and every other tag, declines.
+let evalInt (tag : int) (a : Dval) (b : Dval) : Dval voption =
+  match a with
+  | DInt8 x ->
+    (match b with
+     | DInt8 y ->
+       intOp
+         DInt8
+         // widened to int32, as the builtin does, so -128y / -1y wraps rather than throws
+         (fun p q -> int8 (int p / int q))
+         (fun p q -> int8 (powWrap64 1UL (uint64 p) (uint64 q)))
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DUInt8 x ->
+    (match b with
+     | DUInt8 y ->
+       intOp
+         DUInt8
+         (fun p q -> p / q)
+         (fun p q -> uint8 (powWrap64 1UL (uint64 p) (uint64 q)))
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DInt16 x ->
+    (match b with
+     | DInt16 y ->
+       intOp
+         DInt16
+         (fun p q -> p / q)
+         (fun p q -> int16 (powWrap64 1UL (uint64 p) (uint64 q)))
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DUInt16 x ->
+    (match b with
+     | DUInt16 y ->
+       intOp
+         DUInt16
+         (fun p q -> p / q)
+         (fun p q -> uint16 (powWrap64 1UL (uint64 p) (uint64 q)))
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DInt32 x ->
+    (match b with
+     | DInt32 y ->
+       intOp
+         DInt32
+         (fun p q -> if p = System.Int32.MinValue && q = -1 then p else p / q)
+         (fun p q -> int32 (powWrap64 1UL (uint64 p) (uint64 q)))
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DUInt32 x ->
+    (match b with
+     | DUInt32 y ->
+       intOp
+         DUInt32
+         (fun p q -> p / q)
+         (fun p q -> uint32 (powWrap64 1UL (uint64 p) (uint64 q)))
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DInt64 x ->
+    (match b with
+     | DInt64 y ->
+       intOp
+         Dval.dint64
+         (fun p q -> if p = System.Int64.MinValue && q = -1L then p else p / q)
+         (fun p q -> int64 (powWrap64 1UL (uint64 p) (uint64 q)))
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DUInt64 x ->
+    (match b with
+     | DUInt64 y ->
+       intOp
+         DUInt64
+         (fun p q -> p / q)
+         (fun p q -> powWrap64 1UL p q)
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DInt128 x ->
+    (match b with
+     | DInt128 y ->
+       intOp
+         DInt128
+         (fun p q ->
+           if p = System.Int128.MinValue && q = System.Int128.NegativeOne then
+             p
+           else
+             p / q)
+         (fun p q -> powWrapInt128 System.Int128.One p q)
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | DUInt128 x ->
+    (match b with
+     | DUInt128 y ->
+       intOp
+         DUInt128
+         (fun p q -> p / q)
+         (fun p q -> powWrapUInt128 System.UInt128.One p q)
+         (fun p q -> p <<< int q)
+         (fun p q -> p >>> int q)
+         tag
+         x
+         y
+     | _ -> ValueNone)
+  | _ -> ValueNone
+
+/// `~x` on a fixed-width integer, as its `bitwiseNot` builtin computes it; anything else declines.
+let evalBitwiseNot (a : Dval) : Dval voption =
+  match a with
+  | DInt8 x -> ValueSome(DInt8(~~~x))
+  | DUInt8 x -> ValueSome(DUInt8(~~~x))
+  | DInt16 x -> ValueSome(DInt16(~~~x))
+  | DUInt16 x -> ValueSome(DUInt16(~~~x))
+  | DInt32 x -> ValueSome(DInt32(~~~x))
+  | DUInt32 x -> ValueSome(DUInt32(~~~x))
+  | DInt64 x -> ValueSome(Dval.dint64 (~~~x))
+  | DUInt64 x -> ValueSome(DUInt64(~~~x))
+  | DInt128 x -> ValueSome(DInt128(System.Int128.op_OnesComplement x))
+  | DUInt128 x -> ValueSome(DUInt128(System.UInt128.op_OnesComplement x))
+  | _ -> ValueNone
+
+
 /// The arithmetic and ordering operators on the fixed-width, float and String types, for the trait
 /// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.Add.add` is
 /// `a + b` in F#, wrapping), restated here so the operator never pays impl selection when both
-/// operands are the same builtin numeric type. Anything that can fail (`divide`, `modulo`,
-/// `power`) and every mixed pair declines: the impl runs and raises its own error. Decimal's
-/// `+`, `-` and `*` can overflow, and decline when they do.
+/// operands are the same builtin numeric type. The rest of the integer operators are `evalInt`'s.
+/// Every mixed pair declines: the impl runs and raises its own error. Decimal's `+`, `-` and `*`
+/// can overflow, and decline when they do.
 let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
   // Nested matches throughout, not `match a, b with`: the pair is an allocation per operator,
   // which is the cost this table exists to avoid.
@@ -554,7 +793,7 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     elif tag = greaterThan then ValueSome(Dval.bool (ordering > 0))
     else ValueSome(Dval.bool (ordering >= 0))
   else
-    ValueNone
+    evalInt tag a b
 
 
 /// The tag for a trait method, when the trait is one of the stdlib operator traits.
@@ -649,10 +888,10 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   d
 
 
-/// `traitTag`, and `/` and `%` too. For `Interpreter.quicken`, which looks a call up once per
-/// function, not once per call. `traitTag` itself leaves them out because it decides more than
+/// `traitTag`, and `/`, `%` and `**` too. For `Interpreter.quicken`, which looks a call up once
+/// per function, not once per call. `traitTag` itself leaves them out because it decides more than
 /// whether `FastOps` can answer: an operator in it reports a mixed pair of operands up front, and
-/// `/` and `%` report theirs from the impl.
+/// `/`, `%` and `**` report theirs from the impl.
 let quickTraitTag (traitHash : string) (methodName : string) : int voption =
   match traitTag traitHash methodName with
   | ValueSome tag -> ValueSome tag
@@ -660,34 +899,14 @@ let quickTraitTag (traitHash : string) (methodName : string) : int voption =
     if
       methodName = "divide" && traitHash = PackageRefs.Trait.Stdlib.Traits.divide ()
     then
-      ValueSome int64Divide
+      ValueSome divide
     elif
       methodName = "modulo" && traitHash = PackageRefs.Trait.Stdlib.Traits.modulo ()
     then
-      ValueSome int64Modulo
+      ValueSome modulo
+    elif
+      methodName = "power" && traitHash = PackageRefs.Trait.Stdlib.Traits.power ()
+    then
+      ValueSome power
     else
       ValueNone
-
-
-/// What `Builtin.int64Divide` and `Builtin.int64Mod` return, for the inputs where they return rather
-/// than raise. A zero divisor, a modulus that is not positive, and anything not two `Int64`s
-/// decline, and the impl runs and raises its own error.
-let evalInt64Checked (tag : int) (a : Dval) (b : Dval) : Dval voption =
-  match a with
-  | DInt64 x ->
-    match b with
-    | DInt64 y ->
-      if tag = int64Divide then
-        if y = 0L then
-          ValueNone
-        elif x = System.Int64.MinValue && y = -1L then
-          ValueSome(DInt64 System.Int64.MinValue)
-        else
-          ValueSome(Dval.dint64 (x / y))
-      elif tag = int64Modulo && y > 0L then
-        let r = x % y
-        ValueSome(DInt64(if r < 0L then y + r else r))
-      else
-        ValueNone
-    | _ -> ValueNone
-  | _ -> ValueNone

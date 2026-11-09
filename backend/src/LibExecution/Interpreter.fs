@@ -2147,9 +2147,10 @@ let private fastBuiltinOp
   | _ -> ValueNone
 
 
-/// A trait operator (`a + b`, `-x`), by its `FastOps.traitTag` tag, on two values of one builtin
-/// type: the impl the dispatch would pick is the type's own wrapper over the same F# operator. A
-/// `BigInt` pair takes the `BigInt` table; the rest take `evalNumeric`.
+/// A trait operator (`a + b`, `-x`), by its `FastOps.quickTraitTag` tag, on two values of one
+/// builtin type: the impl the dispatch would pick is the type's own wrapper over the same F#
+/// operator. A `BigInt` pair takes the `BigInt` table; the rest take `evalNumeric`, which declines
+/// whatever the impl would raise on.
 let private fastTraitOp
   (registers : Dval array)
   (tag : int)
@@ -2166,6 +2167,9 @@ let private fastTraitOp
     | a -> FastOps.evalNumeric tag a registers[secondReg]
   // `-x` on a signed builtin numeric
   | [] when tag = FastOps.negate -> FastOps.evalNegate registers[argRegs.head]
+  // `~x` on a fixed-width integer
+  | [] when tag = FastOps.bitwiseNot ->
+    FastOps.evalBitwiseNot registers[argRegs.head]
   | _ -> ValueNone
 
 
@@ -5015,15 +5019,11 @@ let private tryQuickOp
     false
   else
     let result =
-      if
-        op.IsTrait && (op.Tag = FastOps.int64Divide || op.Tag = FastOps.int64Modulo)
-      then
+      // `/`, `%` and `**` come only from `quickTraitTag`, and only `evalInt` answers them.
+      if op.IsTrait && op.Tag >= FastOps.divide then
         match op.Args.tail with
         | [ secondReg ] ->
-          FastOps.evalInt64Checked
-            op.Tag
-            registers[op.Args.head]
-            registers[secondReg]
+          FastOps.evalInt op.Tag registers[op.Args.head] registers[secondReg]
         | _ -> ValueNone
       elif op.IsTrait then
         fastTraitOp registers op.Tag op.Args

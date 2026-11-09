@@ -1748,6 +1748,215 @@ module DebugText =
   let tests = testList "DebugText" [ valuesKeepTheirContents ]
 
 
+/// The integer operators the VM answers from the registers (`FastOps.evalInt`), against the
+/// per-type builtins their impls call, at each type's edges: the same values, and the same error
+/// wherever the builtin raises. Both run inside a lambda, since that is where operator calls are
+/// quickened.
+module IntOperators =
+  type private IntType =
+    { prefix : string
+      signed : bool
+      bits : int
+      min : bigint
+      max : bigint
+      expr : bigint -> PT.Expr
+      dval : bigint -> RT.Dval }
+
+  let private parse128 (v : bigint) = System.Int128.Parse(string v)
+  let private parseU128 (v : bigint) = System.UInt128.Parse(string v)
+
+  let private types : List<IntType> =
+    let signed prefix bits expr dval =
+      { prefix = prefix
+        signed = true
+        bits = bits
+        min = -(bigint.Pow(2I, bits - 1))
+        max = bigint.Pow(2I, bits - 1) - 1I
+        expr = expr
+        dval = dval }
+    let unsigned prefix bits expr dval =
+      { prefix = prefix
+        signed = false
+        bits = bits
+        min = 0I
+        max = bigint.Pow(2I, bits) - 1I
+        expr = expr
+        dval = dval }
+    [ signed "int8" 8 (fun v -> eInt8 (int8 v)) (fun v -> RT.DInt8(int8 v))
+      unsigned "uint8" 8 (fun v -> euInt8 (uint8 v)) (fun v -> RT.DUInt8(uint8 v))
+      signed "int16" 16 (fun v -> eInt16 (int16 v)) (fun v -> RT.DInt16(int16 v))
+      unsigned "uint16" 16 (fun v -> euInt16 (uint16 v)) (fun v ->
+        RT.DUInt16(uint16 v))
+      signed "int32" 32 (fun v -> eInt32 (int32 v)) (fun v -> RT.DInt32(int32 v))
+      unsigned "uint32" 32 (fun v -> euInt32 (uint32 v)) (fun v ->
+        RT.DUInt32(uint32 v))
+      signed "int64" 64 (fun v -> eInt64 (int64 v)) (fun v -> RT.DInt64(int64 v))
+      unsigned "uint64" 64 (fun v -> euInt64 (uint64 v)) (fun v ->
+        RT.DUInt64(uint64 v))
+      signed "int128" 128 (parse128 >> eInt128) (parse128 >> RT.DInt128)
+      unsigned "uint128" 128 (parseU128 >> euInt128) (parseU128 >> RT.DUInt128) ]
+
+  /// The extremes, the small values, and the shift counts either side of the width.
+  let private edges (t : IntType) : List<bigint> =
+    let b = bigint t.bits
+    let candidates =
+      [ 0I; 1I; 2I; 3I; 7I; b - 1I; b; b + 1I; 2I * b; t.max - 1I; t.max ]
+      @ (if t.signed then [ -1I; -2I; -3I; -7I; -b; t.min; t.min + 1I ] else [])
+    candidates |> List.filter (fun v -> v >= t.min && v <= t.max) |> List.distinct
+
+  /// The infix operator, the builtin's name after the type's prefix, and the tag.
+  let private ops : List<PT.InfixFnName * string * int> =
+    [ PT.ArithmeticDivide, "Divide", LibExecution.FastOps.divide
+      PT.ArithmeticModulo, "Mod", LibExecution.FastOps.modulo
+      PT.ArithmeticPower, "Power", LibExecution.FastOps.power
+      PT.BitwiseAnd, "BitwiseAnd", LibExecution.FastOps.bitwiseAnd
+      PT.BitwiseOr, "BitwiseOr", LibExecution.FastOps.bitwiseOr
+      PT.BitwiseXor, "BitwiseXor", LibExecution.FastOps.bitwiseXor
+      PT.ShiftLeft, "ShiftLeft", LibExecution.FastOps.shiftLeft
+      PT.ShiftRight, "ShiftRight", LibExecution.FastOps.shiftRight ]
+
+  /// Where the builtin raises: a zero divisor or modulus, a negative modulus or exponent.
+  let private raises (tag : int) (b : bigint) : bool =
+    if tag = LibExecution.FastOps.divide then b = 0I
+    elif tag = LibExecution.FastOps.modulo then b <= 0I
+    elif tag = LibExecution.FastOps.power then b < 0I
+    else false
+
+  let private run (collectExprValues : bool) (expr : PT.Expr) =
+    task {
+      let! (state : RT.ExecutionState) = executionStateFor pmPT false
+      let state =
+        { state with
+            tracing = { state.tracing with collectExprValues = collectExprValues } }
+      return!
+        LibExecution.Execution.executeExpr
+          state
+          (PT2RT.Expr.toRT Map.empty 0 None expr)
+    }
+
+  /// `let f = fun a b -> <body> in [ f a1 b1; f a2 b2; ... ]`.
+  let private applyEach
+    (parameters : List<string>)
+    (body : PT.Expr)
+    (args : List<List<PT.Expr>>)
+    : PT.Expr =
+    eLet
+      (lpVar "f")
+      (eLambda (gid ()) (List.map lpVar parameters) body)
+      (eList (args |> List.map (fun xs -> eApply (eVar "f") [] xs)))
+
+  let private infixBody (op : PT.InfixFnName) =
+    eInfix (PT.Infix.InfixFnCall op) (eVar "a") (eVar "b")
+
+  let private builtinBody (name : string) (parameters : List<string>) =
+    eApply (eBuiltinFn name 0) [] (List.map eVar parameters)
+
+  let private items (what : string) (result : RT.ExecutionResult) : List<RT.Dval> =
+    match result with
+    | Ok(RT.DList(_, items)) -> items
+    | other -> failtestf "%s: expected a list, got %A" what other
+
+  let private answers (t : IntType) =
+    testTask $"{t.prefix}: / %% ** & | ^ << >> answer as the builtins do" {
+      let values = edges t
+      for (op, suffix, tag) in ops do
+        let pairs =
+          [ for a in values do
+              for b in values do
+                if not (raises tag b) then (a, b) ]
+        let args = pairs |> List.map (fun (a, b) -> [ t.expr a; t.expr b ])
+        let name = t.prefix + suffix
+        let! inline' = run false (applyEach [ "a"; "b" ] (infixBody op) args)
+        let! builtin =
+          run false (applyEach [ "a"; "b" ] (builtinBody name [ "a"; "b" ]) args)
+        let inline' = items $"{name} inline" inline'
+        let builtin = items $"{name} builtin" builtin
+        Expect.equal (List.length inline') (List.length builtin) name
+        for ((a, b), (got, expected)) in List.zip pairs (List.zip inline' builtin) do
+          Expect.equal got expected $"{name}({a}, {b})"
+          Expect.equal
+            (LibExecution.FastOps.evalInt tag (t.dval a) (t.dval b))
+            (ValueSome expected)
+            $"{name}({a}, {b}) is answered inline"
+    }
+
+  let private raisesTheSame (t : IntType) =
+    testTask $"{t.prefix}: / %% ** raise as the builtins do" {
+      let values = edges t
+      for (op, suffix, tag) in ops do
+        for b in values do
+          if raises tag b then
+            for a in [ t.min; 0I; 1I; t.max ] do
+              let name = $"{t.prefix + suffix}({a}, {b})"
+              let args = [ [ t.expr a; t.expr b ] ]
+              let! inline' = run false (applyEach [ "a"; "b" ] (infixBody op) args)
+              let! builtin =
+                run
+                  false
+                  (applyEach
+                    [ "a"; "b" ]
+                    (builtinBody (t.prefix + suffix) [ "a"; "b" ])
+                    args)
+              match inline', builtin with
+              | Error(e1, _), Error(e2, _) -> Expect.equal e1 e2 name
+              | _ ->
+                failtestf
+                  "%s: expected two errors, got %A and %A"
+                  name
+                  inline'
+                  builtin
+              Expect.equal
+                (LibExecution.FastOps.evalInt tag (t.dval a) (t.dval b))
+                ValueNone
+                $"{name} declines"
+    }
+
+  let private notAnswers (t : IntType) =
+    testTask $"{t.prefix}: ~ answers as the builtin does" {
+      let values = edges t
+      let args = values |> List.map (fun a -> [ t.expr a ])
+      let name = t.prefix + "BitwiseNot"
+      let! inline' =
+        run
+          false
+          (applyEach
+            [ "a" ]
+            (eApply (eBuiltinFn "bitwiseNot" 0) [] [ eVar "a" ])
+            args)
+      let! builtin = run false (applyEach [ "a" ] (builtinBody name [ "a" ]) args)
+      let inline' = items $"{name} inline" inline'
+      let builtin = items $"{name} builtin" builtin
+      for (a, (got, expected)) in List.zip values (List.zip inline' builtin) do
+        Expect.equal got expected $"{name}({a})"
+        Expect.equal
+          (LibExecution.FastOps.evalBitwiseNot (t.dval a))
+          (ValueSome expected)
+          $"{name}({a}) is answered inline"
+    }
+
+  /// A mixed pair declines, and reports what it reports with nothing quickened.
+  let mixedPairs =
+    testTask "a mixed pair raises what it raises unquickened" {
+      for op in
+        [ PT.ArithmeticDivide; PT.ArithmeticPower; PT.BitwiseAnd; PT.ShiftLeft ] do
+        let expr = applyEach [ "a"; "b" ] (infixBody op) [ [ eInt64 1L; eInt8 2y ] ]
+        let! quick = run false expr
+        let! traced = run true expr
+        match quick, traced with
+        | Error(e1, _), Error(e2, _) -> Expect.equal e1 e2 $"{op}"
+        | _ -> failtestf "%A: expected two errors, got %A and %A" op quick traced
+    }
+
+  let tests =
+    testList
+      "IntOperators"
+      ([ for t in types do
+           answers t
+           raisesTheSame t
+           notAnswers t ]
+       @ [ mixedPairs ])
+
+
 let tests =
   testList
     "Interpreter"
@@ -1765,4 +1974,5 @@ let tests =
       Reload.tests
       BoundMemo.tests
       LambdaResultChecks.tests
-      DebugText.tests ]
+      DebugText.tests
+      IntOperators.tests ]
