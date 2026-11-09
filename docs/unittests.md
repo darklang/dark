@@ -76,7 +76,8 @@ take a filter. To run just one part, use `--kind sequenced` or `--kind parallel`
 `--only-groups A,B` or `--skip-groups A,B` to pick top-level groups.
 
 Local runs reload packages into a fresh test database. CI copies the seed built
-earlier in the job instead.
+earlier in the job instead. Outside CI the reloaded store is kept and reused until
+its inputs change; `rm -rf rundir/test-store-cache` forces a fresh one.
 
 ## Finding and filtering F# tests
 
