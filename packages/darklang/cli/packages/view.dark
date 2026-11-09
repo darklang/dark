@@ -730,12 +730,13 @@ let resolveHashArg(
 
 
 // VIEW command - view modules, functions, types, or constants, as source, AST, or instructions
-/// "3 traces went through this", under a function you are looking at.
+/// "3 traces went through this", under a function you are looking at or have just edited.
 ///
 /// The one bridge from the package viewer to `dark traces`. Silent when there are none, since a
 /// line saying nothing has run is noise on every function you ever look at, and silent for a type
-/// or a value, which do not run.
-let printTraceHint(branchId: Uuid, location: PackageLocation): Unit =
+/// or a value, which do not run. <param after> ends the line: what `traces show` does for the
+/// reader at this moment.
+let printTraceHintWith(branchId: Uuid, location: PackageLocation, after: String): Unit =
   match location with
   | Module(_) -> ()
   | Type(_) -> ()
@@ -755,7 +756,11 @@ let printTraceHint(branchId: Uuid, location: PackageLocation): Unit =
       Stdlib.printErrorLine("")
       Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.dimText(
-          $"{count} went through this: dark traces show {name}")))
+          $"{count} went through this: dark traces show {name}{after}")))
+
+
+let printTraceHint(branchId: Uuid, location: PackageLocation): Unit =
+  printTraceHintWith(branchId, location, "")
 
 
 

@@ -477,6 +477,34 @@ test fnsNamesWhatRunsWentThrough =
         Instance.says(all, "Darklang.Stdlib", "--all puts the bundled library back") ]))
 
 
+/// `view` and `edit` name `traces show` under a function runs went through, and say
+/// nothing under one no run did.
+test viewAndEditPointAtTheRunsThatWentThrough =
+  Traces.withTraces(fun i ->
+    let defined =
+      Stdlib.Test.all(
+        [ authored(i, "Tests.Prev.doubled", "(n: Int64): Int64 =\n  n * 2")
+          authored(i, "Tests.Prev.unrun", "(n: Int64): Int64 =\n  n * 5") ])
+
+    let ran = Instance.said(i, [ "eval", "Tests.Prev.doubled(4)" ])
+    let viewed = Instance.said(i, [ "view", "Tests.Prev.doubled" ])
+    let quiet = Instance.said(i, [ "view", "Tests.Prev.unrun" ])
+    let path = (Instance.home(i)) + "/doubled.dark"
+
+    let _ =
+      (Stdlib.Cli.File.writeAtomic(path, "let doubled(n: Int64): Int64 = n * 20"))
+      |> Builtin.unwrap
+
+    let edited = Instance.said(i, [ "edit", "Tests.Prev.doubled", path ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(ran, "8", "the run happened")
+        Instance.says(viewed, "1 trace went through this: dark traces show Tests.Prev.doubled", "view points at the run")
+        Instance.doesNotSay(quiet, "went through this", "nothing ran it, so nothing is said")
+        Instance.says(edited, "dark traces show Tests.Prev.doubled for the new code's values", "edit points at the run too") ]))
+
+
 /// Two names for one function find the same runs, because content addressing makes
 /// them one.
 test twoNamesForOneFunctionFindTheSameRuns =

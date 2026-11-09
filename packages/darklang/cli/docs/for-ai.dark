@@ -347,8 +347,9 @@ answers to one question on one screen is confusing; you have no such problem and
 a round trip costs you more than the bytes do.
 
 Discovery goes both ways. `dark view <fn>` says how many traces went through a
-function; `dark traces calls <fn>` lists them; `dark traces inspect <id>` says
-which functions a trace ran, so you can go from a run back to the code.
+function, and so does `dark edit <fn>` once the edit lands; `dark traces calls
+<fn>` lists them; `dark traces inspect <id>` says which functions a trace ran, so
+you can go from a run back to the code.
 
 When a run stopped partway, `traces resume <id>` carries on from where it got
 to rather than starting over, and `traces fork <id> --at <n>` runs a different

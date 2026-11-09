@@ -52,6 +52,15 @@ let applyFile(
   Packages.ModuleCommand.execute(state, [ moduleArgFor(loc), path ])
 
 
+/// After an edit lands: the runs that went through this function, if any. A replay recomputes
+/// every pure value from the code as it is now, so this is the moment they are most useful.
+let printTraceHint(state: AppState, location: Packages.PackageLocation): Unit =
+  Packages.View.printTraceHintWith(
+    state.currentBranchId,
+    location,
+    " for the new code's values")
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let branchId = state.currentBranchId
 
@@ -92,7 +101,10 @@ let execute(state: AppState, args: List<String>): AppState =
 
   match fileArg with
   // No editor and no terminal: the shape a script or an agent uses.
-  | Some(file) -> applyFile(state, loc, file)
+  | Some(file) ->
+    let result = applyFile(state, loc, file)
+    if result.exitCode == 0 then printTraceHint(result, location) else ()
+    result
   | None ->
 
   // An editor needs a terminal on both ends. Without one it starts anyway, paints
@@ -186,6 +198,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
             let _ =
               if landed then
+                printTraceHint(result, location)
                 Stdlib.Cli.Dir.deleteRecursive(dir) |> Stdlib.Result.toOption
               else
                 Stdlib.printErrorLine(
