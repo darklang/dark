@@ -4489,8 +4489,10 @@ type VMState =
 
     /// The root frame of a pooled VM, kept so `reuseFor` can re-point it rather than build another.
     mutable pooledRootFrame : CallFrame voption
-    /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
-    lambdaInstrDataCache : Dictionary<id, InstrData>
+    /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`, with the impl it
+    /// was derived from. A pooled VM outlives a reload, and a new version of a fn keeps its lambdas'
+    /// expression ids, so an entry is only good for the impl it was built from.
+    lambdaInstrDataCache : Dictionary<id, struct (LambdaImpl * InstrData)>
 
     /// Each lambda's symbol table, by the lambda's expression id.
     ///

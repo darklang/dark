@@ -345,8 +345,11 @@ type private Memos() =
   member val Traits =
     System.Collections.Concurrent.ConcurrentDictionary<struct (FQTraitName.Package *
     string), Purity>()
+  /// With the impl each answer was read from: a new version of a fn keeps its lambdas'
+  /// expression ids, so an answer is only good for the body it was read from.
   member val Lambdas =
-    System.Collections.Concurrent.ConcurrentDictionary<id, Purity>()
+    System.Collections.Concurrent.ConcurrentDictionary<id, struct (LambdaImpl *
+    Purity)>()
 
 /// The memos belong to the oracle that answered them: two states with different `fnPurity` (a
 /// test's, the CLI host's) must not share answers. Keyed by the function itself, which a record
@@ -423,17 +426,18 @@ let rec private ofApplicable
         // the instructions and every package fn's answer are fixed for the life of the oracle.
         let lambdaMemo = (memosFor state).Lambdas
         let! own =
-          match lambdaMemo.TryGetValue lambda.exprId with
-          | true, known -> Ply known
-          | false, _ ->
-            match state.lambdaInstrCache.TryGetValue lambda.exprId with
-            | true, impl ->
+          match state.lambdaInstrCache.TryGetValue lambda.exprId with
+          | false, _ -> Ply Purity.Unknown
+          | true, impl ->
+            match lambdaMemo.TryGetValue lambda.exprId with
+            | true, struct (readFrom, known) when obj.ReferenceEquals(readFrom, impl) ->
+              Ply known
+            | _ ->
               uply {
                 let! answer = ofLambdaBody state depth impl
-                lambdaMemo[lambda.exprId] <- answer
+                lambdaMemo[lambda.exprId] <- struct (impl, answer)
                 return answer
               }
-            | false, _ -> Ply Purity.Unknown
         // What it closed over is concrete by now, so a captured callback is judged by what it
         // IS, which no reading of the source could know.
         let! closed =

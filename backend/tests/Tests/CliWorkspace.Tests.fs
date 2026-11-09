@@ -769,6 +769,44 @@ let private serveFollowsEdits =
             })
     })
 
+/// A handler that calls its callee from inside a lambda. The request VMs are pooled, and a pooled
+/// VM kept the old router's lambda body under the id the new version's lambda still has.
+let private serveFollowsAnEditInsideALambda =
+  cliTest "serve follows an edit to a fn called inside a lambda" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do! author "Tests.LiveLambdaHttp.part" "(n: Int64): String = \"one\""
+      do!
+        author
+          "Tests.LiveLambdaHttp.router"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Stdlib.String.join(Stdlib.List.map([ 1, 2 ], fun n -> Tests.LiveLambdaHttp.part(n)), \",\"))"
+
+      do!
+        withLiveServer
+          state
+          "Darklang.SCM.Branch.mainBranchId"
+          (locSource [ "LiveLambdaHttp" ] "router")
+          false
+          [ "[live] now on the new version of Tests.LiveLambdaHttp.router" ]
+          (fun port ->
+            task {
+              // Several requests, so the pooled VMs have run the first version's lambda.
+              for _ in 1..4 do
+                let! (status, body) = getText port
+                Expect.equal (status, body) (200, "one,one") "the version at start"
+
+              do! author "Tests.LiveLambdaHttp.part" "(n: Int64): String = \"two\""
+              for _ in 1..4 do
+                let! (status, body) = getText port
+                Expect.equal
+                  (status, body)
+                  (200, "two,two")
+                  "an edit to a fn called inside a lambda is on the next request"
+            })
+    })
+
 /// `poll` names what landed and `affects` walks to what depends on it, on one store.
 let private pollAndAffects =
   cliTest "poll reports an edit and affects reaches its dependents" (fun target ->
@@ -1801,6 +1839,7 @@ let tests : List<Test> =
       testList
         "live"
         [ serveFollowsEdits
+          serveFollowsAnEditInsideALambda
           pollAndAffects
           treeRendersTheSameEverywhere
           viewFollowsEdits
