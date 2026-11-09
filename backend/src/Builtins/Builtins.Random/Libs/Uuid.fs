@@ -23,6 +23,21 @@ let fns () : List<BuiltInFn> =
         // when live programming, so `Impure` is the honest label
         Impure
       callEffects = set [ Effect.Random ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "uuidGenerateV7" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TUuid
+      description =
+        "Generate a new <type Uuid> v7 according to RFC 9562: the current Unix time in milliseconds, then random bits"
+      fn =
+        (function
+        | _, _, _, [| DUnit |] -> Ply(DUuid(System.Guid.CreateVersion7()))
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.Random; Effect.Clock ]
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

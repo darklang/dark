@@ -7,6 +7,12 @@ type ParseError = | BadFormat
 let generate(): Uuid = Builtin.uuidGenerate()
 
 
+/// Generate a new <type Uuid> v7 according to RFC 9562. It starts with the
+/// current Unix time in milliseconds, so the text of one made later sorts
+/// after the text of one made earlier, to the millisecond.
+let generateV7(): Uuid = Builtin.uuidGenerateV7()
+
+
 /// Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}
 let parse(uuid: String): Stdlib.Result.Result<Uuid, Stdlib.Uuid.ParseError> =
   Builtin.uuidParse(uuid)
