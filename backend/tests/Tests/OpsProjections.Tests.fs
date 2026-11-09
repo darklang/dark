@@ -755,6 +755,7 @@ let noCanonicalInDropSet =
         "branch_name_bases"
         "commits"
         "conflicts"
+        "sync_journal" // what travels to another store, removals included
         "config_v0" // this install's own settings: its identity, the branch it is on
         "accounts_v0" ]
 

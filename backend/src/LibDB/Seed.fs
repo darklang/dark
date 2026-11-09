@@ -142,6 +142,11 @@ let export (outputPath : string) : Task<unit> =
       -- refuse or not depending on what ran last. The bindings need no separate
       -- delete; every projection went above.
       DELETE FROM package_ops WHERE commit_hash IS NULL;
+
+      -- The builder's sync journal, last, because the deletes above write to it. Its entries are
+      -- the builder's history with its own machines, and an install starts with none.
+      DELETE FROM sync_journal;
+
       """
       + AppliedOps.reset
     Telemetry.count "sql.seed"
