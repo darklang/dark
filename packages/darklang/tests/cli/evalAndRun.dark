@@ -311,6 +311,24 @@ test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
     |> Stdlib.Test.all)
 
 
+/// A missing trait implementation names the trait, not its hash, and points at the type's own
+/// `toString` when its module has one.
+test runNamesTheTraitAMissingImplementationIsOf =
+  Instance.withInstance(fun i ->
+    let source =
+      "let show (e: Stdlib.HttpClient.RequestError): String =\n  Stdlib.toString(e)\n"
+      + "Stdlib.printLine(\"SCRIPT_RAN\")\n0"
+    let path = script(i, "missing-impl.dark", source)
+    let (code, out) = Instance.ran(i, [ "run", path ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "refused")
+        Instance.says(out, "has no implementation of Stdlib.ToString", "names the trait")
+        Instance.doesNotSay(out, "implementation of #", "no hash")
+        Instance.says(out, "Try `Stdlib.HttpClient.toString`", "points at the module's toString")
+        Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
+
+
 /// What the check cannot prove wrong still runs: a value discarded with `let _ =`, and a
 /// final expression of any type.
 test runAndEvalRunWhatTheCheckAccepts =

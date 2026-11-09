@@ -45,7 +45,60 @@ let issueLine(
     LanguageTools.AtRestTypeChecker.issueToStringWith(
       (fun hash -> customTypeName(branchId, hash)),
       issue)
-  "  - [" + code + "] " + message
+  let withHint =
+    withToStringHint(
+      branchId,
+      issue,
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation,
+      message)
+  "  - [" + code + "] " + withHint
+
+/// <param message>, then "Try" and the type's own `toString` when <param issue> is a type with no
+/// ToString implementation whose module has one: `Stdlib.HttpClient.RequestError` gets
+/// "Try `Stdlib.HttpClient.toString`". <param render> writes that name the way the rest of the
+/// message writes names.
+let withToStringHint(
+  branchId: Uuid,
+  issue: LanguageTools.AtRestTypeChecker.Issue,
+  render: LanguageTools.ProgramTypes.PackageLocation -> String,
+  message: String)
+  : String =
+  let traitHash =
+    match (issue.code, issue.context) with
+    | (MissingImpl, TraitNeeded(hash, _)) -> Stdlib.Option.Option.Some(hash)
+    | (MissingImpl, InStringInterpolation(TraitNeeded(hash, _))) ->
+      Stdlib.Option.Option.Some(hash)
+    | _ -> Stdlib.Option.Option.None
+  let isToString =
+    match traitHash with
+    | Some(hash) ->
+      LanguageTools.PackageManager.Trait.locations(branchId, hash)
+      |> Stdlib.List.any(fun loc ->
+        loc.owner == "Darklang" && loc.modules == [ "Stdlib" ] && loc.name == "ToString")
+    | None -> false
+  let typeLocations =
+    match issue.actual with
+    | Some(TCustom(typeHash, _)) when isToString ->
+      LanguageTools.PackageManager.Type.locations(branchId, typeHash)
+    | _ -> []
+  let candidates =
+    typeLocations
+    |> Stdlib.List.map(fun loc ->
+      [ LanguageTools.ProgramTypes.PackageLocation
+          { owner = loc.owner
+            modules = Stdlib.List.append(loc.modules, loc.name)
+            name = "toString" }
+        LanguageTools.ProgramTypes.PackageLocation
+          { owner = loc.owner, modules = loc.modules, name = "toString" } ])
+    |> Stdlib.List.flatten
+  match
+    Stdlib.List.findFirst(candidates, fun loc ->
+      Stdlib.Option.isSome(LanguageTools.PackageManager.Function.find(branchId, loc)))
+  with
+  | Some(loc) ->
+    let stop = if Stdlib.String.endsWith(message, ".") then "" else "."
+    $"{message}{stop} Try `{render(loc)}`"
+  | None -> message
 
 let sameOrMirrored(
   first: LanguageTools.AtRestTypeChecker.Issue,
@@ -173,8 +226,11 @@ let scriptReport(
     |> Stdlib.Option.map(fun loc ->
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc))
 
+  // A trait's hash appears in these too ("no implementation of X"), so look it up as one.
   let typeName(hash: LanguageTools.ProgramTypes.Hash): Stdlib.Option.Option<String> =
-    sourceName(LanguageTools.PackageManager.Type.locations(branchId, hash))
+    match sourceName(LanguageTools.PackageManager.Type.locations(branchId, hash)) with
+    | Some(name) -> Stdlib.Option.Option.Some(name)
+    | None -> sourceName(LanguageTools.PackageManager.Trait.locations(branchId, hash))
 
   let itemLines(item: LanguageTools.AtRestTypeChecker.ItemReport): List<String> =
     if item.verdict != LanguageTools.AtRestTypeChecker.Verdict.Failed then []
@@ -200,7 +256,13 @@ let scriptReport(
         |> Stdlib.List.map(fun issue ->
           let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
           let message = LanguageTools.AtRestTypeChecker.issueToStringWith(typeName, issue)
-          "  - " + at(issue) + "[" + code + "] " + message)
+          let withHint =
+            withToStringHint(
+              branchId,
+              issue,
+              (fun loc -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc)),
+              message)
+          "  - " + at(issue) + "[" + code + "] " + withHint)
       Stdlib.List.prepend(issues, label + ":")
 
   let lines = Stdlib.List.flatten(Stdlib.List.map(report.items, itemLines))
