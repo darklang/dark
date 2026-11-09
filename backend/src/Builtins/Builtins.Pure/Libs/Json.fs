@@ -787,10 +787,14 @@ let parse
                     ParseError.EnumInvalidCasename(typ, caseName, pathSoFar)
                   )
 
-              let j = j.EnumerateArray() |> Seq.toList
-
-
               let casePath = JsonPath.Part.Field caseName :: pathSoFar
+
+              // A case's fields come as an array; anything else, such as
+              // `{"Some":"x"}`, can't match the enum
+              if j.ValueKind <> JsonValueKind.Array then
+                raiseCantMatchWithType typ j casePath
+
+              let j = j.EnumerateArray() |> Seq.toList
 
               // If the field count is off, process whatever fields make sense
               // and then error afterwards

@@ -1458,7 +1458,11 @@ module Option =
               "Can't parse JSON `1` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`")))
           (Stdlib.Json.parse<Option<List<String>>>("[1,2,3]")) |> err
           |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[1,2,3]` as type `Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"))) ])
+              "Can't parse JSON `[1,2,3]` as type `Darklang.Stdlib.Option.Option<List<String>>` at path: `root`")))
+          // a case's fields must be an array
+          (Stdlib.Json.parse<Option<String>>("{\"Some\":\"x\"}")) |> err
+          |> Stdlib.Test.equal((Result.Error(
+              "Can't parse JSON `\"x\"` as type `Darklang.Stdlib.Option.Option<String>` at path: `root.Some`"))) ])
 
 module ParseErrorToString =
   test interpolates =
@@ -1733,6 +1737,12 @@ module UserDefinedRecords =
     test missingTypeArgOptionIsNone =
       Stdlib.Json.parse<Combo<Int64, Option<Int64>>>("""{ "e1": 1 }""")
       |> Stdlib.Test.equal(Result.Ok(Combo { e1 = 1, e2 = Option.None }))
+
+    test someWithoutArrayIsAnError =
+      (Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Nickname": { "Some": "B" } }""")) |> err
+      |> Stdlib.Test.equal(
+        Result.Error(
+          "Can't parse JSON `\"B\"` as type `Darklang.Stdlib.Option.Option<String>` at path: `root.Nickname.Some`"))
 
     test otherMissingFieldsStillFail =
       (Stdlib.Json.parse<Profile>("""{ "Nickname": { "None": [] } }""")) |> err
