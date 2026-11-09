@@ -191,6 +191,32 @@ impl One for BigInt =
   let one(): BigInt = 1z
 
 
+/// The most bits <fn BigInt.checkedPower> computes a result into: 1 MB
+val maxPowerBits = 8388608z
+
+
+/// <param base> raised to the power of <param exponent>, or {{Error NegativeExponent}}
+/// where `**` raises. {{Error ResultTooLarge}} if the result could take more than
+/// 1 MB, which is <param exponent> times the bits in <param base>; this is checked
+/// before computing anything. {{0}}, {{1}} and {{-1}} take any exponent.
+let checkedPower(
+  ``base``: BigInt,
+  exponent: BigInt)
+  : Stdlib.Result.Result<BigInt, Stdlib.Math.PowerError> =
+  if exponent < 0z then
+    Error(Stdlib.Math.PowerError.NegativeExponent)
+  else if exponent == 0z || ``base`` == 0z || ``base`` == 1z || ``base`` == -1z then
+    Ok(``base`` ** exponent)
+  else
+    let magnitude = if ``base`` < 0z then -``base`` else ``base``
+    // bits(magnitude) * exponent <= maxPowerBits exactly when magnitude has no bit at
+    // or past maxPowerBits / exponent: one shift, without counting the bits
+    if (magnitude >> (Stdlib.BigInt.maxPowerBits / exponent)) == 0z then
+      Ok(``base`` ** exponent)
+    else
+      Error(Stdlib.Math.PowerError.ResultTooLarge)
+
+
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
 // TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`

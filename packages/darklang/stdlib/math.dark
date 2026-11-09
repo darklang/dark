@@ -137,11 +137,13 @@ type ModulusError =
   | NegativeModulus
 
 
-/// What `checkedPower` returns, for every fixed-width integer type, where `**` raises
-/// on a negative exponent or wraps on overflow
+/// What `checkedPower` returns, for every integer type, where `**` raises on a
+/// negative exponent or wraps on overflow. <type BigInt> never overflows; it returns
+/// {{ResultTooLarge}} instead of computing a result past 1 MB.
 type PowerError =
   | NegativeExponent
   | Overflow
+  | ResultTooLarge
 
 
 /// What a <type Float> or <type Float32> `checked` function returns where its plain
