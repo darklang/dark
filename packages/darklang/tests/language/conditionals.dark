@@ -19,7 +19,7 @@ test elseErrorRaises =
 
 test unitConditionRaises =
   (if () then "" else "")
-  => raises "Encountered a condition that must be a Bool, but got an Unit (())"
+  => raises "Encountered a condition that must be a Bool, but got a Unit (())"
 
 test conditionErrorRaises =
   (if Stdlib.Test.raiseRuntimeError("msg") then "" else "")
@@ -38,7 +38,7 @@ test ifWithoutElse =
 
 test ifWithoutElseUnitConditionRaises =
   (if () then "msg")
-  => raises "Encountered a condition that must be a Bool, but got an Unit (())"
+  => raises "Encountered a condition that must be a Bool, but got a Unit (())"
 
 test ifWithoutElseThenErrorRaises =
   (if true then Stdlib.Test.raiseRuntimeError("a"))

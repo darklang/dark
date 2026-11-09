@@ -29,7 +29,7 @@ module Errors =
     test someWithTwoPayloadsRaises =
       Stdlib.Option.Option.Some(5, 6)
       => raises
-        "Expected 1 fields in Darklang.Stdlib.Option.Option.`Some`, but got 2"
+        "Expected 1 field in Darklang.Stdlib.Option.Option.`Some`, but got 2"
 
   module User =
     // Distinct enum cases give this type its own content hash for stable error names.
@@ -43,7 +43,7 @@ module Errors =
     test missingPayloadRaises =
       MyEnum.C
       => raises
-        "Expected 1 fields in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`C`, but got 0"
+        "Expected 1 field in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`C`, but got 0"
 
     test extraPayloadRaises =
       MyEnum.B(5)
@@ -182,7 +182,7 @@ module TuplesVsNonTuples =
   test twoFieldsForTupleRaises =
     Tuples.Tuple("printer broke", 7)
     => raises
-      "Expected 1 fields in Darklang.Language.Tests.Enums.TuplesVsNonTuples.Tuples.`Tuple`, but got 2"
+      "Expected 1 field in Darklang.Language.Tests.Enums.TuplesVsNonTuples.Tuples.`Tuple`, but got 2"
 
 module Recursive =
   type Tree =

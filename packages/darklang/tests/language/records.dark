@@ -168,7 +168,7 @@ module Update =
     test updateOfNonRecordRaises =
       (let r = 1
        { r with key = false })
-      => raises "Cannot apply a record-update to a Int64"
+      => raises "Cannot apply a record-update to an Int64"
 
     test unknownFieldRaises =
       (let myRec = RecordForUpdateMultiple { x = 4, y = 1, z = 0 }
