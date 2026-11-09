@@ -221,7 +221,7 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
           else
             use ensure = conn.CreateCommand()
             ensure.CommandText <-
-              "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY)"
+              "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY) WITHOUT ROWID"
             ensure.ExecuteNonQuery() |> ignore<int>
 
             use ledger = conn.CreateCommand()
@@ -494,7 +494,7 @@ let extract () : Extracted =
           conn.Open()
           use cmd = conn.CreateCommand()
           cmd.CommandText <-
-            "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY);
+            "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY) WITHOUT ROWID;
              INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM package_ops;"
           cmd.ExecuteNonQuery() |> ignore<int>
         with e ->

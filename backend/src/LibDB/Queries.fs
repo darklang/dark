@@ -71,7 +71,7 @@ type LocationTarget =
 /// Primary match: the edge's target kind + location equals one of the targets, which is what
 /// keeps same-hash and same-location cross-kind cascades apart.
 ///
-/// Fallback match: edges with NULL `depends_on_owner` match by `(item kind,
+/// Fallback match: edges with no name (`depends_on_owner = ''`) match by `(item kind,
 /// depends_on_hash)` instead -- there is no FQN to filter by, so a hash collision can still
 /// produce a false positive there. Propagation passes prior hashes for this reason.
 ///
@@ -108,7 +108,7 @@ let getDependentHashesByTargets
        SELECT pd.item_hash FROM json_each(@hashes) j CROSS JOIN package_dependencies pd
          ON pd.depends_on_hash = json_extract(j.value, '$[1]')
         AND pd.depends_on_item_type = json_extract(j.value, '$[0]')
-       WHERE pd.depends_on_owner IS NULL
+       WHERE pd.depends_on_owner = ''
        ORDER BY 1"
     |> Sql.parameters
       [ "locations", Sql.string (jsonRows locations)

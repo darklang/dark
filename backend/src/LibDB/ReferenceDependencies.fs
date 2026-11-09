@@ -44,7 +44,7 @@ let private indexedNames (hashes : List<Hash>) =
         """SELECT item_hash, depends_on_hash, depends_on_item_type,
                           depends_on_owner, depends_on_modules, depends_on_name
                    FROM package_dependencies
-                   WHERE item_hash IN (SELECT value FROM json_each(@hashes)) AND depends_on_owner IS NOT NULL"""
+                   WHERE item_hash IN (SELECT value FROM json_each(@hashes)) AND depends_on_owner <> ''"""
       |> Sql.parameters [ "hashes", Sql.string hashJson ]
       |> Sql.executeAsync (fun row ->
         Hash(row.string "item_hash"),
@@ -330,7 +330,7 @@ let private reviewIndexed
                     d.depends_on_hash AS hash
              FROM (SELECT DISTINCT depends_on_owner, depends_on_modules,
                           depends_on_name, depends_on_hash
-                   FROM package_dependencies WHERE depends_on_owner IS NOT NULL) d
+                   FROM package_dependencies WHERE depends_on_owner <> '') d
              JOIN visible l ON l.owner = d.depends_on_owner
                AND l.modules = d.depends_on_modules AND l.name = d.depends_on_name
              WHERE l.item_hash <> d.depends_on_hash AND l.item_hash <> ''
@@ -341,7 +341,7 @@ let private reviewIndexed
              AND d.depends_on_name = s.name AND d.depends_on_hash = s.hash
            UNION
            SELECT item_hash FROM package_dependencies
-           WHERE depends_on_owner IS NOT NULL
+           WHERE depends_on_owner <> ''
            GROUP BY item_hash, depends_on_hash, depends_on_item_type
            HAVING COUNT(*) > 1"""
       )
@@ -385,7 +385,7 @@ let private reviewIndexed
                    ON d.depends_on_owner = json_extract(n.value, '$[0]')
                   AND d.depends_on_modules = json_extract(n.value, '$[1]')
                   AND d.depends_on_name = json_extract(n.value, '$[2]')
-                 WHERE d.depends_on_owner IS NOT NULL"""
+                 WHERE d.depends_on_owner <> ''"""
             |> Sql.parameters [ "names", Sql.string json ]
             |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
           let fresh =

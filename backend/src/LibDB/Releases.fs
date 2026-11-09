@@ -235,7 +235,7 @@ let applySchemaTables (schemaSql : string) : unit =
         matched.Groups[3].Value
 
 /// Step 3: indexes, once every column they name exists. `UNIQUE` has to be matched separately:
-/// `CREATE UNIQUE INDEX` does not start with "CREATE INDEX", and `package_dependencies` has one.
+/// `CREATE UNIQUE INDEX` does not start with "CREATE INDEX".
 let applySchemaIndexes (schemaSql : string) : unit =
   runStatements
     (fun upper ->

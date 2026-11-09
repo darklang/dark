@@ -185,8 +185,8 @@ let readPending () : Task<List<int64 * PT.BranchId * System.Guid * byte[]>> =
 
 /// Drop `package_dependencies`' secondary indexes when the table is empty, and return the SQL that
 /// builds them again. A cold start writes every edge in the store, about 40,000 of them, and keeping
-/// four indexes over random hashes up to date row by row costs more than building them once from the
-/// finished table. The unique index stays: the inserts rely on it to skip duplicates.
+/// its secondary indexes up to date row by row costs more than building them once from the finished
+/// table. The table's own key stays: the inserts rely on it to skip duplicates.
 let private dropDependencyIndexesIfEmpty
   (conn : SqliteConnection)
   : Task<List<string>> =
