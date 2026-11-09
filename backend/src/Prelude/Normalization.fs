@@ -28,24 +28,31 @@ let private tCount = 28
 let private nCount = vCount * tCount
 let private sCount = lCount * nCount
 
+/// `D.properties` as two arrays: where each range starts, and its combining class with its
+/// quick-check bits above it.
+let private propertyRanges : Lazy<int[] * int[]> =
+  lazy
+    let rows = D.properties.Length / 3
+    Array.init rows (fun r -> D.properties[3 * r]),
+    Array.init rows (fun r -> D.properties[3 * r + 1] ||| D.properties[3 * r + 2])
+
 let private propertiesFromRanges (cp : int) : int =
-  let i = System.Array.BinarySearch(D.propertyStarts, cp)
-  D.propertyValues[if i >= 0 then i else ~~~i - 1]
+  let starts, values = propertyRanges.Force()
+  let i = System.Array.BinarySearch(starts, cp)
+  values[if i >= 0 then i else ~~~i - 1]
 
 /// `propertiesFromRanges` for every char, laid out flat: 128 KB, filled in about 0.05 ms the
 /// first time a string needs it, and a lookup is then an index instead of a search.
 let private bmpProperties : Lazy<uint16[]> =
   lazy
     let table = Array.zeroCreate<uint16> 0x10000
-    D.propertyStarts
+    let starts, values = propertyRanges.Force()
+    starts
     |> Array.iteri (fun i start ->
       if start < 0x10000 then
         let stop =
-          if i + 1 < D.propertyStarts.Length then
-            min 0x10000 D.propertyStarts[i + 1]
-          else
-            0x10000
-        System.Array.Fill(table, uint16 D.propertyValues[i], start, stop - start))
+          if i + 1 < starts.Length then min 0x10000 starts[i + 1] else 0x10000
+        System.Array.Fill(table, uint16 values[i], start, stop - start))
     table
 
 /// The combining class (low byte) and quick-check bits of `cp`.
@@ -59,14 +66,37 @@ let private combiningClass (cp : int) : int = properties cp &&& 0xFF
 
 let private isHangulSyllable (cp : int) : bool = cp >= sBase && cp < sBase + sCount
 
+/// A decomposition table's codepoints, and where each one's row starts.
+let private rowsOf (table : int[]) : int[] * int[] =
+  let rec starts (i : int) (acc : List<int>) =
+    if i >= table.Length then
+      acc.ToArray()
+    else
+      acc.Add i
+      starts (i + 2 + table[i + 1]) acc
+  let rows = starts 0 (List())
+  Array.map (fun row -> table[row]) rows, rows
+
+let private canonicalRows = lazy (rowsOf D.canonicalDecompositions)
+
+let private compatibilityRows = lazy (rowsOf D.compatibilityDecompositions)
+
+/// `D.compositions`' pairs, each packed as `first <<< 21 ||| second`, in the table's order.
+let private compositionPairs : Lazy<int64[]> =
+  lazy
+    Array.init (D.compositions.Length / 3) (fun r ->
+      (int64 D.compositions[3 * r] <<< 21) ||| int64 D.compositions[3 * r + 1])
+
 /// Calls `f` on each codepoint of `cp`'s full decomposition, or on `cp` if it has none. Only a
 /// codepoint that fails the NFD or NFKD quick check has one.
 let private decompose (compatibility : bool) (f : int -> unit) (cp : int) : unit =
-  let mapped (keys : int[]) (offsets : int[]) (data : int[]) : bool =
+  let mapped (table : int[]) (rows : Lazy<int[] * int[]>) : bool =
+    let keys, starts = rows.Force()
     let i = System.Array.BinarySearch(keys, cp)
     if i >= 0 then
-      for j in offsets[i] .. offsets[i + 1] - 1 do
-        f data[j]
+      let row = starts[i]
+      for j in row + 2 .. row + 1 + table[row + 1] do
+        f table[j]
     i >= 0
   if properties cp &&& (if compatibility then D.nfkdFails else D.nfdFails) = 0 then
     f cp
@@ -77,9 +107,8 @@ let private decompose (compatibility : bool) (f : int -> unit) (cp : int) : unit
     if s % tCount <> 0 then f (tBase + s % tCount)
   elif
     not (
-      (compatibility
-       && mapped D.compatibilityKeys D.compatibilityOffsets D.compatibilityData)
-      || mapped D.canonicalKeys D.canonicalOffsets D.canonicalData
+      (compatibility && mapped D.compatibilityDecompositions compatibilityRows)
+      || mapped D.canonicalDecompositions canonicalRows
     )
   then
     f cp
@@ -106,10 +135,10 @@ let private compose (first : int) (second : int) : ValueOption<int> =
   else
     let i =
       System.Array.BinarySearch(
-        D.compositionPairs,
+        compositionPairs.Force(),
         (int64 first <<< 21) ||| int64 second
       )
-    if i >= 0 then ValueSome D.compositionValues[i] else ValueNone
+    if i >= 0 then ValueSome D.compositions[3 * i + 2] else ValueNone
 
 /// ICU refuses U+FFFE, as well as a lone surrogate.
 let private isRefused (rune : Rune) : bool = rune.Value = 0xFFFE
