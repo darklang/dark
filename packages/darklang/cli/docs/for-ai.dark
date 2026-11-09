@@ -3,6 +3,9 @@ module Darklang.Cli.Docs.ForAI
 let content(): String =
   """# Darklang AI Quick Reference
 
+"""
+  + SyntaxAtAGlance.content()
+  + """
 Darklang is a persistent package tree, not a directory of scripts. CLI process
 state resets between calls; package changes persist.
 
@@ -486,8 +489,8 @@ Rules:
 
 ## Troubleshooting
 If commands hang or fail silently, check logs:
-  rundir/logs/cli.log    # main CLI log
-  rundir/logs/           # other logs
+  ~/.darklang/logs/cli.log    # main CLI log
+  ~/.darklang/logs/           # other logs
 
 ## More
   docs syntax | types | traits | operators | errors | packages

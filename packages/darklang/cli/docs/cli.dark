@@ -99,5 +99,5 @@ Your edits are LIVE as soon as you write them. There is no build step.
 
 ## Troubleshooting
 If something hangs or behaves unexpectedly, check the logs:
-  rundir/logs/cli.log    # main CLI log
-  rundir/logs/           # other logs (parser, etc.)"""
+  ~/.darklang/logs/cli.log    # main CLI log
+  ~/.darklang/logs/           # other logs (parser, etc.)"""
