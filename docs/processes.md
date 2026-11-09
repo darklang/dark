@@ -714,7 +714,7 @@ newest run of each of the 20 most recent entries.
 
 Every logged result is kept in the trace's own `trace_blobs`, once per distinct
 value, and its row's `result` is that value's hash. A type check reads the same
-package items (`pmGetFn`, `pmGetType`, ...) and gets the same small answers over
+package items (`pmGet`) and gets the same small answers over
 and over, so most rows of a heavy trace share a few values; and a replay serves
 what the run got even after an item has left the store. A blob a trace captured (a request body,
 a file's bytes) is kept in `trace_blobs` with the trace and goes when it goes.
