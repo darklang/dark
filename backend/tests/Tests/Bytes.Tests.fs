@@ -439,7 +439,10 @@ let persistableAcceptsPlainShapes =
         RT.DString "hi"
         RT.DUuid(System.Guid.NewGuid())
         RT.DBytes(RT.Persistent("deadbeef", 4L))
-        RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L; RT.DInt64 2L ])
+        RT.DList(
+          RT.ValueType.Known RT.KTInt64,
+          RT.Items([ RT.DInt64 1L; RT.DInt64 2L ])
+        )
         RT.DTuple(RT.DInt64 1L, RT.DString "a", [])
         Dval.stringDict RT.KTInt64 [ ("k", RT.DInt64 42L) ] ]
     for dv in cases do
@@ -501,7 +504,7 @@ let persistableRejectsNestedBadShapes =
     let list =
       RT.DList(
         RT.ValueType.Known RT.KTBytes,
-        [ RT.DBytes(RT.Persistent("x", 1L)); mkEphemeral [| 9uy |] ]
+        RT.Items([ RT.DBytes(RT.Persistent("x", 1L)); mkEphemeral [| 9uy |] ])
       )
     Expect.isFalse (Dval.isPersistable list) "list with ephemeral blob rejected"
 
@@ -678,7 +681,7 @@ let byteKeysSurviveSaving =
       let wrappers : List<RT.Dval -> RT.Dval> =
         [ (fun value -> value)
           (fun value -> RT.DTuple(RT.DUnit, value, []))
-          (fun value -> RT.DList(RT.ValueType.Known RT.KTBytes, [ value ]))
+          (fun value -> RT.DList(RT.ValueType.Known RT.KTBytes, RT.Items([ value ])))
           RT2DT.Dval.toDT ]
       for wrap in wrappers do
         let key = wrap original
@@ -882,7 +885,7 @@ let viewsBehaveLikeCopies =
     let! joined =
       callBytesBuiltin
         "bytesConcat"
-        [| RT.DList(LibExecution.ValueType.bytes, [ slice; slice ]) |]
+        [| RT.DList(LibExecution.ValueType.bytes, RT.Items([ slice; slice ])) |]
     Expect.equal
       (ephemeralOf joined).buffer
       (Array.append
@@ -943,7 +946,7 @@ let concatWritesOneExactArray =
         struct (state,
                 Unchecked.defaultof<RT.VMState>,
                 [],
-                [| RT.DList(LibExecution.ValueType.bytes, items) |])
+                [| RT.DList(LibExecution.ValueType.bytes, RT.Items(items)) |])
       )
       |> Ply.toTask
     let empty = mkEphemeral [||]
@@ -974,7 +977,11 @@ let private noopRewriteWith (dv : RT.Dval) : Task<RT.Dval> =
 
 let rewriteWithNoOpPreservesOuterRef =
   testTask "Dval.rewriteWith: no-op f returns the input reference (DList)" {
-    let dv = RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L; RT.DInt64 2L ])
+    let dv =
+      RT.DList(
+        RT.ValueType.Known RT.KTInt64,
+        RT.Items([ RT.DInt64 1L; RT.DInt64 2L ])
+      )
     let! result = noopRewriteWith dv
     Expect.isTrue
       (obj.ReferenceEquals(result, dv))
@@ -983,7 +990,7 @@ let rewriteWithNoOpPreservesOuterRef =
 
 let rewriteWithNoOpPreservesNestedRefs =
   testTask "Dval.rewriteWith: no-op f preserves every nested container ref" {
-    let inner = RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 7L ])
+    let inner = RT.DList(RT.ValueType.Known RT.KTInt64, RT.Items([ RT.DInt64 7L ]))
     let middle = RT.DTuple(RT.DString "k", inner, [])
     let outer =
       RT.DDict(
@@ -1012,7 +1019,11 @@ let rewriteWithSingleChangePreservesSiblings =
     let sibling1 = RT.DInt64 1L
     let sibling2 = RT.DInt64 2L
     let target = RT.DString "rewrite-me"
-    let dv = RT.DList(RT.ValueType.Known RT.KTInt64, [ sibling1; target; sibling2 ])
+    let dv =
+      RT.DList(
+        RT.ValueType.Known RT.KTInt64,
+        RT.Items([ sibling1; target; sibling2 ])
+      )
     let! result =
       RT.Dval.rewriteWith
         (fun d ->
@@ -1024,7 +1035,7 @@ let rewriteWithSingleChangePreservesSiblings =
         dv
       |> Ply.toTask
     match result with
-    | RT.DList(_, [ a; b; c ]) ->
+    | RT.DList(_, RT.Items([ a; b; c ])) ->
       Expect.isTrue (obj.ReferenceEquals(a, sibling1)) "left sibling ref preserved"
       Expect.isTrue (obj.ReferenceEquals(c, sibling2)) "right sibling ref preserved"
       Expect.equal b (RT.DInt64 99L) "target replaced"
@@ -1140,10 +1151,13 @@ let prepareStubsStreamInsideList =
   testTask "prepareDvalForStorage: DStream nested inside DList is stubbed" {
     let state = freshState ()
     let dv =
-      RT.DList(RT.ValueType.Unknown, [ RT.DInt64 1L; freshStream (); RT.DInt64 2L ])
+      RT.DList(
+        RT.ValueType.Unknown,
+        RT.Items([ RT.DInt64 1L; freshStream (); RT.DInt64 2L ])
+      )
     let! result = Tracing.prepareDvalForStorage state.blobs.persist dv |> Ply.toTask
     match result with
-    | RT.DList(_, [ a; b; c ]) ->
+    | RT.DList(_, RT.Items([ a; b; c ])) ->
       Expect.equal a (RT.DInt64 1L) "leading sibling preserved"
       Expect.isTrue (isStubInt64 b) $"middle stream stubbed, got {b}"
       Expect.equal c (RT.DInt64 2L) "trailing sibling preserved"

@@ -892,7 +892,7 @@ let everyCommandAnswersWhenBare =
         let! needing =
           task {
             match! evalUnder (executionState state) code with
-            | RT.DList(_, names) ->
+            | RT.DList(_, RT.Items(names)) ->
               return
                 names
                 |> List.choose (fun d ->

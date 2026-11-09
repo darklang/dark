@@ -39,7 +39,7 @@ let measure<'a> (f : unit -> 'a) : 'a * Sample =
 
 let rec private countDvalNodes (dv : RT.Dval) : int =
   match dv with
-  | RT.DList(_, xs) -> 1 + List.sumBy countDvalNodes xs
+  | RT.DList(_, RT.Items(xs)) -> 1 + List.sumBy countDvalNodes xs
   | RT.DTuple(a, b, rest) ->
     1 + countDvalNodes a + countDvalNodes b + List.sumBy countDvalNodes rest
   | RT.DDict(_, _, m) ->

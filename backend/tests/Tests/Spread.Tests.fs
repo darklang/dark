@@ -487,7 +487,10 @@ let private nestingIsBounded =
       "the outer map and the first three elements' inner maps, and no others"
     Expect.equal
       (expectOk result)
-      (RT.DList(LibExecution.ValueType.int64, List.replicate 20 (RT.DInt64 50L)))
+      (RT.DList(
+        LibExecution.ValueType.int64,
+        RT.Items(List.replicate 20 (RT.DInt64 50L))
+      ))
       "twenty lengths of fifty"
   }
 

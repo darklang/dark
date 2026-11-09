@@ -76,7 +76,7 @@ let fns () : List<BuiltInFn> =
             |> List.sortBy fst
             |> List.map (fun (name, data) -> builtinValueToDT name data)
 
-          DList(VT.customType (builtinValue ()) [], vals) |> Ply
+          DList(VT.customType (builtinValue ()) [], Items(vals)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -99,7 +99,7 @@ let fns () : List<BuiltInFn> =
             |> List.sortBy fst
             |> List.map (fun (name, data) -> builtinFnToDT name data)
 
-          DList(VT.customType (builtinFn ()) [], fns) |> Ply
+          DList(VT.customType (builtinFn ()) [], Items(fns)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

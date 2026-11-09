@@ -148,13 +148,13 @@ let evalStr (tag : int) (a : string) (b : string) : Dval voption =
 let evalList
   (tag : int)
   (vt1 : ValueType)
-  (l1 : List<Dval>)
+  (l1 : DvalList)
   (vt2 : ValueType)
-  (l2 : List<Dval>)
+  (l2 : DvalList)
   : Dval voption =
   if tag = listConcat then
     match ValueType.merge vt1 vt2 with
-    | Ok merged -> ValueSome(DList(merged, List.append l1 l2))
+    | Ok merged -> ValueSome(DList(merged, DvalList.append l1 l2))
     | Error() -> ValueNone
   else
     ValueNone
@@ -183,7 +183,7 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
     | _ -> ValueNone
   elif tag = listLength then
     match arg with
-    | DList(_, l) -> ValueSome(Dval.dint64 (int64 l.Length))
+    | DList(_, l) -> ValueSome(Dval.dint64 (int64 (DvalList.length l)))
     | _ -> ValueNone
   elif tag = strIsEmpty then
     match arg with
@@ -191,7 +191,7 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
     | _ -> ValueNone
   elif tag = listIsEmpty then
     match arg with
-    | DList(_, l) -> ValueSome(Dval.bool (List.isEmpty l))
+    | DList(_, l) -> ValueSome(Dval.bool (DvalList.isEmpty l))
     | _ -> ValueNone
   else
     ValueNone
@@ -230,11 +230,11 @@ let evalListContains (tag : int) (items : List<Dval>) (value : Dval) : Dval vopt
 /// Declines when the types do not merge, so the builtin and its parameter check report it.
 let evalListPrepend
   (vt : ValueType)
-  (items : List<Dval>)
+  (items : DvalList)
   (value : Dval)
   : Dval voption =
   match ValueType.merge vt (Dval.toValueType value) with
-  | Ok merged -> ValueSome(DList(merged, value :: items))
+  | Ok merged -> ValueSome(DList(merged, DvalList.cons value items))
   | Error() -> ValueNone
 
 

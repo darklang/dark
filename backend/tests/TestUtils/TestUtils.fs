@@ -409,7 +409,7 @@ module Expect =
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DString str -> str.IsNormalized()
 
-    | DList(_, items) -> List.all r items
+    | DList(_, Items(items)) -> List.all r items
     | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
     | DDict(_, _, entries) -> entries |> DictMap.forall (fun k v -> r k && r v)
 
@@ -499,7 +499,7 @@ module Expect =
         // equal if they print the same string.
         check path (string l) (string r)
 
-      | DList(lType, ls), DList(rType, rs) ->
+      | DList(lType, Items(ls)), DList(rType, Items(rs)) ->
         checkValueType ("Type" :: path) lType rType
 
         check ("Length" :: path) (List.length ls) (List.length rs)
@@ -943,7 +943,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let f dv = state <- f dv :: state
   let rec visit dv : unit =
     match dv with
-    | DList(_, items) -> List.map visit items |> ignore<List<unit>>
+    | DList(_, Items(items)) -> List.map visit items |> ignore<List<unit>>
     | DDict(_, _, entries) ->
       entries
       |> DictMap.iter (fun k v ->
@@ -1112,7 +1112,7 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
     ("int string2", DString "-1039485", TString)
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-    ("list", DList(ValueType.Known KTInt64, [ Dval.int64 4 ]), TList TInt64)
+    ("list", DList(ValueType.Known KTInt64, Items([ Dval.int64 4 ])), TList TInt64)
 
     ("record",
      DRecord(

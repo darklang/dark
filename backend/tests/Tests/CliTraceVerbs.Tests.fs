@@ -1091,16 +1091,18 @@ let private secretHeadersAreRedacted =
     let headers =
       RT.DList(
         RT.ValueType.Unknown,
-        [ RT.DTuple(RT.DString "Authorization", RT.DString "Bearer abc123", [])
-          RT.DTuple(RT.DString "cookie", RT.DString "session=xyz", [])
-          RT.DTuple(RT.DString "Accept", RT.DString "application/json", []) ]
+        RT.Items(
+          [ RT.DTuple(RT.DString "Authorization", RT.DString "Bearer abc123", [])
+            RT.DTuple(RT.DString "cookie", RT.DString "session=xyz", [])
+            RT.DTuple(RT.DString "Accept", RT.DString "application/json", []) ]
+        )
       )
     let stored =
       LibDB.Tracing.Redact.args
         "httpClientRequest"
         [ RT.DString "GET"; RT.DString "https://example.com/"; headers ]
     match stored with
-    | [ _; _; RT.DList(_, items) ] ->
+    | [ _; _; RT.DList(_, RT.Items(items)) ] ->
       let value (name : string) =
         items
         |> List.tryPick (fun item ->
@@ -1123,12 +1125,14 @@ let private secretHeadersAreRedacted =
 let private headerList (pairs : List<string * string>) : RT.Dval =
   RT.DList(
     RT.ValueType.Unknown,
-    pairs |> List.map (fun (k, v) -> RT.DTuple(RT.DString k, RT.DString v, []))
+    RT.Items(
+      pairs |> List.map (fun (k, v) -> RT.DTuple(RT.DString k, RT.DString v, []))
+    )
   )
 
 let private headerValue (name : string) (headers : RT.Dval) : Option<string> =
   match headers with
-  | RT.DList(_, items) ->
+  | RT.DList(_, RT.Items(items)) ->
     items
     |> List.tryPick (fun item ->
       match item with

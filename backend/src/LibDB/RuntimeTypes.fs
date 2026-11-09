@@ -230,7 +230,7 @@ module Bytes =
       | RT.DDateTime _
       | RT.DUuid _
       | RT.DApplicable _ -> acc
-      | RT.DList(_, items) -> items |> List.fold go acc
+      | RT.DList(_, RT.Items(items)) -> items |> List.fold go acc
       | RT.DTuple(a, b, rest) ->
         let acc = go acc a
         let acc = go acc b

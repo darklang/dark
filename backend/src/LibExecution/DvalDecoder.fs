@@ -123,7 +123,7 @@ let tuple3 (dv : Dval) : Dval * Dval * Dval =
 
 let list (m : Dval -> 'a) (dv : Dval) : List<'a> =
   match dv with
-  | DList(_, l) -> List.map m l
+  | DList(_, Items(l)) -> List.map m l
   | _ -> f "list" dv
 
 let dict (m : Dval -> 'a) (dv : Dval) : Map<string, 'a> =

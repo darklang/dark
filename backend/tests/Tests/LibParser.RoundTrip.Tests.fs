@@ -182,7 +182,7 @@ module RoundTripExpect =
           RT.RecordFields.tryFind "originalName" fields,
           RT.RecordFields.tryFind "resolved" fields
         with
-        | Some(RT.DList(_, segs)), Some(RT.DEnum(_, _, _, "Error", _)) ->
+        | Some(RT.DList(_, RT.Items(segs))), Some(RT.DEnum(_, _, _, "Error", _)) ->
           let name =
             segs
             |> List.choose (fun s ->
@@ -198,7 +198,7 @@ module RoundTripExpect =
          |> List.collect (fun (_, v) -> collectUnresolved v))
 
     match d with
-    | RT.DList(_, items) -> items |> List.collect collectUnresolved
+    | RT.DList(_, RT.Items(items)) -> items |> List.collect collectUnresolved
     | RT.DTuple(a, b, rest) -> (a :: b :: rest) |> List.collect collectUnresolved
     | RT.DRecord(_, _, _, fields) -> fromFields fields
     | RT.DEnum(_, _, _, _, fields) -> fields |> List.collect collectUnresolved
@@ -329,7 +329,7 @@ let t
           ->
           let packageOps =
             match opsList with
-            | RT.DList(_vt, ops) ->
+            | RT.DList(_vt, RT.Items(ops)) ->
               ops
               |> List.choose LibExecution.ProgramTypesToDarkTypes.PackageOp.fromDT
             | _ -> []

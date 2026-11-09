@@ -186,7 +186,7 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   | DDateTime value ->
     w.Write 16uy
     DarkDateTime.write w value
-  | DList(valueType, items) ->
+  | DList(valueType, Items(items)) ->
     w.Write 17uy
     writeValueType w valueType
     List.write w writeDval items
@@ -399,7 +399,7 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   | 17uy ->
     let valueType = readValueType r
     let items = List.read r (readDval version)
-    DList(valueType, items)
+    DList(valueType, Items(items))
   | 18uy ->
     let first = readDval version r
     let second = readDval version r

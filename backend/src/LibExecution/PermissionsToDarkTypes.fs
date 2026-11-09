@@ -100,7 +100,8 @@ module ProcessRule =
           "args",
           Scope.toDT
             (VT.list VT.string)
-            (fun (args : List<string>) -> DList(VT.string, List.map DString args))
+            (fun (args : List<string>) ->
+              DList(VT.string, Items(List.map DString args)))
             rule.args ]
     )
 
@@ -194,8 +195,9 @@ module Policy =
       typeName (),
       [],
       RecordFields.ofList
-        [ "allow", DList(VT.known (Rule.knownType ()), List.map Rule.toDT allow)
-          "deny", DList(VT.known (Rule.knownType ()), List.map Rule.toDT deny) ]
+        [ "allow",
+          DList(VT.known (Rule.knownType ()), Items(List.map Rule.toDT allow))
+          "deny", DList(VT.known (Rule.knownType ()), Items(List.map Rule.toDT deny)) ]
     )
 
   let fromDT (dval : Dval) : P.Policy =
@@ -217,7 +219,7 @@ module ApprovalFailure =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let contractChanged (differences : List<string>) : Dval =
-    make "ContractChanged" [ DList(VT.string, List.map DString differences) ]
+    make "ContractChanged" [ DList(VT.string, Items(List.map DString differences)) ]
 
   let refused (message : string) : Dval = make "Refused" [ DString message ]
 

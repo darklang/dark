@@ -387,7 +387,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return
               DList(
                 VT.known (PT2DT.Hash.knownType ()),
-                valueIds |> List.map RT2DT.Hash.toDT
+                Items(valueIds |> List.map RT2DT.Hash.toDT)
               )
           }
         | _ -> incorrectArgs ())
@@ -467,7 +467,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return
               DList(
                 VT.known (RT2DT.ImplCandidate.knownType ()),
-                candidates |> List.map RT2DT.ImplCandidate.toDT
+                Items(candidates |> List.map RT2DT.ImplCandidate.toDT)
               )
           }
         | _ -> incorrectArgs ())
@@ -881,7 +881,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Find callers using this branch's reference names."
       fn =
         (function
-        | _, _, _, [| DUuid branchGuid; DList(_, targets) |] ->
+        | _, _, _, [| DUuid branchGuid; DList(_, Items(targets)) |] ->
           uply {
             let branch = branchOfParam branchGuid
             let targets : List<LibDB.Queries.LocationTarget> =
@@ -986,7 +986,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Read callers' dependencies using this branch's reference names."
       fn =
         (function
-        | _, _, _, [| DUuid branch; DList(_, sources) |] ->
+        | _, _, _, [| DUuid branch; DList(_, Items(sources)) |] ->
           uply {
             let sources = referenceSourcesFromDT sources
             let! edges =
@@ -1048,7 +1048,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Review stale references and reachable caller updates using one branch snapshot."
       fn =
         (function
-        | _, _, _, [| DUuid branch; DList(_, changed) |] ->
+        | _, _, _, [| DUuid branch; DList(_, Items(changed)) |] ->
           uply {
             let changed = referenceSourcesFromDT changed
             let! result =
@@ -1159,7 +1159,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Read this branch's saved reference names."
       fn =
         (function
-        | _, _, _, [| DUuid branchGuid; DList(_, targets); before |] ->
+        | _, _, _, [| DUuid branchGuid; DList(_, Items(targets)); before |] ->
           uply {
             let before = cutoffFromDT before
             let! snapshots =
@@ -1193,7 +1193,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Apply an operation's changes to saved reference names."
       fn =
         (function
-        | _, _, _, [| DList(_, snapshots); operation |] ->
+        | _, _, _, [| DList(_, Items(snapshots)); operation |] ->
           match PT2DT.PackageOp.fromDT operation with
           | None -> incorrectArgs ()
           | Some op ->
@@ -1226,7 +1226,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Read the reference names from stored declarations."
       fn =
         (function
-        | _, _, _, [| DList(_, sources) |] ->
+        | _, _, _, [| DList(_, Items(sources)) |] ->
           uply {
             let sources = referenceSourcesFromDT sources
             let! snapshots = LibDB.ReferenceNamesContent.storedSnapshots sources
@@ -1275,7 +1275,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           [| DUuid branchId
              sourceLocation
              sourceItemKindDval
-             DList(_, fromSourceHashDvals)
+             DList(_, Items(fromSourceHashDvals))
              toSourceHashDval |] ->
           uply {
             let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
@@ -1445,7 +1445,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               docs
               |> List.map (fun (part, text) ->
                 DTuple(PT2DT.DocPart.toDT part, DString text, []))
-              |> fun rows -> DList(VT.tuple partKT VT.string [], rows)
+              |> fun rows -> DList(VT.tuple partKT VT.string [], Items(rows))
           }
         | _ -> incorrectArgs ())
       previewable = Impure

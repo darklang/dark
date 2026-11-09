@@ -36,9 +36,11 @@ let knownType () : KnownType = KTList(VT.known (Effect.knownType ()))
 let toDT (effects : Set<E.Effect>) : Dval =
   DList(
     VT.known (Effect.knownType ()),
-    E.all
-    |> List.filter (fun effect -> Set.contains effect effects)
-    |> List.map Effect.toDT
+    Items(
+      E.all
+      |> List.filter (fun effect -> Set.contains effect effects)
+      |> List.map Effect.toDT
+    )
   )
 
 let fromDT (dval : Dval) : Set<E.Effect> = dval |> D.list Effect.fromDT |> Set.ofList

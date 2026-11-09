@@ -965,9 +965,9 @@ module DvalCreator =
     (i : int)
     (typ : ValueType)
     (remaining : List<Dval>)
-    : ValueType =
+    : struct (ValueType * int) =
     match remaining with
-    | [] -> typ
+    | [] -> struct (typ, i)
     | dv :: rest ->
       let dvalType = Dval.toValueType dv
 
@@ -1029,7 +1029,8 @@ module DvalCreator =
   /// again from the values once they land: the element type is worked out then, and an
   /// element of the wrong type raises then. The same holds for every creator here.
   let rec list (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
-    let made = DList(listElementType threadID 0 typ items, items)
+    let struct (elementType, count) = listElementType threadID 0 typ items
+    let made = DList(elementType, DvalList.ofListN count items)
     if List.exists Pending.isPromise items then
       made
       |> Pending.built (fun _ ->
@@ -1059,7 +1060,7 @@ module DvalCreator =
   /// element type is worked out and a value of the wrong type raises where it is waited for.
   let recheck (threadID : ThreadID) (filled : Dval) : Ply<Dval> =
     match filled with
-    | DList(vt, items) -> Ply(list threadID vt items)
+    | DList(vt, Items(items)) -> Ply(list threadID vt items)
     | DDict(kt, vt, entries) -> Ply(dict threadID kt vt (DictMap.toList entries))
     | other -> Ply other
 

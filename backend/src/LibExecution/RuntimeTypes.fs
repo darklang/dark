@@ -1257,7 +1257,7 @@ and DictKey private () =
     | DString x -> combine (hash x)
     | DDateTime x -> combine (hash x)
     | DUuid x -> combine (hash x)
-    | DList(_, xs) -> combine (DictKey.hashList xs)
+    | DList(_, xs) -> combine (DictKey.hashList (DvalList.toList xs))
     | DTuple(x1, x2, xs) -> combine (DictKey.hashList (x1 :: x2 :: xs))
     | DDict(_, _, xs) ->
       xs.Entries
@@ -1327,7 +1327,7 @@ and DvalOrdering private () =
     // so deep comparisons raise a catchable exception.
     | DList(_, x), DList(_, y) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
-      DvalOrdering.compareList mode x y
+      DvalOrdering.compareList mode (DvalList.toList x) (DvalList.toList y)
     | DTuple(x1, x2, xs), DTuple(y1, y2, ys) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       DvalOrdering.compareList mode (x1 :: x2 :: xs) (y1 :: y2 :: ys)
@@ -1667,6 +1667,69 @@ and Applicable =
 
 
 
+/// A Dark list's values, with how many there are kept beside them, so `length` and an
+/// out-of-range `getAt` answer without walking. Never mutated once built. `count` is always
+/// `List.length items`: build one with `DvalList.ofList`, or `DvalList.ofListN` where the count
+/// is already known.
+and [<Struct; NoComparison>] DvalList =
+  { count : int
+    items : List<Dval> }
+
+  static member empty : DvalList = { count = 0; items = [] }
+
+  static member ofList(items : List<Dval>) : DvalList =
+    { count = List.length items; items = items }
+
+  /// `items`, which the caller knows has `count` values.
+  static member ofListN (count : int) (items : List<Dval>) : DvalList =
+    { count = count; items = items }
+
+  static member exists (f : Dval -> bool) (list : DvalList) : bool =
+    List.exists f list.items
+
+  static member toList(list : DvalList) : List<Dval> = list.items
+
+  static member length(list : DvalList) : int = list.count
+
+  static member isEmpty(list : DvalList) : bool = list.count = 0
+
+  static member cons (value : Dval) (list : DvalList) : DvalList =
+    { count = list.count + 1; items = value :: list.items }
+
+  static member uncons(list : DvalList) : struct (Dval * DvalList) voption =
+    match list.items with
+    | [] -> ValueNone
+    | head :: rest ->
+      ValueSome(struct (head, { count = list.count - 1; items = rest }))
+
+  static member append (first : DvalList) (second : DvalList) : DvalList =
+    if second.count = 0 then
+      first
+    elif first.count = 0 then
+      second
+    else
+      { count = first.count + second.count
+        items = List.append first.items second.items }
+
+  static member snoc (list : DvalList) (value : Dval) : DvalList =
+    { count = list.count + 1; items = list.items @ [ value ] }
+
+  static member rev(list : DvalList) : DvalList =
+    { count = list.count; items = List.rev list.items }
+
+  /// The value at `index`, if there is one. Out of range answers without walking.
+  static member tryItem (index : int64) (list : DvalList) : Dval option =
+    if index < 0L || index >= int64 list.count then
+      None
+    else
+      let rec walk (remaining : int) (rest : List<Dval>) : Option<Dval> =
+        match rest with
+        | [] -> None
+        | head :: tail ->
+          if remaining = 0 then Some head else walk (remaining - 1) tail
+      walk (int index) list.items
+
+
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
   | DUnit
@@ -1701,7 +1764,7 @@ and [<NoComparison>] Dval =
   | DUuid of System.Guid
 
   // Compound types
-  | DList of ValueType * List<Dval>
+  | DList of ValueType * DvalList
   | DTuple of first : Dval * second : Dval * theRest : List<Dval>
   | DDict of keyType : ValueType * valueType : ValueType * entries : DictMap
 
@@ -1896,6 +1959,15 @@ and BuiltInParam =
       description = description
       blockArgs = blockArgs
       moves = false }
+
+
+/// A list's values as an F# list, for code that walks or builds one: `DList(vt, Items xs)` matches
+/// any list, binding its values, and `DList(vt, Items xs)` builds one. Building counts the
+/// values; where the count is known, `DvalList.ofListN` does not.
+let (|Items|) (list : DvalList) : List<Dval> = DvalList.toList list
+
+/// See `(|Items|)`.
+let Items (items : List<Dval>) : DvalList = DvalList.ofList items
 
 
 /// A lambda's captured values (`ApplicableLambda.closedRegisters`) as a list, for the cold
@@ -3094,7 +3166,7 @@ module Dval =
     | DFloat f -> not (System.Double.IsNaN f)
     | DFloat32 f -> not (System.Single.IsNaN f)
 
-    | DList(_, items) -> List.forall isUsableDictKey items
+    | DList(_, Items(items)) -> List.forall isUsableDictKey items
     | DTuple(a, b, rest) ->
       isUsableDictKey a && isUsableDictKey b && List.forall isUsableDictKey rest
     | DDict(_, _, entries) ->
@@ -3127,7 +3199,7 @@ module Dval =
     match dv with
     | DFloat f -> System.Double.IsNaN f
     | DFloat32 f -> System.Single.IsNaN f
-    | DList(_, items) -> List.exists holdsNaN items
+    | DList(_, Items(items)) -> List.exists holdsNaN items
     | DTuple(a, b, rest) -> holdsNaN a || holdsNaN b || List.exists holdsNaN rest
     | DDict(_, _, entries) ->
       entries |> DictMap.exists (fun k v -> holdsNaN k || holdsNaN v)
@@ -3206,9 +3278,9 @@ module Dval =
           | DPromise _
           | DBytes _ -> return dv
 
-          | DList(vt, items) ->
+          | DList(vt, Items(items)) ->
             let! items' = walkItems items
-            return (if same items' items then dv else DList(vt, items'))
+            return (if same items' items then dv else DList(vt, Items(items')))
 
           | DTuple(a, b, rest) ->
             let! a' = go a

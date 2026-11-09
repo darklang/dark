@@ -256,7 +256,7 @@ let makeTest versionName filename =
         match dval with
         | RT.DRecord(t1, t2, ta, fields) ->
           match RT.RecordFields.tryFind "headers" fields with
-          | Some(RT.DList(elemType, items)) ->
+          | Some(RT.DList(elemType, RT.Items(items))) ->
             let sorted =
               items
               |> List.sortBy (fun item ->
@@ -264,7 +264,10 @@ let makeTest versionName filename =
                 | RT.DTuple(RT.DString k, _, _) -> k.ToLowerInvariant()
                 | _ -> "")
             let newFields =
-              RT.RecordFields.add "headers" (RT.DList(elemType, sorted)) fields
+              RT.RecordFields.add
+                "headers"
+                (RT.DList(elemType, RT.Items(sorted)))
+                fields
             RT.DRecord(t1, t2, ta, newFields)
           | _ -> dval
         | _ -> dval

@@ -888,7 +888,7 @@ let private pollAndAffects =
       let! touched = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
       let names =
         match touched with
-        | RT.DList(_, items) ->
+        | RT.DList(_, RT.Items(items)) ->
           items
           |> List.map (fun d ->
             match d with
@@ -926,7 +926,7 @@ let private pollAndAffects =
 
 let private plainRows (dv : RT.Dval) : List<string> =
   match dv with
-  | RT.DList(_, rows) ->
+  | RT.DList(_, RT.Items(rows)) ->
     rows
     |> List.map (fun r ->
       match r with
@@ -1279,7 +1279,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
         let! (_, change) = pollChange state watch "the folded op was not reported"
         let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
         match names with
-        | RT.DList(_, items) ->
+        | RT.DList(_, RT.Items(items)) ->
           Expect.contains
             (items |> List.map string)
             (string (RT.DString "Tests.LiveFold.leaf"))
@@ -1304,7 +1304,7 @@ let private pollOnABranchSeesTheBranchsOwnSaves =
         let! (_, change) = pollChange state watch "the branch save was not reported"
         let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
         match names with
-        | RT.DList(_, items) ->
+        | RT.DList(_, RT.Items(items)) ->
           Expect.contains
             (items |> List.map string)
             (string (RT.DString "Tests.LiveBranchPoll.leaf"))
@@ -1720,8 +1720,8 @@ let reloaded = Darklang.Cli.Workbench.refresh(kept, Darklang.Cli.Workbench.force
 (Darklang.Stdlib.Dict.size(s.liveValues), Darklang.Stdlib.Dict.keys(kept.liveValues), Darklang.Stdlib.Dict.keys(reloaded.liveValues))"""
         match wb with
         | RT.DTuple(RT.DInt64 first,
-                    RT.DList(_, [ RT.DString "sentinel" ]),
-                    [ RT.DList(_, again) ]) ->
+                    RT.DList(_, RT.Items([ RT.DString "sentinel" ])),
+                    [ RT.DList(_, RT.Items(again)) ]) ->
           Expect.isGreaterThan first 0L "the fn shows its values"
           Expect.equal
             (int64 (List.length again))

@@ -31,7 +31,8 @@ let string (s : string) = DString s
 
 let uuid (s : System.Guid) = DUuid s
 
-let list (typ : KnownType) (list : List<Dval>) : Dval = DList(VT.known typ, list)
+let list (typ : KnownType) (list : List<Dval>) : Dval =
+  DList(VT.known typ, Items(list))
 
 let dict
   (keyType : KnownType)
@@ -160,7 +161,7 @@ let rec mapCallables
                 |> Array.map (fun (struct (reg, value)) -> struct (reg, walk value)) }
       )
     )
-  | DList(vt, items) -> DList(vt, List.map walk items)
+  | DList(vt, Items(items)) -> DList(vt, Items(List.map walk items))
   | DTuple(first, second, rest) ->
     DTuple(walk first, walk second, List.map walk rest)
   | DDict(kt, vt, entries) -> DDict(kt, vt, DictMap.map walk entries)
@@ -243,7 +244,7 @@ let rec isPersistable (dv : Dval) : bool =
     | AppNamedFn _ -> true
     | AppLambda _ -> false
 
-  | DList(_, items) -> items |> List.forall isPersistable
+  | DList(_, Items(items)) -> items |> List.forall isPersistable
   | DTuple(a, b, rest) ->
     isPersistable a && isPersistable b && List.forall isPersistable rest
   | DDict(_, _, entries) ->
@@ -270,7 +271,7 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
       + "rebuilt per call"
     )
 
-  | DList(_, items) -> items |> List.tryPick nonPersistableReason
+  | DList(_, Items(items)) -> items |> List.tryPick nonPersistableReason
   | DTuple(a, b, rest) -> [ a; b ] @ rest |> List.tryPick nonPersistableReason
   | DDict(_, _, entries) ->
     entries
@@ -319,7 +320,7 @@ let rec isInertData (dv : Dval) : bool =
   | DUuid _
   | DBytes _ -> true
 
-  | DList(_, items) -> items |> List.forall isInertData
+  | DList(_, Items(items)) -> items |> List.forall isInertData
   | DTuple(a, b, rest) ->
     isInertData a && isInertData b && List.forall isInertData rest
   | DDict(_, _, entries) ->
@@ -336,7 +337,7 @@ let byteArrayToDvalList (bytes : byte[]) : Dval =
   bytes
   |> Array.toList
   |> List.map (fun b -> DUInt8(byte b))
-  |> fun dvalList -> DList(VT.uint8, dvalList)
+  |> fun dvalList -> DList(VT.uint8, Items(dvalList))
 
 let dlistToByteArray (dvalList : List<Dval>) : byte[] =
   dvalList
@@ -409,8 +410,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
     ensureSufficientExecutionStack ()
 
     Result.isOk (ValueType.merge typA typB)
-    && a.Length = b.Length
-    && List.forall2 r a b
+    && DvalList.length a = DvalList.length b
+    && List.forall2 r (DvalList.toList a) (DvalList.toList b)
 
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     ensureSufficientExecutionStack ()
@@ -645,7 +646,7 @@ let hash (dv : Dval) : int =
             let frame = { value = value; code = System.HashCode() }
             frame.code.Add(DictKey.caseTag value)
             match value with
-            | DList(_, xs) -> pending.Push(HashList(frame, xs))
+            | DList(_, Items(xs)) -> pending.Push(HashList(frame, xs))
             | DTuple(a, b, rest) -> pending.Push(HashList(frame, a :: b :: rest))
             | DDict(_, _, entries) ->
               pending.Push(HashDict(frame, entries.Entries, 0))
@@ -732,7 +733,7 @@ let rec toDebugString (dv : Dval) : string =
   | DString s -> $"\"{s}\""
   | DDateTime d -> DarkDateTime.toIsoString d
   | DUuid g -> g.ToString()
-  | DList(_, items) -> $"[{join items}]"
+  | DList(_, Items(items)) -> $"[{join items}]"
   | DTuple(first, second, rest) -> $"({join (first :: second :: rest)})"
   | DDict(_, _, entries) ->
     let shown =

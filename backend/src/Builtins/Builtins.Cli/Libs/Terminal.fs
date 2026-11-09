@@ -256,7 +256,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DString text; DInt64 maxWidth |] ->
           TerminalText.wrapAtColumn text (int64ToInt32 vm maxWidth)
           |> List.map DString
-          |> fun rows -> DList(VT.string, rows)
+          |> fun rows -> DList(VT.string, Items(rows))
           |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -279,7 +279,7 @@ let fns () : List<BuiltInFn> =
           let (rows, row, column) =
             TerminalText.wrapWithCursor before after (int64ToInt32 vm maxWidth)
           DTuple(
-            DList(VT.string, List.map DString rows),
+            DList(VT.string, Items(List.map DString rows)),
             Dval.dint64 (int64 row),
             [ Dval.dint64 (int64 column) ]
           )

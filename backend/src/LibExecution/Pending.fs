@@ -27,7 +27,7 @@ let inline isPromise (dv : Dval) : bool =
 /// one is itself a promise at this level. No allocation; it runs on every construction.
 let holdsPromise (dv : Dval) : bool =
   match dv with
-  | DList(_, items)
+  | DList(_, items) -> DvalList.exists isPromise items
   | DEnum(_, _, _, _, items) -> List.exists isPromise items
   | DTuple(a, b, rest) -> isPromise a || isPromise b || List.exists isPromise rest
   | DDict(_, _, entries) -> DictMap.exists (fun _ v -> isPromise v) entries
@@ -40,7 +40,7 @@ let holdsPromise (dv : Dval) : bool =
 /// The values directly inside `dv`, in order.
 let private children (dv : Dval) : List<Dval> =
   match dv with
-  | DList(_, items)
+  | DList(_, Items(items))
   | DEnum(_, _, _, _, items) -> items
   | DTuple(a, b, rest) -> a :: b :: rest
   | DDict(_, _, entries) -> DictMap.values entries
@@ -90,13 +90,13 @@ let finished (dv : Dval) : Dval voption =
 /// is worked out again, since a read counted as `Unknown` when it was built.
 let private fill (dv : Dval) : Dval =
   match dv with
-  | DList(elemType, items) ->
+  | DList(elemType, Items(items)) ->
     let items = List.map settled items
     let merge (acc : ValueType) item =
       match VT.merge acc (Dval.toValueType item) with
       | Ok merged -> merged
       | Error() -> acc
-    DList(List.fold merge elemType items, items)
+    DList(List.fold merge elemType items, Items(items))
   | DTuple(a, b, rest) -> DTuple(settled a, settled b, List.map settled rest)
   | DDict(kt, vt, entries) -> DDict(kt, vt, DictMap.map settled entries)
   | DRecord(src, rt, typeArgs, fields) ->
@@ -193,8 +193,8 @@ let rec wrapAlong
   else
     let again = wrapAlong rebuild
     match dv, t with
-    | DList(vt, items), TList inner ->
-      built rebuild (DList(vt, List.map (again inner) items))
+    | DList(vt, Items(items)), TList inner ->
+      built rebuild (DList(vt, Items(List.map (again inner) items)))
     | DDict(kt, vt, entries), TDict(_, inner) ->
       built rebuild (DDict(kt, vt, DictMap.map (again inner) entries))
     | DTuple(a, b, rest), TTuple(ta, tb, trest) when

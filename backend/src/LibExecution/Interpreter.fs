@@ -456,9 +456,21 @@ let rec private matchNeedsValue (pat : MatchPattern) (dv : Dval) : bool =
         | p :: pRest, v :: vRest -> matchNeedsValue p v || pairs pRest vRest
         | _ -> false
       match pat, Pending.peek dv with
-      | MPList ps, DList(_, items) -> pairs ps items
-      | MPListCons(h, t), DList(vt, x :: rest) ->
-        matchNeedsValue h x || matchNeedsValue t (DList(vt, rest))
+      | MPList ps, DList(_, items) ->
+        let rec pairsIn (ps : List<MatchPattern>) (vs : DvalList) =
+          match ps with
+          | [] -> false
+          | p :: pRest ->
+            match DvalList.uncons vs with
+            | ValueSome(struct (v, vRest)) ->
+              matchNeedsValue p v || pairsIn pRest vRest
+            | ValueNone -> false
+        pairsIn ps items
+      | MPListCons(h, t), DList(vt, l) ->
+        match DvalList.uncons l with
+        | ValueSome(struct (x, rest)) ->
+          matchNeedsValue h x || matchNeedsValue t (DList(vt, rest))
+        | ValueNone -> false
       | MPTuple(a, b, rest), DTuple(x, y, zs) ->
         pairs (a :: b :: rest) (x :: y :: zs)
       | MPEnum(case, fields), DEnum(_, _, _, actual, fs) when case = actual ->
@@ -539,6 +551,21 @@ let rec private checkMatchPatternList
     | item :: otherItems ->
       checkAndExtractMatchPattern buf pat item
       && checkMatchPatternList buf otherPats otherItems
+
+/// `checkMatchPatternList` over a Dark list's values, taken one at a time from the front.
+and private checkMatchPatternItems
+  (buf : ResizeArray<struct (Register * Dval)>)
+  (pats : List<MatchPattern>)
+  (items : DvalList)
+  : bool =
+  match pats with
+  | [] -> DvalList.isEmpty items
+  | pat :: otherPats ->
+    match DvalList.uncons items with
+    | ValueNone -> false
+    | ValueSome(struct (item, otherItems)) ->
+      checkAndExtractMatchPattern buf pat item
+      && checkMatchPatternItems buf otherPats otherItems
 
 /// Nested matches throughout, not `match pat, dv with`. The tuple form reads better and allocates the
 /// pair on every pattern tried; this runs once per arm of every `match` a script evaluates.
@@ -628,21 +655,28 @@ and checkAndExtractMatchPattern
   // Structural patterns look through a shell; `matchNeedsValue` has checked it is enough.
   | MPList pats ->
     match Pending.peek dv with
-    | DList(_, items) -> checkMatchPatternList buf pats items
+    | DList(_, items) ->
+      // Lengths first: a list pattern needs exactly as many values as it has patterns, and a
+      // pattern is short where a list can be long.
+      List.length pats = DvalList.length items
+      && checkMatchPatternItems buf pats items
     | _ -> false
 
   | MPListCons(head, tail) ->
     match Pending.peek dv with
-    | DList(vt, headItem :: tailItems) ->
-      // Only wrap the tail if the list itself is a promise; a plain list never contains
-      // one. Wrapping checks every item in the tail, so doing it on every match made
-      // walking a list with `x :: rest` quadratic.
-      let tailList = DList(vt, tailItems)
-      checkAndExtractMatchPattern buf head headItem
-      && checkAndExtractMatchPattern
-        buf
-        tail
-        (if Pending.isPromise dv then Pending.wrap tailList else tailList)
+    | DList(vt, l) ->
+      match DvalList.uncons l with
+      | ValueSome(struct (headItem, tailItems)) ->
+        // Only wrap the tail if the list itself is a promise; a plain list never contains
+        // one. Wrapping checks every item in the tail, so doing it on every match made
+        // walking a list with `x :: rest` quadratic.
+        let tailList = DList(vt, tailItems)
+        checkAndExtractMatchPattern buf head headItem
+        && checkAndExtractMatchPattern
+          buf
+          tail
+          (if Pending.isPromise dv then Pending.wrap tailList else tailList)
+      | ValueNone -> false
     | _ -> false
 
   | MPTuple(first, second, theRest) ->
@@ -2134,7 +2168,7 @@ let private fastBuiltinOp
         if tag = FastOps.listPrepend then
           FastOps.evalListPrepend vt1 l1 other
         else
-          FastOps.evalListContains tag l1 other
+          FastOps.evalListContains tag (DvalList.toList l1) other
     | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
     | _ -> ValueNone
 

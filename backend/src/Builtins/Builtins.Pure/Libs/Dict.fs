@@ -53,7 +53,7 @@ let private spreadRest
         (fun offset chunk ->
           let first = start + offset
           let keys = List.init (List.length chunk) (fun n -> keyAt (first + n))
-          [ DList(keyType, keys); DList(valueType, chunk) ])
+          [ DList(keyType, Items(keys)); DList(valueType, Items(chunk)) ])
         app
         perElement
         (List.init (entries.Length - start) (fun n -> valueAt (start + n)))
@@ -140,7 +140,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDict(keyType, _, o) |] ->
-          DList(keyType, DictMap.keys o) |> Ply
+          DList(keyType, Items(DictMap.keys o)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -157,7 +157,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(_, valueType, o) |] ->
           // See `dictKeys`: a direct fold rather than a lazy sequence and its enumerator.
-          DList(valueType, DictMap.values o) |> Ply
+          DList(valueType, Items(DictMap.values o)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -175,7 +175,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(keyType, valueType, o) |] ->
           DictMap.foldBack (fun k v acc -> DTuple(k, v, []) :: acc) o []
-          |> fun pairs -> DList(VT.tuple keyType valueType [], pairs)
+          |> fun pairs -> DList(VT.tuple keyType valueType [], Items(pairs))
           |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -195,10 +195,13 @@ let fns () : List<BuiltInFn> =
         + "function is the opposite of <fn Dict.toEntries>."
       fn =
         (function
-        | _, _, _, [| DList(_, []) |] ->
+        | _, _, _, [| DList(_, Items([])) |] ->
           DDict(VT.unknown, VT.unknown, DictMap.empty) |> Ply
 
-        | _, vm, _, [| DList(ValueType.Known(KTTuple(keyType, valueType, [])), l) |] ->
+        | _,
+          vm,
+          _,
+          [| DList(ValueType.Known(KTTuple(keyType, valueType, [])), Items(l)) |] ->
           let struct (keyType, valueType, map) =
             TypeChecker.DvalCreator.dictEntries
               vm.threadID

@@ -344,7 +344,7 @@ let second = Stdlib.Stream.next(joined)
 let _ = Stdlib.Stream.close(joined)
 [ first, second ]"""
     match result with
-    | RT.DList(_, items) ->
+    | RT.DList(_, RT.Items(items)) ->
       Expect.equal
         items
         [ Dval.optionSome RT.KTInt64 (RT.DInt64 1L)

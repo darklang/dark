@@ -207,7 +207,10 @@ module ValueReferences =
           [],
           RT.RecordFields.ofList
             [ "names",
-              RT.DList(RT.ValueType.Unknown, [ RT.DString "a"; RT.DString "b" ]) ]
+              RT.DList(
+                RT.ValueType.Unknown,
+                RT.Items([ RT.DString "a"; RT.DString "b" ])
+              ) ]
         ) ]
     )
 
@@ -223,7 +226,8 @@ module ValueReferences =
           typeName,
           [],
           RT.RecordFields.ofList
-            [ "names", RT.DList(RT.ValueType.Unknown, [ RT.DString "a"; namedFn ]) ]
+            [ "names",
+              RT.DList(RT.ValueType.Unknown, RT.Items([ RT.DString "a"; namedFn ])) ]
         ) ]
     )
 

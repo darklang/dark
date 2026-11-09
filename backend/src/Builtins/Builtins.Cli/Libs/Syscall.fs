@@ -79,7 +79,7 @@ let private poll name constructor =
     KTBytes
     (fun _ vm values ->
       match values with
-      | [| DList(_, descriptors); DInt64 timeout |] ->
+      | [| DList(_, Items(descriptors)); DInt64 timeout |] ->
         let descriptors =
           descriptors
           |> List.map (function
@@ -121,7 +121,10 @@ let fns () : List<BuiltInFn> =
       KTBytes
       (fun _ vm values ->
         match values with
-        | [| DBigInt queue; DList(_, changes); DInt64 capacity; DInt64 timeout |] ->
+        | [| DBigInt queue
+             DList(_, Items(changes))
+             DInt64 capacity
+             DInt64 timeout |] ->
           let changes =
             changes
             |> List.map (function
@@ -233,7 +236,7 @@ let fns () : List<BuiltInFn> =
       KTBytes
       (fun _ vm values ->
         match values with
-        | [| DList(_, mib); DInt64 count |] ->
+        | [| DList(_, Items(mib)); DInt64 count |] ->
           let mib =
             mib
             |> List.map (function

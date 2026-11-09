@@ -149,7 +149,7 @@ let fns () : List<BuiltInFn> =
               PolicyStore.packagePolicies (accountIDOf accountIDDval)
               |> Map.toList
               |> List.map (fst >> DString)
-            return DList(VT.string, hashes)
+            return DList(VT.string, Items(hashes))
           }
         | _ -> incorrectArgs ())
 
@@ -199,7 +199,8 @@ let fns () : List<BuiltInFn> =
                 | [] -> [ entry hash None ]
                 | names ->
                   names |> List.map (fun (name, _) -> entry hash (Some name))
-            return DList(VT.known (PolicyToDT.Approval.knownType ()), entries)
+            return
+              DList(VT.known (PolicyToDT.Approval.knownType ()), Items(entries))
           }
         | _ -> incorrectArgs ())
 

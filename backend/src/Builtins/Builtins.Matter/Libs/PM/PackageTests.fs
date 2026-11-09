@@ -272,7 +272,7 @@ let private executeIsolatedTest
           resultType,
           [],
           "Fail",
-          [ DList(ValueType.Known KTString, [ DString message ]) ]
+          [ DList(ValueType.Known KTString, Items([ DString message ])) ]
         )
       )
       |> reflectOutcome
@@ -288,7 +288,7 @@ let private executeIsolatedTest
               match output.result with
               | Some(DEnum(_, _, _, "Ok", [ DEnum(_, _, _, "Ok", [ value ]) ])) ->
                 match RT2DT.Dval.fromDT value with
-                | DEnum(_, _, _, "Fail", [ DList(_, messages) ]) ->
+                | DEnum(_, _, _, "Fail", [ DList(_, Items(messages)) ]) ->
                   messages
                   |> List.choose (function
                     | DString s -> Some s

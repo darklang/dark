@@ -152,7 +152,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Compute real content-addressed hashes for package ops (SCC-aware)."
       fn =
         (function
-        | _, _, _, [| DList(_vt, ops) |] ->
+        | _, _, _, [| DList(_vt, Items(ops)) |] ->
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
@@ -180,7 +180,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "unchanged."
       fn =
         (function
-        | exeState, _, _, [| DList(_vt, ops) |] ->
+        | exeState, _, _, [| DList(_vt, Items(ops)) |] ->
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let! resolved =
@@ -212,7 +212,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
         (function
-        | exeState, _, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
+        | exeState, _, _, [| DUuid branchId; DList(_vtTODO, Items(ops)) |] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT

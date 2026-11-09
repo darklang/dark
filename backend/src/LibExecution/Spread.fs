@@ -265,7 +265,7 @@ let rec private holdsNoCode (dv : Dval) : bool =
   | DApplicable _
   | DStream _
   | DPromise _ -> false
-  | DList(_, items) -> listHoldsNoCode items
+  | DList(_, Items(items)) -> listHoldsNoCode items
   | DTuple(a, b, rest) -> holdsNoCode a && holdsNoCode b && listHoldsNoCode rest
   | DDict(_, _, entries) ->
     DictMap.forall (fun k v -> holdsNoCode k && holdsNoCode v) entries
@@ -589,7 +589,7 @@ type private Stopped =
 /// A list op's chunk: a list of results.
 let private listAnswer (answer : Dval) : ChunkAnswer =
   match answer with
-  | DList(_, xs) -> Finished xs
+  | DList(_, Items(xs)) -> Finished xs
   | _ -> NotAnAnswer
 
 let private nothingSpread (items : List<Dval>) : Outcome =
