@@ -807,6 +807,58 @@ let private serveFollowsAnEditInsideALambda =
             })
     })
 
+/// The router shape `docs http-server` shows: handlers are `val`s, and the router dispatches over
+/// them. An edit to a handler fn makes new versions of both vals, and those have to be evaluated
+/// before the router that follows them is served, or the request answers 500 for a missing value.
+let private serveFollowsAnEditBehindAVal =
+  cliTest "serve follows an edit to a handler held in a val" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do!
+        author
+          "Tests.LiveValHttp.helloFn"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, \"one\")"
+      let! _ =
+        runCli
+          target
+          [ "val"
+            "Tests.LiveValHttp.hello"
+            "Stdlib.HttpServer.Handler { route = \"/\", method = \"GET\", handler = Tests.LiveValHttp.helloFn }" ]
+      let! _ =
+        runCli
+          target
+          [ "val"; "Tests.LiveValHttp.handlers"; "[ Tests.LiveValHttp.hello ]" ]
+      do!
+        author
+          "Tests.LiveValHttp.router"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.HttpServer.routeRequest(Tests.LiveValHttp.handlers, req)"
+
+      do!
+        withLiveServer
+          state
+          "Darklang.SCM.Branch.mainBranchId"
+          (locSource [ "LiveValHttp" ] "router")
+          false
+          [ "[live] now on the new version of Tests.LiveValHttp.router" ]
+          (fun port ->
+            task {
+              let! (status, body) = getText port
+              Expect.equal (status, body) (200, "one") "the version at start"
+
+              do!
+                author
+                  "Tests.LiveValHttp.helloFn"
+                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, \"two\")"
+              let! (status, body) = getText port
+              Expect.equal
+                (status, body)
+                (200, "two")
+                "an edit behind a val is on the next request"
+            })
+    })
+
 /// `poll` names what landed and `affects` walks to what depends on it, on one store.
 let private pollAndAffects =
   cliTest "poll reports an edit and affects reaches its dependents" (fun target ->
@@ -1840,6 +1892,7 @@ let tests : List<Test> =
         "live"
         [ serveFollowsEdits
           serveFollowsAnEditInsideALambda
+          serveFollowsAnEditBehindAVal
           pollAndAffects
           treeRendersTheSameEverywhere
           viewFollowsEdits
