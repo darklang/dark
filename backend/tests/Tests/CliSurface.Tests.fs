@@ -238,6 +238,165 @@ let private warningsAndPreviewsStayOffStdout =
           "with the flag that gets past the prompt"
       })
 
+/// What one stream of a command holds: nothing at all, a line with this text in it, or whatever it
+/// likes, for a hint that depends on what the store holds.
+type private Stream =
+  | Silent
+  | Says of string
+  | Any
+
+/// The top-level commands in the forms people type, in order, each with what lands on stdout, what
+/// lands on stderr, and the exit code. stdout is the answer, stderr is everything a person reads
+/// while it runs (refusals, hints, progress, previews), and the exit code is the verdict. The rows
+/// build on each other: the fn saved first is the one `view`, `deps` and `rename` name later.
+let private streamRows : List<List<string> * int * Stream * Stream> =
+  [ [ "fn"; "Tests.Rows.f"; "(x: Int64): Int64 = x + 1" ],
+    0,
+    Says "Created function Tests.Rows.f",
+    Silent
+    [ "fn"; "Tests.Rows.g"; "(x: Int64): Int64 = Tests.Rows.f(x)" ],
+    0,
+    Says "Created function Tests.Rows.g",
+    Silent
+    [ "test"; "add"; "Tests.Rows.t"; "Stdlib.Test.pass()" ],
+    0,
+    Says "Created test Tests.Rows.t",
+    Silent
+    [ "status" ], 0, Says "draft:", Says "`dark commit`"
+    [ "status"; "--json" ], 0, Says "\"branch\":\"main\"", Silent
+    [ "eval"; "Tests.Rows.f(1)" ], 0, Says "2", Silent
+    [ "eval"; "1 / 0" ], 1, Silent, Says "Cannot divide by 0"
+    [ "test"; "run"; "Tests.Rows.t" ],
+    0,
+    Says "PASS Tests.Rows.t",
+    Says "Running: Tests.Rows.t"
+    [ "test"; "run"; "Zzz.Nope" ], 1, Silent, Says "No package tests matched"
+    [ "view"; "Tests.Rows.f" ], 0, Says "let f(x: Int64)", Any
+    [ "view"; "Zzz.Nope.f" ], 1, Silent, Says "Not found"
+    [ "hash"; "Tests.Rows.f" ], 0, Says "fn ", Silent
+    [ "deps"; "Tests.Rows.f" ], 0, Says "dependencies of Tests.Rows.f", Silent
+    [ "ls"; "Darklang.Stdlib.Bool" ], 0, Says "Contents of", Silent
+    [ "nav"; "Darklang.Stdlib.Bool" ],
+    0,
+    Says "Changed to",
+    Says "only for this command"
+    [ "tree"; "Darklang.Stdlib"; "--depth"; "1" ], 0, Says "Package tree", Silent
+    [ "search"; "Stdlib.List.map" ],
+    0,
+    Says "Darklang.Stdlib.List.map",
+    Says "--with-docs"
+    [ "builtins"; "listMap" ], 0, Says "listMap", Says "--with-sigs"
+    [ "typecheck"; "Darklang.Stdlib.Bool" ], 0, Says "failed 0", Silent
+    [ "impls"; "Darklang.Stdlib.Add" ], 0, Says "Darklang.Stdlib.Add", Silent
+    [ "docs"; "scm" ], 0, Says "# Source control", Silent
+    [ "docs"; "zzznope" ], 1, Silent, Says "Unknown topic"
+    [ "help" ], 0, Says "Packages:", Silent
+    [ "help"; "status" ], 0, Says "draft", Silent
+    [ "help"; "zzznope" ], 1, Silent, Says "No command called"
+    [ "version"; "--local" ], 0, Says "Darklang CLI", Silent
+    [ "config"; "list" ], 0, Says "exec.workers", Silent
+    [ "config"; "get"; "zzznope" ], 1, Silent, Says "not a config key"
+    [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "requires", Silent
+    [ "commit"; "-m"; "rows"; "-y" ], 0, Says "commit ", Says "CHANGED"
+    [ "commits"; "1"; "--json" ], 0, Says "\"hash\"", Silent
+    [ "log" ], 0, Says "commits", Silent
+    [ "ops"; "1" ], 0, Says "ops on main", Silent
+    [ "show"; "zzznope" ], 1, Silent, Says "nothing matching zzznope"
+    [ "constraints" ], 0, Says "no constraints", Silent
+    [ "conflicts" ], 0, Says "no conflicts", Silent
+    [ "backups" ], 0, Says "no backups yet", Says "`dark backups now`"
+    [ "ps"; "--json" ], 0, Says "thisInstance", Silent
+    [ "branch"; "create"; "rows-b" ], 0, Says "started branch", Silent
+    [ "fn"; "Tests.Rows.h"; "(): Int64 = 2" ], 0, Says "Created function", Silent
+    [ "diff" ], 0, Says "Tests.Rows.h", Says "`dark commit`"
+    [ "switch"; "main" ], 0, Says "switched to main", Silent
+    [ "branches" ], 0, Says "rows-b", Silent
+    [ "diff"; "rows-b" ], 0, Says "changes 1 name", Says "--source"
+    [ "merge"; "rows-b"; "--dry-run" ],
+    0,
+    Says "would merge",
+    Says "`dark merge rows-b`"
+    [ "merge"; "rows-b" ], 1, Silent, Says "cannot merge \"rows-b\""
+    [ "rename"; "Tests.Rows.g"; "Tests.Rows.g2" ],
+    0,
+    Says "renamed",
+    Says "callers now use"
+    [ "delete"; "Tests.Rows.g2"; "--dry-run" ],
+    0,
+    Says "Will deprecate",
+    Says "dry-run"
+    [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "`-y`"
+    [ "delete"; "Tests.Rows.g2"; "-y" ],
+    0,
+    Says "Deprecated fn Tests.Rows.g2",
+    Says "Will deprecate"
+    [ "undeprecate"; "Tests.Rows.g2" ], 0, Says "Undeprecated", Silent
+    [ "fn"; "Tests.Rows.f"; "(x: Int64): Int64 = x + 2" ],
+    0,
+    Says "Updated function",
+    Silent
+    [ "undo"; "Tests.Rows.f" ], 0, Says "back on the version", Silent
+    [ "discard" ], 1, Silent, Says "DISCARDING"
+    [ "discard"; "-y" ], 0, Says "discarded", Says "DISCARDING"
+    [ "ack" ], 1, Silent, Says "dark ack --all"
+    [ "module" ], 1, Silent, Says "needs 2 arguments"
+    [ "export-seed" ], 1, Silent, Says "needs an argument"
+    [ "workbench" ], 1, Silent, Says "unavailable"
+    [ "run-script"; "/zzznope/x.dark" ], 1, Silent, Says "Script not found"
+    [ "zzznope" ], 1, Silent, Says "Unknown command" ]
+
+/// What is wrong with one stream, against what it should hold, or `None`.
+let private streamFault
+  (name : string)
+  (expected : Stream)
+  (other : Stream)
+  (text : string)
+  : Option<string> =
+  match expected with
+  | Silent when text <> "" -> Some $"{name} not empty: {text.Split('\n')[0]}"
+  | Says s when not (text.Contains s) ->
+    Some $"{name} lacks \"{s}\": {text.Split('\n')[0]}"
+  | _ ->
+    // What belongs on the other stream must not be here as well.
+    match other with
+    | Says s when text.Contains s -> Some $"{name} also has \"{s}\""
+    | _ -> None
+
+let private eachCommandKeepsItsStreams =
+  instanceTest
+    "each command puts its answer on stdout, the rest on stderr, and its verdict in the exit code"
+    (fun target ->
+      task {
+        let rec check rows faults =
+          task {
+            match rows with
+            | [] -> return List.rev faults
+            | (args, code, out, err) :: rest ->
+              let! (stdout, stderr, status) = runCliStreams target args
+              let stdout = CliDsl.plain stdout
+              let stderr = CliDsl.plain stderr
+              let found =
+                [ (if status <> code then
+                     Some $"exit {status}, not {code}"
+                   else
+                     None)
+                  streamFault "stdout" out err stdout
+                  streamFault "stderr" err out stderr ]
+                |> List.choose (fun fault -> fault)
+              let printed = $"""dark {String.concat " " args}"""
+              return!
+                check
+                  rest
+                  (List.map (fun f -> $"  {printed} -> {f}") found @ faults)
+          }
+
+        let! faults = check streamRows []
+        if not (List.isEmpty faults) then
+          Tests.failtestf
+            "commands that put a line on the wrong stream, or exited wrong:\n%s"
+            (String.concat "\n" faults)
+      })
+
 let private testHelpCommand =
   instanceTest "help command" (fun state ->
     task {
@@ -1054,7 +1213,6 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       // Scoped to a module that is clean. The shared store holds failing fixtures other tests
       // leave on purpose, so an audit of all of it rightly exits 1.
       "typecheck", [ "Darklang.Stdlib.Bool" ]
-      "workbench", []
       "commit", [ "--json" ]
       // Reads the implementations of a trait on the branch. Fully qualified, like `nav` and
       // `find-values` above, rather than relying on the bare-name fallback to the stdlib.
@@ -1088,7 +1246,9 @@ let private unsafeWithArguments : Map<string, string> =
       "resolve", "writes a Resolve op"
       "ack", "closes a finding other tests assert on"
       "back",
-      "a one-shot run has no history to go back to, so it refuses; it is a refusal row below" ]
+      "a one-shot run has no history to go back to, so it refuses; it is a refusal row below"
+      "workbench",
+      "without a terminal it refuses, and the sweep has none; `eachCommandKeepsItsStreams` checks that" ]
 
 /// Seed the store, run every command with a known-good invocation, and check the drift both ways.
 let everyCommandWorksWithValidArguments =
@@ -2263,6 +2423,7 @@ let tests : List<Test> =
     diagnosticsStayOffStdout
     hintsAndLogsStayOffStdout
     warningsAndPreviewsStayOffStdout
+    eachCommandKeepsItsStreams
     testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender
