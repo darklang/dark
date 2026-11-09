@@ -131,9 +131,7 @@ let eval64 (tag : int) (a : int64) (b : int64) : Dval voption =
 /// does, rather than paying the full builtin path to concatenate two strings.
 let evalStr (tag : int) (a : string) (b : string) : Dval voption =
   if tag = strAppend then
-    // Exactly what the builtin computes, `normalize` included: two normalized strings can join
-    // into one that is not, so this is not safe to drop.
-    ValueSome(DString(String.normalize (a + b)))
+    ValueSome(DString(String.append a b))
   elif tag = equals then
     ValueSome(
       Dval.bool (System.String.Equals(a, b, System.StringComparison.Ordinal))
@@ -148,9 +146,8 @@ let evalStr (tag : int) (a : string) (b : string) : Dval voption =
 
 /// `List.concat`, and the `@` operator that desugars to it, for two `List`s.
 ///
-/// Declines when the element types don't merge, rather than reporting the error itself: the slow
-/// path falls back to `DvalCreator.list` for a precise element-level message, and duplicating that
-/// here would be reimplementing the builtin rather than short-circuiting it.
+/// The builtin's own `DvalCreator.tryConcat`. Declines when the element types don't merge: the
+/// builtin then names the element at fault.
 let evalList
   (tag : int)
   (vt1 : ValueType)
@@ -159,9 +156,7 @@ let evalList
   (l2 : DvalList)
   : Dval voption =
   if tag = listConcat then
-    match ValueType.merge vt1 vt2 with
-    | Ok merged -> ValueSome(DList(merged, DvalList.append l1 l2))
-    | Error() -> ValueNone
+    TypeChecker.DvalCreator.tryConcat vt1 l1 vt2 l2
   else
     ValueNone
 
@@ -175,13 +170,8 @@ let evalList
 let eval1 (tag : int) (arg : Dval) : Dval voption =
   if tag = intToString then
     match arg with
-    | DInt64 n -> ValueSome(DString(string n))
-    | DBigInt i ->
-      // The builtin goes through `Dval.asBigInt`, which allocates a `BigInteger` to stringify a
-      // value that usually fits an int64. Same output either way.
-      match i with
-      | DarkBigInt.Finite n -> ValueSome(DString(string n))
-      | DarkBigInt.Infinite b -> ValueSome(DString(string b))
+    | DInt64 n -> ValueSome(DString(Dval.int64ToString n))
+    | DBigInt i -> ValueSome(DString(DarkBigInt.toString i))
     | _ -> ValueNone
   elif tag = boolNot then
     match arg with
@@ -205,43 +195,28 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
 
 /// `List.contains`: a list and a value of its element type.
 ///
-/// Calls the same `Dval.equals` the builtin calls -- which is why that function moved into
-/// `LibExecution` from `Builtins.Pure.Libs.NoModule`: structural equality of two Dvals belongs
-/// beside `Dval`, and the interpreter could not reach it where it was.
-///
-/// Keeps `==`'s behaviour on mismatched element types, which is to raise rather than answer false,
-/// by declining to the slow path when a merge fails.
+/// The builtin's own `Dval.listContains`. Declines where it would raise, on an element whose type
+/// does not merge with the value's.
 let evalListContains (tag : int) (items : List<Dval>) (value : Dval) : Dval voption =
   if tag = listContains then
-    let vtValue = Dval.toValueType value
-
-    let rec search (rest : List<Dval>) : Dval voption =
-      match rest with
-      | [] -> ValueSome(Dval.bool false)
-      | elem :: tail ->
-        match ValueType.merge (Dval.toValueType elem) vtValue with
-        | Error() -> ValueNone
-        | Ok _ ->
-          if Dval.equals elem value then ValueSome(Dval.bool true) else search tail
-
-    search items
+    match Dval.listContains items value with
+    | ValueSome found -> ValueSome(Dval.bool found)
+    | ValueNone -> ValueNone
   else
     ValueNone
 
 
 /// `List.prepend`: <param value> on the front of a list whose element type is <param vt>.
 ///
-/// The builtin's own answer when the types merge, without the general call path (argument array,
+/// The builtin's own `DvalCreator.tryPrepend`, without the general call path (argument array,
 /// parameter checks, result check). Every list a fold builds comes through here once per element.
-/// Declines when the types do not merge, so the builtin and its parameter check report it.
+/// Declines when the types do not merge, so the builtin reports it.
 let evalListPrepend
   (vt : ValueType)
   (items : DvalList)
   (value : Dval)
   : Dval voption =
-  match ValueType.merge vt (Dval.toValueType value) with
-  | Ok merged -> ValueSome(DList(merged, DvalList.cons value items))
-  | Error() -> ValueNone
+  TypeChecker.DvalCreator.tryPrepend vt items value
 
 
 /// `String.repeat`: a `String` and an `Int64` count, almost always padding a row out to a column.
@@ -278,7 +253,8 @@ let evalDictGet
     ValueNone
 
 
-/// operator here.
+/// `Dict.set`: the builtin's own `DvalCreator.tryDictAddEntry`. Declines where the builtin would
+/// raise, so its error is the same with tracing on or off.
 let evalDictSet
   (tag : int)
   (keyType : ValueType)
@@ -287,15 +263,8 @@ let evalDictSet
   (k : Dval)
   (v : Dval)
   : Dval voption =
-  if tag = dictSet && Dval.isUsableDictKey k then
-    // Use the slow path for type mismatches so its parameter check reports the error.
-    // This keeps error messages the same with tracing on or off, as in `evalList`.
-    match VT.merge valueType (Dval.toValueType v) with
-    | Ok valueType ->
-      match VT.merge keyType (Dval.toValueType k) with
-      | Ok keyType -> ValueSome(DDict(keyType, valueType, DictMap.add k v o))
-      | Error() -> ValueNone
-    | Error() -> ValueNone
+  if tag = dictSet then
+    TypeChecker.DvalCreator.tryDictAddEntry keyType valueType o k v
   else
     ValueNone
 
@@ -329,7 +298,7 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
       // `"a" + "b"`: string concatenation, `normalize` included
       | DString x ->
         (match b with
-         | DString y -> ValueSome(DString(String.normalize (x + y)))
+         | DString y -> ValueSome(DString(String.append x y))
          | _ -> ValueNone)
       | DFloat x ->
         (match b with

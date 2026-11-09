@@ -1112,6 +1112,46 @@ module DvalCreator =
     | DDict(kt, vt, entries) -> Ply(dict threadID kt vt (DictMap.toList entries))
     | other -> Ply other
 
+  /// `List.concat` of two lists whose element types merge. Both lists are already valid, so the
+  /// merge is the whole check, and O(1): re-checking every element would make a list built by
+  /// repeated concatenation O(n²). `ValueNone` when the types do not merge, where `list` names
+  /// the element at fault.
+  let tryConcat
+    (vt1 : ValueType)
+    (l1 : DvalList)
+    (vt2 : ValueType)
+    (l2 : DvalList)
+    : Dval voption =
+    match VT.merge vt1 vt2 with
+    | Ok merged -> ValueSome(DList(merged, DvalList.append l1 l2))
+    | Error() -> ValueNone
+
+  /// `List.prepend`: <param value> on the front of a list whose element type is <param vt>.
+  /// `ValueNone` when the types do not merge, where `list` names the element at fault.
+  let tryPrepend (vt : ValueType) (l : DvalList) (value : Dval) : Dval voption =
+    match VT.merge vt (Dval.toValueType value) with
+    | Ok merged -> ValueSome(DList(merged, DvalList.cons value l))
+    | Error() -> ValueNone
+
+  /// `Dict.set`: the dict with <param k> set to <param v>. `ValueNone` when the key cannot be a
+  /// dict key or either type does not merge, where `dictAddEntry` raises.
+  let tryDictAddEntry
+    (keyType : ValueType)
+    (valueType : ValueType)
+    (entries : DictMap)
+    (k : Dval)
+    (v : Dval)
+    : Dval voption =
+    if not (Dval.isUsableDictKey k) then
+      ValueNone
+    else
+      match VT.merge valueType (Dval.toValueType v) with
+      | Ok valueType ->
+        match VT.merge keyType (Dval.toValueType k) with
+        | Ok keyType -> ValueSome(DDict(keyType, valueType, DictMap.add k v entries))
+        | Error() -> ValueNone
+      | Error() -> ValueNone
+
   let dictAddEntry
     (threadID : ThreadID)
     (keyType : ValueType)

@@ -364,9 +364,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DDict(kt, vt, o); k; v |] ->
-          let struct (kt, vt, map) =
-            TypeChecker.DvalCreator.dictAddEntry vm.threadID kt vt o k v
-          DDict(kt, vt, map) |> Ply
+          match TypeChecker.DvalCreator.tryDictAddEntry kt vt o k v with
+          | ValueSome updated -> Ply updated
+          | ValueNone ->
+            // raises, naming what is wrong
+            let struct (kt, vt, map) =
+              TypeChecker.DvalCreator.dictAddEntry vm.threadID kt vt o k v
+            DDict(kt, vt, map) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

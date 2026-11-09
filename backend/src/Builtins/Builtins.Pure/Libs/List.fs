@@ -713,26 +713,27 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, [], [| DList(_, Items(items)); value |] ->
           // The Dark version of this was `findFirst list (fun e -> e == value)`, which pays a
-          // lambda application per element to run what is only an equality test. Here the
-          // comparison is direct, and the value's type is read once rather than per element.
+          // lambda application per element to run what is only an equality test.
           //
           // `==` type-checks before comparing, and raises rather than answering false on
-          // incompatible types; this keeps that, so a heterogeneous list still reports the
-          // same error it always did.
-          let vtValue = Dval.toValueType value
-
-          let rec search (rest : List<Dval>) : bool =
-            match rest with
-            | [] -> false
-            | elem :: tail ->
-              let vtElem = Dval.toValueType elem
-              match VT.merge vtElem vtValue with
-              | Error _ ->
-                RTE.EqualityCheckOnIncompatibleTypes(vtElem, vtValue)
-                |> raiseRTE vm.threadID
-              | Ok _ -> if Dval.equals elem value then true else search tail
-
-          Ply(DBool(search items))
+          // incompatible types; so does this, so a heterogeneous list still reports the same
+          // error it always did: at the first element whose type does not merge.
+          match Dval.listContains items value with
+          | ValueSome found -> Ply(DBool found)
+          | ValueNone ->
+            let vtValue = Dval.toValueType value
+            match
+              items
+              |> List.map Dval.toValueType
+              |> List.find (fun vt -> Result.isError (VT.merge vt vtValue))
+            with
+            | Some vtElem ->
+              RTE.EqualityCheckOnIncompatibleTypes(vtElem, vtValue)
+              |> raiseRTE vm.threadID
+            | None ->
+              Exception.raiseInternal
+                "listContains declined a list it could answer"
+                []
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -907,13 +908,11 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DList(vt1, l1); DList(vt2, l2) |] ->
-          // Both lists are already valid, so the result is valid exactly when their element types
-          // merge, which is O(1). Re-checking every element would cost O(n) per call and make a list
-          // built by repeated concatenation O(n²). When the types conflict, `DvalCreator.list`
-          // re-checks the elements to name the one at fault.
-          match VT.merge vt1 vt2 with
-          | Ok merged -> Ply(DList(merged, DvalList.append l1 l2))
-          | Error() ->
+          // When the types conflict, `DvalCreator.list` re-checks the elements to name the one at
+          // fault.
+          match TypeChecker.DvalCreator.tryConcat vt1 l1 vt2 l2 with
+          | ValueSome concatenated -> Ply concatenated
+          | ValueNone ->
             Ply(
               TypeChecker.DvalCreator.list
                 vm.threadID
@@ -937,9 +936,9 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DList(vt, l); value |] ->
           // Native because every list built by a fold goes through here, once per element, and the
           // Dark version had to build a one-element list to append.
-          match VT.merge vt (Dval.toValueType value) with
-          | Ok merged -> Ply(DList(merged, DvalList.cons value l))
-          | Error() ->
+          match TypeChecker.DvalCreator.tryPrepend vt l value with
+          | ValueSome prepended -> Ply prepended
+          | ValueNone ->
             Ply(
               TypeChecker.DvalCreator.list
                 vm.threadID

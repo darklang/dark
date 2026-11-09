@@ -275,8 +275,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, _, _, [| DString s1; DString s2 |] ->
-          (s1 + s2) |> String.normalize |> DString |> Ply
+        | _, _, _, [| DString s1; DString s2 |] -> Ply(DString(String.append s1 s2))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

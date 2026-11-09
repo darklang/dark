@@ -340,16 +340,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        // Not via `Dval.asBigInt`: that allocates a `BigInteger` to stringify a value that
-        // almost always fits an int64. Same output either way.
-        | _, _, _, [| DBigInt i |] ->
-          Ply(
-            DString(
-              match i with
-              | DarkBigInt.Finite n -> string n
-              | DarkBigInt.Infinite b -> string b
-            )
-          )
+        | _, _, _, [| DBigInt i |] -> Ply(DString(DarkBigInt.toString i))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

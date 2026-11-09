@@ -193,6 +193,10 @@ let startsWithEgcs (subject : string) (prefix : string) : bool =
 
 let normalize (s : string) : string = s.Normalize()
 
+/// <param a> then <param b>, normalized: two normalized strings can join into one that is not.
+/// What `stringAppend` and String `+` compute, in the builtins and in the VM.
+let append (a : string) (b : string) : string = normalize (a + b)
+
 /// Orders two strings by code point, which is also the order of their UTF-8 bytes. Only the sign
 /// of the result is meaningful.
 ///
