@@ -2120,6 +2120,43 @@ module private DictTreeOps =
       let struct (k, v) = entries[mid]
       make (ofSorted entries lo (mid - 1)) k v (ofSorted entries (mid + 1) hi)
 
+  let rec fold
+    (f : 'acc -> Dval -> Dval -> 'acc)
+    (acc : 'acc)
+    (t : DictTree)
+    : 'acc =
+    match t with
+    | null -> acc
+    | :? DictTreeNode as n -> fold f (f (fold f acc n.Left) n.Key n.Value) n.Right
+    | leaf -> f acc leaf.Key leaf.Value
+
+  let rec foldBack
+    (f : Dval -> Dval -> 'acc -> 'acc)
+    (t : DictTree)
+    (acc : 'acc)
+    : 'acc =
+    match t with
+    | null -> acc
+    | :? DictTreeNode as n ->
+      foldBack f n.Left (f n.Key n.Value (foldBack f n.Right acc))
+    | leaf -> f leaf.Key leaf.Value acc
+
+  let rec forall (f : Dval -> Dval -> bool) (t : DictTree) : bool =
+    match t with
+    | null -> true
+    | :? DictTreeNode as n -> forall f n.Left && f n.Key n.Value && forall f n.Right
+    | leaf -> f leaf.Key leaf.Value
+
+  /// The same shape with each value changed, in key order.
+  let rec map (f : Dval -> Dval) (t : DictTree) : DictTree =
+    match t with
+    | null -> null
+    | :? DictTreeNode as n ->
+      let left = map f n.Left
+      let value = f n.Value
+      DictTreeNode(n.Key, value, left, map f n.Right, n.Height)
+    | leaf -> DictTree(leaf.Key, f leaf.Value, 1)
+
 
 /// Every read and write of a dict's entries goes through here, so the two shapes of
 /// `DictMap` stay invisible to everything else. Keys are compared with
@@ -2296,30 +2333,39 @@ module DictMap =
           kept <- kept + 1
       Small(if kept = arr.Length then arr else Array.sub arr 0 kept)
 
-  // The traversals all read `Entries`: a small dict's own array, or a large one's
-  // entries copied out once, which costs less code than walking the tree each way.
   let fold (f : 'acc -> Dval -> Dval -> 'acc) (state : 'acc) (d : DictMap) : 'acc =
-    Array.fold (fun acc (struct (k, v)) -> f acc k v) state d.Entries
+    match d with
+    | Small entries ->
+      Array.fold (fun acc (struct (k, v)) -> f acc k v) state entries
+    | Large root -> DictTreeOps.fold f state root
 
   let foldBack
     (f : Dval -> Dval -> 'acc -> 'acc)
     (d : DictMap)
     (state : 'acc)
     : 'acc =
-    Array.foldBack (fun (struct (k, v)) acc -> f k v acc) d.Entries state
+    match d with
+    | Small entries ->
+      Array.foldBack (fun (struct (k, v)) acc -> f k v acc) entries state
+    | Large root -> DictTreeOps.foldBack f root state
 
   let iter (f : Dval -> Dval -> unit) (d : DictMap) : unit =
-    Array.iter (fun (struct (k, v)) -> f k v) d.Entries
+    fold (fun () k v -> f k v) () d
 
   let forall (f : Dval -> Dval -> bool) (d : DictMap) : bool =
-    Array.forall (fun (struct (k, v)) -> f k v) d.Entries
+    match d with
+    | Small entries -> Array.forall (fun (struct (k, v)) -> f k v) entries
+    | Large root -> DictTreeOps.forall f root
 
   let exists (f : Dval -> Dval -> bool) (d : DictMap) : bool =
-    Array.exists (fun (struct (k, v)) -> f k v) d.Entries
+    not (forall (fun k v -> not (f k v)) d)
 
   /// The values changed, the keys kept.
   let map (f : Dval -> Dval) (d : DictMap) : DictMap =
-    d.Entries |> Array.map (fun (struct (k, v)) -> struct (k, f v)) |> ofSorted
+    match d with
+    | Small entries ->
+      Small(Array.map (fun (struct (k, v)) -> struct (k, f v)) entries)
+    | Large root -> Large(DictTreeOps.map f root)
 
   let toList (d : DictMap) : List<Dval * Dval> =
     foldBack (fun k v acc -> (k, v) :: acc) d []
