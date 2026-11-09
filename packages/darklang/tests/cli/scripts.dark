@@ -66,6 +66,22 @@ module CallStack =
     |> Stdlib.Test.equal(
       "Call stack (last call at bottom):\n- Source\n- Builtin Function bigIntDivide (×2)\n- Source")
 
+  let denied(
+    frames: List<Darklang.LanguageTools.RuntimeTypes.ExecutionPoint>)
+    : String =
+    Darklang.Cli.ExecutionError.deniedCallStack(Darklang.SCM.Branch.mainBranchId, frames)
+
+  // A denial lists the caller's frames and the first bundled function, and counts the rest.
+  test deniedStackStopsAtTheFirstBundledFunction =
+    denied([ source(), builtin(), builtin(), builtin() ])
+    |> Stdlib.Test.equal(
+      "Call stack (last call at bottom):\n- Source\n- Builtin Function bigIntDivide\n  (2 calls inside it)")
+
+  test deniedStackWithOneBundledFrameIsWhole =
+    denied([ source(), builtin() ])
+    |> Stdlib.Test.equal(
+      "Call stack (last call at bottom):\n- Source\n- Builtin Function bigIntDivide")
+
   test lambdaLabel =
     Darklang.PrettyPrinter.RuntimeTypes.executionPoint(
       Darklang.SCM.Branch.mainBranchId,
