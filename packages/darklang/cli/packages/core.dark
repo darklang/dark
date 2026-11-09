@@ -393,9 +393,13 @@ let commitAuthored(
             "["
             + (LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code))
             + "] "
-            + (LanguageTools.AtRestTypeChecker.issueToStringWith(
-                (fun hash -> AtRestCheck.customTypeName(branchId, hash)),
-                issue))
+            + AtRestCheck.withToStringHint(
+                branchId,
+                issue,
+                PrettyPrinter.ProgramTypes.PackageLocation.packageLocation,
+                LanguageTools.AtRestTypeChecker.issueToStringWith(
+                  (fun hash -> AtRestCheck.customTypeName(branchId, hash)),
+                  issue))
 
           let more =
             if Stdlib.List.isEmpty(rest) then
