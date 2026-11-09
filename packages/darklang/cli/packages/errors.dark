@@ -100,6 +100,91 @@ let stdlibSuggestion(
   |> Stdlib.Option.map(fun((written, _)) -> written)
 
 
+/// The modules an unresolved name's module may be, each as (how the user would write it, where
+/// it is): `Stdlib.String` is `Darklang.Stdlib.String`, and a module with no `Stdlib.` in front is
+/// tried as written and under `Stdlib`.
+let closestNameModules(modules: List<String>): List<(List<String> * List<String>)> =
+  match modules with
+  | [] -> []
+  | ["PACKAGE", ...] -> []
+  | ["Stdlib", ...inner] -> [ (modules, Stdlib.List.flatten([ [ "Darklang", "Stdlib" ], inner ])) ]
+  | ["Darklang", ...] -> [ (modules, modules) ]
+  | _ ->
+    [ (modules, modules)
+      (Stdlib.List.prepend(modules, "Stdlib"),
+       Stdlib.List.flatten([ [ "Darklang", "Stdlib" ], modules ])) ]
+
+
+/// How far <param candidate> is from the <param name> that was written, when it is near enough to
+/// suggest: a few edits, ignoring case, or one name inside the other (`toUpper` for
+/// `toUppercase`).
+let nameDistance(name: String, candidate: String): Stdlib.Option.Option<Int64> =
+  let a = Stdlib.String.toLowercase(name)
+  let b = Stdlib.String.toLowercase(candidate)
+  let d = Cli.Config.editDistance(a, b)
+  let shorter = Cli.Config.smaller(Stdlib.String.length(a), Stdlib.String.length(b))
+  let allowed = Cli.Config.smaller(3, Stdlib.max(1, Stdlib.String.length(a) / 3))
+
+  if d <= allowed then
+    Stdlib.Option.Option.Some(d)
+  else if shorter >= 4 && (Stdlib.String.contains(a, b) || Stdlib.String.contains(b, a)) then
+    Stdlib.Option.Option.Some(d)
+  else
+    Stdlib.Option.Option.None
+
+
+/// The (distance, name) pairs of <param sorted> no more than one edit further than the first: a
+/// name that differs only in case leaves out the ones three edits away.
+let nearestOnly(sorted: List<(Int64 * String)>): List<(Int64 * String)> =
+  match sorted with
+  | [] -> []
+  | [(best, _), ...] -> sorted |> Stdlib.List.filter(fun((d, _)) -> d <= best + 1)
+
+
+/// Up to three existing names in the module <param originalName> names that are spelled close to
+/// it, nearest first: `Stdlib.List.lenght` gives `Stdlib.List.length`.
+let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
+  match splitLast(originalName) with
+  | None -> []
+  | Some((modules, name)) ->
+    closestNameModules(modules)
+    |> Stdlib.List.map(fun((written, location)) ->
+      let (_, types, values, fns, _, _, _) =
+        Query.allDirectDescendantNames(branchId, location)
+
+      Stdlib.List.flatten([ fns, values, types ])
+      |> Stdlib.List.filterMap(fun candidate ->
+        nameDistance(name, candidate)
+        |> Stdlib.Option.map(fun d ->
+          (d, Stdlib.String.join(Stdlib.List.flatten([ written, [ candidate ] ]), ".")))))
+    |> Stdlib.List.flatten
+    |> Stdlib.List.sort
+    |> nearestOnly
+    |> Stdlib.List.map(fun((_, full)) -> full)
+    |> Stdlib.List.unique
+    |> Stdlib.List.take(3)
+
+
+/// What an unresolved name probably meant: the standard-library name it moved to
+/// (<fn stdlibSuggestion>), or else the names in its module spelled closest to it.
+let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
+  match stdlibSuggestion(branchId, originalName) with
+  | Some(name) -> [ name ]
+  | None -> closestNames(branchId, originalName)
+
+
+/// `Did you mean `A`?`, or `Did you mean `A`, `B` or `C`?`, or "" for no names.
+let didYouMeanText(names: List<String>): String =
+  let quoted = names |> Stdlib.List.map(fun n -> $"`{n}`")
+
+  match Stdlib.List.reverse(quoted) with
+  | [] -> ""
+  | [only] -> $"Did you mean {only}?"
+  | [last, ...restReversed] ->
+    let rest = Stdlib.String.join(Stdlib.List.reverse(restReversed), ", ")
+    $"Did you mean {rest} or {last}?"
+
+
 /// Prints the first parse diagnostic. Returns true when parsing failed.
 let reportParseErrors(
   diagnostics: List<(LanguageTools.Parser.Range * String)>)
@@ -187,9 +272,9 @@ let reportUnresolvedNames(
       let nameStr = Stdlib.String.join(originalName, ".")
 
       let suggestion =
-        match stdlibSuggestion(branchId, originalName) with
-        | Some(name) -> $" Did you mean `{name}`?"
-        | None -> ""
+        match didYouMeanText(didYouMean(branchId, originalName)) with
+        | "" -> ""
+        | text -> " " + text
 
       let message =
         $"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"
