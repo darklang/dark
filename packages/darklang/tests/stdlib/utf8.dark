@@ -42,6 +42,21 @@ test decode =
       |> Stdlib.Result.map(fun b -> Stdlib.Result.isError(Stdlib.Utf8.decode(b)))
       |> Stdlib.Test.equal(Ok(true)) ])
 
+// The Error says where the first bad bytes are, and what they are.
+test decodeErrorMessage =
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.fromList([ 104u8, 226u8, 130u8 ])
+      |> Stdlib.Utf8.decode
+      |> Stdlib.Test.equal(Error("Invalid UTF-8 at byte 1: E2 82"))
+      Stdlib.Bytes.fromList([ 255u8 ])
+      |> Stdlib.Utf8.decode
+      |> Stdlib.Test.equal(Error("Invalid UTF-8 at byte 0: FF"))
+      Stdlib.Bytes.concat(
+        Stdlib.Utf8.encode(Stdlib.String.repeat("abcdefgh", 10000)),
+        Stdlib.Bytes.fromList([ 192u8 ]))
+      |> Stdlib.Utf8.decode
+      |> Stdlib.Test.equal(Error("Invalid UTF-8 at byte 80000: C0")) ])
+
 test decodeWithReplacement =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("w6I")
