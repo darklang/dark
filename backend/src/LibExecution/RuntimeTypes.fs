@@ -4846,6 +4846,10 @@ and PackageFnCallData =
     /// against the table of the execution state whose cache holds this, which every state
     /// sharing that cache also has. A call to a forwarder runs the builtin with no frame.
     thinWrapper : BuiltInFn voption
+
+    /// Whether that builtin is one `invokeBuiltin` needs to check nothing for before running it
+    /// (`Interpreter.isPlainPure`), so a call to the forwarder can go straight to the body.
+    plainPure : bool
   }
 
 and BuiltInFnSig =

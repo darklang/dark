@@ -1336,6 +1336,21 @@ let spreadRefuses (fn : BuiltInFn) : bool =
   isLogged fn || Set.contains fn.name.name awaitsElsewhere
 
 
+/// A builtin for which every check `invokeBuiltin` makes before the body is known to pass: no
+/// effects (nothing to permit), not `Impure` (nothing to stop in a test runner), nothing a spread
+/// child refuses, and so nothing logged (no effect ordinal, nothing a view or a replay answers).
+/// Also no type variables and no callback, so a call needs no type bindings and no callback check.
+/// Most of the standard library, `String.length` and the like. Worked out once per forwarder
+/// (`PackageFnCallData.plainPure`).
+let private isPlainPure (fn : BuiltInFn) : bool =
+  List.isEmpty fn.typeParams
+  && not (FreeTVars.builtinHasAny fn)
+  && not (hasFnParam fn.parameters)
+  && Set.isEmpty fn.callEffects
+  && fn.previewable <> Impure
+  && not (spreadRefuses fn)
+
+
 /// Record a builtin's result in the trace, and hand it back.
 ///
 /// Top-level for the same reason as `finishBuiltin` below it: a local here is captured by that
@@ -1699,6 +1714,9 @@ let private contextReadsOnly (fn : BuiltInFn) (ctx : ApplyContext) : bool =
 ///
 /// Shared by the synchronous path and the fallback below it, so there is one copy of the permission gate,
 /// the stats bracket, the result check and the trace.
+///
+/// `plainPure` says `isPlainPure fn` is already known to hold, so the checks it answers are
+/// skipped rather than asked: they would all pass.
 let private invokeBuiltin
   (exeState : ExecutionState)
   (vm : VMState)
@@ -1706,6 +1724,7 @@ let private invokeBuiltin
   (tst : TypeSymbolTable)
   (typeArgs : List<TypeReference>)
   (allArgs : Dval[])
+  (plainPure : bool)
   : Ply<Dval> =
   // Resolve type variables in typeArgs before passing to builtin.
   // When a package function like Stdlib.Json.parse<Int64> calls
@@ -1723,42 +1742,43 @@ let private invokeBuiltin
         0L
     else
       0L
-  // A spread child computes and nothing else. Anything that would take an effect ordinal stops
-  // it here, before the permission check (so no denial is recorded) and before the call; the
-  // spreader sees the failure and runs this part again in the original process, in order.
-  if exeState.spreadChild && spreadRefuses fn then
-    RTE.UncaughtException(
-      $"`{fn.name.name}` has effects, which a spread list op leaves to the original process",
-      []
-    )
-    |> raiseRTE vm.threadID
-  // A package test inside the runner's process computes and nothing else, like a spread child:
-  // an `Impure` call could read or change the runner's own state. It stops here, before the
-  // call, and the runner runs the test again in a worker (`PackageTests.executeInProcessTest`).
-  if exeState.test.inRunner && fn.previewable = Impure then
-    exeState.test.stoppedAtImpure <- true
-    RTE.UncaughtException(
-      $"`{fn.name.name}` is Impure, so this test runs again in a worker",
-      []
-    )
-    |> raiseRTE vm.threadID
-  if not (Set.isEmpty fn.callEffects) then
-    // `Native` names what no rule can scope, so a policy grants it whole or not at all --
-    // which would put the CLI's own commands (the test runner, seed export, raw descriptors)
-    // behind `permissions allow native` on a stock install. Bundled first-party code is
-    // trusted for it instead, the same boundary the private-network sync transport uses;
-    // a pulled package calling the same builtin still needs the grant. Every other effect
-    // is checked for everyone.
-    let effects =
-      if
-        Set.contains Effects.Effect.Native fn.callEffects
-        && PermissionCheck.callerIsBundled exeState vm
-      then
-        Set.remove Effects.Effect.Native fn.callEffects
-      else
-        fn.callEffects
-    if not (Set.isEmpty effects) then
-      PermissionCheck.requireBuiltinEffects exeState vm effects fn.name.name
+  if not plainPure then
+    // A spread child computes and nothing else. Anything that would take an effect ordinal stops
+    // it here, before the permission check (so no denial is recorded) and before the call; the
+    // spreader sees the failure and runs this part again in the original process, in order.
+    if exeState.spreadChild && spreadRefuses fn then
+      RTE.UncaughtException(
+        $"`{fn.name.name}` has effects, which a spread list op leaves to the original process",
+        []
+      )
+      |> raiseRTE vm.threadID
+    // A package test inside the runner's process computes and nothing else, like a spread child:
+    // an `Impure` call could read or change the runner's own state. It stops here, before the
+    // call, and the runner runs the test again in a worker (`PackageTests.executeInProcessTest`).
+    if exeState.test.inRunner && fn.previewable = Impure then
+      exeState.test.stoppedAtImpure <- true
+      RTE.UncaughtException(
+        $"`{fn.name.name}` is Impure, so this test runs again in a worker",
+        []
+      )
+      |> raiseRTE vm.threadID
+    if not (Set.isEmpty fn.callEffects) then
+      // `Native` names what no rule can scope, so a policy grants it whole or not at all --
+      // which would put the CLI's own commands (the test runner, seed export, raw descriptors)
+      // behind `permissions allow native` on a stock install. Bundled first-party code is
+      // trusted for it instead, the same boundary the private-network sync transport uses;
+      // a pulled package calling the same builtin still needs the grant. Every other effect
+      // is checked for everyone.
+      let effects =
+        if
+          Set.contains Effects.Effect.Native fn.callEffects
+          && PermissionCheck.callerIsBundled exeState vm
+        then
+          Set.remove Effects.Effect.Native fn.callEffects
+        else
+          fn.callEffects
+      if not (Set.isEmpty effects) then
+        PermissionCheck.requireBuiltinEffects exeState vm effects fn.name.name
 
   let bodyAllocBefore =
     if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
@@ -1767,7 +1787,11 @@ let private invokeBuiltin
   // a read that lands late keeps it. -1 for a pure call, or when nothing records.
   let recording = exeState.tracing.traceEffects
 
-  let ord = if recording && isLogged fn then exeState.tracing.nextEffect () else -1L
+  let ord =
+    if not plainPure && recording && isLogged fn then
+      exeState.tracing.nextEffect ()
+    else
+      -1L
 
   // Wall clock for the log, and only for a call that will actually be recorded. At the shipped
   // the effectful calls, about one in a hundred of a real program's builtin calls,
@@ -1788,7 +1812,7 @@ let private invokeBuiltin
   // call stopped it.
   let viewed =
     match exeState.tracing.viewEffect with
-    | Some lookup when isLogged fn ->
+    | Some lookup when not plainPure && isLogged fn ->
       match lookup fn.name.name allArgs with
       | ValueSome step -> ValueSome step
       | ValueNone ->
@@ -1952,7 +1976,7 @@ let private completeBuiltin
             tst
             vm.currentFrameID
     | _ -> ()
-    invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs
+    invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs false
 
 
 /// The result of a `FastOps` operator, or `ValueNone` to take the ordinary path.
@@ -2595,6 +2619,7 @@ let private packageFnCallData
   else
     let id = string fn.hash
     let instructions = List.toArray fn.body.instructions
+    let thinWrapper = thinWrapperOf exeState fn
     let d : PackageFnCallData =
       { instrData =
           { instructions = instructions
@@ -2636,7 +2661,11 @@ let private packageFnCallData
             |> List.indexed
             |> List.choose (fun (i, p) -> callbackParam i p.name p.typ)
             |> Array.ofList
-        thinWrapper = thinWrapperOf exeState fn }
+        thinWrapper = thinWrapper
+        plainPure =
+          match thinWrapper with
+          | ValueSome biFn -> isPlainPure biFn
+          | ValueNone -> false }
     exeState.packageFnCallCache[fn.hash] <- d
     d
 
@@ -4294,6 +4323,31 @@ let private applyBuiltin
     outcome
 
 
+/// A forwarder's call to a plain pure builtin (`isPlainPure`), with exactly its arguments, none of
+/// them a read in flight and nothing applied before: the arguments, read into the frame's buffer,
+/// and the symbol table after checking them against the builtin's parameters. That is all
+/// `callBuiltinResolvedSlow` would do before `invokeBuiltin` for such a builtin: there are no type
+/// variables to shadow or bind and no callback to check.
+///
+/// `ValueNone` when a check needs the type store; the call then takes the ordinary path, which
+/// reads and checks the arguments again from the start.
+let private plainPureCallArgs
+  (types : Types)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (newArgRegs : NEList<Register>)
+  (tst : TypeSymbolTable)
+  (fn : BuiltInFn)
+  : struct (Dval[] * TypeSymbolTable) voption =
+  let args = ArgSeq.toArrayFor currentFrame (ArgSeq.ofNE registers newArgRegs)
+  let struct (_, unchecked, _, checkedTst) =
+    checkBiParamsSync types 0 fn.parameters args 0 tst
+  if List.isEmpty unchecked then
+    ValueSome(struct (args, checkedTst))
+  else
+    ValueNone
+
+
 /// `Apply` of a package fn.
 let private applyPackageFn
   (exeState : ExecutionState)
@@ -4390,26 +4444,38 @@ let private applyPackageFn
       // Entering the wrapper without a frame: its package approval and
       // ceiling still apply (see `packageEntryAccess`).
       let entryAccess = packageEntryAccess exeState callData pkg access
-      let ctx : ApplyContext =
-        { applicable = applicable
-          typeArgs = typeArgs
-          args = ArgSeq.ofNE registers newArgRegs
-          tst = tst
-          access = entryAccess
-          putResultIn = putResultIn
-          returnPc = currentFrame.programCounter + 1 }
 
       // The builtin pushes no frame; its effect check and callbacks read
       // `vm.activeAccess`, so the elided entry must update it explicitly.
       vm.activeAccess <- entryAccess
-      let call =
-        if opTag.IsSome then
-          callBuiltinResolved exeState vm currentFrame ctx biFn []
+
+      // A plain pure builtin with its arguments checked here goes straight to its body. Not
+      // while counting stats, which count the stages of the ordinary path.
+      let plainPureArgs =
+        if callData.plainPure && opTag.IsNone && not vm.stats.enabled then
+          plainPureCallArgs exeState.types currentFrame registers newArgRegs tst biFn
         else
-          // Where `callBuiltinResolved` would end up, without asking again: nothing was applied
-          // before and no argument is a read in flight (both checked above), and there is no
-          // operator to try.
-          callBuiltinResolvedSlow exeState vm currentFrame ctx biFn []
+          ValueNone
+      let call =
+        match plainPureArgs with
+        | ValueSome(struct (args, checkedTst)) ->
+          invokeBuiltin exeState vm biFn checkedTst [] args true
+        | ValueNone ->
+          let ctx : ApplyContext =
+            { applicable = applicable
+              typeArgs = typeArgs
+              args = ArgSeq.ofNE registers newArgRegs
+              tst = tst
+              access = entryAccess
+              putResultIn = putResultIn
+              returnPc = currentFrame.programCounter + 1 }
+          if opTag.IsSome then
+            callBuiltinResolved exeState vm currentFrame ctx biFn []
+          else
+            // Where `callBuiltinResolved` would end up, without asking again: nothing was
+            // applied before and no argument is a read in flight (both checked above), and
+            // there is no operator to try.
+            callBuiltinResolvedSlow exeState vm currentFrame ctx biFn []
 
       if requested vm then
         beginRequest
