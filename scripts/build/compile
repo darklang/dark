@@ -37,8 +37,15 @@ sys.stdout.write = flush(sys.stdout.write)
 sys.stdout.writelines = flush(sys.stdout.writelines)
 
 
-def run(start, bash):
-  proc = subprocess.run(bash, shell=True)
+def run(start, bash, lower_priority=False):
+  extra = {}
+  # Build steps give way to a running test suite (scripts/devcontainer/_lower-priority); the
+  # tests `--test` runs keep their priority.
+  if lower_priority and not (os.environ.get("DARK_LOWER_PRIORITY")
+                             or os.environ.get("DARK_SUITE_SLOT_HELD")):
+    extra = {"preexec_fn": lambda: os.nice(10),
+             "env": dict(os.environ, DARK_LOWER_PRIORITY="1")}
+  proc = subprocess.run(bash, shell=True, **extra)
   stop = time.time()
   success = proc.returncode == 0
   duration = "{:.2f}".format(stop - start)
@@ -59,7 +66,7 @@ def pretty_print(msg, color):
 
 def run_backend(start, bash):
   pretty_print(bash, 42)
-  return run(start, bash)
+  return run(start, bash, lower_priority=True)
 
 
 def run_test(start, bash):

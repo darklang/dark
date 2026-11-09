@@ -6,6 +6,11 @@
 #
 #     scripts/run-tests               against the Debug build (`scripts/dev/build`)
 #     scripts/run-tests --published   against the published build (`scripts/dev/build --optimize`)
+#     scripts/run-tests package-tests fsharp
+#                                     just these suites, still under one test slot, so they take
+#                                     one turn in the queue rather than one each
+#     scripts/run-tests --final       the last run before a merge: ahead of the other waiters for
+#                                     a slot (scripts/testing/_suite-slot)
 #
 # The suites share nothing they write: the F# tests use rundir/test-data.db,
 # rundir/split-sequenced/ and rundir/split-sequenced-2/, package-tests uses rundir/package-tests/,
@@ -18,11 +23,16 @@
 set -uo pipefail
 
 PUBLISHED=false
-case "${1:-}" in
-  "") ;;
-  --published) PUBLISHED=true ;;
-  *) echo "usage: scripts/run-tests [--published]" >&2; exit 2 ;;
-esac
+SUITES=()
+for arg in "$@"; do
+  case "$arg" in
+    --published) PUBLISHED=true ;;
+    --final) export DARK_SUITE_PRIORITY=final ;;
+    fsharp|package-tests|gates) SUITES+=("$arg") ;;
+    *) echo "usage: scripts/run-tests [--published] [--final] [fsharp] [package-tests] [gates]" >&2; exit 2 ;;
+  esac
+done
+[[ ${#SUITES[@]} -gt 0 ]] || SUITES=(fsharp package-tests gates)
 
 if [[ "$PUBLISHED" == "true" ]]; then
   FSHARP=(scripts/run-fsharp-tests --published --split)
@@ -36,7 +46,7 @@ fi
 python3.12 scripts/build/_dev.py check || exit 1
 export GATES_BUILD_CHECKED=1
 
-# One slot for all three suites: they start under it, so none of them waits for another.
+# One slot for all the suites: they start under it, so none of them waits for another.
 # shellcheck source=scripts/testing/_suite-slot
 . scripts/testing/_suite-slot
 suite_slot_take "run-tests" || exit 1
@@ -44,7 +54,6 @@ suite_slot_take "run-tests" || exit 1
 LOGS=rundir/logs/run-tests
 rm -rf "$LOGS"; mkdir -p "$LOGS"
 
-SUITES=(fsharp package-tests gates)
 declare -A PIDS
 started=$SECONDS
 start() {  # start <suite> <command...>: in the background, recording how long it took
@@ -58,9 +67,13 @@ start() {  # start <suite> <command...>: in the background, recording how long i
   ) &
   PIDS[$suite]=$!
 }
-start fsharp "${FSHARP[@]}"
-start package-tests scripts/testing/gates package-tests
-start gates scripts/testing/gates ci --parallel
+for s in "${SUITES[@]}"; do
+  case "$s" in
+    fsharp) start fsharp "${FSHARP[@]}" ;;
+    package-tests) start package-tests scripts/testing/gates package-tests ;;
+    gates) start gates scripts/testing/gates ci --parallel ;;
+  esac
+done
 echo "Running ${SUITES[*]} at once; output in $LOGS/"
 
 plain() { sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' -e 's/\r/\n/g' "$1"; }

@@ -21,6 +21,7 @@ do
       ;;
     --force) FORCE=true ;;
     --split) SPLIT=true ;;
+    --final) export DARK_SUITE_PRIORITY=final ;; # see scripts/testing/_suite-slot
     --list-tests)
       LISTING=true # lists without running, so "no tests ran" is expected
       EXPECTO_ARGS+=("${i}")

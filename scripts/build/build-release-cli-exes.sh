@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_lower-priority "$0" "$@"
 
 # Builds the `darklang` CLI exe(s) for specified or default runtime(s).
 #

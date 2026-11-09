@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_lower-priority "$0" "$@"
 
 # What one keypress costs in the interactive CLI: from sending the key to the last byte of the
 # redraw. Needs a real TTY, so it drives the CLI under `expect`.

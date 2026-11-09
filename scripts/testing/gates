@@ -10,6 +10,7 @@
 #     gates <name>      one gate; extra arguments go to the gate (first-day takes an artifact)
 #     gates ci          the CI subset, each bounded by its own `timeout 5m`
 #     gates all         every gate except gates-are-clean, which re-runs the rest itself
+#     gates --final ... the last run before a merge: ahead of the other waiters for a test slot
 #
 # The gates live beside this file in _gates-ui, _gates-store and _gates-meta, one
 # bash function each. `all` and `ci` give every gate its own PROCESS by re-invoking this
@@ -196,6 +197,10 @@ run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
   echo "all $total gate(s) passed."
 }
 
+if [[ "${1:-}" == --final ]]; then
+  export DARK_SUITE_PRIORITY=final
+  shift
+fi
 cmd=${1:-}
 [[ -n "$cmd" ]] || { echo "usage: gates list|all|ci|<name>  (gates list names them)" >&2; exit 2; }
 shift

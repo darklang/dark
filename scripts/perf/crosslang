@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_lower-priority "$0" "$@"
 
 # The reference workload in node and python, for the allocation-per-iteration comparison.
 #
