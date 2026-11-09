@@ -30,7 +30,10 @@ let fns () : List<BuiltInFn> =
             match outcome with
             | Ok response ->
               match Host.expectEnvValue response with
-              | Some value -> Ply(Dval.optionSome KTString (DString value))
+              | Some value ->
+                Ply(
+                  Dval.optionSome KTString (DString(String.normalizeOutside value))
+                )
               | None -> Ply(Dval.optionNone KTString)
             | Error _ -> Ply(Dval.optionNone KTString))
         | _ -> incorrectArgs ())
@@ -52,7 +55,8 @@ let fns () : List<BuiltInFn> =
             match outcome with
             | Ok response ->
               Host.expectEnvEntries response
-              |> List.map (fun (k, v) -> (k, DString v))
+              |> List.map (fun (k, v) ->
+                (String.normalizeOutside k, DString(String.normalizeOutside v)))
               |> Dval.stringDict KTString
               |> Ply
             | Error _ -> Ply(Dval.stringDict KTString []))

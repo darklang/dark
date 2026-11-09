@@ -1105,7 +1105,8 @@ let executeWith
         match input with
         | LibDB.Traces.EvalExpression _ -> runOne
         | LibDB.Traces.RunScript(_, _, args, _) ->
-          let argument = Dval.list KTString (List.map DString args)
+          let argument =
+            Dval.list KTString (List.map (String.normalizeOutside >> DString) args)
           fun statement entry ->
             uply {
               // This creates the function; the script body runs in runOne below.
@@ -1346,8 +1347,8 @@ let fns () : List<BuiltInFn> =
                       "Ok"
                       (DTuple(
                         result,
-                        DString output.stdout,
-                        [ DString output.stderr
+                        DString(String.normalizeOutside output.stdout),
+                        [ DString(String.normalizeOutside output.stderr)
                           Dval.dint64 (int64 output.exitCode)
                           DList(
                             VT.string,

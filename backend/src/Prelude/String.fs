@@ -194,6 +194,14 @@ let startsWithEgcs (subject : string) (prefix : string) : bool =
 /// NFC. Not `s.Normalize()`, which does nothing in the released CLI: see `Normalization`.
 let normalize (s : string) : string = Normalization.normalize s
 
+/// `normalize`, for text coming into Dark from outside, so every String is NFC. Text holding a
+/// lone surrogate or U+FFFE, which NFC refuses, is kept as it came rather than failing the read.
+let normalizeOutside (s : string) : string =
+  try
+    normalize s
+  with :? System.ArgumentException ->
+    s
+
 /// The NFC of `pieces` joined, each already NFC: what `normalize (String.concat "" pieces)`
 /// gives, without re-checking the whole result.
 let concatNormalized (pieces : string[]) : string = Normalization.concat pieces

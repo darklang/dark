@@ -252,10 +252,13 @@ module ParseError =
 
       | CantMatchWithType(typ, json, errorPath) ->
         "CantMatchWithType",
-        [ RT2DT.TypeReference.toDT typ; DString json; JsonPath.toDT errorPath ]
+        [ RT2DT.TypeReference.toDT typ
+          DString(String.normalizeOutside json)
+          JsonPath.toDT errorPath ]
 
       | EnumExtraField(json, errorPath) ->
-        "EnumExtraField", [ DString json; JsonPath.toDT errorPath ]
+        "EnumExtraField",
+        [ DString(String.normalizeOutside json); JsonPath.toDT errorPath ]
 
       | EnumMissingField(typ, fieldCount, errorPath) ->
         "EnumMissingField",
@@ -601,7 +604,7 @@ let parse
     | TString, JsonValueKind.String ->
       // A lone escaped surrogate is valid JSON, but no string can hold it.
       try
-        DString(j.GetString()) |> Ply
+        DString(String.normalizeOutside (j.GetString())) |> Ply
       with :? System.InvalidOperationException ->
         raiseCantMatchWithType TString j pathSoFar |> Ply
 
@@ -651,7 +654,7 @@ let parse
         uply {
           let! converted =
             convert tDict (JsonPath.Part.Field jp.Name :: pathSoFar) jp.Value
-          return (DString jp.Name, converted)
+          return (DString(String.normalizeOutside jp.Name), converted)
         })
       |> Seq.toList
       |> Ply.List.flatten

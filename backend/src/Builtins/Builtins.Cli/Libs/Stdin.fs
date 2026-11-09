@@ -349,13 +349,13 @@ let keyReadToDval
   // otherwise only include keyChar for printable characters.
   let keyChar =
     match pasteText with
-    | Some text -> DString text
+    | Some text -> DString(String.normalizeOutside text)
     | None ->
       let ch = readKey.KeyChar
       if System.Char.IsControl(ch) || ch = '\u0000' then
         DString "" // Empty string for control/special keys
       else
-        ch |> string |> DString
+        ch |> string |> String.normalizeOutside |> DString
 
   let keyRead =
     let typeName =
@@ -501,7 +501,8 @@ let private eventToDval (vm : VMState) (ev : HE.HostEvent) : Dval =
   | HE.HostEvent.StoreChanged -> case "StoreChanged" []
   | HE.HostEvent.Timer _ -> case "Timer" []
   | HE.HostEvent.ExecDone id -> case "ExecDone" [ DUuid id ]
-  | HE.HostEvent.Stdin(_, Ok(Some text)) -> case "Stdin" [ DString text ]
+  | HE.HostEvent.Stdin(_, Ok(Some text)) ->
+    case "Stdin" [ DString(String.normalizeOutside text) ]
   | HE.HostEvent.Stdin(_, Ok None) -> case "StdinClosed" []
   // Out of step: what comes next cannot be trusted, and a guess would be read as a message.
   | HE.HostEvent.Stdin(_, Error e) ->
@@ -629,7 +630,10 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DUnit |] ->
           let ofResult (result : HE.StdinResult) : Dval =
             match result with
-            | Ok(Some line) -> LibExecution.Dval.optionSome KTString (DString line)
+            | Ok(Some line) ->
+              LibExecution.Dval.optionSome
+                KTString
+                (DString(String.normalizeOutside line))
             | Ok None -> LibExecution.Dval.optionNone KTString
             | Error e ->
               RuntimeError.UncaughtException($"stdinReadLine: {e}", [])
@@ -658,7 +662,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let input = System.Console.In.ReadToEnd()
-          Ply(DString input)
+          Ply(DString(String.normalizeOutside input))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
