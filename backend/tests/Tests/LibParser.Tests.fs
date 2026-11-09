@@ -758,18 +758,9 @@ let private literalTests =
           Expect.equal (tokenOf source) (Some expected) source)
       testCase "the old suffixes and anything unknown are one bad literal" (fun _ ->
         for source in
-          [ "1L"
-            "1y"
-            "1uy"
-            "1us"
-            "1ul"
-            "1UL"
-            "1Q"
+          [ "1Q"
             "1Z"
-            "1l"
-            "1m"
-            "1.5f"
-            "1.5m"
+            "1e5m"
             "123abc"
             "1s7"
             "1u256"
@@ -783,6 +774,23 @@ let private literalTests =
             (parsed.diagnostics |> List.map _.message)
             [ $"invalid number literal: {source}" ]
             $"{source}: one diagnostic, naming the whole literal")
+      testCase "a suffix from another language names the Dark spelling" (fun _ ->
+        for (source, message) in
+          [ "200L", "invalid number literal: 200L; an Int64 is written `200`"
+            "1l", "invalid number literal: 1l; an Int64 is written `1`"
+            "1UL", "invalid number literal: 1UL; a UInt64 is written `1u`"
+            "1ul", "invalid number literal: 1ul; a UInt64 is written `1u`"
+            "1y", "invalid number literal: 1y; an Int8 is written `1s8`"
+            "1uy", "invalid number literal: 1uy; a UInt8 is written `1u8`"
+            "1us", "invalid number literal: 1us; a UInt16 is written `1u16`"
+            "1I", "invalid number literal: 1I; a BigInt is written `1z`"
+            "1m", "invalid number literal: 1m; a Decimal is written `1dec`"
+            "1.5m", "invalid number literal: 1.5m; a Decimal is written `1.5dec`"
+            "1.5f", "invalid number literal: 1.5f; a Float32 is written `1.5f32`" ] do
+          Expect.equal
+            ((P.parse source).diagnostics |> List.map _.message)
+            [ message ]
+            source)
       testCase "a suffix-shaped word is an identifier" (fun _ ->
         for source in
           [ "let s32 = 1s32\ns32"; "let z = 1z\nz"; "let dec = 1dec\ndec" ] do

@@ -853,9 +853,33 @@ let tokenize
           match System.Double.TryParse(body, floatStyle, invariant) with
           | true, value -> (TFloat value, None)
           | _ -> (TFloat 0.0, Some $"malformed float literal: {body}{suffix}")
+        // A suffix another language uses (F#'s `L`, `uy`, `m`, ...) names the Dark spelling.
         let invalid placeholder =
-          (placeholder,
-           Some $"invalid number literal: {input.Substring(index, endIndex - index)}")
+          let written = input.Substring(index, endIndex - index)
+          let fraction = hasFraction || hasExponent
+          let spelling =
+            match suffix with
+            | "L"
+            | "l" when not fraction -> Some("an Int64", body)
+            | "UL"
+            | "ul"
+            | "uL"
+            | "Ul" when not fraction -> Some("a UInt64", body + "u")
+            | "y" when not fraction -> Some("an Int8", body + "s8")
+            | "uy" when not fraction -> Some("a UInt8", body + "u8")
+            | "us" when not fraction -> Some("a UInt16", body + "u16")
+            | "I" when not fraction -> Some("a BigInt", body + "z")
+            | "m"
+            | "M" when not hasExponent -> Some("a Decimal", body + "dec")
+            | "f"
+            | "F" when fraction -> Some("a Float32", body + "f32")
+            | _ -> None
+          match spelling with
+          | Some(typeName, dark) ->
+            (placeholder,
+             Some
+               $"invalid number literal: {written}; {typeName} is written `{dark}`")
+          | None -> (placeholder, Some $"invalid number literal: {written}")
         let (token, diagnostic) =
           match suffix with
           | "dec" when hasExponent ->
