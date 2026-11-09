@@ -285,7 +285,9 @@ let executeShow(state: AppState, idPrefix: String): AppState =
       if cand.removed then
         // Nothing to render: this side ended the name. Say so where the hash would go, or the row
         // reads as a version with a blank hash.
-        $"  {label} ({mark})  {who}  REMOVED the name  stamped {cand.originTs}"
+        // A rename that sync recorded says where the name went: "renamed to X".
+        let how = if cand.text == "" then "REMOVED the name" else cand.text
+        $"  {label} ({mark})  {who}  {how}  stamped {cand.originTs}"
       else if aboutABinding then
         let header =
           $"  {label} ({mark})  {who}  hash {SCM.Conflicts.shortHash(cand.hash)}  stamped {cand.originTs}"

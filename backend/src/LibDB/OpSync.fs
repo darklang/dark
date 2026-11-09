@@ -12,11 +12,12 @@
 /// in its draft that the sender has since committed travels again, and the import moves the
 /// receiver's copy out of its draft into that commit.
 ///
-/// Receiving is APPENDING. The ops land past the fold's mark, and the ordinary fold applies them, the
-/// same one that applies ops another process wrote (`Seed.applyUnappliedOps`, or `Seed.growIfNeeded`
-/// at the next start, which also evaluates their values). There is no second write path for ops
-/// that came from somewhere else, and last-writer-wins by each op's own stamp decides a name the two
-/// stores bound differently, exactly as it does on one machine.
+/// Receiving is APPENDING, then folding. The ops land past the fold's mark, and the ordinary fold
+/// (`PackageOpPlayback`) applies them in the import's own transaction, so a catch-up is one commit.
+/// There is no second write path for ops that came from somewhere else, and last-writer-wins by each
+/// op's own stamp decides a name the two stores bound differently, exactly as it does on one
+/// machine. A value arrives with what the sender evaluated it to, and a receiver of the same build
+/// takes that; anything left unevaluated is evaluated at the next `Seed.growIfNeeded`.
 ///
 /// Removals travel as entries of the sync journal (`sync_journal`, filled by triggers): a discarded
 /// draft, a merge moving a branch's ops to its parent, an archive, a branch renamed. An anti-join
@@ -30,12 +31,18 @@
 /// journal entries past it name. The import ignores whatever it already holds, so a cursor that is
 /// behind costs bytes, never correctness, and a bundle that holds nothing new is not written at all.
 ///
-/// Conflict records do not travel: the import finds them. An incoming `SetName` that did not build
-/// on what this store binds there, while this store moved the name too, is the same divergence the
-/// other store sees from its side, and both record it under the same content-derived id
-/// (`ScmDetect.conflictId`). The decision that settles it is an op and travels with the rest. The
-/// name bases a merge or an archive removes stay local, and a replayed merge moves rows; it does not
-/// run the merge's conflict detection again.
+/// Conflict records do not travel: the import finds them. An incoming `SetName`, `Unbind` or `Rename`
+/// that did not build on what this store holds there, while this store moved the name too, is the
+/// same divergence the other store sees from its side, and both record it under the same
+/// content-derived id (`ScmDetect.conflictId`). The decision that settles it is an op and travels
+/// with the rest; one that arrives before the conflict it settles leaves the record settled, and the
+/// import keeps it so. The name bases a merge or an archive removes stay local, and a replayed merge
+/// moves rows; it does not run the merge's conflict detection again.
+///
+/// Each store remembers how far into each other store it holds everything (`sync_peers`), so a
+/// session after the first starts from there (`receivedFrom`, `exportSince`) instead of comparing
+/// whole stores, and journal entries every other store holds, once replaced, are dropped
+/// (`recordAcked`).
 module LibDB.OpSync
 
 open System.Threading.Tasks
@@ -49,7 +56,7 @@ module PT = LibExecution.ProgramTypes
 
 
 /// The shape of the have and bundle files. Each side refuses a file of another version.
-let formatVersion = "3"
+let formatVersion = "4"
 
 /// How far into a store another store has been sent: its journal's `seq` and its blobs' `rowid`.
 /// Both only grow; blobs are never removed except by a purge, which empties the journal too.
@@ -62,8 +69,12 @@ type Cursor = { journal : int64; blobs : int64 }
 /// `upTo` is where the store stood when the step finished: for an export, how far the bundle
 /// reaches, so the next `exportSince` starts there; for an import, the receiver's own journal after
 /// the bundle's entries joined it. `journalBefore` is the receiver's journal before they did.
+/// `sentUpTo` is the import's alone: how far into the SENDER the bundle reaches, as it says.
+/// `folded` is how many ops the import folded, and `values` how many values took the sender's result.
 type Counts =
   { ops : int64
+    folded : int64
+    values : int64
     committed : int64
     dropped : int64
     commits : int64
@@ -73,10 +84,13 @@ type Counts =
     journal : int64
     conflicts : List<ScmDetect.Conflict>
     journalBefore : int64
-    upTo : Cursor }
+    upTo : Cursor
+    sentUpTo : Cursor }
 
 let private noCounts : Counts =
   { ops = 0L
+    folded = 0L
+    values = 0L
     committed = 0L
     dropped = 0L
     commits = 0L
@@ -86,7 +100,8 @@ let private noCounts : Counts =
     journal = 0L
     conflicts = []
     journalBefore = 0L
-    upTo = { Cursor.journal = 0L; blobs = 0L } }
+    upTo = { Cursor.journal = 0L; blobs = 0L }
+    sentUpTo = { Cursor.journal = 0L; blobs = 0L } }
 
 
 /// A connection to the store at <param path>, which must exist: a mistyped path is an error, not a
@@ -199,6 +214,21 @@ let private label (conn : SqliteConnection) : Task<string> =
     return if named.Trim() = "" then System.Environment.MachineName else named
   }
 
+/// Who the store on <param conn> is to the stores it syncs with: its `instance.id`, else its name.
+let private identity (conn : SqliteConnection) : Task<string> =
+  task {
+    let! hasConfig =
+      scalar
+        conn
+        "SELECT COUNT(*) FROM main.sqlite_master WHERE type = 'table' AND name = 'config_v0'"
+    let! id =
+      if hasConfig = "1" then
+        scalar conn "SELECT value FROM main.config_v0 WHERE key = 'instance.id'"
+      else
+        Task.FromResult ""
+    if id.Trim() = "" then return! label conn else return id
+  }
+
 let private writeMeta (conn : SqliteConnection) (alias : string) : Task<unit> =
   task {
     let! _ =
@@ -207,11 +237,16 @@ let private writeMeta (conn : SqliteConnection) (alias : string) : Task<unit> =
         $"CREATE TABLE {alias}.sync_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         []
     let! from = label conn
+    let! id = identity conn
     let! _ =
       run
         conn
-        $"INSERT INTO {alias}.sync_meta VALUES ('format', $v), ('from', $from)"
-        [ "$v", box formatVersion; "$from", box from ]
+        $"INSERT INTO {alias}.sync_meta
+          VALUES ('format', $v), ('from', $from), ('id', $id), ('build', $build)"
+        [ "$v", box formatVersion
+          "$from", box from
+          "$id", box id
+          "$build", box LibConfig.Config.buildHash ]
     return ()
   }
 
@@ -294,7 +329,7 @@ let writeHave (storePath : string) (havePath : string) : Task<Result<unit, strin
 /// names past a cursor.
 type private Wanted =
   | Against of havePath : string
-  | Since of Cursor
+  | Since of Cursor * peer : string
 
 /// A bundle of the rows <param wanted> picks from the store at <param storePath>, written to
 /// <param bundlePath>, in one read transaction so it is one moment of the store. Reads the store only.
@@ -321,11 +356,25 @@ let private exportWith
     | None ->
       fresh bundlePath
       let! _ = attach conn bundlePath "bundle"
+      // A bundle since a cursor is usually a few rows, and with SQLite's usual 4 KB pages its empty
+      // tables alone came to 36 KB on every save; with 1 KB pages, 9 KB.
+      match wanted with
+      | Since _ ->
+        let! _ = run conn "PRAGMA bundle.page_size = 1024" []
+        ()
+      | Against _ -> ()
       let since =
         match wanted with
-        | Since cursor -> cursor
+        | Since(cursor, _) -> cursor
         | Against _ -> { Cursor.journal = 0L; blobs = 0L }
-      let ps = [ "$journal", box since.journal; "$blobs", box since.blobs ]
+      let peer =
+        match wanted with
+        | Since(_, peer) -> peer
+        | Against _ -> ""
+      let ps =
+        [ "$journal", box since.journal
+          "$blobs", box since.blobs
+          "$peer", box peer ]
       // What each table sends: the rows the receiver lacks, or the rows the journal names past the
       // cursor. Ops and commits a later entry changed in place (a commit adopting a draft op, a merge
       // moving a commit) are named by that entry, so they go again.
@@ -339,14 +388,15 @@ let private exportWith
           "NOT EXISTS (SELECT 1 FROM have.have_commits h WHERE h.hash = c.hash)",
           "NOT EXISTS (SELECT 1 FROM have.have_blobs h WHERE h.hash = b.hash)",
           "NOT EXISTS (SELECT 1 FROM have.have_journal h WHERE h.id = j.id)"
+        // Nothing goes back to the store it came from.
         | Since _ ->
           "FROM (SELECT DISTINCT branch, op FROM main.sync_journal
-                 WHERE seq > $journal AND kind = 'op') n
+                 WHERE seq > $journal AND kind = 'op' AND came_from <> $peer) n
            JOIN main.package_ops p ON p.id = n.op AND p.branch_id = n.branch",
           "c.hash IN (SELECT commit_hash FROM main.sync_journal
-                      WHERE seq > $journal AND commit_hash IS NOT NULL)",
+                      WHERE seq > $journal AND commit_hash IS NOT NULL AND came_from <> $peer)",
           "b.rowid > $blobs",
-          "j.seq > $journal"
+          "j.seq > $journal AND j.came_from <> $peer"
       use tx = conn.BeginTransaction(deferred = true)
       do! writeMeta conn "bundle"
       let! _ =
@@ -358,6 +408,46 @@ let private exportWith
             {opsFrom}
             ORDER BY p.rowid"
           ps
+      // What the values among them evaluated to here, so a receiver of the same build takes the
+      // result rather than evaluating each again. Values evaluate with no effects allowed, so the
+      // result is a function of the value and the build.
+      let! valueOps =
+        task {
+          use cmd = conn.CreateCommand()
+          cmd.CommandText <-
+            "SELECT id, op_blob FROM bundle.sync_ops WHERE op_kind = 'add-value'"
+          use! reader = cmd.ExecuteReaderAsync()
+          return
+            Sqlite.readRows
+              (fun r ->
+                (System.Guid.Parse(r.GetString 0), r.GetFieldValue<byte[]>(1)))
+              reader
+        }
+      let valueHashes =
+        valueOps
+        |> List.choose (fun (id, blob) ->
+          match
+            LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize
+              id
+              blob
+          with
+          | Some(PT.PackageOp.AddValue value) ->
+            let (PT.Hash h) =
+              match value.hash with
+              | PT.Hash "" ->
+                LibSerialization.Hashing.Hashing.computeValueHash
+                  LibSerialization.Hashing.Hashing.Normal
+                  value
+              | h -> h
+            Some h
+          | _ -> None)
+      let! _ =
+        run
+          conn
+          "CREATE TABLE bundle.sync_values AS
+           SELECT hash, rt_dval, value_type FROM main.package_values
+           WHERE rt_dval IS NOT NULL AND hash IN (SELECT value FROM json_each($hashes))"
+          [ "$hashes", box (Sqlite.jsonStrings valueHashes) ]
       let! _ =
         run
           conn
@@ -401,6 +491,12 @@ let private exportWith
         scalar conn "SELECT COALESCE(MAX(seq), 0) FROM main.sync_journal"
       let! upToBlobs =
         scalar conn "SELECT COALESCE(MAX(rowid), 0) FROM main.package_blobs"
+      // How far into this store the bundle reaches, for the receiver to say where it stands with us.
+      let! _ =
+        run
+          conn
+          "INSERT INTO bundle.sync_meta VALUES ('journal', $journal), ('blobs', $blobs)"
+          [ "$journal", box upToJournal; "$blobs", box upToBlobs ]
       // `CREATE TABLE AS` reports no row count, so the counts are read back.
       let! ops = count conn "bundle.sync_ops"
       let! commits = count conn "bundle.sync_commits"
@@ -439,15 +535,17 @@ let export
   : Task<Result<Counts, string>> =
   exportWith storePath (Against havePath) bundlePath
 
-/// Write to <param bundlePath> what changed in the store at <param storePath> after <param cursor>:
-/// the journal entries past it, the ops and commits they name, and the blobs added since. A store
-/// that already has some of it ignores that part, so this needs no have file and no round trip.
+/// Write to <param bundlePath> what changed in the store at <param storePath> after <param cursor>,
+/// for the store <param peer> (an `instance.id`): the journal entries past it, the ops and commits
+/// they name, and the blobs added since, except what arrived from that store. A store that already
+/// has some of it ignores that part, so this needs no have file and no round trip.
 let exportSince
   (storePath : string)
   (cursor : Cursor)
+  (peer : string)
   (bundlePath : string)
   : Task<Result<Counts, string>> =
-  exportWith storePath (Since cursor) bundlePath
+  exportWith storePath (Since(cursor, peer)) bundlePath
 
 /// What the store at <param storePath> calls itself to the other side: its `instance.name`, else the
 /// machine's name.
@@ -455,6 +553,17 @@ let nameOf (storePath : string) : string =
   task {
     use! conn = openStore storePath
     return! label conn
+  }
+  |> fun t -> t.Result
+
+/// Who the store at <param storePath> is to the stores it syncs with: its `instance.id` (its name,
+/// when it has none), and its name.
+let identityOf (storePath : string) : string * string =
+  task {
+    use! conn = openStore storePath
+    let! id = identity conn
+    let! name = label conn
+    return id, name
   }
   |> fun t -> t.Result
 
@@ -468,25 +577,44 @@ let cursorOf (storePath : string) : Task<Cursor> =
   }
 
 
-/// One incoming binding, as an incoming `SetName` says it.
+/// One incoming change to a name, as an incoming `SetName`, `Unbind` or `Rename` says it. `hash` is
+/// "" where the name ends, and `renamedTo` names where a rename took it.
 type private Bound =
-  { branch : string
+  {
+    branch : string
     owner : string
     modules : string
     name : string
+    /// "" when the op does not say: an `Unbind` names no kind.
     kind : string
     hash : string
     previous : Option<string>
-    originTs : string }
+    originTs : string
+    renamedTo : string
+  }
 
-/// The conflicts in what arrived: for each name the bundle's new `SetName` ops bind, the incoming
-/// line of versions, and what this store binds there on the same branch. They diverged when this
-/// store's binding is neither where the incoming line ends nor anywhere on it: the other store
-/// never saw it, and this store moved the name while the other did. The other store, receiving
-/// this one's ops, finds the same pair, so both record the same id.
+/// What this store holds at a name on a branch, nearest layer first. `hash` is "" where the name was
+/// removed here, and `renamedTo` names where, when a rename removed it.
+type private Held =
+  { hash : string
+    originTs : string
+    previous : Option<string>
+    kind : string
+    renamedTo : string }
+
+/// The conflicts in what arrived: for each name the bundle's new `SetName`, `Unbind` and `Rename`
+/// ops change, the incoming line of versions, and what this store holds there on the same branch.
+/// They diverged when this store's version is neither where the incoming line ends nor anywhere on
+/// it: the other store never saw it, and this store moved the name while the other did. The other
+/// store, receiving this one's ops, finds the same pair, so both record the same id.
+///
+/// Three shapes: both changed it (`same-name-different-hash`, or `independent-creation` when both
+/// made it from nothing); this side changed it and that side removed or renamed it; or the other way
+/// round. The last two are `removed-vs-edited`, under the id a merge gives the same pair.
 ///
 /// Recorded pending on the branch, with the winner the fold will pick (`Lww`), and returned only
-/// when new here.
+/// when new here. A record already settled, because the decision that settles it arrived first,
+/// stays settled and only gains the details.
 let private recordDivergences
   (conn : SqliteConnection)
   (localLabel : string)
@@ -498,7 +626,7 @@ let private recordDivergences
         use cmd = conn.CreateCommand()
         cmd.CommandText <-
           "SELECT b.branch_id, b.id, b.op_blob, b.origin_ts FROM bundle.sync_ops b
-           WHERE b.op_kind = 'set-name'
+           WHERE b.op_kind IN ('set-name', 'unbind', 'rename')
              AND NOT EXISTS (
                SELECT 1 FROM main.package_ops p WHERE p.id = b.id AND p.branch_id = b.branch_id)
              AND NOT EXISTS (
@@ -515,27 +643,53 @@ let private recordDivergences
                r.GetString 3))
             reader
       }
+    let bound
+      (branch : string)
+      (ts : string)
+      (loc : PT.PackageLocation)
+      (kind : string)
+      (hash : string)
+      (previous : Option<PT.Hash>)
+      (renamedTo : string)
+      : Bound =
+      { branch = branch
+        owner = loc.owner
+        modules = String.concat "." loc.modules
+        name = loc.name
+        kind = kind
+        hash = hash
+        previous = previous |> Option.map (fun (PT.Hash h) -> h)
+        originTs = ts
+        renamedTo = renamedTo }
+    let fqnOf (loc : PT.PackageLocation) =
+      ScmDetect.fqn loc.owner (String.concat "." loc.modules) loc.name
     let incoming =
       raw
-      |> List.choose (fun (branch, id, blob, ts) ->
+      |> List.collect (fun (branch, id, blob, ts) ->
         match
           LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize id blob
         with
         | Some(PT.PackageOp.SetName(loc, target, previous)) ->
           let (PT.Hash hash) = target.hash
-          Some
-            { branch = branch
-              owner = loc.owner
-              modules = String.concat "." loc.modules
-              name = loc.name
-              kind = target.kind.toString ()
-              hash = hash
-              previous = previous |> Option.map (fun (PT.Hash h) -> h)
-              originTs = ts }
-        | _ -> None)
+          [ bound branch ts loc (target.kind.toString ()) hash previous "" ]
+        | Some(PT.PackageOp.Unbind(loc, previous)) ->
+          [ bound branch ts loc "" "" previous "" ]
+        | Some(PT.PackageOp.Rename(oldLocation, newLocation, target, _, _)) ->
+          let (PT.Hash hash) = target.hash
+          let kind = target.kind.toString ()
+          [ bound
+              branch
+              ts
+              oldLocation
+              kind
+              ""
+              (Some target.hash)
+              $"renamed to {fqnOf newLocation}"
+            bound branch ts newLocation kind hash None "" ]
+        | _ -> [])
     let lines =
       incoming
-      |> List.groupBy (fun b -> (b.branch, b.owner, b.modules, b.name, b.kind))
+      |> List.groupBy (fun b -> (b.branch, b.owner, b.modules, b.name))
       |> Map.values
       |> List.ofSeq
       |> List.map (fun line ->
@@ -544,91 +698,187 @@ let private recordDivergences
           match compare a.originTs b.originTs with
           | 0 -> System.String.CompareOrdinal(a.hash, b.hash)
           | c -> c))
-    // This store's live binding of a name on a branch, nearest layer first: (hash, stamp, previous).
-    let localBinding (b : Bound) : Task<Option<string * string * Option<string>>> =
+    let localHeld (b : Bound) (kind : string) : Task<Option<Held>> =
       task {
         use cmd = conn.CreateCommand()
         cmd.CommandText <-
-          "SELECT item_hash, COALESCE(origin_ts, ''), previous FROM main.locations
-           WHERE owner = $owner AND modules = $modules AND name = $name AND item_type = $kind
-             AND branch_id = $branch AND live = 1
-           ORDER BY draft DESC LIMIT 1"
+          "SELECT l.item_hash, COALESCE(l.origin_ts, ''), l.previous, l.item_type,
+                  COALESCE(p.op_kind, ''), p.op_blob, l.op_id
+           FROM main.locations l
+           LEFT JOIN main.package_ops p ON p.id = l.op_id AND p.branch_id = l.branch_id
+           WHERE l.owner = $owner AND l.modules = $modules AND l.name = $name
+             AND ($kind = '' OR l.item_type = $kind)
+             AND l.branch_id = $branch AND l.live = 1
+           ORDER BY l.draft DESC LIMIT 1"
         for (k, v) in
           [ "$owner", b.owner
             "$modules", b.modules
             "$name", b.name
-            "$kind", b.kind
+            "$kind", kind
             "$branch", b.branch ] do
           cmd.Parameters.AddWithValue(k, v) |> ignore<SqliteParameter>
         use! reader = cmd.ExecuteReaderAsync()
         return
           Sqlite.readRows
             (fun r ->
-              (r.GetString 0,
-               r.GetString 1,
-               (if r.IsDBNull 2 then None else Some(r.GetString 2))))
+              let renamedTo =
+                if r.GetString 4 = "rename" && not (r.IsDBNull 5) then
+                  match
+                    LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize
+                      (System.Guid.Parse(r.GetString 6))
+                      (r.GetFieldValue<byte[]>(5))
+                  with
+                  | Some(PT.PackageOp.Rename(_, newLocation, _, _, _)) ->
+                    $"renamed to {fqnOf newLocation}"
+                  | _ -> ""
+                else
+                  ""
+              { hash = r.GetString 0
+                originTs = r.GetString 1
+                previous = (if r.IsDBNull 2 then None else Some(r.GetString 2))
+                kind = r.GetString 3
+                renamedTo = renamedTo })
             reader
           |> List.tryHead
       }
+    let candidate side hash removed text originTs author : ScmDetect.Candidate =
+      { side = side
+        hash = hash
+        removed = removed
+        text = text
+        originTs = originTs
+        author = author }
+    // One side ended the name (removed or renamed it) and the other moved it to <param editHash>.
+    let removedVsEdited
+      (last : Bound)
+      (kind : string)
+      (local : ScmDetect.Candidate)
+      (incoming : ScmDetect.Candidate)
+      : ScmDetect.Conflict =
+      let ended, edited = if local.removed then local, incoming else incoming, local
+      let removalWins =
+        LibExecution.Lww.unbindBeatsBinding ended.originTs edited.originTs
+      { id =
+          ScmDetect.conflictId last.owner last.modules last.name [ edited.hash; "" ]
+        owner = last.owner
+        modules = last.modules
+        name = last.name
+        itemType = kind
+        part = ""
+        kind = "removed-vs-edited"
+        candidates = [ local; incoming ]
+        autoResolvedTo = if removalWins then "" else edited.hash
+        reason =
+          if not removalWins then "the edit is newer"
+          elif ended.text <> "" then "the rename is newer"
+          else "removal is newer"
+        status = "pending"
+        resolvedBy = "" }
     let divergence
       (line : List<Bound>)
-      (local : Option<string * string * Option<string>>)
+      (held : Option<Held>)
       : Option<ScmDetect.Conflict> =
       let first = line.Head
       let last = (List.rev line).Head
       let onLine (h : string) =
         line |> List.exists (fun b -> b.hash = h || b.previous = Some h)
-      match local with
-      | Some(localHash, localTs, localPrevious) when
-        localHash <> "" && localHash <> last.hash && not (onLine localHash)
-        ->
+      let kind =
+        line
+        |> List.tryPick (fun b -> if b.kind = "" then None else Some b.kind)
+        |> Option.orElse (held |> Option.map (fun h -> h.kind))
+        |> Option.defaultValue ""
+      match held with
+      | None -> None
+      | Some local when local.hash = last.hash -> None
+      // The incoming line built on what this store holds.
+      | Some local when local.hash <> "" && onLine local.hash -> None
+      // Removed on both.
+      | Some local when local.hash = "" && last.hash = "" -> None
+      | Some local when local.hash = "" ->
+        // Removed here, changed there: a conflict when the change could not have seen the removal.
+        // It built on what this store removed, or it is older than the removal: the other store
+        // stamps after everything it holds, so an edit made there after the removal arrived is
+        // newer. A newer edit that names no predecessor could be either, and stands on both
+        // stores; the other store, which still held the name, records that one.
+        match local.previous with
+        | Some removed when
+          last.hash <> removed
+          && (line |> List.exists (fun b -> b.previous = Some removed)
+              || last.originTs < local.originTs)
+          ->
+          Some(
+            removedVsEdited
+              last
+              kind
+              (candidate "local" "" true local.renamedTo local.originTs localLabel)
+              (candidate "incoming" last.hash false "" last.originTs incomingLabel)
+          )
+        | _ -> None
+      | Some local when last.hash = "" ->
+        // Changed here, removed there.
+        Some(
+          removedVsEdited
+            last
+            kind
+            (candidate "local" local.hash false "" local.originTs localLabel)
+            (candidate "incoming" "" true last.renamedTo last.originTs incomingLabel)
+        )
+      | Some local ->
         let incomingWins =
-          LibExecution.Lww.incomingWins last.originTs last.hash localTs localHash
+          LibExecution.Lww.incomingWins
+            last.originTs
+            last.hash
+            local.originTs
+            local.hash
         Some
           { ScmDetect.Conflict.id =
               ScmDetect.conflictId
                 last.owner
                 last.modules
                 last.name
-                [ localHash; last.hash ]
+                [ local.hash; last.hash ]
             owner = last.owner
             modules = last.modules
             name = last.name
-            itemType = last.kind
+            itemType = kind
             part = ""
             kind =
-              if first.previous = None && localPrevious = None then
+              if first.previous = None && local.previous = None then
                 "independent-creation"
               else
                 "same-name-different-hash"
             candidates =
-              [ { ScmDetect.Candidate.side = "local"
-                  hash = localHash
-                  removed = false
-                  text = ""
-                  originTs = localTs
-                  author = localLabel }
-                { ScmDetect.Candidate.side = "incoming"
-                  hash = last.hash
-                  removed = false
-                  text = ""
-                  originTs = last.originTs
-                  author = incomingLabel } ]
-            autoResolvedTo = if incomingWins then last.hash else localHash
+              [ candidate "local" local.hash false "" local.originTs localLabel
+                candidate "incoming" last.hash false "" last.originTs incomingLabel ]
+            autoResolvedTo = if incomingWins then last.hash else local.hash
             reason =
-              if localTs = "" then "no-local-stamp"
-              elif localTs = last.originTs then "tie-break-by-hash"
+              if local.originTs = "" then "no-local-stamp"
+              elif local.originTs = last.originTs then "tie-break-by-hash"
               else "later-origin-ts"
             status = "pending"
             resolvedBy = "" }
-      | _ -> None
     let recorded = ResizeArray<ScmDetect.Conflict>()
     for line in lines do
       let last = (List.rev line).Head
-      let! local = localBinding last
-      match divergence line local with
+      let lineKind =
+        line
+        |> List.tryPick (fun b -> if b.kind = "" then None else Some b.kind)
+        |> Option.defaultValue ""
+      let! held = localHeld last lineKind
+      match divergence line held with
       | None -> ()
       | Some c ->
+        let ps =
+          [ "$id", box c.id
+            "$owner", box c.owner
+            "$modules", box c.modules
+            "$name", box c.name
+            "$itemType", box c.itemType
+            "$kind", box c.kind
+            "$candidates", box (ScmDetect.candidatesJson c.candidates)
+            "$resolvedTo", box c.autoResolvedTo
+            "$reason", box c.reason
+            "$branch", box last.branch ]
         let! n =
           run
             conn
@@ -637,25 +887,88 @@ let private recordDivergences
                 reason, status, origin_ts, branch_id)
              VALUES ($id, $owner, $modules, $name, $itemType, '', $kind, $candidates, $resolvedTo,
                      $reason, 'pending', strftime('%Y-%m-%dT%H:%M:%fZ','now'), $branch)"
-            [ "$id", box c.id
-              "$owner", box c.owner
-              "$modules", box c.modules
-              "$name", box c.name
-              "$itemType", box c.itemType
-              "$kind", box c.kind
-              "$candidates", box (ScmDetect.candidatesJson c.candidates)
-              "$resolvedTo", box c.autoResolvedTo
-              "$reason", box c.reason
-              "$branch", box last.branch ]
-        if n > 0L then recorded.Add c
+            ps
+        if n > 0L then
+          recorded.Add c
+        else
+          // Settled before this store saw what it settles (`PackageOpPlayback`'s decision fold
+          // leaves such a record): it stays settled, and now says what the two versions were.
+          let! _ =
+            run
+              conn
+              "UPDATE main.conflicts
+               SET kind = $kind, item_type = $itemType, candidates = $candidates
+               WHERE id = $id AND candidates = '[]' AND status <> 'pending'"
+              ps
+          ()
     return List.ofSeq recorded
   }
 
 
-/// Append the bundle at <param bundlePath> to the store at <param storePath>, in one transaction,
-/// and say what changed. Rows the store already holds are left as they are; ops arrive unfolded,
-/// for the ordinary fold. A branch is registered by its id with the name and parent it was created
-/// with. The authoring clock moves past the newest stamp received, so what is written here next
+/// Fold every op on <param conn> that is not yet applied, on the caller's transaction, the way
+/// `Seed.foldRead` does: each run of consecutive ops on one branch into that branch, in log order,
+/// and the mark moved past them. An op this build cannot read stays unapplied, for a build
+/// that can. Answers how many folded.
+let private foldPending (conn : SqliteConnection) : Task<int64> =
+  task {
+    let! pending =
+      task {
+        use cmd = conn.CreateCommand()
+        cmd.CommandText <-
+          AppliedOps.pending "p.rowid AS seq, p.branch_id, p.id, p.op_blob"
+          + " ORDER BY seq"
+        use! reader = cmd.ExecuteReaderAsync()
+        return
+          Sqlite.readRows
+            (fun r ->
+              (r.GetInt64 0,
+               r.GetString 1,
+               System.Guid.Parse(r.GetString 2),
+               r.GetFieldValue<byte[]>(3)))
+            reader
+      }
+    let readable =
+      pending
+      |> List.choose (fun (rowid, branch, id, blob) ->
+        LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize id blob
+        |> Option.map (fun op -> (rowid, PT.BranchId.ParseUnsafe branch, op)))
+    let runs =
+      readable
+      |> List.fold
+        (fun (acc : List<PT.BranchId * List<PT.PackageOp>>) (_, branch, op) ->
+          match acc with
+          | (b, ops) :: rest when b = branch -> (b, op :: ops) :: rest
+          | _ -> (branch, [ op ]) :: acc)
+        []
+      |> List.rev
+      |> List.map (fun (b, ops) -> (b, List.rev ops))
+    for (branch, ops) in runs do
+      do! PackageOpPlayback.applyOpsOnConnection conn branch ops
+    if not (List.isEmpty pending) then
+      let readRows = readable |> List.map (fun (rowid, _, _) -> rowid) |> Set.ofList
+      let skipped =
+        pending
+        |> List.map (fun (rowid, _, _, _) -> rowid)
+        |> List.filter (fun rowid -> not (Set.contains rowid readRows))
+      let! _ =
+        run
+          conn
+          AppliedOps.foldedThrough
+          [ "$last",
+            box (pending |> List.map (fun (rowid, _, _, _) -> rowid) |> List.max)
+            "$skipped",
+            box ("[" + (skipped |> List.map string |> String.concat ",") + "]") ]
+      ()
+    return int64 (List.length readable)
+  }
+
+
+/// Append the bundle at <param bundlePath> to the store at <param storePath>, and fold it, in one
+/// transaction, and say what changed. Rows the store already holds are left as they are. The ops
+/// fold as any op does (`PackageOpPlayback`), in the same transaction, so a catch-up of a thousand
+/// ops is one commit, and the values among them take the result the sender evaluated when the two
+/// run the same build; a value that came without one is evaluated by the next `Seed.growIfNeeded`.
+/// A branch is registered by its id with the name and parent it was created with. The authoring clock moves past the newest stamp received, so what is written here next
 /// sorts after it. A bundle that holds nothing this store lacks writes nothing, not even an empty
 /// transaction.
 ///
@@ -680,6 +993,22 @@ let import
     match refused with
     | Some reason -> return Error reason
     | None ->
+      let! sentJournal =
+        scalar
+          conn
+          "SELECT COALESCE(MAX(value), 0) FROM bundle.sync_meta WHERE key = 'journal'"
+      let! sentBlobs =
+        scalar
+          conn
+          "SELECT COALESCE(MAX(value), 0) FROM bundle.sync_meta WHERE key = 'blobs'"
+      let sentUpTo = { Cursor.journal = int64 sentJournal; blobs = int64 sentBlobs }
+      // The import looks rows of the bundle up by key, once per row of the store or of the bundle.
+      for index in
+        [ "CREATE INDEX IF NOT EXISTS bundle.sync_ops_key ON sync_ops (id, branch_id)"
+          "CREATE INDEX IF NOT EXISTS bundle.sync_journal_id ON sync_journal (id)"
+          "CREATE INDEX IF NOT EXISTS bundle.sync_journal_key ON sync_journal (key)" ] do
+        let! _ = run conn index []
+        ()
       let! news =
         scalar
           conn
@@ -711,7 +1040,8 @@ let import
           Ok
             { noCounts with
                 journalBefore = int64 upTo
-                upTo = { Cursor.journal = int64 upTo; blobs = int64 blobsUpTo } }
+                upTo = { Cursor.journal = int64 upTo; blobs = int64 blobsUpTo }
+                sentUpTo = sentUpTo }
       else
         let! localLabel = label conn
         let! incomingLabel =
@@ -727,8 +1057,10 @@ let import
           run
             conn
             "INSERT OR IGNORE INTO main.sync_journal
-               (id, at, kind, key, branch, op, commit_hash, name, merged_at, archived_at)
-             SELECT id, at, kind, key, branch, op, commit_hash, name, merged_at, archived_at
+               (id, at, kind, key, branch, op, commit_hash, name, merged_at, archived_at,
+                came_from)
+             SELECT id, at, kind, key, branch, op, commit_hash, name, merged_at, archived_at,
+                    (SELECT COALESCE(MAX(value), '?') FROM bundle.sync_meta WHERE key = 'id')
              FROM bundle.sync_journal ORDER BY seq"
             []
         // The latest entry for every row the bundle names, by an entry or by an op, and whether it is
@@ -749,6 +1081,8 @@ let import
                  SELECT 1 FROM main.sync_journal k
                  WHERE k.key = j.key AND (k.at > j.at OR (k.at = j.at AND k.id > j.id)))"
             []
+        let! _ =
+          run conn "CREATE INDEX temp.sync_latest_op ON sync_latest (op, branch)" []
 
         // Parents before children is not needed: a branch row names its parent by id only.
         let! branches =
@@ -885,6 +1219,19 @@ let import
              ORDER BY b.seq"
             []
         let! newest = scalar conn "SELECT MAX(origin_ts) FROM bundle.sync_ops"
+        if newest <> "" then OriginTs.observe newest
+        let! folded = foldPending conn
+        // What the sender evaluated, for the values that just folded with none.
+        let! values =
+          run
+            conn
+            "UPDATE main.package_values
+             SET rt_dval = v.rt_dval, value_type = v.value_type
+             FROM bundle.sync_values v
+             WHERE package_values.hash = v.hash AND package_values.rt_dval IS NULL
+               AND EXISTS (
+                 SELECT 1 FROM bundle.sync_meta WHERE key = 'build' AND value = $build)"
+            [ "$build", box LibConfig.Config.buildHash ]
         let! _ = run conn "DROP TABLE temp.sync_latest" []
         let! _ = run conn "DELETE FROM main.sync_replaying" []
         let! journalAfter =
@@ -894,11 +1241,12 @@ let import
         tx.Commit()
         let! _ = run conn "DETACH DATABASE bundle" []
 
-        if newest <> "" then OriginTs.observe newest
         Caching.invalidateAll ()
         return
           Ok
             { ops = ops
+              folded = folded
+              values = values
               committed = committed
               dropped = int64 dropped
               commits = commits
@@ -909,5 +1257,136 @@ let import
               conflicts = conflicts
               journalBefore = int64 journalBefore
               upTo =
-                { Cursor.journal = int64 journalAfter; blobs = int64 blobsAfter } }
+                { Cursor.journal = int64 journalAfter; blobs = int64 blobsAfter }
+              sentUpTo = sentUpTo }
+  }
+
+
+// ------------------
+// The stores this one syncs with
+// ------------------
+
+/// How far into the store <param peer> (an `instance.id`) the store at <param storePath> holds
+/// everything, when it has ever been told: where the next session with it starts.
+let receivedFrom (storePath : string) (peer : string) : Task<Option<Cursor>> =
+  task {
+    use! conn = openStore storePath
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      "SELECT received_journal, received_blobs FROM main.sync_peers
+       WHERE id = $peer AND received_journal IS NOT NULL AND received_blobs IS NOT NULL"
+    cmd.Parameters.AddWithValue("$peer", peer) |> ignore<SqliteParameter>
+    use! reader = cmd.ExecuteReaderAsync()
+    return
+      Sqlite.readRows
+        (fun r -> { Cursor.journal = r.GetInt64 0; blobs = r.GetInt64 1 })
+        reader
+      |> List.tryHead
+  }
+
+/// Remember that the store at <param storePath> holds everything of <param peer>'s up to
+/// <param upTo>.
+let recordReceived
+  (storePath : string)
+  (peer : string)
+  (name : string)
+  (upTo : Cursor)
+  : Task<unit> =
+  task {
+    use! conn = openStore storePath
+    let! _ =
+      run
+        conn
+        "INSERT INTO main.sync_peers (id, name, received_journal, received_blobs, seen_at)
+         VALUES ($peer, $name, $journal, $blobs, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           received_journal = excluded.received_journal,
+           received_blobs = excluded.received_blobs,
+           seen_at = excluded.seen_at"
+        [ "$peer", box peer
+          "$name", box name
+          "$journal", box upTo.journal
+          "$blobs", box upTo.blobs ]
+    return ()
+  }
+
+/// Whether <param cursor> is a point the store at <param storePath> has reached. One it has not
+/// was handed out by another store under this one's name, and a session cannot start from it. The
+/// journal numbers its entries without ever reusing a number, through a purge too, so a point it
+/// handed out stays a point in it.
+let reaches (storePath : string) (cursor : Cursor) : Task<bool> =
+  task {
+    use! conn = openStore storePath
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      "SELECT COALESCE(
+                (SELECT seq FROM main.sqlite_sequence WHERE name = 'sync_journal'), 0) >= $journal
+          AND (SELECT COALESCE(MAX(rowid), 0) FROM main.package_blobs) >= $blobs"
+    cmd.Parameters.AddWithValue("$journal", cursor.journal)
+    |> ignore<SqliteParameter>
+    cmd.Parameters.AddWithValue("$blobs", cursor.blobs) |> ignore<SqliteParameter>
+    let! v = cmd.ExecuteScalarAsync()
+    return string v = "1"
+  }
+
+/// Remember that <param peer> holds everything of the store at <param storePath>'s journal up to
+/// <param journal>. With <param trim>, also drop each entry that every store this one has synced with
+/// in the last month holds, and that a later entry for the same row replaced; answers how many went.
+///
+/// The latest entry for a row always stays: it is what says a removed op is removed when a copy of
+/// it comes back from a store that has not heard. So the journal shrinks to one entry a row, and the
+/// churn above that (a draft refreshed a hundred times, an edit undone) goes.
+let recordAcked
+  (storePath : string)
+  (peer : string)
+  (name : string)
+  (journal : int64)
+  (trim : bool)
+  : Task<int64> =
+  task {
+    use! conn = openStore storePath
+    let! _ =
+      run
+        conn
+        "INSERT INTO main.sync_peers (id, name, acked_journal, seen_at)
+         VALUES ($peer, $name, $journal, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           acked_journal = MAX(acked_journal, excluded.acked_journal),
+           seen_at = excluded.seen_at"
+        [ "$peer", box peer; "$name", box name; "$journal", box journal ]
+    if trim then
+      return!
+        run
+          conn
+          "DELETE FROM main.sync_journal
+           WHERE seq <= (SELECT MIN(acked_journal) FROM main.sync_peers
+                         WHERE seen_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days'))
+             AND EXISTS (
+               SELECT 1 FROM main.sync_journal k
+               WHERE k.key = sync_journal.key
+                 AND (k.at > sync_journal.at OR (k.at = sync_journal.at AND k.id > sync_journal.id)))"
+          []
+    else
+      return 0L
+  }
+
+/// How many changes made in the store at <param storePath> the store <param peer> has not said it
+/// holds. An op that only adds content goes with the binding that names it, so it is not counted
+/// apart: one saved function is one change.
+let notYetAcked (storePath : string) (peer : string) : Task<int64> =
+  task {
+    use! conn = openStore storePath
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      "SELECT COUNT(*) FROM main.sync_journal j
+       WHERE j.came_from = ''
+         AND j.seq > COALESCE((SELECT acked_journal FROM main.sync_peers WHERE id = $peer), 0)
+         AND NOT (j.kind = 'op' AND EXISTS (
+           SELECT 1 FROM main.package_ops p
+           WHERE p.id = j.op AND p.branch_id = j.branch AND p.op_kind LIKE 'add-%'))"
+    cmd.Parameters.AddWithValue("$peer", peer) |> ignore<SqliteParameter>
+    let! n = cmd.ExecuteScalarAsync()
+    return unbox<int64> n
   }
