@@ -264,6 +264,23 @@ type FnCost = { calls : int64; ticks : int64; slowest : int64 }
 [<Struct>]
 type FnSpan = { cost : FnCost; depth : int; started : int64 }
 
+/// Function hashes compared as usual, but bucketed by their first 16 characters. A hash is
+/// 64 hex characters of SHA-256, so 16 of them are already 64 random bits; hashing all 64 was
+/// most of what a recorded call cost.
+type private HashPrefixComparer() =
+  static member val Instance = HashPrefixComparer()
+  interface System.Collections.Generic.IEqualityComparer<RT.Hash> with
+    member _.Equals(RT.Hash a, RT.Hash b) = System.String.Equals(a, b)
+    member _.GetHashCode(RT.Hash h) =
+      System.String.GetHashCode(
+        System.MemoryExtensions.AsSpan(h, 0, min 16 h.Length)
+      )
+
+/// One process's spans, by hash. Only that process writes it, so its frames take its own lock,
+/// never contended but by `storeTrace`'s copy (a suspended run stores while its processes may
+/// still be recording), instead of the lock every process shares.
+type ProcessSpans = System.Collections.Generic.Dictionary<RT.Hash, FnSpan>
+
 // Written on every traced call under `sync`; mutable collections keep that write allocation-free.
 type TracerState =
   {
@@ -279,11 +296,10 @@ type TracerState =
     /// ordinal. Empty for a fresh run.
     replay :
       System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Tracing.ReplayStep>
-    /// The package functions this run went through and what it spent in each, by process and
-    /// hash, for the `trace_fns` index. One read and one write per frame push and per pop,
-    /// added up by hash and resolved to names once at store time.
-    fns :
-      System.Collections.Generic.Dictionary<struct (System.Guid * RT.Hash), FnSpan>
+    /// The package functions this run went through and what it spent in each, per process,
+    /// for the `trace_fns` index. One lookup per frame push and per pop, added up by hash and
+    /// resolved to names once at store time. Under `sync` only to add a process.
+    fns : System.Collections.Generic.Dictionary<System.Guid, ProcessSpans>
     /// How many times each loop went round, by the lambda's own expression id.
     ///
     /// A COUNT, not a tree. The only question anyone asks of a recorded run's shape is how many
@@ -325,56 +341,69 @@ let private newState (resuming : string) : TracerState =
     sync = obj () }
 
 
-let private noSpan : FnSpan =
-  { cost = { calls = 0L; ticks = 0L; slowest = 0L }; depth = 0; started = 0L }
+/// The spans of <param pid>, made the first time it records. Under `sync`.
+let private spansOf (state : TracerState) (pid : System.Guid) : ProcessSpans =
+  match state.fns.TryGetValue pid with
+  | true, spans -> spans
+  | false, _ ->
+    let spans = ProcessSpans(HashPrefixComparer.Instance)
+    state.fns[pid] <- spans
+    spans
 
-let private spanOf
-  (state : TracerState)
-  (key : struct (System.Guid * RT.Hash))
-  : FnSpan =
-  match state.fns.TryGetValue key with
-  | true, span -> span
-  | false, _ -> noSpan
-
-
-/// One more call of <param hash> by <param pid>, answered without a frame. Under `sync`.
-let private countCall
-  (state : TracerState)
-  (pid : System.Guid)
-  (hash : RT.Hash)
-  : unit =
-  let key = struct (pid, hash)
-  let span = spanOf state key
-  state.fns[key] <-
-    { span with cost = { span.cost with calls = span.cost.calls + 1L } }
+let private firstCall (started : int64) (depth : int) : FnSpan =
+  { cost = { calls = 1L; ticks = 0L; slowest = 0L }
+    depth = depth
+    started = started }
 
 
-/// <param pid> entered a frame of <param hash>. Under `sync`.
+/// <param hash>'s slot in <param spans>, to update in place: one lookup, not a read and then a
+/// write. A null ref when the process has not met the function yet.
+let private slotOf (spans : ProcessSpans) (hash : RT.Hash) : byref<FnSpan> =
+  &
+    System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrNullRef(
+      spans,
+      hash
+    )
+
+
+/// One more call of <param hash>, answered without a frame. Under the process's lock.
+let private countCall (spans : ProcessSpans) (hash : RT.Hash) : unit =
+  let span = &slotOf spans hash
+  if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+    spans.Add(hash, firstCall 0L 0)
+  else
+    span <- { span with cost = { span.cost with calls = span.cost.calls + 1L } }
+
+
+/// The process entered a frame of <param hash>. Under the process's lock.
 ///
 /// The clock is read only for the outermost call, here and in `leave`: a clock read is a system
 /// call on a host whose clock source is HPET, about 1.3 us, which on a recursive function was
 /// most of what recording cost.
-let private enter (state : TracerState) (pid : System.Guid) (hash : RT.Hash) : unit =
-  let key = struct (pid, hash)
-  let span = spanOf state key
-  state.fns[key] <-
-    { cost = { span.cost with calls = span.cost.calls + 1L }
-      depth = span.depth + 1
-      started =
-        if span.depth = 0 then
-          System.Diagnostics.Stopwatch.GetTimestamp()
-        else
-          span.started }
+let private enter (spans : ProcessSpans) (hash : RT.Hash) : unit =
+  let span = &slotOf spans hash
+  if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+    spans.Add(hash, firstCall (System.Diagnostics.Stopwatch.GetTimestamp()) 1)
+  else
+    span <-
+      { cost = { span.cost with calls = span.cost.calls + 1L }
+        depth = span.depth + 1
+        started =
+          if span.depth = 0 then
+            System.Diagnostics.Stopwatch.GetTimestamp()
+          else
+            span.started }
 
 
-/// <param pid> left a frame of <param hash>; the outermost one adds its span. Under `sync`.
-/// A frame pushed before recording began (depth 0 here) is ignored.
-let private leave (state : TracerState) (pid : System.Guid) (hash : RT.Hash) : unit =
-  let key = struct (pid, hash)
-  let span = spanOf state key
-  if span.depth = 1 then
+/// The process left a frame of <param hash>; the outermost one adds its span. Under the
+/// process's lock. A frame pushed before recording began (depth 0 here) is ignored.
+let private leave (spans : ProcessSpans) (hash : RT.Hash) : unit =
+  let span = &slotOf spans hash
+  if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+    ()
+  elif span.depth = 1 then
     let took = System.Diagnostics.Stopwatch.GetTimestamp() - span.started
-    state.fns[key] <-
+    span <-
       { span with
           depth = 0
           cost =
@@ -382,7 +411,7 @@ let private leave (state : TracerState) (pid : System.Guid) (hash : RT.Hash) : u
                 ticks = span.cost.ticks + took
                 slowest = max span.cost.slowest took } }
   elif span.depth > 1 then
-    state.fns[key] <- { span with depth = span.depth - 1 }
+    span <- { span with depth = span.depth - 1 }
 
 
 /// The next ordinal for `pid`'s effectful calls. Under `sync`.
@@ -631,12 +660,12 @@ let rec private executionTracingFor
   (state : TracerState)
   (pid : System.Guid)
   : RT.Tracing.Tracing =
+  let spans = lock state.sync (fun () -> spansOf state pid)
   { Exe.noTracing with
       storeFnResult = makeStoreFnResult state pid
-      noteFunction =
-        (fun hash -> lock state.sync (fun () -> countCall state pid hash))
-      enterFunction = (fun hash -> lock state.sync (fun () -> enter state pid hash))
-      leaveFunction = (fun hash -> lock state.sync (fun () -> leave state pid hash))
+      noteFunction = (fun hash -> lock spans (fun () -> countCall spans hash))
+      enterFunction = (fun hash -> lock spans (fun () -> enter spans hash))
+      leaveFunction = (fun hash -> lock spans (fun () -> leave spans hash))
       collectExprValues = false
       collectFrames = true
       traceEffects = true
@@ -692,12 +721,17 @@ let rec private executionTracingFor
 
 /// What the run spent in each function, across its processes. A process's spans are its own, so
 /// recursion in one is not mistaken for nesting in another; the store wants one row per function.
+/// Under `sync`; each process's spans are copied under its own lock.
 let private addedUpByFunction
-  (fns :
-    System.Collections.Generic.Dictionary<struct (System.Guid * RT.Hash), FnSpan>)
+  (fns : System.Collections.Generic.Dictionary<System.Guid, ProcessSpans>)
   : List<RT.Hash * FnCost> =
-  fns
-  |> Seq.map (fun (KeyValue(struct (_, hash), span)) -> hash, span.cost)
+  fns.Values
+  |> List.ofSeq
+  |> List.collect (fun spans ->
+    lock spans (fun () ->
+      spans
+      |> Seq.map (fun (KeyValue(hash, span)) -> hash, span.cost)
+      |> List.ofSeq))
   |> Seq.groupBy fst
   |> Seq.map (fun (hash, costs) ->
     let costs = costs |> Seq.map snd |> List.ofSeq
