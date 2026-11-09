@@ -250,10 +250,17 @@ type private Stream =
 /// while it runs (refusals, hints, progress, previews), and the exit code is the verdict. The rows
 /// build on each other: the fn saved first is the one `view`, `deps` and `rename` name later.
 let private streamRows : List<List<string> * int * Stream * Stream> =
-  [ [ "fn"; "Tests.Rows.f"; "(x: Int64): Int64 = x + 1" ],
+  [ [ "branches" ], 0, Silent, Says "no branches"
+    [ "fn"; "Tests.Rows.f"; "(x: Int64): Int64 = x + 1" ],
     0,
     Says "Created function Tests.Rows.f",
     Silent
+    [ "undo"; "Tests.Rows.f" ], 1, Silent, Says "nothing further to undo"
+    // Before anything runs, so there is no trace yet: an empty answer is empty stdout.
+    [ "traces"; "list" ], 0, Silent, Says "nothing has run yet"
+    [ "traces"; "find"; "zzzqqq" ], 0, Silent, Says "no kept trace matches"
+    [ "traces"; "calls"; "Tests.Rows.f" ], 0, Silent, Says "no recorded trace"
+    [ "traces"; "show"; "Tests.Rows.f" ], 0, Silent, Says "no recorded trace"
     [ "fn"; "Tests.Rows.g"; "(x: Int64): Int64 = Tests.Rows.f(x)" ],
     0,
     Says "Created function Tests.Rows.g",
@@ -285,6 +292,11 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     0,
     Says "Darklang.Stdlib.List.map",
     Says "--with-docs"
+    [ "search"; "zzzqqq" ], 0, Silent, Says "No results found"
+    [ "find-values"; "Darklang.Stdlib.Option.Option"; "Zzz" ],
+    0,
+    Silent,
+    Says "No values of type"
     [ "builtins"; "listMap" ], 0, Says "listMap", Says "--with-sigs"
     [ "typecheck"; "Darklang.Stdlib.Bool" ], 0, Says "failed 0", Silent
     [ "impls"; "Darklang.Stdlib.Add" ], 0, Says "Darklang.Stdlib.Add", Silent
@@ -297,6 +309,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "config"; "list" ], 0, Says "exec.workers", Silent
     [ "config"; "get"; "zzznope" ], 1, Silent, Says "not a config key"
     [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "requires", Silent
+    [ "commit"; "-m"; "rows"; "--json" ], 0, Says "\"committed\":false", Any
     [ "commit"; "-m"; "rows"; "-y" ], 0, Says "commit ", Says "CHANGED"
     [ "commits"; "1"; "--json" ], 0, Says "\"hash\"", Silent
     [ "log" ], 0, Says "commits", Silent
@@ -306,6 +319,8 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "conflicts" ], 0, Says "no conflicts", Silent
     [ "backups" ], 0, Says "no backups yet", Says "`dark backups now`"
     [ "ps"; "--json" ], 0, Says "thisInstance", Silent
+    [ "ack"; "--all" ], 0, Says "nothing to ack", Silent
+    [ "branch"; "create"; "main" ], 1, Silent, Says "main already exists"
     [ "branch"; "create"; "rows-b" ], 0, Says "started branch", Silent
     [ "fn"; "Tests.Rows.h"; "(): Int64 = 2" ], 0, Says "Created function", Silent
     [ "diff" ], 0, Says "Tests.Rows.h", Says "`dark commit`"
@@ -342,6 +357,9 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "module" ], 1, Silent, Says "needs 2 arguments"
     [ "export-seed" ], 1, Silent, Says "needs an argument"
     [ "workbench" ], 1, Silent, Says "unavailable"
+    [], 1, Silent, Says "unavailable"
+    [ "uninstall" ], 1, Silent, Says "--yes"
+    [ "quit" ], 0, Silent, Says "Goodbye!"
     [ "run-script"; "/zzznope/x.dark" ], 1, Silent, Says "Script not found"
     [ "zzznope" ], 1, Silent, Says "Unknown command" ]
 

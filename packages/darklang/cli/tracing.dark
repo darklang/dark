@@ -1415,7 +1415,7 @@ let printMatches(nothing: String, rows: List<TraceSummary>): Unit =
     if nothing == "" then
       printEmptyStateHint()
     else
-      Stdlib.printLine(nothing)
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(nothing))
       printRecordingOffHint()
   | _ ->
     Cli.TraceVerbs.printTable(rows)

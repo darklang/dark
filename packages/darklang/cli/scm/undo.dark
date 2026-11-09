@@ -35,9 +35,9 @@ let execute(state: AppState, args: List<String>): AppState =
 
         match SCM.PackageOps.previousRevision(state.currentBranchId, loc) with
         | None ->
-          Cli.printOk($"{PropagateCmd.dotted(loc)} is at its first version -- nothing further to undo.")
+          Cli.printErr($"{PropagateCmd.dotted(loc)} is at its first version -- nothing further to undo.")
           Cli.printHint($"  to remove it from your draft entirely: dark discard {PropagateCmd.dotted(loc)}")
-          state
+          Cli.failed(state)
         | Some((revision, snapshot)) ->
           match SCM.PackageOps.restoreRevision(state.currentBranchId, revision, snapshot) with
           | Error(error) ->

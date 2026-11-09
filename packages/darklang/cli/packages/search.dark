@@ -1038,13 +1038,13 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
               queryText,
               { results with fns = Stdlib.List.flatten([ typed, results.fns ]) }))
         else if totalResults == 0 then
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
+          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
           operatorHint(state.currentBranchId, rawQueryText)
           hiddenTestsHint(hiddenTests)
           hiddenHelpersHint(hiddenHelpers)
           nothingFoundHints(state.currentBranchId, query)
           |> Stdlib.List.iter(fun line -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(line)))
-          Stdlib.printLine("")
+          Stdlib.printErrorLine("")
         else
           Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
           match aliasKeyword with
