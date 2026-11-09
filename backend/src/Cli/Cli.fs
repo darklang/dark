@@ -104,7 +104,8 @@ let private startupSettings () : Map<string, string> =
         "exec.spreadPredict"
         "trace.keep"
         "trace.maxMb"
-        "trace.record" ])
+        "trace.record"
+        Cli.Sync.settingKey ])
       .Result
   with _ ->
     Map.empty
@@ -184,6 +185,8 @@ let execute
         invalidOp "--entry-point needs a package function name or #hash"
       | _ -> None, args
     let settings = startupSettings ()
+    Telemetry.time "cli.sync" [] (fun () ->
+      Cli.Sync.atStartup (Map.tryFind Cli.Sync.settingKey settings))
     let fnName =
       match entryPoint with
       | None -> RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
@@ -792,6 +795,27 @@ let private runCli (args : string[]) : int =
        | None, Some name, _ -> name
        | None, None, Some id -> string id
        | None, None, None -> "")
+
+    // `dark sync` is the host's own verb: package code never reaches it (see `Cli.Sync`).
+    // What it folds after an exchange is what startup folds, under the same lock.
+    let foldArrived () =
+      use _growing = EmbeddedResources.upgradeLock LibConfig.Config.dbPath
+      (LibDB.Seed.growIfNeeded
+        (fun () -> builtinsLazy.Force())
+        cliPackageManager
+        (fun (_ : string) -> ()))
+        .Result
+      |> ignore<bool>
+    let syncAnswer =
+      match Array.toList args with
+      | "sync" :: rest -> Cli.Sync.execute foldArrived rest
+      | _ -> None
+
+    match syncAnswer with
+    | Some code ->
+      NonBlockingConsole.wait ()
+      exit code
+    | None -> ()
 
     let result =
       Telemetry.time "cli.execute" [] (fun () ->

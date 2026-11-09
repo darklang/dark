@@ -7,8 +7,9 @@ library and CLI, written in Darklang itself (`packages/`).
 
 It used to say "a language, editor and infrastructure in one", and that was true of a bigger
 product than this tree now contains. Anything hosted, networked or shared either does not exist
-here or does not exist yet: there is no relay, no sync, no accounts, no user databases and no
-editor extension. Do not build on the assumption that this is a cloud platform.
+here or does not exist yet: there is no relay, no accounts, no user databases and no editor
+extension. The one exception is `dark sync`, between your own machines over ssh, with no server.
+Do not build on the assumption that this is a cloud platform.
 
 ## Quickstart
 

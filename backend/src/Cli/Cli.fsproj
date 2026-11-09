@@ -148,6 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EmbeddedResources.fs" />
+    <Compile Include="SyncCommand.fs" />
     <Compile Include="Cli.fs" />
   </ItemGroup>
   <!-- The package-ref hashes, for a binary run outside the source tree; see LibExecution's
