@@ -408,14 +408,11 @@ let typeReference(
     $"{typeNamePart}{argsPart}"
 
 
+  // Written as in source, and as `valueType` writes a function's type: `Int64 -> Int64`.
   | TFn(args, ret) ->
-    let argPart =
-      args
-      |> Stdlib.List.map(fun arg -> typeReference(branchId, arg))
-      |> Stdlib.String.join(", ")
-      |> fun parts -> "(" + parts + ")"
-
-    $"{argPart} -> {typeReference(branchId, ret)}"
+    fnTypeText(
+      args |> Stdlib.List.map(fun arg -> typeReference(branchId, arg)),
+      typeReference(branchId, ret))
 
 
 

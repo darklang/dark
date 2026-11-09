@@ -658,10 +658,8 @@ module RuntimeError =
       | UnsupportedType(typ) ->
         [ ES.String("Unsupported type in JSON: ")
           ES.TypeReference(typ)
-          ES.String(". Some types are not supported in Json serialization, and cannot be used as arguments to ")
-          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse", version = 0s32 }))
-          ES.String(" or ")
-          ES.FunctionName(LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize", version = 0s32 })) ]
+          // Named as the caller wrote them: the builtins behind them are internal.
+          ES.String(". Some types are not supported in Json serialization, and cannot be used as type arguments to Stdlib.Json.parse or Stdlib.Json.serialize") ]
       | CannotSerializeValue(dv) ->
         [ ES.String("Cannot serialize ")
           ES.FullValue(dv)

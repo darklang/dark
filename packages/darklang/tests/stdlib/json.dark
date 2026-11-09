@@ -1244,7 +1244,7 @@ module Uuid =
 module BadTypes =
   test rejects1 =
     (Stdlib.Json.parse<Int64 -> Int64>("{}"))
-    => raises "Unsupported type in JSON: (Int64) -> Int64. Some types are not supported in Json serialization, and cannot be used as arguments to Builtin.jsonParse or Builtin.jsonSerialize"
+    => raises "Unsupported type in JSON: Int64 -> Int64. Some types are not supported in Json serialization, and cannot be used as type arguments to Stdlib.Json.parse or Stdlib.Json.serialize"
 
   test rejects2 =
     (Stdlib.Json.serialize<Int64 -> Int64>(fun i -> 5))
