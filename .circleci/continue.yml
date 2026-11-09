@@ -177,7 +177,8 @@ commands:
                   - v7-nuget-
 
   # The SQLite archive the native link needs. It only changes with build-sqlite.sh, which
-  # pins the SQLite version, so it is cached on that file; building it is about 20s of zig.
+  # pins the SQLite version, so it is cached on that file; building it is about 20s of zig, on
+  # one CPU, so it builds beside the steps after it and `sqlite-archive-wait` collects it.
   # Branch and PR builds only, like the NuGet cache: see the note at the top of this file.
   sqlite-archive:
     steps:
@@ -192,8 +193,14 @@ commands:
                 keys:
                   - v1-sqlite-archive-ci-linux-x64-{{ checksum "../sqlite-checksum" }}
       - run:
-          name: Build the SQLite archive (skips on cache hit)
-          command: ./scripts/build/build-sqlite.sh --runtimes=linux-x64
+          name: Build the SQLite archive (skips on cache hit; beside the next steps)
+          background: true
+          command: .circleci/beside start sqlite -- ./scripts/build/build-sqlite.sh --runtimes=linux-x64
+  sqlite-archive-wait:
+    steps:
+      - run:
+          name: Wait for the SQLite archive
+          command: .circleci/beside wait sqlite
       - unless:
           condition:
             equal: [main, << pipeline.git.branch >>]
@@ -304,44 +311,15 @@ jobs:
     steps:
       - shallow-checkout
       - setup-app
-      # Lint, format and the CI scripts' own tests, first: under half a minute, and the
-      # likeliest to fail.
-      - run: scripts/linting/shellchecker
+      # Lint, format and the CI scripts' own tests: about half a minute, and the likeliest to
+      # fail. Beside the restore and the first compile, which leave a CPU free; the job fails
+      # at the wait after that compile. See .circleci/beside.
+      - run:
+          name: Lint, formatting and the CI scripts' tests (beside the next steps)
+          background: true
+          command: .circleci/beside start quick-checks -- .circleci/quick-checks
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
-      - run:
-          name: Check formatting
-          command: |
-            fantomas --version
-            dotnet --list-runtimes
-            if scripts/formatting/format check; then
-              exit 0
-            else
-              format_status=$?
-            fi
-            # On failure, format the CI copy and print the diff for diagnosis.
-            # Still fail the job so formatting errors cannot pass silently.
-            scripts/formatting/format format --fsharp-only
-            git diff -- '*.fs' '*.fsi'
-            exit "$format_status"
-      - run:
-          name: Test the build's planning and readiness logic
-          command: scripts/testing/test-build-planning.py
-      - run:
-          name: Test CI diagnostic collection
-          command: python3 .circleci/test_collect_diagnostics.py
-      - run:
-          name: Test artifact validation timeouts
-          command: python3 .circleci/test_artifact_validation.py
-      - run:
-          name: Test the check for a superseded main commit
-          command: python3 .circleci/test_ci_superseded.py
-      - run:
-          name: Test the check for an already-proven tree
-          command: python3 .circleci/test_ci_proven.py
-      - run:
-          name: Test the check for a prose-only change
-          command: python3 .circleci/test_ci_docs_only.py
 
       - nuget-cache-restore
       - show-large-files-and-directories
@@ -364,6 +342,27 @@ jobs:
           name: Build LocalExec for migrations (Release)
           command: ./scripts/build/_dotnet-wrapper publish -c Release src/LocalExec/LocalExec.fsproj /p:DebugType=None /p:DebugSymbols=false
       - run:
+          name: Wait for lint, formatting and the CI scripts' tests
+          command: .circleci/beside wait quick-checks
+
+      # The tests compile beside the package load and the SQLite archive, which leave CPU free
+      # and which the tests don't need. One after the other, the compile was about 45s more.
+      # It is collected after the CLI build, in case it runs into it.
+      #
+      # Like the CLI build below, this compiles only its own project (BuildProjectReferences=
+      # false) and reads the libraries the step above built. Without it, the CLI's restore,
+      # which rewrites those libraries' obj/, makes them look stale and this compiles them all
+      # again. Its own restore writes only tests/Tests' obj/, and is done long before the CLI's.
+      - run:
+          name: Build the tests (Release, beside the next steps)
+          background: true
+          command: |
+            .circleci/beside start tests-build -- ./scripts/build/_dotnet-wrapper publish -c Release \
+              tests/Tests/Tests.fsproj /p:BuildProjectReferences=false \
+              /p:DebugType=None /p:DebugSymbols=false
+      - sqlite-archive
+
+      - run:
           name: Run migrations to create database
           command: python3 .circleci/collect_diagnostics.py --run migrations -- scripts/run-local-exec --published migrations run
       - run:
@@ -376,10 +375,6 @@ jobs:
           name: Export the seed the CLI embeds
           command: python3 .circleci/collect_diagnostics.py --run seed -- scripts/run-local-exec --published export-seed rundir/seed.db
 
-      - run:
-          name: Build the tests (Release)
-          command: ./scripts/build/_dotnet-wrapper publish -c Release tests/Tests/Tests.fsproj /p:DebugType=None /p:DebugSymbols=false
-
       # The host CLI, the way we ship it: `--mode=auto` resolves to NativeAOT on linux-x64. It is
       # a compile check, the binary the gates and package tests run, and the one the
       # instance-backed F# suites start a couple of thousand times a run, where the AOT binary
@@ -388,10 +383,13 @@ jobs:
       #
       # --reuse-libraries: only Cli is compiled, against the libraries the steps above built.
       # The publish would otherwise compile them all again, to the same bytes.
-      - sqlite-archive
+      - sqlite-archive-wait
       - run:
           name: Build the CLI
           command: ./scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db --reuse-libraries
+      - run:
+          name: Wait for the tests to build
+          command: .circleci/beside wait tests-build
 
       # Allocation for a fixed workload is steady enough to assert on and doesn't care how
       # loaded the box is, which is more than can be said for time. The gate grows a store of
@@ -415,28 +413,35 @@ jobs:
             DARK_CONFIG_PACKAGES_SOURCE=seed python3 .circleci/collect_diagnostics.py \
               --run backend-tests -- timeout 20m scripts/run-fsharp-tests --published --split
 
-      # A fresh install of the binary just built: empty home, the whole SCM workflow, then the
-      # layout the installer leaves. Here and not in `gates ci` because it needs the single-file
-      # binary people download; see CI_GATES in scripts/testing/gates. Nothing in this workflow
-      # gzips clis/ (only the release matrix's package-clis does), so the bare binary is there.
-      - run:
-          name: First-day gate on the built CLI
-          command: timeout 5m scripts/testing/gates first-day "$(ls clis/darklang-*-linux-x64)"
-
-      # The package tests and the gate scripts, at the same time. Both run the shipped binary,
-      # and each gate has its own rundir and HOME, which is what lets `gates all` run every gate
-      # at once locally; package-tests is one of those gates. One after the other they were
-      # about three minutes.
+      # The package tests and the gate scripts, at the same time. All of them run the shipped
+      # binary, and each gate has its own rundir and HOME, which is what lets `gates all` run
+      # every gate at once locally; package-tests is one of those gates. One after the other
+      # they were about three minutes.
+      #
+      # first-day is a fresh install of the binary just built: empty home, the whole SCM
+      # workflow, then the layout the installer leaves. It is not in `gates ci` because it
+      # needs the single-file binary people download; see CI_GATES in scripts/testing/gates.
+      # Nothing in this workflow gzips clis/ (only the release matrix's package-clis does), so
+      # the bare binary is there. It runs after the CI subset, which ends well before the
+      # package tests do, so it adds nothing to the wait. As a step of its own it was about 20s.
       #
       # Each package test starts a fresh process, so they use the NativeAOT CLI built here
       # rather than paying managed-runtime startup for every test.
       - run:
-          name: Dark package tests and gate scripts (the CI subset)
+          name: Dark package tests and gate scripts (the CI subset, then first-day)
           command: |
             export CLI="clis/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-linux-x64"
             # The gates print a summary when they finish; the package tests stream, which
             # keeps the step's no-output timer quiet while both run.
-            timeout 15m scripts/testing/gates ci --parallel > /tmp/gates-ci.log 2>&1 &
+            (
+              timeout 15m scripts/testing/gates ci --parallel
+              ci_status=$?
+              echo; echo "==> first-day"
+              timeout 5m scripts/testing/gates first-day "$CLI"
+              first_day_status=$?
+              echo "first-day exited $first_day_status"
+              [[ "$ci_status" -eq 0 && "$first_day_status" -eq 0 ]]
+            ) > /tmp/gates-ci.log 2>&1 &
             gates=$!
             set +e
             timeout 20m scripts/testing/gates package-tests
@@ -444,7 +449,7 @@ jobs:
             wait "$gates"
             gates_status=$?
             set -e
-            echo; echo "==> gate scripts (the CI subset)"; cat /tmp/gates-ci.log
+            echo; echo "==> gate scripts (the CI subset, then first-day)"; cat /tmp/gates-ci.log
             echo; echo "package tests exited $package_tests, gate scripts exited $gates_status"
             [[ "$package_tests" -eq 0 && "$gates_status" -eq 0 ]]
 
