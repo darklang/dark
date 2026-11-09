@@ -393,6 +393,20 @@ let foundDesc (state : ParserState) (i : int) : string =
     if t.Length > 24 then $"'{t.Substring(0, 24)}…'" else $"'{t}'"
 let errExpected (state : ParserState) (i : int) (what : string) =
   err state DiagnosticCode.expected i $"expected {what}, found {foundDesc state i}"
+// `let rec f`: Dark needs no `rec`. Report it, and go on from the name after it, so
+// the binding parses as if `rec` were not there. `rec` alone is still a name: `let rec = 1`.
+let skipRec (state : ParserState) (i : int) : int =
+  match tok state i, tok state (i + 1) with
+  | TIdent "rec", TIdent _ ->
+    errFull
+      state
+      DiagnosticCode.unexpected
+      i
+      "Dark functions can call themselves; there's no `rec` keyword"
+      []
+      (Some "remove `rec`")
+    i + 1
+  | _ -> i
 // the words the lexer reserves (`Lexer.keywords`); `true`, `false` and `_` are left
 // out, since where a name is expected they are usually a literal pattern
 let private isKeyword (t : Token) : bool =
@@ -2002,7 +2016,7 @@ and parseLetPattern (state : ParserState) (i : int) : WT.LetPattern * int =
 
 and parseLet (state : ParserState) (i : int) : WT.Expr * int =
   let keywordLet = rng state i
-  let (pat, j) = parseLetPattern state (i + 1)
+  let (pat, j) = parseLetPattern state (skipRec state (i + 1))
   match pat with
   | WT.LPVariable _ when tok state j = TLParen ->
     // nested function definition: `let f(x: T, y: U)[: R] = body`. Bind a lambda
@@ -3853,7 +3867,7 @@ and private parseEffectNames
 
 and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let keywordLet = rng state i
-  let nameIdx = i + 1
+  let nameIdx = skipRec state (i + 1)
   let nameId : WT.Identifier =
     match tok state nameIdx with
     | TIdent nm -> { range = rng state nameIdx; name = nm }

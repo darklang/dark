@@ -29,6 +29,7 @@ type IssueCode =
   | TestAssertion
   | TestMode
   | ImplMethods
+  | BuiltinTypeName
 
 module IssueCode =
   let toString (code : IssueCode) : string =
@@ -46,6 +47,7 @@ module IssueCode =
     | TestAssertion -> "VALIDATION-TEST-ASSERTION"
     | TestMode -> "VALIDATION-TEST-MODE"
     | ImplMethods -> "VALIDATION-IMPL-METHODS"
+    | BuiltinTypeName -> "VALIDATION-BUILTIN-TYPE-NAME"
 
 type Issue =
   { range : WT.Range
@@ -338,6 +340,10 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
   | WT.EVariable _
   | WT.EFnName _ -> []
 
+/// Type names the parser always reads as the built-in type.
+let private builtinTypeNames : List<string> =
+  (WT.primTypes |> List.map fst) @ [ "List"; "Dict" ]
+
 let rec private declarationStructureIssues
   (declaration : WT.Declaration)
   : List<Issue> =
@@ -353,6 +359,15 @@ let rec private declarationStructureIssues
     @ exprIssues true fn.body
   | WT.DValue value -> exprIssues false value.body
   | WT.DTest test -> exprIssues false test.body
+  // A written `Unit`, `String`, ... always means the built-in type, so a type of
+  // the same name could never be referred to.
+  | WT.DType t when List.contains t.name.name builtinTypeNames ->
+    [ detailedIssue
+        t.name.range
+        BuiltinTypeName
+        $"`{t.name.name}` is a built-in type, so it can't also name a type of your own"
+        []
+        (Some "pick another name") ]
   | WT.DType _ -> []
   | WT.DTrait t ->
     // Duplicate method names would collapse to one record field.

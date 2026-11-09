@@ -525,6 +525,7 @@ Post-parse validation uses these stable codes:
 | `VALIDATION-TEST-ASSERTION` | a test expression is not an assertion |
 | `VALIDATION-TEST-MODE` | a test assertion occurs outside Test mode |
 | `VALIDATION-IMPL-METHODS` | an impl names the same member twice |
+| `VALIDATION-BUILTIN-TYPE-NAME` | a type declaration uses a built-in type's name, such as `Unit` |
 
 `renderDiagnostic` renders code + position + message + a caret snippet +
 related locations + hint. `renderDiagnostics` renders a whole parse's list for the

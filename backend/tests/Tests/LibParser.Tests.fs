@@ -392,7 +392,17 @@ let private validationTests =
     | Error issues -> NEList.toList issues
   testList
     "validation"
-    [ testCase "parseFor returns a mode-tagged validated source" (fun _ ->
+    [ testCase "a type cannot take a built-in type's name" (fun _ ->
+        match P.parseFor Validation.Script "type Unit =\n  | Celsius\n1" with
+        | Ok _ -> failtest "a type named Unit was accepted"
+        | Error [ d ] ->
+          Expect.equal d.code "VALIDATION-BUILTIN-TYPE-NAME" "code"
+          Expect.equal
+            d.range.start
+            { Tok.row = 0; Tok.column = 5 }
+            "points at the name"
+        | Error other -> failtest $"expected one diagnostic, got {other}")
+      testCase "parseFor returns a mode-tagged validated source" (fun _ ->
         match
           P.parseFor
             Validation.Script
