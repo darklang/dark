@@ -1,4 +1,4 @@
-module Darklang.Stdlib.ValueSearch.Tests
+module Darklang.LanguageTools.PackageManager.Value.Tests
 
 // pmFindValuesByValueType returns empty list for unknown type
 test unknownValueTypeFindsNoValues =
@@ -8,7 +8,7 @@ test unknownValueTypeFindsNoValues =
 
 // pmEvaluateValue returns None for unknown value
 test missingValueEvaluatesToNone =
-  Darklang.Stdlib.ValueSearch.evaluate(
+  Darklang.LanguageTools.PackageManager.Value.evaluate(
     (Darklang.LanguageTools.ProgramTypes.Hash.Hash(
       "0000000000000000000000000000000000000000000000000000000000000000")))
   |> Stdlib.Test.equal(None)

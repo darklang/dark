@@ -241,6 +241,54 @@ module Value =
     | None -> Stdlib.Option.Option.None
 
 
+  /// The stored value at <param hash>, evaluated. `None` when the store does not hold it.
+  let evaluate(
+    hash: ProgramTypes.FQValueName.Package)
+    : Stdlib.Option.Option<'a> =
+    Builtin.pmEvaluateValue(hash)
+
+  /// A value found by <fn findByType>, with the dotted name it is bound to.
+  type Found<'a> =
+    { path: String
+      value: 'a }
+
+  /// Every value of the custom type <param typeHash> named on <param branchId>, evaluated.
+  /// <param namespace_> keeps only names under that dotted prefix; `""` keeps all of them.
+  let findByType(
+    branchId: Uuid,
+    namespace_: String,
+    typeHash: ProgramTypes.Hash)
+    : List<Found<'a>> =
+    let prefix =
+      if namespace_ == "" then [] else Stdlib.String.split(namespace_, ".")
+
+    let valueType =
+      RuntimeTypes.ValueType.Known(
+        RuntimeTypes.KnownType.KTCustomType(
+          RuntimeTypes.FQTypeName.FQTypeName.Package(
+            RuntimeTypes.Hash.Hash(ProgramTypes.hashToString(typeHash))),
+          []))
+
+    findByValueType(valueType)
+    |> Stdlib.List.filterMap(fun hash ->
+      match PackageManager.pickLocation(PackageManager.PickContext.empty, locations(branchId, hash)) with
+      | Some(location) ->
+        let path = Stdlib.List.prepend(location.modules, location.owner)
+
+        if Stdlib.List.take(path, Stdlib.List.length(prefix)) == prefix then
+          match evaluate(hash) with
+          | Some(value) ->
+            Stdlib.Option.Option.Some(
+              Found
+                { path = Stdlib.String.join(Stdlib.List.append(path, location.name), ".")
+                  value = value }
+            )
+          | None -> Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None)
+
+
 module Function =
   let find(
     branchId: Uuid,

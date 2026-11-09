@@ -398,7 +398,7 @@ let resumeFrom(branchId: Uuid, name: String): Stdlib.Result.Result<'model, Strin
     match LanguageTools.PackageManager.Value.find(branchId, location) with
     | None -> Stdlib.Result.Result.Error($"no value named {name}")
     | Some(hash) ->
-      match Stdlib.ValueSearch.evaluate(hash) with
+      match LanguageTools.PackageManager.Value.evaluate(hash) with
       | Some(model) -> Stdlib.Result.Result.Ok(model)
       | None -> Stdlib.Result.Result.Error($"{name} could not be evaluated")
 
