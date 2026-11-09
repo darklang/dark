@@ -723,6 +723,45 @@ let private primitiveFits (expected : TypeReference) (actual : Dval) : bool =
   | _ -> false
 
 
+/// Whether <param actual> is a value of <param expected> with nothing to bind: a primitive, or a type
+/// variable <param tst> already binds to a primitive. `true` means a unify would pass and hand back
+/// <param tst> as it is; `false` means ask it. A lambda's result is checked this way on every call,
+/// and for `List.fold`'s `'b` the variable is bound from the first element on.
+let fitsWithNothingToBind
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : bool =
+  match expected with
+  | TVariable name ->
+    match tst.TryFind name with
+    | ValueSome(ValueType.Known known) ->
+      match known with
+      | KTUnit -> primitiveFits TUnit actual
+      | KTBool -> primitiveFits TBool actual
+      | KTInt8 -> primitiveFits TInt8 actual
+      | KTUInt8 -> primitiveFits TUInt8 actual
+      | KTInt16 -> primitiveFits TInt16 actual
+      | KTUInt16 -> primitiveFits TUInt16 actual
+      | KTInt32 -> primitiveFits TInt32 actual
+      | KTUInt32 -> primitiveFits TUInt32 actual
+      | KTInt64 -> primitiveFits TInt64 actual
+      | KTUInt64 -> primitiveFits TUInt64 actual
+      | KTInt128 -> primitiveFits TInt128 actual
+      | KTUInt128 -> primitiveFits TUInt128 actual
+      | KTBigInt -> primitiveFits TBigInt actual
+      | KTFloat -> primitiveFits TFloat actual
+      | KTFloat32 -> primitiveFits TFloat32 actual
+      | KTDecimal -> primitiveFits TDecimal actual
+      | KTChar -> primitiveFits TChar actual
+      | KTString -> primitiveFits TString actual
+      | KTUuid -> primitiveFits TUuid actual
+      | KTDateTime -> primitiveFits TDateTime actual
+      | _ -> false
+    | _ -> false
+  | _ -> primitiveFits expected actual
+
+
 /// Whether <param actual> is a value of <param expected>, and the symbol table with whatever that
 /// bound, or `ValueNone` if only the async unifier can say.
 ///
