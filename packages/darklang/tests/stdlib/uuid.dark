@@ -30,3 +30,11 @@ test parseRejectsBadFormat =
       |> Stdlib.Test.equal(Error(Stdlib.Uuid.ParseError.BadFormat))
       Stdlib.Uuid.parse("d388ff30-667f-11eb-ae93-0242ac13000")
       |> Stdlib.Test.equal(Error(Stdlib.Uuid.ParseError.BadFormat)) ])
+
+// A v7 has version digit 7 and variant digit 8, 9, a or b.
+test generateV7SetsVersionAndVariant =
+  let text = Stdlib.toString(Stdlib.Uuid.generateV7())
+  Stdlib.Test.all(
+    [ Stdlib.String.slice(text, 14, 15) |> Stdlib.Test.equal("7")
+      Stdlib.List.contains([ "8", "9", "a", "b" ], Stdlib.String.slice(text, 19, 20))
+      |> Stdlib.Test.equal(true) ])
