@@ -300,7 +300,7 @@ let foldRead
             chunk
             |> List.choose (fun (seq, branch, opId, opBlob) ->
               BS.PT.PackageOp.tryDeserialize opId opBlob
-              |> Option.map (fun op -> (seq, branch, opId, op)))
+              |> Option.map (fun op -> (seq, branch, opId, opBlob, op)))
           skipped <- skipped + List.length chunk - List.length unappliedOps
 
           if not (List.isEmpty unappliedOps) then
@@ -330,7 +330,9 @@ let foldRead
             // having folded it. The same statement reads back what the fold needs from each row,
             // under the write lock, so it is what the row says now.
             let! logRows =
-              markApplied conn (unappliedOps |> List.map (fun (seq, _, _, _) -> seq))
+              markApplied
+                conn
+                (unappliedOps |> List.map (fun (seq, _, _, _, _) -> seq))
 
             // Each run of consecutive ops on one branch folds into that branch, in log order.
             let runs =
@@ -338,9 +340,10 @@ let foldRead
               |> List.fold
                 (fun
                      (acc : List<PT.BranchId * List<PackageOpPlayback.LoggedOp>>)
-                     (seq, branch, opId, op) ->
+                     (seq, branch, opId, opBlob, op) ->
                   let logged : PackageOpPlayback.LoggedOp =
                     { op = op
+                      blob = opBlob
                       id = opId
                       row =
                         Map.tryFind seq logRows

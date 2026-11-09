@@ -207,19 +207,32 @@ let private upsertContentAddressed
   }
 
 
+/// An item's `pt_def`: cut out of its op's stored blob when there is one in this build's format
+/// (`BS.PT.PackageOp.itemBlob`), and written again otherwise. Writing it again re-walks the whole
+/// syntax tree, which on a first run was most of what storing functions and tests cost.
+///
+/// Each handler passes None when it filled in an empty hash, since the blob holds the item as read.
+let private storedBytes
+  (opBlob : Option<byte[]>)
+  (serialize : unit -> byte[])
+  : byte[] =
+  opBlob |> Option.bind BS.PT.PackageOp.itemBlob |> Option.defaultWith serialize
+
+
 /// Apply a single AddType op to the package_types table.
 let private applyAddType
   (ctx : Ctx)
   (mayRewriteExisting : bool)
+  (opBlob : Option<byte[]>)
   (typ : PT.PackageType.PackageType)
   : Task<List<DependencyRow>> =
   task {
     // Use the hash already set on the item (computed by LoadPackagesFromDisk
     // or Propagation with SCC awareness). Only recompute if hash is empty.
-    let hash =
+    let hash, opBlob =
       match typ.hash with
-      | Hash "" -> Hashing.computeTypeHash Hashing.Normal typ
-      | h -> h
+      | Hash "" -> Hashing.computeTypeHash Hashing.Normal typ, None
+      | h -> h, opBlob
     let typ = { typ with hash = hash }
     let (Hash hashStr) = hash
 
@@ -229,7 +242,10 @@ let private applyAddType
         "type"
         "package_types"
         hash
-        [ "pt_def", box (BS.PT.PackageType.serialize hashStr typ)
+        [ "pt_def",
+          box (
+            storedBytes opBlob (fun () -> BS.PT.PackageType.serialize hashStr typ)
+          )
           "rt_def",
           box (typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hashStr)
           "description", box typ.description ]
@@ -247,13 +263,14 @@ let private applyAddType
 let private applyAddValue
   (ctx : Ctx)
   (mayRewriteExisting : bool)
+  (opBlob : Option<byte[]>)
   (value : PT.PackageValue.PackageValue)
   : Task<List<DependencyRow>> =
   task {
-    let hash =
+    let hash, opBlob =
       match value.hash with
-      | Hash "" -> Hashing.computeValueHash Hashing.Normal value
-      | h -> h
+      | Hash "" -> Hashing.computeValueHash Hashing.Normal value, None
+      | h -> h, opBlob
     let value = { value with hash = hash }
     let (Hash hashStr) = hash
 
@@ -263,7 +280,10 @@ let private applyAddValue
         "value"
         "package_values"
         hash
-        [ "pt_def", box (BS.PT.PackageValue.serialize hashStr value)
+        [ "pt_def",
+          box (
+            storedBytes opBlob (fun () -> BS.PT.PackageValue.serialize hashStr value)
+          )
           "description", box value.description ]
         [ "rt_dval"; "value_type" ]
         mayRewriteExisting
@@ -279,13 +299,14 @@ let private applyAddValue
 let private applyAddTrait
   (ctx : Ctx)
   (mayRewriteExisting : bool)
+  (opBlob : Option<byte[]>)
   (t : PT.Trait.Trait)
   : Task<List<DependencyRow>> =
   task {
-    let hash =
+    let hash, opBlob =
       match t.hash with
-      | Hash "" -> Hashing.computeTraitHash Hashing.Normal t
-      | h -> h
+      | Hash "" -> Hashing.computeTraitHash Hashing.Normal t, None
+      | h -> h, opBlob
     let t = { t with hash = hash }
     let (Hash hashStr) = hash
 
@@ -295,7 +316,8 @@ let private applyAddTrait
         "trait"
         "package_traits"
         hash
-        [ "pt_def", box (BS.PT.Trait.serialize hashStr t)
+        [ "pt_def",
+          box (storedBytes opBlob (fun () -> BS.PT.Trait.serialize hashStr t))
           "description", box t.description ]
         []
         mayRewriteExisting
@@ -316,13 +338,14 @@ let private applyAddImpl
   (ctx : Ctx)
   (mayRewriteExisting : bool)
   (originTs : string)
+  (opBlob : Option<byte[]>)
   (i : PT.TraitImpl.TraitImpl)
   : Task<List<DependencyRow>> =
   task {
-    let hash =
+    let hash, opBlob =
       match i.hash with
-      | Hash "" -> Hashing.computeImplHash Hashing.Normal i
-      | h -> h
+      | Hash "" -> Hashing.computeImplHash Hashing.Normal i, None
+      | h -> h, opBlob
     let i = { i with hash = hash }
     let (Hash hashStr) = hash
     let traitHash =
@@ -336,7 +359,8 @@ let private applyAddImpl
         "impl"
         "package_trait_impls"
         hash
-        [ "pt_def", box (BS.PT.TraitImpl.serialize hashStr i)
+        [ "pt_def",
+          box (storedBytes opBlob (fun () -> BS.PT.TraitImpl.serialize hashStr i))
           "trait_hash", box traitHash
           "description", box i.description
           "origin_ts", box originTs ]
@@ -354,13 +378,14 @@ let private applyAddImpl
 let private applyAddFn
   (ctx : Ctx)
   (mayRewriteExisting : bool)
+  (opBlob : Option<byte[]>)
   (fn : PT.PackageFn.PackageFn)
   : Task<List<DependencyRow>> =
   task {
-    let hash =
+    let hash, opBlob =
       match fn.hash with
-      | Hash "" -> Hashing.computeFnHash Hashing.Normal fn
-      | h -> h
+      | Hash "" -> Hashing.computeFnHash Hashing.Normal fn, None
+      | h -> h, opBlob
     let fn = { fn with hash = hash }
     let (Hash hashStr) = hash
     // Compiled once. Both columns come out of the same compilation, and doing it twice was
@@ -373,7 +398,8 @@ let private applyAddFn
         "fn"
         "package_functions"
         hash
-        [ "pt_def", box (BS.PT.PackageFn.serialize hashStr fn)
+        [ "pt_def",
+          box (storedBytes opBlob (fun () -> BS.PT.PackageFn.serialize hashStr fn))
           "rt_instrs", box (BS.RT.PackageFn.serialize hashStr rt)
           // The other half of what the compiler makes: which instruction produced which
           // expression's value. Its own column, because running the code never reads it.
@@ -396,13 +422,14 @@ let private applyAddFn
 let private applyAddTest
   (ctx : Ctx)
   (mayRewriteExisting : bool)
+  (opBlob : Option<byte[]>)
   (test : PT.PackageTest.PackageTest)
   : Task<List<DependencyRow>> =
   task {
-    let hash =
+    let hash, opBlob =
       match test.hash with
-      | Hash "" -> Hashing.computeTestHash Hashing.Normal test
-      | h -> h
+      | Hash "" -> Hashing.computeTestHash Hashing.Normal test, None
+      | h -> h, opBlob
     let test = { test with hash = hash }
     let (Hash hashStr) = hash
 
@@ -412,7 +439,10 @@ let private applyAddTest
         "test"
         "package_tests"
         hash
-        [ "pt_def", box (BS.PT.PackageTest.serialize hashStr test)
+        [ "pt_def",
+          box (
+            storedBytes opBlob (fun () -> BS.PT.PackageTest.serialize hashStr test)
+          )
           "description", box test.description ]
         []
         mayRewriteExisting
@@ -434,7 +464,9 @@ module OpRow =
 
 /// An op as `Seed.foldRead` has it: read from the log along with its row id and its row, so the fold
 /// neither hashes it again for its id nor reads its row back one op at a time.
-type LoggedOp = { op : PT.PackageOp; id : System.Guid; row : OpRow }
+///
+/// <param blob> is the op as stored, which its content goes into the content tables from.
+type LoggedOp = { op : PT.PackageOp; blob : byte[]; id : System.Guid; row : OpRow }
 
 let private opRowOf
   (ctx : Ctx)
@@ -677,10 +709,12 @@ let private writeDeprecationState
 ///
 /// <param logged> is the op's row id and its row in the log. A function, because most content ops
 /// need neither, and finding them costs a hash and a read.
+/// <param opBlob> is the op as stored, when the caller read it from the log (`storedBytes`).
 let private applyOp
   (ctx : Ctx)
   (branch : PT.BranchId)
   (logged : unit -> Task<System.Guid * OpRow>)
+  (opBlob : Option<byte[]>)
   (op : PT.PackageOp)
   : Task<List<DependencyRow>> =
   task {
@@ -689,16 +723,20 @@ let private applyOp
     // published to everyone. A branch says what it thinks an item is with an `UpdateDoc`.
     let mayRewriteExisting = branch.IsMain
     match op with
-    | PT.PackageOp.AddType typ -> return! applyAddType ctx mayRewriteExisting typ
+    | PT.PackageOp.AddType typ ->
+      return! applyAddType ctx mayRewriteExisting opBlob typ
     | PT.PackageOp.AddValue value ->
-      return! applyAddValue ctx mayRewriteExisting value
-    | PT.PackageOp.AddFn fn -> return! applyAddFn ctx mayRewriteExisting fn
-    | PT.PackageOp.AddTrait t -> return! applyAddTrait ctx mayRewriteExisting t
+      return! applyAddValue ctx mayRewriteExisting opBlob value
+    | PT.PackageOp.AddFn fn -> return! applyAddFn ctx mayRewriteExisting opBlob fn
+    | PT.PackageOp.AddTrait t ->
+      return! applyAddTrait ctx mayRewriteExisting opBlob t
     | PT.PackageOp.AddTraitImpl i ->
       // The op's own time, so two rival impls order the same way wherever they land.
       let! (_, row) = logged ()
-      return! applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" row.ts) i
-    | PT.PackageOp.AddTest test -> return! applyAddTest ctx mayRewriteExisting test
+      return!
+        applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" row.ts) opBlob i
+    | PT.PackageOp.AddTest test ->
+      return! applyAddTest ctx mayRewriteExisting opBlob test
     | _ ->
       let! (opId, row) = logged ()
       let layer : Layers.Layer = { branch = branch; draft = row.draft }
@@ -822,11 +860,13 @@ let private applyOp
 let private foldOps
   (ctx : Ctx)
   (branch : PT.BranchId)
-  (ops : List<(unit -> Task<System.Guid * OpRow>) * PT.PackageOp>)
+  (ops : List<(unit -> Task<System.Guid * OpRow>) * Option<byte[]> * PT.PackageOp>)
   : Task<List<DependencyRow>> =
   task {
     let! rows =
-      ops |> Task.mapSequentially (fun (logged, op) -> applyOp ctx branch logged op)
+      ops
+      |> Task.mapSequentially (fun (logged, opBlob, op) ->
+        applyOp ctx branch logged opBlob op)
 
     // Names just changed meaning; long-lived processes hold cached answers that
     // never expire on their own -- see `Caching.invalidateAll`.
@@ -851,7 +891,8 @@ let applyOpsOnConnection
           let! row = opRowOf ctx branch id
           return (id, row)
         }
-      let! rows = foldOps ctx branch (ops |> List.map (fun op -> (lookedUp op, op)))
+      let! rows =
+        foldOps ctx branch (ops |> List.map (fun op -> (lookedUp op, None, op)))
       writeDependencies conn rows
     finally
       disposeCtx ctx
@@ -874,7 +915,9 @@ let foldLoggedOnConnection
           branch
           (ops
            |> List.map (fun logged ->
-             ((fun () -> Task.FromResult((logged.id, logged.row))), logged.op)))
+             ((fun () -> Task.FromResult((logged.id, logged.row))),
+              Some logged.blob,
+              logged.op)))
     finally
       disposeCtx ctx
   }
