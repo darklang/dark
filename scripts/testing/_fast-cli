@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# A ReadyToRun copy of the Debug CLI, for the processes a package-test run starts.
+#
+#   scripts/testing/_fast-cli            print the copy's path when it is current; else exit 1
+#   scripts/testing/_fast-cli --make     make it current first if it is not, then print its path
+#   scripts/testing/_fast-cli --refresh  make it current in the background; prints nothing
+#
+# About a thousand package tests each start a worker, and many of those start the CLI again. A
+# Debug CLI spends most of its 0.8 s start compiling itself; this copy starts in 0.35 s. Its
+# libraries are the Debug build's own files compiled ahead (`--no-dependencies` builds nothing
+# else), and only Cli is compiled again, for the runtime, from the same source.
+#
+# Current means made from the Debug build that is there now, by name, size and time of every
+# file in it. Making it takes about 5 s when only Cli changed and 15 s when every library did.
+# One copy per Debug build, in backend/Build/out/Cli/fast/<key>/; the two newest are kept, so
+# a run still going when the next copy is made keeps its own. Run from the clone's root.
+set -euo pipefail
+
+DEBUG_DIR=backend/Build/out/Cli/Debug/net10.0
+ROOT=backend/Build/out/Cli/fast
+
+case "$(uname -m)" in
+  x86_64) RID=linux-x64 ;;
+  aarch64 | arm64) RID=linux-arm64 ;;
+  *) exit 1 ;;
+esac
+
+key() {
+  [[ -x "$DEBUG_DIR/Cli" ]] || return 1
+  find "$DEBUG_DIR" -maxdepth 1 -type f -printf '%f %s %T@\n' | sort | sha256sum | cut -c1-16
+}
+
+current() {
+  local k
+  k=$(key) || return 1
+  [[ -f "$ROOT/$k/.made" && -x "$ROOT/$k/Cli" ]] || return 1
+  echo "$ROOT/$k/Cli"
+}
+
+make_it() {
+  mkdir -p "$ROOT"
+  exec 9> "$ROOT/.lock"
+  flock 9
+  # Someone else may have made it while this waited.
+  current && return 0
+  local k out
+  k=$(key) || { echo "_fast-cli: no Debug CLI at $DEBUG_DIR/Cli; build first" >&2; return 1; }
+  out="$ROOT/$k.making"
+  rm -rf "$out"
+  # The real HOME, not a test's throwaway one: dotnet keeps its packages under it.
+  local home
+  home=$(getent passwd "$(id -un)" | cut -d: -f6)
+  if ! (cd backend && HOME="$home" dotnet publish src/Cli/Cli.fsproj --configuration Debug \
+          --runtime "$RID" --self-contained false -p:PublishReadyToRun=true \
+          --no-dependencies --output "../$out" --verbosity quiet) < /dev/null >&2 \
+      || [[ ! -x "$out/Cli" ]]; then
+    rm -rf "$out"
+    echo "_fast-cli: could not make the ReadyToRun CLI" >&2
+    return 1
+  fi
+  # A build that finished while this ran makes the copy a mix of two builds.
+  if [[ "$(key)" != "$k" ]]; then
+    rm -rf "$out"
+    echo "_fast-cli: the Debug build changed while the copy was made" >&2
+    return 1
+  fi
+  touch "$out/.made"
+  rm -rf "${ROOT:?}/$k"
+  mv "$out" "$ROOT/$k"
+  # shellcheck disable=SC2012  # names are hex keys
+  ls -td "$ROOT"/*/ | tail -n +3 | xargs -r rm -rf
+  echo "$ROOT/$k/Cli"
+}
+
+case "${1:-}" in
+  "") current ;;
+  --make) current || make_it ;;
+  --refresh)
+    current > /dev/null && exit 0
+    mkdir -p "$ROOT"
+    setsid "$0" --make < /dev/null > "$ROOT/refresh.log" 2>&1 &
+    ;;
+  *) echo "usage: $0 [--make | --refresh]" >&2; exit 2 ;;
+esac
