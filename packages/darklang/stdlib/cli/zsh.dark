@@ -16,7 +16,7 @@ let overwriteZshrc(content: String): Result.Result<Unit, String> =
 /// A program cannot change the shell that started it, so after editing .zshrc
 /// the user has to source it themselves.
 let printSourceHint(): Unit =
-  Stdlib.printLine(
+  Stdlib.printErrorLine(
     "Changes have been made to your .zshrc file.\nTo apply them to your current terminal session, run:\n  source ~/.zshrc")
 
 

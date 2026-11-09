@@ -390,7 +390,8 @@ let runSelected(
           ms = 0 }
       runSelected(run, branchId, options, cache, rest, running, finishTest(cache, counts, finished))
     | None ->
-      Stdlib.printLine($"Running: {fullPath(item)}")
+      // Progress, not a result: stderr, so the answer on stdout is the PASS/FAIL lines and the verdict.
+      Stdlib.printErrorLine($"Running: {fullPath(item)}")
       let handle = Stdlib.Exec.spawn(fun () ->
         let started = Stdlib.DateTime.__monotonicMilliseconds()
         let outcome = runFresh(run, branchId, item.entity)

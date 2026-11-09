@@ -171,7 +171,8 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
         "  Everything it shows is a command too: `dark help`, or `dark docs for-ai`.")))
-    { cliState with isExiting = true }
+    // A refusal: the workbench did not open, so a script or an agent must not read it as done.
+    { cliState with isExiting = true, exitCode = 1 }
   | Available ->
 
   let branchId = cliState.currentBranchId

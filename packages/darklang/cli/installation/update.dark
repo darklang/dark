@@ -33,7 +33,7 @@ let execute(state: AppState, args: List<String>): AppState =
   else
     let replace = fun () -> Installation.Download.installRelease(host, pinned)
 
-    Stdlib.printLine($"Checking for updates from Darklang CLI {currentVersion}...")
+    Stdlib.printErrorLine($"Checking for updates from Darklang CLI {currentVersion}...")
 
     match Installation.System.updateIfAvailable(currentVersion, pinned, replace) with
     | Ok(message) ->
