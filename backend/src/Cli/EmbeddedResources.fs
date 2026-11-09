@@ -45,10 +45,8 @@ let embeddedSchema () : Option<string> =
     |> Some
 
 
-/// Extract a resource that was gzip-compressed at build time.
-/// SQLite databases compress ~3-4× with gzip; we ship `data.db.gz`
-/// embedded and decompress on first extract. Saves ~7 MB on the binary.
-let private extractGzippedResource
+/// Extract a resource that was Brotli-compressed at build time (`scripts/build/compress-seed.fsx`).
+let private extractBrotliResource
   (resourceName : string)
   (targetPath : string)
   : unit =
@@ -62,13 +60,13 @@ let private extractGzippedResource
   if stream = null then
     ()
   else
-    use gzip =
-      new System.IO.Compression.GZipStream(
+    use brotli =
+      new System.IO.Compression.BrotliStream(
         stream,
         System.IO.Compression.CompressionMode.Decompress
       )
     use fileStream = File.Create(targetPath)
-    gzip.CopyTo(fileStream)
+    brotli.CopyTo(fileStream)
 
 let private hasEmbeddedResource (resourceName : string) : bool =
   let assembly = Assembly.GetExecutingAssembly()
@@ -185,7 +183,7 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
 
   try
     try
-      extractGzippedResource "data.db.gz" temp
+      extractBrotliResource "data.db.br" temp
 
       if File.Exists temp then
         use conn =
@@ -368,7 +366,7 @@ let extract () : Extracted =
   // On first run, decompress the embedded seed db to `~/.darklang/data.db`; afterwards the
   // file exists and grow/init proceeds against the local copy.
   let hasResource, hasResourceTiming =
-    timed "extract.hasResource" (fun () -> hasEmbeddedResource "data.db.gz")
+    timed "extract.hasResource" (fun () -> hasEmbeddedResource "data.db.br")
   if not hasResource then
     { timings = [ hasResourceTiming ]; locallyAuthored = [] }
   else
@@ -478,7 +476,7 @@ let extract () : Extracted =
         // the next run can start over instead of opening an incomplete database.
         let partial = $"{dbPath}.partial-{System.Guid.NewGuid()}"
         try
-          extractGzippedResource "data.db.gz" partial
+          extractBrotliResource "data.db.br" partial
           File.Move(partial, dbPath)
         finally
           try
