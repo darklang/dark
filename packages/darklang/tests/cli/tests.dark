@@ -721,6 +721,10 @@ test stdlibSuggestionFindsTheRealName =
       suggest("Stdlib.List.Nope.length")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.length"))
       suggest("Bool.not") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
+      suggest("Stdlib.String.fromBytes")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
+      suggest("Bytes.toString") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
+      suggest("String.toBytes") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
       suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test closestNamesAreSpelledNear =

@@ -199,6 +199,7 @@ type ParsedArgs =
     includeTypes: Bool
     deprecated: Cli.Packages.Query.Deprecated
     internal: Cli.Packages.Query.Internal
+    testModules: Cli.Packages.Query.TestModules
     filters: List<String>
     all: Bool
     parseErrors: List<FlagParser.ParseError> }
@@ -207,7 +208,7 @@ type ParsedArgs =
 val argSpec =
   FlagParser.Spec
     { flags =
-        [ ("--types", []), ("--include-deprecated", []), ("--include-internal", []), ("--all", []) ]
+        [ ("--types", []), ("--include-deprecated", []), ("--include-internal", []), ("--include-tests", []), ("--all", []) ]
       valueFlags = [ ("--module", []) ] }
 
 
@@ -225,6 +226,7 @@ let parseArgs(args: List<String>): ParsedArgs =
       deprecated =
         Cli.Packages.Query.Deprecated.showIf(FlagParser.hasFlag(p, "--include-deprecated"))
       internal = Cli.Packages.Query.Internal.showIf(FlagParser.hasFlag(p, "--include-internal"))
+      testModules = Cli.Packages.Query.TestModules.showIf(FlagParser.hasFlag(p, "--include-tests"))
       filters = p.positionals
       all = FlagParser.hasFlag(p, "--all")
       parseErrors = p.errors }
@@ -236,6 +238,7 @@ let executeFiltered(
   includeTypes: Bool,
   deprecated: Cli.Packages.Query.Deprecated,
   internal: Cli.Packages.Query.Internal,
+  testModules: Cli.Packages.Query.TestModules,
   filterText: Stdlib.Option.Option<String>)
   : Cli.AppState =
   let rootName = Stdlib.String.join(rootPath, ".")
@@ -273,6 +276,17 @@ let executeFiltered(
           traits = unfiltered.traits |> Stdlib.List.filter(fun i -> hits(i.location))
           impls = unfiltered.impls |> Stdlib.List.filter(fun i -> hits(i.location))
           tests = unfiltered.tests |> Stdlib.List.filter(fun i -> hits(i.location)) }
+
+  // Test fixtures and helpers (`DateTime.Tests.d`) are not part of an API, so they are left out
+  // unless asked for, or unless the listing is itself rooted in a `Tests` module.
+  let (results, hiddenTestItems) =
+    match testModules with
+    | Show -> (results, 0)
+    | Hide ->
+      if Cli.Packages.Search.inTestModule(rootPath) then
+        (results, 0)
+      else
+        Cli.Packages.Search.withoutTestHelpers(results)
 
   // An impl's method fns are listed with the impl, as calls, not as a module at the impl's path.
   // An impl shows when its own path matches the filter or one of its methods does.
@@ -363,6 +377,12 @@ let executeFiltered(
 
     let summary = $"{Stdlib.toString(totalFns)} fns{typesNote}{methodsNote} across {Stdlib.toString(Stdlib.List.length(allKeys))} modules"
     Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(summary))
+
+    if hiddenTestItems > 0 then
+      Stdlib.printErrorLine(
+        Stdlib.Cli.UI.Colors.hint(
+          $"{Stdlib.toString(hiddenTestItems)} test helpers left out; --include-tests shows them."))
+
     state
 
 
@@ -395,6 +415,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         parsed.includeTypes,
         parsed.deprecated,
         parsed.internal,
+        parsed.testModules,
         filter)
 
     let finalState =
@@ -413,7 +434,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
 
 let help(_state: Cli.AppState): String =
-  [ "Usage: docs signatures [filter...] [--types] [--module <path>] [--all] [--include-deprecated] [--include-internal]"
+  [ "Usage: docs signatures [filter...] [--types] [--module <path>] [--all] [--include-deprecated] [--include-internal] [--include-tests]"
     ""
     "Token-tight dump of stdlib functions with full type signatures."
     "Designed for AI agents needing an API map for a specific module or task."
@@ -428,6 +449,7 @@ let help(_state: Cli.AppState): String =
     "  --all                  Dump every stdlib fn at once (heavy)"
     "  --include-deprecated   Include deprecated items hidden by default"
     "  --include-internal     Include internal helpers (names starting with __)"
+    "  --include-tests        Include test helpers (what lives in Tests modules)"
     ""
     "Examples:"
     "  docs signatures                                # cheap overview"
@@ -449,7 +471,7 @@ let complete(
   match Stdlib.List.last(args) with
   | Some(last) ->
     if Stdlib.String.startsWith(last, "--") then
-      [ "--types", "--module", "--include-deprecated", "--include-internal" ]
+      [ "--types", "--module", "--include-deprecated", "--include-internal", "--include-tests" ]
       |> Stdlib.List.filter(fun f -> Stdlib.String.startsWith(f, last))
       |> Stdlib.List.map(Cli.Completion.simple)
     else []
