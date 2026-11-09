@@ -34,6 +34,10 @@ reset="\033[0m"
 
 echo -e "Reloading packages ${grey}(${LOG_PACKAGES})${reset}"
 
+# The build skips a reload when this record says the store is already what one would produce
+# (scripts/build/_reloadstamp.py). A reload that fails or is killed half way must not leave it behind.
+rm -f "${HOME}/.darklang/${DARK_CONFIG_DB_NAME:-data.db}.reload-stamp.json"
+
 # Everything goes to the log because a reload is thousands of lines of parse progress. A FAILURE must
 # not go only there: this runs from other scripts, and a caller that sees "Reloading packages" and then
 # silence carries on against a store that hasn't changed. So the reason comes out on stderr, and exit 1.

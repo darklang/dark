@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _buildindex
 import _buildplan
 import _buildstate
+import _reloadstamp
 
 run_tests = False
 in_ci = os.getenv("CI") == "true"
@@ -249,7 +250,18 @@ def reload_all_packages():
     configuration = " --published"
   else:
     configuration = ""
-  return run_backend(start, f"scripts/build/reload-packages {configuration}")
+  # CI starts from an empty store every time, so there is never anything to skip there.
+  if in_ci:
+    return run_backend(start, f"scripts/build/reload-packages {configuration}")
+  inputs = _reloadstamp.inputs(optimize)
+  if _reloadstamp.unchanged(inputs):
+    print("Skipped the package reload: nothing it reads has changed and no ops were written since "
+          "the last one. To reload anyway: scripts/build/reload-packages")
+    return True
+  ok = run_backend(start, f"scripts/build/reload-packages {configuration}")
+  if ok:
+    _reloadstamp.record(inputs)
+  return ok
 
 
 class Outcome:
