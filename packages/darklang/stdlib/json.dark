@@ -4,7 +4,8 @@ module Darklang.Stdlib.Json
 let serialize<'a>(value: 'a): String =
   Builtin.jsonSerialize<'a>(value)
 
-/// Parses a JSON string as a Dark value, matching the type <typeParam a>
+/// Parses a JSON string as a Dark value, matching the type <typeParam a>.
+/// Show an error with `$"{e}"` or `Stdlib.toString(e)`.
 let parse<'a>(
   json: String)
   : Stdlib.Result.Result<'a, ParseError.ParseError> =
@@ -139,3 +140,10 @@ module ParseError =
       + Stdlib.toString(line)
       + ", column "
       + Stdlib.toString(column)
+
+
+  impl ToString for ParseError =
+    /// What went wrong, with types named as the current branch sees them:
+    /// {{Can't parse JSON `"x"` as type `Int64` at path: `root.age`}}
+    let toString(e: ParseError): String =
+      Stdlib.Json.ParseError.toString(Darklang.SCM.Branches.current(), e)

@@ -1460,6 +1460,18 @@ module Option =
           |> Stdlib.Test.equal((Result.Error(
               "Can't parse JSON `[1,2,3]` as type `Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"))) ])
 
+module ParseErrorToString =
+  test interpolates =
+    Stdlib.Json.parse<Person>("{\"Name\":\"Bob\",\"Age\":\"x\"}")
+    |> Stdlib.Result.mapError(fun e -> $"{e}")
+    |> Stdlib.Test.equal(
+      Result.Error("Can't parse JSON `\"x\"` as type `Int64` at path: `root.Age`"))
+
+  test toStringNeedsNoBranch =
+    Stdlib.Json.parse<Int64>("1 2")
+    |> Stdlib.Result.mapError(fun e -> Stdlib.toString(e))
+    |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
+
 module Result =
   test serialize =
     Stdlib.Test.all(
