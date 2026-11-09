@@ -1299,11 +1299,14 @@ module PackageFn =
       collectTVars acc ret
     | _ -> acc
 
-  let toPT
+  /// <fn toPT>, and when <param sourceRanges> is given, where in the source each node of the
+  /// body starts, so a finding inside the function can give a line (see `Context.sourceRanges`).
+  let toPTWithRanges
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
+    (sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>>)
     (fn : WT.PackageFn.PackageFn)
     : Ply<PT.PackageFn.PackageFn> =
     uply {
@@ -1321,7 +1324,7 @@ module PackageFn =
         { currentFnName = Some(currentModule @ [ fn.name.name ])
           argMap = argMap
           localBindings = Set.empty
-          sourceRanges = None }
+          sourceRanges = sourceRanges }
       let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       // Explicit typeParams stay first because callers pass positional type
@@ -1347,3 +1350,12 @@ module PackageFn =
           bounds = bounds
           permissionCeiling = ceilingOf fn.effects }
     }
+
+  let toPT
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (fn : WT.PackageFn.PackageFn)
+    : Ply<PT.PackageFn.PackageFn> =
+    toPTWithRanges builtins pm onMissing currentModule None fn

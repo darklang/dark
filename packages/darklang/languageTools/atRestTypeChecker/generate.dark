@@ -689,7 +689,14 @@ let inferApply(
                ))
                constraints ]))
 
-    let (resultType, applyConstraints) = apply(scope, id, calleeType, [], args)
+    let calleeName =
+      match callee with
+      | EFnName(_, name, _, _) -> Stdlib.Option.Option.Some(name.originalName)
+      | _ -> Stdlib.Option.Option.None
+
+    let (resultType, applyConstraints) =
+      apply(scope, id, calleeType, calleeName, [], args)
+
     (resultType, all([ calleeConstraints, applyConstraints ]))
 
 /// A string expression has type String. Require each interpolated expression
@@ -1365,17 +1372,21 @@ let useFunction(
 /// Generate a call using already inferred arguments in known, followed by the
 /// expressions in args. known carries the input of a pipeline when present.
 /// Give new arguments separate unknowns, then let Apply establish their expected
-/// types before checking their expressions.
+/// types before checking their expressions. <param calleeName> is the function's name as
+/// written, when the call is to a name, so a wrong argument can say which call it is in.
 let apply(
   scope: Scope,
   id: Int64,
   callee: Model.Ty,
+  calleeName: Stdlib.Option.Option<List<String>>,
   known: List<(Model.Ty * Site)>,
   args: List<LanguageTools.ProgramTypes.Expr>)
   : (Model.Ty * Model.Constraint) =
+  let name = Stdlib.Option.map(calleeName, fun parts -> Stdlib.String.join(parts, "."))
   // Start new argument slots after the already supplied arguments, so their
   // positions and diagnostic indices match the full call, including any pipeline input.
-  let (slots, argChecks) = argumentSlots(scope, id, Stdlib.List.length(known), args, [], [])
+  let (slots, argChecks) =
+    argumentSlots(scope, id, name, Stdlib.List.length(known), args, [], [])
   let result = resultOf(id)
 
   (result,
@@ -1390,6 +1401,7 @@ let apply(
 let argumentSlots(
   scope: Scope,
   id: Int64,
+  calleeName: Stdlib.Option.Option<String>,
   index: Int64,
   args: List<LanguageTools.ProgramTypes.Expr>,
   slots: List<(Model.Ty * Site)>,
@@ -1399,10 +1411,11 @@ let argumentSlots(
   | [] -> (Stdlib.List.reverse(slots), Stdlib.List.reverse(checks))
   | [arg, ...rest] ->
     let slot = part(id, index)
-    let site = Site.FunctionArgument(Types.int64(index))
+    let site = Site.FunctionArgument(Types.int64(index), calleeName)
     argumentSlots(
       scope,
       id,
+      calleeName,
       index + 1,
       rest,
       Stdlib.List.prepend(slots, (slot, site)),
@@ -1594,7 +1607,13 @@ let inferPipePart(
         useFunction(scope, id, name, typeArgs, var(id, Model.Role.Callee))
 
       let (resultType, applyConstraints) =
-        apply(scope, id, fnType, [ (input, Site.PipelineFunction) ], args)
+        apply(
+          scope,
+          id,
+          fnType,
+          Stdlib.Option.Option.Some(name.originalName),
+          [ (input, Site.PipelineFunction) ],
+          args)
 
       (resultType, all([ fnConstraints, applyConstraints ]))
 
@@ -1640,7 +1659,13 @@ let inferPipePart(
           (callee, Model.Constraint.UseLocal(id, key, callee))
 
       let (resultType, applyConstraints) =
-        apply(scope, id, fnType, [ (input, Site.PipelineVariable) ], args)
+        apply(
+          scope,
+          id,
+          fnType,
+          Stdlib.Option.Option.None,
+          [ (input, Site.PipelineVariable) ],
+          args)
 
       (resultType, all([ fnConstraints, applyConstraints ]))
     | None ->

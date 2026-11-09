@@ -278,7 +278,7 @@ test aDeniedScriptStopsAndApprovalIsSaved =
 /// `run` and `eval` type-check the code first, and a definite error stops it before
 /// anything runs: the `printLine` ahead of the error must not print. A dropped value counts,
 /// whether it is on the top level, in a branch that would not be taken, in a lambda, or in a
-/// script's own function.
+/// script's own function, and an error in a function gives its line and the call it is in.
 test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
   Instance.withInstance(fun i ->
     let first = "Stdlib.printLine(\"SCRIPT_RAN\")\n"
@@ -293,7 +293,10 @@ test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
       ("a dropped value in the script's own function",
        "let helper(n: Int64): Unit =\n  n + 1\n  ()\n" + first + "0",
        "Function helper")
-      ("a wrong argument", first + "Stdlib.List.length(\"bad\")", "line 2, column 20") ]
+      ("a wrong argument", first + "Stdlib.List.length(\"bad\")", "line 2, column 20")
+      ("a wrong argument in the script's own function",
+       "let size(s: String): Int64 =\n  Stdlib.List.length(s)\n" + first + "0",
+       "line 2, column 22: [TypeMismatch] In `Stdlib.List.length`, argument 1") ]
     |> Stdlib.List.map(fun((label, source, where)) ->
       let path = script(i, "refused.dark", source)
 
