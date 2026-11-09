@@ -130,34 +130,69 @@ DB_PATH="${HOME}/.darklang/${DARK_CONFIG_DB_NAME}"
 echo -e "Deleting database file ${grey}(${DB_PATH})${reset}"
 rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
 
-# Run the migrations before the other servers start
-echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
-cd backend && \
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  "${LOCALEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
-cd ..
+# Outside CI, the freshly reloaded store is kept, keyed on everything it is made from, and a
+# later run with the same inputs copies it instead of spending two minutes rebuilding it.
+# Editing only F# tests changes none of these.
+KEPT=""
+if [[ ! -v CI && "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "disk" ]]; then
+  KEY=$(
+    { find "backend/$(dirname "$LOCALEXEC")" -maxdepth 1 -type f
+      find packages backend/migrations -type f
+      echo backend/src/LibExecution/package-ref-hashes.txt
+    } | sort | xargs -d '\n' sha256sum | sha256sum | cut -c1-16
+  )
+  KEPT="${HOME}/.darklang/test-store-cache/$KEY.db"
+fi
 
-if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
-  # Seed mode: copy seed as test DB, Tests exe auto-grows on startup
-  SEED_PATH="${HOME}/.darklang/seed.db"
-  if [[ -f "$SEED_PATH" ]]; then
-    echo "Copying seed.db as test database"
-    cp "$SEED_PATH" "$DB_PATH"
-  else
-    echo "ERROR: No seed.db found at $SEED_PATH"
-    echo "Run: ./scripts/run-cli export-seed /home/dark/app/rundir/seed.db"
-    echo "Or:  ./scripts/fetch-seed"
-    exit 1
-  fi
+if [[ -f "$KEPT" ]]; then
+  echo -e "Copying the kept test store ${grey}($KEPT)${reset}"
+  cp "$KEPT" "$DB_PATH"
 else
-  # Disk mode: reload packages from .dark files.
-  #  Migrations already ran inline above
-  if [[ -v CI ]]; then
-    echo "Reloading packages"
-    ./scripts/build/reload-packages $PUBLISHED_FLAG
+  # Run the migrations before the other servers start
+  echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
+  cd backend && \
+    DARK_CONFIG_TELEMETRY_EXPORTER=none \
+    "${LOCALEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
+  cd ..
+
+  # Most of a reload is checking trait calls, and the dev store has already checked most of
+  # them. Its cache is keyed on the build and the body, so a stale entry is never used.
+  if [[ -n "$KEPT" ]]; then
+    sqlite3 -cmd '.timeout 10000' "$DB_PATH" "ATTACH '${HOME}/.darklang/data.db' AS dev;
+      INSERT INTO trait_call_resolutions SELECT * FROM dev.trait_call_resolutions;"
+  fi
+
+  if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
+    # Seed mode: copy seed as test DB, Tests exe auto-grows on startup
+    SEED_PATH="${HOME}/.darklang/seed.db"
+    if [[ -f "$SEED_PATH" ]]; then
+      echo "Copying seed.db as test database"
+      cp "$SEED_PATH" "$DB_PATH"
+    else
+      echo "ERROR: No seed.db found at $SEED_PATH"
+      echo "Run: ./scripts/run-cli export-seed /home/dark/app/rundir/seed.db"
+      echo "Or:  ./scripts/fetch-seed"
+      exit 1
+    fi
   else
-    echo "Reloading packages"
-    ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+    # Disk mode: reload packages from .dark files.
+    #  Migrations already ran inline above
+    if [[ -v CI ]]; then
+      echo "Reloading packages"
+      ./scripts/build/reload-packages $PUBLISHED_FLAG
+    else
+      echo "Reloading packages"
+      ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+    fi
+  fi
+
+  if [[ -n "$KEPT" ]]; then
+    # Through SQLite rather than cp, which could miss writes still in the WAL. Only the
+    # latest store is kept.
+    rm -rf "$(dirname "$KEPT")"
+    mkdir -p "$(dirname "$KEPT")"
+    sqlite3 "$DB_PATH" ".backup '$KEPT.tmp'"
+    mv "$KEPT.tmp" "$KEPT"
   fi
 fi
 
