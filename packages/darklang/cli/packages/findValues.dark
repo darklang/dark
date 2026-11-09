@@ -35,7 +35,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
       Cli.failed(state)
     | Ok(typeHash) ->
-      let values = Stdlib.ValueSearch.findByType(state.currentBranchId, "", typeHash)
+      let values = LanguageTools.PackageManager.Value.findByType(state.currentBranchId, "", typeHash)
 
       if Stdlib.List.isEmpty(values) then
         Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"No values of type {typePath}"))
@@ -51,7 +51,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
       Cli.failed(state)
     | Ok(typeHash) ->
-      let values = Stdlib.ValueSearch.findByType(state.currentBranchId, namespace_, typeHash)
+      let values = LanguageTools.PackageManager.Value.findByType(state.currentBranchId, namespace_, typeHash)
 
       if Stdlib.List.isEmpty(values) then
         Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"No values of type {typePath} in {namespace_}"))
