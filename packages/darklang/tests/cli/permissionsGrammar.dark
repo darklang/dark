@@ -137,6 +137,30 @@ module PermissionsGrammar =
           (Stdlib.Option.Option.Some(
              [ process("/bin/x", []) ]))) ])
 
+  let githubPrefix(path: String): Darklang.LanguageTools.Permissions.Rule =
+    Darklang.LanguageTools.Permissions.Rule.Http(
+      Darklang.LanguageTools.Permissions.HttpRule
+        { method = only("GET")
+          scheme = only("https")
+          host = Darklang.LanguageTools.Permissions.HostRule.Exact("api.github.com")
+          port = Darklang.LanguageTools.Permissions.Scope.Only(443)
+          pathPrefix = only(path)
+          query = Darklang.LanguageTools.Permissions.Scope.All })
+
+  // A rule already covers the paths under it, so a trailing `/*` is the path without it:
+  // `https://api.github.com:443/*` covers `/repos/darklang/dark`, instead of being saved as a
+  // literal `/*` that no request matches. A `*` anywhere else is refused.
+  test trailingStarIsThePrefix =
+    Stdlib.Test.all(
+      [ Darklang.LanguageTools.Permissions.parseRuleText("http GET 'https://api.github.com:443/*'")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ githubPrefix("/") ]))
+        Darklang.LanguageTools.Permissions.parseRuleText("http GET https://api.github.com/repos/*")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ githubPrefix("/repos") ]))
+        Darklang.LanguageTools.Permissions.parseRuleText("http GET https://api.github.com/repos/*/pulls")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+        Darklang.LanguageTools.Permissions.parseRuleText("http GET https://api.github.com/repos*")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
   // A relative executable would name a different program per working
   // directory; only `*` or an absolute path is a rule.
   test relativeExecutableRejected =
