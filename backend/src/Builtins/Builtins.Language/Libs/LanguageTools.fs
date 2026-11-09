@@ -122,25 +122,6 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-    { name = fn "getBuiltinValue" 0
-      typeParams = []
-      parameters = [ Param.make "name" TString ""; Param.make "version" TInt32 "" ]
-      returnType = TCustomType(NR.ok (builtinValue ()), []) |> TypeReference.option
-      description = "Returns metadata for one builtin value, if it exists."
-      fn =
-        (function
-        | exeState, _, _, [| DString name; DInt32 version |] ->
-          let name : FQValueName.Builtin = { name = name; version = version }
-          let value =
-            match exeState.values.builtIn.TryGetValue name with
-            | true, data -> Some(builtinValueToDT name data)
-            | false, _ -> None
-          value |> Dval.option (KTCustomType(builtinValue (), [])) |> Ply
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 
