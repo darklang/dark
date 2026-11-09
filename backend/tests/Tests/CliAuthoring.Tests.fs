@@ -743,6 +743,38 @@ let aRivalCannotReachAUnaryOperator =
             "while a fresh `-` takes the newer one, so the rival really is the winner"
       })
 
+/// A call written `Builtin.negate` is stored as that builtin, not as the `Negate` call `-x` is,
+/// even in the implementation of `Negate` itself, which would otherwise be stored calling itself.
+let aBuiltinCallStaysTheBuiltin =
+  instanceTest "a `Builtin.` call is stored as that builtin" (fun state ->
+    task {
+      do! start state
+      do!
+        shows
+          state
+          [ "view"; "Darklang.Stdlib.Int16.Negate.negate" ]
+          "Builtin.negate(a)"
+          "the Negate implementation calls the builtin"
+      do!
+        shows
+          state
+          [ "view"; "Darklang.Stdlib.Int16.BitwiseNot.bitwiseNot" ]
+          "Builtin.bitwiseNot(a)"
+          "and so does the BitwiseNot one"
+      do!
+        run
+          state
+          [ "fn"; "Tests.ByName.neg"; "(a: Int16) : Int16 = Builtin.negate(a)" ]
+      do!
+        shows
+          state
+          [ "view"; "Tests.ByName.neg" ]
+          "Builtin.negate(a)"
+          "a saved by-name call stays the builtin"
+      do! evals state "Tests.ByName.neg(5s16)" "-5s16" "and runs it"
+      do! evals state "-(5s16)" "-5s16" "while `-` still negates"
+    })
+
 let aRivalCannotReachABoundedCall =
   instanceTest
     "a newer implementation does not reach a call inside a bounded generic"
@@ -1324,6 +1356,7 @@ let tests : List<Test> =
     authoringIdenticalSourceReportsUnchanged
     aRivalCannotReachABoundedCall
     aRivalCannotReachAUnaryOperator
+    aBuiltinCallStaysTheBuiltin
     aRivalCannotReachAPipedBoundedCall
     aRefusedImplementationOrBoundSavesNothing
     commitRefusesABoundThatNamesNothing

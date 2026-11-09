@@ -2021,7 +2021,7 @@ module IntOperators =
                   [ [ t.expr a; t.expr b ] ]
                   [ raised ]
             | Ok _ -> ()
-      // `-a` and `~a` are stored as `Builtin.negate a` and `Builtin.bitwiseNot a`.
+      // The builtins the `Negate` and `BitwiseNot` implementations call.
       for (op, builtin) in
         [ IntOps.bitwiseNot, "bitwiseNot" ]
         @ (if t.signed then [ IntOps.negate, "negate" ] else []) do

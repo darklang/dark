@@ -649,12 +649,6 @@ module InfixFnName =
   let tryFromBuiltinName (builtinName : string) : Option<InfixFnName> =
     all |> List.tryFind (fun name -> toBuiltinName name = builtinName)
 
-  /// The unary-minus builtin the parser lowers `-x` (non-literal) to.
-  let negateBuiltinName = "negate"
-
-  /// The unary `~` builtin the parser lowers bitwise NOT to.
-  let bitwiseNotBuiltinName = "bitwiseNot"
-
   /// The unary `!` builtin the parser lowers boolean NOT to.
   let boolNotBuiltinName = "boolNot"
 

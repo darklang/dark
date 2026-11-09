@@ -61,29 +61,6 @@ module FQFnName =
 
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
-    // `-x` is stored as `Builtin.negate x`; it runs as `Negate.negate x`, like `+` runs
-    // as `Add.add`, so a user type with `impl Negate` gets its unary minus.
-    | PT.FQFnName.Builtin { name = name; version = 0 } when
-      name = PT.InfixFnName.negateBuiltinName
-      ->
-      match NumericTraits.ofNegate () with
-      | Some(traitHash, methodName) ->
-        RT.FQFnName.TraitMethod
-          { trait_ = RT.Hash traitHash
-            method_ = methodName
-            implFn = RT.FQFnName.Unknown }
-      | None -> RT.FQFnName.Builtin { name = name; version = 0 }
-    // `~x` the same way: stored as `Builtin.bitwiseNot`, run as `BitwiseNot.bitwiseNot`.
-    | PT.FQFnName.Builtin { name = name; version = 0 } when
-      name = PT.InfixFnName.bitwiseNotBuiltinName
-      ->
-      match NumericTraits.ofBitwiseNot () with
-      | Some(traitHash, methodName) ->
-        RT.FQFnName.TraitMethod
-          { trait_ = RT.Hash traitHash
-            method_ = methodName
-            implFn = RT.FQFnName.Unknown }
-      | None -> RT.FQFnName.Builtin { name = name; version = 0 }
     | PT.FQFnName.Builtin s -> RT.FQFnName.Builtin(Builtin.toRT s)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(Package.toRT p)
     | PT.FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn } ->

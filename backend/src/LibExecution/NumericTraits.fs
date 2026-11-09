@@ -40,12 +40,12 @@ let ofInfix (op : InfixFnName) : Option<string * string> =
   | StringConcat -> None
 
 /// Unary minus on a non-literal (`-x`): `Negate.negate`, or None while the refs are not
-/// generated. The parser stores `Builtin.negate` in the PT; this is the lowering-time swap.
+/// generated.
 let ofNegate () : Option<string * string> =
   let hash = Traits.negate ()
   if hash = "" then None else Some(hash, "negate")
 
-/// `~x`, the same way: the parser stores `Builtin.bitwiseNot` and this is the swap.
+/// `~x`, the same way: `BitwiseNot.bitwiseNot`.
 let ofBitwiseNot () : Option<string * string> =
   let hash = Traits.bitwiseNot ()
   if hash = "" then None else Some(hash, "bitwiseNot")

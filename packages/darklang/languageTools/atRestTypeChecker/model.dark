@@ -156,11 +156,14 @@ type Constraint =
   | EnumPattern(at: Int64, scrutinee: Ty, caseName: String, fields: List<Ty>)
   /// Require an operand type supported by this operator. Defer the check while
   /// the type is unknown; subject describes the unresolved requirement in warnings.
+  /// <param record> is false for a by-name builtin call (`Builtin.add(a, b)`): it runs the
+  /// builtin, so it is checked like the operator but no implementation is chosen for it.
   | Operand(
     at: Int64,
     operation: LanguageTools.ProgramTypes.InfixFnName,
     operand: Ty,
-    subject: AmbiguousSubject)
+    subject: AmbiguousSubject,
+    record: Bool)
   /// What a CALL owes for one of the callee's bounds: the callee's parameter <param param>
   /// owes <param trait_>, and <param supplied> is the type this call gave it.
   ///
@@ -183,10 +186,12 @@ type Constraint =
     trait_: LanguageTools.ProgramTypes.Hash,
     method_: String,
     self: Ty)
-  /// Require a signed integer or Float for unary minus. Defer while its type is unknown.
-  | Negate(at: Int64, operand: Ty)
-  /// Require an integer for bitwise NOT. Defer while its type is unknown.
-  | BitwiseNot(at: Int64, operand: Ty)
+  /// Require a type with a `Negate` implementation for `-x`, or for `Builtin.negate(x)`, whose
+  /// <param record> is false: it runs the builtin, so no implementation is chosen for it.
+  /// Defer while its type is unknown.
+  | Negate(at: Int64, operand: Ty, record: Bool)
+  /// The same for `~x` and `BitwiseNot`.
+  | BitwiseNot(at: Int64, operand: Ty, record: Bool)
   /// Require a valid dictionary key type, including all values it can contain.
   /// For example, a key cannot contain a function. Defer checks that still need
   /// type information from the dictionary's entries or their later uses.
