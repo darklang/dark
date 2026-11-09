@@ -762,6 +762,54 @@ let fitsWithNothingToBind
   | _ -> primitiveFits expected actual
 
 
+/// Whether <param known> is the primitive <param expected>, `Bytes` included.
+let private knownIs (expected : TypeReference) (known : KnownType) : bool =
+  match known with
+  | KTUnit -> expected.IsTUnit
+  | KTBool -> expected.IsTBool
+  | KTInt8 -> expected.IsTInt8
+  | KTUInt8 -> expected.IsTUInt8
+  | KTInt16 -> expected.IsTInt16
+  | KTUInt16 -> expected.IsTUInt16
+  | KTInt32 -> expected.IsTInt32
+  | KTUInt32 -> expected.IsTUInt32
+  | KTInt64 -> expected.IsTInt64
+  | KTUInt64 -> expected.IsTUInt64
+  | KTInt128 -> expected.IsTInt128
+  | KTUInt128 -> expected.IsTUInt128
+  | KTBigInt -> expected.IsTBigInt
+  | KTFloat -> expected.IsTFloat
+  | KTFloat32 -> expected.IsTFloat32
+  | KTDecimal -> expected.IsTDecimal
+  | KTChar -> expected.IsTChar
+  | KTString -> expected.IsTString
+  | KTUuid -> expected.IsTUuid
+  | KTDateTime -> expected.IsTDateTime
+  | KTBytes -> expected.IsTBytes
+  | _ -> false
+
+
+/// `fitsWithNothingToBind` for a package fn's argument, which is checked on every call. Also
+/// `Bytes`, and a list of a primitive whose element type is that primitive: the unifier reads a
+/// list's element type and not its items, so this answers as it would. A list of anything else,
+/// or one whose element type is not known yet (`[]`), is left to the unifier.
+let argFitsWithNothingToBind
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : bool =
+  match expected with
+  | TBytes ->
+    (match actual with
+     | DBytes _ -> true
+     | _ -> false)
+  | TList inner ->
+    (match actual with
+     | DList(ValueType.Known elem, _) -> knownIs inner elem
+     | _ -> false)
+  | _ -> fitsWithNothingToBind tst expected actual
+
+
 /// Whether <param actual> is a value of <param expected>, and the symbol table with whatever that
 /// bound, or `ValueNone` if only the async unifier can say.
 ///

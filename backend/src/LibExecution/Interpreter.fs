@@ -83,6 +83,9 @@ module private FreeTVars =
   let builtinHasAny (fn : BuiltInFn) : bool =
     anyParamMentions fn.parameters || mentions fn.returnType
 
+  /// Whether a package fn's return type has a type variable in it.
+  let returnHasAny (fn : PackageFn.PackageFn) : bool = mentions fn.returnType
+
   // `TryGetValue(key, &out)` rather than `match d.TryGetValue key with | true, v ->`. The tuple form
   // reads better but allocates a `Tuple<bool, 'v>` on every lookup, hit or miss -- measured at 35 bytes
   // a call, which on a per-call cache lookup is more than the thing being cached.
@@ -1111,10 +1114,14 @@ let rec private checkPkgParamsSync
     match ArgSeq.uncons args with
     | ValueNone -> struct (i, ps, args, tst)
     | ValueSome(struct (a, aRest)) ->
-      match TypeChecker.tryUnifyWithAliasesSync types tst p.typ a with
-      | ValueSome updatedTst ->
-        checkPkgParamsSync types (i + 1) pRest aRest updatedTst
-      | ValueNone -> struct (i, ps, args, tst)
+      // The common case by its case alone: no unify, and nothing to bind.
+      if TypeChecker.argFitsWithNothingToBind tst p.typ a then
+        checkPkgParamsSync types (i + 1) pRest aRest tst
+      else
+        match TypeChecker.tryUnifyWithAliasesSync types tst p.typ a with
+        | ValueSome updatedTst ->
+          checkPkgParamsSync types (i + 1) pRest aRest updatedTst
+        | ValueNone -> struct (i, ps, args, tst)
 
 
 /// The values in <param regs>, in order. A top-level function rather than `List.map` with a
@@ -1229,6 +1236,29 @@ let private landedForTrace (args : List<Dval>) : List<Dval> =
   else
     args
 
+/// Bind one of a lambda's parameters to its argument.
+let inline private bindLambdaParam
+  (vm : VMState)
+  (r : Dval array)
+  (pat : LetPattern)
+  (arg : Dval)
+  : unit =
+  // One name bound to one register is the overwhelmingly common shape, so it skips the walk.
+  match pat with
+  | LPVariable extractTo -> r[extractTo] <- arg
+  | _ ->
+    let arg =
+      match arg with
+      // Every path pushing a lambda frame parks on these first (`argForcingFor`,
+      // `landThenRequest`); one here is a path that skipped it.
+      | DPromise _ when letNeedsValue pat arg ->
+        Exception.raiseInternal
+          "a lambda's pattern was handed a read in flight that nothing waited for"
+          []
+      | _ -> arg
+    if not (assignLetPattern r pat arg) then
+      RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
+
 /// Bind a lambda's parameters to its arguments, in lockstep.
 ///
 /// The `List.zip |> List.iter` this replaces built a pair per parameter and two closures per call.
@@ -1244,22 +1274,22 @@ let rec private bindLambdaParams
     match ArgSeq.uncons args with
     | ValueNone -> ()
     | ValueSome(struct (arg, argRest)) ->
-      // One name bound to one register is the overwhelmingly common shape, so it skips the walk.
-      match pat with
-      | LPVariable extractTo -> r[extractTo] <- arg
-      | _ ->
-        let arg =
-          match arg with
-          // Every path pushing a lambda frame parks on these first (`argForcingFor`,
-          // `landThenRequest`); one here is a path that skipped it.
-          | DPromise _ when letNeedsValue pat arg ->
-            Exception.raiseInternal
-              "a lambda's pattern was handed a read in flight that nothing waited for"
-              []
-          | _ -> arg
-        if not (assignLetPattern r pat arg) then
-          RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
+      bindLambdaParam vm r pat arg
       bindLambdaParams vm r patRest argRest
+
+/// `bindLambdaParams`, from <param args> starting at <param i>.
+let rec private bindLambdaParamsFrom
+  (vm : VMState)
+  (r : Dval array)
+  (pats : List<LetPattern>)
+  (args : Dval[])
+  (i : int)
+  : unit =
+  match pats with
+  | pat :: patRest when i < args.Length ->
+    bindLambdaParam vm r pat args[i]
+    bindLambdaParamsFrom vm r patRest args (i + 1)
+  | _ -> ()
 
 
 /// Whether a lambda's pattern must wait for any of `args` (`letNeedsValue`).
@@ -1289,6 +1319,10 @@ type private ApplyContext =
     putResultIn : Register
     /// Where to resume the calling frame once this call returns.
     returnPc : int
+    /// The call is the calling frame's own fn, in tail position, with nothing watching frames
+    /// (`runsInPlace`): it runs in the calling frame rather than a new one. Only an
+    /// `Apply` of a package fn sets it.
+    inPlace : bool
   }
 
 
@@ -2706,7 +2740,8 @@ let private packageFnCallData
         plainPure =
           match thinWrapper with
           | ValueSome biFn -> isPlainPure biFn
-          | ValueNone -> false }
+          | ValueNone -> false
+        fn = fn }
     exeState.packageFnCallCache[fn.hash] <- d
     d
 
@@ -2755,6 +2790,146 @@ let private packageEntryAccess
   | ValueSome(struct (layer, policy)) ->
     access |> Permissions.Access.restrict layer policy
 
+/// The symbol table a package fn's frame starts with: the caller's, with the fn's own free type-vars
+/// shadowed first, so the inner fn's `'a` is local to this call and not the outer's.
+let private calleeTst
+  (currentFrame : CallFrame)
+  (implicitTypeParams : Set<string>)
+  (newlyBound : TypeSymbolTable)
+  : TypeSymbolTable =
+  let stripped =
+    implicitTypeParams
+    |> Set.fold (fun m name -> removeIfPresent name m) currentFrame.typeSymbolTable
+  TST.mergeFavoringRight stripped newlyBound
+
+/// What the caller recorded for a fn's bounds, with any entry that defers to the CALLER's own type
+/// param resolved against the caller's frame. That is what threads a bound through a generic that
+/// calls another generic.
+///
+/// Almost every call in a program is into an unbounded fn, and the early-out keeps those exactly as
+/// they were: the closure below captures the frame, so it is allocated per call, and `List.choose`
+/// on an empty list would pay for it to do nothing.
+let private calleeBoundImpls
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  : List<struct (string * FQTypeName.Package * string * FQFnName.Package)> =
+  if List.isEmpty ctx.applicable.boundImpls then
+    []
+  else
+    ctx.applicable.boundImpls
+    |> List.choose (fun struct (param, trait_, method_, choice) ->
+      match choice with
+      | FQFnName.Chosen impl -> Some(struct (param, trait_, method_, impl))
+      | FQFnName.FromTypeParam outer ->
+        currentFrame.boundImpls
+        |> List.tryPick (fun struct (op, ot, om, oimpl) ->
+          if op = outer && ot = trait_ && om = method_ then
+            Some(struct (param, trait_, method_, oimpl))
+          else
+            None)
+      | FQFnName.Unknown -> None)
+
+/// Mark the callbacks a package fn's frame was given with what they should return.
+let private expectCallbackReturns
+  (vm : VMState)
+  (ctx : ApplyContext)
+  (callData : PackageFnCallData)
+  (frame : CallFrame)
+  : unit =
+  let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
+  if not (isNull fnParams) && fnParams.Length > 0 then
+    let fnName =
+      match callData.executionPoint with
+      | Function n -> n
+      | _ -> ctx.applicable.name
+    expectLambdaReturns
+      vm
+      fnName
+      fnParams
+      frame.registers
+      frame.typeSymbolTable
+      frame.id
+
+/// Whether the result of the `Apply` at <param i> - 1, in register <param cur>, is what the frame
+/// returns: only copies of it and forward jumps come after, and they end with it in
+/// <param resultReg>.
+let rec private tailFrom
+  (instrs : Instruction array)
+  (i : int)
+  (cur : Register)
+  (resultReg : Register)
+  : bool =
+  if i >= instrs.Length then
+    cur = resultReg
+  else
+    match instrs[i] with
+    | CopyVal(copyTo, copyFrom) when copyFrom = cur ->
+      tailFrom instrs (i + 1) copyTo resultReg
+    | JumpBy n when n >= 0 -> tailFrom instrs (i + n + 1) cur resultReg
+    | _ -> false
+
+/// Whether a call from <param frame> to its own fn or lambda, writing <param putResultIn>, can run
+/// in the frame itself. The call has to be the frame's last act, and nothing may be watching frames:
+/// tracing that records frames or values, and detailed timing, see a frame per call as before. A
+/// frame a builtin asked for has a continuation waiting on its result, and a lambda's frame with a
+/// return check has one for each level, so neither does.
+///
+/// Deep recursion that is not a tail call still pushes a frame per level.
+let private runsInPlace
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (frame : CallFrame)
+  (putResultIn : Register)
+  : bool =
+  obj.ReferenceEquals(frame.continuation, null)
+  && frame.parent.IsSome
+  && frame.expectedLambdaReturn.IsNone
+  && not exeState.tracing.collectFrames
+  && not exeState.tracing.collectExprValues
+  && not (vm.stats.enabled && vm.stats.detailedTiming)
+  && tailFrom
+    frame.instrData.instructions
+    (frame.programCounter + 1)
+    putResultIn
+    frame.instrData.resultReg
+
+/// A self tail call (`ApplyContext.inPlace`), run in the calling frame: it takes the call's
+/// arguments, access, symbol table and bounds, and starts over. Its id, parent and place in
+/// `callFrames` stay, so its result goes where the first call's would, and a callback check tied to
+/// its id stays live. The return check, made once when the loop ends, is the one every level would
+/// have made: the same fn, and a return type with no type variable for a level's table to change.
+/// No frame entry for tracing: nothing that records frames lets a call run in place.
+let private refillForTailCall
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (frame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : PackageFn.PackageFn)
+  (callData : PackageFnCallData)
+  (implicitTypeParams : Set<string>)
+  (newlyBound : TypeSymbolTable)
+  (allArgs : ArgSeq)
+  : PackageOutcome =
+  if vm.stats.enabled then
+    vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+    vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+  let tst = calleeTst frame implicitTypeParams newlyBound
+  let access = packageEntryAccess exeState callData fn.hash ctx.access
+  let boundImpls = calleeBoundImpls frame ctx
+  // The arguments are read from the registers about to be cleared, so out first, into the frame's
+  // scratch buffer, which is then cleared so it holds nothing alive.
+  let args = ArgSeq.toArrayFor frame allArgs
+  let regs = frame.registers
+  System.Array.Clear(regs, 0, regs.Length)
+  System.Array.Copy(args, regs, args.Length)
+  System.Array.Clear(args, 0, args.Length)
+  frame.access <- access
+  frame.typeSymbolTable <- tst
+  frame.boundImpls <- boundImpls
+  expectCallbackReturns vm ctx callData frame
+  // `enterFrame` sets the counter back to the start.
+  PushFrame frame
+
 /// Too many arguments for a package fn, too few, or exactly right -- in which case build the frame to
 /// run it in.
 ///
@@ -2782,17 +2957,20 @@ let private completePackage
     RTE.Applications.TooFewArgsForFn(applicable.name, paramCount, argCount)
     |> RTE.Apply
     |> raiseRTE vm.threadID
+  elif ctx.inPlace then
+    refillForTailCall
+      exeState
+      vm
+      currentFrame
+      ctx
+      fn
+      callData
+      implicitTypeParams
+      newlyBound
+      allArgs
   else
-    // Inherit the outer frame's TST but shadow this fn's own free type-vars first, so the inner fn's
-    // `'a` is local to this call and not the outer's.
     let frameTstAlloc = allocNow vm
-    let frameTst =
-      let stripped =
-        implicitTypeParams
-        |> Set.fold
-          (fun m name -> removeIfPresent name m)
-          currentFrame.typeSymbolTable
-      TST.mergeFavoringRight stripped newlyBound
+    let frameTst = calleeTst currentFrame implicitTypeParams newlyBound
     recordStage vm ApplyStage.PkgFrameTst frameTstAlloc
     let pkgFrameAlloc = allocNow vm
     if vm.stats.enabled then
@@ -2841,43 +3019,10 @@ let private completePackage
         (ValueSome fn.returnType)
         ValueNone
         frameTst
-        // What the caller recorded for this fn's bounds, with any entry that defers to the
-        // CALLER's own type param resolved against the caller's frame. That is what threads a
-        // bound through a generic that calls another generic.
-        //
-        // Almost every call in a program is into an unbounded fn, and the early-out keeps those
-        // exactly as they were: the closure below captures the frame, so it is allocated per
-        // call, and `List.choose` on an empty list would pay for it to do nothing.
-        (if List.isEmpty ctx.applicable.boundImpls then
-           []
-         else
-           ctx.applicable.boundImpls
-           |> List.choose (fun struct (param, trait_, method_, choice) ->
-             match choice with
-             | FQFnName.Chosen impl -> Some(struct (param, trait_, method_, impl))
-             | FQFnName.FromTypeParam outer ->
-               currentFrame.boundImpls
-               |> List.tryPick (fun struct (op, ot, om, oimpl) ->
-                 if op = outer && ot = trait_ && om = method_ then
-                   Some(struct (param, trait_, method_, oimpl))
-                 else
-                   None)
-             | FQFnName.Unknown -> None))
+        (calleeBoundImpls currentFrame ctx)
 
     ArgSeq.fill frame.registers allArgs
-    let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
-    if not (isNull fnParams) && fnParams.Length > 0 then
-      let fnName =
-        match pkgEp with
-        | Function n -> n
-        | _ -> applicable.name
-      expectLambdaReturns
-        vm
-        fnName
-        fnParams
-        frame.registers
-        frame.typeSymbolTable
-        frame.id
+    expectCallbackReturns vm ctx callData frame
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
 
@@ -3253,10 +3398,10 @@ let private callPackageResolved
   (vm : VMState)
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
-  (fn : PackageFn.PackageFn)
+  (callData : PackageFnCallData)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
   : Ply<PackageOutcome> =
-  let callData = packageFnCallData exeState fn
+  let fn = callData.fn
   if isNull (System.Threading.Volatile.Read(&callData.fnParams)) then
     uply {
       do! resolveFnParams exeState fn callData
@@ -3283,13 +3428,14 @@ let private callPackageResolved
 
 /// Run a package-fn call, resolving its explicit type args first. Outside the computation expression for
 /// the same reason as `callBuiltin`.
-let private callPackage
+let private callPackageWith
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
-  (fn : PackageFn.PackageFn)
+  (callData : PackageFnCallData)
   : Ply<PackageOutcome> =
+  let fn = callData.fn
   // Both arms spell out the call rather than sharing a local `run`. The async arm would capture that
   // local into its closure, and a local a closure captures can't be lambda-lifted away, so the six
   // values it closes over are an allocation on every package call whether or not the async arm runs.
@@ -3302,12 +3448,22 @@ let private callPackage
       ctx
   with
   | ValueSome resolved ->
-    callPackageResolved exeState vm currentFrame ctx fn resolved
+    callPackageResolved exeState vm currentFrame ctx callData resolved
   | ValueNone ->
     uply {
       let! resolved = resolveTypeArgsAsync exeState ctx
-      return! callPackageResolved exeState vm currentFrame ctx fn resolved
+      return! callPackageResolved exeState vm currentFrame ctx callData resolved
     }
+
+/// `callPackageWith` for a fn just fetched.
+let private callPackage
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : PackageFn.PackageFn)
+  : Ply<PackageOutcome> =
+  callPackageWith exeState vm currentFrame ctx (packageFnCallData exeState fn)
 
 
 
@@ -3663,6 +3819,43 @@ let private sameWrittenIn
   | Lambda(_, _, None) -> writtenIn.IsNone
   | _ -> false
 
+/// The instructions a lambda's frame runs. Same shared InstrData the per-VM cache holds; this is a
+/// reference to it, not a copy.
+let private lambdaInstrDataFor
+  (vm : VMState)
+  (exprId : id)
+  (foundLambda : LambdaImpl)
+  : InstrData =
+  // `TryGetValue` rather than `Map.tryFind`, which allocates a `Some` on every hit.
+  let mutable hit = Unchecked.defaultof<struct (LambdaImpl * InstrData)>
+  let found = vm.lambdaInstrDataCache.TryGetValue(exprId, &hit)
+  let struct (builtFrom, cachedData) = hit
+  // An entry from another impl with this id is an older version of the same fn (an edit keeps
+  // expression ids), so it would run the old body.
+  if found && obj.ReferenceEquals(builtFrom, foundLambda) then
+    cachedData
+  else
+    let instructions = List.toArray foundLambda.instructions.instructions
+    let d : InstrData =
+      { instructions = instructions
+        resultReg = foundLambda.instructions.resultIn
+        // The lambda's OWN table. Its body is its own instruction list with its own program
+        // counter, so the enclosing function's indices do not reach it, and without this
+        // every value inside a loop is lost.
+        //
+        // From the VM rather than from the current frame: the frame applying a lambda is
+        // whatever was passed it (`List.map`'s), not the one that defined it.
+        symbols =
+          lazy
+            { exprAt =
+                match vm.lambdaSymbols.TryGetValue exprId with
+                | true, table -> table
+                | false, _ -> Map.empty
+              lambdas = Map.empty }
+        quick = quicken (PackageRefs.currentGeneration ()) instructions }
+    vm.lambdaInstrDataCache[exprId] <- struct (foundLambda, d)
+    d
+
 /// Push the frame for applying `appLambda` to `allArgs` (a full application, checked by the
 /// caller), from `currentFrame`, with `access` (the applying frame's, narrowed by the lambda's
 /// capture). What the `Apply` instruction does for a lambda, and what a builtin's apply request
@@ -3724,38 +3917,8 @@ let inline private pushLambdaFrame
       ep
   recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
 
-  // Resolved here so the loop never has to look it up. Same shared InstrData the
-  // per-VM cache holds; this is a reference to it, not a copy.
-  let lambdaInstrData =
-    // `TryGetValue` rather than `Map.tryFind`, which allocates a `Some` on every hit.
-    let mutable hit = Unchecked.defaultof<struct (LambdaImpl * InstrData)>
-    let found = vm.lambdaInstrDataCache.TryGetValue(exprId, &hit)
-    let struct (builtFrom, cachedData) = hit
-    // An entry from another impl with this id is an older version of the same fn (an edit keeps
-    // expression ids), so it would run the old body.
-    if found && obj.ReferenceEquals(builtFrom, foundLambda) then
-      cachedData
-    else
-      let instructions = List.toArray foundLambda.instructions.instructions
-      let d : InstrData =
-        { instructions = instructions
-          resultReg = foundLambda.instructions.resultIn
-          // The lambda's OWN table. Its body is its own instruction list with its own program
-          // counter, so the enclosing function's indices do not reach it, and without this
-          // every value inside a loop is lost.
-          //
-          // From the VM rather than from the current frame: the frame applying a lambda is
-          // whatever was passed it (`List.map`'s), not the one that defined it.
-          symbols =
-            lazy
-              { exprAt =
-                  match vm.lambdaSymbols.TryGetValue exprId with
-                  | true, table -> table
-                  | false, _ -> Map.empty
-                lambdas = Map.empty }
-          quick = quicken (PackageRefs.currentGeneration ()) instructions }
-      vm.lambdaInstrDataCache[exprId] <- struct (foundLambda, d)
-      d
+  // Resolved here so the loop never has to look it up.
+  let lambdaInstrData = lambdaInstrDataFor vm exprId foundLambda
 
   let newFrame =
     takeFrame
@@ -3813,6 +3976,18 @@ let inline private pushLambdaFrame
 let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
   vm.callFrames[frame.id] <- frame
   vm.currentFrameID <- frame.id
+
+/// Run the frame a call handed back from <param caller>: a new one is pushed, and the caller itself,
+/// refilled for a self tail call (`refillForTailCall`), starts over.
+let inline private enterFrame
+  (vm : VMState)
+  (caller : CallFrame)
+  (frame : CallFrame)
+  : unit =
+  if obj.ReferenceEquals(frame, caller) then
+    frame.programCounter <- 0
+  else
+    pushFrame vm frame
 
 
 /// Start a builtin's apply request (`requestApply`): push the callable's frame from `caller`,
@@ -3955,7 +4130,8 @@ let rec private beginRequest
         tst = tst
         access = access
         putResultIn = reg
-        returnPc = pcAfter }
+        returnPc = pcAfter
+        inPlace = false }
     match named.name with
     | FQFnName.Builtin builtin ->
       let mutable found = Unchecked.defaultof<BuiltInFn>
@@ -4060,6 +4236,66 @@ let private landBuiltin
     ApplyDone
 
 
+/// Whether a lambda's call of itself (a nested fn's, through its self register) can run in the
+/// calling frame: the frame is running this lambda's body, the call is its last act, and neither
+/// level has a return check (`runsInPlace`). The execution-point test comes first, since it is the
+/// cheap one and nearly every lambda call fails it.
+let private lambdaRunsInPlace
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (frame : CallFrame)
+  (putResultIn : Register)
+  (appLambda : ApplicableLambda)
+  (foundLambda : LambdaImpl)
+  : bool =
+  (match frame.executionPoint with
+   | Lambda(_, id, _) -> id = appLambda.exprId
+   | _ -> false)
+  && runsInPlace exeState vm frame putResultIn
+  && (liveExpectation vm appLambda.expectedReturn).IsNone
+  && frame.registers.Length = foundLambda.instructions.registerCount
+  && obj.ReferenceEquals(
+    lambdaInstrDataFor vm appLambda.exprId foundLambda,
+    frame.instrData
+  )
+
+/// A lambda's self tail call, run in the calling frame, as `refillForTailCall` does for a package
+/// fn: the registers are bound as `pushLambdaFrame` binds a new frame's, and the frame starts over.
+/// It keeps its execution point, rather than one a level deeper per call.
+let private refillLambdaForTailCall
+  (vm : VMState)
+  (frame : CallFrame)
+  (appLambda : ApplicableLambda)
+  (foundLambda : LambdaImpl)
+  (allArgs : ArgSeq)
+  (access : Permissions.Access)
+  : unit =
+  // What `pushLambdaFrame` would give the new frame, with this one as its caller.
+  let tst =
+    if TST.isEmpty appLambda.typeSymbolTable then frame.typeSymbolTable
+    else if TST.isEmpty frame.typeSymbolTable then appLambda.typeSymbolTable
+    else TST.mergeFavoringRight appLambda.typeSymbolTable frame.typeSymbolTable
+  // Out first, as in `refillForTailCall`: the arguments are in the registers about to be cleared.
+  let args = ArgSeq.toArrayFor frame allArgs
+  let r = frame.registers
+  System.Array.Clear(r, 0, r.Length)
+  bindLambdaParamsFrom
+    vm
+    r
+    (FreeTVars.patternsOfLambda appLambda.exprId foundLambda.patterns)
+    args
+    0
+  System.Array.Clear(args, 0, args.Length)
+  assignRegisters r appLambda.closedRegisters
+  match foundLambda.selfRegister with
+  | Some selfReg -> r[selfReg] <- DApplicable(AppLambda appLambda)
+  | None -> ()
+  frame.access <- access
+  frame.typeSymbolTable <- tst
+  if vm.stats.enabled then vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+  // `enterFrame` sets the counter back to the start.
+  vm.frameToPush <- ValueSome frame
+
 /// `Apply` of a lambda.
 ///
 /// This and the four after it are the arms of `applyInstructionForced`, one per kind of callee.
@@ -4096,17 +4332,22 @@ let private applyLambda
     |> raiseRTE vm.threadID
 
   if argCount = paramCount then
-    pushLambdaFrame
-      exeState
-      vm
-      currentFrame
-      putResultIn
-      appLambda
-      foundLambda
-      exprId
-      allArgs
-      access
-    |> ignore<CallFrame>
+    if
+      lambdaRunsInPlace exeState vm currentFrame putResultIn appLambda foundLambda
+    then
+      refillLambdaForTailCall vm currentFrame appLambda foundLambda allArgs access
+    else
+      pushLambdaFrame
+        exeState
+        vm
+        currentFrame
+        putResultIn
+        appLambda
+        foundLambda
+        exprId
+        allArgs
+        access
+      |> ignore<CallFrame>
 
   else if argCount > paramCount then
     RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
@@ -4440,14 +4681,18 @@ let private applyPackageFn
   // `[LoadVal; Apply]`, and the marker made every stdlib forwarder three instructions,
   // so none of them ever matched. Taking it out turned the optimisation on for the whole
   // standard library.
+  //
+  // Looked up once, here, for both the wrapper and the call below: a fn that has been called
+  // before needs neither the fetch nor another look in this cache.
+  let mutable callData = Unchecked.defaultof<PackageFnCallData>
+  let known = exeState.packageFnCallCache.TryGetValue(pkg, &callData)
   let earlyWrapper =
     if
       List.isEmpty typeArgs
       && List.isEmpty applicable.argsSoFar
       && not exeState.tracing.collectExprValues
     then
-      let mutable callData = Unchecked.defaultof<PackageFnCallData>
-      if exeState.packageFnCallCache.TryGetValue(pkg, &callData) then
+      if known then
         match callData.thinWrapper with
         // Also only once its callback parameters are known, which the long way does.
         | ValueSome biFn when
@@ -4519,7 +4764,8 @@ let private applyPackageFn
               tst = tst
               access = entryAccess
               putResultIn = putResultIn
-              returnPc = currentFrame.programCounter + 1 }
+              returnPc = currentFrame.programCounter + 1
+              inPlace = false }
           if opTag.IsSome then
             callBuiltinResolved exeState vm currentFrame ctx biFn []
           else
@@ -4547,27 +4793,39 @@ let private applyPackageFn
   | _ ->
 
     let pkgFetchAlloc = allocNow vm
-    // Warm cache after the first call, which for a script means all but a handful of these.
-    //
-    // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
-    // would sit in the loop's computation expression and cost a continuation closure on every
-    // call, reached or not.
-    let fetchOnlyAlloc = allocNow vm
-    let fetch = exeState.fns.package pkg
-    let fetched = Ply.trySync fetch
-    recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
     let call =
-      match fetched with
-      | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
-      | ValueSome None ->
-        RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-      | ValueNone ->
-        uply {
-          match! fetch with
-          | Some fn -> return! callPackage exeState vm currentFrame ctx fn
-          | None ->
-            return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-        }
+      if known then
+        // A call of the frame's own fn as its last act runs in this frame (`refillForTailCall`):
+        // a loop written as a self tail call holds one frame, not one per turn.
+        let ctx =
+          if
+            obj.ReferenceEquals(callData.instrData, currentFrame.instrData)
+            && not (FreeTVars.returnHasAny callData.fn)
+            && runsInPlace exeState vm currentFrame putResultIn
+          then
+            { ctx with inPlace = true }
+          else
+            ctx
+        callPackageWith exeState vm currentFrame ctx callData
+      else
+        // The first call: fetch it. The miss builds its own `uply` and the hit never touches the
+        // builder. A `let!` here instead would sit in the loop's computation expression and cost
+        // a continuation closure on every call, reached or not.
+        let fetchOnlyAlloc = allocNow vm
+        let fetch = exeState.fns.package pkg
+        let fetched = Ply.trySync fetch
+        recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
+        match fetched with
+        | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
+        | ValueSome None ->
+          RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+        | ValueNone ->
+          uply {
+            match! fetch with
+            | Some fn -> return! callPackage exeState vm currentFrame ctx fn
+            | None ->
+              return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+          }
     recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
     match Ply.trySync call with
     | ValueSome(Completed dv) ->
@@ -4711,7 +4969,8 @@ let private applyInstructionForced
           tst = tst
           access = access
           putResultIn = putResultIn
-          returnPc = currentFrame.programCounter + 1 }
+          returnPc = currentFrame.programCounter + 1
+          inPlace = false }
 
       // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
       // and `callPackage` behind them: same five steps, different parameter and outcome types.
@@ -6580,7 +6839,7 @@ let private awaitOf
         frame.programCounter <- frame.programCounter + 1
         match running.Result with
         | Completed dv -> frame.registers[reg] <- dv
-        | PushFrame newFrame -> pushFrame vm newFrame
+        | PushFrame newFrame -> enterFrame vm frame newFrame
     )
   | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
     // Parked on a builtin's continuation (a callable it asked for has returned, and what the
@@ -6676,7 +6935,7 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
         currentFrame.programCounter <- currentFrame.programCounter + 1
         match outcome with
         | Completed dv -> registers[reg] <- dv
-        | PushFrame frame -> pushFrame vm frame
+        | PushFrame frame -> enterFrame vm currentFrame frame
       | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitForce(task, reg) ->
       // Landed between the check and here: the value goes in and the instruction runs again.
@@ -6702,9 +6961,7 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
 
     if ValueOption.isNone bail && step.IsBlockEnded then
       match vm.frameToPush with
-      | ValueSome newFrame ->
-        vm.callFrames[newFrame.id] <- newFrame
-        vm.currentFrameID <- newFrame.id
+      | ValueSome newFrame -> enterFrame vm currentFrame newFrame
       | ValueNone ->
         let resultOfFrame = registers[instrData.resultReg]
 

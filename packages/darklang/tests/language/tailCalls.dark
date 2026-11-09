@@ -1,0 +1,87 @@
+module Darklang.Language.Tests.TailCalls
+
+// A fn or nested fn whose last act is to call itself runs that call in its own frame, so a loop
+// written this way holds one frame however long it runs. These pin down that it answers as a
+// frame per level would, and that recursion that is not a tail call still goes as deep.
+
+let count(i: Int64, acc: Int64): Int64 =
+  if i == 0 then acc else count(i - 1, acc + i)
+
+let walk(xs: List<Int64>, acc: Int64): Int64 =
+  match xs with
+  | [] -> acc
+  | [head, ...rest] -> walk(rest, acc + head)
+
+let lengthOf(xs: List<'a>, acc: Int64): Int64 =
+  match xs with
+  | [] -> acc
+  | [_, ...rest] -> lengthOf(rest, acc + 1)
+
+// The return type has a type variable, so each level keeps its frame.
+let lastOf(xs: List<'a>, fallback: 'a): 'a =
+  match xs with
+  | [] -> fallback
+  | [x] -> x
+  | [_, ...rest] -> lastOf(rest, fallback)
+
+// Not a tail call: the addition runs after the call returns.
+let sumTo(n: Int64): Int64 = if n == 0 then 0 else n + (sumTo(n - 1))
+
+let isEven(n: Int64): Bool = if n == 0 then true else isOdd(n - 1)
+
+let isOdd(n: Int64): Bool = if n == 0 then false else isEven(n - 1)
+
+let applyAfter(i: Int64, f: Int64 -> Int64): Int64 =
+  if i == 0 then f(i) else applyAfter(i - 1, f)
+
+let countWrong(i: Int64): String = if i == 0 then 5 else countWrong(i - 1)
+
+let countDown(i: Int64, label: String): Int64 =
+  if i == 0 then 0
+  else if i == 3 then countDown(i - 1, 3)
+  else countDown(i - 1, label)
+
+test selfTailCalls =
+  Stdlib.Test.all(
+    [ count(300000, 0) |> Stdlib.Test.equal(45000150000)
+      walk(Stdlib.List.range(1, 100000), 0) |> Stdlib.Test.equal(5000050000)
+      lengthOf(Stdlib.List.repeat(100000, "x"), 0) |> Stdlib.Test.equal(100000)
+      lastOf([ 1, 2, 3 ], 0) |> Stdlib.Test.equal(3)
+      lastOf([], "none") |> Stdlib.Test.equal("none")
+      applyAfter(100000, fun x -> x + 7) |> Stdlib.Test.equal(7) ])
+
+test deepRecursionThatIsNotATailCall =
+  sumTo(100000) |> Stdlib.Test.equal(5000050000)
+
+test mutualRecursion =
+  Stdlib.Test.all(
+    [ isEven(10000) |> Stdlib.Test.equal(true)
+      isOdd(10001) |> Stdlib.Test.equal(true) ])
+
+test nestedSelfTailCalls =
+  Stdlib.Test.all(
+    [ (let loop(i: Int64, acc: Int64): Int64 =
+         if i == 0 then acc else loop(i - 1, acc + 1)
+       loop(300000, 0))
+      |> Stdlib.Test.equal(300000)
+      // closes over a binding, and keeps it each turn
+      (let step = 2
+       let loop(i: Int64, acc: Int64): Int64 =
+         if i == 0 then acc else loop(i - 1, acc + step)
+       loop(1000, 0))
+      |> Stdlib.Test.equal(2000) ])
+
+test resultCheckedAtTheEnd =
+  (countWrong(1000))
+  => raises
+    "Darklang.Language.Tests.TailCalls.countWrong's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.toString`."
+
+test argumentCheckedPartWay =
+  (countDown(10, "start"))
+  => raises
+    "Darklang.Language.Tests.TailCalls.countDown's 2nd parameter `label` expects String, but got Int64 (3). Try wrapping it with `Stdlib.toString`."
+
+test callbackCheckedInATailLoop =
+  (applyAfter(10, fun x -> "no"))
+  => raises
+    "Darklang.Language.Tests.TailCalls.applyAfter's 2nd parameter `f` returned String (\"no\"), but should return Int64"

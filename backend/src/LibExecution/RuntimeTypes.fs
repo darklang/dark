@@ -4976,6 +4976,10 @@ and PackageFnCallData =
     /// Whether that builtin is one `invokeBuiltin` needs to check nothing for before running it
     /// (`Interpreter.isPlainPure`), so a call to the forwarder can go straight to the body.
     plainPure : bool
+
+    /// The fn itself, so a call that finds this needs no fetch. It is content-addressed: the
+    /// hash this is cached under always names this fn.
+    fn : PackageFn.PackageFn
   }
 
 and BuiltInFnSig =
