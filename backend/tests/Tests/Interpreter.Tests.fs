@@ -1869,7 +1869,7 @@ module IntOperators =
 
   let private items (what : string) (result : RT.ExecutionResult) : List<RT.Dval> =
     match result with
-    | Ok(RT.DList(_, items)) -> items
+    | Ok(RT.DList(_, items)) -> RT.DvalList.toList items
     | other -> failtestf "%s: expected a list, got %A" what other
 
   let private answers (t : IntType) =
