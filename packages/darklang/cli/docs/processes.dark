@@ -102,7 +102,8 @@ Finding your way to a function, from either direction:
   traces calls <fn>             the runs that went through one function
   traces fns [n]                ... and the other way: which functions recent
                                 runs went through, most first
-  dark view <fn>                ends with how many runs went through it
+  dark view <fn>                ends with how many runs went through it,
+                                and so does `dark edit <fn>` after it lands
 
 And the rest:
 
