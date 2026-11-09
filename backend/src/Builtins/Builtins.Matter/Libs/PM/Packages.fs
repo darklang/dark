@@ -1266,10 +1266,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           (TList(TCustomType(NR.ok (PT2DT.PropagateRepoint.typeName ()), [])))
           TString
       description =
-        "Propagates an update to all dependents, creating new versions with updated references, and reasserts any repointed binding that replaying an existing op left where it was. Returns the repoints it made."
+        "Propagates an update to all dependents, creating new versions with updated references, and reasserts any repointed binding that replaying an existing op left where it was. Evaluates the new versions of values. Returns the repoints it made."
       fn =
         (function
-        | _,
+        | exeState,
           _,
           _,
           [| DUuid branchId
@@ -1294,6 +1294,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             match result with
             | Ok repoints ->
+              // A repointed value is a new version with no result yet, and a value with no
+              // result reads as missing. Authoring evaluates the values it lands
+              // (`PackageOps.authorOps`); the versions a cascade makes need the same, or a
+              // live caller that follows the cascade fails until something else evaluates them.
+              if not (List.isEmpty repoints) then
+                do! PackageOps.evaluateLandedValues exeState
               let repointsDval =
                 repoints
                 |> List.map PT2DT.PropagateRepoint.toDT
