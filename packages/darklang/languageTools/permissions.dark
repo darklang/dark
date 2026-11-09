@@ -274,10 +274,22 @@ let hostAndPort(
     | Some((host, port)) -> withPort(host, port)
     | None -> withoutPort(authority)
 
+/// The path prefix an HTTP rule names. A rule already covers everything under its path, so a
+/// trailing `/*` means what the path alone does: `/repos/*` is `/repos`, and `/*` is every path.
+/// A `*` anywhere else would be a pattern that no request matches, so it is refused rather than
+/// saved as a rule that never applies.
+let pathPrefix(path: String): Stdlib.Option.Option<String> =
+  let prefix =
+    if path == "/*" then "/"
+    else if Stdlib.String.endsWith(path, "/*") then Stdlib.String.dropLast(path, 2)
+    else path
+  if Stdlib.String.contains(prefix, "*") then Stdlib.Option.Option.None
+  else Stdlib.Option.Option.Some(prefix)
+
 /// Parse a URL for a scoped rule. `*` alone is the broad form. Otherwise:
 /// scheme `http`, `https` or `*`; host, `*`, or `*.domain`; a port, `:*`, or
-/// none (the scheme's default for a named host, any for `*`); a path prefix
-/// or none (any); a query or none (any). Every rendered rule parses back to
+/// none (the scheme's default for a named host, any for `*`); a path prefix,
+/// which may end in `/*`, or none (any); a query or none (any). Every rendered rule parses back to
 /// itself. Malformed URLs are rejected rather than widened.
 let httpRule(
   method: String,
@@ -311,29 +323,34 @@ let httpRule(
           | None -> (rest, Permissions.Scope.All)
         // No path matches every path. For example, `/api` matches `/api` and
         // `/api/users`, but not `/apix`.
-        let (authority, path) =
+        let authorityAndPath =
           match Stdlib.String.splitFirst(beforeQuery, "/") with
-          | Some((authority, path)) -> (authority, Permissions.Scope.Only("/" + path))
-          | None -> (beforeQuery, Permissions.Scope.All)
-        match Permissions.hostAndPort(scheme, authority) with
+          | Some((authority, path)) ->
+            Permissions.pathPrefix("/" + path)
+            |> Stdlib.Option.map(fun prefix -> (authority, Permissions.Scope.Only(prefix)))
+          | None -> Stdlib.Option.Option.Some((beforeQuery, Permissions.Scope.All))
+        match authorityAndPath with
         | None -> Stdlib.Option.Option.None
-        | Some((host, port)) ->
-          if host == "" then Stdlib.Option.Option.None
-          else
-            let hostRule =
-              if host == "*" then Permissions.HostRule.Any
-              else if Stdlib.String.startsWith(host, "*.") then
-                Permissions.HostRule.SubdomainsOf(Stdlib.String.dropFirst(host, 2))
-              else Permissions.HostRule.Exact(host)
-            Stdlib.Option.Option.Some(
-              Permissions.Rule.Http(
-                Permissions.HttpRule
-                  { method = method
-                    scheme = Permissions.scope(scheme)
-                    host = hostRule
-                    port = port
-                    pathPrefix = path
-                    query = query }))
+        | Some((authority, path)) ->
+          match Permissions.hostAndPort(scheme, authority) with
+          | None -> Stdlib.Option.Option.None
+          | Some((host, port)) ->
+            if host == "" then Stdlib.Option.Option.None
+            else
+              let hostRule =
+                if host == "*" then Permissions.HostRule.Any
+                else if Stdlib.String.startsWith(host, "*.") then
+                  Permissions.HostRule.SubdomainsOf(Stdlib.String.dropFirst(host, 2))
+                else Permissions.HostRule.Exact(host)
+              Stdlib.Option.Option.Some(
+                Permissions.Rule.Http(
+                  Permissions.HttpRule
+                    { method = method
+                      scheme = Permissions.scope(scheme)
+                      host = hostRule
+                      port = port
+                      pathPrefix = path
+                      query = query }))
 
 /// Parse one CLI rule. This only constructs the typed Policy value; runtime
 /// authorization remains in `Permissions.Policy`.

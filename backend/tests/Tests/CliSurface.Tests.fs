@@ -2356,6 +2356,42 @@ let private damagedPolicyIsARefusal =
       })
 
 
+/// A rule ending in `/*` covers the paths under it, end to end: what `permissions allow` saves is
+/// what a request is checked against.
+///
+/// `https://api.github.com:443/*` printed "policy updated" and was saved with the literal path
+/// `/*`, which no request has, so the next GET to `/repos/darklang/dark` was refused anyway.
+let private httpRuleWithTrailingStarMatches =
+  instanceTest "an http rule ending in /* allows the paths under it" (fun target ->
+    task {
+      let dir =
+        match target with
+        | Instance i -> i.dir
+        | InProcess _ -> Tests.failtestf "needs its own instance"
+
+      let! said, exitCode =
+        runCliWithExit
+          target
+          [ "permissions"; "allow"; "http"; "GET"; "https://api.github.com:443/*" ]
+      Expect.equal exitCode 0L $"the rule is saved:\n{said}"
+
+      let file = System.IO.Path.Combine(dir, "policy", "policies.bin")
+      let policy =
+        (LibDB.PolicyStore.fromBytes (System.IO.File.ReadAllBytes file)).instance
+      let allows (url : string) =
+        match LibExecution.Permissions.Request.http "GET" url with
+        | Ok request -> LibExecution.Permissions.Policy.allows request policy
+        | Error error -> Tests.failtestf "%s" error
+
+      Expect.isTrue
+        (allows "https://api.github.com:443/repos/darklang/dark")
+        "the URL the agent fetched is allowed"
+      Expect.isFalse
+        (allows "https://example.com/repos/darklang/dark")
+        "and another host is not"
+    })
+
+
 /// A doc-only edit through `dark module` lands, as it does through `dark fn`.
 ///
 /// Docs are not part of the content hash, so an edit that changes only a `///` line leaves every
@@ -2405,6 +2441,7 @@ let tests : List<Test> =
   [ unwrapErrorsAreReadable
     staleApprovalIsARefusal
     damagedPolicyIsARefusal
+    httpRuleWithTrailingStarMatches
     moduleDocOnlyEditLands
     theDeclarationCheckReadsArgumentsRight
     workbenchImplEditUpdatesInPlace
