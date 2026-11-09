@@ -61,20 +61,46 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DList(_, items) |] ->
-          uply {
-            use collected = new System.IO.MemoryStream()
-            for item in items do
-              match item with
-              | DBytes(Ephemeral eph) -> collected.Write(eph.Span)
-              | DBytes ref ->
+          // Every BytesRef knows its length, so the output's size is known before
+          // anything is read. The pieces are copied straight into one array of that
+          // size: no buffer that grows by doubling and no copy out of it at the end.
+          let total =
+            items
+            |> List.sumBy (function
+              | DBytes ref -> ref.Length
+              | item ->
+                Exception.raiseInternal
+                  "bytesConcat: expected DBytes"
+                  [ "item", item ])
+          if total > int64 System.Array.MaxLength then
+            Exception.raiseInternal
+              "bytesConcat: the result is too large"
+              [ "length", total ]
+          // A local buffer that only this builtin writes, before `newEphemeral` takes
+          // it. Uninitialized, since every byte of it is written below.
+          let result = System.GC.AllocateUninitializedArray<byte>(int total)
+          let copyAt (offset : int) (item : Dval) : Ply<int> =
+            match item with
+            | DBytes(Ephemeral eph) ->
+              eph.Span.CopyTo(System.Span<byte>(result, offset, eph.count))
+              Ply(offset + eph.count)
+            | DBytes ref ->
+              uply {
                 let! bs = Bytes.readBytes state ref
-                collected.Write(bs, 0, bs.Length)
-              | _ ->
-                return
-                  Exception.raiseInternal
-                    "bytesConcat: expected DBytes"
-                    [ "item", item ]
-            return Bytes.newEphemeral (collected.ToArray())
+                if int64 bs.Length <> ref.Length then
+                  return
+                    Exception.raiseInternal
+                      "bytesConcat: saved bytes are not the length their reference says"
+                      [ "expected", ref.Length; "actual", bs.Length ]
+                else
+                  System.Array.Copy(bs, 0, result, offset, bs.Length)
+                  return offset + bs.Length
+              }
+            | item ->
+              Exception.raiseInternal "bytesConcat: expected DBytes" [ "item", item ]
+          uply {
+            let! _ = Ply.List.foldSequentially copyAt 0 items
+            return Bytes.newEphemeral result
           }
         | _ -> incorrectArgs ())
       previewable = Pure
