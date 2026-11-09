@@ -1,4 +1,4 @@
-# Builds the native Darklang compiler (pbiggar/darklang-compiler) at a pinned commit, with
+# Builds the native Darklang compiler (darklang/compiler) at a pinned commit, with
 # the toolchain that repo pins (OCaml 5.5.1, its dependencies.lock). Used by
 # scripts/compiler/build; the result runs in the dev container (same Ubuntu 24.04).
 FROM ubuntu:24.04 AS ocaml
@@ -16,7 +16,7 @@ COPY --from=ocaml /opt/ocaml /opt/ocaml
 ENV PATH=/opt/ocaml/bin:$PATH
 RUN opam init --bare --disable-sandboxing --yes && opam switch create dark ocaml-system.5.5.1 --yes
 ARG COMPILER_COMMIT
-RUN git clone https://github.com/pbiggar/darklang-compiler.git /src && git -C /src checkout --quiet "$COMPILER_COMMIT"
+RUN git clone https://github.com/darklang/compiler.git /src && git -C /src checkout --quiet "$COMPILER_COMMIT"
 RUN sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' /src/dependencies.lock \
       | xargs opam install --switch=dark --yes --jobs="$(nproc)" --no-depexts
 RUN eval "$(opam env --switch=dark)" && dune build --root /src bin/dark.exe
