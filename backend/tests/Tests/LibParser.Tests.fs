@@ -1102,7 +1102,38 @@ let private goldenDiagnosticsTests =
             + "  1 | let x = (1 +\n"
             + "    |         ^"
           Expect.equal rendered expected "full rendering"
-        | other -> failtest $"expected one diagnostic, got {other}") ]
+        | other -> failtest $"expected one diagnostic, got {other}")
+      testCase
+        "renderDiagnostics: every mistake in source order, each repeat listed once"
+        (fun _ ->
+          let src = "let a = 1L\nlet b = [1; 2]\nlet c = 2L\nc"
+          let rendered = P.renderDiagnostics src (P.parse src).diagnostics
+          let expected =
+            "error[LEX] at 1:9: invalid number literal: 1L; an Int64 is written `1`\n"
+            + "  1 | let a = 1L\n"
+            + "    |         ^^\n"
+            + "  the same at 3:9\n"
+            + "error[PARSE-EXPECTED] at 2:11: expected ',' between list elements, found ';'\n"
+            + "  2 | let b = [1; 2]\n"
+            + "    |           ^\n"
+            + "  hint: use ',' instead"
+          Expect.equal rendered expected "full rendering")
+      testCase "renderDiagnostics: past ten mistakes, counts the rest" (fun _ ->
+        let at row message : P.Diagnostic =
+          { code = P.DiagnosticCode.unexpected
+            severity = P.DiagError
+            range =
+              { start = { Tok.row = row; Tok.column = 0 }
+                end_ = { Tok.row = row; Tok.column = 1 } }
+            message = message
+            related = []
+            hint = None }
+        let diagnostics =
+          // rows past the end of the source, so each renders as its one line
+          [ for row in 100..111 -> at row $"mistake {char (int 'a' + row - 100)}" ]
+        let lines = (P.renderDiagnostics "" diagnostics).Split '\n' |> List.ofArray
+        Expect.equal (List.length lines) 11 "ten mistakes and a count"
+        Expect.equal (List.last lines) (Some "2 more errors not shown") "the count") ]
 
 /// Seeded mutation fuzzing: the parser must never throw and must be
 /// deterministic (same input → same result), whatever we feed it.

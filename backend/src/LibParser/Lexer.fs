@@ -601,7 +601,9 @@ let tokenize
       "%", TPercent
       "|", TBar ]
 
-  // operators other languages have and Dark does not, refused with what to write
+  // Operators other languages have and Dark does not, refused with what to write. Each
+  // still lexes as a `+`, flagged as a lex error, so the parser reads on past it and
+  // reports the file's other mistakes, rather than tripping over the gap it left.
   let refused : (string * string) list =
     [ "::", "'::' is not Dark; a list is `[head, ...tail]`"
       "@", "'@' is not Dark; join lists with `[...a, ...b]`"
@@ -1139,9 +1141,10 @@ let tokenize
       else
         match refused |> List.tryFind (fun (text, _) -> matchesAt text index) with
         | Some(text, message) ->
-          let next = advance position index (index + text.Length)
-          addDiagnostic { start = position; end_ = next } message
-          go (index + text.Length) next tokensRev
+          let (spannedToken, nextIndex, nextPosition) =
+            emit TPlus index (index + text.Length) position
+          addDiagnostic spannedToken.range message
+          go nextIndex nextPosition (spannedToken :: tokensRev)
         | None ->
           match
             operators
