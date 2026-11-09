@@ -81,7 +81,8 @@ lookup sees the store as it is. That is the whole reload.
 | `LibDB.PackageManager.harmfulCache` | none (a set of hashes) | dropped by `invalidateAll` |
 | `LibDB.PackageManager.rt.getFn` / `getType` / `getValue`, `pt.getFn` ... | hash | dropped by `invalidateAll` too, harmlessly: a hash's body never changes, the entry refills on the next call |
 | `ExecutionState.packageFnCallCache` | hash | survives; correct, a hash's call data never changes |
-| `ExecutionState.lambdaInstrCache`, `VMState.lambdaInstrDataCache` | lambda id | survives; per execution |
+| `ExecutionState.lambdaInstrCache` | lambda id | survives; `CreateLambda` overwrites the entry, so it holds the newest version that ran |
+| `VMState.lambdaInstrDataCache`, the spread oracle's lambda memo | lambda id, with the impl it was built from | survives; an entry for another impl is rebuilt, since a new version of a fn keeps its lambdas' ids and a pooled VM outlives a reload |
 | `RuntimeTypes.Types` `DeclCache` | type hash | survives |
 | `Interpreter` package-policy memo | hash, per call data | survives; keyed on the policy fn's identity |
 

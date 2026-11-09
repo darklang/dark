@@ -3690,9 +3690,13 @@ let inline private pushLambdaFrame
   // per-VM cache holds; this is a reference to it, not a copy.
   let lambdaInstrData =
     // `TryGetValue` rather than `Map.tryFind`, which allocates a `Some` on every hit.
-    let mutable hit = Unchecked.defaultof<InstrData>
-    if vm.lambdaInstrDataCache.TryGetValue(exprId, &hit) then
-      hit
+    let mutable hit = Unchecked.defaultof<struct (LambdaImpl * InstrData)>
+    let found = vm.lambdaInstrDataCache.TryGetValue(exprId, &hit)
+    let struct (builtFrom, cachedData) = hit
+    // An entry from another impl with this id is an older version of the same fn (an edit keeps
+    // expression ids), so it would run the old body.
+    if found && obj.ReferenceEquals(builtFrom, foundLambda) then
+      cachedData
     else
       let instructions = List.toArray foundLambda.instructions.instructions
       let d : InstrData =
@@ -3712,7 +3716,7 @@ let inline private pushLambdaFrame
                   | false, _ -> Map.empty
                 lambdas = Map.empty }
           quick = quicken (PackageRefs.currentGeneration ()) instructions }
-      vm.lambdaInstrDataCache[exprId] <- d
+      vm.lambdaInstrDataCache[exprId] <- struct (foundLambda, d)
       d
 
   let newFrame =
