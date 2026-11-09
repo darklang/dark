@@ -67,6 +67,15 @@ let toUppercase(s: String): String = Builtin.stringToUppercase(s)
 let toLowercase(s: String): String = Builtin.stringToLowercase(s)
 
 
+/// Returns <param s> with its first character uppercased, by the same full case mapping
+/// as <fn Stdlib.String.toUppercase>, and the rest left as it is: {{"hello world"}}
+/// becomes {{"Hello world"}}, {{"ßa"}} becomes {{"SSa"}}, and {{"éA"}} becomes {{"ÉA"}}.
+/// The first character is the first whole Char (EGC), so an accent that follows it
+/// stays with it. An empty string, or one that starts with no case, comes back unchanged.
+let capitalize(s: String): String =
+  String.toUppercase(String.slice(s, 0, 1)) + String.dropFirst(s, 1)
+
+
 // TODO: UInt?
 /// Returns the length of the string
 let length(s: String): Int64 = Builtin.stringLength(s)
