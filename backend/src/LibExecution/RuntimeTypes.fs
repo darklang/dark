@@ -3988,7 +3988,18 @@ type CallFrame =
     /// own, each of which moves `vm.activeAccess`, so what is there when the frame returns is
     /// the callable's last builtin's and not the one that asked.
     mutable requestAccess : Permissions.Access
+    /// With `continuation`: the lambda the request pushed this frame for. When the frame returns
+    /// and the continuation asks for the same lambda again, the frame runs it again in place
+    /// (`Interpreter.tryRunAgain`). `ValueNone` for every other frame.
+    mutable appliedLambda : AppliedLambda voption
   }
+
+/// A lambda a builtin's apply request pushed a frame for, with what binding its arguments again
+/// takes. Immutable: the frame swaps the whole thing, never a part of it.
+and AppliedLambda =
+  { lambda : ApplicableLambda
+    patterns : List<LetPattern>
+    selfRegister : Register option }
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
 module ApplyStage =
@@ -4647,7 +4658,8 @@ type VMState =
         parent = ValueNone
         continuation = Unchecked.defaultof<_>
         finish = Unchecked.defaultof<_>
-        requestAccess = Unchecked.defaultof<_> }
+        requestAccess = Unchecked.defaultof<_>
+        appliedLambda = ValueNone }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
@@ -4745,7 +4757,8 @@ type VMState =
           parent = ValueNone
           continuation = Unchecked.defaultof<_>
           finish = Unchecked.defaultof<_>
-          requestAccess = Unchecked.defaultof<_> }
+          requestAccess = Unchecked.defaultof<_>
+          appliedLambda = ValueNone }
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.callFrames.Clear()

@@ -762,6 +762,7 @@ let inline private takeFrame
     f.continuation <- Unchecked.defaultof<_>
     f.finish <- Unchecked.defaultof<_>
     f.boundImpls <- boundImpls
+    if f.appliedLambda.IsSome then f.appliedLambda <- ValueNone
     f
   else
     { id = id
@@ -778,7 +779,8 @@ let inline private takeFrame
       argBufs = Array.empty
       continuation = Unchecked.defaultof<_>
       finish = Unchecked.defaultof<_>
-      requestAccess = Unchecked.defaultof<_> }
+      requestAccess = Unchecked.defaultof<_>
+      appliedLambda = ValueNone }
 
 /// Hand a popped frame back. Registers are cleared here rather than at reuse, so a pooled frame that
 /// never gets reused isn't holding a call's worth of Dvals alive.
@@ -787,6 +789,7 @@ let inline private returnFrame (vm : VMState) (frame : CallFrame) : unit =
   if count > 0 then System.Array.Clear(frame.registers, 0, count)
   frame.typeSymbolTable <- TST.empty
   frame.expectedLambdaReturn <- ValueNone
+  if frame.appliedLambda.IsSome then frame.appliedLambda <- ValueNone
   let mutable free = Unchecked.defaultof<Stack<CallFrame>>
   if not (vm.framePool.TryGetValue(count, &free)) then
     free <- Stack()
@@ -3851,6 +3854,11 @@ let rec private beginRequest
       frame.continuation <- next
       frame.finish <- finish
       frame.requestAccess <- applying
+      frame.appliedLambda <-
+        ValueSome
+          { lambda = appLambda
+            patterns = FreeTVars.patternsOfLambda exprId foundLambda.patterns
+            selfRegister = foundLambda.selfRegister }
       // From an `Apply` in the drain, the frame waits in `frameToPush` for the drain to stop;
       // from a frame return or a resumed wait, the loop is between frames and it goes on right
       // away.
@@ -5865,7 +5873,10 @@ let rec private lambdaLinksPassSync
   | ValueNone -> true
   | ValueSome x ->
     let passes =
-      not (isLive vm x)
+      // Asked first: it needs neither the live check (a check that no longer applies passes
+      // anyway) nor a unify, and a callback returning a number or a `Bool` is the common case.
+      TypeChecker.fitsWithNothingToBind x.typeSymbolTable x.returnType resultOfFrame
+      || not (isLive vm x)
       || (match
             TypeChecker.tryUnifyWithAliasesSync
               exeState.types
@@ -6237,6 +6248,88 @@ let private runRareOpcode
 
 
 
+/// Bind the arguments of a repeated request into a frame's cleared registers, as
+/// `bindLambdaParams` does for a new frame. `false` on the wrong count or a pattern that does not
+/// match, so the ordinary path can raise the error.
+let rec private bindAgain
+  (r : Dval array)
+  (pats : List<LetPattern>)
+  (arg : Dval)
+  (more : List<Dval>)
+  : bool =
+  match pats with
+  | [] -> false
+  | pat :: patRest ->
+    let bound =
+      match pat with
+      | LPVariable reg ->
+        r[reg] <- arg
+        true
+      | _ -> assignLetPattern r pat arg
+    bound
+    && (match more, patRest with
+        | [], [] -> true
+        | a :: moreRest, _ :: _ -> bindAgain r patRest a moreRest
+        | _ -> false)
+
+/// The frame of a lambda a builtin asked for has returned, its continuation has answered `out`, and
+/// that answer is a request for the same lambda again (`List.fold`'s next element). Bind the new
+/// arguments and run the frame from the top, rather than popping it and pushing one just like it:
+/// no frame table insert or remove, no pool, no lambda lookups and no live check of its
+/// expectation, which is the parent's and so still applies.
+///
+/// `false`, with nothing changed that the ordinary path does not set again, for anything else:
+/// another lambda, a read in flight, a pattern that does not match, or tracing that records
+/// frames, which then sees a frame per element as before.
+let private tryRunAgain
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (frame : CallFrame)
+  (out : Ply<Dval>)
+  : bool =
+  match frame.appliedLambda with
+  | ValueNone -> false
+  | ValueSome applied ->
+    if exeState.tracing.collectFrames || hostRequested vm || not (requested vm) then
+      false
+    else
+      match vm.pendingApplicable with
+      | AppLambda requestedLambda when
+        obj.ReferenceEquals(requestedLambda, applied.lambda)
+        ->
+        let arg = vm.pendingArg
+        let more = vm.pendingMoreArgs
+        if
+          (match arg with
+           | DPromise _ -> true
+           | _ -> false)
+          || List.exists Pending.isPromise more
+          || (Ply.trySync out).IsNone
+        then
+          false
+        else
+          let r = frame.registers
+          System.Array.Clear(r, 0, r.Length)
+          if not (bindAgain r applied.patterns arg more) then
+            System.Array.Clear(r, 0, r.Length)
+            false
+          else
+            assignRegisters r applied.lambda.closedRegisters
+            match applied.selfRegister with
+            | Some selfReg -> r[selfReg] <- DApplicable(AppLambda applied.lambda)
+            | None -> ()
+            frame.continuation <- vm.pendingNext
+            frame.programCounter <- 0
+            vm.pendingNext <- Unchecked.defaultof<_>
+            vm.pendingApplicable <- Unchecked.defaultof<_>
+            vm.pendingArg <- DUnit
+            vm.pendingMoreArgs <- []
+            if vm.stats.enabled then
+              vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+            true
+      | _ -> false
+
+
 /// Everything the interpreter loop does once `runFrame` hands control back: the awaits, the four
 /// rare opcodes, and the frame push or pop.
 ///
@@ -6252,11 +6345,13 @@ let private runRareOpcode
 ///
 /// The caller runs `checkFrameReturnType` first where there is a parent; it is separate because it is
 /// the one part of this that can await.
-let private returnFromFrame
+let inline private popFrame
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
   (resultOfFrame : Dval)
+  // What the frame's continuation already answered, if `returnFromFrame` ran it before the pop.
+  (earlyOut : Ply<Dval> voption)
   : ApplyOutcome =
   match currentFrame.parent with
   | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
@@ -6298,7 +6393,9 @@ let private returnFromFrame
         pcOfParent
         next
         finish
-        (next resultOfFrame)
+        (match earlyOut with
+         | ValueSome out -> out
+         | ValueNone -> next resultOfFrame)
         true
     else
       parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
@@ -6312,6 +6409,40 @@ let private returnFromFrame
     vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
     vm.finalResult <- ValueSome resultOfFrame
     ApplyDone
+
+
+/// `popFrame`, unless the frame can run again in place (`tryRunAgain`).
+let private returnFromFrame
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (resultOfFrame : Dval)
+  : ApplyOutcome =
+  // A frame a builtin asked for a lambda in: its continuation runs first, before the pop, so that
+  // if it asks for the same lambda again this frame can run it again (`tryRunAgain`). It runs as
+  // it would after the pop: under the builtin's access, with the parent current, so an error it
+  // raises names the stack without this frame. Detailed timing wants a push per call, so it
+  // keeps the old order.
+  let earlyOut =
+    match currentFrame.appliedLambda with
+    | ValueSome _ when not (vm.stats.enabled && vm.stats.detailedTiming) ->
+      vm.activeAccess <- currentFrame.requestAccess
+      let ownId = vm.currentFrameID
+      match currentFrame.parent with
+      | ValueSome(parentID, _, _) -> vm.currentFrameID <- parentID
+      | ValueNone -> ()
+      let out = currentFrame.continuation resultOfFrame
+      vm.currentFrameID <- ownId
+      ValueSome out
+    | _ -> ValueNone
+  if
+    (match earlyOut with
+     | ValueSome out -> tryRunAgain exeState vm currentFrame out
+     | ValueNone -> false)
+  then
+    ApplyDone
+  else
+    popFrame exeState vm currentFrame resultOfFrame earlyOut
 
 
 /// Run the rare opcode under the frame's counter (the four the drain does not run itself). It
