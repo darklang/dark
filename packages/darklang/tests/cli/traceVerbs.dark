@@ -528,3 +528,26 @@ test psListsThisInstanceThenTheMachine =
         Stdlib.Test.expect(elsewhere > 0, $"the machine's table is always there: {out}")
         Stdlib.Test.expect(here < elsewhere, "this instance's table comes first")
         Instance.says(missing, "no process whose id starts with nope", "an unknown id is refused") ]))
+
+
+/// `traces calls` says how many times each run called the function and how long it spent in
+/// it. Recursion is counted per call, and its time once, from the outermost call.
+test callsSaysHowOftenAndHowLongEachRunWasInTheFunction =
+  Traces.withTraces(fun i ->
+    let defined =
+      authored(
+        i,
+        "Tests.Prev.fib",
+        "(n: Int64): Int64 =\n  if n < 2 then n else Tests.Prev.fib(n - 1) + Tests.Prev.fib(n - 2)")
+
+    let ran = Instance.said(i, [ "eval", "Tests.Prev.fib(10)" ])
+    let listed = Instance.said(i, [ "traces", "calls", "Tests.Prev.fib" ])
+    let asJson = Instance.output(i, [ "traces", "calls", "Tests.Prev.fib", "--json" ])
+
+    Stdlib.Test.all(
+      [ defined
+        Instance.says(ran, "55", "the run happened")
+        Instance.says(listed, "time in it", "the listing has the time column")
+        Instance.says(listed, "177", "fib(10) is 177 calls")
+        Instance.says(asJson, "\"calls\":177", "and so does the JSON")
+        Instance.doesNotSay(asJson, "\"totalUs\":0", "the run spent time in it") ]))

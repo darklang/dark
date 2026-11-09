@@ -624,9 +624,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       { state with exitCode = 1 }
     else
       if wantsJson then
-        Cli.TraceVerbs.printTracesJson(
-          state.currentBranchId,
-          Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 25))
+        Cli.TraceVerbs.printCallsJson(state.currentBranchId, fnName)
       else
         Cli.TraceVerbs.printCalls(state.currentBranchId, fnName)
       state
@@ -1864,7 +1862,8 @@ let help(_state: Cli.AppState): String =
     "  show <fn> --iteration map:2,fold:2  several loops at once"
     "  show <fn> --json              the same for an agent, `--iteration` included"
     "  show <fn> --json --full       ... with no cap on a value's length"
-    "  calls <fn>                    the traces that went through one function, newest first"
+    "  calls <fn>                    the traces that went through one function, newest first,"
+    "                                with how many times each called it and the time spent in it"
     ""
     "Use a trace"
     "  inspect <trace> [flags]       what it ran, what it answered, and what it did to the"

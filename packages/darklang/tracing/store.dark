@@ -155,16 +155,43 @@ let wentThroughNamed(
   fnName: String,
   limit: Int64)
   : List<Trace> =
-  let hash =
-    Darklang.LanguageTools.PackageManager.Function.find(
-      branchId,
-      Darklang.LanguageTools.ProgramTypes.parsePackageLocation(fnName))
-    |> Stdlib.Option.map(fun h ->
-      match h with
-      | Hash(v) -> v)
-    |> Stdlib.Option.withDefault("")
+  wentThrough(fnName, hashNamed(branchId, fnName), limit)
 
-  wentThrough(fnName, hash, limit)
+
+/// The hash a person's name for a function resolves to here, or "" when the store has none.
+let hashNamed(branchId: Uuid, fnName: String): String =
+  Darklang.LanguageTools.PackageManager.Function.find(
+    branchId,
+    Darklang.LanguageTools.ProgramTypes.parsePackageLocation(fnName))
+  |> Stdlib.Option.map(fun h ->
+    match h with
+    | Hash(v) -> v)
+  |> Stdlib.Option.withDefault("")
+
+
+/// What a function cost in one recorded run.
+type TimeInFn =
+  { traceId: String
+    /// How many times the run called it.
+    calls: Int64
+    /// Wall clock inside it, in microseconds, counted from the outermost call only, so a
+    /// recursive function is not counted once per level. 0 for a function answered without a
+    /// frame of its own (a forwarder to a builtin), and for a run recorded before this was kept.
+    totalUs: Int64
+    /// The longest of those outermost calls.
+    slowestUs: Int64 }
+
+
+/// What each of the runs `wentThroughNamed` finds spent in that function, in the same order.
+let timeInNamed(branchId: Uuid, fnName: String, limit: Int64): List<TimeInFn> =
+  (query(TraceQuery.TimeIn(fnName, hashNamed(branchId, fnName), limit))).totals
+  |> Stdlib.List.map(fun row ->
+    let (traceId, calls, totalUs, slowestUs) = row
+    TimeInFn
+      { traceId = traceId
+        calls = calls
+        totalUs = totalUs
+        slowestUs = slowestUs })
 
 
 /// One frame the replay walked. `parent` is "" at the entry. A loop's passes are the frames
