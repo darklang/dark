@@ -131,7 +131,8 @@ let renderModule(
   rootName: String,
   modKey: String,
   types: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>,
-  fns: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>)
+  fns: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>,
+  impls: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>>)
   : String =
   let header = $"## {trimRoot(rootName, modKey)}"
 
@@ -146,7 +147,51 @@ let renderModule(
     |> Stdlib.List.map(fun i -> $"{i.location.name}{formatFn(ctx, i.entity)}")
 
   let body = (Stdlib.List.concat(typeLines, fnLines)) |> Stdlib.String.join("\n")
-  $"{header}\n{body}"
+
+  let listing =
+    match (typeLines, fnLines) with
+    | ([], []) -> []
+    | _ -> [ $"{header}\n{body}" ]
+
+  let traitSection =
+    match implLines(ctx, impls) with
+    | [] -> []
+    | lines ->
+      [ $"## {trimRoot(rootName, modKey)}: operators and traits\n{Stdlib.String.join(lines, "\n")}" ]
+
+  Stdlib.String.join(Stdlib.List.concat(listing, traitSection), "\n\n")
+
+
+/// One line per method of each impl, written the way a call is: `a % b  (Modulo)`,
+/// `Stdlib.toString(v)  (ToString)`. An impl's method fns live at the impl's path, which no call
+/// uses, so they are listed here instead of as a module of their own.
+let implLines(
+  ctx: PrettyPrinter.ProgramTypes.Context,
+  impls: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>>)
+  : List<String> =
+  let rows =
+    impls
+    |> Stdlib.List.sortBy(fun i -> i.location.name)
+    |> Stdlib.List.map(fun i ->
+      let traitName =
+        PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, i.entity.trait_)
+      Packages.Impls.callExamples(ctx.branchId, ctx, i.entity)
+      |> Stdlib.List.map(fun call -> (call, traitName)))
+    |> Stdlib.List.flatten
+
+  let width =
+    rows
+    |> Stdlib.List.map(fun((call, _)) -> Stdlib.String.displayWidth(call))
+    |> Stdlib.List.fold(0, fun(acc, w) -> if w > acc then w else acc)
+
+  rows
+  |> Stdlib.List.map(fun((call, traitName)) ->
+    $"{Stdlib.Text.padEndToWidth(call, width)}  ({traitName})")
+
+
+/// The module path an impl's own method fns sit under: `Darklang.Stdlib.Int64.Modulo`.
+let implModuleKey(loc: LanguageTools.ProgramTypes.PackageLocation): String =
+  moduleKey(loc) + "." + loc.name
 
 
 type ParsedArgs =
@@ -229,13 +274,29 @@ let executeFiltered(
           impls = unfiltered.impls |> Stdlib.List.filter(fun i -> hits(i.location))
           tests = unfiltered.tests |> Stdlib.List.filter(fun i -> hits(i.location)) }
 
-  let fnsBy = groupByModule(results.fns)
+  // An impl's method fns are listed with the impl, as calls, not as a module at the impl's path.
+  // An impl shows when its own path matches the filter or one of its methods does.
+  let implKeys = unfiltered.impls |> Stdlib.List.map(fun i -> implModuleKey(i.location))
+  let (implFns, plainFns) =
+    results.fns
+    |> Stdlib.List.partition(fun f -> Stdlib.List.contains(implKeys, moduleKey(f.location)))
+  let implFnKeys = implFns |> Stdlib.List.map(fun f -> moduleKey(f.location))
+  let matchedImplKeys = results.impls |> Stdlib.List.map(fun i -> implModuleKey(i.location))
+  let shownImpls =
+    unfiltered.impls
+    |> Stdlib.List.filter(fun i ->
+      Stdlib.List.contains(matchedImplKeys, implModuleKey(i.location))
+      || Stdlib.List.contains(implFnKeys, implModuleKey(i.location)))
+
+  let fnsBy = groupByModule(plainFns)
+  let implsBy = groupByModule(shownImpls)
   let typesBy =
     if includeTypes then groupByModule(results.types)
     else Stdlib.Dict.empty
 
   let allKeys =
-    (Stdlib.List.concat(Stdlib.Dict.keys(fnsBy), Stdlib.Dict.keys(typesBy)))
+    (Stdlib.List.flatten(
+      [ Stdlib.Dict.keys(fnsBy), Stdlib.Dict.keys(typesBy), Stdlib.Dict.keys(implsBy) ]))
     |> Stdlib.List.unique
     |> Stdlib.List.sort
 
@@ -246,11 +307,13 @@ let executeFiltered(
     |> Stdlib.List.map(fun key ->
       let ts = match Stdlib.Dict.get(typesBy, key) with | Some(v) -> v | None -> []
       let fs = match Stdlib.Dict.get(fnsBy, key) with | Some(v) -> v | None -> []
-      renderModule(ctx, rootName, key, ts, fs))
+      let is = match Stdlib.Dict.get(implsBy, key) with | Some(v) -> v | None -> []
+      renderModule(ctx, rootName, key, ts, fs, is))
 
-  let totalFns =
-    (Stdlib.Dict.values(fnsBy))
-    |> Stdlib.List.map(fun xs -> Stdlib.List.length(xs))
+  let totalFns = Stdlib.List.length(plainFns)
+  let totalMethods =
+    shownImpls
+    |> Stdlib.List.map(fun i -> Stdlib.List.length(i.entity.methods))
     |> Stdlib.List.fold(0, fun(a, b) -> a + b)
 
   let totalTypes =
@@ -286,7 +349,11 @@ let executeFiltered(
       if includeTypes then $", {Stdlib.toString(totalTypes)} types"
       else ""
 
-    let summary = $"{Stdlib.toString(totalFns)} fns{typesNote} across {Stdlib.toString(Stdlib.List.length(allKeys))} modules"
+    let methodsNote =
+      if totalMethods > 0 then $", {Stdlib.toString(totalMethods)} operators and trait methods"
+      else ""
+
+    let summary = $"{Stdlib.toString(totalFns)} fns{typesNote}{methodsNote} across {Stdlib.toString(Stdlib.List.length(allKeys))} modules"
     Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(summary))
 
     if Stdlib.Bool.not(includeTypes) then

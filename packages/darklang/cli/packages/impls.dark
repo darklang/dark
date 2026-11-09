@@ -56,30 +56,118 @@ let methodCalls(
   branchId: Uuid,
   i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
   : List<String> =
+  match traitLocation(i) with
+  | Some(loc) ->
+    i.methods |> Stdlib.List.map(fun((method, _)) -> methodCallName(branchId, loc, method))
+  | None -> []
+
+
+/// Where the trait of <param i> lives, when it resolved.
+let traitLocation(
+  i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   match i.trait_.resolved with
-  | Ok(r) ->
-    match r.location with
-    | Some(loc) ->
-      // How a person writes the module: `Stdlib`, not `Darklang.Stdlib`.
-      let written =
-        match (loc.owner, loc.modules) with
-        | ("Darklang", ["Stdlib", ...rest]) -> Stdlib.List.prepend(rest, "Stdlib")
-        | _ -> Stdlib.List.prepend(loc.modules, loc.owner)
+  | Ok(r) -> r.location
+  | Error(_) -> Stdlib.Option.Option.None
 
-      i.methods
-      |> Stdlib.List.map(fun((method, _)) ->
-        let beside =
-          LanguageTools.ProgramTypes.PackageLocation
-            { owner = loc.owner
-              modules = loc.modules
-              name = method }
 
-        match LanguageTools.PackageManager.Function.find(branchId, beside) with
-        | Some(_) -> Stdlib.String.join(Stdlib.List.append(written, method), ".")
-        | None ->
-          Stdlib.String.join(Stdlib.List.flatten([ written, [ loc.name, method ] ]), "."))
-    | None -> []
-  | Error(_) -> []
+/// The name a call to <param method> of the trait at <param loc> uses: the fn beside the trait
+/// named for the method when there is one (`Stdlib.toString`), else the trait's own
+/// (`Stdlib.Add.add`). Written as a person writes it: `Stdlib`, not `Darklang.Stdlib`.
+let methodCallName(
+  branchId: Uuid,
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  method: String)
+  : String =
+  let written =
+    match (loc.owner, loc.modules) with
+    | ("Darklang", ["Stdlib", ...rest]) -> Stdlib.List.prepend(rest, "Stdlib")
+    | _ -> Stdlib.List.prepend(loc.modules, loc.owner)
+
+  let beside =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = loc.owner
+        modules = loc.modules
+        name = method }
+
+  match LanguageTools.PackageManager.Function.find(branchId, beside) with
+  | Some(_) -> Stdlib.String.join(Stdlib.List.append(written, method), ".")
+  | None -> Stdlib.String.join(Stdlib.List.flatten([ written, [ loc.name, method ] ]), ".")
+
+
+/// The operator a standard-library trait method is written with: `modulo` is `a % b`. None for
+/// any other method, and for a trait outside `Darklang.Stdlib`, whose `add` is an ordinary call.
+let operatorSyntax(
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  method: String)
+  : Stdlib.Option.Option<String> =
+  if loc.owner == "Darklang" && loc.modules == [ "Stdlib" ] then
+    match method with
+    | "add" -> Stdlib.Option.Option.Some("a + b")
+    | "subtract" -> Stdlib.Option.Option.Some("a - b")
+    | "multiply" -> Stdlib.Option.Option.Some("a * b")
+    | "divide" -> Stdlib.Option.Option.Some("a / b")
+    | "modulo" -> Stdlib.Option.Option.Some("a % b")
+    | "power" -> Stdlib.Option.Option.Some("a ** b")
+    | "negate" -> Stdlib.Option.Option.Some("-a")
+    | "bitwiseAnd" -> Stdlib.Option.Option.Some("a & b")
+    | "bitwiseOr" -> Stdlib.Option.Option.Some("a | b")
+    | "bitwiseXor" -> Stdlib.Option.Option.Some("a ^ b")
+    | "bitwiseNot" -> Stdlib.Option.Option.Some("~a")
+    | "shiftLeft" -> Stdlib.Option.Option.Some("a << b")
+    | "shiftRight" -> Stdlib.Option.Option.Some("a >> b")
+    | "lessThan" -> Stdlib.Option.Option.Some("a < b")
+    | "lessThanOrEqualTo" -> Stdlib.Option.Option.Some("a <= b")
+    | "greaterThan" -> Stdlib.Option.Option.Some("a > b")
+    | "greaterThanOrEqualTo" -> Stdlib.Option.Option.Some("a >= b")
+    | _ -> Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.None
+
+
+/// Each method of <param i> as a person would type the call: `a % b`, `Stdlib.toString(v)`, or
+/// `Stdlib.Zero.zero<Int64>()` for a method that takes nothing and so reads its type from a type
+/// argument. Arguments use the trait method's own parameter names. Empty when the trait is
+/// unresolved.
+let callExamples(
+  branchId: Uuid,
+  ctx: PrettyPrinter.ProgramTypes.Context,
+  i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  : List<String> =
+  match traitLocation(i) with
+  | None -> []
+  | Some(loc) ->
+    let declared =
+      match i.trait_.resolved with
+      | Ok(r) ->
+        match r.name with
+        | Package(hash) ->
+          LanguageTools.PackageManager.Trait.get(hash)
+          |> Stdlib.Option.map(fun t -> t.methods)
+          |> Stdlib.Option.withDefault([])
+      | Error(_) -> []
+
+    i.methods
+    |> Stdlib.List.map(fun((method, _)) ->
+      match operatorSyntax(loc, method) with
+      | Some(op) -> op
+      | None ->
+        let name = methodCallName(branchId, loc, method)
+        let parameters =
+          declared
+          |> Stdlib.List.findFirst(fun m -> m.name == method)
+          |> Stdlib.Option.map(fun m ->
+            m.parameters
+            |> Stdlib.List.filter(fun p ->
+              match p.typ with
+              | TUnit -> false
+              | _ -> true)
+            |> Stdlib.List.map(fun p -> p.name))
+          |> Stdlib.Option.withDefault([])
+
+        match parameters with
+        | [] -> $"{name}<{PrettyPrinter.ProgramTypes.typeReference(ctx, i.self)}>()"
+        | names -> $"{name}({Stdlib.String.join(names, ", ")})")
 
 
 /// The name of the implementation, or its short hash when nothing binds it.

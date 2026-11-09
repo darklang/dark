@@ -816,7 +816,8 @@ test implListingsSayWhereTheMethodsAreCalled =
     Stdlib.String.contains(viewed, "Stdlib.toString")
     && Stdlib.String.contains(viewed, "Stdlib.Add.add")
     && Stdlib.Bool.not(Stdlib.String.contains(viewed, "Stdlib.Int64.toString"))
-    && Stdlib.String.contains(searched, "impl ToString for Int64; call Stdlib.toString")
+    && Stdlib.String.contains(searched, "Stdlib.toString(v)")
+    && Stdlib.String.contains(searched, "impl ToString for Int64")
   then
     Stdlib.Test.Result.Pass
   else
