@@ -158,6 +158,33 @@ let pairOption
   }
 
 
+/// Run <param sql> once per row, binding <param columns> of the row to its parameters by position
+/// (`?1`, `?2`, ...), as text, on the caller's connection and in its transaction.
+///
+/// Straight through SQLite rather than through a `SqliteCommand`: a command looks each parameter up
+/// by name on every run, turning the name into UTF-8 each time, and for many small rows that costs
+/// about as much as writing them. The caller must already hold the write lock (have written in this
+/// transaction), since nothing here waits for it.
+let insertRows
+  (conn : SqliteConnection)
+  (sql : string)
+  (columns : 'row -> string[])
+  (rows : List<'row>)
+  : unit =
+  if not (List.isEmpty rows) then
+    let db = conn.Handle
+    let check (rc : int) = SqliteException.ThrowExceptionForRC(rc, db)
+    let rc, stmt = SQLitePCL.raw.sqlite3_prepare_v2 (db, sql)
+    check rc
+    use stmt = stmt
+    for row in rows do
+      columns row
+      |> Array.iteri (fun i value ->
+        check (SQLitePCL.raw.sqlite3_bind_text (stmt, i + 1, value)))
+      check (SQLitePCL.raw.sqlite3_step stmt)
+      check (SQLitePCL.raw.sqlite3_reset stmt)
+
+
 /// Bind a parameter. Wraps `AddWithValue` so it always returns unit.
 let inline p (cmd : SqliteCommand) (name : string) (value : obj) =
   cmd.Parameters.AddWithValue(name, value) |> ignore<SqliteParameter>

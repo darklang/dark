@@ -183,25 +183,38 @@ let readPending () : Task<List<int64 * PT.BranchId * System.Guid * byte[]>> =
            read.bytes "op_blob"))
   }
 
-/// Drop `package_dependencies`' secondary indexes when the table is empty, and return the SQL that
-/// builds them again. A cold start writes every edge in the store, about 40,000 of them, and keeping
-/// its secondary indexes up to date row by row costs more than building them once from the finished
-/// table. The table's own key stays: the inserts rely on it to skip duplicates.
-let private dropDependencyIndexesIfEmpty
-  (conn : SqliteConnection)
-  : Task<List<string>> =
+/// The tables a cold start fills from empty, each with the secondary indexes the fold itself reads
+/// through, which have to stay.
+let private filledByColdStart : List<string * List<string>> =
+  [ "package_dependencies", []
+    // Every name op looks up what its layer already binds at that name.
+    "locations", [ "idx_locations_name"; "idx_locations_history" ]
+    "package_functions", []
+    "package_tests", [] ]
+
+/// Drop the secondary indexes of each table in `filledByColdStart` that is empty, apart from the ones
+/// the fold reads through, and return the SQL that builds them again. A cold start writes every row
+/// these tables hold, and keeping their indexes up to date row by row costs more than building them
+/// once from the finished tables. Unique indexes and keys stay: the inserts rely on them to skip
+/// duplicates.
+let private dropIndexesOfEmptyTables (conn : SqliteConnection) : Task<List<string>> =
   task {
-    use cmd = conn.CreateCommand()
-    cmd.CommandText <-
-      "SELECT name, sql FROM sqlite_master
-       WHERE type = 'index' AND tbl_name = 'package_dependencies'
-         AND sql IS NOT NULL AND sql NOT LIKE 'CREATE UNIQUE%'
-         AND NOT EXISTS (SELECT 1 FROM package_dependencies)"
-    let! indexes =
-      task {
-        use! reader = cmd.ExecuteReaderAsync()
-        return reader |> Sqlite.readRows (fun r -> (r.GetString 0, r.GetString 1))
-      }
+    let! perTable =
+      filledByColdStart
+      |> Task.mapSequentially (fun (table, kept) ->
+        task {
+          use cmd = conn.CreateCommand()
+          let keptList = kept |> List.map (fun n -> $"'{n}'") |> String.concat ", "
+          cmd.CommandText <-
+            $"SELECT name, sql FROM sqlite_master
+              WHERE type = 'index' AND tbl_name = '{table}'
+                AND sql IS NOT NULL AND substr(sql, 1, 13) <> 'CREATE UNIQUE'
+                AND name NOT IN ({keptList})
+                AND NOT EXISTS (SELECT 1 FROM {table})"
+          use! reader = cmd.ExecuteReaderAsync()
+          return reader |> Sqlite.readRows (fun r -> (r.GetString 0, r.GetString 1))
+        })
+    let indexes = List.concat perTable
     for (name, _) in indexes do
       use drop = conn.CreateCommand()
       drop.CommandText <- $"DROP INDEX {name}"
@@ -211,8 +224,35 @@ let private dropDependencyIndexesIfEmpty
   }
 
 
-/// How many ops `foldRead` deserializes and folds at a time.
-let private foldChunkSize = 1000
+/// Mark the rows at <param rowids> applied, and return what each says the fold needs: its stamp,
+/// whether it is still in the draft, and what wrote it.
+let private markApplied
+  (conn : SqliteConnection)
+  (rowids : List<int64>)
+  : Task<Map<int64, PackageOpPlayback.OpRow>> =
+  task {
+    use cmd = conn.CreateCommand()
+    let listed = rowids |> List.map string |> String.concat ", "
+    cmd.CommandText <-
+      $"UPDATE package_ops SET applied = 1 WHERE rowid IN ({listed})
+        RETURNING rowid, origin_ts, commit_hash IS NULL, source"
+    use! reader = cmd.ExecuteReaderAsync()
+    return
+      reader
+      |> Sqlite.readRows (fun r ->
+        (r.GetInt64 0,
+         ({ ts = (if r.IsDBNull 1 then None else Some(r.GetString 1))
+            draft = r.GetInt64 2 <> 0L
+            source = r.GetString 3 }
+         : PackageOpPlayback.OpRow)))
+      |> Map.ofList
+  }
+
+
+/// How many ops `foldRead` deserializes and folds at a time. Measured on a cold start: 250 did the
+/// least work and peaked lowest; 1,000 peaked about 18 MB higher, and below 150 the collections
+/// between chunks start to cost more than they save.
+let private foldChunkSize = 250
 
 /// Fold the rows `readPending` returned, each into its own branch, and mark exactly those applied.
 /// Returns the count folded.
@@ -260,7 +300,7 @@ let foldRead
             chunk
             |> List.choose (fun (seq, branch, opId, opBlob) ->
               BS.PT.PackageOp.tryDeserialize opId opBlob
-              |> Option.map (fun op -> (seq, branch, op)))
+              |> Option.map (fun op -> (seq, branch, opId, op)))
           skipped <- skipped + List.length chunk - List.length unappliedOps
 
           if not (List.isEmpty unappliedOps) then
@@ -282,35 +322,40 @@ let foldRead
                    PRAGMA cache_size=-16384;"
               tx <- conn.BeginTransaction()
               // Before the first chunk folds, so the check sees the table as the fold found it.
-              let! dropped = dropDependencyIndexesIfEmpty conn
+              let! dropped = dropIndexesOfEmptyTables conn
               droppedIndexes <- dropped
 
             // By ROW, never by predicate: a `serve` committing an op between the read and here
             // matches `applied = 0` too, and a predicate sweep would mark it applied with nothing
-            // having folded it.
-            for rows in
-              unappliedOps
-              |> List.map (fun (seq, _, _) -> seq)
-              |> List.chunkBySize 500 do
-              let listed = rows |> List.map string |> String.concat ", "
-              do!
-                runRaw
-                  conn
-                  $"UPDATE package_ops SET applied = 1 WHERE rowid IN ({listed})"
+            // having folded it. The same statement reads back what the fold needs from each row,
+            // under the write lock, so it is what the row says now.
+            let! logRows =
+              markApplied conn (unappliedOps |> List.map (fun (seq, _, _, _) -> seq))
 
             // Each run of consecutive ops on one branch folds into that branch, in log order.
             let runs =
               unappliedOps
               |> List.fold
-                (fun (acc : List<PT.BranchId * List<PT.PackageOp>>) (_, branch, op) ->
+                (fun
+                     (acc : List<PT.BranchId * List<PackageOpPlayback.LoggedOp>>)
+                     (seq, branch, opId, op) ->
+                  let logged : PackageOpPlayback.LoggedOp =
+                    { op = op
+                      id = opId
+                      row =
+                        Map.tryFind seq logRows
+                        |> Option.defaultValue PackageOpPlayback.OpRow.notInLog }
                   match acc with
-                  | (b, ops) :: rest when b = branch -> (b, op :: ops) :: rest
-                  | _ -> (branch, [ op ]) :: acc)
+                  | (b, ops) :: rest when b = branch -> (b, logged :: ops) :: rest
+                  | _ -> (branch, [ logged ]) :: acc)
                 []
               |> List.rev
               |> List.map (fun (b, ops) -> (b, List.rev ops))
-            for (branch, ops) in runs do
-              do! PackageOpPlayback.applyOpsOnConnection conn branch ops
+            let! dependencies =
+              runs
+              |> Task.mapSequentially (fun (branch, ops) ->
+                PackageOpPlayback.foldLoggedOnConnection conn branch ops)
+            PackageOpPlayback.writeDependencies conn (List.concat dependencies)
             folded <- folded + int64 (List.length unappliedOps)
 
         if not (isNull tx) then

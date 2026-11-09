@@ -11,8 +11,8 @@
     "note": "scripts/perf/workloads/startup.dark, one line of output: process start, opening the store, loading packages. Budgeted on its own so a startup regression still fails, and taken off steady's number so it does not dilute the workload's."
   },
   "cold": {
-    "allocated": 583850096,
-    "peakRssMB": 141,
+    "allocated": 543871168,
+    "peakRssMB": 118,
     "allocatedTolerance": 0.03,
     "peakRssTolerance": 0.05,
     "note": "The first run of steady.dark on a store grown from nothing, with the GC settings the gate pins. Recorded by `scripts/perf/gate --published --update` with the steady number."

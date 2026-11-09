@@ -33,43 +33,63 @@ open LibDB.PreparedBatch
 // Dependency table maintenance.
 // ------------------------------------------------------------------
 
-/// One callee row, prepared once per batch and run once per callee. A VALUES list sized to each item
-/// built new SQL text and parameter names for every item: about a tenth of a cold start's work.
+/// One row of `package_dependencies`: an item, one callee by hash and kind, and the name this parse
+/// resolved the callee through. The fields are the table's columns in order, which are also its key,
+/// so sorting these sorts them the way the table stores them.
+type DependencyRow =
+  { itemHash : string
+    hash : string
+    kind : string
+    owner : string
+    modules : string
+    name : string }
+
+/// What an item's body calls: one row per callee, by hash AND by the name this parse resolved it
+/// through.
+let private dependencyRows
+  (itemHash : string)
+  (deps : List<DE.Dependency>)
+  : List<DependencyRow> =
+  deps
+  |> List.map (fun dep ->
+    let (Hash hashStr) = dep.hash
+    let kind = dep.itemKind.toString ()
+    match dep.location with
+    | Some loc ->
+      { itemHash = itemHash
+        hash = hashStr
+        kind = kind
+        owner = loc.owner
+        modules = String.concat "." loc.modules
+        name = loc.name }
+    | None ->
+      // '' rather than NULL: the location columns are part of the table's key.
+      { itemHash = itemHash
+        hash = hashStr
+        kind = kind
+        owner = ""
+        modules = ""
+        name = "" })
+
 let private dependencyInsert =
   "INSERT OR IGNORE INTO package_dependencies "
   + "(item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name) "
-  + "VALUES ($item_hash, $hash, $kind, $owner, $modules, $name)"
+  + "VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
 
-/// Record what an item's body calls: one row per callee, by hash AND by the name this parse resolved
-/// it through.
+/// Record dependency rows, on the caller's connection and in its transaction.
 ///
 /// ADDS, never replaces: content is immutable so a hash's callees never change, but
 /// two names can hold one body, and each name it was resolved through must survive.
 /// Readers join `locations` for what is live.
-let updateDependencies
-  (ctx : Ctx)
-  (itemHash : string)
-  (deps : List<DE.Dependency>)
-  : Task<unit> =
-  task {
-    for dep in deps do
-      do!
-        exec ctx dependencyInsert (fun cmd ->
-          let (Hash hashStr) = dep.hash
-          p cmd "$item_hash" itemHash
-          p cmd "$hash" hashStr
-          p cmd "$kind" (dep.itemKind.toString ())
-          match dep.location with
-          | Some loc ->
-            p cmd "$owner" loc.owner
-            p cmd "$modules" (String.concat "." loc.modules)
-            p cmd "$name" loc.name
-          | None ->
-            // '' rather than NULL: the location columns are part of the table's key.
-            p cmd "$owner" ""
-            p cmd "$modules" ""
-            p cmd "$name" "")
-  }
+///
+/// In key order, through one statement bound by position: a cold start writes about 40,000 of
+/// these, and writing them in the order the ops came, through a command that binds each column by
+/// name, was about a fifth of its work.
+let writeDependencies (conn : SqliteConnection) (rows : List<DependencyRow>) : unit =
+  rows
+  |> List.sort
+  |> insertRows conn dependencyInsert (fun r ->
+    [| r.itemHash; r.hash; r.kind; r.owner; r.modules; r.name |])
 
 
 // ------------------------------------------------------------------
@@ -192,7 +212,7 @@ let private applyAddType
   (ctx : Ctx)
   (mayRewriteExisting : bool)
   (typ : PT.PackageType.PackageType)
-  : Task<unit> =
+  : Task<List<DependencyRow>> =
   task {
     // Use the hash already set on the item (computed by LoadPackagesFromDisk
     // or Propagation with SCC awareness). Only recompute if hash is empty.
@@ -220,8 +240,7 @@ let private applyAddType
           BS.PT.PackageType.deserialize hash bytes
           |> Hashing.computeTypeHash Hashing.Normal)
 
-    let refs = DE.extractFromType typ
-    do! updateDependencies ctx hashStr refs
+    return dependencyRows hashStr (DE.extractFromType typ)
   }
 
 /// Apply a single AddValue op to the package_values table.
@@ -229,7 +248,7 @@ let private applyAddValue
   (ctx : Ctx)
   (mayRewriteExisting : bool)
   (value : PT.PackageValue.PackageValue)
-  : Task<unit> =
+  : Task<List<DependencyRow>> =
   task {
     let hash =
       match value.hash with
@@ -253,8 +272,7 @@ let private applyAddValue
           BS.PT.PackageValue.deserialize hash bytes
           |> Hashing.computeValueHash Hashing.Normal)
 
-    let refs = DE.extractFromValue value
-    do! updateDependencies ctx hashStr refs
+    return dependencyRows hashStr (DE.extractFromValue value)
   }
 
 /// Apply a single AddTrait op to the package_traits table.
@@ -262,7 +280,7 @@ let private applyAddTrait
   (ctx : Ctx)
   (mayRewriteExisting : bool)
   (t : PT.Trait.Trait)
-  : Task<unit> =
+  : Task<List<DependencyRow>> =
   task {
     let hash =
       match t.hash with
@@ -286,7 +304,7 @@ let private applyAddTrait
           BS.PT.Trait.deserialize hash bytes
           |> Hashing.computeTraitHash Hashing.Normal)
 
-    do! updateDependencies ctx hashStr (DE.extractFromTrait t)
+    return dependencyRows hashStr (DE.extractFromTrait t)
   }
 
 /// Apply a single AddTraitImpl op to the package_trait_impls table.
@@ -299,7 +317,7 @@ let private applyAddImpl
   (mayRewriteExisting : bool)
   (originTs : string)
   (i : PT.TraitImpl.TraitImpl)
-  : Task<unit> =
+  : Task<List<DependencyRow>> =
   task {
     let hash =
       match i.hash with
@@ -329,7 +347,7 @@ let private applyAddImpl
           BS.PT.TraitImpl.deserialize hash bytes
           |> Hashing.computeImplHash Hashing.Normal)
 
-    do! updateDependencies ctx hashStr (DE.extractFromImpl i)
+    return dependencyRows hashStr (DE.extractFromImpl i)
   }
 
 /// Apply a single AddFn op to the package_functions table.
@@ -337,7 +355,7 @@ let private applyAddFn
   (ctx : Ctx)
   (mayRewriteExisting : bool)
   (fn : PT.PackageFn.PackageFn)
-  : Task<unit> =
+  : Task<List<DependencyRow>> =
   task {
     let hash =
       match fn.hash with
@@ -369,8 +387,7 @@ let private applyAddFn
           BS.PT.PackageFn.deserialize hash bytes
           |> Hashing.computeFnHash Hashing.Normal)
 
-    let refs = DE.extractFromFn fn
-    do! updateDependencies ctx hashStr refs
+    return dependencyRows hashStr (DE.extractFromFn fn)
   }
 
 /// Apply a single AddTest op. Unlike a function, a test is stored as source
@@ -380,7 +397,7 @@ let private applyAddTest
   (ctx : Ctx)
   (mayRewriteExisting : bool)
   (test : PT.PackageTest.PackageTest)
-  : Task<unit> =
+  : Task<List<DependencyRow>> =
   task {
     let hash =
       match test.hash with
@@ -404,21 +421,27 @@ let private applyAddTest
           BS.PT.PackageTest.deserialize hash bytes
           |> Hashing.computeTestHash Hashing.Normal)
 
-    let refs = DE.extractFromTest test
-    do! updateDependencies ctx hashStr refs
+    return dependencyRows hashStr (DE.extractFromTest test)
   }
 
 /// What the log says about the op being folded: its stamp, whether it is still in the draft, and what
 /// wrote it. Read from its row on the branch it is folding into, which every caller has stored first.
-type private OpRow = { ts : Option<string>; draft : bool; source : string }
+type OpRow = { ts : Option<string>; draft : bool; source : string }
+
+module OpRow =
+  /// An op the log does not hold: nothing stamped it, and it is nobody's commit.
+  let notInLog : OpRow = { ts = None; draft = true; source = "op" }
+
+/// An op as `Seed.foldRead` has it: read from the log along with its row id and its row, so the fold
+/// neither hashes it again for its id nor reads its row back one op at a time.
+type LoggedOp = { op : PT.PackageOp; id : System.Guid; row : OpRow }
 
 let private opRowOf
   (ctx : Ctx)
   (branch : PT.BranchId)
-  (op : PT.PackageOp)
+  (id : System.Guid)
   : Task<OpRow> =
   task {
-    let id = Hashing.computeOpRowId op
     let cmd =
       command
         ctx
@@ -435,8 +458,7 @@ let private opRowOf
           draft = reader.GetInt64 1 <> 0L
           source = reader.GetString 2 }
     else
-      // An op the log does not hold: nothing stamped it, and it is nobody's commit.
-      return { ts = None; draft = true; source = "op" }
+      return OpRow.notInLog
   }
 
 /// The kind of item <param branch>'s view binds at <param location>, if it binds one: what a removal
@@ -524,6 +546,7 @@ let private applySetName
   (row : OpRow)
   (source : string)
   (op : PT.PackageOp)
+  (opId : System.Guid)
   (itemHash : Hash)
   (location : PT.PackageLocation)
   (itemKind : PT.ItemKind)
@@ -556,7 +579,7 @@ let private applySetName
           (itemKind.toString ())
           row.ts
           source
-          (Hashing.computeOpRowId op)
+          opId
           previousHash
   }
 
@@ -566,7 +589,7 @@ let private applyUnbind
   (ctx : Ctx)
   (layer : Layers.Layer)
   (row : OpRow)
-  (op : PT.PackageOp)
+  (opId : System.Guid)
   (location : PT.PackageLocation)
   (previous : Option<Hash>)
   : Task<unit> =
@@ -589,7 +612,7 @@ let private applyUnbind
           (kind |> Option.defaultValue (PT.ItemKind.Fn.toString ()))
           row.ts
           "op"
-          (Hashing.computeOpRowId op)
+          opId
           (previous |> Option.map (fun (Hash h) -> h))
   }
 
@@ -650,35 +673,40 @@ let private writeDeprecationState
 
 /// Fold one op into <param branch>'s projections: content into the shared content tables, and
 /// names, deprecations and docs into the layer its row is in (the draft until it is committed).
+/// Returns the dependency rows of the item it adds, for the caller to write (`writeDependencies`).
+///
+/// <param logged> is the op's row id and its row in the log. A function, because most content ops
+/// need neither, and finding them costs a hash and a read.
 let private applyOp
   (ctx : Ctx)
   (branch : PT.BranchId)
+  (logged : unit -> Task<System.Guid * OpRow>)
   (op : PT.PackageOp)
-  : Task<unit> =
+  : Task<List<DependencyRow>> =
   task {
     // Content rows are shared by every branch, and identical by hash; the only thing that can
     // differ is the doc comment, and only main's work rewrites it, or a branch's wording would be
     // published to everyone. A branch says what it thinks an item is with an `UpdateDoc`.
     let mayRewriteExisting = branch.IsMain
     match op with
-    | PT.PackageOp.AddType typ -> do! applyAddType ctx mayRewriteExisting typ
-    | PT.PackageOp.AddValue value -> do! applyAddValue ctx mayRewriteExisting value
-    | PT.PackageOp.AddFn fn -> do! applyAddFn ctx mayRewriteExisting fn
-    | PT.PackageOp.AddTrait t -> do! applyAddTrait ctx mayRewriteExisting t
+    | PT.PackageOp.AddType typ -> return! applyAddType ctx mayRewriteExisting typ
+    | PT.PackageOp.AddValue value ->
+      return! applyAddValue ctx mayRewriteExisting value
+    | PT.PackageOp.AddFn fn -> return! applyAddFn ctx mayRewriteExisting fn
+    | PT.PackageOp.AddTrait t -> return! applyAddTrait ctx mayRewriteExisting t
     | PT.PackageOp.AddTraitImpl i ->
       // The op's own time, so two rival impls order the same way wherever they land.
-      let! row = opRowOf ctx branch op
-      do! applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" row.ts) i
-    | PT.PackageOp.AddTest test -> do! applyAddTest ctx mayRewriteExisting test
+      let! (_, row) = logged ()
+      return! applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" row.ts) i
+    | PT.PackageOp.AddTest test -> return! applyAddTest ctx mayRewriteExisting test
     | _ ->
-      let! row = opRowOf ctx branch op
+      let! (opId, row) = logged ()
       let layer : Layers.Layer = { branch = branch; draft = row.draft }
-      let opId = Hashing.computeOpRowId op
       match op with
       | PT.PackageOp.SetName(loc, target, _) ->
-        do! applySetName ctx layer row row.source op target.hash loc target.kind
+        do! applySetName ctx layer row row.source op opId target.hash loc target.kind
       | PT.PackageOp.Unbind(loc, previous) ->
-        do! applyUnbind ctx layer row op loc previous
+        do! applyUnbind ctx layer row opId loc previous
       // `restating` is part of the op's identity and nothing else: what it SAYS is the kind and
       // the message.
       | PT.PackageOp.Deprecate(target, kind, message, _) ->
@@ -696,7 +724,7 @@ let private applyOp
       // A rename is its two binding effects; the names its callers use are read from the op itself
       // (`ReferenceNames`), as `SetReferenceNames` is.
       | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
-        do! applyUnbind ctx layer row op oldLocation (Some target.hash)
+        do! applyUnbind ctx layer row opId oldLocation (Some target.hash)
         do!
           applySetName
             ctx
@@ -704,6 +732,7 @@ let private applyOp
             row
             row.source
             op
+            opId
             target.hash
             newLocation
             target.kind
@@ -723,10 +752,30 @@ let private applyOp
         match kind with
         | PT.DecisionKind.Restore(_, target, _) ->
           // Undo putting an earlier version back: a binding, like an override.
-          do! applySetName ctx layer row "resolution" op target.hash loc target.kind
+          do!
+            applySetName
+              ctx
+              layer
+              row
+              "resolution"
+              op
+              opId
+              target.hash
+              loc
+              target.kind
         | PT.DecisionKind.Override target ->
           // An override answers ONE name, so it binds one name.
-          do! applySetName ctx layer row "resolution" op target.hash loc target.kind
+          do!
+            applySetName
+              ctx
+              layer
+              row
+              "resolution"
+              op
+              opId
+              target.hash
+              loc
+              target.kind
           // And closes the record it settles, on the branch it is folded on. Scoped to item KIND as
           // well as name: one location can hold a fn AND a value, and overriding the fn must not
           // close the value's conflict.
@@ -761,12 +810,29 @@ let private applyOp
                 p cmd "$ts" (Option.defaultValue "" row.ts)
                 p cmd "$branch" (string branch))
       | _ -> ()
+      return []
   }
 
 
 // ------------------------------------------------------------------
 // Public API.
 // ------------------------------------------------------------------
+
+/// Fold <param ops> into <param branch>'s projections on <param ctx>, and return their dependency rows.
+let private foldOps
+  (ctx : Ctx)
+  (branch : PT.BranchId)
+  (ops : List<(unit -> Task<System.Guid * OpRow>) * PT.PackageOp>)
+  : Task<List<DependencyRow>> =
+  task {
+    let! rows =
+      ops |> Task.mapSequentially (fun (logged, op) -> applyOp ctx branch logged op)
+
+    // Names just changed meaning; long-lived processes hold cached answers that
+    // never expire on their own -- see `Caching.invalidateAll`.
+    Caching.invalidateAll ()
+    return List.concat rows
+  }
 
 /// Fold <param ops> into <param branch>'s projections, on a caller-provided connection, so the caller
 /// controls the transaction: one outer transaction for a bulk fold, or the action's own. Each op must
@@ -779,14 +845,38 @@ let applyOpsOnConnection
   task {
     let ctx = newCtx conn
     try
-      for op in ops do
-        do! applyOp ctx branch op
+      let lookedUp (op : PT.PackageOp) () =
+        task {
+          let id = Hashing.computeOpRowId op
+          let! row = opRowOf ctx branch id
+          return (id, row)
+        }
+      let! rows = foldOps ctx branch (ops |> List.map (fun op -> (lookedUp op, op)))
+      writeDependencies conn rows
     finally
       disposeCtx ctx
+  }
 
-    // Names just changed meaning; long-lived processes hold cached answers that
-    // never expire on their own -- see `Caching.invalidateAll`.
-    Caching.invalidateAll ()
+/// Fold ops the caller read from the log into <param branch>'s projections, on its connection and
+/// in its transaction, and return their dependency rows rather than writing them: a bulk fold writes
+/// them all at once, in key order (`writeDependencies`).
+let foldLoggedOnConnection
+  (conn : SqliteConnection)
+  (branch : PT.BranchId)
+  (ops : List<LoggedOp>)
+  : Task<List<DependencyRow>> =
+  task {
+    let ctx = newCtx conn
+    try
+      return!
+        foldOps
+          ctx
+          branch
+          (ops
+           |> List.map (fun logged ->
+             ((fun () -> Task.FromResult((logged.id, logged.row))), logged.op)))
+    finally
+      disposeCtx ctx
   }
 
 /// `applyOpsOnConnection` on a connection of its own, in one transaction.
@@ -803,41 +893,36 @@ let applyOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) : Task<unit> =
 /// Record the callees of these `Add*` ops' items without folding anything else, on the caller's
 /// connection. For an op the log already holds: the content is there, but this parse may have reached
 /// its callees through names the first fold never saw (two names, one body), and
-/// `updateDependencies` adds those. Every other kind of op is skipped.
+/// `writeDependencies` adds those. Every other kind of op is skipped.
 let recordDependenciesOnConnection
   (conn : SqliteConnection)
   (ops : List<PT.PackageOp>)
   : Task<unit> =
-  task {
-    let adds =
-      ops
-      |> List.choose (fun op ->
-        match op with
-        | PT.PackageOp.AddFn f when f.hash <> Hash "" ->
-          let (Hash h) = f.hash
-          Some(h, DE.extractFromFn f)
-        | PT.PackageOp.AddType t when t.hash <> Hash "" ->
-          let (Hash h) = t.hash
-          Some(h, DE.extractFromType t)
-        | PT.PackageOp.AddValue v when v.hash <> Hash "" ->
-          let (Hash h) = v.hash
-          Some(h, DE.extractFromValue v)
-        | PT.PackageOp.AddTrait t when t.hash <> Hash "" ->
-          let (Hash h) = t.hash
-          Some(h, DE.extractFromTrait t)
-        | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" ->
-          let (Hash h) = i.hash
-          Some(h, DE.extractFromImpl i)
-        | PT.PackageOp.AddTest test when test.hash <> Hash "" ->
-          let (Hash h) = test.hash
-          Some(h, DE.extractFromTest test)
-        | _ -> None)
+  let adds =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.AddFn f when f.hash <> Hash "" ->
+        let (Hash h) = f.hash
+        Some(h, DE.extractFromFn f)
+      | PT.PackageOp.AddType t when t.hash <> Hash "" ->
+        let (Hash h) = t.hash
+        Some(h, DE.extractFromType t)
+      | PT.PackageOp.AddValue v when v.hash <> Hash "" ->
+        let (Hash h) = v.hash
+        Some(h, DE.extractFromValue v)
+      | PT.PackageOp.AddTrait t when t.hash <> Hash "" ->
+        let (Hash h) = t.hash
+        Some(h, DE.extractFromTrait t)
+      | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" ->
+        let (Hash h) = i.hash
+        Some(h, DE.extractFromImpl i)
+      | PT.PackageOp.AddTest test when test.hash <> Hash "" ->
+        let (Hash h) = test.hash
+        Some(h, DE.extractFromTest test)
+      | _ -> None)
 
-    if not (List.isEmpty adds) then
-      let ctx = newCtx conn
-      try
-        for (hash, deps) in adds do
-          do! updateDependencies ctx hash deps
-      finally
-        disposeCtx ctx
-  }
+  adds
+  |> List.collect (fun (hash, deps) -> dependencyRows hash deps)
+  |> writeDependencies conn
+  Task.FromResult(())
