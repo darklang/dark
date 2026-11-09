@@ -26,5 +26,39 @@
       "sha256": "4894084c2fe114c309ae96f61833ba3f57ab70e585421302d79b16bff8ff1ffe"
     },
     "note": "CPU of fib 24, lists and ls, over the same on the reference release, median of paired rounds; see scripts/perf/_paired.py. The reference is the newest release on GitHub; this pin is only the fallback for when GitHub cannot be reached, so it never needs moving."
+  },
+  "suite": {
+    "iters": 5000,
+    "note": "Allocation per iteration of each workload in scripts/perf/workloads/suite/, as `scripts/perf/suite --release --iters <iters>` measures it: 0 iterations differenced against `iters`, so startup and parsing cancel. Recorded by `scripts/perf/gate --published --update` with the rest. recursion's tolerance is wider because it allocates almost nothing per iteration, so a run's few KB of noise is a bigger share of it (256 to 299 bytes over five runs).",
+    "workloads": {
+      "containers": {
+        "published": 3099,
+        "tolerance": 0.05
+      },
+      "dicts": {
+        "published": 13147,
+        "tolerance": 0.05
+      },
+      "json": {
+        "published": 9762,
+        "tolerance": 0.05
+      },
+      "lists": {
+        "published": 5476,
+        "tolerance": 0.05
+      },
+      "records": {
+        "published": 2571,
+        "tolerance": 0.05
+      },
+      "recursion": {
+        "published": 280,
+        "tolerance": 0.2
+      },
+      "strings": {
+        "published": 6325,
+        "tolerance": 0.05
+      }
+    }
   }
 }

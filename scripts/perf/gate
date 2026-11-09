@@ -5,9 +5,10 @@
 # Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
 # deliberately: one script, under a minute. A long perf job gets ignored and then disabled.
 #
-# The published gate checks four things, all on the binary just built:
+# The published gate checks five things, all on the binary just built:
 #   - steady.dark's allocation, warm, net of startup (the number this gate started with)
 #   - startup's allocation, warm: `run` of a one-line script (workloads/startup.dark)
+#   - allocation per iteration of every workload in workloads/suite/, as `suite` measures it
 #   - the cold first run's allocation and peak memory, on a store grown from nothing
 #   - CPU for `fib 24`, `lists.dark` and `ls Darklang.Stdlib.List`, paired against the newest
 #     release (_paired.py)
@@ -122,6 +123,15 @@ done
 echo "$OUTPUT" | head -c 200
 echo
 
+# The suite's workloads, each per iteration with startup differenced out (see `suite`). Debug has
+# no budget for them, so it skips them.
+SUITE_JSON=""
+if [[ "$PUBLISHED" == "true" ]]; then
+  SUITE_JSON="$GATE_HOME/suite.json"
+  SUITE_ITERS=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json'))['suite']['iters'])")
+  ./scripts/perf/suite --release --iters "$SUITE_ITERS" --json "$SUITE_JSON" > /dev/null || exit 2
+fi
+
 # The store is measured too, not just the binary: a working rundir carrying your own ops allocates a
 # couple of percent more than a freshly loaded one, which is enough to read as a regression.
 echo "store    ${HOME}/.darklang"
@@ -130,7 +140,7 @@ echo "build    $(exe_build_tag "$EXE")"
 MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
 
 BUDGET_STATUS=0
-python3 - "$BUDGET_FILE" "$TOTAL_READINGS" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" "$STARTUP_READINGS" <<'PY' || BUDGET_STATUS=$?
+python3 - "$BUDGET_FILE" "$TOTAL_READINGS" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" "$STARTUP_READINGS" "$SUITE_JSON" <<'PY' || BUDGET_STATUS=$?
 import json, statistics, sys
 
 budget_file, update = sys.argv[1], sys.argv[3] == "true"
@@ -140,6 +150,7 @@ startup = int(statistics.median(readings(sys.argv[7])))
 # What the budget is on: the workload, with startup taken off.
 measured = total - startup
 cold_alloc, cold_peak_mb = int(sys.argv[5]), float(sys.argv[6])
+suite = {r["workload"]: r["bytesPerIter"] for r in json.load(open(sys.argv[8]))} if sys.argv[8] else {}
 
 budget = json.load(open(budget_file))
 mode = sys.argv[4]
@@ -150,6 +161,19 @@ startup_limit = budget["startup"].get(mode)
 startup_tolerance = budget["startup"]["tolerance"]
 mb = lambda b: f"{b/1e6:.1f} MB"
 mb2 = lambda b: f"{b/1e6:.2f} MB"
+bytes_ = lambda b: f"{b:.0f} bytes"
+
+# Prints a reading against its budget and says whether it failed: over the ceiling fails, under
+# the floor says the budget can come down.
+def over(label, got, base, tol, show, indent=""):
+    top = base * (1 + tol)
+    print(f"{indent}{label} {show(got)}; budget {show(base)}, ceiling {show(top)}")
+    if got > top:
+        print(f"FAIL: {label} {(got / base - 1) * 100:.1f}% over budget.")
+        return True
+    if got < base * (1 - tol):
+        print(f"{indent}  {(1 - got / base) * 100:.1f}% under -- lower it with `scripts/perf/gate --published --update`.")
+    return False
 
 # Retired on purpose, so `--update` does not quietly put it back.
 if mode == "debug" and update:
@@ -172,28 +196,33 @@ if update:
     budget["startup"][mode] = startup
     budget["cold"]["allocated"] = cold_alloc
     budget["cold"]["peakRssMB"] = round(cold_peak_mb)
+    for name, per in suite.items():
+        budget["suite"]["workloads"].setdefault(name, {"tolerance": 0.05})[mode] = per
     with open(budget_file, "w") as f:
         json.dump(budget, f, indent=2)
         f.write("\n")
     print(f"{mode} budget updated to {mb2(measured)} net of startup, startup {mb2(startup)}; "
-          f"first run {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB")
+          f"first run {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB; "
+          + ", ".join(f"{name} {bytes_(per)}/iter" for name, per in suite.items()))
     sys.exit(0)
 
 # The first run, on a store grown from nothing, with tolerances of its own: allocation repeats to
 # the MB in 900, peak memory to a few MB in 480. The regressions this is for were 50% and 90%.
 cold = budget["cold"]
-failed = False
-for label, got, base, tol, show in (
-    ("allocated", cold_alloc, cold["allocated"], cold["allocatedTolerance"], mb),
-    ("peak memory", cold_peak_mb, cold["peakRssMB"], cold["peakRssTolerance"], lambda v: f"{v:.0f} MB"),
-):
-    top = base * (1 + tol)
-    print(f"first run {label} {show(got)}; budget {show(base)}, ceiling {show(top)}")
-    if got > top:
-        print(f"FAIL: first run {label} {(got / base - 1) * 100:.1f}% over budget.")
-        failed = True
-    elif got < base * (1 - tol):
-        print(f"  {(1 - got / base) * 100:.1f}% under -- lower it with `scripts/perf/gate --published --update`.")
+cold_failed = any([
+    over("first run allocated", cold_alloc, cold["allocated"], cold["allocatedTolerance"], mb),
+    over("first run peak memory", cold_peak_mb, cold["peakRssMB"], cold["peakRssTolerance"],
+         lambda v: f"{v:.0f} MB"),
+])
+
+# A workload added to the suite with no budget yet reports and passes, like the rest below.
+workloads = budget["suite"]["workloads"]
+print(f"suite, allocation per iteration over {budget['suite']['iters']} iterations")
+suite_failed = any([over(name, per, workloads[name][mode], workloads[name]["tolerance"], bytes_, "  ")
+                    for name, per in suite.items() if mode in workloads.get(name, {})])
+for name in suite.keys() - {name for name in workloads if mode in workloads[name]}:
+    print(f"  {name} {bytes_(suite[name])}; no budget recorded yet.")
+failed = cold_failed or suite_failed
 
 # A budget nobody has recorded yet reports and passes. Better than a number carried over from the
 # other build mode, which would be wrong in a way that looks right.
@@ -204,23 +233,16 @@ if limit is None or startup_limit is None:
     sys.exit(1 if failed else 0)
 
 print(f"steady.dark ({mode}) allocated {mb2(total)} in all, median of {len(readings(sys.argv[2]))} warm runs")
-for label, got, base, tol in (
-    ("startup", startup, startup_limit, startup_tolerance),
-    ("steady.dark net of startup", measured, limit, tolerance),
-):
-    top = int(base * (1 + tol))
-    print(f"  {label} {mb2(got)}; budget {mb2(base)}, ceiling {mb2(top)}")
-    if got > top:
-        print(f"FAIL: {label} {(got / base - 1) * 100:.1f}% over budget.")
-        failed = True
-    elif got < base * (1 - tol):
-        print(f"    {(1 - got / base) * 100:.1f}% under -- lower it with `scripts/perf/gate --published --update`.")
+steady_failed = any([
+    over("startup", startup, startup_limit, startup_tolerance, mb2, "  "),
+    over("steady.dark net of startup", measured, limit, tolerance, mb2, "  "),
+])
 
-if failed:
+if failed or steady_failed:
     print("If the regression is intended, raise the budget in the same commit and say why.")
     print("This ran against a store the binary grew itself, as CI does, so a working dev")
     print("store (2.1 MB higher) is not the reason. docs/perf/playbook.md has the readings.")
-sys.exit(1 if failed else 0)
+sys.exit(1 if failed or steady_failed else 0)
 PY
 
 # `--update` rewrites the allocation budgets only. The paired check has no number to update: it is a
