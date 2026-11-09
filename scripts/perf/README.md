@@ -94,12 +94,13 @@ the per-opcode totals across every VM.
 
 - `gate` is the CI assertion: `workloads/steady.dark`, allocation against `budget.json`, warm and
   on the cold first run (with its peak memory). The warm number is net of startup
-  (`workloads/startup.dark`), which has a budget of its own. Then CPU for `workloads/fib.dark`,
+  (`workloads/startup.dark`), which has a budget of its own. Every workload in `workloads/suite/`
+  has one too, on allocation per iteration as `suite` measures it. Then CPU for `workloads/fib.dark`,
   `workloads/lists.dark` and `ls` against the newest release, paired (`_paired.py`); offline,
   against the one `budget.json` pins. `--published` is the real one; bare is debug and does not
   gate.
 - `suite` runs the seven shapes in `workloads/suite/`, allocation and time per iteration, with
-  startup differenced out.
+  startup differenced out. `gate --published` runs it too, and budgets each one's allocation.
 - `bench` (and `_bench.py`) is repeatable CLI timing from a pinned store fixture. `bench ab`
   interleaves two binaries and reports the paired median, which is drift-proof.
 - `http` is allocation and latency per request under concurrency: the only tool here that sees the
@@ -125,7 +126,8 @@ Three different contracts, which is why they are in three places:
   make a number look better.
 - `workloads/suite/` is the differenced set. Each file reads `PERF_ITERS` and gets run twice, at 0
   and at N, so startup cancels and the result is per-iteration. A new file here is picked up
-  automatically.
+  automatically, and `gate` reports it without failing until `gate --published --update` records
+  its budget.
 - `workloads/bench/` is staged into `rundir/perf-workloads/` by `bench`. These use raw `Builtin.`
   calls rather than the Dark wrappers on purpose: an A/B runs the same source against an older
   published binary, whose store may not carry today's wrapper.
