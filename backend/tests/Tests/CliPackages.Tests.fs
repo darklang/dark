@@ -1441,6 +1441,7 @@ let runCallsAPackageFunctionByName =
     0
   | _ -> 2
 let hello(): Unit = Stdlib.printLine("hello")
+let sub(x: Int64, y: Int64): Int64 = x - y
 """
       let sourceFile = System.IO.Path.Combine(dir, "app.dark")
       try
@@ -1483,6 +1484,18 @@ let hello(): Unit = Stdlib.printLine("hello")
             [ "run"; "Tests.RunFn.nope" ]
             "No script file or function named Tests.RunFn.nope"
             "a name that is neither"
+        do!
+          shows
+            state
+            [ "run"; "Tests.RunFn.sub"; "1"; "2" ]
+            "Tests.RunFn.sub takes (x: Int64, y: Int64); `run` passes the words as a List<String>. Call it with: dark eval 'Tests.RunFn.sub(…)'"
+            "other parameters are refused with the signature"
+        do!
+          exits
+            state
+            [ "run"; "Tests.RunFn.sub"; "1"; "2" ]
+            1L
+            "and the refusal fails"
       finally
         System.IO.Directory.Delete(dir, true)
       do! discardAll state

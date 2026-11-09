@@ -187,7 +187,7 @@ let executeScript(
 
 /// Run the package function <param name> the way a script runs: under the same policy, with
 /// <param args> as its argument, and its Int64 result as the exit code. A function that takes
-/// nothing is called with `()`.
+/// nothing is called with `()`; one with other parameters is refused with its signature.
 let executePackageFn(
   state: AppState,
   name: String,
@@ -204,21 +204,40 @@ let executePackageFn(
     Stdlib.printErrorLine($"No script file or function named {name}")
     { state with exitCode = 1 }
   | Some(hash) ->
-    let takesArgs =
-      match LanguageTools.PackageManager.Function.getSignature(hash) with
-      | Some(fn) ->
-        fn.parameters
-        |> Stdlib.List.any(fun p -> p.typ != LanguageTools.ProgramTypes.TypeReference.TUnit)
-      | None -> true
-
-    if takesArgs then
-      runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats)
-    else
-      match args with
-      | [] -> runScriptMeasured(state, name, $"{fnName}()", args, options, true, stats)
+    match LanguageTools.PackageManager.Function.getSignature(hash) with
+    | Some(fn) ->
+      match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
+      | [] | [ TUnit ] -> runNullary(state, name, fnName, args, options, stats)
+      | [ TList(TString) ] ->
+        runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats)
       | _ ->
-        Stdlib.printErrorLine($"{name} takes no arguments")
+        let modulePath = Stdlib.List.prepend(location.modules, location.owner)
+        let ctx = Packages.Signatures.rootContext(branchId, modulePath)
+        let shown =
+          fn.parameters
+          |> Stdlib.List.map(fun p ->
+            $"{p.name}: {PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)}")
+          |> Stdlib.String.join(", ")
+        Stdlib.printErrorLine(
+          $"{name} takes ({shown}); `run` passes the words as a List<String>. Call it with: dark eval '{name}(…)'")
         { state with exitCode = 1 }
+    | None -> runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats)
+
+
+/// <fn executePackageFn> for a function that takes nothing.
+let runNullary(
+  state: AppState,
+  name: String,
+  fnName: String,
+  args: List<String>,
+  options: Darklang.Tracing.ScriptOptions,
+  stats: Bool)
+  : AppState =
+  match args with
+  | [] -> runScriptMeasured(state, name, $"{fnName}()", args, options, true, stats)
+  | _ ->
+    Stdlib.printErrorLine($"{name} takes no arguments")
+    { state with exitCode = 1 }
 
 
 let allowAlways(): String = "Allow future runs (save to the instance policy)"
@@ -381,7 +400,10 @@ let help(_state: AppState): String =
     "                       with the build they came from. Includes parsing the script;"
     "                       call Perf.measure inside it to measure the work alone."
     ""
-    "A package function runs the same way, by name. It takes the arguments as a"
-    "List<String>, or nothing, and its Int64 result is the exit code:"
-    "  run-script Me.Todo.main add milk" ]
+    "A function as a command: a package function runs the same way, by name, when it"
+    "takes a List<String> or nothing. The words after its name are the list, and the"
+    "Int64 it returns is the exit code (Unit is 0):"
+    "  let main(args: List<String>): Int64 = ...    // saved as Me.Todo.main"
+    "  run-script Me.Todo.main add \"oat milk\"      // args = [\"add\", \"oat milk\"]"
+    "A function with other parameters goes through eval." ]
   |> Stdlib.String.join("\n")
