@@ -6,7 +6,7 @@
     "note": "scripts/perf/workloads/steady.dark, trace detail off, with `startup` taken off: the workload's own allocation, the median of three warm runs each. `publishedMode` is which publish mode the published number was taken in; the gate refuses a binary from the other one. Lower these whenever a change earns it (scripts/perf/gate --published --update). Method and history: docs/perf/history.md. Do not add historical comments to this line, basically never change this comment."
   },
   "startup": {
-    "published": 7000520,
+    "published": 5439520,
     "tolerance": 0.03,
     "note": "scripts/perf/workloads/startup.dark, one line of output: process start, opening the store, loading packages. Budgeted on its own so a startup regression still fails, and taken off steady's number so it does not dilute the workload's."
   },

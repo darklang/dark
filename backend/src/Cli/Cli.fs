@@ -157,14 +157,14 @@ let execute
       Telemetry.time "cli.buildState" [] (fun () ->
         { state packageManager with
             branchId = LibDB.PackageManager.currentBranchId () })
-    // Load bundled Darklang function hashes once for package-approval checks.
-    let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    // Bundled Darklang functions, for package-approval checks.
+    let bundled = LibDB.ProgramTypes.Fn.ownedBy "Darklang"
     let state =
       // CLI control code is trusted; guest `run`/`eval` create restricted states.
       { Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll state with
           // CLI control code may manage the instance policy.
           canManagePolicies = true
-          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h
+          isBundledPackageFn = fun (RT.Hash h) -> bundled h
           // What a list op asks before spreading a package fn across cores (`LibExecution.Spread`).
           fnPurity =
             LibDB.PackagePermissions.purity

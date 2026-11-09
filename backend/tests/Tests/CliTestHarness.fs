@@ -84,14 +84,14 @@ let private buildState () : Task<RT.ExecutionState> =
 
     LibDB.PolicyStore.seedInstanceIfMissing testInstancePolicy
 
-    let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    let bundled = LibDB.ProgramTypes.Fn.ownedBy "Darklang"
 
     return
       { Exe.setInstancePolicy
           LibExecution.Permissions.Policy.allowAll
           (Exe.createState builtins pmRT Exe.noTracing sendException notify) with
           canManagePolicies = true
-          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
+          isBundledPackageFn = fun (RT.Hash h) -> bundled h }
   }
 
 /// What a CLI test drives.
