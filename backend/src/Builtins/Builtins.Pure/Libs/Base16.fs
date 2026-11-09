@@ -38,13 +38,24 @@ let fns () : List<BuiltInFn> =
       fn =
         let ok b = Dval.resultOk KTBytes KTString b
         let err s = Dval.resultError KTBytes KTString (DString s)
+        // Checked here rather than by catching `FromHexString`'s exception: the CLI is built
+        // with `UseSystemResourceKeys`, so its message is a resource key such as
+        // `Format_BadHexChar`.
+        let isHexDigit (r : System.Text.Rune) =
+          r.IsAscii && System.Uri.IsHexDigit(char r.Value)
         (function
         | _, _, _, [| DString s |] ->
-          try
-            let bs = System.Convert.FromHexString(s)
-            ok (Bytes.newEphemeral bs) |> Ply
-          with e ->
-            err $"Invalid hex string: {e.Message}" |> Ply
+          let notHex =
+            s.EnumerateRunes() |> Seq.tryFind (fun r -> not (isHexDigit r))
+          match notHex with
+          | Some r ->
+            err $"Invalid hex string: '{r}' is not a hex digit (0-9, a-f, A-F)"
+            |> Ply
+          | None when s.Length % 2 <> 0 ->
+            err
+              $"Invalid hex string: it has {s.Length} digits, and each byte takes two"
+            |> Ply
+          | None -> ok (Bytes.newEphemeral (System.Convert.FromHexString s)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

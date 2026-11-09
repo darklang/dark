@@ -19,6 +19,18 @@ test decode =
   Stdlib.Base16.decode("deadbeef") |> Stdlib.Result.map(Stdlib.Bytes.length)
   |> Stdlib.Test.equal(Ok(4))
 
+// What is wrong with the input, in words: a character that isn't a hex digit, or a digit
+// left over at the end.
+test decodeErrors =
+  Stdlib.Test.all(
+    [ Stdlib.Base16.decode("zz")
+      |> Stdlib.Test.equal(Error("Invalid hex string: 'z' is not a hex digit (0-9, a-f, A-F)"))
+      Stdlib.Base16.decode("ab😀")
+      |> Stdlib.Test.equal(Error("Invalid hex string: '😀' is not a hex digit (0-9, a-f, A-F)"))
+      Stdlib.Base16.decode("abc")
+      |> Stdlib.Test.equal(Error("Invalid hex string: it has 3 digits, and each byte takes two"))
+      Stdlib.Base16.decode("") |> Stdlib.Result.map(Stdlib.Bytes.length) |> Stdlib.Test.equal(Ok(0)) ])
+
 test decodeToUtf8 =
   Stdlib.Base16.decode("48656c6c6f")
   |> Stdlib.Result.andThen(Stdlib.Utf8.decode)

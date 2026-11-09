@@ -7,5 +7,7 @@ let encode(bytes: Bytes): String = Builtin.base16Encode(bytes)
 
 
 /// Parses <param s> as an uppercase or lowercase Base16 (hex) string into a Bytes.
+/// Returns an Error naming the problem when <param s> holds a character that is not a
+/// hex digit, or an odd number of digits.
 let decode(s: String): Stdlib.Result.Result<Bytes, String> =
   Builtin.base16Decode(s)
