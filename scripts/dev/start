@@ -62,6 +62,13 @@ if [[ "${#ids[@]}" -gt 0 ]]; then
     [[ -n "$p" ]] && taken+=( "$p" )
   done < <(docker inspect "${ids[@]}" -f "$published")
 fi
+# A host process can hold a port in the block too (a python server on 9673 once did), and
+# then the container fails to start. Listening sockets count as taken, whoever owns them.
+if command -v ss > /dev/null; then
+  while IFS= read -r p; do
+    [[ "$p" =~ ^[0-9]+$ ]] && taken+=( "$p" )
+  done < <(ss -Htln | awk '{ n = split($4, a, ":"); print a[n] }')
+fi
 
 # First free block of 10, counting up from 9090.
 base=9090
