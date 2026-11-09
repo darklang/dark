@@ -1178,8 +1178,14 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | [] -> executeQuery(state, args)
   | _ ->
     let parsed = parseArgs(args)
+    // A name has no spaces, so several words under --exact are several names, not one
+    // phrase that nothing could match exactly.
+    let several =
+      parsed.batch
+      || (parsed.exactMatch && (Stdlib.List.length(parsed.queryParts) > 1))
+
     if
-      (Stdlib.Bool.not(parsed.batch))
+      (Stdlib.Bool.not(several))
       || (Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)))
     then
       executeQuery(state, args)
@@ -1191,10 +1197,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     else
       // FlagParser has no value-taking flags in this command, so retaining the
       // original flag arguments is sufficient to give every query the same
-      // filters. Each positional remains one query even when it contains spaces.
+      // filters. Each positional remains one query even when it contains spaces. Each query
+      // gets `--batch` even when several --exact names put it here without one, so it caps
+      // its results and leaves the --with-docs hint to the end.
       let flags =
         args
-        |> Stdlib.List.filter(fun arg -> Stdlib.String.startsWith(arg, "--"))
+        |> Stdlib.List.filter(fun arg -> Stdlib.String.startsWith(arg, "--") && arg != "--batch")
+        |> Stdlib.List.prepend("--batch")
 
       parsed.queryParts
       |> Stdlib.List.iter(fun query ->
@@ -1228,7 +1237,8 @@ let help(state: Cli.AppState): String =
     "  --impl                 Search only implementations of traits"
     "  --test                 Search only tests"
     "  --include-tests        Also list tests and test helpers (left out by default)"
-    "  --exact                Require exact match (default: fuzzy)"
+    "  --exact                Require exact match (default: fuzzy); several names"
+    "                         are looked up one by one"
     "  --shallow              Search only direct children (default: all descendants);"
     "                         a qualified query searches inside the module it names"
     "  --with-docs            Also show doc comments"

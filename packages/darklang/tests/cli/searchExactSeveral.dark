@@ -1,0 +1,16 @@
+/// `search --exact` with several names looks each one up. A name has no spaces, so
+/// joining them into one phrase found nothing, and said so with a zero exit.
+module Darklang.Cli.Tests.SearchExactSeveral
+
+test severalExactNamesAreEachLookedUp =
+  Instance.withInstance(fun i ->
+    let (code, styled) =
+      Instance.ran(i, [ "search", "--exact", "Stdlib.List.head", "Stdlib.String.isEmpty", "Zzz.nope", "--fn" ])
+    let out = Stdlib.Cli.Tui.Text.stripSgr(styled)
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "three names")
+        Instance.says(out, "Darklang.Stdlib.List.head", "the first name is found")
+        Instance.says(out, "Darklang.Stdlib.String.isEmpty", "the second name is found")
+        Instance.says(out, "No results found for: Zzz.nope", "the missing name is named")
+        Instance.doesNotSay(out, "Stdlib.List.head Stdlib.String.isEmpty", "the names are not one phrase") ]))
