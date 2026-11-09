@@ -143,9 +143,10 @@ let export (outputPath : string) : Task<unit> =
       -- delete; every projection went above.
       DELETE FROM package_ops WHERE commit_hash IS NULL;
 
-      -- The builder's sync journal, last, because the deletes above write to it. Its entries are
-      -- the builder's history with its own machines, and an install starts with none.
+      -- The builder's sync journal, last, because the deletes above write to it, and where the
+      -- builder's own machines stood with it. An install starts with neither.
       DELETE FROM sync_journal;
+      DELETE FROM sync_peers;
 
       """
       + AppliedOps.reset

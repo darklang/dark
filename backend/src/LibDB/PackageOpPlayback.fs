@@ -832,8 +832,8 @@ let private applyOp
           // And closes the record it settles, on the branch it is folded on. Scoped to item KIND as
           // well as name: one location can hold a fn AND a value, and overriding the fn must not
           // close the value's conflict.
-          do!
-            exec
+          let! closed =
+            execRows
               ctx
               "UPDATE conflicts SET status = 'overridden', resolved_by = $op
                WHERE owner = $owner AND modules = $modules AND name = $name
@@ -843,6 +843,30 @@ let private applyOp
                 p cmd "$kind" (target.kind.toString ())
                 p cmd "$branch" (string layer.branch)
                 pLoc cmd loc)
+          // A decision synced from another machine can arrive before this store has seen the
+          // divergence it settles. It leaves the record settled, under the id it names, so that
+          // when the divergence does arrive, recording it finds it already decided
+          // (`OpSync.recordDivergences`). Only for an id a conflict has (`ScmDetect.conflictId`):
+          // the other overrides (`keep-mine:...`, `upgrade-kept:...`) settle no record.
+          let namesAConflict =
+            System.Text.RegularExpressions.Regex.IsMatch(id, "^[0-9a-f]{8}$")
+          if closed = 0 && namesAConflict then
+            do!
+              exec
+                ctx
+                "INSERT OR IGNORE INTO conflicts
+                   (id, owner, modules, name, item_type, part, kind, candidates, auto_resolved_to,
+                    reason, status, resolved_by, origin_ts, branch_id)
+                 VALUES ($op, $owner, $modules, $name, $kind, '', 'same-name-different-hash', '[]',
+                         $target, $reason, 'overridden', $op, $ts, $branch)"
+                (fun cmd ->
+                  p cmd "$op" id
+                  p cmd "$kind" (target.kind.toString ())
+                  p cmd "$target" (let (Hash h) = target.hash in h)
+                  p cmd "$reason" reason
+                  p cmd "$ts" (Option.defaultValue "" row.ts)
+                  p cmd "$branch" (string layer.branch)
+                  pLoc cmd loc)
         | PT.DecisionKind.Ack findingId ->
           // A finding nobody has answered isn't stored at all -- only answers are rows, because
           // detection re-derives the findings whenever anyone asks.

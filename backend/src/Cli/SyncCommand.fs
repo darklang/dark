@@ -18,16 +18,16 @@ open Prelude
 
 module SyncLink = LibDB.SyncLink
 
-let private peerKey = "sync.peer"
+let private peerKey = SyncLink.peerKey
 let private commandKey = "sync.command"
 
 /// The key the boot reads, with the other startup settings, to know sync is on.
 let settingKey = peerKey
 
-let private dir () = Path.Combine(LibConfig.Config.runDir, "sync")
-let private noticesPath () = Path.Combine(dir (), "notices")
-let private statePath () = Path.Combine(dir (), "state")
-let private lockPath () = Path.Combine(dir (), "watch.lock")
+/// How long the first command after a restart waits for the other machine's changes.
+let private catchUpBound = System.TimeSpan.FromSeconds 1.5
+
+let private noticesPath () = Path.Combine(SyncLink.dir (), "notices")
 let private logPath () = Path.Combine(LibConfig.Config.logDir, "sync.log")
 
 let private appendLine (path : string) (line : string) : unit =
@@ -51,14 +51,9 @@ let private log (line : string) : unit =
   let at = System.DateTime.Now.ToString "yyyy-MM-dd HH:mm:ss.fff"
   appendLine path $"[{at}] {line}"
 
-let private writeState (state : string) : unit =
-  try
-    Directory.CreateDirectory(dir ()) |> ignore<DirectoryInfo>
-    let temporary = statePath () + ".new"
-    File.WriteAllText(temporary, state)
-    File.Move(temporary, statePath (), true)
-  with _ ->
-    ()
+/// Record how the link stands, for `dark sync`, `dark status` and the first command after a restart.
+let private note (change : SyncLink.Standing -> SyncLink.Standing) : unit =
+  SyncLink.Standing.update (SyncLink.standingPath ()) change
 
 let private config (key : string) : Option<string> =
   try
@@ -81,28 +76,6 @@ let showNotices () : unit =
       ()
     lines |> Array.distinct |> Array.iter System.Console.Error.WriteLine
 
-/// The lock a watcher holds while it runs, or None when another process holds it.
-let private takeLock () : Option<FileStream> =
-  try
-    Directory.CreateDirectory(dir ()) |> ignore<DirectoryInfo>
-    Some(
-      new FileStream(
-        lockPath (),
-        FileMode.OpenOrCreate,
-        FileAccess.ReadWrite,
-        FileShare.None
-      )
-    )
-  with :? IOException ->
-    None
-
-let private watcherRunning () : bool =
-  match takeLock () with
-  | Some held ->
-    held.Dispose()
-    false
-  | None -> true
-
 /// Start `dark sync watch` in a session of its own, detached from this terminal, and return at
 /// once. Its stdio is /dev/null: nothing it does is printed.
 let private startWatcher () : unit =
@@ -118,29 +91,57 @@ let private startWatcher () : unit =
   with e ->
     log $"could not start the watcher: {e.Message}"
 
-/// What every other command does about sync as it starts: show what is waiting for the person,
-/// and start the watcher if sync is on and none is running. With sync off, one stat.
+/// A line that says something and asks nothing: dim, on stderr.
+let private dim (line : string) : unit =
+  NonBlockingConsole.writeErrLine $"\u001b[2m{line}\u001b[0m"
+
+/// What every other command does about sync as it starts: show what is waiting for the person, and
+/// start the watcher if sync is on and none is running. A watcher that was not running means this
+/// machine was off or asleep, so the command waits a moment for the other machine's changes before
+/// it reads anything, and says in one dim line when they did not come. With sync off, one stat.
 let atStartup (peer : Option<string>) : unit =
   showNotices ()
   match peer with
-  | Some _ when not (watcherRunning ()) -> startWatcher ()
+  | Some host when not (SyncLink.watcherRunning ()) ->
+    let started = System.DateTime.UtcNow
+    startWatcher ()
+    match
+      SyncLink.awaitCatchUp
+        (fun () -> SyncLink.Standing.read (SyncLink.standingPath ()))
+        started
+        catchUpBound
+    with
+    | SyncLink.CaughtUp -> LibDB.Caching.invalidateAll ()
+    | SyncLink.OutOfReach _ ->
+      dim $"sync: can't reach {host} right now; this is this machine's copy."
+    | SyncLink.StillGoing ->
+      dim
+        $"sync: still catching up with {host}; what is newer there arrives in the background."
   | _ -> ()
 
-let private side (fold : unit -> unit) (keepGoing : unit -> bool) : SyncLink.Side =
+/// One end of a session on this machine's store. The store is given its `instance.id` first, if it
+/// has none yet: that is who it is to the other machine, and where that machine resumes from.
+let private side
+  (fold : unit -> unit)
+  (keepGoing : unit -> bool)
+  (record : bool)
+  : SyncLink.Side =
+  (LibDB.Config.ensureInstance ()).Wait()
   { store = LibConfig.Config.dbPath
-    workDir = dir ()
+    workDir = SyncLink.dir ()
     afterImport = fun _ -> fold ()
     say = say
-    connected = fun name -> log $"connected to {name}"
+    note = if record then note else (fun _ -> ())
     log = log
     keepGoing = keepGoing
     pollMs = 50 }
 
-/// `dark sync serve`: the other machine's end, on stdin and stdout, until they close.
+/// `dark sync serve`: the other machine's end, on stdin and stdout, until they close. It records
+/// nothing about the link: that is the watcher's, on this machine, for its own peer.
 let private serve (fold : unit -> unit) : int =
   let input = System.Console.OpenStandardInput()
   let output = System.Console.OpenStandardOutput()
-  let ended = SyncLink.run (side fold (fun () -> true)) input output false
+  let ended = SyncLink.run (side fold (fun () -> true) false) input output false
   log $"serve ended: {ended}"
   0
 
@@ -151,7 +152,7 @@ let private watch (fold : unit -> unit) : int =
     [ 0..4 ]
     |> List.tryPick (fun attempt ->
       if attempt > 0 then System.Threading.Thread.Sleep 200
-      takeLock ())
+      SyncLink.takeLock ())
   match held, config peerKey with
   | Some lock, Some host ->
     use _lock = lock
@@ -159,17 +160,10 @@ let private watch (fold : unit -> unit) : int =
     let keepGoing () = config peerKey = Some host
     log $"watching {host}"
     SyncLink.watch
-      { side =
-          { (side fold keepGoing) with
-              connected =
-                fun name ->
-                  log $"connected to {name}"
-                  writeState
-                    $"connected to {host} since {SyncLink.clock System.DateTime.UtcNow}" }
+      { side = side fold keepGoing true
         transport = SyncLink.ssh host command
         peer = host
-        patience = System.TimeSpan.FromMinutes 10.0
-        writeState = writeState }
+        patience = System.TimeSpan.FromMinutes 10.0 }
     log "watcher stopped"
     0
   | Some lock, None ->
@@ -207,7 +201,10 @@ let private add
       command |> Option.orElse (config commandKey) |> Option.defaultValue "dark"
     let clock = System.Diagnostics.Stopwatch.StartNew()
     match
-      SyncLink.connect (side fold (fun () -> true)) (SyncLink.ssh host remote) true
+      SyncLink.connect
+        (side fold (fun () -> true) true)
+        (SyncLink.ssh host remote)
+        true
     with
     | SyncLink.Exchanged, _ ->
       (LibDB.Config.set peerKey host).Wait()
@@ -236,11 +233,11 @@ let private off () : int =
     (LibDB.Config.unset commandKey).Wait()
     let deadline = System.DateTime.UtcNow.AddSeconds 15.0
     let rec wait () =
-      if watcherRunning () && System.DateTime.UtcNow < deadline then
+      if SyncLink.watcherRunning () && System.DateTime.UtcNow < deadline then
         System.Threading.Thread.Sleep 50
         wait ()
     wait ()
-    writeState "off"
+    note (SyncLink.Standing.into "off" "")
     System.Console.Error.WriteLine
       $"sync is off. Nothing goes to or comes from {host} now; your store keeps everything it has."
     0
@@ -251,14 +248,8 @@ let private status () : int =
     System.Console.Error.WriteLine
       "sync is off. `dark sync add <host>` keeps this store in step with a machine you own, over ssh."
     0
-  | Some host ->
-    let state =
-      try
-        File.ReadAllText(statePath ()).Trim()
-      with _ ->
-        ""
-    let state = if state = "" || state = "off" then "starting" else state
-    System.Console.Error.WriteLine $"syncing with {host}: {state}."
+  | Some _ ->
+    System.Console.Error.WriteLine((SyncLink.statusNow ()).Result)
     0
 
 /// The forms of `dark sync` handled here, or None for Dark to answer `help`.

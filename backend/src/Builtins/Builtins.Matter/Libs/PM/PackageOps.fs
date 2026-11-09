@@ -308,6 +308,29 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
 
+    // What `dark status` says about sync, in one line; "" when sync is off. Read from the
+    // watcher's record of the link and the store's journal (`LibDB.SyncLink.statusNow`).
+    { name = fn "scmSyncLine" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description =
+        "One line on how sync with the other machine stands: up to date or how many "
+        + "changes it lacks, and when it was last heard from. Empty when sync is off."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            let! line = LibDB.SyncLink.statusNow ()
+            return DString line
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+
     // Dark edits `locations` directly on the surgical discard path, which is the one place outside the
     // fold that does. The in-memory caches key on what that table says, so whoever changes it has to say
     // so; F# does this inline (`Caching.invalidateAll`), and Dark needs the same reach.
