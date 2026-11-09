@@ -11,7 +11,7 @@
     "note": "scripts/perf/workloads/startup.dark, one line of output: process start, opening the store, loading packages. Budgeted on its own so a startup regression still fails, and taken off steady's number so it does not dilute the workload's."
   },
   "cold": {
-    "allocated": 543871168,
+    "allocated": 528911568,
     "peakRssMB": 118,
     "allocatedTolerance": 0.03,
     "peakRssTolerance": 0.05,

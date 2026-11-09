@@ -108,6 +108,38 @@ module PT =
         |> BS.PT.PackageOp.deserialize (System.Guid.NewGuid()))
       Values.ProgramTypes.packageOps
 
+  /// The fold stores an item's `pt_def` by cutting it out of its op's blob (`itemBlob`) rather than
+  /// writing the item again, so the cut has to be exactly what the item's own writer gives. And it
+  /// has to give nothing for an op that adds no item, or a blob in an older format, which the item's
+  /// writer would lay out differently.
+  let itemBlobIsTheItemsOwnBlob =
+    test "an Add op's blob holds its item's blob" {
+      let opId = System.Guid.NewGuid()
+      for op in Values.ProgramTypes.packageOps do
+        let expected =
+          match op with
+          | PT.PackageOp.AddType t -> Some(BS.PT.PackageType.serialize t.hash t)
+          | PT.PackageOp.AddValue v -> Some(BS.PT.PackageValue.serialize v.hash v)
+          | PT.PackageOp.AddFn f -> Some(BS.PT.PackageFn.serialize f.hash f)
+          | PT.PackageOp.AddTrait t -> Some(BS.PT.Trait.serialize t.hash t)
+          | PT.PackageOp.AddTraitImpl i -> Some(BS.PT.TraitImpl.serialize i.hash i)
+          | PT.PackageOp.AddTest t -> Some(BS.PT.PackageTest.serialize t.hash t)
+          | _ -> None
+        let blob = BS.PT.PackageOp.serialize opId op
+        Expect.equal
+          (BS.PT.PackageOp.itemBlob blob)
+          expected
+          (BS.PT.PackageOp.kind op)
+
+        // The same bytes stamped with an older version: the item has to be written again.
+        let older = Array.copy blob
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+          System.Span<byte>(older, 0, 4),
+          LibSerialization.Binary.BaseFormat.CurrentVersion - 1u
+        )
+        Expect.isNone (BS.PT.PackageOp.itemBlob older) "an older format is not cut"
+    }
+
   /// The deprecation stamp rides on tags 4 and 5 as a trailing field rather than on tags of its
   /// own, and that is only safe if two things hold.
   ///
@@ -666,6 +698,7 @@ let tests =
           PT.implTests
           PT.packageTestTests
           PT.packageOpTests
+          PT.itemBlobIsTheItemsOwnBlob
           PT.deprecationStampRidesOnTheExistingTags
           PT.legacyRecoveryHoleTagRejected
           PT.v1PackageFnStillReads

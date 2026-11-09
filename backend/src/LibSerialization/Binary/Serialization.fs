@@ -146,6 +146,52 @@ module PT =
     let serialize id value = makeSerializer PT.PackageOp.write id value
     let deserialize id data = makeDeserializerV PT.PackageOp.read id data
 
+    /// What the item's own `serialize` gives for an `Add*` op's item, cut out of the op's blob
+    /// rather than written again. An `Add*` blob is the header, one tag byte, and then the item
+    /// exactly as the item's writer writes it, so the item's blob is a new header over the rest.
+    ///
+    /// None unless the blob is in THIS build's format: an older one is read through its version's
+    /// reader and written again in the current layout, which can differ. The caller also has to
+    /// write the item again when it changed the item after reading it (an empty hash filled in).
+    let itemBlob (opBlob : byte[]) : Option<byte[]> =
+      if opBlob.Length < 9 then
+        None
+      else
+        let header = System.ReadOnlySpan<byte>(opBlob, 0, 8)
+        let version =
+          System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian header
+        let length =
+          System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(
+            header.Slice 4
+          )
+        let isAdd =
+          match opBlob[8] with
+          | 0uy
+          | 1uy
+          | 2uy
+          | 15uy
+          | 16uy
+          | 17uy -> true
+          | _ -> false
+        if
+          version <> CurrentVersion
+          || length <> uint32 (opBlob.Length - 8)
+          || not isAdd
+        then
+          None
+        else
+          let item = Array.zeroCreate<byte> (opBlob.Length - 1)
+          System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+            System.Span<byte>(item, 0, 4),
+            CurrentVersion
+          )
+          System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+            System.Span<byte>(item, 4, 4),
+            uint32 (opBlob.Length - 9)
+          )
+          System.Buffer.BlockCopy(opBlob, 9, item, 8, opBlob.Length - 9)
+          Some item
+
     /// The operation kind stored in the database so queries can filter without decoding it.
     let kind (op : PT.PackageOp) : string =
       match op with
