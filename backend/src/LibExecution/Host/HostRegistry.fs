@@ -24,6 +24,7 @@ type Entry =
     started : DateTime
   }
 
+// Set once by the CLI at startup (`setDirectory`); empty means this process is not listed.
 let mutable private directory : string = ""
 
 let private alive (pid : int) : bool =
