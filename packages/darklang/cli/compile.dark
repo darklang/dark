@@ -56,7 +56,7 @@ let withServer(args: List<String>): Result<Stdlib.Cli.Process.Output, String> =
 
 /// Compile <param expr> and run it.
 let run(expr: String): Result<Stdlib.Cli.Process.Output, String> =
-  withServer([ "-q", "-r", "-e", expr ])
+  withServer([ "-q", "-r", "-e", "--", expr ])
 
 
 /// Ask the compiler whether each package fn or value in <param names> compiles, and why not.
