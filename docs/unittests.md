@@ -28,9 +28,9 @@ waiting for a test slot (held by suite-slot (run-tests) since 10:42:07 UTC)
 ```
 
 `DARK_SUITE_SLOTS` says how many may run at once; 0 turns it off. The default is
-one per 24 hardware threads, at least 1, so 2 on a 48-thread box and 1 on a
-laptop: one suite keeps about 24 threads busy. A filtered run (`--filter`,
-`--filter-test-list`, a single gate other than package-tests) skips the queue, and
+one per 16 hardware threads, at least 1, so 3 on a 48-thread box and 1 on a
+laptop: on a shared box a running suite averaged 6 to 10 busy cores. A filtered run
+(`--filter`, `--filter-test-list`, a single gate other than package-tests) skips the queue, and
 a suite started by another (`run-tests` starts three) runs under its parent's
 slot. The slots are files in a host directory every container mounts at
 `/home/dark/.suite-slots`; a container made before that mount says so and runs

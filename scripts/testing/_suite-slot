@@ -8,8 +8,10 @@
 # (devcontainer.json), so the slots are counted across clones, not per clone.
 #
 #   DARK_SUITE_SLOTS=<n>   how many heavy suites may run at once on the machine; 0 turns the
-#                          slot off. The default is one per 24 hardware threads, at least 1
-#                          (2 on a 48-thread box, 1 on a laptop): one suite keeps about 24 busy.
+#                          slot off. The default is one per 16 hardware threads, at least 1
+#                          (3 on a 48-thread box, 1 on a laptop). On a shared 48-thread box a
+#                          running suite averaged 6 to 10 busy cores, and with two slots a
+#                          suite waited 25 minutes while 19 of the 48 sat idle on average.
 #
 # Fair: waiters queue in the order they arrived, and only the head of the queue takes a free
 # slot. No deadlock: a slot is a `flock` held by a small watcher that exits when the process
@@ -23,7 +25,7 @@
 
 SUITE_SLOT_DIR="${SUITE_SLOT_DIR:-/home/dark/.suite-slots}"
 
-# One slot per 24 hardware threads, at least 1. The container sees the host's threads, unless a
+# One slot per 16 hardware threads, at least 1. The container sees the host's threads, unless a
 # cgroup CPU limit is set, and then that limit counts.
 _suite_slot_default() {
   local threads quota period
@@ -33,7 +35,7 @@ _suite_slot_default() {
     local limit=$(((quota + period - 1) / period))
     [[ "$limit" -ge "$threads" ]] || threads=$limit
   fi
-  local n=$((threads / 24))
+  local n=$((threads / 16))
   [[ "$n" -ge 1 ]] || n=1
   echo "$n"
 }
