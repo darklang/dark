@@ -387,3 +387,72 @@ test roundAliasesMatch =
 test roundTowardsZeroRejectsNan =
   Stdlib.Float.roundTowardsZero(nan())
   => raises "Encountered an out-of-range integer value"
+
+// checked arithmetic: Error wherever the operator gives NaN or an infinity
+test checkedArithmetic =
+  Stdlib.Test.all(
+    [ Stdlib.Float.checkedAdd(1.5, 2.0) |> Stdlib.Test.equal(Ok(3.5))
+      Stdlib.Float.checkedAdd(1.7e308, 1.7e308)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      Stdlib.Float.checkedSubtract(1.0, 2.5) |> Stdlib.Test.equal(Ok(-1.5))
+      Stdlib.Float.checkedSubtract(-1.7e308, 1.7e308)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      Stdlib.Float.checkedMultiply(3.0, -2.0) |> Stdlib.Test.equal(Ok(-6.0))
+      Stdlib.Float.checkedMultiply(1e200, 1e200)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      Stdlib.Float.checkedMultiply(nan(), 1.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])
+
+test checkedDivide =
+  Stdlib.Test.all(
+    [ Stdlib.Float.checkedDivide(1.0, 4.0) |> Stdlib.Test.equal(Ok(0.25))
+      Stdlib.Float.checkedDivide(0.0, 5.0) |> Stdlib.Test.equal(Ok(0.0))
+      Stdlib.Float.checkedDivide(1.0, 0.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
+      Stdlib.Float.checkedDivide(1.0, -0.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
+      Stdlib.Float.checkedDivide(0.0, 0.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
+      Stdlib.Float.checkedDivide(1e200, 1.0 / 1e200)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow))
+      Stdlib.Float.checkedDivide(nan(), 2.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber))
+      // The plain operator is unchanged
+      Stdlib.Float.isFinite(1.0 / 0.0) |> Stdlib.Test.equal(false) ])
+
+test checkedPower =
+  Stdlib.Test.all(
+    [ Stdlib.Float.checkedPower(2.0, 3.0) |> Stdlib.Test.equal(Ok(8.0))
+      Stdlib.Float.checkedPower(4.0, -0.5) |> Stdlib.Test.equal(Ok(0.5))
+      Stdlib.Float.checkedPower(0.0, 0.0) |> Stdlib.Test.equal(Ok(1.0))
+      Stdlib.Float.checkedPower(-8.0, 2.0) |> Stdlib.Test.equal(Ok(64.0))
+      Stdlib.Float.checkedPower(0.0, -1.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.DivisionByZero))
+      Stdlib.Float.checkedPower(-8.0, 0.5)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber))
+      Stdlib.Float.checkedPower(10.0, 400.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow))
+      Stdlib.Float.checkedPower(0.5, -2000.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow)) ])
+
+test checkedSqrt =
+  Stdlib.Test.all(
+    [ Stdlib.Float.checkedSqrt(9.0) |> Stdlib.Test.equal(Ok(3.0))
+      Stdlib.Float.checkedSqrt(0.0) |> Stdlib.Test.equal(Ok(0.0))
+      Stdlib.Float.checkedSqrt(-1.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber)) ])
+
+test checkedParse =
+  Stdlib.Test.all(
+    [ Stdlib.Float.checkedParse("1.5") |> Stdlib.Test.equal(Ok(1.5))
+      Stdlib.Float.checkedParse("-2e3") |> Stdlib.Test.equal(Ok(-2000.0))
+      Stdlib.Float.checkedParse("NaN")
+      |> Stdlib.Test.equal(Error(Stdlib.Float.ParseError.BadFormat))
+      Stdlib.Float.checkedParse("Infinity")
+      |> Stdlib.Test.equal(Error(Stdlib.Float.ParseError.BadFormat))
+      Stdlib.Float.checkedParse("-Infinity")
+      |> Stdlib.Test.equal(Error(Stdlib.Float.ParseError.BadFormat))
+      Stdlib.Float.checkedParse("1e400")
+      |> Stdlib.Test.equal(Error(Stdlib.Float.ParseError.BadFormat))
+      Stdlib.Float.checkedParse("abc")
+      |> Stdlib.Test.equal(Error(Stdlib.Float.ParseError.BadFormat)) ])

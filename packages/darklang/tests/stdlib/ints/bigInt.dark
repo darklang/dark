@@ -232,3 +232,17 @@ test divisionResults =
 test divideRejectsZero =
   (7z / 0z)
   => raises "Cannot divide by 0"
+
+test checkedSqrt =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedSqrt(Stdlib.BigInt.fromInt64(4)) |> Stdlib.Test.equal(Ok(2.0))
+      Stdlib.BigInt.checkedSqrt(Stdlib.BigInt.fromInt64(-4))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber))
+      Stdlib.BigInt.checkedSqrt(Stdlib.BigInt.fromInt64(10) ** Stdlib.BigInt.fromInt64(400))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.Overflow)) ])
+
+test checkedToFloat =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedToFloat(Stdlib.BigInt.fromInt64(-3)) |> Stdlib.Test.equal(Ok(-3.0))
+      Stdlib.BigInt.checkedToFloat(Stdlib.BigInt.fromInt64(10) ** Stdlib.BigInt.fromInt64(400))
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])

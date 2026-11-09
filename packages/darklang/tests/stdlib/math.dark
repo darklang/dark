@@ -69,3 +69,19 @@ test turns =
   Stdlib.Test.all(
     [ Stdlib.Math.turns(-0.5) |> near(-Stdlib.Math.pi)
       Stdlib.Math.turns(1.0) |> near(2.0 * Stdlib.Math.pi) ])
+
+// checked versions: Error where the result is not finite
+test checkedOverflow =
+  Stdlib.Test.all(
+    [ Stdlib.Math.checkedCosh(0.0) |> Stdlib.Test.equal(Ok(1.0))
+      Stdlib.Math.checkedCosh(1000.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      Stdlib.Math.checkedSinh(0.0) |> Stdlib.Test.equal(Ok(0.0))
+      Stdlib.Math.checkedSinh(-1000.0)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      Stdlib.Math.checkedDegrees(180.0) |> Stdlib.Test.equal(Ok(Stdlib.Math.pi))
+      Stdlib.Math.checkedDegrees(1e308)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      Stdlib.Math.checkedTurns(0.5) |> Stdlib.Test.equal(Ok(Stdlib.Math.pi))
+      Stdlib.Math.checkedTurns(1e308)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])

@@ -64,8 +64,19 @@ impl Compare for BigInt =
 let sqrt(a: BigInt): Float = Stdlib.Float.sqrt(Stdlib.BigInt.toFloat(a))
 
 
+/// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative and
+/// {{Error Overflow}} where it is too large for a Float
+let checkedSqrt(a: BigInt): Stdlib.Result.Result<Float, Stdlib.Math.NonFinite> =
+  Stdlib.Float.checkedSqrt(Stdlib.BigInt.toFloat(a))
+
+
 /// Converts a <type BigInt> to a <type Float>
 let toFloat(a: BigInt): Float = Builtin.bigIntToFloat(a)
+
+
+/// Converts <param a> to a <type Float>, or {{Error Overflow}} where it is too large for one
+let checkedToFloat(a: BigInt): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
+  Stdlib.Float.__noOverflow(toFloat(a))
 
 
 /// Converts a <type Float> to a <type BigInt>, truncating toward zero.

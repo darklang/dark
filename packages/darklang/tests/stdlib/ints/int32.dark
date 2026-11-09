@@ -466,3 +466,9 @@ test divisionResults =
       |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
       Stdlib.Int32.checkedMod(5s32, -1s32)
       |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+
+test checkedSqrt =
+  Stdlib.Test.all(
+    [ Stdlib.Int32.checkedSqrt(4s32) |> Stdlib.Test.equal(Ok(2.0))
+      Stdlib.Int32.checkedSqrt(-4s32)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber)) ])

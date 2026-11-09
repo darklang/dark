@@ -71,6 +71,11 @@ let random(start: Int8, ``end``: Int8): Int8 =
 let sqrt(a: Int8): Float = Stdlib.Float.sqrt(Stdlib.Int8.toFloat(a))
 
 
+/// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
+let checkedSqrt(a: Int8): Stdlib.Result.Result<Float, Stdlib.Math.NonFinite> =
+  Stdlib.Float.checkedSqrt(Stdlib.Int8.toFloat(a))
+
+
 /// Converts an <type Int8> to a <type Float>
 let toFloat(a: Int8): Float = Builtin.int8ToFloat(a)
 

@@ -34,6 +34,16 @@ let turns(angleInTurns: Float): Float =
 let radians(angleInRadians: Float): Float = angleInRadians
 
 
+/// <fn Math.degrees>, or {{Error Overflow}} where the result is not finite
+let checkedDegrees(angleInDegrees: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
+  Stdlib.Float.__noOverflow(degrees(angleInDegrees))
+
+
+/// <fn Math.turns>, or {{Error Overflow}} where the result is not finite
+let checkedTurns(angleInTurns: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
+  Stdlib.Float.__noOverflow(turns(angleInTurns))
+
+
 /// Returns the cosine of the given <param angleInRadians>.
 /// One interpretation of the result relates to a right triangle: the cosine is
 /// the ratio of the lengths of the side adjacent to the angle and the hypotenuse.
@@ -96,6 +106,16 @@ let sinh(angleInRadians: Float): Float = Builtin.mathSinh(angleInRadians)
 let tanh(angleInRadians: Float): Float = Builtin.mathTanh(angleInRadians)
 
 
+/// <fn Math.cosh>, or {{Error Overflow}} where the result is not finite
+let checkedCosh(angleInRadians: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
+  Stdlib.Float.__noOverflow(cosh(angleInRadians))
+
+
+/// <fn Math.sinh>, or {{Error Overflow}} where the result is not finite
+let checkedSinh(angleInRadians: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
+  Stdlib.Float.__noOverflow(sinh(angleInRadians))
+
+
 /// What a fixed-width `checked` function returns where the operator would wrap:
 /// `Int8.checkedAdd(127s8, 1s8)` is {{Error Overflow}}. Going below 0 on an unsigned
 /// type is an Overflow too. <type BigInt> itself never overflows.
@@ -120,6 +140,17 @@ type ModulusError =
 type PowerError =
   | NegativeExponent
   | Overflow
+
+
+/// What a <type Float> or <type Float32> `checked` function returns where its plain
+/// version gives NaN or an infinity
+type NonFinite =
+  /// The result is too large for the type
+  | Overflow
+  /// The divisor, or the base of a negative power, is zero
+  | DivisionByZero
+  /// The result is NaN, as for the square root of a negative number
+  | NotANumber
 
 
 /// What a smart constructor such as `Net.Port.fromInt64` returns for a number outside its
