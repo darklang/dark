@@ -316,6 +316,24 @@ let private searchEffects =
     Expect.equal (expectOk spread) (expectOk serial) "the same answer"
   }
 
+/// `partition` declares its callback's `Bool`, and maps it with `List.map`. A chunk does not check
+/// a type an enclosing fn declared, so from the 36th value down every chunk answers Strings and
+/// none fails; serially the first of them raises. `List.map` takes a spread's answers only while
+/// their types agree, so the String is met serially, and raises as it does there.
+let private enclosingCallbackType =
+  testTask "a callback type an enclosing fn declares is checked as serially" {
+    let! state = executionStateFor pmPT false
+    let code =
+      $"Stdlib.List.partition(Stdlib.List.range(1, 40), fun i -> if i < 37 then \"s\" else {uneven}(i) > 0)"
+    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    Expect.isGreaterThan moved 0L "the map spread"
+    match spread, serial with
+    | Error(e1, s1), Error(e2, s2) ->
+      Expect.equal e1 e2 "the same error"
+      Expect.equal s1 s2 "the same frames"
+    | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
 /// The failing element is in a cheap late chunk, so it fails long before the expensive chunks
 /// ahead of it finish. Serial raises at it; so must this, with the same error and frames, and
 /// only after everything before it.
@@ -753,6 +771,7 @@ let tests =
       [ inOrder
         siblings
         dictOps
+        enclosingCallbackType
         cheapDictBodyStaysSerial
         dictErrorsAsSerial
         dictCallbackTypeAsSerial

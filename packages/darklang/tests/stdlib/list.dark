@@ -835,6 +835,24 @@ test interposeRejectsWrongSeparatorType =
   Stdlib.List.interpose([ "a", "b", "c" ], 0)
   => raises "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0). Try wrapping it with `Stdlib.toString`."
 
+test allStopsAtTheFirstFalse =
+  // 10 / 0 would raise; `all` never gets that far.
+  Stdlib.List.all([ 1, 7, 0 ], fun x -> 10 / x > 5) |> Stdlib.Test.equal(false)
+
+test allRejectsStringCondition =
+  Stdlib.List.all([ 1, 2 ], fun _ -> "a")
+  => raises "Darklang.Stdlib.List.all's 2nd parameter `fn` returned String (\"a\"), but should return Bool"
+
+test partitionKeepsOrderOverALongList =
+  Stdlib.List.partition(Stdlib.List.range(1, 10000), fun x -> x % 3 == 0)
+  |> fun((threes, others)) ->
+    (Stdlib.List.length(threes), Stdlib.List.take(threes, 2), Stdlib.List.take(others, 3))
+  |> Stdlib.Test.equal((3333, [ 3, 6 ], [ 1, 2, 4 ]))
+
+test partitionRejectsALaterStringCondition =
+  Stdlib.List.partition([ 1, 2 ], fun x -> if x == 2 then "s" else true)
+  => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned String (\"s\"), but should return Bool"
+
 test partitionRejectsStringCondition =
   Stdlib.List.partition([ true, false, true ], fun _ -> "a")
   => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned String (\"a\"), but should return Bool"

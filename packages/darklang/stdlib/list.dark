@@ -287,9 +287,9 @@ let sortWith(list: List<'a>, fn: ('a, 'a) -> Ordering): List<'a> =
 
 /// Return {{true}} if all elements in the list meet the function's criteria, else {{false}}
 let all(list: List<'a>, fn: 'a -> Bool): Bool =
-  match list with
-  | [] -> true
-  | [head, ...tail] -> if (fn(head)) then all(tail, fn) else false
+  // The first element `fn` fails is the first one `any` of its opposite stops at, so `fn` runs
+  // on the same elements, in order, and `any` spreads it across cores when it is worth it.
+  if any(list, fun item -> if fn(item) then false else true) then false else true
 
 
 /// Return {{true}} if any elements in the list meet the function's criteria, else {{false}}
@@ -583,15 +583,15 @@ let groupBy(list: List<'a>, fn: 'a -> 'b): List<('b * List<'a>)> =
 /// two - those values for which {{fn val}} returns {{true}}, and those that
 /// return {{false}}
 let partition(ls: List<'a>, f: 'a -> Bool): (List<'a> * List<'a>) =
-  match ls with
-  | [] -> ([], [])
-  | [head, ...tail] ->
-    let (trueList, falseList) = partition(tail, f)
+  // `f` runs from the last value to the first, as it did when this recursed, and through `map`,
+  // which spreads it across cores when it is worth it.
+  let backwards = reverse(ls)
 
-    if (f(head)) then
-      (prepend(trueList, head), falseList)
+  fold(zipShortest(backwards, map(backwards, f)), ([], []), fun((trueList, falseList), (value, keep)) ->
+    if keep then
+      (prepend(trueList, value), falseList)
     else
-      (trueList, prepend(falseList, head))
+      (trueList, prepend(falseList, value)))
 
 
 /// Applies the given function <param fn> to each element of the <param list>.
