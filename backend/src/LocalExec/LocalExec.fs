@@ -101,12 +101,28 @@ module HandleCommand =
                 LibExecution.Permissions.Policy.allowAll }
 
       let checkTimer = System.Diagnostics.Stopwatch.StartNew()
+      // The build without the assemblies the checker reaches only in part, and the files of
+      // theirs it does reach.
+      let outside = Builtins.Matter.Libs.PM.TraitCalls.outsideTheChecker
+      let! checkerFiles =
+        Builtins.Matter.Libs.PM.CheckerSources.checkerFiles outside exeState PM.pt
+      let build =
+        let runtime = LibExecution.HostProcess.runtimeHashWithout outside
+        let sources =
+          LibExecution.HostProcess.sourcesHash
+            LibConfig.Dirs.sourceRootDir
+            checkerFiles
+        $"{runtime} {sources}"
+      print
+        $"The checker runs {Set.count checkerFiles} source file(s) outside the build hash:"
+      for file in checkerFiles do
+        print $"  {file}"
       let! chosen =
         Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
           exeState
           BranchId.Main
           PM.pt
-          (Some(LibExecution.HostProcess.runtimeHash ()))
+          (Some build)
           ops
       // The choices are written at the hashes in hand, then moved by the rehash, exactly as the
       // authoring path does it.

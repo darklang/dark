@@ -186,6 +186,7 @@ let main (args : string array) : int =
         Tests.Purge.tests
         Tests.TestResultCache.tests
         Tests.Hashing.tests
+        Tests.TraitCallCache.tests
         Tests.Config.tests
 
         // serialization

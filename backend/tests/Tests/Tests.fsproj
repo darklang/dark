@@ -41,6 +41,7 @@
     <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="Terminal.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
+    <Compile Include="TraitCallCache.Tests.fs" />
     <Compile Include="Config.Tests.fs" />
 
     <!-- cloud stuff /-->
