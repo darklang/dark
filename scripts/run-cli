@@ -49,6 +49,18 @@ fi
 GIT_COMMIT=$(git rev-parse --short HEAD)
 export GIT_COMMIT
 
+# `test` starts a process per isolated test, and those start the CLI again: they start the
+# ReadyToRun copy of this Debug CLI, which starts twice as fast, when that copy is current. When
+# it is not, this run starts the Debug CLI as before, and the copy is made in the background
+# for the next one (`scripts/testing/_fast-cli`).
+if [[ "$PUBLISHED" != "true" && "${1:-}" == "test" && -z "${DARK_CLI_UNDER_TEST:-}" ]]; then
+  if FAST_CLI=$(scripts/testing/_fast-cli); then
+    export DARK_CLI_UNDER_TEST="$PWD/$FAST_CLI"
+  else
+    scripts/testing/_fast-cli --refresh || true
+  fi
+fi
+
 # context: 'tee' was screwing up our MCP server running through this script
 # so a --no-log argument is supported to skip logging to the file.
 # also skip the tee when stdout is a tty (interactive): the pipe makes stdout a
