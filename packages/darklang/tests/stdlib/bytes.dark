@@ -260,6 +260,15 @@ test listConversions =
       Stdlib.Bytes.fromList([ 97u8, 98u8, 99u8 ])
       |> Stdlib.Test.equal(Stdlib.Utf8.encode("abc")) ])
 
+// reverse
+test reverse =
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.reverse(Stdlib.Utf8.encode("abc"))
+      |> Stdlib.Test.equal(Stdlib.Utf8.encode("cba"))
+      Stdlib.Bytes.reverse(Stdlib.Bytes.fromList([ 1u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Bytes.fromList([ 1u8 ]))
+      Stdlib.Bytes.reverse(Stdlib.Bytes.empty) |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
 // Equality depends on contents, including for independently created values.
 test differentBytesAreNotEqual =
   (Stdlib.Utf8.encode("hi") == Stdlib.Utf8.encode("bye"))

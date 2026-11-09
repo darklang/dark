@@ -216,3 +216,8 @@ let toList(bytes: Bytes): List<UInt8> = Builtin.bytesToList(bytes)
 /// Collects a list of bytes into a Bytes. Copies every byte; to join Bytes
 /// use <fn Stdlib.Bytes.concat> instead of going through a list.
 let fromList(bytes: List<UInt8>): Bytes = Builtin.bytesFromList(bytes)
+
+
+/// Returns <param bytes> with its bytes in the opposite order.
+let reverse(bytes: Bytes): Bytes =
+  fromList(Stdlib.List.reverse(toList(bytes)))
