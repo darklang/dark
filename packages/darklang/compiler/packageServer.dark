@@ -1,4 +1,4 @@
-/// The read-only package endpoints the native compiler (pbiggar/darklang-compiler)
+/// The read-only package endpoints the native compiler (darklang/compiler)
 /// reads with `--package-server URL`. It asks for package items by name and by hash and
 /// gets ProgramTypes back as JSON, so nothing here prints Dark source and nothing has to
 /// agree with the compiler's parser.
