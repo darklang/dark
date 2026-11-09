@@ -1435,11 +1435,11 @@ let inferInfix(
     | ComparisonEquals ->
       let (lhsType, lhsConstraints) = infer(scope, lhs)
       (Model.Ty.TBool,
-       all([ lhsConstraints, check(scope, lhsType, Site.Expression, rhs) ]))
+       all([ lhsConstraints, check(scope, lhsType, Site.OperatorOperand(operation), rhs) ]))
     | ComparisonNotEquals ->
       let (lhsType, lhsConstraints) = infer(scope, lhs)
       (Model.Ty.TBool,
-       all([ lhsConstraints, check(scope, lhsType, Site.Expression, rhs) ]))
+       all([ lhsConstraints, check(scope, lhsType, Site.OperatorOperand(operation), rhs) ]))
     | _ ->
       let (lhsType, lhsConstraints) = infer(scope, lhs)
       let resultType = if isComparison(operation) then Model.Ty.TBool else lhsType
@@ -1447,7 +1447,7 @@ let inferInfix(
       (resultType,
        all(
          [ lhsConstraints
-           check(scope, lhsType, Site.Expression, rhs)
+           check(scope, lhsType, Site.OperatorOperand(operation), rhs)
            if decided(choice) then
              all([])
            else

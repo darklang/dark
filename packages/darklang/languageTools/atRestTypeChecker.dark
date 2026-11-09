@@ -128,6 +128,8 @@ type Site =
   | PipelineStringConcatenation
   | PipelineComparison
   | PipelineNumericOperator
+  /// The right side of an operator, which must be the left side's type
+  | OperatorOperand(LanguageTools.ProgramTypes.InfixFnName)
 
 /// Which of several same-coded places a name was declared twice.
 type DuplicateSite =
@@ -484,6 +486,8 @@ let siteToString(site: Site): String =
   | PipelineStringConcatenation -> "a pipeline string concatenation"
   | PipelineComparison -> "a pipeline comparison"
   | PipelineNumericOperator -> "a pipeline numeric operator"
+  | OperatorOperand(operation) ->
+    $"the right side of `{PrettyPrinter.ProgramTypes.infixFnName(operation)}`"
 
 
 let duplicateSiteToString(site: DuplicateSite): String =
@@ -704,6 +708,36 @@ let contextToStringWith(
     | _ -> $"Needs an implementation of {traitName}"
 
 
+/// What to write when an operator gets an integer and a Float, since Dark never converts one
+/// to the other on its own: "Write the number with a decimal point, as `5.0`, or convert with
+/// `Stdlib.Int64.toFloat(n)`." Empty for any other pair of types. A run that meets the pair says
+/// the same (<fn PrettyPrinter.RuntimeTypes.RuntimeError.mixedNumbersHint>).
+let mixedNumbersHint(left: String, right: String): String =
+  let integers =
+    [ "Int8"
+      "UInt8"
+      "Int16"
+      "UInt16"
+      "Int32"
+      "UInt32"
+      "Int64"
+      "UInt64"
+      "Int128"
+      "UInt128"
+      "BigInt" ]
+  let integer =
+    if right == "Float" && Stdlib.List.contains(integers, left) then
+      Stdlib.Option.Option.Some(left)
+    else if left == "Float" && Stdlib.List.contains(integers, right) then
+      Stdlib.Option.Option.Some(right)
+    else
+      Stdlib.Option.Option.None
+
+  match integer with
+  | Some(name) ->
+    $"Write the number with a decimal point, as `5.0`, or convert with `Stdlib.{name}.toFloat(n)`."
+  | None -> ""
+
 /// Points at `Stdlib.toString` when a String was expected and the type found
 /// has a ToString impl; the same hint a run gives (<fn PrettyPrinter.RuntimeTypes.RuntimeError.toStringHint>).
 let stringExpectedHint(expected: StaticType, actual: StaticType): String =
@@ -747,6 +781,7 @@ let issueToStringWith(
       | (TypeMismatch, At(LambdaReturnValue))
       | (TypeMismatch, At(ValueBody))
       | (TypeMismatch, At(Expression))
+      | (TypeMismatch, At(OperatorOperand(_)))
       | (TypeMismatch, At(PipelineStringConcatenation)) -> stringExpectedHint(expected, actual)
       | _ -> ""
   let detail =
@@ -769,6 +804,18 @@ let issueToStringWith(
   match (issue.context, issue.code, actualName) with
   | (At(InterpolatedSegment), TypeMismatch, Some(actual)) ->
     $"String interpolation conversion must return String; got {actual}."
+  | (At(OperatorOperand(operation)), TypeMismatch, Some(right)) when Stdlib.Option.isSome(issue.expected) ->
+    let symbol = PrettyPrinter.ProgramTypes.infixFnName(operation)
+    let (left, toString) =
+      match (issue.expected, issue.actual) with
+      | (Some(expected), Some(actual)) ->
+        (staticTypeToStringWith(customTypeName, expected), stringExpectedHint(expected, actual))
+      | _ -> ("", "")
+    let advice =
+      match mixedNumbersHint(left, right) with
+      | "" -> ""
+      | text -> " " + text
+    $"`{symbol}` needs both sides to be the same type, but got {left} and {right}{toString}.{advice}"
   | _ ->
     (contextToStringWith(customTypeName, actualName, issue.code, issue.context)) + detail
 

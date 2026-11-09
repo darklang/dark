@@ -202,6 +202,30 @@ module RuntimeError =
     | _ -> []
 
 
+  /// ". Both sides must be the same type." and how to convert, for an integer and a Float
+  /// (<fn LanguageTools.AtRestTypeChecker.mixedNumbersHint>, which the check before a run uses).
+  let mixedNumbersHint(left: ValueType, right: ValueType): ErrorSegments =
+    let name =
+      fun vt ->
+        match vt with
+        | Known(KTInt8) -> "Int8"
+        | Known(KTUInt8) -> "UInt8"
+        | Known(KTInt16) -> "Int16"
+        | Known(KTUInt16) -> "UInt16"
+        | Known(KTInt32) -> "Int32"
+        | Known(KTUInt32) -> "UInt32"
+        | Known(KTInt64) -> "Int64"
+        | Known(KTUInt64) -> "UInt64"
+        | Known(KTInt128) -> "Int128"
+        | Known(KTUInt128) -> "UInt128"
+        | Known(KTBigInt) -> "BigInt"
+        | Known(KTFloat) -> "Float"
+        | _ -> ""
+    match LanguageTools.AtRestTypeChecker.mixedNumbersHint(name(left), name(right)) with
+    | "" -> []
+    | text -> [ ES.String(". Both sides must be the same type. " + text) ]
+
+
   /// `&&` or `||` met a non-Bool. Names the side that wasn't a Bool, and only that one: when
   /// the left side isn't a Bool, the right may never have been evaluated.
   let boolOperandSegments(
@@ -315,10 +339,12 @@ module RuntimeError =
       [ ES.String($"There is no variable named: {attemptedVarName}") ]
 
     | EqualityCheckOnIncompatibleTypes(left, right) ->
-      [ ES.String("Cannot perform equality check on ")
-        ES.ValueType(left)
-        ES.String(" and ")
-        ES.ValueType(right) ]
+      Stdlib.List.concat(
+        [ ES.String("Cannot perform equality check on ")
+          ES.ValueType(left)
+          ES.String(" and ")
+          ES.ValueType(right) ],
+        mixedNumbersHint(left, right))
 
     | NumericOperationOnIncompatibleTypes(left, right) ->
       Stdlib.List.concat(
@@ -326,7 +352,7 @@ module RuntimeError =
           ES.ValueType(left)
           ES.String(" and ")
           ES.ValueType(right) ],
-        joinWithStringHint(left, right))
+        Stdlib.List.concat(joinWithStringHint(left, right), mixedNumbersHint(left, right)))
 
     | IfConditionNotBool(actualValue, actualValueType) ->
       [ ES.String("If condition must be a Bool, but got ")
