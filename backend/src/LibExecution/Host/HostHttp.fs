@@ -711,30 +711,6 @@ let private sendForHeaders
       return Ok response
   }
 
-/// Read all of `body` under `cancel`, refusing past `limit` bytes the way the client's own
-/// buffering does (an `HttpRequestException`, so a `NetworkError`).
-let private readWhole
-  (body : Stream)
-  (limit : int64)
-  (cancel : System.Threading.CancellationToken)
-  : Task<byte[]> =
-  task {
-    use memory = new MemoryStream()
-    let buffer = Array.zeroCreate<byte> 81920
-    let mutable reading = true
-    while reading do
-      let! n = body.ReadAsync(buffer, 0, buffer.Length, cancel)
-      if n = 0 then
-        reading <- false
-      elif memory.Length + int64 n > limit then
-        raise (
-          HttpRequestException $"the response body is larger than {limit} bytes"
-        )
-      else
-        memory.Write(buffer, 0, n)
-    return memory.ToArray()
-  }
-
 /// Send one validated request and read its whole response: the streaming send, drained here.
 /// One deadline covers the exchange, body included, and a failure reading the body is the same
 /// typed error as one sending, so a slow or broken body is a `Timeout` or a `NetworkError`.
@@ -755,9 +731,14 @@ let send
       | Error e -> return Error e
       | Ok response ->
         use response = response
-        use! stream = response.Content.ReadAsStreamAsync(deadline.Token)
-        let! bytes =
-          readWhole stream profile.client.MaxResponseContentBufferSize deadline.Token
+        // The client's own buffering, as a buffered send does it, under the same deadline:
+        // past the buffer limit it is an `HttpRequestException`, so a `NetworkError`.
+        do!
+          response.Content.LoadIntoBufferAsync(
+            profile.client.MaxResponseContentBufferSize,
+            deadline.Token
+          )
+        let! bytes = response.Content.ReadAsByteArrayAsync(deadline.Token)
         let headers =
           response |> headersForAspNetResponse |> normalizeResponseHeaders
         return
