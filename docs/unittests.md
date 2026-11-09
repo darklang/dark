@@ -37,6 +37,19 @@ slot. The slots are files in a host directory every container mounts at
 without waiting (`scripts/dev/start --recreate` adds it). CI has a machine per
 job and never waits.
 
+To run some of the suites in one turn, name them: `scripts/run-tests --published
+package-tests fsharp` waits once, not once per suite. For the last run before a
+merge, `--final` (on `run-tests`, `run-fsharp-tests`, or `gates --final ...`) or
+`DARK_SUITE_PRIORITY=final` waits ahead of the others; a waiter that has waited 3
+hours counts as final too.
+
+Don't wrap a suite in `timeout`: the wait for a slot counts toward it, and a run
+that times out while queued goes to the back when it starts again.
+
+Builds, package reloads, the release build and the perf scripts run at niceness 10
+above their caller, so a running suite gets the CPU first. Instruction counts and
+allocation are unaffected; wall times on a busy box are slower.
+
 ## F# tests
 
 The runner uses existing binaries, so build first. Use the published build for a

@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# The test-slot queue's order (scripts/testing/_suite-slot), with fake waiters in a temporary
+# slot directory: final before normal, first come first served within each, an entry written by
+# an older copy of the script, the promotion after 3 hours, and a waiter that dies.
+
+set -uo pipefail
+
+SLOT_SCRIPT="$PWD/scripts/testing/_suite-slot"
+# shellcheck source=scripts/testing/_suite-slot
+. "$SLOT_SCRIPT"
+unset CI DARK_SUITE_SLOT_HELD DARK_SUITE_PRIORITY
+
+TMP=$(mktemp -d)
+OWNERS=()
+# shellcheck disable=SC2317  # reached via trap
+cleanup() {
+  kill "${OWNERS[@]}" 2>/dev/null
+  rm -rf "$TMP"
+}
+trap cleanup EXIT
+
+failed=0
+check() {  # check <what> <expected> <actual>
+  if [[ "$2" == "$3" ]]; then
+    echo "ok    $1"
+  else
+    echo "FAIL  $1: expected '$2', got '$3'"
+    failed=1
+  fi
+}
+
+# A queue entry as suite_slot_take makes one, held for as long as a `sleep` lives; killing the
+# sleep is a waiter dying. <lines> is the file's content: one line is the old format.
+n=0
+declare -A OWNER ENTRY NAME
+enqueue() {  # enqueue <dir> <name> <lines>
+  local e
+  e="$1/queue/$(printf '%012d' "$n")"
+  n=$((n + 1))
+  printf '%b' "$3" >"$e"
+  sleep 600 &
+  OWNER[$2]=$!
+  OWNERS+=($!)
+  _suite_slot_hold "$e" "${OWNER[$2]}"
+  ENTRY[$2]="$e"
+  NAME[$e]="$2"
+}
+head_name() {
+  local e
+  e=$(_suite_slot_head "$1")
+  if [[ -n "$e" ]]; then echo "${NAME[$e]}"; else echo none; fi
+}
+leave() {  # leave <dir> <name>: the waiter goes, as one that took a slot or one that died
+  kill "${OWNER[$2]}"
+  local i
+  for ((i = 0; i < 50; i++)); do
+    [[ "$(head_name "$1")" != "$2" ]] && return
+    sleep 0.1
+  done
+}
+
+# Order: finals first, each class in arrival order, an old-format entry as normal.
+Q="$TMP/order"
+mkdir -p "$Q/queue"
+enqueue "$Q" old 'old (run-tests)\n'
+enqueue "$Q" n1 'n1 (run-tests)\n'
+enqueue "$Q" f1 'f1 (run-tests)\nfinal\n'
+enqueue "$Q" n2 'n2 (run-tests)\n'
+enqueue "$Q" f2 'f2 (run-tests)\nfinal\n'
+order=()
+for _ in 1 2 3 4 5; do
+  h=$(head_name "$Q")
+  order+=("$h")
+  leave "$Q" "$h"
+done
+check "final before normal, FIFO within each, old entry normal" "f1 f2 old n1 n2" "${order[*]}"
+check "the queue is empty after" "none" "$(head_name "$Q")"
+check "entries of waiters that left are removed" "0" "$(find "$Q/queue" -type f | wc -l)"
+
+# Promotion: a normal waiter that has waited over 3 hours counts as final, and is earlier.
+P="$TMP/promote"
+mkdir -p "$P/queue"
+enqueue "$P" slow 'slow (run-tests)\n'
+enqueue "$P" fin 'fin (run-tests)\nfinal\n'
+check "a final goes ahead of a recent normal" "fin" "$(head_name "$P")"
+touch -d '-179 minutes' "${ENTRY[slow]}"
+check "a normal waiting under 3 hours stays behind a later final" "fin" "$(head_name "$P")"
+touch -d '-181 minutes' "${ENTRY[slow]}"
+check "a normal waiting over 3 hours goes ahead of a later final" "slow" "$(head_name "$P")"
+
+# A dead waiter at the head frees its place.
+D="$TMP/dead"
+mkdir -p "$D/queue"
+enqueue "$D" crashed 'crashed (run-tests)\nfinal\n'
+enqueue "$D" next 'next (run-tests)\n'
+kill "${OWNER[crashed]}"
+sleep 1.5
+check "a waiter that died gives up its place" "next" "$(head_name "$D")"
+
+# End to end with one slot: a holder, then waiters joining as normal, normal, final.
+E="$TMP/e2e"
+mkdir -p "$E"
+WAITERS=()
+waiter() {  # waiter <name> <priority> <seconds>: takes the slot, notes it, holds it a while
+  SUITE_SLOT_DIR="$E" DARK_SUITE_SLOTS=1 DARK_SUITE_PRIORITY="$2" bash -c \
+    '. "$1"; suite_slot_take "$2" 2>/dev/null && echo "$2" >>"$3"; sleep "$4"' \
+    _ "$SLOT_SCRIPT" "$1" "$E/took" "$3" &
+  WAITERS+=($!)
+  OWNERS+=($!)
+}
+queued() { find "$E/queue" -type f 2>/dev/null | wc -l; }
+waiter holder normal 4
+until [[ -s "$E/took" ]]; do sleep 0.1; done
+for w in "a normal" "b normal" "c final"; do
+  read -r name priority <<<"$w"
+  before=$(queued)
+  waiter "$name" "$priority" 1
+  until [[ "$(queued)" -gt "$before" ]]; do sleep 0.1; done
+done
+wait "${WAITERS[@]}"
+check "suite_slot_take serves final first, then FIFO" "holder c a b" "$(paste -sd' ' "$E/took")"
+
+exit "$failed"

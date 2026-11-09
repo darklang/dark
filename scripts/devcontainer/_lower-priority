@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Sourced at the top of a build, reload or perf script, after _assert-in-container, with "$0" "$@":
+# re-runs the script at niceness 10 above its caller, so on a shared machine a running test suite
+# gets the CPU first. Instruction counts and allocation don't change; wall time under load does.
+# Work a suite starts under its test slot keeps the suite's priority, and a script started by one
+# already lowered isn't lowered again.
+
+if [[ -z "${DARK_LOWER_PRIORITY:-}" && -z "${DARK_SUITE_SLOT_HELD:-}" ]]; then
+  export DARK_LOWER_PRIORITY=1
+  exec nice -n 10 "$@"
+fi

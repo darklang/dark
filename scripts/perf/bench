@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_lower-priority "$0" "$@"
 
 # Repeatable CLI timing. See scripts/perf/_bench.py for what it does and why.
 #

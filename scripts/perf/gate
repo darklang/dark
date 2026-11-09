@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
+. ./scripts/devcontainer/_lower-priority "$0" "$@"
 
 # Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
 # deliberately: one script, under a minute. A long perf job gets ignored and then disabled.

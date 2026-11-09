@@ -98,6 +98,7 @@ step shellcheck scripts/linting/shellchecker
 step format scripts/formatting/format check \
   || echo "    fix with: scripts/formatting/format format, then build again"
 step build-planning-tests scripts/testing/test-build-planning.py
+step suite-slot-tests scripts/testing/test-suite-slot
 step ci-python-tests ci_python_tests
 
 if [[ "$MODE" == quick ]]; then
