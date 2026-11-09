@@ -51,11 +51,11 @@ test bestRankDecidesSection =
       Darklang.Cli.Packages.Search.nameRank("read file", "ReadFileParams")
       |> Stdlib.Test.equal(2) ])
 
-// Verb then noun, where the name is the verb: `parse json` elaborates `parse`.
+// Verb then noun, where the name is the verb: `parse json` names `parse` outright.
 test verbThenNoun =
   Stdlib.Test.all(
     [ Darklang.Cli.Packages.Search.nameRank("parse json", "parse")
-      |> Stdlib.Test.equal(1)
+      |> Stdlib.Test.equal(0)
       Darklang.Cli.Packages.Search.nameRank("parse json", "executeJsonFor")
       |> Stdlib.Test.equal(3) ])
 
@@ -76,3 +76,109 @@ test oneWordQuery =
     [ Darklang.Cli.Packages.Search.nameRank("map", "map")
       |> Stdlib.Test.equal(Darklang.Cli.Packages.Search.matchRank("map", "map"))
       Darklang.Cli.Packages.Search.nameRank("map", "filterMap") |> Stdlib.Test.equal(3) ])
+
+
+// Any word can be the name, and a word naming the module picks among equal names:
+// `parse int` is `Int64.parse`, not whichever `parse` sorts first.
+test wordNamesModule =
+  Stdlib.Test.all(
+    [ [ ("Stdlib.AltJson", "parse"), ("Stdlib.Url", "parse"), ("Stdlib.Int64", "parse") ]
+      |> Stdlib.List.sortBy(fun((m, n)) ->
+        Darklang.Cli.Packages.Search.sortKey("parse int", "Darklang", Stdlib.String.split(m, "."), n))
+      |> Stdlib.List.map(fun((m, _)) -> m)
+      |> Stdlib.Test.equal([ "Stdlib.Int64", "Stdlib.AltJson", "Stdlib.Url" ])
+      [ ("Cli.FlagParser", "parse"), ("Stdlib.Int64", "parse") ]
+      |> Stdlib.List.sortBy(fun((m, n)) ->
+        Darklang.Cli.Packages.Search.sortKey("parse", "Darklang", Stdlib.String.split(m, "."), n))
+      |> Stdlib.List.map(fun((m, _)) -> m)
+      |> Stdlib.Test.equal([ "Stdlib.Int64", "Cli.FlagParser" ])
+      Darklang.Cli.Packages.Search.nameRank("length of list", "length")
+      |> Stdlib.Test.equal(0) ])
+
+
+// On an equal match the common Stdlib modules come first, then the rest of
+// Stdlib, then other packages, then Darklang's own tools.
+test commonModulesFirst =
+  let order = fun(query, candidates) ->
+    candidates
+    |> Stdlib.List.sortBy(fun((owner, m, n)) ->
+      Darklang.Cli.Packages.Search.sortKey(query, owner, Stdlib.String.split(m, "."), n))
+    |> Stdlib.List.map(fun((owner, m, _)) -> owner + "." + m)
+  Stdlib.Test.all(
+    [ order(
+        "split",
+        [ ("Darklang", "Cli.Repl", "split")
+          ("Darklang", "Stdlib.Regex", "split")
+          ("Me", "Text", "split")
+          ("Darklang", "Stdlib.String", "split")
+          ("Darklang", "Stdlib.Url", "split") ])
+      |> Stdlib.Test.equal(
+        [ "Darklang.Stdlib.String"
+          "Darklang.Stdlib.Regex"
+          "Darklang.Stdlib.Url"
+          "Me.Text"
+          "Darklang.Cli.Repl" ]) ])
+
+
+// What lives in a `Tests` module is left out unless the search is about tests.
+test testHelpersHidden =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Packages.Search.inTestModule([ "Stdlib", "AltJson", "Tests" ])
+      |> Stdlib.Test.equal(true)
+      Darklang.Cli.Packages.Search.inTestModule([ "Stdlib", "Test", "Process" ])
+      |> Stdlib.Test.equal(false)
+      Darklang.Cli.Packages.Search.showsTestHelpers("parse", [ "Darklang" ])
+      |> Stdlib.Test.equal(false)
+      Darklang.Cli.Packages.Search.showsTestHelpers("AltJson.Tests.parse", [])
+      |> Stdlib.Test.equal(true)
+      Darklang.Cli.Packages.Search.showsTestHelpers("parse", [ "Darklang", "Stdlib", "AltJson", "Tests" ])
+      |> Stdlib.Test.equal(true) ])
+
+
+// `bytes to string`, `string -> int` and `String->Int64` search by type; other
+// queries, even with `to` in them, do not.
+test typeQueries =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Packages.Search.typeQuery("bytes to string")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("bytes", "string")))
+      Darklang.Cli.Packages.Search.typeQuery("string -> int")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("string", "int64")))
+      Darklang.Cli.Packages.Search.typeQuery("String->Int64")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(("string", "int64")))
+      Darklang.Cli.Packages.Search.typeQuery("write to file")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Darklang.Cli.Packages.Search.typeQuery("parse int")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// A function answers a by-type query when it returns the type, bare or wrapped:
+// `Int64.parse` returns `Result<Int64, _>`. One named for converting ranks first.
+test byTypeMatches =
+  let wrapped =
+    LanguageTools.ProgramTypes.TypeReference.TCustomType(
+      LanguageTools.ProgramTypes.NameResolution
+        { originalName = [ "Result" ]
+          resolved =
+            Stdlib.Result.Result.Error(LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
+      [ LanguageTools.ProgramTypes.TypeReference.TInt64 ])
+  Stdlib.Test.all(
+    [ Darklang.Cli.Packages.Search.returnsType("int64", LanguageTools.ProgramTypes.TypeReference.TInt64)
+      |> Stdlib.Test.equal(true)
+      Darklang.Cli.Packages.Search.returnsType("int64", wrapped)
+      |> Stdlib.Test.equal(true)
+      Darklang.Cli.Packages.Search.returnsType("string", wrapped)
+      |> Stdlib.Test.equal(false)
+      Darklang.Cli.Packages.Search.convertsByName("parse") |> Stdlib.Test.equal(true)
+      Darklang.Cli.Packages.Search.convertsByName("toString") |> Stdlib.Test.equal(true)
+      Darklang.Cli.Packages.Search.convertsByName("length") |> Stdlib.Test.equal(false) ])
+
+
+// A typo finds the name it misspells; a short word allows one edit, not two.
+test nearNamesForTypos =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Packages.Search.nearNames("lenght", [ "length", "left", "height", "lengthy" ])
+      |> Stdlib.Test.equal([ "length", "lengthy" ])
+      Darklang.Cli.Packages.Search.nearNames("mpa", [ "map", "max" ])
+      |> Stdlib.Test.equal([])
+      Darklang.Cli.Packages.Search.nearNames("mapp", [ "map", "max", "mapping" ])
+      |> Stdlib.Test.equal([ "map" ]) ])
