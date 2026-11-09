@@ -122,8 +122,8 @@ let private refuseToOpen
 
 /// One dark at a time through an upgrade, and through the grow that folds what it brought. SQLite has
 /// no `ADD COLUMN IF NOT EXISTS`, so each step looks before it acts, and two processes that both look
-/// before either acts both try to add the column; and sixteen processes folding one upgrade's ops at
-/// once failed six of them with "database is locked".
+/// before either acts both try to add the column; and processes folding one upgrade's ops at once
+/// fail with "database is locked".
 ///
 /// An exclusive open of a file beside the store, which .NET holds as an OS lock (`flock` on Unix). The
 /// kernel drops it when the process exits however it exits, so a crash leaves no stale lock, and a
@@ -395,15 +395,9 @@ let extract () : Extracted =
     // schema, the release steps and the seed are all fixed per binary, so a store this same
     // build has already reconciled cannot need any of them again -- and nothing outside can
     // create that need, because an older binary running here records ITS hash and we come back
-    // and do the work.
-    //
-    // It used to guard only the seed top-up, and the schema pass ran on every single command:
-    // `CREATE TABLE IF NOT EXISTS` for every table, then the release list, then every index.
-    // Measured on the published binary, that was 31 ms of a 203 ms startup, paid by `dark ps`
-    // and `dark eval 1L` alike.
+    // and do the work. Without this guard every command would pay for the schema pass.
     let build = LibConfig.Config.buildHash
-    // A build with no hash of its own cannot claim anything, so it does the work every time,
-    // which is what every build did before.
+    // A build with no hash of its own cannot claim anything, so it does the work every time.
     // `File.Exists` first: reading the stamp opens the db, which CREATES it, and an empty file
     // here reads as a store that needs no seed.
     let reconciled =

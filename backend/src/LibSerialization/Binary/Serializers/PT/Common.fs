@@ -13,9 +13,8 @@ module Hash =
   /// Raw bytes, not hex text.
   ///
   /// A hash is 32 bytes of entropy; as 64 hex characters plus a length prefix it costs 65 to carry 32.
-  /// Hashes are the single largest category in the op log (measured at ~37% of it
-  /// it), with tens of thousands of occurrences of a few thousand distinct values, so halving them is
-  /// the cheapest large win available and it changes nothing about what is stored.
+  /// Hashes are the single largest category in the op log, so halving them is a large win that
+  /// changes nothing about what is stored.
   ///
   /// Tagged rather than a bare fixed 32: a `Hash` is a string as far as the type is concerned, and one
   /// that is not 32 bytes of hex (a test fixture, a truncated value) must round-trip rather than

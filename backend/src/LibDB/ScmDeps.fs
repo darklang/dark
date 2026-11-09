@@ -75,7 +75,7 @@ let query (q : Query) : Task<List<Edge>> =
         Some { empty with dependsOnHash = read.string "h" })
 
   | Referenced hash ->
-    // Asked only as "is there any", so one row answers it; it used to be a count.
+    // Asked only as "is there any", so one row answers it.
     run
       "SELECT item_hash FROM package_dependencies WHERE depends_on_hash = @hash LIMIT 1"
       [ "hash", Sql.string hash ]

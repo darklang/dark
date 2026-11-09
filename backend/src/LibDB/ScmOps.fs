@@ -3,9 +3,8 @@
 /// and how many, and answers with op rows (or just how many there are). The op blobs are decoded
 /// here, once, so Dark gets `PackageOp`s rather than bytes.
 ///
-/// A row with no `id` is dropped, which is what every Dark decoder did. A blob this build cannot read
-/// (or a row whose id is not a uuid) comes back with no op rather than being dropped, so a listing can
-/// still show it; the Dark side drops those where it used to.
+/// A row with no `id` is dropped. A blob this build cannot read (or a row whose id is not a uuid)
+/// comes back with no op rather than being dropped, so a listing can still show it.
 module LibDB.ScmOps
 
 open System.Threading.Tasks

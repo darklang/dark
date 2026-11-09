@@ -38,9 +38,8 @@ let private parsePackageFile
   }
 
 
-/// How many files are parsed at once. Past eight the gain is small: on a quiet
-/// 48-core box the parse took 9.6s one at a time, 4.2s at 4, 3.0s at 8 and 2.6s
-/// at 16. A reload often shares the box with a build or a test run.
+/// How many files are parsed at once. Past eight the gain is small, and a reload
+/// often shares the box with a build or a test run.
 let private parseWorkers : int = min 8 System.Environment.ProcessorCount
 
 /// <param parseOne> over every file, `parseWorkers` at a time on the thread

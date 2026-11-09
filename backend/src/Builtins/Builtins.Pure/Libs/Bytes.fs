@@ -240,8 +240,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Native because a Dark loop compares a slice at every candidate position:
-    // on 1 MB of HTTP headers that took 520 ms, where this takes 0.1 ms.
+    // Native because a Dark loop compares a slice at every candidate position.
     { name = fn "bytesIndexOfSegment" 0
       typeParams = []
       parameters =

@@ -2,9 +2,8 @@
 /// branch lookups in `SCM.PackageOps` and `SCM.Conflicts`). One function, one query family: `query`
 /// takes which branches are wanted and answers with branch rows.
 ///
-/// Each case is the SQL Dark used to run itself, moved across as it was: the same filter, the same
-/// ordering. Nothing here decides anything. Main has no `branches` row, so none of these find it;
-/// the Dark side special-cases main exactly as before.
+/// Nothing here decides anything. Main has no `branches` row, so none of these find it; the Dark
+/// side special-cases main.
 ///
 /// Every column read here is NOT NULL in the schema, except `merged_at`, which is only ever tested
 /// with `IS NOT NULL`. So there is no NULL for the Dark decoders' defaults to have covered.

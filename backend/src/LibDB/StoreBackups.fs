@@ -1,9 +1,7 @@
 /// Whole copies of the store: the backups kept beside it, and a snapshot written anywhere else.
 ///
-/// One owner for the folder and its names. The upgrade path, `dark backups` and `update`'s smoke
-/// test all copy the store, and each used to do it its own way: Dark built the folder path and the
-/// file names and deleted files itself, agreeing with the upgrade path on names only by convention,
-/// and the smoke test copied `data.db` and `data.db-wal` with `cp` while the store was open.
+/// One owner for the folder and its names: the upgrade path, `dark backups` and `update`'s smoke
+/// test all copy the store through here.
 ///
 /// Every copy here goes through SQLite's online-backup API, never a file copy. The store runs in
 /// WAL mode, so `data.db` alone can be missing what was last committed, and the backup API reads a
