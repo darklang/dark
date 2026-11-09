@@ -11,27 +11,27 @@ impl Modulo for Int64 =
   /// The modulus <param b> must be greater than 0
   /// Use <fn Int64.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: Int64, b: Int64): Int64 = Builtin.int64Mod(a, b)
+  let modulo(a: Int64, b: Int64): Int64 = Builtin.modulo(a, b)
 
 
 impl Add for Int64 =
   /// Adds two integers together (wraps on overflow)
-  let add(a: Int64, b: Int64): Int64 = Builtin.int64Add(a, b)
+  let add(a: Int64, b: Int64): Int64 = Builtin.add(a, b)
 
 
 impl Subtract for Int64 =
   /// Subtracts two integers (wraps on overflow)
-  let subtract(a: Int64, b: Int64): Int64 = Builtin.int64Subtract(a, b)
+  let subtract(a: Int64, b: Int64): Int64 = Builtin.subtract(a, b)
 
 
 impl Multiply for Int64 =
   /// Multiplies two integers (wraps on overflow)
-  let multiply(a: Int64, b: Int64): Int64 = Builtin.int64Multiply(a, b)
+  let multiply(a: Int64, b: Int64): Int64 = Builtin.multiply(a, b)
 
 
 impl Divide for Int64 =
   /// Divides two integers
-  let divide(a: Int64, b: Int64): Int64 = Builtin.int64Divide(a, b)
+  let divide(a: Int64, b: Int64): Int64 = Builtin.divide(a, b)
 
 
 impl Power for Int64 =
@@ -39,25 +39,25 @@ impl Power for Int64 =
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
   let power(``base``: Int64, exponent: Int64): Int64 =
-    Builtin.int64Power(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Negate for Int64 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate(a: Int64): Int64 = Builtin.int64Negate(a)
+  let negate(a: Int64): Int64 = Builtin.negate(a)
 
 
 impl Compare for Int64 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: Int64, b: Int64): Bool = Builtin.int64LessThan(a, b)
+  let lessThan(a: Int64, b: Int64): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Int64, b: Int64): Bool =
-    Builtin.int64LessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: Int64, b: Int64): Bool = Builtin.int64GreaterThan(a, b)
+  let greaterThan(a: Int64, b: Int64): Bool = Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Int64, b: Int64): Bool =
-    Builtin.int64GreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
@@ -153,32 +153,32 @@ let fromUInt128(i: UInt128): Stdlib.Option.Option<Int64> =
 
 impl BitwiseAnd for Int64 =
   /// Bitwise AND on two <type Int64> values
-  let bitwiseAnd(a: Int64, b: Int64): Int64 = Builtin.int64BitwiseAnd(a, b)
+  let bitwiseAnd(a: Int64, b: Int64): Int64 = Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int64 =
   /// Bitwise OR on two <type Int64> values
-  let bitwiseOr(a: Int64, b: Int64): Int64 = Builtin.int64BitwiseOr(a, b)
+  let bitwiseOr(a: Int64, b: Int64): Int64 = Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for Int64 =
   /// Bitwise XOR on two <type Int64> values
-  let bitwiseXor(a: Int64, b: Int64): Int64 = Builtin.int64BitwiseXor(a, b)
+  let bitwiseXor(a: Int64, b: Int64): Int64 = Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for Int64 =
   /// Bitwise NOT on an <type Int64> value
-  let bitwiseNot(a: Int64): Int64 = Builtin.int64BitwiseNot(a)
+  let bitwiseNot(a: Int64): Int64 = Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for Int64 =
   /// Bitwise left shift of an <type Int64> value
-  let shiftLeft(a: Int64, b: Int64): Int64 = Builtin.int64ShiftLeft(a, b)
+  let shiftLeft(a: Int64, b: Int64): Int64 = Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for Int64 =
   /// Bitwise right shift of an <type Int64> value
-  let shiftRight(a: Int64, b: Int64): Int64 = Builtin.int64ShiftRight(a, b)
+  let shiftRight(a: Int64, b: Int64): Int64 = Builtin.shiftRight(a, b)
 
 impl ToString for Int64 =
   /// Stringify <param int>

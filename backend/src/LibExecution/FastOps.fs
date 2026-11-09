@@ -8,21 +8,21 @@
 /// Only pure `noCaps` builtins belong here: this path skips the capability check and both type
 /// checks, which is right for an operator whose operand types the caller has just matched, and wrong
 /// for anything guarding a side effect. Every entry must also produce exactly what its builtin
-/// produces -- restating it, or calling the same helper it calls. Where that is not possible, or
-/// where the builtin would raise on input this cannot check, the entry declines and the ordinary
-/// path runs.
+/// produces -- by calling the same helper it calls, as every integer operator calls `IntOps`, or
+/// failing that by restating a one-line F# operator. Where the builtin would raise, the entry
+/// declines and the ordinary path runs.
 module LibExecution.FastOps
 
 open Prelude
 open RuntimeTypes
 module VT = ValueType
 
-let add = 0
-let subtract = 1
-let lessThan = 2
-let lessThanOrEqualTo = 3
-let greaterThan = 4
-let greaterThanOrEqualTo = 5
+let add = IntOps.add
+let subtract = IntOps.subtract
+let lessThan = IntOps.lessThan
+let lessThanOrEqualTo = IntOps.lessThanOrEqualTo
+let greaterThan = IntOps.greaterThan
+let greaterThanOrEqualTo = IntOps.greaterThanOrEqualTo
 let equals = 6
 let notEquals = 7
 /// String tags start here. `eval` and `eval64` handle the integer ones and decline these;
@@ -43,43 +43,55 @@ let strRepeat = 15
 let listContains = 16
 let strIsEmpty = 18
 let listIsEmpty = 19
-/// `Multiply.multiply`; only reached as a trait method.
-let multiply = 20
+/// `Multiply.multiply`; only reached as a trait method. This and the rest of the integer
+/// operators' tags are `IntOps`' own numbers for them.
+let multiply = IntOps.multiply
 /// `Negate.negate`, one argument; `evalNegate` handles it.
-let negate = 21
-/// The bitwise operators. `evalInt` and `evalBitwiseNot` answer them for the fixed-width
-/// integers; `eval` declines them, so a `BigInt` one dispatches like any other trait method.
+let negate = IntOps.negate
+/// The bitwise operators. `IntOps` answers them for the fixed-width integers; `eval` declines
+/// them, so a `BigInt` one dispatches like any other trait method.
 /// Being in the table is also what tells the interpreter an operator is an operator: it is how
 /// `1L & 2y` says "Cannot perform numeric operation on Int64 and Int8" rather than
 /// failing inside the implementation's parameter check.
-let bitwiseAnd = 22
-let bitwiseOr = 23
-let bitwiseXor = 24
-let bitwiseNot = 25
-let shiftLeft = 26
-let shiftRight = 27
+let bitwiseAnd = IntOps.bitwiseAnd
+let bitwiseOr = IntOps.bitwiseOr
+let bitwiseXor = IntOps.bitwiseXor
+let bitwiseNot = IntOps.bitwiseNot
+let shiftLeft = IntOps.shiftLeft
+let shiftRight = IntOps.shiftRight
 /// `List.prepend`: a list and a value of its element type.
 let listPrepend = 28
-/// `/`, `%` and `**`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, for
-/// quickened operator calls only, and `evalInt` answers the inputs where they cannot. The highest
-/// tags, so the drain can send them straight there.
-let divide = 29
-let modulo = 30
-let power = 31
+/// `/`, `%` and `**`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, and
+/// `IntOps` answers the inputs where they cannot. The highest tags, so the drain can send them
+/// straight to `evalInt`.
+let divide = IntOps.divide
+let modulo = IntOps.modulo
+let power = IntOps.power
+
+/// An `IntOps` answer, for a table that declines whatever it cannot answer: an error is the
+/// impl's to raise.
+let inline private ofInts (outcome : IntOps.Outcome) : Dval voption =
+  match outcome with
+  | IntOps.Value v -> ValueSome v
+  | IntOps.Raises _
+  | IntOps.NotInts -> ValueNone
+
+/// `/`, `%` and `**` on two integers of one fixed-width type, from `IntOps`; anything else, and
+/// whatever raises, declines.
+let evalInt (tag : int) (a : Dval) (b : Dval) : Dval voption =
+  ofInts (IntOps.binary tag a b)
+
+/// `-x` and `~x` on a fixed-width integer, from `IntOps`; anything else declines.
+let evalIntUnary (tag : int) (a : Dval) : Dval voption = ofInts (IntOps.unary tag a)
 
 /// `-x` on a signed builtin numeric; anything else declines and dispatches.
 let evalNegate (a : Dval) : Dval voption =
   match a with
-  | DInt8 x -> ValueSome(DInt8(-x))
-  | DInt16 x -> ValueSome(DInt16(-x))
-  | DInt32 x -> ValueSome(DInt32(-x))
-  | DInt64 x -> ValueSome(Dval.dint64 (-x))
-  | DInt128 x -> ValueSome(DInt128(-x))
   | DBigInt x -> ValueSome(Dval.dbigint (DarkBigInt.negate x))
   | DFloat x -> ValueSome(DFloat(-x))
   | DFloat32 x -> ValueSome(DFloat32(-x))
   | DDecimal x -> ValueSome(DDecimal(-x))
-  | _ -> ValueNone
+  | a -> evalIntUnary negate a
 
 /// The operator itself, given a tag from `byName` and two `BigInt`s.
 let eval (tag : int) (a : DarkBigInt) (b : DarkBigInt) : Dval voption =
@@ -106,18 +118,12 @@ let eval (tag : int) (a : DarkBigInt) (b : DarkBigInt) : Dval voption =
   else
     ValueNone
 
-/// The operator itself, given a tag from `byName` and two `Int64`s. Wrapping, as the builtins are.
+/// The operator itself, given a tag from `byName` and two `Int64`s: `IntOps`' answer, and
+/// `==` and `!=`.
 let eval64 (tag : int) (a : int64) (b : int64) : Dval voption =
-  if tag = add then ValueSome(Dval.dint64 (a + b))
-  elif tag = subtract then ValueSome(Dval.dint64 (a - b))
-  elif tag = multiply then ValueSome(Dval.dint64 (a * b))
-  elif tag = lessThan then ValueSome(Dval.bool (a < b))
-  elif tag = lessThanOrEqualTo then ValueSome(Dval.bool (a <= b))
-  elif tag = greaterThan then ValueSome(Dval.bool (a > b))
-  elif tag = greaterThanOrEqualTo then ValueSome(Dval.bool (a >= b))
-  elif tag = equals then ValueSome(Dval.bool (a = b))
+  if tag = equals then ValueSome(Dval.bool (a = b))
   elif tag = notEquals then ValueSome(Dval.bool (a <> b))
-  else ValueNone
+  else ofInts (IntOps.int64Op tag a b)
 
 /// The operator itself, for two `String`s. `stringAppend` reaches this because `"a" + "b"` is
 /// the `Add` impl for String, which names `Stdlib.String.append`, a thin wrapper the elision
@@ -305,495 +311,104 @@ let private decimalOrDecline
   with :? System.OverflowException ->
     ValueNone
 
-/// `base ** exponent` in 64 wrapping bits, by squaring, from `acc`. The builtins take
-/// `BigInteger.ModPow(base, exponent, 2^bits)` and narrow it. Wrapping multiplication in 64 bits
-/// keeps the same low bits, since `2^bits` divides `2^64`, so narrowing this gives the same value,
-/// with or without a sign extended into the high bits.
-let rec private powWrap64 (acc : uint64) (b : uint64) (e : uint64) : uint64 =
-  if e = 0UL then
-    acc
-  else
-    powWrap64 (if e &&& 1UL = 1UL then acc * b else acc) (b * b) (e >>> 1)
-
-/// `powWrap64` for `Int128`, whose own multiplication wraps.
-let rec private powWrapInt128
-  (acc : System.Int128)
-  (b : System.Int128)
-  (e : System.Int128)
-  : System.Int128 =
-  if e = System.Int128.Zero then
-    acc
-  else
-    powWrapInt128
-      (if e &&& System.Int128.One = System.Int128.One then acc * b else acc)
-      (b * b)
-      (e >>> 1)
-
-/// `powWrap64` for `UInt128`, whose own multiplication wraps.
-let rec private powWrapUInt128
-  (acc : System.UInt128)
-  (b : System.UInt128)
-  (e : System.UInt128)
-  : System.UInt128 =
-  if e = System.UInt128.Zero then
-    acc
-  else
-    powWrapUInt128
-      (if e &&& System.UInt128.One = System.UInt128.One then acc * b else acc)
-      (b * b)
-      (e >>> 1)
-
-/// One fixed-width integer type's `/`, `%`, `**` and two-argument bitwise operators: what its
-/// builtin returns (`Builtin.int8Divide` ... `Builtin.uint128ShiftRight`), declining wherever it
-/// raises. A zero divisor, a modulus that is not positive and a negative exponent decline, and the
-/// impl raises its own error. <param div>, <param pow> and the shifts are the parts that differ by
-/// type; each restates its builtin's expression, so `MIN / -1` and the shift-count masking come
-/// out as the builtin's do.
-let inline private intOp
-  ([<InlineIfLambda>] mk : ^T -> Dval)
-  ([<InlineIfLambda>] div : ^T -> ^T -> ^T)
-  ([<InlineIfLambda>] pow : ^T -> ^T -> ^T)
-  ([<InlineIfLambda>] shl : ^T -> ^T -> ^T)
-  ([<InlineIfLambda>] shr : ^T -> ^T -> ^T)
-  (tag : int)
-  (x : ^T)
-  (y : ^T)
-  : Dval voption =
-  let zero = LanguagePrimitives.GenericZero< ^T>
-  if tag = divide then
-    if y = zero then ValueNone else ValueSome(mk (div x y))
-  elif tag = modulo then
-    // Unsigned, `y > zero` is `y <> zero`, and `r` is never negative: the builtins' own tests.
-    if y > zero then
-      let r = x % y
-      ValueSome(mk (if r < zero then y + r else r))
-    else
-      ValueNone
-  elif tag = power then
-    // Never true unsigned, whose builtins take every exponent.
-    if y < zero then ValueNone else ValueSome(mk (pow x y))
-  elif tag = bitwiseAnd then
-    ValueSome(mk (x &&& y))
-  elif tag = bitwiseOr then
-    ValueSome(mk (x ||| y))
-  elif tag = bitwiseXor then
-    ValueSome(mk (x ^^^ y))
-  elif tag = shiftLeft then
-    ValueSome(mk (shl x y))
-  elif tag = shiftRight then
-    ValueSome(mk (shr x y))
-  else
-    ValueNone
-
-/// `/`, `%`, `**`, `&`, `|`, `^`, `<<` and `>>` on two integers of one fixed-width type. Every
-/// other pair, and every other tag, declines.
-let evalInt (tag : int) (a : Dval) (b : Dval) : Dval voption =
-  match a with
-  | DInt8 x ->
-    (match b with
-     | DInt8 y ->
-       intOp
-         DInt8
-         // widened to int32, as the builtin does, so -128y / -1y wraps rather than throws
-         (fun p q -> int8 (int p / int q))
-         (fun p q -> int8 (powWrap64 1UL (uint64 p) (uint64 q)))
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DUInt8 x ->
-    (match b with
-     | DUInt8 y ->
-       intOp
-         DUInt8
-         (fun p q -> p / q)
-         (fun p q -> uint8 (powWrap64 1UL (uint64 p) (uint64 q)))
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DInt16 x ->
-    (match b with
-     | DInt16 y ->
-       intOp
-         DInt16
-         (fun p q -> p / q)
-         (fun p q -> int16 (powWrap64 1UL (uint64 p) (uint64 q)))
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DUInt16 x ->
-    (match b with
-     | DUInt16 y ->
-       intOp
-         DUInt16
-         (fun p q -> p / q)
-         (fun p q -> uint16 (powWrap64 1UL (uint64 p) (uint64 q)))
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DInt32 x ->
-    (match b with
-     | DInt32 y ->
-       intOp
-         DInt32
-         (fun p q -> if p = System.Int32.MinValue && q = -1 then p else p / q)
-         (fun p q -> int32 (powWrap64 1UL (uint64 p) (uint64 q)))
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DUInt32 x ->
-    (match b with
-     | DUInt32 y ->
-       intOp
-         DUInt32
-         (fun p q -> p / q)
-         (fun p q -> uint32 (powWrap64 1UL (uint64 p) (uint64 q)))
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DInt64 x ->
-    (match b with
-     | DInt64 y ->
-       intOp
-         Dval.dint64
-         (fun p q -> if p = System.Int64.MinValue && q = -1L then p else p / q)
-         (fun p q -> int64 (powWrap64 1UL (uint64 p) (uint64 q)))
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DUInt64 x ->
-    (match b with
-     | DUInt64 y ->
-       intOp
-         DUInt64
-         (fun p q -> p / q)
-         (fun p q -> powWrap64 1UL p q)
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DInt128 x ->
-    (match b with
-     | DInt128 y ->
-       intOp
-         DInt128
-         (fun p q ->
-           if p = System.Int128.MinValue && q = System.Int128.NegativeOne then
-             p
-           else
-             p / q)
-         (fun p q -> powWrapInt128 System.Int128.One p q)
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | DUInt128 x ->
-    (match b with
-     | DUInt128 y ->
-       intOp
-         DUInt128
-         (fun p q -> p / q)
-         (fun p q -> powWrapUInt128 System.UInt128.One p q)
-         (fun p q -> p <<< int q)
-         (fun p q -> p >>> int q)
-         tag
-         x
-         y
-     | _ -> ValueNone)
-  | _ -> ValueNone
-
-/// `~x` on a fixed-width integer, as its `bitwiseNot` builtin computes it; anything else declines.
-let evalBitwiseNot (a : Dval) : Dval voption =
-  match a with
-  | DInt8 x -> ValueSome(DInt8(~~~x))
-  | DUInt8 x -> ValueSome(DUInt8(~~~x))
-  | DInt16 x -> ValueSome(DInt16(~~~x))
-  | DUInt16 x -> ValueSome(DUInt16(~~~x))
-  | DInt32 x -> ValueSome(DInt32(~~~x))
-  | DUInt32 x -> ValueSome(DUInt32(~~~x))
-  | DInt64 x -> ValueSome(Dval.dint64 (~~~x))
-  | DUInt64 x -> ValueSome(DUInt64(~~~x))
-  | DInt128 x -> ValueSome(DInt128(System.Int128.op_OnesComplement x))
-  | DUInt128 x -> ValueSome(DUInt128(System.UInt128.op_OnesComplement x))
-  | _ -> ValueNone
-
-
-/// The arithmetic and ordering operators on the fixed-width, float and String types, for the trait
-/// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.Add.add` is
-/// `a + b` in F#, wrapping), restated here so the operator never pays impl selection when both
-/// operands are the same builtin numeric type. The rest of the integer operators are `evalInt`'s.
-/// Every mixed pair declines: the impl runs and raises its own error. Decimal's `+`, `-` and `*`
-/// can overflow, and decline when they do.
+/// The operators on two values of one builtin numeric type, or two `String`s, for the trait method
+/// the operator lowers to, so the operator never pays impl selection. Integers take `IntOps`, which
+/// is what their impls compute too; Float, Float32 and Decimal `+ - * < <= > >=` and String `+`
+/// are the F# operator their builtin applies. Every mixed pair declines, and so does whatever
+/// would raise: the impl runs and raises its own error. Decimal's `+`, `-` and `*` can overflow,
+/// and decline when they do.
 let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
-  // Nested matches throughout, not `match a, b with`: the pair is an allocation per operator,
-  // which is the cost this table exists to avoid.
-  if tag = add then
-    match a with
-    // `"a" + "b"`: string concatenation, `normalize` included
-    | DString x ->
-      (match b with
-       | DString y -> ValueSome(DString(String.normalize (x + y)))
-       | _ -> ValueNone)
-    | DInt8 x ->
-      (match b with
-       | DInt8 y -> ValueSome(DInt8(x + y))
-       | _ -> ValueNone)
-    | DUInt8 x ->
-      (match b with
-       | DUInt8 y -> ValueSome(DUInt8(x + y))
-       | _ -> ValueNone)
-    | DInt16 x ->
-      (match b with
-       | DInt16 y -> ValueSome(DInt16(x + y))
-       | _ -> ValueNone)
-    | DUInt16 x ->
-      (match b with
-       | DUInt16 y -> ValueSome(DUInt16(x + y))
-       | _ -> ValueNone)
-    | DInt32 x ->
-      (match b with
-       | DInt32 y -> ValueSome(DInt32(x + y))
-       | _ -> ValueNone)
-    | DUInt32 x ->
-      (match b with
-       | DUInt32 y -> ValueSome(DUInt32(x + y))
-       | _ -> ValueNone)
-    | DInt64 x ->
-      (match b with
-       | DInt64 y -> ValueSome(Dval.dint64 (x + y))
-       | _ -> ValueNone)
-    | DUInt64 x ->
-      (match b with
-       | DUInt64 y -> ValueSome(DUInt64(x + y))
-       | _ -> ValueNone)
-    | DInt128 x ->
-      (match b with
-       | DInt128 y -> ValueSome(DInt128(x + y))
-       | _ -> ValueNone)
-    | DUInt128 x ->
-      (match b with
-       | DUInt128 y -> ValueSome(DUInt128(x + y))
-       | _ -> ValueNone)
-    | DFloat x ->
-      (match b with
-       | DFloat y -> ValueSome(DFloat(x + y))
-       | _ -> ValueNone)
-    | DFloat32 x ->
-      (match b with
-       | DFloat32 y -> ValueSome(DFloat32(x + y))
-       | _ -> ValueNone)
-    | DDecimal x ->
-      (match b with
-       | DDecimal y -> decimalOrDecline (+) x y
-       | _ -> ValueNone)
-    | _ -> ValueNone
-  elif tag = subtract then
-    match a with
-    | DInt8 x ->
-      (match b with
-       | DInt8 y -> ValueSome(DInt8(x - y))
-       | _ -> ValueNone)
-    | DUInt8 x ->
-      (match b with
-       | DUInt8 y -> ValueSome(DUInt8(x - y))
-       | _ -> ValueNone)
-    | DInt16 x ->
-      (match b with
-       | DInt16 y -> ValueSome(DInt16(x - y))
-       | _ -> ValueNone)
-    | DUInt16 x ->
-      (match b with
-       | DUInt16 y -> ValueSome(DUInt16(x - y))
-       | _ -> ValueNone)
-    | DInt32 x ->
-      (match b with
-       | DInt32 y -> ValueSome(DInt32(x - y))
-       | _ -> ValueNone)
-    | DUInt32 x ->
-      (match b with
-       | DUInt32 y -> ValueSome(DUInt32(x - y))
-       | _ -> ValueNone)
-    | DInt64 x ->
-      (match b with
-       | DInt64 y -> ValueSome(Dval.dint64 (x - y))
-       | _ -> ValueNone)
-    | DUInt64 x ->
-      (match b with
-       | DUInt64 y -> ValueSome(DUInt64(x - y))
-       | _ -> ValueNone)
-    | DInt128 x ->
-      (match b with
-       | DInt128 y -> ValueSome(DInt128(x - y))
-       | _ -> ValueNone)
-    | DUInt128 x ->
-      (match b with
-       | DUInt128 y -> ValueSome(DUInt128(x - y))
-       | _ -> ValueNone)
-    | DFloat x ->
-      (match b with
-       | DFloat y -> ValueSome(DFloat(x - y))
-       | _ -> ValueNone)
-    | DFloat32 x ->
-      (match b with
-       | DFloat32 y -> ValueSome(DFloat32(x - y))
-       | _ -> ValueNone)
-    | DDecimal x ->
-      (match b with
-       | DDecimal y -> decimalOrDecline (-) x y
-       | _ -> ValueNone)
-    | _ -> ValueNone
-  elif tag = multiply then
-    match a with
-    | DInt8 x ->
-      (match b with
-       | DInt8 y -> ValueSome(DInt8(x * y))
-       | _ -> ValueNone)
-    | DUInt8 x ->
-      (match b with
-       | DUInt8 y -> ValueSome(DUInt8(x * y))
-       | _ -> ValueNone)
-    | DInt16 x ->
-      (match b with
-       | DInt16 y -> ValueSome(DInt16(x * y))
-       | _ -> ValueNone)
-    | DUInt16 x ->
-      (match b with
-       | DUInt16 y -> ValueSome(DUInt16(x * y))
-       | _ -> ValueNone)
-    | DInt32 x ->
-      (match b with
-       | DInt32 y -> ValueSome(DInt32(x * y))
-       | _ -> ValueNone)
-    | DUInt32 x ->
-      (match b with
-       | DUInt32 y -> ValueSome(DUInt32(x * y))
-       | _ -> ValueNone)
-    | DInt64 x ->
-      (match b with
-       | DInt64 y -> ValueSome(Dval.dint64 (x * y))
-       | _ -> ValueNone)
-    | DUInt64 x ->
-      (match b with
-       | DUInt64 y -> ValueSome(DUInt64(x * y))
-       | _ -> ValueNone)
-    | DInt128 x ->
-      (match b with
-       | DInt128 y -> ValueSome(DInt128(x * y))
-       | _ -> ValueNone)
-    | DUInt128 x ->
-      (match b with
-       | DUInt128 y -> ValueSome(DUInt128(x * y))
-       | _ -> ValueNone)
-    | DFloat x ->
-      (match b with
-       | DFloat y -> ValueSome(DFloat(x * y))
-       | _ -> ValueNone)
-    | DFloat32 x ->
-      (match b with
-       | DFloat32 y -> ValueSome(DFloat32(x * y))
-       | _ -> ValueNone)
-    | DDecimal x ->
-      (match b with
-       | DDecimal y -> decimalOrDecline (*) x y
-       | _ -> ValueNone)
-    | _ -> ValueNone
-  elif
-    tag = lessThan
-    || tag = lessThanOrEqualTo
-    || tag = greaterThan
-    || tag = greaterThanOrEqualTo
-  then
-    // `Int32.MinValue` marks "no ordering": a mixed pair, or a NaN, where `compare` would
-    // order what the builtin's `<` answers false to.
-    let none = System.Int32.MinValue
-    let ordering =
+  match IntOps.binary tag a b with
+  | IntOps.Value v -> ValueSome v
+  | IntOps.Raises _ -> ValueNone
+  | IntOps.NotInts ->
+    // Nested matches throughout, not `match a, b with`: the pair is an allocation per operator,
+    // which is the cost this table exists to avoid.
+    if tag = add then
       match a with
-      | DInt8 x ->
+      // `"a" + "b"`: string concatenation, `normalize` included
+      | DString x ->
         (match b with
-         | DInt8 y -> compare x y
-         | _ -> none)
-      | DUInt8 x ->
-        (match b with
-         | DUInt8 y -> compare x y
-         | _ -> none)
-      | DInt16 x ->
-        (match b with
-         | DInt16 y -> compare x y
-         | _ -> none)
-      | DUInt16 x ->
-        (match b with
-         | DUInt16 y -> compare x y
-         | _ -> none)
-      | DInt32 x ->
-        (match b with
-         | DInt32 y -> compare x y
-         | _ -> none)
-      | DUInt32 x ->
-        (match b with
-         | DUInt32 y -> compare x y
-         | _ -> none)
-      | DInt64 x ->
-        (match b with
-         | DInt64 y -> compare x y
-         | _ -> none)
-      | DUInt64 x ->
-        (match b with
-         | DUInt64 y -> compare x y
-         | _ -> none)
-      | DInt128 x ->
-        (match b with
-         | DInt128 y -> compare x y
-         | _ -> none)
-      | DUInt128 x ->
-        (match b with
-         | DUInt128 y -> compare x y
-         | _ -> none)
+         | DString y -> ValueSome(DString(String.normalize (x + y)))
+         | _ -> ValueNone)
       | DFloat x ->
         (match b with
-         | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
-           compare x y
-         | _ -> none)
+         | DFloat y -> ValueSome(DFloat(x + y))
+         | _ -> ValueNone)
       | DFloat32 x ->
         (match b with
-         | DFloat32 y when not (System.Single.IsNaN x) && not (System.Single.IsNaN y) ->
-           compare x y
-         | _ -> none)
+         | DFloat32 y -> ValueSome(DFloat32(x + y))
+         | _ -> ValueNone)
       | DDecimal x ->
         (match b with
-         | DDecimal y -> compare x y
-         | _ -> none)
-      | _ -> none
-    if ordering = none then ValueNone
-    elif tag = lessThan then ValueSome(Dval.bool (ordering < 0))
-    elif tag = lessThanOrEqualTo then ValueSome(Dval.bool (ordering <= 0))
-    elif tag = greaterThan then ValueSome(Dval.bool (ordering > 0))
-    else ValueSome(Dval.bool (ordering >= 0))
-  else
-    evalInt tag a b
+         | DDecimal y -> decimalOrDecline (+) x y
+         | _ -> ValueNone)
+      | _ -> ValueNone
+    elif tag = subtract then
+      match a with
+      | DFloat x ->
+        (match b with
+         | DFloat y -> ValueSome(DFloat(x - y))
+         | _ -> ValueNone)
+      | DFloat32 x ->
+        (match b with
+         | DFloat32 y -> ValueSome(DFloat32(x - y))
+         | _ -> ValueNone)
+      | DDecimal x ->
+        (match b with
+         | DDecimal y -> decimalOrDecline (-) x y
+         | _ -> ValueNone)
+      | _ -> ValueNone
+    elif tag = multiply then
+      match a with
+      | DFloat x ->
+        (match b with
+         | DFloat y -> ValueSome(DFloat(x * y))
+         | _ -> ValueNone)
+      | DFloat32 x ->
+        (match b with
+         | DFloat32 y -> ValueSome(DFloat32(x * y))
+         | _ -> ValueNone)
+      | DDecimal x ->
+        (match b with
+         | DDecimal y -> decimalOrDecline (*) x y
+         | _ -> ValueNone)
+      | _ -> ValueNone
+    elif
+      tag = lessThan
+      || tag = lessThanOrEqualTo
+      || tag = greaterThan
+      || tag = greaterThanOrEqualTo
+    then
+      // `Int32.MinValue` marks "no ordering": a mixed pair, or a NaN, where `compare` would
+      // order what the builtin's `<` answers false to.
+      let none = System.Int32.MinValue
+      let ordering =
+        match a with
+        | DFloat x ->
+          (match b with
+           | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
+             compare x y
+           | _ -> none)
+        | DFloat32 x ->
+          (match b with
+           | DFloat32 y when
+             not (System.Single.IsNaN x) && not (System.Single.IsNaN y)
+             ->
+             compare x y
+           | _ -> none)
+        | DDecimal x ->
+          (match b with
+           | DDecimal y -> compare x y
+           | _ -> none)
+        | _ -> none
+      if ordering = none then ValueNone
+      elif tag = lessThan then ValueSome(Dval.bool (ordering < 0))
+      elif tag = lessThanOrEqualTo then ValueSome(Dval.bool (ordering <= 0))
+      elif tag = greaterThan then ValueSome(Dval.bool (ordering > 0))
+      else ValueSome(Dval.bool (ordering >= 0))
+    else
+      ValueNone
 
 
 /// The tag for a trait method, when the trait is one of the stdlib operator traits.

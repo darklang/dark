@@ -11,27 +11,27 @@ impl Modulo for Int128 =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn Int128.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: Int128, b: Int128): Int128 = Builtin.int128Mod(a, b)
+  let modulo(a: Int128, b: Int128): Int128 = Builtin.modulo(a, b)
 
 
 impl Add for Int128 =
   /// Adds two 128-bit signed integers together (wraps on overflow)
-  let add(a: Int128, b: Int128): Int128 = Builtin.int128Add(a, b)
+  let add(a: Int128, b: Int128): Int128 = Builtin.add(a, b)
 
 
 impl Subtract for Int128 =
   /// Subtracts two 128-bit signed integers (wraps on overflow)
-  let subtract(a: Int128, b: Int128): Int128 = Builtin.int128Subtract(a, b)
+  let subtract(a: Int128, b: Int128): Int128 = Builtin.subtract(a, b)
 
 
 impl Multiply for Int128 =
   /// Multiplies two 128-bit signed integers (wraps on overflow)
-  let multiply(a: Int128, b: Int128): Int128 = Builtin.int128Multiply(a, b)
+  let multiply(a: Int128, b: Int128): Int128 = Builtin.multiply(a, b)
 
 
 impl Divide for Int128 =
   /// Divides two 128-bit signed integers
-  let divide(a: Int128, b: Int128): Int128 = Builtin.int128Divide(a, b)
+  let divide(a: Int128, b: Int128): Int128 = Builtin.divide(a, b)
 
 
 impl Power for Int128 =
@@ -39,25 +39,25 @@ impl Power for Int128 =
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
   let power(``base``: Int128, exponent: Int128): Int128 =
-    Builtin.int128Power(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Negate for Int128 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate(a: Int128): Int128 = Builtin.int128Negate(a)
+  let negate(a: Int128): Int128 = Builtin.negate(a)
 
 
 impl Compare for Int128 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: Int128, b: Int128): Bool = Builtin.int128LessThan(a, b)
+  let lessThan(a: Int128, b: Int128): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Int128, b: Int128): Bool =
-    Builtin.int128LessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: Int128, b: Int128): Bool = Builtin.int128GreaterThan(a, b)
+  let greaterThan(a: Int128, b: Int128): Bool = Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Int128, b: Int128): Bool =
-    Builtin.int128GreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Get the square root of an <type Int128>
@@ -122,32 +122,32 @@ let fromUInt64(i: UInt64): Int128 =
 
 impl BitwiseAnd for Int128 =
   /// Bitwise AND on two <type Int128> values
-  let bitwiseAnd(a: Int128, b: Int128): Int128 = Builtin.int128BitwiseAnd(a, b)
+  let bitwiseAnd(a: Int128, b: Int128): Int128 = Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int128 =
   /// Bitwise OR on two <type Int128> values
-  let bitwiseOr(a: Int128, b: Int128): Int128 = Builtin.int128BitwiseOr(a, b)
+  let bitwiseOr(a: Int128, b: Int128): Int128 = Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for Int128 =
   /// Bitwise XOR on two <type Int128> values
-  let bitwiseXor(a: Int128, b: Int128): Int128 = Builtin.int128BitwiseXor(a, b)
+  let bitwiseXor(a: Int128, b: Int128): Int128 = Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for Int128 =
   /// Bitwise NOT on an <type Int128> value
-  let bitwiseNot(a: Int128): Int128 = Builtin.int128BitwiseNot(a)
+  let bitwiseNot(a: Int128): Int128 = Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for Int128 =
   /// Bitwise left shift of an <type Int128> value
-  let shiftLeft(a: Int128, b: Int128): Int128 = Builtin.int128ShiftLeft(a, b)
+  let shiftLeft(a: Int128, b: Int128): Int128 = Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for Int128 =
   /// Bitwise right shift of an <type Int128> value
-  let shiftRight(a: Int128, b: Int128): Int128 = Builtin.int128ShiftRight(a, b)
+  let shiftRight(a: Int128, b: Int128): Int128 = Builtin.shiftRight(a, b)
 
 impl ToString for Int128 =
   /// Stringify <param int128>

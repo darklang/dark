@@ -11,22 +11,22 @@ impl Modulo for Int16 =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn Int16.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: Int16, b: Int16): Int16 = Builtin.int16Mod(a, b)
+  let modulo(a: Int16, b: Int16): Int16 = Builtin.modulo(a, b)
 
 
 impl Add for Int16 =
   /// Adds two 16-bit signed integers together (wraps on overflow)
-  let add(a: Int16, b: Int16): Int16 = Builtin.int16Add(a, b)
+  let add(a: Int16, b: Int16): Int16 = Builtin.add(a, b)
 
 
 impl Subtract for Int16 =
   /// Subtracts two 16-bit signed integers (wraps on overflow)
-  let subtract(a: Int16, b: Int16): Int16 = Builtin.int16Subtract(a, b)
+  let subtract(a: Int16, b: Int16): Int16 = Builtin.subtract(a, b)
 
 
 impl Multiply for Int16 =
   /// Multiplies two 16-bit signed integers (wraps on overflow)
-  let multiply(a: Int16, b: Int16): Int16 = Builtin.int16Multiply(a, b)
+  let multiply(a: Int16, b: Int16): Int16 = Builtin.multiply(a, b)
 
 
 impl Power for Int16 =
@@ -34,30 +34,30 @@ impl Power for Int16 =
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
   let power(``base``: Int16, exponent: Int16): Int16 =
-    Builtin.int16Power(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Divide for Int16 =
   /// Divides two 16-bit signed integers
-  let divide(a: Int16, b: Int16): Int16 = Builtin.int16Divide(a, b)
+  let divide(a: Int16, b: Int16): Int16 = Builtin.divide(a, b)
 
 
 impl Negate for Int16 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate(a: Int16): Int16 = Builtin.int16Negate(a)
+  let negate(a: Int16): Int16 = Builtin.negate(a)
 
 
 impl Compare for Int16 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: Int16, b: Int16): Bool = Builtin.int16LessThan(a, b)
+  let lessThan(a: Int16, b: Int16): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Int16, b: Int16): Bool =
-    Builtin.int16LessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: Int16, b: Int16): Bool = Builtin.int16GreaterThan(a, b)
+  let greaterThan(a: Int16, b: Int16): Bool = Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Int16, b: Int16): Bool =
-    Builtin.int16GreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Returns a random 16-bit signed integer between <param start> and <param end> (inclusive)
@@ -132,32 +132,32 @@ let fromUInt128(i: UInt128): Stdlib.Option.Option<Int16> =
 
 impl BitwiseAnd for Int16 =
   /// Bitwise AND on two <type Int16> values
-  let bitwiseAnd(a: Int16, b: Int16): Int16 = Builtin.int16BitwiseAnd(a, b)
+  let bitwiseAnd(a: Int16, b: Int16): Int16 = Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int16 =
   /// Bitwise OR on two <type Int16> values
-  let bitwiseOr(a: Int16, b: Int16): Int16 = Builtin.int16BitwiseOr(a, b)
+  let bitwiseOr(a: Int16, b: Int16): Int16 = Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for Int16 =
   /// Bitwise XOR on two <type Int16> values
-  let bitwiseXor(a: Int16, b: Int16): Int16 = Builtin.int16BitwiseXor(a, b)
+  let bitwiseXor(a: Int16, b: Int16): Int16 = Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for Int16 =
   /// Bitwise NOT on an <type Int16> value
-  let bitwiseNot(a: Int16): Int16 = Builtin.int16BitwiseNot(a)
+  let bitwiseNot(a: Int16): Int16 = Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for Int16 =
   /// Bitwise left shift of an <type Int16> value
-  let shiftLeft(a: Int16, b: Int16): Int16 = Builtin.int16ShiftLeft(a, b)
+  let shiftLeft(a: Int16, b: Int16): Int16 = Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for Int16 =
   /// Bitwise right shift of an <type Int16> value
-  let shiftRight(a: Int16, b: Int16): Int16 = Builtin.int16ShiftRight(a, b)
+  let shiftRight(a: Int16, b: Int16): Int16 = Builtin.shiftRight(a, b)
 
 impl ToString for Int16 =
   /// Stringify <param int16>

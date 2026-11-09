@@ -11,19 +11,16 @@ module Documentation =
     ((Darklang.LanguageTools.allBuiltinFns()) |> Stdlib.List.length) > 100
     |> Stdlib.Test.equal(true)
 
-  // Builtin metadata round-trips: the registry exposes `int64Add` with
+  // Builtin metadata round-trips: the registry exposes `int64ToFloat` with
   // the parameter shape the type-checker uses at call sites.
-  test int64AddParameters =
+  test int64ToFloatParameters =
     ((Darklang.LanguageTools.allBuiltinFns())
-     |> Stdlib.List.findFirst(fun f -> f.name.name == "int64Add")
+     |> Stdlib.List.findFirst(fun f -> f.name.name == "int64ToFloat")
      |> Builtin.unwrap
      |> (fun f -> f.parameters))
     |> Stdlib.Test.equal(
       [ Darklang.LanguageTools.BuiltinFunctionParameter
           { name = "a"
-            ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 }
-        Darklang.LanguageTools.BuiltinFunctionParameter
-          { name = "b"
             ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ])
 
 module Lookup =
@@ -35,7 +32,7 @@ module Lookup =
           ((Darklang.LanguageTools.allBuiltinFns())
            |> Stdlib.List.findFirst(fun f ->
              f.name.name == "listMap" && f.name.version == 0s32)))
-        (Darklang.LanguageTools.findBuiltinFn("int64Add", 999s32))
+        (Darklang.LanguageTools.findBuiltinFn("int64ToFloat", 999s32))
         |> Stdlib.Test.equal(None)
         (Darklang.LanguageTools.findBuiltinFn("notARegisteredBuiltin", 0s32))
         |> Stdlib.Test.equal(None)

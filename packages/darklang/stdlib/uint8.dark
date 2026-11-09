@@ -9,22 +9,22 @@ type ParseError =
 impl Modulo for UInt8 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.
-  let modulo(a: UInt8, b: UInt8): UInt8 = Builtin.uint8Mod(a, b)
+  let modulo(a: UInt8, b: UInt8): UInt8 = Builtin.modulo(a, b)
 
 
 impl Add for UInt8 =
   /// Adds two 8-bit unsigned integers together (wraps on overflow)
-  let add(a: UInt8, b: UInt8): UInt8 = Builtin.uint8Add(a, b)
+  let add(a: UInt8, b: UInt8): UInt8 = Builtin.add(a, b)
 
 
 impl Subtract for UInt8 =
   /// Subtracts two 8-bit unsigned  integers (wraps on overflow)
-  let subtract(a: UInt8, b: UInt8): UInt8 = Builtin.uint8Subtract(a, b)
+  let subtract(a: UInt8, b: UInt8): UInt8 = Builtin.subtract(a, b)
 
 
 impl Multiply for UInt8 =
   /// Multiplies two 8-bit unsigned  integers (wraps on overflow)
-  let multiply(a: UInt8, b: UInt8): UInt8 = Builtin.uint8Multiply(a, b)
+  let multiply(a: UInt8, b: UInt8): UInt8 = Builtin.multiply(a, b)
 
 
 impl Power for UInt8 =
@@ -36,25 +36,25 @@ impl Power for UInt8 =
     if ``base`` == 0u8 && exponent == 0u8 then 1u8
     else if ``base`` == 0u8 then 0u8
     else if ``base`` == 1u8 then 1u8
-    else Builtin.uint8Power(``base``, exponent)
+    else Builtin.power(``base``, exponent)
 
 
 impl Divide for UInt8 =
   /// Divides two 8-bit unsigned  integers
-  let divide(a: UInt8, b: UInt8): UInt8 = Builtin.uint8Divide(a, b)
+  let divide(a: UInt8, b: UInt8): UInt8 = Builtin.divide(a, b)
 
 
 impl Compare for UInt8 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: UInt8, b: UInt8): Bool = Builtin.uint8LessThan(a, b)
+  let lessThan(a: UInt8, b: UInt8): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: UInt8, b: UInt8): Bool =
-    Builtin.uint8LessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: UInt8, b: UInt8): Bool = Builtin.uint8GreaterThan(a, b)
+  let greaterThan(a: UInt8, b: UInt8): Bool = Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: UInt8, b: UInt8): Bool =
-    Builtin.uint8GreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Returns a random 8 bit unsigned integer between <param start> and <param end> (inclusive)
@@ -129,32 +129,32 @@ let fromUInt128(i: UInt128): Stdlib.Option.Option<UInt8> =
 
 impl BitwiseAnd for UInt8 =
   /// Bitwise AND on two <type UInt8> values
-  let bitwiseAnd(a: UInt8, b: UInt8): UInt8 = Builtin.uint8BitwiseAnd(a, b)
+  let bitwiseAnd(a: UInt8, b: UInt8): UInt8 = Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for UInt8 =
   /// Bitwise OR on two <type UInt8> values
-  let bitwiseOr(a: UInt8, b: UInt8): UInt8 = Builtin.uint8BitwiseOr(a, b)
+  let bitwiseOr(a: UInt8, b: UInt8): UInt8 = Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for UInt8 =
   /// Bitwise XOR on two <type UInt8> values
-  let bitwiseXor(a: UInt8, b: UInt8): UInt8 = Builtin.uint8BitwiseXor(a, b)
+  let bitwiseXor(a: UInt8, b: UInt8): UInt8 = Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for UInt8 =
   /// Bitwise NOT on a <type UInt8> value
-  let bitwiseNot(a: UInt8): UInt8 = Builtin.uint8BitwiseNot(a)
+  let bitwiseNot(a: UInt8): UInt8 = Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for UInt8 =
   /// Bitwise left shift of a <type UInt8> value
-  let shiftLeft(a: UInt8, b: UInt8): UInt8 = Builtin.uint8ShiftLeft(a, b)
+  let shiftLeft(a: UInt8, b: UInt8): UInt8 = Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for UInt8 =
   /// Bitwise right shift of a <type UInt8> value
-  let shiftRight(a: UInt8, b: UInt8): UInt8 = Builtin.uint8ShiftRight(a, b)
+  let shiftRight(a: UInt8, b: UInt8): UInt8 = Builtin.shiftRight(a, b)
 
 impl ToString for UInt8 =
   /// Stringify <param Uint8>

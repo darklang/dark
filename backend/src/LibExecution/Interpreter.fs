@@ -1888,7 +1888,7 @@ let private invokeBuiltin
   | Tracing.ReplayStep.PerformOnwards ->
 
     // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
-    // anything touching disk. Most aren't: `Builtin.int64Add` computes and returns.
+    // anything touching disk. Most aren't: `Builtin.int64ToString` computes and returns.
     let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
     // A body that named a host operation: performed here, its continuation driven; what comes
     // back is the body's real result, waited for like any other.
@@ -2182,9 +2182,9 @@ let private fastBuiltinOp
 
 
 /// A trait operator (`a + b`, `-x`), by its `FastOps.quickTraitTag` tag, on two values of one
-/// builtin type: the impl the dispatch would pick is the type's own wrapper over the same F#
-/// operator. A `BigInt` pair takes the `BigInt` table; the rest take `evalNumeric`, which declines
-/// whatever the impl would raise on.
+/// builtin type: the impl the dispatch would pick computes the same thing (for an integer, the same
+/// `IntOps` entry). A `BigInt` pair takes the `BigInt` table; the rest take `evalNumeric`, which
+/// declines whatever the impl would raise on.
 let private fastTraitOp
   (registers : Dval array)
   (tag : int)
@@ -2203,7 +2203,7 @@ let private fastTraitOp
   | [] when tag = FastOps.negate -> FastOps.evalNegate registers[argRegs.head]
   // `~x` on a fixed-width integer
   | [] when tag = FastOps.bitwiseNot ->
-    FastOps.evalBitwiseNot registers[argRegs.head]
+    FastOps.evalIntUnary tag registers[argRegs.head]
   | _ -> ValueNone
 
 
@@ -2249,7 +2249,9 @@ let private tryFastOpDirect
     | FQFnName.TraitMethod { trait_ = Hash traitHash
                              method_ = methodName
                              implFn = _ } ->
-      match FastOps.traitTag traitHash methodName with
+      // `quickTraitTag`, not `traitTag`, so `/`, `%` and `**` are answered here too: whether to
+      // answer is all this decides.
+      match FastOps.quickTraitTag traitHash methodName with
       | ValueSome tag -> fastTraitOp registers tag argRegs
       | ValueNone -> ValueNone
     | _ -> ValueNone
@@ -5053,7 +5055,7 @@ let private tryQuickOp
     false
   else
     let result =
-      // `/`, `%` and `**` come only from `quickTraitTag`, and only `evalInt` answers them.
+      // `/`, `%` and `**` come only from `quickTraitTag`, and only `IntOps` answers them.
       if op.IsTrait && op.Tag >= FastOps.divide then
         match op.Args.tail with
         | [ secondReg ] ->

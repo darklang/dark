@@ -593,7 +593,7 @@ module Basics =
   // Check builtin calls using their declared parameter and return types;
   // builtin implementations are not Dark bodies the checker can inspect.
   test builtinCallsUseSignatures =
-    check("let f(u: Unit): Int64 = Builtin.int64Add(1, 2)", "f")
+    check("let f(u: Unit): String = Builtin.int64ToString(1)", "f")
     |> Stdlib.Test.equal("checked:")
 
   // Reject an argument index outside the function's parameter list. Construct
