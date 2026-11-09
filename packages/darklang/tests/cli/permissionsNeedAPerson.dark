@@ -1,0 +1,147 @@
+/// Widening permissions needs a person at a terminal: an agent's shell, a pipe or CI is refused
+/// and told what a person should run, `--yes` does not stand in for the person, and narrowing
+/// goes on working with nobody there.
+///
+/// Part of `Darklang.Cli.Tests`. Setup goes through `Instance.ran`, which starts each command
+/// with the scripted-setup escape; the commands under test go through `Instance.runAsAgent`
+/// (no terminal, no escape) or `Interactive` (a pty, no escape).
+module Darklang.Cli.Tests.PermissionsNeedAPerson
+
+/// A command's exit code and both streams, run as an agent's shell would run it.
+let asAgent(i: Instance.T, args: List<String>): (Int64 * String) =
+  match Instance.runAsAgent(i, args) with
+  | Error(e) -> (-1, $"could not run: {e}")
+  | Ok(out) -> (out.exitCode, out.stdout + out.stderr)
+
+
+/// <param args> was refused for want of a person, and named what a person should run.
+let refused(i: Instance.T, args: List<String>, suggestion: String): Stdlib.Test.Result =
+  let (code, out) = asAgent(i, args)
+  let cmd = Stdlib.String.join(args, " ")
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, $"`{cmd}` is refused: {out}")
+      Instance.says(out, "nobody can answer here", $"`{cmd}` says why")
+      Instance.says(out, "A person should run this in their own terminal: dark permissions " + suggestion, $"`{cmd}` says what to run") ])
+
+
+/// <param args> did what it was asked with nobody at a terminal.
+let narrowed(i: Instance.T, args: List<String>): Stdlib.Test.Result =
+  let (code, out) = asAgent(i, args)
+  Instance.exitedWith(code, 0, $"`{Stdlib.String.join(args, " ")}` narrows, so it needs nobody: {out}")
+
+
+val fnName = "Tests.NeedAPerson.answer"
+
+
+/// An instance with one committed function to approve, and `random` denied.
+let prepared(i: Instance.T): Stdlib.Test.Result =
+  Stdlib.Test.all(
+    [ Instance.expectExit(i, [ "fn", fnName, "(x: Int64) : Int64 = x + 42" ], 0)
+      Instance.expectExit(i, [ "commit", fnName, "-y" ], 0)
+      Instance.expectExit(i, [ "permissions", "deny", "random" ], 0) ])
+
+
+test wideningIsRefusedWithNobodyAtATerminal =
+  Instance.withInstance(fun i ->
+    let setup = prepared(i)
+    let checks =
+      [ refused(i, [ "permissions", "allow", "process", "/bin/true" ], "allow process /bin/true")
+        refused(i, [ "permissions", "allow", "file", "read", "/tmp/a b" ], "allow file read '/tmp/a b'")
+        refused(i, [ "permissions", "set", "process", "/bin/true" ], "set 'process /bin/true'")
+        // Dropping a deny lets through what it refused.
+        refused(i, [ "permissions", "remove", "random" ], "remove random")
+        refused(i, [ "permissions", "approve", fnName ], $"approve {fnName}")
+        refused(i, [ "permissions", "profile", "local-dev", "/tmp", "--yes" ], "profile local-dev /tmp --yes") ]
+    let (yesCode, yesOut) = asAgent(i, [ "permissions", "approve", fnName, "--yes" ])
+    let policy = Instance.said(i, [ "permissions", "list" ])
+    let approved = Instance.said(i, [ "permissions", "approved" ])
+    Stdlib.Test.all(
+      Stdlib.List.flatten(
+        [ [ setup ]
+          checks
+          [ Instance.exitedWith(yesCode, 1, $"--yes does not stand in for a person: {yesOut}")
+            Instance.says(yesOut, "--yes only skips questions for changes that narrow", "and says so")
+            Instance.doesNotSay(policy, "process", "nothing was allowed")
+            Instance.doesNotSay(policy, "file read", "nothing was allowed")
+            Instance.says(policy, "deny random", "the deny is still there")
+            Instance.doesNotSay(approved, fnName, "nothing was approved") ] ])))
+
+
+test narrowingWorksWithNobodyAtATerminal =
+  Instance.withInstance(fun i ->
+    let setup =
+      Stdlib.Test.all(
+        [ prepared(i)
+          Instance.expectExit(i, [ "permissions", "allow", "process", "/bin/true" ], 0)
+          Instance.expectExit(i, [ "permissions", "approve", fnName ], 0) ])
+    let checks =
+      [ narrowed(i, [ "permissions", "deny", "http", "GET", "*" ])
+        // Dropping an allow takes something away.
+        narrowed(i, [ "permissions", "remove", "process", "/bin/true" ])
+        narrowed(i, [ "permissions", "unapprove", fnName ])
+        narrowed(i, [ "permissions", "clear" ]) ]
+    let policy = Instance.said(i, [ "permissions", "list" ])
+    Stdlib.Test.all(
+      Stdlib.List.flatten(
+        [ [ setup ]
+          checks
+          [ Instance.says(policy, "deny all", "the policy is cleared") ] ])))
+
+
+/// What a pty-driven child needs to count as a person: no CI, no --no-input, and no escape
+/// inherited from whoever started the suite.
+/// A drive that walked every step and exited 0.
+let passed(result: Stdlib.Result.Result<String, String>, what: String): Stdlib.Test.Result =
+  match result with
+  | Ok(_) -> Stdlib.Test.Result.Pass
+  | Error(transcript) -> Stdlib.Test.fail($"{what}:\n{transcript}")
+
+
+val atATerminal =
+  [ ("CI", ""), ("DARK_NO_INPUT", ""), ("DARK_GRANTS_WITHOUT_A_PERSON", "") ]
+
+
+test wideningIsAskedAtATerminal =
+  if Stdlib.Bool.not(Interactive.available()) then
+    Stdlib.Test.fail("expect is not installed, so the interactive tests cannot run")
+  else
+    Instance.withInstance(fun i ->
+      let setup = prepared(i)
+      let allowed =
+        Interactive.driveWithEnv(
+          i,
+          atATerminal,
+          [ "permissions", "allow", "file", "read", "/tmp/by-a-person" ],
+          [ Interactive.Step.Await("[y/N]")
+            Interactive.Step.Send("y\r")
+            Interactive.Step.Await("policy updated") ],
+          30)
+      let declined =
+        Interactive.driveWithEnv(
+          i,
+          atATerminal,
+          [ "permissions", "allow", "env", "read", "HOME" ],
+          [ Interactive.Step.Await("[y/N]")
+            Interactive.Step.Send("n\r")
+            Interactive.Step.Await("policy unchanged") ],
+          30)
+      // `--yes` still asks.
+      let approved =
+        Interactive.driveWithEnv(
+          i,
+          atATerminal,
+          [ "permissions", "approve", fnName, "--yes" ],
+          [ Interactive.Step.Await("Approve this version")
+            Interactive.Step.Send("y\r")
+            Interactive.Step.Await("the name follows this version") ],
+          30)
+      let policy = Instance.said(i, [ "permissions", "list" ])
+      let approvals = Instance.said(i, [ "permissions", "approved" ])
+      Stdlib.Test.all(
+        [ setup
+          passed(allowed, "a typed yes allows")
+          passed(declined, "a typed no declines")
+          passed(approved, "approve asks even with --yes, and a typed yes approves")
+          Instance.says(policy, "file read '/tmp/by-a-person'", "the allowed rule was saved")
+          Instance.doesNotSay(policy, "env read", "the declined change was not made")
+          Instance.says(approvals, fnName, "the approval was saved") ]))

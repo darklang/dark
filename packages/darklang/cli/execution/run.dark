@@ -286,7 +286,8 @@ let handleResult(
       offerApproval
       && Stdlib.Bool.not(options.sandbox)
       && Stdlib.Bool.not(options.warnPermissions)
-      && Stdlib.Cli.UI.Prompt.canAsk()
+      // Saving the rule widens the policy, so only a person at the terminal may answer.
+      && Darklang.Cli.Permissions.Command.personAtTerminal()
     match denied.rule with
     | Some(rule) when canAsk ->
       match LanguageTools.Permissions.parseRuleText(rule) with

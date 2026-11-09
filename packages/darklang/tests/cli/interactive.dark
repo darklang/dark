@@ -135,6 +135,17 @@ let drive(
   steps: List<Step>,
   timeoutSeconds: Int64)
   : Stdlib.Result.Result<String, String> =
+  driveWithEnv(i, [], args, steps, timeoutSeconds)
+
+
+/// `drive`, with <param extraEnv> set for the child too, after the instance's own.
+let driveWithEnv(
+  i: Instance.T,
+  extraEnv: List<(String * String)>,
+  args: List<String>,
+  steps: List<Step>,
+  timeoutSeconds: Int64)
+  : Stdlib.Result.Result<String, String> =
   if Stdlib.Bool.not(available()) then
     Stdlib.Result.Result.Error("expect is not installed")
   else
@@ -146,7 +157,7 @@ let drive(
     let envPrefix =
       (Stdlib.List.concat(
         Instance.env(i),
-        [ ("TERM", "xterm-256color"), ("DARK_TELEMETRY", "1") ]))
+        Stdlib.List.concat([ ("TERM", "xterm-256color"), ("DARK_TELEMETRY", "1") ], extraEnv)))
       |> Stdlib.List.map(fun pair ->
         let (k, v) = pair
         quoted($"{k}={v}"))

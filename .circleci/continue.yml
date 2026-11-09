@@ -618,7 +618,8 @@ jobs:
             X64="$(ls clis/darklang-*-linux-x64)"
             # `eval` is guest code under the deny-by-default instance policy.
             # TODO: narrow to `file read /etc/hostname` (and whatever getcwd needs).
-            "$X64" permissions allow all > /dev/null
+            # A scripted setup with nobody at a terminal, so the grant needs the escape.
+            DARK_GRANTS_WITHOUT_A_PERSON=1 "$X64" permissions allow all > /dev/null
             "$X64" eval 'Stdlib.Cli.Posix.stat("/etc/hostname")' | tee /tmp/stat.out
             # The answer coreutils gives for the same file, field for field.
             H=/etc/hostname
@@ -732,7 +733,7 @@ jobs:
             in_empty_root() { HOME=/tmp chroot "$ROOT" /dark "$@" < /dev/null; }
             in_empty_root eval "1 + 2" | tee /tmp/eval.out
             grep -qx 3 /tmp/eval.out
-            in_empty_root permissions allow all > /dev/null
+            DARK_GRANTS_WITHOUT_A_PERSON=1 in_empty_root permissions allow all > /dev/null
             # The TLS stack is what static OpenSSL changes, so make one real HTTPS request.
             # Retried, so a network blip isn't read as a broken binary.
             for attempt in 1 2 3; do
@@ -755,7 +756,7 @@ jobs:
             qemu-aarch64 "$A" version
             answer=$(qemu-aarch64 "$A" eval "1 + 2")
             [ "$answer" = 3 ] || { echo "eval 1 + 2 answered: $answer"; exit 1; }
-            qemu-aarch64 "$A" permissions allow all > /dev/null
+            DARK_GRANTS_WITHOUT_A_PERSON=1 qemu-aarch64 "$A" permissions allow all > /dev/null
             for attempt in 1 2 3; do
               qemu-aarch64 "$A" eval \
                 'Stdlib.HttpClient.get("https://example.com", []) |> Stdlib.Result.map(fun r -> r.statusCode)' \

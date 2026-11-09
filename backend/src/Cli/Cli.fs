@@ -170,6 +170,8 @@ let execute
             LibDB.PackagePermissions.purity
               LibDB.PackagePermissions.Load.fromStore
               state.fns.builtIn }
+    // Read the scripted-grant escape now, before any Dark code runs and could set it.
+    Builtins.Matter.Libs.PM.GrantEscape.grantsWithoutAPerson.Force() |> ignore<bool>
     // `--no-input` becomes `DARK_NO_INPUT`, one switch with one spelling.
     if List.contains "--no-input" args then
       System.Environment.SetEnvironmentVariable("DARK_NO_INPUT", "1")

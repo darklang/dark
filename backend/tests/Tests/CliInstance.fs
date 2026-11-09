@@ -90,6 +90,8 @@ let private childEnv
   psi.Environment["HOME"] <- homeOf dir
   psi.Environment["USERPROFILE"] <- homeOf dir
   psi.Environment["DARK_CONFIG_TELEMETRY_EXPORTER"] <- "none"
+  // A throwaway instance, set up by the test rather than by a person at a terminal.
+  psi.Environment["DARK_GRANTS_WITHOUT_A_PERSON"] <- "1"
 
 /// Run one command in `dir` and wait, discarding what it said. For preparing the template;
 /// tests use `runRaw`.

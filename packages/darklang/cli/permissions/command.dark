@@ -338,6 +338,134 @@ let accessFacts(
       instancePolicy = Command.currentPolicy() }
 
 
+// Widening needs a person.
+// Anything that lets code do more than it could before (a new allow rule, a deny taken away, an
+// approval) is the person's to grant, at a terminal, by typing an answer. An agent's shell, a pipe
+// and CI have no terminal, so there the command refuses and names what a person should run.
+// `--yes` does not stand in for that answer. Narrowing never asks.
+
+/// Whether a person can answer here: stdin, stdout and stderr are terminals, and nothing says
+/// nobody is at them (CI, DARK_NO_INPUT, --no-input).
+let personAtTerminal(): Bool =
+  Stdlib.Cli.UI.Prompt.canAsk() && Stdlib.Cli.Sys.isTerminal(1)
+
+/// The scripted-setup escape: the process was started with DARK_GRANTS_WITHOUT_A_PERSON=1. Read
+/// once at startup, by the host, so nothing a run does can turn it on.
+let grantsWithoutAPerson(): Bool =
+  Builtin.pmPolicyGrantsWithoutAPerson()
+
+type Consent =
+  /// A person typed yes, or the process was started with the scripted-setup escape.
+  | Given
+  /// A person answered, and the answer was not yes.
+  | Declined
+  /// Nobody is at a terminal to ask.
+  | NobodyToAsk
+
+/// Ask the person at the terminal to confirm a widening change.
+let consent(question: String): Command.Consent =
+  if Command.grantsWithoutAPerson() then Command.Consent.Given
+  else if Command.personAtTerminal() then
+    if Stdlib.Cli.UI.Prompt.confirm(question) then Command.Consent.Given
+    else Command.Consent.Declined
+  else
+    Command.Consent.NobodyToAsk
+
+/// Say why a widening <param command> did nothing with nobody at a terminal, and what to run.
+let refuseWithoutAPerson(command: String, yesGiven: Bool): Unit =
+  Cli.printErr(
+    "this widens what code may do, so a person has to confirm it at a terminal, and nobody can answer here (stdin, stdout or stderr isn't a terminal, or CI, DARK_NO_INPUT or --no-input is set). Nothing changed.")
+  if yesGiven then
+    Cli.Stderr.line("--yes only skips questions for changes that narrow permissions.")
+  else
+    ()
+  Cli.Stderr.hint($"A person should run this in their own terminal: dark permissions {command}")
+
+/// Whether <param next> could let through anything <param current> refuses: an allow rule it did
+/// not have, or a deny rule it had and dropped while it still allows something. Judged by the
+/// rules as written, so a rewrite that changes nothing in effect may still count as widening and
+/// ask; a policy that allows nothing never widens.
+let widens(
+  current: LanguageTools.Permissions.Policy,
+  next: LanguageTools.Permissions.Policy)
+  : Bool =
+  let added =
+    next.allow
+    |> Stdlib.List.any(fun rule -> Stdlib.Bool.not(Stdlib.List.contains(current.allow, rule)))
+  let dropped =
+    current.deny
+    |> Stdlib.List.any(fun rule -> Stdlib.Bool.not(Stdlib.List.contains(next.deny, rule)))
+  added || (dropped && Stdlib.Bool.not(Stdlib.List.isEmpty(next.allow)))
+
+/// What <param next> grants that <param current> did not, one line each, for the question.
+let wideningLines(
+  current: LanguageTools.Permissions.Policy,
+  next: LanguageTools.Permissions.Policy)
+  : List<String> =
+  let added =
+    next.allow
+    |> Stdlib.List.filter(fun rule -> Stdlib.Bool.not(Stdlib.List.contains(current.allow, rule)))
+    |> Stdlib.List.map(fun rule -> "  allow " + LanguageTools.Permissions.renderRule(rule))
+  let dropped =
+    current.deny
+    |> Stdlib.List.filter(fun rule -> Stdlib.Bool.not(Stdlib.List.contains(next.deny, rule)))
+    |> Stdlib.List.map(fun rule -> "  no longer deny " + LanguageTools.Permissions.renderRule(rule))
+  Stdlib.List.concat(added, dropped)
+
+/// The instance policy after a `Change` edit, as the host applies it: removals first, then the
+/// additions.
+let afterChange(
+  current: LanguageTools.Permissions.Policy,
+  allow: List<LanguageTools.Permissions.Rule>,
+  deny: List<LanguageTools.Permissions.Rule>,
+  remove: List<LanguageTools.Permissions.Rule>)
+  : LanguageTools.Permissions.Policy =
+  let keep(rule: LanguageTools.Permissions.Rule): Bool =
+    Stdlib.Bool.not(Stdlib.List.contains(remove, rule))
+  LanguageTools.Permissions.Policy
+    { allow = Stdlib.List.concat(current.allow |> Stdlib.List.filter(keep), allow)
+      deny = Stdlib.List.concat(current.deny |> Stdlib.List.filter(keep), deny) }
+
+/// The instance policy <param edit> leaves behind.
+let afterEdit(
+  current: LanguageTools.Permissions.Policy,
+  edit: LanguageTools.Permissions.PolicyEdit)
+  : LanguageTools.Permissions.Policy =
+  match edit with
+  | Replace(policy) -> policy
+  | Change(allow, deny, remove) -> Command.afterChange(current, allow, deny, remove)
+
+let applyEdit(edit: LanguageTools.Permissions.PolicyEdit, success: String): Bool =
+  Command.changePolicy(edit)
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.success(success))
+  true
+
+/// Make an instance-policy change: at once when it only narrows, after a person confirms it when it
+/// widens. True unless it was refused; declining at the question is an answer, not a failure.
+/// <param command> is the `permissions` command a person would run, for the refusal.
+let editInstanceAsked(
+  command: String,
+  yesGiven: Bool,
+  edit: LanguageTools.Permissions.PolicyEdit,
+  success: String)
+  : Bool =
+  let current = Command.currentPolicy()
+  let next = Command.afterEdit(current, edit)
+  if Stdlib.Bool.not(Command.widens(current, next)) then
+    Command.applyEdit(edit, success)
+  else
+    Stdlib.printErrorLine("This widens the instance policy:")
+    Command.wideningLines(current, next) |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(l))
+    match Command.consent("Allow this for every run on this instance?") with
+    | Given -> Command.applyEdit(edit, success)
+    | Declined ->
+      Stdlib.printLine("policy unchanged")
+      true
+    | NobodyToAsk ->
+      Command.refuseWithoutAPerson(command, yesGiven)
+      false
+
+
 // Instance policy edits.
 
 let invalidRule(args: List<String>): String =
@@ -359,35 +487,52 @@ let parseRuleArgs(
   else
     LanguageTools.Permissions.parseRule(args)
 
-/// Read-modify-write the instance policy and report. <param edit> returns the
-/// next policy, or the message for input that did not parse.
+/// Replace the instance policy and report, asking first when that widens it. <param edit> returns
+/// the next policy, or the message for input that did not parse. <param command> is the command
+/// as a person would type it, for a refusal.
 let editPolicy(
+  command: String,
   edit: LanguageTools.Permissions.Policy -> Stdlib.Result.Result<LanguageTools.Permissions.Policy, String>,
   success: String)
   : Bool =
   match edit(Command.currentPolicy()) with
   | Ok(next) ->
-    Command.writePolicy(next)
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.success(success))
-    true
+    Command.editInstanceAsked(
+      command,
+      false,
+      LanguageTools.Permissions.PolicyEdit.Replace(next),
+      success)
   | Error(message) ->
     Cli.printErr(message)
     false
 
-/// Parse rule arguments and pass them to <param edit>, or report invalid input.
+/// Parse rule arguments and make the edit <param edit> builds from them, asking first when it
+/// widens the policy; or report invalid input.
 let editRules(
+  command: String,
   args: List<String>,
-  edit: List<LanguageTools.Permissions.Rule> -> Unit,
+  edit: List<LanguageTools.Permissions.Rule> -> LanguageTools.Permissions.PolicyEdit,
   success: String)
   : Bool =
   match Command.parseRuleArgs(args) with
   | None ->
     Cli.printErr(Command.invalidRule(args))
     false
-  | Some(rules) ->
-    edit(rules)
-    Stdlib.printLine(Stdlib.Cli.UI.Colors.success(success))
-    true
+  | Some(rules) -> Command.editInstanceAsked(command, false, edit(rules), success)
+
+/// One argument as a person would type it into a shell: quoted when it holds anything a shell
+/// would read as more than text.
+let shellWord(arg: String): String =
+  let special =
+    [ " ", "'", "\"", "*", "?", "$", "&", ";", "|", "<", ">", "(", ")", "`", "\\", "!", "#", "~", "{", "}", "[", "]" ]
+  if arg != "" && Stdlib.Bool.not(special |> Stdlib.List.any(fun c -> Stdlib.String.contains(arg, c))) then
+    arg
+  else
+    LanguageTools.Permissions.quoteToken(arg)
+
+/// A `permissions` subcommand and its arguments, as a person would type them.
+let commandText(args: List<String>): String =
+  args |> Stdlib.List.map(Command.shellWord) |> Stdlib.String.join(" ")
 
 /// `set a; deny b; c` replaces the whole policy.
 let replacePolicy(
@@ -464,9 +609,8 @@ let showVersionRequirements(heading: String, hash: String): Bool =
 
 /// Take `--yes`/`-y` out of the arguments, reporting whether it was there.
 ///
-/// An unattended run must pass this explicitly: CI gives each step a pty, which
-/// looks like a person. It is stripped before the rules are parsed, so it is
-/// never mistaken for a permission rule.
+/// It is stripped before the rules are parsed, so it is never mistaken for a permission rule. It
+/// applies a profile, but never answers for a person: a widening change still asks.
 let takeYesFlag(args: List<String>): (Bool * List<String>) =
   let isYesFlag(a: String): Bool = (a == "--yes") || (a == "-y")
   let yes = args |> Stdlib.List.any(isYesFlag)
@@ -474,7 +618,8 @@ let takeYesFlag(args: List<String>): (Bool * List<String>) =
   (yes, rest)
 
 /// Show the full replacement before any write. Previewing never prompts or
-/// edits policy; --yes uses the same host-only writer as `permissions set`.
+/// edits policy; --yes applies it the way `permissions set` would, so a profile
+/// that widens the policy still needs a person to confirm it.
 let profile(args: List<String>): Bool =
   match args with
   | [] ->
@@ -495,11 +640,14 @@ let profile(args: List<String>): Bool =
           $"Profile {name} replaces the entire instance policy, including denies:")
         Stdlib.printLines(Command.indentedPolicyLines(policy))
         if apply then
-          Command.writePolicy(policy)
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"✓ applied profile {name}"))
+          Command.editInstanceAsked(
+            Command.commandText(Stdlib.List.concat([ "profile", name ], Stdlib.List.concat(rest, [ "--yes" ]))),
+            true,
+            LanguageTools.Permissions.PolicyEdit.Replace(policy),
+            $"✓ applied profile {name}")
         else
           Cli.Stderr.hint("Preview only. Repeat with --yes to apply.")
-        true
+          true
 
 /// The rules given after a name on `approve`/`update`, `;`-separated like
 /// `set`. Ok None when there are none.
@@ -563,9 +711,12 @@ let approveReporting(
     (false, Stdlib.Option.Option.None)
   | Error(ContractChanged(diffs)) -> (false, Stdlib.Option.Option.Some(diffs))
 
+/// Approve the latest version of <param name>, once a person at the terminal says yes. With nobody
+/// there it refuses: an approval widens what the name may do, so running the command is not
+/// consent by itself, and neither is `--yes` (<param yesGiven>).
 let approveNamed(
   state: Cli.AppState,
-  acceptWithoutPrompt: Bool,
+  yesGiven: Bool,
   name: String,
   specs: List<String>)
   : Bool =
@@ -582,18 +733,8 @@ let approveNamed(
       let complete =
         Command.showVersionRequirements($"{name} {Command.shortVersion(hash)}", hash)
       Stdlib.printLines(Command.describeApprovalRules(rules))
-      // Interactively confirm; a non-interactive explicit `approve` is itself
-      // the consent (the trusted command was invoked with this exact name),
-      // and `--yes` says so outright for a run that has a terminal but nobody
-      // at it.
-      let accepted =
-        if acceptWithoutPrompt then true
-        else if Stdlib.Cli.UI.Prompt.canAsk() then
-          Stdlib.Cli.UI.Prompt.confirm(
-            "Approve this version, so the name resolves to it?")
-        else
-          true
-      if accepted then
+      match Command.consent("Approve this version, so the name resolves to it?") with
+      | Given ->
         // An explicit `permissions approve <name>` showed the requirements and
         // named this exact version; that is the contract review, so a changed
         // contract is acknowledged up front and no second review can be asked.
@@ -608,18 +749,22 @@ let approveNamed(
             $"✓ approved {name} {Command.shortVersion(hash)}; the name follows this version",
             "")
         approved
-      else
+      | Declined ->
         // Declining at the prompt is an answer, not a failure.
         Stdlib.printLine("not approved")
         true
+      | NobodyToAsk ->
+        Command.refuseWithoutAPerson(
+          Command.commandText(Stdlib.List.concat([ "approve", name ], specs)),
+          yesGiven)
+        false
 
-/// Review a newer version: only an explicit yes accepts it; otherwise the approved version stands.
-/// A changed contract requires a second confirmation. Updates always
-/// prompt, including non-interactive runs, unless `--yes` was given, which is
-/// itself the explicit yes and covers a changed contract too.
+/// Review a newer version: only a person's typed yes accepts it; otherwise the approved version
+/// stands. A changed contract requires a second confirmation. With nobody at a terminal it refuses,
+/// `--yes` (<param yesGiven>) or not.
 let updateNamed(
   state: Cli.AppState,
-  acceptWithoutPrompt: Bool,
+  yesGiven: Bool,
   name: String,
   specs: List<String>)
   : Bool =
@@ -671,14 +816,17 @@ let updateNamed(
               acknowledgeContractChange,
               accepted,
               kept)
-          let acceptNew =
-            acceptWithoutPrompt
-            || (Stdlib.Cli.UI.Prompt.confirm("Accept the new version?"))
-          if Stdlib.Bool.not(acceptNew) then
+          let command = Command.commandText(Stdlib.List.concat([ "update", name ], specs))
+          match Command.consent("Accept the new version?") with
+          | NobodyToAsk ->
+            Command.refuseWithoutAPerson(command, yesGiven)
+            Cli.Stderr.line(kept)
+            false
+          | Declined ->
             // Declining is an answer: the approved version stands, as asked.
             Stdlib.printLine(kept)
             true
-          else
+          | Given ->
             let (approvedFirst, review) = approve(false)
             match review with
             | None -> approvedFirst
@@ -688,16 +836,19 @@ let updateNamed(
                 (Command.approvalFailureText(
                   LanguageTools.Permissions.ApprovalFailure.ContractChanged(diffs))))
               // The differences were shown; accepting them is the review.
-              let acceptChanged =
-                acceptWithoutPrompt
-                || (Stdlib.Cli.UI.Prompt.confirm(
-                      "Accept the new version and its changed permission contract?"))
-              if acceptChanged then
+              match
+                Command.consent("Accept the new version and its changed permission contract?")
+              with
+              | Given ->
                 let (approvedSecond, _review) = approve(true)
                 approvedSecond
-              else
+              | Declined ->
                 Stdlib.printLine(kept)
                 true
+              | NobodyToAsk ->
+                Command.refuseWithoutAPerson(command, yesGiven)
+                Cli.Stderr.line(kept)
+                false
 
 /// Run <param show> against the version <param target> names, or report an
 /// unknown function.
@@ -764,38 +915,47 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     let usage = Stdlib.Option.withDefault(Command.usageOf(subcommand), "")
     Cli.printErr($"missing argument; usage: permissions {usage}")
     Cli.failed(state)
+  // `allow` always widens and `deny` never does; `remove` widens when it drops a deny, and `set`
+  // when the new policy allows something the old one did not or drops a deny.
   | ["allow", ...rule] ->
     Cli.exitWith(state, (Command.editRules(
+      Command.commandText(Stdlib.List.prepend(rule, "allow")),
       rule,
-      (fun rules -> Command.editInstancePolicy(rules, [], [])),
+      (fun rules -> LanguageTools.Permissions.PolicyEdit.Change(rules, [], [])),
       "✓ policy updated")))
   | ["deny", ...rule] ->
     Cli.exitWith(state, (Command.editRules(
+      Command.commandText(Stdlib.List.prepend(rule, "deny")),
       rule,
-      (fun rules -> Command.editInstancePolicy([], rules, [])),
+      (fun rules -> LanguageTools.Permissions.PolicyEdit.Change([], rules, [])),
       "✓ policy updated")))
   | ["remove", ...rule] ->
     Cli.exitWith(state, (Command.editRules(
+      Command.commandText(Stdlib.List.prepend(rule, "remove")),
       rule,
-      (fun rules -> Command.editInstancePolicy([], [], rules)),
+      (fun rules -> LanguageTools.Permissions.PolicyEdit.Change([], [], rules)),
       "✓ rule removed")))
   | [ "clear" ] ->
     Cli.exitWith(state, (Command.editPolicy(
+      "clear",
       (fun _ -> Stdlib.Result.Result.Ok(LanguageTools.Permissions.empty())),
       "✓ policy is now deny-all")))
   | ["set", ...specs] ->
-    Cli.exitWith(state, Command.editPolicy((fun _ -> Command.replacePolicy(specs)), "✓ policy replaced"))
+    Cli.exitWith(state, (Command.editPolicy(
+      "set " + LanguageTools.Permissions.quoteToken(Stdlib.String.join(specs, " ")),
+      (fun _ -> Command.replacePolicy(specs)),
+      "✓ policy replaced")))
   | ["approve", ...rest] ->
     match Command.takeYesFlag(rest) with
-    | (acceptWithoutPrompt, [name, ...rules]) ->
-      Cli.exitWith(state, Command.approveNamed(state, acceptWithoutPrompt, name, rules))
+    | (yesGiven, [name, ...rules]) ->
+      Cli.exitWith(state, Command.approveNamed(state, yesGiven, name, rules))
     | (_, []) ->
       Cli.printErr("approve needs a function name")
       Cli.failed(state)
   | ["update", ...rest] ->
     match Command.takeYesFlag(rest) with
-    | (acceptWithoutPrompt, [name, ...rules]) ->
-      Cli.exitWith(state, Command.updateNamed(state, acceptWithoutPrompt, name, rules))
+    | (yesGiven, [name, ...rules]) ->
+      Cli.exitWith(state, Command.updateNamed(state, yesGiven, name, rules))
     | (_, []) ->
       Cli.printErr("update needs a function name")
       Cli.failed(state)
@@ -881,18 +1041,21 @@ let help(_state: Cli.AppState): String =
     "The instance policy is local and deny-by-default. Every actual host operation"
     "must be allowed by the instance, run and package layers."
     ""
+    "A change that widens permissions (allow, approve, update, and a set, remove or"
+    "profile that allows more or drops a deny) asks the person at the terminal, and"
+    "refuses when nobody is there. --yes does not answer it. Narrowing never asks."
+    ""
     "Profiles:"
     "  profile                         list the available presets"
     "  profile default                 preview the installation default"
     "  profile read-only <ROOT>        directory/store reads and HTTPS GET"
     "  profile local-dev <ROOT>        directory/store writes and HTTP serving too"
-    "  Add --yes to apply. Replaces the entire instance policy, including denies."
+    "  Add --yes to apply; one that widens the policy still asks. Replaces the"
+    "  entire instance policy, including denies."
     "  ROOT must be absolute; no process, native or environment access is granted."
     "  HTTPS GET permits any host on port 443; HTTP serving permits any port."
     ""
     "Named approvals:"
-    "  --yes, -y      skip the confirmation; required for an unattended run,"
-    "                 which must not rely on being detected as non-interactive"
     "  approve <fn>   review the latest version's permission requirements and approve it, so"
     "                 the name resolves to that exact version until you review a newer"
     "                 one. Rules after the name confine the function and everything it"

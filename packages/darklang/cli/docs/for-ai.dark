@@ -195,7 +195,9 @@ never against what you typed.
 Host permissions are managed with the `permissions` command (alias `perms`).
 The instance policy is local, machine-wide, and deny-by-default. A fresh
 installation permits package/local-store access, stdio, clock, and randomness;
-rules allow (or deny) additional effects and resources:
+rules allow (or deny) additional effects and resources. Anything that widens
+it (allow, approve, update) needs a person to type yes at a terminal; from your
+shell it is refused, so ask the user to run the command it prints.
 
   permissions list
   permissions profile                         # list starting policies

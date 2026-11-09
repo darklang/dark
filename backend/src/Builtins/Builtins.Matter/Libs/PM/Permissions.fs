@@ -258,6 +258,19 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
 
     hostOnly
+      "pmPolicyGrantsWithoutAPerson"
+      [ Param.make "unit" TUnit "" ]
+      TBool
+      ("True when this process was started with DARK_GRANTS_WITHOUT_A_PERSON=1, the escape that "
+       + "lets a scripted setup widen permissions with nobody at a terminal. Read once at "
+       + "startup. Host-only.")
+      (fun _ args ->
+        match args with
+        | [| DUnit |] ->
+          uply { return DBool(GrantEscape.grantsWithoutAPerson.Force()) }
+        | _ -> incorrectArgs ())
+
+    hostOnly
       "pmPolicyApproveVersion"
       [ accountParam
         locationParam

@@ -79,8 +79,9 @@ run_once() {
 # variable needs the instance policy to say so. A fresh rundir denies it, so this tool failed in any
 # newly made clone -- printing its header, no rows, and exit 1, because the read_alloc that followed
 # the failed run died under `set -e`. Granted here rather than documented: it is this tool's own
-# requirement, it is scoped to the one variable, and it is idempotent.
-"$EXE" permissions allow env read PERF_ITERS > /dev/null 2>&1 || true
+# requirement, it is scoped to the one variable, and it is idempotent. Nobody is at a terminal to
+# confirm it, so it is made with the scripted-setup escape.
+DARK_GRANTS_WITHOUT_A_PERSON=1 "$EXE" permissions allow env read PERF_ITERS > /dev/null 2>&1 || true
 
 # One throwaway run before anything is measured: against a cold store the first invocation seeds it,
 # and whichever workload ran first would absorb that into its *baseline*, reporting a negative

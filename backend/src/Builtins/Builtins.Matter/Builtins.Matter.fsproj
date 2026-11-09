@@ -15,6 +15,7 @@
     <Compile Include="Libs/PM/ScmActions.fs" />
     <Compile Include="Libs/PM/PackageTests.fs" />
     <Compile Include="Libs/PM/Seed.fs" />
+    <Compile Include="Libs/PM/GrantEscape.fs" />
     <Compile Include="Libs/PM/Permissions.fs" />
     <Compile Include="Libs/PM/Store.fs" />
     <Compile Include="Libs/PM/Scm.fs" />

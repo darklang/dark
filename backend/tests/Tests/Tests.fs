@@ -100,6 +100,11 @@ let main (args : string array) : int =
     let onlyGroups, args = parseGroups "--only-groups" args
     let skipGroups, args = parseGroups "--skip-groups" args
 
+    // The CLI tests in this process grant permissions with nobody at a terminal, so they start
+    // with the scripted-setup escape on. It is read once, so it has to be set before any test
+    // runs; the instances they start get it too (`CliInstance.childEnv`).
+    System.Environment.SetEnvironmentVariable("DARK_GRANTS_WITHOUT_A_PERSON", "1")
+
     // The suite gets a policy of its own, so no test reads or writes the clone's
     // (`~/.darklang/policy`, the dev store's: a deny-all left there refuses the clone's own
     // gates and printing). Seeded with what a fresh install gets; a test that sets its own

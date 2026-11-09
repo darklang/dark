@@ -425,7 +425,7 @@ still apply; a profile does not bypass SSRF checks.
 
 Profiles expand to ordinary typed rules and carry no authority of their own.
 The command previews the full expansion; adding `--yes` applies it through the
-same host-only writer as `permissions set`. Application replaces the entire
+same host-only writer, and the same question, as `permissions set`. Application replaces the entire
 instance policy, including explicit denies. Package approvals, pins, run
 restrictions and author ceilings remain independent.
 
@@ -443,6 +443,28 @@ and host checks; it does not need a second permissions model.
 Guest code cannot change instance, run, or package approval policy. The
 policy builtins are host-only (`ExecutionState.canManagePolicies`), granted
 only to the trusted `dark permissions` command.
+
+**Widening needs a person at a terminal.** An agent can run `dark permissions`
+as easily as a person can, so running the command is not consent. Any change
+that lets code do more asks the person at the terminal and takes effect only on
+a typed yes: `allow`, `approve`, `update`, the save offered when a `run` is
+denied, and a `set`, `remove` or applied `profile` whose result has an allow
+rule the old policy lacked or lacks a deny it had (judged by the rules as
+written). It needs stdin, stdout and stderr to be terminals and none of `CI`,
+`DARK_NO_INPUT` or `--no-input`. Anywhere else (a pipe, CI, an agent's
+subprocess) the command changes nothing, exits 1 and prints the command a
+person should run. `--yes` does not answer the question. Narrowing never asks:
+`deny`, `clear`, `unapprove`, `revoke-package`, and a `set`, `remove` or
+profile that only takes away.
+
+Scripted setups and tests have one escape: start the process with
+`DARK_GRANTS_WITHOUT_A_PERSON=1`. The host reads it once, before any Dark code
+runs, so a run that sets it changes nothing for itself; refusals and `--help`
+do not mention it. Set it on the one command that needs it, for a throwaway
+instance, and never export it in a shell an agent works in. The test harnesses
+set it for the instances they create (`Tests.CliInstance`,
+`Darklang.Cli.Tests.Instance.run`), and so do the CI steps and scripts that
+set up a fresh install.
 
 **This is runtime authorization, not OS isolation.** Every effect a Darklang
 program performs *through the interpreter* is checked against the instance

@@ -93,7 +93,10 @@ let private allowlist : Set<string * string> =
       "Builtins.Cli", "Builtins.Cli.Libs.Terminal"
       // trusted host startup: reads package-ref-hashes.txt before any guest
       // code runs; not reachable from a builtin
-      "LibExecution", "LibExecution.PackageRefs" ]
+      "LibExecution", "LibExecution.PackageRefs"
+      // trusted host startup: reads DARK_GRANTS_WITHOUT_A_PERSON once, before any guest code
+      // runs; the builtin only reports the value read then
+      "Builtins.Matter", "Builtins.Matter.Libs.PM.GrantEscape" ]
 
 let private assembliesToScan =
   [ "LibExecution"

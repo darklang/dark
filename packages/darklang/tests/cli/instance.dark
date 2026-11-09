@@ -99,13 +99,23 @@ let env(i: T): List<(String * String)> =
 val commandTimeoutMs = 120000
 
 
-/// Run one command in this instance and return everything it said.
+/// The scripted-setup escape: a test sets up its throwaway instance with no person at a terminal,
+/// so `run` lets it widen permissions. `env` leaves it out, so `Interactive` and `runAsAgent` see
+/// what a person or an agent would.
+val grantsWithoutAPerson = ("DARK_GRANTS_WITHOUT_A_PERSON", "1")
+
+
+/// Run one command in this instance with <param vars> set, over this process's own environment.
 ///
 /// Under a timeout, so a command that waits forever (on input, on a lock) fails as itself
 /// rather than leaving the whole suite to stop answering. `env` sets the environment, as in
 /// `Process.runWithEnv`, which has no timeout.
-let run(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
-  let envArgs = env(i) |> Stdlib.List.map(fun pair -> let (k, v) = pair in $"{k}={v}")
+let runWithEnv(
+  i: T,
+  vars: List<(String * String)>,
+  args: List<String>)
+  : Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
+  let envArgs = vars |> Stdlib.List.map(fun pair -> let (k, v) = pair in $"{k}={v}")
 
   Stdlib.Cli.Process.runWithTimeout(
     commandTimeoutMs,
@@ -118,6 +128,18 @@ let run(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Outpu
       $"`{cmd}` gave no answer in {seconds}s"
     else
       e)
+
+
+/// Run one command in this instance and return everything it said.
+/// With the scripted-setup escape on, since a test sets its instance up itself.
+let run(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
+  runWithEnv(i, Stdlib.List.concat(env(i), [ grantsWithoutAPerson ]), args)
+
+
+/// `run` as an agent's shell would: no terminal, and without the scripted-setup escape, even if
+/// the suite was started with it.
+let runAsAgent(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
+  runWithEnv(i, Stdlib.List.concat(env(i), [ ("DARK_GRANTS_WITHOUT_A_PERSON", "") ]), args)
 
 
 /// What a command printed: stdout, or stderr when stdout said nothing.
