@@ -105,6 +105,33 @@ module Hash =
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
+// Every builtin is named through these when the builtins table is built, on every start, and a
+// regex match per name was a large part of that. So each pattern has a plain check in front of it
+// that accepts the ASCII names builtins have, and can only say yes where the pattern would.
+// Anything it does not accept goes to the regex, which still decides and still raises.
+
+let private isAsciiWord (c : char) : bool =
+  (c >= 'a' && c <= 'z')
+  || (c >= 'A' && c <= 'Z')
+  || (c >= '0' && c <= '9')
+  || c = '_'
+
+let rec private allFrom (i : int) (ok : char -> bool) (s : string) : bool =
+  i >= s.Length || (ok s[i] && allFrom (i + 1) ok s)
+
+/// `builtinNamePattern` for the ASCII names it accepts; false is "ask the regex", not "no".
+let private surelyBuiltinName (s : string) : bool =
+  let lowerFirst = s.Length >= 2 && s[0] >= 'a' && s[0] <= 'z'
+  let underscored = s.Length >= 3 && s[0] = '_' && s[1] = '_'
+  (lowerFirst || underscored) && allFrom 1 isAsciiWord s
+
+/// `valueNamePattern` for the names it accepts; false is "ask the regex", not "no".
+let private surelyValueName (s : string) : bool =
+  s.Length >= 1
+  && s[0] >= 'a'
+  && s[0] <= 'z'
+  && allFrom 1 (fun c -> isAsciiWord c || c = '\'') s
+
 let assertBuiltin
   (name : string)
   (version : int)
@@ -153,7 +180,8 @@ module FQValueName =
     | Package of Package
 
   let assertValueName (name : string) : unit =
-    assertRe "Value name must match" valueNamePattern name
+    if not (surelyValueName name) then
+      assertRe "Value name must match" valueNamePattern name
 
   let builtin (name : string) (version : int) : Builtin =
     assertBuiltin name version assertValueName
@@ -227,7 +255,8 @@ module FQFnName =
     | TraitMethod of TraitMethod
 
   let assertBuiltinFnName (name : string) : unit =
-    assertRe $"Fn name must match" builtinNamePattern name
+    if not (surelyBuiltinName name) then
+      assertRe "Fn name must match" builtinNamePattern name
 
   let builtin (name : string) (version : int) : Builtin =
     assertBuiltin name version assertBuiltinFnName

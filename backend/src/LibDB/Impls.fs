@@ -15,18 +15,21 @@ open Fumble
 open LibDB.Sqlite
 
 module PT = LibExecution.ProgramTypes
-module PMPT = LibDB.ProgramTypes
+module BS = LibSerialization.Binary.Serialization
 
+
+let private readImpl (read : RowReader) : PT.TraitImpl.TraitImpl =
+  let hash = Hash(read.string "hash")
+  BS.PT.TraitImpl.deserialize hash (read.bytes "pt_def")
 
 let private implsFor (traitHash : Hash) : Ply<List<PT.TraitImpl.TraitImpl>> =
   uply {
     let (Hash h) = traitHash
-    let! hashes =
-      Sql.query "SELECT hash FROM package_trait_impls WHERE trait_hash = @h"
+    // Each impl's definition in the same read as its hash, rather than one query per impl.
+    return!
+      Sql.query "SELECT hash, pt_def FROM package_trait_impls WHERE trait_hash = @h"
       |> Sql.parameters [ "h", Sql.string h ]
-      |> Sql.executeAsync (fun read -> Hash(read.string "hash"))
-    let! impls = hashes |> Ply.List.mapSequentially PMPT.TraitImpl.get
-    return impls |> List.choose (fun i -> i)
+      |> Sql.executeAsync readImpl
   }
 
 /// Impls with a method of this name, for receiver calls. The method names are inside
@@ -35,13 +38,12 @@ let private implsWithMethodNamed
   (methodName : string)
   : Ply<List<PT.TraitImpl.TraitImpl>> =
   uply {
-    let! hashes =
-      Sql.query "SELECT hash FROM package_trait_impls"
-      |> Sql.executeAsync (fun read -> Hash(read.string "hash"))
-    let! impls = hashes |> Ply.List.mapSequentially PMPT.TraitImpl.get
+    // In hash order, the order the hash-only read had from the primary key.
+    let! impls =
+      Sql.query "SELECT hash, pt_def FROM package_trait_impls ORDER BY hash"
+      |> Sql.executeAsync readImpl
     return
       impls
-      |> List.choose (fun i -> i)
       |> List.filter (fun i ->
         i.methods |> List.exists (fun (m, _) -> m = methodName))
   }

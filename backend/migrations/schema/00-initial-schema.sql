@@ -228,6 +228,10 @@ CREATE TABLE IF NOT EXISTS package_values (
   description TEXT NOT NULL DEFAULT ''         -- plain-text doc comment for SQL package search
 );
 CREATE INDEX IF NOT EXISTS idx_package_values_type ON package_values(value_type);
+-- Only the values not yet evaluated, so that every start can ask whether any are left
+-- (`Seed.growIfNeeded`) from an index that is almost always empty, rather than by reading the table.
+CREATE INDEX IF NOT EXISTS idx_package_values_unevaluated
+  ON package_values(hash) WHERE rt_dval IS NULL;
 
 -- Three things per function, from the two halves of the compiler.
 --
