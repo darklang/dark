@@ -2,6 +2,13 @@
 module Darklang.Stdlib.HttpClient.Tests
 
 // Tests that don't use the internet
+test requestErrorHasToString =
+  Stdlib.Test.all(
+    [ Stdlib.toString(Stdlib.HttpClient.RequestError.Timeout)
+      |> Stdlib.Test.equal("Timeout")
+      Stdlib.toString(Stdlib.HttpClient.RequestError.TlsError("bad certificate"))
+      |> Stdlib.Test.equal("bad certificate") ])
+
 test contentTypes =
   Stdlib.Test.all(
     [ Stdlib.HttpClient.ContentType.form

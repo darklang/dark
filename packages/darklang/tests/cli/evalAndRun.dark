@@ -319,7 +319,7 @@ test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
 test runNamesTheTraitAMissingImplementationIsOf =
   Instance.withInstance(fun i ->
     let source =
-      "let show (e: Stdlib.HttpClient.RequestError): String =\n  Stdlib.toString(e)\n"
+      "let show (e: Stdlib.AltJson.ParseError.ParseError): String =\n  Stdlib.toString(e)\n"
       + "Stdlib.printLine(\"SCRIPT_RAN\")\n0"
     let path = script(i, "missing-impl.dark", source)
     let (code, out) = Instance.ran(i, [ "run", path ])
@@ -328,7 +328,7 @@ test runNamesTheTraitAMissingImplementationIsOf =
       [ Instance.exitedWith(code, 1, "refused")
         Instance.says(out, "has no implementation of Stdlib.ToString", "names the trait")
         Instance.doesNotSay(out, "implementation of #", "no hash")
-        Instance.says(out, "Try `Stdlib.HttpClient.toString`", "points at the module's toString")
+        Instance.says(out, "Try `Stdlib.AltJson.ParseError.toString`", "points at the module's toString")
         Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
 
 
