@@ -43,6 +43,15 @@ let operatorAlias(query: String): Stdlib.Option.Option<String> =
   | _ -> Stdlib.Option.Option.None
 
 
+/// For a query that names an operator as a function, `Int64.mod`, the operator it is: there is no
+/// such function to find, and what the results hold instead is the trait's own method.
+let operatorHint(branchId: Uuid, query: String): Unit =
+  match Packages.Errors.operatorSuggestion(branchId, Stdlib.String.split(Stdlib.String.trim(query), ".")) with
+  | Some(written) ->
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({query} is the operator: {written})"))
+  | None -> ()
+
+
 // Ranks a name by how directly it answers the query (lower = better).
 // Beyond exact and prefix matches, we reward a name the query *elaborates* —
 // `parse` for the query `parseInt`, `get` for `getEnvVar` — since that name is
@@ -542,6 +551,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           Stdlib.printLine(jsonOutput(state.currentBranchId, queryText, results))
         else if totalResults == 0 then
           Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
+          operatorHint(state.currentBranchId, rawQueryText)
           hiddenTestsHint(hiddenTests)
           Stdlib.printLine("")
         else
@@ -550,6 +560,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           | Some(kw) ->
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
           | None -> ()
+          operatorHint(state.currentBranchId, rawQueryText)
           Stdlib.printLine("")
 
           // Key format: match rank followed by the fixed section order.

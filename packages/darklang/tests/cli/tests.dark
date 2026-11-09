@@ -742,6 +742,36 @@ test closestNamesAreSpelledNear =
       closest("lenght") |> Stdlib.Test.equal([]) ])
 
 
+// A function name for an operator points at the operator, when the type has it.
+test operatorNamesSuggestTheOperator =
+  let branch = Darklang.SCM.Branch.mainBranchId
+  let suggest = fun name ->
+    Darklang.Cli.Packages.Errors.operatorSuggestion(branch, Stdlib.String.split(name, "."))
+
+  Stdlib.Test.all(
+    [ suggest("Stdlib.Int64.mod") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
+      suggest("Int64.modulo") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
+      suggest("Stdlib.Float.pow") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a ** b"))
+      suggest("Stdlib.String.mod") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      suggest("Stdlib.Int64.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      suggest("mod") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// `Stdlib.Int64.mod` said only "not found", and searching for it never showed `%`.
+test int64ModSuggestsPercent =
+  let evaluated = evalOutcome("Stdlib.Int64.mod(7, 3)")
+  let searched = runWithBothStreams([ "search", "Int64.mod", "--fn" ])
+
+  if
+    evaluated.exitCode != 0
+    && Stdlib.String.contains(evaluated.stderr, "Did you mean `a % b`?")
+    && Stdlib.String.contains(searched, "Int64.mod is the operator: a % b")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected `a % b`; eval={evaluated.stderr}; search={searched}")
+
+
 test didYouMeanText =
   let text = Darklang.Cli.Packages.Errors.didYouMeanText
 

@@ -165,12 +165,67 @@ let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
     |> Stdlib.List.take(3)
 
 
+/// The operator a function name stands for, as (its trait, the trait's method, how it is
+/// written), when the name is that method or a usual word for it: `mod` and `modulo` are `%`.
+let operatorOfName(name: String): Stdlib.Option.Option<(String * String * String)> =
+  match Stdlib.String.toLowercase(name) with
+  | "add" | "plus" -> Stdlib.Option.Option.Some(("Add", "add", "a + b"))
+  | "sub" | "subtract" | "minus" -> Stdlib.Option.Option.Some(("Subtract", "subtract", "a - b"))
+  | "mul" | "multiply" | "times" -> Stdlib.Option.Option.Some(("Multiply", "multiply", "a * b"))
+  | "div" | "divide" -> Stdlib.Option.Option.Some(("Divide", "divide", "a / b"))
+  | "mod" | "modulo" -> Stdlib.Option.Option.Some(("Modulo", "modulo", "a % b"))
+  | "pow" | "power" -> Stdlib.Option.Option.Some(("Power", "power", "a ** b"))
+  | "neg" | "negate" -> Stdlib.Option.Option.Some(("Negate", "negate", "-a"))
+  | "shiftleft" -> Stdlib.Option.Option.Some(("ShiftLeft", "shiftLeft", "a << b"))
+  | "shiftright" -> Stdlib.Option.Option.Some(("ShiftRight", "shiftRight", "a >> b"))
+  | "bitwiseand" -> Stdlib.Option.Option.Some(("BitwiseAnd", "bitwiseAnd", "a & b"))
+  | "bitwiseor" -> Stdlib.Option.Option.Some(("BitwiseOr", "bitwiseOr", "a | b"))
+  | "bitwisexor" | "xor" -> Stdlib.Option.Option.Some(("BitwiseXor", "bitwiseXor", "a ^ b"))
+  | "bitwisenot" -> Stdlib.Option.Option.Some(("BitwiseNot", "bitwiseNot", "~a"))
+  | "lessthan" -> Stdlib.Option.Option.Some(("Compare", "lessThan", "a < b"))
+  | "greaterthan" -> Stdlib.Option.Option.Some(("Compare", "greaterThan", "a > b"))
+  | _ -> Stdlib.Option.Option.None
+
+
+/// The operator an unresolved name was reaching for, written out (`a % b`), when its module is a
+/// type with that operator: `Stdlib.Int64.mod` is `%`, since `Int64` implements `Modulo`. A type
+/// without it gets nothing, so `Stdlib.String.mod` is not sent to `%`.
+let operatorSuggestion(
+  branchId: Uuid,
+  originalName: List<String>)
+  : Stdlib.Option.Option<String> =
+  match splitLast(originalName) with
+  | None -> Stdlib.Option.Option.None
+  | Some((modules, name)) ->
+    match operatorOfName(name) with
+    | None -> Stdlib.Option.Option.None
+    | Some((traitName, methodName, written)) ->
+      let implemented =
+        closestNameModules(modules)
+        |> Stdlib.List.any(fun((_, location)) ->
+          match location with
+          | [] -> false
+          | [owner, ...inner] ->
+            let method =
+              LanguageTools.ProgramTypes.PackageLocation
+                { owner = owner
+                  modules = Stdlib.List.append(inner, traitName)
+                  name = methodName }
+            Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, method)))
+      if implemented then Stdlib.Option.Option.Some(written)
+      else Stdlib.Option.Option.None
+
+
 /// What an unresolved name probably meant: the standard-library name it moved to
-/// (<fn stdlibSuggestion>), or else the names in its module spelled closest to it.
+/// (<fn stdlibSuggestion>), the operator it is (<fn operatorSuggestion>), or else the names in its
+/// module spelled closest to it.
 let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
   match stdlibSuggestion(branchId, originalName) with
   | Some(name) -> [ name ]
-  | None -> closestNames(branchId, originalName)
+  | None ->
+    match operatorSuggestion(branchId, originalName) with
+    | Some(written) -> [ written ]
+    | None -> closestNames(branchId, originalName)
 
 
 /// `Did you mean `A`?`, or `Did you mean `A`, `B` or `C`?`, or "" for no names.
