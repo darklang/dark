@@ -146,14 +146,19 @@ let private declarationsToModule
     let implLocations =
       implList |> List.map (fun i -> WT2PT.TraitImpl.Name.toLocation i.name)
 
-    let lowerFns pm =
+    // Where each node starts in the source, by node id, so the checker's findings can give a
+    // line. The final lowering of the functions and of the expressions fills it.
+    let sourceRanges = System.Collections.Generic.Dictionary<id, WT.Range>()
+
+    let lowerFns ranges pm =
       fnList
       |> Ply.List.mapSequentially (fun fn ->
-        WT2PT.PackageFn.toPT
+        WT2PT.PackageFn.toPTWithRanges
           builtins
           pm
           onMissing
           (WT2PT.PackageFn.Name.toModules fn.name)
+          ranges
           fn)
     let lowerTypes pm =
       typeList
@@ -216,7 +221,7 @@ let private declarationsToModule
       LibDB.PackageManager.ptForBranch state.branchId
       |> LibDB.PackageManager.narrowedToApprovedVersions state.accountID
     let! fns1 =
-      lowerFns pm0 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
+      lowerFns None pm0 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
     let! types1 =
       lowerTypes pm0 |> Ply.map (fun ts -> List.map2 stampType ts typeLocations)
     let! values1 =
@@ -238,7 +243,8 @@ let private declarationsToModule
 
     // Pass 2: re-lower with the grafted pm so intra-script references resolve.
     let! fns2 =
-      lowerFns pm1 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
+      lowerFns (Some sourceRanges) pm1
+      |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
     let! types2 =
       lowerTypes pm1 |> Ply.map (fun ts -> List.map2 stampType ts typeLocations)
     let! values2 =
@@ -371,7 +377,6 @@ let private declarationsToModule
         implLocations)
 
     // Script expressions take `args` as a parameter; eval expressions run directly.
-    let sourceRanges = System.Collections.Generic.Dictionary<id, WT.Range>()
     let expressionContext =
       { WT2PT.Context.currentFnName = None
         WT2PT.Context.argMap =

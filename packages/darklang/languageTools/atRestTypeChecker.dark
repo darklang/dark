@@ -109,7 +109,9 @@ type Site =
   | Expression
   | StatementBeforeFinalExpression
   | FunctionApplication
-  | FunctionArgument(Int64)
+  /// An argument by its zero-based position, and the called function's name as written, when
+  /// the call is to a name
+  | FunctionArgument(Int64, Stdlib.Option.Option<String>)
   | IfWithoutElse
   | RecordFieldAccess
   | InterpolatedSegment
@@ -463,8 +465,12 @@ let siteToString(site: Site): String =
   | Expression -> "this expression"
   | StatementBeforeFinalExpression -> "the statement before the final expression"
   | FunctionApplication -> "this function application"
-  | FunctionArgument(position) ->
-    $"argument {Stdlib.toString(position + 1)}"
+  | FunctionArgument(position, callee) ->
+    let argument = $"argument {Stdlib.toString(position + 1)}"
+
+    match callee with
+    | Some(name) -> $"`{name}`, {argument}"
+    | None -> argument
   | IfWithoutElse -> "an if without an else"
   | RecordFieldAccess -> "this field access"
   | InterpolatedSegment ->
@@ -742,7 +748,7 @@ let issueToStringWith(
   let hint =
     fun(expected, actual) ->
       match (issue.code, issue.context) with
-      | (TypeMismatch, At(FunctionArgument(_)))
+      | (TypeMismatch, At(FunctionArgument(_, _)))
       | (TypeMismatch, At(FunctionReturnValue))
       | (TypeMismatch, At(LambdaReturnValue))
       | (TypeMismatch, At(ValueBody))
