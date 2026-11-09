@@ -1149,10 +1149,15 @@ let private invalidDescriptor =
 
 /// Called under the descriptor leases; they cannot be closed or reused until the
 /// syscall completes. Current access is checked on every use, not just open.
+///
+/// Returns the checks of the descriptors' retained grants apart from the
+/// operation's own: the caller checks the first without the consumer approvals
+/// (`Permission.Access.withoutPackageApprovals`), since they were checked when
+/// the descriptor was opened.
 let private resolveSessionPosix
   (session : Option<HostDescriptors.Session>)
   (op : HostTypes.PosixOp)
-  : Result<Resolved, Outcome> =
+  : Result<List<Permission.Request * string> * Resolved, Outcome> =
   let uses = descriptorUses op
   let rec collect checks bindings raw remaining =
     match remaining with
@@ -1266,7 +1271,7 @@ let private resolveSessionPosix
             Some owner -> owner.Consume token
           | _ -> ()
           resolved.execute ()
-        Ok { checks = scoped.checks @ baseChecks; execute = execute }
+        Ok(scoped.checks, { checks = baseChecks; execute = execute })
 
 /// Check and perform one host operation, then audit it exactly once. Derives
 /// the requests from the operation itself, checks them against the access,
@@ -1405,11 +1410,16 @@ let private performWithSession
             | None -> run ())
         | Operation.Posix posix ->
           let resolve () = resolveSessionPosix session posix
+          let denial (retained, resolved : Resolved) =
+            let held = Permission.Access.withoutPackageApprovals access
+            match firstDenial relax held retained with
+            | Some denied -> Some denied
+            | None -> firstDenial relax access resolved.checks
           let run () =
             match resolve () with
             | Error outcome -> outcome
-            | Ok resolved ->
-              match firstDenial relax access resolved.checks with
+            | Ok((_, resolved) as prepared) ->
+              match denial prepared with
               | Some denied -> denied
               | None ->
                 // POSIX adapters are synchronous. Keep the descriptor lease
@@ -1430,8 +1440,8 @@ let private performWithSession
           else
             match resolve () with
             | Error outcome -> Task.FromResult outcome
-            | Ok resolved ->
-              match firstDenial relax access resolved.checks with
+            | Ok((_, resolved) as prepared) ->
+              match denial prepared with
               | Some denied -> Task.FromResult denied
               | None -> execute resolved.execute
         | _ ->

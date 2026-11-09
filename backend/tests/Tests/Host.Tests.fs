@@ -230,6 +230,74 @@ let scopedDescriptorsRecheckAccessAndOwnership =
       System.IO.File.Delete path
   }
 
+/// A descriptor's retained grant is checked without the consumer approvals: the open was
+/// checked against them, so an approved function's own derived policy (deny-all for a
+/// helper like `Posix.fdRead`, which declares no effect) must not refuse its reads. A
+/// package approval still governs the open, and a function ceiling still governs every use.
+let scopedDescriptorsSkipApprovalsButNotCeilings =
+  testTask "a descriptor read skips package approvals but not function ceilings" {
+    let path =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-fd-{System.Guid.NewGuid()}"
+      )
+    System.IO.File.WriteAllText(path, "abc")
+    let owner = LibExecution.Host.createDescriptorSession ()
+    let instance =
+      Permission.Policy.create
+        [ Permission.Rule.File(Permission.AccessKind.Read, only path) ]
+        []
+      |> Permission.Access.start
+    let underApproval =
+      instance
+      |> Permission.Access.restrict
+        (Permission.Layer.Package "helper")
+        Permission.Policy.denyAll
+    let underCeiling =
+      instance
+      |> Permission.Access.restrict
+        (Permission.Layer.Function "pure")
+        Permission.Policy.denyAll
+    let perform access op =
+      LibExecution.Host.performInSession
+        owner
+        Permission.NoRelax
+        access
+        (HT.Operation.Posix op)
+    let denied why outcome =
+      match outcome with
+      | HT.Outcome.Denied _ -> ()
+      | other -> failtest $"{why}, got {other}"
+    try
+      let! refused = perform underApproval (HT.PosixOp.Open(path, 0, 0))
+      denied "an approval that allows no file read refuses the open" refused
+      let! opened = perform instance (HT.PosixOp.Open(path, 0, 0))
+      let fd =
+        match opened with
+        | HT.Outcome.Success(HT.Response.Descriptor token) ->
+          HT.FileDescriptor.Scoped token
+        | other -> failtestf "expected scoped open, got %A" other
+      let! read = perform underApproval (HT.PosixOp.FdRead(fd, 3))
+      match read with
+      | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+        Expect.equal bytes [| 97uy; 98uy; 99uy |] "the open's grant covers the read"
+      | other -> failtest $"expected the read past a deny-all approval, got {other}"
+      let! seek = perform underApproval (HT.PosixOp.FdSeek(fd, 0L, 0))
+      match seek with
+      | HT.Outcome.Success _ -> ()
+      | other -> failtest $"expected the seek past a deny-all approval, got {other}"
+      let! ceiling = perform underCeiling (HT.PosixOp.FdRead(fd, 1))
+      denied "a function ceiling still refuses a held descriptor" ceiling
+      let! revoked =
+        perform
+          (Permission.Access.start Permission.Policy.denyAll)
+          (HT.PosixOp.FdRead(fd, 1))
+      denied "the instance policy still refuses a held descriptor" revoked
+    finally
+      owner.Dispose()
+      System.IO.File.Delete path
+  }
+
 let descriptorLeasesDoNotSerializeUnrelatedFiles =
   testTask "a held descriptor lease does not block another owned descriptor" {
     let entered = new System.Threading.ManualResetEventSlim(false)
@@ -1269,6 +1337,7 @@ let tests =
       httpServerBindUsesTheSuppliedAccess
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
+      scopedDescriptorsSkipApprovalsButNotCeilings
       descriptorLeasesDoNotSerializeUnrelatedFiles
       ownedChildrenRetainScopedProcessAuthority
       ownedChildWaitAllowsCleanup

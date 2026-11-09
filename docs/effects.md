@@ -166,7 +166,15 @@ IO leaf** checks permission when the request opens (`Operation.HttpStreamOpen`)
 and then serves chunks from an execution-owned handle (`Host.httpStreamRead`
 makes no second decision). Scoped file descriptors and child handles retain
 their checked path/open-mode or executable/argument grants, and each subsequent
-operation checks those grants against the caller's current access. Raw OS
+operation checks those grants against the caller's current access. For a
+descriptor, that check leaves out the consumer approvals: the open was already
+checked against them, and a read, write or seek on the descriptor acquires
+nothing the open did not. Otherwise an approved function could open a file and
+then be refused its first read, by the derived approval of a bundled helper
+like `Posix.fdRead`, which declares no effect of its own. Function ceilings and
+the run and instance policies still apply on every use, so a `:{}` function
+cannot read a descriptor it is handed, and nothing can read a path the open was
+not allowed. Raw OS
 descriptor numbers and arbitrary PIDs require `Native`. Closing owned resources
 remains permitted for cleanup after access has been narrowed.
 
@@ -353,8 +361,9 @@ you would trust with that.
 Kernel primitives use the same boundary, with `HostPosix` and `HostKernel`
 owned by the host. Path operations check exact read/write requests; descriptors
 opened under those checks are returned as unguessable execution-local tokens.
-Every use checks ownership, open mode and current path access while a descriptor
-lease prevents close/reuse from redirecting a call in flight. Raw OS descriptors
+Every use checks ownership, open mode and current path access (all but the
+consumer approvals, see above) while a descriptor lease prevents close/reuse
+from redirecting a call in flight. Raw OS descriptors
 require `Native`; an owned token cannot be narrowed into an OS descriptor number.
 Child launch checks the resolved executable and ordered arguments, and later
 child/pipe operations check that retained process grant. A blocking child wait
@@ -549,6 +558,10 @@ These tests turn the design guarantees below into regression checks.
   boundary. Tests: `Host.Tests` host-operation cases,
   `HostBoundary.Tests.onlyHostModulesTouchTheOS`, and
   `Builtin.Tests.scopedEffectBuiltinsCheckTargets`.
+- A held descriptor is checked without the consumer approvals, which checked its
+  open, but under every function ceiling and the run and instance policies.
+  Tests: `Host.Tests.scopedDescriptorsSkipApprovalsButNotCeilings` and
+  `CliPackages.approvedFunctionReadsAFile`.
 - Guest code cannot access policy files or change policy and approvals. Tests:
   `PermissionsGate.guestFileApiCannotReachPolicyStore`,
   `guestCannotChangePolicies`, `guestCannotApprovePackages`, and

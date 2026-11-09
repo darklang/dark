@@ -553,6 +553,23 @@ module Access =
     else
       Access({ layer = layer; policy = policy } :: restrictions)
 
+  /// The access a retained grant is checked under: every layer but the consumer
+  /// approvals. A scoped descriptor keeps the exact paths it was opened with, and
+  /// that open was checked against every layer, approvals included. A later read,
+  /// write or seek on it uses that grant; it acquires nothing new, so the approval
+  /// of whichever package holds the descriptor has nothing to add. Function
+  /// ceilings, value ceilings and the run and instance policies still apply on
+  /// every use, so a `:{}` function cannot read a descriptor it is handed.
+  let withoutPackageApprovals (Access restrictions as access) : Access =
+    let isApproval (restriction : Restriction) =
+      match restriction.layer with
+      | Layer.Package _ -> true
+      | _ -> false
+    if List.exists isApproval restrictions then
+      Access(List.filter (isApproval >> not) restrictions)
+    else
+      access
+
   /// Apply every restriction from another Access. This is used when invoking
   /// a closure: both the caller and the captured access must allow the request.
   let constrainBy (Access constraints) (Access restrictions as current) : Access =

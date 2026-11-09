@@ -1344,6 +1344,71 @@ test callerCeiling = Tests.PermissionUse.caller()
         do! discardAll state
       })
 
+/// An approved function can read a file under the installation's real policy, not the
+/// allow-all one `test run` uses. Approval derives a policy for every function the root
+/// reaches, and `Posix.fdRead` declares no effect, so its derived policy denied everything;
+/// the host checked each descriptor read against it, so the open passed and the first read
+/// was refused. A function nobody approved is still denied, at the open. (The two bodies
+/// differ: identical ones would be one hash, and so one approval.)
+let approvedFunctionReadsAFile =
+  instanceTest "an approved function reads a file it opens" (fun state ->
+    task {
+      do! start state
+      let dir =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-fd-read-{System.Guid.NewGuid():N}"
+        )
+      System.IO.Directory.CreateDirectory dir |> ignore
+      let file = System.IO.Path.Combine(dir, "a.txt")
+      System.IO.File.WriteAllText(file, "read through an fd")
+      let source =
+        """let readIt(path: String): String =
+  match Stdlib.Cli.FileSystem.readFileAsString(path) with
+  | Ok(text) -> text
+  | Error(_) -> "could not read"
+let readToo(path: String): String =
+  match Stdlib.Cli.FileSystem.readFileAsString(path) with
+  | Ok(text) -> text
+  | Error(_) -> "could not read it either"
+"""
+      let sourceFile = System.IO.Path.Combine(dir, "reader.dark")
+      try
+        System.IO.File.WriteAllText(sourceFile, source)
+        do!
+          exits
+            state
+            [ "module"; "Tests.FdRead"; sourceFile ]
+            0L
+            "author the readers"
+        do! run state [ "permissions"; "allow"; "file"; "read"; dir ]
+        let call name = [ "eval"; $"Tests.FdRead.{name}(\"{file}\")" ]
+        do!
+          shows
+            state
+            (call "readIt")
+            "package policy"
+            "an unapproved function is denied"
+        do! run state [ "permissions"; "approve"; "Tests.FdRead.readIt"; "--yes" ]
+        do!
+          shows
+            state
+            (call "readIt")
+            "read through an fd"
+            "the approved function opens and reads the file"
+        do! exits state (call "readIt") 0L "the approved read succeeds"
+        do!
+          shows
+            state
+            (call "readToo")
+            "package policy"
+            "a function nobody approved is still denied"
+        do! exits state (call "readToo") 1L "the unapproved read fails"
+      finally
+        System.IO.Directory.Delete(dir, true)
+      do! discardAll state
+    })
+
 /// Search leaves tests out unless asked: a test is usually named after what it tests, so
 /// every search for a function would list its tests too. Left out is not hidden, though:
 /// the output says how many matched, so a search with only test hits never reads as empty.
@@ -2231,6 +2296,7 @@ let tests : List<Test> =
     pureTestsRunInProcess
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies
+    approvedFunctionReadsAFile
     upgradeRestoresSeedOperationKinds
     workbenchShowsTests
     workbenchRenameEndsTheOldName
