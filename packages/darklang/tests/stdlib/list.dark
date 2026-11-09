@@ -377,15 +377,15 @@ test map2 =
       Stdlib.List.map2([], [], fun(a, b) -> a - b)
       |> Stdlib.Test.equal(Ok([])) ])
 
-test map2shortest =
+test map2Shortest =
   Stdlib.Test.all(
-    [ Stdlib.List.map2shortest([ 10, 20, 30 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
+    [ Stdlib.List.map2Shortest([ 10, 20, 30 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([ 9, 18, 27 ])
-      Stdlib.List.map2shortest([ 10, 20 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
+      Stdlib.List.map2Shortest([ 10, 20 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([ 9, 18 ])
-      Stdlib.List.map2shortest([], [ 1, 2, 3 ], fun(a, b) -> a - b)
+      Stdlib.List.map2Shortest([], [ 1, 2, 3 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([])
-      Stdlib.List.map2shortest([ 1, 2, 3 ], [], fun(a, b) -> a - b)
+      Stdlib.List.map2Shortest([ 1, 2, 3 ], [], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([]) ])
 
 test contains =
