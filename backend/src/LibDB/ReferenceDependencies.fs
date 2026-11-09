@@ -170,15 +170,21 @@ let dependents
     return batchDependents
   }
 
-/// One branch-visible binding snapshot for the entire review: every name the view binds.
-let liveBindings (branch : PT.BranchId) =
+/// The bindings <param branch>'s view holds that also meet <param filter>, a condition on
+/// `visible` that may read <param keys> as `@keys`.
+let private bindingsWhere
+  (branch : PT.BranchId)
+  (filter : string)
+  (keys : string)
+  : Task<Map<PT.PackageLocation, PT.Reference>> =
   task {
     let! rows =
       Sql.query (
         Layers.view "@" Layers.locations
         + " SELECT owner, modules, name, item_type, item_hash FROM visible WHERE item_hash <> ''"
+        + filter
       )
-      |> Sql.parameters (Layers.sqlParams branch true)
+      |> Sql.parameters (("keys", Sql.string keys) :: Layers.sqlParams branch true)
       |> Sql.executeAsync (fun row ->
         location (row.string "owner") (row.string "modules") (row.string "name"),
         PT.Reference.fromHashAndKind (
@@ -187,6 +193,38 @@ let liveBindings (branch : PT.BranchId) =
         ))
     return Map.ofList rows
   }
+
+/// One branch-visible binding snapshot for the entire review: every name the view binds.
+let liveBindings (branch : PT.BranchId) = bindingsWhere branch "" "[]"
+
+/// The names the view binds to any of <param hashes>: what a review turns a caller hash into.
+let private bindingsOfHashes
+  (branch : PT.BranchId)
+  (hashes : List<Hash>)
+  : Task<Map<PT.PackageLocation, PT.Reference>> =
+  if List.isEmpty hashes then
+    Task.FromResult Map.empty
+  else
+    bindingsWhere
+      branch
+      " AND item_hash IN (SELECT value FROM json_each(@keys))"
+      (hashes |> List.map (fun (Hash h) -> h) |> jsonStrings)
+
+/// What the view binds at each of <param names>.
+let private bindingsAt
+  (branch : PT.BranchId)
+  (names : List<PT.PackageLocation>)
+  : Task<Map<PT.PackageLocation, PT.Reference>> =
+  if List.isEmpty names then
+    Task.FromResult Map.empty
+  else
+    bindingsWhere
+      branch
+      " AND (owner, modules, name) IN (SELECT json_extract(value, '$[0]'),
+           json_extract(value, '$[1]'), json_extract(value, '$[2]') FROM json_each(@keys))"
+      (names
+       |> List.map (fun n -> [ n.owner; String.concat "." n.modules; n.name ])
+       |> jsonRows)
 
 let private namedReferencesFrom
   state
@@ -317,28 +355,20 @@ let reviewGraph
 let private reviewIndexed
   (branch : PT.BranchId)
   (state : State)
-  (live : Map<PT.PackageLocation, PT.Reference>)
   (changed : List<PT.PackageLocation * PT.Reference>)
   =
   task {
     let! candidates =
       Sql.query (
         Layers.view "@" Layers.locations
-        + """, stale AS MATERIALIZED (
-             SELECT d.depends_on_owner AS owner,
-                    d.depends_on_modules AS modules, d.depends_on_name AS name,
-                    d.depends_on_hash AS hash
-             FROM (SELECT DISTINCT depends_on_owner, depends_on_modules,
-                          depends_on_name, depends_on_hash
-                   FROM package_dependencies WHERE depends_on_owner <> '') d
-             JOIN visible l ON l.owner = d.depends_on_owner
-               AND l.modules = d.depends_on_modules AND l.name = d.depends_on_name
-             WHERE l.item_hash <> d.depends_on_hash AND l.item_hash <> ''
-           )
+        // From each binding to the callers recorded against another version of its name: one
+        // probe of `idx_package_dependencies_target` per binding.
+        + """
            SELECT DISTINCT d.item_hash
-           FROM stale s CROSS JOIN package_dependencies d
-           WHERE d.depends_on_owner = s.owner AND d.depends_on_modules = s.modules
-             AND d.depends_on_name = s.name AND d.depends_on_hash = s.hash
+           FROM visible l CROSS JOIN package_dependencies d
+             ON d.depends_on_owner = l.owner AND d.depends_on_modules = l.modules
+            AND d.depends_on_name = l.name
+           WHERE d.depends_on_hash <> l.item_hash AND l.item_hash <> ''
            UNION
            SELECT item_hash FROM package_dependencies
            WHERE depends_on_owner <> ''
@@ -347,14 +377,23 @@ let private reviewIndexed
       )
       |> Sql.parameters (Layers.sqlParams branch true)
       |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
-    let byHash = live |> Map.toList |> List.groupBy (fun (_, target) -> target.hash)
+    // Each hash's names in the view, in name order. Read for just these hashes: the review never
+    // asks about any other binding, and reading all of them was most of what it cost.
     let sources hashes =
-      hashes
-      |> List.distinct
-      |> List.collect (fun hash -> Map.tryFind hash byHash |> Option.defaultValue [])
+      task {
+        let hashes = List.distinct hashes
+        let! bound = bindingsOfHashes branch hashes
+        let byHash =
+          bound |> Map.toList |> List.groupBy (fun (_, target) -> target.hash)
+        return
+          hashes
+          |> List.collect (fun hash ->
+            Map.tryFind hash byHash |> Option.defaultValue [])
+      }
     let exceptional = state |> Map.keys |> List.map (fun (_, target) -> target.hash)
     let initialHashes = List.distinct (candidates @ exceptional)
-    let! initial = namedReferencesFrom state (sources initialHashes)
+    let! initialSources = sources initialHashes
+    let! initial = namedReferencesFrom state initialSources
     match initial with
     | Error message -> return Error message
     | Ok initial ->
@@ -393,7 +432,8 @@ let private reviewIndexed
           if List.isEmpty fresh then
             return Ok(edges, fetched)
           else
-            match! namedReferencesFrom state (sources fresh) with
+            let! freshSources = sources fresh
+            match! namedReferencesFrom state freshSources with
             | Error message -> return Error message
             | Ok extra ->
               return Ok(extra @ edges, Set.union fetched (Set.ofList fresh))
@@ -442,13 +482,20 @@ let private reviewIndexed
           }
       match expanded with
       | Error message -> return Error message
-      | Ok edges -> return Ok(reviewGraph live (List.distinct edges) changed)
+      | Ok edges ->
+        let edges = List.distinct edges
+        // The graph only asks what each edge's dependency is bound to now.
+        let! live =
+          edges
+          |> List.map (fun (_, _, _, dependency) -> dependency)
+          |> List.distinct
+          |> bindingsAt branch
+        return Ok(reviewGraph live edges changed)
   }
 
 /// Share binding and reference-name state across constraint and propagation review.
 let dependencyReview branch changed =
   task {
     let! state = load branch
-    let! live = liveBindings branch
-    return! reviewIndexed branch state live changed
+    return! reviewIndexed branch state changed
   }

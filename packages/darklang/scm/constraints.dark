@@ -292,25 +292,25 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
     // WRITTEN (`Point` here, `Scratch.Shapes.Point` there) beside the hash it resolved to,
     // so structural equality says two spellings of one type differ, and so can the
     // printed form when the hash has several names. Compare with the names dropped.
+    //
+    // Only the key is printed for every candidate: the type as written is printed for a pair
+    // that matched, which is almost never, and `dark status` runs this every time.
     let candidates =
       LanguageTools.PackageManager.Trait.impls(branchId, t.entity.hash)
       |> Stdlib.List.map(fun c ->
-        (c,
-         (PrettyPrinter.RuntimeTypes.typeReference(branchId, c.self),
-          PrettyPrinter.RuntimeTypes.typeReference(branchId, withoutWrittenNames(c.self)))))
+        (c, PrettyPrinter.RuntimeTypes.typeReference(branchId, withoutWrittenNames(c.self))))
 
     // Pairs (i, j) with i before j and the same self type; each pair once.
     candidates
     |> Stdlib.List.indexedMap(fun(i, c) -> (i, c))
     |> Stdlib.List.map(fun((i, cPair)) ->
-      let (c, cSelf) = cPair
-      let (selfStr, selfKey) = cSelf
+      let (c, selfKey) = cPair
       candidates
       |> Stdlib.List.indexedMap(fun(j, d) -> (j, d))
       |> Stdlib.List.filterMap(fun((j, dPair)) ->
-        let (d, dSelf) = dPair
-        let (_, dKey) = dSelf
+        let (d, dKey) = dPair
         if j > i && dKey == selfKey then
+          let selfStr = PrettyPrinter.RuntimeTypes.typeReference(branchId, c.self)
           let locOf(h: LanguageTools.ProgramTypes.Hash): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
             LanguageTools.PackageManager.pickLocation(
               LanguageTools.PackageManager.PickContext.empty,

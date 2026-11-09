@@ -630,6 +630,11 @@ CREATE INDEX IF NOT EXISTS idx_package_trait_impls_trait ON package_trait_impls(
 -- in it without being named. Not partial: SQLite can't tell that `depends_on_owner = ?` excludes ''.
 CREATE INDEX IF NOT EXISTS idx_package_dependencies_target
   ON package_dependencies(depends_on_owner, depends_on_modules, depends_on_name, depends_on_hash);
+-- The review's "one body, one version, two names" question (`ReferenceDependencies`), asked on
+-- every `dark status`: a GROUP BY over the named rows, read from this index alone.
+CREATE INDEX IF NOT EXISTS idx_package_dependencies_named
+  ON package_dependencies(item_hash, depends_on_hash, depends_on_item_type)
+  WHERE depends_on_owner <> '';
 
 -- ---------------------------------------------------------------------------
 -- from 11-op-log-commit-index.sql
