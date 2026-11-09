@@ -124,6 +124,7 @@ test goldenMessages =
         [ "expected a tuple element number after '.', found '1.2e3'" ])
       // the lexer's error, without a parser error on top
       golden("t.1.2s8", [ "invalid number literal: 1.2s8" ])
+      golden("200L", [ "invalid number literal: 200L; an Int64 is written `200`" ])
       golden("t.300s8", [ "out of range for Int8: 300s8" ])
       golden(
         "[1; 2; 3]",
