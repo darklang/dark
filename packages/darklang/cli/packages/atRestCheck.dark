@@ -284,19 +284,36 @@ let scriptReport(
 
       let issues =
         deduplicate(item.diagnostics)
-        |> Stdlib.List.map(fun issue ->
-          let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
-          let message = LanguageTools.AtRestTypeChecker.issueToStringWith(typeName, issue)
-          let withHint =
-            withDisplayHint(
-              branchId,
-              issue,
-              (fun loc -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc)),
-              message)
-
-          "  - " + at(issue) + "[" + code + "] " + withHint)
+        |> Stdlib.List.map(fun issue -> "  - " + at(issue) + scriptIssue(branchId, typeName, issue))
 
       Stdlib.List.prepend(issues, label + ":")
 
   let lines = Stdlib.List.flatten(Stdlib.List.map(report.items, itemLines))
   Stdlib.String.join(Stdlib.List.prepend(lines, "Static type check failed, so nothing ran:"), "\n")
+
+
+/// One finding in <fn scriptReport>. A name that resolves to nothing reads as it does when a run
+/// reaches it, with the same "Did you mean": `Stdlib.Int64.toString not found. Did you mean
+/// `Stdlib.display`?`.
+let scriptIssue(
+  branchId: Uuid,
+  typeName: LanguageTools.ProgramTypes.Hash -> Option<String>,
+  issue: LanguageTools.AtRestTypeChecker.Issue)
+  : String =
+  match issue.context with
+  | Unresolved(parts) when LanguageTools.AtRestTypeChecker.isUnresolvedName(issue.code) ->
+    let name = Errors.sourceNameWithoutInternalPrefix(parts)
+    match Errors.didYouMeanText(Errors.didYouMean(branchId, parts)) with
+    | "" -> $"{name} not found"
+    | text -> $"{name} not found. {text}"
+  | _ ->
+    let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
+    let message = LanguageTools.AtRestTypeChecker.issueToStringWith(typeName, issue)
+    let withHint =
+      withDisplayHint(
+        branchId,
+        issue,
+        (fun loc -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc)),
+        message)
+
+    "[" + code + "] " + withHint
