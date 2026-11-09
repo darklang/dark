@@ -719,7 +719,7 @@ let pureMeansNoHiddenState =
     "Pure builtins can run a package test in-process"
     [ testCase "a builtin with an effect is always Impure" (fun () ->
         let all = fns ()
-        Expect.isGreaterThan (List.length all) 500 "examined every builtin"
+        Expect.isGreaterThan (List.length all) 400 "examined every builtin"
         let wrong =
           all
           |> List.filter (fun fn ->

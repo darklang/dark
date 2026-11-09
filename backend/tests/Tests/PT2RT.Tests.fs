@@ -455,7 +455,7 @@ module Expr =
              4,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Mod" 0
+                 { name = RT.FQFnName.fqBuiltin "modulo" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
@@ -736,7 +736,7 @@ module Expr =
 
     let fnCall =
       t
-        "1 |> Builtin.int64Add(2)"
+        "1 |> Builtin.add(2)"
         E.Pipes.fnCall
         (4,
          [ RT.LoadVal(0, RT.DInt64 1L)
@@ -745,7 +745,7 @@ module Expr =
              2,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                 { name = RT.FQFnName.fqBuiltin "add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
@@ -792,7 +792,7 @@ module Expr =
 
     let multiple =
       t
-        "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add(3) |> (fun v -> v + 4)"
+        "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.add(3) |> (fun v -> v + 4)"
         E.Pipes.multiple
         (11,
          [ RT.CreateLambda(
@@ -854,7 +854,7 @@ module Expr =
              6,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                 { name = RT.FQFnName.fqBuiltin "add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
@@ -1215,7 +1215,7 @@ module Expr =
     module Add =
       let unapplied =
         t
-          "fn a b -> Builtin.int64Add a b"
+          "fn a b -> Builtin.add a b"
           E.Lambdas.Add.unapplied
           (1,
            [ RT.CreateLambda(
@@ -1231,7 +1231,7 @@ module Expr =
                            2,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1246,7 +1246,7 @@ module Expr =
 
       let partiallyApplied =
         t
-          "(fn a b -> Builtin.int64Add a b) 1"
+          "(fn a b -> Builtin.add a b) 1"
           E.Lambdas.Add.partiallyApplied
           (3,
            [ RT.LoadVal(0, RT.DInt64 1L)
@@ -1263,7 +1263,7 @@ module Expr =
                            2,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1280,7 +1280,7 @@ module Expr =
 
       let fullyApplied =
         t
-          "(fn a b -> Builtin.int64Add a b) 1 2"
+          "(fn a b -> Builtin.add a b) 1 2"
           E.Lambdas.Add.fullyApplied
           (4,
            [ RT.LoadVal(0, RT.DInt64 1L)
@@ -1298,7 +1298,7 @@ module Expr =
                            2,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1319,7 +1319,7 @@ module Expr =
     module AddTuple =
       let unapplied =
         t
-          "fn (a, b) -> Builtin.int64Add a b"
+          "fn (a, b) -> Builtin.add a b"
           E.Lambdas.AddTuple.unapplied
           (1,
            [ RT.CreateLambda(
@@ -1338,7 +1338,7 @@ module Expr =
                            2,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1353,7 +1353,7 @@ module Expr =
 
       let applied =
         t
-          "(fn (a, b) -> Builtin.int64Add a b) (1, 2)"
+          "(fn (a, b) -> Builtin.add a b) (1, 2)"
           E.Lambdas.AddTuple.applied
           (5,
            [ RT.LoadVal(1, RT.DInt64 1L)
@@ -1375,7 +1375,7 @@ module Expr =
                            2,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1423,7 +1423,7 @@ module Expr =
                            3,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1436,7 +1436,7 @@ module Expr =
                            5,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1473,7 +1473,7 @@ module Expr =
                            3,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1486,7 +1486,7 @@ module Expr =
                            5,
                            RT.DApplicable(
                              RT.AppNamedFn
-                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
@@ -1519,14 +1519,14 @@ module Expr =
     module Builtin =
       let unapplied =
         t
-          "Builtin.int64Add"
+          "Builtin.add"
           E.Fns.Builtin.unapplied
           (1,
            [ RT.LoadVal(
                0,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
@@ -1538,7 +1538,7 @@ module Expr =
 
       let partiallyApplied =
         t
-          "Builtin.int64Add(1)"
+          "Builtin.add(1)"
           E.Fns.Builtin.partiallyApplied
           (3,
            [ RT.LoadVal(0, RT.DInt64 1L)
@@ -1546,7 +1546,7 @@ module Expr =
                1,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
@@ -1559,7 +1559,7 @@ module Expr =
 
       let fullyApplied =
         t
-          "Builtin.int64Add(1, 2)"
+          "Builtin.add(1, 2)"
           E.Fns.Builtin.fullyApplied
           (4,
            [ RT.LoadVal(0, RT.DInt64 1L)
@@ -1568,7 +1568,7 @@ module Expr =
                2,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
@@ -1581,7 +1581,7 @@ module Expr =
 
       let twoStepApplication =
         t
-          "(Builtin.int64Add(1))(2)"
+          "(Builtin.add(1))(2)"
           E.Fns.Builtin.twoStepApplication
           (5,
            [ RT.LoadVal(0, RT.DInt64 2L)
@@ -1590,7 +1590,7 @@ module Expr =
                2,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None

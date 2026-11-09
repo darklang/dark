@@ -5,7 +5,7 @@ module Darklang.Cli.Builtins
 //
 // The prefix is what `extractGroup` reads off a builtin's name: the longest prefix here that ends
 // where a word does, so `bigIntAdd` is `bigInt`, and otherwise the characters before the first
-// capital, so `int64Add` is `int64` and `httpClientRequest` is `http`. A prefix with no
+// capital, so `int64ToString` is `int64` and `httpClientRequest` is `http`. A prefix with no
 // entry here is shown uppercased and sorted after every named group, which is how 49 of the
 // 69 live prefixes were being displayed -- including `pm` (57 builtins) and the whole integer
 // family (302 between them). `tests/cli/builtinGroups.dark` fails when a prefix carrying three

@@ -10,6 +10,7 @@ module ValueType = LibExecution.ValueType
 module RTE = RuntimeError
 module Interpreter = LibExecution.Interpreter
 module Pending = LibExecution.Pending
+module IntOps = LibExecution.IntOps
 
 
 // Builtin types cannot express “both operands have the same numeric type,” so
@@ -61,27 +62,19 @@ let private decimalChecked (vm : VMState) (op : unit -> decimal) : Ply<Dval> =
   with :? System.OverflowException ->
     RTE.DecimalOutOfRange |> raiseRTE vm.threadID
 
-// Fixed-width integer arithmetic wraps around on overflow (e.g.
-// `127y + 1y == -128y`), so `+`, `-`, `*` use F#'s unchecked operators and
-// `negate`/`divide` let `MinValue` wrap to itself rather than raising.
-
-/// `number ^ exp` wrapped into a signed `bits`-wide integer.
-/// Uses modular exponentiation so huge exponents stay cheap.
-///
-/// Not private: `Int128`/`UInt128` need the same arithmetic, and their builtins live in their
-/// own files because this one's match has no 128-bit arms.
-let powSigned (bits : int) (number : bigint) (exp : bigint) : bigint =
-  let m = System.Numerics.BigInteger.Pow(bigint 2, bits)
-  let r = System.Numerics.BigInteger.ModPow(number, exp, m)
-  let r = ((r % m) + m) % m
-  if r >= m / bigint 2 then r - m else r
-
-/// `number ^ exp` wrapped into an unsigned `bits`-wide integer. Public for the same reason
-/// as `powSigned`.
-let powUnsigned (bits : int) (number : bigint) (exp : bigint) : bigint =
-  let m = System.Numerics.BigInteger.Pow(bigint 2, bits)
-  let r = System.Numerics.BigInteger.ModPow(number, exp, m)
-  ((r % m) + m) % m
+/// A polymorphic operator: `IntOps` for one or two integers of one fixed-width type, which is
+/// where their semantics live, and <param rest> for every other type.
+let private withInts (op : int) (rest : BuiltInFnSig) : BuiltInFnSig =
+  fun (struct (_, vm, _, args) as call) ->
+    let outcome =
+      match args with
+      | [| a; b |] -> IntOps.binary op a b
+      | [| a |] -> IntOps.unary op a
+      | _ -> IntOps.NotInts
+    match outcome with
+    | IntOps.Value v -> Ply v
+    | IntOps.Raises e -> e |> RTE.BigInt |> raiseRTE vm.threadID
+    | IntOps.NotInts -> rest call
 
 
 /// `unwrap` of a value with no read in flight at its top.
@@ -159,30 +152,20 @@ let fns () : List<BuiltInFn> =
         + "integer overflow wraps around, the arbitrary-precision BigInt grows instead of "
         + "overflowing, and float arithmetic follows IEEE (overflow to infinity)."
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a + b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a + b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a + b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a + b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a + b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a + b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a + b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a + b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a + b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a + b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.dbigint (DarkBigInt.add a b))
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a + b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a + b))
-        | _, vm, _, [| DDecimal a; DDecimal b |] ->
-          decimalChecked vm (fun () -> a + b)
-        // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
-        // lowers to while the package refs are not generated yet, which is how the stdlib's
-        // own string concatenation loads on a fresh tree.
-        | _, _, _, [| DString a; DString b |] ->
-          Ply(DString(String.normalize (a + b)))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.add (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.dbigint (DarkBigInt.add a b))
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a + b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a + b))
+          | _, vm, _, [| DDecimal a; DDecimal b |] ->
+            decimalChecked vm (fun () -> a + b)
+          // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
+          // lowers to while the package refs are not generated yet, which is how the stdlib's
+          // own string concatenation loads on a fresh tree.
+          | _, _, _, [| DString a; DString b |] ->
+            Ply(DString(String.normalize (a + b)))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -197,25 +180,15 @@ let fns () : List<BuiltInFn> =
         + "overflow wraps around; the arbitrary-precision BigInt grows instead of "
         + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a - b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a - b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a - b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a - b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a - b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a - b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a - b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a - b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a - b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a - b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.dbigint (DarkBigInt.subtract a b))
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a - b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a - b))
-        | _, vm, _, [| DDecimal a; DDecimal b |] ->
-          decimalChecked vm (fun () -> a - b)
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.subtract (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.dbigint (DarkBigInt.subtract a b))
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a - b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a - b))
+          | _, vm, _, [| DDecimal a; DDecimal b |] ->
+            decimalChecked vm (fun () -> a - b)
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -230,25 +203,15 @@ let fns () : List<BuiltInFn> =
         + "overflow wraps around; the arbitrary-precision BigInt grows instead of "
         + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a * b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a * b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a * b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a * b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a * b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a * b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a * b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a * b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a * b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a * b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.dbigint (DarkBigInt.multiply a b))
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a * b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a * b))
-        | _, vm, _, [| DDecimal a; DDecimal b |] ->
-          decimalChecked vm (fun () -> a * b)
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.multiply (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.dbigint (DarkBigInt.multiply a b))
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a * b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a * b))
+          | _, vm, _, [| DDecimal a; DDecimal b |] ->
+            decimalChecked vm (fun () -> a * b)
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -268,59 +231,19 @@ let fns () : List<BuiltInFn> =
         + "Signed integer overflow (e.g. {{Int64.MinValue / -1}}) wraps around to "
         + "{{MinValue}}."
       fn =
-        // Unsigned division can't overflow. Signed division overflows only on
-        // `MinValue / -1`, whose wrapped result is `MinValue` itself. For the
-        // narrow Int8/Int16 the division happens in Int32 space and narrows
-        // back, wrapping naturally; for Int32/Int64/Int128 the hardware/runtime
-        // would throw, so we return `MinValue` explicitly.
-        (function
-        | _, vm, _, [| DInt8 a; DInt8 b |] ->
-          if b = 0y then divideByZero vm else Ply(DInt8(a / b))
-        | _, vm, _, [| DUInt8 a; DUInt8 b |] ->
-          if b = 0uy then divideByZero vm else Ply(DUInt8(a / b))
-        | _, vm, _, [| DInt16 a; DInt16 b |] ->
-          if b = 0s then divideByZero vm else Ply(DInt16(a / b))
-        | _, vm, _, [| DUInt16 a; DUInt16 b |] ->
-          if b = 0us then divideByZero vm else Ply(DUInt16(a / b))
-        | _, vm, _, [| DInt32 a; DInt32 b |] ->
-          if b = 0l then
-            divideByZero vm
-          elif a = System.Int32.MinValue && b = -1l then
-            Ply(DInt32 System.Int32.MinValue)
-          else
-            Ply(DInt32(a / b))
-        | _, vm, _, [| DUInt32 a; DUInt32 b |] ->
-          if b = 0ul then divideByZero vm else Ply(DUInt32(a / b))
-        | _, vm, _, [| DInt64 a; DInt64 b |] ->
-          if b = 0L then
-            divideByZero vm
-          elif a = System.Int64.MinValue && b = -1L then
-            Ply(DInt64 System.Int64.MinValue)
-          else
-            Ply(Dval.dint64 (a / b))
-        | _, vm, _, [| DUInt64 a; DUInt64 b |] ->
-          if b = 0UL then divideByZero vm else Ply(DUInt64(a / b))
-        | _, vm, _, [| DInt128 a; DInt128 b |] ->
-          if b = System.Int128.Zero then
-            divideByZero vm
-          elif a = System.Int128.MinValue && b = System.Int128.NegativeOne then
-            Ply(DInt128 System.Int128.MinValue)
-          else
-            Ply(DInt128(a / b))
-        | _, vm, _, [| DUInt128 a; DUInt128 b |] ->
-          if b = System.UInt128.Zero then divideByZero vm else Ply(DUInt128(a / b))
-        | _, vm, _, [| DBigInt a; DBigInt b |] ->
-          if DarkBigInt.isZero b then
-            divideByZero vm
-          else
-            Ply(Dval.dbigint (DarkBigInt.divide a b))
-        // Float division by zero follows IEEE semantics (Infinity/NaN), as before
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a / b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a / b))
-        | _, vm, _, [| DDecimal a; DDecimal b |] ->
-          if b = 0m then divideByZero vm else decimalChecked vm (fun () -> a / b)
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.divide (function
+          | _, vm, _, [| DBigInt a; DBigInt b |] ->
+            if DarkBigInt.isZero b then
+              divideByZero vm
+            else
+              Ply(Dval.dbigint (DarkBigInt.divide a b))
+          // Float division by zero follows IEEE semantics (Infinity/NaN), as before
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a / b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(DFloat32(a / b))
+          | _, vm, _, [| DDecimal a; DDecimal b |] ->
+            if b = 0m then divideByZero vm else decimalChecked vm (fun () -> a / b)
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -338,83 +261,35 @@ let fns () : List<BuiltInFn> =
         "Wraps <param a> around so that {{0 <= res < b}}, for two integers of the same "
         + "type or two decimals. The modulus <param b> must be greater than 0."
       fn =
-        (function
-        | _, vm, _, [| DInt8 v; DInt8 m |] ->
-          if m = 0y then
-            zeroModulus vm
-          elif m < 0y then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt8(if r < 0y then m + r else r))
-        | _, vm, _, [| DUInt8 v; DUInt8 m |] ->
-          if m = 0uy then zeroModulus vm else Ply(DUInt8(v % m))
-        | _, vm, _, [| DInt16 v; DInt16 m |] ->
-          if m = 0s then
-            zeroModulus vm
-          elif m < 0s then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt16(if r < 0s then m + r else r))
-        | _, vm, _, [| DUInt16 v; DUInt16 m |] ->
-          if m = 0us then zeroModulus vm else Ply(DUInt16(v % m))
-        | _, vm, _, [| DInt32 v; DInt32 m |] ->
-          if m = 0l then
-            zeroModulus vm
-          elif m < 0l then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt32(if r < 0l then m + r else r))
-        | _, vm, _, [| DUInt32 v; DUInt32 m |] ->
-          if m = 0ul then zeroModulus vm else Ply(DUInt32(v % m))
-        | _, vm, _, [| DInt64 v; DInt64 m |] ->
-          if m = 0L then
-            zeroModulus vm
-          elif m < 0L then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(Dval.dint64 (if r < 0L then m + r else r))
-        | _, vm, _, [| DUInt64 v; DUInt64 m |] ->
-          if m = 0UL then zeroModulus vm else Ply(DUInt64(v % m))
-        | _, vm, _, [| DInt128 v; DInt128 m |] ->
-          if m = System.Int128.Zero then
-            zeroModulus vm
-          elif m < System.Int128.Zero then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DInt128(if r < System.Int128.Zero then m + r else r))
-        | _, vm, _, [| DUInt128 v; DUInt128 m |] ->
-          if m = System.UInt128.Zero then zeroModulus vm else Ply(DUInt128(v % m))
-        | _, vm, _, [| DBigInt v; DBigInt m |] ->
-          let m = DarkBigInt.toBigInt m
-          if m = System.Numerics.BigInteger.Zero then
-            zeroModulus vm
-          elif m < System.Numerics.BigInteger.Zero then
-            negativeModulus vm
-          else
-            let r = DarkBigInt.toBigInt v % m
-            Ply(
-              Dval.bigInt (if r < System.Numerics.BigInteger.Zero then m + r else r)
-            )
-        | _, vm, _, [| DDecimal v; DDecimal m |] ->
-          if m = 0m then
-            zeroModulus vm
-          elif m < 0m then
-            negativeModulus vm
-          else
-            // exact: a decimal remainder is never rounded, and |r| < m, so m + r fits
-            let r = v % m
-            Ply(DDecimal(if r < 0m then m + r else r))
-        // No Float arm, on purpose: a float `%` has to choose between flooring and
-        // truncating, and what a zero divisor does when our own Float division returns
-        // Infinity. Swift and Elm have no float modulo either. A Float pair takes the type
-        // error below, which through the operator reads as a missing `Modulo` impl.
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.modulo (function
+          | _, vm, _, [| DBigInt v; DBigInt m |] ->
+            let m = DarkBigInt.toBigInt m
+            if m = System.Numerics.BigInteger.Zero then
+              zeroModulus vm
+            elif m < System.Numerics.BigInteger.Zero then
+              negativeModulus vm
+            else
+              let r = DarkBigInt.toBigInt v % m
+              Ply(
+                Dval.bigInt (
+                  if r < System.Numerics.BigInteger.Zero then m + r else r
+                )
+              )
+          | _, vm, _, [| DDecimal v; DDecimal m |] ->
+            if m = 0m then
+              zeroModulus vm
+            elif m < 0m then
+              negativeModulus vm
+            else
+              // exact: a decimal remainder is never rounded, and |r| < m, so m + r fits
+              let r = v % m
+              Ply(DDecimal(if r < 0m then m + r else r))
+          // No Float arm, on purpose: a float `%` has to choose between flooring and
+          // truncating, and what a zero divisor does when our own Float division returns
+          // Infinity. Swift and Elm have no float modulo either. A Float pair takes the type
+          // error below, which through the operator reads as a missing `Modulo` impl.
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -426,71 +301,40 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description =
         "Raises a number to the power of another number of the same type. "
-        + "Supported for every integer type and Float (not Int128/UInt128). "
+        + "Supported for every integer type and Float. "
         + "A negative integer exponent raises an error. Fixed-width integer "
         + "overflow wraps around; the arbitrary-precision BigInt grows instead."
       fn =
-        // Fixed-width powers wrap, so they use modular exponentiation
-        // (`powSigned`/`powUnsigned`) — this stays cheap even for huge
-        // exponents instead of building an enormous bigint.
-        (function
-        | _, vm, _, [| DInt8 number; DInt8 exp |] ->
-          if exp < 0y then
-            negativeExponent vm
-          else
-            Ply(DInt8(int8 (powSigned 8 (bigint number) (bigint exp))))
-        | _, _, _, [| DUInt8 number; DUInt8 exp |] ->
-          Ply(DUInt8(uint8 (powUnsigned 8 (bigint number) (bigint exp))))
-        | _, vm, _, [| DInt16 number; DInt16 exp |] ->
-          if exp < 0s then
-            negativeExponent vm
-          else
-            Ply(DInt16(int16 (powSigned 16 (bigint number) (bigint exp))))
-        | _, _, _, [| DUInt16 number; DUInt16 exp |] ->
-          Ply(DUInt16(uint16 (powUnsigned 16 (bigint number) (bigint exp))))
-        | _, vm, _, [| DInt32 number; DInt32 exp |] ->
-          if exp < 0l then
-            negativeExponent vm
-          else
-            Ply(DInt32(int32 (powSigned 32 (bigint number) (bigint exp))))
-        | _, _, _, [| DUInt32 number; DUInt32 exp |] ->
-          Ply(DUInt32(uint32 (powUnsigned 32 (bigint number) (bigint exp))))
-        | _, _, _, [| DUInt64 number; DUInt64 exp |] ->
-          Ply(DUInt64(uint64 (powUnsigned 64 (bigint number) (bigint exp))))
-        | _, vm, _, [| DInt64 number; DInt64 exp |] ->
-          if exp < 0L then
-            negativeExponent vm
-          else
-            Ply(Dval.dint64 (int64 (powSigned 64 (bigint number) (bigint exp))))
-        | _, vm, _, [| DBigInt number; DBigInt exp |] ->
-          let number = DarkBigInt.toBigInt number
-          let exp = DarkBigInt.toBigInt exp
-          if exp < System.Numerics.BigInteger.Zero then
-            negativeExponent vm
-          elif exp > bigint System.Int32.MaxValue then
-            // `**` needs an Int32 exponent; only trivial bases are representable.
-            if number = System.Numerics.BigInteger.Zero then
-              Ply(Dval.bigInt System.Numerics.BigInteger.Zero)
-            elif number = System.Numerics.BigInteger.One then
-              Ply(Dval.bigInt System.Numerics.BigInteger.One)
-            elif number = System.Numerics.BigInteger.MinusOne then
-              Ply(
-                Dval.bigInt (
-                  if exp % (bigint 2) = System.Numerics.BigInteger.Zero then
-                    System.Numerics.BigInteger.One
-                  else
-                    System.Numerics.BigInteger.MinusOne
+        withInts IntOps.power (function
+          | _, vm, _, [| DBigInt number; DBigInt exp |] ->
+            let number = DarkBigInt.toBigInt number
+            let exp = DarkBigInt.toBigInt exp
+            if exp < System.Numerics.BigInteger.Zero then
+              negativeExponent vm
+            elif exp > bigint System.Int32.MaxValue then
+              // `**` needs an Int32 exponent; only trivial bases are representable.
+              if number = System.Numerics.BigInteger.Zero then
+                Ply(Dval.bigInt System.Numerics.BigInteger.Zero)
+              elif number = System.Numerics.BigInteger.One then
+                Ply(Dval.bigInt System.Numerics.BigInteger.One)
+              elif number = System.Numerics.BigInteger.MinusOne then
+                Ply(
+                  Dval.bigInt (
+                    if exp % (bigint 2) = System.Numerics.BigInteger.Zero then
+                      System.Numerics.BigInteger.One
+                    else
+                      System.Numerics.BigInteger.MinusOne
+                  )
                 )
-              )
+              else
+                outOfRange vm
             else
-              outOfRange vm
-          else
-            Ply(Dval.bigInt (number ** (int exp)))
-        | _, _, _, [| DFloat number; DFloat exp |] -> Ply(DFloat(number ** exp))
-        | _, _, _, [| DFloat32 number; DFloat32 exp |] ->
-          Ply(DFloat32(float32 (float number ** float exp)))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+              Ply(Dval.bigInt (number ** (int exp)))
+          | _, _, _, [| DFloat number; DFloat exp |] -> Ply(DFloat(number ** exp))
+          | _, _, _, [| DFloat32 number; DFloat32 exp |] ->
+            Ply(DFloat32(float32 (float number ** float exp)))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -504,18 +348,13 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
-        (function
-        | _, _, _, [| DInt8 a |] -> Ply(DInt8(-a))
-        | _, _, _, [| DInt16 a |] -> Ply(DInt16(-a))
-        | _, _, _, [| DInt32 a |] -> Ply(DInt32(-a))
-        | _, _, _, [| DInt64 a |] -> Ply(Dval.dint64 (-a))
-        | _, _, _, [| DInt128 a |] -> Ply(DInt128(-a))
-        | _, _, _, [| DBigInt a |] -> Ply(Dval.dbigint (DarkBigInt.negate a))
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(-a))
-        | _, _, _, [| DFloat32 a |] -> Ply(DFloat32(-a))
-        | _, _, _, [| DDecimal a |] -> Ply(DDecimal(-a))
-        | _, vm, _, [| a |] -> numericTypeError vm a a
-        | _ -> incorrectArgs ())
+        withInts IntOps.negate (function
+          | _, _, _, [| DBigInt a |] -> Ply(Dval.dbigint (DarkBigInt.negate a))
+          | _, _, _, [| DFloat a |] -> Ply(DFloat(-a))
+          | _, _, _, [| DFloat32 a |] -> Ply(DFloat32(-a))
+          | _, _, _, [| DDecimal a |] -> Ply(DDecimal(-a))
+          | _, vm, _, [| a |] -> numericTypeError vm a a
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -526,21 +365,11 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description = "Bitwise AND of two integers of the same type"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a &&& b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a &&& b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a &&& b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a &&& b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a &&& b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a &&& b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a &&& b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a &&& b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a &&& b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a &&& b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.bigInt (DarkBigInt.toBigInt a &&& DarkBigInt.toBigInt b))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.bitwiseAnd (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.bigInt (DarkBigInt.toBigInt a &&& DarkBigInt.toBigInt b))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -552,21 +381,11 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description = "Bitwise OR of two integers of the same type"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a ||| b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a ||| b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a ||| b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a ||| b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a ||| b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a ||| b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a ||| b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a ||| b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a ||| b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a ||| b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.bigInt (DarkBigInt.toBigInt a ||| DarkBigInt.toBigInt b))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.bitwiseOr (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.bigInt (DarkBigInt.toBigInt a ||| DarkBigInt.toBigInt b))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -578,21 +397,11 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description = "Bitwise XOR of two integers of the same type"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a ^^^ b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a ^^^ b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a ^^^ b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a ^^^ b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a ^^^ b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a ^^^ b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a ^^^ b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a ^^^ b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a ^^^ b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a ^^^ b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.bigInt (DarkBigInt.toBigInt a ^^^ DarkBigInt.toBigInt b))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.bitwiseXor (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.bigInt (DarkBigInt.toBigInt a ^^^ DarkBigInt.toBigInt b))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -606,25 +415,14 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description = "Bitwise NOT of an integer, {{~a}}"
       fn =
-        (function
-        | _, _, _, [| DInt8 a |] -> Ply(DInt8(~~~a))
-        | _, _, _, [| DUInt8 a |] -> Ply(DUInt8(~~~a))
-        | _, _, _, [| DInt16 a |] -> Ply(DInt16(~~~a))
-        | _, _, _, [| DUInt16 a |] -> Ply(DUInt16(~~~a))
-        | _, _, _, [| DInt32 a |] -> Ply(DInt32(~~~a))
-        | _, _, _, [| DUInt32 a |] -> Ply(DUInt32(~~~a))
-        | _, _, _, [| DInt64 a |] -> Ply(Dval.dint64 (~~~a))
-        | _, _, _, [| DUInt64 a |] -> Ply(DUInt64(~~~a))
-        // `~~~` isn't defined on the 128-bit types; call the op directly.
-        | _, _, _, [| DInt128 a |] -> Ply(DInt128(System.Int128.op_OnesComplement a))
-        | _, _, _, [| DUInt128 a |] ->
-          Ply(DUInt128(System.UInt128.op_OnesComplement a))
-        | _, _, _, [| DBigInt a |] ->
-          Ply(
-            Dval.bigInt (-(DarkBigInt.toBigInt a) - System.Numerics.BigInteger.One)
-          )
-        | _, vm, _, [| a |] -> numericTypeError vm a a
-        | _ -> incorrectArgs ())
+        withInts IntOps.bitwiseNot (function
+          // `~~~` isn't defined on the 128-bit types; call the op directly.
+          | _, _, _, [| DBigInt a |] ->
+            Ply(
+              Dval.bigInt (-(DarkBigInt.toBigInt a) - System.Numerics.BigInteger.One)
+            )
+          | _, vm, _, [| a |] -> numericTypeError vm a a
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -636,25 +434,15 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description = "Bitwise left shift of an integer by <param b> bits"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a <<< int b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a <<< int b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a <<< int b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a <<< int b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a <<< int b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a <<< int b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a <<< int b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a <<< int b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a <<< int b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a <<< int b))
-        | _, vm, _, [| DBigInt a; DBigInt b |] ->
-          let shift = bigIntToInt32 vm b
-          if shift < 0 then
-            outOfRange vm
-          else
-            Ply(Dval.bigInt (DarkBigInt.toBigInt a <<< shift))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.shiftLeft (function
+          | _, vm, _, [| DBigInt a; DBigInt b |] ->
+            let shift = bigIntToInt32 vm b
+            if shift < 0 then
+              outOfRange vm
+            else
+              Ply(Dval.bigInt (DarkBigInt.toBigInt a <<< shift))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -666,25 +454,15 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description = "Bitwise right shift of an integer by <param b> bits"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a >>> int b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a >>> int b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a >>> int b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a >>> int b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a >>> int b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a >>> int b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a >>> int b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a >>> int b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a >>> int b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a >>> int b))
-        | _, vm, _, [| DBigInt a; DBigInt b |] ->
-          let shift = bigIntToInt32 vm b
-          if shift < 0 then
-            outOfRange vm
-          else
-            Ply(Dval.bigInt (DarkBigInt.toBigInt a >>> shift))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.shiftRight (function
+          | _, vm, _, [| DBigInt a; DBigInt b |] ->
+            let shift = bigIntToInt32 vm b
+            if shift < 0 then
+              outOfRange vm
+            else
+              Ply(Dval.bigInt (DarkBigInt.toBigInt a >>> shift))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -696,24 +474,14 @@ let fns () : List<BuiltInFn> =
       returnType = TBool
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.bool (DarkBigInt.compare a b > 0))
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a > b))
-        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a > b))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.greaterThan (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.bool (DarkBigInt.compare a b > 0))
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a > b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a > b))
+          | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a > b))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -726,24 +494,14 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.bool (DarkBigInt.compare a b >= 0))
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a >= b))
-        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a >= b))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.greaterThanOrEqualTo (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.bool (DarkBigInt.compare a b >= 0))
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a >= b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a >= b))
+          | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a >= b))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -755,24 +513,14 @@ let fns () : List<BuiltInFn> =
       returnType = TBool
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.bool (DarkBigInt.compare a b < 0))
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a < b))
-        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a < b))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.lessThan (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.bool (DarkBigInt.compare a b < 0))
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a < b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a < b))
+          | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a < b))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -785,24 +533,14 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
-        (function
-        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DBigInt a; DBigInt b |] ->
-          Ply(Dval.bool (DarkBigInt.compare a b <= 0))
-        | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a <= b))
-        | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a <= b))
-        | _, vm, _, [| a; b |] -> numericTypeError vm a b
-        | _ -> incorrectArgs ())
+        withInts IntOps.lessThanOrEqualTo (function
+          | _, _, _, [| DBigInt a; DBigInt b |] ->
+            Ply(Dval.bool (DarkBigInt.compare a b <= 0))
+          | _, _, _, [| DFloat a; DFloat b |] -> Ply(Dval.bool (a <= b))
+          | _, _, _, [| DFloat32 a; DFloat32 b |] -> Ply(Dval.bool (a <= b))
+          | _, _, _, [| DDecimal a; DDecimal b |] -> Ply(Dval.bool (a <= b))
+          | _, vm, _, [| a; b |] -> numericTypeError vm a b
+          | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }

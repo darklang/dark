@@ -55,7 +55,7 @@ let rec private foldNameWords (name : string) (i : int) (h : uint64) : uint64 =
 /// operator table, how its arguments are forced, the forwarder cache), and the generated hash code
 /// ran `String.GetHashCode`, which is Marvin, over the name each time. Names are short, so one
 /// multiply per four characters is enough. Unlike `contentHashCode` it reads every character:
-/// `uint8BitwiseAnd` and `uint16BitwiseAnd` differ only in the middle.
+/// `uint8ToString` and `uint16ToString` differ only in the middle.
 let builtinNameHashCode (name : string) (version : int) : int =
   if isNull name then
     version

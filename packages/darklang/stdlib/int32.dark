@@ -11,27 +11,27 @@ impl Modulo for Int32 =
   /// The modulus <param b> must be greater than 0
   /// Use <fn Int32.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: Int32, b: Int32): Int32 = Builtin.int32Mod(a, b)
+  let modulo(a: Int32, b: Int32): Int32 = Builtin.modulo(a, b)
 
 
 impl Add for Int32 =
   /// Adds two integers together (wraps on overflow)
-  let add(a: Int32, b: Int32): Int32 = Builtin.int32Add(a, b)
+  let add(a: Int32, b: Int32): Int32 = Builtin.add(a, b)
 
 
 impl Subtract for Int32 =
   /// Subtracts two integers (wraps on overflow)
-  let subtract(a: Int32, b: Int32): Int32 = Builtin.int32Subtract(a, b)
+  let subtract(a: Int32, b: Int32): Int32 = Builtin.subtract(a, b)
 
 
 impl Multiply for Int32 =
   /// Multiplies two integers (wraps on overflow)
-  let multiply(a: Int32, b: Int32): Int32 = Builtin.int32Multiply(a, b)
+  let multiply(a: Int32, b: Int32): Int32 = Builtin.multiply(a, b)
 
 
 impl Divide for Int32 =
   /// Divides two integers
-  let divide(a: Int32, b: Int32): Int32 = Builtin.int32Divide(a, b)
+  let divide(a: Int32, b: Int32): Int32 = Builtin.divide(a, b)
 
 
 impl Power for Int32 =
@@ -39,25 +39,25 @@ impl Power for Int32 =
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
   let power(``base``: Int32, exponent: Int32): Int32 =
-    Builtin.int32Power(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Negate for Int32 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate(a: Int32): Int32 = Builtin.int32Negate(a)
+  let negate(a: Int32): Int32 = Builtin.negate(a)
 
 
 impl Compare for Int32 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: Int32, b: Int32): Bool = Builtin.int32LessThan(a, b)
+  let lessThan(a: Int32, b: Int32): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Int32, b: Int32): Bool =
-    Builtin.int32LessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: Int32, b: Int32): Bool = Builtin.int32GreaterThan(a, b)
+  let greaterThan(a: Int32, b: Int32): Bool = Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Int32, b: Int32): Bool =
-    Builtin.int32GreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
@@ -132,32 +132,32 @@ let fromUInt128(i: UInt128): Stdlib.Option.Option<Int32> =
 
 impl BitwiseAnd for Int32 =
   /// Bitwise AND on two <type Int32> values
-  let bitwiseAnd(a: Int32, b: Int32): Int32 = Builtin.int32BitwiseAnd(a, b)
+  let bitwiseAnd(a: Int32, b: Int32): Int32 = Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int32 =
   /// Bitwise OR on two <type Int32> values
-  let bitwiseOr(a: Int32, b: Int32): Int32 = Builtin.int32BitwiseOr(a, b)
+  let bitwiseOr(a: Int32, b: Int32): Int32 = Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for Int32 =
   /// Bitwise XOR on two <type Int32> values
-  let bitwiseXor(a: Int32, b: Int32): Int32 = Builtin.int32BitwiseXor(a, b)
+  let bitwiseXor(a: Int32, b: Int32): Int32 = Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for Int32 =
   /// Bitwise NOT on an <type Int32> value
-  let bitwiseNot(a: Int32): Int32 = Builtin.int32BitwiseNot(a)
+  let bitwiseNot(a: Int32): Int32 = Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for Int32 =
   /// Bitwise left shift of an <type Int32> value
-  let shiftLeft(a: Int32, b: Int32): Int32 = Builtin.int32ShiftLeft(a, b)
+  let shiftLeft(a: Int32, b: Int32): Int32 = Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for Int32 =
   /// Bitwise right shift of an <type Int32> value
-  let shiftRight(a: Int32, b: Int32): Int32 = Builtin.int32ShiftRight(a, b)
+  let shiftRight(a: Int32, b: Int32): Int32 = Builtin.shiftRight(a, b)
 
 impl ToString for Int32 =
   /// Stringify <param int>

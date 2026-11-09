@@ -87,7 +87,7 @@ module Expressions =
 
   // let onePlusTwo =
   //   eApply
-  //     (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0), [], []))
+  //     (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "add" 0), [], []))
   //     []
   //     [ eInt64 1; eInt64 2 ]
 
@@ -238,7 +238,7 @@ module Expressions =
                   [ eApply
                       (PT.EFnName(
                         gid (),
-                        NR.ok (PT.FQFnName.fqBuiltIn "int64Mod" 0),
+                        NR.ok (PT.FQFnName.fqBuiltIn "modulo" 0),
                         [],
                         []
                       ))
@@ -440,11 +440,11 @@ module Expressions =
         (eInt64 1)
         [ pInfix pipeID (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 2) ]
 
-    /// `1 |> Builtin.int64Add 2`
+    /// `1 |> Builtin.add 2`
     let fnCall =
       ePipe
         (eInt64 1)
-        [ pFnCall pipeID (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 2 ] ]
+        [ pFnCall pipeID (PT.FQFnName.fqBuiltIn "add" 0) [] [ eInt64 2 ] ]
 
     //let enum = ePipe (eInt64 1) [ pEnum (PT.FQEnumName.fqPackage (System.Guid.NewGuid())) "variant" [] ]
 
@@ -461,7 +461,7 @@ module Expressions =
 
     /// ```fsharp
     /// let incr = fun x -> x + 1
-    /// 2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4
+    /// 2 |> incr |> fun x -> x * 2 |> Builtin.add 3 |> (+) 4
     /// ```
     let multiple =
       eLet
@@ -480,7 +480,7 @@ module Expressions =
                 (PT.Infix.InfixFnCall PT.ArithmeticMultiply)
                 (eVar "x")
                 (eInt64 2))
-            pFnCall pipeID (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 3 ]
+            pFnCall pipeID (PT.FQFnName.fqBuiltIn "add" 0) [] [ eInt64 3 ]
             pInfix pipeID (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 4) ])
 
 
@@ -559,7 +559,7 @@ module Expressions =
         eLambda
           id
           [ lpVar "a"; lpVar "b" ]
-          (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ])
+          (eApply (eBuiltinFn "add" 0) [] [ eVar "a"; eVar "b" ])
       let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
       let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
 
@@ -569,7 +569,7 @@ module Expressions =
         eLambda
           id
           [ lpTuple (lpVar "a") (lpVar "b") [] ]
-          (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ])
+          (eApply (eBuiltinFn "add" 0) [] [ eVar "a"; eVar "b" ])
       let applied = eApply unapplied [] [ eTuple (eInt64 1) (eInt64 2) [] ]
 
     ///```fsharp
@@ -591,10 +591,10 @@ module Expressions =
               id
               [ lpVar "a" ]
               (eApply
-                (eBuiltinFn "int64Add" 0)
+                (eBuiltinFn "add" 0)
                 []
                 [ (eVar "a")
-                  (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "x"; eVar "y" ]) ])))
+                  (eApply (eBuiltinFn "add" 0) [] [ eVar "x"; eVar "y" ]) ])))
 
       let applied =
         eLet
@@ -617,13 +617,13 @@ module Expressions =
           (eLambda
             innerId
             [ lpVar "y" ]
-            (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "x"; eVar "y" ]))
+            (eApply (eBuiltinFn "add" 0) [] [ eVar "x"; eVar "y" ]))
       let fullyApplied = eApply (eApply unapplied [] [ eInt64 3 ]) [] [ eInt64 4 ]
 
 
   module Fns =
     module Builtin =
-      let unapplied = eBuiltinFn "int64Add" 0
+      let unapplied = eBuiltinFn "add" 0
       let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
       let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
       let twoStepApplication = eApply partiallyApplied [] [ eInt64 2 ]
@@ -762,7 +762,7 @@ let pm : PT.PackageManager =
             { name = "a"; typ = PT.TInt64; description = "" }
             [ { name = "b"; typ = PT.TInt64; description = "" } ]
         returnType = PT.TInt64
-        body = eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ]
+        body = eApply (eBuiltinFn "add" 0) [] [ eVar "a"; eVar "b" ]
         description = ""
         permissionCeiling = None
         bounds = [] }
@@ -779,13 +779,13 @@ let pm : PT.PackageManager =
             (eInt64 1)
             (Some(
               eApply
-                (eBuiltinFn "int64Multiply" 0)
+                (eBuiltinFn "multiply" 0)
                 []
                 [ eVar "a"
                   (eApply
                     (ePackageFn Expressions.Fns.Package.Fact.hash)
                     []
-                    [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
+                    [ eApply (eBuiltinFn "subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
 
         description = ""
@@ -803,23 +803,17 @@ let pm : PT.PackageManager =
         returnType = PT.TInt64
         body =
           eIf
-            (eApply
-              (eBuiltinFn "int64LessThanOrEqualTo" 0)
-              []
-              [ eVar "n"; eInt64 0L ])
+            (eApply (eBuiltinFn "lessThanOrEqualTo" 0) [] [ eVar "n"; eInt64 0L ])
             (eInt64 0L)
             (Some(
               eApply
-                (eBuiltinFn "int64Add" 0)
+                (eBuiltinFn "add" 0)
                 []
                 [ eInt64 1L
                   (eApply
                     (ePackageFn Expressions.Fns.Package.Recursion.hash)
                     []
-                    [ eApply
-                        (eBuiltinFn "int64Subtract" 0)
-                        []
-                        [ eVar "n"; eInt64 1L ] ]) ]
+                    [ eApply (eBuiltinFn "subtract" 0) [] [ eVar "n"; eInt64 1L ] ]) ]
             ))
         description = ""
         permissionCeiling = None

@@ -11,22 +11,22 @@ impl Modulo for Int8 =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn Int8.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: Int8, b: Int8): Int8 = Builtin.int8Mod(a, b)
+  let modulo(a: Int8, b: Int8): Int8 = Builtin.modulo(a, b)
 
 
 impl Add for Int8 =
   /// Adds two 8-bit signed integers together (wraps on overflow)
-  let add(a: Int8, b: Int8): Int8 = Builtin.int8Add(a, b)
+  let add(a: Int8, b: Int8): Int8 = Builtin.add(a, b)
 
 
 impl Subtract for Int8 =
   /// Subtracts two 8-bit signed integers (wraps on overflow)
-  let subtract(a: Int8, b: Int8): Int8 = Builtin.int8Subtract(a, b)
+  let subtract(a: Int8, b: Int8): Int8 = Builtin.subtract(a, b)
 
 
 impl Multiply for Int8 =
   /// Multiplies two 8-bit signed integers (wraps on overflow)
-  let multiply(a: Int8, b: Int8): Int8 = Builtin.int8Multiply(a, b)
+  let multiply(a: Int8, b: Int8): Int8 = Builtin.multiply(a, b)
 
 
 impl Power for Int8 =
@@ -34,30 +34,30 @@ impl Power for Int8 =
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
   let power(``base``: Int8, exponent: Int8): Int8 =
-    Builtin.int8Power(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Divide for Int8 =
   /// Divides two 8-bit signed integers
-  let divide(a: Int8, b: Int8): Int8 = Builtin.int8Divide(a, b)
+  let divide(a: Int8, b: Int8): Int8 = Builtin.divide(a, b)
 
 
 impl Negate for Int8 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate(a: Int8): Int8 = Builtin.int8Negate(a)
+  let negate(a: Int8): Int8 = Builtin.negate(a)
 
 
 impl Compare for Int8 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: Int8, b: Int8): Bool = Builtin.int8LessThan(a, b)
+  let lessThan(a: Int8, b: Int8): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Int8, b: Int8): Bool =
-    Builtin.int8LessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: Int8, b: Int8): Bool = Builtin.int8GreaterThan(a, b)
+  let greaterThan(a: Int8, b: Int8): Bool = Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Int8, b: Int8): Bool =
-    Builtin.int8GreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
@@ -132,32 +132,32 @@ let fromUInt128(i: UInt128): Stdlib.Option.Option<Int8> =
 
 impl BitwiseAnd for Int8 =
   /// Bitwise AND on two <type Int8> values
-  let bitwiseAnd(a: Int8, b: Int8): Int8 = Builtin.int8BitwiseAnd(a, b)
+  let bitwiseAnd(a: Int8, b: Int8): Int8 = Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int8 =
   /// Bitwise OR on two <type Int8> values
-  let bitwiseOr(a: Int8, b: Int8): Int8 = Builtin.int8BitwiseOr(a, b)
+  let bitwiseOr(a: Int8, b: Int8): Int8 = Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for Int8 =
   /// Bitwise XOR on two <type Int8> values
-  let bitwiseXor(a: Int8, b: Int8): Int8 = Builtin.int8BitwiseXor(a, b)
+  let bitwiseXor(a: Int8, b: Int8): Int8 = Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for Int8 =
   /// Bitwise NOT on an <type Int8> value
-  let bitwiseNot(a: Int8): Int8 = Builtin.int8BitwiseNot(a)
+  let bitwiseNot(a: Int8): Int8 = Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for Int8 =
   /// Bitwise left shift of an <type Int8> value
-  let shiftLeft(a: Int8, b: Int8): Int8 = Builtin.int8ShiftLeft(a, b)
+  let shiftLeft(a: Int8, b: Int8): Int8 = Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for Int8 =
   /// Bitwise right shift of an <type Int8> value
-  let shiftRight(a: Int8, b: Int8): Int8 = Builtin.int8ShiftRight(a, b)
+  let shiftRight(a: Int8, b: Int8): Int8 = Builtin.shiftRight(a, b)
 
 impl ToString for Int8 =
   /// Stringify <param int8>

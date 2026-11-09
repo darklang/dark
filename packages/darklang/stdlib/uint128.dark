@@ -9,48 +9,48 @@ type ParseError =
 impl Modulo for UInt128 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.
-  let modulo(a: UInt128, b: UInt128): UInt128 = Builtin.uint128Mod(a, b)
+  let modulo(a: UInt128, b: UInt128): UInt128 = Builtin.modulo(a, b)
 
 
 impl Add for UInt128 =
   /// Adds two 128-bit unsigned integers together (wraps on overflow)
-  let add(a: UInt128, b: UInt128): UInt128 = Builtin.uint128Add(a, b)
+  let add(a: UInt128, b: UInt128): UInt128 = Builtin.add(a, b)
 
 
 impl Subtract for UInt128 =
   /// Subtracts two 128-bit unsigned integers (wraps on overflow)
-  let subtract(a: UInt128, b: UInt128): UInt128 = Builtin.uint128Subtract(a, b)
+  let subtract(a: UInt128, b: UInt128): UInt128 = Builtin.subtract(a, b)
 
 
 impl Multiply for UInt128 =
   /// Multiplies two 128-bit unsigned integers (wraps on overflow)
-  let multiply(a: UInt128, b: UInt128): UInt128 = Builtin.uint128Multiply(a, b)
+  let multiply(a: UInt128, b: UInt128): UInt128 = Builtin.multiply(a, b)
 
 
 impl Divide for UInt128 =
   /// Divides two 128-bit unsigned integers
-  let divide(a: UInt128, b: UInt128): UInt128 = Builtin.uint128Divide(a, b)
+  let divide(a: UInt128, b: UInt128): UInt128 = Builtin.divide(a, b)
 
 
 impl Power for UInt128 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   let power(``base``: UInt128, exponent: UInt128): UInt128 =
-    Builtin.uint128Power(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Compare for UInt128 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: UInt128, b: UInt128): Bool = Builtin.uint128LessThan(a, b)
+  let lessThan(a: UInt128, b: UInt128): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: UInt128, b: UInt128): Bool =
-    Builtin.uint128LessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
   let greaterThan(a: UInt128, b: UInt128): Bool =
-    Builtin.uint128GreaterThan(a, b)
+    Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: UInt128, b: UInt128): Bool =
-    Builtin.uint128GreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Get the square root of an <type UInt128>
@@ -96,36 +96,36 @@ let fromUInt64(i: UInt64): UInt128 =
 impl BitwiseAnd for UInt128 =
   /// Bitwise AND on two <type UInt128> values
   let bitwiseAnd(a: UInt128, b: UInt128): UInt128 =
-    Builtin.uint128BitwiseAnd(a, b)
+    Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for UInt128 =
   /// Bitwise OR on two <type UInt128> values
   let bitwiseOr(a: UInt128, b: UInt128): UInt128 =
-    Builtin.uint128BitwiseOr(a, b)
+    Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for UInt128 =
   /// Bitwise XOR on two <type UInt128> values
   let bitwiseXor(a: UInt128, b: UInt128): UInt128 =
-    Builtin.uint128BitwiseXor(a, b)
+    Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for UInt128 =
   /// Bitwise NOT on a <type UInt128> value
-  let bitwiseNot(a: UInt128): UInt128 = Builtin.uint128BitwiseNot(a)
+  let bitwiseNot(a: UInt128): UInt128 = Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for UInt128 =
   /// Bitwise left shift of a <type UInt128> value
   let shiftLeft(a: UInt128, b: UInt128): UInt128 =
-    Builtin.uint128ShiftLeft(a, b)
+    Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for UInt128 =
   /// Bitwise right shift of a <type UInt128> value
   let shiftRight(a: UInt128, b: UInt128): UInt128 =
-    Builtin.uint128ShiftRight(a, b)
+    Builtin.shiftRight(a, b)
 
 impl ToString for UInt128 =
   /// Stringify <param uint128>
