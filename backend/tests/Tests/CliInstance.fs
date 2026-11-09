@@ -251,6 +251,36 @@ let runWithExit (i : T) (args : string list) : Task<string * int64> =
     return (bothStreams out err, int64 code)
   }
 
+/// Start a command that keeps running (`serve`) in this instance and return at once. What it
+/// prints is drained and dropped, so a full pipe never stops it. The caller stops it with `stop`.
+let start (i : T) (args : string list) : System.Diagnostics.Process =
+  let psi = System.Diagnostics.ProcessStartInfo()
+  psi.FileName <- i.cli
+  for arg in args do
+    psi.ArgumentList.Add arg
+  psi.UseShellExecute <- false
+  psi.RedirectStandardInput <- true
+  psi.RedirectStandardOutput <- true
+  psi.RedirectStandardError <- true
+  childEnv i.dir psi
+  let p = System.Diagnostics.Process.Start psi
+  p.StandardInput.Close()
+  p.OutputDataReceived.Add(ignore<System.Diagnostics.DataReceivedEventArgs>)
+  p.ErrorDataReceived.Add(ignore<System.Diagnostics.DataReceivedEventArgs>)
+  p.BeginOutputReadLine()
+  p.BeginErrorReadLine()
+  p
+
+/// Stop a process `start` started, and everything it started.
+let stop (p : System.Diagnostics.Process) : unit =
+  try
+    if not p.HasExited then
+      p.Kill true
+      p.WaitForExit 10000 |> ignore<bool>
+  with _ ->
+    ()
+  p.Dispose()
+
 /// A test with an install of its own, disposed whether it passed or not.
 ///
 /// No `testSequenced` around these: the store is this test's, so there is nothing to

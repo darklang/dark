@@ -155,7 +155,9 @@ runs it. An **HTTP server** builds a child guest state and
 intersects its access with the frame that called `serve`, so the bind check,
 the request handlers and `onListening` all carry the caller's ceiling,
 package approval and any port restriction; from `dark serve` the caller is
-allow-all and the intersection changes nothing. **Tasks**
+allow-all and the intersection changes nothing. The server builds that state
+again for the next request once the policy file has changed, so an approval or a
+policy edit reaches a running server without a restart. **Tasks**
 are not a runtime value, so there is no deferred task to lose access on.
 Materializing a package `val` does the same walk recursively: every uncaptured
 named function nested in its records, collections, closures, or partial
@@ -501,7 +503,10 @@ Dark value is tracked in docs/permissions-todos.md.
 A denial is actionable: it names the exact `permissions allow <rule>` that
 would fix an instance-layer denial, derived from the operation and the check
 that actually failed (a read-write op names read or write, whichever was
-denied), and the CLI grammar accepts every shape the hint emits. Combined with
+denied), and the CLI grammar accepts every shape the hint emits. A file denial
+also names the rule for the file's folder and the profile for working there
+(`read-only` for a read, `local-dev` for a write), so one grant can cover a
+task that reads several files. Combined with
 the seeded default instance policy — a fresh install allows a guest run to
 load packages, compute, use the local store, and print, but denies the
 filesystem, network, processes, and the environment until granted — this

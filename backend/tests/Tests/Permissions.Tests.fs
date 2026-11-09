@@ -463,6 +463,8 @@ let suggestRuleIsActionable =
       | Error e -> Exception.raiseInternal e []
     let suggest = Permission.Request.suggestRule
     let rule (text : string) = Permission.Suggestion.Paste text
+    let file (one : string) (folder : string) (profile : string) =
+      Permission.Suggestion.File(one, folder, profile)
     let withheld (s : Permission.Suggestion) =
       match s with
       | Permission.Suggestion.Withheld _ -> true
@@ -470,12 +472,16 @@ let suggestRuleIsActionable =
     // Read vs write is exact because it comes from the request, not the op.
     Expect.equal
       (suggest (ok (Permission.Request.file Permission.AccessKind.Read "/tmp/x")))
-      (rule "file read '/tmp/x'")
-      "a read request suggests a read rule"
+      (file "file read '/tmp/x'" "file read '/tmp'" "read-only '/tmp'")
+      "a read request suggests a read rule, its folder's, and the read-only profile"
     Expect.equal
       (suggest (ok (Permission.Request.file Permission.AccessKind.Write "/tmp/x")))
-      (rule "file write '/tmp/x'")
-      "a write request suggests a write rule"
+      (file "file write '/tmp/x'" "file write '/tmp'" "local-dev '/tmp'")
+      "a write request suggests a write rule, its folder's, and the local-dev profile"
+    Expect.equal
+      (suggest (ok (Permission.Request.file Permission.AccessKind.Read "/x")))
+      (rule "file read '/x'")
+      "a file at the root offers no folder: that would be every file"
     Expect.equal
       (suggest (ok (Permission.Request.http "POST" "https://api.x/v1")))
       (rule "http POST 'https://api.x:443/v1'")
@@ -678,6 +684,166 @@ let pastedFileRuleReadsOnlyThatFile =
         ()
       })
 
+/// The text after <param marker> up to the closing backtick, the way a person would copy it.
+let private quotedAfter (marker : string) (output : string) : Option<string> =
+  match output.IndexOf marker with
+  | -1 -> None
+  | start ->
+    let from = start + marker.Length
+    Some(output.Substring(from, output.IndexOf("`", from) - from))
+
+let fileDenialOffersTheFolderAndTheProfile =
+  CliInstance.instanceTest
+    "a file denial also offers its folder's rule and the profile for that folder"
+    (fun i ->
+      task {
+        let dir name =
+          let d =
+            System.IO.Path.Combine(System.IO.Path.GetDirectoryName i.dir, name)
+          System.IO.Directory.CreateDirectory d |> ignore<System.IO.DirectoryInfo>
+          d
+        let write (d : string) name =
+          let p = System.IO.Path.Combine(d, name)
+          System.IO.File.WriteAllText(p, name)
+          $"Stdlib.Cli.FileSystem.readFile(\"{p}\")"
+        let project = dir "project"
+        let first = write project "a.csv"
+        let second = write project "b.csv"
+        let outside = write (dir "elsewhere") "c.csv"
+
+        let! before = CliInstance.run i [ "eval"; first ]
+        Expect.isTrue (denied before) $"a fresh install refuses it first:\n{before}"
+        let folderRule =
+          match
+            quotedAfter
+              "For everything in its folder: `dark permissions allow "
+              before
+          with
+          | Some rule -> rule
+          | None -> failtest $"no folder rule offered:\n{before}"
+        let profile =
+          match quotedAfter "`dark permissions profile " before with
+          | Some profile -> profile
+          | None -> failtest $"no profile offered:\n{before}"
+        Expect.equal folderRule $"file read '{project}'" "the folder the file is in"
+        Expect.equal
+          profile
+          $"read-only '{project}'"
+          "a read offers the read-only profile"
+
+        let! saved =
+          CliInstance.run i ("permissions" :: "allow" :: shellWords folderRule)
+        Expect.isFalse
+          (denied saved)
+          $"pasting `{folderRule}` is accepted:\n{saved}"
+        for call in [ first; second ] do
+          let! out = CliInstance.run i [ "eval"; call ]
+          Expect.isFalse (denied out) $"the folder rule allows `{call}`:\n{out}"
+        let! other = CliInstance.run i [ "eval"; outside ]
+        Expect.isTrue (denied other) $"and nothing outside the folder:\n{other}"
+
+        // The profile, from a policy that allows none of it.
+        let! _ = CliInstance.run i [ "permissions"; "clear" ]
+        let! applied =
+          CliInstance.run
+            i
+            (("permissions" :: "profile" :: shellWords profile) @ [ "--yes" ])
+        Expect.stringContains
+          applied
+          "applied profile"
+          $"the profile applies:\n{applied}"
+        let! afterProfile = CliInstance.run i [ "eval"; second ]
+        Expect.isFalse
+          (denied afterProfile)
+          $"the profile covers the folder:\n{afterProfile}"
+        let! otherAfterProfile = CliInstance.run i [ "eval"; outside ]
+        Expect.isTrue
+          (denied otherAfterProfile)
+          $"and only it:\n{otherAfterProfile}"
+      })
+
+/// GET <param port>'s root, waiting up to a minute for the server to come up.
+let private getWhenUp (port : int) : Task<int * string> =
+  task {
+    use client = new System.Net.Http.HttpClient()
+    let deadline = System.DateTime.UtcNow.AddMinutes 1.0
+    let rec attempt () =
+      task {
+        try
+          let! response = client.GetAsync($"http://localhost:{port}/")
+          let! body = response.Content.ReadAsStringAsync()
+          return (int response.StatusCode, body)
+        with :? System.Net.Http.HttpRequestException when
+            System.DateTime.UtcNow < deadline ->
+          do! Task.Delay 250
+          return! attempt ()
+      }
+    return! attempt ()
+  }
+
+/// `serve <param flags>` picks up a policy change and an approval made while it runs.
+let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
+  CliInstance.instanceTest
+    ("a running serve"
+     + (flags |> List.map (fun f -> " " + f) |> String.concat "")
+     + " uses an approval or a policy change from the next request")
+    (fun i ->
+      task {
+        // An environment read, which is one host operation: the server's HOME is the instance's.
+        let home = System.IO.Path.GetDirectoryName i.dir
+        let author (name : string) (body : string) =
+          task {
+            let! (out, code) = CliInstance.runWithExit i [ "fn"; name; body ]
+            Expect.equal code 0L $"`fn {name}` saved:\n{out}"
+          }
+        do!
+          author
+            "Tests.Follow.load"
+            "(): String = Stdlib.Option.withDefault(Stdlib.Env.get(\"HOME\"), \"unset\")"
+        do!
+          author
+            "Tests.Follow.router"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  Stdlib.Http.responseWithText(200, Tests.Follow.load())"
+        let! (committed, code) =
+          CliInstance.runWithExit i [ "commit"; "Tests.Follow"; "-y" ]
+        Expect.equal code 0L $"committed:\n{committed}"
+
+        let port = Tests.HttpServer.allocateFreePort ()
+        let! _ =
+          CliInstance.run i [ "permissions"; "allow"; "http-server"; string port ]
+        let server =
+          CliInstance.start
+            i
+            ([ "serve"; "Tests.Follow.router"; "--port"; string port ] @ flags)
+        try
+          let! (status, body) = getWhenUp port
+          Expect.equal
+            status
+            500
+            $"neither the approval nor the read is allowed yet:\n{body}"
+          Expect.stringContains body "permission denied" "and the handler says why"
+          Expect.stringContains
+            body
+            "instance policy"
+            "the instance policy refuses first"
+
+          let! _ =
+            CliInstance.run i [ "permissions"; "allow"; "env"; "read"; "HOME" ]
+          let! (status, body) = getWhenUp port
+          Expect.equal status 500 $"the function is still not approved:\n{body}"
+          Expect.stringContains body "package policy" "the policy change counted"
+
+          let! (approved, code) =
+            CliInstance.runWithExit
+              i
+              [ "permissions"; "approve"; "Tests.Follow.load" ]
+          Expect.equal code 0L $"approved:\n{approved}"
+          let! (status, body) = getWhenUp port
+          Expect.equal (status, body) (200, home) "the approval counted too"
+        finally
+          CliInstance.stop server
+      })
+
 let noArgumentsGetsNoPasteableRule =
   CliInstance.instanceTest
     "a process run with no arguments says why it suggests no rule"
@@ -711,6 +877,9 @@ let tests =
       pastedShellRuleRunsOnlyThatCommand
       pastedProcessRuleKeepsItsArguments
       pastedFileRuleReadsOnlyThatFile
+      fileDenialOffersTheFolderAndTheProfile
+      serveFollowsApprovalsAndPolicy []
+      serveFollowsApprovalsAndPolicy [ "--live" ]
       noArgumentsGetsNoPasteableRule
       capturedAccessCannotWidenCaller
       materializedValuesCaptureCallablesRecursively ]

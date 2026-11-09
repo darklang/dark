@@ -73,12 +73,17 @@ type Suggestion =
   | Withheld of why : string
   /// The effect has no rule a person could write (`Native`).
   | NoRule
+  /// A file: the rule for that one file, as `Paste`, and also the rule for the folder it is in
+  /// and the profile for working in that folder (`<name> <root>`), so a person can answer once
+  /// for a task rather than once per file.
+  | File of rule : string * folderRule : string * profile : string
 
 module Suggestion =
   /// The rule to record and to offer at an interactive prompt, if any.
   let rule (suggestion : Suggestion) : Option<string> =
     match suggestion with
-    | Suggestion.Paste rule -> Some rule
+    | Suggestion.Paste rule
+    | Suggestion.File(rule, _, _) -> Some rule
     | Suggestion.Withheld _
     | Suggestion.NoRule -> None
 
@@ -157,6 +162,21 @@ module Request =
   /// to the check, since the shell decides what the string runs.
   let suggestRule (request : Request) : Suggestion =
     match request with
+    | Request.File(access, path) ->
+      // A read is offered the read-only profile, a write local-dev, which also writes.
+      let kind, profile =
+        match access with
+        | AccessKind.Read -> "read", "read-only"
+        | AccessKind.Write -> "write", "local-dev"
+      let rule = $"file {kind} {quoteRuleToken path}"
+      // The folder, unless it is the root: a rule for `/` is every file there is.
+      match System.IO.Path.GetDirectoryName path with
+      | null
+      | ""
+      | "/" -> Suggestion.Paste rule
+      | folder ->
+        let folder = quoteRuleToken folder
+        Suggestion.File(rule, $"file {kind} {folder}", $"{profile} {folder}")
     | Request.Process(executable, []) ->
       Suggestion.Withheld(
         $"a `process {quoteRuleToken executable}` rule with no arguments allows every "

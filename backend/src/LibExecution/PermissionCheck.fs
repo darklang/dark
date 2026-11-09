@@ -76,6 +76,11 @@ let private denialMessage
     match layer, suggestion, origin with
     | Permission.Layer.Instance, Permission.Suggestion.Paste rule, _ ->
       $"To allow: `dark permissions allow {rule}`."
+    | Permission.Layer.Instance, Permission.Suggestion.File(rule, folder, profile), _ ->
+      $"To allow: `dark permissions allow {rule}`. For everything in its folder: "
+      + $"`dark permissions allow {folder}`. Or `dark permissions profile {profile}` "
+      + "previews a policy for working in that folder, which replaces the whole "
+      + "instance policy; add `--yes` to apply it."
     | Permission.Layer.Instance, Permission.Suggestion.Withheld why, _ ->
       $"No rule is suggested: {why}."
     | Permission.Layer.Instance, Permission.Suggestion.NoRule, _ ->
