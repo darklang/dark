@@ -51,7 +51,11 @@ let tables : List<string> =
     "branch_name_bases"
 
     // Which ops came from a build's embedded seed; a stale entry misreports that.
-    "seed_ops" ]
+    "seed_ops"
+
+    // The sync journal records changes to the log, and the deletes above are written to it, so
+    // it goes last. Kept, it would send the emptying to another store as a removal of every op.
+    "sync_journal" ]
 
 
 let purge () : unit =
