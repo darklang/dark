@@ -96,6 +96,15 @@ arguments; it stops at unknown branches and does not execute callbacks or deferr
 bodies. It retains the named entry's approval context, just as execution does.
 Anything preflight cannot establish is checked at the protected operation.
 
+`Raise` marks a builtin that can stop with a runtime error on arguments of its
+declared types: dividing by zero, an argument out of range, `unwrap` of `None`.
+It is information, not a permission. No rule grants or denies it, it reaches no
+gate, it is not logged, and a call whose only effect is `Raise` stays pure. It
+flows through the call graph like any effect, so `view` says when a function can
+raise; permission requirements, approvals and contract comparisons leave it out.
+`Builtin.Tests.raisingBuiltinsDeclareRaise` holds every builtin with a raise site
+in its source to it.
+
 ## Storage
 
 The protected, atomic policy file is `~/.darklang/policy/policies.bin`. Named

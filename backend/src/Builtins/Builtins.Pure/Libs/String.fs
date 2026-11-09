@@ -266,7 +266,7 @@ let fns () : List<BuiltInFn> =
             DString(String.repeat s (int (max count 0L))) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 

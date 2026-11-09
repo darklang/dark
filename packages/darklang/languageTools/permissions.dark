@@ -59,6 +59,8 @@ type Effect =
   /// This process's own in-memory state: its package caches and store watch.
   | Runtime
   | Native
+  /// A call can stop with a runtime error. Not a permission: no rule grants or denies it.
+  | Raise
 
 type Rule =
   | All
@@ -144,7 +146,8 @@ val effectCases =
     (Permissions.Effect.TraceWrite, "TraceWrite", "trace-write")
     (Permissions.Effect.Concurrency, "Concurrency", "concurrency")
     (Permissions.Effect.Runtime, "Runtime", "runtime")
-    (Permissions.Effect.Native, "Native", "native") ]
+    (Permissions.Effect.Native, "Native", "native")
+    (Permissions.Effect.Raise, "Raise", "raise") ]
 
 /// The `effectCases` row an effect is in. Every effect has one, so the
 /// fallback is unreachable; it keeps the lookups total without an Option.
@@ -407,8 +410,9 @@ let parseRule(
   // broad spellings are `http * *`, `http-server * *`, `process *`), so every
   // rule text names exactly one Rule value and `renderRule` round-trips.
   | [ name ] ->
-    Permissions.effectOfName(name)
-    |> Stdlib.Option.map(fun effect -> [ Permissions.Rule.Effect(effect) ])
+    match Permissions.effectOfName(name) with
+    | Some(Raise) -> Stdlib.Option.Option.None
+    | found -> found |> Stdlib.Option.map(fun effect -> [ Permissions.Rule.Effect(effect) ])
   | _ -> Stdlib.Option.Option.None
 
 /// Shell-style tokens for one rule's text, or None for an unterminated quote

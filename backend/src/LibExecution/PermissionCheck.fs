@@ -174,7 +174,7 @@ let performHostWithAccess
 /// path. Scoped effects ask at their host operation, where resources are known.
 let approveBuiltinEffects state vm effects builtinName : Ply<unit> =
   uply {
-    for effect in effects do
+    for effect in Effect.permissionEffects effects do
       if not (Effect.isScoped effect) then
         let request = Permission.Request.ofAmbientEffect effect builtinName
         let access = state.permissionAccess vm.activeAccess
@@ -202,7 +202,7 @@ let requireBuiltinEffectsWithAccess
   (effects : Set<Effect.Effect>)
   (builtinName : string)
   : unit =
-  for effect in effects do
+  for effect in Effect.permissionEffects effects do
     if not (Effect.isScoped effect) then
       checkRequestWithAccess
         state

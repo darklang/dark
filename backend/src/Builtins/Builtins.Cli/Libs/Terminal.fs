@@ -138,7 +138,7 @@ let fns () : List<BuiltInFn> =
           DBool answer |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -223,7 +223,7 @@ let fns () : List<BuiltInFn> =
           DString(TerminalText.clipToWidth text (int64ToInt32 vm maxWidth)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -260,7 +260,7 @@ let fns () : List<BuiltInFn> =
           |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -286,7 +286,7 @@ let fns () : List<BuiltInFn> =
           |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

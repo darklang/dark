@@ -915,7 +915,7 @@ let fns () : List<BuiltInFn> =
             RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 

@@ -703,7 +703,7 @@ let fns () : List<BuiltInFn> =
             )
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -936,7 +936,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       // Impure, like `sortBy`: it can call a person's `Compare` implementation.
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 

@@ -29,7 +29,8 @@ let private make name parameters result _kt body : BuiltInFn =
     previewable = Impure
     // Conditional file/Native authorization is derived from the descriptor
     // by Host. No ambient Native gate may reject a scoped file capability.
-    callEffects = Set.empty
+    // `Raise`: nearly all narrow a descriptor or an integer to the kernel's width.
+    callEffects = set [ Effect.Raise ]
     deprecated = NotDeprecated }
 
 let private integer name = Param.make name TInt64 "Kernel scalar"
@@ -94,20 +95,21 @@ let private poll name constructor =
       | _ -> incorrectArgs ())
 
 let fns () : List<BuiltInFn> =
-  [ make
-      "syscallKqueue"
-      [ Param.make "unit" TUnit "" ]
-      TBigInt
-      KTBigInt
-      (fun _ vm values ->
-        match values with
-        | [| DUnit |] ->
-          perform
-            KTBigInt
-            vm
-            Op.PosixOp.Kqueue
-            (Host.expectDescriptor >> Dval.bigInt)
-        | _ -> incorrectArgs ())
+  [ { (make
+        "syscallKqueue"
+        [ Param.make "unit" TUnit "" ]
+        TBigInt
+        KTBigInt
+        (fun _ vm values ->
+          match values with
+          | [| DUnit |] ->
+            perform
+              KTBigInt
+              vm
+              Op.PosixOp.Kqueue
+              (Host.expectDescriptor >> Dval.bigInt)
+          | _ -> incorrectArgs ())) with
+        callEffects = Set.empty }
     make
       "syscallKeventVnode"
       [ descriptor "queue"
@@ -178,11 +180,12 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
     poll "syscallPpoll" Op.PosixOp.Ppoll
     poll "syscallPollDarwin" Op.PosixOp.PollDarwin
-    clock "syscallClockGettime" [ integer "clock" ] (fun _ vm values ->
-      match values with
-      | [| DInt64 id |] ->
-        perform KTBytes vm (Op.PosixOp.ClockGettime(int64ToInt32 vm id)) bytes
-      | _ -> incorrectArgs ())
+    { (clock "syscallClockGettime" [ integer "clock" ] (fun _ vm values ->
+        match values with
+        | [| DInt64 id |] ->
+          perform KTBytes vm (Op.PosixOp.ClockGettime(int64ToInt32 vm id)) bytes
+        | _ -> incorrectArgs ())) with
+        callEffects = set [ Effect.Clock; Effect.Raise ] }
     clockUnit "syscallGettimeofday" Op.PosixOp.Gettimeofday
     clockUnit "syscallMachAbsoluteTime" Op.PosixOp.MachAbsoluteTime
     clockUnit "syscallMachTimebaseInfo" Op.PosixOp.MachTimebaseInfo
@@ -215,15 +218,16 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
     timestamp "syscallUtimensAt" Op.PosixOp.UtimensAt
     timestamp "syscallSetattrlistTimes" Op.PosixOp.SetattrlistTimes
-    make
-      "syscallUname"
-      [ Param.make "unit" TUnit "" ]
-      TBytes
-      KTBytes
-      (fun _ vm values ->
-        match values with
-        | [| DUnit |] -> perform KTBytes vm Op.PosixOp.UnameBytes bytes
-        | _ -> incorrectArgs ())
+    { (make
+        "syscallUname"
+        [ Param.make "unit" TUnit "" ]
+        TBytes
+        KTBytes
+        (fun _ vm values ->
+          match values with
+          | [| DUnit |] -> perform KTBytes vm Op.PosixOp.UnameBytes bytes
+          | _ -> incorrectArgs ())) with
+        callEffects = Set.empty }
     make "syscallFcntlGetPath" [ descriptor "fd" ] TBytes KTBytes (fun _ vm values ->
       match values with
       | [| DBigInt fd |] ->
@@ -272,7 +276,7 @@ let fns () : List<BuiltInFn> =
           | [| DInt64 count |] ->
             perform KTBytes vm (Op.PosixOp.Getentropy(int64ToInt32 vm count)) bytes
           | _ -> incorrectArgs ())) with
-        callEffects = set [ Effect.Random ] }
+        callEffects = set [ Effect.Random; Effect.Raise ] }
     make
       "syscallCopyFileRange"
       [ descriptor "source"; descriptor "destination"; integer "count" ]
