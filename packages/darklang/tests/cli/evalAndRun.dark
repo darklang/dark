@@ -134,7 +134,7 @@ test scriptArgumentsAndExitCodes =
          0,
          "")
         ("option terminator", "if args == [] then 0 else 1", [ "--" ], [], 0, "")
-        ("int64 exit code", "3", [], [], 3, "Script exited with code 3")
+        ("int64 exit code", "3", [], [], 3, "")
         ("definitions only", "let main(inputs: List<String>): Int64 = 0", [], [], 1, "main(args)")
         ("main is not auto-called",
          "let main(inputs: List<String>): Int64 = 0\nmain",
@@ -164,6 +164,10 @@ test scriptArgumentsAndExitCodes =
                Instance.says(out, expectedOutput, label)) ]))
       |> Stdlib.Test.all
 
+    // The script's own exit code is not reported as a failure of the run.
+    let _ = Stdlib.Cli.File.writeText(path, "Stdlib.printErrorLine(\"usage: contract <n>\")\n2")
+    let (ownCode, own) = Instance.ran(i, [ "run", path ])
+
     let (typoCode, typo) = Instance.ran(i, [ "run", "--sandbxo", path ])
     let _ = Stdlib.Cli.File.writeText(path, "Stdlib.printLine(\"SHOULD_NOT_RUN\")\n9")
 
@@ -180,6 +184,9 @@ test scriptArgumentsAndExitCodes =
 
     Stdlib.Test.all(
       [ contract
+        Instance.exitedWith(ownCode, 2, "the script's exit code")
+        Instance.says(own, "usage: contract <n>", "the script's own message")
+        Instance.doesNotSay(own, "exited", "no line about the exit code")
         Instance.exitedWith(typoCode, 1, "unknown runner options fail")
         Instance.says(typo, "Unknown run-script option", "option guidance")
         help ]))

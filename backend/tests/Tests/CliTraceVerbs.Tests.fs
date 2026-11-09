@@ -244,8 +244,7 @@ let private rerunIsIndependentOfResult =
             { Traces.ScriptOptions.defaults with sandbox = true }
           )
         let cases =
-          [ Traces.EvalExpression("42", false), 0L, "42"
-            typedScript, 7L, "Script exited with code 7" ]
+          [ Traces.EvalExpression("42", false), 0L, "42"; typedScript, 7L, "" ]
         for input, expectedExit, expectedOutput in cases do
           let id = System.Guid.NewGuid()
           let entry, inputName, inputValue =

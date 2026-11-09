@@ -276,11 +276,8 @@ let handleResult(
     match permissionWarningLines(violations) with
     | [] -> ()
     | lines -> lines |> Stdlib.List.iter(fun l -> Stdlib.printErrorLine(l))
-    if exitCode == 0 then
-      state
-    else
-      Stdlib.printErrorLine($"Script exited with code {Stdlib.toString(exitCode)}")
-      { state with exitCode = exitCode }
+    // The script chose this code and printed its own reason, as a program in any language does.
+    { state with exitCode = exitCode }
   | Error(Denied(denied)) ->
     let canAsk =
       offerApproval
