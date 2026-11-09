@@ -131,7 +131,7 @@ let private raiseRejected (message : string) : 'a =
 /// Where execution stood when a violation was recorded. Only needed on a
 /// denial in audit mode, so the frame lookup is deferred to that point.
 let private executionPoint (vm : VMState) : Option<ExecutionPoint> =
-  match vm.callFrames.TryGetValue vm.currentFrameID with
+  match vm.callFrames.TryFind vm.currentFrameID with
   | true, frame -> Some frame.executionPoint
   | false, _ -> None
 
@@ -246,7 +246,7 @@ let callerIsBundled (state : ExecutionState) (vm : VMState) : bool =
     | ExecutionPoint.Lambda(parent, _, _) -> fnOf parent
     | _ -> None
   let rec allBundled (frameID : System.Guid) (sawPackage : bool) : bool =
-    match vm.callFrames.TryGetValue frameID with
+    match vm.callFrames.TryFind frameID with
     | false, _ -> false
     | true, frame ->
       let frameTrusted, sawPackage =

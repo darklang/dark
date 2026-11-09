@@ -858,8 +858,7 @@ let private wholeRun = System.Guid.Empty
 /// Whether the fn that set up this check is still running. Once it returns, its
 /// types no longer apply, so a lambda kept and called later is not checked.
 let inline private isLive (vm : VMState) (x : LambdaReturnExpectation) : bool =
-  x.runId = vm.runId
-  && (vm.callFrames.ContainsKey x.frameId || x.frameId = wholeRun)
+  x.runId = vm.runId && (vm.callFrames.Contains x.frameId || x.frameId = wholeRun)
 
 /// Drops the checks whose fn has already returned, and gives back the rest.
 let rec private liveExpectation
@@ -3976,7 +3975,7 @@ let inline private pushLambdaFrame
 
 /// Make a freshly built frame the current one.
 let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
-  vm.callFrames[frame.id] <- frame
+  vm.callFrames.Push frame
   vm.currentFrameID <- frame.id
 
 /// Run the frame a call handed back from <param caller>: a new one is pushed, and the caller itself,
@@ -6673,11 +6672,11 @@ let inline private popFrame
       | false, _ -> ()
 
     let framePopAlloc = allocNow vm
-    vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+    vm.callFrames.Remove vm.currentFrameID
 
     vm.currentFrameID <- parentID
 
-    let parentFrame = vm.callFrames[parentID]
+    let parentFrame = vm.callFrames.Find parentID
 
     let next = currentFrame.continuation
     if not (obj.ReferenceEquals(next, null)) then
@@ -6712,7 +6711,7 @@ let inline private popFrame
       recordStage vm ApplyStage.FramePop framePopAlloc
       ApplyDone
   | ValueNone ->
-    vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+    vm.callFrames.Remove vm.currentFrameID
     vm.finalResult <- ValueSome resultOfFrame
     ApplyDone
 
@@ -6812,7 +6811,7 @@ let private awaitOf
   (vm : VMState)
   (step : FrameStep)
   : StepOutcome =
-  let frame = vm.callFrames[vm.currentFrameID]
+  let frame = vm.callFrames.Find vm.currentFrameID
   // A chain that waits again from its resume is rare (a continuation that waits twice in a
   // row) and is waited for on the spot.
   let driveToValue (first : ApplyOutcome) : unit =
@@ -6904,7 +6903,7 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
   let mutable currentFrame = Unchecked.defaultof<CallFrame>
 
   while ValueOption.isNone bail
-        && vm.callFrames.TryGetValue(vm.currentFrameID, &currentFrame) do
+        && vm.callFrames.TryFind(vm.currentFrameID, &currentFrame) do
     let registers = currentFrame.registers
     let instrData = currentFrame.instrData
 
@@ -7115,7 +7114,7 @@ let private driveToEnd
 /// Seed the root frame with the access the run starts under: what `executeUnder` does before
 /// running, and `Scheduler.Spawn` before stepping.
 let seedRootAccess (access : Permissions.Access) (vm : VMState) : unit =
-  vm.callFrames[vm.currentFrameID].access <- access
+  (vm.callFrames.Find vm.currentFrameID).access <- access
   vm.activeAccess <- access
 
 

@@ -4112,6 +4112,42 @@ and AppliedLambda =
     patterns : List<LetPattern>
     selfRegister : Register option }
 
+/// A VM's frames, oldest first. Calls nest, so the frame looked up is nearly always the newest:
+/// searching from the top finds it at once, with no hashing.
+type FrameStack() =
+  let frames = ResizeArray<CallFrame>()
+
+  let rec indexOf (id : uuid) (i : int) : int =
+    if i < 0 || frames[i].id.Equals id then i else indexOf id (i - 1)
+
+  member _.Push(frame : CallFrame) : unit = frames.Add frame
+
+  member _.Remove(id : uuid) : unit =
+    let i = indexOf id (frames.Count - 1)
+    if i >= 0 then frames.RemoveAt i
+
+  member _.TryFind
+    (
+      id : uuid,
+      [<System.Runtime.InteropServices.Out>] frame : byref<CallFrame>
+    ) : bool =
+    let i = indexOf id (frames.Count - 1)
+    if i >= 0 then
+      frame <- frames[i]
+      true
+    else
+      false
+
+  member _.Find(id : uuid) : CallFrame =
+    let i = indexOf id (frames.Count - 1)
+    if i < 0 then raise (System.Collections.Generic.KeyNotFoundException(string id))
+    frames[i]
+
+  member _.Contains(id : uuid) : bool = indexOf id (frames.Count - 1) >= 0
+
+  member _.Clear() : unit = frames.Clear()
+
+
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
 module ApplyStage =
   let names : string[] =
@@ -4591,7 +4627,7 @@ type VMState =
   {
     threadID : uuid
 
-    callFrames : Dictionary<uuid, CallFrame>
+    callFrames : FrameStack
     mutable currentFrameID : uuid
 
     /// The access the builtin currently being invoked runs under: the applying
@@ -4778,9 +4814,9 @@ type VMState =
       currentFrameID = rootCallFrameID
       activeAccess = rootCallFrame.access
       callFrames =
-        let d = Dictionary()
-        d[rootCallFrameID] <- rootCallFrame
-        d
+        let frames = FrameStack()
+        frames.Push rootCallFrame
+        frames
       rootInstrData = struct (tlid, rootInstrData)
       pooledRootFrame = ValueNone
       lambdaInstrDataCache = Dictionary()
@@ -4875,7 +4911,7 @@ type VMState =
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.callFrames.Clear()
-    vm.callFrames[rootCallFrameID] <- rootCallFrame
+    vm.callFrames.Push rootCallFrame
     vm.currentFrameID <- rootCallFrameID
     vm.activeAccess <- rootCallFrame.access
     vm.rootInstrData <- struct (tlid, instrData)
