@@ -103,9 +103,11 @@ type Overflow = | Overflow
 
 
 /// What `checkedDivide` and `checkedRemainder` return, for every integer type and
-/// <type Decimal>, where `/` raises
+/// <type Decimal>, where `/` raises. {{Overflow}} is a signed type's minimum divided
+/// by -1, as in `Int8.checkedDivide(-128s8, -1s8)`, where `/` wraps.
 type DivisionError =
   | DivisionByZero
+  | Overflow
 
 
 /// What `checkedMod` returns, for every integer type and <type Decimal>, where `%` raises:
