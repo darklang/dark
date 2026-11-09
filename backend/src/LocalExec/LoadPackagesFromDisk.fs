@@ -58,18 +58,24 @@ let private parseAll
   |> Task.map List.flatten
 
 
-/// Read all package sources and fail on parse or name-resolution errors.
-let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
+/// Every package source a reload reads, as (path, contents).
+let files () : List<string * string> =
+  System.IO.Path.Combine(
+    LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR",
+    "packages"
+  )
+  |> listDirectoryRecursive
+  |> List.filter (String.contains "_" >> not)
+  |> List.filter (fun x -> x |> String.endsWith ".dark")
+  |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
+
+
+/// Parse <param filesWithContents> (`files`) and fail on parse or name-resolution errors.
+let load
+  (builtins : RT.Builtins)
+  (filesWithContents : List<string * string>)
+  : Ply<List<PT.PackageOp>> =
   uply {
-    let filesWithContents =
-      System.IO.Path.Combine(
-        LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR",
-        "packages"
-      )
-      |> listDirectoryRecursive
-      |> List.filter (String.contains "_" >> not)
-      |> List.filter (fun x -> x |> String.endsWith ".dark")
-      |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
     // -- Phase 1: Initial parse (unresolved names allowed) --
     let fileCount = List.length filesWithContents

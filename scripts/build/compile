@@ -252,6 +252,26 @@ def reload_all_packages():
   return run_backend(start, f"scripts/build/reload-packages {configuration}")
 
 
+def apply_package_edits():
+  """Land only the declarations of `packages/*.dark` that changed since the last reload, instead of
+  another reload. False when it couldn't, having said why: then the full reload runs. Debug and
+  outside CI only, so CI's full reload still catches a store this builds that a reload would not."""
+  if optimize or in_ci:
+    return False
+  start = time.time()
+  pretty_print("scripts/run-local-exec apply-package-edits", 42)
+  log = os.path.expanduser("~/.darklang/logs/packages.log")
+  with open(log, "w") as f:
+    ok = subprocess.run("./scripts/run-local-exec apply-package-edits", shell=True,
+                        stdout=f, stderr=subprocess.STDOUT).returncode == 0
+  with open(log) as f:
+    said = [l.rstrip() for l in f if l.startswith("packages: ")]
+  print(said[-1] if said else f"packages: full reload: applying the edits failed ({log})")
+  if ok:
+    print(f">> Success in {time.time() - start:.2f}s")
+  return ok
+
+
 class Outcome:
   """What execute() actually did, for build-state.json.
 
@@ -329,7 +349,13 @@ def execute(should, outcome):
         should.reload_all_packages = True
 
   if should.reload_all_packages:
-    step("reload_all_packages", reload_all_packages)
+    # Only a `.dark` edit can be applied as a difference. After a build or a migration, the parser,
+    # the hashing or the schema may have moved under every item, so that still reloads.
+    dark_only = "run_migrations" not in outcome.ran
+    if chain_ok and dark_only and apply_package_edits():
+      outcome.record("reload_all_packages", True)
+    else:
+      step("reload_all_packages", reload_all_packages)
 
   # Gated here rather than inside backend_test(), so a build that skipped the tests
   # doesn't list running them among the things it did.

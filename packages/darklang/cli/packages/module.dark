@@ -109,6 +109,166 @@ let landDocEdits(
     | _ -> Stdlib.Option.Option.None)
   |> Stdlib.List.length
 
+/// Save the declarations in <param source> under <param modulePath>, saying what happened, as
+/// `module` does. <param bundled> is `defineBundled`'s.
+let define(
+  state: Cli.AppState,
+  modulePath: String,
+  source: String,
+  bundled: Bool)
+  : Cli.AppState =
+  // Package input is declaration scope at its root. In particular, `val x`
+  // declares a package value while `let x` is diagnosed directly instead of
+  // being consumed as a script binding and failing later at EOF.
+  match LanguageTools.Parser.Parse.packageToWrittenTypes(source) with
+  | Error(diagnostics) ->
+    let _ = Errors.reportParseErrors(diagnostics)
+    // Nothing was saved: an agent's authoring loop branches on the exit.
+    { state with exitCode = 1 }
+  | Ok(SourceFile(sourceFile)) ->
+    let declarations =
+      let moduleDecls =
+        sourceFile.declarations
+        |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
+      collectDecls([], moduleDecls)
+    let duplicateNames = duplicateDeclarationNames(declarations)
+
+    if Stdlib.List.isEmpty(declarations) then
+      Cli.printErr("Package source contains no declarations")
+      { state with exitCode = 1 }
+    else if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicateNames)) then
+      Cli.printErr("Package source contains duplicate declaration names:")
+      duplicateNames
+      |> Stdlib.List.iter(fun name ->
+        Cli.printErr($"  - {name}"))
+      { state with exitCode = 1 }
+    else
+      // Resolve a synthetic item path below the requested module so the
+      // module path follows the same rules as `fn`, `type`, and `val`.
+      let locationInput = modulePath + ".__module__"
+      match
+        Location.parseRelativeTo(
+          state.packageData.currentLocation,
+          locationInput)
+      with
+      | Error(message) ->
+        Cli.printErr($"Invalid module location: {message}")
+        Cli.failed(state)
+      | Ok(baseLocation) ->
+        let basePm = LanguageTools.PackageManager.pm()
+        let branchId = state.currentBranchId
+        let rootModule =
+          LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration
+            { range = sourceFile.range
+              name = (sourceFile.range, "__module__")
+              declarations =
+                sourceFile.declarations
+                |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
+              keywordModule = sourceFile.range }
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = basePm
+              branchId = branchId
+              owner = baseLocation.owner
+              currentModule = baseLocation.modules }
+
+        let (ops, unresolvedNames) =
+          LanguageTools.Parser.Parse.moduleToPackageOps(ctx, rootModule)
+        let updates = Propagate.updatedItems(branchId, ops)
+
+        let refused = Errors.reportUnresolvedNames(branchId, unresolvedNames)
+
+        if bundled && Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedNames)) then
+          Cli.failed(state)
+        else if refused then
+          state
+        else
+          // Stabilize and store the module as one mutually recursive batch.
+          match SCM.PackageOps.addAuthored(branchId, ops) with
+          | Error(message) ->
+            Cli.printErr($"Failed to define module: {message}")
+            { state with exitCode = 1 }
+          | Ok(report) ->
+            let followed = Propagate.repointSaved(branchId, updates, Stdlib.Bool.not(bundled))
+            Propagate.printFollowed(followed)
+
+            // A reload never leaves an edit's dependents behind, so the build fails over to one
+            // when they could not follow.
+            let state =
+              if bundled && Stdlib.Option.isSome(followed.failure) then Cli.failed(state)
+              else state
+
+            let docsUpdated = landDocEdits(branchId, ops)
+
+            // Counted from the ops that were recorded, not from the declarations
+            // that were parsed, so the number is what happened rather than what
+            // was asked for.
+            let definedNames =
+              ops
+              |> Stdlib.List.filterMap(fun op ->
+                match op with
+                // Three fields, and a two-field pattern silently matches nothing rather than
+                // failing to compile.
+                | SetName(location, _, _) -> Stdlib.Option.Option.Some(location.name)
+                | _ -> Stdlib.Option.Option.None)
+
+            let count = Stdlib.List.length(definedNames)
+
+            // "1 declarations" is the sort of thing you stop reading, and `edit`
+            // routes through here for a single item, so the singular is a common
+            // case rather than an edge one.
+            let what = if count == 1 then "declaration" else "declarations"
+
+            // `!` rather than a tick when the check did not pass, and the report AFTER this
+            // line, both matching a single-item save in `core.dark`. A tick printed under the
+            // reasons a save is broken is read as success by anybody who reads the last line.
+            let glyph =
+              match report.verdict with
+              | Checked -> Stdlib.Cli.UI.Colors.success("✓")
+              | Failed | Incomplete -> Stdlib.Cli.UI.Colors.warning("!")
+
+            // A doc-only edit is otherwise indistinguishable from a save that changed nothing.
+            let docNote =
+              if docsUpdated == 0 then ""
+              else if docsUpdated == 1 then "; updated 1 doc comment"
+              else $"; updated {Stdlib.toString(docsUpdated)} doc comments"
+
+            Stdlib.printLine(
+              $"{glyph} Defined {Stdlib.toString(count)} {what} in {modulePath}{docNote}")
+
+            // main's at-rest type check reports on every save; keep it ahead of propagation
+            // so a type error is on screen before anything follows the change.
+            AtRestCheck.printSaveReport(branchId, report)
+
+            // Name what did not, so a rejected declaration is something you find out now rather than
+            // the next time you call it.
+            // `declarationName` returns an Option, so unwrap with filterMap before comparing:
+            // `List.contains` against a list of Options silently never matches, which would report
+            // every declaration as missing.
+            // An impl's declaration name is `<Type>.<Trait>`; its SetName carries the
+            // trait as the location's name, so compare on the last segment.
+            let missing =
+              declarations
+              |> Stdlib.List.filterMap(fun d ->
+                declarationName(Stdlib.Tuple2.second(d)))
+              |> Stdlib.List.filter(fun n ->
+                let leaf =
+                  Stdlib.String.split(n, ".") |> Stdlib.List.last |> Stdlib.Option.withDefault(n)
+                Stdlib.Bool.not(Stdlib.List.contains(definedNames, leaf)))
+
+            if Stdlib.List.isEmpty(missing) then
+              state
+            else
+              Cli.printErr($"""not defined: {Stdlib.String.join(missing, ", ")}""")
+
+              Stdlib.printErrorLine(
+                (Stdlib.Cli.UI.Colors.hint(
+                  "  the rest of the module was defined; fix these and run it again.")))
+
+              Cli.failed(state)
+
+
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   let input =
     match args with
@@ -128,146 +288,19 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | Error(message) ->
     Cli.printErr(message)
     { state with exitCode = 1 }
-  | Ok((modulePath, source)) ->
-    // Package input is declaration scope at its root. In particular, `val x`
-    // declares a package value while `let x` is diagnosed directly instead of
-    // being consumed as a script binding and failing later at EOF.
-    match LanguageTools.Parser.Parse.packageToWrittenTypes(source) with
-    | Error(diagnostics) ->
-      let _ = Errors.reportParseErrors(diagnostics)
-      // Nothing was saved: an agent's authoring loop branches on the exit.
-      { state with exitCode = 1 }
-    | Ok(SourceFile(sourceFile)) ->
-      let declarations =
-        let moduleDecls =
-          sourceFile.declarations
-          |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
-        collectDecls([], moduleDecls)
-      let duplicateNames = duplicateDeclarationNames(declarations)
+  | Ok((modulePath, source)) -> define(state, modulePath, source, false)
 
-      if Stdlib.List.isEmpty(declarations) then
-        Cli.printErr("Package source contains no declarations")
-        { state with exitCode = 1 }
-      else if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicateNames)) then
-        Cli.printErr("Package source contains duplicate declaration names:")
-        duplicateNames
-        |> Stdlib.List.iter(fun name ->
-          Cli.printErr($"  - {name}"))
-        { state with exitCode = 1 }
-      else
-        // Resolve a synthetic item path below the requested module so the
-        // module path follows the same rules as `fn`, `type`, and `val`.
-        let locationInput = modulePath + ".__module__"
-        match
-          Location.parseRelativeTo(
-            state.packageData.currentLocation,
-            locationInput)
-        with
-        | Error(message) ->
-          Cli.printErr($"Invalid module location: {message}")
-          Cli.failed(state)
-        | Ok(baseLocation) ->
-          let basePm = LanguageTools.PackageManager.pm()
-          let branchId = state.currentBranchId
-          let rootModule =
-            LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration
-              { range = sourceFile.range
-                name = (sourceFile.range, "__module__")
-                declarations =
-                  sourceFile.declarations
-                  |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
-                keywordModule = sourceFile.range }
-          let ctx =
-            LanguageTools.NameResolver.NRContext
-              { onMissing = LanguageTools.NameResolver.OnMissing.Allow
-                pm = basePm
-                branchId = branchId
-                owner = baseLocation.owner
-                currentModule = baseLocation.modules }
 
-          let (ops, unresolvedNames) =
-            LanguageTools.Parser.Parse.moduleToPackageOps(ctx, rootModule)
-          let updates = Propagate.updatedItems(branchId, ops)
-
-          if Errors.reportUnresolvedNames(branchId, unresolvedNames) then
-            state
-          else
-            // Stabilize and store the module as one mutually recursive batch.
-            match SCM.PackageOps.addAuthored(branchId, ops) with
-            | Error(message) ->
-              Cli.printErr($"Failed to define module: {message}")
-              { state with exitCode = 1 }
-            | Ok(report) ->
-              Propagate.printFollowed(Propagate.repointSaved(branchId, updates))
-
-              let docsUpdated = landDocEdits(branchId, ops)
-
-              // Counted from the ops that were recorded, not from the declarations
-              // that were parsed, so the number is what happened rather than what
-              // was asked for.
-              let definedNames =
-                ops
-                |> Stdlib.List.filterMap(fun op ->
-                  match op with
-                  // Three fields, and a two-field pattern silently matches nothing rather than
-                  // failing to compile.
-                  | SetName(location, _, _) -> Stdlib.Option.Option.Some(location.name)
-                  | _ -> Stdlib.Option.Option.None)
-
-              let count = Stdlib.List.length(definedNames)
-
-              // "1 declarations" is the sort of thing you stop reading, and `edit`
-              // routes through here for a single item, so the singular is a common
-              // case rather than an edge one.
-              let what = if count == 1 then "declaration" else "declarations"
-
-              // `!` rather than a tick when the check did not pass, and the report AFTER this
-              // line, both matching a single-item save in `core.dark`. A tick printed under the
-              // reasons a save is broken is read as success by anybody who reads the last line.
-              let glyph =
-                match report.verdict with
-                | Checked -> Stdlib.Cli.UI.Colors.success("✓")
-                | Failed | Incomplete -> Stdlib.Cli.UI.Colors.warning("!")
-
-              // A doc-only edit is otherwise indistinguishable from a save that changed nothing.
-              let docNote =
-                if docsUpdated == 0 then ""
-                else if docsUpdated == 1 then "; updated 1 doc comment"
-                else $"; updated {Stdlib.toString(docsUpdated)} doc comments"
-
-              Stdlib.printLine(
-                $"{glyph} Defined {Stdlib.toString(count)} {what} in {modulePath}{docNote}")
-
-              // main's at-rest type check reports on every save; keep it ahead of propagation
-              // so a type error is on screen before anything follows the change.
-              AtRestCheck.printSaveReport(branchId, report)
-
-              // Name what did not, so a rejected declaration is something you find out now rather than
-              // the next time you call it.
-              // `declarationName` returns an Option, so unwrap with filterMap before comparing:
-              // `List.contains` against a list of Options silently never matches, which would report
-              // every declaration as missing.
-              // An impl's declaration name is `<Type>.<Trait>`; its SetName carries the
-              // trait as the location's name, so compare on the last segment.
-              let missing =
-                declarations
-                |> Stdlib.List.filterMap(fun d ->
-                  declarationName(Stdlib.Tuple2.second(d)))
-                |> Stdlib.List.filter(fun n ->
-                  let leaf =
-                    Stdlib.String.split(n, ".") |> Stdlib.List.last |> Stdlib.Option.withDefault(n)
-                  Stdlib.Bool.not(Stdlib.List.contains(definedNames, leaf)))
-
-              if Stdlib.List.isEmpty(missing) then
-                state
-              else
-                Cli.printErr($"""not defined: {Stdlib.String.join(missing, ", ")}""")
-
-                Stdlib.printErrorLine(
-                  (Stdlib.Cli.UI.Colors.hint(
-                    "  the rest of the module was defined; fix these and run it again.")))
-
-                Cli.failed(state)
+/// `module` for `LocalExec apply-package-edits`, which lands the dev build's edits to `packages/` on
+/// main in place of a reload. An unresolved name fails it, leaving that to the reload. The dependents
+/// that follow are not type-checked: for a core function that is most of the time, and a reload
+/// doesn't check them either.
+let defineBundled(modulePath: String, source: String): Int64 =
+  let state =
+    { Cli.initState() with
+        nonInteractive = true
+        currentBranchId = SCM.Branch.mainBranchId }
+  (define(state, modulePath, source, true)).exitCode
 
 
 let help(_state: Cli.AppState): String =

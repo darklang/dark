@@ -175,7 +175,8 @@ let repointNow(
   location: LanguageTools.ProgramTypes.PackageLocation,
   previousHashes: List<LanguageTools.ProgramTypes.Hash>,
   currentHash: LanguageTools.ProgramTypes.Hash,
-  itemKind: LanguageTools.ProgramTypes.ItemKind)
+  itemKind: LanguageTools.ProgramTypes.ItemKind,
+  checkFollowers: Bool)
   : Followed =
   match previousHashes with
   | [] -> nothingFollowed() // brand new: nothing can be pointing at an older version of it
@@ -196,8 +197,11 @@ let repointNow(
       let byHash =
         repoints |> Stdlib.List.map(fun r -> (SCM.Draft.referenceHash(r.toRef), nameOf(r)))
 
+      let checked =
+        if checkFollowers then (SCM.PackageOps.typeCheckDraft(branchId)).items else []
+
       let broken =
-        (SCM.PackageOps.typeCheckDraft(branchId)).items
+        checked
         |> Stdlib.List.filterMap(fun ir ->
           let h = SCM.Draft.referenceHash(ir.item)
 
@@ -242,7 +246,12 @@ let updatedItems(
   |> Stdlib.List.uniqueBy(fun item -> item.location)
 
 /// Every updated binding uses its final stored hash, shared by all authoring paths.
-let repointSaved(branchId: Uuid, updates: List<UpdatedItem>): Followed =
+/// <param checkFollowers> false skips type-checking what followed, which leaves `broken` empty.
+let repointSaved(
+  branchId: Uuid,
+  updates: List<UpdatedItem>,
+  checkFollowers: Bool)
+  : Followed =
   updates
   |> Stdlib.List.fold(nothingFollowed(), fun(combined, update) ->
     let followed =
@@ -250,7 +259,7 @@ let repointSaved(branchId: Uuid, updates: List<UpdatedItem>): Followed =
       | Some(current) ->
         repointNow(branchId, update.location,
           update.previous |> Stdlib.List.filter(fun h -> h != current),
-          current, update.kind)
+          current, update.kind, checkFollowers)
       | None ->
         Followed { names = [], broken = [], failure = Some("A saved binding could not be resolved.") }
     let failure =

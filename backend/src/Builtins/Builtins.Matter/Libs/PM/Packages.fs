@@ -176,6 +176,10 @@ let repoint
     | Ok(Some(propagationResult, ops)) ->
       do! persistPropagation branch ops
       let moved = propagationResult.repoints
+      do!
+        LibDB.Inserts.carryDependencyNames
+          (fromHashes |> List.map (fun h -> (location, kind, h, toHash)))
+          moved
       let! failure =
         moved
         |> Ply.List.foldSequentially
