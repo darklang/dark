@@ -30,7 +30,7 @@ module BuiltinGroups =
 
 // The floor, so neither test below can pass over an empty builtin set.
 test theBuiltinSetWasActuallyRead =
-  (Stdlib.List.length(BuiltinGroups.livePrefixes()) > 400) |> Stdlib.Test.equal(true)
+  (Stdlib.List.length(BuiltinGroups.livePrefixes()) > 300) |> Stdlib.Test.equal(true)
 
 // A new family of builtins lands and nobody names it. The failure names the prefix.
 test everySubstantialPrefixHasADisplayName =

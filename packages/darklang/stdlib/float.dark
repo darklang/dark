@@ -46,28 +46,28 @@ let sqrt(a: Float): Float = Builtin.floatSqrt(a)
 
 impl Add for Float =
   /// Add <type Float> <param a> to <type Float> <param b>
-  let add(a: Float, b: Float): Float = Builtin.floatAdd(a, b)
+  let add(a: Float, b: Float): Float = Builtin.add(a, b)
 
 
 impl Subtract for Float =
   /// Subtract <type Float> <param b> from <type Float> <param a>
-  let subtract(a: Float, b: Float): Float = Builtin.floatSubtract(a, b)
+  let subtract(a: Float, b: Float): Float = Builtin.subtract(a, b)
 
 
 impl Multiply for Float =
   /// Multiply <type Float> <param a> by <type Float> <param b>
-  let multiply(a: Float, b: Float): Float = Builtin.floatMultiply(a, b)
+  let multiply(a: Float, b: Float): Float = Builtin.multiply(a, b)
 
 
 impl Power for Float =
   /// Returns <param base> raised to the power of <param exponent>
   let power(``base``: Float, exponent: Float): Float =
-    Builtin.floatPower(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Divide for Float =
   /// Divide <type Float> <param a> by <type Float> <param b>
-  let divide(a: Float, b: Float): Float = Builtin.floatDivide(a, b)
+  let divide(a: Float, b: Float): Float = Builtin.divide(a, b)
 
 
 // Checked arithmetic. The operators follow IEEE 754 and give NaN or an infinity
@@ -149,15 +149,15 @@ let checkedParse(s: String): Stdlib.Result.Result<Float, ParseError> =
 
 impl Compare for Float =
   /// Returns true if a is less than b
-  let lessThan(a: Float, b: Float): Bool = Builtin.floatLessThan(a, b)
+  let lessThan(a: Float, b: Float): Bool = Builtin.lessThan(a, b)
   /// Returns true if a is less than or equal to b
   let lessThanOrEqualTo(a: Float, b: Float): Bool =
-    Builtin.floatLessThanOrEqualTo(a, b)
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns true if a is greater than b
-  let greaterThan(a: Float, b: Float): Bool = Builtin.floatGreaterThan(a, b)
+  let greaterThan(a: Float, b: Float): Bool = Builtin.greaterThan(a, b)
   /// Returns true if a is greater than or equal to b
   let greaterThanOrEqualTo(a: Float, b: Float): Bool =
-    Builtin.floatGreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// If <param value> is within the range given by <param limitA> and <param

@@ -8,7 +8,7 @@
 /// Only pure `noCaps` builtins belong here: this path skips the capability check and both type
 /// checks, which is right for an operator whose operand types the caller has just matched, and wrong
 /// for anything guarding a side effect. Every entry must also produce exactly what its builtin
-/// produces -- by calling the same helper it calls, as every integer operator calls `IntOps`, or
+/// produces -- by calling the same helper it calls, as every numeric operator calls `NumOps`, or
 /// failing that by restating a one-line F# operator. Where the builtin would raise, the entry
 /// declines and the ordinary path runs.
 module LibExecution.FastOps
@@ -17,12 +17,12 @@ open Prelude
 open RuntimeTypes
 module VT = ValueType
 
-let add = IntOps.add
-let subtract = IntOps.subtract
-let lessThan = IntOps.lessThan
-let lessThanOrEqualTo = IntOps.lessThanOrEqualTo
-let greaterThan = IntOps.greaterThan
-let greaterThanOrEqualTo = IntOps.greaterThanOrEqualTo
+let add = NumOps.add
+let subtract = NumOps.subtract
+let lessThan = NumOps.lessThan
+let lessThanOrEqualTo = NumOps.lessThanOrEqualTo
+let greaterThan = NumOps.greaterThan
+let greaterThanOrEqualTo = NumOps.greaterThanOrEqualTo
 let equals = 6
 let notEquals = 7
 /// String tags start here. `eval` and `eval64` handle the integer ones and decline these;
@@ -43,87 +43,61 @@ let strRepeat = 15
 let listContains = 16
 let strIsEmpty = 18
 let listIsEmpty = 19
-/// `Multiply.multiply`; only reached as a trait method. This and the rest of the integer
-/// operators' tags are `IntOps`' own numbers for them.
-let multiply = IntOps.multiply
-/// `Negate.negate`, one argument; `evalNegate` handles it.
-let negate = IntOps.negate
-/// The bitwise operators. `IntOps` answers them for the fixed-width integers; `eval` declines
-/// them, so a `BigInt` one dispatches like any other trait method.
+/// `Multiply.multiply`; only reached as a trait method. This and the rest of the numeric
+/// operators' tags are `NumOps`' own numbers for them.
+let multiply = NumOps.multiply
+/// `Negate.negate`, one argument; `evalUnary` handles it.
+let negate = NumOps.negate
+/// The bitwise operators. `NumOps` answers them for the integers and `BigInt`.
 /// Being in the table is also what tells the interpreter an operator is an operator: it is how
 /// `1L & 2y` says "Cannot perform numeric operation on Int64 and Int8" rather than
 /// failing inside the implementation's parameter check.
-let bitwiseAnd = IntOps.bitwiseAnd
-let bitwiseOr = IntOps.bitwiseOr
-let bitwiseXor = IntOps.bitwiseXor
-let bitwiseNot = IntOps.bitwiseNot
-let shiftLeft = IntOps.shiftLeft
-let shiftRight = IntOps.shiftRight
+let bitwiseAnd = NumOps.bitwiseAnd
+let bitwiseOr = NumOps.bitwiseOr
+let bitwiseXor = NumOps.bitwiseXor
+let bitwiseNot = NumOps.bitwiseNot
+let shiftLeft = NumOps.shiftLeft
+let shiftRight = NumOps.shiftRight
 /// `List.prepend`: a list and a value of its element type.
 let listPrepend = 28
 /// `/`, `%` and `**`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, and
-/// `IntOps` answers the inputs where they cannot. The highest tags, so the drain can send them
-/// straight to `evalInt`.
-let divide = IntOps.divide
-let modulo = IntOps.modulo
-let power = IntOps.power
+/// `NumOps` answers the inputs where they cannot. The highest tags, so the drain can send them
+/// straight to `evalNumbers`.
+let divide = NumOps.divide
+let modulo = NumOps.modulo
+let power = NumOps.power
 
-/// An `IntOps` answer, for a table that declines whatever it cannot answer: an error is the
+/// A `NumOps` answer, for a table that declines whatever it cannot answer: an error is the
 /// impl's to raise.
-let inline private ofInts (outcome : IntOps.Outcome) : Dval voption =
+let inline private ofOutcome (outcome : NumOps.Outcome) : Dval voption =
   match outcome with
-  | IntOps.Value v -> ValueSome v
-  | IntOps.Raises _
-  | IntOps.NotInts -> ValueNone
+  | NumOps.Value v -> ValueSome v
+  | NumOps.Raises _
+  | NumOps.Unsupported -> ValueNone
 
-/// `/`, `%` and `**` on two integers of one fixed-width type, from `IntOps`; anything else, and
-/// whatever raises, declines.
-let evalInt (tag : int) (a : Dval) (b : Dval) : Dval voption =
-  ofInts (IntOps.binary tag a b)
+/// A binary operator on two numbers of one builtin numeric type, from `NumOps`; anything else,
+/// and whatever raises, declines.
+let evalNumbers (tag : int) (a : Dval) (b : Dval) : Dval voption =
+  NumOps.tryBinary tag a b
 
-/// `-x` and `~x` on a fixed-width integer, from `IntOps`; anything else declines.
-let evalIntUnary (tag : int) (a : Dval) : Dval voption = ofInts (IntOps.unary tag a)
+/// `-x` and `~x` on a builtin numeric, from `NumOps`; anything else declines.
+let evalUnary (tag : int) (a : Dval) : Dval voption = ofOutcome (NumOps.unary tag a)
 
-/// `-x` on a signed builtin numeric; anything else declines and dispatches.
-let evalNegate (a : Dval) : Dval voption =
-  match a with
-  | DBigInt x -> ValueSome(Dval.dbigint (DarkBigInt.negate x))
-  | DFloat x -> ValueSome(DFloat(-x))
-  | DFloat32 x -> ValueSome(DFloat32(-x))
-  | DDecimal x -> ValueSome(DDecimal(-x))
-  | a -> evalIntUnary negate a
-
-/// The operator itself, given a tag from `byName` and two `BigInt`s.
+/// The operator itself, given a tag from `byName` and two `BigInt`s: `NumOps`' answer, and
+/// `==` and `!=`.
 let eval (tag : int) (a : DarkBigInt) (b : DarkBigInt) : Dval voption =
-  if tag = add then
-    ValueSome(Dval.dbigint (DarkBigInt.add a b))
-  elif tag = subtract then
-    ValueSome(Dval.dbigint (DarkBigInt.subtract a b))
-  elif tag = multiply then
-    ValueSome(Dval.dbigint (DarkBigInt.multiply a b))
-  elif tag = lessThan then
-    ValueSome(Dval.bool (DarkBigInt.compare a b < 0))
-  elif tag = lessThanOrEqualTo then
-    ValueSome(Dval.bool (DarkBigInt.compare a b <= 0))
-  elif tag = greaterThan then
-    ValueSome(Dval.bool (DarkBigInt.compare a b > 0))
-  elif tag = greaterThanOrEqualTo then
-    ValueSome(Dval.bool (DarkBigInt.compare a b >= 0))
   // Structurally, which is what `equals` does for this case: `DarkBigInt` is `Finite` whenever the
   // value fits an int64, so equal values have equal representations.
-  elif tag = equals then
-    ValueSome(Dval.bool (a = b))
-  elif tag = notEquals then
-    ValueSome(Dval.bool (a <> b))
-  else
-    ValueNone
+  if tag = equals then ValueSome(Dval.bool (a = b))
+  elif tag = notEquals then ValueSome(Dval.bool (a <> b))
+  else ofOutcome (NumOps.bigIntOp tag a b)
 
-/// The operator itself, given a tag from `byName` and two `Int64`s: `IntOps`' answer, and
+/// The operator itself, given a tag from `byName` and two `Int64`s: `NumOps`' answer, and
 /// `==` and `!=`.
 let eval64 (tag : int) (a : int64) (b : int64) : Dval voption =
   if tag = equals then ValueSome(Dval.bool (a = b))
   elif tag = notEquals then ValueSome(Dval.bool (a <> b))
-  else ofInts (IntOps.int64Op tag a b)
+  else NumOps.int64Op ValueSome (fun _ -> ValueNone) ValueNone tag a b
 
 /// The operator itself, for two `String`s. `stringAppend` reaches this because `"a" + "b"` is
 /// the `Add` impl for String, which names `Stdlib.String.append`, a thin wrapper the elision
@@ -269,113 +243,23 @@ let evalDictSet
     ValueNone
 
 
-/// A Decimal `+`, `-` or `*`, declining on overflow so the impl raises its own error.
-let private decimalOrDecline
-  (op : decimal -> decimal -> decimal)
-  (x : decimal)
-  (y : decimal)
-  : Dval voption =
-  try
-    ValueSome(DDecimal(op x y))
-  with :? System.OverflowException ->
-    ValueNone
-
 /// The operators on two values of one builtin numeric type, or two `String`s, for the trait method
-/// the operator lowers to, so the operator never pays impl selection. Integers take `IntOps`, which
-/// is what their impls compute too; Float, Float32 and Decimal `+ - * < <= > >=` and String `+`
-/// are the F# operator their builtin applies. Every mixed pair declines, and so does whatever
-/// would raise: the impl runs and raises its own error. Decimal's `+`, `-` and `*` can overflow,
-/// and decline when they do.
+/// the operator lowers to, so the operator never pays impl selection. Numbers take `NumOps`, which
+/// is what their impls compute too, and String `+` is `String.append`, as its builtin is. Every
+/// mixed pair declines, and so does whatever would raise: the impl runs and raises its own error.
 let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
-  match IntOps.binary tag a b with
-  | IntOps.Value v -> ValueSome v
-  | IntOps.Raises _ -> ValueNone
-  | IntOps.NotInts ->
-    // Nested matches throughout, not `match a, b with`: the pair is an allocation per operator,
-    // which is the cost this table exists to avoid.
+  match NumOps.tryBinary tag a b with
+  | ValueSome _ as answer -> answer
+  | ValueNone ->
+    // Nested matches, not `match a, b with`: the pair is an allocation per operator, which is the
+    // cost this table exists to avoid.
     if tag = add then
       match a with
-      // `"a" + "b"`: string concatenation, `normalize` included
       | DString x ->
         (match b with
          | DString y -> ValueSome(DString(String.append x y))
          | _ -> ValueNone)
-      | DFloat x ->
-        (match b with
-         | DFloat y -> ValueSome(DFloat(x + y))
-         | _ -> ValueNone)
-      | DFloat32 x ->
-        (match b with
-         | DFloat32 y -> ValueSome(DFloat32(x + y))
-         | _ -> ValueNone)
-      | DDecimal x ->
-        (match b with
-         | DDecimal y -> decimalOrDecline (+) x y
-         | _ -> ValueNone)
       | _ -> ValueNone
-    elif tag = subtract then
-      match a with
-      | DFloat x ->
-        (match b with
-         | DFloat y -> ValueSome(DFloat(x - y))
-         | _ -> ValueNone)
-      | DFloat32 x ->
-        (match b with
-         | DFloat32 y -> ValueSome(DFloat32(x - y))
-         | _ -> ValueNone)
-      | DDecimal x ->
-        (match b with
-         | DDecimal y -> decimalOrDecline (-) x y
-         | _ -> ValueNone)
-      | _ -> ValueNone
-    elif tag = multiply then
-      match a with
-      | DFloat x ->
-        (match b with
-         | DFloat y -> ValueSome(DFloat(x * y))
-         | _ -> ValueNone)
-      | DFloat32 x ->
-        (match b with
-         | DFloat32 y -> ValueSome(DFloat32(x * y))
-         | _ -> ValueNone)
-      | DDecimal x ->
-        (match b with
-         | DDecimal y -> decimalOrDecline (*) x y
-         | _ -> ValueNone)
-      | _ -> ValueNone
-    elif
-      tag = lessThan
-      || tag = lessThanOrEqualTo
-      || tag = greaterThan
-      || tag = greaterThanOrEqualTo
-    then
-      // `Int32.MinValue` marks "no ordering": a mixed pair, or a NaN, where `compare` would
-      // order what the builtin's `<` answers false to.
-      let none = System.Int32.MinValue
-      let ordering =
-        match a with
-        | DFloat x ->
-          (match b with
-           | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
-             compare x y
-           | _ -> none)
-        | DFloat32 x ->
-          (match b with
-           | DFloat32 y when
-             not (System.Single.IsNaN x) && not (System.Single.IsNaN y)
-             ->
-             compare x y
-           | _ -> none)
-        | DDecimal x ->
-          (match b with
-           | DDecimal y -> compare x y
-           | _ -> none)
-        | _ -> none
-      if ordering = none then ValueNone
-      elif tag = lessThan then ValueSome(Dval.bool (ordering < 0))
-      elif tag = lessThanOrEqualTo then ValueSome(Dval.bool (ordering <= 0))
-      elif tag = greaterThan then ValueSome(Dval.bool (ordering > 0))
-      else ValueSome(Dval.bool (ordering >= 0))
     else
       ValueNone
 
