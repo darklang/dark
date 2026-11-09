@@ -192,20 +192,15 @@ let rec unifyValueTypeSync
     | TTuple(tFirst, tSecond, tRest) ->
       match actual with
       | ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
-        if List.length tRest <> List.length vRest then
-          Undecided // length mismatch: let the async path build the error
-        else
-          let rec go i tst (es : List<TypeReference>) (vs : List<ValueType>) =
-            match es with
-            | [] -> Unified tst
-            | e :: eRest ->
-              match vs with
-              | [] -> Unified tst
-              | v :: vRest ->
-                match unifyValueTypeSync tst e v with
-                | Unified tst' -> go (i + 1) tst' eRest vRest
-                | other -> other
-          go 0 tst (tFirst :: tSecond :: tRest) (vFirst :: vSecond :: vRest)
+        // Element by element, the rest pairwise: consing the first two onto the rest of each
+        // side, to walk one list, allocated four cells on every check of a tuple, and a list of
+        // tuples is checked on every call that passes one.
+        match unifyValueTypeSync tst tFirst vFirst with
+        | Unified tst ->
+          match unifyValueTypeSync tst tSecond vSecond with
+          | Unified tst -> unifyTypeArgsSyncVT tst tRest vRest
+          | other -> other
+        | other -> other
       | _ -> Undecided
 
     // A custom type of exactly the declared name. `Types.find` would only be needed to ask whether
