@@ -629,6 +629,26 @@ test toLowercaseCombiningMarks =
     [ Stdlib.String.toLowercase("H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕")
       |> Stdlib.Test.equal("h̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈w̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠b̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅt͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝w͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕") ])
 
+test capitalize =
+  Stdlib.Test.all(
+    [ Stdlib.String.capitalize("") |> Stdlib.Test.equal("")
+      Stdlib.String.capitalize("hello world") |> Stdlib.Test.equal("Hello world")
+      Stdlib.String.capitalize("Hello") |> Stdlib.Test.equal("Hello")
+      // the rest is left as it is
+      Stdlib.String.capitalize("hELLO") |> Stdlib.Test.equal("HELLO")
+      Stdlib.String.capitalize("a") |> Stdlib.Test.equal("A")
+      Stdlib.String.capitalize("żółw") |> Stdlib.Test.equal("Żółw")
+      // full case mapping: one character can become several
+      Stdlib.String.capitalize("ßa") |> Stdlib.Test.equal("SSa")
+      Stdlib.String.capitalize("ﬁsh") |> Stdlib.Test.equal("FIsh")
+      // a combining accent stays with the letter it follows
+      Stdlib.String.capitalize("e\u0301tude") |> Stdlib.Test.equal("E\u0301tude")
+      // no case
+      Stdlib.String.capitalize("3abc") |> Stdlib.Test.equal("3abc")
+      Stdlib.String.capitalize(" abc") |> Stdlib.Test.equal(" abc")
+      Stdlib.String.capitalize("😄orange") |> Stdlib.Test.equal("😄orange")
+      Stdlib.String.capitalize("🧑🏽‍🦰abc") |> Stdlib.Test.equal("🧑🏽‍🦰abc") ])
+
 test toUppercase =
   Stdlib.Test.all(
     [ Stdlib.String.toUppercase("") |> Stdlib.Test.equal("")
