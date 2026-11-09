@@ -5608,7 +5608,14 @@ let private runSyncInstructions
       // Nothing to wait for. Step past it, and stop only if it pushed a frame for the outer loop.
       | ApplyDone ->
         counter <- counter + 1
-        if vm.frameToPush.IsSome then running <- false
+        match vm.frameToPush with
+        // A self tail call, refilled in place (`refillForTailCall`): start over here rather than
+        // leave the drain to be entered again on the same frame.
+        | ValueSome frame when obj.ReferenceEquals(frame, currentFrame) ->
+          vm.frameToPush <- ValueNone
+          counter <- 0
+        | ValueSome _ -> running <- false
+        | ValueNone -> ()
       // An operand was a read that landed; its value is in the register now. Same instruction
       // again.
       | ApplyRetry -> pending <- ApplyDone
