@@ -263,16 +263,17 @@ module ExecutionError =
     | Unhandled(Unhandled)
 
   /// `. Did you mean `X`?` for a name that did not resolve, when the standard library has it
-  /// somewhere else; the same hint `dark fn` gives (<fn Packages.Errors.stdlibSuggestion>).
+  /// somewhere else or a name near it exists; the same hint `dark fn` gives
+  /// (<fn Packages.Errors.didYouMean>).
   let nameSuggestion(
     branchId: Uuid,
     rte: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : String =
     match rte with
     | ParseTimeNameResolution(originalName, NotFound) ->
-      match Packages.Errors.stdlibSuggestion(branchId, originalName) with
-      | Some(name) -> $". Did you mean `{name}`?"
-      | None -> ""
+      match Packages.Errors.didYouMeanText(Packages.Errors.didYouMean(branchId, originalName)) with
+      | "" -> ""
+      | text -> ". " + text
     | _ -> ""
 
   let toString(branchId: Uuid, err: ExecutionError): String =
