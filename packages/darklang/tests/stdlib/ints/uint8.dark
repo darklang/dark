@@ -285,6 +285,15 @@ test shiftRight =
       (128u8 >> 7u8) |> Stdlib.Test.equal(1u8)
       (40u8 >> 3u8) |> Stdlib.Test.equal(5u8) ])
 
+/// The shift count is taken modulo 8, as in Rust and C#: shifting by 9
+/// shifts by 1, and the largest count shifts by 7.
+test shiftCountWraps =
+  Stdlib.Test.all(
+    [ (1u8 << 8u8) |> Stdlib.Test.equal(1u8)
+      (1u8 << 9u8) |> Stdlib.Test.equal(2u8)
+      (64u8 >> 9u8) |> Stdlib.Test.equal(32u8)
+      (1u8 << 255u8) |> Stdlib.Test.equal(128u8) ])
+
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.UInt8.checkedAdd(255u8, 1u8)

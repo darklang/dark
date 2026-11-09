@@ -471,6 +471,7 @@ Rules:
   pairs; `docs traits`.
 - Bitwise operators have implementations for every integer type and none for
   Float or Float32; both operands (the shift count included) must be the same type.
+  The count is taken modulo the bit width, as in Rust: `1u8 << 9u8` is `2u8`.
 - `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
   there needs parens: `| A -> (a | b)`.
 

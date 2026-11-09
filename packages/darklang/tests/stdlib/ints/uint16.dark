@@ -280,6 +280,15 @@ test shiftRight =
       (32768u16 >> 15u16) |> Stdlib.Test.equal(1u16)
       (40u16 >> 3u16) |> Stdlib.Test.equal(5u16) ])
 
+/// The shift count is taken modulo 16, as in Rust and C#: shifting by 17
+/// shifts by 1, and the largest count shifts by 15.
+test shiftCountWraps =
+  Stdlib.Test.all(
+    [ (1u16 << 16u16) |> Stdlib.Test.equal(1u16)
+      (1u16 << 17u16) |> Stdlib.Test.equal(2u16)
+      (64u16 >> 17u16) |> Stdlib.Test.equal(32u16)
+      (1u16 << 65535u16) |> Stdlib.Test.equal(32768u16) ])
+
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.UInt16.checkedAdd(65535u16, 1u16)

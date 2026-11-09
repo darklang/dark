@@ -278,6 +278,15 @@ test shiftRight =
       (2147483648u32 >> 31u32) |> Stdlib.Test.equal(1u32)
       (40u32 >> 3u32) |> Stdlib.Test.equal(5u32) ])
 
+/// The shift count is taken modulo 32, as in Rust and C#: shifting by 33
+/// shifts by 1, and the largest count shifts by 31.
+test shiftCountWraps =
+  Stdlib.Test.all(
+    [ (1u32 << 32u32) |> Stdlib.Test.equal(1u32)
+      (1u32 << 33u32) |> Stdlib.Test.equal(2u32)
+      (64u32 >> 33u32) |> Stdlib.Test.equal(32u32)
+      (1u32 << 4294967295u32) |> Stdlib.Test.equal(2147483648u32) ])
+
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.UInt32.checkedAdd(4294967295u32, 1u32)
