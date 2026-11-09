@@ -203,6 +203,21 @@ let all = [ locations; deprecations; docs ]
 let view (prefix : string) (table : Table) : string =
   cte prefix + ", " + visible table.name table.key
 
+/// Whether the view has a row of <param table> that meets <param where>, a condition over `t`:
+/// `visible`'s own test, asked of the rows <param where> picks out. To follow `view`, whose `layer`
+/// and `{table}_shadow` it reads.
+///
+/// For a query that knows the few keys it wants to ask about: each probe finds its rows through an
+/// index on <param where>'s columns, where a filter over `visible` checks every row the view holds.
+let existsVisible (table : Table) (where : string) : string =
+  let sameKey =
+    table.key |> List.map (fun c -> $"s.{c} = t.{c}") |> String.concat " AND "
+  $"EXISTS (
+      SELECT 1 FROM {table.name} t CROSS JOIN layer y
+      WHERE {where} AND t.live = 1 AND y.branch_id = t.branch_id AND y.draft = t.draft
+        AND NOT EXISTS (
+          SELECT 1 FROM {table.name}_shadow s WHERE {sameKey} AND s.r < y.rank))"
+
 
 /// Make the row being written the live one of its layer: everything else of <param layer> at
 /// that key stops being live. Called right before inserting it; <param bindKey> binds the key

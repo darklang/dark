@@ -253,6 +253,9 @@ CREATE TABLE IF NOT EXISTS package_functions (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   description TEXT NOT NULL DEFAULT ''         -- plain-text doc comment for SQL package search
 );
+-- What a text search reads of every function: its doc comment, without the definitions beside it.
+CREATE INDEX IF NOT EXISTS idx_package_functions_description
+  ON package_functions(hash, description);
 
 -- Tests are package content that nothing can call. Stored as source only;
 -- Before executing a test, `dark test run` compiles its stored body into interpreter instructions.
@@ -262,6 +265,7 @@ CREATE TABLE IF NOT EXISTS package_tests (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   description TEXT NOT NULL DEFAULT ''
 );
+CREATE INDEX IF NOT EXISTS idx_package_tests_description ON package_tests(hash, description);
 
 -- Content-addressed bytes (Bytes refs). Dedup comes for free via PK
 -- uniqueness; orphans reclaimed by `LibDB.RuntimeTypes.Bytes.sweepOrphans`.
