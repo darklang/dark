@@ -14,12 +14,34 @@ open LibExecution.RuntimeTypes
 module Permission = LibExecution.Permissions
 module Effect = LibExecution.Effects
 
-let private layerName (layer : Permission.Layer) : string =
+/// The function a package or function policy belongs to, by name where it has one. The hash is
+/// printed only when there is no name, or the name now points at another version.
+let private fnLabel (fnName : Option<PolicyFnName>) (id : string) : string =
+  match fnName with
+  | Some { name = name; current = true } -> $"for `{name}`"
+  | Some { name = name; current = false } ->
+    $"for an older version of `{name}`, `{id}`"
+  | None -> $"`{id}`"
+
+/// The name to print for the function behind `layer`, if it is a function's policy.
+let private layerFnName
+  (state : ExecutionState)
+  (layer : Permission.Layer)
+  : Option<PolicyFnName> =
+  match layer with
+  | Permission.Layer.Package id
+  | Permission.Layer.Function id -> state.policyFnName id
+  | _ -> None
+
+let private layerName
+  (fnName : Option<PolicyFnName>)
+  (layer : Permission.Layer)
+  : string =
   match layer with
   | Permission.Layer.Instance -> "instance policy"
   | Permission.Layer.Run -> "run policy"
-  | Permission.Layer.Package id -> $"package policy `{id}`"
-  | Permission.Layer.Function id -> $"function policy `{id}`"
+  | Permission.Layer.Package id -> $"package policy {fnLabel fnName id}"
+  | Permission.Layer.Function id -> $"function policy {fnLabel fnName id}"
   | Permission.Layer.Value name -> $"value `{name}`"
 
 let private reasonText (reason : Permission.PolicyDenial) : string =
@@ -38,9 +60,18 @@ let private denialMessage
   (layer : Permission.Layer)
   (suggestion : Permission.Suggestion)
   (origin : Option<PackagePolicyOrigin>)
+  (fnName : Option<PolicyFnName>)
   : string =
   let quoted (names : List<string>) =
     names |> List.map (fun n -> $"`{n}`") |> String.concat ", "
+  // Approval is by logical name, not by the policy id: the id names the immutable version, and
+  // the name is what a person has. An older version's name now approves a different version.
+  let approve =
+    match fnName with
+    | Some { name = name; current = true } ->
+      $"To approve: `permissions approve {name}`."
+    | _ ->
+      "To approve: `permissions approve <fn>`, naming the function that needs it."
   let remedy =
     match layer, suggestion, origin with
     | Permission.Layer.Instance, Permission.Suggestion.Paste rule, _ ->
@@ -56,18 +87,14 @@ let private denialMessage
       + "before this version of Dark changed what its builtins declare, so it never "
       + $"covered this. To re-review: `permissions approve {first}`."
     | Permission.Layer.Package _, _, Some o ->
-      $"That policy came from approving {quoted o.approvedAs}. To approve: "
-      + "`permissions approve <fn>`, naming the function that needs it."
-    | Permission.Layer.Package _, _, None ->
-      // Approval is by logical name, not by the policy id printed above: the
-      // id names the immutable version, and the name is what a person has.
-      "To approve: `permissions approve <fn>`, naming the function that needs it."
+      $"That policy came from approving {quoted o.approvedAs}. {approve}"
+    | Permission.Layer.Package _, _, None -> approve
     | Permission.Layer.Function _, _, _ ->
       "The function's declared ceiling does not allow this operation."
     | Permission.Layer.Value _, _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "
       + "Make it a function to do this each time it is called."
-  $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}"
+  $"permission denied by {layerName fnName layer}: {resource} is {reasonText reason}. {remedy}"
 
 let private raiseDenial
   (state : ExecutionState)
@@ -88,7 +115,7 @@ let private raiseDenial
     | Permission.Layer.Package id -> state.packagePolicyOrigin id
     | _ -> None
   RuntimeError.UncaughtException(
-    denialMessage resource reason layer suggestion origin,
+    denialMessage resource reason layer suggestion origin (layerFnName state layer),
     []
   )
   |> raiseUntargetedRTE
@@ -113,7 +140,7 @@ let private relaxFor (state : ExecutionState) (vm : VMState) : Permission.Relax 
       recordPermissionViolation
         sink
         (executionPoint vm)
-        $"{resource} ({layerName layer})"
+        $"{resource} ({layerName (layerFnName state layer) layer})"
         (reasonText reason))
   | None -> Permission.NoRelax
 
