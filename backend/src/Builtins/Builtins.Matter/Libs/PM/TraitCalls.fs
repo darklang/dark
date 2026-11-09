@@ -145,7 +145,9 @@ module private Decode =
 // The key is the body's own hash and `environmentOf`. The body's hash covers everything it names,
 // by hash, all the way down. `environmentOf` covers what the checker reads any other way: the
 // implementations of a trait, names of types and traits (`Option`, `Result`), deprecations, the
-// checker's own code and the build. Change any of those and every body is checked again.
+// checker's own code, the builtins' signatures and the build, less the assemblies in
+// `outsideTheChecker` but with the files of theirs the checker runs. Change any of those and
+// every body is checked again.
 //
 // Only a reload uses it. A save is one or two items, and its batch is not in the store yet.
 
@@ -265,6 +267,52 @@ module private Encoding =
         None
 
 
+/// The assemblies a reload's build is hashed without (`HostProcess.runtimeHashWithout`). The
+/// files of theirs the checker runs are hashed instead (`CheckerSources.checkerFiles`), so an
+/// edit to one of those misses and an edit to any other file of theirs keeps the cache.
+///
+/// Kept in whole, edits to them miss: the interpreter and the types it runs on (LibExecution,
+/// Prelude), the store the checker reads through (LibDB, LibSerialization) and the config it
+/// reads (LibConfig), this module and the package reads it makes (Builtins.Matter), the conversion
+/// of each signature to the value the checker reads (Builtins.Language), and LocalExec, which
+/// builds the checker's execution state. So does any assembly not named here, a new one included.
+let outsideTheChecker : Set<string> =
+  Set.ofList
+    [ "Builtins.Pure"
+      "Builtins.Cli"
+      "Builtins.CliHost"
+      "Builtins.Http.Client"
+      "Builtins.Http.Server"
+      "Builtins.Random"
+      "Builtins.Time"
+      // Run by the checker only through a parser builtin, which `CheckerSources` follows.
+      "LibParser"
+      "TestUtils" ]
+
+
+/// Every builtin fn's signature, everything but the description and the body, and every builtin
+/// value but its description.
+let private builtinSignatures (exeState : RT.ExecutionState) : List<string> =
+  let fns =
+    exeState.fns.builtIn
+    |> Seq.map (fun (KeyValue(name, fn)) ->
+      let parameters = fn.parameters |> List.map (fun p -> (p.name, p.typ))
+      sprintf
+        "builtin fn %A"
+        (name,
+         fn.typeParams,
+         parameters,
+         fn.returnType,
+         fn.previewable,
+         fn.deprecated,
+         Set.toList fn.callEffects))
+  let values =
+    exeState.values.builtIn
+    |> Seq.map (fun (KeyValue(name, value)) ->
+      sprintf "builtin value %A" (name, value.typ, value.deprecated, value.body))
+  Seq.append fns values |> Seq.sort |> List.ofSeq
+
+
 /// Everything a body's answer depends on that the body's own hash does not cover, as one hash.
 ///
 /// The body's hash covers what it names, by hash and transitively, so fns, values and tests stay out:
@@ -272,12 +320,13 @@ module private Encoding =
 /// is in here is what the checker reads another way. The types, traits and implementations, and
 /// the names bound to them, because it finds implementations and the standard types by name. The
 /// deprecations and the stamps, since they decide which implementations count. The checker's own
-/// entry point, whose hash covers the Dark it runs; and <param build>, the reload's
-/// `HostProcess.runtimeHash`,
-/// which covers the F# it runs on, this module included.
+/// entry point, whose hash covers the Dark it runs. The builtins' signatures, which it type-checks
+/// builtin calls against; and <param build>, the reload's hash of the F# it runs on, this module
+/// included and `outsideTheChecker` left out but for the files of theirs the checker runs.
 ///
 /// Docs and reference names are left out: they say what something is called, not what it does.
 let private environmentOf
+  (exeState : RT.ExecutionState)
   (build : string)
   (branchId : PT.BranchId)
   (deprecated : Set<string>)
@@ -329,11 +378,12 @@ let private environmentOf
     |> String.concat " "
   let checker = PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOpsOn ()
   let lines =
-    [ "trait-call-cache 1"
+    [ "trait-call-cache 3"
       $"runtime {build}"
       $"branch {branchId.Guid}"
       $"checker {checker}"
       $"stamps {byStamp}" ]
+    @ builtinSignatures exeState
     @ (deprecated |> Set.toList |> List.map (fun h -> $"deprecated {h}"))
     @ fromOps
   String.concat "\n" lines
@@ -601,7 +651,7 @@ let private resolveIn
       let environment =
         reload
         |> Option.map (fun build ->
-          environmentOf build branchId deprecated storedStamps ops)
+          environmentOf exeState build branchId deprecated storedStamps ops)
       let! cached =
         match environment with
         | Some environment -> LibDB.TraitCallCache.load environment
@@ -967,7 +1017,8 @@ let rec private unresolved (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int 
 /// all printed a line; one it settled partly printed nothing, and its unsettled calls ran whichever
 /// implementation was newest, which a later rival could change without anyone being told.
 ///
-/// <param reload> is Some build (`HostProcess.runtimeHash`) on a package reload, None on a save.
+/// <param reload> is Some build on a package reload, None on a save: the hash of the build less
+/// `outsideTheChecker` and of the files of theirs the checker runs (`CheckerSources`).
 /// The caller passes it in because a builtin may not read the executable itself
 /// (`tests/hostBoundary`).
 let resolveTraitCalls

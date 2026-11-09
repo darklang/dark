@@ -141,34 +141,63 @@ let killChild (child : Child) : unit =
 let currentExecutablePath () : string =
   System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
 
-/// Hash the executable and its installed runtime dependencies once per process.
+/// Hash the executable and those of its installed runtime dependencies <param keep> accepts.
 /// This works for both a single NativeAOT binary and a managed build with DLLs.
-let private runtimeHashValue =
-  lazy
-    (let executable = currentExecutablePath ()
-     let directory = Path.GetDirectoryName executable
-     let dependencies =
-       Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
-       |> Array.filter (fun path ->
-         path.EndsWith(".dll")
-         || path.EndsWith(".deps.json")
-         || path.EndsWith(".runtimeconfig.json")
-         || path.EndsWith(".dylib")
-         || (Path.GetFileName path).Contains(".so"))
-       |> Array.sort
-     use hash =
-       System.Security.Cryptography.IncrementalHash.CreateHash(
-         System.Security.Cryptography.HashAlgorithmName.SHA256
-       )
-     hash.AppendData(
-       System.Text.Encoding.UTF8.GetBytes RuntimeInformation.FrameworkDescription
-     )
-     for path in Array.append [| executable |] dependencies do
-       use file = File.OpenRead path
-       hash.AppendData(System.Security.Cryptography.SHA256.HashData file)
-     System.Convert.ToHexStringLower(hash.GetHashAndReset()))
+let private hashRuntime (keep : string -> bool) : string =
+  let executable = currentExecutablePath ()
+  let directory = Path.GetDirectoryName executable
+  let dependencies =
+    Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
+    |> Array.filter (fun path ->
+      (path.EndsWith(".dll")
+       || path.EndsWith(".deps.json")
+       || path.EndsWith(".runtimeconfig.json")
+       || path.EndsWith(".dylib")
+       || (Path.GetFileName path).Contains(".so"))
+      && keep path)
+    |> Array.sort
+  use hash =
+    System.Security.Cryptography.IncrementalHash.CreateHash(
+      System.Security.Cryptography.HashAlgorithmName.SHA256
+    )
+  hash.AppendData(
+    System.Text.Encoding.UTF8.GetBytes RuntimeInformation.FrameworkDescription
+  )
+  for path in Array.append [| executable |] dependencies do
+    use file = File.OpenRead path
+    hash.AppendData(System.Security.Cryptography.SHA256.HashData file)
+  System.Convert.ToHexStringLower(hash.GetHashAndReset())
+
+/// The executable and all its installed runtime dependencies, hashed once per process.
+let private runtimeHashValue = lazy (hashRuntime (fun _ -> true))
 
 let runtimeHash () : string = runtimeHashValue.Value
+
+/// `runtimeHash` with the DLLs of <param assemblies> left out, each named without `.dll`.
+let runtimeHashWithout (assemblies : Set<string>) : string =
+  hashRuntime (fun path ->
+    not (
+      path.EndsWith(".dll")
+      && Set.contains (Path.GetFileNameWithoutExtension path) assemblies
+    ))
+
+/// <param files>, paths under <param root>, hashed by path and content. A missing file hashes as
+/// missing, which differs from any content it had.
+let sourcesHash (root : string) (files : Set<string>) : string =
+  use hash =
+    System.Security.Cryptography.IncrementalHash.CreateHash(
+      System.Security.Cryptography.HashAlgorithmName.SHA256
+    )
+  for file in files do
+    hash.AppendData(System.Text.Encoding.UTF8.GetBytes(file + "\n"))
+    let path = Path.Combine(root, file)
+    if File.Exists path then
+      hash.AppendData(
+        System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes path)
+      )
+    else
+      hash.AppendData(System.Text.Encoding.UTF8.GetBytes "missing\n")
+  System.Convert.ToHexStringLower(hash.GetHashAndReset())
 
 // Set once at startup, by a host whose worker entry point is another executable.
 let mutable private processLauncher : Option<string> = None
