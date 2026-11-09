@@ -85,16 +85,12 @@ let rec writefileBytes (root : Dirs.Root) (f : string) (contents : byte[]) : uni
 
   // We might not be the only one trying to copy here, and .NET won't let us
   // overwrite it if something else is. So try again.
-  let mutable success = false
-  let mutable count = 0
-  while success = false && count < 10 do
+  let rec move (attempt : int) : unit =
     try
       System.IO.File.Move(tempFilename, f, true)
-      success <- true
-    with e ->
-      count <- count + 1
-      if count > 10 then Exception.reraise e else ()
-      ()
+    with _ when attempt < 10 ->
+      move (attempt + 1)
+  move 1
 
 let rec writefile (root : Dirs.Root) (f : string) (contents : string) : unit =
   writefileBytes root f (UTF8.toBytes contents)
