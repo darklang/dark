@@ -1557,6 +1557,8 @@ let private refusalsOnStderr : List<string * List<string>> =
     "ls, a function where a module goes", [ "ls"; "Darklang.Stdlib.List.map" ]
     "docs signatures --module, no such module",
     [ "docs"; "signatures"; "--module"; "Zzz.Nope" ]
+    "docs signatures, a filter that matches nothing",
+    [ "docs"; "signatures"; "zzznope" ]
     "traces tail, past the oldest trace", [ "traces"; "tail"; "999999" ]
     "diff --json, no such branch", [ "diff"; "zzznope"; "--json" ]
     "conflicts branch --json, no such branch",
