@@ -583,11 +583,11 @@ test exprsPipeExpression =
 
 test exprsThePrefixOperators =
   Stdlib.Test.all(
-    [ // The prefix operators desugar to their builtin, exactly as unary `-` does,
-      // so the NORMAL FORM prints the builtin call rather than the operator.
+    [ // The prefix operators desugar to the call they are, so the NORMAL FORM prints
+      // that call rather than the operator.
       roundTrip("prefix bang", "!true", "Builtin.boolNot(true)")
-      roundTrip("prefix tilde", "~1", "Builtin.bitwiseNot(1)")
-      roundTrip("unary minus on a non-literal", "-x", "Builtin.negate(x)")
+      roundTrip("prefix tilde", "~1", "Stdlib.BitwiseNot.bitwiseNot(1)")
+      roundTrip("unary minus on a non-literal", "-x", "Stdlib.Negate.negate(x)")
       roundTrip("prefix bang takes a whole application", "!f(x)", "Builtin.boolNot(f(x))")
       // `|` is the match-arm separator inside a match, so a bitwise-or in an arm
       // body has to come back parenthesised or it re-parses as the next arm.

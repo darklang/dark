@@ -2201,23 +2201,24 @@ and private parseParenItems
     else
       (a :: itemsRev, m)
 
-// A prefix operator: `op operand` → `Builtin.<name> operand`, with the operand
+// A prefix operator: `op operand` → `<modules>.<name> operand`, with the operand
 // parsed as a whole APPLICATION so `op f x` is `op (f x)`. Shared by `!`, `~`
 // and the non-literal case of unary `-`.
-and parsePrefixBuiltin
+and parsePrefixCall
   (state : ParserState)
   (i : int)
-  (builtinName : string)
+  (modules : List<string>)
+  (fnName : string)
   : WT.Expr * int =
   let (operand, k) = parseApp state (i + 1)
   let opR = rng state i
-  let builtinFn : WT.QualifiedFnIdentifier =
+  let callee : WT.QualifiedFnIdentifier =
     { range = opR
-      modules = [ ({ range = opR; name = "Builtin" }, opR) ]
-      fn = { range = opR; name = builtinName } }
+      modules = modules |> List.map (fun m -> ({ range = opR; name = m }, opR))
+      fn = { range = opR; name = fnName } }
   (WT.EApply(
     span opR (WT.exprRange operand),
-    WT.EFnName(opR, builtinFn),
+    WT.EFnName(opR, callee),
     [],
     [ operand ]
    ),
@@ -2696,11 +2697,11 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       (WT.EFloat32(r, true, whole, frac), i + 2)
     | TDecimal v -> (WT.EDecimal(r, -v), i + 2)
     | _ ->
-      // unary minus on a non-literal (`-x`, `-(expr)`, `-f x`) → `Builtin.negate`
+      // unary minus on a non-literal (`-x`, `-(expr)`, `-f x`) → `Stdlib.Negate.negate`
       // applied to the whole application, so `-f x` groups as `-(f x)`, not `(-f) x`
       // (minus binds looser than application). Infix ops still bind looser than the
       // minus: `-a + b` is `(-a) + b`, since `+` can't start an application arg.
-      parsePrefixBuiltin state i PT.InfixFnName.negateBuiltinName
+      parsePrefixCall state i [ "Stdlib"; "Negate" ] "negate"
   | TFloat v ->
     let r = rng state i
     let (whole, frac) = floatParts state i v
@@ -2913,8 +2914,8 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
   // minus on a non-literal: the operand is a whole APPLICATION, so `!f x` is
   // `!(f x)`, and infix operators still bind looser (`!a && b` is `(!a) && b`,
   // since `&&` cannot start an application argument).
-  | TNot -> parsePrefixBuiltin state i PT.InfixFnName.boolNotBuiltinName
-  | TBitNot -> parsePrefixBuiltin state i PT.InfixFnName.bitwiseNotBuiltinName
+  | TNot -> parsePrefixCall state i [ "Builtin" ] PT.InfixFnName.boolNotBuiltinName
+  | TBitNot -> parsePrefixCall state i [ "Stdlib"; "BitwiseNot" ] "bitwiseNot"
   | TDotDotDot ->
     err
       state

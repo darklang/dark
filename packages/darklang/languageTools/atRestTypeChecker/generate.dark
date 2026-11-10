@@ -597,7 +597,8 @@ let infer(scope: Scope, expr: LanguageTools.ProgramTypes.Expr): (Model.Ty * Mode
   | ERecord(id, typeName, typeArgs, fields) ->
     inferRecord(scope, id, typeName, typeArgs, fields)
   | ELambda(id, patterns, body) -> inferLambda(scope, id, patterns, body)
-  | EInfix(id, infix, lhs, rhs, choice) -> inferInfix(scope, id, infix, lhs, rhs, choice)
+  | EInfix(id, infix, lhs, rhs, choice) ->
+    inferInfix(scope, id, infix, lhs, rhs, choice, true)
   | ETuple(_, first, second, rest) -> inferTuple(scope, first, second, rest)
   | EStatement(_, first, next) -> inferStatement(scope, first, next)
   | EBool(_, _) -> (Model.Ty.TBool, nothing())
@@ -772,7 +773,7 @@ let inferPipe(
 
   let (resultType, reversed) =
     Stdlib.List.fold(parts, (lhsType, [ lhsConstraints ]), fun((input, acc), p) ->
-      let (output, constraints) = inferPipePart(scope, input, p)
+      let (output, constraints) = inferPipePart(scope, input, p, true)
       (output, Stdlib.List.prepend(acc, constraints)))
 
   (resultType, all(Stdlib.List.reverse(reversed)))
@@ -1298,13 +1299,13 @@ let specialApplication(
           else if builtin == "negate" then
             let (argType, argConstraints) = infer(scope, arg)
             Stdlib.Option.Option.Some(
-              (argType, all([ argConstraints, Model.Constraint.Negate(id, argType) ]))
+              (argType, all([ argConstraints, Model.Constraint.Negate(id, argType, false) ]))
             )
           else if builtin == "bitwiseNot" then
             let (argType, argConstraints) = infer(scope, arg)
             Stdlib.Option.Option.Some(
               (argType,
-               all([ argConstraints, Model.Constraint.BitwiseNot(id, argType) ]))
+               all([ argConstraints, Model.Constraint.BitwiseNot(id, argType, false) ]))
             )
           else
             Stdlib.Option.Option.None
@@ -1318,7 +1319,8 @@ let specialApplication(
                 LanguageTools.ProgramTypes.Infix.InfixFnCall(operation),
                 lhs,
                 rhs,
-                LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown)
+                LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown,
+                false)
             )
           | None -> Stdlib.Option.Option.None
         | _ -> Stdlib.Option.Option.None
@@ -1430,7 +1432,8 @@ let inferInfix(
   infix: LanguageTools.ProgramTypes.Infix,
   lhs: LanguageTools.ProgramTypes.Expr,
   rhs: LanguageTools.ProgramTypes.Expr,
-  choice: LanguageTools.ProgramTypes.FQFnName.ImplChoice)
+  choice: LanguageTools.ProgramTypes.FQFnName.ImplChoice,
+  record: Bool)
   : (Model.Ty * Model.Constraint) =
   match infix with
   | BinOp(_) ->
@@ -1468,7 +1471,8 @@ let inferInfix(
                id,
                operation,
                lhsType,
-               AmbiguousSubject.NumericOperand
+               AmbiguousSubject.NumericOperand,
+               record
              ) ]))
 
 /// Infer one pipeline step from the type produced by the previous step. Treat
@@ -1477,7 +1481,8 @@ let inferInfix(
 let inferPipePart(
   scope: Scope,
   input: Model.Ty,
-  pipePart: LanguageTools.ProgramTypes.PipeExpr)
+  pipePart: LanguageTools.ProgramTypes.PipeExpr,
+  record: Bool)
   : (Model.Ty * Model.Constraint) =
   match pipePart with
   | EPipeLambda(id, patterns, body) ->
@@ -1552,7 +1557,8 @@ let inferPipePart(
                  id,
                  operation,
                  input,
-                 AmbiguousSubject.PipelineNumericOperand
+                 AmbiguousSubject.PipelineNumericOperand,
+                 record
                ) ]))
 
   | EPipeFnCall(id, name, typeArgs, args, _) ->
@@ -1572,10 +1578,10 @@ let inferPipePart(
                 (resultOf(id), Model.Constraint.Unwrap(id, fn, input, resultOf(id)))
               )
             else if builtin == "negate" then
-              Stdlib.Option.Option.Some((input, Model.Constraint.Negate(id, input)))
+              Stdlib.Option.Option.Some((input, Model.Constraint.Negate(id, input, false)))
             else if builtin == "bitwiseNot" then
               Stdlib.Option.Option.Some(
-                (input, Model.Constraint.BitwiseNot(id, input)))
+                (input, Model.Constraint.BitwiseNot(id, input, false)))
             else
               Stdlib.Option.Option.None
           | [ rhs ] ->
@@ -1590,7 +1596,8 @@ let inferPipePart(
                     LanguageTools.ProgramTypes.Infix.InfixFnCall(operation),
                     rhs,
                     LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown
-                  )))
+                  )),
+                  false)
               )
             | None -> Stdlib.Option.Option.None
           | _ -> Stdlib.Option.Option.None

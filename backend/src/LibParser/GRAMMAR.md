@@ -169,8 +169,8 @@ Operator sections `(op)` are two-arg lambdas, called like any other:
 `(+)(1, 2)`, `List.fold(xs, 0, (+))`.
 
 Unary minus on a literal makes a negative literal. On anything else it applies
-`Builtin.negate`. Prefix `!` (boolean not) and `~` (bitwise not) take the same
-shape, applying `Builtin.boolNot` / `Builtin.bitwiseNot` to a whole call:
+`Stdlib.Negate.negate`. Prefix `!` (boolean not) and `~` (bitwise not) take the same
+shape, applying `Builtin.boolNot` / `Stdlib.BitwiseNot.bitwiseNot` to a whole call:
 `!f(x)` is `!(f(x))`, and infix operators still bind looser, so `!a && b` is
 `(!a) && b`.
 

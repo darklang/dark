@@ -91,10 +91,9 @@ let private languageIdioms : Set<string> =
       // None. That frame is the reason, and it is a reason about error messages, not about layering.
       "unwrap" ]
 
-/// Builtins called via infix operators rather than `Builtin.X` syntax.
-/// Source: LibExecution/ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName
-/// for binary ops; LibParser/Parser.fs lowers the unary `-x`, `~x` and `!x`
-/// prefixes to Builtin.negate / bitwiseNot / boolNot.
+/// Builtins behind the operators rather than called by name: `==` and `!=` directly
+/// (LibExecution/ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName), the rest, `-x` and
+/// `~x` included, through each type's implementation of the operator's trait.
 let private infixDispatched : Set<string> =
   Set.ofList
     [ // Polymorphic numeric operators

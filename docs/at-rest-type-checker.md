@@ -178,9 +178,10 @@ Concrete results use their actual package types. Ordinary generic builtins decla
   them, and the use is `Incomplete`.
 
 Infix syntax does not lower to those builtins. `a + b` is `Stdlib.Add.add(a, b)`
-(`NumericTraits.ofInfix`, likewise `- * / % **` and the four comparisons), and `-x`, which
-the parser stores as `Builtin.negate(x)`, runs as `Stdlib.Negate.negate(x)`. The checker
-treats each as a trait method call. `==` is not one: equality is structural, so the
+(`NumericTraits.ofInfix`, likewise `- * / % **` and the four comparisons), and the parser
+reads `-x` as `Stdlib.Negate.negate(x)`. The checker treats each as a trait method call, and
+a by-name builtin call as a check only: it records no implementation, since it runs the
+builtin. `==` is not one: equality is structural, so the
 operands must unify and nothing further is owed.
 
 ## Traits

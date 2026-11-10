@@ -494,14 +494,15 @@ let mapConstraintTypes(
       caseName,
       Stdlib.List.map(fields, fun t -> mapType(t))
     )
-  | Operand(at, operation, operand, subject) ->
-    Model.Constraint.Operand(at, operation, mapType(operand), subject)
+  | Operand(at, operation, operand, subject, record) ->
+    Model.Constraint.Operand(at, operation, mapType(operand), subject, record)
   | TraitCall(at, trait_, method_, self) ->
     Model.Constraint.TraitCall(at, trait_, method_, mapType(self))
   | CallerBound(at, param, trait_, supplied) ->
     Model.Constraint.CallerBound(at, param, trait_, mapType(supplied))
-  | Negate(at, operand) -> Model.Constraint.Negate(at, mapType(operand))
-  | BitwiseNot(at, operand) -> Model.Constraint.BitwiseNot(at, mapType(operand))
+  | Negate(at, operand, record) -> Model.Constraint.Negate(at, mapType(operand), record)
+  | BitwiseNot(at, operand, record) ->
+    Model.Constraint.BitwiseNot(at, mapType(operand), record)
   | DictKey(at, key) -> Model.Constraint.DictKey(at, mapType(key))
   | Apply(at, callee, args, result) ->
     Model.Constraint.Apply(
@@ -537,11 +538,11 @@ let constraintVars(s: State, c: Model.Constraint): Dict<Model.Var, Bool> =
     Stdlib.List.fold(fields, into(Dict {}, record), fun(found, (_, t)) -> into(found, t))
   | EnumPattern(_, scrutinee, _, fields) ->
     Stdlib.List.fold(fields, into(Dict {}, scrutinee), fun(found, t) -> into(found, t))
-  | Operand(_, _, operand, _) -> into(Dict {}, operand)
+  | Operand(_, _, operand, _, _) -> into(Dict {}, operand)
   | TraitCall(_, _, _, self) -> into(Dict {}, self)
   | CallerBound(_, _, _, supplied) -> into(Dict {}, supplied)
-  | Negate(_, operand) -> into(Dict {}, operand)
-  | BitwiseNot(_, operand) -> into(Dict {}, operand)
+  | Negate(_, operand, _) -> into(Dict {}, operand)
+  | BitwiseNot(_, operand, _) -> into(Dict {}, operand)
   | DictKey(_, key) -> into(Dict {}, key)
   | Apply(_, callee, args, result) ->
     Stdlib.List.fold(args, into(into(Dict {}, callee), result), fun(found, (t, _)) ->
@@ -781,9 +782,10 @@ let deferredUses(c: Model.Constraint): List<DeferredUse> =
 
   match c with
   | Apply(at, callee, _, _) -> [ use(at, callee, DeferredRequirement.CallableType) ]
-  | Operand(at, _, operand, _) -> [ use(at, operand, DeferredRequirement.NumericType) ]
-  | Negate(at, operand) -> [ use(at, operand, DeferredRequirement.NumericType) ]
-  | BitwiseNot(at, operand) -> [ use(at, operand, DeferredRequirement.NumericType) ]
+  | Operand(at, _, operand, _, _) ->
+    [ use(at, operand, DeferredRequirement.NumericType) ]
+  | Negate(at, operand, _) -> [ use(at, operand, DeferredRequirement.NumericType) ]
+  | BitwiseNot(at, operand, _) -> [ use(at, operand, DeferredRequirement.NumericType) ]
   | GetField(at, record, field, result) ->
     [ DeferredUse
         { at = at
@@ -993,12 +995,13 @@ let trySolveDeferred(s: State, c: Model.Constraint): Stdlib.Option.Option<State>
   | UpdateRecord(at, record, fields) -> updateRecord(s, at, record, fields)
   | EnumPattern(at, scrutinee, caseName, fields) ->
     enumPattern(s, at, scrutinee, caseName, fields)
-  | Operand(at, operation, operand, _) -> operandFor(s, at, operation, operand)
+  | Operand(at, operation, operand, _, record) ->
+    operandFor(s, at, operation, operand, record)
   | TraitCall(at, trait_, method_, self) -> traitCallFor(s, at, trait_, method_, self)
   | CallerBound(at, param, trait_, supplied) ->
     callerBoundFor(s, at, param, trait_, supplied)
-  | Negate(at, operand) -> negate(s, at, operand)
-  | BitwiseNot(at, operand) -> bitwiseNot(s, at, operand)
+  | Negate(at, operand, record) -> negate(s, at, operand, record)
+  | BitwiseNot(at, operand, record) -> bitwiseNot(s, at, operand, record)
   | Unwrap(at, fn, arg, result) -> unwrap(s, at, fn, arg, result)
   | Propagate(at, operand, inner, returned) ->
     checkUnwrapReturn(s, c, at, operand, inner, returned)
@@ -1117,9 +1120,9 @@ let reportUnsolvedConstraints(s: State): State =
         Stdlib.List.map(fields, fun((_, t)) -> t))
     | EnumPattern(at, _, _, fields) ->
       markAllUnknownsAsError(ambiguous(at, AmbiguousSubject.EnumPatternType), fields)
-    | Operand(at, _, _, subject) -> ambiguous(at, subject)
-    | Negate(at, _) -> ambiguous(at, AmbiguousSubject.UnaryMinusOperand)
-    | BitwiseNot(at, _) -> ambiguous(at, AmbiguousSubject.BitwiseNotOperand)
+    | Operand(at, _, _, subject, _) -> ambiguous(at, subject)
+    | Negate(at, _, _) -> ambiguous(at, AmbiguousSubject.UnaryMinusOperand)
+    | BitwiseNot(at, _, _) -> ambiguous(at, AmbiguousSubject.BitwiseNotOperand)
     | DictKey(at, _) -> ambiguous(at, AmbiguousSubject.DictKeyType)
     | Apply(at, _, args, result) ->
       markAllUnknownsAsError(
@@ -1269,12 +1272,14 @@ let useFunction(
             | Some(selfTy) ->
               solve(
                 s,
-                (Model.Constraint.TraitCall(
-                  at,
-                  method.trait_,
-                  method.method_,
-                  selfTy
-                )))
+                (unaryOperatorCall(s.env, at, method.trait_, method.method_, selfTy)
+                 |> Stdlib.Option.withDefault(
+                   Model.Constraint.TraitCall(
+                     at,
+                     method.trait_,
+                     method.method_,
+                     selfTy
+                   ))))
             | None -> s
           | None -> s
         | _ -> s
@@ -2084,14 +2089,16 @@ let decidedSubject(s: State, subject: Model.Ty): Model.Ty =
 ///    between `impl for Option<Int64>` and `impl for Option<String>` by timestamp, which is
 ///    the defect `gates trait-checker-vs-dispatch` exists to catch.
 ///  - decided: record the implementations that apply. Which of two rivals is newer is a
-///    question about the op log, and the store answers it at save time.
+///    question about the op log, and the store answers it at save time. Unless
+///    <param record> is false: a by-name builtin call is only checked.
 let recordImplChoice(
   s: State,
   at: Int64,
   traitHash: LanguageTools.ProgramTypes.Hash,
   method_: String,
   subject: Model.Ty,
-  candidates: List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)
+  candidates: List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>,
+  record: Bool)
   : Stdlib.Option.Option<State> =
   let nodeId = Stdlib.Option.Option.Some(at)
 
@@ -2130,6 +2137,8 @@ let recordImplChoice(
 
       if Stdlib.List.isEmpty(applies) then
         Stdlib.Option.Option.Some(missing())
+      else if Stdlib.Bool.not(record) then
+        Stdlib.Option.Option.Some(s)
       else
         Stdlib.Option.Option.Some(
           addResolution(
@@ -2168,7 +2177,15 @@ let traitCallFor(
     )
   | _ ->
     let (candidates, env) = Environment.implsOfTrait(s.env, traitHash)
-    recordImplChoice({ s with env = env }, at, traitHash, method_, subject, candidates)
+    recordImplChoice(
+      { s with env = env },
+      at,
+      traitHash,
+      method_,
+      subject,
+      candidates,
+      true
+    )
 
 /// What this call gave one of the callee's bounds, once the supplied type is known.
 ///
@@ -2261,7 +2278,8 @@ let operandFor(
   s: State,
   at: Int64,
   operation: LanguageTools.ProgramTypes.InfixFnName,
-  operand: Model.Ty)
+  operand: Model.Ty,
+  record: Bool)
   : Stdlib.Option.Option<State> =
   let nodeId = Stdlib.Option.Option.Some(at)
   let (subject, s) = expand(s, nodeId, operand)
@@ -2276,11 +2294,11 @@ let operandFor(
   // and report every bounded generic in the tree as missing one.
   | TRigid(param) ->
     match Environment.infixTraitOf(s.env, operation) with
-    | None -> Stdlib.Option.Option.Some(s)
-    | Some(_) ->
+    | Some(_) when record ->
       Stdlib.Option.Option.Some(
         addResolution(s, Model.Resolution.Deferred(at, param))
       )
+    | _ -> Stdlib.Option.Option.Some(s)
   | _ ->
     let (found, env) = Environment.infixImplsFor(s.env, operation)
     let s = { s with env = env }
@@ -2292,15 +2310,45 @@ let operandFor(
     // reporting every operator as an error.
     | None -> Stdlib.Option.Option.Some(s)
     | Some((traitHash, method_, candidates)) ->
-      recordImplChoice(s, at, traitHash, method_, subject, candidates)
+      recordImplChoice(s, at, traitHash, method_, subject, candidates, record)
+
+/// `-x` and `~x` are calls to `Negate.negate` and `BitwiseNot.bitwiseNot`, checked as the
+/// operators they are rather than as named trait calls, whose operand may be any shape.
+let unaryOperatorCall(
+  env: Model.Environment,
+  at: Int64,
+  traitHash: LanguageTools.ProgramTypes.Hash,
+  method_: String,
+  self: Model.Ty)
+  : Stdlib.Option.Option<Model.Constraint> =
+  let isOperator(key: String): Bool =
+    Stdlib.Dict.get(env.infixTrait, key)
+    == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some((traitHash, method_)))
+
+  if isOperator("unary -") then
+    Stdlib.Option.Option.Some(Model.Constraint.Negate(at, self, true))
+  else if isOperator("unary ~") then
+    Stdlib.Option.Option.Some(Model.Constraint.BitwiseNot(at, self, true))
+  else
+    Stdlib.Option.Option.None
 
 /// Require a signed integer or Float for unary minus, waiting if its type is unknown.
-let negate(s: State, at: Int64, operand: Model.Ty): Stdlib.Option.Option<State> =
-  unaryOperand(s, at, operand, "unary -")
+let negate(
+  s: State,
+  at: Int64,
+  operand: Model.Ty,
+  record: Bool)
+  : Stdlib.Option.Option<State> =
+  unaryOperand(s, at, operand, "unary -", record)
 
 /// `~x`, the same way.
-let bitwiseNot(s: State, at: Int64, operand: Model.Ty): Stdlib.Option.Option<State> =
-  unaryOperand(s, at, operand, "unary ~")
+let bitwiseNot(
+  s: State,
+  at: Int64,
+  operand: Model.Ty,
+  record: Bool)
+  : Stdlib.Option.Option<State> =
+  unaryOperand(s, at, operand, "unary ~", record)
 
 /// Resolve a unary operator's operand against the implementations of its trait.
 ///
@@ -2314,7 +2362,8 @@ let unaryOperand(
   s: State,
   at: Int64,
   operand: Model.Ty,
-  key: String)
+  key: String,
+  record: Bool)
   : Stdlib.Option.Option<State> =
   let nodeId = Stdlib.Option.Option.Some(at)
   let (subject, s) = expand(s, nodeId, operand)
@@ -2325,9 +2374,12 @@ let unaryOperand(
   // The enclosing item's own type parameter: its caller decides, and the bound is the promise
   // that something will. Exactly what `operandFor` does for the binary operators.
   | TRigid(param) ->
-    Stdlib.Option.Option.Some(
-      addResolution(s, Model.Resolution.Deferred(at, param))
-    )
+    if record then
+      Stdlib.Option.Option.Some(
+        addResolution(s, Model.Resolution.Deferred(at, param))
+      )
+    else
+      Stdlib.Option.Option.Some(s)
   | _ ->
     let (found, env) = Environment.unaryImplsFor(s.env, key)
     let s = { s with env = env }
@@ -2337,7 +2389,7 @@ let unaryOperand(
     // everything.
     | None -> Stdlib.Option.Option.Some(s)
     | Some((traitHash, method_, candidates)) ->
-      recordImplChoice(s, at, traitHash, method_, subject, candidates)
+      recordImplChoice(s, at, traitHash, method_, subject, candidates, record)
 
 
 /// Determine builtin unwrap's result from the Some payload of standard Option
