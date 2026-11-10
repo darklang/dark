@@ -70,36 +70,28 @@ let sqrt(a: Float32): Float32 =
 
 impl Add for Float32 =
   /// Add <type Float32> <param a> to <type Float32> <param b>
-  let add(a: Float32, b: Float32): Float32 =
-    let sum = (Stdlib.Float32.toFloat(a)) + (Stdlib.Float32.toFloat(b))
-    Stdlib.Float32.fromFloat(sum)
+  let add(a: Float32, b: Float32): Float32 = Builtin.add(a, b)
 
 
 impl Subtract for Float32 =
   /// Subtract <type Float32> <param b> from <type Float32> <param a>
-  let subtract(a: Float32, b: Float32): Float32 =
-    let difference = (Stdlib.Float32.toFloat(a)) - (Stdlib.Float32.toFloat(b))
-    Stdlib.Float32.fromFloat(difference)
+  let subtract(a: Float32, b: Float32): Float32 = Builtin.subtract(a, b)
 
 
 impl Multiply for Float32 =
   /// Multiply <type Float32> <param a> by <type Float32> <param b>
-  let multiply(a: Float32, b: Float32): Float32 =
-    let product = (Stdlib.Float32.toFloat(a)) * (Stdlib.Float32.toFloat(b))
-    Stdlib.Float32.fromFloat(product)
+  let multiply(a: Float32, b: Float32): Float32 = Builtin.multiply(a, b)
 
 
 impl Power for Float32 =
   /// Returns <param base> raised to the power of <param exponent>
   let power(``base``: Float32, exponent: Float32): Float32 =
-    Stdlib.Float32.fromFloat((Stdlib.Float32.toFloat(``base``)) ** (Stdlib.Float32.toFloat(exponent)))
+    Builtin.power(``base``, exponent)
 
 
 impl Divide for Float32 =
   /// Divide <type Float32> <param a> by <type Float32> <param b>
-  let divide(a: Float32, b: Float32): Float32 =
-    let quotient = (Stdlib.Float32.toFloat(a)) / (Stdlib.Float32.toFloat(b))
-    Stdlib.Float32.fromFloat(quotient)
+  let divide(a: Float32, b: Float32): Float32 = Builtin.divide(a, b)
 
 
 // Checked arithmetic. The operators follow IEEE 754 and give NaN or an infinity
@@ -187,17 +179,15 @@ let checkedFromFloat(a: Float): Stdlib.Result.Result<Float32, Stdlib.Math.Overfl
 
 impl Compare for Float32 =
   /// Returns true if a is less than b
-  let lessThan(a: Float32, b: Float32): Bool =
-    (Stdlib.Float32.toFloat(a)) < (Stdlib.Float32.toFloat(b))
+  let lessThan(a: Float32, b: Float32): Bool = Builtin.lessThan(a, b)
   /// Returns true if a is less than or equal to b
   let lessThanOrEqualTo(a: Float32, b: Float32): Bool =
-    (Stdlib.Float32.toFloat(a)) <= (Stdlib.Float32.toFloat(b))
+    Builtin.lessThanOrEqualTo(a, b)
   /// Returns true if a is greater than b
-  let greaterThan(a: Float32, b: Float32): Bool =
-    (Stdlib.Float32.toFloat(a)) > (Stdlib.Float32.toFloat(b))
+  let greaterThan(a: Float32, b: Float32): Bool = Builtin.greaterThan(a, b)
   /// Returns true if a is greater than or equal to b
   let greaterThanOrEqualTo(a: Float32, b: Float32): Bool =
-    (Stdlib.Float32.toFloat(a)) >= (Stdlib.Float32.toFloat(b))
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// If <param value> is within the range given by <param limitA> and <param

@@ -1760,13 +1760,13 @@ module DebugText =
   let tests = testList "DebugText" [ valuesKeepTheirContents ]
 
 
-/// The integer operators (`LibExecution.IntOps`), at each fixed-width type's edges: the table
+/// The integer operators (`LibExecution.NumOps`), at each fixed-width type's edges: the table
 /// against a reference written in `BigInteger`, and then each way of running an operator against
 /// the table. Those are `a op b` answered from the registers, the same with values being collected
 /// (so not quickened), and the polymorphic builtin the stdlib's impls call. Each runs inside a
 /// lambda, since that is where operator calls are quickened.
 module IntOperators =
-  module IntOps = LibExecution.IntOps
+  module NumOps = LibExecution.NumOps
   module BigInts = RT.RuntimeError.BigInts
 
   type private IntType =
@@ -1826,7 +1826,7 @@ module IntOperators =
     let r = ((v % m) + m) % m
     if t.signed && r > t.max then r - m else r
 
-  /// What each operator means, written without `IntOps`: the value, or the error.
+  /// What each operator means, written without `NumOps`: the value, or the error.
   let private reference
     (t : IntType)
     (op : int)
@@ -1837,15 +1837,15 @@ module IntOperators =
     let truth v = Ok(RT.DBool v)
     // the count modulo the width, as the low bits of a two's complement count
     let count () = int (((b % bigint t.bits) + bigint t.bits) % bigint t.bits)
-    if op = IntOps.add then
+    if op = NumOps.add then
       value (a + b)
-    elif op = IntOps.subtract then
+    elif op = NumOps.subtract then
       value (a - b)
-    elif op = IntOps.multiply then
+    elif op = NumOps.multiply then
       value (a * b)
-    elif op = IntOps.divide then
+    elif op = NumOps.divide then
       if b = 0I then Error BigInts.DivideByZeroError else value (bigint.Divide(a, b))
-    elif op = IntOps.modulo then
+    elif op = NumOps.modulo then
       if b = 0I then
         Error BigInts.ZeroModulus
       elif b < 0I then
@@ -1853,57 +1853,59 @@ module IntOperators =
       else
         let r = a % b
         value (if r < 0I then r + b else r)
-    elif op = IntOps.power then
+    elif op = NumOps.power then
       if b < 0I then
         Error BigInts.NegativeExponent
       else
         value (bigint.ModPow(a, b, bigint.Pow(2I, t.bits)))
-    elif op = IntOps.bitwiseAnd then
+    elif op = NumOps.bitwiseAnd then
       value (a &&& b)
-    elif op = IntOps.bitwiseOr then
+    elif op = NumOps.bitwiseOr then
       value (a ||| b)
-    elif op = IntOps.bitwiseXor then
+    elif op = NumOps.bitwiseXor then
       value (a ^^^ b)
-    elif op = IntOps.shiftLeft then
+    elif op = NumOps.shiftLeft then
       value (a <<< count ())
-    elif op = IntOps.shiftRight then
+    elif op = NumOps.shiftRight then
       value (a >>> count ())
-    elif op = IntOps.lessThan then
+    elif op = NumOps.lessThan then
       truth (a < b)
-    elif op = IntOps.lessThanOrEqualTo then
+    elif op = NumOps.lessThanOrEqualTo then
       truth (a <= b)
-    elif op = IntOps.greaterThan then
+    elif op = NumOps.greaterThan then
       truth (a > b)
     else
       truth (a >= b)
 
   /// The binary operators: the table's number, the infix operator, and the builtin.
-  let private ops : List<int * PT.InfixFnName * string> =
-    [ IntOps.add, PT.ArithmeticPlus, "add"
-      IntOps.subtract, PT.ArithmeticMinus, "subtract"
-      IntOps.multiply, PT.ArithmeticMultiply, "multiply"
-      IntOps.divide, PT.ArithmeticDivide, "divide"
-      IntOps.modulo, PT.ArithmeticModulo, "modulo"
-      IntOps.power, PT.ArithmeticPower, "power"
-      IntOps.bitwiseAnd, PT.BitwiseAnd, "bitwiseAnd"
-      IntOps.bitwiseOr, PT.BitwiseOr, "bitwiseOr"
-      IntOps.bitwiseXor, PT.BitwiseXor, "bitwiseXor"
-      IntOps.shiftLeft, PT.ShiftLeft, "shiftLeft"
-      IntOps.shiftRight, PT.ShiftRight, "shiftRight"
-      IntOps.lessThan, PT.ComparisonLessThan, "lessThan"
-      IntOps.lessThanOrEqualTo, PT.ComparisonLessThanOrEqual, "lessThanOrEqualTo"
-      IntOps.greaterThan, PT.ComparisonGreaterThan, "greaterThan"
-      IntOps.greaterThanOrEqualTo,
+  let ops : List<int * PT.InfixFnName * string> =
+    [ NumOps.add, PT.ArithmeticPlus, "add"
+      NumOps.subtract, PT.ArithmeticMinus, "subtract"
+      NumOps.multiply, PT.ArithmeticMultiply, "multiply"
+      NumOps.divide, PT.ArithmeticDivide, "divide"
+      NumOps.modulo, PT.ArithmeticModulo, "modulo"
+      NumOps.power, PT.ArithmeticPower, "power"
+      NumOps.bitwiseAnd, PT.BitwiseAnd, "bitwiseAnd"
+      NumOps.bitwiseOr, PT.BitwiseOr, "bitwiseOr"
+      NumOps.bitwiseXor, PT.BitwiseXor, "bitwiseXor"
+      NumOps.shiftLeft, PT.ShiftLeft, "shiftLeft"
+      NumOps.shiftRight, PT.ShiftRight, "shiftRight"
+      NumOps.lessThan, PT.ComparisonLessThan, "lessThan"
+      NumOps.lessThanOrEqualTo, PT.ComparisonLessThanOrEqual, "lessThanOrEqualTo"
+      NumOps.greaterThan, PT.ComparisonGreaterThan, "greaterThan"
+      NumOps.greaterThanOrEqualTo,
       PT.ComparisonGreaterThanOrEqual,
       "greaterThanOrEqualTo" ]
 
-  let private outcome (o : IntOps.Outcome) : Result<RT.Dval, BigInts.Error> =
+  let private outcome (o : NumOps.Outcome) : Result<RT.Dval, BigInts.Error> =
     match o with
-    | IntOps.Value v -> Ok v
-    | IntOps.Raises e -> Error e
-    | IntOps.NotInts -> failtest "the table did not answer two integers of one type"
+    | NumOps.Value v -> Ok v
+    | NumOps.Raises(RT.RuntimeError.BigInt e) -> Error e
+    | NumOps.Raises other -> failtestf "an integer operator raised %A" other
+    | NumOps.Unsupported ->
+      failtest "the table did not answer two integers of one type"
 
-  let private run (collectExprValues : bool) (expr : PT.Expr) =
+  let run (collectExprValues : bool) (expr : PT.Expr) =
     task {
       let! (state : RT.ExecutionState) = executionStateFor pmPT false
       let state =
@@ -1916,7 +1918,7 @@ module IntOperators =
     }
 
   /// `let f = fun a b -> <body> in [ f a1 b1; f a2 b2; ... ]`.
-  let private applyEach
+  let applyEach
     (parameters : List<string>)
     (body : PT.Expr)
     (args : List<List<PT.Expr>>)
@@ -1943,23 +1945,23 @@ module IntOperators =
         for a in values do
           for b in values do
             Expect.equal
-              (outcome (IntOps.binary op (t.dval a) (t.dval b)))
+              (outcome (NumOps.binary op (t.dval a) (t.dval b)))
               (reference t op a b)
               $"{t.name} {a} {infix} {b}"
       for a in values do
         Expect.equal
-          (outcome (IntOps.unary IntOps.bitwiseNot (t.dval a)))
+          (outcome (NumOps.unary NumOps.bitwiseNot (t.dval a)))
           (Ok(t.dval (wrap t (-a - 1I))))
           $"{t.name} ~{a}"
         if t.signed then
           Expect.equal
-            (outcome (IntOps.unary IntOps.negate (t.dval a)))
+            (outcome (NumOps.unary NumOps.negate (t.dval a)))
             (Ok(t.dval (wrap t (-a))))
             $"{t.name} -{a}"
         else
           Expect.equal
-            (IntOps.unary IntOps.negate (t.dval a))
-            IntOps.NotInts
+            (NumOps.unary NumOps.negate (t.dval a))
+            NumOps.Unsupported
             $"{t.name} has no -{a}"
     }
 
@@ -1993,7 +1995,7 @@ module IntOperators =
       for (op, infix, builtin) in ops do
         let infixBody = eInfix (PT.Infix.InfixFnCall infix) (eVar "a") (eVar "b")
         let builtinBody = eApply (eBuiltinFn builtin 0) [] [ eVar "a"; eVar "b" ]
-        let answer a b = outcome (IntOps.binary op (t.dval a) (t.dval b))
+        let answer a b = outcome (NumOps.binary op (t.dval a) (t.dval b))
         let answered =
           [ for a in values do
               for b in values do
@@ -2023,8 +2025,8 @@ module IntOperators =
             | Ok _ -> ()
       // The builtins the `Negate` and `BitwiseNot` implementations call.
       for (op, builtin) in
-        [ IntOps.bitwiseNot, "bitwiseNot" ]
-        @ (if t.signed then [ IntOps.negate, "negate" ] else []) do
+        [ NumOps.bitwiseNot, "bitwiseNot" ]
+        @ (if t.signed then [ NumOps.negate, "negate" ] else []) do
         do!
           threeWays
             $"{t.name} {builtin}"
@@ -2032,7 +2034,7 @@ module IntOperators =
             (eApply (eBuiltinFn builtin 0) [] [ eVar "a" ])
             None
             (values |> List.map (fun a -> [ t.expr a ]))
-            (values |> List.map (fun a -> outcome (IntOps.unary op (t.dval a))))
+            (values |> List.map (fun a -> outcome (NumOps.unary op (t.dval a))))
     }
 
   /// A mixed pair declines, and reports what it reports with nothing quickened.
@@ -2061,6 +2063,486 @@ module IntOperators =
        @ [ mixedPairs ])
 
 
+
+/// The other numeric operators (`LibExecution.NumOps`): `BigInt`, `Float`, `Float32` and
+/// `Decimal`, as `IntOperators` does the integers. The table against a reference at each type's
+/// edges, and then each way of running an operator against the table.
+module NumOperators =
+  module NumOps = LibExecution.NumOps
+  module BigInts = RT.RuntimeError.BigInts
+
+  /// A value or an error as text, so two answers compare exactly: floats by their bits, so
+  /// `-0.0` is not `0.0` (every NaN is one NaN), and decimals by theirs, so the scale counts.
+  let private show (dv : RT.Dval) : string =
+    match dv with
+    | RT.DFloat f when System.Double.IsNaN f -> "Float NaN"
+    | RT.DFloat f -> $"Float {System.BitConverter.DoubleToInt64Bits f}"
+    | RT.DFloat32 f when System.Single.IsNaN f -> "Float32 NaN"
+    | RT.DFloat32 f -> $"Float32 {System.BitConverter.SingleToInt32Bits f}"
+    | RT.DDecimal d -> $"Decimal %A{System.Decimal.GetBits d}"
+    | RT.DBigInt b -> $"BigInt {RT.DarkBigInt.toBigInt b}"
+    | RT.DBool b -> $"Bool {b}"
+    | other -> failtestf "not a number: %A" other
+
+  let private raises (e : RT.RuntimeError.Error) : string = $"raises %A{e}"
+  let private noSuchOperator = "no such operator"
+
+  let private answer (o : NumOps.Outcome) : string =
+    match o with
+    | NumOps.Value v -> show v
+    | NumOps.Raises e -> raises e
+    | NumOps.Unsupported -> noSuchOperator
+
+  type private NumType =
+    {
+      name : string
+      values : List<RT.Dval>
+      /// The right operands of `**`, `<<` and `>>`, where they differ from <field values>.
+      counts : List<RT.Dval>
+      expr : RT.Dval -> PT.Expr
+      reference : int -> RT.Dval -> RT.Dval -> string
+      negate : RT.Dval -> string
+      bitwiseNot : RT.Dval -> string
+    }
+
+  // `BigInt`, in `BigInteger`
+
+  let private big (dv : RT.Dval) : bigint =
+    match dv with
+    | RT.DBigInt b -> RT.DarkBigInt.toBigInt b
+    | other -> failtestf "not a BigInt: %A" other
+
+  let private bigReference (op : int) (a : RT.Dval) (b : RT.Dval) : string =
+    let a = big a
+    let b = big b
+    let value (v : bigint) = $"BigInt {v}"
+    let truth (t : bool) = $"Bool {t}"
+    let fails e = raises (RT.RuntimeError.BigInt e)
+    let int32Max = bigint System.Int32.MaxValue
+    if op = NumOps.add then
+      value (a + b)
+    elif op = NumOps.subtract then
+      value (a - b)
+    elif op = NumOps.multiply then
+      value (a * b)
+    elif op = NumOps.divide then
+      if b = 0I then fails BigInts.DivideByZeroError else value (bigint.Divide(a, b))
+    elif op = NumOps.modulo then
+      if b = 0I then
+        fails BigInts.ZeroModulus
+      elif b < 0I then
+        fails BigInts.NegativeModulus
+      else
+        let r = bigint.Remainder(a, b)
+        value (if r < 0I then r + b else r)
+    elif op = NumOps.power then
+      if b < 0I then fails BigInts.NegativeExponent
+      elif b <= int32Max then value (bigint.Pow(a, int b))
+      elif a = 0I || a = 1I then value a
+      elif a = -1I then value (if b.IsEven then 1I else -1I)
+      else fails BigInts.OutOfRange
+    elif op = NumOps.bitwiseAnd then
+      value (a &&& b)
+    elif op = NumOps.bitwiseOr then
+      value (a ||| b)
+    elif op = NumOps.bitwiseXor then
+      value (a ^^^ b)
+    elif op = NumOps.shiftLeft then
+      if b < 0I || b > int32Max then
+        fails BigInts.OutOfRange
+      else
+        value (a * bigint.Pow(2I, int b))
+    elif op = NumOps.shiftRight then
+      if b < 0I || b > int32Max then
+        fails BigInts.OutOfRange
+      else
+        // flooring, as an arithmetic shift does
+        let d = bigint.Pow(2I, int b)
+        let q = bigint.Divide(a, d)
+        value (if a < 0I && q * d <> a then q - 1I else q)
+    elif op = NumOps.lessThan then
+      truth (a < b)
+    elif op = NumOps.lessThanOrEqualTo then
+      truth (a <= b)
+    elif op = NumOps.greaterThan then
+      truth (a > b)
+    else
+      truth (a >= b)
+
+  let private bigInts : NumType =
+    let int64Max = bigint System.Int64.MaxValue
+    let int64Min = bigint System.Int64.MinValue
+    let d (v : bigint) = RT.Dval.bigInt v
+    { name = "BigInt"
+      values =
+        [ 0I
+          1I
+          -1I
+          2I
+          -2I
+          7I
+          -7I
+          13I
+          int64Max
+          int64Max + 1I
+          int64Min
+          int64Min - 1I
+          bigint.Pow(2I, 64)
+          (1I - bigint.Pow(2I, 100)) ]
+        |> List.map d
+      // Large enough to leave the int64 range, small enough to compute; and the counts past an
+      // `Int32`, which raise.
+      counts =
+        [ -2I
+          -1I
+          0I
+          1I
+          2I
+          7I
+          63I
+          64I
+          65I
+          bigint System.Int32.MaxValue + 1I
+          int64Max ]
+        |> List.map d
+      expr = fun v -> PT.EBigInt(gid (), big v)
+      reference = bigReference
+      negate = fun a -> $"BigInt {-(big a)}"
+      bitwiseNot = fun a -> $"BigInt {-(big a) - 1I}" }
+
+  // `Float` and `Float32`, in the hardware's IEEE arithmetic
+
+  /// A finite float's exact decimal digits, as a literal's whole part and fraction.
+  let private exactDigits (v : float) : string * string =
+    let bits = System.BitConverter.DoubleToInt64Bits(abs v)
+    let rawExp = int ((bits >>> 52) &&& 0x7FFL)
+    let fraction = bits &&& 0xFFFFFFFFFFFFFL
+    let (m, e) =
+      if rawExp = 0 then
+        (fraction, -1074)
+      else
+        (fraction ||| (1L <<< 52), rawExp - 1075)
+    if e >= 0 then
+      (string (bigint m * bigint.Pow(2I, e)), "0")
+    else
+      // v * 10^-e is a whole number
+      let digits = (string (bigint m * bigint.Pow(5I, -e))).PadLeft(-e + 1, '0')
+      let split = digits.Length + e
+      let fractionDigits = digits.Substring(split).TrimEnd('0')
+      (digits.Substring(0, split),
+       (if fractionDigits = "" then "0" else fractionDigits))
+
+  let private signOf (v : float) : Sign =
+    if v < 0.0 || (v = 0.0 && System.Double.IsNegative v) then
+      Negative
+    else
+      Positive
+
+  /// A literal for a finite value; for an infinity or NaN, the division that makes it.
+  let private floatLiteral
+    (literal : Sign -> string -> string -> PT.Expr)
+    (v : float)
+    : PT.Expr =
+    let finite (v : float) =
+      let (whole, fraction) = exactDigits v
+      literal (signOf v) whole fraction
+    if System.Double.IsNaN v then
+      eInfix (PT.Infix.InfixFnCall PT.ArithmeticDivide) (finite 0.0) (finite 0.0)
+    elif System.Double.IsInfinity v then
+      eInfix
+        (PT.Infix.InfixFnCall PT.ArithmeticDivide)
+        (finite (if v > 0.0 then 1.0 else -1.0))
+        (finite 0.0)
+    else
+      finite v
+
+  /// The operator on two floats in double precision, rounded by <param back>.
+  let private ieeeReference
+    (get : RT.Dval -> float)
+    (back : float -> RT.Dval)
+    (op : int)
+    (a : RT.Dval)
+    (b : RT.Dval)
+    : string =
+    let x = get a
+    let y = get b
+    let truth (t : bool) = $"Bool {t}"
+    if op = NumOps.add then show (back (x + y))
+    elif op = NumOps.subtract then show (back (x - y))
+    elif op = NumOps.multiply then show (back (x * y))
+    elif op = NumOps.divide then show (back (x / y))
+    elif op = NumOps.power then show (back (System.Math.Pow(x, y)))
+    // IEEE: a NaN compares false
+    elif op = NumOps.lessThan then truth (x < y)
+    elif op = NumOps.lessThanOrEqualTo then truth (x <= y)
+    elif op = NumOps.greaterThan then truth (x > y)
+    elif op = NumOps.greaterThanOrEqualTo then truth (x >= y)
+    else noSuchOperator
+
+  let private floats : NumType =
+    let get (dv : RT.Dval) =
+      match dv with
+      | RT.DFloat f -> f
+      | other -> failtestf "not a Float: %A" other
+    { name = "Float"
+      values =
+        [ 0.0
+          -0.0
+          1.0
+          -1.0
+          0.5
+          3.0
+          -7.25
+          9007199254740993.0
+          System.Double.MaxValue
+          System.Double.MinValue
+          System.Double.Epsilon
+          System.Double.PositiveInfinity
+          System.Double.NegativeInfinity
+          System.Double.NaN ]
+        |> List.map RT.DFloat
+      counts = []
+      expr = fun v -> floatLiteral eFloat (get v)
+      reference = ieeeReference get RT.DFloat
+      negate = fun a -> show (RT.DFloat(-(get a)))
+      bitwiseNot = fun _ -> noSuchOperator }
+
+  let private float32s : NumType =
+    let get (dv : RT.Dval) =
+      match dv with
+      | RT.DFloat32 f -> float f
+      | other -> failtestf "not a Float32: %A" other
+    { name = "Float32"
+      values =
+        [ 0.0f
+          -0.0f
+          1.0f
+          -1.0f
+          0.5f
+          3.0f
+          -7.25f
+          16777217.0f
+          System.Single.MaxValue
+          System.Single.MinValue
+          System.Single.Epsilon
+          System.Single.PositiveInfinity
+          System.Single.NegativeInfinity
+          System.Single.NaN ]
+        |> List.map RT.DFloat32
+      counts = []
+      expr =
+        fun v -> floatLiteral (fun s w f -> PT.EFloat32(gid (), s, w, f)) (get v)
+      // In double precision and rounded once, which for `+ - * /` is the single-precision answer
+      reference = ieeeReference get (float32 >> RT.DFloat32)
+      negate = fun a -> show (RT.DFloat32(float32 (-(get a))))
+      bitwiseNot = fun _ -> noSuchOperator }
+
+  // `Decimal`, through `System.Decimal`'s named methods
+
+  let private decimalReference (op : int) (a : RT.Dval) (b : RT.Dval) : string =
+    let (x, y) =
+      match a, b with
+      | RT.DDecimal x, RT.DDecimal y -> (x, y)
+      | _ -> failtestf "not two Decimals: %A %A" a b
+    let checkedly (f : unit -> decimal) =
+      try
+        show (RT.DDecimal(f ()))
+      with :? System.OverflowException ->
+        raises RT.RuntimeError.DecimalOutOfRange
+    let fails e = raises (RT.RuntimeError.BigInt e)
+    let truth (t : bool) = $"Bool {t}"
+    if op = NumOps.add then
+      checkedly (fun () -> System.Decimal.Add(x, y))
+    elif op = NumOps.subtract then
+      checkedly (fun () -> System.Decimal.Subtract(x, y))
+    elif op = NumOps.multiply then
+      checkedly (fun () -> System.Decimal.Multiply(x, y))
+    elif op = NumOps.divide then
+      if y = 0m then
+        fails BigInts.DivideByZeroError
+      else
+        checkedly (fun () -> System.Decimal.Divide(x, y))
+    elif op = NumOps.modulo then
+      if y = 0m then
+        fails BigInts.ZeroModulus
+      elif y < 0m then
+        fails BigInts.NegativeModulus
+      else
+        let r = System.Decimal.Remainder(x, y)
+        show (RT.DDecimal(if r < 0m then System.Decimal.Add(r, y) else r))
+    elif op = NumOps.lessThan then
+      truth (System.Decimal.Compare(x, y) < 0)
+    elif op = NumOps.lessThanOrEqualTo then
+      truth (System.Decimal.Compare(x, y) <= 0)
+    elif op = NumOps.greaterThan then
+      truth (System.Decimal.Compare(x, y) > 0)
+    elif op = NumOps.greaterThanOrEqualTo then
+      truth (System.Decimal.Compare(x, y) >= 0)
+    else
+      noSuchOperator
+
+  let private decimals : NumType =
+    let get (dv : RT.Dval) =
+      match dv with
+      | RT.DDecimal d -> d
+      | other -> failtestf "not a Decimal: %A" other
+    { name = "Decimal"
+      values =
+        [ 0m
+          1m
+          -1m
+          1.00m
+          0.5m
+          -0.5m
+          3m
+          7m
+          -2.25m
+          0.0000000000000000000000000001m
+          System.Decimal.MaxValue
+          System.Decimal.MinValue ]
+        |> List.map RT.DDecimal
+      counts = []
+      expr = fun v -> PT.EDecimal(gid (), get v)
+      reference = decimalReference
+      negate = fun a -> show (RT.DDecimal(System.Decimal.Negate(get a)))
+      bitwiseNot = fun _ -> noSuchOperator }
+
+  let private types = [ bigInts; floats; float32s; decimals ]
+
+  /// The right operands for <param op>.
+  let private rightsFor (t : NumType) (op : int) : List<RT.Dval> =
+    if
+      (op = NumOps.power || op = NumOps.shiftLeft || op = NumOps.shiftRight)
+      && not (List.isEmpty t.counts)
+    then
+      t.counts
+    else
+      t.values
+
+  let private tableMatchesReference (t : NumType) =
+    test $"{t.name}: the table gives what the reference does" {
+      for (op, infix, _) in IntOperators.ops do
+        for a in t.values do
+          for b in rightsFor t op do
+            Expect.equal
+              (answer (NumOps.binary op a b))
+              (t.reference op a b)
+              $"{t.name} {show a} {infix} {show b}"
+      for a in t.values do
+        Expect.equal
+          (answer (NumOps.unary NumOps.negate a))
+          (t.negate a)
+          $"{t.name} -{show a}"
+        Expect.equal
+          (answer (NumOps.unary NumOps.bitwiseNot a))
+          (t.bitwiseNot a)
+          $"{t.name} ~{show a}"
+    }
+
+  /// What a run gives: the values, or the error it raised.
+  let private asAnswers
+    (what : string)
+    (result : RT.ExecutionResult)
+    : List<string> =
+    match result with
+    | Ok(RT.DList(_, items)) -> RT.DvalList.toList items |> List.map show
+    | Error(e, _) -> [ raises e ]
+    | other -> failtestf "%s: got %A" what other
+
+  /// Runs <param body> over <param args> quickened, collecting values (so not quickened), and
+  /// <param viaBuiltin> where given, and expects <param expected> of each.
+  let private threeWays
+    (name : string)
+    (parameters : List<string>)
+    (body : PT.Expr)
+    (viaBuiltin : Option<PT.Expr>)
+    (args : List<List<PT.Expr>>)
+    (expected : List<string>)
+    =
+    task {
+      let! quick =
+        IntOperators.run false (IntOperators.applyEach parameters body args)
+      Expect.equal (asAnswers name quick) expected $"{name}, quickened"
+      let! traced =
+        IntOperators.run true (IntOperators.applyEach parameters body args)
+      Expect.equal (asAnswers name traced) expected $"{name}, collecting values"
+      match viaBuiltin with
+      | Some builtinBody ->
+        let! direct =
+          IntOperators.run false (IntOperators.applyEach parameters builtinBody args)
+        Expect.equal (asAnswers name direct) expected $"{name}, through the builtin"
+      | None -> ()
+    }
+
+  /// The pairs the table answers, all in one run; then the ones it raises on, one run each.
+  let private everyPathMatchesTheTable (t : NumType) =
+    testTask $"{t.name}: every way of running an operator gives what the table does" {
+      for (op, infix, builtin) in IntOperators.ops do
+        let infixBody = eInfix (PT.Infix.InfixFnCall infix) (eVar "a") (eVar "b")
+        let builtinBody = eApply (eBuiltinFn builtin 0) [] [ eVar "a"; eVar "b" ]
+        let outcomes =
+          [ for a in t.values do
+              for b in rightsFor t op do
+                (a, b, NumOps.binary op a b) ]
+        let answered =
+          outcomes
+          |> List.choose (fun (a, b, o) ->
+            match o with
+            | NumOps.Value _ -> Some(a, b, answer o)
+            | _ -> None)
+        if not (List.isEmpty answered) then
+          do!
+            threeWays
+              $"{t.name} {infix}"
+              [ "a"; "b" ]
+              infixBody
+              (Some builtinBody)
+              (answered |> List.map (fun (a, b, _) -> [ t.expr a; t.expr b ]))
+              (answered |> List.map (fun (_, _, expected) -> expected))
+        // One run per right operand and error: the first error ends a run.
+        let raising =
+          outcomes
+          |> List.filter (fun (_, _, o) ->
+            match o with
+            | NumOps.Raises _ -> true
+            | _ -> false)
+          |> List.distinctBy (fun (_, b, o) -> (show b, answer o))
+        for (a, b, o) in raising do
+          do!
+            threeWays
+              $"{t.name} {show a} {infix} {show b}"
+              [ "a"; "b" ]
+              infixBody
+              (Some builtinBody)
+              [ [ t.expr a; t.expr b ] ]
+              [ answer o ]
+      // `-a` and `~a` are stored as `Builtin.negate a` and `Builtin.bitwiseNot a`.
+      for (op, builtin) in
+        [ NumOps.negate, "negate"; NumOps.bitwiseNot, "bitwiseNot" ] do
+        let answered =
+          t.values
+          |> List.choose (fun a ->
+            match NumOps.unary op a with
+            | NumOps.Value _ as o -> Some(a, answer o)
+            | _ -> None)
+        if not (List.isEmpty answered) then
+          do!
+            threeWays
+              $"{t.name} {builtin}"
+              [ "a" ]
+              (eApply (eBuiltinFn builtin 0) [] [ eVar "a" ])
+              None
+              (answered |> List.map (fun (a, _) -> [ t.expr a ]))
+              (answered |> List.map snd)
+    }
+
+  let tests =
+    testList
+      "NumOperators"
+      [ for t in types do
+          tableMatchesReference t
+          everyPathMatchesTheTable t ]
+
 let tests =
   testList
     "Interpreter"
@@ -2079,4 +2561,5 @@ let tests =
       BoundMemo.tests
       LambdaResultChecks.tests
       DebugText.tests
-      IntOperators.tests ]
+      IntOperators.tests
+      NumOperators.tests ]

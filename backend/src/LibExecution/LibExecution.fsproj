@@ -46,7 +46,7 @@
     <Compile Include="Traits.fs" />
     <Compile Include="Builtin.fs" />
     <Compile Include="Pending.fs" />
-    <Compile Include="IntOps.fs" />
+    <Compile Include="NumOps.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="FastOps.fs" />
     <Compile Include="Interpreter.fs" />

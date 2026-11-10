@@ -13,51 +13,51 @@ impl Modulo for BigInt =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn BigInt.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: BigInt, b: BigInt): BigInt = Builtin.bigIntMod(a, b)
+  let modulo(a: BigInt, b: BigInt): BigInt = Builtin.modulo(a, b)
 
 
 impl Add for BigInt =
   /// Adds two integers together
-  let add(a: BigInt, b: BigInt): BigInt = Builtin.bigIntAdd(a, b)
+  let add(a: BigInt, b: BigInt): BigInt = Builtin.add(a, b)
 
 
 impl Subtract for BigInt =
   /// Subtracts two integers
-  let subtract(a: BigInt, b: BigInt): BigInt = Builtin.bigIntSubtract(a, b)
+  let subtract(a: BigInt, b: BigInt): BigInt = Builtin.subtract(a, b)
 
 
 impl Multiply for BigInt =
   /// Multiplies two integers
-  let multiply(a: BigInt, b: BigInt): BigInt = Builtin.bigIntMultiply(a, b)
+  let multiply(a: BigInt, b: BigInt): BigInt = Builtin.multiply(a, b)
 
 
 impl Divide for BigInt =
   /// Divides two integers, rounding towards zero
-  let divide(a: BigInt, b: BigInt): BigInt = Builtin.bigIntDivide(a, b)
+  let divide(a: BigInt, b: BigInt): BigInt = Builtin.divide(a, b)
 
 
 impl Power for BigInt =
   /// Raise <param base> to the power of <param exponent>.
   /// Raises an error if <param exponent> is negative.
   let power(``base``: BigInt, exponent: BigInt): BigInt =
-    Builtin.bigIntPower(``base``, exponent)
+    Builtin.power(``base``, exponent)
 
 
 impl Negate for BigInt =
   /// Returns the negation of <param a>, {{-a}}
-  let negate(a: BigInt): BigInt = Builtin.bigIntNegate(a)
+  let negate(a: BigInt): BigInt = Builtin.negate(a)
 
 
 impl Compare for BigInt =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: BigInt, b: BigInt): Bool = Builtin.bigIntLessThan(a, b)
+  let lessThan(a: BigInt, b: BigInt): Bool = Builtin.lessThan(a, b)
   /// Returns {{true}} if <param a> is less than or equal to <param b>
-  let lessThanOrEqualTo(a: BigInt, b: BigInt): Bool = Builtin.bigIntLessThanOrEqualTo(a, b)
+  let lessThanOrEqualTo(a: BigInt, b: BigInt): Bool = Builtin.lessThanOrEqualTo(a, b)
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: BigInt, b: BigInt): Bool = Builtin.bigIntGreaterThan(a, b)
+  let greaterThan(a: BigInt, b: BigInt): Bool = Builtin.greaterThan(a, b)
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: BigInt, b: BigInt): Bool =
-    Builtin.bigIntGreaterThanOrEqualTo(a, b)
+    Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Get the square root of a <type BigInt>
@@ -158,22 +158,22 @@ let toUInt128(a: BigInt): Stdlib.Option.Option<UInt128> = Builtin.bigIntToUInt12
 
 
 impl BitwiseAnd for BigInt =
-  let bitwiseAnd(a: BigInt, b: BigInt): BigInt = Builtin.bigIntBitwiseAnd(a, b)
+  let bitwiseAnd(a: BigInt, b: BigInt): BigInt = Builtin.bitwiseAnd(a, b)
 
 impl BitwiseOr for BigInt =
-  let bitwiseOr(a: BigInt, b: BigInt): BigInt = Builtin.bigIntBitwiseOr(a, b)
+  let bitwiseOr(a: BigInt, b: BigInt): BigInt = Builtin.bitwiseOr(a, b)
 
 impl BitwiseXor for BigInt =
-  let bitwiseXor(a: BigInt, b: BigInt): BigInt = Builtin.bigIntBitwiseXor(a, b)
+  let bitwiseXor(a: BigInt, b: BigInt): BigInt = Builtin.bitwiseXor(a, b)
 
 impl BitwiseNot for BigInt =
-  let bitwiseNot(a: BigInt): BigInt = Builtin.bigIntBitwiseNot(a)
+  let bitwiseNot(a: BigInt): BigInt = Builtin.bitwiseNot(a)
 
 impl ShiftLeft for BigInt =
-  let shiftLeft(a: BigInt, b: BigInt): BigInt = Builtin.bigIntShiftLeft(a, b)
+  let shiftLeft(a: BigInt, b: BigInt): BigInt = Builtin.shiftLeft(a, b)
 
 impl ShiftRight for BigInt =
-  let shiftRight(a: BigInt, b: BigInt): BigInt = Builtin.bigIntShiftRight(a, b)
+  let shiftRight(a: BigInt, b: BigInt): BigInt = Builtin.shiftRight(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
