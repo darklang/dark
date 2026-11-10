@@ -3967,6 +3967,17 @@ module Tracing =
 // -- The VM --
 type Registers = Dval array
 
+module Registers =
+  /// `registers[i] <- value` without the check .NET makes on a store into an array of a class
+  /// that has subclasses (every `Dval` case is one): that the array is not really of a subclass.
+  /// A register file is always a `Dval[]`. The bounds check stays.
+  let inline set (registers : Registers) (i : int) (value : Dval) : unit =
+    if uint32 i >= uint32 registers.Length then
+      raise (System.IndexOutOfRangeException())
+    let start =
+      &System.Runtime.InteropServices.MemoryMarshal.GetArrayDataReference(registers)
+    System.Runtime.CompilerServices.Unsafe.Add(&start, i) <- value
+
 /// An operator call the interpreter answers from the registers, without the call machinery: a
 /// `LoadVal` of an operator `FastOps` knows, then the `Apply` of it. Found in a function's or a
 /// lambda's instructions when its `InstrData` is built (`Interpreter.quicken`), and never stored.

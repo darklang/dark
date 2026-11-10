@@ -252,7 +252,7 @@ module private ArgSeq =
     while i < n do
       match uncons rest with
       | ValueSome(struct (dv, tail)) ->
-        arr[i] <- dv
+        Registers.set arr i dv
         rest <- tail
         i <- i + 1
       | ValueNone -> i <- n
@@ -263,7 +263,7 @@ module private ArgSeq =
     match uncons a with
     | ValueNone -> ()
     | ValueSome(struct (v, rest)) ->
-      dest[i] <- v
+      Registers.set dest i v
       fillFrom dest (i + 1) rest
 
   let fill (dest : Registers) (a : ArgSeq) : unit = fillFrom dest 0 a
@@ -499,7 +499,7 @@ let rec private assignLetPattern
   : bool =
   match pat with
   | LPVariable extractTo ->
-    registers[extractTo] <- dv
+    Registers.set registers extractTo dv
     true
   | LPWildcard -> true
   | LPUnit ->
@@ -1205,7 +1205,7 @@ let rec private fillRegisters
   match args with
   | [] -> ()
   | a :: rest ->
-    registers[i] <- a
+    Registers.set registers i a
     fillRegisters registers (i + 1) rest
 
 
@@ -1215,7 +1215,7 @@ let private assignRegisters
   : unit =
   for i in 0 .. assignments.Length - 1 do
     let struct (reg, value) = assignments[i]
-    r[reg] <- value
+    Registers.set r reg value
 
 /// A read landed badly: raise its failure at the force point, the read and its call site
 /// below the stack. For a container, the read inside it that failed.
@@ -1245,7 +1245,7 @@ let inline private bindLambdaParam
   : unit =
   // One name bound to one register is the overwhelmingly common shape, so it skips the walk.
   match pat with
-  | LPVariable extractTo -> r[extractTo] <- arg
+  | LPVariable extractTo -> Registers.set r extractTo arg
   | _ ->
     let arg =
       match arg with
@@ -3548,7 +3548,7 @@ module Promises =
     : Task<Dval> =
     let t = p.Task
     if t.IsCompletedSuccessfully then
-      registers[reg] <- t.Result
+      Registers.set registers reg t.Result
       null
     elif t.IsCompleted then
       raiseReadFailure vm p t
@@ -4199,7 +4199,7 @@ and private drive
       // built from elements holding reads (`filter`) is held as a promise like any other.
       let dv = Pending.built (TypeChecker.DvalCreator.recheck vm.threadID) dv
       if not (obj.ReferenceEquals(finish, null)) then finish dv
-      caller.registers[reg] <- dv
+      Registers.set caller.registers reg dv
       caller.programCounter <- pcAfter
       ApplyDone
   | ValueNone -> AwaitContinuation(out, reg, pcAfter, next, finish)
@@ -4233,7 +4233,7 @@ let private landBuiltin
       (takeFinish vm)
       true
   else
-    frame.registers[reg] <- dv
+    Registers.set frame.registers reg dv
     frame.programCounter <- frame.programCounter + 1
     ApplyDone
 
@@ -4397,7 +4397,7 @@ let private applyRecordedImpl
       }
   match Ply.trySync call with
   | ValueSome(Completed dv) ->
-    registers[putResultIn] <- dv
+    Registers.set registers putResultIn dv
     ApplyDone
   | ValueSome(PushFrame frame) ->
     vm.frameToPush <- ValueSome frame
@@ -4548,7 +4548,7 @@ let private applyTraitMethod
       }
   match Ply.trySync call with
   | ValueSome(Completed dv) ->
-    registers[putResultIn] <- dv
+    Registers.set registers putResultIn dv
     ApplyDone
   | ValueSome(PushFrame frame) ->
     vm.frameToPush <- ValueSome frame
@@ -4596,7 +4596,7 @@ let private applyBuiltin
         // Usually already finished, in which case there's no bind to pay for.
         match Ply.trySync call with
         | ValueSome dv ->
-          registers[putResultIn] <- dv
+          Registers.set registers putResultIn dv
           ApplyDone
         | ValueNone ->
           // A read that has to wait becomes a promise and the frame runs on; anything else
@@ -4608,7 +4608,7 @@ let private applyBuiltin
               Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
             with
             | ValueSome promise ->
-              registers[putResultIn] <- promise
+              Registers.set registers putResultIn promise
               ApplyDone
             | ValueNone -> AwaitBuiltin(call, putResultIn)
           else
@@ -4734,7 +4734,7 @@ let private applyPackageFn
     | ValueSome result ->
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
-      registers[putResultIn] <- result
+      Registers.set registers putResultIn result
       ApplyDone
 
     | ValueNone ->
@@ -4788,7 +4788,7 @@ let private applyPackageFn
       else
         match Ply.trySync call with
         | ValueSome dv ->
-          registers[putResultIn] <- dv
+          Registers.set registers putResultIn dv
           ApplyDone
         | ValueNone -> AwaitBuiltin(call, putResultIn)
 
@@ -4842,7 +4842,7 @@ let private applyPackageFn
           (takeFinish vm)
           false
       else
-        registers[putResultIn] <- dv
+        Registers.set registers putResultIn dv
         ApplyDone
     | ValueSome(PushFrame frame) ->
       vm.frameToPush <- ValueSome frame
@@ -4961,7 +4961,7 @@ let private applyInstructionForced
     | ValueSome result ->
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
-      registers[putResultIn] <- result
+      Registers.set registers putResultIn result
     | ValueNone ->
 
       let ctx : ApplyContext =
@@ -5222,7 +5222,7 @@ let private tryBuildSync
         )
       with
       | ValueSome record ->
-        registers[recordReg] <- record
+        Registers.set registers recordReg record
         true
       | ValueNone -> false
 
@@ -5236,7 +5236,7 @@ let private tryBuildSync
       && List.isEmpty typeArgs
       && fieldlessEnums.TryGetValue(struct (typeName, caseName), &kept)
     then
-      registers[enumReg] <- kept
+      Registers.set registers enumReg kept
       true
     else
       match toVTsSync exeState.types tst [] typeArgs with
@@ -5264,7 +5264,7 @@ let private tryBuildSync
             fieldlessEnums.TryAdd(struct (typeName, caseName), newEnum)
             |> ignore<bool>
           | _ -> ()
-          registers[enumReg] <- newEnum
+          Registers.set registers enumReg newEnum
           true
         | ValueNone -> false
 
@@ -5289,7 +5289,7 @@ let private tryBuildSync
         )
       with
       | ValueSome updated ->
-        registers[targetReg] <- updated
+        Registers.set registers targetReg updated
         true
       | ValueNone -> false
     | _ -> false
@@ -5326,7 +5326,7 @@ let private tryQuickOp
         fastBuiltinOp threadID registers op.Tag op.Args
     match result with
     | ValueSome v ->
-      registers[op.Dst] <- v
+      Registers.set registers op.Dst v
       true
     | ValueNone -> false
 
@@ -5524,7 +5524,7 @@ let private runSyncInstructions
         | DRecord(_, _, _, fields) ->
           let mutable value = Unchecked.defaultof<Dval>
           if fields.TryGetValue(fieldName, &value) then
-            registers[targetReg] <- value
+            Registers.set registers targetReg value
             true
           else
             false
@@ -5534,13 +5534,13 @@ let private runSyncInstructions
         | DTuple(first, second, rest) ->
           match tupleIndexOfFieldName fieldName with
           | Some 1 ->
-            registers[targetReg] <- first
+            Registers.set registers targetReg first
             true
           | Some 2 ->
-            registers[targetReg] <- second
+            Registers.set registers targetReg second
             true
           | Some n when n <= 2 + List.length rest ->
-            registers[targetReg] <- List.item (n - 3) rest
+            Registers.set registers targetReg (List.item (n - 3) rest)
             true
           | _ -> false
         // A field access on a read still in flight settles it first: the field belongs to the
@@ -5651,17 +5651,18 @@ let private runSyncInstructions
                         currentFrame.typeSymbolTable }
             )
           | _ -> value
-      | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
+      | CopyVal(copyTo, copyFrom) ->
+        Registers.set registers copyTo (registers[copyFrom])
       // `skipRhs` is set on the left side's check. If that one raises, the right side
       // hasn't run, so the error gives its type as unknown.
       | Or(createTo, operand, skipRhs) ->
         match registers[operand] with
         | DBool true ->
-          registers[createTo] <- DBool true
+          Registers.set registers createTo (DBool true)
           match skipRhs with
           | Some skip -> counter <- counter + skip
           | None -> ()
-        | DBool false -> registers[createTo] <- DBool false
+        | DBool false -> Registers.set registers createTo (DBool false)
         | DPromise p -> parkOnRead vm registers operand p &retry &force &forceReg
         | v ->
           let err =
@@ -5673,11 +5674,11 @@ let private runSyncInstructions
       | And(createTo, operand, skipRhs) ->
         match registers[operand] with
         | DBool false ->
-          registers[createTo] <- DBool false
+          Registers.set registers createTo (DBool false)
           match skipRhs with
           | Some skip -> counter <- counter + skip
           | None -> ()
-        | DBool true -> registers[createTo] <- DBool true
+        | DBool true -> Registers.set registers createTo (DBool true)
         | DPromise p -> parkOnRead vm registers operand p &retry &force &forceReg
         | v ->
           let err =
@@ -5695,7 +5696,7 @@ let private runSyncInstructions
         // looking at it, so `let pages = ...` keeps a read in flight; every other pattern
         // inspects the value and forces it.
         match pat with
-        | LPVariable extractTo -> registers[extractTo] <- dv
+        | LPVariable extractTo -> Registers.set registers extractTo dv
         | _ ->
           match dv with
           | DPromise p when letNeedsValue pat dv ->
@@ -5745,7 +5746,10 @@ let private runSyncInstructions
 
         // Normalized as `+` and `String.join` are, so equal text compares equal however built.
         if not retry then
-          registers[targetReg] <- DString(String.normalize (sb.ToString()))
+          Registers.set
+            registers
+            targetReg
+            (DString(String.normalize (sb.ToString())))
 
 
       // == Flow Control ==
@@ -5791,10 +5795,10 @@ let private runSyncInstructions
               | _ -> ()
               match caseName, fields with
               | "Ok", [ inner ] when isResult ->
-                registers[target] <- inner
+                Registers.set registers target inner
                 ValueNone
               | "Some", [ inner ] when isOption ->
-                registers[target] <- inner
+                Registers.set registers target inner
                 ValueNone
               // The frame may return a different success type, so the operand's
               // success type must not travel with the failure.
@@ -5822,7 +5826,7 @@ let private runSyncInstructions
                 (RTE.Unwrap(RTE.Unwraps.UnwrapOperandNotContainer value))
           match failure with
           | ValueSome failure ->
-            registers[instrData.resultReg] <- failure
+            Registers.set registers instrData.resultReg failure
             counter <- instrData.instructions.Length
           | ValueNone -> ()
 
@@ -5830,7 +5834,7 @@ let private runSyncInstructions
       | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
         // Fast path for common single-variable match
         match pat with
-        | MPVariable reg -> registers[reg] <- registers[valueReg]
+        | MPVariable reg -> Registers.set registers reg (registers[valueReg])
         | _ ->
           match registers[valueReg] with
           | DPromise p when matchNeedsValue pat registers[valueReg] ->
@@ -5844,7 +5848,7 @@ let private runSyncInstructions
               // boxes the enumerator.
               for i in 0 .. buf.Count - 1 do
                 let struct (reg, value) = buf[i]
-                registers[reg] <- value
+                Registers.set registers reg value
             else
               counter <- counter + failJump
       | MatchUnmatched(valueReg) ->
@@ -5883,7 +5887,10 @@ let private runSyncInstructions
         let first = registers[firstReg]
         let second = registers[secondReg]
         let theRest = readRegs registers theRestRegs
-        registers[tupleReg] <- Pending.wrap (DTuple(first, second, theRest))
+        Registers.set
+          registers
+          tupleReg
+          (Pending.wrap (DTuple(first, second, theRest)))
 
 
       // == Working with Custom Data ==
@@ -6421,7 +6428,7 @@ let private runRareOpcode
       match!
         Ply.toTask (receiverMethod exeState vm currentFrame receiver fieldName)
       with
-      | Some applicable -> registers[targetReg] <- applicable
+      | Some applicable -> Registers.set registers targetReg applicable
       | None ->
         match receiver with
         | DRecord _ ->
@@ -6461,7 +6468,7 @@ let private runRareOpcode
             fields
         )
 
-      registers[recordReg] <- record
+      Registers.set registers recordReg record
     | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
       let originalRecord = Pending.peek registers[originalRecordReg]
 
@@ -6482,7 +6489,7 @@ let private runRareOpcode
               fieldUpdates
           )
 
-        registers[targetReg] <- updatedRecord
+        Registers.set registers targetReg updatedRecord
 
       | dv ->
         Dval.toValueType dv
@@ -6512,13 +6519,16 @@ let private runRareOpcode
             fields
         )
 
-      registers[enumReg] <- newEnum
+      Registers.set registers enumReg newEnum
     | LoadValue(createTo, name) ->
       match name with
       | FQValueName.Builtin builtin ->
         match exeState.values.builtIn.TryGetValue builtin with
         | true, v ->
-          registers[createTo] <- Dval.captureValueAccess currentFrame.access v.body
+          Registers.set
+            registers
+            createTo
+            (Dval.captureValueAccess currentFrame.access v.body)
         | false, _ -> raiseRTE vm.threadID (RTE.ValueNotFound name)
 
       | FQValueName.Package pkg ->
@@ -6563,7 +6573,7 @@ let rec private bindAgain
     let bound =
       match pat with
       | LPVariable reg ->
-        r[reg] <- arg
+        Registers.set r reg arg
         true
       | _ -> assignLetPattern r pat arg
     bound
@@ -6704,7 +6714,7 @@ let inline private popFrame
          | ValueNone -> next resultOfFrame)
         true
     else
-      parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
+      Registers.set parentFrame.registers regOfParentToPutResultInto resultOfFrame
       parentFrame.programCounter <- pcOfParent
       // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
       // of its registers before the pop and is now in the parent's.
@@ -6840,7 +6850,7 @@ let private awaitOf
       fun () ->
         frame.programCounter <- frame.programCounter + 1
         match running.Result with
-        | Completed dv -> frame.registers[reg] <- dv
+        | Completed dv -> Registers.set frame.registers reg dv
         | PushFrame newFrame -> enterFrame vm frame newFrame
     )
   | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
@@ -6866,7 +6876,8 @@ let private awaitOf
     StepAwait(
       landed,
       fun () ->
-        if task.IsCompletedSuccessfully then frame.registers[reg] <- task.Result
+        if task.IsCompletedSuccessfully then
+          Registers.set frame.registers reg task.Result
     )
   | FrameAwaitReads task ->
     let landed =
@@ -6936,13 +6947,13 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
       | ValueSome outcome ->
         currentFrame.programCounter <- currentFrame.programCounter + 1
         match outcome with
-        | Completed dv -> registers[reg] <- dv
+        | Completed dv -> Registers.set registers reg dv
         | PushFrame frame -> enterFrame vm currentFrame frame
       | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitForce(task, reg) ->
       // Landed between the check and here: the value goes in and the instruction runs again.
       if task.IsCompletedSuccessfully then
-        registers[reg] <- task.Result
+        Registers.set registers reg task.Result
       else
         bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitReads _ -> bail <- ValueSome(awaitOf exeState vm step)
