@@ -442,7 +442,8 @@ module RuntimeError =
 
       // -- Update --
       | UpdateNotRecord(actualType) ->
-        [ ES.String("Cannot apply a record-update to a ")
+        [ ES.String("Cannot apply a record-update to ")
+          ES.IndefiniteArticle
           ES.ValueType(actualType) ]
       | UpdateEmptyKey -> [ ES.String("Empty key in record update") ]
       | UpdateDuplicateField(fieldName) ->
@@ -496,8 +497,8 @@ module RuntimeError =
       match err with
       | ConstructionWrongNumberOfFields(typeName, caseName, expectedFieldCount, actualFieldCount) ->
         [ ES.String("Expected ")
-          ES.Int64(expectedFieldCount)
-          ES.String(" fields in ")
+          ES.Count(expectedFieldCount, ES.String("field"), ES.String("fields"))
+          ES.String(" in ")
           ES.TypeName(typeName)
           ES.String(".")
           ES.FieldName(caseName)

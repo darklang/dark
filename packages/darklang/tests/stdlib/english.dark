@@ -6,6 +6,11 @@ test articleFor =
       Stdlib.English.articleFor("banana") |> Stdlib.Test.equal("a")
       Stdlib.English.articleFor("🍍") |> Stdlib.Test.equal("a")
       Stdlib.English.articleFor("🍊") |> Stdlib.Test.equal("a")
+      Stdlib.English.articleFor("Int64") |> Stdlib.Test.equal("an")
+      Stdlib.English.articleFor("Unit") |> Stdlib.Test.equal("a")
+      Stdlib.English.articleFor("UInt8") |> Stdlib.Test.equal("a")
+      Stdlib.English.articleFor("Uuid") |> Stdlib.Test.equal("a")
+      Stdlib.English.articleFor("unknown") |> Stdlib.Test.equal("an")
       Stdlib.English.articleFor("") |> Stdlib.Test.equal("") ])
 
 test pluralize =

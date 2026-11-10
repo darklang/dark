@@ -2,7 +2,7 @@ module Darklang.Stdlib.English
 
 
 /// Returns 'a' or 'an' (the indefinite article) for a string, based on
-/// whether it begins with a vowel
+/// whether it begins with a vowel sound
 let articleFor(nextWord: String): String =
   let vowels = [ 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u' ]
 
@@ -15,7 +15,13 @@ let articleFor(nextWord: String): String =
     then
       articleFor(String.dropFirst(nextWord, 1))
     else if List.contains(vowels, c) then
-      "an"
+      // A vowel letter that is said with a "y" or "w" sound takes "a": "a Unit",
+      // "a UInt8", "a Uuid", "a union", "a euro".
+      let lower = String.toLowercase(nextWord)
+      let soundsLikeY =
+        [ "uni", "uint", "uuid", "url", "use", "usu", "uti", "eu" ]
+        |> List.any(fun prefix -> String.startsWith(lower, prefix))
+      if soundsLikeY then "a" else "an"
     else
       "a"
 
