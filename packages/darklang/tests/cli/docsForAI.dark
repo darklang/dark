@@ -1,0 +1,103 @@
+module Darklang.Cli.Tests.DocsForAI
+
+// `docs for-ai` is read in full at the start of every agent session and carried through every
+// call after, so it stays short; the reference sections are one more word away.
+
+let subtopic(name: String): String =
+  match Darklang.Cli.Docs.Command.Topics.findTopic("for-ai") with
+  | Some(topic) ->
+    match Darklang.Cli.Docs.Command.Topics.findIn(topic.subtopics, name) with
+    | Some(sub) ->
+      let content = sub.content
+      content()
+    | None -> ""
+  | None -> ""
+
+
+// About 3,900 characters on its own; the limit leaves room for the syntax-at-a-glance block.
+test forAIStaysShort =
+  let size = Stdlib.String.length(Darklang.Cli.Docs.ForAI.content())
+  Stdlib.Test.expect(size < 6000, $"docs for-ai is {Stdlib.toString(size)} characters")
+
+
+// What moved out of `docs for-ai` is still there, under the part its More list names.
+test movedSectionsAreOneWordAway =
+  Stdlib.Test.all(
+    [ ("packages", "view Some.fn --raw > /tmp/f.dark")
+      ("tests", "test run --force")
+      ("permissions", "permissions approve Vendor.Package.function")
+      ("traces", "dark traces show <fn> --json")
+      ("scm", "dark merge feature -y")
+      ("syntax", "## Name Resolution")
+      ("perms", "permissions profile local-dev")
+      ("TESTS", "Stdlib.Test.incrementCounter") ]
+    |> Stdlib.List.map(fun((name, phrase)) ->
+      Stdlib.Test.expect(
+        Stdlib.String.contains(subtopic(name), phrase),
+        $"docs for-ai {name} has {phrase}"))
+    |> Stdlib.List.append(
+      Stdlib.Test.expect(
+        Stdlib.String.contains(Darklang.Cli.Docs.ForAI.content(), "docs for-ai tests"),
+        "docs for-ai names its parts")))
+
+
+test unknownPartIsRefused =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "for-ai", "zzz" ])
+
+    Stdlib.Test.all(
+      [ Stdlib.Test.expect(code != 0, "an unknown part fails")
+        Instance.says(out, "docs for-ai tests", "and lists the parts")
+        Instance.says(Instance.said(i, [ "docs", "for-ai", "tests" ]), "## Package tests", "a part prints") ]))
+
+
+// One call prints every part asked for, each once and under its own header, so an agent
+// needs two turns at most: the main page, then the parts it names.
+test severalPartsInOneCall =
+  Instance.withInstance(fun i ->
+    let (code, out) =
+      Instance.ran(i, [ "docs", "for-ai", "tests", "scm", "perms", "permissions" ])
+
+    Stdlib.Test.all(
+      [ Stdlib.Test.expect(code == 0, "several parts print")
+        Instance.says(out, "# Darklang AI: tests", "the first part")
+        Instance.says(out, "# Darklang AI: scm", "the second part")
+        Instance.says(out, "# Darklang AI: permissions", "a part named by its alias")
+        Stdlib.Test.expect(
+          Stdlib.List.length(Stdlib.String.split(out, "# Darklang AI: permissions")) == 2,
+          "a part named twice prints once")
+        Stdlib.Test.expect(
+          Stdlib.String.contains(
+            Darklang.Cli.Docs.ForAI.content(),
+            "docs for-ai tests scm"),
+          "the main page says parts can be fetched together") ]))
+
+
+test unknownPartsAreNamed =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "for-ai", "tests", "zzz", "yyy" ])
+
+    Stdlib.Test.all(
+      [ Stdlib.Test.expect(code != 0, "a call with an unknown part fails")
+        Instance.says(out, "Unknown parts of docs for-ai: zzz, yyy", "and names every unknown part")
+        Instance.says(out, "docs for-ai permissions", "and lists the parts")
+        Stdlib.Test.expect(
+          Stdlib.Bool.not(Stdlib.String.contains(out, "## Package tests")),
+          "and prints none of them") ]))
+
+
+// `docs for-ai` says which values `Stdlib.toString` takes and what to use for the rest.
+// If lists, tuples or Unit gain a `ToString`, or Option or Result lose theirs, that sentence
+// needs changing.
+test toStringAdviceHolds =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "eval", "Stdlib.toString([1, 2])" ])
+
+    Stdlib.Test.all(
+      [ Stdlib.Test.expect(code != 0, "a list has no ToString")
+        Instance.says(out, "has no implementation", "and the error says so")
+        Stdlib.toString(Some(3)) |> Stdlib.Test.equal("Some(3)")
+        Stdlib.toString<Result<Int64, String>>(Ok(3)) |> Stdlib.Test.equal("Ok(3)")
+        Stdlib.toRepr([1, 2]) |> Stdlib.Test.equal("[1, 2]")
+        ([1, 2] |> Stdlib.List.map(Stdlib.toString) |> Stdlib.String.join(", "))
+        |> Stdlib.Test.equal("1, 2") ]))

@@ -1172,32 +1172,43 @@ module private HelpExamples =
       + "not found|Not found|type error|Unresolved|Error:|reserved owner|Could not save"
     )
 
-  let runPage (page : List<string>) (heredocsOnly : bool) (floor : int) =
-    instanceTest
-      $"""every example in `dark {String.concat " " page}` runs as written"""
-      (fun state ->
-        task {
-          let i =
-            match state with
-            | Instance i -> i
-            | _ -> Tests.failtestf "%s" "an instance test was handed something else"
+  /// The examples of several pages, run in page order on one instance, so a later page may use
+  /// what an earlier one saved.
+  let runPages
+    (name : string)
+    (pages : List<List<string>>)
+    (heredocsOnly : bool)
+    (floor : int)
+    =
+    instanceTest $"""every example in `dark {name}` runs as written""" (fun state ->
+      task {
+        let i =
+          match state with
+          | Instance i -> i
+          | _ -> Tests.failtestf "%s" "an instance test was handed something else"
+        let found = ResizeArray()
+        for page in pages do
           let! (_, text, _) = Tests.CliInstance.runRaw i page
-          let found = examples (plain text) heredocsOnly
-          // A count of what was RUN, so a page whose examples stopped parsing cannot pass by
-          // running none of them.
-          Expect.isGreaterThanOrEqual
-            (List.length found)
-            floor
-            $"examples found in the page, got: {found}"
-          for (args, input) in found do
-            let! (code, out, err) = Tests.CliInstance.runRawWithInput i args input
-            let shown = plain (out + err)
-            let printed = $"""dark {String.concat " " args}"""
-            Expect.equal code 0 $"{printed} exited {code}: {shown}"
-            Expect.isFalse
-              (refusal.IsMatch shown)
-              $"{printed} printed a refusal: {shown}"
-        })
+          found.AddRange(examples (plain text) heredocsOnly)
+        let found = List.ofSeq found
+        // A count of what was RUN, so a page whose examples stopped parsing cannot pass by
+        // running none of them.
+        Expect.isGreaterThanOrEqual
+          (List.length found)
+          floor
+          $"examples found in the page, got: {found}"
+        for (args, input) in found do
+          let! (code, out, err) = Tests.CliInstance.runRawWithInput i args input
+          let shown = plain (out + err)
+          let printed = $"""dark {String.concat " " args}"""
+          Expect.equal code 0 $"{printed} exited {code}: {shown}"
+          Expect.isFalse
+            (refusal.IsMatch shown)
+            $"{printed} printed a refusal: {shown}"
+      })
+
+  let runPage (page : List<string>) (heredocsOnly : bool) (floor : int) =
+    runPages (String.concat " " page) [ page ] heredocsOnly floor
 
 let helpExamplesRun : List<Test> =
   [ HelpExamples.runPage [ "fn"; "--help" ] false 6
@@ -1206,7 +1217,19 @@ let helpExamplesRun : List<Test> =
     HelpExamples.runPage [ "trait"; "--help" ] false 3
     HelpExamples.runPage [ "impl"; "--help" ] false 12
     HelpExamples.runPage [ "module"; "--help" ] false 2
-    HelpExamples.runPage [ "docs"; "for-ai" ] true 2 ]
+    // The main page and every part, so an example that moves between them stays covered.
+    HelpExamples.runPages
+      "docs for-ai <part>"
+      ([ []
+         [ "packages" ]
+         [ "tests" ]
+         [ "permissions" ]
+         [ "traces" ]
+         [ "scm" ]
+         [ "syntax" ] ]
+       |> List.map (fun part -> [ "docs"; "for-ai" ] @ part))
+      true
+      3 ]
 
 
 /// A save that REPLACES an implementation must not resolve its own calls to the one it replaces.

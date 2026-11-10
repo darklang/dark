@@ -7,7 +7,6 @@ let content(): String =
   + SyntaxAtAGlance.content()
   + """
 Save your code in a .dark file and run it with `dark run <file> [args...]`.
-`run-script` is another name for `run`.
 
 For example, save this as greet.dark:
 
@@ -37,22 +36,12 @@ arguments after the file path, in order.
 It is [] when none are given. Use shell quotes to keep spaces in one argument,
 or `""` to pass an empty string.
 
-At the script root, values and functions cannot be named args: that name is
-reserved for input. Nested modules may declare it (for example, Util.args).
-Function parameters and local `let` bindings may also use it.
-
 You do not need a main function. If you write one, call it in the final expression,
 for example `main(args)`. Functions do not capture top-level variables, so pass any
 arguments they need explicitly.
 
-Put runner options before the file path. Everything after it is script input,
-including flags and `--`:
-
-  dark run --sandbox greet.dark Ada
-  dark run greet.dark --sandbox
-  # the second command greets the name --sandbox
-
-For a file path starting with a dash, use `dark run -- -name.dark`.
+Runner options such as `--sandbox` go before the file path; everything after it,
+flags included, is the script's. A path starting with a dash goes after `--`.
 
 ## Results and exit codes
 
@@ -74,15 +63,9 @@ progress) with `Stdlib.printErrorLine`, so `dark run greet.dark Ada | next` hand
 
 ## Permissions
 
-Scripts use your installation's instance policy, just like eval. File, environment
-and HTTP access may need permission; see `dark permissions`. The script's own
-functions need no package approval. Package functions keep their usual approval
-requirements.
-
-A permission denial stops the script; earlier effects may already have happened.
-At an interactive terminal, you can save the rule for future runs. The script stays
-stopped, so you decide whether to run it again. Noninteractive runs show guidance
-without prompting.
-`--sandbox` adds a deny-all run policy; it does not provide OS isolation.
-See `dark help run-script` for all permission options.
+Scripts run under your installation's policy, as eval does. File, environment and
+HTTP access may need a rule; a denial stops the script and prints the
+`dark permissions allow` line that covers it. Earlier effects may already have
+happened. `--sandbox` denies everything; it is not OS isolation.
+`dark help run-script` has the rest.
 """
