@@ -68,7 +68,6 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <TrimmerRootAssembly Include="LibExecution" />
   </ItemGroup>
 
   <!-- FSharp.Core's printf and reflection give the same trim/AOT warnings on every publish, and

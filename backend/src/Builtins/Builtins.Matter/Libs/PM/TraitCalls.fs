@@ -367,7 +367,7 @@ let private environmentOf
         Some $"name {location loc} {reference target}"
       // Unbind, Deprecate, Undeprecate, Rename, Decision: rare, small, and all of them can change
       // what a name or an implementation means.
-      | other -> Some(sprintf "%A" other))
+      | other -> Some(sprintf "%O" other))
     |> List.sort
   // By stamp, then hash, as `Lww.winnerOf` would order them.
   let byStamp =
