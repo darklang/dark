@@ -275,6 +275,20 @@ let withoutWrittenNames(
     )
   | other -> other
 
+/// Pairs of candidates with the same self-type key, in input order, earlier first.
+/// Keep later candidates by key so unrelated implementations are never compared.
+let rivalPairs(candidates: List<(String * 'a)>): List<('a * 'a)> =
+  let (_groups, pairs) =
+    candidates
+    |> Stdlib.List.reverse
+    |> Stdlib.List.fold((Dict { }, []), fun((groups, pairs), (key, candidate)) ->
+      let later = Stdlib.Dict.get(groups, key) |> Stdlib.Option.withDefault([])
+      let nextPairs = Stdlib.List.map(later, fun other -> (candidate, other))
+      (Stdlib.Dict.set(groups, key, Stdlib.List.prepend(later, candidate)),
+       Stdlib.List.concat(nextPairs, pairs)))
+  pairs
+
+
 let detectRivalImplementations(branchId: Uuid): List<Finding> =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
@@ -298,49 +312,39 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
     let candidates =
       LanguageTools.PackageManager.Trait.impls(branchId, t.entity.hash)
       |> Stdlib.List.map(fun c ->
-        (c, PrettyPrinter.RuntimeTypes.typeReference(branchId, withoutWrittenNames(c.self))))
+        (PrettyPrinter.RuntimeTypes.typeReference(branchId, withoutWrittenNames(c.self)), c))
 
-    // Pairs (i, j) with i before j and the same self type; each pair once.
     candidates
-    |> Stdlib.List.indexedMap(fun(i, c) -> (i, c))
-    |> Stdlib.List.map(fun((i, cPair)) ->
-      let (c, selfKey) = cPair
-      candidates
-      |> Stdlib.List.indexedMap(fun(j, d) -> (j, d))
-      |> Stdlib.List.filterMap(fun((j, dPair)) ->
-        let (d, dKey) = dPair
-        if j > i && dKey == selfKey then
-          let selfStr = PrettyPrinter.RuntimeTypes.typeReference(branchId, c.self)
-          let locOf(h: LanguageTools.ProgramTypes.Hash): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-            LanguageTools.PackageManager.pickLocation(
-              LanguageTools.PackageManager.PickContext.empty,
-              LanguageTools.PackageManager.TraitImpl.locations(branchId, h))
-          match locOf(c.source), locOf(d.source) with
-          | Some(mine), Some(other) ->
-            let cHash = LanguageTools.ProgramTypes.hashToString(c.source)
-            let dHash = LanguageTools.ProgramTypes.hashToString(d.source)
+    |> rivalPairs
+    |> Stdlib.List.filterMap(fun((c, d)) ->
+      let selfStr = PrettyPrinter.RuntimeTypes.typeReference(branchId, c.self)
+      let locOf(h: LanguageTools.ProgramTypes.Hash): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+        LanguageTools.PackageManager.pickLocation(
+          LanguageTools.PackageManager.PickContext.empty,
+          LanguageTools.PackageManager.TraitImpl.locations(branchId, h))
+      match locOf(c.source), locOf(d.source) with
+      | Some(mine), Some(other) ->
+        let cHash = LanguageTools.ProgramTypes.hashToString(c.source)
+        let dHash = LanguageTools.ProgramTypes.hashToString(d.source)
 
-            let choice =
-              if c.stamp == "" && d.stamp == "" then
-                RivalChoice.Neither
-              else if SCM.Conflicts.beats(c.stamp, cHash, d.stamp, dHash) then
-                RivalChoice.Mine
-              else
-                RivalChoice.Theirs
+        let choice =
+          if c.stamp == "" && d.stamp == "" then
+            RivalChoice.Neither
+          else if SCM.Conflicts.beats(c.stamp, cHash, d.stamp, dHash) then
+            RivalChoice.Mine
+          else
+            RivalChoice.Theirs
 
-            Stdlib.Option.Option.Some(
-              Finding
-                { kind = Kind.RivalImplementations
-                  id = findingId(mine, t.location, $"{selfStr}|{fqnOf(other)}")
-                  usage = mine
-                  usageKind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
-                  dependency = t.location
-                  dependencyKind = LanguageTools.ProgramTypes.ItemKind.Trait
-                  detail = FindingDetail.Rivals(selfStr, other, choice) })
-          | _, _ -> Stdlib.Option.Option.None
-        else
-          Stdlib.Option.Option.None))
-    |> Stdlib.List.flatten)
+        Stdlib.Option.Option.Some(
+          Finding
+            { kind = Kind.RivalImplementations
+              id = findingId(mine, t.location, $"{selfStr}|{fqnOf(other)}")
+              usage = mine
+              usageKind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
+              dependency = t.location
+              dependencyKind = LanguageTools.ProgramTypes.ItemKind.Trait
+              detail = FindingDetail.Rivals(selfStr, other, choice) })
+      | _, _ -> Stdlib.Option.Option.None))
   |> Stdlib.List.flatten
 
 
