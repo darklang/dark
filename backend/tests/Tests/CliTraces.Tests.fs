@@ -275,7 +275,7 @@ let private testTracesTruncatedStillShowsRoot =
               runCli
                 state
                 [ "eval"
-                  "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 40), fun x -> Stdlib.printLine(Stdlib.toString(x))))" ]
+                  "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 40), fun x -> Stdlib.printLine(Stdlib.display(x))))" ]
             Expect.stringContains evalOut "40" "the eval itself succeeded"
             let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
             let tid = parseTraceID listJson

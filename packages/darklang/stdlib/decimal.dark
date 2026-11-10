@@ -82,13 +82,13 @@ impl One for Decimal =
   let one(): Decimal = 1dec
 
 
-impl ToString for Decimal =
+impl Display for Decimal =
   /// Stringify <param d> at its scale, without exponent:
-  /// {{Stdlib.toString(1.10dec) == "1.10"}}, {{Stdlib.toString(-0.05dec) == "-0.05"}}
-  let toString(d: Decimal): String =
+  /// {{Stdlib.display(1.10dec) == "1.10"}}, {{Stdlib.display(-0.05dec) == "-0.05"}}
+  let display(d: Decimal): String =
     let (unscaled, scale) = toParts(d)
     let sign = if unscaled < 0z then "-" else ""
-    let digits = Stdlib.toString(Stdlib.abs(unscaled))
+    let digits = Stdlib.display(Stdlib.abs(unscaled))
 
     if scale == 0 then
       sign + digits
@@ -234,7 +234,7 @@ let ceiling(d: Decimal): Decimal =
 /// {{Decimal.precision(123.40dec) == 5}}, {{Decimal.precision(0.05dec) == 1}}. At most 29.
 let precision(d: Decimal): Int64 =
   let (unscaled, _) = toParts(d)
-  Stdlib.String.length(Stdlib.toString(Stdlib.abs(unscaled)))
+  Stdlib.String.length(Stdlib.display(Stdlib.abs(unscaled)))
 
 
 /// <param base> to the whole power <param exponent>, by multiplying, so as exact as
@@ -326,7 +326,7 @@ let fromInt64(i: Int64): Decimal =
 /// The <type Float> nearest <param d>. Exact only when <param d> happens to be a
 /// binary fraction, which is the reason <type Decimal> exists.
 let toFloat(d: Decimal): Float =
-  match Stdlib.Float.parse(Stdlib.toString(d)) with
+  match Stdlib.Float.parse(Stdlib.display(d)) with
   | Ok(f) -> f
   // unreachable: every decimal prints as digits a float parses
   | Error(_) -> 0.0
@@ -336,14 +336,14 @@ let toFloat(d: Decimal): Float =
 /// since a Float prints as the shortest decimal that reads back as itself. {{None}}
 /// for NaN, the infinities, and anything out of range.
 let fromFloat(f: Float): Stdlib.Option.Option<Decimal> =
-  match parse(Stdlib.toString(f)) with
+  match parse(Stdlib.display(f)) with
   | Ok(d) -> Stdlib.Option.Option.Some(d)
   | Error(_) -> Stdlib.Option.Option.None
 
 
 /// The <type Float32> nearest <param d>, rounded once from the decimal
 let toFloat32(d: Decimal): Float32 =
-  match Stdlib.Float32.parse(Stdlib.toString(d)) with
+  match Stdlib.Float32.parse(Stdlib.display(d)) with
   | Ok(f) -> f
   // unreachable: every decimal prints as digits a Float32 parses
   | Error(_) -> 0.0f32
@@ -353,7 +353,7 @@ let toFloat32(d: Decimal): Float32 =
 /// although the Float32 is not exactly a tenth. {{None}} for NaN, the infinities, and
 /// anything out of range.
 let fromFloat32(f: Float32): Stdlib.Option.Option<Decimal> =
-  match parse(Stdlib.toString(f)) with
+  match parse(Stdlib.display(f)) with
   | Ok(d) -> Stdlib.Option.Option.Some(d)
   | Error(_) -> Stdlib.Option.Option.None
 

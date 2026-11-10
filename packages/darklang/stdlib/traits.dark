@@ -103,14 +103,18 @@ trait Compare<'a> =
   let greaterThanOrEqualTo(a: 'a, b: 'a): Bool
 
 
-/// A value rendered as text for a person: `p.toString`, or `ToString.toString p`.
-/// Many standard-library types implement it, and you can implement it for your own types.
-/// Use `Stdlib.toRepr` to see a value's structure when debugging.
-// TODO: Add ToString for Unit, List and tuples.
-// CLEANUP if this splits, it splits into `ToString` for what a person reads and
-// `ToDebugString` for the derived one. Nothing more elaborate.
-trait ToString<'a> =
-  let toString(v: 'a): String
+/// Text for a person: `p.display`, or `Display.display(p)`. A type has it only when someone
+/// writes an impl, and that impl decides what to show. String interpolation uses it, and
+/// falls back to <fn Stdlib.inspect> for a type without one.
+// TODO: Add Display for Unit, List and tuples.
+trait Display<'a> =
+  let display(v: 'a): String
+
+
+/// How <fn Stdlib.inspect> shows a value of this type. Every value already has an inspect
+/// form; an impl replaces it, as for a type whose field is private.
+trait Inspect<'a> =
+  let inspect(v: 'a): String
 
 
 // Written once over the traits above, for any type that implements them.
@@ -158,5 +162,6 @@ let product<'a: Multiply>(seed: 'a, xs: List<'a>): 'a =
   Stdlib.List.fold(xs, seed, fun(acc, x) -> acc * x)
 
 
-/// <param v> as text, for any type with a `ToString`
-let toString<'a: ToString>(v: 'a): String = ToString.toString(v)
+/// <param v> as text for a person, for any type with a `Display`. <fn Stdlib.inspect>
+/// shows any value.
+let display<'a: Display>(v: 'a): String = Display.display(v)

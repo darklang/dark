@@ -6,13 +6,13 @@ type Result<'Ok, 'Err> =
   | Error('Err)
 
 
-impl<'Ok: ToString, 'Err: ToString> ToString for Result<'Ok, 'Err> =
-  /// {{"Ok(<var v>)"}} or {{"Error(<var e>)"}}, each rendered by its own
-  /// <type ToString>: {{$"{Ok(3)}"}} is {{"Ok(3)"}}.
-  let toString(r: Result<'Ok, 'Err>): String =
+impl Display for Result<'Ok, 'Err> =
+  /// {{"Ok(<var v>)"}} or {{"Error(<var e>)"}}, each shown as interpolation shows it:
+  /// {{$"{Error("nope")}"}} is {{"Error(nope)"}}.
+  let display(r: Result<'Ok, 'Err>): String =
     match r with
-    | Ok(v) -> "Ok(" + ToString.toString(v) + ")"
-    | Error(e) -> "Error(" + ToString.toString(e) + ")"
+    | Ok(v) -> $"Ok({v})"
+    | Error(e) -> $"Error({e})"
 
 
 /// If <param result> is {{Ok <var value>}}, returns {{Ok (fn <var value>)}}.

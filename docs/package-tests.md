@@ -227,7 +227,7 @@ Only passing results can skip a run. Failed assertions are saved for display,
 but the test runs again next time. Runtime errors are not cached.
 
 Tests using `equal` or `notEqual` currently aren't cached. These helpers can call
-`toRepr` to build a failure message, and that formatting can depend on the branch.
+`inspect` to build a failure message, and that formatting can depend on the branch.
 
 The analyzer flags that possible call even when the test passes and no message is
 needed. Better analysis could allow those passing results to be cached.

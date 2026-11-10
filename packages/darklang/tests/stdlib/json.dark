@@ -1481,7 +1481,7 @@ module ParseErrorToString =
 
   test toStringNeedsNoBranch =
     Stdlib.Json.parse<Int64>("1 2")
-    |> Stdlib.Result.mapError(fun e -> Stdlib.toString(e))
+    |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
     |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
 
 module Result =
@@ -2006,19 +2006,19 @@ module RangedInts =
     Stdlib.Test.all(
       [ [ -1, 0, 65535, 65536 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Net.Port>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          Stdlib.Json.parse<Stdlib.Net.Port>(Stdlib.display(n)) |> Stdlib.Result.isOk
           |> Stdlib.Test.equal(Stdlib.Net.Port.fromInt64(n) |> Stdlib.Result.isOk))
         [ 99, 100, 599, 600 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Http.Status>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          Stdlib.Json.parse<Stdlib.Http.Status>(Stdlib.display(n)) |> Stdlib.Result.isOk
           |> Stdlib.Test.equal(Stdlib.Http.Status.fromInt64(n) |> Stdlib.Result.isOk))
         [ 0, 1, 2147483647, 2147483648 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>(Stdlib.display(n)) |> Stdlib.Result.isOk
           |> Stdlib.Test.equal(Stdlib.Cli.Posix.Pid.fromInt64(n) |> Stdlib.Result.isOk))
         [ -1, 0, 255, 256 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>(Stdlib.toString(n)) |> Stdlib.Result.isOk
+          Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>(Stdlib.display(n)) |> Stdlib.Result.isOk
           |> Stdlib.Test.equal(Stdlib.Cli.Posix.ExitCode.fromInt64(n) |> Stdlib.Result.isOk)) ]
       |> Stdlib.List.flatten)
 

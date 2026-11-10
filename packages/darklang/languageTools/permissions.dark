@@ -425,7 +425,7 @@ let tokens(text: String): Stdlib.Option.Option<List<String>> =
       | Bare -> Stdlib.Option.Option.Some(Stdlib.List.reverse(finish(current, soFar, active)))
       | _ -> Stdlib.Option.Option.None
     | [c, ...rest] ->
-      let s = Stdlib.toString(c)
+      let s = Stdlib.display(c)
       match mode with
       | Bare ->
         if s == " " || s == "\t" || s == "\n" then
@@ -550,7 +550,7 @@ let renderHttpRule(rule: Permissions.HttpRule): String =
     let port =
       match rule.port with
       | All -> if rule.host == Permissions.HostRule.Any then "" else ":*"
-      | Only(port) -> ":" + Stdlib.toString(port)
+      | Only(port) -> ":" + Stdlib.display(port)
     let path =
       match rule.pathPrefix with
       | All -> ""
@@ -582,7 +582,7 @@ let renderRule(rule: Permissions.Rule): String =
   | Effect(effect) -> Permissions.effectName(effect)
   | Http(rule) -> Permissions.renderHttpRule(rule)
   | HttpServer(All) -> "http-server *"
-  | HttpServer(Only(port)) -> "http-server " + Stdlib.toString(port)
+  | HttpServer(Only(port)) -> "http-server " + Stdlib.display(port)
   | FileRead(scope) -> "file read " + Permissions.renderStringScope(scope)
   | FileWrite(scope) -> "file write " + Permissions.renderStringScope(scope)
   | EnvRead(scope) -> "env read " + Permissions.renderStringScope(scope)

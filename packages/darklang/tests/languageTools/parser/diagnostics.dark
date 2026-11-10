@@ -23,7 +23,7 @@ let golden(source: String, expected: List<String>): Stdlib.Test.Result =
   let actual = messages(source)
   Stdlib.Test.expect(
     actual == expected,
-    $"{shown(source)}: got {Stdlib.toRepr(actual)}")
+    $"{shown(source)}: got {Stdlib.inspect(actual)}")
 
 let rejectsIn(
   kind: Darklang.LanguageTools.Parser.FileKind,
@@ -40,7 +40,7 @@ let cleanIn(
   let actual = messagesIn(kind, source)
   Stdlib.Test.expect(
     Stdlib.List.isEmpty(actual),
-    $"{shown(source)}: {Stdlib.toRepr(actual)}")
+    $"{shown(source)}: {Stdlib.inspect(actual)}")
 
 let rejects(source: String): Stdlib.Test.Result =
   rejectsIn(Darklang.LanguageTools.Parser.FileKind.Script, source)
@@ -59,7 +59,7 @@ let says(source: String, fragment: String): Stdlib.Test.Result =
   let actual = messages(source)
   Stdlib.Test.expect(
     Stdlib.List.any(actual, fun m -> Stdlib.String.contains(m, fragment)),
-    $"{shown(source)} should say {fragment}, got {Stdlib.toRepr(actual)}")
+    $"{shown(source)} should say {fragment}, got {Stdlib.inspect(actual)}")
 
 
 test goldenMessages =
@@ -333,7 +333,7 @@ test recoveryStopsAtEndOfFile =
         "reports the error")
       Stdlib.Test.expect(
         Stdlib.List.length(found) <= 3,
-        $"does not spam: {Stdlib.toRepr(found)}")
+        $"does not spam: {Stdlib.inspect(found)}")
       // a broken generic leaves nothing behind for the next parse
       rejects("type X = List<List<Int64")
       clean("type Y = List<Int64>") ])

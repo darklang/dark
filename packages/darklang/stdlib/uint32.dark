@@ -158,9 +158,9 @@ impl ShiftRight for UInt32 =
   /// Bitwise right shift of a <type UInt32> value
   let shiftRight(a: UInt32, b: UInt32): UInt32 = Builtin.shiftRight(a, b)
 
-impl ToString for UInt32 =
+impl Display for UInt32 =
   /// Stringify <param uint32>
-  let toString(uint32: UInt32): String = Builtin.uint32ToString(uint32)
+  let display(uint32: UInt32): String = Builtin.uint32ToString(uint32)
 
 impl Zero for UInt32 =
   let zero(): UInt32 = 0u32

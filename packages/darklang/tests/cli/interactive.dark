@@ -96,7 +96,7 @@ val childGone =
 let awaitStartup(telemetryLog: String): List<String> =
   [ childGone
     "set ready_by [expr {[clock milliseconds] + "
-    + (Stdlib.toString(startupSeconds * 1000))
+    + (Stdlib.display(startupSeconds * 1000))
     + "}]"
     // `gone` is read BEFORE the log, so a child that got ready and exited between the two
     // reads still counts as ready, and its output is still waiting for the first `Await`.
@@ -163,7 +163,7 @@ let drive(
     // was ready before it was.
     let header =
       Stdlib.List.concat(
-        [ $"set timeout {Stdlib.toString(timeoutSeconds)}",
+        [ $"set timeout {Stdlib.display(timeoutSeconds)}",
           "set env(LINES) 50",
           "set env(COLUMNS) 200",
           "file delete -force -- " + (quoted(telemetryLog)),

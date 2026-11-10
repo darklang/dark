@@ -111,7 +111,7 @@ let isKnownGroup(prefix: String): Bool =
 
 
 let versionSuffix(v: Int32): String =
-  if v == 0s32 then "" else $"_v{Stdlib.toString(v)}"
+  if v == 0s32 then "" else $"_v{Stdlib.display(v)}"
 
 
 let purityTag(purity: LanguageTools.BuiltinFunctionPurity): String =
@@ -287,10 +287,10 @@ let execute(state: AppState, args: List<String>): AppState =
     |> Stdlib.List.map(fun pair -> Stdlib.List.length(Stdlib.Tuple2.second(pair)))
     |> Stdlib.List.fold(0, fun(acc, n) -> acc + n)
 
-  let fnCount = Stdlib.toString(totalCount)
+  let fnCount = Stdlib.display(totalCount)
   let valueCount = Stdlib.List.length(values)
   let valueText =
-    Stdlib.toString(valueCount) + (if valueCount == 1 then " value" else " values")
+    Stdlib.display(valueCount) + (if valueCount == 1 then " value" else " values")
 
   let summary =
     match filter with

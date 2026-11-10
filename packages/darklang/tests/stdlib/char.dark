@@ -249,17 +249,17 @@ test isGreaterThan =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString('A') |> Stdlib.Test.equal("A")
-      Stdlib.toString('a') |> Stdlib.Test.equal("a")
-      Stdlib.toString('Á') |> Stdlib.Test.equal("Á")
-      Stdlib.toString('3') |> Stdlib.Test.equal("3")
-      Stdlib.toString(smiley()) |> Stdlib.Test.equal("😂")
-      Stdlib.toString('Ż') |> Stdlib.Test.equal("Ż")
-      Stdlib.toString('Ó') |> Stdlib.Test.equal("Ó")
-      Stdlib.toString('Ł') |> Stdlib.Test.equal("Ł")
-      Stdlib.toString(hand()) |> Stdlib.Test.equal("✋🏿")
-      Stdlib.toString('Ჾ') |> Stdlib.Test.equal("Ჾ")
-      Stdlib.toString('ჾ') |> Stdlib.Test.equal("ჾ") ])
+    [ Stdlib.display('A') |> Stdlib.Test.equal("A")
+      Stdlib.display('a') |> Stdlib.Test.equal("a")
+      Stdlib.display('Á') |> Stdlib.Test.equal("Á")
+      Stdlib.display('3') |> Stdlib.Test.equal("3")
+      Stdlib.display(smiley()) |> Stdlib.Test.equal("😂")
+      Stdlib.display('Ż') |> Stdlib.Test.equal("Ż")
+      Stdlib.display('Ó') |> Stdlib.Test.equal("Ó")
+      Stdlib.display('Ł') |> Stdlib.Test.equal("Ł")
+      Stdlib.display(hand()) |> Stdlib.Test.equal("✋🏿")
+      Stdlib.display('Ჾ') |> Stdlib.Test.equal("Ჾ")
+      Stdlib.display('ჾ') |> Stdlib.Test.equal("ჾ") ])
 
 test fromCodepoint =
   Stdlib.Test.all(

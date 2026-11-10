@@ -234,13 +234,13 @@ test parseBadFormat =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(0s32) |> Stdlib.Test.equal("0")
-      Stdlib.toString(1s32) |> Stdlib.Test.equal("1")
-      Stdlib.toString(-1s32) |> Stdlib.Test.equal("-1")
+    [ Stdlib.display(0s32) |> Stdlib.Test.equal("0")
+      Stdlib.display(1s32) |> Stdlib.Test.equal("1")
+      Stdlib.display(-1s32) |> Stdlib.Test.equal("-1")
       // Int32 lower limit
-      Stdlib.toString(-2147483648s32) |> Stdlib.Test.equal("-2147483648")
+      Stdlib.display(-2147483648s32) |> Stdlib.Test.equal("-2147483648")
       // Int32 upper limit
-      Stdlib.toString(2147483647s32) |> Stdlib.Test.equal("2147483647") ])
+      Stdlib.display(2147483647s32) |> Stdlib.Test.equal("2147483647") ])
 
 test fromInt8 =
   Stdlib.Test.all(

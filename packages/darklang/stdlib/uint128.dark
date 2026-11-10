@@ -127,9 +127,9 @@ impl ShiftRight for UInt128 =
   let shiftRight(a: UInt128, b: UInt128): UInt128 =
     Builtin.shiftRight(a, b)
 
-impl ToString for UInt128 =
+impl Display for UInt128 =
   /// Stringify <param uint128>
-  let toString(uint128: UInt128): String = Builtin.uint128ToString(uint128)
+  let display(uint128: UInt128): String = Builtin.uint128ToString(uint128)
 
 impl Zero for UInt128 =
   let zero(): UInt128 = 0u128

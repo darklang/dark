@@ -53,8 +53,8 @@ let toString(e: RequestError): String =
   | BadMethod -> "Bad Method"
 
 
-impl ToString for RequestError =
-  let toString = Stdlib.HttpClient.toString
+impl Display for RequestError =
+  let display = Stdlib.HttpClient.toString
 
 
 /// The response from a HTTP request

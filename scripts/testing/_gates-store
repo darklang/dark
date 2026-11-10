@@ -581,10 +581,10 @@ gate_trait_choice_survives_rival() {
 
   $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
   $CLI impl Stachu.Rival \
-    "ToString for Pt = let toString(p: Pt): String = Stdlib.toString(p.gateRivalOnly)" >/dev/null
+    "Display for Pt = let display(p: Pt): String = Stdlib.display(p.gateRivalOnly)" >/dev/null
   $CLI module Stachu.Rival - >/dev/null <<'DARK'
-let display<'a: Stdlib.ToString>(v: 'a): String =
-  Stdlib.ToString.toString(v)
+let display<'a: Stdlib.Display>(v: 'a): String =
+  Stdlib.Display.display(v)
 
 let callIt(): String =
   let p = Stachu.Rival.Pt { gateRivalOnly = 7 }
@@ -600,7 +600,7 @@ DARK
   # A NEWER implementation for the same type: it wins any run-time dispatch, which is
   # exactly why the saved call must not be asking.
   $CLI impl Stachu.RivalNewer \
-    "Stdlib.ToString for Stachu.Rival.Pt = let toString(p: Stachu.Rival.Pt): String = \"RIVAL\"" \
+    "Stdlib.Display for Stachu.Rival.Pt = let display(p: Stachu.Rival.Pt): String = \"RIVAL\"" \
     >/dev/null
 
   after=$($CLI eval 'Stachu.Rival.callIt()' | clean)
@@ -616,7 +616,7 @@ DARK
   fi
 
   # Proves the rival landed, so a pass is not a failed authoring.
-  direct=$($CLI eval 'Stdlib.ToString.toString(Stachu.Rival.Pt { gateRivalOnly = 7 })' | clean)
+  direct=$($CLI eval 'Stdlib.Display.display(Stachu.Rival.Pt { gateRivalOnly = 7 })' | clean)
   if [[ "$direct" != RIVAL ]]; then
     echo "trait-choice-survives-rival: the rival implementation never became the newest one,"
     echo "  so nothing was actually tested. A fresh call answered: $direct"
@@ -670,7 +670,7 @@ gate_trait_choice_any_batching() {
   usersSrc() {
     printf '%s\n' \
       "let describe<'c: $1>(c: 'c): String =" \
-      "  (Stdlib.toString($1.$2(c))) + \" items\"" \
+      "  (Stdlib.display($1.$2(c))) + \" items\"" \
       "" \
       "let tryIt(): List<String> = [ describe([ 1, 2, 3 ]), describe(\"hello\") ]"
   }
@@ -680,7 +680,7 @@ gate_trait_choice_any_batching() {
     $CLI eval "match Darklang.LanguageTools.PackageManager.Function.find(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Stachu\", modules = [\"$1\"], name = \"$2\" }) with
 | Some(h) ->
   (match Darklang.LanguageTools.PackageManager.Function.get(h) with
-   | Some(f) -> Stdlib.toRepr(f.body)
+   | Some(f) -> Stdlib.inspect(f.body)
    | None -> \"\")
 | None -> \"\"" | tr -s ' \n' ' ' | { grep -oE 'ImplChoice\.(Chosen|FromTypeParam)' || true; } | wc -l
   }

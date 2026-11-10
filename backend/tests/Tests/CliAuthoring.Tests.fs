@@ -646,13 +646,13 @@ let aRivalCannotReachAPipedBoundedCall =
             state
             [ "impl"
               "Tests.PipeBnd"
-              "Stdlib.ToString for Tok = let toString(t: Tok): String = \"first\"" ]
+              "Stdlib.Display for Tok = let display(t: Tok): String = \"first\"" ]
         do!
           run
             state
             [ "fn"
               "Tests.PipeBnd.piped"
-              "(t: Tok): String = t |> Stdlib.toString" ]
+              "(t: Tok): String = t |> Stdlib.display" ]
         do!
           evals
             state
@@ -665,7 +665,7 @@ let aRivalCannotReachAPipedBoundedCall =
             state
             [ "impl"
               "Tests.PipeBndRival"
-              "Stdlib.ToString for Tests.PipeBnd.Tok = let toString(t: Tests.PipeBnd.Tok): String = \"rival\"" ]
+              "Stdlib.Display for Tests.PipeBnd.Tok = let display(t: Tests.PipeBnd.Tok): String = \"rival\"" ]
         do!
           evals
             state
@@ -675,7 +675,7 @@ let aRivalCannotReachAPipedBoundedCall =
         do!
           evals
             state
-            "Stdlib.toString(Tests.PipeBnd.Tok { pipeBndWidth = 1 })"
+            "Stdlib.display(Tests.PipeBnd.Tok { pipeBndWidth = 1 })"
             "rival"
             "while a fresh call takes the newer one, so the rival really is the winner"
       })
@@ -1315,7 +1315,7 @@ let aReplacedImplementationIsNotChosen =
       })
 
 let interpolationRecordsItsImpl =
-  instanceTest "an interpolation records its ToString implementation" (fun state ->
+  instanceTest "an interpolation records its Display implementation" (fun state ->
     task {
       do! start state
       do! run state [ "type"; "Tests.Interp.Point"; "{ n: Int64 }" ]
@@ -1324,7 +1324,7 @@ let interpolationRecordsItsImpl =
           state
           [ "impl"
             "Tests.Interp"
-            "Stdlib.ToString for Point = let toString(p: Point): String = \"first\"" ]
+            "Stdlib.Display for Point = let display(p: Point): String = \"first\"" ]
       do!
         run
           state
@@ -1341,14 +1341,14 @@ let interpolationRecordsItsImpl =
         shows
           state
           [ "deps"; "uses"; "Tests.Interp.saved" ]
-          "Tests.Interp.Point.ToString.toString"
+          "Tests.Interp.Point.Display.display"
           "the conversion is a saved dependency"
       do!
         run
           state
           [ "impl"
             "Tests.InterpRival"
-            "Stdlib.ToString for Tests.Interp.Point = let toString(p: Tests.Interp.Point): String = \"rival\"" ]
+            "Stdlib.Display for Tests.Interp.Point = let display(p: Tests.Interp.Point): String = \"rival\"" ]
       do!
         evals
           state

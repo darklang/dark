@@ -23,8 +23,8 @@ module FileError =
     | Other(msg) -> msg
 
 
-impl ToString for FileError =
-  let toString = Stdlib.Cli.FileSystem.FileError.toString
+impl Display for FileError =
+  let display = Stdlib.Cli.FileSystem.FileError.toString
 
 
 /// The process's current working directory.

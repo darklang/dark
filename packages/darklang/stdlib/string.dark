@@ -220,11 +220,11 @@ let join(l: List<String>, separator: String): String =
 
 /// Returns the list of characters as a string
 let fromList(lst: List<Char>): String =
-  join(List.map(lst, fun c -> Stdlib.toString(c)), "")
+  join(List.map(lst, fun c -> Stdlib.display(c)), "")
 
 
 /// Converts a <type Char> to a <type String>
-let fromChar(c: Char): String = Stdlib.toString(c)
+let fromChar(c: Char): String = Stdlib.display(c)
 
 
 /// Generate a random alphanumeric <type String> of length <param length>.
@@ -232,7 +232,7 @@ let fromChar(c: Char): String = Stdlib.toString(c)
 let random(length: Int64): Result.Result<String, String> =
   if length < 0 then
     Result.Result.Error(
-      $"Expected `length` to be positive, but it was `{length |> Stdlib.toString}`")
+      $"Expected `length` to be positive, but it was `{length |> Stdlib.display}`")
   else
     let characters =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -490,5 +490,5 @@ impl Compare for String =
 
 
 /// A String is already text
-impl ToString for String =
-  let toString(s: String): String = s
+impl Display for String =
+  let display(s: String): String = s

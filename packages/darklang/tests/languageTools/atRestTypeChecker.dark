@@ -538,10 +538,10 @@ module ThroughADependency =
 
   // A dependency's trait bound, met and not met at the call.
   test acceptsMetTraitBound =
-    check("let f(): String = Stdlib.toString(5)", "f")
+    check("let f(): String = Stdlib.display(5)", "f")
     |> Stdlib.Test.equal("checked:")
   test rejectsUnmetTraitBound =
-    check("let f(): String = Stdlib.toString(fun x -> x)", "f")
+    check("let f(): String = Stdlib.display(fun x -> x)", "f")
     |> Stdlib.Test.equal("failed:MissingImpl")
 
 module StringInterpolation =
@@ -560,13 +560,16 @@ module StringInterpolation =
   test acceptsToString =
     check("let f(n: Int64): String = $\"Int64: {n}\"", "f")
     |> Stdlib.Test.equal("checked:")
-  test mismatchNamesInterpolation =
-    issues("let f(n: Int64 -> Int64): String = $\"function: {n}\"", "f")
-    |> Stdlib.List.map(fun issue ->
-      Stdlib.String.contains(issue, "Cannot interpolate ")
-      && Stdlib.String.contains(issue, ": it has no ToString implementation."))
-    |> Stdlib.Test.equal(
-      [ true ])
+  // A type with no Display interpolates through inspect, so it is not an error.
+  test acceptsTypeWithoutDisplay =
+    check("let f(n: Int64 -> Int64): String = $\"function: {n}\"", "f")
+    |> Stdlib.Test.equal("checked:")
+  test acceptsUnboundTypeVariable =
+    check("let f(v: 'a): String = $\"value: {v}\"", "f")
+    |> Stdlib.Test.equal("checked:")
+  test displayStillNeedsAnImpl =
+    check("let f(n: Int64 -> Int64): String = Stdlib.display(n)", "f")
+    |> Stdlib.Test.equal("failed:MissingImpl")
 
 module Basics =
   test argumentAndReturnTypes =
@@ -575,7 +578,7 @@ module Basics =
         |> Stdlib.Test.equal("checked:")
         check("let f(value: Int64): String = value", "f")
         |> Stdlib.Test.equal("failed:TypeMismatch")
-        check("let f(x: Int64): String = x |> Stdlib.toString", "f")
+        check("let f(x: Int64): String = x |> Stdlib.display", "f")
         |> Stdlib.Test.equal("checked:")
         check("let f(x: Int64): Int64 = Stdlib.String.length(x)", "f")
         |> Stdlib.Test.equal("failed:TypeMismatch") ])
@@ -1419,7 +1422,7 @@ module PostfixUnwrap =
   test intWhereStringExpectedNamesToString =
     issues("let f(n: Int64): String = n", "f")
     |> Stdlib.Test.equal(
-      [ "TypeMismatch: In the function's return value: expected String, got Int64 (wrap it in `Stdlib.toString`)" ])
+      [ "TypeMismatch: In the function's return value: expected String, got Int64 (wrap it in `Stdlib.display`)" ])
 
   // An operator given an Int64 and a Float says both sides must match and how to convert.
   test mixedNumbersNameTheOperatorAndTheConversion =
@@ -2866,8 +2869,8 @@ module Batches =
       Stdlib.List.map(Stdlib.List.range(0, 1999), fun i ->
         let field =
           if i == 1999 then tInt()
-          else custom($"link-{Stdlib.toString(i + 1)}", [])
-        declared($"link-{Stdlib.toString(i)}", [], recordOf([ ("next", field) ])))
+          else custom($"link-{Stdlib.display(i + 1)}", [])
+        declared($"link-{Stdlib.display(i)}", [], recordOf([ ("next", field) ])))
      let holder =
        declared(
          "holder",
@@ -2931,9 +2934,9 @@ module Batches =
           Stdlib.List.map(Stdlib.List.range(0, 99), fun i ->
             let target =
               if i == 99 then tInt()
-              else tList(custom($"alias-{Stdlib.toString(i + 1)}", []))
+              else tList(custom($"alias-{Stdlib.display(i + 1)}", []))
             declared(
-              $"alias-{Stdlib.toString(i)}",
+              $"alias-{Stdlib.display(i)}",
               [],
               (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
                 target))))
@@ -2944,9 +2947,9 @@ module Batches =
           Stdlib.List.map(Stdlib.List.range(0, 4999), fun i ->
             let target =
               if i == 4999 then tInt()
-              else tList(custom($"alias-{Stdlib.toString(i + 1)}", []))
+              else tList(custom($"alias-{Stdlib.display(i + 1)}", []))
             declared(
-              $"alias-{Stdlib.toString(i)}",
+              $"alias-{Stdlib.display(i)}",
               [],
               (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
                 target))))
@@ -2970,7 +2973,7 @@ module Batches =
      let fns =
        Stdlib.List.map(Stdlib.List.range(1, 300), fun i ->
          fnNamed(
-           $"batch-{Stdlib.toString(i)}",
+           $"batch-{Stdlib.display(i)}",
            [],
            [ ("payload", custom("batch-payload", [])) ],
            custom("batch-payload", []),

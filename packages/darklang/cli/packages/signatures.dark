@@ -163,7 +163,7 @@ let renderModule(
 
 
 /// One line per method of each impl, written the way a call is: `a % b  (Modulo)`,
-/// `Stdlib.toString(v)  (ToString)`. An impl's method fns live at the impl's path, which no call
+/// `Stdlib.display(v)  (Display)`. An impl's method fns live at the impl's path, which no call
 /// uses, so they are listed here instead of as a module of their own.
 let implLines(
   ctx: PrettyPrinter.ProgramTypes.Context,
@@ -368,20 +368,20 @@ let executeFiltered(
     Stdlib.printLine("")
 
     let typesNote =
-      if includeTypes then $", {Stdlib.toString(totalTypes)} types"
+      if includeTypes then $", {Stdlib.display(totalTypes)} types"
       else ""
 
     let methodsNote =
-      if totalMethods > 0 then $", {Stdlib.toString(totalMethods)} operators and trait methods"
+      if totalMethods > 0 then $", {Stdlib.display(totalMethods)} operators and trait methods"
       else ""
 
-    let summary = $"{Stdlib.toString(totalFns)} fns{typesNote}{methodsNote} across {Stdlib.toString(Stdlib.List.length(allKeys))} modules"
+    let summary = $"{Stdlib.display(totalFns)} fns{typesNote}{methodsNote} across {Stdlib.display(Stdlib.List.length(allKeys))} modules"
     Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(summary))
 
     if hiddenTestItems > 0 then
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint(
-          $"{Stdlib.toString(hiddenTestItems)} test helpers left out; --include-tests shows them."))
+          $"{Stdlib.display(hiddenTestItems)} test helpers left out; --include-tests shows them."))
 
     state
 

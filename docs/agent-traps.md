@@ -559,7 +559,7 @@ Dark namespace. Write `Stdlib.List.map` or `Darklang.Stdlib.List.map`, never
 match arm the bare case is fine, since the matched value's type resolves it.
 
 **Pipes and `if`.** You don't need parentheses around a call before a pipe:
-`Stdlib.List.length(xs) |> Stdlib.toString` works as written. You do need them around an
+`Stdlib.List.length(xs) |> Stdlib.display` works as written. You do need them around an
 `if` or a `match`. Without them, `if c then a else b |> f` only pipes `b`, as if you had
 written `if c then a else (b |> f)`. Write `(if c then a else b) |> f` instead.
 

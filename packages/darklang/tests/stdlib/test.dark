@@ -11,7 +11,7 @@ let is(
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.Result.Fail(
-      [ $"expected {Stdlib.toRepr(expected)}, got {Stdlib.toRepr(actual)}" ])
+      [ $"expected {Stdlib.inspect(expected)}, got {Stdlib.inspect(actual)}" ])
 
 test pass =
   Stdlib.Test.pass() |> is(Stdlib.Test.Result.Pass)

@@ -55,7 +55,7 @@ test int32ModuloInt64Raises =
 // #6024: joining a String and an Int is how a newcomer meets this, so it says how to convert
 test stringPlusInt64SaysHowToJoin =
   "total: " + 5
-  => raises "Cannot perform numeric operation on String and Int64. To join them, make the Int64 a String with `Stdlib.toString`, or interpolate it: `$\"total: {n}\"`."
+  => raises "Cannot perform numeric operation on String and Int64. To join them, make the Int64 a String with `Stdlib.display`, or interpolate it: `$\"total: {n}\"`."
 
 // String implements Add but no other arithmetic trait
 test stringAdd =

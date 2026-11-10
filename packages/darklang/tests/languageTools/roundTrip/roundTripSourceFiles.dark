@@ -24,7 +24,7 @@ test sourceFiles =
         [ 3, 2, 1 ])
       parsesOk(
         "module-relative calls parse on the editor's path",
-        "let bumped(xs: List<Int64>): List<Int64> =\n  List.map(xs, fun y -> y + 1)\n\nlet shown(n: Int64): String =\n  Stdlib.toString(n)")
+        "let bumped(xs: List<Int64>): List<Int64> =\n  List.map(xs, fun y -> y + 1)\n\nlet shown(n: Int64): String =\n  Stdlib.display(n)")
       // an impl that names an existing fn prints as an alias line, escaped like the trait
       roundTrip(
         "keyword-named trait method and its impl alias",

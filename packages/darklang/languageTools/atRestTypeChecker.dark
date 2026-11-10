@@ -438,7 +438,7 @@ let nameRefToStringWith(
     if version == 0 then
       $"Builtin.{name}"
     else
-      $"Builtin.{name}_v{Stdlib.toString(version)}"
+      $"Builtin.{name}_v{Stdlib.display(version)}"
   | Package(hash) ->
     match resolve(hash) with
     | Some(name) -> name
@@ -468,7 +468,7 @@ let siteToString(site: Site): String =
   | StatementBeforeFinalExpression -> "the statement before the final expression"
   | FunctionApplication -> "this function application"
   | FunctionArgument(position, callee) ->
-    let argument = $"argument {Stdlib.toString(position + 1)}"
+    let argument = $"argument {Stdlib.display(position + 1)}"
 
     match callee with
     | Some(name) -> $"`{name}`, {argument}"
@@ -558,12 +558,6 @@ let contextToStringWith(
   let name = (fun ref -> nameRefToStringWith(customTypeName, ref))
 
   match context with
-  | InStringInterpolation(TraitNeeded(_, _)) when code == IssueCode.MissingImpl ->
-    let subject =
-      match actualName with
-      | Some(name) -> name
-      | None -> "this type"
-    $"Cannot interpolate {subject}: it has no ToString implementation."
   | InStringInterpolation(inner) ->
     "In string interpolation: " + contextToStringWith(customTypeName, actualName, code, inner)
   | NoDetail -> ""
@@ -620,7 +614,7 @@ let contextToStringWith(
   | Arity(expected, actual) ->
     let noun =
       if expected == 1 then "1 type argument"
-      else $"{Stdlib.toString(expected)} type arguments"
+      else $"{Stdlib.display(expected)} type arguments"
     let verb = if actual == 1 then "was" else "were"
 
     match code with
@@ -628,31 +622,31 @@ let contextToStringWith(
     | TooManyArguments ->
       let args =
         if expected == 1 then "1 argument"
-        else $"{Stdlib.toString(expected)} arguments"
+        else $"{Stdlib.display(expected)} arguments"
 
-      $"This function takes {args}, but {Stdlib.toString(actual)} {verb} given"
+      $"This function takes {args}, but {Stdlib.display(actual)} {verb} given"
     | ExplicitTypeArgumentCountMismatch ->
-      $"Expected {noun}, but {Stdlib.toString(actual)} {verb} given explicitly"
+      $"Expected {noun}, but {Stdlib.display(actual)} {verb} given explicitly"
     | _ ->
       $"This type declaration expects {noun}, "
-      + $"but {Stdlib.toString(actual)} {verb} provided"
+      + $"but {Stdlib.display(actual)} {verb} provided"
   | NamedArity(ident, expected, actual) ->
     let noun =
-      if expected == 1 then "1 field" else $"{Stdlib.toString(expected)} fields"
+      if expected == 1 then "1 field" else $"{Stdlib.display(expected)} fields"
     let verb = if actual == 1 then "was" else "were"
 
     $"Case '{ident}' expects {noun}, "
-    + $"but {Stdlib.toString(actual)} {verb} provided"
+    + $"but {Stdlib.display(actual)} {verb} provided"
   | TypeArity(hash, expected, actual) ->
     let noun =
       if expected == 1 then "1 type argument"
-      else $"{Stdlib.toString(expected)} type arguments"
+      else $"{Stdlib.display(expected)} type arguments"
     let verb = if actual == 1 then "was" else "were"
 
     $"{typeName(hash)} expects {noun}, "
-    + $"but {Stdlib.toString(actual)} {verb} provided"
+    + $"but {Stdlib.display(actual)} {verb} provided"
   | ArgumentIndex(index) ->
-    $"There is no argument at index {Stdlib.toString(index)}"
+    $"There is no argument at index {Stdlib.display(index)}"
   | UncoveredPattern(witness) ->
     match witness with
     | Some(witness) -> $"Match is not exhaustive; an uncovered pattern is {witness}"
@@ -744,8 +738,8 @@ let mixedNumbersHint(left: String, right: String): String =
     $"Write the number with a decimal point, as `5.0`, or convert with `Stdlib.{name}.toFloat(n)`."
   | None -> ""
 
-/// Points at `Stdlib.toString` when a String was expected and the type found
-/// has a ToString impl; the same hint a run gives (<fn PrettyPrinter.RuntimeTypes.RuntimeError.toStringHint>).
+/// Points at `Stdlib.display` when a String was expected and the type found
+/// has a Display impl; the same hint a run gives (<fn PrettyPrinter.RuntimeTypes.RuntimeError.displayHint>).
 let stringExpectedHint(expected: StaticType, actual: StaticType): String =
   let convertible =
     match actual with
@@ -769,7 +763,7 @@ let stringExpectedHint(expected: StaticType, actual: StaticType): String =
     | TUuid -> true
     | _ -> false
   match expected with
-  | TString when convertible -> " (wrap it in `Stdlib.toString`)"
+  | TString when convertible -> " (wrap it in `Stdlib.display`)"
   | _ -> ""
 
 

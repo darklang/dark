@@ -124,7 +124,7 @@ let branchName(branchId: Uuid): String =
   if SCM.Branch.isMain(branchId) then
     SCM.Branch.mainBranchName
   else
-    let fallback = Stdlib.toString(branchId)
+    let fallback = Stdlib.display(branchId)
 
     match Branches.query(Branches.BranchFilter.ById(branchId)) with
     | [b, ...] -> if b.name == "" then fallback else b.name
@@ -167,7 +167,7 @@ let resolveBranchRef(branchRef: String): BranchRefResult =
           match
             Branches.list()
             |> Stdlib.List.filter(fun b ->
-              Stdlib.String.startsWith(Stdlib.toString(b.id), branchRef))
+              Stdlib.String.startsWith(Stdlib.display(b.id), branchRef))
           with
           | [ only ] -> BranchRefResult.Found(only.id)
           | [] -> BranchRefResult.NotFound

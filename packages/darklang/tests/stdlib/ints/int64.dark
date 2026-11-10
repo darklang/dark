@@ -373,24 +373,24 @@ test parseBadFormat =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(0) |> Stdlib.Test.equal("0")
-      Stdlib.toString(1) |> Stdlib.Test.equal("1")
-      Stdlib.toString(-1) |> Stdlib.Test.equal("-1")
+    [ Stdlib.display(0) |> Stdlib.Test.equal("0")
+      Stdlib.display(1) |> Stdlib.Test.equal("1")
+      Stdlib.display(-1) |> Stdlib.Test.equal("-1")
       // int63 lower limit
-      Stdlib.toString(-4611686018427387904)
+      Stdlib.display(-4611686018427387904)
       |> Stdlib.Test.equal("-4611686018427387904")
       // past the int63 upper limit"
-      Stdlib.toString(-4611686018427387905)
+      Stdlib.display(-4611686018427387905)
       |> Stdlib.Test.equal("-4611686018427387905")
       // .NET lower limit
-      Stdlib.toString(-9223372036854775808)
+      Stdlib.display(-9223372036854775808)
       |> Stdlib.Test.equal("-9223372036854775808")
       // int63 upper limit
-      Stdlib.toString(4611686018427387903) |> Stdlib.Test.equal("4611686018427387903")
+      Stdlib.display(4611686018427387903) |> Stdlib.Test.equal("4611686018427387903")
       // past the int63 upper limit
-      Stdlib.toString(4611686018427387904) |> Stdlib.Test.equal("4611686018427387904")
+      Stdlib.display(4611686018427387904) |> Stdlib.Test.equal("4611686018427387904")
       // .NET upper limit
-      Stdlib.toString(9223372036854775807)
+      Stdlib.display(9223372036854775807)
       |> Stdlib.Test.equal("9223372036854775807") ])
 
 test fromInt8 =

@@ -86,7 +86,7 @@ let annotate(
           collected
           |> Stdlib.List.map(fun pair ->
             let (id, dv) = pair
-            (Stdlib.toString(id),
+            (Stdlib.display(id),
              PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, dv)))
           |> Stdlib.Dict.fromEntries
 

@@ -24,7 +24,7 @@ let printLines(lines: List<String>): Unit =
   |> List.iter(fun l -> printLine(l))
 
 
-/// `DEBUG: <label>: <value>` to stderr, the value as `toRepr` writes it: for looking at a value
+/// `DEBUG: <label>: <value>` to stderr, the value as `inspect` writes it: for looking at a value
 /// while working on code, without it landing in the answer on stdout.
 let debug(label: String, value: 'a): Unit =
-  printErrorLine($"DEBUG: {label}: {toRepr(value)}")
+  printErrorLine($"DEBUG: {label}: {inspect(value)}")

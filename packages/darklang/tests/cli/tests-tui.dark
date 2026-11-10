@@ -113,7 +113,7 @@ test textNeverSplitsAWideGlyph =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected a wide glyph to be dropped whole, got width {Stdlib.toString(Stdlib.String.displayWidth(clipped))}")
+      $"Expected a wide glyph to be dropped whole, got width {Stdlib.display(Stdlib.String.displayWidth(clipped))}")
 
 
 test textDropsNonSgrEscapes =
@@ -151,7 +151,7 @@ test textCursorAfterFullRowWraps =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected (1, 0), got ({Stdlib.toString(row)}, {Stdlib.toString(column)})")
+      $"Expected (1, 0), got ({Stdlib.display(row)}, {Stdlib.display(column)})")
 
 
 
@@ -168,7 +168,7 @@ test promptCursorFollowsWordWrap =
       Stdlib.Test.Result.Pass
     else
       Stdlib.Test.fail(
-        $"Expected (2, 5), got ({Stdlib.toString(row)}, {Stdlib.toString(column)})")
+        $"Expected (2, 5), got ({Stdlib.display(row)}, {Stdlib.display(column)})")
   | Hidden -> Stdlib.Test.fail("Expected a visible cursor")
 
 test textFitPadsByColumnsNotCharacters =
@@ -179,7 +179,7 @@ test textFitPadsByColumnsNotCharacters =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected 6 columns, got {Stdlib.toString(Stdlib.String.displayWidth(fitted))}")
+      $"Expected 6 columns, got {Stdlib.display(Stdlib.String.displayWidth(fitted))}")
 
 
 test textFitIgnoresStylingWhenPadding =
@@ -444,7 +444,7 @@ test workbenchPreviewsRender =
   if Stdlib.List.isEmpty(broken) then
     Stdlib.Test.Result.Pass
   else
-    let names = broken |> Stdlib.List.map(Stdlib.toString) |> Stdlib.String.join(", ")
+    let names = broken |> Stdlib.List.map(Stdlib.display) |> Stdlib.String.join(", ")
     Stdlib.Test.fail($"preview panes that drew nothing: {names}")
 
 
@@ -460,7 +460,7 @@ test workbenchSectionsRender =
   if Stdlib.List.isEmpty(brokenLenses) then
     Stdlib.Test.Result.Pass
   else
-    let nl = Stdlib.toString(Stdlib.List.length(brokenLenses))
+    let nl = Stdlib.display(Stdlib.List.length(brokenLenses))
     Stdlib.Test.fail($"{nl} Matter lens(es) produced no frame")
 
 
@@ -477,7 +477,7 @@ test workbenchEveryViewRenders =
   if Stdlib.List.isEmpty(broken) then
     Stdlib.Test.Result.Pass
   else
-    let names = broken |> Stdlib.List.map(Stdlib.toString) |> Stdlib.String.join(", ")
+    let names = broken |> Stdlib.List.map(Stdlib.display) |> Stdlib.String.join(", ")
     Stdlib.Test.fail($"Views produced no frame: {names}")
 
 
@@ -595,8 +595,8 @@ test workbenchPageFollowsYourSave =
   // Fresh numbers each run: the store outlives the test, and saving a body the name has held
   // before is a revert, which is a different path.
   let n = Stdlib.Int64.random(100000, 999999)
-  let before = Stdlib.toString(n)
-  let after = Stdlib.toString(n + 1)
+  let before = Stdlib.display(n)
+  let after = Stdlib.display(n + 1)
   let first = save(start, "let answer () : Int64 = " + before)
   let firstPage = page(first)
   let secondPage = page(save(first, "let answer () : Int64 = " + after))
@@ -947,7 +947,7 @@ test replSplitsPastedStatements =
     |> Stdlib.List.filter(fun c ->
       let (input, expected) = c
       (Darklang.Cli.Repl.splitStatements(input)) != expected)
-    |> Stdlib.List.map(fun c -> let (input, _e) = c in Stdlib.toRepr(input))
+    |> Stdlib.List.map(fun c -> let (input, _e) = c in Stdlib.inspect(input))
   if Stdlib.List.isEmpty(wrong) then
     Stdlib.Test.Result.Pass
   else
@@ -990,7 +990,7 @@ test workbenchCapturesStrayOutput =
   if (value == 42) && (Stdlib.String.contains(out, "must not reach")) then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected 42 and the captured line, got {Stdlib.toString(value)} / '{out}'")
+    Stdlib.Test.fail($"Expected 42 and the captured line, got {Stdlib.display(value)} / '{out}'")
 
 
 /// Does rendering view `viewIndex` put `marker` on the screen?

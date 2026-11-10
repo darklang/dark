@@ -749,7 +749,7 @@ module Expr =
             let conversion =
               NameResolver.FnName.resolve(ctx,
                 WrittenTypes.Name.Unresolved(range,
-                  [ "Darklang", "Stdlib", "ToString", "toString" ]))
+                  [ "Darklang", "Stdlib", "Display", "display" ]))
             let converted = ProgramTypes.Expr.EApply(gid(),
               ProgramTypes.Expr.EFnName(gid(), conversion, [], []), [], [ expr ])
             (ProgramTypes.StringSegment.StringInterpolation(converted),

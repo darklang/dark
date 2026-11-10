@@ -5,7 +5,7 @@ let d(datestr: String): DateTime =
 
 let p(datestr: String): Stdlib.Result.Result<String, String> =
   Stdlib.DateTime.parse(datestr)
-  |> Stdlib.Result.map(fun value -> Stdlib.toString(value))
+  |> Stdlib.Result.map(fun value -> Stdlib.display(value))
 
 let a(datestr: String, seconds: Int64): DateTime =
   Stdlib.DateTime.addSeconds(d(datestr), seconds)
@@ -329,7 +329,7 @@ test weekdayFromNumberOutOfRange =
       Stdlib.DateTime.Weekday.fromNumber(255u8) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test toString =
-  Stdlib.toString(d("2019-07-28T22:42:36Z"))
+  Stdlib.display(d("2019-07-28T22:42:36Z"))
   |> Stdlib.Test.equal("2019-07-28T22:42:36Z")
 
 test atStartOfDay =
@@ -348,15 +348,15 @@ test toSeconds =
 test toStringEdges =
   let t(ticks: Int64): DateTime = Stdlib.DateTime.__fromTicks(ticks)
   Stdlib.Test.all(
-    [ Stdlib.toString(t(0)) |> Stdlib.Test.equal("1970-01-01T00:00:00Z")
-      Stdlib.toString(t(9999)) |> Stdlib.Test.equal("1970-01-01T00:00:00Z")
-      Stdlib.toString(t(10000)) |> Stdlib.Test.equal("1970-01-01T00:00:00.001Z")
-      Stdlib.toString(t(9999999)) |> Stdlib.Test.equal("1970-01-01T00:00:00.999Z")
-      Stdlib.toString(t(-1)) |> Stdlib.Test.equal("1969-12-31T23:59:59.999Z")
-      Stdlib.toString(t(-10000000)) |> Stdlib.Test.equal("1969-12-31T23:59:59Z")
-      Stdlib.toString(t(2534023007999999999)) |> Stdlib.Test.equal("9999-12-31T23:59:59.999Z")
-      Stdlib.toString(t(-621355968000000000)) |> Stdlib.Test.equal("0001-01-01T00:00:00Z")
-      Stdlib.toString(d("2000-02-29T05:06:07.080Z")) |> Stdlib.Test.equal("2000-02-29T05:06:07.080Z")
+    [ Stdlib.display(t(0)) |> Stdlib.Test.equal("1970-01-01T00:00:00Z")
+      Stdlib.display(t(9999)) |> Stdlib.Test.equal("1970-01-01T00:00:00Z")
+      Stdlib.display(t(10000)) |> Stdlib.Test.equal("1970-01-01T00:00:00.001Z")
+      Stdlib.display(t(9999999)) |> Stdlib.Test.equal("1970-01-01T00:00:00.999Z")
+      Stdlib.display(t(-1)) |> Stdlib.Test.equal("1969-12-31T23:59:59.999Z")
+      Stdlib.display(t(-10000000)) |> Stdlib.Test.equal("1969-12-31T23:59:59Z")
+      Stdlib.display(t(2534023007999999999)) |> Stdlib.Test.equal("9999-12-31T23:59:59.999Z")
+      Stdlib.display(t(-621355968000000000)) |> Stdlib.Test.equal("0001-01-01T00:00:00Z")
+      Stdlib.display(d("2000-02-29T05:06:07.080Z")) |> Stdlib.Test.equal("2000-02-29T05:06:07.080Z")
       Stdlib.DateTime.toStringISO8601BasicDateTime(t(-1)) |> Stdlib.Test.equal("19691231T235959Z")
       Stdlib.DateTime.toStringISO8601BasicDateTime(t(-621355968000000000))
       |> Stdlib.Test.equal("00010101T000000Z")
@@ -396,7 +396,7 @@ test secondsRoundTrip =
         |>
         Stdlib.DateTime.fromSeconds
         |>
-        Stdlib.toString
+        Stdlib.display
       |> Stdlib.Test.equal("2019-07-28T22:42:36Z") ])
 
 // seconds whose ticks are past Int64 can't be represented; surface a Dark error
@@ -487,7 +487,7 @@ test fromMilliseconds =
       1564353756123
       |> Stdlib.DateTime.fromMilliseconds
       |> Stdlib.DateTime.toMilliseconds |> Stdlib.Test.equal(1564353756123)
-      1564353756123 |> Stdlib.DateTime.fromMilliseconds |> Stdlib.toString
+      1564353756123 |> Stdlib.DateTime.fromMilliseconds |> Stdlib.display
       |> Stdlib.Test.equal("2019-07-28T22:42:36.123Z")
       // Round-trip: ms -> DateTime -> ms
       0 |> Stdlib.DateTime.fromMilliseconds |> Stdlib.DateTime.toMilliseconds
@@ -513,9 +513,9 @@ test addMilliseconds =
       (ams("2020-11-26T04:37:46Z", 500)) |> Stdlib.DateTime.millisecond
       |> Stdlib.Test.equal(500u16)
       ams("2020-11-26T04:37:46Z", 1000) |> Stdlib.Test.equal(d("2020-11-26T04:37:47Z"))
-      (ams("2020-11-26T04:37:46Z", 1500)) |> Stdlib.toString
+      (ams("2020-11-26T04:37:46Z", 1500)) |> Stdlib.display
       |> Stdlib.Test.equal("2020-11-26T04:37:47.500Z")
-      (ams("2020-11-26T04:37:46Z", -500)) |> Stdlib.toString
+      (ams("2020-11-26T04:37:46Z", -500)) |> Stdlib.display
       |> Stdlib.Test.equal("2020-11-26T04:37:45.500Z") ])
 
 test subtractMilliseconds =
@@ -524,7 +524,7 @@ test subtractMilliseconds =
       (sms("2020-11-26T04:37:46Z", 500)) |> Stdlib.DateTime.millisecond
       |> Stdlib.Test.equal(500u16)
       sms("2020-11-26T04:37:46Z", 1000) |> Stdlib.Test.equal(d("2020-11-26T04:37:45Z"))
-      (sms("2020-11-26T04:37:46Z", -500)) |> Stdlib.toString
+      (sms("2020-11-26T04:37:46Z", -500)) |> Stdlib.display
       |> Stdlib.Test.equal("2020-11-26T04:37:46.500Z") ])
 
 test subtractMs =

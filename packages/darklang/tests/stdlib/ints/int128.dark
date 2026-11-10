@@ -123,12 +123,12 @@ test lessThan =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(0s128) |> Stdlib.Test.equal("0")
-      Stdlib.toString(1s128) |> Stdlib.Test.equal("1")
-      Stdlib.toString(-1s128) |> Stdlib.Test.equal("-1")
-      Stdlib.toString(-170141183460469231731687303715884105728s128)
+    [ Stdlib.display(0s128) |> Stdlib.Test.equal("0")
+      Stdlib.display(1s128) |> Stdlib.Test.equal("1")
+      Stdlib.display(-1s128) |> Stdlib.Test.equal("-1")
+      Stdlib.display(-170141183460469231731687303715884105728s128)
       |> Stdlib.Test.equal("-170141183460469231731687303715884105728")
-      Stdlib.toString(170141183460469231731687303715884105727s128)
+      Stdlib.display(170141183460469231731687303715884105727s128)
       |> Stdlib.Test.equal("170141183460469231731687303715884105727") ])
 
 test toFloat =

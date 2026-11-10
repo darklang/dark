@@ -45,8 +45,8 @@ let logWithContext(
     | [] -> "{}"
     | pairs -> "{" + (Stdlib.String.join(pairs, ",")) + "}"
 
-  let wall = Stdlib.toString(Stdlib.DateTime.now())
-  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.toString(elapsed)},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
+  let wall = Stdlib.display(Stdlib.DateTime.now())
+  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.display(elapsed)},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
 
   let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
   ()
@@ -57,7 +57,7 @@ let log(label: String, startMs: Int64): Unit =
 
 /// Log a raw message (not a timing span) — useful for one-off markers
 let logMessage(label: String, message: String): Unit =
-  let wall = Stdlib.toString(Stdlib.DateTime.now())
+  let wall = Stdlib.display(Stdlib.DateTime.now())
   let escaped = Stdlib.String.replaceAll(message, "\"", "\\\"")
   let line = $"{{\"event\":\"{label}\",\"msg\":\"{escaped}\",\"wall\":\"{wall}\"}}"
 
@@ -66,7 +66,7 @@ let logMessage(label: String, message: String): Unit =
 
 /// Log the start of a session so we can separate runs in the log
 let logSessionStart(): Unit =
-  let wall = Stdlib.toString(Stdlib.DateTime.now())
+  let wall = Stdlib.display(Stdlib.DateTime.now())
   let line = $"{{\"event\":\"session_start\",\"wall\":\"{wall}\"}}"
 
   let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")

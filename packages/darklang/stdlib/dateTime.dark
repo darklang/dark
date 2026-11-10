@@ -278,9 +278,9 @@ let __basicTime(date: DateTime): String =
   + zeroPadded((ticks / __ticksPerSecond()) % 60, 2)
 
 
-impl ToString for DateTime =
+impl Display for DateTime =
   /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
-  let toString(date: DateTime): String = Builtin.dateTimeToString(date)
+  let display(date: DateTime): String = Builtin.dateTimeToString(date)
 
 
 /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
@@ -427,7 +427,7 @@ let subtractMs(d1: DateTime, d2: DateTime): Int64 =
 
 /// Writes <param n> with leading zeros up to <param width> digits
 let zeroPadded(n: Int64, width: Int64): String =
-  Stdlib.String.padStart(Stdlib.toString(n), '0', width)
+  Stdlib.String.padStart(Stdlib.display(n), '0', width)
 
 /// The text for one {{format}} directive (the character after {{%}}), or {{None}} if it is not a directive
 let __formatDirective(date: DateTime, directive: Char): Stdlib.Option.Option<String> =

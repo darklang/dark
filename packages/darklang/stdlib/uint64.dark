@@ -180,9 +180,9 @@ impl ShiftRight for UInt64 =
   /// Bitwise right shift of a <type UInt64> value
   let shiftRight(a: UInt64, b: UInt64): UInt64 = Builtin.shiftRight(a, b)
 
-impl ToString for UInt64 =
+impl Display for UInt64 =
   /// Stringify <param int>
-  let toString(uint64: UInt64): String = Builtin.uint64ToString(uint64)
+  let display(uint64: UInt64): String = Builtin.uint64ToString(uint64)
 
 impl Zero for UInt64 =
   let zero(): UInt64 = 0u64

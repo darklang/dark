@@ -221,7 +221,7 @@ module FQValueName =
       if t.version == 0s32 then
         ""
       else
-        $"_v{Stdlib.toString(t.version)}"
+        $"_v{Stdlib.display(t.version)}"
 
     $"{namePart}{versionPart}"
 
@@ -249,7 +249,7 @@ module FQFnName =
       if t.version == 0s32 then
         ""
       else
-        $"_v{Stdlib.toString(t.version)}"
+        $"_v{Stdlib.display(t.version)}"
 
     $"Builtin.{namePart}{versionPart}"
 
@@ -294,7 +294,7 @@ let executionPoint(
   | Lambda(_, expressionId, writtenIn) ->
     // Named after the fn it is written in, not the fn that called it. The id tells
     // two lambdas in one fn apart.
-    let id = Stdlib.toString(expressionId)
+    let id = Stdlib.display(expressionId)
     match writtenIn with
     | Some(Function(name)) -> $"Lambda in {fnName(branchId, name)} ({id})"
     | Some(Source) -> $"Lambda in Source ({id})"
@@ -312,7 +312,7 @@ let callStack(
   frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
   : String =
   let label(frame: String, count: Int64): String =
-    if count == 1 then frame else $"{frame} (×{Stdlib.toString(count)})"
+    if count == 1 then frame else $"{frame} (×{Stdlib.display(count)})"
 
   let group(
     remaining: List<String>,
@@ -801,36 +801,48 @@ module Dval =
     let child(v: LanguageTools.RuntimeTypes.Dval): Stdlib.Pretty.Doc =
       Dval.toDoc(branchId, opts, depth + 1, v)
 
+    // A type's `Inspect` impl, when it has one, replaces the derived form.
+    let custom =
+      match dv with
+      | DRecord(_, _, _, _) -> true
+      | DEnum(_, _, _, _, _) -> true
+      | _ -> false
+    let overridden = if custom then Builtin.inspectImpl(dv) else Stdlib.Option.Option.None
+
+    if Stdlib.Option.isSome(overridden) then
+      txt(Stdlib.Option.withDefault(overridden, ""))
+    else
+
     match dv with
     | DUnit -> paint(opts.palette.keyword, "()")
 
     | DBool(true) -> paint(opts.palette.keyword, "true")
     | DBool(false) -> paint(opts.palette.keyword, "false")
 
-    | DChar(c) -> paint(opts.palette.string_, $"'{PrettyPrinter.escapeCharLiteral(Stdlib.toString(c))}'")
+    | DChar(c) -> paint(opts.palette.string_, $"'{PrettyPrinter.escapeCharLiteral(Stdlib.display(c))}'")
     | DString(s) -> paint(opts.palette.string_, $"\"{PrettyPrinter.escapeSpecialCharacters(s)}\"")
 
-    | DInt8(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s8")
-    | DUInt8(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u8")
-    | DInt16(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s16")
-    | DUInt16(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u16")
-    | DInt32(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s32")
-    | DUInt32(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u32")
-    | DInt64(i) -> paint(opts.palette.number, Stdlib.toString(i))
-    | DUInt64(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u64")
-    | DInt128(i) -> paint(opts.palette.number, Stdlib.toString(i) + "s128")
-    | DUInt128(i) -> paint(opts.palette.number, Stdlib.toString(i) + "u128")
-    | DBigInt(i) -> paint(opts.palette.number, Stdlib.toString(i) + "z")
+    | DInt8(i) -> paint(opts.palette.number, Stdlib.display(i) + "s8")
+    | DUInt8(i) -> paint(opts.palette.number, Stdlib.display(i) + "u8")
+    | DInt16(i) -> paint(opts.palette.number, Stdlib.display(i) + "s16")
+    | DUInt16(i) -> paint(opts.palette.number, Stdlib.display(i) + "u16")
+    | DInt32(i) -> paint(opts.palette.number, Stdlib.display(i) + "s32")
+    | DUInt32(i) -> paint(opts.palette.number, Stdlib.display(i) + "u32")
+    | DInt64(i) -> paint(opts.palette.number, Stdlib.display(i))
+    | DUInt64(i) -> paint(opts.palette.number, Stdlib.display(i) + "u64")
+    | DInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "s128")
+    | DUInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "u128")
+    | DBigInt(i) -> paint(opts.palette.number, Stdlib.display(i) + "z")
 
-    | DFloat(f) -> paint(opts.palette.number, Stdlib.toString(f))
+    | DFloat(f) -> paint(opts.palette.number, Stdlib.display(f))
     | DFloat32(f) ->
       // NaN and the infinities have no literal to suffix, so they print as a Float's do
-      let s = Stdlib.toString(f)
+      let s = Stdlib.display(f)
       paint(opts.palette.number, (if Stdlib.Float32.isFinite(f) then s + "f32" else s))
-    | DDecimal(d) -> paint(opts.palette.number, Stdlib.toString(d) + "dec")
+    | DDecimal(d) -> paint(opts.palette.number, Stdlib.display(d) + "dec")
 
-    | DDateTime(d) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(d)}>")
-    | DUuid(uuid) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.toString(uuid)}>")
+    | DDateTime(d) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.display(d)}>")
+    | DUuid(uuid) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.display(uuid)}>")
 
     | DTuple(first, second, theRest) ->
       let parts =
@@ -865,7 +877,7 @@ module Dval =
     | DBytes(bytes) ->
       let n = Stdlib.Bytes.length(bytes)
       let noun = if n == 1 then "byte" else "bytes"
-      let size = $"{Stdlib.toString(n)} {noun}"
+      let size = $"{Stdlib.display(n)} {noun}"
       match bytesPreview(bytes, 16) with
       | Some(hex) ->
         if n == 0 then

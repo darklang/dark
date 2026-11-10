@@ -284,8 +284,8 @@ let printFollowed(followed: Followed): Unit =
       | names ->
         let count = Stdlib.List.length(names)
         let shown = names |> Stdlib.List.take(3) |> Stdlib.String.join(", ")
-        let rest = if count > 3 then $" and {Stdlib.toString(count - 3)} more" else ""
-        Cli.Text.printWrapped(Stdlib.Cli.UI.Colors.hint, "  ", $"{Stdlib.toString(count)} dependents follow: {shown}{rest}")
+        let rest = if count > 3 then $" and {Stdlib.display(count - 3)} more" else ""
+        Cli.Text.printWrapped(Stdlib.Cli.UI.Colors.hint, "  ", $"{Stdlib.display(count)} dependents follow: {shown}{rest}")
     | broken ->
       broken
       |> Stdlib.List.iter(fun pair ->
@@ -308,10 +308,10 @@ let followedNote(followed: Followed): String =
       match followed.names with
       | [] -> ""
       | [ one ] -> $"; {one} follows"
-      | names -> $"; {Stdlib.toString(Stdlib.List.length(names))} dependents follow"
+      | names -> $"; {Stdlib.display(Stdlib.List.length(names))} dependents follow"
     | [(name, why), ...rest] ->
       let more =
         match rest with
         | [] -> ""
-        | _ -> $" (and {Stdlib.toString(Stdlib.List.length(rest))} more)"
+        | _ -> $" (and {Stdlib.display(Stdlib.List.length(rest))} more)"
       $"; {name} no longer type-checks: {why}{more}"

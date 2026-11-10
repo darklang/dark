@@ -489,7 +489,7 @@ let rec private namesATraitMethod (expr : PT.Expr) : bool =
 /// Whether this batch could have anything to resolve at all.
 ///
 /// An ordinary save of a fn with no trait call and no operator pays only these AST walks.
-/// The package functions an expression calls by name, piped calls included: `n |> Stdlib.toString`
+/// The package functions an expression calls by name, piped calls included: `n |> Stdlib.display`
 /// names its fn in the pipe part rather than in an `EFnName`, and a save whose only bounded call is
 /// piped decides on this whether it reaches the checker at all.
 let rec private calledPackageFns (expr : PT.Expr) : List<PT.Hash> =

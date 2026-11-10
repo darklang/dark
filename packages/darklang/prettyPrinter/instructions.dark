@@ -10,7 +10,7 @@
 module Darklang.PrettyPrinter.RuntimeTypes.Instructions
 
 let register(r: LanguageTools.RuntimeTypes.Register): String =
-  "r" + (Stdlib.toString(r))
+  "r" + (Stdlib.display(r))
 
 let registers(rs: List<LanguageTools.RuntimeTypes.Register>): String =
   (Stdlib.List.map(rs, fun r -> register(r))) |> Stdlib.String.join(", ")
@@ -52,22 +52,22 @@ let matchPattern(pat: LanguageTools.RuntimeTypes.MatchPattern): String =
   match pat with
   | MPVariable(reg) -> register(reg)
   | MPUnit -> "()"
-  | MPBool(b) -> Stdlib.toString(b)
-  | MPInt8(i) -> Stdlib.toString(i) + "s8"
-  | MPUInt8(i) -> Stdlib.toString(i) + "u8"
-  | MPInt16(i) -> Stdlib.toString(i) + "s16"
-  | MPUInt16(i) -> Stdlib.toString(i) + "u16"
-  | MPInt32(i) -> Stdlib.toString(i) + "s32"
-  | MPUInt32(i) -> Stdlib.toString(i) + "u32"
-  | MPInt64(i) -> Stdlib.toString(i)
-  | MPUInt64(i) -> Stdlib.toString(i) + "u64"
-  | MPInt128(i) -> Stdlib.toString(i) + "s128"
-  | MPUInt128(i) -> Stdlib.toString(i) + "u128"
-  | MPBigInt(i) -> Stdlib.toString(i) + "z"
-  | MPFloat(f) -> Stdlib.toString(f)
+  | MPBool(b) -> Stdlib.display(b)
+  | MPInt8(i) -> Stdlib.display(i) + "s8"
+  | MPUInt8(i) -> Stdlib.display(i) + "u8"
+  | MPInt16(i) -> Stdlib.display(i) + "s16"
+  | MPUInt16(i) -> Stdlib.display(i) + "u16"
+  | MPInt32(i) -> Stdlib.display(i) + "s32"
+  | MPUInt32(i) -> Stdlib.display(i) + "u32"
+  | MPInt64(i) -> Stdlib.display(i)
+  | MPUInt64(i) -> Stdlib.display(i) + "u64"
+  | MPInt128(i) -> Stdlib.display(i) + "s128"
+  | MPUInt128(i) -> Stdlib.display(i) + "u128"
+  | MPBigInt(i) -> Stdlib.display(i) + "z"
+  | MPFloat(f) -> Stdlib.display(f)
   | MPFloat32(f) ->
-    if Stdlib.Float32.isFinite(f) then (Stdlib.toString(f)) + "f32" else Stdlib.toString(f)
-  | MPDecimal(d) -> Stdlib.toString(d) + "dec"
+    if Stdlib.Float32.isFinite(f) then (Stdlib.display(f)) + "f32" else Stdlib.display(f)
+  | MPDecimal(d) -> Stdlib.display(d) + "dec"
   | MPChar(c) -> $"'{c}'"
   | MPString(s) -> $"\"{s}\""
   | MPList(items) ->
@@ -116,34 +116,34 @@ let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
 
   match dv with
   | DUnit -> "unit"
-  | DBool(b) -> Stdlib.toString(b)
+  | DBool(b) -> Stdlib.display(b)
   | DString(s) -> "\"" + (clip(Stdlib.String.replaceAll(s, "\n", "\\n"))) + "\""
-  | DChar(c) -> $"'{Stdlib.toString(c)}'"
-  | DInt64(i) -> Stdlib.toString(i)
-  | DBigInt(i) -> Stdlib.toString(i) + "z"
-  | DFloat(f) -> Stdlib.toString(f)
+  | DChar(c) -> $"'{Stdlib.display(c)}'"
+  | DInt64(i) -> Stdlib.display(i)
+  | DBigInt(i) -> Stdlib.display(i) + "z"
+  | DFloat(f) -> Stdlib.display(f)
   | DFloat32(f) ->
-    if Stdlib.Float32.isFinite(f) then (Stdlib.toString(f)) + "f32" else Stdlib.toString(f)
-  | DDecimal(d) -> Stdlib.toString(d) + "dec"
-  | DList(_, items) -> $"[{Stdlib.toString(Stdlib.List.length(items))} items]"
+    if Stdlib.Float32.isFinite(f) then (Stdlib.display(f)) + "f32" else Stdlib.display(f)
+  | DDecimal(d) -> Stdlib.display(d) + "dec"
+  | DList(_, items) -> $"[{Stdlib.display(Stdlib.List.length(items))} items]"
   | DDict(_, _, entries) ->
     let n = Stdlib.List.length(Stdlib.Dict.keys(entries))
-    $"{{{Stdlib.toString(n)} entries}}"
+    $"{{{Stdlib.display(n)} entries}}"
   | DRecord(_, typeName, _, fields) ->
     let n = Stdlib.List.length(Stdlib.Dict.keys(fields))
     let t = PrettyPrinter.RuntimeTypes.typeName(branchId, typeName)
-    $"{t} {{{Stdlib.toString(n)} fields}}"
+    $"{t} {{{Stdlib.display(n)} fields}}"
   | DEnum(_, typeName, _, caseName, fields) ->
     let t = PrettyPrinter.RuntimeTypes.typeName(branchId, typeName)
     if Stdlib.List.isEmpty(fields) then
       $"{t}.{caseName}"
     else
-      let n = Stdlib.toString(Stdlib.List.length(fields))
+      let n = Stdlib.display(Stdlib.List.length(fields))
       $"{t}.{caseName} ({n})"
   | DApplicable(app) ->
     match app with
     | AppNamedFn(fn) -> "&" + (PrettyPrinter.RuntimeTypes.fnName(branchId, fn.name))
-    | AppLambda(l) -> $"&lambda#{Stdlib.toString(l.exprId)}"
+    | AppLambda(l) -> $"&lambda#{Stdlib.display(l.exprId)}"
   | other -> PrettyPrinter.RuntimeTypes.dval(branchId, other)
 
 
@@ -185,7 +185,7 @@ let boolSkip(
   : String =
   match skip with
   | Some(n) ->
-    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(n)) + 1)
+    let target = Stdlib.display(index + (Stdlib.Int64.fromInt32(n)) + 1)
     $"  if {decidesOn} -> {target}"
   | None -> ""
 
@@ -207,15 +207,15 @@ let operands(branchId: Uuid, index: Int64, i: LanguageTools.RuntimeTypes.Instruc
     $"{register(t)} <- {parts}"
   | CheckLetPatternAndExtractVars(v, p) -> $"{letPattern(p)} <- {register(v)}"
   | JumpByIfFalse(n, c) ->
-    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(n)) + 1)
-    $"{register(c)} -> +{Stdlib.toString(n)} -> {target}"
+    let target = Stdlib.display(index + (Stdlib.Int64.fromInt32(n)) + 1)
+    $"{register(c)} -> +{Stdlib.display(n)} -> {target}"
   | Unwrap(target, source, _) ->
     (register(target)) + " <- " + (register(source)) + "?"
   | JumpBy(n) ->
-    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(n)) + 1)
-    $"+{Stdlib.toString(n)} -> {target}"
+    let target = Stdlib.display(index + (Stdlib.Int64.fromInt32(n)) + 1)
+    $"+{Stdlib.display(n)} -> {target}"
   | CheckMatchPatternAndExtractVars(v, p, failJump) ->
-    let target = Stdlib.toString(index + (Stdlib.Int64.fromInt32(failJump)) + 1)
+    let target = Stdlib.display(index + (Stdlib.Int64.fromInt32(failJump)) + 1)
     $"{register(v)} ~ {matchPattern(p)}  else -> {target}"
   | MatchUnmatched(v) -> register(v)
   | CreateTuple(t, first, second, theRest) ->
@@ -236,14 +236,14 @@ let operands(branchId: Uuid, index: Int64, i: LanguageTools.RuntimeTypes.Instruc
     let n = PrettyPrinter.RuntimeTypes.valueName(branchId, v)
     $"{register(t)} <- {n}"
   | CreateLambda(t, l) ->
-    let n = Stdlib.toString(Stdlib.List.length(l.patterns))
-    $"{register(t)} <- lambda#{Stdlib.toString(l.exprId)} ({n} params)"
+    let n = Stdlib.display(Stdlib.List.length(l.patterns))
+    $"{register(t)} <- lambda#{Stdlib.display(l.exprId)} ({n} params)"
   | Apply(t, fnReg, _, args) ->
     $"{register(t)} <- {register(fnReg)}({registers(args)})"
   | RaiseNRE(names, _) -> Stdlib.String.join(names, ".")
   | VarNotFound(t, name) -> $"{register(t)} <- ${name}"
   | CheckIfFirstExprIsUnit(_, r) -> register(r)
-  | TraceExpr(exprId, r) -> $"expr {Stdlib.toString(exprId)} = {register(r)}"
+  | TraceExpr(exprId, r) -> $"expr {Stdlib.display(exprId)} = {register(r)}"
 
 
 /// Every lambda defined inside these instructions, flattened, so a listing isn't a dead end at
@@ -259,8 +259,8 @@ let lambdas(instrs: LanguageTools.RuntimeTypes.Instructions): List<LanguageTools
 
 
 let header(instrs: LanguageTools.RuntimeTypes.Instructions): String =
-  let n = Stdlib.toString(Stdlib.List.length(instrs.instructions))
-  let regs = Stdlib.toString(instrs.registerCount)
+  let n = Stdlib.display(Stdlib.List.length(instrs.instructions))
+  let regs = Stdlib.display(instrs.registerCount)
   $"{n} instructions, {regs} registers, result in {register(instrs.resultIn)}"
 
 
@@ -269,7 +269,7 @@ let listing(branchId: Uuid, instrs: LanguageTools.RuntimeTypes.Instructions): St
   let body =
     instrs.instructions
     |> Stdlib.List.indexedMap(fun(index, i) ->
-      let idx = Stdlib.Text.padStartToWidth(Stdlib.toString(index), 4)
+      let idx = Stdlib.Text.padStartToWidth(Stdlib.display(index), 4)
       let op = Stdlib.Text.padEndToWidth(opcode(i), 24)
       $"{idx}  {op} {operands(branchId, index, i)}")
     |> Stdlib.String.join("\n")

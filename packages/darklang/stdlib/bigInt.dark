@@ -180,9 +180,9 @@ impl ShiftRight for BigInt =
 let random(start: BigInt, ``end``: BigInt): BigInt =
   Builtin.bigIntRandom(start, ``end``)
 
-impl ToString for BigInt =
+impl Display for BigInt =
   /// Stringify <param int>
-  let toString(int: BigInt): String = Builtin.bigIntToString(int)
+  let display(int: BigInt): String = Builtin.bigIntToString(int)
 
 impl Zero for BigInt =
   let zero(): BigInt = 0z

@@ -393,7 +393,7 @@ let commitAuthored(
             "["
             + (LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code))
             + "] "
-            + AtRestCheck.withToStringHint(
+            + AtRestCheck.withDisplayHint(
                 branchId,
                 issue,
                 PrettyPrinter.ProgramTypes.PackageLocation.packageLocation,
@@ -405,7 +405,7 @@ let commitAuthored(
             if Stdlib.List.isEmpty(rest) then
               ""
             else
-              " (and " + (Stdlib.toString(Stdlib.List.length(rest))) + " more)"
+              " (and " + (Stdlib.display(Stdlib.List.length(rest))) + " more)"
 
           Stdlib.Option.Option.Some(first + more)
       | _ -> Stdlib.Option.Option.None

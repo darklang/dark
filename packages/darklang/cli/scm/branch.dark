@@ -67,9 +67,9 @@ let branchRows(unit: Unit): List<ScmJson.BranchJson> =
   |> Stdlib.List.map(fun b ->
     ScmJson.BranchJson
       // Ids are `Uuid` inside and text only where the medium is text. JSON is text.
-      { id = Stdlib.toString(b.id)
-        name = if b.name == "" then Stdlib.toString(b.id) else b.name
-        parent = Stdlib.toString(b.parent)
+      { id = Stdlib.display(b.id)
+        name = if b.name == "" then Stdlib.display(b.id) else b.name
+        parent = Stdlib.display(b.parent)
         parentName =
           if SCM.Branch.isMain(b.parent) then
             ""
@@ -165,7 +165,7 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
 
       let handle =
         match SCM.PackageOps.branchName(branchId) with
-        | "" -> Stdlib.toString(branchId)
+        | "" -> Stdlib.display(branchId)
         | named -> named
 
       // Moves this process and stores the branch, by id, for the next command.

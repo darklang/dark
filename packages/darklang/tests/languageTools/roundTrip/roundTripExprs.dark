@@ -257,8 +257,8 @@ test exprsDictLiteral =
       roundTrip("dict keyed by tuple", "Dict { (1, \"a\"): true }", "Dict { (1, \"a\"): true }")
       roundTrip(
         "dict with a computed key",
-        "Dict { Stdlib.toString(1): 1 }",
-        "Dict { Stdlib.toString(1): 1 }") ])
+        "Dict { Stdlib.display(1): 1 }",
+        "Dict { Stdlib.display(1): 1 }") ])
 
 test exprsTupleLiterals =
   Stdlib.Test.all(
@@ -620,7 +620,7 @@ test exprsThePrefixOperators =
         "1 |> (fun x -> x + 1) |> (fun v -> v + 2)",
         "1 |> (fun x -> x + 1) |> (fun v -> v + 2)")
       roundTrip("pipe, into fn call", "1 |> (fun v -> v + 2)", "1 |> (fun v -> v + 2)")
-      roundTrip("pipe, into fn call 2", "1 |> Stdlib.toString", "1 |> Stdlib.toString")
+      roundTrip("pipe, into fn call 2", "1 |> Stdlib.display", "1 |> Stdlib.display")
       roundTrip(
         "pipe, into fn call 3",
         "\"true\" |> Builtin.jsonParse<Bool>",

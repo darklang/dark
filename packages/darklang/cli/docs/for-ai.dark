@@ -49,11 +49,10 @@ One host, every path on it: `permissions allow http GET https://api.example.com`
 
 ## Mistakes that cost a run
 
-- There is no `Stdlib.Int64.toString`. `Stdlib.toString(x)` and `$"{x}"` work for
-  Strings, numbers, Bool, Char, DateTime, Uuid, Option, Result and any other type
-  with a `ToString` impl (`impls ToString`). Lists, tuples and Unit have none: use
-  `Stdlib.toRepr(x)`, or map and join,
-  `xs |> Stdlib.List.map(Stdlib.toString) |> Stdlib.String.join(", ")`.
+- There is no `Stdlib.Int64.toString`. `$"{x}"` works for any value: it uses the
+  type's `Display` impl (Strings, numbers, Bool, Char, DateTime, Uuid, Option,
+  Result, ...; `impls Display`) and falls back to `Stdlib.inspect(x)`.
+  `Stdlib.display(x)` needs a `Display` impl; `Stdlib.inspect(x)` shows any value.
   An operator is not a function either: `a % b`, not `Stdlib.Int64.mod(a, b)`.
 - A bare integer is an `Int64`: `15`, never `15L`. Operands must have one type.
 - Lists, records and dicts separate items with commas or newlines, never `;`.

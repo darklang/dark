@@ -74,12 +74,12 @@ test nestedSelfTailCalls =
 test resultCheckedAtTheEnd =
   (countWrong(1000))
   => raises
-    "Darklang.Language.Tests.TailCalls.countWrong's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.toString`."
+    "Darklang.Language.Tests.TailCalls.countWrong's return value expects String, but got Int64 (5). Try wrapping it with `Stdlib.display`."
 
 test argumentCheckedPartWay =
   (countDown(10, "start"))
   => raises
-    "Darklang.Language.Tests.TailCalls.countDown's 2nd parameter `label` expects String, but got Int64 (3). Try wrapping it with `Stdlib.toString`."
+    "Darklang.Language.Tests.TailCalls.countDown's 2nd parameter `label` expects String, but got Int64 (3). Try wrapping it with `Stdlib.display`."
 
 test callbackCheckedInATailLoop =
   (applyAfter(10, fun x -> "no"))

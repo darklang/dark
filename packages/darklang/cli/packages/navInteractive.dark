@@ -237,7 +237,7 @@ let loadFocusRows(
 
         let remainingRows =
           if remaining > 0 then
-            [ $"  ... and {Stdlib.toString(remaining)} more modules" ]
+            [ $"  ... and {Stdlib.display(remaining)} more modules" ]
           else
             []
 
@@ -263,7 +263,7 @@ let loadFocusRows(
           let remaining = (Stdlib.List.length(results.types)) - itemsPerRemaining
           let remainingRows =
             if remaining > 0 then
-              [ $"  ... and {Stdlib.toString(remaining)} more types" ]
+              [ $"  ... and {Stdlib.display(remaining)} more types" ]
             else
               []
 
@@ -489,12 +489,12 @@ let viewAtSize(
         Stdlib.min(totalRows, offset + Stdlib.List.length(visibleRows))
       let position =
         if totalRows > regions.focusContentHeight then
-          let startText = Stdlib.toString(startRow)
-          let endText = Stdlib.toString(endRow)
-          let totalText = Stdlib.toString(totalRows)
+          let startText = Stdlib.display(startRow)
+          let endText = Stdlib.display(endRow)
+          let totalText = Stdlib.display(totalRows)
           $"Preview {startText}-{endText} of {totalText} • PgUp/PgDn scroll"
         else
-          $"Preview • {Stdlib.toString(totalRows)} rows"
+          $"Preview • {Stdlib.display(totalRows)} rows"
       let heading =
         if regions.sideBySide then
           Stdlib.Cli.UI.Colors.hint(focusClip(position))

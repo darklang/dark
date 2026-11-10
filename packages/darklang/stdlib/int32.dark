@@ -164,9 +164,9 @@ impl ShiftRight for Int32 =
   /// Bitwise right shift of an <type Int32> value
   let shiftRight(a: Int32, b: Int32): Int32 = Builtin.shiftRight(a, b)
 
-impl ToString for Int32 =
+impl Display for Int32 =
   /// Stringify <param int>
-  let toString(int: Int32): String = Builtin.int32ToString(int)
+  let display(int: Int32): String = Builtin.int32ToString(int)
 
 impl Zero for Int32 =
   let zero(): Int32 = 0s32

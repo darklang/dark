@@ -17,7 +17,7 @@ let subtopic(name: String): String =
 // About 3,900 characters on its own; the limit leaves room for the syntax-at-a-glance block.
 test forAIStaysShort =
   let size = Stdlib.String.length(Darklang.Cli.Docs.ForAI.content())
-  Stdlib.Test.expect(size < 6000, $"docs for-ai is {Stdlib.toString(size)} characters")
+  Stdlib.Test.expect(size < 6000, $"docs for-ai is {size} characters")
 
 
 // What moved out of `docs for-ai` is still there, under the part its More list names.
@@ -86,18 +86,17 @@ test unknownPartsAreNamed =
           "and prints none of them") ]))
 
 
-// `docs for-ai` says which values `Stdlib.toString` takes and what to use for the rest.
-// If lists, tuples or Unit gain a `ToString`, or Option or Result lose theirs, that sentence
-// needs changing.
-test toStringAdviceHolds =
+// `docs for-ai` says which values `Stdlib.display` takes, that interpolation falls back to
+// `Stdlib.inspect`, and that lists, tuples and Unit have no `Display`. If that changes, the
+// sentence needs changing.
+test displayAdviceHolds =
   Instance.withInstance(fun i ->
-    let (code, out) = Instance.ran(i, [ "eval", "Stdlib.toString([1, 2])" ])
+    let (code, out) = Instance.ran(i, [ "eval", "Stdlib.display([1, 2])" ])
 
     Stdlib.Test.all(
-      [ Stdlib.Test.expect(code != 0, "a list has no ToString")
+      [ Stdlib.Test.expect(code != 0, "a list has no Display")
         Instance.says(out, "has no implementation", "and the error says so")
-        Stdlib.toString(Some(3)) |> Stdlib.Test.equal("Some(3)")
-        Stdlib.toString<Result<Int64, String>>(Ok(3)) |> Stdlib.Test.equal("Ok(3)")
-        Stdlib.toRepr([1, 2]) |> Stdlib.Test.equal("[1, 2]")
-        ([1, 2] |> Stdlib.List.map(Stdlib.toString) |> Stdlib.String.join(", "))
-        |> Stdlib.Test.equal("1, 2") ]))
+        Stdlib.display(Some(3)) |> Stdlib.Test.equal("Some(3)")
+        Stdlib.display<Result<Int64, String>>(Ok(3)) |> Stdlib.Test.equal("Ok(3)")
+        Stdlib.inspect([1, 2]) |> Stdlib.Test.equal("[1, 2]")
+        $"{[1, 2]}" |> Stdlib.Test.equal("[1, 2]") ]))

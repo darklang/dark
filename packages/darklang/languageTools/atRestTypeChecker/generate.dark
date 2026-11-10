@@ -1123,18 +1123,18 @@ let constantDictKey(
 
   match expr with
   | EUnit(_) -> Stdlib.Option.Option.Some("()")
-  | EBool(_, b) -> Stdlib.Option.Option.Some(Stdlib.toString(b))
-  | EInt8(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EUInt8(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EInt16(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EUInt16(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EInt32(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EUInt32(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EInt64(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EUInt64(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EUInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
-  | EBigInt(_, n) -> Stdlib.Option.Option.Some(Stdlib.toString(n))
+  | EBool(_, b) -> Stdlib.Option.Option.Some(Stdlib.display(b))
+  | EInt8(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EUInt8(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EInt16(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EUInt16(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EInt32(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EUInt32(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EInt64(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EUInt64(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EUInt128(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
+  | EBigInt(_, n) -> Stdlib.Option.Option.Some(Stdlib.display(n))
   | EFloat(_, sign, whole, fraction) ->
     let sign =
       match sign with
@@ -1145,7 +1145,7 @@ let constantDictKey(
       if f == 0.0 then
         Stdlib.Option.Option.Some("0.0")
       else
-        Stdlib.Option.Option.Some(Stdlib.toString(f))
+        Stdlib.Option.Option.Some(Stdlib.display(f))
     | Error(_) -> Stdlib.Option.Option.None
   | EFloat32(_, sign, whole, fraction) ->
     let sign =
@@ -1157,10 +1157,10 @@ let constantDictKey(
       if f == 0.0f32 then
         Stdlib.Option.Option.Some("0.0f32")
       else
-        Stdlib.Option.Option.Some((Stdlib.toString(f)) + "f32")
+        Stdlib.Option.Option.Some((Stdlib.display(f)) + "f32")
     | Error(_) -> Stdlib.Option.Option.None
   // normalised, so `1.10dec` and `1.1dec` are one key, as they are one value under `==`
-  | EDecimal(_, d) -> Stdlib.Option.Option.Some(Stdlib.toString(Stdlib.Decimal.normalize(d)))
+  | EDecimal(_, d) -> Stdlib.Option.Option.Some(Stdlib.display(Stdlib.Decimal.normalize(d)))
   | EChar(_, c) -> Stdlib.Option.Option.Some(quote("'", c))
   | EString(_, segments) ->
     let texts =

@@ -51,7 +51,7 @@ let loadBranchItems(currentBranchId: Uuid): List<BodyItem> =
     Stdlib.List.filter(
       [ (if id == currentBranchId then "current" else "")
         (if SCM.PackageOps.draftOpCountFor(id) > 0 then "draft" else "")
-        (if ahead > 0 then (Stdlib.toString(ahead)) + " ops ahead" else "")
+        (if ahead > 0 then (Stdlib.display(ahead)) + " ops ahead" else "")
         last ],
       fun part -> part != "")
     |> Stdlib.String.join(" · ")

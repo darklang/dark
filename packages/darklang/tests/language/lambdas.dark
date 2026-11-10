@@ -79,7 +79,7 @@ test closures =
 test tuplePatterns =
   Stdlib.Test.all(
     [ (let pairs = [ (1, "one"), (2, "two"), (3, "three") ]
-       let transformer = fun((num, str)) -> $"{Stdlib.toString(num)}:{str}"
+       let transformer = fun((num, str)) -> $"{Stdlib.display(num)}:{str}"
        Stdlib.List.map(pairs, transformer))
       |> Stdlib.Test.equal([ "1:one", "2:two", "3:three" ])
       (let triplets = [ (1, "one", true), (2, "two", false) ]
@@ -87,9 +87,9 @@ test tuplePatterns =
        let transformer =
          fun((num, str, flag)) ->
            if flag then
-             $"{Stdlib.toString(num)}:{str}:TRUE"
+             $"{Stdlib.display(num)}:{str}:TRUE"
            else
-             $"{Stdlib.toString(num)}:{str}:FALSE"
+             $"{Stdlib.display(num)}:{str}:FALSE"
 
        Stdlib.List.map(triplets, transformer))
       |> Stdlib.Test.equal([ "1:one:TRUE", "2:two:FALSE" ])
@@ -106,16 +106,16 @@ test tuplePatterns =
        let transformer =
          fun(((num, str), flag)) ->
            if flag then
-             $"{Stdlib.toString(num)}:{str}:TRUE"
+             $"{Stdlib.display(num)}:{str}:TRUE"
            else
-             $"{Stdlib.toString(num)}:{str}:FALSE"
+             $"{Stdlib.display(num)}:{str}:FALSE"
 
        Stdlib.List.map(triplets, transformer))
       |> Stdlib.Test.equal([ "1:one:TRUE", "2:two:FALSE" ]) ])
 
 test tuplePatternArityRaises =
   (let triplets = [ (1, "one", true), (2, "two", false) ]
-   let transformer = fun((num, str)) -> $"{Stdlib.toString(num)}:{str}"
+   let transformer = fun((num, str)) -> $"{Stdlib.display(num)}:{str}"
    Stdlib.List.map(triplets, transformer))
   => raises
     "Could not deconstruct value (1, \"one\", true) into pattern ([variable], [variable])"

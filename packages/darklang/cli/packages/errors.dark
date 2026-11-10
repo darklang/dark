@@ -57,13 +57,22 @@ let enclosingModules(modules: List<String>): List<List<String>> =
     Stdlib.List.prepend(enclosingModules(parent), parent)
 
 
+/// The Stdlib name for a job another language spells differently: `toString` is `display`.
+let otherLanguageName(name: String): Stdlib.Option.Option<String> =
+  match name with
+  | "toString" -> Stdlib.Option.Option.Some("display")
+  | "toRepr" -> Stdlib.Option.Option.Some("inspect")
+  | _ -> Stdlib.Option.Option.None
+
+
 /// Where an unresolved name might really be, in the order <fn stdlibSuggestion> tries them.
 ///
 /// A name without a `Stdlib.` prefix gets one: `Bool.not` -> `Stdlib.Bool.not`. A name already under
 /// `Stdlib.` tries its final name in each enclosing module, nearest first, down to the `Stdlib` root:
-/// `Stdlib.Int64.toString` -> `Stdlib.toString`. An unprefixed name walks up only from one module,
-/// so `Int64.toString` also tries `Stdlib.toString`: a deeper one may be the user's own module that
-/// does not exist yet.
+/// `Stdlib.Int64.max` -> `Stdlib.max`. An unprefixed name walks up only from one module, so
+/// `Int64.max` also tries `Stdlib.max`: a deeper one may be the user's own module that does not
+/// exist yet. Last, a name from <fn otherLanguageName> tries its Stdlib one: `Int64.toString` ->
+/// `Stdlib.display`.
 let stdlibSuggestionCandidates(
   originalName: List<String>)
   : List<(String * LanguageTools.ProgramTypes.PackageLocation)> =
@@ -75,17 +84,27 @@ let stdlibSuggestionCandidates(
         enclosingModules(inner)
         |> Stdlib.List.map(fun m -> stdlibCandidate(writtenPrefix, m, name))
 
+    let renamed =
+      fun writtenPrefix ->
+        match otherLanguageName(name) with
+        | Some(other) -> [ stdlibCandidate(writtenPrefix, [], other) ]
+        | None -> []
+
     match modules with
     | [] -> []
-    | ["Stdlib", ...inner] -> walkUp([ "Stdlib" ], inner)
-    | ["Darklang", "Stdlib", ...inner] -> walkUp([ "Darklang", "Stdlib" ], inner)
+    | ["Stdlib", ...inner] -> Stdlib.List.concat(walkUp([ "Stdlib" ], inner), renamed([ "Stdlib" ]))
+    | ["Darklang", "Stdlib", ...inner] ->
+      Stdlib.List.concat(
+        walkUp([ "Darklang", "Stdlib" ], inner),
+        renamed([ "Darklang", "Stdlib" ]))
     | ["Darklang", ...] -> []
     | ["PACKAGE", ...] -> []
     | [ _ ] ->
-      Stdlib.List.prepend(
-        walkUp([ "Stdlib" ], modules),
-        stdlibCandidate([ "Stdlib" ], modules, name))
-    | _ -> [ stdlibCandidate([ "Stdlib" ], modules, name) ]
+      Stdlib.List.flatten(
+        [ [ stdlibCandidate([ "Stdlib" ], modules, name) ]
+          walkUp([ "Stdlib" ], modules)
+          renamed([ "Stdlib" ]) ])
+    | _ -> Stdlib.List.prepend(renamed([ "Stdlib" ]), stdlibCandidate([ "Stdlib" ], modules, name))
 
 
 /// The Stdlib name for a conversion people guess another name for: Stdlib turns bytes into text
@@ -267,9 +286,9 @@ let reportParseErrors(
   match diagnostics with
   | [] -> false
   | [(range, message), ...] ->
-    let lineNum = (range.start.row + 1) |> Stdlib.toString
+    let lineNum = (range.start.row + 1) |> Stdlib.display
     // 1-based column, matching renderDiagnostic and the line number above
-    let colNum = (range.start.column + 1) |> Stdlib.toString
+    let colNum = (range.start.column + 1) |> Stdlib.display
 
     Cli.printErr($"Parse error at line {lineNum}, column {colNum}: {message}")
 
@@ -303,7 +322,7 @@ let unresolvedNamesText(
   : String =
   unresolvedNames
   |> Stdlib.List.map(fun((range, originalName, _err)) ->
-    let lineNum = (range.start.row + 1) |> Stdlib.toString
+    let lineNum = (range.start.row + 1) |> Stdlib.display
     $"{Stdlib.String.join(originalName, ".")} (line {lineNum})")
   |> Stdlib.String.join(", ")
 
@@ -342,8 +361,8 @@ let reportUnresolvedNames(
 
     notFoundNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
-      let lineNum = (range.start.row + 1) |> Stdlib.toString
-      let colNum = range.start.column |> Stdlib.toString
+      let lineNum = (range.start.row + 1) |> Stdlib.display
+      let colNum = range.start.column |> Stdlib.display
       let nameStr = Stdlib.String.join(originalName, ".")
 
       let suggestion =
@@ -363,8 +382,8 @@ let reportUnresolvedNames(
 
     invalidNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
-      let lineNum = (range.start.row + 1) |> Stdlib.toString
-      let colNum = range.start.column |> Stdlib.toString
+      let lineNum = (range.start.row + 1) |> Stdlib.display
+      let colNum = range.start.column |> Stdlib.display
       let nameStr = Stdlib.String.join(originalName, ".")
 
       if isInternalPackageName(originalName) then

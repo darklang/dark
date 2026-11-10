@@ -25,9 +25,14 @@ module Port =
   val httpAlt = Stdlib.Net.Port { __port = 8080 }
 
 
-impl ToString for Port =
+impl Display for Port =
   /// The port number, {{8080}}
-  let toString(port: Port): String = Stdlib.toString(port.__port)
+  let display(port: Port): String = Stdlib.display(port.__port)
+
+
+impl Inspect for Port =
+  /// {{Port(8080)}}: the field is private, so not the record
+  let inspect(port: Port): String = $"Port({port.__port})"
 
 
 impl Compare for Port =

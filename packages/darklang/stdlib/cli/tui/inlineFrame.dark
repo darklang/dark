@@ -16,9 +16,9 @@ let cursorRow(view: Tui.View): Int64 =
 let moveRows(fromRow: Int64, toRow: Int64): String =
   let distance = toRow - fromRow
   if distance < 0 then
-    $"\u001b[{Stdlib.toString(0 - distance)}A"
+    $"\u001b[{Stdlib.display(0 - distance)}A"
   else if distance > 0 then
-    $"\u001b[{Stdlib.toString(distance)}B"
+    $"\u001b[{Stdlib.display(distance)}B"
   else
     ""
 
@@ -45,7 +45,7 @@ let finishAtCursor(
     let targetRow = Stdlib.max(0, row)
     let targetColumn = Stdlib.max(0, column) + 1
     moveRows(currentRow, targetRow)
-    + $"\u001b[{Stdlib.toString(targetColumn)}G"
+    + $"\u001b[{Stdlib.display(targetColumn)}G"
     + "\u001b[?25h"
 
 

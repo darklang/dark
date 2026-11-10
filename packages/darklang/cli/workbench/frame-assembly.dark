@@ -28,7 +28,7 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
   // The glance: what is waiting on you, or nothing.
   let (glanceColored, glancePlain) =
     if needsYou > 0 then
-      let t = "⚠ " + (Stdlib.toString(needsYou)) + " need you"
+      let t = "⚠ " + (Stdlib.display(needsYou)) + " need you"
       (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.pink, t), t)
     else
       ("", "")

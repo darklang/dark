@@ -218,10 +218,10 @@ let toInt64(a: Float): Int64 = Stdlib.Float.roundTowardsZero(a)
 /// Return <param a>'s IEEE 754 binary64 bits as an unsigned 64-bit value.
 let toBits(a: Float): UInt64 = Builtin.floatToBits(a)
 
-impl ToString for Float =
+impl Display for Float =
   /// Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`,
   /// `0.30000000000000004`, `1e+16`, `1e-5`.
-  let toString(a: Float): String = Builtin.floatToString(a)
+  let display(a: Float): String = Builtin.floatToString(a)
 
 impl Zero for Float =
   let zero(): Float = 0.0

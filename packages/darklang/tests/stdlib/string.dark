@@ -52,18 +52,18 @@ test toList =
   Stdlib.Test.all(
     [ Stdlib.String.toList("") |> Stdlib.Test.equal([])
       Stdlib.String.toList("ab") |> Stdlib.Test.equal([ 'a', 'b' ])
-      Stdlib.String.toList("👨‍👩‍👧‍👦") |> Stdlib.List.map(Stdlib.toString)
+      Stdlib.String.toList("👨‍👩‍👧‍👦") |> Stdlib.List.map(Stdlib.display)
       |> Stdlib.Test.equal([ "👨‍👩‍👧‍👦" ])
-      Stdlib.String.toList("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") |> Stdlib.List.map(Stdlib.toString)
+      Stdlib.String.toList("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") |> Stdlib.List.map(Stdlib.display)
       |> Stdlib.Test.equal([ "Z̤͔ͧ̑̓", "ä͖̭̈̇", "lͮ̒ͫ", "ǧ̗͚̚", "o̙̔ͮ̇͐̇" ])
-      Stdlib.String.toList("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") |> Stdlib.List.map(Stdlib.toString)
+      Stdlib.String.toList("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") |> Stdlib.List.map(Stdlib.display)
 
      |> Stdlib.Test.equal([ "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽" ])
-      Stdlib.String.toList("🧟‍♀️🧟‍♂️") |> Stdlib.List.map(Stdlib.toString)
+      Stdlib.String.toList("🧟‍♀️🧟‍♂️") |> Stdlib.List.map(Stdlib.display)
       |> Stdlib.Test.equal([ "🧟‍♀️", "🧟‍♂️" ])
-      Stdlib.String.toList("👱👱🏻👱🏼👱🏽👱🏾👱🏿") |> Stdlib.List.map(Stdlib.toString)
+      Stdlib.String.toList("👱👱🏻👱🏼👱🏽👱🏾👱🏿") |> Stdlib.List.map(Stdlib.display)
       |> Stdlib.Test.equal([ "👱", "👱🏻", "👱🏼", "👱🏽", "👱🏾", "👱🏿" ])
-      Stdlib.String.toList("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿") |> Stdlib.List.map(Stdlib.toString)
+      Stdlib.String.toList("żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿") |> Stdlib.List.map(Stdlib.display)
 
      |> Stdlib.Test.equal([ "ż", "ó", "ł", "w", "🧑🏽‍🦰", "🧑🏻‍🍼", "✋", "✋🏻", "✋🏿" ])
       (Stdlib.String.toList("ab1")) |> Stdlib.String.fromList

@@ -56,4 +56,4 @@ let toOrdinal(n: Int64): String =
       | 3 -> "rd"
       | _ -> "th"
 
-  (Stdlib.toString(n)) + suffix
+  (Stdlib.display(n)) + suffix

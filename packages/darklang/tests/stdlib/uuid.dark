@@ -4,15 +4,15 @@ module Darklang.Stdlib.Uuid.Tests
 test parse =
   Stdlib.Test.all(
     [ Stdlib.Uuid.parse("3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
-      |> Stdlib.Result.map(Stdlib.toString)
+      |> Stdlib.Result.map(Stdlib.display)
       |> Stdlib.Test.equal(Ok("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
       Stdlib.Uuid.parse("11111111-2222-3333-4444-555555555555")
-      |> Stdlib.Result.map(Stdlib.toString)
+      |> Stdlib.Result.map(Stdlib.display)
       |> Stdlib.Test.equal(Ok("11111111-2222-3333-4444-555555555555")) ])
 
 test toStringUsesLowercaseHyphenatedFormat =
   Stdlib.Uuid.parse("3700ADBC-7A46-4FF4-81D3-45AFB03F6E2D")
-  |> Stdlib.Result.map(Stdlib.toString)
+  |> Stdlib.Result.map(Stdlib.display)
   |> Stdlib.Test.equal(Ok("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
 
 // bad format
@@ -33,7 +33,7 @@ test parseRejectsBadFormat =
 
 // A v7 has version digit 7 and variant digit 8, 9, a or b.
 test generateV7SetsVersionAndVariant =
-  let text = Stdlib.toString(Stdlib.Uuid.generateV7())
+  let text = Stdlib.display(Stdlib.Uuid.generateV7())
   Stdlib.Test.all(
     [ Stdlib.String.slice(text, 14, 15) |> Stdlib.Test.equal("7")
       Stdlib.List.contains([ "8", "9", "a", "b" ], Stdlib.String.slice(text, 19, 20))

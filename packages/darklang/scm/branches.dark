@@ -167,19 +167,19 @@ let listLines(includeMerged: Bool): List<String> =
       // with its child. The id alone reads as corruption; say what it is instead.
       match Stdlib.List.findFirst(branches, fun p -> p.id == parentId) with
       | Some(p) when p.name != "" -> p.name
-      | Some(_) -> Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
+      | Some(_) -> Stdlib.String.slice(Stdlib.display(parentId), 0, 8)
       | None ->
-        let short = Stdlib.String.slice(Stdlib.toString(parentId), 0, 8)
+        let short = Stdlib.String.slice(Stdlib.display(parentId), 0, 8)
         $"{short} (a branch not in this store)"
 
   branches
   |> Stdlib.List.filter(fun b -> includeMerged || (Stdlib.Bool.not(b.merged)))
   |> Stdlib.List.map(fun b ->
     let status =
-      if b.merged then "merged" else $"{Stdlib.toString(b.ops)} op(s)"
+      if b.merged then "merged" else $"{Stdlib.display(b.ops)} op(s)"
 
-    let label = if b.name == "" then Stdlib.toString(b.id) else b.name
-    let shortId = Stdlib.String.slice(Stdlib.toString(b.id), 0, 8)
+    let label = if b.name == "" then Stdlib.display(b.id) else b.name
+    let shortId = Stdlib.String.slice(Stdlib.display(b.id), 0, 8)
     $"{label} ({shortId}) <- {parentLabel(b.parent)}  [{status}]")
 
 /// The names a branch has recorded a base for -- i.e. every name it has touched.

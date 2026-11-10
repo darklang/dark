@@ -329,11 +329,12 @@ let syntax(): String =
 - Lists use commas: `[1, 2]`; chars use single quotes: `'a'`.
 - `|>` passes the value on its left in as the first argument. If that value is
   an `if` or `match`, put it in parentheses, or only its last branch gets piped.
-- Strings concatenate with `+`. Interpolation uses the type's `ToString` implementation.
-- A value becomes a String with `Stdlib.toString(x)`, for every type with a `ToString`
-  impl; there is no `Stdlib.Int64.toString`. Lists, tuples and Unit have none;
-  `Stdlib.toRepr(x)` shows any value. Any trait method is called through the
-  trait, not the type: `Stdlib.Add.add(1, 2)`, or receiver first, `x.toString`.
+- Strings concatenate with `+`. Interpolation uses the type's `Display` impl and
+  falls back to `Stdlib.inspect(x)`, so `$"{x}"` works for any value.
+- `Stdlib.display(x)` needs a `Display` impl (there is no `Stdlib.Int64.toString`);
+  lists, tuples and Unit have none. `Stdlib.inspect(x)` shows any value. Any trait
+  method is called through the trait, not the type: `Stdlib.Add.add(1, 2)`, or
+  receiver first, `x.display`.
   `view Stdlib.Int64` lists the type's impls with where each method is called.
 - A bare integer is an `Int64` and a bare `1.5` a `Float`; numeric operands must
   have one type. Other number types take a suffix (table in Critical Syntax).

@@ -71,8 +71,8 @@ let cacheRuntime(): String =
     | DApplicable(AppNamedFn(named)) ->
       match named.name with
       | Package(hash) -> LanguageTools.RuntimeTypes.hashToString(hash)
-      | _ -> Stdlib.toString(Stdlib.Uuid.generate())
-    | _ -> Stdlib.toString(Stdlib.Uuid.generate())
+      | _ -> Stdlib.display(Stdlib.Uuid.generate())
+    | _ -> Stdlib.display(Stdlib.Uuid.generate())
   Cli.Installation.Helpers.runtimeHash() + ":" + judge
 
 /// Read cache metadata once; test workers cannot change the parent store.
@@ -91,7 +91,7 @@ let cacheContext(branchId: Uuid): Stdlib.Option.Option<CacheContext> =
   |> Stdlib.Option.map(fun resultType ->
     CacheContext
       { runtime = cacheRuntime()
-        branch = Stdlib.toString(branchId)
+        branch = Stdlib.display(branchId)
         resultType = LanguageTools.ProgramTypes.hashToString(resultType) })
 
 let resultKey(
@@ -425,7 +425,7 @@ let printSlowest(timings: List<Timing>): Unit =
     |> Stdlib.List.take(10)
     |> Stdlib.List.iter(fun t ->
       let place = if t.inProcess then "in-process" else "isolated"
-      Stdlib.printLine($"  {Stdlib.toString(t.ms)} ms  {t.name} ({place})"))
+      Stdlib.printLine($"  {Stdlib.display(t.ms)} ms  {t.name} ({place})"))
   else
     ()
 
@@ -496,9 +496,9 @@ let runTestsInRun(
       // shows up here rather than only as a slower run.
       let reranNote =
         if counts.reran == 0 then ""
-        else $"; {Stdlib.toString(counts.reran)} wrote to the store and reran on a copy"
+        else $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
       Stdlib.printLine(
-        $"{Stdlib.toString(total)} test groups ({Stdlib.toString(counts.tests)} tests): {Stdlib.toString(counts.passed)} passed, {Stdlib.toString(counts.failed)} failed; {Stdlib.toString(counts.ran)} ran, {Stdlib.toString(counts.cached)} cached; {Stdlib.toString(counts.isolated)} isolated{reranNote}")
+        $"{Stdlib.display(total)} test groups ({Stdlib.display(counts.tests)} tests): {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
 
     if counts.failed > 0 || total == 0 then
       { state with exitCode = 1 }
@@ -548,7 +548,7 @@ let countRows(
 let countLine(groups: Int64, tests: Int64): String =
   let g = if groups == 1 then "test group" else "test groups"
   let t = if tests == 1 then "test" else "tests"
-  $"{Stdlib.toString(groups)} {g}, {Stdlib.toString(tests)} {t}"
+  $"{Stdlib.display(groups)} {g}, {Stdlib.display(tests)} {t}"
 
 /// <param prefix>, extended while every test group in <param groups> sits under the
 /// same submodule, so a module holding only `Tests` shows what is inside it.
@@ -699,7 +699,7 @@ let help(_state: Cli.AppState): String =
     "  test add MyApp.Math.Tests.doubles - <<'EOF'"
     "  /// Doubling four gives eight."
     "  test doubles = MyApp.Math.double(4) |> Stdlib.Test.equal(8)"
-    "  test keyLength = Stdlib.Uuid.generate() |> Stdlib.toString |> Stdlib.String.length |> Stdlib.Test.equal(36)"
+    "  test keyLength = Stdlib.Uuid.generate() |> Stdlib.display |> Stdlib.String.length |> Stdlib.Test.equal(36)"
     "  EOF"
     "The body may be given alone or as a whole `test name = ...` declaration;"
     "it lands in your draft like `fn` and `val`." ]

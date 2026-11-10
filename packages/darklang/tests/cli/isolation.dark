@@ -37,7 +37,7 @@ test nestedWorkerSeesCallingTestWrites =
 test stateAndEnvironmentAreIsolated =
   let parentDb = LanguageTools.LocalStore.path()
   let parentBranch = Darklang.SCM.PackageOps.currentBranch()
-  let key = "test.isolated-" + Stdlib.toString(Stdlib.Uuid.generate())
+  let key = "test.isolated-" + Stdlib.display(Stdlib.Uuid.generate())
   let options = Stdlib.Test.Process.defaults()
   match Stdlib.Test.Process.run(options, writeConfig, key) with
   | Error(message) -> Stdlib.Test.fail(message)
@@ -120,7 +120,7 @@ let checkInheritedBranch(expected: Uuid): Stdlib.Test.Result =
 
 // Uses an actual non-main branch, then a nested worker with default options.
 test explicitBranchBecomesTheNestedWorkersDefault =
-  let name = "isolated-selection-" + Stdlib.toString(Stdlib.Uuid.generate())
+  let name = "isolated-selection-" + Stdlib.display(Stdlib.Uuid.generate())
   let _ = Darklang.Cli.Tests.TestSuite.runWithCommand([ "branch", "create", name ])
   match Darklang.Cli.Branch.lookupRef(name) with
   | None -> Stdlib.Test.fail("Could not create the test branch")

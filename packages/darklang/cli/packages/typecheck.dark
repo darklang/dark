@@ -87,7 +87,7 @@ let inScope(scope: List<String>, path: String): Bool =
 /// The name, or names, the audit lists an item under.
 ///
 /// Items are content-addressed, so one hash can live under several names: a fn
-/// `render(n: Int64): String = Stdlib.toString(n)` is the same item as any other fn with that
+/// `render(n: Int64): String = Stdlib.display(n)` is the same item as any other fn with that
 /// signature and body, an impl method included. An audit scoped to a module names the item only
 /// by the names inside that module, since the others are not what was asked about. The
 /// whole-branch audit lists every name.
@@ -303,14 +303,14 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       finished
     else
 
-    let checkedCount = Stdlib.toString(totals.checkedCount)
+    let checkedCount = Stdlib.display(totals.checkedCount)
     let failedCount =
       if totals.unresolvedCount > 0 then
-        $"{Stdlib.toString(totals.failedCount)} ({Stdlib.toString(totals.unresolvedCount)} name something that does not exist)"
+        $"{Stdlib.display(totals.failedCount)} ({Stdlib.display(totals.unresolvedCount)} name something that does not exist)"
       else
-        Stdlib.toString(totals.failedCount)
-    let incompleteCount = Stdlib.toString(totals.incompleteCount)
-    let totalCount = Stdlib.toString(total)
+        Stdlib.display(totals.failedCount)
+    let incompleteCount = Stdlib.display(totals.incompleteCount)
+    let totalCount = Stdlib.display(total)
 
     Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText("At-rest package type audit"))
     Stdlib.printLine($"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")

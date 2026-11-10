@@ -164,9 +164,9 @@ impl ShiftRight for Int8 =
   /// Bitwise right shift of an <type Int8> value
   let shiftRight(a: Int8, b: Int8): Int8 = Builtin.shiftRight(a, b)
 
-impl ToString for Int8 =
+impl Display for Int8 =
   /// Stringify <param int8>
-  let toString(int8: Int8): String = Builtin.int8ToString(int8)
+  let display(int8: Int8): String = Builtin.int8ToString(int8)
 
 impl Zero for Int8 =
   let zero(): Int8 = 0s8

@@ -219,7 +219,7 @@ let modulePreviewLines(state: State, item: BodyItem): List<String> =
     if Stdlib.List.isEmpty(rows) then []
     else
       Stdlib.List.flatten(
-        [ [ "  " + (Stdlib.Cli.UI.Colors.dimText(label + " · " + (Stdlib.toString(Stdlib.List.length(rows))))) ]
+        [ [ "  " + (Stdlib.Cli.UI.Colors.dimText(label + " · " + (Stdlib.display(Stdlib.List.length(rows))))) ]
           Stdlib.List.map(rows, childLine)
           [ "" ] ])
   let contents =
@@ -459,7 +459,7 @@ let traceDetail(state: State): String =
       let lineage =
         match trace.parent with
         | Some((parent, at)) ->
-          [ $"forked from {Cli.Text.shortIdText(parent)} at position {Stdlib.toString(at)}" ]
+          [ $"forked from {Cli.Text.shortIdText(parent)} at position {Stdlib.display(at)}" ]
         | None -> []
       let pinned =
         if trace.pinned then [ "pinned: kept, whatever else is dropped to make room" ] else []
@@ -474,7 +474,7 @@ let traceDetail(state: State): String =
             Stdlib.List.prepend(
               (Stdlib.List.take(logged, 12)
                |> Stdlib.List.map(fun c ->
-                 $"  {Stdlib.toString(c.seq)}  {c.fnName}")),
+                 $"  {Stdlib.display(c.seq)}  {c.fnName}")),
               $"log: {Cli.Text.plural(Stdlib.List.length(logged), "call")} with effects")
       let header =
         [ Stdlib.Cli.UI.Colors.boldText(trace.entry)
@@ -592,7 +592,7 @@ let highlightSourceLines(page: List<String>): List<String> =
       Stdlib.List.append(
         srcPlain,
         (Stdlib.Cli.UI.Colors.warning(
-          $"(syntax highlighting off: re-lexing produced {Stdlib.toString(Stdlib.List.length(h))} lines, source has {Stdlib.toString(Stdlib.List.length(srcPlain))})")))
+          $"(syntax highlighting off: re-lexing produced {Stdlib.display(Stdlib.List.length(h))} lines, source has {Stdlib.display(Stdlib.List.length(srcPlain))})")))
   Stdlib.List.concat(highlighted, access)
 
 let inspectPageLines(state: State): List<String> =

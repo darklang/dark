@@ -41,7 +41,7 @@ module FQFnName =
     /// Resolve at the call; the only path that asks the store
     | Unknown
 
-  /// A trait method call: the trait, the method name (`ToString.toString`), and how
+  /// A trait method call: the trait, the method name (`Display.display`), and how
   /// much the save could say about which implementation runs.
   type TraitMethod =
     { trait_: FQTraitName.Package

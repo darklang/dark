@@ -49,7 +49,7 @@ let resolveTrait(
 
 /// Where code calls an implementation's methods: through its trait, never at the impl's
 /// own path. A fn beside the trait named for the method is the shorter call, so
-/// `impl ToString for Int64` gives `[Stdlib.toString]`, which is what someone looking for
+/// `impl Display for Int64` gives `[Stdlib.display]`, which is what someone looking for
 /// `Stdlib.Int64.toString` wanted; otherwise it is the trait's own, `Stdlib.Add.add`.
 /// Empty when the trait is unresolved.
 let methodCalls(
@@ -72,7 +72,7 @@ let traitLocation(
 
 
 /// The name a call to <param method> of the trait at <param loc> uses: the fn beside the trait
-/// named for the method when there is one (`Stdlib.toString`), else the trait's own
+/// named for the method when there is one (`Stdlib.display`), else the trait's own
 /// (`Stdlib.Add.add`). Written as a person writes it: `Stdlib`, not `Darklang.Stdlib`.
 let methodCallName(
   branchId: Uuid,
@@ -125,7 +125,7 @@ let operatorSyntax(
     Stdlib.Option.Option.None
 
 
-/// Each method of <param i> as a person would type the call: `a % b`, `Stdlib.toString(v)`, or
+/// Each method of <param i> as a person would type the call: `a % b`, `Stdlib.display(v)`, or
 /// `Stdlib.Zero.zero<Int64>()` for a method that takes nothing and so reads its type from a type
 /// argument. Arguments use the trait method's own parameter names. Empty when the trait is
 /// unresolved.
@@ -311,7 +311,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             $"  {Stdlib.Text.padEndToWidth(selfStr, selfWidth)} {Stdlib.Cli.UI.Colors.dimText(sourceName)}{note}"))
       state
   | _ ->
-    Cli.printErr("Usage: impls <trait> [--json]          e.g. `dark impls ToString`")
+    Cli.printErr("Usage: impls <trait> [--json]          e.g. `dark impls Display`")
     if json then
       ()
     else

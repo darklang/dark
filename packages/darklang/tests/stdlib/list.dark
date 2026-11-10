@@ -664,7 +664,7 @@ test unique =
 // The F# tests check hash collisions and the number of equality comparisons.
 test uniqueDeduplicatesSameShapedValues =
   (Stdlib.List.range(1, 3000))
-  |> Stdlib.List.map(fun i -> [ "owner", "modules", Stdlib.toString(i % 1500) ])
+  |> Stdlib.List.map(fun i -> [ "owner", "modules", Stdlib.display(i % 1500) ])
   |> Stdlib.List.unique
   |> Stdlib.List.length
   |> Stdlib.Test.equal(1500)
@@ -833,7 +833,7 @@ test interleaveRejectsMixedElementTypes =
 
 test interposeRejectsWrongSeparatorType =
   Stdlib.List.interpose([ "a", "b", "c" ], 0)
-  => raises "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0). Try wrapping it with `Stdlib.toString`."
+  => raises "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0). Try wrapping it with `Stdlib.display`."
 
 test allStopsAtTheFirstFalse =
   // 10 / 0 would raise; `all` never gets that far.

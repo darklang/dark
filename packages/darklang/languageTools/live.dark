@@ -503,7 +503,7 @@ let reportText(report: LanguageTools.AtRestTypeChecker.Report): String =
     | [issue, ...] -> issueText(issue)
     | [] -> "it failed the type check"
 
-  let more = if count > 1 then $" (and {Stdlib.toString(count - 1)} more)" else ""
+  let more = if count > 1 then $" (and {Stdlib.display(count - 1)} more)" else ""
   first + more
 
 /// One line for a band or a log: why the host is not on the newest version, if it is not.
@@ -823,7 +823,7 @@ module Values =
       let fns = Stdlib.List.length(Darklang.Tracing.Store.fnsOf(newest.id))
       if (newest.durationMs > maxDurationMs) || (fns > maxFns) then
         let why =
-          $"too large to show live values: its last run took {Stdlib.toString(newest.durationMs)} ms through {Stdlib.toString(fns)} fns (dark traces inspect {Stdlib.String.slice(newest.id, 0, 8)})"
+          $"too large to show live values: its last run took {Stdlib.display(newest.durationMs)} ms through {Stdlib.display(fns)} fns (dark traces inspect {Stdlib.String.slice(newest.id, 0, 8)})"
         Stdlib.Option.Option.Some(
           Values
             { byExpr = Stdlib.Dict.empty
@@ -849,7 +849,7 @@ module Values =
         collected
         |> Stdlib.List.map(fun pair ->
           let (id, v) = pair
-          (Stdlib.toString(id), v))
+          (Stdlib.display(id), v))
         |> Stdlib.Dict.fromEntries
 
       Stdlib.Option.Option.Some(

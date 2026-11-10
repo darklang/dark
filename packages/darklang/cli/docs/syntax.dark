@@ -115,8 +115,8 @@ by the type checker (`dark typecheck`).
 ## Traits (docs traits)
   trait Area<'a> = let area(s: 'a): Float
   impl Area for Circle = let area(c: Circle): Float = ...
-  impl ToString for Point = let toString(p: Point): String = ...
-  let f<'a: ToString>(v: 'a): String = v.toString
+  impl Display for Point = let display(p: Point): String = ...
+  let f<'a: Display>(v: 'a): String = v.display
 
 ## Printing multiple lines
   // When printing 3+ lines, prefer printLines over repeated printLine:

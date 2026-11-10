@@ -619,7 +619,7 @@ let private pathRouter =
         let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
         Darklang.Stdlib.Http.responseWithText(200, "slow done")
       | url when Darklang.Stdlib.String.contains(url, "/boom") ->
-        Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.toString(1 / 0))
+        Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.display(1 / 0))
       | _ -> Darklang.Stdlib.Http.responseWithText(200, "fast"))"""
 
 /// `pathRouter` with the answer stamped with the millisecond it was made: `slow <ms>` or
@@ -630,11 +630,11 @@ let private stampedRouter =
         let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
         Darklang.Stdlib.Http.responseWithText(
           200,
-          "slow " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())))
+          "slow " + Darklang.Stdlib.display(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())))
       | _ ->
         Darklang.Stdlib.Http.responseWithText(
           200,
-          "fast " + Darklang.Stdlib.toString(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now()))))"""
+          "fast " + Darklang.Stdlib.display(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now()))))"""
 
 let private requestsAreProcesses =
   testSequenced
@@ -708,7 +708,7 @@ let private noResponseNamesDotNet =
             let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
             Darklang.Stdlib.Http.responseWithText(200, "slow done")
           | url when Darklang.Stdlib.String.contains(url, "/boom") ->
-            Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.toString(1 / 0))
+            Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.display(1 / 0))
           | url when Darklang.Stdlib.String.contains(url, "/int") -> 13
           | url when Darklang.Stdlib.String.contains(url, "/own") ->
             Darklang.Stdlib.Http.responseWithHeaders(200, [ ("server", "mine") ], Darklang.Stdlib.Utf8.encode("own"))

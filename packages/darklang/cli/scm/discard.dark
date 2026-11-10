@@ -99,7 +99,7 @@ let execute(state: AppState, args: List<String>): AppState =
   // reads as "already fine".
   Cli.Stderr.line((
     Stdlib.Cli.UI.Colors.warning(
-      $"  DISCARDING ({Stdlib.toString(Stdlib.List.length(changed))}) on {scope}, {Cli.Text.plural(ops, "op")}")
+      $"  DISCARDING ({Stdlib.display(Stdlib.List.length(changed))}) on {scope}, {Cli.Text.plural(ops, "op")}")
   ))
 
   // Ops that bind no name have nothing to list per-name; say how many rather than showing an

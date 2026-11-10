@@ -38,6 +38,8 @@ module RuntimeError =
     | ShortTypeName(FQTypeName)
     | TraitName(LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
     | ShortTraitName(LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+    /// ". `Stdlib.inspect` shows any value" when the trait is `Stdlib.Display`, else nothing
+    | InspectHint(LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
     | TypeReference(TypeReference)
     | TypeOfValue(Dval) // CLEANUP should these all just be ValueTypes?
     | ValueType(ValueType)
@@ -91,10 +93,10 @@ module RuntimeError =
         let newSegment =
           match segment with
           | String(s) -> s
-          | Int64(i) -> Stdlib.toString(i)
+          | Int64(i) -> Stdlib.display(i)
           | Ordinal(i) -> Stdlib.English.toOrdinal(i)
           | Count(i, singular, plural) ->
-            let count = Stdlib.toString(i)
+            let count = Stdlib.display(i)
 
             if i == 1 then
               let segment = segmentsToString(branchId, [ singular ])
@@ -119,6 +121,11 @@ module RuntimeError =
           | ShortTypeName(t) -> shortTypeName(branchId, t)
           | TraitName(t) -> traitName(branchId, t)
           | ShortTraitName(t) -> shortTraitName(branchId, t)
+          | InspectHint(t) ->
+            if traitName(branchId, t) == "Darklang.Stdlib.Display" then
+              ". `Stdlib.inspect` shows any value"
+            else
+              ""
           | TypeReference(t) -> typeReference(branchId, t)
           | TypeOfValue(dv) -> Dval.valueTypeName(branchId, dv)
           | ValueType(vt) -> valueType(branchId, vt)
@@ -150,11 +157,11 @@ module RuntimeError =
     Stdlib.String.join(parts, "")
 
 
-  /// For a value type that has a `toString` in stdlib, return a hint
+  /// For a value type that has a Display impl in stdlib, return a hint
   /// suffix pointing the user at the right conversion function. Empty
   /// string otherwise (Unknown, Unit, String, collection/custom types).
-  let toStringHint(vt: LanguageTools.RuntimeTypes.ValueType): String =
-    // One hint for the types that have a ToString impl; `Stdlib.toString` is the fn to
+  let displayHint(vt: LanguageTools.RuntimeTypes.ValueType): String =
+    // One hint for the types that have a Display impl; `Stdlib.display` is the fn to
     // reach for whichever it is. Collections and custom types have none, so no hint.
     match vt with
     | Known(KTInt8)
@@ -174,19 +181,19 @@ module RuntimeError =
     | Known(KTBool)
     | Known(KTChar)
     | Known(KTDateTime)
-    | Known(KTUuid) -> ". Try wrapping it with `Stdlib.toString`."
+    | Known(KTUuid) -> ". Try wrapping it with `Stdlib.display`."
     | _ -> ""
 
 
-  /// <fn toStringHint> for a value that went where a String was expected, and nothing otherwise.
+  /// <fn displayHint> for a value that went where a String was expected, and nothing otherwise.
   let stringExpectedHint(expected: ValueType, actual: ValueType): String =
     match expected with
-    | Known(KTString) -> toStringHint(actual)
+    | Known(KTString) -> displayHint(actual)
     | _ -> ""
 
 
   /// `"total: " + 5` is the usual way a newcomer meets this error, so when one side is a String
-  /// and the other has a ToString impl, say how to join them.
+  /// and the other has a Display impl, say how to join them.
   let joinWithStringHint(left: ValueType, right: ValueType): ErrorSegments =
     let other =
       match (left, right) with
@@ -195,10 +202,10 @@ module RuntimeError =
       | (other, Known(KTString)) -> Stdlib.Option.Option.Some(other)
       | _ -> Stdlib.Option.Option.None
     match other with
-    | Some(vt) when toStringHint(vt) != "" ->
+    | Some(vt) when displayHint(vt) != "" ->
       [ ES.String(". To join them, make the ")
         ES.ValueType(vt)
-        ES.String(" a String with `Stdlib.toString`, or interpolate it: `$\"total: {n}\"`.") ]
+        ES.String(" a String with `Stdlib.display`, or interpolate it: `$\"total: {n}\"`.") ]
     | _ -> []
 
 
@@ -277,7 +284,7 @@ module RuntimeError =
         ES.ValueType(vt)
         ES.String(" (")
         ES.InlineValue(dv)
-        ES.String($") instead{toStringHint(vt)}") ]
+        ES.String($") instead{displayHint(vt)}") ]
 
     | List(TriedToAddMismatchedData(index, expectedType, actualType, actualValue)) ->
       [ ES.String("Cannot add ")
@@ -680,9 +687,10 @@ module RuntimeError =
           ES.ValueType(self)
           ES.String(" = ...`, or run `dark impls ")
           ES.ShortTraitName(trait_)
-          ES.String("` to see which types do") ]
+          ES.String("` to see which types do")
+          ES.InspectHint(trait_) ]
       | DispatchAmbiguous(trait_, self, candidates) ->
-        [ ES.String(Stdlib.toString(Stdlib.List.length(candidates)))
+        [ ES.String(Stdlib.display(Stdlib.List.length(candidates)))
           ES.String(" implementations of ")
           ES.TraitName(trait_)
           ES.String(" for ")
@@ -694,7 +702,7 @@ module RuntimeError =
         // No article in front of the type: an article here produces "on a Int64".
         [ ES.ValueType(self)
           ES.String($" has more than one `{method_}`: ")
-          ES.String(Stdlib.toString(Stdlib.List.length(traits)))
+          ES.String(Stdlib.display(Stdlib.List.length(traits)))
           ES.String($" traits declare it. Say which one you mean, as `SomeTrait.{method_}(value)`") ]
       | SelfTypeUnknown(trait_, method_) ->
         [ ES.ShortTraitName(trait_)

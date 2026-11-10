@@ -74,7 +74,7 @@ let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, S
         Stdlib.List.concat(typeReport.diagnostics, typeReport.warnings))
 
     Stdlib.Result.Result.Error(
-      $"the at-rest type check found {Stdlib.toString(count)} definite error(s); "
+      $"the at-rest type check found {Stdlib.display(count)} definite error(s); "
       + "`dark constraints` and `dark typecheck` show them")
   | Checked
   | Incomplete ->
@@ -199,7 +199,7 @@ let rebaseMessage(parentId: Uuid, rebased: Branches.Rebased): String =
     match rebased.diverged with
     | [] -> []
     | names ->
-      let n = Stdlib.toString(Stdlib.List.length(names))
+      let n = Stdlib.display(Stdlib.List.length(names))
       let listed = Stdlib.String.join(names, "\n  ")
       [ $"it had changed {n} name(s) you also touched:\n  {listed}\nthe newer edit of each won and the other is recorded: `dark conflicts` lists them, and an override takes the other." ]
 
@@ -207,7 +207,7 @@ let rebaseMessage(parentId: Uuid, rebased: Branches.Rebased): String =
     match rebased.repointed with
     | [] -> []
     | names ->
-      let n = Stdlib.toString(Stdlib.List.length(names))
+      let n = Stdlib.display(Stdlib.List.length(names))
       let listed = Stdlib.String.join(names, "\n  ")
       [ $"it had moved names this branch calls; {n} caller(s) now point at the parent's version:\n  {listed}" ]
 
@@ -250,7 +250,7 @@ let branchList(includeMerged: Bool): String =
     if hidden == 0 then
       ""
     else
-      $"\n\n{Stdlib.toString(hidden)} merged -- `dark branches --all` shows them."
+      $"\n\n{Stdlib.display(hidden)} merged -- `dark branches --all` shows them."
 
   match Branches.listLines(includeMerged) with
   | [] ->
@@ -271,7 +271,7 @@ let branchList(includeMerged: Bool): String =
 
         Stdlib.List.append(
           Stdlib.List.take(lines, cap),
-          $"+ {Stdlib.toString(more)} more -- `dark branches --all` lists every branch.")
+          $"+ {Stdlib.display(more)} more -- `dark branches --all` lists every branch.")
 
     (Stdlib.String.join(shown, "\n")) + footer
 

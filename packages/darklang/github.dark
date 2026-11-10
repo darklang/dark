@@ -33,7 +33,7 @@ let releaseErrorMessage(e: ReleaseError): String =
   | RequestFailed(requestError) ->
     $"Couldn't reach the GitHub API: {Stdlib.HttpClient.toString(requestError)}"
   | BadStatus(code) ->
-    $"The GitHub API answered with status {Stdlib.toString(code)}"
+    $"The GitHub API answered with status {Stdlib.display(code)}"
   | UnexpectedResponse -> "Couldn't read the GitHub API's answer"
   | NoReleases -> "No releases found"
   | ReleaseNotFound(tag) -> $"No release is tagged {tag}"

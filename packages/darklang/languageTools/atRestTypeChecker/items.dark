@@ -240,9 +240,9 @@ let checkFunction(
   : (Outcome * Model.Environment) =
   checkFunctionKnowing(env, fn, NodeIds.problem(fn.body))
 
-/// Attach interpolation context only to findings on the implicit conversion.
-let interpolationContext(body: LanguageTools.ProgramTypes.Expr, outcome: Outcome): Outcome =
-  let collect(nodes: List<NodeIds.Node>, ids: List<UInt64>): List<UInt64> =
+/// The call and name ids of each interpolation's implicit `Display.display` in <param body>.
+let interpolationIds(body: LanguageTools.ProgramTypes.Expr): List<Int64> =
+  let collect(nodes: List<NodeIds.Node>, ids: List<Int64>): List<Int64> =
     match nodes with
     | [] -> ids
     | [ node, ...rest ] ->
@@ -252,15 +252,36 @@ let interpolationContext(body: LanguageTools.ProgramTypes.Expr, outcome: Outcome
           Stdlib.List.fold(segments, ids, fun(ids, segment) ->
             match segment with
             | StringInterpolation(EApply(callId, EFnName(nameId, name, _, _), [], [ _ ])) when
-                name.originalName == [ "Darklang", "Stdlib", "ToString", "toString" ] ->
-              Stdlib.List.concat([ toUInt64(callId), toUInt64(nameId) ], ids)
+                name.originalName == [ "Darklang", "Stdlib", "Display", "display" ] ->
+              Stdlib.List.concat([ callId, nameId ], ids)
             | _ -> ids)
         | _ -> ids
       let (_, children) = NodeIds.children(node)
       collect(Stdlib.List.concat(children, rest), ids)
+  collect([ NodeIds.Node.Expression(body) ], [])
+
+/// An interpolated value whose type has no `Display` is shown by `inspect` when it runs, so
+/// the missing implementation is not a finding. Reports what is still waiting first, since a
+/// conversion whose type was settled late is found missing only then.
+let withoutInterpolationFallbacks(body: LanguageTools.ProgramTypes.Expr, s: Solve.State): Solve.State =
+  let s = Solve.reportUnsolvedConstraints(s)
+  let missing(f: Model.Finding): Bool = f.code == IssueCode.MissingImpl
+  if Stdlib.Bool.not(Stdlib.List.any(s.findings, missing)) then
+    s
+  else
+    let ids = interpolationIds(body)
+    { s with
+        findings =
+          Stdlib.List.filter(s.findings, fun f ->
+            match f.at with
+            | Some(at) when missing(f) -> Stdlib.Bool.not(Stdlib.List.contains(ids, at))
+            | _ -> true) }
+
+/// Attach interpolation context only to findings on the implicit conversion.
+let interpolationContext(body: LanguageTools.ProgramTypes.Expr, outcome: Outcome): Outcome =
   let ids =
     if Stdlib.List.isEmpty(outcome.diagnostics) && Stdlib.List.isEmpty(outcome.warnings) then []
-    else collect([ NodeIds.Node.Expression(body) ], [])
+    else interpolationIds(body) |> Stdlib.List.map(fun id -> toUInt64(id))
   let contextualize(issue: Issue): Issue =
     match issue.nodeId with
     | Some(id) when Stdlib.List.contains(ids, id) ->
@@ -320,7 +341,7 @@ let checkFunctionKnowing(
 
   let s = Solve.solve(Solve.start(env), constraints)
   let bodyId = LanguageTools.ProgramTypes.Expr.toID(fn.body)
-  (interpolationContext(fn.body, finish(s, Stdlib.Option.Option.Some(bodyId), monomorphic(self))), s.env)
+  (interpolationContext(fn.body, finish(withoutInterpolationFallbacks(fn.body, s), Stdlib.Option.Option.Some(bodyId), monomorphic(self))), s.env)
 
 /// Solve the requirements prepared for a package value and infer its type.
 /// Allow a reusable generic type only for bodies accepted by isNonExpansive,
@@ -340,7 +361,7 @@ let checkValue(
       (monomorphic(typ), s)
 
   let bodyId = LanguageTools.ProgramTypes.Expr.toID(value.body)
-  (interpolationContext(value.body, finish(s, Stdlib.Option.Option.Some(bodyId), scheme)), s.env)
+  (interpolationContext(value.body, finish(withoutInterpolationFallbacks(value.body, s), Stdlib.Option.Option.Some(bodyId), scheme)), s.env)
 
 /// Check duplicate type parameters and member names, then include validation
 /// problems from this type declaration and the declarations it depends on.
@@ -629,7 +650,7 @@ let checkTest(
 
   let s = Solve.solve(Solve.start(env), constraints)
   let bodyId = LanguageTools.ProgramTypes.Expr.toID(test.body)
-  (interpolationContext(test.body, finish(s, Stdlib.Option.Option.Some(bodyId), monomorphic(typ))), s.env)
+  (interpolationContext(test.body, finish(withoutInterpolationFallbacks(test.body, s), Stdlib.Option.Option.Some(bodyId), monomorphic(typ))), s.env)
 
 /// Check each test against env. Nothing can reference a test, so no test's
 /// result feeds another declaration's check.

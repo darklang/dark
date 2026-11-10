@@ -261,9 +261,9 @@ module Status =
     | _ -> ""
 
 
-impl ToString for Status =
+impl Display for Status =
   /// The status number, {{404}}
-  let toString(status: Status): String = Stdlib.toString(status.__status)
+  let display(status: Status): String = Stdlib.display(status.__status)
 
 
 /// What a handler answers. <param statusCode> is a plain number, so any helper below takes
@@ -422,11 +422,11 @@ type Cookie =
 
 //     let cookie =
 //       [ ("Expires", expires)
-//         ("Max-Age", cookie.maxAge |> Stdlib.toString)
+//         ("Max-Age", cookie.maxAge |> Stdlib.display)
 //         ("Domain", cookie.domain)
 //         ("Path", cookie.path)
-//         ("Secure", cookie.secure |> Stdlib.toString)
-//         ("HttpOnly", cookie.httpOnly |> Stdlib.toString)
+//         ("Secure", cookie.secure |> Stdlib.display)
+//         ("HttpOnly", cookie.httpOnly |> Stdlib.display)
 //         ("SameSite", cookie.sameSite) ]
 //       |> Stdlib.List.filterMap (fun (k, v) -> if v == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(k, v))
 //       |> Stdlib.List.map (fun (k, v) -> k + "=" + v)

@@ -10,4 +10,4 @@ let bytes =
     Stdlib.Bytes.fromList([ 0u8 ]),
     Stdlib.Utf8.encode(Stdlib.String.repeat("a", 1048575)))
 
-Stdlib.printLine("found at " + Stdlib.toString(scan(bytes, 0u8, 1048575)))
+Stdlib.printLine("found at " + Stdlib.display(scan(bytes, 0u8, 1048575)))

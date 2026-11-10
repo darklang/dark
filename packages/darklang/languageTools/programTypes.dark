@@ -65,7 +65,7 @@ module FQFnName =
       method_: String
       choice: ImplChoice }
 
-  /// A trait method call: the trait, the method name (`ToString.toString`), and how
+  /// A trait method call: the trait, the method name (`Display.display`), and how
   /// much the save could say about which implementation runs.
   type TraitMethod =
     { trait_: FQTraitName.Package
@@ -757,7 +757,7 @@ module DocPart =
     | WholeItem -> "the item"
     | RecordField(name) -> $"field {name}"
     | EnumCase(name) -> $"case {name}"
-    | Parameter(index) -> $"parameter {Stdlib.toString(index + 1)}"
+    | Parameter(index) -> $"parameter {Stdlib.display(index + 1)}"
 
 
 /// Keep the reference names for one declaration at a particular package location.

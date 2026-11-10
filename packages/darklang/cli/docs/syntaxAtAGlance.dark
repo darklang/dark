@@ -6,7 +6,7 @@ let content(): String =
   """## Dark syntax at a glance
 
   Stdlib.String.trim(s)   add(a, b)   main()   calls take parentheses and commas
-  "n = " + Stdlib.toString(n)                  `+` joins Strings
+  "n = " + Stdlib.display(n)                  `+` joins Strings
   2   -7   1.5   255u8   3s32   10z   9.5dec   a plain integer is an Int64
   [1, 2, 3]   Point { x = 1, y = 2 }           commas, or one item per line
   [x, ...xs]   [...xs, ...ys]                  prepend an item; join two lists

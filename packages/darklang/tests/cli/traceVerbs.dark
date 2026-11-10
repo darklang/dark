@@ -10,7 +10,7 @@ module Darklang.Cli.Tests.TraceVerbs
 
 /// Two uuids, so a replay is told apart from a rerun by its output.
 val twoUuids =
-  "let a = Stdlib.Uuid.generate()\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
+  "let a = Stdlib.Uuid.generate()\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.display(a), Stdlib.display(b) ], \" \")"
 
 
 let lines(s: String): List<String> =
@@ -101,7 +101,7 @@ test aForkKeepsTheLogUpToItsPosition =
 test aResumedRunSpawnsAgainAndTheChildReplays =
   Traces.withTraces(fun i ->
     let program =
-      "let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\nlet child = Stdlib.Exec.await(h)\nlet mine = Stdlib.toString(Stdlib.Uuid.generate())\nStdlib.printLine($\"{child} {mine}\")"
+      "let h = Stdlib.Exec.spawn(fun () -> Stdlib.display(Stdlib.Uuid.generate()))\nlet child = Stdlib.Exec.await(h)\nlet mine = Stdlib.display(Stdlib.Uuid.generate())\nStdlib.printLine($\"{child} {mine}\")"
 
     // The resume echoes a logged print with a `[replayed]` prefix and prints its own
     // progress above it; the two uuids are the last line long enough to hold them
@@ -128,7 +128,7 @@ test aResumeAfterAnEditRunsTheNewCodeOnTheOldEffects =
           Traces.step(i, [ "commit", "shape v1", "-y" ]) ])
 
     let first =
-      lastLine(i, [ "eval", "Tests.Exec.shape(Stdlib.toString(Stdlib.Uuid.generate()))" ])
+      lastLine(i, [ "eval", "Tests.Exec.shape(Stdlib.display(Stdlib.Uuid.generate()))" ])
 
     let id = Traces.latestId(i)
 
@@ -224,7 +224,7 @@ test aScriptsArgumentsSurviveViewResumeForkAndRerun =
     let _ =
       Stdlib.Cli.File.writeText(
         path,
-        "let summary = Tests.ScriptReplay.describe(args)\nlet uuid = Stdlib.Uuid.generate()\nStdlib.printLine(summary + \"|\" + Stdlib.toString(uuid))\n7")
+        "let summary = Tests.ScriptReplay.describe(args)\nlet uuid = Stdlib.Uuid.generate()\nStdlib.printLine(summary + \"|\" + Stdlib.display(uuid))\n7")
 
     let (firstCode, first) = Instance.ran(i, Stdlib.List.flatten([ [ "run", path ], args ]))
     let original = printed(first)
@@ -320,7 +320,7 @@ test showServesASpawnedChildFromTheLog =
       authored(
         i,
         "Tests.Prev.conc",
-        "(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.toString(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)")
+        "(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.display(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)")
 
     let recorded =
       lines(Instance.output(i, [ "eval", "Tests.Prev.conc()" ]))
@@ -347,7 +347,7 @@ test identicalCallsKeepTheirOwnValues =
       authored(
         i,
         "Tests.Prev.two",
-        "(): String =\n  let a = Stdlib.toString(Stdlib.Uuid.generate())\n  let b = Stdlib.toString(Stdlib.Uuid.generate())\n  $\"{a} {b}\"")
+        "(): String =\n  let a = Stdlib.display(Stdlib.Uuid.generate())\n  let b = Stdlib.display(Stdlib.Uuid.generate())\n  $\"{a} {b}\"")
 
     let ran = lastLine(i, [ "eval", "Tests.Prev.two()" ])
     let viewed = Instance.output(i, [ "traces", "show", "Tests.Prev.two" ])
@@ -377,7 +377,7 @@ test identicalCallsKeepTheirOwnValues =
 test showUsesTheViewersApprovals =
   Traces.withTraces(fun i ->
     let defined =
-      authored(i, "Tests.PreviewAccount.value", "(): String = Stdlib.toString(Stdlib.Uuid.generate())")
+      authored(i, "Tests.PreviewAccount.value", "(): String = Stdlib.display(Stdlib.Uuid.generate())")
 
     let recorded = Stdlib.String.replaceAll(lastLine(i, [ "eval", "Tests.PreviewAccount.value()" ]), "\"", "")
 
@@ -438,7 +438,7 @@ test everyIterationOfALoopIsReachable =
     let pages =
       [ (1, "100"), (7, "700"), (15, "1500"), (30, "3000") ]
       |> Stdlib.List.map(fun((which, expected)) ->
-        let n = Stdlib.toString(which)
+        let n = Stdlib.display(which)
         let shown = Instance.said(i, [ "traces", "show", "Tests.Prev.scaled", "--iteration", $"map:{n}" ])
 
         Stdlib.Test.all(

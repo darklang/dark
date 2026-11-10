@@ -36,7 +36,7 @@ let run<'a, 'b>(
     | None ->
       Stdlib.String.join(
         (Stdlib.List.concat(
-          [ $"Isolated test exited {Stdlib.toString(exitCode)} without a result:"
+          [ $"Isolated test exited {Stdlib.display(exitCode)} without a result:"
             stdout
             stderr ],
           cleanupErrors)),

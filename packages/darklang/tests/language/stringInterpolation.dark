@@ -8,7 +8,7 @@ test interpolation =
        let age = "30"
        $"Name: {name}, Age: {age} years old.")
       |> Stdlib.Test.equal("Name: John, Age: 30 years old.")
-      (let one = 1 in $"test {Stdlib.toString(one)}")
+      (let one = 1 in $"test {Stdlib.display(one)}")
       |> Stdlib.Test.equal("test 1") ])
 
 test floatInterpolation =
@@ -19,16 +19,29 @@ test int64Interpolation =
 
 type Point = { x: Int64 }
 
-impl ToString for Point =
-  let toString(p: Point): String = $"Point({p.x})"
+impl Display for Point =
+  let display(p: Point): String = $"Point({p.x})"
 
-let display<'a: ToString>(value: 'a): String = $"value: {value}"
+let display<'a: Display>(value: 'a): String = $"value: {value}"
 
 test customAndGeneric =
   Stdlib.Test.all(
     [ $"{Point { x = 42 }}" |> Stdlib.Test.equal("Point(42)")
       display(Point { x = 3 }) |> Stdlib.Test.equal("value: Point(3)")
       display(7) |> Stdlib.Test.equal("value: 7") ])
+
+type NoDisplay = { y: String }
+
+let interpolated(value: 'a): String = $"<{value}>"
+
+// A type with no Display interpolates as inspect shows it.
+test fallsBackToInspect =
+  Stdlib.Test.all(
+    [ $"{NoDisplay { y = "a" }}" |> Stdlib.Test.equal(Stdlib.inspect(NoDisplay { y = "a" }))
+      $"{[ 1, 2 ]}" |> Stdlib.Test.equal("[1, 2]")
+      $"{(1, "b")}" |> Stdlib.Test.equal("(1, \"b\")")
+      interpolated([ true ]) |> Stdlib.Test.equal("<[true]>")
+      interpolated(5) |> Stdlib.Test.equal("<5>") ])
 
 test unboundVariableRaises =
   (let two = 2 in "test 1" == $"test {one}")

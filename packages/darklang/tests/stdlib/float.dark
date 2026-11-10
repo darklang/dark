@@ -263,42 +263,42 @@ test nanInequalityIsTrue =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(1.5) |> Stdlib.Test.equal("1.5")
-      Stdlib.toString(0.0) |> Stdlib.Test.equal("0.0")
-      Stdlib.toString(-0.5) |> Stdlib.Test.equal("-0.5")
-      Stdlib.toString(0.5) |> Stdlib.Test.equal("0.5")
-      Stdlib.toString(-5.555555555555555e28)
+    [ Stdlib.display(1.5) |> Stdlib.Test.equal("1.5")
+      Stdlib.display(0.0) |> Stdlib.Test.equal("0.0")
+      Stdlib.display(-0.5) |> Stdlib.Test.equal("-0.5")
+      Stdlib.display(0.5) |> Stdlib.Test.equal("0.5")
+      Stdlib.display(-5.555555555555555e28)
       |> Stdlib.Test.equal("-5.555555555555555e+28")
       // Shortest round-trip: what prints is the number, not a twelve-digit
       // rounding of it.
-      Stdlib.toString(0.1 + 0.2) |> Stdlib.Test.equal("0.30000000000000004")
-      Stdlib.toString(1.0 / 3.0) |> Stdlib.Test.equal("0.3333333333333333")
-      Stdlib.toString(1.0000000000000002)
+      Stdlib.display(0.1 + 0.2) |> Stdlib.Test.equal("0.30000000000000004")
+      Stdlib.display(1.0 / 3.0) |> Stdlib.Test.equal("0.3333333333333333")
+      Stdlib.display(1.0000000000000002)
       |> Stdlib.Test.equal("1.0000000000000002")
       // Fixed notation from 1e-4 up to 1e16, scientific outside, no zero
       // padding, and no `.0` on scientific (it used to print `1e+17.0`, which
       // Float.parse refuses). Same layout as the compiler's Float.toString.
-      Stdlib.toString(0.0001) |> Stdlib.Test.equal("0.0001")
-      Stdlib.toString(0.00001) |> Stdlib.Test.equal("1e-5")
-      Stdlib.toString(-0.00001) |> Stdlib.Test.equal("-1e-5")
-      Stdlib.toString(123456789012345.0)
+      Stdlib.display(0.0001) |> Stdlib.Test.equal("0.0001")
+      Stdlib.display(0.00001) |> Stdlib.Test.equal("1e-5")
+      Stdlib.display(-0.00001) |> Stdlib.Test.equal("-1e-5")
+      Stdlib.display(123456789012345.0)
       |> Stdlib.Test.equal("123456789012345.0")
-      Stdlib.toString(9007199254740992.0)
+      Stdlib.display(9007199254740992.0)
       |> Stdlib.Test.equal("9007199254740992.0")
-      Stdlib.toString(10000000000000000.0) |> Stdlib.Test.equal("1e+16")
-      Stdlib.toString(1.2345678901234568e17)
+      Stdlib.display(10000000000000000.0) |> Stdlib.Test.equal("1e+16")
+      Stdlib.display(1.2345678901234568e17)
       |> Stdlib.Test.equal("1.2345678901234568e+17") ])
 
 test toStringRoundTrips =
   Stdlib.Test.all(
-    [ Stdlib.Float.parse(Stdlib.toString(1.0 / 3.0))
+    [ Stdlib.Float.parse(Stdlib.display(1.0 / 3.0))
       |> Stdlib.Test.equal(Ok(1.0 / 3.0))
-      Stdlib.Float.parse(Stdlib.toString(1.2345678901234568e17))
+      Stdlib.Float.parse(Stdlib.display(1.2345678901234568e17))
       |> Stdlib.Test.equal(Ok(1.2345678901234568e17))
-      Stdlib.Float.parse(Stdlib.toString(-0.00001))
+      Stdlib.Float.parse(Stdlib.display(-0.00001))
       |> Stdlib.Test.equal(Ok(-0.00001))
       Stdlib.Float.parse("5e-324")
-      |> Stdlib.Result.map(fun f -> Stdlib.toString(f))
+      |> Stdlib.Result.map(fun f -> Stdlib.display(f))
       |> Stdlib.Test.equal(Ok("5e-324")) ])
 
 // toInt64 truncates toward zero.

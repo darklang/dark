@@ -17,12 +17,12 @@ test mainIdIsCurrentBranch =
 // passing one where the other belongs is correct by accident. With a uuid, anything printing the id
 // where it means the name reads as a raw uuid, visibly.
 test idIsNotName =
-  (Stdlib.toString(Darklang.SCM.Branch.mainBranchId) == Darklang.SCM.Branch.mainBranchName)
+  (Stdlib.display(Darklang.SCM.Branch.mainBranchId) == Darklang.SCM.Branch.mainBranchName)
   |> Stdlib.Test.equal(false)
 
 // ...and it is a Uuid, which is a different TYPE from a name, not merely a differently-shaped string.
 test idIsUuid =
-  Stdlib.String.length(Stdlib.toString(Darklang.SCM.Branch.mainBranchId))
+  Stdlib.String.length(Stdlib.display(Darklang.SCM.Branch.mainBranchId))
   |> Stdlib.Test.equal(36)
 
 // Main is not a row in `branches`: it needs no registration, so `get` finds nothing for it.
@@ -43,6 +43,6 @@ test mainResolvesByName =
     [ Darklang.Cli.Branch.lookupRef("main")
       |> Stdlib.Test.equal(
         Stdlib.Option.Option.Some(Darklang.SCM.Branch.mainBranchId))
-      Darklang.Cli.Branch.lookupRef(Stdlib.toString(Darklang.SCM.Branch.mainBranchId))
+      Darklang.Cli.Branch.lookupRef(Stdlib.display(Darklang.SCM.Branch.mainBranchId))
       |> Stdlib.Test.equal(
         Stdlib.Option.Option.Some(Darklang.SCM.Branch.mainBranchId)) ])

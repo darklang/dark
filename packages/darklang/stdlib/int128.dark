@@ -154,9 +154,9 @@ impl ShiftRight for Int128 =
   /// Bitwise right shift of an <type Int128> value
   let shiftRight(a: Int128, b: Int128): Int128 = Builtin.shiftRight(a, b)
 
-impl ToString for Int128 =
+impl Display for Int128 =
   /// Stringify <param int128>
-  let toString(int128: Int128): String = Builtin.int128ToString(int128)
+  let display(int128: Int128): String = Builtin.int128ToString(int128)
 
 impl Zero for Int128 =
   let zero(): Int128 = 0s128
