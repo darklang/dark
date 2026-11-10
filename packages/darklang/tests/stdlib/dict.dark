@@ -417,6 +417,22 @@ test nonStringKeysOrdering =
   Stdlib.Dict.keys(Dict { 10: "a", 9: "b", 100: "c" })
   |> Stdlib.Test.equal([ 9, 10, 100 ])
 
+// Past 24 entries a dict is a tree; every traversal still goes in key order.
+test traversalsPastTwentyFourGoInKeyOrder =
+  let d =
+    Stdlib.List.fold(Stdlib.List.reverse(Stdlib.List.range(1, 40)), Dict { }, fun(acc, i) ->
+      Stdlib.Dict.set(acc, (i % 2 == 0, "k" + (Stdlib.toString(i))), i))
+  let firstKeys = [ (false, "k1"), (false, "k11"), (false, "k13") ]
+  Stdlib.Test.all(
+    [ Stdlib.List.take(Stdlib.Dict.keys(d), 3) |> Stdlib.Test.equal(firstKeys)
+      Stdlib.List.take(Stdlib.Dict.values(d), 3) |> Stdlib.Test.equal([ 1, 11, 13 ])
+      Stdlib.List.last(Stdlib.Dict.toList(d))
+      |> Stdlib.Test.equal(Some(((true, "k8"), 8)))
+      Stdlib.Dict.fold(d, [], fun(acc, k, v) -> Stdlib.List.append(acc, v))
+      |> Stdlib.Test.equal(Stdlib.Dict.values(d))
+      Stdlib.Dict.values(Stdlib.Dict.mapValues(d, fun v -> v * 10))
+      |> Stdlib.Test.equal(Stdlib.List.map(Stdlib.Dict.values(d), fun v -> v * 10)) ])
+
 test nonStringKeysComputedKeys =
   Stdlib.Test.all(
     [ Stdlib.Dict.get(Dict { (1 + 1): "two" }, 2)
