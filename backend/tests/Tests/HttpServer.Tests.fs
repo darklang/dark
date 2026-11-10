@@ -494,14 +494,15 @@ let private runFixture (test : Test) : Task<unit> =
 
 
 /// One server, one router, driven by raw sockets so the requests really are concurrent:
-/// `requests` are (path, body) pairs sent with `method`, all at once. Returns (status line,
-/// body) per request, in request order.
-let private runRequestsAgainst
+/// `requests` are (path, body) pairs sent with `method`, all at once. Returns each response
+/// as `Http.split` parses it, in request order.
+let private runParsedRequestsAgainst
+  (maxBodyBytes : int64)
   (requestTimeoutMs : int)
   (routerCode : string)
   (method : string)
   (requests : (string * byte[]) list)
-  : Task<(string * byte[]) array> =
+  : Task<Http.T array> =
   task {
     let! exeState = executionStateFor pmPT true
     let test =
@@ -518,13 +519,13 @@ let private runRequestsAgainst
         listener
         (int64 port)
         handler
-        HttpServer.defaultMaxBodyBytes
+        maxBodyBytes
         requestTimeoutMs
         false // injectStandardHeaders
         false // canonicalizeFromForwardedProto
         false // logRequests
         cts.Token
-    let oneRequest (path : string, body : byte[]) : Task<string * byte[]> =
+    let oneRequest (path : string, body : byte[]) : Task<Http.T> =
       task {
         let header =
           UTF8.toBytes
@@ -547,8 +548,7 @@ let private runRequestsAgainst
             if n = 0 then reading <- false else ms.Write(buf, 0, n)
         with :? System.OperationCanceledException ->
           ()
-        let parsed = Http.split (ms.ToArray())
-        return (parsed.status, parsed.body)
+        return Http.split (ms.ToArray())
       }
     try
       // `task { }` is hot, so mapping starts all requests concurrently.
@@ -560,6 +560,24 @@ let private runRequestsAgainst
         listenerTask.Wait 2000 |> ignore<bool>
       with _ ->
         ()
+  }
+
+/// `runParsedRequestsAgainst` under the default body limit, as (status line, body).
+let private runRequestsAgainst
+  (requestTimeoutMs : int)
+  (routerCode : string)
+  (method : string)
+  (requests : (string * byte[]) list)
+  : Task<(string * byte[]) array> =
+  task {
+    let! results =
+      runParsedRequestsAgainst
+        HttpServer.defaultMaxBodyBytes
+        requestTimeoutMs
+        routerCode
+        method
+        requests
+    return results |> Array.map (fun r -> r.status, r.body)
   }
 
 let private textOf (status : string, body : byte[]) : string * string =
@@ -678,6 +696,65 @@ let private requestsAreProcesses =
       } ]
 
 
+/// `HttpListener` names .NET in a `Server` header on any response that has none. No response
+/// may carry it: not the handler's, nor the ones the server writes itself (a handler that
+/// returned the wrong type, one that raised, one past its time, a body over the limit).
+let private noResponseNamesDotNet =
+  testTask "no response carries the .NET server name" {
+    use output = new OutputCapture()
+    let router =
+      """(match request.url with
+          | url when Darklang.Stdlib.String.contains(url, "/slow") ->
+            let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
+            Darklang.Stdlib.Http.responseWithText(200, "slow done")
+          | url when Darklang.Stdlib.String.contains(url, "/boom") ->
+            Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.toString(1 / 0))
+          | url when Darklang.Stdlib.String.contains(url, "/int") -> 13
+          | url when Darklang.Stdlib.String.contains(url, "/own") ->
+            Darklang.Stdlib.Http.responseWithHeaders(200, [ ("server", "mine") ], Darklang.Stdlib.Utf8.encode("own"))
+          | _ -> Darklang.Stdlib.Http.responseWithText(200, "fast"))"""
+    let! results =
+      runParsedRequestsAgainst
+        4L
+        200
+        router
+        "POST"
+        [ "/fast", [||]
+          "/int", [||]
+          "/boom", [||]
+          "/slow", [||]
+          "/fast", UTF8.toBytes "over the limit"
+          "/own", [||] ]
+    let expected =
+      [ "200", "darklang"
+        "500", "darklang"
+        "500", "darklang"
+        "504", "darklang"
+        "413", "darklang"
+        "200", "mine" ]
+    results
+    |> Array.iteri (fun i (r : Http.T) ->
+      let wantStatus, wantServer = expected[i]
+      Expect.stringContains r.status wantStatus $"response {i}: status"
+      let servers =
+        r.headers
+        |> List.filter (fun (k, _) -> String.toLowercase k = "server")
+        |> List.map snd
+      Expect.equal servers [ wantServer ] $"response {i}: one Server header, Dark's"
+      r.headers
+      |> List.iter (fun (k, v) ->
+        Expect.isFalse
+          ((k + v).Contains "Microsoft-NetCore")
+          $"response {i}: no .NET server name in {k}: {v}"))
+    output.Check(fun stdout stderr ->
+      Expect.stringContains
+        stderr
+        "the handler failed: Cannot divide by 0"
+        "the raised handler is on the serve terminal"
+      Expect.equal stdout "" "nothing on stdout")
+  }
+
+
 /// The serve builtin range-checks its Int64 `port`/`maxBodyBytes` BEFORE binding, turning what would be
 /// a host `HttpListener`/overflow crash into a Dark `OutOfRange` error. This
 /// asserts that guard: the values are rejected without a socket ever opening.
@@ -775,6 +852,7 @@ let tests =
     "HttpServer"
     (serveRejectsOutOfRangeArgs
      :: bindRetriesATakenPort
+     :: noResponseNamesDotNet
      :: concurrentEphemeralBytesRequests
      :: requestsAreProcesses
      :: fileTestLists)
