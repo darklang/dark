@@ -229,6 +229,7 @@ rules allow (or deny) additional effects and resources:
   permissions allow http GET https://api.stripe.com/v1
   permissions allow file write /home/me/project/data   # absolute; ~ not expanded
   permissions deny http POST https://api.stripe.com/v1
+  run --allow 'http GET https://api.stripe.com/v1' x.dark   # this run only, not saved
   permissions allow native             # raw fds, process handles: cannot be scoped,
                                        # so it is granted whole or not at all
   permissions requirements <fn|hash>   # complete transitive permission requirements

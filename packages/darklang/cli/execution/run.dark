@@ -19,6 +19,7 @@ let exitCode(
 
 
 /// Run a script and return its exit code and permission warnings.
+/// <param allow> adds instance-policy rules for this run only; nothing is saved.
 /// Sandbox mode adds a deny-all run policy.
 /// Warning mode allows and reports calls outside the run and package policies.
 /// Instance policy and function limits still apply.
@@ -29,7 +30,8 @@ let parseAndExecute(
   filename: String,
   code: String,
   args: List<String>,
-  options: Darklang.Tracing.ScriptOptions)
+  options: Darklang.Tracing.ScriptOptions,
+  allow: List<LanguageTools.Permissions.Rule>)
   : Stdlib.Result.Result<(Int64 *
                           List<(String * String * Stdlib.Option.Option<String>)>),
                          ExecutionError.ExecutionError> =
@@ -42,7 +44,8 @@ let parseAndExecute(
       args,
       options.allowHarmful,
       options.sandbox,
-      options.warnPermissions)
+      options.warnPermissions,
+      allow)
   match result with
   | Ok((value, warnings)) ->
     let code = (exitCode(value))?
@@ -85,7 +88,7 @@ let splitArgumentsAfter(
   : (List<String> * List<String>) =
   match remaining with
   | [ "--", ...rest ] -> (Stdlib.List.reverse(Stdlib.List.prepend(options, "--")), rest)
-  | [ flag, value, ...rest ] when flag == "--branch" || flag == "--entry-point" ->
+  | [ flag, value, ...rest ] when flag == "--branch" || flag == "--entry-point" || flag == "--allow" ->
     splitArgumentsAfter(Stdlib.List.prepend(Stdlib.List.prepend(options, flag), value), rest)
   | [ flag, ...rest ] when isFlag(flag) ->
     splitArgumentsAfter(Stdlib.List.prepend(options, flag), rest)
@@ -114,32 +117,50 @@ let execute(state: AppState, args: List<String>): AppState =
         allowHarmful = false
         sandbox = false
         warnPermissions = false },
-      false)
+      false,
+      [])
 
 
-/// Parse the options before the script path. <param stats> is `--stats`: kept out of
-/// `ScriptOptions` because those are saved with the trace for replay, and a replay has no reason
-/// to report what the original cost.
+/// Parse the options before the script path. <param stats> is `--stats` and <param allow> the
+/// `--allow` rules: both kept out of `ScriptOptions` because those are saved with the trace for
+/// replay, and a replay has no reason to report what the original cost, nor to grant anything.
 let executeOptions(
   state: AppState,
   flags: List<String>,
   script: List<String>,
   options: Darklang.Tracing.ScriptOptions,
-  stats: Bool)
+  stats: Bool,
+  allow: List<LanguageTools.Permissions.Rule>)
   : AppState =
   match flags with
-  | ["--allow-harmful", ...rest] -> executeOptions(state, rest, script, { options with allowHarmful = true }, stats)
-  | ["--sandbox", ...rest] -> executeOptions(state, rest, script, { options with sandbox = true }, stats)
-  | ["--warn-permissions", ...rest] -> executeOptions(state, rest, script, { options with warnPermissions = true }, stats)
-  | ["--stats", ...rest] -> executeOptions(state, rest, script, options, true)
+  | ["--allow-harmful", ...rest] -> executeOptions(state, rest, script, { options with allowHarmful = true }, stats, allow)
+  | ["--sandbox", ...rest] -> executeOptions(state, rest, script, { options with sandbox = true }, stats, allow)
+  | ["--warn-permissions", ...rest] -> executeOptions(state, rest, script, { options with warnPermissions = true }, stats, allow)
+  | ["--stats", ...rest] -> executeOptions(state, rest, script, options, true, allow)
+  | ["--allow", text, ...rest] ->
+    match LanguageTools.Permissions.parseRuleText(text) with
+    | Some(rules) -> executeOptions(state, rest, script, options, stats, Stdlib.List.concat(allow, rules))
+    | None ->
+      Cli.printErr($"--allow: invalid permission rule: {text}")
+      Cli.Stderr.hint("It takes one rule, written as for `permissions allow`, e.g. --allow 'http GET https://api.github.com'")
+      Cli.failed(state)
+  | [ "--allow" ] ->
+    Cli.printErr("--allow needs a rule, e.g. --allow 'http GET https://api.github.com'")
+    Cli.failed(state)
   | [] | [ "--" ] ->
     match script with
     | [scriptPath, ...scriptArgs] ->
       if options.sandbox && options.warnPermissions then
         Cli.printErr("--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")
         Cli.failed(state)
+      else if options.sandbox && Stdlib.Bool.not(Stdlib.List.isEmpty(allow)) then
+        Cli.printErr("--sandbox and --allow cannot be combined: the sandbox denies everything")
+        Cli.failed(state)
       else
-        executeScript(state, scriptPath, scriptArgs, options, stats)
+        allow
+        |> Stdlib.List.iter(fun rule ->
+          Cli.Stderr.hint($"allowed for this run only: {LanguageTools.Permissions.renderRule(rule)}"))
+        executeScript(state, scriptPath, scriptArgs, options, stats, allow)
     | [] ->
       Stdlib.printLine(help(state))
       Cli.failed(state)
@@ -160,11 +181,12 @@ let executeScript(
   scriptPath: String,
   args: List<String>,
   options: Darklang.Tracing.ScriptOptions,
-  stats: Bool)
+  stats: Bool,
+  allow: List<LanguageTools.Permissions.Rule>)
   : AppState =
   match Stdlib.Cli.FileSystem.readFile(scriptPath) with
   | Error(NotFound) when looksLikePackageName(scriptPath) ->
-    executePackageFn(state, scriptPath, args, options, stats)
+    executePackageFn(state, scriptPath, args, options, stats, allow)
   | Error(e) ->
     match e with
     | NotFound -> Stdlib.printErrorLine($"Script not found: {scriptPath}")
@@ -182,7 +204,8 @@ let executeScript(
       args,
       options,
       true,
-      stats)
+      stats,
+      allow)
 
 
 /// Run the package function <param name> the way a script runs: under the same policy, with
@@ -193,7 +216,8 @@ let executePackageFn(
   name: String,
   args: List<String>,
   options: Darklang.Tracing.ScriptOptions,
-  stats: Bool)
+  stats: Bool,
+  allow: List<LanguageTools.Permissions.Rule>)
   : AppState =
   let branchId = state.currentBranchId
   let fnName = TraceVerbs.canonicalFnName(branchId, name)
@@ -207,9 +231,9 @@ let executePackageFn(
     match LanguageTools.PackageManager.Function.getSignature(hash) with
     | Some(fn) ->
       match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
-      | [] | [ TUnit ] -> runNullary(state, name, fnName, args, options, stats)
+      | [] | [ TUnit ] -> runNullary(state, name, fnName, args, options, stats, allow)
       | [ TList(TString) ] ->
-        runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats)
+        runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats, allow)
       | _ ->
         let modulePath = Stdlib.List.prepend(location.modules, location.owner)
         let ctx = Packages.Signatures.rootContext(branchId, modulePath)
@@ -221,7 +245,7 @@ let executePackageFn(
         Stdlib.printErrorLine(
           $"{name} takes ({shown}); `run` passes the words as a List<String>. Call it with: dark eval '{name}(…)'")
         { state with exitCode = 1 }
-    | None -> runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats)
+    | None -> runScriptMeasured(state, name, $"{fnName}(args)", args, options, true, stats, allow)
 
 
 /// <fn executePackageFn> for a function that takes nothing.
@@ -231,10 +255,11 @@ let runNullary(
   fnName: String,
   args: List<String>,
   options: Darklang.Tracing.ScriptOptions,
-  stats: Bool)
+  stats: Bool,
+  allow: List<LanguageTools.Permissions.Rule>)
   : AppState =
   match args with
-  | [] -> runScriptMeasured(state, name, $"{fnName}()", args, options, true, stats)
+  | [] -> runScriptMeasured(state, name, $"{fnName}()", args, options, true, stats, allow)
   | _ ->
     Stdlib.printErrorLine($"{name} takes no arguments")
     { state with exitCode = 1 }
@@ -249,6 +274,21 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
   Stdlib.printErrorLine($"Script error: {pretty}")
   { state with exitCode = 1 }
 
+/// A denial, and when it names a rule, the `--allow` rerun that grants it for one run. A trace
+/// resume or rerun (<param offerApproval> false) is not a command line to repeat.
+let printDenied(
+  state: AppState,
+  denied: ExecutionError.PermissionDenied,
+  offerApproval: Bool,
+  rerun: String -> Stdlib.Option.Option<String>)
+  : AppState =
+  let newState = printScriptError(state, ExecutionError.ExecutionError.Denied(denied))
+  match denied.rule |> Stdlib.Option.andThen(rerun) with
+  | Some(command) when offerApproval ->
+    Cli.Stderr.hint($"To allow it for this run only: `{command}`")
+    newState
+  | _ -> newState
+
 /// Run a script. On denial, offer to save permission for a later run.
 /// Never restart automatically: that could repeat writes or requests.
 /// Only direct terminal runs prompt, with sandbox and warning mode off.
@@ -260,7 +300,7 @@ let runScript(
   options: Darklang.Tracing.ScriptOptions,
   offerApproval: Bool)
   : AppState =
-  runScriptMeasured(state, scriptPath, code, args, options, offerApproval, false)
+  runScriptMeasured(state, scriptPath, code, args, options, offerApproval, false, [])
 
 
 /// <fn runScript>, and with <param stats> also what the run cost, the same block `eval --stats`
@@ -273,7 +313,8 @@ let runScriptMeasured(
   args: List<String>,
   options: Darklang.Tracing.ScriptOptions,
   offerApproval: Bool,
-  stats: Bool)
+  stats: Bool,
+  allow: List<LanguageTools.Permissions.Rule>)
   : AppState =
   let run = fun () ->
     parseAndExecute(
@@ -282,7 +323,8 @@ let runScriptMeasured(
       scriptPath,
       code,
       args,
-      options)
+      options,
+      allow)
 
   let (measurement, result) =
     if stats then
@@ -293,7 +335,16 @@ let runScriptMeasured(
     else
       (Stdlib.Option.Option.None, run())
 
-  let newState = handleResult(state, result, options, offerApproval)
+  // No hint for a rule this run already had: the saved policy denies it outright.
+  let rerun = fun rule ->
+    let granted =
+      LanguageTools.Permissions.parseRuleText(rule)
+      |> Stdlib.Option.map(fun rules ->
+        Stdlib.List.all(rules, fun r -> Stdlib.List.contains(allow, r)))
+      |> Stdlib.Option.withDefault(false)
+    if granted then Stdlib.Option.Option.None
+    else Stdlib.Option.Option.Some(rerunAllowing(scriptPath, args, options, allow, rule))
+  let newState = handleResult(state, result, options, offerApproval, rerun)
 
   match measurement with
   | Some(m) ->
@@ -308,14 +359,59 @@ let runScriptMeasured(
   | None -> newState
 
 
+/// A shell word for <param word>: as it is when nothing in it needs quoting, else quoted. A rule
+/// that already single-quotes its URL or path goes in double quotes, unless something in it would
+/// expand there.
+let shellWord(word: String): String =
+  let plain =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-./:=@%+,"
+  let isPlain =
+    word != ""
+    && (Stdlib.String.toList(word)
+        |> Stdlib.List.all(fun c -> Stdlib.String.contains(plain, Stdlib.toString(c))))
+  let expands =
+    [ "$", "`", "\\", "\"", "!" ] |> Stdlib.List.any(fun c -> Stdlib.String.contains(word, c))
+  if isPlain then word
+  else if Stdlib.String.contains(word, "'") && Stdlib.Bool.not(expands) then "\"" + word + "\""
+  else LanguageTools.Permissions.quoteToken(word)
+
+
+/// The command that reruns this run with <param rule> allowed too, for a denial's hint: the same
+/// options, the `--allow` rules it already had, the path or function, and its arguments.
+let rerunAllowing(
+  scriptPath: String,
+  args: List<String>,
+  options: Darklang.Tracing.ScriptOptions,
+  allow: List<LanguageTools.Permissions.Rule>,
+  rule: String)
+  : String =
+  let flag(on: Bool, name: String): List<String> = if on then [ name ] else []
+  let allowFlags =
+    Stdlib.List.concat(
+      allow |> Stdlib.List.map(LanguageTools.Permissions.renderRule),
+      [ rule ])
+    |> Stdlib.List.map(fun r -> "--allow " + shellWord(r))
+  let path = if isFlag(scriptPath) then [ "--", shellWord(scriptPath) ] else [ shellWord(scriptPath) ]
+  Stdlib.List.flatten(
+    [ [ "dark run" ]
+      flag(options.allowHarmful, "--allow-harmful")
+      flag(options.warnPermissions, "--warn-permissions")
+      allowFlags
+      path
+      args |> Stdlib.List.map(shellWord) ])
+  |> Stdlib.String.join(" ")
+
+
 /// Report what <fn parseAndExecute> returned, and offer to save a denied permission.
+/// <param rerun> is the command that reruns with a rule allowed, for the hint, when there is one.
 let handleResult(
   state: AppState,
   result: Stdlib.Result.Result<(Int64 *
                                 List<(String * String * Stdlib.Option.Option<String>)>),
                                ExecutionError.ExecutionError>,
   options: Darklang.Tracing.ScriptOptions,
-  offerApproval: Bool)
+  offerApproval: Bool,
+  rerun: String -> Stdlib.Option.Option<String>)
   : AppState =
   match result with
   | Ok((exitCode, violations)) ->
@@ -346,9 +442,9 @@ let handleResult(
           Stdlib.printErrorLine("Permission saved. The script has not restarted; rerun it explicitly when ready.")
           { state with exitCode = 1 }
         else
-          printScriptError(state, ExecutionError.ExecutionError.Denied(denied))
-      | None -> printScriptError(state, ExecutionError.ExecutionError.Denied(denied))
-    | _ -> printScriptError(state, ExecutionError.ExecutionError.Denied(denied))
+          printDenied(state, denied, offerApproval, rerun)
+      | None -> printDenied(state, denied, offerApproval, rerun)
+    | _ -> printDenied(state, denied, offerApproval, rerun)
   | Error(e) -> printScriptError(state, e)
 
 
@@ -384,6 +480,8 @@ let help(_state: AppState): String =
     "  run-script script.dark            - Run a script"
     "  run-script script.dark a b c      - Run with args"
     "  run-script --stats script.dark    - Run and report what it cost"
+    "  run-script --allow 'http GET https://api.github.com' script.dark"
+    "                                    - Run with one more permission, this time only"
     ""
     "Everything after the path is passed unchanged, including flags and --."
     "See `docs scripts` for arguments, exit codes and permissions."
@@ -394,6 +492,9 @@ let help(_state: AppState): String =
     "  --warn-permissions - UNSAFE audit mode: let requests beyond the run and package"
     "                       policies run and report them; the instance policy and function"
     "                       ceilings still deny. Not with --sandbox."
+    "  --allow <rule>     - Allow one more rule for this run only, written as for"
+    "                       `permissions allow`; repeatable. Nothing is saved, and the"
+    "                       instance policy's deny rules still win. Not with --sandbox."
     "  --allow-harmful    - Opt out of Harmful-deprecation halting."
     "  --stats            - Also report what the run cost: allocation, time, instructions,"
     "                       calls and frame pushes, net of the measuring harness, tagged"

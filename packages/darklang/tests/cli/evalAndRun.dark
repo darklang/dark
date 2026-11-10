@@ -210,6 +210,8 @@ test splitArgumentsLikeTheHost =
       |> Stdlib.Test.equal(([ "--branch", "-v" ], [ "s.dark" ]))
       split([ "--entry-point", "--", "s.dark" ])
       |> Stdlib.Test.equal(([ "--entry-point", "--" ], [ "s.dark" ]))
+      split([ "--allow", "http GET https://h", "s.dark" ])
+      |> Stdlib.Test.equal(([ "--allow", "http GET https://h" ], [ "s.dark" ]))
       split([ "--branch" ]) |> Stdlib.Test.equal(([ "--branch" ], []))
       split([ "--branch=main", "s.dark" ])
       |> Stdlib.Test.equal(([ "--branch=main" ], [ "s.dark" ]))
@@ -280,6 +282,72 @@ test aDeniedScriptStopsAndApprovalIsSaved =
         Instance.says(approved, "Permission saved", "the user approved the rule")
         Instance.exitedWith(laterCode, 0, $"a later run completes: {later}")
         Instance.says(later, "AFTER_APPROVAL", "a later run completes") ]))
+
+
+/// `run --allow <rule>` grants a rule for that run only: the run completes, the saved policy
+/// is unchanged, so the next run without it is denied, and that denial offers the flag. An
+/// explicit deny in the saved policy still wins, and a rule that does not parse runs nothing.
+test runAllowGrantsForOneRunOnly =
+  Instance.withInstance(fun i ->
+    let path =
+      script(
+        i,
+        "allow-once.dark",
+        "Stdlib.printLine(\"BEFORE\")\nlet _ = Stdlib.DateTime.now()\nStdlib.printLine(\"AFTER\")\n0")
+
+    let policy =
+      Instance.exitedWith(
+        Stdlib.Tuple2.first(Instance.ran(i, [ "permissions", "set", "stdout" ])),
+        0,
+        "only stdout is allowed")
+    let (grantedCode, granted) = Instance.ran(i, [ "run", "--allow", "clock", path ])
+    let saved = Instance.said(i, [ "permissions", "list" ])
+    let (deniedCode, denied) = Instance.ran(i, [ "run", path ])
+    let (badCode, bad) = Instance.ran(i, [ "run", "--allow", "clock please", path ])
+    let (sandboxCode, sandbox) =
+      Instance.ran(i, [ "run", "--sandbox", "--allow", "clock", path ])
+
+    let _ = Instance.ran(i, [ "permissions", "set", "stdout; deny clock" ])
+    let (overDenyCode, overDeny) = Instance.ran(i, [ "run", "--allow", "clock", path ])
+
+    Stdlib.Test.all(
+      [ policy
+        Instance.exitedWith(grantedCode, 0, $"the granted run completes: {granted}")
+        Instance.says(granted, "AFTER", "the granted run completes")
+        Instance.says(granted, "allowed for this run only: clock", "the grant is shown")
+        Instance.doesNotSay(saved, "clock", "the grant is not saved")
+        Instance.exitedWith(deniedCode, 1, "a later run without it is denied")
+        Instance.doesNotSay(denied, "AFTER", "a later run without it stops")
+        Instance.says(denied, "dark permissions allow clock", "the saved-policy hint stays")
+        Instance.says(denied, $"dark run --allow clock {path}", "the denial offers the flag")
+        Instance.exitedWith(badCode, 1, "a bad rule fails")
+        Instance.says(bad, "--allow: invalid permission rule: clock please", "a bad rule is named")
+        Instance.doesNotSay(bad, "BEFORE", "a bad rule runs nothing")
+        Instance.exitedWith(sandboxCode, 1, "--sandbox with --allow fails")
+        Instance.says(sandbox, "--sandbox and --allow cannot be combined", "and says why")
+        Instance.exitedWith(overDenyCode, 1, "an explicit deny beats --allow")
+        Instance.doesNotSay(overDeny, "AFTER", "an explicit deny stops the run")
+        Instance.doesNotSay(overDeny, "for this run only: `", "and offers no flag that cannot help") ]))
+
+
+/// A rerun hint quotes only what the shell would split or expand.
+test rerunHintQuotesForTheShell =
+  let options =
+    Darklang.Tracing.ScriptOptions
+      { allowHarmful = false, sandbox = false, warnPermissions = false }
+  let rerun(args: List<String>, allow: List<String>, rule: String): String =
+    let allow =
+      allow
+      |> Stdlib.List.filterMap(LanguageTools.Permissions.parseRuleText)
+      |> Stdlib.List.flatten
+    Darklang.Cli.Run.rerunAllowing("my x.dark", args, options, allow, rule)
+  Stdlib.Test.all(
+    [ rerun([], [], "clock") |> Stdlib.Test.equal("dark run --allow clock 'my x.dark'")
+      rerun([ "a b", "c" ], [ "random" ], "http GET 'https://h:443/'")
+      |> Stdlib.Test.equal(
+        "dark run --allow random --allow \"http GET 'https://h:443/'\" 'my x.dark' 'a b' c")
+      rerun([], [], "file read '/tmp/$x'")
+      |> Stdlib.Test.equal("dark run --allow 'file read '\\''/tmp/$x'\\''' 'my x.dark'") ])
 
 
 /// `run` and `eval` type-check the code first, and a definite error stops it before
