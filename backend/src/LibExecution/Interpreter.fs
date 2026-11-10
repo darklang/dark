@@ -1093,6 +1093,8 @@ let rec private checkBiParamsSync
   | p :: pRest ->
     if argIdx >= args.Length then
       struct (i, ps, argIdx, tst)
+    elif TypeChecker.argFitsWithNothingToBind tst p.typ args[argIdx] then
+      checkBiParamsSync types (i + 1) pRest args (argIdx + 1) tst
     else
       match TypeChecker.tryUnifyWithAliasesSync types tst p.typ args[argIdx] with
       | ValueSome updatedTst ->
@@ -1615,7 +1617,10 @@ let private finishBuiltin
 
   let biResAlloc = allocNow vm
   match
-    TypeChecker.tryUnifyWithAliasesSync exeState.types tst fn.returnType result
+    if TypeChecker.argFitsWithNothingToBind tst fn.returnType result then
+      ValueSome tst
+    else
+      TypeChecker.tryUnifyWithAliasesSync exeState.types tst fn.returnType result
   with
   | ValueSome _ ->
     recordStage vm ApplyStage.BiCheckResult biResAlloc
