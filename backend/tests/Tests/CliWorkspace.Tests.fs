@@ -579,8 +579,8 @@ let private withLiveServer
     let! init =
       evalUnder
         state
-        $"Darklang.Stdlib.Live.Router.start({branchSource}, {routerLoc})"
-    let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
+        $"Darklang.LanguageTools.Live.Router.start({branchSource}, {routerLoc})"
+    let! step = evalUnder state "Darklang.LanguageTools.Live.Router.step"
     let step =
       match step with
       | RT.DApplicable a -> a
@@ -725,7 +725,7 @@ let private serveFollowsEdits =
               let! watch =
                 evalUnder
                   state
-                  "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
+                  "Darklang.LanguageTools.Live.watch(Darklang.SCM.Branch.mainBranchId)"
               do! author "Tests.LiveHttp.page" "(): String = 3"
               let! (status, body) = getText port
               Expect.equal
@@ -741,7 +741,7 @@ let private serveFollowsEdits =
               let! why =
                 callByName
                   state
-                  "Darklang.Stdlib.Live.diagnose"
+                  "Darklang.LanguageTools.Live.diagnose"
                   [ RT.DUuid PT.BranchId.Main.Guid; routerLoc ]
               let why =
                 match why with
@@ -876,7 +876,7 @@ let private pollAndAffects =
       let! watch =
         evalUnder
           state
-          "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
+          "Darklang.LanguageTools.Live.watch(Darklang.SCM.Branch.mainBranchId)"
 
       // A fresh watch has nothing to report.
       let! watch = pollQuiet state watch
@@ -885,7 +885,8 @@ let private pollAndAffects =
 
       let! (_, change) = pollChange state watch "expected the edit to be reported"
 
-      let! touched = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+      let! touched =
+        callByName state "Darklang.LanguageTools.Live.touchedNames" [ change ]
       let names =
         match touched with
         | RT.DList(_, RT.Items(items)) ->
@@ -903,18 +904,19 @@ let private pollAndAffects =
       let! branch = loc "branch"
       let! bystander = loc "bystander"
       let! affectsBranch =
-        callByName state "Darklang.Stdlib.Live.affects" [ change; branch ]
+        callByName state "Darklang.LanguageTools.Live.affects" [ change; branch ]
       let! affectsBystander =
-        callByName state "Darklang.Stdlib.Live.affects" [ change; bystander ]
+        callByName state "Darklang.LanguageTools.Live.affects" [ change; bystander ]
       Expect.equal affectsBranch (RT.DBool true) "the dependent is affected"
       Expect.equal affectsBystander (RT.DBool false) "the bystander is not"
 
       // And the walk itself, from a change that names only the leaf: propagation had already
       // repointed `branch`, so the poll above reports both; this is the transitive half on its own.
       let! leaf = loc "leaf"
-      let! synthetic = callByName state "Darklang.Stdlib.Live.touchingOnly" [ leaf ]
+      let! synthetic =
+        callByName state "Darklang.LanguageTools.Live.touchingOnly" [ leaf ]
       let! reached =
-        callByName state "Darklang.Stdlib.Live.affects" [ synthetic; branch ]
+        callByName state "Darklang.LanguageTools.Live.affects" [ synthetic; branch ]
       Expect.equal
         reached
         (RT.DBool true)
@@ -1244,7 +1246,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
         let! watch =
           evalUnder
             state
-            "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
+            "Darklang.LanguageTools.Live.watch(Darklang.SCM.Branch.mainBranchId)"
         let! watch = pollQuiet state watch
 
         // Phase 1 of a save, by hand: the op rows land, unapplied. This is what a poll mid-fold sees.
@@ -1277,7 +1279,8 @@ let private pollIgnoresAnOpUntilItIsApplied =
         |> ignore<List<int>>
 
         let! (_, change) = pollChange state watch "the folded op was not reported"
-        let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+        let! names =
+          callByName state "Darklang.LanguageTools.Live.touchedNames" [ change ]
         match names with
         | RT.DList(_, RT.Items(items)) ->
           Expect.contains
@@ -1299,10 +1302,11 @@ let private pollOnABranchSeesTheBranchsOwnSaves =
         let! watch =
           evalUnder
             state
-            "Darklang.Stdlib.Live.watch(Darklang.SCM.PackageOps.currentBranch())"
+            "Darklang.LanguageTools.Live.watch(Darklang.SCM.PackageOps.currentBranch())"
         do! author "Tests.LiveBranchPoll.leaf" "(): Int64 = 1"
         let! (_, change) = pollChange state watch "the branch save was not reported"
-        let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+        let! names =
+          callByName state "Darklang.LanguageTools.Live.touchedNames" [ change ]
         match names with
         | RT.DList(_, RT.Items(items)) ->
           Expect.contains
@@ -1338,7 +1342,7 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         let! lg =
           evalUnder
             state
-            $"Darklang.Stdlib.Live.refresh(Darklang.SCM.Branch.mainBranchId, Darklang.Stdlib.Live.start({routerLoc}))"
+            $"Darklang.LanguageTools.Live.refresh(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.Live.start({routerLoc}))"
         let hashOf (lg : RT.Dval) =
           match lg with
           | RT.DRecord(_, _, _, fields) ->
@@ -1351,13 +1355,13 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         let! watch =
           evalUnder
             state
-            "Darklang.Stdlib.Live.watch(Darklang.SCM.Branch.mainBranchId)"
+            "Darklang.LanguageTools.Live.watch(Darklang.SCM.Branch.mainBranchId)"
         do! author $"Tests.{m}.page" "(): String = 3"
         let! (watch, _) = pollChange state watch "the break was not reported"
         let! lg =
           callByName
             state
-            "Darklang.Stdlib.Live.refresh"
+            "Darklang.LanguageTools.Live.refresh"
             [ RT.DUuid PT.BranchId.Main.Guid; lg ]
         Expect.equal
           (hashOf lg)
@@ -1373,13 +1377,13 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         let! lg =
           callByName
             state
-            "Darklang.Stdlib.Live.refresh"
+            "Darklang.LanguageTools.Live.refresh"
             [ RT.DUuid PT.BranchId.Main.Guid; lg ]
         Expect.equal
           (hashOf lg)
           good
           "the router's version built against the broken page is not adopted; the last good one stays"
-        let! why = callByName state "Darklang.Stdlib.Live.diagnostic" [ lg ]
+        let! why = callByName state "Darklang.LanguageTools.Live.diagnostic" [ lg ]
         match why with
         | RT.DEnum(_, _, _, "Some", [ RT.DString s ]) ->
           Expect.stringContains
@@ -1495,7 +1499,7 @@ let private annotatedPrint (owner : string) (modul : string) (name : string) =
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}", modules = ["{modul}"], name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
+  match Darklang.LanguageTools.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
   | Some(v) -> v.byExpr |> Darklang.Stdlib.Dict.map(fun(_, d) -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
   | None -> Darklang.Stdlib.Dict.empty
 let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule(bid, ["{owner}", "{modul}"])
@@ -1515,7 +1519,7 @@ let private plainAndAnnotated (owner : string) (modul : string) (name : string) 
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}", modules = ["{modul}"], name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
+  match Darklang.LanguageTools.Live.Values.replay((Darklang.Cli.initState()).accountID, bid, loc) with
   | Some(v) -> v.byExpr |> Darklang.Stdlib.Dict.map(fun(_, d) -> Darklang.PrettyPrinter.RuntimeTypes.dval(bid, d))
   | None -> Darklang.Stdlib.Dict.empty
 let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch(bid)
@@ -1683,7 +1687,7 @@ let private liveValuesStayBounded =
         Expect.stringContains out "42" "the call ran"
 
         let within (ms : string) (fns : string) =
-          $"""match Darklang.Stdlib.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
+          $"""match Darklang.LanguageTools.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
 | Some(v) -> (Darklang.Stdlib.Dict.size(v.byExpr), Darklang.Stdlib.Option.withDefault(v.skipped, ""))
 | None -> (-1, "no trace")"""
         let expectSkipped (label : string) (ms : string) (fns : string) =
@@ -1749,7 +1753,7 @@ let private observeAndShow =
         let observe () =
           evalUnder
             state
-            $"""let o = Darklang.Stdlib.Live.observe(Darklang.SCM.Branch.mainBranchId, {viewLoc})
+            $"""let o = Darklang.LanguageTools.Live.observe(Darklang.SCM.Branch.mainBranchId, {viewLoc})
 (Darklang.Stdlib.Option.isSome(o.report), o.rte, o.render)"""
         let unpack (dv : RT.Dval) =
           match dv with
@@ -1848,8 +1852,8 @@ let private observeAndShow =
           author
             "Tests.LiveObs.render"
             "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"count \" + Stdlib.toString(m))"
-        let! _ = evalUnder state $"Darklang.Stdlib.Live.show({viewLoc})"
-        let! shown = evalUnder state "Darklang.Stdlib.Live.shown()"
+        let! _ = evalUnder state $"Darklang.LanguageTools.Live.show({viewLoc})"
+        let! shown = evalUnder state "Darklang.LanguageTools.Live.shown()"
         match shown with
         | RT.DEnum(_, _, _, "Some", [ RT.DRecord(_, _, _, fields) ]) ->
           Expect.equal

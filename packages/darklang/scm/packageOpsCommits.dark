@@ -60,7 +60,7 @@ let summariesFor(branchId: Uuid, limit: Int64): List<OpSummary> =
 /// insert time, millisecond resolution), oldest first, as (id, `created_at`). Ids only, no blobs: the
 /// caller drops the ones it has seen before and asks `summariesByIds` about the rest.
 ///
-/// The "what changed?" query for a process that stays up (`Stdlib.Live.poll`). By insert time, not
+/// The "what changed?" query for a process that stays up (`LanguageTools.Live.poll`). By insert time, not
 /// `origin_ts` and not `rowid`: the origin stamp is a logical clock that runs ahead after a big batch
 /// (a package reload mints thousands a millisecond apart) and arrives from peers with THEIR clocks, so
 /// "newer than the log's newest" misses real edits; a rowid is reused after a delete. Insert time only

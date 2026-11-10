@@ -335,7 +335,7 @@ let parseTraceID (json : string) : string =
       parts[0]
 
 
-/// The package fn at dotted <param name> (`Darklang.Stdlib.Live.poll`), or a failed test.
+/// The package fn at dotted <param name> (`Darklang.LanguageTools.Live.poll`), or a failed test.
 let findPackageFn (name : string) : Task<LibExecution.ProgramTypes.Hash> =
   task {
     let location : LibExecution.ProgramTypes.PackageLocation =
@@ -374,7 +374,7 @@ let callByName
       return Tests.failtestf "%s raised: %s" name why
   }
 
-/// Poll <param watch> (`Stdlib.Live.poll`): the watch back and the change, failing the test
+/// Poll <param watch> (`Darklang.LanguageTools.Live.poll`): the watch back and the change, failing the test
 /// with <param what> when nothing landed.
 let pollChange
   (state : RT.ExecutionState)
@@ -382,7 +382,7 @@ let pollChange
   (what : string)
   : Task<RT.Dval * RT.Dval> =
   task {
-    let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+    let! polled = callByName state "Darklang.LanguageTools.Live.poll" [ watch ]
     match polled with
     | RT.DTuple(w, RT.DEnum(_, _, _, "Some", [ change ]), []) -> return w, change
     | other -> return Tests.failtestf "%s, but the poll returned %A" what other
@@ -391,7 +391,7 @@ let pollChange
 /// Poll <param watch>: the watch back, failing the test when something landed.
 let pollQuiet (state : RT.ExecutionState) (watch : RT.Dval) : Task<RT.Dval> =
   task {
-    let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+    let! polled = callByName state "Darklang.LanguageTools.Live.poll" [ watch ]
     match polled with
     | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> return w
     | other -> return Tests.failtestf "expected a quiet poll, got %A" other

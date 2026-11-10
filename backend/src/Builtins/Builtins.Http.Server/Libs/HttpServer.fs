@@ -209,7 +209,7 @@ let private logRequest
 // ───────── how a request finds its handler ─────────
 
 /// A server that follows edits keeps a Dark value between requests and asks Dark, per request, which
-/// handler to run. The DECISION is Dark's (`Stdlib.Live`: did the store move, is the newest version
+/// handler to run. The DECISION is Dark's (`LanguageTools.Live`: did the store move, is the newest version
 /// usable, else the last one that was); only the holding is here, because a Dark value cannot outlive
 /// the call that made it and requests are separate calls.
 ///
@@ -1077,7 +1077,7 @@ let fns () : List<BuiltInFn> =
 
     // `httpServerServe` for a server that follows edits. The handler is not fixed at start: per request,
     // Dark's `step` is run over a state the server keeps between requests, and answers with the handler
-    // to use this time (`Stdlib.Live` decides: the newest version of the router that passes its checks).
+    // to use this time (`LanguageTools.Live` decides: the newest version of the router that passes its checks).
     // The router's hash is the approval root, re-derived when it moves. See `LiveRouting`.
     { name = fn "httpServerServeLive" 0
       typeParams = []

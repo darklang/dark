@@ -8,7 +8,7 @@ type Args =
     port: Stdlib.Net.Port
     maxBodyBytes: Int64
     /// `--live`: resolve the router by name per request, on the last version that passes its
-    /// checks (`Stdlib.Live`), and tell an open browser page to reload itself when the version
+    /// checks (`LanguageTools.Live`), and tell an open browser page to reload itself when the version
     /// moves. OFF unless asked for: a server that changes under you while you edit is a thing
     /// to opt into, not something to discover.
     live: Bool
@@ -128,7 +128,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         // Resolve BEFORE announcing "Listening" so a bad router name reports cleanly, never a false start.
         // This resolved VALUE is the whole router without `--live`; the live server holds the
         // location and resolves per request, and uses this one for the bind-time approval root.
-        match Stdlib.Live.applicableByName(state.currentBranchId, parsed.routerPath) with
+        match LanguageTools.Live.applicableByName(state.currentBranchId, parsed.routerPath) with
         | Ok(router) ->
           // Announce only once the port is actually bound (via onListening), so a taken port never prints a
           // "Listening" that then turns out to be false. Requests are logged (Config.defaults sets
@@ -175,12 +175,12 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             Stdlib.printLines(Stdlib.List.concat(head, Stdlib.List.concat(hostLines, tail)))
 
           let served =
-            match (parsed.live, Stdlib.Live.locationOfName(parsed.routerPath)) with
+            match (parsed.live, LanguageTools.Live.locationOfName(parsed.routerPath)) with
             | (true, Some(location)) ->
               Stdlib.HttpServer.serveLive(
                 config,
-                Stdlib.Live.Router.start(state.currentBranchId, location),
-                Stdlib.Live.Router.step,
+                LanguageTools.Live.Router.start(state.currentBranchId, location),
+                LanguageTools.Live.Router.step,
                 router,
                 // `--live` is one flag: following edits and telling an open page to reload are
                 // the same intent, and a page that reloads itself to fetch a pinned version is

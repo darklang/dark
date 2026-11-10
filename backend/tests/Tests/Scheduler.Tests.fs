@@ -1596,7 +1596,7 @@ Stdlib.Exec.await(slow)"""
   }
 
 
-/// A run a builtin drives to its end itself (`Stdlib.Live.apply` here; the package test runner's
+/// A run a builtin drives to its end itself (`Darklang.LanguageTools.Live.apply` here; the package test runner's
 /// `withStoreSnapshot` in the wild) carries on after a wait in the context it waited in, so on
 /// the scheduler it started on. It used to carry on in whatever context the thread that ended
 /// the wait had: here the test's thread, which has no scheduler, so `Exec.await` asked the
@@ -1612,7 +1612,7 @@ let private drivenRunKeepsItsScheduler =
               root
               state
               """let h = Stdlib.Exec.spawn(fun () -> 41 + 1)
-Stdlib.Live.apply((fun _ -> (let n = Builtin.testRawRead(61) + 0 in Stdlib.Exec.await(h) + n - 61)), ())"""
+Darklang.LanguageTools.Live.apply((fun _ -> (let n = Builtin.testRawRead(61) + 0 in Stdlib.Exec.await(h) + n - 61)), ())"""
           let running = runOnThread root p
           waitFor "the driven run waits on its read" (fun () ->
             TestUtils.LibTest.RawReads.waiting 61L)

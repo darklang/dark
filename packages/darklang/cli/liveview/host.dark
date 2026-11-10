@@ -32,9 +32,9 @@ type Event<'msg> =
 type Session<'model, 'msg> =
   { branchId: Uuid
     view: Model.View
-    init: Stdlib.Live.LastGood
-    update: Stdlib.Live.LastGood
-    render: Stdlib.Live.LastGood
+    init: LanguageTools.Live.LastGood
+    update: LanguageTools.Live.LastGood
+    render: LanguageTools.Live.LastGood
     model: 'model
     /// The focused `Input` id or `Button` label, "" for none.
     focus: String
@@ -58,17 +58,17 @@ type Session<'model, 'msg> =
 // --- resolving ---
 
 let entryOf(name: String): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  Stdlib.Live.locationOfName(name)
+  LanguageTools.Live.locationOfName(name)
 
 /// The three entries, resolved as they are now. `Error` names the one that does not resolve.
 let resolveAll(
   branchId: Uuid,
   view: Model.View)
-  : Stdlib.Result.Result<(Stdlib.Live.LastGood * Stdlib.Live.LastGood * Stdlib.Live.LastGood), String> =
+  : Stdlib.Result.Result<(LanguageTools.Live.LastGood * LanguageTools.Live.LastGood * LanguageTools.Live.LastGood), String> =
   match (entryOf(view.init), entryOf(view.update), entryOf(view.render)) with
   | (Some(i), Some(u), Some(r)) ->
-    let lg(loc: LanguageTools.ProgramTypes.PackageLocation): Stdlib.Live.LastGood =
-      Stdlib.Live.refresh(branchId, Stdlib.Live.start(loc))
+    let lg(loc: LanguageTools.ProgramTypes.PackageLocation): LanguageTools.Live.LastGood =
+      LanguageTools.Live.refresh(branchId, LanguageTools.Live.start(loc))
 
     let (initLg, updateLg, renderLg) = (lg(i), lg(u), lg(r))
 
@@ -77,7 +77,7 @@ let resolveAll(
       |> Stdlib.List.filterMap(fun x ->
         match x.hash with
         | Some(_) -> Stdlib.Option.Option.None
-        | None -> Stdlib.Live.diagnostic(x))
+        | None -> LanguageTools.Live.diagnostic(x))
 
     match problems with
     | [] -> Stdlib.Result.Result.Ok((initLg, updateLg, renderLg))
@@ -156,14 +156,14 @@ let viewAtSize(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.
 /// and says why underneath. The at-rest verdict comes first: a version that failed its check is
 /// never run, and the previous one is, with the check's words in the band.
 let render(s: Session<'model, 'msg>): Session<'model, 'msg> =
-  match Stdlib.Live.call(s.render, s.model) with
+  match LanguageTools.Live.call(s.render, s.model) with
   | Ok(tree) ->
     { s with
         lastFrame = Stdlib.Option.Option.Some(tree)
-        band = Stdlib.Live.diagnostic(s.render) }
+        band = LanguageTools.Live.diagnostic(s.render) }
   | Error(rte) ->
     let why =
-      match Stdlib.Live.diagnostic(s.render) with
+      match LanguageTools.Live.diagnostic(s.render) with
       | Some(d) -> d
       | None -> $"{s.view.render} failed: {rte}"
 
@@ -214,7 +214,7 @@ let present(s: Session<'model, 'msg>): Session<'model, 'msg> =
 
 /// Run the view's `update`. A failure keeps the model and shows the error; the loop goes on.
 let applyUpdate(s: Session<'model, 'msg>, event: Event<'msg>): Session<'model, 'msg> =
-  match Stdlib.Live.call2(s.update, s.model, event) with
+  match LanguageTools.Live.call2(s.update, s.model, event) with
   | Ok(model) -> { s with model = model, toast = Stdlib.Option.Option.None }
   | Error(e) -> { s with band = Stdlib.Option.Option.Some($"{s.view.update} failed: {e}") }
 
@@ -284,9 +284,9 @@ let onKey(s: Session<'model, 'msg>, k: Stdlib.Cli.UI.Widget.KeyPress): Session<'
 
 /// The view `Live.show` names, by its module path.
 let shownView(): Stdlib.Option.Option<Model.View> =
-  Stdlib.Live.shown()
+  LanguageTools.Live.shown()
   |> Stdlib.Option.map(fun loc ->
-    let path = Stdlib.Live.entryName(loc)
+    let path = LanguageTools.Live.entryName(loc)
     Model.viewAt(path, path, path))
 
 /// Switch to the view `Live.show` names when it is not the one on screen: a fresh session for it,
@@ -305,21 +305,21 @@ let followShown(s: Session<'model, 'msg>): (Session<'model, 'msg> * Bool) =
   | _ -> (s, false)
 
 /// Does the change reach any of the view's entries?
-let affected(s: Session<'model, 'msg>, change: Stdlib.Live.Change): Bool =
-  (Stdlib.Live.affects(change, s.render.entry))
-  || (Stdlib.Live.affects(change, s.update.entry))
-  || (Stdlib.Live.affects(change, s.init.entry))
+let affected(s: Session<'model, 'msg>, change: LanguageTools.Live.Change): Bool =
+  (LanguageTools.Live.affects(change, s.render.entry))
+  || (LanguageTools.Live.affects(change, s.update.entry))
+  || (LanguageTools.Live.affects(change, s.init.entry))
 
 /// Take the change: resolve the entries again through last-good, keep the model, say what moved.
-let reload(s: Session<'model, 'msg>, change: Stdlib.Live.Change): Session<'model, 'msg> =
+let reload(s: Session<'model, 'msg>, change: LanguageTools.Live.Change): Session<'model, 'msg> =
   let names =
     if change.unknown then "more than 500 ops (everything re-run)"
-    else Stdlib.String.join(Stdlib.Live.touchedNames(change), ", ")
+    else Stdlib.String.join(LanguageTools.Live.touchedNames(change), ", ")
 
   { s with
-      init = Stdlib.Live.refresh(s.branchId, s.init)
-      update = Stdlib.Live.refresh(s.branchId, s.update)
-      render = Stdlib.Live.refresh(s.branchId, s.render)
+      init = LanguageTools.Live.refresh(s.branchId, s.init)
+      update = LanguageTools.Live.refresh(s.branchId, s.update)
+      render = LanguageTools.Live.refresh(s.branchId, s.render)
       toast = Stdlib.Option.Option.Some($"changed: {names}") }
 
 
@@ -348,7 +348,7 @@ let snapshot(branchId: Uuid, view: Model.View, model: 'model): Stdlib.Result.Res
     match Repl.readCaptured(Repl.captureValue(branchId, model)) with
       | None -> Stdlib.Result.Result.Error("the model has no stored form (a stream, a lambda or unsaved Bytes inside it)")
       | Some(source) ->
-        let name = Stdlib.Live.entryName(location)
+        let name = LanguageTools.Live.entryName(location)
         let fullSource = $"val {location.name} = {source}"
 
         match LanguageTools.Parser.Parse.toWrittenTypes(fullSource) with
@@ -392,7 +392,7 @@ let snapshot(branchId: Uuid, view: Model.View, model: 'model): Stdlib.Result.Res
 
 /// The model stored under <param name>, for `--resume`.
 let resumeFrom(branchId: Uuid, name: String): Stdlib.Result.Result<'model, String> =
-  match Stdlib.Live.locationOfName(name) with
+  match LanguageTools.Live.locationOfName(name) with
   | None -> Stdlib.Result.Result.Error($"{name} is not a package value name")
   | Some(location) ->
     match LanguageTools.PackageManager.Value.find(branchId, location) with
@@ -525,7 +525,7 @@ let prepareWith(
       match resume with
       | Some(name) -> resumeFrom(branchId, name)
       | None ->
-        match Stdlib.Live.call(initLg, ()) with
+        match LanguageTools.Live.call(initLg, ()) with
         | Ok(model) -> Stdlib.Result.Result.Ok(model)
         | Error(e) -> Stdlib.Result.Result.Error($"{view.init}: {e}")
 

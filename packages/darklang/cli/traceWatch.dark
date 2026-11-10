@@ -148,7 +148,7 @@ let reload(
   keep: Stdlib.Option.Option<String>)
   : Model =
   // Read first, so a write that lands while this runs moves it past what was read.
-  let storeVersion = Stdlib.Live.version()
+  let storeVersion = LanguageTools.Live.version()
   let traces = Darklang.Tracing.Store.wentThroughNamed(branchId, fn, 25)
   let cursor = pickCursor(traces |> Stdlib.List.map(fun r -> r.id), cursor, keep)
   let (source, problem) = annotate(accountID, branchId, fn, Stdlib.List.getAt(traces, cursor))
@@ -190,7 +190,7 @@ let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
   // A tick reloads BOTH halves: a new trace may have arrived, and the code may have been saved
   // since the last paint. That is the whole live-programming property, and it costs one replay,
   // so a tick pays it only when the store has moved: both arrive as a write.
-  | Tick when (Stdlib.Live.version()) == m.storeVersion -> m
+  | Tick when (LanguageTools.Live.version()) == m.storeVersion -> m
   | Tick
   | Msg(Refresh) ->
     // Stay on the trace being read, not on its position in a list that grows from the top.

@@ -214,7 +214,7 @@ let repointNow(
 
               let text =
                 match issues with
-                | [issue, ...] -> Stdlib.Live.issueText(issue)
+                | [issue, ...] -> LanguageTools.Live.issueText(issue)
                 | [] -> "it failed the type check"
 
               (Stdlib.Tuple2.second(pair), text))

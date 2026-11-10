@@ -575,7 +575,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // A package fn by hash, for a host that follows edits (`Stdlib.Live`). A name, which eval
+    // A package fn by hash, for a host that follows edits (`LanguageTools.Live`). A name, which eval
     // resolves, is whatever is bound NOW; a host that wants to keep running the last version that
     // passed its checks while a broken edit sits at the name needs to call by hash. Every version is
     // still in the store, so this is a lookup, not a resurrection.
@@ -669,7 +669,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             // whoever called this: a live view whose `update` hit one lost the whole host loop
             // and the terminal with it, instead of showing the error in a band. The callers of
             // this builtin are precisely the ones that cannot let user code unwind them
-            // (`Stdlib.Live.call`), so `applyCatching` catches both. Running out of memory is
+            // (`LanguageTools.Live.call`), so `applyCatching` catches both. Running out of memory is
             // the exception: it exits, as everywhere else in the runtime.
             match!
               Execution.applyCatching asRoot vm.threadID asRoot.access applicable arg

@@ -48,7 +48,7 @@ type Component<'s> =
     /// The package store changed under the component: an edit from another process, a pull. Re-read
     /// what the change touches and come back; `refresh` then runs as after any transition.
     /// `ignoreStore` for a component that shows nothing from the store.
-    onStoreChanged: ('s, Stdlib.Live.Change) -> 's }
+    onStoreChanged: ('s, LanguageTools.Live.Change) -> 's }
 
 
 /// The `save` for a component with nothing to persist. Named so it survives in retained state.
@@ -60,7 +60,7 @@ let noRefresh(_previous: 's, next: 's): 's =
   next
 
 /// The `onStoreChanged` for a component that shows nothing from the store. Named for the same reason.
-let ignoreStore(state: 's, _change: Stdlib.Live.Change): 's =
+let ignoreStore(state: 's, _change: LanguageTools.Live.Change): 's =
   state
 
 /// A component with something to persist but nothing derived.

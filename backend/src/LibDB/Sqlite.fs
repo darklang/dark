@@ -62,7 +62,7 @@ module Backup =
 /// nothing but this. A store at another path gets a connection of its own.
 ///
 /// The number means nothing on its own: only "same as last time" or "moved" is information, and only
-/// within one process. A host loop keeps the last value and polls (`Stdlib.Live.poll`).
+/// within one process. A host loop keeps the last value and polls (`LanguageTools.Live.poll`).
 module DataVersion =
   let private gate = obj ()
 

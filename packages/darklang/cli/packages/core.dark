@@ -369,7 +369,7 @@ let commitAuthored(
     // to break); `dark commit` is the gate. Said on the second line, with the issue itself.
     // Named, not hashed. A trait diagnostic carries the CONTENT HASH of the type and of the
     // trait, and turning one into a name needs a branch to look it up on.
-    // `Stdlib.Live.reportText` takes the report and nothing else, so it renders
+    // `LanguageTools.Live.reportText` takes the report and nothing else, so it renders
     // `type #bf494e2a has no implementation of #d4222cbd155f`, which is the least useful
     // thing to say at the moment a save is refused. `AtRestCheck.customTypeName` is the
     // lookup `dark commit` uses, and the branch is already in hand here.

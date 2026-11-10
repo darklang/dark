@@ -791,7 +791,7 @@ let tests =
         effectsKeepOrder
         namedFallbackIsRemembered
         refusalGetsThrough "Darklang.LanguageTools.AtRestTypeChecker.guard"
-        refusalGetsThrough "Stdlib.Live.apply"
+        refusalGetsThrough "Darklang.LanguageTools.Live.apply"
         nestingIsBounded
         watchedRunsDoNotSpread
         cancelledLeavesNothing

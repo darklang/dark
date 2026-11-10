@@ -180,7 +180,7 @@ process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
 - `StoreChanged`: a poll of `PRAGMA data_version` every `Scheduler.storePollMs`
   (25 ms) on a connection of its own (the pragma answers per connection),
   posted to every queue watching. It carries nothing: which ops landed is
-  Dark's question, answered by `Stdlib.Live.poll` inside `Stdlib.Host.await`
+  Dark's question, answered by `LanguageTools.Live.poll` inside `Stdlib.Host.await`
   before the loop sees the event. Latched per process: a process that
   subscribes after a change it has not been told about is woken at once, so
   a change during a render is not lost.
@@ -201,14 +201,14 @@ version.
 ```
 module Darklang.Stdlib.Host
 type EventSpec = Key | StoreChanged | Timer(ms: Int64) | ExecDone(id: Uuid)
-type Event = Key(KeyRead) | StoreChanged(Stdlib.Live.Change) | Timer | ExecDone(id: Uuid)
+type Event = Key(KeyRead) | StoreChanged(LanguageTools.Live.Change) | Timer | ExecDone(id: Uuid)
 let await(specs: List<EventSpec>): Event
 ```
 
 Under the scheduler the calling process parks on the first spec to fire.
 Outside one (a plain `execute`) it blocks the thread, polling. A
 `StoreChanged` from the runtime carries nothing; `await` asks
-`Stdlib.Live.poll` what landed and hands the loop the `Change`, and a move
+`LanguageTools.Live.poll` what landed and hands the loop the `Change`, and a move
 that carried no op (a config write) is absorbed. `Builtin.hostAwait` declares
 `{Stdin; PackageRead}` statically, the union of what any spec could need.
 

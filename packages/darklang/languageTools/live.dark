@@ -15,7 +15,7 @@
 ///
 /// Nothing here knows about threads, timers or a queue. `poll` is a question; who asks it, and when, is
 /// the host's business (`Stdlib.Host.await`).
-module Darklang.Stdlib.Live
+module Darklang.LanguageTools.Live
 
 
 /// The store's change counter as this process sees it. It moves whenever a commit lands through another
@@ -544,7 +544,7 @@ module Router =
       lastGood: LastGood }
 
   let start(branchId: Uuid, entry: LanguageTools.ProgramTypes.PackageLocation): State =
-    State { watch = watch(branchId), lastGood = refresh(branchId, Stdlib.Live.start(entry)) }
+    State { watch = watch(branchId), lastGood = refresh(branchId, LanguageTools.Live.start(entry)) }
 
   /// One request's worth of following: did the store move, does it reach the router, and if so
   /// which hash is the router now. A newly broken version is said once, on stdout, which is where a
