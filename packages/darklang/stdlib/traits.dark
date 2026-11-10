@@ -74,12 +74,15 @@ trait BitwiseNot<'a> =
   let bitwiseNot(a: 'a): 'a
 
 
-/// `a << b`. The shift count is the same type as the value.
+/// `a << b`. The shift count is the same type as the value. On a fixed-width
+/// integer the count is taken modulo the bit width, as in Rust and C#, so
+/// `1u8 << 9u8` is {{2u8}}, a shift by 1.
 trait ShiftLeft<'a> =
   let shiftLeft(a: 'a, b: 'a): 'a
 
 
-/// `a >> b`
+/// `a >> b`. On a fixed-width integer the count is taken modulo the bit width,
+/// as for `<<`, and a signed value keeps its sign.
 trait ShiftRight<'a> =
   let shiftRight(a: 'a, b: 'a): 'a
 
