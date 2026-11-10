@@ -1,0 +1,13 @@
+// A plain-Dark loop over 1 MB, one byte a step: `getAt`, a compare and a self call. The target is
+// under 0.1 s, about 3,000 CPU instructions a step. `_paired.py` times it against a release.
+let scan(bytes: Bytes, byte: UInt8, i: Int64): Int64 =
+  match Stdlib.Bytes.getAt(bytes, i) with
+  | None -> -1
+  | Some(b) -> if b == byte then i else scan(bytes, byte, i - 1)
+
+let bytes =
+  Stdlib.Bytes.concat(
+    Stdlib.Bytes.fromList([ 0u8 ]),
+    Stdlib.Utf8.encode(Stdlib.String.repeat("a", 1048575)))
+
+Stdlib.printLine("found at " + Stdlib.toString(scan(bytes, 0u8, 1048575)))
