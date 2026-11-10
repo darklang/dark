@@ -83,6 +83,8 @@ all_prettier_files() {
   find "$1" \
     \( -path ".git" \
     -o -path "./later" \
+    -o -path "rundir" \
+    -o -path "./rundir" \
     -o -path "backend" \
     -o -path "backend/static" \
     -o -path "./backend/static" \
@@ -105,6 +107,8 @@ all_fsharp_files() {
   find "$1" \
     \( -path ".git" \
     -o -path "./later" \
+    -o -path "rundir" \
+    -o -path "./rundir" \
     -o -path "backend" \
     -o -path "backend/.paket" \
     -o -path "./backend/.paket" \
