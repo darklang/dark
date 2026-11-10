@@ -1,0 +1,24 @@
+/// `docs signatures` with several filters lists each in turn, so an agent maps the
+/// modules it needs in one call rather than one call per module.
+module Darklang.Cli.Tests.SignaturesSeveral
+
+test severalFiltersListEach =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "signatures", "Stdlib.Bool", "Stdlib.Uuid" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "two filters")
+        Instance.says(out, "(filter: Stdlib.Bool)", "the first filter has its section")
+        Instance.says(out, "xor(a: Bool, b: Bool): Bool", "the first filter's fns are listed")
+        Instance.says(out, "(filter: Stdlib.Uuid)", "the second filter has its section")
+        Instance.says(out, "generateV7(): Uuid", "the second filter's fns are listed") ]))
+
+// A filter that matches nothing is named, and the others are still listed.
+test aFilterThatMatchesNothingIsNamed =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "signatures", "Stdlib.Bool", "zzznope" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "one filter matches nothing")
+        Instance.says(out, "match `zzznope`", "the filter is named")
+        Instance.says(out, "xor(a: Bool, b: Bool): Bool", "the other filter is still listed") ]))
