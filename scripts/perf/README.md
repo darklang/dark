@@ -85,14 +85,14 @@ the per-opcode totals across every VM.
    `scripts/build/build-release-cli-exes.sh --mode=aot`.
 6. `scripts/perf/gate --published` for the budgeted number, `scripts/perf/suite --release` for the
    seven shapes, `scripts/perf/bench ab <a> <b> <scenario>` to compare two binaries.
-7. If the change earns a lower budget, lower it in the same commit:
-   `scripts/perf/gate --published --update`.
+7. Nothing in CI checks the numbers. They are tracked over releases by `measure-release` and
+   `track` (below); the budget is the baseline they compare against.
 8. Publish, THEN run the gates. `scripts/testing/gates first-day` refuses an artifact older than
    the tree, which reads as a failure if you do it the other way round.
 
 ## The tools
 
-- `gate` is the CI assertion: `workloads/steady.dark`, allocation against `budget.json`, warm and
+- `gate` checks every reading against `budget.json`; CI does not run it. `workloads/steady.dark`, allocation against `budget.json`, warm and
   on the cold first run (with its peak memory). The warm number is net of startup
   (`workloads/startup.dark`), which has a budget of its own. Every workload in `workloads/suite/`
   has one too, on allocation per iteration as `suite` measures it. So do the interactive CLI's
@@ -101,6 +101,13 @@ the per-opcode totals across every VM.
   `workloads/lists.dark` and `ls` against the newest release, paired (`_paired.py`); offline,
   against the one `budget.json` pins. `--published` is the real one; bare is debug and does not
   gate.
+- `measure-release <tag | binary>` runs `gate --published --report` on one release binary, with
+  this tree's workloads and CPU against the release `budget.json` pins, and prints every reading as
+  one JSON line. Runs on the host. Because the instrument is fixed, an old release measures as
+  well as a new one, so a history can be backfilled.
+- `track` measures each release a history file does not have yet (through `measure-release`),
+  appends the rows, draws a chart per metric over all of it, writes a dated `perf-<date>.md` and
+  prints it. Run it on whatever schedule suits; nothing in it assumes one.
 - `suite` runs the seven shapes in `workloads/suite/`, allocation and time per iteration, with
   startup differenced out. `gate --published` runs it too, and budgets each one's allocation.
 - `bench` (and `_bench.py`) is repeatable CLI timing from a pinned store fixture. `bench ab`

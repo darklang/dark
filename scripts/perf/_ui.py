@@ -22,7 +22,8 @@ import sys
 import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-WORKLOAD = os.path.join(ROOT, "scripts", "perf", "workloads", "ui", "workbench.dark")
+# PERF_WORKLOADS: another copy of workloads/, which measure-release points at a release's own.
+WORKLOAD = os.path.join(os.environ.get("PERF_WORKLOADS") or os.path.join(ROOT, "scripts", "perf", "workloads"), "ui", "workbench.dark")
 
 
 def run(exe, iters):

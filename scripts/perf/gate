@@ -2,8 +2,8 @@
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 . ./scripts/devcontainer/_lower-priority "$0" "$@"
 
-# Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
-# deliberately: one script, under a minute. A long perf job gets ignored and then disabled.
+# Fails if the reference workload allocates more than its budget. CI does not run it; see
+# `measure-release` and `track`, which run it on each release and chart the readings over time.
 #
 # The published gate checks six things, all on the binary just built:
 #   - steady.dark's allocation, warm, net of startup (the number this gate started with)
@@ -21,8 +21,14 @@
 # fails, and the workload's own number is no longer mostly something else.
 #
 #   scripts/perf/gate              the debug build's allocation, reported but NOT gated
-#   scripts/perf/gate --published  against the published one, as CI does. This is the gate.
+#   scripts/perf/gate --published  against the published one. This is the gate.
 #   scripts/perf/gate --published --update   rewrite the published budget to what it measures
+#   scripts/perf/gate --published --report   the same readings, but over budget does not fail
+#   scripts/perf/gate --published --json F   also write every reading and its budget to F
+#
+# Nothing in CI runs it. `measure-release` runs it with `--report --json` on a release binary, and
+# `track` charts those readings over releases; the budget is the baseline the charts draw. Exit 2,
+# could not measure, still fails in report mode: a run that measured nothing must not read as a pass.
 #
 # Allocation, not time: it doesn't care how loaded the machine is. It is not byte-identical either --
 # see docs/perf/playbook.md for the noise floor.
@@ -32,27 +38,39 @@
 # and is elided entirely by the Release optimiser, so the debug number tracked a configuration
 # nobody ships while the one we do ship was inside its budget. A debug run still prints what it
 # allocated, because the number is worth seeing; it just does not fail.
-# The budget is in scripts/perf/budget.json -- lower it in the same commit that earns it.
+# The budget is in scripts/perf/budget.json.
 
 set -euo pipefail
 . ./scripts/perf/_common
 
 PUBLISHED=false
 UPDATE=false
-for arg in "$@"; do
-  case "$arg" in
+REPORT=false
+JSON_OUT=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --published) PUBLISHED=true ;;
     --update) UPDATE=true ;;
-    *) echo "unknown argument: $arg" >&2; exit 2 ;;
+    --report) REPORT=true ;;
+    --json) JSON_OUT="${2:?--json needs a path}"; shift ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
+  shift
 done
+# Absolute, because the gate changes HOME and the caller's relative path should not move with it.
+[[ -z "$JSON_OUT" ]] || JSON_OUT=$(realpath -m "$JSON_OUT")
+export PERF_GATE_REPORT="$REPORT"
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=$(release_exe)
-  [[ -x "$EXE" ]] && { assert_release_exe_fresh "$EXE" perf/gate || exit 2; }
-  # And that it is the same publish mode the budget was recorded in. See `release_exe_mode`.
-  WANT_MODE=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json')).get('steady',{}).get('publishedMode','r2r'))")
-  [[ -x "$EXE" ]] && { assert_release_exe_mode "$EXE" "$WANT_MODE" perf/gate || exit 2; }
+  # A binary named by PERF_EXE is a downloaded release (see scripts/perf/measure-release): built from its own
+  # commit, not this tree, and AOT because every linux-x64 release is. Neither check applies.
+  if [[ -z "${PERF_EXE:-}" ]]; then
+    [[ -x "$EXE" ]] && { assert_release_exe_fresh "$EXE" perf/gate || exit 2; }
+    # And that it is the same publish mode the budget was recorded in. See `release_exe_mode`.
+    WANT_MODE=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json')).get('steady',{}).get('publishedMode','r2r'))")
+    [[ -x "$EXE" ]] && { assert_release_exe_mode "$EXE" "$WANT_MODE" perf/gate || exit 2; }
+  fi
 else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi
@@ -65,8 +83,9 @@ if [[ ! -x "$EXE" ]]; then
 fi
 
 BUDGET_FILE="scripts/perf/budget.json"
-WORKLOAD="scripts/perf/workloads/steady.dark"
-STARTUP="scripts/perf/workloads/startup.dark"
+# PERF_WORKLOADS: another copy of workloads/, which measure-release points at a release's own.
+WORKLOAD="${PERF_WORKLOADS:-scripts/perf/workloads}/steady.dark"
+STARTUP="${PERF_WORKLOADS:-scripts/perf/workloads}/startup.dark"
 # Warm readings of each, alternated. A single reading lands in one of the clusters
 # docs/perf/playbook.md describes, and a difference of two single readings moves about 4%; the
 # median of three each holds it inside the tolerance.
@@ -75,9 +94,18 @@ SAMPLES=3
 # The published gate grows its own store, so the first run is cold and the number doesn't depend on
 # whose store this is. The debug build keeps the dev store: it has no budget to be cold against.
 if [[ "$PUBLISHED" == "true" ]]; then
-  GATE_HOME=$(mktemp -d "${TMPDIR:-/tmp}/perf-gate.XXXXXX")
-  trap 'rm -rf "$GATE_HOME"' EXIT
+  # PERF_HOME: a HOME the caller made and cleans up (measure-release, which also links an old
+  # release's beside-the-binary store into it).
+  if [[ -n "${PERF_HOME:-}" ]]; then
+    GATE_HOME="$PERF_HOME"
+  else
+    GATE_HOME=$(mktemp -d "${TMPDIR:-/tmp}/perf-gate.XXXXXX")
+    trap 'rm -rf "$GATE_HOME"' EXIT
+  fi
   export HOME="$GATE_HOME"
+  # Older releases keep their store beside the binary unless the rundir is named, and an explicit
+  # one wins in every release, so name it: the store and its telemetry are then always here.
+  export DARK_CONFIG_RUNDIR="$GATE_HOME/.darklang"
 fi
 
 TELEMETRY=$(telemetry_path)
@@ -128,13 +156,22 @@ echo
 # no budget for them, so it skips them.
 SUITE_JSON=""
 UI_JSON=""
+MISSING=""
 if [[ "$PUBLISHED" == "true" ]]; then
   SUITE_JSON="$GATE_HOME/suite.json"
   SUITE_ITERS=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json'))['suite']['iters'])")
-  ./scripts/perf/suite --release --iters "$SUITE_ITERS" --json "$SUITE_JSON" > /dev/null || exit 2
+  # In report mode a section that cannot run is recorded as missing rather than ending the run: an
+  # older release may predate a workload, and the rest of its numbers are still worth having.
+  if ! ./scripts/perf/suite --release --iters "$SUITE_ITERS" --json "$SUITE_JSON" > /dev/null; then
+    [[ "$REPORT" == "true" ]] || exit 2
+    echo "perf/gate: the suite did not run; recorded as missing"; SUITE_JSON=""; MISSING="$MISSING suite"
+  fi
   UI_JSON="$GATE_HOME/ui.json"
   UI_KEYS=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json'))['ui']['keys'])")
-  python3 ./scripts/perf/_ui.py "$EXE" "$UI_KEYS" "$UI_JSON" || exit 2
+  if ! python3 ./scripts/perf/_ui.py "$EXE" "$UI_KEYS" "$UI_JSON"; then
+    [[ "$REPORT" == "true" ]] || exit 2
+    echo "perf/gate: the interactive CLI did not run; recorded as missing"; UI_JSON=""; MISSING="$MISSING ui"
+  fi
 fi
 
 # The store is measured too, not just the binary: a working rundir carrying your own ops allocates a
@@ -145,8 +182,39 @@ echo "build    $(exe_build_tag "$EXE")"
 MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
 
 BUDGET_STATUS=0
+PERF_GATE_JSON="$JSON_OUT" PERF_GATE_MISSING="$MISSING" \
 python3 - "$BUDGET_FILE" "$TOTAL_READINGS" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" "$STARTUP_READINGS" "$SUITE_JSON" "$UI_JSON" <<'PY' || BUDGET_STATUS=$?
-import json, statistics, sys
+import json, os, statistics, subprocess, sys, traceback
+
+# A traceback exits 1, which is "over budget", which `--report` passes. A crash is 2.
+def _crash(kind, value, tb):
+    traceback.print_exception(kind, value, tb)
+    sys.stderr.flush()
+    os._exit(2)
+sys.excepthook = _crash
+
+report_only = os.environ.get("PERF_GATE_REPORT") == "true"
+json_out = os.environ.get("PERF_GATE_JSON") or None
+# Every reading, keyed the same way on every run, with the budget it was held to. This is what
+# `scripts/perf/track` charts across releases, so a key renamed here is a series
+# broken there.
+recorded = {}
+
+def record(key, got, base=None, tol=None):
+    recorded[key] = {"value": got, "budget": base, "tolerance": tol}
+
+def finish(code):
+    if json_out and mode == "published" and not update:
+        git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True).stdout.strip()
+        os.makedirs(os.path.dirname(json_out), exist_ok=True)
+        with open(json_out, "w") as f:
+            json.dump({"commit": git("rev-parse", "HEAD"),
+                       "committedAt": git("show", "-s", "--format=%cI", "HEAD"),
+                       "overBudget": code == 1,
+                       "missing": os.environ.get("PERF_GATE_MISSING", "").split(),
+                       "readings": recorded}, f, indent=2)
+            f.write("\n")
+    sys.exit(code)
 
 budget_file, update = sys.argv[1], sys.argv[3] == "true"
 readings = lambda s: [int(x) for x in s.split()]
@@ -169,16 +237,18 @@ mb = lambda b: f"{b/1e6:.1f} MB"
 mb2 = lambda b: f"{b/1e6:.2f} MB"
 bytes_ = lambda b: f"{b:.0f} bytes"
 
-# Prints a reading against its budget and says whether it failed: over the ceiling fails, under
-# the floor says the budget can come down.
-def over(label, got, base, tol, show, indent=""):
+# Prints a reading against its budget and says whether it is over the ceiling. Under the floor is
+# only said: the budget is moved when the charts are read, not by the PR that earned it.
+def over(key, label, got, base, tol, show, indent=""):
+    record(key, got, base, tol)
     top = base * (1 + tol)
     print(f"{indent}{label} {show(got)}; budget {show(base)}, ceiling {show(top)}")
     if got > top:
-        print(f"FAIL: {label} {(got / base - 1) * 100:.1f}% over budget.")
+        tag = "OVER (reported, not failing)" if report_only else "FAIL"
+        print(f"{tag}: {label} {(got / base - 1) * 100:.1f}% over budget.")
         return True
     if got < base * (1 - tol):
-        print(f"{indent}  {(1 - got / base) * 100:.1f}% under -- lower it with `scripts/perf/gate --published --update`.")
+        print(f"{indent}  {(1 - got / base) * 100:.1f}% under budget.")
     return False
 
 # Retired on purpose, so `--update` does not quietly put it back.
@@ -220,17 +290,18 @@ if update:
 # the MB in 900, peak memory to a few MB in 480. The regressions this is for were 50% and 90%.
 cold = budget["cold"]
 cold_failed = any([
-    over("first run allocated", cold_alloc, cold["allocated"], cold["allocatedTolerance"], mb),
-    over("first run peak memory", cold_peak_mb, cold["peakRssMB"], cold["peakRssTolerance"],
+    over("cold.allocated", "first run allocated", cold_alloc, cold["allocated"], cold["allocatedTolerance"], mb),
+    over("cold.peakRssMB", "first run peak memory", cold_peak_mb, cold["peakRssMB"], cold["peakRssTolerance"],
          lambda v: f"{v:.0f} MB"),
 ])
 
 # A workload added to the suite with no budget yet reports and passes, like the rest below.
 workloads = budget["suite"]["workloads"]
 print(f"suite, allocation per iteration over {budget['suite']['iters']} iterations")
-suite_failed = any([over(name, per, workloads[name][mode], workloads[name]["tolerance"], bytes_, "  ")
+suite_failed = any([over(f"suite.{name}", name, per, workloads[name][mode], workloads[name]["tolerance"], bytes_, "  ")
                     for name, per in suite.items() if mode in workloads.get(name, {})])
 for name in suite.keys() - {name for name in workloads if mode in workloads[name]}:
+    record(f"suite.{name}", suite[name])
     print(f"  {name} {bytes_(suite[name])}; no budget recorded yet.")
 
 # Instructions and allocation, not time: both repeat run to run. A budget not recorded yet reports
@@ -242,13 +313,17 @@ if ui:
 for name, r in ui.items():
     b = budget["ui"][name]
     if "instructions" not in b:
+        record(f"ui.{name}.instructions", r["instructions"])
+        record(f"ui.{name}.allocated", r["allocated"])
         print(f"  {labels[name]} {r['instructions']:,} instructions, {mb2(r['allocated'])}; no budget recorded yet.")
         continue
     ui_failed = any([
-        over(f"{labels[name]} instructions", r["instructions"], b["instructions"],
+        over(f"ui.{name}.instructions", f"{labels[name]} instructions", r["instructions"], b["instructions"],
              b["instructionsTolerance"], lambda v: f"{v:,.0f}", "  "),
-        over(f"{labels[name]} allocated", r["allocated"], b["allocated"], b["allocatedTolerance"], mb2, "  "),
+        over(f"ui.{name}.allocated", f"{labels[name]} allocated", r["allocated"], b["allocated"], b["allocatedTolerance"], mb2, "  "),
     ]) or ui_failed
+for name, r in ui.items():
+    record(f"ui.{name}.ms", r["ms"])
 if ui:
     print(f"  wall time, not gated: first frame {ui['firstFrame']['ms']} ms, keypress {ui['keypress']['ms']} ms")
 failed = cold_failed or suite_failed or ui_failed
@@ -259,19 +334,20 @@ if limit is None or startup_limit is None:
     print(f"steady.dark ({mode}) allocated {mb2(measured)} net of startup ({mb2(startup)}); no budget recorded yet.")
     flag = " --published" if mode == "published" else ""
     print(f"Pin it with `scripts/perf/gate{flag} --update`.")
-    sys.exit(1 if failed else 0)
+    record("startup", startup)
+    record("steady", measured)
+    finish(1 if failed else 0)
 
 print(f"steady.dark ({mode}) allocated {mb2(total)} in all, median of {len(readings(sys.argv[2]))} warm runs")
 steady_failed = any([
-    over("startup", startup, startup_limit, startup_tolerance, mb2, "  "),
-    over("steady.dark net of startup", measured, limit, tolerance, mb2, "  "),
+    over("startup", "startup", startup, startup_limit, startup_tolerance, mb2, "  "),
+    over("steady", "steady.dark net of startup", measured, limit, tolerance, mb2, "  "),
 ])
 
 if failed or steady_failed:
-    print("If the regression is intended, raise the budget in the same commit and say why.")
-    print("This ran against a store the binary grew itself, as CI does, so a working dev")
+    print("This ran against a store the binary grew itself, as measure-release does, so a working dev")
     print("store (2.1 MB higher) is not the reason. docs/perf/playbook.md has the readings.")
-sys.exit(1 if failed or steady_failed else 0)
+finish(1 if failed or steady_failed else 0)
 PY
 
 # `--update` rewrites the allocation budgets only. The paired check has no number to update: it is a
@@ -279,5 +355,17 @@ PY
 [[ "$PUBLISHED" == "true" && "$UPDATE" == "false" && "$BUDGET_STATUS" -ne 2 ]] || exit "$BUDGET_STATUS"
 echo
 PAIRED_STATUS=0
-python3 ./scripts/perf/_paired.py "$EXE" "$HOME" || PAIRED_STATUS=$?
-exit $(( BUDGET_STATUS > PAIRED_STATUS ? BUDGET_STATUS : PAIRED_STATUS ))
+PERF_GATE_JSON="$JSON_OUT" python3 ./scripts/perf/_paired.py "$EXE" "$HOME" || PAIRED_STATUS=$?
+if [[ "$REPORT" == "true" && "$PAIRED_STATUS" -eq 2 ]]; then
+  echo "perf/gate: the CPU comparison did not run; recorded as missing"
+  PAIRED_STATUS=0
+  [[ -z "$JSON_OUT" ]] || python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["missing"].append("paired"); json.dump(d, open(p, "w"), indent=2)' "$JSON_OUT"
+fi
+STATUS=$(( BUDGET_STATUS > PAIRED_STATUS ? BUDGET_STATUS : PAIRED_STATUS ))
+# Report mode passes over budget (1) and nothing else: 2 is a run that could not measure.
+if [[ "$REPORT" == "true" && "$STATUS" -eq 1 ]]; then
+  echo
+  echo "perf/gate: over budget, reported only (--report)."
+  STATUS=0
+fi
+exit "$STATUS"

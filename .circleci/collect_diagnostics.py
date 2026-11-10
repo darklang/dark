@@ -38,7 +38,7 @@ def homes(*names):
 # Explicit working stores, never a recursive sweep of databases or backups.
 # The shell gates use these paths in _gates-store and _gates-ui.
 CHECK_DATABASES = {
-  **{name: ["data.db"] for name in ["migrations", "packages", "seed", "allocation",
+  **{name: ["data.db"] for name in ["migrations", "packages", "seed",
                                      "gate-perf-probes-run", "gate-gates-are-clean"]},
   # `run-fsharp-tests --split` gives each share of the one-at-a-time tests a store of its own.
   "backend-tests": ["test-data.db", "split-sequenced/.darklang/test-data.db",

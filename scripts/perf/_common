@@ -63,8 +63,10 @@ exe_build_tag() {
   echo "release-$mode ${commit:-unknown}"
 }
 
-# The newest published CLI, or empty if there isn't one.
+# The newest published CLI, or empty if there isn't one. `PERF_EXE` names one outright: that is how
+# `scripts/perf/measure-release` measures a downloaded release.
 release_exe() {
+  if [[ -n "${PERF_EXE:-}" ]]; then echo "$PERF_EXE"; return; fi
   # shellcheck disable=SC2012 # need mtime order, and no filename here has a space in it
   ls -t "${RELEASE_EXE_PATHS[@]}" 2>/dev/null | head -1 || true
 }

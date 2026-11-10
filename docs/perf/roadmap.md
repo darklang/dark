@@ -5,7 +5,9 @@ Numbers are measured unless marked *(estimate)*.
 
     scripts/perf/suite              six workloads, allocation per iteration (--release for the shipped build)
     scripts/perf/http               a real server under concurrent load (-p client processes, default 4)
-    scripts/perf/gate               the CI assertion, against a checked-in budget
+    scripts/perf/gate               every reading against a checked-in budget; not in CI
+    scripts/perf/measure-release    every number for one release binary, as a JSON line
+    scripts/perf/track              measure new releases into a history, chart it, print it
     scripts/perf/bench              repeatable CLI timing, with an A/B mode
     scripts/perf/alloc-profile      allocation by type name
     scripts/perf/crosslang          the same workload in node and python

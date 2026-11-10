@@ -43,7 +43,7 @@ opens or updates a PR:
              scripts/formatting/format check        fix with `format format`, then build again
              scripts/testing/test-build-planning.py
              scripts/dev/build --optimize
-             scripts/build/build-release-cli-exes.sh && scripts/perf/gate --published
+             scripts/build/build-release-cli-exes.sh
              ./scripts/run-fsharp-tests --published --split
              scripts/testing/gates first-day $(ls clis/darklang-*-linux-x64)
              CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates ci --parallel
@@ -175,8 +175,10 @@ know is stale; `docs/agent-traps.md` says when you need it.
                                                       once; package-tests sets the wall time (about
                                                       6m, measured in November 2026 at load ~30).
                                                       `--serial` for the old way
-    ./scripts/perf/gate --published                   reference workload, allocation vs budget
+    ./scripts/perf/gate --published                   every perf reading vs budget; NOT in CI
     ./scripts/perf/gate                               the same, debug: reports, does NOT gate
+    scripts/perf/measure-release <tag>                every perf number for one release, on the host
+    scripts/perf/track --history H --out-dir D        new releases into a history, charted, printed
     ./scripts/perf/suite                              seven workloads, allocation per iteration
 
 Find what you want before guessing at a filter: `--groups` and `--find` need no

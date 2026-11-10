@@ -1,0 +1,261 @@
+#!/usr/bin/env python3
+"""Perf over releases: measure the ones a history does not have yet, chart all of it, print it.
+
+    scripts/perf/track --history H --out-dir D             measure up to --max new releases, chart, print
+    scripts/perf/track --history H --out-dir D --max 200   backfill every release with a linux-x64 binary
+    scripts/perf/track --history H --out-dir D --render-only --no-print
+
+Each release is one `scripts/perf/measure-release <tag>`, whose JSON line is appended to the history
+(a failed one too, so it is not retried every run; delete its line to retry). Then one chart per
+metric over every release in the history, and a dated perf-<date>.md beside the charts, printed
+with print-md. Nothing in CI measures performance; this, run on whatever schedule you like, is all
+of it. Runs on the host; see measure-release for why.
+"""
+
+import argparse
+import datetime as dt
+import json
+import os
+import subprocess
+import sys
+import urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RELEASES = "https://api.github.com/repos/darklang/dark/releases?per_page=100&page={}"
+RUNTIME = "linux-x64"
+
+# What is charted, in this order, and how. Anything else in the readings is kept in the history
+# and listed in the table, just not drawn.
+CHARTS = [
+    ("steady", "steady.dark, net of startup", "bytes"),
+    ("startup", "startup", "bytes"),
+    ("cold.allocated", "first run, allocated", "bytes"),
+    ("cold.peakRssMB", "first run, peak memory", "mb"),
+    ("ui.firstFrame.instructions", "first frame, VM instructions", "count"),
+    ("ui.keypress.instructions", "keypress, VM instructions", "count"),
+    ("ui.keypress.allocated", "keypress, allocated", "bytes"),
+    ("paired.fib 24", "CPU, fib 24, vs reference", "ratio"),
+    ("paired.lists", "CPU, lists.dark, vs reference", "ratio"),
+    ("paired.bytes scan", "CPU, bytes scan, vs reference", "ratio"),
+    ("paired.ls Darklang.Stdlib.List", "CPU, ls Stdlib.List, vs reference", "ratio"),
+    ("ui.keypress.ms", "keypress, wall ms (weak)", "ms"),
+]
+
+
+def log(msg):
+    print(f"perf/track: {msg}", file=sys.stderr, flush=True)
+
+
+def get(url, binary=False):
+    req = urllib.request.Request(url, headers={"User-Agent": "darklang-perf-track"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        data = r.read()
+    return data if binary else json.loads(data)
+
+
+def releases():
+    """Every release with a linux-x64 binary, oldest first."""
+    out, page = [], 1
+    while True:
+        batch = get(RELEASES.format(page))
+        if not batch:
+            break
+        for r in batch:
+            assets = {a["name"]: a["browser_download_url"] for a in r["assets"]}
+            gz = next((n for n in assets if n.endswith(f"-{RUNTIME}.gz")), None)
+            sums = next((n for n in assets if n.endswith("-sha256sums.txt")), None)
+            if gz and not r.get("draft"):
+                out.append({"tag": r["tag_name"], "publishedAt": r["published_at"],
+                            "commit": gz.split("-")[2], "gz": gz, "gzUrl": assets[gz],
+                            "sumsUrl": assets.get(sums)})
+        page += 1
+    return sorted(out, key=lambda r: r["publishedAt"])
+
+
+def load(path):
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
+# ---------- drawing ----------
+
+def fmt(v, kind):
+    if v is None:
+        return "-"
+    if kind == "bytes":
+        return f"{v / 1e6:.2f} MB" if v >= 1e5 else f"{v:,.0f} B"
+    if kind == "mb":
+        return f"{v:.0f} MB"
+    if kind == "ratio":
+        return f"{v:.3f}x"
+    if kind == "ms":
+        return f"{v:.0f} ms"
+    return f"{v:,.0f}"
+
+
+def svg_chart(title, kind, points, base, tol):
+    """A line over releases, in grays that survive a laser printer: the series black, the baseline
+    dashed, its tolerance a pale band, and each point over the ceiling drawn as a filled square."""
+    W, H, L, R, T, B = 640, 190, 70, 34, 26, 34
+    vals = [v for _, _, v in points]
+    lo, hi = min(vals), max(vals)
+    if base is not None:
+        lo, hi = min(lo, base * (1 - (tol or 0))), max(hi, base * (1 + (tol or 0)))
+    pad = (hi - lo) * 0.08 or abs(hi) * 0.02 or 1
+    lo, hi = lo - pad, hi + pad
+    n = len(points)
+    x = lambda i: L + (W - L - R) * (i / (n - 1) if n > 1 else 0.5)
+    y = lambda v: T + (H - T - B) * (1 - (v - lo) / (hi - lo))
+    s = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" '
+         f'font-family="Helvetica, Arial, sans-serif" font-size="11">',
+         f'<text x="{L}" y="15" font-size="13" font-weight="bold">{title}</text>']
+    if base is not None and tol:
+        y0, y1 = y(base * (1 + tol)), y(base * (1 - tol))
+        s.append(f'<rect x="{L}" y="{y0:.1f}" width="{W - L - R}" height="{y1 - y0:.1f}" fill="#e6e6e6"/>')
+    if base is not None:
+        s.append(f'<line x1="{L}" x2="{W - R}" y1="{y(base):.1f}" y2="{y(base):.1f}" stroke="#555" '
+                 f'stroke-dasharray="5 4"/>')
+        s.append(f'<text x="{W - R}" y="{y(base) - 4:.1f}" text-anchor="end" fill="#555">baseline '
+                 f'{fmt(base, kind)}</text>')
+    for v in (lo + pad, hi - pad):
+        s.append(f'<text x="{L - 6}" y="{y(v) + 4:.1f}" text-anchor="end">{fmt(v, kind)}</text>')
+    s.append(f'<line x1="{L}" x2="{L}" y1="{T}" y2="{H - B}" stroke="#000"/>')
+    s.append(f'<line x1="{L}" x2="{W - R}" y1="{H - B}" y2="{H - B}" stroke="#000"/>')
+    path = " ".join(f"{'M' if i == 0 else 'L'}{x(i):.1f},{y(v):.1f}" for i, (_, _, v) in enumerate(points))
+    s.append(f'<path d="{path}" fill="none" stroke="#000" stroke-width="1.6"/>')
+    for i, (tag, _, v) in enumerate(points):
+        if base is not None and tol is not None and v > base * (1 + tol):
+            s.append(f'<rect x="{x(i) - 3:.1f}" y="{y(v) - 3:.1f}" width="6" height="6" fill="#000"/>')
+        else:
+            s.append(f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="1.8" fill="#000"/>')
+    # Up to six labels along the bottom: first, last, and evenly between.
+    idx = sorted({round(k * (n - 1) / 5) for k in range(6)}) if n > 1 else [0]
+    for i in idx:
+        tag, date, _ = points[i]
+        s.append(f'<text x="{x(i):.1f}" y="{H - B + 14}" text-anchor="middle">{tag}</text>')
+        s.append(f'<text x="{x(i):.1f}" y="{H - B + 26}" text-anchor="middle" fill="#555">{date}</text>')
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+def render(history, out_dir, today, measured_now):
+    ok = [r for r in history if r["status"] == "ok"]
+    failed_now = [r for r in measured_now if r["status"] != "ok"]
+    if not ok:
+        return None
+    budget = json.load(open(os.path.join(ROOT, "scripts", "perf", "budget.json")))
+    charts_dir = os.path.join(out_dir, f"charts-{today}")
+    os.makedirs(charts_dir, exist_ok=True)
+    week_ago = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).isoformat()
+    newest = ok[-1]
+    prior = [r for r in ok if r["publishedAt"] < week_ago]
+    then = prior[-1] if prior else ok[0]
+    this_week = [r for r in ok if r["publishedAt"] >= week_ago]
+
+    md = [f"# Perf over releases, {today}", ""]
+    md.append(f"{len(ok)} releases measured in all, {len(this_week)} published this week. "
+              f"Newest is {newest['tag']} ({newest['publishedAt'][:10]}). "
+              + (f"{len(measured_now)} measured on this run" if measured_now else "")
+              + (f", {len(failed_now)} of them could not be: {', '.join(r['tag'] for r in failed_now)}." if failed_now else ("." if measured_now else "")))
+    md.append("")
+    md.append("Every point is a release binary measured on this desktop with the same workloads. "
+              f"CPU is a ratio against {newest.get('pairedReference') or 'the pinned reference'}. "
+              "The baseline is scripts/perf/budget.json; the gray band is its tolerance and a "
+              "filled square is a release over it. The budget was recorded in CI's container, "
+              "and this desktop reads the first run higher (peak memory most of all), so for "
+              "the first-run charts read the line against itself, not against the baseline.")
+    md.append("")
+    md.append("---")
+    md.append("")
+    md.append(f"| metric | baseline | {then['tag']} | {newest['tag']} | change | vs baseline |")
+    md.append("|---|---|---|---|---|---|")
+    outside = []
+    for key, title, kind in CHARTS:
+        cur = newest["readings"].get(key)
+        if not cur:
+            continue
+        old = then["readings"].get(key, {}).get("value")
+        base, tol = cur.get("budget"), cur.get("tolerance")
+        v = cur["value"]
+        pct = lambda a, b: "-" if not a else f"{(b / a - 1) * 100:+.1f}%"
+        md.append(f"| {title} | {fmt(base, kind)} | {fmt(old, kind)} | {fmt(v, kind)} | {pct(old, v)} | {pct(base, v)} |")
+        # Only over counts. Under is good news, and a CPU ratio under 1 is just "faster than the
+        # reference release", which is the point of making releases.
+        if base and tol is not None and v > base * (1 + tol):
+            outside.append(f"- {title}: {pct(base, v)} against baseline, tolerance {tol * 100:.0f}%.")
+    md.append("")
+    md.append("Over tolerance on the newest release:" if outside else
+              "No reading on the newest release is over its tolerance.")
+    md.extend(outside)
+    md.append("")
+    for key, title, kind in CHARTS:
+        pts = [(r["tag"], r["publishedAt"][5:10], r["readings"][key]["value"]) for r in ok if key in r["readings"]]
+        if not pts:
+            continue
+        cur = newest["readings"].get(key, {})
+        svg = svg_chart(title, kind, pts, cur.get("budget"), cur.get("tolerance"))
+        p = os.path.join(charts_dir, key.replace(".", "-").replace(" ", "-") + ".svg")
+        with open(p, "w") as f:
+            f.write(svg)
+        md.append(f"![]({p})")  # no alt text: pandoc prints it as a caption, under the title
+        md.append("")
+    md.append("---")
+    md.append("")
+    md.append("The data is one JSON line per release in the history file this run appended to. "
+              "To move a baseline once a change is real and wanted: "
+              "`scripts/perf/gate --published --update` on an AOT build of main, in its own commit.")
+    path = os.path.join(out_dir, f"perf-{today}.md")
+    with open(path, "w") as f:
+        f.write("\n".join(md) + "\n")
+    return path
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--history", required=True, help="JSON lines, appended to")
+    ap.add_argument("--out-dir", required=True, help="where the dated .md and its charts go")
+    ap.add_argument("--max", type=int, default=20, help="most new releases to measure this run, newest first")
+    ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--no-print", action="store_true")
+    args = ap.parse_args()
+
+    if os.environ.get("IN_DEV_CONTAINER"):
+        sys.exit("perf/track: run this on the host, not in the dev container (see the top of the file)")
+
+    history = load(args.history)
+    measured_now = []
+    if not args.render_only:
+        seen = {r["tag"] for r in history}
+        todo = [r for r in releases() if r["tag"] not in seen][-args.max:]
+        log(f"{len(seen)} release(s) already in the history; measuring {len(todo)}")
+        os.makedirs(os.path.dirname(os.path.abspath(args.history)), exist_ok=True)
+        for rel in todo:
+            out = subprocess.run([os.path.join(ROOT, "scripts", "perf", "measure-release"), rel["tag"]],
+                                 cwd=ROOT, capture_output=True, text=True).stdout.strip()
+            try:
+                row = json.loads(out.splitlines()[-1])
+            except (IndexError, json.JSONDecodeError):
+                row = {"tag": rel["tag"], "publishedAt": rel["publishedAt"], "status": "failed",
+                       "why": ["measure-release printed no row"]}
+            log(f"{rel['tag']}: {row['status']}" + ("" if row["status"] == "ok" else f" {row.get('why', [])[-1:]}"))
+            with open(args.history, "a") as f:
+                f.write(json.dumps(row) + "\n")
+            history.append(row)
+            measured_now.append(row)
+        history.sort(key=lambda r: r["publishedAt"])
+
+    today = dt.datetime.now().strftime("%Y-%m-%d")
+    os.makedirs(args.out_dir, exist_ok=True)
+    md = render(history, args.out_dir, today, measured_now)
+    if not md:
+        log(f"no successful measurement in {len(history)} history row(s); nothing to draw")
+        sys.exit(1)
+    log(f"wrote {md}")
+    if not args.no_print:
+        subprocess.run([os.path.expanduser("~/bin/print-md"), md], check=True)
+
+
+if __name__ == "__main__":
+    main()

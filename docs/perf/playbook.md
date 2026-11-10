@@ -243,17 +243,22 @@ before every publish, so each binary's name is a tree you can name back.
 - Debug builds in ~2 minutes, Release in ~10. Develop in Debug, decide in Release, and know the two
   disagree by up to 3x on paths still heavy in computation expressions.
 
-## 12. Leave the next person a gate, not a story
+## 12. Leave the next person a chart, not a story
 
-`scripts/perf/gate` asserts allocation against a checked-in budget, on the published build only,
-and CI runs it. Startup and the workload net of startup have separate budgets, so neither dilutes
-the other. **Lower the budget in the same commit that earns it** -- a budget nobody
-tightens stops being a gate and becomes a ceiling to drift up to.
+`scripts/perf/gate` checks allocation, instructions and CPU against a checked-in budget, on the
+published build only. Startup and the workload net of startup have separate budgets, so neither
+dilutes the other.
 
-**Keep CI's share small.** The gate is deliberately one script and a couple of seconds. Don't put
-`scripts/perf/suite` or `scripts/perf/http` in CI: the suite runs twelve processes, and `http` starts
-a server and drives it under load. Those are for a human, or a nightly, deciding something. A long
-perf job in the main pipeline gets ignored and then disabled.
+**CI does not gate on any of it.** A budget in CI blocked merges on 5% of noise and on regressions
+somebody else had already landed, and pushed every perf-positive PR into rewriting budget.json. So
+performance is tracked over releases instead: `scripts/perf/measure-release <tag>` takes every
+number for one release binary, with this tree's workloads, and `scripts/perf/track` does that for
+each release a history does not have yet, then charts the lot and prints it. Because the
+instrument is fixed and the binaries are the shipped ones, old releases can be measured too, so a
+history can be backfilled.
+
+The budget is the baseline the charts draw. Move it with `scripts/perf/gate --published --update`,
+in a commit of its own, once a change is real and wanted.
 
 Same for documents: one roadmap, one history, one playbook, updated in place. The alternative is
 dozens of working notes and no way to tell which is current.
@@ -375,7 +380,7 @@ So the 2.1 MB splits three ways, and only one of them was what anybody suspected
   three-way sweep in the entry above bottoming out at 11.3 is the same wall: all three of its
   stores were dev-derived, so none of them could get under it.
 
-**CI is in the last row.** It runs `scripts/perf/gate --published` in a fresh container, against a
+**CI is in the last row.** It ran `scripts/perf/gate --published` in a fresh container, against a
 store the published binary seeds itself, with no stored `trace.record`. So the budget is reachable,
 CI has been measuring the right thing, and it is the LOCAL readings that have been inflated. Two
 separate conclusions and both are needed: the branch has not regressed allocation, and the local
