@@ -17,12 +17,11 @@ CREATE TABLE IF NOT EXISTS trace_cli_invocations (
   args BLOB,                   -- scripts only, see ScriptOrEvalInput.encodeArgs
   allow_harmful INTEGER NOT NULL CHECK (allow_harmful IN (0, 1)),
   sandbox INTEGER CHECK (sandbox IN (0, 1)),                  -- scripts only
-  warn_permissions INTEGER CHECK (warn_permissions IN (0, 1)), -- scripts only
   CHECK (
     (kind = 'eval'
      AND filename IS NULL AND args IS NULL
-     AND sandbox IS NULL AND warn_permissions IS NULL)
+     AND sandbox IS NULL)
     OR (kind = 'script'
         AND filename IS NOT NULL AND args IS NOT NULL
-        AND sandbox IS NOT NULL AND warn_permissions IS NOT NULL))
+        AND sandbox IS NOT NULL))
 );

@@ -1589,12 +1589,6 @@ module FunctionDeclaration =
         parameters = params
         returnType = rtyp
         description = fn.description
-        permissionCeiling =
-          fn.effects
-          |> Stdlib.Option.map(fun names ->
-            names
-            |> Stdlib.List.filterMap(fun((_range, case)) ->
-              LanguageTools.Permissions.effectOfCase(case)))
         body = body },
       unresolvedNames)
 
@@ -1629,12 +1623,6 @@ module TraitDeclaration =
           bounds = methodBounds
           parameters = params
           returnType = rtyp
-          permissionCeiling =
-            m.effects
-            |> Stdlib.Option.map(fun names ->
-              names
-              |> Stdlib.List.filterMap(fun((_range, case)) ->
-                LanguageTools.Permissions.effectOfCase(case)))
           description = m.description },
         unresolvedNames)
 

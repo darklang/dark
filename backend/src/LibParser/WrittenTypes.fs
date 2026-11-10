@@ -471,17 +471,7 @@ type FnDecl =
     typeParams : List<string * Range> // `<'a, 'b>` (name tick-stripped, with range)
     bounds : List<TypeParamBound>
     parameters : List<FnParam>
-    /// An optional effect row after the return colon, such as
-    /// `:{Http, Clock} Ret`, sets the function's permission ceiling. It limits
-    /// the effects used by the body and its calls; it never grants access.
-    /// Effect names are resolved, and unknown names reported, by
-    /// `WrittenTypesToProgramTypes`.
-    /// `: Ret` means no ceiling; `:{}` requires a pure body; a non-empty row
-    /// allows only the listed effects.
-    ///
-    ///   `: String`              None       no row, no promise
-    ///   `:{} String`            Some []    effect-free: every host effect inside is denied
-    ///   `:{Http, Clock} String` Some [...] only these; anything else inside is denied
+    /// Legacy tree field; new source always produces `None`.
     effects : Option<List<Identifier>>
     returnType : TypeReference
     body : Expr
@@ -780,7 +770,7 @@ module PackageFn =
       bounds : List<Bound>
       parameters : NEList<Parameter>
       returnType : TypeReference
-      /// The declared permission ceiling (effect case names); see `FnDecl`.
+      /// Legacy tree field; new source always produces `None`.
       effects : Option<List<string>>
       description : string
     }

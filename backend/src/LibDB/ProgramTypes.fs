@@ -207,7 +207,7 @@ module Fn =
 
   /// Whether a function hash is active and bound under `owner` on any branch, asked one hash at a
   /// time. The CLI uses this to skip consumer approval for bundled Darklang functions; the instance
-  /// policy, run policy, and function ceilings still apply.
+  /// defaults and invocation restrictions still apply.
   ///
   /// One indexed lookup per hash (`idx_locations_item_hash`), rather than every bundled hash read
   /// up front: a command asks about the few dozen functions it calls, and loading all of them (a
@@ -225,9 +225,8 @@ module Fn =
           """
         |> Sql.parameters [ "hash", Sql.string hash; "owner", Sql.string owner ]
         |> Sql.executeExistsSync)
-    // Hot path, so answers are remembered for the life of this function: `callerIsBundled` asks
-    // about every frame of the chain on each call of a native builtin. Concurrent because spread
-    // workers ask too.
+    // Entry-policy lookup asks whether each function is bundled. Cache answers for
+    // this snapshot; concurrent because spread workers ask too.
     let known = System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
     fun hash -> known.GetOrAdd(hash, ask)
 

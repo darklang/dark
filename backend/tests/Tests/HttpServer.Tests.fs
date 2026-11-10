@@ -55,9 +55,8 @@ let private tryBindListener
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
     let! outcome =
       LibExecution.Host.perform
-        LibExecution.Permissions.NoRelax
         access
-        (LibExecution.Host.Operation.HttpServerBind port)
+        (LibExecution.Host.Operation.HttpServerBind("0.0.0.0", port))
     match outcome with
     | LibExecution.Host.Outcome.Success response ->
       return
@@ -782,7 +781,7 @@ let private serveRejectsOutOfRangeArgs =
     // port 99999 is past the valid [0, 65535] range
     let! tooLargePort =
       runServe
-        $"Builtin.httpServerServe(99999, {handler}, 1048576, false, false, false, {onListening})"
+        $"Builtin.httpServerServe(\"127.0.0.1\", 99999, {handler}, 1048576, false, false, false, {onListening})"
     match tooLargePort with
     | Error msg ->
       Expect.stringContains msg "out-of-range" "port 99999 -> OutOfRange"
@@ -791,7 +790,7 @@ let private serveRejectsOutOfRangeArgs =
     // a negative body limit would reject every request
     let! negativeBodyLimit =
       runServe
-        $"Builtin.httpServerServe(8000, {handler}, -1, false, false, false, {onListening})"
+        $"Builtin.httpServerServe(\"127.0.0.1\", 8000, {handler}, -1, false, false, false, {onListening})"
     match negativeBodyLimit with
     | Error msg ->
       Expect.stringContains msg "out-of-range" "maxBodyBytes -1 -> OutOfRange"

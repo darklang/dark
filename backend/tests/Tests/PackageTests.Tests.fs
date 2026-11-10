@@ -91,9 +91,9 @@ test fails = Darklang.PackageTestOutcomes.double(4) |> Stdlib.Test.equal(9)
 test collects =
   Stdlib.Test.all([ Stdlib.Test.fail("a"), Stdlib.Test.fail("b") ])
 test notAResult = 5
-let restrictedPrint():{} Unit = Stdlib.printLine("should not print")
+let printOnce(): Unit = Stdlib.printLine("test output")
 test effectful =
-  let _ = Darklang.PackageTestOutcomes.restrictedPrint()
+  let _ = Darklang.PackageTestOutcomes.printOnce()
   Stdlib.Test.pass()
 test raisesWhatItRaises =
   (1 / 0)
@@ -107,11 +107,7 @@ test raisesButReturned =
 test raisesSomethingElse =
   (1 / 0)
   => raises "another message"
-let randomKey():{Random} String = Stdlib.display(Stdlib.Uuid.generate())
-let noRandom():{} String = Stdlib.display(Stdlib.Uuid.generate())
-let noClock():{Random} Unit =
-  let _ = Stdlib.DateTime.now()
-  ()
+let randomKey(): String = Stdlib.display(Stdlib.Uuid.generate())
 test randomGranted =
   (Darklang.PackageTestOutcomes.randomKey())
   |> Stdlib.String.length
@@ -120,13 +116,6 @@ test randomInherited =
   (Stdlib.display(Stdlib.Uuid.generate()))
   |> Stdlib.String.length
   |> Stdlib.Test.equal(36)
-test randomDenied =
-  (Darklang.PackageTestOutcomes.noRandom())
-  |> Stdlib.String.length
-  |> Stdlib.Test.equal(36)
-test clockDenied =
-  let _ = Darklang.PackageTestOutcomes.noClock()
-  Stdlib.Test.pass()
 """
 
     let! passes = run m "passes"
@@ -149,9 +138,9 @@ test clockDenied =
       "error: UncaughtException"
       "a non-Test.Result body errors"
 
-    // The called function's empty ceiling applies inside a test too.
+    // Tests intentionally allow effects in their disposable worker.
     let! effectful = run m "effectful"
-    Expect.stringStarts effectful "error: " "an effect is refused"
+    Expect.equal effectful "pass" "the helper inherits test grants"
 
     // Declaration-level `raises` catches the whole body: the exact message
     // passes, and a value or a different message fails saying which.
@@ -188,14 +177,6 @@ test clockDenied =
       "the called function may use instance-granted Random"
     let! randomInherited = run m "randomInherited"
     Expect.equal randomInherited "pass" "an unannotated test inherits Random"
-    let! randomDenied = run m "randomDenied"
-    Expect.stringStarts
-      randomDenied
-      "error: "
-      "the function's empty row denies Random"
-    let! clockDenied = run m "clockDenied"
-    Expect.stringStarts clockDenied "error: " "Random does not grant Clock"
-
     do! cleanup m
   }
 

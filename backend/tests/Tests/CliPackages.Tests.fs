@@ -1212,9 +1212,9 @@ test expected =
       })
 
 
-let testsUseInstanceAndFunctionPolicies =
+let testsUseInstancePolicy =
   instanceTest
-    "tests allow effects by default while preserving package and function policies"
+    "tests use disposable allow-all without changing installation rules"
     (fun state ->
       task {
         do! start state
@@ -1222,16 +1222,6 @@ let testsUseInstanceAndFunctionPolicies =
           """let clock(): Bool =
   let _ = Stdlib.DateTime.now()
   true
-let restricted():{} Bool =
-  let _ = Stdlib.DateTime.now()
-  true
-let caller():{Native} Stdlib.Test.Result =
-  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
-  | Error(message) -> Stdlib.Test.fail(message)
-  | Ok(output) ->
-    match output.result with
-    | Ok(_) -> Stdlib.Test.pass()
-    | Error(message) -> Stdlib.Test.fail(message)
 test direct = Tests.PermissionUse.clock() |> Stdlib.Test.equal(true)
 test isolated =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
@@ -1240,8 +1230,6 @@ test isolated =
     match output.result with
     | Ok(value) -> value |> Stdlib.Test.equal(true)
     | Error(message) -> Stdlib.Test.fail(message)
-test functionCeiling = Tests.PermissionUse.restricted() |> Stdlib.Test.equal(true)
-test callerCeiling = Tests.PermissionUse.caller()
 """
         let sourceFile =
           System.IO.Path.Combine(
@@ -1268,37 +1256,9 @@ test callerCeiling = Tests.PermissionUse.caller()
           shows
             state
             selected
-            "package policy"
-            "unapproved functions are denied in either execution mode"
-        do!
-          shows
-            state
-            selected
-            "package policy for `Tests.PermissionUse.clock`"
-            "a denial names the function, not its hash"
-        do!
-          shows
-            state
-            selected
-            "To approve: `permissions approve Tests.PermissionUse.clock`."
-            "the remedy names the function to approve"
-        do! exits state selected 1L "denials fail the test run"
-        do!
-          run
-            state
-            [ "permissions"; "approve"; "Tests.PermissionUse.clock"; "--yes" ]
-        do!
-          shows
-            state
-            selected
             "2 passed, 0 failed"
-            "the same approval permits ordinary and isolated calls"
-        do!
-          exits
-            state
-            selected
-            0L
-            "approved functions run under the test instance policy"
+            "ordinary and isolated tests inherit test grants without approvals"
+        do! exits state selected 0L "test defaults allow both calls"
         do! run state [ "permissions"; "deny"; "clock" ]
         let! savedPolicy = runCliPlain state [ "permissions"; "list" ]
         do!
@@ -1306,59 +1266,26 @@ test callerCeiling = Tests.PermissionUse.caller()
             state
             selected
             "2 passed, 0 failed"
-            "ordinary and isolated tests allow clock even when the installation denies it"
-        do! exits state selected 0L "tests have an allow-all instance boundary"
+            "test workers have their own disposable allow-all policy"
         let! afterTests = runCliPlain state [ "permissions"; "list" ]
-        Expect.equal afterTests savedPolicy "tests do not rewrite the saved policy"
+        Expect.equal afterTests savedPolicy "tests do not rewrite saved rules"
         do!
           shows
             state
             [ "eval"; "Tests.PermissionUse.clock()" ]
-            "instance policy"
-            "ordinary eval still uses the installation's denial"
+            "explicitly denied"
+            "ordinary eval still uses installation denies"
         do!
           exits
             state
             [ "eval"; "Tests.PermissionUse.clock()" ]
             1L
             "eval stays denied"
-        for name in [ "restricted"; "caller" ] do
-          do!
-            run
-              state
-              [ "permissions"; "approve"; "Tests.PermissionUse." + name; "--yes" ]
-        do!
-          shows
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
-            "function policy"
-            "the tested function's ceiling applies"
-        do!
-          exits
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
-            1L
-            "an instance grant cannot widen a function"
-        do!
-          shows
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
-            "function policy"
-            "captured caller restrictions survive isolation"
-        do!
-          exits
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
-            1L
-            "isolating a callback cannot widen its caller"
         do! discardAll state
       })
 
-/// An approved function can read a file under the installation's real policy, not the allow-all one
-/// `test run` uses. Approval derives a policy for every function the root reaches, and
-/// `Posix.fdRead` declares no effect, so its derived policy denies everything; a read on a
-/// descriptor the open allowed must still succeed. A function nobody approved is still denied, at
-/// the open. (The two bodies differ: identical ones would be one hash, and so one approval.)
+/// An entry approval authorizes both opening a file and subsequent descriptor
+/// reads. Another name for identical code receives no grant from that approval.
 let approvedFunctionReadsAFile =
   instanceTest "an approved function reads a file it opens" (fun state ->
     task {
@@ -1379,7 +1306,7 @@ let approvedFunctionReadsAFile =
 let readToo(path: String): String =
   match Stdlib.Cli.FileSystem.readFileAsString(path) with
   | Ok(text) -> text
-  | Error(_) -> "could not read it either"
+  | Error(_) -> "could not read"
 """
       let sourceFile = System.IO.Path.Combine(dir, "reader.dark")
       try
@@ -1390,15 +1317,21 @@ let readToo(path: String): String =
             [ "module"; "Tests.FdRead"; sourceFile ]
             0L
             "author the readers"
-        do! run state [ "permissions"; "allow"; "file"; "read"; dir ]
         let call name = [ "eval"; $"Tests.FdRead.{name}(\"{file}\")" ]
         do!
           shows
             state
             (call "readIt")
-            "package policy"
+            "function approval"
             "an unapproved function is denied"
-        do! run state [ "permissions"; "approve"; "Tests.FdRead.readIt"; "--yes" ]
+        do!
+          run
+            state
+            [ "permissions"
+              "approve"
+              "Tests.FdRead.readIt"
+              $"file read {dir}"
+              "--yes" ]
         do!
           shows
             state
@@ -1410,7 +1343,7 @@ let readToo(path: String): String =
           shows
             state
             (call "readToo")
-            "package policy"
+            "function approval"
             "a function nobody approved is still denied"
         do! exits state (call "readToo") 1L "the unapproved read fails"
       finally
@@ -2381,7 +2314,7 @@ let tests : List<Test> =
     packageTestJobsRejectInvalidCounts
     pureTestsRunInProcess
     isolatedTestsRejectUnsuccessfulWorkers
-    testsUseInstanceAndFunctionPolicies
+    testsUseInstancePolicy
     approvedFunctionReadsAFile
     runCallsAPackageFunctionByName
     upgradeRestoresSeedOperationKinds

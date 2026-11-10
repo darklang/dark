@@ -25,8 +25,8 @@ let write (w : BinaryWriter) (test : PackageTest.PackageTest) : unit =
   String.write w test.description
   Option.write w writeExpectedError test.expectedError
 
-let read (version : uint32) (r : BinaryReader) : PackageTest.PackageTest =
+let read (r : BinaryReader) : PackageTest.PackageTest =
   { hash = Hash.read r
-    body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read version r
+    body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
     description = String.read r
     expectedError = Option.read r readExpectedError }

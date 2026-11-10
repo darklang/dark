@@ -76,9 +76,9 @@ module TypeDeclaration =
     List.write w TypeReference.Bound.write d.bounds
     Definition.write w d.definition
 
-  let read (version : uint32) (r : BinaryReader) : TypeDeclaration.T =
+  let read (r : BinaryReader) : TypeDeclaration.T =
     let typeParams = List.read r String.read
-    let bounds = TypeReference.Bound.readList version r
+    let bounds = TypeReference.Bound.readList r
     let definition = Definition.read r
     { typeParams = typeParams; bounds = bounds; definition = definition }
 
@@ -88,8 +88,8 @@ let write (w : BinaryWriter) (t : PackageType.PackageType) : unit =
   TypeDeclaration.write w t.declaration
   String.write w t.description
 
-let read (version : uint32) (r : BinaryReader) : PackageType.PackageType =
+let read (r : BinaryReader) : PackageType.PackageType =
   let hash = Hash.read r
-  let declaration = TypeDeclaration.read version r
+  let declaration = TypeDeclaration.read r
   let description = String.read r
   { hash = hash; declaration = declaration; description = description }

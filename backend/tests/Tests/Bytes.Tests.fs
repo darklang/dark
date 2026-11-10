@@ -1082,6 +1082,7 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
       { name = name
         typeSymbolTable = RT.TST.empty
         typeArgs = []
+        approvalName = None
         access = None
         argsSoFar = argsSoFar
         boundImpls = [] }

@@ -89,6 +89,7 @@ let fns () : List<BuiltInFn> =
                           { name = FQFnName.Package fnHash
                             typeSymbolTable = TST.empty
                             typeArgs = []
+                            approvalName = None
                             access = None
                             argsSoFar = []
                             boundImpls = [] }

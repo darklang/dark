@@ -14,36 +14,19 @@ module RT = LibExecution.RuntimeTypes
 module Execution = LibExecution.Execution
 module PolicyBin = LibSerialization.Binary.Serializers.Permissions
 
-/// One approved root: the immutable dependency closure the approval
-/// covered, and the builtin-effect fingerprint it was reviewed under. The
-/// fingerprint is per-root, not global, so re-approving one root does not
-/// silently mark every other root fresh (which would drop the re-review
-/// signal for approvals that were never re-reviewed).
-type RootApproval =
+/// One named code version and the access reviewed for it.
+type Approval =
   {
-    closure : Set<string>
+    hash : string
+    policy : P.Policy
     fingerprint : string
-    /// The resource rules the consumer wrote for this root, when they did;
-    /// `None` for an approval derived from the analyzed effect set. Kept so an
-    /// `update` can carry a written policy forward and recompute a derived one,
-    /// which cannot be told apart from the policy's shape alone.
-    explicitPolicy : Option<P.Policy>
+    /// Explicit rules carry forward on update; inferred effects are recomputed.
+    explicitRules : bool
   }
 
 type ScopedKey = Option<Guid> * string
 
-type Store =
-  { instance : P.Policy
-    packages : Map<ScopedKey, P.Policy>
-    // Account-scoped logical function name -> approved content hash. This is
-    // the user's lock; hashes remain an implementation detail of the host
-    // policy store.
-    approvedVersions : Map<ScopedKey, string>
-    // Account-scoped record of each approved *root* hash: the immutable
-    // dependency closure the approval covered (revocation consults it so
-    // dropping one root only removes dependencies no remaining root still
-    // needs) and the per-root fingerprint (staleness consults it).
-    approvedRoots : Map<ScopedKey, RootApproval> }
+type Store = { instance : P.Policy; approvals : Map<ScopedKey, Approval> }
 
 let private scopedKey (accountID : Option<Guid>) (key : string) : ScopedKey =
   accountID, key
@@ -60,17 +43,12 @@ let private scopedEntries
 
 let private magic = "DARK-POLICIES"
 
-/// Versioned policy format. Older versions are rejected and handled by startup
-/// migration, so bytes are never silently reinterpreted.
-let formatVersion = 9
+/// Only the current policy format is supported; other versions are rejected.
+let formatVersion = 12
 
 let private fileName = "policies.bin"
 
-let empty : Store =
-  { instance = P.Policy.denyAll
-    packages = Map.empty
-    approvedVersions = Map.empty
-    approvedRoots = Map.empty }
+let empty : Store = { instance = P.Policy.denyAll; approvals = Map.empty }
 
 // ── codec ─────────────────────────────────────────────────────────────────────
 
@@ -120,24 +98,17 @@ let private writeScopedKey
 let private readScopedKey (label : string) (reader : BinaryReader) : ScopedKey =
   Option.read reader Guid.read, readIdentifier reader $"{label} key"
 
-let private writeRootApproval (writer : BinaryWriter) (approval : RootApproval) =
+let private writeApproval (writer : BinaryWriter) (approval : Approval) =
+  String.write writer approval.hash
+  PolicyBin.write writer approval.policy
   String.write writer approval.fingerprint
-  List.write writer String.write (Set.toList approval.closure)
-  match approval.explicitPolicy with
-  | None -> writer.Write false
-  | Some policy ->
-    writer.Write true
-    PolicyBin.write writer policy
+  writer.Write approval.explicitRules
 
-let private readRootApproval (reader : BinaryReader) : RootApproval =
-  let fingerprint = String.read reader
-  let closure =
-    List.read reader (fun r -> readIdentifier r "approved-root closure hash")
-  let explicitPolicy =
-    if reader.ReadBoolean() then Some(PolicyBin.read reader) else None
-  { closure = Set.ofList closure
-    fingerprint = fingerprint
-    explicitPolicy = explicitPolicy }
+let private readApproval (reader : BinaryReader) : Approval =
+  { hash = readIdentifier reader "function hash"
+    policy = PolicyBin.read reader
+    fingerprint = readIdentifier reader "fingerprint"
+    explicitRules = reader.ReadBoolean() }
 
 let toBytes (store : Store) : byte[] =
   use stream = new MemoryStream()
@@ -145,9 +116,7 @@ let toBytes (store : Store) : byte[] =
   String.write writer magic
   writer.Write formatVersion
   PolicyBin.write writer store.instance
-  writeEntries writer writeScopedKey PolicyBin.write store.packages
-  writeEntries writer writeScopedKey String.write store.approvedVersions
-  writeEntries writer writeScopedKey writeRootApproval store.approvedRoots
+  writeEntries writer writeScopedKey writeApproval store.approvals
   writer.Flush()
   stream.ToArray()
 
@@ -160,30 +129,19 @@ let fromBytes (bytes : byte[]) : Store =
   if version <> formatVersion then
     raiseFormatError $"Unsupported policy store version: {version}"
   let instance = PolicyBin.read reader
-  let packages =
-    readEntries reader "package" (readScopedKey "package") PolicyBin.read
-  let approvedVersions =
-    readEntries
-      reader
-      "approved version"
-      (readScopedKey "approved version")
-      (fun r -> readIdentifier r "function hash")
-  let approvedRoots =
-    readEntries
-      reader
-      "approved-root"
-      (readScopedKey "approved-root")
-      readRootApproval
+  let approvals =
+    readEntries reader "approval" (readScopedKey "approval") readApproval
   if stream.Position <> stream.Length then
     raiseFormatError "Trailing bytes in policy store"
-  { instance = instance
-    packages = packages
-    approvedVersions = approvedVersions
-    approvedRoots = approvedRoots }
+  { instance = instance; approvals = approvals }
 
-/// The format version stamped in `bytes`, if it carries our magic. Used to
-/// distinguish "an older version of our own format" (migratable) from foreign
-/// bytes or corruption (left untouched).
+/// Opaque identity of the entire reviewed policy, including grants and revocations.
+let reviewToken (store : Store) : string =
+  toBytes store
+  |> System.Security.Cryptography.SHA256.HashData
+  |> System.Convert.ToHexString
+
+/// Identify unsupported policy formats for an actionable write error.
 let storedVersion (bytes : byte[]) : Option<int> =
   try
     use stream = new MemoryStream(bytes)
@@ -195,8 +153,7 @@ let storedVersion (bytes : byte[]) : Option<int> =
 // ── file access ───────────────────────────────────────────────────────────────
 
 /// Parsed-store cache keyed on the file's (mtime, ctime, length) stamp.
-/// Function resolution consults the approved versions on every package-fn lookup; without this
-/// each lookup is a full file read + parse. Same-process writes invalidate
+/// Execution and review read policy repeatedly; without this each read parses the file. Same-process writes invalidate
 /// eagerly; another process's write changes the stamp and is picked up on the
 /// next read.
 let private cacheLock = obj ()
@@ -246,9 +203,9 @@ let private getForWrite () : Store =
       // These three are store conditions, not internal errors: each is the state of a file the
       // person can deal with once told, so each prints as its sentence. The path is the real one;
       // the policy directory moves with the store, so `~/.darklang/policy` is not always it.
-      | Some version when version > formatVersion ->
+      | Some version when version <> formatVersion ->
         Exception.raiseStoreCondition
-          $"The policy file was written by a newer Darklang (format {version}, this build reads {formatVersion}) and will not be overwritten. Upgrade, or move {where} aside."
+          $"The policy file uses unsupported format {version}; this build reads only format {formatVersion}. Move {where} aside and configure a fresh policy."
           []
       | _ ->
         Exception.raiseStoreCondition
@@ -282,7 +239,7 @@ let private nonBlank (label : string) (value : string) : unit =
   if String.IsNullOrWhiteSpace value then
     invalidArg label $"{label} cannot be empty"
 
-// ── first-run seed and migration ──────────────────────────────────────────────
+// ── first-run seed ──────────────────────────────────────────────
 
 /// A durable marker that this install has been seeded. It lives in the
 /// (write-protected) policy directory and survives a deleted policy file, so a
@@ -304,33 +261,13 @@ type SeedAction =
   | Leave
   /// Write the usable default instance policy and stamp the marker.
   | WriteDefault
-  /// Back up this older-format file, write deny-all at the current version,
-  /// and stamp the marker.
-  | BackUpAndReset of version : int
 
-/// Pure classification behind [seedInstanceIfMissing], fail-closed on
-/// deletion and version mismatch:
-///
-/// - **First install** (missing, no marker): write the usable default so a
-///   fresh install works without opening it wide.
-/// - **Missing file, marker present** (deleted/reset): leave it. A missing
-///   file reads as deny-all, so deletion fails closed instead of silently
-///   restoring the default — which could *widen* an operator policy that was
-///   tighter than the default.
-/// - **Older format**: back up and reset to **deny-all** at the current
-///   version (not the permissive default); the operator re-applies grants
-///   from the backup.
-/// - **Current-version, foreign/corrupt, or unreadable file**: leave it (an
-///   unparseable file already reads as deny-all).
+/// Seed only a fresh installation. Existing files are never converted or
+/// replaced; missing files in initialized installations grant nothing.
 let seedAction (file : LocalFile.ReadResult) (initialized : bool) : SeedAction =
   match file with
-  | LocalFile.Missing when initialized -> SeedAction.Leave
-  | LocalFile.Missing -> SeedAction.WriteDefault
-  | LocalFile.Read bytes ->
-    match storedVersion bytes with
-    | Some v when v < formatVersion -> SeedAction.BackUpAndReset v
-    | _ -> SeedAction.Leave
-  | LocalFile.Unreadable _ -> SeedAction.Leave
+  | LocalFile.Missing when not initialized -> SeedAction.WriteDefault
+  | _ -> SeedAction.Leave
 
 /// Apply [seedAction] to the policy file, once at startup. The common case,
 /// a current file, is decided from a plain read so that a read-only home (a
@@ -347,19 +284,12 @@ let seedInstanceIfMissing (instance : P.Policy) : unit =
       | SeedAction.Leave -> ()
       | SeedAction.WriteDefault ->
         writeFile { empty with instance = instance }
-        stampInitialized ()
-      | SeedAction.BackUpAndReset version ->
-        match file with
-        | LocalFile.Read bytes ->
-          LocalFile.writeAtomic $"{fileName}.v{version}.bak" bytes
-        | _ -> ()
-        writeFile empty // deny-all at the current version, never re-widen
         stampInitialized ())
 
 // ── approval metadata fingerprint ─────────────────────────────────────────────
 // The fingerprint records the builtin-effect classification used for each
-// approval. A changed fingerprint marks that root for re-review; it is a
-// signal, not an additional enforcement layer.
+// approval. A changed fingerprint requires review before the named grant
+// can be used again.
 
 /// This binary's builtin declarations, hashed with the analyzer version. An approval records
 /// it, and a different one marks the approval stale.
@@ -386,38 +316,11 @@ let builtinFingerprint
   |> Array.map (fun b -> b.ToString("x2"))
   |> String.concat ""
 
-/// The approved roots whose closure installed the package policy `policyId`, named as they
-/// were approved (or by short hash), and whether any of them is stale.
-let originOfIn
-  (store : Store)
-  (accountID : Option<Guid>)
-  (current : string)
-  (policyId : string)
-  : Option<RT.PackagePolicyOrigin> =
-  let roots =
-    scopedEntries accountID store.approvedRoots
-    |> Map.filter (fun approval -> Set.contains policyId approval.closure)
-  if Map.isEmpty roots then
-    None
-  else
-    let names = scopedEntries accountID store.approvedVersions
-    let nameOf (root : string) =
-      names
-      |> Map.toList
-      |> List.choose (fun (name, hash) -> if hash = root then Some name else None)
-      |> List.sort
-      |> List.tryHead
-      |> Option.defaultValue (root.Substring(0, min 8 root.Length))
-    Some
-      { approvedAs = roots |> Map.keys |> List.map nameOf |> List.sort
-        stale =
-          roots |> Map.exists (fun _ approval -> approval.fingerprint <> current) }
-
 /// Pure staleness check behind [approvalsAreStale]. True when any approved
 /// root's fingerprint differs from `current`. Per-root, so re-approving one
 /// root leaves the others' staleness intact.
 let approvalsAreStaleInStore (current : string) (store : Store) : bool =
-  store.approvedRoots
+  store.approvals
   |> Map.exists (fun _ approval -> approval.fingerprint <> current)
 
 /// True when any approved root was reviewed under a different builtin-effect
@@ -429,15 +332,17 @@ let approvalsAreStale (current : string) : bool =
 
 let instancePolicy () : P.Policy = (get ()).instance
 
-let packagePolicies (accountID : Option<Guid>) : Map<string, P.Policy> =
-  scopedEntries accountID (get ()).packages
+let namedApprovals accountID : Map<string, Approval> =
+  scopedEntries accountID (get ()).approvals
 
-/// The version this consumer APPROVED for a logical function name, if they have approved one.
-let approvedVersion (accountID : Option<Guid>) (location : string) : Option<string> =
-  (get ()).approvedVersions |> Map.tryFind (scopedKey accountID location)
+let packagePolicies accountID : Map<string, P.Policy> =
+  namedApprovals accountID |> Map.map (fun approval -> approval.policy)
 
-let approvedVersions (accountID : Option<Guid>) : Map<string, string> =
-  scopedEntries accountID (get ()).approvedVersions
+let approvedVersions accountID : Map<string, string> =
+  namedApprovals accountID |> Map.map (fun approval -> approval.hash)
+
+let approvedVersion accountID location : Option<string> =
+  namedApprovals accountID |> Map.tryFind location |> Option.map _.hash
 
 // ── writes ────────────────────────────────────────────────────────────────────
 
@@ -467,227 +372,127 @@ let editInstancePolicy
   set (fun store ->
     { store with instance = applyInstanceEdit allow deny remove store.instance })
 
-/// Every hash some approved root of `accountID` other than `except` still
-/// covers.
-let private closuresOfOtherRoots
-  (accountID : Option<Guid>)
-  (except : ScopedKey)
-  (store : Store)
-  : Set<string> =
-  scopedEntries accountID (Map.remove except store.approvedRoots)
-  |> Map.toSeq
-  |> Seq.collect (fun (_, approval) -> Set.toSeq approval.closure)
-  |> Set.ofSeq
-
-/// Drop a root's approval record and the dependency policies no other root still needs. The
-/// name-to-version approvals are NOT touched: this is the cleanup a re-approval performs before
-/// installing the new closure, and an approved version belongs to a NAME, not to the closure.
-let private dropRootInStore
-  (accountID : Option<Guid>)
-  (rootHash : string)
-  (store : Store)
-  : Store =
-  let rootKey = scopedKey accountID rootHash
-  match Map.tryFind rootKey store.approvedRoots with
-  | None -> store
-  | Some dropped ->
-    let stillNeeded = closuresOfOtherRoots accountID rootKey store
-    let packages =
-      Set.difference dropped.closure stillNeeded
-      |> Set.fold
-        (fun pkgs h -> Map.remove (scopedKey accountID h) pkgs)
-        store.packages
-    { store with
-        packages = packages
-        approvedRoots = Map.remove rootKey store.approvedRoots }
-
-/// Revoke: drop the root and ALSO withdraw the approval from every name pointing at it, since a
-/// revoked version must not stay callable under any name.
-///
-/// Re-approval must not reuse this. Content addressing makes one hash the target of several names
-/// -- the same body under two owners, a trivially equal helper -- and approving `Acme.b -> H` after
-/// `Acme.a -> H` used to run this whole function first, withdrawing `Acme.a`'s approval and
-/// restoring only the name being approved. `dropRootInStore` is the re-approval half.
-let revokeRootInStore
-  (accountID : Option<Guid>)
-  (rootHash : string)
-  (store : Store)
-  : Store =
-  let store = dropRootInStore accountID rootHash store
+/// Remove every named approval of this immutable version.
+let revokeRootInStore accountID hash (store : Store) : Store =
   { store with
-      approvedVersions =
-        store.approvedVersions
-        |> Map.filterWithIndex (fun (key : ScopedKey) approved ->
-          not (fst key = accountID && approved = rootHash)) }
+      approvals =
+        store.approvals
+        |> Map.filterWithIndex (fun (account, _) approval ->
+          account <> accountID || approval.hash <> hash) }
 
-/// Revoke one approved root, dependency-aware. See [revokeRootInStore].
-let revokePackageRoot (accountID : Option<Guid>) (rootHash : string) : unit =
-  set (revokeRootInStore accountID rootHash)
+let revokePackageRoot accountID hash : unit = set (revokeRootInStore accountID hash)
 
-/// Install the policies and approval record for a root's complete closure.
-/// Replacing an approval first removes dependencies no longer needed.
+/// Compare the complete policy reviewed before the prompt, then install one entry.
 let recordApprovalInStore
-  (accountID : Option<Guid>)
-  (rootHash : string)
-  (policies : List<string * P.Policy>)
-  (fingerprint : string)
-  (explicitPolicy : Option<P.Policy>)
-  (store : Store)
-  : Store =
-  // Only the stale dependencies and the old record go; see `revokeRootInStore` for why the
-  // name-to-version approvals must stay.
-  let store = dropRootInStore accountID rootHash store
-  // A separately approved root keeps its own policy; another root's closure
-  // must not replace or widen it.
-  let ownedByAnotherRoot (hash : string) : bool =
-    hash <> rootHash
-    && Map.containsKey (scopedKey accountID hash) store.approvedRoots
-  let packages =
-    policies
-    |> List.fold
-      (fun packages (hash, policy) ->
-        if ownedByAnotherRoot hash then
-          packages
-        else
-          Map.add (scopedKey accountID hash) policy packages)
-      store.packages
-  let approval =
-    { closure = policies |> List.map fst |> Set.ofList
-      fingerprint = fingerprint
-      explicitPolicy = explicitPolicy }
-  { store with
-      packages = packages
-      approvedRoots =
-        store.approvedRoots |> Map.add (scopedKey accountID rootHash) approval }
-
-/// Install an approval and move the name's approved version, only if that approval still names the
-/// version that was reviewed. A stale comparison changes nothing.
-let recordApprovalAndMoveVersionInStore
-  (accountID : Option<Guid>)
-  (rootHash : string)
-  (policies : List<string * P.Policy>)
-  (fingerprint : string)
-  (explicitPolicy : Option<P.Policy>)
-  (location : string)
-  (expectedCurrent : Option<string>)
-  (hash : string)
+  accountID
+  location
+  expected
+  (approval : Approval)
   (store : Store)
   : Result<Store, string> =
-  let key = scopedKey accountID location
-  if Map.tryFind key store.approvedVersions <> expectedCurrent then
-    Error
-      $"the approved version of {location} changed while this update was being reviewed; re-run the update"
+  if reviewToken store <> expected then
+    Error "Permissions changed during review. Review the approval again."
   else
-    let store =
-      recordApprovalInStore
-        accountID
-        rootHash
-        policies
-        fingerprint
-        explicitPolicy
-        store
-    Ok { store with approvedVersions = store.approvedVersions |> Map.add key hash }
+    Ok
+      { store with
+          approvals = Map.add (scopedKey accountID location) approval store.approvals }
 
-/// Atomically approve a closure and move the logical name's approved version. Locking keeps the
-/// policies and the approval consistent, and a stale move is rejected.
-let recordApprovalAndMoveVersion
-  (accountID : Option<Guid>)
-  (rootHash : string)
-  (policies : List<string * P.Policy>)
-  (fingerprint : string)
-  (explicitPolicy : Option<P.Policy>)
-  (location : string)
-  (expectedCurrent : Option<string>)
-  (hash : string)
+let recordApproval
+  accountID
+  location
+  expected
+  (approval : Approval)
   : Result<unit, string> =
-  nonBlank "rootHash" rootHash
   nonBlank "location" location
-  nonBlank "hash" hash
-  policies |> List.iter (fun (h, _) -> nonBlank "package hash" h)
-  update (
-    recordApprovalAndMoveVersionInStore
-      accountID
-      rootHash
-      policies
-      fingerprint
-      explicitPolicy
-      location
-      expectedCurrent
-      hash
-  )
+  nonBlank "hash" approval.hash
+  update (recordApprovalInStore accountID location expected approval)
 
+/// Remember exactly the reviewed requests, merging only grants for this same
+/// entry version. The whole prompt is committed atomically or not at all.
+let rememberReviewed
+  (expected : Store)
+  accountID
+  name
+  hash
+  fingerprint
+  (rules : List<P.Rule>)
+  : unit =
+  set (fun store ->
+    if store <> expected then
+      Exception.raiseInternal
+        "Permissions changed during review; nothing was saved."
+        []
+    let key = scopedKey accountID name
+    let oldRules, oldDenies =
+      match Map.tryFind key store.approvals with
+      | Some approval when
+        approval.hash = hash && approval.fingerprint = fingerprint
+        ->
+        P.Policy.rules approval.policy
+      | _ -> [], []
+    let policy = P.Policy.create (List.distinct (oldRules @ rules)) oldDenies
+    let approval =
+      { hash = hash
+        policy = policy
+        fingerprint = fingerprint
+        explicitRules = true }
+    { store with approvals = Map.add key approval store.approvals })
 
-/// The rules the consumer wrote when approving `hash` as a root, if any.
-let explicitApproval (accountID : Option<Guid>) (hash : string) : Option<P.Policy> =
-  Map.tryFind (scopedKey accountID hash) (get ()).approvedRoots
-  |> Option.bind (fun approval -> approval.explicitPolicy)
+let explicitApproval accountID name : Option<P.Policy> =
+  namedApprovals accountID
+  |> Map.tryFind name
+  |> Option.bind (fun approval ->
+    if approval.explicitRules then Some approval.policy else None)
 
-let unapproveVersion (accountID : Option<Guid>) (location : string) : unit =
+let unapproveVersion accountID location : unit =
   set (fun store ->
     { store with
-        approvedVersions =
-          store.approvedVersions |> Map.remove (scopedKey accountID location) })
+        approvals = Map.remove (scopedKey accountID location) store.approvals })
 
 // ── guest execution ───────────────────────────────────────────────────────────
 
-/// The name of the function `policyId` (its hash) on `branch`, for a denial message: a live
-/// name, a script's own name, or else a name it used to have. Only read on a denial.
-let private policyFnNameOn
-  (branch : LibExecution.ProgramTypes.BranchId)
-  (policyId : string)
-  : Option<RT.PolicyFnName> =
-  let hash = LibExecution.ProgramTypes.Hash policyId
-  let named isCurrent (locations : List<LibExecution.ProgramTypes.PackageLocation>) =
-    locations
-    |> List.tryHead
-    |> Option.map (fun loc ->
-      { RT.PolicyFnName.name = PackageLocation.toFQN loc
-        RT.PolicyFnName.current = isCurrent })
-  try
-    named true (ProgramTypes.Fn.getLocations branch hash).Result
-    |> Option.orElseWith (fun () -> named true (EphemeralPackages.fnLocations hash))
-    |> Option.orElseWith (fun () ->
-      named false (ProgramTypes.Fn.getLocationsEverNamed branch hash).Result)
-  with _ ->
-    // A message that falls back to the hash beats a denial that fails to say anything
-    None
-
-/// Build the execution state for guest code. The persisted instance policy is
-/// the hard maximum; run, package, bundled-function, and requested-function
-/// policies are layered beneath it. Policy administration is disabled.
+/// Build a guest invocation from instance defaults and named approvals.
+/// Explicit denies and the run policy bound every grant. Guest code cannot
+/// administer policy.
 let guestState
   (accountID : Option<Guid>)
   (runPolicy : P.Policy)
   (ownFns : List<RT.Hash>)
   (state : RT.ExecutionState)
   : RT.ExecutionState =
-  // Bundled membership is supplied by the host. Explicit approvals and the
-  // script's own functions are added as normal package policies.
   let bundled = state.isBundledPackageFn
-  let approved =
-    packagePolicies accountID
-    |> Map.fold (fun acc hash policy -> Map.add (RT.Hash hash) policy acc) Map.empty
-  let approved =
-    ownFns
-    |> List.fold (fun acc hash -> Map.add hash P.Policy.allowAll acc) approved
-  let lookup (hash : RT.Hash) =
-    match Map.tryFind hash approved with
-    | Some policy -> Some policy
-    | None -> if bundled hash then Some P.Policy.allowAll else None
+  let snapshot = get ()
   let fingerprint = lazy (builtinFingerprint state.fns.builtIn)
+  let own = Set.ofList ownFns
+  let lookup name (RT.Hash hash as fnHash) =
+    // A user alias of bundled code still has its own named approval.
+    let bundledName =
+      name |> Option.forall (fun (n : string) -> n.StartsWith("Darklang."))
+    if (bundledName && bundled fnHash) || Set.contains fnHash own then
+      None
+    else
+      let policy =
+        name
+        |> Option.bind (fun name ->
+          let key = scopedKey accountID name
+          match Map.tryFind key snapshot.approvals with
+          | Some approval when
+            approval.hash = hash && approval.fingerprint = fingerprint.Value
+            ->
+            Some approval.policy
+          | _ -> None)
+      Some(policy |> Option.defaultValue P.Policy.denyAll)
   { state with
       accountID = accountID
       canManagePolicies = false
-      packagePolicyOrigin =
-        fun policyId -> originOfIn (get ()) accountID (fingerprint.Force()) policyId
-      policyFnName = policyFnNameOn state.branchId }
-  |> Execution.setInstancePolicy (instancePolicy ())
+      packagePolicy = lookup
+      permissionAccess = fun access -> access
+      requestPermission = None }
+  |> Execution.setInstancePolicy snapshot.instance
   |> Execution.restrictRun runPolicy
-  |> Execution.setPackagePolicies lookup
 
 /// Test runs have an allow-all instance boundary without changing the saved
-/// installation policy. Package approvals and declared function ceilings still
-/// apply, as do restrictions captured by a caller entering the test runner.
+/// installation policy. Restrictions captured by a caller still apply.
 let testState
   (accountID : Option<Guid>)
   (state : RT.ExecutionState)
@@ -708,7 +513,7 @@ let rootOf (applicable : RT.Applicable) : List<RT.Hash> =
 
 /// The state a package function runs under when it is the approval root of its own run (a
 /// handler a server calls, a view a host runs, a function the editor re-runs for live values):
-/// the instance policy is the ceiling and `invokerAccess` the outer bound. With no root (a
+/// explicit instance denies and `invokerAccess` remain binding. With no root (a
 /// lambda) the state is the caller's.
 let rootState
   (state : RT.ExecutionState)
@@ -718,5 +523,5 @@ let rootState
   match roots with
   | [] -> state
   | _ ->
-    let guest = guestState state.accountID P.Policy.allowAll roots state
+    let guest = guestState state.accountID P.Policy.allowAll [] state
     { guest with access = guest.access |> P.Access.constrainBy invokerAccess }

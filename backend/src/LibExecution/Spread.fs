@@ -715,6 +715,7 @@ and private spreadChunks
           { name = builtin
             typeSymbolTable = TST.empty
             typeArgs = []
+            approvalName = None
             access = None
             argsSoFar = chunkArgs offset chunk
             boundImpls = [] }

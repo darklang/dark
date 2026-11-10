@@ -7,7 +7,6 @@ open RuntimeTypes
 module VT = ValueType
 module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
-module Effects2DT = LibExecution.EffectsToDarkTypes
 
 /// `Dval.dint64` is shadowed by the local `module Dval` below, so it can't be
 /// called unqualified in this file. This is the unshadowed encoder for the
@@ -753,7 +752,8 @@ module ApplicableNamedFn =
         typeSymbolTable = TST.empty // TODO
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
         // Access is runtime-only; Dark values do not carry captured access.
-        access = Some(Permissions.Access.start Permissions.Policy.denyAll)
+        approvalName = None
+        access = Some(Permissions.Access.denyAll)
         // Not carried through Dark values: a decoded applicable is code, and the bounds its
         // caller resolved belong to the call rather than to the value.
         boundImpls = []

@@ -579,19 +579,6 @@ test declarations =
         | _ -> unexpected("submodule body")
       | _ -> unexpected("nested module")
 
-      // the effect row on the return colon
-      match scriptModule("module M =\n  let f(x: Int64):{Http, Clock} Int64 = x") with
-      | [ Function(f) ] ->
-        f.effects
-        |> Stdlib.Option.map(fun row -> Stdlib.List.map(row, Stdlib.Tuple2.second))
-        |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ "Http", "Clock" ]))
-      | _ -> unexpected("effect row")
-
-      match scriptModule("module M =\n  let f(x: Int64):{} Int64 = x") with
-      | [ Function(f) ] ->
-        f.effects |> Stdlib.Test.equal(Stdlib.Option.Option.Some([]))
-      | _ -> unexpected("empty effect row")
-
       // a private record type keeps its type role
       match
         decls(

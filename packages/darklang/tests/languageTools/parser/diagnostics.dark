@@ -393,8 +393,8 @@ test unwrapSpelling =
 
 test effectRows =
   Stdlib.Test.all(
-    [ clean("module M =\n  let f(x: Int64):{Http, Clock} Int64 = x")
-      clean("module M =\n  let f(x: Int64):{} Int64 = x") ])
+    [ rejectsPackage("module M =\n  let f(x: Int64):{Http, Clock} Int64 = x")
+      rejectsPackage("module M =\n  let f(x: Int64):{} Int64 = x") ])
 
 test traitDeclarations =
   Stdlib.Test.all(

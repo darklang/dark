@@ -296,7 +296,6 @@ module RuntimeTypes =
         returnType = RT.TInt64
         body = instructions[0]
         symbols = RT.DebugSymbols.emptyLazy
-        permissionCeiling = None
         bounds = [] }
       { hash = RT.Hash "fn2"
         typeParams = [ "T" ]
@@ -307,7 +306,6 @@ module RuntimeTypes =
         returnType = RT.TString
         body = instructions[0]
         symbols = RT.DebugSymbols.emptyLazy
-        permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
         bounds = [] } ]
 
 
@@ -902,7 +900,6 @@ module ProgramTypes =
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
       description = "test"
-      permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
       bounds = [] }
 
   /// `let f<'a: Show + Equal<BigInt>> ...`: two bounds on one param, one with a type arg,
@@ -951,7 +948,6 @@ module ProgramTypes =
         NEList.singleton { name = "value"; typ = TVariable "a"; description = "" }
       returnType = TString
       description = "bounded"
-      permissionCeiling = None
       bounds = [ { param = "a"; trait_ = showRef }; { param = "a"; trait_ = eqRef } ] }
 
   let packageFns = [ packageFn; boundedPackageFn ]
@@ -1017,7 +1013,6 @@ module ProgramTypes =
             parameters =
               NEList.singleton { name = "v"; typ = TVariable "a"; description = "" }
             returnType = TVariable "b"
-            permissionCeiling = Some Set.empty
             description = "the method" }
       description = "a trait" }
 

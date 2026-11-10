@@ -244,11 +244,11 @@ test runStatsReportsTheCost =
         Instance.doesNotSay(after, "allocated ", "and nothing was measured") ]))
 
 
-/// A denied permission stops the script, and approving it at the prompt saves the
-/// rule without restarting the run; a later run then completes.
+/// Remembering missing access continues the same run without replaying earlier
+/// work, and grants only this script version access on later runs.
 ///
 /// The approval needs a terminal, so `expect` plays the person.
-test aDeniedScriptStopsAndApprovalIsSaved =
+test rememberedApprovalContinuesOnceAndStaysWithTheScript =
   Instance.withInstance(fun i ->
     let path =
       script(
@@ -269,15 +269,22 @@ test aDeniedScriptStopsAndApprovalIsSaved =
     let (approvedCode, approved) =
       Instance.ran(Instance.T { dir = i.dir, cli = "expect" }, [ fixture, i.cli, path ])
 
-    // The permission also applies in a new process.
+    // The permission also applies in a new process, without widening defaults.
     let (laterCode, later) = Instance.ran(i, [ "run", path ])
+    let (_policyCode, defaults) = Instance.ran(i, [ "permissions", "list" ])
+    let (_approvalCode, approvals) =
+      Instance.ran(i, [ "permissions", "show", "script:" + path ])
 
     Stdlib.Test.all(
       [ policy
         stopped(redirectedCode, redirected, "redirected input")
         Instance.doesNotSay(redirected, "Enter number:", "redirected input does not prompt")
-        stopped(approvedCode, approved, "at a terminal")
-        Instance.says(approved, "Permission saved", "the user approved the rule")
+        Instance.exitedWith(approvedCode, 0, "approval continues this run")
+        Stdlib.List.length(Stdlib.String.split(approved, "BEFORE_DENIAL"))
+          |> Stdlib.Test.equal(2)
+        Instance.says(approved, "AFTER_APPROVAL", "the same run finishes")
+        Instance.doesNotSay(defaults, "clock", "instance defaults are unchanged")
+        Instance.says(approvals, "clock", "access belongs to this script")
         Instance.exitedWith(laterCode, 0, $"a later run completes: {later}")
         Instance.says(later, "AFTER_APPROVAL", "a later run completes") ]))
 

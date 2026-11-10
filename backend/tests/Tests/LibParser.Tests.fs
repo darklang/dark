@@ -159,16 +159,10 @@ let private parserStructureTests =
             (Some "replace 'let' with 'val'")
             "migration hint"
         | other -> failtest $"expected one diagnostic, got {other}")
-      testCase
-        "an unknown effect in the row is a diagnostic, not a wildcard"
-        (fun _ ->
-          let result =
-            P.parse "module M =\n  let f (x: Int64) :{Telepathy} Int64 = x"
-          match result.diagnostics with
-          | [ diagnostic ] ->
-            Expect.equal diagnostic.code P.DiagnosticCode.effect "diagnostic code"
-            Expect.stringContains diagnostic.message "Telepathy" "names the effect"
-          | other -> failtest $"expected one diagnostic, got {other}") ]
+      testCase "function ceiling syntax is rejected" (fun _ ->
+        for row in [ "{}"; "{Clock}"; "{Telepathy}" ] do
+          let result = P.parse $"module M =\n  let f(x: Int64):{row} Int64 = x"
+          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax") ]
 
 
 /// Parse `src` and return its single trailing expression — the range-complete

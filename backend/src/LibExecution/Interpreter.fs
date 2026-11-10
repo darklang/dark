@@ -1819,7 +1819,7 @@ let private contextReadsOnly (fn : BuiltInFn) (ctx : ApplyContext) : bool =
 ///
 /// `plainPure` says `isPlainPure fn` is already known to hold, so the checks it answers are
 /// skipped rather than asked: they would all pass.
-let private invokeBuiltin
+let private invokeBuiltinAuthorized
   (exeState : ExecutionState)
   (vm : VMState)
   (fn : BuiltInFn)
@@ -1865,22 +1865,7 @@ let private invokeBuiltin
       )
       |> raiseRTE vm.threadID
     if not (Set.isEmpty fn.callEffects) then
-      // `Native` names what no rule can scope, so a policy grants it whole or not at all --
-      // which would put the CLI's own commands (the test runner, seed export, raw descriptors)
-      // behind `permissions allow native` on a stock install. Bundled first-party code is
-      // trusted for it instead, the same boundary the private-network sync transport uses;
-      // a pulled package calling the same builtin still needs the grant. Every other effect
-      // is checked for everyone.
-      let effects =
-        if
-          Set.contains Effects.Effect.Native fn.callEffects
-          && PermissionCheck.callerIsBundled exeState vm
-        then
-          Set.remove Effects.Effect.Native fn.callEffects
-        else
-          fn.callEffects
-      if not (Set.isEmpty effects) then
-        PermissionCheck.requireBuiltinEffects exeState vm effects fn.name.name
+      PermissionCheck.requireBuiltinEffects exeState vm fn.callEffects fn.name.name
 
   let bodyAllocBefore =
     if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
@@ -2041,6 +2026,22 @@ let private invokeBuiltin
 ///
 /// Top-level rather than a local function, so it captures nothing. As a closure over the nine values it
 /// needs, it was an allocation on every builtin call.
+let private invokeBuiltin exeState vm fn tst typeArgs allArgs plainPure =
+  match exeState.requestPermission with
+  | _ when
+    exeState.requestPermission.IsNone
+    || exeState.spreadChild
+    || exeState.test.inRunner
+    ->
+    invokeBuiltinAuthorized exeState vm fn tst typeArgs allArgs plainPure
+  | _ ->
+    uply {
+      do!
+        PermissionCheck.approveBuiltinEffects exeState vm fn.callEffects fn.name.name
+      return! invokeBuiltinAuthorized exeState vm fn tst typeArgs allArgs plainPure
+    }
+
+
 let private completeBuiltin
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2614,7 +2615,7 @@ let private detectThinWrapper
   // other, changed what `request "put" "file:///etc/passwd"` does: the testfiles asserting an
   // unsupported-protocol error instead saw a real request attempted. An effectful builtin is
   // checked under the access of the frame applying it, and the wrapper's frame (its package
-  // policy, its ceiling) is part of that; a pure one is never checked at all. Pure builtins are
+  // invocation restrictions) is part of that; a pure one is never checked at all. Pure builtins are
   // the whole of the win here anyway -- `Dict.get`, `Option`, `Tuple2` -- so this costs nothing
   // worth having.
   let sameSignature (bi : BuiltInFn) =
@@ -2746,7 +2747,6 @@ let private packageFnCallData
   if exeState.packageFnCallCache.TryGetValue(fn.hash, &cached) then
     cached
   else
-    let id = string fn.hash
     let instructions = List.toArray fn.body.instructions
     let thinWrapper = thinWrapperOf exeState fn
     let d : PackageFnCallData =
@@ -2757,17 +2757,6 @@ let private packageFnCallData
             // the expressions they came from.
             symbols = fn.symbols
             quick = quicken (PackageRefs.currentGeneration ()) instructions }
-        packageLayer = Permissions.Layer.Package id
-        ceiling =
-          match fn.permissionCeiling with
-          | None -> ValueNone
-          | Some effects ->
-            ValueSome(
-              struct (Permissions.Layer.Function id,
-                      Permissions.Policy.allowEffects effects)
-            )
-        policy =
-          { owner = null; policy = Permissions.Policy.denyAll; isAllowAll = false }
         freeTVars = FreeTVars.ofPackage fn
         paramList = FreeTVars.paramsOfPackage fn
         executionPoint = FreeTVars.packageExecutionPoint fn.hash
@@ -2804,49 +2793,19 @@ let private packageFnCallData
     d
 
 
-/// The consumer policy for `fn` under this state's `packagePolicy`. Resolved
-/// once per (policy fn, package fn) and remembered on the call data; a state
-/// with a different `packagePolicy` sharing the cache recomputes, so a stale
-/// approval can never leak between them.
-let private packagePolicyMemo
-  (exeState : ExecutionState)
-  (callData : PackageFnCallData)
-  (hash : Hash)
-  : PackagePolicyMemo =
-  let memo = callData.policy
-  if System.Object.ReferenceEquals(memo.owner, exeState.packagePolicy) then
-    memo
-  else
-    let policy = exeState.packagePolicy hash
-    let memo =
-      { owner = box exeState.packagePolicy
-        policy = policy
-        isAllowAll = Permissions.Policy.isAllowAll policy }
-    callData.policy <- memo
-    memo
-
-
-/// Access established on entry to a package fn: applying access narrowed by
-/// the consumer's approval and the fn's own ceiling.
-///
-/// Keep this shared by the frame path and both thin-wrapper elisions: eliding
-/// a frame must not elide its package policy or ceiling.
+/// The first non-bundled function establishes an invocation's approval.
+/// Its helpers inherit that access; entering another function never adds grants.
 let private packageEntryAccess
   (exeState : ExecutionState)
-  (callData : PackageFnCallData)
+  (named : ApplicableNamedFn)
   (hash : Hash)
   (applying : Permissions.Access)
   : Permissions.Access =
-  let memo = packagePolicyMemo exeState callData hash
-  let access =
-    if memo.isAllowAll then
-      applying
-    else
-      applying |> Permissions.Access.restrict callData.packageLayer memo.policy
-  match callData.ceiling with
-  | ValueNone -> access
-  | ValueSome(struct (layer, policy)) ->
-    access |> Permissions.Access.restrict layer policy
+  match exeState.packagePolicy named.approvalName hash with
+  | None -> applying
+  | Some policy ->
+    let label = named.approvalName |> Option.defaultValue (string hash)
+    Permissions.Access.enter label policy applying
 
 /// The symbol table a package fn's frame starts with: the caller's, with the fn's own free type-vars
 /// shadowed first, so the inner fn's `'a` is local to this call and not the outer's.
@@ -2972,7 +2931,7 @@ let private refillForTailCall
     vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
     vm.stats.framePushCount <- vm.stats.framePushCount + 1L
   let tst = calleeTst frame implicitTypeParams newlyBound
-  let access = packageEntryAccess exeState callData fn.hash ctx.access
+  let access = packageEntryAccess exeState ctx.applicable fn.hash ctx.access
   let boundImpls = calleeBoundImpls frame ctx
   // The arguments are read from the registers about to be cleared, so out first, into the frame's
   // scratch buffer, which is then cleared so it holds nothing alive.
@@ -3065,7 +3024,7 @@ let private completePackage
       vm.stats.registersAllocated <-
         vm.stats.registersAllocated + int64 fn.body.registerCount
     let frame =
-      let access = packageEntryAccess exeState callData fn.hash ctx.access
+      let access = packageEntryAccess exeState ctx.applicable fn.hash ctx.access
       takeFrame
         vm
         fn.body.registerCount
@@ -3414,11 +3373,11 @@ let private callPackageResolvedReady
     // trace is a lie, and it took `List.map` out of every recorded trace the moment eliding
     // started working.
     if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
-    // Entering the wrapper, frame or not: its package approval and ceiling
+    // Entering the wrapper, frame or not: its invocation grants and restrictions
     // apply to the builtin it forwards to, and to any callback that builtin
     // applies. This also caches the call data, which is what lets the early
     // elision in the `Apply` handler do the same without fetching the fn.
-    let entryAccess = packageEntryAccess exeState callData fn.hash ctx.access
+    let entryAccess = packageEntryAccess exeState ctx.applicable fn.hash ctx.access
     // The elided builtin reads `vm.activeAccess`, and nothing else on this
     // path writes it.
     vm.activeAccess <- entryAccess
@@ -4484,7 +4443,7 @@ let private applyTraitMethod
   let traitHash = tm.trait_
   let methodName = tm.method_
   // Pick the impl, then call its fn exactly as a direct call would: that fn is what
-  // runs, what traces record, and what carries the ceiling.
+  // runs and what traces record.
   //
   // A mixed-type operator says so up front ("Cannot perform numeric operation on
   // Int64 and Float") rather than dispatching on the left operand and failing inside
@@ -4665,7 +4624,9 @@ let private applyBuiltin
           // parks the process here, in program order.
           // Deferrable when this call is a read; the same test `invokeBuiltin` makes of
           // a request after the body's first wait.
-          if contextReadsOnly fn ctx then
+          // A permission question must stop this process before later effects.
+          // Interactive runs await reads; unattended runs keep concurrent reads.
+          if exeState.requestPermission.IsNone && contextReadsOnly fn ctx then
             match
               Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
             with
@@ -4793,8 +4754,8 @@ let private applyPackageFn
   // Same guards as the elision in `callPackageResolved`: no explicit type args, nothing
   // applied already, every parameter supplied. Signature equality is what put the fn in the
   // cache, so the builtin's parameter count is the package fn's.
-  // Only with the wrapper's call data in hand: its package approval and
-  // ceiling are applied below, and they live on the call data the first
+  // Only with the wrapper's call data in hand: its invocation grants and
+  // restrictions are applied below, and they live on the call data the first
   // (long-way) call cached. Without it, go the long way, which caches it.
   // Not while something is watching. Eliding a forwarder skips its frame, and a frame is
   // how a reader knows a lambda was passed to `List.map` rather than to `List.fold`: the
@@ -4861,9 +4822,9 @@ let private applyPackageFn
 
     | ValueNone ->
 
-      // Entering the wrapper without a frame: its package approval and
-      // ceiling still apply (see `packageEntryAccess`).
-      let entryAccess = packageEntryAccess exeState callData pkg access
+      // Entering the wrapper without a frame: its invocation grants and
+      // restrictions still apply (see `packageEntryAccess`).
+      let entryAccess = packageEntryAccess exeState applicable pkg access
 
       // The builtin pushes no frame; its effect check and callbacks read
       // `vm.activeAccess`, so the elided entry must update it explicitly.
@@ -6505,6 +6466,7 @@ let private receiverMethod
                 { name = FQFnName.Package fnHash
                   typeSymbolTable = TST.empty
                   typeArgs = []
+                  approvalName = None
                   access = Some currentFrame.access
                   argsSoFar = []
                   boundImpls = [] }
@@ -6529,6 +6491,7 @@ let private receiverMethod
                       { name = FQFnName.Package fnHash
                         typeSymbolTable = TST.empty
                         typeArgs = []
+                        approvalName = None
                         access = Some currentFrame.access
                         argsSoFar = [ receiver ]
                         boundImpls = [] }
@@ -7268,9 +7231,9 @@ let seedRootAccess (access : Permissions.Access) (vm : VMState) : unit =
 /// Which access seeds the root frame is the whole of the callback question. A
 /// borrowed VM applying a callback for a builtin has no parent frame of its
 /// own, so unless the *invoking* frame's access is handed across here, the
-/// callback starts from the run's base access and the ceiling or package
-/// approval of the function that called the builtin never reaches it -- `f ()`
-/// inside a `:{}` function was denied while `List.map [()] f` ran the clock.
+/// callback starts from the run's base access and the invoking function's
+/// restrictions never reach it. Direct and builtin-mediated calls must obey
+/// the same restrictions.
 /// Builtin callers pass their current `vm.activeAccess`; host-initiated runs
 /// pass the state's own access through `execute`.
 let executeUnder

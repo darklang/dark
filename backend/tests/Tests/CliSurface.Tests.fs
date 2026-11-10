@@ -37,15 +37,14 @@ let private storedPermissionsAreIsolated =
             LibDB.PolicyStore.setInstancePolicy
               LibExecution.Permissions.Policy.denyAll
             let approved =
-              LibDB.PolicyStore.recordApprovalAndMoveVersion
-                None
-                "test-policy-root"
-                [ "test-policy-root", LibExecution.Permissions.Policy.denyAll ]
-                "test-fingerprint"
+              LibDB.PolicyStore.recordApproval
                 None
                 "Tests.PolicyIsolation.root"
-                None
-                "test-policy-root"
+                (LibDB.PolicyStore.reviewToken (LibDB.PolicyStore.get ()))
+                { hash = "test-policy-root"
+                  policy = LibExecution.Permissions.Policy.denyAll
+                  fingerprint = "test-fingerprint"
+                  explicitRules = false }
             Expect.equal approved (Ok()) "the first test stored an approval"
             Exception.raiseInternal "simulated test failure" []
           })
@@ -308,7 +307,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "version"; "--local" ], 0, Says "Darklang CLI", Silent
     [ "config"; "list" ], 0, Says "exec.workers", Silent
     [ "config"; "get"; "zzznope" ], 1, Silent, Says "not a config key"
-    [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "requires", Silent
+    [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "Effects:", Silent
     [ "commit"; "-m"; "rows"; "--json" ], 0, Says "\"committed\":false", Any
     [ "commit"; "-m"; "rows"; "-y" ], 0, Says "commit ", Says "CHANGED"
     [ "commits"; "1"; "--json" ], 0, Says "\"hash\"", Silent
@@ -1228,6 +1227,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "conflicts", [ "list" ]
       "backups", [ "list" ]
       "permissions", [ "show"; seed.fn ]
+      "effects", [ seed.fn ]
       // Scoped to a module that is clean. The shared store holds failing fixtures other tests
       // leave on purpose, so an audit of all of it rightly exits 1.
       "typecheck", [ "Darklang.Stdlib.Bool" ]
@@ -2276,16 +2276,10 @@ let private workbenchFnEditCarriesCallers =
       })
 
 
-/// An approval whose version is gone from the store is a refusal the person can act on, printed
-/// as one, not an internal error.
-///
-/// Approvals outlive the store they were made against: a build re-authors the store from the
-/// `.dark` files, so a hand-authored function's hash moves while its approval stays put. The raise
-/// was written for exactly that, but went out as `Internal error` with a metadata dump under the
-/// one sentence that says what to do.
-let private staleApprovalIsARefusal =
+/// Missing old approval code must not interfere with the current function.
+let private missingApprovalVersionDoesNotBlockCurrentCode =
   cliTest
-    "an approval of a version no longer in the store refuses plainly"
+    "an approval of a missing version does not block current code"
     (fun state ->
       task {
         let name = "Tests.HonestApproval.stale"
@@ -2307,44 +2301,20 @@ let private staleApprovalIsARefusal =
         Expect.isSome current "the approval landed"
         let gone = String.replicate 64 "e"
         let moved =
-          LibDB.PolicyStore.recordApprovalAndMoveVersion
+          LibDB.PolicyStore.recordApproval
             account
-            gone
-            []
-            ""
-            None
             name
-            current
-            gone
+            (LibDB.PolicyStore.reviewToken (LibDB.PolicyStore.get ()))
+            { hash = gone
+              policy = LibExecution.Permissions.Policy.denyAll
+              fingerprint = "missing-version"
+              explicitRules = false }
         Expect.isOk moved "the approval now names a version the store does not have"
 
-        let! outcome =
-          task {
-            try
-              let! ran = runCli state [ "eval"; name + "(1)" ]
-              return Ok ran
-            with e ->
-              return Error e
-          }
+        let! ran, status = runCliWithStatus state [ "eval"; name + "(1)" ]
         let! _ = runCli state [ "permissions"; "unapprove"; name ]
-
-        match outcome with
-        | Error e -> return raise e
-        | Ok ran ->
-          Expect.stringContains
-            ran
-            $"An approved version of {name} is no longer in the package store"
-            $"it names the function and the condition:\n{ran}"
-          Expect.stringContains
-            ran
-            $"dark permissions unapprove {name}"
-            $"and the command that releases it:\n{ran}"
-          Expect.isFalse
-            (ran.Contains "Internal error")
-            $"and is not an internal error:\n{ran}"
-          Expect.isFalse
-            (ran.Contains "approved: ")
-            $"with no metadata dump:\n{ran}"
+        Expect.equal status 0 ran
+        Expect.equal (ran.Trim()) "6144" "the current body runs"
       })
 
 
@@ -2470,7 +2440,7 @@ let private moduleDocOnlyEditLands =
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
 let tests : List<Test> =
   [ unwrapErrorsAreReadable
-    staleApprovalIsARefusal
+    missingApprovalVersionDoesNotBlockCurrentCode
     damagedPolicyIsARefusal
     httpRuleWithTrailingStarMatches
     moduleDocOnlyEditLands

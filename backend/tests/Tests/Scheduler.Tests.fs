@@ -391,7 +391,6 @@ let private editDoesNotReachAParkedProcess =
         returnType = PT.TString
         body = body
         description = ""
-        permissionCeiling = None
         bounds = [] }
     // The old version waits on a gate before answering; the new one answers at once.
     let oldFn =

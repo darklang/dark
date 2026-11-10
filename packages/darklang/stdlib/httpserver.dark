@@ -187,7 +187,8 @@ let getPathParam(req: Http.Request, routePattern: String, paramName: String): Op
 /// record-update, e.g. `{ HttpServer.Config.defaults(Net.Port.httpAlt) with logRequests = false }`.
 module Config =
   type Config =
-    { port: Stdlib.Net.Port
+    { address: String
+      port: Stdlib.Net.Port
       /// Maximum request body size in bytes (over-limit → 413).
       maxBodyBytes: Int64
       /// Auto-add `Server: darklang` + HSTS unless the handler set them.
@@ -203,7 +204,8 @@ module Config =
   /// Sensible serve defaults for `port`: 30 MB max body, standard headers, proto canonicalization, logging.
   let defaults(port: Stdlib.Net.Port): Config =
     Config
-      { port = port
+      { address = "127.0.0.1"
+        port = port
         maxBodyBytes = defaultMaxBodyBytes
         injectStandardHeaders = true
         canonicalizeFromForwardedProto = true
@@ -218,6 +220,7 @@ let serve(
   onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
   Builtin.httpServerServe(
+    config.address,
     Stdlib.Net.Port.toInt64(config.port),
     handler,
     config.maxBodyBytes,
@@ -255,6 +258,7 @@ let serveLive(
     | Off -> false
 
   Builtin.httpServerServeLive(
+    config.address,
     Stdlib.Net.Port.toInt64(config.port),
     init,
     step,

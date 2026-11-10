@@ -1583,6 +1583,9 @@ and ApplicableNamedFn =
   {
     name : FQFnName.FQFnName
 
+    /// Resolved entry-point name. Hash-only references cannot claim named grants.
+    approvalName : Option<string>
+
     typeSymbolTable : TypeSymbolTable
 
     // CLEANUP maybe this could be List<ValueType>?
@@ -4056,31 +4059,11 @@ module CallStack =
   let last (cs : CallStack) : Option<ExecutionPoint> = List.head cs
 
 
-/// A request that exceeded the active policies in warn-only mode
-/// (`dark run --warn-permissions`). `resource` identifies the target,
-/// `needed` explains the denied layer and reason, and `via` identifies the
-/// function or lambda that made the request.
-type PermissionViolation =
-  { resource : string; needed : string; via : Option<ExecutionPoint> }
-
 /// Details of a policy denial kept for the CLI's allow-and-retry prompt:
 /// the denying layer, attempted resource, and suggested allow rule when one
 /// exists.
 type PermissionDenialRecord =
   { layer : Permissions.Layer; resource : string; suggestion : Option<string> }
-
-/// Record a violation once; repeated requests produce one warning.
-let recordPermissionViolation
-  (sink : ResizeArray<PermissionViolation>)
-  (via : Option<ExecutionPoint>)
-  (resource : string)
-  (needed : string)
-  : unit =
-  let v = { resource = resource; needed = needed; via = via }
-  // Processes on different scheduler threads share one sink (the host reads it after the run),
-  // so the append is locked. Denials are rare; the lock is never hot.
-  lock sink (fun () -> if not (sink.Contains v) then sink.Add v)
-
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
@@ -4662,14 +4645,6 @@ module PackageFn =
       parameters : NEList<Parameter>
       returnType : TypeReference
 
-      /// The author's ceiling from the declaration's `:{…}` row; see
-      /// `ProgramTypes.PackageFn.permissionCeiling`. Entering the function
-      /// appends it as a `Layer.Function` restriction: `None` adds nothing,
-      /// `Some Set.empty` (`:{}`) denies every host effect, `Some {…}` allows
-      /// only those. What the caller captured at runtime is separate, in
-      /// `Access`; this never widens it.
-      permissionCeiling : Option<Set<Effects.Effect>>
-
       /// `'a: Show + Compare`; see `ProgramTypes.PackageFn.bounds`. Checked at entry.
       bounds : List<Bound>
 
@@ -4823,8 +4798,7 @@ module Trait =
     { name : string
       typeParams : List<string>
       parameters : NEList<PackageFn.Parameter>
-      returnType : TypeReference
-      permissionCeiling : Option<Set<Effects.Effect>> }
+      returnType : TypeReference }
 
   type Trait =
     { hash : Hash
@@ -5018,15 +4992,6 @@ type PackageManager =
 // Builtins, Execution State, Package Manager
 // A bunch of tangled things we need to `and` together
 // ------------
-
-/// The approvals that installed a package policy, and whether any was reviewed under different
-/// builtin declarations than this binary's: how a policy that was enough stops being enough.
-type PackagePolicyOrigin = { approvedAs : List<string>; stale : bool }
-
-/// The name a denial gives the function behind a package or function policy. `current` is false
-/// for an older version that the name no longer points at, which the hash has to tell apart.
-type PolicyFnName = { name : string; current : bool }
-
 
 /// Whether a builtin always answers the same way, for a reader who wants to know.
 ///
@@ -5223,11 +5188,6 @@ type InstrData =
     /// The operator calls in `instructions` (`Interpreter.quickOpsFor`).
     quick : QuickOps
   }
-
-/// Cached consumer policy and the policy function that produced it. The owner
-/// is compared by reference so a changed policy is resolved again.
-type PackagePolicyMemo =
-  { owner : obj; policy : Permissions.Policy; isAllowAll : bool }
 
 /// One activation of a function, lambda or the root script.
 ///
@@ -6198,15 +6158,6 @@ and PackageFnCallData =
   {
     instrData : InstrData
 
-    /// The layer used for the consumer's package policy.
-    packageLayer : Permissions.Layer
-
-    /// The author's `permissionCeiling`, if declared.
-    ceiling : voption<struct (Permissions.Layer * Permissions.Policy)>
-
-    /// The last resolved consumer policy, paired with its owner.
-    mutable policy : PackagePolicyMemo
-
     /// The parameters that take a callback, as (index, name, what the callback should
     /// return). Empty for most fns.
     ///
@@ -6350,15 +6301,9 @@ and ExecutionState =
     /// Host handles belong to this execution, never a process-global guest table.
     descriptorSession : Lazy<HostDescriptors.Session>
 
-    /// Consumer approval policy for an immutable package function. Missing
-    /// approvals return deny-all.
-    packagePolicy : FQFnName.Package -> Permissions.Policy
-
-    /// For a denial to name the approval behind a package policy. `None` where none covers it.
-    packagePolicyOrigin : string -> Option<PackagePolicyOrigin>
-
-    /// For a denial to name the function a policy id belongs to. `None` where it has no name.
-    policyFnName : string -> Option<PolicyFnName>
+    /// Resolve an entry's exact name and version to its approval. `None`
+    /// means a bundled or script-local helper that inherits invocation access.
+    packagePolicy : Option<string> -> FQFnName.Package -> Option<Permissions.Policy>
 
     /// Host-only permission to modify stored policies. Guest executions never
     /// receive it.
@@ -6368,14 +6313,15 @@ and ExecutionState =
     /// builtins. Defaults to false.
     isBundledPackageFn : FQFnName.Package -> bool
 
-    /// When a warning collection is provided, requests not covered by
-    /// caller-owned policies are recorded and allowed. Without one, denials
-    /// are enforced normally.
-    permissionWarnings : Option<ResizeArray<PermissionViolation>>
-
     /// Denials raised under this state, in occurrence order. Hosts give each
     /// guest run a fresh list to distinguish policy denials from other errors.
     deniedRequests : ResizeArray<PermissionDenialRecord>
+
+    /// Host-installed interactive approval. Never stored in function values or
+    /// traces. The resolver applies only grants for this invocation context.
+    permissionAccess : Permissions.Access -> Permissions.Access
+    requestPermission :
+      Option<Permissions.Access -> Permissions.Request -> string -> Ply<bool>>
 
     /// Run an applicable to completion on a borrowed VM, as a builtin applying a
     /// callback does. Filled in by `Execution.createState`, which is where that

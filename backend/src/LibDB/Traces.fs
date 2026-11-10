@@ -25,10 +25,10 @@ module AT = LibExecution.AnalysisTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
 /// Saved script options. Permission grants are not saved here.
-type ScriptOptions = { allowHarmful : bool; sandbox : bool; warnPermissions : bool }
+type ScriptOptions = { allowHarmful : bool; sandbox : bool }
 
 module ScriptOptions =
-  let defaults = { allowHarmful = false; sandbox = false; warnPermissions = false }
+  let defaults = { allowHarmful = false; sandbox = false }
 
   let typeName () =
     RT.FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Tracing.scriptOptions ())
@@ -41,8 +41,7 @@ module ScriptOptions =
       [],
       RT.RecordFields.ofList
         [ "allowHarmful", RT.DBool options.allowHarmful
-          "sandbox", RT.DBool options.sandbox
-          "warnPermissions", RT.DBool options.warnPermissions ]
+          "sandbox", RT.DBool options.sandbox ]
     )
 
 /// Saved input for eval or a script.
@@ -120,13 +119,7 @@ module ScriptOrEvalInput =
 
   /// Prefix invocation columns with `cli_` to avoid name clashes in joins.
   let selectColumns =
-    [ "kind"
-      "source"
-      "filename"
-      "args"
-      "allow_harmful"
-      "sandbox"
-      "warn_permissions" ]
+    [ "kind"; "source"; "filename"; "args"; "allow_harmful"; "sandbox" ]
     |> List.map (fun c -> $"cli.{c} AS cli_{c}")
     |> String.concat ", "
 
@@ -137,28 +130,25 @@ module ScriptOrEvalInput =
   /// SQL and parameters for saving a CLI invocation.
   let insertStatement (traceId : System.Guid) (input : ScriptOrEvalInput) =
     let flag (b : bool) = Sql.int (if b then 1 else 0)
-    let kind, filename, args, sandbox, warnPermissions =
+    let kind, filename, args, sandbox =
       match input with
-      | EvalExpression _ -> "eval", Sql.dbnull, Sql.dbnull, Sql.dbnull, Sql.dbnull
+      | EvalExpression _ -> "eval", Sql.dbnull, Sql.dbnull, Sql.dbnull
       | RunScript(filename, _, args, options) ->
         "script",
         Sql.string filename,
         Sql.bytes (encodeArgs args),
-        flag options.sandbox,
-        flag options.warnPermissions
+        flag options.sandbox
     "INSERT INTO trace_cli_invocations
-      (trace_id, kind, source, filename, args, allow_harmful, sandbox, warn_permissions)
+      (trace_id, kind, source, filename, args, allow_harmful, sandbox)
      VALUES
-      (@traceId, @kind, @source, @filename, @args, @allowHarmful, @sandbox,
-       @warnPermissions)",
+      (@traceId, @kind, @source, @filename, @args, @allowHarmful, @sandbox)",
     [ [ "traceId", Sql.uuid traceId
         "kind", Sql.string kind
         "source", Sql.string (source input)
         "filename", filename
         "args", args
         "allowHarmful", flag (options input).allowHarmful
-        "sandbox", sandbox
-        "warnPermissions", warnPermissions ] ]
+        "sandbox", sandbox ] ]
 
   /// Read saved CLI input, or None if any required field is missing or invalid.
   let fromColumns (read : RowReader) : Option<ScriptOrEvalInput> =
@@ -177,22 +167,15 @@ module ScriptOrEvalInput =
           read.stringOrNone "cli_filename",
           read.bytesOrNone "cli_args" |> Option.bind decodeArgs,
           flag "cli_allow_harmful",
-          flag "cli_sandbox",
-          flag "cli_warn_permissions"
+          flag "cli_sandbox"
         with
-        | Some filename,
-          Some args,
-          Some allowHarmful,
-          Some sandbox,
-          Some warnPermissions ->
+        | Some filename, Some args, Some allowHarmful, Some sandbox ->
           Some(
             RunScript(
               filename,
               source,
               args,
-              { allowHarmful = allowHarmful
-                sandbox = sandbox
-                warnPermissions = warnPermissions }
+              { allowHarmful = allowHarmful; sandbox = sandbox }
             )
           )
         | _ -> None
@@ -567,10 +550,8 @@ let fork
                 "cutoff", Sql.int64 cutoff
                 "stamp", Sql.string (now ()) ] ]
             "INSERT INTO trace_cli_invocations
-              (trace_id, kind, source, filename, args, allow_harmful, sandbox,
-               warn_permissions)
-             SELECT @child, kind, source, filename, args, allow_harmful, sandbox,
-                    warn_permissions
+              (trace_id, kind, source, filename, args, allow_harmful, sandbox)
+             SELECT @child, kind, source, filename, args, allow_harmful, sandbox
              FROM trace_cli_invocations WHERE trace_id = @parent",
             [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ]
             "INSERT INTO trace_fn_calls

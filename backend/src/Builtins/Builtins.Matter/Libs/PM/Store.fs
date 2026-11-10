@@ -15,18 +15,11 @@ module Dval = LibExecution.Dval
 module NR = LibExecution.RuntimeTypes.NameResolution
 
 
-/// Refuse a store-level operation unless every non-root frame is bundled Darklang
-/// code. The same check the private-network transport makes, for the same reason: a
-/// guest that can call a bundled wrapper would otherwise turn it into a confused
-/// deputy.
-let private requireBundledCaller
-  (state : ExecutionState)
-  (vm : VMState)
-  (builtinName : string)
-  : unit =
-  if not (LibExecution.PermissionCheck.callerIsBundled state vm) then
+/// Whole-store administration belongs to the trusted CLI, never a guest wrapper.
+let private requireHost (state : ExecutionState) : unit =
+  if not state.canManagePolicies then
     RuntimeError.UncaughtException(
-      $"permission denied: `{builtinName}` is restricted to trusted first-party (Darklang) code",
+      "permission denied: store backups require the trusted dark backups command",
       []
     )
     |> raiseUntargetedRTE
@@ -115,9 +108,9 @@ let fns () : List<BuiltInFn> =
         + "to a path. Returns the backups the action is about, or the failure as an Error."
       fn =
         (function
-        | state, vm, _, [| DEnum(_, _, _, caseName, fields) |] ->
+        | state, _, _, [| DEnum(_, _, _, caseName, fields) |] ->
           uply {
-            requireBundledCaller state vm "storeBackup"
+            requireHost state
             let db = LibDB.Sqlite.currentDbPath
             let result =
               match caseName, fields with

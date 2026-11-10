@@ -197,20 +197,6 @@ module TypeReference =
           return PT.TCustomType(resolved, typeArgs)
     }
 
-/// The effect names the parser kept, as a ceiling. An unknown name already produced a
-/// diagnostic, so it is simply not part of the ceiling.
-let private ceilingOf
-  (effects : Option<List<string>>)
-  : Option<Set<LibExecution.Effects.Effect>> =
-  effects
-  |> Option.map (fun names ->
-    names
-    |> List.choose (fun name ->
-      LibExecution.Effects.all
-      |> List.tryFind (fun effect -> LibExecution.Effects.caseName effect = name))
-    |> Set.ofList)
-
-
 module Bound =
   let toPT
     (pm : PT.PackageManager)
@@ -1117,7 +1103,6 @@ module Trait =
                 m.parameters
             let! returnType =
               TypeReference.toPT pm onMissing currentModule m.returnType
-            let permissionCeiling = ceilingOf m.effects
             let! methodBounds = Bound.listToPT pm onMissing currentModule m.bounds
             return
               ({ name = m.name
@@ -1125,7 +1110,6 @@ module Trait =
                  bounds = methodBounds
                  parameters = parameters
                  returnType = returnType
-                 permissionCeiling = permissionCeiling
                  description = m.description }
               : PT.Trait.Method)
           })
@@ -1141,7 +1125,6 @@ module Trait =
                  parameters =
                    NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
                  returnType = PT.TUnit
-                 permissionCeiling = None
                  description = "" }
               : PT.Trait.Method)
               methods
@@ -1347,8 +1330,7 @@ module PackageFn =
           description = fn.description
           body = body
           typeParams = allTypeParams
-          bounds = bounds
-          permissionCeiling = ceilingOf fn.effects }
+          bounds = bounds }
     }
 
   let toPT

@@ -4,7 +4,8 @@ module Darklang.Cli.Http.Serve
 
 /// Parsed flags + positional. `routerPath = ""` means "no router given".
 type Args =
-  { routerPath: String
+  { address: String
+    routerPath: String
     port: Stdlib.Net.Port
     maxBodyBytes: Int64
     /// `--live`: resolve the router by name per request, on the last version that passes its
@@ -16,19 +17,25 @@ type Args =
 
 let defaultArgs(): Args =
   Args
-    { routerPath = ""
+    { address = "127.0.0.1"
+      routerPath = ""
       port = Stdlib.Net.Port.httpAlt
       maxBodyBytes = Stdlib.HttpServer.Config.defaultMaxBodyBytes
       live = false
       error = Stdlib.Option.Option.None }
 
 /// Parse a list of args left-to-right. Recognized: a single positional
-/// (the router path), `--port N`, `--max-body-bytes N`, `--live`. Unknown flags or a duplicate
+/// (the router path), `--bind ADDRESS`, `--port N`, `--max-body-bytes N`, `--live`. Unknown flags or a duplicate
 /// positional -> an error string in `args.error`. `--dev` and `--no-live` were the two halves of
 /// this before it was one flag, and each is refused by name rather than ignored.
 let parseArgs(rest: List<String>, acc: Args): Args =
   match rest with
   | [] -> acc
+  | ["--bind", value, ...tail] ->
+    match LanguageTools.Permissions.serverAddress(value) with
+    | Some(address) -> parseArgs(tail, { acc with address = address })
+    | None ->
+      { acc with error = Some("Invalid --bind: use an IPv4 address or localhost") }
   | ["--port", value, ...tail] ->
     match Stdlib.Int64.parse(value) with
     | Error(_) ->
@@ -68,10 +75,11 @@ let parseArgs(rest: List<String>, acc: Args): Args =
 
 
 let usageLines(): List<String> =
-  [ "Usage: serve <router-path> [--port N] [--max-body-bytes N] [--live]"
+  [ "Usage: serve <router-path> [--bind ADDRESS] [--port N] [--max-body-bytes N] [--live]"
     ""
     "Arguments:"
     "  router-path        Dotted path to a router fn or value (Request -> Response)"
+    "  --bind ADDRESS     Bind address (default: 127.0.0.1; 0.0.0.0 exposes all interfaces)"
     "  --port N           TCP port to listen on (default: 8080)"
     "  --max-body-bytes N Reject request bodies larger than N bytes (default: 31457280, 30 MB)"
     "  --live             Follow edits: each request runs the newest version of the router that"
@@ -119,10 +127,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         let baseConfig = Stdlib.HttpServer.Config.defaults(parsed.port)
 
         let config =
-          if parsed.maxBodyBytes == Stdlib.HttpServer.Config.defaultMaxBodyBytes then
-            baseConfig
-          else
-            { baseConfig with maxBodyBytes = parsed.maxBodyBytes }
+          { baseConfig with address = parsed.address, maxBodyBytes = parsed.maxBodyBytes }
 
         // Resolve the router to a callable value (eval of its name) and call serve directly.
         // Resolve BEFORE announcing "Listening" so a bad router name reports cleanly, never a false start.
@@ -136,9 +141,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           // In the dev container the host reaches this port on a per-clone offset, set as
           // DARK_HOST_PORT_BASE at startup. Unset outside it, so there's nothing to add.
           let hostLines =
-            match Stdlib.Env.get("DARK_HOST_PORT_BASE") with
-            | None -> []
-            | Some(baseStr) ->
+            match (parsed.address, Stdlib.Env.get("DARK_HOST_PORT_BASE")) with
+            | ("0.0.0.0", Some(baseStr)) ->
               match Stdlib.Int64.parse(baseStr) with
               | Error(_) -> []
               | Ok(hostBase) ->
@@ -148,6 +152,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 else
                   let hostStr = Stdlib.display(hostBase + offset)
                   [ Stdlib.Cli.UI.Colors.hint($"  From the host: http://localhost:{hostStr}") ]
+            | _ -> []
 
           let announce(): Unit =
             let following =
@@ -162,13 +167,15 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 following
                 ""
                 Stdlib.Cli.UI.Colors.success(
-                  $"Listening on http://localhost:{portStr}, and on every interface") ]
+                  $"Listening on http://{parsed.address}:{portStr}") ]
 
-            // It binds `http://*:port`. Saying "localhost" read as local-only, and there is
-            // no flag to change what it binds because there does not need to be.
+            let scope =
+              if parsed.address == "0.0.0.0" then "All IPv4 interfaces."
+              else if Stdlib.String.startsWith(parsed.address, "127.") then
+                "Local connections only."
+              else $"Connections on {parsed.address} only."
             let tail =
-              [ Stdlib.Cli.UI.Colors.hint($"  http://localhost:{portStr} here, or this machine's address from anywhere else.")
-                Stdlib.Cli.UI.Colors.hint("  Requests print here as they arrive (method, path, status, duration).")
+              [ Stdlib.Cli.UI.Colors.hint("  " + scope)
                 "Press Ctrl+C to stop"
                 "" ]
 

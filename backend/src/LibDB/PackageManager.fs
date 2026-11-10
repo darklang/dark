@@ -226,52 +226,6 @@ let private ptOn (branch : PT.BranchId) : PT.PackageManager =
 let pt : PT.PackageManager = ptOn PT.BranchId.Main
 
 
-/// <param pm>, with an account's APPROVED VERSIONS narrowing how a function NAME resolves.
-///
-/// An approved version says "when I call `Acme.charge`, I mean this exact body, until I review a
-/// newer one". So it belongs at name resolution and nowhere else: a hash lookup still answers for
-/// any version (the update commands read the latest that way, and a caller that already holds a
-/// hash is not asking a question about names).
-///
-/// Applied per RUN, over whichever manager that run resolves through, rather than baked into the
-/// shared `pt`: `pt` is branch-blind and account-blind by design, and an approval is one account's
-/// decision on one branch's names. Building it per run is also what makes a `permissions approve`
-/// take effect on the next command rather than the next process.
-let narrowedToApprovedVersions
-  (accountID : System.Guid option)
-  (pm : PT.PackageManager)
-  : PT.PackageManager =
-  let approved = PolicyStore.approvedVersions accountID
-  if Map.isEmpty approved then
-    pm
-  else
-    { pm with
-        findFn =
-          fun location ->
-            uply {
-              match! pm.findFn location with
-              | None -> return None
-              | Some hash ->
-                match Map.tryFind (PackageLocation.toFQN location) approved with
-                | Some approvedHash ->
-                  // An approval whose hash disappeared after a reset or partial sync gets a clear
-                  // diagnostic instead of failing later as an unknown name. A store CONDITION, not an
-                  // internal error: it is easy to reach (a build re-authors the store, so a hand-authored
-                  // function's hash moves while its approval stays) and the person can fix it in one
-                  // command, so it prints as that sentence and nothing else.
-                  match! PMPT.Fn.get (Hash approvedHash) with
-                  | Some _ -> return Some(Hash approvedHash)
-                  | None ->
-                    let name = PackageLocation.toFQN location
-                    return
-                      Exception.raiseStoreCondition
-                        ($"An approved version of {name} is no longer in the package store, so it "
-                         + $"cannot run. Run `dark permissions unapprove {name}` to release the approval.")
-                        [ "location", name; "approved", approvedHash ]
-                | None -> return Some hash
-            } }
-
-
 /// An in-memory PackageManager built by applying `ops` in sequence. Used for transient state
 /// during parsing and testing, for ops that are not stored.
 ///

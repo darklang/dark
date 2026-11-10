@@ -86,21 +86,15 @@ let write (w : BinaryWriter) (fn : PackageFn.PackageFn) =
   NEList.write Parameter.write w fn.parameters
   TypeReference.write w fn.returnType
   Instructions.write w fn.body
-  Option.write
-    w
-    LibSerialization.Binary.Serializers.Effects.write
-    fn.permissionCeiling
   List.write w TypeReference.Bound.write fn.bounds
 
-let read (version : uint32) (r : BinaryReader) : PackageFn.PackageFn =
+let read (r : BinaryReader) : PackageFn.PackageFn =
   let hash = Hash.read r
   let typeParams = List.read r String.read
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
-  let body = Instructions.read version r
-  let permissionCeiling =
-    Option.read r LibSerialization.Binary.Serializers.Effects.read
-  let bounds = TypeReference.Bound.readList version r
+  let body = Instructions.read r
+  let bounds = TypeReference.Bound.readList r
   { hash = hash
     typeParams = typeParams
     parameters = parameters
@@ -109,5 +103,4 @@ let read (version : uint32) (r : BinaryReader) : PackageFn.PackageFn =
     // Not in this blob. The caller attaches them from their own column when something is
     // reading rather than running.
     symbols = DebugSymbols.emptyLazy
-    permissionCeiling = permissionCeiling
     bounds = bounds }

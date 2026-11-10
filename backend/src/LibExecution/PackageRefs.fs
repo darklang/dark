@@ -330,6 +330,7 @@ module Type =
       let scope = p [] "Scope"
       let hostRule = p [] "HostRule"
       let httpRule = p [] "HttpRule"
+      let httpPath = p [] "HttpPath"
       let processRule = p [] "ProcessRule"
       let effect = p [] "Effect"
       let rule = p [] "Rule"

@@ -66,11 +66,8 @@ module private Carried =
         w.Write bytes)
       contents
 
-  let read
-    (version : uint32)
-    (r : System.IO.BinaryReader)
-    : Dval * List<string * byte[]> =
-    let dv = Value.read version r
+  let read (r : System.IO.BinaryReader) : Dval * List<string * byte[]> =
+    let dv = Value.read r
     let contents =
       Binary.List.read r (fun r ->
         let hash = Binary.String.read r
@@ -107,15 +104,15 @@ module Request =
 
   let deserialize (bytes : byte[]) : Ply<Request> =
     let accountID, target =
-      LibSerialization.Binary.Serialization.makeDeserializerV
-        (fun version reader ->
+      LibSerialization.Binary.Serialization.makeDeserializer
+        (fun reader ->
           let accountID = Binary.Option.read reader Binary.Guid.read
           let target =
             match Binary.String.read reader with
             | "PackageTest" -> Choice1Of2(Binary.String.read reader)
             | "TestCallback" ->
               let hash = Binary.String.read reader
-              Choice2Of2(hash, Carried.read version reader)
+              Choice2Of2(hash, Carried.read reader)
             | tag -> Binary.raiseFormatError $"Unknown test worker request: {tag}"
           accountID, target)
         "test worker request"
@@ -144,7 +141,7 @@ module WorkerResult =
 
   let deserialize (bytes : byte[]) : Ply<Dval> =
     let dv, contents =
-      LibSerialization.Binary.Serialization.makeDeserializerV
+      LibSerialization.Binary.Serialization.makeDeserializer
         Carried.read
         "isolated test result"
         bytes

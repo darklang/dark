@@ -344,7 +344,7 @@ let permissionsLists =
 /// listed as a bare hash. That listing is where the stale-approvals warning sends people, so a
 /// row nobody can identify was most of the problem.
 let approvalsNameTheirDependencies =
-  instanceTest "permissions approvals names the dependencies it lists" (fun state ->
+  instanceTest "permissions approvals lists named entries only" (fun state ->
     task {
       do!
         fn
@@ -356,11 +356,197 @@ let approvalsNameTheirDependencies =
         shows
           state
           [ "permissions"; "approvals" ]
-          "Darklang.Stdlib.String.length (dependency)"
-          "a closure member is shown by its store name"
+          "Tests.DepName.measure"
+          "the approved entry is shown by name"
       do! run state [ "permissions"; "unapprove"; "Tests.DepName.measure" ]
       do! discardAll state
     })
+
+let namedApprovalWorkflow =
+  instanceTest
+    "named approvals are independent and do not need instance grants"
+    (fun state ->
+      task {
+        let body = "(key: String): Option<String> = Stdlib.Env.get(key)"
+        do! fn state "Tests.Grants.first" body
+        do! fn state "Tests.Grants.second" body
+        do! run state [ "permissions"; "clear" ]
+        do!
+          run
+            state
+            [ "permissions"
+              "approve"
+              "Tests.Grants.first"
+              "env read DARK_PERMISSION_ONE"
+              "--yes" ]
+        do!
+          shows
+            state
+            [ "eval"; "Tests.Grants.first(\"DARK_PERMISSION_ONE\")" ]
+            "None"
+            "the named grant supplies access"
+        do!
+          refuses
+            state
+            [ "eval"; "Tests.Grants.first(\"DARK_PERMISSION_TWO\")" ]
+            "permission denied"
+            "None"
+            "the first name stays narrow"
+        do!
+          run
+            state
+            [ "permissions"; "approve"; "Tests.Grants.second"; "all"; "--yes" ]
+        do!
+          shows
+            state
+            [ "eval"; "Tests.Grants.second(\"DARK_PERMISSION_TWO\")" ]
+            "None"
+            "the second alias has its own grant"
+        do!
+          refuses
+            state
+            [ "eval"; "Tests.Grants.first(\"DARK_PERMISSION_TWO\")" ]
+            "permission denied"
+            "None"
+            "approving an alias does not widen the first"
+        do!
+          run
+            state
+            [ "permissions"
+              "update"
+              "Tests.Grants.second"
+              "env read DARK_PERMISSION_ONE"
+              "--yes" ]
+        do!
+          refuses
+            state
+            [ "eval"; "Tests.Grants.second(\"DARK_PERMISSION_TWO\")" ]
+            "permission denied"
+            "None"
+            "updating the same code replaces its rules"
+        do!
+          run state [ "permissions"; "deny"; "env"; "read"; "DARK_PERMISSION_ONE" ]
+        do!
+          refuses
+            state
+            [ "eval"; "Tests.Grants.second(\"DARK_PERMISSION_ONE\")" ]
+            "explicitly denied"
+            "To allow:"
+            "an explicit deny beats the broad approval"
+        do!
+          fn
+            state
+            "Tests.Grants.read"
+            "(path: String): Result<String, Stdlib.Cli.Posix.Error> = Stdlib.Cli.File.readText(path)"
+        let! approved =
+          runCliPlain
+            state
+            [ "permissions"
+              "approve"
+              "Tests.Grants.read"
+              "file read /tmp"
+              "--yes" ]
+        Expect.stringContains
+          approved
+          "remembered access"
+          $"read-only approval: {approved}"
+        do!
+          shows
+            state
+            [ "permissions"; "approvals" ]
+            "Tests.Grants.first"
+            "the first alias is listed"
+        do!
+          shows
+            state
+            [ "permissions"; "approvals" ]
+            "Tests.Grants.second"
+            "the second alias is listed too"
+        do! discardAll state
+      })
+
+let nestedEvaluationKeepsRestrictions =
+  Tests.CliInstance.instanceTest
+    "bundled evaluation cannot escape sandbox or caller restrictions"
+    (fun i ->
+      task {
+        let path = System.IO.Path.Combine(i.dir, "nested-eval.dark")
+        System.IO.File.WriteAllText(
+          path,
+          "let result = Darklang.Cli.Eval.evaluateValue(None, "
+          + "Darklang.SCM.Branch.mainBranchId, "
+          + "\"Stdlib.Env.get(\\\"NESTED_PRIVATE_TOKEN\\\")\", false)\n"
+          + "match result with\n"
+          + "| Error(Denied(denial)) -> Stdlib.printLine(denial.resource)\n"
+          + "| _ -> Stdlib.printLine(\"unexpected result\")"
+        )
+        let! _ = Tests.CliInstance.run i [ "permissions"; "clear" ]
+        let! output, code =
+          Tests.CliInstance.runWithExit i [ "run"; "--sandbox"; path ]
+        Expect.equal code 1L "the bundled wrapper has no Native exemption"
+        Expect.stringContains output "permission denied" "sandbox denial"
+        let! output, code =
+          Tests.CliInstance.runWithExit
+            i
+            [ "run"; "--allow"; "native"; "--allow"; "stdout"; path ]
+        Expect.equal code 0L $"nested evaluation returns its error: {output}"
+        Expect.stringContains
+          output
+          "NESTED_PRIVATE_TOKEN"
+          "the inner resource was denied"
+      })
+
+let nestedEvaluationCannotResetCallerAccess =
+  cliTest
+    "nested evaluation preserves a guest caller restriction even with Native allowed"
+    (fun target ->
+      task {
+        let host = executionState target
+        let guest = { host with canManagePolicies = false }
+        let code =
+          "Darklang.Cli.Eval.evaluateValue(None, Darklang.SCM.Branch.mainBranchId, "
+          + "\"Stdlib.DateTime.now()\", false)"
+        let! allowed = evalUnder guest code
+        match allowed with
+        | RT.DEnum(_, _, _, "Ok", _) -> ()
+        | other -> failtestf "baseline evaluation should read the clock: %A" other
+        let nativeOnly =
+          LibExecution.Permissions.Policy.allowEffects (
+            Set.singleton LibExecution.Effects.Effect.Native
+          )
+        let restricted = guest |> LibExecution.Execution.restrictRun nativeOnly
+        let! denied = evalUnder restricted code
+        match denied with
+        | RT.DEnum(_, _, _, "Error", [ RT.DEnum(_, _, _, "Runtime", _) ]) -> ()
+        | other ->
+          failtestf "the inner clock must retain the caller restriction: %A" other
+      })
+
+let temporaryRunApproval =
+  Tests.CliInstance.instanceTest
+    "run grants are temporary and sandbox still restricts"
+    (fun i ->
+      task {
+        let path = System.IO.Path.Combine(i.dir, "grant.dark")
+        System.IO.File.WriteAllText(
+          path,
+          "let _ = Stdlib.Env.get(\"DARK_PERMISSION_RUN\")\n()"
+        )
+        let! _ = Tests.CliInstance.run i [ "permissions"; "clear" ]
+        let! (allowed, code) =
+          Tests.CliInstance.runWithExit
+            i
+            [ "run"; "--allow"; "env read DARK_PERMISSION_RUN"; path ]
+        Expect.equal code 0L $"temporary grant: {allowed}"
+        let! (denied, code) = Tests.CliInstance.runWithExit i [ "run"; path ]
+        Expect.equal code 1L $"the grant was not saved: {denied}"
+        let! (denied, code) =
+          Tests.CliInstance.runWithExit
+            i
+            [ "run"; "--sandbox"; "--allow"; "env read DARK_PERMISSION_RUN"; path ]
+        Expect.equal code 1L $"the run restriction wins: {denied}"
+        Expect.stringContains denied "run policy" "the restriction is named"
+      })
 
 /// A builtin's callback runs under the access the builtin was called with on every step, not
 /// whatever its last inner builtin (here `List.prepend`'s entry access) left on the VM.
@@ -418,14 +604,10 @@ let storeReadsRequirePackageRead =
             $"{name} reads the package store"
       })
 
-/// An approved version is the point of the whole permissions surface: it says "when I call this
-/// name, I mean the body I reviewed", and it has to hold when code actually RUNS.
-///
-/// This is what was missing until now. The approval was stored, listed and shown, and nothing
-/// narrowed name resolution by it, so every run took the latest version regardless.
-let anApprovedVersionIsWhatRuns =
+/// A remembered approval must not hide edits to the current function.
+let approvalsDoNotOverrideCurrentCode =
   instanceTest
-    "an approved version is what a run resolves, until it is withdrawn"
+    "a run uses current code before and after withdrawing approval"
     (fun state ->
       task {
         do! start state
@@ -439,8 +621,7 @@ let anApprovedVersionIsWhatRuns =
             "Tests.Appr.rate"
             "the approval is recorded against the name"
 
-        // A newer version, published and live: the NAME now points at it for everything that has
-        // not approved a version.
+        // A newer version is live even while the old approval remains recorded.
         do! fn state "Tests.Appr.rate" "() : Int64 = 6102"
         do! commit state "rate v2"
 
@@ -448,8 +629,8 @@ let anApprovedVersionIsWhatRuns =
           evals
             state
             "Tests.Appr.rate()"
-            "6101"
-            "a run resolves the version this account approved, not the latest"
+            "6102"
+            "a run resolves the current version despite the old approval"
 
         do! run state [ "permissions"; "unapprove"; "Tests.Appr.rate" ]
         do!
@@ -457,7 +638,7 @@ let anApprovedVersionIsWhatRuns =
             state
             "Tests.Appr.rate()"
             "6102"
-            "and follows the latest again once the approval is withdrawn"
+            "withdrawing approval does not change the code that runs"
         do! discardAll state
       })
 
@@ -553,7 +734,7 @@ open LibDB.Sqlite
 let private getText (port : int) : Task<int * string> =
   task {
     use client = new System.Net.Http.HttpClient()
-    let! response = client.GetAsync($"http://localhost:{port}/")
+    let! response = client.GetAsync($"http://127.0.0.1:{port}/")
     let! body = response.Content.ReadAsStringAsync()
     return (int response.StatusCode, body)
   }
@@ -1411,7 +1592,7 @@ let private devStreamReportsAnEditAfterTheServe =
             (fun port ->
               task {
                 use client = new System.Net.Http.HttpClient()
-                let! page = client.GetStringAsync($"http://localhost:{port}/")
+                let! page = client.GetStringAsync($"http://127.0.0.1:{port}/")
                 // The page carries its own version, so the edit below is reported even though it
                 // lands before the stream opens.
                 Expect.stringContains
@@ -1426,7 +1607,7 @@ let private devStreamReportsAnEditAfterTheServe =
                 use cts = new CancellationTokenSource(20_000)
                 let! stream =
                   client.GetStreamAsync(
-                    $"http://localhost:{port}/__live?from={from}",
+                    $"http://127.0.0.1:{port}/__live?from={from}",
                     cts.Token
                   )
                 use reader = new System.IO.StreamReader(stream)
@@ -1468,7 +1649,7 @@ let private devErrorPageCarriesTheListener =
             (fun port ->
               task {
                 use client = new System.Net.Http.HttpClient()
-                let! response = client.GetAsync($"http://localhost:{port}/")
+                let! response = client.GetAsync($"http://127.0.0.1:{port}/")
                 let! body = response.Content.ReadAsStringAsync()
                 Expect.equal (int response.StatusCode) 500 "the handler failed"
                 Expect.stringContains
@@ -1878,8 +2059,12 @@ let tests : List<Test> =
     permissionsLists
     storeReadsRequirePackageRead
     approvalsNameTheirDependencies
+    namedApprovalWorkflow
+    nestedEvaluationCannotResetCallerAccess
+    nestedEvaluationKeepsRestrictions
+    temporaryRunApproval
     foldCallbackKeepsItsAccess
-    anApprovedVersionIsWhatRuns
+    approvalsDoNotOverrideCurrentCode
     unapprovingAnUnapprovedNameSaysSo
     opsAndCommitsDescribeTheLog
     showTellsYouWhatACommitHolds
