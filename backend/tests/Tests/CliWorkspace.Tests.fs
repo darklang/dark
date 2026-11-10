@@ -183,7 +183,7 @@ let configRefusesUnknownKeysAndBadValues =
             [ "config"
               "set"
               "exec.policy"
-              "Darklang.Stdlib.Exec.Policy.roundRobin" ]
+              "Darklang.LanguageTools.Exec.Policy.roundRobin" ]
             "Set exec.policy"
             "a policy that resolves is stored"
         do!

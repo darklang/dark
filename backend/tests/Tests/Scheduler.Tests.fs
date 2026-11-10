@@ -1958,7 +1958,7 @@ let private transformAfterTheSourceWaits =
 
 
 /// Two equal spinners on one scheduler: round robin lands the older first; a Dark policy
-/// (`Stdlib.Exec.Policy.youngestFirst`) asked between slices lands the younger first.
+/// (`Darklang.LanguageTools.Exec.Policy.youngestFirst`) asked between slices lands the younger first.
 let private darkPolicyOrders =
   testTask "a Dark scheduling policy decides which runnable process is stepped" {
     Trace.take () |> ignore<List<string>>
@@ -1986,13 +1986,15 @@ let private darkPolicyOrders =
     Expect.equal plain [ "older"; "younger" ] "round robin: the older finishes first"
     let location : PT.PackageLocation =
       { owner = "Darklang"
-        modules = [ "Stdlib"; "Exec"; "Policy" ]
+        modules = [ "LanguageTools"; "Exec"; "Policy" ]
         name = "youngestFirst" }
     let! (found : Option<PT.FQFnName.Package>) = Ply.toTask (pmPT.findFn location)
     let fn =
       match found with
       | Some p -> RT.FQFnName.Package(PT2RT.FQFnName.Package.toRT p)
-      | None -> failtest "Stdlib.Exec.Policy.youngestFirst is not in the store"
+      | None ->
+        failtest
+          "Darklang.LanguageTools.Exec.Policy.youngestFirst is not in the store"
     Scheduler.policy <-
       Scheduler.Chooser(Builtins.Language.Libs.Exec.chooserFor state fn)
     try

@@ -8,7 +8,7 @@
 /// by its pid, whose own processes only it can see. Neither is a TRACE: a trace (`dark traces`)
 /// is a run kept in the store with its log, and its id is a different id again.
 ///
-/// The data is `Stdlib.Exec.list`/`inspect`/`cancel`/`machineList`; this file only renders it.
+/// The data is `LanguageTools.Exec.list`/`inspect`/`machineList` and `Stdlib.Exec.cancel`; this file only renders it.
 /// One scheduler per OS process, so the tree is the processes of the `dark` you are in: from a
 /// shell that is the CLI itself plus whatever it spawned (each `eval` expression is one); from
 /// the workbench or a REPL it is everything that instance is running.
@@ -17,11 +17,11 @@ module Darklang.Cli.Ps
 
 /// What `ps --json` hands back: the same two groups the two tables print.
 type PsSnapshot =
-  { thisInstance: List<Stdlib.Exec.Summary>
-    machine: List<Stdlib.Exec.MachineProcess> }
+  { thisInstance: List<LanguageTools.Exec.Summary>
+    machine: List<LanguageTools.Exec.MachineProcess> }
 
 
-let entryText(branchId: Uuid, entry: Stdlib.Exec.Entry): String =
+let entryText(branchId: Uuid, entry: LanguageTools.Exec.Entry): String =
   match entry with
   | Function(name) -> PrettyPrinter.RuntimeTypes.fnName(branchId, name)
   | Expr -> "an eval expression"
@@ -37,7 +37,7 @@ let eventSpecText(spec: Stdlib.Host.EventSpec): String =
   | StdinBytes(n) -> $"{Stdlib.toString(n)} bytes of input"
 
 
-let parkedText(branchId: Uuid, parked: Stdlib.Exec.ParkedOn): String =
+let parkedText(branchId: Uuid, parked: LanguageTools.Exec.ParkedOn): String =
   match parked with
   | Host(op) -> op
   // The builtin's bare name: `Builtin.` says nothing a reader of this column needs.
@@ -49,7 +49,7 @@ let parkedText(branchId: Uuid, parked: Stdlib.Exec.ParkedOn): String =
   | Process(id) -> $"process {Cli.Text.shortId(id)}"
 
 
-let statusText(branchId: Uuid, status: Stdlib.Exec.Status): String =
+let statusText(branchId: Uuid, status: LanguageTools.Exec.Status): String =
   match status with
   | Runnable -> "running"
   | Parked(on) ->
@@ -65,7 +65,7 @@ let statusText(branchId: Uuid, status: Stdlib.Exec.Status): String =
 
 /// One row of the process tree. No `parent` column: the indentation is the parent, and
 /// `Table.print` pads to the widest cell, so a column that repeats the shape costs every row.
-let row(branchId: Uuid, depth: Int64, p: Stdlib.Exec.Summary): List<String> =
+let row(branchId: Uuid, depth: Int64, p: LanguageTools.Exec.Summary): List<String> =
   let indent = Stdlib.String.repeat("  ", depth)
   [ Cli.Text.shortId(p.id)
     Cli.Text.oneLineAt(30, $"{indent}{entryText(branchId, p.entry)}")
@@ -76,13 +76,13 @@ let row(branchId: Uuid, depth: Int64, p: Stdlib.Exec.Summary): List<String> =
 /// The rows as a tree, each with its process id: each process under the one that spawned it,
 /// oldest first at every level. A process whose parent is not in the list (it finished and was
 /// forgotten) is a root.
-let treeRowsWithIds(branchId: Uuid, all: List<Stdlib.Exec.Summary>): List<(Uuid * List<String>)> =
+let treeRowsWithIds(branchId: Uuid, all: List<LanguageTools.Exec.Summary>): List<(Uuid * List<String>)> =
   let ids = all |> Stdlib.List.map(fun p -> p.id)
-  let isRoot(p: Stdlib.Exec.Summary): Bool =
+  let isRoot(p: LanguageTools.Exec.Summary): Bool =
     match p.parent with
     | None -> true
     | Some(pid) -> Stdlib.Bool.not(Stdlib.List.contains(ids, pid))
-  let under(depth: Int64, p: Stdlib.Exec.Summary): List<(Uuid * List<String>)> =
+  let under(depth: Int64, p: LanguageTools.Exec.Summary): List<(Uuid * List<String>)> =
     let children =
       all |> Stdlib.List.filter(fun c -> c.parent == Stdlib.Option.Option.Some(p.id))
     Stdlib.List.prepend(
@@ -90,11 +90,11 @@ let treeRowsWithIds(branchId: Uuid, all: List<Stdlib.Exec.Summary>): List<(Uuid 
       (p.id, row(branchId, depth, p)))
   all |> Stdlib.List.filter(isRoot) |> Stdlib.List.map(fun p -> under(0, p)) |> Stdlib.List.flatten
 
-let treeRows(branchId: Uuid, all: List<Stdlib.Exec.Summary>): List<List<String>> =
+let treeRows(branchId: Uuid, all: List<LanguageTools.Exec.Summary>): List<List<String>> =
   treeRowsWithIds(branchId, all) |> Stdlib.List.map(fun((_, cells)) -> cells)
 
 
-let executionPointText(branchId: Uuid, ep: Stdlib.Exec.ExecutionPoint): String =
+let executionPointText(branchId: Uuid, ep: LanguageTools.Exec.ExecutionPoint): String =
   match ep with
   | Source -> "(the entry point)"
   | Function(name) -> PrettyPrinter.RuntimeTypes.fnName(branchId, name)
@@ -105,7 +105,7 @@ let executionPointText(branchId: Uuid, ep: Stdlib.Exec.ExecutionPoint): String =
 
 
 /// The process whose id starts with `prefix`, when exactly one does.
-let find(prefix: String): Stdlib.Result.Result<Stdlib.Exec.Summary, String> =
+let find(prefix: String): Stdlib.Result.Result<LanguageTools.Exec.Summary, String> =
   // Every id starts with "", so an empty prefix would quietly take whichever process came first.
   // A shell variable that came back empty is how a person meets this.
   if prefix == "" then
@@ -113,7 +113,7 @@ let find(prefix: String): Stdlib.Result.Result<Stdlib.Exec.Summary, String> =
   else
 
   let matches =
-    Stdlib.Exec.list()
+    LanguageTools.Exec.list()
     |> Stdlib.List.filter(fun p -> Stdlib.String.startsWith(Stdlib.toString(p.id), prefix))
   match matches with
   | [ one ] -> Stdlib.Result.Result.Ok(one)
@@ -142,7 +142,7 @@ let startedAgoText(started: DateTime): String =
 /// printed above. The full command line is in `ps show`: it is longer than a terminal.
 let machineEntries(): List<(Int64 * List<String>)> =
   let me = Stdlib.Cli.Sys.currentPid()
-  Stdlib.Exec.machineList()
+  LanguageTools.Exec.machineList()
   |> Stdlib.List.filter(fun m -> (m.pid) != me)
   |> Stdlib.List.map(fun m ->
     (m.pid,
@@ -176,7 +176,7 @@ let printMachine(): Unit =
 let printList(branchId: Uuid): Unit =
   let me = Stdlib.toString(Stdlib.Cli.Sys.currentPid())
   Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"this instance (pid {me})"))
-  match treeRows(branchId, Stdlib.Exec.list()) with
+  match treeRows(branchId, LanguageTools.Exec.list()) with
   | [] -> Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText("  (nothing running)"))
   | rows -> Stdlib.Cli.UI.Table.print(localColumns, rows)
   printMachine()
@@ -191,7 +191,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
     Cli.printErr(e)
     false
   | Ok(p) ->
-    match Stdlib.Exec.inspect(p.id) with
+    match LanguageTools.Exec.inspect(p.id) with
     | None ->
       Cli.printErr(
         $"process {Cli.Text.shortId(p.id)} finished while you were asking -- `dark ps` for what is left")
@@ -227,10 +227,10 @@ let printShow(branchId: Uuid, prefix: String): Bool = printShowWith(branchId, pr
 /// can be all digits too.
 let machineByPid(
   target: String)
-  : Stdlib.Option.Option<Stdlib.Exec.MachineProcess> =
+  : Stdlib.Option.Option<LanguageTools.Exec.MachineProcess> =
   match Stdlib.Int64.parse(target) with
   | Ok(pid) ->
-    Stdlib.Exec.machineList()
+    LanguageTools.Exec.machineList()
     |> Stdlib.List.filter(fun m -> (m.pid) == pid)
     |> Stdlib.List.head
   | Error(_) -> Stdlib.Option.Option.None
@@ -242,7 +242,7 @@ let printMachineShow(target: String, json: Bool): Bool =
   match machineByPid(target) with
   | Some(m) ->
     if json then
-      Stdlib.printLine(Stdlib.Json.serialize<Stdlib.Exec.MachineProcess>(m))
+      Stdlib.printLine(Stdlib.Json.serialize<LanguageTools.Exec.MachineProcess>(m))
     else
       Stdlib.printLine($"{Stdlib.toString(m.pid)}  {m.title}")
       Stdlib.printLine($"  command       {m.command}")
@@ -259,7 +259,7 @@ let signalMachine(
   pid: Int64,
   how: Stdlib.Exec.Stop)
   : Stdlib.Result.Result<String, String> =
-  let known = Stdlib.Exec.machineList() |> Stdlib.List.filter(fun m -> (m.pid) == pid)
+  let known = LanguageTools.Exec.machineList() |> Stdlib.List.filter(fun m -> (m.pid) == pid)
   let pidText = Stdlib.toString(pid)
   match known with
   | [] ->
@@ -312,12 +312,12 @@ let stop(target: String, how: Stdlib.Exec.Stop): Stdlib.Result.Result<String, St
 /// Everything `ps` knows, as JSON, for something that is not a person: this instance's
 /// processes and the machine's other Dark processes, in the same two groups the tables print.
 let printJson(): Unit =
-  let processes = Stdlib.Exec.list()
+  let processes = LanguageTools.Exec.list()
   // Self is filtered out, the same way the table does it: the process answering the question is
   // not news, and the two renderings must not disagree about what is running.
   let me = Stdlib.Cli.Sys.currentPid()
   let machine =
-    Stdlib.Exec.machineList()
+    LanguageTools.Exec.machineList()
     |> Stdlib.List.filter(fun m -> (m.pid) != me)
   Stdlib.printLine(
     (Stdlib.Json.serialize<PsSnapshot>(
@@ -361,13 +361,13 @@ let execute(state: AppState, args: List<String>): AppState =
           Cli.printErr(e)
           false
         | Ok(p) ->
-          match Stdlib.Exec.inspect(p.id) with
+          match LanguageTools.Exec.inspect(p.id) with
           | None ->
             Cli.printErr(
               $"process {Cli.Text.shortId(p.id)} finished while you were asking")
             false
           | Some(d) ->
-            Stdlib.printLine(Stdlib.Json.serialize<Stdlib.Exec.Detail>(d))
+            Stdlib.printLine(Stdlib.Json.serialize<LanguageTools.Exec.Detail>(d))
             true
       else
         printShow(state.currentBranchId, prefix)
@@ -408,7 +408,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
   match args with
   | [] -> [ "show", "cancel", "kill", "--watch" ] |> Stdlib.List.map(Completion.simple)
   | [ "show" ] | [ "cancel" ] | [ "kill" ] ->
-    Stdlib.Exec.list() |> Stdlib.List.map(fun p -> Completion.simple(Cli.Text.shortId(p.id)))
+    LanguageTools.Exec.list() |> Stdlib.List.map(fun p -> Completion.simple(Cli.Text.shortId(p.id)))
   | _ -> []
 
 
@@ -452,7 +452,7 @@ module Watch =
       machineEntries()
       |> Stdlib.List.map(fun((pid, cells)) -> Row.Machine(pid, cells))
     let local =
-      treeRowsWithIds(branchId, Stdlib.Exec.list())
+      treeRowsWithIds(branchId, LanguageTools.Exec.list())
       |> Stdlib.List.map(fun((id, cells)) -> Row.Local(id, cells))
     // This instance first, the machine after, the same order as the printed tables: the cursor
     // walks the rows in the order they are drawn.

@@ -110,8 +110,8 @@ module CallStack =
 
   test processStacksUseTheSharedType =
     let frame =
-      Stdlib.Exec.ExecutionPoint.Lambda(
-        Stdlib.Exec.ExecutionPoint.Source,
+      LanguageTools.Exec.ExecutionPoint.Lambda(
+        LanguageTools.Exec.ExecutionPoint.Source,
         18446744073709551615u64,
         Stdlib.Option.Option.None)
     Darklang.PrettyPrinter.RuntimeTypes.executionPoint(

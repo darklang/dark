@@ -55,8 +55,8 @@ test parallelMapRunsConcurrently =
         Stdlib.List.map(Stdlib.List.range(1, 30000), fun x -> x + 1)
         |> Stdlib.List.length
       let running =
-        Stdlib.List.filter(Stdlib.Exec.list(), fun p ->
-          p.status != Stdlib.Exec.Status.Done)
+        Stdlib.List.filter(LanguageTools.Exec.list(), fun p ->
+          p.status != LanguageTools.Exec.Status.Done)
       (Stdlib.List.length(running)) > 2)),
     true))
   |> Stdlib.Test.equal(true)

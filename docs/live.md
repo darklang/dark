@@ -235,8 +235,8 @@ would. The guarantee the loop rests on (a parked process resumed after an edit f
 on the hash it started with; a fresh one gets the new) is `tests/scheduler`'s
 `editDoesNotReachAParkedProcess`.
 
-The workbench's `Processes` pane is the process table (`Stdlib.Exec.list`) as a tree, with the
-selected process's stack (`Stdlib.Exec.inspect`) beside it: live's first consumer of the
+The workbench's `Processes` pane is the process table (`LanguageTools.Exec.list`) as a tree, with the
+selected process's stack (`LanguageTools.Exec.inspect`) beside it: live's first consumer of the
 scheduler's data. Every workbench, live view and daemon is a process; a slow `render` budget-yields, and keys typed during it are read after it,
 not lost: the runtime reads them as one chunk (its paste path), and the host loop hands
 `update` one key event per character, each carrying its own `char` and the chunk's key

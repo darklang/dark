@@ -120,7 +120,7 @@ let private workerCount (settings : Map<string, string>) : int =
   | None -> max 1 System.Environment.ProcessorCount
 
 /// The scheduling policy, an expert setting: `exec.policy` names a Dark function
-/// (`Darklang.Stdlib.Exec.Policy.youngestFirst`, say) that is asked which runnable process to
+/// (`Darklang.LanguageTools.Exec.Policy.youngestFirst`, say) that is asked which runnable process to
 /// step next whenever there is a choice; unset, the scheduler round-robins in F# and never
 /// asks. A name that does not resolve is said and ignored.
 let private installPolicy

@@ -293,16 +293,10 @@ module Type =
       let eventSpec = p [] "EventSpec"
       let rawEvent = p [] "RawEvent"
 
-    /// The process table (`dark ps`).
+    /// What `Stdlib.Exec.spawn` hands back.
     module Exec =
       let private p addl = p ("Exec" :: addl)
-      let entry = p [] "Entry"
-      let parkedOn = p [] "ParkedOn"
-      let status = p [] "Status"
-      let summary = p [] "Summary"
-      let detail = p [] "Detail"
       let handle = p [] "Handle"
-      let machineProcess = p [] "MachineProcess"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
@@ -317,6 +311,16 @@ module Type =
       let private p addl = p ("LocalStore" :: addl)
       let backup = p [] "Backup"
       let backupAction = p [] "BackupAction"
+
+    /// The process table (`dark ps`).
+    module Exec =
+      let private p addl = p ("Exec" :: addl)
+      let entry = p [] "Entry"
+      let parkedOn = p [] "ParkedOn"
+      let status = p [] "Status"
+      let summary = p [] "Summary"
+      let detail = p [] "Detail"
+      let machineProcess = p [] "MachineProcess"
 
     /// The structured runtime policy — the F#/Dark wire form.
     module Permissions =

@@ -500,7 +500,7 @@ let checkQuery(
     // faster, since the extras take turns, and each one loads its declarations first and holds
     // them until it finishes: the whole branch in memory at once.
     // Each lane takes every `lanes`th piece in turn; the reports go back in piece order.
-    let lanes = Stdlib.max(1, Stdlib.min(Stdlib.List.length(chunks), Stdlib.Exec.workers()))
+    let lanes = Stdlib.max(1, Stdlib.min(Stdlib.List.length(chunks), LanguageTools.Exec.workers()))
     let numbered = Stdlib.List.indexedMap(chunks, fun(i, chunk) -> (i, chunk))
 
     // A fold, not a map: a map is a list op the runtime may spread across cores by itself, and
