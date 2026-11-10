@@ -296,20 +296,22 @@ let private builtinSignatures (exeState : RT.ExecutionState) : List<string> =
   let fns =
     exeState.fns.builtIn
     |> Seq.map (fun (KeyValue(name, fn)) ->
-      let parameters = fn.parameters |> List.map (fun p -> (p.name, p.typ))
+      // Joined by hand: a list's ToString stops after three elements.
+      let joined (items : List<'a>) = items |> List.map string |> String.concat "; "
+      let parameters = fn.parameters |> List.map (fun p -> $"{p.name}: {p.typ}")
       sprintf
-        "builtin fn %A"
+        "builtin fn %O"
         (name,
-         fn.typeParams,
-         parameters,
+         joined fn.typeParams,
+         joined parameters,
          fn.returnType,
          fn.previewable,
          fn.deprecated,
-         Set.toList fn.callEffects))
+         joined (Set.toList fn.callEffects)))
   let values =
     exeState.values.builtIn
     |> Seq.map (fun (KeyValue(name, value)) ->
-      sprintf "builtin value %A" (name, value.typ, value.deprecated, value.body))
+      sprintf "builtin value %O" (name, value.typ, value.deprecated, value.body))
   Seq.append fns values |> Seq.sort |> List.ofSeq
 
 
