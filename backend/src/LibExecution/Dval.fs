@@ -14,6 +14,8 @@ let uint16 (i : uint16) = DUInt16 i
 let int32 (i : int32) = DInt32 i
 let uint32 (i : uint32) = DUInt32 i
 let int64 (i : int64) = DInt64 i
+/// `Int64.toString`'s digits, for the builtin and the VM both.
+let int64ToString (i : int64) : string = string i
 /// `DInt64`, sharing one instance for the small values.
 let dint64 (i : int64) : Dval = RuntimeTypes.Dval.dint64 i
 let uint64 (i : uint64) = DUInt64 i
@@ -511,6 +513,26 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DBytes _, _
   | DStream _, _
   | DPromise _, _ -> false
+
+
+let rec private containsFrom
+  (vtValue : ValueType)
+  (value : Dval)
+  (rest : List<Dval>)
+  : bool voption =
+  match rest with
+  | [] -> ValueSome false
+  | elem :: tail ->
+    match ValueType.merge (RuntimeTypes.Dval.toValueType elem) vtValue with
+    | Error() -> ValueNone
+    | Ok _ ->
+      if equals elem value then ValueSome true else containsFrom vtValue value tail
+
+/// `List.contains`: whether <param value> is in <param items>, by `equals`. `ValueNone` when an
+/// element before the first match has a type that does not merge with the value's: `==` raises
+/// on that rather than answering false, and so does the builtin. The value's type is read once.
+let listContains (items : List<Dval>) (value : Dval) : bool voption =
+  containsFrom (RuntimeTypes.Dval.toValueType value) value items
 
 
 /// Holds a value's running hash until all its children have been hashed.

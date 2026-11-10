@@ -162,8 +162,7 @@ let fns () : List<BuiltInFn> =
           // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
           // lowers to while the package refs are not generated yet, which is how the stdlib's
           // own string concatenation loads on a fresh tree.
-          | _, _, _, [| DString a; DString b |] ->
-            Ply(DString(String.normalize (a + b)))
+          | _, _, _, [| DString a; DString b |] -> Ply(DString(String.append a b))
           | _, vm, _, [| a; b |] -> numericTypeError vm a b
           | _ -> incorrectArgs ())
       previewable = Pure

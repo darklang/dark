@@ -31,7 +31,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, _, [| DInt64 int |] -> Ply(DString(string int))
+        | _, _, _, [| DInt64 int |] -> Ply(DString(Dval.int64ToString int))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

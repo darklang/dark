@@ -417,6 +417,12 @@ module DarkBigInt =
       Some(int i)
     | _ -> None
 
+  /// Its decimal digits, without allocating a `BigInteger` for a value that fits an int64.
+  let toString (di : DarkBigInt) : string =
+    match di with
+    | DarkBigInt.Finite n -> string n
+    | DarkBigInt.Infinite b -> string b
+
   let isZero (di : DarkBigInt) : bool =
     match di with
     | DarkBigInt.Finite i -> i = 0L
