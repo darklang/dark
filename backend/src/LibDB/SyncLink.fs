@@ -158,7 +158,8 @@ type Frame =
   | UpToDate of OpSync.Cursor
   /// "I now hold everything of yours up to here."
   | Ack of OpSync.Cursor
-  /// Nothing to say; sent when idle, so a dead pipe is found by writing to it.
+  /// Nothing to say; sent every few seconds, whatever this end is busy with, so the other end
+  /// knows it is alive.
   | Ping
   /// Not sent: what reading says when the other end has gone, and why.
   | Closed of reason : string
@@ -289,6 +290,9 @@ type Side =
     keepGoing : unit -> bool
     /// How often to look at the store for a change.
     pollMs : int
+    /// How long the other end may say nothing before the session is given up: it is asleep,
+    /// stopped, or the network dropped without a word. Each end pings four times as often.
+    quietMs : int
   }
 
 /// How a session ended.
@@ -301,6 +305,8 @@ type Ended =
   | Exchanged
   /// The other end speaks another format, or sent something unreadable.
   | Refused of reason : string
+  /// Nothing came from the other end for `quietMs`.
+  | Unanswered
 
 type private State =
   {
@@ -312,7 +318,8 @@ type private State =
     caughtUp : bool
     /// How far into this store's journal the other end has said it holds everything.
     acked : Option<int64>
-    lastSent : System.DateTime
+    /// When the other end last said anything.
+    heard : System.DateTime
   }
 
 let private fileIn (side : Side) (name : string) : string =
@@ -373,9 +380,16 @@ let conflictLine (c : ScmDetect.Conflict) : string =
     let newer = if c.reason = "later-origin-ts" then " (newer)" else ""
     $"sync: {name} changed on both machines; kept {kept}{newer}. `dark conflicts` to choose."
 
-/// Run one session on <param input> and <param output> until it ends. With <param once>, it ends as
-/// soon as each end has sent the other everything it lacked and the other has said it holds it.
-let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
+/// Run one session on <param input> and <param output> until it ends, setting <param greeted> when
+/// the other end says who it is. With <param once>, it ends as soon as each end has sent the other
+/// everything it lacked and the other has said it holds it.
+let private session
+  (greeted : System.Threading.ManualResetEventSlim)
+  (side : Side)
+  (input : Stream)
+  (output : Stream)
+  (once : bool)
+  : Ended =
   Directory.CreateDirectory side.workDir |> ignore<DirectoryInfo>
   let haveOut = fileIn side "have-out"
   let haveIn = fileIn side "have-in"
@@ -398,6 +412,10 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
     new SqliteConnection($"Data Source={side.store};Mode=ReadOnly;Pooling=false")
   conn.Open()
 
+  // The pings are written from a thread of their own, so each frame is written whole under a lock.
+  let writing = obj ()
+  let write (frame : Frame) : unit = lock writing (fun () -> writeFrame output frame)
+
   // A write the other end is not reading blocks, so it runs aside and is waited on in slices: turning
   // sync off still stops the session at once, and an end that stopped reading is given up on.
   let send (frame : Frame) : Option<Ended> =
@@ -408,7 +426,7 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
       System.Threading.Thread(
         (fun () ->
           try
-            writeFrame output frame
+            write frame
             written.SetResult None
           with e ->
             written.SetResult(Some e.Message)),
@@ -488,9 +506,10 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
     | Error reason -> Error(Refused reason)
     | Ok counts ->
       if changed counts then
+        let imported = started.ElapsedMilliseconds
         side.afterImport counts
         side.log
-          $"received {bytes.Length} bytes: {counts.ops} ops, {counts.dropped} dropped, {counts.committed} committed, {counts.journal} entries, applied in {started.ElapsedMilliseconds} ms"
+          $"received {bytes.Length} bytes: {counts.ops} ops, {counts.dropped} dropped, {counts.committed} committed, {counts.journal} entries, applied in {started.ElapsedMilliseconds} ms ({imported} ms importing)"
       for c in counts.conflicts do
         side.say (conflictLine c)
       // What the import added is the other end's own, so the cursor steps over it, unless this
@@ -509,11 +528,7 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
   let answered (st : State) (sent : Result<Option<OpSync.Cursor>, Ended>) =
     match sent with
     | Error ended -> Choice2Of2 ended
-    | Ok cursor ->
-      Choice1Of2
-        { st with
-            cursor = Option.orElse st.cursor cursor
-            lastSent = System.DateTime.UtcNow }
+    | Ok cursor -> Choice1Of2 { st with cursor = Option.orElse st.cursor cursor }
 
   let step (st : State) : Choice<State, Ended> =
     if once && st.caughtUp && Option.isSome st.cursor && Option.isSome st.acked then
@@ -525,8 +540,12 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
           match frame with
           | Closed _ -> false
           | _ -> true
-        if heard then
-          side.note (fun s -> { s with contact = Some System.DateTime.UtcNow })
+        let st =
+          if heard then
+            side.note (fun s -> { s with contact = Some System.DateTime.UtcNow })
+            { st with heard = System.DateTime.UtcNow }
+          else
+            st
         match frame with
         | Closed reason -> Choice2Of2(PeerGone reason)
         | Ping -> Choice1Of2 st
@@ -538,6 +557,7 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
             )
           else
             side.log $"hello from {name}"
+            greeted.Set()
             side.note (fun s -> { Standing.into "connected" "" s with peer = id })
             let st = { st with peer = Some(id, name) }
             // From the point the two last agreed on, or from scratch.
@@ -608,6 +628,10 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
           Choice1Of2 st
         elif not (side.keepGoing ()) then
           Choice2Of2 Stopped
+        elif
+          (System.DateTime.UtcNow - st.heard).TotalMilliseconds > float side.quietMs
+        then
+          Choice2Of2 Unanswered
         else
           match st.cursor with
           | Some c ->
@@ -622,20 +646,24 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
                   if carries counts then sendBundle counts "change" else None
                 match sent with
                 | Some ended -> Choice2Of2 ended
-                | None ->
-                  Choice1Of2
-                    { st with
-                        cursor = Some counts.upTo
-                        lastSent = System.DateTime.UtcNow }
-            elif
-              System.DateTime.UtcNow - st.lastSent > System.TimeSpan.FromSeconds 15.0
-            then
-              match send Ping with
-              | Some ended -> Choice2Of2 ended
-              | None -> Choice1Of2 { st with lastSent = System.DateTime.UtcNow }
+                | None -> Choice1Of2 { st with cursor = Some counts.upTo }
             else
               Choice1Of2 st
           | None -> Choice1Of2 st
+
+  // Pings go out on a timer of their own, not between steps: a step can be a long import, and the
+  // other end must not take that for silence.
+  use finished = new System.Threading.ManualResetEventSlim(false)
+  let pinger =
+    System.Threading.Thread(
+      (fun () ->
+        while not (finished.Wait(side.quietMs / 4)) do
+          try
+            write Ping
+          with _ ->
+            ()),
+      IsBackground = true
+    )
 
   try
     // Reading starts before anything is sent.
@@ -643,16 +671,23 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
     match send (Hello(OpSync.formatVersion, selfName, selfId)) with
     | Some ended -> ended
     | None ->
+      pinger.Start()
       iterate
         step
         { cursor = None
           peer = None
           caughtUp = false
           acked = None
-          lastSent = System.DateTime.UtcNow }
+          heard = System.DateTime.UtcNow }
   finally
+    finished.Set()
     for path in [ haveOut; haveIn; bundleOut; bundleIn ] do
       removeFile path
+
+
+let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
+  use greeted = new System.Threading.ManualResetEventSlim(false)
+  session greeted side input output once
 
 
 // ------------------
@@ -720,12 +755,13 @@ let classify (exitCode : int) (stderr : string) : Failure =
   else
     Unreachable line
 
-/// Start <param transport> and run a session over it. The child is always gone when this returns.
+/// Start <param transport> and run a session over it: how it ended, why it failed if it did, and
+/// whether the other end said hello first. The child is always gone when this returns.
 let connect
   (side : Side)
   (transport : Transport)
   (once : bool)
-  : Ended * Option<Failure> =
+  : Ended * Option<Failure> * bool =
   let psi = System.Diagnostics.ProcessStartInfo(transport.program)
   for a in transport.arguments do
     psi.ArgumentList.Add a
@@ -739,13 +775,19 @@ let connect
     with e ->
       Error e.Message
   match started with
-  | Error reason -> PeerGone reason, Some(Unreachable reason)
+  | Error reason -> PeerGone reason, Some(Unreachable reason), false
   | Ok proc ->
     use proc = proc
+    use greeted = new System.Threading.ManualResetEventSlim(false)
     let stderr = proc.StandardError.ReadToEndAsync()
     let ended =
       try
-        run side proc.StandardOutput.BaseStream proc.StandardInput.BaseStream once
+        session
+          greeted
+          side
+          proc.StandardOutput.BaseStream
+          proc.StandardInput.BaseStream
+          once
       with e ->
         PeerGone e.Message
     let kill () =
@@ -754,8 +796,9 @@ let connect
       with _ ->
         ()
     // Closing its stdin is how the other end learns the session is over. Sync turned off does not
-    // wait for that, and a write still blocked on a pipe nobody reads ends when the child does.
-    if ended = Stopped then kill ()
+    // wait for that, nor does an end that stopped answering, which would never close its side; a
+    // write still blocked on a pipe nobody reads ends when the child does.
+    if ended = Stopped || ended = Unanswered then kill ()
     (try
       proc.StandardInput.Close()
      with _ ->
@@ -763,11 +806,14 @@ let connect
     if not (proc.WaitForExit 10000) then kill ()
     proc.WaitForExit()
     let said = if stderr.Wait 1000 then stderr.Result else ""
-    match ended with
-    | PeerGone _ when proc.ExitCode <> 0 -> ended, Some(classify proc.ExitCode said)
-    | PeerGone reason -> ended, Some(Unreachable reason)
-    | Refused reason -> ended, Some(NotSpoken reason)
-    | _ -> ended, None
+    let failure =
+      match ended with
+      | PeerGone _ when proc.ExitCode <> 0 -> Some(classify proc.ExitCode said)
+      | PeerGone reason -> Some(Unreachable reason)
+      | Unanswered -> Some(Unreachable "the other end stopped answering")
+      | Refused reason -> Some(NotSpoken reason)
+      | _ -> None
+    ended, failure, greeted.IsSet
 
 
 // ------------------
@@ -783,6 +829,9 @@ type Watch =
     peer : string
     /// How long the other machine may be out of reach before the person is told, once.
     patience : System.TimeSpan
+    /// A line that asks nothing of the person, shown dim: only that the other machine has been out
+    /// of reach for a long time.
+    mention : string -> unit
   }
 
 type private Watching =
@@ -806,9 +855,10 @@ let private nap (watch : Watch) (ms : int) : bool =
       go ()
   go ()
 
-/// Keep a session open to the other machine until sync is turned off, reconnecting with backoff.
-/// What needs the person (a refused key, no dark there, out of reach for longer than the patience)
-/// is said once, and again at most hourly while it lasts.
+/// Keep a session open to the other machine until sync is turned off, reconnecting with backoff, at
+/// most 10 s apart. Waits are on the wall clock, so the first try after this machine wakes is at
+/// once. What needs the person (a refused key, no dark there) is said, and again at most hourly
+/// while it lasts; out of reach for longer than the patience is mentioned once an outage.
 let watch (watch : Watch) : unit =
   let fresh = { failingSince = None; lastSaid = None; backoffMs = 500 }
   let offline (reason : string) = watch.side.note (Standing.into "offline" reason)
@@ -819,10 +869,15 @@ let watch (watch : Watch) : unit =
       let started = System.DateTime.UtcNow
       if Option.isNone w.failingSince then
         watch.side.note (Standing.into "connecting" "")
-      let ended, failure = connect watch.side watch.transport false
+      let ended, failure, greeted = connect watch.side watch.transport false
       let now = System.DateTime.UtcNow
-      // A session that ran for a while was a success, whatever ended it.
-      let lasted = now - started > System.TimeSpan.FromSeconds 20.0
+      // A session that got going was a success, whatever ended it: the connection dropped, or
+      // the other end went away. Try again soon.
+      let lasted =
+        match failure with
+        | Some(Unreachable _) ->
+          greeted || now - started > System.TimeSpan.FromSeconds 20.0
+        | _ -> false
       match ended, failure with
       | Stopped, _ -> Choice2Of2()
       | _, None ->
@@ -832,7 +887,7 @@ let watch (watch : Watch) : unit =
         watch.side.log
           $"session ended after {int (now - started).TotalSeconds} s: {ended}"
         offline $"lost the connection to {watch.peer}"
-        if nap watch 500 then
+        if nap watch 100 then
           Choice2Of2()
         else
           Choice1Of2 { fresh with failingSince = Some now; backoffMs = 1000 }
@@ -864,13 +919,13 @@ let watch (watch : Watch) : unit =
         watch.side.log $"connection failed: {reason}"
         offline reason
         let said =
-          match line with
-          // Out of reach is said once an outage; what only the person can fix, hourly.
-          | Some l when
-            (match failure with
-             | Unreachable _ -> Option.isNone w.lastSaid
-             | _ -> hourly)
-            ->
+          match line, failure with
+          | Some l, Unreachable _ when Option.isNone w.lastSaid ->
+            watch.mention l
+            Some now
+          | Some l, NotAllowed _
+          | Some l, NoDark _
+          | Some l, NotSpoken _ when hourly ->
             watch.side.say l
             Some now
           | _ -> w.lastSaid
@@ -880,7 +935,7 @@ let watch (watch : Watch) : unit =
           Choice1Of2
             { failingSince = Some since
               lastSaid = said
-              backoffMs = min 30000 (w.backoffMs * 2) }
+              backoffMs = min 10000 (w.backoffMs * 2) }
   iterate step fresh
   watch.side.note (Standing.into "off" "")
 

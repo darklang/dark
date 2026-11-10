@@ -56,7 +56,7 @@ module PT = LibExecution.ProgramTypes
 
 
 /// The shape of the have and bundle files. Each side refuses a file of another version.
-let formatVersion = "4"
+let formatVersion = "5"
 
 /// How far into a store another store has been sent: its journal's `seq` and its blobs' `rowid`.
 /// Both only grow; blobs are never removed except by a purge, which empties the journal too.
@@ -117,7 +117,9 @@ let private openStore (path : string) : Task<SqliteConnection> =
       new SqliteConnection($"Data Source={path};Mode=ReadWriteCreate;Pooling=false")
     do! conn.OpenAsync()
     use cmd = conn.CreateCommand()
-    cmd.CommandText <- "PRAGMA busy_timeout=5000;"
+    // As every other connection to the store (`Sqlite`): in WAL mode a commit then waits for no
+    // fsync, which on a busy disk is most of what a small import costs.
+    cmd.CommandText <- "PRAGMA busy_timeout=5000; PRAGMA synchronous=NORMAL;"
     let! _ = cmd.ExecuteNonQueryAsync()
     return conn
   }
@@ -1175,18 +1177,14 @@ let import
              FROM bundle.sync_ops b
              JOIN main.package_ops p ON p.id = b.id AND p.branch_id = b.branch_id
              WHERE p.commit_hash IS NULL AND b.commit_hash IS NOT NULL"
+        // Driven by the bundle's rows, not the store's: the store's draft can be large.
         let! committed =
           run
             conn
-            "UPDATE main.package_ops
-             SET commit_hash = (
-               SELECT b.commit_hash FROM bundle.sync_ops b
-               WHERE b.id = package_ops.id AND b.branch_id = package_ops.branch_id)
-             WHERE commit_hash IS NULL
-               AND EXISTS (
-                 SELECT 1 FROM bundle.sync_ops b
-                 WHERE b.id = package_ops.id AND b.branch_id = package_ops.branch_id
-                   AND b.commit_hash IS NOT NULL)"
+            "UPDATE main.package_ops SET commit_hash = b.commit_hash
+             FROM bundle.sync_ops b
+             WHERE b.id = package_ops.id AND b.branch_id = package_ops.branch_id
+               AND package_ops.commit_hash IS NULL AND b.commit_hash IS NOT NULL"
             []
         let ctx = PreparedBatch.newCtx conn
         try
@@ -1331,8 +1329,10 @@ let reaches (storePath : string) (cursor : Cursor) : Task<bool> =
   }
 
 /// Remember that <param peer> holds everything of the store at <param storePath>'s journal up to
-/// <param journal>. With <param trim>, also drop each entry that every store this one has synced with
-/// in the last month holds, and that a later entry for the same row replaced; answers how many went.
+/// <param journal>. With <param trim>, also drop each entry that a later entry for the same row
+/// replaced, and that every store this one has heard from in the last `sync.keepDays` days (7 unless
+/// set) holds; answers how many went. A store that comes back later still gets the entry that
+/// replaced it, which is the one that counts.
 ///
 /// The latest entry for a row always stays: it is what says a removed op is removed when a copy of
 /// it comes back from a store that has not heard. So the journal shrinks to one entry a row, and the
@@ -1362,7 +1362,10 @@ let recordAcked
           conn
           "DELETE FROM main.sync_journal
            WHERE seq <= (SELECT MIN(acked_journal) FROM main.sync_peers
-                         WHERE seen_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days'))
+                         WHERE seen_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now',
+                           '-' || COALESCE(
+                             (SELECT value FROM main.config_v0 WHERE key = 'sync.keepDays'),
+                             '7') || ' days'))
              AND EXISTS (
                SELECT 1 FROM main.sync_journal k
                WHERE k.key = sync_journal.key
