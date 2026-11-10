@@ -64,6 +64,11 @@ impl Compare for Int128 =
 let sqrt(a: Int128): Float = Stdlib.Float.sqrt(Stdlib.Int128.toFloat(a))
 
 
+/// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
+let checkedSqrt(a: Int128): Stdlib.Result.Result<Float, Stdlib.Math.NonFinite> =
+  Stdlib.Float.checkedSqrt(Stdlib.Int128.toFloat(a))
+
+
 /// Converts an <type Int128> to a <type Float>
 let toFloat(a: Int128): Float = Builtin.int128ToFloat(a)
 

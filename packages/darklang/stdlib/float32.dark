@@ -102,6 +102,89 @@ impl Divide for Float32 =
     Stdlib.Float32.fromFloat(quotient)
 
 
+// Checked arithmetic. The operators follow IEEE 754 and give NaN or an infinity
+// where the answer is not a finite number; these return {{Error}} instead.
+
+/// {{Ok}} <param result> if it is finite, otherwise {{Error Overflow}}
+let __noOverflow(result: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+  if isFinite(result) then Ok(result) else Error(Stdlib.Math.Overflow.Overflow)
+
+
+/// {{Ok}} <param result> if it is finite, otherwise {{Error NotANumber}} for NaN or
+/// {{Error}} <param ifInfinite> for an infinity
+let __finite(
+  result: Float32,
+  ifInfinite: Stdlib.Math.NonFinite)
+  : Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
+  if isFinite(result) then
+    Ok(result)
+  else if isNaN(result) then
+    Error(Stdlib.Math.NonFinite.NotANumber)
+  else
+    Error(ifInfinite)
+
+
+/// Adds <param a> to <param b>, or {{Error Overflow}} where the sum is not finite
+let checkedAdd(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+  __noOverflow(a + b)
+
+
+/// Subtracts <param b> from <param a>, or {{Error Overflow}} where the difference is
+/// not finite
+let checkedSubtract(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+  __noOverflow(a - b)
+
+
+/// Multiplies <param a> by <param b>, or {{Error Overflow}} where the product is not
+/// finite
+let checkedMultiply(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+  __noOverflow(a * b)
+
+
+/// Divides <param a> by <param b>, or {{Error DivisionByZero}} where <param b> is zero
+/// and {{Error Overflow}} where the quotient is too large
+let checkedDivide(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
+  if b == 0.0f32 then
+    Error(Stdlib.Math.NonFinite.DivisionByZero)
+  else
+    __finite(a / b, Stdlib.Math.NonFinite.Overflow)
+
+
+/// <param base> raised to the power of <param exponent>, or {{Error}} where the result
+/// is not finite: {{DivisionByZero}} for zero to a negative power, {{NotANumber}} for a
+/// negative base to a fractional power, and {{Overflow}} where it is too large
+let checkedPower(
+  ``base``: Float32,
+  exponent: Float32)
+  : Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
+  let ifInfinite =
+    if ``base`` == 0.0f32 then
+      Stdlib.Math.NonFinite.DivisionByZero
+    else
+      Stdlib.Math.NonFinite.Overflow
+
+  __finite(``base`` ** exponent, ifInfinite)
+
+
+/// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
+let checkedSqrt(a: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
+  __finite(sqrt(a), Stdlib.Math.NonFinite.Overflow)
+
+
+/// <fn Float32.parse>, but {{Error BadFormat}} for text that is not a finite number, such
+/// as {{"NaN"}}, {{"Infinity"}} or a number too large for the type
+let checkedParse(s: String): Stdlib.Result.Result<Float32, ParseError> =
+  match parse(s) with
+  | Ok(f) when isFinite(f) -> Ok(f)
+  | _ -> Error(ParseError.BadFormat)
+
+
+/// <fn Float32.fromFloat>, or {{Error Overflow}} where <param a> is too large for a
+/// Float32
+let checkedFromFloat(a: Float): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+  __noOverflow(fromFloat(a))
+
+
 impl Compare for Float32 =
   /// Returns true if a is less than b
   let lessThan(a: Float32, b: Float32): Bool =

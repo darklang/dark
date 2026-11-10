@@ -620,3 +620,9 @@ test divisionResults =
       |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
       Stdlib.Int64.checkedMod(5, -1)
       |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+
+test checkedSqrt =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.checkedSqrt(4) |> Stdlib.Test.equal(Ok(2.0))
+      Stdlib.Int64.checkedSqrt(-4)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber)) ])

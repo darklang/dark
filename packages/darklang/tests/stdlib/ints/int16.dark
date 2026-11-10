@@ -441,3 +441,9 @@ test moduloRejectsNegativeDivisor =
 test moduloRejectsMinusOne =
   (5s16 % -1s16)
   => raises "Cannot evaluate modulus against a negative number"
+
+test checkedSqrt =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.checkedSqrt(4s16) |> Stdlib.Test.equal(Ok(2.0))
+      Stdlib.Int16.checkedSqrt(-4s16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber)) ])
