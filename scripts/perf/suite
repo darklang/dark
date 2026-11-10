@@ -22,10 +22,11 @@
 # Allocation repeats to the byte and is the number to trust; time is printed but never fails
 # anything. Method and traps: docs/perf/playbook.md.
 set -euo pipefail
-cd /home/dark/app
+cd "$(dirname "$0")/../.."   # the repo root, in the container (/home/dark/app) or on the host
 . ./scripts/perf/_common
 
-SUITE="scripts/perf/workloads/suite"
+# PERF_WORKLOADS: another copy of workloads/, which measure-release points at a release's own.
+SUITE="${PERF_WORKLOADS:-scripts/perf/workloads}/suite"
 ITERS=200
 JSON_OUT=""
 RECORD=false

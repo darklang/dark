@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Every perf number for one release binary, as one JSON line on stdout.
+
+    scripts/perf/measure-release v0.0.110           download that release's linux-x64 binary
+    scripts/perf/measure-release path/to/darklang   a binary you already have
+    scripts/perf/measure-release v0.0.110 --log run.log
+
+The numbers are what `scripts/perf/gate --published` measures (steady and startup allocation, the
+cold first run, the suite per iteration, the interactive CLI's frame and keypress, CPU paired
+against a release), with this tree's gate and CPU against the release pinned in budget.json, so
+`for t in v0.0.80 v0.0.90 ...; do scripts/perf/measure-release $t >> history.jsonl; done` is a
+backfill. `scripts/perf/track` does that for every release not in a history yet, and charts it.
+
+The workloads are the release's OWN, from its tag, laid over this tree's: Dark's syntax moves, and
+a release cannot parse a workload written after it. A workload added after the release is taken
+from this tree, and if the release cannot run it, that section is recorded under `missing` and the
+rest still counts. `--workloads-from current` (or any git ref) overrides that. The row names the
+ref the workloads came from, so a step in a chart can be checked against a change to a workload.
+
+Each run copies the binary into a fresh directory, with a fresh HOME. Older releases keep their
+store beside the executable unless DARK_CONFIG_RUNDIR names one, which the gate does, so a cached
+binary's directory never holds a store that would make the next "cold" run warm.
+
+Always prints a line, and exits 0 with `"status": "failed"` in it when the binary could not be
+measured (an old release missing a flag the workloads use, say), so a loop over many releases
+keeps a record of the gaps instead of stopping at the first. Exits 2 only on bad arguments.
+
+Runs on the HOST, not in the dev container, and needs no build. A release binary inside the
+container reads package-ref-hashes.txt from the checked-out tree rather than the copy embedded in
+it, and dies on the first command when the tree is from another commit. On the host that path
+does not exist. The gate gives each run a throwaway HOME, so no real store is touched.
+
+What the numbers are: an AOT release binary on this box. Allocation and VM instructions are the
+strong readings and do not care about the box. The CPU ratio is paired against the reference on
+the same box in the same minute. Wall times are the weak ones; this desktop's timer drifts.
+"""
+
+import argparse
+import datetime as dt
+import gzip
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RELEASE = "https://api.github.com/repos/darklang/dark/releases/tags/{}"
+RUNTIME = "linux-x64"
+CACHE = os.path.expanduser("~/.cache/darklang-perf")
+
+
+def get(url, binary=False):
+    req = urllib.request.Request(url, headers={"User-Agent": "darklang-perf-measure-release"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        data = r.read()
+    return data if binary else json.loads(data)
+
+
+def release_info(tag):
+    r = get(RELEASE.format(tag))
+    assets = {a["name"]: a["browser_download_url"] for a in r["assets"]}
+    gz = next((n for n in assets if n.endswith(f"-{RUNTIME}.gz")), None)
+    if not gz:
+        raise RuntimeError(f"{tag} has no {RUNTIME} binary")
+    sums = next((n for n in assets if n.endswith("-sha256sums.txt")), None)
+    return {"tag": tag, "publishedAt": r["published_at"], "commit": gz.split("-")[2],
+            "gz": gz, "gzUrl": assets[gz], "sumsUrl": assets.get(sums)}
+
+
+def fetch(rel):
+    """The release's binary, unpacked and executable, checked against its sha256sums.txt."""
+    d = os.path.join(CACHE, rel["tag"])
+    exe = os.path.join(d, rel["gz"][:-3])
+    if os.path.exists(exe):
+        return exe
+    os.makedirs(d, exist_ok=True)
+    blob = get(rel["gzUrl"], binary=True)
+    if rel["sumsUrl"]:
+        sums = get(rel["sumsUrl"], binary=True).decode()
+        want = next((ln.split()[0] for ln in sums.splitlines() if ln.strip().endswith(rel["gz"])), None)
+        got = hashlib.sha256(blob).hexdigest()
+        if want and want != got:
+            raise RuntimeError(f"{rel['gz']}: sha256 {got}, but sha256sums.txt says {want}")
+    tmp = exe + ".part"
+    with open(tmp, "wb") as f:
+        f.write(gzip.decompress(blob))
+    os.chmod(tmp, 0o755)
+    os.rename(tmp, exe)
+    return exe
+
+
+def git(*args):
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+
+
+def workloads_dir(ref, scratch):
+    """This tree's workloads, with every file that exists at `ref` replaced by that version."""
+    out = os.path.join(scratch, "workloads")
+    shutil.copytree(os.path.join(ROOT, "scripts", "perf", "workloads"), out)
+    if ref == "current":
+        return out
+    if subprocess.run(["git", "cat-file", "-e", f"{ref}^{{commit}}"], cwd=ROOT,
+                      capture_output=True).returncode != 0:
+        subprocess.run(["git", "fetch", "-q", "upstream", f"refs/tags/{ref}:refs/tags/{ref}"],
+                       cwd=ROOT, capture_output=True)
+    tar = subprocess.run(["git", "archive", ref, "scripts/perf/workloads"], cwd=ROOT,
+                         capture_output=True)
+    if tar.returncode != 0:
+        raise RuntimeError(f"no scripts/perf/workloads at {ref}: {tar.stderr.decode().strip()}")
+    subprocess.run(["tar", "-x", "-C", scratch], input=tar.stdout, check=True)
+    src = os.path.join(scratch, "scripts", "perf", "workloads")
+    shutil.copytree(src, out, dirs_exist_ok=True)
+    return out
+
+
+def fresh_copy(exe, where):
+    """A copy of `exe` in `where`/bin, and an empty HOME beside it."""
+    fresh = os.path.join(where, "bin", os.path.basename(exe))
+    os.makedirs(os.path.dirname(fresh))
+    shutil.copy2(exe, fresh)
+    home = os.path.join(where, "home")
+    os.makedirs(home)
+    return fresh, home
+
+
+def measure(exe, workloads, scratch, log_path):
+    """Runs the gate on a fresh copy of `exe`. Returns (readings or None, exit code, last lines)."""
+    # The gate names the rundir under this HOME, so an older release does not put its store beside
+    # the binary. Not a symlink: a release refuses a policy directory reached through one.
+    fresh, home = fresh_copy(exe, os.path.join(scratch, "run"))
+    out_json = os.path.join(scratch, "readings.json")
+    env = dict(os.environ, IN_DEV_CONTAINER="1", PERF_EXE=fresh, PERF_PAIRED_PINNED="1",
+               PERF_WORKLOADS=workloads, PERF_HOME=home)
+    with open(log_path, "w") as lf:
+        rc = subprocess.run(["scripts/perf/gate", "--published", "--report", "--json", out_json],
+                            cwd=ROOT, env=env, stdout=lf, stderr=subprocess.STDOUT).returncode
+    with open(log_path) as lf:
+        tail = lf.read().strip().splitlines()[-3:]
+    data = None
+    if rc == 0 and os.path.exists(out_json):
+        with open(out_json) as f:
+            data = json.load(f)
+    return data, rc, tail
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("release", help="a release tag (v0.0.110) or the path of a binary")
+    ap.add_argument("--log", help="the gate's full output; default beside the cached binary")
+    ap.add_argument("--workloads-from", help="a git ref, or `current`; default the release's tag")
+    args = ap.parse_args()
+
+    if os.environ.get("IN_DEV_CONTAINER"):
+        print("perf/measure-release: run this on the host, not in the dev container", file=sys.stderr)
+        sys.exit(2)
+
+    row = {"measuredAt": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+           "instrument": git("rev-parse", "HEAD")[:10]}
+    try:
+        if os.path.exists(args.release):
+            exe = args.release
+            row.update(tag=None, publishedAt=None, exe=os.path.abspath(exe))
+            ref = args.workloads_from or "current"
+        else:
+            rel = release_info(args.release)
+            row.update(tag=rel["tag"], publishedAt=rel["publishedAt"], commit=rel["commit"])
+            exe = fetch(rel)
+            ref = args.workloads_from or rel["tag"]
+        row["workloadsFrom"] = ref
+        log_path = args.log or os.path.join(CACHE, "logs", f"{row['tag'] or 'local'}.log")
+        os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="perf-measure-release-") as scratch:
+            data, rc, tail = measure(exe, workloads_dir(ref, scratch), scratch, log_path)
+        if data:
+            row.update(status="ok", pairedReference=data.get("pairedReference"),
+                       overBudget=data.get("overBudget", False), missing=data.get("missing", []),
+                       readings=data["readings"])
+        else:
+            row.update(status="failed", exit=rc, why=tail, log=log_path)
+    except Exception as e:  # still a line: a gap in the record is information
+        row.update(status="failed", exit=None, why=[f"{type(e).__name__}: {e}"])
+    print(json.dumps(row), flush=True)
+
+
+if __name__ == "__main__":
+    main()

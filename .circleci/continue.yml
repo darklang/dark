@@ -299,10 +299,6 @@ jobs:
     # again but takes about three minutes longer and reaches its memory limit in the tests.
     resource_class: medium+
     #
-    # The allocation gate runs against the NativeAOT binary built here, because the budget is
-    # recorded against one: that is what ships. A plain `dotnet publish -c Release` would be
-    # meaningless to measure against it.
-    #
     # NOT more nodes with `--shard`, though the runner supports it and it is tested. Measured
     # against the whole suite in one process, sharding LOSES: a sequenced group cannot be
     # divided, so one shard ends up carrying most of them and gates the job, while the others
@@ -391,16 +387,7 @@ jobs:
           name: Wait for the tests to build
           command: .circleci/beside wait tests-build
 
-      # Allocation for a fixed workload is steady enough to assert on and doesn't care how
-      # loaded the box is, which is more than can be said for time. The gate grows a store of
-      # its own, so the first run is cold, and budgets that run's allocation and peak memory
-      # too. Time is only compared as a ratio: CPU against the release pinned in
-      # scripts/perf/budget.json, run in turns on this same box. First of the checks on the
-      # binary, because its CPU comparison wants the box to itself. Under a minute, with the
-      # download of the newest release.
-      - run:
-          name: Check allocation, first-run memory, and CPU against the last release
-          command: python3 .circleci/collect_diagnostics.py --run allocation -- scripts/perf/gate --published
+      # No perf step. Performance is tracked over releases, outside CI: scripts/perf/track.
 
       # Bounded, so a wedged suite dies at a known point with its log intact rather than
       # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the

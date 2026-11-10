@@ -47,9 +47,11 @@ from _rusage import run  # noqa: E402
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BUDGET_FILE = os.path.join(ROOT, "scripts", "perf", "budget.json")
 CACHE = os.path.join(ROOT, "rundir", "perf", "reference")
-FIB = os.path.join(ROOT, "scripts", "perf", "workloads", "fib.dark")
-LISTS = os.path.join(ROOT, "scripts", "perf", "workloads", "lists.dark")
-BYTES_SCAN = os.path.join(ROOT, "scripts", "perf", "workloads", "bytes-scan.dark")
+# PERF_WORKLOADS: another copy of workloads/, which measure-release points at a release's own.
+WORKLOADS = os.environ.get("PERF_WORKLOADS") or os.path.join(ROOT, "scripts", "perf", "workloads")
+FIB = os.path.join(WORKLOADS, "fib.dark")
+LISTS = os.path.join(WORKLOADS, "lists.dark")
+BYTES_SCAN = os.path.join(WORKLOADS, "bytes-scan.dark")
 RELEASES_URL = os.environ.get(
     "DARK_PERF_RELEASES_URL", "https://api.github.com/repos/darklang/dark/releases?per_page=10")
 # darklang-alpha-<commit>-linux-x64.gz; the musl build is a different asset.
@@ -153,7 +155,9 @@ def fetch_reference(ref):
 
 
 def env_for(home):
-    env = dict(os.environ, HOME=home, DARK_CONFIG_TRACE_DETAIL="off")
+    # The rundir too: an older release keeps its store beside the binary unless told otherwise.
+    env = dict(os.environ, HOME=home, DARK_CONFIG_RUNDIR=os.path.join(home, ".darklang"),
+               DARK_CONFIG_TRACE_DETAIL="off")
     env.pop("DARK_TELEMETRY", None)
     return env
 
@@ -184,12 +188,34 @@ def batch(pairs, rounds, names):
     return ratios
 
 
+def record_readings(medians, limit, tag, over):
+    """Adds the ratios to the readings file `gate --json` started, when there is one."""
+    path = os.environ.get("PERF_GATE_JSON")
+    if not path or not os.path.exists(path):
+        return
+    with open(path) as f:
+        data = json.load(f)
+    data["pairedReference"] = tag
+    data["overBudget"] = data.get("overBudget", False) or bool(over)
+    for name, med in medians.items():
+        data["readings"][f"paired.{name}"] = {"value": round(med, 4), "budget": 1.0,
+                                               "tolerance": round(limit - 1, 4)}
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+
+
 def main():
     if len(sys.argv) != 3:
         sys.exit("usage: _paired.py <exe> <home>")
     exe, home = os.path.abspath(sys.argv[1]), sys.argv[2]
     cfg = json.load(open(BUDGET_FILE))["paired"]
-    ref = latest_reference(cfg["reference"])
+    # measure-release measures many releases against one fixed reference, so its ratios form a
+    # series; against "the newest release" each point would have its own denominator.
+    if os.environ.get("PERF_PAIRED_PINNED") == "1":
+        ref = cfg["reference"]
+    else:
+        ref = latest_reference(cfg["reference"])
     limit, rounds = cfg["maxRatio"], cfg["rounds"]
 
     ref_exe = fetch_reference(ref)
@@ -199,10 +225,13 @@ def main():
         cpu_of(ref_exe, ref_home, ["eval", "1 + 2"], 1, "3")
         pairs = [("reference", ref_exe, ref_home), ("new", exe, home)]
 
+        medians = {}
+
         def report(ratios, label):
             over = []
             for name, rs in ratios.items():
                 med = statistics.median(rs)
+                medians[name] = med
                 print(f"{name:26s} {med:.3f}x {ref['tag']}  (pairs {min(rs):.2f}-{max(rs):.2f}){label}")
                 if med > limit:
                     over.append(name)
@@ -213,8 +242,10 @@ def main():
         if over:
             print("over the limit; measuring those again")
             over = report(batch(pairs, rounds, over), "  (again)")
+        record_readings(medians, limit, ref["tag"], over)
         if over:
-            print(f"FAIL: {', '.join(over)} over {limit}x {ref['tag']} twice running.")
+            tag = "OVER (reported, not failing)" if os.environ.get("PERF_GATE_REPORT") == "true" else "FAIL"
+            print(f"{tag}: {', '.join(over)} over {limit}x {ref['tag']} twice running.")
             print("This is CPU per call, which allocation does not see. Profile it before")
             print("raising maxRatio, and raise it only in a commit that says why.")
             sys.exit(1)
@@ -223,4 +254,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # 1 means over the limit and nothing else. A crash or a `sys.exit("message")` would also exit 1,
+    # and `gate --report` passes a 1, so anything that is not a deliberate 0 or 1 becomes 2.
+    try:
+        main()
+    except SystemExit as e:
+        if e.code in (None, 0, 1, 2):
+            raise
+        print(e.code, file=sys.stderr)
+        sys.exit(2)
+    except Exception as e:  # noqa: BLE001
+        print(f"_paired.py: {type(e).__name__}: {e}", file=sys.stderr)
+        sys.exit(2)

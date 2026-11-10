@@ -13,7 +13,7 @@
 #   shipped-tree-typechecks gate (every shipped fn, which only `gates ci` checks otherwise).
 #
 # --full runs the static checks above, then CI's steps: `build --optimize`, a seed exported
-# from a freshly loaded store, the NativeAOT CLI, the allocation gate, first-day, `gates ci`,
+# from a freshly loaded store, the NativeAOT CLI, first-day, `gates ci`,
 # the package tests, the F# suite with `--published --split`, validate-cli-artifact, and
 # a check that nothing wrote to the source tree. The CLI steps run with CI=true and CLI= set the way the build job sets
 # them. It does not call scripts/run-tests: that runs the same three suites against the
@@ -116,7 +116,6 @@ else
     && step fresh-seed fresh_seed \
     && step build-aot-cli scripts/build/build-release-cli-exes.sh --seed=rundir/seed.db; then
     export CI=true CLI
-    step allocation-gate scripts/perf/gate --published
     step first-day timeout 5m scripts/testing/gates first-day "$CLI"
     step gates-ci timeout 15m scripts/testing/gates ci --parallel
     step package-tests timeout 20m scripts/testing/gates package-tests
@@ -125,7 +124,7 @@ else
     step validate-cli-artifact scripts/testing/validate-cli-artifact "$CLI"
     unset CI CLI
   else
-    for s in allocation-gate first-day gates-ci package-tests backend-tests validate-cli-artifact; do
+    for s in first-day gates-ci package-tests backend-tests validate-cli-artifact; do
       skip "$s" "build failed"
     done
   fi
