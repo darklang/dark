@@ -228,7 +228,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DFloat32 _
   | DDecimal _
   | DChar _
-  | DString _
+  | DStr _
   | DDateTime _
   | DUuid _
   // DApplicable serializes successfully: a lambda stores its instruction stream.
@@ -315,7 +315,7 @@ let rec isInertData (dv : Dval) : bool =
   | DFloat32 _
   | DDecimal _
   | DChar _
-  | DString _
+  | DStr _
   | DDateTime _
   | DUuid _
   | DBytes _ -> true
@@ -400,7 +400,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDecimal a, DDecimal b -> a = b
 
   | DChar a, DChar b -> a = b
-  | DString a, DString b -> a = b
+  | DStr a, DStr b -> a.Value = b.Value
 
   | DDateTime a, DDateTime b -> a = b
 
@@ -499,7 +499,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DFloat32 _, _
   | DDecimal _, _
   | DChar _, _
-  | DString _, _
+  | DStr _, _
   | DDateTime _, _
   | DUuid _, _
   | DList _, _
@@ -583,8 +583,8 @@ let private tryHashLeaf (value : Dval) : ValueOption<int> =
     | DChar x ->
       code.Add x
       true
-    | DString x ->
-      code.Add x
+    | DStr x ->
+      code.Add x.Value
       true
     | DDateTime x ->
       code.Add x
@@ -730,7 +730,7 @@ let rec toDebugString (dv : Dval) : string =
   | DFloat32 f -> f.ToString inv
   | DDecimal d -> d.ToString inv
   | DChar c -> $"'{c}'"
-  | DString s -> $"\"{s}\""
+  | DStr s -> $"\"{s.Value}\""
   | DDateTime d -> DarkDateTime.toIsoString d
   | DUuid g -> g.ToString()
   | DList(_, Items(items)) -> $"[{join items}]"

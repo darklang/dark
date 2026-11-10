@@ -869,7 +869,7 @@ module Dval =
     | DFloat32 f -> mk "DFloat32" [ DFloat32 f ]
     | DDecimal f -> mk "DDecimal" [ DDecimal f ]
     | DChar c -> mk "DChar" [ DChar c ]
-    | DString s -> mk "DString" [ DString s ]
+    | DStr s -> mk "DString" [ DStr s ]
     | DUuid u -> mk "DUuid" [ DUuid u ]
     | DDateTime d -> mk "DDateTime" [ DDateTime d ]
 
