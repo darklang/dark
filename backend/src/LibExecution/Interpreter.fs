@@ -4646,6 +4646,66 @@ let private plainPureCallArgs
     ValueNone
 
 
+/// Whether each argument in the registers fits its parameter with nothing to bind, and there is
+/// one argument per parameter.
+let rec private argsFitParams
+  (ps : List<PackageFn.Parameter>)
+  (registers : Dval array)
+  (reg : Register)
+  (rest : List<Register>)
+  : bool =
+  match ps with
+  | [] -> false
+  | p :: pRest ->
+    TypeChecker.argFitsWithNothingToBind TST.empty p.typ registers[reg]
+    && (match rest with
+        | [] -> List.isEmpty pRest
+        | r :: rRest -> argsFitParams pRest registers r rRest)
+
+
+/// A call of a fn already called once. When every argument fits its parameter by its case alone,
+/// and there is nothing to infer, bind or check besides, the frame is built straight away: where
+/// `callPackageWith` would arrive, without its steps.
+let private callPackageKnown
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (newArgRegs : NEList<Register>)
+  (ctx : ApplyContext)
+  (callData : PackageFnCallData)
+  : Ply<PackageOutcome> =
+  let fn = callData.fn
+  if
+    not vm.stats.enabled
+    && List.isEmpty ctx.typeArgs
+    && List.isEmpty ctx.applicable.argsSoFar
+    && List.isEmpty ctx.applicable.boundImpls
+    && List.isEmpty fn.bounds
+    && Set.isEmpty callData.freeTVars
+    && callData.thinWrapper.IsNone
+    && not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
+    && argsFitParams callData.paramList registers newArgRegs.head newArgRegs.tail
+  then
+    let n = NEList.length fn.parameters
+    Ply(
+      completePackage
+        exeState
+        vm
+        currentFrame
+        ctx
+        fn
+        callData
+        Set.empty
+        TST.empty
+        ctx.args
+        n
+        n
+    )
+  else
+    callPackageWith exeState vm currentFrame ctx callData
+
+
 /// `Apply` of a package fn.
 let private applyPackageFn
   (exeState : ExecutionState)
@@ -4812,7 +4872,7 @@ let private applyPackageFn
             { ctx with inPlace = true }
           else
             ctx
-        callPackageWith exeState vm currentFrame ctx callData
+        callPackageKnown exeState vm currentFrame registers newArgRegs ctx callData
       else
         // The first call: fetch it. The miss builds its own `uply` and the hit never touches the
         // builder. A `let!` here instead would sit in the loop's computation expression and cost
