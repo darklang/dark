@@ -246,3 +246,43 @@ test checkedToFloat =
     [ Stdlib.BigInt.checkedToFloat(Stdlib.BigInt.fromInt64(-3)) |> Stdlib.Test.equal(Ok(-3.0))
       Stdlib.BigInt.checkedToFloat(Stdlib.BigInt.fromInt64(10) ** Stdlib.BigInt.fromInt64(400))
       |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])
+
+/// `checkedPower` estimates the result as the exponent times the bits in the base,
+/// and refuses past `maxPowerBits` (1 MB) before computing anything.
+test checkedPower =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedPower(2z, 10z) |> Stdlib.Test.equal(Ok(1024z))
+      Stdlib.BigInt.checkedPower(-3z, 3z) |> Stdlib.Test.equal(Ok(-27z))
+      Stdlib.BigInt.checkedPower(10z, 30z)
+      |> Stdlib.Test.equal(Ok(1000000000000000000000000000000z))
+      Stdlib.BigInt.checkedPower(7z, 0z) |> Stdlib.Test.equal(Ok(1z))
+      Stdlib.BigInt.checkedPower(2z, -1z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
+      Stdlib.BigInt.checkedPower(0z, -1z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent)) ])
+
+test checkedPowerTrivialBases =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedPower(0z, 100000000000000000000z)
+      |> Stdlib.Test.equal(Ok(0z))
+      Stdlib.BigInt.checkedPower(1z, 100000000000000000000z)
+      |> Stdlib.Test.equal(Ok(1z))
+      Stdlib.BigInt.checkedPower(-1z, 100000000000000000001z)
+      |> Stdlib.Test.equal(Ok(-1z))
+      Stdlib.BigInt.checkedPower(1z << 10000000z, 0z) |> Stdlib.Test.equal(Ok(1z)) ])
+
+/// 2 has 2 bits, so 2 ** 4194304 is estimated at exactly 8388608 bits.
+test checkedPowerAtTheLimit =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedPower(2z, 4194304z)
+      |> Stdlib.Test.equal(Ok(1z << 4194304z))
+      Stdlib.BigInt.checkedPower(2z, 4194305z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge))
+      Stdlib.BigInt.checkedPower(-2z, 4194305z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge))
+      Stdlib.BigInt.checkedPower((1z << 8388607z), 1z)
+      |> Stdlib.Test.equal(Ok(1z << 8388607z))
+      Stdlib.BigInt.checkedPower((1z << 8388608z), 1z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge))
+      Stdlib.BigInt.checkedPower(2z, 100000000000000000000z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.ResultTooLarge)) ])
