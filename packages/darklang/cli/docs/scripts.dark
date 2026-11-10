@@ -83,6 +83,8 @@ A permission denial stops the script; earlier effects may already have happened.
 At an interactive terminal, you can save the rule for future runs. The script stays
 stopped, so you decide whether to run it again. Noninteractive runs show guidance
 without prompting.
+`--allow <rule>` (before the path) allows one more rule for that run only, written
+as for `permissions allow`; nothing is saved. A denial prints the rerun command.
 `--sandbox` adds a deny-all run policy; it does not provide OS isolation.
 See `dark help run-script` for all permission options.
 """

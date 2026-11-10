@@ -655,7 +655,11 @@ let private policyFnNameOn
 /// Build the execution state for guest code. The persisted instance policy is
 /// the hard maximum; run, package, bundled-function, and requested-function
 /// policies are layered beneath it. Policy administration is disabled.
-let guestState
+///
+/// `allow` adds rules to the instance policy for this state only (`run --allow`). Nothing is
+/// written, and the saved policy's deny rules still win.
+let guestStateAllowing
+  (allow : List<P.Rule>)
   (accountID : Option<Guid>)
   (runPolicy : P.Policy)
   (ownFns : List<RT.Hash>)
@@ -681,9 +685,17 @@ let guestState
       packagePolicyOrigin =
         fun policyId -> originOfIn (get ()) accountID (fingerprint.Force()) policyId
       policyFnName = policyFnNameOn state.branchId }
-  |> Execution.setInstancePolicy (instancePolicy ())
+  |> Execution.setInstancePolicy (applyInstanceEdit allow [] [] (instancePolicy ()))
   |> Execution.restrictRun runPolicy
   |> Execution.setPackagePolicies lookup
+
+let guestState
+  (accountID : Option<Guid>)
+  (runPolicy : P.Policy)
+  (ownFns : List<RT.Hash>)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  guestStateAllowing [] accountID runPolicy ownFns state
 
 /// Test runs have an allow-all instance boundary without changing the saved
 /// installation policy. Package approvals and declared function ceilings still
