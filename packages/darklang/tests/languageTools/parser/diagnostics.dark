@@ -209,6 +209,26 @@ test operatorsDarkLacksSayWhatToWrite =
       says("match xs with | [h, ...[t]] -> h", "takes a name for the rest")
       says("match xs with | [...t] -> t", "write `t`") ])
 
+// `rec` is reported once, and the function after it parses as written.
+test letRecSaysRecursionNeedsNoKeyword =
+  Stdlib.Test.all(
+    [ golden(
+        "let rec go(n: Int64): Int64 = if n <= 0 then 0 else go(n - 1)\ngo(3)",
+        [ "Dark functions can call themselves; there's no `rec` keyword" ])
+      golden(
+        "let f(n: Int64): Int64 =\n  let rec go(k: Int64): Int64 = k\n  go(n)\nf(1)",
+        [ "Dark functions can call themselves; there's no `rec` keyword" ])
+      clean("let rec = 1\nrec") ])
+
+test builtinTypeNamesAreRefused =
+  Stdlib.Test.all(
+    [ golden(
+        "type Unit =\n  | Celsius\n  | Fahrenheit\n1",
+        [ "`Unit` is a built-in type, so it can't also name a type of your own" ])
+      says("type String = { s: Int64 }\n1", "is a built-in type")
+      says("module M =\n  type List = | A\n1", "is a built-in type")
+      clean("type TempUnit =\n  | Celsius\n  | Fahrenheit\n1") ])
+
 // The refused operator is the only mistake reported: the parse reads on past it.
 test operatorsDarkLacksDoNotCascade =
   Stdlib.Test.all(
