@@ -251,7 +251,9 @@ def run_migrations():
   return run_backend(start, f"scripts/build/run-migrations {configuration}")
 
 
-def reload_all_packages():
+def reload_all_packages(may_apply):
+  """<param may_apply>: only `.dark` files changed, so the edits may land as a difference
+  (`apply_package_edits`) rather than through a reload."""
   start = time.time()
   if optimize:
     configuration = " --published"
@@ -265,6 +267,8 @@ def reload_all_packages():
     print("Skipped the package reload: nothing it reads has changed and no ops were written since "
           "the last one. To reload anyway: scripts/build/reload-packages")
     return True
+  if may_apply and not optimize and _reloadstamp.applied(inputs, apply_package_edits):
+    return True
   ok = run_backend(start, f"scripts/build/reload-packages {configuration}")
   if ok:
     _reloadstamp.record(inputs)
@@ -275,8 +279,6 @@ def apply_package_edits():
   """Land only the declarations of `packages/*.dark` that changed since the last reload, instead of
   another reload. False when it couldn't, having said why: then the full reload runs. Debug and
   outside CI only, so CI's full reload still catches a store this builds that a reload would not."""
-  if optimize or in_ci:
-    return False
   start = time.time()
   pretty_print("scripts/run-local-exec apply-package-edits", 42)
   log = os.path.expanduser("~/.darklang/logs/packages.log")
@@ -371,10 +373,7 @@ def execute(should, outcome):
     # Only a `.dark` edit can be applied as a difference. After a build or a migration, the parser,
     # the hashing or the schema may have moved under every item, so that still reloads.
     dark_only = "run_migrations" not in outcome.ran
-    if chain_ok and dark_only and apply_package_edits():
-      outcome.record("reload_all_packages", True)
-    else:
-      step("reload_all_packages", reload_all_packages)
+    step("reload_all_packages", lambda: reload_all_packages(dark_only))
 
   # Gated here rather than inside backend_test(), so a build that skipped the tests
   # doesn't list running them among the things it did.

@@ -11,7 +11,8 @@ ops were written to it, by hand (`dark fn`, `dark edit`) or by a test, and any o
 on any branch, means the reload runs as it always has.
 
 The record sits beside the store, in `<store>.reload-stamp.json`, as dark-edits-in-dev's record
-does. Only a reload the build ran, once it succeeds, writes it; every reload deletes it as it
+does. Only a reload the build ran, or an `apply-package-edits` standing in for one (`applied`), once it
+succeeds, writes it; every reload deletes it as it
 starts, so one that fails or is killed half way leaves no record that could vouch for the store.
 `scripts/build/reload-packages` always reloads.
 """
@@ -140,6 +141,19 @@ def unchanged(inputs_hash):
           and rec.get("inputs") == inputs_hash
           and rec.get("ref_hashes") == _ref_hashes()
           and rec.get("ops") == fingerprint)
+
+
+def applied(inputs_hash, apply):
+  """Run <apply>, the dev build's `apply-package-edits`, in place of a reload, and record it as one
+  when it succeeds. The record goes first, so an apply that fails or stops half way leaves none."""
+  try:
+    os.remove(record_path())
+  except FileNotFoundError:
+    pass
+  ok = apply()
+  if ok:
+    record(inputs_hash)
+  return ok
 
 
 def record(inputs_hash):

@@ -551,6 +551,28 @@ class TestReloadStamp(unittest.TestCase):
                   script)
     self.assertTrue(_reloadstamp.record_path().endswith("/.darklang/data.db.reload-stamp.json"))
 
+  def apply(self, t, ok):
+    """An edit the build applies with `apply-package-edits`, which writes ops as it lands it."""
+    t.write("packages/darklang/stdlib/list.dark", "let length (l: List<'a>): Int64 = 1")
+
+    def run():
+      self.write_ops("INSERT INTO package_ops VALUES ('op3', 'main', 'c2')")
+      return ok
+    return _reloadstamp.applied(_reloadstamp.inputs(optimize=False), run)
+
+  def test_a_build_after_an_apply_skips(self):
+    t = self.tree()
+    self.reloaded()
+    self.assertTrue(self.apply(t, ok=True))
+    self.assertFalse(self.reloaded())
+
+  def test_a_failed_apply_leaves_no_record(self):
+    t = self.tree()
+    self.reloaded()
+    self.assertFalse(self.apply(t, ok=False))
+    self.assertFalse(os.path.exists(_reloadstamp.record_path()))
+    self.assertTrue(self.reloaded())
+
 
 class TestReleaseImage(unittest.TestCase):
   """The release image pins the .NET SDK, and so does global.json.
