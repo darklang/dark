@@ -6,6 +6,15 @@ type Result<'Ok, 'Err> =
   | Error('Err)
 
 
+impl<'Ok: ToString, 'Err: ToString> ToString for Result<'Ok, 'Err> =
+  /// {{"Ok(<var v>)"}} or {{"Error(<var e>)"}}, each rendered by its own
+  /// <type ToString>: {{$"{Ok(3)}"}} is {{"Ok(3)"}}.
+  let toString(r: Result<'Ok, 'Err>): String =
+    match r with
+    | Ok(v) -> "Ok(" + ToString.toString(v) + ")"
+    | Error(e) -> "Error(" + ToString.toString(e) + ")"
+
+
 /// If <param result> is {{Ok <var value>}}, returns {{Ok (fn <var value>)}}.
 /// The lambda <param fn> is applied to <var value> and the result is wrapped in
 /// {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result>

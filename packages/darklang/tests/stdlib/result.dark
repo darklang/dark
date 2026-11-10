@@ -1,5 +1,15 @@
 module Darklang.Stdlib.Result.Tests
 
+test toString =
+  Stdlib.Test.all(
+    [ Stdlib.toString<Result<Int64, String>>(Ok(3)) |> Stdlib.Test.equal("Ok(3)")
+      Stdlib.toString<Result<Int64, String>>(Error("no"))
+      |> Stdlib.Test.equal("Error(no)")
+      Stdlib.toString<Result<Option<Int64>, String>>(Ok(Some(1)))
+      |> Stdlib.Test.equal("Ok(Some(1))")
+      Error("bad") |> (fun r -> $"got {r}")
+      |> Stdlib.Test.equal("got Error(bad)") ])
+
 test andThen =
   Stdlib.Test.all(
     [ Stdlib.Result.andThen(Error("test"), fun _ -> Error("test"))

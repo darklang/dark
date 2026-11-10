@@ -106,7 +106,7 @@ trait Compare<'a> =
 /// A value rendered as text for a person: `p.toString`, or `ToString.toString p`.
 /// Many standard-library types implement it, and you can implement it for your own types.
 /// Use `Stdlib.toRepr` to see a value's structure when debugging.
-// TODO: Add ToString for Unit, List, Option and tuples.
+// TODO: Add ToString for Unit, List and tuples.
 // CLEANUP if this splits, it splits into `ToString` for what a person reads and
 // `ToDebugString` for the derived one. Nothing more elaborate.
 trait ToString<'a> =

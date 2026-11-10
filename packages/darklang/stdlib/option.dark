@@ -6,6 +6,16 @@ type Option<'v> =
   | None
 
 
+impl<'v: ToString> ToString for Option<'v> =
+  /// {{"Some(<var v>)"}}, with <var v> as its own <type ToString> renders it, or
+  /// {{"None"}}: {{$"{Some(3)}"}} is {{"Some(3)"}}. To print the value or a fallback,
+  /// use <fn Stdlib.Option.withDefault> first.
+  let toString(o: Option<'v>): String =
+    match o with
+    | Some(v) -> "Some(" + ToString.toString(v) + ")"
+    | None -> "None"
+
+
 /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The
 /// lambda <fn fn> is applied to <var value> and the result is wrapped in
 /// {{Some}}. Otherwise, returns {{None}}
