@@ -60,5 +60,21 @@
         "tolerance": 0.05
       }
     }
+  },
+  "ui": {
+    "keys": 10,
+    "note": "The interactive CLI at 120x40, from scripts/perf/workloads/ui/workbench.dark (see scripts/perf/_ui.py): VM instructions, which repeat exactly, and allocation, which sees the builtins where most of a keypress goes. firstFrame is process start to the workbench's first frame built and painted to a string; keypress is one Down or Up in Code at Darklang.Stdlib.List: the key handled, the next frame built and diffed. Recorded by `scripts/perf/gate --published --update` with the rest.",
+    "firstFrame": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.03,
+      "instructions": 77161,
+      "allocated": 29417120
+    },
+    "keypress": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.03,
+      "instructions": 99486,
+      "allocated": 34799560
+    }
   }
 }

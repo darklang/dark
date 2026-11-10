@@ -1,0 +1,91 @@
+// The interactive CLI's first frame and its keypresses, headless, at 120x40. `gate` budgets both.
+//
+// PERF_ITERS=0 builds the first frame the way `dark` with no arguments does and stops: the draft,
+// Home's items, the badges and SCM status, the view, and the full paint as a string. Nothing is
+// written to a terminal.
+//
+// PERF_ITERS=n opens Code at Darklang.Stdlib.List with `map` selected, then presses Down and Up in
+// turn n times. Each press is what the CLI does per key: `onKey`, `refresh`, the view, and the diff
+// against the last frame. `gate` runs this at 1 and 1+N, so the setup cancels.
+let iters(): Int64 =
+  match Stdlib.Env.get("PERF_ITERS") with
+  | Some(s) ->
+    match Stdlib.Int64.parse(s) with
+    | Ok(n) -> n
+    | Error(_) -> 0
+  | None -> 0
+
+type Screen =
+  { state: Darklang.Cli.Workbench.State
+    terminal: Stdlib.Cli.Tui.TerminalSession.State
+    bytes: Int64 }
+
+let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+let noMods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
+let c = Darklang.Cli.Workbench.component()
+
+let present(prev: Darklang.Cli.Workbench.State, next: Darklang.Cli.Workbench.State, terminal: Stdlib.Cli.Tui.TerminalSession.State): Screen =
+  let state = c.refresh(prev, next)
+  let p = Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(terminal, size, c.view(state, size))
+  Screen { state = state, terminal = p.state, bytes = Stdlib.String.length(p.output) }
+
+let press(s: Screen, key: Stdlib.Cli.Stdin.Key.Key, keyChar: Stdlib.Option.Option<String>): Screen =
+  match c.onKey(s.state, key, noMods, keyChar) with
+  | Stay(next) -> present(s.state, next, s.terminal)
+  | Save(next) -> present(s.state, next, s.terminal)
+  | Exit(_) -> s
+  | Launch(_, _) -> s
+
+let select(s: Screen, name: String): Screen =
+  match Stdlib.List.findFirstIndex(s.state.items, fun it -> it.name == name) with
+  | Some(i) -> present(s.state, { s.state with selected = i }, s.terminal)
+  | None -> s
+
+let openItem(s: Screen, name: String): Screen =
+  press(select(s, name), Stdlib.Cli.Stdin.Key.Key.Enter, Stdlib.Option.Option.None)
+
+let pressN(s: Screen, n: Int64, bytes: Int64): Int64 =
+  if n <= 0 then
+    bytes
+  else
+    let key = if n % 2 == 0 then Stdlib.Cli.Stdin.Key.Key.UpArrow else Stdlib.Cli.Stdin.Key.Key.DownArrow
+    let next = press(s, key, Stdlib.Option.Option.None)
+    pressN(next, n - 1, bytes + next.bytes)
+
+let branchId = Darklang.SCM.Branch.mainBranchId
+let draft = Darklang.SCM.Draft.read()
+let home =
+  Darklang.Cli.Workbench.initialStateFrom(
+    branchId,
+    Stdlib.Option.Option.None,
+    "perf-instance",
+    Darklang.Cli.Workbench.Updates.Manual,
+    draft)
+let (wip, deprecated) = Darklang.Cli.Workbench.readBadges(home)
+let home =
+  { home with
+      wipNames = wip
+      deprecatedNames = deprecated
+      scmStatus = Darklang.Cli.Workbench.scmStatusFrom(branchId, draft) }
+let first = Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(Stdlib.Cli.Tui.TerminalSession.init(), size, c.view(home, size))
+let screen = Screen { state = home, terminal = first.state, bytes = Stdlib.String.length(first.output) }
+let n = iters()
+
+if n == 0 then
+  Stdlib.printLine("first frame " + (Stdlib.toString(screen.bytes)) + " bytes")
+else
+  let code = press(screen, Stdlib.Cli.Stdin.Key.Key.D2, Stdlib.Option.Option.Some("2"))
+  let list = openItem(openItem(openItem(code, "Darklang"), "Stdlib"), "List")
+  let atMap = select(list, "map")
+  let onMap =
+    match Stdlib.List.getAt(atMap.state.items, atMap.state.selected) with
+    | Some(it) -> it.name == "map"
+    | None -> false
+  // Without this a renamed module would quietly measure keys on Home instead.
+  if Stdlib.Bool.not(onMap) then
+    Stdlib.printLine("did not reach Darklang.Stdlib.List.map")
+  else
+    let t0 = Darklang.Cli.Telemetry.now()
+    let bytes = pressN(atMap, n, 0)
+    let t1 = Darklang.Cli.Telemetry.now()
+    Stdlib.printLine("elapsed_ms=" + (Stdlib.toString(t1 - t0)) + " keys=" + (Stdlib.toString(n)) + " bytes=" + (Stdlib.toString(bytes)))
