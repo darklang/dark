@@ -75,6 +75,9 @@ INSERT OR IGNORE INTO accounts_v0 (id, name) VALUES
 -- is one id twice, and each branch keeps its own row: a branch's work never shares a row with
 -- another branch's. Main is a branch like any other, with a well-known id.
 CREATE TABLE IF NOT EXISTS package_ops (
+  -- The row's place in this store's log. AUTOINCREMENT so a number is never handed out twice, even
+  -- after the newest row is deleted: the fold's mark (`package_ops_applied_through`) is one of them.
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
   id TEXT NOT NULL,
   -- The branch whose op this is now. A merge moves the row to the parent.
   branch_id TEXT NOT NULL,
@@ -84,8 +87,6 @@ CREATE TABLE IF NOT EXISTS package_ops (
   op_blob BLOB NOT NULL,
   -- The op's case (`PackageOp.kind`), so a query can pick out renames and the like without decoding.
   op_kind TEXT NOT NULL DEFAULT 'unknown',
-  -- Folded into the projections. An op this build cannot read stays 0, so a later build folds it.
-  applied INTEGER NOT NULL DEFAULT 0,
   -- The commit this op belongs to; NULL = the branch's draft.
   commit_hash TEXT NULL,
   -- What wrote it: 'op' = authored, 'propagation' = a repoint that followed an edit, 'resolution' = a
@@ -96,7 +97,7 @@ CREATE TABLE IF NOT EXISTS package_ops (
   created_at TIMESTAMP NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
   -- Authoring stamp, from the process clock (`LibDB.OriginTs`). Last-writer-wins orders by it.
   origin_ts TEXT NOT NULL,
-  PRIMARY KEY (id, branch_id)
+  UNIQUE (id, branch_id)
 );
 CREATE INDEX IF NOT EXISTS idx_package_ops_branch ON package_ops(branch_id, commit_hash);
 CREATE INDEX IF NOT EXISTS idx_package_ops_created ON package_ops(created_at);
@@ -104,8 +105,6 @@ CREATE INDEX IF NOT EXISTS idx_package_ops_kind ON package_ops(op_kind);
 -- The log's newest stamp (every authoring and commit asks for the next one) and the health check's
 -- future-stamped count.
 CREATE INDEX IF NOT EXISTS idx_package_ops_origin ON package_ops(origin_ts);
-CREATE INDEX IF NOT EXISTS idx_package_ops_applied
-  ON package_ops(applied) WHERE applied = 0;
 CREATE INDEX IF NOT EXISTS idx_package_ops_authored ON package_ops(authored_on);
 
 -- ---------------------------------------------------------------------------

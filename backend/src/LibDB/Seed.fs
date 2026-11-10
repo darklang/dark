@@ -1,12 +1,12 @@
 /// Package seed: extract and grow.
 ///
-/// A seed is a copy of data.db with the projection tables emptied and its ops marked unapplied (it carries
+/// A seed is a copy of data.db with the projection tables emptied and none of its ops applied (it carries
 /// the full schema, so it works directly as a data.db). Export copies data.db, strips derived data, VACUUMs;
 /// grow folds the unapplied ops back into the projections and evaluates values. Grow runs on CLI startup,
-/// and is a single SELECT COUNT when nothing is pending.
+/// and is a single lookup past the fold's mark when nothing is pending.
 ///
 /// The op log (`package_ops`) is canonical; the package tables are regenerable projections folded from it.
-/// `applyUnappliedOps` folds pending ops (the `applied` flag is the append/fold seam); `rebuildProjections`
+/// `applyUnappliedOps` folds pending ops (`AppliedOps` is the append/fold seam); `rebuildProjections`
 /// drops the projections, marks every op unapplied, and re-folds. So a schema change is safe (drop + re-fold,
 /// never touching the log) and a synced peer's ops fold in like a local edit.
 module LibDB.Seed
@@ -140,9 +140,8 @@ let export (outputPath : string) : Task<unit> =
       -- refuse or not depending on what ran last. The bindings need no separate
       -- delete; every projection went above.
       DELETE FROM package_ops WHERE commit_hash IS NULL;
-
-      UPDATE package_ops SET applied = 0;
       """
+      + AppliedOps.reset
     cleanCmd.ExecuteNonQuery() |> ignore<int>
 
     use vacuumCmd = conn.CreateCommand()
@@ -159,28 +158,21 @@ let export (outputPath : string) : Task<unit> =
 
 /// The pending set: every op not yet folded, as raw (rowid, branch, id, blob) rows, in log order. The
 /// fold's half is `foldRead`; `applyUnappliedOpsPass` is the two in sequence. Split so a test can put a
-/// concurrent write between them, which is the case the by-row sweep in `foldRead` exists for.
+/// concurrent write between them, which is the case `foldRead`'s mark has to get right.
 let readPending () : Task<List<int64 * PT.BranchId * System.Guid * byte[]>> =
   task {
-    // Fast check: are there any unapplied ops? Avoids loading blobs when count is 0.
-    let! count =
-      Sql.query "SELECT COUNT(*) as n FROM package_ops WHERE applied = 0"
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
-
-    if count = 0L then
-      return []
-    else
-      // Read the raw rows WITHOUT deserializing in the reader: a malformed op_blob must not throw here
-      // and brick the whole fold -- AND every fold after it, since the op stays applied=0.
-      return!
-        Sql.query
-          "SELECT rowid AS seq, branch_id, id, op_blob FROM package_ops
-           WHERE applied = 0 ORDER BY rowid"
-        |> Sql.executeAsync (fun read ->
-          (read.int64 "seq",
-           PT.BranchId.ParseUnsafe(read.string "branch_id"),
-           read.uuid "id",
-           read.bytes "op_blob"))
+    // Read the raw rows WITHOUT deserializing in the reader: a malformed op_blob must not throw here
+    // and brick the whole fold -- AND every fold after it, since the op stays unapplied.
+    return!
+      Sql.query (
+        AppliedOps.pending "p.rowid AS seq, p.branch_id, p.id, p.op_blob"
+        + " ORDER BY seq"
+      )
+      |> Sql.executeAsync (fun read ->
+        (read.int64 "seq",
+         PT.BranchId.ParseUnsafe(read.string "branch_id"),
+         read.uuid "id",
+         read.bytes "op_blob"))
   }
 
 /// The tables a cold start fills from empty, each with the secondary indexes the fold itself reads
@@ -224,9 +216,9 @@ let private dropIndexesOfEmptyTables (conn : SqliteConnection) : Task<List<strin
   }
 
 
-/// Mark the rows at <param rowids> applied, and return what each says the fold needs: its stamp,
-/// whether it is still in the draft, and what wrote it.
-let private markApplied
+/// What each row at <param rowids> says the fold needs: its stamp, whether it is still in the
+/// draft, and what wrote it.
+let private logRowsOf
   (conn : SqliteConnection)
   (rowids : List<int64>)
   : Task<Map<int64, PackageOpPlayback.OpRow>> =
@@ -234,8 +226,8 @@ let private markApplied
     use cmd = conn.CreateCommand()
     let listed = rowids |> List.map string |> String.concat ", "
     cmd.CommandText <-
-      $"UPDATE package_ops SET applied = 1 WHERE rowid IN ({listed})
-        RETURNING rowid, origin_ts, commit_hash IS NULL, source"
+      $"SELECT rowid, origin_ts, commit_hash IS NULL, source FROM package_ops
+        WHERE rowid IN ({listed})"
     use! reader = cmd.ExecuteReaderAsync()
     return
       reader
@@ -256,6 +248,10 @@ let private foldChunkSize = 250
 
 /// Fold the rows `readPending` returned, each into its own branch, and mark exactly those applied.
 /// Returns the count folded.
+///
+/// The mark moves to the last row read, and the rows this build could not read stay behind it as
+/// exceptions. Nothing else can be pending at or below that row: a row written since the read comes
+/// after it in the log, and an author that moved the mark in between kept what it passed over.
 let foldRead
   (rawOps : List<int64 * PT.BranchId * System.Guid * byte[]>)
   : Task<int64> =
@@ -265,12 +261,12 @@ let foldRead
     else
 
       // Deserialize per-op; SKIP + log any that fail rather than aborting, so one bad op cannot brick a
-      // store. They stay `applied = 0`, which is the truth -- nothing folded them -- and means a build
+      // store. They stay unapplied, which is the truth -- nothing folded them -- and means a build
       // that CAN read them still will.
       //
       // A chunk at a time: a cold start folds every op in the store, and all of them deserialized at
       // once is most of its peak memory.
-      let mutable skipped = 0
+      let mutable skipped : List<int64> = []
       let mutable folded = 0L
 
       // Opened at the first op that deserializes, so a store holding only ops this build cannot
@@ -301,12 +297,19 @@ let foldRead
             |> List.choose (fun (seq, branch, opId, opBlob) ->
               BS.PT.PackageOp.tryDeserialize opId opBlob
               |> Option.map (fun op -> (seq, branch, opId, opBlob, op)))
-          skipped <- skipped + List.length chunk - List.length unappliedOps
+          if List.length unappliedOps < List.length chunk then
+            let read =
+              unappliedOps |> List.map (fun (seq, _, _, _, _) -> seq) |> Set.ofList
+            skipped <-
+              (chunk
+               |> List.map (fun (seq, _, _, _) -> seq)
+               |> List.filter (fun seq -> not (Set.contains seq read)))
+              @ skipped
 
           if not (List.isEmpty unappliedOps) then
             if isNull conn then
-              // All ops + the applied=1 sweep in ONE transaction: for 9000+ ops that collapses ~20k
-              // WAL commits into one.
+              // All ops + the mark in ONE transaction: for 9000+ ops that collapses ~20k WAL commits
+              // into one.
               conn <- new SqliteConnection(LibDB.Sqlite.connString)
               do! conn.OpenAsync()
               // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter
@@ -325,12 +328,9 @@ let foldRead
               let! dropped = dropIndexesOfEmptyTables conn
               droppedIndexes <- dropped
 
-            // By ROW, never by predicate: a `serve` committing an op between the read and here
-            // matches `applied = 0` too, and a predicate sweep would mark it applied with nothing
-            // having folded it. The same statement reads back what the fold needs from each row,
-            // under the write lock, so it is what the row says now.
+            // Read under the write lock, so it is what the row says now.
             let! logRows =
-              markApplied
+              logRowsOf
                 conn
                 (unappliedOps |> List.map (fun (seq, _, _, _, _) -> seq))
 
@@ -364,16 +364,31 @@ let foldRead
         if not (isNull tx) then
           for sql in droppedIndexes do
             do! runRaw conn sql
+          use mark = conn.CreateCommand()
+          mark.CommandText <- AppliedOps.foldedThrough
+          mark.Parameters.AddWithValue(
+            "$last",
+            rawOps
+            |> List.maxBy (fun (seq, _, _, _) -> seq)
+            |> (fun (seq, _, _, _) -> seq)
+          )
+          |> ignore<SqliteParameter>
+          mark.Parameters.AddWithValue(
+            "$skipped",
+            "[" + (skipped |> List.map string |> String.concat ",") + "]"
+          )
+          |> ignore<SqliteParameter>
+          let! _ = mark.ExecuteNonQueryAsync()
           tx.Commit()
       finally
         if not (isNull tx) then tx.Dispose()
         if not (isNull conn) then conn.Dispose()
 
       // ONE line, not one per op: these are re-examined on every startup.
-      if skipped > 0 && not warnedAboutUnreadableOps then
+      if not (List.isEmpty skipped) && not warnedAboutUnreadableOps then
         warnedAboutUnreadableOps <- true
         NonBlockingConsole.writeErrLine (
-          $"note: {skipped} op(s) in this store were written in a format this build cannot "
+          $"note: {List.length skipped} op(s) in this store were written in a format this build cannot "
           + "read, and are being skipped. They are kept, not dropped, so a later build can apply them."
         )
 
@@ -430,7 +445,7 @@ let rebuildProjections () : Task<int64> =
     for t in projectionTables do
       do! Sql.query $"DELETE FROM {t}" |> Sql.executeStatementAsync
     // 2. mark all ops unapplied so the fold reprocesses the whole log
-    do! Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementAsync
+    do! Sql.query AppliedOps.reset |> Sql.executeStatementAsync
     // 3. re-fold ops -> projections via the existing playback path
     let! folded = applyUnappliedOps ()
     // Nothing extra to reapply for resolutions: an `Override` decision is an op, so re-folding the log
@@ -609,7 +624,7 @@ let evaluateAllValues
 
 
 /// The grow step for CLI/test startup: apply unapplied ops, generate package ref hashes, evaluate values.
-/// On a warm DB it's a single fast SELECT COUNT. `getBuiltins` is a function, not a value, because builtins
+/// On a warm DB it's a single fast lookup past the mark. `getBuiltins` is a function, not a value, because builtins
 /// must be constructed AFTER the hashes exist (construction triggers PackageRefs hash lookups).
 ///
 /// Values are evaluated as every value is (`evaluateAllValues`), with no effects allowed, so a

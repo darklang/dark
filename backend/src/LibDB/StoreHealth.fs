@@ -40,7 +40,8 @@ let counts () : Task<Counts> =
         "SELECT count(*) AS n FROM package_ops
          WHERE origin_ts > strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 day')"
 
-    let! unfolded = count "SELECT count(*) AS n FROM package_ops WHERE applied = 0"
+    let pending = AppliedOps.pending "p.rowid"
+    let! unfolded = count $"SELECT count(*) AS n FROM ({pending})"
 
     // Each name looked up only in its own kind's table.
     let! danglingBindings =

@@ -96,8 +96,8 @@ let keepsAnOpItCannotRead =
       [ (alienCommitted, box "alien-commit"); (alienDraft, box System.DBNull.Value) ] do
       let! _ =
         Sql.query
-          "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, applied, commit_hash, origin_ts)
-           VALUES (@id, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', @blob, 0, @commit, '2026-08-28T00:00:00Z')"
+          "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, commit_hash, origin_ts)
+           VALUES (@id, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', @blob, @commit, '2026-08-28T00:00:00Z')"
         |> Sql.parameters
           [ "id", Sql.string (string id)
             "blob", Sql.bytes [| 0xFFuy; 0x39uy; 0x07uy; 0x2Auy |]

@@ -34,6 +34,7 @@ let tables : List<string> =
     "package_trait_impls"
     "package_tests"
     "package_ops"
+    "package_ops_unapplied"
     "package_dependencies"
     "deprecations"
 

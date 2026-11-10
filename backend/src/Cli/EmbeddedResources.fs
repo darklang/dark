@@ -164,7 +164,8 @@ type HeldBinding = string * string * string * string * string * string
 /// The seed is a SQLite database, so this attaches it and copies rows across rather than deserializing:
 /// the op blobs are opaque here, and the fold afterwards is what gives them meaning. An op's id IS its
 /// content hash, so `INSERT OR IGNORE` skips everything this build shares with the store, and what lands
-/// is exactly what changed. The ops go in unapplied, the signal `Seed.growIfNeeded` looks for.
+/// is exactly what changed. The ops land past the fold's mark, unapplied, which is what `Seed.growIfNeeded`
+/// looks for.
 ///
 /// Failure is not fatal on purpose: a store that could not be topped up is no worse off than before. It
 /// answers whether it worked, so a failure leaves the store unstamped and the next start tries again.
@@ -271,8 +272,8 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
                INSERT OR IGNORE INTO commits (hash, branch_id, message, origin_ts, parent, housekeeping)
                  SELECT hash, branch_id, message, origin_ts, parent, housekeeping FROM seed.commits;
                INSERT OR IGNORE INTO package_ops
-                 (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts, commit_hash, source)
-                 SELECT id, branch_id, authored_on, op_blob, op_kind, 0, origin_ts, commit_hash, source
+                 (id, branch_id, authored_on, op_blob, op_kind, origin_ts, commit_hash, source)
+                 SELECT id, branch_id, authored_on, op_blob, op_kind, origin_ts, commit_hash, source
                  FROM seed.package_ops;
                DETACH DATABASE seed;"
             cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>

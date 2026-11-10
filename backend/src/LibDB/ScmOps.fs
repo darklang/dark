@@ -127,7 +127,7 @@ let private shape (f : Filter) : Shape =
     { prefix = Layers.cte "@"
       cols = landedCols
       from =
-        "FROM package_ops WHERE branch_id IN (SELECT bid FROM chain) AND applied = 1 "
+        $"FROM package_ops WHERE branch_id IN (SELECT bid FROM chain) AND {AppliedOps.isApplied} "
         + "AND created_at >= @since"
       order = "ORDER BY created_at, rowid"
       parameters = ("since", Sql.string since) :: Layers.sqlParams b true }
@@ -135,8 +135,8 @@ let private shape (f : Filter) : Shape =
   | LandedLast ->
     s
       landedCols
-      "FROM package_ops WHERE applied = 1
-         AND created_at = (SELECT max(created_at) FROM package_ops WHERE applied = 1)"
+      $"FROM package_ops WHERE {AppliedOps.isApplied}
+         AND created_at = (SELECT max(created_at) FROM package_ops WHERE {AppliedOps.isApplied})"
       "ORDER BY rowid"
       []
 

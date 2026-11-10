@@ -650,8 +650,8 @@ let unreadableReferenceMetadataIsRetained =
     let id = System.Guid.NewGuid()
     do!
       Sql.query
-        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts)
-         VALUES (@id, @main, @main, @blob, 'rename', 1, '2026-11-03T00:00:00.000Z')"
+        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, op_kind, origin_ts)
+         VALUES (@id, @main, @main, @blob, 'rename', '2026-11-03T00:00:00.000Z')"
       |> Sql.parameters
         [ "id", Sql.uuid id
           "blob", Sql.bytes [| 0uy |]
@@ -673,6 +673,54 @@ let unreadableReferenceMetadataIsRetained =
       |> Sql.parameters [ "id", Sql.uuid id ]
       |> Sql.executeStatementSync
       LibDB.Caching.invalidateAll ()
+  }
+
+/// The fold's mark counts an op applied only once something folded it: an op still waiting when an
+/// author moves the mark past it keeps waiting, and so does an op stored after the newest one went.
+let appliedMarkCoversOnlyWhatFolded =
+  testTask "an op nothing folded never counts as applied" {
+    let insert () : Task<System.Guid> =
+      task {
+        let id = System.Guid.NewGuid()
+        do!
+          Sql.query
+            "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
+             VALUES (@id, @main, @main, @blob, '2026-11-09T00:00:00.000Z')"
+          |> Sql.parameters
+            [ "id", Sql.uuid id
+              "blob", Sql.bytes [| 0uy |]
+              "main", Sql.string (string PT.BranchId.Main) ]
+          |> Sql.executeStatementAsync
+        return id
+      }
+    let applied (id : System.Guid) : bool =
+      Sql.query
+        $"SELECT 1 FROM package_ops WHERE id = @id AND {LibDB.AppliedOps.isApplied}"
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeExistsSync
+    let run (sql : string) = Sql.query sql |> Sql.executeStatementSync
+    let remove (id : System.Guid) =
+      Sql.query "DELETE FROM package_ops WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeStatementSync
+
+    let! waiting = insert ()
+    // An author's save, as `Inserts.storeAndFoldOn` brackets it.
+    run LibDB.AppliedOps.holdPending
+    let! saved = insert ()
+    run LibDB.AppliedOps.coverAll
+    let savedIsApplied = applied saved
+    remove saved
+    let! later = insert ()
+    try
+      Expect.isTrue savedIsApplied "the saved op counts as applied"
+      Expect.isFalse (applied waiting) "the op that was waiting still waits"
+      Expect.isFalse
+        (applied later)
+        "an op stored after the newest went is not covered"
+    finally
+      remove waiting
+      remove later
   }
 
 let registryCoversProjections =
@@ -820,6 +868,7 @@ let tests =
       committedBindingsSurviveMainDraftSuppression
       operationKindsBackfillFromTheLog
       unreadableReferenceMetadataIsRetained
+      appliedMarkCoversOnlyWhatFolded
       registryCoversProjections
       noCanonicalInDropSet
       schemaChangeKeepsWork

@@ -347,8 +347,8 @@ let undecodableBranchOpIsSkippedNotFatal =
     let junkId = System.Guid.NewGuid()
     do!
       execSqlP
-        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, applied, origin_ts)
-         VALUES (@id, @b, @b, @blob, 0, '2099-01-01T00:00:00.000Z')"
+        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
+         VALUES (@id, @b, @b, @blob, '2099-01-01T00:00:00.000Z')"
         [ "id", Sql.string (string junkId)
           "b", Sql.string (string bid)
           "blob", Sql.bytes [| 0xFFuy; 0xFEuy; 0xFDuy; 0xFCuy |] ]
@@ -367,7 +367,7 @@ let undecodableBranchOpIsSkippedNotFatal =
 
     let! stillThere =
       countSql
-        "SELECT count(*) AS n FROM package_ops WHERE id = @id AND applied = 0"
+        $"SELECT count(*) AS n FROM package_ops WHERE id = @id AND NOT {LibDB.AppliedOps.isApplied}"
         [ "id", Sql.string (string junkId) ]
     Expect.equal
       stillThere
@@ -1514,7 +1514,7 @@ let private actionFootprint
         []
     let! applied =
       countSql
-        $"SELECT count(*) AS n FROM package_ops WHERE applied = 1 AND id IN ({ids})"
+        $"SELECT count(*) AS n FROM package_ops WHERE {LibDB.AppliedOps.isApplied} AND id IN ({ids})"
         []
     let! committed =
       countSql

@@ -229,14 +229,16 @@ let storeAndFoldOn
   task {
     let inserted = ResizeArray<PT.PackageOp>()
     let ignored = ResizeArray<PT.PackageOp>()
+    if not (List.isEmpty ops) then
+      do! exec ctx AppliedOps.holdPending ignore<SqliteCommand>
     for op in ops do
       let opId = computeOpHash op
       let! n =
         execRows
           ctx
           "INSERT OR IGNORE INTO package_ops
-             (id, branch_id, authored_on, op_blob, op_kind, applied, origin_ts, commit_hash, source)
-           VALUES ($id, $branch, $branch, $blob, $kind, 1, $ts, $commit, $source)"
+             (id, branch_id, authored_on, op_blob, op_kind, origin_ts, commit_hash, source)
+           VALUES ($id, $branch, $branch, $blob, $kind, $ts, $commit, $source)"
           (fun cmd ->
             pUuid cmd "$id" opId
             p cmd "$branch" (string branch)
@@ -252,6 +254,8 @@ let storeAndFoldOn
     do!
       Telemetry.timeTask "author.fold" [] (fun () ->
         PackageOpPlayback.applyOpsOnConnection ctx.conn branch (List.ofSeq inserted))
+    if inserted.Count > 0 then
+      do! exec ctx AppliedOps.coverAll ignore<SqliteCommand>
     do!
       PackageOpPlayback.recordDependenciesOnConnection ctx.conn (List.ofSeq ignored)
     return List.ofSeq inserted
