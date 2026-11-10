@@ -166,7 +166,7 @@ let rec callStackForFrame
   (frameID : uuid)
   (soFar : RT.CallStack)
   : RT.CallStack =
-  match vm.callFrames.TryGetValue frameID with
+  match vm.callFrames.TryFind frameID with
   | false, _ ->
     Exception.raiseInternal
       "Execution.callStackForFrame -- Couldn't find frame in callFrames"
@@ -426,7 +426,7 @@ let private loadApplyRegisters
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
   : unit =
-  let registers = vm.callFrames[vm.currentFrameID].registers
+  let registers = (vm.callFrames.Find vm.currentFrameID).registers
   registers[1] <- RT.DApplicable applicable
   registers[2] <- args.head
   // Head and tail directly: `NEList.toList` would allocate a list per application. The `iteri`
@@ -571,7 +571,7 @@ let executeApplicable1
   (arg : RT.Dval)
   : Ply<RT.ExecutionResult> =
   let vm = vmForApply 1
-  let registers = vm.callFrames[vm.currentFrameID].registers
+  let registers = (vm.callFrames.Find vm.currentFrameID).registers
   registers[1] <- RT.DApplicable applicable
   registers[2] <- arg
   runLoaded exeState access vm
