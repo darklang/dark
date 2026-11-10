@@ -171,7 +171,7 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
 ///
 /// The builtin's own `Dval.listContains`. Declines where it would raise, on an element whose type
 /// does not merge with the value's.
-let evalListContains (tag : int) (items : List<Dval>) (value : Dval) : Dval voption =
+let evalListContains (tag : int) (items : DvalList) (value : Dval) : Dval voption =
   if tag = listContains then
     match Dval.listContains items value with
     | ValueSome found -> ValueSome(Dval.bool found)

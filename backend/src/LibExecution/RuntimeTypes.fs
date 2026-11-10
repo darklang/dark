@@ -1263,7 +1263,8 @@ and DictKey private () =
     | DStr x -> combine (hash x.Value)
     | DDateTime x -> combine (hash x)
     | DUuid x -> combine (hash x)
-    | DList(_, xs) -> combine (DictKey.hashList (DvalList.toList xs))
+    | DList(_, xs) ->
+      combine (DvalList.fold (fun acc x -> acc * 31 + DictKey.hash x) 17 xs)
     | DTuple(x1, x2, xs) -> combine (DictKey.hashList (x1 :: x2 :: xs))
     | DDict(_, _, xs) ->
       xs.Entries
@@ -1333,7 +1334,7 @@ and DvalOrdering private () =
     // so deep comparisons raise a catchable exception.
     | DList(_, x), DList(_, y) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
-      DvalOrdering.compareList mode (DvalList.toList x) (DvalList.toList y)
+      DvalOrdering.compareItems mode x y
     | DTuple(x1, x2, xs), DTuple(y1, y2, ys) ->
       System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       DvalOrdering.compareList mode (x1 :: x2 :: xs) (y1 :: y2 :: ys)
@@ -1419,6 +1420,19 @@ and DvalOrdering private () =
     | x :: xs, y :: ys ->
       let c = DvalOrdering.compare mode x y
       if c <> 0 then c else DvalOrdering.compareList mode xs ys
+
+  static member private compareItems
+    (mode : DvalComparisonMode)
+    (a : DvalList)
+    (b : DvalList)
+    : int =
+    match DvalList.uncons a, DvalList.uncons b with
+    | ValueNone, ValueNone -> 0
+    | ValueNone, _ -> -1
+    | _, ValueNone -> 1
+    | ValueSome(struct (x, xs)), ValueSome(struct (y, ys)) ->
+      let c = DvalOrdering.compare mode x y
+      if c <> 0 then c else DvalOrdering.compareItems mode xs ys
 
   static member private compareEntries
     (mode : DvalComparisonMode)
@@ -1673,68 +1687,1046 @@ and Applicable =
 
 
 
-/// A Dark list's values, with how many there are kept beside them, so `length` and an
-/// out-of-range `getAt` answer without walking. Never mutated once built. `count` is always
-/// `List.length items`: build one with `DvalList.ofList`, or `DvalList.ofListN` where the count
-/// is already known.
-and [<Struct; NoComparison>] DvalList =
-  { count : int
-    items : List<Dval> }
+/// A node of a list's tree (`Rrb`). A `Branch` at shift `s` holds nodes at shift `s - 5`; a
+/// `Leaf` is at shift 0. A branch's `sizes` is empty when every child but the last is full
+/// (`1 <<< s` values), so the child that holds an index is found by shifting; otherwise
+/// `sizes[i]` is what children `0..i` hold.
+and [<RequireQualifiedAccess; NoEquality; NoComparison>] RrbNode =
+  | Leaf of items : Dval[]
+  | Branch of children : RrbNode[] * sizes : int[]
 
-  static member empty : DvalList = { count = 0; items = [] }
+/// `prefix` holds the first `prefixCount` values, in full leaves (at most 31) that were added at
+/// the front and not yet put in the tree; `root` holds the next `treeCount`; `tail` the rest, at
+/// most 32.
+and [<NoEquality; NoComparison>] RrbVec =
+  { prefix : List<Dval[]>
+    prefixCount : int
+    root : RrbNode
+    shift : int
+    treeCount : int
+    tail : Dval[] }
+
+  member this.Count = this.prefixCount + this.treeCount + this.tail.Length
+
+/// A persistent vector of values: a relaxed radix balanced tree (RRB, as in Clojure's
+/// core.rrb-vector and Scala) of 32-wide nodes, with the last values in a tail array so adding
+/// one at the back rarely touches the tree. Reading, setting and adding at either end are
+/// O(log32 n); concatenation and slicing are O(log n). Never changed once built: each array is
+/// filled while its node is made, before anything else can see it. Leaves are read only here,
+/// so a leaf of another kind (bytes, ints) would change this type alone.
+and Rrb private () =
+  static let emptyVec : RrbVec =
+    { prefix = []
+      prefixCount = 0
+      root = RrbNode.Leaf [||]
+      shift = 0
+      treeCount = 0
+      tail = [||] }
+
+  static member Bits = 5
+  static member Width = 32
+  // How many nodes beyond the fewest that could hold them a concatenation leaves on a level.
+  static member private Extra = 2
+
+  static member empty : RrbVec = emptyVec
+
+  static member private size (shift : int) (node : RrbNode) : int =
+    match node with
+    | RrbNode.Leaf items -> items.Length
+    | RrbNode.Branch(children, sizes) ->
+      if sizes.Length > 0 then
+        sizes[sizes.Length - 1]
+      else
+        let last = children.Length - 1
+        (last <<< shift) + Rrb.size (shift - 5) children[last]
+
+  static member private slots(node : RrbNode) : int =
+    match node with
+    | RrbNode.Leaf items -> items.Length
+    | RrbNode.Branch(children, _) -> children.Length
+
+  static member private children(node : RrbNode) : RrbNode[] =
+    match node with
+    | RrbNode.Branch(children, _) -> children
+    | RrbNode.Leaf _ ->
+      Exception.raiseInternal "Rrb: a leaf where a branch belongs" []
+
+  static member private leafItems(node : RrbNode) : Dval[] =
+    match node with
+    | RrbNode.Leaf items -> items
+    | RrbNode.Branch _ ->
+      Exception.raiseInternal "Rrb: a branch where a leaf belongs" []
+
+  static member private allButLastFull
+    (childShift : int)
+    (children : RrbNode[])
+    (i : int)
+    : bool =
+    i >= children.Length - 1
+    || (Rrb.size childShift children[i] = (1 <<< (childShift + 5))
+        && Rrb.allButLastFull childShift children (i + 1))
+
+  static member private fillSizes
+    (childShift : int)
+    (children : RrbNode[])
+    (sizes : int[])
+    (i : int)
+    (total : int)
+    : unit =
+    if i < children.Length then
+      let total = total + Rrb.size childShift children[i]
+      sizes[i] <- total
+      Rrb.fillSizes childShift children sizes (i + 1) total
+
+  /// What children `0..i` of a branch at `shift` hold, for each `i`.
+  static member private cumulative
+    (shift : int)
+    (children : RrbNode[])
+    (sizes : int[])
+    : int[] =
+    if sizes.Length > 0 then
+      sizes
+    else
+      let last = children.Length - 1
+      Array.init children.Length (fun i ->
+        if i < last then
+          (i + 1) <<< shift
+        else
+          (last <<< shift) + Rrb.size (shift - 5) children[last])
+
+  /// A branch at `shift` over `children`, with sizes only if it needs them.
+  static member private branch (shift : int) (children : RrbNode[]) : RrbNode =
+    if Rrb.allButLastFull (shift - 5) children 0 then
+      RrbNode.Branch(children, Array.empty)
+    else
+      let sizes = Array.zeroCreate children.Length
+      Rrb.fillSizes (shift - 5) children sizes 0 0
+      RrbNode.Branch(children, sizes)
+
+  static member private relaxedSlot (sizes : int[]) (i : int) (slot : int) : int =
+    if sizes[slot] <= i then Rrb.relaxedSlot sizes i (slot + 1) else slot
+
+  /// The child of a branch at `shift` that holds index `i`. Shifting gives it in a balanced
+  /// branch, and a lower bound in a relaxed one, whose children hold at most as much.
+  static member private slotOf (shift : int) (sizes : int[]) (i : int) : int =
+    if sizes.Length = 0 then i >>> shift else Rrb.relaxedSlot sizes i (i >>> shift)
+
+  /// How many values come before child `slot` of a branch at `shift`.
+  static member private before (shift : int) (sizes : int[]) (slot : int) : int =
+    if slot = 0 then 0
+    elif sizes.Length = 0 then slot <<< shift
+    else sizes[slot - 1]
+
+
+  static member private chunkIn
+    (node : RrbNode)
+    (shift : int)
+    (i : int)
+    : struct (Dval[] * int) =
+    match node with
+    | RrbNode.Leaf items -> struct (items, i)
+    | RrbNode.Branch(children, sizes) ->
+      let slot = Rrb.slotOf shift sizes i
+      Rrb.chunkIn children[slot] (shift - 5) (i - Rrb.before shift sizes slot)
+
+  /// The array that holds index `i`, and where `i` is in it. The values after it in the array
+  /// are the ones after it in the vector.
+  static member chunkAt (i : int) (v : RrbVec) : struct (Dval[] * int) =
+    if i < v.prefixCount then
+      struct (List.item (i >>> 5) v.prefix, i &&& 31)
+    else
+      let i = i - v.prefixCount
+      if i >= v.treeCount then
+        struct (v.tail, i - v.treeCount)
+      else
+        Rrb.chunkIn v.root v.shift i
+
+  static member get (i : int) (v : RrbVec) : Dval =
+    let struct (chunk, at) = Rrb.chunkAt i v
+    chunk[at]
+
+  /// Copies `count` values, from index `from` on, into `dest` at `at`.
+  static member copyTo
+    (v : RrbVec)
+    (from : int)
+    (dest : Dval[])
+    (at : int)
+    (count : int)
+    : unit =
+    if count > 0 then
+      let struct (chunk, offset) = Rrb.chunkAt from v
+      let n = min count (chunk.Length - offset)
+      System.Array.Copy(chunk, offset, dest, at, n)
+      Rrb.copyTo v (from + n) dest (at + n) (count - n)
+
+  static member private foldChunk<'s>
+    (f : 's -> Dval -> 's)
+    (state : 's)
+    (chunk : Dval[])
+    (i : int)
+    : 's =
+    if i < chunk.Length then
+      Rrb.foldChunk f (f state chunk[i]) chunk (i + 1)
+    else
+      state
+
+  /// Folds `f` over the values from index `from` on.
+  static member foldFrom<'s>
+    (f : 's -> Dval -> 's)
+    (state : 's)
+    (from : int)
+    (v : RrbVec)
+    : 's =
+    if from >= v.Count then
+      state
+    else
+      let struct (chunk, offset) = Rrb.chunkAt from v
+      Rrb.foldFrom
+        f
+        (Rrb.foldChunk f state chunk offset)
+        (from + chunk.Length - offset)
+        v
+
+  static member private existsChunk
+    (f : Dval -> bool)
+    (chunk : Dval[])
+    (i : int)
+    : bool =
+    i < chunk.Length && (f chunk[i] || Rrb.existsChunk f chunk (i + 1))
+
+  /// Whether `f` holds for any value from index `from` on.
+  static member existsFrom (f : Dval -> bool) (from : int) (v : RrbVec) : bool =
+    from < v.Count
+    && (let struct (chunk, offset) = Rrb.chunkAt from v
+        Rrb.existsChunk f chunk offset
+        || Rrb.existsFrom f (from + chunk.Length - offset) v)
+
+
+  static member private levels
+    (nodes : RrbNode[])
+    (shift : int)
+    : struct (RrbNode * int) =
+    if nodes.Length = 1 then
+      struct (nodes[0], shift)
+    else
+      let parents =
+        Array.init ((nodes.Length + 31) / 32) (fun i ->
+          RrbNode.Branch(
+            Array.sub nodes (i * 32) (min 32 (nodes.Length - i * 32)),
+            Array.empty
+          ))
+      Rrb.levels parents (shift + 5)
+
+  /// The values in `values`, which is copied.
+  static member ofArray(values : Dval[]) : RrbVec =
+    let n = values.Length
+    if n = 0 then
+      emptyVec
+    else
+      let tailLength = (n - 1) % 32 + 1
+      let treeCount = n - tailLength
+      let tail = Array.sub values treeCount tailLength
+      if treeCount = 0 then
+        { emptyVec with tail = tail }
+      else
+        let leaves =
+          Array.init (treeCount / 32) (fun i ->
+            RrbNode.Leaf(Array.sub values (i * 32) 32))
+        let struct (root, shift) = Rrb.levels leaves 0
+        { emptyVec with
+            root = root
+            shift = shift
+            treeCount = treeCount
+            tail = tail }
+
+
+  /// The values in `chunks`, each of `Width` but the last, which is not empty. Built leaf by
+  /// leaf, so a long list never needs one array of all its values (which would be a
+  /// large-object-heap allocation).
+  static member internal ofChunks(chunks : Dval[][]) : RrbVec =
+    if chunks.Length = 0 then
+      emptyVec
+    else
+      let tail = chunks[chunks.Length - 1]
+      if chunks.Length = 1 then
+        { emptyVec with tail = tail }
+      else
+        let leaves = Array.init (chunks.Length - 1) (fun i -> RrbNode.Leaf chunks[i])
+        let struct (root, shift) = Rrb.levels leaves 0
+        { emptyVec with
+            root = root
+            shift = shift
+            treeCount = (chunks.Length - 1) * 32
+            tail = tail }
+
+  static member internal emptyChunks(count : int) : Dval[][] =
+    Array.init ((count + 31) / 32) (fun c ->
+      Array.zeroCreate (min 32 (count - c * 32)))
+
+  /// `f 0 .. f (count - 1)`.
+  static member init (count : int) (f : int -> Dval) : RrbVec =
+    Rrb.ofChunks (
+      Array.init ((count + 31) / 32) (fun c ->
+        Array.init (min 32 (count - c * 32)) (fun j -> f (c * 32 + j)))
+    )
+
+  static member private fillFrom
+    (chunks : Dval[][])
+    (i : int)
+    (step : int)
+    (items : List<Dval>)
+    : unit =
+    match items with
+    | [] -> ()
+    | item :: rest ->
+      chunks[i >>> 5][i &&& 31] <- item
+      Rrb.fillFrom chunks (i + step) step rest
+
+  /// `items`, which holds `count` values.
+  static member ofList (count : int) (items : List<Dval>) : RrbVec =
+    let chunks = Rrb.emptyChunks count
+    Rrb.fillFrom chunks 0 1 items
+    Rrb.ofChunks chunks
+
+  /// `reversed`, which holds `count` values back to front, the right way round.
+  static member ofRevList (count : int) (reversed : List<Dval>) : RrbVec =
+    let chunks = Rrb.emptyChunks count
+    Rrb.fillFrom chunks (count - 1) -1 reversed
+    Rrb.ofChunks chunks
+
+  static member private path (shift : int) (node : RrbNode) : RrbNode =
+    if shift = 0 then
+      node
+    else
+      RrbNode.Branch([| Rrb.path (shift - 5) node |], Array.empty)
+
+  static member private tryPushLeaf
+    (node : RrbNode)
+    (shift : int)
+    (leaf : RrbNode)
+    : RrbNode voption =
+    match node with
+    | RrbNode.Leaf _ -> ValueNone
+    | RrbNode.Branch(children, _) ->
+      let last = children.Length - 1
+      let below =
+        if shift = 5 then
+          ValueNone
+        else
+          Rrb.tryPushLeaf children[last] (shift - 5) leaf
+      match below with
+      | ValueSome child ->
+        let copy = Array.copy children
+        copy[last] <- child
+        ValueSome(Rrb.branch shift copy)
+      | ValueNone ->
+        if children.Length < 32 then
+          ValueSome(
+            Rrb.branch shift (Array.append children [| Rrb.path (shift - 5) leaf |])
+          )
+        else
+          ValueNone
+
+  /// The tree `root` at `shift`, holding `count` values, with `leaf` after them.
+  static member private pushLeaf
+    (root : RrbNode)
+    (shift : int)
+    (count : int)
+    (leaf : RrbNode)
+    : struct (RrbNode * int) =
+    if count = 0 then
+      struct (leaf, 0)
+    else
+      match Rrb.tryPushLeaf root shift leaf with
+      | ValueSome root -> struct (root, shift)
+      | ValueNone ->
+        struct (Rrb.branch (shift + 5) [| root; Rrb.path shift leaf |], shift + 5)
+
+  /// `v` with `values[from..]` after its values.
+  static member appendFrom (v : RrbVec) (values : Dval[]) (from : int) : RrbVec =
+    if from >= values.Length then
+      v
+    elif v.tail.Length = 32 then
+      let struct (root, shift) =
+        Rrb.pushLeaf v.root v.shift v.treeCount (RrbNode.Leaf v.tail)
+      Rrb.appendFrom
+        { v with
+            root = root
+            shift = shift
+            treeCount = v.treeCount + 32
+            tail = [||] }
+        values
+        from
+    else
+      let n = min (32 - v.tail.Length) (values.Length - from)
+      let tail = Array.zeroCreate (v.tail.Length + n)
+      System.Array.Copy(v.tail, tail, v.tail.Length)
+      System.Array.Copy(values, from, tail, v.tail.Length, n)
+      Rrb.appendFrom { v with tail = tail } values (from + n)
+
+  static member push (value : Dval) (v : RrbVec) : RrbVec =
+    if v.tail.Length < 32 then
+      let tail = Array.zeroCreate (v.tail.Length + 1)
+      System.Array.Copy(v.tail, tail, v.tail.Length)
+      tail[v.tail.Length] <- value
+      { v with tail = tail }
+    else
+      let struct (root, shift) =
+        Rrb.pushLeaf v.root v.shift v.treeCount (RrbNode.Leaf v.tail)
+      { v with
+          root = root
+          shift = shift
+          treeCount = v.treeCount + 32
+          tail = [| value |] }
+
+  /// A branch's cumulative sizes once `added` values are in front of its first child, and,
+  /// when `inserted`, a new first child holds them.
+  static member private sizesAfterPrepend
+    (shift : int)
+    (children : RrbNode[])
+    (sizes : int[])
+    (added : int)
+    (inserted : bool)
+    : int[] =
+    let old = Rrb.cumulative shift children sizes
+    if inserted then
+      Array.init (old.Length + 1) (fun i ->
+        if i = 0 then added else old[i - 1] + added)
+    else
+      Array.map (fun s -> s + added) old
+
+  /// `node`, a branch at `shift`, with `sub`, a node at `subShift < shift` holding `added`
+  /// values, in front of its values, if there is room on its left edge.
+  static member private tryPrepend
+    (node : RrbNode)
+    (shift : int)
+    (sub : RrbNode)
+    (subShift : int)
+    (added : int)
+    : RrbNode voption =
+    match node with
+    | RrbNode.Leaf _ -> ValueNone
+    | RrbNode.Branch(children, sizes) ->
+      let below =
+        if shift - 5 = subShift then
+          ValueNone
+        else
+          Rrb.tryPrepend children[0] (shift - 5) sub subShift added
+      match below with
+      | ValueSome child ->
+        let copy = Array.copy children
+        copy[0] <- child
+        ValueSome(
+          RrbNode.Branch(
+            copy,
+            Rrb.sizesAfterPrepend shift children sizes added false
+          )
+        )
+      | ValueNone ->
+        if children.Length < 32 then
+          ValueSome(
+            RrbNode.Branch(
+              Array.append [| Rrb.path (shift - 5 - subShift) sub |] children,
+              Rrb.sizesAfterPrepend shift children sizes added true
+            )
+          )
+        else
+          ValueNone
+
+  /// The tree of `v` (no prefix) with `sub`, a node at `subShift` holding `added` values, in front.
+  static member private prependNode
+    (sub : RrbNode)
+    (subShift : int)
+    (added : int)
+    (v : RrbVec)
+    : RrbVec =
+    let struct (root, shift) =
+      match Rrb.tryPrepend v.root v.shift sub subShift added with
+      | ValueSome root -> struct (root, v.shift)
+      | ValueNone ->
+        struct (RrbNode.Branch(
+                  [| Rrb.path (v.shift - subShift) sub; v.root |],
+                  [| added; added + v.treeCount |]
+                ),
+                v.shift + 5)
+    { v with root = root; shift = shift; treeCount = v.treeCount + added }
+
+  /// The tree with `prefix` put into it.
+  static member private plain(v : RrbVec) : RrbVec =
+    if v.prefixCount = 0 then
+      v
+    else
+      let leaves = v.prefix |> List.map RrbNode.Leaf |> Array.ofList
+      let struct (root, shift) = Rrb.levels leaves 0
+      let rest = { v with prefix = []; prefixCount = 0 }
+      if rest.treeCount > 0 && rest.shift > shift then
+        Rrb.prependNode root shift v.prefixCount rest
+      else
+        Rrb.concat
+          { emptyVec with root = root; shift = shift; treeCount = v.prefixCount }
+          rest
+
+  /// `values`, then `v`'s values; `values` is not changed afterwards. A full leaf waits in the
+  /// prefix, and 31 of them go into the tree together, so a list built at the front copies the
+  /// tree's left edge once per 1,024 values rather than per leaf.
+  static member prependArray (values : Dval[]) (v : RrbVec) : RrbVec =
+    if values.Length = 0 then
+      v
+    elif v.Count = 0 then
+      Rrb.ofArray values
+    elif values.Length = 32 then
+      let v =
+        { v with prefix = values :: v.prefix; prefixCount = v.prefixCount + 32 }
+      if v.prefixCount = 32 * 32 then Rrb.plain v else v
+    else
+      let v = Rrb.plain v
+      if v.treeCount = 0 then
+        Rrb.appendFrom (Rrb.ofArray values) v.tail 0
+      else
+        Rrb.prependNode (RrbNode.Leaf(Array.copy values)) 0 values.Length v
+
+
+  static member private setIn
+    (node : RrbNode)
+    (shift : int)
+    (i : int)
+    (value : Dval)
+    : RrbNode =
+    match node with
+    | RrbNode.Leaf items ->
+      let copy = Array.copy items
+      copy[i] <- value
+      RrbNode.Leaf copy
+    | RrbNode.Branch(children, sizes) ->
+      let slot = Rrb.slotOf shift sizes i
+      let copy = Array.copy children
+      copy[slot] <-
+        Rrb.setIn children[slot] (shift - 5) (i - Rrb.before shift sizes slot) value
+      RrbNode.Branch(copy, sizes)
+
+  static member set (i : int) (value : Dval) (v : RrbVec) : RrbVec =
+    let v = Rrb.plain v
+    if i >= v.treeCount then
+      let tail = Array.copy v.tail
+      tail[i - v.treeCount] <- value
+      { v with tail = tail }
+    else
+      { v with root = Rrb.setIn v.root v.shift i value }
+
+
+  // Concatenation, after Bagwell and Rompf's "RRB-Trees" and L'orange's thesis. Where the two
+  // trees meet, the nodes on each level are redistributed only if there are more than `Extra`
+  // beyond the fewest that could hold them, which keeps lookups to a few extra steps a level.
+
+  /// Spreads the slots of node `i` over the nodes after it: the new counts, one node fewer, or
+  /// none if the nodes after it had no room.
+  static member private spread
+    (counts : int[])
+    (copy : int[])
+    (j : int)
+    (remaining : int)
+    : int[] voption =
+    if remaining = 0 then
+      ValueSome(
+        Array.append
+          (Array.sub copy 0 j)
+          (Array.sub counts (j + 1) (counts.Length - j - 1))
+      )
+    elif j + 1 >= counts.Length then
+      ValueNone
+    else
+      let filled = min (remaining + counts[j + 1]) 32
+      copy[j] <- filled
+      Rrb.spread counts copy (j + 1) (remaining + counts[j + 1] - filled)
+
+  static member private squeeze (counts : int[]) (optimal : int) (i : int) : int[] =
+    if counts.Length <= optimal + Rrb.Extra || i >= counts.Length then
+      counts
+    elif counts[i] >= 32 - Rrb.Extra / 2 then
+      Rrb.squeeze counts optimal (i + 1)
+    else
+      match Rrb.spread counts (Array.copy counts) i counts[i] with
+      | ValueSome fewer -> Rrb.squeeze fewer optimal i
+      | ValueNone -> counts
+
+  /// Fills `dest[at..]` with slots of `all`, from node `j`, slot `o`; answers where it stopped.
+  static member private gather<'s>
+    (arrayOf : RrbNode -> 's[])
+    (all : RrbNode[])
+    (dest : 's[])
+    (at : int)
+    (j : int)
+    (o : int)
+    : struct (int * int) =
+    if at = dest.Length then
+      struct (j, o)
+    else
+      let src = arrayOf all[j]
+      let n = min (dest.Length - at) (src.Length - o)
+      System.Array.Copy(src, o, dest, at, n)
+      if o + n = src.Length then
+        Rrb.gather arrayOf all dest (at + n) (j + 1) 0
+      else
+        Rrb.gather arrayOf all dest (at + n) j (o + n)
+
+  /// `all`, nodes at `shift`, redistributed to `counts`. A node that keeps its slots is kept.
+  static member private execute
+    (all : RrbNode[])
+    (counts : int[])
+    (shift : int)
+    (result : RrbNode[])
+    (k : int)
+    (j : int)
+    (o : int)
+    : unit =
+    if k < counts.Length then
+      if o = 0 && Rrb.slots all[j] = counts[k] then
+        result[k] <- all[j]
+        Rrb.execute all counts shift result (k + 1) (j + 1) 0
+      elif shift = 0 then
+        let items = Array.zeroCreate counts[k]
+        let struct (j, o) = Rrb.gather Rrb.leafItems all items 0 j o
+        result[k] <- RrbNode.Leaf items
+        Rrb.execute all counts shift result (k + 1) j o
+      else
+        let nodes = Array.zeroCreate counts[k]
+        let struct (j, o) = Rrb.gather Rrb.children all nodes 0 j o
+        result[k] <- Rrb.branch shift nodes
+        Rrb.execute all counts shift result (k + 1) j o
+
+  /// `left`, `mid`'s children and `right`, all nodes at `shift - 5`, under a node at
+  /// `shift + 5`.
+  static member private rebalance
+    (left : RrbNode[])
+    (mid : RrbNode)
+    (right : RrbNode[])
+    (shift : int)
+    : RrbNode =
+    let all = Array.concat [ left; Rrb.children mid; right ]
+    let counts = Array.map Rrb.slots all
+    let optimal = (Array.sum counts + 31) / 32
+    let counts = Rrb.squeeze counts optimal 0
+    let nodes =
+      if counts.Length = all.Length then
+        all
+      else
+        let result = Array.zeroCreate counts.Length
+        Rrb.execute all counts (shift - 5) result 0 0 0
+        result
+    if nodes.Length <= 32 then
+      RrbNode.Branch([| Rrb.branch shift nodes |], Array.empty)
+    else
+      Rrb.branch
+        (shift + 5)
+        [| Rrb.branch shift (Array.sub nodes 0 32)
+           Rrb.branch shift (Array.sub nodes 32 (nodes.Length - 32)) |]
+
+  /// `left` at `sl` then `right` at `sr`, under a node at `max sl sr + 5`.
+  static member private concatIn
+    (left : RrbNode)
+    (sl : int)
+    (right : RrbNode)
+    (sr : int)
+    : RrbNode =
+    if sl > sr then
+      let lc = Rrb.children left
+      let mid = Rrb.concatIn lc[lc.Length - 1] (sl - 5) right sr
+      Rrb.rebalance (Array.sub lc 0 (lc.Length - 1)) mid [||] sl
+    elif sl < sr then
+      let rc = Rrb.children right
+      let mid = Rrb.concatIn left sl rc[0] (sr - 5)
+      Rrb.rebalance [||] mid (Array.sub rc 1 (rc.Length - 1)) sr
+    elif sl = 0 then
+      Rrb.branch 5 [| left; right |]
+    else
+      let lc = Rrb.children left
+      let rc = Rrb.children right
+      let mid = Rrb.concatIn lc[lc.Length - 1] (sl - 5) rc[0] (sr - 5)
+      Rrb.rebalance
+        (Array.sub lc 0 (lc.Length - 1))
+        mid
+        (Array.sub rc 1 (rc.Length - 1))
+        sl
+
+  /// Drops single-child branches from the top of a tree.
+  static member private trim
+    (node : RrbNode)
+    (shift : int)
+    : struct (RrbNode * int) =
+    match node with
+    | RrbNode.Branch([| only |], _) -> Rrb.trim only (shift - 5)
+    | _ -> struct (node, shift)
+
+  static member concat (a : RrbVec) (b : RrbVec) : RrbVec =
+    let a = Rrb.plain a
+    let b = Rrb.plain b
+    if a.Count = 0 then
+      b
+    elif b.Count = 0 then
+      a
+    elif b.treeCount = 0 then
+      Rrb.appendFrom a b.tail 0
+    else
+      let struct (left, sl) =
+        if a.tail.Length = 0 then
+          struct (a.root, a.shift)
+        else
+          Rrb.pushLeaf a.root a.shift a.treeCount (RrbNode.Leaf a.tail)
+      let struct (root, shift) =
+        Rrb.trim (Rrb.concatIn left sl b.root b.shift) (max sl b.shift + 5)
+      { emptyVec with
+          root = root
+          shift = shift
+          treeCount = a.Count + b.treeCount
+          tail = b.tail }
+
+
+  /// `node` without its first `k` values, `0 <= k < size`.
+  static member private dropIn (node : RrbNode) (shift : int) (k : int) : RrbNode =
+    if k = 0 then
+      node
+    else
+      match node with
+      | RrbNode.Leaf items -> RrbNode.Leaf(Array.sub items k (items.Length - k))
+      | RrbNode.Branch(children, sizes) ->
+        let slot = Rrb.slotOf shift sizes k
+        let kept = Array.sub children slot (children.Length - slot)
+        kept[0] <-
+          Rrb.dropIn children[slot] (shift - 5) (k - Rrb.before shift sizes slot)
+        Rrb.branch shift kept
+
+  /// The first `k` values of `node`, `0 < k <= size`.
+  static member private takeIn (node : RrbNode) (shift : int) (k : int) : RrbNode =
+    match node with
+    | RrbNode.Leaf items ->
+      if k = items.Length then node else RrbNode.Leaf(Array.sub items 0 k)
+    | RrbNode.Branch(children, sizes) ->
+      let slot = Rrb.slotOf shift sizes (k - 1)
+      let last =
+        Rrb.takeIn children[slot] (shift - 5) (k - Rrb.before shift sizes slot)
+      if slot = children.Length - 1 && obj.ReferenceEquals(last, children[slot]) then
+        node
+      else
+        let kept = Array.sub children 0 (slot + 1)
+        kept[slot] <- last
+        Rrb.branch shift kept
+
+  /// Without the first `k` values.
+  static member drop (k : int) (v : RrbVec) : RrbVec =
+    let v = if k <= 0 then v else Rrb.plain v
+    if k <= 0 then
+      v
+    elif k >= v.Count then
+      emptyVec
+    elif k >= v.treeCount then
+      { emptyVec with tail = Array.sub v.tail (k - v.treeCount) (v.Count - k) }
+    else
+      let struct (root, shift) = Rrb.trim (Rrb.dropIn v.root v.shift k) v.shift
+      { v with root = root; shift = shift; treeCount = v.treeCount - k }
+
+  /// The first `k` values.
+  static member take (k : int) (v : RrbVec) : RrbVec =
+    let v = if k >= v.Count then v else Rrb.plain v
+    if k >= v.Count then
+      v
+    elif k <= 0 then
+      emptyVec
+    elif k >= v.treeCount then
+      { v with tail = Array.sub v.tail 0 (k - v.treeCount) }
+    else
+      let struct (root, shift) = Rrb.trim (Rrb.takeIn v.root v.shift k) v.shift
+      { v with root = root; shift = shift; treeCount = k; tail = [||] }
+
+
+  /// What is wrong with `v`'s structure, if anything: for tests.
+  static member problems(v : RrbVec) : List<string> =
+    let rec check (node : RrbNode) (shift : int) : List<string> =
+      match node with
+      | RrbNode.Leaf items ->
+        [ if shift <> 0 then "a leaf above shift 0"
+          if items.Length = 0 || items.Length > 32 then $"a leaf of {items.Length}" ]
+      | RrbNode.Branch(children, sizes) ->
+        let childShift = shift - 5
+        let own =
+          [ if shift = 0 then "a branch at shift 0"
+            if children.Length = 0 || children.Length > 32 then
+              $"a branch of {children.Length}"
+            if sizes.Length = 0 then
+              if not (Rrb.allButLastFull childShift children 0) then
+                "a balanced branch with a child that is not full"
+            else
+              let expected = Array.zeroCreate children.Length
+              Rrb.fillSizes childShift children expected 0 0
+              if expected <> sizes then "wrong sizes" ]
+        own
+        @ (children |> Array.toList |> List.collect (fun c -> check c childShift))
+    [ if v.prefixCount <> 32 * List.length v.prefix || List.length v.prefix > 31 then
+        yield "a wrong prefix"
+      if v.prefix |> List.exists (fun leaf -> leaf.Length <> 32) then
+        yield "a prefix leaf that is not full"
+      if v.tail.Length > 32 then yield "a tail over the width"
+      if v.treeCount = 0 && v.shift <> 0 then yield "an empty tree above shift 0"
+      if v.treeCount > 0 then
+        if Rrb.size v.shift v.root <> v.treeCount then yield "wrong treeCount"
+        yield! check v.root v.shift ]
+
+
+/// A Dark list's values. The first few, at most `32`, are an F# list, so prepend and
+/// `[h, ...rest]` cost what they did when every list was one; the rest are an RRB vector from
+/// index `start` on, so `getAt`, `append`, concatenation and slicing are O(log n). Lists with the
+/// same values are equal and hash alike, however they were built. Never changed once built.
+and [<Struct; CustomEquality; NoComparison>] DvalList =
+  private
+    { count : int
+      front : List<Dval>
+      back : RrbVec
+      start : int }
+
+  member internal this.FrontCount = this.count - (this.back.Count - this.start)
+
+  static member empty : DvalList =
+    { count = 0; front = []; back = Rrb.empty; start = 0 }
 
   static member ofList(items : List<Dval>) : DvalList =
-    { count = List.length items; items = items }
+    DvalList.ofListN (List.length items) items
 
   /// `items`, which the caller knows has `count` values.
   static member ofListN (count : int) (items : List<Dval>) : DvalList =
-    { count = count; items = items }
+    if count <= 32 then
+      { count = count; front = items; back = Rrb.empty; start = 0 }
+    else
+      { count = count; front = []; back = Rrb.ofList count items; start = 0 }
+
+  /// The values in `items`, which is copied.
+  static member ofArray(items : Dval[]) : DvalList =
+    { count = items.Length; front = []; back = Rrb.ofArray items; start = 0 }
+
+  /// The values in `reversed`, the right way round.
+  static member ofRevList(reversed : List<Dval>) : DvalList =
+    let count = List.length reversed
+    { count = count; front = []; back = Rrb.ofRevList count reversed; start = 0 }
+
+  /// `f 0 .. f (count - 1)`.
+  static member init (count : int) (f : int -> Dval) : DvalList =
+    { count = count; front = []; back = Rrb.init count f; start = 0 }
+
+  static member toList(list : DvalList) : List<Dval> =
+    if list.FrontCount = list.count then
+      list.front
+    else
+      List.append list.front (List.ofArray (DvalList.backArray list))
+
+  static member toArray(list : DvalList) : Dval[] =
+    let items = Array.zeroCreate list.count
+    list.front |> List.iteri (fun i item -> items[i] <- item)
+    let frontCount = list.FrontCount
+    Rrb.copyTo list.back list.start items frontCount (list.count - frontCount)
+    items
+
+  static member private backArray(list : DvalList) : Dval[] =
+    let items = Array.zeroCreate (list.count - list.FrontCount)
+    Rrb.copyTo list.back list.start items 0 items.Length
+    items
+
+  /// The values as one vector, front and all.
+  static member private toVec(list : DvalList) : RrbVec =
+    Rrb.prependArray (Array.ofList list.front) (Rrb.drop list.start list.back)
+
+  static member fold<'s> (f : 's -> Dval -> 's) (state : 's) (list : DvalList) : 's =
+    Rrb.foldFrom f (List.fold f state list.front) list.start list.back
 
   static member exists (f : Dval -> bool) (list : DvalList) : bool =
-    List.exists f list.items
-
-  static member toList(list : DvalList) : List<Dval> = list.items
+    List.exists f list.front || Rrb.existsFrom f list.start list.back
 
   static member length(list : DvalList) : int = list.count
 
   static member isEmpty(list : DvalList) : bool = list.count = 0
 
   static member cons (value : Dval) (list : DvalList) : DvalList =
-    { count = list.count + 1; items = value :: list.items }
+    if list.FrontCount < 32 then
+      { list with count = list.count + 1; front = value :: list.front }
+    else
+      DvalList.consFlushing value list
+
+  // Apart from `cons` so its rare path does not weigh on the common one.
+  [<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
+  static member private consFlushing (value : Dval) (list : DvalList) : DvalList =
+    { count = list.count + 1
+      front = [ value ]
+      back = DvalList.toVec list
+      start = 0 }
+
+  /// The first value of a list that is not empty.
+  static member head(list : DvalList) : Dval =
+    match list.front with
+    | head :: _ -> head
+    | [] -> DvalList.headFromBack list
+
+  [<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
+  static member private headFromBack(list : DvalList) : Dval =
+    Rrb.get list.start list.back
+
+  /// All but the first value of a list that is not empty. Taking from the tree moves the rest of
+  /// its leaf to the front, so a walk with `head` and `tail` costs a cons a value, as it did
+  /// when every list was an F# list, rather than a lookup from the root.
+  static member tail(list : DvalList) : DvalList =
+    match list.front with
+    | _ :: rest -> { list with count = list.count - 1; front = rest }
+    | [] -> DvalList.tailFromBack list
+
+  // Apart from `tail` so its rare path does not weigh on the common one.
+  [<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
+  static member private tailFromBack(list : DvalList) : DvalList =
+    let struct (chunk, at) = Rrb.chunkAt list.start list.back
+    { list with
+        count = list.count - 1
+        front = DvalList.listFrom chunk (at + 1) (chunk.Length - 1) []
+        start = list.start + chunk.Length - at }
+
+  /// `chunk[first..i]` onto `acc`.
+  static member private listFrom
+    (chunk : Dval[])
+    (first : int)
+    (i : int)
+    (acc : List<Dval>)
+    : List<Dval> =
+    if i < first then
+      acc
+    else
+      DvalList.listFrom chunk first (i - 1) (chunk[i] :: acc)
 
   static member uncons(list : DvalList) : struct (Dval * DvalList) voption =
-    match list.items with
-    | [] -> ValueNone
-    | head :: rest ->
-      ValueSome(struct (head, { count = list.count - 1; items = rest }))
+    if list.count = 0 then
+      ValueNone
+    else
+      ValueSome(struct (DvalList.head list, DvalList.tail list))
 
   static member append (first : DvalList) (second : DvalList) : DvalList =
+    let count = first.count + second.count
     if second.count = 0 then
       first
     elif first.count = 0 then
       second
+    elif first.FrontCount = first.count && first.count + second.FrontCount <= 32 then
+      { second with count = count; front = List.append first.front second.front }
+    elif second.FrontCount = second.count then
+      { first with
+          count = count
+          back = Rrb.appendFrom first.back (Array.ofList second.front) 0 }
     else
-      { count = first.count + second.count
-        items = List.append first.items second.items }
+      { count = count
+        front = first.front
+        back = Rrb.concat (Rrb.drop first.start first.back) (DvalList.toVec second)
+        start = 0 }
 
   static member snoc (list : DvalList) (value : Dval) : DvalList =
-    { count = list.count + 1; items = list.items @ [ value ] }
+    { list with count = list.count + 1; back = Rrb.push value list.back }
 
   static member rev(list : DvalList) : DvalList =
-    { count = list.count; items = List.rev list.items }
+    let chunks = Rrb.emptyChunks list.count
+    list
+    |> DvalList.fold
+      (fun i item ->
+        chunks[i >>> 5][i &&& 31] <- item
+        i - 1)
+      (list.count - 1)
+    |> ignore<int>
+    { count = list.count; front = []; back = Rrb.ofChunks chunks; start = 0 }
 
-  /// The value at `index`, if there is one. Out of range answers without walking.
+  /// The value at `index`, `0 <= index < length`.
+  static member item (index : int) (list : DvalList) : Dval =
+    let frontCount = list.FrontCount
+    if index < frontCount then
+      List.item index list.front
+    else
+      Rrb.get (list.start + index - frontCount) list.back
+
+  /// The value at `index`, if there is one.
   static member tryItem (index : int64) (list : DvalList) : Dval option =
     if index < 0L || index >= int64 list.count then
       None
     else
-      let rec walk (remaining : int) (rest : List<Dval>) : Option<Dval> =
-        match rest with
-        | [] -> None
-        | head :: tail ->
-          if remaining = 0 then Some head else walk (remaining - 1) tail
-      walk (int index) list.items
+      Some(DvalList.item (int index) list)
 
+  /// Without the first `n` values.
+  static member drop (n : int) (list : DvalList) : DvalList =
+    let frontCount = list.FrontCount
+    if n <= 0 then
+      list
+    elif n >= list.count then
+      DvalList.empty
+    elif n <= frontCount then
+      { list with count = list.count - n; front = List.skip n list.front }
+    else
+      { list with
+          count = list.count - n
+          front = []
+          start = list.start + n - frontCount }
+
+  /// The first `n` values.
+  static member take (n : int) (list : DvalList) : DvalList =
+    let frontCount = list.FrontCount
+    if n >= list.count then
+      list
+    elif n <= 0 then
+      DvalList.empty
+    elif n <= frontCount then
+      { count = n; front = List.truncate n list.front; back = Rrb.empty; start = 0 }
+    else
+      { list with
+          count = n
+          back = Rrb.take (list.start + n - frontCount) list.back }
+
+  /// Whether `f` holds for each pair of values at the same index, the lists being as long.
+  static member forall2
+    (f : Dval -> Dval -> bool)
+    (a : DvalList)
+    (b : DvalList)
+    : bool =
+    a.count = b.count && DvalList.walk2 f a b
+
+  static member private walk2
+    (f : Dval -> Dval -> bool)
+    (a : DvalList)
+    (b : DvalList)
+    : bool =
+    a.count = 0
+    || (f (DvalList.head a) (DvalList.head b)
+        && DvalList.walk2 f (DvalList.tail a) (DvalList.tail b))
+
+  /// Hashes the length and up to the first 18 values, as F# does a list.
+  static member private hashWith (hashOf : Dval -> int) (list : DvalList) : int =
+    DvalList.fold
+      (fun (struct (acc, seen)) item ->
+        if seen >= 18 then
+          struct (acc, seen)
+        else
+          struct (acc * 31 + hashOf item, seen + 1))
+      (struct (list.count, 0))
+      list
+    |> fun (struct (acc, _)) -> acc
+
+  override this.Equals(other : obj) : bool =
+    match other with
+    | :? DvalList as other -> DvalList.forall2 (fun a b -> a.Equals b) this other
+    | _ -> false
+
+  override this.GetHashCode() : int =
+    DvalList.hashWith (fun item -> item.GetHashCode()) this
+
+  interface System.Collections.IStructuralEquatable with
+    member this.Equals
+      (
+        other : obj,
+        comparer : System.Collections.IEqualityComparer
+      ) =
+      match other with
+      | :? DvalList as other ->
+        DvalList.forall2 (fun a b -> comparer.Equals(a, b)) this other
+      | _ -> false
+
+    member this.GetHashCode(comparer : System.Collections.IEqualityComparer) =
+      DvalList.hashWith comparer.GetHashCode this
 
 /// Where a long `DarkString` keeps its character count once something has asked for it.
 /// 0 until then.
@@ -2004,8 +2996,8 @@ and BuiltInParam =
 
 
 /// A list's values as an F# list, for code that walks or builds one: `DList(vt, Items xs)` matches
-/// any list, binding its values, and `DList(vt, Items xs)` builds one. Building counts the
-/// values; where the count is known, `DvalList.ofListN` does not.
+/// any list, binding its values, and `DList(vt, Items xs)` builds one. Both copy all but the
+/// shortest lists, so hot paths use `DvalList` directly.
 let (|Items|) (list : DvalList) : List<Dval> = DvalList.toList list
 
 /// See `(|Items|)`.
@@ -3277,7 +4269,7 @@ module Dval =
     | DFloat f -> not (System.Double.IsNaN f)
     | DFloat32 f -> not (System.Single.IsNaN f)
 
-    | DList(_, Items(items)) -> List.forall isUsableDictKey items
+    | DList(_, items) -> not (DvalList.exists (isUsableDictKey >> not) items)
     | DTuple(a, b, rest) ->
       isUsableDictKey a && isUsableDictKey b && List.forall isUsableDictKey rest
     | DDict(_, _, entries) ->
@@ -3310,7 +4302,7 @@ module Dval =
     match dv with
     | DFloat f -> System.Double.IsNaN f
     | DFloat32 f -> System.Single.IsNaN f
-    | DList(_, Items(items)) -> List.exists holdsNaN items
+    | DList(_, items) -> DvalList.exists holdsNaN items
     | DTuple(a, b, rest) -> holdsNaN a || holdsNaN b || List.exists holdsNaN rest
     | DDict(_, _, entries) ->
       entries |> DictMap.exists (fun k v -> holdsNaN k || holdsNaN v)
@@ -3389,7 +4381,8 @@ module Dval =
           | DPromise _
           | DBytes _ -> return dv
 
-          | DList(vt, Items(items)) ->
+          | DList(vt, items) ->
+            let items = DvalList.toList items
             let! items' = walkItems items
             return (if same items' items then dv else DList(vt, Items(items')))
 

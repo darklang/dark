@@ -411,9 +411,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DList(typA, a), DList(typB, b) ->
     ensureSufficientExecutionStack ()
 
-    Result.isOk (ValueType.merge typA typB)
-    && DvalList.length a = DvalList.length b
-    && List.forall2 r (DvalList.toList a) (DvalList.toList b)
+    Result.isOk (ValueType.merge typA typB) && DvalList.forall2 r a b
 
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     ensureSufficientExecutionStack ()
@@ -518,11 +516,11 @@ let rec equals (a : Dval) (b : Dval) : bool =
 let rec private containsFrom
   (vtValue : ValueType)
   (value : Dval)
-  (rest : List<Dval>)
+  (rest : DvalList)
   : bool voption =
-  match rest with
-  | [] -> ValueSome false
-  | elem :: tail ->
+  match DvalList.uncons rest with
+  | ValueNone -> ValueSome false
+  | ValueSome(struct (elem, tail)) ->
     match ValueType.merge (RuntimeTypes.Dval.toValueType elem) vtValue with
     | Error() -> ValueNone
     | Ok _ ->
@@ -531,7 +529,7 @@ let rec private containsFrom
 /// `List.contains`: whether <param value> is in <param items>, by `equals`. `ValueNone` when an
 /// element before the first match has a type that does not merge with the value's: `==` raises
 /// on that rather than answering false, and so does the builtin. The value's type is read once.
-let listContains (items : List<Dval>) (value : Dval) : bool voption =
+let listContains (items : DvalList) (value : Dval) : bool voption =
   containsFrom (RuntimeTypes.Dval.toValueType value) value items
 
 

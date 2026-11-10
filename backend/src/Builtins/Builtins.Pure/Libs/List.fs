@@ -141,10 +141,10 @@ let private sortedByKeyLanding
 /// directly; where they do not, hand it to `DvalCreator.list`, which is the general path and reports
 /// the mismatch properly. Accumulating with `prepend`, which is what the Dark version did, merged the
 /// same types one element at a time.
-let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
+let private mappedList (vm : VMState) (items : DvalList) : Dval =
   let merged =
     items
-    |> List.fold
+    |> DvalList.fold
       (fun acc item ->
         match acc with
         | Ok accVt ->
@@ -155,8 +155,9 @@ let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
       (Ok VT.unknown)
 
   match merged with
-  | Ok vt -> DList(vt, Items(items))
-  | Error() -> TypeChecker.DvalCreator.list vm.threadID VT.unknown items
+  | Ok vt -> DList(vt, items)
+  | Error() ->
+    TypeChecker.DvalCreator.list vm.threadID VT.unknown (DvalList.toList items)
 
 
 /// A `filterMap` function that returned something other than an `Option`.
@@ -195,11 +196,11 @@ type private OverList<'acc>
   ) =
   inherit Spread.Walk<'acc>(state, vm, app, builtinName, floor)
   override _.Apply(_, elem, next) = Interpreter.requestApply vm app elem [] next
-  override _.ChunkArgs(_, chunk) = [ DList(vt, Items(chunk)) ]
+  override _.ChunkArgs(_, chunk) = [ DList(vt, chunk) ]
 
 /// What a map has so far, back to front, once a spread came back: the chunks' results onto it.
 let private resultsOnto (acc : List<Dval>) (spread : Spread.Outcome) : List<Dval> =
-  List.rev spread.results @ acc
+  DvalList.fold (fun acc result -> result :: acc) acc spread.results
 
 
 // Every builtin here that takes a callable applies it as a frame on the caller's own stack
@@ -266,20 +267,21 @@ let fns () : List<BuiltInFn> =
         + "value built so far"
       fn =
         (function
-        | _, vm, [], [| DList(_, Items(items)); init; DApplicable app |] ->
+        | _, vm, [], [| DList(_, items); init; DApplicable app |] ->
           // The value so far goes to the next step as it is: calling the lambda with a read
           // in flight is not a use of it.
-          match items with
-          | [] -> Ply init
-          | first :: tail ->
-            let mutable rest = tail
+          if DvalList.isEmpty items then
+            Ply init
+          else
+            let mutable rest = DvalList.tail items
             let rec next (stepped : Dval) : Ply<Dval> =
-              match rest with
-              | [] -> Ply stepped
-              | elem :: elemTail ->
-                rest <- elemTail
+              if DvalList.isEmpty rest then
+                Ply stepped
+              else
+                let elem = DvalList.head rest
+                rest <- DvalList.tail rest
                 Interpreter.requestApply vm app stepped [ elem ] next
-            Interpreter.requestApply vm app init [ first ] next
+            Interpreter.requestApply vm app init [ DvalList.head items ] next
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -295,29 +297,15 @@ let fns () : List<BuiltInFn> =
         "Returns the first <param count> values of <param list>, or all of them if there are fewer"
       fn =
         (function
-        | _, vm, [], [| DList(_, Items(items)); DInt64 count |] ->
-          // The Dark version recursed one package call, one match and one `prepend` per element. There
-          // is no lambda here at all -- it is pure structure -- so nothing about it needed to be
-          // interpreted.
+        | _, vm, [], [| DList(_, items); DInt64 count |] ->
           if count <= 0L then
-            Ply(DList(VT.unknown, Items([])))
+            Ply(DList(VT.unknown, DvalList.empty))
           else
-            let mutable acc = []
-            let mutable rest = items
-            let mutable taken = 0L
-
-            while taken < count && not (List.isEmpty rest) do
-              match rest with
-              | elem :: tail ->
-                acc <- elem :: acc
-                rest <- tail
-                taken <- taken + 1L
-              | [] -> ()
-
             // The element ValueType is merged from what was actually taken, not inherited from the
             // source list. That is what the Dark version did -- it rebuilt the prefix with `prepend` --
             // and a prefix can be narrower than the whole.
-            Ply(mappedList vm (List.rev acc))
+            let taken = int (min count (int64 (DvalList.length items)))
+            Ply(mappedList vm (DvalList.take taken items))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -339,7 +327,7 @@ let fns () : List<BuiltInFn> =
         + "results"
       fn =
         (function
-        | state, vm, [], [| DList(vt, Items(items)); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Built back to front and reversed once. A read a lambda hands back stays in flight
           // in the list, which the interpreter holds as a promise. Spread as `listMap` is; a
           // chunk is `listMap2shortest` over its indices and its elements, which is the same call.
@@ -350,11 +338,11 @@ let fns () : List<BuiltInFn> =
                 member _.Step(acc, _, mapped) = Spread.Next(mapped :: acc)
                 member _.ChunkArgs(index, chunk) =
                   let indices =
-                    List.init (List.length chunk) (fun k ->
+                    Array.init (DvalList.length chunk) (fun k ->
                       Dval.dint64 (index + int64 k))
-                  [ DList(VT.int64, Items(indices)); DList(vt, Items(chunk)) ]
+                  [ DList(VT.int64, DvalList.ofArray indices); DList(vt, chunk) ]
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(mappedList vm (List.rev acc)) }
+                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -373,7 +361,7 @@ let fns () : List<BuiltInFn> =
         "Returns a copy of <param list>, sorted by the value <param fn> returns for each element"
       fn =
         (function
-        | state, vm, [], [| DList(vt, Items(items)); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Was two interpreted passes and a tuple per element around a native sort: one `map` to
           // build `(key, value)`, the sort, then a second `map` of `Tuple2.second`, which is why
           // `Tuple2.second` showed up in profiles of code that never mentions it. Only the key
@@ -395,12 +383,12 @@ let fns () : List<BuiltInFn> =
                 member _.Step(keyed, elem, key) =
                   Spread.Next(struct (key, elem) :: keyed)
                 member _.Absorb(keyed, spread, outcome) =
-                  let elems, _ = List.splitAt outcome.leftoverIndex spread
+                  let elems = DvalList.take outcome.leftoverIndex spread
                   List.fold2
                     (fun acc k e -> struct (k, e) :: acc)
                     keyed
-                    outcome.results
-                    elems
+                    (DvalList.toList outcome.results)
+                    (DvalList.toList elems)
                 member _.Finish keyed = sortedByKeyLanding vm vt (List.rev keyed) }
             []
             items
@@ -425,7 +413,7 @@ let fns () : List<BuiltInFn> =
         + "{{Some}} for and dropping the rest"
       fn =
         (function
-        | state, vm, [], [| DList(vt, Items(items)); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // The Dark version recursed a package call, an Option match and a `prepend` per element on
           // top of the lambda application, and it is used widely enough for that to show up in a
           // profile of anything.
@@ -447,7 +435,7 @@ let fns () : List<BuiltInFn> =
                   | DEnum(_, _, _, "None", []) -> Spread.Next acc
                   | other -> raiseRTE vm.threadID (notAnOption other)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(mappedList vm (List.rev acc)) }
+                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -466,25 +454,16 @@ let fns () : List<BuiltInFn> =
         + "runs out"
       fn =
         (function
-        | _, vm, [], [| DList(_, Items(listA)); DList(_, Items(listB)) |] ->
-          // The Dark version recursed a package call, two matches and a `prepend` per element. There is
-          // no lambda here at all -- pairing is pure structure -- so unlike `map2shortest` this
-          // needs no application per element either.
-          let mutable acc = []
-          let mutable restA = listA
-          let mutable restB = listB
-
-          while not (List.isEmpty restA) && not (List.isEmpty restB) do
-            match restA, restB with
-            | a :: tailA, b :: tailB ->
-              acc <- DTuple(a, b, []) :: acc
-              restA <- tailA
-              restB <- tailB
-            | _ -> ()
-
+        | _, vm, [], [| DList(_, listA); DList(_, listB) |] ->
+          let count = min (DvalList.length listA) (DvalList.length listB)
+          let pairs =
+            Array.map2
+              (fun a b -> DTuple(a, b, []))
+              (DvalList.toArray (DvalList.take count listA))
+              (DvalList.toArray (DvalList.take count listB))
           // `mappedList` merges the tuples' own ValueTypes, so the element type comes out
           // `KTTuple(a, b)` without naming it here.
-          Ply(mappedList vm (List.rev acc))
+          Ply(mappedList vm (DvalList.ofArray pairs))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -507,37 +486,34 @@ let fns () : List<BuiltInFn> =
         + "out"
       fn =
         (function
-        | state,
-          vm,
-          [],
-          [| DList(vtA, Items(listA)); DList(vtB, Items(listB)); DApplicable app |] ->
+        | state, vm, [], [| DList(vtA, listA); DList(vtB, listB); DApplicable app |] ->
           // The Dark version recursed with `append`, which copies the accumulator every element,
           // so it was quadratic on top of the package call and the two-argument lambda application.
           // Built back to front and reversed once, as `listMap` and `listIndexedMap` do.
           //
           // Spread as `listMap` is, a chunk being this same call over its stretch of both lists.
-          match listA, listB with
-          | a :: tailA, b :: tailB ->
+          match DvalList.uncons listA, DvalList.uncons listB with
+          | ValueSome(struct (a, tailA)), ValueSome(struct (b, tailB)) ->
             let mutable acc = []
             let mutable restA = tailA
             let mutable restB = tailB
             let probe = Spread.probeCostly state vm app
             let rec next (mapped : Dval) : Ply<Dval> =
               acc <- mapped :: acc
-              match restA, restB with
-              | a :: tA, b :: tB ->
+              match DvalList.uncons restA, DvalList.uncons restB with
+              | ValueSome(struct (a, tA)), ValueSome(struct (b, tB)) ->
                 // `Spread.run` keeps a list holding reads in flight here; this is the other list.
                 if
                   not (isNull probe)
-                  && probe.Ask restA
-                  && not (List.exists Pending.isPromise restB)
+                  && probe.Ask(DvalList.length restA)
+                  && not (DvalList.exists Pending.isPromise restB)
                 then
                   probe.Stop()
                   // Only as far as both go. The other list's stretch for a chunk is found by
-                  // where the chunk begins, so it is an array.
-                  let count = min (List.length restA) (List.length restB)
-                  let firstA = List.truncate count restA
-                  let bs = restB |> List.truncate count |> Array.ofList
+                  // where the chunk begins.
+                  let count = min (DvalList.length restA) (DvalList.length restB)
+                  let firstA = DvalList.take count restA
+                  let bs = DvalList.take count restB
                   uply {
                     let! spread =
                       Spread.run
@@ -545,29 +521,31 @@ let fns () : List<BuiltInFn> =
                         vm
                         "listMap2shortest"
                         (fun offset chunk ->
-                          let chunkB = Array.sub bs offset (List.length chunk)
-                          [ DList(vtA, Items(chunk))
-                            DList(vtB, Items(List.ofArray chunkB)) ])
+                          let chunkB =
+                            DvalList.take
+                              (DvalList.length chunk)
+                              (DvalList.drop offset bs)
+                          [ DList(vtA, chunk); DList(vtB, chunkB) ])
                         app
                         probe.PerElement
                         firstA
-                    acc <- List.rev spread.results @ acc
-                    restA <- List.skip spread.leftoverIndex restA
-                    restB <- List.skip spread.leftoverIndex restB
-                    match restA, restB with
-                    | a :: tA, b :: tB ->
+                    acc <- resultsOnto acc spread
+                    restA <- DvalList.drop spread.leftoverIndex restA
+                    restB <- DvalList.drop spread.leftoverIndex restB
+                    match DvalList.uncons restA, DvalList.uncons restB with
+                    | ValueSome(struct (a, tA)), ValueSome(struct (b, tB)) ->
                       restA <- tA
                       restB <- tB
                       return! Interpreter.requestApply vm app a [ b ] next
-                    | _ -> return mappedList vm (List.rev acc)
+                    | _ -> return mappedList vm (DvalList.ofRevList acc)
                   }
                 else
                   restA <- tA
                   restB <- tB
                   Interpreter.requestApply vm app a [ b ] next
-              | _ -> Ply(mappedList vm (List.rev acc))
+              | _ -> Ply(mappedList vm (DvalList.ofRevList acc))
             Interpreter.requestApply vm app a [ b ] next
-          | _ -> Ply(mappedList vm [])
+          | _ -> Ply(mappedList vm DvalList.empty)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -584,7 +562,7 @@ let fns () : List<BuiltInFn> =
         "Calls <param fn> on every value in <param list>, returning a list of the results"
       fn =
         (function
-        | state, vm, [], [| DList(vt, Items(items)); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Built back to front and reversed once at the end. A read a lambda hands back stays
           // in flight in the list, which the interpreter holds as a promise.
           //
@@ -594,7 +572,7 @@ let fns () : List<BuiltInFn> =
             { new OverList<List<Dval>>(state, vm, app, vt, "listMap", 0L) with
                 member _.Step(acc, _, mapped) = Spread.Next(mapped :: acc)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(mappedList vm (List.rev acc)) }
+                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -614,7 +592,7 @@ let fns () : List<BuiltInFn> =
         + "it returned true"
       fn =
         (function
-        | state, vm, [], [| DList(vt, Items(items)); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // The result holds a subset of the values that came in, so it keeps their ValueType
           // exactly. Nothing to merge, and nothing that can fail to. Spread as `listMap` is.
           Spread.walk
@@ -625,7 +603,7 @@ let fns () : List<BuiltInFn> =
                   | DBool keep -> Spread.Next(if keep then elem :: acc else acc)
                   | other -> raiseRTE vm.threadID (predicateNotBool other)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(DList(vt, Items(List.rev acc))) }
+                member _.Finish acc = Ply(DList(vt, DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -643,22 +621,22 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, [], [| DInt64 lowest; DInt64 highest |] ->
-          // Counted down, so the list is built in order without a reverse.
-          let mutable items = []
-          let mutable current = highest
-          // `current = lowest` ends it rather than `current - 1L >= lowest`, which underflows at
-          // `Int64.MinValue`.
-          let mutable more = highest >= lowest
-          while more do
-            items <- Dval.dint64 current :: items
-            if current = lowest then more <- false else current <- current - 1L
-
           // An empty range keeps an unknown element type, which is what the Dark version did: it
           // returned the literal `[]`, and only `prepend` ever made it a `List<Int64>`.
-          if List.isEmpty items then
-            Ply(DList(VT.unknown, Items([])))
+          if highest < lowest then
+            Ply(DList(VT.unknown, DvalList.empty))
           else
-            Ply(DList(VT.int64, Items(items)))
+            let span = uint64 (highest - lowest)
+            // Past what an array holds, a range ran out of memory as a cons list too.
+            if span >= uint64 System.Array.MaxLength then
+              raise (System.OutOfMemoryException())
+            Ply(
+              DList(
+                VT.int64,
+                DvalList.init (int span + 1) (fun i ->
+                  Dval.dint64 (lowest + int64 i))
+              )
+            )
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -676,7 +654,7 @@ let fns () : List<BuiltInFn> =
         + "first one that does"
       fn =
         (function
-        | state, vm, [], [| DList(vt, Items(items)); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Spread as `listMap` is, as a search (`Spread.search`): a chunk is this same call over
           // its stretch, and the first chunk in input order to answer true is the answer. A search
           // keeps nothing as it goes, so what it has so far is `DUnit`.
@@ -691,7 +669,7 @@ let fns () : List<BuiltInFn> =
                 member _.AnswerOf answer =
                   match answer with
                   | DBool true -> Spread.Found answer
-                  | DBool false -> Spread.Finished []
+                  | DBool false -> Spread.Finished DvalList.empty
                   | _ -> Spread.NotAnAnswer
                 member _.Absorb(nothing, _, _) = nothing
                 member _.Found _ = DBool true
@@ -711,7 +689,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if <param value> is in <param list>"
       fn =
         (function
-        | _, vm, [], [| DList(_, Items(items)); value |] ->
+        | _, vm, [], [| DList(_, items); value |] ->
           // The Dark version of this was `findFirst list (fun e -> e == value)`, which pays a
           // lambda application per element to run what is only an equality test.
           //
@@ -724,6 +702,7 @@ let fns () : List<BuiltInFn> =
             let vtValue = Dval.toValueType value
             match
               items
+              |> DvalList.toList
               |> List.map Dval.toValueType
               |> List.find (fun vt -> Result.isError (VT.merge vt vtValue))
             with
@@ -750,7 +729,7 @@ let fns () : List<BuiltInFn> =
         "Returns the first value in <param list> for which <param fn> returns true, stopping there"
       fn =
         (function
-        | state, vm, [], [| DList(vt, Items(items)); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Spread as `listAny` is. A chunk's `Some` is the element its own search stopped at.
           let option found = TypeChecker.DvalCreator.option vm.threadID vt found
           Spread.walk
@@ -769,7 +748,7 @@ let fns () : List<BuiltInFn> =
                 member _.AnswerOf answer =
                   match answer with
                   | DEnum(_, _, _, "Some", [ found ]) -> Spread.Found found
-                  | DEnum(_, _, _, "None", []) -> Spread.Finished []
+                  | DEnum(_, _, _, "None", []) -> Spread.Finished DvalList.empty
                   | _ -> Spread.NotAnAnswer
                 member _.Absorb(nothing, _, _) = nothing
                 member _.Found found = option (Some found)
@@ -819,16 +798,15 @@ let fns () : List<BuiltInFn> =
         + "of each value is kept, in the order it appeared."
       fn =
         (function
-        | _, _, _, [| DList(vt, Items(l)) |] ->
+        | _, _, _, [| DList(vt, l) |] ->
           let unique =
-            match l with
-            | []
-            | [ _ ] -> l
-            | _ ->
+            if DvalList.length l < 2 then
+              l
+            else
               let seen =
                 System.Collections.Generic.HashSet<Dval>(Dval.equalityComparer)
-              List.filter seen.Add l
-          DList(vt, Items(unique)) |> Ply
+              l |> DvalList.toArray |> Array.filter seen.Add |> DvalList.ofArray
+          DList(vt, unique) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -960,7 +938,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DList(vt, l); value |] ->
-          // Still O(n): the list is copied to append. Native for the same reason as `prepend`.
+          // Native for the same reason as `prepend`.
           match VT.mergeDval vt value with
           | Ok merged -> Ply(DList(merged, DvalList.snoc l value))
           | Error() ->
@@ -985,11 +963,10 @@ let fns () : List<BuiltInFn> =
         + "<param list> (does not recursively flatten nested lists)."
       fn =
         (function
-        | _, vm, _, [| DList(_, Items(sublists)) |] ->
-          // One concat, rather than an append per sublist, which re-copies the accumulator each step.
+        | _, vm, _, [| DList(_, sublists) |] ->
           let inner =
             sublists
-            |> List.fold
+            |> DvalList.fold
               (fun acc sub ->
                 match acc, sub with
                 | Ok accVt, DList(vt, _) ->
@@ -1000,13 +977,21 @@ let fns () : List<BuiltInFn> =
               (Ok VT.unknown)
           let items =
             sublists
-            |> List.collect (fun sub ->
-              match sub with
-              | DList(_, Items(items)) -> items
-              | other -> [ other ])
+            |> DvalList.fold
+              (fun acc sub ->
+                match sub with
+                | DList(_, items) -> DvalList.append acc items
+                | other -> DvalList.snoc acc other)
+              DvalList.empty
           match inner with
-          | Ok vt -> Ply(DList(vt, Items(items)))
-          | Error() -> Ply(TypeChecker.DvalCreator.list vm.threadID VT.unknown items)
+          | Ok vt -> Ply(DList(vt, items))
+          | Error() ->
+            Ply(
+              TypeChecker.DvalCreator.list
+                vm.threadID
+                VT.unknown
+                (DvalList.toList items)
+            )
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

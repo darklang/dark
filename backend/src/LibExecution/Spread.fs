@@ -195,13 +195,9 @@ type Probe(vm : VMState, app : Applicable, floor : int64) =
     && crossover > 0L
     && instructionsSince proc vm start < floor * int64 finished
 
-  /// After an element: `remaining` is the elements still to go.
-  ///
-  /// `List.length` walks the rest; at a power of two only, so the walks sum to about twice the
-  /// list. A body under the floor is answered before the walk: on a long list of a cheap body
-  /// the walks were most of what the probe cost.
-  member this.Ask(remaining : List<'a>) : bool =
-    this.Due() && not (this.BelowFloor()) && this.Weigh(List.length remaining)
+  /// After an element: `left` is how many are still to go.
+  member this.Ask(left : int) : bool =
+    this.Due() && not (this.BelowFloor()) && this.Weigh left
 
   /// `Ask`, for an op that knows how many are left (a dict's entries are an array).
   member this.AskLeft(left : int) : bool = this.Due() && this.Weigh left
@@ -265,7 +261,7 @@ let rec private holdsNoCode (dv : Dval) : bool =
   | DApplicable _
   | DStream _
   | DPromise _ -> false
-  | DList(_, Items(items)) -> listHoldsNoCode items
+  | DList(_, items) -> not (DvalList.exists (holdsNoCode >> not) items)
   | DTuple(a, b, rest) -> holdsNoCode a && holdsNoCode b && listHoldsNoCode rest
   | DDict(_, _, entries) ->
     DictMap.forall (fun k v -> holdsNoCode k && holdsNoCode v) entries
@@ -537,12 +533,12 @@ and private ofLambdaBody
 let predict
   (state : ExecutionState)
   (app : Applicable)
-  (items : List<Dval>)
+  (items : DvalList)
   : Ply<Purity> =
   uply {
     let answer =
       if not predicting then Some Purity.Unknown
-      elif listHoldsNoCode items then None
+      elif not (DvalList.exists (holdsNoCode >> not) items) then None
       else Some Purity.Unknown
     let! answer =
       match answer with
@@ -564,8 +560,8 @@ let predict
 /// For a search (`search`), `found` is the answer of the first chunk, in input order, that found
 /// what it looked for, and nothing is left over.
 type Outcome =
-  { results : List<Dval>
-    leftover : List<Dval>
+  { results : DvalList
+    leftover : DvalList
     leftoverIndex : int
     found : Dval voption }
 
@@ -573,7 +569,7 @@ type Outcome =
 [<Struct>]
 type ChunkAnswer =
   /// It finished its stretch, with these results.
-  | Finished of results : List<Dval>
+  | Finished of results : DvalList
   /// It found what it looked for: the spread stops here.
   | Found of answer : Dval
   /// Not an answer this op gives: run its stretch again here.
@@ -589,11 +585,17 @@ type private Stopped =
 /// A list op's chunk: a list of results.
 let private listAnswer (answer : Dval) : ChunkAnswer =
   match answer with
-  | DList(_, Items(xs)) -> Finished xs
+  | DList(_, xs) -> Finished xs
   | _ -> NotAnAnswer
 
-let private nothingSpread (items : List<Dval>) : Outcome =
-  { results = []; leftover = items; leftoverIndex = 0; found = ValueNone }
+let private nothingSpread (items : DvalList) : Outcome =
+  { results = DvalList.empty
+    leftover = items
+    leftoverIndex = 0
+    found = ValueNone }
+
+let private concatAll (results : List<DvalList>) : DvalList =
+  List.fold DvalList.append DvalList.empty results
 
 /// Spread `items` over chunk processes. Each chunk applies the builtin `builtinName` to
 /// `chunkArgs offset chunk` and then to `app`; it must answer a `DList`. `offset` is where the
@@ -602,10 +604,10 @@ let rec run
   (state : ExecutionState)
   (vm : VMState)
   (builtinName : string)
-  (chunkArgs : int -> List<Dval> -> List<Dval>)
+  (chunkArgs : int -> DvalList -> List<Dval>)
   (app : Applicable)
   (perElement : int64)
-  (items : List<Dval>)
+  (items : DvalList)
   : Ply<Outcome> =
   spreadIf state vm builtinName chunkArgs listAnswer app perElement items
 
@@ -618,11 +620,11 @@ and search
   (state : ExecutionState)
   (vm : VMState)
   (builtinName : string)
-  (chunkArgs : int -> List<Dval> -> List<Dval>)
+  (chunkArgs : int -> DvalList -> List<Dval>)
   (answerOf : Dval -> ChunkAnswer)
   (app : Applicable)
   (perElement : int64)
-  (items : List<Dval>)
+  (items : DvalList)
   : Ply<Outcome> =
   spreadIf state vm builtinName chunkArgs answerOf app perElement items
 
@@ -630,16 +632,16 @@ and private spreadIf
   (state : ExecutionState)
   (vm : VMState)
   (builtinName : string)
-  (chunkArgs : int -> List<Dval> -> List<Dval>)
+  (chunkArgs : int -> DvalList -> List<Dval>)
   (answerOf : Dval -> ChunkAnswer)
   (app : Applicable)
   (perElement : int64)
-  (items : List<Dval>)
+  (items : DvalList)
   : Ply<Outcome> =
   uply {
     // A list holding reads in flight runs where it is: a chunk would carry the parent's
     // reads into a child. About this list, not the callable, so it is not remembered.
-    if List.exists Pending.isPromise items then
+    if DvalList.exists Pending.isPromise items then
       return nothingSpread items
     else
       match! predict state app items with
@@ -659,13 +661,13 @@ and private spreadChunks
   (state : ExecutionState)
   (vm : VMState)
   (builtinName : string)
-  (chunkArgs : int -> List<Dval> -> List<Dval>)
+  (chunkArgs : int -> DvalList -> List<Dval>)
   (answerOf : Dval -> ChunkAnswer)
   (app : Applicable)
   (perElement : int64)
-  (items : List<Dval>)
+  (items : DvalList)
   : Ply<Outcome> =
-  let count = List.length items
+  let count = DvalList.length items
   // As many chunks as there are cores to keep busy, but none smaller than `minChunk` of work.
   let byWork =
     if minChunk <= 0L then
@@ -680,10 +682,10 @@ and private spreadChunks
     let extra = count % chunkCount
     List.init chunkCount (fun i -> baseSize + (if i < extra then 1 else 0))
     |> List.mapFold
-      (fun (offset, rest) size ->
-        let chunk, after = List.splitAt size rest
-        struct (offset, chunk), (offset + size, after))
-      (0, items)
+      (fun offset size ->
+        struct (offset, DvalList.take size (DvalList.drop offset items)),
+        offset + size)
+      0
     |> fst
 
   let sched = Sched.Scheduler.CurrentOrShared
@@ -751,10 +753,7 @@ and private spreadChunks
 
   // The chunks' results in order, up to the first that found something or failed, and where
   // collecting stopped.
-  let rec collect
-    (i : int)
-    (acc : List<List<Dval>>)
-    : Ply<List<List<Dval>> * Stopped> =
+  let rec collect (i : int) (acc : List<DvalList>) : Ply<List<DvalList> * Stopped> =
     if i >= procs.Length then
       Ply((List.rev acc, AllFinished))
     else
@@ -799,15 +798,15 @@ and private spreadChunks
     match stop with
     | AllFinished ->
       return
-        { results = List.concat results
-          leftover = []
+        { results = concatAll results
+          leftover = DvalList.empty
           leftoverIndex = count
           found = ValueNone }
     | FoundAt(at, answer) ->
       cancelFrom (at + 1)
       return
-        { results = List.concat results
-          leftover = []
+        { results = concatAll results
+          leftover = DvalList.empty
           leftoverIndex = count
           found = ValueSome answer }
     | FailedAt failedAt ->
@@ -815,9 +814,9 @@ and private spreadChunks
       fellBack.TryAdd(keyOf app, 0uy) |> ignore<bool>
       cancelFrom (failedAt + 1)
       let struct (offset, _, _) = procs[failedAt]
-      let leftover = items |> List.skip offset
+      let leftover = DvalList.drop offset items
       return
-        { results = List.concat results
+        { results = concatAll results
           leftover = leftover
           leftoverIndex = offset
           found = ValueNone }
@@ -859,7 +858,7 @@ type Walk<'acc>
   let mutable acc = Unchecked.defaultof<'acc>
   let mutable current = DUnit
   let mutable index = 0L
-  let mutable rest : List<Dval> = []
+  let mutable rest = DvalList.empty
   let mutable probe : Probe = null
   // This, as the function it is: F# has no static coercion to a function type.
   let mutable next : Dval -> Ply<Dval> = Unchecked.defaultof<_>
@@ -877,14 +876,14 @@ type Walk<'acc>
   abstract Step : acc : 'acc * elem : Dval * answer : Dval -> Step<'acc>
 
   /// A chunk's arguments, before the callable: `index` is where `chunk` begins in the list.
-  abstract ChunkArgs : index : int64 * chunk : List<Dval> -> List<Dval>
+  abstract ChunkArgs : index : int64 * chunk : DvalList -> List<Dval>
 
   /// What a chunk's answer means. By default a list of results, one per element or fewer.
   abstract AnswerOf : answer : Dval -> ChunkAnswer
   default _.AnswerOf answer = listAnswer answer
 
   /// What the op has so far, once a spread over `spread` came back with `outcome`.
-  abstract Absorb : acc : 'acc * spread : List<Dval> * outcome : Outcome -> 'acc
+  abstract Absorb : acc : 'acc * spread : DvalList * outcome : Outcome -> 'acc
 
   /// The op's answer, from what a chunk found. Only an op whose `AnswerOf` finds asks.
   abstract Found : found : Dval -> Dval
@@ -906,14 +905,13 @@ type Walk<'acc>
     | Done result -> Ply result
     | Next stepped ->
       acc <- stepped
-      match rest with
-      | [] -> this.Finish acc
-      | elem :: elemTail ->
-        if not (isNull probe) && probe.Ask rest then
-          probe.Stop()
-          this.SpreadRest()
-        else
-          this.CarryOn(index + 1L, elem, elemTail)
+      if DvalList.isEmpty rest then
+        this.Finish acc
+      elif not (isNull probe) && probe.Ask(DvalList.length rest) then
+        probe.Stop()
+        this.SpreadRest()
+      else
+        this.CarryOn(index + 1L, rest)
 
   member private this.SpreadRest() : Ply<Dval> =
     let start = index + 1L
@@ -933,33 +931,30 @@ type Walk<'acc>
       | ValueSome found -> return this.Found found
       | ValueNone ->
         acc <- this.Absorb(acc, spread, outcome)
-        match outcome.leftover with
-        | [] -> return! this.Finish acc
-        | elem :: elemTail ->
-          return! this.CarryOn(start + int64 outcome.leftoverIndex, elem, elemTail)
+        if DvalList.isEmpty outcome.leftover then
+          return! this.Finish acc
+        else
+          return! this.CarryOn(start + int64 outcome.leftoverIndex, outcome.leftover)
     }
 
-  member private this.CarryOn
-    (
-      at : int64,
-      elem : Dval,
-      elemTail : List<Dval>
-    ) : Ply<Dval> =
+  /// Runs the element at `at`, the first of `items`, which is not empty.
+  member private this.CarryOn(at : int64, items : DvalList) : Ply<Dval> =
+    let elem = DvalList.head items
     current <- elem
     index <- at
-    rest <- elemTail
+    rest <- DvalList.tail items
     this.Apply(at, elem, next)
 
   /// Runs the op over `items`, starting from `empty`.
-  member this.Run(empty : 'acc, items : List<Dval>) : Ply<Dval> =
-    match items with
-    | [] -> this.Finish empty
-    | first :: tail ->
+  member this.Run(empty : 'acc, items : DvalList) : Ply<Dval> =
+    if DvalList.isEmpty items then
+      this.Finish empty
+    else
       acc <- empty
       next <- box this :?> (Dval -> Ply<Dval>)
       probe <- if eligible state then Probe(vm, app, floor) else null
-      this.CarryOn(0L, first, tail)
+      this.CarryOn(0L, items)
 
 /// Runs `op` over `items`, starting from `empty` (`Walk`).
-let walk (op : Walk<'acc>) (empty : 'acc) (items : List<Dval>) : Ply<Dval> =
+let walk (op : Walk<'acc>) (empty : 'acc) (items : DvalList) : Ply<Dval> =
   op.Run(empty, items)
