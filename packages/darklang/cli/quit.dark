@@ -14,7 +14,7 @@ let execute(state: AppState, _args: List<String>): AppState =
       | other -> other
     { cleared with currentPage = resumed, pageStack = rest }
   | [] ->
-    Stdlib.printLine("Goodbye!")
+    Stdlib.printErrorLine("Goodbye!")
     { state with isExiting = true }
 
 

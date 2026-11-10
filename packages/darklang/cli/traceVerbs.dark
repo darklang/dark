@@ -484,7 +484,7 @@ let printCalls(branchId: Uuid, typed: String): Unit =
 
   match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 25) with
   | [] ->
-    Stdlib.printLine($"no recorded trace went through {fnName}")
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"no recorded trace went through {fnName}"))
     (whyEmpty("run something that calls it"))
     |> Stdlib.List.iter(fun line ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
@@ -1159,7 +1159,7 @@ let showCode(
       match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1) with
       | [ newest ] -> Stdlib.Option.Option.Some(newest)
       | _ ->
-        Stdlib.printLine($"no recorded trace went through {fnName}")
+        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"no recorded trace went through {fnName}"))
 
         // `whyEmpty` says it, and says it differently depending on whether recording is even on.
         (whyEmpty("run something that calls it"))

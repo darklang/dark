@@ -101,4 +101,8 @@ let uninstallWithConfirmation(
     | Error(e) -> Stdlib.Result.Result.Error(e)
   else
     // An Error: the Ok arm reports success and exits the CLI as though the binary were gone.
-    Stdlib.Result.Result.Error("Uninstall cancelled")
+    if Stdlib.Cli.UI.Prompt.canAsk() then
+      Stdlib.Result.Result.Error("Uninstall cancelled")
+    else
+      Stdlib.Result.Result.Error(
+        "Uninstall cancelled: there's no terminal to confirm it. `dark uninstall --yes` skips the prompt.")

@@ -81,8 +81,16 @@ let branchRows(unit: Unit): List<ScmJson.BranchJson> =
 
 /// List all active branches.
 let executeList(state: AppState, includeMerged: Bool): AppState =
-  Cli.printOk($"on {whereLabel(SCM.PackageOps.currentBranch())}. branches:")
-  Stdlib.printLine(SCM.PackageOps.branchList(includeMerged))
+  let header = $"on {whereLabel(SCM.PackageOps.currentBranch())}. branches:"
+  let listing = SCM.PackageOps.branchList(includeMerged)
+
+  if Stdlib.List.isEmpty(SCM.Branches.listLines(includeMerged)) then
+    Cli.Stderr.ok(header)
+    Cli.Stderr.line(listing)
+  else
+    Cli.printOk(header)
+    Stdlib.printLine(listing)
+
   state
 
 /// Switch the current branch: persistently (the `current_branch` config key, so the next process starts
@@ -353,9 +361,13 @@ let execute(state: AppState, args: List<String>): AppState =
   | [ "list", "--all" ] -> executeList(state, true)
   | [ "current" ] -> executeCurrent(state)
   | [ "switch", id ] -> executeSwitch(state, id)
-  | [ "new", id ] -> executeSwitch(state, id)
+  | [ "new", id ] | [ "create", id ] when id == SCM.Branch.mainBranchName ->
+    Cli.printErr($"{id} already exists, so it can't be created.")
+    Cli.printHint($"  `dark switch {id}` goes to it.")
+    Cli.failed(state)
   // `new` and `create` are the same thing as a bare switch: a branch is created by switching to a name
   // nothing holds.
+  | [ "new", id ] -> executeSwitch(state, id)
   | [ "create", id ] -> executeSwitch(state, id)
   | [ "archive", id ] -> executeArchive(state, id, Cli.Confirm.Ask)
   | [ "archive", id, "-y" ] | [ "archive", id, "--yes" ] ->
