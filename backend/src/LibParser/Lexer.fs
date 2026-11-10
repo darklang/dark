@@ -528,8 +528,8 @@ let tokenize
           index + 3 < inputLength && input[index + 2] = '*' && input[index + 3] = ')'
         )
       then
-        // F#-style nestable block comment. `(*)` and `(**)` are the multiply
-        // and exponentiation operator sections, so they are excluded here.
+        // Nested block comment delimited by `(*` and `*)`. `(*)` and `(**)` are
+        // the multiply and exponentiation operator sections, so they are excluded here.
         let rec skipBlock (scanIndex : int) (commentDepth : int) : int * bool =
           if
             scanIndex + 1 < inputLength

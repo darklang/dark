@@ -57,3 +57,29 @@ module Naming =
            )))
         Darklang.SCM.Constraints.kindFromString("not-a-kind")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+module RivalPairs =
+  test noCandidates =
+    Darklang.SCM.Constraints.rivalPairs<String>([])
+    |> Stdlib.Test.equal([])
+
+  test distinctSelfTypesAreNotRivals =
+    Darklang.SCM.Constraints.rivalPairs(
+      [ ("Point", "a"), ("String", "b"), ("List<Int64>", "c") ])
+    |> Stdlib.Test.equal([])
+
+  // Interleaving two rival groups must not reorder findings or reverse a pair:
+  // both affect which implementation is the usage and the finding ID we ack.
+  test interleavedGroupsKeepEveryPairInOrder =
+    Darklang.SCM.Constraints.rivalPairs(
+      [ ("Point", "a")
+        ("String", "b")
+        ("Point", "c")
+        ("String", "d")
+        ("Point", "e") ])
+    |> Stdlib.Test.equal([ ("a", "c"), ("a", "e"), ("b", "d"), ("c", "e") ])
+
+  test genericAndSpecificSelfTypesStaySeparate =
+    Darklang.SCM.Constraints.rivalPairs(
+      [ ("List<'a>", "generic"), ("List<Int64>", "specific") ])
+    |> Stdlib.Test.equal([])

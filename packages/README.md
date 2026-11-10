@@ -1,21 +1,11 @@
-This directory seeds "package space," until the PM is stable enough that it'll
-"only" live in prod.
+# Darklang packages
 
-Each top-level dir here corresponds to a user/org, whatever they 'own.' So, an
-'openai.dark' file in the 'darklang' dir just mean that those are the functions
-we maintain for ourselves. If someone were to create a user/org account with the
-name 'openai' and fork all of our relevant stuff, they'd maintain their fork there.
-(this all won't directly apply when things live only in prod, but it somewhat
-represents the org/module structure/dance that'll occur there, so we're maintaining
-a similar thing here.)
+This directory contains the Dark source for the standard library, CLI, SCM library, language tools, and package tests. Top-level directories group packages by owner;
+module declarations inside `.dark` files give items their package names.
 
-Please note that Dark code will not be in ".dark files" long-term -- this is a temp.
-measure. Code will be stored in the cloud, rarely as simple files on your disk. That
-said, you'll be able to edit in a 'normal' text editor, via virtual documents and
-workspaces.
+The development build loads these files into the local package store. A reload rebuilds the store's package definitions from this directory, so make repository
+changes here rather than authoring them only in the development store.
 
-Also, the syntax seen here is directional, but is not the intended syntax (esp the
-over-use of nested modules with their own lines and indentation, etc.). We're
-currently writing a new parser, and have been constrained by our old (hacky F#-based)
-parser. Once the new one is complete, we can kill the old one and adjust the grammar
-appropriately.
+Darklang is a local CLI. Packages are managed in a local store; this tree does not provide cloud storage, accounts, or synchronization between machines.
+
+Dark has its own syntax and parser. Run `./scripts/run-cli docs for-ai` from the repository root for the language and workflow reference, or `./scripts/run-cli docs syntax` for syntax details.
