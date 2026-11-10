@@ -2208,6 +2208,30 @@ let private fastBuiltinOp
         else
           FastOps.evalListContains tag (DvalList.toList l1) other
     | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
+    // `==` and `!=` on two scalars of one type, where the builtin's check that the two types
+    // match cannot fail. Each of these cases has a field, so it is its own .NET class.
+    | DBool _
+    | DInt8 _
+    | DUInt8 _
+    | DInt16 _
+    | DUInt16 _
+    | DInt32 _
+    | DUInt32 _
+    | DUInt64 _
+    | DInt128 _
+    | DUInt128 _
+    | DFloat _
+    | DFloat32 _
+    | DDecimal _
+    | DChar _
+    | DDateTime _
+    | DUuid _ as a when
+      (tag = FastOps.equals || tag = FastOps.notEquals)
+      && a.GetType() = registers[secondReg].GetType()
+      ->
+      ValueSome(
+        Dval.bool (Dval.equals a registers[secondReg] = (tag = FastOps.equals))
+      )
     | _ -> ValueNone
 
   | [ secondReg; thirdReg ] ->
