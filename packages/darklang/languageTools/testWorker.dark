@@ -26,7 +26,7 @@ let main(args: List<String>): Int64 =
       // writing the same value again would fail and send the test to a copy.
       let branch = Darklang.SCM.PackageOps.currentBranch()
       let _ =
-        if Stdlib.LocalStore.configGet("current_branch") != Stdlib.Option.Option.Some(Stdlib.toString(branch)) then
+        if LanguageTools.LocalStore.configGet("current_branch") != Stdlib.Option.Option.Some(Stdlib.toString(branch)) then
           Darklang.SCM.PackageOps.selectBranch(branch)
         else
           branch

@@ -180,7 +180,7 @@ let init(): Model =
   let branchId = SCM.PackageOps.currentBranch()
 
   // `traces show <fn> --watch` sets it before opening this view; unset, nothing is followed.
-  let fn = Stdlib.Option.withDefault(Stdlib.LocalStore.configGet(fnKey), "")
+  let fn = Stdlib.Option.withDefault(LanguageTools.LocalStore.configGet(fnKey), "")
 
   reload(accountID, branchId, fn, 0, Stdlib.Option.Option.None)
 

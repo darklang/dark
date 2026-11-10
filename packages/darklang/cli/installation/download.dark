@@ -104,7 +104,7 @@ let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
     let rundir = $"{tmp}/.darklang"
 
     // A snapshot rather than a file copy, so what is still in the WAL comes too.
-    match Stdlib.LocalStore.snapshotTo($"{rundir}/data.db") with
+    match LanguageTools.LocalStore.snapshotTo($"{rundir}/data.db") with
     | Error(e) ->
       let _cleaned = Stdlib.Cli.execute($"rm -rf '{tmp}'")
       Stdlib.Result.Result.Error($"Couldn't copy your store to test the new binary against: {e}")

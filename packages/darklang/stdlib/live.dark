@@ -73,12 +73,12 @@ val showKey = "live.show"
 /// thing it wants you to look at; a live view that is open switches to it on its next
 /// turn, and one started later opens on it when it is given no view of its own.
 let show(view: LanguageTools.ProgramTypes.PackageLocation): Unit =
-  let _ = Stdlib.LocalStore.configSet(showKey, entryName(view))
+  let _ = LanguageTools.LocalStore.configSet(showKey, entryName(view))
   ()
 
 /// The view `show` last named, if any.
 let shown(): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  match Stdlib.LocalStore.configGet(showKey) with
+  match LanguageTools.LocalStore.configGet(showKey) with
   | Some(name) when name != "" -> locationOfName(name)
   | _ -> Stdlib.Option.Option.None
 
@@ -115,7 +115,7 @@ let watch(branchId: Uuid): Watch =
       version = counter
       since = since
       reported = reported
-      shown = Stdlib.LocalStore.configGet(showKey) }
+      shown = LanguageTools.LocalStore.configGet(showKey) }
 
 let kindOf(target: LanguageTools.ProgramTypes.Reference): LanguageTools.ProgramTypes.ItemKind =
   match target with
@@ -184,7 +184,7 @@ let poll(w: Watch): (Watch * Stdlib.Option.Option<Change>) =
       SCM.PackageOps.summariesByIds(Stdlib.List.take(newIds, describeAtMost))
 
     if Stdlib.List.isEmpty(landed) then
-      let shownNow = Stdlib.LocalStore.configGet(showKey)
+      let shownNow = LanguageTools.LocalStore.configGet(showKey)
       let next = { w with version = now, shown = shownNow }
 
       // The store moved and no op landed: a config or trace write. Only a `show` is anyone's
@@ -219,7 +219,7 @@ let poll(w: Watch): (Watch * Stdlib.Option.Option<Change>) =
             version = now
             since = since
             reported = reported
-            shown = Stdlib.LocalStore.configGet(showKey) }
+            shown = LanguageTools.LocalStore.configGet(showKey) }
 
       (next, Stdlib.Option.Option.Some(change))
 

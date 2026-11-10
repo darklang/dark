@@ -15,9 +15,9 @@ type T =
 
 
 /// Keep nested instances beside the active store, inside the enclosing fixture.
-/// LocalStore.path is absolute; child process configuration requires that.
+/// LanguageTools.LocalStore.path is absolute; child process configuration requires that.
 let root(): String =
-  let store = Stdlib.LocalStore.path()
+  let store = LanguageTools.LocalStore.path()
   (Stdlib.Cli.Path.parent(store)) + "/test-instances"
 
 
@@ -31,7 +31,7 @@ let root(): String =
 /// is an error rather than a `None`, so every knob spelled as an env var is a grant every
 /// caller has to remember.
 let seedFrom(): String =
-  Stdlib.LocalStore.path()
+  LanguageTools.LocalStore.path()
 
 
 /// The binary an instance drives.

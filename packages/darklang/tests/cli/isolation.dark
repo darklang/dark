@@ -6,15 +6,15 @@ test stdinIsNonInteractive =
 
 
 let writeConfig(key: String): String =
-  let _ = Stdlib.LocalStore.configSet(key, "child")
-  Stdlib.LocalStore.path()
+  let _ = LanguageTools.LocalStore.configSet(key, "child")
+  LanguageTools.LocalStore.path()
 
 let cleanConfig(key: String): Bool =
-  Stdlib.LocalStore.configGet(key) == Stdlib.Option.Option.None
+  LanguageTools.LocalStore.configGet(key) == Stdlib.Option.Option.None
     && Stdlib.Env.get("DARK_MATTER_WRITE_SECRET") == None
 
 let readConfig(key: String): Stdlib.Option.Option<String> =
-  Stdlib.LocalStore.configGet(key)
+  LanguageTools.LocalStore.configGet(key)
 
 test snapshotScopeKeepsTestCounter =
   let _ = Stdlib.Test.incrementCounter()
@@ -26,7 +26,7 @@ test snapshotScopeKeepsTestCounter =
 
 test nestedWorkerSeesCallingTestWrites =
   let key = "test.nested-worker-starting-store"
-  let _ = Stdlib.LocalStore.configSet(key, "written by this test")
+  let _ = LanguageTools.LocalStore.configSet(key, "written by this test")
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), readConfig, key) with
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
@@ -35,7 +35,7 @@ test nestedWorkerSeesCallingTestWrites =
         output.result |> Stdlib.Test.equal(Ok(Stdlib.Option.Option.Some("written by this test"))) ])
 
 test stateAndEnvironmentAreIsolated =
-  let parentDb = Stdlib.LocalStore.path()
+  let parentDb = LanguageTools.LocalStore.path()
   let parentBranch = Darklang.SCM.PackageOps.currentBranch()
   let key = "test.isolated-" + Stdlib.toString(Stdlib.Uuid.generate())
   let options = Stdlib.Test.Process.defaults()
@@ -50,7 +50,7 @@ test stateAndEnvironmentAreIsolated =
         [ output.exitCode |> Stdlib.Test.equal(0)
           childDb |> Stdlib.Test.notEqual(parentDb)
           Stdlib.Cli.FileSystem.pathExists(childDb) |> Stdlib.Test.equal(false)
-          Stdlib.LocalStore.configGet(key) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+          LanguageTools.LocalStore.configGet(key) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
           Darklang.SCM.PackageOps.currentBranch() |> Stdlib.Test.equal(parentBranch)
           match clean with
           | Error(message) -> Stdlib.Test.fail(message)
@@ -59,13 +59,13 @@ test stateAndEnvironmentAreIsolated =
 /// Ignore the write error to check that the runner still detects it and retries
 /// on a writable copy. When sharing is unavailable, the test starts on a copy.
 test writingTestGetsItsOwnCopy =
-  let _ = Stdlib.LocalStore.configSet("test.isolation-probe", "written")
-  Stdlib.LocalStore.configGet("test.isolation-probe")
+  let _ = LanguageTools.LocalStore.configSet("test.isolation-probe", "written")
+  LanguageTools.LocalStore.configGet("test.isolation-probe")
   |> Stdlib.Test.equal(Stdlib.Option.Option.Some("written"))
 
 
 let runtimeFailure(): Int64 =
-  Stdlib.printLine(Stdlib.LocalStore.path())
+  Stdlib.printLine(LanguageTools.LocalStore.path())
   1 / 0
 
 test runtimeFailureStillRemovesSnapshot =

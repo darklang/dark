@@ -179,7 +179,7 @@ let execute(cliState: Darklang.Cli.AppState, args: List<String>): Darklang.Cli.A
   // Instance name: config override wins, else the machine hostname, else a safe fallback. Config-adjustable.
   // Asking also makes this instance's `instance.id` the first time (the runtime's, not ours).
   let instanceName =
-    match Stdlib.LocalStore.configGet("instance.name") with
+    match LanguageTools.LocalStore.configGet("instance.name") with
     | Some(name) when name != "" -> name
     | _ ->
       match Stdlib.Cli.Sys.hostname() with

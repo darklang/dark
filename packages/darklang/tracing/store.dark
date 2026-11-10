@@ -19,7 +19,7 @@ let enabled(): Bool =
 /// The lasting setting: `trace.record` in this instance's store config, which the boot reads.
 /// `None` when nothing is stored, in which case the environment or the default decides.
 let storedSetting(): Stdlib.Option.Option<Bool> =
-  match Stdlib.LocalStore.configGet("trace.record") with
+  match LanguageTools.LocalStore.configGet("trace.record") with
   | Some("on") -> Stdlib.Option.Option.Some(true)
   | Some("off") -> Stdlib.Option.Option.Some(false)
   | _ -> Stdlib.Option.Option.None
@@ -29,7 +29,7 @@ let storedSetting(): Stdlib.Option.Option<Bool> =
 /// session that is already open does not have to be restarted. `dark config set trace.record`
 /// is the same setting by the other door, and takes effect on the next command.
 let setRecording(on: Bool): Unit =
-  let _ = Stdlib.LocalStore.configSet("trace.record", (if on then "on" else "off"))
+  let _ = LanguageTools.LocalStore.configSet("trace.record", (if on then "on" else "off"))
   Builtin.tracesApplyRecording(on)
 
 
