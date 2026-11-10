@@ -668,18 +668,18 @@ and checkAndExtractMatchPattern
   | MPListCons(head, tail) ->
     match Pending.peek dv with
     | DList(vt, l) ->
-      match DvalList.uncons l with
-      | ValueSome(struct (headItem, tailItems)) ->
+      if DvalList.isEmpty l then
+        false
+      else
         // Only wrap the tail if the list itself is a promise; a plain list never contains
         // one. Wrapping checks every item in the tail, so doing it on every match made
         // walking a list with `x :: rest` quadratic.
-        let tailList = DList(vt, tailItems)
-        checkAndExtractMatchPattern buf head headItem
+        let tailList = DList(vt, DvalList.tail l)
+        checkAndExtractMatchPattern buf head (DvalList.head l)
         && checkAndExtractMatchPattern
           buf
           tail
           (if Pending.isPromise dv then Pending.wrap tailList else tailList)
-      | ValueNone -> false
     | _ -> false
 
   | MPTuple(first, second, theRest) ->
@@ -2206,7 +2206,7 @@ let private fastBuiltinOp
         if tag = FastOps.listPrepend then
           FastOps.evalListPrepend vt1 l1 other
         else
-          FastOps.evalListContains tag (DvalList.toList l1) other
+          FastOps.evalListContains tag l1 other
     | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
     // `==` and `!=` on two scalars of one type, where the builtin's check that the two types
     // match cannot fail. Each of these cases has a field, so it is its own .NET class.

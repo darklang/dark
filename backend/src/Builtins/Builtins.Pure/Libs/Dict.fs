@@ -52,13 +52,16 @@ let private spreadRest
         "listMap2shortest"
         (fun offset chunk ->
           let first = start + offset
-          let keys = List.init (List.length chunk) (fun n -> keyAt (first + n))
-          [ DList(keyType, Items(keys)); DList(valueType, Items(chunk)) ])
+          let keys = Array.init (DvalList.length chunk) (fun n -> keyAt (first + n))
+          [ DList(keyType, DvalList.ofArray keys); DList(valueType, chunk) ])
         app
         perElement
-        (List.init (entries.Length - start) (fun n -> valueAt (start + n)))
-    outcome.results |> List.iteri (fun n answer -> answers[start + n] <- answer)
-    return start + List.length outcome.results
+        (DvalList.ofArray (
+          Array.init (entries.Length - start) (fun n -> valueAt (start + n))
+        ))
+    let results = DvalList.toArray outcome.results
+    System.Array.Copy(results, 0, answers, start, results.Length)
+    return start + results.Length
   }
 
 /// Calls `fn` with each entry's key and value, in key order, and hands `finish` its
