@@ -191,6 +191,28 @@ test startsAndEndsWith =
       Stdlib.Bytes.endsWith(Stdlib.Bytes.empty, Stdlib.Bytes.empty)
       |> Stdlib.Test.equal(true) ])
 
+// trim / trimStart / trimEnd
+test trim =
+  let b(s: String): Bytes = Stdlib.Utf8.encode(s)
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.trim(b("--a-b--"), 45u8) |> Stdlib.Test.equal(b("a-b"))
+      Stdlib.Bytes.trim(b("a-b"), 45u8) |> Stdlib.Test.equal(b("a-b"))
+      Stdlib.Bytes.trim(b("---"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.trim(b("-"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.trim(b("a"), 45u8) |> Stdlib.Test.equal(b("a"))
+      Stdlib.Bytes.trim(Stdlib.Bytes.empty, 45u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.trim(Stdlib.Bytes.fromList([ 0u8, 0u8, 7u8, 0u8, 9u8, 0u8 ]), 0u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.fromList([ 7u8, 0u8, 9u8 ]))
+      Stdlib.Bytes.trimStart(b("--a-b--"), 45u8) |> Stdlib.Test.equal(b("a-b--"))
+      Stdlib.Bytes.trimStart(b("---"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.trimStart(Stdlib.Bytes.empty, 45u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.trimEnd(b("--a-b--"), 45u8) |> Stdlib.Test.equal(b("--a-b"))
+      Stdlib.Bytes.trimEnd(b("---"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+      Stdlib.Bytes.trimEnd(Stdlib.Bytes.empty, 45u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
 // indexOfSegment / indexOfSegmentFrom / contains
 test indexOfSegment =
   let b(s: String): Bytes = Stdlib.Utf8.encode(s)

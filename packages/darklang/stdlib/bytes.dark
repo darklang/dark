@@ -145,6 +145,30 @@ let endsWith(bytes: Bytes, suffix: Bytes): Bool =
   && drop(bytes, length(bytes) - length(suffix)) == suffix
 
 
+/// Returns <param bytes> without any <param byte> at its start or end:
+/// trimming {{0u8}} from the bytes {{0 0 1 0 2 0}} gives {{1 0 2}}.
+let trim(bytes: Bytes, byte: UInt8): Bytes =
+  trimEnd(trimStart(bytes, byte), byte)
+
+
+/// Returns <param bytes> without any <param byte> at its start.
+let trimStart(bytes: Bytes, byte: UInt8): Bytes =
+  drop(bytes, __skipFrom(bytes, byte, 0, 1))
+
+
+/// Returns <param bytes> without any <param byte> at its end.
+let trimEnd(bytes: Bytes, byte: UInt8): Bytes =
+  take(bytes, __skipFrom(bytes, byte, length(bytes) - 1, -1) + 1)
+
+
+/// The first index, starting at <param index> and moving by <param step>, that
+/// does not hold <param byte>. Runs off either end to {{-1}} or the length.
+let __skipFrom(bytes: Bytes, byte: UInt8, index: Int64, step: Int64): Int64 =
+  match getAt(bytes, index) with
+  | Some(found) when found == byte -> __skipFrom(bytes, byte, index + step, step)
+  | _ -> index
+
+
 /// Returns {{Some index}} of the first <param segment> in <param bytes> that
 /// starts at or after <param start>, or {{None}} if there is none or
 /// <param start> is out of range. An empty <param segment> is found at
