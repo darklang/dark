@@ -119,14 +119,21 @@ let atStartup (peer : Option<string>) : unit =
         $"sync: still catching up with {host}; what is newer there arrives in the background."
   | _ -> ()
 
-/// One end of a session on this machine's store. The store is given its `instance.id` first, if it
-/// has none yet: that is who it is to the other machine, and where that machine resumes from.
+/// One end of a session on this machine's store. The store is given its own `instance.id` first, if
+/// it has none yet or is a copy of another store: that is who it is to the other machine, and where
+/// that machine resumes from.
 let private side
   (fold : unit -> unit)
   (keepGoing : unit -> bool)
   (record : bool)
   : SyncLink.Side =
+  let before = config "instance.id"
   (LibDB.Config.ensureInstance ()).Wait()
+  match before, config "instance.id" with
+  | Some old, Some now when old <> now ->
+    log
+      $"this store is a copy of {old}, made elsewhere; it syncs as {now} from now on"
+  | _ -> ()
   { store = LibConfig.Config.dbPath
     workDir = SyncLink.dir ()
     afterImport = fun _ -> fold ()
@@ -134,7 +141,8 @@ let private side
     note = if record then note else (fun _ -> ())
     log = log
     keepGoing = keepGoing
-    pollMs = 50 }
+    pollMs = 50
+    quietMs = 20000 }
 
 /// `dark sync serve`: the other machine's end, on stdin and stdout, until they close. It records
 /// nothing about the link: that is the watcher's, on this machine, for its own peer.
@@ -163,7 +171,8 @@ let private watch (fold : unit -> unit) : int =
       { side = side fold keepGoing true
         transport = SyncLink.ssh host command
         peer = host
-        patience = System.TimeSpan.FromMinutes 10.0 }
+        patience = System.TimeSpan.FromMinutes 10.0
+        mention = fun line -> say $"\u001b[2m{line}\u001b[0m" }
     log "watcher stopped"
     0
   | Some lock, None ->
@@ -206,7 +215,7 @@ let private add
         (SyncLink.ssh host remote)
         true
     with
-    | SyncLink.Exchanged, _ ->
+    | SyncLink.Exchanged, _, _ ->
       (LibDB.Config.set peerKey host).Wait()
       match command with
       | Some c -> (LibDB.Config.set commandKey c).Wait()
@@ -216,7 +225,7 @@ let private add
       System.Console.Error.WriteLine
         $"syncing with {host}. Caught up in {seconds:F1} s; from now on, changes go both ways as you make them."
       0
-    | _, failure ->
+    | _, failure, _ ->
       System.Console.Error.WriteLine(failureLine host failure)
       System.Console.Error.WriteLine "sync stays off."
       1
