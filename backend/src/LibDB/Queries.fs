@@ -274,6 +274,36 @@ let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
             |> Set.map Hash }
   }
 
+/// How many items call each of <param hashes>, for ranking search results by use. A caller
+/// counts when some name holds it now and it is not a test or in a `Tests` module, so old
+/// versions and test fixtures do not count. Hashes nothing calls are left out.
+let callerCounts (hashes : List<Hash>) : Task<List<Hash * int64>> =
+  task {
+    if List.isEmpty hashes then
+      return []
+    else
+      let! rows =
+        Sql.query
+          """
+          SELECT d.depends_on_hash AS target, COUNT(DISTINCT d.item_hash) AS callers
+          FROM package_dependencies d
+          WHERE d.depends_on_hash IN (SELECT value FROM json_each(@hashes))
+            AND EXISTS (
+              SELECT 1 FROM locations l
+              WHERE l.item_hash = d.item_hash
+                AND l.live = 1
+                AND l.item_type <> 'test'
+                AND ('.' || l.modules || '.') NOT LIKE '%.Tests.%')
+          GROUP BY d.depends_on_hash
+          """
+        |> Sql.parameters
+          [ "hashes",
+            Sql.string (jsonStrings (hashes |> List.map (fun (Hash h) -> h))) ]
+        |> Sql.executeAsync (fun read ->
+          (Hash(read.string "target"), read.int64 "callers"))
+      return rows
+  }
+
 /// When each impl was added, by the stamp of its `AddTraitImpl` op. Selection orders two
 /// impls of one trait for one type by it (`LibExecution.Lww`), so the same call picks the
 /// same impl on every instance. A row written before the column answers "", and a pair of

@@ -1354,6 +1354,39 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmCallerCounts" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "hashes"
+            (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
+            "the items to count callers of" ]
+      returnType =
+        TList(TTuple(TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), TInt64, []))
+      description =
+        "How many items call each of <param hashes>: (hash, callers) pairs, leaving out "
+        + "the hashes nothing calls. A caller counts when a name holds it now and it is "
+        + "not a test or in a `Tests` module. Search ranks by it."
+      fn =
+        (function
+        | _, _, _, [| DList(_, Items(hashes)) |] ->
+          uply {
+            let! counts =
+              hashes |> List.map PT2DT.Hash.fromDT |> LibDB.Queries.callerCounts
+            return
+              counts
+              |> List.map (fun (hash, n) ->
+                DTuple(PT2DT.Hash.toDT hash, DInt64 n, []))
+              |> Dval.list (
+                KTTuple(VT.known (PT2DT.Hash.knownType ()), VT.int64, [])
+              )
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     // Some (kind, message) returns the Dark-side DeprecationKind enum, so callers
     // format it however they want rather than parsing a string tag.
     { name = fn "pmGetCurrentDeprecation" 0
