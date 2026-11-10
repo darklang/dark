@@ -52,7 +52,7 @@ type BuiltinValue =
 let allBuiltinValues(): List<BuiltinValue> =
   Builtin.getAllBuiltinValues()
 
-/// Look up a builtin value's metadata by name and version.
-/// Fetch only its name, description, and declared type; return None if it does not exist.
+/// Look up a builtin value's metadata by name and version; None if it does not exist.
 let findBuiltinValue(name: String, version: Int32): Stdlib.Option.Option<BuiltinValue> =
-  Builtin.getBuiltinValue(name, version)
+  allBuiltinValues()
+  |> Stdlib.List.findFirst(fun v -> v.name.name == name && v.name.version == version)
