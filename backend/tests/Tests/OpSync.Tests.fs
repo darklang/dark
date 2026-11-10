@@ -125,12 +125,58 @@ let private forgetJournal (store : string) : Task<unit> =
 let private rowCount (store : string) (table : string) : Task<int64> =
   countIn store $"SELECT COUNT(*) FROM {table}" []
 
-/// Author <param source> into main's draft on <param store>, and the ids of what it wrote.
+/// A text from <param store>.
+let private textIn (store : string) (sql : string) : Task<string> =
+  task {
+    use conn =
+      new Microsoft.Data.Sqlite.SqliteConnection(
+        $"Data Source={store};Pooling=false"
+      )
+    do! conn.OpenAsync()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- sql
+    let! v = cmd.ExecuteScalarAsync()
+    return
+      match v with
+      | null -> ""
+      | :? System.DBNull -> ""
+      | v -> string v
+  }
+
+/// Author <param source> into main's draft on <param store> as the CLI does, and the ids of what
+/// it wrote. Each binding names the version it replaced (`SCM.Lineage`), which the parser alone
+/// cannot know.
 let private authorOn (store : string) (source : string) : Task<List<string>> =
   task {
     useStore store
-    let! authored = authorIntoMain source
-    return authored |> List.map (LibDB.Inserts.computeOpHash >> string)
+    let! parsed = parsePackageOps source
+    let rec lineage (ops : List<PT.PackageOp>) : Task<List<PT.PackageOp>> =
+      task {
+        match ops with
+        | [] -> return []
+        | PT.PackageOp.SetName(loc, target, None) :: rest ->
+          let modules = String.concat "." loc.modules
+          let! held =
+            textIn
+              store
+              $"SELECT item_hash FROM locations
+                WHERE owner = '{loc.owner}' AND modules = '{modules}'
+                  AND name = '{loc.name}' AND item_type = '{target.kind.toString ()}'
+                  AND branch_id = '{PT.BranchId.Main}' AND live = 1
+                ORDER BY draft DESC LIMIT 1"
+          let previous = if held = "" then None else Some(PT.Hash held)
+          let! rest = lineage rest
+          return PT.PackageOp.SetName(loc, target, previous) :: rest
+        | op :: rest ->
+          let! rest = lineage rest
+          return op :: rest
+      }
+    let! ops = lineage parsed
+    do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
+    let! names = LibDB.ReferenceNames.captureForStorage PT.BranchId.Main ops
+    let! _ = LibDB.Inserts.insertAndApplyOps (ops @ names)
+    let! _ = LibDB.WipRefresh.refresh pmPT
+    return ops |> List.map (LibDB.Inserts.computeOpHash >> string)
   }
 
 let private discardOn (store : string) (ids : List<string>) : Task<unit> =
@@ -453,24 +499,6 @@ let wrongFile =
 
 module SyncLink = LibDB.SyncLink
 
-/// A text from <param store>.
-let private textIn (store : string) (sql : string) : Task<string> =
-  task {
-    use conn =
-      new Microsoft.Data.Sqlite.SqliteConnection(
-        $"Data Source={store};Pooling=false"
-      )
-    do! conn.OpenAsync()
-    use cmd = conn.CreateCommand()
-    cmd.CommandText <- sql
-    let! v = cmd.ExecuteScalarAsync()
-    return
-      match v with
-      | null -> ""
-      | :? System.DBNull -> ""
-      | v -> string v
-  }
-
 /// Wait for <param condition> to hold, up to ten seconds, or fail saying <param what>.
 let private eventually
   (what : string)
@@ -515,7 +543,8 @@ let private sideOf
           "log " + System.DateTime.UtcNow.ToString("HH:mm:ss.fff") + " " + line
         )
     keepGoing = keepGoing
-    pollMs = 20 }
+    pollMs = 20
+    quietMs = 5000 }
 
 /// Run a session between <param a> and <param b> over in-process pipes while <param body> runs,
 /// then end it. <param stopA> turns A's side off, as `dark sync off` does. Answers how each end ended.
@@ -836,7 +865,8 @@ let peerDown =
                     { side = sideOf dir what a (fun () -> not stop.IsSet) said
                       transport = transport
                       peer = "peer"
-                      patience = System.TimeSpan.Zero }),
+                      patience = System.TimeSpan.Zero
+                      mention = said.Enqueue }),
                 TaskCreationOptions.LongRunning
               )
             do! Task.Delay 300
@@ -987,6 +1017,65 @@ let renamedVsEdited =
             Expect.isNone found "the old name is gone on both"
             let! moved = findOn store newLocation
             Expect.isSome moved "and the new one is bound"
+        })
+  }
+
+let editAfterRemoval =
+  testTask
+    "an edit made after the other store removed the name, on the version it removed, is a conflict on both" {
+    do!
+      withTwoStores (fun dir a b ->
+        task {
+          let name = unique "later"
+          let! (location, h0) = shared dir a b name
+          useStore b
+          let! _ =
+            LibDB.Inserts.authorOn
+              PT.BranchId.Main
+              "op"
+              [ PT.PackageOp.Unbind(location, Some(PT.Hash h0)) ]
+          // Newer than the removal, so only the version it replaced says it never saw it.
+          do! Task.Delay 5
+          let! _ = authorOn a $"module Tests.OpSync\nlet {name}(): Int64 = 75"
+          let! (_, onB) = sync dir a b
+          let! (_, onA) = sync dir b a
+          let! recordedA = conflictsOn a name
+          let! recordedB = conflictsOn b name
+          Expect.stringContains recordedB "removed-vs-edited:pending" "B records it"
+          Expect.equal recordedA recordedB "A records the same one"
+          Expect.equal (List.length onA.conflicts) 1 "A is told once"
+          Expect.equal (List.length onB.conflicts) 1 "and so is B"
+          for store in [ a; b ] do
+            let! found = findOn store location
+            Expect.isSome found "the newer edit stands on both"
+        })
+  }
+
+let recreatedAfterRemoval =
+  testTask
+    "a name made again after its removal arrived is no conflict on either store" {
+    do!
+      withTwoStores (fun dir a b ->
+        task {
+          let name = unique "again"
+          let! (location, h0) = shared dir a b name
+          useStore b
+          let! _ =
+            LibDB.Inserts.authorOn
+              PT.BranchId.Main
+              "op"
+              [ PT.PackageOp.Unbind(location, Some(PT.Hash h0)) ]
+          let! _ = sync dir b a
+          let! _ = findOn a location
+          let! _ = authorOn a $"module Tests.OpSync\nlet {name}(): Int64 = 77"
+          let! (_, onB) = sync dir a b
+          let! recordedA = conflictsOn a name
+          let! recordedB = conflictsOn b name
+          Expect.equal recordedA "" "A records nothing"
+          Expect.equal recordedB "" "nor does B"
+          Expect.isEmpty onB.conflicts "and B is told nothing"
+          let! found = findOn b location
+          Expect.isSome found "the name is bound again on B"
         })
   }
 
@@ -1250,7 +1339,8 @@ let firstCommandOutOfReach =
                     { side = sideOf dir what a (fun () -> not stop.IsSet) said
                       transport = transport
                       peer = "peer"
-                      patience = System.TimeSpan.FromMinutes 10.0 }),
+                      patience = System.TimeSpan.FromMinutes 10.0
+                      mention = said.Enqueue }),
                 TaskCreationOptions.LongRunning
               )
             let clock = System.Diagnostics.Stopwatch.StartNew()
@@ -1272,6 +1362,220 @@ let firstCommandOutOfReach =
             stop.Set()
             let! _ = watcher
             ()
+        })
+  }
+
+/// The processes whose command line holds <param marker>.
+let private processesWith (marker : string) : int =
+  System.IO.Directory.GetDirectories "/proc"
+  |> Array.filter (fun d -> System.Char.IsDigit((System.IO.Path.GetFileName d)[0]))
+  |> Array.filter (fun d ->
+    try
+      (System.IO.File.ReadAllText(System.IO.Path.Combine(d, "cmdline"))).Contains
+        marker
+    with _ ->
+      false)
+  |> Array.length
+
+let quietPeer =
+  testTask
+    "linked: an end that stops answering is given up on, and the watcher connects again" {
+    do!
+      withTwoStores (fun dir a _ ->
+        task {
+          // As a stopped process is: both pipes stay open, nothing comes out of one, and nothing
+          // reads the other.
+          use silent =
+            new System.IO.Pipes.AnonymousPipeServerStream(
+              System.IO.Pipes.PipeDirection.Out
+            )
+          use fromPeer =
+            new System.IO.Pipes.AnonymousPipeClientStream(
+              System.IO.Pipes.PipeDirection.In,
+              silent.ClientSafePipeHandle
+            )
+          use toPeer =
+            new System.IO.Pipes.AnonymousPipeServerStream(
+              System.IO.Pipes.PipeDirection.Out
+            )
+          use _unread =
+            new System.IO.Pipes.AnonymousPipeClientStream(
+              System.IO.Pipes.PipeDirection.In,
+              toPeer.ClientSafePipeHandle
+            )
+          let said = System.Collections.Concurrent.ConcurrentQueue<string>()
+          let side =
+            { sideOf dir "quiet" a (fun () -> true) said with quietMs = 400 }
+          let clock = System.Diagnostics.Stopwatch.StartNew()
+          let ended = SyncLink.run side fromPeer toPeer false
+          // The pipe's write end first, so the session's reader sees it end.
+          silent.Dispose()
+          Expect.equal ended SyncLink.Unanswered "the session ends"
+          Expect.isLessThan
+            clock.ElapsedMilliseconds
+            3000L
+            "soon after it goes quiet"
+
+          // The watcher, against a peer that never answers: each attempt is given up on and its
+          // process ended, so there is never more than one, and none once it stops.
+          let marker = "31.4159" + string (System.Random.Shared.Next(100, 999))
+          use stop = noStop ()
+          let attempts = System.Collections.Concurrent.ConcurrentQueue<string>()
+          let counts = System.Collections.Concurrent.ConcurrentQueue<int>()
+          let side =
+            { sideOf dir "rewatch" a (fun () -> not stop.IsSet) attempts with
+                quietMs = 300 }
+          let watcher =
+            Task.Factory.StartNew(
+              (fun () ->
+                SyncLink.watch
+                  { side = side
+                    transport =
+                      { SyncLink.program = "sh"
+                        SyncLink.arguments = [ "-c"; $"exec sleep {marker}" ] }
+                    peer = "peer"
+                    patience = System.TimeSpan.Zero
+                    mention = attempts.Enqueue }),
+              TaskCreationOptions.LongRunning
+            )
+          for _ in 1..40 do
+            do! Task.Delay 100
+            counts.Enqueue(processesWith $"sleep {marker}")
+          stop.Set()
+          let! _ = watcher
+          let tries =
+            attempts
+            |> Seq.filter (fun l -> l.Contains "connection failed")
+            |> Seq.length
+          Expect.isGreaterThanOrEqual tries 3 "it tries again, and again"
+          Expect.isLessThanOrEqual (Seq.max counts) 1 "one attempt at a time"
+          Expect.equal (processesWith $"sleep {marker}") 0 "and none is left behind"
+          let mentions =
+            attempts
+            |> Seq.filter (fun l -> l.Contains "can't reach peer")
+            |> Seq.length
+          Expect.equal mentions 1 "out of reach is mentioned once"
+        })
+  }
+
+/// A copy of <param store> at <param path>, whole, as copying a home directory makes.
+let private copyStore (store : string) (path : string) : Task<unit> =
+  task {
+    use conn =
+      new Microsoft.Data.Sqlite.SqliteConnection(
+        $"Data Source={store};Pooling=false"
+      )
+    do! conn.OpenAsync()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- "VACUUM INTO $path"
+    cmd.Parameters.AddWithValue("$path", path)
+    |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+    let! _ = cmd.ExecuteNonQueryAsync()
+    ()
+  }
+
+let private instanceIdOf (store : string) : Task<string> =
+  textIn store "SELECT value FROM config_v0 WHERE key = 'instance.id'"
+
+let copiedStore =
+  testTask
+    "linked: a copied store takes its own id before it syncs, and a hub keeps the two apart" {
+    do!
+      withTwoStores (fun dir a hub ->
+        task {
+          do! nameStore hub "hub"
+          useStore a
+          do! LibDB.Config.ensureInstance ()
+          let! original = instanceIdOf a
+          let c = System.IO.Path.Combine(dir, "copy-of-a.db")
+          do! copyStore a c
+          let! copied = instanceIdOf c
+          Expect.equal copied original "the copy starts with the same id"
+
+          useStore c
+          do! LibDB.Config.ensureInstance ()
+          let! own = instanceIdOf c
+          Expect.notEqual own original "the copy takes its own"
+          useStore a
+          do! LibDB.Config.ensureInstance ()
+          let! kept = instanceIdOf a
+          Expect.equal kept original "the original keeps its id"
+          useStore c
+          do! LibDB.Config.ensureInstance ()
+          let! still = instanceIdOf c
+          Expect.equal still own "and the copy keeps its new one"
+
+          let second = System.IO.Path.Combine(dir, "second")
+          System.IO.Directory.CreateDirectory second
+          |> ignore<System.IO.DirectoryInfo>
+          use stopA = noStop ()
+          use stopC = noStop ()
+          let! _ =
+            linked dir a hub stopA (fun _ _ ->
+              task {
+                let! _ =
+                  linked second c hub stopC (fun _ _ ->
+                    task {
+                      let! fromA =
+                        authorOn
+                          a
+                          "module Tests.OpSync\nlet fromOriginal(): Int64 = 9301"
+                      let! fromC =
+                        authorOn
+                          c
+                          "module Tests.OpSync\nlet fromCopy(): Int64 = 9302"
+                      do!
+                        eventually
+                          "the original's edit reaches the copy"
+                          (fun () ->
+                            task {
+                              let! held = heldCount c fromA
+                              return held = int64 (List.length fromA)
+                            })
+                      do!
+                        eventually
+                          "and the copy's reaches the original"
+                          (fun () ->
+                            task {
+                              let! held = heldCount a fromC
+                              return held = int64 (List.length fromC)
+                            })
+                    })
+                ()
+              })
+          let! peers =
+            textIn
+              hub
+              "SELECT group_concat(id, ',') FROM (SELECT id FROM sync_peers ORDER BY id)"
+          Expect.equal
+            peers
+            (String.concat "," (List.sort [ original; own ]))
+            "the hub keeps a point for each"
+        })
+  }
+
+let keepDays =
+  testTask "a store that stopped syncing holds back trimming only for sync.keepDays" {
+    do!
+      withTwoStores (fun _ a _ ->
+        task {
+          let! _ = authorOn a "module Tests.OpSync\nlet trimmed(): Int64 = 9401"
+          do! commitOn a
+          let! newest = countIn a "SELECT MAX(seq) FROM sync_journal" []
+          // Heard from three days ago, holding nothing.
+          let! _ =
+            countIn
+              a
+              "INSERT INTO sync_peers (id, name, acked_journal, seen_at)
+               VALUES ('away', 'away', 0, strftime('%Y-%m-%dT%H:%M:%fZ','now','-3 days'))
+               RETURNING 0"
+              []
+          let! held = OpSync.recordAcked a "here" "here" newest true
+          Expect.equal held 0L "within the default week, it holds trimming back"
+          useStore a
+          do! LibDB.Config.set "sync.keepDays" "2"
+          let! trimmed = OpSync.recordAcked a "here" "here" newest true
+          Expect.isGreaterThan trimmed 0L "past the setting, it does not"
         })
   }
 
@@ -1298,4 +1602,9 @@ let tests =
       resumeFromAgreedPoint
       firstCommandWaits
       firstCommandOutOfReach
-      hubWithTwoClients ]
+      hubWithTwoClients
+      editAfterRemoval
+      recreatedAfterRemoval
+      quietPeer
+      copiedStore
+      keepDays ]
