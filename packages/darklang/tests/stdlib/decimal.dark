@@ -14,6 +14,36 @@ test arithmetic =
       (-(2.5dec)) |> Stdlib.Test.equal(-2.5dec)
       (0dec - 1.25dec) |> Stdlib.Test.equal(-1.25dec) ])
 
+// `-x` keeps the places, and the impl it runs is not saved as a call to `Negate.negate`,
+// which would be itself.
+test negate =
+  let x = 1.50dec
+  let loc =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang"
+        modules = [ "Stdlib", "Decimal", "Negate" ]
+        name = "negate" }
+  let callsItself =
+    match LanguageTools.PackageManager.Function.find(SCM.Branch.mainBranchId, loc) with
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Function.get(hash) with
+      | Some(f) ->
+        match f.body with
+        | EApply(_, EFnName(_, name, _, _), _, _) ->
+          match name.resolved with
+          | Ok(resolved) ->
+            match resolved.name with
+            | TraitMethod(m) -> m.method_ == "negate"
+            | _ -> false
+          | Error(_) -> true
+        | _ -> false
+      | None -> true
+    | None -> true
+  Stdlib.Test.all(
+    [ Stdlib.toString(-x) |> Stdlib.Test.equal("-1.50")
+      (-(-x)) |> Stdlib.Test.equal(x)
+      callsItself |> Stdlib.Test.equal(false) ])
+
 test divideToTwentyEightPlaces =
   Stdlib.toString(1dec / 3dec) |> Stdlib.Test.equal("0.3333333333333333333333333333")
 

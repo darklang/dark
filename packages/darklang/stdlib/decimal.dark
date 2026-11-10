@@ -56,7 +56,9 @@ impl Divide for Decimal =
 
 impl Negate for Decimal =
   /// Returns the negation of <param a>, {{-a}}
-  let negate(a: Decimal): Decimal = Builtin.negate(a)
+  // Not `Builtin.negate(a)`: that is how `-a` is stored, so it would be saved as a call to
+  // this impl itself.
+  let negate(a: Decimal): Decimal = Builtin.multiply(a, -1dec)
 
 
 impl Compare for Decimal =
