@@ -177,9 +177,9 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   | DChar value ->
     w.Write 13uy
     String.write w value
-  | DString value ->
+  | DStr value ->
     w.Write 14uy
-    String.write w value
+    String.write w value.Value
   | DUuid value ->
     w.Write 15uy
     Guid.write w value

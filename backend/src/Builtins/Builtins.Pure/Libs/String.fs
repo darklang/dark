@@ -239,8 +239,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, _, [| DString s |] ->
-          s |> String.lengthInEgcs |> int64 |> Dval.dint64 |> Ply
+        | _, _, _, [| DStr s |] -> s.EgcCount |> int64 |> Dval.dint64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -572,12 +571,9 @@ let fns () : List<BuiltInFn> =
         + "it does not occur. Matches whole characters only."
       fn =
         (function
-        | _, _, _, [| DString str; DString search |] ->
+        | _, _, _, [| DStr str; DString search |] ->
           let index =
-            if search = "" then
-              String.lengthInEgcs str
-            else
-              egcLastIndexOf str search
+            if search = "" then str.EgcCount else egcLastIndexOf str.Value search
           Ply(Dval.dint64 (int64 index))
         | _ -> incorrectArgs ())
       previewable = Pure

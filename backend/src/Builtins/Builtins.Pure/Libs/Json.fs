@@ -166,7 +166,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
     w.WriteRawValue(d.ToString(System.Globalization.CultureInfo.InvariantCulture))
 
   | DChar c -> w.WriteStringValue c
-  | DString s -> w.WriteStringValue s
+  | DStr s -> w.WriteStringValue s.Value
 
   | DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
 

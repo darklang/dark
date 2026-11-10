@@ -407,7 +407,7 @@ module Expect =
     | DPromise _ -> true
 
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DString str -> str.IsNormalized()
+    | DStr str -> str.Value.IsNormalized()
 
     | DList(_, Items(items)) -> List.all r items
     | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
@@ -582,7 +582,7 @@ module Expect =
         List.iteri2 (fun i -> de ($"[{i}]" :: path)) fields fields'
         ()
 
-      | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
+      | DStr _, DStr _ -> check path (debugDval actual) (debugDval expected)
 
       // Keep for exhaustiveness checking
       | DUnit, _
@@ -602,7 +602,7 @@ module Expect =
       | DFloat32 _, _
       | DDecimal _, _
       | DChar _, _
-      | DString _, _
+      | DStr _, _
       | DDateTime _, _
       | DUuid _, _
       | DList _, _
@@ -974,7 +974,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DFloat32 _
     | DDecimal _
     | DChar _
-    | DString _
+    | DStr _
     | DUuid _
     | DDateTime _
     | DApplicable _

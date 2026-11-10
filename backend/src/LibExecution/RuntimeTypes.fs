@@ -1220,7 +1220,7 @@ and DictKey private () =
     | DBigInt _ -> 12
     | DFloat _ -> 13
     | DChar _ -> 14
-    | DString _ -> 15
+    | DStr _ -> 15
     | DDateTime _ -> 16
     | DUuid _ -> 17
     | DList _ -> 18
@@ -1260,7 +1260,7 @@ and DictKey private () =
     | DFloat32 x -> combine (hash x)
     | DDecimal x -> combine (hash x)
     | DChar x -> combine (hash x)
-    | DString x -> combine (hash x)
+    | DStr x -> combine (hash x.Value)
     | DDateTime x -> combine (hash x)
     | DUuid x -> combine (hash x)
     | DList(_, xs) -> combine (DictKey.hashList (DvalList.toList xs))
@@ -1325,7 +1325,7 @@ and DvalOrdering private () =
     | DFloat32 x, DFloat32 y -> compare x y
     | DDecimal x, DDecimal y -> compare x y
     | DChar x, DChar y -> String.compareByCodepoint x y
-    | DString x, DString y -> String.compareByCodepoint x y
+    | DStr x, DStr y -> String.compareByCodepoint x.Value y.Value
     | DDateTime x, DDateTime y -> compare x y
     | DUuid x, DUuid y -> compare x y
 
@@ -1353,7 +1353,7 @@ and DvalOrdering private () =
       else
         let entries (fields : RecordFields) =
           fields.Entries
-          |> Array.map (fun (struct (k, v)) -> DString k, v)
+          |> Array.map (fun (struct (k, v)) -> DStr(DarkString k), v)
           |> List.ofArray
         DvalOrdering.compareEntries mode (entries xFields) (entries yFields)
 
@@ -1736,6 +1736,41 @@ and [<Struct; NoComparison>] DvalList =
       walk (int index) list.items
 
 
+/// Where a long `DarkString` keeps its character count once something has asked for it.
+/// 0 until then.
+and [<Sealed; AllowNullLiteral>] EgcCountCell() =
+  // A count cached on first use is a write after construction, which only a mutable field takes.
+  [<DefaultValue>]
+  val mutable Count : int
+
+/// A Dark `String`: its text, and its length in characters (extended grapheme clusters) once
+/// something has asked, so `String.length` in a loop doesn't recount the text each time. Short
+/// strings have no cell: counting one costs about as much as reading a cell, and most strings
+/// are short. Equal when the text is.
+and [<Struct; CustomEquality; NoComparison>] DarkString =
+  val Value : string
+  val private cell : EgcCountCell
+
+  new(value : string) =
+    { Value = value; cell = if value.Length > 32 then EgcCountCell() else null }
+
+  member this.EgcCount : int =
+    match this.cell with
+    | null -> String.lengthInEgcs this.Value
+    | cell ->
+      if cell.Count = 0 then cell.Count <- String.lengthInEgcs this.Value
+      cell.Count
+
+  override this.Equals(other : obj) : bool =
+    match other with
+    | :? DarkString as other -> this.Value = other.Value
+    | _ -> false
+
+  override this.GetHashCode() : int = this.Value.GetHashCode()
+
+  override this.ToString() : string = this.Value
+
+
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
   | DUnit
@@ -1764,7 +1799,8 @@ and [<NoComparison>] Dval =
   | DDecimal of decimal
 
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
-  | DString of string
+  // Most code matches and builds this with `DString s`, a plain string (see `(|DString|_|)`).
+  | DStr of DarkString
 
   | DDateTime of DarkDateTime.T
   | DUuid of System.Guid
@@ -1974,6 +2010,17 @@ let (|Items|) (list : DvalList) : List<Dval> = DvalList.toList list
 
 /// See `(|Items|)`.
 let Items (items : List<Dval>) : DvalList = DvalList.ofList items
+
+/// A string's text: `DString s` matches any string, binding its text, and `DString s` builds
+/// one. `DStr` is the case itself, for code that wants the cached length or matches every case.
+[<return : Struct>]
+let inline (|DString|_|) (dv : Dval) : string voption =
+  match dv with
+  | DStr s -> ValueSome s.Value
+  | _ -> ValueNone
+
+/// See `(|DString|_|)`.
+let DString (s : string) : Dval = DStr(DarkString s)
 
 
 /// A lambda's captured values (`ApplicableLambda.closedRegisters`) as a list, for the cold
@@ -3080,7 +3127,7 @@ module Dval =
     | DFloat32 _ -> vtFloat32
     | DDecimal _ -> vtDecimal
     | DChar _ -> vtChar
-    | DString _ -> vtString
+    | DStr _ -> vtString
     | DDateTime _ -> vtDateTime
     | DUuid _ -> vtUuid
 
@@ -3195,7 +3242,7 @@ module Dval =
     | DBigInt _
     | DDecimal _
     | DChar _
-    | DString _
+    | DStr _
     | DDateTime _
     | DUuid _
     | DBytes _ -> true
@@ -3277,7 +3324,7 @@ module Dval =
           | DFloat32 _
           | DDecimal _
           | DChar _
-          | DString _
+          | DStr _
           | DDateTime _
           | DUuid _
           | DStream _
