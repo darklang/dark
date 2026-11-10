@@ -5,11 +5,12 @@
 # Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
 # deliberately: one script, under a minute. A long perf job gets ignored and then disabled.
 #
-# The published gate checks five things, all on the binary just built:
+# The published gate checks six things, all on the binary just built:
 #   - steady.dark's allocation, warm, net of startup (the number this gate started with)
 #   - startup's allocation, warm: `run` of a one-line script (workloads/startup.dark)
 #   - allocation per iteration of every workload in workloads/suite/, as `suite` measures it
 #   - the cold first run's allocation and peak memory, on a store grown from nothing
+#   - the interactive CLI's first frame and one keypress: VM instructions and allocation (_ui.py)
 #   - CPU for `fib 24`, `lists.dark` and `ls Darklang.Stdlib.List`, paired against the newest
 #     release (_paired.py)
 # Allocation can't see a call getting slower, and the warm run can't see the first run getting
@@ -126,10 +127,14 @@ echo
 # The suite's workloads, each per iteration with startup differenced out (see `suite`). Debug has
 # no budget for them, so it skips them.
 SUITE_JSON=""
+UI_JSON=""
 if [[ "$PUBLISHED" == "true" ]]; then
   SUITE_JSON="$GATE_HOME/suite.json"
   SUITE_ITERS=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json'))['suite']['iters'])")
   ./scripts/perf/suite --release --iters "$SUITE_ITERS" --json "$SUITE_JSON" > /dev/null || exit 2
+  UI_JSON="$GATE_HOME/ui.json"
+  UI_KEYS=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json'))['ui']['keys'])")
+  python3 ./scripts/perf/_ui.py "$EXE" "$UI_KEYS" "$UI_JSON" || exit 2
 fi
 
 # The store is measured too, not just the binary: a working rundir carrying your own ops allocates a
@@ -140,7 +145,7 @@ echo "build    $(exe_build_tag "$EXE")"
 MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
 
 BUDGET_STATUS=0
-python3 - "$BUDGET_FILE" "$TOTAL_READINGS" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" "$STARTUP_READINGS" "$SUITE_JSON" <<'PY' || BUDGET_STATUS=$?
+python3 - "$BUDGET_FILE" "$TOTAL_READINGS" "$UPDATE" "$MODE" "$COLD_ALLOC" "$COLD_PEAK_MB" "$STARTUP_READINGS" "$SUITE_JSON" "$UI_JSON" <<'PY' || BUDGET_STATUS=$?
 import json, statistics, sys
 
 budget_file, update = sys.argv[1], sys.argv[3] == "true"
@@ -151,6 +156,7 @@ startup = int(statistics.median(readings(sys.argv[7])))
 measured = total - startup
 cold_alloc, cold_peak_mb = int(sys.argv[5]), float(sys.argv[6])
 suite = {r["workload"]: r["bytesPerIter"] for r in json.load(open(sys.argv[8]))} if sys.argv[8] else {}
+ui = json.load(open(sys.argv[9])) if sys.argv[9] else {}
 
 budget = json.load(open(budget_file))
 mode = sys.argv[4]
@@ -198,12 +204,16 @@ if update:
     budget["cold"]["peakRssMB"] = round(cold_peak_mb)
     for name, per in suite.items():
         budget["suite"]["workloads"].setdefault(name, {"tolerance": 0.05})[mode] = per
+    for name, r in ui.items():
+        budget["ui"][name].update(instructions=r["instructions"], allocated=r["allocated"])
     with open(budget_file, "w") as f:
         json.dump(budget, f, indent=2)
         f.write("\n")
     print(f"{mode} budget updated to {mb2(measured)} net of startup, startup {mb2(startup)}; "
           f"first run {mb(cold_alloc)}, peak {cold_peak_mb:.0f} MB; "
-          + ", ".join(f"{name} {bytes_(per)}/iter" for name, per in suite.items()))
+          + ", ".join(f"{name} {bytes_(per)}/iter" for name, per in suite.items())
+          + "".join(f", {name} {r['instructions']:,} instructions {mb2(r['allocated'])}"
+                    for name, r in ui.items()))
     sys.exit(0)
 
 # The first run, on a store grown from nothing, with tolerances of its own: allocation repeats to
@@ -222,7 +232,26 @@ suite_failed = any([over(name, per, workloads[name][mode], workloads[name]["tole
                     for name, per in suite.items() if mode in workloads.get(name, {})])
 for name in suite.keys() - {name for name in workloads if mode in workloads[name]}:
     print(f"  {name} {bytes_(suite[name])}; no budget recorded yet.")
-failed = cold_failed or suite_failed
+
+# Instructions and allocation, not time: both repeat run to run. A budget not recorded yet reports
+# and passes, like the suite's.
+labels = {"firstFrame": "first frame", "keypress": "keypress"}
+ui_failed = False
+if ui:
+    print("interactive CLI at 120x40")
+for name, r in ui.items():
+    b = budget["ui"][name]
+    if "instructions" not in b:
+        print(f"  {labels[name]} {r['instructions']:,} instructions, {mb2(r['allocated'])}; no budget recorded yet.")
+        continue
+    ui_failed = any([
+        over(f"{labels[name]} instructions", r["instructions"], b["instructions"],
+             b["instructionsTolerance"], lambda v: f"{v:,.0f}", "  "),
+        over(f"{labels[name]} allocated", r["allocated"], b["allocated"], b["allocatedTolerance"], mb2, "  "),
+    ]) or ui_failed
+if ui:
+    print(f"  wall time, not gated: first frame {ui['firstFrame']['ms']} ms, keypress {ui['keypress']['ms']} ms")
+failed = cold_failed or suite_failed or ui_failed
 
 # A budget nobody has recorded yet reports and passes. Better than a number carried over from the
 # other build mode, which would be wrong in a way that looks right.
