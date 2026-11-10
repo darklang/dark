@@ -1,8 +1,8 @@
 /// This instance's own local state: where its store is, and the key-value settings beside it.
 ///
-/// One module because these are the two primitives every layer needs and neither belongs to any of
-/// them.
-module Darklang.Stdlib.LocalStore
+/// Tooling, not something Dark programs call: the CLI, tracing, live hosts and the test worker read
+/// and write these. One module because they all need both primitives.
+module Darklang.LanguageTools.LocalStore
 
 
 /// The path of this instance's package store, for showing and for finding what lives beside it.

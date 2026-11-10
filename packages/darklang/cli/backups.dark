@@ -7,9 +7,9 @@ module Darklang.Cli.Backups
 // lives here rather than in `ls`, and so does the pruning.
 
 /// The backups, newest first. The runtime keeps the folder and its names, the upgrade path's
-/// backups among them (`Stdlib.LocalStore.backups`).
-let list(): List<Stdlib.LocalStore.Backup> =
-  match Stdlib.LocalStore.backups(Stdlib.LocalStore.BackupAction.List) with
+/// backups among them (`LanguageTools.LocalStore.backups`).
+let list(): List<LanguageTools.LocalStore.Backup> =
+  match LanguageTools.LocalStore.backups(LanguageTools.LocalStore.BackupAction.List) with
   | Ok(backups) -> backups
   | Error(_) -> []
 
@@ -40,7 +40,7 @@ let executeList(state: AppState): AppState =
 /// `dark backups now`. Named for the moment rather than the day, so an on-demand copy never collides
 /// with the upgrade path's daily one.
 let executeNow(state: AppState): AppState =
-  match Stdlib.LocalStore.backups(Stdlib.LocalStore.BackupAction.Create) with
+  match LanguageTools.LocalStore.backups(LanguageTools.LocalStore.BackupAction.Create) with
   | Ok(taken) ->
     taken |> Stdlib.List.iter(fun b -> Cli.printOk($"copied the store to {b.path}"))
     state
@@ -68,7 +68,7 @@ let executeRestore(state: AppState, name: String, confirm: Cli.Confirm): AppStat
     Cli.Stderr.ok("  kept. (`dark backups restore <name> -y` if you mean it -- a piped stdin can't answer this.)")
     Cli.failed(state)
   else
-    match Stdlib.LocalStore.backups(Stdlib.LocalStore.BackupAction.Restore(name)) with
+    match LanguageTools.LocalStore.backups(LanguageTools.LocalStore.BackupAction.Restore(name)) with
     | Ok(asides) ->
       let aside =
         asides
@@ -120,7 +120,7 @@ let executePrune(state: AppState, keepArg: String, confirm: Cli.Confirm): AppSta
         let deleted =
           doomed
           |> Stdlib.List.filterMap(fun name ->
-            match Stdlib.LocalStore.backups(Stdlib.LocalStore.BackupAction.Delete(name)) with
+            match LanguageTools.LocalStore.backups(LanguageTools.LocalStore.BackupAction.Delete(name)) with
             | Ok(_) -> Stdlib.Option.Option.Some(name)
             | Error(_) ->
               Cli.printErr($"  couldn't delete {name}")

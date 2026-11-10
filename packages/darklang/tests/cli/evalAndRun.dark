@@ -473,10 +473,10 @@ test codeCannotChangeTheNetworkGuard =
     let allowed = Instance.ran(i, [ "permissions", "allow", "package-write" ])
 
     let tries =
-      [ "Stdlib.LocalStore.configSet(\"http.loopback\", \"on\")"
-        "Stdlib.LocalStore.configSet(\"http.private\", \"on\")"
-        "Stdlib.LocalStore.configSet(\"trace.record\", \"on\")"
-        "Stdlib.LocalStore.configUnset(\"trace.record\")"
+      [ "Darklang.LanguageTools.LocalStore.configSet(\"http.loopback\", \"on\")"
+        "Darklang.LanguageTools.LocalStore.configSet(\"http.private\", \"on\")"
+        "Darklang.LanguageTools.LocalStore.configSet(\"trace.record\", \"on\")"
+        "Darklang.LanguageTools.LocalStore.configUnset(\"trace.record\")"
         "Builtin.tracesApplyRecording(false)" ]
       |> Stdlib.List.map(fun code -> Instance.ran(i, [ "eval", code ]))
 

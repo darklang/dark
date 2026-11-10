@@ -575,13 +575,13 @@ test showDoesNotPerformAWrite =
             i,
             [ "fn"
               "Test.ShowPerform.mark"
-              "(v: String): Stdlib.Result.Result<Unit, String> = Stdlib.LocalStore.configSet(\"test.show.perform.probe\", v)" ])
+              "(v: String): Stdlib.Result.Result<Unit, String> = Darklang.LanguageTools.LocalStore.configSet(\"test.show.perform.probe\", v)" ])
           step(i, [ "permissions", "approve", "Test.ShowPerform.mark", "--yes" ])
           step(i, [ "eval", "Test.ShowPerform.mark(\"recorded\")" ])
-          step(i, [ "eval", "Stdlib.LocalStore.configSet(\"test.show.perform.probe\", \"after\")" ])
+          step(i, [ "eval", "Darklang.LanguageTools.LocalStore.configSet(\"test.show.perform.probe\", \"after\")" ])
           step(i, [ "traces", "show", "Test.ShowPerform.mark" ]) ])
 
-    let now = Instance.said(i, [ "eval", "Stdlib.LocalStore.configGet(\"test.show.perform.probe\")" ])
+    let now = Instance.said(i, [ "eval", "Darklang.LanguageTools.LocalStore.configGet(\"test.show.perform.probe\")" ])
 
     Stdlib.Test.all(
       [ ran
@@ -601,16 +601,16 @@ test showDoesNotPerformAWriteInsideMap =
         i,
         [ "fn"
           "Test.ShowPerformMap.markAll"
-          "(vs: List<String>): List<Stdlib.Result.Result<Unit, String>> =\n  Stdlib.List.map(vs, fun v -> Stdlib.LocalStore.configSet(\"test.show.perform.map\", v))" ])
+          "(vs: List<String>): List<Stdlib.Result.Result<Unit, String>> =\n  Stdlib.List.map(vs, fun v -> Darklang.LanguageTools.LocalStore.configSet(\"test.show.perform.map\", v))" ])
 
     // The lambda makes the analysis incomplete, so its write needs an explicit
     // approval.
     let approved = step(i, [ "permissions", "approve", "Test.ShowPerformMap.markAll", "--yes" ])
     let ran = step(i, [ "eval", "Test.ShowPerformMap.markAll([\"recorded\"])" ])
-    let before = Instance.said(i, [ "eval", "Stdlib.LocalStore.configGet(\"test.show.perform.map\")" ])
-    let overwritten = step(i, [ "eval", "Stdlib.LocalStore.configSet(\"test.show.perform.map\", \"after\")" ])
+    let before = Instance.said(i, [ "eval", "Darklang.LanguageTools.LocalStore.configGet(\"test.show.perform.map\")" ])
+    let overwritten = step(i, [ "eval", "Darklang.LanguageTools.LocalStore.configSet(\"test.show.perform.map\", \"after\")" ])
     let shown = Instance.said(i, [ "traces", "show", "Test.ShowPerformMap.markAll" ])
-    let now = Instance.said(i, [ "eval", "Stdlib.LocalStore.configGet(\"test.show.perform.map\")" ])
+    let now = Instance.said(i, [ "eval", "Darklang.LanguageTools.LocalStore.configGet(\"test.show.perform.map\")" ])
 
     Stdlib.Test.all(
       [ allowed

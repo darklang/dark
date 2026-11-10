@@ -48,11 +48,13 @@ module HostWatch =
 
 
 let private backupTypeName () =
-  FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.localStoreBackup ())
+  FQTypeName.fqPackage (
+    LibExecution.PackageRefs.Type.LanguageTools.LocalStore.backup ()
+  )
 
 let private backupActionTypeName () =
   FQTypeName.fqPackage (
-    LibExecution.PackageRefs.Type.Stdlib.localStoreBackupAction ()
+    LibExecution.PackageRefs.Type.LanguageTools.LocalStore.backupAction ()
   )
 
 let private backupToDT (b : LibDB.StoreBackups.Backup) : Dval =

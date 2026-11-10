@@ -219,9 +219,6 @@ module Type =
     let option = p [ "Option" ] "Option"
     let test = p [ "Test" ] "Result"
 
-    let localStoreBackup = p [ "LocalStore" ] "Backup"
-    let localStoreBackupAction = p [ "LocalStore" ] "BackupAction"
-
     let bigIntParseError = p [ "BigInt" ] "ParseError"
     let floatParseError = p [ "Float" ] "ParseError"
     let cryptoDigestAlgorithm = p [ "Crypto" ] "DigestAlgorithm"
@@ -314,6 +311,12 @@ module Type =
     let builtinFnParam = p [] "BuiltinFunctionParameter"
     let builtinFn = p [] "BuiltinFunction"
     let builtinFnPurity = p [] "BuiltinFunctionPurity"
+
+    /// This instance's store: its backups (`LanguageTools.LocalStore.backups`).
+    module LocalStore =
+      let private p addl = p ("LocalStore" :: addl)
+      let backup = p [] "Backup"
+      let backupAction = p [] "BackupAction"
 
     /// The structured runtime policy — the F#/Dark wire form.
     module Permissions =
