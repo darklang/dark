@@ -518,16 +518,6 @@ and does not restart the script. Run it again explicitly when ready.
 Non-interactive execution, `--sandbox` and `--warn-permissions` never prompt
 and never widen policy automatically.
 
-`run --allow <rule>` (repeatable, same grammar as `permissions allow`) adds the
-rule to the instance policy for that one run, in memory; nothing is written,
-so the next run without it is denied again. It grants no more than
-`permissions allow` and then `permissions remove` would, and like them needs
-no terminal. The saved policy's deny rules still win, package approvals,
-function ceilings and the run policy still apply, and it cannot be combined
-with `--sandbox`. The run prints each granted rule on stderr, and an instance
-denial that suggests a rule also prints the `run --allow` command to rerun
-with it.
-
 Every host operation is recorded to `rundir/logs/host-audit.jsonl` — one
 structured line with the operation summary and its policy decision (allowed,
 denied, failed, or rejected) — written in-process at the single

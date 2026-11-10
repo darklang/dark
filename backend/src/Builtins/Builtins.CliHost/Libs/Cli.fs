@@ -28,7 +28,6 @@ module PackageRefs = LibExecution.PackageRefs
 module Json = Builtins.Pure.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
-module PolicyToDT = LibExecution.PermissionsToDarkTypes
 module Utils = Builtins.CliHost.Utils
 module Tracing = LibDB.Tracing
 module P = LibParser.Parser
@@ -1212,13 +1211,11 @@ let private ownFns (mod' : Utils.CliScript.PTCliScriptModule) : List<RT.Hash> =
   List.append mod'.fns mod'.submodules.fns
   |> List.map (fun (fn : PT.PackageFn.PackageFn) -> PT2RT.Hash.toRT fn.hash)
 
-/// Apply the run's permission and deprecation options. <param allow> adds instance rules for
-/// this run only (`run --allow`).
+/// Apply the run's permission and deprecation options.
 let private createGuestState
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (input : LibDB.Traces.ScriptOrEvalInput)
-  (allow : List<LibExecution.Permissions.Rule>)
   : RT.ExecutionState =
   let options = ScriptOrEvalInput.options input
   let policy =
@@ -1227,8 +1224,7 @@ let private createGuestState
     else
       LibExecution.Permissions.Policy.allowAll
   let guest =
-    PolicyStore.guestStateAllowing
-      allow
+    PolicyStore.guestState
       parentState.accountID
       policy
       (ownFns mod')
@@ -1391,11 +1387,7 @@ let fns () : List<BuiltInFn> =
           Param.make
             "warnPermissions"
             TBool
-            "Warn-only permission mode: record caller-policy violations instead of denying them, while the instance policy remains mandatory"
-          Param.make
-            "allow"
-            (TList(TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), [])))
-            "Instance-policy rules granted for this run only; never saved, and the saved policy's deny rules still win" ]
+            "Warn-only permission mode: record caller-policy violations instead of denying them, while the instance policy remains mandatory" ]
       returnType =
         // Ok = (value, violations); a violation is (resource, unmet aspect, via — the
         // package fn / lambda the access happened in, when known). Empty list = stayed
@@ -1435,8 +1427,7 @@ let fns () : List<BuiltInFn> =
              DList(_vtTODO, Items(scriptArgs))
              DBool allowHarmful
              DBool sandbox
-             DBool warnPermissions
-             DList(_, Items(allow)) |] ->
+             DBool warnPermissions |] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
@@ -1498,12 +1489,7 @@ let fns () : List<BuiltInFn> =
                     // locked down (see PolicyStore.instancePolicy).
                     // `--warn-permissions` may relax the run and package policies, but the
                     // instance policy remains a hard maximum.
-                    let guest =
-                      createGuestState
-                        exeState
-                        mod'
-                        input
-                        (List.map PolicyToDT.Rule.fromDT allow)
+                    let guest = createGuestState exeState mod' input
                     let permissionSink = guest.permissionWarnings
                     let exeState = { guest with deniedRequests = denied }
                     let! execResult = execute exeState mod' input
@@ -1804,7 +1790,7 @@ let fns () : List<BuiltInFn> =
                   | Error _ ->
                     return emptyAnswer (Some(ReplayStop.InputNoLongerParses))
                   | Ok mod' ->
-                    let viewState = createGuestState exeState mod' input []
+                    let viewState = createGuestState exeState mod' input
                     let! problem =
                       uply {
                         try
@@ -1943,7 +1929,7 @@ let fns () : List<BuiltInFn> =
                     // The expression runs under the host's configured
                     // deny-by-default policy; missing or corrupt policy state
                     // remains locked down.
-                    let exeState = createGuestState exeState mod' input []
+                    let exeState = createGuestState exeState mod' input
                     let exeState = { exeState with deniedRequests = denied }
                     match! execute exeState mod' input with
                     // A bare package fn name escaped the guest's frame, so it captured the
