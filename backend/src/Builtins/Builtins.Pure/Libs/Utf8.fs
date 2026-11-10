@@ -42,8 +42,18 @@ let fns () : List<BuiltInFn> =
             try
               let s = (new UTF8Encoding(false, true)).GetString(bs)
               Ply(ok (DString s))
-            with e ->
-              Ply(err (DString($"Invalid UTF-8: {e.Message}"))))
+            with :? DecoderFallbackException as e ->
+              // Not `e.Message`: the CLI is built with `UseSystemResourceKeys`, so that is a
+              // resource key such as `Argument_InvalidCodePageBytesIndex`. Say where the bad
+              // bytes are and what they are instead.
+              let unknown =
+                match e.BytesUnknown with
+                | null -> ""
+                | bytes ->
+                  bytes
+                  |> Array.map (fun b -> b.ToString("X2"))
+                  |> String.concat " "
+              Ply(err (DString $"Invalid UTF-8 at byte {e.Index}: {unknown}")))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
