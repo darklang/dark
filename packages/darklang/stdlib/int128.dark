@@ -248,10 +248,15 @@ let checkedPower(
 // builtin in NoModule.fs.
 
 /// Divides <param a> by <param b>, rounding towards zero, or
-/// {{Error DivisionByZero}} where `/` raises.
-/// Dividing the minimum value by -1 wraps back to it, as `/` does.
+/// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the
+/// minimum value divided by -1, where `/` wraps back to the minimum.
 let checkedDivide(a: Int128, b: Int128): Stdlib.Result.Result<Int128, Stdlib.Math.DivisionError> =
-  if b == 0s128 then Error(Stdlib.Math.DivisionError.DivisionByZero) else Ok(a / b)
+  if b == 0s128 then
+    Error(Stdlib.Math.DivisionError.DivisionByZero)
+  else if b == -1s128 && a == -170141183460469231731687303715884105728s128 then
+    Error(Stdlib.Math.DivisionError.Overflow)
+  else
+    Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards

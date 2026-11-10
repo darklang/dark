@@ -429,7 +429,12 @@ test divisionResults =
   Stdlib.Test.all(
     [ Stdlib.Int16.checkedDivide(17s16, 3s16) |> Stdlib.Test.equal(Ok(5s16))
       Stdlib.Int16.checkedDivide(-8s16, 5s16) |> Stdlib.Test.equal(Ok(-1s16))
-      Stdlib.Int16.checkedDivide(-32768s16, -1s16) |> Stdlib.Test.equal(Ok(-32768s16))
+      Stdlib.Int16.checkedDivide(-32768s16, -1s16)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.Overflow))
+      Stdlib.Int16.checkedDivide(-32768s16, 1s16) |> Stdlib.Test.equal(Ok(-32768s16))
+      Stdlib.Int16.checkedDivide(-32767s16, -1s16) |> Stdlib.Test.equal(Ok(32767s16))
+      Stdlib.Int16.checkedDivide(32767s16, -1s16) |> Stdlib.Test.equal(Ok(-32767s16))
+      Stdlib.Int16.checkedDivide(-32768s16, -2s16) |> Stdlib.Test.equal(Ok(16384s16))
       Stdlib.Int16.checkedDivide(5s16, 0s16)
       |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
       Stdlib.Int16.checkedMod(15s16, 6s16) |> Stdlib.Test.equal(Ok(3s16))
