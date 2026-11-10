@@ -1,0 +1,33 @@
+module Darklang.Cli.Tests.SearchDefaults
+
+// What `dark search` and `docs signatures` show for a plain query: a trait method is listed with
+// its impl, and test helpers are left out and counted.
+
+// A trait method is listed with its impl, as the call, even when only the method's own name
+// matched the query.
+test searchListsNoImplMethodAsAFunction =
+  let found = Darklang.Cli.Tests.TestSuite.runWithCommand([ "search", "Int64.toString" ])
+  if
+    Stdlib.String.contains(found, "impl ToString for Int64")
+    && Stdlib.Bool.not(Stdlib.String.contains(found, "ParseError.ToString.toString"))
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(found)
+
+// `docs signatures` leaves out test helpers the same way.
+test signaturesHideTestModules =
+  let plain =
+    Darklang.Cli.Tests.TestSuite.runWithBothStreams([ "docs", "signatures", "Stdlib.DateTime" ])
+  let included =
+    Darklang.Cli.Tests.TestSuite.runWithCommand(
+      [ "docs", "signatures", "Stdlib.DateTime", "--include-tests" ])
+  if
+    Stdlib.String.contains(plain, "## DateTime.Month")
+    && Stdlib.Bool.not(Stdlib.String.contains(plain, "## DateTime.Tests"))
+    && Stdlib.String.contains(plain, "test helpers left out; --include-tests shows them")
+    && Stdlib.String.contains(included, "## DateTime.Tests")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"plain={plain}; included={included}")

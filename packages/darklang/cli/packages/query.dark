@@ -267,6 +267,20 @@ let withoutInternal(
       tests = results.tests |> Stdlib.List.filter(fun i -> shown(i.location)) }
 
 
+/// Whether a listing shows what lives in a `Tests` module. `--include-tests` asks for it.
+type TestModules =
+  | Show
+  | Hide
+
+module TestModules =
+  /// {{Show}} when <param asked>, the way a command reads `--include-tests`.
+  let showIf(asked: Bool): Darklang.Cli.Packages.Query.TestModules =
+    if asked then
+      Darklang.Cli.Packages.Query.TestModules.Show
+    else
+      Darklang.Cli.Packages.Query.TestModules.Hide
+
+
 /// Filter SearchResults by the default visibility rule: hidden deprecations and internal helpers
 /// are dropped unless <param deprecated> / <param internal> say {{Show}}.
 let filterHidden(

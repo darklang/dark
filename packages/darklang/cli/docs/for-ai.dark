@@ -92,6 +92,7 @@ See `docs scripts` for examples, arguments, exit codes and permissions.
   Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(text))
   Stdlib.String.splitOnNewline(text)
   Stdlib.HttpClient.get(url, [("user-agent", "me")]) # r.statusCode, r.body (Bytes)
+  Stdlib.Utf8.decode(r.body)                         # Result<String, String>
   Stdlib.Json.parse<Profile>(text)                   # Result<Profile, ParseError>
   Stdlib.Json.serialize<Profile>(value)
 

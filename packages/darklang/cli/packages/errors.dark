@@ -88,16 +88,36 @@ let stdlibSuggestionCandidates(
     | _ -> [ stdlibCandidate([ "Stdlib" ], modules, name) ]
 
 
+/// The Stdlib name for a conversion people guess another name for: Stdlib turns bytes into text
+/// and back in `Utf8`, so `String.fromBytes` and `Bytes.toString` are `Stdlib.Utf8.decode`.
+let guessedName(originalName: List<String>): Stdlib.Option.Option<String> =
+  let lastTwo =
+    originalName
+    |> Stdlib.List.reverse
+    |> Stdlib.List.take(2)
+    |> Stdlib.List.reverse
+    |> Stdlib.List.map(Stdlib.String.toLowercase)
+  match lastTwo with
+  | [ "string", "frombytes" ] | [ "string", "fromutf8" ] | [ "bytes", "tostring" ] ->
+    Stdlib.Option.Option.Some("Stdlib.Utf8.decode")
+  | [ "string", "tobytes" ] | [ "string", "toutf8" ] | [ "bytes", "fromstring" ] ->
+    Stdlib.Option.Option.Some("Stdlib.Utf8.encode")
+  | _ -> Stdlib.Option.Option.None
+
+
 /// Suggest the standard-library name an unresolved name probably meant, when an item exists there:
-/// the first of <fn stdlibSuggestionCandidates> that is on the branch.
+/// a <fn guessedName>, or else the first of <fn stdlibSuggestionCandidates> that is on the branch.
 let stdlibSuggestion(
   branchId: Uuid,
   originalName: List<String>)
   : Stdlib.Option.Option<String> =
-  stdlibSuggestionCandidates(originalName)
-  |> Stdlib.List.findFirst(fun((_, location)) ->
-    Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, location)))
-  |> Stdlib.Option.map(fun((written, _)) -> written)
+  match guessedName(originalName) with
+  | Some(name) -> Stdlib.Option.Option.Some(name)
+  | None ->
+    stdlibSuggestionCandidates(originalName)
+    |> Stdlib.List.findFirst(fun((_, location)) ->
+      Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, location)))
+    |> Stdlib.Option.map(fun((written, _)) -> written)
 
 
 /// The modules an unresolved name's module may be, each as (how the user would write it, where

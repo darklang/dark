@@ -1135,9 +1135,11 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
         let results = Query.filterHidden(rawResults, depSets, parsed.deprecated, parsed.internal)
 
         // An implementation is one result. Its method fns live under it and its path reads as a
-        // module, so without this each one was listed three times.
+        // module, so without this each one was listed three times. A method matches on its own
+        // name even when its impl does not (`search Int64.toString` matched
+        // `Json.ParseError.ToString.toString`), so every impl below the search is looked at.
         let implPaths =
-          results.impls
+          Query.implsBelow(state.currentBranchId, currentModule)
           |> Stdlib.List.map(fun i ->
             Stdlib.List.flatten([ [ i.location.owner ], i.location.modules, [ i.location.name ] ]))
         let results =
