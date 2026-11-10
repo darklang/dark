@@ -592,7 +592,7 @@ rebuilt (the LibExecution testfile harness) and not under `eval`. Call the funct
 reaching for the `val` when the result is a custom type.
 
 **Record update takes no type tag.** `{ state with field = v }` is right.
-`MyType { state with field = v }` looks like F# but parses as function application.
+Do not prefix the update with `MyType`; the record type comes from `state`.
 
 **`let f() = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
 not a constant; `val` is evaluated once. If the body doesn't depend on anything, make it a `val`.
