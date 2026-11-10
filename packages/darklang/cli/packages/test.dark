@@ -458,7 +458,7 @@ let runTestsInRun(
   // One test per core, at most 16: every slot owns a process and a store copy.
   // A test process holds about 90 MB (one outlier reaches ~750 MB), so 16 stay
   // near 2 GB. `exec.workers` lowers the core count; --jobs overrides both.
-  let cores = Stdlib.Exec.workers()
+  let cores = LanguageTools.Exec.workers()
   let defaults = RunOptions { force = false, jobs = (if cores < 16 then cores else 16), filters = [] }
   match parseRunOptions(defaults, args) with
   | Error(message) ->

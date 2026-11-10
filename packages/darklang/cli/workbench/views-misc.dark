@@ -46,16 +46,16 @@ let builtinDetailLines(state: State): List<String> =
 
 // ── Processes: `dark ps` as a pane ──
 //
-// Live's first consumer of the scheduler's data: the process table (`Stdlib.Exec.list`) as a
+// Live's first consumer of the scheduler's data: the process table (`LanguageTools.Exec.list`) as a
 // `Node` tree, painted into the pane. One row per process; the selected row's call stack
-// (`Stdlib.Exec.inspect`) is the detail. Refreshed on every transition, like every other loader:
+// (`LanguageTools.Exec.inspect`) is the detail. Refreshed on every transition, like every other loader:
 // the table is what the scheduler holds at that moment.
 
 /// One item per row of the tree, in the tree's order, so the highlighted row and the stack on
 /// the right are the same process. The one read of the table: the row's cells ride in `desc`,
 /// tab-separated, so `render` draws what the loader saw and reads nothing.
 let loadProcessItems(): List<BodyItem> =
-  Cli.Ps.treeRowsWithIds(SCM.PackageOps.currentBranch(), Stdlib.Exec.list())
+  Cli.Ps.treeRowsWithIds(SCM.PackageOps.currentBranch(), LanguageTools.Exec.list())
   |> Stdlib.List.map(fun((id, cells)) ->
     BodyItem
       { name = Cli.Text.shortId(id)
@@ -127,7 +127,7 @@ let processDetailLines(state: State): List<String> =
     match Cli.Ps.find(item.name) with
     | Error(e) -> [ e ]
     | Ok(p) ->
-      match Stdlib.Exec.inspect(p.id) with
+      match LanguageTools.Exec.inspect(p.id) with
       | None -> [ "gone" ]
       | Some(d) ->
         Stdlib.List.concat(

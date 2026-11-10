@@ -940,7 +940,7 @@ early for the rest. The real version is part of a design for moving traces betwe
 machines, and it should arrive with the rest of that rather than ahead of it.
 ## `dark ps`
 
-`Stdlib.Exec.list/inspect/stop` over `Builtin.execList/execInspect/execStop`
+`LanguageTools.Exec.list/inspect` and `Stdlib.Exec.stop` over `Builtin.execList/execInspect/execStop`
 (`Builtins.Language/Libs/Exec.fs`; `Exec.cancel` is `stop` without `hard`, and
 `ps kill` is `stop` with it); rendered by
 `cli/ps.dark` as a tree, a process
@@ -995,14 +995,14 @@ has waited longest. That is F#, and the default. An expert setting, for
 someone studying scheduling rather than using Dark: a store can name a Dark
 function instead:
 
-    dark config set exec.policy Darklang.Stdlib.Exec.Policy.youngestFirst
+    dark config set exec.policy Darklang.LanguageTools.Exec.Policy.youngestFirst
 
 `dark config unset exec.policy` goes back to round robin.
 
 The function takes the runnable
-processes of the scheduler that is asking, as `List<Stdlib.Exec.Summary>`,
+processes of the scheduler that is asking, as `List<LanguageTools.Exec.Summary>`,
 oldest first, and answers `Option<Uuid>`: the one to step, or `None` for no
-preference. `Stdlib.Exec.Policy` ships `roundRobin`, `youngestFirst` and
+preference. `LanguageTools.Exec.Policy` ships `roundRobin`, `youngestFirst` and
 `leastRunFirst`; a policy of your own is any function of that shape.
 
 What holds it honest:
@@ -1150,8 +1150,8 @@ rest of this file is what the system does; this section is how to move around in
   `execSpawn`, `execAwait`, `execAwaitWithin`, `execSelect`,
   `execStop`), `summaryToDT`/`parkedToDT` (the RT-to-Dark mirror of
   `ProcessSummary`), and the policy chooser (the Dark policy called from the F# loop).
-- Dark: `stdlib/exec.dark` (the user surface and `ParkedOn`/`Summary`),
-  `stdlib/await.dark` (`Stdlib.await`), `stdlib/execPolicy.dark`,
+- Dark: `stdlib/exec.dark` (the user surface), `languageTools/exec.dark` (`ParkedOn`/`Summary`),
+  `stdlib/await.dark` (`Stdlib.await`), `languageTools/execPolicy.dark`,
   `stdlib/hostAwait.dark`, `cli/ps.dark` (`treeRows` is the tree; the workbench's
   Processes pane in `cli/workbench/views-misc.dark` paints the same rows).
 - `Cli/Cli.fs`: `main` through the scheduler,
@@ -1174,7 +1174,7 @@ values (`noteValue` and `storeExprResult` in `Interpreter.fs`, `DebugSymbols` in
 - Only a process's own scheduler thread steps it; everything else posts to its queue.
   `Step` raises if the thread is wrong. A Ply continuation that touches a VM is the race
   you will never reproduce on purpose.
-- A `PackageRefs` change (a type F# reads by hash: `Stdlib.Exec.*`, the
+- A `PackageRefs` change (a type F# reads by hash: `LanguageTools.Exec.*`, the
   `Stdlib.HttpClient` fns) means: build (the hashes file regenerates; if the CLI dies
   with "hash not found", empty `backend/src/LibExecution/package-ref-hashes.txt` and
   build again), then `scripts/run-local-exec export-seed rundir/seed.db` before any

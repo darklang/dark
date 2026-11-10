@@ -45,7 +45,7 @@ let private eventSpecToDT (spec : HE.EventSpec) : Dval =
   | HE.EventSpec.StdinBytes n -> case "StdinBytes" [ DInt64(int64 n) ]
 
 let private parkedToDT (parked : Scheduler.Parked) : Dval =
-  let case = enumOf PackageRefs.Type.Stdlib.Exec.parkedOn
+  let case = enumOf PackageRefs.Type.LanguageTools.Exec.parkedOn
   match parked with
   | Scheduler.OnHost op -> case "Host" [ DString(HostTypes.describeOperation op) ]
   | Scheduler.OnBuiltin b -> case "Builtin" [ RT2DT.FQFnName.Builtin.toDT b ]
@@ -65,7 +65,7 @@ let private parkedToDT (parked : Scheduler.Parked) : Dval =
   | Scheduler.OnProcess pid -> case "Process" [ DUuid pid ]
 
 let private statusToDT (status : Scheduler.Status) : Dval =
-  let case = enumOf PackageRefs.Type.Stdlib.Exec.status
+  let case = enumOf PackageRefs.Type.LanguageTools.Exec.status
   match status with
   | Scheduler.Runnable -> case "Runnable" []
   | Scheduler.Parked parked -> case "Parked" [ parkedToDT parked ]
@@ -73,14 +73,14 @@ let private statusToDT (status : Scheduler.Status) : Dval =
   | Scheduler.Failed(rte, _) -> case "Failed" [ RT2DT.RuntimeError.toDT rte ]
 
 let private entryToDT (entry : Scheduler.Entry) : Dval =
-  let case = enumOf PackageRefs.Type.Stdlib.Exec.entry
+  let case = enumOf PackageRefs.Type.LanguageTools.Exec.entry
   match entry with
   | Scheduler.EntryFunction name -> case "Function" [ RT2DT.FQFnName.toDT name ]
   | Scheduler.EntryExpr -> case "Expr" []
 
 let summaryToDT (p : Scheduler.ProcessSummary) : Dval =
   recordOf
-    PackageRefs.Type.Stdlib.Exec.summary
+    PackageRefs.Type.LanguageTools.Exec.summary
     [ "id", DUuid p.id
       "entry", entryToDT p.entry
       "status", statusToDT p.status
@@ -90,11 +90,12 @@ let summaryToDT (p : Scheduler.ProcessSummary) : Dval =
       "allocated", DInt64 p.allocated
       "inflight", DInt64(int64 p.inflight) ]
 
-let summaryType () = KTCustomType(typ PackageRefs.Type.Stdlib.Exec.summary, [])
+let summaryType () =
+  KTCustomType(typ PackageRefs.Type.LanguageTools.Exec.summary, [])
 
 let private machineProcessToDT (e : LibExecution.HostRegistry.Entry) : Dval =
   recordOf
-    PackageRefs.Type.Stdlib.Exec.machineProcess
+    PackageRefs.Type.LanguageTools.Exec.machineProcess
     [ "pid", DInt64(int64 e.pid)
       "title", DString e.title
       "command", DString e.command
@@ -102,12 +103,12 @@ let private machineProcessToDT (e : LibExecution.HostRegistry.Entry) : Dval =
       "started", DDateTime(LibExecution.DarkDateTime.fromDateTime e.started) ]
 
 let private machineProcessType () =
-  KTCustomType(typ PackageRefs.Type.Stdlib.Exec.machineProcess, [])
+  KTCustomType(typ PackageRefs.Type.LanguageTools.Exec.machineProcess, [])
 
 let private detailToDT (p : Scheduler.ProcessSummary) : Dval =
   let frames = p.frames |> List.map RT2DT.ExecutionPoint.toDT
   recordOf
-    PackageRefs.Type.Stdlib.Exec.detail
+    PackageRefs.Type.LanguageTools.Exec.detail
     [ "summary", summaryToDT p
       "frames", Dval.list (RT2DT.ExecutionPoint.knownType ()) frames ]
 
@@ -118,7 +119,7 @@ let policyComplaint (policy : string) (what : string) : string =
   + "`dark config unset exec.policy` resets it."
 
 /// A scheduling policy written in Dark, as the scheduler's `Chooser`: `fn` takes the runnable
-/// processes (`List<Stdlib.Exec.Summary>`, oldest first) and answers `Some id` to step next, or
+/// processes (`List<LanguageTools.Exec.Summary>`, oldest first) and answers `Some id` to step next, or
 /// `None` for no preference. It runs on the scheduler's own thread, unscheduled, between slices,
 /// so it should be quick and should not wait; a failure or an answer of another shape counts as
 /// no preference for that turn, and the first failure is said once on stderr.
@@ -249,7 +250,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
-          TCustomType(NR.ok (typ PackageRefs.Type.Stdlib.Exec.machineProcess), [])
+          TCustomType(
+            NR.ok (typ PackageRefs.Type.LanguageTools.Exec.machineProcess),
+            []
+          )
         )
       description =
         "Every Dark process on this machine that is still running, oldest first: pid, what it "
@@ -270,7 +274,9 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TList(TCustomType(NR.ok (typ PackageRefs.Type.Stdlib.Exec.summary), []))
+        TList(
+          TCustomType(NR.ok (typ PackageRefs.Type.LanguageTools.Exec.summary), [])
+        )
       description =
         "Every process the scheduler in this instance knows, oldest first, finished ones "
         + "included. Empty when nothing is running under a scheduler."
@@ -290,7 +296,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (
-          TCustomType(NR.ok (typ PackageRefs.Type.Stdlib.Exec.detail), [])
+          TCustomType(NR.ok (typ PackageRefs.Type.LanguageTools.Exec.detail), [])
         )
       description =
         "One process with its call stack (outermost first), or None for an id nobody has."
@@ -298,7 +304,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUuid id |] ->
           let found = snapshot () |> List.tryFind (fun p -> p.id = id)
-          let detailType = KTCustomType(typ PackageRefs.Type.Stdlib.Exec.detail, [])
+          let detailType =
+            KTCustomType(typ PackageRefs.Type.LanguageTools.Exec.detail, [])
           Dval.option detailType (found |> Option.map detailToDT) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure

@@ -1,0 +1,95 @@
+module Darklang.LanguageTools.Exec
+
+/// The process table `dark ps` and the workbench render, and how many processes run at once.
+/// Tooling: Dark programs run things beside each other with `Stdlib.Exec`.
+///
+/// Every process is a wrapped VM the scheduler steps; the table's rows are copies taken on
+/// the scheduler thread, never references into a running VM.
+
+/// What a process was started on.
+type Entry =
+  | Function(LanguageTools.RuntimeTypes.FQFnName.FQFnName)
+  | Expr
+
+
+/// What a parked process is waiting for.
+type ParkedOn =
+  /// A host operation being performed for a builtin: a file read, an HTTP request, a process
+  /// run. The text names the operation and its resource (`file-read /some/path`).
+  | Host(String)
+  /// A builtin that had to wait: `sleep`, the script an `eval` runs.
+  | Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin)
+  /// A package function call that had to wait.
+  | PackageFn(LanguageTools.RuntimeTypes.FQFnName.Package)
+  /// A lambda application that had to wait.
+  | Lambda
+  /// The interpreter waiting on the store for a type or value.
+  | RareOpcode
+  /// `Host.await`: one of these.
+  | Events(List<Stdlib.Host.EventSpec>)
+  /// `Exec.await`: this process finishing.
+  | Process(Uuid)
+
+
+type Status =
+  | Runnable
+  | Parked(ParkedOn)
+  | Done
+  | Failed(LanguageTools.RuntimeTypes.RuntimeError.Error)
+
+
+type Summary =
+  { id: Uuid
+    entry: Entry
+    status: Status
+    /// The process that spawned this one, if any (an `eval` expression's is the CLI's).
+    parent: Stdlib.Option.Option<Uuid>
+    started: DateTime
+    /// How many instructions it has run.
+    instructionsTaken: Int64
+    /// Bytes it has allocated.
+    allocated: Int64
+    /// Reads it started that have not landed yet.
+    inflight: Int64 }
+
+
+/// One activation on a process's stack.
+type ExecutionPoint = LanguageTools.RuntimeTypes.ExecutionPoint
+
+
+type Detail =
+  { summary: Summary
+    /// The call stack at the moment of the snapshot, outermost first.
+    frames: List<ExecutionPoint> }
+
+
+/// Every process this instance's scheduler knows, finished ones included.
+let list(): List<Summary> =
+  Builtin.execList()
+
+
+/// One Dark process on this machine, from the registry every CLI writes at startup: what `dark ps`
+/// shows across processes, as against `list`, which is this process's own table.
+type MachineProcess =
+  { pid: Int64
+    /// What a system monitor shows: `dark serve :9090`, `dark eval`.
+    title: String
+    command: String
+    branch: String
+    started: DateTime }
+
+
+/// Every Dark process on this machine still running, oldest first.
+let machineList(): List<MachineProcess> =
+  Builtin.execMachineList()
+
+
+/// One process in detail, or `None` for an id nobody has.
+let inspect(id: Uuid): Stdlib.Option.Option<Detail> =
+  Builtin.execInspect(id)
+
+
+/// How many processes run at once: one per core this process may use. More than this many
+/// spawned at once take turns rather than running faster.
+let workers(): Int64 =
+  Builtin.execWorkerCount()
