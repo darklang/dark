@@ -2341,28 +2341,51 @@ module DictMap =
         n <- n + 1
       ofSorted (if n = merged.Length then merged else Array.sub merged 0 n)
 
+  /// Of each run of equal keys in `sorted`, the last; in place, so the caller hands over
+  /// an array it will not use again.
+  let private lastOfEachKey
+    (sorted : (struct (Dval * Dval))[])
+    : (struct (Dval * Dval))[] =
+    let mutable kept = 0
+    for i in 0 .. sorted.Length - 1 do
+      let struct (key, _) = sorted[i]
+      let isLastOfRun =
+        i = sorted.Length - 1
+        || (let struct (next, _) = sorted[i + 1] in
+            DictTreeOps.compareKeys key next <> 0)
+      if isLastOfRun then
+        sorted[kept] <- sorted[i]
+        kept <- kept + 1
+    if kept = sorted.Length then sorted else Array.sub sorted 0 kept
+
   /// From entries in any order. A key given twice keeps the LAST value, as repeated
   /// `add`s would.
   let ofList (entries : List<Dval * Dval>) : DictMap =
     let arr = entries |> List.map (fun (k, v) -> struct (k, v)) |> Array.ofList
-    // Past `smallLimit`: built in one pass if the entries are already in key order, as
-    // a decoded dict's are, and one add each otherwise. Up to it: an insertion sort,
-    // which is stable (of two equal keys the later stays later) and allocation-free.
+    let keyAt i =
+      let struct (k, _) = arr[i]
+      k
+    // Both sorts are stable (of two equal keys the later stays later), so the last of
+    // each run of equal keys is the one to keep. Past `smallLimit`: built in one pass if
+    // the entries are already in key order, as a decoded dict's are, and otherwise sorted
+    // by key and then position first. Up to it: an insertion sort, which allocates nothing.
     if arr.Length > smallLimit then
       let mutable sorted = true
       let mutable i = 1
       while sorted && i < arr.Length do
-        let struct (a, _) = arr[i - 1]
-        let struct (b, _) = arr[i]
-        sorted <- DictTreeOps.compareKeys a b < 0
+        sorted <- DictTreeOps.compareKeys (keyAt (i - 1)) (keyAt i) < 0
         i <- i + 1
       if sorted then
         ofSorted arr
       else
-        let mutable root = null
-        for struct (k, v) in arr do
-          root <- DictTreeOps.add k v root
-        Large root
+        let order = Array.init arr.Length (fun i -> i)
+        System.Array.Sort(
+          order,
+          System.Comparison(fun a b ->
+            let c = DictTreeOps.compareKeys (keyAt a) (keyAt b)
+            if c <> 0 then c else compare a b)
+        )
+        order |> Array.map (fun i -> arr[i]) |> lastOfEachKey |> ofSorted
     else
       for i in 1 .. arr.Length - 1 do
         let item = arr[i]
@@ -2373,18 +2396,7 @@ module DictMap =
           arr[j + 1] <- arr[j]
           j <- j - 1
         arr[j + 1] <- item
-      // Keep the last of each run of equal keys.
-      let mutable kept = 0
-      for i in 0 .. arr.Length - 1 do
-        let struct (key, _) = arr[i]
-        let isLastOfRun =
-          i = arr.Length - 1
-          || (let struct (next, _) = arr[i + 1] in
-              DictTreeOps.compareKeys key next <> 0)
-        if isLastOfRun then
-          arr[kept] <- arr[i]
-          kept <- kept + 1
-      Small(if kept = arr.Length then arr else Array.sub arr 0 kept)
+      Small(lastOfEachKey arr)
 
   let fold (f : 'acc -> Dval -> Dval -> 'acc) (state : 'acc) (d : DictMap) : 'acc =
     match d with

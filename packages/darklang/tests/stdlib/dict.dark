@@ -372,6 +372,27 @@ test listAliases =
       Stdlib.Dict.fromList([ ("a", 1), ("b", 2), ("a", 3) ])
       |> Stdlib.Test.equal(Dict { "a": 3, "b": 2 }) ])
 
+// Past 24 entries a dict is a tree; these are the order and duplicates it is built with.
+test fromListPastTwentyFourKeepsKeyOrder =
+  let reversed = Stdlib.List.reverse(Stdlib.List.range(1, 30))
+  let ints =
+    Stdlib.Dict.fromList(
+      Stdlib.List.append(Stdlib.List.map(reversed, fun i -> (i, i)), (5, 99)))
+  let strings =
+    Stdlib.Dict.fromList(
+      Stdlib.List.map(reversed, fun i -> ("k" + (Stdlib.toString(i)), i)))
+  let tuples =
+    Stdlib.Dict.fromList(
+      Stdlib.List.map(reversed, fun i -> ((i % 3, Stdlib.toString(i)), i)))
+  Stdlib.Test.all(
+    [ Stdlib.Dict.keys(ints) |> Stdlib.Test.equal(Stdlib.List.range(1, 30))
+      Stdlib.Dict.get(ints, 5) |> Stdlib.Test.equal(Some(99))
+      Stdlib.List.take(Stdlib.Dict.keys(strings), 4)
+      |> Stdlib.Test.equal([ "k1", "k10", "k11", "k12" ])
+      Stdlib.List.take(Stdlib.Dict.toList(tuples), 3)
+      |> Stdlib.Test.equal([ ((0, "12"), 12), ((0, "15"), 15), ((0, "18"), 18) ])
+      Stdlib.Dict.size(tuples) |> Stdlib.Test.equal(30) ])
+
 test values =
   Stdlib.Dict.values(Dict { "key1": "val1" }) |> Stdlib.Test.equal([ "val1" ])
 
