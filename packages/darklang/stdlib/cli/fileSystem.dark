@@ -23,6 +23,10 @@ module FileError =
     | Other(msg) -> msg
 
 
+impl ToString for FileError =
+  let toString = Stdlib.Cli.FileSystem.FileError.toString
+
+
 /// The process's current working directory.
 let currentDirectory(): String =
   Posix.getCwd() |> Builtin.unwrap

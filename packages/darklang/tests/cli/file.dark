@@ -27,6 +27,14 @@ module MissingFile =
         Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound)))
     |> Builtin.unwrap
 
+  // `Stdlib.toString` takes the error as it comes out of a failed read.
+  test fileErrorHasToString =
+    Stdlib.Test.all(
+      [ Stdlib.toString(Stdlib.Cli.FileSystem.FileError.NotFound)
+        |> Stdlib.Test.equal("File not found")
+        Stdlib.toString(Stdlib.Cli.FileSystem.FileError.Other("disk full"))
+        |> Stdlib.Test.equal("disk full") ])
+
 module AreIdentical =
   // Each file is read separately, so the two Bytes are separate values and
   // only their contents can make them equal.
