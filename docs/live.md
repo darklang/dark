@@ -24,7 +24,7 @@ resolves per request, and why a daemon written as one long-running fn needs a re
 
 ## The signal (how a process learns)
 
-`LibDB.Sqlite.DataVersion.current ()`, `Builtin.storeVersion`, `Stdlib.Live.version`.
+`LibDB.Sqlite.DataVersion.current ()`, `Builtin.storeVersion`, `LanguageTools.Live.version`.
 
 `PRAGMA data_version` is a per-connection counter that moves when a commit lands
 through any OTHER connection, in this process or another. LibDB opens a pooled
@@ -32,10 +32,10 @@ connection per query, so the pragma is asked on one connection held for the life
 the process (one per store, since tests swap stores and back). The number itself means
 nothing; "same as last time" or "moved" does, and only within one process.
 
-A config write or a trace write moves it too. `Stdlib.Live.poll` tells those apart from
+A config write or a trace write moves it too. `LanguageTools.Live.poll` tells those apart from
 an edit by asking the op log what landed (below), and answers `None` for them.
 
-## What changed (`Stdlib.Live.poll`, `SCM.PackageOps.landedSince`)
+## What changed (`LanguageTools.Live.poll`, `SCM.PackageOps.landedSince`)
 
 A `Watch` is a branch, the last counter seen, the newest insert time (`created_at`,
 millisecond resolution) seen so far, and the ids already seen at that instant.
@@ -90,7 +90,7 @@ The rule: name-keyed answers drop, hash-keyed answers stay. The test
 `tests/Interpreter/Reload` pins the consequence: a fn reference held before an edit
 runs the old body afterwards, a fresh lookup of the name runs the new one.
 
-## Does it reach what I'm showing (`Stdlib.Live.affects`)
+## Does it reach what I'm showing (`LanguageTools.Live.affects`)
 
 `affects change entry` is true when `entry` is one of the touched names or depends,
 transitively, on one of them. Reverse edges from `package_dependencies`, matched by
@@ -99,7 +99,7 @@ a name is found, which is exactly the caller a live host is. Over-approximates
 (a dependent through a branch that never runs is still a dependent) and never misses.
 An `unknown` change affects everything; a walk past 2,000 names answers true.
 
-## Which version to run (`Stdlib.Live.LastGood`)
+## Which version to run (`LanguageTools.Live.LastGood`)
 
 `LastGood` holds an entry LOCATION, the hash the host is on, and, when the newest
 version is not that hash, the at-rest report that says why. `refresh branchId landed
@@ -125,7 +125,7 @@ a log.
 
 `dark serve <router>` resolves the router by name at start (`Live.applicableByName`, which
 evaluates the name: the "no such fn" check and the bind-time approval root), then hands `Stdlib.HttpServer.serveLive` a
-`Stdlib.Live.Router.State` and `Router.step`. Per request the server runs `step` over
+`LanguageTools.Live.Router.State` and `Router.step`. Per request the server runs `step` over
 the state it keeps between requests; `step` polls, and when the change reaches the
 router it refreshes `LastGood` and answers with the handler for this request. The
 decision is Dark's; F# only holds the state between requests, because a Dark value
@@ -272,7 +272,7 @@ An agent authors through the same `addAuthored` a person's save goes through, on
 branch you watch, so nothing in the loop above is agent-specific: the store-change event
 fires, `affects` picks the views it touched, a broken intermediate state (the agent's
 normal case) keeps the last good frame, `dark diff` on the branch is the review. Two
-things are for the agent's side, both in `Stdlib.Live` and neither needs the agent
+things are for the agent's side, both in `LanguageTools.Live` and neither needs the agent
 harness.
 
 `Live.show(view)` points every host loop on this instance at a view (a module with
@@ -309,7 +309,7 @@ Not from the recording: from running the current code again on the recorded inpu
 edit to a callee shows up in the caller's values without anyone calling it again, and a
 value beside a call is always the value of the code you are looking at.
 
-`Stdlib.Live.Values.replay(accountID, branchId, location)` uses the viewing account's current
+`LanguageTools.Live.Values.replay(accountID, branchId, location)` uses the viewing account's current
 approvals (`None` selects anonymous approvals). It finds the newest recorded run that went
 through the function (`trace_fns`, name and hash per function), replays THAT WHOLE RUN
 with every impure call answered from its own log and none performed, and returns `Values`:

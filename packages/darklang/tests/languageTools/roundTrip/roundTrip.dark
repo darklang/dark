@@ -471,7 +471,7 @@ let runsDeclaredFn(
 
     match fnNames with
     | [ fnName ] ->
-      match Stdlib.Live.applicableByName(branchId, fnName) with
+      match LanguageTools.Live.applicableByName(branchId, fnName) with
       | Ok(f) -> callWith(f, arg) |> Stdlib.Test.equal(expected)
       | Error(e) -> Stdlib.Test.fail($"{name}: {e}")
     | _ -> Stdlib.Test.fail($"{name}: expected exactly one declared fn")

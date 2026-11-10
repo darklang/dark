@@ -247,7 +247,7 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
-    // The one slot `Stdlib.Host.await` keeps its `Stdlib.Live.Watch` in between calls: the runtime
+    // The one slot `Stdlib.Host.await` keeps its `LanguageTools.Live.Watch` in between calls: the runtime
     // says the store MOVED (a counter, from a timer), and Dark says which ops landed by polling
     // from where its last look left off. `await` takes no state, and a Dark value cannot outlive
     // the call that made it, so the watch lives here. Nothing else may use this.

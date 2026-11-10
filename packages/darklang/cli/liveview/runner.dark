@@ -4,7 +4,7 @@
 /// Between ticks the runner waits through `Stdlib.Host.await`.
 ///
 /// `live` is what makes it follow edits: on, an edit to the step (or to anything it calls) is
-/// resolved through `Stdlib.Live.LastGood` before the next tick, and a broken version is skipped
+/// resolved through `LanguageTools.Live.LastGood` before the next tick, and a broken version is skipped
 /// with the reason in the log. Off, which is the default, the daemon runs the version it started
 /// on until somebody restarts it -- because a background process quietly changing what it does
 /// while you edit is the thing you want to have asked for, so the caller passes `live` explicitly.
@@ -24,13 +24,13 @@ let timerMs(intervalMs: Int64): Int64 =
 let loop(
   name: String,
   branchId: Uuid,
-  lg: Stdlib.Live.LastGood,
+  lg: LanguageTools.Live.LastGood,
   state: 's,
   intervalMs: Int64,
   live: Bool)
   : Int64 =
   let state =
-    match Stdlib.Live.call(lg, state) with
+    match LanguageTools.Live.call(lg, state) with
     | Ok(next) -> next
     | Error(rte) ->
       Stdlib.printLine($"{name}: the step failed, so its state was kept: {rte}")
@@ -44,10 +44,10 @@ let loop(
       [ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ]
 
   match Stdlib.Host.await(specs) with
-  | StoreChanged(change) when Stdlib.Live.affects(change, lg.entry) ->
-    let refreshed = Stdlib.Live.refresh(branchId, lg)
+  | StoreChanged(change) when LanguageTools.Live.affects(change, lg.entry) ->
+    let refreshed = LanguageTools.Live.refresh(branchId, lg)
 
-    match Stdlib.Live.transition(lg, refreshed) with
+    match LanguageTools.Live.transition(lg, refreshed) with
     | Some(line) -> Stdlib.printLine($"{name}: {line}")
     | None -> ()
 
@@ -70,19 +70,19 @@ let run(
   intervalMs: Int64,
   live: Bool)
   : Int64 =
-  match Stdlib.Live.locationOfName(stepName) with
+  match LanguageTools.Live.locationOfName(stepName) with
   | None ->
     Stdlib.printLine($"{name}: {stepName} is not a package fn name")
     1
   | Some(entry) ->
     Stdlib.Host.begin()
     let branchId = SCM.PackageOps.currentBranch()
-    let lg = Stdlib.Live.refresh(branchId, Stdlib.Live.start(entry))
+    let lg = LanguageTools.Live.refresh(branchId, LanguageTools.Live.start(entry))
 
     match lg.hash with
     | None ->
       let why =
-        Stdlib.Option.withDefault(Stdlib.Live.diagnostic(lg), stepName + " does not resolve")
+        Stdlib.Option.withDefault(LanguageTools.Live.diagnostic(lg), stepName + " does not resolve")
 
       Stdlib.printLine($"{name}: {why}")
       1

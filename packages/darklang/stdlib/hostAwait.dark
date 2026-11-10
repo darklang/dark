@@ -46,8 +46,8 @@ type Event =
   /// its repeat count. `Stdlib.Cli.UI.Widget.press` narrows it to a `KeyPress` for a widget.
   | Key(Stdlib.Cli.Stdin.KeyRead.KeyRead)
   /// What landed: the ops, the names they touched, or `unknown` when it will not say
-  /// (`Stdlib.Live.poll` describes it).
-  | StoreChanged(Stdlib.Live.Change)
+  /// (`LanguageTools.Live.poll` describes it).
+  | StoreChanged(LanguageTools.Live.Change)
   | Timer
   | ExecDone(id: Uuid)
   /// What a `StdinLine` or `StdinBytes` read. A stream that went out of step (a byte count that
@@ -59,22 +59,22 @@ type Event =
 
 /// The watch behind `await`: where its last look at the op log left off. The runtime posts that
 /// the store MOVED (a data-version counter, from a timer under the scheduler); which ops landed is
-/// Dark's question, answered by `Stdlib.Live.poll` from here. The watch lives in a slot the runtime
+/// Dark's question, answered by `LanguageTools.Live.poll` from here. The watch lives in a slot the runtime
 /// keeps for this process (`Builtin.hostWatchGet`), because `await` takes no state and a Dark value
 /// does not outlive the call that made it.
-let remember(watch: Stdlib.Live.Watch): Stdlib.Live.Watch =
+let remember(watch: LanguageTools.Live.Watch): LanguageTools.Live.Watch =
   Builtin.hostWatchSet(watch)
   watch
 
-let currentWatch(): Stdlib.Live.Watch =
+let currentWatch(): LanguageTools.Live.Watch =
   match Builtin.hostWatchGet() with
   | Some(w) -> w
-  | None -> remember(Stdlib.Live.watch(SCM.PackageOps.currentBranch()))
+  | None -> remember(LanguageTools.Live.watch(SCM.PackageOps.currentBranch()))
 
 /// What landed since the last look. `None` when the store moved for a reason that is not an op (a
 /// config write, a trace).
-let describeChange(): Stdlib.Option.Option<Stdlib.Live.Change> =
-  let (next, change) = Stdlib.Live.poll(currentWatch())
+let describeChange(): Stdlib.Option.Option<LanguageTools.Live.Change> =
+  let (next, change) = LanguageTools.Live.poll(currentWatch())
   let _ = remember(next)
   change
 

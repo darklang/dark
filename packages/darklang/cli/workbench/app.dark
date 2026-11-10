@@ -65,7 +65,7 @@ let onKey(
 /// The name caches were dropped by the poll that reported the change either way, so the reads
 /// see the store as it is. Your own saves take the authoring path (`authoring.dark`), which
 /// reloads on its own.
-let onStoreChanged(state: State, change: Stdlib.Live.Change): State =
+let onStoreChanged(state: State, change: LanguageTools.Live.Change): State =
   // The item page is a read of the store, so it goes either way; the next frame rebuilds it.
   let state = { state with preview = Stdlib.Option.Option.None }
   if state.live then
@@ -73,7 +73,7 @@ let onStoreChanged(state: State, change: Stdlib.Live.Change): State =
       if change.unknown then
         "more than 500 ops (everything re-run)"
       else
-        Stdlib.String.join(Stdlib.Live.touchedNames(change), ", ")
+        Stdlib.String.join(LanguageTools.Live.touchedNames(change), ", ")
 
     forceScmRefresh(
       { state with items = reloadItems(state), messageKind = MessageKind.Succeeded, message = $"changed elsewhere: {names}" })

@@ -1,4 +1,4 @@
-module Darklang.Stdlib.Live.Tests
+module Darklang.LanguageTools.Tests.Live
 
 // `Live.dedupeTouched` and `Live.dependents`: the two places a live host decides
 // WHAT to reload.
@@ -25,13 +25,13 @@ test dedupeTouched =
   Stdlib.Test.all(
     [ // Same location, same kind, twice: one thing to reload.
       (Stdlib.List.length(
-        (Stdlib.Live.dedupeTouched(
-          [ Stdlib.Live.Touched
+        (LanguageTools.Live.dedupeTouched(
+          [ LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
-            Stdlib.Live.Touched
+            LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
@@ -41,13 +41,13 @@ test dedupeTouched =
       // THE case a coarser key would silently eat: one name bound as a fn and as a
       // type. Two things to reload, and a dedup on location alone reports one.
       (Stdlib.List.length(
-        (Stdlib.Live.dedupeTouched(
-          [ Stdlib.Live.Touched
+        (LanguageTools.Live.dedupeTouched(
+          [ LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
-            Stdlib.Live.Touched
+            LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
@@ -57,13 +57,13 @@ test dedupeTouched =
       // Different names under the same module are different, so the key reads the
       // whole location and not just its head.
       (Stdlib.List.length(
-        (Stdlib.Live.dedupeTouched(
-          [ Stdlib.Live.Touched
+        (LanguageTools.Live.dedupeTouched(
+          [ LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
-            Stdlib.Live.Touched
+            LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "b" }
@@ -71,7 +71,7 @@ test dedupeTouched =
       |> Stdlib.Test.equal(2)
 
       // Nothing touched is nothing to reload, rather than a raise on an empty Dict.
-      Stdlib.Live.dedupeTouched([]) |> Stdlib.Test.equal([]) ])
+      LanguageTools.Live.dedupeTouched([]) |> Stdlib.Test.equal([]) ])
 
 test dependents =
   Stdlib.Test.all(
@@ -79,8 +79,8 @@ test dependents =
       // the walk starts with its own frontier in `seen`. Nothing else pins what
       // this answers for a name that resolves to nothing.
       (Stdlib.List.length(
-        (Stdlib.Live.dependents(
-          [ Stdlib.Live.Touched
+        (LanguageTools.Live.dependents(
+          [ LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Nobody", modules = [ "Nothing" ], name = "here" }
@@ -92,8 +92,8 @@ test dependents =
       // more than the seed alone is the property, and it is the precondition for
       // the assertion below meaning anything.
       (Stdlib.List.length(
-        (Stdlib.Live.dependents(
-          [ Stdlib.Live.Touched
+        (LanguageTools.Live.dependents(
+          [ LanguageTools.Live.Touched
               { location =
                   Darklang.LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Darklang"
@@ -105,8 +105,8 @@ test dependents =
       // thing here the F# test above does not assert: without it a diamond reports
       // the same caller once per path to it, and a host reloads it that many times.
       (let reached =
-         Stdlib.Live.dependents(
-           [ Stdlib.Live.Touched
+         LanguageTools.Live.dependents(
+           [ LanguageTools.Live.Touched
                { location =
                    Darklang.LanguageTools.ProgramTypes.PackageLocation
                      { owner = "Darklang"
@@ -122,7 +122,7 @@ test dependents =
 // identifiers is evaluated, and only a fn comes back.
 module ApplicableByName =
   let resolve(name: String): Stdlib.Result.Result<String -> Int64, String> =
-    Stdlib.Live.applicableByName(Darklang.SCM.Branch.mainBranchId, name)
+    LanguageTools.Live.applicableByName(Darklang.SCM.Branch.mainBranchId, name)
 
   let errorOf(name: String): String =
     match resolve(name) with

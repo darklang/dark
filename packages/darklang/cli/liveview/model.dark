@@ -4,7 +4,7 @@
 /// tree; anything else that wants a panel that follows its own code builds a `View` the same way.
 module Darklang.Cli.LiveView.Model
 
-/// A live view: three fns held by NAME and resolved as the store changes (`Stdlib.Live`), never as
+/// A live view: three fns held by NAME and resolved as the store changes (`LanguageTools.Live`), never as
 /// values. `init : Unit -> 'model`, `update : 'model -> Cli.LiveView.Host.Event<'msg> -> 'model`,
 /// `render : 'model -> Stdlib.Cli.UI.Node.Node<'msg>`. The model stays in memory across an edit;
 /// `render` is a pure function of it.

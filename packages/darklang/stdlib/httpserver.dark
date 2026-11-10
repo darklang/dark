@@ -239,7 +239,7 @@ type Reload =
 /// `serve` for a server that follows edits: the handler is not fixed at start. Per request the server
 /// runs <param step> over a state it keeps between requests, and <param step> answers with the handler
 /// to use this time. <param first> is the handler as resolved at start, for the bind-time approval
-/// root. `Stdlib.Live.Router` is the step a router-by-name wants. <param reload> says whether an open
+/// root. `LanguageTools.Live.Router` is the step a router-by-name wants. <param reload> says whether an open
 /// page reloads itself on a save.
 let serveLive(
   config: Config.Config,

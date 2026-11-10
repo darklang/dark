@@ -668,12 +668,12 @@ let refreshLiveValues(next: State): State =
   | Some(entry) ->
     // A scroll or a command-bar key moves neither, and a replay costs a whole recorded run.
     let key =
-      $"{Stdlib.toString(next.branchId)} {Stdlib.Live.entryName(entry)} {Stdlib.toString(next.scmStatus.ops)}"
+      $"{Stdlib.toString(next.branchId)} {LanguageTools.Live.entryName(entry)} {Stdlib.toString(next.scmStatus.ops)}"
     if key == next.liveFor then
       next
     else
       let (values, note) =
-        match Stdlib.Live.Values.replay(next.accountId, next.branchId, entry) with
+        match LanguageTools.Live.Values.replay(next.accountId, next.branchId, entry) with
         | Some(v) ->
           // One line each, and short: a value beside a call is a glance, and the pane's width
           // is the code's. `dark traces inspect` has the whole value.
