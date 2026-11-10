@@ -214,7 +214,7 @@ type HttpRequestError =
   | BadUrl of HttpBadUrl
   | Timeout
   | BadHeader of HttpBadHeader
-  | NetworkError
+  | NetworkError of message : string
   /// The TLS handshake failed; the message says why, in words to act on.
   | TlsError of message : string
   | BadMethod

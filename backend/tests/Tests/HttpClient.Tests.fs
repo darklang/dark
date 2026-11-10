@@ -1124,9 +1124,85 @@ module ProxyTests =
                 (HostHttp.send profile "GET" $"http://localhost:{port}/" [] [||])
                   .WaitAsync(System.TimeSpan.FromSeconds 5.0)
               match result with
-              | Error LibExecution.HostTypes.HttpRequestError.NetworkError -> ()
+              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
+                Expect.equal
+                  message
+                  $"Could not connect to localhost:{port}"
+                  "message"
               | other -> failtest $"expected blocked direct connection, got {other}"
               Expect.isFalse (listener.Pending()) "no connection reached loopback"
+            }
+        }
+
+        testTask "proxy DNS failure names the proxy" {
+          return!
+            task {
+              let proxy = new WebProxy("http://no-such-proxy.invalid:1234")
+              let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
+              use _client = profile.client
+              let! result =
+                HostHttp.send profile "GET" "http://fixture.test/" [] [||]
+              match result with
+              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
+                Expect.equal
+                  message
+                  "Could not resolve host: proxy no-such-proxy.invalid"
+                  "DNS failure names the proxy"
+              | other -> failtest $"expected a proxy DNS failure, got {other}"
+            }
+        }
+
+        testTask "streaming proxy connection failure names the proxy" {
+          return!
+            task {
+              use listener = new Sockets.TcpListener(IPAddress.Loopback, 0)
+              listener.Start()
+              let port = (listener.LocalEndpoint :?> IPEndPoint).Port
+              listener.Stop()
+              let proxy = new WebProxy($"http://127.0.0.1:{port}")
+              let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
+              use _client = profile.client
+              let! result =
+                HostHttp.openStream profile "GET" "https://fixture.test/" [] [||]
+              match result with
+              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
+                Expect.stringStarts
+                  message
+                  $"Could not connect to proxy 127.0.0.1:{port}: "
+                  "connection failure names the proxy"
+              | other -> failtest $"expected a proxy connection failure, got {other}"
+            }
+        }
+
+        testTask "a refused connection says so, naming the host and port" {
+          // A port that was just free: nothing listens there now.
+          let port =
+            let listener = new Sockets.TcpListener(IPAddress.Loopback, 0)
+            listener.Start()
+            let port = (listener.LocalEndpoint :?> IPEndPoint).Port
+            listener.Stop()
+            port
+          let config =
+            { HostHttp.defaultConfig with
+                timeoutInMs = 5000
+                allowedIP = fun _ -> true
+                allowedHost = fun _ -> true }
+          return!
+            task {
+              // Every request bypasses this proxy, so the connection is a direct one.
+              let proxy = new WebProxy("http://proxy.invalid:1")
+              proxy.BypassList <- [| ".*" |]
+              let profile = HostHttp.profileWithProxy config proxy
+              use _client = profile.client
+              let! result =
+                HostHttp.send profile "GET" $"http://127.0.0.1:{port}/" [] [||]
+              match result with
+              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
+                Expect.equal
+                  message
+                  $"Could not connect to 127.0.0.1:{port}: Connection refused"
+                  "message"
+              | other -> failtest $"expected a refused connection, got {other}"
             }
         } ]
 
@@ -1231,7 +1307,11 @@ module BodyTests =
                 :> System.IO.Stream)
               (1024L * 1024L)
           match result with
-          | Error HT.HttpRequestError.NetworkError -> ()
+          | Error(HT.HttpRequestError.NetworkError message) ->
+            Expect.equal
+              message
+              "Request to fixture.test failed: connection reset"
+              "message"
           | other -> failtest $"expected NetworkError, got {other}"
         }
 
@@ -1242,7 +1322,11 @@ module BodyTests =
                 new MemoryStream(Array.zeroCreate<byte> 2048) :> System.IO.Stream)
               1024L
           match result with
-          | Error HT.HttpRequestError.NetworkError -> ()
+          | Error(HT.HttpRequestError.NetworkError message) ->
+            Expect.stringStarts
+              message
+              "Request to fixture.test failed: Cannot write more bytes"
+              "message"
           | other -> failtest $"expected NetworkError, got {other}"
         }
 

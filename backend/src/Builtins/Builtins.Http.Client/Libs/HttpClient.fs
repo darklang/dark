@@ -78,7 +78,8 @@ module RequestError =
       | HostTypes.HttpRequestError.Timeout -> "Timeout", []
       | HostTypes.HttpRequestError.BadHeader err ->
         "BadHeader", [ BadHeader.toDT err ]
-      | HostTypes.HttpRequestError.NetworkError -> "NetworkError", []
+      | HostTypes.HttpRequestError.NetworkError message ->
+        "NetworkError", [ DString message ]
       | HostTypes.HttpRequestError.TlsError message ->
         "TlsError", [ DString message ]
       | HostTypes.HttpRequestError.BadMethod -> "BadMethod", []
