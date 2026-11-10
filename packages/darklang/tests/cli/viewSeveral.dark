@@ -1,0 +1,40 @@
+/// `view` with several names shows each under its name, so reading the three functions a
+/// change touches is one call rather than three.
+module Darklang.Cli.Tests.ViewSeveral
+
+// The default view is highlighted.
+let plain(out: String): String = Stdlib.Cli.Tui.Text.stripSgr(out)
+
+test severalNamesAreEachShown =
+  Instance.withInstance(fun i ->
+    let (code, styled) = Instance.ran(i, [ "view", "Stdlib.List.head", "Stdlib.List.last" ])
+    let out = plain(styled)
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "two names")
+        Instance.says(out, "# Stdlib.List.head", "the first name is a header")
+        Instance.says(out, "let head", "the first item is shown")
+        Instance.says(out, "# Stdlib.List.last", "the second name is a header")
+        Instance.says(out, "let last", "the second item is shown") ]))
+
+// Under --raw each name is a comment, so the output is still source.
+test rawNamesAreComments =
+  Instance.withInstance(fun i ->
+    let (code, out) =
+      Instance.ran(i, [ "view", "Stdlib.List.head", "Stdlib.List.last", "--raw" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "two names, raw")
+        Instance.says(out, "// Stdlib.List.last\n/// Returns the last value", "the name is a comment above the item")
+        Instance.doesNotSay(out, "# Stdlib", "no markdown header in raw output") ]))
+
+// A name that is not there is reported, and the others are still shown.
+test anUnknownNameIsReported =
+  Instance.withInstance(fun i ->
+    let (code, styled) = Instance.ran(i, [ "view", "Stdlib.List.head", "Zzz.Nope.f" ])
+    let out = plain(styled)
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "one name is not there")
+        Instance.says(out, "Cannot view Zzz.Nope.f", "the missing name is reported")
+        Instance.says(out, "let head", "the other name is still shown") ]))

@@ -522,11 +522,11 @@ let modeName(mode: ViewMode): String =
 // four places. Deciding that is the prerequisite; this flag should not be extended first.
 
 /// Flags are accepted in any position, so `view --ast List.last` and `view List.last --ast` both work.
-/// Returns the path (if one was given), the mode, and whether `--include-tests` was passed, or
-/// an error naming the bad flag.
+/// Returns the paths given (none means the current location), the mode, and whether
+/// `--include-tests` was passed, or an error naming the bad flag.
 let parseArgs(
   args: List<String>)
-  : Stdlib.Result.Result<(Stdlib.Option.Option<String> * ViewMode * Bool), String> =
+  : Stdlib.Result.Result<(List<String> * ViewMode * Bool), String> =
   let isFlag(a: String): Bool = Stdlib.String.startsWith(a, "-")
   let includeTests = Stdlib.List.contains(args, "--include-tests")
   let flags =
@@ -553,10 +553,7 @@ let parseArgs(
       // a tests list in that output would break the pipe `--raw` exists for.
       Stdlib.Result.Result.Error("`--include-tests` goes with the default view only")
     else
-      match paths with
-      | [] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.None, mode, includeTests))
-      | [ p ] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.Some(p), mode, includeTests))
-      | _ -> Stdlib.Result.Result.Error("expected at most one path")
+      Stdlib.Result.Result.Ok((paths, mode, includeTests))
 
 
 /// The function at a location, if the location names one. `--ast` and `--instructions` are function-only
@@ -764,51 +761,78 @@ let printTraceHint(branchId: Uuid, location: PackageLocation): Unit =
 
 
 
-let execute(state: AppState, args: List<String>): AppState =
+/// View one item: <param pathArg>, or the current location when there is none. <param failure>
+/// starts the line that says it is not there.
+let viewOne(
+  state: AppState,
+  pathArg: Stdlib.Option.Option<String>,
+  mode: ViewMode,
+  includeTests: Bool,
+  failure: String)
+  : AppState =
   let branchId = state.currentBranchId
 
+  let locationResult =
+    match pathArg with
+    | None -> Stdlib.Result.Result.Ok(state.packageData.currentLocation)
+    | Some(p) ->
+      if isItemHash(p) then
+        resolveHashArg(p)
+      else
+        Traversal.traverse(branchId, state.packageData.currentLocation, p)
+
+  match locationResult with
+  | Error(errorMsg) ->
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"{failure}: {errorMsg}"))
+    // Nonzero: `dark view X` in a script is asking a question whose answer here is "there is no
+    // such thing", and a zero exit says the opposite to everything downstream of it.
+    { state with exitCode = 1 }
+  | Ok(location) ->
+    match mode with
+    | Raw ->
+      match rawSource(branchId, location) with
+      | Ok(src) ->
+        Stdlib.printLine(src)
+        state
+      | Error(e) ->
+        Cli.printErr(e)
+        { state with exitCode = 1 }
+    | Source ->
+      viewEntity(branchId, location, includeTests)
+      // Show the trace hint only for the human-readable source view.
+      printTraceHint(branchId, location)
+      state
+    | _ ->
+      viewCompiled(branchId, location, mode)
+      state
+
+
+let execute(state: AppState, args: List<String>): AppState =
   match parseArgs(args) with
   | Error(e) ->
     Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot view: {e}"))
     Stdlib.printErrorLine(help(state))
     { state with exitCode = 1 }
   | Ok(parsed) ->
-    let (pathArg, mode, includeTests) = parsed
+    let (paths, mode, includeTests) = parsed
 
-    let locationResult =
-      match pathArg with
-      | None -> Stdlib.Result.Result.Ok(state.packageData.currentLocation)
-      | Some(p) ->
-        if isItemHash(p) then
-          resolveHashArg(p)
-        else
-          Traversal.traverse(branchId, state.packageData.currentLocation, p)
-
-    match locationResult with
-    | Error(errorMsg) ->
-      // The traversal names the path it looked for, so this does not repeat it.
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot view: {errorMsg}"))
-      // Nonzero: `dark view X` in a script is asking a question whose answer here is "there is no
-      // such thing", and a zero exit says the opposite to everything downstream of it.
-      { state with exitCode = 1 }
-    | Ok(location) ->
+    // Several items are each viewed under their name. Under --raw the name is a comment, so the
+    // output is still source that `dark module` reads. A failure names the path, because the
+    // traversal names only the segment it stopped at.
+    let viewNamed(acc: AppState, p: String): AppState =
       match mode with
-      | Raw ->
-        match rawSource(branchId, location) with
-        | Ok(src) ->
-          Stdlib.printLine(src)
-          state
-        | Error(e) ->
-          Cli.printErr(e)
-          { state with exitCode = 1 }
-      | Source ->
-        viewEntity(branchId, location, includeTests)
-        // Show the trace hint only for the human-readable source view.
-        printTraceHint(branchId, location)
-        state
-      | _ ->
-        viewCompiled(branchId, location, mode)
-        state
+      | Raw -> Stdlib.printLine($"// {p}")
+      | _ -> Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"# {p}"))
+      viewOne(acc, Stdlib.Option.Option.Some(p), mode, includeTests, $"Cannot view {p}")
+
+    match paths with
+    | [] -> viewOne(state, Stdlib.Option.Option.None, mode, includeTests, "Cannot view")
+    | [ p ] -> viewOne(state, Stdlib.Option.Option.Some(p), mode, includeTests, "Cannot view")
+    | [ first, ...rest ] ->
+      rest
+      |> Stdlib.List.fold(viewNamed(state, first), fun(acc, p) ->
+        Stdlib.printLine("")
+        viewNamed(acc, p))
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
@@ -831,10 +855,11 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 
 let help(_state: AppState): String =
   [
-    "Usage: view [path] [--include-tests] [--raw | --ast | --instructions]"
+    "Usage: view [path...] [--include-tests] [--raw | --ast | --instructions]"
     "View a function, type, value, trait, implementation, test or module."
     ""
     "With path: View the specified item with syntax highlighting."
+    "With several paths: View each in turn, under its name."
     "Without path: View current location."
     ""
     "Options:"
@@ -853,6 +878,7 @@ let help(_state: AppState): String =
     "Examples:"
     "  view                            - View current location"
     "  view List.head                  - View the List.head function"
+    "  view List.head List.last        - View both, in one call"
     "  view Option                     - View the Option type"
     "  view Stdlib.List                - View contents of Stdlib.List module"
     "  view List.head --raw            - Print just the declaration"
