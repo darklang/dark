@@ -7,7 +7,7 @@ open LibExecution.RuntimeTypes
 module VT = ValueType
 
 
-let int8 (i : int8) = DInt8 i
+let int8 (i : int8) = RuntimeTypes.Dval.dint8 i
 let uint8 (i : uint8) : Dval = RuntimeTypes.Dval.duint8 i
 let int16 (i : int16) = DInt16 i
 let uint16 (i : uint16) = DUInt16 i
@@ -30,6 +30,9 @@ let bigInt (b : bigint) : Dval = RuntimeTypes.Dval.bigInt b
 let asBigInt (dv : Dval) : bigint = RuntimeTypes.Dval.asBigInt dv
 
 let string (s : string) = DString s
+
+/// `DChar`, sharing one instance for each ASCII character.
+let char (c : string) : Dval = RuntimeTypes.Dval.dchar c
 
 let uuid (s : System.Guid) = DUuid s
 
@@ -385,10 +388,10 @@ let packageValue (hash : Hash) (body : Dval) : PackageValue.PackageValue =
 
 
 let byteArrayToDvalList (bytes : byte[]) : Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> RuntimeTypes.Dval.duint8 (byte b))
-  |> fun dvalList -> DList(VT.uint8, Items(dvalList))
+  DList(
+    VT.uint8,
+    DvalList.init bytes.Length (fun i -> RuntimeTypes.Dval.duint8 bytes[i])
+  )
 
 let dlistToByteArray (dvalList : List<Dval>) : byte[] =
   dvalList

@@ -4265,10 +4265,19 @@ module Dval =
     else
       DInt64 i
 
-  let private allUInt8s : Dval[] = Array.init 256 (fun i -> DUInt8(uint8 i))
+  let private int8s : Dval[] = Array.init 256 (fun i -> DInt8(int8 (i - 128)))
+  let private uint8s : Dval[] = Array.init 256 (fun i -> DUInt8(uint8 i))
+  let private asciiChars : Dval[] = Array.init 128 (fun i -> DChar(string (char i)))
 
-  /// `DUInt8`, sharing one instance for each value.
-  let duint8 (b : uint8) : Dval = allUInt8s[int b]
+  /// `DInt8`, one instance per value.
+  let dint8 (i : int8) : Dval = int8s[int i + 128]
+
+  /// `DUInt8`, one instance per value.
+  let duint8 (b : uint8) : Dval = uint8s[int b]
+
+  /// `DChar`, sharing one instance for each ASCII character.
+  let dchar (c : string) : Dval =
+    if c.Length = 1 && c[0] < char 128 then asciiChars[int c[0]] else DChar c
 
   /// Constructs a `BigInt` Dval from a bigint, normalizing through `DarkBigInt`.
   let bigInt (b : bigint) : Dval = dbigint (DarkBigInt.ofBigInt b)
