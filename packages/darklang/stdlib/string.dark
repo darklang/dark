@@ -421,7 +421,6 @@ let lastIndexOf(
     Option.Option.Some(lastIndex)
 
 
-// TODO: `repeat` may become the checked version; see #6056.
 /// Returns <param string> repeated <param count> times, or {{""}} if <param count>
 /// is 0 or less. Use <fn String.checkedRepeat> to get an error for a negative count.
 let repeat(string: String, count: Int64): String =

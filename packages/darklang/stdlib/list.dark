@@ -85,7 +85,6 @@ let contains(list: List<'a>, value: 'a): Bool =
   Builtin.listContains(list, value)
 
 
-// TODO: `repeat` may become the checked version; see #6056.
 /// Returns a list of <param value> repeated <param times> times, or {{[]}} if
 /// <param times> is 0 or less. Use <fn List.checkedRepeat> to get an error for a
 /// negative count.
