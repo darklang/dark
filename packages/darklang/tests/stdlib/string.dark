@@ -215,7 +215,11 @@ test endsWith =
       Stdlib.String.endsWith("👱👱🏻👱🏼👱🏽👱🏾👱🏿", "﷽") |> Stdlib.Test.equal(false)
       Stdlib.String.endsWith("🧟‍♀️🧟‍♂️", "🧟‍♀️") |> Stdlib.Test.equal(false)
       Stdlib.String.endsWith("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", "🏳️‍⚧️‍️🇵🇷")
-      |> Stdlib.Test.equal(true) ])
+      |> Stdlib.Test.equal(true)
+      Stdlib.String.endsWith("a🇺🇸", "🇸") |> Stdlib.Test.equal(false)
+      Stdlib.String.endsWith("👍🏽", "🏽") |> Stdlib.Test.equal(false)
+      Stdlib.String.endsWith("ab👍🏽", "b👍🏽") |> Stdlib.Test.equal(true)
+      Stdlib.String.endsWith("ab", "xab") |> Stdlib.Test.equal(false) ])
 
 
 test randomPairIsDifferent =
