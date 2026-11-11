@@ -91,8 +91,7 @@ let verifyChecksum(
 ///
 /// A copy, because the question is whether the new binary works for this person, with their data:
 /// an older release can't read a store a newer one has written, and a release with a seeding bug
-/// fails only in a data directory that already exists (v0.0.50 to v0.0.54 did, every command). An
-/// empty store answers neither.
+/// fails only in a data directory that already exists. An empty store answers neither.
 ///
 /// With `HOME` set to the temp directory, the new binary's `~/.darklang` is the copy, so it never
 /// migrates the live store before we know whether we're keeping it.

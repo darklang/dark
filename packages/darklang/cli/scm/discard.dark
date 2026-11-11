@@ -87,9 +87,9 @@ let execute(state: AppState, args: List<String>): AppState =
   let ops = SCM.PackageOps.draftOpCount()
 
   // Empty means NO OPS, not "no changed names". A draft can hold ops that bind nothing -- a
-  // a version restore, a deprecation, an ack -- and deciding on the bindings alone reported those
-  // as nothing to discard and then left them in place, which `dark propagate` promptly showed
-  // still there. The listing below is per binding and stays that way; the count is the truth.
+  // a version restore, a deprecation, an ack -- and deciding on the bindings alone would report
+  // those as nothing to discard and leave them in place. The listing below is per binding and
+  // stays that way; the count is the truth.
   if ops == 0 then
     Cli.Stderr.ok($"nothing to discard -- your draft on {scope} is empty.")
     state

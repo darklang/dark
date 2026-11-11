@@ -2,8 +2,7 @@
 ///
 /// There is no interpreter support for a persistent environment, and this deliberately doesn't add any. A
 /// session holds `name -> source text` and every eval is prefixed with those as a `let` chain, so the binding
-/// is re-established each time. `eval` already accepts a multi-line let-chain, so nothing below the CLI had to
-/// change.
+/// is re-established each time. `eval` already accepts a multi-line let-chain.
 ///
 /// The source text a binding holds is the *value*, not the expression that produced it, whenever the value can
 /// be written as a literal: `captureValue` reflects the result back into source via
@@ -177,14 +176,14 @@ let withBindings(bindings: List<Binding>, expr: String): String =
 /// was keeps any later binding that mentions this name defined below it.
 ///
 /// An UNCAPTURED rebind moves to the end, because it holds an expression that may reference names bound after
-/// the position it currently occupies. Keeping it in place wedged the session:
+/// the position it currently occupies. Keeping it in place would wedge the session:
 ///
 ///   let d = Stdlib.DateTime.now ()   (uncapturable, so it holds the expression)
 ///   let a = 1                        (captured)
 ///   let a = d                        (capture fails; falls back to holding "d")
 ///
-/// left the chain as `let a = d` / `let d = ...`, so `d` was undefined when `a` was bound and every
-/// subsequent eval failed with no way out but clearing the session.
+/// would leave the chain as `let a = d` / `let d = ...`, so `d` is undefined when `a` is bound and every
+/// later eval fails with no way out but clearing the session.
 let upsert(bindings: List<Binding>, b: Binding): List<Binding> =
   let withoutIt = bindings |> Stdlib.List.filter(fun x -> x.name != b.name)
   let alreadyBound = (Stdlib.List.length(withoutIt)) != (Stdlib.List.length(bindings))

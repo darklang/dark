@@ -129,7 +129,7 @@ type CommitRowJson =
 /// One branch, as `dark branches --json` reports it.
 type BranchJson =
   { id: String
-    /// What a person types and reads. Present because an agent that only got the id had no way to display a
+    /// What a person types and reads. Present because an agent with only the id has no way to display a
     /// branch or to pass one to another command -- every other surface takes a name.
     name: String
     parent: String

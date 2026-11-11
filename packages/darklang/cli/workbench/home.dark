@@ -211,8 +211,7 @@ let openHomeRow(state: State): Step =
         let (id, name) = target
         if id == state.branchId then
           // The branch you're on: nothing to switch to, so ⏎ opens its
-          // uncommitted work. A toast saying "already on it" answered a
-          // question nobody had asked.
+          // uncommitted work.
           Step.Continue(goTo(state, mkDest(vSCM, 0)))
         else
           Step.Continue(switchWorkbenchBranch(state, id, name))

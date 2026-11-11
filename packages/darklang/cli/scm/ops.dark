@@ -16,7 +16,7 @@ let short(s: String): String =
 /// The first line of an op's pretty-printed form, clipped to fit a column.
 ///
 /// The whole point of a log listing is to be readable without a second command per row, and byte
-/// size never answered anything. Same printer `dark ops show` uses, so the two cannot drift; this
+/// size answers nothing. Same printer `dark ops show` uses, so the two cannot drift; this
 /// takes the head line and `show` takes all of it.
 let describe(branchId: Uuid, width: Int64, s: SCM.PackageOps.OpSummary): String =
   match s.op with
@@ -104,8 +104,8 @@ let help(_state: AppState): String =
     "`dark commits` groups the same log by commit; `dark show <id>` opens one op or commit." ]
   |> Stdlib.String.join("\n")
 
-/// Where a verb that used to be an `ops` subcommand lives. `ops` reads; every verb that CHANGES the log is
-/// a root command, and a guess at the old shape deserves an answer rather than the help text.
+/// Where a verb someone tries as an `ops` subcommand lives. `ops` reads; every verb that CHANGES the log is
+/// a root command, and a guess at `ops <verb>` deserves an answer rather than the help text.
 let movedFromOps(verb: String): Stdlib.Option.Option<String> =
   match verb with
   | "branch"
@@ -131,8 +131,8 @@ let execute(state: AppState, args: List<String>): AppState =
     Cli.failed(state)
   else
 
-  // A count has to be a positive number: `ops -5` read as a count of -5 used to print the whole
-  // log (a million characters), and a refused count names the problem where silent help does not.
+  // A count has to be a positive number: a count of -5 would print the whole log, and a refused
+  // count names the problem where silent help does not.
   let countOf(n: String): Stdlib.Result.Result<Int64, String> =
     match Stdlib.Int64.parse(n) with
     | Ok(l) when l > 0 -> Stdlib.Result.Result.Ok(l)

@@ -11,7 +11,7 @@ module Darklang.Cli.RelativeTime
 /// Coarse on purpose: one unit, no "1 day 4 hours". A log column wants a glance, not a duration.
 let ago(then_: DateTime): String =
   // On one line deliberately: a `-` starting a continuation line at the same column reads as a new
-  // statement (it could be a negative literal), so the split form silently became two expressions.
+  // statement (it could be a negative literal), so the split form would silently become two expressions.
   let now = Stdlib.DateTime.toSeconds(Stdlib.DateTime.now())
   let seconds = now - (Stdlib.DateTime.toSeconds(then_))
 

@@ -464,8 +464,8 @@ module Watch =
     let n = Stdlib.List.length(m.rows)
     { m with cursor = Stdlib.max(0, Stdlib.min(m.cursor, n - 1)) }
 
-  /// The panel shows one line either way, so a refusal becomes the note in the colour it
-  /// used to be printed in. `cancel` and `kill` on the command line exit non-zero instead;
+  /// The panel shows one line either way, so a refusal becomes the note, in the error
+  /// colour. `cancel` and `kill` on the command line exit non-zero instead;
   /// a panel has no exit code to carry it.
   let noteOf(r: Stdlib.Result.Result<String, String>): String =
     match r with

@@ -1,9 +1,9 @@
 /// The navbar: workspace navigation for the workbench.
 ///
 /// The navbar is one flat strip across the top of the body: eight numbered views
-/// and nothing under any of them. No view has sections: what used to be
-/// Changes' History and Branches is on Home, and its Conflicts are rows in
-/// Changes. Narrow terminals show the same rows as a vertical overlay only
+/// and nothing under any of them. No view has sections: History and
+/// Branches are on Home, and Conflicts are rows in Changes. Narrow
+/// terminals show the same rows as a vertical overlay only
 /// while navigation has focus.
 ///
 /// Part of `Darklang.Cli.Workbench`.
@@ -42,7 +42,7 @@ let mkDest(view: Int64, section: Int64): Dest = Dest { view = view, section = se
 /// key for an item is its position here, so hiding one (gating) doesn't
 /// renumber the rest.
 ///
-/// One view per item, by design. What used to sit under an item is either on
+/// One view per item, by design. Anything more is either on
 /// Home (History, Branches), a row in the view (Conflicts), or a view you
 /// step to from its parent (`B` builtins from the tree, `E` errors from
 /// traces).
@@ -138,7 +138,7 @@ let navbarRows(state: State, wip: Int64, conflicts: Int64): List<NavbarRow> =
     let entry = workspaceEntryIn(vis, state, i) |> Stdlib.Option.withDefault(mkDest(vHome, 0))
     // The badge: what needs you in there. Changes only: the tree says where
     // the draft is by graying the modules that hold it, so a count on Code
-    // repeated the number without saying anything the tree doesn't.
+    // would repeat the number without saying anything the tree doesn't.
     let (badge, color) =
       if w.name == "Changes" then
         if conflicts > 0 then ("⚠ " + (count(conflicts)), Stdlib.Cli.UI.Colors.orange)
@@ -219,7 +219,7 @@ let jumpToWorkspace(state: State, n: Int64): State =
 /// Keys while the nav has the keyboard. The arrows follow how the rows sit
 /// on screen. As a strip: ←→ walk it and ↓ steps into the
 /// content. As an overlay the rows run top to bottom, so ↑↓ walk and →
-/// leaves, as the column did. Either way ⏎ goes, and tab and esc hand the
+/// leaves. Either way ⏎ goes, and tab and esc hand the
 /// keyboard back to the content (esc is one step back everywhere, and
 /// taking the nav was the step). Anything global (`/`, `:`, `?`, numbers,
 /// `q`) still works.
@@ -228,10 +228,10 @@ let handleNavbarKey(
   key: Stdlib.Cli.Stdin.Key.Key,
   keyChar: Stdlib.Option.Option<String>)
   : Step =
-  // Every one of these is a function, not a value. `let` is eager, so binding them computed the
-  // outcome of keys that were not pressed on every keypress -- including `openSel`, which calls
+  // Every one of these is a function, not a value. `let` is eager, so binding them would compute
+  // the outcome of keys that were not pressed on every keypress -- including `openSel`, which calls
   // `goTo` and loads items from the DB, and `navbarRows`, which is the most expensive thing the
-  // key handler touches. Stepping into the content pane now does none of it.
+  // key handler touches.
   let rowsNow(_u: Unit): List<NavbarRow> = navbarRows(state, 0, 0)
 
   let selIn(rows: List<NavbarRow>): Int64 =

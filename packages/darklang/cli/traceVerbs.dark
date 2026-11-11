@@ -9,11 +9,9 @@ module Darklang.Cli.TraceVerbs
 ///
 /// `Stdlib.List.map` is how everyone writes it and how the rest of the CLI accepts
 /// it, but the index stores the name a hash resolves to, which is owner-first:
-/// `Darklang.Stdlib.List.map`. Without this, `traces calls Stdlib.List.map` answered
+/// `Darklang.Stdlib.List.map`. Without this, `traces calls Stdlib.List.map` would answer
 /// "no recorded trace went through Stdlib.List.map" about a function with plenty of
-/// traces -- an empty ANSWER to what was really a spelling this command did not take,
-/// which is the worst of both. `dark view` takes the short form, so these should
-/// too.
+/// traces. `dark view` takes the short form, so these should too.
 let canonicalFnName(branchId: Uuid, typed: String): String =
   let resolves(name: String): Bool =
     (LanguageTools.PackageManager.Function.find(
@@ -208,8 +206,8 @@ type LoopJson =
 
 
 /// Why a page stopped, for `--json`. `drift` is the part an agent acts on: false means debug the
-/// code, true means the store moved since the recording and the next step is a rerun. A string
-/// alone made an agent parse prose to work that out, and it is a decision, not a message.
+/// code, true means the store moved since the recording and the next step is a rerun. It is a
+/// decision, not a message, so an agent should not have to parse prose for it.
 type ProblemJson =
   { /// The error, rendered. For a drift stop this is about running code and may carry advice
     /// for `run`/`eval`, which is not what the reader is doing; `why` is the part that applies.
@@ -222,8 +220,7 @@ type ProblemJson =
 
 
 /// The ONE place a stopped replay becomes words, for both readers. `show` prints the message and
-/// the advice; `--json` sends the same three fields. Two converters is how `show` and `show --json`
-/// came to disagree about iterations earlier on this branch, so this one is shared on purpose.
+/// the advice; `--json` sends the same three fields, so the two cannot disagree.
 let problemJson(
   branchId: Uuid,
   traceId: String,
@@ -575,8 +572,7 @@ let showCodeJson(
   typed: String,
   tracePrefix: Stdlib.Option.Option<String>,
   /// What `--iteration` was given, if anything. An agent asking for the middle of a long loop
-  /// gets it fetched, exactly as the page does; without this it could see the first and last few
-  /// and had no way to reach the rest.
+  /// gets it fetched, exactly as the page does; without this it sees only the first and last few.
   iterationArg: Stdlib.Option.Option<String>,
   /// `--full`: no budget on a value. The default caps each one and says what it cut; an agent
   /// that has decided it wants the whole thing asks for it rather than guessing.
@@ -598,12 +594,8 @@ let showCodeJson(
     Cli.printErr(e)
     false
   | Ok(trace) ->
-    // Resolved before anything is replayed, and REFUSED when it does not resolve.
-    //
-    // This used to fall back to `""` and carry on, so an agent asking about a function a build
-    // had wiped got a full page of values with an empty hash in it and nothing saying so, while
-    // a person asking the same question got told what had happened and what to do. The whole
-    // point of the hash is looking the code up later, and "" cannot be looked up.
+    // Resolved before anything is replayed, and REFUSED when it does not resolve: the point of
+    // the hash is looking the code up later, and "" cannot be looked up.
     match
       LanguageTools.PackageManager.Function.find(
         branchId,
@@ -660,7 +652,7 @@ let showCodeJson(
     // Two jobs. It drops the iterations with nothing to say, since a view keeps values for a
     // bounded number of them and `count` below already says how many there were. And it stops
     // every iteration scanning the whole value list for its own, which would be iterations times
-    // values: 2000 x 12,000 on a 2000-iteration loop.
+    // values.
     let framesWithValues =
       frameValues
       |> Stdlib.List.map(fun row ->
@@ -806,14 +798,11 @@ let loopsOf(
   // frame.
   //
   // `insideFn` walks up the frame tree and every step scans the frame list, so asking it per
-  // frame is the number of frames squared. On a 2000-iteration loop that was most of the ten
-  // seconds opening the trace took. A call site is a lambda's own expression id, so every
+  // frame is the number of frames squared. A call site is a lambda's own expression id, so every
   // frame at one site is the same lambda in the same place, and the answer cannot differ
   // between them.
   //
-  // A Dict rather than a list of pairs: the answer is then one lookup per frame instead of a scan
-  // per frame, which on a long loop is the difference the rest of this function already pays
-  // attention to.
+  // A Dict rather than a list of pairs: one lookup per frame instead of a scan per frame.
   let siteIsOurs =
     lambdaFrames
     |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, f) ->
@@ -833,11 +822,8 @@ let loopsOf(
       Stdlib.Dict.get(siteIsOurs, Stdlib.display(f.callSite))
       |> Stdlib.Option.withDefault(false))
 
-  // Every frame by id, built once. `ownerOf` below is called per lambda and used to scan the
-  // whole frame list for the parent, which is frames times lambdas: a 2,000-iteration loop
-  // walked 2,000 frames two thousand times, and `reportTwo`'s two loops over 2,000 (4,000
-  // frames, 4,000 lambdas) spent most of its nine seconds here. Same reasoning, and the same
-  // fix, as `siteIsOurs` above: one lookup per frame rather than one scan per frame.
+  // Every frame by id, built once. `ownerOf` below is called per lambda, and scanning the whole
+  // frame list for the parent would be frames times lambdas. Same reasoning as `siteIsOurs` above.
   let frameById =
     frames
     |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, f) ->
@@ -872,7 +858,7 @@ let loopsOf(
   // Tail recursion is the second kind, not an exception to it. The interpreter does no tail-call
   // optimisation, so a tail call pushes a frame like any other call, and that is what makes it
   // steppable: `countdown 5 0` reads iteration 1 of 6 through 6 with the real accumulator on
-  // each. This comment used to claim the opposite, which was never true of this interpreter.
+  // each.
   //
   // Both kinds carry the same `callSite`, which the replay fills in for each: a lambda's own
   // expression id, or a hash of the function's name. So this is one grouping key, not two.
@@ -887,10 +873,9 @@ let loopsOf(
          let (nm, hash) = ownerOf(f.parent)
          (Stdlib.display(f.callSite), nm, hash, f))))
 
-  // Grouped in ONE pass. Scanning `sited` once per site is sites times iterations, and `sited`
-  // holds a frame per iteration, so a 2000-iteration loop re-walked 2000 frames for every site
-  // on the page. The keys stay a list because they must keep first-appearance order: that order
-  // is what `map` versus `map#2` means, and a Dict does not promise it.
+  // Grouped in ONE pass. Scanning `sited` once per site is sites times iterations, since `sited`
+  // holds a frame per iteration. The keys stay a list because they must keep first-appearance
+  // order: that order is what `map` versus `map#2` means, and a Dict does not promise it.
   let bySite =
     sited
     |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, t) ->
@@ -1050,9 +1035,8 @@ let valuesOfFrame(
   : Dict<String, String> =
   // Every line this loop's body ever wrote a value to, across all of its iterations.
   //
-  // Through a dict rather than `List.contains` against the frame ids: a loop with two thousand
-  // iterations and six thousand values asks that question twelve million times otherwise, which
-  // is seconds of a page that is supposed to be instant.
+  // Through a dict rather than `List.contains` against the frame ids, which would ask that
+  // question iterations times values.
   let loopFrames =
     loopFrameIds
     |> Stdlib.List.map(fun id -> (id, true))
@@ -1083,9 +1067,8 @@ let valuesOfFrame(
   // Without this, a line the chosen iteration never reached keeps the flat value, which is
   // whatever the last iteration to reach it left there, under a heading naming this one. Two
   // ways to meet that: ask for an iteration past the cap, where no values were kept at all,
-  // or land on a base case that returns before the lines below it run. Both printed another
-  // iteration's numbers with total confidence. That is the exact lie the footer exists to
-  // prevent, and a blank line is the honest answer.
+  // or land on a base case that returns before the lines below it run. A blank line is the
+  // honest answer.
   let outside =
     base'
     |> Stdlib.Dict.toEntries
@@ -1115,8 +1098,7 @@ let showCode(
 
   // Does the function exist at all? Asked FIRST, because the two failures read the same way
   // and are not the same thing: a name nothing has run is an empty answer, and a name that is
-  // not a function is a refusal. Asking in the other order told you "no recorded trace went
-  // through Stdlib.List.mpa" about a typo.
+  // not a function is a refusal.
   if
     (LanguageTools.PackageManager.Function.find(branchId, entry))
     == Stdlib.Option.Option.None
@@ -1125,8 +1107,7 @@ let showCode(
     // has since gone: `scripts/dev/build` re-authors the store from the `.dark` files on disk,
     // so anything authored by hand disappears while its traces stay. The trace index still
     // holds the name, so we can tell the two apart instead of saying "no such function" about
-    // something the reader watched run ten minutes ago, and which `traces fns` will happily
-    // still offer them.
+    // something that ran.
     // By NAME, and only here. The store has no such function, so there is no hash to ask by;
     // the name in the index is the only evidence left that this ever ran.
     match Darklang.Tracing.Store.wentThrough(fnName, "", 1) with

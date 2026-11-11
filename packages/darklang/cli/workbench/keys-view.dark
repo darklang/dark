@@ -58,8 +58,8 @@ let handleViewKey(
   keyChar: Stdlib.Option.Option<String>)
   : Step =
   match key with
-  // shift+arrow is ten of them. See `repeatStep`: Home and End are still there and he does
-  // not use them, and this asks for no fn key and takes no letter away from anything.
+  // shift+arrow is ten of them (see `repeatStep`): it asks for no fn key and takes no letter
+  // away from anything.
   | UpArrow -> if modifiers.shift then repeatStep(state, navUp, 10) else navUp(state)
   | DownArrow -> if modifiers.shift then repeatStep(state, navDown, 10) else navDown(state)
   // ←/→ move between the panes - list, detail - the way they sit on screen.
@@ -106,7 +106,7 @@ let handleViewKey(
               (Stdlib.String.join(Packages.modulePathOf(state.location), ".")) + "." + item.name + "  · " + item.kind)
 
           // Already styled (the dim title, the coloured access block), so the source is highlighted
-          // here and the reader shows it as is: re-lexing the whole page as code turned every escape
+          // here and the reader shows it as is: re-lexing the whole page as code would turn every escape
           // in it into literal `[2m` text.
           openReader(
             state,
@@ -284,7 +284,6 @@ let handleViewKey(
       else Step.Continue(state)
     | Some("P") ->
       // Traces: what the scheduler is running right NOW, where Traces is what it already ran.
-      // This key used to be on the Apps view, which is how Processes briefly had no route at all.
       if state.activeView == vTraces then
         Step.Continue(goTo(state, mkDest(extViewIndex("processes"), 0)))
       else Step.Continue(state)

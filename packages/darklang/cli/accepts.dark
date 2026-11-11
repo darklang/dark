@@ -3,8 +3,8 @@
 /// `Registry.executeCommand` checks the arguments against the declaration BEFORE the command runs, so
 /// a flag a command does not have, a word past the last one it takes, or nothing where it needs
 /// something is refused in one place, the same way for every command, and the command never sees
-/// it. The alternative was each command checking its own arguments: a policy written forty times,
-/// which every new command had to remember.
+/// it. The alternative is each command checking its own arguments: a policy written forty times,
+/// which every new command would have to remember.
 ///
 /// What this cannot do is the other kind of refusal, "not found" or "failed to save". Those are only
 /// known once the command has looked, so the command still says them.
@@ -122,7 +122,7 @@ let everywhere(
 ///
 /// One function, with its parts local, on purpose. It runs on every start, and every package function
 /// a start reaches is a fetch from the store, about 30 KB each: as a chain of four (check, checkShape,
-/// countRefusal, isFlagUnder) it cost three more fetches per start for being four functions. Don't
+/// countRefusal, isFlagUnder) it would cost three more fetches per start. Don't
 /// split it back into helpers; the allocation gate will notice.
 let check(
   name: String,

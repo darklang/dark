@@ -98,8 +98,7 @@ let hasFlag(p: Parsed, name: String): Bool =
   Stdlib.List.any(p.flags, fun f -> f == name)
 
 
-// The value for `name`; last occurrence wins, matching the old
-// `{ acc with x = v }` overwrite-on-repeat behavior.
+// The value for `name`; last occurrence wins.
 let getOption(p: Parsed, name: String): Stdlib.Option.Option<String> =
   p.options
   |> Stdlib.List.filter(fun pair ->
