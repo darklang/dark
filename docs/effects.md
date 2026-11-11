@@ -101,7 +101,10 @@ declared types: dividing by zero, an argument out of range, `unwrap` of `None`.
 It is information, not a permission. No rule grants or denies it, it reaches no
 gate, it is not logged, and a call whose only effect is `Raise` stays pure. It
 flows through the call graph like any effect, so `view` says when a function can
-raise; permission requirements, approvals and contract comparisons leave it out.
+raise and `effects` shows a call path to the raise; permission requirements,
+approvals and contract comparisons leave it out. Some stdlib functions test for
+every case where what they call raises, such as `Int64.checkedDivide`; they are
+listed in `LibDB.Raises.cannotRaise`, and the path does not go through them.
 `Builtin.Tests.raisingBuiltinsDeclareRaise` holds every builtin with a raise site
 in its source to it.
 

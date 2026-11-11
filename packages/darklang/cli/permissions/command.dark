@@ -36,17 +36,13 @@ let permissionEffects(
   : List<LanguageTools.Permissions.Effect> =
   effects |> Stdlib.List.filter(fun e -> e != LanguageTools.Permissions.Effect.Raise)
 
-/// The effects a function reaches, `Raise` included, and whether analysis was complete.
-let effectsForHash(hash: String): (List<LanguageTools.Permissions.Effect> * Bool) =
-  Builtin.pmFnPermissionRequirements(hash)
-
 /// The transitive permission requirements and whether analysis was complete.
 /// Incomplete analysis returns the effects found with `false`; fetch once and
 /// pass the result around because this walks the function's closure.
 let permissionRequirementsForHash(
   hash: String)
   : (List<LanguageTools.Permissions.Effect> * Bool) =
-  let (effects, complete) = Command.effectsForHash(hash)
+  let (effects, complete) = Builtin.pmFnPermissionRequirements(hash)
   (Command.permissionEffects(effects), complete)
 
 /// Remove one named approval, or every named approval for a hash.
@@ -185,11 +181,9 @@ let requirementBadge(hash: LanguageTools.ProgramTypes.Hash): String =
 
 /// Effects describe the body; runtime permissions check the actual resources.
 let policyLinesForHash(hash: String): List<String> =
-  let (found, complete) = Command.effectsForHash(hash)
-  let requirementsLine =
-    "permission requirements: "
-    + Command.describeRequirements((Command.permissionEffects(found), complete))
-  if Stdlib.List.contains(found, LanguageTools.Permissions.Effect.Raise) then
+  let requirementsLine = "permission requirements: " + Command.requirementDisplay(hash)
+  let (_, reasons) = Cli.Effects.reasons(hash)
+  if Stdlib.List.any(reasons, fun((effect, _)) -> effect == LanguageTools.Permissions.Effect.Raise) then
     [ requirementsLine, "can raise a runtime error" ]
   else [ requirementsLine ]
 

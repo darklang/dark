@@ -437,7 +437,7 @@ let approveVersionForName
           |> Result.map (fun () -> ApprovalOutcome.Approved)
   }
 
-/// Explain each effect by showing the calls that lead to it.
+/// Explain each effect by showing the calls that lead to it. `Raise` follows `Raises.path`.
 /// This does not grant access; permission checks use the actual resource.
 let explain
   (load : Load)
@@ -500,5 +500,13 @@ let explain
               | _ -> visited, reasons)
             (visited, reasons)
     let _, reasons = visit Set.empty [] root Map.empty
+    let! names = Raises.fnNames ()
+    let nameOf hash =
+      Map.tryFind hash names |> Option.defaultWith (fun () -> name hash)
+    let raisePath = Raises.path callEffectsFor nameOf closure root
+    let reasons =
+      match raisePath with
+      | Some path -> Map.add LibExecution.Effects.Effect.Raise path reasons
+      | None -> Map.remove LibExecution.Effects.Effect.Raise reasons
     return Requirements.forFunction callEffectsFor closure root, Map.toList reasons
   }
