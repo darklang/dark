@@ -78,7 +78,7 @@ If commands hang or fail silently, check logs:
   ~/.darklang/logs/           # other logs
 
 ## More
-  docs for-ai packages      saving declarations, changing what exists, the type checker
+  docs for-ai packages      saving and changing declarations, the type checker, a command-line tool
   docs for-ai tests         package tests in full
   docs for-ai permissions   rules, profiles and package approvals
   docs for-ai traces        what a run did, without print statements

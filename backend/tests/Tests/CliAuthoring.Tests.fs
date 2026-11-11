@@ -1229,7 +1229,7 @@ let helpExamplesRun : List<Test> =
          [ "syntax" ] ]
        |> List.map (fun part -> [ "docs"; "for-ai" ] @ part))
       true
-      3 ]
+      6 ]
 
 
 /// A save that REPLACES an implementation must not resolve its own calls to the one it replaces.
