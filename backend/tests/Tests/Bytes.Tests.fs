@@ -583,8 +583,8 @@ let sweepDeletesOrphansButKeepsReferenced =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Bytes value semantics are independent of storage. All comparisons use the
-// content hash already carried by persistent bytes and lazily cached in memory.
+// Bytes value semantics are independent of storage. Two in-memory values
+// compare their bytes; anything saved compares by content hash.
 
 let equalsEphemeralEphemeralSameUuid =
   test "blob equality: two refs to the same ephemeral UUID are equal" {
@@ -915,6 +915,46 @@ let viewsBehaveLikeCopies =
 
 /// The result is one array of exactly the output's size, whatever the pieces are:
 /// views of a shared array, empty pieces, and saved bytes read from the store.
+let equalityComparesBytesDirectly =
+  test
+    "equality agrees with the bytes however they are held, and in memory it hashes nothing" {
+    let rng = System.Random 6145
+    // Short arrays over two values, so equal pairs are common.
+    let randomArray () = Array.init (rng.Next 6) (fun _ -> byte (rng.Next 2))
+    // The same bytes as a copy, a view into a bigger array, or saved.
+    let held (bs : byte[]) =
+      match rng.Next 3 with
+      | 0 -> mkEphemeral (Array.copy bs), true
+      | 1 ->
+        let pad = rng.Next(1, 4)
+        let buffer = Array.concat [ Array.create pad 7uy; bs; Array.create pad 7uy ]
+        RT.DBytes(
+          RT.Ephemeral
+            { id = System.Guid.NewGuid()
+              buffer = buffer
+              offset = pad
+              count = bs.Length
+              hash = null }
+        ),
+        true
+      | _ -> RT.DBytes(RT.Persistent(Bytes.sha256Hex bs, int64 bs.Length)), false
+    for _ in 1..5000 do
+      let a, b = randomArray (), randomArray ()
+      let da, aInMemory = held a
+      let db, bInMemory = held b
+      Expect.equal (Equals.equals da db) (a = b) $"{a} = {b}"
+      Expect.equal (Equals.equals db da) (a = b) $"{b} = {a}, swapped"
+      if a = b then
+        Expect.equal
+          ((dbytesRef da).GetHashCode())
+          ((dbytesRef db).GetHashCode())
+          "equal values hash alike"
+      if aInMemory && bInMemory then
+        let fresh = mkEphemeral (Array.copy a)
+        Equals.equals fresh da |> ignore<bool>
+        Expect.isFalse (ephemeralOf fresh).IsHashed "comparing did not hash"
+  }
+
 let concatWritesOneExactArray =
   testTask
     "bytesConcat fills one array of the output's size from views and saved bytes" {
@@ -1234,6 +1274,7 @@ let tests =
       sliceSharesTheParent
       smallSlicesCopy
       viewsBehaveLikeCopies
+      equalityComparesBytesDirectly
       concatWritesOneExactArray
       packageBytesInsertLookup
       packageBytesDedupesOnSameHash
