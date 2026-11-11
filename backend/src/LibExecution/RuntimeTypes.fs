@@ -1426,13 +1426,7 @@ and DvalOrdering private () =
     (a : DvalList)
     (b : DvalList)
     : int =
-    match DvalList.uncons a, DvalList.uncons b with
-    | ValueNone, ValueNone -> 0
-    | ValueNone, _ -> -1
-    | _, ValueNone -> 1
-    | ValueSome(struct (x, xs)), ValueSome(struct (y, ys)) ->
-      let c = DvalOrdering.compare mode x y
-      if c <> 0 then c else DvalOrdering.compareItems mode xs ys
+    DvalList.compareWith (DvalOrdering.compare mode) a b
 
   static member private compareEntries
     (mode : DvalComparisonMode)
@@ -2677,22 +2671,126 @@ and [<Struct; CustomEquality; NoComparison>] DvalList =
           count = n
           back = Rrb.take (list.start + n - frontCount) list.back }
 
+  /// The value at `i`, from where the value before it was read: the rest of the front, or the
+  /// tree's array that held it and the place after it. A walk that reads every value this way
+  /// makes nothing, where `tail` copies the rest of a leaf to the front.
+  static member private step
+    (list : DvalList)
+    (front : List<Dval>)
+    (chunk : Dval[])
+    (at : int)
+    (i : int)
+    : struct (Dval * List<Dval> * Dval[] * int) =
+    match front with
+    | value :: rest -> struct (value, rest, chunk, at)
+    | [] ->
+      if not (isNull chunk) && at < chunk.Length then
+        struct (chunk[at], [], chunk, at + 1)
+      else
+        let struct (chunk, at) =
+          Rrb.chunkAt (list.start + i - list.FrontCount) list.back
+        struct (chunk[at], [], chunk, at + 1)
+
   /// Whether `f` holds for each pair of values at the same index, the lists being as long.
   static member forall2
     (f : Dval -> Dval -> bool)
     (a : DvalList)
     (b : DvalList)
     : bool =
-    a.count = b.count && DvalList.walk2 f a b
+    a.count = b.count
+    && DvalList.walk2
+      (OptimizedClosures.FSharpFunc<_, _, _>.Adapt f)
+      a
+      a.front
+      null
+      0
+      b
+      b.front
+      null
+      0
+      0
 
   static member private walk2
-    (f : Dval -> Dval -> bool)
+    (f : OptimizedClosures.FSharpFunc<Dval, Dval, bool>)
+    (a : DvalList)
+    (aFront : List<Dval>)
+    (aChunk : Dval[])
+    (aAt : int)
+    (b : DvalList)
+    (bFront : List<Dval>)
+    (bChunk : Dval[])
+    (bAt : int)
+    (i : int)
+    : bool =
+    if i = a.count then
+      true
+    else
+      let struct (x, aFront, aChunk, aAt) = DvalList.step a aFront aChunk aAt i
+      let struct (y, bFront, bChunk, bAt) = DvalList.step b bFront bChunk bAt i
+      f.Invoke(x, y)
+      && DvalList.walk2 f a aFront aChunk aAt b bFront bChunk bAt (i + 1)
+
+  /// Compares the values pairwise with `compare` until two differ; a list that runs out first
+  /// is the smaller.
+  static member compareWith
+    (compare : Dval -> Dval -> int)
     (a : DvalList)
     (b : DvalList)
-    : bool =
-    a.count = 0
-    || (f (DvalList.head a) (DvalList.head b)
-        && DvalList.walk2 f (DvalList.tail a) (DvalList.tail b))
+    : int =
+    DvalList.compareFrom
+      (OptimizedClosures.FSharpFunc<_, _, _>.Adapt compare)
+      a
+      a.front
+      null
+      0
+      b
+      b.front
+      null
+      0
+      0
+
+  static member private compareFrom
+    (compare : OptimizedClosures.FSharpFunc<Dval, Dval, int>)
+    (a : DvalList)
+    (aFront : List<Dval>)
+    (aChunk : Dval[])
+    (aAt : int)
+    (b : DvalList)
+    (bFront : List<Dval>)
+    (bChunk : Dval[])
+    (bAt : int)
+    (i : int)
+    : int =
+    if i = a.count then
+      (if i = b.count then 0 else -1)
+    elif i = b.count then
+      1
+    else
+      let struct (x, aFront, aChunk, aAt) = DvalList.step a aFront aChunk aAt i
+      let struct (y, bFront, bChunk, bAt) = DvalList.step b bFront bChunk bAt i
+      let c = compare.Invoke(x, y)
+      if c <> 0 then
+        c
+      else
+        DvalList.compareFrom compare a aFront aChunk aAt b bFront bChunk bAt (i + 1)
+
+  /// The first value `f` holds for.
+  static member tryFind (f : Dval -> bool) (list : DvalList) : Dval voption =
+    DvalList.findFrom f list list.front null 0 0
+
+  static member private findFrom
+    (f : Dval -> bool)
+    (list : DvalList)
+    (front : List<Dval>)
+    (chunk : Dval[])
+    (at : int)
+    (i : int)
+    : Dval voption =
+    if i = list.count then
+      ValueNone
+    else
+      let struct (x, front, chunk, at) = DvalList.step list front chunk at i
+      if f x then ValueSome x else DvalList.findFrom f list front chunk at (i + 1)
 
   /// Hashes the length and up to the first 18 values, as F# does a list.
   static member private hashWith (hashOf : Dval -> int) (list : DvalList) : int =

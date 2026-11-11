@@ -257,6 +257,39 @@ let private listTests =
         Expect.equal (DvalList.toArray b) items "toArray"
       }
 
+      test "comparing and searching a list makes nothing" {
+        let values n = Array.init n (fun i -> RT.DInt64(int64 (i * 1000)))
+        let a = DvalList.ofArray (values 3000)
+        let b = DvalList.ofArray (values 3000)
+        let c = DvalList.cons (RT.DInt64 -1L) (DvalList.ofArray (values 2999))
+        let last = RT.DInt64 2_999_000L
+        let same (x : RT.Dval) (y : RT.Dval) = x = y
+        let number (x : RT.Dval) =
+          match x with
+          | RT.DInt64 n -> n
+          | _ -> 0L
+        let order (x : RT.Dval) (y : RT.Dval) = compare (number x) (number y)
+        let isLast (x : RT.Dval) = x = last
+        let run () =
+          Expect.isTrue (DvalList.forall2 same a b) "equal"
+          Expect.isFalse (DvalList.forall2 same a c) "unequal"
+          Expect.equal (DvalList.compareWith order a b) 0 "ordered alike"
+          Expect.equal (DvalList.compareWith order c a) -1 "ordered"
+          Expect.equal (DvalList.tryFind isLast a) (ValueSome last) "found"
+        run ()
+        let before = System.GC.GetAllocatedBytesForCurrentThread()
+        run ()
+        let made = System.GC.GetAllocatedBytesForCurrentThread() - before
+        Expect.isLessThan made 2000L "bytes allocated"
+        Expect.isTrue
+          (Dval.equals (RT.DList(VT.int64, a)) (RT.DList(VT.int64, b)))
+          "Dark equality"
+        Expect.equal
+          (Dval.listContains c (RT.DInt64 2_998_000L))
+          (ValueSome true)
+          "contains"
+      }
+
       test "a pattern walk visits every value once, in order" {
         let items = Array.init 5000 (fun i -> RT.DInt64(int64 i))
         let rng = System.Random 6388
