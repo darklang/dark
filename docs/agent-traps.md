@@ -7,20 +7,18 @@ and traits internals in `docs/internals.md`.
 
 ## Builds
 
-**Half of every F# build is a package reload.** The timings in `AGENTS.md`, under "Builds", say
-a `.dark` change costs about 34s and a `.fs` change about 74s: 39s compiling, then that same
-reload of the whole package set. So half the cost of any F# change is reloading packages
-that usually didn't need reloading. A `.fs` change *can* alter the serialized package format,
+**Half of every F# build is a package reload.** A `.fs` change pays its compile and then the
+same reload of the whole package set a `.dark` change pays (timings in `AGENTS.md`, under
+"Builds"). So half the cost of any F# change is reloading packages that usually didn't need
+reloading. A `.fs` change *can* alter the serialized package format,
 and there's no cheap way to ask whether this one did, so the build asks a narrower question:
 whether anything the reload reads changed (LocalExec's build, the `.dark` files, the schema, the
 settings; `scripts/build/_reloadstamp.py`), and whether any op was written to the store since. If
 neither, it skips the reload and says so. An edit that leaves LocalExec's assemblies alone (the
 Cli, the F# tests) costs its compile and no reload; anything else still reloads.
 
-The figure has moved in between, which is why it is worth re-measuring before acting on
-it. Resolving trait calls at save added a whole-tree type check to the reload and took it to about
-128s; splitting that check into 32 pieces across the cores (`TraitCalls.resolveIn`)
-brought it back to about 31s. The check is now about a quarter of the reload (the
+The reload includes a whole-tree type check for trait calls, split across the cores
+(`TraitCalls.resolveIn`). It is about a quarter of the reload (the
 `Resolved trait calls: ... in Ns` line), so what is left to win is reloading less, not
 checking faster.
 
@@ -29,8 +27,7 @@ If nothing a build cares about has changed since the last successful one, it pri
 "nothing has changed since the last successful build" and skips every step including
 `backend_test`, so the zero means "did not run" rather than "ran and passed". Worse, it
 does not re-record anything, so `scripts/dev/status` goes on showing whatever the PREVIOUS
-run left there: a green exit code beside `failed: backend_test` at an older commit, which
-is the shape that nearly got reported as a passing suite. A doc-only commit is enough to
+run left there: a green exit code beside `failed: backend_test` at an older commit. A doc-only commit is enough to
 put you in it.
 
 The same skip happens when the change was to `backend/testfiles/**` or to a `.dark` docs page:
@@ -41,32 +38,27 @@ directly.
 
 To actually run the suite against a published build without compiling, use
 `./scripts/run-fsharp-tests --published`, and read its own `EXPECTO!` line and exit code.
-That is the third shape of the same failure in one night: a filter that matched less than
-intended, a field that resolves at execution, and now a zero that means the step was
-skipped. Whenever a number is suspiciously good or suspiciously fast, ask whether the thing
+Whenever a number is suspiciously good or suspiciously fast, ask whether the thing
 you think produced it actually ran.
 
 **`scripts/dev/status` is the only thing that knows whether a build is running.** Waiting on a
 host-side process pattern does not work: the build execs into the container, so `pgrep -f dev/build`
 finds nothing while `status` still says `running`, and a waiter keyed on the pattern falls straight
 through and reads the PREVIOUS build's result. That previous result is a timestamp, so it looks
-current. Three builds in a row were misread this way in one session, twice as "my fix did not
-apply" when the source on disk was already correct. Wait on `status`, not on `ps`.
+current. Wait on `status`, not on `ps`.
 
-The same session also met the build REFUSING, correctly, which is the opposite and reads the same
-if you only check the exit code: "Tests are running in this clone (pid N). Building now would
-overwrite the binaries they're executing." A test run I had started myself was still holding them.
-It is `rundir/test.lock` with a liveness check; the point is that a refusal and a failure are
+The build can also REFUSE, correctly, which reads the same if you only check the exit code:
+"Tests are running in this clone (pid N). Building now would overwrite the binaries they're
+executing." It is `rundir/test.lock` with a liveness check; a refusal and a failure are
 different things and only the message says which.
 
-That liveness check is not as reliable as the line above used to claim. A run killed mid-flight
-left `test.lock` naming a dead pid and the build refused for it repeatedly, while
-`[ -d /proc/<pid> ]` said plainly that it was gone. Check `/proc` before believing the lock, then
-`--force` or delete it.
+That liveness check is not fully reliable: a run killed mid-flight can leave `test.lock` naming a
+dead pid, and the build goes on refusing. Check `[ -d /proc/<pid> ]` before believing the lock,
+then `--force` or delete it.
 
 And never send the build's own output to `/dev/null`. A refusal there is invisible, the next
 `dev/status` answers from the LAST successful build, and that answer is a timestamp, so it looks
-current. Several builds in a row never ran tonight and every check agreed they had. Compare the
+current. Compare the
 timestamp against when you started, not against nothing.
 
 **Change detection is by CONTENT over the whole repo, so `touch` does nothing, and deleting the
@@ -81,8 +73,8 @@ one:
 **A stale binary against a re-authored store fails as `FnNotFound` on a hash that exists
 nowhere.** The hash is computed at run time, so grepping the tree AND querying `locations` both
 answer "absent", which reads like a missing function rather than a mismatched pair. Every `eval`
-failed, `1 + 1` included, and the error could not even be stringified because rendering it
-needed a second unresolvable fn. Compare the two mtimes before theorising (in-container paths):
+fails, `1 + 1` included, and the error may not even render, because rendering it needs a second
+unresolvable fn. Compare the two mtimes before theorising (in-container paths):
 
     stat -c %y backend/Build/out/Cli/Debug/net10.0/Cli
     stat -c %y rundir/data.db
@@ -113,10 +105,7 @@ about to run the whole suite and then stop.
 **Read the FIRST compiler error, not the last.** F# reports an unclosed construct as a
 cascade: one real error, then an `FS0058` "offside of context started at position (N,c)"
 for every following definition. `tail` on the log shows you the end of that cascade,
-which points at whichever definition came last rather than at the mistake. A dropped
-closing brace at line 123 presented as seventeen errors starting at line 230, and the
-only line that named the real place was the first one, `offside of context started at
-(122:3)`. So sort the errors by line and read the top, or grep the log for the first
+which points at whichever definition came last rather than at the mistake. So sort the errors by line and read the top, or grep the log for the first
 `FS0010`; the `(N,c)` an `FS0058` names is the thing that never closed.
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
@@ -130,17 +119,15 @@ and the build that regenerates it runs the whole reload with the trait hashes st
 `NumericTraits` maps no operator to any trait, the at-rest checker correctly finds nothing to
 resolve, and the reload prints `Resolved trait calls: 0 op(s) moved` where the same tree prints
 some thousands once the file is populated. Do not compare against a remembered figure: the count
-moves with the tree, and it fell by about a fifth when the molt took code out. ZERO is the tell,
+moves with the tree. ZERO is the tell,
 not any particular number. The second build is the one to believe. Two tells separate the
 artifact from a real regression, and the duration is the clearer of them: the reload takes about
 20 seconds instead of about 100, because the expensive whole-tree check is finding nothing rather
 than not running.
 
-This cost an hour, most of it spent bisecting four innocent checker files, and it was only
-settled by putting a probe on a branch known to resolve thousands and watching it report zero too. A
-branch cannot regress against itself, so the moment both trees agreed the cause had to be
-environmental. When a number collapses, test the instrument against a known-good tree BEFORE
-reading any diffs.
+When a number collapses, test the instrument against a known-good tree BEFORE reading any
+diffs. A branch cannot regress against itself, so if both trees agree the cause is
+environmental.
 
 If you need to tell a real zero from this one, the three counts inside `Decode.report` in
 `Builtins.Matter/Libs/PM/TraitCalls.fs` are what distinguish them: `rawItems` is what the checker
@@ -172,7 +159,7 @@ The build does catch it, in the one place that can: `Cli.fsproj` fails with
 because it defeats the obvious filter -- it is `error :` with no FS code, and the summary says
 `Failed in 60.16s` rather than `FAILED`, so a `grep -E 'error FS|FAILED'` over the build output
 matches neither and prints nothing. Ask `scripts/dev/status`, which reads `build-state.json` and
-said `failedAction: backend_full_build` throughout.
+says `failedAction: backend_full_build`.
 
 **AOT disables System.Text.Json.** A path that is green on every dev-build test can die only in
 the published binary. Publish before the gates, always; `gates first-day` exists for exactly this.
@@ -180,7 +167,7 @@ the published binary. Publish before the gates, always; `gates first-day` exists
 **Operationally: publish, THEN `gates all`, never the other way round.** `first-day` refuses rather
 than reporting when the published binary is older than something you changed, naming the file, so a
 `gates all` run after an edit ends in `FAILED: first-day` that is the gate protecting itself and not
-a result. It caught the same mistake three times in one night. The sequence that does not waste ten
+a result. The sequence that does not waste ten
 minutes is `scripts/build/build-release-cli-exes.sh && scripts/testing/gates all`.
 
 ## Tests and gates
@@ -192,15 +179,13 @@ tell. Build first:
 
     scripts/dev/build && ./scripts/run-fsharp-tests
 
-The other trap: a filter that matches nothing used to be reported as `0 tests run - Success!`
-with exit 0. It fails now. `docs/unittests.md` has the rest, including what the three filter
-flags actually do and why they used to disagree with their own help text.
+The other trap: a filter that matches nothing fails the run. `docs/unittests.md` has the rest,
+including what the three filter flags actually do.
 
 It fails by PRINTING OVER a success, though, which is its own trap for anyone reading the run
 through a grep. Expecto still emits `EXPECTO! 0 tests run ... Success!`; the runner then explains
 itself and exits 1. So a `grep -oE "[0-9,]+ tests run.*"` captures Expecto's "Success!" and
-throws away both the override and the exit code, and an empty run reads as a passing one. Twice
-in one session that produced a confident, wrong report about the tooling.
+throws away both the override and the exit code, and an empty run reads as a passing one.
 
 **Never report a conclusion about the tooling from matched text alone; show the exit code beside
 it.** Same family as "Don't infer build state from logs" (`AGENTS.md`, "Builds"), one level
@@ -208,19 +193,16 @@ out: that one is about reading the wrong file, this one is about reading the rig
 narrowly.
 
 **And a claim about `main` needs `main`, not the tree you are standing in.** `git grep <pattern>
-upstream/main -- <path>` costs nothing and settles it. A clone is a branch, and the interesting
-branches here are the ones that change defaults: this one flips `DARK_CONFIG_TRACE_DETAIL` in
-`config/dev` from `off` to `on`, adds a stored `trace.record` that beats the environment, and
-renames flags that never existed upstream. Grep the working tree for any of those and you will
-report your own branch as though it were the world. Three times in one session, each time while
-deciding whether something was separable, which is the decision that depends on it most.
+upstream/main -- <path>` costs nothing and settles it. A clone is a branch, and a branch can
+change defaults and rename flags that main never had. Grep the working tree for those and you will
+report your own branch as though it were the world, which matters most when deciding whether
+something is separable.
 
 **A host-side `timeout` around `run-fsharp-tests` leaves the real test process running, holding
 the lock.** `timeout 300 ./scripts/run-fsharp-tests ...` kills the wrapper on the host; the
 `Tests` binary inside the container is not its child and keeps going. It still holds the suite
 lock, so every run you start afterwards exits IMMEDIATELY, with no output and nothing resembling
-an error. Measured: a filtered run that should take seconds returned in 0s, four times in a row,
-and each one read as a pass.
+an error: a filtered run that should take seconds returns in 0s and reads as a pass.
 
 So two rules, and the second is the one that saves you:
 
@@ -239,10 +221,9 @@ So two rules, and the second is the one that saves you:
 
 Two runs in the same clone destroy each other, so `run-fsharp-tests` takes a lock.
 Two runs in different clones are fine; each has its own container, so its own PID
-namespace, network and `rundir`. That is a statement about CORRECTNESS, not about the box: four
-clones publishing Release at once put 42 build processes on the machine and took it to zero free
-memory, which killed two suite runs. The lock protects a clone from itself and nothing protects the
-host. `~/code/dark/CLAUDE.md` has the measured version.
+namespace, network and `rundir`. That is a statement about CORRECTNESS, not about the box: several
+clones publishing Release at once can run the machine out of memory and kill suite runs. The lock
+protects a clone from itself and nothing protects the host.
 
 Logs go to `rundir/logs/fsharp-tests.log`.
 
@@ -252,7 +233,7 @@ Logs go to `rundir/logs/fsharp-tests.log`.
 on any clone whose rundir already has one, and the tests go on failing with
 `permission denied by instance policy` while the code that grants it is right there.
 CI never sees this, because CI's rundir is fresh. `rm -rf rundir/test-policy` and
-re-run. Cost an hour of believing a correct fix had not worked.
+re-run.
 
 **The gates run against the DEBUG binary, so do not run them straight after `--optimize`.**
 Every gate defaults to `backend/Build/out/Cli/Debug/net10.0/Cli`, and `--optimize` builds Release
@@ -263,17 +244,16 @@ older than the tree. Build Debug first, or pass `CLI=<path>` the way the CI step
 **Two ways to make every gate fail for a reason that is not there, both of them sequencing.**
 **In a gates summary, 0 seconds means it never ran.** A gate that fails fast and a gate whose
 prerequisites were already broken look identical in the `FAILED:` line, and the elapsed time is
-the only thing that separates them: four trait gates reported `0m00s` and `0m01s` once because a
-stale published artifact meant nothing they invoked could start. Read the per-gate times before
+the only thing that separates them: with a stale published artifact, nothing a gate invokes can
+start, and it reports `0m00s`. Read the per-gate times before
 believing a gate tested anything, and read the FIRST failure rather than the list at the end,
 because one broken prerequisite reports as a dozen unrelated gates.
 
 **A gate may write nothing another gate reads, and the source tree counts.** `gates all` runs
-every gate at once, which is safe only because each has its own rundir, HOME and ports. It was
-off because of a file nobody had listed: a package reload rewrote
-`backend/src/LibExecution/package-ref-hashes.txt`, which every CLI in the checkout reads at
-startup whatever its HOME, so every gate beside `reload-is-reproducible` died with
-`FnNotFound`. A reload now leaves that file alone unless its contents change. A new gate that
+every gate at once, which is safe only because each has its own rundir, HOME and ports, and
+because the source tree does not change under them: every CLI in the checkout reads
+`backend/src/LibExecution/package-ref-hashes.txt` at startup whatever its HOME, so a reload leaves
+that file alone unless its contents change. A new gate that
 writes anywhere outside its own rundir breaks the parallel mode the same way.
 
 `gates all` re-execs `$0 <name>` once per gate, so editing `scripts/testing/gates` or a
@@ -315,9 +295,7 @@ fixing the ones you trip over:
 3. Eyeball the hits. Prose mentions in docs and comments quoting an error message are
    fine and will show up; a call in a `.dark` testfile is a real break.
 
-One rebase of a branch that deleted the per-type arithmetic fns had two of these, both
-`Stdlib.*.divide` in `testfiles/execution/stdlib/list.dark`, in cases main had added. Same
-root cause as the CLI sweep in `docs/agent-testing.md`: the bugs are found by running, not by
+Same root cause as the CLI sweep in `docs/agent-testing.md`: the bugs are found by running, not by
 reading.
 
 **Check a mechanical resolution by replaying it against the base.** When a commit applies one
@@ -366,8 +344,8 @@ trusting the build.
 `dark module /Demo.X -` is gone after any build, including the one inside
 `scripts/dev/build --optimize --test`. That part is expected. The trap is what it does to timing
 work: `dark eval 'Demo.X.f 16'` then fails in milliseconds, the trace it leaves is a FAILED one,
-and timing `traces show` against it reports the startup baseline. A 0.18 s reading that should
-have been 23 s looks like a win rather than a mistake. Check the eval's own output, or the
+and timing `traces show` against it reports the startup baseline, which looks like a win rather
+than a mistake. Check the eval's own output, or the
 trace's `status`, before trusting any number taken against a hand-authored fixture. A fixture you
 intend to keep belongs in a file the walkthrough pipes in (`docs/walkthrough-fixture.dark`), so
 re-authoring it is one command rather than remembering what it was.
@@ -378,23 +356,20 @@ its old body while printing the same success line, so treat the line as "parsed"
 - AN APPROVED NAME FOLLOWS THE APPROVED VERSION. `permissions approve` says so out loud
   ("the name follows this version"). Re-authoring does write the new body and does repoint the
   name, but a previously approved name keeps resolving to the approved version until you approve
-  again. Editing bodies in a demo file and re-running
-  `dark module /Demo.X - < ...` left every approved function on its OLD body; a
-  `permissions approve Demo.X.overlapping` made the new one live immediately. A newly
-  added name in the same file (a `val`) landed straight away, having no approval to pin it,
-  which is what makes it confusing: part of the file takes effect and part does not.
-- A DOC-ONLY EDIT used to be the second way. Doc comments are deliberately excluded from the
-  content hash (`Canonical.fs`), so the save lands on the hash the item already had and the batch
-  stores nothing; `dark fn` says the change with an `UpdateDoc` op, and `dark module` (and so
-  `dark edit`) now does too, adding "; updated N doc comments" to the line. If a doc edit seems
+  again. Re-running `dark module /Demo.X - < ...` after editing bodies leaves every approved
+  function on its OLD body until `permissions approve` makes the new one live. A newly added
+  name in the same file (a `val`) lands straight away, having no approval to pin it, which is
+  what makes it confusing: part of the file takes effect and part does not.
+- A DOC-ONLY EDIT keeps the item's hash. Doc comments are deliberately excluded from the
+  content hash (`Canonical.fs`), so `dark fn` and `dark module` (and so `dark edit`) write the
+  change as an `UpdateDoc` op and add "; updated N doc comments" to the line. If a doc edit seems
   not to land, that line is what says whether it was written.
 
-The approval case is not a bug at all once you know it; what it shared with the old doc case was
-the output.
+The approval case is not a bug at all once you know it.
 
 The tell, and the useful part, because it works without knowing which one you are in: A COUNT IN
-THE OUTPUT DISAGREED WITH THE FILE. A five-element list reported "10 reads", the old body's
-`repeatUnsafe 10` still running. Put something countable in what you are editing (a length, a
+THE OUTPUT DISAGREES WITH THE FILE, like a five-element list reporting "10 reads" because the old
+body's `repeatUnsafe 10` is still running. Put something countable in what you are editing (a length, a
 name, a number in a string) and check the output moved. To test an edited module without
 re-approving, load it under a fresh module path, which needs `permissions approve` per function
 anyway since a fresh name has none.
@@ -411,9 +386,9 @@ difference shows up as a test standing somewhere it did not expect to be.
 
 Clearing only `current_branch%` is the trap: it looks like isolation and is not.
 
-`config_v0` is the only config store. The instance's id and name used to sit in `cli-config.json`
-beside the db; the runtime moves them in the first time anything asks for `instance.*` and leaves
-the file alone, so a cleared copy that still has an old `cli-config.json` beside it takes that
+`config_v0` is the only config store, but an instance id and name in a `cli-config.json` beside
+the db are moved in the first time anything asks for `instance.*`, and the file is left alone, so a
+cleared copy that still has an old `cli-config.json` beside it takes that
 file's identity. Copy `data.db` alone, which is the shape to prefer for a scratch store anyway.
 
 It lives in `~/.darklang`, so a process given its own HOME gets its own. In the dev
@@ -431,8 +406,8 @@ One consequence worth knowing: an isolated store usually looks like a FIRST RUN,
 PANEL instead of a row's detail, so a test waiting for anything a populated Home draws waits forever. Do not
 anchor a workbench test on the greeting either way: "Welcome, <name>" is on every Home, and the panel is the
 part that distinguishes a new instance. The stable "it started" marker is the frame's top border
-(`╭`), because it is the one thing every frame has at every size. It used to be the header's
-`who @ where` (` @ `), which four fixtures anchored on and which no longer exists. The replacement has to survive expect's default 80 columns, where there is no nav strip at all
+(`╭`), because it is the one thing every frame has at every size. A marker has to survive
+expect's default 80 columns, where there is no nav strip at all
 and the header is just the branch and the instance, so neither `1 Home` nor a fixed name works.
 
 ## Harness and shell
@@ -441,7 +416,7 @@ and the header is just the branch and the instance, so neither `1 Home` nor a fi
 through, because it produces a confident negative, and a negative is the result nobody re-checks:
 you look for a thing, do not see it, and move on. Every other harness mistake here produced a
 wrong positive that something eventually contradicted. This family produces silence, and silence
-agrees with whatever you already believed. Measured instances:
+agrees with whatever you already believed. Instances:
 
 - `git remote -v | head -4` cuts alphabetically after `oceanoak` and before `origin`, so `origin`
   looks absent and you conclude the clone does not follow the remote convention
@@ -453,8 +428,7 @@ agrees with whatever you already believed. Measured instances:
   malformed response
 - a context pattern like `grep -o '.\{260\}NEEDLE.\{120\}'` requires 260 characters BEFORE the
   match, so any hit near the start of a line silently fails to match and the needle reads as
-  absent. Reported "zero occurrences" of a number that was in the file 15 times. Count with a
-  fixed string first (`grep -c -F`), then go looking for context
+  absent. Count with a fixed string first (`grep -c -F`), then go looking for context
 - a pipeline hides the exit code of the thing you care about. `./scripts/dev/build ... | tail -40`
   reported exit 0 over a build that printed "Failed in 64.85s". Use `${PIPESTATUS[0]}`, or do not
   pipe
@@ -464,8 +438,7 @@ agrees with whatever you already believed. Measured instances:
   empty directory with no error at all
 - `tail -3` on a save that printed an error above its success line showed only the success, so
   a refused item read as a clean one
-- a container listing read three rows deep said this clone had no container up, which then
-  became the reason not to make a fix; it had been up for ten days
+- a container listing read three rows deep can say this clone has no container up when it has
 
 **A truncated answer is worse than no answer, because it justifies doing nothing.** Truncation
 turns an unseen positive into a confident negative, and a negative leaves nothing behind to
@@ -476,35 +449,26 @@ filter. If a harness reports that nothing happened, reproduce it by hand once be
 down.
 
 A HARNESS manufactures a negative the same way a filter does, and it is harder to see because
-running a control FEELS like the check. Headless chromium never reached a prompt in the browser
-build; the deployed site did not either, so the conclusion drawn was "not a regression", when the
-available conclusion was equally "not a working instrument". A real browser with a person in
-front of it gets a prompt in seconds. A control agreeing with your negative only rules out one of
+running a control FEELS like the check. If headless chromium reaches no prompt in the browser
+build and none on the deployed site either, that says "not a regression" no more than it says "not
+a working instrument". A control agreeing with your negative only rules out one of
 the two explanations, and the instrument is the one nobody suspects.
 
 **An exclusion list that never fired looks exactly like one that did, and `find` will hand you
-one for free.** `scripts/linting/yamllinter` carried a prune list for years that had never
-excluded anything: the prunes sat AFTER the `-type f` test, which makes every one of them
-unreachable, so the walk descended into whatever was there. Nobody noticed until a move put a few
-hundred vendored yaml files in its path and it started failing on code nobody here wrote. In
-`find`, prunes come first: `find . \( -path ./x -o -name y \) -prune -o -type f -print`.
+one for free.** A prune placed AFTER the `-type f` test is unreachable, so the walk descends into
+whatever is there. In `find`, prunes come first:
+`find . \( -path ./x -o -name y \) -prune -o -type f -print`.
 
 The second half is the general one. A tool you have excluded something from is worth RUNNING once
-to see that the exclusion took, and worth giving a floor: this one now refuses a walk that matches
-fewer than three files, because "matched nothing" was not a floor at all while one of the two
-remaining files was enough to satisfy it. Two other checks on this tree had the same shape at the
-same time: `tests/builtin` scanned the whole repo for Dark callers including the directory that
-holds code nothing runs, so a builtin whose only wrapper had left went on looking alive; and a
-typecheck gate compared its report's coverage against a number from inside the same report, which
-is a check that cannot fail.
+to see that the exclusion took, and worth an assertion that the walk found what it must:
+`scripts/linting/yamllinter` refuses a walk that does not include `.circleci/config.yml`. A check
+that compares a report against a number from inside the same report cannot fail.
 
 **A `while read` loop over a heredoc loses every line after the first if the body calls
 `run-cli`.** `run-cli` forwards stdin, so it consumes the rest of the heredoc the loop was reading
 from, and the loop ends after one iteration. It prints no error and exits 0, so a sweep written this
-way reports confidently on one item while looking like it covered all of them: a fourteen-query
-ranking sweep examined ONE and its diff read as complete. Feed the inner command `< /dev/null`. Only
-counting what the loop actually examined caught it, which is the general rule, and this is a
-particularly quiet instance of it.
+way reports confidently on one item while looking like it covered all of them. Feed the inner
+command `< /dev/null`, and count what the loop actually examined.
 
 **Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
 shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
@@ -512,9 +476,7 @@ on itself forever; a `pkill -f "serve Foo"` kills the backgrounded shell whose c
 contains "serve Foo", which looks exactly like the publish you just started dying for no reason.
 `[s]erve Foo` matches the target and not the matcher. Note that bracketing is not enough on its
 own: if the same shell also RUNS `serve Foo`, the bracketed pattern still matches it, so kill and
-start belong in separate commands. That last clause caught me three more times in one night, each
-time in a command that started a fixture server and tidied up after an earlier one, so take the
-recipe rather than the rule: start background fixtures with `docker exec -d` (or `setsid` plus a
+start belong in separate commands. So take the recipe rather than the rule: start background fixtures with `docker exec -d` (or `setsid` plus a
 redirect, so the exec can return), and STOP them by pid read from `ps`, never by pattern:
 
     P=$(ps -eo pid,args | awk '/python3 \/tmp\/delay.py/ && !/awk/ {print $1}')
@@ -523,11 +485,10 @@ redirect, so the exec can return), and STOP them by pid read from `ps`, never by
 `docker exec` without `-d` also hangs on a server that never exits, which looks like the command
 failing rather than the server working. The same family: `2>&1` on a command whose stdout you are about
 to parse as JSON merges a warning into the payload and the parse failure reads as a product bug.
-All of these presented as product failures here and all of them were the harness.
+All of these present as product failures and all of them are the harness.
 
 **`run-in-docker` ignores stdin unless something's on it.** Fd 0 is forwarded through a `cat`
-that needs an EOF, and an agent harness hands you a socket that never gives one, which used to
-hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
+that needs an EOF, and an agent harness hands you a socket that never gives one. If you pipe real input and it gets dropped, `DARK_STDIN=1`
 forces it through.
 
 **`backend/Build` is a container volume, so from the host it reads as EMPTY.** `ls`, `du` and
@@ -544,9 +505,6 @@ That helper exists for this and is meant to be sourced; its own comment explains
 `/home/dark/app` mount source is the only key that holds (names vary, the `local_folder` label is
 empty on some containers, and `docker ps --last 1` sorts by creation time, which says nothing about
 which clone you are in). `workspace-tools/clones` shows a container's STATE and ports, not its name.
-
-Cost of not knowing: twenty minutes on a missing-binary theory for a binary that was sitting there
-the whole time, immediately after a control had just saved me from a different wrong theory.
 
 ## Dark, the language
 
@@ -636,9 +594,8 @@ exactly; the loader will not catch it.
 **A Dark record literal written inside an F# STRING is invisible to every tool you would sweep
 with.** A test that drives Dark through `evalDarkExpr` holds its Dark source as an F# string, so
 the F# compiler sees string contents and a sweep over `packages/**/*.dark` never reads the file at
-all. Two such literals built `ProgramTypes.Definitions` with four fields after traits widened it
-to six, and they raised `Missing field \`traits\`` at run time in tests whose names are about
-live values. A `record_fields` sweep run over the same rebase reported nothing. What finds them is
+all. When a record widens, such a literal raises `Missing field` at run time, in a test whose
+name is about something else, and a `record_fields` sweep reports nothing. What finds them is
 grepping the F# for the Dark constructor:
 
     grep -rn 'ProgramTypes.Definitions {' backend/ --include=*.fs
@@ -648,12 +605,10 @@ and remember the same applies to testfiles, demo tapes and walkthrough prose. Sa
 other sweeps here: a tool reporting success over something it had no way to read.
 
 **A TUPLE pattern that loses an element is the same defect as a DU case that loses a field, and
-nothing catches it either.** `searchNamesAndHashes` returns six lists on a branch that added traits
-and impls; the at-rest checker destructured four of them. That raises, the per-batch guard converts
-the raise into an empty report, and `dark typecheck <module>` then answers "nothing to audit" about
-a module full of declarations. The tell is the same as every other instance: a confident zero. An
-earlier probe of `checkModule` in that session returned `items=0` and was written off as "finds
-nothing" rather than "crashed and the guard ate it". So when a search or any wide tuple grows, sweep
+nothing catches it either.** A destructure that takes four of `searchNamesAndHashes`'s six lists
+raises, the per-batch guard converts the raise into an empty report, and `dark typecheck <module>`
+then answers "nothing to audit" about a module full of declarations. The tell is the same as every
+other instance: a confident zero. So when a search or any wide tuple grows, sweep
 the destructures, and treat a zero from a guarded path as unexplained until you have seen the guard
 not fire.
 
