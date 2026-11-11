@@ -2032,6 +2032,7 @@ let private invokeBuiltin exeState vm fn tst typeArgs allArgs plainPure =
     exeState.requestPermission.IsNone
     || exeState.spreadChild
     || exeState.test.inRunner
+    || not (Set.exists (fun e -> not (Effects.isScoped e)) fn.callEffects)
     ->
     invokeBuiltinAuthorized exeState vm fn tst typeArgs allArgs plainPure
   | _ ->
