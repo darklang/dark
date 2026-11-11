@@ -141,7 +141,9 @@ test drop =
       Stdlib.List.drop([ 5 ], 4)
       |> Stdlib.Test.equal([])
       Stdlib.List.drop([], 4)
-      |> Stdlib.Test.equal([]) ])
+      |> Stdlib.Test.equal([])
+      Stdlib.List.drop(Stdlib.List.range(0, 99), 60)
+      |> Stdlib.Test.equal(Stdlib.List.range(60, 99)) ])
 
 test dropWhile =
   Stdlib.Test.all(
@@ -319,7 +321,11 @@ test setAt =
       Stdlib.List.setAt([ 1, 2 ], 9223372036854775807, 9)
       |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
       Stdlib.List.setAt([ 1, 2 ], -9223372036854775807, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      Stdlib.List.setAt(Stdlib.List.range(0, 99), 70, -1)
+      |> Stdlib.Test.equal(
+        Ok(Stdlib.List.flatten([ Stdlib.List.range(0, 69), [ -1 ], Stdlib.List.range(71, 99) ]))
+      ) ])
 
 test head =
   Stdlib.Test.all(

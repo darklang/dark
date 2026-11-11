@@ -209,6 +209,24 @@ let private listTests =
           sameEverywhere items (build rng items) (build rng items)
       }
 
+      test "set and drop on a list built any way give the list built in one go" {
+        let rng = System.Random 6389
+        for round in 1..400 do
+          let n = if round % 2 = 0 then rng.Next(1, 40) else rng.Next(1, 3000)
+          let items = Array.init n (fun i -> RT.DInt64(int64 (i * 7)))
+          let i = rng.Next n
+          let set = Array.updateAt i (RT.DInt64 -1L) items
+          sameEverywhere
+            set
+            (DvalList.set i (RT.DInt64 -1L) (build rng items))
+            (DvalList.ofArray set)
+          let k = rng.Next(0, n + 1)
+          sameEverywhere
+            items[k..]
+            (DvalList.drop k (build rng items))
+            (DvalList.ofArray items[k..])
+      }
+
       test "lists that differ anywhere are unequal and order as before" {
         let rng = System.Random 6387
         for _ in 1..200 do
