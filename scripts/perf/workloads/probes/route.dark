@@ -1,7 +1,7 @@
 // What routing one HTTP request costs: time, and where it goes by package fn.
 //
 // One file rather than two, because the handler table and request below are the whole setup and two
-// copies of them drifted apart. Routing only: no socket, no parse, no serialize. The handlers are
+// copies of them drift apart. Routing only: no socket, no parse, no serialize. The handlers are
 // deliberately trivial, so the number is the framing around them, which is the part
 // `scripts/perf/suite` never touches.
 //

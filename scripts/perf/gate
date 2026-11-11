@@ -14,11 +14,11 @@
 #   - CPU for `fib 24`, `lists.dark` and `ls Darklang.Stdlib.List`, paired against the newest
 #     release (_paired.py)
 # Allocation can't see a call getting slower, and the warm run can't see the first run getting
-# bigger, which is how the October regressions got through.
+# bigger.
 #
-# Startup is two thirds of a whole steady.dark run, so a budget on the total diluted a regression
-# in the workload threefold. The two are budgeted apart instead: a startup regression still
-# fails, and the workload's own number is no longer mostly something else.
+# Startup is two thirds of a whole steady.dark run, so a budget on the total would dilute a
+# regression in the workload threefold. The two are budgeted apart: a startup regression still
+# fails, and the workload's number is its own.
 #
 #   scripts/perf/gate              the debug build's allocation, reported but NOT gated
 #   scripts/perf/gate --published  against the published one. This is the gate.
@@ -33,11 +33,9 @@
 # Allocation, not time: it doesn't care how loaded the machine is. It is not byte-identical either --
 # see docs/perf/playbook.md for the noise floor.
 #
-# Only the published build is budgeted. Debug had its own budget and it was retired: most of the
-# debug overage was `noteValue`, an interpreter hook that allocates a closure per frame in Debug
-# and is elided entirely by the Release optimiser, so the debug number tracked a configuration
-# nobody ships while the one we do ship was inside its budget. A debug run still prints what it
-# allocated, because the number is worth seeing; it just does not fail.
+# Only the published build is budgeted. Debug allocates for interpreter hooks (`noteValue`, a
+# closure per frame) that the Release optimiser elides, so its number tracks a configuration nobody
+# ships. A debug run still prints what it allocated; it just does not fail.
 # The budget is in scripts/perf/budget.json.
 
 set -euo pipefail
@@ -115,11 +113,9 @@ TELEMETRY=$(telemetry_path)
 #
 # `--no-trace`, not just the environment variable, and this is load-bearing. The ladder in
 # `LibDB/Tracing.fs` is env, then the store's `trace.record`, then the flag, and a STORED setting
-# beats the environment by design. So on any store where somebody has run `dark traces record on`
-# -- which the walkthrough tells you to do, and which every dev store on this branch therefore has
-# -- the env var below was silently overridden and the gate measured a recording run. That is worth
-# 2.1 MB on this workload, 22% of the budget, and it is why a local red here has looked like a
-# regression all week. The flag pins the setting for the run and beats both.
+# beats the environment by design. So on any store where somebody has run `dark traces record on`,
+# the env var below is silently overridden and the gate measures a recording run, about a fifth of
+# the budget. The flag pins the setting for the run and beats both.
 run_script() {
   DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" --no-trace run "$1"
 }
@@ -128,9 +124,8 @@ run_script() {
 # is budgeted on its own instead: it is what every new user's first command costs.
 #
 # Peak memory depends on the GC's settings as much as on the program, and those depend on the
-# machine: gen0's size follows the CPU cache (1 MB to 64 MB moved this run from 294 to 371 MB), and
-# a container memory limit, which a CI container may have and a laptop doesn't, turns on a hard
-# heap limit (477 MB).
+# machine: gen0's size follows the CPU cache, and a container memory limit, which a CI container
+# may have and a laptop doesn't, turns on a hard heap limit.
 # Both are pinned here so the reading is the same on any box. Allocation doesn't move with either.
 # The values are hex with no 0x: with one, .NET ignores the setting without saying so.
 COLD=$(DOTNET_GCgen0size=1000000 DOTNET_GCHeapHardLimit=180000000 \
@@ -228,7 +223,7 @@ ui = json.load(open(sys.argv[9])) if sys.argv[9] else {}
 
 budget = json.load(open(budget_file))
 mode = sys.argv[4]
-# `.get`, not `[...]`: debug has no budget any more and a missing key must not be a crash.
+# `.get`, not `[...]`: debug has no budget and a missing key must not be a crash.
 limit = budget["steady"].get(mode)
 tolerance = budget["steady"]["tolerance"]
 startup_limit = budget["startup"].get(mode)
@@ -286,8 +281,7 @@ if update:
                     for name, r in ui.items()))
     sys.exit(0)
 
-# The first run, on a store grown from nothing, with tolerances of its own: allocation repeats to
-# the MB in 900, peak memory to a few MB in 480. The regressions this is for were 50% and 90%.
+# The first run, on a store grown from nothing, with tolerances of its own.
 cold = budget["cold"]
 cold_failed = any([
     over("cold.allocated", "first run allocated", cold_alloc, cold["allocated"], cold["allocatedTolerance"], mb),

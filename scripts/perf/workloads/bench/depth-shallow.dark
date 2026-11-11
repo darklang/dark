@@ -1,8 +1,8 @@
 // Staged and run by `scripts/perf/bench`. Raw `Builtin.` calls on purpose: see arith.dark.
 //
 // Same total work as depth-deep, but the stack never gets deeper than ~50.
-// Three nested drivers of 16 keep level small; a single driver would itself recurse 4096 deep, which is
-// what made my first attempt at this comparison measure nothing.
+// Three nested drivers of 16 keep level small; a single driver would itself recurse 4096 deep, and
+// the comparison would measure nothing.
 let leaf(acc: Int64): Int64 =
   acc + 1
 
