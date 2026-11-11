@@ -147,7 +147,7 @@ let machineEntries(): List<(Int64 * List<String>)> =
   |> Stdlib.List.map(fun m ->
     (m.pid,
      [ Stdlib.display(m.pid)
-       Cli.Text.oneLineAt(28, m.title)
+       Cli.Text.oneLineAt(48, m.title)
        (if m.branch == "" then "main" else m.branch)
        startedAgoText(m.started) ]))
 

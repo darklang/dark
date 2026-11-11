@@ -334,37 +334,74 @@ let private installAuditLog () : unit =
       with _ ->
         ())
 
-/// The title a system monitor shows (`setProcessTitle`): `dark` plus the command, plus the one
-/// argument that tells commands of the same kind apart (a daemon's slug, a served port), within
-/// the kernel's 15 bytes. Global flags (`--branch <b>`, `--entry-point <fn>`) are skipped.
-let private processTitle (args : string list) : string =
-  let rec drop (args : string list) =
+/// What `ps`, `top` and htop show for this process (`setProcessTitle`), as (name, command line).
+/// The command line says what runs: the fn, the script, the router and its port, the expression.
+/// The name is the part of that which fits the kernel's 15 bytes. <param invokedAs> is a name a
+/// launcher started this under other than its own (`exec -a todo dark --entry-point Me.Todo.main`):
+/// an alias for a fn, so the title names both.
+let private processTitle
+  (invokedAs : Option<string>)
+  (args : string list)
+  : string * string =
+  let rec split (entryPoint : Option<string>) (args : string list) =
     match args with
+    | "--entry-point" :: fn :: rest -> split (Some fn) rest
     // `--branch` takes a value; `--trace` does NOT, so matching it here swallowed the
     // following argument and `dark --trace run app.dark` was titled `dark app.dark`.
     // The generic flag arm below drops it.
-    | "--branch" :: _ :: rest
-    | "--entry-point" :: _ :: rest -> drop rest
-    | flag :: rest when flag.StartsWith "--" -> drop rest
-    | _ -> args
-  let portOf (rest : string list) =
-    let rec go (xs : string list) =
-      match xs with
-      | "--port" :: p :: _ -> Some p
-      | _ :: xs -> go xs
-      | [] -> None
-    go rest
-  match drop args with
-  | [] -> "dark"
-  | "apps" :: "daemon-main" :: slug :: _ -> $"dark {slug}"
-  | "apps" :: sub :: slug :: _ when sub = "start" || sub = "view" || sub = "run" ->
-    $"dark {slug}"
-  | "serve" :: rest ->
-    match portOf rest with
-    | Some p -> $"dark serve :{p}"
-    | None -> "dark serve"
-  | "run" :: path :: _ -> $"dark {System.IO.Path.GetFileNameWithoutExtension path}"
-  | cmd :: _ -> $"dark {cmd}"
+    | "--branch" :: _ :: rest -> split entryPoint rest
+    | flag :: rest when flag.StartsWith "--" -> split entryPoint rest
+    | _ -> entryPoint, args
+  // One line, and short enough to leave a terminal's `ps aux` room for the rest of the row.
+  let oneLine (words : string list) =
+    let text =
+      System.String.Join(" ", words |> List.map (fun w -> w.ReplaceLineEndings " "))
+    if text.Length > 80 then text.Substring(0, 77) + "..." else text
+  // `dark Todo.main`: the kernel keeps 15 bytes of a name, and a fn is most often `main`.
+  let fnName (fn : string) =
+    "dark "
+    + String.concat
+        "."
+        (Array.toList (fn.Split '.') |> List.rev |> List.truncate 2 |> List.rev)
+  // A package test's worker (`LibDB.TestProcess`) is told apart by the directory it runs in.
+  let testWorker (args : string list) =
+    match args with
+    | path :: _ ->
+      match System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName path) with
+      | null -> None
+      | dir when dir.StartsWith "dark-test-" -> Some(dir.Substring 10)
+      | _ -> None
+    | [] -> None
+  match split None args with
+  | Some fn, rest ->
+    match testWorker rest, invokedAs with
+    | Some id, _ -> $"dark test {id}", $"dark test worker {id}"
+    | None, Some name -> name, $"{name} (alias of {fn})"
+    | None, _ -> fnName fn, $"dark {fn}"
+  | None, [] -> "dark", "dark"
+  | None, ("serve" | "http-server") :: rest ->
+    let rec routerAndPort (router : string) (port : string) (rest : string list) =
+      match rest with
+      | "--port" :: p :: rest -> routerAndPort router p rest
+      | "--max-body-bytes" :: _ :: rest -> routerAndPort router port rest
+      | flag :: rest when flag.StartsWith "--" -> routerAndPort router port rest
+      | r :: rest when router = "" -> routerAndPort r port rest
+      | _ :: rest -> routerAndPort router port rest
+      | [] -> router, port
+    // 8080 is `serve`'s default port, `Darklang.Cli.Http.Serve.defaultArgs`.
+    let router, port = routerAndPort "" "8080" rest
+    $"dark :{port}",
+    oneLine ([ "dark"; "serve"; router; $":{port}" ] |> List.filter ((<>) ""))
+  | None, ("run" | "run-script") :: rest ->
+    match snd (split None rest) with
+    | path :: scriptArgs ->
+      (if path.EndsWith ".dark" then
+         $"dark {System.IO.Path.GetFileNameWithoutExtension path}"
+       else
+         fnName path),
+      oneLine ("dark" :: "run" :: path :: scriptArgs)
+    | [] -> "dark run", "dark run"
+  | None, (cmd :: _ as rest) -> $"dark {cmd}", oneLine ("dark" :: rest)
 
 /// Everything the CLI does. Called on a thread of our own; see `main`.
 let private runCli (args : string[]) : int =
@@ -422,8 +459,13 @@ let private runCli (args : string[]) : int =
     // Record host-operation decisions at the boundary.
     installAuditLog ()
     installSuspendOnInterrupt ()
-    let title = processTitle (List.ofArray args)
-    LibExecution.HostProcess.setProcessTitle title
+    let shortTitle, title =
+      let ownName = System.IO.Path.GetFileName System.Environment.ProcessPath
+      let alias =
+        LibExecution.HostProcess.invokedName ()
+        |> Option.filter (fun name -> name <> ownName && name <> "dark")
+      processTitle alias (List.ofArray args)
+    LibExecution.HostProcess.setProcessTitle shortTitle title
     let commandLine = "dark " + String.concat " " args
 
     // Loopback for guest HTTP, off unless asked for BY NAME. The guest default blocks loopback,

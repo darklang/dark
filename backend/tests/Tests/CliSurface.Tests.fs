@@ -187,6 +187,33 @@ let private stdinThatIsNotUtf8IsRefused =
         Expect.stringContains err "stdin is not valid UTF-8: FF" "says why"
       })
 
+/// `ps` and `top` read a process's name and command line from /proc; the process reads its own.
+let private processTitleSaysWhatRuns =
+  Tests.CliInstance.instanceTest "a process's title says what it runs" (fun i ->
+    task {
+      if System.OperatingSystem.IsLinux() then
+        let! (code, _, err) =
+          Tests.CliInstance.runRaw
+            i
+            [ "permissions"; "allow"; "file"; "read"; "/proc" ]
+        Expect.equal code 0 $"allowing /proc: {err}"
+        let read (file : string) =
+          task {
+            let! (_, out, err) =
+              Tests.CliInstance.runRaw
+                i
+                [ "eval"; $"Stdlib.Cli.File.readText(\"/proc/self/{file}\")" ]
+            return out + err
+          }
+        let! comm = read "comm"
+        Expect.stringContains comm "dark eval" "the name"
+        let! cmdline = read "cmdline"
+        Expect.stringContains
+          cmdline
+          "dark eval Stdlib.Cli.File.readText"
+          "the command line names `dark`, not the binary's path"
+    })
+
 /// What a person reads while a command runs (a log line, a hint about another flag) is not part of
 /// the answer, so `dark search x | wc -l` counts results and nothing else.
 let private hintsAndLogsStayOffStdout =
@@ -2492,6 +2519,7 @@ let tests : List<Test> =
     timeoutPreservesCapture
     stderrIsCapturedInOrder
     stdinThatIsNotUtf8IsRefused
+    processTitleSaysWhatRuns
     diagnosticsStayOffStdout
     hintsAndLogsStayOffStdout
     warningsAndPreviewsStayOffStdout
