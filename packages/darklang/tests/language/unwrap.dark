@@ -228,12 +228,12 @@ let wrongKind(
 test wrongKindOkRaises =
   wrongKind(Ok(1))
   => raises
-    "`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Ok(1)"
+    "`?` got a Result (Ok(1)), but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption"
 
 test wrongKindErrorRaises =
   wrongKind(Error("x"))
   => raises
-    "`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Error(\"x\")"
+    "`?` got a Result (Error(\"x\")), but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption"
 
 // `?` returns from each callback invocation, allowing the list operation to
 // continue.
@@ -379,29 +379,29 @@ test intOperandRaises =
 test resultInOptionLambdaRaises =
   (fun v -> Some(v? + 1))(Error("x"))
   => raises
-    "`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Error(\"x\")"
+    "`?` got a Result (Error(\"x\")), but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption"
 
 test okInOptionLambdaRaises =
   (fun v -> Some(v? + 1))(Ok(1))
   => raises
-    "`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Ok(1)"
+    "`?` got a Result (Ok(1)), but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption"
 
 test optionInResultLambdaRaises =
   (fun v -> Ok(v? + 1))(None)
   => raises
-    "`?` got an Option, but the enclosing function or lambda returns a Result; convert it first with Stdlib.Option.toResult: None"
+    "`?` got an Option (None), but the enclosing function or lambda returns a Result; convert it first with Stdlib.Option.toResult"
 
 test resultInIfOptionLambdaRaises =
   (fun v -> if true then Some(v?) else None)(Ok(1))
   => raises
-    "`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Ok(1)"
+    "`?` got a Result (Ok(1)), but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption"
 
 test optionInMatchResultLambdaRaises =
   (fun v ->
     match v with
     | _ -> Ok(v?))(Some(1))
   => raises
-    "`?` got an Option, but the enclosing function or lambda returns a Result; convert it first with Stdlib.Option.toResult: Some(1)"
+    "`?` got an Option (Some(1)), but the enclosing function or lambda returns a Result; convert it first with Stdlib.Option.toResult"
 
 // The inner lambda returns Result, even though the outer lambda returns Option.
 test innerLambdaResult =

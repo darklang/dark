@@ -546,9 +546,10 @@ module RuntimeError =
             else
               ("a Result", "an Option", "Stdlib.Result.toOption")
           | _ -> ("a value", "a different container", "a conversion")
-        [ ES.String($"`?` got {got}, but the enclosing function or lambda ")
-          ES.String($"returns {returns}; convert it first with {convert}: ")
-          ES.FullValue(actual) ]
+        [ ES.String($"`?` got {got} (")
+          ES.FullValue(actual)
+          ES.String("), but the enclosing function or lambda ")
+          ES.String($"returns {returns}; convert it first with {convert}") ]
       | UnwrapOperandNotContainer(actual) ->
         [ ES.String("`?` needs an Option or Result, but got ")
           ES.InlineValue(actual)
