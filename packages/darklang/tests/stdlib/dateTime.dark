@@ -612,3 +612,12 @@ test clockSyscalls =
       |> Stdlib.Test.equal(Ok(true))
       // EINTR (-4) on the first call resumes with the remaining time
       Stdlib.DateTime.__sleepWith(interruptedOnce, 1, 0) |> Stdlib.Test.equal(Ok()) ])
+
+test weekdayAndMonthDisplay =
+  Stdlib.Test.all(
+    [ Stdlib.display(Stdlib.DateTime.Weekday.Monday) |> Stdlib.Test.equal("Monday")
+      Stdlib.display(Stdlib.DateTime.Weekday.Sunday) |> Stdlib.Test.equal("Sunday")
+      Stdlib.display(Stdlib.DateTime.Month.January) |> Stdlib.Test.equal("January")
+      Stdlib.display(Stdlib.DateTime.Month.September) |> Stdlib.Test.equal("September")
+      $"{Stdlib.DateTime.Weekday.Friday}, {Stdlib.DateTime.Month.March}"
+      |> Stdlib.Test.equal("Friday, March") ])

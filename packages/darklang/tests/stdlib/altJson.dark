@@ -362,3 +362,16 @@ test commentPlacement =
       parse("// a\u2028\n1")
       |> Stdlib.Test.equal(parseError(ParseError.NotJson))
       parse("/* c") |> Stdlib.Test.equal(parseError(ParseError.NotJson)) ])
+
+test display =
+  Stdlib.Test.all(
+    [ Stdlib.display(
+        Stdlib.AltJson.Json.Array(
+          [ Stdlib.AltJson.Json.Integer(1)
+            Stdlib.AltJson.Json.Null
+            Stdlib.AltJson.Json.String("a") ]))
+      |> Stdlib.Test.equal("[1,null,\"a\"]")
+      $"{Stdlib.AltJson.Json.Bool(true)}" |> Stdlib.Test.equal("true")
+      Stdlib.AltJson.parse("nope")
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(Error("Not JSON")) ])

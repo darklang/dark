@@ -59,3 +59,22 @@ test parseRejectsUnknownUnit =
       |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit))
       Stdlib.Duration.parse("5s5")
       |> Stdlib.Test.equal(Error(Stdlib.Duration.ParseError.UnknownUnit)) ])
+
+test display =
+  Stdlib.Test.all(
+    [ Stdlib.display(Stdlib.Duration.fromSeconds(0)) |> Stdlib.Test.equal("0s")
+      Stdlib.display(Stdlib.Duration.fromSeconds(90)) |> Stdlib.Test.equal("90s")
+      Stdlib.display(Stdlib.Duration.fromSeconds(300)) |> Stdlib.Test.equal("5m")
+      Stdlib.display(Stdlib.Duration.fromSeconds(7200)) |> Stdlib.Test.equal("2h")
+      Stdlib.display(Stdlib.Duration.fromSeconds(172800)) |> Stdlib.Test.equal("2d")
+      Stdlib.display(Stdlib.Duration.fromSeconds(-300)) |> Stdlib.Test.equal("-5m")
+      $"wait {Stdlib.Duration.fromSeconds(30)}" |> Stdlib.Test.equal("wait 30s") ])
+
+test displayParsesBack =
+  [ 0, 1, 59, 60, 61, 3600, 5400, 86400, 90000, -60, -86400 ]
+  |> Stdlib.List.map(fun n ->
+    Stdlib.Duration.parse(Stdlib.display(Stdlib.Duration.fromSeconds(n)))
+    |> Stdlib.Result.map(Stdlib.Duration.toSeconds))
+  |> Stdlib.Test.equal(
+    [ 0, 1, 59, 60, 61, 3600, 5400, 86400, 90000, -60, -86400 ]
+    |> Stdlib.List.map(fun n -> Stdlib.Result.Result.Ok(n)))
