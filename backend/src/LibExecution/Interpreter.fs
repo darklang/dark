@@ -3627,12 +3627,12 @@ let requestApply
   (vm : VMState)
   (applicable : Applicable)
   (arg : Dval)
-  (moreArgs : List<Dval>)
+  (second : Dval voption)
   (next : Dval -> Ply<Dval>)
   : Ply<Dval> =
   vm.pendingApplicable <- applicable
   vm.pendingArg <- arg
-  vm.pendingMoreArgs <- moreArgs
+  vm.pendingSecond <- second
   vm.pendingNext <- next
   Ply DUnit
 
@@ -3654,8 +3654,14 @@ let private landThenRequest
     let! landed = landWhere vm asIs 0 [] args
     vm.activeAccess <- access
     match landed with
-    | first :: rest -> return! requestApply vm (AppLambda lambda) first rest next
-    | [] -> return DUnit
+    | [ first ] -> return! requestApply vm (AppLambda lambda) first ValueNone next
+    | [ first; second ] ->
+      return! requestApply vm (AppLambda lambda) first (ValueSome second) next
+    | _ ->
+      return
+        Exception.raiseInternal
+          "a callable was requested with no arguments or more than two"
+          []
   }
 
 
@@ -4076,12 +4082,16 @@ let rec private beginRequest
   // Take the request off the VM before anything below could make another.
   let applicable = vm.pendingApplicable
   let arg = vm.pendingArg
-  let moreArgs = vm.pendingMoreArgs
+  let second = vm.pendingSecond
   let next = vm.pendingNext
   vm.pendingNext <- Unchecked.defaultof<_>
   vm.pendingApplicable <- Unchecked.defaultof<_>
   vm.pendingArg <- DUnit
-  vm.pendingMoreArgs <- []
+  vm.pendingSecond <- ValueNone
+  let prior =
+    match second with
+    | ValueSome second -> [ arg; second ]
+    | ValueNone -> [ arg ]
   // The builtin was applied under `vm.activeAccess`; the callable narrows that by what it
   // captured, exactly as `Apply` narrows the frame's.
   let applying = vm.activeAccess
@@ -4096,7 +4106,6 @@ let rec private beginRequest
         RTE.Applications.LambdaNotAvailable exprId
         |> RTE.Apply
         |> raiseRTE vm.threadID
-    let prior = arg :: moreArgs
     let allArgs =
       ArgSeq.withPrior
         prior
@@ -4166,7 +4175,7 @@ let rec private beginRequest
     // The arguments ride as the applicable's own (`argsSoFar`), with no register arguments: the
     // call paths rebuild their argument sequence from those two, so a list handed in as the
     // sequence's prior would be dropped.
-    let named = { named with argsSoFar = named.argsSoFar @ (arg :: moreArgs) }
+    let named = { named with argsSoFar = named.argsSoFar @ prior }
     // A trait method is resolved to the fn its impl names, and called as that fn. The type args
     // named the TRAIT's params; the impl fn infers its own. Waited for in place, like the fn
     // fetch below.
@@ -6704,29 +6713,29 @@ let private runRareOpcode
 
 
 
+let private bindOneAgain (r : Dval array) (pat : LetPattern) (arg : Dval) : bool =
+  match pat with
+  | LPVariable reg ->
+    Registers.set r reg arg
+    true
+  | _ -> assignLetPattern r pat arg
+
 /// Bind the arguments of a repeated request into a frame's cleared registers, as
 /// `bindLambdaParams` does for a new frame. `false` on the wrong count or a pattern that does not
 /// match, so the ordinary path can raise the error.
-let rec private bindAgain
+let private bindAgain
   (r : Dval array)
   (pats : List<LetPattern>)
   (arg : Dval)
-  (more : List<Dval>)
+  (second : Dval voption)
   : bool =
   match pats with
-  | [] -> false
-  | pat :: patRest ->
-    let bound =
-      match pat with
-      | LPVariable reg ->
-        Registers.set r reg arg
-        true
-      | _ -> assignLetPattern r pat arg
-    bound
-    && (match more, patRest with
-        | [], [] -> true
-        | a :: moreRest, _ :: _ -> bindAgain r patRest a moreRest
-        | _ -> false)
+  | [ pat ] -> second.IsNone && bindOneAgain r pat arg
+  | [ pat; pat2 ] ->
+    match second with
+    | ValueSome second -> bindOneAgain r pat arg && bindOneAgain r pat2 second
+    | ValueNone -> false
+  | _ -> false
 
 /// The frame of a lambda a builtin asked for has returned, its continuation has answered `out`, and
 /// that answer is a request for the same lambda again (`List.fold`'s next element). Bind the new
@@ -6754,19 +6763,21 @@ let private tryRunAgain
         obj.ReferenceEquals(requestedLambda, applied.lambda)
         ->
         let arg = vm.pendingArg
-        let more = vm.pendingMoreArgs
+        let second = vm.pendingSecond
         if
           (match arg with
            | DPromise _ -> true
            | _ -> false)
-          || List.exists Pending.isPromise more
+          || (match second with
+              | ValueSome(DPromise _) -> true
+              | _ -> false)
           || (Ply.trySync out).IsNone
         then
           false
         else
           let r = frame.registers
           System.Array.Clear(r, 0, r.Length)
-          if not (bindAgain r applied.patterns arg more) then
+          if not (bindAgain r applied.patterns arg second) then
             System.Array.Clear(r, 0, r.Length)
             false
           else
@@ -6779,7 +6790,7 @@ let private tryRunAgain
             vm.pendingNext <- Unchecked.defaultof<_>
             vm.pendingApplicable <- Unchecked.defaultof<_>
             vm.pendingArg <- DUnit
-            vm.pendingMoreArgs <- []
+            vm.pendingSecond <- ValueNone
             if vm.stats.enabled then
               vm.stats.framePushCount <- vm.stats.framePushCount + 1L
             true

@@ -5996,7 +5996,7 @@ type VMState =
     mutable pendingReads : ResizeArray<Promise>
 
     /// A builtin body asking for a callable to be applied on its behalf, in this VM, as a frame
-    /// of its own (`Interpreter.requestApply`): the callable, its first argument and any more,
+    /// of its own (`Interpreter.requestApply`): the callable, its first argument and any second,
     /// and what to call with the result. Read and cleared by the interpreter right after the
     /// body returns, which then pushes the frame instead of using the body's result. Null
     /// `pendingNext` means no request. Four slots rather than a record, so a chain of a thousand
@@ -6004,7 +6004,7 @@ type VMState =
     mutable pendingNext : Dval -> Ply<Dval>
     mutable pendingApplicable : Applicable
     mutable pendingArg : Dval
-    mutable pendingMoreArgs : List<Dval>
+    mutable pendingSecond : Dval voption
     /// For a request made after the builtin's body had already waited (a stream pulling from
     /// the network, then applying its transform): what records the chain's final result in the
     /// trace, left here by the body's completion for the landing site to pick up. Null when
@@ -6129,7 +6129,7 @@ type VMState =
       hostInflight = Unchecked.defaultof<_>
       pendingApplicable = Unchecked.defaultof<_>
       pendingArg = DUnit
-      pendingMoreArgs = []
+      pendingSecond = ValueNone
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
@@ -6217,7 +6217,7 @@ type VMState =
     vm.pendingNext <- Unchecked.defaultof<_>
     vm.pendingApplicable <- Unchecked.defaultof<_>
     vm.pendingArg <- DUnit
-    vm.pendingMoreArgs <- []
+    vm.pendingSecond <- ValueNone
     vm.pendingFinish <- Unchecked.defaultof<_>
     vm.pendingHostOp <- Unchecked.defaultof<_>
     vm.pendingHostNext <- Unchecked.defaultof<_>
