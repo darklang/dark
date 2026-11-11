@@ -173,9 +173,8 @@ let outdatedFindings(edges: List<Deps.StaleReference>): List<Finding> =
   |> Stdlib.List.uniqueBy(fun f -> f.id)
   |> Stdlib.List.sortBy(fun f -> fqnOf(f.usage) + ":" + fqnOf(f.dependency))
 
-let outdatedUsagesOn(branchId: Uuid): List<Finding> =
-  let (stale, _) = Deps.review(branchId, [])
-  outdatedFindings(stale)
+let outdatedUsagesOn(branchId: Uuid): Stdlib.Result.Result<List<Finding>, String> =
+  Deps.review(branchId, []) |> Stdlib.Result.map(fun((stale, _)) -> outdatedFindings(stale))
 
 
 /// Ack ids, read from the shared conflicts record.
@@ -337,8 +336,8 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
 
 
 /// Find outdated references on a non-main branch, including inherited callers.
-let detectOutdatedUsagesOn(branchId: Uuid): List<Finding> =
-  if SCM.Branch.isMain(branchId) then [] else outdatedUsagesOn(branchId)
+let detectOutdatedUsagesOn(branchId: Uuid): Stdlib.Result.Result<List<Finding>, String> =
+  if SCM.Branch.isMain(branchId) then Stdlib.Result.Result.Ok([]) else outdatedUsagesOn(branchId)
 
 
 /// Everything detection turned up, and everything it could not look at.
@@ -350,7 +349,12 @@ type Detection =
     /// One sentence per detector that could not run. Empty is the normal case.
     blocked: List<String> }
 
-let detectWithOutdated(outdated: List<Finding>): Detection =
+let detectWithOutdated(outdated: Stdlib.Result.Result<List<Finding>, String>): Detection =
+  let (outdated, outdatedBlocked) =
+    match outdated with
+    | Ok(fs) -> (fs, [])
+    | Error(e) -> ([], [ e ])
+
   // Detection and acknowledgement are independent of dependency upgrades.
   let (decisions, decisionsBlocked) =
     match detectSupersededDecisions() with
@@ -363,11 +367,11 @@ let detectWithOutdated(outdated: List<Finding>): Detection =
           [ outdated
             decisions
             detectRivalImplementations(PackageOps.currentBranch()) ])
-      blocked = decisionsBlocked }
+      blocked = Stdlib.List.concat(outdatedBlocked, decisionsBlocked) }
 
 
 /// Findings that have not been acknowledged.
-let pendingWithOutdated(outdated: List<Finding>): Detection =
+let pendingWithOutdated(outdated: Stdlib.Result.Result<List<Finding>, String>): Detection =
   let ackedSet =
     ackedIds()
     |> Stdlib.List.map(fun a -> (a, true))

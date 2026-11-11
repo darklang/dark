@@ -282,21 +282,23 @@ let rebase(branchId: Uuid): Stdlib.Result.Result<List<String>, String> =
 /// The branch's own callers that still reference a version of something the parent has since moved,
 /// each as the repoint that brings it to the parent's version. Rebase and merge both apply them first,
 /// so a caller written on a branch calls what the parent runs once the two meet.
-let outdatedRepoints(branchId: Uuid): List<SCM.Actions.Repoint> =
+let outdatedRepoints(branchId: Uuid): Stdlib.Result.Result<List<SCM.Actions.Repoint>, String> =
   SCM.Constraints.detectOutdatedUsagesOn(branchId)
-  |> Stdlib.List.filterMap(fun f ->
-    match f.detail with
-    | Versions(using, current) ->
-      Stdlib.Option.Option.Some(
-        SCM.Actions.Repoint
-          { usage =
-              Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
-            dependency = f.dependency
-            kind = f.dependencyKind
-            fromHash = using
-            toHash = current }
-      )
-    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.Result.map(fun findings ->
+    findings
+    |> Stdlib.List.filterMap(fun f ->
+      match f.detail with
+      | Versions(using, current) ->
+        Stdlib.Option.Option.Some(
+          SCM.Actions.Repoint
+            { usage =
+                Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
+              dependency = f.dependency
+              kind = f.dependencyKind
+              fromHash = using
+              toHash = current }
+        )
+      | _ -> Stdlib.Option.Option.None))
 
 
 /// The rebase itself, as one action: the divergences and repoints apart (see <type Rebased>), and the
@@ -308,9 +310,12 @@ let outdatedRepoints(branchId: Uuid): List<SCM.Actions.Repoint> =
 /// those the way an edit on the parent would have, then moves every base and records the conflicts in
 /// one transaction.
 let rebaseDetailed(branchId: Uuid): Stdlib.Result.Result<SCM.Actions.Reconciled, String> =
-  match SCM.Actions.merge(SCM.Actions.MergeAction.Rebase(branchId, outdatedRepoints(branchId))) with
-  | Ok(r) -> Stdlib.Result.Result.Ok(r)
-  | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+  match outdatedRepoints(branchId) with
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(repoints) ->
+    match SCM.Actions.merge(SCM.Actions.MergeAction.Rebase(branchId, repoints)) with
+    | Ok(r) -> Stdlib.Result.Result.Ok(r)
+    | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
 
 
 /// "owner.Module.Sub.name" -> (owner, dotted-modules, name). The inverse of <fn fqnOf>, and it has to

@@ -90,8 +90,9 @@ let getByName(name: String): Stdlib.Option.Option<Branch> =
 /// Start a branch off <param parentId> and return it. Idempotent on the name: asking twice gets
 /// you the branch you already have, which is what `switch` does too.
 let create(name: String, parentId: Uuid): Stdlib.Option.Option<Branch> =
-  let (id, _created) = SCM.PackageOps.ensureBranch(name, parentId)
-  get(id)
+  match SCM.PackageOps.ensureBranch(name, parentId) with
+  | Ok((id, _created)) -> get(id)
+  | Error(_) -> Stdlib.Option.Option.None
 
 /// Rename a branch. One write, because the name is an alias and nothing points at it: ops, per-name
 /// bases and parent links all reference the id.
