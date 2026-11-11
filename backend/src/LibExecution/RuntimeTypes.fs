@@ -851,10 +851,11 @@ type StringSegment =
 /// store lookup: if the Dval is reachable, the bytes are reachable; when
 /// the Dval is collected, the bytes can be collected too.
 ///
-/// `id` is only for runtime inspection. Value equality uses the same SHA-256
-/// content hash as persistent bytes, computed the first time something needs it
-/// and reused on promotion. `Bytes.newEphemeral` takes ownership of the array;
-/// callers must not mutate it.
+/// `id` is only for runtime inspection. Two in-memory values are equal when
+/// their bytes are, compared directly unless both already have a hash. The
+/// SHA-256 content hash, the key persistent bytes use, is computed the first
+/// time hashing, ordering or saving needs it, and reused on promotion.
+/// `Bytes.newEphemeral` takes ownership of the array; callers must not mutate it.
 ///
 /// The value is `buffer[offset .. offset + count - 1]`. A slice made by
 /// `Bytes.sliceEphemeral` shares its parent's `buffer` instead of copying it, so
@@ -907,7 +908,11 @@ type EphemeralBytes =
     match o with
     | :? EphemeralBytes as other ->
       obj.ReferenceEquals(this, other)
-      || (this.count = other.count && this.ContentHash = other.ContentHash)
+      || (this.count = other.count
+          && (if this.IsHashed && other.IsHashed then
+                this.hash = other.hash
+              else
+                System.MemoryExtensions.SequenceEqual(this.Span, other.Span)))
     | _ -> false
   override this.GetHashCode() : int =
     hash this.ContentHash * 31 + hash (int64 this.count)
@@ -933,15 +938,17 @@ type BytesRef =
     | Persistent(_, length) -> length
 
   // Two BytesRefs are equal when they hold the same bytes, whether ephemeral or
-  // persistent. We compare hashes, so nothing is loaded from the store.
+  // persistent. Two in-memory values compare their bytes; otherwise we compare
+  // hashes, so nothing is loaded from the store.
   // This relies on the bytes never changing. Persistent bytes can't change.
   // Ephemeral bytes could, if some F# code wrote to the array; nothing stops
   // that yet.
   override this.Equals(o : obj) : bool =
     match o with
     | :? BytesRef as other ->
-      obj.ReferenceEquals(this, other)
-      || (this.Length = other.Length && this.ContentHash = other.ContentHash)
+      match this, other with
+      | Ephemeral a, Ephemeral b -> a.Equals b
+      | _ -> this.Length = other.Length && this.ContentHash = other.ContentHash
     | _ -> false
 
   override this.GetHashCode() : int = hash this.ContentHash * 31 + hash this.Length
