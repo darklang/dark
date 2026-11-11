@@ -3,10 +3,10 @@
 /// Computes SHA-256 hashes of canonical serialized forms, with SCC-aware
 /// batch hashing for mutually-recursive definitions (Tarjan's algorithm).
 ///
-/// The hash is MEANING-STABLE: bound-variable names don't affect it, so two functions identical up to a
-/// rename share one content hash. A parameter use is positional (`EArg index`) and
-/// `Canonical.writeParameter` doesn't hash the parameter name; let/lambda/match binders are renamed to a
-/// canonical `$0`,`$1`,... in a fixed structural traversal before hashing. Free variables, ids, types and
+/// The hash is MEANING-STABLE: names bound inside a body don't affect it, so two functions identical up
+/// to a rename of those share one content hash. Let/lambda/match binders are renamed to a canonical
+/// `$0`,`$1`,... in a fixed structural traversal before hashing. Parameter names are hashed
+/// (`Canonical.writeParameter`), since the store keeps one body per hash. Free variables, ids, types and
 /// qualified refs are left untouched.
 namespace LibSerialization.Hashing
 

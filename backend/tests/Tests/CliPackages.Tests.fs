@@ -2073,9 +2073,7 @@ let anEnumCasesDocEditLands =
       do! discardAll state
     })
 
-/// A parameter's doc, which is the one addressed by POSITION rather than by name: a parameter name
-/// is not in the identity hash, so two functions differing only in their parameter names are one
-/// item and a name would not identify anything.
+/// A parameter's doc, which is the one addressed by POSITION rather than by name.
 let aParametersDocEditLands =
   instanceTest "editing only a parameter's doc saves it" (fun state ->
     task {
@@ -2115,6 +2113,30 @@ let aParametersDocEditLands =
           "and the op names the parameter by position, since its name is not identity"
       do! discardAll state
     })
+
+
+let parameterNamesStayWithTheirFunction =
+  instanceTest
+    "two functions differing only in parameter names keep their own"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.ParamNames.add" "(a: Int64, b: Int64): Int64 = a + b"
+        do! fn state "Tests.ParamNames.plus" "(x: Int64, y: Int64): Int64 = x + y"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamNames.add" ]
+            "add(a: Int64, b: Int64): Int64 =\n  a + b"
+            "the first keeps its names"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamNames.plus" ]
+            "plus(x: Int64, y: Int64): Int64 =\n  x + y"
+            "and the second keeps its own"
+        do! discardAll state
+      })
 
 
 /// Two people writing different prose for one doc, neither having seen the other's.
@@ -2412,6 +2434,7 @@ let tests : List<Test> =
     aFieldsDocEditLands
     anEnumCasesDocEditLands
     aParametersDocEditLands
+    parameterNamesStayWithTheirFunction
     aBranchesDocEditStaysOnTheBranch
     reAuthoringTheSameSourceSurvivesTheCommit
     aVersionMovedAndMovedBackKeepsTheLastNaming

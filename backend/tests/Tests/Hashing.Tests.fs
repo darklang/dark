@@ -52,16 +52,14 @@ let private caseOf (pat : PT.MatchPattern) (rhs : PT.Expr) : PT.MatchCase =
 let private alphaNormTests =
   testList
     "meaning-stable (alpha-normalization)"
-    [ test
-        "parameter names don't affect the hash (a parameter use is positional, EArg)" {
-        // the body references parameters by position (EArg index), and the parameter name isn't hashed, so
-        // two fns identical up to parameter names share one content hash. (Meaning-preservation — which
-        // parameter goes where — is pinned by the next test and the let/lambda/match tests below.)
-        let body = eTuple (eArg 0) (eArg 1) [] // (param0, param1) — positional
-        Expect.equal
+    [ test "parameter names are part of the hash" {
+        // The store keeps one body per hash, so a shared hash would show one function the other's
+        // parameter names.
+        let body = eTuple (eArg 0) (eArg 1) []
+        Expect.notEqual
           (h [ "x"; "y" ] body)
           (h [ "a"; "b" ] body)
-          "same meaning, same hash — the function's identity ignores incidental parameter names"
+          "functions differing only in parameter names are two items"
       }
 
       test "parameter POSITION is meaning: `(arg0, arg1)` ≠ `(arg1, arg0)`" {
@@ -290,16 +288,16 @@ let private fnHashTests =
         let hPlain = Hashing.computeFnHash Hashing.Normal plain
         let hBounded = Hashing.computeFnHash Hashing.Normal bounded
         Expect.notEqual hPlain hBounded "a bound is part of the fn's identity"
-        // The pre-bounds writer ended after the ceiling byte, and an empty list must not
-        // append a length byte, or adding the field would have repointed the whole store.
-        // The literal is the pin: it is what `makeFn (eInt64 42)` hashed to before `bounds`
-        // existed, so if the writer starts emitting anything for an empty list, this fails
-        // loudly rather than agreeing with itself.
+        // The writer ends after the ceiling byte, and an empty list must not append a length
+        // byte, or adding the field would have repointed the whole store. The literal is the
+        // pin: what `makeFn (eInt64 42)` hashes to with no bounds written, so if the writer
+        // starts emitting anything for an empty list, this fails loudly rather than agreeing
+        // with itself.
         let (PT.Hash asHex) = hPlain
         Expect.equal
           asHex
-          "37d6123e78e0dd93b49abcbca87e56528993f9f84731256f16a20bc2325bb391"
-          "a fn with no bounds hashes as it did before bounds existed"
+          "de8335fa90617511cf2f3583279592732a3fd1091233f2be49a52faaae0eaf22"
+          "a fn with no bounds hashes with nothing written for them"
       }
 
       // `Stdlib.List.map<Int64, Int64>` uncalled is a different value from `Stdlib.List.map`,
