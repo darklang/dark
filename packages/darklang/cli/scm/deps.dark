@@ -299,16 +299,17 @@ let executeJson(
       let (h, dLoc, dKind) = d
       edgeJson((h, dKind, dLoc)))
 
-  Stdlib.printLine((
-    ScmJson.depsJson((
-      ScmJson.DepsJson
-        { item = entityName
-          dependencies = dependencies
-          dependents = dependents }
+  let printed =
+    Cli.printJson((
+      ScmJson.depsJson((
+        ScmJson.DepsJson
+          { item = entityName
+            dependencies = dependencies
+            dependents = dependents }
+      ))
     ))
-  ))
 
-  state
+  Cli.exitWith(state, printed)
 
 let execute(state: AppState, args: List<String>): AppState =
   // Flags: --deep (transitive), --all (don't cap the listing), --json

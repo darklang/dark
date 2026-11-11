@@ -242,14 +242,14 @@ let printMachineShow(target: String, json: Bool): Bool =
   match machineByPid(target) with
   | Some(m) ->
     if json then
-      Stdlib.printLine(Stdlib.Json.serialize<LanguageTools.Exec.MachineProcess>(m))
+      Cli.printJson(Stdlib.Json.checkedSerialize<LanguageTools.Exec.MachineProcess>(m))
     else
       Stdlib.printLine($"{Stdlib.display(m.pid)}  {m.title}")
       Stdlib.printLine($"  command       {m.command}")
       let branch = if m.branch == "" then "main" else m.branch
       Stdlib.printLine($"  branch        {branch}")
       Stdlib.printLine($"  started       {startedAgoText(m.started)}")
-    true
+      true
   | None -> false
 
 
@@ -311,7 +311,7 @@ let stop(target: String, how: Stdlib.Exec.Stop): Stdlib.Result.Result<String, St
 
 /// Everything `ps` knows, as JSON, for something that is not a person: this instance's
 /// processes and the machine's other Dark processes, in the same two groups the tables print.
-let printJson(): Unit =
+let printJson(): Bool =
   let processes = LanguageTools.Exec.list()
   // Self is filtered out, the same way the table does it: the process answering the question is
   // not news, and the two renderings must not disagree about what is running.
@@ -319,9 +319,9 @@ let printJson(): Unit =
   let machine =
     LanguageTools.Exec.machineList()
     |> Stdlib.List.filter(fun m -> (m.pid) != me)
-  Stdlib.printLine(
-    (Stdlib.Json.serialize<PsSnapshot>(
-      PsSnapshot { thisInstance = processes, machine = machine })))
+  Cli.printJson(
+    Stdlib.Json.checkedSerialize<PsSnapshot>(
+      PsSnapshot { thisInstance = processes, machine = machine }))
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -331,8 +331,11 @@ let execute(state: AppState, args: List<String>): AppState =
 
   match args with
   | [] ->
-    if wantsJson then printJson() else printList(state.currentBranchId)
-    state
+    if wantsJson then
+      Cli.exitWith(state, printJson())
+    else
+      printList(state.currentBranchId)
+      state
   | [ "--watch" ] ->
     let view =
       LiveView.Model.View
@@ -367,8 +370,7 @@ let execute(state: AppState, args: List<String>): AppState =
               $"process {Cli.Text.shortId(p.id)} finished while you were asking")
             false
           | Some(d) ->
-            Stdlib.printLine(Stdlib.Json.serialize<LanguageTools.Exec.Detail>(d))
-            true
+            Cli.printJson(Stdlib.Json.checkedSerialize<LanguageTools.Exec.Detail>(d))
       else
         printShow(state.currentBranchId, prefix)
     Cli.exitWith(state, ok)

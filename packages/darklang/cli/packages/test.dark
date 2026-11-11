@@ -117,9 +117,10 @@ let storeOutcome(
   testHash: LanguageTools.ProgramTypes.Hash,
   outcome: Outcome)
   : Unit =
-  LanguageTools.PackageManager.Test.storeResult(
-    resultKey(cache, testHash),
-    Stdlib.Json.serialize<Outcome>(outcome))
+  match Stdlib.Json.checkedSerialize<Outcome>(outcome) with
+  | Ok(json) -> LanguageTools.PackageManager.Test.storeResult(resultKey(cache, testHash), json)
+  // Not cached: the next run runs the test again.
+  | Error(_) -> ()
 
 /// The last result for this test on this branch, read without writing anything.
 /// A failed result is shown in views but is never reused by `dark test run`.

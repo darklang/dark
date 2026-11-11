@@ -485,8 +485,8 @@ let jsonFailure(state: AppState, msg: String): AppState =
   Cli.failed(state)
 
 /// Its "that worked" twin.
-let jsonSuccess(id: String, status: String, resolvedTo: String): Unit =
-  Stdlib.printLine((
+let jsonSuccess(id: String, status: String, resolvedTo: String): Bool =
+  Cli.printJson((
     ScmJson.conflictActionJson((
       ScmJson.ConflictActionJson
         { id = id, ok = true, status = status, resolvedTo = resolvedTo, error = "" }
@@ -494,8 +494,8 @@ let jsonSuccess(id: String, status: String, resolvedTo: String): Unit =
   ))
 
 /// The typed conflict list, as both listing arms print it.
-let printConflictList(cs: List<SCM.Conflicts.Conflict>): Unit =
-  Stdlib.printLine((
+let printConflictList(cs: List<SCM.Conflicts.Conflict>): Bool =
+  Cli.printJson((
     ScmJson.conflictListJson((
       ScmJson.ConflictListJson
         { pending = Stdlib.List.length(cs)
@@ -512,22 +512,19 @@ let executeJson(state: AppState, args: List<String>): AppState =
   match args with
   | []
   | [ "list" ] ->
-    printConflictList(SCM.Conflicts.pending())
-    state
+    Cli.exitWith(state, printConflictList(SCM.Conflicts.pending()))
 
   | [ "branch", branchRef ] ->
     // Same name-to-id crossing the human-readable arm does; a name is what every command prints.
     match Cli.Branch.resolveRef(branchRef) with
     | None -> Cli.failed(state)
     | Some(branchId) ->
-      printConflictList(SCM.PackageOps.branchPreview(branchId))
-      state
+      Cli.exitWith(state, printConflictList(SCM.PackageOps.branchPreview(branchId)))
 
   | [ "show", id ] ->
     match SCM.Conflicts.getByIdPrefix(id) with
     | Some(c) ->
-      Stdlib.printLine(ScmJson.conflictJson(c))
-      state
+      Cli.exitWith(state, Cli.printJson(ScmJson.conflictJson(c)))
     | None ->
       jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
 
@@ -537,8 +534,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
     | Some(c) ->
       match SCM.Conflicts.ack(c.id) with
       | Ok(_) ->
-        jsonSuccess(c.id, "acked", c.autoResolvedTo)
-        state
+        Cli.exitWith(state, jsonSuccess(c.id, "acked", c.autoResolvedTo))
       | Error(e) -> jsonFailure(state, e)
     | None ->
       jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
@@ -557,8 +553,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
         // callers that had followed the losing version come along, and it refuses an empty hash.
         match SCM.PackageOps.settleConflict(state.currentBranchId, c, cand.hash) with
         | Ok(_) ->
-          jsonSuccess(c.id, "overridden", cand.hash)
-          state
+          Cli.exitWith(state, jsonSuccess(c.id, "overridden", cand.hash))
         | Error(e) ->
           jsonFailure(state, e)
 

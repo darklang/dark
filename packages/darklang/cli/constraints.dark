@@ -121,13 +121,11 @@ let executeJson(state: AppState, args: List<String>): AppState =
   let body = findings |> Stdlib.List.map(toJson) |> (fun ls -> Stdlib.String.join(ls, ","))
 
   // Add-only, normally `[]`. Without it an agent reads "we didn't look" as "nothing to see".
-  let blocked =
-    detected.blocked
-    |> Stdlib.List.map(fun b -> Stdlib.Json.serialize<String>(b))
-    |> (fun ls -> Stdlib.String.join(ls, ","))
+  let answer =
+    Stdlib.Json.checkedSerialize<List<String>>(detected.blocked)
+    |> Stdlib.Result.map(fun blocked -> $"{{\"findings\":[{body}],\"blocked\":{blocked}}}")
 
-  Stdlib.printLine($"{{\"findings\":[{body}],\"blocked\":[{blocked}]}}")
-  state
+  Cli.exitWith(state, Cli.printJson(answer))
 
 
 let executeList(state: AppState, args: List<String>): AppState =

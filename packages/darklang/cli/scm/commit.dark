@@ -425,25 +425,26 @@ let executeJson(state: AppState, args: List<String>): AppState =
     else
       (false, "", 0, 0, "")
 
-  Stdlib.printLine((
-    ScmJson.commitJson((
-      ScmJson.CommitJson
-        { branch = r.branch
-          committed = didCommit
-          refused = refusal
-          commit = hash
-          message = parsed.message
-          opsCommitted = ops
-          dependentsRepointed = moved
-          changed = r.items
-          removed = r.removed
-          propagates = r.propagates
-          conflicts = r.conflicts }
+  let printed =
+    Cli.printJson((
+      ScmJson.commitJson((
+        ScmJson.CommitJson
+          { branch = r.branch
+            committed = didCommit
+            refused = refusal
+            commit = hash
+            message = parsed.message
+            opsCommitted = ops
+            dependentsRepointed = moved
+            changed = r.items
+            removed = r.removed
+            propagates = r.propagates
+            conflicts = r.conflicts }
+      ))
     ))
-  ))
 
   if failure == "" then
-    state
+    Cli.exitWith(state, printed)
   else
     Cli.printErr(failure)
     { state with exitCode = 1 }

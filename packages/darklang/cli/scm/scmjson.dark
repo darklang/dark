@@ -141,11 +141,14 @@ type BranchJson =
     /// able to tell them apart.
     merged: Bool }
 
-let depsJson(d: DepsJson): String = Stdlib.Json.serialize<DepsJson>(d)
-let commitsJson(cs: List<CommitRowJson>): String =
-  Stdlib.Json.serialize<List<CommitRowJson>>(cs)
-let branchesJson(bs: List<BranchJson>): String =
-  Stdlib.Json.serialize<List<BranchJson>>(bs)
+/// What each `--json` answer below is: the text, or why a value has no JSON form.
+type JsonText = Stdlib.Result.Result<String, Stdlib.Json.SerializeError.SerializeError>
+
+let depsJson(d: DepsJson): JsonText = Stdlib.Json.checkedSerialize<DepsJson>(d)
+let commitsJson(cs: List<CommitRowJson>): JsonText =
+  Stdlib.Json.checkedSerialize<List<CommitRowJson>>(cs)
+let branchesJson(bs: List<BranchJson>): JsonText =
+  Stdlib.Json.checkedSerialize<List<BranchJson>>(bs)
 
 /// One op on a branch, as `dark log <branch> --json` reports it. `seq` is its position, oldest first.
 ///
@@ -156,8 +159,8 @@ type BranchOpJson =
   { seq: Int64
     op: String }
 
-let branchOpsJson(os: List<BranchOpJson>): String =
-  Stdlib.Json.serialize<List<BranchOpJson>>(os)
+let branchOpsJson(os: List<BranchOpJson>): JsonText =
+  Stdlib.Json.checkedSerialize<List<BranchOpJson>>(os)
 
 /// `dark diff --json`: the draft, the same list the pretty `diff` prints. `draftOps` counts what binds no
 /// name too (a deprecation, a restore), which `changed` cannot show.
@@ -167,12 +170,12 @@ type DraftDiffJson =
     /// Fully-qualified names the draft removes.
     removed: List<String> }
 
-let draftDiffJson(d: DraftDiffJson): String = Stdlib.Json.serialize<DraftDiffJson>(d)
+let draftDiffJson(d: DraftDiffJson): JsonText = Stdlib.Json.checkedSerialize<DraftDiffJson>(d)
 
 /// `dark diff <branch> --json`. The SCM record is serialized directly rather than copied into a shape of
 /// its own: there is nothing to add here, and a second shape would be a second thing to keep in step.
-let branchDiffJson(es: List<SCM.PackageOps.BranchDiffEntry>): String =
-  Stdlib.Json.serialize<List<SCM.PackageOps.BranchDiffEntry>>(es)
+let branchDiffJson(es: List<SCM.PackageOps.BranchDiffEntry>): JsonText =
+  Stdlib.Json.checkedSerialize<List<SCM.PackageOps.BranchDiffEntry>>(es)
 
 
 /// Classify what an update did to a name. Shared by the pretty CHANGED line and the JSON, so they can't
@@ -248,14 +251,14 @@ let changeNoteFor(item: ChangedItem): String =
   else
     changeNote(item.change)
 
-let statusJson(s: StatusJson): String = Stdlib.Json.serialize<StatusJson>(s)
-let commitJson(c: CommitJson): String = Stdlib.Json.serialize<CommitJson>(c)
-let conflictListJson(c: ConflictListJson): String =
-  Stdlib.Json.serialize<ConflictListJson>(c)
-let conflictJson(c: SCM.Conflicts.Conflict): String =
-  Stdlib.Json.serialize<ConflictJson>(conflictWithFqn(c))
-let conflictActionJson(a: ConflictActionJson): String =
-  Stdlib.Json.serialize<ConflictActionJson>(a)
+let statusJson(s: StatusJson): JsonText = Stdlib.Json.checkedSerialize<StatusJson>(s)
+let commitJson(c: CommitJson): JsonText = Stdlib.Json.checkedSerialize<CommitJson>(c)
+let conflictListJson(c: ConflictListJson): JsonText =
+  Stdlib.Json.checkedSerialize<ConflictListJson>(c)
+let conflictJson(c: SCM.Conflicts.Conflict): JsonText =
+  Stdlib.Json.checkedSerialize<ConflictJson>(conflictWithFqn(c))
+let conflictActionJson(a: ConflictActionJson): JsonText =
+  Stdlib.Json.checkedSerialize<ConflictActionJson>(a)
 
 /// `--json` present?
 let wantsJson(args: List<String>): Bool = Stdlib.List.contains(args, "--json")

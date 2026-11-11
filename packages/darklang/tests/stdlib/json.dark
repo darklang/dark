@@ -1243,12 +1243,26 @@ module Uuid =
 
 module BadTypes =
   test rejects1 =
-    (Stdlib.Json.parse<Int64 -> Int64>("{}"))
-    => raises "Unsupported type in JSON: Int64 -> Int64. Some types are not supported in Json serialization, and cannot be used as type arguments to Stdlib.Json.parse or Stdlib.Json.serialize"
+    (Stdlib.Json.parse<Int64 -> Int64>("{}")) |> err
+    |> Stdlib.Test.equal(Result.Error("Can't parse JSON as type `Int64 -> Int64`, which has no JSON form"))
 
   test rejects2 =
     (Stdlib.Json.serialize<Int64 -> Int64>(fun i -> 5))
     => raises "Cannot serialize (lambda) into JSON"
+
+  test checkedRejects =
+    Stdlib.Json.checkedSerialize<Int64 -> Int64>(fun i -> 5)
+    |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+    |> Stdlib.Test.equal(Result.Error("Cannot serialize a function into JSON"))
+
+  test checkedRejectsIntKeys =
+    Stdlib.Json.checkedSerialize<Dict<Int64, String>>(Dict { 1: "a" })
+    |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+    |> Stdlib.Test.equal(Result.Error("Cannot serialize a dict into JSON: JSON object keys must be Strings, but this dict's keys are Int64"))
+
+  test checkedSerializes =
+    Stdlib.Json.checkedSerialize<List<Int64>>([ 1, 2 ])
+    |> Stdlib.Test.equal(Result.Ok("[1,2]"))
 
 module List =
   type MyString = String

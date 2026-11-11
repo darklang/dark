@@ -119,6 +119,18 @@ let printOk(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.success(m
 let printErr(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
 let printHint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
 
+/// Print <param json> on stdout, or say on stderr why the value has no JSON form. Whether it printed.
+let printJson(
+  json: Stdlib.Result.Result<String, Stdlib.Json.SerializeError.SerializeError>)
+  : Bool =
+  match json with
+  | Ok(text) ->
+    Stdlib.printLine(text)
+    true
+  | Error(e) ->
+    printErr(Stdlib.display(e))
+    false
+
 /// A line of the ANSWER in hint colour. Not `printHint`, which would take it off stdout.
 let printQuiet(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(msg))
 
