@@ -68,11 +68,8 @@ Starting the container also builds once, so it's usable when it comes up.
 
 ### Your first fifteen minutes
 
-It shouldn't take fifteen. Measured on a fresh clone with a fresh container and no
-build cache, these four came to **144 seconds**, of which 92 was the container coming
-up and building and 51 was the test run. That was with the Docker image already
-built; the very first time you'll also pay for that, which is the "few minutes" the
-start script warns you about.
+It shouldn't take fifteen. The very first time you also pay for building the Docker
+image, which is the "few minutes" the start script warns you about.
 
 Four commands, ending in one that proves the environment works:
 
@@ -100,7 +97,7 @@ scripts/dev/status           # did it work, and has the tree moved on since?
 `status` reads `rundir/build-state.json`, which every build path writes, so nothing has
 to guess by reading logs.
 
-If you'd rather it rebuilt on save, that still exists and is one command:
+If you'd rather it rebuilt on save, that is one command:
 
 ```
 scripts/dev/watch            # Ctrl+C to stop

@@ -51,8 +51,7 @@ streams stay forbidden because they have no content equality.
 Reflection also depends on this. A reflected dictionary stores its entries as
 `Dict<Dval, Dval>`, and a reflected `Dval` can hold `DBytes`. If Bytes were
 forbidden as keys, the type checker would reject `Dval` as a key type, and with it
-the reflection types and everything that uses them. Restoring the ban in the
-checker made 191 more declarations fail across the tree, including `reflect`.
+the reflection types and everything that uses them, including `reflect`.
 
 Two costs to keep in mind:
 
@@ -68,13 +67,8 @@ Saving a dictionary rewrites any unsaved Bytes keys into saved ones
 ## Allocation check
 
 `scripts/perf/workloads/probes/bytes.dark` measures creation, first comparison,
-and cached comparison separately. On the Linux ARM64 AOT build on October 19,
-2026, hashing a newly created value added 208 bytes of allocation compared with
-creating it and comparing it with itself (400 bytes on October 16, before the
-hash moved from a `Lazy` to a plain cached field and to `SHA256.HashData`).
-This was the same for 16-byte and 64-KiB inputs. Cached comparisons allocated
-320 bytes per probe iteration for both sizes, including the interpreter and
-loop overhead (the baseline was 152 bytes). Two runs gave the same numbers.
+and cached comparison separately. The allocation for hashing a new value, and for
+a cached comparison, is the same for a 16-byte input as for a 64-KiB one.
 
 These are allocation measurements, not timing measurements. The first hash
 still scans the entire payload; later comparisons reuse it.

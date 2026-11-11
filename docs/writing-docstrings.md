@@ -40,15 +40,12 @@ Link tags cannot contain code blocks or other tags.
 
 ## Rendering
 
-Nothing renders these at the moment. The renderer was `PrettyDocs.convert` in the
-old client, which turned a docstring into DOM elements; that client is gone and
-nothing has replaced it. The styling spec lived in Notion, which is also gone.
+Nothing renders these at the moment.
 
 The syntax above is still what docstrings in `packages/` are written in, so it's
 worth following. Just don't expect to see it rendered yet.
 
 ## New tag types
 
-A tag has to be a single word of a-z characters. Adding one used to mean editing
-`client/styles/_docs.scss` and the `validTags` list in `client/src/ViewUtils.md`;
-with no renderer there is currently nowhere to register it.
+A tag has to be a single word of a-z characters. With no renderer there is
+currently nowhere to register it.

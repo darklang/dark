@@ -14,8 +14,7 @@ checked.** Everything below is a way of not doing that.
 ## 1. Measure allocation, not time
 
 Allocation for a fixed workload is far steadier than time and doesn't care how loaded the machine
-is. Time on this box drifts about 12 ms, enough to hide or invent most individual wins; eleven runs
-cannot reliably resolve a 10 ms difference.
+is. Time drifts enough to hide or invent most individual wins.
 
 It is not, however, byte-identical. `steady.dark` in debug, ten runs back to back:
 
@@ -38,7 +37,7 @@ of `data.db` clusters the same way, so don't spend time isolating the store agai
 
 Taking the minimum of N does not tighten the readings much, since the spread is roughly symmetric
 rather than noise sitting above a floor, and `GC.GetTotalAllocatedBytes(precise: true)` is slightly
-worse. Both checked rather than assumed. So several samples a side is the only thing that helps: one
+worse. So several samples a side is the only thing that helps: one
 reading is not a measurement, and never `--update` off a single sample.
 
 Decide with allocation, report time, never gate on time. A change that looks flat in allocation and
@@ -74,15 +73,14 @@ against each other was one line of insight when the json profile was flat:
     returns Option<Int>         4,162 B
     returns Result<Int,String>  5,202 B
 
-The two most-used types in the language cost 4-6x anything else, which produced three commits. That
-table is now `scripts/perf/workloads/probes/costs.dark`; extend it rather than reinventing it, and note its
+The two most-used types in the language cost 4-6x anything else. That table is now
+`scripts/perf/workloads/probes/costs.dark`; extend it rather than reinventing it, and note its
 harness floor (~200 B) when reading rows.
 
 ## 4. Distrust your own counters
 
 **Averaging two populations.** A counter reading "20 bytes on each of 41,402 calls" was really ~15 KB
-on each of 52 *cold* calls, the rest free. Three changes were built against it, all flat. Stage
-counters report run counts alongside bytes for this reason: always look at the denominator, and if a
+on each of 52 *cold* calls, the rest free. Stage counters report run counts alongside bytes for this reason: always look at the denominator, and if a
 number is suspicious, count the population.
 
 **Brackets that span an await.** A bracket around a region containing a bind measures whatever
@@ -93,57 +91,46 @@ A useful control: bracket *nothing*, next to the suspicious one. Non-zero means 
 wrong rather than the code.
 
 **One workload, one run, one instrument.** A figure assembled from parts measured in different
-places is not a measurement. This round produced a phantom 1,240-byte layer by taking a function's
-cost from one workload and the enclosing opcode's from another -- the same function costs 680 bytes
-in one and 1,960 in the other. Bracketed on a single workload the numbers closed exactly.
+places is not a measurement: the same function can cost 680 bytes in one workload and 1,960 in
+another, so taking a function's cost from one and the enclosing opcode's from another invents a
+layer. Bracket on a single workload.
 
 **Never promote a residual.** A number you got by subtracting measured regions from a measured
-total is not a measurement; it is everything you failed to bracket, plus your arithmetic. Four
-suspects were promoted that way in one night -- each looked like thousands of bytes as a residual
-and measured in the tens when bracketed directly. If the interesting number is the part you did not
+total is not a measurement; it is everything you failed to bracket, plus your arithmetic. A
+residual of thousands of bytes can measure in the tens when bracketed directly. If the interesting number is the part you did not
 measure, go and measure it. The two allocation counters, incidentally, do agree:
 `GetAllocatedBytesForCurrentThread()` and `GetTotalAllocatedBytes(true)` returned identical figures
 on a continuation-heavy path, so a thread hop is not the explanation for a gap.
 
-**Not across two scripts either.** The night after "never promote a residual" went into this file,
-a 70%-of-the-cost item was opened by subtracting a bracket taken in one probe script from a row
-total taken in another. It survived one tick. Each number was measured honestly, which is what makes
+**Not across two scripts either.** Subtracting a bracket taken in one probe script from a row
+total taken in another is the same residual. Each number is measured honestly, which is what makes
 this half easy to miss.
 
-**Bound the outermost suspect first.** Five hypotheses about JSON's `convert` died in a row, every
-one assuming the function was where the bytes were. A bracket around `Json.parse` itself settled it
-in one build: the whole function is a third of what the call costs. One measurement either
+**Bound the outermost suspect first.** Bracket the whole function before theorising about its
+insides. One measurement either
 implicates a function or clears it, and clearing it retires every hypothesis about its insides.
 
-**Confirm a row measures what its label says.** Two rows labelled with two different types spent
-three ticks looking like a 2x property. They were sitting on a bug where a type annotation resolves
-to the wrong type, so the labels lied. Printing the parsed value once would have cost one run.
+**Confirm a row measures what its label says.** A type annotation that resolves to the wrong type
+makes a row's label lie, and printing the parsed value once costs one run.
 Related: type names are content hashes, so a probe's `type RBool = { a: Bool }` is the same type as
 anything else with that shape. When one row of a sweep is an outlier, suspect the harness first.
 
-**Read instruction counts next to byte counts.** They disagree with a wrong story faster. The
-per-opcode counters caught one row taking an extra match arm, and separately proved that forwarding
-hops really were executing while allocating nothing. Both results came from the denominator, not
-the bytes.
+**Read instruction counts next to byte counts.** They disagree with a wrong story faster, and they
+show work that allocates nothing, such as an extra match arm or a forwarding hop.
 
-**An intervention that shows nothing may not have intervened.** "The last-declared type is cheap"
-was dismissed by adding a trailing type and seeing no change, but the type was unused and unused
-declarations are dropped. Making it used reproduced the effect immediately.
+**An intervention that shows nothing may not have intervened.** Adding an unused type to a probe
+changes nothing, because unused declarations are dropped; make it used.
 
-**The first row of a sweep pays one-time cost.** Measure the baseline again at the end; a first row
-has read 931 bytes where every later row read 231.
+**The first row of a sweep pays one-time cost.** Measure the baseline again at the end.
 
 **A tight spread within one sweep is not low variance.** Three readings from one build can sit
 inside 0.5% of each other and still be a percent or two away from three readings of the *next*
-build, because each build reshuffles code layout. This misread twice in one campaign: a workload
-looked like it regressed 1.2%, the next pass showed it below where it had started, and the pass
-after that it was "up" again. Treat a sub-2% move across builds as unresolved until a third build
+build, because each build reshuffles code layout. Treat a sub-2% move across builds as unresolved until a third build
 agrees, and let the most realistic workload decide a mixed result.
 
 **Count the hit rate before explaining a disappointing fast path.** A fast path that never fires and
 a fast path that fires but had little to remove produce the same small number, and they need
-opposite fixes. The sync-build path on the record opcodes looked like the first and was the second:
-400 hits, 0 misses. `byOpcode` in `interpreterStatsGet` reports `syncHit`/`syncMiss` for this.
+opposite fixes. `byOpcode` in `interpreterStatsGet` reports `syncHit`/`syncMiss` for this.
 
 ## 5. Change one thing, measure, keep or revert
 
@@ -155,8 +142,7 @@ Reverted-flat changes are worth about as much as landed ones, because they say w
 
 ## 6. Pick the workload deliberately, and re-pick it
 
-Two campaigns took every number from one script. When six workloads finally existed, that script was
-the second-cheapest of them and three of the round's biggest wins were invisible on it.
+One script can be one of the cheapest workloads and hide the biggest wins entirely.
 
 Run `scripts/perf/suite` (six shapes) and `scripts/perf/http` (the async path, under concurrency)
 after anything structural. A change that helps one shape can cost another, and you cannot see that
@@ -167,7 +153,7 @@ more specific to the thing you're measuring.
 
 ## 7. Verify past the test suite, by hand
 
-The backend suite has **twice** passed while the interpreter returned a quietly wrong answer. For
+The backend suite can pass while the interpreter returns a quietly wrong answer. For
 anything touching execution run the package tests (`dark test run`) and read the output.
 
 Error paths deserve the most attention: they only run once something has already gone wrong, so a
@@ -189,16 +175,15 @@ reads a builtin's arguments *after* the body has returned, a lifetime nobody thi
   never taken after the first. Spell the call out in both arms.
 - **Make the moved-from arm raise, not silently do nothing.** A no-op left behind by a move produces
   a silent wrong answer; raising catches it on the first run.
-- **Extract helpers as top-level functions and pass everything explicitly.** A rewrite meant to
-  remove allocation added it instead, because the new helper closed over an array rather than taking
-  it as a parameter -- and became the largest single entry in the profile.
+- **Extract helpers as top-level functions and pass everything explicitly.** A helper that closes
+  over an array rather than taking it as a parameter allocates, and can become the largest single
+  entry in the profile.
 
 ## 9. Debug timings are not small-multiple wrong, they are order-of-magnitude wrong
 
 Allocation is nearly identical between Debug and Release, which makes it tempting to trust Debug
-*timings* too. Don't. On one `dark eval`, SQL measured 39.9 ms in Debug and 2.7 ms on the shipped
-AOT binary, and deserialization 17.5 ms against 0.6 ms. A roadmap item survived for a while on the
-Debug figure and evaporated when measured properly.
+*timings* too. Don't. SQL and deserialization each run more than ten times slower in Debug than on
+the shipped AOT binary.
 
 Profile allocation in Debug freely. Never quote a Debug duration, and never rank work by one.
 
@@ -249,8 +234,8 @@ before every publish, so each binary's name is a tree you can name back.
 published build only. Startup and the workload net of startup have separate budgets, so neither
 dilutes the other.
 
-**CI does not gate on any of it.** A budget in CI blocked merges on 5% of noise and on regressions
-somebody else had already landed, and pushed every perf-positive PR into rewriting budget.json. So
+**CI does not gate on any of it.** A budget in CI blocks merges on noise and on regressions
+somebody else already landed, and pushes every perf-positive PR into rewriting budget.json. So
 performance is tracked over releases instead: `scripts/perf/measure-release <tag>` takes every
 number for one release binary, with this tree's workloads, and `scripts/perf/track` does that for
 each release a history does not have yet, then charts the lot and prints it. Because the
@@ -280,12 +265,10 @@ the roadmap, and delete it; the next person's probe should be written against th
 
 ## An A/B is only an A/B if both arms run in the same session
 
-The store drifts, the box gets busy, and a baseline taken an hour ago is not a baseline. A change once
-read as a 4% regression against an earlier number and was flat when both arms were re-measured back to
-back. Rebuild both arms and measure them together, always.
+The store drifts, the box gets busy, and a baseline taken an hour ago is not a baseline. Rebuild
+both arms and measure them together, always.
 
-The same rule caught a per-call figure that was wrong by 20x, and an HTTP throughput claim that had to
-be retracted -- `scripts/perf/http`'s throughput column is not comparable across sessions at all,
+`scripts/perf/http`'s throughput column is not comparable across sessions at all,
 though its allocation column repeats to 0.1 KB.
 
 ## Instruments lie in specific ways
@@ -294,11 +277,9 @@ though its allocation column repeats to 0.1 KB.
   counter twice per call. Per-call figures from it are upper bounds; take absolute numbers from
   `optime`, which runs with stats off.
 - `fnprofile` reports the minimum per call across however many runs you feed it. Feed it three.
-  One run of it once misread a builtin by 20x.
 - A profiler that keeps one call stack per VM double-counts anything run through `guard`, because
   `guard` runs its callback on a fresh VM (`executeApplicable1`): the caller is charged its
-  callee's bytes as well as the callee. One such profile put the checker's loading at 1.6 GB when
-  it was ~0.95. Charge per thread, to whatever frame is running when the bytes are allocated, keep
+  callee's bytes as well as the callee. Charge per thread, to whatever frame is running when the bytes are allocated, keep
   the profiler's own bookkeeping out of the window, and before using any figure check that
   charged plus unaccounted sums to the total the same binary allocates with the profiler off. Also
   prove it on a probe of known size called both directly and through `guard`.
@@ -307,12 +288,11 @@ though its allocation column repeats to 0.1 KB.
 - The wall-clock sections of `view.dark` and `route.dark` resolve about 1%; `keypress` reports whole
   milliseconds and cannot see a sub-millisecond win at all.
 
-- `dark run` exits 0 when the script fails, and a failing run is fast. `bench` now reads the
+- `dark run` exits 0 when the script fails, and a failing run is fast. `bench` reads the
   output for "Script error" and refuses the pair, but anything else that times a run has to
-  look. The case that found it: an older binary could not read a policy file a newer one had
-  written (a new effect name; missing or corrupt policy fails closed), so every A run was denied
-  its clock call at once, and the new binary read as 4% slower on three workloads, 0/15 pairs.
-  Two things to check before believing an A/B between binaries of different ages: that both
+  look. An older binary cannot read a policy file a newer one wrote with a new effect name
+  (missing or corrupt policy fails closed), so its runs are denied at once and the newer binary
+  reads as slower. Two things to check before believing an A/B between binaries of different ages: that both
   arms print the workload's own `elapsed_ms`, and that `rundir/policy` was written by a binary
   the older arm understands.
 ---
@@ -321,85 +301,40 @@ though its allocation column repeats to 0.1 KB.
 
 ## The gate could not reproduce its own baseline across a day
 
-On 2026-10-02 the published gate read 17% over budget. It was not a regression. Checking out
-`7973a64262`, the commit that had PINNED the budget the previous evening, building it and running
-the debug gate on a clean store gave:
+A budget pinned from a reading taken on a working clone is pinned to that clone's state. **Re-pin
+only from a fresh container**, against a store the published binary seeds itself, where the
+environment is constructed rather than accumulated, and treat a local red as a question rather
+than a finding until it reproduces somewhere clean.
 
-    steady.dark (debug) allocated 11.9 MB; budget 9.7 MB -- 23.0% over
+Moving `rundir/policy/policies.bin` aside does not lower the number; it makes the gate exit 1 with
+no output at all, because `initialized` without `policies.bin` fails closed.
 
-That commit's own message records the same gate at 5.8% over, which is 10.2 MB. Same source tree,
-same machine, eighteen hours apart, 1.7 MB different. There was nothing to bisect: the regression
-was already present at the baseline that defined "no regression".
+### The gate reads high on a dev store, and HOME is not why
 
-So a budget pinned from a reading taken on a working clone is pinned to that clone's afternoon.
-**Re-pin only from CI**, where the environment is constructed rather than accumulated, and treat a
-local red as a question rather than a finding until it reproduces somewhere clean.
+- **HOME: nothing.** `capabilities.bin` is keyed on HOME and its absence makes the host
+  permissive, but `/home/dark/.darklang/` is EMPTY in these containers, so runs are permissive
+  either way.
+- **A stored `trace.record`.** The ladder in `LibDB/Tracing.fs` puts the STORED setting above the
+  environment, and `config/dev` sets `DARK_CONFIG_TRACE_DETAIL=on` container-wide, so on any store
+  where somebody ran `dark traces record on`, `DARK_CONFIG_TRACE_DETAIL=off` alone measures a
+  recording run. `gate` passes `--no-trace`, which pins the setting and beats both.
+- **Store provenance, and the mechanism is NOT identified.** A store grown by the published
+  binary from its own embedded seed reads at budget; any store this dev tree produced reads about
+  17% over with recording off. It is not size, not the op count, not dirt, and not config.
 
-Ruled out that day, each with a measurement rather than an argument:
-
-- store dirt. Three store states, same binary: dirty 152 MB gave 11.8 MB, a copy of `seed.db`
-  108 MB gave 11.4 MB, a clean 56 MB store gave 11.3 MB
-- `rundir/policy/policies.bin`. Moving it aside did not lower the number; it made the gate exit 1
-  with no output at all, because `initialized` without `policies.bin` fails closed
-- a stored `trace.record` defeating the gate's `DARK_CONFIG_TRACE_DETAIL=off`. It was off. Worth
-  knowing anyway: `config/dev` sets that variable to `on` container-wide, and a STORED setting
-  beats the environment by design, so the gate's explicit `off` is load-bearing
-
-Not ruled out, and left alone deliberately: the `backend/Build` volume carrying something between
-builds, and the container's own baked environment (a container made from a sibling clone bakes
-that branch's `config/dev`, and this one's `TRACE_DETAIL` default already disagreed with the file).
-
-### 2026-10-03, settled: the gate reads 2.1 MB high on a dev store, and HOME is not why
-
-Four readings, same binary (AOT, published from the same commit) and same workload, varying one
-thing at a time. This is the measurement the entry above was missing.
-
-    store                         HOME     recording   allocated   verdict
-    dev rundir                    real     on (stored) 11.8 MB     22.1% over
-    dev rundir                    fresh    on (stored) 11.8 MB     21.7% over
-    dev rundir                    real     off         11.4 MB     17.6% over
-    grown by the published binary fresh    off          9.7 MB     at budget, exit 0
-
-So the 2.1 MB splits three ways, and only one of them was what anybody suspected:
-
-- **HOME: nothing.** 0.0 MB, rows one and two. The suspicion was `capabilities.bin`, which is
-  keyed on HOME and whose absence makes the host permissive. It was never there to matter:
-  `/home/dark/.darklang/` is EMPTY in these containers, so both runs were already permissive.
-  Worth knowing before anyone spends another experiment on it.
-- **The store's stored `trace.record`: 0.4 MB.** Real, and a gate bug rather than a fact about
-  stores. `gate` set `DARK_CONFIG_TRACE_DETAIL=off` and the ladder in `LibDB/Tracing.fs` puts the
-  STORED setting above the environment, so on any store where somebody ran `dark traces record on`
-  the gate was measuring a recording run. Proven directly: with `TRACE_DETAIL=off` set, one
-  `eval 1` against the dev store took `traces` from 71 to 72; with `--no-trace` it stayed at 72.
-  `gate` passes `--no-trace` now, which pins the setting and beats both.
-- **Store provenance: 1.7 MB, and the mechanism is NOT identified.** A store grown by the
-  published binary from its own embedded seed reads 9.7; any store this dev tree produced reads
-  11.3 to 11.4 with recording off. It is not size (150 MB fresh against 152 MB dev), not the op
-  count (13,737 against 13,739), not dirt, and not config (the fresh store has zero `config_v0`
-  rows and the dev store has exactly one, the `trace.record` already accounted for above). The
-  three-way sweep in the entry above bottoming out at 11.3 is the same wall: all three of its
-  stores were dev-derived, so none of them could get under it.
-
-**CI is in the last row.** It ran `scripts/perf/gate --published` in a fresh container, against a
-store the published binary seeds itself, with no stored `trace.record`. So the budget is reachable,
-CI has been measuring the right thing, and it is the LOCAL readings that have been inflated. Two
-separate conclusions and both are needed: the branch has not regressed allocation, and the local
-instrument was wrong by a fifth of the budget.
-
-What to do with a local red, in order: pass `--no-trace` (the gate does now), then re-run against a
+What to do with a local red, in order: pass `--no-trace` (the gate does), then re-run against a
 store the published binary grows itself, and only then start bisecting.
 
 ---
 
 ## The store you measure against is half the measurement
 
-Four lessons that each cost a measurement. None of them is about a particular change; they are
-about the thing every reading here is taken against.
+Four lessons, none of them about a particular change: they are about the thing every reading here
+is taken against.
 
 ### A store you copied is a store from a point in time, and the time is before your change
 
-The general rule behind the next section, and the one that has now cost three measurements in a
-day. A store is a snapshot: copying one, exporting one, or reloading one pins the code it
+The general rule behind the next section. A store is a snapshot: copying one, exporting one, or reloading one pins the code it
 contains. Measure after a change against a store taken before it and the change reads as having
 done nothing.
 
@@ -409,8 +344,7 @@ done nothing.
   bug exactly
 - the dev store itself, after `git checkout <base>` ran a build that reloaded BASE packages into
   it. Coming back to the branch does not undo that, and a plain build then says "nothing has
-  changed", so the tree had the fix and the store did not. The measurement that exposed it was a
-  gate taking 129s instead of 12s, because the old code was still being killed by its timeout
+  changed", so the tree had the fix and the store did not
 
 The check is the same in all three: before trusting a number, ask what the store was built from and
 WHEN. `scripts/dev/build` after returning from a detached checkout, and re-copy any throwaway store
@@ -420,43 +354,31 @@ after a change you intend to measure.
 
 "Build a fresh store from `rundir/seed.db`" is only valid if nobody has re-exported the seed since.
 `export-seed` writes it FROM the live store, so a seed exported during a working session carries
-that session's ops. Mine had the same day's mtime and gave 11.4 MB, which is exactly the dirty
-figure, and it nearly got written up as dirt a second time.
+that session's ops.
 
 **Look at `ls -la rundir/seed.db` before trusting a store built from it.** To get a store that is
 genuinely clean, delete `rundir/data.db*` and run `scripts/build/reload-packages`, which authors
 packages from source and carries no traces, no hand-authored modules and no approvals.
 
-Size is the other tell, and it is blunt enough to use without thinking. A freshly exported seed on
-this branch is 13 MB. The one that had been sitting in `rundir/` was 108 MB, so it was carrying
-about 95 MB of one session's ops. If `seed.db` is an order of magnitude larger than a fresh export,
-every "fresh store" built from it was a working store wearing a fresh store's name.
+Size is the other tell, and it is blunt enough to use without thinking. If `seed.db` is an order
+of magnitude larger than a fresh export, every "fresh store" built from it is a working store
+wearing a fresh store's name.
 
 A build will eventually tell you the seed is stale, but only when the package refs move:
 `rundir/seed.db cannot produce this binary's package refs`. Nothing tells you it is merely dirty.
 
 ### Dirt is worth about 4%, not 19%
 
-An earlier commit message asserted that nine days of accumulated ops inflated the gate by about
-19%. The three-way measurement above says about 4%, and the 19% was itself an artifact of
-comparing against a seed that was not clean. This matters because that figure had become the
-standard reason to dismiss a bad reading, and it was wrong in the direction that made dismissal
-too easy.
+Accumulated ops inflate the gate by about 4% (dirty, seed-copy and clean stores, same binary). A
+figure of 19% came from comparing against a seed that was not clean. Do not use dirt to dismiss a
+bad reading bigger than that.
 
 ### A number far UNDER budget deserves the same suspicion as one far over
 
-Attempting an A/B against an older published binary gave 5.1 MB against a 9.7 MB budget, a
-plausible-looking 2.2x win. It was a failed run: that binary could not read the newer store
-("Function ... couldn't be found"), and stderr had gone to `/dev/null`. The only thing that caught
-it was the number being implausibly GOOD.
+A failed run reads as a win. An older published binary that cannot read the newer store
+("Function ... couldn't be found"), with stderr sent to `/dev/null`, gives a plausible-looking 2x
+under budget, and only the number being implausibly GOOD gives it away.
 
-This is a repeat, and the guard was already written down twice. The section above already says to
-check that both arms print the workload's own `elapsed_ms`, and `rundir/alloc-bisect.sh` exists for
-exactly this job: its header notes that twice on 30 September a binary that was not doing the work
-produced a plausible number, so it refuses a run whose summary line is absent. Use that script
-rather than writing a fresh loop, which is how this was hit again.
-
-Counting the ones we know about: two on 30 September, two the evening of 1 October, and the 5.1 MB
-above. **Five plausible wrong readings from this instrument.** The count is the argument: the gate
-is not a reliable instrument on a working clone, and the budget is pinned from readings taken
-with it.
+Check that both arms print the workload's own `elapsed_ms`, and refuse a run whose summary line is
+absent. **The gate is not a reliable instrument on a working clone**, so do not pin a budget from
+readings taken with it.
