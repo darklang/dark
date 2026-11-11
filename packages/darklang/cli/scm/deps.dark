@@ -80,7 +80,7 @@ let showDependents(
 
   match dependents with
   | [] ->
-    Stdlib.printLine($"No dependents found for {entityName}")
+    Stdlib.printErrorLine($"No dependents found for {entityName}")
   | deps ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} dependents of {entityName}:")
@@ -164,7 +164,7 @@ let showTransitiveDependents(
 
   match allDependents with
   | [] ->
-    Stdlib.printLine($"Nothing depends on {entityName}")
+    Stdlib.printErrorLine($"Nothing depends on {entityName}")
   | deps ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} items that could break if {entityName} changes:")
@@ -193,7 +193,7 @@ let showDependencies(
   cap: Bool)
   : Unit =
   match SCM.Deps.dependencyEdges(branchId, location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
-  | [] -> Stdlib.printLine($"No dependencies found for {entityName}")
+  | [] -> Stdlib.printErrorLine($"No dependencies found for {entityName}")
   | deps ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} dependencies of {entityName}:")
@@ -400,7 +400,7 @@ let execute(state: AppState, args: List<String>): AppState =
       else
 
       showDependencies(branchId, loc, entityType, hash, name, cap)
-      Stdlib.printLine("")
+      Stdlib.printErrorLine("")
 
       if deep then
         showTransitiveDependents(branchId, loc, entityType, name, cap)
