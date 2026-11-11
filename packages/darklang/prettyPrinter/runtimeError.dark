@@ -670,9 +670,19 @@ module RuntimeError =
           // Named as the caller wrote them: the builtins behind them are internal.
           ES.String(". Some types are not supported in Json serialization, and cannot be used as type arguments to Stdlib.Json.parse or Stdlib.Json.serialize") ]
       | CannotSerializeValue(dv) ->
-        [ ES.String("Cannot serialize ")
-          ES.FullValue(dv)
-          ES.String(" into JSON") ]
+        let why =
+          match dv with
+          | DDict(keyType, _, _) ->
+            [ ES.String(": JSON object keys must be Strings,")
+              ES.String(" but this dict's keys are ")
+              ES.ValueType(keyType) ]
+          | _ -> []
+
+        Stdlib.List.concat(
+          [ ES.String("Cannot serialize ")
+            ES.FullValue(dv)
+            ES.String(" into JSON") ],
+          why)
 
     | Trait(err) ->
       match err with
