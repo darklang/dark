@@ -69,8 +69,30 @@ test severalPartsInOneCall =
         Stdlib.Test.expect(
           Stdlib.String.contains(
             Darklang.Cli.Docs.ForAI.content(),
-            "docs for-ai tests scm"),
-          "the main page says parts can be fetched together") ]))
+            "docs for-ai tests http-server"),
+          "the main page says parts and topics can be fetched together") ]))
+
+
+// Another topic joins the parts in the same call; naming one prints the main page first.
+test otherTopicsJoinInOneCall =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "for-ai", "http-server", "tests" ])
+    let (scriptsCode, scripts) = Instance.ran(i, [ "docs", "scripts", "syntax" ])
+
+    Stdlib.Test.all(
+      [ Stdlib.Test.expect(code == 0, "a part and another topic print")
+        Instance.says(out, "# Darklang AI Quick Reference", "with the main page")
+        Instance.says(out, "# HTTP Server", "and the other topic")
+        Instance.says(out, "# Darklang AI: tests", "and the part")
+        Stdlib.Test.expect(scriptsCode == 0, "two topics print")
+        Instance.says(scripts, "# Running .dark scripts", "the first topic")
+        Instance.says(scripts, "## Basics", "and the second")
+        Stdlib.Test.expect(
+          Stdlib.Bool.not(
+            Stdlib.String.contains(
+              Instance.said(i, [ "docs", "for-ai", "tests" ]),
+              "# Darklang AI Quick Reference")),
+          "parts alone leave the main page out") ]))
 
 
 test unknownPartsAreNamed =

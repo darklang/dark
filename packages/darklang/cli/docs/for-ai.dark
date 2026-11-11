@@ -84,6 +84,6 @@ If commands hang or fail silently, check logs:
   docs for-ai traces        what a run did, without print statements
   docs for-ai scm           drafts, commits, branches, deprecation
   docs for-ai syntax        the rest of the syntax notes, and name resolution
-  docs for-ai tests scm     several parts in one call
+  docs for-ai tests http-server   several parts and topics in one call
   docs scripts | syntax | errors | stdlib | signatures <module>
   help <command>"""
