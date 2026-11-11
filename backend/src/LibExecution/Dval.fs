@@ -513,24 +513,21 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DPromise _, _ -> false
 
 
-let rec private containsFrom
-  (vtValue : ValueType)
-  (value : Dval)
-  (rest : DvalList)
-  : bool voption =
-  match DvalList.uncons rest with
-  | ValueNone -> ValueSome false
-  | ValueSome(struct (elem, tail)) ->
-    match ValueType.merge (RuntimeTypes.Dval.toValueType elem) vtValue with
-    | Error() -> ValueNone
-    | Ok _ ->
-      if equals elem value then ValueSome true else containsFrom vtValue value tail
+let private mergesWith (vtValue : ValueType) (elem : Dval) : bool =
+  Result.isOk (ValueType.merge (RuntimeTypes.Dval.toValueType elem) vtValue)
 
 /// `List.contains`: whether <param value> is in <param items>, by `equals`. `ValueNone` when an
 /// element before the first match has a type that does not merge with the value's: `==` raises
 /// on that rather than answering false, and so does the builtin. The value's type is read once.
 let listContains (items : DvalList) (value : Dval) : bool voption =
-  containsFrom (RuntimeTypes.Dval.toValueType value) value items
+  let vtValue = RuntimeTypes.Dval.toValueType value
+  match
+    DvalList.tryFind
+      (fun elem -> not (mergesWith vtValue elem) || equals elem value)
+      items
+  with
+  | ValueNone -> ValueSome false
+  | ValueSome elem -> if mergesWith vtValue elem then ValueSome true else ValueNone
 
 
 /// Holds a value's running hash until all its children have been hashed.
