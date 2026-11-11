@@ -492,6 +492,13 @@ let private parkOnStdin (spec : HE.EventSpec) : Option<Ply<HE.StdinResult>> =
   | _ -> None
 
 
+/// One line of stdin, parked on under a scheduler and read synchronously outside one.
+let private readLine () : Ply<HE.StdinResult> =
+  match parkOnStdin HE.EventSpec.StdinLine with
+  | Some wait -> wait
+  | None -> Ply(readStdinFor HE.StdinRequest.Line)
+
+
 /// `Stdlib.Host.EventSpec`, as F#.
 let private eventSpecOfDval (vm : VMState) (d : Dval) : HE.EventSpec =
   match d with
@@ -645,20 +652,41 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
-          let ofResult (result : HE.StdinResult) : Dval =
+          readLine ()
+          |> Ply.map (fun result ->
             match result with
-            | Ok(Some line) -> LibExecution.Dval.optionSome KTString (DString line)
-            | Ok None -> LibExecution.Dval.optionNone KTString
+            | Ok line -> LibExecution.Dval.option KTString (Option.map DString line)
             | Error e ->
               RuntimeError.UncaughtException($"stdinReadLine: {e}", [])
-              |> raiseRTE vm.threadID
-          match parkOnStdin HE.EventSpec.StdinLine with
-          | Some wait ->
-            uply {
-              let! result = wait
-              return ofResult result
-            }
-          | None -> Ply(ofResult (readStdinFor HE.StdinRequest.Line))
+              |> raiseRTE vm.threadID)
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.Stdin ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdinCheckedReadLine" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TypeReference.result (TypeReference.option TString) TUnit
+      description =
+        "Reads a single line from the standard input, or None at its end. Error when the line is "
+        + "not valid UTF-8."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          let okType =
+            KTCustomType(
+              LibExecution.Dval.optionType (),
+              [ LibExecution.ValueType.string ]
+            )
+          readLine ()
+          |> Ply.map (fun result ->
+            match result with
+            | Ok line ->
+              LibExecution.Dval.option KTString (Option.map DString line)
+              |> Dval.resultOk okType KTUnit
+            | Error _ -> Dval.resultError okType KTUnit DUnit)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin ]

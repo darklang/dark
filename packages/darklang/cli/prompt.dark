@@ -1,7 +1,7 @@
 module Darklang.Cli.Prompt
 
-/// Ask a yes/no question. Only `y` is yes: an empty answer, end of input, and nobody being able
-/// to answer are all no, and every caller exits 1 on a no. {{Confirm.Assume}} (`-y`) skips the
+/// Ask a yes/no question. Only `y` is yes: an empty answer, end of input, an answer that is not
+/// UTF-8, and nobody being able to answer are all no, and every caller exits 1 on a no. {{Confirm.Assume}} (`-y`) skips the
 /// question.
 let confirmExplicit(confirm: Cli.Confirm, question: String): Bool =
   match confirm with
@@ -11,11 +11,11 @@ let confirmExplicit(confirm: Cli.Confirm, question: String): Bool =
     false
   else
     Stdlib.printErrorLine(question)
-    match Stdlib.Cli.Stdin.readLineOrEnd() with
-    | Some(typed) ->
+    match Stdlib.Cli.Stdin.checkedReadLine() with
+    | Ok(Some(typed)) ->
       let response = Stdlib.String.trim(typed)
       (response == "y") || (response == "Y")
-    | None -> false
+    | _ -> false
 
 
 /// State for prompt-specific fields (text, cursor, history)

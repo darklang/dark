@@ -8,6 +8,16 @@ let readLineOrEnd(): Stdlib.Option.Option<String> = Builtin.stdinReadLine()
 let readLine(): String =
   Stdlib.Option.withDefault(readLineOrEnd(), "")
 
+/// Why <fn checkedReadLine> read no line.
+type ReadLineError =
+  /// The line is not valid UTF-8
+  | NotUtf8
+
+/// Read one line from stdin, without its trailing newline: {{Ok None}} at EOF, or
+/// {{Error NotUtf8}} where <fn readLineOrEnd> raises.
+let checkedReadLine(): Stdlib.Result.Result<Stdlib.Option.Option<String>, ReadLineError> =
+  Builtin.stdinCheckedReadLine() |> Stdlib.Result.mapError(fun _ -> ReadLineError.NotUtf8)
+
 
 /// Read all of stdin, until EOF. An Error when it is not valid UTF-8, naming the first bad
 /// bytes: {{Error "stdin is not valid UTF-8: FF"}}.
