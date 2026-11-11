@@ -1542,7 +1542,11 @@ module Dict =
 
   test rejects1 =
     (Stdlib.Json.serialize<Dict<Int64, String>>(Dict { 1: "a" }))
-    => raises "Cannot serialize { 1: \"a\" } into JSON"
+    => raises "Cannot serialize { 1: \"a\" } into JSON: JSON object keys must be Strings, but this dict's keys are Int64"
+
+  test rejectsNested =
+    (Stdlib.Json.serialize<List<Dict<Int64, String>>>([ Dict { 1: "a" } ]))
+    => raises "Cannot serialize { 1: \"a\" } into JSON: JSON object keys must be Strings, but this dict's keys are Int64"
 
   module Errors =
     test parseErrors =
