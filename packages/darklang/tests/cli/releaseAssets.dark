@@ -111,7 +111,7 @@ module PlatformForHost =
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.Aarch64)
-        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-arm64"))
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-musl-arm64"))
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.X86_64)
