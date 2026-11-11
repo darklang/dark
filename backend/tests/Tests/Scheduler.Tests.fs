@@ -221,6 +221,33 @@ let private hostAwaitTimerOrKey =
   }
 
 
+let private hostWatchIsPerProcess =
+  testTask "two host loops in one OS process each keep their own Host.await watch" {
+    let! state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let _ = Builtin.hostWatchSet("parent")
+let child =
+  Stdlib.Exec.spawn(fun () ->
+    let before = Builtin.hostWatchGet()
+    let _ = Builtin.hostWatchSet("child")
+    before)
+let childSaw = Stdlib.Exec.await(child)
+(childSaw, Builtin.hostWatchGet())"""
+    let! result = runOnThread s p
+    match expectOk result "the program" with
+    | RT.DTuple(RT.DEnum(_, _, _, "None", []),
+                RT.DEnum(_, _, _, "Some", [ RT.DString "parent" ]),
+                []) -> ()
+    | other ->
+      failtest
+        $"the child should see no watch and the parent keep its own, got {other}"
+  }
+
+
 let private readKeyDoesNotBlock =
   testTask "readKey in one process does not stop a sleep in another" {
     Gates.reset ()
@@ -2448,6 +2475,7 @@ let tests =
       [ interleaving
         budgetYields
         hostAwaitTimerOrKey
+        hostWatchIsPerProcess
         readKeyDoesNotBlock
         readLineDoesNotBlock
         accessIsPerProcess

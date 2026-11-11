@@ -1043,6 +1043,7 @@ let private viewFollowsEdits =
         // The loop runs as a process; keys and store changes reach it through the scheduler's
         // queue, as they do in the CLI.
         let driver = loopDriver state
+        do! beginLoop driver
         let pushKey = pushKey driver
         let pushTick () = pushTick driver
         let step (s : RT.Dval) =
@@ -1829,6 +1830,7 @@ let private observeAndShow =
           | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
           | other -> failtest $"the view did not prepare: {other}"
         let driver = loopDriver state
+        do! beginLoop driver
         let! sizeDv =
           evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40, height = 8 }"
         let rowsOf (s : RT.Dval) =

@@ -417,15 +417,21 @@ let evalUnder (state : RT.ExecutionState) (code : string) : Task<RT.Dval> =
 /// its queue what the next `Host.await` answers with, which is what the reader thread and the
 /// store poll post in the CLI. The store poll is installed too, so an edit made between turns is
 /// reported by itself; `pushTick` makes that prompt and deterministic.
+///
+/// Each turn is a process, but the turns are one loop, so `Host.await`'s watch is carried from
+/// one turn to the next, as it is across the turns of a loop in one process.
 type LoopDriver =
-  { scheduler : LibExecution.Scheduler.Scheduler; state : RT.ExecutionState }
+  { scheduler : LibExecution.Scheduler.Scheduler
+    state : RT.ExecutionState
+    watch : Ref<Option<RT.Dval>> }
 
 let loopDriver (state : RT.ExecutionState) : LoopDriver =
   LibExecution.HostEvents.sources.storeVersion <-
     Some LibDB.Sqlite.DataVersion.current
   { scheduler =
       LibExecution.Scheduler.Scheduler(LibExecution.Scheduler.defaultQuantum)
-    state = state }
+    state = state
+    watch = ref None }
 
 /// Run the package fn at dotted <param name> as a process on the driver's scheduler.
 let stepOn (d : LoopDriver) (name : string) (args : List<RT.Dval>) : Task<RT.Dval> =
@@ -439,9 +445,15 @@ let stepOn (d : LoopDriver) (name : string) (args : List<RT.Dval>) : Task<RT.Dva
         NEList.ofListUnsafe "stepOn: no args" [] args,
         None
       )
+    d.watch.Value
+    |> Option.iter (Builtins.Matter.Libs.PM.Store.HostWatch.set (box p))
     // Bounds the wait: a turn that never returns is the loop waiting for an event nobody
     // pushed, which should read as that rather than hang the suite.
-    let run = Task.Run(fun () -> d.scheduler.RunUntil p)
+    let run =
+      Task.Run(fun () ->
+        let result = d.scheduler.RunUntil p
+        d.watch.Value <- Builtins.Matter.Libs.PM.Store.HostWatch.get (box p)
+        result)
     let! finished = Task.WhenAny(run, Task.Delay 20_000)
     if not (System.Object.ReferenceEquals(finished, run :> Task)) then
       return
@@ -454,6 +466,14 @@ let stepOn (d : LoopDriver) (name : string) (args : List<RT.Dval>) : Task<RT.Dva
       | Error(rte, _) ->
         let! why = Exe.runtimeErrorMessage d.state rte
         return Tests.failtestf "%s raised: %s" name why
+  }
+
+/// Start the loop's `Host.await` watch, as a host loop does before its first turn
+/// (`Stdlib.Host.begin`): a store change after this is reported by a later turn.
+let beginLoop (d : LoopDriver) : Task<unit> =
+  task {
+    let! _ = stepOn d "Darklang.Stdlib.Host.begin" [ RT.DUnit ]
+    return ()
   }
 
 /// Press a key: what the reader thread would post. <param key> is a `Stdlib.Cli.Stdin.Key` case

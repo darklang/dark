@@ -40,12 +40,25 @@ let private requireThePerson (state : ExecutionState) (key : string) : unit =
     |> raiseUntargetedRTE
 
 
-/// The watch behind `Stdlib.Host.await` (see `hostWatchGet` below). One slot per OS process,
-/// because one host loop runs per process. A second loop in the same process would share it
-/// and see the first's "already reported" state; make it per-process state if that day comes.
+/// The watch behind `Stdlib.Host.await` (see `hostWatchGet` below), one per Dark process, so two
+/// host loops in one OS process each keep their own. A run nobody scheduled keys on its VM. An
+/// entry goes when its process does.
 module HostWatch =
-  // Shared state: it must outlive every Dark call, and one reference write needs no lock.
-  let mutable watch : Option<Dval> = None
+  let private watches =
+    System.Runtime.CompilerServices.ConditionalWeakTable<obj, Dval>()
+
+  /// The process the calling builtin runs in, or its VM.
+  let ownerOf (vm : VMState) : obj =
+    match LibExecution.Scheduler.Scheduler.CurrentProcess with
+    | Some p -> box p
+    | None -> box vm
+
+  let get (owner : obj) : Option<Dval> =
+    match watches.TryGetValue owner with
+    | true, w -> Some w
+    | false, _ -> None
+
+  let set (owner : obj) (w : Dval) : unit = watches.AddOrUpdate(owner, w)
 
 
 let private backupTypeName () =
@@ -248,7 +261,7 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
-    // The one slot `Stdlib.Host.await` keeps its `LanguageTools.Live.Watch` in between calls: the runtime
+    // The slot `Stdlib.Host.await` keeps its `LanguageTools.Live.Watch` in between calls: the runtime
     // says the store MOVED (a counter, from a timer), and Dark says which ops landed by polling
     // from where its last look left off. `await` takes no state, and a Dark value cannot outlive
     // the call that made it, so the watch lives here. Nothing else may use this.
@@ -259,9 +272,9 @@ let fns () : List<BuiltInFn> =
       description = "`Host.await`'s watch, if one has been stored."
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
+        | _, vm, _, [| DUnit |] ->
           uply {
-            match HostWatch.watch with
+            match HostWatch.get (HostWatch.ownerOf vm) with
             | Some w ->
               return
                 DEnum(
@@ -293,9 +306,9 @@ let fns () : List<BuiltInFn> =
       description = "Store the watch for the next `Host.await`."
       fn =
         (function
-        | _, _, _, [| w |] ->
+        | _, vm, _, [| w |] ->
           uply {
-            HostWatch.watch <- Some w
+            HostWatch.set (HostWatch.ownerOf vm) w
             return DUnit
           }
         | _ -> incorrectArgs ())
