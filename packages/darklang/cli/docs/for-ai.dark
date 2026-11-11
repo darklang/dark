@@ -9,17 +9,38 @@ let content(): String =
 Darklang is a persistent package tree, not a directory of scripts. CLI process
 state resets between calls; package changes persist.
 
+## A command-line tool
+
+Save a module, run its `main` by name, and test it:
+
+  module /Me.Greet - <<'EOF'
+  let greeting(name: String): String = "Hello, " + name
+  let main(args: List<String>): Int64 =
+    match args with
+    | [ name ] ->
+      Stdlib.printLine(greeting(name))
+      0
+    | _ ->
+      Stdlib.printErrorLine("usage: Me.Greet.main <name>")
+      2
+  EOF
+  run Me.Greet.main Ada    # `args` is ["Ada"]; exits 0
+  module /Me.Greet.Tests - <<'EOF'
+  test hello = Me.Greet.greeting("Ada") |> Stdlib.Test.equal("Hello, Ada")
+  EOF
+  test run Me.Greet
+
+Save the module again to change it.
+
 ## Workflow
 
-  run app.dark [args]                              # run a script; `docs scripts`
   search --batch "List.map" "Json.serialize" --fn  # three results per query
-  docs signatures Stdlib.String                    # every function in a module
+  docs signatures Stdlib.String Stdlib.List        # every fn in these modules
   view <name>                                      # one item's source
   eval 'Stdlib.List.length([1, 2])'                # one expression
-  module /Me.Example - < lib.dark                  # save declarations
-  test run Me.Example                              # run their tests
   status                                           # what changed
   commit "message" -y                              # record it
+  run app.dark [args]                              # a file instead; `docs scripts`
 
 `search` takes `--fn`, `--type`, `--val` or `--test` to narrow, and `--with-docs`
 for full comments. To find a function by what it takes and returns, search the
@@ -72,10 +93,7 @@ One host, every path on it: `permissions allow http GET https://api.example.com`
 - `Stdlib.X` is `Darklang.Stdlib.X`. Your own names go under an owner such as
   `Me`; `Darklang` is reserved.
 
-## Troubleshooting
-If commands hang or fail silently, check logs:
-  ~/.darklang/logs/cli.log    # main CLI log
-  ~/.darklang/logs/           # other logs
+Logs: ~/.darklang/logs/cli.log
 
 ## More
   docs for-ai packages      saving and changing declarations, the type checker, a command-line tool
