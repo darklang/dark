@@ -1,0 +1,22 @@
+module Darklang.Stdlib.Cli.Dir.Tests
+
+// walk lists each directory before its contents, in listing order; listRecursive lists the files
+// the same way; deleteRecursive removes the lot
+test walkKeepsSubtreeOrder =
+  Stdlib.Cli.Dir.withTemp(fun root ->
+    let sub = $"{root}/sub"
+    let made =
+      [ Stdlib.Cli.Dir.create(sub)
+        Stdlib.Cli.File.writeText($"{sub}/a", "a")
+        Stdlib.Cli.File.writeText($"{sub}/b", "b")
+        Stdlib.Cli.File.writeText($"{sub}/c", "c") ]
+    let listed = Stdlib.Cli.Dir.listFullPaths(sub)
+    let walked = Stdlib.Cli.Dir.walk(root)
+    let files = Stdlib.Cli.Dir.listRecursive(root)
+    let deleted = Stdlib.Cli.Dir.deleteRecursive(sub)
+    (made,
+     walked == Stdlib.Result.map(listed, fun paths -> Stdlib.List.prepend(paths, sub)),
+     files == listed,
+     deleted,
+     Stdlib.Cli.Posix.isDirectory(sub)))
+  |> Stdlib.Test.equal(Ok(([ Ok(), Ok(), Ok(), Ok() ], true, true, Ok(), false)))
