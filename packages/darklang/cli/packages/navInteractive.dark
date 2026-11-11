@@ -280,7 +280,7 @@ let loadFocusRows(
     Stdlib.List.flatten([ [ locationStr ], submoduleRows, typeRows ])
   | _ ->
     // Individual entities are typically small enough to show in full.
-    View.entityRows(branchId, location, false)
+    View.entityRows(branchId, location, View.Tests.Hide)
 
 
 /// Refresh derived focus content after a state transition.

@@ -28,15 +28,18 @@ let reportRepointed(names: List<String>): Unit =
     let listed = Stdlib.String.join(names, "\n  ")
     Cli.printOk($"{n} caller(s) on the branch now point at the parent's version:\n  {listed}")
 
+/// Where a merge preview is printed.
+type Preview =
+  /// As the whole command, `merge --dry-run`: it ends by saying how to merge.
+  | Alone
+  /// Just before the confirm prompt, where the next line is the question.
+  | BeforeAsking
+
 /// Everything a merge would do, and nothing recorded.
-///
-/// <param standalone> is false when this is the preview inside the confirm flow, where the next line is
-/// the question and telling someone to run the thing they are being asked to approve reads as a
-/// non-sequitur.
 let executeMergePreview(
   state: AppState,
   branchRef: String,
-  standalone: Bool)
+  preview: Preview)
   : AppState =
   match resolveRef(branchRef) with
   | None -> Cli.failed(state)
@@ -73,14 +76,14 @@ let executeMergePreview(
 
       // Only when this IS the whole command. In the confirm flow the next line is the question, and
       // telling someone to run the thing they are being asked to approve reads as a non-sequitur.
-      if standalone then
+      if preview == Preview.Alone then
         Cli.printHint($"  `dark merge {branchRef}` to do it.")
 
       state
 
 /// `dark merge <branch> --dry-run`: show what would land and change nothing.
 let executeMergeDryRun(state: AppState, branchRef: String): AppState =
-  executeMergePreview(state, branchRef, true)
+  executeMergePreview(state, branchRef, Preview.Alone)
 
 /// What a merge does with a branch the at-rest type check found definite errors in.
 type TypeErrors =
@@ -332,7 +335,7 @@ let executeMergeBare(
   match bareTargetBranch("merge") with
   | Error(_) -> Cli.failed(state)
   | Ok(name) ->
-    let previewed = executeMergePreview(state, name, false)
+    let previewed = executeMergePreview(state, name, Preview.BeforeAsking)
 
     if
       Stdlib.Bool.not((

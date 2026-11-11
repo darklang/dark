@@ -9,12 +9,22 @@ let moduleOf(dotted: String): String =
   | [] -> dotted
   | parts -> Stdlib.String.join(parts, ".")
 
+/// Whether `diff` prints each changed definition under its name. `--source` asks for it.
+type Source =
+  | Show
+  | Hide
+
+module Source =
+  /// {{Show}} when <param asked>, the way `diff` reads `--source`.
+  let showIf(asked: Bool): Darklang.Cli.Branch.Source =
+    if asked then Darklang.Cli.Branch.Source.Show else Darklang.Cli.Branch.Source.Hide
+
 /// `dark branch diff <name> [--source]`
 ///
 /// Grouped by module, because a branch that touched nine names in three modules is three things you did,
 /// not nine. `--source` prints each definition underneath, which a list of hashes cannot give you: seeing
 /// WHAT changed without opening another command per name.
-let executeDiff(state: AppState, branchRef: String, withSource: Bool): AppState =
+let executeDiff(state: AppState, branchRef: String, source: Source): AppState =
   match resolveRef(branchRef) with
   | None -> Cli.failed(state)
   | Some(branchId) ->
@@ -55,7 +65,7 @@ let executeDiff(state: AppState, branchRef: String, withSource: Bool): AppState 
 
           Stdlib.printLine($"    {mark} {leaf}  [{e.kind}] {short}{was}")
 
-          if withSource then
+          if source == Source.Show then
             Stdlib.printLine((
               Stdlib.Cli.UI.Colors.dimText(
                 (Cli.Conflicts.indentBlock(
@@ -64,7 +74,7 @@ let executeDiff(state: AppState, branchRef: String, withSource: Bool): AppState 
           else
             ()))
 
-      if Stdlib.Bool.not(withSource) then
+      if source == Source.Hide then
         Stdlib.printErrorLine("")
         Cli.printHint("  `dark diff <branch> --source` shows each definition.")
       else
@@ -162,7 +172,7 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
 
         state
     else
-      executeDiff(state, id, Stdlib.List.contains(args, "--source"))
+      executeDiff(state, id, Source.showIf(Stdlib.List.contains(args, "--source")))
   | _ ->
     Cli.printErr("usage: dark diff <branch> [--source] [--json]")
     Cli.printHint("  `dark branches` lists them.")
@@ -204,7 +214,7 @@ let executeLogCmd(state: AppState, args: List<String>): AppState =
         Stdlib.printLine(ScmJson.commitsJson(Commits.commitRows(20)))
         state
       else
-        Commits.executeList(state, 20, false)
+        Commits.executeList(state, 20, Commits.Housekeeping.Hide)
     // By NAME, because `executeLog` echoes back whatever it was handed and everything else the CLI
     // prints about a branch is its name. `resolveRef` turns it straight back into this id.
     | id ->

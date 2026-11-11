@@ -311,7 +311,7 @@ let renderNavbarRows(state: State, rows: List<NavbarRow>, inner: Stdlib.Cli.UI.L
       let numStyled = Stdlib.Cli.UI.Colors.dimText(num)
       let right = spaces + badgeStyled + sep + numStyled
       if (navbarFocused(state)) && (i == sel) then
-        selectionBar(left, right, true)
+        selectionBar(left, right, Stdlib.Cli.UI.Focus.Focused)
       else
         let leftStyled =
           if i == active then Stdlib.Cli.UI.Colors.boldText(left)

@@ -373,8 +373,8 @@ let execute(state: AppState, args: List<String>): AppState =
   | [ "archive", id, "-y" ] | [ "archive", id, "--yes" ] ->
     executeArchive(state, id, Cli.Confirm.Assume)
   | [ "rename", id, newName ] -> executeRename(state, id, newName)
-  | [ "diff", id ] -> executeDiff(state, id, false)
-  | [ "diff", id, "--source" ] -> executeDiff(state, id, true)
+  | [ "diff", id ] -> executeDiff(state, id, Source.Hide)
+  | [ "diff", id, "--source" ] -> executeDiff(state, id, Source.Show)
   | [ "log", id ] -> executeLog(state, id)
   | [ "merge", id ] -> executeMerge(state, id, Cli.Confirm.Ask, TypeErrors.Refuse)
   | [ "merge", id, "-y" ] | [ "merge", id, "--yes" ] ->

@@ -620,8 +620,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           $"--at wants a step number, as `traces inspect` numbers its calls, not {at}")
         false
     Cli.exitWith(state, ok)
-  | [ "pin", prefix ] -> Cli.exitWith(state, Cli.TraceVerbs.pin(prefix, true))
-  | [ "unpin", prefix ] -> Cli.exitWith(state, Cli.TraceVerbs.pin(prefix, false))
+  | [ "pin", prefix ] -> Cli.exitWith(state, Cli.TraceVerbs.pin(prefix, Cli.TraceVerbs.Pinning.Pin))
+  | [ "unpin", prefix ] -> Cli.exitWith(state, Cli.TraceVerbs.pin(prefix, Cli.TraceVerbs.Pinning.Unpin))
   // The call inbox: one function's recorded calls, and the code with that call's values.
   | [ "calls", typed ] ->
     let fnName = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, typed)
