@@ -202,12 +202,14 @@ let configure
   (knownRequests : List<KnownRequest>)
   (ask : Option<List<string> -> Ply<int64>>)
   : Ply<RT.ExecutionState> =
-  let fingerprint = PolicyStore.builtinFingerprint guest.fns.builtIn
+  let fingerprint = lazy (PolicyStore.builtinFingerprint guest.fns.builtIn)
   let initial = PolicyStore.get ()
   let key = guest.accountID, name
   let saved =
     match Map.tryFind key initial.approvals with
-    | Some approval when approval.hash = hash && approval.fingerprint = fingerprint ->
+    | Some approval when
+      approval.hash = hash && approval.fingerprint = fingerprint.Value
+      ->
       approval.policy
     | _ -> P.Policy.denyAll
   let baseAccess =
@@ -279,7 +281,7 @@ let configure
                   guest.accountID
                   name
                   hash
-                  fingerprint
+                  fingerprint.Value
                   added
               lock grants (fun () ->
                 let existing =
