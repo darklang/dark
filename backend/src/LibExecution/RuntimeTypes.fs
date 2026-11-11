@@ -6128,6 +6128,9 @@ and PackageFnCallData =
     /// (`Interpreter.isPlainPure`), so a call to the forwarder can go straight to the body.
     plainPure : bool
 
+    /// That builtin's `FastOps` tag, if it is an operator.
+    fastOpTag : int voption
+
     /// The fn itself, so a call that finds this needs no fetch. It is content-addressed: the
     /// hash this is cached under always names this fn.
     fn : PackageFn.PackageFn

@@ -2768,6 +2768,10 @@ let private packageFnCallData
           match thinWrapper with
           | ValueSome biFn -> isPlainPure biFn
           | ValueNone -> false
+        fastOpTag =
+          match thinWrapper with
+          | ValueSome biFn -> fastOpTagOf biFn.name
+          | ValueNone -> ValueNone
         fn = fn }
     exeState.packageFnCallCache[fn.hash] <- d
     d
@@ -4815,7 +4819,7 @@ let private applyPackageFn
     // The operator table, before the context exists. `callBuiltinResolved` checks the same
     // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
     // and nearly every `Stdlib.x` call in Dark arrives down this path.
-    let opTag = fastOpTagOf biFn.name
+    let opTag = callData.fastOpTag
     let early =
       match opTag with
       | ValueSome tag -> fastBuiltinOp vm.threadID registers tag newArgRegs
