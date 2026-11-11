@@ -162,6 +162,43 @@ let ambiguousAliasesNeedTheStoredDeclaration =
         })
   }
 
+let ambiguousHashesMatchIndexedNames =
+  testTask "ambiguous hashes are the ones the indexed names find" {
+    do!
+      withStore (fun () ->
+        task {
+          let rng = System.Random 6519
+          let hex (n : int) = (sprintf "%064x" n)
+          let callers = List.init 12 (fun i -> hex (900000 + i))
+          let targets = List.init 4 (fun i -> hex (800000 + i))
+          let kinds = [ "fn"; "type"; "value" ]
+          let names = [ "a"; "b"; "c" ]
+          for _ in 1..300 do
+            let pick (xs : List<string>) = xs[rng.Next xs.Length]
+            do!
+              Sql.query
+                "INSERT OR IGNORE INTO package_dependencies
+              (item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name)
+              VALUES (@hash, @target, @kind, @owner, 'Ambiguous', @name)"
+              |> Sql.parameters
+                [ "hash", Sql.string (pick callers)
+                  "target", Sql.string (pick targets)
+                  "kind", Sql.string (pick kinds)
+                  "owner", Sql.string (if rng.Next 5 = 0 then "" else "Tests")
+                  "name", Sql.string (pick names) ]
+              |> Sql.executeStatementAsync
+          for round in 1..20 do
+            let hashes =
+              callers |> List.filter (fun _ -> rng.Next 2 = 0) |> List.map PT.Hash
+            let! (_, expected) = ReferenceDependencies.indexedNames hashes
+            let! actual = ReferenceDependencies.ambiguousHashes hashes
+            Expect.equal actual expected $"round {round}"
+          let! (_, all) =
+            ReferenceDependencies.indexedNames (List.map PT.Hash callers)
+          Expect.isNonEmpty all "some callers are ambiguous"
+        })
+  }
+
 let reviewUsesSavedAliasNames =
   testTask
     "native review respects saved alias names when shared content becomes stale" {
@@ -335,4 +372,5 @@ let tests =
       reviewKeepsAliasesAndTraversesCycles
       wideDependencyReadsRespectSelection
       savedNamesNeedTheStoredDeclaration
-      ambiguousAliasesNeedTheStoredDeclaration ]
+      ambiguousAliasesNeedTheStoredDeclaration
+      ambiguousHashesMatchIndexedNames ]
