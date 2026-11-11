@@ -137,9 +137,9 @@ test wildcardCannotBeRead =
 
 test nonTupleDestructuringRaises =
   (let (a, _) = 1 in a)
-  => raises "Could not deconstruct value 1 into pattern ([variable], _)"
+  => raises "Could not deconstruct value 1 into pattern (a, _)"
 
 test wrongTupleArityRaises =
   (let (a, _) = (1, 2, 3) in a)
   => raises
-    "Could not deconstruct value (1, 2, 3) into pattern ([variable], _)"
+    "Could not deconstruct value (1, 2, 3) into pattern (a, _)"

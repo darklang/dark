@@ -609,9 +609,7 @@ let declaredKnownType(
 
 let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
   match pat with
-  | LPVariable(_reg) ->
-    // TODO clearly this is not ideal.
-    "[variable]"
+  | LPVariable(_reg, name) -> name
   | LPWildcard -> "_"
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->

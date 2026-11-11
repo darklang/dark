@@ -146,7 +146,7 @@ module RuntimeTypes =
       RTE.Dict(RTE.Dicts.UnsupportedKeyType(vt, dv))
       RTE.Dict(RTE.Dicts.NaNKey dv)
       RTE.Dict(RTE.Dicts.MismatchedKeyType(vt, vt2, dv))
-      RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, RT.LPVariable 0))
+      RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, RT.LPVariable(0, "x")))
       RTE.VariableNotFound "x"
       RTE.EqualityCheckOnIncompatibleTypes(vt, vt2)
       RTE.NumericOperationOnIncompatibleTypes(vt, vt2)

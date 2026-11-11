@@ -498,7 +498,7 @@ let rec private assignLetPattern
   (dv : Dval)
   : bool =
   match pat with
-  | LPVariable extractTo ->
+  | LPVariable(extractTo, _) ->
     Registers.set registers extractTo dv
     true
   | LPWildcard -> true
@@ -1273,7 +1273,7 @@ let inline private bindLambdaParam
   : unit =
   // One name bound to one register is the overwhelmingly common shape, so it skips the walk.
   match pat with
-  | LPVariable extractTo -> Registers.set r extractTo arg
+  | LPVariable(extractTo, _) -> Registers.set r extractTo arg
   | _ ->
     let arg =
       match arg with
@@ -5803,7 +5803,7 @@ let private runSyncInstructions
         // looking at it, so `let pages = ...` keeps a read in flight; every other pattern
         // inspects the value and forces it.
         match pat with
-        | LPVariable extractTo -> Registers.set registers extractTo dv
+        | LPVariable(extractTo, _) -> Registers.set registers extractTo dv
         | _ ->
           match dv with
           | DPromise p when letNeedsValue pat dv ->
@@ -6679,7 +6679,7 @@ let private runRareOpcode
 
 let private bindOneAgain (r : Dval array) (pat : LetPattern) (arg : Dval) : bool =
   match pat with
-  | LPVariable reg ->
+  | LPVariable(reg, _) ->
     Registers.set r reg arg
     true
   | _ -> assignLetPattern r pat arg

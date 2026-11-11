@@ -796,7 +796,7 @@ type Register = int //<register> // TODO: unit of measure
 /// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
 type LetPattern =
   /// `let x = 1`
-  | LPVariable of extractTo : Register
+  | LPVariable of extractTo : Register * name : string
 
   /// `let _ = 1`
   | LPWildcard
