@@ -454,8 +454,7 @@ let looksLikeTypoedSubcommand(arg: String): Stdlib.Option.Option<String> =
 let executeBranchesCmd(state: AppState, args: List<String>): AppState =
   if ScmJson.wantsJson(args) then
     // JSON is for a program, and a program wants the whole set rather than the readable subset.
-    Stdlib.printLine(ScmJson.branchesJson(branchRows()))
-    state
+    Cli.exitWith(state, Cli.printJson(ScmJson.branchesJson(branchRows())))
   else
     executeList(state, Stdlib.List.contains(args, "--all"))
 

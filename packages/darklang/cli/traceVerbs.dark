@@ -309,10 +309,10 @@ let callJson(branchId: Uuid, call: Darklang.Tracing.FnCall): CallJson =
 
 
 /// A list of traces, as JSON. Every listing verb prints through this.
-let printTracesJson(branchId: Uuid, traces: List<Darklang.Tracing.Trace>): Unit =
-  Stdlib.printLine(
-    (Stdlib.Json.serialize<List<TraceJson>>(
-      traces |> Stdlib.List.map(fun r -> traceJson(branchId, r)))))
+let printTracesJson(branchId: Uuid, traces: List<Darklang.Tracing.Trace>): Bool =
+  Cli.printJson(
+    Stdlib.Json.checkedSerialize<List<TraceJson>>(
+      traces |> Stdlib.List.map(fun r -> traceJson(branchId, r))))
 
 
 /// One run and its log, as JSON.
@@ -329,10 +329,9 @@ let printInspectJson(branchId: Uuid, prefix: String): Bool =
         |> Stdlib.List.filter(fun c -> c.ord >= 0)
         |> Stdlib.List.map(fun c -> callJson(branchId, c))
       | None -> []
-    Stdlib.printLine(
-      (Stdlib.Json.serialize<TraceWithCallsJson>(
-        TraceWithCallsJson { trace = traceJson(branchId, trace), calls = calls })))
-    true
+    Cli.printJson(
+      Stdlib.Json.checkedSerialize<TraceWithCallsJson>(
+        TraceWithCallsJson { trace = traceJson(branchId, trace), calls = calls }))
 
 
 /// Run the trace's input again, replaying its log. `eval` and `run <file>` go through the paths
@@ -550,7 +549,7 @@ type TraceInFnJson =
 
 
 /// `traces calls <fn> --json`.
-let printCallsJson(branchId: Uuid, fnName: String): Unit =
+let printCallsJson(branchId: Uuid, fnName: String): Bool =
   let costs = Darklang.Tracing.Store.timeInNamed(branchId, fnName, 25)
 
   let rows =
@@ -567,7 +566,7 @@ let printCallsJson(branchId: Uuid, fnName: String): Unit =
 
       TraceInFnJson { trace = traceJson(branchId, t), inFn = inFn })
 
-  Stdlib.printLine(Stdlib.Json.serialize<List<TraceInFnJson>>(rows))
+  Cli.printJson(Stdlib.Json.checkedSerialize<List<TraceInFnJson>>(rows))
 
 
 /// The values `traces show` would print beside the code, as JSON: the ids and the values,
@@ -704,15 +703,14 @@ let showCodeJson(
             count = Stdlib.List.length(loop.iterations)
             iterations = iterations })
 
-    Stdlib.printLine(
-      (Stdlib.Json.serialize<ValuesJson>(
+    Cli.printJson(
+      Stdlib.Json.checkedSerialize<ValuesJson>(
         (ValuesJson
           { trace = trace.id
             fn = FnRef { name = fnName, hash = selfHash }
             values = values
             loops = loopsJson
-            problem = problemJson(branchId, trace.id, problem) }))))
-    true
+            problem = problemJson(branchId, trace.id, problem) })))
 
 
 /// A loop in one trace: a lambda call site that ran more than once.

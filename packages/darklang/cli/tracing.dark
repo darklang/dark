@@ -638,10 +638,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       refuse(state, $"no function named {fnName} on this branch")
     else
       if wantsJson then
-        Cli.TraceVerbs.printCallsJson(state.currentBranchId, fnName)
+        Cli.exitWith(state, Cli.TraceVerbs.printCallsJson(state.currentBranchId, fnName))
       else
         Cli.TraceVerbs.printCalls(state.currentBranchId, fnName)
-      state
+        state
   // The watching form of the same thing: the traces to pick from, and the code repainting as you
   // move between them or save an edit.
   | [ "show", typed, "--watch" ] ->
@@ -816,10 +816,11 @@ let executeListJson(state: Cli.AppState, limit: Int64): Cli.AppState =
   if limit < 1 then
     refuse(state, limitTooSmall)
   else
-    Cli.TraceVerbs.printTracesJson(
-      state.currentBranchId,
-      Darklang.Tracing.Store.list(limit))
-    state
+    Cli.exitWith(
+      state,
+      Cli.TraceVerbs.printTracesJson(
+        state.currentBranchId,
+        Darklang.Tracing.Store.list(limit)))
 
 
 let executeListByFn(
@@ -838,8 +839,7 @@ let executeListByFn(
     let fnName = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, typed)
     let rows = Darklang.Tracing.Store.listByFn(fnName, limit)
     if jsonMode then
-      Cli.TraceVerbs.printTracesJson(state.currentBranchId, rows)
-      state
+      Cli.exitWith(state, Cli.TraceVerbs.printTracesJson(state.currentBranchId, rows))
     else
       // `--fn` searches the effect LOG, and the log holds only the impure calls, so
       // a pure function is never in it. "No kept trace went through it" is the OTHER
@@ -981,8 +981,7 @@ let executeFnCountsJson(
         let (name, runs) = row
         FnRunsJson { fn = name, runs = runs, gone = isGone(name) })
 
-    Stdlib.printLine(Stdlib.Json.serialize<List<FnRunsJson>>(rows))
-    state
+    Cli.exitWith(state, Cli.printJson(Stdlib.Json.checkedSerialize<List<FnRunsJson>>(rows)))
 
 
 /// `traces hotspots [limit]`: across the last <limit> traces (default 100), the time spent
@@ -1091,8 +1090,7 @@ let executeFindJson(
     refuse(state, limitTooSmall)
   else
     let rows = Darklang.Tracing.Store.find(pattern, limit)
-    Cli.TraceVerbs.printTracesJson(state.currentBranchId, rows)
-    state
+    Cli.exitWith(state, Cli.TraceVerbs.printTracesJson(state.currentBranchId, rows))
 
 
 /// `traces find <pattern> --inspect` -- search-then-drill in one step: the newest matching run,
@@ -1251,9 +1249,11 @@ let followLoop(
 
   Stdlib.List.iter(chronological, fun row ->
     if jsonMode then
-      Stdlib.printLine(
-        (Stdlib.Json.serialize<Cli.TraceVerbs.TraceJson>(
-          Cli.TraceVerbs.traceJson(branchId, row))))
+      let _ =
+        Cli.printJson(
+          Stdlib.Json.checkedSerialize<Cli.TraceVerbs.TraceJson>(
+            Cli.TraceVerbs.traceJson(branchId, row)))
+      ()
     else
       Stdlib.printLine($"  {row.created}  {row.id}  {row.entry}"))
 
@@ -1332,8 +1332,7 @@ let executeListByRoute(
       |> Stdlib.List.take(limit)
 
     if jsonMode then
-      Cli.TraceVerbs.printTracesJson(state.currentBranchId, matching)
-      state
+      Cli.exitWith(state, Cli.TraceVerbs.printTracesJson(state.currentBranchId, matching))
     else
       printMatches($"no kept trace served a request matching {route}", matching)
       state

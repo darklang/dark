@@ -13,6 +13,7 @@ module TypeChecker = LibExecution.TypeChecker
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
 module NR = LibExecution.RuntimeTypes.NameResolution
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 // parsing
@@ -129,8 +130,11 @@ module RangedInt =
     DRecord(typeName, typeName, [], RecordFields.ofList [ range.field, DInt64 n ])
 
 
-let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit =
-  let r = serialize threadID w
+/// The value `serialize` found with no JSON form.
+exception CannotSerialize of Dval
+
+let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
+  let r = serialize w
   match dv with
   // basic types
   | DUnit -> w.WriteNullValue()
@@ -187,7 +191,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
         | DString k ->
           w.WritePropertyName k
           r v
-        | _ -> (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID))
+        | _ -> raise (CannotSerialize dv)))
 
   // Enums and Records
   | DEnum(_, _, _, caseName, fields) ->
@@ -210,8 +214,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DApplicable _
   | DBytes _
   | DStream _
-  | DPromise _ ->
-    (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
+  | DPromise _ -> raise (CannotSerialize dv)
 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -242,6 +245,8 @@ module ParseError =
     /// The text isn't JSON. Where it broke, both counted from 1; the column
     /// counts characters, not bytes
     | NotJson of line : int64 * column : int64
+    /// A type with no JSON form: a function, bytes, a stream, or a type variable
+    | UnsupportedType of TypeReference
 
   exception JsonException of ParseError
 
@@ -249,6 +254,8 @@ module ParseError =
     let (caseName, fields) =
       match e with
       | NotJson(line, column) -> "NotJson", [ Dval.dint64 line; Dval.dint64 column ]
+
+      | UnsupportedType typ -> "UnsupportedType", [ RT2DT.TypeReference.toDT typ ]
 
       | CantMatchWithType(typ, json, errorPath) ->
         "CantMatchWithType",
@@ -844,8 +851,7 @@ let parse
     | TVariable _, _
     | TFn _, _
     | TBytes, _
-    | TStream _, _ ->
-      (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
+    | TStream _, _ -> raiseError (ParseError.UnsupportedType typ)
 
 
     // exhaust TypeReferences
@@ -903,7 +909,38 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [ _typeToSerializeAs ], [| arg |] ->
-          Ply(DString(writeJson (fun w -> serialize vm.threadID w arg)))
+          try
+            Ply(DString(writeJson (fun w -> serialize w arg)))
+          with CannotSerialize dv ->
+            RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE vm.threadID
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "jsonCheckedSerialize" 0
+      typeParams = [ "a" ]
+      parameters = [ Param.make "arg" (TVariable "a") "" ]
+      returnType =
+        TypeReference.result
+          TString
+          (TCustomType(NR.ok (RT2DT.Dval.typeName ()), []))
+      description =
+        "Serializes a Dark value to a JSON string, or the first value found that has no JSON form."
+      fn =
+        (function
+        | _, _, [ _typeToSerializeAs ], [| arg |] ->
+          let errType = RT2DT.Dval.knownType ()
+          try
+            Ply(
+              Dval.resultOk
+                KTString
+                errType
+                (DString(writeJson (fun w -> serialize w arg)))
+            )
+          with CannotSerialize dv ->
+            Ply(Dval.resultError KTString errType (RT2DT.Dval.toDT dv))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

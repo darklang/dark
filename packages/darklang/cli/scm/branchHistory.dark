@@ -129,16 +129,17 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
     let r = Cli.Commit.review(state)
 
     if ScmJson.wantsJson(args) then
-      Stdlib.printLine(
-        ScmJson.draftDiffJson(
-          ScmJson.DraftDiffJson
-            { draftOps = (SCM.Draft.counts()).ops
-              changed = r.items
-              removed = r.removed }
+      let printed =
+        Cli.printJson(
+          ScmJson.draftDiffJson(
+            ScmJson.DraftDiffJson
+              { draftOps = (SCM.Draft.counts()).ops
+                changed = r.items
+                removed = r.removed }
+          )
         )
-      )
 
-      state
+      Cli.exitWith(state, printed)
     else if Stdlib.List.isEmpty(r.changed) then
       // Ops that bind no name (a deprecation, a restore, an ack) have nothing to show in a per-name
       // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
@@ -168,9 +169,9 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
       match resolveRef(id) with
       | None -> Cli.failed(state)
       | Some(branchId) ->
-        Stdlib.printLine(ScmJson.branchDiffJson(SCM.PackageOps.branchDiffEntries(branchId)))
-
-        state
+        Cli.exitWith(
+          state,
+          Cli.printJson(ScmJson.branchDiffJson(SCM.PackageOps.branchDiffEntries(branchId))))
     else
       executeDiff(state, id, Source.showIf(Stdlib.List.contains(args, "--source")))
   | _ ->
@@ -191,8 +192,7 @@ let branchOpsAsJson(branchRef: String): Bool =
           { seq = i
             op = PrettyPrinter.ProgramTypes.PackageOp.packageOp(branchId, op) })
 
-    Stdlib.printLine(ScmJson.branchOpsJson(rendered))
-    true
+    Cli.printJson(ScmJson.branchOpsJson(rendered))
 
 /// `dark log [<id>]` -- history, meaning whichever history you're standing in. On a BRANCH that's the
 /// branch's own ops, oldest first; on MAIN there is no delta, so it's the commits.
@@ -211,8 +211,7 @@ let executeLogCmd(state: AppState, args: List<String>): AppState =
     | id when SCM.Branch.isMain(id) ->
       if wantsJson then
         // On main `log` IS the commit history, so it answers with exactly what `commits --json` answers.
-        Stdlib.printLine(ScmJson.commitsJson(Commits.commitRows(20)))
-        state
+        Cli.exitWith(state, Cli.printJson(ScmJson.commitsJson(Commits.commitRows(20))))
       else
         Commits.executeList(state, 20, Commits.Housekeeping.Hide)
     // By NAME, because `executeLog` echoes back whatever it was handed and everything else the CLI

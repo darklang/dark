@@ -84,6 +84,13 @@ module RuntimeError =
       if w > room then acc else __escapedPrefix(rest, acc + e, room - w)
 
 
+  /// <param value> as JSON, or why it has none.
+  let __json<'a>(value: 'a): String =
+    match Stdlib.Json.checkedSerialize<'a>(value) with
+    | Ok(json) -> json
+    | Error(e) -> Stdlib.display(e)
+
+
   let segmentsToString(branchId: Uuid, segments: ErrorSegments): String =
     let reversed = Stdlib.List.reverse(segments)
 
@@ -150,7 +157,7 @@ module RuntimeError =
           | FullValue(dv) -> dval(branchId, dv)
           | LetPattern(p) -> letPattern(p)
           | segment ->
-            $"(RTETODO segmentsToString parts {(Stdlib.Json.serialize<ErrorSegment>(segment))})"
+            $"(RTETODO segmentsToString parts {(__json<ErrorSegment>(segment))})"
 
         Stdlib.List.prepend(prevSegments, newSegment))
 
@@ -771,7 +778,7 @@ module RuntimeError =
         | metadata ->
           let metadataStrings =
             Stdlib.List.map(metadata, fun((key, value)) ->
-              ES.String($"\n  {key}: {Stdlib.Json.serialize<Dval>(value)}"))
+              ES.String($"\n  {key}: {(__json<Dval>(value))}"))
 
           Stdlib.List.prepend(metadataStrings, ES.String("\nMetadata:"))
 
@@ -784,7 +791,7 @@ module RuntimeError =
 
     // Every case above has a message, so this only fires for a case added without one.
     | unhandled ->
-      let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
+      let serialized = __json<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
       [ ES.String($"A runtime error with no message written for it yet: {serialized}") ]
 
 

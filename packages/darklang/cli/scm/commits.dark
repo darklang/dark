@@ -168,8 +168,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let limit = limit |> Stdlib.Option.withDefault(20)
 
   if wantsJson then
-    Stdlib.printLine(ScmJson.commitsJson(commitRows(limit)))
-    state
+    Cli.exitWith(state, Cli.printJson(ScmJson.commitsJson(commitRows(limit))))
   else if detailed then
     executeDetailed(state, limit, housekeeping)
   else

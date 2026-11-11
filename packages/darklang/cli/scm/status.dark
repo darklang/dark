@@ -161,8 +161,7 @@ let executePretty(state: AppState): AppState =
 
 let execute(state: AppState, args: List<String>): AppState =
   if ScmJson.wantsJson(args) then
-    Stdlib.printLine(ScmJson.statusJson(statusJson(state)))
-    state
+    Cli.exitWith(state, Cli.printJson(ScmJson.statusJson(statusJson(state))))
   else
     executePretty(state)
 
