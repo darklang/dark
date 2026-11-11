@@ -60,8 +60,11 @@ def main():
     if len(sys.argv) != 4:
         sys.exit("usage: _ui.py <exe> <keys> <out.json>")
     exe, keys, out_path = sys.argv[1], int(sys.argv[2]), sys.argv[3]
-    subprocess.run([exe, "permissions", "allow", "env", "read", "PERF_ITERS"],
-                   stdin=subprocess.DEVNULL, capture_output=True)
+    # The workload runs as a guest script, so it needs what the real `dark` has as trusted CLI
+    # code: the workbench calls `native` builtins once a key is pressed.
+    for rule in (["env", "read", "PERF_ITERS"], ["native"]):
+        subprocess.run([exe, "permissions", "allow", *rule],
+                       stdin=subprocess.DEVNULL, capture_output=True)
     first, first_ms, _ = run(exe, 0)
     one, _, one_out = run(exe, 1)
     many, _, many_out = run(exe, 1 + keys)
