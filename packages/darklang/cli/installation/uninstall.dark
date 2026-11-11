@@ -38,11 +38,9 @@ let runUninstall(
   | Ok(_) -> Stdlib.Result.Result.Ok()
   | Error(err) -> Stdlib.Result.Result.Error($"Error uninstalling dark: {err}")
 
-// CLI interface functions
 let execute(state: AppState, args: List<String>): AppState =
   let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
 
-  // Parse flags
   let confirm =
     Cli.Confirm.assumeIf(
       (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y")))

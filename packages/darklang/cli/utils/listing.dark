@@ -1,7 +1,6 @@
 /// One rule for what a long listing does when it is too long to read.
 ///
-/// `search` already capped its results and said how many it dropped; `deps` printed all 431 dependents
-/// and `show` all 11,578 ops. A listing that scrolls a thousand lines past you has told you less than
+/// A listing that scrolls a thousand lines past you has told you less than
 /// one that shows twenty and says how many there were, and silently truncating is worse than either --
 /// a cap you can't see reads as "that's all of them".
 module Darklang.Cli.Listing
@@ -110,7 +109,7 @@ let splitLeaf(name: String): (String * String) =
 /// order they came in.
 let groupedByModule(names: List<String>): List<(String * List<String>)> =
   // One pass, splitting each name once. A Dict lists its keys sorted, which is the module
-  // order this has always had.
+  // order.
   names
   |> Stdlib.List.fold(Dict { }, fun(groups, name) ->
     let (m, leaf) = Listing.splitLeaf(name)

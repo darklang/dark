@@ -24,7 +24,7 @@ let wrapRow(maxFit: Int64, line: String): List<String> =
 /// both `renderPreview` and `renderReading`.
 ///
 /// Wrap, never clip: clipping loses everything past the pane's edge with no mark (a
-/// record literal printed on one line lost most of its fields). Wrapping is a floor
+/// record literal printed on one line loses most of its fields). Wrapping is a floor
 /// under that, not a substitute for the printer laying out to the width.
 let renderScrollableLines(
   region: Stdlib.Cli.UI.Layout.Region,

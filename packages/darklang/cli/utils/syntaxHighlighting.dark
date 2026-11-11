@@ -54,7 +54,7 @@ let highlightLine(line: String, lineTokens: List<LanguageTools.SemanticTokens.Se
   // Close every line with a reset. Overlapping tokens (a Symbol range inside a String range) can leave a
   // color opened but not closed at line end, which then bleeds into whatever prints next. This kills the
   // bleed; it doesn't fix the overlap itself (that needs token de-overlap) — the token colors within the
-  // line are still whatever the overlap produced, just no longer leaking past it.
+  // line are still whatever the overlap produced.
   highlighted + Stdlib.Cli.UI.Colors.reset
 
 

@@ -36,7 +36,6 @@ let logWithContext(
   let ctxPairs =
     context
     |> Stdlib.List.map(fun((k, v)) ->
-      // Escape any quotes in values for safety
       let escaped = Stdlib.String.replaceAll(v, "\"", "\\\"")
       $"\"{k}\":\"{escaped}\"")
 

@@ -6,9 +6,7 @@
 /// terminal session, presenting on every transition, re-taking the surface after another page borrowed it,
 /// and calling `save` when a step asks for it.
 ///
-/// Before this existed, every app hand-wrote that lifecycle: a `Session` record, a `presentState`, and a
-/// recursive `makeSubApp`, about eighty near-identical lines each, five times over. `SubApp` is still the
-/// seam the loop drives (see `Cli.SubApp`); it's just that nothing has to build one by hand any more.
+/// `SubApp` is still the seam the loop drives (see `Cli.SubApp`); nothing has to build one by hand.
 ///
 /// Pass *named* functions, not inline lambdas: the component lives in `AppState` across loop iterations,
 /// and Dark only preserves named-fn references there, not lambda bodies.

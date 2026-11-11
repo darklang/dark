@@ -139,7 +139,6 @@ let clockFreeTime(created: String): String =
 
 /// Reload the traces and re-annotate. One function for every reason the panel changes, so a move
 /// and a tick cannot drift apart in what they show.
-///
 let reload(
   accountID: Stdlib.Option.Option<Uuid>,
   branchId: Uuid,
@@ -220,7 +219,7 @@ let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
         | None -> $"the replay stopped here: {p.message}"
 
       // A band is ONE line and CLIPS, so only the headline goes in it and the rest follows as
-      // dim rows. Joined into the band they ran off the edge mid-sentence, which loses exactly
+      // dim rows. Joined into the band they would run off the edge mid-sentence, losing exactly
       // the two parts a reader needs: the error and what to do.
       let rest =
         [ p.why |> Stdlib.Option.map(fun _ -> p.message), p.advice ]

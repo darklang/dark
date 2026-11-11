@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.ForAIParts
 
-// The reference sections `docs for-ai` used to carry in full. Each is one part,
+// The reference sections of `docs for-ai`. Each is one part,
 // `docs for-ai <part>`, so the first read stays short.
 
 /// `docs for-ai packages`: saving declarations and changing them.
