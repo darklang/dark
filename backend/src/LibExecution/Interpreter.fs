@@ -5763,23 +5763,25 @@ let private runSyncInstructions
         // authorized. Already-captured values are left unchanged. A reference
         // with type args (`Stdlib.List.map<'a, 'b>`) captures this frame's type
         // symbols too, so its `'a` means the same wherever it is called.
-        registers[reg] <-
-          match value with
-          | DApplicable(AppNamedFn fn) when
-            fn.access.IsNone
-            && not (consumedByNextApply instrData.instructions counter reg)
-            ->
-            DApplicable(
-              AppNamedFn
-                { fn with
-                    access = Some currentFrame.access
-                    typeSymbolTable =
-                      if List.isEmpty fn.typeArgs then
-                        fn.typeSymbolTable
-                      else
-                        currentFrame.typeSymbolTable }
-            )
-          | _ -> value
+        Registers.set
+          registers
+          reg
+          (match value with
+           | DApplicable(AppNamedFn fn) when
+             fn.access.IsNone
+             && not (consumedByNextApply instrData.instructions counter reg)
+             ->
+             DApplicable(
+               AppNamedFn
+                 { fn with
+                     access = Some currentFrame.access
+                     typeSymbolTable =
+                       if List.isEmpty fn.typeArgs then
+                         fn.typeSymbolTable
+                       else
+                         currentFrame.typeSymbolTable }
+             )
+           | _ -> value)
       | CopyVal(copyTo, copyFrom) ->
         Registers.set registers copyTo (registers[copyFrom])
       // `skipRhs` is set on the left side's check. If that one raises, the right side
@@ -5995,8 +5997,10 @@ let private runSyncInstructions
       | CreateList(listReg, itemsToAddRegs) ->
         // Items are stored as they are; holding a read makes the list a promise.
         let itemsToAdd = readRegs registers itemsToAddRegs
-        registers[listReg] <-
-          TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
+        Registers.set
+          registers
+          listReg
+          (TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd)
       | CreateDict(dictReg, entries) ->
         let mutable rest = entries
         while not retry && not (List.isEmpty rest) do
@@ -6013,8 +6017,10 @@ let private runSyncInstructions
             entries
             |> List.map (fun (keyReg, valueReg) ->
               (registers[keyReg], registers[valueReg]))
-          registers[dictReg] <-
-            TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries
+          Registers.set
+            registers
+            dictReg
+            (TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries)
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
         // Parts are stored as they are; holding a read makes the tuple a promise.
         let first = registers[firstReg]
@@ -6039,16 +6045,18 @@ let private runSyncInstructions
           | Lambda(_, _, None) -> ValueNone
           | ep -> ValueSome ep
 
-        registers[lambdaReg] <-
-          { exprId = impl.exprId
-            closedRegisters = closedOver registers impl.registersToCloseOver
-            typeSymbolTable = currentFrame.typeSymbolTable
-            access = currentFrame.access
-            expectedReturn = ValueNone
-            writtenIn = writtenIn }
-          |> AppLambda
-          |> DApplicable
-          |> Pending.wrap
+        Registers.set
+          registers
+          lambdaReg
+          ({ exprId = impl.exprId
+             closedRegisters = closedOver registers impl.registersToCloseOver
+             typeSymbolTable = currentFrame.typeSymbolTable
+             access = currentFrame.access
+             expectedReturn = ValueNone
+             writtenIn = writtenIn }
+           |> AppLambda
+           |> DApplicable
+           |> Pending.wrap)
 
 
 
