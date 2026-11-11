@@ -62,6 +62,35 @@ $EDITOR instead, which is the shape for a human, not for you. And `--raw` is
 the stored NORMAL FORM, not your keystrokes: formatting, redundant parens and
 annotated nested lets come back normalized, so diff against a fresh `--raw`,
 never against what you typed.
+
+## A command-line tool
+
+A function taking `args: List<String>` and returning `Int64` runs from the
+shell by name. The words after the name are its arguments, as strings, and
+the number it returns is the exit code:
+
+  fn /Me.Greet.main - <<'EOF'
+  let main(args: List<String>): Int64 =
+    match args with
+    | [ name ] ->
+      Stdlib.printLine($"Hello, {name}")
+      0
+    | _ ->
+      Stdlib.printErrorLine("usage: Me.Greet.main <name>")
+      2
+  EOF
+
+  permissions approve Me.Greet.main   # printing is an effect; approve it
+  run Me.Greet.main Ada               # Hello, Ada; exits 0
+  run Me.Greet.main                   # the usage line on stderr; exits 2
+
+The approval is of this version: after an edit, `run` keeps the approved one
+until `permissions update Me.Greet.main --yes`.
+
+Numbers arrive as strings too: parse them with `Stdlib.Int64.parse`. Only a
+`List<String>` parameter, or none, runs this way. A function with typed
+parameters, such as `add(a: Int64, b: Int64)`, goes through `eval`:
+`eval 'Me.Math.add(1, 2)'`.
 """
 
 /// `docs for-ai tests`: package tests in full.

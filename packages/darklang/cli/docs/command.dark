@@ -240,7 +240,7 @@ module Topics =
   /// The reference sections `docs for-ai` leaves out, so its first read stays short:
   /// `docs for-ai tests` and the rest.
   let forAISubtopics(): List<DocTopic> =
-    [ subtopic("packages", "Saving declarations, changing what exists, the type checker", [ "authoring", "edit" ], Docs.ForAIParts.packages)
+    [ subtopic("packages", "Saving and changing declarations, the type checker, a command-line tool", [ "authoring", "edit" ], Docs.ForAIParts.packages)
       subtopic("tests", "Package tests in full", [ "test", "testing" ], Docs.ForAIParts.tests)
       subtopic("permissions", "Rules, profiles and package approvals", [ "perms", "http", "files" ], Docs.ForAIParts.permissions)
       subtopic("traces", "What a run did, and things that run at once", [ "live", "processes" ], Docs.ForAIParts.traces)
