@@ -913,8 +913,6 @@ let viewsBehaveLikeCopies =
     Expect.equal (dbytesRef promoted).Length 1024L "saved length"
   }
 
-/// The result is one array of exactly the output's size, whatever the pieces are:
-/// views of a shared array, empty pieces, and saved bytes read from the store.
 let equalityComparesBytesDirectly =
   test
     "equality agrees with the bytes however they are held, and in memory it hashes nothing" {
@@ -955,6 +953,32 @@ let equalityComparesBytesDirectly =
         Expect.isFalse (ephemeralOf fresh).IsHashed "comparing did not hash"
   }
 
+let lastIndexOfAgreesWithArray =
+  testTask "bytesLastIndexOf agrees with Array.LastIndexOf, on a view too" {
+    let parentBytes = randomBytes 4096
+    let! slice =
+      callBytesBuiltin
+        "bytesSlice"
+        [| mkEphemeral parentBytes; RT.DInt64 1000L; RT.DInt64 1024L |]
+    let own = Array.sub parentBytes 1000 1024
+    for target in [ own[0]; own[500]; own[1023]; 0uy; 255uy ] do
+      for start in [ -1L; 0L; 1L; 499L; 500L; 1023L; 1024L ] do
+        let! found =
+          callBytesBuiltin
+            "bytesLastIndexOf"
+            [| slice; RT.DUInt8 target; RT.DInt64 start |]
+        let expected =
+          if start < 0L || start >= 1024L then
+            Dval.optionNone RT.KTInt64
+          else
+            match System.Array.LastIndexOf(own, target, int start) with
+            | -1 -> Dval.optionNone RT.KTInt64
+            | i -> Dval.optionSome RT.KTInt64 (RT.DInt64(int64 i))
+        Expect.equal found expected $"lastIndexOf {target} from {start}"
+  }
+
+/// The result is one array of exactly the output's size, whatever the pieces are:
+/// views of a shared array, empty pieces, and saved bytes read from the store.
 let concatWritesOneExactArray =
   testTask
     "bytesConcat fills one array of the output's size from views and saved bytes" {
@@ -1275,6 +1299,7 @@ let tests =
       smallSlicesCopy
       viewsBehaveLikeCopies
       equalityComparesBytesDirectly
+      lastIndexOfAgreesWithArray
       concatWritesOneExactArray
       packageBytesInsertLookup
       packageBytesDedupesOnSameHash

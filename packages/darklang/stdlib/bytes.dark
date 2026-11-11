@@ -51,13 +51,7 @@ let lastIndexOfFrom(
   byte: UInt8,
   start: Int64)
   : Stdlib.Option.Option<Int64> =
-  match getAt(bytes, start) with
-  | None -> Stdlib.Option.Option.None
-  | Some(found) ->
-    if found == byte then
-      Stdlib.Option.Option.Some(start)
-    else
-      lastIndexOfFrom(bytes, byte, start - 1)
+  Builtin.bytesLastIndexOf(bytes, byte, start)
 
 
 /// Returns {{Some index}} of the last <param byte> in <param bytes>, or

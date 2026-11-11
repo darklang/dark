@@ -203,6 +203,43 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "bytesLastIndexOf" 0
+      typeParams = []
+      parameters =
+        [ Param.make "bytes" TBytes ""
+          Param.make "byte" TUInt8 ""
+          Param.make "start" TInt64 "zero-based, inclusive" ]
+      returnType = TypeReference.option TInt64
+      description =
+        "Returns {{Some index}} of the last <param byte> in <param bytes> at or before <param start>, or {{None}} if there is none or <param start> is out of range."
+      fn =
+        (function
+        | _, _, _, [| DBytes(Ephemeral eph); DUInt8 b; DInt64 startD |] ->
+          if startD >= 0L && startD < int64 eph.count then
+            match
+              System.MemoryExtensions.LastIndexOf(
+                eph.Span.Slice(0, int startD + 1),
+                b
+              )
+            with
+            | -1 -> Ply(Dval.optionNone KTInt64)
+            | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
+          else
+            Ply(Dval.optionNone KTInt64)
+        | state, _, _, [| DBytes ref; DUInt8 b; DInt64 startD |] ->
+          Bytes.withBytes state ref (fun bs ->
+            if startD >= 0L && startD < int64 bs.Length then
+              match System.Array.LastIndexOf(bs, b, int startD) with
+              | -1 -> Ply(Dval.optionNone KTInt64)
+              | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
+            else
+              Ply(Dval.optionNone KTInt64))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     // Native because a Dark loop compares a slice at every candidate position:
     // on 1 MB of HTTP headers that took 520 ms, where this takes 0.1 ms.
     { name = fn "bytesIndexOfSegment" 0
