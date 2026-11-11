@@ -66,7 +66,7 @@ let view(traceID: String): Stdlib.Option.Option<TraceData> =
 
 
 /// Read saved CLI input without loading the result.
-/// Returns None for HTTP traces, older traces, or missing or corrupt input.
+/// Returns None for HTTP traces, or missing or corrupt input.
 let getScriptOrEvalInput(traceID: String): Stdlib.Option.Option<ScriptOrEvalInput> =
   (query(TraceQuery.SavedInput(traceID))).savedInput
 
@@ -106,8 +106,7 @@ let fnsWithHashes(traceID: String): List<String * String> =
 ///
 /// Keyed by the lambda's expression id, which is the same key the replay's frames carry. A view
 /// recomputes values by replaying, so it can only show what it reaches; this is what HAPPENED,
-/// including passes a replay that stopped early will never get to. Empty for a run recorded
-/// before the shape was kept, which is an honest answer rather than a wrong one.
+/// including passes a replay that stopped early will never get to.
 let recordedLoopPasses(traceID: String): List<String * Int64> =
   (query(TraceQuery.LoopPasses(traceID))).counts
 
@@ -176,7 +175,7 @@ type TimeInFn =
     calls: Int64
     /// Wall clock inside it, in microseconds, counted from the outermost call only, so a
     /// recursive function is not counted once per level. 0 for a function answered without a
-    /// frame of its own (a forwarder to a builtin), and for a run recorded before this was kept.
+    /// frame of its own (a forwarder to a builtin).
     totalUs: Int64
     /// The longest of those outermost calls.
     slowestUs: Int64 }
