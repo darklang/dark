@@ -892,6 +892,64 @@ let private editedCodeNeedsFreshApproval =
         Expect.equal (edited.Trim()) "edited" "approve also reviews current code"
       })
 
+/// A trait implementation the caller picks runs with the caller's access, not the approval's.
+let private callerChosenImplsKeepCallerAccess =
+  CliInstance.instanceTest
+    "a trait implementation the caller chose runs with the caller's access"
+    (fun i ->
+      task {
+        let run args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.equal code 0L output
+            return output
+          }
+        let readHome =
+          "Stdlib.Option.withDefault(Stdlib.Env.get(\"HOME\"), \"none\")"
+        let! _ =
+          run
+            [ "fn"
+              "Tests.Approved.describe"
+              "<'a: Display>(v: 'a): String = \"value: \" + Stdlib.Display.display(v)" ]
+        let! _ = run [ "type"; "Tests.Approved.Own"; "{ x: Int64 }" ]
+        let! _ =
+          run
+            [ "impl"
+              "Tests.Approved"
+              $"Display for Own = let display(o: Own): String = {readHome}" ]
+        let! _ =
+          run
+            [ "fn"
+              "Tests.Approved.own"
+              "(): String = Stdlib.Display.display(Tests.Approved.Own { x = 1 })" ]
+        let! _ = run [ "type"; "Tests.Caller.Zork"; "{ x: Int64 }" ]
+        let! _ =
+          run
+            [ "impl"
+              "Tests.Caller"
+              $"Display for Zork = let display(z: Zork): String = {readHome}" ]
+        let! _ =
+          run
+            [ "fn"
+              "Tests.Caller.go"
+              "(): String = Tests.Approved.describe(Tests.Caller.Zork { x = 1 })" ]
+        for name in [ "Tests.Approved.describe"; "Tests.Approved.own" ] do
+          let! _ = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
+          ()
+
+        for call in
+          [ "Tests.Approved.describe(Tests.Caller.Zork { x = 1 })"
+            "Tests.Caller.go()" ] do
+          let! denied, code = CliInstance.runWithExit i [ "eval"; call ]
+          Expect.notEqual code 0L denied
+          Expect.stringContains denied "permission denied" call
+
+        let! plain = run [ "eval"; "Tests.Approved.describe(5)" ]
+        Expect.equal (plain.Trim()) "value: 5" "a pure implementation still runs"
+        let! own = run [ "eval"; "Tests.Approved.own()" ]
+        Expect.stringContains own "/" "the approved fn's own choice keeps access"
+      })
+
 let private httpPathsAreExactUnlessSubtree =
   test "HTTP exact paths and explicit subtrees stay distinct" {
     let operation = request "GET" "https://api.example.com/orders"
@@ -958,6 +1016,7 @@ let tests =
       serverRulesCheckAddressAndPort
       approvalsDoNotPinCode
       editedCodeNeedsFreshApproval
+      callerChosenImplsKeepCallerAccess
       effectsCommand
       policiesDenyByDefault
       denyOverridesAllow

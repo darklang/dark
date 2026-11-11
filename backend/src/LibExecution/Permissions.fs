@@ -685,49 +685,53 @@ type Decision =
 
 type private Restriction = { layer : Layer; policy : Policy }
 
-/// Immutable grants and restrictions for one invocation.
-type Access = private Access of List<Restriction>
+/// Immutable grants and restrictions for one invocation, and once a named approval is entered,
+/// the access of the code that called it.
+type Access = private Access of List<Restriction> * caller : Option<Access>
 
 module Access =
   /// Host transport preserves every existing restriction across a process boundary.
-  let layers (Access restrictions) : List<Layer * Policy> =
+  let layers (Access(restrictions, _)) : List<Layer * Policy> =
     restrictions
     |> List.map (fun restriction -> restriction.layer, restriction.policy)
 
   let ofLayers (layers : List<Layer * Policy>) : Access =
     match layers with
-    | [] -> Access [ { layer = Layer.Instance; policy = Policy.denyAll } ]
+    | [] -> Access([ { layer = Layer.Instance; policy = Policy.denyAll } ], None)
     | _ ->
       Access(
-        List.map (fun (layer, policy) -> { layer = layer; policy = policy }) layers
+        List.map (fun (layer, policy) -> { layer = layer; policy = policy }) layers,
+        None
       )
 
   let start (instancePolicy : Policy) : Access =
-    Access [ { layer = Layer.Instance; policy = instancePolicy } ]
+    Access([ { layer = Layer.Instance; policy = instancePolicy } ], None)
 
   /// The fail-safe starting point, shared because `Access` is immutable.
   /// Pooled VMs reset their root frame to this value on every reuse, avoiding
   /// a new restriction list for each execution.
   let denyAll : Access =
-    Access
+    Access(
       [ { layer = Layer.Instance; policy = Policy.denyAll }
-        { layer = Layer.Run; policy = Policy.denyAll } ]
+        { layer = Layer.Run; policy = Policy.denyAll } ],
+      None
+    )
 
   let restrict
     (layer : Layer)
     (policy : Policy)
-    (Access restrictions as access)
+    (Access(restrictions, caller) as access)
     : Access =
     // Appending allow-all cannot change any decision (and an allow-all layer
     // can never be the denying layer in diagnostics), so skip the allocation.
     if Policy.isAllowAll policy then
       access
     else
-      Access({ layer = layer; policy = policy } :: restrictions)
+      Access({ layer = layer; policy = policy } :: restrictions, caller)
 
   /// Host-supplied access for this run only. Callers must authorize the user
   /// gesture before calling this; guest code never receives this operation.
-  let grantRun (grant : Policy) (Access restrictions) : Access =
+  let rec grantRun (grant : Policy) (Access(restrictions, caller)) : Access =
     let allows, denies = Policy.rules grant
     Access(
       restrictions
@@ -736,7 +740,8 @@ module Access =
         | Layer.Instance ->
           let defaults, bans = Policy.rules r.policy
           { r with policy = Policy.create (defaults @ allows) (bans @ denies) }
-        | _ -> r)
+        | _ -> r),
+      caller |> Option.map (grantRun grant)
     )
 
   /// Establish one named invocation. Defaults and the approval supply grants;
@@ -745,7 +750,7 @@ module Access =
   let enter
     (name : string)
     (approval : Policy)
-    (Access restrictions as access)
+    (Access(restrictions, _) as access)
     : Access =
     let entered =
       restrictions
@@ -767,21 +772,32 @@ module Access =
               { layer = Layer.Package name
                 policy = Policy.create (defaults @ grants) denied } ]
           | _ -> [ r ])
-      Access restrictions
+      Access(restrictions, Some access)
 
   /// Apply every restriction from another Access. This is used when invoking
   /// a closure: both the caller and the captured access must allow the request.
-  let constrainBy (Access constraints) (Access restrictions as current) : Access =
+  let constrainBy
+    (Access(constraints, _))
+    (Access(restrictions, caller) as current)
+    : Access =
     // A closure applied in the frame that created it carries the identical
     // Access; the conjunction is then the value itself — skip the append.
     if System.Object.ReferenceEquals(constraints, restrictions) then
       current
     else
-      Access(constraints @ restrictions)
+      Access(constraints @ restrictions, caller)
+
+  /// For code the caller of a named approval chose rather than the approved function, such as
+  /// the trait implementation a type argument picks: like a callback, it is limited by the
+  /// caller's access.
+  let forCallersCode (Access(_, caller) as access) : Access =
+    match caller with
+    | Some caller -> access |> constrainBy caller
+    | None -> access
 
   /// Interactive approval may fill missing grants, never lift a deny or a
   /// mandatory run/value restriction (including serialized captured access).
-  let canApprove request (Access restrictions) : bool =
+  let canApprove request (Access(restrictions, _)) : bool =
     restrictions
     |> List.forall (fun r ->
       match Policy.denial request r.policy with
@@ -794,7 +810,7 @@ module Access =
         | Layer.Run
         | Layer.Value _ -> false)
 
-  let approve (grant : Policy) (Access restrictions) : Access =
+  let rec approve (grant : Policy) (Access(restrictions, caller)) : Access =
     let added, _ = Policy.rules grant
     Access(
       restrictions
@@ -805,12 +821,13 @@ module Access =
           let allow, deny = Policy.rules r.policy
           { r with policy = Policy.create (allow @ added) deny }
         | Layer.Run
-        | Layer.Value _ -> r)
+        | Layer.Value _ -> r),
+      caller |> Option.map (approve grant)
     )
 
   /// Every active restriction must allow the operation. An instance denial
   /// takes precedence in diagnostics.
-  let decide (request : Request) (Access restrictions) : Option<Denial> =
+  let decide (request : Request) (Access(restrictions, _)) : Option<Denial> =
     let rec walk first remaining =
       match remaining with
       | [] -> first

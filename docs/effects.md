@@ -16,6 +16,8 @@ remembered grants. Calling an approved function from an unapproved library canno
 increase the caller's access. Bundled helpers and the script's own functions use
 the invocation's access. Closures, deferred streams and background work retain
 captured restrictions and are also bounded by the caller that executes them.
+A trait implementation the caller picks, by a type argument or the value it passes,
+runs with the caller's access, like a callback.
 Bundled code has no exemption from Native checks. Nested evaluation and trace replay
 retain the guest caller's restrictions. Whole-store backups require the trusted CLI.
 
