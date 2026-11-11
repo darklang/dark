@@ -48,11 +48,11 @@ test dependencyReadsExcludeAParentsDraft =
     |> Stdlib.List.sort
   let dependencies(branch: Uuid, allCallers: Bool): List<String> =
     let sources = if allCallers then [] else [ source(branch, m, "caller") ]
-    Darklang.SCM.Deps.namedReferencesFor(branch, sources)
+    Darklang.SCM.Deps.namedReferencesFor(branch, sources) |> Builtin.unwrap
     |> Stdlib.List.filter(fun((location, _, _, _)) -> location == Authoring.loc(m, "caller"))
     |> Stdlib.List.map(fun((_, _, _, location)) -> location.name)
   let staleCallers(branch: Uuid): List<String> =
-    let (stale, _) = Darklang.SCM.Deps.review(branch, [])
+    let (stale, _) = Darklang.SCM.Deps.review(branch, []) |> Builtin.unwrap
     stale |> Stdlib.List.filterMap(fun((usage, _, _, _, _)) ->
       if usage.owner == "Tests" && usage.modules == [ m ] then Some(usage.name) else None)
   Stdlib.Test.all(

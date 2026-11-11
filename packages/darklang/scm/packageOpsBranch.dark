@@ -203,10 +203,12 @@ let mergedOpsOf(branchId: Uuid): List<LanguageTools.ProgramTypes.PackageOp> =
 /// Turn a branch NAME into its id, starting the branch if that name has none. Returns (id, wasCreated);
 /// callers announce a creation, because silently running on a branch you didn't mean to start reads
 /// exactly like running on the one you did.
-let resolveBranch(name: String, parentId: Uuid): (Uuid * Bool) =
-  match SCM.Actions.branch(SCM.Actions.BranchAction.Start(name, parentId)) with
-  | Ok(b) -> (b.id, b.created)
-  | Error(e) -> Builtin.unwrap(Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e)))
+let resolveBranch(
+  name: String,
+  parentId: Uuid)
+  : Stdlib.Result.Result<(Uuid * Bool), SCM.Actions.Failure> =
+  SCM.Actions.branch(SCM.Actions.BranchAction.Start(name, parentId))
+  |> Stdlib.Result.map(fun b -> (b.id, b.created))
 
 
 /// Move THIS process onto <param branchId>, so names resolve as that branch sees them, and store it as

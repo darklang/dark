@@ -146,10 +146,10 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
         match SCM.PackageOps.resolveBranchRef(ref) with
         | Found(existing) ->
           if SCM.PackageOps.branchIsMerged(existing) then
-            Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch(ref, parentId))
+            start(ref, parentId)
           else
             Stdlib.Option.Option.Some((existing, false))
-        | NotFound -> Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch(ref, parentId))
+        | NotFound -> start(ref, parentId)
         | UnknownId(_) ->
           let _ = lookupRef(ref)
           Stdlib.Option.Option.None
@@ -458,6 +458,14 @@ let executeBranchesCmd(state: AppState, args: List<String>): AppState =
     state
   else
     executeList(state, Stdlib.List.contains(args, "--all"))
+
+/// Start the branch named <param name> off <param parentId>, or say why it could not be.
+let start(name: String, parentId: Uuid): Stdlib.Option.Option<(Uuid * Bool)> =
+  match SCM.PackageOps.ensureBranch(name, parentId) with
+  | Ok(pair) -> Stdlib.Option.Option.Some(pair)
+  | Error(e) ->
+    Cli.printErr(SCM.Actions.failureMessage(e))
+    Stdlib.Option.Option.None
 
 /// `dark switch [<id>]`. No argument reports where you are rather than switching, so a bare `switch`
 /// can't silently move you to main.

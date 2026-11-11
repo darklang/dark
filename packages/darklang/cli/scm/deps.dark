@@ -193,8 +193,9 @@ let showDependencies(
   cap: Bool)
   : Unit =
   match SCM.Deps.dependencyEdges(branchId, location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
-  | [] -> Stdlib.printErrorLine($"No dependencies found for {entityName}")
-  | deps ->
+  | Error(e) -> Cli.printErr($"Couldn't read the dependencies of {entityName}: {e}")
+  | Ok([]) -> Stdlib.printErrorLine($"No dependencies found for {entityName}")
+  | Ok(deps) ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} dependencies of {entityName}:")
     Stdlib.printLine("")
@@ -291,7 +292,13 @@ let executeJson(
   kind: LanguageTools.ProgramTypes.ItemKind,
   entityName: String)
   : AppState =
-  let dependencies = SCM.Deps.dependencyEdges(state.currentBranchId, loc, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) |> Stdlib.List.map(edgeJson)
+  match SCM.Deps.dependencyEdges(state.currentBranchId, loc, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
+  | Error(e) ->
+    Cli.printErr($"Couldn't read the dependencies of {entityName}: {e}")
+    Cli.failed(state)
+  | Ok(edges) ->
+
+  let dependencies = edges |> Stdlib.List.map(edgeJson)
 
   let dependents =
     SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (loc, kind) ])
