@@ -9,8 +9,8 @@ writing anything.
 
 ## Concurrency, without writing anything
 
-Reads run at the same time. Writes keep program order. `Stdlib.await(x)` waits for a
-value here instead of wherever it is first used.
+Reads run at the same time. Writes keep program order; overlap them only by asking
+(below). `Stdlib.await(x)` waits for a value here instead of wherever it is first used.
 
   let pages = Stdlib.List.map(urls, fun u -> Stdlib.HttpClient.get(u, []))  // all in flight
   Stdlib.printLine("fetching")                                            // a write: now, in order
@@ -26,7 +26,7 @@ read, an HTTP GET or HEAD). Anything else runs in order.
   Stdlib.Exec.awaitWithin(500, h)                       // ... or give up after 500 ms: None
   Stdlib.Exec.select([ h1; h2 ])                         // the first to finish
   Stdlib.Exec.cancel(h)                                  // stop it, and its children
-  Stdlib.List.parallelMap(items, fib)                    // CPU-bound work across the cores
+  Stdlib.List.parallelMap(urls, post)                    // writes at once, results in order
 
 A process spawned this way dies with its parent.
 Spawning is the `concurrency` effect; a policy can forbid it.

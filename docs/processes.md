@@ -3,7 +3,8 @@
 A running computation is a value the runtime can step, park, resume and
 inspect; one thread runs many of them, and a group of worker threads (one per
 core) runs many more. Reads run concurrently on their own and writes keep
-their order; `Exec.spawn`/`await` run chosen work in the background. A trace is
+their order; `Exec.spawn`/`await` and `List.parallelMap` run chosen work, writes
+included, side by side. A trace is
 a TRACE: one row, kept with the log of what it did to the world, suspended by
 Ctrl-C, resumed or forked by replaying that log, and read back beside the code
 that made it. A lambda a builtin applies is a frame on the process's own
@@ -320,6 +321,11 @@ and a fold that pushes each response onto a list, a recursion that builds one,
 or a map pairing each url with its response all have every read in flight
 before the first is waited for.
 
+Writes overlap only where you ask: `List.parallelMap(urls, fun u ->
+HttpClient.post(u, [], body))`, or `Exec.spawn` then `Exec.await`, runs each in
+a process of its own. Plain `List.map` runs them one after another, spread or
+not, since a spread chunk refuses any effect.
+
 Where it waits, which a second implementation has to match, since the order
 is observable (`let a = get bad` then `f a` runs `f`, prints included, and
 raises where `f` first uses `a`):
@@ -500,9 +506,10 @@ the "`dark ps`" section). `spawn` carries the
 spawned process can do nothing the spawner could not. An install whose policy
 was seeded before this effect existed needs `dark permissions allow
 concurrency` once. `List.parallelMap` is `spawn` per element then `await` in
-order. It is redundant now: plain `List.map` spreads computation by itself
-(the next section), in chunks rather than a process per element, and reads
-run concurrently under it already.
+order, and is the way to overlap writes. For computation and reads it adds
+nothing: plain `List.map` spreads computation by itself (above), in chunks
+rather than a process per element, and reads run concurrently under it
+already.
 
 From a trace nobody scheduled (a test's `execute`, an HTTP handler)
 `spawn` uses a process-wide scheduler with workers of its own
