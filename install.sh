@@ -91,13 +91,9 @@ main() {
   case "$os" in
     Linux)
       case "$arch" in
-        # The musl build is fully static (OpenSSL included), so it runs on glibc systems too.
+        # The musl builds are fully static (OpenSSL included), so they run on glibc systems too.
         x86_64 | amd64) rid="linux-musl-x64" ;;
-        aarch64 | arm64)
-          if is_musl; then
-            fail "this script doesn't install on musl-based Linux (e.g. Alpine) on arm64 yet; download the linux-musl-arm64 file from https://github.com/darklang/dark/releases"
-          fi
-          rid="linux-arm64" ;;
+        aarch64 | arm64) rid="linux-musl-arm64" ;;
         armv7l)
           if is_musl; then
             fail "no prebuilt binary for musl-based Linux (e.g. Alpine) on armv7 yet"

@@ -71,19 +71,9 @@ executors:
     docker:
       - image: << pipeline.parameters.ci-image >>
 
-  # Builds the linux release artifacts. Deliberately not dark-base:
-  #
-  #   - dark-base is ubuntu:24.04, and an AOT binary built there requires
-  #     GLIBC_2.38. Today's R2R binary requires only GLIBC_2.27, so that would
-  #     be a silent compatibility regression. This image is 20.04 (glibc 2.31).
-  #   - NativeAOT links through a C compiler, and the default gcc cannot
-  #     cross-target (it rejects ilc's `--target=<triple>` outright). This
-  #     image carries clang and cross sysroots, so one x64 runner produces all
-  #     four linux artifacts.
-  #
-  # Built from Dockerfile.build-base. There is no arm runner in this workflow on
-  # purpose: dark-base is published amd64-only, so an arm resource class has
-  # no image to run.
+  # Builds the ReadyToRun release artifacts (linux-arm, osx-x64). Deliberately not
+  # dark-base, which is ubuntu:24.04: a linux-arm binary built there would need a
+  # newer glibc. This image is 20.04 (glibc 2.31). Built from Dockerfile.build-base.
   release-linux:
     working_directory: ~/app
     environment:
@@ -523,98 +513,6 @@ jobs:
             # anywhere else has only the embedded copy.
             - backend/src/LibExecution/package-ref-hashes.txt
 
-  # All four linux artifacts from one x64 runner. The cross-compiles work
-  # because the release image supplies clang and cross sysroots; the stock
-  # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
-  build-cli-linux-glibc:
-    executor: release-linux
-    # medium+, like build: one compile at a time, which a fourth CPU barely speeds up.
-    resource_class: medium+
-    steps:
-      - checkout
-      - attach_workspace: { at: "." }
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
-
-      # SQLite static archives for the AOT link, built by zig cc from the amalgamation.
-      # Every release, never from a cache: see the note on caches at the top of this file.
-      - run:
-          name: Build SQLite static archives
-          command: |
-            ./scripts/build/build-sqlite.sh \
-              --runtimes=linux-x64,linux-arm64
-
-      # Two linux runtimes are deliberately absent, for different reasons.
-      #
-      # linux-musl-x64: no cross sysroot in the release image, and it's the
-      # target that failed the last time this was attempted.
-      #
-      # linux-arm (armv7): .NET 10's 32-bit ARM NativeAOT runtime needs glibc
-      # symbols that only appeared in ~2.34, which puts its AOT floor well
-      # above the one we target. Not something cross-compile flags can fix.
-      #
-      - run:
-          name: AOT-publish the linux runtimes
-          command: |
-            ./scripts/build/build-release-cli-exes.sh \
-              --mode=aot \
-              --seed=seed.db \
-              --runtimes=linux-x64,linux-arm64
-      - run:
-          name: Validate the linux-x64 artifact
-          command: |
-            # The CLI suite's instance-backed cases copy a store with sqlite3, and its
-            # interactive cases get a pty from expect. The release image has neither.
-            apt-get update -qq && apt-get install -y -qq --no-install-recommends sqlite3 expect > /dev/null
-            ./scripts/testing/validate-cli-artifact \
-              "$(ls clis/darklang-*-linux-x64)"
-      # arm64 can't run natively here, but it can run emulated, and it should.
-      # A binary that links is not a binary that works: during this work an
-      # armv7 build compiled, linked and started before dying on a struct
-      # layout mismatch. Shipping an artifact that has never executed anywhere
-      # is how that reaches a user instead of CI.
-      #
-      # A smoke run under qemu, not the full suite: emulation is slow and the
-      # suite shells out per case. This catches "doesn't start" and "dies
-      # immediately", which is the failure mode cross-compiling actually
-      # produces.
-      - run:
-          name: Smoke-test the linux-arm64 artifact under emulation
-          command: |
-            qemu-aarch64-static -L /usr/aarch64-linux-gnu \
-              "$(ls clis/darklang-*-linux-arm64)" version
-            answer=$(qemu-aarch64-static -L /usr/aarch64-linux-gnu \
-              "$(ls clis/darklang-*-linux-arm64)" eval "1 + 2")
-            [[ "$answer" == 3 ]] || { echo "eval 1 + 2 answered: $answer"; exit 1; }
-      - run:
-          name: Confirm the glibc floor of what we're shipping
-          command: |
-            objdump -T "$(ls clis/darklang-*-linux-x64)" \
-              | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
-      # The build image IS the floor (20.04, glibc 2.31), so running the
-      # artifact here rather than on a modern machine is what catches
-      # symbols that only exist in newer glibc. That's not hypothetical: a
-      # DllImport of "stat" worked everywhere we tested and threw on every
-      # system below glibc 2.33, which is exactly the audience the low floor
-      # exists to serve.
-      #
-      # Through the Dark wrappers, not the raw builtins: `syscallStatAt` returns an
-      # opaque blob, so only the Dark-side decode can tell a good stat from a bad one.
-      - run:
-          name: Exercise the syscall transport at the glibc floor
-          command: |
-            X64="$(ls clis/darklang-*-linux-x64)"
-            # `eval` is guest code under the deny-by-default instance policy.
-            # TODO: narrow to `file read /etc/hostname` (and whatever getcwd needs).
-            "$X64" permissions allow all > /dev/null
-            "$X64" eval 'Stdlib.Cli.Posix.stat("/etc/hostname")' | tee /tmp/stat.out
-            # The answer coreutils gives for the same file, field for field.
-            H=/etc/hostname
-            grep -qxF "Ok(Stdlib.Cli.Posix.StatResult { mode: $((16#$(stat -c %f $H))), size: $(stat -c %s $H), mtimeSec: $(stat -c %Y $H) })" /tmp/stat.out
-            "$X64" eval 'Stdlib.Cli.Posix.getCwd()' | tee /tmp/cwd.out
-            grep -qxF "Ok(\"$(pwd -P)\")" /tmp/cwd.out
-      - package-clis
-
   # The runtimes built as ReadyToRun instead of AOT:
   # - linux-arm: AOT for armv7 needs a newer glibc than we support.
   # - osx-x64: R2R doesn't need a Mac, so it's built here, where it costs far less.
@@ -732,7 +630,7 @@ jobs:
               sleep 5
             done
       # Cross-linked, so it has never run until here. A smoke run under qemu rather than the
-      # suite, as for the glibc arm64 build: emulation is slow, and what a cross build gets
+      # suite: emulation is slow, and what a cross build gets
       # wrong shows at startup. The HTTPS request checks the OpenSSL shim, which is the part
       # built for arm64 separately (scripts/build/cross-openssl-shim.cmake).
       - run:
@@ -752,6 +650,25 @@ jobs:
               [ "$attempt" = 3 ] && exit 1
               sleep 5
             done
+      # The syscall transport decodes C structs, whose layout differs between musl and glibc
+      # and between x64 and arm64, so compare what it reads with what the system's tools say.
+      - run:
+          name: Exercise the syscall transport on both musl artifacts
+          command: |
+            export HOME="$(mktemp -d)"
+            H=/etc/hostname
+            # busybox `stat`, the same fields coreutils gives; `pwd -P` is the shell's.
+            want_stat="Ok(Stdlib.Cli.Posix.StatResult { mode: $((16#$(stat -c %f $H))), size: $(stat -c %s $H), mtimeSec: $(stat -c %Y $H) })"
+            want_cwd="Ok(\"$(pwd -P)\")"
+            check() {
+              "$@" permissions allow all > /dev/null
+              "$@" eval 'Stdlib.Cli.Posix.stat("/etc/hostname")' | tee /tmp/stat.out
+              grep -qxF "$want_stat" /tmp/stat.out
+              "$@" eval 'Stdlib.Cli.Posix.getCwd()' | tee /tmp/cwd.out
+              grep -qxF "$want_cwd" /tmp/cwd.out
+            }
+            check "$(ls clis/darklang-*-linux-musl-x64)"
+            check qemu-aarch64 "$(ls clis/darklang-*-linux-musl-arm64)"
       - package-clis
 
   build-cli-macos:
@@ -924,10 +841,6 @@ workflows:
             branches:
               ignore: /.*/
 
-      - build-cli-linux-glibc:
-          filters: *release-filters
-          requires: [seed-db]
-
       - build-cli-linux-musl:
           filters: *release-filters
           requires: [seed-db]
@@ -955,7 +868,6 @@ workflows:
             branches:
               ignore: /.*/
           requires:
-            - build-cli-linux-glibc
             - build-cli-linux-musl
             - build-cli-macos
             - build-cli-r2r-extras
