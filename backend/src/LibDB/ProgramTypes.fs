@@ -663,3 +663,24 @@ let searchNamesAndHashes
         impls = pairs "impl"
         tests = pairs "test" }
   }
+
+
+/// The full path (`Owner.Module.Name`) of every impl at or below <param modulePath>, without
+/// reading any definition: what `search` needs to tell an impl's methods from other fns.
+let implPathsBelow
+  (branch : PT.BranchId)
+  (modulePath : List<string>)
+  : Task<List<string>> =
+  task {
+    let query : PT.Search.SearchQuery =
+      { currentModule = modulePath
+        text = ""
+        searchDepth = PT.Search.SearchDepth.AllDescendants
+        entityTypes = [ PT.Search.EntityType.TraitImpl ]
+        exactMatch = false }
+    let! rows = searchRows branch query false
+    return
+      rows
+      |> List.map (fun (_, _, location, _) ->
+        String.concat "." (location.owner :: location.modules @ [ location.name ]))
+  }

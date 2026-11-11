@@ -1354,6 +1354,33 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmImplPathsBelow" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make "modulePath" (TList TString) "the module to look below" ]
+      returnType = TList TString
+      description =
+        "The full path of every impl at or below <param modulePath>, such as "
+        + "`Darklang.Json.ParseError.Display`, without reading any definition."
+      fn =
+        (function
+        | _, _, _, [| DUuid branchId; DList(_, Items(modulePath)) |] ->
+          uply {
+            let modulePath =
+              modulePath
+              |> List.map (function
+                | DString s -> s
+                | _ -> incorrectArgs ())
+            let! paths = PMPT.implPathsBelow (branchOfParam branchId) modulePath
+            return toDList paths
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmCallerCounts" 0
       typeParams = []
       parameters =
