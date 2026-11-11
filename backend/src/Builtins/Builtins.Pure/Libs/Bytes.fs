@@ -152,13 +152,15 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DBytes(Ephemeral eph); DInt64 index |] ->
           if index >= 0L && index < int64 eph.count then
-            Ply(Dval.optionSome KTUInt8 (DUInt8 eph.buffer[eph.offset + int index]))
+            Ply(
+              Dval.optionSome KTUInt8 (Dval.uint8 eph.buffer[eph.offset + int index])
+            )
           else
             Ply(Dval.optionNone KTUInt8)
         | state, _, _, [| DBytes ref; DInt64 index |] ->
           Bytes.withBytes state ref (fun bs ->
             if index >= 0L && index < int64 bs.Length then
-              Ply(Dval.optionSome KTUInt8 (DUInt8 bs[int index]))
+              Ply(Dval.optionSome KTUInt8 (Dval.uint8 bs[int index]))
             else
               Ply(Dval.optionNone KTUInt8))
         | _ -> incorrectArgs ())

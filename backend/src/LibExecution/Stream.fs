@@ -124,11 +124,11 @@ let newChunked
           else
             let b = buf[0]
             carryPos.Value <- 1
-            return Some(DUInt8 b)
+            return Some(RuntimeTypes.Dval.duint8 b)
       else
         let b = carry.Value[carryPos.Value]
         carryPos.Value <- carryPos.Value + 1
-        return Some(DUInt8 b)
+        return Some(RuntimeTypes.Dval.duint8 b)
     }
   wrapImpl (FromIO(next, elemType, once disposer, Some nextChunk))
 

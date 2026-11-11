@@ -647,7 +647,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s; DInt64 index |] ->
           match utf8ByteAt s index with
-          | Some b -> Dval.optionSome KTUInt8 (DUInt8 b) |> Ply
+          | Some b -> Dval.optionSome KTUInt8 (Dval.uint8 b) |> Ply
           | None -> Dval.optionNone KTUInt8 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
