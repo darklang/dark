@@ -784,10 +784,26 @@ let private knownIs (expected : TypeReference) (known : KnownType) : bool =
   | _ -> false
 
 
+/// Whether each of a value's type arguments is known and is the primitive declared for it.
+let rec private knownArgsAre
+  (declared : List<TypeReference>)
+  (actual : List<ValueType>)
+  : bool =
+  match declared with
+  | [] -> List.isEmpty actual
+  | d :: dRest ->
+    match actual with
+    | ValueType.Known k :: aRest -> knownIs d k && knownArgsAre dRest aRest
+    | _ -> false
+
+
 /// `fitsWithNothingToBind` for a package fn's argument, which is checked on every call. Also
 /// `Bytes`, and a list of a primitive whose element type is that primitive: the unifier reads a
 /// list's element type and not its items, so this answers as it would. A list of anything else,
 /// or one whose element type is not known yet (`[]`), is left to the unifier.
+///
+/// Also a record or enum of exactly the declared type whose type arguments are all primitives
+/// (`Option<UInt8>`): equal names mean the declared type is not an alias (see `tryUnifyGeneral`).
 let argFitsWithNothingToBind
   (tst : TypeSymbolTable)
   (expected : TypeReference)
@@ -801,6 +817,13 @@ let argFitsWithNothingToBind
   | TList inner ->
     (match actual with
      | DList(ValueType.Known elem, _) -> knownIs inner elem
+     | _ -> false)
+  | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) }, declaredArgs) ->
+    (match actual with
+     | DEnum(_, FQTypeName.Package(Hash actualName), actualArgs, _, _)
+     | DRecord(_, FQTypeName.Package(Hash actualName), actualArgs, _) ->
+       System.String.Equals(declared, actualName)
+       && knownArgsAre declaredArgs actualArgs
      | _ -> false)
   | _ -> fitsWithNothingToBind tst expected actual
 
