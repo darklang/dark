@@ -173,7 +173,7 @@ let __flushSuffixes(acc: List<String>, pending: List<String>): List<String> =
 let __breakLine(acc: List<String>, pending: List<String>, indent: Int64): List<String> =
   Stdlib.List.prepend(
     Stdlib.List.prepend(Pretty.__flushSuffixes(acc, pending), "\n"),
-    Stdlib.String.repeat(" ", indent))
+    (Stdlib.String.checkedRepeat(" ", indent) |> Stdlib.Result.withDefault("")))
 
 
 /// The rendering loop: walk the pending work, emitting text and deciding each group as it is reached.

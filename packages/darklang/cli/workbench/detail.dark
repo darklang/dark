@@ -64,7 +64,7 @@ let renderTreeList(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
           + (if isDeprecated then Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, " ⚠") else "")
         let gap =
           if item.desc == "" then ""
-          else Stdlib.String.repeat(" ", Stdlib.max(2, nameCol + 2 - (Stdlib.String.displayWidth(display))))
+          else (Stdlib.String.checkedRepeat(" ", Stdlib.max(2, nameCol + 2 - (Stdlib.String.displayWidth(display)))) |> Stdlib.Result.withDefault(""))
         // A description that arrives coloured (a change kind, a diff stat) keeps its colours; a
         // plain one is dim.
         let descStyled =
@@ -118,7 +118,7 @@ let factRow(label: String, value: String): String =
 
 /// A dim note under a fact row, aligned with its value.
 let factNote(note: String): String =
-  "  " + (Stdlib.String.repeat(" ", 11)) + (Stdlib.Cli.UI.Colors.dimText(note))
+  "             " + (Stdlib.Cli.UI.Colors.dimText(note))
 
 /// The function's effects and approval status, without instance-wide rules.
 /// The line the access block opens with; `inspectPageLines` splits on it.

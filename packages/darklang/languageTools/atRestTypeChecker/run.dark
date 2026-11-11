@@ -506,7 +506,7 @@ let checkQuery(
     // A fold, not a map: a map is a list op the runtime may spread across cores by itself, and
     // a spread chunk refuses the store reads every piece makes, so the lane's pieces would run
     // twice at best.
-    Stdlib.List.range(0, lanes - 1)
+    (Stdlib.List.checkedRange(0, lanes - 1) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.parallelMap(fun lane ->
       numbered
       |> Stdlib.List.filter(fun((i, _)) -> i % lanes == lane)

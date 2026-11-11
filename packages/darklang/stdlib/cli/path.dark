@@ -162,7 +162,7 @@ let relativeTo(
 
       let upCount = (Stdlib.List.length(fromParts)) - commonLen
 
-      let ups = Stdlib.List.repeat(upCount, "..")
+      let ups = (Stdlib.List.checkedRepeat(upCount, "..") |> Stdlib.Result.withDefault([]))
 
       let tail = Stdlib.List.drop(toParts, commonLen)
 

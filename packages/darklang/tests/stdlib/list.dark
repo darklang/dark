@@ -455,6 +455,15 @@ test range =
       |> Stdlib.Test.equal([ -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5 ])
       Stdlib.List.range(5, 0) |> Stdlib.Test.equal([]) ])
 
+test checkedRange =
+  Stdlib.Test.all(
+    [ Stdlib.List.checkedRange(-1, 1) |> Stdlib.Test.equal(Ok([ -1, 0, 1 ]))
+      Stdlib.List.checkedRange(5, 0) |> Stdlib.Test.equal(Ok([]))
+      Stdlib.List.checkedRange(0, 3000000000)
+      |> Stdlib.Test.equal(Error(Stdlib.List.RangeError.TooLong))
+      Stdlib.List.checkedRange(-9223372036854775808, 9223372036854775807)
+      |> Stdlib.Test.equal(Error(Stdlib.List.RangeError.TooLong)) ])
+
 test repeat =
   Stdlib.Test.all(
     [ Stdlib.List.repeat(0, 1) |> Stdlib.Test.equal([])
@@ -477,7 +486,9 @@ test checkedRepeat =
       Stdlib.List.checkedRepeat(-1, "a")
       |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount))
       Stdlib.List.checkedRepeat(-4, "a")
-      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount))
+      Stdlib.List.checkedRepeat(3000000000, "a")
+      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.TooLong)) ])
 
 test reverse =
   Stdlib.Test.all(

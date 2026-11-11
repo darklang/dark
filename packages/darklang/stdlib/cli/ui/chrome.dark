@@ -55,7 +55,7 @@ let bar(width: Int64, style: String, text: String): String =
   let clipped = Tui.Text.clipToWidth(text, width)
   let used = Tui.Text.styledWidth(clipped)
   let padding =
-    if width > used then Stdlib.String.repeat(" ", width - used) else ""
+    if width > used then (Stdlib.String.checkedRepeat(" ", width - used) |> Stdlib.Result.withDefault("")) else ""
 
   Colors.colorize(style, clipped + padding)
 

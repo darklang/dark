@@ -320,7 +320,7 @@ let entityRows(
 
     Stdlib.List.flatten([
       [ locationStr
-        Stdlib.String.repeat("=", Stdlib.String.length(locationStr))
+        (Stdlib.String.checkedRepeat("=", Stdlib.String.length(locationStr)) |> Stdlib.Result.withDefault(""))
         "" ]
       sameNamedTypeRows
       sectionRows("submodule", "/", submodules)
@@ -611,7 +611,7 @@ let astRows(
   |> Stdlib.List.map(fun l ->
     // The signature is depth 0 and the body starts at depth 0 too, so the tree reads as a block under
     // the signature rather than being pushed a level in by scaffolding that isn't there any more.
-    let indent = Stdlib.String.repeat("  ", l.depth)
+    let indent = (Stdlib.String.checkedRepeat("  ", l.depth) |> Stdlib.Result.withDefault(""))
     let label = Stdlib.Cli.UI.Colors.keyword(l.label)
 
     if l.detail == "" then

@@ -491,7 +491,7 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
           Stdlib.Cli.UI.Widget.press(read.key, read.modifiers, Stdlib.Option.Option.Some(Stdlib.String.fromChar(c))))
 
     let after =
-      Stdlib.List.range(1, times)
+      (Stdlib.List.checkedRange(1, times) |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.fold({ s with toast = Stdlib.Option.Option.None }, fun(acc, _) ->
         presses
         |> Stdlib.List.fold(acc, fun(acc2, kp) -> if acc2.exiting then acc2 else onKey(acc2, kp)))

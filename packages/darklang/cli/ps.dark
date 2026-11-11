@@ -66,7 +66,7 @@ let statusText(branchId: Uuid, status: LanguageTools.Exec.Status): String =
 /// One row of the process tree. No `parent` column: the indentation is the parent, and
 /// `Table.print` pads to the widest cell, so a column that repeats the shape costs every row.
 let row(branchId: Uuid, depth: Int64, p: LanguageTools.Exec.Summary): List<String> =
-  let indent = Stdlib.String.repeat("  ", depth)
+  let indent = (Stdlib.String.checkedRepeat("  ", depth) |> Stdlib.Result.withDefault(""))
   [ Cli.Text.shortId(p.id)
     Cli.Text.oneLineAt(30, $"{indent}{entryText(branchId, p.entry)}")
     Cli.Text.oneLineAt(26, statusText(branchId, p.status))

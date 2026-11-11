@@ -266,11 +266,11 @@ let paneTitle(name: String, parts: List<String>, focus: Stdlib.Cli.UI.Focus): St
 let edgeSegment(width: Int64, title: String): String =
   let paint(t: String): String = Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.brightBlack, t)
   if (title == "") || (width < 5) then
-    paint(Stdlib.String.repeat("─", Stdlib.max(0, width)))
+    paint(Stdlib.String.checkedRepeat("─", Stdlib.max(0, width)) |> Stdlib.Result.withDefault(""))
   else
     let shown = Stdlib.Cli.Tui.Text.clipToWidth(title, width - 3)
     let used = Stdlib.Cli.Tui.Text.styledWidth(shown)
-    (paint("─ ")) + shown + (paint(" " + (Stdlib.String.repeat("─", Stdlib.max(0, width - 3 - used)))))
+    (paint("─ ")) + shown + (paint(" " + (Stdlib.String.checkedRepeat("─", Stdlib.max(0, width - 3 - used)) |> Stdlib.Result.withDefault(""))))
 
 /// The frame's four edges, with `titleFirst` set into the top one, and - when
 /// `ruleCol` is not negative - a rule down that column meeting the edges at ┬
@@ -292,12 +292,12 @@ let frameWithTitles(
       (paint("╭")) + (edgeSegment(w - 2, titleFirst)) + (paint("╮"))
   let bottom =
     if split then
-      paint("╰" + (Stdlib.String.repeat("─", ruleCol - 1)) + "┴" + (Stdlib.String.repeat("─", w - ruleCol - 2)) + "╯")
+      paint("╰" + (Stdlib.String.checkedRepeat("─", ruleCol - 1) |> Stdlib.Result.withDefault("")) + "┴" + (Stdlib.String.checkedRepeat("─", w - ruleCol - 2) |> Stdlib.Result.withDefault("")) + "╯")
     else
-      paint("╰" + (Stdlib.String.repeat("─", Stdlib.max(0, w - 2))) + "╯")
+      paint("╰" + (Stdlib.String.checkedRepeat("─", Stdlib.max(0, w - 2)) |> Stdlib.Result.withDefault("")) + "╯")
   let bar = paint("│")
   let sides =
-    (Stdlib.List.range(1, region.rows - 2))
+    (Stdlib.List.checkedRange(1, region.rows - 2) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.map(fun r ->
       Stdlib.List.flatten(
         [ Stdlib.Cli.UI.Layout.at(region, r, 0, bar)

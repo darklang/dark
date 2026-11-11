@@ -77,7 +77,7 @@ The operand runs once; an early return skips remaining work without undoing
 completed effects. `?` requires a function or lambda.
 
 ## Pipe
-  Stdlib.List.range(0, 10) |> Stdlib.List.map(fn)
+  (Stdlib.List.checkedRange(0, 10) |> Stdlib.Result.withDefault([])) |> Stdlib.List.map(fn)
 
 You don't need parentheses around a call, literal or operator expression on
 the left. You do need them around an `if` or `match`: `if c then a else b |> f`

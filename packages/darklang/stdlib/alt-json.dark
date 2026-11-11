@@ -133,9 +133,9 @@ module Format =
         let width = String.length(digits)
 
         if point <= 0 then
-          sign + "0." + (String.repeat("0", 0 - point)) + digits
+          sign + "0." + (String.checkedRepeat("0", 0 - point) |> Stdlib.Result.withDefault("")) + digits
         else if point >= width then
-          sign + digits + (String.repeat("0", point - width))
+          sign + digits + (String.checkedRepeat("0", point - width) |> Stdlib.Result.withDefault(""))
         else
           sign + (String.first(digits, point)) + "." + (String.dropFirst(digits, point))
 

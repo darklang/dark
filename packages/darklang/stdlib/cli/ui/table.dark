@@ -34,7 +34,7 @@ let print(columns: List<String>, rows: List<List<String>>): Unit =
 
   let sepLine =
     colWidths
-    |> Stdlib.List.map(fun w -> Stdlib.String.repeat("-", w))
+    |> Stdlib.List.map(fun w -> (Stdlib.String.checkedRepeat("-", w) |> Stdlib.Result.withDefault("")))
     |> Stdlib.String.join("  ")
 
   Stdlib.printLine(sepLine)

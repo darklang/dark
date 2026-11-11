@@ -29,7 +29,7 @@ type Missing =
 
 /// Make n copies, for wildcard fields or unspecified parts of a missing value.
 let replicate(n: Int64, x: 'a): List<'a> =
-  Stdlib.List.map(Stdlib.List.range(1, n), fun _ -> x)
+  Stdlib.List.checkedRepeat(n, x) |> Stdlib.Result.withDefault([])
 
 /// Format an uncovered value for the non-exhaustive-match diagnostic.
 let render(missing: Missing): String =

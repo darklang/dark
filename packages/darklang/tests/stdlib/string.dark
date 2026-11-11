@@ -1155,7 +1155,9 @@ test checkedRepeat =
       Stdlib.String.checkedRepeat("ab", -1)
       |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.NegativeCount))
       Stdlib.String.checkedRepeat("ab", -3000000000)
-      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.NegativeCount)) ])
+      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.NegativeCount))
+      Stdlib.String.checkedRepeat("ab", 3000000000)
+      |> Stdlib.Test.equal(Error(Stdlib.String.RepeatError.TooLong)) ])
 
 test toCodepoints =
   Stdlib.Test.all(
