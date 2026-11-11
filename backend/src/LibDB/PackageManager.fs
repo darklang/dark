@@ -138,7 +138,12 @@ let withLocationDocs
                 { r with
                     types = r.types |> List.map (patch Docs.onType)
                     values = r.values |> List.map (patch Docs.onValue)
-                    fns = r.fns |> List.map (patch Docs.onFn)
+                    fns =
+                      r.fns
+                      |> List.map (fun i ->
+                        let patched = patch Docs.onFn i
+                        { patched with
+                            entity = Docs.keepMeaning i.entity patched.entity })
                     traits = r.traits |> List.map (patch Docs.onTrait)
                     impls = r.impls |> List.map (patch Docs.onImpl)
                     tests = r.tests |> List.map (patch Docs.Test.set) }

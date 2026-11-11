@@ -1164,6 +1164,10 @@ and DocPart =
   /// Field and case names ARE hashed, hence the split.
   | Parameter of parameterIndex : int
 
+  /// A parameter's NAME, which is no more in the identity hash than its doc: two names holding
+  /// one body each show the parameter names they were written with.
+  | ParameterName of parameterIndex : int
+
 
 /// What a `Decision` DID. The shared part of a decision (who, where, why) lives on the op; this is the
 /// part that varies, so that a decision which binds a name and one which only closes a finding cannot be

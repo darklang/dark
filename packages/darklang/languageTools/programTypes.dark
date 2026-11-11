@@ -736,6 +736,9 @@ type DocPart =
   /// By POSITION, not name: a parameter's name is not in the identity hash, so a name would not
   /// survive the version it was written against. Field and case names ARE hashed.
   | Parameter(parameterIndex: Int64)
+  /// A parameter's NAME, which is not in the identity hash either: two names holding one body
+  /// each show the parameter names they were written with.
+  | ParameterName(parameterIndex: Int64)
 
 module DocPart =
   /// The part a stored key names ("item", "record-field:x", "parameter:0"), or None for one this
@@ -749,6 +752,10 @@ module DocPart =
       Stdlib.Int64.parse(index)
       |> Stdlib.Result.toOption
       |> Stdlib.Option.map(fun i -> DocPart.Parameter(i))
+    | [ "parameter-name", index ] ->
+      Stdlib.Int64.parse(index)
+      |> Stdlib.Result.toOption
+      |> Stdlib.Option.map(fun i -> DocPart.ParameterName(i))
     | _ -> Stdlib.Option.Option.None
 
   /// How it reads in a listing: which part of the declaration is being described.
@@ -758,6 +765,7 @@ module DocPart =
     | RecordField(name) -> $"field {name}"
     | EnumCase(name) -> $"case {name}"
     | Parameter(index) -> $"parameter {Stdlib.display(index + 1)}"
+    | ParameterName(index) -> $"the name of parameter {Stdlib.display(index + 1)}"
 
 
 /// Keep the reference names for one declaration at a particular package location.

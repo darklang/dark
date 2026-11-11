@@ -1160,6 +1160,7 @@ module ProgramTypes =
         None
       )
       UpdateDoc(loc, DocPart.Parameter 2, "what to pass", Some shortHash, None)
+      UpdateDoc(loc, DocPart.ParameterName 1, "count", None, None)
 
       Decision(
         "d1",

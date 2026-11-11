@@ -294,6 +294,27 @@ module Hashing =
   /// Alpha-normalize a standalone expression: its `let`/lambda/match binders become canonical.
   let normalizeExpr (e : PT.Expr) : PT.Expr = norm (ref 0) Map.empty e
 
+  /// Every name a `let`, lambda or match case in <param e> binds.
+  let rec boundNames (e : PT.Expr) : Set<string> =
+    let lambdaVars pats = pats |> NEList.toList |> List.collect letPatternVars
+    let own =
+      match e with
+      | PT.ELet(_, pat, _, _) -> letPatternVars pat
+      | PT.ELambda(_, pats, _) -> lambdaVars pats
+      | PT.EMatch(_, _, cases) ->
+        cases |> List.collect (fun c -> matchPatternVars c.pat)
+      | PT.EPipe(_, _, parts) ->
+        parts
+        |> List.collect (function
+          | PT.EPipeLambda(_, pats, _) -> lambdaVars pats
+          | _ -> [])
+      | _ -> []
+
+    LibExecution.ProgramTypesAst.subExprs e
+    |> List.map boundNames
+    |> Set.unionMany
+    |> Set.union (Set.ofList own)
+
   /// Alpha-normalize a value: its body's binders become canonical.
   let normalizeValue
     (v : PT.PackageValue.PackageValue)

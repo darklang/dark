@@ -1981,19 +1981,22 @@ module DocPart =
       | PT.RecordField name -> "RecordField", [ DString name ]
       | PT.EnumCase name -> "EnumCase", [ DString name ]
       | PT.Parameter index -> "Parameter", [ DInt64(int64 index) ]
+      | PT.ParameterName index -> "ParameterName", [ DInt64(int64 index) ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.DocPart =
+    // A parameter position, so a value that does not fit an int is not a large index, it is a
+    // corrupt op. 0 is as wrong as anything else and does not crash the fold.
+    let position index =
+      if index >= 0L && index <= int64 System.Int32.MaxValue then int index else 0
+
     match d with
     | DEnum(_, _, [], "WholeItem", []) -> PT.WholeItem
     | DEnum(_, _, [], "RecordField", [ DString name ]) -> PT.RecordField name
     | DEnum(_, _, [], "EnumCase", [ DString name ]) -> PT.EnumCase name
-    // A parameter position, so a value that does not fit an int is not a large index, it is a
-    // corrupt op. 0 is as wrong as anything else and does not crash the fold.
-    | DEnum(_, _, [], "Parameter", [ DInt64 index ]) ->
-      PT.Parameter(
-        if index >= 0L && index <= int64 System.Int32.MaxValue then int index else 0
-      )
+    | DEnum(_, _, [], "Parameter", [ DInt64 index ]) -> PT.Parameter(position index)
+    | DEnum(_, _, [], "ParameterName", [ DInt64 index ]) ->
+      PT.ParameterName(position index)
     | _ -> Exception.raiseInternal "Invalid DocPart" []
 
 
