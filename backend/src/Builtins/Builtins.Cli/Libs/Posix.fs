@@ -48,6 +48,17 @@ let private syscallResult
     | Ok response -> (Dval.resultOk kt KTInt64 (ok response))
     | Error e -> (Dval.resultError kt KTInt64 (Dval.dint64 (int64 e.errno))))
 
+/// An argument the kernel's `int` cannot hold, answered as the kernel would: EBADF for a
+/// descriptor, EINVAL for anything else.
+let private kernelRejects (kt : KnownType) (args : array<Dval>) : Dval =
+  let badFd =
+    args
+    |> Array.exists (function
+      | DBigInt(KernelFd _) -> false
+      | DBigInt _ -> true
+      | _ -> false)
+  Dval.resultError kt KTInt64 (Dval.dint64 (if badFd then 9L else 22L))
+
 let private fileEffects = set [ Effect.FileRead; Effect.FileWrite ]
 
 let private fileReadEffect = set [ Effect.FileRead ]
@@ -119,17 +130,14 @@ let fns () : List<BuiltInFn> =
       description = "One getdents64/getdirentries64 call; no record decoding"
       fn =
         (function
-        | _, vm, _, [| DBigInt fd; DInt64 count |] ->
-          let op =
-            HostTypes.PosixOp.DirectoryBytes(
-              bigIntToDescriptor fd,
-              int64ToInt32 count
-            )
+        | _, vm, _, [| DBigInt(KernelFd fd); DInt64(KernelInt count) |] ->
+          let op = HostTypes.PosixOp.DirectoryBytes(fd, count)
           syscallResult KTBytes vm op (fun r ->
             Bytes.newEphemeral (Host.expectBytes r))
+        | _, _, _, ([| DBigInt _; DInt64 _ |] as args) -> kernelRejects KTBytes args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "syscallGetcwd" 0
@@ -139,15 +147,13 @@ let fns () : List<BuiltInFn> =
       description = "One kernel getcwd call; no buffer growth or public decoding"
       fn =
         (function
-        | _, vm, _, [| DInt64 count |] ->
-          syscallResult
-            KTBytes
-            vm
-            (HostTypes.PosixOp.GetcwdBytes(int64ToInt32 count))
-            (fun r -> Bytes.newEphemeral (Host.expectBytes r))
+        | _, vm, _, [| DInt64(KernelInt count) |] ->
+          syscallResult KTBytes vm (HostTypes.PosixOp.GetcwdBytes count) (fun r ->
+            Bytes.newEphemeral (Host.expectBytes r))
+        | _, _, _, ([| DInt64 _ |] as args) -> kernelRejects KTBytes args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated }
 
 
@@ -177,12 +183,12 @@ let fns () : List<BuiltInFn> =
       description = "Creates a directory via kernel mkdir()"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt64 mode |] ->
-          let op = HostTypes.PosixOp.Mkdir(path, int64ToInt32 mode)
-          syscallResult KTUnit vm op unitOk
+        | _, vm, _, [| DString path; DInt64(KernelInt mode) |] ->
+          syscallResult KTUnit vm (HostTypes.PosixOp.Mkdir(path, mode)) unitOk
+        | _, _, _, ([| DString _; DInt64 _ |] as args) -> kernelRejects KTUnit args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.add Effect.Raise fileWriteEffect
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -195,15 +201,12 @@ let fns () : List<BuiltInFn> =
       description = "One checked entry-relative unlinkat call"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt64 flags |] ->
-          syscallResult
-            KTUnit
-            vm
-            (HostTypes.PosixOp.UnlinkAt(path, int64ToInt32 flags))
-            unitOk
+        | _, vm, _, [| DString path; DInt64(KernelInt flags) |] ->
+          syscallResult KTUnit vm (HostTypes.PosixOp.UnlinkAt(path, flags)) unitOk
+        | _, _, _, ([| DString _; DInt64 _ |] as args) -> kernelRejects KTUnit args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.add Effect.Raise fileWriteEffect
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -234,12 +237,12 @@ let fns () : List<BuiltInFn> =
       description = "Changes file permissions via kernel chmod()"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt64 mode |] ->
-          let op = HostTypes.PosixOp.Chmod(path, int64ToInt32 mode)
-          syscallResult KTUnit vm op unitOk
+        | _, vm, _, [| DString path; DInt64(KernelInt mode) |] ->
+          syscallResult KTUnit vm (HostTypes.PosixOp.Chmod(path, mode)) unitOk
+        | _, _, _, ([| DString _; DInt64 _ |] as args) -> kernelRejects KTUnit args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.add Effect.Raise fileWriteEffect
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -273,15 +276,16 @@ let fns () : List<BuiltInFn> =
       description = "One readlinkat call, with no growth or text decoding"
       fn =
         (function
-        | _, vm, _, [| DString path; DInt64 count |] ->
+        | _, vm, _, [| DString path; DInt64(KernelInt count) |] ->
           syscallResult
             KTBytes
             vm
-            (HostTypes.PosixOp.ReadlinkBytes(path, int64ToInt32 count))
+            (HostTypes.PosixOp.ReadlinkBytes(path, count))
             (fun response -> Bytes.newEphemeral (Host.expectBytes response))
+        | _, _, _, ([| DString _; DInt64 _ |] as args) -> kernelRejects KTBytes args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.add Effect.Raise fileReadEffect
+      callEffects = fileReadEffect
       deprecated = NotDeprecated }
 
 
@@ -311,12 +315,12 @@ let fns () : List<BuiltInFn> =
       description = "Sends a signal to a process."
       fn =
         (function
-        | _, vm, _, [| DInt64 pid; DInt64 signal |] ->
-          let op = HostTypes.PosixOp.Kill(int64ToInt32 pid, int64ToInt32 signal)
-          syscallResult KTUnit vm op unitOk
+        | _, vm, _, [| DInt64(KernelInt pid); DInt64(KernelInt signal) |] ->
+          syscallResult KTUnit vm (HostTypes.PosixOp.Kill(pid, signal)) unitOk
+        | _, _, _, ([| DInt64 _; DInt64 _ |] as args) -> kernelRejects KTUnit args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.add Effect.Raise nativeEffects
+      callEffects = nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -330,14 +334,16 @@ let fns () : List<BuiltInFn> =
         "Reads up to count bytes from a file descriptor into an ephemeral Bytes."
       fn =
         (function
-        | _, vm, _, [| DBigInt fd; DInt64 count |] ->
-          let op =
-            HostTypes.PosixOp.FdRead(bigIntToDescriptor fd, int64ToInt32 count)
-          syscallResult KTBytes vm op (fun response ->
-            Bytes.newEphemeral (Host.expectBytes response))
+        | _, vm, _, [| DBigInt(KernelFd fd); DInt64(KernelInt count) |] ->
+          syscallResult
+            KTBytes
+            vm
+            (HostTypes.PosixOp.FdRead(fd, count))
+            (fun response -> Bytes.newEphemeral (Host.expectBytes response))
+        | _, _, _, ([| DBigInt _; DInt64 _ |] as args) -> kernelRejects KTBytes args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -355,18 +361,18 @@ let fns () : List<BuiltInFn> =
         "Seeks to a new position in an open file and returns the resulting byte offset."
       fn =
         (function
-        | _, vm, _, [| DBigInt fd; DInt64 offset; DInt64 whence |] ->
-          let op =
-            HostTypes.PosixOp.FdSeek(
-              bigIntToDescriptor fd,
-              offset,
-              int64ToInt32 whence
-            )
+        | _,
+          vm,
+          _,
+          [| DBigInt(KernelFd fd); DInt64 offset; DInt64(KernelInt whence) |] ->
+          let op = HostTypes.PosixOp.FdSeek(fd, offset, whence)
           syscallResult KTInt64 vm op (fun response ->
             Dval.dint64 (int64 (Host.expectOffset response)))
+        | _, _, _, ([| DBigInt _; DInt64 _; DInt64 _ |] as args) ->
+          kernelRejects KTInt64 args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -379,14 +385,15 @@ let fns () : List<BuiltInFn> =
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
-        | state, vm, _, [| DBigInt fd; DBytes ref |] ->
+        | state, vm, _, [| DBigInt(KernelFd fd); DBytes ref |] ->
           Bytes.withBytes state ref (fun bytes ->
-            let op = HostTypes.PosixOp.FdWrite(bigIntToDescriptor fd, bytes)
+            let op = HostTypes.PosixOp.FdWrite(fd, bytes)
             syscallResult KTInt64 vm op (fun response ->
               Dval.dint64 (int64 (Host.expectWritten response))))
+        | _, _, _, ([| DBigInt _; DBytes _ |] as args) -> kernelRejects KTInt64 args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -397,12 +404,12 @@ let fns () : List<BuiltInFn> =
       description = "Closes a file descriptor."
       fn =
         (function
-        | _, vm, _, [| DBigInt fd |] ->
-          let op = HostTypes.PosixOp.FdClose(bigIntToDescriptor fd)
-          syscallResult KTUnit vm op unitOk
+        | _, vm, _, [| DBigInt(KernelFd fd) |] ->
+          syscallResult KTUnit vm (HostTypes.PosixOp.FdClose fd) unitOk
+        | _, _, _, ([| DBigInt _ |] as args) -> kernelRejects KTUnit args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -419,14 +426,20 @@ let fns () : List<BuiltInFn> =
       description = "Opens a file via kernel open(). Returns a file descriptor."
       fn =
         (function
-        | _, vm, _, [| DString path; DInt64 flags; DInt64 mode |] ->
-          let op =
-            HostTypes.PosixOp.Open(path, int64ToInt32 flags, int64ToInt32 mode)
-          syscallResult KTBigInt vm op (fun response ->
-            Dval.bigInt (Host.expectDescriptor response))
+        | _,
+          vm,
+          _,
+          [| DString path; DInt64(KernelInt flags); DInt64(KernelInt mode) |] ->
+          syscallResult
+            KTBigInt
+            vm
+            (HostTypes.PosixOp.Open(path, flags, mode))
+            (fun response -> Dval.bigInt (Host.expectDescriptor response))
+        | _, _, _, ([| DString _; DInt64 _; DInt64 _ |] as args) ->
+          kernelRejects KTBigInt args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.add Effect.Raise fileEffects
+      callEffects = fileEffects
       deprecated = NotDeprecated }
 
 
@@ -496,13 +509,12 @@ let fns () : List<BuiltInFn> =
       description = "Locks or unlocks a file via kernel flock()"
       fn =
         (function
-        | _, vm, _, [| DBigInt fd; DInt64 operation |] ->
-          let lockOp = int64ToInt32 operation
-          let op = HostTypes.PosixOp.Flock(bigIntToDescriptor fd, lockOp)
-          syscallResult KTUnit vm op unitOk
+        | _, vm, _, [| DBigInt(KernelFd fd); DInt64(KernelInt operation) |] ->
+          syscallResult KTUnit vm (HostTypes.PosixOp.Flock(fd, operation)) unitOk
+        | _, _, _, ([| DBigInt _; DInt64 _ |] as args) -> kernelRejects KTUnit args
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
