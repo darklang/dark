@@ -266,6 +266,11 @@ impl Display for Status =
   let display(status: Status): String = Stdlib.display(status.__status)
 
 
+impl Inspect for Status =
+  /// {{Status(404)}}: the field is private, so not the record
+  let inspect(status: Status): String = $"Status({status.__status})"
+
+
 /// What a handler answers. <param statusCode> is a plain number, so any helper below takes
 /// one; <fn Status.toInt64> of a <type Status> gives it for a named status.
 type Response =
