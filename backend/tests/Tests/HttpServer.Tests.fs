@@ -784,7 +784,10 @@ let private serveRejectsOutOfRangeArgs =
         $"Builtin.httpServerServe(\"127.0.0.1\", 99999, {handler}, 1048576, false, false, false, {onListening})"
     match tooLargePort with
     | Error msg ->
-      Expect.stringContains msg "out-of-range" "port 99999 -> OutOfRange"
+      Expect.stringContains
+        msg
+        "Port out of range (0 to 65535): 99999"
+        "port 99999 -> OutOfRange"
     | Ok dval -> failtest $"expected OutOfRange for port 99999, got Ok {dval}"
 
     // a negative body limit would reject every request
@@ -793,7 +796,10 @@ let private serveRejectsOutOfRangeArgs =
         $"Builtin.httpServerServe(\"127.0.0.1\", 8000, {handler}, -1, false, false, false, {onListening})"
     match negativeBodyLimit with
     | Error msg ->
-      Expect.stringContains msg "out-of-range" "maxBodyBytes -1 -> OutOfRange"
+      Expect.stringContains
+        msg
+        "maxBodyBytes must not be negative: -1"
+        "maxBodyBytes -1 -> OutOfRange"
     | Ok dval -> failtest $"expected OutOfRange for maxBodyBytes -1, got Ok {dval}"
   }
 

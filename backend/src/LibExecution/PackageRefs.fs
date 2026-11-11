@@ -448,6 +448,7 @@ module Type =
           let error = p [ "Bools" ] "Error"
         module BigInts =
           let error = p [ "BigInts" ] "Error"
+          let outOfRangeKind = p [ "BigInts" ] "OutOfRangeKind"
         module Strings =
           let error = p [ "Strings" ] "Error"
         module Lists =

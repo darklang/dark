@@ -83,6 +83,15 @@ module Shortcuts =
   let value = FQValueName.builtin
   let incorrectArgs = RuntimeTypes.incorrectArgs
 
+  let outOfRange
+    (vm : VMState)
+    (kind : RuntimeError.BigInts.OutOfRangeKind)
+    (value : Dval)
+    : 'a =
+    RuntimeError.BigInts.OutOfRange(kind, value)
+    |> RuntimeError.BigInt
+    |> raiseRTE vm.threadID
+
   /// Narrow an arbitrary-precision `BigInt` to a native `int64`, raising a Dark
   /// `OutOfRange` error (rather than letting a host overflow escape) when the
   /// value doesn't fit. Use at builtins that hand the value to int64-typed APIs.
@@ -90,20 +99,37 @@ module Shortcuts =
     match DarkBigInt.toInt64 i with
     | Some v -> v
     | None ->
-      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
+      let kind =
+        RuntimeError.BigInts.BigIntToInt64(
+          System.Int64.MinValue,
+          System.Int64.MaxValue
+        )
+      outOfRange vm kind (DBigInt i)
 
   /// Like `bigIntToInt64`, but narrows to a native `int` (Int32).
   let bigIntToInt32 (vm : VMState) (i : DarkBigInt) : int =
     match DarkBigInt.toInt32 i with
     | Some v -> v
     | None ->
-      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
+      outOfRange
+        vm
+        (RuntimeError.BigInts.BigIntToInt32(
+          int64 System.Int32.MinValue,
+          int64 System.Int32.MaxValue
+        ))
+        (DBigInt i)
 
   /// Narrow an `Int64` to a native `int` (Int32), raising a Dark `OutOfRange` error
   /// when the value doesn't fit.
   let int64ToInt32 (vm : VMState) (i : int64) : int =
     if i < int64 System.Int32.MinValue || i > int64 System.Int32.MaxValue then
-      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
+      outOfRange
+        vm
+        (RuntimeError.BigInts.Int64ToInt32(
+          int64 System.Int32.MinValue,
+          int64 System.Int32.MaxValue
+        ))
+        (DInt64 i)
     else
       int i
 
@@ -120,17 +146,25 @@ module Shortcuts =
   /// a Dark `OutOfRange` error instead. Shared by the Float and BigInt builtins.
   let roundedToBigInt (vm : VMState) (rounded : float) : Ply<Dval> =
     if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
-      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
+      outOfRange vm RuntimeError.BigInts.FloatHasNoInteger (DFloat rounded)
     else
       rounded |> bigint |> Dval.bigInt |> Ply
 
   /// `roundedToBigInt` for an `Int64` result: out of its range is `OutOfRange` too.
   let roundedToInt64 (vm : VMState) (rounded : float) : Ply<Dval> =
     // 2^63 is exact as a float; anything at or past it, or NaN, does not fit.
-    if
+    if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
+      outOfRange vm RuntimeError.BigInts.FloatHasNoInteger (DFloat rounded)
+    elif
       not (rounded >= -9223372036854775808.0 && rounded < 9223372036854775808.0)
     then
-      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
+      outOfRange
+        vm
+        (RuntimeError.BigInts.FloatOutsideInt64(
+          System.Int64.MinValue,
+          System.Int64.MaxValue
+        ))
+        (DFloat rounded)
     else
       rounded |> int64 |> Dval.dint64 |> Ply
 

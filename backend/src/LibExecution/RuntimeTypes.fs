@@ -3759,9 +3759,25 @@ module RuntimeError =
       | ConditionRequiresBool of actualValueType : ValueType * actualValue : Dval
 
   module BigInts =
+    /// What was out of range. Dark words the message.
+    type OutOfRangeKind =
+      | FloatHasNoInteger
+      | FloatOutsideInt64 of min : int64 * max : int64
+      | ShiftCount of max : int64
+      | Exponent of max : int64
+      | RepeatCount of max : int64
+      | DateTimeSeconds
+      | DateTimeMilliseconds
+      | DateTimeTicks
+      | Port of min : int64 * max : int64
+      | NegativeMaxBodyBytes
+      | Int64ToInt32 of min : int64 * max : int64
+      | BigIntToInt64 of min : int64 * max : int64
+      | BigIntToInt32 of min : int64 * max : int64
+
     type Error =
       | DivideByZeroError
-      | OutOfRange // CLEANUP consider including the out-of-range value
+      | OutOfRange of kind : OutOfRangeKind * value : Dval
       | NegativeExponent
       | NegativeModulus
       | ZeroModulus

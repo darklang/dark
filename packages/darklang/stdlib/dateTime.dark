@@ -132,8 +132,8 @@ impl Display for Month =
 
 let __ticks(date: DateTime): Int64 = Builtin.dateTimeToUnixTicks(date)
 
-/// Raises "an out-of-range integer value" outside -9998-01-01 to 9999-12-31.
-let __fromTicks(ticks: Int64): DateTime = Builtin.dateTimeFromUnixTicks(ticks)
+/// Raises "out of DateTime range" outside -9998-01-01 to 9999-12-31.
+let __fromTicks(ticks: Int64): DateTime = __fromOffset(0, ticks, 1)
 
 let __ticksPerMillisecond(): Int64 = 10000
 let __ticksPerSecond(): Int64 = 10000000
@@ -141,15 +141,10 @@ let __ticksPerMinute(): Int64 = 600000000
 let __ticksPerHour(): Int64 = 36000000000
 let __ticksPerDay(): Int64 = 864000000000
 
-/// <param count> units of <param unit> ticks each, moved from <param ticks>.
-/// Past Int64 it saturates rather than wraps: a saturated count is past every
-/// DateTime too, so `__fromTicks` refuses it as out of range.
-let __offset(ticks: Int64, count: Int64, unit: Int64): Int64 =
-  let saturate(r: Stdlib.Result.Result<Int64, Stdlib.Math.Overflow>): Int64 =
-    match r with
-    | Ok(t) -> t
-    | Error(_) -> if count < 0 then -9223372036854775808 else 9223372036854775807
-  saturate(Stdlib.Int64.checkedAdd(ticks, saturate(Stdlib.Int64.checkedMultiply(count, unit))))
+/// The DateTime <param count> units of <param unit> ticks each after <param ticks>. Raises with
+/// <param count> outside -9998-01-01 to 9999-12-31.
+let __fromOffset(ticks: Int64, count: Int64, unit: Int64): DateTime =
+  Builtin.dateTimeFromUnixTicks(ticks, count, unit)
 
 /// `/` on Int64s rounds toward zero; dates before 1970 need it to round down.
 let __floorDiv(value: Int64, divisor: Int64): Int64 = (value - value % divisor) / divisor
@@ -333,12 +328,12 @@ let today(): DateTime = Stdlib.DateTime.__today()
 
 /// Returns a <type DateTime> <param seconds> seconds after <param d>
 let addSeconds(d: DateTime, seconds: Int64): DateTime =
-  __fromTicks(__offset(__ticks(d), seconds, __ticksPerSecond()))
+  __fromOffset(__ticks(d), seconds, __ticksPerSecond())
 
 
 /// Returns a <type DateTime> <param seconds> seconds before <param d>
 let subtractSeconds(d: DateTime, seconds: Int64): DateTime =
-  __fromTicks(__offset(__ticks(d), -seconds, __ticksPerSecond()))
+  __fromOffset(__ticks(d), -seconds, __ticksPerSecond())
 
 
 /// Returns whether {{<param d1> > <param d2>}}
@@ -372,7 +367,7 @@ let toSeconds(date: DateTime): Int64 = __floorDiv(__ticks(date), __ticksPerSecon
 
 /// Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>
 let fromSeconds(seconds: Int64): DateTime =
-  __fromTicks(__offset(0, seconds, __ticksPerSecond()))
+  __fromOffset(0, seconds, __ticksPerSecond())
 
 
 /// Returns the year portion of <param date> as an <type Int64>
@@ -432,17 +427,17 @@ let toMilliseconds(date: DateTime): Int64 =
 
 /// Converts an <type Int64> representing milliseconds since the Unix epoch into a <type DateTime>
 let fromMilliseconds(milliseconds: Int64): DateTime =
-  __fromTicks(__offset(0, milliseconds, __ticksPerMillisecond()))
+  __fromOffset(0, milliseconds, __ticksPerMillisecond())
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds after <param d>
 let addMilliseconds(d: DateTime, milliseconds: Int64): DateTime =
-  __fromTicks(__offset(__ticks(d), milliseconds, __ticksPerMillisecond()))
+  __fromOffset(__ticks(d), milliseconds, __ticksPerMillisecond())
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds before <param d>
 let subtractMilliseconds(d: DateTime, milliseconds: Int64): DateTime =
-  __fromTicks(__offset(__ticks(d), -milliseconds, __ticksPerMillisecond()))
+  __fromOffset(__ticks(d), -milliseconds, __ticksPerMillisecond())
 
 
 /// Returns the millisecond portion of <param date> as a <type UInt16> between {{0}} and {{999}}

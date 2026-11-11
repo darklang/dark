@@ -250,6 +250,25 @@ module RuntimeError =
       ES.ValueType(vt) ]
 
 
+  let outOfRangeReason(
+    kind: LanguageTools.RuntimeTypes.RuntimeError.BigInts.OutOfRangeKind)
+    : String =
+    match kind with
+    | FloatHasNoInteger -> "Float has no integer value"
+    | FloatOutsideInt64(min, max) -> $"Float out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | ShiftCount(max) -> $"Shift count out of range (0 to {Stdlib.display(max)})"
+    | Exponent(max) -> $"Exponent out of range (at most {Stdlib.display(max)})"
+    | RepeatCount(max) -> $"Repeat count out of range (at most {Stdlib.display(max)})"
+    | DateTimeSeconds -> "Seconds out of DateTime range (-9998-01-01 to 9999-12-31)"
+    | DateTimeMilliseconds -> "Milliseconds out of DateTime range (-9998-01-01 to 9999-12-31)"
+    | DateTimeTicks -> "Ticks out of DateTime range (-9998-01-01 to 9999-12-31)"
+    | Port(min, max) -> $"Port out of range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | NegativeMaxBodyBytes -> "maxBodyBytes must not be negative"
+    | Int64ToInt32(min, max) -> $"Int64 out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | BigIntToInt64(min, max) -> $"BigInt out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | BigIntToInt32(min, max) -> $"BigInt out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+
+
   // The only exhaustive match over RuntimeError on the Dark side. A new RuntimeError case needs an
   // arm here, and Dark says nothing at build time: the first error of that kind raises right here.
   let toSegments(
@@ -272,7 +291,8 @@ module RuntimeError =
           ES.String(")") ]
 
     | BigInt(DivideByZeroError) -> [ ES.String("Cannot divide by 0") ]
-    | BigInt(OutOfRange) -> [ ES.String("Encountered an out-of-range integer value") ]
+    | BigInt(OutOfRange(kind, value)) ->
+      [ ES.String(outOfRangeReason(kind) + ": "), ES.FullValue(value) ]
     | DecimalOutOfRange -> [ ES.String("Decimal result is out of range (larger than 79228162514264337593543950335)") ]
     | BigInt(NegativeExponent) -> [ ES.String("Cannot raise integer to a negative exponent") ]
     | BigInt(NegativeModulus) -> [ ES.String("Cannot evaluate modulus against a negative number") ]

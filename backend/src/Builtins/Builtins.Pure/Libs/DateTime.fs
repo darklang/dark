@@ -9,32 +9,36 @@ module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 
 
-/// NodaTime rejects instants/periods outside its supported range by throwing
-/// host exceptions, even for values that fit int64. Run `f` and turn those into
-/// a Dark `OutOfRange` error rather than letting them escape.
-let private inDateRange (vm : VMState) (f : unit -> Dval) : Ply<Dval> =
-  try
-    f () |> Ply
-  with
-  | :? System.ArgumentOutOfRangeException
-  | :? System.OverflowException ->
-    RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
-
-
 let fns () : List<BuiltInFn> =
   [ { name = fn "dateTimeFromUnixTicks" 0
       typeParams = []
-      parameters = [ Param.make "ticks" TInt64 "100ns ticks since Unix epoch" ]
+      parameters =
+        [ Param.make "ticks" TInt64 "100ns ticks since Unix epoch"
+          Param.make "count" TInt64 "How many units to move by"
+          Param.make "unit" TInt64 "100ns ticks per unit" ]
       returnType = TDateTime
-      description = "Pure DateTime representation conversion; no clock access"
+      description =
+        "The DateTime <param count> units of <param unit> ticks each after <param ticks>"
       fn =
         (function
-        | _, vm, _, [| DInt64 ticks |] ->
-          inDateRange vm (fun () ->
-            ticks
+        | _, vm, _, [| DInt64 ticks; DInt64 count; DInt64 unit |] ->
+          // NodaTime throws on instants past its range, even ones that fit int64.
+          try
+            bigint ticks + bigint count * bigint unit
+            |> int64
             |> Instant.FromUnixTimeTicks
             |> DarkDateTime.fromInstant
-            |> DDateTime)
+            |> DDateTime
+            |> Ply
+          with
+          | :? System.ArgumentOutOfRangeException
+          | :? System.OverflowException ->
+            let kind =
+              match unit with
+              | 10000000L -> RuntimeError.BigInts.DateTimeSeconds
+              | 10000L -> RuntimeError.BigInts.DateTimeMilliseconds
+              | _ -> RuntimeError.BigInts.DateTimeTicks
+            outOfRange vm kind (DInt64 count)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
