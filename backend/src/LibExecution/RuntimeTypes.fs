@@ -4100,6 +4100,11 @@ module Dval =
     else
       DInt64 i
 
+  let private allUInt8s : Dval[] = Array.init 256 (fun i -> DUInt8(uint8 i))
+
+  /// `DUInt8`, sharing one instance for each value.
+  let duint8 (b : uint8) : Dval = allUInt8s[int b]
+
   /// Constructs a `BigInt` Dval from a bigint, normalizing through `DarkBigInt`.
   let bigInt (b : bigint) : Dval = dbigint (DarkBigInt.ofBigInt b)
 
