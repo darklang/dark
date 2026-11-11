@@ -283,17 +283,16 @@ test failsAfterObservation =
       | other ->
         failtest $"expected an observation to be refused outside a test: {other}"
 
-    for hash in [ countHash; emptyHash ] do
-      let! safe =
-        evalDarkExpr (
-          "Darklang.LanguageTools.PackageManager.Test.isCacheSafe("
-          + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{hash}\"))"
-        )
-      match safe with
-      | Ok(RT.DBool false) -> ()
-      | other ->
-        failtest
-          $"test-local observation calls must not reuse cached passes: {other}"
+    let! safe =
+      evalDarkExpr (
+        "Darklang.LanguageTools.PackageManager.Test.areCacheSafe(["
+        + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{countHash}\"), "
+        + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{emptyHash}\")])"
+      )
+    match safe with
+    | Ok(RT.DList(_, RT.Items([ RT.DBool false; RT.DBool false ]))) -> ()
+    | other ->
+      failtest $"test-local observation calls must not reuse cached passes: {other}"
     do! cleanup m
   }
 

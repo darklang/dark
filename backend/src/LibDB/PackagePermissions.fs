@@ -126,6 +126,36 @@ let private loadClosureFrom
 let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
   loadClosureFrom load [ root ]
 
+/// Each body's own call analysis, in order, and the closure they share: every package fn any of
+/// them reaches, loaded and analyzed once however many of them call it.
+let analyzeExpressions
+  (load : Load)
+  (bodies : List<PT.Expr>)
+  : Ply<List<Calls.Analysis> * Requirements.Closure> =
+  uply {
+    let! analyses, _ =
+      bodies
+      |> Ply.List.foldSequentially
+        (fun (analyses, valueIsInert) body ->
+          uply {
+            let! inertValues, valueIsInert = inertValuesIn load valueIsInert body
+            return
+              (Calls.analyze Set.empty inertValues body :: analyses, valueIsInert)
+          })
+        ([], Map.empty)
+    let analyses = List.rev analyses
+    let roots =
+      analyses
+      |> List.collect (fun calls ->
+        calls.names
+        |> List.choose (function
+          | PT.FQFnName.Package hash -> Some hash
+          | PT.FQFnName.Builtin _
+          | PT.FQFnName.TraitMethod _ -> None))
+    let! closure = loadClosureFrom load roots
+    return analyses, closure
+  }
+
 /// Check whether a passing test has no effects, unresolved calls, or known
 /// branch-dependent calls. Assertion helpers are analyzed like any other call:
 /// a passing test can inspect an assertion's failure message.
@@ -134,18 +164,9 @@ let cacheSafetyForExpression
   (callEffectsFor : CallEffectsFor)
   (body : PT.Expr)
   : Ply<Requirements.Result> =
-  uply {
-    let! inertValues, _ = inertValuesIn load Map.empty body
-    let calls = Calls.analyze Set.empty inertValues body
-    let roots =
-      calls.names
-      |> List.choose (function
-        | PT.FQFnName.Package hash -> Some hash
-        | PT.FQFnName.Builtin _
-        | PT.FQFnName.TraitMethod _ -> None)
-    let! closure = loadClosureFrom load roots
-    return Requirements.forExpression callEffectsFor closure calls
-  }
+  analyzeExpressions load [ body ]
+  |> Ply.map (fun (analyses, closure) ->
+    Requirements.forExpression callEffectsFor closure (List.exactlyOne analyses))
 
 /// Analyze one immutable function using the explicit effect vocabulary.
 let permissionRequirements

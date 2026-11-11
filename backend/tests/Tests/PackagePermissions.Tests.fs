@@ -623,6 +623,46 @@ let testBodiesUseTransitiveCacheSafetyAnalysis =
       "missing dependencies cannot be certified cache-safe"
   }
 
+let batchedCacheSafetyMatchesOneBodyAtATime =
+  testTask "bodies analyzed together get the answers each gets alone" {
+    let random = System.Random 6494
+    let fnCount = 40
+    let builtins = [| "syscallGettimeofday"; "fileRead"; "listMap"; "toRepr" |]
+    // A few statements, each a builtin, a package fn (five hashes that do not exist) or a
+    // callback. The fns call each other, cycles included.
+    let randomBody () =
+      let call () =
+        match random.Next 10 with
+        | 0 -> eApply (eVar "callback") [] [ eUnit () ]
+        | n when n < 4 -> callBuiltin builtins[random.Next builtins.Length]
+        | _ -> eApply (ePackageFn $"fn{random.Next(fnCount + 5)}") [] [ eUnit () ]
+      List.init (1 + random.Next 3) (fun _ -> call ()) |> List.reduce eStatement
+    let universe =
+      List.init fnCount (fun i -> unitFn $"fn{i}" (randomBody ()))
+      |> List.map (fun fn -> fn.hash, fn)
+      |> Map.ofList
+    let loadFn hash = Ply(Map.tryFind hash universe)
+    let load : PackagePermissions.Load = { fn = loadFn; value = fun _ -> Ply None }
+
+    let verdicts = System.Collections.Generic.HashSet<bool>()
+    for _ in 1..20 do
+      let bodies = List.init (1 + random.Next 30) (fun _ -> randomBody ())
+      let! analyses, closure =
+        PackagePermissions.analyzeExpressions load bodies |> Ply.toTask
+      let together =
+        analyses |> List.map (Requirements.forExpression testEffects closure)
+      let! (alone : List<Requirements.Result>) =
+        bodies
+        |> Ply.List.mapSequentially (
+          PackagePermissions.cacheSafetyForExpression load testEffects
+        )
+        |> Ply.toTask
+      Expect.equal together alone "sharing the closure changes no answer"
+      for r in together do
+        verdicts.Add(r.complete && Set.isEmpty r.requiredEffects) |> ignore<bool>
+    Expect.equal verdicts.Count 2 "both answers occur"
+  }
+
 let cacheSafetyRejectsBranchDependentRendering =
   testTask "a permission-free branch-dependent builtin is not cache-safe" {
     let callEffectsFor (name, version) =
@@ -715,6 +755,7 @@ let tests =
       dictionaryKeysAreAnalyzed
       cacheSafetyRejectsBranchDependentRendering
       testBodiesUseTransitiveCacheSafetyAnalysis
+      batchedCacheSafetyMatchesOneBodyAtATime
       missingCodeIsIncomplete
       deferredCodeRequirementsAreIncluded
       packageValuesMakeAnalysisIncomplete
