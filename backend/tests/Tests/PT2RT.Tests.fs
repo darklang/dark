@@ -75,7 +75,7 @@ module Expr =
         E.Let.simple
         (2,
          [ RT.LoadVal(0, RT.DBool true)
-           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1) ],
+           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x")) ],
          1)
 
     let tuple =
@@ -90,7 +90,7 @@ module Expr =
 
            RT.CheckLetPatternAndExtractVars(
              0,
-             RT.LPTuple(RT.LPVariable 3, RT.LPVariable 4, [])
+             RT.LPTuple(RT.LPVariable(3, "x"), RT.LPVariable(4, "y"), [])
            ) ],
          3)
 
@@ -109,8 +109,8 @@ module Expr =
            RT.CheckLetPatternAndExtractVars(
              0,
              RT.LPTuple(
-               RT.LPVariable 5,
-               RT.LPTuple(RT.LPVariable 6, RT.LPVariable 7, []),
+               RT.LPVariable(5, "a"),
+               RT.LPTuple(RT.LPVariable(6, "b"), RT.LPVariable(7, "c"), []),
                []
              )
            ) ],
@@ -186,7 +186,7 @@ module Expr =
         E.String.withInterpolation
         (3,
          [ RT.LoadVal(0, RT.DString ", world")
-           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x"))
 
            RT.CreateString(2, [ RT.Text "hello"; RT.Interpolated 1 ]) ],
          2)
@@ -707,7 +707,7 @@ module Expr =
            RT.CreateLambda(
              1,
              { exprId = E.Pipes.pipeID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions = { registerCount = 1; instructions = []; resultIn = 0 } }
@@ -769,7 +769,7 @@ module Expr =
          [ RT.CreateLambda(
              0,
              { exprId = E.Pipes.lambdaID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions =
@@ -804,7 +804,7 @@ module Expr =
          [ RT.CreateLambda(
              0,
              { exprId = E.Pipes.lambdaID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions =
@@ -832,7 +832,7 @@ module Expr =
            RT.CreateLambda(
              3,
              { exprId = E.Pipes.pipeID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions =
@@ -1195,7 +1195,7 @@ module Expr =
            [ RT.CreateLambda(
                0,
                { exprId = E.Lambdas.Identity.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1212,7 +1212,7 @@ module Expr =
              RT.CreateLambda(
                1,
                { exprId = E.Lambdas.Identity.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1232,7 +1232,8 @@ module Expr =
            [ RT.CreateLambda(
                0,
                { exprId = E.Lambdas.Add.id
-                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 patterns =
+                   NEList.ofList (RT.LPVariable(0, "a")) [ RT.LPVariable(1, "b") ]
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1265,7 +1266,8 @@ module Expr =
              RT.CreateLambda(
                1,
                { exprId = E.Lambdas.Add.id
-                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 patterns =
+                   NEList.ofList (RT.LPVariable(0, "a")) [ RT.LPVariable(1, "b") ]
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1301,7 +1303,8 @@ module Expr =
              RT.CreateLambda(
                2,
                { exprId = E.Lambdas.Add.id
-                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 patterns =
+                   NEList.ofList (RT.LPVariable(0, "a")) [ RT.LPVariable(1, "b") ]
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1341,7 +1344,7 @@ module Expr =
                { exprId = E.Lambdas.AddTuple.id
                  patterns =
                    NEList.ofList
-                     (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
+                     (RT.LPTuple(RT.LPVariable(0, "a"), RT.LPVariable(1, "b"), []))
                      []
                  registersToCloseOver = []
                  selfRegister = None
@@ -1379,7 +1382,7 @@ module Expr =
                { exprId = E.Lambdas.AddTuple.id
                  patterns =
                    NEList.ofList
-                     (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
+                     (RT.LPTuple(RT.LPVariable(0, "a"), RT.LPVariable(1, "b"), []))
                      []
                  registersToCloseOver = []
                  selfRegister = None
@@ -1421,15 +1424,15 @@ module Expr =
           E.Lambdas.AddToClosedVars.unapplied
           (5,
            [ RT.LoadVal(0, RT.DInt64 5L)
-             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x"))
 
              RT.LoadVal(2, RT.DInt64 10L)
-             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable 3)
+             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable(3, "y"))
 
              RT.CreateLambda(
                4,
                { exprId = E.Lambdas.AddToClosedVars.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "a")) []
                  registersToCloseOver = [ (1, 1); (3, 2) ]
                  selfRegister = None
                  instructions =
@@ -1473,15 +1476,15 @@ module Expr =
           E.Lambdas.AddToClosedVars.applied
           (8,
            [ RT.LoadVal(0, RT.DInt64 5L)
-             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x"))
 
              RT.LoadVal(2, RT.DInt64 10L)
-             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable 3)
+             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable(3, "y"))
 
              RT.CreateLambda(
                4,
                { exprId = E.Lambdas.AddToClosedVars.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "a")) []
                  registersToCloseOver = [ (1, 1); (3, 2) ]
                  selfRegister = None
                  instructions =
@@ -1518,7 +1521,7 @@ module Expr =
                      resultIn = 6 } }
              )
 
-             RT.CheckLetPatternAndExtractVars(4, RT.LPVariable 5)
+             RT.CheckLetPatternAndExtractVars(4, RT.LPVariable(5, "addFifteen"))
 
              RT.LoadVal(6, RT.DInt64 25L)
 
@@ -1713,7 +1716,7 @@ module Expr =
                RT.CreateLambda(
                  3,
                  { exprId = E.Fns.Package.MyFnThatTakesALambda.lambdaID
-                   patterns = { head = RT.LPVariable 0; tail = [] }
+                   patterns = { head = RT.LPVariable(0, "x"); tail = [] }
                    registersToCloseOver = []
                    selfRegister = None
                    instructions =

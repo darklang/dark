@@ -284,7 +284,7 @@ let private both (a : Purity) (b : Purity) : Purity =
 
 let rec private letPatternRegisters (p : LetPattern) : List<Register> =
   match p with
-  | LPVariable r -> [ r ]
+  | LPVariable(r, _) -> [ r ]
   | LPTuple(a, b, rest) -> List.collect letPatternRegisters (a :: b :: rest)
   | LPWildcard
   | LPUnit -> []

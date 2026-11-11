@@ -5,7 +5,7 @@ open System
 
 /// Only this binary format is supported. Bump it when the wire layout changes.
 [<Literal>]
-let CurrentVersion = 10u
+let CurrentVersion = 11u
 
 /// Binary file header structure (8 bytes)
 type BinaryHeader =

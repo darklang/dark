@@ -456,7 +456,7 @@ module LetPattern =
   let rec toDT (p : LetPattern) : Dval =
     let (caseName, fields) =
       match p with
-      | LPVariable reg -> "LPVariable", [ DInt32 reg ]
+      | LPVariable(reg, name) -> "LPVariable", [ DInt32 reg; DString name ]
       | LPWildcard -> "LPWildcard", []
       | LPUnit -> "LPUnit", []
       | LPTuple(first, second, theRest) ->
@@ -469,7 +469,8 @@ module LetPattern =
 
   let rec fromDT (d : Dval) : LetPattern =
     match d with
-    | DEnum(_, _, [], "LPVariable", [ DInt32 reg ]) -> LPVariable(reg)
+    | DEnum(_, _, [], "LPVariable", [ DInt32 reg; DString name ]) ->
+      LPVariable(reg, name)
     | DEnum(_, _, [], "LPWildcard", []) -> LPWildcard
     | DEnum(_, _, [], "LPUnit", []) -> LPUnit
     | DEnum(_, _, [], "LPTuple", [ first; second; DList(_vtTODO, Items(theRest)) ]) ->

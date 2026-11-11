@@ -146,7 +146,7 @@ type ValueType =
 
 
 type LetPattern =
-  | LPVariable(reg: Register)
+  | LPVariable(reg: Register, name: String)
   | LPWildcard
   | LPUnit
   | LPTuple(

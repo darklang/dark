@@ -14,9 +14,10 @@ open LibSerialization.Binary.Serializers.RT.Common
 module LetPattern =
   let rec write (w : BinaryWriter) (pat : LetPattern) =
     match pat with
-    | LPVariable extractTo ->
+    | LPVariable(extractTo, name) ->
       w.Write 0uy
       w.Write(extractTo : int)
+      String.write w name
     | LPTuple(first, second, theRest) ->
       w.Write 1uy
       write w first
@@ -27,7 +28,10 @@ module LetPattern =
 
   let rec read (r : BinaryReader) : LetPattern =
     match r.ReadByte() with
-    | 0uy -> LPVariable(r.ReadInt32())
+    | 0uy ->
+      let extractTo = r.ReadInt32()
+      let name = String.read r
+      LPVariable(extractTo, name)
     | 1uy ->
       let first = read r
       let second = read r

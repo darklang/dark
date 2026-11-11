@@ -239,7 +239,7 @@ module LetPattern =
       RT.LPTuple(first, second, theRest), symbols, rc
 
     | PT.LPVariable(_, name) ->
-      RT.LPVariable rc, (symbols |> Map.add name rc), rc + 1
+      RT.LPVariable(rc, name), (symbols |> Map.add name rc), rc + 1
 
 
   let toInstr
