@@ -154,12 +154,13 @@ let mayCache(
   | Some(_) -> false
   | None -> true
 
-/// Recheck the current cache-safety rule before reusing or storing a result.
+/// <param cacheSafe>: the current cache-safety rule's answer for this test, checked
+/// before reusing or storing a result.
 let isCacheable(
-  test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
+  test: LanguageTools.ProgramTypes.PackageTest.PackageTest,
+  cacheSafe: Bool)
   : Bool =
-  mayCache(test)
-  && LanguageTools.PackageManager.Test.isCacheSafe(test.hash)
+  mayCache(test) && cacheSafe
 
 /// <param reran>: the test wrote to the shared store, so this is its run on a copy.
 let printOutcome(name: String, outcome: Outcome, reran: Bool): Unit =
@@ -319,6 +320,7 @@ let parseRunOptions(
 type FinishedTest =
   { name: String
     test: LanguageTools.ProgramTypes.PackageTest.PackageTest
+    cacheSafe: Bool
     outcome: Outcome
     wasCached: Bool
     inProcess: Bool
@@ -333,7 +335,7 @@ let finishTest(
   if Stdlib.Bool.not(finished.wasCached) then
     match cache, finished.outcome with
     | _, RuntimeFailed(_) -> ()
-    | Some(context), _ when isCacheable(finished.test) ->
+    | Some(context), _ when isCacheable(finished.test, finished.cacheSafe) ->
       storeOutcome(context, finished.test.hash, finished.outcome)
     | _ -> ()
   printOutcome(finished.name, finished.outcome, finished.reran)
@@ -361,17 +363,18 @@ let finishTest(
 /// Run up to `jobs` tests at once. Start the next whenever one finishes.
 /// Wait for all tests before closing the shared snapshot. A test the analysis
 /// proves pure runs inside this process; the rest get a worker and a store copy.
+/// Each test comes with whether a cached pass of it may be reused.
 let runSelected(
   run: LanguageTools.PackageManager.Test.Run,
   branchId: Uuid,
   options: RunOptions,
   cache: Stdlib.Option.Option<CacheContext>,
-  remaining: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>,
+  remaining: List<(LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest> * Bool)>,
   running: List<Stdlib.Exec.Handle<FinishedTest>>,
   counts: Counts)
   : Counts =
   match remaining with
-  | [item, ...rest] when Stdlib.List.length(running) < options.jobs ->
+  | [(item, cacheSafe), ...rest] when Stdlib.List.length(running) < options.jobs ->
     let cachedResult =
       if options.force then
         Stdlib.Option.Option.None
@@ -379,7 +382,7 @@ let runSelected(
         match cache with
         | Some(context) when mayCache(item.entity) ->
           match storedOutcome(context, item.entity.hash) with
-          | Some(Passed) when isCacheable(item.entity) -> Some(Outcome.Passed)
+          | Some(Passed) when isCacheable(item.entity, cacheSafe) -> Some(Outcome.Passed)
           | _ -> Stdlib.Option.Option.None
         | _ -> Stdlib.Option.Option.None
     match cachedResult with
@@ -387,6 +390,7 @@ let runSelected(
       let finished = FinishedTest
         { name = fullPath(item)
           test = item.entity
+          cacheSafe = cacheSafe
           outcome = outcome
           wasCached = true
           inProcess = false
@@ -404,6 +408,7 @@ let runSelected(
         FinishedTest
           { name = fullPath(item)
             test = item.entity
+            cacheSafe = cacheSafe
             outcome = outcome
             wasCached = false
             inProcess = inProcess
@@ -478,6 +483,12 @@ let runTestsInRun(
         Stdlib.List.isEmpty(options.filters)
         || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
 
+    let selected = Stdlib.List.sortBy(liveTests, fullPath)
+    // One analysis for the whole run: the tests share most of what they call.
+    let cacheSafe =
+      LanguageTools.PackageManager.Test.areCacheSafe(
+        Stdlib.List.map(selected, fun item -> item.entity.hash))
+
     let initial =
       Counts { passed = 0, failed = 0, tests = 0, cached = 0, ran = 0, isolated = 0, reran = 0, timings = [] }
     let counts =
@@ -486,7 +497,7 @@ let runTestsInRun(
         state.currentBranchId,
         options,
         cacheContext(state.currentBranchId),
-        Stdlib.List.sortBy(liveTests, fullPath),
+        Stdlib.List.zipShortest(selected, cacheSafe),
         [],
         initial)
 
