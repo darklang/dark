@@ -163,9 +163,9 @@ module Releases =
   let platformId(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<String, String> =
     match host.os, host.arch with
     | Linux, Arm -> "linux-arm" |> Stdlib.Result.Result.Ok
-    | Linux, Arm64 | Linux, Aarch64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
-    // The musl build is fully static, so it runs on glibc systems too. `install.sh` installs it
-    // on every x64 Linux, and an update must not switch such an install back to glibc.
+    // The musl builds are fully static, so they run on glibc systems too. `install.sh` installs
+    // them on every x64 and arm64 Linux, and an update must not switch such an install to glibc.
+    | Linux, Arm64 | Linux, Aarch64 -> "linux-musl-arm64" |> Stdlib.Result.Result.Ok
     | Linux, X86_64 -> "linux-musl-x64" |> Stdlib.Result.Result.Ok
     | MacOS, Arm64 -> "osx-arm64" |> Stdlib.Result.Result.Ok
     | MacOS, X86_64 -> "osx-x64" |> Stdlib.Result.Result.Ok

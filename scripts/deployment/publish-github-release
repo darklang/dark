@@ -8,7 +8,7 @@ OWNER="darklang"
 REPO="dark"
 TARGET_COMMITISH="main"
 NAME="cli-pre-release"
-# What a person landing on the release page needs: how to install, and which of the eight files
+# What a person landing on the release page needs: how to install, and which of the six files
 # is theirs. Keep the URL in step with install.sh's header.
 read -r -d '' BODY <<'END_BODY' || true
 Install on Linux or macOS:
@@ -17,15 +17,17 @@ Install on Linux or macOS:
 
 Or download the file for your platform below, and run it from wherever you put it:
 
-- Linux x64: `linux-x64` (Alpine, or anywhere with no system libraries, such as an empty container: `linux-musl-x64`, which is statically linked)
-- Linux ARM: `linux-arm64` (Alpine, or anywhere with no system libraries: `linux-musl-arm64`, which is statically linked), or `linux-arm` for 32-bit
+- Linux x64: `linux-musl-x64`
+- Linux ARM: `linux-musl-arm64`, or `linux-arm` for 32-bit
 - macOS: `osx-arm64` on Apple silicon, `osx-x64` on Intel
+
+The Linux x64 and arm64 files are statically linked, so they run on any distro and in an empty container. HTTPS needs a CA bundle: your distro's `ca-certificates`, or `SSL_CERT_FILE`. The 32-bit `linux-arm` file is linked against glibc, since .NET can't compile it ahead of time.
 
 For example, on Linux x64:
 
-    gunzip darklang-alpha-*-linux-x64.gz
-    chmod +x darklang-alpha-*-linux-x64
-    ./darklang-alpha-*-linux-x64
+    gunzip darklang-alpha-*-linux-musl-x64.gz
+    chmod +x darklang-alpha-*-linux-musl-x64
+    ./darklang-alpha-*-linux-musl-x64
 
 To check a download, run `sha256sum -c --ignore-missing darklang-alpha-*-sha256sums.txt` (on macOS, `shasum -a 256 -c --ignore-missing`) in the folder you downloaded it to.
 
@@ -71,7 +73,7 @@ fi
 FILES_DIR="/home/dark/app/clis"
 build="darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)"
 binaries=()
-for rt in linux-x64 linux-musl-x64 linux-arm64 linux-musl-arm64 linux-arm osx-arm64 osx-x64; do
+for rt in linux-musl-x64 linux-musl-arm64 linux-arm osx-arm64 osx-x64; do
   f="$FILES_DIR/$build-$rt.gz"
   if [ ! -f "$f" ]; then
     echo "Missing $f; not publishing a release without it."
