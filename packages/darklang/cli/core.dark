@@ -250,13 +250,14 @@ module ExecutionError =
     { message: String
       metadata: List<(String * String)> }
 
-  /// A run that ended on a permission denial by the instance policy: the
-  /// error as the guest saw it, what was attempted, and the exact
-  /// `permissions allow` rule that would cover it when one exists.
+  /// A run that ended on a permission denial: the error as the guest saw it,
+  /// what was attempted, the exact rule that would cover it when one exists,
+  /// and the function whose approval was checked (None for the instance policy).
   type PermissionDenied =
     { error: LanguageTools.RuntimeTypes.RuntimeError.Error
       resource: String
       rule: Stdlib.Option.Option<String>
+      entry: Stdlib.Option.Option<String>
       callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint> }
 
   /// Boundary type for CLI command failures. Each variant carries its own
@@ -272,6 +273,8 @@ module ExecutionError =
         error: LanguageTools.RuntimeTypes.RuntimeError.Error,
         callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
     | Denied(PermissionDenied)
+    /// The user cancelled a permission prompt.
+    | Cancelled
     | Unhandled(Unhandled)
 
   /// `. Did you mean `X`?` for a name that did not resolve, when the standard library has it
@@ -288,7 +291,30 @@ module ExecutionError =
       | text -> ". " + text
     | _ -> ""
 
-  let toString(branchId: Uuid, err: ExecutionError): String =
+  /// Why <param name> was denied <param resource>, and how to allow <param rule>.
+  let entryDenial(
+    accountID: Stdlib.Option.Option<Uuid>,
+    branchId: Uuid,
+    name: String,
+    resource: String,
+    rule: String)
+    : String =
+    let approved = Permissions.Command.approvedVersionOf(accountID, name)
+    let why =
+      match approved with
+      | None ->
+        $"`{name}` has no remembered approval; `dark permissions approve {name} {rule}` remembers this access."
+      | Some(version) when Stdlib.Option.Option.Some(version) != Permissions.Command.latestVersion(branchId, name) ->
+        $"`{name}` changed since it was approved; `dark permissions update {name}` reviews the new version."
+      | Some(_) ->
+        $"The approval for `{name}` does not cover it; `dark permissions show {name}` shows what it allows."
+    $"permission denied: {resource} is not allowed. {why} For one run: `dark run --allow \"{rule}\" …`"
+
+  let toString(
+    accountID: Stdlib.Option.Option<Uuid>,
+    branchId: Uuid,
+    err: ExecutionError)
+    : String =
     match err with
     | Parse(pe) -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
     | TypeCheck(report, locations) ->
@@ -297,7 +323,11 @@ module ExecutionError =
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
       + nameSuggestion(branchId, rte)
     | Denied(denied) ->
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, denied.error)
+      match (denied.entry, denied.rule) with
+      | (Some(name), Some(rule)) ->
+        entryDenial(accountID, branchId, name, denied.resource, rule)
+      | _ -> PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, denied.error)
+    | Cancelled -> "Cancelled."
     | Unhandled(u) ->
       match u.metadata with
       | [] -> $"Internal error: {u.message}"

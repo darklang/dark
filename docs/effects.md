@@ -94,7 +94,8 @@ Incomplete analysis is labeled explicitly. This conservative effect list include
 returned code. A separate preflight walks unconditional calls with known literal
 arguments; it stops at unknown branches and does not execute callbacks or deferred
 bodies. It retains the named entry's approval context, just as execution does.
-Anything preflight cannot establish is checked at the protected operation.
+Anything preflight cannot establish is checked at the protected operation, with a
+prompt of its own, so one run can ask more than once.
 
 ## Storage
 

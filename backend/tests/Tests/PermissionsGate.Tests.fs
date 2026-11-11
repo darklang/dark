@@ -471,7 +471,7 @@ let interactiveReviewIsScopedAndTemporary =
       prompts <- prompts + 1
       Expect.equal rules [ "env read 'DARK_REVIEW_TEST'" ] "exact request shown"
       Ply 1L
-    let! (reviewed : RT.ExecutionState) =
+    let! (reviewed : RT.ExecutionState), _ =
       LibDB.PermissionReview.configure
         guest
         "Me.review"
@@ -511,7 +511,7 @@ let interactiveReviewCannotOverrideRestrictions =
       let ask _ =
         prompts <- prompts + 1
         Ply 1L
-      let! reviewed =
+      let! reviewed, _ =
         LibDB.PermissionReview.configure
           guest
           "Me.restricted"
@@ -537,7 +537,7 @@ let preflightReviewIsOneBatch =
       prompts <- prompts + 1
       Expect.equal rules.Length 2 "one batch"
       Ply 1L
-    let! (reviewed : RT.ExecutionState) =
+    let! (reviewed : RT.ExecutionState), _ =
       LibDB.PermissionReview.configure
         (denyAll original)
         "Me.batch"
@@ -642,7 +642,7 @@ let pendingReviewStopsLaterEffects =
     let ask _ =
       asked.SetResult()
       uply { return! answer.Task }
-    let! (reviewed : RT.ExecutionState) =
+    let! (reviewed : RT.ExecutionState), _ =
       LibDB.PermissionReview.configure
         guest
         "Me.pending"

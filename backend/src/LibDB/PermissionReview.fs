@@ -194,6 +194,7 @@ let preflight
 
 /// Configure one immutable entry. Prompts run in the trusted caller, serially;
 /// grants belong to this run's exact invocation contexts and are never serialized.
+/// Also returns whether the user has cancelled a prompt, which ends the run.
 let configure
   (guest : RT.ExecutionState)
   (name : string)
@@ -201,7 +202,7 @@ let configure
   (script : bool)
   (knownRequests : List<KnownRequest>)
   (ask : Option<List<string> -> Ply<int64>>)
-  : Ply<RT.ExecutionState> =
+  : Ply<RT.ExecutionState * (unit -> bool)> =
   let fingerprint = lazy (PolicyStore.builtinFingerprint guest.fns.builtIn)
   let initial = PolicyStore.get ()
   let key = guest.accountID, name
@@ -327,14 +328,7 @@ let configure
         match blocked with
         | Some _ -> Ply false
         | None -> review baseAccess (List.map (fun item -> item.request) missing)
-      if not approved then
-        if cancelled then
-          return
-            RT.RuntimeError.UncaughtException(
-              $"Cancelled before running {name}.",
-              []
-            )
-            |> RT.raiseUntargetedRTE
+      if not approved && not cancelled then
         let item = blocked |> Option.defaultValue (List.head missing |> Option.get)
         let denial = P.Access.decide item.request (context item) |> Option.get
         return
@@ -345,5 +339,7 @@ let configure
             denial.layer
             (P.Request.suggestRule item.request)
     // Preflight grants are installed before any function captures its access.
-    return { state with access = state.permissionAccess baseAccess }
+    return
+      { state with access = state.permissionAccess baseAccess },
+      (fun () -> cancelled)
   }

@@ -178,8 +178,9 @@ rules allow (or deny) additional effects and resources:
   permissions show <fn|hash>           # the function's effects and remembered approvals
 
 Interactive `run` asks: Allow this run / Remember for this code version / Cancel.
-Known exact access is reviewed together before execution; later requests pause
-before the operation. Approval continues without restarting earlier work.
+Access Dark can see before execution is reviewed in one prompt; other access
+pauses before its operation with a prompt of its own, so a run can ask more
+than once. Approval continues without restarting earlier work.
 Unattended runs fail with guidance; use `run --allow` for temporary access.
 Remembered script approvals appear as `script:/absolute/path` in `permissions approved`.
 Use that name with `permissions show` or `unapprove`.

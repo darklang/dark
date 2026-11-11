@@ -1322,7 +1322,7 @@ let readToo(path: String): String =
           shows
             state
             (call "readIt")
-            "function approval"
+            "`Tests.FdRead.readIt` has no remembered approval"
             "an unapproved function is denied"
         do!
           run
@@ -1343,7 +1343,7 @@ let readToo(path: String): String =
           shows
             state
             (call "readToo")
-            "function approval"
+            "`Tests.FdRead.readToo` has no remembered approval"
             "a function nobody approved is still denied"
         do! exits state (call "readToo") 1L "the unapproved read fails"
       finally

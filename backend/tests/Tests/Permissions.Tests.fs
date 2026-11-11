@@ -736,7 +736,7 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
             500
             $"neither the approval nor the read is allowed yet:\n{body}"
           Expect.stringContains body "permission denied" "and the handler says why"
-          Expect.stringContains body "function approval" "missing entry approval"
+          Expect.stringContains body "the access of" "missing entry approval"
 
           // Approving a dependency cannot give the router additional access.
           let! _ =

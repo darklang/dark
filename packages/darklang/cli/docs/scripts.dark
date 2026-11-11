@@ -70,9 +70,10 @@ helpers inherit it and cannot add another function's approval.
 Use `run --allow "file read /reports" report.dark` for this run only.
 Temporary grants are not saved in traces or reused by resume/fork.
 
-At a terminal, known exact access is reviewed together before the script starts.
-Choose Allow this run, Remember for this code version, or Cancel. Later requests
-pause before the protected operation; approval continues without repeating work.
+At a terminal, access Dark can see before the script starts is reviewed in one
+prompt. Choose Allow this run, Remember for this code version, or Cancel. Other
+access pauses before its protected operation with a prompt of its own, so a run
+can ask more than once; approval continues without repeating work.
 Remembered access belongs to this script and its dependency versions. Inspect or
 remove it using the script:/absolute/path name in `permissions approved`.
 Cancellation stops the run; earlier effects are not undone. Noninteractive runs

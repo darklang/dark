@@ -119,10 +119,13 @@ let executeOptions(
     | Error(message) ->
       Cli.printErr(message)
       Cli.failed(state)
+    | Ok(grants) when Stdlib.Bool.not(Stdlib.List.isEmpty(grants.deny)) ->
+      Cli.printErr("--allow takes allow rules only; use --sandbox, or `permissions deny` for the instance policy")
+      Cli.failed(state)
     | Ok(grants) ->
       let merged = LanguageTools.Permissions.Policy
         { allow = Stdlib.List.concat(options.grants.allow, grants.allow)
-          deny = Stdlib.List.concat(options.grants.deny, grants.deny) }
+          deny = [] }
       executeOptions(state, rest, script, { options with grants = merged }, stats)
   | ["--stats", ...rest] -> executeOptions(state, rest, script, options, true)
   | [] | [ "--" ] ->
@@ -234,9 +237,27 @@ let askPermission(request: (String * List<String>)): Int64 =
   let (name, rules) = request
   Stdlib.printErrorLine($"{name} needs access:")
   Stdlib.List.iter(rules, fun rule -> Stdlib.printErrorLine("  " + rule))
-  if Stdlib.List.any(rules, fun rule -> Stdlib.String.startsWith(rule, "file ")) then
-    Stdlib.printErrorLine("File paths include children; write access includes creating, overwriting and deleting.")
-  else ()
+  let fileRules =
+    rules
+    |> Stdlib.List.filterMap(LanguageTools.Permissions.parseRuleText)
+    |> Stdlib.List.flatten
+  let coversChildren =
+    Stdlib.List.any(fileRules, fun rule ->
+      match rule with
+      | FileRead(Only(path)) | FileWrite(Only(path)) -> Stdlib.Cli.FileSystem.isDirectory(path)
+      | FileRead(_) | FileWrite(_) -> true
+      | _ -> false)
+  let writes =
+    Stdlib.List.any(fileRules, fun rule ->
+      match rule with
+      | FileWrite(_) -> true
+      | _ -> false)
+  let fileNote =
+    [ (coversChildren, "File paths include children.")
+      (writes, "Write access includes creating, overwriting and deleting.") ]
+    |> Stdlib.List.filterMap(fun((shown, note)) -> if shown then Some(note) else None)
+  if Stdlib.List.isEmpty(fileNote) then ()
+  else Stdlib.printErrorLine(Stdlib.String.join(fileNote, " "))
   if Stdlib.List.any(rules, fun rule -> Stdlib.String.startsWith(rule, "http ")) then
     Stdlib.printErrorLine("HTTP paths include children. Any query is allowed unless one is shown.")
   else ()
@@ -255,9 +276,13 @@ let askPermission(request: (String * List<String>)): Int64 =
     0
 
 let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppState =
-  ExecutionError.printCallStack(state.currentBranchId, "Script", e)
-  let pretty = ExecutionError.toString(state.currentBranchId, e)
-  Stdlib.printErrorLine($"Script error: {pretty}")
+  match e with
+  // The prompt already said so.
+  | Cancelled -> ()
+  | _ ->
+    ExecutionError.printCallStack(state.currentBranchId, "Script", e)
+    let pretty = ExecutionError.toString(state.accountID, state.currentBranchId, e)
+    Stdlib.printErrorLine($"Script error: {pretty}")
   { state with exitCode = 1 }
 
 /// Run a script with exact access review before protected operations.
@@ -373,7 +398,8 @@ let help(_state: AppState): String =
     "See `docs scripts` for arguments, exit codes and permissions."
     ""
     "At a terminal: Allow this run / Remember for this code version / Cancel."
-    "Known access is reviewed before starting; later requests pause before the operation."
+    "Access Dark can see before starting is reviewed in one prompt; other access"
+    "asks again before its operation, so a run can ask more than once."
     "Remembered access belongs to this entry, not every program."
     "Without a terminal, grant access in advance or use --allow."
     ""
