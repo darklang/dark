@@ -745,7 +745,9 @@ test closestNamesAreSpelledNear =
       |> Stdlib.Test.equal([ "Darklang.Stdlib.List.reverse" ])
       closest("Stdlib.List.zzzzzzzz") |> Stdlib.Test.equal([])
       closest("Stdlib.Nope.zzz") |> Stdlib.Test.equal([])
-      closest("lenght") |> Stdlib.Test.equal([]) ])
+      closest("lenght") |> Stdlib.Test.equal([])
+      closest("Stdlib.List.member") |> Stdlib.Test.equal([ "Stdlib.List.contains" ])
+      closest("Stdlib.String.size") |> Stdlib.Test.equal([ "Stdlib.String.length" ]) ])
 
 
 // A function name for an operator points at the operator, when the type has it.

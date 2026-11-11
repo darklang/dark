@@ -134,6 +134,7 @@ let wordSynonyms(word: String): List<String> =
   | "concat" -> [ "join", "append" ]
   | "concatenate" -> [ "join", "append" ]
   | "replace" -> [ "replaceAll" ]
+  | "member" | "mem" | "elem" | "includes" -> [ "contains" ]
   | "tostring" -> [ "display" ]
   | "torepr" -> [ "inspect" ]
   | "repr" -> [ "inspect" ]
