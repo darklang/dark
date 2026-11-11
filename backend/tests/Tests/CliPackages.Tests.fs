@@ -1507,6 +1507,9 @@ let workbenchShowsTests =
            + "| None -> \"\"")
           "test ·"
           "and the meta line calls it a test"
+      // The real workbench runs as trusted CLI code. This eval-based test needs
+      // explicit access to the policy metadata read by its Inspect pane.
+      do! run state [ "permissions"; "allow"; "native" ]
       do!
         evals
           state
