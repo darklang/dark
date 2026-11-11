@@ -8,7 +8,6 @@ module PT = ProgramTypes
 module VT = ValueType
 module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
-module Effects2DT = LibExecution.EffectsToDarkTypes
 
 /// Check stack space during AST conversion so deep input raises a catchable error.
 let private ensureSufficientExecutionStack () : unit =
@@ -1683,10 +1682,6 @@ module PackageFn =
          ))
         ("returnType", TypeReference.toDT p.returnType)
         ("description", DString p.description)
-        ("permissionCeiling",
-         p.permissionCeiling
-         |> Option.map Effects2DT.toDT
-         |> Dval.option (Effects2DT.knownType ()))
         ("bounds", Bound.listToDT p.bounds) ]
 
     DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
@@ -1705,10 +1700,6 @@ module PackageFn =
           |> NEList.ofListUnsafe "PackageFn.fromDT" []
         returnType = fields |> D.field "returnType" |> TypeReference.fromDT
         description = fields |> D.field "description" |> D.string
-        permissionCeiling =
-          fields
-          |> D.field "permissionCeiling"
-          |> C2DT.Option.fromDT Effects2DT.fromDT
         bounds = fields |> D.field "bounds" |> D.list Bound.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
 
@@ -1781,10 +1772,6 @@ module Trait =
             Items(m.parameters |> NEList.toList |> List.map PackageFn.Parameter.toDT)
           )
           "returnType", TypeReference.toDT m.returnType
-          "permissionCeiling",
-          m.permissionCeiling
-          |> Option.map Effects2DT.toDT
-          |> Dval.option (Effects2DT.knownType ())
           "description", DString m.description ]
       DRecord(typeName (), typeName (), [], RecordFields.ofList fields)
 
@@ -1800,10 +1787,6 @@ module Trait =
             |> D.list PackageFn.Parameter.fromDT
             |> NEList.ofListUnsafe "Trait.Method.fromDT" []
           returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-          permissionCeiling =
-            fields
-            |> D.field "permissionCeiling"
-            |> C2DT.Option.fromDT Effects2DT.fromDT
           description = fields |> D.field "description" |> D.string }
       | _ -> Exception.raiseInternal "Invalid Trait.Method" []
 

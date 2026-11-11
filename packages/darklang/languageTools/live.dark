@@ -412,7 +412,7 @@ let refresh(branchId: Uuid, lg: LastGood): LastGood =
 /// A callable for the version `lg` is on. `Error` when nothing usable has been found yet.
 let applicable(lg: LastGood): Stdlib.Result.Result<'f, String> =
   match lg.hash with
-  | Some(hash) -> Builtin.applicableByHash(LanguageTools.ProgramTypes.hashToString(hash))
+  | Some(hash) -> Builtin.applicableByHash(LanguageTools.ProgramTypes.hashToString(hash), entryName(lg.entry))
   | None ->
     match lg.problem with
     | Some(problem) -> Stdlib.Result.Result.Error(problem)

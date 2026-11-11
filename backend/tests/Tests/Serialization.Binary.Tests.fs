@@ -131,7 +131,7 @@ module PT =
           expected
           (BS.PT.PackageOp.kind op)
 
-        // The same bytes stamped with an older version: the item has to be written again.
+        // Older formats are unsupported, including the item-slicing shortcut.
         let older = Array.copy blob
         System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
           System.Span<byte>(older, 0, 4),
@@ -140,215 +140,18 @@ module PT =
         Expect.isNone (BS.PT.PackageOp.itemBlob older) "an older format is not cut"
     }
 
-  /// The deprecation stamp rides on tags 4 and 5 as a trailing field rather than on tags of its
-  /// own, and that is only safe if two things hold.
-  ///
-  /// A stamp-free op must still be the bytes every store already holds, or every deprecation ever
-  /// authored changes id. So the expected payload is spelled out by hand here rather than taken
-  /// from the writer: a writer compared against itself would agree with any layout.
-  ///
-  /// And a stamped op must be those same bytes with the field appended, so a binary built before
-  /// the field reads the target, the kind and the message, stops, ignores the tail and APPLIES the
-  /// deprecation. That is what makes the trailing field better than a new tag, which an earlier
-  /// binary would have stored unapplied, leaving a `Harmful` item reading as fine.
-  let deprecationStampRidesOnTheExistingTags =
-    test "a stamped deprecation is the old blob plus a trailing field" {
-      let target = PT.Reference.PackageFn Values.hashPT
-      let stamp = "2026-01-01T00:00:00.000Z-0001"
-
-      // The 8-byte header carries the payload's length, so the two blobs differ there as well as
-      // in the tail. What has to match is the op, which starts after it.
-      let payloadOf (op : PT.PackageOp) : byte array =
-        BS.PT.PackageOp.serialize (System.Guid.NewGuid()) op |> Array.skip 8
-
-      let handBuilt (writeOp : System.IO.BinaryWriter -> unit) : byte array =
-        use ms = new System.IO.MemoryStream()
-        use w = new System.IO.BinaryWriter(ms)
-        writeOp w
-        w.Flush()
-        ms.ToArray()
-
-      let oldDeprecate =
-        handBuilt (fun w ->
-          w.Write(4uy) // Deprecate
-          w.Write(2uy) // Reference.PackageFn
-          LibSerialization.Binary.Serializers.PT.Common.Hash.write w Values.hashPT
-          w.Write(2uy) // DeprecationKind.Obsolete
-          LibSerialization.Binary.Serializers.Common.String.write w "gone")
-
-      let oldUndeprecate =
-        handBuilt (fun w ->
-          w.Write(5uy) // Undeprecate
-          w.Write(2uy) // Reference.PackageFn
-          LibSerialization.Binary.Serializers.PT.Common.Hash.write w Values.hashPT)
-
-      Expect.equal
-        (payloadOf (
-          PT.PackageOp.Deprecate(target, PT.DeprecationKind.Obsolete, "gone", None)
-        ))
-        oldDeprecate
-        "an unstamped Deprecate is byte for byte what earlier builds wrote"
-      Expect.equal
-        (payloadOf (PT.PackageOp.Undeprecate(target, None)))
-        oldUndeprecate
-        "and so is an unstamped Undeprecate"
-
-      let stampedDeprecate =
-        payloadOf (
-          PT.PackageOp.Deprecate(
-            target,
-            PT.DeprecationKind.Obsolete,
-            "gone",
-            Some stamp
-          )
-        )
-      let stampedUndeprecate =
-        payloadOf (PT.PackageOp.Undeprecate(target, Some stamp))
-
-      Expect.equal
-        (stampedDeprecate |> Array.take oldDeprecate.Length)
-        oldDeprecate
-        "a stamped Deprecate starts with exactly those bytes, so an earlier reader applies it"
-      Expect.equal
-        (stampedUndeprecate |> Array.take oldUndeprecate.Length)
-        oldUndeprecate
-        "and so does a stamped Undeprecate"
-      Expect.isGreaterThan
-        stampedDeprecate.Length
-        oldDeprecate.Length
-        "the stamp is actually written"
-
-      // And THIS build reading a blob written in the old layout: the op, with no stamp. The bytes
-      // are the hand-built ones, so this is the old reader case rather than a round-trip.
-      let header (payload : byte array) : byte array =
-        handBuilt (fun w ->
-          w.Write(LibSerialization.Binary.BaseFormat.CurrentVersion)
-          w.Write(uint32 payload.Length))
-
-      let id = System.Guid.NewGuid()
-      Expect.equal
-        (BS.PT.PackageOp.deserialize
-          id
-          (Array.append (header oldDeprecate) oldDeprecate))
-        (PT.PackageOp.Deprecate(target, PT.DeprecationKind.Obsolete, "gone", None))
-        "an old Deprecate blob reads as itself, unstamped"
-      Expect.equal
-        (BS.PT.PackageOp.deserialize
-          id
-          (Array.append (header oldUndeprecate) oldUndeprecate))
-        (PT.PackageOp.Undeprecate(target, None))
-        "an old Undeprecate blob reads as itself, unstamped"
-    }
-
-  /// A v1 blob has no `bounds` list after the ceiling. A reader handed a v1 header must stop
-  /// there and answer `bounds = []`, or every fn stored before bounds existed becomes unreadable.
-  /// Built by writing the current format, dropping the trailing empty-list byte, and rewriting
-  /// the header version and length -- which is only a faithful v1 blob because this fn's body
-  /// contains nothing whose encoding has changed since (no operator, no trait method).
-  let v1PackageFnStillReads =
-    test "a format-v1 PackageFn blob (no bounds) still reads" {
-      let fn =
-        { Values.ProgramTypes.packageFn with body = PT.EInt64(1UL, 5L); bounds = [] }
-      let v2 = BS.PT.PackageFn.serialize fn.hash fn
-      // header: version (4) + length (4); payload follows. An empty List writes one
-      // varint length byte (0), and bounds is the last field.
-      let payloadLen = System.BitConverter.ToUInt32(v2, 4)
-      Expect.equal (int payloadLen) (v2.Length - 8) "header length matches"
-      Expect.equal v2[v2.Length - 1] 0uy "the trailing byte is the empty bounds list"
-      let v1 = Array.sub v2 0 (v2.Length - 1)
-      System.BitConverter.GetBytes(1u).CopyTo(v1, 0)
-      System.BitConverter.GetBytes(payloadLen - 1u).CopyTo(v1, 4)
-      let back = BS.PT.PackageFn.deserialize fn.hash v1
-      Expect.equal back fn "reads as the same fn, with bounds = []"
-    }
-
-  /// The real compatibility case, which the test above cannot cover: a v2 blob has no
-  /// implementation byte after an operator's operands, and no implementation byte after a trait
-  /// method's name. A reader that takes them anyway consumes the NEXT expression's tag and
-  /// misparses the rest of the body, so every fn stored before this branch that contains a `+`
-  /// would break. The blob here is written by hand, exactly as the v2 writer would have.
-  let v2ExpressionsStillRead =
-    test "a format-v2 blob with an operator and a trait method still reads" {
-      let write (f : System.IO.BinaryWriter -> unit) : byte[] =
-        use stream = new System.IO.MemoryStream()
-        use w = new System.IO.BinaryWriter(stream)
-        f w
-        w.Flush()
-        stream.ToArray()
-
-      // `1L + 2L` as v2 wrote it: EInfix (tag 29), the infix, then both operands, and stop.
-      let payload =
-        write (fun w ->
-          w.Write 29uy
-          w.Write 1UL
-          w.Write 0uy // Infix.InfixFnCall
-          w.Write 0uy // InfixFnName.ArithmeticPlus
-          w.Write 0uy // EInt64
-          w.Write 2UL
-          w.Write 1L
-          w.Write 0uy // EInt64
-          w.Write 3UL
-          w.Write 2L)
-
-      use stream = new System.IO.MemoryStream(payload)
-      use reader = new System.IO.BinaryReader(stream)
-      let back = LibSerialization.Binary.Serializers.PT.Expr.Expr.read 2u reader
-
-      match back with
-      | PT.EInfix(_,
-                  PT.InfixFnCall PT.ArithmeticPlus,
-                  PT.EInt64(_, 1L),
-                  PT.EInt64(_, 2L),
-                  PT.FQFnName.Unknown) -> ()
-      | other -> failtest $"a v2 `1 + 2` read as {other}"
-    }
-
-  /// The same compatibility case one version on. v4 added a list to `EFnName` for the bounds
-  /// the CALL worked out, and a v3 blob has no list byte there. A reader that takes one anyway
-  /// reads the next expression's tag as a length, so this is written as v3 wrote it: an
-  /// EStatement whose first half is the EFnName, so a wrong-sized read shows up as the second
-  /// half failing rather than as a quietly different value.
-  let v3FnNameStillReads =
-    test "a format-v3 blob with a function reference still reads" {
-      let write (f : System.IO.BinaryWriter -> unit) : byte[] =
-        use stream = new System.IO.MemoryStream()
-        use w = new System.IO.BinaryWriter(stream)
-        f w
-        w.Flush()
-        stream.ToArray()
-
-      let writeString (w : System.IO.BinaryWriter) (str : string) =
-        // String.write: a varint byte count, then UTF-8 bytes. Short names fit one byte.
-        let bytes = System.Text.Encoding.UTF8.GetBytes str
-        w.Write(byte bytes.Length)
-        w.Write bytes
-
-      let payload =
-        write (fun w ->
-          w.Write 32uy // EStatement
-          w.Write 1UL
-          w.Write 31uy // EFnName, and in v3 it ends after the name
-          w.Write 2UL
-          w.Write 0uy // NameResolution.originalName: the empty list
-          w.Write 0uy // resolved = Ok
-          w.Write 1uy // FQFnName.Package
-          w.Write 0uy // Hash: not the 32-byte raw form, so the string form follows
-          writeString w "abc123"
-          w.Write 0uy // no location
-          w.Write 0uy // EInt64, the statement's second half
-          w.Write 3UL
-          w.Write 7L)
-
-      use stream = new System.IO.MemoryStream(payload)
-      use reader = new System.IO.BinaryReader(stream)
-      let back = LibSerialization.Binary.Serializers.PT.Expr.Expr.read 3u reader
-
-      match back with
-      | PT.EStatement(_, PT.EFnName(_, nr, [], []), PT.EInt64(_, 7L)) ->
-        match nr.resolved with
-        | Ok { name = PT.FQFnName.Package(PT.Hash "abc123") } -> ()
-        | other -> failtest $"the v3 function reference read as {other}"
-      | other -> failtest $"a v3 EFnName in a statement read as {other}"
+  let olderVersionsRejected =
+    test "older binary formats are rejected" {
+      let fn = Values.ProgramTypes.packageFn
+      let blob = BS.PT.PackageFn.serialize fn.hash fn
+      for version in 1u .. LibSerialization.Binary.BaseFormat.CurrentVersion - 1u do
+        let oldBlob = Array.copy blob
+        System.BitConverter.GetBytes(version).CopyTo(oldBlob, 0)
+        Expect.throws
+          (fun () ->
+            BS.PT.PackageFn.deserialize fn.hash oldBlob
+            |> ignore<PT.PackageFn.PackageFn>)
+          $"format {version} is unsupported"
     }
 
   let unknownVersionRejected =
@@ -368,7 +171,7 @@ module PT =
       use reader = new System.IO.BinaryReader(stream)
       Expect.throws
         (fun () ->
-          LibSerialization.Binary.Serializers.PT.Expr.Expr.read 3u reader
+          LibSerialization.Binary.Serializers.PT.Expr.Expr.read reader
           |> ignore<LibExecution.ProgramTypes.Expr>)
         "WrittenTypes recovery holes must not be deserialized as ProgramTypes"
     }
@@ -473,11 +276,11 @@ module RT =
         |> System.Convert.ToHexString
       Expect.equal
         (hex 3)
-        "080000002D00000013010E0108030E026B300800000000000000000E026B310801000000000000000E026B32080200000000000000"
+        "0A0000002D00000013010E0108030E026B300800000000000000000E026B310801000000000000000E026B32080200000000000000"
         "a 3-entry dict"
       Expect.equal
         (hex 30)
-        "08000000A001000013010E01081E0E026B300800000000000000000E026B31080D000000000000000E036B3130080A000000000000000E036B31310817000000000000000E036B31320806000000000000000E036B31330813000000000000000E036B31340802000000000000000E036B3135080F000000000000000E036B3136081C000000000000000E036B3137080B000000000000000E036B31380818000000000000000E036B31390807000000000000000E026B32081A000000000000000E036B32300814000000000000000E036B32310803000000000000000E036B32320810000000000000000E036B3233081D000000000000000E036B3234080C000000000000000E036B32350819000000000000000E036B32360808000000000000000E036B32370815000000000000000E036B32380804000000000000000E036B32390811000000000000000E026B330809000000000000000E026B340816000000000000000E026B350805000000000000000E026B360812000000000000000E026B370801000000000000000E026B38080E000000000000000E026B39081B00000000000000"
+        "0A000000A001000013010E01081E0E026B300800000000000000000E026B31080D000000000000000E036B3130080A000000000000000E036B31310817000000000000000E036B31320806000000000000000E036B31330813000000000000000E036B31340802000000000000000E036B3135080F000000000000000E036B3136081C000000000000000E036B3137080B000000000000000E036B31380818000000000000000E036B31390807000000000000000E026B32081A000000000000000E036B32300814000000000000000E036B32310803000000000000000E036B32320810000000000000000E036B3233081D000000000000000E036B3234080C000000000000000E036B32350819000000000000000E036B32360808000000000000000E036B32370815000000000000000E036B32380804000000000000000E036B32390811000000000000000E026B330809000000000000000E026B340816000000000000000E026B350805000000000000000E026B360812000000000000000E026B370801000000000000000E026B38080E000000000000000E026B39081B00000000000000"
         "a 30-entry dict"
     }
 
@@ -532,10 +335,10 @@ module RT =
               writtenIn = ValueNone }
         )
       let bytes = value |> BS.RT.Dval.serialize "closure"
-      // The v8 header, then the lambda: its id, its two captures and an empty symbol table.
+      // The v9 header, then the lambda: its id, its two captures and an empty symbol table.
       Expect.equal
         (System.Convert.ToHexString bytes)
-        "0800000020000000160007000000000000000201000000080500000000000000030000000E017800"
+        "0A00000020000000160007000000000000000201000000080500000000000000030000000E017800"
         "the bytes a closure with captures serializes to"
       match BS.RT.Dval.deserialize "closure" bytes with
       | RT.DApplicable(RT.AppLambda lambda) ->
@@ -551,9 +354,10 @@ module RT =
       let value =
         RT.DApplicable(
           RT.AppNamedFn
-            { name = RT.FQFnName.fqBuiltin "syscallGettimeofday" 0
+            { name = RT.FQFnName.Package(RT.Hash "approved-code")
               typeSymbolTable = RT.TST.empty
               typeArgs = []
+              approvalName = Some "Me.clock"
               access =
                 Some(
                   LibExecution.Permissions.Access.start
@@ -566,14 +370,18 @@ module RT =
         value |> BS.RT.Dval.serialize "namedFn" |> BS.RT.Dval.deserialize "namedFn"
       match decoded with
       | RT.DApplicable(RT.AppNamedFn namedFn) ->
+        Expect.equal namedFn.approvalName (Some "Me.clock") "entry identity survives"
         match namedFn.access with
         | None -> failtest "decoded named fn must carry deny-all access, not None"
         | Some access ->
           Expect.isFalse
             (LibExecution.Permissions.Access.allows
               LibExecution.Permissions.Request.clock
-              access)
-            "serialization must not preserve authority"
+              (access
+               |> LibExecution.Permissions.Access.enter
+                 "Me.clock"
+                 LibExecution.Permissions.Policy.allowAll))
+            "even a named grant cannot restore serialized authority"
       | _ -> failtest "expected a named fn"
     }
 
@@ -604,49 +412,6 @@ module RT =
         "Dict key that cannot be a key"
         $"{name} must be refused as a format error, not by the comparer's guard"
 
-  /// v4 added the bounds a call worked out to a stored applicable, and a v3 blob ends with the
-  /// captured-access bool instead. A reader that takes the list anyway reads that bool as a
-  /// length and then runs off the end of the blob, so every `rt_instrs` row written before this
-  /// change would fail to decode. `package_functions` is a projection, but nothing on the
-  /// shipped path re-folds one when the format moves, so those rows are read as they stand.
-  let v3ApplicableStillReads =
-    test "a format-v3 stored applicable (no bounds) still reads" {
-      let writeString (w : System.IO.BinaryWriter) (str : string) =
-        let bytes = System.Text.Encoding.UTF8.GetBytes str
-        w.Write(byte bytes.Length)
-        w.Write bytes
-
-      let payload =
-        use stream = new System.IO.MemoryStream()
-        use w = new System.IO.BinaryWriter(stream)
-        w.Write 1uy // FQFnName.Package
-        writeString w "abc123" // the hash
-        w.Write 0uy // the type symbol table, empty
-        w.Write 0uy // typeArgs, empty
-        w.Write 0uy // argsSoFar, empty
-        w.Write true // captured access: the last field a v3 applicable has
-        w.Flush()
-        stream.ToArray()
-
-      use stream = new System.IO.MemoryStream(payload)
-      use reader = new System.IO.BinaryReader(stream)
-      let back =
-        LibSerialization.Binary.Serializers.RT.Dval.readApplicableNamedFn 3u reader
-
-      Expect.equal back.boundImpls [] "a v3 applicable has no recorded bounds"
-      Expect.equal
-        back.name
-        (RT.FQFnName.Package(RT.Hash "abc123"))
-        "the name reads as it always did"
-      Expect.isTrue
-        back.access.IsSome
-        "the captured-access bool was still the last byte"
-      Expect.equal
-        stream.Position
-        stream.Length
-        "the reader consumed the blob exactly"
-    }
-
   /// Bytes are valid dict keys, so a saved Bytes key reads back as the same entry.
   let dictWithBytesKeyRoundtrips =
     test "a Dict keyed by a saved Bytes reference roundtrips" {
@@ -671,6 +436,7 @@ module RT =
               typeArgs = []
               argsSoFar = []
               boundImpls = []
+              approvalName = None
               access = None }
         )
       expectRefusedOnRead
@@ -699,11 +465,12 @@ let tests =
           PT.packageTestTests
           PT.packageOpTests
           PT.itemBlobIsTheItemsOwnBlob
-          PT.deprecationStampRidesOnTheExistingTags
+
           PT.legacyRecoveryHoleTagRejected
-          PT.v1PackageFnStillReads
-          PT.v2ExpressionsStillRead
-          PT.v3FnNameStillReads
+
+
+
+          PT.olderVersionsRejected
           PT.unknownVersionRejected ]
 
       testList
@@ -716,7 +483,7 @@ let tests =
           RT.packageFnTests
           RT.dvalTests
           RT.instructionsTests
-          RT.v3ApplicableStillReads
+
           RT.dictWithBytesKeyRoundtrips
           RT.dictWithLambdaKeyRejectedOnRead
           RT.closureAccessIsStripped

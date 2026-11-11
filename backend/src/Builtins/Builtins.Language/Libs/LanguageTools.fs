@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module PermissionsDT = LibExecution.PermissionsToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 
 
@@ -60,7 +61,37 @@ let private builtinFnToDT (name : FQFnName.Builtin) (data : BuiltInFn) =
 // Impure though they perform nothing: the builtin table is this binary's, so another release
 // answers differently.
 let fns () : List<BuiltInFn> =
-  [ { name = fn "getAllBuiltinValues" 0
+  [ { name = fn "permissionNormalizeHttpRule" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "rule"
+            (TCustomType(NR.ok (PermissionsDT.HttpRule.typeName ()), []))
+            "" ]
+      returnType =
+        TypeReference.option (
+          TCustomType(NR.ok (PermissionsDT.HttpRule.typeName ()), [])
+        )
+      description = "Normalize an HTTP rule using the runtime request URI rules."
+      fn =
+        (function
+        | _, _, _, [| value |] ->
+          let normalized =
+            PermissionsDT.HttpRule.fromDT value
+            |> LibExecution.Permissions.HttpRule.normalize
+            |> Result.toOption
+            |> Option.map PermissionsDT.HttpRule.toDT
+          Ply(
+            Dval.option
+              (KTCustomType(PermissionsDT.HttpRule.typeName (), []))
+              normalized
+          )
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "getAllBuiltinValues" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TCustomType(NR.ok (builtinValue ()), []) |> TList

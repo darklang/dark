@@ -255,6 +255,7 @@ let toValueTypeWalksTransforms =
         { name = RT.FQFnName.fqBuiltin "int64ToString" 0
           typeSymbolTable = RT.TST.empty
           typeArgs = []
+          approvalName = None
           access = None
           argsSoFar = []
           boundImpls = [] }

@@ -116,9 +116,8 @@ Run all tests with `test run`, or filter by name/module with `test run Example`.
 `search` leaves tests and `Tests` modules out; add `--include-tests`, or `--test`
 for tests only.
 Tests use an allow-all instance policy for the test run and its disposable
-workers; the installation's saved policy is unchanged. Each called function's
-ordinary package approval and permission ceiling still applies. Tests have no
-permission rows or grants of their own. A passing
+workers; the installation's saved policy is unchanged. Run restrictions still
+apply. Tests have no permission rows or grants of their own. A passing
 ordinary test is reused when its calls are proven safe to reuse, on the same
 branch with the same `Stdlib.Test.Result` binding, until the test body, one of
 its followed dependencies, the runtime build, or the judging code changes.
@@ -127,8 +126,6 @@ cache-safety analysis.
 `equal` and `notEqual` use branch-dependent formatting and rerun conservatively;
 use `expect` with a fixed message for checks that can be cached.
 `test run --force` reruns cached tests.
-
-Tests may use the effects the called functions allow them.
 
 Every test execution runs in its own disposable process with an isolated store.
 Ordinary `test name = ...` declarations provide isolation automatically, including
@@ -147,7 +144,6 @@ in memory and starts at zero for each test execution, including reruns.
 These helpers work only in package tests, need no host permissions, and make
 the test rerun rather than reuse a cached pass.
 
-
 A test that expects a runtime error declares the expected outcome after its
 body; the body may be any expression and passes only when the rendered message
 matches exactly:
@@ -162,7 +158,8 @@ let permissions(): String =
   """# Darklang AI: permissions
 
 Host permissions are managed with the `permissions` command (alias `perms`).
-The instance policy is local, machine-wide, and deny-by-default. A fresh
+Instance rules supply default grants and explicit denies. Named approvals
+can supply additional access; explicit denies and run restrictions always win. A fresh
 installation permits package/local-store access, stdio, clock, and randomness;
 rules allow (or deny) additional effects and resources:
 
@@ -171,13 +168,21 @@ rules allow (or deny) additional effects and resources:
   permissions profile read-only /home/me/project       # preview: reads, HTTPS GET
   permissions profile local-dev /home/me/project --yes # apply: adds writes, serving
   permissions allow clock
-  permissions allow http GET https://api.stripe.com/v1
+  permissions allow http GET https://api.stripe.com/v1/*
   permissions allow file write /home/me/project/data   # absolute; ~ not expanded
   permissions deny http POST https://api.stripe.com/v1
   permissions allow native             # raw fds, process handles: cannot be scoped,
                                        # so it is granted whole or not at all
-  permissions requirements <fn|hash>   # complete transitive permission requirements
-  permissions show <fn|hash>           # requirements, approvals, and effective policies
+  permissions allow http-server 127.0.0.1 9090  # local serving only
+  effects <fn>                        # possible effects, call paths, completeness
+  permissions show <fn|hash>           # the function's effects and remembered approvals
+
+Interactive `run` asks: Allow this run / Remember for this code version / Cancel.
+Known exact access is reviewed together before execution; later requests pause
+before the operation. Approval continues without restarting earlier work.
+Unattended runs fail with guidance; use `run --allow` for temporary access.
+Remembered script approvals appear as `script:/absolute/path` in `permissions approved`.
+Use that name with `permissions show` or `unapprove`.
 
 Consumer approvals are local to this installation, like the instance policy,
 with one approved version per logical function name. The
@@ -188,14 +193,16 @@ the approval:
   permissions update Vendor.Package.function
   permissions approved                  # name  shorthash
   permissions unapprove Vendor.Package.function
-  permissions approvals                 # approved hashes; revoke-package <hash> drops one
+  permissions approvals                 # approved names and versions
 
 Approval computes the function's inferred transitive needs; changing the code
 changes its hash and requires a new decision, without changing the user's
-logical name. An approved version is what the name RESOLVES to when you run
-something, so approving is how you stay on a reviewed version while the package
-moves on. `unapprove` only releases the name; the version's approval stays until
-`revoke-package`.
+logical name. Running a name uses its current code on the selected branch.
+Edits to the function or its dependencies do not inherit the old approval.
+Use `permissions update` or `approve` to review access for the new code.
+Instance defaults and temporary run permissions still apply.
+`unapprove` removes that name's remembered access without changing its code.
+`revoke-package <hash>` removes all named approvals for that version.
 """
 
 /// `docs for-ai traces`: reading a run back, and things that run at once.
@@ -383,9 +390,6 @@ let syntax(): String =
 - Lambda parameters take the call shape: `fun x ->`, `fun(acc, x) ->`; one
   tuple parameter is `fun((a, b)) ->`.
 - A function type with several arguments is `(A, B) -> C`; `A -> B` takes one.
-- A function may declare a permission ceiling as an effect row on the return
-  colon: `let fetch(url: String):{Http, Clock} String = ...`. It only
-  restricts (`:{}` means effect-free); names are effect cases like `FileRead`.
 
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
@@ -443,9 +447,9 @@ let syntax(): String =
   `z` is for ℤ, the integers: `1z` is a BigInt, with no size limit.
   Values print with their suffix except Int64 and Float, so output pastes back as itself.
 - Traits: `impl Add for Vec = let add(a: Vec, b: Vec): Vec = ...` gives Vec
-  a `+`; `impl ToString for Point = let toString(p: Point): String = ...`
-  gives `p.toString`; your own with `trait Area<'a> = let area(s: 'a): Float`.
-  A bound is `let f<'a: ToString>(v: 'a) = ...`. Author with `dark trait` /
+  a `+`; `impl Display for Point = let display(p: Point): String = ...`
+  gives `p.display`; your own with `trait Area<'a> = let area(s: 'a): Float`.
+  A bound is `let f<'a: Display>(v: 'a) = ...`. Author with `dark trait` /
   `dark impl`; `dark impls <Trait> --json` lists implementations with the status a
   call sees (active, shadowed, unordered); `dark constraints --json` has the rival
   pairs; `docs traits`.

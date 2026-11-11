@@ -21,7 +21,7 @@ val all =
     Profile
       { name = "local-dev"
         description =
-          "read/write a directory and local stores; HTTPS GET, HTTP serving, following edits"
+          "read/write a directory and local stores; HTTPS GET, local-only HTTP serving, following edits"
         needsRoot = true } ]
 
 val readEffects =
@@ -46,7 +46,7 @@ val httpsGet =
         scheme = LanguageTools.Permissions.Scope.Only("https")
         host = LanguageTools.Permissions.HostRule.Any
         port = LanguageTools.Permissions.Scope.Only(443)
-        pathPrefix = LanguageTools.Permissions.Scope.All
+        path = LanguageTools.Permissions.HttpPath.All
         query = LanguageTools.Permissions.Scope.All })
 
 let fromEffects(
@@ -101,6 +101,7 @@ let resolve(
                 LanguageTools.Permissions.Scope.Only(root))
               Profiles.httpsGet
               LanguageTools.Permissions.Rule.HttpServer(
+                LanguageTools.Permissions.Scope.Only("127.0.0.1"),
                 LanguageTools.Permissions.Scope.All)
               LanguageTools.Permissions.Rule.Effect(
                 LanguageTools.Permissions.Effect.PackageWrite)

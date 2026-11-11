@@ -791,17 +791,6 @@ module PackageFn =
       returnType : TypeReference
       description : string
 
-      /// The author's ceiling on what this function and everything it calls
-      /// may do at runtime, from the `:{…}` row on the declaration. It only
-      /// restricts; granting stays with the instance, run and package layers.
-      ///
-      ///   None            no row was written: no function layer is added
-      ///   Some Set.empty  `:{}`: effect-free, every host effect inside is denied
-      ///   Some {Http; …}  `:{Http, …}`: only these; anything else inside is denied
-      ///
-      /// Part of the content hash and of the upgrade contract, so changing the
-      /// row is a new version that `permissions update` asks about.
-      permissionCeiling : Option<Set<Effects.Effect>>
 
       /// `'a: Show + Compare` on the declaration's type params. Part of the content
       /// hash: a bound is a contract on the caller. Checked eagerly at fn entry by
@@ -815,17 +804,7 @@ module PackageFn =
 /// and named like a type, referenced from bounds (`'a: Show`), impls and
 /// `TraitMethod` names.
 module Trait =
-  /// One method's signature. No body: the impls have those.
-  ///
-  /// `permissionCeiling` is DECLARED and stored, and it is part of the trait's content hash,
-  /// but nothing enforces it against an implementation: not the at-rest checker and not the
-  /// interpreter. `ImplExceedsCeiling` exists as an issue code with no producer. So an impl
-  /// may declare and perform more than its trait's method allows.
-  ///
-  /// An impl's method fn is still held to its OWN ceiling like any other package fn
-  /// (`Interpreter.packageEntryAccess`), so this is a missing check rather than a way past
-  /// permissions, and because the ceiling is hashed, enforcing it later needs no format
-  /// change. Do not promise enforcement here until something checks it.
+  /// One method's signature. No body: the implementations have those.
   type Method =
     {
       name : string
@@ -836,7 +815,6 @@ module Trait =
       bounds : List<Bound>
       parameters : NEList<PackageFn.Parameter>
       returnType : TypeReference
-      permissionCeiling : Option<Set<Effects.Effect>>
       description : string
     }
 

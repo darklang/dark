@@ -391,17 +391,10 @@ Declaration forms:
 - `let f(p: T, q: U): R = body` defines a function. Parameters are one
   parenthesized list, each annotated, separated by commas or newlines. `()` is a
   unit parameter. A second list, `let f (p: T) (q: U)`, is an error with a hint.
-- `let f(p: T):{Http, Clock} R = body` adds an effect row on the return
-  colon: the function's permission ceiling, the most it may ever do. It never
-  grants anything; at runtime the row is one more restriction on top of the
-  instance, run, and package policies. Names are the effect case names
-  (`Http`, `FileRead`, `Clock`, …; an unknown name is a parse error).
-  `:{}` declares effect-free; no row declares no ceiling.
 - `val x = e` defines a module or test-setup value.
 - `test name = body` defines a package test whose body returns
   `Stdlib.Test.Result`. Tests use an allow-all test instance policy; called
-  functions retain their approvals and permission ceilings. Tests cannot declare
-  an effect row of their own.
+  functions inherit that access. Captured restrictions still apply.
   Each execution runs in a disposable process and store snapshot.
 - `test name = body => raises "message"` defines a package test that
   passes only when evaluating the whole body raises that exact rendered runtime
@@ -439,10 +432,8 @@ method signatures, one per line, each a full fn signature without a body:
       let show(value: 'a): String
 
 The trait needs at least one type parameter (the first is the self type) and
-at least one method; a method body is `PARSE-BOUND`. A method may carry an
-effect row (`let fetch(u: 'a):{Http} String`), which is the ceiling every
-impl of it must fit under. A trait lowers to its own package item
-(`PT.Trait`), with the method signatures and their ceilings on it.
+at least one method; a method body is `PARSE-BOUND`. A trait lowers to its
+own package item (`PT.Trait`), with its method signatures.
 
 **Impl declarations** — `impl[<'a: Bound>] Trait[<Args>] for Type =` followed
 by an indented block with one entry per method, each either a full fn

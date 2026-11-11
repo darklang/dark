@@ -57,6 +57,25 @@ module HostRule =
       P.HostRule.SubdomainsOf host
     | _ -> Exception.raiseInternal "Invalid Permissions.HostRule" [ "dval", dval ]
 
+module HttpPath =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.Permissions.httpPath ())
+
+  let toDT (path : P.HttpPath) : Dval =
+    let name, fields =
+      match path with
+      | P.HttpPath.All -> "All", []
+      | P.HttpPath.Exact path -> "Exact", [ DString path ]
+      | P.HttpPath.Subtree path -> "Subtree", [ DString path ]
+    DEnum(typeName (), typeName (), [], name, fields)
+
+  let fromDT (value : Dval) : P.HttpPath =
+    match value with
+    | DEnum(_, _, _, "All", []) -> P.HttpPath.All
+    | DEnum(_, _, _, "Exact", [ DString path ]) -> P.HttpPath.Exact path
+    | DEnum(_, _, _, "Subtree", [ DString path ]) -> P.HttpPath.Subtree path
+    | _ -> Exception.raiseInternal "Invalid Permissions.HttpPath" [ "value", value ]
+
 module HttpRule =
   let typeName () =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.Permissions.httpRule ())
@@ -71,7 +90,7 @@ module HttpRule =
           "scheme", Scope.stringToDT rule.scheme
           "host", HostRule.toDT rule.host
           "port", Scope.intToDT rule.port
-          "pathPrefix", Scope.stringToDT rule.pathPrefix
+          "path", HttpPath.toDT rule.path
           "query", Scope.stringToDT rule.query ]
     )
 
@@ -82,7 +101,7 @@ module HttpRule =
         scheme = Scope.stringFromDT (D.field "scheme" fields)
         host = HostRule.fromDT (D.field "host" fields)
         port = Scope.intFromDT (D.field "port" fields)
-        pathPrefix = Scope.stringFromDT (D.field "pathPrefix" fields)
+        path = HttpPath.fromDT (D.field "path" fields)
         query = Scope.stringFromDT (D.field "query" fields) }
     | _ -> Exception.raiseInternal "Invalid Permissions.HttpRule" [ "dval", dval ]
 
@@ -125,7 +144,8 @@ module Rule =
     | P.Rule.All -> make "All" []
     | P.Rule.Effect effect -> make "Effect" [ Effects2DT.Effect.toDT effect ]
     | P.Rule.Http http -> make "Http" [ HttpRule.toDT http ]
-    | P.Rule.HttpServer ports -> make "HttpServer" [ Scope.intToDT ports ]
+    | P.Rule.HttpServer(addresses, ports) ->
+      make "HttpServer" [ Scope.stringToDT addresses; Scope.intToDT ports ]
     | P.Rule.File(P.AccessKind.Read, roots) ->
       make "FileRead" [ Scope.stringToDT roots ]
     | P.Rule.File(P.AccessKind.Write, roots) ->
@@ -170,8 +190,8 @@ module Rule =
     | DEnum(_, _, _, "Effect", [ effect ]) ->
       P.Rule.Effect(Effects2DT.Effect.fromDT effect)
     | DEnum(_, _, _, "Http", [ rule ]) -> P.Rule.Http(HttpRule.fromDT rule)
-    | DEnum(_, _, _, "HttpServer", [ ports ]) ->
-      P.Rule.HttpServer(Scope.intFromDT ports)
+    | DEnum(_, _, _, "HttpServer", [ addresses; ports ]) ->
+      P.Rule.HttpServer(Scope.stringFromDT addresses, Scope.intFromDT ports)
     | DEnum(_, _, _, "FileRead", [ roots ]) ->
       P.Rule.File(P.AccessKind.Read, Scope.stringFromDT roots |> normalizedRoot)
     | DEnum(_, _, _, "FileWrite", [ roots ]) ->

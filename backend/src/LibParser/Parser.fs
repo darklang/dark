@@ -987,10 +987,6 @@ let private spacedFieldsHint (caseName : string) (count : int) : string =
   let spaceList = String.concat " " shown
   $"write `{caseName}({commaList})` rather than `{caseName} {spaceList}`"
 
-/// The effect names a `:{…}` row may use: the `Effects.Effect` case names.
-let private effectCaseNames : List<string> =
-  LibExecution.Effects.all |> List.map LibExecution.Effects.caseName
-
 /// `sep item sep item …` from `m`, each item with the range of the `sep` before it. A parse
 /// that makes no progress ends the list there.
 let rec private separatedFrom
@@ -3818,54 +3814,6 @@ and private parseParamsFrom
 // A declaration-scope function (`let f (p: T) … : R = body`) or value
 // (`val x = body`). Legacy module-level `let x = body` also comes through here
 // to retain a recovery DValue beside its focused diagnostic.
-/// `:{Http, Clock}` immediately after a declaration's return colon. Absent
-/// means no ceiling; `{}` means effect-free. Unknown names are diagnostics,
-/// not wildcards: the row fails closed.
-and parseEffectRow
-  (state : ParserState)
-  (i : int)
-  : Option<List<WT.Identifier>> * int =
-  if tok state i <> TLBrace then
-    (None, i)
-  else
-    let (namesRev, j) =
-      if tok state (i + 1) = TRBrace then
-        ([], i + 1)
-      else
-        parseEffectNames state [] (i + 1)
-    let close = if tok state j = TRBrace then j + 1 else j
-    (Some(List.rev namesRev), close)
-
-// The names of an effect row from `j`, which is not its `}`, last first.
-and private parseEffectNames
-  (state : ParserState)
-  (namesRev : List<WT.Identifier>)
-  (j : int)
-  : List<WT.Identifier> * int =
-  match tok state j with
-  | TIdent name ->
-    if not (List.contains name effectCaseNames) then
-      let known = String.concat ", " effectCaseNames
-      err
-        state
-        DiagnosticCode.effect
-        j
-        $"unknown effect '{name}'; effects are {known}"
-    let namesRev = ({ range = rng state j; name = name } : WT.Identifier) :: namesRev
-    let j = j + 1
-    if tok state j = TComma then
-      if tok state (j + 1) = TRBrace then
-        (namesRev, j + 1)
-      else
-        parseEffectNames state namesRev (j + 1)
-    else
-      if tok state j <> TRBrace then
-        errExpected state j "',' or '}' in the effect row"
-      (namesRev, j)
-  | _ ->
-    errExpected state j "an effect name"
-    (namesRev, j)
-
 and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let keywordLet = rng state i
   let nameIdx = skipRec state (i + 1)
@@ -3884,8 +3832,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
       else
         errExpected state kk "':' before the return type"
         (zeroWidthAtEnd (rng state kk), kk)
-    let (effects, afterEffects) = parseEffectRow state afterColon
-    let (returnType, afterRet) = parseTypeRef state afterEffects
+    let (returnType, afterRet) = parseTypeRef state afterColon
     let (eq, afterEq) =
       if tok state afterRet = TEquals then
         (rng state afterRet, afterRet + 1)
@@ -3899,7 +3846,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
         typeParams = typeParams
         bounds = bounds
         parameters = ps
-        effects = effects
+        effects = None
         returnType = returnType
         body = body
         keywordLet = keywordLet
@@ -3953,8 +3900,7 @@ and parseTestDecl (state : ParserState) (i : int) : WT.Declaration * int =
         state
         (i + 2)
         "'='; tests use instance and called-function permissions"
-      let _, afterEffects = parseEffectRow state (i + 3)
-      afterEffects
+      i + 3
     else
       i + 2
   let (eq, afterEq) =
@@ -4100,8 +4046,7 @@ and private parseTraitMethods
       else
         errExpected state kk "':' before the method's return type"
         (zeroWidthAtEnd (rng state kk), kk)
-    let (effects, afterEffects) = parseEffectRow state afterColon
-    let (returnType, afterRet) = parseTypeRef state afterEffects
+    let (returnType, afterRet) = parseTypeRef state afterColon
     let (body, afterBody) =
       if tok state afterRet = TEquals then
         let (b, after) = parseBlock state (afterRet + 1)
@@ -4126,7 +4071,7 @@ and private parseTraitMethods
         typeParams = mTypeParams
         bounds = mBounds
         parameters = ps
-        effects = effects
+        effects = None
         returnType = returnType
         body = body
         keywordLet = kwLet

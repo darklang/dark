@@ -4,9 +4,8 @@ type AccessReportFacts =
   { hash: String
     effects: List<LanguageTools.Permissions.Effect>
     complete: Bool
-    ceiling: Stdlib.Option.Option<List<LanguageTools.Permissions.Effect>>
     bundled: Bool
-    packagePolicy: Stdlib.Option.Option<LanguageTools.Permissions.Policy>
+    approvals: List<(String * LanguageTools.Permissions.Policy)>
     approvedAs: List<String>
     instancePolicy: LanguageTools.Permissions.Policy }
 
@@ -39,17 +38,14 @@ let permissionRequirementsForHash(
   : (List<LanguageTools.Permissions.Effect> * Bool) =
   Builtin.pmFnPermissionRequirements(hash)
 
-/// Take an approval back: a name's approved version, or a hash's approval. They are separate
-/// records; withdrawing one leaves the other.
+/// Remove one named approval, or every named approval for a hash.
 let withdraw(
   accountID: Stdlib.Option.Option<Uuid>,
   target: LanguageTools.Permissions.ApprovalTarget)
   : Unit =
   Builtin.pmPolicyWithdraw(accountID, target)
 
-/// Drop the approval of one immutable version and the dependencies no other
-/// approved root still needs. `unapprove` does not do this; a name's approved version and the
-/// approval are separate records.
+/// Withdraw every named approval for one immutable version.
 let revokeHash(
   accountID: Stdlib.Option.Option<Uuid>,
   hash: String)
@@ -64,20 +60,23 @@ let approvedHashes(accountID: Stdlib.Option.Option<Uuid>): List<String> =
 let packageAccess(
   accountID: Stdlib.Option.Option<Uuid>,
   hash: String)
-  : (Bool * Stdlib.Option.Option<LanguageTools.Permissions.Policy>) =
-  let policy =
+  : (Bool * List<(String * LanguageTools.Permissions.Policy)>) =
+  let approvals =
     Command.approvalsOf(accountID, Stdlib.Option.Option.Some(hash))
-    |> Stdlib.List.head
-    |> Stdlib.Option.andThen(fun approval -> approval.policy)
-  (Builtin.pmFnIsBundled(hash), policy)
+    |> Stdlib.List.filterMap(fun approval ->
+      match (approval.name, approval.policy) with
+      | (Some(name), Some(policy)) -> Some((name, policy))
+      | _ -> None)
+  (Builtin.pmFnIsBundled(hash), approvals)
 
 /// The rules the consumer wrote when approving <param hash> as a root; None
 /// for a derived approval.
 let explicitApprovalFor(
   accountID: Stdlib.Option.Option<Uuid>,
-  hash: String)
+  name: String)
   : Stdlib.Option.Option<LanguageTools.Permissions.Policy> =
-  Command.approvalsOf(accountID, Stdlib.Option.Option.Some(hash))
+  Command.approvalsOf(accountID, Stdlib.Option.Option.None)
+  |> Stdlib.List.filter(fun a -> a.name == Stdlib.Option.Option.Some(name))
   |> Stdlib.List.head
   |> Stdlib.Option.andThen(fun approval -> approval.explicitRules)
 
@@ -103,55 +102,22 @@ let approvalsOf(
   : List<LanguageTools.Permissions.Approval> =
   Builtin.pmPolicyApprovals(accountID, hash)
 
-/// The approved hashes, each labelled with the name that resolves to it when there is one. A hash
-/// with no name is a dependency approved inside another root's closure.
-let namedApprovals(
-  accountID: Stdlib.Option.Option<Uuid>,
-  branchId: Uuid)
-  : List<String> =
-  let byName = Command.approvedVersions(accountID)
-  Command.approvedHashes(accountID)
-  |> Stdlib.List.map(fun hash ->
-    let named =
-      byName
-      |> Stdlib.List.filterMap(fun pair ->
-        let (name, approvedHash) = pair
-        if approvedHash == hash then Stdlib.Option.Option.Some(name)
-        else Stdlib.Option.Option.None)
-      |> Stdlib.List.head
-    match named with
-    | Some(name) -> $"{hash}  {name}"
-    | None ->
-      match Command.dependencyName(branchId, hash) with
-      | Some(name) -> $"{hash}  {name} (dependency)"
-      | None -> hash)
+/// Each named approval, including separate names with identical code.
+let namedApprovals(accountID: Stdlib.Option.Option<Uuid>): List<String> =
+  Command.approvedVersions(accountID)
+  |> Stdlib.List.map(fun((name, hash)) ->
+    $"  {name}  (version {Command.shortVersion(hash)})")
 
-/// The store's name for an approved dependency's hash, when it has one on <param branchId>.
-let dependencyName(
-  branchId: Uuid,
-  hash: String)
-  : Stdlib.Option.Option<String> =
-  let locations =
-    LanguageTools.PackageManager.Function.locations(
-      branchId,
-      LanguageTools.ProgramTypes.Hash.Hash(hash))
-  match
-    LanguageTools.PackageManager.pickLocation(
-      LanguageTools.PackageManager.PickContext.empty,
-      locations)
-  with
-  | Some(l) ->
-    Stdlib.Option.Option.Some(
-      PrettyPrinter.RuntimeTypes.packageName(l.owner, l.modules, l.name)
-    )
-  | None -> Stdlib.Option.Option.None
+/// Capture before showing a review; mutations compare it atomically when saving.
+let reviewToken(): String = Builtin.pmPolicyReviewToken()
 
-/// Approve an immutable closure and point its logical name at that version, atomically. The builtin
+/// Remember access for an immutable closure under its logical name, atomically. The builtin
 /// compares the contract before storing approval; a changed contract returns diffs for explicit
 /// review. `rules` optionally narrows the consumer's policy; None approves the analyzed effect set.
 let approveVersionFor(
   accountID: Stdlib.Option.Option<Uuid>,
   name: String,
+  expected: String,
   hash: String,
   rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>,
   acknowledgeIncomplete: Bool,
@@ -160,12 +126,13 @@ let approveVersionFor(
   Builtin.pmPolicyApproveVersion(
     accountID,
     name,
+    expected,
     hash,
     rules,
     acknowledgeIncomplete,
     acknowledgeContractChange)
 
-/// Withdraw a name's approved version, so it resolves to whatever is current again.
+/// Withdraw a name's remembered access; name resolution is unchanged.
 let unapproveVersionFor(
   accountID: Stdlib.Option.Option<Uuid>,
   name: String)
@@ -205,123 +172,68 @@ let requirementDisplay(hash: String): String =
 let requirementBadge(hash: LanguageTools.ProgramTypes.Hash): String =
   "[" + Command.requirementDisplay(LanguageTools.ProgramTypes.hashToString(hash)) + "]"
 
-/// The author's `:{…}` ceiling for a function, when it declares one.
-let ceilingForHash(
-  hash: String)
-  : Stdlib.Option.Option<List<LanguageTools.Permissions.Effect>> =
-  match LanguageTools.PackageManager.Function.get(LanguageTools.ProgramTypes.Hash.Hash(hash)) with
-  | Some(fn) -> fn.permissionCeiling
-  | None -> Stdlib.Option.Option.None
-
-/// The per-function permission facts, as `show` and the package viewers
-/// print them: the requirements the body needs, the ceiling the author
-/// declared, and a warning when the two disagree — a ceiling narrower than a
-/// complete requirement set means those calls are denied at runtime.
+/// Effects describe the body; runtime permissions check the actual resources.
 let policyLinesForHash(hash: String): List<String> =
-  let (effects, complete) = Command.permissionRequirementsForHash(hash)
-  let requirementsLine =
-    $"permission requirements: {Command.describeRequirements((effects, complete))}"
-  match Command.ceilingForHash(hash) with
-  | None -> [ requirementsLine ]
-  | Some(ceiling) ->
-    let row = LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(ceiling))
-    let exceeding =
-      effects |> Stdlib.List.filter(fun e -> Stdlib.Bool.not(Stdlib.List.contains(ceiling, e)))
-    let warning =
-      if complete && Stdlib.Bool.not(Stdlib.List.isEmpty(exceeding)) then
-        [ "  warning: the body requires "
-          + Command.requirementSummary(exceeding)
-          + ", which the ceiling denies at runtime" ]
-      else []
-    Stdlib.List.concat([ requirementsLine, $"function ceiling: {row}" ], warning)
+  [ "permission requirements: " + Command.requirementDisplay(hash) ]
 
-/// A policy as rule lines; an empty policy is spelled out as `deny all`.
+/// Label grants and explicit blocks separately, including when either is empty.
 let policyLines(policy: LanguageTools.Permissions.Policy): List<String> =
-  match LanguageTools.Permissions.render(policy) with
-  | [] -> [ "deny all" ]
-  | rules -> rules
+  let ruleLines(rules: List<LanguageTools.Permissions.Rule>): List<String> =
+    if Stdlib.List.isEmpty(rules) then [ "  none" ]
+    else rules |> Stdlib.List.map(fun rule ->
+      "  " + LanguageTools.Permissions.renderRule(rule))
+  Stdlib.List.flatten(
+    [ [ "Allowed:" ]
+      ruleLines(policy.allow)
+      [ "Explicitly denied:" ]
+      ruleLines(policy.deny) ])
 
 /// The instance policy as `permissions list` prints it.
 let instancePolicyLines(): List<String> =
-  Command.policyLines(Command.currentPolicy())
+  Stdlib.List.flatten(
+    [ [ "Instance defaults:" ]
+      Command.policyLines(Command.currentPolicy())
+      [ "Unlisted access needs a remembered approval or --allow. Explicit denies win." ] ])
 
 let indentedPolicyLines(
   policy: LanguageTools.Permissions.Policy)
   : List<String> =
   Command.policyLines(policy) |> Stdlib.List.map(fun line -> "    " + line)
 
-/// Pure rendering for the layered access explanation. Kept separate from the
-/// host reads so its wording and security distinctions have executable tests.
-let renderAccessReport(facts: Command.AccessReportFacts): List<String> =
-  let requirements = Command.describeRequirements((facts.effects, facts.complete))
-  let analysis =
-    if facts.complete then "complete"
-    else "incomplete: some calls could not be followed, so their effects are not known here"
-  let ceilingText =
-    match facts.ceiling with
-    | None -> "not declared (inherits caller limits)"
-    | Some(names) ->
-      LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(names))
-  let approvalText =
-    match facts.packagePolicy with
-    | Some(_) -> "approved (rules below)"
-    | None ->
-      if facts.bundled then "not required (bundled Darklang code)"
-      else "not approved for dependency use"
-  let approvedAsText =
-    if Stdlib.List.isEmpty(facts.approvedAs) then "none"
-    else Stdlib.String.join(facts.approvedAs, ", ")
-  let packageLines =
-    match facts.packagePolicy with
-    | Some(policy) ->
-      Stdlib.List.prepend(
-        Command.indentedPolicyLines(policy),
-        "  package approval policy:")
-    | None -> []
-  let instanceLines =
-    Stdlib.List.prepend(
-      Command.indentedPolicyLines(facts.instancePolicy),
-      "  instance policy:")
-  let effective =
-    if facts.bundled then
-      "checked per operation: instance ∩ run ∩ function ceiling"
-    else
-      match facts.packagePolicy with
-      | Some(_) ->
-        "checked per operation: instance ∩ run ∩ package approval ∩ function ceiling"
-      | None ->
-        "blocked as a dependency; explicitly chosen entry points are treated as roots"
-  Stdlib.List.flatten(
-    [ [ "access"
-        $"  version: {Command.shortVersion(facts.hash)}"
-        $"  requires: {requirements}"
-        $"  analysis: {analysis}"
-        $"  author ceiling: {ceilingText}"
-        $"  consumer approval: {approvalText}"
-        $"  approved as: {approvedAsText}" ]
-      packageLines
-      instanceLines
-      [ "  run policy: selected when invoked (`--sandbox` denies all)"
-        $"  effective: {effective}"
-        "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ] ])
-
-/// A layered explanation of one immutable function's authority. Requirements
-/// say what its reachable code may request; actual authorization remains the
-/// runtime intersection shown here, with exact paths/URLs decided per call.
-let accessReportLines(
-  accountID: Stdlib.Option.Option<Uuid>,
-  hash: String)
+/// Show only this function's effects and remembered approvals.
+let renderAccessReport(
+  name: String,
+  facts: Command.AccessReportFacts)
   : List<String> =
-  Command.renderAccessReport(Command.accessFacts(accountID, hash))
+  let effectFree = facts.complete && Stdlib.List.isEmpty(facts.effects)
+  let effects =
+    if effectFree then "none"
+    else Command.describeRequirements((facts.effects, facts.complete))
+  let analysisLines =
+    if facts.complete then []
+    else [ "  Warning: analysis is incomplete; more permissions may be needed." ]
+  let packageLines =
+    if Stdlib.List.isEmpty(facts.approvals) then [ "  Remembered approval: none" ]
+    else
+      facts.approvals
+      |> Stdlib.List.map(fun((approvedName, policy)) ->
+        Stdlib.List.prepend(
+          Command.indentedPolicyLines(policy),
+          $"  Remembered approval for {approvedName} (version {Command.shortVersion(facts.hash)}):"))
+      |> Stdlib.List.flatten
+  Stdlib.List.flatten(
+    [ [ name, $"  Effects: {effects}" ]
+      (if effectFree then [ "  Permissions needed: none" ] else [])
+      analysisLines
+      packageLines ])
 
-/// The facts behind `accessReportLines`, for a caller that renders them its
-/// own way (the workbench's detail panes show a compact cut of them).
+/// Facts shared by the function report and workbench detail pane.
 let accessFacts(
   accountID: Stdlib.Option.Option<Uuid>,
   hash: String)
   : Command.AccessReportFacts =
   let (effects, complete) = Command.permissionRequirementsForHash(hash)
-  let (bundled, packagePolicy) = Command.packageAccess(accountID, hash)
+  let (bundled, approvals) = Command.packageAccess(accountID, hash)
   let approvedAs =
     Command.approvedVersions(accountID)
     |> Stdlib.List.filter(fun pair ->
@@ -331,9 +243,8 @@ let accessFacts(
     { hash = hash
       effects = effects
       complete = complete
-      ceiling = Command.ceilingForHash(hash)
       bundled = bundled
-      packagePolicy = packagePolicy
+      approvals = approvals
       approvedAs = approvedAs
       instancePolicy = Command.currentPolicy() }
 
@@ -521,7 +432,7 @@ let describeApprovalRules(
   | Some(policy) ->
     Stdlib.List.prepend(
       Command.indentedPolicyLines(policy),
-      "  approved under these rules (the package and everything it calls):")
+      "  additional grants for this entry and its helpers:")
 
 let approvalFailureText(failure: LanguageTools.Permissions.ApprovalFailure): String =
   match failure with
@@ -538,6 +449,7 @@ let approvalFailureText(failure: LanguageTools.Permissions.ApprovalFailure): Str
 let approveReporting(
   accountID: Stdlib.Option.Option<Uuid>,
   name: String,
+  expected: String,
   hash: String,
   rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>,
   acknowledgeIncomplete: Bool,
@@ -549,6 +461,7 @@ let approveReporting(
     Command.approveVersionFor(
       accountID,
       name,
+      expected,
       hash,
       rules,
       acknowledgeIncomplete,
@@ -569,6 +482,7 @@ let approveNamed(
   name: String,
   specs: List<String>)
   : Bool =
+  let expected = Command.reviewToken()
   match Command.parseApprovalRules(specs) with
   | Error(message) ->
     Cli.printErr(message)
@@ -590,7 +504,7 @@ let approveNamed(
         if acceptWithoutPrompt then true
         else if Stdlib.Cli.UI.Prompt.canAsk() then
           Stdlib.Cli.UI.Prompt.confirm(
-            "Approve this version, so the name resolves to it?")
+            "Remember this access for this code version?")
         else
           true
       if accepted then
@@ -601,11 +515,12 @@ let approveNamed(
           Command.approveReporting(
             state.accountID,
             name,
+            expected,
             hash,
             rules,
             Stdlib.Bool.not(complete),
             true,
-            $"✓ approved {name} {Command.shortVersion(hash)}; the name follows this version",
+            $"✓ remembered access for {name} {Command.shortVersion(hash)}",
             "")
         approved
       else
@@ -613,7 +528,7 @@ let approveNamed(
         Stdlib.printLine("not approved")
         true
 
-/// Review a newer version: only an explicit yes accepts it; otherwise the approved version stands.
+/// Review access for newer code; declining leaves the old approval unchanged.
 /// A changed contract requires a second confirmation. Updates always
 /// prompt, including non-interactive runs, unless `--yes` was given, which is
 /// itself the explicit yes and covers a changed contract too.
@@ -624,6 +539,7 @@ let updateNamed(
   specs: List<String>)
   : Bool =
   let accountID = state.accountID
+  let expected = Command.reviewToken()
   match Command.parseApprovalRules(specs) with
   | Error(message) ->
     Cli.printErr(message)
@@ -639,65 +555,65 @@ let updateNamed(
         Cli.printErr($"unknown function: {name}")
         false
       | Some(latest) ->
-        if latest == approved then
-          Stdlib.printLine($"{name} is up to date ({Command.shortVersion(approved)})")
+        // Rules given now win; otherwise the rules the consumer wrote when
+        // approving carry over, and a derived effect set is recomputed from
+        // the new version. Provenance is stored with the approval, so an
+        // explicit `clock` is never mistaken for a derived one.
+        let rules =
+          match givenRules with
+          | Some(_) -> givenRules
+          | None -> Command.explicitApprovalFor(accountID, name)
+        let complete =
+          Command.showVersionRequirements(
+            $"{name}: {Command.shortVersion(approved)} → {Command.shortVersion(latest)}",
+            latest)
+        Stdlib.printLines(Command.describeApprovalRules(rules))
+        let acknowledgeIncomplete = Stdlib.Bool.not(complete)
+        let kept =
+          "Approval unchanged."
+        let accepted =
+          $"✓ remembered access for {name} {Command.shortVersion(latest)}"
+        let approve(
+          acknowledgeContractChange: Bool)
+          : (Bool * Stdlib.Option.Option<List<String>>) =
+          Command.approveReporting(
+            accountID,
+            name,
+            expected,
+            latest,
+            rules,
+            acknowledgeIncomplete,
+            acknowledgeContractChange,
+            accepted,
+            kept)
+        let acceptNew =
+          acceptWithoutPrompt
+          || (Stdlib.Cli.UI.Prompt.confirm(
+                "Remember access for the current code version?"))
+        if Stdlib.Bool.not(acceptNew) then
+          // Declining leaves the old approval unchanged; it cannot authorize the new code.
+          Stdlib.printLine(kept)
           true
         else
-          // Rules given now win; otherwise the rules the consumer wrote when
-          // approving carry over, and a derived effect set is recomputed from
-          // the new version. Provenance is stored with the approval, so an
-          // explicit `clock` is never mistaken for a derived one.
-          let rules =
-            match givenRules with
-            | Some(_) -> givenRules
-            | None -> Command.explicitApprovalFor(accountID, approved)
-          let complete =
-            Command.showVersionRequirements(
-              $"{name}: {Command.shortVersion(approved)} → {Command.shortVersion(latest)}",
-              latest)
-          Stdlib.printLines(Command.describeApprovalRules(rules))
-          let acknowledgeIncomplete = Stdlib.Bool.not(complete)
-          let kept = $"keeping {Command.shortVersion(approved)}"
-          let accepted = $"✓ {name} now follows {Command.shortVersion(latest)}"
-          let approve(
-            acknowledgeContractChange: Bool)
-            : (Bool * Stdlib.Option.Option<List<String>>) =
-            Command.approveReporting(
-              accountID,
-              name,
-              latest,
-              rules,
-              acknowledgeIncomplete,
-              acknowledgeContractChange,
-              accepted,
-              kept)
-          let acceptNew =
-            acceptWithoutPrompt
-            || (Stdlib.Cli.UI.Prompt.confirm("Accept the new version?"))
-          if Stdlib.Bool.not(acceptNew) then
-            // Declining is an answer: the approved version stands, as asked.
-            Stdlib.printLine(kept)
-            true
-          else
-            let (approvedFirst, review) = approve(false)
-            match review with
-            | None -> approvedFirst
-            | Some(diffs) ->
-              // What the next question asks about, so on stderr with the question.
-              Stdlib.printErrorLine(
-                (Command.approvalFailureText(
-                  LanguageTools.Permissions.ApprovalFailure.ContractChanged(diffs))))
-              // The differences were shown; accepting them is the review.
-              let acceptChanged =
-                acceptWithoutPrompt
-                || (Stdlib.Cli.UI.Prompt.confirm(
-                      "Accept the new version and its changed permission contract?"))
-              if acceptChanged then
-                let (approvedSecond, _review) = approve(true)
-                approvedSecond
-              else
-                Stdlib.printLine(kept)
-                true
+          let (approvedFirst, review) = approve(false)
+          match review with
+          | None -> approvedFirst
+          | Some(diffs) ->
+            // What the next question asks about, so on stderr with the question.
+            Stdlib.printErrorLine(
+              (Command.approvalFailureText(
+                LanguageTools.Permissions.ApprovalFailure.ContractChanged(diffs))))
+            // The differences were shown; accepting them is the review.
+            let acceptChanged =
+              acceptWithoutPrompt
+              || (Stdlib.Cli.UI.Prompt.confirm(
+                    "Approve this code version and its changed permission requirements?"))
+            if acceptChanged then
+              let (approvedSecond, _review) = approve(true)
+              approvedSecond
+            else
+              Stdlib.printLine(kept)
+              true
 
 /// Run <param show> against the version <param target> names, or report an
 /// unknown function.
@@ -809,23 +725,36 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Command.unapproveVersionFor(state.accountID, name)
       Stdlib.printLine(
         (Stdlib.Cli.UI.Colors.success(
-          $"✓ {name} has no approved version; it follows the latest again")))
+          $"✓ Removed remembered approval for {name}. Other rules may still allow access.")))
       state
     else
       Cli.printErr($"{name} has no approved version; `permissions approved` lists the ones that do")
       Cli.failed(state)
-  | [ "approved" ] ->
-    Command.printListOrNone(
-      ((Command.approvedVersions(state.accountID))
-       |> Stdlib.List.map(fun pair ->
-         let (name, hash) = pair in $"{name}  {Command.shortVersion(hash)}")))
-    state
   | [ "requirements", target ] ->
     Cli.exitWith(state, (Command.withVersion(state, target, fun hash ->
       [ Command.requirementDisplay(hash) ])))
   | [ "show", target ] ->
-    Cli.exitWith(state, (Command.withVersion(state, target, fun hash ->
-      Command.accessReportLines(state.accountID, hash))))
+    if Stdlib.String.startsWith(target, "script:") then
+      match Command.explicitApprovalFor(state.accountID, target) with
+      | None ->
+        Cli.printErr($"No remembered approval for {target}")
+        Cli.failed(state)
+      | Some(policy) ->
+        Stdlib.printLine($"Remembered approval for {target}:")
+        Stdlib.List.iter(Command.indentedPolicyLines(policy), Stdlib.printLine)
+        Stdlib.printLine("Applies only to the reviewed source and dependency versions.")
+        Stdlib.printLine("Instance denies and run restrictions still win.")
+        state
+    else
+      let name = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, target)
+      Cli.exitWith(state, Command.withVersion(state, name, fun hash ->
+        let facts = Command.accessFacts(state.accountID, hash)
+        let facts =
+          if target == hash then facts
+          else { facts with
+            approvals = Stdlib.List.filter(facts.approvals, fun((n, _)) -> n == name)
+            approvedAs = Stdlib.List.filter(facts.approvedAs, fun n -> n == name) }
+        Command.renderAccessReport(name, facts)))
   | [ "revoke-package", hash ] ->
     // A hash that was never approved revokes nothing; say so rather than report a revoke.
     if Stdlib.List.contains(Command.approvedHashes(state.accountID), hash) then
@@ -835,11 +764,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     else
       Cli.printErr($"{hash} has no approval; `permissions approvals` lists the ones that do")
       Cli.failed(state)
-  | [ "approvals" ] ->
-    // Name the ones an approved version points at. The rest are dependencies approved as part of
-    // some root's closure and have no name of their own, but a page of bare hashes gave no way to
-    // tell those two apart.
-    Command.printListOrNone(Command.namedApprovals(state.accountID, state.currentBranchId))
+  | [ "approved" ] | [ "approvals" ] ->
+    let approvals = Command.namedApprovals(state.accountID)
+    if Stdlib.List.isEmpty(approvals) then
+      Stdlib.printLine("Remembered approvals: none")
+    else
+      Stdlib.printLine("Remembered approvals (listed versions only):")
+      Stdlib.printLines(approvals)
     if Command.approvalsStale() then
       Stdlib.printErrorLine(
         (Stdlib.Cli.UI.Colors.warning(
@@ -873,13 +804,21 @@ let help(_state: Cli.AppState): String =
   [ "Usage: permissions [list] | allow <rule> | deny <rule> | remove <rule>"
     "                   | set <rule>;… | clear"
     "                   | profile [name [ABSOLUTE-ROOT] [--yes]]"
-    "                   | approve <fn> [rule,…] | update <fn> [rule,…] | unapprove <fn>"
+    "                   | approve <fn> [rules] | update <fn> [rules] | unapprove <fn>"
     "                   | approved"
     "                   | requirements <fn|hash> | show <fn|hash>"
     "                   | approvals | revoke-package <hash>"
     ""
     "The instance policy is local and deny-by-default. Every actual host operation"
-    "must be allowed by the instance, run and package layers."
+    "needs an instance grant, a named entry approval, or a temporary run grant."
+    "Explicit instance denies and run restrictions always win. Helpers inherit"
+    "their caller's access. Effects describe behavior; they do not grant access."
+    "Dark checks the actual file, URL or other resource before each operation."
+    ""
+    "Inspect permissions:"
+    "  list           instance defaults: allowed rules and explicit denies"
+    "  show <fn>      the function's effects and remembered approvals"
+    "  approved       remembered approvals, each tied to a name and code version"
     ""
     "Profiles:"
     "  profile                         list the available presets"
@@ -888,30 +827,32 @@ let help(_state: Cli.AppState): String =
     "  profile local-dev <ROOT>        directory/store writes and HTTP serving too"
     "  Add --yes to apply. Replaces the entire instance policy, including denies."
     "  ROOT must be absolute; no process, native or environment access is granted."
-    "  HTTPS GET permits any host on port 443; HTTP serving permits any port."
+    "  HTTPS GET permits any host on port 443; HTTP serving permits any port on 127.0.0.1."
     ""
     "Named approvals:"
     "  --yes, -y      skip the confirmation; required for an unattended run,"
     "                 which must not rely on being detected as non-interactive"
-    "  approve <fn>   review the latest version's permission requirements and approve it, so"
-    "                 the name resolves to that exact version until you review a newer"
-    "                 one. Rules after the name confine the function and everything it"
-    "                 calls to those resources, e.g."
+    "  approve <fn>   remember access for the current code and its dependencies."
+    "                 Edits run immediately but do not inherit the old approval."
+    "                 Rules allow access to this entry and its helpers, in addition"
+    "                 to instance defaults. Separate names have separate grants, e.g."
     "                 approve MyApp.fetch http GET 'https://api.example.com'"
-    "  update <fn>    review a newer version: y accepts, anything else keeps the approved"
-    "                 one; a changed permission contract asks again. Rules given on"
+    "  update <fn>    review access for the current version; declining leaves it"
+    "                 unapproved. A changed permission contract asks again. Rules on"
     "                 approve carry over unless new ones are given"
-    "  unapprove <fn> withdraw the approval; the name follows the latest version again"
+    "  unapprove <name> withdraw a function or script approval; other rules still apply"
     "  approved       the names with an approved version, and which version"
-    "  approvals      the approved versions (hashes); revoke-package drops one and"
-    "                 the dependencies nothing else needs"
+    "  approvals      each approved name and version"
+    "  effects <fn>   use the top-level effects command for effects and call paths"
+    "  process-exact <EXE> [args] permits only those arguments (including none)"
+    "  revoke-package <hash> withdraw all named approvals of that version"
     ""
     "Rules:"
     "  <effect>                         e.g. clock, random, stdout, http, process,"
     "                                   package-read, trace-write (all of an effect)"
-    "  http <METHOD> [URL]              a URL also covers the paths under it, so"
-    "                                   https://h/api and https://h/api/* are the same; or *"
-    "  http-server <PORT|*>"
+    "  http <METHOD> [URL]              /api is exact; /api/* includes child paths"
+    "                                   no path allows any path; no query allows any query"
+    "  http-server <ADDRESS|*> <PORT|*>  IPv4 address, localhost, or any address"
     "  file read|write|read+write [ROOT]"
     "  env read|write|read+write [NAME]"
     "  process <ABSOLUTE-EXECUTABLE|*> [ARG…]"

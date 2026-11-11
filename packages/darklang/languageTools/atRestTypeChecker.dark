@@ -74,8 +74,6 @@ type IssueCode =
   | ImplMethodSet
   /// An impl's method fn does not have the trait method's signature at the self type
   | ImplMethodSignature
-  /// An impl's method fn may do more than the trait's method allows
-  | ImplExceedsCeiling
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
@@ -415,7 +413,6 @@ let issueCodeToString(code: IssueCode): String =
   | AmbiguousImpl -> "AmbiguousImpl"
   | ImplMethodSet -> "ImplMethodSet"
   | ImplMethodSignature -> "ImplMethodSignature"
-  | ImplExceedsCeiling -> "ImplExceedsCeiling"
   | UnresolvedTypeName -> "UnresolvedTypeName"
   | UnresolvedFunctionName -> "UnresolvedFunctionName"
   | UnresolvedValueName -> "UnresolvedValueName"
@@ -580,8 +577,6 @@ let contextToStringWith(
       | _ -> $"`{method}` is not a method of {traitName}"
     | ImplMethodSignature ->
       $"The fn given for `{method}` does not have {traitName}.{method}'s signature at this type ({detail})"
-    | ImplExceedsCeiling ->
-      $"The fn given for `{method}` may do more than {traitName}.{method} allows ({detail})"
     | _ -> $"`{method}` of {traitName}: {detail}"
   | FunctionUnavailable(fn) ->
     $"The signature for {name(fn)} is not available to the checker"

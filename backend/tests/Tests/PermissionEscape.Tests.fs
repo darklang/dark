@@ -131,7 +131,6 @@ let testEffectInCalledFnIsRefused =
         returnType = PT.TBigInt
         body = clockCall
         description = ""
-        permissionCeiling = None
         bounds = [] }
     let! (_ : int64) =
       Inserts.insertAndApplyOps

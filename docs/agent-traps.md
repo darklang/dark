@@ -350,29 +350,10 @@ trace's `status`, before trusting any number taken against a hand-authored fixtu
 intend to keep belongs in a file the walkthrough pipes in (`docs/walkthrough-fixture.dark`), so
 re-authoring it is one command rather than remembering what it was.
 
-**`Defined N declarations` is not evidence your edit took effect.** An approved name can stay on
-its old body while printing the same success line, so treat the line as "parsed", not "live":
-
-- AN APPROVED NAME FOLLOWS THE APPROVED VERSION. `permissions approve` says so out loud
-  ("the name follows this version"). Re-authoring does write the new body and does repoint the
-  name, but a previously approved name keeps resolving to the approved version until you approve
-  again. Re-running `dark module /Demo.X - < ...` after editing bodies leaves every approved
-  function on its OLD body until `permissions approve` makes the new one live. A newly added
-  name in the same file (a `val`) lands straight away, having no approval to pin it, which is
-  what makes it confusing: part of the file takes effect and part does not.
-- A DOC-ONLY EDIT keeps the item's hash. Doc comments are deliberately excluded from the
-  content hash (`Canonical.fs`), so `dark fn` and `dark module` (and so `dark edit`) write the
-  change as an `UpdateDoc` op and add "; updated N doc comments" to the line. If a doc edit seems
-  not to land, that line is what says whether it was written.
-
-The approval case is not a bug at all once you know it.
-
-The tell, and the useful part, because it works without knowing which one you are in: A COUNT IN
-THE OUTPUT DISAGREES WITH THE FILE, like a five-element list reporting "10 reads" because the old
-body's `repeatUnsafe 10` is still running. Put something countable in what you are editing (a length, a
-name, a number in a string) and check the output moved. To test an edited module without
-re-approving, load it under a fresh module path, which needs `permissions approve` per function
-anyway since a fresh name has none.
+**A doc-only edit keeps the item's hash.** Doc comments are excluded from the content hash
+(`Canonical.fs`), so `dark fn`, `dark module` and `dark edit` write the change as an `UpdateDoc`
+op and add "; updated N doc comments" to the output. If a doc edit seems not to land, that line
+says whether it was written.
 
 **`branch create` while standing on a branch creates a CHILD of that branch.** Switch to main
 first if you meant a sibling.
@@ -630,7 +611,7 @@ shipped values under guest policy.
 
 **A forwarding wrapper has no frame.** `let map(list, fn) = Builtin.listMap(list, fn)`
 is elided on both the first call and the cached `Apply` path. Both must establish
-`vm.activeAccess`, the wrapper's package policy and its ceiling. A wrapper is thin only
+`vm.activeAccess` with the invocation's grants and restrictions. A wrapper is thin only
 when its signature exactly matches the builtin; `sameType` even compares type-variable
 names, so tests must use the builtin's `'a` and `'b`. All paths share
 `Interpreter.packageEntryAccess`.

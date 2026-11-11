@@ -104,20 +104,18 @@ let createState
     // `setInstancePolicy Policy.allowAll`.
     access = LibExecution.Permissions.Access.denyAll
 
-    packagePolicy = fun _ -> LibExecution.Permissions.Policy.allowAll
+    packagePolicy = fun _ _ -> None
 
-    packagePolicyOrigin = fun _ -> None
-
-    policyFnName = fun _ -> None
 
     canManagePolicies = false
 
     // Deny-all by default: only a host that knows its bundled set opts fns in.
     isBundledPackageFn = fun _ -> false
 
-    permissionWarnings = None
 
     deniedRequests = ResizeArray()
+    permissionAccess = fun access -> access
+    requestPermission = None
 
     callApplicable =
       fun st access applicable args -> callApplicableCell st access applicable args
@@ -147,19 +145,6 @@ let restrictRun
         |> LibExecution.Permissions.Access.restrict
           LibExecution.Permissions.Layer.Run
           policy }
-
-/// Install consumer approvals by immutable package-function hash. A package
-/// the lookup does not know is denied. The interpreter memoizes the result
-/// per function, so the lookup itself need not be cheap.
-let setPackagePolicies
-  (lookup : RT.Hash -> Option<LibExecution.Permissions.Policy>)
-  (state : RT.ExecutionState)
-  : RT.ExecutionState =
-  { state with
-      packagePolicy =
-        fun hash ->
-          lookup hash |> Option.defaultValue LibExecution.Permissions.Policy.denyAll }
-
 
 let rec callStackForFrame
   (vm : RT.VMState)
@@ -544,7 +529,7 @@ let private runLoaded
 /// of the VM that called it -- and it bounds the callback exactly as the
 /// interpreter bounds a direct application: invoking frame, narrowed by
 /// whatever the callable captured. Without it the callback ran from the base
-/// access, outside the calling function's ceiling and package approval (see
+/// access, outside the calling invocation's restrictions (see
 /// `Interpreter.executeUnder`). A builtin that stores the callable to run
 /// later (a stream transform) must read `vm.activeAccess` into a local at the
 /// time it is handed the callable, not inside the deferred closure: the field
@@ -600,6 +585,7 @@ let instructionsForFunctionCall
         typeSymbolTable = RT.TST.empty
         typeArgs = typeArgs
         // Host-initiated: runs under the run-level access the state carries.
+        approvalName = None
         access = None
         argsSoFar = []
         boundImpls = [] }

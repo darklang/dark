@@ -79,7 +79,7 @@ let private scriptOrEvalInputPersistence =
             "a path/脚本.dark",
             "args",
             args,
-            { allowHarmful = true; sandbox = true; warnPermissions = true }
+            { allowHarmful = true; sandbox = true }
           )
         for input in [ Traces.EvalExpression("1 + 2", true); script ] do
           let id = storeInvocation (Some input)
@@ -105,13 +105,26 @@ let private scriptOrEvalInputPersistence =
             "args", Sql.dbnull
             "allow_harmful", Sql.dbnull
             "sandbox", Sql.dbnull
-            "sandbox", Sql.int 2
-            "warn_permissions", Sql.dbnull ] do
+            "sandbox", Sql.int 2 ] do
           Expect.throws
             (fun () -> setColumn id column bad)
             $"the store refuses a missing or malformed {column}"
         let! read = Traces.getCliInput id
         Expect.equal read (Some script) "and the invocation is left whole"
+
+        // Removing the retired warning mode preserves recorded invocations.
+        Sql.query
+          "ALTER TABLE trace_cli_invocations ADD COLUMN warn_permissions INTEGER NOT NULL DEFAULT 0"
+        |> Sql.executeStatementSync
+        LibDB.Releases.removeTraceWarningColumn ()
+        LibDB.Releases.removeTraceWarningColumn ()
+        let! afterCleanup = Traces.getCliInput id
+        Expect.equal afterCleanup (Some script) "cleanup preserves the invocation"
+        let obsoleteColumn =
+          Sql.query
+            "SELECT 1 FROM pragma_table_info('trace_cli_invocations') WHERE name = 'warn_permissions'"
+          |> Sql.executeExistsSync
+        Expect.isFalse obsoleteColumn "the retired column is absent"
 
         // The reader must also reject malformed argument bytes.
         for bad in

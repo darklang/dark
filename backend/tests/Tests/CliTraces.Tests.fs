@@ -406,7 +406,9 @@ let private testPermissionProfiles =
           Expect.isFalse
             (allowed (P.Request.file P.AccessKind.Write (root + "/output")))
             "no writes"
-          Expect.isFalse (allowed (P.Request.httpServer 9090)) "no serving"
+          Expect.isFalse
+            (allowed (P.Request.httpServer "127.0.0.1" 9090))
+            "no serving"
           checkSharedLimits ()
 
           let! _ = runCli admin (profileArgs "local-dev" @ [ "--yes" ])
@@ -416,7 +418,12 @@ let private testPermissionProfiles =
           Expect.isFalse
             (allowed (P.Request.file P.AccessKind.Write (dir + "/outside")))
             "scoped writes"
-          Expect.isTrue (allowed (P.Request.httpServer 9090)) "HTTP serving"
+          Expect.isTrue
+            (allowed (P.Request.httpServer "127.0.0.1" 9090))
+            "HTTP serving"
+          Expect.isFalse
+            (allowed (P.Request.httpServer "0.0.0.0" 9090))
+            "local development does not expose every interface"
           checkSharedLimits ()
 
           let! _ = runCli admin [ "permissions"; "profile"; "default"; "--yes" ]

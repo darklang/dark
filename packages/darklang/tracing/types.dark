@@ -24,8 +24,7 @@ type Status =
 /// Script options preserved for replay. Permissions are checked on each run.
 type ScriptOptions =
   { allowHarmful: Bool
-    sandbox: Bool
-    warnPermissions: Bool }
+    sandbox: Bool }
 
 
 /// Saved eval source, or a script's source, filename, arguments and options.

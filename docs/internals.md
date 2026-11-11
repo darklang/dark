@@ -107,17 +107,18 @@ and an op this build cannot decode both survive it.
 
 ## Traits
 
-A trait is a package item (`PT.Trait`: type params, bounds, method signatures with optional
-ceilings); an impl is a package item (`PT.TraitImpl`: the trait, its type args, the self
-type, own params and bounds, methods as `(name, fn)` pairs). Two ops, `AddTrait` and
+A trait is a package item (`PT.Trait`: type params, bounds, method signatures).
+An impl is a package item (`PT.TraitImpl`: the trait, its type args, the self type,
+own params and bounds, methods as `(name, fn)` pairs). Two ops, `AddTrait` and
 `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
-`FQTraitName` for references; binary format v3 (`BaseFormat.fs` lists every version since).
+`FQTraitName` for references. Only the current binary format is supported
+(`BaseFormat.fs` defines its version).
 The parser lowers `trait`/`impl` in `SourceFile.items` (F#) and `implWithOps` (Dark); both
 must agree on the impl's member path `<module>[.<Type>].<Trait>`, with the method fns as
 ordinary fns beneath it. Dispatch candidates come off the index
 (`PT2RT.ImplCandidate.ofPackageManager`), selection is `Traits.fs`, the checker validates
-traits and impls in `AtRestTypeChecker` (`ImplMethodSet`, `ImplMethodSignature`;
-`ImplExceedsCeiling` is declared and not checked yet). The operators are the stdlib traits
+traits and impls in `AtRestTypeChecker` (`ImplMethodSet`, `ImplMethodSignature`).
+The operators are the stdlib traits
 (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through `NumericTraits.fs`, whose
 hashes come from `PackageRefs.Trait`, so a new operator trait needs a ref and a regenerated
 `package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is structural for every

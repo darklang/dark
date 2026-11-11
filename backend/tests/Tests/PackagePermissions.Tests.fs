@@ -23,7 +23,6 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
     returnType = PT.TBigInt
     description = ""
-    permissionCeiling = None
     bounds = [] }
 
 /// A `List<BigInt> -> (BigInt -> BigInt) -> List<BigInt>` fn: the shape that hands its own
@@ -40,7 +39,6 @@ let private higherOrderFn (hash : string) (body : PT.Expr) : PT.PackageFn.Packag
             description = "" } ]
     returnType = PT.TList PT.TBigInt
     description = ""
-    permissionCeiling = None
     bounds = [] }
 
 /// A closure of in-memory fns, each body analyzed once, as
@@ -67,7 +65,7 @@ let private testEffects : PackagePermissions.CallEffectsFor =
 let private callBuiltin (name : string) : PT.Expr =
   eApply (eBuiltinFn name 0) [] [ eUnit () ]
 
-/// The review tests share one package universe: `v1` is the pinned version,
+/// The review tests share one package universe: `v1` is the approved version,
 /// `v2` an identical-contract re-release, `wider` adds a file read, and
 /// `dynamic` applies a callback the static walk cannot follow.
 let private reviewUniverse =
@@ -101,7 +99,7 @@ let private loadFromUniverse : PackagePermissions.Load =
 
 let private reviewUnder
   explicitPolicy
-  currentPin
+  previousApproval
   hash
   acknowledgeIncomplete
   acknowledgeChange
@@ -109,15 +107,15 @@ let private reviewUnder
   PackagePermissions.reviewVersion
     loadFromUniverse
     testEffects
-    currentPin
+    previousApproval
     hash
     explicitPolicy
     acknowledgeIncomplete
     acknowledgeChange
   |> Ply.toTask
 
-let private review currentPin hash acknowledgeIncomplete acknowledgeChange =
-  reviewUnder None currentPin hash acknowledgeIncomplete acknowledgeChange
+let private review previousApproval hash acknowledgeIncomplete acknowledgeChange =
+  reviewUnder None previousApproval hash acknowledgeIncomplete acknowledgeChange
 
 /// `file read /data` plus the clock: the consumer's own resource rules.
 let private consumerRules : Permission.Policy =
@@ -179,6 +177,7 @@ module ValueReferences =
         { name = RT.FQFnName.fqBuiltin "fileRead" 0
           typeSymbolTable = RT.TST.empty
           typeArgs = []
+          approvalName = None
           access = None
           argsSoFar = []
           boundImpls = [] }
@@ -370,21 +369,18 @@ let reviewAcceptsAnUnchangedContract =
       Expect.equal
         (policies |> List.map snd)
         [ Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock) ]
-        "a complete member is pinned to its exact effect set"
+        "a complete member is approved for its exact effect set"
     | other -> failtest $"expected Approvable, got {other}"
   }
 
 let reviewApprovesTheRootUnderExplicitRules =
-  testTask
-    "consumer rules confine the root; dependencies keep their derived policies" {
+  testTask "only the named root receives a policy" {
     let! reviewed = reviewUnder (Some consumerRules) None "caller" false false
     match reviewed with
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal
         (Map.ofList policies)
-        (Map
-          [ "caller", consumerRules
-            "v1", Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock) ])
+        (Map [ "caller", consumerRules ])
         "the root is stored under the rules written for it; the dependency it calls is not narrowed by them"
     | other -> failtest $"expected Approvable, got {other}"
     // Explicit rules bound an incomplete closure without an acknowledgement:
@@ -396,25 +392,15 @@ let reviewApprovesTheRootUnderExplicitRules =
     | other -> failtest $"expected Approvable, got {other}"
   }
 
-let reviewRefusesRulesThatCannotCoverTheRequirements =
-  testTask "rules that never allow a required effect are refused, naming it" {
+let reviewAcceptsRestrictiveRules =
+  testTask "narrow rules are accepted even when analysis predicts more effects" {
     let clockOnly =
       Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock)
     let! reviewed = reviewUnder (Some clockOnly) None "caller" false false
     match reviewed with
-    | Error message ->
-      Expect.stringContains
-        message
-        "never allow file-read"
-        "the missing effect is named at approval time, not by a runtime denial"
-    | other -> failtest $"expected an error, got {other}"
-    // Only which effects a rule can cover matters here; the exact resource
-    // is decided at runtime, so a narrow file root still covers file-read.
-    let! narrow = reviewUnder (Some consumerRules) None "wider" false false
-    Expect.isOk narrow "a file root plus the clock covers file-read and clock"
-    let! anything =
-      reviewUnder (Some Permission.Policy.allowAll) None "wider" false false
-    Expect.isOk anything "an `all` rule covers every effect"
+    | Ok(PackagePermissions.Review.Approvable policies) ->
+      Expect.equal policies [ "caller", clockOnly ] "runtime checks missing access"
+    | other -> failtest $"expected a narrow approval, got {other}"
   }
 
 let reviewRefusesAWidenedContractWithoutAcknowledgment =
@@ -443,8 +429,8 @@ let reviewRejectsAnIncompleteClosure =
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal
         (policies |> List.map snd)
-        [ Permission.Policy.allowAll ]
-        "an acknowledged-incomplete member is allow-all, bounded by instance/run"
+        [ Permission.Policy.denyAll ]
+        "unknown effects never become automatic grants"
     | other -> failtest $"expected Approvable after acknowledgment, got {other}"
     let! unknown = review None "missing" true true
     Expect.isError unknown "an unknown hash cannot be approved"
@@ -651,10 +637,82 @@ let cacheSafetyRejectsBranchDependentRendering =
     Expect.isEmpty result.requiredEffects "this is not a permission effect"
   }
 
+let preflightCollectsOnlyCertainRequests =
+  testTask "preflight batches literal requests but stops at uncertain control flow" {
+    let env name =
+      eApply (eBuiltinFn "runtimeEnvironmentGet" 0) [] [ eStr [ strText name ] ]
+    let read name =
+      eApply (eBuiltinFn "runtimeAuthorizeReadPath" 0) [] [ eStr [ strText name ] ]
+    let collect expressions =
+      LibDB.PermissionReview.preflight
+        loadFromUniverse.fn
+        (fun _ _ -> None)
+        expressions
+      |> Ply.toTask
+    let! known = collect [ env "A"; env "B"; env "A"; read "/tmp/report" ]
+    Expect.equal (List.length known) 3 "one batch with duplicates removed"
+    let wrapper =
+      { unitFn
+          "environment-wrapper"
+          (eApply (eBuiltinFn "runtimeEnvironmentGet" 0) [] [ eVar "name" ]) with
+          parameters =
+            NEList.singleton { name = "name"; typ = PT.TString; description = "" } }
+    let load hash = Ply(if hash = wrapper.hash then Some wrapper else None)
+    let! wrapped =
+      LibDB.PermissionReview.preflight
+        load
+        (fun _ _ -> None)
+        [ eApply
+            (ePackageFn "environment-wrapper")
+            []
+            [ eStr [ strText "THROUGH_WRAPPER" ] ] ]
+      |> Ply.toTask
+    Expect.equal (List.length wrapped) 1 "named parameters retain literal arguments"
+
+    let! deferred = collect [ eLambda (gid ()) [ lpVar "x" ] (env "SECRET") ]
+    Expect.isEmpty deferred "returning a callback does not execute it"
+    let! dynamic = collect [ eApply (eVar "callback") [] [ eUnit () ]; env "LATER" ]
+    Expect.isEmpty dynamic "unknown calls defer subsequent requests to runtime"
+
+    let! conditional =
+      collect [ eIf (eVar "condition") (env "SECRET") (Some(eUnit ())); env "LATER" ]
+    Expect.isEmpty conditional "unknown branches are checked at runtime"
+    let! chosen = collect [ eIf (eBool true) (env "A") (Some(env "SECRET")) ]
+    Expect.equal (List.length chosen) 1 "only the literal branch is included"
+    let! stopped = collect [ PT.EUnwrap(gid (), env "FIRST"); env "LATER" ]
+    Expect.equal (List.length stopped) 1 "a possible early return stops preflight"
+  }
+
+let effectReasonsFollowDependencies =
+  testTask "effect explanations retain call paths and incompleteness" {
+    let! (result : Requirements.Result), reasons =
+      PackagePermissions.explain loadFromUniverse testEffects "caller" |> Ply.toTask
+    Expect.isTrue result.complete "known calls remain complete"
+    Expect.equal
+      (reasons |> List.map fst |> Set.ofList)
+      result.requiredEffects
+      "every reported effect has a reason"
+    let clockPath =
+      reasons |> List.find (fun (effect, _) -> effect = Effect.Effect.Clock)
+    match clockPath with
+    | Some(_, path) ->
+      Expect.equal (List.length path) 2 "dependency plus builtin"
+      Expect.equal
+        (List.last path)
+        (Some "Builtin.syscallGettimeofday")
+        "ends at effect"
+    | None -> failtest "missing clock explanation"
+    let! (dynamic : Requirements.Result), _ =
+      PackagePermissions.explain loadFromUniverse testEffects "dynamic" |> Ply.toTask
+    Expect.isFalse dynamic.complete "unknown callbacks stay visible"
+  }
+
 let tests =
   testList
     "packagePermissions"
-    [ dictionaryKeysAreAnalyzed
+    [ preflightCollectsOnlyCertainRequests
+      effectReasonsFollowDependencies
+      dictionaryKeysAreAnalyzed
       cacheSafetyRejectsBranchDependentRendering
       testBodiesUseTransitiveCacheSafetyAnalysis
       missingCodeIsIncomplete
@@ -666,7 +724,7 @@ let tests =
       reviewApprovesACallerOfACallbackTakingDependency
       reviewAcceptsAnUnchangedContract
       reviewApprovesTheRootUnderExplicitRules
-      reviewRefusesRulesThatCannotCoverTheRequirements
+      reviewAcceptsRestrictiveRules
       reviewRefusesAWidenedContractWithoutAcknowledgment
       reviewRejectsAnIncompleteClosure
       testList "operators and trait calls" Operators.tests

@@ -154,8 +154,7 @@ let fnNamed(
       // `Record (CreationMissingField "bounds")`, which the runner then reported
       // as an empty message. Nothing here declares one, so the empty list is the
       // honest value.
-      bounds = []
-      permissionCeiling = Stdlib.Option.Option.None }
+      bounds = [] }
 
 let oneArg(
   parameterType: Darklang.LanguageTools.ProgramTypes.TypeReference,

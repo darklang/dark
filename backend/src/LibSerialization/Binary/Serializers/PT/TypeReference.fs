@@ -129,6 +129,4 @@ module Bound =
     let trait_ = TraitRef.read r
     { param = param; trait_ = trait_ }
 
-  /// `bounds` did not exist before format v2; a v1 blob has none.
-  let readList (version : uint32) (r : BinaryReader) : List<Bound> =
-    if version < 2u then [] else List.read r read
+  let readList (r : BinaryReader) : List<Bound> = List.read r read

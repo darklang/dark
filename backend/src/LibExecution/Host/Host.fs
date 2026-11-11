@@ -166,9 +166,13 @@ let takeHttpServerListener (handle : int64) : System.Net.HttpListener =
       "unknown or already-claimed HTTP server handle"
       [ "handle", string handle ]
 
-let private bindHttpServer (port : int) : Result<Response, int * string> =
+let private bindHttpServer
+  (address : string)
+  (port : int)
+  : Result<Response, int * string> =
   let listener = new System.Net.HttpListener()
-  listener.Prefixes.Add($"http://*:{port}/")
+  let host = if address = "0.0.0.0" then "*" else address
+  listener.Prefixes.Add($"http://{host}:{port}/")
   let closeListener () = listener.Close()
   try
     listener.Start()
@@ -947,10 +951,19 @@ let private resolve (op : Operation) : Result<Resolved, string> =
           let! result = HostHttp.openStream profile method uri headers body
           return Ok(Response.HttpStream result)
         })
-  | Operation.HttpServerBind port ->
+  | Operation.HttpServerBind(address, port) ->
     withChecks
-      [ (Permission.Request.httpServer port, $"binding HTTP server port {port}") ]
-      (attempt (fun () -> bindHttpServer port))
+      [ (Permission.Request.httpServer address port,
+         $"binding HTTP server {address}:{port}") ]
+      (attempt (fun () ->
+        match Permission.Request.serverAddress address with
+        | Error message -> Error(-1, message)
+        | Ok address when System.OperatingSystem.IsWindows() && address <> "0.0.0.0" ->
+          Error(
+            -1,
+            "Address-scoped HTTP binding is not supported by the Windows listener"
+          )
+        | Ok address -> bindHttpServer address port))
   | Operation.Posix op -> resolvePosix None op
   | Operation.ChildStart _
   | Operation.ChildDescriptors _
@@ -991,19 +1004,19 @@ let setAuditSink (sink : Operation -> Outcome -> unit) : unit = auditSink <- sin
 /// suggested fix comes structurally from the denied request, which already
 /// encodes the exact access (read vs write).
 let private firstDenial
-  (relax : Permission.Relax)
   (access : Permission.Access)
   (checks : List<Permission.Request * string>)
   : Option<Outcome> =
   checks
   |> List.tryPick (fun (request, resource) ->
-    Permission.Access.decide relax (fun () -> resource) request access
+    Permission.Access.decide request access
     |> Option.map (fun denial ->
       Outcome.Denied(
         denial.layer,
         denial.reason,
         resource,
-        Permission.Request.suggestRule request
+        Permission.Request.suggestRule request,
+        request
       )))
 
 let private execute (run : Execute) : Task<Outcome> =
@@ -1150,10 +1163,8 @@ let private invalidDescriptor =
 /// Called under the descriptor leases; they cannot be closed or reused until the
 /// syscall completes. Current access is checked on every use, not just open.
 ///
-/// Returns the checks of the descriptors' retained grants apart from the
-/// operation's own: the caller checks the first without the consumer approvals
-/// (`Permission.Access.withoutPackageApprovals`), since they were checked when
-/// the descriptor was opened.
+/// Returns checks for both retained descriptor resources and the operation.
+/// Both must be allowed by the current invocation.
 let private resolveSessionPosix
   (session : Option<HostDescriptors.Session>)
   (op : HostTypes.PosixOp)
@@ -1278,7 +1289,6 @@ let private resolveSessionPosix
 /// and executes.
 let private performWithSession
   (session : Option<HostDescriptors.Session>)
-  (relax : Permission.Relax)
   (access : Permission.Access)
   (op : Operation)
   : Task<Outcome> =
@@ -1302,7 +1312,7 @@ let private performWithSession
             with
             | Error message -> Task.FromResult(Outcome.Rejected message)
             | Ok resolved ->
-              match firstDenial relax access resolved.checks with
+              match firstDenial access resolved.checks with
               | Some denied -> Task.FromResult denied
               | None -> execute resolved.execute
         | Operation.ChildWait handle ->
@@ -1320,7 +1330,7 @@ let private performWithSession
               with
               | Error message -> Error(Outcome.Rejected message)
               | Ok resolved ->
-                match firstDenial relax access resolved.checks with
+                match firstDenial access resolved.checks with
                 | Some denied -> Error denied
                 | None -> Ok(HostProcess.prepareChildWait entry.child)
           Task.Run(fun () ->
@@ -1362,7 +1372,7 @@ let private performWithSession
                         "invalid retained process grant"
                         [ "message", message ]
                   [ request, $"using child `{entry.child.program}`" ]
-              match firstDenial relax access checks with
+              match firstDenial access checks with
               | Some denied -> denied
               | None ->
                 try
@@ -1411,10 +1421,9 @@ let private performWithSession
         | Operation.Posix posix ->
           let resolve () = resolveSessionPosix session posix
           let denial (retained, resolved : Resolved) =
-            let held = Permission.Access.withoutPackageApprovals access
-            match firstDenial relax held retained with
+            match firstDenial access retained with
             | Some denied -> Some denied
-            | None -> firstDenial relax access resolved.checks
+            | None -> firstDenial access resolved.checks
           let run () =
             match resolve () with
             | Error outcome -> outcome
@@ -1448,7 +1457,7 @@ let private performWithSession
           match resolve op with
           | Error message -> Task.FromResult(Outcome.Rejected message)
           | Ok resolved ->
-            match firstDenial relax access resolved.checks with
+            match firstDenial access resolved.checks with
             | Some denied -> Task.FromResult denied
             | None -> execute resolved.execute
     try
@@ -1458,10 +1467,9 @@ let private performWithSession
     return outcome
   }
 
-let perform relax access op = performWithSession None relax access op
+let perform access op = performWithSession None access op
 
-let performInSession session relax access op =
-  performWithSession (Some session) relax access op
+let performInSession session access op = performWithSession (Some session) access op
 
 // ── stream-handle continuations ───────────────────────────────────────────────
 // Used by the HTTP client's DStream closures. The open operation already made

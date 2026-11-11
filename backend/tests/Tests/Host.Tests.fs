@@ -75,7 +75,7 @@ let auditLineIsJsonWithTheLoggedFields =
         [||]
       )
     let access = Permission.Access.start Permission.Policy.denyAll
-    let! outcome = LibExecution.Host.perform Permission.NoRelax access op
+    let! outcome = LibExecution.Host.perform access op
     let now = System.DateTime(2026, 1, 2, 3, 4, 5, System.DateTimeKind.Utc)
     let line = HT.auditLine now op outcome
     Expect.isFalse (line.Contains "\n") "one line per entry"
@@ -109,17 +109,93 @@ let auditLineIsJsonWithTheLoggedFields =
       "descriptor"
   }
 
+let httpAuthorityCannotBeOverridden =
+  test "HTTP authority comes only from the checked URL" {
+    for name in [ "Host"; "host"; "hOsT" ] do
+      match
+        HostHttp.prepare
+          HT.HttpProfile.Guest
+          "GET"
+          "https://example.com/"
+          [ name, "other.example.com" ]
+      with
+      | Error(HT.HttpRequestError.BadHeader HT.HttpBadHeader.InvalidName) -> ()
+      | other -> failtestf "expected Host override rejection, got %A" other
+  }
+
+let environmentListRespectsVariableDenies =
+  testTask "bulk environment access cannot bypass a named read deny" {
+    let policy =
+      Permission.Policy.create
+        [ Permission.Rule.Env(Permission.AccessKind.Read, Permission.Scope.All) ]
+        [ Permission.Rule.Env(Permission.AccessKind.Read, only "PRIVATE_TOKEN") ]
+    let! outcome =
+      LibExecution.Host.perform (Permission.Access.start policy) HT.Operation.EnvList
+    match outcome with
+    | HT.Outcome.Denied _ -> ()
+    | other -> failtestf "expected denial before enumerating variables, got %A" other
+  }
+
 let httpServerBindUsesTheSuppliedAccess =
   testTask "HTTP server bind is denied before touching the socket" {
     let access = Permission.Access.start Permission.Policy.denyAll
     let! outcome =
-      LibExecution.Host.perform
-        Permission.NoRelax
-        access
-        (HT.Operation.HttpServerBind 0)
+      LibExecution.Host.perform access (HT.Operation.HttpServerBind("127.0.0.1", 0))
     match outcome with
-    | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _) -> ()
+    | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _, _) -> ()
     | other -> failtest $"expected an instance denial, got {other}"
+  }
+
+let httpServerBindsOnlyTheCheckedAddress =
+  testTask "HTTP listener binds only the address that was approved" {
+    let reserve =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    let port =
+      try
+        reserve.Start()
+        (reserve.LocalEndpoint :?> System.Net.IPEndPoint).Port
+      finally
+        reserve.Stop()
+    let policy =
+      Permission.Policy.create
+        [ Permission.Rule.HttpServer(only "127.0.0.1", only port) ]
+        []
+    let! outcome =
+      LibExecution.Host.perform
+        (Permission.Access.start policy)
+        (HT.Operation.HttpServerBind("127.0.0.1", port))
+    if System.OperatingSystem.IsWindows() then
+      match outcome with
+      | HT.Outcome.Failed _ -> ()
+      | other -> failtest $"unsupported scoped binding must fail closed: {other}"
+    else
+      match outcome with
+      | HT.Outcome.Success response ->
+        let listener =
+          response
+          |> LibExecution.Host.expectHttpServerHandle
+          |> LibExecution.Host.takeHttpServerListener
+        let client = new System.Net.Sockets.TcpClient()
+        let other = new System.Net.Sockets.TcpClient()
+        try
+          do! client.ConnectAsync("127.0.0.1", port)
+          let! refused =
+            task {
+              try
+                do!
+                  other
+                    .ConnectAsync("127.0.0.2", port)
+                    .WaitAsync(System.TimeSpan.FromSeconds 2.)
+                return false
+              with :? System.Net.Sockets.SocketException ->
+                return true
+            }
+          Expect.isTrue refused "a different local address is not listening"
+        finally
+          other.Close()
+          client.Close()
+          listener.Close()
+      | other -> failtest $"approved listener could not bind: {other}"
   }
 
 let rawDescriptorsRequireNativeAtHostBoundary =
@@ -139,15 +215,13 @@ let rawDescriptorsRequireNativeAtHostBoundary =
     for operation in operations do
       let! outcome =
         LibExecution.Host.perform
-          Permission.NoRelax
           (Permission.Access.start Permission.Policy.denyAll)
           (HT.Operation.Posix operation)
       match outcome with
-      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _) -> ()
+      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _, _) -> ()
       | other -> failtest $"expected denial before EBADF, got {other}"
     let! allowed =
       LibExecution.Host.perform
-        Permission.NoRelax
         (Permission.Access.start Permission.Policy.allowAll)
         (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Raw -1, 1)))
     match allowed with
@@ -174,11 +248,7 @@ let scopedDescriptorsRecheckAccessAndOwnership =
     let denied = Permission.Access.start Permission.Policy.denyAll
     let all = Permission.Access.start Permission.Policy.allowAll
     let perform session access op =
-      LibExecution.Host.performInSession
-        session
-        Permission.NoRelax
-        access
-        (HT.Operation.Posix op)
+      LibExecution.Host.performInSession session access (HT.Operation.Posix op)
     let ebadf outcome =
       match outcome with
       | HT.Outcome.Failed failure ->
@@ -230,12 +300,10 @@ let scopedDescriptorsRecheckAccessAndOwnership =
       System.IO.File.Delete path
   }
 
-/// A descriptor's retained grant is checked without the consumer approvals: the open was
-/// checked against them, so an approved function's own derived policy (deny-all for a
-/// helper like `Posix.fdRead`, which declares no effect) must not refuse its reads. A
-/// package approval still governs the open, and a function ceiling still governs every use.
-let scopedDescriptorsSkipApprovalsButNotCeilings =
-  testTask "a descriptor read skips package approvals but not function ceilings" {
+/// Retained file handles obey the current invocation on every read and seek.
+/// A denied operation must leave the descriptor cursor untouched.
+let scopedDescriptorsRespectInvocation =
+  testTask "a held descriptor obeys invocation and run restrictions" {
     let path =
       System.IO.Path.Combine(
         System.IO.Path.GetTempPath(),
@@ -253,17 +321,11 @@ let scopedDescriptorsSkipApprovalsButNotCeilings =
       |> Permission.Access.restrict
         (Permission.Layer.Package "helper")
         Permission.Policy.denyAll
-    let underCeiling =
+    let underRunRestriction =
       instance
-      |> Permission.Access.restrict
-        (Permission.Layer.Function "pure")
-        Permission.Policy.denyAll
+      |> Permission.Access.restrict Permission.Layer.Run Permission.Policy.denyAll
     let perform access op =
-      LibExecution.Host.performInSession
-        owner
-        Permission.NoRelax
-        access
-        (HT.Operation.Posix op)
+      LibExecution.Host.performInSession owner access (HT.Operation.Posix op)
     let denied why outcome =
       match outcome with
       | HT.Outcome.Denied _ -> ()
@@ -277,17 +339,20 @@ let scopedDescriptorsSkipApprovalsButNotCeilings =
         | HT.Outcome.Success(HT.Response.Descriptor token) ->
           HT.FileDescriptor.Scoped token
         | other -> failtestf "expected scoped open, got %A" other
-      let! read = perform underApproval (HT.PosixOp.FdRead(fd, 3))
+      let! refusedRead = perform underApproval (HT.PosixOp.FdRead(fd, 3))
+      denied "a retained handle cannot bypass invocation restrictions" refusedRead
+      let! refusedSeek = perform underApproval (HT.PosixOp.FdSeek(fd, 1L, 0))
+      denied "seeking requires the same invocation access" refusedSeek
+      let! read = perform instance (HT.PosixOp.FdRead(fd, 3))
       match read with
       | HT.Outcome.Success(HT.Response.Bytes bytes) ->
-        Expect.equal bytes [| 97uy; 98uy; 99uy |] "the open's grant covers the read"
-      | other -> failtest $"expected the read past a deny-all approval, got {other}"
-      let! seek = perform underApproval (HT.PosixOp.FdSeek(fd, 0L, 0))
-      match seek with
-      | HT.Outcome.Success _ -> ()
-      | other -> failtest $"expected the seek past a deny-all approval, got {other}"
-      let! ceiling = perform underCeiling (HT.PosixOp.FdRead(fd, 1))
-      denied "a function ceiling still refuses a held descriptor" ceiling
+        Expect.equal
+          bytes
+          [| 97uy; 98uy; 99uy |]
+          "denied operations did not move the cursor"
+      | other -> failtest $"expected the permitted read, got {other}"
+      let! restricted = perform underRunRestriction (HT.PosixOp.FdRead(fd, 1))
+      denied "a run restriction still refuses a held descriptor" restricted
       let! revoked =
         perform
           (Permission.Access.start Permission.Policy.denyAll)
@@ -356,7 +421,7 @@ let ownedChildrenRetainScopedProcessAuthority =
         |> Permission.Access.start
       let denied = Permission.Access.start Permission.Policy.denyAll
       let perform session access op =
-        LibExecution.Host.performInSession session Permission.NoRelax access op
+        LibExecution.Host.performInSession session access op
       let ebadf outcome =
         match outcome with
         | HT.Outcome.Failed error ->
@@ -457,8 +522,7 @@ let ownedChildWaitAllowsCleanup =
       let owner = LibExecution.Host.createDescriptorSession ()
       let all = Permission.Access.start Permission.Policy.allowAll
       let denied = Permission.Access.start Permission.Policy.denyAll
-      let perform access op =
-        LibExecution.Host.performInSession owner Permission.NoRelax access op
+      let perform access op = LibExecution.Host.performInSession owner access op
       try
         let! started =
           perform
@@ -525,11 +589,7 @@ let watchQueuesRetainScopedPathAuthority =
         |> Permission.Access.start
       let denied = Permission.Access.start Permission.Policy.denyAll
       let perform session access op =
-        LibExecution.Host.performInSession
-          session
-          Permission.NoRelax
-          access
-          (HT.Operation.Posix op)
+        LibExecution.Host.performInSession session access (HT.Operation.Posix op)
       try
         let! opened = perform owner denied (HT.PosixOp.InotifyInit1 526336)
         let fd =
@@ -587,14 +647,12 @@ let systemFactsDoNotGrantSensitiveQueries =
     let access = Permission.Access.start Permission.Policy.denyAll
     for op in
       [ HT.PosixOp.SysctlBytes([ 1; 14 ], 256); HT.PosixOp.SchedGetaffinity(1, 128) ] do
-      let! outcome =
-        LibExecution.Host.perform Permission.NoRelax access (HT.Operation.Posix op)
+      let! outcome = LibExecution.Host.perform access (HT.Operation.Posix op)
       match outcome with
       | HT.Outcome.Denied _ -> ()
       | other -> failtest $"expected Native denial before kernel query, got {other}"
     let! local =
       LibExecution.Host.perform
-        Permission.NoRelax
         access
         (HT.Operation.Posix(HT.PosixOp.SchedGetaffinity(0, 128)))
     match local with
@@ -614,11 +672,10 @@ let tempPrefixDoesNotAuthorizeARandomSibling =
         []
     let! outcome =
       LibExecution.Host.perform
-        Permission.NoRelax
         (Permission.Access.start policy)
         (HT.Operation.Posix(HT.PosixOp.Mkstemp prefix))
     match outcome with
-    | HT.Outcome.Denied(Permission.Layer.Instance, _, resource, _) ->
+    | HT.Outcome.Denied(Permission.Layer.Instance, _, resource, _, _) ->
       Expect.stringContains
         resource
         "/tmp"
@@ -646,7 +703,6 @@ let readlinkMayInspectTheFinalSymlink =
           []
       let! outcome =
         LibExecution.Host.perform
-          Permission.NoRelax
           (Permission.Access.start policy)
           (HT.Operation.Posix(HT.PosixOp.ReadlinkBytes(link, 4096)))
       match outcome with
@@ -800,7 +856,7 @@ let packageStoreAncestorsAreProtected =
           [ Permission.Rule.File(Permission.AccessKind.Write, only root) ]
           []
       )
-    let perform op = LibExecution.Host.perform Permission.NoRelax access op
+    let perform op = LibExecution.Host.perform access op
     let expectRefused (label : string) (outcome : HT.Outcome) =
       match outcome with
       | HT.Outcome.Rejected message ->
@@ -864,7 +920,7 @@ let rootDirectoryIsReadable =
   testTask "listing and stat work on the filesystem root" {
     if LibExecution.HostPosix.isPosix then
       let access = Permission.Access.start Permission.Policy.allowAll
-      let perform op = LibExecution.Host.perform Permission.NoRelax access op
+      let perform op = LibExecution.Host.perform access op
       let! listed = perform (HT.Operation.DirectoryList "/")
       match listed with
       | HT.Outcome.Success _ -> ()
@@ -977,11 +1033,10 @@ let rawClocksRequireClockPermission =
         HT.PosixOp.Nanosleep(0L, 0L) ] do
       let! outcome =
         LibExecution.Host.perform
-          Permission.NoRelax
           (Permission.Access.start Permission.Policy.denyAll)
           (HT.Operation.Posix operation)
       match outcome with
-      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _) -> ()
+      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _, _) -> ()
       | other -> failtest $"expected Clock denial before kernel errno, got {other}"
   }
 
@@ -1324,7 +1379,9 @@ let httpWideningsAreScoped =
 let tests =
   testList
     "host"
-    [ posixKernelRoundTrip
+    [ httpAuthorityCannotBeOverridden
+      environmentListRespectsVariableDenies
+      posixKernelRoundTrip
       httpWideningsAreScoped
       testRunSnapshot
       sharedTestRunSnapshot
@@ -1335,9 +1392,10 @@ let tests =
       auditRecordsOperationsAndDecisions
       auditLineIsJsonWithTheLoggedFields
       httpServerBindUsesTheSuppliedAccess
+      httpServerBindsOnlyTheCheckedAddress
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
-      scopedDescriptorsSkipApprovalsButNotCeilings
+      scopedDescriptorsRespectInvocation
       descriptorLeasesDoNotSerializeUnrelatedFiles
       ownedChildrenRetainScopedProcessAuthority
       ownedChildWaitAllowsCleanup

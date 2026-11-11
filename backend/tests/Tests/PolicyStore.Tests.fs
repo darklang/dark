@@ -1,4 +1,4 @@
-/// The persisted policy store: format, approvals, pins, revocation, seeding.
+/// The persisted policy store: format, approvals, reviewed versions, revocation, seeding.
 module Tests.PolicyStore
 
 open Expecto
@@ -31,10 +31,16 @@ let private httpRule
       scheme = only "https"
       host = Permission.HostRule.Exact host
       port = only 443
-      pathPrefix = scope path
+      path =
+        match path with
+        | Some path -> Permission.HttpPath.Subtree path
+        | None -> Permission.HttpPath.All
       query = scope query }
 
 let private scoped (hash : string) : PolicyStore.ScopedKey = None, hash
+
+let private approval hash policy fingerprint : PolicyStore.Approval =
+  { hash = hash; policy = policy; fingerprint = fingerprint; explicitRules = true }
 
 /// A `Unit -> BigInt` package fn with the given body.
 let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
@@ -44,7 +50,6 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
     returnType = PT.TBigInt
     description = ""
-    permissionCeiling = None
     bounds = [] }
 
 /// Builtin effects for the review tests: `syscallGettimeofday` is clock-only and
@@ -59,7 +64,7 @@ let private testEffects : PackagePermissions.CallEffectsFor =
 let private callBuiltin (name : string) : PT.Expr =
   eApply (eBuiltinFn name 0) [] [ eUnit () ]
 
-/// The review tests share one package universe: `v1` is the pinned version,
+/// The review tests share one package universe: `v1` is the approved version,
 /// `v2` an identical-contract re-release, `wider` adds a file read, and
 /// `dynamic` applies a callback the static walk cannot follow.
 let private reviewUniverse =
@@ -82,7 +87,7 @@ let private loadFromUniverse : PackagePermissions.Load =
 
 let private reviewUnder
   explicitPolicy
-  currentPin
+  previousApproval
   hash
   acknowledgeIncomplete
   acknowledgeChange
@@ -90,43 +95,53 @@ let private reviewUnder
   PackagePermissions.reviewVersion
     loadFromUniverse
     testEffects
-    currentPin
+    previousApproval
     hash
     explicitPolicy
     acknowledgeIncomplete
     acknowledgeChange
   |> Ply.toTask
 
-let private review currentPin hash acknowledgeIncomplete acknowledgeChange =
-  reviewUnder None currentPin hash acknowledgeIncomplete acknowledgeChange
+let private review previousApproval hash acknowledgeIncomplete acknowledgeChange =
+  reviewUnder None previousApproval hash acknowledgeIncomplete acknowledgeChange
 
 let policyStoreRoundTripsVersionedPolicies =
   test "policy store round-trips instance and package approvals" {
     let stripeRule = httpRule "POST" "api.stripe.com" (Some "/v1") None
-    let stripePolicy = Permission.Policy.create [ stripeRule ] []
+    let exactRule =
+      match Permission.Request.http "GET" "https://api.stripe.com/orders" with
+      | Ok request -> Permission.Rule.forRequest request
+      | Error message -> failtest message
+    let stripePolicy = Permission.Policy.create [ stripeRule; exactRule ] []
     let store : PolicyStore.Store =
       { instance =
           Permission.Policy.create
             [ Permission.Rule.Effect Effect.Effect.Clock
+              Permission.Rule.HttpServer(only "127.0.0.1", only 9090)
+              Permission.Rule.HttpServer(Permission.Scope.All, Permission.Scope.All)
               Permission.Rule.File(Permission.AccessKind.Read, only "/tmp") ]
             [ Permission.Rule.Effect Effect.Effect.Native ]
-        packages = Map.ofList [ scoped "stripe@sha256:abc", stripePolicy ]
-        approvedVersions =
-          Map.ofList [ scoped "Feriel.Stripe.pay", "stripe@sha256:abc" ]
-        approvedRoots = Map.empty }
+        approvals =
+          Map.ofList
+            [ scoped "Feriel.Stripe.pay",
+              approval "stripe@sha256:abc" stripePolicy "f1" ] }
     let decoded = PolicyStore.toBytes store |> PolicyStore.fromBytes
     Expect.equal
       (Permission.Policy.rules decoded.instance)
       (Permission.Policy.rules store.instance)
       "instance policy"
     Expect.equal
-      (decoded.packages |> Map.tryFind (scoped "stripe@sha256:abc"))
+      (decoded.approvals
+       |> Map.tryFind (scoped "Feriel.Stripe.pay")
+       |> Option.map _.policy)
       (Some stripePolicy)
       "package approval"
     Expect.equal
-      (decoded.approvedVersions |> Map.tryFind (scoped "Feriel.Stripe.pay"))
+      (decoded.approvals
+       |> Map.tryFind (scoped "Feriel.Stripe.pay")
+       |> Option.map _.hash)
       (Some "stripe@sha256:abc")
-      "logical function pin"
+      "reviewed function version"
   }
 
 let policyStoreRejectsTrailingData =
@@ -142,17 +157,18 @@ let policyStoreRejectsTrailingData =
 let policyStoreRejectsOlderFormat =
   test "policy store recognizes but rejects an older version of its own format" {
     let older = PolicyStore.formatVersion - 1
-    let bytes =
-      use stream = new System.IO.MemoryStream()
-      use writer = new System.IO.BinaryWriter(stream)
-      LibSerialization.Binary.Serializers.Common.String.write writer "DARK-POLICIES"
-      writer.Write older
-      writer.Flush()
-      stream.ToArray()
+    // A complete payload with the old header must be rejected, not converted.
+    let bytes = PolicyStore.toBytes PolicyStore.empty
+    use stream = new System.IO.MemoryStream(bytes)
+    use reader = new System.IO.BinaryReader(stream)
+    LibSerialization.Binary.Serializers.Common.String.read reader |> ignore<string>
+    use writer = new System.IO.BinaryWriter(stream)
+    writer.Write older
+    writer.Flush()
     Expect.equal
       (PolicyStore.storedVersion bytes)
       (Some older)
-      "an older file is recognized as ours, so seeding can back it up"
+      "the version can be named in an unsupported-format error"
     Expect.throws
       (fun () -> PolicyStore.fromBytes bytes |> ignore<PolicyStore.Store>)
       "older bytes are never reinterpreted"
@@ -166,7 +182,7 @@ let policyStoreRejectsOlderFormat =
   }
 
 let seedClassifiesTheFileFailClosed =
-  test "startup seeding backs up an older format and never re-widens a deleted file" {
+  test "startup seeds fresh installs and leaves existing policies untouched" {
     let older = PolicyStore.formatVersion - 1
     let olderBytes =
       use stream = new System.IO.MemoryStream()
@@ -177,8 +193,8 @@ let seedClassifiesTheFileFailClosed =
       stream.ToArray()
     Expect.equal
       (PolicyStore.seedAction (LocalFile.Read olderBytes) true)
-      (PolicyStore.SeedAction.BackUpAndReset older)
-      "an older format is backed up and reset to deny-all, not re-seeded"
+      PolicyStore.SeedAction.Leave
+      "an older format is not backed up, migrated, or reset"
     Expect.equal
       (PolicyStore.seedAction LocalFile.Missing false)
       PolicyStore.SeedAction.WriteDefault
@@ -203,206 +219,45 @@ let seedClassifiesTheFileFailClosed =
       "an unreadable file is left alone"
   }
 
-/// The review tests share one package universe: `v1` is the pinned version,
-/// `v2` an identical-contract re-release, `wider` adds a file read, and
-/// `dynamic` applies a callback the static walk cannot follow.
-
-let revokingOneRootKeepsSharedDependencies =
-  test "revoking one approved root leaves a dependency another root still needs" {
-    // Roots A and B both depend on shared C; A also has private dependency P.
+let reapprovingASharedHashKeepsTheOtherNamesApproved =
+  test "approving a second name for the same hash keeps the first name's approval" {
+    // Content addressing makes one hash the target of several names. The
+    // re-approval cleanup used to revoke every name pointing at the hash
+    // and then restore only the one being
+    // approved: after `Acme.a -> H` and `Acme.b -> H` only `Acme.b` was left.
     let accountID : Option<System.Guid> = None
-    let allow = Permission.Policy.allowAll
-    let store : PolicyStore.Store =
-      { PolicyStore.empty with
-          packages =
-            [ "A"; "B"; "C"; "P" ]
-            |> List.map (fun h -> scoped h, allow)
-            |> Map.ofList
-          approvedRoots =
-            Map.ofList
-              [ scoped "A",
-                { closure = Set.ofList [ "A"; "C"; "P" ]
-                  fingerprint = "f1"
-                  explicitPolicy = None }
-                scoped "B",
-                { closure = Set.ofList [ "B"; "C" ]
-                  fingerprint = "f1"
-                  explicitPolicy = None } ] }
-    let after = PolicyStore.revokeRootInStore accountID "A" store
-    Expect.isNone (after.packages |> Map.tryFind (scoped "A")) "revoked root A gone"
-    Expect.isNone
-      (after.packages |> Map.tryFind (scoped "P"))
-      "A's private dependency P is gone"
-    Expect.isSome
-      (after.packages |> Map.tryFind (scoped "C"))
-      "shared dependency C survives because B still needs it"
-    Expect.isSome
-      (after.packages |> Map.tryFind (scoped "B"))
-      "the other root B is untouched"
-    Expect.isNone
-      (after.approvedRoots |> Map.tryFind (scoped "A"))
-      "A's root record is removed"
-    // Revoking B afterwards now removes C, since nothing else needs it.
-    let afterBoth = PolicyStore.revokeRootInStore accountID "B" after
-    Expect.isNone
-      (afterBoth.packages |> Map.tryFind (scoped "C"))
-      "C is removed once its last root is revoked"
-  }
-
-let revokingARootDropsPinsToIt =
-  test "revoking a root also drops the account's pins that point at it" {
-    let accountID : Option<System.Guid> = None
-    let other = Some(System.Guid.NewGuid())
-    let store : PolicyStore.Store =
-      { PolicyStore.empty with
-          packages = Map.ofList [ scoped "A", Permission.Policy.allowAll ]
-          approvedVersions =
-            Map.ofList
-              [ scoped "Acme.fetch", "A"
-                scoped "Acme.other", "B"
-                (other, "Acme.fetch"), "A" ]
-          approvedRoots =
-            Map.ofList
-              [ scoped "A",
-                { closure = Set.ofList [ "A" ]
-                  fingerprint = "f1"
-                  explicitPolicy = None } ] }
-    let after = PolicyStore.revokeRootInStore accountID "A" store
-    Expect.equal
-      (after.approvedVersions |> Map.toList |> Set.ofList)
-      (Set.ofList [ (other, "Acme.fetch"), "A"; scoped "Acme.other", "B" ])
-      "this account's pin to A is gone; another account's pin and a pin to B stay"
-  }
-
-let reapprovingWithSmallerClosureDropsObsoleteDeps =
-  test "re-approving a root with a smaller closure drops the deps it no longer needs" {
-    let accountID : Option<System.Guid> = None
-    let allow = Permission.Policy.allowAll
-    let policiesFor hs = hs |> List.map (fun h -> h, allow)
-    // First approval of A covers {A, B, C}.
-    let store =
-      PolicyStore.recordApprovalInStore
-        accountID
-        "A"
-        (policiesFor [ "A"; "B"; "C" ])
-        "f1"
-        None
-        PolicyStore.empty
-    Expect.isSome
-      (store.packages |> Map.tryFind (scoped "C"))
-      "C installed initially"
-    // Re-approve A covering only {A, B}; C is now obsolete and must be dropped.
-    let store =
-      PolicyStore.recordApprovalInStore
-        accountID
-        "A"
-        (policiesFor [ "A"; "B" ])
-        "f2"
-        None
-        store
-    Expect.isNone
-      (store.packages |> Map.tryFind (scoped "C"))
-      "obsolete dependency C is removed on re-approval"
-    Expect.isSome (store.packages |> Map.tryFind (scoped "A")) "A stays"
-    Expect.isSome (store.packages |> Map.tryFind (scoped "B")) "B stays"
-    // But a dep another root still needs is kept: approve D covering {D, C},
-    // then re-approve A (already {A,B}) — C must survive because D needs it.
-    let store =
-      PolicyStore.recordApprovalInStore
-        accountID
-        "D"
-        (policiesFor [ "D"; "C" ])
-        "f2"
-        None
-        store
-    let store =
-      PolicyStore.recordApprovalInStore
-        accountID
-        "A"
-        (policiesFor [ "A" ])
-        "f2"
-        None
-        store
-    Expect.isSome
-      (store.packages |> Map.tryFind (scoped "C"))
-      "C survives because root D still needs it"
-  }
-
-let approvingADependencyKeepsItsOwnRootApproval =
-  test
-    "a root's own approval is not replaced when another root lists it as a dependency" {
-    let accountID : Option<System.Guid> = None
-    let narrow = Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock)
-    let wide = Permission.Policy.allowAll
-    // C is approved on its own under narrow rules...
-    let store =
-      PolicyStore.recordApprovalInStore
-        accountID
-        "C"
-        [ "C", narrow ]
-        "f1"
-        (Some narrow)
-        PolicyStore.empty
-    // ...then A, which calls C, is approved with a wide derived policy for C.
-    let store =
-      PolicyStore.recordApprovalInStore
-        accountID
-        "A"
-        [ "A", wide; "C", wide ]
-        "f1"
-        None
-        store
-    Expect.equal
-      (Map.tryFind (scoped "C") store.packages)
-      (Some narrow)
-      "C keeps the policy its own approval reviewed"
-    Expect.equal
-      (Map.tryFind (scoped "A") store.packages)
-      (Some wide)
-      "A's own policy is installed"
-    Expect.equal
-      ((PolicyStore.revokeRootInStore accountID "A" store).packages
-       |> Map.tryFind (scoped "C"))
-      (Some narrow)
-      "revoking A leaves C's own approval"
-    Expect.equal
-      ((PolicyStore.revokeRootInStore accountID "A" store).approvedRoots
-       |> Map.tryFind (scoped "C")
-       |> Option.bind (fun r -> r.explicitPolicy))
-      (Some narrow)
-      "C's written rules are remembered as its provenance"
-  }
-
-let reapprovingASharedHashKeepsTheOtherNamesPinned =
-  test "approving a second name for the same hash keeps the first name's pin" {
-    // Content addressing makes one hash the target of several names, so the
-    // re-approval cleanup must not unpin every name pointing at the hash:
-    // after `Acme.a -> H` and `Acme.b -> H`, both stay pinned.
-    let accountID : Option<System.Guid> = None
-    let approve location store =
+    let approve location policy store =
       match
-        PolicyStore.recordApprovalAndMoveVersionInStore
+        PolicyStore.recordApprovalInStore
           accountID
-          "H"
-          [ "H", Permission.Policy.allowAll ]
-          "effects-v1"
-          None
           location
-          None
-          "H"
+          (PolicyStore.reviewToken store)
+          (approval "H" policy "effects-v1")
           store
       with
       | Ok store -> store
       | Error e -> failtest $"approval of {location} was rejected: {e}"
-    let store = PolicyStore.empty |> approve "Acme.a" |> approve "Acme.b"
-    let pin name = Map.tryFind (accountID, name) store.approvedVersions
-    Expect.equal (pin "Acme.a") (Some "H") "the first name is still pinned"
-    Expect.equal (pin "Acme.b") (Some "H") "the second name is pinned"
-    // An explicit revocation is the operation that unpins, and it takes
-    // every name with it.
+    let narrow = Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock)
+    let store =
+      PolicyStore.empty
+      |> approve "Acme.a" narrow
+      |> approve "Acme.b" Permission.Policy.allowAll
+    Expect.equal
+      store.approvals[scoped "Acme.a"].policy
+      narrow
+      "alias retains its scope"
+    Expect.equal
+      store.approvals[scoped "Acme.b"].policy
+      Permission.Policy.allowAll
+      "second scope"
+    Expect.equal store.approvals.Count 2 "only named roots have policies"
+    let approved name =
+      Map.tryFind (accountID, name) store.approvals |> Option.map _.hash
+    Expect.equal (approved "Acme.a") (Some "H") "the first name is still approved"
+    Expect.equal (approved "Acme.b") (Some "H") "the second name is approved"
+    // Explicit hash revocation removes every name approved for that hash.
     let revoked = PolicyStore.revokeRootInStore accountID "H" store
-    Expect.isEmpty revoked.approvedVersions "revoking the hash unpins every name"
-    Expect.isEmpty revoked.approvedRoots "and drops the approval"
+    Expect.isEmpty revoked.approvals "revoking the hash removes every named approval"
   }
 
 let instanceEditsAddAndRemoveInOnePass =
@@ -423,82 +278,58 @@ let instanceEditsAddAndRemoveInOnePass =
     Expect.equal (Permission.Policy.rules cleared) ([], []) "removal hits both lists"
   }
 
-let approvalAndPinAreOneTransaction =
-  test "a stale pin review cannot leave the rejected version approved" {
-    let accountID : Option<System.Guid> = None
-    let location = "Acme.Tools.run"
-    let key : PolicyStore.ScopedKey = accountID, location
-    let store =
-      { PolicyStore.empty with approvedVersions = Map.ofList [ key, "old" ] }
-    let attempted =
-      PolicyStore.recordApprovalAndMoveVersionInStore
-        accountID
-        "new"
-        [ "new", Permission.Policy.allowAll; "dep", Permission.Policy.allowAll ]
-        "effects-v1"
-        None
-        location
-        (Some "someone-else")
-        "new"
-        store
-    Expect.isError attempted "a concurrent/stale pin comparison is rejected"
-    Expect.isEmpty store.packages "rejection installs no package policies"
-    Expect.isEmpty store.approvedRoots "rejection records no approved root"
-    Expect.equal
-      store.approvedVersions[key]
-      "old"
-      "rejection leaves the pin unchanged"
-
-    let accepted =
-      PolicyStore.recordApprovalAndMoveVersionInStore
-        accountID
-        "new"
-        [ "new", Permission.Policy.allowAll; "dep", Permission.Policy.allowAll ]
-        "effects-v1"
-        None
-        location
-        (Some "old")
-        "new"
-        store
-    match accepted with
+let approvalAndReviewedVersionAreOneTransaction =
+  test "review rejects changed rules, revocation and instance edits" {
+    let key = scoped "Acme.Tools.run"
+    let broad = approval "same-code" Permission.Policy.allowAll "f1"
+    let store = { PolicyStore.empty with approvals = Map.ofList [ key, broad ] }
+    let expected = PolicyStore.reviewToken store
+    let narrower = { broad with policy = Permission.Policy.denyAll }
+    let changed =
+      [ { store with approvals = Map.add key narrower store.approvals }
+        PolicyStore.revokeRootInStore None "same-code" store
+        { store with instance = Permission.Policy.allowAll } ]
+    for current in changed do
+      Expect.isError
+        (PolicyStore.recordApprovalInStore
+          None
+          "Acme.Tools.run"
+          expected
+          broad
+          current)
+        "an older review cannot replace a newer permission decision"
+    let next = { broad with hash = "new-code" }
+    match
+      PolicyStore.recordApprovalInStore None "Acme.Tools.run" expected next store
+    with
     | Error message -> failtest message
-    | Ok accepted ->
-      Expect.equal accepted.approvedVersions[key] "new" "the reviewed pin moves"
-      Expect.isSome
-        (accepted.packages |> Map.tryFind (scoped "new"))
-        "the root approval is installed"
-      Expect.isSome
-        (accepted.packages |> Map.tryFind (scoped "dep"))
-        "the closure approval is installed"
+    | Ok saved ->
+      Expect.equal saved.approvals[key] next "the whole approval changes atomically"
+      Expect.equal saved.approvals.Count 1 "no separate dependency grants"
   }
 
 let reapprovingOneRootLeavesOthersStale =
   test "re-approving one root under a new fingerprint leaves the others stale" {
-    let approval fp hashes : PolicyStore.RootApproval =
-      { closure = Set.ofList hashes; fingerprint = fp; explicitPolicy = None }
+    let root fp hash = approval hash Permission.Policy.allowAll fp
     // A and B both approved under f1; the runtime is now f2 (both stale).
     let store : PolicyStore.Store =
       { PolicyStore.empty with
-          approvedRoots =
-            Map.ofList
-              [ scoped "A", approval "f1" [ "A" ]
-                scoped "B", approval "f1" [ "B" ] ] }
+          approvals =
+            Map.ofList [ scoped "A", root "f1" "A"; scoped "B", root "f1" "B" ] }
     Expect.isTrue
       (PolicyStore.approvalsAreStaleInStore "f2" store)
       "both approvals predate f2"
     // Re-approve only A under f2. B must still read stale.
     let store =
       { store with
-          approvedRoots =
-            store.approvedRoots |> Map.add (scoped "A") (approval "f2" [ "A" ]) }
+          approvals = store.approvals |> Map.add (scoped "A") (root "f2" "A") }
     Expect.isTrue
       (PolicyStore.approvalsAreStaleInStore "f2" store)
       "B was never re-reviewed, so approvals remain stale"
     // Re-approve B too; now nothing predates f2.
     let store =
       { store with
-          approvedRoots =
-            store.approvedRoots |> Map.add (scoped "B") (approval "f2" [ "B" ]) }
+          approvals = store.approvals |> Map.add (scoped "B") (root "f2" "B") }
     Expect.isFalse
       (PolicyStore.approvalsAreStaleInStore "f2" store)
       "every root now reviewed under f2"
@@ -507,46 +338,6 @@ let reapprovingOneRootLeavesOthersStale =
 /// A denial asks which approvals installed a member's policy. The answer is every root whose
 /// closure holds it, named the way it was approved, and stale if any of them predates the
 /// running binary's builtin declarations.
-let originNamesTheApprovingRoots =
-  test "a member policy's origin names its approving roots and their staleness" {
-    let approval fp hashes : PolicyStore.RootApproval =
-      { closure = Set.ofList hashes; fingerprint = fp; explicitPolicy = None }
-    let rootA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    let rootB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    let store : PolicyStore.Store =
-      { PolicyStore.empty with
-          approvedRoots =
-            Map.ofList
-              [ scoped rootA, approval "f1" [ rootA; "dep" ]
-                scoped rootB, approval "f2" [ rootB; "dep" ] ]
-          approvedVersions = Map.ofList [ scoped "Tests.Probe.a", rootA ] }
-
-    let origin = PolicyStore.originOfIn store None "f2" "dep"
-    Expect.equal
-      origin
-      (Some(
-        { approvedAs = [ "Tests.Probe.a"; "bbbbbbbb" ]; stale = true }
-        : LibExecution.RuntimeTypes.PackagePolicyOrigin
-      ))
-      "both roots, A by its name and B by short hash; A predates f2"
-
-    Expect.equal
-      (PolicyStore.originOfIn store None "f2" rootB)
-      (Some(
-        { approvedAs = [ "bbbbbbbb" ]; stale = false }
-        : LibExecution.RuntimeTypes.PackagePolicyOrigin
-      ))
-      "B alone, reviewed under the current fingerprint"
-
-    Expect.isNone
-      (PolicyStore.originOfIn store None "f2" "nobody")
-      "a policy no approval installed has no origin"
-
-    Expect.isNone
-      (PolicyStore.originOfIn store (Some(System.Guid.NewGuid())) "f2" "dep")
-      "another account's approvals are not this account's origin"
-  }
-
 let linkedPolicyAncestorsNeedRoot =
   test "a linked policy ancestor is refused unless root placed it" {
     let temp =
@@ -616,15 +407,10 @@ let tests =
     [ suiteNeverUsesTheClonesPolicy
       policyStoreRoundTripsVersionedPolicies
       policyStoreRejectsTrailingData
-      reapprovingASharedHashKeepsTheOtherNamesPinned
+      reapprovingASharedHashKeepsTheOtherNamesApproved
       instanceEditsAddAndRemoveInOnePass
       policyStoreRejectsOlderFormat
       seedClassifiesTheFileFailClosed
       linkedPolicyAncestorsNeedRoot
-      revokingOneRootKeepsSharedDependencies
-      revokingARootDropsPinsToIt
-      reapprovingWithSmallerClosureDropsObsoleteDeps
-      approvingADependencyKeepsItsOwnRootApproval
-      approvalAndPinAreOneTransaction
-      reapprovingOneRootLeavesOthersStale
-      originNamesTheApprovingRoots ]
+      approvalAndReviewedVersionAreOneTransaction
+      reapprovingOneRootLeavesOthersStale ]

@@ -1782,7 +1782,7 @@ let packageFn(
       Stdlib.Pretty.concatAll(
         [ txt($"let {namePart}{typeParamPart}")
           PackageFn.parametersDoc(ctx, p.parameters)
-          txt(":" + (LanguageTools.Permissions.ceilingRow(p.permissionCeiling)) + " ")
+          txt(": ")
           typeReferenceDoc(ctx, p.returnType)
           txt(" =") ])))
 
@@ -1829,7 +1829,7 @@ let packageTrait(
           $"({inner})"
       let ownTypeParams = typeParamsWithBounds(ctx, m.typeParams, [])
       let doc = formatDocComment(m.description)
-      $"{doc}let {PrettyPrinter.formatName(m.name)}{ownTypeParams}{params}:{LanguageTools.Permissions.ceilingRow(m.permissionCeiling)} {typeReference(ctx, m.returnType)}")
+      $"{doc}let {PrettyPrinter.formatName(m.name)}{ownTypeParams}{params}: {typeReference(ctx, m.returnType)}")
     |> Stdlib.String.join("\n")
   let docComment = formatDocComment(t.description)
   $"{docComment}trait {namePart}{typeParamPart} =\n{PrettyPrinter.indent(methods)}"

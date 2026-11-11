@@ -246,7 +246,7 @@ let addTest(
                   LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT(
                     ctx,
                     written)
-                // Tests use instance and called-function policies, with no ceiling of
+                // Tests use the test instance policy, with no extra restriction of
                 // their own.
                 let ops =
                   [ LanguageTools.ProgramTypes.PackageOp.AddTest(packageTest)

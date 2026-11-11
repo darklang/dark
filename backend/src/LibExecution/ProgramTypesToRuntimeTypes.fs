@@ -888,6 +888,7 @@ module Expr =
           { name = FQFnName.toRT fnName
             typeSymbolTable = RT.TST.empty
             typeArgs = []
+            approvalName = None
             access = None
             argsSoFar = []
             boundImpls = [] }
@@ -1044,6 +1045,7 @@ module Expr =
             { name = InfixFnName.toRT implFn infix
               typeSymbolTable = RT.TST.empty
               typeArgs = []
+              approvalName = None
               access = None
               argsSoFar = []
               boundImpls = [] }
@@ -1093,6 +1095,10 @@ module Expr =
           // `Stdlib.List.map<Int64, Int64>` uncalled: checked and applied when the value is
           // called, by the same path that takes a call's own type args.
           typeArgs = List.map TypeReference.toRT typeArgs
+          approvalName =
+            resolved.location
+            |> Option.map (fun loc ->
+              String.concat "." (loc.owner :: loc.modules @ [ loc.name ]))
           access = None
           argsSoFar = []
           // What the call worked out for the callee's bounds, carried into the frame when this
@@ -1454,7 +1460,6 @@ module PackageFn =
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
       returnType = f.returnType |> TypeReference.toRT
-      permissionCeiling = f.permissionCeiling
       bounds = List.map Bound.toRT f.bounds }
 
 
@@ -1464,8 +1469,7 @@ module Trait =
       { name = m.name
         typeParams = m.typeParams
         parameters = m.parameters |> NEList.map PackageFn.Parameter.toRT
-        returnType = TypeReference.toRT m.returnType
-        permissionCeiling = m.permissionCeiling }
+        returnType = TypeReference.toRT m.returnType }
 
   let toRT (t : PT.Trait.Trait) : RT.Trait.Trait =
     { hash = Hash.toRT t.hash
