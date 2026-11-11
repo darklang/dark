@@ -64,20 +64,26 @@ if ! git merge-base --is-ancestor "$CIRCLE_SHA1" FETCH_HEAD; then
   exit 1
 fi
 
-## The gzipped binaries in the clis directory. Only those: the `.mode` file beside each one
-## records how it was built, for the perf tooling, and is not a download.
+## What a release holds, by name: one gzipped binary per runtime the body above lists, and the
+## checksum file. An allowlist, not "every .gz": clis/ also holds what each build records about
+## itself (a `.mode`, a `.key`), and a glob shipped the `.key` files as downloads for months.
+## Every name must be there, so a runtime that failed to build stops the release.
 FILES_DIR="/home/dark/app/clis"
-shopt -s nullglob
-binaries=("$FILES_DIR"/*.gz)
-if [ "${#binaries[@]}" -eq 0 ]; then
-  echo "No binaries in $FILES_DIR to publish."
-  exit 1
-fi
+build="darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)"
+binaries=()
+for rt in linux-x64 linux-musl-x64 linux-arm64 linux-musl-arm64 linux-arm osx-arm64 osx-x64; do
+  f="$FILES_DIR/$build-$rt.gz"
+  if [ ! -f "$f" ]; then
+    echo "Missing $f; not publishing a release without it."
+    exit 1
+  fi
+  binaries+=("$f")
+done
 
 ## One checksum file beside them, named like them so the asset name still starts with the
 ## build that `dark update` reads from it.
-sums="$FILES_DIR/darklang-alpha-$(git rev-parse HEAD | cut -c 1-10)-sha256sums.txt"
-(cd "$FILES_DIR" && sha256sum -- *.gz) > "$sums"
+sums="$FILES_DIR/$build-sha256sums.txt"
+(cd "$FILES_DIR" && sha256sum -- "${binaries[@]##*/}") > "$sums"
 cat "$sums"
 
 

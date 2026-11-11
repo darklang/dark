@@ -150,8 +150,9 @@ commands:
       - run:
           name: Gzip artifacts
           command: |
-            # Only the binaries. The `.mode` beside each one is for the perf tooling and
-            # stays as it is; publish-github-release uploads only the `.gz` files.
+            # The `.mode` beside each binary is for the perf tooling and stays as it is.
+            # The `.key` is gzipped along with the binary, but publish-github-release uploads
+            # only the names on its allowlist: the binaries and the checksums.
             # POSIX `case`, not `[[`: the musl job runs this on Alpine.
             for f in clis/darklang-*; do
               case "$f" in *.mode) ;; *) gzip -f "$f" ;; esac
