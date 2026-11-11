@@ -29,6 +29,11 @@ type Configuration =
     allowedIP : System.Net.IPAddress -> bool
     allowedHost : string -> bool }
 
+/// Preserve typed failures through .NET exception wrapping.
+type private ConnectFailed(failure : HttpNetworkFailure, inner : exn) =
+  inherit System.Exception("HTTP connection failed", inner)
+  member _.Failure = failure
+
 module private BaseClient =
   // There are a number of different configuration options we want to enable:
   // WASM:
@@ -70,6 +75,20 @@ module private BaseClient =
         (cancellationToken : System.Threading.CancellationToken)
         : ValueTask<Stream> =
         vtask {
+          let uri, target =
+            match proxy with
+            | Some(uri, _) -> uri, HttpNetworkTarget.Proxy
+            | None ->
+              context.InitialRequestMessage.RequestUri, HttpNetworkTarget.Destination
+          let connectFailed (inner : exn) =
+            let detail =
+              match inner with
+              | :? System.Net.Sockets.SocketException as s -> Some s.Message
+              | _ -> None
+            ConnectFailed(
+              HttpNetworkFailure.ConnectionFailure(target uri.Authority, detail),
+              inner
+            )
           try
             // While this DNS call is expensive, it should be cached.
             //
@@ -92,8 +111,8 @@ module private BaseClient =
               Array.isEmpty ips
               || (not isProxyConnection && not (Array.forall config.allowedIP ips))
             then
-              // Use this to hide more specific errors when looking at loopback
-              Exception.raiseInternal "Could not connect" []
+              // Do not expose details about blocked addresses.
+              raise (connectFailed null)
 
             // TRY EVERY resolved address, not just the first. A name routinely
             // resolves to more than one (`localhost` is ::1 AND 127.0.0.1), only
@@ -139,15 +158,20 @@ module private BaseClient =
                 if cancellationToken.IsCancellationRequested then i <- ips.Length
 
             match stream with
-            | null ->
-              return
-                Exception.raiseInternal
-                  "Could not connect"
-                  [ "reason",
-                    (if isNull lastError then "no address" else lastError.Message) ]
+            | null -> return raise (connectFailed lastError)
             | s -> return s
-          with :? System.ArgumentException ->
-            return Exception.raiseInternal "Could not connect" []
+          with
+          | :? System.ArgumentException as e -> return raise (connectFailed e)
+          | :? System.Net.Sockets.SocketException as e ->
+            match e.SocketErrorCode with
+            | System.Net.Sockets.SocketError.HostNotFound
+            | System.Net.Sockets.SocketError.NoData
+            | System.Net.Sockets.SocketError.TryAgain ->
+              return
+                raise (
+                  ConnectFailed(HttpNetworkFailure.DnsFailure(target uri.Host), e)
+                )
+            | _ -> return raise (connectFailed e)
         }
       new SocketsHttpHandler(
         UseProxy = Option.isSome proxy,
@@ -659,10 +683,24 @@ let rec private (|TlsFailure|_|) (e : exn) : Option<AuthenticationException> =
   | null -> None
   | e -> (|TlsFailure|_|) e.InnerException
 
+/// Unwrap a connection failure or return the I/O error.
+let rec private networkFailure
+  (canonicalUri : string)
+  (e : exn)
+  : HttpNetworkFailure =
+  match e with
+  | :? ConnectFailed as c -> c.Failure
+  | _ when not (isNull e.InnerException) ->
+    networkFailure canonicalUri e.InnerException
+  | _ -> HttpNetworkFailure.IoFailure(System.Uri(canonicalUri).Authority, e.Message)
+
 /// Match a send-time exception to the typed error the guest sees; anything
 /// else propagates as a host failure. Shared by the buffered and streaming
 /// paths, and by the buffered path's read of the body.
-let private (|SendFailure|_|) (e : exn) : Option<HttpRequestError> =
+let private (|SendFailure|_|)
+  (canonicalUri : string)
+  (e : exn)
+  : Option<HttpRequestError> =
   match e with
   | TlsFailure e ->
     Some(HttpRequestError.TlsError(tlsFailureMessage systemHasRootCAs e))
@@ -677,10 +715,11 @@ let private (|SendFailure|_|) (e : exn) : Option<HttpRequestError> =
     Some(HttpRequestError.BadUrl HttpBadUrl.UnsupportedProtocol)
   | :? System.UriFormatException ->
     Some(HttpRequestError.BadUrl HttpBadUrl.InvalidUri)
-  | :? IOException -> Some HttpRequestError.NetworkError
+  | :? IOException
   // We've made a request and _potentially_ (according to .NET) have a status
   // code, but the error type has no good slot for it.
-  | :? HttpRequestException -> Some HttpRequestError.NetworkError
+  | :? HttpRequestException ->
+    Some(HttpRequestError.NetworkError(networkFailure canonicalUri e))
   | _ -> None
 
 
@@ -744,7 +783,7 @@ let send
         return
           Ok
             { statusCode = int response.StatusCode; headers = headers; body = bytes }
-    with SendFailure typed ->
+    with SendFailure canonicalUri typed ->
       return Error typed
   }
 
@@ -797,7 +836,7 @@ let openStream
               statusCode = int response.StatusCode
               headers = headers }
     with
-    | SendFailure typed ->
+    | SendFailure canonicalUri typed ->
       responseToDispose |> Option.iter (fun response -> response.Dispose())
       return Error typed
     | e ->

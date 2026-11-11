@@ -69,6 +69,32 @@ module BadUrl =
       FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.badUrlDetails ())
     DEnum(typeName, typeName, [], caseName, fields)
 
+module NetworkTarget =
+  let toDT (target : HostTypes.HttpNetworkTarget) : Dval =
+    let caseName, host =
+      match target with
+      | HostTypes.HttpNetworkTarget.Destination host -> "Destination", host
+      | HostTypes.HttpNetworkTarget.Proxy host -> "Proxy", host
+    let typeName =
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.networkTarget ())
+    DEnum(typeName, typeName, [], caseName, [ DString host ])
+
+module NetworkFailure =
+  let toDT (failure : HostTypes.HttpNetworkFailure) : Dval =
+    let caseName, fields =
+      match failure with
+      | HostTypes.HttpNetworkFailure.DnsFailure target ->
+        "DnsFailure", [ NetworkTarget.toDT target ]
+      | HostTypes.HttpNetworkFailure.ConnectionFailure(target, detail) ->
+        "ConnectionFailure",
+        [ NetworkTarget.toDT target
+          Dval.option KTString (detail |> Option.map DString) ]
+      | HostTypes.HttpNetworkFailure.IoFailure(authority, detail) ->
+        "IoFailure", [ DString authority; DString detail ]
+    let typeName =
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.networkFailure ())
+    DEnum(typeName, typeName, [], caseName, fields)
+
 module RequestError =
   let toDT (err : HostTypes.HttpRequestError) : Dval =
     let (caseName, fields) =
@@ -78,7 +104,8 @@ module RequestError =
       | HostTypes.HttpRequestError.Timeout -> "Timeout", []
       | HostTypes.HttpRequestError.BadHeader err ->
         "BadHeader", [ BadHeader.toDT err ]
-      | HostTypes.HttpRequestError.NetworkError -> "NetworkError", []
+      | HostTypes.HttpRequestError.NetworkError failure ->
+        "NetworkError", [ NetworkFailure.toDT failure ]
       | HostTypes.HttpRequestError.TlsError message ->
         "TlsError", [ DString message ]
       | HostTypes.HttpRequestError.BadMethod -> "BadMethod", []

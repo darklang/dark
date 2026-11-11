@@ -69,8 +69,10 @@ for that function or for general use in the module, defined in a package.
 This sort of error handling is appropriate where the user calls the function
 incorrectly, or something bad happens beyond our control.
 
-Example: `Stdlib.HttpClient.get("http://mywebsiteisdowntoday.com", [])` gives
-`Error(Stdlib.HttpClient.RequestError.NetworkError)`
+Example: `Stdlib.HttpClient.get("http://mywebsiteisdowntoday.invalid", [])` gives
+`Error(NetworkError(DnsFailure(Destination("mywebsiteisdowntoday.invalid"))))`
+(with cases qualified under `Stdlib.HttpClient`). `Stdlib.HttpClient.toString`
+formats it as `Could not resolve host: mywebsiteisdowntoday.invalid`.
 
 Example: `Stdlib.Float.parse("not a float")` gives `Error(Stdlib.Float.ParseError.BadFormat)`
 
