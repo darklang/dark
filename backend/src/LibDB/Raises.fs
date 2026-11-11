@@ -21,6 +21,9 @@ module Requirements = LibExecution.CallGraph.Requirements
 ///
 /// The checked functions, which test their arguments for every case where what they call raises,
 /// and return an `Error` instead.
+///
+/// The clock: when its syscall fails, the runtime's own clock answers, and a reading is always in
+/// `DateTime`'s range.
 let cannotRaise : Set<string> =
   let guarded =
     [ "Int64.checkedDivide"
@@ -31,7 +34,10 @@ let cannotRaise : Set<string> =
       "BigInt.checkedMod"
       "String.checkedRepeat"
       "List.checkedRepeat"
-      "List.checkedRange" ]
+      "List.checkedRange"
+      "DateTime.parse"
+      "DateTime.__now"
+      "DateTime.__monotonicMilliseconds" ]
     |> List.map (fun f -> $"Darklang.Stdlib.{f}")
   let ints =
     [ "Int8"
