@@ -118,8 +118,8 @@ let private singleByteOps, private twoByteOps =
     match field.GetValue null with
     | :? System.Reflection.Emit.OpCode as op ->
       // `OpCode.Value` is a signed int16: every two-byte opcode (0xFE xx) is
-      // negative there, and reading it as a plain int used to drop all 27 of
-      // them, so the walker stopped at the first `ceq`/`ldarg` in a body.
+      // negative there, and reading it as a plain int drops all 27 of them,
+      // so the walker would stop at the first `ceq`/`ldarg` in a body.
       let value = int (uint16 op.Value)
       if value <= 0xFF then single[value] <- ValueSome op
       elif (value >>> 8) = 0xFE then two[value &&& 0xFF] <- ValueSome op

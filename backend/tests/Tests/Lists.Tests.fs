@@ -233,7 +233,7 @@ let private listTests =
         let nan = RT.DFloat nan
         let a = RT.DList(VT.known RT.KTFloat, DvalList.ofArray (Array.create 40 nan))
         let b = RT.DList(VT.known RT.KTFloat, DvalList.ofArray (Array.create 40 nan))
-        // As when a list was an F# list: the comparer a union's `Equals` passes in reaches the values.
+        // As with an F# list: the comparer a union's `Equals` passes in reaches the values.
         Expect.isFalse (a = b) "F# ="
         Expect.isFalse (a.Equals b) "Equals"
         Expect.isFalse (Dval.equals a b) "Dark equality"

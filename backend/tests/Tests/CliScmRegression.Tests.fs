@@ -1,9 +1,7 @@
-/// The bugs a review found, kept found.
+/// SCM behaviour that a green suite cannot see, end to end.
 ///
-/// Every test here is somebody's reproduction: mostly Ocean's first review round (her numbers are in
-/// the doc comments), plus the ones that turned up while fixing those. They are end-to-end on
-/// purpose. Each of these bugs was invisible to a green suite, and what made them visible was
-/// running the commands and reading what came back, so that is what these do.
+/// These are end-to-end on purpose: what makes this kind of bug visible is running the commands and
+/// reading what came back, so that is what these do.
 ///
 /// The vocabulary is `Tests.CliDsl`. A test that needs something it does not have uses `runCli`.
 module Tests.CliScmRegression
@@ -22,9 +20,8 @@ open Tests.CliDsl
 // ─── branch isolation ─────────────────────────────────────────────────────
 
 
-/// Ocean #9. A cascade on a branch discovered dependents through MAIN's version of a name the branch
-/// had rebound, then rewrote that name with main's body: the branch's own work, replaced by
-/// propagation.
+/// A cascade on a branch discovers dependents through the BRANCH's version of a name it has rebound,
+/// so propagation never replaces the branch's own work with main's body.
 let private propagationLeavesBranchWorkAlone =
   instanceTest
     "a cascade on a branch does not overwrite what the branch rebound"
@@ -39,7 +36,7 @@ let private propagationLeavesBranchWorkAlone =
         do! fn state "Tests.Casc.caller" "() : Int64 = 777"
         do! commit state "branch caller"
 
-        // The edit whose cascade used to reach main's caller and bind main's body here.
+        // The edit whose cascade must not reach main's caller and bind main's body here.
         do! fn state "Tests.Casc.base" "() : Int64 = 30"
         do!
           evals state "Tests.Casc.caller()" "777" "the branch keeps its own caller"
@@ -50,8 +47,8 @@ let private propagationLeavesBranchWorkAlone =
         do! archiveBranches state [ "cascbr" ]
       })
 
-/// Ocean #10. Rebase moved a branch's bases onto main's `locations`, which carry main's UNCOMMITTED
-/// draft, so a branch could be rebased onto work main had not committed and might still discard.
+/// Rebase moves a branch's bases onto main's COMMITTED versions, never onto main's draft, which main
+/// might still discard.
 let private rebaseIgnoresMainsDraft =
   instanceTest
     "rebase moves onto the parent's committed state, not its draft"
@@ -73,8 +70,8 @@ let private rebaseIgnoresMainsDraft =
         do! switch state "rebbr"
         do! rebase state "rebbr"
 
-        // Both answers come from the same committed version. The bug left the branch calling 222
-        // through its caller while `root` still read 111: inconsistent with itself.
+        // Both answers come from the same committed version: the branch must not call 222 through
+        // its caller while `root` reads 111.
         do!
           evals state "Tests.Reb.root()" "111" "the branch sees the committed root"
         do! evals state "Tests.Reb.user()" "111" "and its caller agrees with it"
@@ -83,8 +80,8 @@ let private rebaseIgnoresMainsDraft =
         do! archiveBranches state [ "rebbr" ]
       })
 
-/// Ocean #11. Archiving a parent took its work out from under its children: their code stopped
-/// resolving and their listing showed a parent that is not in this store.
+/// Archiving a parent must not take its work out from under its children: their code would stop
+/// resolving and their listing would show a parent that is not in this store.
 let private archiveRefusesToOrphanAChild =
   instanceTest
     "archiving a parent with live children is refused, and names them"
@@ -120,9 +117,8 @@ let private archiveRefusesToOrphanAChild =
             "with the child gone, the parent archives"
       })
 
-/// Not one of Ocean's, but the same family as her branch-isolation findings: a `Deprecate` authored
-/// on a branch never folded, so the branch went on calling the item live and only a merge made the
-/// deprecation visible anywhere.
+/// A `Deprecate` authored on a branch folds on that branch: the deprecation is visible there without
+/// waiting for a merge.
 let private deprecateIsVisibleOnItsBranch =
   instanceTest
     "a deprecation authored on a branch shows there, and travels on merge"
@@ -164,8 +160,8 @@ let private deprecateIsVisibleOnItsBranch =
 
 // ─── the draft commands ───────────────────────────────────────────────────
 
-/// Ocean #1. `discard <name>` on a branch dropped every op for that name, committed ones included,
-/// so the branch lost its last committed version and `status` then called it clean.
+/// `discard <name>` on a branch drops only that name's draft ops, never committed ones, so the branch
+/// keeps its last committed version.
 let private branchDiscardKeepsCommittedWork =
   instanceTest
     "discard <name> on a branch spares what the branch already committed"
@@ -198,8 +194,8 @@ let private branchDiscardKeepsCommittedWork =
         do! archiveBranches state [ "discardkeep" ]
       })
 
-/// Ocean #14. `--include=` selected namings by content hash, so an unrelated name that happened to
-/// hold an identical body rode along and was reported as needed by what you named.
+/// `--include=` selects namings by name, not content hash, so an unrelated name that holds an
+/// identical body does not ride along or get reported as needed by what you named.
 let private partialCommitTakesNamesNotBodies =
   instanceTest "--include= leaves an unrelated name that shares a body" (fun state ->
     task {
@@ -208,7 +204,7 @@ let private partialCommitTakesNamesNotBodies =
       do! fn state "Tests.Part.private" "() : Int64 = 987"
 
       // The preview lists the whole draft, which is right; what must not appear is the
-      // "also committed" line, which is where the unrelated name used to be reported as needed.
+      // "also committed" line, which is where the unrelated name would be reported as needed.
       do!
         lacks
           state
@@ -273,8 +269,8 @@ let private partialCommitTakesNewNameForCommittedContent =
         do! start state
       })
 
-/// Ocean #15. `undo` writes a `Decision`, and `discard <name>` only recognised `SetName`, so it
-/// reported the change dropped and changed nothing.
+/// `undo` writes a `Decision`, so `discard <name>` has to recognise that as well as `SetName`, or it
+/// reports the change dropped and changes nothing.
 let private discardSeesWhatUndoWrote =
   instanceTest "discard <name> drops what undo staged" (fun state ->
     task {
@@ -297,8 +293,8 @@ let private discardSeesWhatUndoWrote =
       do! clean state "and the draft is empty"
     })
 
-/// Ocean #16. `discard` decided the draft was empty by counting changed NAME bindings, so a draft
-/// holding only a decision (a pin, a deprecation, an ack) read as empty and was left in place.
+/// `discard` decides the draft is empty by counting ops, not changed NAME bindings, so a draft
+/// holding only a decision (a pin, a deprecation, an ack) is discarded too.
 let private discardCountsOpsNotNames =
   instanceTest "discard sees a draft that holds only a decision" (fun state ->
     task {
@@ -320,8 +316,8 @@ let private discardCountsOpsNotNames =
 
 // ─── merge ────────────────────────────────────────────────────────────────
 
-/// Ocean #12. A branch whose commit was REFUSED by the at-rest type check could still be merged,
-/// landing code that does not typecheck on main with nothing recorded. Merge asks what commit asks,
+/// A branch whose commit the at-rest type check REFUSES cannot be merged either, or code that does
+/// not typecheck lands on main with nothing recorded. Merge asks what commit asks,
 /// and refuses uncommitted work outright.
 let private mergeIsGatedLikeCommit =
   instanceTest "merge refuses type errors and uncommitted work" (fun state ->
@@ -372,7 +368,6 @@ let private mergeIsGatedLikeCommit =
 
 // ─── rename ───────────────────────────────────────────────────────────────
 
-/// The workbench used to add a new name without removing the old one.
 /// A rename should move the name in one operation, keeping the same content.
 let private renameMovesANameNotItsContent =
   instanceTest "rename moves a name and leaves its callers alone" (fun state ->
@@ -430,8 +425,8 @@ let private renameRefusesTheBadCases =
 // ─── the everyday path ────────────────────────────────────────────────────
 
 /// The loop the whole system exists for, asserted end to end: author, see it live, commit, see it
-/// clean, edit, see the cascade, commit again. Nothing exotic. It is here because every bug above
-/// was found by someone doing exactly this and reading what came back.
+/// clean, edit, see the cascade, commit again. Nothing exotic: every bug above sits on this
+/// path.
 let private theEverydayLoop =
   instanceTest "author, run, commit, edit, cascade, commit" (fun state ->
     task {

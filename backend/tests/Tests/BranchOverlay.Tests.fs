@@ -814,7 +814,7 @@ let reuseBranchIdRevives =
       |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
     // Set the flags directly: this test is about createBranch's revive-on-reuse, and `archive` is
-    // Dark now (SCM.Branches), so SQL keeps the setup on the test's actual subject.
+    // in Dark (SCM.Branches), so SQL keeps the setup on the test's actual subject.
     do!
       execSqlP
         "UPDATE branches SET archived_at = datetime('now'), merged_at = datetime('now')
@@ -1384,7 +1384,7 @@ let branchIdsNeverReachAPerson =
         System.IO.Path.Combine("..", "backend", "src", "Builtins") ]
 
     // A root that is not there means this test scanned nothing and passed, which is worse than a
-    // failure. It is how the first version of it "passed" against a bug sitting in the tree.
+    // failure.
     for root in roots do
       Expect.isTrue
         (System.IO.Directory.Exists root)
@@ -1393,8 +1393,7 @@ let branchIdsNeverReachAPerson =
     let pattern =
       System.Text.RegularExpressions.Regex(
         // `.*`, not `[^"]*`: these strings quote the branch themselves (`branch \"{name}\"`), so a
-        // character class that stops at a quote stops before the interpolation every time. That is
-        // how the first version of this test passed against the very bug it was written for.
+        // character class that stops at a quote stops before the interpolation every time.
         @"(Error|Dval\.string) \$"".*\{(branchId|parentId|sourceId|targetId|bid)\}"
       )
 

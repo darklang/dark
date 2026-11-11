@@ -3,7 +3,7 @@
 /// A `val` is evaluated once, when it is saved, by the interpreter, and every reader gets that
 /// result. So its evaluation may perform no effect, whoever saves it and whatever the instance
 /// policy allows: `val x = <clock read>` would freeze one machine's clock into the store, and
-/// `val x = <command>` used to run commands that the same expression was denied at `eval`.
+/// `val x = <command>` must not run a command the same expression is denied at `eval`.
 module Tests.PermissionEscape
 
 open System.Threading.Tasks
@@ -103,8 +103,8 @@ let testEffectIsRefused =
 
 let testPureBodyIsEvaluated =
   testTask "value evaluation: a pure body is evaluated by the interpreter" {
-    // The control for the test above, and the case the old constant folder got wrong: it
-    // turned an interpolation into empty text.
+    // The control for the test above. An interpolation evaluates to its text, not to empty
+    // text.
     let! hash =
       storeUnevaluated
         "interpolated"

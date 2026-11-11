@@ -1908,10 +1908,9 @@ module LiveValues =
       | None -> failtest "no TraceExpr followed the Apply"
     }
 
-  /// `a + b` compiles its own `Apply` by hand rather than going through the `EApply` case, and
-  /// for a long time that meant no hook and no recorded value: every piece of arithmetic in a
-  /// program was invisible to a trace. It discarded the expression id as well, so there was
-  /// nothing to key a value by even in principle.
+  /// `a + b` compiles its own `Apply` by hand rather than going through the `EApply` case, so it
+  /// has to emit the hook and keep the expression id itself, or every piece of arithmetic in a
+  /// program is invisible to a trace.
   let traceExprFollowsAnInfixCall =
     testTask
       "an EInfix call is followed by TraceExpr with its id and result register" {
@@ -1973,10 +1972,9 @@ module LiveValues =
 module MarkerStripping =
   /// `DebugSymbols.split` takes the `TraceExpr` markers back out of the stream that actually
   /// runs, and jumps are RELATIVE, so removing an instruction has to rewrite every jump that
-  /// spans it. Nothing asserted that until this test. The expectations above drop the markers
-  /// with their own `withoutTraceExpr` helper and never call `split`, so the rewriting was the
-  /// one part of the marker design with no test over it -- which is why a whole suite can pass
-  /// while a conditional lands on the wrong instruction.
+  /// spans it. The expectations above drop the markers with their own `withoutTraceExpr` helper
+  /// and never call `split`, so without this test a whole suite can pass while a conditional
+  /// lands on the wrong instruction.
   ///
   /// The convention being asserted is the interpreter's, from `Interpreter.fs`: a jump sets
   /// `counter <- counter + jumpBy`, and the loop then advances `counter <- counter + 1`, so the

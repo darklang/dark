@@ -144,11 +144,11 @@ let private testScriptTypeUnifiesWithPackageType =
 /// A runtime error carries content hashes and is rendered by the CLI after the
 /// executor that raised it is gone, so the pretty-printer turns a hash back into
 /// a name by asking the package manager where that hash is bound. A script's
-/// declarations are never in the store, so that lookup used to miss and every
-/// such name printed as a 64-character hash.
+/// declarations are never in the store, so lowering registers them in
+/// `EphemeralPackages`, which `PackageManager.pt` consults ahead of the store;
+/// otherwise each such name prints as a 64-character hash.
 ///
-/// Lowering now registers them in `EphemeralPackages`, which `PackageManager.pt`
-/// consults ahead of the store. This asserts the lookup, not the rendered
+/// This asserts the lookup, not the rendered
 /// string: the string needs CLI dispatch, which `tests/cli/evalAndRun.dark` drives.
 let private testDeclarationsAreNameableAfterLowering =
   testTask "lowered declarations can be resolved back to their names" {
@@ -191,7 +191,7 @@ let private testRegistryDoesNotDisplaceStoredNames =
 
 
 /// Each script expression is awaited as it runs. Awaiting only the last one drops an
-/// earlier failure silently -- it hid a broken perf-workload row.
+/// earlier failure silently.
 let private testMiddleStatementErrorStopsTheScript =
   testTask "an error in a middle statement ends the script" {
     let code =

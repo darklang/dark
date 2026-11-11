@@ -214,7 +214,7 @@ let seedExportStripsPerInstallState =
 let seedExportStripsTheBuildersDraft =
   test "Seed.export strips uncommitted main ops" {
     // Whitespace-collapsed before matching: this pins WHAT the export deletes, and an assertion on
-    // Seed.fs's literal indentation broke on a reformat that changed nothing.
+    // Seed.fs's literal indentation would break on a reformat that changes nothing.
     let source =
       System.Text.RegularExpressions.Regex.Replace(seedSource (), @"\s+", " ")
 
@@ -271,7 +271,7 @@ let everyDeclaredTableExists =
 /// read-only connection as readily as on a writable one, so a version of this without the
 /// INSERT would pass against the very bug it exists to catch.
 ///
-/// That is also how the bug reached main. The only other test of `export` below reads
+/// The only other test of `export` below reads
 /// `Seed.fs` as TEXT and asserts the source contains certain `DELETE FROM` strings, which is a
 /// real check on the strip list and cannot observe a runtime failure at all. `export` itself is
 /// never executed by the suite, because it copies `Config.dbPath` and in a test that is the

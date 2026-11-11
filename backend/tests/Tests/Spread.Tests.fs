@@ -537,8 +537,8 @@ let private cancelledLeavesNothing =
       Expect.isGreaterThan Spread.spreads before "the map spread"
       Expect.isTrue (s.Cancel p.id) "the map was still running when it was cancelled"
       let! result = p.completion.Task
-      // Not a time limit, which a loaded machine breaks. Before the stop was checked at the
-      // fallback, the cancelled chunks were taken for one, and the rest of the map ran here.
+      // Not a time limit, which a loaded machine breaks. The stop is checked at the fallback,
+      // so cancelled chunks are not taken for one and the rest of the map does not run here.
       Expect.equal
         (Spread.fallbacks - fallbacksBefore)
         0L
@@ -723,9 +723,8 @@ let private wrongPureFallsBack =
 type private Counts =
   { spreads : int64; joins : int64; builtinCalls : int64; instructions : int64 }
 
-/// The chunks run at once on other threads. Counting into the spreader's set from all of them
-/// lost increments, so the counts moved from run to run: 400 `stringJoin` calls counted as 390
-/// to 397. Each chunk counts into a set of its own, added in when it is collected.
+/// The chunks run at once on other threads, and counting into the spreader's set from all of them
+/// would lose increments. Each chunk counts into a set of its own, added in when it is collected.
 let private countsAreExact (op : string) (code : string) =
   testTask $"a spread {op} counts every call and instruction, the same on every run" {
     let! state = executionStateFor pmPT false

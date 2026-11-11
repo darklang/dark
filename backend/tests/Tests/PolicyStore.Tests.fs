@@ -375,10 +375,9 @@ let approvingADependencyKeepsItsOwnRootApproval =
 
 let reapprovingASharedHashKeepsTheOtherNamesPinned =
   test "approving a second name for the same hash keeps the first name's pin" {
-    // Content addressing makes one hash the target of several names. The
-    // re-approval cleanup used to be the revocation routine, which unpins
-    // every name pointing at the hash and then restored only the one being
-    // approved: after `Acme.a -> H` and `Acme.b -> H` only `Acme.b` was left.
+    // Content addressing makes one hash the target of several names, so the
+    // re-approval cleanup must not unpin every name pointing at the hash:
+    // after `Acme.a -> H` and `Acme.b -> H`, both stay pinned.
     let accountID : Option<System.Guid> = None
     let approve location store =
       match
@@ -593,9 +592,9 @@ let linkedPolicyAncestorsNeedRoot =
       System.IO.Directory.Delete(temp, true)
   }
 
-/// The suite runs on a policy of its own (`Tests.main`), not the clone's `~/.darklang/policy`.
-/// Every test that did not set a directory of its own used to read, and could write, the dev
-/// store's policy, where a deny-all refuses the clone's own gates and printing.
+/// The suite runs on a policy of its own (`Tests.main`), not the clone's `~/.darklang/policy`. A
+/// test that sets no directory of its own must not read or write the dev store's policy, where a
+/// deny-all refuses the clone's own gates and printing.
 let suiteNeverUsesTheClonesPolicy =
   test "the suite's policy is not the clone's own" {
     let home =

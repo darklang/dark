@@ -4,11 +4,9 @@
 /// Nothing here is about SCM. These are the commands a person runs before they
 /// change anything -- `ls`, `view`, `tree`, `search`, `deps`, `hash` -- plus the
 /// authoring verbs that pair with them (`fn`, `val`, `delete`, `restore`,
-/// `deprecate`). They had almost no coverage, and Dark resolves names when the line
-/// RUNS, so a rename in `packages/` leaves holes here that a green suite cannot see.
-/// Two of these tests are regressions for exactly that: `hash` and `find-values`
-/// each parsed a name with their own rule and answered "not found" about items
-/// `view` printed happily.
+/// `deprecate`). Dark resolves names when the line RUNS, so a rename in `packages/`
+/// leaves holes here that a green suite cannot see. Every command that takes a name
+/// must resolve it the way `view` does.
 module Tests.CliPackages
 
 open System.Threading.Tasks
@@ -1356,12 +1354,11 @@ test callerCeiling = Tests.PermissionUse.caller()
         do! discardAll state
       })
 
-/// An approved function can read a file under the installation's real policy, not the
-/// allow-all one `test run` uses. Approval derives a policy for every function the root
-/// reaches, and `Posix.fdRead` declares no effect, so its derived policy denied everything;
-/// the host checked each descriptor read against it, so the open passed and the first read
-/// was refused. A function nobody approved is still denied, at the open. (The two bodies
-/// differ: identical ones would be one hash, and so one approval.)
+/// An approved function can read a file under the installation's real policy, not the allow-all one
+/// `test run` uses. Approval derives a policy for every function the root reaches, and
+/// `Posix.fdRead` declares no effect, so its derived policy denies everything; a read on a
+/// descriptor the open allowed must still succeed. A function nobody approved is still denied, at
+/// the open. (The two bodies differ: identical ones would be one hash, and so one approval.)
 let approvedFunctionReadsAFile =
   instanceTest "an approved function reads a file it opens" (fun state ->
     task {
@@ -1546,8 +1543,8 @@ let private workbenchAt (modules : List<string>) (row : string) : string =
   + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap(s1.items, fun(i, it) -> (i, it.name)) |> Stdlib.List.findFirst(fun((_, nm)) -> nm == \"{row}\") |> Stdlib.Option.map(fun((i, _)) -> i) |> Stdlib.Option.withDefault(0)) }} in "
 
 /// The Code view lists a module's tests as rows of their own, and the Inspect pane shows a test's
-/// source and result, and a function's tests. Every row kind here used to fall through to "value",
-/// so a test row would have looked itself up as a value and shown "(not found)".
+/// source and result, and a function's tests. A test row must not fall through to "value", look
+/// itself up as a value and show "(not found)".
 let workbenchShowsTests =
   instanceTest "the workbench lists and inspects tests" (fun state ->
     task {
@@ -1586,8 +1583,7 @@ let workbenchShowsTests =
           "a function's Inspect pane lists the tests that call it"
     })
 
-/// Renaming from the workbench ends the old name. It used to build the old location from the
-/// owner-first module path, so it unbound a name that did not exist and both names stayed bound.
+/// Renaming from the workbench ends the old name: afterwards only the new name is bound.
 let workbenchRenameEndsTheOldName =
   instanceTest "a workbench rename leaves one name, not two" (fun state ->
     task {
@@ -1633,10 +1629,9 @@ let depsNamesWhatAnItemUses =
           "deps says so when there's nothing to walk"
     })
 
-/// Regression: `hash` split the name itself and read the FIRST segment as the owner,
-/// so `hash Stdlib.List.head` looked for an owner called Stdlib and said "Not found"
-/// about a name `view` prints. It traverses now, like everything else that takes a
-/// name.
+/// `hash` resolves a name by traversal, like everything else that takes a name.
+/// `hash Stdlib.List.head` must not read the FIRST segment as the owner and say
+/// "Not found" about a name `view` prints.
 let hashResolvesNamesLikeViewDoes =
   instanceTest "hash takes the same names view takes" (fun state ->
     task {
@@ -1717,7 +1712,7 @@ let navIsHonestAboutHowLongItLasts =
     })
 
 
-/// Regression, same family as `hash`: find-values split the type name itself.
+/// Same family as `hash`: find-values resolves the type name like `view` does.
 let findValuesTakesTheSameNames =
   instanceTest "find-values takes the same names view takes" (fun state ->
     task {
@@ -1882,10 +1877,9 @@ let deprecateAndUndeprecate =
       do! discardAll state
     })
 
-/// Ocean's 3, and the shape it settled into. A doc comment is not behaviour, so editing one leaves
-/// the item's hash alone -- which means the edit cannot ride on an `AddFn` (ops are
-/// content-addressed, so that op IS the earlier one and folds to nothing) and rides on an `UpdateDoc`
-/// instead.
+/// A doc comment is not behaviour, so editing one leaves the item's hash alone -- which means the
+/// edit cannot ride on an `AddFn` (ops are content-addressed, so that op IS the earlier one and
+/// folds to nothing) and rides on an `UpdateDoc` instead.
 let aDocOnlyEditKeepsTheVersionAndStillLands =
   instanceTest
     "editing only the docs changes the docs and nothing else"
@@ -1975,12 +1969,12 @@ let aBranchesDocEditStaysOnTheBranch =
         do! discardAll state
       })
 
-/// The nested targets, which are the ones that used to be dropped on the floor.
+/// The nested targets.
 ///
 /// A record field's, an enum case's and a parameter's doc are all outside the identity hash, so an
-/// edit to one alone leaves the item's version exactly where it was -- and before `UpdateDoc` there
-/// was no op that could carry it, so the CLI said "unchanged: nothing saved" and the words went
-/// nowhere. Each is asserted separately because each reaches a different part of the declaration.
+/// edit to one alone leaves the item's version exactly where it was. `UpdateDoc` carries it; the
+/// CLI must not answer "unchanged: nothing saved". Each is asserted separately because each reaches
+/// a different part of the declaration.
 let aFieldsDocEditLands =
   instanceTest "editing only a record field's doc saves it" (fun state ->
     task {
