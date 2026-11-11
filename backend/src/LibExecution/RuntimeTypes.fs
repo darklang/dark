@@ -2659,6 +2659,14 @@ and [<Struct; CustomEquality; NoComparison>] DvalList =
           count = n
           back = Rrb.take (list.start + n - frontCount) list.back }
 
+  /// With the value at `index`, `0 <= index < length`, replaced by `value`.
+  static member set (index : int) (value : Dval) (list : DvalList) : DvalList =
+    let frontCount = list.FrontCount
+    if index < frontCount then
+      { list with front = List.updateAt index value list.front }
+    else
+      { list with back = Rrb.set (list.start + index - frontCount) value list.back }
+
   /// The value at `i`, from where the value before it was read: the rest of the front, or the
   /// tree's array that held it and the place after it. A walk that reads every value this way
   /// makes nothing, where `tail` copies the rest of a leaf to the front.

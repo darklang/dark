@@ -41,9 +41,7 @@ let prepend(list: List<'a>, value: 'a): List<'a> =
   Builtin.listPrepend(list, value)
 
 
-/// Adds <param value> to the back of <param list>. Copies <param list>; to build a list
-/// one value at a time, <fn prepend> and <fn reverse> once at the end.
-/// To join two lists, use <fn concat>.
+/// Adds <param value> to the back of <param list>. To join two lists, use <fn concat>.
 let append(list: List<'a>, value: 'a): List<'a> =
   Builtin.listAppend(list, value)
 
@@ -361,13 +359,7 @@ let removeAt(list: List<'a>, i: Int64): List<'a> =
 
 
 /// Drops the first <param count> values from <param list>
-let drop(list: List<'a>, count: Int64): List<'a> =
-  if count <= 0 then
-    list
-  else
-    match list with
-    | [] -> []
-    | [_, ...tail] -> drop(tail, count - 1)
+let drop(list: List<'a>, count: Int64): List<'a> = Builtin.listDrop(list, count)
 
 
 /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
@@ -544,9 +536,7 @@ let setAt(
   if resolvedIndex < 0 || resolvedIndex >= listLength then
     Result.Result.Error(IndexError.IndexOutOfBounds)
   else
-    Result.Result.Ok(
-      indexedMap(list, fun(i, v) -> if i == resolvedIndex then value else v)
-    )
+    Result.Result.Ok(Builtin.listSetAt(list, resolvedIndex, value))
 
 
 /// Returns {{Some <var randomValue>}}, where <var randomValue> is a randomly

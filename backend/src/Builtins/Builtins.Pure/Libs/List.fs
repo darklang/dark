@@ -318,6 +318,59 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "listDrop" 0
+      typeParams = []
+      parameters =
+        [ Param.moved "list" (TList varA) ""; Param.make "count" TInt64 "" ]
+      returnType = TList varA
+      description =
+        "Returns <param list> without its first <param count> values, or all of it if <param count> is not positive"
+      fn =
+        (function
+        | _, _, _, [| DList(vt, items) as list; DInt64 count |] ->
+          if count <= 0L then
+            Ply list
+          elif count >= int64 (DvalList.length items) then
+            Ply(DList(VT.unknown, DvalList.empty))
+          else
+            Ply(DList(vt, DvalList.drop (int count) items))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listSetAt" 0
+      typeParams = []
+      parameters =
+        [ Param.moved "list" (TList varA) ""
+          Param.make "index" TInt64 ""
+          Param.moved "value" varA "" ]
+      returnType = TList varA
+      description =
+        "Returns <param list> with the value at <param index> replaced by <param value>, or <param list> unchanged if <param index> is outside it"
+      fn =
+        (function
+        | _, vm, _, [| DList(vt, l) as list; DInt64 index; value |] ->
+          if index < 0L || index >= int64 (DvalList.length l) then
+            Ply list
+          else
+            let replaced = DvalList.set (int index) value l
+            match VT.mergeDval vt value with
+            | Ok merged -> Ply(DList(merged, replaced))
+            | Error() ->
+              Ply(
+                TypeChecker.DvalCreator.list
+                  vm.threadID
+                  vt
+                  (DvalList.toList replaced)
+              )
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "listIndexedMap" 0
       typeParams = []
       parameters =
