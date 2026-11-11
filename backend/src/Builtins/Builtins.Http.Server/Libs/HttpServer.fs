@@ -241,8 +241,9 @@ type private Routing =
 
 let private rootOf = LibDB.PolicyStore.rootOf
 
-/// The router is the approval root; explicit instance denies and the frame
-/// that called `serve` still bound its access. A lambda runs as the server.
+/// Use the router's saved approval if it has a name.
+/// Instance denies and the caller's restrictions still take priority.
+/// Anonymous handlers use the instance and caller's permissions.
 let private guestStateFor
   (exeState : ExecutionState)
   (invokerAccess : LibExecution.Permissions.Access)
@@ -880,15 +881,14 @@ let private serve
   (onListening : Applicable)
   : Ply<Dval> =
   uply {
-    // The router and its callbacks are guest code, so use a guest
-    // state rather than the trusted CLI state. Use it for both the
-    // bind check and handler calls; explicit instance denies still win. A named package router is the approval root;
-    // lambda handlers have no package root of their own.
+    // Run the router and callbacks with guest permissions.
+    // Use those permissions both to start listening and to handle requests.
+    // Named routers can use their saved approvals; anonymous handlers have none.
+    // Instance denies still take priority.
     //
-    // `guestState` replaces access, so intersect the child with the
-    // invoking frame. Guest code can call `serve` directly; its invocation
-    // and resource restrictions must reach the bind,
-    // logging and callback checks.
+    // Creating the guest state replaces its permissions, so also apply the
+    // caller's restrictions. Calling `serve` must not bypass those restrictions
+    // when starting the server, logging requests or running callbacks.
     //
     // A live server re-derives this per router hash (`resolveRouting`); the one built here is for
     // the bind, the announce, and the routing step itself. Either kind re-derives it once the

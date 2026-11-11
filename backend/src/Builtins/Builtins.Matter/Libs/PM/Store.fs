@@ -15,7 +15,8 @@ module Dval = LibExecution.Dval
 module NR = LibExecution.RuntimeTypes.NameResolution
 
 
-/// Whole-store administration belongs to the trusted CLI, never a guest wrapper.
+/// Only trusted CLI code may administer the whole store.
+/// Calling a wrapper does not give guest code that authority.
 let private requireHost (state : ExecutionState) : unit =
   if not state.canManagePolicies then
     RuntimeError.UncaughtException(

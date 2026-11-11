@@ -1,5 +1,6 @@
-/// Exact, statically known access before a run, and host-owned interactive review.
-/// No guest code is executed to discover requests.
+/// Check access that can be determined before running, and ask the user
+/// for approval through the trusted host. Do not run user code to find
+/// out which permissions it needs.
 module LibDB.PermissionReview
 
 open Prelude

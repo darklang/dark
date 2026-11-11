@@ -1236,16 +1236,17 @@ let private createGuestState
             parentState.permissionAccess callerAccess
           ) }
 
-/// The reviewed identity is a named entry when `run` synthesized its direct
-/// call, otherwise the script path plus its source and resolved dependency IDs.
-// Script expressions are wrapped in the host's args lambda, which run always
-// applies. Only unwrap that outer entry; lambdas returned by user code are deferred.
+/// Dark wraps scripts in a function that receives their arguments.
+/// Look inside that wrapper for upfront checks. Leave functions returned
+/// by user code for later, when they are actually called.
 let private scriptEntryBodies (mod' : Utils.CliScript.PTCliScriptModule) =
   mod'.exprs
   |> List.map (function
     | PT.ELambda(_, _, body) -> body
     | expr -> expr)
 
+/// Approvals identify either the named function being run, or the script's
+/// path, source and dependency versions.
 let private reviewIdentity filename code (mod' : Utils.CliScript.PTCliScriptModule) =
   let named =
     match scriptEntryBodies mod' with
@@ -1259,8 +1260,9 @@ let private reviewIdentity filename code (mod' : Utils.CliScript.PTCliScriptModu
   match named with
   | Some identity -> identity
   | None ->
-    // Canonical AST includes resolved function, value, type and trait references.
-    // A dependency edit therefore invalidates the review even if source is unchanged.
+    // The code identity includes the versions of functions, values, types and
+    // traits it refers to. Changing any of them invalidates the saved approval,
+    // even if the script itself has not changed.
     use bytes = new System.IO.MemoryStream()
     use writer = new System.IO.BinaryWriter(bytes)
     writer.Write(code : string)

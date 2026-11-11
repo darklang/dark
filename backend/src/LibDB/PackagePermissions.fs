@@ -257,9 +257,10 @@ let private describeEffects (effects : Set<LibExecution.Effects.Effect>) : strin
     |> List.map LibExecution.Effects.name
     |> String.concat ", "
 
-/// Compare the previously approved version `oldHash` with an analyzed candidate: callable
-/// type and complete transitive requirements. Both versions
-/// are content-addressed, so this comparison is stable for the two hashes.
+/// Compare the previously approved version (`oldHash`) with the new version.
+/// Check their input and return types and permission requirements, including
+/// those of their dependencies. Both analyses must be complete to report a match.
+/// Each hash identifies fixed code, so the versions being compared cannot change.
 let compareContracts
   (load : Load)
   (callEffectsFor : CallEffectsFor)
@@ -411,8 +412,8 @@ let approveVersionForName
           |> Result.map (fun () -> ApprovalOutcome.Approved)
   }
 
-/// One explanation per effect, with a concrete call path through the analyzed
-/// closure. This is descriptive only; runtime checks still use exact resources.
+/// Explain each effect by showing the calls that lead to it.
+/// This does not grant access; permission checks use the actual resource.
 let explain
   (load : Load)
   (callEffectsFor : CallEffectsFor)

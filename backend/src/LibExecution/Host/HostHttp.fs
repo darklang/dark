@@ -512,7 +512,7 @@ let private isTokenChar (c : char) : bool =
 let private validateHeaders (headers : Headers) : Result<unit, HttpBadHeader> =
   headers
   |> List.tryPick (fun (k, v) ->
-    // Authority always comes from the URL checked by the permission boundary.
+    // Use the host and port from the URL that passed the permission check.
     if String.equalsCaseInsensitive k "host" then
       Some HttpBadHeader.InvalidName
     elif k = "" || not (Seq.forall isTokenChar k) then

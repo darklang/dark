@@ -225,8 +225,9 @@ module Fn =
           """
         |> Sql.parameters [ "hash", Sql.string hash; "owner", Sql.string owner ]
         |> Sql.executeExistsSync)
-    // Entry-policy lookup asks whether each function is bundled. Cache answers for
-    // this snapshot; concurrent because spread workers ask too.
+    // Cache whether each function is bundled with Dark for this snapshot,
+    // so approval checks do not repeat the lookup. Keep the cache safe for
+    // concurrent access because parallel workers use it too.
     let known = System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
     fun hash -> known.GetOrAdd(hash, ask)
 
