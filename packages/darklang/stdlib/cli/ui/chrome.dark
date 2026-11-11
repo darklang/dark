@@ -1,13 +1,8 @@
 /// The frame around a full-screen app: a title bar at the top, a help bar at the bottom, and the body in
 /// between.
 ///
-/// Four apps had grown their own copy of this (a `titleRow`, a `helpRow`, some arithmetic splitting the
-/// height three ways, a `clipToWidth` over the result), each subtly different: one padded the help bar and
-/// one didn't, one degraded to a single row at small heights and one drew over itself. Now there's one.
-///
-/// The other thing it adds is a place for a *message*: "wrote /tmp/notes.md", "can't delete the last
-/// document". Apps that had nowhere to say that just did nothing when they refused an action, which reads
-/// as the app being broken rather than as an answer.
+/// It also gives a place for a *message*: "wrote /tmp/notes.md", "can't delete the last document". An app
+/// that refuses an action says so, rather than doing nothing and reading as broken.
 module Darklang.Stdlib.Cli.UI.Chrome
 
 /// How a mode badge reads: what you're in, what you're doing, what went wrong.

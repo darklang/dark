@@ -381,9 +381,8 @@ let prepareStopInlineWithView(
       match state.terminalSize with
       | Some(size) -> (Stdlib.max(1, size.width), normalizeView(size, final))
       | None ->
-        // Unreachable: a running session always recorded a size. Sampling beats the old `1`, which would
-        // have clipped every row to a single column, so the defensive path degrades to "maybe a stale
-        // width" rather than "definitely shredded output".
+        // Unreachable: a running session always recorded a size. Sampling degrades to a maybe-stale
+        // width; a guess like `1` would clip every row to a single column.
         let size = currentSize()
         (Stdlib.max(1, size.width), normalizeView(size, final))
     let parked = { final with cursor = Tui.Cursor.Hidden }
