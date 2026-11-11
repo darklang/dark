@@ -519,7 +519,7 @@ let private integer
     | _ -> raiseCantMatchWithType typ j path
 
 
-/// What a record field of type `Option` parses from when the JSON leaves it out.
+/// What a record field of type `Option` parses from when the JSON leaves it out or is `null`.
 let private noneJson : JsonElement = JsonDocument.Parse("{\"None\":[]}").RootElement
 
 
@@ -532,20 +532,20 @@ let parse
 
   let tst = TST.empty // TODO consider passing this in.. somehow?
 
-  /// Whether <param typ> is `Option`, directly or through aliases.
-  let rec isOption (typ : TypeReference) : Ply<bool> =
+  /// What <param typ> holds when it is `Option`, directly or through aliases.
+  let rec optionOf (typ : TypeReference) : Ply<TypeReference option> =
     uply {
       match typ with
-      | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, _) when
+      | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, [ inner ]) when
         h = PackageRefs.Type.Stdlib.option ()
         ->
-        return true
+        return Some inner
       | TCustomType({ resolved = Ok typeName }, typeArgs) ->
         match! Types.find types typeName with
         | Some({ definition = TypeDeclaration.Alias alias } as decl) ->
-          return! isOption (Types.substitute decl.typeParams typeArgs alias)
-        | _ -> return false
-      | _ -> return false
+          return! optionOf (Types.substitute decl.typeParams typeArgs alias)
+        | _ -> return None
+      | _ -> return None
     }
 
   let rec convert
@@ -805,32 +805,25 @@ let parse
               |> List.map (fun def ->
                 uply {
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
-                  let! correspondingValue =
-                    uply {
-                      match
-                        enumerated |> List.filter (fun v -> v.Name = def.name)
-                      with
-                      | [] ->
-                        match! isOption typ with
-                        | true -> return noneJson
-                        | false ->
-                          return
-                            raiseError (
-                              ParseError.RecordMissingField(def.name, pathSoFar)
-                            )
-                      | [ matchingFieldDef ] -> return matchingFieldDef.Value
-                      | _ ->
-                        return
-                          raiseError (
-                            ParseError.RecordDuplicateField(def.name, pathSoFar)
-                          )
-                    }
-
+                  let path = JsonPath.Part.Field def.name :: pathSoFar
+                  let! optionArg = optionOf typ
                   let! converted =
-                    convert
-                      typ
-                      (JsonPath.Part.Field def.name :: pathSoFar)
-                      correspondingValue
+                    match
+                      enumerated |> List.filter (fun v -> v.Name = def.name),
+                      optionArg
+                    with
+                    | [], Some _ -> convert typ path noneJson
+                    | [], None ->
+                      raiseError (
+                        ParseError.RecordMissingField(def.name, pathSoFar)
+                      )
+                    | [ field ], Some inner ->
+                      optionField typ inner path field.Value
+                    | [ field ], None -> convert typ path field.Value
+                    | _ ->
+                      raiseError (
+                        ParseError.RecordDuplicateField(def.name, pathSoFar)
+                      )
                   return (def.name, converted)
                 })
               |> Ply.List.flatten
@@ -879,6 +872,39 @@ let parse
     | TList _, _
     | TDict _, _
     | TCustomType _, _ -> raiseCantMatchWithType typ j pathSoFar
+
+  /// A present `Option` field. `null` is `None`, `{"Some":[..]}` and `{"None":[]}` are read as
+  /// `serialize` writes them, and any other value is the `Some`.
+  and optionField
+    (typ : TypeReference)
+    (inner : TypeReference)
+    (path : JsonPath.JsonPath)
+    (j : JsonElement)
+    : Ply<Dval> =
+    let asWritten =
+      j.ValueKind = JsonValueKind.Object
+      && (match j.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList with
+          | [ "Some" ]
+          | [ "None" ] -> true
+          | _ -> false)
+    if j.ValueKind = JsonValueKind.Null then
+      convert typ path noneJson
+    else if asWritten then
+      convert typ path j
+    else
+      uply {
+        let! value = convert inner path j
+        let! innerVT = TypeReference.toVT types tst inner
+        return!
+          TypeChecker.DvalCreator.enum
+            types
+            threadID
+            tst
+            (Dval.optionType ())
+            [ innerVT ]
+            "Some"
+            [ value ]
+      }
 
   let parsed =
     try

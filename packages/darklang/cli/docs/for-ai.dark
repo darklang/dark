@@ -39,7 +39,7 @@ non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
   Stdlib.Json.serialize<Profile>(value)
 
 A JSON object parses into a record: extra fields are ignored, and a field that
-may be absent is an `Option` field. A `null` is refused.
+may be absent or `null` is an `Option` field.
 
 Files and the network are denied until allowed. One step covers a project:
 

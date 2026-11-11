@@ -1760,6 +1760,28 @@ module UserDefinedRecords =
         Result.Ok(
           Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None }))
 
+    test plainValuesAreSome =
+      Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Nickname": "B", "Age": 42 }""")
+      |> Stdlib.Test.equal(
+        Result.Ok(
+          Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.Some(42) }))
+
+    test nullIsNone =
+      Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Nickname": null, "Age": null }""")
+      |> Stdlib.Test.equal(
+        Result.Ok(Profile { Name = "Bob", Nickname = Option.None, Age = Option.None }))
+
+    test serializedProfileParses =
+      let p = Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None }
+      Stdlib.Json.parse<Profile>(Stdlib.Json.serialize<Profile>(p))
+      |> Stdlib.Test.equal(Result.Ok(p))
+
+    test plainValueOfWrongTypeIsAnError =
+      (Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Age": "old" }""")) |> err
+      |> Stdlib.Test.equal(
+        Result.Error(
+          "Can't parse JSON `\"old\"` as type `Int64` at path: `root.Age`"))
+
     test missingTypeArgOptionIsNone =
       Stdlib.Json.parse<Combo<Int64, Option<Int64>>>("""{ "e1": 1 }""")
       |> Stdlib.Test.equal(Result.Ok(Combo { e1 = 1, e2 = Option.None }))
