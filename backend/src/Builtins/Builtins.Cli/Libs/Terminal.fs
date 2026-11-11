@@ -98,6 +98,18 @@ let terminalSize () : int64 * int64 =
     (width, height)
 
 
+/// A column count as the text helpers take it. Past Int32 is wider than any row, so it clips and
+/// wraps the same as Int32's limit.
+let private columns (maxWidth : int64) : int =
+  int (
+    System.Math.Clamp(
+      maxWidth,
+      int64 System.Int32.MinValue,
+      int64 System.Int32.MaxValue
+    )
+  )
+
+
 // The terminal probes declare no effect on purpose: they read the tty and its environment, and
 // have to work under deny-all so the TUI can draw the permission prompt itself.
 let fns () : List<BuiltInFn> =
@@ -127,18 +139,18 @@ let fns () : List<BuiltInFn> =
         + "terminal. False for any other descriptor."
       fn =
         (function
-        | _, vm, _, [| DInt64 fd |] ->
+        | _, _, _, [| DInt64 fd |] ->
           // .NET's redirection flags rather than an ioctl, so it works on macOS and Windows too.
           let answer =
-            match int64ToInt32 vm fd with
-            | 0 -> not System.Console.IsInputRedirected
-            | 1 -> not System.Console.IsOutputRedirected
-            | 2 -> not System.Console.IsErrorRedirected
+            match fd with
+            | 0L -> not System.Console.IsInputRedirected
+            | 1L -> not System.Console.IsOutputRedirected
+            | 2L -> not System.Console.IsErrorRedirected
             | _ -> false
           DBool answer |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -219,11 +231,11 @@ let fns () : List<BuiltInFn> =
         "Clip styled text to a column count, keeping SGR and dropping other escapes and control characters"
       fn =
         (function
-        | _, vm, _, [| DString text; DInt64 maxWidth |] ->
-          DString(TerminalText.clipToWidth text (int64ToInt32 vm maxWidth)) |> Ply
+        | _, _, _, [| DString text; DInt64 maxWidth |] ->
+          DString(TerminalText.clipToWidth text (columns maxWidth)) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -253,14 +265,14 @@ let fns () : List<BuiltInFn> =
         "Break text into terminal-width rows at the column, restating styling across a wrap"
       fn =
         (function
-        | _, vm, _, [| DString text; DInt64 maxWidth |] ->
-          TerminalText.wrapAtColumn text (int64ToInt32 vm maxWidth)
+        | _, _, _, [| DString text; DInt64 maxWidth |] ->
+          TerminalText.wrapAtColumn text (columns maxWidth)
           |> List.map DString
           |> fun rows -> DList(VT.string, Items(rows))
           |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -275,9 +287,9 @@ let fns () : List<BuiltInFn> =
         "Wrap before + after as cliTerminalWrapAtColumn does, with the zero-based (row, column) of the cursor between them"
       fn =
         (function
-        | _, vm, _, [| DString before; DString after; DInt64 maxWidth |] ->
+        | _, _, _, [| DString before; DString after; DInt64 maxWidth |] ->
           let (rows, row, column) =
-            TerminalText.wrapWithCursor before after (int64ToInt32 vm maxWidth)
+            TerminalText.wrapWithCursor before after (columns maxWidth)
           DTuple(
             DList(VT.string, Items(List.map DString rows)),
             Dval.dint64 (int64 row),
@@ -286,7 +298,7 @@ let fns () : List<BuiltInFn> =
           |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = set [ Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
