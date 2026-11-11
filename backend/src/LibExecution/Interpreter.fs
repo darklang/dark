@@ -735,6 +735,33 @@ and checkAndExtractMatchPattern
       false
 
 
+/// `checkAndExtractMatchPattern` for an enum case with no fields or one named field (`None`,
+/// `Some x`), written straight to the registers: 1 matched, 0 did not, -1 for anything else.
+let private matchSimpleCase
+  (registers : Dval array)
+  (pat : MatchPattern)
+  (dv : Dval)
+  : int =
+  match pat with
+  | MPEnum(caseName, fieldPats) ->
+    match dv with
+    | DEnum(_, _, _, actualCase, fields) ->
+      if not (System.String.Equals(caseName, actualCase)) then
+        0
+      else
+        match fieldPats with
+        | [] -> if List.isEmpty fields then 1 else 0
+        | [ MPVariable reg ] ->
+          match fields with
+          | [ field ] ->
+            Registers.set registers reg field
+            1
+          | _ -> 0
+        | _ -> -1
+    | _ -> -1
+  | _ -> -1
+
+
 /// Record bytes allocated in a synchronous region of the Apply path. `before` must come from a
 /// `GC.GetAllocatedBytesForCurrentThread()` taken in the same synchronous stretch -- see the note on
 /// `InterpreterStats.allocByStage` for why spanning an await would measure the wrong thing.
@@ -5938,21 +5965,25 @@ let private runSyncInstructions
         match pat with
         | MPVariable reg -> Registers.set registers reg (registers[valueReg])
         | _ ->
-          match registers[valueReg] with
-          | DPromise p when matchNeedsValue pat registers[valueReg] ->
-            parkOnRead vm registers valueReg p &retry &force &forceReg
+          match matchSimpleCase registers pat registers[valueReg] with
+          | 1 -> ()
+          | 0 -> counter <- counter + failJump
           | _ ->
-            let buf = vm.matchBindings
-            buf.Clear()
-            if checkAndExtractMatchPattern buf pat registers[valueReg] then
-              // Written only now that the whole pattern has matched, so a pattern that failed
-              // partway leaves the frame untouched. An index loop, not `for x in buf`, which
-              // boxes the enumerator.
-              for i in 0 .. buf.Count - 1 do
-                let struct (reg, value) = buf[i]
-                Registers.set registers reg value
-            else
-              counter <- counter + failJump
+            match registers[valueReg] with
+            | DPromise p when matchNeedsValue pat registers[valueReg] ->
+              parkOnRead vm registers valueReg p &retry &force &forceReg
+            | _ ->
+              let buf = vm.matchBindings
+              buf.Clear()
+              if checkAndExtractMatchPattern buf pat registers[valueReg] then
+                // Written only now that the whole pattern has matched, so a pattern that failed
+                // partway leaves the frame untouched. An index loop, not `for x in buf`, which
+                // boxes the enumerator.
+                for i in 0 .. buf.Count - 1 do
+                  let struct (reg, value) = buf[i]
+                  Registers.set registers reg value
+              else
+                counter <- counter + failJump
       | MatchUnmatched(valueReg) ->
         match registers[valueReg] with
         | DPromise p -> parkOnRead vm registers valueReg p &retry &force &forceReg
