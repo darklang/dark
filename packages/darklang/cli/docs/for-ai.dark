@@ -54,8 +54,7 @@ One host, every path on it: `permissions allow http GET https://api.example.com`
   Result, ...; `impls Display`) and falls back to `Stdlib.inspect(x)`.
   `Stdlib.display(x)` needs a `Display` impl; `Stdlib.inspect(x)` shows any value.
   An operator is not a function either: `a % b`, not `Stdlib.Int64.mod(a, b)`.
-- A bare integer is an `Int64`: `15`, never `15L`. Operands must have one type.
-- Lists, records and dicts separate items with commas or newlines, never `;`.
+- Operands must have one type: `1 + 2.0` is an error.
 - No partial application: write the lambda, `fun x -> Stdlib.max(1, x)`.
 - `|>` passes the left value as the first argument. An `if` or `match` on its
   left needs parentheses.
