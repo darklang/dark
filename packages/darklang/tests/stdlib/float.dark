@@ -61,31 +61,31 @@ test truncate =
 // NaN / Infinity have no Int64 representation -> Dark error, not a host crash
 test ceilingRejectsNan =
   Stdlib.Float.ceiling(nan())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: NaN"
 
 test roundUpRejectsInfinity =
   Stdlib.Float.roundUp(infinity())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: Infinity"
 
 test floorRejectsNegativeInfinity =
   Stdlib.Float.floor(negativeInfinity())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: -Infinity"
 
 test roundDownRejectsNan =
   Stdlib.Float.roundDown(nan())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: NaN"
 
 test roundRejectsInfinity =
   Stdlib.Float.round(infinity())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: Infinity"
 
 test truncateRejectsNan =
   Stdlib.Float.truncate(nan())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: NaN"
 
 test roundTowardsZeroRejectsNegativeInfinity =
   Stdlib.Float.roundTowardsZero(negativeInfinity())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: -Infinity"
 
 test isFinite =
   Stdlib.Test.all(
@@ -321,15 +321,15 @@ test toInt64 =
 // NaN and infinities cannot become Int64s.
 test toInt64RejectsNan =
   Stdlib.Float.toInt64(nan())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: NaN"
 
 test toInt64RejectsInfinity =
   Stdlib.Float.toInt64(infinity())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: Infinity"
 
 test toInt64RejectsNegativeInfinity =
   Stdlib.Float.toInt64(negativeInfinity())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: -Infinity"
 
 // Truncation and floor differ for negative values.
 test toInt64TruncatesWhereFloorRoundsDown =
@@ -386,7 +386,7 @@ test roundAliasesMatch =
 
 test roundTowardsZeroRejectsNan =
   Stdlib.Float.roundTowardsZero(nan())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: NaN"
 
 // checked arithmetic: Error wherever the operator gives NaN or an infinity
 test checkedArithmetic =

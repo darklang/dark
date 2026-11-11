@@ -19,9 +19,24 @@ module Bools =
     | ConditionRequiresBool(actualValueType: ValueType, actualValue: Dval)
 
 module BigInts =
+  type OutOfRangeKind =
+    | FloatHasNoInteger
+    | FloatOutsideInt64(min: Int64, max: Int64)
+    | ShiftCount(max: Int64)
+    | Exponent(max: Int64)
+    | RepeatCount(max: Int64)
+    | DateTimeSeconds
+    | DateTimeMilliseconds
+    | DateTimeTicks
+    | Port(min: Int64, max: Int64)
+    | NegativeMaxBodyBytes
+    | Int64ToInt32(min: Int64, max: Int64)
+    | BigIntToInt64(min: Int64, max: Int64)
+    | BigIntToInt32(min: Int64, max: Int64)
+
   type Error =
     | DivideByZeroError
-    | OutOfRange
+    | OutOfRange(kind: OutOfRangeKind, value: Dval)
     | NegativeExponent
     | NegativeModulus
     | ZeroModulus

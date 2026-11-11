@@ -118,15 +118,15 @@ test fromFloatTruncatesTowardZero =
 
 test fromFloatRejectsNaN =
   Stdlib.BigInt.fromFloat(0.0 / 0.0)
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: NaN"
 
 test fromFloatRejectsInfinity =
   Stdlib.BigInt.fromFloat(1.0 / 0.0)
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: Infinity"
 
 test fromFloatRejectsNegativeInfinity =
   Stdlib.BigInt.fromFloat(-1.0 / 0.0)
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: -Infinity"
 
 // --- remainder: Result<BigInt>; sign follows the dividend; Error only if divisor
 // is 0 ---
@@ -173,11 +173,11 @@ test shifts =
 
 test shiftLeftRejectsHugeCount =
   (1z << (2z ** 40z))
-  => raises "Encountered an out-of-range integer value"
+  => raises "Shift count out of range (0 to 2147483647): 1099511627776z"
 
 test shiftRightRejectsHugeCount =
   (1z >> (2z ** 40z))
-  => raises "Encountered an out-of-range integer value"
+  => raises "Shift count out of range (0 to 2147483647): 1099511627776z"
 
 // --- random ---
 /// Every result lands inside the bounds, whichever order they are given in,

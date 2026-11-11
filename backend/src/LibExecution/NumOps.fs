@@ -117,7 +117,8 @@ let negativeModulus =
   Raises(RuntimeError.BigInt RuntimeError.BigInts.NegativeModulus)
 let negativeExponent =
   Raises(RuntimeError.BigInt RuntimeError.BigInts.NegativeExponent)
-let outOfRange = Raises(RuntimeError.BigInt RuntimeError.BigInts.OutOfRange)
+let outOfRange (kind : RuntimeError.BigInts.OutOfRangeKind) (value : DarkBigInt) =
+  Raises(RuntimeError.BigInt(RuntimeError.BigInts.OutOfRange(kind, DBigInt value)))
 let decimalOutOfRange = Raises RuntimeError.DecimalOutOfRange
 
 
@@ -463,7 +464,7 @@ let bigIntOp (op : int) (a : DarkBigInt) (b : DarkBigInt) : Outcome =
           Dval.bigInt (if exp.IsEven then System.Numerics.BigInteger.One else number)
         )
       else
-        outOfRange
+        outOfRange (RuntimeError.BigInts.Exponent(int64 System.Int32.MaxValue)) b
     else
       Value(Dval.bigInt (number ** (int exp)))
   | BitwiseAnd ->
@@ -474,11 +475,13 @@ let bigIntOp (op : int) (a : DarkBigInt) (b : DarkBigInt) : Outcome =
   | ShiftLeft ->
     match shiftCount b with
     | ValueSome count -> Value(Dval.bigInt (DarkBigInt.toBigInt a <<< count))
-    | ValueNone -> outOfRange
+    | ValueNone ->
+      outOfRange (RuntimeError.BigInts.ShiftCount(int64 System.Int32.MaxValue)) b
   | ShiftRight ->
     match shiftCount b with
     | ValueSome count -> Value(Dval.bigInt (DarkBigInt.toBigInt a >>> count))
-    | ValueNone -> outOfRange
+    | ValueNone ->
+      outOfRange (RuntimeError.BigInts.ShiftCount(int64 System.Int32.MaxValue)) b
   | _ -> Unsupported
 
 /// `Float`'s operators, as IEEE has them.

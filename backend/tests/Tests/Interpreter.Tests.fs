@@ -2118,6 +2118,8 @@ module NumOperators =
     let value (v : bigint) = $"BigInt {v}"
     let truth (t : bool) = $"Bool {t}"
     let fails e = raises (RT.RuntimeError.BigInt e)
+    let outOfRange kind =
+      fails (BigInts.OutOfRange(kind, LibExecution.Dval.bigInt b))
     let int32Max = bigint System.Int32.MaxValue
     if op = NumOps.add then
       value (a + b)
@@ -2140,7 +2142,7 @@ module NumOperators =
       elif b <= int32Max then value (bigint.Pow(a, int b))
       elif a = 0I || a = 1I then value a
       elif a = -1I then value (if b.IsEven then 1I else -1I)
-      else fails BigInts.OutOfRange
+      else outOfRange (BigInts.Exponent(int64 int32Max))
     elif op = NumOps.bitwiseAnd then
       value (a &&& b)
     elif op = NumOps.bitwiseOr then
@@ -2149,12 +2151,12 @@ module NumOperators =
       value (a ^^^ b)
     elif op = NumOps.shiftLeft then
       if b < 0I || b > int32Max then
-        fails BigInts.OutOfRange
+        outOfRange (BigInts.ShiftCount(int64 int32Max))
       else
         value (a * bigint.Pow(2I, int b))
     elif op = NumOps.shiftRight then
       if b < 0I || b > int32Max then
-        fails BigInts.OutOfRange
+        outOfRange (BigInts.ShiftCount(int64 int32Max))
       else
         // flooring, as an arithmetic shift does
         let d = bigint.Pow(2I, int b)

@@ -134,7 +134,7 @@ module RuntimeTypes =
       RTE.Bool(RTE.Bools.OrOnlySupportsBooleans(vt, vt2))
       RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv))
       RTE.BigInt RTE.BigInts.DivideByZeroError
-      RTE.BigInt RTE.BigInts.OutOfRange
+      RTE.BigInt(RTE.BigInts.OutOfRange(RTE.BigInts.Port(0L, 65535L), dv))
       RTE.BigInt RTE.BigInts.NegativeExponent
       RTE.BigInt RTE.BigInts.NegativeModulus
       RTE.BigInt RTE.BigInts.ZeroModulus

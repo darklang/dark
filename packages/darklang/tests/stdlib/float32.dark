@@ -243,15 +243,15 @@ test nanAndInfinities =
 
 test truncateRejectsNan =
   Stdlib.Float32.truncate(nan())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: NaN"
 
 test roundRejectsInfinity =
   Stdlib.Float32.round(infinity())
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float has no integer value: Infinity"
 
 test roundRejectsPastInt64 =
   Stdlib.Float32.round(3.4028235e38f32)
-  => raises "Encountered an out-of-range integer value"
+  => raises "Float out of Int64 range (-9223372036854775808 to 9223372036854775807): 3.4028234663852886e+38"
 
 test minMaxAbsClamp =
   Stdlib.Test.all(

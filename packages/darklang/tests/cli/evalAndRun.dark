@@ -473,9 +473,9 @@ test internalNamesHiddenUntilAsked =
         Instance.says(lsAll, "__fromTicks", "ls --include-internal shows it")
         Instance.doesNotSay(search, "__fromTicks", "search hides it")
         Instance.says(searchAll, "__fromTicks", "search --include-internal shows it")
-        Instance.says(view, "dateTimeFromUnixTicks", "view by name shows its body")
+        Instance.says(view, "__fromOffset", "view by name shows its body")
         Instance.says(call, "5", "a call by name runs it")
-        Instance.says(deps, "addSeconds", "deps by name lists its dependents") ]))
+        Instance.says(deps, "atStartOfDay", "deps by name lists its dependents") ]))
 
 
 /// The settings that open HTTP's network guard or decide what traces record are the

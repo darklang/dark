@@ -257,7 +257,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DString s; DInt64 count |] ->
-          DString(String.repeat s (int64ToInt32 vm count)) |> Ply
+          if count > int64 System.Int32.MaxValue then
+            outOfRange
+              vm
+              (RuntimeError.BigInts.RepeatCount(int64 System.Int32.MaxValue))
+              (DInt64 count)
+          else
+            DString(String.repeat s (int (max count 0L))) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
