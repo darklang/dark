@@ -388,7 +388,7 @@ let viewAtSize(
     fun text ->
       Darklang.Stdlib.Cli.Tui.Text.clipToWidth(text, regions.focusWidth)
   let horizontalRule(line: String): String =
-    Stdlib.String.repeat(line, regions.width)
+    (Stdlib.String.checkedRepeat(line, regions.width) |> Stdlib.Result.withDefault(""))
   let locationStr = Packages.formatLocation(navState.currentLocation)
 
   let headerPrefix =

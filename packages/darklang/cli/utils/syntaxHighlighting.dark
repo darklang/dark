@@ -71,7 +71,7 @@ let splitTokenByLine(
   if startRow == endRow then
     [ token ]
   else
-    Stdlib.List.range(startRow, endRow)
+    (Stdlib.List.checkedRange(startRow, endRow) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.map(fun row ->
       // first row keeps the token's start column, later rows start at 0;
       // last row keeps its end column, earlier rows run to end of line

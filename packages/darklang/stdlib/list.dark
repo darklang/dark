@@ -95,18 +95,22 @@ let repeat(times: Int64, value: 'a): List<'a> =
     Stdlib.List.map(Stdlib.List.range(1, times), fun _ -> value)
 
 
-/// What <fn List.checkedRepeat> returns for a count below 0
-type RepeatError = | NegativeCount
+/// What <fn List.checkedRepeat> returns for a count below 0, or past 2147483591
+type RepeatError =
+  | NegativeCount
+  | TooLong
 
 /// Returns {{Ok}} a list of <param value> repeated <param times> times, or
-/// {{Error NegativeCount}} if <param times> is below 0. A count of 0 gives
-/// {{Ok []}}.
+/// {{Error NegativeCount}} if <param times> is below 0, or {{Error TooLong}} if it
+/// is past 2147483591, where <fn List.repeat> raises. A count of 0 gives {{Ok []}}.
 let checkedRepeat(
   times: Int64,
   value: 'a)
   : Result.Result<List<'a>, RepeatError> =
   if times < 0 then
     Result.Result.Error(RepeatError.NegativeCount)
+  else if times > 2147483591 then
+    Result.Result.Error(RepeatError.TooLong)
   else
     Result.Result.Ok(repeat(times, value))
 
@@ -120,6 +124,24 @@ let ``length``(list: List<'a>): Int64 =
 /// previous. You provide the <param lowest> and <param highest> numbers in the list.
 let range(lowest: Int64, highest: Int64): List<Int64> =
   Builtin.listRange(lowest, highest)
+
+
+/// What <fn List.checkedRange> returns for more numbers than a list can hold
+type RangeError = | TooLong
+
+/// Returns {{Ok}} the numbers from <param lowest> to <param highest>, as <fn List.range>
+/// does, or {{Error TooLong}} for more than 2147483591 of them, where <fn List.range>
+/// raises.
+let checkedRange(
+  lowest: Int64,
+  highest: Int64)
+  : Result.Result<List<Int64>, RangeError> =
+  if highest < lowest then
+    Result.Result.Ok([])
+  else if highest - lowest < 0 || highest - lowest >= 2147483591 then
+    Result.Result.Error(RangeError.TooLong)
+  else
+    Result.Result.Ok(range(lowest, highest))
 
 
 /// Folds <param list> into a single value, by calling <param fn> on each element with the value

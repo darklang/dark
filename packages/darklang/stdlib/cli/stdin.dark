@@ -39,7 +39,7 @@ let readSecret(): String =
           go(acc)
         else
           let chunk =
-            if k.repeat > 1 then Stdlib.String.repeat(k.keyChar, k.repeat) else k.keyChar
+            if k.repeat > 1 then (Stdlib.String.checkedRepeat(k.keyChar, k.repeat) |> Stdlib.Result.withDefault("")) else k.keyChar
           // A paste arrives as ONE coalesced read whose text can carry the terminating
           // newline; without this check the loop would wait for an Enter that was already
           // consumed. Anything pasted after the newline is not secret material and is dropped.

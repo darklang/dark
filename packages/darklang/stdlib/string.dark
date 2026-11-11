@@ -427,15 +427,19 @@ let repeat(string: String, count: Int64): String =
   if count <= 0 then "" else Builtin.stringRepeat(string, count)
 
 
-/// What <fn String.checkedRepeat> returns for a count below 0
-type RepeatError = | NegativeCount
+/// What <fn String.checkedRepeat> returns for a count below 0, or past 2147483647
+type RepeatError =
+  | NegativeCount
+  | TooLong
 
 /// Returns {{Ok}} <param string> repeated <param count> times, or
-/// {{Error NegativeCount}} if <param count> is below 0. A count of 0 gives
-/// {{Ok ""}}.
+/// {{Error NegativeCount}} if <param count> is below 0, or {{Error TooLong}} if it
+/// is past 2147483647, where <fn String.repeat> raises. A count of 0 gives {{Ok ""}}.
 let checkedRepeat(string: String, count: Int64): Result.Result<String, RepeatError> =
   if count < 0 then
     Result.Result.Error(RepeatError.NegativeCount)
+  else if count > 2147483647 then
+    Result.Result.Error(RepeatError.TooLong)
   else
     Result.Result.Ok(repeat(string, count))
 

@@ -629,7 +629,7 @@ let bytesPreview(bytes: Bytes, count: Int64): Stdlib.Option.Option<String> =
   |> Stdlib.Option.map(fun prefix ->
     let hex = prefix |> Stdlib.Base16.encode |> Stdlib.String.toLowercase
     let pairs =
-      Stdlib.List.range(0, (Stdlib.Bytes.length(prefix)) - 1)
+      (Stdlib.List.checkedRange(0, (Stdlib.Bytes.length(prefix)) - 1) |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.map(fun i -> Stdlib.String.slice(hex, i * 2, i * 2 + 2))
     Stdlib.String.join(pairs, " "))
 
@@ -742,7 +742,7 @@ module Dval =
       Stdlib.List.concat(ordered, extra)
 
 
-  let makeSpaces(len: Int64): String = Stdlib.String.repeat(" ", len)
+  let makeSpaces(len: Int64): String = (Stdlib.String.checkedRepeat(" ", len) |> Stdlib.Result.withDefault(""))
 
   /// A value as a `Pretty.Doc`: the shapes it could take, not one it has already been forced into.
   ///

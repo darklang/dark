@@ -65,9 +65,9 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
       let totalPadding = targetHeight - logoHeight
       let paddingTop = (totalPadding / 2)
       let paddingBottom = totalPadding - paddingTop
-      let emptyLogoLine = Stdlib.String.repeat(" ", maxLogoWidth)
-      let topEmpty = Stdlib.List.repeat(paddingTop, emptyLogoLine)
-      let bottomEmpty = Stdlib.List.repeat(paddingBottom, emptyLogoLine)
+      let emptyLogoLine = (Stdlib.String.checkedRepeat(" ", maxLogoWidth) |> Stdlib.Result.withDefault(""))
+      let topEmpty = (Stdlib.List.checkedRepeat(paddingTop, emptyLogoLine) |> Stdlib.Result.withDefault([]))
+      let bottomEmpty = (Stdlib.List.checkedRepeat(paddingBottom, emptyLogoLine) |> Stdlib.Result.withDefault([]))
       Stdlib.List.flatten([topEmpty, paddedLogoLines, bottomEmpty])
     else
       paddedLogoLines
@@ -77,8 +77,8 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
       let totalPadding = targetHeight - textHeight
       let paddingTop = totalPadding / 2
       let paddingBottom = totalPadding - paddingTop
-      let topEmpty = Stdlib.List.repeat(paddingTop, "")
-      let bottomEmpty = Stdlib.List.repeat(paddingBottom, "")
+      let topEmpty = (Stdlib.List.checkedRepeat(paddingTop, "") |> Stdlib.Result.withDefault([]))
+      let bottomEmpty = (Stdlib.List.checkedRepeat(paddingBottom, "") |> Stdlib.Result.withDefault([]))
       Stdlib.List.flatten([topEmpty, textLines, bottomEmpty])
     else
       textLines

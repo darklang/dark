@@ -12,7 +12,7 @@ type DiffLine =
 let __buildTable(oldLines: List<String>, newLines: List<String>): List<List<Int64>> =
   let zeroRow =
     Stdlib.List.map(
-      Stdlib.List.range(0, Stdlib.List.length(oldLines)),
+      (Stdlib.List.checkedRange(0, Stdlib.List.length(oldLines)) |> Stdlib.Result.withDefault([])),
       fun _i -> 0)
 
   let (_, rows) =

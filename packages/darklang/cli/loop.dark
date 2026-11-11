@@ -486,7 +486,7 @@ let applyKeyRead(
             keyInput.modifiers,
             Stdlib.Option.Option.None))
   | None ->
-    Stdlib.List.range(1, times)
+    (Stdlib.List.checkedRange(1, times) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.fold(state, fun(st, _i) ->
       if st.isExiting || (Stdlib.List.length(st.pageStack)) != startingDepth then st
       else Update.updateAppState(st, keyPressedMsg))

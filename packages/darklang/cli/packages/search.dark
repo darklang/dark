@@ -369,7 +369,7 @@ let bestItemKey(
   items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
   : String =
   match items with
-  | [] -> Stdlib.String.repeat("9", rankKeyHead)
+  | [] -> (Stdlib.String.checkedRepeat("9", rankKeyHead) |> Stdlib.Result.withDefault(""))
   | [ item, ... ] ->
     Stdlib.String.first(
       rankKey(ranker, item.location.owner, item.location.modules, item.location.name),

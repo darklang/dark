@@ -95,7 +95,7 @@ impl Display for Decimal =
     else
       // at least one digit before the point: 0.05 is "005" before the split
       let padCount = scale + 1 - Stdlib.String.length(digits)
-      let padding = Stdlib.String.repeat("0", padCount)
+      let padding = (Stdlib.String.checkedRepeat("0", padCount) |> Stdlib.Result.withDefault(""))
       let padded = padding + digits
       let whole = Stdlib.String.dropLast(padded, scale)
       let fraction = Stdlib.String.last(padded, scale)

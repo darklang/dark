@@ -54,14 +54,14 @@ let at(region: Region, row: Int64, col: Int64, text: String): List<Span> =
 
 /// Fill a row with a repeated character, within the region.
 let fillRow(region: Region, row: Int64, ch: String): List<Span> =
-  at(region, row, 0, Stdlib.String.repeat(ch, region.cols))
+  at(region, row, 0, (Stdlib.String.checkedRepeat(ch, region.cols) |> Stdlib.Result.withDefault("")))
 
 /// Blank the whole region.
 ///
 /// Still emits spaces rather than nothing: a composed frame starts blank, but a region drawn *over* other
 /// content (an overlay) has to actually erase what's under it.
 let clearRegion(region: Region): List<Span> =
-  (Stdlib.List.range(0, region.rows - 1))
+  (Stdlib.List.checkedRange(0, region.rows - 1) |> Stdlib.Result.withDefault([]))
   |> Stdlib.List.map(fun row -> fillRow(region, row, " "))
   |> Stdlib.List.flatten
 

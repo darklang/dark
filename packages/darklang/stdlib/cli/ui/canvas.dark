@@ -85,7 +85,7 @@ let renderSegments(width: Int64, segments: List<Segment>): String =
 
         let next =
           if start > col then
-            out + (Stdlib.String.repeat(" ", start - col)) + clipped
+            out + (Stdlib.String.checkedRepeat(" ", start - col) |> Stdlib.Result.withDefault("")) + clipped
           else
             out + clipped
 
@@ -158,7 +158,7 @@ let compose(width: Int64, height: Int64, spans: List<Layout.Span>): List<String>
 
           Stdlib.Dict.set(acc, span.row, Stdlib.List.append(existing, span)))
 
-    Stdlib.List.range(0, h - 1)
+    (Stdlib.List.checkedRange(0, h - 1) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.map(fun row ->
       match Stdlib.Dict.get(byRow, row) with
       // An untouched row is empty rather than `width` spaces: the renderer erases each row it writes, so
