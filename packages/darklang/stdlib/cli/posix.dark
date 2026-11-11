@@ -444,8 +444,12 @@ let __kernelSignedField(bytes: Bytes, offset: Int64, width: Int64)
   match __kernelField(bytes, offset, width) with
   | Error(e) -> Error(e)
   | Ok(n) ->
-    let modulus = 256 ** width
-    Ok(if n >= modulus / 2 then n - modulus else n)
+    // For a width of 8 both wrap, and the field is already signed.
+    let half = 128 * __byteRange(width - 1)
+    Ok(if n >= half then n - 2 * half else n)
+
+let __byteRange(width: Int64): Int64 =
+  if width <= 0 then 1 else 256 * __byteRange(width - 1)
 
 type __KernelMetadata =
   { mode: Int64, size: Int64, mtimeSec: Int64, uid: Int64, device: Int64, inode: Int64 }
@@ -582,7 +586,7 @@ let __pathGetCwd(): Result.Result<String, Posix.Error> =
 let __decimal(value: Int64): String =
     if value < 0 then Stdlib.String.append("-", __decimal(0 - value))
     else
-        let quotient = value / 10
+        let quotient = Stdlib.Int64.checkedDivide(value, 10) |> Stdlib.Result.withDefault(0)
         let digit = value - quotient * 10
         let suffix =
             if digit == 0 then "0" else if digit == 1 then "1"

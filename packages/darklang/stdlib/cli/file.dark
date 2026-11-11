@@ -577,7 +577,10 @@ let __copyCopy(source: String, destination: String)
 /// Kernel-event watching. Dark owns readiness/event decoding, interruption
 /// retries, callback coalescing, rearming after replacement, and cleanup.
 
-let __watchHas(mask: Int64, flag: Int64): Bool = (mask / flag) % 2 == 1
+let __watchHas(mask: Int64, flag: Int64): Bool =
+  match Stdlib.Int64.checkedDivide(mask, flag) with
+  | Ok(q) -> Stdlib.Int64.checkedMod(q, 2) == Ok(1)
+  | Error(_) -> false
 
 /// inotify_event headers are 16 bytes followed by a kernel-sized name field.
 /// A batch produces one notification; invalidation asks the caller to rearm.
