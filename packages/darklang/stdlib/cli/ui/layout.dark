@@ -36,11 +36,8 @@ type Component =
 
 /// Place text at `(row, col)` within a region, clipped to what the region can hold.
 ///
-/// Replaces the old `printAt` / `printAtVisible` pair. There's no longer a fast-but-wrong variant: clipping
-/// goes through `Tui.Text`, which counts terminal columns and leaves SGR sequences alone, so a coloured or
-/// wide-glyph row is measured correctly. The old `printAt` used `String.length`, which counts grapheme
-/// clusters, not columns: `界` and a ZWJ emoji each count 1 but occupy 2, so CJK or emoji content pushed the
-/// rest of its row sideways.
+/// Clipping goes through `Tui.Text`, which counts terminal columns and leaves SGR sequences alone, so a
+/// coloured or wide-glyph row is measured correctly: `界` and a ZWJ emoji each occupy 2 columns.
 let at(region: Region, row: Int64, col: Int64, text: String): List<Span> =
   if row >= 0 && row < region.rows && col >= 0 && col < region.cols then
     [ Span
@@ -108,15 +105,13 @@ let distributeRows(totalRows: Int64, requests: List<SizeRequest>): List<Int64> =
 let vstack(region: Region, components: List<Component>): List<Span> =
   let requests = Stdlib.List.map(components, fun c -> c.sizeRequest())
   let rowAllocs = distributeRows(region.rows, requests)
-  // Assign regions and render
   let pairs =
     (Stdlib.List.map2(components, rowAllocs, fun(c, rows) ->
       (c, rows)))
     |> Stdlib.Result.withDefault([])
   // Collected as a list of lists and flattened once, rather than appended into an accumulator per
   // child. `List.concat` copies its left side, so appending each child's spans in turn copies every
-  // span already placed -- and stacks nest, so a span three levels down was copied on the way out of
-  // each one.
+  // span already placed, and stacks nest.
   let (_finalTop, chunks) =
     pairs
     |> Stdlib.List.fold((region.top, []), fun(acc, pair) ->

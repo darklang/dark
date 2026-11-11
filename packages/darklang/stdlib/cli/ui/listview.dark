@@ -34,9 +34,7 @@ let render(region: Layout.Region, displayLines: List<String>, selected: Int64): 
         Layout.at(region, i - scrollOffset, 0, Tui.Text.clipMarked(l, textWidth)))
       |> Stdlib.List.flatten
 
-    // Scrollbar thumb, only when the list is taller than the pane. It used to be printed directly, because
-    // the old length-based truncation would eat a coloured glyph sitting in the last column; clipping counts
-    // columns now, so it can go through the same path as everything else.
+    // Scrollbar thumb, only when the list is taller than the pane.
     let thumb =
       if total > region.rows then
         let thumbRow =

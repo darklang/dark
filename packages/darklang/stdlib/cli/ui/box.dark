@@ -43,8 +43,8 @@ let draw(
   // border is painted around them in pieces rather than as one string.
   let lead = if pillPlain == "" then "" else "─"
 
-  // A title near the pane's full width used to overrun the closing corner into the neighbour's
-  // border; the trailer is clipped so `─╮` always draws (the pill itself is short by construction).
+  // The trailer is clipped so a title near the pane's full width can't overrun the closing corner
+  // into the neighbour's border: `─╮` always draws (the pill itself is short by construction).
   let leadW = Stdlib.String.displayWidth(lead)
   let budget = Stdlib.max(0, innerCols - leadW - (Stdlib.String.displayWidth(pillPlain)) - 1)
   let restPlain = Stdlib.Cli.Tui.Text.clipToWidth(restPlain, budget)
