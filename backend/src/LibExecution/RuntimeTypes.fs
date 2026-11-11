@@ -2728,23 +2728,51 @@ and [<Struct; CustomEquality; NoComparison>] DvalList =
     member this.GetHashCode(comparer : System.Collections.IEqualityComparer) =
       DvalList.hashWith comparer.GetHashCode this
 
-/// Where a long `DarkString` keeps its character count once something has asked for it.
-/// 0 until then.
-and [<Sealed; AllowNullLiteral>] EgcCountCell() =
-  // A count cached on first use is a write after construction, which only a mutable field takes.
+/// What a long `DarkString` works out once and keeps: its character count, 0 until something
+/// has asked, and for a string joined by `+`, its text.
+and [<Sealed; AllowNullLiteral>] EgcCountCell(joined : StringJoin) =
+  // Each is written after construction, at most once in effect: two threads racing write the
+  // same value. A cache like that is a write after construction, which only a mutable field
+  // takes.
   [<DefaultValue>]
   val mutable Count : int
+
+  /// The two halves (a `StringJoin`) until something reads the text, then the text, so the
+  /// halves can go. Null for a string that was never joined.
+  let mutable joined : obj = box joined
+
+  new() = EgcCountCell(null)
+
+  member _.Joined : obj = joined
+  member _.Settle(text : string) : unit = joined <- text
+
+/// The halves of a string joined by `DarkString.append`, and how many UTF-16 units they hold.
+and [<Sealed; AllowNullLiteral>] StringJoin
+  (left : DarkString, right : DarkString, units : int) =
+  member _.Left = left
+  member _.Right = right
+  member _.Units = units
 
 /// A Dark `String`: its text, and its length in characters (extended grapheme clusters) once
 /// something has asked, so `String.length` in a loop doesn't recount the text each time. Short
 /// strings have no cell: counting one costs about as much as reading a cell, and most strings
 /// are short. Equal when the text is.
+///
+/// A long string made by `+` keeps its two halves and builds its text the first time something
+/// reads it, so a string grown by `+` in a loop costs each piece once rather than the whole text
+/// every time. The text is the same either way.
 and [<Struct; CustomEquality; NoComparison>] DarkString =
-  val Value : string
+  /// Null for a joined string, whose text is in its cell.
+  val private text : string
   val private cell : EgcCountCell
 
   new(value : string) =
-    { Value = value; cell = if value.Length > 32 then EgcCountCell() else null }
+    { text = value; cell = if value.Length > 32 then EgcCountCell() else null }
+
+  private new(text : string, cell : EgcCountCell) = { text = text; cell = cell }
+
+  member this.Value : string =
+    if isNull this.text then DarkString.textOf this.cell else this.text
 
   member this.EgcCount : int =
     match this.cell with
@@ -2752,6 +2780,53 @@ and [<Struct; CustomEquality; NoComparison>] DarkString =
     | cell ->
       if cell.Count = 0 then cell.Count <- String.lengthInEgcs this.Value
       cell.Count
+
+  /// UTF-16 units: of the text, or for a joined string not yet read, of its halves.
+  member private this.Units : int =
+    if isNull this.text then
+      match this.cell.Joined with
+      | :? StringJoin as join -> join.Units
+      | joined -> (joined :?> string).Length
+    else
+      this.text.Length
+
+  /// From this many UTF-16 units, `append` joins rather than copies.
+  static member private JoinFrom = 256
+
+  /// `a` then `b`, normalized: `String.append`'s text.
+  static member append (a : DarkString) (b : DarkString) : DarkString =
+    let units = a.Units + b.Units
+    if units >= DarkString.JoinFrom then
+      DarkString(null, EgcCountCell(StringJoin(a, b, units)))
+    else
+      DarkString(String.append a.Value b.Value)
+
+  /// A joined string's text. Normalizing once at the end gives what normalizing after every
+  /// `+` does: a normalized string followed by another is canonically equivalent to the two
+  /// unnormalized ones, and equivalent strings normalize alike.
+  static member private textOf(cell : EgcCountCell) : string =
+    match cell.Joined with
+    | :? StringJoin as join ->
+      // A stack rather than recursion: a string grown by `+` in a loop is joined as deep as
+      // the loop ran.
+      let pending = System.Collections.Generic.Stack<DarkString>()
+      let pieces = ResizeArray<string>()
+      pending.Push join.Right
+      pending.Push join.Left
+      while pending.Count > 0 do
+        let s = pending.Pop()
+        if isNull s.text then
+          match s.cell.Joined with
+          | :? StringJoin as inner ->
+            pending.Push inner.Right
+            pending.Push inner.Left
+          | joined -> pieces.Add(joined :?> string)
+        else
+          pieces.Add s.text
+      let text = String.normalize (System.String.Concat(pieces.ToArray()))
+      cell.Settle text
+      text
+    | joined -> joined :?> string
 
   override this.Equals(other : obj) : bool =
     match other with

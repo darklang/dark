@@ -705,7 +705,7 @@ let private primitiveFits (expected : TypeReference) (actual : Dval) : bool =
      | _ -> false)
   | TString ->
     (match actual with
-     | DString _ -> true
+     | DStr _ -> true
      | _ -> false)
   | TUuid ->
     (match actual with

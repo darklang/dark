@@ -103,16 +103,20 @@ let eval64 (tag : int) (a : int64) (b : int64) : Dval voption =
 /// the `Add` impl for String, which names `Stdlib.String.append`, a thin wrapper the elision
 /// already resolves to its builtin; so it arrives here with the same shape an integer operator
 /// does, rather than paying the full builtin path to concatenate two strings.
-let evalStr (tag : int) (a : string) (b : string) : Dval voption =
+let evalStr (tag : int) (a : DarkString) (b : DarkString) : Dval voption =
   if tag = strAppend then
-    ValueSome(DString(String.append a b))
+    ValueSome(DStr(DarkString.append a b))
   elif tag = equals then
     ValueSome(
-      Dval.bool (System.String.Equals(a, b, System.StringComparison.Ordinal))
+      Dval.bool (
+        System.String.Equals(a.Value, b.Value, System.StringComparison.Ordinal)
+      )
     )
   elif tag = notEquals then
     ValueSome(
-      Dval.bool (not (System.String.Equals(a, b, System.StringComparison.Ordinal)))
+      Dval.bool (
+        not (System.String.Equals(a.Value, b.Value, System.StringComparison.Ordinal))
+      )
     )
   else
     ValueNone
@@ -255,9 +259,9 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     // cost this table exists to avoid.
     if tag = add then
       match a with
-      | DString x ->
+      | DStr x ->
         (match b with
-         | DString y -> ValueSome(DString(String.append x y))
+         | DStr y -> ValueSome(DStr(DarkString.append x y))
          | _ -> ValueNone)
       | _ -> ValueNone
     else
