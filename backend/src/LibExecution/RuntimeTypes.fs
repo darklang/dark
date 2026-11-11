@@ -2563,34 +2563,12 @@ and [<Struct; CustomEquality; NoComparison>] DvalList =
   static member private headFromBack(list : DvalList) : Dval =
     Rrb.get list.start list.back
 
-  /// All but the first value of a list that is not empty. Taking from the tree moves the rest of
-  /// its leaf to the front, so a walk with `head` and `tail` costs a cons a value, as it did
-  /// when every list was an F# list, rather than a lookup from the root.
+  /// All but the first value of a list that is not empty. Taking from the tree moves `start` on
+  /// one, so the rest shares the tree and a walk with `head` and `tail` allocates nothing a value.
   static member tail(list : DvalList) : DvalList =
     match list.front with
     | _ :: rest -> { list with count = list.count - 1; front = rest }
-    | [] -> DvalList.tailFromBack list
-
-  // Apart from `tail` so its rare path does not weigh on the common one.
-  [<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
-  static member private tailFromBack(list : DvalList) : DvalList =
-    let struct (chunk, at) = Rrb.chunkAt list.start list.back
-    { list with
-        count = list.count - 1
-        front = DvalList.listFrom chunk (at + 1) (chunk.Length - 1) []
-        start = list.start + chunk.Length - at }
-
-  /// `chunk[first..i]` onto `acc`.
-  static member private listFrom
-    (chunk : Dval[])
-    (first : int)
-    (i : int)
-    (acc : List<Dval>)
-    : List<Dval> =
-    if i < first then
-      acc
-    else
-      DvalList.listFrom chunk first (i - 1) (chunk[i] :: acc)
+    | [] -> { list with count = list.count - 1; start = list.start + 1 }
 
   static member uncons(list : DvalList) : struct (Dval * DvalList) voption =
     if list.count = 0 then

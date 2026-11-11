@@ -131,11 +131,19 @@ let private vecTests =
       } ]
 
 
+let rec private unconsN (n : int) (list : DvalList) =
+  if n = 0 then
+    list
+  else
+    match DvalList.uncons list with
+    | ValueSome(struct (_, rest)) -> unconsN (n - 1) rest
+    | ValueNone -> list
+
 /// A list with these values, built by a random sequence of list operations.
 let rec private build (rng : System.Random) (items : RT.Dval[]) : DvalList =
   let whole () = DvalList.ofArray items
   let split () = rng.Next(0, items.Length + 1)
-  match rng.Next 11 with
+  match rng.Next 12 with
   | 0 -> whole ()
   | 9 -> DvalList.init items.Length (fun i -> items[i])
   | 10 -> DvalList.ofRevList (List.rev (List.ofArray items))
@@ -156,14 +164,13 @@ let rec private build (rng : System.Random) (items : RT.Dval[]) : DvalList =
   // What is left after taking values off the front.
   | 6 ->
     let before = Array.init (rng.Next 70) (fun i -> RT.DInt64(int64 -i))
-    let rec unconsN (n : int) (list : DvalList) =
-      if n = 0 then
-        list
-      else
-        match DvalList.uncons list with
-        | ValueSome(struct (_, rest)) -> unconsN (n - 1) rest
-        | ValueNone -> list
     unconsN before.Length (build rng (Array.append before items))
+  // Values taken off the front of one list and the first few put back on.
+  | 11 ->
+    let k = split ()
+    let before = Array.init (rng.Next 70) (fun i -> RT.DInt64(int64 -i))
+    let rest = unconsN before.Length (build rng (Array.append before items[k..]))
+    Array.foldBack DvalList.cons items[.. k - 1] rest
   | 7 -> DvalList.rev (build rng (Array.rev items))
   | _ ->
     let k = split ()
@@ -299,6 +306,20 @@ let private listTests =
           | ValueNone -> List.rev acc
         for _ in 1..20 do
           Expect.equal (walk (build rng items) []) (List.ofArray items) "the values"
+      }
+
+      test "taking values off the front of a list makes nothing" {
+        let list = DvalList.ofArray (Array.init 5000 (fun i -> RT.DInt64(int64 i)))
+        let rec walk (list : DvalList) (n : int) =
+          match DvalList.uncons list with
+          | ValueSome(struct (_, rest)) -> walk rest (n + 1)
+          | ValueNone -> n
+        walk list 0 |> ignore<int>
+        let before = System.GC.GetAllocatedBytesForCurrentThread()
+        let n = walk list 0
+        let made = System.GC.GetAllocatedBytesForCurrentThread() - before
+        Expect.equal n 5000 "every value"
+        Expect.isLessThan made 2000L "bytes allocated"
       } ]
 
 
