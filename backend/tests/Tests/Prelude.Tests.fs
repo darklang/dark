@@ -93,7 +93,7 @@ let graphemeTests =
     [ while e.MoveNext() do
         yield e.GetTextElement() ]
 
-  // What `String.slice` computed before it had a fast path: clamp against the cluster count,
+  // `String.slice` without its fast path: clamp against the cluster count,
   // then join the clusters in range.
   let referenceSlice (s : string) (first : int64) (last : int64) : string =
     let clusters = reference s |> Array.ofList
@@ -316,16 +316,15 @@ let assertions =
       test "assert_" { assert_ "_" [] true } ]
 
 
-/// Every `Ply.List` sequential helper, over a list far longer than anything a fold-based version survived.
+/// Every `Ply.List` sequential helper, over a list long enough to overflow a fold-based version.
 ///
-/// `flatten` and `foldSequentially` were the ones that actually went down: a fold there builds one nested
-/// continuation per element and unwinds only at the end, and a .NET stack overflow cannot be caught, so the
-/// process disappears. That is how the relay died decoding ~10,800 ops.
+/// In `flatten` and `foldSequentially` a fold builds one nested continuation per element and unwinds only
+/// at the end, and a .NET stack overflow cannot be caught, so the process disappears.
 ///
 /// Worth being precise about what this pins and what it does not. It asserts these helpers are CORRECT and
-/// order-preserving at 100k. It does NOT reproduce the crash: reverting `iterSequentially` to its fold form
+/// order-preserving at 100k. It does NOT reproduce an overflow: reverting `iterSequentially` to its fold form
 /// still passes here, because awaiting an already-completed Ply does not deepen the stack the way building
-/// a result chain does. The uniform iterative shape is the invariant; the crash is only reachable by some
+/// a result chain does. The uniform iterative shape is the invariant; an overflow is only reachable by some
 /// of them.
 let deepRecursion =
   let big = List.init 100_000 (fun i -> i)

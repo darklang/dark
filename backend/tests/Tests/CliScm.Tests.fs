@@ -436,9 +436,8 @@ let private archivingABranchCommitsItsEvent =
             "the archive is its own commit"
       })
 
-/// `module` took a file and `fn` took text, so the multi-line fn a person had in a file went through
-/// a heredoc or not at all (an agent on two machines lost a round to it). A definition is never one
-/// token, so one argument that names a file that exists is the file.
+/// `fn` takes a file as well as text, like `module`. A definition is never one token, so one
+/// argument that names a file that exists is the file.
 let private fnReadsItsDefinitionFromAFile =
   instanceTest "fn takes a source file, the way module does" (fun state ->
     task {
@@ -468,9 +467,8 @@ let private fnReadsItsDefinitionFromAFile =
     })
 
 /// A branch that never touched `f` still calls `f`. When main moves `f`, the branch's callers keep the
-/// old version by hash, `rebase` had nothing to reconcile (it compared names the branch TOUCHED), and no
-/// constraint said so: the branch ran main's old code silently. Seen on two machines. Now the branch
-/// reports the stale usage, and `rebase` repoints it, which is what "accept the parent's changes" means.
+/// old version by hash, so the branch reports the stale usage, and `rebase` repoints it, which is what
+/// "accept the parent's changes" means. Without that, the branch runs main's old code silently.
 let private aBranchLearnsThatMainMovedItsDependency =
   instanceTest
     "a branch's callers of a fn main moved are reported, and rebase repoints them"
@@ -527,9 +525,8 @@ let private aBranchLearnsThatMainMovedItsDependency =
         do! archiveBranches state [ "movedbr" ]
       })
 
-/// `status` printed one constraint count, and on a store with standing constraints it read as "your
-/// edit broke N things" (an agent authoring on two machines said exactly that). The count now says
-/// how many touch a name this draft binds; a clean tree calls the rest what they are, standing.
+/// `status` counts the constraints that touch a name this draft binds; a clean tree calls the rest
+/// what they are, standing. One count for both reads as "your edit broke N things".
 let private statusSeparatesTheDraftsConstraintsFromStandingOnes =
   instanceTest
     "status says which constraints this draft caused and which stood already"
@@ -605,8 +602,8 @@ let private aMissingNameIsOneLineNotAStackHeader =
         ()
       })
 
-/// A branch pulled without its parent lists a parent this store has never registered. The bare id
-/// read as corruption on the machine that saw it; the list now says what it is.
+/// A branch pulled without its parent lists a parent this store has never registered. The list says
+/// what it is, since a bare id reads as corruption.
 let private anUnknownParentIsNamedAsSuch =
   instanceTest
     "a branch whose parent is not in this store says so in the list"
@@ -897,7 +894,7 @@ let private commitRefusesDefiniteTypeErrors =
 
         // The refusal names its item, and FIXING an error unblocks a later commit without the
         // override: the gate checks the draft's LIVE items, so a superseded broken version (kept in
-        // the draft as history) no longer refuses forever.
+        // the draft as history) does not refuse forever.
         Expect.stringContains
           refused
           "Tests.ArityGate.bad"
@@ -1246,8 +1243,7 @@ let partialCommitTakesOnlyWhatYouNamed =
             "the committed item still evaluates"
 
         // A name edited twice in one draft has two namings, and `--include=` takes both: leaving the
-        // earlier one behind would describe a version nobody has. (The deleted `scm-partial-commit.dark`
-        // refused this case; the model now commits both.)
+        // earlier one behind would describe a version nobody has.
         do! fn state "Tests.Pc.twice" "() : Int64 = 3001"
         do! fn state "Tests.Pc.twice" "() : Int64 = 3002"
         let! both =
@@ -1384,11 +1380,10 @@ let private crossOwnerPropagationIsBranchLocal =
 
 /// Every `--json` surface emits parseable JSON.
 ///
-/// `--json` is the agent-facing half of this CLI, and a broken one fails in a way a human never sees:
-/// the pretty output is fine while the machine output is a stack trace. `dark branches --json` died with
-/// "Expected String for field `id`, but got <Uuid>" -- an id reaching a JSON boundary without being
-/// converted, which is exactly what typing branch ids was meant to make impossible and what a `String`
-/// field in a JSON record quietly reintroduces.
+/// `--json` is the agent-facing half of this CLI, and a broken one fails in a way a human never
+/// sees: the pretty output is fine while the machine output is a stack trace. A `String` field in a
+/// JSON record lets an unconverted id reach the boundary, which is what typing branch ids is meant
+/// to rule out.
 ///
 /// The refusal sweeps in `CliSurface.Tests.fs` do not reach this: `--json` is not a bogus argument.
 let private everyJsonSurfaceParses =
@@ -1426,14 +1421,11 @@ let private everyJsonSurfaceParses =
 
 /// `dark edit` changes an item without retyping it, in both the shapes it has to serve.
 ///
-/// Every authoring command took a whole definition, so changing one line of a forty-line function meant
-/// typing the other thirty-nine. That is the single thing that stopped this being usable as a daily
-/// driver by a person, and it barely registered for an agent, which regenerates whole definitions
-/// anyway. The two shapes exist because the two callers want opposite things: a person wants $EDITOR, a
+/// The two shapes exist because the two callers want opposite things: a person wants $EDITOR, a
 /// script wants no terminal at all.
 ///
-/// `--raw` is the other half. Without it, reading an item back out meant stripping a trailer and a
-/// `let f ` prefix with `sed`, which is a screen-scrape: it works until the display changes.
+/// `--raw` is the other half: it reads an item back out without a trailer or a `let f ` prefix, so a
+/// script never screen-scrapes the display.
 let private editChangesAnItemWithoutRetypingIt =
   instanceTest
     "edit round-trips an item through --raw, and leaves its siblings alone"
@@ -1471,9 +1463,9 @@ let private editChangesAnItemWithoutRetypingIt =
             "9"
             "the sibling in the same module is untouched"
 
-        // And an edit PROPAGATES. `edit` lands through `dark module`, whose op scan matched `SetName`
-        // with two fields against a three-field case: a silent no-match in a `filterMap`, so nothing was
-        // ever reported as updated and no dependent followed. The edit itself looked completely fine.
+        // And an edit PROPAGATES. `edit` lands through `dark module`, whose op scan picks out `SetName`
+        // in a `filterMap`, where a pattern of the wrong arity is a silent no-match: the edit looks fine
+        // and no dependent follows.
         do!
           author
             state
@@ -1561,7 +1553,7 @@ let private aNameHoldsOneItemWhateverItsKind =
       // displaced value is gone from the listing rather than sitting beside the fn.
       //
       // Sliced by "the lines under Values: until the next section header", not by a fixed pair
-      // of headers: the listing's section ORDER is a UI decision and has changed once already.
+      // of headers: the listing's section ORDER is a UI decision.
       let valuesSection =
         let lines = listing.Split '\n'
         match lines |> Array.tryFindIndex (fun l -> l.Contains "Values:") with
@@ -1647,9 +1639,9 @@ let private branchChainSeesItsAncestry =
         do! archiveBranches state [ "chainTwo"; "chainOne" ]
       })
 
-/// The reads that answered about main from a branch, each with its own scenario. `dark ops` on a branch
-/// off a branch omitted the intermediate branch; `undo` on a branch stepped onto a version main authored
-/// AFTER the fork; `deps` on a branch listed main's version of a caller the branch had re-authored.
+/// Reads on a branch answer about the branch, each with its own scenario. `dark ops` on a branch off a
+/// branch includes the intermediate branch; `undo` on a branch never steps onto a version main authored
+/// AFTER the fork; `deps` on a branch lists the branch's version of a caller it re-authored.
 let private branchReadsAnswerAboutTheBranch =
   instanceTest
     "ops, undo and deps answer about the branch you stand on, chain included"
@@ -1857,9 +1849,9 @@ let private withActionStoppedAt (step : string) (f : unit -> Task<'a>) : Task<'a
       LibDB.ScmActions.Testing.failAt.Value <- null
   }
 
-/// `commit --json -y` is how an agent commits, and a commit the store then refused came out as
-/// `committed: false` with exit 0, so `dark commit --json -y && dark push` carried on as if it had
-/// worked. It has to exit 1 and say why on stderr, with stdout still the JSON alone.
+/// `commit --json -y` is how an agent commits, so a commit the store refuses must not exit 0 with
+/// `committed: false`: `dark commit --json -y && dark push` would carry on as if it had worked. It has
+/// to exit 1 and say why on stderr, with stdout still the JSON alone.
 let private aFailedJsonCommitExitsNonzero =
   cliTestOnMain
     "commit --json -y that the store refuses exits 1 and says why"
@@ -1885,8 +1877,8 @@ let private aFailedJsonCommitExitsNonzero =
         do! discardAll state
       })
 
-/// Acking a conflict is a write, and a write that failed still printed "acked" -- and settling one by
-/// override reported success even when the record stayed open. Both now answer with the failure.
+/// Acking a conflict is a write, and so is settling one by override. When the write fails, both
+/// answer with the failure, not "acked" or success.
 let private aConflictCloseThatFailsIsReported =
   cliTestOnMain
     "an ack or an override whose close fails says so and exits 1"
@@ -2232,8 +2224,7 @@ let private discardOnABranchLeavesMainAlone =
 
 /// Committing on a branch commits THAT BRANCH's ops.
 ///
-/// The commit ROW was written before the ops were stamped, so a failed branch commit also left a commit
-/// naming nothing behind.
+/// A failed branch commit must not leave behind a commit row that names nothing.
 let private committingOnABranchCommitsItsOps =
   instanceTest "committing on a branch commits that branch's ops" (fun state ->
     task {
@@ -2247,7 +2238,7 @@ let private committingOnABranchCommitsItsOps =
         $"and does not throw on the way, got: {out}"
 
       // The point: the branch's own commit, not the store's. Counting `Commits.recent` here would pass
-      // against the bug, since main's commits are in that number too.
+      // even if the branch committed nothing, since main's commits are in that number too.
       let! onBranch =
         runCli
           state
@@ -2439,7 +2430,6 @@ let private mergeCommitsWhatASiblingStillTags =
       })
 
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
-/// Ocean's review, #1: `discard <name>` on a branch dropped every op for that name, committed
 /// Ops are content-addressed, so re-binding a name to a hash it held before is byte-identical to
 /// the op that first bound it: it dedupes, folds nothing, and the revert silently does not happen
 /// while the CLI reports success. `Decision`/`Override` is the op that means "this binding again,
@@ -2543,12 +2533,8 @@ let commitsFollowTheCommitBeforeThem =
       })
 
 
-/// A pin made on a parent branch APPLIES on a child (resolution walks the chain), but `propagate`
-/// listed only the child's own rows, so the child was told nothing was pinned while being governed
-/// by one.
-/// `conflicts override <name>` took the OLDEST row for that name, resolved or not, while the
-/// listing shows only pending ones. With one name conflicted twice, answering by name acted on the
-/// settled conflict and left the open one open, reporting success either way.
+/// `conflicts override <name>` answers the PENDING row for that name, the one the listing shows. With
+/// one name conflicted twice, it must not act on the settled conflict and leave the open one open.
 let overrideByNameAnswersThePendingConflict =
   cliTestOnMain "answering a conflict by name answers the open one" (fun state ->
     task {
@@ -2584,8 +2570,8 @@ let overrideByNameAnswersThePendingConflict =
 
 
 /// A merge writes the branch's rows into the parent's committed layer AFTER the parent's draft was
-/// written, so a commit that moved the draft across and then took the newest row by insertion order
-/// let an older merged edit replace the draft's newer one. A layer's live row is the newest by stamp.
+/// written, so by insertion order an older merged edit would replace the draft's newer one when the
+/// draft commits. A layer's live row is the newest by stamp.
 let private aCommitKeepsTheDraftOverAnOlderMergedEdit =
   instanceTest
     "committing keeps the draft's edit over an older one a merge brought in"

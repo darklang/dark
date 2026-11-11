@@ -275,9 +275,8 @@ let private fnHashTests =
       }
 
       // Bounds are a contract on the caller, so they hash; but they are written only
-      // when present, so every fn and type that has none keeps the hash it had
-      // before bounds existed. Both halves matter: the first for correctness, the
-      // second so adding the field did not repoint the whole store.
+      // when present, so every fn and type that has none hashes as if the field
+      // did not exist, and the store does not repoint.
       test "bounds hash, and an absent bounds list adds no bytes" {
         let traitHash = PT.Hash "trait-show"
         let bound : PT.Bound =

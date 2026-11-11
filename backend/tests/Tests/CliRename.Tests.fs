@@ -37,8 +37,8 @@ let renameOntoALiveNameIsRefusedAndBothSurvive =
       })
 
 /// A rename must not lose track of what depends on the renamed item. An edge keeps the name its
-/// dependent typed, so after a rename the lookup by the new name found nothing, and `delete`
-/// deprecated a fn with a live caller, and a trait with a live implementation, instead of refusing.
+/// dependent typed, so a lookup by the new name alone finds nothing. `delete` must still refuse a
+/// fn with a live caller, and a trait with a live implementation.
 let deleteStillRefusesAfterARename =
   instanceTest
     "after a rename, delete still sees what depends on the item"

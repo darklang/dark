@@ -306,7 +306,7 @@ let tests =
       // fn-first resolution, qualified self-calls, and a match pattern shadowing a
       // parameter. This pins those by lowering hand-picked snippets under a real
       // (module, fn-name, params) context through BOTH lowerings and asserting they
-      // agree — the coverage that would have caught the earlier Dark-lowering breaks.
+      // agree.
       testTask
         "F# and Dark lowerings agree under a real fn context (self-call, match-shadow)" {
         let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
@@ -319,7 +319,7 @@ let tests =
         let cases
           : List<string * List<string> * List<string> * List<string> * string> =
           [ // a match pattern that shadows a parameter must bind the PATTERN, not the
-            // parameter (EArg) — the Dark bug produced EArg here
+            // parameter (EArg)
             ("match-shadows-param",
              [ "M" ],
              [ "Tests"; "M"; "f" ],

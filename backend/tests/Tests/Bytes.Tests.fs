@@ -406,10 +406,9 @@ let fileReadMemoryBound =
     let! bytes = System.IO.File.ReadAllBytesAsync path
     let _dv = Bytes.newEphemeral bytes
     let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
-    // Old List<UInt8> path allocated ~200x file size (10 MB -> ~2 GB). The bound
-    // is 8x rather than 3x because GC noise plus adjacent-test bleed routinely
-    // adds 30-60 MB; the list-boxing regression worth catching is the >2 GB
-    // pattern, far beyond any bound.
+    // A boxed List<UInt8> path allocates ~200x the file size. The bound is 8x
+    // rather than 3x because GC noise and adjacent tests add tens of MB; list
+    // boxing is far beyond any bound.
     Expect.isLessThan
       delta
       80_000_000L
@@ -449,8 +448,8 @@ let persistableAcceptsPlainShapes =
       Expect.isTrue (Dval.isPersistable dv) $"expected isPersistable=true for {dv}"
   }
 
-/// Ocean's round 2, finding 6: `dark propagate` in a terminal died with `lambda not found`, and
-/// every Component-based TUI held its component in a `val`. Nothing about the crash pointed here.
+/// A lambda must never be stored. Every Component-based TUI holds its component in a `val`, and a
+/// stored lambda fails much later, with `lambda not found`, nowhere near here.
 let persistableRejectsLambda =
   test "isPersistable: a lambda is not persistable, a named fn is" {
     let lambda =
