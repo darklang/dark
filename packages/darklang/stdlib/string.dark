@@ -306,7 +306,8 @@ let dropFirst(string: String, characterCount: Int64): String =
 /// If <param string> is shorter than <param goalLength> characters, returns a
 /// copy of <param string> starting with enough copies of <param padWith> for the
 /// result to have <param goalLength>.
-/// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
+/// If <param string> is <param goalLength> characters or longer, or <param goalLength> is past
+/// 2147483647, returns an unchanged copy of <param string>.
 ///
 /// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padStartToWidth`.
 let padStart(string: String, padWith: Char, goalLength: Int64): String =
@@ -315,13 +316,14 @@ let padStart(string: String, padWith: Char, goalLength: Int64): String =
   if padCount <= 0 then
     string
   else
-    (String.repeat(String.fromChar(padWith), padCount)) + string
+    (String.checkedRepeat(String.fromChar(padWith), padCount) |> Result.withDefault("")) + string
 
 
 /// If <param string> is shorter than <param goalLength> characters, returns a
 /// copy of <param string> ending with enough copies of <param padWith> for the
 /// result to have <param goalLength>.
-/// If <param string> is <param goalLength> characters or longer, returns an unchanged copy of <param string>.
+/// If <param string> is <param goalLength> characters or longer, or <param goalLength> is past
+/// 2147483647, returns an unchanged copy of <param string>.
 ///
 /// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padEndToWidth`.
 let padEnd(string: String, padWith: Char, goalLength: Int64): String =
@@ -330,7 +332,7 @@ let padEnd(string: String, padWith: Char, goalLength: Int64): String =
   if padCount <= 0 then
     string
   else
-    string + (String.repeat(String.fromChar(padWith), padCount))
+    string + (String.checkedRepeat(String.fromChar(padWith), padCount) |> Result.withDefault(""))
 
 
 // TODO: re-write in dark

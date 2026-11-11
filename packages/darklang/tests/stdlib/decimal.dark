@@ -69,6 +69,9 @@ test scaleIsKeptButIgnoredByEquality =
       (1.10dec == 1.1dec) |> Stdlib.Test.equal(true)
       Stdlib.Decimal.scale(1.10dec) |> Stdlib.Test.equal(2)
       Stdlib.display(Stdlib.Decimal.normalize(1.100dec)) |> Stdlib.Test.equal("1.1")
+      Stdlib.display(Stdlib.Decimal.normalize(-20.500dec)) |> Stdlib.Test.equal("-20.5")
+      Stdlib.display(Stdlib.Decimal.normalize(100dec)) |> Stdlib.Test.equal("100")
+      Stdlib.display(Stdlib.Decimal.normalize(0.000dec)) |> Stdlib.Test.equal("0")
       Stdlib.display(1.10dec + 1dec) |> Stdlib.Test.equal("2.10") ])
 
 test oneDictKeyAcrossScales =

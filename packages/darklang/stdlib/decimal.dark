@@ -118,8 +118,9 @@ let normalize(d: Decimal): Decimal =
   | None -> d
 
 let __stripZeros(unscaled: BigInt, scale: Int64): (BigInt * Int64) =
-  if scale > 0 && unscaled % 10z == 0z then
-    __stripZeros(unscaled / 10z, scale - 1)
+  let tenth = Stdlib.BigInt.checkedDivide(unscaled, 10z) |> Stdlib.Result.withDefault(0z)
+  if scale > 0 && tenth * 10z == unscaled then
+    __stripZeros(tenth, scale - 1)
   else
     (unscaled, scale)
 
