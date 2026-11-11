@@ -2115,12 +2115,12 @@ let private tryFastOp
         | ValueSome(struct (DBigInt b, tail)) when ArgSeq.isEmpty tail ->
           FastOps.eval tag a b
         | _ -> ValueNone
-      | ValueSome(struct (DString a, rest)) ->
+      | ValueSome(struct (DStr a, rest)) ->
         match ArgSeq.uncons rest with
-        | ValueSome(struct (DString b, tail)) when ArgSeq.isEmpty tail ->
+        | ValueSome(struct (DStr b, tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalStr tag a b
         | ValueSome(struct (DInt64 n, tail)) when ArgSeq.isEmpty tail ->
-          FastOps.evalStrInt tag a n
+          FastOps.evalStrInt tag a.Value n
         | _ -> ValueNone
       | ValueSome(struct (DList(vt1, l1), rest)) ->
         match ArgSeq.uncons rest with
@@ -2219,10 +2219,10 @@ let private fastBuiltinOp
       match registers[secondReg] with
       | DBigInt y -> FastOps.eval tag x y
       | _ -> ValueNone
-    | DString x ->
+    | DStr x ->
       match registers[secondReg] with
-      | DString y -> FastOps.evalStr tag x y
-      | DInt64 n -> FastOps.evalStrInt tag x n
+      | DStr y -> FastOps.evalStr tag x y
+      | DInt64 n -> FastOps.evalStrInt tag x.Value n
       | _ -> ValueNone
     | DList(vt1, l1) ->
       match registers[secondReg] with

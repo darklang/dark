@@ -524,7 +524,7 @@ module Redact =
 
   let private isHeader (dv : RT.Dval) : bool =
     match dv with
-    | RT.DTuple(RT.DString _, RT.DString _, []) -> true
+    | RT.DTuple(RT.DStr _, RT.DStr _, []) -> true
     | _ -> false
 
   /// An HTTP value as a trace stores it: in every header list (a list of (name, value)
