@@ -552,16 +552,44 @@ let runInWorkspace
   | Error(code, message) ->
     Error(code, String.concat "\n" (message :: cleanupErrors))
 
-/// Trusted CLI presentation only, never a guest process primitive.
-let setProcessTitle (title : string) : unit =
+/// The name this process was started under: the first word of `/proc/self/cmdline`, read before
+/// `setProcessTitle` replaces it. Linux only. Not `Environment.ProcessPath`, which is the file the
+/// kernel ran, the same for `exec -a todo dark ...` as for a plain `dark`.
+let invokedName () : Option<string> =
   if System.OperatingSystem.IsLinux() then
     try
-      let comm =
-        let bytes = System.Text.Encoding.UTF8.GetBytes title
-        if bytes.Length <= 15 then
-          title
-        else
-          System.Text.Encoding.UTF8.GetString(bytes, 0, 15)
-      System.IO.File.WriteAllText("/proc/self/comm", comm)
+      let cmdline = File.ReadAllText "/proc/self/cmdline"
+      Some(Path.GetFileName(cmdline.Split(char 0)[0]))
+    with _ ->
+      None
+  else
+    None
+
+/// `ps aux`, `top -c` and htop read the memory the kernel copied argv into, so the title is written
+/// over it, cut to fit. Nothing past the arguments is touched.
+let private setCommandLine (title : string) : unit =
+  let stat = File.ReadAllText "/proc/self/stat"
+  // Fields count from 3 after the `(comm)`, which can hold spaces; arg_start is field 48.
+  let fields = stat.Substring(stat.LastIndexOf ')' + 2).Split ' '
+  let argStart = nativeint (uint64 fields[48 - 3])
+  let room = int (nativeint (uint64 fields[49 - 3]) - argStart)
+  let bytes = System.Text.Encoding.UTF8.GetBytes title
+  let buffer = Array.zeroCreate<byte> room
+  Array.blit bytes 0 buffer 0 (min bytes.Length (room - 1))
+  Marshal.Copy(buffer, 0, argStart, room)
+
+/// What `ps`, `top` and htop show for this process: <param full> as its command line and
+/// <param short> as its name (`comm`: `top` without `-c`, `ps -e`), which the kernel cuts at 15
+/// bytes. Linux only; on macOS the process keeps its command line. Trusted CLI presentation only,
+/// never a guest process primitive.
+let setProcessTitle (short : string) (full : string) : unit =
+  if System.OperatingSystem.IsLinux() then
+    try
+      let bytes = System.Text.Encoding.UTF8.GetBytes short
+      File.WriteAllText(
+        "/proc/self/comm",
+        System.Text.Encoding.UTF8.GetString(bytes, 0, min bytes.Length 15)
+      )
+      setCommandLine full
     with _ ->
       ()
