@@ -590,11 +590,11 @@ let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int64, total: Int64):
       "    [a] take yours / [b] take theirs / [enter] keep the auto-pick / [s] skip / [q] quit: ")
   ))
 
-  // Input ending quits, rather than taking the auto-pick for everything left.
+  // Input ending, or not being UTF-8, quits, rather than taking the auto-pick for everything left.
   let answer =
-    match Stdlib.Cli.Stdin.readLineOrEnd() with
-    | Some(typed) -> Stdlib.String.trim(Stdlib.String.toLowercase(typed))
-    | None -> "q"
+    match Stdlib.Cli.Stdin.checkedReadLine() with
+    | Ok(Some(typed)) -> Stdlib.String.trim(Stdlib.String.toLowercase(typed))
+    | _ -> "q"
 
   let apply(choice: String, label: String): Unit =
     match pickCandidate(c, choice) with

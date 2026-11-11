@@ -12,13 +12,14 @@ let canAsk(): Bool =
 let nobodyCanAnswer(): String =
   "nobody can answer a question here (stdin or stderr isn't a terminal, or --no-input, DARK_NO_INPUT or CI is set)"
 
-/// Ask the user for text input. None when nobody can answer, or input ends.
+/// Ask the user for text input. None when nobody can answer, input ends, or the answer is not
+/// UTF-8.
 let ask(question: String): Stdlib.Option.Option<String> =
   if Stdlib.Bool.not(canAsk()) then
     Stdlib.Option.Option.None
   else
     Stdlib.printError($"{question} ")
-    Stdlib.Cli.Stdin.readLineOrEnd()
+    Stdlib.Cli.Stdin.checkedReadLine() |> Stdlib.Result.withDefault(Stdlib.Option.Option.None)
 
 
 /// Ask the user a yes/no question. Returns true for yes.
@@ -30,7 +31,8 @@ let confirm(question: String): Bool =
   | None -> false
 
 
-/// Ask the user to select from a list of choices. None when nobody can answer, or input ends.
+/// Ask the user to select from a list of choices. None when nobody can answer, input ends, or the
+/// answer is not UTF-8.
 let select(
   question: String,
   choices: List<String>)
@@ -44,9 +46,10 @@ let select(
       |> Stdlib.List.indexedMap(fun(i, choice) ->
         Stdlib.printErrorLine($"  {Stdlib.Cli.UI.Colors.boldText(Stdlib.display(i + 1))}. {choice}"))
     Stdlib.printError("Enter number: ")
-    match Stdlib.Cli.Stdin.readLineOrEnd() with
-    | None -> Stdlib.Option.Option.None
-    | Some(input) ->
+    match Stdlib.Cli.Stdin.checkedReadLine() with
+    | Error(_) -> Stdlib.Option.Option.None
+    | Ok(None) -> Stdlib.Option.Option.None
+    | Ok(Some(input)) ->
       match Stdlib.Int64.parse(Stdlib.String.trim(input)) with
       | Ok(n) ->
         match Stdlib.List.getAt(choices, n - 1) with
