@@ -7,6 +7,8 @@ type AccessReportFacts =
     bundled: Bool
     approvals: List<(String * LanguageTools.Permissions.Policy)>
     approvedAs: List<String>
+    /// The version an approval under this name is for, when that is another version.
+    olderApproval: Stdlib.Option.Option<String>
     instancePolicy: LanguageTools.Permissions.Policy }
 
 // Builtin wrappers.
@@ -102,11 +104,19 @@ let approvalsOf(
   : List<LanguageTools.Permissions.Approval> =
   Builtin.pmPolicyApprovals(accountID, hash)
 
-/// Each named approval, including separate names with identical code.
-let namedApprovals(accountID: Stdlib.Option.Option<Uuid>): List<String> =
+/// Each named approval, including separate names with identical code, marking
+/// the ones whose function has changed since.
+let namedApprovals(
+  accountID: Stdlib.Option.Option<Uuid>,
+  branchId: Uuid)
+  : List<String> =
   Command.approvedVersions(accountID)
   |> Stdlib.List.map(fun((name, hash)) ->
-    $"  {name}  (version {Command.shortVersion(hash)})")
+    let older =
+      match Command.latestVersion(branchId, name) with
+      | Some(latest) when latest != hash -> ", for an older version"
+      | _ -> ""
+    $"  {name}  (version {Command.shortVersion(hash)}{older})")
 
 /// Capture before showing a review; mutations compare it atomically when saving.
 let reviewToken(): String = Builtin.pmPolicyReviewToken()
@@ -213,7 +223,11 @@ let renderAccessReport(
     if facts.complete then []
     else [ "  Warning: analysis is incomplete; more permissions may be needed." ]
   let packageLines =
-    if Stdlib.List.isEmpty(facts.approvals) then [ "  Remembered approval: none" ]
+    if Stdlib.List.isEmpty(facts.approvals) then
+      match facts.olderApproval with
+      | Some(version) ->
+        [ $"  Remembered approval: for an older version ({Command.shortVersion(version)}); `permissions update {name}` reviews this one" ]
+      | None -> [ "  Remembered approval: none" ]
     else
       facts.approvals
       |> Stdlib.List.map(fun((approvedName, policy)) ->
@@ -246,6 +260,7 @@ let accessFacts(
       bundled = bundled
       approvals = approvals
       approvedAs = approvedAs
+      olderApproval = Stdlib.Option.Option.None
       instancePolicy = Command.currentPolicy() }
 
 
@@ -423,6 +438,10 @@ let parseApprovalRules(
     | Ok(policy) -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(policy))
     | Error(message) -> Stdlib.Result.Result.Error(message)
 
+/// Refuse to remember access with nobody at a terminal to confirm it.
+let needsYes(): String =
+  "no terminal to confirm at; add --yes to remember this access"
+
 /// Lines describing the policy a version is approved under, for the prompt.
 let describeApprovalRules(
   rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>)
@@ -496,18 +515,10 @@ let approveNamed(
       let complete =
         Command.showVersionRequirements($"{name} {Command.shortVersion(hash)}", hash)
       Stdlib.printLines(Command.describeApprovalRules(rules))
-      // Interactively confirm; a non-interactive explicit `approve` is itself
-      // the consent (the trusted command was invoked with this exact name),
-      // and `--yes` says so outright for a run that has a terminal but nobody
-      // at it.
-      let accepted =
-        if acceptWithoutPrompt then true
-        else if Stdlib.Cli.UI.Prompt.canAsk() then
-          Stdlib.Cli.UI.Prompt.confirm(
-            "Remember this access for this code version?")
-        else
-          true
-      if accepted then
+      if Stdlib.Bool.not(acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.canAsk()) then
+        Cli.printErr(Command.needsYes())
+        false
+      else if acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.confirm("Remember this access for this code version?") then
         // An explicit `permissions approve <name>` showed the requirements and
         // named this exact version; that is the contract review, so a changed
         // contract is acknowledged up front and no second review can be asked.
@@ -529,9 +540,8 @@ let approveNamed(
         true
 
 /// Review access for newer code; declining leaves the old approval unchanged.
-/// A changed contract requires a second confirmation. Updates always
-/// prompt, including non-interactive runs, unless `--yes` was given, which is
-/// itself the explicit yes and covers a changed contract too.
+/// A changed contract requires a second confirmation. `--yes` is the explicit
+/// yes to both, and is required without a terminal.
 let updateNamed(
   state: Cli.AppState,
   acceptWithoutPrompt: Bool,
@@ -547,7 +557,7 @@ let updateNamed(
   | Ok(givenRules) ->
     match Command.approvedVersionOf(accountID, name) with
     | None ->
-      Cli.printErr($"{name} has no approved version; run `permissions approve {name}` first")
+      Cli.printErr($"{name} has no remembered approval; run `permissions approve {name}` first")
       false
     | Some(approved) ->
       match Command.latestVersion(state.currentBranchId, name) with
@@ -586,11 +596,10 @@ let updateNamed(
             acknowledgeContractChange,
             accepted,
             kept)
-        let acceptNew =
-          acceptWithoutPrompt
-          || (Stdlib.Cli.UI.Prompt.confirm(
-                "Remember access for the current code version?"))
-        if Stdlib.Bool.not(acceptNew) then
+        if Stdlib.Bool.not(acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.canAsk()) then
+          Cli.printErr(Command.needsYes())
+          false
+        else if Stdlib.Bool.not(acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.confirm("Remember access for the current code version?")) then
           // Declining leaves the old approval unchanged; it cannot authorize the new code.
           Stdlib.printLine(kept)
           true
@@ -728,7 +737,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           $"✓ Removed remembered approval for {name}. Other rules may still allow access.")))
       state
     else
-      Cli.printErr($"{name} has no approved version; `permissions approved` lists the ones that do")
+      Cli.printErr($"{name} has no remembered approval; `permissions approved` lists the ones that do")
       Cli.failed(state)
   | [ "requirements", target ] ->
     Cli.exitWith(state, (Command.withVersion(state, target, fun hash ->
@@ -753,7 +762,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           if target == hash then facts
           else { facts with
             approvals = Stdlib.List.filter(facts.approvals, fun((n, _)) -> n == name)
-            approvedAs = Stdlib.List.filter(facts.approvedAs, fun n -> n == name) }
+            approvedAs = Stdlib.List.filter(facts.approvedAs, fun n -> n == name)
+            olderApproval =
+              match Command.approvedVersionOf(state.accountID, name) with
+              | Some(version) when version != hash -> Stdlib.Option.Option.Some(version)
+              | _ -> Stdlib.Option.Option.None }
         Command.renderAccessReport(name, facts)))
   | [ "revoke-package", hash ] ->
     // A hash that was never approved revokes nothing; say so rather than report a revoke.
@@ -765,11 +778,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       Cli.printErr($"{hash} has no approval; `permissions approvals` lists the ones that do")
       Cli.failed(state)
   | [ "approved" ] | [ "approvals" ] ->
-    let approvals = Command.namedApprovals(state.accountID)
+    let approvals = Command.namedApprovals(state.accountID, state.currentBranchId)
     if Stdlib.List.isEmpty(approvals) then
       Stdlib.printLine("Remembered approvals: none")
     else
-      Stdlib.printLine("Remembered approvals (listed versions only):")
+      Stdlib.printLine("Remembered approvals:")
       Stdlib.printLines(approvals)
     if Command.approvalsStale() then
       Stdlib.printErrorLine(
@@ -819,6 +832,8 @@ let help(_state: Cli.AppState): String =
     "  list           instance defaults: allowed rules and explicit denies"
     "  show <fn>      the function's effects and remembered approvals"
     "  approved       remembered approvals, each tied to a name and code version"
+    "  approvals      the same as approved"
+    "  effects <fn>   (a top-level command) effects and a call path for each"
     ""
     "Profiles:"
     "  profile                         list the available presets"
@@ -830,21 +845,16 @@ let help(_state: Cli.AppState): String =
     "  HTTPS GET permits any host on port 443; HTTP serving permits any port on 127.0.0.1."
     ""
     "Named approvals:"
-    "  --yes, -y      skip the confirmation; required for an unattended run,"
-    "                 which must not rely on being detected as non-interactive"
+    "  --yes, -y      skip the confirmation; required without a terminal"
     "  approve <fn>   remember access for the current code and its dependencies."
     "                 Edits run immediately but do not inherit the old approval."
     "                 Rules allow access to this entry and its helpers, in addition"
     "                 to instance defaults. Separate names have separate grants, e.g."
     "                 approve MyApp.fetch http GET 'https://api.example.com'"
-    "  update <fn>    review access for the current version; declining leaves it"
-    "                 unapproved. A changed permission contract asks again. Rules on"
-    "                 approve carry over unless new ones are given"
+    "  update <fn>    review access for the current version; declining leaves the"
+    "                 approval unchanged. A changed permission contract asks again."
+    "                 Rules on approve carry over unless new ones are given"
     "  unapprove <name> withdraw a function or script approval; other rules still apply"
-    "  approved       the names with an approved version, and which version"
-    "  approvals      each approved name and version"
-    "  effects <fn>   use the top-level effects command for effects and call paths"
-    "  process-exact <EXE> [args] permits only those arguments (including none)"
     "  revoke-package <hash> withdraw all named approvals of that version"
     ""
     "Rules:"
@@ -856,6 +866,7 @@ let help(_state: Cli.AppState): String =
     "  file read|write|read+write [ROOT]"
     "  env read|write|read+write [NAME]"
     "  process <ABSOLUTE-EXECUTABLE|*> [ARG…]"
+    "  process-exact <ABSOLUTE-EXECUTABLE> [ARG…]  only those arguments (none means none)"
     "  native                           builtins that can reach anything (raw descriptors,"
     "                                   process handles); no narrower form exists"
     "  all"

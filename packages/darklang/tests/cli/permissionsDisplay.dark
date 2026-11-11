@@ -39,6 +39,7 @@ module PermissionsDisplay =
         bundled = false
         approvals = [("Acme.Client.fetch", packagePolicy())]
         approvedAs = [ "Acme.Client.fetch" ]
+        olderApproval = Stdlib.Option.Option.None
         instancePolicy = instancePolicy() }
 
   test approvedReport =
@@ -81,3 +82,14 @@ module PermissionsDisplay =
         "  Effects: none"
         "  Permissions needed: none"
         "  Remembered approval: none" ])
+
+  test olderApprovalReport =
+    let facts = unapproved()
+    Darklang.Cli.Permissions.Command.renderAccessReport(
+      "Acme.Client.fetch",
+      { facts with complete = true, olderApproval = Stdlib.Option.Option.Some("abcdef0123456789") })
+    |> Stdlib.Test.equal(
+      [ "Acme.Client.fetch"
+        "  Effects: none"
+        "  Permissions needed: none"
+        "  Remembered approval: for an older version (abcdef01); `permissions update Acme.Client.fetch` reviews this one" ])

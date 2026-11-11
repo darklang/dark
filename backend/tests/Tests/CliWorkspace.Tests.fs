@@ -651,7 +651,7 @@ let unapprovingAnUnapprovedNameSaysSo =
         shows
           state
           [ "permissions"; "unapprove"; "Tests.Appr.neverApproved" ]
-          "has no approved version"
+          "has no remembered approval"
           "an unmatched name withdraws nothing and says so"
     })
 
