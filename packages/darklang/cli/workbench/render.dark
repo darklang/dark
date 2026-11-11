@@ -153,8 +153,11 @@ let selectionRow(width: Int64, plain: String): String =
 /// all. For rows that carry a description - the tree, changes, traces, the
 /// navbar - this reads better than a block, which would swallow the
 /// description's dimness. Pickers keep the block.
-let selectionBar(name: String, rest: String, focused: Bool): String =
-  let color = if focused then Stdlib.Cli.UI.Colors.purple else Stdlib.Cli.UI.Colors.brightBlack
+let selectionBar(name: String, rest: String, focus: Stdlib.Cli.UI.Focus): String =
+  let color =
+    match focus with
+    | Focused -> Stdlib.Cli.UI.Colors.purple
+    | Unfocused -> Stdlib.Cli.UI.Colors.brightBlack
   (Stdlib.Cli.UI.Colors.colorize(color, "┃ " + name)) + rest
 
 /// A full-body scrollable reader (Docs topic content, etc.).

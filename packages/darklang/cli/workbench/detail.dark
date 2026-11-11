@@ -77,7 +77,7 @@ let renderTreeList(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
           // the cursor (see `selectableRow`).
           if item.name == "" then "" else "  " + (Stdlib.Cli.UI.Colors.dimText(item.name))
         else if i == state.selected then
-          selectionBar(display, rest, focused)
+          selectionBar(display, rest, Stdlib.Cli.UI.Focus.fromBool(focused))
         else
           // A module holding uncommitted work is grayed rather than bold: not yet part of what
           // everyone else sees, and the leaf dots inside say exactly what.

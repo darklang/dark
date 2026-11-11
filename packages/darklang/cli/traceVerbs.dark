@@ -436,14 +436,20 @@ let fork(prefix: String, at: Stdlib.Option.Option<Int64>): Bool =
       false
 
 
-let pin(prefix: String, pinned: Bool): Bool =
+/// What `traces pin` and `traces unpin` do to a trace.
+type Pinning =
+  /// Keep it when old traces are dropped to make room.
+  | Pin
+  | Unpin
+
+let pin(prefix: String, pinning: Pinning): Bool =
   match find(prefix) with
   | Error(e) ->
     Cli.printErr(e)
     false
   | Ok(e) ->
-    if Darklang.Tracing.Store.setPinned(e.id, pinned) then
-      if pinned then
+    if Darklang.Tracing.Store.setPinned(e.id, pinning == Pinning.Pin) then
+      if pinning == Pinning.Pin then
         Stdlib.printLine(
           $"pinned {Cli.Text.shortIdText(e.id)} -- it will not be dropped to make room")
       else
