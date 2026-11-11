@@ -94,7 +94,7 @@ let rec private drivePull
   match step with
   | Stream.Pulled r -> k r
   | Stream.Apply(app, arg, next, looks) ->
-    Interpreter.requestApply vm app arg [] (fun dv ->
+    Interpreter.requestApply vm app arg ValueNone (fun dv ->
       if looks then
         Interpreter.withValue vm dv (fun v -> drivePull vm k (next v))
       else

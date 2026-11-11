@@ -195,7 +195,8 @@ type private OverList<'acc>
     floor : int64
   ) =
   inherit Spread.Walk<'acc>(state, vm, app, builtinName, floor)
-  override _.Apply(_, elem, next) = Interpreter.requestApply vm app elem [] next
+  override _.Apply(_, elem, next) =
+    Interpreter.requestApply vm app elem ValueNone next
   override _.ChunkArgs(_, chunk) = [ DList(vt, chunk) ]
 
 /// What a map has so far, back to front, once a spread came back: the chunks' results onto it.
@@ -238,7 +239,7 @@ let private sortByLessThan
     | rest, [] -> k (List.rev acc @ rest)
     | l :: lt, r :: rt ->
       // The right one goes first only when it is strictly less, which keeps equal values in order.
-      Interpreter.requestApply vm lessThan r [ l ] (fun answer ->
+      Interpreter.requestApply vm lessThan r (ValueSome l) (fun answer ->
         Interpreter.withValue vm answer (fun answer ->
           match answer with
           | DBool true -> mergeK left rt (r :: acc) k
@@ -280,8 +281,13 @@ let fns () : List<BuiltInFn> =
               else
                 let elem = DvalList.head rest
                 rest <- DvalList.tail rest
-                Interpreter.requestApply vm app stepped [ elem ] next
-            Interpreter.requestApply vm app init [ DvalList.head items ] next
+                Interpreter.requestApply vm app stepped (ValueSome elem) next
+            Interpreter.requestApply
+              vm
+              app
+              init
+              (ValueSome(DvalList.head items))
+              next
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -334,7 +340,12 @@ let fns () : List<BuiltInFn> =
           Spread.walk
             { new Spread.Walk<List<Dval>>(state, vm, app, "listMap2shortest", 0L) with
                 member _.Apply(index, elem, next) =
-                  Interpreter.requestApply vm app (Dval.dint64 index) [ elem ] next
+                  Interpreter.requestApply
+                    vm
+                    app
+                    (Dval.dint64 index)
+                    (ValueSome elem)
+                    next
                 member _.Step(acc, _, mapped) = Spread.Next(mapped :: acc)
                 member _.ChunkArgs(index, chunk) =
                   let indices =
@@ -536,15 +547,15 @@ let fns () : List<BuiltInFn> =
                     | ValueSome(struct (a, tA)), ValueSome(struct (b, tB)) ->
                       restA <- tA
                       restB <- tB
-                      return! Interpreter.requestApply vm app a [ b ] next
+                      return! Interpreter.requestApply vm app a (ValueSome b) next
                     | _ -> return mappedList vm (DvalList.ofRevList acc)
                   }
                 else
                   restA <- tA
                   restB <- tB
-                  Interpreter.requestApply vm app a [ b ] next
+                  Interpreter.requestApply vm app a (ValueSome b) next
               | _ -> Ply(mappedList vm (DvalList.ofRevList acc))
-            Interpreter.requestApply vm app a [ b ] next
+            Interpreter.requestApply vm app a (ValueSome b) next
           | _ -> Ply(mappedList vm DvalList.empty)
         | _ -> incorrectArgs ())
       previewable = Pure

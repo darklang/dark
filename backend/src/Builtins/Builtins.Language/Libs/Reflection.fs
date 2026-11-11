@@ -94,7 +94,7 @@ let fns () : List<BuiltInFn> =
                             argsSoFar = []
                             boundImpls = [] }
                       return!
-                        Interpreter.requestApply vm impl value [] (fun text ->
+                        Interpreter.requestApply vm impl value ValueNone (fun text ->
                           Ply(Dval.optionSome KTString text))
                     | None -> return none
                   | _ -> return none

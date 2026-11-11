@@ -275,6 +275,32 @@ test fold =
         Stdlib.List.append(accum, curr + 1))
       |> Stdlib.Test.equal([ 2, 3, 4, 5, 6 ]) ])
 
+let __mixBy(xs: List<Int64>, acc: Int64): Int64 =
+  match xs with
+  | [] -> acc
+  | [x, ...rest] -> __mixBy(rest, acc * 31 + x)
+
+let __indexedBy(xs: List<Int64>, i: Int64): List<(Int64 * Int64)> =
+  match xs with
+  | [] -> []
+  | [x, ...rest] -> Stdlib.List.prepend(__indexedBy(rest, i + 1), (i, x))
+
+test twoArgumentCallbacksSeeEveryElementInOrder =
+  Stdlib.Test.all(
+    Stdlib.List.map([ 0, 1, 2, 5, 33, 100 ], fun n ->
+      let xs = Stdlib.List.range(1, n)
+      Stdlib.Test.all(
+        [ Stdlib.List.fold(xs, 0, fun(acc, x) -> acc * 31 + x)
+          |> Stdlib.Test.equal(__mixBy(xs, 0))
+          Stdlib.List.fold(xs, (0, []), fun((count, seen), x) ->
+            (count + 1, Stdlib.List.prepend(seen, x)))
+          |> Stdlib.Test.equal((n, Stdlib.List.reverse(xs)))
+          Stdlib.List.fold(Stdlib.List.map(xs, fun x -> (x, 0 - x)), 0, fun(acc, (a, b)) ->
+            acc * 31 + a + b + a)
+          |> Stdlib.Test.equal(__mixBy(xs, 0))
+          Stdlib.List.indexedMap(xs, fun(i, x) -> (i, x))
+          |> Stdlib.Test.equal(__indexedBy(xs, 0)) ])))
+
 test getAt =
   Stdlib.Test.all(
     [ Stdlib.List.getAt([ "a", "b", "c", "d" ], -1)
