@@ -2824,10 +2824,13 @@ let private calleeTst
   (implicitTypeParams : Set<string>)
   (newlyBound : TypeSymbolTable)
   : TypeSymbolTable =
-  let stripped =
-    implicitTypeParams
-    |> Set.fold (fun m name -> removeIfPresent name m) currentFrame.typeSymbolTable
-  TST.mergeFavoringRight stripped newlyBound
+  if Set.isEmpty implicitTypeParams && TST.isEmpty newlyBound then
+    currentFrame.typeSymbolTable
+  else
+    let stripped =
+      implicitTypeParams
+      |> Set.fold (fun m name -> removeIfPresent name m) currentFrame.typeSymbolTable
+    TST.mergeFavoringRight stripped newlyBound
 
 /// What the caller recorded for a fn's bounds, with any entry that defers to the CALLER's own type
 /// param resolved against the caller's frame. That is what threads a bound through a generic that
@@ -2947,9 +2950,11 @@ let private refillForTailCall
   // scratch buffer, which is then cleared so it holds nothing alive.
   let args = ArgSeq.toArrayFor frame allArgs
   let regs = frame.registers
-  System.Array.Clear(regs, 0, regs.Length)
-  System.Array.Copy(args, regs, args.Length)
-  System.Array.Clear(args, 0, args.Length)
+  // A loop, not a bulk copy: there are only a few, and the bulk copy's setup costs more.
+  for i in 0 .. args.Length - 1 do
+    Registers.set regs i args[i]
+  System.Span<Dval>(regs).Slice(args.Length).Clear()
+  System.Span<Dval>(args).Clear()
   frame.access <- access
   frame.typeSymbolTable <- tst
   frame.boundImpls <- boundImpls
