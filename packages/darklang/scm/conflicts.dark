@@ -35,8 +35,8 @@ type Binding =
     /// record authorship per name; the local side of a conflict is labelled by the caller instead.
     author: String
 
-    /// The hash this binding REPLACED, when the op said. `None` means no predecessor was recorded -- by a
-    /// parser that had no store to ask, or by an op that predates bindings carrying this.
+    /// The hash this binding REPLACED, when the op said. `None` means no predecessor was recorded, as by a
+    /// parser that had no store to ask.
     ///
     /// Two bindings of one name that BOTH say None were each created from nothing. One that names the
     /// other's hash descends from it, which is an ordinary edit and not a conflict.
@@ -228,7 +228,7 @@ let branchBases(branchId: Uuid): List<NameBase> = SCM.Branches.baseRecords(branc
 
 // the `conflicts` table (record / read / resolve)
 
-/// A stored row as a `Conflict`. Candidates that don't parse read as none, as they always have.
+/// A stored row as a `Conflict`. Candidates that don't parse read as none.
 let conflictFromRow(row: ConflictRow): Conflict =
   let candidates =
     match Stdlib.Json.parse<List<Candidate>>(row.candidates) with
@@ -305,7 +305,7 @@ let pending(): List<Conflict> =
     // The sweep asks "does the name still hold one of these versions", so it only applies to a
     // conflict that is ABOUT which version a name holds. A `doc-divergence` is about the prose on a
     // piece of content: its candidates are hashes of TEXT, which no binding will ever equal, so
-    // sweeping it superseded every one of them the moment it was noticed and none was ever shown.
+    // sweeping it would supersede it the moment it was noticed, before anyone saw it.
     if Stdlib.Bool.not(aboutABinding(c.kind)) then
       true
     else
@@ -343,8 +343,7 @@ let getByIdPrefix(rawPrefix: String): Stdlib.Option.Option<Conflict> =
       rawPrefix
 
   // A NAME is accepted as well as an id, because the name is what the list puts in front of you and what
-  // you were working on; making you copy a hex id to act on `Stachu.Thing.foo` is a step for the
-  // machine's benefit. Matched as owner.modules.name so a fully-dotted name is unambiguous, and only
+  // you were working on. Matched as owner.modules.name so a fully-dotted name is unambiguous, and only
   // among THIS branch's conflicts, pending ones first.
   match query(ConflictFilter.ByRef(idPrefix, onBranch())) with
   | [ row ] -> Stdlib.Option.Option.Some(conflictFromRow(row))

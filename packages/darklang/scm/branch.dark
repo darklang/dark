@@ -14,8 +14,8 @@ module Darklang.SCM.Branch
 // main's id is the one fact they all share.
 //
 // The rule these definitions exist to enforce: an id is compared against `mainBranchId`, never against a
-// literal. A literal freezes an answer that has changed more than once ("" and "main" have both been
-// it), and every call site holding the stale one still reads as correct.
+// literal. A literal goes stale when main's id changes, and every call site holding it still reads as
+// correct.
 
 /// Main's branch id.
 ///

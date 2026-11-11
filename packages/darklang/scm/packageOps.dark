@@ -16,9 +16,7 @@ module Darklang.SCM.PackageOps
 //   packageOpsUndo       authored revision history and undo
 //
 // Dark lets several files contribute to one module and see each other's definitions unqualified, so
-// the split is physical only: no new silo, and `package_ops` still has exactly one owner. It is a
-// split rather than one file because one file was 1,750 lines and 67 functions, which is past the
-// point where anyone finds anything.
+// the split is physical only: no new silo, and `package_ops` still has exactly one owner.
 
 
 /// Add a list of package ops to the database (immediately live on the given branch).

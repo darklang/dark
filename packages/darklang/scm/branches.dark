@@ -58,8 +58,7 @@ let query(f: BranchFilter): List<BranchInfo> = Builtin.scmBranches(f)
 /// Why a merge may not go ahead.
 ///
 /// A DU rather than a sentence because one caller has to tell the empty case apart from the rest:
-/// approving a review queue that holds nothing pending is a normal outcome, not a failure, and it
-/// used to be recognised by searching the message for "nothing to merge".
+/// approving a review queue that holds nothing pending is a normal outcome, not a failure.
 type MergeRefusal =
   /// Main is the trunk; there is nothing above it to merge into.
   | IsMain
