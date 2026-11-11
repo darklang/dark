@@ -471,9 +471,9 @@ let private wide
 
 let private int8Type =
   narrow (int64 System.SByte.MinValue) (int64 System.SByte.MaxValue) (fun n ->
-    DInt8(int8 n))
+    Dval.int8 (int8 n))
 let private uint8Type =
-  narrow 0L (int64 System.Byte.MaxValue) (fun n -> DUInt8(uint8 n))
+  narrow 0L (int64 System.Byte.MaxValue) (fun n -> Dval.uint8 (uint8 n))
 let private int16Type =
   narrow (int64 System.Int16.MinValue) (int64 System.Int16.MaxValue) (fun n ->
     DInt16(int16 n))
@@ -594,7 +594,7 @@ let parse
 
     | TChar, JsonValueKind.String ->
       match String.toEgcChar (j.GetString()) with
-      | Some c -> Ply(DChar c)
+      | Some c -> Ply(Dval.char c)
       | None -> raiseCantMatchWithType TChar j pathSoFar
 
 

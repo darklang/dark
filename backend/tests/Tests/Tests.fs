@@ -171,6 +171,7 @@ let main (args : string array) : int =
         Tests.Spread.tests
         Tests.Lists.tests
         Tests.Strings.tests
+        Tests.Scalars.tests
         Tests.AnalysisTypes.tests
         Tests.Builtin.tests
         Tests.HostBoundary.tests

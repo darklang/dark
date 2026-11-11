@@ -207,7 +207,7 @@ let inline binaryOn
 
 let inline int8Op value fail (none : 'R) (op : int) (x : int8) (y : int8) : 'R =
   binaryOn
-    DInt8
+    Dval.dint8
     // in int32, so -128y / -1y wraps rather than throws
     (fun p q -> int8 (int p / int q))
     (fun p q -> int8 (powWrap64 1UL (uint64 p) (uint64 q)))
@@ -222,7 +222,7 @@ let inline int8Op value fail (none : 'R) (op : int) (x : int8) (y : int8) : 'R =
 
 let inline uint8Op value fail (none : 'R) (op : int) (x : uint8) (y : uint8) : 'R =
   binaryOn
-    DUInt8
+    Dval.duint8
     (fun p q -> p / q)
     (fun p q -> uint8 (powWrap64 1UL (uint64 p) (uint64 q)))
     (fun p q -> p <<< int q)

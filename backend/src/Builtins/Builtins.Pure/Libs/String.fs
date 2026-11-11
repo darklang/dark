@@ -147,7 +147,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s |] ->
-          s |> String.mapEgcs DChar |> Dval.list KTChar |> Ply
+          s |> String.mapEgcs Dval.char |> Dval.list KTChar |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -103,7 +103,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DChar c |] ->
-          Ply(DChar(Builtins.Pure.CaseMapping.charToUppercase c))
+          Ply(Dval.char (Builtins.Pure.CaseMapping.charToUppercase c))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -120,7 +120,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DChar c |] ->
-          Ply(DChar(Builtins.Pure.CaseMapping.charToLowercase c))
+          Ply(Dval.char (Builtins.Pure.CaseMapping.charToLowercase c))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -139,7 +139,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DUInt32 cp |] ->
           match System.Text.Rune.TryCreate(cp) with
-          | true, rune -> Dval.optionSome KTChar (DChar(rune.ToString())) |> Ply
+          | true, rune -> Dval.optionSome KTChar (Dval.char (rune.ToString())) |> Ply
           | false, _ -> Dval.optionNone KTChar |> Ply
         | _ -> incorrectArgs ()
       previewable = Pure

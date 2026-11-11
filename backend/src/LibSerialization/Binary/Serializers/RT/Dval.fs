@@ -379,8 +379,8 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   match r.ReadByte() with
   | 0uy -> DUnit
   | 1uy -> DBool(r.ReadBoolean())
-  | 2uy -> DInt8(r.ReadSByte())
-  | 3uy -> DUInt8(r.ReadByte())
+  | 2uy -> Dval.dint8 (r.ReadSByte())
+  | 3uy -> Dval.duint8 (r.ReadByte())
   | 4uy -> DInt16(r.ReadInt16())
   | 5uy -> DUInt16(r.ReadUInt16())
   | 6uy -> DInt32(r.ReadInt32())
@@ -392,7 +392,7 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   | 12uy -> DFloat(Float.read r)
   | 26uy -> DFloat32(Float32.read r)
   | 27uy -> DDecimal(Decimal.read r)
-  | 13uy -> DChar(String.read r)
+  | 13uy -> Dval.dchar (String.read r)
   | 14uy -> DString(String.read r)
   | 15uy -> DUuid(Guid.read r)
   | 16uy -> DDateTime(DarkDateTime.read r)
