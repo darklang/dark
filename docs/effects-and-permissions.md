@@ -220,8 +220,8 @@ For example:
 
 - dark permissions allow file read /reports
 - dark permissions deny file read /private
-- dark permissions approve Me.reports.report'file read /reports'
-- dark run --allow'file read  /reports' report.dark
+- dark permissions approve Me.reports.report 'file read /reports'
+- dark run --allow 'file read /reports' report.dark
 - dark permissions unapprove Me.reports.report
 
 Without explicit rules, approve uses the effects Dark found. This can give broad access, such as reading files in general. Supply rules when you want to limit access to particular files or hosts.

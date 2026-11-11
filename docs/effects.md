@@ -1,7 +1,7 @@
 # Effects and permissions
 
 Effects describe what code might do. Approvals allow access. Explicit restrictions
-always win. Author-declared ceilings and warning-only enforcement have been removed.
+always win.
 
 ## What is checked
 
