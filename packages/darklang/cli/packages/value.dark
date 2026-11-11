@@ -9,7 +9,12 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   // val SomeModule.myValue = expression
   | [location, ...definitionParts] ->
-    let inlineDefinition = Packages.definitionFromArgs(definitionParts)
+    match Packages.definitionFromArgs(definitionParts) with
+    | Error(message) ->
+      Cli.printErr(message)
+      Cli.failed(state)
+    | Ok(inlineDefinition) ->
+
 
     if Stdlib.String.isEmpty(inlineDefinition) then
       [

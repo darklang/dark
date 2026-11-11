@@ -263,7 +263,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   match args with
   | [ "add" ] -> addFailed(state, "test add needs a location and a body")
   | ["add", location, ...definitionParts] ->
-    let definition = Packages.definitionFromArgs(definitionParts)
+    match Packages.definitionFromArgs(definitionParts) with
+    | Error(message) -> addFailed(state, message)
+    | Ok(definition) ->
+
     if Stdlib.String.isEmpty(Stdlib.String.trim(definition)) then
       addFailed(state, "test add needs a body after the location")
     else

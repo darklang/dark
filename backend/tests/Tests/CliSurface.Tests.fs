@@ -164,6 +164,30 @@ let private diagnosticsStayOffStdout =
         Expect.stringContains err "DEBUG: lbl: 5" "the debug line is on stderr"
       })
 
+let private stdinThatIsNotUtf8IsRefused =
+  Tests.CliInstance.instanceTest
+    "stdin that is not UTF-8 is refused, not replaced"
+    (fun i ->
+      task {
+        let notUtf8 = Some [| 0xFFuy; 0x00uy; 0xFEuy |]
+        let! (code, out, _) =
+          Tests.CliInstance.runRawWithBytes
+            i
+            [ "eval"; "Stdlib.Cli.Stdin.readAll()" ]
+            notUtf8
+        Expect.equal code 0 "readAll answers"
+        Expect.equal
+          ((CliDsl.plain out).Trim())
+          "Error(\"stdin is not valid UTF-8: FF\")"
+          "an Error naming the first bad byte"
+
+        let! (code, out, err) =
+          Tests.CliInstance.runRawWithBytes i [ "eval"; "-" ] notUtf8
+        Expect.equal code 1 "eval - refuses"
+        Expect.equal out "" "no answer"
+        Expect.stringContains err "stdin is not valid UTF-8: FF" "says why"
+      })
+
 /// What a person reads while a command runs (a log line, a hint about another flag) is not part of
 /// the answer, so `dark search x | wc -l` counts results and nothing else.
 let private hintsAndLogsStayOffStdout =
@@ -2488,6 +2512,7 @@ let tests : List<Test> =
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture
     stderrIsCapturedInOrder
+    stdinThatIsNotUtf8IsRefused
     diagnosticsStayOffStdout
     hintsAndLogsStayOffStdout
     warningsAndPreviewsStayOffStdout
