@@ -123,30 +123,15 @@ let private headersToDval (headers : List<string * string>) : Dval =
     DTuple(DString(String.toLowercase k), DString(String.toLowercase v), []))
   |> Dval.list (KTTuple(VT.string, VT.string, []))
 
-/// The Dval header list, as written. A non-pair element is a type error (RTE).
+/// The Dval header list, as written; the interpreter has checked its type.
 /// Trimming and the empty-key check are Dark's (`Stdlib.HttpClient`); the host
 /// refuses anything unsafe to send.
-let private parseHeaders
-  (vm : VMState)
-  (fnName : FQFnName.FQFnName)
-  (reqHeaders : List<Dval>)
-  : List<string * string> =
+let private parseHeaders (reqHeaders : List<Dval>) : List<string * string> =
   reqHeaders
   |> List.map (fun item ->
     match item with
     | DTuple(DString k, DString v, []) -> (k, v)
-    | notAPair ->
-      RTE.Applications.FnParameterNotExpectedType(
-        fnName,
-        2,
-        "headers",
-        None,
-        VT.list (VT.tuple VT.string VT.string []),
-        Dval.toValueType notAPair,
-        notAPair
-      )
-      |> RTE.Apply
-      |> raiseRTE vm.threadID)
+    | _ -> Exception.raiseInternal "a header is not a pair of strings" [])
 
 open LibExecution.Builtin.Shortcuts
 
@@ -167,19 +152,17 @@ let private parameters =
     Param.make "headers" headersType ""
     Param.make "body" TBytes "" ]
 
-/// Name the request to the host and hand its answer to `answer`. `wrapper` is the Dark fn a
-/// header of the wrong shape names.
+/// Name the request to the host and hand its answer to `answer`.
 let private send
   (state : ExecutionState)
   (vm : VMState)
-  (wrapper : FQFnName.FQFnName)
   (args : Dval[])
   (operation : string -> string -> List<string * string> -> byte[] -> Host.Operation)
   (answer : Host.Response -> Ply<Dval>)
   : Ply<Dval> =
   match args with
   | [| DString method; DString uri; DList(_, Items(reqHeaders)); DBytes bodyRef |] ->
-    let headers = parseHeaders vm wrapper reqHeaders
+    let headers = parseHeaders reqHeaders
     Bytes.withBytes state bodyRef (fun body ->
       Interpreter.requestHost vm (operation method uri headers body) (fun outcome ->
         match outcome with
@@ -207,7 +190,6 @@ let fns () : List<BuiltInFn> =
           send
             state
             vm
-            (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.request ()))
             args
             (fun method uri headers body ->
               Host.Operation.HttpRequest(
@@ -266,7 +248,6 @@ let fns () : List<BuiltInFn> =
           send
             state
             vm
-            (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.stream ()))
             args
             (fun method uri headers body ->
               Host.Operation.HttpStreamOpen(
