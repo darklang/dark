@@ -261,6 +261,8 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "traces"; "find"; "zzzqqq" ], 0, Silent, Says "no kept trace matches"
     [ "traces"; "calls"; "Tests.Rows.f" ], 0, Silent, Says "no recorded trace"
     [ "traces"; "show"; "Tests.Rows.f" ], 0, Silent, Says "no recorded trace"
+    [ "traces"; "fns" ], 0, Silent, Says "no runs have been kept yet"
+    [ "traces"; "hotspots" ], 0, Silent, Says "No fn-call data"
     [ "fn"; "Tests.Rows.g"; "(x: Int64): Int64 = Tests.Rows.f(x)" ],
     0,
     Says "Created function Tests.Rows.g",
@@ -281,7 +283,14 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "view"; "Tests.Rows.f" ], 0, Says "let f(x: Int64)", Any
     [ "view"; "Zzz.Nope.f" ], 1, Silent, Says "Not found"
     [ "hash"; "Tests.Rows.f" ], 0, Says "fn ", Silent
-    [ "deps"; "Tests.Rows.f" ], 0, Says "dependencies of Tests.Rows.f", Silent
+    [ "deps"; "Tests.Rows.f" ], 0, Says "dependencies of Tests.Rows.f", Any
+    [ "deps"; "Tests.Rows.g" ],
+    0,
+    Says "dependencies of Tests.Rows.g",
+    Says "No dependents"
+    [ "nav" ], 1, Silent, Says "Interactive terminal UI unavailable"
+    [ "search" ], 1, Silent, Says "Interactive terminal UI unavailable"
+    [ "builtins"; "zzzqqq" ], 0, Silent, Says "Showing 0 functions"
     [ "ls"; "Darklang.Stdlib.Bool" ], 0, Says "Contents of", Silent
     [ "nav"; "Darklang.Stdlib.Bool" ],
     0,
@@ -297,7 +306,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     0,
     Silent,
     Says "No values of type"
-    [ "builtins"; "listMap" ], 0, Says "listMap", Says "--with-sigs"
+    [ "builtins"; "listMap" ], 0, Says "List: listMap", Says "--with-sigs"
     [ "typecheck"; "Darklang.Stdlib.Bool" ], 0, Says "failed 0", Silent
     [ "impls"; "Darklang.Stdlib.Add" ], 0, Says "Darklang.Stdlib.Add", Silent
     [ "docs"; "scm" ], 0, Says "# Source control", Silent

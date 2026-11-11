@@ -29,8 +29,8 @@ let execute(state: AppState, args: List<String>): AppState =
           currentPage = Page.InteractiveNav(session)
           prompt = Prompt.Editing.clear(state.prompt) }
     | Error(message) ->
-      Stdlib.printLine(message)
-      state
+      Cli.printErr(message)
+      Cli.failed(state)
 
   | [pathArg] ->
     let branchId = state.currentBranchId

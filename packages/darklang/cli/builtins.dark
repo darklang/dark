@@ -298,9 +298,8 @@ let execute(state: AppState, args: List<String>): AppState =
     | Some(pattern) ->
       $"Showing {fnCount} functions and {valueText} matching '{pattern}'"
 
-  [ ""
-    Stdlib.Cli.UI.Colors.hint(summary) ]
-  |> Stdlib.printLines
+  Stdlib.printErrorLine("")
+  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(summary))
 
   if Stdlib.Bool.not(withSigs) then
     Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use --with-sigs to see full function signatures, --with-purity to tag pure/impure"))

@@ -848,7 +848,7 @@ let executeListByFn(
       // with a flat no.
       match rows with
       | [] ->
-        Stdlib.printLine($"no kept trace made an effectful call matching {fnName}")
+        Stdlib.printErrorLine($"no kept trace made an effectful call matching {fnName}")
 
         match Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 1) with
         | [] ->
@@ -911,12 +911,12 @@ let executeFnCounts(
     match rows with
     | [] ->
       if (Stdlib.List.length(all)) > 0 then
-        Stdlib.printLine("every function recent runs went through is from the bundled library")
+        Stdlib.printErrorLine("every function recent runs went through is from the bundled library")
 
         Stdlib.printErrorLine(
           Stdlib.Cli.UI.Colors.dimText("  dark traces fns --all    show them"))
       else
-        Stdlib.printLine("no runs have been kept yet")
+        Stdlib.printErrorLine("no runs have been kept yet")
 
         (Cli.TraceVerbs.whyEmpty("run something"))
         |> Stdlib.List.iter(fun line ->
@@ -999,7 +999,7 @@ let executeHotspots(
 
     match rows with
     | [] ->
-      Stdlib.printLine($"No fn-call data in the last {Stdlib.display(traceLimit)} traces.")
+      Stdlib.printErrorLine($"No fn-call data in the last {Stdlib.display(traceLimit)} traces.")
       state
     | _ ->
       let fnCount = Stdlib.List.length(rows)

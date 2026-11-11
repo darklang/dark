@@ -1101,8 +1101,8 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           currentPage = Page.InteractiveNav(session)
           prompt = Prompt.Editing.clear(state.prompt) }
     | Error(message) ->
-      Stdlib.printLine(message)
-      state
+      Cli.printErr(message)
+      Cli.failed(state)
 
   | _ ->
     let parsed = parseArgs(args)
