@@ -21,6 +21,13 @@ type Counts =
 /// Count everything <fn problems> reports on, straight from the store.
 let counts(): Counts = Builtin.scmHealth()
 
+/// Where a problem's damage is.
+type Damage =
+  /// A projection: a reload rebuilds past it.
+  | Projection
+  /// The log: re-folding reproduces it.
+  | Log
+
 /// One thing wrong with the store, and whether re-folding is the way out.
 ///
 /// The two kinds have opposite remedies: a PROJECTION can be thrown away and rebuilt from the log, so
@@ -28,14 +35,13 @@ let counts(): Counts = Builtin.scmHealth()
 /// reproduces it faithfully.
 type Problem =
   { text: String
-    /// true when the damage is in a projection, so a reload rebuilds past it
-    refoldable: Bool }
+    damage: Damage }
 
-let countedProblem(n: Int64, refoldable: Bool, what: String): List<Problem> =
+let countedProblem(n: Int64, damage: Damage, what: String): List<Problem> =
   if n > 0 then
     [ Problem
         { text = $"{Stdlib.display(n)} {what}"
-          refoldable = refoldable } ]
+          damage = damage } ]
   else
     []
 
@@ -53,20 +59,20 @@ let problems(): List<Problem> =
       // stop meaning "when", and a day is far outside any plausible skew.
       countedProblem(
         c.futureStamped,
-        false,
+        Damage.Log,
         "op(s) stamped over a day in the future (a peer's clock is wrong)")
 
       // What a fold produces, so a fold can produce it again correctly.
       countedProblem(
         c.unfolded,
-        true,
+        Damage.Projection,
         "op(s) that never folded (the fold stopped partway, or they don't parse)")
 
-      // NOT refoldable, despite living in a projection: the reachable cause is a missing op (a `SetName`
+      // The log, despite living in a projection: the reachable cause is a missing op (a `SetName`
       // arrived without the `AddX` carrying its content), and a re-fold replays that SetName and rebinds
       // it identically. The lost-projection-row direction would refold, but only hand-edited tables
       // reach it, so classify by the cause people hit.
       countedProblem(
         c.danglingBindings,
-        false,
+        Damage.Log,
         "live name(s) bound to a hash with no content (an op that carries it never arrived)") ])

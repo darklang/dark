@@ -395,6 +395,14 @@ let opBindsKey(
   |> Stdlib.List.last
 
 
+/// Which version of a name `resolve` keeps.
+type Keep =
+  /// The branch's.
+  | Mine
+  /// The parent's.
+  | Theirs
+
+
 /// RESOLVE take-theirs: drop the branch's binding for <param fqn> -- every op that binds it, a `SetName`
 /// or the override a `resolve mine` wrote -- so the branch's view falls back to the parent's version, and move
 /// the name's base to the parent's current. One action.
@@ -402,7 +410,7 @@ let resolveTakeTheirs(
   branchId: Uuid,
   fqn: String)
   : Stdlib.Result.Result<Unit, String> =
-  resolveName(branchId, fqn, false)
+  resolveName(branchId, fqn, Keep.Theirs)
 
 
 /// RESOLVE keep-mine: author an OVERRIDE that re-states the branch's binding with a stamp that wins LWW,
@@ -416,24 +424,22 @@ let resolveKeepMine(
   branchId: Uuid,
   fqn: String)
   : Stdlib.Result.Result<Unit, String> =
-  resolveName(branchId, fqn, true)
+  resolveName(branchId, fqn, Keep.Mine)
 
 
-/// Parse <param fqn>, keep the branch's version (<param mine>) or take the parent's, and word what went
-/// wrong.
+/// Parse <param fqn>, keep the version <param keep> names, and word what went wrong.
 let resolveName(
   branchId: Uuid,
   fqn: String,
-  mine: Bool)
+  keep: Keep)
   : Stdlib.Result.Result<Unit, String> =
   match parseFqn(fqn) with
   | None -> Stdlib.Result.Result.Error($"can't parse a name from \"{fqn}\"")
   | Some((owner, modules, name)) ->
     let resolution =
-      if mine then
-        SCM.Actions.Resolution.KeepMine(branchId, owner, modules, name)
-      else
-        SCM.Actions.Resolution.TakeTheirs(branchId, owner, modules, name)
+      match keep with
+      | Mine -> SCM.Actions.Resolution.KeepMine(branchId, owner, modules, name)
+      | Theirs -> SCM.Actions.Resolution.TakeTheirs(branchId, owner, modules, name)
 
     match SCM.Actions.resolve(resolution) with
     | Ok(_) -> Stdlib.Result.Result.Ok()

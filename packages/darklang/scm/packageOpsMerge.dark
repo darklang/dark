@@ -84,7 +84,7 @@ let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, S
     match draftOpCountFor(branchId) with
     | 0 -> Stdlib.Result.Result.Error("nothing to commit")
     | _ ->
-      match commitOn(branchId, message, SCM.Actions.CommitScope.Whole, false) with
+      match commitOn(branchId, message, SCM.Actions.CommitScope.Whole, Namings.KeepAll) with
       | Ok(c) -> Stdlib.Result.Result.Ok(c.hash)
       | Error(Refused(NothingToCommit)) -> Stdlib.Result.Result.Error("nothing was committed")
       | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
@@ -105,21 +105,26 @@ let discardDraftFor(branchId: Uuid): Int64 =
   | Error(_) -> 0
 
 
+/// What a commit does with main's superseded namings: earlier names the draft gave one function.
+type Namings =
+  /// Drop them first.
+  | Collapse
+  | KeepAll
+
 /// Commit <param scope> of <param branchId>'s draft under <param message>: the commit and its ops in
 /// one transaction. Refused (`NothingToCommit`) when nothing would be stamped, with nothing written.
-/// <param collapse> drops main's superseded namings first.
 let commitOn(
   branchId: Uuid,
   message: String,
   scope: SCM.Actions.CommitScope,
-  collapse: Bool)
+  namings: Namings)
   : Stdlib.Result.Result<SCM.Actions.Committed, SCM.Actions.Failure> =
   SCM.Actions.commit(
     SCM.Actions.CommitRequest
       { branchId = branchId
         message = message
         scope = scope
-        collapse = collapse })
+        collapse = namings == Namings.Collapse })
 
 
 /// What a merge did: how many ops moved, and what it auto-resolved on the way. `warning` is
