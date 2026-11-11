@@ -193,6 +193,15 @@ test pidFromInt64 =
       |> Stdlib.Result.isError
       |> Stdlib.Test.equal(true) ])
 
+test pidAndExitCodeInspect =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.Pid.fromInt64(4242)
+      |> Stdlib.Result.map(Stdlib.inspect)
+      |> Stdlib.Test.equal(Ok("Pid(4242)"))
+      Stdlib.inspect(Stdlib.Cli.Posix.ExitCode.failure) |> Stdlib.Test.equal("ExitCode(1)")
+      Stdlib.inspect([ Stdlib.Cli.Posix.ExitCode.success ]) |> Stdlib.Test.equal("[ExitCode(0)]")
+      $"{Some(Stdlib.Cli.Posix.ExitCode.failure)}" |> Stdlib.Test.equal("Some(ExitCode(1))") ])
+
 test exitCodeFromInt64 =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.ExitCode.fromInt64(0)

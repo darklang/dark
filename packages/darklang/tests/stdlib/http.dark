@@ -275,6 +275,12 @@ test statusNamed =
       |> Stdlib.Test.equal(500)
       Stdlib.display(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("404") ])
 
+test statusInspect =
+  Stdlib.Test.all(
+    [ Stdlib.inspect(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("Status(404)")
+      Stdlib.inspect([ Stdlib.Http.Status.ok ]) |> Stdlib.Test.equal("[Status(200)]")
+      $"{Some(Stdlib.Http.Status.created)}" |> Stdlib.Test.equal("Some(Status(201))") ])
+
 test statusClasses =
   Stdlib.Test.all(
     [ Stdlib.Http.Status.isSuccess(Stdlib.Http.Status.created) |> Stdlib.Test.equal(true)
