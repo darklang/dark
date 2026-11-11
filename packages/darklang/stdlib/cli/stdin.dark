@@ -9,9 +9,11 @@ let readLine(): String =
   Stdlib.Option.withDefault(readLineOrEnd(), "")
 
 
-/// Read all of stdin, until EOF.
-let readAll(): String =
+/// Read all of stdin, until EOF. An Error when it is not valid UTF-8, naming the first bad
+/// bytes: {{Error "stdin is not valid UTF-8: FF"}}.
+let readAll(): Stdlib.Result.Result<String, String> =
   Builtin.stdinReadAll()
+  |> Stdlib.Result.mapError(fun bad -> $"stdin is not valid UTF-8: {Stdlib.Base16.encode(bad)}")
 
 
 /// Read one line WITHOUT echoing it, for a secret typed at a prompt.

@@ -273,7 +273,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   let input =
     match args with
     | [ modulePath, "-" ] ->
-      Stdlib.Result.Result.Ok((modulePath, Stdlib.Cli.Stdin.readAll()))
+      Stdlib.Cli.Stdin.readAll() |> Stdlib.Result.map(fun source -> (modulePath, source))
     | [ modulePath, sourcePath ] ->
       match Stdlib.Cli.File.readText(sourcePath) with
       | Ok(source) -> Stdlib.Result.Result.Ok((modulePath, source))

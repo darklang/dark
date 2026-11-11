@@ -12,6 +12,8 @@ module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
 module HE = LibExecution.HostEvents
 module Scheduler = LibExecution.Scheduler
+module Dval = LibExecution.Dval
+module Bytes = LibExecution.Bytes
 
 open Builtin.Shortcuts
 
@@ -434,18 +436,34 @@ let readExactlyBytes
   | None -> Ok(sb.ToString())
 
 
+/// The reader every stdin read goes through. Redirected stdin is decoded strictly, so bytes that
+/// are not UTF-8 are an error rather than U+FFFD. A terminal keeps `Console.In`, which echoes and
+/// edits the line.
+let private input : Lazy<IO.TextReader * Text.Encoding> =
+  lazy
+    (if Console.IsInputRedirected then
+       let utf8 = Text.UTF8Encoding(false, true)
+       let reader = new IO.StreamReader(Console.OpenStandardInput(), utf8, false)
+       IO.TextReader.Synchronized reader, utf8
+     else
+       Console.In, Console.InputEncoding)
+
 /// One read of stdin, as the stdin reader thread does it: a line, or a byte count read through
 /// the same buffered reader (`readExactlyBytes`). The only place either is read once a scheduler
 /// is running, so a header line and the body after it come off one reader in order.
 let private readStdinFor (request : HE.StdinRequest) : HE.StdinResult =
-  match request with
-  | HE.StdinRequest.Line ->
-    match Console.In.ReadLine() with
-    | null -> Ok None
-    | line -> Ok(Some line)
-  | HE.StdinRequest.Bytes 0 -> Ok(Some "")
-  | HE.StdinRequest.Bytes n ->
-    readExactlyBytes Console.In Console.InputEncoding n |> Result.map Some
+  let reader, encoding = input.Force()
+  try
+    match request with
+    | HE.StdinRequest.Line ->
+      match reader.ReadLine() with
+      | null -> Ok None
+      | line -> Ok(Some line)
+    | HE.StdinRequest.Bytes 0 -> Ok(Some "")
+    | HE.StdinRequest.Bytes n ->
+      readExactlyBytes reader encoding n |> Result.map Some
+  with :? Text.DecoderFallbackException ->
+    Error "stdin is not valid UTF-8"
 
 /// Installed on the first wait for stdin, like the key source. Unlike keys it is installed for
 /// redirected stdin too: a pipe is exactly what a language server reads.
@@ -650,15 +668,23 @@ let fns () : List<BuiltInFn> =
     { name = fn "stdinReadAll" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
+      returnType = TypeReference.result TString TBytes
       description =
         "Reads all available input from standard input until EOF. Blocks if "
-        + "stdin is an interactive TTY with no EOF signal."
+        + "stdin is an interactive TTY with no EOF signal. Error holds the first bytes that "
+        + "are not UTF-8."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          let input = System.Console.In.ReadToEnd()
-          Ply(DString input)
+          let reader, _ = input.Force()
+          try
+            Ply(Dval.resultOk KTString KTBytes (DString(reader.ReadToEnd())))
+          with :? Text.DecoderFallbackException as e ->
+            let bad =
+              Bytes.newEphemeral (
+                Option.ofObj e.BytesUnknown |> Option.defaultValue [||]
+              )
+            Ply(Dval.resultError KTString KTBytes bad)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin ]

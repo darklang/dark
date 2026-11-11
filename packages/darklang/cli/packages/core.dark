@@ -72,7 +72,7 @@ let formatLocation(location: PackageLocation): String =
 /// argument has to go first. A lone argument naming a file that exists reads the
 /// file, the way `module` does; a definition is never one token, so the two cannot
 /// be confused.
-let definitionFromArgs(args: List<String>): String =
+let definitionFromArgs(args: List<String>): Stdlib.Result.Result<String, String> =
   let withoutSeparator =
     match args with
     | ["=", ...rest] -> rest
@@ -85,15 +85,15 @@ let definitionFromArgs(args: List<String>): String =
   // name may fail closed (the link check treats what it cannot inspect as a link).
   | [ path ] when (if Stdlib.String.contains(path, " ") then false else Stdlib.Cli.File.exists(path)) ->
     match Stdlib.Cli.File.readText(path) with
-    | Ok(source) -> source
-    | Error(_) -> path
+    | Ok(source) -> Stdlib.Result.Result.Ok(source)
+    | Error(_) -> Stdlib.Result.Result.Ok(path)
   | parts ->
     let joined = Stdlib.String.join(parts, " ") |> Stdlib.String.trim
 
     if Stdlib.String.startsWith(joined, "=") then
-      Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim
+      Stdlib.Result.Result.Ok(Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim)
     else
-      joined
+      Stdlib.Result.Result.Ok(joined)
 
 
 
