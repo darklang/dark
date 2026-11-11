@@ -1593,22 +1593,24 @@ module DvalCreator =
           | ValueNone -> ValueNone
         | ValueNone -> ValueNone
 
-  /// The case named <param caseName>, when <param fields> has the right number of fields for it.
+  /// The case named <param caseName>, <param case> or one of <param rest>, when <param fields>
+  /// has the right number of fields for it. Head and tail apart, so no list is made of the type's
+  /// cases to look through them.
   let rec private caseWithArity
-    (cases : List<TypeDeclaration.EnumCase>)
+    (case : TypeDeclaration.EnumCase)
+    (rest : List<TypeDeclaration.EnumCase>)
     (caseName : string)
     (fields : List<Dval>)
     : voption<TypeDeclaration.EnumCase> =
-    match cases with
-    | [] -> ValueNone
-    | case :: rest ->
-      if case.name = caseName then
-        if List.length case.fields = List.length fields then
-          ValueSome case
-        else
-          ValueNone
+    if case.name = caseName then
+      if List.length case.fields = List.length fields then
+        ValueSome case
       else
-        caseWithArity rest caseName fields
+        ValueNone
+    else
+      match rest with
+      | [] -> ValueNone
+      | next :: rest -> caseWithArity next rest caseName fields
 
   /// The half of enum construction after the type is known. A top-level function taking everything
   /// explicitly, not a local one: a local closing over `types` and friends is a closure allocated on
@@ -1625,7 +1627,7 @@ module DvalCreator =
     (caseDefs : NEList<TypeDeclaration.EnumCase>)
     : Ply<Dval> =
     let fast =
-      match caseWithArity (NEList.toList caseDefs) caseName fields with
+      match caseWithArity caseDefs.head caseDefs.tail caseName fields with
       | ValueSome case ->
         let tst =
           typeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
