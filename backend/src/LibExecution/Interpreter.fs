@@ -2254,7 +2254,7 @@ let private fastBuiltinOp
     | DDateTime _
     | DUuid _ as a when
       (tag = FastOps.equals || tag = FastOps.notEquals)
-      && a.GetType() = registers[secondReg].GetType()
+      && obj.ReferenceEquals(a.GetType(), registers[secondReg].GetType())
       ->
       ValueSome(
         Dval.bool (Dval.equals a registers[secondReg] = (tag = FastOps.equals))
