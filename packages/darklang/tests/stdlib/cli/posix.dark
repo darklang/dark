@@ -226,3 +226,8 @@ test isProcessRunningSelf =
   match Stdlib.Cli.Posix.Pid.fromInt64(Stdlib.Cli.Sys.currentPid()) with
   | Ok(me) -> Stdlib.Cli.Posix.isProcessRunning(me) |> Stdlib.Test.equal(true)
   | Error(e) -> Stdlib.Test.expect(false, Stdlib.display(e))
+
+test signalDisplay =
+  Stdlib.Test.all(
+    [ Stdlib.display(Stdlib.Cli.Posix.Signal.SIGTERM) |> Stdlib.Test.equal("SIGTERM")
+      $"sent {Stdlib.Cli.Posix.Signal.SIGKILL}" |> Stdlib.Test.equal("sent SIGKILL") ])

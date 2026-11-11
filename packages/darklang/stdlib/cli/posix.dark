@@ -270,6 +270,16 @@ module Signal =
     | SIGKILL -> 9
     | SIGTERM -> 15
 
+impl Display for Signal =
+  /// The signal's name, {{SIGTERM}}
+  let display(signal: Signal): String =
+    match signal with
+    | SIGHUP -> "SIGHUP"
+    | SIGINT -> "SIGINT"
+    | SIGQUIT -> "SIGQUIT"
+    | SIGKILL -> "SIGKILL"
+    | SIGTERM -> "SIGTERM"
+
 /// Send <param signal> to the process <param pid>
 let kill(pid: Pid, signal: Signal): Result.Result<Unit, Error> =
   Builtin.syscallKill(Stdlib.Cli.Posix.Pid.toInt64(pid), Stdlib.Cli.Posix.Signal.toInt64(signal))

@@ -20,6 +20,17 @@ type ParseError =
 let fromSeconds(seconds: Int64): Duration = Duration { seconds = seconds }
 
 
+impl Display for Duration =
+  /// In the largest unit <fn parse> reads that fits exactly: {{90s}}, {{5m}}, {{2d}}
+  let display(d: Duration): String =
+    let s = d.seconds
+    if s == 0 then "0s"
+    else if s % 86400 == 0 then $"{s / 86400}d"
+    else if s % 3600 == 0 then $"{s / 3600}h"
+    else if s % 60 == 0 then $"{s / 60}m"
+    else $"{s}s"
+
+
 /// Get the number of seconds in <param d>.
 let toSeconds(d: Duration): Int64 = d.seconds
 
