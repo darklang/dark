@@ -79,7 +79,9 @@ let __sysctlText(mib: List<Int64>): Result.Result<String, Int64> =
 
 let __countBits(value: Int64): Int64 =
   if value == 0 then 0
-  else value % 2 + __countBits(value / 2)
+  else
+    (Stdlib.Int64.checkedMod(value, 2) |> Stdlib.Result.withDefault(0))
+    + __countBits(Stdlib.Int64.checkedDivide(value, 2) |> Stdlib.Result.withDefault(0))
 
 let __affinityWith(count: Int64): Result.Result<Bytes, Int64> =
   match Builtin.syscallSchedGetaffinity(0, count) with

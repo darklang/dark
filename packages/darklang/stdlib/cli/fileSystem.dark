@@ -27,9 +27,12 @@ impl Display for FileError =
   let display = Stdlib.Cli.FileSystem.FileError.toString
 
 
-/// The process's current working directory.
+/// The process's current working directory, or "." if the kernel cannot give its path,
+/// as when it has been removed.
 let currentDirectory(): String =
-  Posix.getCwd() |> Builtin.unwrap
+  match Posix.getCwd() with
+  | Ok(cwd) -> cwd
+  | Error(_) -> "."
 
 
 /// Expand HOME only when requested; environment access remains policy checked.
