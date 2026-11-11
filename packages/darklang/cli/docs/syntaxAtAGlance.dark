@@ -5,10 +5,12 @@ module Darklang.Cli.Docs.SyntaxAtAGlance
 let content(): String =
   """## Dark syntax at a glance
 
-  Stdlib.String.trim(s)   add(a, b)   main()   calls take parentheses and commas
+  Stdlib.String.trim(s)   add(a, b)   main()   calls take parentheses and commas,
+                                               never `add a b`
   "n = " + Stdlib.display(n)                  `+` joins Strings
-  2   -7   1.5   255u8   3s32   10z   9.5dec   a plain integer is an Int64
-  [1, 2, 3]   Point { x = 1, y = 2 }           commas, or one item per line
+  2   -7   1.5   255u8   3s32   10z   9.5dec   a plain integer is an Int64, never `2L`
+  [1, 2, 3]   Point { x = 1, y = 2 }           commas, or one item per line, never `;`
+  type Point = { x: Int64, y: Int64 }          the same in a record type
   [x, ...xs]   [...xs, ...ys]                  prepend an item; join two lists
   Stdlib.List.append(xs, x)                    add one item at the end
   Stdlib.List.map(xs, fun x -> x + 1)          the list comes first
