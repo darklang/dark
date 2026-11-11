@@ -69,10 +69,10 @@ val defaultViewOptions =
 /// English ordinal suffix for a non-negative integer. "1st", "2nd",
 /// "3rd", "4th"… honoring the 11/12/13 exception (always "th").
 let ordinalSuffix(n: Int64): String =
-  let mod100 = n % 100
+  let mod100 = Stdlib.Int64.checkedMod(n, 100) |> Stdlib.Result.withDefault(0)
   if mod100 >= 11 && mod100 <= 13 then "th"
   else
-    match n % 10 with
+    match (Stdlib.Int64.checkedMod(n, 10) |> Stdlib.Result.withDefault(0)) with
     | 1 -> "st"
     | 2 -> "nd"
     | 3 -> "rd"
@@ -1415,7 +1415,8 @@ let formatFnCalls(
         | Some(pid) ->
           match Stdlib.List.findFirstIndex(processes, fun p -> p == (Stdlib.display(pid))) with
           | Some(i) ->
-            $" {Stdlib.String.slice("ABCDEFGHIJKLMNOPQRSTUVWXYZ", i % 26, (i % 26) + 1)} "
+            let letter = Stdlib.Int64.checkedMod(i, 26) |> Stdlib.Result.withDefault(0)
+            $" {Stdlib.String.slice("ABCDEFGHIJKLMNOPQRSTUVWXYZ", letter, letter + 1)} "
           | None -> "   "
 
     let lines =

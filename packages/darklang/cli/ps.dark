@@ -127,12 +127,12 @@ let startedAgoText(started: DateTime): String =
   let ms = Stdlib.DateTime.subtractMs(Stdlib.DateTime.now(), started)
 
   if ms < 10000 then
-    let tenths = ms / 100
-    $"{Stdlib.display(tenths / 10)}.{Stdlib.display(tenths % 10)} s ago"
+    let tenths = Stdlib.Int64.checkedDivide(ms, 100) |> Stdlib.Result.withDefault(0)
+    $"{Stdlib.display(Stdlib.Int64.checkedDivide(tenths, 10) |> Stdlib.Result.withDefault(0))}.{Stdlib.display(Stdlib.Int64.checkedMod(tenths, 10) |> Stdlib.Result.withDefault(0))} s ago"
   else if ms < 60000 then
-    $"{Stdlib.display(ms / 1000)} s ago"
+    $"{Stdlib.display(Stdlib.Int64.checkedDivide(ms, 1000) |> Stdlib.Result.withDefault(0))} s ago"
   else if ms < 3600000 then
-    $"{Stdlib.display(ms / 60000)} min ago"
+    $"{Stdlib.display(Stdlib.Int64.checkedDivide(ms, 60000) |> Stdlib.Result.withDefault(0))} min ago"
   else
     Cli.RelativeTime.ago(started)
 
