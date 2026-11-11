@@ -70,8 +70,9 @@ This sort of error handling is appropriate where the user calls the function
 incorrectly, or something bad happens beyond our control.
 
 Example: `Stdlib.HttpClient.get("http://mywebsiteisdowntoday.invalid", [])` gives
-`Error(Stdlib.HttpClient.RequestError.NetworkError("Could not resolve host:
-mywebsiteisdowntoday.invalid"))`
+`Error(NetworkError(DnsFailure(Destination("mywebsiteisdowntoday.invalid"))))`
+(with cases qualified under `Stdlib.HttpClient`). `Stdlib.HttpClient.toString`
+formats it as `Could not resolve host: mywebsiteisdowntoday.invalid`.
 
 Example: `Stdlib.Float.parse("not a float")` gives `Error(Stdlib.Float.ParseError.BadFormat)`
 

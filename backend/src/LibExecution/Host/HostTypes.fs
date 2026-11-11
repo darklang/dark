@@ -209,12 +209,28 @@ type HttpBadUrl =
   | InvalidUri
   | InvalidRequest
 
+/// A request destination or proxy.
+[<RequireQualifiedAccess>]
+type HttpNetworkTarget =
+  | Destination of host : string
+  | Proxy of host : string
+
+/// Network failures, formatted by Dark.
+[<RequireQualifiedAccess>]
+type HttpNetworkFailure =
+  /// Hostname lookup failed.
+  | DnsFailure of HttpNetworkTarget
+  /// The target is a host and optional port. Guard refusals omit details.
+  | ConnectionFailure of HttpNetworkTarget * detail : string option
+  /// Request authority and I/O error.
+  | IoFailure of authority : string * detail : string
+
 [<RequireQualifiedAccess>]
 type HttpRequestError =
   | BadUrl of HttpBadUrl
   | Timeout
   | BadHeader of HttpBadHeader
-  | NetworkError of message : string
+  | NetworkError of HttpNetworkFailure
   /// The TLS handshake failed; the message says why, in words to act on.
   | TlsError of message : string
   | BadMethod

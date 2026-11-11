@@ -16,6 +16,7 @@ let baseDirectory = "testfiles/httpclient"
 let versions = [ "v0" ]
 
 open Expecto
+open LibExecution.HostTypes
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -1124,11 +1125,14 @@ module ProxyTests =
                 (HostHttp.send profile "GET" $"http://localhost:{port}/" [] [||])
                   .WaitAsync(System.TimeSpan.FromSeconds 5.0)
               match result with
-              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
+              | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
-                  message
-                  $"Could not connect to localhost:{port}"
-                  "message"
+                  failure
+                  (HttpNetworkFailure.ConnectionFailure(
+                    HttpNetworkTarget.Destination $"localhost:{port}",
+                    None
+                  ))
+                  "guard refusal has no detail"
               | other -> failtest $"expected blocked direct connection, got {other}"
               Expect.isFalse (listener.Pending()) "no connection reached loopback"
             }
@@ -1143,10 +1147,12 @@ module ProxyTests =
               let! result =
                 HostHttp.send profile "GET" "http://fixture.test/" [] [||]
               match result with
-              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
+              | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
-                  message
-                  "Could not resolve host: proxy no-such-proxy.invalid"
+                  failure
+                  (HttpNetworkFailure.DnsFailure(
+                    HttpNetworkTarget.Proxy "no-such-proxy.invalid"
+                  ))
                   "DNS failure names the proxy"
               | other -> failtest $"expected a proxy DNS failure, got {other}"
             }
@@ -1165,10 +1171,13 @@ module ProxyTests =
               let! result =
                 HostHttp.openStream profile "GET" "https://fixture.test/" [] [||]
               match result with
-              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
-                Expect.stringStarts
-                  message
-                  $"Could not connect to proxy 127.0.0.1:{port}: "
+              | Error(HttpRequestError.NetworkError failure) ->
+                Expect.equal
+                  failure
+                  (HttpNetworkFailure.ConnectionFailure(
+                    HttpNetworkTarget.Proxy $"127.0.0.1:{port}",
+                    Some "Connection refused"
+                  ))
                   "connection failure names the proxy"
               | other -> failtest $"expected a proxy connection failure, got {other}"
             }
@@ -1197,11 +1206,14 @@ module ProxyTests =
               let! result =
                 HostHttp.send profile "GET" $"http://127.0.0.1:{port}/" [] [||]
               match result with
-              | Error(LibExecution.HostTypes.HttpRequestError.NetworkError message) ->
+              | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
-                  message
-                  $"Could not connect to 127.0.0.1:{port}: Connection refused"
-                  "message"
+                  failure
+                  (HttpNetworkFailure.ConnectionFailure(
+                    HttpNetworkTarget.Destination $"127.0.0.1:{port}",
+                    Some "Connection refused"
+                  ))
+                  "connection failure names the destination"
               | other -> failtest $"expected a refused connection, got {other}"
             }
         } ]
@@ -1307,11 +1319,11 @@ module BodyTests =
                 :> System.IO.Stream)
               (1024L * 1024L)
           match result with
-          | Error(HT.HttpRequestError.NetworkError message) ->
+          | Error(HT.HttpRequestError.NetworkError failure) ->
             Expect.equal
-              message
-              "Request to fixture.test failed: connection reset"
-              "message"
+              failure
+              (HttpNetworkFailure.IoFailure("fixture.test", "connection reset"))
+              "I/O failure preserves the raw detail"
           | other -> failtest $"expected NetworkError, got {other}"
         }
 
@@ -1322,11 +1334,10 @@ module BodyTests =
                 new MemoryStream(Array.zeroCreate<byte> 2048) :> System.IO.Stream)
               1024L
           match result with
-          | Error(HT.HttpRequestError.NetworkError message) ->
-            Expect.stringStarts
-              message
-              "Request to fixture.test failed: Cannot write more bytes"
-              "message"
+          | Error(HT.HttpRequestError.NetworkError(HttpNetworkFailure.IoFailure(authority,
+                                                                                detail))) ->
+            Expect.equal authority "fixture.test" "request authority"
+            Expect.stringStarts detail "Cannot write more bytes" "raw detail"
           | other -> failtest $"expected NetworkError, got {other}"
         }
 

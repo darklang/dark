@@ -20,14 +20,27 @@ type BadUrlDetails =
   /// Occurs when the request contains invalid headers. eg.A request to "http://google.com" with [("Metadata-Flavor", "Google")] header
   | InvalidRequest
 
+/// A request destination or proxy.
+type NetworkTarget =
+  | Destination(String)
+  | Proxy(String)
+
+/// A DNS, connection, or I/O failure.
+type NetworkFailure =
+  /// Hostname lookup failed.
+  | DnsFailure(NetworkTarget)
+  /// The target is a host and optional port. Guard refusals omit details.
+  | ConnectionFailure(NetworkTarget, Option<String>)
+  /// Request authority and I/O error.
+  | IoFailure(String, String)
+
 type RequestError =
   | BadUrl(BadUrlDetails)
   /// Occurs when the request is cancelled due to a timeout
   | Timeout
   | BadHeader(BadHeader)
-  /// Occurs when the host can't be reached or the connection breaks, eg. a DNS failure or a
-  /// refused connection. The message says which, eg. "Could not resolve host: example.invalid"
-  | NetworkError(String)
+  /// A DNS, connection, or I/O failure.
+  | NetworkError(NetworkFailure)
   /// Occurs when the TLS handshake fails, eg. the server's certificate can't be verified. The message says why.
   | TlsError(String)
   /// Occurs when the request method is not invalid.
@@ -49,7 +62,19 @@ let toString(e: RequestError): String =
     | InvalidContentType -> "Invalid content-type header"
     | InvalidName -> "Invalid header name"
     | InvalidValue -> "Header value contains CR, LF or NUL"
-  | NetworkError(message) -> message
+  | NetworkError(failure) ->
+    let targetName(target: NetworkTarget): String =
+      match target with
+      | Destination(host) -> host
+      | Proxy(host) -> "proxy " + host
+    match failure with
+    | DnsFailure(target) -> "Could not resolve host: " + targetName(target)
+    | ConnectionFailure(target, detail) ->
+      let message = "Could not connect to " + targetName(target)
+      match detail with
+      | Some(reason) -> message + ": " + reason
+      | None -> message
+    | IoFailure(authority, detail) -> "Request to " + authority + " failed: " + detail
   | TlsError(message) -> message
   | BadMethod -> "Bad Method"
 

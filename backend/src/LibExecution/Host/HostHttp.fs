@@ -29,9 +29,10 @@ type Configuration =
     allowedIP : System.Net.IPAddress -> bool
     allowedHost : string -> bool }
 
-/// A connection failure with a guest-facing message; guard refusals omit details.
-type private ConnectFailed(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
+/// Preserve typed failures through .NET exception wrapping.
+type private ConnectFailed(failure : HttpNetworkFailure, inner : exn) =
+  inherit System.Exception("HTTP connection failed", inner)
+  member _.Failure = failure
 
 module private BaseClient =
   // There are a number of different configuration options we want to enable:
@@ -74,18 +75,20 @@ module private BaseClient =
         (cancellationToken : System.Threading.CancellationToken)
         : ValueTask<Stream> =
         vtask {
-          let uri, label =
+          let uri, target =
             match proxy with
-            | Some(uri, _) -> uri, "proxy "
-            | None -> context.InitialRequestMessage.RequestUri, ""
-          let target = $"{label}{uri.Authority}"
+            | Some(uri, _) -> uri, HttpNetworkTarget.Proxy
+            | None ->
+              context.InitialRequestMessage.RequestUri, HttpNetworkTarget.Destination
           let connectFailed (inner : exn) =
-            let message =
+            let detail =
               match inner with
-              | :? System.Net.Sockets.SocketException as s ->
-                $"Could not connect to {target}: {s.Message}"
-              | _ -> $"Could not connect to {target}"
-            ConnectFailed(message, inner)
+              | :? System.Net.Sockets.SocketException as s -> Some s.Message
+              | _ -> None
+            ConnectFailed(
+              HttpNetworkFailure.ConnectionFailure(target uri.Authority, detail),
+              inner
+            )
           try
             // While this DNS call is expensive, it should be cached.
             //
@@ -108,8 +111,8 @@ module private BaseClient =
               Array.isEmpty ips
               || (not isProxyConnection && not (Array.forall config.allowedIP ips))
             then
-              // No inner exception: hide more specific errors when looking at loopback
-              raise (ConnectFailed($"Could not connect to {target}", null))
+              // Do not expose details about blocked addresses.
+              raise (connectFailed null)
 
             // TRY EVERY resolved address, not just the first. A name routinely
             // resolves to more than one (`localhost` is ::1 AND 127.0.0.1), only
@@ -166,7 +169,7 @@ module private BaseClient =
             | System.Net.Sockets.SocketError.TryAgain ->
               return
                 raise (
-                  ConnectFailed($"Could not resolve host: {label}{uri.Host}", e)
+                  ConnectFailed(HttpNetworkFailure.DnsFailure(target uri.Host), e)
                 )
             | _ -> return raise (connectFailed e)
         }
@@ -680,13 +683,16 @@ let rec private (|TlsFailure|_|) (e : exn) : Option<AuthenticationException> =
   | null -> None
   | e -> (|TlsFailure|_|) e.InnerException
 
-/// Unwrap connection failures or name the request whose I/O failed.
-let rec private networkErrorMessage (canonicalUri : string) (e : exn) : string =
+/// Unwrap a connection failure or return the I/O error.
+let rec private networkFailure
+  (canonicalUri : string)
+  (e : exn)
+  : HttpNetworkFailure =
   match e with
-  | :? ConnectFailed -> e.Message
+  | :? ConnectFailed as c -> c.Failure
   | _ when not (isNull e.InnerException) ->
-    networkErrorMessage canonicalUri e.InnerException
-  | _ -> $"Request to {System.Uri(canonicalUri).Authority} failed: {e.Message}"
+    networkFailure canonicalUri e.InnerException
+  | _ -> HttpNetworkFailure.IoFailure(System.Uri(canonicalUri).Authority, e.Message)
 
 /// Match a send-time exception to the typed error the guest sees; anything
 /// else propagates as a host failure. Shared by the buffered and streaming
@@ -713,7 +719,7 @@ let private (|SendFailure|_|)
   // We've made a request and _potentially_ (according to .NET) have a status
   // code, but the error type has no good slot for it.
   | :? HttpRequestException ->
-    Some(HttpRequestError.NetworkError(networkErrorMessage canonicalUri e))
+    Some(HttpRequestError.NetworkError(networkFailure canonicalUri e))
   | _ -> None
 
 
