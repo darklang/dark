@@ -438,6 +438,21 @@ let errExpectedName (state : ParserState) (i : int) (what : string) =
     DiagnosticCode.expected
     i
     $"expected {what}, found {foundDesc state i}{hint}"
+// A keyword where a name goes, on the line of what comes before it: reported as
+// `errExpectedName` does, then read as the name it was meant to be, so the rest
+// parses and nothing more is reported.
+let private keywordAsName (state : ParserState) (i : int) (what : string) =
+  if keywordHint state i "" = "" then
+    None
+  else
+    errExpectedName state i what
+    Some(txt state i)
+// The name of a `name = value` or `name : Type` field at `k`, when `sep` follows it
+let private fieldName (state : ParserState) (k : int) (sep : Token) (what : string) =
+  match tok state k with
+  | TIdent name when tok state (k + 1) = sep -> Some name
+  | _ when tok state (k + 1) = sep -> keywordAsName state k what
+  | _ -> None
 // a missing closing delimiter: point back at its opener
 let errUnclosed
   (state : ParserState)
@@ -1699,6 +1714,9 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       i
       "'...' only goes last inside a list pattern, as in `[head, ...tail]`"
     (WT.MPError(rng state i), i + 1)
+  | _ when keywordHint state i "" <> "" ->
+    errExpectedName state i "a pattern"
+    (WT.MPVariable(rng state i, txt state i), i + 1)
   | _ ->
     errExpectedName state i "a pattern"
     // recovery: an explicit error-hole node; leave closing/separating/decl-start
@@ -2004,6 +2022,9 @@ and parseLetPattern (state : ParserState) (i : int) : WT.LetPattern * int =
     else
       errUnclosed state j ")" "(" openP
       (first, j)
+  | _ when keywordHint state i "" <> "" ->
+    errExpectedName state i "a pattern"
+    (WT.LPVariable(rng state i, txt state i), i + 1)
   | _ ->
     errExpectedName state i "a pattern"
     // recovery: keep a benign binder (LetPattern has no error case yet);
@@ -2782,6 +2803,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       && (match tok state (j + 1), tok state (j + 2) with
           | TRBrace, _ -> true
           | TIdent _, TEquals -> true
+          | t, TEquals -> isKeyword t
           | _ -> false)
     // a bare `Dict { … }` is a dict LITERAL, not a record of a type named `Dict`;
     // `Dict` is a keyword here, so it parses to its own node with the keyword range.
@@ -2879,6 +2901,9 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       | TIdent _
       | TUnderscore
       | TLParen ->
+        let (p, k2) = parseLetPattern state (i + 1)
+        ([ p ], k2)
+      | _ when keywordHint state (i + 1) "" <> "" ->
         let (p, k2) = parseLetPattern state (i + 1)
         ([ p ], k2)
       | _ -> ([], i + 1)
@@ -3252,8 +3277,9 @@ and private parseRecordFields
   if tok state k = TRBrace || tok state k = TEOF then
     (fieldsRev, k)
   else
-    match tok state k, tok state (k + 1) with
-    | TIdent fname, TEquals ->
+    let what = "a record field 'name = value'"
+    match fieldName state k TEquals what with
+    | Some fname ->
       let fnameR = rng state k
       // each field is its own offside statement (value args don't grab the next field)
       setStmtCol state (rng state k).start.column
@@ -3275,8 +3301,8 @@ and private parseRecordFields
         parseRecordFields state fieldsRev k2
       else
         (fieldsRev, k)
-    | _ ->
-      errExpectedName state k "a record field 'name = value'"
+    | None ->
+      errExpectedName state k what
       (fieldsRev, k)
 
 and parseDict
@@ -3384,8 +3410,9 @@ and private parseRecordUpdateFields
   if tok state k = TRBrace || tok state k = TEOF then
     (updatesRev, k)
   else
-    match tok state k, tok state (k + 1) with
-    | TIdent fname, TEquals ->
+    let what = "a record-update field 'name = value'"
+    match fieldName state k TEquals what with
+    | Some fname ->
       let fnameR = rng state k
       let eqR = rng state (k + 1)
       setStmtCol state (rng state k).start.column
@@ -3406,8 +3433,8 @@ and private parseRecordUpdateFields
         parseRecordUpdateFields state updatesRev k2
       else
         (updatesRev, k)
-    | _ ->
-      errExpectedName state k "a record-update field 'name = value'"
+    | None ->
+      errExpectedName state k what
       (updatesRev, k)
 
 // Type references. Precedence (loosest first): function `A -> B`, tuple
@@ -4254,8 +4281,9 @@ and private parseRecordDefFields
   if tok state k = TRBrace || tok state k = TEOF then
     (fieldsRev, k)
   else
-    match tok state k, tok state (k + 1) with
-    | TIdent fname, TColon ->
+    let what = "a record field 'name : Type'"
+    match fieldName state k TColon what with
+    | Some fname ->
       let fnameR = rng state k
       let colon = rng state (k + 1)
       let (typ, k2) = parseTypeRef state (k + 2)
@@ -4286,8 +4314,8 @@ and private parseRecordDefFields
         parseRecordDefFields state ((field, None) :: fieldsRev) k2
       else
         (fieldsRev, k)
-    | _ ->
-      errExpectedName state k "a record field 'name : Type'"
+    | None ->
+      errExpectedName state k what
       (fieldsRev, k)
 
 and parseEnumField
