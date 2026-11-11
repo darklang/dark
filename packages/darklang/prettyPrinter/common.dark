@@ -43,11 +43,11 @@ let __encodeChar(c: Char): String =
     // marks, or CRLF. `replaceAll` matches whole graphemes only, so escape it
     // code point by code point, keeping the rest of the grapheme.
     c
-    |> Stdlib.toString
+    |> Stdlib.display
     |> Stdlib.String.toCodepoints
     |> Stdlib.List.map(fun cp ->
       match Stdlib.Char.fromCodepoint(cp) with
-      | Some(one) -> if cp < 128u32 then __encodeChar(one) else Stdlib.toString(one)
+      | Some(one) -> if cp < 128u32 then __encodeChar(one) else Stdlib.display(one)
       | None -> "")
     |> Stdlib.String.join("")
   | Some(code) ->
@@ -65,7 +65,7 @@ let __encodeChar(c: Char): String =
       let lo = n % 16
       $"\\x{__hexDigitChar(hi)}{__hexDigitChar(lo)}"
     else
-      Stdlib.toString(c)
+      Stdlib.display(c)
 
 // Encode special characters back to source-form. Symmetric with the parser's
 // `decodeStringContent`. Quote escapes are added per quote style — `"` for
@@ -149,11 +149,11 @@ let formatAccessedFieldName(name: String): String =
 let processRemainder(remainder: String): String =
   match $".{remainder}" |> Stdlib.Float.parse with
   | Ok(floatValue) ->
-    let printed = Stdlib.toString(floatValue)
+    let printed = Stdlib.display(floatValue)
     let isPlainDecimal =
       printed
       |> Stdlib.String.toList
-      |> Stdlib.List.all(fun c -> Stdlib.Char.isDigit(c) || (Stdlib.toString(c)) == ".")
+      |> Stdlib.List.all(fun c -> Stdlib.Char.isDigit(c) || (Stdlib.display(c)) == ".")
     if isPlainDecimal && (Stdlib.String.startsWith(printed, "0.")) then
       Stdlib.String.dropFirst(printed, 2)
     else

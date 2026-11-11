@@ -7,7 +7,7 @@ let completionPickerState(itemCount: Int64): CompletionPicker.State =
   let items =
     Stdlib.List.range(1, itemCount)
     |> Stdlib.List.map(fun index ->
-      Completion.simple($"item-{Stdlib.toString(index)}"))
+      Completion.simple($"item-{Stdlib.display(index)}"))
   CompletionPicker.create("", items)
 
 

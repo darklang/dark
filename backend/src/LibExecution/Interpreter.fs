@@ -3062,7 +3062,7 @@ let private boundMemoMethod = ""
 
 /// Whether every bound on a fn is already known to hold for these type args, under the current
 /// generation, so entry can skip proving them again. Proving one scans every candidate of the
-/// trait, which on a bounded generic like `Stdlib.toString` was most of the cost of each call.
+/// trait, which on a bounded generic like `Stdlib.display` was most of the cost of each call.
 /// False means "prove them": a miss, a stale entry, or a bound not yet seen.
 let rec private boundsRemembered
   (exeState : ExecutionState)
@@ -3788,6 +3788,12 @@ let private resolveTraitMethod
         return
           RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName))
           |> raiseRTE vm.threadID
+    | Traits.NoImpl when
+      methodName = "display" && traitHash = Hash(PackageRefs.Trait.Stdlib.display ())
+      ->
+      // A string interpolation of a type with no Display shows it as `inspect` does. The
+      // at-rest check refuses any other call of `display` on such a type.
+      return Hash(PackageRefs.Fn.Stdlib.inspect ())
     | Traits.NoImpl ->
       return
         RTE.Trait(RTE.Traits.MissingImpl(traitName, ValueType.Known self))

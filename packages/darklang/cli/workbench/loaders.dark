@@ -156,9 +156,9 @@ let diffStat(lines: List<Stdlib.Diff.DiffLine>): String =
   let removed = lines |> Stdlib.List.filter(fun l -> match l with | Removed(_) -> true | _ -> false) |> Stdlib.List.length
   if (added == 0) && (removed == 0) then ""
   else
-    (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "+" + (Stdlib.toString(added))))
+    (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "+" + (Stdlib.display(added))))
     + " "
-    + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red, "-" + (Stdlib.toString(removed))))
+    + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.red, "-" + (Stdlib.display(removed))))
 
 /// Feeds the Changes view and Matter's Changed lens -- one list, two angles. The
 /// lens shows the draft as your code filtered to what moved, with the real tree
@@ -225,7 +225,7 @@ let commitListText(): String =
     |> Stdlib.List.map(fun c ->
       // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
       let short = Stdlib.String.first(c.hash, 8)
-      let ops = Stdlib.toString(c.ops)
+      let ops = Stdlib.display(c.ops)
       "  " + (Stdlib.Cli.UI.Colors.dimText(short)) + "  " + c.message
       + (Stdlib.Cli.UI.Colors.dimText("  " + ops + (if ops == "1" then " op" else " ops"))))
   Stdlib.String.join(
@@ -249,10 +249,10 @@ let commitOpsText(branchId: Uuid, selected: Int64): String =
       |> Stdlib.String.join("\n")
     let more =
       if opCount > 20 then
-        "\n\n  … and " + (Stdlib.toString(opCount - 20)) + " more ops"
+        "\n\n  … and " + (Stdlib.display(opCount - 20)) + " more ops"
       else
         ""
-    c.message + "  (" + (Stdlib.toString(opCount)) + " ops)\n\n" + opLines + more
+    c.message + "  (" + (Stdlib.display(opCount)) + " ops)\n\n" + opLines + more
 
 /// Render diff lines as syntax-highlighted code with a faint wash behind what
 /// changed: green behind added lines, red behind removed, nothing behind
@@ -546,11 +546,11 @@ let referencesFrom(
       else
         Stdlib.List.append(
           Stdlib.List.take(lines, referenceCap),
-          Stdlib.Cli.UI.Colors.dimText("  + " + (Stdlib.toString(n - referenceCap)) + " more · :deps " + fqn + " lists them all"))
+          Stdlib.Cli.UI.Colors.dimText("  + " + (Stdlib.display(n - referenceCap)) + " more · :deps " + fqn + " lists them all"))
     // No item name here: `inspectPageLines` composes this under a page already headed by that
     // item's source, so including it printed the name twice on one screen.
     let heading(label: String, n: Int64): String =
-      (sectionHeading(label)) + (Stdlib.Cli.UI.Colors.dimText(" · " + (Stdlib.toString(n))))
+      (sectionHeading(label)) + (Stdlib.Cli.UI.Colors.dimText(" · " + (Stdlib.display(n))))
     Stdlib.String.join(
       (Stdlib.List.flatten(
         [ [ heading("uses", Stdlib.List.length(deps)) ]
@@ -668,7 +668,7 @@ let refreshLiveValues(next: State): State =
   | Some(entry) ->
     // A scroll or a command-bar key moves neither, and a replay costs a whole recorded run.
     let key =
-      $"{Stdlib.toString(next.branchId)} {LanguageTools.Live.entryName(entry)} {Stdlib.toString(next.scmStatus.ops)}"
+      $"{Stdlib.display(next.branchId)} {LanguageTools.Live.entryName(entry)} {Stdlib.display(next.scmStatus.ops)}"
     if key == next.liveFor then
       next
     else

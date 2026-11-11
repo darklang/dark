@@ -46,8 +46,8 @@ type ParseError =
   | InvalidPercentEncoding(part: String)
 
 
-impl ToString for ParseError =
-  let toString(e: ParseError): String =
+impl Display for ParseError =
+  let display(e: ParseError): String =
     match e with
     | MissingScheme -> "The URL has no scheme (such as https:) at the front"
     | InvalidScheme(scheme) -> $"'{scheme}' is not a valid URL scheme"
@@ -418,7 +418,7 @@ let toString(url: Url): String =
 
       let port =
         match url.port with
-        | Some(p) -> ":" + Stdlib.toString(p)
+        | Some(p) -> ":" + Stdlib.display(p)
         | None -> ""
 
       "//" + user + shownHost + port
@@ -436,8 +436,8 @@ let toString(url: Url): String =
   scheme + authority + url.path + query + fragment
 
 
-impl ToString for Url =
-  let toString = Stdlib.Url.toString
+impl Display for Url =
+  let display = Stdlib.Url.toString
 
 
 /// RFC 3986 section 5.2.4. <param out> holds the output's segments, each with

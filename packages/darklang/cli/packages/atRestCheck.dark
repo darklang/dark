@@ -46,39 +46,33 @@ let issueLine(
       (fun hash -> customTypeName(branchId, hash)),
       issue)
   let withHint =
-    withToStringHint(
+    withDisplayHint(
       branchId,
       issue,
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation,
       message)
   "  - [" + code + "] " + withHint
 
-/// <param message>, then "Try" and the type's own `toString` when <param issue> is a type with no
-/// ToString implementation whose module has one: `Stdlib.HttpClient.RequestError` gets
-/// "Try `Stdlib.HttpClient.toString`". <param render> writes that name the way the rest of the
-/// message writes names.
-let withToStringHint(
+/// <param message>, then a hint when <param issue> is a type with no Display implementation:
+/// the type's own `toString` when its module has one (`Stdlib.HttpClient.RequestError` gets
+/// "Try `Stdlib.HttpClient.toString`"), else `Stdlib.inspect`. <param render> writes that name
+/// the way the rest of the message writes names.
+let withDisplayHint(
   branchId: Uuid,
   issue: LanguageTools.AtRestTypeChecker.Issue,
   render: LanguageTools.ProgramTypes.PackageLocation -> String,
   message: String)
   : String =
-  let traitHash =
+  let isDisplay =
     match (issue.code, issue.context) with
-    | (MissingImpl, TraitNeeded(hash, _)) -> Stdlib.Option.Option.Some(hash)
-    | (MissingImpl, InStringInterpolation(TraitNeeded(hash, _))) ->
-      Stdlib.Option.Option.Some(hash)
-    | _ -> Stdlib.Option.Option.None
-  let isToString =
-    match traitHash with
-    | Some(hash) ->
+    | (MissingImpl, TraitNeeded(hash, _)) ->
       LanguageTools.PackageManager.Trait.locations(branchId, hash)
       |> Stdlib.List.any(fun loc ->
-        loc.owner == "Darklang" && loc.modules == [ "Stdlib" ] && loc.name == "ToString")
-    | None -> false
+        loc.owner == "Darklang" && loc.modules == [ "Stdlib" ] && loc.name == "Display")
+    | _ -> false
   let typeLocations =
     match issue.actual with
-    | Some(TCustom(typeHash, _)) when isToString ->
+    | Some(TCustom(typeHash, _)) when isDisplay ->
       LanguageTools.PackageManager.Type.locations(branchId, typeHash)
     | _ -> []
   let candidates =
@@ -91,14 +85,17 @@ let withToStringHint(
         LanguageTools.ProgramTypes.PackageLocation
           { owner = loc.owner, modules = loc.modules, name = "toString" } ])
     |> Stdlib.List.flatten
+  let stop = if Stdlib.String.endsWith(message, ".") then "" else "."
   match
     Stdlib.List.findFirst(candidates, fun loc ->
       Stdlib.Option.isSome(LanguageTools.PackageManager.Function.find(branchId, loc)))
   with
-  | Some(loc) ->
-    let stop = if Stdlib.String.endsWith(message, ".") then "" else "."
-    $"{message}{stop} Try `{render(loc)}`"
-  | None -> message
+  | Some(loc) -> $"{message}{stop} Try `{render(loc)}`"
+  | None ->
+    if isDisplay then
+      $"{message}{stop} `Stdlib.inspect` shows any value."
+    else
+      message
 
 let sameOrMirrored(
   first: LanguageTools.AtRestTypeChecker.Issue,
@@ -142,7 +139,7 @@ let issueLines(
   |> Stdlib.List.map(fun((line, occurrences)) ->
     let count = Stdlib.List.length(occurrences)
     if count == 1 then line
-    else line + " (" + Stdlib.toString(count) + " occurrences)")
+    else line + " (" + Stdlib.display(count) + " occurrences)")
 
 let summary(
   report: LanguageTools.AtRestTypeChecker.Report)
@@ -215,7 +212,7 @@ let scriptReport(
     | Some(nodeId) ->
       match Stdlib.List.findFirst(positions, fun((id, _, _)) -> id == nodeId) with
       | Some((_, line, column)) ->
-        $"line {Stdlib.toString(line)}, column {Stdlib.toString(column)}: "
+        $"line {Stdlib.display(line)}, column {Stdlib.display(column)}: "
       | None -> ""
     | None -> ""
 
@@ -257,7 +254,7 @@ let scriptReport(
           let code = LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
           let message = LanguageTools.AtRestTypeChecker.issueToStringWith(typeName, issue)
           let withHint =
-            withToStringHint(
+            withDisplayHint(
               branchId,
               issue,
               (fun loc -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn([], loc)),

@@ -38,7 +38,7 @@ let withTraces(f: Instance.T -> Stdlib.Test.Result): Stdlib.Test.Result =
 
 /// The rows `traces list <n> --json` answers, newest first.
 let listed(i: Instance.T, n: Int64): List<Stdlib.AltJson.Json> =
-  match Instance.run(i, [ "traces", "list", Stdlib.toString(n), "--json" ]) with
+  match Instance.run(i, [ "traces", "list", Stdlib.display(n), "--json" ]) with
   | Error(_) -> []
   | Ok(out) ->
     match Stdlib.AltJson.parse(Stdlib.String.trim(out.stdout)) with

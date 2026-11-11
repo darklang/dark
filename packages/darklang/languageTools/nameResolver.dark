@@ -151,7 +151,7 @@ let resolveGenericName(
               |> Stdlib.List.all(fun c ->
                 (Stdlib.Char.isASCIILetter(c))
                 || (Stdlib.Char.isDigit(c))
-                || (Stdlib.toString(c) == "_")))
+                || (Stdlib.display(c) == "_")))
 
       // `PACKAGE.` is not a source namespace, but agents still commonly write
       // it. Mirrors the guard in LibParser's NameResolver.fs.

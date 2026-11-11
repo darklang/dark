@@ -38,5 +38,5 @@ test xorTruthTable =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(true) |> Stdlib.Test.equal("true")
-      Stdlib.toString(false) |> Stdlib.Test.equal("false") ])
+    [ Stdlib.display(true) |> Stdlib.Test.equal("true")
+      Stdlib.display(false) |> Stdlib.Test.equal("false") ])

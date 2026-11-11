@@ -401,7 +401,7 @@ let testsWithoutPurityProofAlwaysRun =
         )
       System.IO.File.WriteAllText(
         file,
-        "test randomKey =\n  (Stdlib.toString(Stdlib.Uuid.generate())) |> Stdlib.String.length\n  |> Stdlib.Test.equal(36)\n\ntest dynamicCall =\n  (let fn = (+)\n   fn(1, 1)) |> Stdlib.Test.equal(2)\n\ntest renderedValue =\n  let text = Stdlib.toRepr(1)\n  Stdlib.Test.equal(text, text)\n\ntest expectedError =\n  (1 / 0)\n  => raises \"Cannot divide by 0\"\n"
+        "test randomKey =\n  (Stdlib.display(Stdlib.Uuid.generate())) |> Stdlib.String.length\n  |> Stdlib.Test.equal(36)\n\ntest dynamicCall =\n  (let fn = (+)\n   fn(1, 1)) |> Stdlib.Test.equal(2)\n\ntest renderedValue =\n  let text = Stdlib.inspect(1)\n  Stdlib.Test.equal(text, text)\n\ntest expectedError =\n  (1 / 0)\n  => raises \"Cannot divide by 0\"\n"
         + ""
         + ""
         + ""

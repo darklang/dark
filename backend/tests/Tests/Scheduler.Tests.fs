@@ -616,7 +616,7 @@ let private traceCarriesProcessAndSeq =
       instrsFor
         // Impure on purpose: only impure calls are recorded, so a pure loop would write a
         // trace with no rows in it and prove nothing about which process wrote what.
-        """(let record(n: Int64): Unit = Builtin.testTrace(Stdlib.toString(n))
+        """(let record(n: Int64): Unit = Builtin.testTrace(Stdlib.display(n))
             let loop(n: Int64): Unit =
               if n == 0 then () else (record(n)
                                       loop(n - 1))
@@ -923,7 +923,7 @@ let private lengthCountsReadsInFlight =
     let! result =
       runReleasing
         """let xs = [ Builtin.testRead(161), Builtin.testRead(162), Builtin.testRead(163) ]
-let _ = Builtin.testTrace(Stdlib.toString(Stdlib.List.length(xs)))
+let _ = Builtin.testTrace(Stdlib.display(Stdlib.List.length(xs)))
 Stdlib.List.fold(xs, 0, fun(a, b) -> a + b)"""
         [ 161L; 162L; 163L ]
         [ "3" ]
@@ -1015,7 +1015,7 @@ let code = r.statusCode
 let _ = Builtin.testTrace("peeked")
 let c = code + 0
 let _ = Builtin.testTrace("code landed")
-(Stdlib.toString(c)) + (Stdlib.toString(Stdlib.List.length(r.headers)))""" (fun _ ->
+(Stdlib.display(c)) + (Stdlib.display(Stdlib.List.length(r.headers)))""" (fun _ ->
         waitForTrace "the field access did not wait" [ "peeked" ]
         Gates.release 95L
         waitForTrace "the field's own read was enough" [ "code landed" ]
@@ -2118,7 +2118,7 @@ let private spawnedCountsReachTheSpawner =
     let n = 200L
     // Each child makes two `stringJoin` calls.
     let spawnAll =
-      $"""let hs = Stdlib.List.fold(Stdlib.List.range(1, {n}), [], fun(acc, i) -> Stdlib.List.prepend(acc, Stdlib.Exec.spawn(fun () -> Stdlib.String.join([ Stdlib.String.join([ "a", Stdlib.toString(i) ], "-"), "b" ], ","))))"""
+      $"""let hs = Stdlib.List.fold(Stdlib.List.range(1, {n}), [], fun(acc, i) -> Stdlib.List.prepend(acc, Stdlib.Exec.spawn(fun () -> Stdlib.String.join([ Stdlib.String.join([ "a", Stdlib.display(i) ], "-"), "b" ], ","))))"""
     let sum =
       "Stdlib.List.fold(hs, 0, fun(n, h) -> n + Stdlib.String.length(Stdlib.Exec.await(h)))"
     let awaitedHere = $"{spawnAll}\n{sum}"

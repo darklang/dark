@@ -5,28 +5,28 @@ let content(): String =
 
 A trait names one or more fns over one open type; an implementation says how one type
 does them; a call picks by the type of the value it is given. Nearly every operator is a
-trait (`+` is `Add`, `<` is `Compare`; `==` is not), as is `toString`, so every
+trait (`+` is `Add`, `<` is `Compare`; `==` is not), as is `display`, so every
 builtin type already has implementations. Yours join with one `impl`.
 
 ## Implement a trait that exists
   type Point = { x: Int64, y: Int64 }
 
-  impl ToString for Point =
-    let toString(p: Point): String =
-      $"({Stdlib.toString(p.x)}, {Stdlib.toString(p.y)})"
+  impl Display for Point =
+    let display(p: Point): String =
+      $"({Stdlib.display(p.x)}, {Stdlib.display(p.y)})"
 
   impl Add for Point =
     let add(a: Point, b: Point): Point =
       Point { x = a.x + b.x, y = a.y + b.y }
 
   let p = Point { x = 1, y = 2 }
-  ToString.toString(p)         // "(1, 2)"
-  p.toString                   // the same call, receiver first
+  Display.display(p)         // "(1, 2)"
+  p.display                   // the same call, receiver first
   p + p                        // Point { x = 2, y = 4 }
 
   A member can name a fn that already exists instead of declaring one:
-    impl ToString for Point =
-      let toString = Acme.pointToText
+    impl Display for Point =
+      let display = Acme.pointToText
 
 ## Declare your own
   trait Area<'a> =
@@ -53,20 +53,20 @@ builtin type already has implementations. Yours join with one `impl`.
   `commit` refuses it.
 
 ## Bound a type parameter
-  let describe<'a: ToString>(v: 'a): String = "value: " + v.toString
-  let biggest<'a: Compare + ToString>(xs: List<'a>): String = ...
+  let describe<'a: Display>(v: 'a): String = "value: " + v.display
+  let biggest<'a: Compare + Display>(xs: List<'a>): String = ...
 
-  `'a: ToString` means "any type with a ToString implementation". It is checked
+  `'a: Display` means "any type with a Display implementation". It is checked
   when the fn is entered, against the caller's actual type, and at SAVE by the
   checker, which refuses a call whose type argument has no implementation
   (`MissingImpl`). `UnboundTypeParameter`, a bound on a parameter the fn never
   declared, is not reported yet and surfaces when the code runs.
 
 ## Where they live
-  A trait is a package item like a type or a fn: `Stdlib.ToString`. An
+  A trait is a package item like a type or a fn: `Stdlib.Display`. An
   implementation is one too, named for the type and the trait under the
-  module it was written in: `impl ToString for Point` inside `Acme` is
-  `Acme.Point.ToString`, and its method fn is `Acme.Point.ToString.toString`.
+  module it was written in: `impl Display for Point` inside `Acme` is
+  `Acme.Point.Display`, and its method fn is `Acme.Point.Display.display`.
 
   So an implementation's methods live in a module named for the trait. A listing
   shows you the implementation rather than that module, since they are the same
@@ -75,11 +75,11 @@ builtin type already has implementations. Yours join with one `impl`.
   on one of those reads it on its own.
 
     dark ls Acme                        // Traits and Impls sections
-    dark view Stdlib.ToString           // prints the trait back
-    dark view Acme.Point.ToString       // the implementation
-    dark ls Acme.Point.ToString         // its methods
-    dark view Acme.Point.ToString.toString
-    dark impls ToString                 // every implementation a call can reach
+    dark view Stdlib.Display           // prints the trait back
+    dark view Acme.Point.Display       // the implementation
+    dark ls Acme.Point.Display         // its methods
+    dark view Acme.Point.Display.display
+    dark impls Display                 // every implementation a call can reach
     dark search Area --trait            // --impl for implementations
 
   Author from the shell like `fn` and `type`; an impl's path is the module it
@@ -96,7 +96,7 @@ builtin type already has implementations. Yours join with one `impl`.
   ShiftLeft ShiftRight                        `<<` and `>>`
   Compare                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`,
                                      `abs`, and `List.sort` on a type of yours
-  ToString                       `x.toString`, `Stdlib.toString(x)`
+  Display                       `x.display`, `Stdlib.display(x)`
   Zero, One                      `Zero.zero<Int64>()`; `Stdlib.sum(seed, xs)` and
                                  `product(seed, xs)` take a seed, so summing an
                                  empty list has an answer
@@ -110,7 +110,7 @@ builtin type already has implementations. Yours join with one `impl`.
   type is stored, and whether it runs depends on the operator: `+ - *` and the
   comparisons on two values of one builtin numeric type, and `-x` on one, are
   answered directly and never reach it, while `/ % **`, the bitwise operators and
-  `toString` dispatch, so new calls run yours. And `==` is not a trait: equality
+  `display` dispatch, so new calls run yours. And `==` is not a trait: equality
   is structural for every value and no type can say otherwise.
   `docs operators` has the operator table.
 
@@ -123,7 +123,7 @@ builtin type already has implementations. Yours join with one `impl`.
   callers, just like any other dependency.
 
   Operators are stored the same way, inside a pipeline too. A call in a bounded fn
-  (`let display<'a: ToString>(v: 'a) = v.toString`) stores "whatever my caller's 'a
+  (`let display<'a: Display>(v: 'a) = v.display`) stores "whatever my caller's 'a
   implied", and the caller stores which implementation that was, so it is not a
   run-time lookup either. What is left for run time: a call whose type nothing could
   work out when it was saved.
@@ -155,7 +155,7 @@ builtin type already has implementations. Yours join with one `impl`.
   Bool has no implementation of Darklang.Stdlib.Add. Write `impl Add for Bool =
   ...`, or run `dark impls Add` to see which types do
 
-  2 implementations of Darklang.Stdlib.ToString for Int64 exist, and there is no
+  2 implementations of Darklang.Stdlib.Display for Int64 exist, and there is no
   record of which came first, so none is used
       only for implementations a script made in memory
 

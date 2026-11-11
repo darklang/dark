@@ -14,6 +14,6 @@ let ``or``(a: Bool, b: Bool): Bool = a || b
 /// Returns {{true}} if exactly one of <param a> and <param b> is {{true}}. Returns {{false}} if both are {{true}} or neither is {{true}}
 let xor(a: Bool, b: Bool): Bool = if a then Stdlib.Bool.not(b) else b
 
-impl ToString for Bool =
+impl Display for Bool =
   /// Returns {{"true"}} or {{"false"}}
-  let toString(b: Bool): String = if b then "true" else "false"
+  let display(b: Bool): String = if b then "true" else "false"

@@ -346,7 +346,7 @@ test literalRejectsValueOfAnotherType =
 
 test setRejectsWrongValueType =
   Stdlib.Dict.set(Dict { "key1": "val1" }, "key2", 2)
-  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (2). Try wrapping it with `Stdlib.toString`."
+  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (2). Try wrapping it with `Stdlib.display`."
 
 test singleton =
   Stdlib.Test.all(
@@ -380,10 +380,10 @@ test fromListPastTwentyFourKeepsKeyOrder =
       Stdlib.List.append(Stdlib.List.map(reversed, fun i -> (i, i)), (5, 99)))
   let strings =
     Stdlib.Dict.fromList(
-      Stdlib.List.map(reversed, fun i -> ("k" + (Stdlib.toString(i)), i)))
+      Stdlib.List.map(reversed, fun i -> ("k" + (Stdlib.display(i)), i)))
   let tuples =
     Stdlib.Dict.fromList(
-      Stdlib.List.map(reversed, fun i -> ((i % 3, Stdlib.toString(i)), i)))
+      Stdlib.List.map(reversed, fun i -> ((i % 3, Stdlib.display(i)), i)))
   Stdlib.Test.all(
     [ Stdlib.Dict.keys(ints) |> Stdlib.Test.equal(Stdlib.List.range(1, 30))
       Stdlib.Dict.get(ints, 5) |> Stdlib.Test.equal(Some(99))
@@ -442,7 +442,7 @@ test nonStringKeysOrdering =
 test traversalsPastTwentyFourGoInKeyOrder =
   let d =
     Stdlib.List.fold(Stdlib.List.reverse(Stdlib.List.range(1, 40)), Dict { }, fun(acc, i) ->
-      Stdlib.Dict.set(acc, (i % 2 == 0, "k" + (Stdlib.toString(i))), i))
+      Stdlib.Dict.set(acc, (i % 2 == 0, "k" + (Stdlib.display(i))), i))
   let firstKeys = [ (false, "k1"), (false, "k11"), (false, "k13") ]
   Stdlib.Test.all(
     [ Stdlib.List.take(Stdlib.Dict.keys(d), 3) |> Stdlib.Test.equal(firstKeys)
@@ -592,7 +592,7 @@ test nonStringKeysFromEntriesInfersKeyType =
 
 test nonStringKeysFromEntriesUniqueInfersValueType =
   Stdlib.Dict.set(Builtin.unwrap(Stdlib.Dict.fromEntriesUnique([ (1, "a") ])), 2, 3)
-  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (3). Try wrapping it with `Stdlib.toString`."
+  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `value` expects String, but got Int64 (3). Try wrapping it with `Stdlib.display`."
 
 test nonStringKeysFromEntriesUniqueRejectsLambdaKey =
   Stdlib.Dict.fromEntriesUnique([ (1, "a"), ((fun x -> x), "b") ])

@@ -5,7 +5,7 @@ let serialize<'a>(value: 'a): String =
   Builtin.jsonSerialize<'a>(value)
 
 /// Parses a JSON string as a Dark value, matching the type <typeParam a>.
-/// Show an error with `$"{e}"` or `Stdlib.toString(e)`.
+/// Show an error with `$"{e}"` or `Stdlib.display(e)`.
 let parse<'a>(
   json: String)
   : Stdlib.Result.Result<'a, ParseError.ParseError> =
@@ -24,7 +24,7 @@ module ParseError =
         match part with
         | Root -> "root"
         | Field(name) -> "." + name
-        | Index(index) -> "[" + Stdlib.toString(index) + "]"
+        | Index(index) -> "[" + Stdlib.display(index) + "]"
 
     type JsonPath = List<Part.Part>
 
@@ -84,7 +84,7 @@ module ParseError =
     // Can't parse JSON because argument 4 (`Int64`) is missing at path: `root.Enh`
     | EnumMissingField(typ, index, path) ->
       "Can't parse JSON because argument "
-      + Stdlib.toString(index)
+      + Stdlib.display(index)
       + " (`"
       + PrettyPrinter.RuntimeTypes.typeReference(branchId, typ)
       + "`) is missing at path: `"
@@ -137,13 +137,13 @@ module ParseError =
     // Not JSON at line 1, column 4
     | NotJson(line, column) ->
       "Not JSON at line "
-      + Stdlib.toString(line)
+      + Stdlib.display(line)
       + ", column "
-      + Stdlib.toString(column)
+      + Stdlib.display(column)
 
 
-  impl ToString for ParseError =
+  impl Display for ParseError =
     /// What went wrong, with types named as the current branch sees them:
     /// {{Can't parse JSON `"x"` as type `Int64` at path: `root.age`}}
-    let toString(e: ParseError): String =
+    let display(e: ParseError): String =
       Stdlib.Json.ParseError.toString(Darklang.SCM.Branches.current(), e)

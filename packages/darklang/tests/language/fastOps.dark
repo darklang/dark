@@ -9,36 +9,36 @@ let check(label: String, actual: String, expected: String): Stdlib.Test.Result =
 
 test dictGet =
   Stdlib.Test.all(
-    [ check("dict get hit", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "a"), 0)), "1")
-      check("dict get miss", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "zz"), -1)), "-1") ])
+    [ check("dict get hit", Stdlib.display(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "a"), 0)), "1")
+      check("dict get miss", Stdlib.display(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "zz"), -1)), "-1") ])
 
 test dictSet =
   Stdlib.Test.all(
-    [ check("dict set new key", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(d, "c", 3)))), "3")
-      check("dict set new value", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.set(d, "c", 3), "c"), 0)), "3")
-      check("dict set overwrite", Stdlib.toString(Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.set(d, "a", 9), "a"), 0)), "9")
-      check("dict set overwrite keeps size", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(d, "a", 9)))), "2")
-      check("dict set does not mutate", Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(d))), "2") ])
+    [ check("dict set new key", Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(d, "c", 3)))), "3")
+      check("dict set new value", Stdlib.display(Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.set(d, "c", 3), "c"), 0)), "3")
+      check("dict set overwrite", Stdlib.display(Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.set(d, "a", 9), "a"), 0)), "9")
+      check("dict set overwrite keeps size", Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(Stdlib.Dict.set(d, "a", 9)))), "2")
+      check("dict set does not mutate", Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(d))), "2") ])
 
 test int64ToString =
   Stdlib.Test.all(
-    [ check("int64 toString", Stdlib.toString(42), "42")
-      check("int64 toString negative", Stdlib.toString(-7), "-7") ])
+    [ check("int64 toString", Stdlib.display(42), "42")
+      check("int64 toString negative", Stdlib.display(-7), "-7") ])
 
 test bigIntToString =
   Stdlib.Test.all(
-    [ check("bigint toString", Stdlib.toString(42z), "42")
-      check("bigint toString negative", Stdlib.toString(-7z), "-7")
-      check("bigint toString past Int64", Stdlib.toString(2z ** 70z), "1180591620717411303424") ])
+    [ check("bigint toString", Stdlib.display(42z), "42")
+      check("bigint toString negative", Stdlib.display(-7z), "-7")
+      check("bigint toString past Int64", Stdlib.display(2z ** 70z), "1180591620717411303424") ])
 
 test boolNot =
   check("bool not", (if Stdlib.Bool.not(true) then "y" else "n"), "n")
 
 test listLength =
-  check("list length", Stdlib.toString(Stdlib.List.length([ 1, 2, 3 ])), "3")
+  check("list length", Stdlib.display(Stdlib.List.length([ 1, 2, 3 ])), "3")
 
 test listConcat =
-  check("list concat", Stdlib.toString(Stdlib.List.length(Stdlib.List.concat([ 1, 2 ], [ 3 ]))), "3")
+  check("list concat", Stdlib.display(Stdlib.List.length(Stdlib.List.concat([ 1, 2 ], [ 3 ]))), "3")
 
 test stringAppend =
   check("string append", "a" + "b", "ab")

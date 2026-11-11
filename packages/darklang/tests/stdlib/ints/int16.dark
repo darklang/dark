@@ -149,13 +149,13 @@ test lessThanOrEqualTo =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(0s16) |> Stdlib.Test.equal("0")
-      Stdlib.toString(1s16) |> Stdlib.Test.equal("1")
-      Stdlib.toString(-1s16) |> Stdlib.Test.equal("-1")
+    [ Stdlib.display(0s16) |> Stdlib.Test.equal("0")
+      Stdlib.display(1s16) |> Stdlib.Test.equal("1")
+      Stdlib.display(-1s16) |> Stdlib.Test.equal("-1")
       // Int16 lower limit
-      Stdlib.toString(-32768s16) |> Stdlib.Test.equal("-32768")
+      Stdlib.display(-32768s16) |> Stdlib.Test.equal("-32768")
       // Int16 upper limit
-      Stdlib.toString(32767s16) |> Stdlib.Test.equal("32767") ])
+      Stdlib.display(32767s16) |> Stdlib.Test.equal("32767") ])
 
 test toFloat =
   Stdlib.Test.all(

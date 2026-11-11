@@ -34,21 +34,21 @@ let isDigit(c: Char): Bool =
 
 /// Return whether the first scalar in <param c> is a Unicode letter.
 let isLetter(c: Char): Bool =
-  match Stdlib.String.toCodepoints(Stdlib.toString(c)) with
+  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
   | [first, ...rest] -> Stdlib.Codepoint.isLetter(first)
   | _ -> false
 
 
 /// Return whether the first scalar in <param c> is Unicode whitespace.
 let isWhitespace(c: Char): Bool =
-  match Stdlib.String.toCodepoints(Stdlib.toString(c)) with
+  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
   | [first, ...rest] -> Stdlib.Codepoint.isWhitespace(first)
   | _ -> false
 
 
 /// Return whether the first scalar in <param c> is a Unicode letter or digit.
 let isAlphanumeric(c: Char): Bool =
-  match Stdlib.String.toCodepoints(Stdlib.toString(c)) with
+  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
   | [first, ...rest] -> Stdlib.Codepoint.isAlphanumeric(first)
   | _ -> false
 
@@ -104,9 +104,9 @@ impl Compare for Char =
   let greaterThanOrEqualTo = Stdlib.Char.isGreaterThanOrEqualTo
 
 
-impl ToString for Char =
+impl Display for Char =
   /// Stringify <param c>
-  let toString(c: Char): String = Builtin.charToString(c)
+  let display(c: Char): String = Builtin.charToString(c)
 
 
 /// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
@@ -121,6 +121,6 @@ let fromCodepoint(codepoint: UInt32): Stdlib.Option.Option<Char> =
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
 /// This is the inverse of <fn Char.fromCodepoint>.
 let toCodepoint(c: Char): Stdlib.Option.Option<UInt32> =
-  match Stdlib.String.toCodepoints(Stdlib.toString(c)) with
+  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
   | [codepoint] -> Stdlib.Option.Option.Some(codepoint)
   | _ -> Stdlib.Option.Option.None

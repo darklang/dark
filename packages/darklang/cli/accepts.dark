@@ -141,7 +141,7 @@ let check(
         Stdlib.Option.Option.Some($"`dark {name}` needs an argument.")
       else
         Stdlib.Option.Option.Some(
-          $"`dark {name}` needs {Stdlib.toString(s.atLeast)} arguments, and was given {Stdlib.toString(count)}.")
+          $"`dark {name}` needs {Stdlib.display(s.atLeast)} arguments, and was given {Stdlib.display(count)}.")
     else
       match s.atMost with
       | Some(atMost) when count > atMost ->

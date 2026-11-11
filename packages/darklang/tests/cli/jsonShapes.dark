@@ -337,8 +337,8 @@ test typecheckNamesOnlyWhatIsInScope =
       rows(field(j, "items")) |> Stdlib.List.map(fun(r) -> string(r, "name"))
     // Setup runs before the text is read, so it is bound first rather than listed below.
     let setup =
-      [ step(i, [ "fn", "Tests.TcElsewhere.show", "(n: Int64): String = Stdlib.toString(n)" ])
-        step(i, [ "fn", "Tests.TcScope.render", "(n: Int64): String = Stdlib.toString(n)" ]) ]
+      [ step(i, [ "fn", "Tests.TcElsewhere.show", "(n: Int64): String = Stdlib.display(n)" ])
+        step(i, [ "fn", "Tests.TcScope.render", "(n: Int64): String = Stdlib.display(n)" ]) ]
     let text =
       match Instance.run(i, [ "typecheck", "Tests.TcScope", "--all" ]) with
       | Ok(out) -> out.stdout
@@ -371,7 +371,7 @@ test typecheckNamesOnlyWhatIsInScope =
 test typecheckLoadsWhatAModuleBodyCalls =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.TcBodyDep.render", "(n: Int64): String = Stdlib.toString(n)" ])
+      [ step(i, [ "fn", "Tests.TcBodyDep.render", "(n: Int64): String = Stdlib.display(n)" ])
         check(
           i,
           [ "typecheck", "Tests.TcBodyDep", "--json" ],
@@ -385,7 +385,7 @@ test typecheckLoadsWhatAModuleBodyCalls =
           i,
           [ "fn"
             "Tests.TcBodyDepLib.describe"
-            "(p: Tests.TcBodyDepLib.Point): String = Stdlib.toString(p.x)" ])
+            "(p: Tests.TcBodyDepLib.Point): String = Stdlib.display(p.x)" ])
         step(
           i,
           [ "fn"

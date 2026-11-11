@@ -150,13 +150,13 @@ test lessThan =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(0s8) |> Stdlib.Test.equal("0")
-      Stdlib.toString(1s8) |> Stdlib.Test.equal("1")
-      Stdlib.toString(-1s8) |> Stdlib.Test.equal("-1")
+    [ Stdlib.display(0s8) |> Stdlib.Test.equal("0")
+      Stdlib.display(1s8) |> Stdlib.Test.equal("1")
+      Stdlib.display(-1s8) |> Stdlib.Test.equal("-1")
       // Int8 lower limit
-      Stdlib.toString(-128s8) |> Stdlib.Test.equal("-128")
+      Stdlib.display(-128s8) |> Stdlib.Test.equal("-128")
       // Int8 upper limit
-      Stdlib.toString(127s8) |> Stdlib.Test.equal("127") ])
+      Stdlib.display(127s8) |> Stdlib.Test.equal("127") ])
 
 test toFloat =
   Stdlib.Test.all(

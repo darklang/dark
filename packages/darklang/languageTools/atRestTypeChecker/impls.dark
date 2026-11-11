@@ -170,7 +170,7 @@ let signatureDetail(expected: Model.Ty, actual: Model.Ty): String =
     let a = Stdlib.List.length(actualParams)
 
     if e != a then
-      $"it takes {Stdlib.toString(a)} parameter(s), the trait's takes {Stdlib.toString(e)}"
+      $"it takes {Stdlib.display(a)} parameter(s), the trait's takes {Stdlib.display(e)}"
     else if expectedRet != actualRet then
       "the return type differs"
     else

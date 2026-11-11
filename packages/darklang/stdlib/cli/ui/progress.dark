@@ -22,7 +22,7 @@ let bar(current: Int64, total: Int64, label: String): Unit =
     else ((current * 100) / total)
 
   Stdlib.print(
-    $"\r[{filledStr}{emptyStr}] {Stdlib.toString(pct)}% {label}")
+    $"\r[{filledStr}{emptyStr}] {Stdlib.display(pct)}% {label}")
 
   if current >= total then Stdlib.printLine("")
   else ()

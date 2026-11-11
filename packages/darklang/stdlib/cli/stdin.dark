@@ -512,8 +512,8 @@ module Key =
 
   /// Display name of the key, e.g. `Enter` or `A`
   let toString(k: Key): String =
-    // toRepr prints the fully-qualified case name; keep just the last segment
-    (Stdlib.toRepr(k))
+    // inspect prints the fully-qualified case name; keep just the last segment
+    (Stdlib.inspect(k))
     |> Stdlib.String.split(".")
     |> Stdlib.List.last
     |> Stdlib.Option.withDefault("")

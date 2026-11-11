@@ -865,7 +865,7 @@ module Expr =
             pm
             currentModule
             (WT.Unresolved(
-              NEList.ofList "Darklang" [ "Stdlib"; "ToString"; "toString" ]
+              NEList.ofList "Darklang" [ "Stdlib"; "Display"; "display" ]
             ))
         return
           PT.StringInterpolation(

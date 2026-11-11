@@ -42,7 +42,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         "  impl <module> -    (read from stdin)"
         ""
         "Example, for a type made first with `dark type Me.Demo.Point '{ x: Int64, y: Int64 }'`:"
-        "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
+        "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
         ""
       ] |> Cli.Stderr.lines
 
@@ -206,7 +206,7 @@ let createImplInline(
             (Stdlib.Cli.UI.Colors.error("Expected exactly one impl declaration"))
             ""
             "Example:"
-            "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
+            "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
             ""
           ] |> Cli.Stderr.lines
           { state with exitCode = 1 }
@@ -215,7 +215,7 @@ let createImplInline(
         (Stdlib.Cli.UI.Colors.error("Failed to parse the implementation"))
         ""
         "Example:"
-        "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
+        "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
         ""
       ] |> Cli.Stderr.lines
       { state with exitCode = 1 }
@@ -240,8 +240,8 @@ let help(_state: Cli.AppState): String =
     ""
     "Examples, in order (each runs as written):"
     "  dark type Me.Demo.Point '{ x: Int64, y: Int64 }'"
-    "  dark impl Me.Demo 'ToString for Point = let toString(p: Point): String = Stdlib.toString(p.x)'"
-    "  dark eval 'Stdlib.toString(Me.Demo.Point { x = 3, y = 4 })'"
+    "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
+    "  dark eval 'Stdlib.display(Me.Demo.Point { x = 3, y = 4 })'"
     ""
     "  # `+` on a type of your own:"
     "  dark type Me.Demo.Vec '{ dx: Int64, dy: Int64 }'"
@@ -249,8 +249,8 @@ let help(_state: Cli.AppState): String =
     "  dark eval 'Me.Demo.Vec { dx = 1, dy = 2 } + Me.Demo.Vec { dx = 3, dy = 4 }'"
     ""
     "  # Naming a fn that already exists, instead of writing one:"
-    "  dark fn Me.Demo.vecText '(v: Me.Demo.Vec): String = Stdlib.toString(v.dx) + \",\" + Stdlib.toString(v.dy)'"
-    "  dark impl Me.Demo 'ToString for Vec = let toString = Me.Demo.vecText'"
+    "  dark fn Me.Demo.vecText '(v: Me.Demo.Vec): String = Stdlib.display(v.dx) + \",\" + Stdlib.display(v.dy)'"
+    "  dark impl Me.Demo 'Display for Vec = let display = Me.Demo.vecText'"
     ""
     "  # Several methods, from stdin, for a trait of your own:"
     "  dark trait Me.Demo.Shape - <<'EOF'"
@@ -270,10 +270,10 @@ let help(_state: Cli.AppState): String =
     "  # Type params lead. A generic type is declared in a module:"
     "  dark module /Me.Boxes - <<'EOF'"
     "  type Box<'a> = { item: 'a }"
-    "  impl<'a: ToString> ToString for Box<'a> ="
-    "    let toString(b: Box<'a>): String = \"box of \" + Stdlib.toString(b.item)"
+    "  impl<'a: Display> Display for Box<'a> ="
+    "    let display(b: Box<'a>): String = \"box of \" + Stdlib.display(b.item)"
     "  EOF"
-    "  dark eval 'Stdlib.toString(Me.Boxes.Box { item = 7 })'"
+    "  dark eval 'Stdlib.display(Me.Boxes.Box { item = 7 })'"
     ""
   ] |> Stdlib.String.join("\n")
 

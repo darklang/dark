@@ -192,9 +192,9 @@ test parseBadFormat =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(0u64) |> Stdlib.Test.equal("0")
-      Stdlib.toString(1u64) |> Stdlib.Test.equal("1")
-      Stdlib.toString(18446744073709551615u64)
+    [ Stdlib.display(0u64) |> Stdlib.Test.equal("0")
+      Stdlib.display(1u64) |> Stdlib.Test.equal("1")
+      Stdlib.display(18446744073709551615u64)
       |> Stdlib.Test.equal("18446744073709551615") ])
 
 test fromInt8 =

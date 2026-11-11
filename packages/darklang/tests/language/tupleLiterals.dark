@@ -32,7 +32,7 @@ test elementAccess =
       (let t = (1, 2) in (t.1 + t.2)) |> Stdlib.Test.equal(3)
       (1, 2) .1 |> Stdlib.Test.equal(1)
       (let t = (1, (2, 3)) in t.2.2 |> (fun v -> v + 10)) |> Stdlib.Test.equal(13)
-      (let t = (1, 2) in $"{Stdlib.toString(t.1)}-{Stdlib.toString(t.2)}")
+      (let t = (1, 2) in $"{Stdlib.display(t.1)}-{Stdlib.display(t.2)}")
       |> Stdlib.Test.equal("1-2")
       (Stdlib.List.map([ (1, "a"), (2, "b") ], fun p -> p.2))
       |> Stdlib.Test.equal([ "a", "b" ])

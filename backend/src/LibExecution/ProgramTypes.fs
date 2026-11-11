@@ -494,7 +494,7 @@ type Expr =
 
   /// Reference a function name, _usually_ so we can _apply_ it with args
   /// A fn by name, and what this call worked out for the fn's bounds: `display 56L` records
-  /// that `display`'s `'a: ToString` is `ToString for Int64` here. Empty for everything
+  /// that `display`'s `'a: Display` is `Display for Int64` here. Empty for everything
   /// unbounded, which is nearly every call.
   ///
   /// `typeArgs` are for a reference that names its type arguments but is not called:

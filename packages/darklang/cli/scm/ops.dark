@@ -79,9 +79,9 @@ let executeList(state: AppState, limit: Int64): AppState =
       if SCM.Branch.isMain(branch) then "on main" else $"on branch {branchName}"
 
     if shown >= (total) then
-      $"{Stdlib.toString(total)} ops {where}"
+      $"{Stdlib.display(total)} ops {where}"
     else
-      $"{Stdlib.toString(total)} ops {where} - showing the {Stdlib.toString(shown)} most recent"
+      $"{Stdlib.display(total)} ops {where} - showing the {Stdlib.display(shown)} most recent"
 
   Cli.printOk(header)
 

@@ -55,11 +55,11 @@ test largePowers =
 // --- round-trips (stringify / parse / Int64 conversions) ---
 test toStringAndParse =
   Stdlib.Test.all(
-    [ Stdlib.toString(5z) |> Stdlib.Test.equal("5")
-      Stdlib.toString(-5z) |> Stdlib.Test.equal("-5")
-      Stdlib.toString(-9223372036854775809z)
+    [ Stdlib.display(5z) |> Stdlib.Test.equal("5")
+      Stdlib.display(-5z) |> Stdlib.Test.equal("-5")
+      Stdlib.display(-9223372036854775809z)
       |> Stdlib.Test.equal("-9223372036854775809")
-      Stdlib.toString(9223372036854775808z)
+      Stdlib.display(9223372036854775808z)
       |> Stdlib.Test.equal("9223372036854775808")
       Stdlib.BigInt.parse("9223372036854775808")
       |> Stdlib.Test.equal(Ok(9223372036854775808z))

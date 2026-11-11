@@ -378,7 +378,7 @@ let foldCallbackKeepsItsAccess =
           fn
             state
             "Tests.FoldAccess.run"
-            "(): String = \"fold-access-\" + Stdlib.toString(Stdlib.List.length(Stdlib.List.fold([ 1, 2, 3 ], [], fun(acc, n) -> Stdlib.List.prepend(acc, Tests.FoldAccess.stamp(n)))))"
+            "(): String = \"fold-access-\" + Stdlib.display(Stdlib.List.length(Stdlib.List.fold([ 1, 2, 3 ], [], fun(acc, n) -> Stdlib.List.prepend(acc, Tests.FoldAccess.stamp(n)))))"
         for name in [ "stamp"; "run" ] do
           do!
             run
@@ -1020,7 +1020,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version one\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)), Stdlib.Cli.UI.Node.Node.Button(\"ten\", 10) ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version one\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.display(m)), Stdlib.Cli.UI.Node.Node.Button(\"ten\", 10) ])"
 
         let view =
           "Darklang.Cli.LiveView.Model.View { name = \"live\", title = \"Live\", init = \"Tests.LiveView.init\", update = \"Tests.LiveView.update\", render = \"Tests.LiveView.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
@@ -1070,7 +1070,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version two\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version two\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.display(m)) ])"
         pushTick ()
         let! session = step session
         let! afterEdit = rowsOf session
@@ -1106,7 +1106,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version three\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m)) ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.text(\"version three\"), Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.display(m)) ])"
         pushTick ()
         let! session = step session
         let! afterFix = rowsOf session
@@ -1180,7 +1180,7 @@ let private modelSavesAndResumes =
       do!
         author
           "Tests.LiveSave.render"
-          "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.toString(m))"
+          "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"keys: \" + Stdlib.display(m))"
 
       let view =
         "Darklang.Cli.LiveView.Model.View { name = \"s\", title = \"S\", init = \"Tests.LiveSave.init\", update = \"Tests.LiveSave.update\", render = \"Tests.LiveSave.render\", every = Stdlib.Option.Option.None, keys = Stdlib.Option.Option.None }"
@@ -1457,7 +1457,7 @@ let private devErrorPageCarriesTheListener =
         do!
           author
             "Tests.LiveDev.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Stdlib.toString(1 / 0))"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Stdlib.display(1 / 0))"
         do!
           withLiveServer
             state
@@ -1540,7 +1540,7 @@ let private pipeStageValuesStayOutsideTheirDelimiters =
         do!
           author
             "Tests.PipeVals.asArg"
-            "(xs: List<Int64>): String =\n  Stdlib.toString(xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length)"
+            "(xs: List<Int64>): String =\n  Stdlib.display(xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length)"
         do!
           author
             "Tests.PipeVals.inTuple"
@@ -1766,7 +1766,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold(\"Obs\"), Stdlib.Cli.UI.Node.table([ \"k\", \"v\" ], [ [ \"count\", Stdlib.toString(m) ] ]), Stdlib.Cli.UI.Node.row([ Stdlib.Cli.UI.Node.text(\"a\"), Stdlib.Cli.UI.Node.Node.Button(\"go\", 1) ]), Stdlib.Cli.UI.Node.band(Stdlib.Cli.UI.Node.Severity.Error, \"boom\") ])"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold(\"Obs\"), Stdlib.Cli.UI.Node.table([ \"k\", \"v\" ], [ [ \"count\", Stdlib.display(m) ] ]), Stdlib.Cli.UI.Node.row([ Stdlib.Cli.UI.Node.text(\"a\"), Stdlib.Cli.UI.Node.Node.Button(\"go\", 1) ]), Stdlib.Cli.UI.Node.band(Stdlib.Cli.UI.Node.Severity.Error, \"boom\") ])"
 
         let! first = observe ()
         let (hasReport, rte, render) = unpack first
@@ -1795,7 +1795,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(Stdlib.toString(m / 0))"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(Stdlib.display(m / 0))"
         let! raised = observe ()
         let (hasReport, rte, render) = unpack raised
         Expect.isFalse hasReport "this version passes its checks"
@@ -1844,7 +1844,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"count \" + Stdlib.toString(m))"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text(\"count \" + Stdlib.display(m))"
         let! _ = evalUnder state $"Darklang.LanguageTools.Live.show({viewLoc})"
         let! shown = evalUnder state "Darklang.LanguageTools.Live.shown()"
         match shown with

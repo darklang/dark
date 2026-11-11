@@ -308,7 +308,7 @@ let callJson(branchId: Uuid, call: Darklang.Tracing.FnCall): CallJson =
         |> Stdlib.List.map(fun a -> Darklang.Tracing.Format.compactDval(branchId, a))
       result = Darklang.Tracing.Format.compactDval(branchId, call.result)
       durationMs = call.durationMs
-      process = call.processId |> Stdlib.Option.map(fun p -> Stdlib.toString(p)) }
+      process = call.processId |> Stdlib.Option.map(fun p -> Stdlib.display(p)) }
 
 
 /// A list of traces, as JSON. Every listing verb prints through this.
@@ -498,7 +498,7 @@ let printCalls(branchId: Uuid, typed: String): Unit =
       |> Stdlib.List.map(fun e ->
         let (calls, time) =
           match timeInFor(costs, e.id) with
-          | Some(c) -> (Stdlib.toString(c.calls), microsText(c.totalUs))
+          | Some(c) -> (Stdlib.display(c.calls), microsText(c.totalUs))
           | None -> ("", "")
 
         Stdlib.List.flatten([ row(width, e), [ calls, time ] ])))
@@ -523,12 +523,12 @@ let microsText(us: Int64): String =
   let tenths(n: Int64, unit: String): String =
     let whole = n / 10
     let frac = n - whole * 10
-    $"{Stdlib.toString(whole)}.{Stdlib.toString(frac)} {unit}"
+    $"{Stdlib.display(whole)}.{Stdlib.display(frac)} {unit}"
 
   if us <= 0 then ""
-  else if us < 1000 then $"{Stdlib.toString(us)} µs"
+  else if us < 1000 then $"{Stdlib.display(us)} µs"
   else if us < 10000 then tenths(us / 100, "ms")
-  else if us < 1000000 then $"{Stdlib.toString(us / 1000)} ms"
+  else if us < 1000000 then $"{Stdlib.display(us / 1000)} ms"
   else tenths(us / 100000, "s")
 
 
@@ -652,7 +652,7 @@ let showCodeJson(
       collected
       |> Stdlib.List.map(fun pair ->
         let (id, dv) = pair
-        (Stdlib.toString(id), Darklang.Tracing.Format.compactDvalTo(branchId, budget, dv)))
+        (Stdlib.display(id), Darklang.Tracing.Format.compactDvalTo(branchId, budget, dv)))
       |> Stdlib.Dict.fromEntries
 
     // Which frames carry anything. Built once for the whole trace, not once per loop.
@@ -689,11 +689,11 @@ let showCodeJson(
               |> Stdlib.List.map(fun row ->
                 let (_, exprId, dv) = row
 
-                (Stdlib.toString(exprId),
+                (Stdlib.display(exprId),
                  Darklang.Tracing.Format.compactDvalTo(branchId, budget, dv)))
               |> Stdlib.Dict.fromEntries
 
-            let p = Stdlib.toString(i + 1)
+            let p = Stdlib.display(i + 1)
 
             LoopIterationJson
               { at = i + 1
@@ -817,7 +817,7 @@ let loopsOf(
   let siteIsOurs =
     lambdaFrames
     |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, f) ->
-      let k = Stdlib.toString(f.callSite)
+      let k = Stdlib.display(f.callSite)
 
       if (Stdlib.Dict.get(acc, k)) != Stdlib.Option.Option.None then
         acc
@@ -830,7 +830,7 @@ let loopsOf(
   let lambdas =
     lambdaFrames
     |> Stdlib.List.filter(fun f ->
-      Stdlib.Dict.get(siteIsOurs, Stdlib.toString(f.callSite))
+      Stdlib.Dict.get(siteIsOurs, Stdlib.display(f.callSite))
       |> Stdlib.Option.withDefault(false))
 
   // Every frame by id, built once. `ownerOf` below is called per lambda and used to scan the
@@ -881,11 +881,11 @@ let loopsOf(
       (frames
        |> Stdlib.List.filter(fun f -> (f.kind == "function") && (f.callee == selfHash))
        |> Stdlib.List.map(fun f ->
-         (Stdlib.toString(f.callSite), selfName, selfHash, f))),
+         (Stdlib.display(f.callSite), selfName, selfHash, f))),
       (lambdas
        |> Stdlib.List.map(fun f ->
          let (nm, hash) = ownerOf(f.parent)
-         (Stdlib.toString(f.callSite), nm, hash, f))))
+         (Stdlib.display(f.callSite), nm, hash, f))))
 
   // Grouped in ONE pass. Scanning `sited` once per site is sites times iterations, and `sited`
   // holds a frame per iteration, so a 2000-iteration loop re-walked 2000 frames for every site
@@ -952,7 +952,7 @@ let loopsOf(
         (l.name == nm) || (Stdlib.String.startsWith(l.name, $"{nm}#")))
       |> Stdlib.List.length
 
-    let name = if seen == 0 then nm else $"{nm}#{Stdlib.toString(seen + 1)}"
+    let name = if seen == 0 then nm else $"{nm}#{Stdlib.display(seen + 1)}"
 
     Stdlib.List.append(
       acc,
@@ -1065,7 +1065,7 @@ let valuesOfFrame(
       (Stdlib.Dict.get(loopFrames, fid)) != Stdlib.Option.Option.None)
     |> Stdlib.List.map(fun row ->
       let (_, exprId, _) = row
-      Stdlib.toString(exprId))
+      Stdlib.display(exprId))
 
   let mine =
     frameValues
@@ -1075,7 +1075,7 @@ let valuesOfFrame(
     |> Stdlib.List.map(fun row ->
       let (_, exprId, dv) = row
 
-      (Stdlib.toString(exprId),
+      (Stdlib.display(exprId),
        PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, dv)))
 
   // Clear the loop's own lines BEFORE laying the chosen iteration over them.
@@ -1206,7 +1206,7 @@ let showCode(
         let positionOf(loop: Loop, frame: Darklang.Tracing.Store.ViewFrame): String =
           loop.iterations
           |> Stdlib.List.findFirstIndex(fun f -> f.id == frame.id)
-          |> Stdlib.Option.map(fun i -> Stdlib.toString(i + 1))
+          |> Stdlib.Option.map(fun i -> Stdlib.display(i + 1))
           |> Stdlib.Option.withDefault("1")
 
         let chosenOf(loop: Loop) = chosenIteration(requested, loop)
@@ -1280,7 +1280,7 @@ let showCode(
 
           { state with exitCode = 1 }
         | (_, [loop, ...]) ->
-          let n = Stdlib.toString(Stdlib.List.length(loop.iterations))
+          let n = Stdlib.display(Stdlib.List.length(loop.iterations))
           Cli.printErr($"`{loop.name}` ran {n} times, so that iteration does not exist")
           { state with exitCode = 1 }
         | _ ->
@@ -1288,7 +1288,7 @@ let showCode(
             collected
             |> Stdlib.List.map(fun pair ->
               let (id, dv) = pair
-              (Stdlib.toString(id), PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, dv)))
+              (Stdlib.display(id), PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, dv)))
             |> Stdlib.Dict.fromEntries
 
           // A chosen iteration replaces the values on the lines inside that loop.
@@ -1393,16 +1393,16 @@ let showCode(
               // stopped early has fewer iterations than happened, and reporting its count would say
               // "iteration 2 of 2" about a loop that went round seven times.
               let total = if loop.recorded > reached then loop.recorded else reached
-              let n = Stdlib.toString(total)
+              let n = Stdlib.display(total)
 
               let p =
                 match chosenOf(loop) with
-                | None -> Stdlib.toString(reached)
+                | None -> Stdlib.display(reached)
                 | Some(frame) -> positionOf(loop, frame)
 
               let short =
                 if total > reached then
-                  $", the view only reached {Stdlib.toString(reached)}"
+                  $", the view only reached {Stdlib.display(reached)}"
                 else
                   ""
 
@@ -1426,7 +1426,7 @@ let showCode(
                     |> Stdlib.List.filter(fun f -> frameHasValues(frameValues, f.id))
                     |> Stdlib.List.length
 
-                  let kept = Stdlib.toString(withValues)
+                  let kept = Stdlib.display(withValues)
 
                   Stdlib.printLine(
                     (Stdlib.Cli.UI.Colors.dimText(

@@ -130,6 +130,9 @@ let wordSynonyms(word: String): List<String> =
   | "concat" -> [ "join", "append" ]
   | "concatenate" -> [ "join", "append" ]
   | "replace" -> [ "replaceAll" ]
+  | "tostring" -> [ "display" ]
+  | "torepr" -> [ "inspect" ]
+  | "repr" -> [ "inspect" ]
   | _ -> []
 
 
@@ -258,7 +261,7 @@ let tier(owner: String, modules: List<String>): String =
 let usageKey(uses: Dict<String, Int64>, path: String): String =
   let n = Stdlib.Option.withDefault(Stdlib.Dict.get(uses, path), 0)
   let capped = if n > 999999 then 999999 else n
-  Stdlib.String.padStart(Stdlib.toString(999999 - capped), '0', 6)
+  Stdlib.String.padStart(Stdlib.display(999999 - capped), '0', 6)
 
 
 // Sort key: match quality first, then whether the module is named by the query,
@@ -271,8 +274,8 @@ let rankKey(
   modules: List<String>,
   name: String)
   : String =
-  let mr = Stdlib.toString(rankName(ranker, name))
-  let mh = Stdlib.toString(moduleHit(ranker, modules, name))
+  let mr = Stdlib.display(rankName(ranker, name))
+  let mh = Stdlib.display(moduleHit(ranker, modules, name))
   let path =
     [ [owner], modules, [name] ]
     |> Stdlib.List.flatten
@@ -572,7 +575,7 @@ let nearNames(word: String, names: List<String>): List<String> =
       Stdlib.Option.Option.Some((d, n))
     else
       Stdlib.Option.Option.None)
-  |> Stdlib.List.sortBy(fun((d, n)) -> $"{Stdlib.toString(d)}{n}")
+  |> Stdlib.List.sortBy(fun((d, n)) -> $"{Stdlib.display(d)}{n}")
   |> Stdlib.List.map(fun((_, n)) -> n)
   |> Stdlib.List.take(3)
 
@@ -657,7 +660,7 @@ let nothingFoundLines(found: NothingFound): List<String> =
     | counts ->
       let each =
         counts
-        |> Stdlib.List.map(fun((w, n)) -> $"`search {w}` finds {Stdlib.toString(n)}")
+        |> Stdlib.List.map(fun((w, n)) -> $"`search {w}` finds {Stdlib.display(n)}")
         |> Stdlib.String.join(", ")
       [ $"  No item matches every word. One word at a time: {each}" ]
 
@@ -701,7 +704,7 @@ let overflowNote(total: Int64, shown: Int64): Unit =
   if extra > 0 then
     Stdlib.printErrorLine((
       Stdlib.Cli.UI.Colors.hint(
-        $"  ... and {Stdlib.toString(extra)} more (narrow with --exact or `nav` into a module)")))
+        $"  ... and {Stdlib.display(extra)} more (narrow with --exact or `nav` into a module)")))
   else
     ()
 
@@ -941,7 +944,7 @@ let hiddenTestsHint(count: Int64): Unit =
     let noun = if count == 1 then "test" else "tests"
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
-        $"  ({Stdlib.toString(count)} {noun} matched; --include-tests shows them)")))
+        $"  ({Stdlib.display(count)} {noun} matched; --include-tests shows them)")))
   else
     ()
 
@@ -952,7 +955,7 @@ let hiddenHelpersHint(count: Int64): Unit =
     let noun = if count == 1 then "test helper" else "test helpers"
     Stdlib.printErrorLine(
       (Stdlib.Cli.UI.Colors.hint(
-        $"  ({Stdlib.toString(count)} {noun} matched; --include-tests shows them)")))
+        $"  ({Stdlib.display(count)} {noun} matched; --include-tests shows them)")))
   else
     ()
 
@@ -1136,8 +1139,8 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
 
         // An implementation is one result. Its method fns live under it and its path reads as a
         // module, so without this each one was listed three times. A method matches on its own
-        // name even when its impl does not (`search Int64.toString` matched
-        // `Json.ParseError.ToString.toString`), so every impl below the search is looked at.
+        // name even when its impl does not (`search Int64.display` matched
+        // `Json.ParseError.Display.display`), so every impl below the search is looked at.
         let implPaths =
           Query.implsBelow(state.currentBranchId, currentModule)
           |> Stdlib.List.map(fun i ->
@@ -1280,7 +1283,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
           // usual discovery target, so they sort last - a wall of namespace
           // matches shouldn't precede an equally-ranked fn/type/value hit.
           let moduleKey =
-            Stdlib.String.padEnd($"{Stdlib.toString(moduleRank)}1", '9', rankKeyHead)
+            Stdlib.String.padEnd($"{Stdlib.display(moduleRank)}1", '9', rankKeyHead)
           let sectionKeys =
             [ ($"{moduleKey}4", "module")
               ($"{bestItemKey(ranker, results.types)}1", "type")
@@ -1327,7 +1330,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
               renderSection("impl", ranker, resultCap, results.impls, fun item ->
                 let mark = Query.deprecationMarker(depSets, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
-                // The call first, as it is written (`a % b`, `Stdlib.toString(v)`): the impl's own
+                // The call first, as it is written (`a % b`, `Stdlib.display(v)`): the impl's own
                 // path is never where a call goes, so it comes after.
                 let header =
                   $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName(ctx, item.entity.trait_)} for {PrettyPrinter.ProgramTypes.typeReference(ctx, item.entity.self)}, at {fullPathOf(item)}"

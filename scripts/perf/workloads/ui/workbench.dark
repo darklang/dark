@@ -72,7 +72,7 @@ let screen = Screen { state = home, terminal = first.state, bytes = Stdlib.Strin
 let n = iters()
 
 if n == 0 then
-  Stdlib.printLine("first frame " + (Stdlib.toString(screen.bytes)) + " bytes")
+  Stdlib.printLine("first frame " + (Stdlib.display(screen.bytes)) + " bytes")
 else
   let code = press(screen, Stdlib.Cli.Stdin.Key.Key.D2, Stdlib.Option.Option.Some("2"))
   let list = openItem(openItem(openItem(code, "Darklang"), "Stdlib"), "List")
@@ -88,4 +88,4 @@ else
     let t0 = Darklang.Cli.Telemetry.now()
     let bytes = pressN(atMap, n, 0)
     let t1 = Darklang.Cli.Telemetry.now()
-    Stdlib.printLine("elapsed_ms=" + (Stdlib.toString(t1 - t0)) + " keys=" + (Stdlib.toString(n)) + " bytes=" + (Stdlib.toString(bytes)))
+    Stdlib.printLine("elapsed_ms=" + (Stdlib.display(t1 - t0)) + " keys=" + (Stdlib.display(n)) + " bytes=" + (Stdlib.display(bytes)))

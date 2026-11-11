@@ -134,7 +134,7 @@ test recordsAndEnums =
             [ intValue(1) ])))
        with
        | Ok(EEnum(_, _, _, caseName, fields)) ->
-         caseName + "/" + (Stdlib.toString(Stdlib.List.length(fields)))
+         caseName + "/" + (Stdlib.display(Stdlib.List.length(fields)))
        | _ -> "FAIL")
       |> Stdlib.Test.equal("Some/1")
       (match

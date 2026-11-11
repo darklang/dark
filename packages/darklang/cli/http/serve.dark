@@ -113,8 +113,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         printUsage()
         { state with exitCode = 1 }
       else
-        let portStr = Stdlib.toString(parsed.port)
-        let maxBytesStr = Stdlib.toString(parsed.maxBodyBytes)
+        let portStr = Stdlib.display(parsed.port)
+        let maxBytesStr = Stdlib.display(parsed.maxBodyBytes)
 
         let baseConfig = Stdlib.HttpServer.Config.defaults(parsed.port)
 
@@ -146,7 +146,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 if (offset < 0) || (offset > 9) || (hostBase == 9090) then
                   []
                 else
-                  let hostStr = Stdlib.toString(hostBase + offset)
+                  let hostStr = Stdlib.display(hostBase + offset)
                   [ Stdlib.Cli.UI.Colors.hint($"  From the host: http://localhost:{hostStr}") ]
 
           let announce(): Unit =

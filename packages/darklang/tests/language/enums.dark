@@ -156,7 +156,7 @@ module MixedCases =
            match v with
            | X(s) -> "X " + s
            | Z(s, _i) -> "Z " + s
-           | Y(y) -> "Y " + (Stdlib.toString(y))
+           | Y(y) -> "Y " + (Stdlib.display(y))
            | W -> "a simple W"))
         |> Stdlib.Test.equal([ "a simple W", "X testX", "Y 5", "Z testZ" ]) ])
 

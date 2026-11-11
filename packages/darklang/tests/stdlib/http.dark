@@ -261,7 +261,7 @@ test statusFromInt64 =
       (Stdlib.Http.Status.fromInt64(599)) |> Stdlib.Result.map(Stdlib.Http.Status.toInt64)
       |> Stdlib.Test.equal(Ok(599))
       Stdlib.Http.Status.fromInt64(99)
-      |> Stdlib.Result.mapError(Stdlib.toString)
+      |> Stdlib.Result.mapError(Stdlib.display)
       |> Stdlib.Test.equal(Error("99 is not a valid HTTP status (100 to 599)"))
       Stdlib.Http.Status.fromInt64(600) |> Stdlib.Result.isError |> Stdlib.Test.equal(true) ])
 
@@ -273,7 +273,7 @@ test statusNamed =
       Stdlib.Http.Status.toInt64(Stdlib.Http.Status.tooManyRequests) |> Stdlib.Test.equal(429)
       Stdlib.Http.Status.toInt64(Stdlib.Http.Status.internalServerError)
       |> Stdlib.Test.equal(500)
-      Stdlib.toString(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("404") ])
+      Stdlib.display(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("404") ])
 
 test statusClasses =
   Stdlib.Test.all(

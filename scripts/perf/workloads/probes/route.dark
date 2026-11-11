@@ -52,13 +52,13 @@ let elapsed = (Darklang.Cli.Telemetry.now()) - t0
 
 let _ =
   Stdlib.printLine(
-    ((Stdlib.toString(iterations))
+    ((Stdlib.display(iterations))
      + " routes, "
-     + (Stdlib.toString(elapsed))
+     + (Stdlib.display(elapsed))
      + " ms, "
-     + (Stdlib.toString((elapsed * 1000) / iterations))
+     + (Stdlib.display((elapsed * 1000) / iterations))
      + " us each (checksum "
-     + (Stdlib.toString(total))
+     + (Stdlib.display(total))
      + ")"))
 
 // Per-fn profile, over fifty routes. Last, because enabling detailed timing perturbs what follows.

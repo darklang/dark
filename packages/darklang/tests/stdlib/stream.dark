@@ -116,7 +116,7 @@ test filterMapTakeSpec =
 // map can change the element type
 test mapChangesElementType =
   let s = Stdlib.Stream.fromList([ 1, 2, 3 ])
-  let mapped = Stdlib.Stream.map(s, fun n -> Stdlib.toString(n))
+  let mapped = Stdlib.Stream.map(s, fun n -> Stdlib.display(n))
   Stdlib.Stream.toList(mapped) |> Stdlib.Test.equal([ "1", "2", "3" ])
 
 // take after map — the take limit applies to the mapped output

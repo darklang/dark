@@ -405,13 +405,13 @@ test invalidInputs =
 
 test errorMessages =
   Stdlib.Test.all(
-    [ Stdlib.toString(Stdlib.Url.ParseError.MissingScheme)
+    [ Stdlib.display(Stdlib.Url.ParseError.MissingScheme)
       |> Stdlib.Test.equal("The URL has no scheme (such as https:) at the front")
-      Stdlib.toString(Stdlib.Url.ParseError.InvalidPort("65536"))
+      Stdlib.display(Stdlib.Url.ParseError.InvalidPort("65536"))
       |> Stdlib.Test.equal("'65536' is not a valid port (0-65535)")
-      Stdlib.toString(Stdlib.Url.ParseError.InvalidCharacter("path", " "))
+      Stdlib.display(Stdlib.Url.ParseError.InvalidCharacter("path", " "))
       |> Stdlib.Test.equal("' ' is not allowed in a URL's path; percent-encode it")
-      Stdlib.toString(Stdlib.Url.ParseError.InvalidPercentEncoding("query"))
+      Stdlib.display(Stdlib.Url.ParseError.InvalidPercentEncoding("query"))
       |> Stdlib.Test.equal(
         "The query has a '%' that is not followed by two hex digits") ])
 
@@ -488,9 +488,9 @@ test toStringOfBuiltRecord =
           fragment = None }
       |> Stdlib.Url.toString
       |> Stdlib.Test.equal("mailto:a@b.com")
-      // The ToString trait reaches the same function.
+      // The Display trait reaches the same function.
       Stdlib.Url.parse("http://x/y")
-      |> Stdlib.Result.map(fun u -> Stdlib.toString(u))
+      |> Stdlib.Result.map(fun u -> Stdlib.display(u))
       |> Stdlib.Test.equal(Ok("http://x/y")) ])
 
 test queryParams =

@@ -9,7 +9,7 @@ let reportConflicts(conflicts: List<SCM.Conflicts.Conflict>): Unit =
   match conflicts with
   | [] -> ()
   | cs ->
-    let n = Stdlib.toString(Stdlib.List.length(cs))
+    let n = Stdlib.display(Stdlib.List.length(cs))
 
     // "conflict(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
     Cli.printOk(
@@ -24,7 +24,7 @@ let reportRepointed(names: List<String>): Unit =
   match names with
   | [] -> ()
   | names ->
-    let n = Stdlib.toString(Stdlib.List.length(names))
+    let n = Stdlib.display(Stdlib.List.length(names))
     let listed = Stdlib.String.join(names, "\n  ")
     Cli.printOk($"{n} caller(s) on the branch now point at the parent's version:\n  {listed}")
 
@@ -186,7 +186,7 @@ let executeMerge(
     | Ok(outcome) ->
       // "Merged N op(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
       Cli.printOk(
-        $"Merged {Stdlib.toString(outcome.merged)} op(s) from branch \"{branchRef}\" into its parent.")
+        $"Merged {Stdlib.display(outcome.merged)} op(s) from branch \"{branchRef}\" into its parent.")
 
       reportRepointed(outcome.repointed)
       reportConflicts(outcome.conflicts)

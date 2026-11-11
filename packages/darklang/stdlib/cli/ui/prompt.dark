@@ -42,7 +42,7 @@ let select(
     let _ =
       choices
       |> Stdlib.List.indexedMap(fun(i, choice) ->
-        Stdlib.printErrorLine($"  {Stdlib.Cli.UI.Colors.boldText(Stdlib.toString(i + 1))}. {choice}"))
+        Stdlib.printErrorLine($"  {Stdlib.Cli.UI.Colors.boldText(Stdlib.display(i + 1))}. {choice}"))
     Stdlib.printError("Enter number: ")
     match Stdlib.Cli.Stdin.readLineOrEnd() with
     | None -> Stdlib.Option.Option.None

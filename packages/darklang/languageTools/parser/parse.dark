@@ -36,7 +36,7 @@ module ParseError =
   /// the parser messages and the CLI diagnostics.
   let diagnosticToString(diagnostic: (Parser.Range * String)): String =
     let (range, message) = diagnostic
-    $"Parse error at line {Stdlib.toString(range.start.row + 1)}, column {Stdlib.toString(range.start.column + 1)}: {message}"
+    $"Parse error at line {Stdlib.display(range.start.row + 1)}, column {Stdlib.display(range.start.column + 1)}: {message}"
 
   let toString(err: ParseError): String =
     match err with
@@ -46,7 +46,7 @@ module ParseError =
       |> Stdlib.String.join("\n")
     | NoTree -> "Couldn't parse the source at all"
     | NotOneExpression(count) ->
-      $"Expected exactly one expression, but found {Stdlib.toString(count)}"
+      $"Expected exactly one expression, but found {Stdlib.display(count)}"
 
 
 /// The range-complete parser's tree for <param code>, or why not. Every consumer of this fn

@@ -129,7 +129,7 @@ let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
         Stdlib.Result.Result.Ok()
       else
         Stdlib.Result.Result.Error(
-          $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim(errorLine)}, exit {Stdlib.toString(result.exitCode)}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues")
+          $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim(errorLine)}, exit {Stdlib.display(result.exitCode)}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues")
 
 
 /// Download <param download>, check it, and put the binary it holds at <param target>.

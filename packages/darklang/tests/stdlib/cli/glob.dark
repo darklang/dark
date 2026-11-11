@@ -101,7 +101,7 @@ let globCase(pattern: String, text: String, pathname: Bool, expected: Bool): Std
   let actual = Stdlib.Cli.File.__globMatches(pattern, text, pathname)
   Stdlib.Test.expect(
     actual == expected,
-    $"__globMatches({Stdlib.toRepr(pattern)}, {Stdlib.toRepr(text)}, pathname={Stdlib.toString(pathname)}): expected {Stdlib.toString(expected)}")
+    $"__globMatches({Stdlib.inspect(pattern)}, {Stdlib.inspect(text)}, pathname={Stdlib.display(pathname)}): expected {Stdlib.display(expected)}")
 
 // __globMatches: POSIX glob semantics, independent of libc availability.
 test globSemantics =

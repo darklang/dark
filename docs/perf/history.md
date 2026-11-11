@@ -672,11 +672,11 @@ change, not a number the tree earned down. It was Stachu's call, made knowing th
 reason is here so the next person to meet a 10% step finds one.
 
 What changed: the sixteen per-type `toString` fns (`Stdlib.Int.toString` and its siblings) are
-gone, each type's `ToString` impl carries the function itself, and 829 call sites now say
-`Stdlib.toString`. The codebase is 46 lines shorter for it.
+gone, each type's `Display` impl carries the function itself, and 829 call sites now say
+`Stdlib.display`. The codebase is 46 lines shorter for it.
 
 Where the cost is, because it is not where you would look first: NOT run-time dispatch.
-`traitDispatches` reads 1 on the reference workload, the same as before. `Stdlib.toString v` is a
+`traitDispatches` reads 1 on the reference workload, the same as before. `Stdlib.display v` is a
 call into a BOUNDED GENERIC, so each of those 829 call sites now carries the bound-impl metadata
 that makes a bounded call static, and all of it deserializes at startup. `Stdlib.Int.toString v`
 was a plain call and carried none. So the step is load-time, it scales with the number of call

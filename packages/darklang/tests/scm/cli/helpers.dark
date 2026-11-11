@@ -59,7 +59,7 @@ let run(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): Stdlib.Test.Re
   if code == 0 then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"`{shown(args)}` exited {Stdlib.toString(code)}: {said}")
+    Stdlib.Test.fail($"`{shown(args)}` exited {Stdlib.display(code)}: {said}")
 
 /// `dark fn <name> <body>`: save a function.
 let save(dark: Darklang.Cli.Tests.Instance.T, name: String, body: String): Stdlib.Test.Result =
@@ -117,7 +117,7 @@ let says(
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"{why}: `{shown(args)}` should say '{needle}'. It said (exit {Stdlib.toString(code)}): {said}")
+      $"{why}: `{shown(args)}` should say '{needle}'. It said (exit {Stdlib.display(code)}): {said}")
 
 /// `dark <args>` prints something, and it does not include <param needle>.
 let doesNotSay(
@@ -167,7 +167,7 @@ let evalsWith(
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"{why}: `{shown(args)}` should print {expected}. It said (exit {Stdlib.toString(code)}): {said}")
+      $"{why}: `{shown(args)}` should print {expected}. It said (exit {Stdlib.display(code)}): {said}")
 
 /// `dark eval <expr>` prints exactly <param expected>, on the branch you are on.
 let evals(
@@ -201,7 +201,7 @@ let notFoundWith(
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"{why}: `{shown(args)}` should say the name is not found. It said (exit {Stdlib.toString(code)}): {said}")
+      $"{why}: `{shown(args)}` should say the name is not found. It said (exit {Stdlib.display(code)}): {said}")
 
 /// `dark eval <expr>` fails because a name in it does not exist on the branch you are on.
 let notFound(dark: Darklang.Cli.Tests.Instance.T, expr: String, why: String): Stdlib.Test.Result =
@@ -221,7 +221,7 @@ let same(actual: 'a, expected: 'a, why: String): Stdlib.Test.Result =
   if actual == expected then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"{why}: expected {Stdlib.toRepr(expected)}, got {Stdlib.toRepr(actual)}")
+    Stdlib.Test.fail($"{why}: expected {Stdlib.inspect(expected)}, got {Stdlib.inspect(actual)}")
 
 /// A bug we know about. <param shouldBe> checks what SHOULD happen, so it fails today and this
 /// passes. When the bug is fixed, <param shouldBe> passes and this fails, asking for the wrapper

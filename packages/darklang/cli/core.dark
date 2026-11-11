@@ -355,7 +355,7 @@ module ExecutionError =
       let hidden = inside - 1
       let calls = if hidden == 1 then "call" else "calls"
       PrettyPrinter.RuntimeTypes.callStack(branchId, Stdlib.List.take(frames, kept))
-      + $"\n  ({Stdlib.toString(hidden)} {calls} inside it)"
+      + $"\n  ({Stdlib.display(hidden)} {calls} inside it)"
 
 
 module View =

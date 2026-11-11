@@ -254,11 +254,11 @@ let toBits(a: Float32): UInt32 = Builtin.float32ToBits(a)
 let fromBits(bits: UInt32): Float32 = Builtin.float32FromBits(bits)
 
 
-impl ToString for Float32 =
+impl Display for Float32 =
   /// Stringify <param a> as the shortest decimal that parses back to the same
   /// Float32, e.g. `0.1` for `0.1f32` (where the widened Float says
   /// `0.10000000149011612`), `1e+16`, `1e-5`.
-  let toString(a: Float32): String = Builtin.float32ToString(a)
+  let display(a: Float32): String = Builtin.float32ToString(a)
 
 
 impl Zero for Float32 =

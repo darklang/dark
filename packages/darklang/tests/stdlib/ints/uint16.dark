@@ -95,12 +95,12 @@ test lessThan =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(120u16) |> Stdlib.Test.equal("120")
-      Stdlib.toString(1u16) |> Stdlib.Test.equal("1")
+    [ Stdlib.display(120u16) |> Stdlib.Test.equal("120")
+      Stdlib.display(1u16) |> Stdlib.Test.equal("1")
       // UInt16 lower limit
-      Stdlib.toString(0u16) |> Stdlib.Test.equal("0")
+      Stdlib.display(0u16) |> Stdlib.Test.equal("0")
       // UInt16 upper limit
-      Stdlib.toString(65535u16) |> Stdlib.Test.equal("65535") ])
+      Stdlib.display(65535u16) |> Stdlib.Test.equal("65535") ])
 
 test toFloat =
   Stdlib.Test.all(

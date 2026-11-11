@@ -92,18 +92,18 @@ test clampRefusingNaN =
 
 test toString =
   Stdlib.Test.all(
-    [ Stdlib.toString(1.5f32) |> Stdlib.Test.equal("1.5")
-      Stdlib.toString(0.1f32) |> Stdlib.Test.equal("0.1")
-      Stdlib.toString(0.0f32) |> Stdlib.Test.equal("0.0")
-      Stdlib.toString(-0.0f32) |> Stdlib.Test.equal("-0.0")
-      Stdlib.toString(16777216.0f32) |> Stdlib.Test.equal("16777216.0")
-      Stdlib.toString(1e16f32) |> Stdlib.Test.equal("1e+16")
-      Stdlib.toString(1e-5f32) |> Stdlib.Test.equal("1e-5")
-      Stdlib.toString(3.4028235e38f32) |> Stdlib.Test.equal("3.4028235e+38")
-      Stdlib.toString(Stdlib.Float32.fromBits(1u32)) |> Stdlib.Test.equal("1e-45")
-      Stdlib.toString(nan()) |> Stdlib.Test.equal("NaN")
-      Stdlib.toString(infinity()) |> Stdlib.Test.equal("Infinity")
-      Stdlib.toString(negativeInfinity()) |> Stdlib.Test.equal("-Infinity") ])
+    [ Stdlib.display(1.5f32) |> Stdlib.Test.equal("1.5")
+      Stdlib.display(0.1f32) |> Stdlib.Test.equal("0.1")
+      Stdlib.display(0.0f32) |> Stdlib.Test.equal("0.0")
+      Stdlib.display(-0.0f32) |> Stdlib.Test.equal("-0.0")
+      Stdlib.display(16777216.0f32) |> Stdlib.Test.equal("16777216.0")
+      Stdlib.display(1e16f32) |> Stdlib.Test.equal("1e+16")
+      Stdlib.display(1e-5f32) |> Stdlib.Test.equal("1e-5")
+      Stdlib.display(3.4028235e38f32) |> Stdlib.Test.equal("3.4028235e+38")
+      Stdlib.display(Stdlib.Float32.fromBits(1u32)) |> Stdlib.Test.equal("1e-45")
+      Stdlib.display(nan()) |> Stdlib.Test.equal("NaN")
+      Stdlib.display(infinity()) |> Stdlib.Test.equal("Infinity")
+      Stdlib.display(negativeInfinity()) |> Stdlib.Test.equal("-Infinity") ])
 
 test toStringRoundTripsAcrossTheRange =
   let failures =
@@ -111,7 +111,7 @@ test toStringRoundTripsAcrossTheRange =
     |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(isNaNBits(b)))
     |> Stdlib.List.filter(fun b ->
       let f = Stdlib.Float32.fromBits(b)
-      match Stdlib.Float32.parse(Stdlib.toString(f)) with
+      match Stdlib.Float32.parse(Stdlib.display(f)) with
       | Ok(back) -> Stdlib.Float32.toBits(back) != b
       | Error(_) -> true)
   failures |> Stdlib.Test.equal([])
@@ -216,8 +216,8 @@ test precisionLoss =
       Stdlib.Float32.fromFloat(16777217.0) |> Stdlib.Test.equal(16777216.0f32)
       (Stdlib.Float32.toFloat(0.1f32) == 0.1) |> Stdlib.Test.equal(false)
       // about 7 significant digits survive
-      Stdlib.toString(Stdlib.Float32.fromFloat(1.23456789)) |> Stdlib.Test.equal("1.2345679")
-      Stdlib.toString(Stdlib.Float32.fromFloat(0.1 + 0.2)) |> Stdlib.Test.equal("0.3")
+      Stdlib.display(Stdlib.Float32.fromFloat(1.23456789)) |> Stdlib.Test.equal("1.2345679")
+      Stdlib.display(Stdlib.Float32.fromFloat(0.1 + 0.2)) |> Stdlib.Test.equal("0.3")
       // a small addend vanishes against a large one
       (1e8f32 + 1.0f32) |> Stdlib.Test.equal(1e8f32)
       // the smallest subnormal, halved, is zero

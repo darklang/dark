@@ -18,6 +18,6 @@ let parse(uuid: String): Stdlib.Result.Result<Uuid, Stdlib.Uuid.ParseError> =
   Builtin.uuidParse(uuid)
 
 
-impl ToString for Uuid =
+impl Display for Uuid =
   /// Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-  let toString(uuid: Uuid): String = Builtin.uuidToString(uuid)
+  let display(uuid: Uuid): String = Builtin.uuidToString(uuid)

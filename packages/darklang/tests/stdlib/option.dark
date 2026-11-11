@@ -1,15 +1,14 @@
 module Darklang.Stdlib.Option.Tests
 
-test toString =
+test display =
   Stdlib.Test.all(
-    [ Stdlib.toString(Some(3)) |> Stdlib.Test.equal("Some(3)")
-      Stdlib.toString<Option<Int64>>(None) |> Stdlib.Test.equal("None")
+    [ Stdlib.display(Some(3)) |> Stdlib.Test.equal("Some(3)")
+      Stdlib.display<Option<Int64>>(None) |> Stdlib.Test.equal("None")
       Some("Bob") |> (fun maybeName -> $"name: {maybeName}")
-      |> Stdlib.Test.equal("name: Some(Bob)")
-      (Some(3)).toString |> Stdlib.Test.equal("Some(3)")
-      Stdlib.toString(Some(Some(true))) |> Stdlib.Test.equal("Some(Some(true))")
-      Stdlib.toString(Some(Stdlib.Url.ParseError.MissingScheme))
-      |> Stdlib.Test.equal("Some(The URL has no scheme (such as https:) at the front)") ])
+      |> Stdlib.Test.equal("name: Some(\"Bob\")")
+      (Some(3)).display |> Stdlib.Test.equal("Some(3)")
+      Stdlib.display(Some(Some(true))) |> Stdlib.Test.equal("Some(Some(true))")
+      Stdlib.display(Some([ 1 ])) |> Stdlib.Test.equal(Stdlib.inspect(Some([ 1 ]))) ])
 
 test andThen =
   Stdlib.Test.all(

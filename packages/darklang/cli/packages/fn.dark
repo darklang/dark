@@ -136,7 +136,7 @@ let createFnInline(
               if alsoAType then
                 Stdlib.printErrorLine(
                   (Stdlib.Cli.UI.Colors.hint(
-                    $"  {name} is a type. A bound names a trait: `'a: ToString`, not `'a: SomeType`.")))
+                    $"  {name} is a type. A bound names a trait: `'a: Display`, not `'a: SomeType`.")))
               else
                 Stdlib.printErrorLine(
                   (Stdlib.Cli.UI.Colors.hint(

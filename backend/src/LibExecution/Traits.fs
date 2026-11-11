@@ -170,12 +170,12 @@ let select (candidates : List<ImplCandidate>) (self : KnownType) : Selection =
     // store; `dark constraints` reports the pair, and deprecating one settles it.
     //
     // TODO: nothing stops the later one belonging to somebody who owns neither the trait nor the
-    // type. Writing `impl Stdlib.ToString for Int64` in your own package is allowed, the save says
-    // only `Created`, and from then on `Stdlib.toString 42L` answers what you wrote, for all new
+    // type. Writing `impl Stdlib.Display for Int64` in your own package is allowed, the save says
+    // only `Created`, and from then on `Stdlib.display 42L` answers what you wrote, for all new
     // code; saved calls keep what they resolved to, so the exposure is to what is written next.
     // Which of our stable traits that can reach is currently an accident of `FastOps`, not a
     // policy: `1L + 2L` ignores a rival because the fast path answers builtin numeric pairs
-    // directly, and `10L / 2L` takes it, because `Divide` is not in that table. `ToString` is not
+    // directly, and `10L / 2L` takes it, because `Divide` is not in that table. `Display` is not
     // either. Measured, both of them. This is the orphan instance problem and the languages with
     // traits all answer it with an ownership rule; the PR description carries the options.
     let stamped =

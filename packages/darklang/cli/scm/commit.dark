@@ -573,7 +573,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
   else
     let withPrevious = r.withPrevious
 
-    Cli.Stderr.ok($"  CHANGED ({Stdlib.toString(Stdlib.List.length(changed))})")
+    Cli.Stderr.ok($"  CHANGED ({Stdlib.display(Stdlib.List.length(changed))})")
 
     let nameWidth = widest(r.items |> Stdlib.List.map(fun i -> i.name))
 
@@ -585,7 +585,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
       ()
     else
       Cli.Stderr.line("")
-      Cli.Stderr.ok($"  REMOVED ({Stdlib.toString(Stdlib.List.length(r.removed))})")
+      Cli.Stderr.ok($"  REMOVED ({Stdlib.display(Stdlib.List.length(r.removed))})")
       r.removed |> Stdlib.List.iter(fun name -> Cli.Stderr.line($"    - {name}"))
 
     // PROPAGATES TO -- outcomes, not ops. This is a PREVIEW; nothing is authored until you say yes.
@@ -596,7 +596,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
     else
       Cli.Stderr.line("")
       Cli.Stderr.ok(
-        $"  PROPAGATES TO ({Stdlib.toString(Stdlib.List.length(repoints))})   (auto, reduced to final versions)")
+        $"  PROPAGATES TO ({Stdlib.display(Stdlib.List.length(repoints))})   (auto, reduced to final versions)")
 
       let repointWidth = widest(repoints |> Stdlib.List.map(fun rp -> rp.name))
 
@@ -613,7 +613,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
     else
       Cli.Stderr.line("")
       Cli.Stderr.ok(
-        $"  CONFLICTS ({Stdlib.toString(Stdlib.List.length(conflicts))})   auto-resolved, needs your ok")
+        $"  CONFLICTS ({Stdlib.display(Stdlib.List.length(conflicts))})   auto-resolved, needs your ok")
 
       conflicts
       |> Stdlib.List.iter(fun c -> Cli.Stderr.line(SCM.Conflicts.summaryLine(c)))

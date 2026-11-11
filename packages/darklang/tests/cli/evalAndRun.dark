@@ -326,16 +326,29 @@ test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
 test runNamesTheTraitAMissingImplementationIsOf =
   Instance.withInstance(fun i ->
     let source =
-      "let show (e: Stdlib.AltJson.ParseError.ParseError): String =\n  Stdlib.toString(e)\n"
+      "let show (e: Stdlib.AltJson.ParseError.ParseError): String =\n  Stdlib.display(e)\n"
       + "Stdlib.printLine(\"SCRIPT_RAN\")\n0"
     let path = script(i, "missing-impl.dark", source)
     let (code, out) = Instance.ran(i, [ "run", path ])
 
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 1, "refused")
-        Instance.says(out, "has no implementation of Stdlib.ToString", "names the trait")
+        Instance.says(out, "has no implementation of Stdlib.Display", "names the trait")
         Instance.doesNotSay(out, "implementation of #", "no hash")
         Instance.says(out, "Try `Stdlib.AltJson.ParseError.toString`", "points at the module's toString")
+        Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
+
+
+/// `Stdlib.display` on a type with no Display, and no `toString` of its own, points at `inspect`.
+test runPointsAtInspectForATypeWithoutDisplay =
+  Instance.withInstance(fun i ->
+    let source = "let shown = Stdlib.display([ 1 ])\nStdlib.printLine(\"SCRIPT_RAN\")\n0"
+    let path = script(i, "no-display.dark", source)
+    let (code, out) = Instance.ran(i, [ "run", path ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "refused")
+        Instance.says(out, "`Stdlib.inspect` shows any value", "points at inspect")
         Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
 
 

@@ -28,9 +28,9 @@ module Pid =
   /// The number of <param pid>
   let toInt64(pid: Stdlib.Cli.Posix.Pid): Int64 = pid.__pid
 
-impl ToString for Pid =
+impl Display for Pid =
   /// The process ID, {{4242}}
-  let toString(pid: Pid): String = Stdlib.toString(pid.__pid)
+  let display(pid: Pid): String = Stdlib.display(pid.__pid)
 
 
 /// A process exit status, 0 to 255. Build one with <fn ExitCode.fromInt64>, or name one
@@ -55,9 +55,9 @@ module ExitCode =
   /// Returns {{true}} for 0
   let isSuccess(code: Stdlib.Cli.Posix.ExitCode): Bool = code.__exitCode == 0
 
-impl ToString for ExitCode =
+impl Display for ExitCode =
   /// The exit status, {{1}}
-  let toString(code: ExitCode): String = Stdlib.toString(code.__exitCode)
+  let display(code: ExitCode): String = Stdlib.display(code.__exitCode)
 
 
 /// Standard permission modes
@@ -560,7 +560,7 @@ let __pathGetCwd(): Result.Result<String, Posix.Error> =
 /// Error messages ported from the compiler's Cli.__Posix implementation.
 /// Kernel errno is platform-specific; permission and host diagnostics stay intact.
 
-// Keep errno rendering shared while the engines have different ToString APIs.
+// Keep errno rendering shared while the engines have different Display APIs.
 let __decimal(value: Int64): String =
     if value < 0 then Stdlib.String.append("-", __decimal(0 - value))
     else

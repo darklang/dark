@@ -293,7 +293,7 @@ test floatPatterns =
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
       (match 6.5 with
-       | var -> $"pass: {Stdlib.toString(var)}"
+       | var -> $"pass: {Stdlib.display(var)}"
        | 6.5 -> "fail"
        | 5.5 -> "fail")
       |> Stdlib.Test.equal("pass: 6.5")
@@ -309,7 +309,7 @@ test floatPatterns =
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
       (match -4.7 with
-       | var -> $"pass: {Stdlib.toString(var)}"
+       | var -> $"pass: {Stdlib.display(var)}"
        | -4.7 -> "fail"
        | 4.7 -> "fail")
       |> Stdlib.Test.equal("pass: -4.7") ])
@@ -352,7 +352,7 @@ test charPatterns =
        | var -> "fail")
       |> Stdlib.Test.equal("pass")
       (match 'a' with
-       | var -> $"pass: {Stdlib.toString(var)}"
+       | var -> $"pass: {Stdlib.display(var)}"
        | 'a' -> "fail"
        | 'b' -> "fail")
       |> Stdlib.Test.equal("pass: a")
@@ -381,7 +381,7 @@ test listPatterns =
       |> Stdlib.Test.equal("pass")
       (match [ 1, 2, 3 ] with
        | var ->
-         let length = (Stdlib.List.length(var)) |> Stdlib.toString
+         let length = (Stdlib.List.length(var)) |> Stdlib.display
 
          $"pass with length: {length}"
        | [ 1, 2, 3 ] -> "fail"

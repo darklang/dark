@@ -158,9 +158,9 @@ impl ShiftRight for UInt16 =
   /// Bitwise right shift of a <type UInt16> value
   let shiftRight(a: UInt16, b: UInt16): UInt16 = Builtin.shiftRight(a, b)
 
-impl ToString for UInt16 =
+impl Display for UInt16 =
   /// Stringify <param uint16>
-  let toString(uint16: UInt16): String = Builtin.uint16ToString(uint16)
+  let display(uint16: UInt16): String = Builtin.uint16ToString(uint16)
 
 impl Zero for UInt16 =
   let zero(): UInt16 = 0u16

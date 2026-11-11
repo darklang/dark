@@ -107,8 +107,8 @@ test raisesButReturned =
 test raisesSomethingElse =
   (1 / 0)
   => raises "another message"
-let randomKey():{Random} String = Stdlib.toString(Stdlib.Uuid.generate())
-let noRandom():{} String = Stdlib.toString(Stdlib.Uuid.generate())
+let randomKey():{Random} String = Stdlib.display(Stdlib.Uuid.generate())
+let noRandom():{} String = Stdlib.display(Stdlib.Uuid.generate())
 let noClock():{Random} Unit =
   let _ = Stdlib.DateTime.now()
   ()
@@ -117,7 +117,7 @@ test randomGranted =
   |> Stdlib.String.length
   |> Stdlib.Test.equal(36)
 test randomInherited =
-  (Stdlib.toString(Stdlib.Uuid.generate()))
+  (Stdlib.display(Stdlib.Uuid.generate()))
   |> Stdlib.String.length
   |> Stdlib.Test.equal(36)
 test randomDenied =
@@ -223,8 +223,8 @@ test startsEmpty =
 test callsStayOrdered =
   Stdlib.List.map(Stdlib.List.range(1, 200), fun _ ->
     let _ = Stdlib.Test.incrementCounter()
-    Stdlib.toString(Stdlib.Test.counterValue()))
-  |> Stdlib.Test.equal(Stdlib.List.map(Stdlib.List.range(1, 200), fun n -> Stdlib.toString(n)))
+    Stdlib.display(Stdlib.Test.counterValue()))
+  |> Stdlib.Test.equal(Stdlib.List.map(Stdlib.List.range(1, 200), fun n -> Stdlib.display(n)))
 test sharesWithChildren =
   let _ = Stdlib.List.parallelMap(Stdlib.List.range(1, 8), fun _ ->
     Stdlib.List.iter(Stdlib.List.range(1, 200), fun _ -> Stdlib.Test.incrementCounter()))

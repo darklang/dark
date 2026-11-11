@@ -185,9 +185,9 @@ impl ShiftRight for Int64 =
   /// Bitwise right shift of an <type Int64> value
   let shiftRight(a: Int64, b: Int64): Int64 = Builtin.shiftRight(a, b)
 
-impl ToString for Int64 =
+impl Display for Int64 =
   /// Stringify <param int>
-  let toString(int: Int64): String = Builtin.int64ToString(int)
+  let display(int: Int64): String = Builtin.int64ToString(int)
 
 impl Zero for Int64 =
   let zero(): Int64 = 0

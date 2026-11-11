@@ -46,7 +46,7 @@ let cliBinary(): String =
 
 /// A fresh instance. Fails with a message rather than half-existing.
 let create(): Stdlib.Result.Result<T, String> =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let dir = $"{root()}/{suffix}/.darklang"
   let src = seedFrom()
 
@@ -114,7 +114,7 @@ let run(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Outpu
   |> Stdlib.Result.mapError(fun e ->
     if e == "Process timed out" then
       let cmd = Stdlib.String.join(args, " ")
-      let seconds = Stdlib.toString(commandTimeoutMs / 1000)
+      let seconds = Stdlib.display(commandTimeoutMs / 1000)
       $"`{cmd}` gave no answer in {seconds}s"
     else
       e)
@@ -169,8 +169,8 @@ let expectExit(i: T, args: List<String>, expected: Int64): Stdlib.Test.Result =
     if out.exitCode == expected then
       Stdlib.Test.Result.Pass
     else
-      let got = Stdlib.toString(out.exitCode)
-      let want = Stdlib.toString(expected)
+      let got = Stdlib.display(out.exitCode)
+      let want = Stdlib.display(expected)
       Stdlib.Test.fail($"`{cmd}` exited {got}, expected {want}")
 
 
@@ -210,6 +210,6 @@ let exitedWith(code: Int64, expected: Int64, why: String): Stdlib.Test.Result =
   if code == expected then
     Stdlib.Test.Result.Pass
   else
-    let got = Stdlib.toString(code)
-    let want = Stdlib.toString(expected)
+    let got = Stdlib.display(code)
+    let want = Stdlib.display(expected)
     Stdlib.Test.fail($"{why}: exited {got}, expected {want}")

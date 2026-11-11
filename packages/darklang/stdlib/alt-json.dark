@@ -26,7 +26,7 @@ let format(j: Json): String =
   match j with
   | Null -> "null"
   | Bool(b) -> if b then "true" else "false"
-  | Integer(i) -> Stdlib.toString(i)
+  | Integer(i) -> Stdlib.display(i)
   | Float(n) -> Format.floatText(n)
   | String(s) -> Format.stringText(s)
   | Array(items) -> "[" + (String.join(List.map(items, format), ",")) + "]"
@@ -117,7 +117,7 @@ module Format =
         let expSign = if exponent < 0 then "-" else "+"
         let magnitude = if exponent < 0 then 0 - exponent else exponent
         // At least two exponent digits, as .NET writes them.
-        let shown = Stdlib.toString(magnitude)
+        let shown = Stdlib.display(magnitude)
         let padded = String.padStart(shown, '0', 2)
         sign + (String.first(digits, 1)) + rest + "E" + expSign + padded
       else
@@ -136,7 +136,7 @@ module Format =
   /// round-trip digits: the sign, the significant digits with no leading or
   /// trailing zeros ("" for zero), and the decimal exponent of the first one.
   let shortestDigits(n: Float): (Bool * String * Int64) =
-    let text = Stdlib.toString(n)
+    let text = Stdlib.display(n)
     let negative = String.startsWith(text, "-")
     let unsigned = if negative then String.dropFirst(text, 1) else text
 

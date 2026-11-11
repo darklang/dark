@@ -31,10 +31,10 @@ let eventSpecText(spec: Stdlib.Host.EventSpec): String =
   match spec with
   | Key -> "a key"
   | StoreChanged -> "a store change"
-  | Timer(ms) -> $"a timer ({Stdlib.toString(ms)} ms)"
+  | Timer(ms) -> $"a timer ({Stdlib.display(ms)} ms)"
   | ExecDone(id) -> $"process {Cli.Text.shortId(id)} to finish"
   | StdinLine -> "a line of input"
-  | StdinBytes(n) -> $"{Stdlib.toString(n)} bytes of input"
+  | StdinBytes(n) -> $"{Stdlib.display(n)} bytes of input"
 
 
 let parkedText(branchId: Uuid, parked: LanguageTools.Exec.ParkedOn): String =
@@ -114,7 +114,7 @@ let find(prefix: String): Stdlib.Result.Result<LanguageTools.Exec.Summary, Strin
 
   let matches =
     LanguageTools.Exec.list()
-    |> Stdlib.List.filter(fun p -> Stdlib.String.startsWith(Stdlib.toString(p.id), prefix))
+    |> Stdlib.List.filter(fun p -> Stdlib.String.startsWith(Stdlib.display(p.id), prefix))
   match matches with
   | [ one ] -> Stdlib.Result.Result.Ok(one)
   | [] -> Stdlib.Result.Result.Error($"no process whose id starts with {prefix} -- `dark ps` lists them")
@@ -128,11 +128,11 @@ let startedAgoText(started: DateTime): String =
 
   if ms < 10000 then
     let tenths = ms / 100
-    $"{Stdlib.toString(tenths / 10)}.{Stdlib.toString(tenths % 10)} s ago"
+    $"{Stdlib.display(tenths / 10)}.{Stdlib.display(tenths % 10)} s ago"
   else if ms < 60000 then
-    $"{Stdlib.toString(ms / 1000)} s ago"
+    $"{Stdlib.display(ms / 1000)} s ago"
   else if ms < 3600000 then
-    $"{Stdlib.toString(ms / 60000)} min ago"
+    $"{Stdlib.display(ms / 60000)} min ago"
   else
     Cli.RelativeTime.ago(started)
 
@@ -146,7 +146,7 @@ let machineEntries(): List<(Int64 * List<String>)> =
   |> Stdlib.List.filter(fun m -> (m.pid) != me)
   |> Stdlib.List.map(fun m ->
     (m.pid,
-     [ Stdlib.toString(m.pid)
+     [ Stdlib.display(m.pid)
        Cli.Text.oneLineAt(28, m.title)
        (if m.branch == "" then "main" else m.branch)
        startedAgoText(m.started) ]))
@@ -174,7 +174,7 @@ let printMachine(): Unit =
 /// This instance first: it is the one the reader is standing in, and the one whose rows the
 /// other verbs take. The machine follows, as context.
 let printList(branchId: Uuid): Unit =
-  let me = Stdlib.toString(Stdlib.Cli.Sys.currentPid())
+  let me = Stdlib.display(Stdlib.Cli.Sys.currentPid())
   Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"this instance (pid {me})"))
   match treeRows(branchId, LanguageTools.Exec.list()) with
   | [] -> Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText("  (nothing running)"))
@@ -198,18 +198,18 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
       false
     | Some(detail) ->
       let s = detail.summary
-      let id = if full then Stdlib.toString(s.id) else Cli.Text.shortId(s.id)
+      let id = if full then Stdlib.display(s.id) else Cli.Text.shortId(s.id)
       Stdlib.printLine($"{id}  {entryText(branchId, s.entry)}")
       Stdlib.printLine($"  status        {statusText(branchId, s.status)}")
       Stdlib.printLine($"  started       {startedAgoText(s.started)}")
-      Stdlib.printLine($"  instructions  {Stdlib.toString(s.instructionsTaken)}")
+      Stdlib.printLine($"  instructions  {Stdlib.display(s.instructionsTaken)}")
       Stdlib.printLine($"  memory        {Cli.Text.bytes(s.allocated)} allocated")
       if s.inflight > 0 then
-        Stdlib.printLine($"  inflight      {Stdlib.toString(s.inflight)} reads")
+        Stdlib.printLine($"  inflight      {Stdlib.display(s.inflight)} reads")
       else
         ()
       match s.parent with
-      | Some(pid) -> Stdlib.printLine($"  parent        {if full then Stdlib.toString(pid) else Cli.Text.shortId(pid)}")
+      | Some(pid) -> Stdlib.printLine($"  parent        {if full then Stdlib.display(pid) else Cli.Text.shortId(pid)}")
       | None -> ()
       match detail.frames with
       | [] -> ()
@@ -244,7 +244,7 @@ let printMachineShow(target: String, json: Bool): Bool =
     if json then
       Stdlib.printLine(Stdlib.Json.serialize<LanguageTools.Exec.MachineProcess>(m))
     else
-      Stdlib.printLine($"{Stdlib.toString(m.pid)}  {m.title}")
+      Stdlib.printLine($"{Stdlib.display(m.pid)}  {m.title}")
       Stdlib.printLine($"  command       {m.command}")
       let branch = if m.branch == "" then "main" else m.branch
       Stdlib.printLine($"  branch        {branch}")
@@ -260,7 +260,7 @@ let signalMachine(
   how: Stdlib.Exec.Stop)
   : Stdlib.Result.Result<String, String> =
   let known = LanguageTools.Exec.machineList() |> Stdlib.List.filter(fun m -> (m.pid) == pid)
-  let pidText = Stdlib.toString(pid)
+  let pidText = Stdlib.display(pid)
   match known with
   | [] ->
     Stdlib.Result.Result.Error(
@@ -510,7 +510,7 @@ module Watch =
         match r with
         | Local(_, cells) -> Stdlib.Option.Option.Some(mark(i, cells))
         | _ -> Stdlib.Option.Option.None)
-    let me = Stdlib.toString(Stdlib.Cli.Sys.currentPid())
+    let me = Stdlib.display(Stdlib.Cli.Sys.currentPid())
     Stdlib.Cli.UI.Node.column(
       [ Stdlib.Cli.UI.Node.dim($"this instance (pid {me})")
         (if Stdlib.List.isEmpty(localRows) then Stdlib.Cli.UI.Node.dim("  none")

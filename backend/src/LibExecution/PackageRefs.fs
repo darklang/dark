@@ -685,12 +685,18 @@ module Trait =
       let shiftLeft = p [] "ShiftLeft"
       let shiftRight = p [] "ShiftRight"
 
+    /// String interpolation's `Display`, and the `Inspect` the value printer consults.
+    let display = p [] "Display"
+    let inspect = p [] "Inspect"
+
 
 module Fn =
   let private p modules name : (unit -> string) = declare "fn" modules name
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
+
+    let inspect = p [] "inspect"
 
     module HttpClient =
       let request = p [ "HttpClient" ] "request"

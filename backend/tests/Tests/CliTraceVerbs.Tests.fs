@@ -43,7 +43,7 @@ let private latestPrefix () : Task<string> =
 
 /// Two uuids, so a replay is told apart from a rerun by its output.
 let private twoUuids =
-  "let a = Stdlib.Uuid.generate()\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
+  "let a = Stdlib.Uuid.generate()\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.display(a), Stdlib.display(b) ], \" \")"
 
 let private words (s : string) : string list =
   s.Split(' ', System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
@@ -298,7 +298,7 @@ let private suspendThenResume =
         let gate = System.IO.Path.Combine(dir, "gate")
         let release () = System.IO.File.WriteAllText(gate, "")
         let program =
-          $"let a = Stdlib.Uuid.generate()\nlet _ = Stdlib.Cli.FileSystem.writeFile(\"{started}\", Stdlib.Utf8.encode(\"\"))\nlet _ = Stdlib.List.fold(Stdlib.List.range(1, 6000), false, fun(opened, _) -> if opened then true else if Stdlib.Result.isOk(Stdlib.Cli.FileSystem.readFile(\"{gate}\")) then true else (let _ = Stdlib.Cli.Posix.sleep(20.0) in false))\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.toString(a), Stdlib.toString(b) ], \" \")"
+          $"let a = Stdlib.Uuid.generate()\nlet _ = Stdlib.Cli.FileSystem.writeFile(\"{started}\", Stdlib.Utf8.encode(\"\"))\nlet _ = Stdlib.List.fold(Stdlib.List.range(1, 6000), false, fun(opened, _) -> if opened then true else if Stdlib.Result.isOk(Stdlib.Cli.FileSystem.readFile(\"{gate}\")) then true else (let _ = Stdlib.Cli.Posix.sleep(20.0) in false))\nlet b = Stdlib.Uuid.generate()\nStdlib.String.join([ Stdlib.display(a), Stdlib.display(b) ], \" \")"
         // The grant lands in the shared store, so it is taken back whatever happens.
         let grant = [ "file"; "read+write"; dir ]
         let! _ = runCli state ([ "permissions"; "allow" ] @ grant)
@@ -882,7 +882,7 @@ let private replayEchoesAndRefuses =
           runCli
             state
             [ "eval"
-              "let _ = Stdlib.printLine(\"hello from the log\")\nStdlib.toString(Stdlib.Uuid.generate())" ]
+              "let _ = Stdlib.printLine(\"hello from the log\")\nStdlib.display(Stdlib.Uuid.generate())" ]
         let! prefix = latestPrefix ()
         let! resumed = runCli state [ "exec"; "resume"; prefix ]
         Expect.stringContains
@@ -1322,7 +1322,7 @@ let private secretsAreNotInTheLog =
             runCli
               state
               [ "eval"
-                "match Stdlib.Env.get(\"DARK_TEST_SECRET\") with | Some(v) -> Stdlib.printLine(Stdlib.toString(Stdlib.String.length(v))) | None -> Stdlib.printLine(\"unset\")" ]
+                "match Stdlib.Env.get(\"DARK_TEST_SECRET\") with | Some(v) -> Stdlib.printLine(Stdlib.display(Stdlib.String.length(v))) | None -> Stdlib.printLine(\"unset\")" ]
           let! e = latest ()
           let! rows =
             Sql.query

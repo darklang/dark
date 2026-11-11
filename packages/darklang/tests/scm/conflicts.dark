@@ -264,7 +264,7 @@ module LargeNameLists =
     Darklang.SCM.Conflicts.localBindingsFor(
       Stdlib.List.map(
         Stdlib.List.range(1, 33000),
-        fun i -> $"zzUnbound{Stdlib.toString(i)}"))
+        fun i -> $"zzUnbound{Stdlib.display(i)}"))
     |> Stdlib.List.length
     |> Stdlib.Test.equal(0)
 

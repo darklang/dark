@@ -85,7 +85,7 @@ let expectExact(args: List<String>, expected: String): Stdlib.Test.Result =
 // Drive conflicts walk between a throwaway parent and child.
 // Commit both sides before merging and pass -y to avoid an interactive prompt.
 test conflictWalkthrough =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let parent = "cli-walk-parent-" + suffix
   let child = "cli-walk-child-" + suffix
   let fnName = "Tests.CliWalk.f" + suffix
@@ -194,7 +194,7 @@ test evalListLength =
 /// not, because a commit is what other machines pull. So after an invalid module the item EXISTS, the
 /// message says it is WIP, and the definitions that were already there are untouched.
 test moduleCommand =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-module-test-" + suffix
   let moduleName = "Tests.CliModule"
   let initialSource =
@@ -301,7 +301,7 @@ test moduleCommand =
 
 
 test moduleRejectsDuplicateNames =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-module-duplicate-test-" + suffix
   let moduleName = "Tests.CliModuleDuplicate"
   let source =
@@ -340,7 +340,7 @@ test moduleRejectsDuplicateNames =
 
 // A module save that fails the type check says which function each error is in.
 test moduleSaveNamesTheFunctionsWithTypeErrors =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-module-type-errors-test-" + suffix
   let moduleName = "Tests.CliModuleTypeErrors"
   let source =
@@ -376,7 +376,7 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
 
 // Two functions with identical bodies share a hash, and the trait-calls line still names each.
 test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-module-trait-calls-test-" + suffix
   let moduleName = "Tests.CliModuleTraitCalls"
   let source =
@@ -406,7 +406,7 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
 // Merge a child into a throwaway parent so the test leaves no function on main.
 // Commit the changes before merging and pass -y to avoid an interactive prompt.
 test mergeRoundTrip =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let parent = "cli-merge-parent-" + suffix
   let child = "cli-merge-child-" + suffix
   let fnName = "Tests.CliMerge.landed" + suffix
@@ -447,7 +447,7 @@ test mergeRoundTrip =
 
 
 test fnAcceptsCompleteDeclaration =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-authoring-test-" + suffix
   let moduleName = "Tests.CliAuthoring"
   let fnSource =
@@ -543,7 +543,7 @@ test viewFunction =
 // Exercise the harmful gate through a real CLI process: the gate lives in the CLI host.
 // Each command names main explicitly because deprecation folding only runs on main.
 test harmfulGate =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let fnName = $"Tests.HarmGate.g{suffix}"
   let onMain(args: List<String>): String =
     runWithCommand(Stdlib.List.concat([ "--branch", "main" ], args))
@@ -620,7 +620,7 @@ test batchSearchKeepsQueriesIndependent =
 
 
 test unresolvedNameGuidance =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-name-guidance-test-" + suffix
   let moduleName = "Tests.CliNameGuidance"
   let _ = runWithCommand(["branch", "create", branchName])
@@ -666,7 +666,7 @@ let evalOutcome(expr: String): Stdlib.Cli.ExecutionOutcome =
   Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"{cli} eval {quoted}")
 
 
-// #6024: agents guessed `Stdlib.Int64.toString`; the function is `Stdlib.toString`, and the error
+// #6024: agents guess `Stdlib.Int64.toString`; the function is `Stdlib.display`, and the error
 // should say so. A name with nothing near it gets no guess.
 test notFoundSuggestsTheEnclosingStdlibName =
   let moved = evalOutcome("Stdlib.Int64.toString(5)")
@@ -675,8 +675,8 @@ test notFoundSuggestsTheEnclosingStdlibName =
 
   if
     moved.exitCode != 0
-    && Stdlib.String.contains(moved.stderr, "Did you mean `Stdlib.toString`?")
-    && Stdlib.String.contains(unprefixed.stderr, "Did you mean `Stdlib.toString`?")
+    && Stdlib.String.contains(moved.stderr, "Did you mean `Stdlib.display`?")
+    && Stdlib.String.contains(unprefixed.stderr, "Did you mean `Stdlib.display`?")
     && nowhere.exitCode != 0
     && Stdlib.String.contains(nowhere.stderr, "Stdlib.Nope.zzz not found")
     && Stdlib.Bool.not(Stdlib.String.contains(nowhere.stderr, "Did you mean"))
@@ -698,14 +698,16 @@ test stdlibSuggestionCandidatesWalkUpWithinStdlib =
   Stdlib.Test.all(
     [ suggestionCandidates("Bool.not") |> Stdlib.Test.equal([ "Stdlib.Bool.not", "Stdlib.not" ])
       suggestionCandidates("Int64.toString")
-      |> Stdlib.Test.equal([ "Stdlib.Int64.toString", "Stdlib.toString" ])
+      |> Stdlib.Test.equal([ "Stdlib.Int64.toString", "Stdlib.toString", "Stdlib.display" ])
       suggestionCandidates("Me.Utils.render") |> Stdlib.Test.equal([ "Stdlib.Me.Utils.render" ])
-      suggestionCandidates("Stdlib.Int64.toString") |> Stdlib.Test.equal([ "Stdlib.toString" ])
+      suggestionCandidates("Stdlib.Int64.toString")
+      |> Stdlib.Test.equal([ "Stdlib.toString", "Stdlib.display" ])
+      suggestionCandidates("Stdlib.toRepr") |> Stdlib.Test.equal([ "Stdlib.inspect" ])
       suggestionCandidates("Stdlib.A.B.name")
       |> Stdlib.Test.equal([ "Stdlib.A.name", "Stdlib.name" ])
       suggestionCandidates("Darklang.Stdlib.Int64.toString")
-      |> Stdlib.Test.equal([ "Darklang.Stdlib.toString" ])
-      suggestionCandidates("Stdlib.toString") |> Stdlib.Test.equal([])
+      |> Stdlib.Test.equal([ "Darklang.Stdlib.toString", "Darklang.Stdlib.display" ])
+      suggestionCandidates("Stdlib.display") |> Stdlib.Test.equal([])
       suggestionCandidates("Darklang.Cli.foo") |> Stdlib.Test.equal([])
       suggestionCandidates("toString") |> Stdlib.Test.equal([]) ])
 
@@ -717,7 +719,7 @@ test stdlibSuggestionFindsTheRealName =
 
   Stdlib.Test.all(
     [ suggest("Stdlib.Int64.toString")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.toString"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.display"))
       suggest("Stdlib.List.Nope.length")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.length"))
       suggest("Bool.not") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
@@ -788,7 +790,7 @@ test didYouMeanText =
 // A misspelt name gets the names spelled near it, on eval and on save.
 test notFoundSuggestsNamesSpelledNear =
   let evaluated = evalOutcome("Stdlib.List.lenght([1])")
-  let branchName = "cli-did-you-mean-test-" + Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let branchName = "cli-did-you-mean-test-" + Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let _ = runWithCommand([ "branch", "create", branchName ])
   let saved =
     runWithBothStreams(
@@ -810,18 +812,18 @@ test notFoundSuggestsNamesSpelledNear =
 
 
 // #6024: an impl's methods are called through its trait, never at the type's module, so
-// `view` and `search` say where: the `Stdlib.toString` shortcut beside `ToString`, and the
+// `view` and `search` say where: the `Stdlib.display` shortcut beside `Display`, and the
 // trait's own path for one without a shortcut.
 test implListingsSayWhereTheMethodsAreCalled =
   let viewed = runWithCommand([ "view", "Stdlib.Int64" ])
-  let searched = runWithCommand([ "search", "Int64.toString", "--impl" ])
+  let searched = runWithCommand([ "search", "Int64.display", "--impl" ])
 
   if
-    Stdlib.String.contains(viewed, "Stdlib.toString")
+    Stdlib.String.contains(viewed, "Stdlib.display")
     && Stdlib.String.contains(viewed, "Stdlib.Add.add")
     && Stdlib.Bool.not(Stdlib.String.contains(viewed, "Stdlib.Int64.toString"))
-    && Stdlib.String.contains(searched, "Stdlib.toString(v)")
-    && Stdlib.String.contains(searched, "impl ToString for Int64")
+    && Stdlib.String.contains(searched, "Stdlib.display(v)")
+    && Stdlib.String.contains(searched, "impl Display for Int64")
   then
     Stdlib.Test.Result.Pass
   else
@@ -909,7 +911,7 @@ test viewInstructionsShowsLambdas =
   // The subject is authored here rather than borrowed from the stdlib. Whether a given stdlib function
   // compiles to a lambda is an implementation detail: it can become a direct builtin call, and then a
   // test pointing at it still runs, still fails, and covers nothing.
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let name = "Tests.CliLambda.keepBig" + suffix
 
   let _ =
@@ -1065,7 +1067,7 @@ test viewRawIsUndecorated =
 /// the parser disagree anywhere, a round trip authors a second version of the item
 /// and the op log grows every time someone looks at it.
 test editRoundTripsThroughRaw =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-edit-test-" + suffix
   let name = "Tests.CliEdit.tripled"
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
@@ -1122,7 +1124,7 @@ test editRoundTripsThroughRaw =
 /// otherwise `view Zz.alpha` prints a definition headed `Zz.beta`, and `--raw` feeds
 /// that wrong name to whatever writes it back.
 test viewHeadsWithTheNameYouAskedFor =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-sharedbody-test-" + suffix
   let alpha = "Tests.CliShared.alpha"
   let beta = "Tests.CliShared.beta"
@@ -1172,7 +1174,7 @@ test viewHeadsWithTheNameYouAskedFor =
 /// item is worse than one that fails: nothing says so, and the store quietly holds
 /// something you did not write.
 test editRoundTripsTypesAndValues =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-edit-kinds-" + suffix
   let typeName = "Tests.CliEditKinds.Pair"
   let valueName = "Tests.CliEditKinds.answer"
@@ -1238,7 +1240,7 @@ test editRoundTripsTypesAndValues =
 /// be a rejection: half-applying it, or reporting a failure while the store moved,
 /// would make an editor round trip something you cannot trust.
 test editLeavesTheItemAloneOnABadFile =
-  let suffix = Stdlib.toString(Stdlib.Int64.random(100000, 999999))
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-edit-bad-" + suffix
   let name = "Tests.CliEditBad.kept"
   let badPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
@@ -1321,7 +1323,7 @@ test editRefusesWhatItCannotEdit =
 /// Every way of passing a definition authors the same item. The `=` is a separator:
 /// unquoted the shell splits it off, quoted it arrives attached, and both come off.
 test authoringAcceptsAQuotedSeparator =
-  let branch = "cli-quoted-eq-" + (Stdlib.toString(Stdlib.Int64.random(1, 999999)))
+  let branch = "cli-quoted-eq-" + (Stdlib.display(Stdlib.Int64.random(1, 999999)))
   let run(args: List<String>): String =
     runWithCommand(Stdlib.List.concat([ "--branch", branch ], args))
 
@@ -1353,7 +1355,7 @@ test authoringAcceptsAQuotedSeparator =
 /// A lowercase module segment is refused. It would be read as the item's NAME, so
 /// `Tests.lower.f` authors `Tests.lower` and nothing can refer to it afterwards.
 test authoringRefusesALowercaseModule =
-  let branch = "cli-lowercase-" + (Stdlib.toString(Stdlib.Int64.random(1, 999999)))
+  let branch = "cli-lowercase-" + (Stdlib.display(Stdlib.Int64.random(1, 999999)))
   let run(args: List<String>): String =
     runWithCommand(Stdlib.List.concat([ "--branch", branch ], args))
 
@@ -1413,12 +1415,12 @@ test treeRefusesWhatItCannotShow =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.toString(shown(withDepth))}")
+    Stdlib.Test.fail($"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.display(shown(withDepth))}")
 
 /// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it
 /// refuses, and the work is still there. `-y` is how a script says yes.
 test discardNeedsAnExplicitYes =
-  let branch = "cli-discard-" + (Stdlib.toString(Stdlib.Int64.random(1, 999999)))
+  let branch = "cli-discard-" + (Stdlib.display(Stdlib.Int64.random(1, 999999)))
   let run(args: List<String>): String =
     runWithCommand(Stdlib.List.concat([ "--branch", branch ], args))
 

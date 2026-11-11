@@ -222,7 +222,7 @@ let private dictEffectsKeepOrder =
     let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
-      $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.Dict.map({dictOf 30}, fun(k, v) -> (let (trace, _) = hidden in if k %% 7 == 0 then (let _ = trace(Stdlib.toString(k)) in v) else v * 2)))"
+      $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.Dict.map({dictOf 30}, fun(k, v) -> (let (trace, _) = hidden in if k %% 7 == 0 then (let _ = trace(Stdlib.display(k)) in v) else v * 2)))"
     let! (spread, fellBack) = delta fallbacks (fun () -> run state code)
     let spreadTrace = Trace.take ()
     let! serial = runWith state false code
@@ -306,7 +306,7 @@ let private searchEffects =
     let! state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
-      $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> (let (trace, _) = hidden in if i == 10 || i == 39 then (let _ = trace(Stdlib.toString(i)) in false) else {uneven}(i) > 0 && i == 30)))"
+      $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> (let (trace, _) = hidden in if i == 10 || i == 39 then (let _ = trace(Stdlib.display(i)) in false) else {uneven}(i) > 0 && i == 30)))"
     let! spread = run state code
     let spreadTrace = Trace.take ()
     let! serial = runWith state false code
@@ -458,7 +458,7 @@ let private refusalGetsThrough (call : string) =
     let code =
       "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in "
       + call
-      + "((fun n -> trace(Stdlib.toString(n))), i))))"
+      + "((fun n -> trace(Stdlib.display(n))), i))))"
     let! ((spread, serial), fellBack) = delta fallbacks (fun () -> both state code)
     let spreadTrace = Trace.take ()
     Expect.equal fellBack 1L "the spread fell back"
@@ -802,8 +802,8 @@ let tests =
         wrongPureFallsBack
         countsAreExact
           "map"
-          "Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.toString(i + j)), \",\"))"
+          "Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.display(i + j)), \",\"))"
         countsAreExact
           "Dict.map"
-          "Stdlib.Dict.map(Stdlib.Dict.fromEntries(Stdlib.List.zipShortest(Stdlib.List.range(1, 400), Stdlib.List.range(1, 400))), fun(k, v) -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.toString(k + j)), \",\"))" ]
+          "Stdlib.Dict.map(Stdlib.Dict.fromEntries(Stdlib.List.zipShortest(Stdlib.List.range(1, 400), Stdlib.List.range(1, 400))), fun(k, v) -> Stdlib.String.join(Stdlib.List.map(Stdlib.List.range(1, 20), fun j -> Stdlib.display(k + j)), \",\"))" ]
   )

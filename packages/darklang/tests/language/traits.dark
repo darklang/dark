@@ -12,10 +12,10 @@ module Shapes =
 
   impl Show for Point =
     let show(p: Point): String =
-      $"({Stdlib.toString(p.x)}, {Stdlib.toString(p.y)})"
+      $"({Stdlib.display(p.x)}, {Stdlib.display(p.y)})"
 
   impl Show for Int64 =
-    let show(n: Int64): String = Stdlib.toString(n)
+    let show(n: Int64): String = Stdlib.display(n)
 
   impl Show for Bool =
     let show(b: Bool): String = if b then "yes" else "no"
@@ -367,22 +367,22 @@ module Identities =
         |> Stdlib.Test.equal(Multi.Vec { dx = 4, dy = 6 }) ])
 
 module Rendering =
-  // `ToString` provides text rendering for supported standard-library and custom types.
+  // `Display` provides text rendering for supported standard-library and custom types.
   type Point = { x: Int64, y: Int64 }
 
-  impl Stdlib.ToString for Point =
-    let toString(p: Point): String =
-      $"({Stdlib.toString(p.x)}, {Stdlib.toString(p.y)})"
+  impl Stdlib.Display for Point =
+    let display(p: Point): String =
+      $"({Stdlib.display(p.x)}, {Stdlib.display(p.y)})"
 
   test toStringTrait =
     Stdlib.Test.all(
-      [ (Rendering.Point { x = 1, y = 2 }).toString |> Stdlib.Test.equal("(1, 2)")
-        Stdlib.toString(Rendering.Point { x = 1, y = 2 })
+      [ (Rendering.Point { x = 1, y = 2 }).display |> Stdlib.Test.equal("(1, 2)")
+        Stdlib.display(Rendering.Point { x = 1, y = 2 })
         |> Stdlib.Test.equal("(1, 2)")
-        Stdlib.toString(42) |> Stdlib.Test.equal("42")
-        Stdlib.toString(true) |> Stdlib.Test.equal("true")
-        Stdlib.toString(2.5) |> Stdlib.Test.equal("2.5")
-        (7).toString |> Stdlib.Test.equal("7")
+        Stdlib.display(42) |> Stdlib.Test.equal("42")
+        Stdlib.display(true) |> Stdlib.Test.equal("true")
+        Stdlib.display(2.5) |> Stdlib.Test.equal("2.5")
+        (7).display |> Stdlib.Test.equal("7")
         Stdlib.max(3, 9) |> Stdlib.Test.equal(9) ])
 
   // String, Char and DateTime implement Compare, so the generics cover them too

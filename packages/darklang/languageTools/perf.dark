@@ -151,18 +151,18 @@ let ab(a: Unit -> 'a, b: Unit -> 'b, rounds: Int64): (Measurement * Measurement)
 let render(m: Measurement): String =
   let lines =
     [ $"  build           {m.buildMode} {m.buildHash}"
-      $"  allocated       {Stdlib.toString(m.allocBytes)} bytes"
-      $"  time            {Stdlib.toString(m.ms)} ms"
-      $"  instructions    {Stdlib.toString(m.instructions)}"
-      $"  builtin calls   {Stdlib.toString(m.builtinCalls)}"
-      $"  package calls   {Stdlib.toString(m.packageCalls)}"
-      $"  frame pushes    {Stdlib.toString(m.framePushes)}" ]
+      $"  allocated       {Stdlib.display(m.allocBytes)} bytes"
+      $"  time            {Stdlib.display(m.ms)} ms"
+      $"  instructions    {Stdlib.display(m.instructions)}"
+      $"  builtin calls   {Stdlib.display(m.builtinCalls)}"
+      $"  package calls   {Stdlib.display(m.packageCalls)}"
+      $"  frame pushes    {Stdlib.display(m.framePushes)}" ]
 
   let lines =
     if m.statSets > 0 then
       Stdlib.List.append(
         lines,
-        $"  note            one VM's share of {Stdlib.toString(m.statSets)} counter sets")
+        $"  note            one VM's share of {Stdlib.display(m.statSets)} counter sets")
     else
       lines
 

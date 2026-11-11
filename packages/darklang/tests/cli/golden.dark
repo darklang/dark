@@ -75,11 +75,11 @@ let goldenviewRender(): Unit =
       v.rows
       |> Stdlib.List.indexedMap(fun(i, r) ->
         Stdlib.printLine(
-          ((Stdlib.toString(size.width))
+          ((Stdlib.display(size.width))
            + "x"
-           + (Stdlib.toString(size.height))
+           + (Stdlib.display(size.height))
            + " "
-           + (Stdlib.toString(i))
+           + (Stdlib.display(i))
            + "|"
            + r)))
     ()
@@ -219,9 +219,9 @@ let goldenkeysRender(): Unit =
 
     v.rows
     |> Stdlib.List.indexedMap(fun(i, row) ->
-      Stdlib.printLine(label + " " + (Stdlib.toString(i)) + "|" + row))
+      Stdlib.printLine(label + " " + (Stdlib.display(i)) + "|" + row))
     |> Stdlib.List.length
-    |> Stdlib.toString
+    |> Stdlib.display
     |> (fun _ -> ())
 
   // Applies one key and renders the result, carrying the state forward. `Exit` and `Launch` end the

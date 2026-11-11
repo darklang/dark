@@ -18,11 +18,11 @@ let stringify(
   value: Stdlib.Result.Result<Int64, String>)
   : Stdlib.Result.Result<String, String> =
   let number = value?
-  Ok(Stdlib.toString(number))
+  Ok(Stdlib.display(number))
 
 let optionString(value: Stdlib.Option.Option<Int64>): Stdlib.Option.Option<String> =
   let number = value?
-  Some(Stdlib.toString(number))
+  Some(Stdlib.display(number))
 
 let fromCall(input: String): Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
   let number = (Stdlib.Int64.parse(input))?
@@ -270,7 +270,7 @@ let notted(v: Stdlib.Option.Option<Bool>): Stdlib.Option.Option<Bool> =
   Some(!v?)
 
 let literals(v: Stdlib.Option.Option<String>): Stdlib.Option.Option<String> =
-  Some(v? + "what?" + (Stdlib.toString('?')))
+  Some(v? + "what?" + (Stdlib.display('?')))
 
 type AliasR = Stdlib.Result.Result<Int64, String>
 let viaAlias(v: AliasR): Stdlib.Result.Result<Int64, String> = Ok(v? + 1)
@@ -294,7 +294,7 @@ test inExpressions =
 let str(
   v: Stdlib.Result.Result<Int64, String>)
   : Stdlib.Result.Result<String, String> =
-  Ok(Stdlib.toString(v?))
+  Ok(Stdlib.display(v?))
 
 test returnedErrorWithOtherResults =
   Stdlib.Test.all(

@@ -232,10 +232,10 @@ let define(
             let docNote =
               if docsUpdated == 0 then ""
               else if docsUpdated == 1 then "; updated 1 doc comment"
-              else $"; updated {Stdlib.toString(docsUpdated)} doc comments"
+              else $"; updated {Stdlib.display(docsUpdated)} doc comments"
 
             Stdlib.printLine(
-              $"{glyph} Defined {Stdlib.toString(count)} {what} in {modulePath}{docNote}")
+              $"{glyph} Defined {Stdlib.display(count)} {what} in {modulePath}{docNote}")
 
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.

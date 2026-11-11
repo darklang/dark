@@ -6,10 +6,10 @@ module Darklang.Cli.Tests.SearchDefaults
 // A trait method is listed with its impl, as the call, even when only the method's own name
 // matched the query.
 test searchListsNoImplMethodAsAFunction =
-  let found = Darklang.Cli.Tests.TestSuite.runWithCommand([ "search", "Int64.toString" ])
+  let found = Darklang.Cli.Tests.TestSuite.runWithCommand([ "search", "Int64.display" ])
   if
-    Stdlib.String.contains(found, "impl ToString for Int64")
-    && Stdlib.Bool.not(Stdlib.String.contains(found, "ParseError.ToString.toString"))
+    Stdlib.String.contains(found, "impl Display for Int64")
+    && Stdlib.Bool.not(Stdlib.String.contains(found, "ParseError.Display.display"))
   then
     Stdlib.Test.Result.Pass
   else

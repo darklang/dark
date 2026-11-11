@@ -166,9 +166,9 @@ type OutOfRange =
     max: Int64 }
 
 
-impl ToString for OutOfRange =
+impl Display for OutOfRange =
   /// {{65536 is not a valid port (0 to 65535)}}
-  let toString(e: OutOfRange): String =
+  let display(e: OutOfRange): String =
     $"{e.value} is not a valid {e.what} ({e.min} to {e.max})"
 
 

@@ -21,7 +21,7 @@ let inputText(trace: Trace): String =
 
 /// Right-align a number in a field `width` columns wide by prepending spaces.
 let padNum(n: Int64, width: Int64): String =
-  Stdlib.Text.padStartToWidth(Stdlib.toString(n), width)
+  Stdlib.Text.padStartToWidth(Stdlib.display(n), width)
 
 
 /// Escape a string for embedding in JSON. Handles backslash and double-
@@ -50,13 +50,13 @@ let sizeHint(dv: LanguageTools.RuntimeTypes.Dval): Stdlib.Option.Option<String> 
   match dv with
   | DList(_, items) ->
     Stdlib.Option.Option.Some(
-      $"{Stdlib.toString(Stdlib.List.length(items))} items")
+      $"{Stdlib.display(Stdlib.List.length(items))} items")
   | DDict(_, _, entries) ->
     Stdlib.Option.Option.Some(
-      $"{Stdlib.toString(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
+      $"{Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
   | DString(s) ->
     Stdlib.Option.Option.Some(
-      $"{Stdlib.toString(Stdlib.String.length(s))} characters")
+      $"{Stdlib.display(Stdlib.String.length(s))} characters")
   | _ -> Stdlib.Option.Option.None
 
 
