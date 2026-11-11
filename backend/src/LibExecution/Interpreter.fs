@@ -2758,6 +2758,7 @@ let private packageFnCallData
             // the expressions they came from.
             symbols = fn.symbols
             quick = quicken (PackageRefs.currentGeneration ()) instructions }
+        policy = { owner = null; name = None; policy = None }
         freeTVars = FreeTVars.ofPackage fn
         paramList = FreeTVars.paramsOfPackage fn
         executionPoint = FreeTVars.packageExecutionPoint fn.hash
@@ -2798,11 +2799,27 @@ let private packageFnCallData
 /// Its helpers inherit that access; entering another function never adds grants.
 let private packageEntryAccess
   (exeState : ExecutionState)
+  (callData : PackageFnCallData)
   (named : ApplicableNamedFn)
   (hash : Hash)
   (applying : Permissions.Access)
   : Permissions.Access =
-  match exeState.packagePolicy named.approvalName hash with
+  let memo = callData.policy
+  let policy =
+    if
+      System.Object.ReferenceEquals(memo.owner, exeState.packagePolicy)
+      && (match memo.name, named.approvalName with
+          | Some a, Some b -> System.String.Equals(a, b)
+          | None, None -> true
+          | _ -> false)
+    then
+      memo.policy
+    else
+      let policy = exeState.packagePolicy named.approvalName hash
+      callData.policy <-
+        { owner = box exeState.packagePolicy; name = named.approvalName; policy = policy }
+      policy
+  match policy with
   | None -> applying
   | Some policy ->
     let label = named.approvalName |> Option.defaultValue (string hash)
@@ -2935,7 +2952,7 @@ let private refillForTailCall
     vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
     vm.stats.framePushCount <- vm.stats.framePushCount + 1L
   let tst = calleeTst frame implicitTypeParams newlyBound
-  let access = packageEntryAccess exeState ctx.applicable fn.hash ctx.access
+  let access = packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
   let boundImpls = calleeBoundImpls frame ctx
   // The arguments are read from the registers about to be cleared, so out first, into the frame's
   // scratch buffer, which is then cleared so it holds nothing alive.
@@ -3030,7 +3047,7 @@ let private completePackage
       vm.stats.registersAllocated <-
         vm.stats.registersAllocated + int64 fn.body.registerCount
     let frame =
-      let access = packageEntryAccess exeState ctx.applicable fn.hash ctx.access
+      let access = packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
       takeFrame
         vm
         fn.body.registerCount
@@ -3383,7 +3400,7 @@ let private callPackageResolvedReady
     // apply to the builtin it forwards to, and to any callback that builtin
     // applies. This also caches the call data, which is what lets the early
     // elision in the `Apply` handler do the same without fetching the fn.
-    let entryAccess = packageEntryAccess exeState ctx.applicable fn.hash ctx.access
+    let entryAccess = packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
     // The elided builtin reads `vm.activeAccess`, and nothing else on this
     // path writes it.
     vm.activeAccess <- entryAccess
@@ -4839,7 +4856,7 @@ let private applyPackageFn
 
       // Entering the wrapper without a frame: its invocation grants and
       // restrictions still apply (see `packageEntryAccess`).
-      let entryAccess = packageEntryAccess exeState applicable pkg access
+      let entryAccess = packageEntryAccess exeState callData applicable pkg access
 
       // The builtin pushes no frame; its effect check and callbacks read
       // `vm.activeAccess`, so the elided entry must update it explicitly.

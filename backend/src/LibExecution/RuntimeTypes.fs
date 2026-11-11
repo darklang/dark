@@ -5267,6 +5267,10 @@ type QuickOps(generation : int, ops : QuickOp[]) =
   /// For instructions that run once, as a root's do: there is nothing to gain from looking.
   static member val None = QuickOps(-1, Array.empty)
 
+/// What `packagePolicy` last answered for a package fn, and the closure and name it was asked with.
+type PackagePolicyMemo =
+  { owner : obj; name : Option<string>; policy : Option<Permissions.Policy> }
+
 type InstrData =
   {
     instructions : Instruction array
@@ -6250,6 +6254,9 @@ type BuiltInFn =
 and PackageFnCallData =
   {
     instrData : InstrData
+
+    /// `packagePolicy`'s last answer here: safe, as one closure answers from a fixed snapshot.
+    mutable policy : PackagePolicyMemo
 
     /// The parameters that take a callback, as (index, name, what the callback should
     /// return). Empty for most fns.
