@@ -435,6 +435,22 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stringEndsWith" 0
+      typeParams = []
+      parameters =
+        [ Param.make "subject" TString ""; Param.make "suffix" TString "" ]
+      returnType = TBool
+      description = "Checks if <param subject> ends with <param suffix>"
+      fn =
+        (function
+        | _, _, _, [| DString subject; DString suffix |] ->
+          Ply(DBool(String.endsWithEgcs subject suffix))
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "stringSlice" 0
       typeParams = []
       parameters =

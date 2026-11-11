@@ -191,6 +191,16 @@ let startsWithEgcs (subject : string) (prefix : string) : bool =
       || (isSimple subject[p - 1] && isSimple subject[p])
       || landsOn subject p 0)
 
+/// Whether the last clusters of `subject` are the clusters of `suffix`: an ordinal suffix that
+/// starts on a cluster boundary of `subject`. After a simple char, only the next char decides
+/// whether a cluster starts there, so most suffixes are checked without walking `subject`.
+let endsWithEgcs (subject : string) (suffix : string) : bool =
+  let start = subject.Length - suffix.Length
+  subject.EndsWith(suffix, System.StringComparison.Ordinal)
+  && (start = 0
+      || (isSimple subject[start - 1] && clusterEnd subject (start - 1) = start)
+      || landsOn subject start 0)
+
 let normalize (s : string) : string = s.Normalize()
 
 /// <param a> then <param b>, normalized: two normalized strings can join into one that is not.

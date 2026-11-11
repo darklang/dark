@@ -212,6 +212,20 @@ let graphemeTests =
               $"startsWith {s} {prefix}"
       }
 
+      test "endsWithEgcs agrees with slicing" {
+        let others = samples |> List.take 200
+        for s in samples do
+          let len = int64 (reference s).Length
+          let suffixes = [ for i in 0 .. s.Length -> s.Substring i ] @ others
+          for suffix in suffixes do
+            let expected =
+              referenceSlice s (len - int64 (reference suffix).Length) len = suffix
+            Expect.equal
+              (String.endsWithEgcs s suffix)
+              expected
+              $"endsWith {s} {suffix}"
+      }
+
       testMany
         "egcs on the joining pieces"
         String.egcs
