@@ -19,8 +19,6 @@
 # around 2,100 req/s, which is slower than the server: with one process this tool saturates on its
 # own client and reports the client's ceiling as the server's. Worse than a wrong number, it makes
 # the tool blind -- server throughput can move in either direction and the reading will not.
-# Measured on one server: 1 process 2,160 req/s, 2 procs 3,382, 4 procs 3,827, 8 procs 4,295.
-# `-p 1` reproduces the old single-process behaviour, for comparing against historical figures.
 set -euo pipefail
 cd /home/dark/app
 . ./scripts/perf/_common

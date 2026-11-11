@@ -1,6 +1,5 @@
 // Option and Result: construction, matching and chaining. These are how idiomatic Dark reports
-// absence and failure, and until this workload existed nothing in the suite built many of them --
-// which hid three consecutive halvings of container construction.
+// absence and failure, and nothing else in the suite builds many of them.
 let iters(): Int64 =
   match Stdlib.Env.get("PERF_ITERS") with
   | Some(s) ->

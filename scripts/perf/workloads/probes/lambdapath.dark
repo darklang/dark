@@ -6,8 +6,8 @@
 //   - `Execution.executeApplicable*`, which a builtin calls per element -- every `fold`, `map`,
 //     `filter`, `any`, `indexedMap` and `sortBy` pays this once per element
 //
-// Target 2 of round 6 is the gap between them. This measures it directly rather than inferring it
-// from rows that also carry a recursion or a `CreateLambda`.
+// This measures the gap between them directly rather than inferring it from rows that also carry a
+// recursion or a `CreateLambda`.
 //
 // Method: take the marginal cost per element by differencing two sizes, so the fixed cost of the
 // call itself cancels. For the interpreter path, difference again against the same recursion with
@@ -27,7 +27,7 @@ let now(): Int64 =
   Darklang.Cli.Telemetry.now()
 
 /// Warm the process before the first row, so the table does not measure its own warm-up.
-/// See the same trick in optime.dark, which needed 40,000 iterations before it stopped drifting.
+/// See the same trick in optime.dark.
 let saturate(n: Int64, acc: Int64): Int64 =
   if n <= 0 then acc else saturate(n - 1, acc + n)
 

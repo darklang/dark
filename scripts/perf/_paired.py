@@ -8,12 +8,11 @@ reference is the newest published release, from the GitHub releases API, downloa
 rundir/perf/reference/ and checked against the sha256 GitHub lists for it. When the API can't be
 reached, it is the release pinned in budget.json (`paired.reference`).
 
-Allocation can't see this. `fib 27` allocates 8 MB on every version while its CPU went up 27%, and
-listings got 1.8x slower in the same step. So: four scenarios, a recursive `fib 24`, a lists
-workload (map, filter, fold, a dict built and read back), a plain-Dark scan of 1 MB of bytes and
-`ls Darklang.Stdlib.List`, run on both binaries in alternating order, `rounds` times. Each round
-gives a ratio, this binary's CPU over the reference's, and the gate fails when the median ratio is
-over `maxRatio`. The two halves of a pair run seconds apart on the same runner, so the runner's
+Allocation can't see this: a call can get much slower while allocating exactly as much. So: four
+scenarios, a recursive `fib 24`, a lists workload (map, filter, fold, a dict built and read back),
+a plain-Dark scan of 1 MB of bytes and `ls Darklang.Stdlib.List`, run on both binaries in
+alternating order, `rounds` times. Each round gives a ratio, this binary's CPU over the
+reference's, and the gate fails when the median ratio is over `maxRatio`. The two halves of a pair run seconds apart on the same runner, so the runner's
 speed and load cancel in the ratio; a median of 11 keeps one slow pair out of it.
 
 A median over the line is measured a second time, and only a second one over it fails. A real
@@ -22,7 +21,7 @@ each of its samples is three runs added up.
 
 The newest release, not a pin, so nobody has to move a pin when one is cut. It is never the build
 being measured: a release built from this very commit is skipped. A release published halfway
-through a PR's CI moves the reference forward one release, which is what moving the pin did. The
+through a PR's CI moves the reference forward one release. The
 pin in budget.json is the fallback: offline, rate-limited or GitHub down, the gate says so in one
 line and measures against it. `GITHUB_TOKEN` (or `GH_TOKEN`), when set, lifts the API's rate
 limit. `DARK_PERF_RELEASES_URL` points the lookup elsewhere; a bad one tries the fallback.

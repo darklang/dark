@@ -1,10 +1,8 @@
 // What each basic operation costs in *time*, measured against each other.
 //
-// The time counterpart to `costs.dark`, which measures the same operations in bytes. Rounds 1-4
-// were allocation campaigns and the roadmap says plainly that allocation campaigns move allocation
-// while time follows far less. Round 5 is a latency campaign and had no instrument for this: every
-// finding in it bottomed out at "~15-35 us per list element" with no way to say which operations
-// those microseconds were in.
+// The time counterpart to `costs.dark`, which measures the same operations in bytes. Work that
+// moves allocation moves time far less, so time needs its own instrument: this says which
+// operations the microseconds per list element are in.
 //
 //   ./scripts/run-cli run scripts/perf/workloads/probes/optime.dark
 //
@@ -19,27 +17,20 @@
 //   - a row naming a `val` pays to load a package value first; `load a val` is there to subtract
 //
 // Neither matters when comparing rows to each other. Both matter a great deal if a row is read as the
-// cost of the thing in its name -- which is how "record field access at 4.6 us" reached a roadmap.
+// cost of the thing in its name.
 //
-// THE TABLE USED TO WARM UP AS IT RAN, and `saturate` below is why it no longer does. The baseline
-// was ~4,000 ns at the top against ~3,250 at the bottom, and the same expression read 1.1 us slower
-// near the top than at the end -- a positional bias bigger than most of what this table is used to
-// measure. Warming each row inside `measure` did not fix it, because what was warming was the
-// process, not the row.
-//
-// The two baselines now agree to within ~0.25 us, which is this instrument's noise floor.
+// `saturate` below warms the process before the first row. Without it the table warms up as it
+// runs, a positional bias bigger than most of what this table is used to measure. With it the two
+// baselines agree to within ~0.25 us, which is this instrument's noise floor.
 //
 // `load a val (an Int)` is measured at both ends to keep that honest. Expect the first to read
-// ~0.4 us above the second and no more: that gap is first-touch, not drift -- a third copy in the
-// middle of the table read the same as the one at the end, so only the first row to reference a
-// value pays it. A *larger* gap means the drift is back and the warm-up needs more.
+// ~0.4 us above the second and no more: that gap is first-touch, not drift, since only the first
+// row to reference a value pays it. A *larger* gap means the drift is back and the warm-up needs
+// more.
 //
-// Absolute numbers here are not comparable with any recorded before `saturate` was added: it moved
-// the baseline from ~4,000 to ~3,000 ns by removing bias, not cost.
-//
-// Each row is the fastest of three passes. Time is noisy where allocation is not -- the playbook is
-// blunt about this -- and the minimum of several passes is the least noisy estimator available:
-// a pass can be slowed by the machine, never sped up by it.
+// Each row is the fastest of three passes. Time is noisy where allocation is not, and the minimum
+// of several passes is the least noisy estimator available: a pass can be slowed by the machine,
+// never sped up by it.
 
 type Rec = { a: Int64, b: String }
 
@@ -69,8 +60,9 @@ let iterations = if smoke then 3 else 10000
 
 /// One timed pass of `f`, in milliseconds.
 ///
-/// The accumulator is never added to, for the reason `costs.dark` gives: summing the results made
-/// each row depend on how large its own accumulator grew, so the harness measured the arithmetic.
+/// The accumulator is never added to, for the reason `costs.dark` gives: summing the results would
+/// make each row depend on how large its own accumulator grew, so the harness would measure the
+/// arithmetic.
 let onePass(f: Int64 -> Int64): Int64 =
   let t0 = Darklang.Cli.Telemetry.now()
 
@@ -96,7 +88,7 @@ let measure(label: String, f: Int64 -> Int64): Unit =
 /// Run the process hot before the first row is timed.
 ///
 /// Warming each row inside `measure` is not enough: the drift is the *process* getting faster, not
-/// the row -- the same expression reads 1.1 us slower near the top of the table than at the end. This
+/// the row -- the same expression reads slower near the top of the table than at the end. This
 /// exercises the paths the table shares (a fold, a lambda, package and builtin calls, a record, a
 /// list) enough times to saturate that before any of it counts.
 let saturate(n: Int64, acc: Int64): Int64 =
@@ -121,10 +113,6 @@ measure("call a 2-arg fn                      ", fun i -> twoArgFn(i, 1))
 measure("apply a lambda                       ", fun i -> (fun x -> x + 1)(i))
 // The same builtin reached both ways, twice over. The gap in each pair is what is left of the
 // package-call machinery after the thin-wrapper elision has taken what it can.
-//
-// The "via its package wrapper" row used to sit under `boolNot` while measuring `String.length`,
-// which reads as though it pairs with the row above it. It does not, and that is exactly the misread
-// the header warns about -- the pairs are adjacent now.
 measure("call a builtin directly              ", fun i -> Builtin.stringLength("hello"))
 measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length("hello"))
 // `stringLength` counts grapheme clusters, so the pair above carries its body as well. `boolNot` has
@@ -139,9 +127,8 @@ measure("  the same, via its package wrapper  ", fun i -> if Stdlib.Bool.not(tru
 
 Stdlib.printLine("--- values")
 measure("build a 2-field record, read a field", fun i -> (Rec { a = i, b = "x" }).a)
-// Built once, outside the loop. The old row here was `(recFn i).a`, which is a package call plus a
-// record construction plus a field read, and cannot isolate any of the three -- it read as *cheaper*
-// than the bare package call above it, which is how the confound showed.
+// Built once, outside the loop: `(recFn i).a` would be a package call plus a record construction
+// plus a field read, and could not isolate any of the three.
 // A `val` is a package value, and loading one is most of what these two rows cost. Subtract the
 // `load a val` row for the field read itself, which is ~25 ns and nothing like what these look like.
 measure("load a val, read its field           ", fun i -> preBuilt.a)
@@ -188,7 +175,7 @@ measure("repeat one char 8 times             ", fun i -> Stdlib.String.length(St
 measure("Int to String                        ", fun i -> Stdlib.String.length(Stdlib.display(i)))
 
 Stdlib.printLine("--- control flow")
-// What an `Int` operator costs now that the interpreter evaluates it rather than calling a builtin.
+// What an `Int` operator costs: the interpreter evaluates it rather than calling a builtin.
 // The `Apply` instruction is still there, so this is what a compile-time opcode would be aiming at.
 measure("add two Ints                         ", fun i -> i + 1)
 measure("compare two Ints                     ", fun i -> if i < 1000 then 1 else 0)
