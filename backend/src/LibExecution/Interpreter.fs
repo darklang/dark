@@ -2817,7 +2817,9 @@ let private packageEntryAccess
     else
       let policy = exeState.packagePolicy named.approvalName hash
       callData.policy <-
-        { owner = box exeState.packagePolicy; name = named.approvalName; policy = policy }
+        { owner = box exeState.packagePolicy
+          name = named.approvalName
+          policy = policy }
       policy
   match policy with
   | None -> applying
@@ -3047,7 +3049,8 @@ let private completePackage
       vm.stats.registersAllocated <-
         vm.stats.registersAllocated + int64 fn.body.registerCount
     let frame =
-      let access = packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
+      let access =
+        packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
       takeFrame
         vm
         fn.body.registerCount
@@ -3400,7 +3403,8 @@ let private callPackageResolvedReady
     // apply to the builtin it forwards to, and to any callback that builtin
     // applies. This also caches the call data, which is what lets the early
     // elision in the `Apply` handler do the same without fetching the fn.
-    let entryAccess = packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
+    let entryAccess =
+      packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
     // The elided builtin reads `vm.activeAccess`, and nothing else on this
     // path writes it.
     vm.activeAccess <- entryAccess

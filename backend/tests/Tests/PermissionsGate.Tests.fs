@@ -231,7 +231,12 @@ let runRestrictionWins =
 // These share one state's call data across runs, as a host's later runs do.
 let approvalChangeBetweenRuns =
   testTask "a changed approval applies on the next run" {
-    let! state = namedState P.Policy.denyAll P.Policy.allowAll Map.empty [ fn "clock" clockBody ]
+    let! state =
+      namedState
+        P.Policy.denyAll
+        P.Policy.allowAll
+        Map.empty
+        [ fn "clock" clockBody ]
     let! before = runIn state (call "reader" "clock")
     expectDenied [ "clock" ] before
     let granted = withApprovals (Map.ofList [ "Me.reader", clockGrant ]) state
@@ -255,7 +260,8 @@ let namesSharingCallDataKeepTheirOwnApproval =
     expectNotDenied approved
     let! again = runIn state (call "alias" "clock")
     expectDenied [ "clock" ] again
-    let both = eLet (PT.LPWildcard(gid ())) (call "reader" "clock") (call "alias" "clock")
+    let both =
+      eLet (PT.LPWildcard(gid ())) (call "reader" "clock") (call "alias" "clock")
     let! oneRun = runIn state both
     expectDenied [ "clock" ] oneRun
   }
