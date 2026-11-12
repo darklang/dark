@@ -591,6 +591,7 @@ let private handleRequest
                 "(http request)"
             let tracer =
               Tracing.createCliTracer
+                exeState.traceCaps
                 traceID
                 (Tracing.Redact.url traceDesc)
                 LibDB.Traces.servedRequestInputName

@@ -106,14 +106,14 @@ let private testRecordingSettings =
 
           try
             // `off`: no row at all.
-            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+            LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
             do! run ()
             let! afterOff = Traces.list 10
             Expect.isEmpty afterOff "off records nothing"
 
             // `on`: the row with its input and its answer, plus the impure call.
-            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+            LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
             do! run ()
             let! afterOn = Traces.list 10
@@ -142,7 +142,7 @@ let private testRecordingSettings =
               failtest
                 $"expected one run with recording on, got {List.length other}"
           finally
-            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+            LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
         })
   }
 
@@ -264,9 +264,12 @@ let private testTracesTruncatedStillShowsRoot =
     do!
       withState (fun state ->
         task {
-          // Set both here rather than relying on suite ordering, so this still means something alone.
-          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
-          LibDB.Tracing.TraceLimits.useMaxEventsForTesting 20
+          let state =
+            InProcess
+              { executionState state with
+                  traceCaps = { RT.Tracing.defaultCaps with maxEvents = 20 } }
+          // Set here rather than relying on suite ordering, so this still means something alone.
+          LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
           try
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
             // Comfortably over the cap of 20, and IMPURE: only impure calls are recorded, so a
@@ -292,9 +295,8 @@ let private testTracesTruncatedStillShowsRoot =
               "printLine"
               "and the calls it did keep are still rendered"
           finally
-            LibDB.Tracing.TraceLimits.resetMaxEventsForTesting ()
             // Leaving detail on would hand full tracing to every later sequenced suite.
-            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+            LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
         })
   }
 

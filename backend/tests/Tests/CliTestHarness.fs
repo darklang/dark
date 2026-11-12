@@ -574,13 +574,13 @@ let cliTestOnMain (name : string) (body : Target -> Task<unit>) : Test =
 let cliTestWithFreshTraces (name : string) (body : Target -> Task<unit>) : Test =
   cliTest name (fun state ->
     task {
-      LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+      LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
       try
         // Recording is already on, so this clears the delete's own trace along with the rest.
         let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
         do! body state
       finally
-        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+        LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
     })
 
 

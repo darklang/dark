@@ -1378,8 +1378,8 @@ let everyCommandWorksWithValidArguments =
 
         // A recorded run. Recording is off by default now, so the sweep turns it on for its own
         // seed and puts it back, the way `cliTestWithFreshTraces` does.
-        let recordingBefore = LibDB.Tracing.TraceDetail.current
-        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+        let recordingBefore = LibDB.Tracing.TraceDetail.current ()
+        LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
         let! _ = runCli state [ "eval"; "1 + 1" ]
         let! runsJson = runCli state [ "traces"; "list"; "1"; "--json" ]
         let run =
@@ -1449,7 +1449,7 @@ let everyCommandWorksWithValidArguments =
               "commands that did not answer a fair question:\n%s"
               detail
         finally
-          LibDB.Tracing.TraceDetail.setForTesting recordingBefore
+          LibDB.Tracing.TraceDetail.set recordingBefore
 
         do! archiveBranches state [ branch ]
       })

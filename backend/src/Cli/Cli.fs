@@ -144,6 +144,8 @@ let private installPolicy
 
 let execute
   (packageManager : RT.PackageManager)
+  /// `--trace` / `--no-trace`, if this run was given one.
+  (traceFlag : Option<LibDB.Tracing.TraceDetail.T>)
   (args : List<string>)
   : Task<RT.ExecutionResult> =
   task {
@@ -191,12 +193,24 @@ let execute
         | None -> invalidOp $"Entry point not found: {name}"
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
+    // What this run records and keeps, from the flag and the store's `trace.*` settings.
+    let tracedUnder (settings : Map<string, string>) : RT.ExecutionState =
+      LibDB.Tracing.TraceDetail.set (
+        LibDB.Tracing.TraceDetail.resolve
+          traceFlag
+          (Map.tryFind "trace.record" settings)
+      )
+      { state with
+          traceCaps =
+            LibDB.Tracing.TraceRetention.caps
+              (Map.tryFind "trace.keep" settings)
+              (Map.tryFind "trace.maxMb" settings) }
     // The CLI's top level is a process: the scheduler runs on this thread until it finishes,
     // stepping whatever else gets spawned meanwhile (a script under `eval`, an `apps` daemon).
     // `DARK_SCHEDULER=off` is a bisect switch back to a plain run, for finding out whether an
     // oddity is the scheduler's; not a setting, not documented for users.
     if System.Environment.GetEnvironmentVariable "DARK_SCHEDULER" = "off" then
-      let! result = Exe.executeFunction state fnName [] args
+      let! result = Exe.executeFunction (tracedUnder Map.empty) fnName [] args
       return result
     else
       installStoreVersionSource ()
@@ -252,10 +266,7 @@ let execute
           ))
       LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
       LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
-      LibDB.Tracing.TraceRetention.configure
-        (Map.tryFind "trace.keep" settings)
-        (Map.tryFind "trace.maxMb" settings)
-      LibDB.Tracing.TraceDetail.configure (Map.tryFind "trace.record" settings)
+      let state = tracedUnder settings
       installPolicy settings state
       return LibExecution.Scheduler.executeFunction state fnName [] args
   }
@@ -705,10 +716,11 @@ let private runCli (args : string[]) : int =
       System.Console.Error.WriteLine
         "--trace and --no-trace ask for opposite things; pick one"
       exit 1
-    elif Array.contains "--trace" args then
-      LibDB.Tracing.TraceDetail.setForRun LibDB.Tracing.TraceDetail.On
-    elif Array.contains "--no-trace" args then
-      LibDB.Tracing.TraceDetail.setForRun LibDB.Tracing.TraceDetail.Off
+
+    let traceFlag =
+      if Array.contains "--trace" args then Some LibDB.Tracing.TraceDetail.On
+      elif Array.contains "--no-trace" args then Some LibDB.Tracing.TraceDetail.Off
+      else None
 
     // Which branch this process runs on: `--branch`, then `DARK_BRANCH`, then the stored
     // `current_branch`. The order lives in `LibDB.BranchSelection`, where it has a test; this is where
@@ -783,7 +795,7 @@ let private runCli (args : string[]) : int =
 
     let result =
       Telemetry.time "cli.execute" [] (fun () ->
-        (execute cliPackageManager (Array.toList args)).Result)
+        (execute cliPackageManager traceFlag (Array.toList args)).Result)
 
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
 

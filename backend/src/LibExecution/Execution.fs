@@ -68,6 +68,8 @@ let createState
   (notify : RT.Notifier)
   : RT.ExecutionState =
   { tracing = tracing
+    // The defaults; a host that reads its own settings (the CLI) replaces them.
+    traceCaps = RT.Tracing.defaultCaps
     test = noTestContext
     reportException = reportException
     notify = notify

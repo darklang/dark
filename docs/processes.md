@@ -689,7 +689,7 @@ one after it:
 - `dark --trace <command>`, or `--no-trace`, for one command.
 - `trace.record` in the store's config, written by `dark traces record on` or
   `dark config set trace.record on`, for this instance until changed. The host
-  reads it at startup (`TraceDetail.configure`).
+  reads it at startup (`TraceDetail.resolve`).
 - `DARK_CONFIG_TRACE_DETAIL=on` for a whole environment. Our dev containers
   and CI set it, so a clone records and a gate can assert on what a command
   did. A stored setting beats it, because the environment is a container-wide

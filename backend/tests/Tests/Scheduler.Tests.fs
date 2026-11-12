@@ -620,11 +620,16 @@ let private traceCarriesProcessAndSeq =
               if n == 0 then () else (record(n)
                                       loop(n - 1))
             loop(20))"""
-    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+    LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
     try
       let traceId = LibExecution.AnalysisTypes.TraceID.create ()
       let tracer =
-        LibDB.Tracing.createCliTracer traceId "scheduler test" "expression" RT.DUnit
+        LibDB.Tracing.createCliTracer
+          RT.Tracing.defaultCaps
+          traceId
+          "scheduler test"
+          "expression"
+          RT.DUnit
       let traced : RT.ExecutionState =
         { state with RT.ExecutionState.tracing = tracer.executionTracing }
       do!
@@ -668,7 +673,7 @@ let private traceCarriesProcessAndSeq =
           })
     finally
       Trace.take () |> ignore<List<string>>
-      LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+      LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
   }
 
 

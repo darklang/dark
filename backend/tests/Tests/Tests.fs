@@ -148,7 +148,7 @@ let main (args : string array) : int =
 
     // Most tests don't need trace data on disk; tests that DO check
     // trace contents (CliTraces) flip this to Detailed at their entry.
-    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+    LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
 
     // Grow the DB from seed if needed. Builtins are deferred (constructed after
     // hashes are generated) because builtin construction triggers hash lookups.

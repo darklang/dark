@@ -722,7 +722,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          (LibDB.Tracing.TraceDetail.current <> LibDB.Tracing.TraceDetail.Off)
+          (LibDB.Tracing.TraceDetail.current () <> LibDB.Tracing.TraceDetail.Off)
           |> DBool
           |> Ply
         | _ -> incorrectArgs ())
@@ -745,7 +745,7 @@ let fns () : List<BuiltInFn> =
           if not state.canManagePolicies then
             RuntimeError.UncaughtException(LibDB.Config.refusal "trace.record", [])
             |> raiseUntargetedRTE
-          LibDB.Tracing.TraceDetail.setForTesting (
+          LibDB.Tracing.TraceDetail.set (
             if on then
               LibDB.Tracing.TraceDetail.On
             else
