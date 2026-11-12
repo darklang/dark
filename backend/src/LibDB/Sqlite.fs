@@ -129,6 +129,27 @@ module Sql =
   // never rebinds it: it stays the default `connString` store for the process's life.
   let mutable connect = Sql.connect connString |> initializeConnection currentDbPath
 
+  /// A connection to the store that is opened once and never closed.
+  ///
+  /// When the last connection to a WAL store closes, SQLite checkpoints it -- syncs the WAL, copies
+  /// it into the database, syncs that -- and deletes the WAL, which the next write then recreates and
+  /// syncs along with the directory. In a CLI that is every exit: up to four fsyncs, most of a short
+  /// command's wall time on a busy disk. While this one is open no other close is the last. The WAL
+  /// is still folded in as it grows, by `wal_autocheckpoint` inside a write, and exiting with it
+  /// open is what a crash looks like to SQLite: the next open reads the WAL.
+  let private heldOpen : Lazy<SqliteConnection> =
+    lazy
+      (let conn =
+        new SqliteConnection(
+          SqliteConnectionStringBuilder(connString, Pooling = false).ToString()
+        )
+       conn.Open()
+       // in WAL mode the shared lock is taken by the first read and kept until close
+       use cmd = conn.CreateCommand()
+       cmd.CommandText <- "PRAGMA user_version"
+       cmd.ExecuteScalar() |> ignore<obj>
+       conn)
+
   /// Force this module's initialization (first connection open + PRAGMA round trip)
   /// so the cost lands in its own span instead of inside whatever query runs first.
   let warm () : unit =
@@ -136,6 +157,7 @@ module Sql =
     |> Sql.query "SELECT 1"
     |> Sql.executeNonQuery
     |> ignore<Result<int, exn>>
+    heldOpen.Force() |> ignore<SqliteConnection>
 
   /// TEST-ONLY: repoint every LibDB reader and writer, and `Builtin.localDbPath` with them, at the
   /// store file at <param path> (created if missing). That is what lets a test run true multi-instance
