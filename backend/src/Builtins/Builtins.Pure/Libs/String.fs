@@ -14,59 +14,6 @@ module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 module Bytes = LibExecution.Bytes
 
-/// The first offset at or after `offset` whose char is U+0300 or above or is CR, or `s.Length`.
-/// Every char before it, except perhaps the last, is a cluster of its own: that one may combine
-/// with the char after. See `String.clusterEnd`.
-let private simpleRunEnd (s : string) (offset : int) : int =
-  let rest = System.MemoryExtensions.AsSpan(s, offset)
-  let other = System.MemoryExtensions.IndexOfAnyExceptInRange(rest, char 0, '\u02FF')
-  let runEnd = if other < 0 then s.Length else offset + other
-  let cr = s.IndexOf('\r', offset, runEnd - offset)
-  if cr < 0 then runEnd else cr
-
-/// The UTF-16 offset of the first `needle` in `s` at or after `from` that starts and ends on
-/// cluster boundaries, or -1. `needle` is not empty.
-///
-/// `offset` is a cluster boundary at or before `from`, and `index` the number of clusters before
-/// it. Both move forward as the search walks, so a search that carries on from a match does not
-/// walk the text again. Searches ordinally and walks only as far as a hit, so a miss costs what
-/// ordinal `IndexOf` does, and a run of simple chars is jumped rather than walked.
-let private nextEgcMatch
-  (s : string)
-  (needle : string)
-  (from : int)
-  (offset : byref<int>)
-  (index : byref<int>)
-  : int =
-  let mutable at = s.IndexOf(needle, from, System.StringComparison.Ordinal)
-  let mutable found = -1
-  let mutable runEnd = offset
-  while found < 0 && at >= 0 do
-    while offset < at do
-      if offset >= runEnd then runEnd <- simpleRunEnd s offset
-      // Jump over simple chars, one cluster per char, rather than asking for each cluster.
-      let jump = min at (runEnd - 1)
-      if jump > offset then
-        index <- index + (jump - offset)
-        offset <- jump
-      else
-        offset <- String.clusterEnd s offset
-        index <- index + 1
-    if offset = at && String.landsOn s (at + needle.Length) at then
-      found <- at
-    else
-      at <- s.IndexOf(needle, at + 1, System.StringComparison.Ordinal)
-  found
-
-/// The cluster index of the first whole-cluster `needle` in `s`, or -1. `needle` is not empty.
-let private egcIndexOf (s : string) (needle : string) : int =
-  if String.isCharwise s then
-    s.IndexOf(needle, System.StringComparison.Ordinal)
-  else
-    let mutable offset = 0
-    let mutable index = 0
-    if nextEgcMatch s needle 0 &offset &index < 0 then -1 else index
-
 /// The cluster index of the last whole-cluster `needle` in `s`, or -1. `needle` is not empty.
 let private egcLastIndexOf (s : string) (needle : string) : int =
   if String.isCharwise s then
@@ -75,10 +22,10 @@ let private egcLastIndexOf (s : string) (needle : string) : int =
     let mutable offset = 0
     let mutable index = 0
     let mutable last = -1
-    let mutable at = nextEgcMatch s needle 0 &offset &index
+    let mutable at = String.nextEgcMatch s needle 0 &offset &index
     while at >= 0 do
       last <- index
-      at <- nextEgcMatch s needle (at + 1) &offset &index
+      at <- String.nextEgcMatch s needle (at + 1) &offset &index
     last
 
 
@@ -183,12 +130,12 @@ let fns () : List<BuiltInFn> =
               let mutable offset = 0
               let mutable index = 0
               let mutable copied = 0
-              let mutable at = nextEgcMatch s search 0 &offset &index
+              let mutable at = String.nextEgcMatch s search 0 &offset &index
               while at >= 0 do
                 sb.Append(s, copied, at - copied).Append(replace)
                 |> ignore<StringBuilder>
                 copied <- at + search.Length
-                at <- nextEgcMatch s search copied &offset &index
+                at <- String.nextEgcMatch s search copied &offset &index
               sb.Append(s, copied, s.Length - copied).ToString()
           // A replacement can start with a mark that composes with what precedes it.
           replaced |> String.normalize |> DString |> Ply
@@ -547,7 +494,9 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString lookingIn; DString searchingFor |] ->
-          Ply(DBool(searchingFor = "" || egcIndexOf lookingIn searchingFor >= 0))
+          Ply(
+            DBool(searchingFor = "" || String.egcIndexOf lookingIn searchingFor >= 0)
+          )
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -570,7 +519,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->
-          let index = if search = "" then 0 else egcIndexOf str search
+          let index = if search = "" then 0 else String.egcIndexOf str search
           Ply(Dval.dint64 (int64 index))
         | _ -> incorrectArgs ())
       previewable = Pure

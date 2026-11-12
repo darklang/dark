@@ -63,3 +63,20 @@ test listIsEmpty =
   Stdlib.Test.all(
     [ check("list isEmpty yes", (if Stdlib.List.isEmpty([]) then "y" else "n"), "y")
       check("list isEmpty no", (if Stdlib.List.isEmpty([ 1 ]) then "y" else "n"), "n") ])
+
+test stringContains =
+  let yn(b: Bool): String = if b then "y" else "n"
+
+  Stdlib.Test.all(
+    [ check("contains yes", yn(Stdlib.String.contains("abc def", "c d")), "y")
+      check("contains no", yn(Stdlib.String.contains("abc def", "\n")), "n")
+      check("contains empty", yn(Stdlib.String.contains("abc", "")), "y")
+      check("contains half a cluster", yn(Stdlib.String.contains("éx", "e")), "n")
+      check("contains whole cluster", yn(Stdlib.String.contains("aéx", "é")), "y") ])
+
+test stringDisplayWidth =
+  Stdlib.Test.all(
+    [ check("width ascii", Stdlib.display(Stdlib.String.displayWidth("abc")), "3")
+      check("width empty", Stdlib.display(Stdlib.String.displayWidth("")), "0")
+      check("width wide", Stdlib.display(Stdlib.String.displayWidth("世界")), "4")
+      check("width combining", Stdlib.display(Stdlib.String.displayWidth("é")), "1") ])

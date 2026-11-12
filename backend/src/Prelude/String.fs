@@ -177,6 +177,59 @@ let rec landsOn (s : string) (target : int) (offset : int) : bool =
   else
     landsOn s target (clusterEnd s offset)
 
+/// The first offset at or after `offset` whose char is U+0300 or above or is CR, or `s.Length`.
+/// Every char before it, except perhaps the last, is a cluster of its own: that one may combine
+/// with the char after. See `String.clusterEnd`.
+let private simpleRunEnd (s : string) (offset : int) : int =
+  let rest = System.MemoryExtensions.AsSpan(s, offset)
+  let other = System.MemoryExtensions.IndexOfAnyExceptInRange(rest, char 0, '\u02FF')
+  let runEnd = if other < 0 then s.Length else offset + other
+  let cr = s.IndexOf('\r', offset, runEnd - offset)
+  if cr < 0 then runEnd else cr
+
+/// The UTF-16 offset of the first `needle` in `s` at or after `from` that starts and ends on
+/// cluster boundaries, or -1. `needle` is not empty.
+///
+/// `offset` is a cluster boundary at or before `from`, and `index` the number of clusters before
+/// it. Both move forward as the search walks, so a search that carries on from a match does not
+/// walk the text again. Searches ordinally and walks only as far as a hit, so a miss costs what
+/// ordinal `IndexOf` does, and a run of simple chars is jumped rather than walked.
+let nextEgcMatch
+  (s : string)
+  (needle : string)
+  (from : int)
+  (offset : byref<int>)
+  (index : byref<int>)
+  : int =
+  let mutable at = s.IndexOf(needle, from, System.StringComparison.Ordinal)
+  let mutable found = -1
+  let mutable runEnd = offset
+  while found < 0 && at >= 0 do
+    while offset < at do
+      if offset >= runEnd then runEnd <- simpleRunEnd s offset
+      // Jump over simple chars, one cluster per char, rather than asking for each cluster.
+      let jump = min at (runEnd - 1)
+      if jump > offset then
+        index <- index + (jump - offset)
+        offset <- jump
+      else
+        offset <- clusterEnd s offset
+        index <- index + 1
+    if offset = at && landsOn s (at + needle.Length) at then
+      found <- at
+    else
+      at <- s.IndexOf(needle, at + 1, System.StringComparison.Ordinal)
+  found
+
+/// The cluster index of the first whole-cluster `needle` in `s`, or -1. `needle` is not empty.
+let egcIndexOf (s : string) (needle : string) : int =
+  if isCharwise s then
+    s.IndexOf(needle, System.StringComparison.Ordinal)
+  else
+    let mutable offset = 0
+    let mutable index = 0
+    if nextEgcMatch s needle 0 &offset &index < 0 then -1 else index
+
 /// Whether the first clusters of `subject` are the clusters of `prefix`.
 ///
 /// Prefix tests are cluster tests in Dark, not char tests: "\U0001F471" is an ordinal prefix of
