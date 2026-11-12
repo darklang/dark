@@ -502,7 +502,16 @@ let __formatChars(date: DateTime, chars: List<Char>, written: List<String>)
 /// Any other {{%}} sequence, or a lone {{%}} at the end, is an {{Error}}.
 /// For example, {{format(d, "%Y-%m-%d %H:%M:%S.%f")}} gives {{Ok("2019-07-28 22:42:36.500")}}.
 let format(date: DateTime, pattern: String): Stdlib.Result.Result<String, String> =
-  __formatChars(date, Stdlib.String.toList(pattern), [])
+  // `HH:mm:ss` has no directive, so it would come back unchanged: refuse it instead
+  let foreign = [ "yyyy", "YYYY", "HH", "hh", "mm", "ss", "dd", "MM" ]
+  if
+    Stdlib.Bool.not(Stdlib.String.contains(pattern, "%"))
+    && Stdlib.List.any(foreign, fun f -> Stdlib.String.contains(pattern, f))
+  then
+    Stdlib.Result.Result.Error(
+      $"`{pattern}` has no % directive, so it would print as written; the directives are %Y %m %d %H %M %S %f %%")
+  else
+    __formatChars(date, Stdlib.String.toList(pattern), [])
 
 
 // Shared clock implementation.
