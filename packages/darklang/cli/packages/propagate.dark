@@ -157,6 +157,11 @@ type Followed =
 let nothingFollowed(): Followed =
   Followed { names = [], broken = [], failure = Stdlib.Option.Option.None }
 
+/// Whether a save type-checks the dependents that followed it. `Skip` leaves `broken` empty.
+type FollowerCheck =
+  | Check
+  | Skip
+
 /// Repoint the dependents of <param location> at <param currentHash>, now, into the draft, and say
 /// what followed.
 ///
@@ -176,7 +181,7 @@ let repointNow(
   previousHashes: List<LanguageTools.ProgramTypes.Hash>,
   currentHash: LanguageTools.ProgramTypes.Hash,
   itemKind: LanguageTools.ProgramTypes.ItemKind,
-  checkFollowers: Bool)
+  followerCheck: FollowerCheck)
   : Followed =
   match previousHashes with
   | [] -> nothingFollowed() // brand new: nothing can be pointing at an older version of it
@@ -198,7 +203,9 @@ let repointNow(
         repoints |> Stdlib.List.map(fun r -> (SCM.Draft.referenceHash(r.toRef), nameOf(r)))
 
       let checked =
-        if checkFollowers then (SCM.PackageOps.typeCheckDraft(branchId)).items else []
+        match followerCheck with
+        | Check -> (SCM.PackageOps.typeCheckDraft(branchId)).items
+        | Skip -> []
 
       let broken =
         checked
@@ -246,11 +253,10 @@ let updatedItems(
   |> Stdlib.List.uniqueBy(fun item -> item.location)
 
 /// Every updated binding uses its final stored hash, shared by all authoring paths.
-/// <param checkFollowers> false skips type-checking what followed, which leaves `broken` empty.
 let repointSaved(
   branchId: Uuid,
   updates: List<UpdatedItem>,
-  checkFollowers: Bool)
+  followerCheck: FollowerCheck)
   : Followed =
   updates
   |> Stdlib.List.fold(nothingFollowed(), fun(combined, update) ->
@@ -259,7 +265,7 @@ let repointSaved(
       | Some(current) ->
         repointNow(branchId, update.location,
           update.previous |> Stdlib.List.filter(fun h -> h != current),
-          current, update.kind, checkFollowers)
+          current, update.kind, followerCheck)
       | None ->
         Followed { names = [], broken = [], failure = Some("A saved binding could not be resolved.") }
     let failure =

@@ -129,21 +129,25 @@ let helpRowsAtWidth(
     [])
 
 
-/// The leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. `shortNames` is the
-/// only thing a listing of one module and a search across the tree disagree about: a listing shows
-/// `map`, a search shows `Darklang.Stdlib.List.map`. The submodule row is each caller's own, because
-/// they ask different questions of `results`.
+/// How nav items name what they point at: a listing of one module shows `map`, a search across
+/// the tree shows `Darklang.Stdlib.List.map`.
+type Names =
+  | Short
+  | Full
+
+/// The leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. <param names> is the only
+/// thing a listing of one module and a search across the tree disagree about. The submodule row is
+/// each caller's own, because they ask different questions of `results`.
 let leafNavItems(
   results: LanguageTools.ProgramTypes.Search.SearchResults,
-  shortNames: Bool)
+  names: Names)
   : List<NavItem> =
   let nameOf(
     location: LanguageTools.ProgramTypes.PackageLocation)
     : String =
-    if shortNames then
-      location.name
-    else
-      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
+    match names with
+    | Short -> location.name
+    | Full -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
 
   let types =
     results.types
@@ -189,7 +193,7 @@ let buildNavItemsFromResults(
     |> Stdlib.List.map(fun name ->
       NavItem { name = name, entityType = EntityType.Module, location = PackageLocation.Module(Stdlib.List.append(modulePath, name)) })
 
-  Stdlib.List.flatten([ submodules, leafNavItems(results, true) ])
+  Stdlib.List.flatten([ submodules, leafNavItems(results, Names.Short) ])
 
 
 // Create interactive navigation state for a location
@@ -796,7 +800,7 @@ let performSearch(navState: State): State =
     // No tests, as `dark search` leaves them out by default; this mode has no
     // flag to ask for them, and browsing a module still lists its tests.
     let withoutTests = { results with tests = [] }
-    let searchItems = Stdlib.List.flatten([ moduleItems, leafNavItems(withoutTests, false) ])
+    let searchItems = Stdlib.List.flatten([ moduleItems, leafNavItems(withoutTests, Names.Full) ])
 
     { navState with
         items = searchItems

@@ -79,8 +79,19 @@ let branchRows(unit: Unit): List<ScmJson.BranchJson> =
         current = b.id == current
         merged = b.merged })
 
+/// Whether `branches` shows merged branches. `--all` asks for them.
+type Merged =
+  | Show
+  | Hide
+
+module Merged =
+  /// {{Show}} when <param asked>, the way `branches` reads `--all`.
+  let showIf(asked: Bool): Darklang.Cli.Branch.Merged =
+    if asked then Darklang.Cli.Branch.Merged.Show else Darklang.Cli.Branch.Merged.Hide
+
 /// List all active branches.
-let executeList(state: AppState, includeMerged: Bool): AppState =
+let executeList(state: AppState, merged: Merged): AppState =
+  let includeMerged = merged == Merged.Show
   let header = $"on {whereLabel(SCM.PackageOps.currentBranch())}. branches:"
   let listing = SCM.PackageOps.branchList(includeMerged)
 
@@ -357,8 +368,8 @@ let help(_state: AppState): String =
 let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [] -> executeCurrent(state)
-  | [ "list" ] -> executeList(state, false)
-  | [ "list", "--all" ] -> executeList(state, true)
+  | [ "list" ] -> executeList(state, Merged.Hide)
+  | [ "list", "--all" ] -> executeList(state, Merged.Show)
   | [ "current" ] -> executeCurrent(state)
   | [ "switch", id ] -> executeSwitch(state, id)
   | [ "new", id ] | [ "create", id ] when id == SCM.Branch.mainBranchName ->
@@ -456,7 +467,7 @@ let executeBranchesCmd(state: AppState, args: List<String>): AppState =
     // JSON is for a program, and a program wants the whole set rather than the readable subset.
     Cli.exitWith(state, Cli.printJson(ScmJson.branchesJson(branchRows())))
   else
-    executeList(state, Stdlib.List.contains(args, "--all"))
+    executeList(state, Merged.showIf(Stdlib.List.contains(args, "--all")))
 
 /// Start the branch named <param name> off <param parentId>, or say why it could not be.
 let start(name: String, parentId: Uuid): Stdlib.Option.Option<(Uuid * Bool)> =

@@ -660,7 +660,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
               "up/down pick a trace  |  esc quit  (nothing here performs an effect)") }
     // `--watch` IS the opt-in: a panel whose whole job is to repaint as traces arrive and as you
     // edit the code it is showing you.
-    match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, true) with
+    match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, LiveView.Host.Updates.Live) with
     | Ok(_) -> state
     | Error(e) ->
       refuse(state, e)

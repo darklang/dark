@@ -182,10 +182,19 @@ let printList(branchId: Uuid): Unit =
   printMachine()
 
 
-/// One process in full; <param full> prints the whole uuid rather than the short id. `false`
-/// when it said why it could not, so the caller can exit non-zero: naming a process that is not
-/// there is a refusal, and a shell has only the code to read.
-let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
+/// How `ps show` prints ids: `--full` asks for the whole uuid.
+type Ids =
+  | Short
+  | Full
+
+/// One process in full. `false` when it said why it could not, so the caller can exit non-zero:
+/// naming a process that is not there is a refusal, and a shell has only the code to read.
+let printShowWith(branchId: Uuid, prefix: String, ids: Ids): Bool =
+  let idText(id: Uuid): String =
+    match ids with
+    | Short -> Cli.Text.shortId(id)
+    | Full -> Stdlib.display(id)
+
   match find(prefix) with
   | Error(e) ->
     Cli.printErr(e)
@@ -198,7 +207,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
       false
     | Some(detail) ->
       let s = detail.summary
-      let id = if full then Stdlib.display(s.id) else Cli.Text.shortId(s.id)
+      let id = idText(s.id)
       Stdlib.printLine($"{id}  {entryText(branchId, s.entry)}")
       Stdlib.printLine($"  status        {statusText(branchId, s.status)}")
       Stdlib.printLine($"  started       {startedAgoText(s.started)}")
@@ -209,7 +218,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
       else
         ()
       match s.parent with
-      | Some(pid) -> Stdlib.printLine($"  parent        {if full then Stdlib.display(pid) else Cli.Text.shortId(pid)}")
+      | Some(pid) -> Stdlib.printLine($"  parent        {idText(pid)}")
       | None -> ()
       match detail.frames with
       | [] -> ()
@@ -220,7 +229,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
           Stdlib.printLine($"    {executionPointText(branchId, ep)}"))
       true
 
-let printShow(branchId: Uuid, prefix: String): Bool = printShowWith(branchId, prefix, false)
+let printShow(branchId: Uuid, prefix: String): Bool = printShowWith(branchId, prefix, Ids.Short)
 
 /// The Dark process on this machine with pid <param target>, if it is one. A
 /// target no registered pid matches is left to the id prefix, since a short id
@@ -349,7 +358,7 @@ let execute(state: AppState, args: List<String>): AppState =
             Stdlib.Option.Option.Some("up/down move  |  c cancel  |  k kill  |  esc quit") }
     // `--watch` IS the opt-in: a panel whose whole job is to repaint. It follows the store for
     // the same reason it follows the clock.
-    match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, true) with
+    match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, LiveView.Host.Updates.Live) with
     | Ok(_) -> state
     | Error(e) ->
       Cli.printErr(e)
@@ -375,7 +384,7 @@ let execute(state: AppState, args: List<String>): AppState =
         printShow(state.currentBranchId, prefix)
     Cli.exitWith(state, ok)
   | [ "show", prefix, "--full" ] ->
-    Cli.exitWith(state, printShowWith(state.currentBranchId, prefix, true))
+    Cli.exitWith(state, printShowWith(state.currentBranchId, prefix, Ids.Full))
   | [ "cancel", target ] ->
     match stop(target, Stdlib.Exec.Stop.Cancel) with
     | Ok(msg) ->

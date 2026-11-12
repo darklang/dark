@@ -33,14 +33,9 @@ let describe(branchId: Uuid, width: Int64, s: SCM.PackageOps.OpSummary): String 
     else
       (Stdlib.String.slice(firstLine, 0, width - 1)) + "..."
 
-/// One display row for an op summary: [short-or-full id; what it does; when].
-let summaryRow(
-  branchId: Uuid,
-  fullId: Bool,
-  s: SCM.PackageOps.OpSummary)
-  : List<String> =
-  let id = if fullId then s.id else short(s.id)
-  [ id, describe(branchId, 44, s), s.ts ]
+/// One display row for an op summary: [short id; what it does; when].
+let summaryRow(branchId: Uuid, s: SCM.PackageOps.OpSummary): List<String> =
+  [ short(s.id), describe(branchId, 44, s), s.ts ]
 
 /// Show what the op(s) matching an id-prefix actually DO -- pretty-printed content, not just metadata.
 let executeShow(state: AppState, idPrefix: String): AppState =
@@ -87,7 +82,7 @@ let executeList(state: AppState, limit: Int64): AppState =
 
   Stdlib.Cli.UI.Table.print(
     [ "op", "what", "when" ],
-    summaries |> Stdlib.List.map(fun s -> summaryRow(state.currentBranchId, false, s)))
+    summaries |> Stdlib.List.map(fun s -> summaryRow(state.currentBranchId, s)))
 
   state
 
