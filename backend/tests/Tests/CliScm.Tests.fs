@@ -2154,6 +2154,23 @@ let commitRefusesUnresolvedReferences =
         Expect.isFalse
           (forward.Contains "don't resolve")
           $"a forward reference that resolved is not refused, got: {forward}"
+
+        // Saving a module again after fixing a name leaves the broken version in the draft,
+        // still referenced by its caller's earlier version. Nothing named reaches it.
+        let path =
+          System.IO.Path.Combine(System.IO.Path.GetTempPath(), "unres-fixed.dark")
+        let source (body : string) =
+          $"let fixedLater(x: Int64): Int64 = {body}\n"
+          + "let usesFixed(x: Int64): Int64 = fixedLater(x)\n"
+        System.IO.File.WriteAllText(path, source "Tests.UnresFix.notThere(x)")
+        let! _ = runCli state [ "module"; "/Tests.UnresFix"; path ]
+        System.IO.File.WriteAllText(path, source "x + 1")
+        let! _ = runCli state [ "module"; "/Tests.UnresFix"; path ]
+
+        let! fixedUp = runCli state [ "commit"; "fixed"; "-y" ]
+        Expect.isFalse
+          (fixedUp.Contains "don't resolve")
+          $"an earlier broken version is not refused, got: {fixedUp}"
         ()
       })
 
