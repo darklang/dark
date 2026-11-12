@@ -1444,3 +1444,45 @@ test discardNeedsAnExplicitYes =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"refused: {refused}, survived: {survived}, discarded: {discarded}, after: {after}")
+
+
+/// Saving broken code keeps the draft and returns a failing exit code.
+module ModuleSave =
+  let save(i: Instance.T, source: String): Stdlib.Cli.Process.Output =
+    let path = Instance.home(i) + "/probe.dark"
+    let _ = Stdlib.Cli.File.writeText(path, source) |> Builtin.unwrap
+    Instance.run(i, [ "module", "/Tests.ModuleSaveProbe", path ]) |> Builtin.unwrap
+
+
+  test unresolvedNamesExitNonzeroAndKeepDraft =
+    Instance.withInstance(fun i ->
+      let result = save(i, "let f(): Int64 = Stdlib.String.definitelyMissing(\"hello\")")
+      let viewed = Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+      Stdlib.Test.all(
+        [ result.exitCode |> Stdlib.Test.equal(1)
+          Stdlib.String.contains(result.stderr, "UnresolvedValueName")
+          |> Stdlib.Test.equal(true)
+          viewed.exitCode |> Stdlib.Test.equal(0)
+          Stdlib.String.contains(viewed.stdout, "definitelyMissing")
+          |> Stdlib.Test.equal(true) ]))
+
+
+  test checkedSaveExitsZero =
+    Instance.withInstance(fun i ->
+      let result = save(i, "let f(): Int64 = 42")
+      result.exitCode |> Stdlib.Test.equal(0))
+
+
+  // The checker can run out of depth even when the code is valid.
+  test otherIncompleteChecksExitZero =
+    let warning =
+      LanguageTools.AtRestTypeChecker.failureIssue(
+        None, LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep)
+    let report =
+      LanguageTools.AtRestTypeChecker.Report
+        { verdict = LanguageTools.AtRestTypeChecker.Verdict.Incomplete
+          items = []
+          diagnostics = []
+          warnings = [ warning ] }
+    Darklang.Cli.Packages.AtRestCheck.saveHasErrors(report)
+    |> Stdlib.Test.equal(false)

@@ -252,6 +252,11 @@ let define(
             // so a type error is on screen before anything follows the change.
             AtRestCheck.printSaveReport(branchId, report)
 
+            // Save the code so it can be fixed, and signal errors through the exit code.
+            let state =
+              if AtRestCheck.saveHasErrors(report) then Cli.failed(state)
+              else state
+
             // Name what did not, so a rejected declaration is something you find out now rather than
             // the next time you call it.
             // `declarationName` returns an Option, so unwrap with filterMap before comparing:
@@ -322,6 +327,8 @@ let help(_state: Cli.AppState): String =
     "The source may contain functions, types, values, tests, and nested modules."
     "All declarations are validated, then saved as WIP in one batch; the at-rest"
     "type check is reported and `commit` refuses definite type errors."
+    "Definite type errors and unresolved names exit 1; declarations remain saved"
+    "as drafts. Other incomplete checks warn and exit 0."
     ""
     "Example:"
     "  dark module /Me.Example - <<'EOF'"

@@ -149,6 +149,17 @@ let summary(
   | Failed -> Stdlib.Option.Option.Some("static type errors detected")
   | Incomplete -> Stdlib.Option.Option.Some("static check incomplete")
 
+/// Return a failing exit code for type errors and names that cannot be found.
+/// An unfinished check alone does not mean the code is broken.
+let saveHasErrors(report: LanguageTools.AtRestTypeChecker.Report): Bool =
+  report.verdict == LanguageTools.AtRestTypeChecker.Verdict.Failed
+  || (Stdlib.List.concat(report.diagnostics, report.warnings)
+      |> Stdlib.List.any(fun issue ->
+        match issue.code with
+        | UnresolvedTypeName | UnresolvedFunctionName
+        | UnresolvedValueName | UnresolvedTraitName -> true
+        | _ -> false))
+
 /// Report a saved WIP batch. Findings do not stop the save; `commit` enforces
 /// definite errors.
 let printSaveReport(
