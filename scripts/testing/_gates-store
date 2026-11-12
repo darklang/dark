@@ -284,7 +284,13 @@ gate_old_store_resets() {
     # shellcheck disable=SC2012  # need mtime order; no filename here has a space
     CLI=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
   fi
-  [[ -x "$CLI" ]] || { echo "old-store-resets: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }
+  if [[ ! -x "$CLI" ]]; then
+    echo "old-store-resets: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2
+    # CI builds one before the gates run, so missing there is a failure.
+    [[ "${CI:-}" == "true" ]] && exit 2
+    echo "old-store-resets: skipped: it needs a CLI with an embedded seed, which the debug build is not; scripts/run-tests --published runs it" >&2
+    exit "$SKIP"
+  fi
   ROOT=$(realpath -m rundir/old-store-test)
   pass=0; fail=0
   ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
