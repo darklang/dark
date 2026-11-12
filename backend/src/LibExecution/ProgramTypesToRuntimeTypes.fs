@@ -1574,7 +1574,7 @@ module PackageManager =
       // The PT pm already answers for one branch, so the branch id is not needed.
       implCandidates = fun _ traitHash -> ImplCandidate.ofPackageManager pm traitHash
       implCandidatesByMethod = fun _ m -> ImplCandidate.ofPackageManagerByMethod pm m
-      implSelectionMemo = System.Collections.Concurrent.ConcurrentDictionary()
+      implSelectionMemo = RT.ImplSelectionMemo.create ()
       implGeneration = fun () -> 0
 
       init = pm.init }

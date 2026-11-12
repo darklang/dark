@@ -3701,7 +3701,12 @@ let private traitSelfArgIndex
 /// read by the apply fast path.
 let private traitSelfIndexMemo
   : System.Collections.Concurrent.ConcurrentDictionary<struct (Hash * string), int> =
-  System.Collections.Concurrent.ConcurrentDictionary()
+  System.Collections.Concurrent.ConcurrentDictionary(
+    { new System.Collections.Generic.IEqualityComparer<struct (Hash * string)> with
+        member _.Equals(struct (Hash h1, m1), struct (Hash h2, m2)) =
+          System.String.Equals(h1, h2) && System.String.Equals(m1, m2)
+        member _.GetHashCode(struct (Hash h, m)) = contentHashCode h ^^^ m.Length }
+  )
 
 /// The fn hash that implements `traitHash.methodName` for this call, or the RTE
 /// saying why none could be picked. A selection made here is remembered on the

@@ -936,7 +936,7 @@ let rt : RT.PackageManager =
           | Some cs -> return cs
           | None -> return []
         }
-    implSelectionMemo = System.Collections.Concurrent.ConcurrentDictionary()
+    implSelectionMemo = RT.ImplSelectionMemo.create ()
     implGeneration = Caching.generation
 
     init =
