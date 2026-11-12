@@ -3,17 +3,53 @@ module LibSerialization.Binary.BaseFormat
 
 open System
 
-/// Only this binary format is supported. Bump it when the wire layout changes.
+/// v1 is the format the op-log substrate ships with; nothing older ever existed in
+/// the wild (pre-v1 stores were rebuilt from `.dark` source each build). Bump on every
+/// wire-layout change, keeping a readV1 beside the new writer: from here, stores
+/// cannot be rebuilt from text.
+/// v2 (traits, 2026-09): `bounds` on PackageFn and TypeDeclaration, `FQFnName.TraitMethod`
+/// tag 2. Readers dispatch on the blob version; v1 blobs read with `bounds = []`.
+/// v3 (traits, 2026-09): `Trait` and `TraitImpl` items, `AddTrait`/`AddTraitImpl` op tags 15
+/// and 16, `Reference` tags 3 and 4. Nothing existing changed layout; a v2 blob reads as is.
+/// v4 (traits, 2026-09): the implementation a trait call resolved to is an `ImplChoice` (chosen,
+/// from a type param, or unknown) rather than an option, on `FQFnName.TraitMethod`, `EInfix` and
+/// `EPipeInfix`, and `EFnName` carries what the caller worked out for the callee's bounds. A v3
+/// blob's option reads as `Chosen` or `Unknown`; a v1 or v2 blob had no field and reads `Unknown`.
+/// v5 (2026-10): `EPipeFnCall` carries what the caller worked out for the callee's bounds, as
+/// `EFnName` has since v4. A v4 blob ends after the args and reads `boundImpls = []`, so a piped
+/// call into a bounded generic resolves at run time until it is re-authored.
+/// v6 (tests, 2026-10): `PackageTest` items, the `AddTest` op tag 17 and `Reference` tag 5.
+/// Nothing existing changed layout; a v5 blob reads as is.
+/// A lambda value no longer carries applied arguments (there is no partial application). Its
+/// layout changed in place, without a version: no store in use holds an older lambda blob.
+/// v7 (numbers, 2026-11): `DFloat32`, `KTFloat32`, `TFloat32`, `EFloat32` and `MPFloat32` take
+/// the next tag in each table, and the `Decimal` cases the one after. A Decimal is the four words
+/// of `Decimal.GetBits`. Nothing existing changed layout, so a v6 blob reads, but its meaning
+/// moved: a bare integer literal reads as an Int64 rather than a `BigInt`, and the stdlib with it,
+/// so there is no migration and a store from before v7 is started afresh.
+/// v8 (2026-11): `EFnName` ends with the type args of a reference that is not called
+/// (`let h = Stdlib.List.map<Int64, Int64>`). A v7 blob ends after the bounds and reads
+/// `typeArgs = []`.
+/// v10 (effects, 2026-11): effects and permissions simplified, across program and compiled
+/// layouts. No reader was kept for v1-v8 (there was no v9), so a store from before v10 does
+/// not open.
+/// v11 (2026-11): a compiled `LPVariable` ends with the variable's name. A v10 one ends after
+/// the register and reads the name "[variable]", which is what v10 printed for it.
 [<Literal>]
 let CurrentVersion = 11u
+
+/// The oldest version this binary still reads.
+[<Literal>]
+let OldestReadableVersion = 10u
 
 /// Binary file header structure (8 bytes)
 type BinaryHeader =
   {
-    /// The format expected by this build. Older and newer formats are rejected.
+    // The blob's format version. Passed to version-dispatched readers (makeDeserializerV) so a new
+    // binary can decode an OLD layout by branching on it: the keystone of any future format
+    // migration. Bump `CurrentVersion` on the next wire-layout change and add the matching readVN.
     Version : uint32 // 4 bytes - format version
-    DataLength : uint32
-  } // 4 bytes - payload size
+    DataLength : uint32 } // 4 bytes - payload size
 
 /// Validation errors for binary format
 type BinaryFormatError =
@@ -49,7 +85,9 @@ module Varint =
 
 module Validation =
   let validateVersion (version : uint32) =
-    if version <> CurrentVersion then
+    // Reject formats we cannot read rather than guessing how to parse them. Anything from
+    // OldestReadableVersion up to CurrentVersion has a reader.
+    if version < OldestReadableVersion || version > CurrentVersion then
       raise (BinaryFormatException(UnsupportedVersion version))
 
   let validateDataLength (expected : uint32) (actual : uint32) =

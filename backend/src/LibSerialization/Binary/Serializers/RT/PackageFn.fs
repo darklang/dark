@@ -88,12 +88,13 @@ let write (w : BinaryWriter) (fn : PackageFn.PackageFn) =
   Instructions.write w fn.body
   List.write w TypeReference.Bound.write fn.bounds
 
-let read (r : BinaryReader) : PackageFn.PackageFn =
+/// <param version> is the blob's format (`makeDeserializerV`).
+let read (version : uint32) (r : BinaryReader) : PackageFn.PackageFn =
   let hash = Hash.read r
   let typeParams = List.read r String.read
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
-  let body = Instructions.read r
+  let body = Instructions.read version r
   let bounds = TypeReference.Bound.readList r
   { hash = hash
     typeParams = typeParams
