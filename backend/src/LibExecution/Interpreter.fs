@@ -5433,6 +5433,39 @@ let private tryBuildSync
       [ "opcode", Opcode.index inst ]
 
 
+/// A stored package value as the frame loading it gets it.
+///
+/// Stored package values must not leak the seeder's authority. When one is loaded, attach this
+/// frame's access recursively to every callable inside it, so later calls use the loader's
+/// permissions. An inert value has no callable to attach it to, and the copy would equal the
+/// original, so it is handed over as it is stored.
+let private packageValueFor
+  (currentFrame : CallFrame)
+  (v : PackageValue.PackageValue)
+  : Dval =
+  if v.isInert then v.body else Dval.captureValueAccess currentFrame.access v.body
+
+/// A `LoadValue` answered without waiting: a builtin value, or a package value the store has
+/// already answered for. `ValueNone` leaves it to `runRareOpcode`, which waits for the store and
+/// raises when there is no such value.
+let private loadValueSync
+  (exeState : ExecutionState)
+  (currentFrame : CallFrame)
+  (name : FQValueName.FQValueName)
+  : Dval voption =
+  match name with
+  | FQValueName.Builtin builtin ->
+    let mutable v = Unchecked.defaultof<BuiltInValue>
+    if exeState.values.builtIn.TryGetValue(builtin, &v) then
+      ValueSome(Dval.captureValueAccess currentFrame.access v.body)
+    else
+      ValueNone
+  | FQValueName.Package pkg ->
+    match Ply.trySync (exeState.values.package pkg) with
+    | ValueSome(Some v) -> ValueSome(packageValueFor currentFrame v)
+    | _ -> ValueNone
+
+
 /// An operator call answered as its `Apply` would answer it in `tryFastOpDirect`: true when it
 /// was, with the result in the `Apply`'s register. False changes nothing, and the `LoadVal` and
 /// the `Apply` then run as usual.
@@ -5620,7 +5653,14 @@ let private runSyncInstructions
       if handled then counter <- counter + 1
       elif not landedRetry then running <- false
 
-    | LoadValue _ -> running <- false
+    | LoadValue(createTo, name) ->
+      match loadValueSync exeState currentFrame name with
+      | ValueSome v ->
+        if vm.stats.enabled then
+          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+        Registers.set registers createTo v
+        counter <- counter + 1
+      | ValueNone -> running <- false
 
     // An operator call: this `LoadVal` and the `Apply` after it, answered from the registers.
     // Only when the budget would have run the `Apply` too, so preemption falls where it did, and
@@ -6687,17 +6727,7 @@ let private runRareOpcode
 
       | FQValueName.Package pkg ->
         match! Ply.toTask (exeState.values.package pkg) with
-        | Some v ->
-          // Stored package values must not leak the seeder's authority. When
-          // one is loaded, attach this frame's access recursively to every
-          // callable inside it, so later calls use the loader's permissions.
-          // An inert value has no callable to attach it to, and the copy would
-          // equal the original, so it is handed over as it is stored.
-          registers[createTo] <-
-            if v.isInert then
-              v.body
-            else
-              Dval.captureValueAccess currentFrame.access v.body
+        | Some v -> registers[createTo] <- packageValueFor currentFrame v
         | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
     // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
     // `FrameRareOpcode` for the five above. Loud rather than silent if that ever stops holding.
