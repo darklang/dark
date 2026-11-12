@@ -124,19 +124,39 @@ run_gate() {
   "gate_${name//-/_}" "$@"
 }
 
+# A gate exits with this when it cannot run here, after saying why. Never in CI: there a gate
+# that cannot run is a failure.
+SKIP=77
+
+# The last line of `all` and `ci`, which run-tests shows as the gates' result.
+summary() {  # summary <total> <skipped...>
+  local total="$1"; shift
+  if [[ $# -gt 0 ]]; then
+    echo "all $((total - $#)) gate(s) passed, $# skipped: $*"
+  else
+    echo "all $total gate(s) passed."
+  fi
+}
+
 run_many() {  # run_many <bound|unbound> <name...> -- serial, with per-gate timing
   local bound="$1"; shift
   local total=$#
-  local failed=()
-  local g started took
+  local failed=() skipped=()
+  local g started took rc
   for g in "$@"; do
     echo "==> $g"
     started=$SECONDS
+    rc=0
     if [[ "$bound" == "bound" ]]; then
-      timeout 5m "$0" "$g" || failed+=("$g")
+      timeout 5m "$0" "$g" || rc=$?
     else
-      "$0" "$g" || failed+=("$g")
+      "$0" "$g" || rc=$?
     fi
+    case "$rc" in
+      0) ;;
+      "$SKIP") skipped+=("$g") ;;
+      *) failed+=("$g") ;;
+    esac
     took=$((SECONDS - started))
     printf '<== %s  %dm%02ds\n\n' "$g" $((took / 60)) $((took % 60))
   done
@@ -144,7 +164,7 @@ run_many() {  # run_many <bound|unbound> <name...> -- serial, with per-gate timi
     echo "FAILED: ${failed[*]}"
     exit 1
   fi
-  echo "all $total gate(s) passed."
+  summary "$total" "${skipped[@]+"${skipped[@]}"}"
 }
 
 run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
@@ -161,8 +181,8 @@ run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
   # see `PackageRefsGenerator.generate`.
   local bound="$1"; shift
   local total=$#
-  local failed=()
-  local g started took
+  local failed=() skipped=()
+  local g started took rc
   local outdir
   outdir=$(mktemp -d)
   declare -A pids
@@ -179,12 +199,18 @@ run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
   done
   for g in "$@"; do
     local verdict=ok
-    wait "${pids[$g]}" || { verdict=FAIL; failed+=("$g"); }
+    rc=0
+    wait "${pids[$g]}" || rc=$?
+    case "$rc" in
+      0) ;;
+      "$SKIP") verdict=skip; skipped+=("$g") ;;
+      *) verdict=FAIL; failed+=("$g") ;;
+    esac
     took=$(cat "$outdir/$g.time" 2>/dev/null || echo 0)
     printf '  %-5s %-32s %dm%02ds\n' "$verdict" "$g" $((took / 60)) $((took % 60))
   done
   took=$((SECONDS - started))
-  for g in "${failed[@]+"${failed[@]}"}"; do
+  for g in "${skipped[@]+"${skipped[@]}"}" "${failed[@]+"${failed[@]}"}"; do
     echo; echo "---- $g output ----"
     cat "$outdir/$g.log"
   done
@@ -194,7 +220,7 @@ run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
     echo "FAILED: ${failed[*]}"
     exit 1
   fi
-  echo "all $total gate(s) passed."
+  summary "$total" "${skipped[@]+"${skipped[@]}"}"
 }
 
 if [[ "${1:-}" == --final ]]; then
