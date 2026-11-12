@@ -122,27 +122,35 @@ let private named name hash =
 
 let private call name hash = eApply (named name hash) [] [ eUnit () ]
 
-let private runNamed instance restriction approvals fns expr =
+let private withApprovals approvals (state : RT.ExecutionState) =
+  { state with
+      packagePolicy =
+        fun name _ ->
+          Some(
+            name
+            |> Option.bind (fun n -> Map.tryFind n approvals)
+            |> Option.defaultValue P.Policy.denyAll
+          ) }
+
+let private namedState instance restriction approvals fns =
   task {
     let byHash =
       fns |> List.map (fun (f : PT.PackageFn.PackageFn) -> f.hash, f) |> Map.ofList
     let pm = { TestValues.pm with getFn = fun h -> Ply(Map.tryFind h byHash) }
     let! state = executionStateFor pm false
-    let state =
-      { state with
-          packagePolicy =
-            fun name _ ->
-              Some(
-                name
-                |> Option.bind (fun n -> Map.tryFind n approvals)
-                |> Option.defaultValue P.Policy.denyAll
-              ) }
+    return
+      withApprovals approvals state
       |> LibExecution.Execution.setInstancePolicy instance
       |> LibExecution.Execution.restrictRun restriction
-    return!
-      LibExecution.Execution.executeExpr
-        state
-        (PT2RT.Expr.toRT Map.empty 0 None expr)
+  }
+
+let private runIn state expr =
+  LibExecution.Execution.executeExpr state (PT2RT.Expr.toRT Map.empty 0 None expr)
+
+let private runNamed instance restriction approvals fns expr =
+  task {
+    let! state = namedState instance restriction approvals fns
+    return! runIn state expr
   }
 
 let private clockGrant = P.Policy.allowEffects (Set.singleton Effects.Effect.Clock)
@@ -218,6 +226,44 @@ let runRestrictionWins =
         [ fn "clock" clockBody ]
         (call "reader" "clock")
     expectDenied [ "run policy" ] actual
+  }
+
+// These share one state's call data across runs, as a host's later runs do.
+let approvalChangeBetweenRuns =
+  testTask "a changed approval applies on the next run" {
+    let! state =
+      namedState
+        P.Policy.denyAll
+        P.Policy.allowAll
+        Map.empty
+        [ fn "clock" clockBody ]
+    let! before = runIn state (call "reader" "clock")
+    expectDenied [ "clock" ] before
+    let granted = withApprovals (Map.ofList [ "Me.reader", clockGrant ]) state
+    let! after = runIn granted (call "reader" "clock")
+    expectNotDenied after
+    let! revoked = runIn (withApprovals Map.empty granted) (call "reader" "clock")
+    expectDenied [ "clock" ] revoked
+  }
+
+let namesSharingCallDataKeepTheirOwnApproval =
+  testTask "two names for one fn keep their own approvals" {
+    let! state =
+      namedState
+        P.Policy.denyAll
+        P.Policy.allowAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "clock" clockBody ]
+    let! first = runIn state (call "alias" "clock")
+    expectDenied [ "clock" ] first
+    let! approved = runIn state (call "reader" "clock")
+    expectNotDenied approved
+    let! again = runIn state (call "alias" "clock")
+    expectDenied [ "clock" ] again
+    let both =
+      eLet (PT.LPWildcard(gid ())) (call "reader" "clock") (call "alias" "clock")
+    let! oneRun = runIn state both
+    expectDenied [ "clock" ] oneRun
   }
 
 /// Make and consume in separate frames so either side can supply the restriction.
@@ -687,6 +733,8 @@ let tests =
       nestedApprovalCannotWiden
       explicitDenyWins
       runRestrictionWins
+      approvalChangeBetweenRuns
+      namesSharingCallDataKeepTheirOwnApproval
       evaluatedNamedFnInContainerCannotWidenReentry
       everyPolicyBuiltinRefusesGuestCode
       guestCannotGrantRunAccess
