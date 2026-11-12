@@ -4449,7 +4449,8 @@ module Dval =
     | DRecord(_, typeName, typeArgs, _)
     | DEnum(_, typeName, typeArgs, _, _) ->
       match vt with
-      | ValueType.Known(KTCustomType(name, args)) -> name = typeName && args = typeArgs
+      | ValueType.Known(KTCustomType(name, args)) ->
+        name = typeName && args = typeArgs
       | _ -> false
     | DList(elem, _) ->
       match vt with
