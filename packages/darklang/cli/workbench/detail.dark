@@ -612,18 +612,21 @@ let matterPageLines(state: State): List<String> =
   else
     inspectPageLines(state)
 
-/// Build the item page when the Code view is showing one it was not built for. Kept on the
-/// state, so the frames in between draw it rather than reading the store again.
+/// How many item pages the Code view keeps, so moving back over the last few draws them again.
+val previewsKept = 16
+
+/// Build the item page when the Code view is showing one it has not built. Kept on the state, so
+/// the frames in between, and a move back to it, draw it rather than reading the store again.
 let refreshPreview(next: State): State =
   if next.activeView != vMatter then
-    { next with preview = Stdlib.Option.Option.None }
+    { next with previews = [] }
   else
     let key = previewKey(next)
-    match next.preview with
-    | Some(p) when p.key == key -> next
-    | _ ->
-      { next with
-          preview = Stdlib.Option.Option.Some(PreviewCache { key = key, lines = matterPageLines(next) }) }
+    if Stdlib.List.any(next.previews, fun p -> p.key == key) then
+      next
+    else
+      let page = PreviewCache { key = key, lines = matterPageLines(next) }
+      { next with previews = Stdlib.List.take(Stdlib.List.prepend(next.previews, page), previewsKept) }
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
@@ -641,9 +644,10 @@ let previewLines(state: State): List<String> =
     // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions).
     // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf
     // against where you're standing, so it would report every one of them as missing.
-    match state.preview with
-    | Some(p) when p.key == previewKey(state) -> p.lines
-    | _ -> matterPageLines(state)
+    let key = previewKey(state)
+    match Stdlib.List.findFirst(state.previews, fun p -> p.key == key) with
+    | Some(p) -> p.lines
+    | None -> matterPageLines(state)
   else if state.activeView == vTraces then Stdlib.String.split(traceDetail(state), "\n")
   else if state.activeView == vDocs then Stdlib.String.split(docContent(state), "\n")
   else

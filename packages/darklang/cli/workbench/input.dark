@@ -231,7 +231,7 @@ let performInputAction(state: State, inp: InputState): Step =
           { state with
               input = Stdlib.Option.Option.None
               // Whatever ran may have changed what the item page shows, an approval for one.
-              preview = Stdlib.Option.Option.None
+              previews = []
               reading = Stdlib.Option.Option.Some((Stdlib.Cli.UI.Colors.dimText("$ " + text)) + "\n\n" + shown)
               readingIsCode = false
               detailScroll = 0 })
