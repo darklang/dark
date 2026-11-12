@@ -1376,30 +1376,79 @@ module DvalCreator =
   /// One field of an enum case being constructed. Same shape as `checkRecordFields`, and the same
   /// reason for existing: as a lambda over a three-element accumulator this costs a closure, a state
   /// machine and a tuple per field of every enum built.
+  /// One type argument once a field has been checked: an unknown one takes what the field bound
+  /// it to, a known one merges.
+  let private bindTypeArg
+    (newTST : TypeSymbolTable)
+    (paramName : string)
+    (vt : ValueType)
+    : ValueType voption =
+    match vt with
+    | ValueType.Unknown ->
+      match TST.tryFind paramName newTST with
+      | ValueSome known -> ValueSome known
+      | ValueNone -> ValueSome vt
+    | known ->
+      match ValueType.merge known vt with
+      | Ok merged -> ValueSome merged
+      | Error() -> ValueNone
+
   /// The type-argument walk from the checked-field slow path, without the builder.
   ///
   /// `ValueNone` when a merge fails, so the caller falls through to the asynchronous path and the
   /// error message is built in one place rather than two.
+  ///
+  /// An argument that does not change keeps its pair, and a tail that does not change is the
+  /// same list, so a field that teaches nothing new allocates nothing.
   let rec private updateTypeArgsSync
     (newTST : TypeSymbolTable)
-    (acc : List<string * ValueType>)
     (typeArgs : List<string * ValueType>)
     : List<string * ValueType> voption =
     match typeArgs with
-    | [] -> ValueSome(List.rev acc)
+    | [] -> ValueSome typeArgs
     | (paramName, vt) :: rest ->
-      match vt with
-      | ValueType.Unknown ->
-        let bound =
-          match TST.tryFind paramName newTST with
-          | ValueSome known -> (paramName, known)
-          | ValueNone -> (paramName, vt)
-        updateTypeArgsSync newTST (bound :: acc) rest
+      match bindTypeArg newTST paramName vt with
+      | ValueNone -> ValueNone
+      | ValueSome bound ->
+        match updateTypeArgsSync newTST rest with
+        | ValueNone -> ValueNone
+        | ValueSome newRest ->
+          if
+            System.Object.ReferenceEquals(bound, vt)
+            && System.Object.ReferenceEquals(newRest, rest)
+          then
+            ValueSome typeArgs
+          else
+            ValueSome((paramName, bound) :: newRest)
 
-      | known ->
-        match ValueType.merge known vt with
-        | Ok merged -> updateTypeArgsSync newTST ((paramName, merged) :: acc) rest
-        | Error() -> ValueNone
+  /// `updateTypeArgsSync` for the values alone, as a `DEnum` holds them, so the pairs are never
+  /// rebuilt. `values` are the ones so far, or empty before the first field, when they are still
+  /// the ones in `typeArgs`.
+  let rec private updateTypeArgValuesSync
+    (newTST : TypeSymbolTable)
+    (typeArgs : List<string * ValueType>)
+    (values : List<ValueType>)
+    : List<ValueType> voption =
+    match typeArgs with
+    | [] -> ValueSome []
+    | (paramName, own) :: rest ->
+      let struct (vt, valuesRest) =
+        match values with
+        | v :: vs -> struct (v, vs)
+        | [] -> struct (own, [])
+      match bindTypeArg newTST paramName vt with
+      | ValueNone -> ValueNone
+      | ValueSome bound ->
+        match updateTypeArgValuesSync newTST rest valuesRest with
+        | ValueNone -> ValueNone
+        | ValueSome newRest ->
+          match values with
+          | v :: vs when
+            System.Object.ReferenceEquals(bound, v)
+            && System.Object.ReferenceEquals(newRest, vs)
+            ->
+            ValueSome values
+          | _ -> ValueSome(bound :: newRest)
 
 
   let rec private checkEnumFields
@@ -1427,7 +1476,7 @@ module DvalCreator =
           if List.isEmpty typeArgs then
             ValueSome typeArgs
           else
-            updateTypeArgsSync newTST [] typeArgs
+            updateTypeArgsSync newTST typeArgs
 
         match updated with
         | ValueSome newTypeArgs ->
@@ -1592,11 +1641,17 @@ module DvalCreator =
     (defs : List<TypeReference>)
     (fields : List<Dval>)
     (typeArgs : List<string * ValueType>)
-    : voption<List<string * ValueType>> =
+    (values : List<ValueType>)
+    : voption<List<ValueType>> =
     match defs with
     | [] ->
       match fields with
-      | [] -> ValueSome typeArgs
+      | [] ->
+        // No fields, or no type arguments: nothing was bound.
+        if List.isEmpty values && not (List.isEmpty typeArgs) then
+          ValueSome(typeArgs |> List.map Tuple2.second)
+        else
+          ValueSome values
       | _ -> ValueNone
     | fieldDef :: defsRest ->
       match fields with
@@ -1604,15 +1659,9 @@ module DvalCreator =
       | actualField :: fieldsRest ->
         match tryUnifySync tst fieldDef actualField with
         | ValueSome newTST ->
-          let updated =
-            if List.isEmpty typeArgs then
-              ValueSome typeArgs
-            else
-              updateTypeArgsSync newTST [] typeArgs
-
-          match updated with
-          | ValueSome newTypeArgs ->
-            enumFieldsSync newTST defsRest fieldsRest newTypeArgs
+          match updateTypeArgValuesSync newTST typeArgs values with
+          | ValueSome newValues ->
+            enumFieldsSync newTST defsRest fieldsRest typeArgs newValues
           | ValueNone -> ValueNone
         | ValueNone -> ValueNone
 
@@ -1654,14 +1703,12 @@ module DvalCreator =
       | ValueSome case ->
         let tst =
           typeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
-        enumFieldsSync tst case.fields fields typeArgs
+        enumFieldsSync tst case.fields fields typeArgs []
       | ValueNone -> ValueNone
 
     match fast with
-    | ValueSome typeArgs ->
-      let typeArgs =
-        if List.isEmpty typeArgs then [] else typeArgs |> List.map Tuple2.second
-      Ply(DEnum(sourceTypeName, resolvedTypeName, typeArgs, caseName, fields))
+    | ValueSome typeArgValues ->
+      Ply(DEnum(sourceTypeName, resolvedTypeName, typeArgValues, caseName, fields))
     | ValueNone ->
       let struct (tst, fieldsZipped) =
         enumCaseFields
@@ -1867,7 +1914,7 @@ module DvalCreator =
             else
               // Synchronous apart from building an error message, so a parameterised type need
               // not enter the builder; only a genuine merge failure falls through.
-              match updateTypeArgsSync newTST [] currentTypeArgs with
+              match updateTypeArgsSync newTST currentTypeArgs with
               | ValueSome updated -> ValueSome(struct (updated, newTST))
               | ValueNone -> ValueNone
 
@@ -2011,7 +2058,7 @@ module DvalCreator =
               // Parameterised types used to fail this gate outright and take the builder. The
               // type-argument walk is synchronous apart from building an error message, so it runs
               // here and only a genuine merge failure falls through.
-              match updateTypeArgsSync newTST [] currentTypeArgs with
+              match updateTypeArgsSync newTST currentTypeArgs with
               | ValueSome updated -> ValueSome(struct (updated, newTST))
               | ValueNone -> ValueNone
 
