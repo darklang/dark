@@ -182,6 +182,18 @@ let minBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> 
     Option.Option.Some(best)
 
 
+/// Returns the largest element of <param list>, or {{None}} if it is empty.
+/// The element type must implement `Compare`. On ties, the first element wins.
+let max<'a: Compare>(list: List<'a>): Option.Option<'a> =
+  maxBy(list, fun value -> value)
+
+
+/// Returns the smallest element of <param list>, or {{None}} if it is empty.
+/// The element type must implement `Compare`. On ties, the first element wins.
+let min<'a: Compare>(list: List<'a>): Option.Option<'a> =
+  minBy(list, fun value -> value)
+
+
 /// Returns a single list containing the values of every list directly in <paramlist>
 /// (does not recursively flatten nested lists)
 let flatten(list: List<List<'a>>): List<'a> =
