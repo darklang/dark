@@ -269,6 +269,7 @@ let inTransaction (f : Ctx -> Task<'a>) : Task<'a> =
     do
       use pragma = conn.CreateCommand()
       pragma.CommandText <- "PRAGMA busy_timeout=5000;"
+      Telemetry.count "sql.init"
       pragma.ExecuteNonQuery() |> ignore<int>
     use tx = conn.BeginTransaction()
     let ctx = newCtx conn

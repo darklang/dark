@@ -100,6 +100,7 @@ module DataVersion =
       cmd
 
   let current () : int64 =
+    Telemetry.count "sql.dataVersion"
     lock gate (fun () -> (command ()).ExecuteScalar() |> unbox<int64>)
 
 
@@ -115,6 +116,7 @@ module Sql =
         (System.IO.File.GetUnixFileMode path).HasFlag
           System.IO.UnixFileMode.UserWrite
       )
+    Telemetry.count "sql.init"
     props
     |> Sql.query (
       (if readOnly then "" else "PRAGMA journal_mode=WAL;")
@@ -153,6 +155,7 @@ module Sql =
   /// Force this module's initialization (first connection open + PRAGMA round trip)
   /// so the cost lands in its own span instead of inside whatever query runs first.
   let warm () : unit =
+    Telemetry.count "sql.init"
     connect
     |> Sql.query "SELECT 1"
     |> Sql.executeNonQuery
@@ -180,7 +183,8 @@ module Sql =
     currentDbPath <- LibConfig.Config.dbPath
     connect <- Sql.connect connString |> initializeConnection currentDbPath
 
-  /// Count and time every SQL statement this process runs.
+  /// Count and time every SQL statement this process runs. Each path counts under a `sql.` name
+  /// of its own; together they are every statement (`scripts/perf/_ui.py` sums them).
   ///
   /// Instrumenting only package-item loads leaves everything issued through `pmSearch` and the SCM
   /// builtins invisible, which is most of it, and makes SQL time easy to mistake for interpreter cost.
@@ -191,7 +195,7 @@ module Sql =
       f ()
     else
       task {
-        Telemetry.count $"sql.{name}"
+        Telemetry.count name
         let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
         let! r = f ()
         let t1 = System.Diagnostics.Stopwatch.GetTimestamp()
@@ -205,7 +209,7 @@ module Sql =
     if not (Telemetry.isEnabled ()) then
       f ()
     else
-      Telemetry.count $"sql.{name}"
+      Telemetry.count name
       let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
       let r = f ()
       let t1 = System.Diagnostics.Stopwatch.GetTimestamp()
@@ -215,6 +219,11 @@ module Sql =
       r
 
   let query (sql : string) : Sql.SqlProps = connect |> Sql.query sql
+
+  /// Fumble's `Sql.execute`, counted. Same name, so a caller that opens this module after Fumble
+  /// gets this one.
+  let execute reader props =
+    timedSync "sql.rowsSync" (fun () -> Sql.execute reader props)
 
   /// A store that can't be read or written is an ENVIRONMENT, not a bug: a read-only
   /// mount, another user's store, a full disk. SQLite says which; .NET buries it
@@ -265,7 +274,7 @@ module Sql =
       Exception.raiseInternal (msg err) [ "err", err ]
 
   let executeNonQueryAsync props =
-    timedTask "nonQuery" (fun () ->
+    timedTask "sql.nonQuery" (fun () ->
       Sql.executeNonQueryAsync props
       |> Async.StartImmediateAsTask
       |> Task.map (function
@@ -277,7 +286,7 @@ module Sql =
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     task {
       let! r =
-        timedTask "row" (fun () ->
+        timedTask "sql.row" (fun () ->
           Sql.executeAsync reader props |> Async.StartImmediateAsTask)
       match
         unwrapDb (fun err -> $"SQL query failed in executeRowAsync: {err.Message}") r
@@ -295,7 +304,7 @@ module Sql =
     : Task<Option<'t>> =
     task {
       let! r =
-        timedTask "rowOption" (fun () ->
+        timedTask "sql.rowOption" (fun () ->
           Sql.executeAsync reader props |> Async.StartImmediateAsTask)
       match
         unwrapDb
@@ -312,8 +321,8 @@ module Sql =
     }
 
   let executeAsync rr props =
-    Sql.executeAsync rr props
-    |> Async.StartImmediateAsTask
+    timedTask "sql.rows" (fun () ->
+      Sql.executeAsync rr props |> Async.StartImmediateAsTask)
     |> Task.map (fun r ->
       match r with
       | Ok v -> v
@@ -323,7 +332,7 @@ module Sql =
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match
-      timedSync "existsSync" (fun () -> Sql.execute (fun read -> read.bool 0) props)
+      timedSync "sql.existsSync" (fun () -> Sql.execute (fun read -> read.bool 0) props)
       |> unwrapDb (fun err -> $"Database query failed in executeExistsSync: {err}")
     with
     | [ true ] -> true
@@ -334,7 +343,7 @@ module Sql =
   let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =
     task {
       let! r =
-        timedTask "statement" (fun () ->
+        timedTask "sql.statement" (fun () ->
           Sql.executeNonQueryAsync props |> Async.StartImmediateAsTask)
       r
       |> unwrapDb (fun err ->
@@ -343,7 +352,7 @@ module Sql =
     }
 
   let executeStatementSync (props : Sql.SqlProps) : unit =
-    timedSync "statementSync" (fun () -> Sql.executeNonQuery props)
+    timedSync "sql.statementSync" (fun () -> Sql.executeNonQuery props)
     |> unwrapDb (fun err ->
       $"Database statement failed in executeStatementSync: {err}")
     |> ignore<int>
@@ -353,6 +362,9 @@ module Sql =
     (statements :
       List<string * List<List<string * Microsoft.Data.Sqlite.SqliteParameter>>>)
     : List<int> =
+    Telemetry.countBy
+      "sql.transaction"
+      (statements |> List.sumBy (fun (_, ps) -> max 1 ps.Length) |> int64)
     connect
     |> Sql.executeTransaction statements
     |> unwrapDb (fun err ->
