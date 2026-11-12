@@ -355,6 +355,12 @@ let executeFiltered(
     let typesHint =
       if Stdlib.List.isEmpty(results.types) then "" else "; only types do, so add --types"
     Cli.printErr($"no functions in {rootName} match `{needle}`{typesHint}")
+    match namedLike(rootName, unfiltered.fns, needle) with
+    | [] -> ()
+    | names ->
+      let shown = Stdlib.String.join(names, ", ")
+      Stdlib.printErrorLine(
+        Stdlib.Cli.UI.Colors.hint($"Did you mean {shown}?"))
     Cli.failed(state)
   else
     let title =
@@ -384,6 +390,42 @@ let executeFiltered(
           $"{Stdlib.display(hiddenTestItems)} test helpers left out; --include-tests shows them."))
 
     state
+
+
+/// `Stdlib.Random` holds nothing, but `Int64.random` and `String.random` exist, and
+/// `Stdlib.Cli.Environment` is `Cli.Env`: the modules and functions a dotted filter's last
+/// part names.
+let namedLike(
+  rootName: String,
+  fns: List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>,
+  filter: String)
+  : List<String> =
+  match Stdlib.String.split(filter, ".") |> Stdlib.List.last with
+  | Some(last) ->
+    if Stdlib.String.contains(filter, ".") && Stdlib.String.length(last) > 2 then
+      let word = Stdlib.String.toLowercase(last)
+      let shown = fns |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(Cli.Packages.Search.inTestModule(f.location.modules)))
+      let modules =
+        shown
+        |> Stdlib.List.filter(fun f ->
+          match Stdlib.List.last(f.location.modules) with
+          | Some(m) ->
+            let lower = Stdlib.String.toLowercase(m)
+            Stdlib.String.length(lower) > 2
+            && (Stdlib.String.startsWith(word, lower) || Stdlib.String.startsWith(lower, word))
+          | None -> false)
+        |> Stdlib.List.map(fun f -> trimRoot(rootName, moduleKey(f.location)))
+        |> Stdlib.List.unique
+        |> Stdlib.List.sort
+      let named =
+        shown
+        |> Stdlib.List.filter(fun f -> Stdlib.String.contains(Stdlib.String.toLowercase(f.location.name), word))
+        |> Stdlib.List.map(fun f -> trimRoot(rootName, moduleKey(f.location)) + "." + f.location.name)
+        |> Stdlib.List.sort
+      Stdlib.List.concat(modules, named) |> Stdlib.List.take(8)
+    else
+      []
+  | None -> []
 
 
 let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
