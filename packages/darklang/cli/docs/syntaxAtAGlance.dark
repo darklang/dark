@@ -24,16 +24,5 @@ A function calls itself by name; there is no `rec` keyword. Each statement goes
 on its own line, and every line of a block but the last returns Unit. Name your
 own types apart from the built-in ones (`Unit`, `String`, `Int64`, ...).
 
-Tests live in a package module. Save the declarations, add tests, and run them:
-
-  module /Me.Tool - <<'EOF'
-  let double(n: Int64): Int64 = n * 2
-  EOF
-  module /Me.Tool.Tests - <<'EOF'
-  test doubles =
-    Me.Tool.double(4) |> Stdlib.Test.equal(8)
-  EOF
-  test run Me.Tool
-
 `docs syntax` has the full rules.
 """
