@@ -11,10 +11,10 @@ let ago(d: DateTime): String =
     Stdlib.DateTime.subtract(Stdlib.DateTime.now(), d)
     |> Stdlib.Duration.toSeconds()
   if secs < 60 then "just now"
-  else if secs < 3600 then (Stdlib.display(secs / 60)) + "m ago"
-  else if secs < 86400 then (Stdlib.display(secs / 3600)) + "h ago"
+  else if secs < 3600 then (Stdlib.display(Stdlib.Int64.checkedDivide(secs, 60) |> Stdlib.Result.withDefault(0))) + "m ago"
+  else if secs < 86400 then (Stdlib.display(Stdlib.Int64.checkedDivide(secs, 3600) |> Stdlib.Result.withDefault(0))) + "h ago"
   else if secs < 172800 then "yesterday"
-  else (Stdlib.display(secs / 86400)) + " days ago"
+  else (Stdlib.display(Stdlib.Int64.checkedDivide(secs, 86400) |> Stdlib.Result.withDefault(0))) + " days ago"
 
 /// Is this row a section header - a label the cursor skips over? Home is the
 /// view that has them (`ViewBehavior.SectionedList`).

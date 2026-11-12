@@ -523,15 +523,15 @@ let timeInFor(
 /// is a function with no frame of its own, or a run recorded before the time was kept.
 let microsText(us: Int64): String =
   let tenths(n: Int64, unit: String): String =
-    let whole = n / 10
+    let whole = Stdlib.Int64.checkedDivide(n, 10) |> Stdlib.Result.withDefault(0)
     let frac = n - whole * 10
     $"{Stdlib.display(whole)}.{Stdlib.display(frac)} {unit}"
 
   if us <= 0 then ""
   else if us < 1000 then $"{Stdlib.display(us)} µs"
-  else if us < 10000 then tenths(us / 100, "ms")
-  else if us < 1000000 then $"{Stdlib.display(us / 1000)} ms"
-  else tenths(us / 100000, "s")
+  else if us < 10000 then tenths(Stdlib.Int64.checkedDivide(us, 100) |> Stdlib.Result.withDefault(0), "ms")
+  else if us < 1000000 then $"{Stdlib.display(Stdlib.Int64.checkedDivide(us, 1000) |> Stdlib.Result.withDefault(0))} ms"
+  else tenths(Stdlib.Int64.checkedDivide(us, 100000) |> Stdlib.Result.withDefault(0), "s")
 
 
 /// What one run spent in the function `traces calls --json` was asked about.

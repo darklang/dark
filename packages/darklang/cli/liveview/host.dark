@@ -243,7 +243,7 @@ let moveFocus(s: Session<'model, 'msg>, forward: Bool): Session<'model, 'msg> =
     let next =
       match current with
       | None -> if forward then 0 else count - 1
-      | Some(i) -> (if forward then i + 1 else i + count - 1) % count
+      | Some(i) -> (Stdlib.Int64.checkedMod((if forward then i + 1 else i + count - 1), count) |> Stdlib.Result.withDefault(0))
 
     { s with focus = Stdlib.List.getAt(ids, next) |> Stdlib.Option.withDefault("") }
 

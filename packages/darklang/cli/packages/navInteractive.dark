@@ -342,7 +342,7 @@ let layout(
     if hasFocus then Stdlib.List.length(navState.focusRows) + 1 else 0
 
   let maximumStackedFocusHeight =
-    (bodyHeight * 60) / 100
+    Stdlib.Int64.checkedDivide(bodyHeight * 60, 100) |> Stdlib.Result.withDefault(0)
 
   let focusHeight =
     if sideBySide then
@@ -357,7 +357,7 @@ let layout(
     if sideBySide then
       Stdlib.max(
         30,
-        ((width - 1) * 2) / 5)
+        (Stdlib.Int64.checkedDivide((width - 1) * 2, 5) |> Stdlib.Result.withDefault(0)))
     else
       width
 

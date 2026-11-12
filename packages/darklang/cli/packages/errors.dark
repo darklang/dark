@@ -162,7 +162,7 @@ let nameDistance(name: String, candidate: String): Stdlib.Option.Option<Int64> =
   let b = Stdlib.String.toLowercase(candidate)
   let d = Cli.Config.editDistance(a, b)
   let shorter = Cli.Config.smaller(Stdlib.String.length(a), Stdlib.String.length(b))
-  let allowed = Cli.Config.smaller(3, Stdlib.max(1, Stdlib.String.length(a) / 3))
+  let allowed = Cli.Config.smaller(3, Stdlib.max(1, Stdlib.Int64.checkedDivide(Stdlib.String.length(a), 3) |> Stdlib.Result.withDefault(0)))
 
   if d <= allowed then
     Stdlib.Option.Option.Some(d)
