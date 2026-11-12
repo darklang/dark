@@ -240,6 +240,21 @@ test aDraftThroughCommitKeepsItsShape =
         check(i, [ "search", "Tests.JsonDeps", "--json" ], [ fun(j) -> hasKeys(j, searchKeys) ]) ]))
 
 
+/// A name saved twice and never committed is still `new`, not `updated`.
+test aNameSavedTwiceIsStillNew =
+  Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ step(i, [ "fn", "Tests.JsonNew.f", "(): Int64 = 7301" ])
+        step(i, [ "fn", "Tests.JsonNew.f", "(): Int64 = 7302" ])
+        check(
+          i,
+          [ "status", "--json" ],
+          [ fun(j) ->
+              rows(field(j, "changed"))
+              |> Stdlib.List.map(fun r -> field(r, "change"))
+              |> Stdlib.Test.equal([ Stdlib.AltJson.Json.String("new") ]) ]) ]))
+
+
 /// `branches` is a listing of rows; `diff` against a branch that has done nothing is still
 /// a listing, answering `[]`.
 test branchListingsAreArrays =
