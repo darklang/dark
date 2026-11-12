@@ -587,6 +587,12 @@ module Basics =
     check("let f(value: Int64, other: String): String = other", "f")
     |> Stdlib.Test.equal("checked:")
 
+  // An enum pattern on a value that is not an enum names the value's type.
+  test enumPatternOnAListNamesTheType =
+    issues("let f(xs: List<Int64>): Int64 =\n  match xs with\n  | Ok(_) -> 1\n  | _ -> 0", "f")
+    |> Stdlib.Test.equal(
+      [ "InvalidPattern: An enum pattern such as `Ok(x)` or `Some(x)` cannot match a List<Int64>" ])
+
   // Calling an Int64 as though it were a function must report NotCallable.
   test callingIntIsNotCallable =
     check("let f(x: Int64): Int64 = x(1)", "f")

@@ -818,6 +818,15 @@ let issueToStringWith(
       Stdlib.Option.Option.Some(staticTypeToStringWith(customTypeName, actual))
     | None -> Stdlib.Option.Option.None
   match (issue.context, issue.code, actualName) with
+  | (EnumRequiredForPattern, InvalidPattern, _) when Stdlib.Option.isSome(issue.expected) ->
+    let matched =
+      issue.expected
+      |> Stdlib.Option.map(fun t -> staticTypeToStringWith(customTypeName, t))
+      |> Stdlib.Option.withDefault("_")
+    if matched == "_" then
+      "An enum pattern requires an enum type"
+    else
+      $"An enum pattern such as `Ok(x)` or `Some(x)` cannot match a {matched}"
   | (At(InterpolatedSegment), TypeMismatch, Some(actual)) ->
     $"String interpolation conversion must return String; got {actual}."
   | (At(OperatorOperand(operation)), TypeMismatch, Some(right)) when Stdlib.Option.isSome(issue.expected) ->
