@@ -530,6 +530,22 @@ test reverse =
       |> Stdlib.Test.equal([ 1, 2, 3, 4, 5 ])
       Stdlib.List.reverse([]) |> Stdlib.Test.equal([]) ])
 
+test min =
+  Stdlib.Test.all(
+    [ Stdlib.List.min<Int64>([]) |> Stdlib.Test.equal(None)
+      Stdlib.List.min([ 7 ]) |> Stdlib.Test.equal(Some(7))
+      Stdlib.List.min([ 3, 1, 2 ]) |> Stdlib.Test.equal(Some(1))
+      Stdlib.List.min([ 2, 2 ]) |> Stdlib.Test.equal(Some(2))
+      Stdlib.List.min([ "b", "a", "c" ]) |> Stdlib.Test.equal(Some("a")) ])
+
+test max =
+  Stdlib.Test.all(
+    [ Stdlib.List.max<Int64>([]) |> Stdlib.Test.equal(None)
+      Stdlib.List.max([ 7 ]) |> Stdlib.Test.equal(Some(7))
+      Stdlib.List.max([ 3, 1, 2 ]) |> Stdlib.Test.equal(Some(3))
+      Stdlib.List.max([ 2, 2 ]) |> Stdlib.Test.equal(Some(2))
+      Stdlib.List.max([ "b", "a", "c" ]) |> Stdlib.Test.equal(Some("c")) ])
+
 test maxBy =
   Stdlib.Test.all(
     [ Stdlib.List.maxBy([], fun x -> Stdlib.String.length(x))
