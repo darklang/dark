@@ -1366,9 +1366,7 @@ let private resolveTypeArgsSync
       RTE.Applications.WrongNumberOfTypeArgsForFn(name, typeParamCount, typeArgCount)
       |> RTE.Apply
       |> raiseRTE vm.threadID
-    typeArgs
-    |> Ply.List.mapSequentially (TypeReference.toVT exeState.types ctx.tst)
-    |> Ply.trySync
+    TypeReference.toVTsSync exeState.types ctx.tst [] typeArgs
 
 /// As `resolveTypeArgsSync`, for when it does need the store. Cold path; the arity check already ran.
 let private resolveTypeArgsAsync
@@ -5294,23 +5292,6 @@ let inline private applyInstruction
       newArgRegs
 
 
-/// `TypeReference.toVT` over a list, without awaiting. `ValueNone` if any element needs the store.
-///
-/// The empty list is the overwhelmingly common case and costs nothing here.
-let rec private toVTsSync
-  (types : Types)
-  (tst : TypeSymbolTable)
-  (acc : List<ValueType>)
-  (typeArgs : List<TypeReference>)
-  : List<ValueType> voption =
-  match typeArgs with
-  | [] -> ValueSome(List.rev acc)
-  | t :: rest ->
-    match Ply.trySync (TypeReference.toVT types tst t) with
-    | ValueSome vt -> toVTsSync types tst (vt :: acc) rest
-    | ValueNone -> ValueNone
-
-
 /// Field-less enum values already built, by type name and case, shared because they cannot differ:
 /// values are immutable and type names are content hashes. Only a construction that succeeded is
 /// kept, so the checks it made stand for every later use.
@@ -5340,7 +5321,7 @@ let private tryBuildSync
 
   match inst with
   | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
-    match toVTsSync exeState.types tst [] typeArgs with
+    match TypeReference.toVTsSync exeState.types tst [] typeArgs with
     | ValueNone -> false
     | ValueSome typeArgs ->
       let fields = recordFieldsOfRegisters registers fields
@@ -5374,7 +5355,7 @@ let private tryBuildSync
       Registers.set registers enumReg kept
       true
     else
-      match toVTsSync exeState.types tst [] typeArgs with
+      match TypeReference.toVTsSync exeState.types tst [] typeArgs with
       | ValueNone -> false
       | ValueSome typeArgs ->
         let fields = valuesOfRegisters registers fields

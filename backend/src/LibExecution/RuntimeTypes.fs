@@ -6876,44 +6876,115 @@ module TypeReference =
     | TDict _
     | TCustomType _
     | TFn _ ->
-      uply {
-        match! unwrapAlias types typeRef with
-        | TStream inner ->
-          let! inner = toVT types tst inner
-          return ValueType.Known(KTStream inner)
+      match toVTSync types tst typeRef with
+      | ValueSome vt -> Ply vt
+      | ValueNone -> toVTAsync types tst typeRef
 
-        | TTuple(first, second, theRest) ->
-          let! first = toVT types tst first
-          let! second = toVT types tst second
-          let! theRest = theRest |> Ply.List.mapSequentially (toVT types tst)
-          return KTTuple(first, second, theRest) |> ValueType.Known
+  /// `toVT` without a builder, for a type whose aliases are already resolved: an explicit type
+  /// argument or a declared parameter is usually that after its first use. `ValueNone` where
+  /// `toVTAsync` is needed.
+  and toVTSync
+    (types : Types)
+    (tst : TypeSymbolTable)
+    (typeRef : TypeReference)
+    : ValueType voption =
+    match typeRef with
+    | TStream inner ->
+      match toVTSync types tst inner with
+      | ValueSome inner -> ValueSome(ValueType.Known(KTStream inner))
+      | ValueNone -> ValueNone
+    | TList inner ->
+      match toVTSync types tst inner with
+      | ValueSome inner -> ValueSome(ValueType.Known(KTList inner))
+      | ValueNone -> ValueNone
+    | TDict(key, value) ->
+      match toVTSync types tst key with
+      | ValueSome key ->
+        match toVTSync types tst value with
+        | ValueSome value -> ValueSome(ValueType.Known(KTDict(key, value)))
+        | ValueNone -> ValueNone
+      | ValueNone -> ValueNone
+    | TTuple(first, second, theRest) ->
+      match toVTSync types tst first with
+      | ValueSome first ->
+        match toVTSync types tst second with
+        | ValueSome second ->
+          match toVTsSync types tst [] theRest with
+          | ValueSome theRest ->
+            ValueSome(ValueType.Known(KTTuple(first, second, theRest)))
+          | ValueNone -> ValueNone
+        | ValueNone -> ValueNone
+      | ValueNone -> ValueNone
+    | TCustomType({ resolved = Ok _ }, _) ->
+      match tryResolvedAlias types typeRef with
+      | ValueSome(TCustomType({ resolved = Ok typeName }, typeArgs)) ->
+        match toVTsSync types tst [] typeArgs with
+        | ValueSome typeArgs ->
+          ValueSome(ValueType.Known(KTCustomType(typeName, typeArgs)))
+        | ValueNone -> ValueNone
+      | ValueSome(TCustomType _) -> ValueNone
+      | ValueSome resolved -> toVTSync types tst resolved
+      | ValueNone -> ValueNone
+    | TCustomType _
+    | TFn _ -> ValueNone
+    | _ -> Ply.trySync (toVT types tst typeRef)
 
-        | TList inner ->
-          let! inner = toVT types tst inner
-          return ValueType.Known(KTList inner)
+  /// `toVTSync` over a list, prepending onto <param acc> reversed.
+  and toVTsSync
+    (types : Types)
+    (tst : TypeSymbolTable)
+    (acc : List<ValueType>)
+    (typeRefs : List<TypeReference>)
+    : List<ValueType> voption =
+    match typeRefs with
+    | [] -> ValueSome(List.rev acc)
+    | t :: rest ->
+      match toVTSync types tst t with
+      | ValueSome vt -> toVTsSync types tst (vt :: acc) rest
+      | ValueNone -> ValueNone
 
-        | TDict(key, value) ->
-          let! key = toVT types tst key
-          let! value = toVT types tst value
-          return ValueType.Known(KTDict(key, value))
+  and private toVTAsync
+    (types : Types)
+    (tst : TypeSymbolTable)
+    (typeRef : TypeReference)
+    : Ply<ValueType> =
+    uply {
+      match! unwrapAlias types typeRef with
+      | TStream inner ->
+        let! inner = toVT types tst inner
+        return ValueType.Known(KTStream inner)
 
-        | TCustomType({ resolved = Ok typeName }, typeArgs) ->
-          let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
-          return KTCustomType(typeName, typeArgs) |> ValueType.Known
+      | TTuple(first, second, theRest) ->
+        let! first = toVT types tst first
+        let! second = toVT types tst second
+        let! theRest = theRest |> Ply.List.mapSequentially (toVT types tst)
+        return KTTuple(first, second, theRest) |> ValueType.Known
 
-        | TCustomType({ originalName = names; resolved = Error nre }, _) ->
-          return
-            raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+      | TList inner ->
+        let! inner = toVT types tst inner
+        return ValueType.Known(KTList inner)
 
-        | TFn(args, result) ->
-          let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
-          let! result = toVT types tst result
-          return KTFn(args, result) |> ValueType.Known
+      | TDict(key, value) ->
+        let! key = toVT types tst key
+        let! value = toVT types tst value
+        return ValueType.Known(KTDict(key, value))
 
-        // An alias can unwrap to any of the cases handled without the builder above; those are
-        // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
-        | unwrapped -> return! toVT types tst unwrapped
-      }
+      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+        let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
+        return KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+      | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+
+      | TFn(args, result) ->
+        let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
+        let! result = toVT types tst result
+        return KTFn(args, result) |> ValueType.Known
+
+      // An alias can unwrap to any of the cases handled without the builder above; those are
+      // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
+      | unwrapped -> return! toVT types tst unwrapped
+    }
 
 
   /// Convert a KnownType back to a TypeReference
