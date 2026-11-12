@@ -183,13 +183,13 @@ let testRowsFrom(
     let passMark = Stdlib.Cli.UI.Colors.success("✓")
     let failMark = Stdlib.Cli.UI.Colors.error("✗")
     let noResult = Stdlib.Cli.UI.Colors.dimText("no result for this build")
-    let cache = Packages.Test.cacheContext(branchId)
+    let outcomes = Packages.Test.lastOutcomes(branchId, tests |> Stdlib.List.map(fun((hash, _, _)) -> hash))
     let rows =
-      tests
-      |> Stdlib.List.map(fun((hash, loc, _)) ->
+      Stdlib.List.zipShortest(tests, outcomes)
+      |> Stdlib.List.map(fun(((_, loc, _), outcome)) ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)
         let result =
-          match Packages.Test.lastOutcomeIn(cache, hash) with
+          match outcome with
           | Some(Passed) -> [ $"  {passMark} {name}" ]
           | Some(Failed(messages)) ->
             let first = Stdlib.Option.withDefault(Stdlib.List.head(messages), "")

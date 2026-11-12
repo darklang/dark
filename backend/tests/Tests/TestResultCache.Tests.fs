@@ -156,9 +156,45 @@ let oldStoreKeepsItsResults =
   }
 
 
+/// One read for a listing's tests answers each key in the order asked, with None where nothing
+/// is stored, the same as asking for each one alone.
+let manyMatchesOneAtATime =
+  testTask "reading many results answers each key in order" {
+    do!
+      withScratchDir (fun dir ->
+        task {
+          let dbPath = System.IO.Path.Combine(dir, "data.db")
+          exec dbPath oldRunnerDdl
+          LibDB.Sqlite.Sql.useStoreForTesting dbPath
+          try
+            let other = { key with test = "other-test-hash" }
+            do! TestResults.put key "\"Passed\""
+            do! TestResults.put other "{\"Failed\":[[\"no\"]]}"
+            let keys =
+              [ other
+                { key with test = "missing" }
+                key
+                { key with branch = "another-branch" }
+                other ]
+            let! many = TestResults.getMany keys
+            let! single = keys |> Task.mapSequentially TestResults.get
+            Expect.equal many single "same answers as one read per key"
+            Expect.equal
+              many
+              [ Some "{\"Failed\":[[\"no\"]]}"; None; Some "\"Passed\""; None; Some "{\"Failed\":[[\"no\"]]}" ]
+              "in the order asked"
+            let! none = TestResults.getMany []
+            Expect.equal none [] "no keys, no results"
+          finally
+            LibDB.Sqlite.Sql.resetStoreForTesting ()
+        })
+  }
+
+
 let tests =
   testList
     "TestResultCache"
     [ testSequenced schemaMatchesWhatTheRunnerCreated
       // Repoints the process-wide store, so nothing else may run beside it.
-      testSequenced oldStoreKeepsItsResults ]
+      testSequenced oldStoreKeepsItsResults
+      testSequenced manyMatchesOneAtATime ]

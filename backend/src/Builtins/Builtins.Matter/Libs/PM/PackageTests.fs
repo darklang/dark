@@ -464,6 +464,35 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
+    { name = fn "pmTestResultGetMany" 0
+      typeParams = []
+      parameters =
+        [ Param.make "keys" (TList(resultKeyType ())) "Which stored results" ]
+      returnType = TList(TypeReference.option TString)
+      description =
+        "The outcome `dark test run` stored under each of <param keys>, in order, "
+        + "or None where it has none. One read for all of them."
+      fn =
+        (function
+        | _, _, _, [| DList(_, Items(keyDvals)) |] ->
+          let keys = keyDvals |> List.choose resultKeyFromDT
+          if keys.Length <> keyDvals.Length then
+            incorrectArgs ()
+          else
+            uply {
+              let! outcomes = LibDB.TestResults.getMany keys
+              return
+                outcomes
+                |> List.map (Option.map DString >> Dval.option KTString)
+                |> Dval.list (
+                  KTCustomType(Dval.optionType (), [ LibExecution.ValueType.known KTString ])
+                )
+            }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
     { name = fn "pmTestResultPut" 0
       typeParams = []
       parameters =

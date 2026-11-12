@@ -120,16 +120,16 @@ let moduleRows(
           desc = descOf(shape) })
   // A test's description is its last result for this build, read from the
   // cache `dark test run` writes. Nothing runs here.
-  let testCache =
-    if (descriptions == Descriptions.Show) && (Stdlib.Bool.not(Stdlib.List.isEmpty(results.tests))) then
-      Packages.Test.cacheContext(branchId)
+  let testOutcomes =
+    if descriptions == Descriptions.Show then
+      Packages.Test.lastOutcomes(branchId, results.tests |> Stdlib.List.map(fun t -> t.entity.hash))
     else
-      Stdlib.Option.Option.None
+      results.tests |> Stdlib.List.map(fun _ -> Stdlib.Option.Option.None)
   let testItems =
-    results.tests
-    |> Stdlib.List.map(fun t ->
+    Stdlib.List.zipShortest(results.tests, testOutcomes)
+    |> Stdlib.List.map(fun((t, outcome)) ->
       let status(_u: Unit): String =
-        match Packages.Test.lastOutcomeIn(testCache, t.entity.hash) with
+        match outcome with
         | Some(Passed) -> "passed"
         | Some(Failed(_)) -> "failed"
         | Some(RuntimeFailed(_)) -> "error"
