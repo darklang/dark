@@ -178,6 +178,24 @@ rules allow (or deny) additional effects and resources:
   effects <fn>                        # possible effects, call paths, completeness
   permissions show <fn|hash>           # the function's effects and remembered approvals
 
+## Agent runners
+
+When Dark denies access, submit the exact `permissions allow` command from the
+error through your runner's approval flow. Run it separately from the task,
+without asking in chat first.
+Ask me requests your approval; Approve for me uses the runner's reviewer;
+bypass/dangerous mode skips review.
+
+In Codex, request escalation even when the policy path is writable. In Claude,
+use normal Bash review without allow or ask rules for permission commands.
+
+Grants persist for all code in the instance. If review is denied or unavailable,
+stop; do not bypass it. After the command succeeds, retry only if doing so will
+not repeat earlier side effects. This guidance relies on runner review; it
+does not prevent direct policy edits.
+
+## Running code
+
 Interactive `run` asks: Allow this run / Remember for this code version / Cancel.
 Access Dark can see before execution is reviewed in one prompt; other access
 pauses before its operation with a prompt of its own, so a run can ask more
