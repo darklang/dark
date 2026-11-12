@@ -2279,8 +2279,12 @@ let private fastTraitOp
       | DBigInt y -> FastOps.eval tag x y
       | _ -> ValueNone
     | a -> FastOps.evalNumeric tag a registers[secondReg]
-  // `-x` and `~x`
-  | [] -> FastOps.evalUnary tag registers[argRegs.head]
+  // `-x`, `~x` and `Display.display`
+  | [] ->
+    if tag = FastOps.display then
+      FastOps.evalDisplay registers[argRegs.head]
+    else
+      FastOps.evalUnary tag registers[argRegs.head]
   | _ -> ValueNone
 
 

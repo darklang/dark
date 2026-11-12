@@ -135,14 +135,7 @@ let fns () : List<BuiltInFn> =
         "Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`, `0.30000000000000004`, `1e+16`, `1e-5`."
       fn =
         (function
-        | _, _, _, [| DFloat f |] ->
-          // TODO add tests from DvalRepr.Tests
-          let result =
-            if System.Double.IsPositiveInfinity f then "Infinity"
-            else if System.Double.IsNegativeInfinity f then "-Infinity"
-            else if System.Double.IsNaN f then "NaN"
-            else floatToShortestString f
-          Ply(DString result)
+        | _, _, _, [| DFloat f |] -> Ply(DString(Dval.floatToString f))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

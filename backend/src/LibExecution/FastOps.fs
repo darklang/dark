@@ -41,6 +41,8 @@ let dictGet = 13
 let dictSet = 14
 let strRepeat = 15
 let listContains = 16
+/// `Display.display`, one argument; only reached as a trait method.
+let display = 17
 let strIsEmpty = 18
 let listIsEmpty = 19
 /// `Multiply.multiply`; only reached as a trait method. This and the rest of the numeric
@@ -137,6 +139,21 @@ let evalList
     TypeChecker.DvalCreator.tryConcat vt1 l1 vt2 l2
   else
     ValueNone
+
+
+let private trueText = DString "true"
+let private falseText = DString "false"
+
+/// `Display.display` of a primitive, as its impl answers it: the helper its builtin calls, or for
+/// `Bool` and `String` the impl's own one-liner. Every other type declines and dispatches.
+let evalDisplay (a : Dval) : Dval voption =
+  match a with
+  | DInt64 n -> ValueSome(DString(Dval.int64ToString n))
+  | DStr _ -> ValueSome a
+  | DBool b -> ValueSome(if b then trueText else falseText)
+  | DChar c -> ValueSome(DString c)
+  | DFloat f -> ValueSome(DString(Dval.floatToString f))
+  | _ -> ValueNone
 
 
 /// The operator itself, for one argument.
@@ -380,5 +397,9 @@ let quickTraitTag (traitHash : string) (methodName : string) : int voption =
       methodName = "power" && traitHash = PackageRefs.Trait.Stdlib.Traits.power ()
     then
       ValueSome power
+    elif
+      methodName = "display" && traitHash = PackageRefs.Trait.Stdlib.display ()
+    then
+      ValueSome display
     else
       ValueNone
