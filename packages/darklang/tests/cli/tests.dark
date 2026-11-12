@@ -375,14 +375,16 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
 
 
 // Two functions with identical bodies share a hash, and the trait-calls line still names each.
+// The bodies call a name that does not exist yet, so the check is incomplete rather than failed:
+// a failed item reports its type error instead of this line.
 test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
   let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-module-trait-calls-test-" + suffix
   let moduleName = "Tests.CliModuleTraitCalls"
   let source =
-    [ "let addsText(n: Int64): Int64 = n + \"x\""
+    [ "let addsText(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
       ""
-      "let addsTextToo(n: Int64): Int64 = n + \"x\""
+      "let addsTextToo(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
     ] |> Stdlib.String.join("\n")
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
