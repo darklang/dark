@@ -127,6 +127,8 @@ Running a helper on its own is a separate decision. It does not inherit the appr
 
 Callbacks and streams keep the restrictions they had when they were created. They are also limited by the code that later calls or reads them.
 
+A trait implementation picked by the caller, through the type of a value it passes in, works like a callback: it runs with the caller's access, not the approval's.
+
 If you save a value that refers to a function, Dark remembers the function name it resolved to. It does not save permission to use it. Loading that value later cannot restore temporary access from an earlier run.
 
 #### Choosing how much access to allow

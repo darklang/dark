@@ -3860,6 +3860,17 @@ let inline private recordedImpl
     find currentFrame.boundImpls
   | FQFnName.Unknown -> ValueNone
 
+/// The access a trait implementation runs with. One the save chose belongs to the calling code;
+/// one the caller chose, by a type argument or the value it passed, runs like its callback would.
+let private implAccess
+  (tm : FQFnName.TraitMethod)
+  (access : Permissions.Access)
+  : Permissions.Access =
+  match tm.implFn with
+  | FQFnName.Chosen _ -> access
+  | FQFnName.FromTypeParam _
+  | FQFnName.Unknown -> Permissions.Access.forCallersCode access
+
 
 /// Whether a cached execution point says the lambda was written where this one was.
 /// It always does, unless one of them was loaded from storage and doesn't know.
@@ -4153,6 +4164,10 @@ let rec private beginRequest
       match named.access with
       | Some captured -> applying |> Permissions.Access.constrainBy captured
       | None -> applying
+    let access =
+      match named.name with
+      | FQFnName.TraitMethod tm -> implAccess tm access
+      | _ -> access
     // The arguments ride as the applicable's own (`argsSoFar`), with no register arguments: the
     // call paths rebuild their argument sequence from those two, so a list handed in as the
     // sequence's prior would be dropped.
@@ -4438,6 +4453,7 @@ let private applyRecordedImpl
         // The type args named the TRAIT's params (the self type first); the impl fn
         // has its own, inferred from the arguments.
         typeArgs = []
+        access = implAccess tm ctx.access
         applicable =
           { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
   let call : Ply<PackageOutcome> =
@@ -4563,6 +4579,7 @@ let private applyTraitMethod
             // The type args named the TRAIT's params (the self type first); the impl fn
             // has its own, inferred from the arguments.
             typeArgs = []
+            access = implAccess tm ctx.access
             applicable =
               { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
       match Ply.trySync (exeState.fns.package implFn) with
@@ -4596,6 +4613,7 @@ let private applyTraitMethod
               // The type args named the TRAIT's params (the self type first); the
               // impl fn has its own, inferred from the arguments.
               typeArgs = []
+              access = implAccess tm ctx.access
               applicable =
                 { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
         match! exeState.fns.package implFn with
@@ -6505,13 +6523,15 @@ let private receiverMethod
         | Traits.Selected c ->
           match Map.tryFind methodName c.methods with
           | Some fnHash ->
+            // Chosen by the receiver's type, so by whoever made the value.
+            let access = Permissions.Access.forCallersCode currentFrame.access
             let applicable =
               AppNamedFn
                 { name = FQFnName.Package fnHash
                   typeSymbolTable = TST.empty
                   typeArgs = []
                   approvalName = None
-                  access = Some currentFrame.access
+                  access = Some access
                   argsSoFar = []
                   boundImpls = [] }
             match! exeState.fns.package fnHash with
@@ -6519,7 +6539,7 @@ let private receiverMethod
               match!
                 exeState.callApplicable
                   exeState
-                  currentFrame.access
+                  access
                   applicable
                   (NEList.singleton receiver)
               with
@@ -6536,7 +6556,7 @@ let private receiverMethod
                         typeSymbolTable = TST.empty
                         typeArgs = []
                         approvalName = None
-                        access = Some currentFrame.access
+                        access = Some access
                         argsSoFar = [ receiver ]
                         boundImpls = [] }
                   )
