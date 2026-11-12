@@ -63,7 +63,14 @@ let private denialMessage
     | Permission.Layer.Value _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "
       + "Make it a function to do this each time it is called."
-  $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}"
+  let runnerHint =
+    match layer, reason, Permission.Suggestion.rule suggestion with
+    | Permission.Layer.Instance, Permission.PolicyDenial.NotAllowed, Some _ ->
+      " Agents: submit the exact allow command through your runner's approval flow. "
+      + "The current approval mode applies. After the command succeeds, retry only "
+      + "if doing so will not repeat earlier side effects."
+    | _ -> ""
+  $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}{runnerHint}"
 
 /// Record and report a denied operation, including checks before a run starts.
 let raiseDenial

@@ -73,7 +73,21 @@ non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
 A JSON object parses into a record: extra fields are ignored, and a field that
 may be absent or `null` is an `Option` field.
 
-Files and the network are denied until allowed. One step covers a project:
+Files and the network are denied until allowed. When Dark denies access, submit
+the exact `permissions allow` command from the error through your runner's
+approval flow. Run it separately from the task, without asking in chat first.
+Ask me requests your approval; Approve for me uses the runner's reviewer;
+bypass/dangerous mode skips review.
+
+In Codex, request escalation even when the policy path is writable. In Claude,
+use normal Bash review without allow or ask rules for permission commands.
+
+Grants persist for all code in the instance. If review is denied or unavailable,
+stop; do not bypass it. After the command succeeds, retry only if doing so will
+not repeat earlier side effects. This guidance relies on runner review; it
+does not prevent direct policy edits.
+
+To configure a whole project manually:
 
   permissions profile local-dev /abs/path/to/project --yes
 
