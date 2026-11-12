@@ -781,6 +781,19 @@ let appendListHint(
   | _ -> ""
 
 
+/// Says how to take a tuple apart when a lambda with several parameters is given where
+/// a function of one tuple is expected, as `fun (k, v) ->` over a list of pairs.
+let tupleLambdaHint(expected: StaticType, actual: StaticType): String =
+  match (expected, actual) with
+  | (TFn([ TTuple(_, _, rest) ], _), TFn(parameters, _)) when Stdlib.List.length(parameters) == 2 + Stdlib.List.length(rest) ->
+    let names =
+      [ "a", "b", "c", "d", "e", "f", "g", "h" ]
+      |> Stdlib.List.take(Stdlib.List.length(parameters))
+      |> Stdlib.String.join(", ")
+    $" (this lambda takes {Stdlib.display(Stdlib.List.length(parameters))} parameters; to take one tuple apart, write `fun(({names})) ->`)"
+  | _ -> ""
+
+
 let issueToStringWith(
   customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>,
@@ -791,8 +804,11 @@ let issueToStringWith(
     fun(expected, actual) ->
       match (issue.code, issue.context) with
       | (TypeMismatch, At(FunctionArgument(1, Some(callee)))) ->
-        (stringExpectedHint(expected, actual)) + appendListHint(callee, expected, actual)
-      | (TypeMismatch, At(FunctionArgument(_, _)))
+        (stringExpectedHint(expected, actual))
+        + appendListHint(callee, expected, actual)
+        + tupleLambdaHint(expected, actual)
+      | (TypeMismatch, At(FunctionArgument(_, _))) ->
+        (stringExpectedHint(expected, actual)) + tupleLambdaHint(expected, actual)
       | (TypeMismatch, At(FunctionReturnValue))
       | (TypeMismatch, At(LambdaReturnValue))
       | (TypeMismatch, At(ValueBody))

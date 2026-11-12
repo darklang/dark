@@ -1330,6 +1330,14 @@ module Builtins =
     |> Stdlib.Test.equal(
       [ "TypeMismatch: In `Stdlib.List.append`, argument 2: expected Int64, got List<Int64> (`append` adds one item; to join two lists use `Stdlib.List.concat(a, b)` or `[...a, ...b]`)" ])
 
+  // A two-parameter lambda over a list of pairs was meant to take each pair apart.
+  test pairLambdaPointsAtTuplePattern =
+    issues(
+      "let f(xs: List<(String * Int64)>): List<Int64> = Stdlib.List.map(xs, fun (k, v) -> v)",
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.map`, argument 2: expected ((String * Int64)) -> Int64, got (_, _) -> _ (this lambda takes 2 parameters; to take one tuple apart, write `fun((a, b)) ->`)" ])
+
 // ----------------------------------------------------------------------------------
 // Postfix `?`
 // ----------------------------------------------------------------------------------
