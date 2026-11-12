@@ -2103,6 +2103,89 @@ let twoNamesHoldingOneItemHaveTheirOwnDocs =
     })
 
 
+/// A function's hash leaves out its parameter names, so these three names hold one stored body.
+let eachNameShowsItsOwnParameterNames =
+  instanceTest
+    "names holding one fn each show their own parameter names"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.ParamsOne.add"
+            "(earg1: Int64, earg2: Int64): Int64 = earg1 + earg2"
+        do! fn state "Tests.ParamsTwo.add" "(a: Int64, b: Int64): Int64 = a + b"
+        do! fn state "Tests.ParamsThree.add" "(x: Int64, y: Int64): Int64 = x + y"
+
+        let! one = runCliPlain state [ "hash"; "Tests.ParamsOne.add" ]
+        let! two = runCliPlain state [ "hash"; "Tests.ParamsTwo.add" ]
+        Expect.equal two one $"the names hold one item, got {one} and {two}"
+
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsTwo.add" ]
+            "let add(a: Int64, b: Int64): Int64 =\n  a + b"
+            "the second name shows a and b"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsThree.add" ]
+            "let add(x: Int64, y: Int64): Int64 =\n  x + y"
+            "the third shows x and y"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsOne.add" ]
+            "let add(earg1: Int64, earg2: Int64): Int64 =\n  earg1 + earg2"
+            "the first keeps its own"
+
+        do! commit state "one body, three names"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsTwo.add" ]
+            "a + b"
+            "and the names survive the commit"
+        do! discardAll state
+      })
+
+let aSecondNameForAFnSaysSo =
+  instanceTest "saving a fn another name already holds says so" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.SameOne.f" "(a: Int64): Int64 = a * 5303"
+      do!
+        shows
+          state
+          [ "fn"; "Tests.SameTwo.g"; "(n: Int64): Int64 = n * 5303" ]
+          "Created function Tests.SameTwo.g (also named Tests.SameOne.f)"
+          "the save names the other name"
+      do! discardAll state
+    })
+
+/// The stored body is the first name's, binders included, so a later name's parameter name can
+/// clash with one of them. Then that name keeps the declared names rather than read wrong.
+let aParameterNameTheBodyBindsIsNotSubstituted =
+  instanceTest
+    "a parameter name that the body binds is not substituted"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Capture.f" "(a: Int64): Int64 = let x = 5305 in a + x"
+        do! fn state "Tests.Capture.g" "(x: Int64): Int64 = let y = 5305 in x + y"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Capture.g" ]
+            "let g(a: Int64): Int64"
+            "x would be captured by the let, so g shows a"
+        do! evals state "Tests.Capture.g(1)" "5306" "and it still runs"
+        do! discardAll state
+      })
+
+
 let twoWordingsForOneDocRecordAConflict =
   instanceTest
     "a doc edit made against a text this store never had is a conflict"
@@ -2346,5 +2429,8 @@ let tests : List<Test> =
     reAuthoringTheSameSourceSurvivesTheCommit
     aVersionMovedAndMovedBackKeepsTheLastNaming
     twoNamesHoldingOneItemHaveTheirOwnDocs
+    eachNameShowsItsOwnParameterNames
+    aSecondNameForAFnSaysSo
+    aParameterNameTheBodyBindsIsNotSubstituted
     twoWordingsForOneDocRecordAConflict
     authoringWithoutADocDoesNotClearOne ]

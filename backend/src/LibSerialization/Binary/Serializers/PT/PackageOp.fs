@@ -126,6 +126,9 @@ module DocPart =
     | DocPart.Parameter index ->
       w.Write(3uy)
       w.Write(index)
+    | DocPart.ParameterName index ->
+      w.Write(4uy)
+      w.Write(index)
 
   let read (r : BinaryReader) : DocPart =
     match r.ReadByte() with
@@ -133,6 +136,7 @@ module DocPart =
     | 1uy -> DocPart.RecordField(String.read r)
     | 2uy -> DocPart.EnumCase(String.read r)
     | 3uy -> DocPart.Parameter(r.ReadInt32())
+    | 4uy -> DocPart.ParameterName(r.ReadInt32())
     | b -> raiseFormatError $"Invalid DocPart tag: {b}"
 
 

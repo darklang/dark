@@ -1572,16 +1572,7 @@ let conflictById (id : string) : Task<Option<Detect.Conflict>> =
   |> Ply.toTask
 
 /// The part of a declaration a doc conflict names, as `DocPart.fromKey` spells it.
-let docPartOfKey (key : string) : Option<PT.DocPart> =
-  match key.Split(':') |> List.ofArray with
-  | [ "item" ] -> Some PT.DocPart.WholeItem
-  | [ "record-field"; name ] -> Some(PT.DocPart.RecordField name)
-  | [ "enum-case"; name ] -> Some(PT.DocPart.EnumCase name)
-  | [ "parameter"; index ] ->
-    match System.Int32.TryParse index with
-    | true, i -> Some(PT.DocPart.Parameter i)
-    | _ -> None
-  | _ -> None
+let docPartOfKey (key : string) : Option<PT.DocPart> = Docs.partFromKey key
 
 /// The hash a doc's text is known by.
 let hashOfText (text : string) : PT.Hash = PT.Hash(sha256Hex text)

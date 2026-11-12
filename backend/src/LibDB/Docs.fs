@@ -37,6 +37,7 @@ let kind (part : PT.DocPart) : string =
   | PT.RecordField _ -> "record-field"
   | PT.EnumCase _ -> "enum-case"
   | PT.Parameter _ -> "parameter"
+  | PT.ParameterName _ -> "parameter-name"
 
 /// WHICH part, by its name in the declaration; "" for the declaration's own doc. With `kind`, and
 /// the location, the key.
@@ -45,7 +46,8 @@ let within (part : PT.DocPart) : string =
   | PT.WholeItem -> ""
   | PT.RecordField n
   | PT.EnumCase n -> n
-  | PT.Parameter i -> string i
+  | PT.Parameter i
+  | PT.ParameterName i -> string i
 
 /// How it reads in a listing or a conflict's reason.
 let describe (part : PT.DocPart) : string =
@@ -54,6 +56,7 @@ let describe (part : PT.DocPart) : string =
   | PT.RecordField n -> $"field {n}"
   | PT.EnumCase n -> $"case {n}"
   | PT.Parameter i -> $"parameter {i + 1}"
+  | PT.ParameterName i -> $"the name of parameter {i + 1}"
 
 
 // ---------------------
@@ -85,6 +88,8 @@ let inFn (part : PT.DocPart) (fn : PT.PackageFn.PackageFn) : Option<string> =
     |> NEList.toList
     |> List.tryItem index
     |> Option.map (fun p -> p.description)
+  | PT.ParameterName index ->
+    fn.parameters |> NEList.toList |> List.tryItem index |> Option.map _.name
   | PT.RecordField _
   | PT.EnumCase _ -> None
 
@@ -101,8 +106,40 @@ let onFn
           fn.parameters
           |> NEList.mapWithIndex (fun i p ->
             if i = index then { p with description = text } else p) }
+  | PT.ParameterName index ->
+    { fn with
+        parameters =
+          fn.parameters
+          |> NEList.mapWithIndex (fun i p ->
+            if i = index then { p with name = text } else p) }
   | PT.RecordField _
   | PT.EnumCase _ -> fn
+
+/// <param renamed>, unless the parameter names a location gave it would read <param declared>'s
+/// body differently: two parameters with one name, or a name the body binds itself, which would
+/// capture the parameter's uses. Then it keeps the declared names.
+let keepMeaning
+  (declared : PT.PackageFn.PackageFn)
+  (renamed : PT.PackageFn.PackageFn)
+  : PT.PackageFn.PackageFn =
+  let names (fn : PT.PackageFn.PackageFn) =
+    fn.parameters |> NEList.toList |> List.map _.name
+  let bound = Hashing.boundNames declared.body
+  let fits =
+    List.distinct (names renamed) = names renamed
+    && List.forall2
+      (fun d n -> d = n || not (Set.contains n bound))
+      (names declared)
+      (names renamed)
+
+  if fits then
+    renamed
+  else
+    { renamed with
+        parameters =
+          renamed.parameters
+          |> NEList.mapWithIndex (fun i p ->
+            { p with name = List.item i (names declared) }) }
 
 
 let inType (part : PT.DocPart) (t : PT.PackageType.PackageType) : Option<string> =
@@ -161,7 +198,8 @@ let inTrait (part : PT.DocPart) (t : PT.Trait.Trait) : Option<string> =
     |> List.tryFind (fun (m : PT.Trait.Method) -> m.name = name)
     |> Option.map (fun m -> m.description)
   | PT.EnumCase _
-  | PT.Parameter _ -> None
+  | PT.Parameter _
+  | PT.ParameterName _ -> None
 
 let onTrait
   (part : PT.DocPart)
@@ -177,7 +215,8 @@ let onTrait
           |> NEList.map (fun (m : PT.Trait.Method) ->
             if m.name = name then { m with description = text } else m) }
   | PT.EnumCase _
-  | PT.Parameter _ -> t
+  | PT.Parameter _
+  | PT.ParameterName _ -> t
 
 let inImpl (part : PT.DocPart) (i : PT.TraitImpl.TraitImpl) : Option<string> =
   match part with
@@ -241,6 +280,10 @@ let partOf (kind : string) (within : string) : Option<PT.DocPart> =
   | "parameter" ->
     match System.Int32.TryParse within with
     | true, i -> Some(PT.Parameter i)
+    | _ -> None
+  | "parameter-name" ->
+    match System.Int32.TryParse within with
+    | true, i -> Some(PT.ParameterName i)
     | _ -> None
   | _ -> None
 
