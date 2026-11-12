@@ -332,7 +332,8 @@ module Sql =
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match
-      timedSync "sql.existsSync" (fun () -> Sql.execute (fun read -> read.bool 0) props)
+      timedSync "sql.existsSync" (fun () ->
+        Sql.execute (fun read -> read.bool 0) props)
       |> unwrapDb (fun err -> $"Database query failed in executeExistsSync: {err}")
     with
     | [ true ] -> true
