@@ -238,7 +238,7 @@ let askPermission(request: (String * List<String>)): Int64 =
     Stdlib.printErrorLine("File paths include children; write access includes creating, overwriting and deleting.")
   else ()
   if Stdlib.List.any(rules, fun rule -> Stdlib.String.startsWith(rule, "http ")) then
-    Stdlib.printErrorLine("HTTP paths include children. Any query is allowed unless one is shown.")
+    Stdlib.printErrorLine("HTTP access covers only the exact path shown. Any query is allowed unless one is shown.")
   else ()
   if Stdlib.List.any(rules, fun rule -> Stdlib.String.startsWith(rule, "process-exact ")) then
     Stdlib.printErrorLine("process-exact permits only the listed arguments; none listed means no arguments.")
