@@ -1163,7 +1163,8 @@ let rec private valuesOfRegisters
   | reg :: rest -> registers[reg] :: valuesOfRegisters registers rest
 
 
-/// A record's fields from its registers, in source order, as `DvalCreator.record` takes them.
+/// A record's fields from its registers, in source order, as `DvalCreator.record` and
+/// `recordUpdate` take them.
 let private recordFieldsOfRegisters
   (registers : Dval array)
   (fields : List<string * Register>)
@@ -1174,18 +1175,6 @@ let private recordFieldsOfRegisters
     entries[i] <- struct (name, registers[reg])
     i <- i + 1
   entries
-
-/// Each name paired with the value in its register, in order, without a closure over the
-/// register file (see `closedOver`).
-let rec private namedValuesOfRegisters
-  (registers : Dval array)
-  (fields : List<string * Register>)
-  : List<string * Dval> =
-  match fields with
-  | [] -> []
-  | (name, reg) :: rest ->
-    (name, registers[reg]) :: namedValuesOfRegisters registers rest
-
 
 /// What a lambda closes over: each child register paired with the value now in its parent
 /// register. Filled in place rather than with `List.map` and a lambda, which allocates a closure
@@ -5371,7 +5360,7 @@ let private tryBuildSync
     // construction in one place rather than duplicating it.
     match Pending.peek registers[originalRecordReg] with
     | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
-      let fieldUpdates = namedValuesOfRegisters registers fieldUpdates
+      let fieldUpdates = recordFieldsOfRegisters registers fieldUpdates
 
       match
         Ply.trySync (
@@ -6593,7 +6582,7 @@ let private runRareOpcode
 
       match originalRecord with
       | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
-        let fieldUpdates = namedValuesOfRegisters registers fieldUpdates
+        let fieldUpdates = recordFieldsOfRegisters registers fieldUpdates
 
         let! updatedRecord =
           Ply.toTask (
