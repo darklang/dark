@@ -6464,29 +6464,35 @@ let private checkFrameReturnType
         fnName
 
 
-/// The four opcodes that can still need the package store: CreateRecord, CloneRecordWithUpdates,
-/// CreateEnum and LoadValue.
-///
-/// Its own `task` so the interpreter loop's state machine stays statically compilable: six binds
-/// nested two matches deep inside the loop stopped F#'s resumable code reducing it (FS3511), which
-/// downgrades the whole loop to the dynamic implementation.
-/// `p.show` where `p` has no field `show`: a receiver call. Exactly one visible
-/// impl (of any trait) with a method of that name for `p`'s type gives the
-/// method's fn with `p` as its first argument: the RESULT when that is the only
-/// argument (`p.show` is the whole call), else the method with `p` bound, called
-/// with the rest (`a.add(b)`). None means the field access was simply wrong; several is
-/// an ambiguity the caller resolves by naming the trait (`Show.show p`).
-let private receiverMethod
+/// The trait a receiver call's pick is remembered under in `implSelectionMemo`: none, since the
+/// call names only a method. No trait hashes to "", so it cannot collide with a dispatch entry,
+/// and it shares that memo's `implGeneration` invalidation exactly.
+let private receiverMemoTrait = Hash ""
+
+/// The fn `self.methodName` calls, or `None` if no trait gives `self` that method. A pick made
+/// under the current generation is remembered, so a receiver call seen before skips scanning every
+/// candidate for the method.
+let private receiverImpl
   (exeState : ExecutionState)
   (vm : VMState)
-  (currentFrame : CallFrame)
-  (receiver : Dval)
   (methodName : string)
-  : Ply<Option<Dval>> =
-  uply {
-    match Dval.toValueType receiver with
-    | ValueType.Unknown -> return None
-    | ValueType.Known self ->
+  (self : KnownType)
+  : Ply<Option<FQFnName.Package>> =
+  // Read before the candidates, as dispatch does, so a fold in between cannot stamp a stale
+  // pick with the new generation.
+  let generation = exeState.fns.implGeneration ()
+  let mutable hit = Unchecked.defaultof<struct (int * FQFnName.Package)>
+  if
+    exeState.fns.implSelectionMemo.TryGetValue(
+      struct (exeState.branchId, receiverMemoTrait, methodName, self),
+      &hit
+    )
+    && (let struct (g, _) = hit in g = generation)
+  then
+    let struct (_, fnHash) = hit
+    Ply(Some fnHash)
+  else
+    uply {
       let! candidates =
         exeState.fns.implCandidatesByMethod exeState.branchId methodName
       // Two TRAITS that both declare this method is an ambiguity, and it is settled here
@@ -6517,44 +6523,12 @@ let private receiverMethod
         | Traits.Selected c ->
           match Map.tryFind methodName c.methods with
           | Some fnHash ->
-            // Chosen by the receiver's type, so by whoever made the value.
-            let access = Permissions.Access.forCallersCode currentFrame.access
-            let applicable =
-              AppNamedFn
-                { name = FQFnName.Package fnHash
-                  typeSymbolTable = TST.empty
-                  typeArgs = []
-                  approvalName = None
-                  access = Some access
-                  argsSoFar = []
-                  boundImpls = [] }
-            match! exeState.fns.package fnHash with
-            | Some fn when NEList.length fn.parameters = 1 ->
-              match!
-                exeState.callApplicable
-                  exeState
-                  access
-                  applicable
-                  (NEList.singleton receiver)
-              with
-              | Ok result -> return Some result
-              | Error(rte, nested) ->
-                vm.nestedCallStack <- nested
-                return raiseRTE vm.threadID rte
-            | _ ->
-              return
-                Some(
-                  DApplicable(
-                    AppNamedFn
-                      { name = FQFnName.Package fnHash
-                        typeSymbolTable = TST.empty
-                        typeArgs = []
-                        approvalName = None
-                        access = Some access
-                        argsSoFar = [ receiver ]
-                        boundImpls = [] }
-                  )
-                )
+            exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                                   receiverMemoTrait,
+                                                   methodName,
+                                                   self)] <-
+              struct (generation, fnHash)
+            return Some fnHash
           | None -> return None
         | Traits.Ambiguous cs ->
           return
@@ -6566,6 +6540,73 @@ let private receiverMethod
               )
             )
             |> raiseRTE vm.threadID
+    }
+
+
+/// The four opcodes that can still need the package store: CreateRecord, CloneRecordWithUpdates,
+/// CreateEnum and LoadValue.
+///
+/// Its own `task` so the interpreter loop's state machine stays statically compilable: six binds
+/// nested two matches deep inside the loop stopped F#'s resumable code reducing it (FS3511), which
+/// downgrades the whole loop to the dynamic implementation.
+/// `p.show` where `p` has no field `show`: a receiver call. Exactly one visible
+/// impl (of any trait) with a method of that name for `p`'s type gives the
+/// method's fn with `p` as its first argument: the RESULT when that is the only
+/// argument (`p.show` is the whole call), else the method with `p` bound, called
+/// with the rest (`a.add(b)`). None means the field access was simply wrong; several is
+/// an ambiguity the caller resolves by naming the trait (`Show.show p`).
+let private receiverMethod
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (receiver : Dval)
+  (methodName : string)
+  : Ply<Option<Dval>> =
+  uply {
+    match Dval.toValueType receiver with
+    | ValueType.Unknown -> return None
+    | ValueType.Known self ->
+      match! receiverImpl exeState vm methodName self with
+      | None -> return None
+      | Some fnHash ->
+        // Chosen by the receiver's type, so by whoever made the value.
+        let access = Permissions.Access.forCallersCode currentFrame.access
+        let applicable =
+          AppNamedFn
+            { name = FQFnName.Package fnHash
+              typeSymbolTable = TST.empty
+              typeArgs = []
+              approvalName = None
+              access = Some access
+              argsSoFar = []
+              boundImpls = [] }
+        match! exeState.fns.package fnHash with
+        | Some fn when NEList.length fn.parameters = 1 ->
+          match!
+            exeState.callApplicable
+              exeState
+              access
+              applicable
+              (NEList.singleton receiver)
+          with
+          | Ok result -> return Some result
+          | Error(rte, nested) ->
+            vm.nestedCallStack <- nested
+            return raiseRTE vm.threadID rte
+        | _ ->
+          return
+            Some(
+              DApplicable(
+                AppNamedFn
+                  { name = FQFnName.Package fnHash
+                    typeSymbolTable = TST.empty
+                    typeArgs = []
+                    approvalName = None
+                    access = Some access
+                    argsSoFar = [ receiver ]
+                    boundImpls = [] }
+              )
+            )
   }
 
 let private runRareOpcode
