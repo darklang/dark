@@ -222,3 +222,32 @@ module GenericTypeArgsAreOK =
     (inner<Bool, String>(true))
     => raises
       "Darklang.Language.Tests.Apply.GenericTypeArgsAreOK.inner expects 2 arguments, but got 1 argument; to supply the rest later, write a lambda"
+
+
+// Arguments whose types are checked without the full unifier when they fit exactly: a tuple, a
+// list of tuples, and an enum with a type argument that is itself an enum. A value that does not
+// fit still raises.
+type ArgMode =
+  | Flat
+  | Break
+
+let tupleArg(t: (Int64 * ArgMode)): Int64 = Stdlib.Tuple2.first(t)
+
+let tuplesArg(ts: List<(Int64 * ArgMode)>): Int64 = Stdlib.List.length(ts)
+
+let optionArg(o: Stdlib.Option.Option<ArgMode>): Bool = Stdlib.Option.isSome(o)
+
+test argumentsThatFitExactly =
+  Stdlib.Test.all(
+    [ tupleArg((1, ArgMode.Flat)) |> Stdlib.Test.equal(1)
+      tuplesArg([ (1, ArgMode.Flat), (2, ArgMode.Break) ]) |> Stdlib.Test.equal(2)
+      optionArg(Stdlib.Option.Option.Some(ArgMode.Break)) |> Stdlib.Test.equal(true) ])
+
+test aTupleThatDoesNotFitRaises =
+  tupleArg((1, 2)) => raises "Darklang.Language.Tests.Apply.tupleArg's 1st parameter `t` expects (Int64 * ArgMode), but got (Int64 * Int64) ((1, 2))"
+
+test aListOfTuplesThatDoesNotFitRaises =
+  tuplesArg([ (1, 2) ]) => raises "Darklang.Language.Tests.Apply.tuplesArg's 1st parameter `ts` expects List<(Int64 * ArgMode)>, but got List<(Int64 * Int64)> ([(1, 2)])"
+
+test anOptionThatDoesNotFitRaises =
+  optionArg(Stdlib.Option.Option.Some(3)) => raises "Darklang.Language.Tests.Apply.optionArg's 1st parameter `o` expects Darklang.Stdlib.Option.Option<ArgMode>, but got Darklang.Stdlib.Option.Option<Int64> (Some(3))"
