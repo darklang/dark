@@ -1482,7 +1482,7 @@ let private permissionsAllowTakesSeveralRules =
         let! refused, code =
           runCliWithExit
             state
-            [ "permissions"; "allow"; "http-server 8123; zzznope" ]
+            [ "permissions"; "allow"; "http-server 127.0.0.1 8123; zzznope" ]
         Expect.equal code 1L $"a rule that is not one fails the call:\n{refused}"
         Expect.stringContains
           refused
@@ -1496,7 +1496,7 @@ let private permissionsAllowTakesSeveralRules =
         let! _ =
           runCli
             state
-            [ "permissions"; "allow"; "http-server 8123; file read /tmp" ]
+            [ "permissions"; "allow"; "http-server 127.0.0.1 8123; file read /tmp" ]
         let! listed = runCli state [ "permissions"; "list" ]
         Expect.stringContains
           listed
