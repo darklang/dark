@@ -162,7 +162,15 @@ let private parserStructureTests =
       testCase "function ceiling syntax is rejected" (fun _ ->
         for row in [ "{}"; "{Clock}"; "{Telepathy}" ] do
           let result = P.parse $"module M =\n  let f(x: Int64):{row} Int64 = x"
-          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax") ]
+          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax")
+      testCase "an annotated lambda parameter is one error" (fun _ ->
+        let result =
+          P.parse "Stdlib.List.map([ 1 ], fun (x: Int64, y: List<Int64>) -> x)"
+        Expect.equal
+          (result.diagnostics |> List.map (fun d -> d.message))
+          [ "a lambda's parameters take no type annotation; write `fun u ->`"
+            "a lambda's parameters take no type annotation; write `fun u ->`" ]
+          "one per annotation, and nothing after") ]
 
 
 /// Parse `src` and return its single trailing expression — the range-complete
