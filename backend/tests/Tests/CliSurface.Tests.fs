@@ -2358,7 +2358,7 @@ let private missingApprovalVersionDoesNotBlockCurrentCode =
         let name = "Tests.HonestApproval.stale"
         let! _ = runCli state [ "fn"; "/" + name; "(x: Int64) : Int64 = x + 6143" ]
         let! approved, approvalStatus =
-          runCliWithStatus state [ "permissions"; "approve"; name ]
+          runCliWithStatus state [ "permissions"; "approve"; name; "--yes" ]
         Expect.equal approvalStatus 0 approved
 
         // Move the approval to a version this store never held: what a store reset leaves behind.
