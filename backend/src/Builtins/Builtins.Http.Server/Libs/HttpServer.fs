@@ -1234,8 +1234,7 @@ let fns () : List<BuiltInFn> =
           |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects =
-        set [ Effect.HttpServer; Effect.Stdout; Effect.Clock; Effect.Raise ]
+      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
       deprecated = NotDeprecated }
 
 
@@ -1303,8 +1302,7 @@ let fns () : List<BuiltInFn> =
           |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects =
-        set [ Effect.HttpServer; Effect.Stdout; Effect.Clock; Effect.Raise ]
+      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
       deprecated = NotDeprecated } ]
 
 
