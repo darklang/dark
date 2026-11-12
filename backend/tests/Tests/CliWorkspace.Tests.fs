@@ -1382,7 +1382,7 @@ let private modelSavesAndResumes =
       let! resumed =
         evalUnder
           state
-          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some(\"{name}\"), false)"
+          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some(\"{name}\"), Darklang.Cli.LiveView.Host.Updates.Pinned)"
       let session =
         match resumed with
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -1399,7 +1399,7 @@ let private modelSavesAndResumes =
       let! missing =
         evalUnder
           state
-          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some(\"Tests.LiveSave.Sessions.nope\"), false)"
+          $"Darklang.Cli.LiveView.Host.prepareWith(Darklang.SCM.Branch.mainBranchId, {view}, Darklang.Stdlib.Option.Option.Some(\"Tests.LiveSave.Sessions.nope\"), Darklang.Cli.LiveView.Host.Updates.Pinned)"
       match missing with
       | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
         Expect.stringContains

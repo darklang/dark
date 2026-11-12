@@ -74,7 +74,7 @@ module Query =
         |> Stdlib.Test.equal(Darklang.Cli.Packages.Query.Internal.Hide) ])
 
 
-// `diff --source`, `commits --all` and `view --include-tests` each pick their case.
+// `diff --source`, `commits --all`, `view --include-tests` and `branches --all` each pick their case.
 test showIfAtTheCommandLine =
   Stdlib.Test.all(
     [ Darklang.Cli.Branch.Source.showIf(true)
@@ -88,4 +88,8 @@ test showIfAtTheCommandLine =
       Darklang.Cli.Packages.View.Tests.showIf(true)
       |> Stdlib.Test.equal(Darklang.Cli.Packages.View.Tests.Show)
       Darklang.Cli.Packages.View.Tests.showIf(false)
-      |> Stdlib.Test.equal(Darklang.Cli.Packages.View.Tests.Hide) ])
+      |> Stdlib.Test.equal(Darklang.Cli.Packages.View.Tests.Hide)
+      Darklang.Cli.Branch.Merged.showIf(true)
+      |> Stdlib.Test.equal(Darklang.Cli.Branch.Merged.Show)
+      Darklang.Cli.Branch.Merged.showIf(false)
+      |> Stdlib.Test.equal(Darklang.Cli.Branch.Merged.Hide) ])
