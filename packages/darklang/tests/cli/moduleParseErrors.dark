@@ -1,0 +1,15 @@
+/// A save that does not parse says everything wrong with it at once, so one edit fixes it.
+module Darklang.Cli.Tests.ModuleParseErrors
+
+test everyParseErrorIsShown =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/two.dark"
+    let _ =
+      Stdlib.Cli.File.writeAtomic(path, "let alphabet: String = \"abc\"\nlet f(x: Int64): Int64 = x\n")
+      |> Builtin.unwrap
+    let (code, out) = Instance.ran(i, [ "module", "/Me.TwoErrs", path ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "nothing was saved")
+        Instance.says(out, "Value annotations are not supported", "the first error")
+        Instance.says(out, "must use 'val'", "the second error") ]))
