@@ -318,17 +318,38 @@ let editPolicy(
     Cli.printErr(message)
     false
 
-/// Parse rule arguments and pass them to <param edit>, or report invalid input.
+/// One rule, or several separated by `;` like `set`. Error is the first rule that did not parse.
+let parseRuleList(
+  args: List<String>)
+  : Stdlib.Result.Result<List<LanguageTools.Permissions.Rule>, String> =
+  if Stdlib.List.any(args, fun arg -> Stdlib.String.contains(arg, ";")) then
+    (Stdlib.String.split(Stdlib.String.join(args, " "), ";"))
+    |> Stdlib.List.map(Stdlib.String.trim)
+    |> Stdlib.List.filter(fun spec -> spec != "")
+    |> Stdlib.List.fold(Stdlib.Result.Result.Ok([]), fun(result, spec) ->
+      match result with
+      | Error(bad) -> Stdlib.Result.Result.Error(bad)
+      | Ok(rules) ->
+        match LanguageTools.Permissions.parseRuleText(spec) with
+        | Some(more) -> Stdlib.Result.Result.Ok(Stdlib.List.concat(rules, more))
+        | None -> Stdlib.Result.Result.Error(spec))
+  else
+    match Command.parseRuleArgs(args) with
+    | Some(rules) -> Stdlib.Result.Result.Ok(rules)
+    | None -> Stdlib.Result.Result.Error(Stdlib.String.join(args, " "))
+
+/// Parse rule arguments and pass them to <param edit>, or report invalid input. One rule that does
+/// not parse saves none of them.
 let editRules(
   args: List<String>,
   edit: List<LanguageTools.Permissions.Rule> -> Unit,
   success: String)
   : Bool =
-  match Command.parseRuleArgs(args) with
-  | None ->
-    Cli.printErr(Command.invalidRule(args))
+  match Command.parseRuleList(args) with
+  | Error(bad) ->
+    Cli.printErr(Command.invalidRule([ bad ]))
     false
-  | Some(rules) ->
+  | Ok(rules) ->
     edit(rules)
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(success))
     true
@@ -668,9 +689,9 @@ let printListOrNone(items: List<String>): Unit =
 val subcommands =
   [ ("list", Stdlib.Option.Option.None)
     ("profile", Stdlib.Option.Option.None)
-    ("allow", Stdlib.Option.Option.Some("allow <rule>"))
-    ("deny", Stdlib.Option.Option.Some("deny <rule>"))
-    ("remove", Stdlib.Option.Option.Some("remove <rule>"))
+    ("allow", Stdlib.Option.Option.Some("allow <rule>;…"))
+    ("deny", Stdlib.Option.Option.Some("deny <rule>;…"))
+    ("remove", Stdlib.Option.Option.Some("remove <rule>;…"))
     // `set` with nothing would otherwise replace the policy with deny-all;
     // that is what `clear` is for.
     ("set", Stdlib.Option.Option.Some("set <rule>;… (or `clear`)"))
@@ -832,7 +853,7 @@ let complete(
     |> Stdlib.List.map(fun((name, _usage)) -> Cli.Completion.simple(name))
 
 let help(_state: Cli.AppState): String =
-  [ "Usage: permissions [list] | allow <rule> | deny <rule> | remove <rule>"
+  [ "Usage: permissions [list] | allow <rule>;… | deny <rule>;… | remove <rule>;…"
     "                   | set <rule>;… | clear"
     "                   | profile [name [ABSOLUTE-ROOT] [--yes]]"
     "                   | approve <fn> [rules] | update <fn> [rules] | unapprove <fn>"
@@ -852,6 +873,10 @@ let help(_state: Cli.AppState): String =
     "  approved       remembered approvals, each tied to a name and code version"
     "  approvals      the same as approved"
     "  effects <fn>   (a top-level command) effects and a call path for each"
+    ""
+    "allow, deny and remove take several rules separated by `;`, quoted for the shell:"
+    "  permissions allow 'clock; random; file read /tmp'"
+    "If any of them is not a rule, none are saved."
     ""
     "Profiles:"
     "  profile                         list the available presets"

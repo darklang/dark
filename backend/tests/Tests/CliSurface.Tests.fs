@@ -1473,6 +1473,38 @@ let private permissionsRefusesAnEmptyRule =
           "and must not report a rule it did not add"
       })
 
+/// Several rules in one call, `;`-separated. One that is not a rule saves none of them.
+let private permissionsAllowTakesSeveralRules =
+  instanceTest
+    "`permissions allow` takes several rules, and saves none when one is not a rule"
+    (fun state ->
+      task {
+        let! refused, code =
+          runCliWithExit
+            state
+            [ "permissions"; "allow"; "http-server 8123; zzznope" ]
+        Expect.equal code 1L $"a rule that is not one fails the call:\n{refused}"
+        Expect.stringContains
+          refused
+          "invalid permission rule: zzznope"
+          "it names the one that is not a rule"
+        let! listed = runCli state [ "permissions"; "list" ]
+        Expect.isFalse
+          (listed.Contains "http-server")
+          $"and the good rule beside it was not saved:\n{listed}"
+
+        let! _ =
+          runCli
+            state
+            [ "permissions"; "allow"; "http-server 8123; file read /tmp" ]
+        let! listed = runCli state [ "permissions"; "list" ]
+        Expect.stringContains
+          listed
+          "http-server"
+          $"the first rule is saved:\n{listed}"
+        Expect.stringContains listed "file read '/tmp'" $"and the second:\n{listed}"
+      })
+
 let private nonexistentTargets : List<string * List<string>> =
   [ "view", [ "view"; "Zzz.Nope.nope" ]
     "deps", [ "deps"; "Zzz.Nope.nope" ]
@@ -2546,6 +2578,7 @@ let tests : List<Test> =
     everyExclusionIsReal
     everyHelpLeadsWithASummary
     permissionsRefusesAnEmptyRule
+    permissionsAllowTakesSeveralRules
     aDashLedArgumentIsNeverAName
     unsweptCommandsRefuseWithExit1
     costlyMistakesAreRefused
