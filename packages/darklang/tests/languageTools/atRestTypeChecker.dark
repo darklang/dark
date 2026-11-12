@@ -1331,6 +1331,53 @@ module Builtins =
       [ "TypeMismatch: In `Stdlib.List.append`, argument 2: expected Int64, got List<Int64> (`append` adds one item; to join two lists use `Stdlib.List.concat(a, b)` or `[...a, ...b]`)" ])
 
 // ----------------------------------------------------------------------------------
+// Tuple callbacks
+// ----------------------------------------------------------------------------------
+
+module TupleCallbacks =
+  test pairParameterSuggestsTuplePattern =
+    issues(
+      src([
+        "let f(): Unit ="
+        "  Stdlib.List.iter([(\"a\", 1)], fun (k, v) -> Stdlib.printLine(k))" ]),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.iter`, argument 2: "
+        + "expected ((String * Int64)) -> Unit, got (String, _) -> Unit"
+        + " (a pair is one argument; write `fun ((a, b)) -> ...`)" ])
+
+  test tuplePatternChecks =
+    Stdlib.Test.all([
+      check(
+        src([
+          "let f(): Unit ="
+          "  Stdlib.List.iter([(\"a\", 1)], fun ((k, v)) -> Stdlib.printLine(k))" ]),
+        "f")
+      |> Stdlib.Test.equal("checked:")
+      check(
+        src([
+          "let f(items: List<(String * Decimal)>): List<String> ="
+          "  Stdlib.List.map(items, fun ((k, v)) -> k)" ]),
+        "f")
+      |> Stdlib.Test.equal("checked:")
+    ])
+
+  test otherArityErrorsDoNotSuggestPairPattern =
+    [ "Stdlib.List.iter([\"a\"], fun (k, v) -> Stdlib.printLine(k))"
+      "Stdlib.List.iter([(\"a\", 1)], fun (k, v, x) -> Stdlib.printLine(k))"
+      "Stdlib.List.iter([(\"a\", 1, true)], fun (k, v) -> Stdlib.printLine(k))" ]
+    |> Stdlib.List.map(fun call ->
+      let messages = issues("let f(): Unit = " + call, "f")
+      Stdlib.Test.all([
+        Stdlib.List.any(
+          messages, fun m -> Stdlib.String.startsWith(m, "TypeMismatch:"))
+        |> Stdlib.Test.equal(true)
+        Stdlib.List.any(messages, fun m -> Stdlib.String.contains(m, "fun ((a, b))"))
+        |> Stdlib.Test.equal(false)
+      ]))
+    |> Stdlib.Test.all
+
+// ----------------------------------------------------------------------------------
 // Postfix `?`
 // ----------------------------------------------------------------------------------
 

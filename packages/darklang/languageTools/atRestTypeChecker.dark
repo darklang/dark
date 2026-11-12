@@ -762,6 +762,14 @@ let stringExpectedHint(expected: StaticType, actual: StaticType): String =
   | _ -> ""
 
 
+/// A two-parameter lambda does not unpack the pair a callback receives.
+let pairParameterHint(expected: StaticType, actual: StaticType): String =
+  match (expected, actual) with
+  | (TFn([TTuple(_, _, [])], _), TFn([_, _], _)) ->
+    " (a pair is one argument; write `fun ((a, b)) -> ...`)"
+  | _ -> ""
+
+
 /// Says what `append` is for when its second argument is a whole list of the element type,
 /// as `Stdlib.List.append(xs, [x])` written to join two lists.
 let appendListHint(
@@ -789,16 +797,18 @@ let issueToStringWith(
   // Only where a value is handed over: an Int64 where `?` wanted a String error wants `mapError`.
   let hint =
     fun(expected, actual) ->
+      let typeHint =
+        stringExpectedHint(expected, actual) + pairParameterHint(expected, actual)
       match (issue.code, issue.context) with
       | (TypeMismatch, At(FunctionArgument(1, Some(callee)))) ->
-        (stringExpectedHint(expected, actual)) + appendListHint(callee, expected, actual)
+        typeHint + appendListHint(callee, expected, actual)
       | (TypeMismatch, At(FunctionArgument(_, _)))
       | (TypeMismatch, At(FunctionReturnValue))
       | (TypeMismatch, At(LambdaReturnValue))
       | (TypeMismatch, At(ValueBody))
       | (TypeMismatch, At(Expression))
       | (TypeMismatch, At(OperatorOperand(_)))
-      | (TypeMismatch, At(PipelineStringConcatenation)) -> stringExpectedHint(expected, actual)
+      | (TypeMismatch, At(PipelineStringConcatenation)) -> typeHint
       | _ -> ""
   let detail =
     match issue.expected with
