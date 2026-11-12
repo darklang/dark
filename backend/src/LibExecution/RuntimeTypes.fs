@@ -4922,6 +4922,53 @@ type ImplCandidate =
   }
 
 
+/// A hash code for a self type from its outermost case alone.
+let private selfTypeHashCode (k : KnownType) : int =
+  match k with
+  | KTCustomType(FQTypeName.Package(Hash h), _) -> contentHashCode h
+  | KTList _ -> 1
+  | KTDict _ -> 2
+  | KTTuple _ -> 3
+  | KTFn _ -> 4
+  | KTStream _ -> 5
+  | _ -> k.GetHashCode()
+
+module ImplSelectionMemo =
+  /// Compares the keys (branch, trait, method, self type) directly. The default comparer of a
+  /// struct tuple of reference types reaches each part's own comparer through a runtime lookup,
+  /// and hashes the self type all the way down, on every trait method call and every entry to a
+  /// bounded fn.
+  ///
+  /// The hash reads only the self type's outermost case, so `List<Int64>` and `List<String>`
+  /// share a bucket and `Equals` tells them apart.
+  let private comparer =
+    { new System.Collections.Generic.IEqualityComparer<struct (Branching.BranchId *
+      Hash *
+      string *
+      KnownType)> with
+        member _.Equals(a, b) =
+          let struct (Branching.Id b1, Hash h1, m1, k1) = a
+          let struct (Branching.Id b2, Hash h2, m2, k2) = b
+          System.String.Equals(h1, h2)
+          && System.String.Equals(m1, m2)
+          && b1.Equals b2
+          && (obj.ReferenceEquals(k1, k2) || k1.Equals k2)
+
+        member _.GetHashCode(key) =
+          let struct (Branching.Id b, Hash h, m, k) = key
+          contentHashCode h
+          ^^^ (m.Length * 31)
+          ^^^ (selfTypeHashCode k * 1021)
+          ^^^ b.GetHashCode() }
+
+  let create
+    ()
+    : ConcurrentDictionary<struct (Branching.BranchId * Hash * string * KnownType), struct (int *
+      FQFnName.Package)>
+    =
+    ConcurrentDictionary(comparer)
+
+
 /// Functionality written in Dark stored and managed outside of user space
 ///
 /// Note: it may be tempting to think these shouldn't return Options,
@@ -4990,7 +5037,7 @@ type PackageManager =
       isHarmful = (fun _ -> false)
       implCandidates = (fun _ _ -> Ply [])
       implCandidatesByMethod = (fun _ _ -> Ply [])
-      implSelectionMemo = ConcurrentDictionary()
+      implSelectionMemo = ImplSelectionMemo.create ()
       implGeneration = (fun () -> 0)
 
       init = uply { return () } }
@@ -5007,7 +5054,7 @@ type PackageManager =
       pm
     else
       { pm with
-          implSelectionMemo = ConcurrentDictionary()
+          implSelectionMemo = ImplSelectionMemo.create ()
           implCandidates =
             fun branchId trait_ ->
               uply {
@@ -5075,7 +5122,7 @@ type PackageManager =
       isHarmful = pm.isHarmful
       implCandidates = pm.implCandidates
       implCandidatesByMethod = pm.implCandidatesByMethod
-      implSelectionMemo = ConcurrentDictionary()
+      implSelectionMemo = ImplSelectionMemo.create ()
       implGeneration = pm.implGeneration
       init = pm.init }
 
