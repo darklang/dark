@@ -137,10 +137,11 @@ let executePretty(state: AppState): AppState =
 
     // Two different remedies, and offering the wrong one is worse than offering none: a reload is a full
     // rebuild, and someone who runs it against a damaged LOG spends it to watch the same line come back.
-    let anyRefoldable = problems |> Stdlib.List.any(fun p -> p.refoldable)
+    let anyRefoldable =
+      problems |> Stdlib.List.any(fun p -> p.damage == SCM.StoreHealth.Damage.Projection)
 
     let anyCanonical =
-      problems |> Stdlib.List.any(fun p -> p.refoldable |> Stdlib.Bool.not)
+      problems |> Stdlib.List.any(fun p -> p.damage == SCM.StoreHealth.Damage.Log)
 
     if anyRefoldable then
       Stdlib.printErrorLine(

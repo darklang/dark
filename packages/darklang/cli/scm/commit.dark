@@ -329,7 +329,7 @@ let commitSelected(
           SCM.PackageOps.currentBranch(),
           message,
           SCM.Actions.CommitScope.Only(opIds),
-          false)
+          SCM.PackageOps.Namings.KeepAll)
       with
       // A selection that matched rows and then committed none of them means the ids went stale between
       // planning and stamping. Say so rather than report a commit that holds nothing.
@@ -357,7 +357,7 @@ let commit(
   : Stdlib.Result.Result<(String * Int64 * Int64), String> =
   let moved = propagateAll(state, r)
 
-  // Collapse BEFORE committing (`collapse = true`, main only). Until now every version in the draft is
+  // Collapse BEFORE committing (main only). Until now every version in the draft is
   // reachable (`undo` steps through them), but a commit is what other machines read, and five namings of
   // one function -- four of them describing a version nobody else ever saw -- are not history.
   // The process's branch, the one the checks read (see `commitSelected`).
@@ -366,7 +366,7 @@ let commit(
       SCM.PackageOps.currentBranch(),
       message,
       SCM.Actions.CommitScope.Whole,
-      true)
+      SCM.PackageOps.Namings.Collapse)
   with
   | Ok(c) -> Stdlib.Result.Result.Ok((c.hash, c.stamped, moved))
   | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
