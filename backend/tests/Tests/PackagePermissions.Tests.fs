@@ -723,6 +723,60 @@ let preflightCollectsOnlyCertainRequests =
     Expect.equal (List.length stopped) 1 "a possible early return stops preflight"
   }
 
+/// `/` and `%` by a literal that rules out their raising cannot raise.
+module private LiteralDivisors =
+  let names =
+    Map.ofList
+      [ PT.Hash "divide", "Darklang.Stdlib.Int64.Divide.divide"
+        PT.Hash "modulo", "Darklang.Stdlib.Int64.Modulo.modulo" ]
+
+  let impls =
+    [ unitFn "divide" (callBuiltin "divide")
+      unitFn "modulo" (callBuiltin "modulo") ]
+
+  let raises (body : PT.Expr) : bool =
+    let effects (name, _) =
+      if name = "divide" || name = "modulo" then
+        Some(Set.singleton Effect.Effect.Raise)
+      else
+        None
+    LibDB.Raises.path
+      effects
+      (fun (PT.Hash h as hash) -> Map.tryFind hash names |> Option.defaultValue h)
+      (closureOf (unitFn "root" body :: impls))
+      (PT.Hash "root")
+    |> Option.isSome
+
+  let op (infix : PT.InfixFnName) (impl : string) (divisor : PT.Expr) : PT.Expr =
+    PT.EInfix(gid (), PT.InfixFnCall infix, eVar "x", divisor, Operators.chosen impl)
+
+  let divide = op PT.ArithmeticDivide "divide"
+  let modulo = op PT.ArithmeticModulo "modulo"
+
+  let tests =
+    [ test "a divisor that is a literal other than 0 cannot raise" {
+        Expect.isFalse (raises (divide (eInt64 7L))) "x / 7"
+        Expect.isFalse (raises (divide (eInt64 -1L))) "x / -1 wraps"
+        Expect.isTrue (raises (divide (eInt64 0L))) "x / 0"
+        Expect.isTrue (raises (divide (eVar "y"))) "x / y"
+      }
+
+      test "a modulus that is a positive literal cannot raise" {
+        Expect.isFalse (raises (modulo (eInt64 60L))) "x % 60"
+        Expect.isTrue (raises (modulo (eInt64 -60L))) "x % -60"
+        Expect.isTrue (raises (modulo (eInt64 0L))) "x % 0"
+      }
+
+      test "a literal divisor rules out only its own call" {
+        Expect.isTrue
+          (raises (eStatement (divide (eInt64 7L)) (divide (eVar "y"))))
+          "x / 7; x / y"
+        Expect.isFalse
+          (raises (eStatement (divide (eInt64 7L)) (modulo (eInt64 7L))))
+          "x / 7; x % 7"
+      } ]
+
+
 let effectReasonsFollowDependencies =
   testTask "effect explanations retain call paths and incompleteness" {
     let! (result : Requirements.Result), reasons =
@@ -769,4 +823,5 @@ let tests =
       reviewRefusesAWidenedContractWithoutAcknowledgment
       reviewRejectsAnIncompleteClosure
       testList "operators and trait calls" Operators.tests
-      testList "package value references" ValueReferences.tests ]
+      testList "package value references" ValueReferences.tests
+      testList "literal divisors" LiteralDivisors.tests ]
