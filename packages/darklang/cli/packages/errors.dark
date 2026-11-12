@@ -356,12 +356,23 @@ let reportUnresolvedNames(
       | InvalidName -> true
       | NotFound -> false)
 
-  let notFoundNames =
+  // A missing name under `Stdlib` or `Darklang` cannot arrive later: those owners are reserved,
+  // so nothing a save makes can define it. It is a typo, and the save is refused.
+  let isReserved =
+    fun((_, name, _)) ->
+      match name with
+      | [ "Stdlib", ... ]
+      | [ "Darklang", ... ] -> true
+      | _ -> false
+
+  let notFound =
     unresolvedNames
     |> Stdlib.List.filter(fun((_, _, err)) ->
       match err with
       | NotFound -> true
       | InvalidName -> false)
+
+  let (reservedNames, notFoundNames) = Stdlib.List.partition(notFound, isReserved)
 
   // Warnings for unresolved names (will be fixed by WipRefresh). On stderr: the save's answer is the
   // "Created" line, and a warning is never part of it.
@@ -384,6 +395,24 @@ let reportUnresolvedNames(
       let message =
         $"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning(message)))
+
+    Stdlib.printErrorLine("")
+
+  if (Stdlib.List.isEmpty(reservedNames)) |> Stdlib.Bool.not then
+    Cli.printErr("Error: Not in the standard library, so nothing was saved")
+
+    reservedNames
+    |> Stdlib.List.iter(fun((range, originalName, _err)) ->
+      let lineNum = (range.start.row + 1) |> Stdlib.display
+      let colNum = range.start.column |> Stdlib.display
+      let nameStr = Stdlib.String.join(originalName, ".")
+
+      let suggestion =
+        match didYouMeanText(didYouMean(branchId, originalName)) with
+        | "" -> ""
+        | text -> " " + text
+
+      Cli.printErr($"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"))
 
     Stdlib.printErrorLine("")
 
@@ -411,4 +440,4 @@ let reportUnresolvedNames(
     Stdlib.printErrorLine("")
     true
   else
-    false
+    Stdlib.Bool.not(Stdlib.List.isEmpty(reservedNames))
