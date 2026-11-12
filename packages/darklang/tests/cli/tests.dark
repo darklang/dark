@@ -727,6 +727,8 @@ test stdlibSuggestionFindsTheRealName =
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
       suggest("Bytes.toString") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
       suggest("String.toBytes") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
+      suggest("Stdlib.Int64.absoluteValue")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.abs"))
       suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test closestNamesAreSpelledNear =
