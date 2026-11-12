@@ -62,6 +62,10 @@ let shiftLeft = NumOps.shiftLeft
 let shiftRight = NumOps.shiftRight
 /// `List.prepend`: a list and a value of its element type.
 let listPrepend = 28
+/// `String.displayWidth` (one argument) and `String.contains` (two Strings): what a layout asks
+/// of every piece of text it measures.
+let strDisplayWidth = 32
+let strContains = 33
 /// `/`, `%` and `**`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, and
 /// `NumOps` answers the inputs where they cannot. The highest tags, so the drain can send them
 /// straight to `evalNumbers`.
@@ -120,6 +124,8 @@ let evalStr (tag : int) (a : DarkString) (b : DarkString) : Dval voption =
         not (System.String.Equals(a.Value, b.Value, System.StringComparison.Ordinal))
       )
     )
+  elif tag = strContains then
+    ValueSome(Dval.bool (b.Value = "" || String.egcIndexOf a.Value b.Value >= 0))
   else
     ValueNone
 
@@ -183,6 +189,10 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
   elif tag = listIsEmpty then
     match arg with
     | DList(_, l) -> ValueSome(Dval.bool (DvalList.isEmpty l))
+    | _ -> ValueNone
+  elif tag = strDisplayWidth then
+    match arg with
+    | DString s -> ValueSome(Dval.dint64 (int64 (TextWidth.ofString s)))
     | _ -> ValueNone
   else
     ValueNone
@@ -374,6 +384,8 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "stringIsEmpty" strIsEmpty
   put "listIsEmpty" listIsEmpty
   put "listPrepend" listPrepend
+  put "stringDisplayWidth" strDisplayWidth
+  put "stringContains" strContains
   d
 
 
