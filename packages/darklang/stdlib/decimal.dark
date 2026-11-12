@@ -261,12 +261,47 @@ impl Modulo for Decimal =
     Builtin.modulo(a, b)
 
 
-/// Divides <param a> by <param b> as `/` does, or {{Error DivisionByZero}} where `/` raises.
+/// Adds <param a> and <param b>, or {{Error Overflow}} where `+` raises past the range
+let checkedAdd(a: Decimal, b: Decimal): Result<Decimal, Math.Overflow> =
+  Builtin.decimalCheckedAdd(a, b)
+
+
+/// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` raises past the range
+let checkedSubtract(a: Decimal, b: Decimal): Result<Decimal, Math.Overflow> =
+  Builtin.decimalCheckedSubtract(a, b)
+
+
+/// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` raises past the range
+let checkedMultiply(a: Decimal, b: Decimal): Result<Decimal, Math.Overflow> =
+  Builtin.decimalCheckedMultiply(a, b)
+
+
+/// Divides <param a> by <param b> as `/` does, or where `/` raises, {{Error DivisionByZero}},
+/// or {{Error Overflow}} for a quotient past the range
 let checkedDivide(a: Decimal, b: Decimal): Result<Decimal, Math.DivisionError> =
-  if b == 0dec then
-    Result.Error(Math.DivisionError.DivisionByZero)
+  Builtin.decimalCheckedDivide(a, b)
+
+
+/// <fn Decimal.power>, or where it raises, {{Error DivisionByZero}} for zero to a negative
+/// power, or {{Error Overflow}} when a power on the way is past the range
+let checkedPower(base: Decimal, exponent: Int64): Result<Decimal, Math.DivisionError> =
+  let n = BigInt.fromInt64(exponent)
+  match __checkedPowerOf(base, abs(n)) with
+  | Error(_) -> Result.Error(Math.DivisionError.Overflow)
+  | Ok(d) -> if n < 0z then checkedDivide(1dec, d) else Result.Ok(d)
+
+
+let __checkedPowerOf(b: Decimal, n: BigInt): Result<Decimal, Math.Overflow> =
+  if n == 0z then
+    Result.Ok(1dec)
   else
-    Result.Ok(a / b)
+    let half = BigInt.checkedDivide(n, 2z) |> Result.withDefault(0z)
+    match __checkedPowerOf(b, half) with
+    | Error(e) -> Result.Error(e)
+    | Ok(h) ->
+      match checkedMultiply(h, h) with
+      | Error(e) -> Result.Error(e)
+      | Ok(square) -> if half * 2z == n then Result.Ok(square) else checkedMultiply(square, b)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,

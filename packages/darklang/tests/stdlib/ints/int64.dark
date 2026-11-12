@@ -252,58 +252,105 @@ test fromFloat64 =
   Stdlib.Test.all(
     [ // fromFloat64 truncates toward zero, like BigInt.fromFloat64; fromFloatRounded rounds
       Stdlib.Int64.fromFloat64(3.9)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
 
       Stdlib.Int64.fromFloat64(-3.9)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-3))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3))
 
       Stdlib.Int64.fromFloat64(1e30)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Int64.fromFloat64(0.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
 
       Stdlib.Int64.fromFloat64(1.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Int64.fromFloat64(-1.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Int64.fromFloat64(-9223372036854775808.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-9223372036854775808))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
 
       Stdlib.Int64.fromFloat64(9223372036854775808.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow)) ])
 
 
 test fromFloatRounded =
   Stdlib.Test.all(
     [ Stdlib.Int64.fromFloatRounded(3.9)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
 
       Stdlib.Int64.fromFloatRounded(-3.9)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-4))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4))
 
       Stdlib.Int64.fromFloatRounded(1e30)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Int64.fromFloatRounded(0.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
 
       Stdlib.Int64.fromFloatRounded(1.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Int64.fromFloatRounded(-1.0 / 0.0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
 
       Stdlib.Int64.fromFloatRounded(2.5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2))
 
       Stdlib.Int64.fromFloatRounded(3.5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
 
       Stdlib.Int64.fromFloatRounded(-2.5)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2)) ])
+
+
+test fromFloatFloorAndCeiling =
+  Stdlib.Test.all(
+    [ Stdlib.Int64.fromFloatFloor(3.9)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
+
+      Stdlib.Int64.fromFloatFloor(-3.1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4))
+
+      Stdlib.Int64.fromFloatCeiling(3.1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
+
+      Stdlib.Int64.fromFloatCeiling(-3.9)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3))
+
+      Stdlib.Int64.fromFloatFloor(-9223372036854775808.0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
+
+      Stdlib.Int64.fromFloatCeiling(9223372036854775808.0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
+
+      Stdlib.Int64.fromFloatFloor(1e30)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
+
+      Stdlib.Int64.fromFloatCeiling(-1e30)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow))
+
+      Stdlib.Int64.fromFloatFloor(0.0 / 0.0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
+
+      Stdlib.Int64.fromFloatCeiling(1.0 / 0.0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow)) ])
 
 
 /// Wraps on overflow.
