@@ -818,6 +818,8 @@ let issueToStringWith(
       Stdlib.Option.Option.Some(staticTypeToStringWith(customTypeName, actual))
     | None -> Stdlib.Option.Option.None
   match (issue.context, issue.code, actualName) with
+  | (NoDetail, NotCallable, Some(callee)) ->
+    $"This is a value of type {callee}, not a function, so it cannot be called"
   | (At(InterpolatedSegment), TypeMismatch, Some(actual)) ->
     $"String interpolation conversion must return String; got {actual}."
   | (At(OperatorOperand(operation)), TypeMismatch, Some(right)) when Stdlib.Option.isSome(issue.expected) ->

@@ -592,6 +592,11 @@ module Basics =
     check("let f(x: Int64): Int64 = x(1)", "f")
     |> Stdlib.Test.equal("failed:NotCallable")
 
+  // The message names what was called, so a value written with `()` is easy to spot.
+  test notCallableNamesTheType =
+    issues("let f(x: Int64): Int64 = x(1)", "f")
+    |> Stdlib.Test.equal([ "NotCallable: This is a value of type Int64, not a function, so it cannot be called" ])
+
   // Check builtin calls using their declared parameter and return types;
   // builtin implementations are not Dark bodies the checker can inspect.
   test builtinCallsUseSignatures =
