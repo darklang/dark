@@ -500,7 +500,7 @@ let explain
               | _ -> visited, reasons)
             (visited, reasons)
     let _, reasons = visit Set.empty [] root Map.empty
-    let! names = Raises.fnNames ()
+    let! names = Raises.fnNames (Map.keys closure)
     let nameOf hash =
       Map.tryFind hash names |> Option.defaultWith (fun () -> name hash)
     let raisePath = Raises.path callEffectsFor nameOf closure root

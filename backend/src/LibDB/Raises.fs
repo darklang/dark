@@ -81,13 +81,17 @@ let cannotRaise : Set<string> =
     @ guarded
   )
 
-/// Each live fn's name. A hash with several names keeps the first in order.
-let fnNames () : Ply<Map<PT.Hash, string>> =
+/// The live name of each fn in <hashes>. A hash with several names keeps the first in order.
+let fnNames (hashes : List<PT.Hash>) : Ply<Map<PT.Hash, string>> =
   uply {
     let! rows =
       Sql.query
         "SELECT item_hash, owner, modules, name FROM locations
-         WHERE live = 1 AND item_hash <> '' AND item_type = 'fn'"
+         WHERE live = 1 AND item_type = 'fn'
+           AND item_hash IN (SELECT value FROM json_each(@hashes))"
+      |> Sql.parameters
+        [ "hashes",
+          Sql.string (jsonStrings (hashes |> List.map (fun (PT.Hash h) -> h))) ]
       |> Sql.executeAsync (fun read ->
         (read.string "item_hash",
          read.string "owner",
