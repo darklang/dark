@@ -634,7 +634,7 @@ let refreshScmStatus(previous: State, next: State): State =
 /// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
 /// count: an ack, and any command run in a frame (a pull lands other people's commits).
 let forceScmRefresh(state: State): State =
-  { state with scmStatus = readScmStatus(state.branchId), preview = Stdlib.Option.Option.None, liveFor = "" }
+  { state with scmStatus = readScmStatus(state.branchId), previews = [], liveFor = "" }
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///

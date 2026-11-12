@@ -52,7 +52,7 @@ let onKey(
   | Continue(s) -> Darklang.Cli.Component.Step.Stay(s)
   | Exit(s) -> Darklang.Cli.Component.Step.Exit(s)
   // Hand off to a foreground command; the CLI returns to this workbench (state s) when it exits.
-  | Launch(s, cmd) -> Darklang.Cli.Component.Step.Launch({ s with preview = Stdlib.Option.Option.None }, cmd)
+  | Launch(s, cmd) -> Darklang.Cli.Component.Step.Launch({ s with previews = [] }, cmd)
 
 /// The store changed under the workbench: an edit from another process (the LSP, an agent, a
 /// colleague's pull).
@@ -67,7 +67,7 @@ let onKey(
 /// reloads on its own.
 let onStoreChanged(state: State, change: LanguageTools.Live.Change): State =
   // The item page is a read of the store, so it goes either way; the next frame rebuilds it.
-  let state = { state with preview = Stdlib.Option.Option.None }
+  let state = { state with previews = [] }
   if state.live then
     let names =
       if change.unknown then
@@ -150,7 +150,7 @@ let initialStateFrom(
         scmStatus = emptyScmStatus()
         renderPeek = ""
         liveValues = Stdlib.Dict.empty
-        preview = Stdlib.Option.Option.None
+        previews = []
         liveFor = ""
         liveNote = ""
         branchId = branchId }

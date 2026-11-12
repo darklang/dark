@@ -537,8 +537,9 @@ test workbenchModuleInspectPreviewsChildren =
     Stdlib.Test.fail("Expected Inspect to preview a module's immediate children, grouped by kind")
 
 
-/// The item page is built once per selection and drawn from `preview` after that: a scroll
-/// draws the page it already has, and a move to the next item builds a new one.
+/// The item page is built once per selection and drawn from `previews` after that: a scroll
+/// draws the page it already has, a move to the next item builds a new one, and a move back
+/// draws the first one again.
 test workbenchPageBuiltOncePerSelection =
   let location = Darklang.Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
   let start = workbenchState()
@@ -556,19 +557,21 @@ test workbenchPageBuiltOncePerSelection =
           selected = selected })
   let planted =
     { onMap with
-        preview =
-          Stdlib.Option.Option.Some(
-            Darklang.Cli.Workbench.PreviewCache
-              { key = Darklang.Cli.Workbench.previewKey(onMap), lines = [ "planted" ] }
-          ) }
+        previews =
+          [ Darklang.Cli.Workbench.PreviewCache
+              { key = Darklang.Cli.Workbench.previewKey(onMap), lines = [ "planted" ] } ] }
   let scrolled =
     Darklang.Cli.Workbench.refresh(planted, { planted with detailScroll = 3 })
   let moved =
     Darklang.Cli.Workbench.refresh(planted, { planted with selected = planted.selected + 1 })
+  let back =
+    Darklang.Cli.Workbench.refresh(moved, { moved with selected = planted.selected })
   if (Darklang.Cli.Workbench.previewLines(scrolled)) != [ "planted" ] then
     Stdlib.Test.fail("a scroll rebuilt the item page instead of drawing the one it had")
   else if (Darklang.Cli.Workbench.previewLines(moved)) == [ "planted" ] then
     Stdlib.Test.fail("moving to the next item drew the previous item's page")
+  else if (Darklang.Cli.Workbench.previewLines(back)) != [ "planted" ] then
+    Stdlib.Test.fail("moving back rebuilt the item page instead of drawing the one it had")
   else
     Stdlib.Test.Result.Pass
 
