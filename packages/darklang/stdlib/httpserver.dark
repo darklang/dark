@@ -219,15 +219,18 @@ let serve(
   handler: Http.Request -> Http.Response,
   onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
-  Builtin.httpServerServe(
-    config.address,
-    Stdlib.Net.Port.toInt64(config.port),
-    handler,
-    config.maxBodyBytes,
-    config.injectStandardHeaders,
-    config.canonicalizeFromForwardedProto,
-    config.logRequests,
-    onListening)
+  if config.maxBodyBytes < 0 then
+    Stdlib.Result.Result.Error("maxBodyBytes must not be negative")
+  else
+    Builtin.httpServerServe(
+      config.address,
+      Stdlib.Net.Port.toInt64(config.port),
+      handler,
+      config.maxBodyBytes,
+      config.injectStandardHeaders,
+      config.canonicalizeFromForwardedProto,
+      config.logRequests,
+      onListening)
 
 
 /// Whether an open page reloads itself when what served it is saved.
@@ -257,15 +260,18 @@ let serveLive(
     | OnSave -> true
     | Off -> false
 
-  Builtin.httpServerServeLive(
-    config.address,
-    Stdlib.Net.Port.toInt64(config.port),
-    init,
-    step,
-    first,
-    dev,
-    config.maxBodyBytes,
-    config.injectStandardHeaders,
-    config.canonicalizeFromForwardedProto,
-    config.logRequests,
-    onListening)
+  if config.maxBodyBytes < 0 then
+    Stdlib.Result.Result.Error("maxBodyBytes must not be negative")
+  else
+    Builtin.httpServerServeLive(
+      config.address,
+      Stdlib.Net.Port.toInt64(config.port),
+      init,
+      step,
+      first,
+      dev,
+      config.maxBodyBytes,
+      config.injectStandardHeaders,
+      config.canonicalizeFromForwardedProto,
+      config.logRequests,
+      onListening)

@@ -904,21 +904,13 @@ let private serve
       match routing with
       | Fixed(handler, _) -> Fixed(handler, Some builtFrom)
       | Live _ -> routing
-    // maxBodyBytes is a comparison threshold; a negative limit would
-    // reject every request (treated as over-limit), so reject it. 0 is
-    // valid (allow no body).
+    // `Stdlib.HttpServer` refuses a negative maxBodyBytes, and a `Net.Port` is in range.
     if maxBodyBytes < 0L then
-      outOfRange vm RuntimeError.BigInts.NegativeMaxBodyBytes (DInt64 maxBodyBytes)
-    // A TCP port must be in [0, 65535]. Anything else would reach
-    // HttpListener.Start and throw a host exception, so check it up front.
+      Exception.raiseInternal
+        "negative maxBodyBytes"
+        [ "maxBodyBytes", maxBodyBytes ]
     if port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort then
-      outOfRange
-        vm
-        (RuntimeError.BigInts.Port(
-          int64 IPEndPoint.MinPort,
-          int64 IPEndPoint.MaxPort
-        ))
-        (DInt64 port)
+      Exception.raiseInternal "port out of range" [ "port", port ]
 
     // These ambient effects are performed on behalf of the child
     // guest state, so check its access (already narrowed by the

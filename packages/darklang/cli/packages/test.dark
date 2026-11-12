@@ -61,8 +61,8 @@ let selects(filter: String, path: String): Bool =
 
 /// The actual judging function, including its followed dependencies, and the
 /// runtime compilation. Reflect the function we call, not a possibly pinned
-/// branch binding. An unexpected callable gets a fresh key so it cannot reuse
-/// a persisted result.
+/// branch binding. An unexpected callable, or a runtime that cannot be hashed,
+/// gets a fresh key so it cannot reuse a persisted result.
 let cacheRuntime(): String =
   let judge =
     match
@@ -73,7 +73,11 @@ let cacheRuntime(): String =
       | Package(hash) -> LanguageTools.RuntimeTypes.hashToString(hash)
       | _ -> Stdlib.display(Stdlib.Uuid.generate())
     | _ -> Stdlib.display(Stdlib.Uuid.generate())
-  Cli.Installation.Helpers.runtimeHash() + ":" + judge
+  let runtime =
+    match Cli.Installation.Helpers.runtimeHash() with
+    | Ok(hash) -> hash
+    | Error(_) -> Stdlib.display(Stdlib.Uuid.generate())
+  runtime + ":" + judge
 
 /// Read cache metadata once; test workers cannot change the parent store.
 ///

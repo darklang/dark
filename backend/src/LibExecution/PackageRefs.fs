@@ -702,10 +702,6 @@ module Fn =
 
     let inspect = p [] "inspect"
 
-    module HttpClient =
-      let request = p [ "HttpClient" ] "request"
-      let stream = p [ "HttpClient" ] "stream"
-
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     module AtRestTypeChecker =
