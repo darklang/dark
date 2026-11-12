@@ -607,11 +607,8 @@ let partition(ls: List<'a>, f: 'a -> Bool): (List<'a> * List<'a>) =
 
 /// Applies the given function <param fn> to each element of the <param list>.
 let iter(list: List<'a>, f: 'a -> Unit): Unit =
-  match list with
-  | [] -> ()
-  | [head, ...tail] ->
-    f(head)
-    iter(tail, f)
+  // fold reruns its lambda in one frame; recursing here was a call and a list split per value
+  fold(list, (), fun (_, value) -> f(value))
 
 
 type ChunkBySizeError = | SizeMustBeGreaterThanZero
