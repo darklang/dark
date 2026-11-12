@@ -397,11 +397,17 @@ let suggestRuleIsActionable =
       "http names the exact method and normalized origin"
     Expect.equal
       (suggest (ok (Permission.Request.processSpawn "/bin/bash" [ "-c"; "echo hi" ])))
-      (rule "process '/bin/bash' '-c' 'echo hi'")
+      (Permission.Suggestion.Process(
+        "process '/bin/bash' '-c' 'echo hi'",
+        "process '/bin/bash'"
+      ))
       "a process rule carries the exact argument list, so a shell is not handed out"
     Expect.equal
       (suggest (ok (Permission.Request.processSpawn "/bin/date" [])))
-      (rule "process-exact '/bin/date'")
+      (Permission.Suggestion.Process(
+        "process-exact '/bin/date'",
+        "process '/bin/date'"
+      ))
       "no-argument processes have an exact, pasteable rule"
     Expect.equal
       (suggest (ok (Permission.Request.native "cliProcessIO")))
@@ -552,6 +558,20 @@ let pastedShellRuleRunsOnlyThatCommand =
     "a pasted process suggestion for a shell command allows that command and no other"
     (fun i ->
       task {
+        let! before =
+          CliInstance.run i [ "eval"; "Stdlib.Cli.execute(\"echo hi\")" ]
+        Expect.stringContains
+          before
+          "this exact command only"
+          "the narrow choice is labelled"
+        Expect.stringContains
+          before
+          "with any arguments"
+          "the executable choice is offered"
+        Expect.stringContains
+          before
+          "this allows any command run through that shell"
+          "the shell grant's scope is explained"
         let! rule =
           pastedRuleAllowsOnlyTheRefusedCall
             i
@@ -559,6 +579,13 @@ let pastedShellRuleRunsOnlyThatCommand =
             [ "Stdlib.Cli.execute(\"echo bye\")"
               "Stdlib.Cli.execute(\"echo hi; id\")" ]
         Expect.stringEnds rule "'-c' 'echo hi'" "the shell's whole argument list"
+        let executable = (shellWords rule)[1]
+        let! _ = CliInstance.run i [ "permissions"; "allow"; "process"; executable ]
+        let! other =
+          CliInstance.run i [ "eval"; "Stdlib.Cli.execute(\"echo bye\")" ]
+        Expect.isFalse
+          (denied other)
+          "the executable grant allows different commands"
       })
 
 let pastedProcessRuleKeepsItsArguments =
