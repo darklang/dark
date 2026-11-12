@@ -96,7 +96,7 @@ the per-opcode totals across every VM.
   on the cold first run (with its peak memory). The warm number is net of startup
   (`workloads/startup.dark`), which has a budget of its own. Every workload in `workloads/suite/`
   has one too, on allocation per iteration as `suite` measures it. So do the interactive CLI's
-  first frame and one keypress, on VM instructions and allocation (`_ui.py`). Then
+  first frame and its keys, on VM instructions, allocation and SQL statements per key (`_ui.py`). Then
   CPU for `workloads/fib.dark`,
   `workloads/lists.dark` and `ls` against the newest release, paired (`_paired.py`); offline,
   against the one `budget.json` pins. `--published` is the real one; bare is debug and does not
@@ -139,9 +139,12 @@ Different contracts, which is why they are in different places:
   its budget.
 - `workloads/ui/workbench.dark` is the interactive CLI with no terminal, at 120x40: at
   `PERF_ITERS=0` process start to the workbench's first frame painted to a string, at N that plus
-  N Down/Up presses in Code. `_ui.py` runs it at 0, 1 and 1+N and `gate` budgets the first frame
-  and the difference per key: VM instructions, which repeat exactly, and allocation, which sees
-  the builtins where most of a keypress goes. Wall time is printed beside them and gates nothing.
+  N keys, which `PERF_UI` picks: Down/Up at `List.map` (`keypress`), Down through `List`
+  (`keyWalk`, every item new), Down/Up on Home (`homeKey`), Down through Stdlib's modules
+  (`moduleKey`). `_ui.py` runs it at 0, then each at 1 and 1+N, and `gate` budgets the first
+  frame and the difference per key: VM instructions, which repeat exactly, allocation, which sees
+  the builtins where most of a keypress goes, and SQL statements. Wall time is printed beside them
+  and gates nothing.
 - `workloads/bench/` is staged into `rundir/perf-workloads/` by `bench`. These use raw `Builtin.`
   calls rather than the Dark wrappers on purpose: an A/B runs the same source against an older
   published binary, whose store may not carry today's wrapper.

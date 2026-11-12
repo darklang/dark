@@ -237,6 +237,7 @@ let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
     use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
     conn.Open()
 
+    Telemetry.countBy "sql.schema" (int64 statements.Length)
     for st in statements do
       use cmd = conn.CreateCommand()
       cmd.CommandText <- st

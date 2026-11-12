@@ -63,7 +63,7 @@
   },
   "ui": {
     "keys": 10,
-    "note": "The interactive CLI at 120x40, from scripts/perf/workloads/ui/workbench.dark (see scripts/perf/_ui.py): VM instructions, which repeat exactly, and allocation, which sees the builtins where most of a keypress goes. firstFrame is process start to the workbench's first frame built and painted to a string; keypress is one Down or Up in Code at Darklang.Stdlib.List: the key handled, the next frame built and diffed. Recorded by `scripts/perf/gate --published --update` with the rest.",
+    "note": "The interactive CLI at 120x40, from scripts/perf/workloads/ui/workbench.dark (see scripts/perf/_ui.py): VM instructions, which repeat exactly, and allocation, which sees the builtins where most of a keypress goes. firstFrame is process start to the workbench's first frame built and painted to a string; each other entry is one key, handled and the next frame built and diffed: keypress Down or Up at Darklang.Stdlib.List.map, keyWalk Down through List (every item new), homeKey Down or Up on Home, moduleKey Down through Stdlib's modules. Keys also budget SQL statements, which repeat exactly. Recorded by `scripts/perf/gate --published --update` with the rest.",
     "firstFrame": {
       "instructionsTolerance": 0.05,
       "allocatedTolerance": 0.03,
@@ -74,7 +74,33 @@
       "instructionsTolerance": 0.02,
       "allocatedTolerance": 0.03,
       "instructions": 99821,
-      "allocated": 35320798
+      "allocated": 35320798,
+      "sqlTolerance": 0,
+      "sql": 184
+    },
+    "keyWalk": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.05,
+      "sqlTolerance": 0,
+      "instructions": 85462,
+      "allocated": 4744240,
+      "sql": 39
+    },
+    "homeKey": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.05,
+      "sqlTolerance": 0,
+      "instructions": 26377,
+      "allocated": 1278812,
+      "sql": 1
+    },
+    "moduleKey": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.05,
+      "sqlTolerance": 0,
+      "instructions": 68929,
+      "allocated": 6001556,
+      "sql": 20
     }
   }
 }

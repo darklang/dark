@@ -58,6 +58,7 @@ let checkpointWal (dbPath : string) : unit =
   conn.Open()
   use cmd = conn.CreateCommand()
   cmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE);"
+  Telemetry.count "sql.seed"
   cmd.ExecuteNonQuery() |> ignore<int>
   conn.Close()
 
@@ -84,6 +85,7 @@ let export (outputPath : string) : Task<unit> =
     use pragmaCmd = conn.CreateCommand()
     pragmaCmd.CommandText <-
       "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
+    Telemetry.count "sql.seed"
     pragmaCmd.ExecuteNonQuery() |> ignore<int>
 
     use cleanCmd = conn.CreateCommand()
@@ -142,10 +144,12 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM package_ops WHERE commit_hash IS NULL;
       """
       + AppliedOps.reset
+    Telemetry.count "sql.seed"
     cleanCmd.ExecuteNonQuery() |> ignore<int>
 
     use vacuumCmd = conn.CreateCommand()
     vacuumCmd.CommandText <- "VACUUM;"
+    Telemetry.count "sql.seed"
     vacuumCmd.ExecuteNonQuery() |> ignore<int>
 
     conn.Close()
@@ -203,6 +207,7 @@ let private dropIndexesOfEmptyTables (conn : SqliteConnection) : Task<List<strin
                 AND sql IS NOT NULL AND substr(sql, 1, 13) <> 'CREATE UNIQUE'
                 AND name NOT IN ({keptList})
                 AND NOT EXISTS (SELECT 1 FROM {table})"
+          Telemetry.count "sql.seed"
           use! reader = cmd.ExecuteReaderAsync()
           return reader |> Sqlite.readRows (fun r -> (r.GetString 0, r.GetString 1))
         })
@@ -210,6 +215,7 @@ let private dropIndexesOfEmptyTables (conn : SqliteConnection) : Task<List<strin
     for (name, _) in indexes do
       use drop = conn.CreateCommand()
       drop.CommandText <- $"DROP INDEX {name}"
+      Telemetry.count "sql.seed"
       let! _ = drop.ExecuteNonQueryAsync()
       ()
     return List.map snd indexes
@@ -228,6 +234,7 @@ let private logRowsOf
     cmd.CommandText <-
       $"SELECT rowid, origin_ts, commit_hash IS NULL, source FROM package_ops
         WHERE rowid IN ({listed})"
+    Telemetry.count "sql.seed"
     use! reader = cmd.ExecuteReaderAsync()
     return
       reader
@@ -278,6 +285,7 @@ let foldRead
         task {
           use cmd = conn.CreateCommand()
           cmd.CommandText <- sql
+          Telemetry.count "sql.seed"
           let! _ = cmd.ExecuteNonQueryAsync()
           return ()
         }
@@ -378,6 +386,7 @@ let foldRead
             "[" + (skipped |> List.map string |> String.concat ",") + "]"
           )
           |> ignore<SqliteParameter>
+          Telemetry.count "sql.seed"
           let! _ = mark.ExecuteNonQueryAsync()
           tx.Commit()
       finally

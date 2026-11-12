@@ -200,9 +200,11 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
            WHERE NOT EXISTS
              (SELECT 1 FROM package_ops o WHERE o.id = s.id AND o.branch_id = s.branch_id);"
         probe.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+        Telemetry.count "sql.seed"
         let pending = probe.ExecuteScalar() |> string |> int
         use detach = conn.CreateCommand()
         detach.CommandText <- "DETACH DATABASE seed;"
+        Telemetry.count "sql.seed"
         detach.ExecuteNonQuery() |> ignore<int>
 
         // Captured while `seed` is still attached and before anything folds, because afterwards the
@@ -221,10 +223,12 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
             use ensure = conn.CreateCommand()
             ensure.CommandText <-
               "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY) WITHOUT ROWID"
+            Telemetry.count "sql.seed"
             ensure.ExecuteNonQuery() |> ignore<int>
 
             use ledger = conn.CreateCommand()
             ledger.CommandText <- "SELECT COUNT(*) FROM seed_ops"
+            Telemetry.count "sql.seed"
             let known = ledger.ExecuteScalar() |> string |> int
 
             if known = 0 then
@@ -238,6 +242,7 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
                  FROM locations
                  WHERE live = 1 AND item_hash <> '' AND branch_id = '{string LibExecution.ProgramTypes.BranchId.Main}'
                    AND op_id NOT IN (SELECT op_id FROM seed_ops)"
+              Telemetry.count "sql.seed"
               use r = mine.ExecuteReader()
               let rows =
                 [ while r.Read() do
@@ -261,6 +266,7 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
                  INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM seed2.package_ops;
                  DETACH DATABASE seed2;"
               remember.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+              Telemetry.count "sql.seed"
               remember.ExecuteNonQuery() |> ignore<int>
 
             use cmd = conn.CreateCommand()
@@ -277,6 +283,7 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
                  FROM seed.package_ops;
                DETACH DATABASE seed;"
             cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+            Telemetry.count "sql.seed"
             cmd.ExecuteNonQuery() |> ignore<int>
             true
           with e ->
@@ -340,9 +347,11 @@ let private storeStamp (dbPath : string) : string option =
     conn.Open()
     use cmd = conn.CreateCommand()
     cmd.CommandText <- stampTable
+    Telemetry.count "sql.seed"
     cmd.ExecuteNonQuery() |> ignore<int>
     use read = conn.CreateCommand()
     read.CommandText <- "SELECT build FROM store_stamp_v0 WHERE id = 0"
+    Telemetry.count "sql.seed"
     match read.ExecuteScalar() with
     | null -> None
     | v -> Some(string v)
@@ -359,6 +368,7 @@ let private recordStoreStamp (dbPath : string) (build : string) : unit =
       + "; INSERT OR REPLACE INTO store_stamp_v0 (id, build) VALUES (0, $build)"
     cmd.Parameters.AddWithValue("$build", build)
     |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+    Telemetry.count "sql.seed"
     cmd.ExecuteNonQuery() |> ignore<int>
   with _ ->
     () // failing to record it costs the next run the top-up it just did, nothing worse
@@ -495,6 +505,7 @@ let extract () : Extracted =
           cmd.CommandText <-
             "CREATE TABLE IF NOT EXISTS seed_ops (op_id TEXT PRIMARY KEY) WITHOUT ROWID;
              INSERT OR IGNORE INTO seed_ops (op_id) SELECT id FROM package_ops;"
+          Telemetry.count "sql.seed"
           cmd.ExecuteNonQuery() |> ignore<int>
         with e ->
           System.Console.Error.WriteLine(
