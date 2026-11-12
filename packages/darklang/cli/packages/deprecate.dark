@@ -395,7 +395,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
               if Stdlib.Cli.UI.Prompt.canAsk() then
                 Cli.Stderr.line("Deprecation cancelled.")
               else
-                Cli.Stderr.line("Deprecation cancelled. (`-y` deprecates without the prompt -- a piped stdin can't answer it.)")
+                let verb = if kindStr == "obsolete" then "delete" else "deprecate"
+                Cli.printErr($"no terminal to confirm at; add --yes to {verb} {fullPath}")
               Cli.failed(state)
 
 

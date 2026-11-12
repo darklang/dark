@@ -284,7 +284,7 @@ let private warningsAndPreviewsStayOffStdout =
           "the preview is on stderr"
         Expect.stringContains
           (CliDsl.plain err)
-          "`-y`"
+          "add --yes to delete Tests.Streams.f"
           "with the flag that gets past the prompt"
       })
 
@@ -399,7 +399,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     0,
     Says "Will deprecate",
     Says "dry-run"
-    [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "`-y`"
+    [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "no terminal to confirm at"
     [ "delete"; "Tests.Rows.g2"; "-y" ],
     0,
     Says "Deprecated fn Tests.Rows.g2",
