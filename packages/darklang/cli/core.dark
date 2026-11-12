@@ -347,57 +347,15 @@ module ExecutionError =
       | Function(_) -> true
       | _ -> false)
 
+  /// Permission denials already explain the resource and how to allow access.
+  /// Keep their frames in the structured error for diagnostics, without printing
+  /// an internal stack.
   let printCallStack(branchId: Uuid, what: String, error: ExecutionError): Unit =
-    let frames =
-      match error with
-      | Runtime(_, frames) -> frames
-      | Denied(denial) -> denial.callStack
-      | _ -> []
-    let show =
-      match error with
-      | Denied(_) -> frames != []
-      | _ -> hasReadableFrames(frames)
-    if show then
-      let rendered =
-        match error with
-        | Denied(_) -> deniedCallStack(branchId, frames)
-        | _ -> PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
-      let gap =
-        match error with
-        | Denied(_) -> ""
-        | _ -> "\n"
-      Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}{gap}")
-    else
-      ()
-
-  /// A denial's call stack down to the first bundled Darklang function it went through. The
-  /// calls inside that function are how it reaches the resource, and the denial already names
-  /// the resource, so they are counted rather than listed.
-  let deniedCallStack(
-    branchId: Uuid,
-    frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
-    : String =
-    let isBundled = fun frame ->
-      let shown = PrettyPrinter.RuntimeTypes.executionPoint(branchId, frame)
-      Stdlib.String.startsWith(shown, "Package Function Darklang.")
-      || Stdlib.String.startsWith(shown, "Lambda in Darklang.")
-      || Stdlib.String.startsWith(shown, "Builtin Function ")
-      || Stdlib.String.startsWith(shown, "Trait Method ")
-
-    let inside =
-      frames
-      |> Stdlib.List.reverse
-      |> Stdlib.List.takeWhile(isBundled)
-      |> Stdlib.List.length
-    let kept = Stdlib.List.length(frames) - inside + 1
-
-    if inside < 2 then
-      PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
-    else
-      let hidden = inside - 1
-      let calls = if hidden == 1 then "call" else "calls"
-      PrettyPrinter.RuntimeTypes.callStack(branchId, Stdlib.List.take(frames, kept))
-      + $"\n  ({Stdlib.display(hidden)} {calls} inside it)"
+    match error with
+    | Runtime(_, frames) when hasReadableFrames(frames) ->
+      let rendered = PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
+      Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}\n")
+    | _ -> ()
 
 
 module View =
