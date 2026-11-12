@@ -146,13 +146,21 @@ let __ticksPerDay(): Int64 = 864000000000
 let __fromOffset(ticks: Int64, count: Int64, unit: Int64): DateTime =
   Builtin.dateTimeFromUnixTicks(ticks, count, unit)
 
+/// `/` and `%` by a positive divisor, which every caller here passes.
+let __div(value: Int64, divisor: Int64): Int64 =
+  Stdlib.Int64.checkedDivide(value, divisor) |> Stdlib.Result.withDefault(0)
+
+let __mod(value: Int64, divisor: Int64): Int64 =
+  Stdlib.Int64.checkedMod(value, divisor) |> Stdlib.Result.withDefault(0)
+
 /// `/` on Int64s rounds toward zero; dates before 1970 need it to round down.
-let __floorDiv(value: Int64, divisor: Int64): Int64 = (value - value % divisor) / divisor
+let __floorDiv(value: Int64, divisor: Int64): Int64 =
+  __div(value - __mod(value, divisor), divisor)
 
 let __daysSinceEpoch(date: DateTime): Int64 =
   __floorDiv(__ticks(date), __ticksPerDay())
 
-let __ticksWithinDay(date: DateTime): Int64 = __ticks(date) % __ticksPerDay()
+let __ticksWithinDay(date: DateTime): Int64 = __mod(__ticks(date), __ticksPerDay())
 
 /// A calendar or clock field, which the caller has already bounded.
 let __field8(n: Int64): UInt8 = Stdlib.UInt8.fromInt64(n) |> Builtin.unwrap
@@ -163,8 +171,8 @@ let __daysFromCivil(year: Int64, month: Int64, day: Int64): Int64 =
   let era = __floorDiv(y, 400)
   let yearOfEra = y - era * 400
   let m = if month > 2 then month - 3 else month + 9
-  let dayOfYear = (153 * m + 2) / 5 + day - 1
-  let dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear
+  let dayOfYear = __div(153 * m + 2, 5) + day - 1
+  let dayOfEra = yearOfEra * 365 + __div(yearOfEra, 4) - __div(yearOfEra, 100) + dayOfYear
   era * 146097 + dayOfEra - 719468
 
 /// (year, month, day) of a count of days since 1970-01-01.
@@ -173,30 +181,26 @@ let __civilFromDays(days: Int64): (Int64 * Int64 * Int64) =
   let era = __floorDiv(shifted, 146097)
   let dayOfEra = shifted - era * 146097
   let yearOfEra =
-    (dayOfEra - dayOfEra / 1460 + dayOfEra / 36524 - dayOfEra / 146096) / 365
-  let dayOfYear = dayOfEra - (365 * yearOfEra + yearOfEra / 4 - yearOfEra / 100)
-  let mp = (5 * dayOfYear + 2) / 153
-  let day = dayOfYear - (153 * mp + 2) / 5 + 1
+    __div(
+      dayOfEra - __div(dayOfEra, 1460) + __div(dayOfEra, 36524) - __div(dayOfEra, 146096),
+      365)
+  let dayOfYear = dayOfEra - (365 * yearOfEra + __div(yearOfEra, 4) - __div(yearOfEra, 100))
+  let mp = __div(5 * dayOfYear + 2, 153)
+  let day = dayOfYear - __div(153 * mp + 2, 5) + 1
   let month = if mp < 10 then mp + 3 else mp - 9
   let year = if month <= 2 then yearOfEra + era * 400 + 1 else yearOfEra + era * 400
   (year, month, day)
 
-/// A difference in whole units, computed in floating point as the host's durations do
-/// (days times units-per-day, plus the rest of the day) and rounded half to even.
-let __roundedDifference(
-  endDate: DateTime,
-  startDate: DateTime,
-  unitsPerDay: Int64,
-  nanosPerUnit: Float)
-  : Int64 =
-  let nanosPerDay = 86400000000000
-  let nanos = (__ticks(endDate) - __ticks(startDate)) * 100
-  let days = __floorDiv(nanos, nanosPerDay)
-  let nanoOfDay = nanos % nanosPerDay
-  Stdlib.Float.round((
-    Stdlib.Int64.toFloat(days * unitsPerDay)
-    + Stdlib.Int64.toFloat(nanoOfDay) / nanosPerUnit
-  ))
+/// <param endDate> minus <param startDate> in whole units of <param ticksPerUnit> ticks,
+/// rounded half to even.
+let __roundedDifference(endDate: DateTime, startDate: DateTime, ticksPerUnit: Int64): Int64 =
+  let ticks = __ticks(endDate) - __ticks(startDate)
+  let whole = __floorDiv(ticks, ticksPerUnit)
+  let twiceRest = (ticks - whole * ticksPerUnit) * 2
+  if twiceRest > ticksPerUnit || (twiceRest == ticksPerUnit && __mod(whole, 2) == 1) then
+    whole + 1
+  else
+    whole
 
 let __digit(c: Char): Stdlib.Option.Option<Int64> =
   match c with
@@ -219,7 +223,7 @@ let __number(digits: List<Char>): Stdlib.Option.Option<Int64> =
     | _ -> Stdlib.Option.Option.None)
 
 let __isLeapYear(year: Int64): Bool =
-  (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+  (__mod(year, 4) == 0 && __mod(year, 100) != 0) || __mod(year, 400) == 0
 
 let __daysInMonth(year: Int64, month: Month): Int64 =
   match month with
@@ -299,9 +303,9 @@ let __basicDate(date: DateTime): String =
 /// The time of day as {{hhmmss}}.
 let __basicTime(date: DateTime): String =
   let ticks = __ticksWithinDay(date)
-  zeroPadded(ticks / __ticksPerHour(), 2)
-  + zeroPadded((ticks / __ticksPerMinute()) % 60, 2)
-  + zeroPadded((ticks / __ticksPerSecond()) % 60, 2)
+  zeroPadded(__div(ticks, __ticksPerHour()), 2)
+  + zeroPadded(__mod(__div(ticks, __ticksPerMinute()), 60), 2)
+  + zeroPadded(__mod(__div(ticks, __ticksPerSecond()), 60), 2)
 
 
 impl Display for DateTime =
@@ -416,7 +420,7 @@ let atStartOfDay(date: DateTime): DateTime =
 /// Returns <param d1> minus <param d2> as a duration, rounded to whole seconds.
 /// Half-second ties round to the nearest even second.
 let subtract(d1: DateTime, d2: DateTime): Stdlib.Duration.Duration =
-  __roundedDifference(d1, d2, 86400, 1000000000.0)
+  __roundedDifference(d1, d2, __ticksPerSecond())
   |> Stdlib.Duration.fromSeconds()
 
 
@@ -448,7 +452,7 @@ let millisecond(date: DateTime): UInt16 =
 
 /// Returns the difference of the two dates, in milliseconds
 let subtractMs(d1: DateTime, d2: DateTime): Int64 =
-  __roundedDifference(d1, d2, 86400000, 1000000.0)
+  __roundedDifference(d1, d2, __ticksPerMillisecond())
 
 
 /// Writes <param n> with leading zeros up to <param width> digits
@@ -546,15 +550,19 @@ let __monotonicNanoseconds(): Result.Result<(Int64 * Int64), Int64> =
                 Ok((nanos / 1000000000, nanos % 1000000000)))))))
   else Builtin.syscallClockGettime(1) |> Stdlib.Result.andThen(__timespec)
 
+/// When the clock syscall fails, the runtime's own clock answers.
 let __monotonicMilliseconds(): Int64 =
   match __monotonicNanoseconds() with
-  | Ok((seconds, nanos)) -> seconds * 1000 + nanos / 1000000
-  | Error(e) -> Builtin.unwrap(Error(e))
+  | Ok((seconds, nanos)) -> seconds * 1000 + __div(nanos, 1000000)
+  | Error(_) ->
+    let (ticks, frequency) = Builtin.runtimeMonotonicCounter()
+    __div(ticks, frequency) * 1000 + __div(__mod(ticks, frequency) * 1000, frequency)
 
+/// When the clock syscall fails, the runtime's own clock answers.
 let __now(): DateTime =
   match __realtimeNanoseconds() with
-  | Ok((seconds, nanos)) -> __fromTicks(seconds * 10000000 + nanos / 100)
-  | Error(e) -> Builtin.unwrap(Error(e))
+  | Ok((seconds, nanos)) -> __fromTicks(seconds * 10000000 + __div(nanos, 100))
+  | Error(_) -> __fromTicks(Builtin.runtimeRealtimeTicks())
 
 let __today(): DateTime =
   let seconds = Stdlib.DateTime.toSeconds(__now())

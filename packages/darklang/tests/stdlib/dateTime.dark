@@ -541,7 +541,19 @@ test subtractMs =
       sMs("2020-11-26T04:37:46Z", "2020-11-26T04:37:45Z") |> Stdlib.Test.equal(1000)
       sMs("2020-11-26T04:37:46Z", "2020-11-26T04:37:56Z") |> Stdlib.Test.equal(-10000)
       sMs("2021-01-01T00:00:00Z", "2020-01-01T00:00:00Z")
-      |> Stdlib.Test.equal(31622400000) ])
+      |> Stdlib.Test.equal(31622400000)
+      Stdlib.DateTime.subtractMs(
+        Stdlib.DateTime.__fromTicks(25000),
+        Stdlib.DateTime.__fromTicks(0))
+      |> Stdlib.Test.equal(2)
+      Stdlib.DateTime.subtractMs(
+        Stdlib.DateTime.__fromTicks(35000),
+        Stdlib.DateTime.__fromTicks(0))
+      |> Stdlib.Test.equal(4)
+      Stdlib.DateTime.subtractMs(
+        Stdlib.DateTime.__fromTicks(-25000),
+        Stdlib.DateTime.__fromTicks(0))
+      |> Stdlib.Test.equal(-2) ])
 
 let f(date: DateTime): String =
   Stdlib.DateTime.format(date, "%Y-%m-%d %H:%M:%S.%f") |> Builtin.unwrap
@@ -567,6 +579,7 @@ test formatPadsEveryField =
       f(d("9999-12-31T23:59:59.999Z")) |> Stdlib.Test.equal("9999-12-31 23:59:59.999")
       f(civil(0, 1, 1)) |> Stdlib.Test.equal("0000-01-01 00:00:00.000")
       f(civil(-1, 6, 15)) |> Stdlib.Test.equal("-0001-06-15 00:00:00.000")
+      Stdlib.display(civil(-1, 6, 15)) |> Stdlib.Test.equal("-0001-06-15T00:00:00Z")
       // the fraction is truncated to milliseconds, never rounded up into the next second
       f(Stdlib.DateTime.__fromTicks(9999999))
       |> Stdlib.Test.equal("1970-01-01 00:00:00.999") ])

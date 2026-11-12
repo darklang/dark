@@ -8,6 +8,15 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 
+// NodaTime's `uuuu` writes years before 1, which .NET's `DateTime` cannot hold.
+let private isoSeconds =
+  NodaTime.Text.LocalDateTimePattern.CreateWithInvariantCulture
+    "uuuu'-'MM'-'dd'T'HH':'mm':'ss'Z'"
+
+let private isoMilliseconds =
+  NodaTime.Text.LocalDateTimePattern.CreateWithInvariantCulture
+    "uuuu'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dateTimeFromUnixTicks" 0
@@ -71,20 +80,11 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDateTime d |] ->
-          let dt = DarkDateTime.toDateTimeUtc d
-          let hasMs = dt.Millisecond <> 0
-
-          let str =
-            if hasMs then
-              dt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-            else
-              dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
-              + "Z"
-
-          str |> DString |> Ply
+          let pattern = if d.Millisecond <> 0 then isoMilliseconds else isoSeconds
+          pattern.Format d |> DString |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = set [ LibExecution.Effects.Effect.Raise ]
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
