@@ -79,9 +79,13 @@ let toFloat(a: UInt32): Float = Builtin.uint32ToFloat(a)
 let parse(
   s: String)
   : Stdlib.Result.Result<UInt32, Stdlib.UInt32.ParseError> =
+  // a plain match: the generic Option.toResult call was a quarter of the cost
   match Stdlib.BigInt.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toUInt32(n), Stdlib.UInt32.ParseError.OutOfRange)
-  | Error(_) -> Error(Stdlib.UInt32.ParseError.BadFormat)
+  | Ok(n) ->
+    match Stdlib.BigInt.toUInt32(n) with
+    | Some(i) -> Stdlib.Result.Result.Ok(i)
+    | None -> Stdlib.Result.Result.Error(Stdlib.UInt32.ParseError.OutOfRange)
+  | Error(_) -> Stdlib.Result.Result.Error(Stdlib.UInt32.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to a <type UInt32>. Returns {{None}} if the value is less than 0.
