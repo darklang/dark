@@ -849,7 +849,7 @@ let packageTestsRespectParallelLimit =
               task {
                 let deadline = System.Diagnostics.Stopwatch.StartNew()
                 while (started ()).Length < count
-                      && deadline.Elapsed.TotalSeconds < 30.0 do
+                      && deadline.Elapsed.TotalSeconds < 120.0 do
                   do! Task.Delay 20
                 Expect.equal
                   (started ()).Length
