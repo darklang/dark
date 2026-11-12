@@ -250,20 +250,21 @@ let testOutcomeLines(
 let selectedFunctionTestRows(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | Some(item) when item.kind == "fn" ->
-    let modulePath = Packages.modulePathOf(state.location)
-    let results = Packages.Query.searchExactMatch(state.branchId, modulePath, item.name)
-    match results.fns with
-    | [i, ...] ->
-      // ":" not "dark ": the workbench owns the terminal, and its command
-      // bar runs registered commands in-frame.
-      Packages.View.testRows(
-        state.branchId,
-        i.location,
-        LanguageTools.ProgramTypes.ItemKind.Fn,
-        ":",
-        sectionHeading("tests"))
-    | [] -> []
+    let results = Packages.Query.searchExactMatch(state.branchId, Packages.modulePathOf(state.location), item.name)
+    functionTestRows(state.branchId, results, itemDependents(item.kind, results))
   | _ -> []
+
+/// <fn selectedFunctionTestRows>, from a lookup and a dependents read the caller already made.
+let functionTestRows(
+  branchId: Uuid,
+  results: LanguageTools.ProgramTypes.Search.SearchResults,
+  dependents: List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+  : List<String> =
+  match results.fns with
+  // ":" not "dark ": the workbench owns the terminal, and its command
+  // bar runs registered commands in-frame.
+  | [_, ...] -> Packages.View.testRowsFrom(branchId, dependents, ":", sectionHeading("tests"))
+  | [] -> []
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines(state: State): List<String> =
@@ -582,8 +583,9 @@ let inspectPageLines(state: State): List<String> =
       let src = highlightSourceLines(itemLines(state, item, results))
       // The order a reader wants: what this is, the code, what running it needs, who it touches.
       // The keys that act on it are in the footer, so they are not repeated here.
-      let refs = Stdlib.String.split(referencesFrom(state, modulePath, item.name, item.kind, results), "\n")
-      let tests = selectedFunctionTestRows(state)
+      let dependents = itemDependents(item.kind, results)
+      let refs = Stdlib.String.split(referencesFrom(state, modulePath, item.name, item.kind, results, dependents), "\n")
+      let tests = if item.kind == "fn" then functionTestRows(state.branchId, results, dependents) else []
       Stdlib.List.flatten(
         [ [ itemMeta(state, item, results), "" ]
           src

@@ -120,11 +120,16 @@ let moduleRows(
           desc = descOf(shape) })
   // A test's description is its last result for this build, read from the
   // cache `dark test run` writes. Nothing runs here.
+  let testCache =
+    if (descriptions == Descriptions.Show) && (Stdlib.Bool.not(Stdlib.List.isEmpty(results.tests))) then
+      Packages.Test.cacheContext(branchId)
+    else
+      Stdlib.Option.Option.None
   let testItems =
     results.tests
     |> Stdlib.List.map(fun t ->
       let status(_u: Unit): String =
-        match Packages.Test.lastOutcome(branchId, t.entity.hash) with
+        match Packages.Test.lastOutcomeIn(testCache, t.entity.hash) with
         | Some(Passed) -> "passed"
         | Some(Failed(_)) -> "failed"
         | Some(RuntimeFailed(_)) -> "error"
@@ -486,33 +491,49 @@ val referenceCap = 12
 /// and the Changes preview both show this; the Changes list carries full paths, which is why the
 /// module path is a parameter rather than read off the location.
 let referencesText(state: State, modulePath: List<String>, leaf: String, kind: String): String =
-  referencesFrom(state, modulePath, leaf, kind, Packages.Query.searchExactMatch(state.branchId, modulePath, leaf))
+  let results = Packages.Query.searchExactMatch(state.branchId, modulePath, leaf)
+  referencesFrom(state, modulePath, leaf, kind, results, itemDependents(kind, results))
 
-/// <fn referencesText>, from a lookup the caller already made.
+/// The item of <param kind> a lookup found, with its kind as the store names it.
+let pickedItem(
+  kind: String,
+  results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
+  if kind == "fn" then
+    results.fns |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
+  else if kind == "type" then
+    results.types |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
+  else if kind == "trait" then
+    results.traits |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Trait))
+  else if kind == "impl" then
+    results.impls |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
+  else if kind == "test" then
+    results.tests |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Test))
+  else
+    results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
+
+/// What uses the item a lookup found, tests included. The item page reads it once for both
+/// `used by` and its tests section.
+let itemDependents(
+  kind: String,
+  results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
+  match pickedItem(kind, results) with
+  | Some((_hash, loc, itemKind)) -> SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (loc, itemKind) ])
+  | None -> []
+
+/// <fn referencesText>, from a lookup and a dependents read the caller already made.
 let referencesFrom(
   state: State,
   modulePath: List<String>,
   leaf: String,
   kind: String,
-  results: LanguageTools.ProgramTypes.Search.SearchResults)
+  results: LanguageTools.ProgramTypes.Search.SearchResults,
+  dependents: List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
   : String =
-  let item = BodyItem { name = leaf, kind = kind, isModule = false, desc = "" }
-  let picked =
-    if item.kind == "fn" then
-      results.fns |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
-    else if item.kind == "type" then
-      results.types |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
-    else if item.kind == "trait" then
-      results.traits |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Trait))
-    else if item.kind == "impl" then
-      results.impls |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
-    else if item.kind == "test" then
-      results.tests |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Test))
-    else
-      results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
-  match picked with
+  match pickedItem(kind, results) with
   | None -> "(not found)"
-  | Some((hash, loc, kind)) ->
+  | Some((hash, _loc, _kind)) ->
     // Dependencies - what this item uses.
     let deps = Packages.Query.getDependencies(hash)
     let depLines =
@@ -530,7 +551,7 @@ let referencesFrom(
     // run information. Keep `used by` about production coupling instead of
     // listing every test twice. The `dark deps` command remains comprehensive.
     let dependents =
-      SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (loc, kind) ])
+      dependents
       |> Stdlib.List.filter(fun((_hash, _location, dependentKind)) ->
         dependentKind != LanguageTools.ProgramTypes.ItemKind.Test)
     let dependentLines =

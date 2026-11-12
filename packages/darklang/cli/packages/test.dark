@@ -132,7 +132,15 @@ let lastOutcome(
   branchId: Uuid,
   testHash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<Outcome> =
-  match cacheContext(branchId) with
+  lastOutcomeIn(cacheContext(branchId), testHash)
+
+/// `lastOutcome` against a cache key worked out once, for a listing of many tests: working it out
+/// looks up a type and hashes the runtime, which is more than reading one result.
+let lastOutcomeIn(
+  cache: Stdlib.Option.Option<CacheContext>,
+  testHash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<Outcome> =
+  match cache with
   | Some(cache) -> storedOutcome(cache, testHash)
   | None -> Stdlib.Option.Option.None
 
