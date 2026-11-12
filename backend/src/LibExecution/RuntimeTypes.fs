@@ -4435,6 +4435,44 @@ module Dval =
     // inspect; every argument and every stored value is forced first).
     | DPromise _ -> ValueType.Unknown
 
+  /// Whether `toValueType dv` is `vt`, without building it: for a tuple, or a record or enum with
+  /// type arguments, that is a new `ValueType` every time.
+  let rec hasValueType (vt : ValueType) (dv : Dval) : bool =
+    match dv with
+    | DTuple(first, second, theRest) ->
+      match vt with
+      | ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
+        hasValueType vFirst first
+        && hasValueType vSecond second
+        && hasValueTypes vRest theRest
+      | _ -> false
+    | DRecord(_, typeName, typeArgs, _)
+    | DEnum(_, typeName, typeArgs, _, _) ->
+      match vt with
+      | ValueType.Known(KTCustomType(name, args)) -> name = typeName && args = typeArgs
+      | _ -> false
+    | DList(elem, _) ->
+      match vt with
+      | ValueType.Known(KTList vElem) -> vElem = elem
+      | _ -> false
+    | DDict(key, value, _) ->
+      match vt with
+      | ValueType.Known(KTDict(vKey, vValue)) -> vKey = key && vValue = value
+      | _ -> false
+    | DBytes _ ->
+      match vt with
+      | ValueType.Known KTBytes -> true
+      | _ -> false
+    | _ -> toValueType dv = vt
+
+  and private hasValueTypes (vts : List<ValueType>) (dvs : List<Dval>) : bool =
+    match vts with
+    | [] -> List.isEmpty dvs
+    | vt :: vtRest ->
+      match dvs with
+      | dv :: dvRest -> hasValueType vt dv && hasValueTypes vtRest dvRest
+      | [] -> false
+
 
   /// A key must mean what `==` means. Bytes compare by content, so they are keys;
   /// the reflected `Dval` holds Bytes and is itself a key type. See docs/bytes.md.
