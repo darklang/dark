@@ -50,6 +50,10 @@ let private denialMessage
       + $"`dark permissions allow {folder}`. Or `dark permissions profile {profile}` "
       + "previews a policy for working in that folder, which replaces the whole "
       + "instance policy; add `--yes` to apply it."
+    | Permission.Layer.Instance, Permission.Suggestion.Process(rule, executableRule) ->
+      $"To allow: `dark permissions allow {rule}`. This allows this exact command only. "
+      + $"To allow this program with any arguments: `dark permissions allow {executableRule}`. "
+      + "For a shell, this allows any command run through that shell."
     | Permission.Layer.Instance, Permission.Suggestion.NoRule ->
       "Configure the instance policy."
     | Permission.Layer.Run, _ -> "Start the run with a broader permission policy."
