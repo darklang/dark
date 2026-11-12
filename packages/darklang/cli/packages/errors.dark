@@ -291,20 +291,19 @@ let didYouMeanText(names: List<String>): String =
     $"Did you mean {rest} or {last}?"
 
 
-/// Prints the first parse diagnostic. Returns true when parsing failed.
+/// Prints every parse diagnostic, so one save shows all there is to fix. Returns true when
+/// parsing failed.
 let reportParseErrors(
   diagnostics: List<(LanguageTools.Parser.Range * String)>)
   : Bool =
-  match diagnostics with
-  | [] -> false
-  | [(range, message), ...] ->
+  diagnostics
+  |> Stdlib.List.iter(fun((range, message)) ->
     let lineNum = (range.start.row + 1) |> Stdlib.display
     // 1-based column, matching renderDiagnostic and the line number above
     let colNum = (range.start.column + 1) |> Stdlib.display
+    Cli.printErr($"Parse error at line {lineNum}, column {colNum}: {message}"))
 
-    Cli.printErr($"Parse error at line {lineNum}, column {colNum}: {message}")
-
-    true
+  Stdlib.Bool.not(Stdlib.List.isEmpty(diagnostics))
 
 
 /// Whether one authoring command was handed more than one thing, and says so.
