@@ -661,7 +661,7 @@ let fns () : List<BuiltInFn> =
               |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.Stdin ]
+      callEffects = set [ Effect.Stdin; Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -768,7 +768,7 @@ let fns () : List<BuiltInFn> =
       // package read. A `[Timer 10]` alone still declares both; narrowing per call would need
       // the effect check to run inside the body, which nothing else does today.
       previewable = Impure
-      callEffects = set [ Effect.Stdin; Effect.PackageRead ]
+      callEffects = set [ Effect.Stdin; Effect.PackageRead; Effect.Raise ]
       deprecated = NotDeprecated } ]
 
 

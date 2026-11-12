@@ -81,7 +81,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DFloat f |] -> roundedToBigInt vm f
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 

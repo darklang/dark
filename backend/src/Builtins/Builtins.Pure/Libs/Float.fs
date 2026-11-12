@@ -32,7 +32,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Ceiling |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -49,7 +49,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -63,7 +63,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Round |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -78,7 +78,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Truncate |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 

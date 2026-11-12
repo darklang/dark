@@ -40,17 +40,19 @@ let fns () =
            )
          )
        | _ -> incorrectArgs ())
-    make
-      "runtimeDelayTicks"
-      [ Param.make "ticks" TInt64 "100ns runtime timer ticks" ]
-      TUnit
-      (function
-       | _, _, _, [| DInt64 ticks |] ->
-         uply {
-           let delay = System.TimeSpan.FromTicks ticks
-           do! System.Threading.Tasks.Task.Delay delay
-           return DUnit
-         }
-       | _ -> incorrectArgs ()) ]
+    // `Task.Delay` throws on a negative delay, or one past about 49 days.
+    { (make
+        "runtimeDelayTicks"
+        [ Param.make "ticks" TInt64 "100ns runtime timer ticks" ]
+        TUnit
+        (function
+         | _, _, _, [| DInt64 ticks |] ->
+           uply {
+             let delay = System.TimeSpan.FromTicks ticks
+             do! System.Threading.Tasks.Task.Delay delay
+             return DUnit
+           }
+         | _ -> incorrectArgs ())) with
+        callEffects = set [ Effect.Clock; Effect.Raise ] } ]
 
 let builtins () = Builtin.make [] (fns ())

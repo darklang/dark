@@ -174,7 +174,7 @@ let fns () : List<BuiltInFn> =
             Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
     { name = fn "syscallGetcwd" 0
@@ -192,7 +192,7 @@ let fns () : List<BuiltInFn> =
             (fun r -> Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.FileRead ]
+      callEffects = set [ Effect.FileRead; Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -227,7 +227,7 @@ let fns () : List<BuiltInFn> =
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = fileWriteEffect
+      callEffects = Set.add Effect.Raise fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -248,7 +248,7 @@ let fns () : List<BuiltInFn> =
             unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = fileWriteEffect
+      callEffects = Set.add Effect.Raise fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -284,7 +284,7 @@ let fns () : List<BuiltInFn> =
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = fileWriteEffect
+      callEffects = Set.add Effect.Raise fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -326,7 +326,7 @@ let fns () : List<BuiltInFn> =
             (fun response -> Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = fileReadEffect
+      callEffects = Set.add Effect.Raise fileReadEffect
       deprecated = NotDeprecated }
 
 
@@ -362,7 +362,7 @@ let fns () : List<BuiltInFn> =
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = nativeEffects
+      callEffects = Set.add Effect.Raise nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -383,7 +383,7 @@ let fns () : List<BuiltInFn> =
             Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -412,7 +412,7 @@ let fns () : List<BuiltInFn> =
             Dval.dint64 (int64 (Host.expectOffset response)))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -432,7 +432,7 @@ let fns () : List<BuiltInFn> =
               Dval.dint64 (int64 (Host.expectWritten response))))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -448,7 +448,7 @@ let fns () : List<BuiltInFn> =
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -472,7 +472,7 @@ let fns () : List<BuiltInFn> =
             Dval.bigInt (Host.expectDescriptor response))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = fileEffects
+      callEffects = Set.add Effect.Raise fileEffects
       deprecated = NotDeprecated }
 
 
@@ -548,7 +548,7 @@ let fns () : List<BuiltInFn> =
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 

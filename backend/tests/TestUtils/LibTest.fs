@@ -252,7 +252,10 @@ let fns () : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
+      callEffects =
+        set
+          [ LibExecution.Effects.Effect.PackageRead
+            LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
     { name = fn "testTrace" 0

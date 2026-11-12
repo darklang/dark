@@ -304,7 +304,7 @@ let builtinFingerprint
         |> List.sortBy fst
         |> List.map (fun (k, b) ->
           let effects =
-            b.callEffects
+            LibExecution.Effects.permissionEffects b.callEffects
             |> Set.toList
             |> List.map LibExecution.Effects.name
             |> List.sort

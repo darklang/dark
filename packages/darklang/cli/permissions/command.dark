@@ -30,13 +30,20 @@ let editInstancePolicy(
   : Unit =
   Command.changePolicy(LanguageTools.Permissions.PolicyEdit.Change(allow, deny, remove))
 
+/// The effects a policy decides on: all but `Raise`, which no rule grants or denies.
+let permissionEffects(
+  effects: List<LanguageTools.Permissions.Effect>)
+  : List<LanguageTools.Permissions.Effect> =
+  effects |> Stdlib.List.filter(fun e -> e != LanguageTools.Permissions.Effect.Raise)
+
 /// The transitive permission requirements and whether analysis was complete.
 /// Incomplete analysis returns the effects found with `false`; fetch once and
 /// pass the result around because this walks the function's closure.
 let permissionRequirementsForHash(
   hash: String)
   : (List<LanguageTools.Permissions.Effect> * Bool) =
-  Builtin.pmFnPermissionRequirements(hash)
+  let (effects, complete) = Builtin.pmFnPermissionRequirements(hash)
+  (Command.permissionEffects(effects), complete)
 
 /// Remove one named approval, or every named approval for a hash.
 let withdraw(
@@ -174,7 +181,11 @@ let requirementBadge(hash: LanguageTools.ProgramTypes.Hash): String =
 
 /// Effects describe the body; runtime permissions check the actual resources.
 let policyLinesForHash(hash: String): List<String> =
-  [ "permission requirements: " + Command.requirementDisplay(hash) ]
+  let requirementsLine = "permission requirements: " + Command.requirementDisplay(hash)
+  let (_, reasons) = Cli.Effects.reasons(hash)
+  if Stdlib.List.any(reasons, fun((effect, _)) -> effect == LanguageTools.Permissions.Effect.Raise) then
+    [ requirementsLine, "can raise a runtime error" ]
+  else [ requirementsLine ]
 
 /// Label grants and explicit blocks separately, including when either is empty.
 let policyLines(policy: LanguageTools.Permissions.Policy): List<String> =

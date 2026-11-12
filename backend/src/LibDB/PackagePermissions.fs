@@ -269,6 +269,9 @@ let private signatureOf (fn : PT.PackageFn.PackageFn) =
    fn.parameters |> NEList.toList |> List.map (fun p -> p.name, p.typ),
    fn.returnType)
 
+let private permissionEffects (result : Requirements.Result) =
+  LibExecution.Effects.permissionEffects result.requiredEffects
+
 let private describeEffects (effects : Set<LibExecution.Effects.Effect>) : string =
   if Set.isEmpty effects then
     "effect-free"
@@ -305,12 +308,13 @@ let compareContracts
             "the callable type changed"
           if not (oldRequirements.complete && newRequirements.complete) then
             "permission analysis is incomplete"
-          elif
-            oldRequirements.requiredEffects <> newRequirements.requiredEffects
-          then
-            $"permission requirements changed from "
-            + $"{describeEffects oldRequirements.requiredEffects} to "
-            + $"{describeEffects newRequirements.requiredEffects}" ]
+          else
+            let before = permissionEffects oldRequirements
+            let after = permissionEffects newRequirements
+            if before <> after then
+              $"permission requirements changed from "
+              + $"{describeEffects before} to "
+              + $"{describeEffects after}" ]
       if List.isEmpty differences then
         return ContractComparison.Match
       else
@@ -367,7 +371,7 @@ let reviewVersion
             | Some policy -> policy
             | None ->
               if candidate.rootRequirements.complete then
-                P.Policy.allowEffects candidate.rootRequirements.requiredEffects
+                P.Policy.allowEffects (permissionEffects candidate.rootRequirements)
               else
                 P.Policy.denyAll
           let policies = [ hash, rootPolicy ]
@@ -433,7 +437,7 @@ let approveVersionForName
           |> Result.map (fun () -> ApprovalOutcome.Approved)
   }
 
-/// Explain each effect by showing the calls that lead to it.
+/// Explain each effect by showing the calls that lead to it. `Raise` follows `Raises.path`.
 /// This does not grant access; permission checks use the actual resource.
 let explain
   (load : Load)
@@ -496,5 +500,13 @@ let explain
               | _ -> visited, reasons)
             (visited, reasons)
     let _, reasons = visit Set.empty [] root Map.empty
+    let! names = Raises.fnNames ()
+    let nameOf hash =
+      Map.tryFind hash names |> Option.defaultWith (fun () -> name hash)
+    let raisePath = Raises.path callEffectsFor nameOf closure root
+    let reasons =
+      match raisePath with
+      | Some path -> Map.add LibExecution.Effects.Effect.Raise path reasons
+      | None -> Map.remove LibExecution.Effects.Effect.Raise reasons
     return Requirements.forFunction callEffectsFor closure root, Map.toList reasons
   }

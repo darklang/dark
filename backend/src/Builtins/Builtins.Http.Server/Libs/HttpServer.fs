@@ -1080,7 +1080,8 @@ let fns () : List<BuiltInFn> =
             onListening
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
+      callEffects =
+        set [ Effect.HttpServer; Effect.Stdout; Effect.Clock; Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -1151,7 +1152,8 @@ let fns () : List<BuiltInFn> =
             onListening
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
+      callEffects =
+        set [ Effect.HttpServer; Effect.Stdout; Effect.Clock; Effect.Raise ]
       deprecated = NotDeprecated } ]
 
 

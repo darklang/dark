@@ -394,7 +394,7 @@ let fns () : List<BuiltInFn> =
           | Finished result -> Ply(resultOf vm result)
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -436,7 +436,7 @@ let fns () : List<BuiltInFn> =
               }
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -514,7 +514,7 @@ let fns () : List<BuiltInFn> =
               }
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
