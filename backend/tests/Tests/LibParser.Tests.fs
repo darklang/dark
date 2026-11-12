@@ -162,7 +162,15 @@ let private parserStructureTests =
       testCase "function ceiling syntax is rejected" (fun _ ->
         for row in [ "{}"; "{Clock}"; "{Telepathy}" ] do
           let result = P.parse $"module M =\n  let f(x: Int64):{row} Int64 = x"
-          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax") ]
+          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax")
+      testCase
+        "an escaped quote inside an interpolation hole says to write a plain one"
+        (fun _ ->
+          let result = P.parse "$\"see: {Stdlib.String.join(xs, \\\", \\\")}\""
+          Expect.equal
+            (result.diagnostics |> List.map (fun d -> d.message))
+            [ "inside `{…}` in an interpolated string, write a string as plain \"…\", not \\\"…\\\"" ]
+            "names the escaped quote") ]
 
 
 /// Parse `src` and return its single trailing expression — the range-complete
