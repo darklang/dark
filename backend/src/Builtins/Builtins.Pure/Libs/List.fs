@@ -191,10 +191,9 @@ type private OverList<'acc>
     vm : VMState,
     app : Applicable,
     vt : ValueType,
-    builtinName : string,
-    floor : int64
+    builtinName : string
   ) =
-  inherit Spread.Walk<'acc>(state, vm, app, builtinName, floor)
+  inherit Spread.Walk<'acc>(state, vm, app, builtinName)
   override _.Apply(_, elem, next) =
     Interpreter.requestApply vm app elem ValueNone next
   override _.ChunkArgs(_, chunk) = [ DList(vt, chunk) ]
@@ -391,7 +390,7 @@ let fns () : List<BuiltInFn> =
           // in the list, which the interpreter holds as a promise. Spread as `listMap` is; a
           // chunk is `listMap2shortest` over its indices and its elements, which is the same call.
           Spread.walk
-            { new Spread.Walk<List<Dval>>(state, vm, app, "listMap2shortest", 0L) with
+            { new Spread.Walk<List<Dval>>(state, vm, app, "listMap2shortest") with
                 member _.Apply(index, elem, next) =
                   Interpreter.requestApply
                     vm
@@ -437,12 +436,7 @@ let fns () : List<BuiltInFn> =
           // The keys are spread as `listMap` is, a chunk being `listMap` over its elements; the
           // sort itself runs here, once every key is in, as it always did.
           Spread.walk
-            { new OverList<List<struct (Dval * Dval)>>(state,
-                                                       vm,
-                                                       app,
-                                                       vt,
-                                                       "listMap",
-                                                       Spread.minPerElement) with
+            { new OverList<List<struct (Dval * Dval)>>(state, vm, app, vt, "listMap") with
                 member this.Settle key = this.Value key
                 member _.Step(keyed, elem, key) =
                   Spread.Next(struct (key, elem) :: keyed)
@@ -484,7 +478,7 @@ let fns () : List<BuiltInFn> =
           //
           // Built back to front and reversed once, and spread as `listMap` is.
           Spread.walk
-            { new OverList<List<Dval>>(state, vm, app, vt, "listFilterMap", 0L) with
+            { new OverList<List<Dval>>(state, vm, app, vt, "listFilterMap") with
                 // Only the case is looked at, so an answer built around a read (`Some (get x)`)
                 // is matched through its shell and the read inside stays in flight. Anything else
                 // is waited for: it is either an Option once it lands or an error that shows it.
@@ -561,7 +555,7 @@ let fns () : List<BuiltInFn> =
             let mutable acc = []
             let mutable restA = tailA
             let mutable restB = tailB
-            let probe = Spread.probeCostly state vm app
+            let probe = Spread.probe state vm app
             let rec next (mapped : Dval) : Ply<Dval> =
               acc <- mapped :: acc
               match DvalList.uncons restA, DvalList.uncons restB with
@@ -633,7 +627,7 @@ let fns () : List<BuiltInFn> =
           // Once the rest looks worth it, it is spread across cores (`LibExecution.Spread`), and
           // whatever a spread could not finish carries on here exactly as before.
           Spread.walk
-            { new OverList<List<Dval>>(state, vm, app, vt, "listMap", 0L) with
+            { new OverList<List<Dval>>(state, vm, app, vt, "listMap") with
                 member _.Step(acc, _, mapped) = Spread.Next(mapped :: acc)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
                 member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
@@ -660,7 +654,7 @@ let fns () : List<BuiltInFn> =
           // The result holds a subset of the values that came in, so it keeps their ValueType
           // exactly. Nothing to merge, and nothing that can fail to. Spread as `listMap` is.
           Spread.walk
-            { new OverList<List<Dval>>(state, vm, app, vt, "listFilter", 0L) with
+            { new OverList<List<Dval>>(state, vm, app, vt, "listFilter") with
                 member this.Settle answer = this.Value answer
                 member _.Step(acc, elem, answer) =
                   match answer with
@@ -723,7 +717,7 @@ let fns () : List<BuiltInFn> =
           // its stretch, and the first chunk in input order to answer true is the answer. A search
           // keeps nothing as it goes, so what it has so far is `DUnit`.
           Spread.walk
-            { new OverList<Dval>(state, vm, app, vt, "listAny", Spread.minPerElement) with
+            { new OverList<Dval>(state, vm, app, vt, "listAny") with
                 member this.Settle answer = this.Value answer
                 member _.Step(_, _, answer) =
                   match answer with
@@ -797,12 +791,7 @@ let fns () : List<BuiltInFn> =
           // Spread as `listAny` is. A chunk's `Some` is the element its own search stopped at.
           let option found = TypeChecker.DvalCreator.option vm.threadID vt found
           Spread.walk
-            { new OverList<Dval>(state,
-                                 vm,
-                                 app,
-                                 vt,
-                                 "listFindFirst",
-                                 Spread.minPerElement) with
+            { new OverList<Dval>(state, vm, app, vt, "listFindFirst") with
                 member this.Settle answer = this.Value answer
                 member _.Step(_, elem, answer) =
                   match answer with

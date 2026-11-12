@@ -160,18 +160,23 @@ let private dictOps =
       Expect.equal (expectOk spread) (expectOk serial) code
   }
 
-/// At the shipped crossover the ops after `List.map` spread only a body that costs at least
-/// `Spread.minPerElement`: a one-operation body stays serial however long the dict, and an
+/// At the shipped crossover an op spreads only a body that costs at least
+/// `Spread.minPerElement`: a one-operation body stays serial however long the collection, and an
 /// expensive one spreads.
-let private cheapDictBodyStaysSerial =
-  testTask "at the shipped crossover a cheap Dict.map body stays serial" {
+let private cheapBodyStaysSerial =
+  testTask "at the shipped crossover a cheap body stays serial" {
     let! state = executionStateFor pmPT false
-    let! cheap =
-      instrsFor
-        $"Stdlib.Dict.size(Stdlib.Dict.map({dictOf 20000}, fun(k, v) -> v + 1))"
-    let! (_, cheapSpreads) =
-      delta spreads (fun () -> runInstrsAt state Spread.crossover cheap)
-    Expect.equal cheapSpreads 0L "a cheap body did not spread"
+    let long = "Stdlib.List.range(1, 20000)"
+    for code in
+      [ $"Stdlib.List.length(Stdlib.List.map({long}, fun x -> x + 1))"
+        $"Stdlib.List.length(Stdlib.List.filter({long}, fun x -> x > 5))"
+        $"Stdlib.List.length(Stdlib.List.filterMap({long}, fun x -> Stdlib.Option.Option.Some(x)))"
+        $"Stdlib.List.length(Stdlib.List.indexedMap({long}, fun(i, x) -> i + x))"
+        $"Stdlib.Dict.size(Stdlib.Dict.map({dictOf 20000}, fun(k, v) -> v + 1))" ] do
+      let! cheap = instrsFor code
+      let! (_, cheapSpreads) =
+        delta spreads (fun () -> runInstrsAt state Spread.crossover cheap)
+      Expect.equal cheapSpreads 0L $"a cheap body did not spread: {code}"
     let! costly =
       instrsFor
         $"Stdlib.Dict.size(Stdlib.Dict.map({dictOf 40}, fun(k, v) -> {uneven}(k)))"
@@ -774,7 +779,7 @@ let tests =
         siblings
         dictOps
         enclosingCallbackType
-        cheapDictBodyStaysSerial
+        cheapBodyStaysSerial
         dictErrorsAsSerial
         dictCallbackTypeAsSerial
         dictEffectsKeepOrder

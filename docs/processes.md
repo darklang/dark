@@ -401,11 +401,10 @@ first call of a body is the one that loads what it calls. So the decision
 depends on the body's cost as well as the count, and a short or cheap map
 never spreads.
 
-`Dict.map`, `Dict.filter`, `sortBy`'s keys, `map2Shortest`, `any` and
-`findFirst` also need each element to cost at least `Spread.minPerElement`
-(20) instructions, so a one-operation body over a long collection stays
-serial. Spread, such a body finishes sooner only when the op is little but the
-body, and spends about twice the CPU either way.
+Each element also has to cost at least `Spread.minPerElement` (20)
+instructions, so a one-operation body over a long collection stays serial.
+Spread, such a body finishes sooner only when the op is little but the body,
+and spends two to three times the CPU either way.
 
 It can predict before it spreads, with `exec.spreadPredict on`; the shipped
 default is off, which observes: try, and fall back on an effect. The A/B is in

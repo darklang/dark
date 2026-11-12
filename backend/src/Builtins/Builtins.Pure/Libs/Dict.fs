@@ -82,7 +82,7 @@ let private applyEach
   : Ply<Dval> =
   let answers = Array.zeroCreate entries.Length
   let mutable i = 0
-  let probe = if entries.Length > 1 then Spread.probeCostly state vm app else null
+  let probe = if entries.Length > 1 then Spread.probe state vm app else null
   let rec next (answer : Dval) : Ply<Dval> =
     if filtering then Interpreter.withValue vm answer store else store answer
   and store (answer : Dval) : Ply<Dval> =
