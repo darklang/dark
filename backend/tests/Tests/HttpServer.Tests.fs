@@ -765,7 +765,9 @@ let private serveRejectsNegativeMaxBodyBytes =
         + "{ Darklang.Stdlib.HttpServer.Config.defaults(Darklang.Stdlib.Net.Port.httpAlt) with maxBodyBytes = -1 }, "
         + "(fun request -> Darklang.Stdlib.Http.notFound()), (fun () -> ()))"
       )
-    match! Execution.executeExpr exeState (PT2RT.Expr.toRT Map.empty 0 None ptExpr) with
+    match!
+      Execution.executeExpr exeState (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
+    with
     | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString msg ])) ->
       Expect.equal msg "maxBodyBytes must not be negative" "the error"
     | Ok dval -> failtest $"expected an Error, got {dval}"

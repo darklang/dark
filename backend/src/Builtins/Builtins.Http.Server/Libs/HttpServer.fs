@@ -906,7 +906,9 @@ let private serve
       | Live _ -> routing
     // `Stdlib.HttpServer` refuses a negative maxBodyBytes, and a `Net.Port` is in range.
     if maxBodyBytes < 0L then
-      Exception.raiseInternal "negative maxBodyBytes" [ "maxBodyBytes", maxBodyBytes ]
+      Exception.raiseInternal
+        "negative maxBodyBytes"
+        [ "maxBodyBytes", maxBodyBytes ]
     if port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort then
       Exception.raiseInternal "port out of range" [ "port", port ]
 
