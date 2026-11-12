@@ -319,25 +319,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s; DString sep |] ->
-          let ecgStringSplit str sep =
-            let startsWithSeparator str = sep = (str |> List.truncate sep.Length)
-
-            let result = ResizeArray<string>()
-
-            let rec r (strRemaining : List<string>, inProgress) : unit =
-              if strRemaining = [] then
-                result.Add(inProgress.ToString())
-              elif startsWithSeparator strRemaining then
-                result.Add(inProgress.ToString())
-
-                r (List.skip sep.Length strRemaining, StringBuilder())
-              else
-                r (strRemaining.Tail, inProgress.Append(strRemaining.Head))
-
-            r (str, StringBuilder())
-
-            List.ofSeq result
-
           let parts =
             if sep = "" then
               String.egcs s
@@ -347,7 +328,7 @@ let fns () : List<BuiltInFn> =
             elif String.isCharwise s && String.isCharwise sep then
               s.Split([| sep |], System.StringSplitOptions.None) |> Array.toList
             else
-              ecgStringSplit (String.egcs s) (String.egcs sep)
+              String.splitEgcs s sep
 
           parts |> List.map DString |> Dval.list KTString |> Ply
         | _ -> incorrectArgs ())
