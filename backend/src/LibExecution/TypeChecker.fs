@@ -1376,7 +1376,6 @@ module DvalCreator =
   /// One field of an enum case being constructed. Same shape as `checkRecordFields`, and the same
   /// reason for existing: as a lambda over a three-element accumulator this costs a closure, a state
   /// machine and a tuple per field of every enum built.
-
   /// One type argument once a field has been checked: an unknown one takes what the field bound
   /// it to, a known one merges.
   let private bindTypeArg
