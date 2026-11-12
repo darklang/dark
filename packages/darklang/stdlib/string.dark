@@ -425,7 +425,7 @@ let lastIndexOf(
 /// Returns <param string> repeated <param count> times, or {{""}} if <param count>
 /// is 0 or less. Use <fn String.checkedRepeat> to get an error for a negative count.
 let repeat(string: String, count: Int64): String =
-  if count <= 0 then "" else Builtin.stringRepeat(string, count)
+  Builtin.stringRepeat(string, count)
 
 
 /// What <fn String.checkedRepeat> returns for a count below 0, or past 2147483647
