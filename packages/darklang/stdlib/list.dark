@@ -403,8 +403,9 @@ let map(list: List<'a>, fn: 'a -> 'b): List<'b> =
 
 
 /// <fn map>, with every call of <param fn> as a process of its own, spread across the cores,
-/// and the results in order. For work that computes; reads run concurrently under plain
-/// <fn map> already. Built on <fn Stdlib.Exec.spawn>.
+/// and the results in order. The way to overlap writes: plain <fn map> runs them one after
+/// another. Computation and reads already overlap under plain <fn map>. Built on
+/// <fn Stdlib.Exec.spawn>.
 let parallelMap(list: List<'a>, fn: 'a -> 'b): List<'b> =
   list
   |> Stdlib.List.map(fun x -> Stdlib.Exec.spawn(fun () -> fn(x)))
