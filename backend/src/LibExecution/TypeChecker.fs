@@ -762,8 +762,35 @@ let private knownIs (expected : TypeReference) (known : KnownType) : bool =
   | _ -> false
 
 
-/// Whether each of a value's type arguments is known and is the primitive declared for it.
-let rec private knownArgsAre
+/// Whether a value whose type is known to be <param known> is a value of <param expected> with
+/// nothing to bind: the same type all the way down, every part of it known. A record or enum
+/// matches by name, which is enough for the reason given at `argFitsWithNothingToBind`.
+let rec private knownFits (expected : TypeReference) (known : KnownType) : bool =
+  match known with
+  | KTList elem ->
+    (match expected with
+     | TList inner -> valueTypeFits inner elem
+     | _ -> false)
+  | KTTuple(a, b, rest) ->
+    (match expected with
+     | TTuple(ea, eb, eRest) ->
+       valueTypeFits ea a && valueTypeFits eb b && valueTypesFit eRest rest
+     | _ -> false)
+  | KTCustomType(FQTypeName.Package(Hash actualName), actualArgs) ->
+    (match expected with
+     | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) }, declaredArgs) ->
+       System.String.Equals(declared, actualName)
+       && valueTypesFit declaredArgs actualArgs
+     | _ -> false)
+  | _ -> knownIs expected known
+
+and private valueTypeFits (expected : TypeReference) (actual : ValueType) : bool =
+  match actual with
+  | ValueType.Known k -> knownFits expected k
+  | ValueType.Unknown -> false
+
+/// `valueTypeFits` for each of a type's arguments, or a tuple's parts after the second.
+and private valueTypesFit
   (declared : List<TypeReference>)
   (actual : List<ValueType>)
   : bool =
@@ -771,18 +798,19 @@ let rec private knownArgsAre
   | [] -> List.isEmpty actual
   | d :: dRest ->
     match actual with
-    | ValueType.Known k :: aRest -> knownIs d k && knownArgsAre dRest aRest
-    | _ -> false
+    | a :: aRest -> valueTypeFits d a && valueTypesFit dRest aRest
+    | [] -> false
 
 
 /// `fitsWithNothingToBind` for a package fn's argument, which is checked on every call. Also
-/// `Bytes`, and a list of a primitive whose element type is that primitive: the unifier reads a
-/// list's element type and not its items, so this answers as it would. A list of anything else,
-/// or one whose element type is not known yet (`[]`), is left to the unifier.
+/// `Bytes`, and a list whose element type is known and is the declared one (`List<(Int64 * Doc)>`):
+/// the unifier reads a list's element type and not its items, so this answers as it would. One
+/// whose element type is not known yet (`[]`), or names an alias, is left to the unifier.
 ///
-/// Also a record or enum of exactly the declared type whose type arguments are all primitives
-/// (`Option<UInt8>`): equal names mean the declared type is not an alias (see `tryUnifyGeneral`).
-let argFitsWithNothingToBind
+/// Also a record or enum of exactly the declared type whose type arguments are known and declared
+/// (`Option<Doc>`): equal names mean the declared type is not an alias (see `tryUnifyGeneral`).
+/// And a tuple whose parts each fit.
+let rec argFitsWithNothingToBind
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
@@ -794,16 +822,36 @@ let argFitsWithNothingToBind
      | _ -> false)
   | TList inner ->
     (match actual with
-     | DList(ValueType.Known elem, _) -> knownIs inner elem
+     | DList(ValueType.Known elem, _) -> knownFits inner elem
      | _ -> false)
   | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) }, declaredArgs) ->
     (match actual with
      | DEnum(_, FQTypeName.Package(Hash actualName), actualArgs, _, _)
      | DRecord(_, FQTypeName.Package(Hash actualName), actualArgs, _) ->
        System.String.Equals(declared, actualName)
-       && knownArgsAre declaredArgs actualArgs
+       && valueTypesFit declaredArgs actualArgs
+     | _ -> false)
+  | TTuple(ea, eb, eRest) ->
+    (match actual with
+     | DTuple(a, b, rest) ->
+       argFitsWithNothingToBind tst ea a
+       && argFitsWithNothingToBind tst eb b
+       && argsFitWithNothingToBind tst eRest rest
      | _ -> false)
   | _ -> fitsWithNothingToBind tst expected actual
+
+and private argsFitWithNothingToBind
+  (tst : TypeSymbolTable)
+  (expected : List<TypeReference>)
+  (actual : List<Dval>)
+  : bool =
+  match expected with
+  | [] -> List.isEmpty actual
+  | e :: eRest ->
+    match actual with
+    | a :: aRest ->
+      argFitsWithNothingToBind tst e a && argsFitWithNothingToBind tst eRest aRest
+    | [] -> false
 
 
 /// Whether <param actual> is a value of <param expected>, and the symbol table with whatever that
