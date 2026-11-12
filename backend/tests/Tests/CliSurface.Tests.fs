@@ -345,6 +345,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     0,
     Says "effect-free",
     Silent
+    [ "effects"; "Darklang.Stdlib.DateTime.weekday" ], 0, Says "effect-free", Silent
     [ "hash"; "Tests.Rows.f" ], 0, Says "fn ", Silent
     [ "deps"; "Tests.Rows.f" ], 0, Says "dependencies of Tests.Rows.f", Any
     [ "deps"; "Tests.Rows.g" ],
