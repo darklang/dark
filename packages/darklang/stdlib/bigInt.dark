@@ -191,7 +191,8 @@ impl One for BigInt =
   let one(): BigInt = 1z
 
 
-/// The most bits <fn BigInt.checkedPower> computes a result into: 1 MB
+/// The most bits <fn BigInt.checkedPower> and <fn BigInt.checkedShiftLeft> compute a result
+/// into: 1 MB
 val maxPowerBits = 8388608z
 
 
@@ -251,3 +252,40 @@ let checkedMod(a: BigInt, b: BigInt): Stdlib.Result.Result<BigInt, Stdlib.Math.M
     Error(Stdlib.Math.ModulusError.NegativeModulus)
   else
     Ok(a % b)
+
+
+/// <param a> shifted left by <param count> bits, or {{Error NegativeCount}} where `<<`
+/// raises. {{Error ResultTooLarge}} if the result would take more than 1 MB.
+let checkedShiftLeft(
+  a: BigInt,
+  count: BigInt)
+  : Stdlib.Result.Result<BigInt, Stdlib.Math.ShiftError> =
+  if count < 0z then
+    Error(Stdlib.Math.ShiftError.NegativeCount)
+  else if a == 0z then
+    Ok(0z)
+  else if count > Stdlib.BigInt.maxPowerBits then
+    Error(Stdlib.Math.ShiftError.ResultTooLarge)
+  else
+    let magnitude = if a < 0z then -a else a
+
+    if (magnitude >> (Stdlib.BigInt.maxPowerBits - count)) == 0z then
+      Ok(a << count)
+    else
+      Error(Stdlib.Math.ShiftError.ResultTooLarge)
+
+
+/// <param a> shifted right by <param count> bits, rounding down, or
+/// {{Error NegativeCount}} where `>>` raises. A count past every bit gives {{0}}, or {{-1}}
+/// for a negative <param a>.
+let checkedShiftRight(
+  a: BigInt,
+  count: BigInt)
+  : Stdlib.Result.Result<BigInt, Stdlib.Math.ShiftError> =
+  if count < 0z then
+    Error(Stdlib.Math.ShiftError.NegativeCount)
+  else if count > 2147483647z then
+    // `>>` takes an Int32 count; every bit is gone long before this
+    Ok(if a < 0z then -1z else 0z)
+  else
+    Ok(a >> count)
