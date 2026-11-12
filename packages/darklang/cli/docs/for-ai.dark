@@ -49,6 +49,17 @@ types: `search bytes to string` or `search String->Int64`.
 Answers go on stdout; errors, hints and logs go on stderr; a refusal exits
 non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
 
+## Functions most programs need
+
+  Stdlib.Int64.parse(s)   Stdlib.Float.parse(s)   # Result<_, ParseError>
+  Stdlib.Int64.toFloat(n)   Stdlib.Float.round(x)  # round gives an Int64
+  Stdlib.String.split(s, ",")   Stdlib.String.join(xs, ",")   Stdlib.String.trim(s)
+  Stdlib.String.toList(s)   Stdlib.String.padStart(s, '0', 2)
+  Stdlib.List.range(1, n)   Stdlib.List.getAt(xs, i)   Stdlib.List.contains(xs, x)
+  Stdlib.Int64.random(1, 6)   Stdlib.List.randomElement(xs)   # both ends included
+  Stdlib.Cli.Stdin.readLineOrEnd()   # Option<String>, None at the end of input
+  Stdlib.Cli.Posix.sleep(1000.0)   Stdlib.DateTime.now()            # sleep takes ms
+
 ## Files, HTTP and JSON
 
   Stdlib.Cli.FileSystem.readFileAsString(path)       # Result<String, FileError>
