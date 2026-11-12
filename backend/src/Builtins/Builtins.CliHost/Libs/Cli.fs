@@ -559,10 +559,10 @@ module ExecutionError =
       error : RT.RuntimeError.Error
       /// What was attempted, e.g. "reading `/etc/hosts`".
       resource : string
-      /// The exact `permissions allow` rule that would cover it, when one
-      /// exists and the denying layer was the instance policy — the only
-      /// layer that rule edits.
+      /// The exact rule that would cover it, when one exists.
       rule : Option<string>
+      /// The function whose approval was checked; None for the instance policy.
+      entry : Option<string>
       callStack : RT.CallStack
     }
 
@@ -578,13 +578,15 @@ module ExecutionError =
     // TODO exposing the structured denial as a Dark value
     // (docs/permissions-todos.md) would make this the natural seam.
     | Denied of PermissionDenied
+    /// The user cancelled a permission prompt.
+    | Cancelled
     | Unhandled of Unhandled
 
   /// A runtime error is a `Denied` when the run recorded an instance-layer
-  /// denial: Dark cannot catch runtime errors, so the last denial recorded
-  /// under the guest state is the one that ended the run. Any other layer's
-  /// denial stays a plain `Runtime` error, since no `permissions allow` rule
-  /// would change it.
+  /// denial, or a function-approval denial with a rule that would cover it:
+  /// Dark cannot catch runtime errors, so the last denial recorded under the
+  /// guest state is the one that ended the run. Any other denial stays a
+  /// plain `Runtime` error.
   let classify
     (denied : ResizeArray<RT.PermissionDenialRecord>)
     (rte : RT.RuntimeError.Error)
@@ -593,13 +595,16 @@ module ExecutionError =
       Runtime(rte, [])
     else
       let last = denied[denied.Count - 1]
-      match last.layer with
-      | LibExecution.Permissions.Layer.Instance ->
+      let denial entry =
         Denied
           { error = rte
             resource = last.resource
             rule = last.suggestion
+            entry = entry
             callStack = [] }
+      match last.layer, last.suggestion with
+      | LibExecution.Permissions.Layer.Instance, _ -> denial None
+      | LibExecution.Permissions.Layer.Package name, Some _ -> denial (Some name)
       | _ -> Runtime(rte, [])
 
   let withCallStack (stack : RT.CallStack) (error : ExecutionError) =
@@ -638,6 +643,7 @@ module ExecutionError =
       [ "error", RT2DT.RuntimeError.toDT d.error
         "resource", DString d.resource
         "rule", (d.rule |> Option.map DString |> Dval.option KTString)
+        "entry", (d.entry |> Option.map DString |> Dval.option KTString)
         "callStack", callStackToDT d.callStack ]
     DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
@@ -661,6 +667,7 @@ module ExecutionError =
           |> Dval.list locationKT
         "TypeCheck", [ report; locations ]
       | Denied d -> "Denied", [ permissionDeniedToDT d ]
+      | Cancelled -> "Cancelled", []
       | Unhandled u -> "Unhandled", [ unhandledToDT u ]
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1598,7 +1605,7 @@ let fns () : List<BuiltInFn> =
                             | Ok(DInt64 choice) -> return choice
                             | _ -> return 0L
                           })
-                    let! exeState =
+                    let! exeState, cancelled =
                       LibDB.PermissionReview.configure
                         exeState
                         name
@@ -1606,15 +1613,22 @@ let fns () : List<BuiltInFn> =
                         script
                         known
                         ask
-                    let! execResult = execute exeState mod' input
-                    match execResult with
-                    | Ok result -> return resultOk (RT2DT.Dval.toDT result)
-                    | Error(e, callStack) ->
+                    if cancelled () then
                       return
-                        ExecutionError.classify denied e
-                        |> ExecutionError.withCallStack callStack
-                        |> ExecutionError.toDT
-                        |> resultError
+                        resultError (ExecutionError.toDT ExecutionError.Cancelled)
+                    else
+                      let! execResult = execute exeState mod' input
+                      match execResult with
+                      | Ok result -> return resultOk (RT2DT.Dval.toDT result)
+                      | Error _ when cancelled () ->
+                        return
+                          resultError (ExecutionError.toDT ExecutionError.Cancelled)
+                      | Error(e, callStack) ->
+                        return
+                          ExecutionError.classify denied e
+                          |> ExecutionError.withCallStack callStack
+                          |> ExecutionError.toDT
+                          |> resultError
                   | Error pe -> return resultError (ExecutionError.toDT pe)
                 })
           }

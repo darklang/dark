@@ -278,7 +278,14 @@ let accessFacts(
 // Instance policy edits.
 
 let invalidRule(args: List<String>): String =
-  "invalid permission rule: " + Stdlib.String.join(args, " ")
+  Command.invalidRuleText(Stdlib.String.join(args, " "))
+
+/// The message for <param text> that did not parse, naming the current form of an old one.
+let invalidRuleText(text: String): String =
+  match Stdlib.String.split(Stdlib.String.trim(text), " ") with
+  | [ "http-server", port ] when Stdlib.Result.isOk(Stdlib.Int64.parse(port)) ->
+    $"invalid permission rule: {text}. http-server takes an address and a port, e.g. http-server 127.0.0.1 {port}"
+  | _ -> $"invalid permission rule: {text}"
 
 /// External shells have already grouped quoted arguments, while the
 /// interactive CLI's general command splitter leaves quote fragments in the
@@ -336,7 +343,7 @@ let replacePolicy(
     |> Stdlib.List.filter(fun spec -> spec != "")
   match LanguageTools.Permissions.parse(specs) with
   | Ok(policy) -> Stdlib.Result.Result.Ok(policy)
-  | Error(bad) -> Stdlib.Result.Result.Error($"invalid permission rule: {bad}")
+  | Error(bad) -> Stdlib.Result.Result.Error(Command.invalidRuleText(bad))
 
 
 // Named consumer approvals.

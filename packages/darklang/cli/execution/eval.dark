@@ -61,7 +61,7 @@ let evaluate(
   with
   | Ok(result) -> Stdlib.Result.Result.Ok(result)
   | Error(err) ->
-    Stdlib.Result.Result.Error(ExecutionError.toString(state.currentBranchId, err))
+    Stdlib.Result.Result.Error(ExecutionError.toString(state.accountID, state.currentBranchId, err))
 
 
 let execute(state: AppState, args: List<String>): AppState =

@@ -18,7 +18,7 @@ let private layerName (layer : Permission.Layer) : string =
   match layer with
   | Permission.Layer.Instance -> "instance policy"
   | Permission.Layer.Run -> "run policy"
-  | Permission.Layer.Package name -> $"function approval for `{name}`"
+  | Permission.Layer.Package name -> $"the access of `{name}`"
   | Permission.Layer.Value name -> $"value `{name}`"
 
 let private reasonText (reason : Permission.PolicyDenial) : string =
@@ -53,8 +53,13 @@ let private denialMessage
     | Permission.Layer.Instance, Permission.Suggestion.NoRule ->
       "Configure the instance policy."
     | Permission.Layer.Run, _ -> "Start the run with a broader permission policy."
+    | Permission.Layer.Package name, _ when
+      reason = Permission.PolicyDenial.ExplicitlyDenied
+      ->
+      $"Its remembered approval denies this; `dark permissions show {name}` shows it."
     | Permission.Layer.Package name, _ ->
-      $"Review the entry with `permissions approve {name}` and the required rules."
+      $"Remember access with `dark permissions approve {name}` (`permissions update {name}` "
+      + "after an edit), or allow it for one run with `dark run --allow`."
     | Permission.Layer.Value _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "
       + "Make it a function to do this each time it is called."

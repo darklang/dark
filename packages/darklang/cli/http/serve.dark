@@ -140,18 +140,25 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           // logRequests), but nothing ever said so — leaving you to wonder whether a request arrived at all.
           // In the dev container the host reaches this port on a per-clone offset, set as
           // DARK_HOST_PORT_BASE at startup. Unset outside it, so there's nothing to add.
-          let hostLines =
-            match (parsed.address, Stdlib.Env.get("DARK_HOST_PORT_BASE")) with
-            | ("0.0.0.0", Some(baseStr)) ->
+          let hostPort =
+            match Stdlib.Env.get("DARK_HOST_PORT_BASE") with
+            | Some(baseStr) ->
               match Stdlib.Int64.parse(baseStr) with
-              | Error(_) -> []
               | Ok(hostBase) ->
                 let offset = (Stdlib.Net.Port.toInt64(parsed.port)) - 9090
-                if (offset < 0) || (offset > 9) || (hostBase == 9090) then
-                  []
-                else
-                  let hostStr = Stdlib.display(hostBase + offset)
-                  [ Stdlib.Cli.UI.Colors.hint($"  From the host: http://localhost:{hostStr}") ]
+                if (offset < 0) || (offset > 9) then Stdlib.Option.Option.None
+                else Stdlib.Option.Option.Some(hostBase + offset)
+              | Error(_) -> Stdlib.Option.Option.None
+            | None -> Stdlib.Option.Option.None
+          let hostLines =
+            match hostPort with
+            | Some(hostPort) when parsed.address == "0.0.0.0" ->
+              if hostPort == Stdlib.Net.Port.toInt64(parsed.port) then []
+              else
+                [ Stdlib.Cli.UI.Colors.hint($"  From the host: http://localhost:{Stdlib.display(hostPort)}") ]
+            | Some(hostPort) when Stdlib.String.startsWith(parsed.address, "127.") ->
+              [ Stdlib.Cli.UI.Colors.hint(
+                  $"  From the host: serve with --bind 0.0.0.0, then http://localhost:{Stdlib.display(hostPort)}") ]
             | _ -> []
 
           let announce(): Unit =
