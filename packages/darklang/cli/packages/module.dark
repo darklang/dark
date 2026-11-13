@@ -190,7 +190,7 @@ let define(
         if bundled && Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedNames)) then
           Cli.failed(state)
         else if refused then
-          state
+          Cli.failed(state)
         else
           // Stabilize and store the module as one mutually recursive batch.
           match SCM.PackageOps.addAuthored(branchId, ops) with

@@ -1454,6 +1454,23 @@ module ModuleSave =
     Instance.run(i, [ "module", "/Tests.ModuleSaveProbe", path ]) |> Builtin.unwrap
 
 
+  test invalidNamesExitNonzeroAndSaveNothing =
+    Instance.withInstance(fun i ->
+      let source =
+        "type Shape = | Dot | Circle(Float)\nlet f(): Shape = Circle(1.0)"
+      let result = save(i, source)
+      let viewed =
+        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+      let shape =
+        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.Shape" ]) |> Builtin.unwrap
+      Stdlib.Test.all(
+        [ result.exitCode |> Stdlib.Test.equal(1)
+          Stdlib.String.contains(result.stderr, "Invalid name: Circle")
+          |> Stdlib.Test.equal(true)
+          viewed.exitCode |> Stdlib.Test.equal(1)
+          shape.exitCode |> Stdlib.Test.equal(1) ]))
+
+
   test unresolvedNamesExitNonzeroAndKeepDraft =
     Instance.withInstance(fun i ->
       let result = save(i, "let f(): Int64 = Stdlib.String.definitelyMissing(\"hello\")")
