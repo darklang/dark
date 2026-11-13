@@ -119,6 +119,13 @@ test parse =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
       Stdlib.Decimal.parse("1.")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      Stdlib.Decimal.parse(".5") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5dec))
+      Stdlib.Decimal.parse("-.25") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-0.25dec))
+      Stdlib.Decimal.parse("+1.5") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5dec))
+      Stdlib.Decimal.parse(".")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      Stdlib.Decimal.parse("+-1")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
       Stdlib.Decimal.parse("abc")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
       // 29 places would have to be rounded, so it is refused
