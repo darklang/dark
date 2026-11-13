@@ -6,6 +6,11 @@ type Options =
     sandbox: Bool
     grants: LanguageTools.Permissions.Policy }
 
+/// Whether a protected operation the policy does not cover asks the user, or is just denied.
+type Approval =
+  | Offer
+  | Skip
+
 
 
 /// Unit succeeds; BigInt and Int64 supply the script's exit code.
@@ -33,7 +38,7 @@ let parseAndExecute(
   code: String,
   args: List<String>,
   options: Run.Options,
-  offerApproval: Bool)
+  approval: Approval)
   : Stdlib.Result.Result<Int64, ExecutionError.ExecutionError> =
   let result =
     Builtin.cliParseAndExecuteScript(
@@ -45,9 +50,10 @@ let parseAndExecute(
       options.allowHarmful,
       options.sandbox,
       options.grants,
-      if offerApproval && Stdlib.Bool.not(options.sandbox)
-         && Stdlib.Cli.UI.Prompt.canAsk() then Some(Run.askPermission)
-      else None)
+      match approval with
+      | Offer when Stdlib.Bool.not(options.sandbox) && Stdlib.Cli.UI.Prompt.canAsk() ->
+        Some(Run.askPermission)
+      | _ -> None)
   match result with
   | Ok(value) -> exitCode(value)
   | Error(error) -> Error(error)
@@ -173,7 +179,7 @@ let executeScript(
       scriptSourceCode,
       args,
       options,
-      true,
+      Approval.Offer,
       stats)
 
 
@@ -201,7 +207,7 @@ let executePackageFn(
       match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
       | [] | [ TUnit ] -> runNullary(state, name, fnName, args, options, stats)
       | [ TList(TString) ] ->
-        runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, true, stats)
+        runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, Approval.Offer, stats)
       | _ ->
         let modulePath = Stdlib.List.prepend(location.modules, location.owner)
         let ctx = Packages.Signatures.rootContext(branchId, modulePath)
@@ -213,7 +219,7 @@ let executePackageFn(
         Stdlib.printErrorLine(
           $"{name} takes ({shown}); `run` passes the words as a List<String>. Call it with: dark eval '{name}(…)'")
         { state with exitCode = 1 }
-    | None -> runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, true, stats)
+    | None -> runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, Approval.Offer, stats)
 
 
 /// <fn executePackageFn> for a function that takes nothing.
@@ -226,7 +232,7 @@ let runNullary(
   stats: Bool)
   : AppState =
   match args with
-  | [] -> runScriptMeasured(state, fnName, $"{fnName}()", args, options, true, stats)
+  | [] -> runScriptMeasured(state, fnName, $"{fnName}()", args, options, Approval.Offer, stats)
   | _ ->
     Stdlib.printErrorLine($"{name} takes no arguments")
     { state with exitCode = 1 }
@@ -293,13 +299,13 @@ let runScript(
   code: String,
   args: List<String>,
   options: Darklang.Tracing.ScriptOptions,
-  offerApproval: Bool)
+  approval: Approval)
   : AppState =
   let invocation = Run.Options
     { allowHarmful = options.allowHarmful
       sandbox = options.sandbox
       grants = LanguageTools.Permissions.Policy { allow = [], deny = [] } }
-  runScriptMeasured(state, scriptPath, code, args, invocation, offerApproval, false)
+  runScriptMeasured(state, scriptPath, code, args, invocation, approval, false)
 
 
 /// <fn runScript>, and with <param stats> also what the run cost, the same block `eval --stats`
@@ -311,7 +317,7 @@ let runScriptMeasured(
   code: String,
   args: List<String>,
   options: Run.Options,
-  offerApproval: Bool,
+  approval: Approval,
   stats: Bool)
   : AppState =
   let run = fun () ->
@@ -322,7 +328,7 @@ let runScriptMeasured(
       code,
       args,
       options,
-      offerApproval)
+      approval)
 
   let (measurement, result) =
     if stats then

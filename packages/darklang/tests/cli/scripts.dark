@@ -31,7 +31,7 @@ module Eval =
     : Stdlib.Result.Result<
         Stdlib.Option.Option<String>, Darklang.Cli.ExecutionError.ExecutionError> =
     Darklang.Cli.Eval.evaluateRaw(
-      None, Darklang.SCM.Branch.mainBranchId, source, [], false)
+      None, Darklang.SCM.Branch.mainBranchId, source, [], Darklang.Cli.Eval.Harmful.Halt)
 
   test unitIsSilent =
     evaluate("()") |> Stdlib.Test.equal(Ok(None))

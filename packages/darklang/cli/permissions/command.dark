@@ -128,6 +128,17 @@ let namedApprovals(
 /// Capture before showing a review; mutations compare it atomically when saving.
 let reviewToken(): String = Builtin.pmPolicyReviewToken()
 
+/// Whether approving goes ahead when the shown requirements are incomplete.
+type Incomplete =
+  | Acknowledge
+  | Refuse
+
+/// Whether approving goes ahead when the permission contract changed since the last approval,
+/// or refuses with the differences for a second review.
+type ContractChange =
+  | Acknowledge
+  | Refuse
+
 /// Remember access for an immutable closure under its logical name, atomically. The builtin
 /// compares the contract before storing approval; a changed contract returns diffs for explicit
 /// review. `rules` optionally narrows the consumer's policy; None approves the analyzed effect set.
@@ -137,8 +148,8 @@ let approveVersionFor(
   expected: String,
   hash: String,
   rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>,
-  acknowledgeIncomplete: Bool,
-  acknowledgeContractChange: Bool)
+  incomplete: Incomplete,
+  contractChange: ContractChange)
   : Stdlib.Result.Result<Unit, LanguageTools.Permissions.ApprovalFailure> =
   Builtin.pmPolicyApproveVersion(
     accountID,
@@ -146,8 +157,8 @@ let approveVersionFor(
     expected,
     hash,
     rules,
-    acknowledgeIncomplete,
-    acknowledgeContractChange)
+    incomplete == Incomplete.Acknowledge,
+    contractChange == ContractChange.Acknowledge)
 
 /// Withdraw a name's remembered access; name resolution is unchanged.
 let unapproveVersionFor(
@@ -502,16 +513,16 @@ let approvalFailureText(failure: LanguageTools.Permissions.ApprovalFailure): Str
 
 /// Approve <param hash> for <param name> and report: <param accepted> on success, the refusal (then
 /// <param kept>) when it cannot be approved. Answers whether it approved, and Some diffs when
-/// approving wants a second review of a changed contract and <param acknowledgeContractChange> was
-/// false; the caller shows them and asks.
+/// approving wants a second review of a changed contract and <param contractChange> was
+/// `Refuse`; the caller shows them and asks.
 let approveReporting(
   accountID: Stdlib.Option.Option<Uuid>,
   name: String,
   expected: String,
   hash: String,
   rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>,
-  acknowledgeIncomplete: Bool,
-  acknowledgeContractChange: Bool,
+  incomplete: Incomplete,
+  contractChange: ContractChange,
   accepted: String,
   kept: String)
   : (Bool * Stdlib.Option.Option<List<String>>) =
@@ -522,8 +533,8 @@ let approveReporting(
       expected,
       hash,
       rules,
-      acknowledgeIncomplete,
-      acknowledgeContractChange)
+      incomplete,
+      contractChange)
   with
   | Ok(_) ->
     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(accepted))
@@ -568,8 +579,8 @@ let approveNamed(
             expected,
             hash,
             rules,
-            Stdlib.Bool.not(complete),
-            true,
+            (if complete then Incomplete.Refuse else Incomplete.Acknowledge),
+            ContractChange.Acknowledge,
             $"✓ remembered access for {name} {Command.shortVersion(hash)}",
             "")
         approved
@@ -617,13 +628,14 @@ let updateNamed(
             $"{name}: {Command.shortVersion(approved)} → {Command.shortVersion(latest)}",
             latest)
         Stdlib.printLines(Command.describeApprovalRules(rules))
-        let acknowledgeIncomplete = Stdlib.Bool.not(complete)
+        let incomplete =
+          if complete then Incomplete.Refuse else Incomplete.Acknowledge
         let kept =
           "Approval unchanged."
         let accepted =
           $"✓ remembered access for {name} {Command.shortVersion(latest)}"
         let approve(
-          acknowledgeContractChange: Bool)
+          contractChange: ContractChange)
           : (Bool * Stdlib.Option.Option<List<String>>) =
           Command.approveReporting(
             accountID,
@@ -631,8 +643,8 @@ let updateNamed(
             expected,
             latest,
             rules,
-            acknowledgeIncomplete,
-            acknowledgeContractChange,
+            incomplete,
+            contractChange,
             accepted,
             kept)
         if Stdlib.Bool.not(acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.canAsk()) then
@@ -643,7 +655,7 @@ let updateNamed(
           Stdlib.printLine(kept)
           true
         else
-          let (approvedFirst, review) = approve(false)
+          let (approvedFirst, review) = approve(ContractChange.Refuse)
           match review with
           | None -> approvedFirst
           | Some(diffs) ->
@@ -657,7 +669,7 @@ let updateNamed(
               || (Stdlib.Cli.UI.Prompt.confirm(
                     "Approve this code version and its changed permission requirements?"))
             if acceptChanged then
-              let (approvedSecond, _review) = approve(true)
+              let (approvedSecond, _review) = approve(ContractChange.Acknowledge)
               approvedSecond
             else
               Stdlib.printLine(kept)

@@ -437,7 +437,7 @@ let applicableByName(branchId: Uuid, name: String): Stdlib.Result.Result<'a -> '
   | None -> Stdlib.Result.Result.Error($"Not a package function name: {name}")
   | Some(_) ->
     if Stdlib.List.all(Stdlib.String.split(name, "."), isIdentifier) then
-      match Darklang.Cli.Eval.evaluateValue(Stdlib.Option.Option.None, branchId, name, false) with
+      match Darklang.Cli.Eval.evaluateValue(Stdlib.Option.Option.None, branchId, name, Darklang.Cli.Eval.Harmful.Halt) with
       | Ok(f) ->
         match LanguageTools.RuntimeTypes.reflect(f) with
         | DApplicable(AppNamedFn(_)) -> Stdlib.Result.Result.Ok(f)

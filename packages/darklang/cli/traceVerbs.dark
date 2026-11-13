@@ -373,7 +373,8 @@ let movedSince(
 let executeScriptOrEval(state: AppState, input: Darklang.Tracing.ScriptOrEvalInput): AppState =
   match input with
   | Eval(source, allowHarmful) ->
-    match Eval.evaluate(state, source, allowHarmful) with
+    let harmful = if allowHarmful then Eval.Harmful.Allow else Eval.Harmful.Halt
+    match Eval.evaluate(state, source, harmful) with
     | Ok(Some(s)) ->
       Stdlib.printLine(s)
       state
@@ -382,7 +383,7 @@ let executeScriptOrEval(state: AppState, input: Darklang.Tracing.ScriptOrEvalInp
       Cli.printErr($"Error: {message}")
       { state with exitCode = 1 }
   | Script(filename, source, args, options) ->
-    Run.runScript(state, filename, source, args, options, false)
+    Run.runScript(state, filename, source, args, options, Run.Approval.Skip)
 
 
 let resume(state: AppState, prefix: String): AppState =

@@ -34,7 +34,7 @@ let renderScm(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cl
 /// spaces, which would flatten the binding chain's newlines.
 let evalRaw(state: State, expr: String): Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
   let (result, _stray) =
-    captureOutputAnd(fun () -> Darklang.Cli.Eval.evaluate(classicState(state), expr, false))
+    captureOutputAnd(fun () -> Darklang.Cli.Eval.evaluate(classicState(state), expr, Darklang.Cli.Eval.Harmful.Halt))
   result
 
 /// Evaluate an expression **with the session's bindings in scope**, and return its result (or the error text).
