@@ -517,9 +517,17 @@ let private searchRows
     else
       "l.name LIKE '%' || @searchText || '%'"
 
+  // A plural matches its singular too: `split lines` finds `splitOnNewline`. The token is
+  // matched as a substring, so the stem still matches the plural.
+  let stem (tok : string) : string =
+    if tok.Length > 3 && tok.EndsWith "s" && not (tok.EndsWith "ss") then
+      tok.Substring(0, tok.Length - 1)
+    else
+      tok
+
   let tokenParams =
     if useTokenSearch then
-      matchTokens |> List.mapi (fun i tok -> $"tok{i}", Sql.string tok)
+      matchTokens |> List.mapi (fun i tok -> $"tok{i}", Sql.string (stem tok))
     else
       []
 

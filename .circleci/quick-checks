@@ -48,5 +48,6 @@ check "Test the check for a superseded main commit" python3 .circleci/test_ci_su
 check "Test the check for an already-proven tree" python3 .circleci/test_ci_proven.py
 check "Test the check for a prose-only change" python3 .circleci/test_ci_docs_only.py
 check "Test running steps beside each other" python3 .circleci/test_beside.py
+check "Check NormalizationData.fs is what its generator writes" scripts/build/generate-normalization-data --check
 
 exit "$first_failure"

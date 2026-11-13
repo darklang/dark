@@ -2895,9 +2895,8 @@ and [<Struct; CustomEquality; NoComparison>] DarkString =
     else
       DarkString(String.append a.Value b.Value)
 
-  /// A joined string's text. Normalizing once at the end gives what normalizing after every
-  /// `+` does: a normalized string followed by another is canonically equivalent to the two
-  /// unnormalized ones, and equivalent strings normalize alike.
+  /// A joined string's text. Every piece is NFC, so normalizing only around each join gives
+  /// what normalizing after every `+` does.
   static member private textOf(cell : EgcCountCell) : string =
     match cell.Joined with
     | :? StringJoin as join ->
@@ -2917,7 +2916,7 @@ and [<Struct; CustomEquality; NoComparison>] DarkString =
           | joined -> pieces.Add(joined :?> string)
         else
           pieces.Add s.text
-      let text = String.normalize (System.String.Concat(pieces.ToArray()))
+      let text = String.concatNormalized (pieces.ToArray())
       cell.Settle text
       text
     | joined -> joined :?> string

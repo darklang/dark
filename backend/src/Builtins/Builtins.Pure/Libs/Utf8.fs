@@ -32,7 +32,9 @@ let fns () : List<BuiltInFn> =
       returnType = TypeReference.result TString TString
       description =
         "Decodes <param bytes> as UTF-8. Returns Error with a message if the "
-        + "bytes aren't valid UTF-8."
+        + "bytes aren't valid UTF-8. "
+        + "Like every String, the result is normalized (NFC); "
+        + "keep the Bytes when the exact bytes matter."
       fn =
         let ok r = Dval.resultOk KTString KTString r
         let err r = Dval.resultError KTString KTString r
@@ -41,7 +43,7 @@ let fns () : List<BuiltInFn> =
           Bytes.withBytes state ref (fun bs ->
             try
               let s = (new UTF8Encoding(false, true)).GetString(bs)
-              Ply(ok (DString s))
+              Ply(ok (DString(String.normalizeOutside s)))
             with :? DecoderFallbackException as e ->
               // Not `e.Message`: the CLI is built with `UseSystemResourceKeys`, so that is a
               // resource key such as `Argument_InvalidCodePageBytesIndex`. Say where the bad
@@ -66,12 +68,14 @@ let fns () : List<BuiltInFn> =
       returnType = TString
       description =
         "Decodes <param bytes> as UTF-8, replacing invalid sequences with "
-        + "{{U+FFFD}}."
+        + "{{U+FFFD}}. "
+        + "Like every String, the result is normalized (NFC); "
+        + "keep the Bytes when the exact bytes matter."
       fn =
         (function
         | state, _, _, [| DBytes ref |] ->
           Bytes.withBytes state ref (fun bs ->
-            Ply(DString(Encoding.UTF8.GetString bs)))
+            Ply(DString(String.normalizeOutside (Encoding.UTF8.GetString bs))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

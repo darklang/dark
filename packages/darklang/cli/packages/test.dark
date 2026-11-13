@@ -136,6 +136,24 @@ let lastOutcome(
   | Some(cache) -> storedOutcome(cache, testHash)
   | None -> Stdlib.Option.Option.None
 
+/// <fn lastOutcome> for each of <param testHashes>, in order, for a listing: the cache key is
+/// worked out once (it looks up a type and hashes the runtime) and the results read in one go.
+let lastOutcomes(
+  branchId: Uuid,
+  testHashes: List<LanguageTools.ProgramTypes.Hash>)
+  : List<Stdlib.Option.Option<Outcome>> =
+  match testHashes with
+  | [] -> []
+  | _ ->
+    match cacheContext(branchId) with
+    | Some(cache) ->
+      LanguageTools.PackageManager.Test.storedResults(
+        testHashes |> Stdlib.List.map(fun h -> resultKey(cache, h)))
+      |> Stdlib.List.map(fun stored ->
+        stored
+        |> Stdlib.Option.andThen(fun json -> Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption))
+    | None -> testHashes |> Stdlib.List.map(fun _ -> Stdlib.Option.Option.None)
+
 /// Run <param test> now, ignoring the cache, and say how it went.
 let runFresh(
   run: LanguageTools.PackageManager.Test.Run,

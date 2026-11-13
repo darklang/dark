@@ -34,14 +34,19 @@ module Request =
     let headers =
       headers
       |> lowercaseHeaderKeys
-      |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
+      |> List.map (fun (k, v) ->
+        RT.DTuple(
+          RT.DString(String.normalizeOutside k),
+          RT.DString(String.normalizeOutside v),
+          []
+        ))
       |> Dval.list headerType
 
     let fields =
       [ "body", Bytes.newEphemeral body
         "headers", headers
-        "method", RT.DString method
-        "url", RT.DString uri ]
+        "method", RT.DString(String.normalizeOutside method)
+        "url", RT.DString(String.normalizeOutside uri) ]
     RT.DRecord(typ, typ, [], RT.RecordFields.ofList fields)
 
 

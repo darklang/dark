@@ -1531,14 +1531,14 @@ module ModuleSave =
 
   test unresolvedNamesExitNonzeroAndKeepDraft =
     Instance.withInstance(fun i ->
-      let result = save(i, "let f(): Int64 = Stdlib.String.definitelyMissing(\"hello\")")
+      let result = save(i, "let f(): Int64 = Me.Later.notYet(\"hello\")")
       let viewed = Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
       Stdlib.Test.all(
         [ result.exitCode |> Stdlib.Test.equal(1)
           Stdlib.String.contains(result.stderr, "UnresolvedValueName")
           |> Stdlib.Test.equal(true)
           viewed.exitCode |> Stdlib.Test.equal(0)
-          Stdlib.String.contains(viewed.stdout, "definitelyMissing")
+          Stdlib.String.contains(viewed.stdout, "notYet")
           |> Stdlib.Test.equal(true) ]))
 
 
