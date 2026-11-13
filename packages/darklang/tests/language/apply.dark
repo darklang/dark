@@ -1,5 +1,9 @@
 module Darklang.Language.Tests.Apply
 
+test bytesValueIsNotCallable =
+  Stdlib.Bytes.empty()
+  => raises "Cannot call a Bytes value as a function."
+
 test lambdasAndOperators =
   Stdlib.Test.all(
     [ (let fn = (fun x -> x + 1)
