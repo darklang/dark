@@ -33,6 +33,8 @@ let cannotRaise : Set<string> =
     [ "Int64.checkedDivide"
       "Int64.checkedRemainder"
       "Int64.checkedMod"
+      "BigInt.checkedShiftLeft"
+      "BigInt.checkedShiftRight"
       "BigInt.checkedDivide"
       "BigInt.checkedRemainder"
       "BigInt.checkedMod"

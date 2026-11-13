@@ -179,6 +179,32 @@ test shiftRightRejectsHugeCount =
   (1z >> (2z ** 40z))
   => raises "Shift count out of range (0 to 2147483647): 1099511627776z"
 
+test checkedShiftLeft =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedShiftLeft(1z, 4z) |> Stdlib.Test.equal(Ok(16z))
+      Stdlib.BigInt.checkedShiftLeft(-3z, 2z) |> Stdlib.Test.equal(Ok(-12z))
+      Stdlib.BigInt.checkedShiftLeft(5z, 0z) |> Stdlib.Test.equal(Ok(5z))
+      Stdlib.BigInt.checkedShiftLeft(0z, 2z ** 40z) |> Stdlib.Test.equal(Ok(0z))
+      Stdlib.BigInt.checkedShiftLeft(1z, -1z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.NegativeCount))
+      Stdlib.BigInt.checkedShiftLeft(1z, 8388607z)
+      |> Stdlib.Test.equal(Ok(1z << 8388607z))
+      Stdlib.BigInt.checkedShiftLeft(1z, 8388608z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.ResultTooLarge))
+      Stdlib.BigInt.checkedShiftLeft(-2z, 8388607z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.ResultTooLarge))
+      Stdlib.BigInt.checkedShiftLeft(1z, 2z ** 40z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.ResultTooLarge)) ])
+
+test checkedShiftRight =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedShiftRight(256z, 4z) |> Stdlib.Test.equal(Ok(16z))
+      Stdlib.BigInt.checkedShiftRight(-5z, 1z) |> Stdlib.Test.equal(Ok(-3z))
+      Stdlib.BigInt.checkedShiftRight(1z, 2z ** 40z) |> Stdlib.Test.equal(Ok(0z))
+      Stdlib.BigInt.checkedShiftRight(-1z, 2z ** 40z) |> Stdlib.Test.equal(Ok(-1z))
+      Stdlib.BigInt.checkedShiftRight(1z, -1z)
+      |> Stdlib.Test.equal(Error(Stdlib.Math.ShiftError.NegativeCount)) ])
+
 // --- random ---
 /// Every result lands inside the bounds, whichever order they are given in,
 /// and every value in a small range is reached.

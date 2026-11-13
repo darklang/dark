@@ -146,6 +146,13 @@ type PowerError =
   | ResultTooLarge
 
 
+/// What <fn BigInt.checkedShiftLeft> and <fn BigInt.checkedShiftRight> return where `<<`
+/// and `>>` raise. {{ResultTooLarge}} is a left shift past 1 MB, as for `checkedPower`.
+type ShiftError =
+  | NegativeCount
+  | ResultTooLarge
+
+
 /// What a <type Float> or <type Float32> `checked` function returns where its plain
 /// version gives NaN or an infinity
 type NonFinite =
