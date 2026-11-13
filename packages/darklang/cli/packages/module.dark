@@ -198,7 +198,8 @@ let define(
           | Error(message) ->
             Cli.printErr($"Failed to define module: {message}")
             { state with exitCode = 1 }
-          | Ok(report) ->
+          | Ok(authored) ->
+            let report = authored.report
             let followed = Propagate.repointSaved(
               branchId,
               updates,
@@ -248,6 +249,8 @@ let define(
 
             Stdlib.printLine(
               $"{glyph} Defined {Stdlib.display(count)} {what} in {modulePath}{docNote}")
+
+            AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0u64)
 
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.

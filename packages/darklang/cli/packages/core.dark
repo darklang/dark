@@ -308,7 +308,9 @@ type Committed =
     otherIssues: Int64
     /// Another name that already held the version this name now holds.
     sameAs: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
-    report: LanguageTools.AtRestTypeChecker.Report }
+    report: LanguageTools.AtRestTypeChecker.Report
+    unresolvedTraitCalls:
+      List<(String * List<LanguageTools.PackageManager.UnresolvedTraitCall>)> }
 
 
 /// Save <param ops>, which bind <param location> (a <param kind>) at the placeholder <param hash>,
@@ -331,7 +333,8 @@ let commitAuthored(
         |> Stdlib.List.map(fun snapshot -> snapshot.names)
 
   match SCM.PackageOps.addAuthored(branchId, ops) with
-  | Ok(report) ->
+  | Ok(authored) ->
+    let report = authored.report
     // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
     // stabilized inside the save, so the value in hand until now is a placeholder. Everything
     // below that names a version -- the permission summary, the doc-only note -- needs the
@@ -447,7 +450,8 @@ let commitAuthored(
           ownIssueNode = ownIssueNode
           otherIssues = otherIssues
           sameAs = sameAs
-          report = report })
+          report = report
+          unresolvedTraitCalls = authored.unresolvedTraitCalls })
   | Error(msg) -> Stdlib.Result.Result.Error(msg)
 
 
@@ -521,13 +525,17 @@ let saveAuthored(
         Stdlib.printLine(
           Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
 
+      let sourceShift =
+        Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64)
+      AtRestCheck.printUnresolvedTraitCalls(committed.unresolvedTraitCalls, sourceShift)
+
       match ownIssue with
       | Some(why) ->
         let at =
           match
             AtRestCheck.positionShifted(
               committed.ownIssueNode,
-              Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64))
+              sourceShift)
           with
           | Some(p) -> $" ({p})"
           | None -> ""

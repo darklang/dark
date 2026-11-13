@@ -21,6 +21,11 @@ let packageOpTypeName () =
 
 let packageOpKT () = KTCustomType(packageOpTypeName (), [])
 
+let private unresolvedTraitCallTypeName () =
+  FQTypeName.fqPackage (
+    PackageRefs.Type.LanguageTools.PackageManager.unresolvedTraitCall ()
+  )
+
 
 // TODO: review/reconsider the accessibility of these fns
 
@@ -224,22 +229,57 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
-      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
+      returnType =
+        TTuple(
+          TList(TCustomType(NR.ok (packageOpTypeName ()), [])),
+          TList(
+            TTuple(
+              TString,
+              TList(TCustomType(NR.ok (unresolvedTraitCallTypeName ()), [])),
+              []
+            )
+          ),
+          []
+        )
       description =
         "Writes onto each trait-method call in <param ops> the implementation it resolves "
         + "to, so a saved item goes on running what it was written against. Runs BEFORE "
         + "<fn pmStabilizeHashes>, because the choice is part of what the item is and has to "
         + "be hashed with it. A call whose self type is only known at run time comes back "
-        + "unchanged."
+        + "unchanged. Also returns unresolved calls by item name."
       fn =
         (function
         | exeState, _, _, [| DList(_vt, Items(ops)) |] ->
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
-            let! resolved =
+            let! resolved, unresolved =
               TraitCalls.resolveTraitCalls exeState exeState.branchId pm None ptOps
+            let callTypeName = unresolvedTraitCallTypeName ()
+            let callKT = KTCustomType(callTypeName, [])
+            let encodeCall call =
+              let caseName, fields =
+                match call with
+                | TraitCalls.Function(at, name) ->
+                  "Function", [ DUInt64 at; DString name ]
+                | TraitCalls.Operator(at, op) ->
+                  "Operator", [ DUInt64 at; PT2DT.InfixFnName.toDT op ]
+              DEnum(callTypeName, callTypeName, [], caseName, fields)
             return
-              Dval.list (packageOpKT ()) (resolved |> List.map PT2DT.PackageOp.toDT)
+              DTuple(
+                Dval.list
+                  (packageOpKT ())
+                  (resolved |> List.map PT2DT.PackageOp.toDT),
+                Dval.list
+                  (KTTuple(VT.string, VT.list (VT.known callKT), []))
+                  (unresolved
+                   |> List.map (fun (name, calls) ->
+                     DTuple(
+                       DString name,
+                       Dval.list callKT (List.map encodeCall calls),
+                       []
+                     ))),
+                []
+              )
           }
         | _ -> incorrectArgs ())
       // Reads the store's implementations and stamps, so two calls on either side of someone
