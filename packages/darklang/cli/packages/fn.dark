@@ -56,6 +56,10 @@ let createFnInline(
     // Keep accepting the concise historical fragment, while also accepting a
     // complete declaration (with an optional doc comment).
     let trimmedDefinition = Stdlib.String.trim(definition)
+    let isShortForm =
+      Stdlib.Bool.not(
+        Stdlib.String.startsWith(trimmedDefinition, "let ")
+        || Stdlib.String.startsWith(trimmedDefinition, "///"))
     let fullSource =
       if
         Stdlib.String.startsWith(trimmedDefinition, "let ")
@@ -107,6 +111,8 @@ let createFnInline(
           LanguageTools.ProgramTypes.ItemKind.Fn,
           "function",
           failState,
+          // the short form is parsed behind `let <name> `, so a column on its first line is off by that
+          (if isShortForm then Stdlib.String.length(fullSource) - Stdlib.String.length(definition) else 0),
           fun ctx ->
             let (packageFn, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT(

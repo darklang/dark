@@ -95,6 +95,7 @@ let createTraitInline(
           LanguageTools.ProgramTypes.ItemKind.Trait,
           "trait",
           failState,
+          0,
           fun ctx ->
             let (packageTrait, ops, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.traitWithOps(ctx, t)
