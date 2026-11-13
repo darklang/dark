@@ -448,58 +448,26 @@ let explain
     let root = PT.Hash hash
     let! closure = loadClosure load root
     let labels = System.Collections.Generic.Dictionary<PT.Hash, string>()
-    let label (nr : PT.NameResolution<PT.FQFnName.FQFnName>) =
-      match nr.resolved with
-      | Ok { name = PT.FQFnName.Package hash; location = Some loc } ->
-        labels[hash] <- String.concat "." (loc.owner :: loc.modules @ [ loc.name ])
-      | _ -> ()
-    let rec scan expr =
-      match expr with
-      | PT.EFnName(_, nr, _, _) -> label nr
-      | PT.EPipe(_, _, parts) ->
-        for part in parts do
-          match part with
-          | PT.EPipeFnCall(_, nr, _, _, _) -> label nr
-          | _ -> ()
-      | _ -> ()
-      LibExecution.ProgramTypesAst.subExprs expr |> List.iter scan
-    for KeyValue(_, (fn, _)) in closure do
-      scan fn.body
+    for KeyValue(_, (_, summary)) in closure do
+      for site in summary.calls do
+        match site.target, site.location with
+        | Calls.CallTarget.Named(PT.FQFnName.Package hash), Some loc ->
+          labels[hash] <- String.concat "." (loc.owner :: loc.modules @ [ loc.name ])
+        | _ -> ()
     let name (PT.Hash h as hash) =
       match labels.TryGetValue hash with
       | true, name -> name
       | _ -> "function " + h.Substring(0, min 12 h.Length)
-    let rec visit visited path hash reasons =
-      if Set.contains hash visited then
-        visited, reasons
-      else
-        let visited = Set.add hash visited
-        match Map.tryFind hash closure with
-        | None -> visited, reasons
-        | Some(_, calls) ->
-          calls.names
-          |> List.fold
-            (fun (visited, reasons) called ->
-              match called with
-              | PT.FQFnName.Package child ->
-                visit visited (path @ [ name child ]) child reasons
-              | PT.FQFnName.Builtin b ->
-                let effects =
-                  callEffectsFor (b.name, b.version)
-                  |> Option.defaultValue Set.empty
-                let reasons =
-                  effects
-                  |> Set.fold
-                    (fun reasons effect ->
-                      if Map.containsKey effect reasons then
-                        reasons
-                      else
-                        Map.add effect (path @ [ "Builtin." + b.name ]) reasons)
-                    reasons
-                visited, reasons
-              | _ -> visited, reasons)
-            (visited, reasons)
-    let _, reasons = visit Set.empty [] root Map.empty
+    let reasons =
+      (match Map.tryFind root closure with
+       | Some(_, calls) -> Requirements.effectPaths callEffectsFor closure calls
+       | None -> Map.empty)
+      |> Map.map (fun path ->
+        path
+        |> List.map (function
+          | PT.FQFnName.Package hash -> name hash
+          | PT.FQFnName.Builtin b -> "Builtin." + b.name
+          | PT.FQFnName.TraitMethod _ -> "unresolved trait method"))
     let! names = Raises.fnNames (Map.keys closure)
     let nameOf hash =
       Map.tryFind hash names |> Option.defaultWith (fun () -> name hash)

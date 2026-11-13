@@ -263,7 +263,18 @@ let executeFiltered(
     match filterText with
     | None -> unfiltered
     | Some(needle) ->
-      let lower = Stdlib.String.toLowercase(needle)
+      // A filter ending in a module name, such as `Stdlib.Http`, means that module and not
+      // every module whose name starts the same way (`HttpClient`, `HttpServer`).
+      let endsInModule =
+        Stdlib.String.contains(needle, ".")
+        && (needle
+            |> Stdlib.String.split(".")
+            |> Stdlib.List.last
+            |> Stdlib.Option.andThen(fun last -> Stdlib.String.head(last))
+            |> Stdlib.Option.map(fun c -> Stdlib.Char.isUppercase(c))
+            |> Stdlib.Option.withDefault(false))
+      let lower =
+        (Stdlib.String.toLowercase(needle)) + (if endsInModule then "." else "")
       let hits =
         fun loc ->
           let pathStr = (Stdlib.String.toLowercase(moduleKey(loc))) + "." + (Stdlib.String.toLowercase(loc.name))

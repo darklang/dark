@@ -89,11 +89,7 @@ let distributeRows(totalRows: Int64, requests: List<SizeRequest>): List<Int64> =
     else
       // Give each component its min + share of remaining proportional to want
       (Stdlib.List.map2(mins, wants, fun(minR, want) ->
-        let share =
-          if totalWant > 0 then
-            (want * remaining) / totalWant
-          else
-            0
+        let share = Stdlib.Int64.checkedDivide(want * remaining, totalWant) |> Stdlib.Result.withDefault(0)
         minR + share))
       |> Stdlib.Result.withDefault(mins)
 
@@ -169,11 +165,7 @@ let distributeCols(totalCols: Int64, requests: List<SizeRequest>): List<Int64> =
       mins
     else
       (Stdlib.List.map2(mins, wants, fun(minC, want) ->
-        let share =
-          if totalWant > 0 then
-            (want * remaining) / totalWant
-          else
-            0
+        let share = Stdlib.Int64.checkedDivide(want * remaining, totalWant) |> Stdlib.Result.withDefault(0)
         minC + share))
       |> Stdlib.Result.withDefault(mins)
 

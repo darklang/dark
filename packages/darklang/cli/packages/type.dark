@@ -75,6 +75,7 @@ let createTypeInline(
           LanguageTools.ProgramTypes.ItemKind.Type,
           "type",
           { state with exitCode = 1 },
+          0,
           fun ctx ->
             let (packageType, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT(

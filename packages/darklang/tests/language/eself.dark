@@ -136,7 +136,7 @@ test factorialWithShadowing =
 
 test shadowedStringIsNotCallable =
   ShadowingTest.factorialWithShadowingError(5)
-  => raises "Expected something we could apply to, such as a lambda or function, but got a String (\"shadowed\")"
+  => raises "Cannot call a String value as a function."
 
 test incrementWithShadowing =
   ShadowingTest.incrementWithShadowing(3, 1) |> Stdlib.Test.equal(6)

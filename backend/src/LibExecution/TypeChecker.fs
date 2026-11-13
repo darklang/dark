@@ -764,33 +764,52 @@ let private knownIs (expected : TypeReference) (known : KnownType) : bool =
 
 /// Whether a value whose type is known to be <param known> is a value of <param expected> with
 /// nothing to bind: the same type all the way down, every part of it known. A record or enum
-/// matches by name, which is enough for the reason given at `argFitsWithNothingToBind`.
-let rec private knownFits (expected : TypeReference) (known : KnownType) : bool =
-  match known with
-  | KTList elem ->
-    (match expected with
-     | TList inner -> valueTypeFits inner elem
-     | _ -> false)
-  | KTTuple(a, b, rest) ->
-    (match expected with
-     | TTuple(ea, eb, eRest) ->
-       valueTypeFits ea a && valueTypeFits eb b && valueTypesFit eRest rest
-     | _ -> false)
-  | KTCustomType(FQTypeName.Package(Hash actualName), actualArgs) ->
-    (match expected with
-     | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) }, declaredArgs) ->
-       System.String.Equals(declared, actualName)
-       && valueTypesFit declaredArgs actualArgs
-     | _ -> false)
-  | _ -> knownIs expected known
+/// matches by name, which is enough for the reason given at `argFitsWithNothingToBind`. A type
+/// variable fits what <param tst> already binds it to, exactly, as `unifyValueTypeSync` has it.
+let rec private knownFits
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (known : KnownType)
+  : bool =
+  match expected with
+  | TVariable name ->
+    match tst.TryFind name with
+    | ValueSome(ValueType.Known bound) -> bound = known
+    | _ -> false
+  | _ ->
+    match known with
+    | KTList elem ->
+      (match expected with
+       | TList inner -> valueTypeFits tst inner elem
+       | _ -> false)
+    | KTTuple(a, b, rest) ->
+      (match expected with
+       | TTuple(ea, eb, eRest) ->
+         valueTypeFits tst ea a
+         && valueTypeFits tst eb b
+         && valueTypesFit tst eRest rest
+       | _ -> false)
+    | KTCustomType(FQTypeName.Package(Hash actualName), actualArgs) ->
+      (match expected with
+       | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) },
+                     declaredArgs) ->
+         System.String.Equals(declared, actualName)
+         && valueTypesFit tst declaredArgs actualArgs
+       | _ -> false)
+    | _ -> knownIs expected known
 
-and private valueTypeFits (expected : TypeReference) (actual : ValueType) : bool =
+and private valueTypeFits
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : ValueType)
+  : bool =
   match actual with
-  | ValueType.Known k -> knownFits expected k
+  | ValueType.Known k -> knownFits tst expected k
   | ValueType.Unknown -> false
 
 /// `valueTypeFits` for each of a type's arguments, or a tuple's parts after the second.
 and private valueTypesFit
+  (tst : TypeSymbolTable)
   (declared : List<TypeReference>)
   (actual : List<ValueType>)
   : bool =
@@ -798,7 +817,7 @@ and private valueTypesFit
   | [] -> List.isEmpty actual
   | d :: dRest ->
     match actual with
-    | a :: aRest -> valueTypeFits d a && valueTypesFit dRest aRest
+    | a :: aRest -> valueTypeFits tst d a && valueTypesFit tst dRest aRest
     | [] -> false
 
 
@@ -822,14 +841,14 @@ let rec argFitsWithNothingToBind
      | _ -> false)
   | TList inner ->
     (match actual with
-     | DList(ValueType.Known elem, _) -> knownFits inner elem
+     | DList(ValueType.Known elem, _) -> knownFits tst inner elem
      | _ -> false)
   | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) }, declaredArgs) ->
     (match actual with
      | DEnum(_, FQTypeName.Package(Hash actualName), actualArgs, _, _)
      | DRecord(_, FQTypeName.Package(Hash actualName), actualArgs, _) ->
        System.String.Equals(declared, actualName)
-       && valueTypesFit declaredArgs actualArgs
+       && valueTypesFit tst declaredArgs actualArgs
      | _ -> false)
   | TTuple(ea, eb, eRest) ->
     (match actual with

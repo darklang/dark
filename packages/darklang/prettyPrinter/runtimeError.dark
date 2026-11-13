@@ -590,13 +590,11 @@ module RuntimeError =
 
     | Apply(err) ->
       match err with
-      | ExpectedApplicableButNot(actualTyp, actualValue) ->
-        [ ES.String("Expected something we could apply to, such as a lambda or function, but got ")
+      | ExpectedApplicableButNot(actualTyp, _) ->
+        [ ES.String("Cannot call ")
           ES.IndefiniteArticle
           ES.ValueType(actualTyp)
-          ES.String(" (")
-          ES.FullValue(actualValue)
-          ES.String(")") ]
+          ES.String(" value as a function.") ]
 
       | WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
         [ ES.FunctionName(fn)
