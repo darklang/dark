@@ -9,12 +9,14 @@ impl Stdlib.Zero for List<'a> =
   let zero(): List<'a> = []
 
 /// Returns a one-element list containing the given <param val>
+/// Takes O(1) time.
 let singleton(value: 'a): List<'a> =
   [ value ]
 
 
 /// Returns {{Some}} the head (first value) of a list.
 /// Returns {{None}} if the list is empty.
+/// Takes O(1) time.
 let head(list: List<'a>): Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
@@ -23,6 +25,7 @@ let head(list: List<'a>): Option.Option<'a> =
 
 /// If <param list> contains at least one value, returns {{Some}} with a list of
 /// every value other than the first. Otherwise, returns {{None}}.
+/// Takes O(1) time.
 let tail(list: List<'a>): Option.Option<List<'a>> =
   match list with
   | [] -> Option.Option.None
@@ -32,26 +35,31 @@ let tail(list: List<'a>): Option.Option<List<'a>> =
 /// Returns a new list with all values in <param as> followed by all values in <param bs>,
 /// preserving the order. `[...as_, ...bs]` lowers to this. To add one value, use
 /// <fn prepend> or <fn append>.
+/// Takes O(n) time (O(log n) in the interpreter).
 let concat(as_: List<'a>, bs: List<'a>): List<'a> =
   Builtin.listConcat(as_, bs)
 
 
 /// Adds <param value> to the front of <param list>.
+/// Takes O(1) time.
 let prepend(list: List<'a>, value: 'a): List<'a> =
   Builtin.listPrepend(list, value)
 
 
 /// Adds <param value> to the back of <param list>. To join two lists, use <fn concat>.
+/// Takes O(n) time (O(log n) in the interpreter).
 let append(list: List<'a>, value: 'a): List<'a> =
   Builtin.listAppend(list, value)
 
 
 /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
+/// Takes O(n) time (O(log n) in the interpreter).
 let last(list: List<'a>): Option.Option<'a> =
   getAt(list, length(list) - 1)
 
 
 /// Returns a reversed copy of <param list>
+/// Takes O(n) time.
 let reverse(list: List<'a>): List<'a> =
   Builtin.listReverse(list)
 
@@ -59,12 +67,14 @@ let reverse(list: List<'a>): List<'a> =
 /// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
 /// list for which <param fn> returns {{true}}. Returns {{None}} if no such
 /// value exists
+/// Takes O(n) time.
 let findFirst(list: List<'a>, fn: 'a -> Bool): Option.Option<'a> =
   Builtin.listFindFirst(list, fn)
 
 
 /// Returns the index of the first element in <param list> for which <param fn>
 /// returns true. Returns {{None}} if no such element exists.
+/// Takes O(n) time.
 let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int64> =
   list
   |> indexedMap(fun(i, item) -> (i, item))
@@ -74,11 +84,13 @@ let findFirstIndex(list: List<'a>, fn: 'a -> Bool): Option.Option<Int64> =
 
 /// Returns the zero-based index of the first element in <param list> equal to
 /// <param x>, wrapped in {{Some}}. Returns {{None}} if no such element exists.
+/// Takes O(n) time.
 let indexOf(list: List<'a>, x: 'a): Option.Option<Int64> =
   findFirstIndex(list, fun item -> item == x)
 
 
 /// Returns {{true}} if <param value> is in the list
+/// Takes O(n) time.
 let contains(list: List<'a>, value: 'a): Bool =
   Builtin.listContains(list, value)
 
@@ -86,6 +98,7 @@ let contains(list: List<'a>, value: 'a): Bool =
 /// Returns a list of <param value> repeated <param times> times, or {{[]}} if
 /// <param times> is 0 or less. Use <fn List.checkedRepeat> to get an error for a
 /// negative count.
+/// Takes O(n) time, where n is <param times>.
 let repeat(times: Int64, value: 'a): List<'a> =
   if times <= 0 then
     []
@@ -101,6 +114,7 @@ type RepeatError =
 /// Returns {{Ok}} a list of <param value> repeated <param times> times, or
 /// {{Error NegativeCount}} if <param times> is below 0, or {{Error TooLong}} if it
 /// is past 2147483591, where <fn List.repeat> raises. A count of 0 gives {{Ok []}}.
+/// Takes O(n) time, where n is <param times>.
 let checkedRepeat(
   times: Int64,
   value: 'a)
@@ -114,12 +128,14 @@ let checkedRepeat(
 
 
 /// Returns the number of values in <param list>
+/// Takes O(1) time.
 let ``length``(list: List<'a>): Int64 =
   Builtin.listLength(list)
 
 
 /// Returns a list of numbers where each element is {{1}} larger than the
 /// previous. You provide the <param lowest> and <param highest> numbers in the list.
+/// Takes O(n) time, where n is the number of values returned.
 let range(lowest: Int64, highest: Int64): List<Int64> =
   Builtin.listRange(lowest, highest)
 
@@ -130,6 +146,7 @@ type RangeError = | TooLong
 /// Returns {{Ok}} the numbers from <param lowest> to <param highest>, as <fn List.range>
 /// does, or {{Error TooLong}} for more than 2147483591 of them, where <fn List.range>
 /// raises.
+/// Takes O(n) time, where n is the number of values returned.
 let checkedRange(
   lowest: Int64,
   highest: Int64)
@@ -148,6 +165,7 @@ let checkedRange(
 /// Native, unlike most of this module, because it is the loop everything else here is written on:
 /// `map`, `filter` and the rest fold. Written in Dark it cost a package call and a match per element
 /// on top of the lambda; the builtin walks the list in F# and applies the lambda directly.
+/// Takes O(n) time.
 let fold(list: List<'a>, init: 'b, fn: ('b, 'a) -> 'b): 'b =
   Builtin.listFold(list, init, fn)
 
@@ -156,6 +174,7 @@ let fold(list: List<'a>, init: 'b, fn: ('b, 'a) -> 'b): 'b =
 /// or {{None}} if the list is empty.
 /// The key type must implement `Compare`. On ties, the first element wins.
 /// Calls <param fn> once per element.
+/// Takes O(n) time.
 let maxBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
@@ -171,6 +190,7 @@ let maxBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> 
 /// or {{None}} if the list is empty.
 /// The key type must implement `Compare`. On ties, the first element wins.
 /// Calls <param fn> once per element.
+/// Takes O(n) time.
 let minBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
@@ -184,23 +204,27 @@ let minBy<'a, 'key: Compare>(list: List<'a>, fn: 'a -> 'key): Option.Option<'a> 
 
 /// Returns the largest element of <param list>, or {{None}} if it is empty.
 /// The element type must implement `Compare`. On ties, the first element wins.
+/// Takes O(n) time.
 let max<'a: Compare>(list: List<'a>): Option.Option<'a> =
   maxBy(list, fun value -> value)
 
 
 /// Returns the smallest element of <param list>, or {{None}} if it is empty.
 /// The element type must implement `Compare`. On ties, the first element wins.
+/// Takes O(n) time.
 let min<'a: Compare>(list: List<'a>): Option.Option<'a> =
   minBy(list, fun value -> value)
 
 
 /// Returns a single list containing the values of every list directly in <paramlist>
 /// (does not recursively flatten nested lists)
+/// Takes O(n) time, where n is the number of values returned.
 let flatten(list: List<List<'a>>): List<'a> =
   Builtin.listFlatten(list)
 
 
 /// Returns a single list containing the values of <param list> separated by <param sep>
+/// Takes O(n) time.
 let interpose(list: List<'a>, sep: 'a): List<'a> =
   match list with
   | [] -> []
@@ -214,6 +238,7 @@ let interpose(list: List<'a>, sep: 'a): List<'a> =
 /// Returns a list with the first value from <param l1> then the first value
 /// from <param l2>, then the second value from <param l1> then the second value
 /// other list.
+/// Takes O(n) time.
 let interleave(lA: List<'a>, lB: List<'a>): List<'a> =
   match lA with
   | [] -> lB
@@ -230,11 +255,11 @@ let interleave(lA: List<'a>, lB: List<'a>): List<'a> =
 /// on the result of <param fn>. The first value for each {{fn value}} is kept,
 /// in the order it appeared.
 ///
-/// Keeps what it has seen in a <type Dict> keyed on {{fn value}} rather than
-/// scanning a list per element, so this is O(n log n) and not quadratic.
-/// Uniqueness is therefore decided by <type Dict> key comparison rather than by
+/// Keeps what it has seen in a <type Dict> keyed on {{fn value}}, so uniqueness
+/// is decided by <type Dict> key comparison rather than by
 /// {{==}}, and a {{fn value}} no <type Dict> can key (a lambda, a stream, a
 /// {{NaN}}) raises.
+/// Takes O(n²) time (O(n log n) in the interpreter).
 let uniqueBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
   list
   |> fold(([], Dict { }), fun((unique, seen), value) ->
@@ -252,10 +277,12 @@ let uniqueBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
 /// Returns the passed list, with only unique values. The first occurrence of
 /// each value is kept, in the order it appeared; pipe into <fn sort> if you
 /// want them ordered. Values are compared with {{==}}.
+/// Takes O(n²) time (O(n) in the interpreter).
 let unique(list: List<'a>): List<'a> = Builtin.listUnique(list)
 
 
 /// Returns true if <param list> has no values
+/// Takes O(1) time.
 let isEmpty(list: List<'a>): Bool = Builtin.listIsEmpty(list)
 
 
@@ -267,6 +294,7 @@ let isEmpty(list: List<'a>): Bool = Builtin.listIsEmpty(list)
 /// necessarily come before `[0x02]`.
 /// Consider <fn sortBy> or <fn sortWith> if you need more
 /// control over the sorting process.
+/// Takes O(n²) time (O(n log n) in the interpreter).
 let sort(list: List<'a>): List<'a> = Builtin.listSort(list)
 
 
@@ -276,6 +304,7 @@ let sort(list: List<'a>): List<'a> = Builtin.listSort(list)
 /// returns {{["x", "ab", "jkl"]}}.
 /// Consider <fn sort> if the list values can be directly compared, or <fn
 /// sortWith> if you want more control over the sorting process.
+/// Takes O(n²) time (O(n log n) in the interpreter).
 let sortBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
   Builtin.listSortBy(list, fn)
 
@@ -287,6 +316,7 @@ let sortBy(list: List<'a>, fn: 'a -> 'b): List<'a> =
 /// matter. The sort is stable: values that compare {{Equal}} keep the order they
 /// had in <param list>.
 /// Consider <fn sort> or <fn sortBy> if you don't need this level of control.
+/// Takes O(n log n) time.
 let sortWith(list: List<'a>, fn: ('a, 'a) -> Ordering): List<'a> =
   // `acc` is what has been merged so far, newest first.
   let merge(left: List<'a>, right: List<'a>, acc: List<'a>): List<'a> =
@@ -317,6 +347,7 @@ let sortWith(list: List<'a>, fn: ('a, 'a) -> Ordering): List<'a> =
 
 
 /// Return {{true}} if all elements in the list meet the function's criteria, else {{false}}
+/// Takes O(n) time.
 let all(list: List<'a>, fn: 'a -> Bool): Bool =
   // The first element `fn` fails is the first one `any` of its opposite stops at, so `fn` runs
   // on the same elements, in order, and `any` spreads it across cores when it is worth it.
@@ -324,6 +355,7 @@ let all(list: List<'a>, fn: 'a -> Bool): Bool =
 
 
 /// Return {{true}} if any elements in the list meet the function's criteria, else {{false}}
+/// Takes O(n) time.
 let any(list: List<'a>, fn: 'a -> Bool): Bool =
   Builtin.listAny(list, fn)
 
@@ -332,6 +364,7 @@ let any(list: List<'a>, fn: 'a -> Bool): Bool =
 /// those values for which {{fn val}} returns {{true}}.
 /// Preserves the order of values that were not dropped. Consider <fn
 /// filterMap> if you also want to transform the values.
+/// Takes O(n) time.
 let filter(list: List<'a>, f: 'a -> Bool): List<'a> =
   Builtin.listFilter(list, f)
 
@@ -342,6 +375,7 @@ let filter(list: List<'a>, f: 'a -> Bool): List<'a> =
 /// If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
 /// Preserves the order of values that were not dropped.
 /// This function combines <fn filter> and <fn map>.
+/// Takes O(n) time.
 let filterMap(
   list: List<'a>,
   fn: 'a -> Option.Option<'b>)
@@ -351,6 +385,7 @@ let filterMap(
 
 /// Removes the first element equal to <param x> from <param list>.
 /// Returns the list unchanged if no such element exists.
+/// Takes O(n) time.
 let remove(list: List<'a>, x: 'a): List<'a> =
   match list with
   | [] -> []
@@ -360,6 +395,7 @@ let remove(list: List<'a>, x: 'a): List<'a> =
 
 /// Removes the element at zero-based index <param i> from <param list>.
 /// Returns the list unchanged if <param i> is negative or out of range.
+/// Takes O(n) time.
 let removeAt(list: List<'a>, i: Int64): List<'a> =
   if i < 0 then
     list
@@ -371,10 +407,12 @@ let removeAt(list: List<'a>, i: Int64): List<'a> =
 
 
 /// Drops the first <param count> values from <param list>
+/// Takes O(n) time (O(1) in the interpreter).
 let drop(list: List<'a>, count: Int64): List<'a> = Builtin.listDrop(list, count)
 
 
 /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
+/// Takes O(n) time.
 let dropWhile(list: List<'a>, fn: 'a -> Bool): List<'a> =
   match list with
   | [] -> []
@@ -382,6 +420,7 @@ let dropWhile(list: List<'a>, fn: 'a -> Bool): List<'a> =
 
 
 /// Drops the last value from <param list>
+/// Takes O(n) time.
 let dropLast(list: List<'a>): List<'a> =
   match list with
   | [] -> []
@@ -392,11 +431,13 @@ let dropLast(list: List<'a>): List<'a> =
 
 
 /// Drops all but the first <param count> values from <param list>
+/// Takes O(n) time.
 let take(list: List<'a>, count: Int64): List<'a> =
   Builtin.listTake(list, count)
 
 
 /// Return the longest prefix of <param list> which satisfies the predicate <param fn>
+/// Takes O(n) time.
 let takeWhile(list: List<'a>, fn: 'a -> Bool): List<'a> =
   match list with
   | [] -> []
@@ -410,6 +451,7 @@ let takeWhile(list: List<'a>, fn: 'a -> Bool): List<'a> =
 /// Calls <param fn> on every <var val> in <param list>, returning a list of the
 /// results of those calls.
 /// Consider <fn filterMap> if you also want to drop some of the values.
+/// Takes O(n) time.
 let map(list: List<'a>, fn: 'a -> 'b): List<'b> =
   Builtin.listMap(list, fn)
 
@@ -418,6 +460,7 @@ let map(list: List<'a>, fn: 'a -> 'b): List<'b> =
 /// and the results in order. The way to overlap writes: plain <fn map> runs them one after
 /// another. Computation and reads already overlap under plain <fn map>. Built on
 /// <fn Stdlib.Exec.spawn>.
+/// Takes O(n) time.
 let parallelMap(list: List<'a>, fn: 'a -> 'b): List<'b> =
   list
   |> Stdlib.List.map(fun x -> Stdlib.Exec.spawn(fun () -> fn(x)))
@@ -427,6 +470,7 @@ let parallelMap(list: List<'a>, fn: 'a -> 'b): List<'b> =
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
 /// returning a list of the results of those calls.
 /// Consider <fn map> if you don't need the index.
+/// Takes O(n) time.
 let indexedMap(list: List<'a>, fn: (Int64, 'a) -> 'b): List<'b> =
   Builtin.listIndexedMap(list, fn)
 
@@ -438,6 +482,7 @@ let indexedMap(list: List<'a>, fn: (Int64, 'a) -> 'b): List<'b> =
 /// {{["x", "y", "z"]}}, returns {{[fn 1 "x", fn 2 "y"]}}.
 /// Use <fn map2> if you want to enforce equivalent lengths for <param as>
 /// and <param bs>.
+/// Takes O(n) time.
 let map2Shortest(
   as_: List<'a>,
   bs: List<'b>,
@@ -460,6 +505,7 @@ type LengthMismatch =
 /// {{["x", "y", "z"]}}, returns {{Ok [fn 1 "x", fn 2 "y", fn 3 "z"]}}.
 /// If the lists differ in length, returns {{Error}} with both lengths (consider
 /// <fn map2Shortest> if you want to drop values from the longer list instead).
+/// Takes O(n) time.
 let map2(
   as_: List<'a>,
   bs: List<'b>,
@@ -482,6 +528,7 @@ let map2(
 /// and <param bs>.
 /// See <fn unzip> if you want to deconstruct the result into <param as>
 /// and <param bs> again.
+/// Takes O(n) time.
 let zipShortest(as_: List<'a>, bs: List<'b>): List<('a * 'b)> =
   Builtin.listZipShortest(as_, bs)
 
@@ -494,6 +541,7 @@ let zipShortest(as_: List<'a>, bs: List<'b>): List<('a * 'b)> =
 /// and <param l2> again.
 /// If the lists differ in length, returns {{Error}} with both lengths (consider
 /// <fn zipShortest> if you want to drop values from the longer list instead).
+/// Takes O(n) time.
 let zip(
   l1: List<'a>,
   l2: List<'b>)
@@ -515,6 +563,7 @@ let zip(
 /// value.
 /// For example, if <param pairs> is {{[(1, "x"), (2, "y"), (3, "z")]}}, returns
 /// {{([1, 2, 3], ["x", "y", "z"])}}.
+/// Takes O(n) time.
 let unzip(pairs: List<('a * 'b)>): (List<'a> * List<'b>) =
   match pairs with
   | [] -> ([], [])
@@ -526,6 +575,7 @@ let unzip(pairs: List<('a * 'b)>): (List<'a> * List<'b>) =
 
 /// Returns {{Some value}} at <param index> in <param list> if <param index> is
 /// less than the length of the list otherwise returns {{None}}.
+/// Takes O(log n) time.
 let getAt(list: List<'a>, index: Int64): Option.Option<'a> =
   Builtin.listGetAt(list, index)
 
@@ -538,6 +588,7 @@ type IndexError =
 /// <param value>. Negative indexes count backward from the end of the list, so
 /// {{-1}} replaces the last value and {{-2}} replaces the second-to-last value.
 /// Returns {{Error IndexOutOfBounds}} if the resolved index is outside the list.
+/// Takes O(n) time (O(log n) in the interpreter).
 let setAt(
   list: List<'a>,
   index: Int64,
@@ -555,6 +606,7 @@ let setAt(
 /// Returns {{Some <var randomValue>}}, where <var randomValue> is a randomly
 /// selected value in <param list>. Returns {{None}} if <param list> is
 /// empty.
+/// Takes O(log n) time.
 let randomElement(list: List<'a>): Option.Option<'a> =
   match list with
   | [] -> Option.Option.None
@@ -563,6 +615,7 @@ let randomElement(list: List<'a>): Option.Option<'a> =
 
 /// Returns <param list> in a random order using Fisher–Yates.
 /// Preserves every element, including duplicates.
+/// Takes O(n log n) time.
 let shuffle(list: List<'a>): List<'a> =
   let last = length(list) - 1
   let start = Stdlib.Dict.fromEntries(indexedMap(list, fun(i, v) -> (i, v)))
@@ -582,6 +635,7 @@ let shuffle(list: List<'a>): List<'a> =
 /// For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
 /// is {{fn item -> item % 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
 /// Preserves the order of values and of the keys.
+/// Takes O(n²) time (O(n log n) in the interpreter).
 let groupBy(list: List<'a>, fn: 'a -> 'b): List<('b * List<'a>)> =
   // Each group is looked up in a Dict rather than scanned for, and built back to front; the
   // keys are kept separately, in the order first seen, since a Dict lists its own sorted.
@@ -605,6 +659,7 @@ let groupBy(list: List<'a>, fn: 'a -> 'b): List<('b * List<'a>)> =
 /// Calls <param f> on every <var val> in <param list>, splitting the list into
 /// two - those values for which {{fn val}} returns {{true}}, and those that
 /// return {{false}}
+/// Takes O(n) time.
 let partition(ls: List<'a>, f: 'a -> Bool): (List<'a> * List<'a>) =
   // `f` runs from the last value to the first, as it did when this recursed, and through `map`,
   // which spreads it across cores when it is worth it.
@@ -618,6 +673,7 @@ let partition(ls: List<'a>, f: 'a -> Bool): (List<'a> * List<'a>) =
 
 
 /// Applies the given function <param fn> to each element of the <param list>.
+/// Takes O(n) time.
 let iter(list: List<'a>, f: 'a -> Unit): Unit =
   // fold reruns its lambda in one frame; recursing here was a call and a list split per value
   fold(list, (), fun (_, value) -> f(value))
@@ -627,6 +683,7 @@ type ChunkBySizeError = | SizeMustBeGreaterThanZero
 
 /// Chunks <param list> into sublists of specified maximum <param size>.
 /// If <param size> is less than or equal to zero, returns an error
+/// Takes O(n) time.
 let chunkBySize(
   list: List<'a>,
   size: Int64)
@@ -646,6 +703,9 @@ let chunkBySize(
     Result.Result.Ok(chunk(list, []))
 
 
+/// Returns {{Some}} of every value but the last, and the last value, or {{None}}
+/// if <param l> is empty.
+/// Takes O(n) time.
 let splitLast(l: List<'a>): Option.Option<(List<'a> * 'a)> =
   match reverse(l) with
   | [] -> Option.Option.None
