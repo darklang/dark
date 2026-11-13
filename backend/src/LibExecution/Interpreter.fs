@@ -2438,7 +2438,8 @@ and private callBuiltinResolvedSlow
   // the memo lookup is worth doing.
   let implicitTypeParams : Set<string> =
     if TST.isEmpty tst then Set.empty else fnFreeTVars
-  tst <- implicitTypeParams |> Set.fold (fun m name -> removeIfPresent name m) tst
+  if not (Set.isEmpty implicitTypeParams) then
+    tst <- implicitTypeParams |> Set.fold (fun m name -> removeIfPresent name m) tst
 
   // Step 3: bind the (already-resolved) explicit type args. If the caller omitted type args, leave the
   // typeParams unbound for inference to fill in.
@@ -2829,8 +2830,13 @@ let private calleeTst
     currentFrame.typeSymbolTable
   else
     let stripped =
-      implicitTypeParams
-      |> Set.fold (fun m name -> removeIfPresent name m) currentFrame.typeSymbolTable
+      if Set.isEmpty implicitTypeParams then
+        currentFrame.typeSymbolTable
+      else
+        implicitTypeParams
+        |> Set.fold
+          (fun m name -> removeIfPresent name m)
+          currentFrame.typeSymbolTable
     TST.mergeFavoringRight stripped newlyBound
 
 /// What the caller recorded for a fn's bounds, with any entry that defers to the CALLER's own type
@@ -3174,7 +3180,8 @@ let private callPackageViaFrame
       Set.empty
     else
       fnFreeTVars
-  tst <- implicitTypeParams |> Set.fold (fun m name -> removeIfPresent name m) tst
+  if not (Set.isEmpty implicitTypeParams) then
+    tst <- implicitTypeParams |> Set.fold (fun m name -> removeIfPresent name m) tst
 
   // Step 3: bind the (already-resolved) explicit type args into the freshly-shadowed tst. Explicit args
   // win over inferred bindings filled in below. If the caller omitted type args, leave the typeParams
@@ -4771,6 +4778,14 @@ let private callPackageKnown
         n
         n
     )
+  elif
+    List.isEmpty ctx.typeArgs
+    && callData.thinWrapper.IsNone
+    && not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
+  then
+    // Where `callPackageWith` arrives when there are no type args to resolve and no builtin
+    // to hand the call to: a generic fn, or arguments that need the unifier.
+    callPackageViaFrame exeState vm currentFrame ctx fn callData []
   else
     callPackageWith exeState vm currentFrame ctx callData
 
