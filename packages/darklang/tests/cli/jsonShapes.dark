@@ -317,7 +317,7 @@ test typecheckAnswersWithItsCounts =
 test typecheckFailsACallToNothing =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.TcGone.callsGone", "(n: Int64): String = Stdlib.Int64.toString(n)" ])
+      [ step(i, [ "fn", "Tests.TcGone.callsGone", "(n: Int64): String = Tests.TcGoneMissing.toText(n)" ])
         check(
           i,
           [ "typecheck", "Tests.TcGone", "--json" ],
