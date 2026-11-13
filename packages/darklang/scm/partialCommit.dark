@@ -123,8 +123,7 @@ let closeOverDeps(entries: List<SCM.PackageOps.DraftEntry>, namings: List<Select
     if next == acc then acc else walk(next)
   walk(Stdlib.List.unique(hashes))
 
-/// Return this operation's ID if it adds content or changes deprecation for a wanted hash.
-/// Deprecations belong to content, so include them with that content.
+/// Return this operation's ID if it adds content for a wanted hash.
 let contentIdIfWanted(
   wantedHashes: List<String>,
   e: SCM.PackageOps.DraftEntry)
@@ -140,11 +139,6 @@ let contentIdIfWanted(
     | AddTrait(t) -> Stdlib.Option.Option.Some(hashOf(t.hash))
     | AddTraitImpl(i) -> Stdlib.Option.Option.Some(hashOf(i.hash))
     | AddTest(test) -> Stdlib.Option.Option.Some(hashOf(test.hash))
-    // A `Reference`, not a `Hash`: deprecations key on content, and the hash is inside the reference.
-    | Deprecate(target, _, _, _) ->
-      Stdlib.Option.Option.Some(hashOf(LanguageTools.ProgramTypes.Reference.hash(target)))
-    | Undeprecate(target, _) ->
-      Stdlib.Option.Option.Some(hashOf(LanguageTools.ProgramTypes.Reference.hash(target)))
     | _ -> Stdlib.Option.Option.None
 
   match target with
@@ -155,8 +149,8 @@ let contentIdIfWanted(
       Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
-/// Return this operation's ID if it updates documentation for a selected name.
-/// Documentation belongs to the name, so select these edits by name.
+/// Return this operation's ID if it updates documentation or deprecation for a selected name.
+/// Both belong to the name, so select these edits by name.
 let docIdIfWanted(
   wantedFqns: List<String>,
   e: SCM.PackageOps.DraftEntry)
@@ -164,6 +158,8 @@ let docIdIfWanted(
   let location =
     match e.op with
     | UpdateDoc(location, _, _, _, _) -> Stdlib.Option.Option.Some(location)
+    | Deprecate(location, _, _, _, _) -> Stdlib.Option.Option.Some(location)
+    | Undeprecate(location, _, _) -> Stdlib.Option.Option.Some(location)
     | _ -> Stdlib.Option.Option.None
   match location with
   | Some(loc) ->
@@ -249,7 +245,7 @@ let plan(
 
     let namingIds = keptNamings |> Stdlib.List.map(fun s -> s.opId)
 
-    // Content and deprecations for the same hashes (see `contentIdIfWanted`), plus the doc edits
+    // Content for the same hashes (see `contentIdIfWanted`), plus the doc and deprecation edits
     // for the names in play, which are selected by name rather than by hash.
     let wantedFqns = Stdlib.List.unique(Stdlib.List.concat(names, keptNamings |> Stdlib.List.map(fun s -> s.fqn)))
 

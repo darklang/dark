@@ -569,6 +569,60 @@ test harmfulGate =
     Stdlib.Test.Result.Pass
 
 
+/// Two names holding one body are one item, so deleting or deprecating one used to deprecate
+/// both: deleting a probe `= 5` took stdlib constants with it. Now it is said at the name, and the
+/// other name stays undeprecated and resolvable.
+test deprecateLeavesATwinAlone =
+  Instance.withInstance(fun i ->
+    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
+    let hashOf = fun(name) -> Stdlib.String.trim(said([ "hash", name ]))
+    let _ = said([ "val", "Tests.Twins.kept", "= 770031" ])
+    let _ = said([ "val", "Tests.Twins.probe", "= 770031" ])
+    let deprecated = said([ "deprecate", "Tests.Twins.probe", "--kind", "obsolete", "--yes" ])
+
+    if hashOf("Tests.Twins.kept") != hashOf("Tests.Twins.probe") then
+      Stdlib.Test.fail("the two names should hold one item, or this tests nothing")
+    else
+      Stdlib.Test.all(
+        [ Instance.says(deprecated, "1 other name shares this code and is unaffected", "deprecate says the code is shared")
+          Instance.says(said([ "undeprecate", "Tests.Twins.kept" ]), "is not deprecated", "the other name is left alone")
+          Instance.says(said([ "eval", "Tests.Twins.kept" ]), "770031", "and still resolves")
+          Instance.says(said([ "undeprecate", "Tests.Twins.probe" ]), "Undeprecated", "the name given was deprecated") ]))
+
+
+/// Harmful is about the code, not the name: marking one name halts calls through every name holding
+/// that code, and undoing it at one name clears it for all of them.
+test harmfulMarksEveryTwin =
+  Instance.withInstance(fun i ->
+    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
+    let _ = said([ "fn", "Tests.HarmTwins.a", "(x: Int64) : Int64 = (x + 770032)" ])
+    let _ = said([ "fn", "Tests.HarmTwins.b", "(x: Int64) : Int64 = (x + 770032)" ])
+    let marked = said([ "deprecate", "fn", "Tests.HarmTwins.a", "--kind", "harmful", "--yes" ])
+    let haltedB = said([ "eval", "Tests.HarmTwins.b(0)" ])
+    let cleared = said([ "undeprecate", "Tests.HarmTwins.b" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(marked, "1 other name shares this code and is also marked harmful: Tests.HarmTwins.b", "harmful names the others")
+        Instance.says(haltedB, "Harmful", "a call through the twin halts")
+        Instance.says(cleared, "no longer harmful: Tests.HarmTwins.a", "undoing it at the twin clears both")
+        Instance.says(said([ "eval", "Tests.HarmTwins.a(0)" ]), "770032", "so the first name runs again") ]))
+
+
+/// `ls` lists names: after deleting one of two names holding the same code, only the other is listed.
+test lsDropsADeletedTwin =
+  Instance.withInstance(fun i ->
+    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
+    let _ = said([ "val", "Tests.LsTwins.kept", "= 770033" ])
+    let _ = said([ "val", "Tests.LsTwins.probe", "= 770033" ])
+    let _ = said([ "delete", "Tests.LsTwins.probe", "--yes" ])
+    let listed = said([ "ls", "Tests.LsTwins" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(listed, "kept", "the twin is still listed")
+        Instance.doesNotSay(listed, "⚠", "and nothing listed is marked deprecated")
+        Instance.doesNotSay(listed, "probe", "the deleted name is not") ]))
+
+
 test searchMatchesModuleAndCamelCaseName =
   let output = runWithCommand(["search", "string toList", "--fn"])
   if Stdlib.String.contains(output, "Darklang.Stdlib.String.toList") then
