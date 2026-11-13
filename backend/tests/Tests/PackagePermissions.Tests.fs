@@ -782,12 +782,18 @@ let cliRaiseSitesMatchTheBaseline =
       lines |> List.sumBy (fun line -> int (line.Split(' ')[0]))
     let notIn (other : List<string>) (lines : List<string>) =
       lines |> List.filter (fun line -> not (List.contains line other))
-    Expect.isEmpty
+    let rewrite =
+      "scripts/run-local-exec raise-sites --write backend/tests/cli-raise-sites.txt"
+    let fail (what : string) (fix : string) (lines : List<string>) =
+      if not (List.isEmpty lines) then
+        let shown = lines |> List.map (fun line -> $"  {line}") |> String.concat "\n"
+        failtest
+          $"{what} raising calls ({total found} now, {total listed} listed); {fix}:\n{shown}"
+    fail
+      "new or more"
+      $"use a checked variant, or if the raise is deliberate rewrite with `{rewrite}`"
       (notIn listed found)
-      $"new or more raising calls ({total found} now, {total listed} listed); use a checked variant"
-    Expect.isEmpty
-      (notIn found listed)
-      $"fewer raising calls ({total found} now, {total listed} listed); rewrite the baseline"
+    fail "fewer" $"rewrite with `{rewrite}`" (notIn found listed)
   }
 
 let tests =
