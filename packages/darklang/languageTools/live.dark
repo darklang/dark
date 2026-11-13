@@ -482,10 +482,16 @@ let issueText(issue: LanguageTools.AtRestTypeChecker.Issue): String =
   let detail =
     match (issue.expected, issue.actual) with
     | (Some(expected), Some(actual)) ->
+      let hint =
+        match issue.code with
+        | TypeMismatch ->
+          LanguageTools.AtRestTypeChecker.pairParameterHint(expected, actual)
+        | _ -> ""
       Stdlib.Option.Option.Some("expected "
          + (LanguageTools.AtRestTypeChecker.staticTypeToString(expected))
          + ", got "
-         + (LanguageTools.AtRestTypeChecker.staticTypeToString(actual)))
+         + (LanguageTools.AtRestTypeChecker.staticTypeToString(actual))
+         + hint)
     | _ -> Stdlib.Option.Option.None
 
   match (detail, site) with
