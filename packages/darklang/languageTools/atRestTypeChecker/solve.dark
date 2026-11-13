@@ -1266,22 +1266,26 @@ let useFunction(
       let s =
         match fn with
         | TraitMethod(method) ->
-          match Stdlib.List.head(t.typeParams) with
-          | Some(selfParam) ->
-            match Stdlib.Dict.get(mapping, selfParam) with
-            | Some(selfTy) ->
-              solve(
-                s,
-                (unaryOperatorCall(s.env, at, method.trait_, method.method_, selfTy)
-                 |> Stdlib.Option.withDefault(
-                   Model.Constraint.TraitCall(
-                     at,
-                     method.trait_,
-                     method.method_,
-                     selfTy
-                   ))))
+          match method.implFn with
+          // Use the saved implementation's signature without choosing another.
+          | Chosen(_) -> s
+          | _ ->
+            match Stdlib.List.head(t.typeParams) with
+            | Some(selfParam) ->
+              match Stdlib.Dict.get(mapping, selfParam) with
+              | Some(selfTy) ->
+                solve(
+                  s,
+                  (unaryOperatorCall(s.env, at, method.trait_, method.method_, selfTy)
+                   |> Stdlib.Option.withDefault(
+                     Model.Constraint.TraitCall(
+                       at,
+                       method.trait_,
+                       method.method_,
+                       selfTy
+                     ))))
+              | None -> s
             | None -> s
-          | None -> s
         | _ -> s
 
       let s =
