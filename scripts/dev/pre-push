@@ -8,7 +8,8 @@
 #
 # --quick runs, in order:
 #   lint (shellcheck), format check, the build-planning tests, the .circleci python tests (one of them
-#   fails when a gate has no entry in collect_diagnostics.py), a Debug build (the typecheck),
+#   fails when a gate has no entry in collect_diagnostics.py), the check that
+#   NormalizationData.fs is what its generator writes, a Debug build (the typecheck),
 #   the `builtin` test list (access rules, one package caller per builtin), and the
 #   shipped-tree-typechecks gate (every shipped fn, which only `gates ci` checks otherwise).
 #
@@ -100,6 +101,7 @@ step format scripts/formatting/format check \
 step build-planning-tests scripts/testing/test-build-planning.py
 step suite-slot-tests scripts/testing/test-suite-slot
 step ci-python-tests ci_python_tests
+step normalization-data scripts/build/generate-normalization-data --check
 
 if [[ "$MODE" == quick ]]; then
   if step build scripts/dev/build; then

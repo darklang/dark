@@ -24,6 +24,8 @@
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
     <!-- Additional aggressive settings -->
+    <!-- No ICU, so .NET's String.Normalize does nothing here. Dark normalizes with
+         Prelude/Normalization.fs instead, which needs no ICU. -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- No translated satellite assemblies: with invariant globalization they are never loaded,
          and FSharp.Core's 13 were compiled into the binary. -->

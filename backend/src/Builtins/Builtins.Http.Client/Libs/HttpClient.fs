@@ -120,7 +120,11 @@ let headersType = TList(TTuple(TString, TString, []))
 let private headersToDval (headers : List<string * string>) : Dval =
   headers
   |> List.map (fun (k, v) ->
-    DTuple(DString(String.toLowercase k), DString(String.toLowercase v), []))
+    DTuple(
+      DString(String.normalizeOutside (String.toLowercase k)),
+      DString(String.normalizeOutside (String.toLowercase v)),
+      []
+    ))
   |> Dval.list (KTTuple(VT.string, VT.string, []))
 
 /// The Dval header list, as written; the interpreter has checked its type.

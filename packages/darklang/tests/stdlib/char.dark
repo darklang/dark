@@ -13,7 +13,7 @@ let eCombiningAcute(): Char =
 let family(): Char =
   "👩‍👩‍👧‍👦" |> Stdlib.String.head |> Builtin.unwrap
 
-// Decoded rather than written, so the parser does not compose it into `é`.
+// `e` and a combining acute accent, decoded rather than written: decoding composes them into `é`.
 let decomposedE(): Char =
   Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 101u8, 204u8, 129u8 ]))
   |> Stdlib.String.head
@@ -222,8 +222,8 @@ test isLessThan =
       Stdlib.Char.isLessThan('ｱ', family()) |> Stdlib.Test.equal(true)
       Stdlib.Char.isLessThan('ｱ', flag()) |> Stdlib.Test.equal(true)
       Stdlib.Char.isLessThan('ｱ', hand()) |> Stdlib.Test.equal(false)
-      // `e` then a combining accent sorts before the composed `é`, U+00E9.
-      Stdlib.Char.isLessThan(decomposedE(), 'é') |> Stdlib.Test.equal(true)
+      Stdlib.Char.isLessThan(decomposedE(), 'é') |> Stdlib.Test.equal(false)
+      decomposedE() == 'é' |> Stdlib.Test.equal(true)
       'ｱ' < smiley() |> Stdlib.Test.equal(true)
       smiley() >= 'ｱ' |> Stdlib.Test.equal(true) ])
 

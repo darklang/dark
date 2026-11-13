@@ -255,7 +255,3 @@ even if a test module also names it. Package tests run separately.
 
 The old runner compared floats approximately and handled NaN and blob contents
 specially. Those assertions needed rewriting when the tests moved to Dark.
-
-Unicode normalization checks are still commented out because the CLI uses
-`InvariantGlobalization=true`. To restore them, switch it to `false` and verify
-ICU support.

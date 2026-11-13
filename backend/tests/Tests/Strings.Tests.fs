@@ -39,6 +39,7 @@ let private alphabet =
      "\uD83C\uDFFD"
      "|" |]
 
+/// NFC, as every Dark string is.
 let private piece (rng : System.Random) : string =
   if rng.Next 6 = 0 then
     String.replicate (rng.Next(1, 400)) "xyz "
@@ -46,6 +47,7 @@ let private piece (rng : System.Random) : string =
     String.concat
       ""
       (List.init (rng.Next(1, 6)) (fun _ -> alphabet[rng.Next alphabet.Length]))
+    |> String.normalizeOutside
 
 /// The pieces joined in a random shape, and the same shape appended eagerly.
 let rec private build
@@ -53,7 +55,7 @@ let rec private build
   (pieces : string[])
   : DarkString * string =
   if pieces.Length = 1 then
-    DarkString pieces[0], String.normalize pieces[0]
+    DarkString pieces[0], pieces[0]
   else
     let k = rng.Next(1, pieces.Length)
     let a, ea = build rng pieces[.. k - 1]
@@ -130,7 +132,7 @@ let tests =
       }
 
       test "a hundred thousand appends either way read without running out of stack" {
-        let pieces = Array.init 100_000 (fun i -> if i % 3 = 0 then "é" else "ab")
+        let pieces = Array.init 100_000 (fun i -> [| "e"; "\u0301"; "ab" |][i % 3])
         let left =
           pieces
           |> Array.fold

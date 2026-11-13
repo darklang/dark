@@ -2536,7 +2536,7 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
       // triple-quoted `$"""…"""` stays raw but is NFC-normalized (like `unescape`)
       // so both lowerings see canonical bytes.
       let segText =
-        if triple then deDoubled.Normalize() else Lexer.unescape deDoubled
+        if triple then String.normalize deDoubled else Lexer.unescape deDoubled
       contents.Add(WT.StringText(rangeAt textStart endOff, segText))
   while go && k < m do
     let atClose =
