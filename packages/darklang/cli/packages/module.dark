@@ -185,7 +185,8 @@ let define(
           LanguageTools.Parser.Parse.moduleToPackageOps(ctx, rootModule)
         let updates = Propagate.updatedItems(branchId, ops)
 
-        let refused = Errors.reportUnresolvedNames(branchId, unresolvedNames)
+        let home = Stdlib.List.prepend(baseLocation.modules, baseLocation.owner)
+        let refused = Errors.reportUnresolvedNames(branchId, home, unresolvedNames)
 
         if bundled && Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedNames)) then
           Cli.failed(state)

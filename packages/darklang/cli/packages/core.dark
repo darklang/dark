@@ -488,7 +488,8 @@ let saveAuthored(
   // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
   let (ops, hash, unresolvedNames) = converted
 
-  if Errors.reportUnresolvedNames(state.currentBranchId, unresolvedNames) then
+  let home = Stdlib.List.prepend(location.modules, location.owner)
+  if Errors.reportUnresolvedNames(state.currentBranchId, home, unresolvedNames) then
     failState
   else
     match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
