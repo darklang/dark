@@ -489,11 +489,12 @@ let __breaksLoop(width: Int64, col: Int64, items: List<(Int64 * Mode * Doc)>): B
     | Concat(a, b) ->
       __breaksLoop(width, col, List.prepend(List.prepend(rest, (i, m, b)), (i, m, a)))
     | Nest(j, x) -> __breaksLoop(width, col, List.prepend(rest, (i + j, m, x)))
+    // Flat, a group breaks nowhere and takes the width it was measured at.
     | Group(x, w) ->
-      if m == Mode.Flat || w >= 0 && __fits(false, width - col - w, rest) then
-        __breaksLoop(width, col, List.prepend(rest, (i, Mode.Flat, x)))
+      if w >= 0 && (m == Mode.Flat || __fits(false, width - col - w, rest)) then
+        __breaksLoop(width, col + w, rest)
       else
-        __breaksLoop(width, col, List.prepend(rest, (i, Mode.Break, x)))
+        __breaksLoop(width, col, List.prepend(rest, (i, m, x)))
     | Align(x) -> __breaksLoop(width, col, List.prepend(rest, (col, m, x)))
     | IfFlat(a, b) ->
       let chosen = if m == Mode.Flat then a else b
