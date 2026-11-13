@@ -286,6 +286,22 @@ module HandleCommand =
       return Ok()
     }
 
+  /// Calls passing a bare `true`/`false` to a `Bool` parameter (`LibDB.BoolFlagSites`).
+  /// With a path, writes the baseline `BoolFlagSites.Tests` compares against.
+  let boolFlagSites (baseline : Option<string>) : Ply<Result<unit, string>> =
+    uply {
+      let! names = LibDB.Raises.allFnNames ()
+      let! sites = LibDB.BoolFlagSites.find names
+      let lines = LibDB.BoolFlagSites.baselineLines sites
+      lines |> List.iter print
+      match baseline with
+      | Some path ->
+        System.IO.File.WriteAllLines(path, lines)
+        print $"wrote {path}"
+      | None -> ()
+      return Ok()
+    }
+
   /// Scan `package_values.rt_dval` for referenced blob hashes and
   /// delete any `package_blobs` rows that aren't referenced.
   /// What is reachable, from the entry points a person actually drives.
@@ -751,6 +767,16 @@ let main (args : string[]) : int =
         $"writing the CLI's raise sites to {path}"
         (HandleCommand.raiseSites (Some path))
 
+    | [ "bool-flag-sites" ] ->
+      handleCommand
+        "listing bare true/false calls to Bool parameters"
+        (HandleCommand.boolFlagSites None)
+
+    | [ "bool-flag-sites"; "--write"; path ] ->
+      handleCommand
+        $"writing bare true/false calls to {path}"
+        (HandleCommand.boolFlagSites (Some path))
+
     | [ "pm-sweep-blobs" ] ->
       handleCommand
         "sweeping orphan package_blobs rows"
@@ -777,6 +803,7 @@ let main (args : string[]) : int =
       print "  pm-sweep-blobs"
       print "  reachability"
       print "  raise-sites [--write <baseline>]"
+      print "  bool-flag-sites [--write <baseline>]"
       print "  bench"
       print "  bench-render"
       NonBlockingConsole.wait ()

@@ -306,6 +306,10 @@ usage and exits 255. It reports `.dark` as `ignored`, so Dark is on you. Aim for
 there anyway. Some existing Dark files
 don't: `scm/packageOps.dark` is written wider, and is not worth reflowing just to close the gap.
 
+Don't take a Bool that callers pass as a bare `true`/`false`; use a two-case enum named
+for what it means (see #6150). `backend/tests/bool-flag-sites.txt` lists the calls left, and a
+test fails on a new one.
+
 ## Where the rest is
 
     docs/agent-traps.md      every trap the quickstart lists, and the rest, with what each cost

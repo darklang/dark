@@ -475,7 +475,7 @@ let nestedEvaluationKeepsRestrictions =
           path,
           "let result = Darklang.Cli.Eval.evaluateValue(None, "
           + "Darklang.SCM.Branch.mainBranchId, "
-          + "\"Stdlib.Env.get(\\\"NESTED_PRIVATE_TOKEN\\\")\", false)\n"
+          + "\"Stdlib.Env.get(\\\"NESTED_PRIVATE_TOKEN\\\")\", Darklang.Cli.Eval.Harmful.Halt)\n"
           + "match result with\n"
           + "| Error(Denied(denial)) -> Stdlib.printLine(denial.resource)\n"
           + "| _ -> Stdlib.printLine(\"unexpected result\")"
@@ -505,7 +505,7 @@ let nestedEvaluationCannotResetCallerAccess =
         let guest = { host with canManagePolicies = false }
         let code =
           "Darklang.Cli.Eval.evaluateValue(None, Darklang.SCM.Branch.mainBranchId, "
-          + "\"Stdlib.DateTime.now()\", false)"
+          + "\"Stdlib.DateTime.now()\", Darklang.Cli.Eval.Harmful.Halt)"
         let! allowed = evalUnder guest code
         match allowed with
         | RT.DEnum(_, _, _, "Ok", _) -> ()

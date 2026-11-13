@@ -722,7 +722,7 @@ let refreshPeek(next: State): State =
           let fullpath =
             Stdlib.String.join(Stdlib.List.append(Packages.modulePathOf(next.location), item.name), ".")
           captureOutput(fun () ->
-            Eval.evaluateRaw(next.accountId, next.branchId, fullpath + " ()", [], false))
+            Eval.evaluateRaw(next.accountId, next.branchId, fullpath + " ()", [], Eval.Harmful.Halt))
         else
           ""
       | None -> ""

@@ -1,6 +1,10 @@
 /// Eval command - evaluate Dark expressions
 module Darklang.Cli.Eval
 
+/// Whether code marked harmful (deprecated as harmful) may run, or halts with an error.
+type Harmful =
+  | Allow
+  | Halt
 
 /// Evaluate an expression and hand back the value it produced, not its printed text. A fn's name
 /// evaluates to the fn.
@@ -8,8 +12,12 @@ let evaluateValue(
   accountID: Stdlib.Option.Option<Uuid>,
   branchId: Uuid,
   expr: String,
-  allowHarmful: Bool)
+  harmful: Harmful)
   : Stdlib.Result.Result<'a, ExecutionError.ExecutionError> =
+  let allowHarmful =
+    match harmful with
+    | Allow -> true
+    | Halt -> false
   Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful)
 
 
@@ -19,11 +27,11 @@ let evaluateRaw(
   branchId: Uuid,
   expr: String,
   currentModule: List<String>,
-  allowHarmful: Bool)
+  harmful: Harmful)
   : Stdlib.Result.Result<
       Stdlib.Option.Option<String>,
       ExecutionError.ExecutionError> =
-  match evaluateValue(accountID, branchId, expr, allowHarmful) with
+  match evaluateValue(accountID, branchId, expr, harmful) with
   | Ok(value) ->
     // Unit has no output, and a string prints without its quotes.
     match LanguageTools.RuntimeTypes.reflect(value) with
@@ -50,14 +58,14 @@ let evaluateRaw(
 let evaluate(
   state: AppState,
   expr: String,
-  allowHarmful: Bool)
+  harmful: Harmful)
   : Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
   // Where the user is standing, so the printed value spells names the way they would.
   let currentModule =
     Packages.Traversal.getCurrentModulePath(state.packageData.currentLocation)
 
   match
-    evaluateRaw(state.accountID, state.currentBranchId, expr, currentModule, allowHarmful)
+    evaluateRaw(state.accountID, state.currentBranchId, expr, currentModule, harmful)
   with
   | Ok(result) -> Stdlib.Result.Result.Ok(result)
   | Error(err) ->
@@ -66,8 +74,8 @@ let evaluate(
 
 
 let execute(state: AppState, args: List<String>): AppState =
-  let allowHarmful =
-    Stdlib.List.contains(args, "--allow-harmful")
+  let harmful =
+    if Stdlib.List.contains(args, "--allow-harmful") then Harmful.Allow else Harmful.Halt
   // What the expression cost, net of the measuring harness itself: see Perf.floor.
   let wantStats =
     Stdlib.List.contains(args, "--stats")
@@ -98,11 +106,11 @@ let execute(state: AppState, args: List<String>): AppState =
         let harness = LanguageTools.Perf.floor()
 
         let (raw, result) =
-          LanguageTools.Perf.measure(fun () -> evaluate(state, expr, allowHarmful))
+          LanguageTools.Perf.measure(fun () -> evaluate(state, expr, harmful))
 
         (Stdlib.Option.Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
       else
-        (Stdlib.Option.Option.None, evaluate(state, expr, allowHarmful))
+        (Stdlib.Option.Option.None, evaluate(state, expr, harmful))
 
     let newState =
       match outcome with

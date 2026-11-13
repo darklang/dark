@@ -86,7 +86,7 @@ module InvalidType =
   test unknownTypeRaises =
     let branch = Darklang.SCM.PackageOps.currentBranch()
     let source = "MyNonExistantType { col1 = 2 }"
-    match Darklang.Cli.Eval.evaluateRaw(None, branch, source, [], false) with
+    match Darklang.Cli.Eval.evaluateRaw(None, branch, source, [], Darklang.Cli.Eval.Harmful.Halt) with
     | Error(Runtime(error, _)) ->
       Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString(branch, error)
       |> Stdlib.Test.equal("MyNonExistantType not found")
@@ -96,7 +96,7 @@ module InvalidType =
   test intIsNotAType =
     let branch = Darklang.SCM.PackageOps.currentBranch()
     let source = "let f(x: Int): Int64 = 1\nf(1)"
-    match Darklang.Cli.Eval.evaluateRaw(None, branch, source, [], false) with
+    match Darklang.Cli.Eval.evaluateRaw(None, branch, source, [], Darklang.Cli.Eval.Harmful.Halt) with
     | Error(Runtime(error, _)) ->
       Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString(branch, error)
       |> Stdlib.Test.equal("Int not found (an integer is an Int64, like `1`, or a BigInt, like `1z`)")

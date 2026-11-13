@@ -230,6 +230,7 @@ let main (args : string array) : int =
         Tests.Stream.tests
         Tests.Permissions.tests
         Tests.PackagePermissions.tests
+        Tests.BoolFlagSites.tests
         Tests.PermissionEscape.tests
         Tests.PolicyStore.tests
         Tests.Host.tests ]
