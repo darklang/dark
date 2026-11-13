@@ -128,18 +128,35 @@ let deduplicate(
         Stdlib.Bool.not(sameOrMirrored(issue, other)))
     Stdlib.List.prepend(deduplicate(remaining), issue)
 
+/// Where in the saved source a node starts, as "line:column", when its id carries it
+/// (see <fn LanguageTools.WrittenTypesToProgramTypes.gidAt>).
+let position(nodeId: Stdlib.Option.Option<UInt64>): Stdlib.Option.Option<String> =
+  match nodeId with
+  | Some(id) when id >= 2305843009213693952u64 ->
+    let rest = id - 2305843009213693952u64
+    let row = rest / 137438953472u64
+    let column = (rest / 2097152u64) % 65536u64
+    Stdlib.Option.Option.Some($"line {row + 1u64}, column {column + 1u64}")
+  | _ -> Stdlib.Option.Option.None
+
 let issueLines(
   branchId: Uuid,
   issues: List<LanguageTools.AtRestTypeChecker.Issue>)
   : List<String> =
   issues
   |> deduplicate
-  |> Stdlib.List.map(fun issue -> issueLine(branchId, issue))
-  |> Stdlib.List.groupBy(fun line -> line)
+  |> Stdlib.List.map(fun issue -> (issueLine(branchId, issue), position(issue.nodeId)))
+  |> Stdlib.List.groupBy(fun((line, _)) -> line)
   |> Stdlib.List.map(fun((line, occurrences)) ->
     let count = Stdlib.List.length(occurrences)
-    if count == 1 then line
-    else line + " (" + Stdlib.display(count) + " occurrences)")
+    let at =
+      occurrences
+      |> Stdlib.List.filterMap(fun((_, pos)) -> pos)
+      |> Stdlib.List.unique
+    match at with
+    | [] -> if count == 1 then line else line + " (" + Stdlib.display(count) + " occurrences)"
+    | [ one ] when count == 1 -> line + " (" + one + ")"
+    | many -> line + " (" + Stdlib.String.join(many, "; ") + ")")
 
 let summary(
   report: LanguageTools.AtRestTypeChecker.Report)

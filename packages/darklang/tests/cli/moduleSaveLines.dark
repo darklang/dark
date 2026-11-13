@@ -1,0 +1,21 @@
+/// A module save names the line and column of each type error, so a long module is not a hunt.
+module Darklang.Cli.Tests.ModuleSaveLines
+
+test eachOccurrenceHasItsLine =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/lines.dark"
+    let source =
+      [ "let count(xs: List<String>): Int64 ="
+        "  match xs with"
+        "  | Ok(names) -> 1"
+        "  | Error(_) -> 0"
+        ""
+        "let add(n: Int64): Int64 ="
+        "  n + \"x\"" ]
+      |> Stdlib.String.join("\n")
+    let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+    let (_, out) = Instance.ran(i, [ "module", "/Me.Lines", path ])
+
+    Stdlib.Test.all(
+      [ Instance.says(out, "(line 3, column 5; line 4, column 5)", "both patterns, each with its line")
+        Instance.says(out, "(line 7, column 7)", "the operand") ]))
