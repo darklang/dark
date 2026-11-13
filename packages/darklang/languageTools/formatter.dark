@@ -117,15 +117,21 @@ type Formatted =
 /// <param d>'s lines of <param file>, less its own indentation and any trailing spaces: what is
 /// printed when the item can't be, or when printing it would lose a comment.
 let sourceOf(file: File, d: Declaration): String =
-  Stdlib.String.slice(file.text, d.startOffset, d.endOffset)
-  |> Stdlib.String.split("\n")
-  |> Stdlib.List.map(fun line ->
-    let trimmed = Stdlib.String.trimEnd(line)
-    let lead =
-      Stdlib.String.length(trimmed) - Stdlib.String.length(Stdlib.String.trimStart(trimmed))
-
-    Stdlib.String.dropFirst(trimmed, Stdlib.min(d.column, lead)))
+  linesOf(file, d)
+  |> Stdlib.List.map(fun line -> unindented(d, line))
   |> Stdlib.String.join("\n")
+
+
+/// <param d>'s lines of <param file>, exactly as written.
+let linesOf(file: File, d: Declaration): List<String> =
+  Stdlib.String.slice(file.text, d.startOffset, d.endOffset) |> Stdlib.String.split("\n")
+
+
+/// <param line> of <param d> less <param d>'s own indentation and any trailing spaces.
+let unindented(d: Declaration, line: String): String =
+  let trimmed = Stdlib.String.trimEnd(line)
+  let lead = Stdlib.String.length(trimmed) - Stdlib.String.length(Stdlib.String.trimStart(trimmed))
+  Stdlib.String.dropFirst(trimmed, Stdlib.min(d.column, lead))
 
 
 /// A packed position's row.
@@ -240,8 +246,12 @@ let placeComments(file: File): List<Comment> =
 
 /// Every `///` line in <param source>, in order and trimmed.
 let docLines(source: String): List<String> =
-  source
-  |> Stdlib.String.split("\n")
+  docLinesOf(Stdlib.String.split(source, "\n"))
+
+
+/// Every `///` line in <param lines>, in order and trimmed.
+let docLinesOf(lines: List<String>): List<String> =
+  lines
   |> Stdlib.List.map(fun l -> Stdlib.String.trim(l))
   |> Stdlib.List.filter(fun l -> Stdlib.String.startsWith(l, "///"))
 
@@ -286,7 +296,11 @@ let byKey(cs: List<Comment>, key: Comment -> String): Dict<String, List<Comment>
 
 /// The line <param d>'s code starts on, after its `///` lines.
 let codeRow(file: File, d: Declaration): Int64 =
-  let lines = Stdlib.String.split(sourceOf(file, d), "\n")
+  codeRowIn(d, linesOf(file, d))
+
+
+/// <fn codeRow>, given <param d>'s lines.
+let codeRowIn(d: Declaration, lines: List<String>): Int64 =
   let docLines =
     lines
     |> Stdlib.List.takeWhile(fun l ->
@@ -355,7 +369,8 @@ let declaration(
   own: List<Comment>,
   d: Declaration)
   : (String * String * List<String>) =
-  let start = codeRow(file, d)
+  let lines = linesOf(file, d)
+  let start = codeRowIn(d, lines)
 
   // Comments on lines of their own before the declaration's code go above it, and above its
   // `///`. Printed as written, a declaration's source already holds the ones inside it.
@@ -396,7 +411,9 @@ let declaration(
         hasComments = Stdlib.Bool.not(Stdlib.List.isEmpty(inside))
         knownBindings = Option.Some(known) }
 
-  let asWritten = (aboveText, sourceOf(file, d), [ declarationName(file, d) ])
+  let asWritten(): (String * String * List<String>) =
+    (aboveText, sourceOf(file, d), [ declarationName(file, d) ])
+
   let printed =
     match d.item with
     | Fn(name, fn) -> Option.Some(PrettyPrinter.ProgramTypes.packageFnNamed(ctx, name, fn))
@@ -412,10 +429,9 @@ let declaration(
   | Module(name, header, inner) ->
     // A module's `///` lines are its own; nothing lowers them, so they come from the source.
     let docText =
-      sourceOf(file, d)
-      |> Stdlib.String.split("\n")
+      lines
       |> Stdlib.List.take(start - d.row)
-      |> Stdlib.List.map(fun l -> l + "\n")
+      |> Stdlib.List.map(fun l -> unindented(d, l) + "\n")
       |> Stdlib.String.join("")
 
     let innerPath = Stdlib.List.concat(path, Stdlib.String.split(name, "."))
@@ -433,12 +449,12 @@ let declaration(
       // local fn, isn't printed.
       if
         Stdlib.List.all(inside, fun c -> Stdlib.String.contains(text, c.text))
-        && docLines(text) == docLines(sourceOf(file, d))
+        && docLines(text) == docLinesOf(lines)
       then
         (aboveText, text, [])
       else
-        asWritten
-    | None -> asWritten
+        asWritten()
+    | None -> asWritten()
 
 
 /// How many columns narrower test code is laid out than other code, so that more of it fits on a
