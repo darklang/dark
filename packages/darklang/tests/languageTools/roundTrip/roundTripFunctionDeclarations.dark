@@ -69,9 +69,9 @@ test functionDeclarations =
         "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = (fun x -> x + 2)\n    let lambdaResult = incr(z)\n    result + lambdaResult")
       roundTrip(
         "keyword-named parameter",
-        "let f(``in``: String): String = ``in``",
-        "let f(``in``: String): String =\n  ``in``")
+        "let f(`in`: String): String = `in`",
+        "let f(`in`: String): String =\n  `in`")
       roundTrip(
         "keyword-named fn, and a call to it",
-        "let ``match``(s: String): String = s\nlet g(): String = ``match``(\"x\")",
-        "let ``match``(s: String): String =\n  s\n\nlet g(): String =\n  ``match``(\"x\")") ])
+        "let `match`(s: String): String = s\nlet g(): String = `match`(\"x\")",
+        "let `match`(s: String): String =\n  s\n\nlet g(): String =\n  `match`(\"x\")") ])

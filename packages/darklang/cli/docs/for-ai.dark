@@ -98,7 +98,8 @@ runner approval, without asking in chat first. Retry only if safe. Details:
 - `f(x)?` returns early from the function on `Error` or `None`.
 - Modules are not values: `let c = Stdlib.List` is invalid.
 - A nested function annotates its parameters and cannot call one defined below it.
-- A keyword such as `type` is a name only in double backticks: ``type``.
+- A keyword such as type is a name in backticks: let `type` = 1. After a `.` and
+  as a record field name it needs none: r.type, { type = 1 }.
 - `Stdlib.X` is `Darklang.Stdlib.X`. Your own names go under an owner such as
   `Me`; `Darklang` is reserved.
 

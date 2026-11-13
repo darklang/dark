@@ -159,7 +159,7 @@ let builtinCallable(
   env: Model.Environment,
   fn: LanguageTools.BuiltinFunction)
   : (Model.Callable * Model.Environment) =
-  let parameterTypes = Stdlib.List.map(fn.parameters, fun p -> p.``type``)
+  let parameterTypes = Stdlib.List.map(fn.parameters, fun p -> p.type)
 
   let parameterVariables =
     Stdlib.List.flatten(Stdlib.List.map(parameterTypes, runtimeVariables))
@@ -272,7 +272,7 @@ let builtinValueType(
   match name with
   | Builtin(name) ->
     (LanguageTools.findBuiltinValue(name.name, name.version))
-    |> Stdlib.Option.map(fun value -> fromRuntimeType(value.``type``))
+    |> Stdlib.Option.map(fun value -> fromRuntimeType(value.type))
   | Package(_) -> Stdlib.Option.Option.None
 
 /// A runtime type reference as the checker's own type, for comparing against one it inferred.
@@ -631,7 +631,7 @@ let functionNameRefs(
       else
         match LanguageTools.findBuiltinFn(builtinName.name, builtinName.version) with
         | Some(builtin) ->
-          (Stdlib.List.prepend(Stdlib.List.map(builtin.parameters, fun p -> p.``type``), builtin.returnType))
+          (Stdlib.List.prepend(Stdlib.List.map(builtin.parameters, fun p -> p.type), builtin.returnType))
           |> Stdlib.List.map(fun t -> fromRuntimeType(t))
           |> typeListRefs
         | None -> []

@@ -30,13 +30,13 @@ impl Multiply for UInt16 =
 impl Power for UInt16 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
-  let power(``base``: UInt16, exponent: UInt16): UInt16 =
+  let power(`base`: UInt16, exponent: UInt16): UInt16 =
     // The signed types push this into the builtin; here the ladder stays, because an
     // unsigned exponent is never negative, so there is no error case to push.
-    if ``base`` == 0u16 && exponent == 0u16 then 1u16
-    else if ``base`` == 0u16 then 0u16
-    else if ``base`` == 1u16 then 1u16
-    else Builtin.power(``base``, exponent)
+    if `base` == 0u16 && exponent == 0u16 then 1u16
+    else if `base` == 0u16 then 0u16
+    else if `base` == 1u16 then 1u16
+    else Builtin.power(`base`, exponent)
 
 
 impl Divide for UInt16 =
@@ -58,8 +58,8 @@ impl Compare for UInt16 =
 
 
 /// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
-let random(start: UInt16, ``end``: UInt16): UInt16 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt16(start), Stdlib.BigInt.fromUInt16(``end``))
+let random(start: UInt16, `end`: UInt16): UInt16 =
+  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt16(start), Stdlib.BigInt.fromUInt16(`end`))
   |> Stdlib.BigInt.toUInt16
   |> Builtin.unwrap
 
@@ -220,17 +220,17 @@ let checkedAbsoluteValue(a: UInt16)
 /// <param base> raised to the power of <param exponent>, or {{Error Overflow}}
 /// where `**` would wrap
 let checkedPower(
-  ``base``: UInt16,
+  `base`: UInt16,
   exponent: UInt16)
   : Stdlib.Result.Result<UInt16, Stdlib.Math.PowerError> =
-  if ``base`` == 0u16 || ``base`` == 1u16 then
+  if `base` == 0u16 || `base` == 1u16 then
     // 0 and 1 never grow, so `**` is exact whatever the exponent
-    Ok(``base`` ** exponent)
+    Ok(`base` ** exponent)
   else if exponent >= 16u16 then
     // any other base is at least 2 from zero, and 2 ** 16 is past the UInt16 range
     Error(Stdlib.Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromUInt16(``base``) ** Stdlib.BigInt.fromUInt16(exponent)
+    let result = Stdlib.BigInt.fromUInt16(`base`) ** Stdlib.BigInt.fromUInt16(exponent)
 
     match Stdlib.BigInt.toUInt16(result) with
     | Some(fits) -> Ok(fits)

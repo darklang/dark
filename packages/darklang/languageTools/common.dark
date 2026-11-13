@@ -12,7 +12,7 @@ type Sign =
 
 type BuiltinFunctionParameter =
   { name: String
-    ``type``: RuntimeTypes.TypeReference }
+    type: RuntimeTypes.TypeReference }
 
 /// Whether a builtin always answers the same way (mirrors RT.Previewable in F#). A label for a
 /// reader; what the runtime decides on is the builtin's effects.
@@ -46,7 +46,7 @@ let findBuiltinFn(name: String, version: Int32): Stdlib.Option.Option<BuiltinFun
 type BuiltinValue =
   { name: RuntimeTypes.FQValueName.Builtin
     description: String
-    ``type``: RuntimeTypes.TypeReference }
+    type: RuntimeTypes.TypeReference }
 
 /// Every builtin value this runtime has. Built fresh on each call.
 let allBuiltinValues(): List<BuiltinValue> =

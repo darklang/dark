@@ -38,8 +38,8 @@ impl Power for Int64 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power(``base``: Int64, exponent: Int64): Int64 =
-    Builtin.power(``base``, exponent)
+  let power(`base`: Int64, exponent: Int64): Int64 =
+    Builtin.power(`base`, exponent)
 
 
 impl Negate for Int64 =
@@ -61,8 +61,8 @@ impl Compare for Int64 =
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random(start: Int64, ``end``: Int64): Int64 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromInt64(start), Stdlib.BigInt.fromInt64(``end``))
+let random(start: Int64, `end`: Int64): Int64 =
+  Stdlib.BigInt.random(Stdlib.BigInt.fromInt64(start), Stdlib.BigInt.fromInt64(`end`))
   |> Stdlib.BigInt.toInt64
   |> Builtin.unwrap
 
@@ -255,19 +255,19 @@ let checkedAbsoluteValue(a: Int64)
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(
-  ``base``: Int64,
+  `base`: Int64,
   exponent: Int64)
   : Stdlib.Result.Result<Int64, Stdlib.Math.PowerError> =
   if exponent < 0 then
     Error(Stdlib.Math.PowerError.NegativeExponent)
-  else if ``base`` == 0 || ``base`` == 1 || ``base`` == -1 then
+  else if `base` == 0 || `base` == 1 || `base` == -1 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Ok(``base`` ** exponent)
+    Ok(`base` ** exponent)
   else if exponent >= 64 then
     // any other base is at least 2 from zero, and 2 ** 64 is past the Int64 range
     Error(Stdlib.Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromInt64(``base``) ** Stdlib.BigInt.fromInt64(exponent)
+    let result = Stdlib.BigInt.fromInt64(`base`) ** Stdlib.BigInt.fromInt64(exponent)
 
     match Stdlib.BigInt.toInt64(result) with
     | Some(fits) -> Ok(fits)

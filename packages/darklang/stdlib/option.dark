@@ -192,7 +192,7 @@ let toResult(
 
 /// If <param option1> is {{Some _}}, then returns the value of <param option2>.
 /// Otherwise, returns {{None}}.
-let ``and``(
+let `and`(
   option1: Stdlib.Option.Option<'a>,
   option2: Stdlib.Option.Option<'b>)
   : Stdlib.Option.Option<'b> =
@@ -202,7 +202,7 @@ let ``and``(
 
 
 /// Returns <param option1> if it is {{Some _}}. Otherwise, returns <param option2>.
-let ``or``(
+let `or`(
   option1: Stdlib.Option.Option<'a>,
   option2: Stdlib.Option.Option<'a>)
   : Stdlib.Option.Option<'a> =

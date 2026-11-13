@@ -461,8 +461,8 @@ test nonStringKeysComputedKeys =
       (let x = "hello"
        Stdlib.Dict.keys(Dict { x: 1 }))
       |> Stdlib.Test.equal([ "hello" ])
-      (let ``type`` = "a value"
-       Stdlib.Dict.keys(Dict { ``type``: 1 }))
+      (let `type` = "a value"
+       Stdlib.Dict.keys(Dict { `type`: 1 }))
       |> Stdlib.Test.equal([ "a value" ]) ])
 
 test nonStringKeysFloatKeys =

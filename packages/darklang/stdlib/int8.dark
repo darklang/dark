@@ -33,8 +33,8 @@ impl Power for Int8 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power(``base``: Int8, exponent: Int8): Int8 =
-    Builtin.power(``base``, exponent)
+  let power(`base`: Int8, exponent: Int8): Int8 =
+    Builtin.power(`base`, exponent)
 
 
 impl Divide for Int8 =
@@ -61,8 +61,8 @@ impl Compare for Int8 =
 
 
 /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
-let random(start: Int8, ``end``: Int8): Int8 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromInt8(start), Stdlib.BigInt.fromInt8(``end``))
+let random(start: Int8, `end`: Int8): Int8 =
+  Stdlib.BigInt.random(Stdlib.BigInt.fromInt8(start), Stdlib.BigInt.fromInt8(`end`))
   |> Stdlib.BigInt.toInt8
   |> Builtin.unwrap
 
@@ -230,19 +230,19 @@ let checkedAbsoluteValue(a: Int8): Stdlib.Result.Result<Int8, Stdlib.Math.Overfl
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(
-  ``base``: Int8,
+  `base`: Int8,
   exponent: Int8)
   : Stdlib.Result.Result<Int8, Stdlib.Math.PowerError> =
   if exponent < 0s8 then
     Error(Stdlib.Math.PowerError.NegativeExponent)
-  else if ``base`` == 0s8 || ``base`` == 1s8 || ``base`` == -1s8 then
+  else if `base` == 0s8 || `base` == 1s8 || `base` == -1s8 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Ok(``base`` ** exponent)
+    Ok(`base` ** exponent)
   else if exponent >= 8s8 then
     // any other base is at least 2 from zero, and 2 ** 8 is past the Int8 range
     Error(Stdlib.Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromInt8(``base``) ** Stdlib.BigInt.fromInt8(exponent)
+    let result = Stdlib.BigInt.fromInt8(`base`) ** Stdlib.BigInt.fromInt8(exponent)
 
     match Stdlib.BigInt.toInt8(result) with
     | Some(fits) -> Ok(fits)

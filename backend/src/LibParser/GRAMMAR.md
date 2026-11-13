@@ -26,7 +26,9 @@ Normal identifiers start with a Unicode letter or `_`, followed by Unicode
 letters/digits, `_`, or `'`. Package names use a separate, stricter naming rule
 during name resolution.
 
-Backtick-quoted ``` ``name`` ``` permits anything up to the closing backticks.
+Backtick-quoted `` `name` `` permits anything but spaces up to the closing backtick,
+so a keyword can be a name: `` `type` ``. After a `.` and as a record field name a
+keyword needs no backticks: `r.type`, `{ type = 1 }`.
 `___` is the blank identifier and has the empty name.
 
 A leading `'` in type position lexes a type variable, such as `'a` or `'TModel`.

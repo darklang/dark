@@ -30,13 +30,13 @@ impl Multiply for UInt8 =
 impl Power for UInt8 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
-  let power(``base``: UInt8, exponent: UInt8): UInt8 =
+  let power(`base`: UInt8, exponent: UInt8): UInt8 =
     // The signed types push this into the builtin; here the ladder stays, because an
     // unsigned exponent is never negative, so there is no error case to push.
-    if ``base`` == 0u8 && exponent == 0u8 then 1u8
-    else if ``base`` == 0u8 then 0u8
-    else if ``base`` == 1u8 then 1u8
-    else Builtin.power(``base``, exponent)
+    if `base` == 0u8 && exponent == 0u8 then 1u8
+    else if `base` == 0u8 then 0u8
+    else if `base` == 1u8 then 1u8
+    else Builtin.power(`base`, exponent)
 
 
 impl Divide for UInt8 =
@@ -58,8 +58,8 @@ impl Compare for UInt8 =
 
 
 /// Returns a random 8 bit unsigned integer between <param start> and <param end> (inclusive)
-let random(start: UInt8, ``end``: UInt8): UInt8 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt8(start), Stdlib.BigInt.fromUInt8(``end``))
+let random(start: UInt8, `end`: UInt8): UInt8 =
+  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt8(start), Stdlib.BigInt.fromUInt8(`end`))
   |> Stdlib.BigInt.toUInt8
   |> Builtin.unwrap
 
@@ -218,17 +218,17 @@ let checkedAbsoluteValue(a: UInt8)
 /// <param base> raised to the power of <param exponent>, or {{Error Overflow}}
 /// where `**` would wrap
 let checkedPower(
-  ``base``: UInt8,
+  `base`: UInt8,
   exponent: UInt8)
   : Stdlib.Result.Result<UInt8, Stdlib.Math.PowerError> =
-  if ``base`` == 0u8 || ``base`` == 1u8 then
+  if `base` == 0u8 || `base` == 1u8 then
     // 0 and 1 never grow, so `**` is exact whatever the exponent
-    Ok(``base`` ** exponent)
+    Ok(`base` ** exponent)
   else if exponent >= 8u8 then
     // any other base is at least 2 from zero, and 2 ** 8 is past the UInt8 range
     Error(Stdlib.Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromUInt8(``base``) ** Stdlib.BigInt.fromUInt8(exponent)
+    let result = Stdlib.BigInt.fromUInt8(`base`) ** Stdlib.BigInt.fromUInt8(exponent)
 
     match Stdlib.BigInt.toUInt8(result) with
     | Some(fits) -> Ok(fits)

@@ -415,11 +415,10 @@ let private isKeyword (t : Token) : bool =
   | TFalse
   | TUnderscore -> false
   | _ -> keywords |> List.exists (fun (_, k) -> k = t)
-// "; `match` is a keyword, so to use it as a name write ``match``", or "" when
-// the token at `i` is no keyword. `prefix` goes in front of the escaped word. A
-// keyword that starts a line is more likely the next statement after a missing
-// name, so it gets no hint.
-let private keywordHint (state : ParserState) (i : int) (prefix : string) : string =
+// "; match is a keyword, so to use it as a name write `match`", or "" when the
+// token at `i` is no keyword. A keyword that starts a line is more likely the next
+// statement after a missing name, so it gets no hint.
+let private keywordHint (state : ParserState) (i : int) : string =
   if
     i > 0
     && i < state.tokenCount
@@ -427,31 +426,23 @@ let private keywordHint (state : ParserState) (i : int) (prefix : string) : stri
     && (rng state i).start.row = (rng state (i - 1)).end_.row
   then
     let w = txt state i
-    $"; `{w}` is a keyword, so to use it as a name write {prefix}``{w}``"
+    $"; {w} is a keyword, so to use it as a name write `{w}`"
   else
     ""
 // `errExpected` where a name is wanted, saying how to escape a keyword
 let errExpectedName (state : ParserState) (i : int) (what : string) =
-  let hint = keywordHint state i ""
+  let hint = keywordHint state i
   err
     state
     DiagnosticCode.expected
     i
     $"expected {what}, found {foundDesc state i}{hint}"
-// A keyword where a name goes, on the line of what comes before it: reported as
-// `errExpectedName` does, then read as the name it was meant to be, so the rest
-// parses and nothing more is reported.
-let private keywordAsName (state : ParserState) (i : int) (what : string) =
-  if keywordHint state i "" = "" then
-    None
-  else
-    errExpectedName state i what
-    Some(txt state i)
-// The name of a `name = value` or `name : Type` field at `k`, when `sep` follows it
-let private fieldName (state : ParserState) (k : int) (sep : Token) (what : string) =
+// The name of a `name = value` or `name : Type` field at `k`, when `sep` follows it.
+// Only a name goes there, so a keyword is one too: `{ type = 1 }`.
+let private fieldName (state : ParserState) (k : int) (sep : Token) =
   match tok state k with
   | TIdent name when tok state (k + 1) = sep -> Some name
-  | _ when tok state (k + 1) = sep -> keywordAsName state k what
+  | t when isKeyword t && tok state (k + 1) = sep -> Some(txt state k)
   | _ -> None
 // a missing closing delimiter: point back at its opener
 let errUnclosed
@@ -657,7 +648,7 @@ let rec private qualifiedSegments
       ((cur, rng state k) :: modsRev)
       { range = rng state (k + 1); name = s }
       (k + 2)
-  // `M.match`: say how to escape it, then read it as the name it was meant to be
+  // `M.match`: only a name goes after the dot, so a keyword is one too.
   // Only directly after the dot: `M.` then a newline is a name still being typed.
   | TDot, t when
     isKeyword t
@@ -665,14 +656,6 @@ let rec private qualifiedSegments
     && (rng state k).end_ = (rng state (k + 1)).start
     ->
     let s = txt state (k + 1)
-    // the path as written, backticks included
-    let path = [ for j in i..k -> txt state j ] |> String.concat ""
-    let hint = keywordHint state (k + 1) path
-    err
-      state
-      DiagnosticCode.expected
-      (k + 1)
-      $"expected a name after '.', found '{s}'{hint}"
     qualifiedSegments
       state
       i
@@ -1710,7 +1693,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
       i
       "'...' only goes last inside a list pattern, as in `[head, ...tail]`"
     (WT.MPError(rng state i), i + 1)
-  | _ when keywordHint state i "" <> "" ->
+  | _ when keywordHint state i <> "" ->
     errExpectedName state i "a pattern"
     (WT.MPVariable(rng state i, txt state i), i + 1)
   | _ ->
@@ -1811,8 +1794,14 @@ and private parseRecordPatternFields
   if tok state k = TRBrace || tok state k = TEOF then
     (fieldsRev, k)
   else
-    match tok state k with
-    | TIdent fname ->
+    // a keyword names a field when a pattern follows: `{ type = t }`
+    let named =
+      match tok state k with
+      | TIdent fname -> Some fname
+      | t when isKeyword t && tok state (k + 1) = TEquals -> Some(txt state k)
+      | _ -> None
+    match named, tok state k with
+    | Some fname, _ ->
       let fnameR = rng state k
       if fieldsRev |> List.exists (fun ((_, n), _) -> n = fname) then
         err
@@ -1854,7 +1843,7 @@ and private parseRecordPatternFields
         parseRecordPatternFields state fieldsRev k2
       else
         (fieldsRev, k)
-    | TDotDotDot ->
+    | None, TDotDotDot ->
       errFull
         state
         DiagnosticCode.unexpected
@@ -1866,7 +1855,7 @@ and private parseRecordPatternFields
         state
         fieldsRev
         (if tok state (k + 1) = TComma then k + 2 else k + 1)
-    | _ ->
+    | None, _ ->
       errExpectedName state k "a record field, as in `name` or `name = pattern`"
       (fieldsRev, k)
 
@@ -2018,7 +2007,7 @@ and parseLetPattern (state : ParserState) (i : int) : WT.LetPattern * int =
     else
       errUnclosed state j ")" "(" openP
       (first, j)
-  | _ when keywordHint state i "" <> "" ->
+  | _ when keywordHint state i <> "" ->
     errExpectedName state i "a pattern"
     (WT.LPVariable(rng state i, txt state i), i + 1)
   | _ ->
@@ -2435,21 +2424,10 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
       (i + 1)
   | TDot, TIdent field ->
     parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
-  // `r.type`: say how to escape it, then read it as the field it was meant to be
+  // `r.type`: only a field name goes after the dot, so a keyword is one too.
   // Only directly after the dot: `r.` then a newline is a name still being typed.
   | TDot, t when isKeyword t && (rng state i).end_ = (rng state (i + 1)).start ->
     let field = txt state (i + 1)
-    // the receiver as written, backticks included
-    let receiver =
-      match e with
-      | WT.EVariable _ -> txt state (i - 1)
-      | _ -> ""
-    let hint = keywordHint state (i + 1) (receiver + ".")
-    err
-      state
-      DiagnosticCode.expected
-      (i + 1)
-      $"expected a field name after '.', found '{field}'{hint}"
     parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
   | TDot, TInt64 _ when isDigits (txt state (i + 1)) ->
     let field = txt state (i + 1)
@@ -2899,7 +2877,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       | TLParen ->
         let (p, k2) = parseLetPattern state (i + 1)
         ([ p ], k2)
-      | _ when keywordHint state (i + 1) "" <> "" ->
+      | _ when keywordHint state (i + 1) <> "" ->
         let (p, k2) = parseLetPattern state (i + 1)
         ([ p ], k2)
       | _ -> ([], i + 1)
@@ -3287,7 +3265,7 @@ and private parseRecordFields
     (fieldsRev, k)
   else
     let what = "a record field 'name = value'"
-    match fieldName state k TEquals what with
+    match fieldName state k TEquals with
     | Some fname ->
       let fnameR = rng state k
       // each field is its own offside statement (value args don't grab the next field)
@@ -3428,7 +3406,7 @@ and private parseRecordUpdateFields
     (updatesRev, k)
   else
     let what = "a record-update field 'name = value'"
-    match fieldName state k TEquals what with
+    match fieldName state k TEquals with
     | Some fname ->
       let fnameR = rng state k
       let eqR = rng state (k + 1)
@@ -4248,7 +4226,7 @@ and private parseRecordDefFields
     (fieldsRev, k)
   else
     let what = "a record field 'name : Type'"
-    match fieldName state k TColon what with
+    match fieldName state k TColon with
     | Some fname ->
       let fnameR = rng state k
       let colon = rng state (k + 1)

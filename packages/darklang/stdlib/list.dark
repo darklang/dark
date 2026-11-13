@@ -129,7 +129,7 @@ let checkedRepeat(
 
 /// Returns the number of values in <param list>
 /// Takes O(1) time.
-let ``length``(list: List<'a>): Int64 =
+let `length`(list: List<'a>): Int64 =
   Builtin.listLength(list)
 
 
