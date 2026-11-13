@@ -91,8 +91,10 @@ type File =
     /// The source, as read.
     text: String
     rawComments: List<RawComment>
-    /// Every expression, pattern and pipe stage: its id and where it starts and ends, packed
-    /// (`row * 1000000 + column`), in the order lowering noted them, a node's parts before it.
+    /// Every expression, pattern and pipe stage a comment could belong to (one starting where code
+    /// after a comment does, or ending on a comment's line): its id and where it starts and ends,
+    /// packed (`row * 1000000 + column`), in the order lowering noted them, a node's parts before
+    /// it.
     ranges: List<(String * Int64 * Int64)>
     /// The signature of each local fn, by the id of the lambda it lowers to.
     localFns: Dict<String, LocalFn>

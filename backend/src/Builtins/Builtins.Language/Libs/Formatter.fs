@@ -123,6 +123,28 @@ let private rawComments (tokens : Lex.SpannedToken[]) : List<Dval> =
         yield! List.rev found ]
 
 
+/// The places a comment can belong to code: where the tokens `rawComments` lists after a comment
+/// start, and the lines comments are on. Placing comments asks about nodes there and nowhere else.
+let private commentSpots
+  (tokens : Lex.SpannedToken[])
+  : System.Collections.Generic.HashSet<int64> *
+    System.Collections.Generic.HashSet<int64>
+  =
+  let starts = System.Collections.Generic.HashSet<int64>()
+  let rows = System.Collections.Generic.HashSet<int64>()
+  let isComment (c : Lex.Trivia) =
+    c.kind = Lex.LineComment || c.kind = Lex.BlockComment
+  for k in 0 .. tokens.Length - 1 do
+    let token = tokens[k]
+    if List.exists isComment token.leadingTrivia then
+      for j in k .. min (k + 3) (tokens.Length - 1) do
+        if tokens[j].range.start.row = token.range.start.row then
+          starts.Add(packed tokens[j].range.start) |> ignore<bool>
+      for c in token.leadingTrivia do
+        if isComment c then rows.Add(int64 c.range.start.row) |> ignore<bool>
+  (starts, rows)
+
+
 let private declRange (d : WT.Declaration) : WT.Range =
   match d with
   | WT.DFunction f -> f.range
@@ -658,9 +680,14 @@ let private parse
       let sf = Validation.ValidatedSourceFile.toWrittenTypes validated
       let! decls = declarations ctx [] sf.declarations
       let! locals = localFns ctx source tokens
-      // Every node's range, in the order lowering noted them: a node's parts before it.
+      // The range of every node a comment could belong to, in the order lowering noted them: a
+      // node's parts before it.
+      let (starts, rows) = commentSpots tokens
       let ranges =
         ctx.ranges
+        |> Seq.filter (fun kv ->
+          starts.Contains(packed kv.Value.start)
+          || rows.Contains(int64 kv.Value.end_.row))
         |> Seq.map (fun kv ->
           DTuple(
             DString(string kv.Key),
