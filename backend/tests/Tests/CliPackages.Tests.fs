@@ -2160,7 +2160,7 @@ let aSecondNameForAFnSaysSo =
         shows
           state
           [ "fn"; "Tests.SameTwo.g"; "(n: Int64): Int64 = n * 5303" ]
-          "Created function Tests.SameTwo.g (also named Tests.SameOne.f)"
+          "Created function Tests.SameTwo.g (same code as Tests.SameOne.f, stored once)"
           "the save names the other name"
       do! discardAll state
     })

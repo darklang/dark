@@ -57,11 +57,13 @@ let enclosingModules(modules: List<String>): List<List<String>> =
     Stdlib.List.prepend(enclosingModules(parent), parent)
 
 
-/// The Stdlib name for a job another language spells differently: `toString` is `display`.
+/// The Stdlib name for a job another language spells differently: `toString` is `display`,
+/// and `Int64.absoluteValue` is the generic `abs`.
 let otherLanguageName(name: String): Stdlib.Option.Option<String> =
   match name with
   | "toString" -> Stdlib.Option.Option.Some("display")
   | "toRepr" -> Stdlib.Option.Option.Some("inspect")
+  | "absoluteValue" | "absolute" -> Stdlib.Option.Option.Some("abs")
   | _ -> Stdlib.Option.Option.None
 
 
@@ -342,8 +344,43 @@ let unresolvedNamesText(
 /// Returns true if there are invalid names (which block creation).
 /// Unresolved names are allowed in WIP — they'll be resolved by WipRefresh when
 /// the missing items are added, and rejected at commit time if still unresolved.
+/// Where a name that did not resolve from <param home> (owner first, then modules) is defined
+/// in a module next to it or inside it: `TokKind` saved into `Me.Tiny.Lexer` gives
+/// `Me.Tiny.Types.TokKind`. Up to three, as written in full.
+let nearbyNames(
+  branchId: Uuid,
+  home: List<String>,
+  originalName: List<String>)
+  : List<String> =
+  match (splitLast(originalName), home) with
+  | (Some((modules, name)), [owner, ...homeModules]) ->
+    let submodulesOf = fun path ->
+      let (subs, _, _, _, _, _, _) = Query.allDirectDescendantNames(branchId, path)
+      subs |> Stdlib.List.map(fun sub -> Stdlib.List.append(path, sub))
+    let places =
+      match homeModules with
+      | [] -> submodulesOf(home)
+      | _ -> Stdlib.List.concat(submodulesOf(home), submodulesOf(Stdlib.List.dropLast(home)))
+    places
+    |> Stdlib.List.filter(fun place -> place != home)
+    |> Stdlib.List.filterMap(fun place ->
+      let location =
+        LanguageTools.ProgramTypes.PackageLocation
+          { owner = owner
+            modules = Stdlib.List.concat(Stdlib.List.drop(place, 1), modules)
+            name = name }
+      if Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, location)) then
+        Stdlib.Option.Option.Some(
+          Stdlib.String.join(Stdlib.List.flatten([ place, modules, [ name ] ]), "."))
+      else
+        Stdlib.Option.Option.None)
+    |> Stdlib.List.take(3)
+  | _ -> []
+
+
 let reportUnresolvedNames(
   branchId: Uuid,
+  home: List<String>,
   unresolvedNames:
     List<LanguageTools.Parser.Range
       * List<String>
@@ -356,12 +393,23 @@ let reportUnresolvedNames(
       | InvalidName -> true
       | NotFound -> false)
 
-  let notFoundNames =
+  // A missing name under `Stdlib` or `Darklang` cannot arrive later: those owners are reserved,
+  // so nothing a save makes can define it. It is a typo, and the save is refused.
+  let isReserved =
+    fun((_, name, _)) ->
+      match name with
+      | [ "Stdlib", ... ]
+      | [ "Darklang", ... ] -> true
+      | _ -> false
+
+  let notFound =
     unresolvedNames
     |> Stdlib.List.filter(fun((_, _, err)) ->
       match err with
       | NotFound -> true
       | InvalidName -> false)
+
+  let (reservedNames, notFoundNames) = Stdlib.List.partition(notFound, isReserved)
 
   // Warnings for unresolved names (will be fixed by WipRefresh). On stderr: the save's answer is the
   // "Created" line, and a warning is never part of it.
@@ -377,13 +425,35 @@ let reportUnresolvedNames(
       let nameStr = Stdlib.String.join(originalName, ".")
 
       let suggestion =
-        match didYouMeanText(didYouMean(branchId, originalName)) with
+        let names =
+          match didYouMean(branchId, originalName) with
+          | [] -> nearbyNames(branchId, home, originalName)
+          | names -> names
+        match didYouMeanText(names) with
         | "" -> ""
         | text -> " " + text
 
       let message =
         $"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning(message)))
+
+    Stdlib.printErrorLine("")
+
+  if (Stdlib.List.isEmpty(reservedNames)) |> Stdlib.Bool.not then
+    Cli.printErr("Error: Not in the standard library, so nothing was saved")
+
+    reservedNames
+    |> Stdlib.List.iter(fun((range, originalName, _err)) ->
+      let lineNum = (range.start.row + 1) |> Stdlib.display
+      let colNum = range.start.column |> Stdlib.display
+      let nameStr = Stdlib.String.join(originalName, ".")
+
+      let suggestion =
+        match didYouMeanText(didYouMean(branchId, originalName)) with
+        | "" -> ""
+        | text -> " " + text
+
+      Cli.printErr($"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"))
 
     Stdlib.printErrorLine("")
 
@@ -411,4 +481,4 @@ let reportUnresolvedNames(
     Stdlib.printErrorLine("")
     true
   else
-    false
+    Stdlib.Bool.not(Stdlib.List.isEmpty(reservedNames))

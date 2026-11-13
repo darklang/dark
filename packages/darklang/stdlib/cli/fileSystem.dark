@@ -52,14 +52,14 @@ let __fromPosixError(error: Posix.Error): FileError =
 
 
 /// Full paths of the entries in the directory at <param path>.
-let listDirectory(path: String): List<String> =
+let listDirectory(path: String): Result.Result<List<String>, FileError> =
   let expanded = __expandPath(path)
   let full =
     if Path.isAbsolute(expanded) then Path.normalize(expanded)
     else Path.join([ currentDirectory(), expanded ]) |> Path.normalize
-  match Posix.listDir(full) with
-  | Error(_) -> []
-  | Ok(names) -> Stdlib.List.map(names, fun name -> Path.join([ full, name ]))
+  Posix.listDir(full)
+  |> Stdlib.Result.map(fun names -> Stdlib.List.map(names, fun name -> Path.join([ full, name ])))
+  |> Stdlib.Result.mapError(__fromPosixError)
 
 
 /// Is there a file or directory at <param path>?
@@ -99,7 +99,7 @@ let getDirectoryContents(path: String): List<String> =
           path
       $"{currentDir}/{normalizedPath}"
 
-  let files = listDirectory(fullPath)
+  let files = listDirectory(fullPath) |> Stdlib.Result.withDefault([])
 
   files
   |> Stdlib.List.map(fun fullFilePath ->

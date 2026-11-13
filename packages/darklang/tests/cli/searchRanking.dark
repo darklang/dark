@@ -241,3 +241,50 @@ test plainWordsFindTheObviousFn =
       [ Instance.says(first("split lines"), "Darklang.Stdlib.String.splitOnNewline", "split lines")
         Instance.says(first("unix timestamp"), "Darklang.Stdlib.DateTime.toSeconds", "unix timestamp") ]))
 
+// A module named by the query is asking for what is in it: `table` reaches `Table.print`
+// before names that only spell "table" inside a longer word.
+test moduleNamedByTheQuery =
+  Stdlib.Test.all(
+    [ Rank.order(
+        "table",
+        [ ("Stdlib.Cli.Sys", "currentExecutablePath")
+          ("Stdlib.Cli.UI.Node", "tableRows")
+          ("Stdlib.Cli.UI.Table", "print")
+          ("Stdlib.Cli.UI.Node", "table") ])
+      |> Stdlib.Test.equal([ "table", "print", "tableRows", "currentExecutablePath" ])
+      Rank.order(
+        "env var",
+        [ ("Stdlib.Cli.Posix", "getenv")
+          ("LanguageTools.AtRestTypeChecker.Environment", "runtimeVariables")
+          ("Stdlib.Env", "get") ])
+      |> Stdlib.List.head
+      |> Stdlib.Test.equal(Some("get")) ])
+
+// What already ranked well stays put: a name the query spells beats the module rule.
+test moduleRuleKeepsNamedHitsFirst =
+  Stdlib.Test.all(
+    [ Rank.order(
+        "json",
+        [ ("Stdlib.Json", "serialize"), ("Stdlib.Json", "parse"), ("Stdlib.AltJson", "json") ])
+      |> Stdlib.List.head
+      |> Stdlib.Test.equal(Some("json"))
+      Rank.order("read file", Rank.fileFns())
+      |> Stdlib.Test.equal([ "readFile", "readFileAsString", "overwriteFile", "fromFile" ])
+      Rank.order("parse", [ ("Stdlib.Cli.FlagParser", "parse"), ("Stdlib.Int64", "parse"), ("Stdlib.Int64", "toFloat") ])
+      |> Stdlib.Test.equal([ "parse", "parse", "toFloat" ]) ])
+
+// When no name matches, every hit came from a doc comment, and search says so.
+test docOnlyMatchesAreFlagged =
+  let loc = fun (modules, name) ->
+    Darklang.LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang", modules = modules, name = name }
+  Stdlib.Test.all(
+    [ Darklang.Cli.Packages.Search.onlyDocMatches(
+        Darklang.Cli.Packages.Search.rankerFor("database"),
+        [ loc([ "Stdlib", "Cli", "Env" ], "home"), loc([ "Stdlib", "Cli", "Sys" ], "currentUser") ])
+      |> Stdlib.Test.equal(true)
+      Darklang.Cli.Packages.Search.onlyDocMatches(
+        Darklang.Cli.Packages.Search.rankerFor("table"),
+        [ loc([ "Stdlib", "Cli", "UI", "Table" ], "print") ])
+      |> Stdlib.Test.equal(false) ])
+

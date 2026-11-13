@@ -127,7 +127,12 @@ type Constraint =
   /// Check a call using callee's type, the argument types and their diagnostic
   /// contexts, and the required result type. The call gives exactly as many
   /// arguments as the callee takes.
-  | Apply(at: Int64, callee: Ty, args: List<(Ty * Site)>, result: Ty)
+  | Apply(
+      at: Int64,
+      callee: Ty,
+      name: Stdlib.Option.Option<String>,
+      args: List<(Ty * Site)>,
+      result: Ty)
   /// Check that the named type is a record, that the supplied fields match its
   /// declaration, and that result is the constructed record's type.
   | NewRecord(

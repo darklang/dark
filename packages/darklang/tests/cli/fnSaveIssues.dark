@@ -1,0 +1,15 @@
+/// A `fn` save shows one issue. It is the error that caused the others, not one they left behind.
+module Darklang.Cli.Tests.FnSaveIssues
+
+test theRootIssueComesFirst =
+  Instance.withInstance(fun i ->
+    let (_, out) =
+      Instance.ran(
+        i,
+        [ "fn"
+          "Me.RootFirst.topBy"
+          "(xs: List<(String * Int64)>): List<(String * Int64)> = xs |> Stdlib.List.sortBy(fun (_, c) -> -c)" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(out, "type error: [TypeMismatch]", "the mismatch is the issue shown")
+        Instance.doesNotSay(out, "type error: [AmbiguousType]", "not the knock-on ambiguity") ]))

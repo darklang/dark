@@ -128,6 +128,7 @@ test displayAdviceHolds =
 test listedFunctionsExist =
   let names =
     [ "Stdlib.Int64.parse", "Stdlib.Float.parse", "Stdlib.Int64.toFloat", "Stdlib.Float.round"
+      "Stdlib.abs", "Stdlib.min", "Stdlib.max"
       "Stdlib.String.split", "Stdlib.String.join", "Stdlib.String.trim", "Stdlib.String.toList"
       "Stdlib.String.padStart", "Stdlib.List.range", "Stdlib.List.getAt", "Stdlib.List.contains"
       "Stdlib.Int64.random", "Stdlib.List.randomElement", "Stdlib.Cli.Stdin.readLineOrEnd"

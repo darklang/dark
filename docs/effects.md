@@ -91,6 +91,15 @@ Every builtin declares `callEffects`. Requirements analysis follows the immutabl
 call graph, callbacks it can identify, operator and trait implementations, and
 returned code. It reports the effects found and whether analysis is complete.
 Requirements are conservative review information, not an authorization check.
+Call discovery records argument sources and possible return values alongside
+each call. Requirements and explanations follow these summaries, without
+walking source syntax again. For `syscallOpen`, analysis carries small sets of
+possible integer arguments through bindings, wrappers and return values.
+Known read-only flags contribute only `file-read`; create, truncate and append
+flags also require `file-write`.
+Unknown flags retain both effects. Branches are combined without executing code,
+and bounded value sets and call contexts widen to unknown when they grow too large.
+This refinement does not suppress `Raise`.
 Use `effects Me.reports.report` to see the effects and a call path for each.
 Incomplete analysis is labeled explicitly. This conservative effect list includes
 returned code. A separate preflight walks unconditional calls with known literal

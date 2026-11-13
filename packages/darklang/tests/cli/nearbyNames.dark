@@ -1,0 +1,14 @@
+/// A name saved into one module that lives in the module next to it gets that module's name.
+module Darklang.Cli.Tests.NearbyNames
+
+test siblingModuleIsSuggested =
+  Instance.withInstance(fun i ->
+    let types = Instance.home(i) + "/types.dark"
+    let lexer = Instance.home(i) + "/lexer.dark"
+    let _ = Stdlib.Cli.File.writeAtomic(types, "type TokKind = | Num | Plus\n") |> Builtin.unwrap
+    let _ =
+      Stdlib.Cli.File.writeAtomic(lexer, "let first(k: TokKind): Bool = true\n") |> Builtin.unwrap
+    let _ = Instance.ran(i, [ "module", "/Me.Tiny.Types", types ])
+    let (_, out) = Instance.ran(i, [ "module", "/Me.Tiny.Lexer", lexer ])
+
+    Instance.says(out, "Did you mean `Me.Tiny.Types.TokKind`?", "the sibling module's type"))

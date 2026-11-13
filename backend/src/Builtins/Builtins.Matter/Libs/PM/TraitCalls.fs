@@ -121,6 +121,25 @@ module private Decode =
       | _ -> Map.empty
     | _ -> Map.empty
 
+  /// The items the checker found a definite type error in.
+  let failed (d : Dval) : Set<PT.Hash> =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      match field "items" fields with
+      | Some(DList(_, Items(items))) ->
+        items
+        |> List.choose (fun item ->
+          match item with
+          | DRecord(_, _, _, fields) ->
+            match field "verdict" fields, field "item" fields with
+            | Some(DEnum(_, _, _, "Failed", [])), Some(DEnum(_, _, _, _, [ h ])) ->
+              hash h
+            | _ -> None
+          | _ -> None)
+        |> Set.ofList
+      | _ -> Set.empty
+    | _ -> Set.empty
+
 // --------------------
 // The reload's cache
 // --------------------
@@ -419,7 +438,7 @@ let private askChecker
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Ply<Option<Map<PT.Hash, List<Resolution>>>> =
+  : Ply<Option<Map<PT.Hash, List<Resolution>> * Set<PT.Hash>>> =
   uply {
     // The branch explicitly, not whatever `exeState` happens to carry: a call resolves to the
     // implementation live on the branch being SAVED to.
@@ -430,9 +449,13 @@ let private askChecker
     match! Exe.executeFunction exeState (checkPackageOpsName ()) [] args with
     | Ok report ->
       let decoded = Decode.report report
+      let failed = Decode.failed report
       // An empty report and an empty answer are the same zero here; `guarded` puts the
       // reason in `warnings`, which this decoder otherwise drops.
-      if decoded |> Map.forall (fun _ resolutions -> List.isEmpty resolutions) then
+      if
+        Set.isEmpty failed
+        && decoded |> Map.forall (fun _ resolutions -> List.isEmpty resolutions)
+      then
         let warnings =
           match report with
           | DRecord(_, _, _, fields) ->
@@ -445,9 +468,9 @@ let private askChecker
             $"  [traitcalls] the checker reported no resolutions and {warnings} warning(s); the batch was not checked"
           return None
         else
-          return Some decoded
+          return Some(decoded, failed)
       else
-        return Some decoded
+        return Some(decoded, failed)
     | Error(rte, _) ->
       // A swallowed checker failure and a checker with nothing to say are the same zero, and
       // the zero is what nobody re-checks, so say which one happened. Kept deliberately: the
@@ -590,12 +613,12 @@ let private resolveIn
   (pm : PT.PackageManager)
   (reload : Option<string>)
   (ops : List<PT.PackageOp>)
-  : Ply<List<PT.PackageOp>> =
+  : Ply<List<PT.PackageOp> * Set<PT.Hash>> =
   uply {
     let storeHoldsOps = Option.isSome reload
     let! worth = worthChecking pm ops
     if not worth then
-      return ops
+      return (ops, Set.empty)
     else
       // A deprecated implementation is not a candidate at run time, so it must not be one
       // here either: `dark constraints` tells you to deprecate one of two rivals, and resolving
@@ -692,13 +715,16 @@ let private resolveIn
           toCheck
           |> List.chunkBySize size
           |> List.map (fun chunk ->
-            System.Threading.Tasks.Task.Run<Option<Map<PT.Hash, List<Resolution>>>>
+            System.Threading.Tasks.Task.Run<Option<Map<PT.Hash, List<Resolution>> *
+            Set<PT.Hash>>>
               (fun () -> Ply.toTask (askChecker exeState branchId chunk)))
           |> System.Threading.Tasks.Task.WhenAll
       let answered =
         chunks
         |> Array.choose identity
+        |> Array.map fst
         |> Array.fold (Map.foldBack Map.add) Map.empty
+      let failed = chunks |> Array.choose identity |> Array.map snd |> Set.unionMany
       let resolved =
         reused
         |> Map.fold
@@ -738,7 +764,7 @@ let private resolveIn
       environment |> Option.iter saveCache
 
       if Map.isEmpty resolved then
-        return ops
+        return (ops, failed)
       else
 
         /// The winner among the implementations that apply, and the fn it names for the method.
@@ -947,7 +973,7 @@ let private resolveIn
             else
               bodyHash before |> Option.map (fun h -> h, after))
           |> Map.ofList
-        return
+        let rewritten =
           List.zip ops transformed
           |> List.map (fun (before, after) ->
             if before <> after then
@@ -959,6 +985,7 @@ let private resolveIn
               with
               | Some rewritten -> rewritten
               | None -> after)
+        return (rewritten, failed)
   }
 
 
@@ -1016,7 +1043,7 @@ let resolveTraitCalls
   (ops : List<PT.PackageOp>)
   : Ply<List<PT.PackageOp>> =
   uply {
-    let! resolved = resolveIn exeState branchId pm reload ops
+    let! (resolved, failed) = resolveIn exeState branchId pm reload ops
 
     // A reload has its own report (`Resolved trait calls: ...`); this is for a person saving.
     if Option.isNone reload then
@@ -1071,7 +1098,8 @@ let resolveTraitCalls
           | PT.PackageOp.AddTest t -> Some(t.hash, unresolved isBounded t.body)
           | _ -> None)
         |> List.distinctBy fst
-        |> List.filter (fun (_, count) -> count > 0)
+        |> List.filter (fun (hash, count) ->
+          count > 0 && not (Set.contains hash failed))
         |> List.collect (fun (hash, count) ->
           // A name when the save carries one; `dark fn` saves the body before its name.
           let (PT.Hash h) = hash

@@ -354,6 +354,38 @@ let carryDependencyNames
             | None when row.owner = "" -> latest 0 row.hash
             | None -> row.hash
           { row with itemHash = toHash; hash = callee }))
+    // A name the new body already reaches its callee through keeps what the body says. Copying the
+    // previous version's row for that name too would leave a second row on the callee's old hash,
+    // and a caller repointed twice in one save (once for each of two edited names it reaches) then
+    // reads as still calling the old version.
+    let tos =
+      repoints
+      |> List.map (fun r -> let (Hash h) = r.toRef.hash in [ h ])
+      |> List.distinct
+    let! own =
+      Sql.query
+        "SELECT d.item_hash, d.depends_on_item_type, d.depends_on_owner, d.depends_on_modules,
+                d.depends_on_name
+         FROM json_each(@tos) j JOIN package_dependencies d
+           ON d.item_hash = json_extract(j.value, '$[0]')
+         WHERE d.depends_on_owner <> ''"
+      |> Sql.parameters [ "tos", Sql.string (jsonRows tos) ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "item_hash",
+         read.string "depends_on_item_type",
+         read.string "depends_on_owner",
+         read.string "depends_on_modules",
+         read.string "depends_on_name"))
+    let ownNames = Set.ofList own
+    let rows =
+      rows
+      |> List.filter (fun (row : PackageOpPlayback.DependencyRow) ->
+        row.owner = ""
+        || not (
+          Set.contains
+            (row.itemHash, row.kind, row.owner, row.modules, row.name)
+            ownNames
+        ))
     if not (List.isEmpty rows) then
       do!
         inTransaction (fun ctx ->

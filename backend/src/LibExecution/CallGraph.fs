@@ -6,10 +6,33 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 module Ast = LibExecution.ProgramTypesAst
 
+/// Integer facts retained by call discovery, without retaining source syntax.
+[<RequireQualifiedAccess>]
+type Argument =
+  | Unknown
+  | Int64 of int64
+  | Parameter of int
+  | CallResult of int
+  | Alternatives of List<Argument>
+
+/// A statically resolved function or a recursive reference to this function.
+[<RequireQualifiedAccess>]
+type CallTarget =
+  | Named of PT.FQFnName.FQFnName
+  | Self
+
+/// A call or callable reference. CallResult indices refer to earlier sites in
+/// this function's summary. Deferred code is included conservatively.
+type CallSite =
+  { target : CallTarget
+    location : Option<PT.PackageLocation>
+    arguments : List<Argument> }
+
 type Analysis =
   {
-    names : List<PT.FQFnName.FQFnName>
-    /// False when every call and value can be resolved statically.
+    calls : List<CallSite>
+    returnValue : Argument
+    /// True when every call and value can be resolved statically.
     complete : bool
     /// True when this function passes one of its function parameters to code
     /// that may call it, so the caller must supply the missing permissions.
@@ -24,6 +47,14 @@ type Analysis =
     calledWithoutBounds : Set<PT.FQFnName.Package>
   }
 
+  /// Dependency loading, completeness and effects share these call sites.
+  member this.names =
+    this.calls
+    |> List.choose (fun call ->
+      match call.target with
+      | CallTarget.Named name -> Some name
+      | CallTarget.Self -> None)
+
 /// Bump whenever completeness or reachability semantics change. Approval
 /// fingerprints include this so an analyzer fix cannot silently bless an old,
 /// narrower review.
@@ -32,11 +63,13 @@ type Analysis =
 /// operators were analyzed as their operands alone.
 /// Version 5 follows a reference to a package value whose stored value holds
 /// only data; every value reference was incomplete before.
-let analysisVersion = 5
+/// Version 6 specializes open effects using call-site argument summaries.
+let analysisVersion = 6
 
 module private Analysis =
   let empty : Analysis =
-    { names = []
+    { calls = []
+      returnValue = Argument.Unknown
       complete = true
       escapesOwnCallback = false
       defersToTypeParam = false
@@ -51,14 +84,15 @@ module private Analysis =
   let typeParamDeferral : Analysis = { empty with defersToTypeParam = true }
 
   let combine (left : Analysis) (right : Analysis) : Analysis =
-    { names = List.append left.names right.names
+    { calls = List.append left.calls right.calls
+      returnValue = Argument.Unknown
       complete = left.complete && right.complete
       escapesOwnCallback = left.escapesOwnCallback || right.escapesOwnCallback
       defersToTypeParam = left.defersToTypeParam || right.defersToTypeParam
       calledWithoutBounds =
         Set.union left.calledWithoutBounds right.calledWithoutBounds }
 
-  /// Combined from the right, so each item's names are copied once.
+  /// Combined from the right, so each item's calls are copied once.
   let collect (f : 'a -> Analysis) (items : List<'a>) : Analysis =
     List.foldBack combine (List.map f items) empty
 
@@ -66,9 +100,13 @@ module private Analysis =
 let private packageRef
   (fn : PT.FQFnName.Package)
   (bounds : List<PT.FQFnName.BoundImpl>)
+  (location : Option<PT.PackageLocation>)
   : Analysis =
   { Analysis.empty with
-      names = [ PT.FQFnName.Package fn ]
+      calls =
+        [ { target = CallTarget.Named(PT.FQFnName.Package fn)
+            location = location
+            arguments = [] } ]
       calledWithoutBounds =
         if List.isEmpty bounds then Set.singleton fn else Set.empty }
 
@@ -77,7 +115,7 @@ let private packageRef
 let private implChoice (choice : PT.FQFnName.ImplChoice) : Analysis =
   match choice with
   // Runs directly, so it is an ordinary call. Nothing records bounds for it.
-  | PT.FQFnName.Chosen r -> packageRef r.name []
+  | PT.FQFnName.Chosen r -> packageRef r.name [] r.location
   // The caller decides, as it does for a callback parameter.
   | PT.FQFnName.FromTypeParam _ -> Analysis.typeParamDeferral
   // Resolved from the store at run time, by the operand's type.
@@ -91,10 +129,13 @@ let private nameRef
   : Analysis =
   let own =
     match nr.resolved with
-    | Ok { name = PT.FQFnName.Package fn } -> packageRef fn bounds
+    | Ok { name = PT.FQFnName.Package fn; location = location } ->
+      packageRef fn bounds location
     | Ok { name = PT.FQFnName.TraitMethod tm } -> implChoice tm.implFn
     | Ok { name = PT.FQFnName.Builtin _ as builtin } ->
-      { Analysis.empty with names = [ builtin ] }
+      { Analysis.empty with
+          calls =
+            [ { target = CallTarget.Named builtin; location = None; arguments = [] } ] }
     | Error _ -> Analysis.unresolved
   Analysis.combine
     own
@@ -114,20 +155,14 @@ let private infixRef
     | Some _ -> implChoice implFn
     | None ->
       { Analysis.empty with
-          names =
-            [ PT.FQFnName.Builtin
-                { name = PT.InfixFnName.toBuiltinName name; version = 0 } ] }
-
-/// What a pipe part itself references, beyond its nested expressions.
-let private pipeOwnRefs (pe : PT.PipeExpr) : Analysis =
-  match pe with
-  | PT.EPipeFnCall(_, nr, _, _, bounds) -> nameRef nr bounds
-  | PT.EPipeInfix(_, infix, _, implFn) -> infixRef infix implFn
-  // A function held in a variable can be an effectful callback whose target
-  // is not statically known here.
-  | PT.EPipeVariable _ -> Analysis.unresolved
-  | PT.EPipeLambda _
-  | PT.EPipeEnum _ -> Analysis.empty
+          calls =
+            [ { target =
+                  CallTarget.Named(
+                    PT.FQFnName.Builtin
+                      { name = PT.InfixFnName.toBuiltinName name; version = 0 }
+                  )
+                location = None
+                arguments = [] } ] }
 
 /// Find function-typed parameters by their `EArg` positions. A callback can be
 /// passed to another function without appearing as a direct call here.
@@ -141,57 +176,156 @@ let callbackParams (fn : PT.PackageFn.PackageFn) : Set<int> =
     | _ -> None)
   |> Set.ofList
 
-/// Every fn-name an expression references (`EFnName`, the piped `EPipeFnCall`,
-/// and the implementation an operator resolved to), plus whether any call
-/// target is unknowable statically.
-/// Only the call-shaped nodes are handled here; everything else folds its
-/// sub-expressions via `ProgramTypesAst.subExprs`.
-///
-/// `callbacks` is `callbackParams` of the enclosing package fn; a reference to
-/// one of those positions is unknowable wherever it appears.
-///
-/// `inertValues` are the package values whose stored value is known to hold
-/// only data (`Dval.isInertData`). The caller decides that from the store; an
-/// empty set is always safe.
-let rec analyze
+/// Discover calls, completeness and symbolic integer arguments in one AST pass.
+/// All branches and deferred bodies contribute calls. Other syntax defaults to
+/// visiting every child and producing an unknown value.
+let private analyzeWith
+  (callbacks : Set<int>)
+  (inertValues : Set<PT.FQValueName.Package>)
+  (parameters : Map<string, Argument>)
+  (expr : PT.Expr)
+  : Analysis =
+  let sites = ResizeArray<CallSite>()
+  let mutable metadata = Analysis.empty
+  let note analysis =
+    metadata <- Analysis.combine metadata { analysis with calls = [] }
+  let emit (analysis : Analysis) arguments =
+    note analysis
+    let index = sites.Count
+    analysis.calls
+    |> List.iteri (fun i site ->
+      sites.Add { site with arguments = if i = 0 then arguments else [] })
+    if sites.Count = index then Argument.Unknown else Argument.CallResult index
+  let named (nr : PT.NameResolution<PT.FQFnName.FQFnName>) bounds arguments =
+    let hasTarget =
+      match nr.resolved with
+      | Ok { name = PT.FQFnName.Package _ | PT.FQFnName.Builtin _ } -> true
+      | Ok { name = PT.FQFnName.TraitMethod { implFn = PT.FQFnName.Chosen _ } } ->
+        true
+      | _ -> false
+    let value = emit (nameRef nr bounds) (if hasTarget then arguments else [])
+    if hasTarget then value else Argument.Unknown
+  let self arguments =
+    emit
+      { Analysis.empty with
+          calls = [ { target = CallTarget.Self; location = None; arguments = [] } ] }
+      arguments
+  let argument value =
+    match value with
+    | Argument.Parameter i when Set.contains i callbacks ->
+      note Analysis.callbackEscape
+    | _ -> ()
+    value
+  let rec walk env argsInScope expr =
+    let visit = walk env argsInScope
+    match expr with
+    | PT.EInt64(_, n) -> Argument.Int64 n
+    | PT.EArg(_, i) ->
+      if argsInScope then argument (Argument.Parameter i) else Argument.Unknown
+    | PT.EVariable(_, name) ->
+      Map.tryFind name env |> Option.defaultValue Argument.Unknown |> argument
+    | PT.ELet(_, pattern, value, next) ->
+      let value = visit value
+      let env =
+        PT.LetPattern.symbolsUsed pattern
+        |> Set.fold (fun env name -> Map.add name Argument.Unknown env) env
+      let env =
+        match pattern with
+        | PT.LPVariable(_, name) -> Map.add name value env
+        | _ -> env
+      walk env argsInScope next
+    | PT.EStatement(_, first, next) ->
+      visit first |> ignore<Argument>
+      visit next
+    | PT.EIf(_, condition, yes, no) ->
+      visit condition |> ignore<Argument>
+      let yes = visit yes
+      let no = no |> Option.map visit |> Option.defaultValue Argument.Unknown
+      Argument.Alternatives [ yes; no ]
+    | PT.EMatch(_, target, cases) ->
+      visit target |> ignore<Argument>
+      cases
+      |> List.map (fun c ->
+        // A pattern must not inherit facts from a shadowed local binding.
+        let visitCase = walk Map.empty argsInScope
+        c.whenCondition |> Option.iter (fun e -> visitCase e |> ignore<Argument>)
+        visitCase c.rhs)
+      |> Argument.Alternatives
+    | PT.EApply(_, PT.EFnName(_, nr, bounds, _), _, arguments) ->
+      let values = arguments |> NEList.toList |> List.map visit
+      named nr bounds values
+    | PT.EApply(_, PT.ESelf _, _, arguments) ->
+      arguments |> NEList.toList |> List.map visit |> self
+    | PT.EApply(_, fnExpr, _, arguments) ->
+      match fnExpr with
+      | PT.ELambda _ -> ()
+      | PT.EArg(_, i) when argsInScope && Set.contains i callbacks -> ()
+      | _ -> note Analysis.unresolved
+      visit fnExpr |> ignore<Argument>
+      arguments |> NEList.toList |> List.iter (fun e -> visit e |> ignore<Argument>)
+      Argument.Unknown
+    | PT.EFnName(_, nr, bounds, _) ->
+      named nr bounds [] |> ignore<Argument>
+      Argument.Unknown
+    | PT.ESelf _ ->
+      self [] |> ignore<Argument>
+      Argument.Unknown
+    | PT.EInfix(_, infix, lhs, rhs, impl) ->
+      let values = [ visit lhs; visit rhs ]
+      emit (infixRef infix impl) values |> ignore<Argument>
+      Argument.Unknown
+    | PT.ELambda(_, patterns, body) -> lambda env patterns body
+    | PT.EPipe(_, lhs, parts) ->
+      parts
+      |> List.fold
+        (fun value part ->
+          match part with
+          | PT.EPipeFnCall(_, nr, _, rest, bounds) ->
+            let values = value :: List.map visit rest
+            named nr bounds values
+          | PT.EPipeInfix(_, infix, rhs, impl) ->
+            let values = [ value; visit rhs ]
+            emit (infixRef infix impl) values |> ignore<Argument>
+            Argument.Unknown
+          | PT.EPipeLambda(_, patterns, body) -> lambda env patterns body
+          | PT.EPipeVariable(_, _, arguments) ->
+            note Analysis.unresolved
+            arguments |> List.iter (fun e -> visit e |> ignore<Argument>)
+            Argument.Unknown
+          | PT.EPipeEnum(_, _, _, fields) ->
+            fields |> List.iter (fun e -> visit e |> ignore<Argument>)
+            Argument.Unknown)
+        (visit lhs)
+    | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Package value } }) when
+      Set.contains value inertValues
+      ->
+      Argument.Unknown
+    | PT.EValue _ ->
+      // Only stored inert data is known not to hand back executable code.
+      note Analysis.unresolved
+      Argument.Unknown
+    | _ ->
+      Ast.subExprs expr |> List.iter (fun e -> visit e |> ignore<Argument>)
+      Argument.Unknown
+  and lambda env patterns body =
+    let env =
+      patterns
+      |> NEList.toList
+      |> List.collect (PT.LetPattern.symbolsUsed >> Set.toList)
+      |> List.fold (fun env name -> Map.add name Argument.Unknown env) env
+    walk env false body |> ignore<Argument>
+    Argument.Unknown
+  let returned = walk parameters true expr
+  { metadata with calls = List.ofSeq sites; returnValue = returned }
+
+/// Calls in an expression, with unknown free variables. The caller supplies
+/// which package values hold only data; everything else stays incomplete.
+let analyze
   (callbacks : Set<int>)
   (inertValues : Set<PT.FQValueName.Package>)
   (expr : PT.Expr)
   : Analysis =
-  let own =
-    match expr with
-    | PT.EFnName(_, nr, bounds, _) -> nameRef nr bounds
-    | PT.EInfix(_, infix, _, _, implFn) -> infixRef infix implFn
-    // A passed callback may be called by the receiving function.
-    | PT.EArg(_, index) when Set.contains index callbacks -> Analysis.callbackEscape
-    // A value is evaluated once and stored, so reading it runs nothing. What
-    // it can do is hand back code: a named fn or lambda nested anywhere in it,
-    // which the reader may then call without this analysis seeing the call.
-    // So a reference is followed only when the store has shown the value is
-    // data all the way down. Anything else (a value holding code, one not yet
-    // evaluated, one that could not be read, a builtin value) stays
-    // incomplete, since treating it as complete would let returned executable
-    // code be approved as effect-free.
-    | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Package value } }) when
-      Set.contains value inertValues
-      ->
-      Analysis.empty
-    | PT.EValue _ -> Analysis.unresolved
-    | PT.EPipe(_, _, parts) -> Analysis.collect pipeOwnRefs parts
-    | PT.EApply(_, fnExpr, _, _) ->
-      match fnExpr with
-      | PT.EFnName _
-      | PT.ELambda _
-      | PT.ESelf _ -> Analysis.empty
-      // The callback escape is recorded by the `EArg` child below.
-      | PT.EArg(_, index) when Set.contains index callbacks -> Analysis.empty
-      // A function held in a variable, record, or value can be an effectful
-      // callback. Its target is not statically known here.
-      | _ -> Analysis.unresolved
-    | _ -> Analysis.empty
-  Analysis.combine
-    own
-    (Analysis.collect (analyze callbacks inertValues) (Ast.subExprs expr))
+  analyzeWith callbacks inertValues Map.empty expr
 
 
 /// Every package value an expression references, so the caller can ask the
@@ -211,12 +345,18 @@ let analyzeFn
   (inertValues : Set<PT.FQValueName.Package>)
   (fn : PT.PackageFn.PackageFn)
   : Analysis =
-  analyze (callbackParams fn) inertValues fn.body
+  let parameters =
+    fn.parameters
+    |> NEList.toList
+    |> List.mapi (fun i p -> p.name, Argument.Parameter i)
+    |> Map.ofList
+  analyzeWith (callbackParams fn) inertValues parameters fn.body
 
 
 /// Conservative permission requirements of a package function: the union of
-/// the call effects of every builtin statically reachable from it, lambda
-/// bodies included, since returned code may run later. Missing package
+/// the call effects of every builtin statically reachable from it, specialized
+/// where arguments are known. Lambda bodies are included, since returned code
+/// may run later. Missing package
 /// functions, dynamic calls, and unclassified builtins make the result
 /// incomplete; an incomplete result must never be approved or treated as
 /// effect-free.
@@ -238,16 +378,132 @@ module Requirements =
   type Result = { requiredEffects : Set<E.Effect>; complete : bool }
 
   /// How far a walk of the package functions has got.
-  type private Walk =
-    { visited : Set<PT.FQFnName.Package>
-      requiredEffects : Set<E.Effect>
-      complete : bool }
+  type private Walk = { visited : Set<PT.FQFnName.Package>; complete : bool }
 
   /// The loaded, immutable dependency closure of one root: every package fn
   /// statically reachable from it (the root included) that could be loaded,
   /// with its body's call analysis computed once at load. A member missing
   /// from it is one that could not be loaded.
   type Closure = Map<PT.FQFnName.Package, PT.PackageFn.PackageFn * Analysis>
+
+  /// A small set of possible Int64s; None means any value. Joining an unknown
+  /// branch or exceeding the bound always widens, never drops possibilities.
+  type private Numbers = Option<Set<int64>>
+
+  let private joinNumbers (a : Numbers) (b : Numbers) : Numbers =
+    match a, b with
+    | Some a, Some b ->
+      let joined = Set.union a b
+      if Set.count joined <= 16 then Some joined else None
+    | _ -> None
+
+  /// Effects and their paths from call-site summaries, without reading ASTs
+  /// or executing user code. Recursive contexts and integer facts are bounded
+  /// and widen to unknown arguments. Deferred code is already in the summary.
+  let effectPaths
+    (callEffectsFor : string * int -> Option<Set<E.Effect>>)
+    (closure : Closure)
+    (body : Analysis)
+    : Map<E.Effect, List<PT.FQFnName.FQFnName>> =
+    let mutable paths = Map.empty
+    let memo =
+      System.Collections.Generic.Dictionary<PT.Hash * List<Numbers>, Numbers>()
+    let contexts = System.Collections.Generic.Dictionary<PT.Hash, int>()
+    let add path effects =
+      for effect in effects do
+        if not (Map.containsKey effect paths) then paths <- Map.add effect path paths
+    let classify (builtin : PT.FQFnName.Builtin) values =
+      let declared =
+        callEffectsFor (builtin.name, builtin.version)
+        |> Option.defaultValue Set.empty
+      match builtin.name, builtin.version, List.tryItem 1 values with
+      | "syscallOpen", 0, Some(Some flags) when
+        flags
+        |> Set.forall (fun f ->
+          f >= int64 System.Int32.MinValue && f <= int64 System.Int32.MaxValue)
+        ->
+        let access = flags |> Set.toList |> List.map (int >> HostPosix.openAccess)
+        declared
+        |> (fun effects ->
+          if List.exists fst access then
+            effects
+          else
+            Set.remove E.Effect.FileRead effects)
+        |> (fun effects ->
+          if List.exists snd access then
+            effects
+          else
+            Set.remove E.Effect.FileWrite effects)
+      | _ -> declared
+    let rec call path name values : Numbers =
+      let path = path @ [ name ]
+      match name with
+      | PT.FQFnName.Builtin builtin ->
+        add path (classify builtin values)
+        None
+      | PT.FQFnName.Package hash ->
+        match Map.tryFind hash closure with
+        | None -> None
+        | Some(fn, summary) ->
+          let count =
+            match contexts.TryGetValue hash with
+            | true, count -> count
+            | false, _ -> 0
+          let values =
+            fn.parameters
+            |> NEList.toList
+            |> List.mapi (fun i _ ->
+              if count >= 16 then
+                None
+              else
+                List.tryItem i values |> Option.defaultValue None)
+          let key = hash, values
+          match memo.TryGetValue key with
+          | true, result -> result
+          | false, _ ->
+            // Recursive return values start unknown. The ongoing summary walk
+            // still collects their effects, including changed argument contexts.
+            memo[key] <- None
+            contexts[hash] <- count + 1
+            let result = summarize path (Some hash) values summary
+            memo[key] <- result
+            result
+      | PT.FQFnName.TraitMethod _ -> None
+    and summarize path self args (summary : Analysis) : Numbers =
+      let results = ResizeArray<Numbers>()
+      // Aliases share symbolic values. Preserve that sharing instead of
+      // expanding repeated choices exponentially; call results only refer back.
+      let known =
+        System.Collections.Generic.Dictionary<Argument, Numbers>(
+          HashIdentity.Reference
+        )
+      let rec facts source =
+        match known.TryGetValue source with
+        | true, value -> value
+        | false, _ ->
+          let value =
+            match source with
+            | Argument.Unknown -> None
+            | Argument.Int64 n -> Some(Set.singleton n)
+            | Argument.Parameter i -> List.tryItem i args |> Option.defaultValue None
+            | Argument.CallResult i ->
+              if i >= 0 && i < results.Count then results[i] else None
+            | Argument.Alternatives choices ->
+              choices |> List.map facts |> List.fold joinNumbers (Some Set.empty)
+          known[source] <- value
+          value
+      for site in summary.calls do
+        let values = site.arguments |> List.map facts
+        let result =
+          match site.target with
+          | CallTarget.Named name -> call path name values
+          | CallTarget.Self ->
+            self
+            |> Option.bind (fun hash -> call path (PT.FQFnName.Package hash) values)
+        results.Add result
+      facts summary.returnValue
+    summarize [] None [] body |> ignore<Numbers>
+    paths
 
   /// The requirements of a body, walking the package functions it references.
   /// An incomplete walk must never be treated as effect-free.
@@ -292,13 +548,8 @@ module Requirements =
             ->
             visit (incomplete w) package
           | PT.FQFnName.Builtin builtin ->
-            // TODO consider specializing a scoped effect when the resource
-            // argument is a literal at the call site (a hardcoded path or
-            // URL), so approve-time review can show an exact rule instead
-            // of the bare effect. See docs/permissions-todos.md.
             match callEffectsFor (builtin.name, builtin.version) with
-            | Some found ->
-              { w with requiredEffects = Set.union w.requiredEffects found }
+            | Some _ -> w
             | None -> incomplete w
           | PT.FQFnName.Package package -> visit w package
           // `analyze` replaces a trait call with the implementation it
@@ -306,17 +557,15 @@ module Requirements =
           | PT.FQFnName.TraitMethod _ -> incomplete w)
         w
 
-    let walked =
-      visitCalls
-        { visited = Set.empty; requiredEffects = Set.empty; complete = true }
-        body
+    let walked = visitCalls { visited = Set.empty; complete = true } body
 
     // The body must account for callbacks and bound implementations supplied
     // by its caller.
     let owesCaller =
       (body.escapesOwnCallback && not callbacksSupplied) || body.defersToTypeParam
 
-    { requiredEffects = walked.requiredEffects
+    { requiredEffects =
+        effectPaths callEffectsFor closure body |> Map.keys |> Set.ofList
       complete = walked.complete && not owesCaller }
 
   /// `forExpressionWith`, for a body whose callbacks nobody has accounted for.
@@ -343,7 +592,7 @@ module Requirements =
 
   /// The requirements of `root`, walking `closure`. Because everything reachable
   /// from a member of a closure is reachable from its root, one loaded closure
-  /// serves every member's analysis, and no body is analyzed again here.
+  /// serves every member's analysis. Argument contexts belong to each walk.
   let forFunction
     (callEffectsFor : string * int -> Option<Set<E.Effect>>)
     (closure : Closure)
