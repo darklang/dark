@@ -73,6 +73,7 @@
     <Compile Include="PackagePermissions.fs" />
     <Compile Include="PermissionReview.fs" />
     <Compile Include="RaiseSites.fs" />
+    <Compile Include="BoolFlagSites.fs" />
 
     <!-- ex-LibCloud SQLite-bound modules /-->
     <Compile Include="Tracing.fs" />
