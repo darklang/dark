@@ -382,6 +382,10 @@ module Test =
   let storedResult(key: ResultKey): Stdlib.Option.Option<String> =
     Builtin.pmTestResultGet(key)
 
+  /// <fn storedResult> for each of <param keys>, in order, in one read.
+  let storedResults(keys: List<ResultKey>): List<Stdlib.Option.Option<String>> =
+    Builtin.pmTestResultGetMany(keys)
+
   /// Store <param outcome> under <param key>, replacing what was there.
   let storeResult(key: ResultKey, outcome: String): Unit =
     Builtin.pmTestResultPut(key, outcome)

@@ -39,6 +39,28 @@ let get (key : Key) : Task<Option<string>> =
   |> Sql.parameters (keyParams key)
   |> Sql.executeRowOptionAsync (fun read -> read.string "outcome_json")
 
+/// The outcome stored under each of <param keys>, in order, in one read.
+let getMany (keys : List<Key>) : Task<List<Option<string>>> =
+  task {
+    let! found =
+      Sql.query
+        "SELECT j.key AS i, r.outcome_json FROM json_each(@keys) j
+         JOIN package_test_results r
+           ON r.test_hash = json_extract(j.value, '$[0]')
+          AND r.runtime_hash = json_extract(j.value, '$[1]')
+          AND r.branch_id = json_extract(j.value, '$[2]')
+          AND r.result_type_hash = json_extract(j.value, '$[3]')"
+      |> Sql.parameters
+        [ "keys",
+          keys
+          |> List.map (fun k -> [ k.test; k.runtime; k.branch; k.resultType ])
+          |> jsonRows
+          |> Sql.string ]
+      |> Sql.executeAsync (fun read -> read.int64 "i", read.string "outcome_json")
+    let found = Map.ofList found
+    return keys |> List.mapi (fun i _ -> Map.tryFind (int64 i) found)
+  }
+
 /// Store <param outcome> under <param key>, replacing what was there.
 let put (key : Key) (outcome : string) : Task<unit> =
   Sql.query
