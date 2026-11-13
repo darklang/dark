@@ -6,7 +6,7 @@ module Darklang.Cli.Compile
 
 /// The compiler commit this CLI is tested against. `scripts/compiler/build` builds it to
 /// `~/.darklang/compiler/<commit>/darkc`; `DARK_COMPILER` points somewhere else.
-val pinnedCommit = "48969a6ccb031af38c21f3be16f8a2493b9e3e3d"
+val pinnedCommit = "059c6a60a5458f73184abd8df1543ec8c7e154b7"
 
 
 val port = 9098
