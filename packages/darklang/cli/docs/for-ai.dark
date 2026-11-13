@@ -73,11 +73,9 @@ non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
 A JSON object parses into a record: extra fields are ignored, and a field that
 may be absent or `null` is an `Option` field.
 
-Files and the network are denied until allowed. One step covers a project:
-
-  permissions profile local-dev /abs/path/to/project --yes
-
-One host, every path on it: `permissions allow http GET https://api.example.com`.
+When access is denied, submit the exact `permissions allow` command through
+runner approval, without asking in chat first. Retry only if safe. Details:
+`docs for-ai permissions`.
 
 ## Mistakes that cost a run
 
