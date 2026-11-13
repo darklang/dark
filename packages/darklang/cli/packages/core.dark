@@ -390,7 +390,9 @@ let commitAuthored(
     let ownIssue =
       match report.verdict with
       | Failed ->
-        let issues = Stdlib.List.concat(report.warnings, report.diagnostics)
+        // definite errors first: a warning such as AmbiguousType is often what an error
+        // left behind, and only the first issue is shown
+        let issues = Stdlib.List.concat(report.diagnostics, report.warnings)
 
         match issues with
         | [] -> Stdlib.Option.Option.Some("it failed the type check")
