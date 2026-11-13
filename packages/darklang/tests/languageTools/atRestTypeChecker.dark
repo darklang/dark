@@ -3501,6 +3501,19 @@ module StandardTypes =
         |> Stdlib.Test.equal(Darklang.LanguageTools.ProgramTypes.Hash.Hash("")) ])
 
 module NotCallableDiagnostics =
+  test noDetailFormatting =
+    let render(code: Darklang.LanguageTools.AtRestTypeChecker.IssueCode): String =
+      Darklang.LanguageTools.AtRestTypeChecker.contextToStringWith(
+        (fun _ -> Stdlib.Option.Option.None),
+        Stdlib.Option.Option.None,
+        code,
+        Darklang.LanguageTools.AtRestTypeChecker.Context.NoDetail)
+    Stdlib.Test.all(
+      [ render(Darklang.LanguageTools.AtRestTypeChecker.IssueCode.NotCallable)
+        |> Stdlib.Test.equal("This value is not a function")
+        render(Darklang.LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch)
+        |> Stdlib.Test.equal("") ])
+
   test packageValue =
     issues("let f(): Bytes = Stdlib.Bytes.empty()", "f")
     |> Stdlib.Test.equal(

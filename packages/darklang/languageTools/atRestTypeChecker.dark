@@ -560,7 +560,7 @@ let contextToStringWith(
   | InStringInterpolation(inner) ->
     "In string interpolation: " + contextToStringWith(customTypeName, actualName, code, inner)
   | NoDetail ->
-    if code == NotCallable then "This value is not a function" else ""
+    if code == IssueCode.NotCallable then "This value is not a function" else ""
   | NonCallableValue(name) ->
     match name with
     | Some(name) ->
