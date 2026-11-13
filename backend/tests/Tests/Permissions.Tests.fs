@@ -510,14 +510,21 @@ let private shellWords (line : string) : List<string> =
   if inWord then words.Add(current.ToString())
   List.ofSeq words
 
-/// The rule a denial tells a person to paste, as the text between the backticks.
-let private suggestedRule (output : string) : Option<string> =
-  let marker = "To allow: `dark permissions allow "
+/// Read the arguments from a suggested command in the error message.
+let private readSuggestedCommandArguments
+  (marker : string)
+  (output : string)
+  : Option<string> =
   match output.IndexOf marker with
   | -1 -> None
   | start ->
     let from = start + marker.Length
-    Some(output.Substring(from, output.IndexOf("`.", from) - from))
+    let line = output.Substring(from).Split('\n')[0]
+    Some(line.TrimEnd())
+
+/// Read the rule from the suggested permissions command.
+let private suggestedRule (output : string) : Option<string> =
+  readSuggestedCommandArguments "To allow:\n  dark permissions allow " output
 
 let private denied (output : string) : bool = output.Contains "permission denied"
 
@@ -622,14 +629,6 @@ let pastedFileRuleReadsOnlyThatFile =
         ()
       })
 
-/// The text after <param marker> up to the closing backtick, the way a person would copy it.
-let private quotedAfter (marker : string) (output : string) : Option<string> =
-  match output.IndexOf marker with
-  | -1 -> None
-  | start ->
-    let from = start + marker.Length
-    Some(output.Substring(from, output.IndexOf("`", from) - from))
-
 let fileDenialOffersTheFolderAndTheProfile =
   CliInstance.instanceTest
     "a file denial also offers its folder's rule and the profile for that folder"
@@ -649,18 +648,33 @@ let fileDenialOffersTheFolderAndTheProfile =
         let second = write project "b.csv"
         let outside = write (dir "elsewhere") "c.csv"
 
-        let! before = CliInstance.run i [ "eval"; first ]
+        let! code, stdout, before = CliInstance.runRaw i [ "eval"; first ]
+        Expect.equal code 1 "a permission refusal exits nonzero"
+        Expect.equal stdout "" "errors go to stderr"
+        Expect.stringStarts
+          before
+          "Error: permission denied by instance policy:\n"
+          "permission errors have a heading without an exception prefix"
+        Expect.isFalse
+          (before.Contains '\u001b')
+          "redirected output has no ANSI escapes"
+        Expect.stringContains
+          before
+          "\n\nAgents:\n  "
+          "agent guidance has its own block"
         Expect.isTrue (denied before) $"a fresh install refuses it first:\n{before}"
         let folderRule =
           match
-            quotedAfter
-              "For everything in its folder: `dark permissions allow "
+            readSuggestedCommandArguments
+              "For everything in its folder:\n  dark permissions allow "
               before
           with
           | Some rule -> rule
           | None -> failtest $"no folder rule offered:\n{before}"
         let profile =
-          match quotedAfter "`dark permissions profile " before with
+          match
+            readSuggestedCommandArguments "  dark permissions profile " before
+          with
           | Some profile -> profile
           | None -> failtest $"no profile offered:\n{before}"
         Expect.equal folderRule $"file read '{project}'" "the folder the file is in"
