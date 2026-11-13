@@ -118,3 +118,26 @@ test aCallerFollowsAFunctionChangedBackAndForthOnABranch =
       evals(dark, "Tests.App.f()", "2", "the merge lands f = 2")
       evals(dark, "Tests.App.g()", "20", "and g follows it")
       draftIsEmpty(dark, "with main's draft empty") ])
+
+
+// One save that edits a function and its callee: the caller follows both, and is not left reading
+// as still on the old version. It was, because each follow copied the caller's previous callee
+// rows, and the first follow ran before the second had moved the caller. The package build's
+// incremental path saves each changed file this way, so it left the dev store with callers a full
+// reload does not have.
+test savingAFunctionAndItsCalleeTogetherLeavesNoStaleCaller =
+  scenario(fun dark ->
+    let path = Darklang.Cli.Tests.Instance.home(dark) + "/pair.dark"
+    let write(source: String): Stdlib.Test.Result =
+      match Stdlib.Cli.File.writeAtomic(path, source) with
+      | Ok(_) -> Stdlib.Test.Result.Pass
+      | Error(e) -> Stdlib.Test.fail($"could not write {path}: {e.message}")
+    [ write("let b(x: Int64): Int64 = x + 1\nlet a(x: Int64): Int64 = b(x) * 2")
+      run(dark, [ "module", "/Tests.Pair", path ])
+      save(dark, "Tests.App.c", "(x: Int64): Int64 = Tests.Pair.a(x) + 100")
+      commit(dark, "base")
+
+      write("let b(x: Int64): Int64 = x + 10\nlet a(x: Int64): Int64 = b(x) * 3")
+      run(dark, [ "module", "/Tests.Pair", path ])
+      evals(dark, "Tests.App.c(1)", "133", "the caller runs both edits")
+      same(staleCallers(dark), 0, "and nothing reads as on an old version") ])
