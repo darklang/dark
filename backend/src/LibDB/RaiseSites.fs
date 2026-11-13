@@ -84,15 +84,19 @@ let find
     callEffectsFor (b.name, b.version)
     |> Option.exists (Set.contains Effects.Effect.Raise)
 
-  let direct (calls : LibExecution.CallGraph.Analysis) : Set<string> =
-    calls.names
+  // each fn's calls that can raise, less the ones a literal divisor rules out
+  let calls =
+    closure |> Map.map (fun (fn, analysis) -> Raises.calls nameOf fn analysis)
+
+  let direct (names : List<PT.FQFnName.FQFnName>) : Set<string> =
+    names
     |> List.choose (function
       | PT.FQFnName.Builtin b when builtinRaises b -> Some $"Builtin.{b.name}"
       | _ -> None)
     |> Set.ofList
 
-  let callees (calls : LibExecution.CallGraph.Analysis) : List<PT.Hash> =
-    calls.names
+  let callees (names : List<PT.FQFnName.FQFnName>) : List<PT.Hash> =
+    names
     |> List.choose (function
       | PT.FQFnName.Package p -> Some p
       | _ -> None)
@@ -105,10 +109,10 @@ let find
         if Set.contains (nameOf h) Raises.cannotRaise then
           Set.empty
         else
-          match Map.tryFind h closure with
+          match Map.tryFind h calls with
           | None -> own
-          | Some(_, calls) ->
-            callees calls
+          | Some names ->
+            callees names
             |> List.choose (fun c -> Map.tryFind c reached)
             |> List.fold Set.union own)
     let size (m : Map<PT.Hash, Set<string>>) =
@@ -116,23 +120,23 @@ let find
     if size next = size reached then reached else settle next
 
   let reached =
-    closure
-    |> Map.mapWithIndex (fun h (_, calls) ->
-      if Set.contains (nameOf h) Raises.cannotRaise then Set.empty else direct calls)
+    calls
+    |> Map.mapWithIndex (fun h names ->
+      if Set.contains (nameOf h) Raises.cannotRaise then Set.empty else direct names)
     |> settle
 
   let raises (h : PT.Hash) =
     Map.tryFind h reached |> Option.exists (fun s -> not (Set.isEmpty s))
 
   let sites =
-    closure
+    calls
     |> Map.toList
-    |> List.collect (fun (h, (_, calls)) ->
+    |> List.collect (fun (h, names) ->
       let caller = nameOf h
       if isLibrary caller then
         []
       else
-        calls.names
+        names
         |> List.choose (function
           | PT.FQFnName.Builtin b when builtinRaises b ->
             Some { caller = caller; callee = $"Builtin.{b.name}" }

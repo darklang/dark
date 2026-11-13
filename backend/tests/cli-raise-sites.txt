@@ -26,7 +26,6 @@
 1 Darklang.Cli.Installation.Uninstall.runUninstall Darklang.Stdlib.Cli.Unix.removeDirectory
 1 Darklang.Cli.Installation.Update.execute Builtin.unwrap
 1 Darklang.Cli.LiveView.Host.step Darklang.Stdlib.Host.await
-1 Darklang.Cli.Packages.AtRestCheck.positionShifted Darklang.Stdlib.UInt64.Modulo.modulo
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.createTemp
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.writeText
@@ -72,7 +71,6 @@
 1 Darklang.PrettyPrinter.__encodeChar Darklang.Stdlib.Int64.fromUInt8
 1 Darklang.SCM.PackageOps.readRevisionOps Builtin.unwrap
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
-2 Darklang.Cli.Packages.AtRestCheck.positionShifted Darklang.Stdlib.UInt64.Divide.divide
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive
 2 Darklang.Cli.Packages.Signatures.namedLike Darklang.Stdlib.List.sort
 2 Darklang.LanguageTools.AtRestTypeChecker.Generate.orPattern Darklang.Stdlib.List.sort
