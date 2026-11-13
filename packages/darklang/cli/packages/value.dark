@@ -26,88 +26,48 @@ let execute(state: AppState, args: List<String>): AppState =
 
         failed(state)
       else
-        createValueInline(state.packageData.currentLocation, location, inlineDefinition, state)
+        createValueInline(state, location, inlineDefinition)
 
 
-let createValueInline(
-  currentLocation: PackageLocation,
-  locationStr: String,
-  expression: String,
-  state: AppState)
-  : AppState =
-  match Location.parseRelativeTo(currentLocation, locationStr) with
-  | Ok(location) ->
-    let fullSource = $"val {location.name} = {expression}"
+let createValueInline(state: AppState, locationStr: String, expression: String): AppState =
+  let hint =
+    [ Stdlib.Cli.UI.Colors.error("Failed to parse value expression")
+      ""
+      "Make sure your syntax is correct. Examples:"
+      "  dark val Me.Demo.answer '42'"
+      "  dark val Me.Demo.message '\"hello world\"'"
+      "" ]
 
-    // Parse the value definition with the unified (ranged) parser
-    let (tree, diagnostics) =
-      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
+  authorInline(
+    state,
+    locationStr,
+    (fun location -> $"val {location.name} = {expression}"),
+    hint,
+    fun(location, declaration) ->
+      match declaration with
+      | Value(writtenValue) ->
+        Option.Some(
+          saveAuthored(
+            state,
+            location,
+            LanguageTools.ProgramTypes.ItemKind.Value,
+            "value",
+            0,
+            fun ctx ->
+              let (packageValue, unresolvedNames) =
+                LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT(
+                  ctx,
+                  writtenValue)
 
-    match tree with
-    | Some(SourceFile(sourceFile)) ->
-      // The parser may recover a tree after errors; do not save it.
-      let hasParseError = Errors.reportParseErrors(diagnostics) || Errors.reportTrailing(sourceFile)
-      let found =
-        if hasParseError then
-          Option.None
-        else
-          sourceFile.declarations
-          |> Stdlib.List.findFirst(fun d ->
-            match d with
-            | Value(_) -> true
-            | _ -> false)
+              let ops =
+                [ LanguageTools.ProgramTypes.PackageOp.AddValue(packageValue)
+                  LanguageTools.ProgramTypes.PackageOp.SetName(
+                    location,
+                    LanguageTools.ProgramTypes.Reference.PackageValue(packageValue.hash),
+                    Option.None) ]
 
-      match found with
-      | Some(Value(writtenValue)) ->
-        saveAuthored(
-          state,
-          location,
-          LanguageTools.ProgramTypes.ItemKind.Value,
-          "value",
-          { state with exitCode = 1 },
-          0,
-          fun ctx ->
-            let (packageValue, unresolvedNames) =
-              LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT(
-                ctx,
-                writtenValue)
-
-            let ops =
-              [ LanguageTools.ProgramTypes.PackageOp.AddValue(packageValue)
-                LanguageTools.ProgramTypes.PackageOp.SetName(
-                  location,
-                  LanguageTools.ProgramTypes.Reference.PackageValue(packageValue.hash),
-                  Option.None) ]
-
-            Option.Some((ops, packageValue.hash, unresolvedNames)))
-      | _ ->
-        // a precise parse error was already printed above; don't stack the
-        // generic hint on top of it
-        if hasParseError then
-          failed(state)
-        else
-          [ Stdlib.Cli.UI.Colors.error("Failed to parse value expression")
-            ""
-            "Make sure your syntax is correct. Examples:"
-            "  dark val Me.Demo.answer '42'"
-            "  dark val Me.Demo.message '\"hello world\"'"
-            "" ]
-          |> Stderr.lines
-
-          failed(state)
-    | None ->
-      [ Stdlib.Cli.UI.Colors.error("Failed to parse value expression")
-        ""
-        "Make sure your syntax is correct. Examples:"
-        "  dark val Me.Demo.answer '42'"
-        "  dark val Me.Demo.message '\"hello world\"'"
-        "" ]
-      |> Stderr.lines
-
-      failed(state)
-  | Error(msg) ->
-    printErr($"Invalid location: {msg}")
-    failed(state)
+              Option.Some((ops, packageValue.hash, unresolvedNames))))
+      | _ -> Option.None)
 
 
 let help(_state: AppState): String =
