@@ -53,32 +53,47 @@ let private loadHashes () : Map<string, string> =
   let sourceTreePath =
     System.IO.Path.Combine(__SOURCE_DIRECTORY__, "package-ref-hashes.txt")
     |> System.IO.Path.GetFullPath
-  try
+  let fromSourceTree () : Option<Map<string, string>> =
     if System.IO.File.Exists(sourceTreePath) then
       let content = System.IO.File.ReadAllLines(sourceTreePath)
       if content.Length = 0 then
         warn
           $"package-ref-hashes.txt is empty ({sourceTreePath}). \
             Kernel package lookups will fail; run `scripts/build/reload-packages` to regenerate it."
-        Map.empty
+        Some Map.empty
       else
-        content |> parseLines
+        Some(content |> parseLines)
     else
-      // Release binary: source tree not available, use the copy the CLI embeds
-      let entry = System.Reflection.Assembly.GetEntryAssembly()
-      use stream =
-        if isNull entry then
-          null
-        else
-          entry.GetManifestResourceStream("package-ref-hashes.txt")
-      if stream <> null then
-        use reader = new System.IO.StreamReader(stream)
-        reader.ReadToEnd().Split('\n') |> parseLines
+      None
+  let embedded () : Option<Map<string, string>> =
+    let entry = System.Reflection.Assembly.GetEntryAssembly()
+    use stream =
+      if isNull entry then
+        null
       else
-        warn
-          "package-ref-hashes.txt not found in the source tree or as an embedded resource. \
-           Kernel package lookups will fail."
-        Map.empty
+        entry.GetManifestResourceStream("package-ref-hashes.txt")
+    if stream <> null then
+      use reader = new System.IO.StreamReader(stream)
+      Some(reader.ReadToEnd().Split('\n') |> parseLines)
+    else
+      None
+  try
+    // A release binary reads the copy it was built with. The source path is baked in at
+    // compile time, so where a checkout sits at that path (our dev containers), reading it
+    // first gave an older binary the newest build's hashes and `Function ... couldn't be found`.
+    // A debug build reads the source tree first: a reload rewrites the file without rebuilding.
+#if DEBUG
+    let found = fromSourceTree () |> Option.orElseWith embedded
+#else
+    let found = embedded () |> Option.orElseWith fromSourceTree
+#endif
+    match found with
+    | Some hashes -> hashes
+    | None ->
+      warn
+        "package-ref-hashes.txt not found in the source tree or as an embedded resource. \
+         Kernel package lookups will fail."
+      Map.empty
   with
   | :? Exception.InternalException -> reraise ()
   | e ->
