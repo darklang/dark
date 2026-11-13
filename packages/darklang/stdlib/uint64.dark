@@ -101,9 +101,13 @@ let fromFloatRounded(a: Float): Stdlib.Option.Option<UInt64> =
 let parse(
   s: String)
   : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
+  // a plain match: the generic Option.toResult call was a quarter of the cost
   match Stdlib.BigInt.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toUInt64(n), Stdlib.UInt64.ParseError.OutOfRange)
-  | Error(_) -> Error(Stdlib.UInt64.ParseError.BadFormat)
+  | Ok(n) ->
+    match Stdlib.BigInt.toUInt64(n) with
+    | Some(i) -> Stdlib.Result.Result.Ok(i)
+    | None -> Stdlib.Result.Result.Error(Stdlib.UInt64.ParseError.OutOfRange)
+  | Error(_) -> Stdlib.Result.Result.Error(Stdlib.UInt64.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
