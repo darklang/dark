@@ -106,9 +106,17 @@ let fitsOr(first: Doc, otherwise: Doc): Doc =
 val breakParent = Doc.BreakParent
 
 
-let concat(a: Doc, b: Doc): Doc = Doc.Concat(a, b)
+let concat(a: Doc, b: Doc): Doc =
+  Doc.Concat(a, b)
 
-let concatAll(ds: List<Doc>): Doc = List.fold(ds, Doc.Empty, fun(acc, d) -> Doc.Concat(acc, d))
+
+let concatAll(ds: List<Doc>): Doc =
+  List.fold(ds, Doc.Empty, fun(acc, d) ->
+    match acc, d with
+    | Empty, _ -> d
+    | _, Empty -> acc
+    | _ -> Doc.Concat(acc, d))
+
 
 let concatSpace(a: Doc, b: Doc): Doc = Doc.Concat(a, Doc.Concat(Doc.Text(" ", 1), b))
 
