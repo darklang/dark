@@ -17,7 +17,7 @@
          rather than hardcoded to /home/dark/app/backend/Build: inside the dev
          container those are the same path, but the release image (and any
          other build host) checks out somewhere else, and a hardcoded path
-         sends paket and msbuild at a directory they can't write.
+         sends msbuild at a directory it can't write.
          Overridable with /p:DarkBuildDir=... if something needs to. -->
     <DarkBuildDir Condition="'$(DarkBuildDir)' == ''">$(MSBuildThisFileDirectory)Build</DarkBuildDir>
     <BaseOutputPath>$(DarkBuildDir)/out/$(MSBuildProjectName)</BaseOutputPath>
@@ -32,16 +32,21 @@
          build cannot print fields with anyway. The tests still use `%A`. -->
     <OtherFlags Condition="'$(PublishAot)' == 'true'">$(OtherFlags) --reflectionfree</OtherFlags>
 
-    <!-- NU1510: "PackageReference X will not be pruned, consider removing it".
-         net10.0 provides System.Memory and System.Threading.Tasks.Extensions itself,
-         but both arrive transitively (Ply, SimpleBase, SQLitePCLRaw) and paket writes
-         them as explicit references, which is what blocks the pruning. We can't drop
-         what we don't declare, so the advice isn't actionable, and 78 copies of it
-         per build were most of the noise that made the other warnings easy to miss.
-         Revisit if paket learns about PrunePackageReference. -->
-    <NoWarn>$(NoWarn);NU1510</NoWarn>
+    <!-- FSharp.Core is pinned in Directory.Packages.props like any other package. -->
+    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
 
-    <!-- NU1603: a version paket.lock names wasn't found, so NuGet took the next one up.
+    <!-- Each project's packages.lock.json records its whole graph, with hashes. CI restores in
+         locked mode, so a lock that disagrees with Directory.Packages.props fails the job.
+         A trimmed or AOT publish adds the SDK's ILLink and ILCompiler packages to every project,
+         for the build host's runtime, which a checked-in lock can't hold. Its lock goes beside
+         the build output instead, unchecked. Those packages' versions come with the SDK that
+         global.json pins, and the rest resolve to the same pins as the locked restore. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <DarkPublishRestore Condition="'$(PublishAot)' == 'true' Or '$(PublishTrimmed)' == 'true'">true</DarkPublishRestore>
+    <NuGetLockFilePath Condition="'$(DarkPublishRestore)' == 'true'">$(BaseIntermediateOutputPath)publish.packages.lock.json</NuGetLockFilePath>
+    <RestoreLockedMode Condition="'$(CI)' == 'true' And '$(DarkPublishRestore)' != 'true'">true</RestoreLockedMode>
+
+    <!-- NU1603: a pinned version wasn't found, so NuGet took the next one up.
          That is a dependency changing without anyone changing it, so it fails the build. -->
     <WarningsAsErrors>$(WarningsAsErrors);NU1603</WarningsAsErrors>
   </PropertyGroup>

@@ -6,7 +6,8 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
 
     <Compile Include="Libs/NoModule.fs" />
 
@@ -59,5 +60,4 @@
     <ProjectReference Include="../../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

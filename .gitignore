@@ -13,8 +13,6 @@ config/local
 
 # F# / dotnet
 backend/packages/
-backend/paket-files/
-backend/.paket/
 backend/Build/
 backend/src/**/obj
 backend/tests/**/obj

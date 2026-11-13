@@ -5,7 +5,8 @@
   </PropertyGroup>
   <!-- dependencies and code -->
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="Legivel" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
@@ -34,5 +35,4 @@
     <Compile Include="Benchmarks.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -1,0 +1,312 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "FSharp.Core": {
+        "type": "Direct",
+        "requested": "[10.0.100, )",
+        "resolved": "10.0.100",
+        "contentHash": "c/r6T/HE9MWL0O0OispLtaKhVwDsiYQlLS249LoxSo1HNH/wfc0f5DE4pI6WpTXkCEdeXa66K5f9FmKLr/0cmw=="
+      },
+      "Legivel": {
+        "type": "Direct",
+        "requested": "[0.4.6, )",
+        "resolved": "0.4.6",
+        "contentHash": "t8I2WpnQCvxS46pwCZmHZmtJL+siUaLqsrStZLHy1/eY/rikLCmsXOoZLFULgHSCbfN4mauRpqVfRIuhn+KUqA==",
+        "dependencies": {
+          "FSharp.Core": "4.6.0"
+        }
+      },
+      "builtins.cli": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibConfig": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.clihost": {
+        "type": "Project",
+        "dependencies": {
+          "Builtins.Cli": "[1.0.0, )",
+          "Builtins.Http.Client": "[1.0.0, )",
+          "Builtins.Http.Server": "[1.0.0, )",
+          "Builtins.Language": "[1.0.0, )",
+          "Builtins.Matter": "[1.0.0, )",
+          "Builtins.Pure": "[1.0.0, )",
+          "Builtins.Random": "[1.0.0, )",
+          "Builtins.Time": "[1.0.0, )",
+          "FSharp.Core": "[10.0.100, )",
+          "Fumble": "[1.0.3, )",
+          "LibDB": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "LibParser": "[1.0.0, )",
+          "LibSerialization": "[1.0.0, )",
+          "Microsoft.Data.Sqlite": "[10.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.http.client": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibExecution": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.http.server": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibDB": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.language": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibDB": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "LibParser": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.matter": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibDB": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "LibSerialization": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.pure": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibExecution": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.random": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibExecution": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "builtins.time": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibExecution": "[1.0.0, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "libconfig": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "libdb": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "Fumble": "[1.0.3, )",
+          "LibConfig": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "LibSerialization": "[1.0.0, )",
+          "Microsoft.Data.Sqlite": "[10.0.0, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "libexecution": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )",
+          "System.IO.Hashing": "[10.0.0, )"
+        }
+      },
+      "libparser": {
+        "type": "Project",
+        "dependencies": {
+          "LibDB": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "libserialization": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "LibExecution": "[1.0.0, )",
+          "Prelude": "[1.0.0, )"
+        }
+      },
+      "prelude": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "NodaTime": "[3.2.2, )",
+          "Ply": "[0.3.1, )",
+          "Wcwidth": "[4.0.1, )"
+        }
+      },
+      "testutils": {
+        "type": "Project",
+        "dependencies": {
+          "Builtins.Cli": "[1.0.0, )",
+          "Builtins.Http.Client": "[1.0.0, )",
+          "Builtins.Http.Server": "[1.0.0, )",
+          "Builtins.Language": "[1.0.0, )",
+          "Builtins.Matter": "[1.0.0, )",
+          "Builtins.Pure": "[1.0.0, )",
+          "Builtins.Random": "[1.0.0, )",
+          "Builtins.Time": "[1.0.0, )",
+          "Expecto": "[10.1.0, )",
+          "LibDB": "[1.0.0, )",
+          "LibExecution": "[1.0.0, )",
+          "LibParser": "[1.0.0, )",
+          "NReco.Logging.File": "[1.1.7, )"
+        }
+      },
+      "Expecto": {
+        "type": "CentralTransitive",
+        "requested": "[10.1.0, )",
+        "resolved": "10.1.0",
+        "contentHash": "GIyeEfhAYjvun8d760RdfHGzoY3JKmS7L3lffPRUR9AFF08AWFGaE8lEy1iEg4E71XfLSsJHk/LEC4rvaMrosQ==",
+        "dependencies": {
+          "FSharp.Core": "7.0.200",
+          "Mono.Cecil": "[0.11.4, 1.0.0)"
+        }
+      },
+      "Fumble": {
+        "type": "CentralTransitive",
+        "requested": "[1.0.3, )",
+        "resolved": "1.0.3",
+        "contentHash": "GJXprhc30kVZn5aVSJOESSYChLl0qKqmnkAkBd6SYh08xttass4rzXPnwy08oJlUMGaATnurLeDUJP+jPbGXug==",
+        "dependencies": {
+          "FSharp.Core": "8.0.101",
+          "Microsoft.Data.Sqlite": "8.0.1"
+        }
+      },
+      "Microsoft.Data.Sqlite": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "I/azQ5WjwoLvSlTyDydkhARPSjYJN8jkXRjR5D92OeyTLbTrQ1K93rgf6XU+HYWHZA6lBI9SUOfl69OqEHb4ow==",
+        "dependencies": {
+          "Microsoft.Data.Sqlite.Core": "10.0.0",
+          "SQLitePCLRaw.bundle_e_sqlite3": "2.1.11",
+          "SQLitePCLRaw.core": "2.1.11"
+        }
+      },
+      "Microsoft.Data.Sqlite.Core": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.5, )",
+        "resolved": "10.0.5",
+        "contentHash": "jFYXnh7s0RShCw6Vkf+ReGCw+mVi7ISg1YaEzYCJcXnUifmbW+aqvCsRJuSRj2ZuQ+oqetpjxlZtbpMmk5FKqQ==",
+        "dependencies": {
+          "SQLitePCLRaw.core": "2.1.11"
+        }
+      },
+      "Mono.Cecil": {
+        "type": "CentralTransitive",
+        "requested": "[0.11.6, )",
+        "resolved": "0.11.6",
+        "contentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
+      },
+      "NodaTime": {
+        "type": "CentralTransitive",
+        "requested": "[3.2.2, )",
+        "resolved": "3.2.2",
+        "contentHash": "dmju5W0UYC3QP/UJM0juKAZkH0HSDMp0gH91A0+mT9M0kgyM2Jm67hUZPl/WRQLq8Lijjqmdk8kyAViWFWM7dA=="
+      },
+      "NReco.Logging.File": {
+        "type": "CentralTransitive",
+        "requested": "[1.1.7, )",
+        "resolved": "1.1.7",
+        "contentHash": "QHPFG0DZVLfXMwWErUo93xJjqqlN2zM42wBI0XRY7SydJ0IOIb21P5/1M9CSq+ND+Jal3OZUCwno7GBCprDGjw=="
+      },
+      "Ply": {
+        "type": "CentralTransitive",
+        "requested": "[0.3.1, )",
+        "resolved": "0.3.1",
+        "contentHash": "+Jtg/ID8isRXdvB0/vpsuSpzrLY33rYtzSscdfijOaXqRqzVdah08ljpOZhQPKuid4JRX3RRzxNqc1p8azZbbg==",
+        "dependencies": {
+          "FSharp.Core": "4.6.2"
+        }
+      },
+      "SourceGear.sqlite3": {
+        "type": "CentralTransitive",
+        "requested": "[3.53.4, )",
+        "resolved": "3.53.4",
+        "contentHash": "aXPX39R0Vgivhi95Z82TRenG56bSOs+Hnt8h1GV0nmfuRaANObd3LC44eoZwszmQqALjaV3ZnBQRej8m5E0L4Q=="
+      },
+      "SQLitePCLRaw.bundle_e_sqlite3": {
+        "type": "CentralTransitive",
+        "requested": "[3.0.2, )",
+        "resolved": "3.0.2",
+        "contentHash": "nzPPFpELY9U1scLvQpA1k1GIgR9ror83DCPmirT2/i5NCPdTBfhTDA6MZqFZonGDayye5mUQRQLOVyEiJNYr0g==",
+        "dependencies": {
+          "SQLitePCLRaw.config.e_sqlite3": "3.0.2",
+          "SourceGear.sqlite3": "3.50.4.2"
+        }
+      },
+      "SQLitePCLRaw.config.e_sqlite3": {
+        "type": "CentralTransitive",
+        "requested": "[3.0.5, )",
+        "resolved": "3.0.5",
+        "contentHash": "aSk8WE5tF2MybESMgtZAEyMVCAWA0nBqOMc48HFoa9UoSdtm3goDXVzNRnefeKIwE6bV9NaNXptn1F9ReMQI0Q==",
+        "dependencies": {
+          "SQLitePCLRaw.provider.e_sqlite3": "3.0.5"
+        }
+      },
+      "SQLitePCLRaw.core": {
+        "type": "CentralTransitive",
+        "requested": "[3.0.5, )",
+        "resolved": "3.0.5",
+        "contentHash": "k81AYXXRCw3Zj8rOhyBoCsx/U97KYDFI2CSKr/ijl5BwpsW/hX/4kBiDmerFaoust8nxBwa0IHQFw8MmSHRtnQ=="
+      },
+      "SQLitePCLRaw.provider.e_sqlite3": {
+        "type": "CentralTransitive",
+        "requested": "[3.0.5, )",
+        "resolved": "3.0.5",
+        "contentHash": "um8YSWduhhuskTG2bHfZrBqMNQOydfU8pcseT+cu5RivOGyoUbCrGXxgoRNTmRYw2VbMWnEZVVFcneZT/5dsBg==",
+        "dependencies": {
+          "SQLitePCLRaw.core": "3.0.5"
+        }
+      },
+      "System.IO.Hashing": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "MqSp5IfX9RdWVwTED0WSRL1kZDNB7GlFj64O/NAJs4uO1beBHWEAFLlC7j8Fw/PkI+SUzooLVNvAe4aEkSwsRg=="
+      },
+      "Wcwidth": {
+        "type": "CentralTransitive",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "PMU8u3pGf9nUkee39KMrB8qqId7u7kyGWaZpOh9E4Mal3xChq+relS/hHQOicGAswyzi7F5DjXjac0mTnRBX8Q=="
+      }
+    }
+  }
+}

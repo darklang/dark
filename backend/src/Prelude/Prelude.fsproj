@@ -7,7 +7,10 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="NodaTime" />
+    <PackageReference Include="Wcwidth" />
     <Compile Include="Exception.fs" />
     <Compile Include="NEList.fs" />
     <Compile Include="Regex.fs" />
@@ -28,5 +31,4 @@
     <Compile Include="Prelude.fs" />
     <Compile Include="Telemetry.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

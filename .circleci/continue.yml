@@ -18,7 +18,7 @@ version: 2.1
 # Caches: any pipeline in this repo can write any cache key, including one main is about to
 # ask for, because a branch's config picks its own keys. So main and the release jobs restore
 # none, and only branch and PR builds use the NuGet one. Measured: restoring costs 1.5s and
-# saves 4.9s of `tool restore` + `paket restore`, so it earns about 3.4s a job. The SQLite
+# saves 4.9s of restore, so it earns about 3.4s a job. The SQLite
 # archive cache (`sqlite-archive`) follows the same rule.
 #
 # Main saves none either. Nothing on main reads one, and a fork PR cannot read main's (CircleCI
@@ -156,7 +156,7 @@ commands:
   # Branch and PR builds only: see the note on caches at the top of this file.
   nuget-cache-restore:
     steps:
-      - run: shasum backend/paket.lock backend/global.json > ../checksum
+      - run: shasum backend/Directory.Packages.props backend/global.json > ../checksum
       - unless:
           condition:
             equal: [main, << pipeline.git.branch >>]
@@ -310,8 +310,7 @@ jobs:
 
       - nuget-cache-restore
       - show-large-files-and-directories
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
+      - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
       - unless:
           condition:
             equal: [main, << pipeline.git.branch >>]
@@ -478,8 +477,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
+      - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
       - run:
           name: Build LocalExec for migrations (debug mode fine)
           command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
@@ -523,8 +521,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace: { at: "." }
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
+      - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
       - run:
           name: R2R-publish linux-arm and osx-x64
           command: |
@@ -563,8 +560,7 @@ jobs:
       - run:
           name: Install the aarch64 musl sysroot
           command: scripts/build/install-musl-sysroot aarch64
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
+      - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
       - run:
           name: Build the musl SQLite archives
           command: ./scripts/build/build-sqlite.sh --runtimes=linux-musl-x64,linux-musl-arm64
@@ -684,8 +680,7 @@ jobs:
           command: |
             scripts/build/install-release-toolchain osx-arm64 "$HOME/.dotnet" "$HOME/zig"
             echo 'export PATH="$HOME/.dotnet:$PATH"' >> "$BASH_ENV"
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore --fail-on-checks
+      - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
       - run:
           name: Build SQLite static archives
           command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64

@@ -101,8 +101,6 @@ all_prettier_files() {
     -o -path "backend" \
     -o -path "backend/static" \
     -o -path "./backend/static" \
-    -o -path "backend/.paket" \
-    -o -path "./backend/.paket" \
     -o -path "backend/Build" \
     -o -path "./backend/Build" \
     \) -prune -false \
@@ -123,8 +121,6 @@ all_fsharp_files() {
     -o -path "rundir" \
     -o -path "./rundir" \
     -o -path "backend" \
-    -o -path "backend/.paket" \
-    -o -path "./backend/.paket" \
     -o -path "backend/Build" \
     -o -path "./backend/Build" \
     \) -prune -false \
