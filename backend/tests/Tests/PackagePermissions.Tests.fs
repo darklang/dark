@@ -972,7 +972,7 @@ let cliRaiseSitesMatchTheBaseline =
       (TestUtils.TestUtils.builtins TestUtils.TestUtils.pmPT).fns
       |> Seq.map (fun (KeyValue(k, b)) -> (k.name, k.version), b.callEffects)
       |> Map.ofSeq
-    let! names = LibDB.Raises.fnNames () |> Ply.toTask
+    let! names = LibDB.Raises.allFnNames () |> Ply.toTask
     let! closure =
       LibDB.RaiseSites.closure
         LibConfig.Dirs.sourceRootDir

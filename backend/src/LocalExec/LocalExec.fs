@@ -240,7 +240,7 @@ module HandleCommand =
   /// With a path, writes the baseline `PackagePermissions.Tests` compares against.
   let raiseSites (baseline : Option<string>) : Ply<Result<unit, string>> =
     uply {
-      let! names = LibDB.Raises.fnNames ()
+      let! names = LibDB.Raises.allFnNames ()
       let! closure =
         LibDB.RaiseSites.closure
           LibConfig.Dirs.sourceRootDir
