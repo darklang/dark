@@ -442,7 +442,7 @@ test packageRootLetValue =
 // A keyword where a name goes says how to escape it, and is then read as that name,
 // so the rest parses and it is the only error.
 test keywordAsName =
-  let escape = fun word -> $"`{word}` is a keyword, so to use it as a name write ``{word}``"
+  let escape = fun word -> $"{word} is a keyword, so to use it as a name write `{word}`"
   let only = fun(source, what, word) ->
     golden(source, [ "expected " + what + ", found '" + word + "'; " + escape(word) ])
   Stdlib.Test.all(
@@ -450,25 +450,10 @@ test keywordAsName =
       only("let type = \"x\"\nx", "a pattern", "type")
       only("Stdlib.List.map([\"x\"], fun type -> \"y\")", "a pattern", "type")
       only("match \"x\" with\n| type -> 1", "a pattern", "type")
-      only("type R = { type: String, title: String }", "a record field 'name : Type'", "type")
-      only(
-        "type R = { ``type``: String }\nR { type = \"post\" }",
-        "a record field 'name = value'",
-        "type")
-      only("{ r with type = \"post\" }", "a record-update field 'name = value'", "type")
       says("let f(in: String): String = in", escape("in"))
-      golden(
-        "r.type",
-        [ "expected a field name after '.', found 'type'; `type` is a keyword, so to use it as a name write r.``type``" ])
-      golden(
-        "M.match(\"x\")",
-        [ "expected a name after '.', found 'match'; `match` is a keyword, so to use it as a name write M.``match``" ])
       says("type E =\n  | when", "an enum case name starts with an uppercase letter, found 'when'")
       golden("type E = | foo", [ "an enum case name starts with an uppercase letter, found 'foo'" ])
       golden("type E = |", [ "an enum type needs at least one case" ])
-      golden(
-        "let a = ``in``.type\na",
-        [ "expected a field name after '.', found 'type'; `type` is a keyword, so to use it as a name write ``in``.``type``" ])
       // a dot left at the end of a line is a name still being typed, not a keyword field
       golden("let a = r.\nlet b = \"x\"\nb", [ "expected an expression, found '.'" ])
       golden("let a = Stdlib.String.\nlet b = \"x\"\nb", [ "expected an expression, found '.'" ])
@@ -478,5 +463,24 @@ test keywordAsName =
         |> Stdlib.List.any(fun m -> Stdlib.String.contains(m, "is a keyword"))
         |> Stdlib.Bool.not,
         "a missing name before the next line's `let` gets no keyword hint")
-      clean("let ``match`` = \"x\"\n``match``")
-      clean("r.``type``") ])
+      clean("let `match` = \"x\"\n`match`") ])
+
+// Where only a name can go, a keyword is a name without backticks.
+test keywordWhereOnlyANameGoes =
+  Stdlib.Test.all(
+    [ clean("r.type")
+      clean("M.match(\"x\")")
+      clean("let a = `in`.type\na")
+      clean("type R = { type: String, title: String }")
+      clean("R { type = \"post\" }")
+      clean("{ r with type = \"post\" }")
+      clean("match r with\n| { type = t } -> t") ])
+
+// A name in backticks can't hold spaces, wherever it is.
+test spacedName =
+  let spaced = "a name can't hold spaces; use hello_world or helloWorld"
+  Stdlib.Test.all(
+    [ golden("let `hello world` = 5\n0", [ spaced ])
+      golden("let `hello world`(x: Int64): Int64 = x", [ spaced ])
+      golden("type R = { `hello world`: String }", [ spaced ])
+      golden("match 1 with\n| `hello world` -> 2", [ spaced ]) ])

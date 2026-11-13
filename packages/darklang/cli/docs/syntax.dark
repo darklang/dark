@@ -137,9 +137,12 @@ by the type checker (`dark typecheck`).
   + Stdlib.String.join(LanguageTools.Parser.keywords, " ")
   + """
 
-These can't be names. To use one anyway, put it in double backticks:
-  let ``type`` = "json"
-  metadata.``type``
+These can't be names. To use one anyway, put it in backticks:
+  let `type` = "json"
+Where only a name can go, a keyword needs no backticks:
+  metadata.type
+  Metadata { type = "json" }
+A name can't hold spaces: write hello_world or helloWorld, not `hello world`.
 A few more words are special only in one place, and free everywhere else:
 `module` and `test` at the start of a declaration, `for` in `impl X for T`,
 `as` in a pattern, `Dict` and `List` before `<`. `def` is not reserved."""

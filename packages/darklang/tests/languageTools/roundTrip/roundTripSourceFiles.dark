@@ -28,5 +28,5 @@ test sourceFiles =
       // an impl that names an existing fn prints as an alias line, escaped like the trait
       roundTrip(
         "keyword-named trait method and its impl alias",
-        "trait Pick<'a> =\n  let ``match``(x: 'a): String\n\nimpl Pick for String =\n  let ``match`` = Stdlib.String.trim",
-        "trait Pick<'a> =\n  let ``match``(x: 'a): String\n\nimpl Pick for String =\n  let ``match`` = Stdlib.String.trim") ])
+        "trait Pick<'a> =\n  let `match`(x: 'a): String\n\nimpl Pick for String =\n  let `match` = Stdlib.String.trim",
+        "trait Pick<'a> =\n  let `match`(x: 'a): String\n\nimpl Pick for String =\n  let `match` = Stdlib.String.trim") ])

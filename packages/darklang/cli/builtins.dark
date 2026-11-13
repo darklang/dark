@@ -225,7 +225,7 @@ let execute(state: AppState, args: List<String>): AppState =
         let params =
           fn.parameters
           |> Stdlib.List.map(fun p ->
-            let typStr = PrettyPrinter.RuntimeTypes.typeReference(branchId, p.``type``)
+            let typStr = PrettyPrinter.RuntimeTypes.typeReference(branchId, p.type)
             $"{p.name}: {typStr}")
           |> Stdlib.String.join(", ")
 
@@ -270,7 +270,7 @@ let execute(state: AppState, args: List<String>): AppState =
       let typStr =
         PrettyPrinter.RuntimeTypes.typeReference(
           SCM.Branch.mainBranchId,
-          v.``type``)
+          v.type)
 
       Stdlib.printLine($"  {v.name.name}{versionSuffix(v.name.version)}: {typStr}"))
   else

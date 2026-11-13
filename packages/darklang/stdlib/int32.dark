@@ -38,8 +38,8 @@ impl Power for Int32 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power(``base``: Int32, exponent: Int32): Int32 =
-    Builtin.power(``base``, exponent)
+  let power(`base`: Int32, exponent: Int32): Int32 =
+    Builtin.power(`base`, exponent)
 
 
 impl Negate for Int32 =
@@ -61,8 +61,8 @@ impl Compare for Int32 =
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random(start: Int32, ``end``: Int32): Int32 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromInt32(start), Stdlib.BigInt.fromInt32(``end``))
+let random(start: Int32, `end`: Int32): Int32 =
+  Stdlib.BigInt.random(Stdlib.BigInt.fromInt32(start), Stdlib.BigInt.fromInt32(`end`))
   |> Stdlib.BigInt.toInt32
   |> Builtin.unwrap
 
@@ -234,19 +234,19 @@ let checkedAbsoluteValue(a: Int32)
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(
-  ``base``: Int32,
+  `base`: Int32,
   exponent: Int32)
   : Stdlib.Result.Result<Int32, Stdlib.Math.PowerError> =
   if exponent < 0s32 then
     Error(Stdlib.Math.PowerError.NegativeExponent)
-  else if ``base`` == 0s32 || ``base`` == 1s32 || ``base`` == -1s32 then
+  else if `base` == 0s32 || `base` == 1s32 || `base` == -1s32 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Ok(``base`` ** exponent)
+    Ok(`base` ** exponent)
   else if exponent >= 32s32 then
     // any other base is at least 2 from zero, and 2 ** 32 is past the Int32 range
     Error(Stdlib.Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromInt32(``base``) ** Stdlib.BigInt.fromInt32(exponent)
+    let result = Stdlib.BigInt.fromInt32(`base`) ** Stdlib.BigInt.fromInt32(exponent)
 
     match Stdlib.BigInt.toInt32(result) with
     | Some(fits) -> Ok(fits)

@@ -1542,7 +1542,7 @@ let values () : List<BuiltInValue> =
   [ { name = value "parserKeywords" 0
       typ = TList TString
       description =
-        "The words the parser reserves, each a name only in double backticks (``match``). "
+        "The words the parser reserves, each a name in backticks (`match`) or where only a name can go. "
         + "The lexer's own list, so the pretty printer and docs can't drift from it."
       deprecated = NotDeprecated
       body =

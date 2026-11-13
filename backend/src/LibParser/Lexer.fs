@@ -247,17 +247,31 @@ let rec private digitsEnd (source : string) (index : int) : int =
   else
     index
 
-/// From `index`, the index of the closing ``` `` ``` of a backtick identifier, or of the line's
-/// end (or the source's last char) when there is none.
+/// From `index`, the index of the closing backtick of a backtick identifier, or of the
+/// line's end (or the source's end) when there is none.
 let rec private backtickClose (source : string) (index : int) : int =
-  if
-    index + 1 < source.Length
-    && not (source[index] = '`' && source[index + 1] = '`')
-    && source[index] <> '\n'
-  then
+  if index < source.Length && source[index] <> '`' && source[index] <> '\n' then
     backtickClose source (index + 1)
   else
     index
+
+/// The diagnostic for a backtick name holding whitespace, like `hello world`.
+let private spacedNameDiagnostic (name : string) : Option<string> =
+  if not (Seq.exists System.Char.IsWhiteSpace name) then
+    None
+  else
+    let message = "a name can't hold spaces"
+    match
+      name.Split((null : char[]), System.StringSplitOptions.RemoveEmptyEntries)
+    with
+    | [||] -> Some message
+    | [| word |] -> Some $"{message}; use {word}"
+    | words ->
+      let capitalized (w : string) =
+        string (System.Char.ToUpperInvariant w[0]) + w[1..]
+      let camel =
+        words[0] + (words[1..] |> Array.map capitalized |> String.concat "")
+      Some $"""{message}; use {String.concat "_" words} or {camel}"""
 
 /// `position` moved over `source[index..endIndex)`.
 let rec private advanceOver
@@ -428,8 +442,9 @@ let hasSingleCloseBraceInterp (inner : string) (isRaw : bool) : bool =
 /// `scanInterp` skips `{expr}` regions iteratively.
 let maxInterpNesting = 64
 
-/// The reserved words, each lexed as its own token. A reserved word is a name only
-/// when written in double backticks: ``match``. This is the one list: Dark reads it
+/// The reserved words, each lexed as its own token. A reserved word is a name in
+/// backticks (`match`), or where only a name can go: after a `.` and as a record
+/// field name. This is the one list: Dark reads it
 /// as `Builtin.parserKeywords`, so the pretty printer escapes these words and
 /// `docs syntax` lists them.
 ///
@@ -776,27 +791,21 @@ let tokenize
         let (spannedToken, nextIndex, nextPosition) =
           emit TEquals index (index + 1) position
         go nextIndex nextPosition (spannedToken :: tokensRev)
-      // backtick identifiers: ``name``
-      elif character = '`' && index + 1 < inputLength && input[index + 1] = '`' then
-        let closeIndex = backtickClose input (index + 2)
-        if
-          closeIndex + 1 < inputLength
-          && input[closeIndex] = '`'
-          && input[closeIndex + 1] = '`'
-        then
+      // backtick identifiers: `name`
+      elif character = '`' then
+        let closeIndex = backtickClose input (index + 1)
+        if closeIndex < inputLength && input[closeIndex] = '`' then
+          let name = input.Substring(index + 1, closeIndex - index - 1)
           let (spannedToken, nextIndex, nextPosition) =
-            emit
-              (TIdent(input.Substring(index + 2, closeIndex - index - 2)))
-              index
-              (closeIndex + 2)
-              position
+            emit (TIdent name) index (closeIndex + 1) position
+          spacedNameDiagnostic name |> Option.iter (addDiagnostic spannedToken.range)
           go nextIndex nextPosition (spannedToken :: tokensRev)
         else
-          // unterminated ``…`` — best-effort ident to end of line
-          let endIndex = scanToLineEnd (index + 2)
+          // unterminated `… — best-effort ident to end of line
+          let endIndex = scanToLineEnd (index + 1)
           let (spannedToken, nextIndex, nextPosition) =
             emit
-              (TIdent(input.Substring(index + 2, endIndex - index - 2)))
+              (TIdent(input.Substring(index + 1, endIndex - index - 1)))
               index
               endIndex
               position

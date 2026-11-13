@@ -33,7 +33,7 @@ let builtinDetailLines(state: State): List<String> =
       let params =
         fn.parameters
         |> Stdlib.List.map(fun p ->
-          let typStr = PrettyPrinter.RuntimeTypes.typeReference(state.branchId, p.``type``)
+          let typStr = PrettyPrinter.RuntimeTypes.typeReference(state.branchId, p.type)
           $"{p.name}: {typStr}")
         |> Stdlib.String.join(", ")
       let ret = PrettyPrinter.RuntimeTypes.typeReference(state.branchId, fn.returnType)

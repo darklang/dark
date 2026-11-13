@@ -271,12 +271,12 @@ test exprsTupleLiterals =
       roundTrip("record, 1 field", "Person1 {name =\"John\"} ", "Person1 { name = \"John\" }")
       roundTrip(
         "record field name with hyphen",
-        "Headers { ``Content-Length`` = \"text/html\" }",
-        "Headers { ``Content-Length`` = \"text/html\" }")
+        "Headers { `Content-Length` = \"text/html\" }",
+        "Headers { `Content-Length` = \"text/html\" }")
       roundTrip(
         "record field name that is a keyword",
-        "Metadata { ``type`` = \"json\" }",
-        "Metadata { ``type`` = \"json\" }")
+        "Metadata { `type` = \"json\" }",
+        "Metadata { type = \"json\" }")
       roundTrip(
         "record, 2 fields",
         "Person2 {name =\"John\", age = 30} ",
@@ -293,8 +293,8 @@ test exprsRecordWithType =
         "{ person with age = 31 }")
       roundTrip(
         "record update field name that is a keyword",
-        "{ metadata with ``type`` = \"json\" }",
-        "{ metadata with ``type`` = \"json\" }")
+        "{ metadata with `type` = \"json\" }",
+        "{ metadata with type = \"json\" }")
       roundTripWith(
         person,
         "record update 3",
@@ -370,9 +370,9 @@ test exprsPreserveBothAccesses =
       roundTrip("nested tuple element access", "pair.1.2", "pair.1.2")
       roundTrip(
         "field access with hyphenated field name",
-        "headers.``Content-Length``",
-        "headers.``Content-Length``")
-      roundTrip("field access with keyword field name", "metadata.``type``", "metadata.``type``")
+        "headers.`Content-Length`",
+        "headers.`Content-Length`")
+      roundTrip("field access with keyword field name", "metadata.`type`", "metadata.type")
       roundTrip(
         "nested field access",
         "record.someField.anotherFieldInsideThat",
@@ -677,17 +677,17 @@ test exprsKeywordNames =
   Stdlib.Test.all(
     [ roundTrip(
         "keyword-named let binding",
-        "let ``match`` = \"x\"\n``match``",
-        "let ``match`` = \"x\"\n``match``")
-      roundTrip("keyword-named lambda parameter", "fun ``type`` -> ``type``", "(fun ``type`` -> ``type``)")
+        "let `match` = \"x\"\n`match`",
+        "let `match` = \"x\"\n`match`")
+      roundTrip("keyword-named lambda parameter", "fun `type` -> `type`", "(fun `type` -> `type`)")
       roundTrip(
         "keyword-named match binder",
-        "match \"x\" with\n| ``then`` -> ``then``",
-        "match \"x\" with\n| ``then`` -> ``then``")
+        "match \"x\" with\n| `then` -> `then`",
+        "match \"x\" with\n| `then` -> `then`")
       roundTrip(
         "keyword-named as binder",
-        "match \"x\" with\n| y as ``with`` -> ``with``",
-        "match \"x\" with\n| y as ``with`` -> ``with``")
+        "match \"x\" with\n| y as `with` -> `with`",
+        "match \"x\" with\n| y as `with` -> `with`")
       roundTrip("non-ASCII letters stay bare", "let zażółć = \"x\"\nzażółć", "let zażółć = \"x\"\nzażółć")
       roundTrip("the blank name prints as ___", "let ___ = \"x\"\n___", "let ___ = \"x\"\n___") ])
 
@@ -697,6 +697,6 @@ test exprsEveryKeywordAsName =
   LanguageTools.Parser.keywords
   |> Stdlib.List.filter(fun word -> word != "_")
   |> Stdlib.List.map(fun word ->
-    let source = $"let ``{word}`` = \"x\"\n``{word}``"
+    let source = $"let `{word}` = \"x\"\n`{word}`"
     roundTrip($"keyword {word} as a name", source, source))
   |> Stdlib.Test.all

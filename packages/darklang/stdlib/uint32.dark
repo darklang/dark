@@ -30,13 +30,13 @@ impl Multiply for UInt32 =
 impl Power for UInt32 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
-  let power(``base``: UInt32, exponent: UInt32): UInt32 =
+  let power(`base`: UInt32, exponent: UInt32): UInt32 =
     // The signed types push this into the builtin; here the ladder stays, because an
     // unsigned exponent is never negative, so there is no error case to push.
-    if ``base`` == 0u32 && exponent == 0u32 then 1u32
-    else if ``base`` == 0u32 then 0u32
-    else if ``base`` == 1u32 then 1u32
-    else Builtin.power(``base``, exponent)
+    if `base` == 0u32 && exponent == 0u32 then 1u32
+    else if `base` == 0u32 then 0u32
+    else if `base` == 1u32 then 1u32
+    else Builtin.power(`base`, exponent)
 
 
 impl Divide for UInt32 =
@@ -58,8 +58,8 @@ impl Compare for UInt32 =
 
 
 /// Returns a random 32-bit unsigned integer between <param start> and <param end> (inclusive)
-let random(start: UInt32, ``end``: UInt32): UInt32 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt32(start), Stdlib.BigInt.fromUInt32(``end``))
+let random(start: UInt32, `end`: UInt32): UInt32 =
+  Stdlib.BigInt.random(Stdlib.BigInt.fromUInt32(start), Stdlib.BigInt.fromUInt32(`end`))
   |> Stdlib.BigInt.toUInt32
   |> Builtin.unwrap
 
@@ -220,17 +220,17 @@ let checkedAbsoluteValue(a: UInt32)
 /// <param base> raised to the power of <param exponent>, or {{Error Overflow}}
 /// where `**` would wrap
 let checkedPower(
-  ``base``: UInt32,
+  `base`: UInt32,
   exponent: UInt32)
   : Stdlib.Result.Result<UInt32, Stdlib.Math.PowerError> =
-  if ``base`` == 0u32 || ``base`` == 1u32 then
+  if `base` == 0u32 || `base` == 1u32 then
     // 0 and 1 never grow, so `**` is exact whatever the exponent
-    Ok(``base`` ** exponent)
+    Ok(`base` ** exponent)
   else if exponent >= 32u32 then
     // any other base is at least 2 from zero, and 2 ** 32 is past the UInt32 range
     Error(Stdlib.Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromUInt32(``base``) ** Stdlib.BigInt.fromUInt32(exponent)
+    let result = Stdlib.BigInt.fromUInt32(`base`) ** Stdlib.BigInt.fromUInt32(exponent)
 
     match Stdlib.BigInt.toUInt32(result) with
     | Some(fits) -> Ok(fits)

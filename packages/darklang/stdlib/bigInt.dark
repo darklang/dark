@@ -39,8 +39,8 @@ impl Divide for BigInt =
 impl Power for BigInt =
   /// Raise <param base> to the power of <param exponent>.
   /// Raises an error if <param exponent> is negative.
-  let power(``base``: BigInt, exponent: BigInt): BigInt =
-    Builtin.power(``base``, exponent)
+  let power(`base`: BigInt, exponent: BigInt): BigInt =
+    Builtin.power(`base`, exponent)
 
 
 impl Negate for BigInt =
@@ -177,8 +177,8 @@ impl ShiftRight for BigInt =
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random(start: BigInt, ``end``: BigInt): BigInt =
-  Builtin.bigIntRandom(start, ``end``)
+let random(start: BigInt, `end`: BigInt): BigInt =
+  Builtin.bigIntRandom(start, `end`)
 
 impl Display for BigInt =
   /// Stringify <param int>
@@ -201,19 +201,19 @@ val maxPowerBits = 8388608z
 /// 1 MB, which is <param exponent> times the bits in <param base>; this is checked
 /// before computing anything. {{0}}, {{1}} and {{-1}} take any exponent.
 let checkedPower(
-  ``base``: BigInt,
+  `base`: BigInt,
   exponent: BigInt)
   : Stdlib.Result.Result<BigInt, Stdlib.Math.PowerError> =
   if exponent < 0z then
     Error(Stdlib.Math.PowerError.NegativeExponent)
-  else if exponent == 0z || ``base`` == 0z || ``base`` == 1z || ``base`` == -1z then
-    Ok(``base`` ** exponent)
+  else if exponent == 0z || `base` == 0z || `base` == 1z || `base` == -1z then
+    Ok(`base` ** exponent)
   else
-    let magnitude = if ``base`` < 0z then -``base`` else ``base``
+    let magnitude = if `base` < 0z then -`base` else `base`
     // bits(magnitude) * exponent <= maxPowerBits exactly when magnitude has no bit at
     // or past maxPowerBits / exponent: one shift, without counting the bits
     if (magnitude >> (Stdlib.BigInt.maxPowerBits / exponent)) == 0z then
-      Ok(``base`` ** exponent)
+      Ok(`base` ** exponent)
     else
       Error(Stdlib.Math.PowerError.ResultTooLarge)
 

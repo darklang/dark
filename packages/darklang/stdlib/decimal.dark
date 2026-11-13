@@ -242,13 +242,13 @@ let precision(d: Decimal): Int64 =
 /// <fn Decimal.multiply> is: {{Decimal.power(1.1dec, 2) == 1.21dec}}. A negative
 /// <param exponent> divides: {{Decimal.power(2dec, -2) == 0.25dec}}. Raises when the
 /// result is out of range, or for zero to a negative power.
-let power(``base``: Decimal, exponent: Int64): Decimal =
+let power(`base`: Decimal, exponent: Int64): Decimal =
   let n = Stdlib.BigInt.fromInt64(exponent)
 
   if n < 0z then
-    1dec / __powerOf(``base``, 0z - n)
+    1dec / __powerOf(`base`, 0z - n)
   else
-    __powerOf(``base``, n)
+    __powerOf(`base`, n)
 
 let __powerOf(b: Decimal, n: BigInt): Decimal =
   if n == 0z then

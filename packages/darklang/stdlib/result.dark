@@ -210,7 +210,7 @@ let isError(result: Stdlib.Result.Result<'t, 'e>): Bool =
   | Error(_) -> true
 
 /// Returns <param result2> if <param result1> is {{Ok <var value>}}. Otherwise, returns <param result1>.
-let ``and``(
+let `and`(
   result1: Stdlib.Result.Result<'t, 'e>,
   result2: Stdlib.Result.Result<'t, 'e>)
   : Stdlib.Result.Result<'t, 'e> =
@@ -220,7 +220,7 @@ let ``and``(
 
 
 /// Returns <param result1> if it is {{Ok _}}. Otherwise, returns <param result2>.
-let ``or``(
+let `or`(
   result1: Stdlib.Result.Result<'t, 'e>,
   result2: Stdlib.Result.Result<'t, 'e>)
   : Stdlib.Result.Result<'t, 'e> =

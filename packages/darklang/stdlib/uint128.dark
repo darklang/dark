@@ -35,8 +35,8 @@ impl Divide for UInt128 =
 impl Power for UInt128 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
-  let power(``base``: UInt128, exponent: UInt128): UInt128 =
-    Builtin.power(``base``, exponent)
+  let power(`base`: UInt128, exponent: UInt128): UInt128 =
+    Builtin.power(`base`, exponent)
 
 
 impl Compare for UInt128 =
@@ -189,17 +189,17 @@ let checkedAbsoluteValue(a: UInt128)
 /// <param base> raised to the power of <param exponent>, or {{Error Overflow}}
 /// where `**` would wrap
 let checkedPower(
-  ``base``: UInt128,
+  `base`: UInt128,
   exponent: UInt128)
   : Stdlib.Result.Result<UInt128, Stdlib.Math.PowerError> =
-  if ``base`` == 0u128 || ``base`` == 1u128 then
+  if `base` == 0u128 || `base` == 1u128 then
     // 0 and 1 never grow, so `**` is exact whatever the exponent
-    Ok(``base`` ** exponent)
+    Ok(`base` ** exponent)
   else if exponent >= 128u128 then
     // any other base is at least 2 from zero, and 2 ** 128 is past the UInt128 range
     Error(Stdlib.Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromUInt128(``base``) ** Stdlib.BigInt.fromUInt128(exponent)
+    let result = Stdlib.BigInt.fromUInt128(`base`) ** Stdlib.BigInt.fromUInt128(exponent)
 
     match Stdlib.BigInt.toUInt128(result) with
     | Some(fits) -> Ok(fits)

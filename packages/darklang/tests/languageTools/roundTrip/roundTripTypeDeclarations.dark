@@ -51,12 +51,12 @@ test typeDeclarationsUnit =
         "type Person =\n  { name: String }")
       roundTrip(
         "record type field name with hyphen",
-        "type Headers = { ``Content-Length``: String }",
-        "type Headers =\n  { ``Content-Length``: String }")
+        "type Headers = { `Content-Length`: String }",
+        "type Headers =\n  { `Content-Length`: String }")
       roundTrip(
         "record type field name that is a keyword",
-        "type Metadata = { ``type``: String }",
-        "type Metadata =\n  { ``type``: String }")
+        "type Metadata = { `type`: String }",
+        "type Metadata =\n  { type: String }")
       roundTrip(
         "record, 2 fields",
         "type Person = {name: String, age: Int64}",
@@ -107,12 +107,12 @@ test typeDeclarationsEnumTypeDeclarations =
         "type MyEnum =\n  | A(x: Int64, y: Int64)")
       roundTrip(
         "enum field label with hyphen",
-        "type MyEnum = | A(``Content-Length``: String)",
-        "type MyEnum =\n  | A(``Content-Length``: String)")
+        "type MyEnum = | A(`Content-Length`: String)",
+        "type MyEnum =\n  | A(`Content-Length`: String)")
       roundTrip(
         "enum field label that is a keyword",
-        "type MyEnum = | A(``type``: String)",
-        "type MyEnum =\n  | A(``type``: String)")
+        "type MyEnum = | A(`type`: String)",
+        "type MyEnum =\n  | A(`type`: String)")
       roundTrip(
         "enum, mult lines",
         "type Color =\n  | Red\n  | Green\n  | Blue",

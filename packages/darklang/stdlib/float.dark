@@ -61,8 +61,8 @@ impl Multiply for Float =
 
 impl Power for Float =
   /// Returns <param base> raised to the power of <param exponent>
-  let power(``base``: Float, exponent: Float): Float =
-    Builtin.power(``base``, exponent)
+  let power(`base`: Float, exponent: Float): Float =
+    Builtin.power(`base`, exponent)
 
 
 impl Divide for Float =
@@ -122,16 +122,16 @@ let checkedDivide(a: Float, b: Float): Stdlib.Result.Result<Float, Stdlib.Math.N
 /// is not finite: {{DivisionByZero}} for zero to a negative power, {{NotANumber}} for a
 /// negative base to a fractional power, and {{Overflow}} where it is too large
 let checkedPower(
-  ``base``: Float,
+  `base`: Float,
   exponent: Float)
   : Stdlib.Result.Result<Float, Stdlib.Math.NonFinite> =
   let ifInfinite =
-    if ``base`` == 0.0 then
+    if `base` == 0.0 then
       Stdlib.Math.NonFinite.DivisionByZero
     else
       Stdlib.Math.NonFinite.Overflow
 
-  __finite(``base`` ** exponent, ifInfinite)
+  __finite(`base` ** exponent, ifInfinite)
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative

@@ -153,7 +153,9 @@ let packageNameWithContext(
   modules: List<String>,
   name: String)
   : String =
-  PrettyPrinter.shortenName(ctx.currentModule, owner, modules, PrettyPrinter.formatName(name))
+  // after a module path the name needs no backticks; alone it may
+  let short = PrettyPrinter.shortenName(ctx.currentModule, owner, modules, name)
+  if short == name then PrettyPrinter.formatName(name) else short
 
 
 module FQTypeName =
@@ -677,10 +679,9 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
     fields
     |> Stdlib.List.map(fun field ->
       let (name, pat) = field
-      let fieldName = PrettyPrinter.formatFieldName(name)
       match pat with
-      | MPVariable(_, bound) when bound == name -> fieldName
-      | _ -> fieldName + " = " + matchPattern(pat))
+      | MPVariable(_, bound) when bound == name -> PrettyPrinter.formatName(name)
+      | _ -> PrettyPrinter.formatFieldName(name) + " = " + matchPattern(pat))
     |> Stdlib.String.join(", ")
     |> fun parts -> "{ " + parts + " }"
 
@@ -1519,7 +1520,7 @@ module TypeDeclaration =
     | None -> typ
     | Some(label) ->
       Stdlib.Pretty.concat(
-        Stdlib.Pretty.text($"{PrettyPrinter.formatFieldName(label)}: "),
+        Stdlib.Pretty.text($"{PrettyPrinter.formatName(label)}: "),
         typ)
 
   let enumField(
@@ -1928,7 +1929,7 @@ module BuiltinFn =
     let parameters =
       f.parameters
       |> Stdlib.List.map(fun p ->
-          let params = PrettyPrinter.RuntimeTypes.typeReference(branchId, p.``type``)
+          let params = PrettyPrinter.RuntimeTypes.typeReference(branchId, p.type)
           $"({p.name} : {params})")
       |> Stdlib.String.join(", ")
 

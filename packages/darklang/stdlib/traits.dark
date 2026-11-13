@@ -35,7 +35,7 @@ trait Modulo<'a> =
 
 /// `a ** b`
 trait Power<'a> =
-  let power(``base``: 'a, exponent: 'a): 'a
+  let power(`base`: 'a, exponent: 'a): 'a
 
 
 /// `-a`

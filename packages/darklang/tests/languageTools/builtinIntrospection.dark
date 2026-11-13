@@ -21,7 +21,7 @@ module Documentation =
     |> Stdlib.Test.equal(
       [ Darklang.LanguageTools.BuiltinFunctionParameter
           { name = "a"
-            ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ])
+            type = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ])
 
 module Lookup =
   // Named lookups preserve the metadata exposed by the full registry.

@@ -5,7 +5,7 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 
 test testDeclarations =
   Stdlib.Test.all(
-    [ roundTripPackage("keyword-named test", "test ``type`` = true", "test ``type`` = true")
+    [ roundTripPackage("keyword-named test", "test `type` = true", "test `type` = true")
       roundTripPackage(
         "named package test",
         "/// Checks the simplest assertion\ntest passes = true",
