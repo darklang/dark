@@ -495,7 +495,7 @@ let saveAuthored(
         let alsoNamed =
           match committed.sameAs with
           | Some(other) ->
-            $" (also named {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(other)})"
+            $" (same code as {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(other)}, stored once)"
           | None -> ""
         Stdlib.printLine($"{glyph} {action} {kindWord} {fullPath}{alsoNamed}")
       else
