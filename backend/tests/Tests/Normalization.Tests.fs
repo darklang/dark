@@ -214,6 +214,15 @@ let tests =
         Expect.equal failures [] "joins that differ"
       }
 
+      test "a join next to a lone surrogate keeps the text as it was" {
+        let hi = string (char 0xD83D)
+        for a, b in [ "e", hi + "a"; "e" + hi, "\u0301"; "e", "\u0301" + hi ] do
+          Expect.equal
+            (Normalization.concat [| a; b |])
+            (a + b)
+            $"[{codepointsOf (a + b)}]"
+      }
+
       test "a lone surrogate or U+FFFE is an error, as it is for ICU" {
         // Built at runtime: the compiler turns a lone surrogate in a literal into U+FFFD.
         let refused =

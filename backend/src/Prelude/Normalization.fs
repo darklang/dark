@@ -322,7 +322,13 @@ let private normalizeJoins
       |> List.rev
       |> List.map (fun (start, stop) ->
         let window = s.Substring(start, stop - start)
-        start, stop, window, normalize window)
+        // text holding a lone surrogate or U+FFFE stays as it came, as it did coming in
+        let n =
+          try
+            normalize window
+          with :? System.ArgumentException ->
+            window
+        start, stop, window, n)
     if
       normalized
       |> List.forall (fun (_, _, window, n) -> obj.ReferenceEquals(window, n))
