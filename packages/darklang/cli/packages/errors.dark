@@ -57,11 +57,13 @@ let enclosingModules(modules: List<String>): List<List<String>> =
     Stdlib.List.prepend(enclosingModules(parent), parent)
 
 
-/// The Stdlib name for a job another language spells differently: `toString` is `display`.
+/// The Stdlib name for a job another language spells differently: `toString` is `display`,
+/// and `Int64.absoluteValue` is the generic `abs`.
 let otherLanguageName(name: String): Stdlib.Option.Option<String> =
   match name with
   | "toString" -> Stdlib.Option.Option.Some("display")
   | "toRepr" -> Stdlib.Option.Option.Some("inspect")
+  | "absoluteValue" | "absolute" -> Stdlib.Option.Option.Some("abs")
   | _ -> Stdlib.Option.Option.None
 
 
