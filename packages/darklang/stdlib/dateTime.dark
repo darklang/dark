@@ -365,11 +365,13 @@ impl Compare for DateTime =
   let greaterThanOrEqualTo = Stdlib.DateTime.greaterThanOrEqualTo
 
 
-/// Converts <param date> to an <type Int64> representing seconds since the Unix epoch
+/// Converts <param date> to an <type Int64> representing seconds since the Unix epoch: a Unix
+/// timestamp
 let toSeconds(date: DateTime): Int64 = __floorDiv(__ticks(date), __ticksPerSecond())
 
 
-/// Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>
+/// Converts an <type Int64> representing seconds since the Unix epoch (a Unix timestamp) into a
+/// <type DateTime>
 let fromSeconds(seconds: Int64): DateTime =
   __fromOffset(0, seconds, __ticksPerSecond())
 

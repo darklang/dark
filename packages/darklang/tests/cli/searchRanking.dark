@@ -228,3 +228,16 @@ test nearNamesForTypos =
       |> Stdlib.Test.equal([])
       Darklang.Cli.Packages.Search.nearNames("mapp", [ "map", "max", "mapping" ])
       |> Stdlib.Test.equal([ "map" ]) ])
+
+
+// Plain words find what they describe: a plural matches the singular inside a camelCase name,
+// and a doc that says "Unix timestamp" answers that query.
+test plainWordsFindTheObviousFn =
+  Instance.withInstance(fun i ->
+    let first = fun query ->
+      let (_, out) = Instance.ran(i, [ "search", query, "--fn", "--batch" ])
+      out
+    Stdlib.Test.all(
+      [ Instance.says(first("split lines"), "Darklang.Stdlib.String.splitOnNewline", "split lines")
+        Instance.says(first("unix timestamp"), "Darklang.Stdlib.DateTime.toSeconds", "unix timestamp") ]))
+
