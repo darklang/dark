@@ -6479,25 +6479,29 @@ let private checkFrameReturnType
     let tst = currentFrame.typeSymbolTable
     // Every frame return checks its result, so the same sync-first treatment as the argument checks
     // applies: skip the bind when the answer needs no type lookup.
-    match
-      TypeChecker.tryUnifyWithAliasesSync
-        exeState.types
-        tst
-        expectedReturnType
-        resultOfFrame
-    with
-    | ValueSome _ ->
+    if TypeChecker.argFitsWithNothingToBind tst expectedReturnType resultOfFrame then
       recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
       completedUnit
-    | ValueNone ->
-      recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-      frameReturnTypeCheckAsync
-        exeState
-        vm
-        tst
-        expectedReturnType
-        resultOfFrame
-        fnName
+    else
+      match
+        TypeChecker.tryUnifyWithAliasesSync
+          exeState.types
+          tst
+          expectedReturnType
+          resultOfFrame
+      with
+      | ValueSome _ ->
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        completedUnit
+      | ValueNone ->
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        frameReturnTypeCheckAsync
+          exeState
+          vm
+          tst
+          expectedReturnType
+          resultOfFrame
+          fnName
 
 
 /// The trait a receiver call's pick is remembered under in `implSelectionMemo`: none, since the
