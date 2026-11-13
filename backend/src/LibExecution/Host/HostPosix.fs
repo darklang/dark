@@ -44,6 +44,17 @@ let O_CREAT = if isMac then 0x200 else 0x40 // Linux
 let O_TRUNC = if isMac then 0x400 else 0x200 // Linux
 
 let O_APPEND = if isMac then 0x8 else 0x400 // Linux
+
+/// Access needed by open, including flags that modify a read-only path.
+let openAccess (flags : int) : bool * bool =
+  let mode = flags &&& 3
+  let reads = mode = O_RDONLY || mode = O_RDWR
+  let writes =
+    mode = O_WRONLY
+    || mode = O_RDWR
+    || flags &&& (O_CREAT ||| O_TRUNC ||| O_APPEND) <> 0
+  reads, writes
+
 let private O_EXCL = if isMac then 0x800 else 0x80
 // Linux O_PATH obtains a reference to an inode without requiring read or
 // write permission. macOS takes its metadata path below through *at calls.
