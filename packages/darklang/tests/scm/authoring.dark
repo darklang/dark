@@ -49,7 +49,7 @@ let authorAll(m: String, sources: List<String>): Stdlib.Result.Result<Unit, Stri
 
 /// A branch off <param parent>, as `dark switch <name>` makes one.
 let branchOff(name: String, parent: Uuid): Uuid =
-  let (id, _) = Darklang.SCM.PackageOps.ensureBranch(name, parent)
+  let (id, _) = Darklang.SCM.PackageOps.ensureBranch(name, parent) |> Builtin.unwrap
   id
 
 let hashIn(

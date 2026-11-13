@@ -29,12 +29,17 @@ container_for_clone() {
 # `rundir/`. A container made before that mount (it was a volume) keeps its old mounts until
 # it is recreated, rebase or not, so the gates copy a stale `rundir/data.db` and fail with
 # FnNotFound while `run-cli` works.
+#
+# We check inside the container whether both paths are the same directory, rather than
+# comparing path strings, because Docker doesn't always report paths the same way. On
+# macOS, Docker Desktop reports /Users/x/dark/rundir as /host_mnt/Users/x/dark/rundir.
 store_mismatch() {
-  local c="$1" clone="$2" src
-  src=$(docker inspect -f \
-    '{{range .Mounts}}{{if eq .Destination "/home/dark/.darklang"}}{{.Source}}{{end}}{{end}}' \
-    "$c" 2>/dev/null)
-  if [[ "$src" != "$clone/rundir" ]]; then
+  local c="$1" src
+  if ! docker exec "$c" test /home/dark/.darklang -ef /home/dark/app/rundir \
+    2>/dev/null; then
+    src=$(docker inspect -f \
+      '{{range .Mounts}}{{if eq .Destination "/home/dark/.darklang"}}{{.Source}}{{end}}{{end}}' \
+      "$c" 2>/dev/null)
     echo "This clone's dev container keeps its store in ${src:-the container itself},"
     echo "not in this clone's rundir, so the scripts and the binary would use different stores."
     echo "It was made by an older devcontainer.json. Recreate it, then bring the clone's store"

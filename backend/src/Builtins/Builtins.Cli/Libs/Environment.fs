@@ -82,8 +82,9 @@ let fns () : List<BuiltInFn> =
     { name = fn "getRuntimeHash" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
-      description = "Hashes the installed runtime files for cache invalidation"
+      returnType = TypeReference.result TString TInt64
+      description =
+        "Hashes the installed runtime files for cache invalidation, or the errno of reading them"
       fn =
         function
         | state, vm, [], [| DUnit |] ->
@@ -94,17 +95,16 @@ let fns () : List<BuiltInFn> =
                 vm
                 Host.Operation.RuntimeHash
             match result with
-            | Ok(Host.Response.Text hash) -> return DString hash
+            | Ok(Host.Response.Text hash) ->
+              return Dval.resultOk KTString KTInt64 (DString hash)
             | Error error ->
               return
-                raiseRTE
-                  vm.threadID
-                  (RuntimeError.UncaughtException(error.message, []))
+                Dval.resultError KTString KTInt64 (Dval.dint64 (int64 error.errno))
             | _ -> return incorrectArgs ()
           }
         | _ -> incorrectArgs ()
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated } ]
 
 

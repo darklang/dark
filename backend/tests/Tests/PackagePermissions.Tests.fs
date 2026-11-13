@@ -23,7 +23,6 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
     returnType = PT.TBigInt
     description = ""
-    permissionCeiling = None
     bounds = [] }
 
 /// A `List<BigInt> -> (BigInt -> BigInt) -> List<BigInt>` fn: the shape that hands its own
@@ -40,7 +39,6 @@ let private higherOrderFn (hash : string) (body : PT.Expr) : PT.PackageFn.Packag
             description = "" } ]
     returnType = PT.TList PT.TBigInt
     description = ""
-    permissionCeiling = None
     bounds = [] }
 
 /// A closure of in-memory fns, each body analyzed once, as
@@ -67,7 +65,7 @@ let private testEffects : PackagePermissions.CallEffectsFor =
 let private callBuiltin (name : string) : PT.Expr =
   eApply (eBuiltinFn name 0) [] [ eUnit () ]
 
-/// The review tests share one package universe: `v1` is the pinned version,
+/// The review tests share one package universe: `v1` is the approved version,
 /// `v2` an identical-contract re-release, `wider` adds a file read, and
 /// `dynamic` applies a callback the static walk cannot follow.
 let private reviewUniverse =
@@ -101,7 +99,7 @@ let private loadFromUniverse : PackagePermissions.Load =
 
 let private reviewUnder
   explicitPolicy
-  currentPin
+  previousApproval
   hash
   acknowledgeIncomplete
   acknowledgeChange
@@ -109,15 +107,15 @@ let private reviewUnder
   PackagePermissions.reviewVersion
     loadFromUniverse
     testEffects
-    currentPin
+    previousApproval
     hash
     explicitPolicy
     acknowledgeIncomplete
     acknowledgeChange
   |> Ply.toTask
 
-let private review currentPin hash acknowledgeIncomplete acknowledgeChange =
-  reviewUnder None currentPin hash acknowledgeIncomplete acknowledgeChange
+let private review previousApproval hash acknowledgeIncomplete acknowledgeChange =
+  reviewUnder None previousApproval hash acknowledgeIncomplete acknowledgeChange
 
 /// `file read /data` plus the clock: the consumer's own resource rules.
 let private consumerRules : Permission.Policy =
@@ -179,6 +177,7 @@ module ValueReferences =
         { name = RT.FQFnName.fqBuiltin "fileRead" 0
           typeSymbolTable = RT.TST.empty
           typeArgs = []
+          approvalName = None
           access = None
           argsSoFar = []
           boundImpls = [] }
@@ -370,21 +369,18 @@ let reviewAcceptsAnUnchangedContract =
       Expect.equal
         (policies |> List.map snd)
         [ Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock) ]
-        "a complete member is pinned to its exact effect set"
+        "a complete member is approved for its exact effect set"
     | other -> failtest $"expected Approvable, got {other}"
   }
 
 let reviewApprovesTheRootUnderExplicitRules =
-  testTask
-    "consumer rules confine the root; dependencies keep their derived policies" {
+  testTask "only the named root receives a policy" {
     let! reviewed = reviewUnder (Some consumerRules) None "caller" false false
     match reviewed with
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal
         (Map.ofList policies)
-        (Map
-          [ "caller", consumerRules
-            "v1", Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock) ])
+        (Map [ "caller", consumerRules ])
         "the root is stored under the rules written for it; the dependency it calls is not narrowed by them"
     | other -> failtest $"expected Approvable, got {other}"
     // Explicit rules bound an incomplete closure without an acknowledgement:
@@ -396,25 +392,15 @@ let reviewApprovesTheRootUnderExplicitRules =
     | other -> failtest $"expected Approvable, got {other}"
   }
 
-let reviewRefusesRulesThatCannotCoverTheRequirements =
-  testTask "rules that never allow a required effect are refused, naming it" {
+let reviewAcceptsRestrictiveRules =
+  testTask "narrow rules are accepted even when analysis predicts more effects" {
     let clockOnly =
       Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock)
     let! reviewed = reviewUnder (Some clockOnly) None "caller" false false
     match reviewed with
-    | Error message ->
-      Expect.stringContains
-        message
-        "never allow file-read"
-        "the missing effect is named at approval time, not by a runtime denial"
-    | other -> failtest $"expected an error, got {other}"
-    // Only which effects a rule can cover matters here; the exact resource
-    // is decided at runtime, so a narrow file root still covers file-read.
-    let! narrow = reviewUnder (Some consumerRules) None "wider" false false
-    Expect.isOk narrow "a file root plus the clock covers file-read and clock"
-    let! anything =
-      reviewUnder (Some Permission.Policy.allowAll) None "wider" false false
-    Expect.isOk anything "an `all` rule covers every effect"
+    | Ok(PackagePermissions.Review.Approvable policies) ->
+      Expect.equal policies [ "caller", clockOnly ] "runtime checks missing access"
+    | other -> failtest $"expected a narrow approval, got {other}"
   }
 
 let reviewRefusesAWidenedContractWithoutAcknowledgment =
@@ -443,8 +429,8 @@ let reviewRejectsAnIncompleteClosure =
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal
         (policies |> List.map snd)
-        [ Permission.Policy.allowAll ]
-        "an acknowledged-incomplete member is allow-all, bounded by instance/run"
+        [ Permission.Policy.denyAll ]
+        "unknown effects never become automatic grants"
     | other -> failtest $"expected Approvable after acknowledgment, got {other}"
     let! unknown = review None "missing" true true
     Expect.isError unknown "an unknown hash cannot be approved"
@@ -637,6 +623,46 @@ let testBodiesUseTransitiveCacheSafetyAnalysis =
       "missing dependencies cannot be certified cache-safe"
   }
 
+let batchedCacheSafetyMatchesOneBodyAtATime =
+  testTask "bodies analyzed together get the answers each gets alone" {
+    let random = System.Random 6494
+    let fnCount = 40
+    let builtins = [| "syscallGettimeofday"; "fileRead"; "listMap"; "toRepr" |]
+    // A few statements, each a builtin, a package fn (five hashes that do not exist) or a
+    // callback. The fns call each other, cycles included.
+    let randomBody () =
+      let call () =
+        match random.Next 10 with
+        | 0 -> eApply (eVar "callback") [] [ eUnit () ]
+        | n when n < 4 -> callBuiltin builtins[random.Next builtins.Length]
+        | _ -> eApply (ePackageFn $"fn{random.Next(fnCount + 5)}") [] [ eUnit () ]
+      List.init (1 + random.Next 3) (fun _ -> call ()) |> List.reduce eStatement
+    let universe =
+      List.init fnCount (fun i -> unitFn $"fn{i}" (randomBody ()))
+      |> List.map (fun fn -> fn.hash, fn)
+      |> Map.ofList
+    let loadFn hash = Ply(Map.tryFind hash universe)
+    let load : PackagePermissions.Load = { fn = loadFn; value = fun _ -> Ply None }
+
+    let verdicts = System.Collections.Generic.HashSet<bool>()
+    for _ in 1..20 do
+      let bodies = List.init (1 + random.Next 30) (fun _ -> randomBody ())
+      let! analyses, closure =
+        PackagePermissions.analyzeExpressions load bodies |> Ply.toTask
+      let together =
+        analyses |> List.map (Requirements.forExpression testEffects closure)
+      let! (alone : List<Requirements.Result>) =
+        bodies
+        |> Ply.List.mapSequentially (
+          PackagePermissions.cacheSafetyForExpression load testEffects
+        )
+        |> Ply.toTask
+      Expect.equal together alone "sharing the closure changes no answer"
+      for r in together do
+        verdicts.Add(r.complete && Set.isEmpty r.requiredEffects) |> ignore<bool>
+    Expect.equal verdicts.Count 2 "both answers occur"
+  }
+
 let cacheSafetyRejectsBranchDependentRendering =
   testTask "a permission-free branch-dependent builtin is not cache-safe" {
     let callEffectsFor (name, version) =
@@ -651,12 +677,295 @@ let cacheSafetyRejectsBranchDependentRendering =
     Expect.isEmpty result.requiredEffects "this is not a permission effect"
   }
 
+let preflightCollectsOnlyCertainRequests =
+  testTask "preflight batches literal requests but stops at uncertain control flow" {
+    let env name =
+      eApply (eBuiltinFn "runtimeEnvironmentGet" 0) [] [ eStr [ strText name ] ]
+    let read name =
+      eApply (eBuiltinFn "runtimeAuthorizeReadPath" 0) [] [ eStr [ strText name ] ]
+    let collect expressions =
+      LibDB.PermissionReview.preflight
+        loadFromUniverse.fn
+        (fun _ _ -> None)
+        expressions
+      |> Ply.toTask
+    let! known = collect [ env "A"; env "B"; env "A"; read "/tmp/report" ]
+    Expect.equal (List.length known) 3 "one batch with duplicates removed"
+    let wrapper =
+      { unitFn
+          "environment-wrapper"
+          (eApply (eBuiltinFn "runtimeEnvironmentGet" 0) [] [ eVar "name" ]) with
+          parameters =
+            NEList.singleton { name = "name"; typ = PT.TString; description = "" } }
+    let load hash = Ply(if hash = wrapper.hash then Some wrapper else None)
+    let! wrapped =
+      LibDB.PermissionReview.preflight
+        load
+        (fun _ _ -> None)
+        [ eApply
+            (ePackageFn "environment-wrapper")
+            []
+            [ eStr [ strText "THROUGH_WRAPPER" ] ] ]
+      |> Ply.toTask
+    Expect.equal (List.length wrapped) 1 "named parameters retain literal arguments"
+
+    let! deferred = collect [ eLambda (gid ()) [ lpVar "x" ] (env "SECRET") ]
+    Expect.isEmpty deferred "returning a callback does not execute it"
+    let! dynamic = collect [ eApply (eVar "callback") [] [ eUnit () ]; env "LATER" ]
+    Expect.isEmpty dynamic "unknown calls defer subsequent requests to runtime"
+
+    let! conditional =
+      collect [ eIf (eVar "condition") (env "SECRET") (Some(eUnit ())); env "LATER" ]
+    Expect.isEmpty conditional "unknown branches are checked at runtime"
+    let! chosen = collect [ eIf (eBool true) (env "A") (Some(env "SECRET")) ]
+    Expect.equal (List.length chosen) 1 "only the literal branch is included"
+    let! stopped = collect [ PT.EUnwrap(gid (), env "FIRST"); env "LATER" ]
+    Expect.equal (List.length stopped) 1 "a possible early return stops preflight"
+
+    let openPath flags =
+      eApply
+        (eBuiltinFn "syscallOpen" 0)
+        []
+        [ eStr [ strText "/tmp/report" ]; eInt64 flags; eInt64 0L ]
+    for flag in
+      [ LibExecution.HostPosix.O_CREAT
+        LibExecution.HostPosix.O_TRUNC
+        LibExecution.HostPosix.O_APPEND ] do
+      let! requests = collect [ openPath (int64 flag) ]
+      Expect.equal
+        (requests
+         |> List.map (fun (r : LibDB.PermissionReview.KnownRequest) -> r.request)
+         |> Set.ofList)
+        (set
+          [ Permission.Request.file Permission.AccessKind.Read "/tmp/report"
+            |> Result.unwrap
+            Permission.Request.file Permission.AccessKind.Write "/tmp/report"
+            |> Result.unwrap ])
+        "mutating flags require write access even with O_RDONLY"
+  }
+
+module OpenEffects =
+  let private effects =
+    set [ Effect.Effect.FileRead; Effect.Effect.FileWrite; Effect.Effect.Raise ]
+
+  let private classify (name, _version) =
+    if name = "syscallOpen" then Some effects else testEffects (name, _version)
+
+  let private openWith flags =
+    eApply
+      (eBuiltinFn "syscallOpen" 0)
+      []
+      [ eStr [ strText "/tmp/report" ]; flags; eInt64 0L ]
+
+  let private wrapper =
+    { unitFn "open-wrapper" (openWith (eArg 0)) with
+        parameters =
+          NEList.singleton { name = "flags"; typ = PT.TInt64; description = "" } }
+
+  let private throughWrapper flags = eApply (ePackageFn "open-wrapper") [] [ flags ]
+
+  let private check dependencies body expected =
+    let root = unitFn "open-root" body
+    let closure = closureOf (root :: wrapper :: dependencies)
+    let result = Requirements.forFunction classify closure root.hash
+    Expect.isTrue result.complete "all calls resolve"
+    Expect.equal result.requiredEffects expected "contextual requirements"
+    let paths =
+      Requirements.effectPaths
+        classify
+        closure
+        (LibExecution.CallGraph.analyzeFn Set.empty root)
+    Expect.equal (Map.keys paths |> Set.ofList) expected "explanations agree"
+
+  let tests =
+    [ testCase "known access flags propagate through wrappers" (fun () ->
+        let read = set [ Effect.Effect.FileRead; Effect.Effect.Raise ]
+        let write = set [ Effect.Effect.FileWrite; Effect.Effect.Raise ]
+        check [] (throughWrapper (eInt64 0L)) read
+        check [] (throughWrapper (eInt64 1L)) write
+        check [] (throughWrapper (eInt64 2L)) effects
+        for flag in
+          [ LibExecution.HostPosix.O_CREAT
+            LibExecution.HostPosix.O_TRUNC
+            LibExecution.HostPosix.O_APPEND ] do
+          check [] (throughWrapper (eInt64 (int64 flag))) effects)
+      testCase "directory flags retain all platform possibilities" (fun () ->
+        let flags =
+          unitFn
+            "directory-flags"
+            (eIf
+              (eBool true)
+              (eInt64 1048576L)
+              (Some(eIf (eBool true) (eInt64 65536L) (Some(eInt64 16384L)))))
+        let call = eApply (ePackageFn "directory-flags") [] [ eUnit () ]
+        let body = eLet (lpVar "flags") call (throughWrapper (eVar "flags"))
+        check [ flags ] body (set [ Effect.Effect.FileRead; Effect.Effect.Raise ]))
+      testCase "different calls to one wrapper keep write effects" (fun () ->
+        check
+          []
+          (eStatement (throughWrapper (eInt64 0L)) (throughWrapper (eInt64 1L)))
+          effects)
+      testCase "helper return values stay scoped to their call" (fun () ->
+        let flags = { wrapper with hash = PT.Hash "identity-flags"; body = eArg 0 }
+        let flagsFor n = eApply (ePackageFn "identity-flags") [] [ eInt64 n ]
+        let body =
+          eLet (lpVar "flags") (flagsFor 0L) (throughWrapper (eVar "flags"))
+        check [ flags ] body (set [ Effect.Effect.FileRead; Effect.Effect.Raise ])
+        check [ flags ] (eStatement body (throughWrapper (flagsFor 1L))) effects)
+      testCase "repeated conditional aliases keep analysis bounded" (fun () ->
+        let body =
+          List.foldBack
+            (fun i body ->
+              let previous = eVar $"flags{i - 1}"
+              eLet
+                (lpVar $"flags{i}")
+                (eIf (eBool true) previous (Some previous))
+                body)
+            [ 1..32 ]
+            (throughWrapper (eVar "flags32"))
+        check
+          []
+          (eLet (lpVar "flags0") (eInt64 0L) body)
+          (set [ Effect.Effect.FileRead; Effect.Effect.Raise ]))
+      testCase
+        "deferred bodies retain captured parameters without confusing their own"
+        (fun () ->
+          let captured =
+            { wrapper with
+                hash = PT.Hash "captured-open"
+                body =
+                  eLambda (gid ()) [ lpVar "ignored" ] (openWith (eVar "flags")) }
+          check
+            [ captured ]
+            (eApply (ePackageFn "captured-open") [] [ eInt64 0L ])
+            (set [ Effect.Effect.FileRead; Effect.Effect.Raise ])
+          let shadowed =
+            { captured with
+                body = eLambda (gid ()) [ lpVar "flags" ] (openWith (eVar "flags")) }
+          check
+            [ shadowed ]
+            (eApply (ePackageFn "captured-open") [] [ eInt64 0L ])
+            effects)
+      testCase "piped arguments and named parameters retain constants" (fun () ->
+        let read = set [ Effect.Effect.FileRead; Effect.Effect.Raise ]
+        let named =
+          { wrapper with
+              hash = PT.Hash "named-open"
+              body = openWith (eVar "flags") }
+        check [ named ] (eApply (ePackageFn "named-open") [] [ eInt64 0L ]) read
+        check
+          []
+          (ePipe
+            (eInt64 0L)
+            [ pFnCall (gid ()) (PT.FQFnName.Package wrapper.hash) [] [] ])
+          read)
+      testCase "unknown branches and large value sets widen safely" (fun () ->
+        check
+          []
+          (throughWrapper (eIf (eBool true) (eInt64 0L) (Some(eArg 0))))
+          effects
+        let flags =
+          [ 1L .. 17L ]
+          |> List.fold
+            (fun rest n -> eIf (eBool true) (eInt64 (n * 65536L)) (Some rest))
+            (eInt64 0L)
+        check [] (throughWrapper flags) effects)
+      testCase
+        "unknown arguments and returned functions remain conservative"
+        (fun () ->
+          check [] (throughWrapper (eArg 0)) effects
+          check [] (ePackageFn "open-wrapper") effects
+          check [] (throughWrapper (eInt64 System.Int64.MaxValue)) effects)
+      testCase
+        "lambda and match bindings cannot inherit shadowed constants"
+        (fun () ->
+          let lambda =
+            eLambda (gid ()) [ lpVar "flags" ] (throughWrapper (eVar "flags"))
+          check [] (eLet (lpVar "flags") (eInt64 0L) lambda) effects
+          let matching =
+            eMatch
+              (eArg 0)
+              [ { pat = PT.MPVariable(gid (), "flags")
+                  whenCondition = None
+                  rhs = throughWrapper (eVar "flags") } ]
+          check [] (eLet (lpVar "flags") (eInt64 0L) matching) effects)
+      testCase "recursive calls retain changes to arguments" (fun () ->
+        let recursive =
+          { wrapper with
+              hash = PT.Hash "recursive-open"
+              body =
+                eIf
+                  (eBool true)
+                  (openWith (eArg 0))
+                  (Some(eApply (PT.ESelf(gid ())) [] [ eInt64 1L ])) }
+        check
+          [ recursive ]
+          (eApply (ePackageFn "recursive-open") [] [ eInt64 0L ])
+          effects)
+      testCase "context limits widen rather than lose effects" (fun () ->
+        let body =
+          [ 0L .. 20L ]
+          |> List.map (fun i -> throughWrapper (eInt64 (i * 65536L)))
+          |> List.reduce eStatement
+        check [] body effects)
+      testCase "self calls in deferred bodies retain changed arguments" (fun () ->
+        let recursive =
+          { wrapper with
+              hash = PT.Hash "deferred-self-open"
+              body =
+                eStatement
+                  (openWith (eArg 0))
+                  (eLambda
+                    (gid ())
+                    [ lpUnit () ]
+                    (eApply (PT.ESelf(gid ())) [] [ eInt64 1L ])) }
+        check
+          [ recursive ]
+          (eApply (ePackageFn "deferred-self-open") [] [ eInt64 0L ])
+          effects)
+      testCase "unknown builtin versions retain their declared effects" (fun () ->
+        check
+          []
+          (eApply
+            (eBuiltinFn "syscallOpen" 1)
+            []
+            [ eStr [ strText "/tmp/report" ]; eInt64 0L; eInt64 0L ])
+          effects) ]
+
+let effectReasonsFollowDependencies =
+  testTask "effect explanations retain call paths and incompleteness" {
+    let! (result : Requirements.Result), reasons =
+      PackagePermissions.explain loadFromUniverse testEffects "caller" |> Ply.toTask
+    Expect.isTrue result.complete "known calls remain complete"
+    Expect.equal
+      (reasons |> List.map fst |> Set.ofList)
+      result.requiredEffects
+      "every reported effect has a reason"
+    let clockPath =
+      reasons |> List.find (fun (effect, _) -> effect = Effect.Effect.Clock)
+    match clockPath with
+    | Some(_, path) ->
+      Expect.equal (List.length path) 2 "dependency plus builtin"
+      Expect.equal
+        (List.last path)
+        (Some "Builtin.syscallGettimeofday")
+        "ends at effect"
+    | None -> failtest "missing clock explanation"
+    let! (dynamic : Requirements.Result), _ =
+      PackagePermissions.explain loadFromUniverse testEffects "dynamic" |> Ply.toTask
+    Expect.isFalse dynamic.complete "unknown callbacks stay visible"
+  }
+
 let tests =
   testList
     "packagePermissions"
-    [ dictionaryKeysAreAnalyzed
+    [ preflightCollectsOnlyCertainRequests
+      testList "open effects" OpenEffects.tests
+      effectReasonsFollowDependencies
+      dictionaryKeysAreAnalyzed
       cacheSafetyRejectsBranchDependentRendering
       testBodiesUseTransitiveCacheSafetyAnalysis
+      batchedCacheSafetyMatchesOneBodyAtATime
       missingCodeIsIncomplete
       deferredCodeRequirementsAreIncluded
       packageValuesMakeAnalysisIncomplete
@@ -666,7 +975,7 @@ let tests =
       reviewApprovesACallerOfACallbackTakingDependency
       reviewAcceptsAnUnchangedContract
       reviewApprovesTheRootUnderExplicitRules
-      reviewRefusesRulesThatCannotCoverTheRequirements
+      reviewAcceptsRestrictiveRules
       reviewRefusesAWidenedContractWithoutAcknowledgment
       reviewRejectsAnIncompleteClosure
       testList "operators and trait calls" Operators.tests

@@ -147,7 +147,7 @@ let hintsForView(state: State, width: Int64): String =
   // this row is discoverable THROUGH `?`, so everything else can give way on a narrow terminal.
   //
   // `q`, not `esc/q`: Escape is BACK one level everywhere and never quits (see `keys-view.dark` and the
-  // `?` overlay, which both say so). The one hint that has to survive every width said the opposite.
+  // `?` overlay, which both say so).
   let essential = [ ("?", "help"), ("q", "quit") ]
   // Where esc goes, named: `esc ← Stdlib`, `esc ← Home`. Nothing on Home with nowhere left to go.
   let backHint =
@@ -165,7 +165,7 @@ let hintsForView(state: State, width: Int64): String =
       [ walk, ("⏎", "go"), leave ]
     else if view == vMatter then
       Stdlib.List.flatten(
-        // Spelled out: `n/t/v new` read as one key, and `t` alone got taken
+        // Spelled out: `n/t/v new` reads as one key, and `t` alone gets taken
         // for "try".
         [ [ ("↑↓", "move"), ("⏎", "open") ]
           backHint
@@ -182,7 +182,7 @@ let hintsForView(state: State, width: Int64): String =
         if (homeRowIs(state, "home-branch")) && (Stdlib.Bool.not(homeRowIsCurrentBranch(state))) then
           ("⏎", "switch")
         else ("⏎", "open")
-      // Branch verbs live here now: Home is where the branches are listed.
+      // Branch verbs live here: Home is where the branches are listed.
       Stdlib.List.flatten([ [ ("↑↓", "move"), enter ], backHint, [ ("s", "switch branch"), ("b", "new branch"), ("c", "commit"), ("m", "merge") ] ])
     else if view == vScratch then
       Stdlib.List.flatten([ [ ("⏎", "type") ], backHint, [ ("f", "clear log"), ("x", "clear session") ] ])
@@ -237,7 +237,7 @@ val helpGroups =
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  // Wide enough for the longest group, not a round number. A fixed 70 clipped the Matter row - the single most
+  // Wide enough for the longest group, not a round number: a fixed width clips the Matter row - the single most
   // useful line in the keymap - on a terminal with room to spare. 11 is where the keys column starts, plus the
   // border and a column of padding either side.
   let widest =
@@ -249,8 +249,8 @@ let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.L
   let w = Stdlib.min(Stdlib.max(40, widest + 14), Stdlib.max(40, screen.cols - 4))
   let rows = (Stdlib.List.length(helpGroups)) * 2 + 3
   let h = Stdlib.min(Stdlib.max(8, rows), screen.rows - 2)
-  let top = screen.top + ((Stdlib.max(0, screen.rows - h)) / 2)
-  let left = screen.left + ((Stdlib.max(0, screen.cols - w)) / 2)
+  let top = screen.top + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.rows - h), 2) |> Stdlib.Result.withDefault(0))
+  let left = screen.left + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.cols - w), 2) |> Stdlib.Result.withDefault(0))
   let region = Stdlib.Cli.UI.Layout.Region { top = top, left = left, rows = h, cols = w }
   Stdlib.List.flatten(
     [ Stdlib.Cli.UI.Layout.clearRegion(region)

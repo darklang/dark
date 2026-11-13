@@ -176,15 +176,23 @@ module Trait =
 module TraitImpl =
   let find branch = findItem branch "impl"
 
-  /// Every impl hash <param branch> binds at some name: what makes an impl dispatchable there.
-  let liveHashes (branch : PT.BranchId) : Ply<HashSet<string>> =
+  /// Which of <param hashes> <param branch> binds at some name: what makes an impl dispatchable
+  /// there. Looked up by hash, not by listing every impl the branch binds, which reads the whole
+  /// locations table.
+  let liveAmong
+    (branch : PT.BranchId)
+    (hashes : List<string>)
+    : Ply<HashSet<string>> =
     uply {
       let! rows =
         Sql.query (
           overVisible
-            "SELECT DISTINCT item_hash FROM visible WHERE item_type = 'impl' AND item_hash <> ''"
+            "SELECT DISTINCT item_hash FROM visible
+             WHERE item_type = 'impl' AND item_hash IN (SELECT value FROM json_each(@hashes))"
         )
-        |> Sql.parameters (Layers.sqlParams branch true)
+        |> Sql.parameters (
+          ("hashes", Sql.string (jsonStrings hashes)) :: Layers.sqlParams branch true
+        )
         |> Sql.executeAsync (fun read -> read.string "item_hash")
       return HashSet<string>(rows)
     }
@@ -207,7 +215,7 @@ module Fn =
 
   /// Whether a function hash is active and bound under `owner` on any branch, asked one hash at a
   /// time. The CLI uses this to skip consumer approval for bundled Darklang functions; the instance
-  /// policy, run policy, and function ceilings still apply.
+  /// defaults and invocation restrictions still apply.
   ///
   /// One indexed lookup per hash (`idx_locations_item_hash`), rather than every bundled hash read
   /// up front: a command asks about the few dozen functions it calls, and loading all of them (a
@@ -225,9 +233,9 @@ module Fn =
           """
         |> Sql.parameters [ "hash", Sql.string hash; "owner", Sql.string owner ]
         |> Sql.executeExistsSync)
-    // Hot path, so answers are remembered for the life of this function: `callerIsBundled` asks
-    // about every frame of the chain on each call of a native builtin. Concurrent because spread
-    // workers ask too.
+    // Cache whether each function is bundled with Dark for this snapshot,
+    // so approval checks do not repeat the lookup. Keep the cache safe for
+    // concurrent access because parallel workers use it too.
     let known = System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
     fun hash -> known.GetOrAdd(hash, ask)
 
@@ -662,4 +670,25 @@ let searchNamesAndHashes
         traits = pairs "trait"
         impls = pairs "impl"
         tests = pairs "test" }
+  }
+
+
+/// The full path (`Owner.Module.Name`) of every impl at or below <param modulePath>, without
+/// reading any definition: what `search` needs to tell an impl's methods from other fns.
+let implPathsBelow
+  (branch : PT.BranchId)
+  (modulePath : List<string>)
+  : Task<List<string>> =
+  task {
+    let query : PT.Search.SearchQuery =
+      { currentModule = modulePath
+        text = ""
+        searchDepth = PT.Search.SearchDepth.AllDescendants
+        entityTypes = [ PT.Search.EntityType.TraitImpl ]
+        exactMatch = false }
+    let! rows = searchRows branch query false
+    return
+      rows
+      |> List.map (fun (_, _, location, _) ->
+        String.concat "." (location.owner :: location.modules @ [ location.name ]))
   }

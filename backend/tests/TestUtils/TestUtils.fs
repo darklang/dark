@@ -123,7 +123,6 @@ let testPackageFn
         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
     returnType = returnType
-    permissionCeiling = None
     bounds = [] }
 
 
@@ -133,7 +132,6 @@ let testPackageFn
 /// the in-process mock server. The guest profile is process-wide.
 let testHttpConfig : LibExecution.HostHttp.Configuration =
   { LibExecution.HostHttp.defaultConfig with
-      timeoutInMs = 5000
       allowedIP =
         fun ip ->
           System.Net.IPAddress.IsLoopback ip

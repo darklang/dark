@@ -26,19 +26,38 @@ let private location owner modules name : PT.PackageLocation =
     modules = if modules = "" then [] else modules.Split('.') |> Array.toList
     name = name }
 
-/// The shared index may contain alias names authored on other branches.
-let private indexedNames (hashes : List<Hash>) =
+/// <param hashes> as one JSON array, so a wide graph stays one SQLite parameter. Written by hand
+/// so this path works in AOT builds too.
+let private hashesJson (hashes : List<Hash>) : string =
+  use buffer = new System.IO.MemoryStream()
+  use writer = new System.Text.Json.Utf8JsonWriter(buffer)
+  writer.WriteStartArray()
+  for (Hash hash) in hashes do
+    writer.WriteStringValue(hash)
+  writer.WriteEndArray()
+  writer.Flush()
+  System.Text.Encoding.UTF8.GetString(buffer.ToArray())
+
+/// Which of <param hashes> the shared index names one target under more than one name: the
+/// `ambiguous` half of `indexedNames`, counted by SQLite rather than read row by row.
+let ambiguousHashes (hashes : List<Hash>) : Task<Set<Hash>> =
   task {
-    // One parameter keeps wide graphs independent of SQLite's parameter limit.
-    // Write JSON explicitly so this path works in AOT builds too.
-    use buffer = new System.IO.MemoryStream()
-    use writer = new System.Text.Json.Utf8JsonWriter(buffer)
-    writer.WriteStartArray()
-    for (Hash hash) in hashes do
-      writer.WriteStringValue(hash)
-    writer.WriteEndArray()
-    writer.Flush()
-    let hashJson = System.Text.Encoding.UTF8.GetString(buffer.ToArray())
+    let! rows =
+      Sql.query
+        """SELECT DISTINCT item_hash
+                   FROM package_dependencies
+                   WHERE item_hash IN (SELECT value FROM json_each(@hashes)) AND depends_on_owner <> ''
+                   GROUP BY item_hash, depends_on_hash, depends_on_item_type
+                   HAVING COUNT(*) > 1"""
+      |> Sql.parameters [ "hashes", Sql.string (hashesJson hashes) ]
+      |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
+    return Set.ofList rows
+  }
+
+/// The shared index may contain alias names authored on other branches.
+let indexedNames (hashes : List<Hash>) =
+  task {
+    let hashJson = hashesJson hashes
     let! rows =
       Sql.query
         """SELECT item_hash, depends_on_hash, depends_on_item_type,
@@ -114,7 +133,7 @@ let dependents
 
     // Check ambiguous indexed names even when this branch has no saved metadata.
     // Another branch may have contributed aliases for the same shared body.
-    let! _, ambiguous = indexedNames (hashes |> List.map Hash)
+    let! ambiguous = ambiguousHashes (hashes |> List.map Hash)
     let! batchDependents =
       if Map.isEmpty state && Set.isEmpty ambiguous then
         Task.FromResult batchDependents

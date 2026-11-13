@@ -41,6 +41,8 @@ let dictGet = 13
 let dictSet = 14
 let strRepeat = 15
 let listContains = 16
+/// `Display.display`, one argument; only reached as a trait method.
+let display = 17
 let strIsEmpty = 18
 let listIsEmpty = 19
 /// `Multiply.multiply`; only reached as a trait method. This and the rest of the numeric
@@ -60,6 +62,10 @@ let shiftLeft = NumOps.shiftLeft
 let shiftRight = NumOps.shiftRight
 /// `List.prepend`: a list and a value of its element type.
 let listPrepend = 28
+/// `String.displayWidth` (one argument) and `String.contains` (two Strings): what a layout asks
+/// of every piece of text it measures.
+let strDisplayWidth = 32
+let strContains = 33
 /// `/`, `%` and `**`. Not in `traitTag`, because they can fail; `quickTraitTag` has them, and
 /// `NumOps` answers the inputs where they cannot. The highest tags, so the drain can send them
 /// straight to `evalNumbers`.
@@ -103,17 +109,23 @@ let eval64 (tag : int) (a : int64) (b : int64) : Dval voption =
 /// the `Add` impl for String, which names `Stdlib.String.append`, a thin wrapper the elision
 /// already resolves to its builtin; so it arrives here with the same shape an integer operator
 /// does, rather than paying the full builtin path to concatenate two strings.
-let evalStr (tag : int) (a : string) (b : string) : Dval voption =
+let evalStr (tag : int) (a : DarkString) (b : DarkString) : Dval voption =
   if tag = strAppend then
-    ValueSome(DString(String.append a b))
+    ValueSome(DStr(DarkString.append a b))
   elif tag = equals then
     ValueSome(
-      Dval.bool (System.String.Equals(a, b, System.StringComparison.Ordinal))
+      Dval.bool (
+        System.String.Equals(a.Value, b.Value, System.StringComparison.Ordinal)
+      )
     )
   elif tag = notEquals then
     ValueSome(
-      Dval.bool (not (System.String.Equals(a, b, System.StringComparison.Ordinal)))
+      Dval.bool (
+        not (System.String.Equals(a.Value, b.Value, System.StringComparison.Ordinal))
+      )
     )
+  elif tag = strContains then
+    ValueSome(Dval.bool (b.Value = "" || String.egcIndexOf a.Value b.Value >= 0))
   else
     ValueNone
 
@@ -133,6 +145,21 @@ let evalList
     TypeChecker.DvalCreator.tryConcat vt1 l1 vt2 l2
   else
     ValueNone
+
+
+let private trueText = DString "true"
+let private falseText = DString "false"
+
+/// `Display.display` of a primitive, as its impl answers it: the helper its builtin calls, or for
+/// `Bool` and `String` the impl's own one-liner. Every other type declines and dispatches.
+let evalDisplay (a : Dval) : Dval voption =
+  match a with
+  | DInt64 n -> ValueSome(DString(Dval.int64ToString n))
+  | DStr _ -> ValueSome a
+  | DBool b -> ValueSome(if b then trueText else falseText)
+  | DChar c -> ValueSome(DString c)
+  | DFloat f -> ValueSome(DString(Dval.floatToString f))
+  | _ -> ValueNone
 
 
 /// The operator itself, for one argument.
@@ -162,6 +189,10 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
   elif tag = listIsEmpty then
     match arg with
     | DList(_, l) -> ValueSome(Dval.bool (DvalList.isEmpty l))
+    | _ -> ValueNone
+  elif tag = strDisplayWidth then
+    match arg with
+    | DString s -> ValueSome(Dval.dint64 (int64 (TextWidth.ofString s)))
     | _ -> ValueNone
   else
     ValueNone
@@ -255,9 +286,9 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     // cost this table exists to avoid.
     if tag = add then
       match a with
-      | DString x ->
+      | DStr x ->
         (match b with
-         | DString y -> ValueSome(DString(String.append x y))
+         | DStr y -> ValueSome(DStr(DarkString.append x y))
          | _ -> ValueNone)
       | _ -> ValueNone
     else
@@ -353,6 +384,8 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "stringIsEmpty" strIsEmpty
   put "listIsEmpty" listIsEmpty
   put "listPrepend" listPrepend
+  put "stringDisplayWidth" strDisplayWidth
+  put "stringContains" strContains
   d
 
 
@@ -376,5 +409,9 @@ let quickTraitTag (traitHash : string) (methodName : string) : int voption =
       methodName = "power" && traitHash = PackageRefs.Trait.Stdlib.Traits.power ()
     then
       ValueSome power
+    elif
+      methodName = "display" && traitHash = PackageRefs.Trait.Stdlib.display ()
+    then
+      ValueSome display
     else
       ValueNone

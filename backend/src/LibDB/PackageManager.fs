@@ -138,7 +138,12 @@ let withLocationDocs
                 { r with
                     types = r.types |> List.map (patch Docs.onType)
                     values = r.values |> List.map (patch Docs.onValue)
-                    fns = r.fns |> List.map (patch Docs.onFn)
+                    fns =
+                      r.fns
+                      |> List.map (fun i ->
+                        let patched = patch Docs.onFn i
+                        { patched with
+                            entity = Docs.keepMeaning i.entity patched.entity })
                     traits = r.traits |> List.map (patch Docs.onTrait)
                     impls = r.impls |> List.map (patch Docs.onImpl)
                     tests = r.tests |> List.map (patch Docs.Test.set) }
@@ -224,52 +229,6 @@ let private ptOn (branch : PT.BranchId) : PT.PackageManager =
 
 /// The PT PackageManager for MAIN. Branch-aware callers want `ptForBranch`.
 let pt : PT.PackageManager = ptOn PT.BranchId.Main
-
-
-/// <param pm>, with an account's APPROVED VERSIONS narrowing how a function NAME resolves.
-///
-/// An approved version says "when I call `Acme.charge`, I mean this exact body, until I review a
-/// newer one". So it belongs at name resolution and nowhere else: a hash lookup still answers for
-/// any version (the update commands read the latest that way, and a caller that already holds a
-/// hash is not asking a question about names).
-///
-/// Applied per RUN, over whichever manager that run resolves through, rather than baked into the
-/// shared `pt`: `pt` is branch-blind and account-blind by design, and an approval is one account's
-/// decision on one branch's names. Building it per run is also what makes a `permissions approve`
-/// take effect on the next command rather than the next process.
-let narrowedToApprovedVersions
-  (accountID : System.Guid option)
-  (pm : PT.PackageManager)
-  : PT.PackageManager =
-  let approved = PolicyStore.approvedVersions accountID
-  if Map.isEmpty approved then
-    pm
-  else
-    { pm with
-        findFn =
-          fun location ->
-            uply {
-              match! pm.findFn location with
-              | None -> return None
-              | Some hash ->
-                match Map.tryFind (PackageLocation.toFQN location) approved with
-                | Some approvedHash ->
-                  // An approval whose hash disappeared after a reset or partial sync gets a clear
-                  // diagnostic instead of failing later as an unknown name. A store CONDITION, not an
-                  // internal error: it is easy to reach (a build re-authors the store, so a hand-authored
-                  // function's hash moves while its approval stays) and the person can fix it in one
-                  // command, so it prints as that sentence and nothing else.
-                  match! PMPT.Fn.get (Hash approvedHash) with
-                  | Some _ -> return Some(Hash approvedHash)
-                  | None ->
-                    let name = PackageLocation.toFQN location
-                    return
-                      Exception.raiseStoreCondition
-                        ($"An approved version of {name} is no longer in the package store, so it "
-                         + $"cannot run. Run `dark permissions unapprove {name}` to release the approval.")
-                        [ "location", name; "approved", approvedHash ]
-                | None -> return Some hash
-            } }
 
 
 /// An in-memory PackageManager built by applying `ops` in sequence. Used for transient state
@@ -895,38 +854,26 @@ let private stampedWith
 
 
 /// What dispatch on <param branch> may pick among <param impls>: the ones the branch binds at a name,
-/// not deprecated there, each stamped with its op's time. One query per branch for the bound set,
-/// cached with everything else, where asking each impl's names cost a query or two per impl.
-let private candidatesOn =
-  let live =
-    Caching.withCache (fun (branch : PT.BranchId) ->
-      PMPT.TraitImpl.liveHashes branch |> Ply.map Some)
-  let stamps : ref<Option<Map<string, string>>> = ref None
-  Caching.register (fun () -> stamps.Value <- None)
-  fun (branch : PT.BranchId) (impls : List<PT.TraitImpl.TraitImpl>) ->
-    uply {
-      let! bound = live branch
-      let! deprecated = Queries.getDeprecatedTraitImplHashesFor branch
-      let! stampMap =
-        match stamps.Value with
-        | Some m -> Ply m
-        | None ->
-          uply {
-            let! m = Queries.getTraitImplStamps ()
-            stamps.Value <- Some m
-            return m
-          }
-      let isCandidate (i : PT.TraitImpl.TraitImpl) =
-        let (Hash h) = i.hash
-        (bound |> Option.exists (fun b -> b.Contains h))
-        && not (Set.contains h deprecated)
-      return
-        impls
-        |> List.filter isCandidate
-        |> List.choose PT2RT.ImplCandidate.ofImpl
-        |> List.distinctBy (fun c -> c.source)
-        |> List.map (stampedWith stampMap)
-    }
+/// not deprecated there, each stamped with its op's time.
+let private candidatesOn
+  (branch : PT.BranchId)
+  (impls : List<PT.TraitImpl.TraitImpl>)
+  : Ply<List<RT.ImplCandidate>> =
+  uply {
+    let hashes = impls |> List.map (fun i -> let (Hash h) = i.hash in h)
+    let! bound = PMPT.TraitImpl.liveAmong branch hashes
+    let! deprecated = Queries.getDeprecatedTraitImplHashesFor branch
+    let! stampMap = Queries.getTraitImplStampsFor hashes
+    let isCandidate (i : PT.TraitImpl.TraitImpl) =
+      let (Hash h) = i.hash
+      bound.Contains h && not (Set.contains h deprecated)
+    return
+      impls
+      |> List.filter isCandidate
+      |> List.choose PT2RT.ImplCandidate.ofImpl
+      |> List.distinctBy (fun c -> c.source)
+      |> List.map (stampedWith stampMap)
+  }
 
 
 // TODO: bring back eager loading
@@ -977,7 +924,7 @@ let rt : RT.PackageManager =
           | Some cs -> return cs
           | None -> return []
         }
-    implSelectionMemo = System.Collections.Concurrent.ConcurrentDictionary()
+    implSelectionMemo = RT.ImplSelectionMemo.create ()
     implGeneration = Caching.generation
 
     init =

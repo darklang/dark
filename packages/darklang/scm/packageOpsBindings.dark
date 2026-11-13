@@ -78,13 +78,14 @@ type NameWord =
 
 
 /// Sort the binding to keep last, using the same rules as F#.
-/// The newest timestamp wins. At equal timestamps, a binding beats an Unbind,
-/// and the greater hash wins between bindings.
+/// The newest timestamp wins. At equal timestamps, a binding (with its <param hash>) beats an
+/// Unbind, and the greater hash wins between bindings.
 /// SQL row order depends on arrival order, so it cannot settle these ties consistently.
 /// Timestamps have a fixed format, so sorting this string also sorts them by time.
-let bindingSortKey(ts: String, isBinding: Bool, hash: String): String =
-  let rank = if isBinding then "1" else "0"
-  $"{ts}|{rank}|{hash}"
+let bindingSortKey(ts: String, hash: Stdlib.Option.Option<String>): String =
+  match hash with
+  | Some(h) -> $"{ts}|1|{h}"
+  | None -> $"{ts}|0|"
 
 
 /// Read the operations and keep the latest change for each name.
@@ -103,14 +104,14 @@ let nameEntriesFromOpRows(
         | Unbind(location, _) ->
           let modules = Stdlib.String.join(location.modules, ".")
           Stdlib.Option.Option.Some(
-            (bindingSortKey(ts, false, ""),
+            (bindingSortKey(ts, Stdlib.Option.Option.None),
              Conflicts.bindingKey(location.owner, modules, location.name),
              NameWord { owner = location.owner, modules = modules, name = location.name
                         binding = Stdlib.Option.Option.None }))
         | _ ->
           bindingFromOp(effect, ts)
           |> Stdlib.Option.map(fun((k, b)) ->
-            (bindingSortKey(b.originTs, true, b.hash), k,
+            (bindingSortKey(b.originTs, Stdlib.Option.Option.Some(b.hash)), k,
              NameWord { owner = b.owner, modules = b.modules, name = b.name
                         binding = Stdlib.Option.Option.Some(b) }))))
     |> Stdlib.List.flatten

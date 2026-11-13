@@ -3,13 +3,9 @@
 /// A `UI.Widget`, so it draws into whatever region its parent gives it and hands the parent a message when
 /// the user is done. Everything about it is pure; the caller owns the state.
 ///
-/// It avoids two bugs an earlier private `TextEditor` had:
-///
-/// - It advanced the cursor by one per keystroke, on the assumption that a keypress is one character. A
-///   paste (or a multi-byte read) arrives as a chunk, so `abcdef` followed by `X` produced `aXbcdef`.
-///   `insert` moves by the length of what actually arrived.
-/// - It had no horizontal scrolling, so once a line passed the width of the terminal the text and the
-///   cursor with it simply left the screen and you typed blind. `windowFor` keeps the cursor in view.
+/// - `insert` moves the cursor by the length of what actually arrived, not by one per keystroke: a paste
+///   (or a multi-byte read) arrives as a chunk.
+/// - `windowFor` scrolls horizontally, so a line wider than the terminal keeps the cursor in view.
 ///
 /// Indices are grapheme clusters, which is what `Stdlib.String` counts, so a flag or a family emoji is one
 /// step of the cursor and can't be cut in half. Column width (where `界` counts two) is the renderer's

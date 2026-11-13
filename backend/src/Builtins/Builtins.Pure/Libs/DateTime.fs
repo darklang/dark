@@ -8,36 +8,49 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 
+// NodaTime's `uuuu` writes years before 1, which .NET's `DateTime` cannot hold.
+let private isoSeconds =
+  NodaTime.Text.LocalDateTimePattern.CreateWithInvariantCulture
+    "uuuu'-'MM'-'dd'T'HH':'mm':'ss'Z'"
 
-/// NodaTime rejects instants/periods outside its supported range by throwing
-/// host exceptions, even for values that fit int64. Run `f` and turn those into
-/// a Dark `OutOfRange` error rather than letting them escape.
-let private inDateRange (vm : VMState) (f : unit -> Dval) : Ply<Dval> =
-  try
-    f () |> Ply
-  with
-  | :? System.ArgumentOutOfRangeException
-  | :? System.OverflowException ->
-    RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
+let private isoMilliseconds =
+  NodaTime.Text.LocalDateTimePattern.CreateWithInvariantCulture
+    "uuuu'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"
 
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dateTimeFromUnixTicks" 0
       typeParams = []
-      parameters = [ Param.make "ticks" TInt64 "100ns ticks since Unix epoch" ]
+      parameters =
+        [ Param.make "ticks" TInt64 "100ns ticks since Unix epoch"
+          Param.make "count" TInt64 "How many units to move by"
+          Param.make "unit" TInt64 "100ns ticks per unit" ]
       returnType = TDateTime
-      description = "Pure DateTime representation conversion; no clock access"
+      description =
+        "The DateTime <param count> units of <param unit> ticks each after <param ticks>"
       fn =
         (function
-        | _, vm, _, [| DInt64 ticks |] ->
-          inDateRange vm (fun () ->
-            ticks
+        | _, vm, _, [| DInt64 ticks; DInt64 count; DInt64 unit |] ->
+          // NodaTime throws on instants past its range, even ones that fit int64.
+          try
+            bigint ticks + bigint count * bigint unit
+            |> int64
             |> Instant.FromUnixTimeTicks
             |> DarkDateTime.fromInstant
-            |> DDateTime)
+            |> DDateTime
+            |> Ply
+          with
+          | :? System.ArgumentOutOfRangeException
+          | :? System.OverflowException ->
+            let kind =
+              match unit with
+              | 10000000L -> RuntimeError.BigInts.DateTimeSeconds
+              | 10000L -> RuntimeError.BigInts.DateTimeMilliseconds
+              | _ -> RuntimeError.BigInts.DateTimeTicks
+            outOfRange vm kind (DInt64 count)
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -67,17 +80,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDateTime d |] ->
-          let dt = DarkDateTime.toDateTimeUtc d
-          let hasMs = dt.Millisecond <> 0
-
-          let str =
-            if hasMs then
-              dt.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-            else
-              dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
-              + "Z"
-
-          str |> DString |> Ply
+          let pattern = if d.Millisecond <> 0 then isoMilliseconds else isoSeconds
+          pattern.Format d |> DString |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

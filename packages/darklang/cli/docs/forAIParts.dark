@@ -1,6 +1,6 @@
 module Darklang.Cli.Docs.ForAIParts
 
-// The reference sections `docs for-ai` used to carry in full. Each is one part,
+// The reference sections of `docs for-ai`. Each is one part,
 // `docs for-ai <part>`, so the first read stays short.
 
 /// `docs for-ai packages`: saving declarations and changing them.
@@ -62,6 +62,36 @@ $EDITOR instead, which is the shape for a human, not for you. And `--raw` is
 the stored NORMAL FORM, not your keystrokes: formatting, redundant parens and
 annotated nested lets come back normalized, so diff against a fresh `--raw`,
 never against what you typed.
+
+## A command-line tool
+
+A function taking `args: List<String>` and returning `Int64` runs from the
+shell by name. The words after the name are its arguments, as strings, and
+the number it returns is the exit code:
+
+  fn /Me.Greet.main - <<'EOF'
+  let main(args: List<String>): Int64 =
+    match args with
+    | [ name ] ->
+      Stdlib.printLine($"Hello, {name}")
+      0
+    | _ ->
+      Stdlib.printErrorLine("usage: Me.Greet.main <name>")
+      2
+  EOF
+
+  run Me.Greet.main Ada               # Hello, Ada; exits 0
+  run Me.Greet.main                   # the usage line on stderr; exits 2
+
+Printing needs no approval. Files, the network and the environment do:
+`permissions approve Me.Greet.main --yes` remembers access for this version.
+After an edit, `run` runs the edited code, which is denied that access until
+`permissions update Me.Greet.main --yes`.
+
+Numbers arrive as strings too: parse them with `Stdlib.Int64.parse`. Only a
+`List<String>` parameter, or none, runs this way. A function with typed
+parameters, such as `add(a: Int64, b: Int64)`, goes through `eval`:
+`eval 'Me.Math.add(1, 2)'`.
 """
 
 /// `docs for-ai tests`: package tests in full.
@@ -87,9 +117,8 @@ Run all tests with `test run`, or filter by name/module with `test run Example`.
 `search` leaves tests and `Tests` modules out; add `--include-tests`, or `--test`
 for tests only.
 Tests use an allow-all instance policy for the test run and its disposable
-workers; the installation's saved policy is unchanged. Each called function's
-ordinary package approval and permission ceiling still applies. Tests have no
-permission rows or grants of their own. A passing
+workers; the installation's saved policy is unchanged. Run restrictions still
+apply. Tests have no permission rows or grants of their own. A passing
 ordinary test is reused when its calls are proven safe to reuse, on the same
 branch with the same `Stdlib.Test.Result` binding, until the test body, one of
 its followed dependencies, the runtime build, or the judging code changes.
@@ -98,8 +127,6 @@ cache-safety analysis.
 `equal` and `notEqual` use branch-dependent formatting and rerun conservatively;
 use `expect` with a fixed message for checks that can be cached.
 `test run --force` reruns cached tests.
-
-Tests may use the effects the called functions allow them.
 
 Every test execution runs in its own disposable process with an isolated store.
 Ordinary `test name = ...` declarations provide isolation automatically, including
@@ -118,7 +145,6 @@ in memory and starts at zero for each test execution, including reruns.
 These helpers work only in package tests, need no host permissions, and make
 the test rerun rather than reuse a cached pass.
 
-
 A test that expects a runtime error declares the expected outcome after its
 body; the body may be any expression and passes only when the rendered message
 matches exactly:
@@ -133,7 +159,8 @@ let permissions(): String =
   """# Darklang AI: permissions
 
 Host permissions are managed with the `permissions` command (alias `perms`).
-The instance policy is local, machine-wide, and deny-by-default. A fresh
+Instance rules supply default grants and explicit denies. Named approvals
+can supply additional access; explicit denies and run restrictions always win. A fresh
 installation permits package/local-store access, stdio, clock, and randomness;
 rules allow (or deny) additional effects and resources:
 
@@ -142,31 +169,59 @@ rules allow (or deny) additional effects and resources:
   permissions profile read-only /home/me/project       # preview: reads, HTTPS GET
   permissions profile local-dev /home/me/project --yes # apply: adds writes, serving
   permissions allow clock
-  permissions allow http GET https://api.stripe.com/v1
+  permissions allow http GET https://api.stripe.com/v1/*
   permissions allow file write /home/me/project/data   # absolute; ~ not expanded
   permissions deny http POST https://api.stripe.com/v1
   permissions allow native             # raw fds, process handles: cannot be scoped,
                                        # so it is granted whole or not at all
-  permissions requirements <fn|hash>   # complete transitive permission requirements
-  permissions show <fn|hash>           # requirements, approvals, and effective policies
+  permissions allow http-server 127.0.0.1 9090  # local serving only
+  effects <fn>                        # possible effects, call paths, completeness
+  permissions show <fn|hash>           # the function's effects and remembered approvals
+
+## Agent runners
+
+When Dark denies access, submit the exact `permissions allow` command from the
+error through your runner's approval flow. Run it separately from the task,
+without asking in chat first.
+Ask me requests your approval; Approve for me uses the runner's reviewer;
+bypass/dangerous mode skips review.
+
+In Codex, request escalation even when the policy path is writable. In Claude,
+use normal Bash review without allow or ask rules for permission commands.
+
+Grants persist for all code in the instance. If review is denied or unavailable,
+stop; do not bypass it. After the command succeeds, retry only if doing so will
+not repeat earlier side effects. This guidance relies on runner review; it
+does not prevent direct policy edits.
+
+## Running code
+
+Interactive `run` asks: Allow this run / Remember for this code version / Cancel.
+Access Dark can see before execution is reviewed in one prompt; other access
+pauses before its operation with a prompt of its own, so a run can ask more
+than once. Approval continues without restarting earlier work.
+Unattended runs fail with guidance; use `run --allow` for temporary access.
+Remembered script approvals appear as `script:/absolute/path` in `permissions approved`.
+Use that name with `permissions show` or `unapprove`.
 
 Consumer approvals are local to this installation, like the instance policy,
 with one approved version per logical function name. The
 normal workflow uses the logical function name; immutable hashes stay behind
 the approval:
 
-  permissions approve Vendor.Package.function
-  permissions update Vendor.Package.function
-  permissions approved                  # name  shorthash
+  permissions approve Vendor.Package.function --yes
+  permissions update Vendor.Package.function --yes
+  permissions approved                  # each name and its approved version
   permissions unapprove Vendor.Package.function
-  permissions approvals                 # approved hashes; revoke-package <hash> drops one
 
 Approval computes the function's inferred transitive needs; changing the code
 changes its hash and requires a new decision, without changing the user's
-logical name. An approved version is what the name RESOLVES to when you run
-something, so approving is how you stay on a reviewed version while the package
-moves on. `unapprove` only releases the name; the version's approval stays until
-`revoke-package`.
+logical name. Running a name uses its current code on the selected branch.
+Edits to the function or its dependencies do not inherit the old approval.
+Use `permissions update` or `approve` to review access for the new code.
+Instance defaults and temporary run permissions still apply.
+`unapprove` removes that name's remembered access without changing its code.
+`revoke-package <hash>` removes all named approvals for that version.
 """
 
 /// `docs for-ai traces`: reading a run back, and things that run at once.
@@ -240,8 +295,9 @@ previous one serving. `ps --watch` and `traces show <fn> --watch` are live
 views over the same host loop. The workbench shows `// = value` beside calls
 from the last recorded run.
 
-Every run is a process: reads run at once with no code change, writes keep order,
-`Stdlib.await(x)` waits here; `Exec.spawn`/`await`/`cancel` when you want control;
+Every run is a process: reads run at once with no code change, writes keep order
+(overlap them with `List.parallelMap` or `Exec.spawn`/`await`), `Stdlib.await(x)`
+waits here; `Exec.spawn`/`await`/`cancel` when you want control;
 `ps` shows what is running on the machine, `traces resume <id>` picks a Ctrl-C'd
 run back up, `traces fork` branches one. `docs processes` and `docs live` have the
 short versions; `docs/processes.md` and `docs/live.md` in the repo have the design.
@@ -354,9 +410,6 @@ let syntax(): String =
 - Lambda parameters take the call shape: `fun x ->`, `fun(acc, x) ->`; one
   tuple parameter is `fun((a, b)) ->`.
 - A function type with several arguments is `(A, B) -> C`; `A -> B` takes one.
-- A function may declare a permission ceiling as an effect row on the return
-  colon: `let fetch(url: String):{Http, Clock} String = ...`. It only
-  restricts (`:{}` means effect-free); names are effect cases like `FileRead`.
 
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
@@ -414,9 +467,9 @@ let syntax(): String =
   `z` is for ℤ, the integers: `1z` is a BigInt, with no size limit.
   Values print with their suffix except Int64 and Float, so output pastes back as itself.
 - Traits: `impl Add for Vec = let add(a: Vec, b: Vec): Vec = ...` gives Vec
-  a `+`; `impl ToString for Point = let toString(p: Point): String = ...`
-  gives `p.toString`; your own with `trait Area<'a> = let area(s: 'a): Float`.
-  A bound is `let f<'a: ToString>(v: 'a) = ...`. Author with `dark trait` /
+  a `+`; `impl Display for Point = let display(p: Point): String = ...`
+  gives `p.display`; your own with `trait Area<'a> = let area(s: 'a): Float`.
+  A bound is `let f<'a: Display>(v: 'a) = ...`. Author with `dark trait` /
   `dark impl`; `dark impls <Trait> --json` lists implementations with the status a
   call sees (active, shadowed, unordered); `dark constraints --json` has the rival
   pairs; `docs traits`.

@@ -1,305 +1,140 @@
 # Effects and permissions
 
-Status: runtime foundation and host-owned policy persistence implemented;
-named consumer approvals and version pins are available in the CLI.
+Effects describe what code might do. Approvals allow access. Explicit restrictions
+always win.
 
-Dark uses related but separate descriptions and enforcement:
+## What is checked
 
-- **Call effects** describe what happens while a builtin is invoked.
-- **Permission requirements** conservatively collect every host effect reachable
-  from a package function, including code in closures that may be returned and
-  invoked later. They drive approval tooling; they are not function effect rows.
-- **Permissions** decide whether a running program may perform one exact host
-  operation. They are enforced at runtime.
+A protected operation needs an instance default grant, a temporary run grant, or a
+remembered approval for the named entry point. An explicit instance deny or a run
+restriction blocks it regardless of grants. Every actual path, URL, environment
+variable, executable and argument list is checked at the host boundary.
 
-Keeping these separate is the central design rule. A function can require HTTP
-without being authorized to contact every host, and a machine can permit HTTP
-without making every function effectful.
+The first non-bundled function establishes the invocation's approval. Its helpers
+inherit that access; they neither need separate approval nor acquire their own
+remembered grants. Calling an approved function from an unapproved library cannot
+increase the caller's access. Bundled helpers and the script's own functions use
+the invocation's access. Closures, deferred streams and background work retain
+captured restrictions and are also bounded by the caller that executes them.
+A trait implementation the caller picks, by a type argument or the value it passes,
+runs with the caller's access, like a callback.
+Bundled code has no exemption from Native checks. Nested evaluation and trace replay
+retain the guest caller's restrictions. Whole-store backups require the trusted CLI.
 
-## Vocabulary
+Package values still evaluate without effects: a saved value must not perform an
+operation when it is materialized. This language rule is not an author ceiling.
 
-- `Effect`: one statically visible kind of behavior, such as `Http` or
-  `FileWrite`. `Effects.all` is the inventory; the Dark rule grammar's
-  `effectNames` is pinned to it by `Builtin.Tests.darkEffectNamesMatchRuntime`.
-- `callEffects`: a builtin's declared invocation-effect set, a required
-  `Set<Effect>` on every builtin record, so a builtin cannot be defined without
-  one. `Effects.isScoped` splits it: ambient effects (`Stdout`, `Clock`,
-  `PackageRead`, ...) are checked once at the interpreter gate before the body
-  runs; scoped effects name a resource and are checked by the body or, for the
-  OS-facing ones, by the host boundary from the `Operation`.
-- `PermissionRequirements`: the complete, transitive set used for review.
-- `Request`: one exact runtime operation, such as `GET
-  https://api.stripe.com:443/v1/payment_intents?expand=charges`. "Exact"
-  includes the query string: a rule for `/download?id=public` does not cover
-  `/download?id=secret`. A rule written without a query matches any query on
-  the path, so the intuitive path-only grant still works; likewise a rule
-  without a path matches any path, `:*` matches any port, and `https://*`
-  means any https host and port.
-- `Rule`: a pattern that may cover requests.
-- `Policy`: allow and deny rules.
-- `Access`: the immutable policies currently constraining an execution.
+## Approvals
 
-`Access` is an internal runtime value and cannot be created by Dark code.
-Trusted F# hosts configure it through three functions:
+`permissions approve Me.report 'file read /reports'` remembers those rules for
+that full name and immutable version. Two names with identical code have separate
+approvals. Dependencies are part of the immutable code identity, not separate
+mutable policy entries. Running a name always uses its current version on the selected branch; approval
+never pins code. Edits to the function or its dependencies invalidate its remembered
+access for new runs. Instance defaults and temporary run grants still apply.
+`permissions update` reviews access for the current version; existing runs retain
+the code and policy captured when they started. `permissions unapprove Me.report` removes that
+name's approval. Revoking a hash explicitly removes all named approvals for it.
+Approval and update prompts capture the complete policy before review. If it changes
+before saving, the approval is refused and must be reviewed again. Updating unchanged
+code can replace its rules or refresh its analysis fingerprint.
 
-```fsharp
-state
-|> Execution.setInstancePolicy instancePolicy
-|> Execution.restrictRun runPolicy
-|> Execution.setPackagePolicies lookup   // Hash -> Option<Policy>
-```
+Explicit rules may be narrower than the analyzed effects. That is useful: a
+read-only approval should be accepted even when a general-purpose helper can also
+write. If execution actually requests the missing access, it stops there.
+Incomplete analysis never automatically grants unknown effects.
 
-`setPackagePolicies` denies packages the lookup does not know. The CLI's
-`PolicyStore.guestState` builds all three layers for a `run` or `eval`: explicit
-approvals and the script's own fns from a small map, the bundled Darklang set
-from a membership check (it has thousands of members, so it is never
-materialized as a policy map). Low-level `createState` defaults to
-**deny-all** (fail-safe): an embedder who installs no policy gets a confined
-execution, not an unrestricted one. Trusted internal callers (the CLI outer
-state, seeding, tests) opt into a permissive policy explicitly with
-`setInstancePolicy`; the CLI installs the persisted deny-by-default instance
-policy before guest execution.
+`run --allow 'file read /reports' report.dark` grants access for that run only.
+The trusted CLI accepts these grants; guest code cannot approve itself. Grants are
+not saved in traces, so resume and fork check fresh permissions. `--sandbox` adds
+a deny-all run restriction; it is not an OS sandbox. There is no warning-only mode.
 
-The CLI host loads the operator instance policy, account-scoped immutable
-package approvals, and account-scoped logical-function version pins from
-`~/.darklang/policy/policies.bin`. Instance grants are machine-wide; consumer
-decisions belong to the logged-in account. The file is atomic, versioned, and
-separate from package data. Missing, malformed, or unreadable policy state
-denies all host effects, and mutation refuses to overwrite a file it cannot
-read. Package approval is always enforced. The script's own compiled functions
-and the bundled Darklang-owned package set are part of the trusted application
-and therefore exempt from the consumer-approval layer; the instance and run
-policies still bound them. Approvals govern third-party packages. The normal
-approval workflow uses logical names and shows short version identifiers; the
-diagnostic commands (`requirements`, `show`, `revoke-package`) also accept a
-full immutable hash.
+At an interactive terminal, `run` reviews exact, statically known missing access
+in one prompt before executing the body. Choose **Allow this run**, **Remember for
+this code version**, or **Cancel**. Remember saves access for this entry and its
+reviewed dependency versions, without changing instance defaults. Scripts are
+listed as `script:/absolute/path`; use `permissions show` or `unapprove` with that
+name to inspect or remove the approval. Editing the script invalidates its review.
 
-The CLI exposes the typed policy directly: `permissions allow http GET
-https://api.example.com/v1` adds a narrow rule, `permissions requirements
-<fn|hash>` shows permission requirements, and `permissions approve <fn>`
-records a consumer approval keyed to the immutable function hash. Broad or
-computed access always requires an explicit operator rule.
+Access discovered later prompts immediately before the protected operation.
+Approval continues that operation without replaying previous work. Interactive
+runs await reads in order so later effects do not run past a pending question.
+Unattended runs retain concurrent reads. Cancellation
+stops the run; completed writes are not undone. Noninteractive runs fail with a
+suggested rule instead of waiting for input. Explicit denies and mandatory run or
+value restrictions cannot be overridden by a prompt.
 
-The Workbench function detail pane and `permissions show <fn|hash>` present a
-layered access report: analyzed requirements and completeness, author ceiling,
-immutable version, account approval and pins, package and instance rules, and
-the effective runtime intersection. It deliberately says `requires` rather
-than `has access`; exact paths, URLs, ports, names, and arguments are decided
-from all active layers when the operation occurs.
+`process-exact /absolute/executable` permits a process with no arguments;
+`process /absolute/executable` permits any arguments. Both forms can include an
+exact argument list. HTTP rules with no query permit any query on the allowed path. A written HTTP
+path is exact: `/orders` does not allow `/orders/123`. Use `/orders/*` to allow
+that path and its children, or omit the path to allow every path on the host.
+Approval prompts and suggested rules use exact HTTP paths. Rules and requests use
+the same URL normalization, including Unicode hosts, escaped paths and queries.
+Custom `Host` headers are rejected; the checked URL determines the HTTP authority.
 
-## Controls
+Denying read access to any environment variable also blocks listing all variables.
+Individual reads of other allowed variables still work.
 
-There are four policy layers, and effective access is their intersection:
+Server rules name both an address and a port: `http-server 127.0.0.1 9090`.
+`localhost` means `127.0.0.1`; addresses are literal IPv4, never DNS names.
+`http-server * 9090` permits any bind address on that port. A denied address
+also prevents binding all interfaces on the same port. `serve` defaults to
+`127.0.0.1`; `--bind 0.0.0.0` explicitly requests all IPv4 interfaces.
+The local-dev profile permits only loopback serving. Address-specific binds
+fail closed on Windows because its HttpListener backend cannot enforce an
+interface-specific socket bind. IPv6 server binds are not supported yet.
 
-| layer | owner | meaning |
-|---|---|---|
-| instance | machine/operator | the hard maximum this installation permits |
-| run | invoker | the subset granted to this invocation |
-| package | consumer | the subset approved for an immutable release |
-| function | author | an optional ceiling declared in the source; it only restricts |
+## Analysis
 
-A package's published requirements are a request, not an approval. Only the
-instance operator or invoker can grant access. The function ceiling is the one
-layer the author controls, and it can only take away.
+Every builtin declares `callEffects`. Requirements analysis follows the immutable
+call graph, callbacks it can identify, operator and trait implementations, and
+returned code. It reports the effects found and whether analysis is complete.
+Requirements are conservative review information, not an authorization check.
+Call discovery records argument sources and possible return values alongside
+each call. Requirements and explanations follow these summaries, without
+walking source syntax again. For `syscallOpen`, analysis carries small sets of
+possible integer arguments through bindings, wrappers and return values.
+Known read-only flags contribute only `file-read`; create, truncate and append
+flags also require `file-write`.
+Unknown flags retain both effects. Branches are combined without executing code,
+and bounded value sets and call contexts widen to unknown when they grow too large.
+This refinement does not suppress `Raise`.
+Use `effects Me.reports.report` to see the effects and a call path for each.
+Incomplete analysis is labeled explicitly. This conservative effect list includes
+returned code. A separate preflight walks unconditional calls with known literal
+arguments; it stops at unknown branches and does not execute callbacks or deferred
+bodies. It retains the named entry's approval context, just as execution does.
+Anything preflight cannot establish is checked at the protected operation, with a
+prompt of its own, so one run can ask more than once.
 
-### Function ceilings
+`Raise` marks a builtin that can stop with a runtime error on arguments of its
+declared types: dividing by zero, an argument out of range, `unwrap` of `None`.
+It is information, not a permission. No rule grants or denies it, it reaches no
+gate, it is not logged, and a call whose only effect is `Raise` stays pure. It
+flows through the call graph like any effect, so `view` says when a function can
+raise and `effects` shows a call path to the raise; permission requirements,
+approvals and contract comparisons leave it out. Some stdlib functions test for
+every case where what they call raises, such as `Int64.checkedDivide`; they are
+listed in `LibDB.Raises.cannotRaise`, and the path does not go through them.
+`Builtin.Tests.raisingBuiltinsDeclareRaise` holds every builtin with a raise site
+in its source to it.
 
-A function declares its ceiling as an effect row on the return colon:
+## Storage
 
-```text
-let fetch(url: String):{Http, Clock} String = ...
-let add(a: Int64, b: Int64):{} Int64 = a + b         // effect-free
-let helper(x: Int64): Int64 = ...                    // no ceiling declared
-```
+The protected, atomic policy file is `~/.darklang/policy/policies.bin`. Named
+approvals use one record per name, containing the version, rules, their explicit or
+inferred origin, and analysis/builtin fingerprint; a changed fingerprint
+requires re-review before those grants can be used. Missing or damaged policy
+files grant nothing and are not silently replaced.
 
-The names are the effect case names (`Http`, `FileRead`, `Clock`, …); an
-unknown name is a parse error, never a wildcard. The row is stored on the
-package function (`permissionCeiling`), is part of its content hash, and is
-compared as part of the permission contract when a pin moves. At runtime a
-call into the function appends `Policy.allowEffects ceiling` as a
-`Layer.Function` restriction, so a body that reaches past its own row is
-denied by "function policy" even under an allow-all instance. `permissions
-show <fn>` prints the ceiling next to the body's analyzed requirements and
-warns when a complete requirement set exceeds it.
+Only the current policy format is supported. Startup does not back up, convert,
+or reset existing policy files. An unsupported file grants nothing; move it aside
+and configure a fresh policy to replace it.
 
-## Runtime rule
-
-```text
-instance policy  AND  run policy  AND  each entered package's approval
-  AND  each entered function's ceiling
-```
-
-Implementation does not materialize a complicated intersection. `Access`
-holds an immutable list of policies and a request is allowed only when every
-policy allows it. Entering a package appends another restriction; nothing
-removes one. This gives the runtime one monotonic invariant:
-
-```text
-child access is never wider than parent access
-```
-
-Frames receive their `Access` when created. Named function values and closures
-capture it when evaluated, before they can be placed in containers, returned,
-or handed to a builtin; later invocation intersects it with the invoking
-frame, so neither side can widen the other. Callbacks reached through those
-values inherit the guarantee because `Exe.executeApplicable` takes the access
-the builtin was applied under (`vm.activeAccess`) and seeds the callback's VM
-from it, so a callback is bounded by the calling function's ceiling and
-package approval exactly as a direct application is. A builtin that runs a
-callable later -- a **stream** transform (`streamMap`/`streamFilter`) or an
-`streamUnfold` step -- reads that access into a local when it is handed the
-callable, and on every pull intersects it with the access of the function
-that is DRAINING, which the drain builtins pass down: deferred work keeps the
-restrictions of the frame that built it and runs under those of the frame that
-runs it. An **HTTP server** builds a child guest state and
-intersects its access with the frame that called `serve`, so the bind check,
-the request handlers and `onListening` all carry the caller's ceiling,
-package approval and any port restriction; from `dark serve` the caller is
-allow-all and the intersection changes nothing. The server builds that state
-again for the next request once the policy file has changed, so an approval or a
-policy edit reaches a running server without a restart. **Tasks**
-are not a runtime value, so there is no deferred task to lose access on.
-Materializing a package `val` does the same walk recursively: every uncaptured
-named function nested in its records, collections, closures, or partial
-arguments captures the loading frame before the value can escape.
-
-Host-owned resources have distinct authorization lifetimes. An HTTP **stream's
-IO leaf** checks permission when the request opens (`Operation.HttpStreamOpen`)
-and then serves chunks from an execution-owned handle (`Host.httpStreamRead`
-makes no second decision). Scoped file descriptors and child handles retain
-their checked path/open-mode or executable/argument grants, and each subsequent
-operation checks those grants against the caller's current access. For a
-descriptor, that check leaves out the consumer approvals: the open was already
-checked against them, and a read, write or seek on the descriptor acquires
-nothing the open did not. Otherwise an approved function could open a file and
-then be refused its first read, by the derived approval of a bundled helper
-like `Posix.fdRead`, which declares no effect of its own. Function ceilings and
-the run and instance policies still apply on every use, so a `:{}` function
-cannot read a descriptor it is handed, and nothing can read a path the open was
-not allowed. Raw OS
-descriptor numbers and arbitrary PIDs require `Native`. Closing owned resources
-remains permitted for cleanup after access has been narrowed.
-
-## Permission requirements
-
-Package approval walks the immutable call graph and derives permission
-requirements from builtin call metadata. It also walks lambda bodies, so
-returned code is included. Unresolved references — a call through a variable
-or argument, e.g. the callback in `List.map` — mark the analysis incomplete,
-as does a package-value reference until value bodies join closure analysis,
-and so does a builtin the running host does not know. Incomplete analysis is
-surfaced to *display* as "incomplete", not as effect-free and not by crashing
-the command: the requirements query returns the partial effects with a
-completeness flag.
-
-Approval fails closed on incompleteness by default. A human can pass an
-explicit acknowledgement (the CLI's `approve`/`update` show the incomplete
-warning and take the confirmation as that acknowledgement), and each
-incomplete member is then approved as allow-all, bounded by the instance/run
-policies — never pinned to its inexact lower bound. Pinning the lower bound
-would deny the effects the walk missed, and for a member with an empty lower
-bound (a bundled dependency like `List.map`) that allowlist is deny-all, which
-would poison the dependency account-globally.
-
-An empty complete requirement set is called `effect-free`, not `pure`: it does
-not establish termination or determinism. Resource details do not belong in
-function types: a dynamic path or URL remains dynamic and requires an explicit
-runtime rule. Effect rows on function *types* (so that a callback's effects
-flow through `List.map`) are later type-system work; see docs/permissions-todos.md. The
-declaration-level row above is the runtime half of that design, available now.
-
-A builtin's `previewable` label answers the other question, whether the same
-arguments give the same answer, and the two are independent. `Impure` with no
-declared effect is a real state, not a missing declaration. It means the call
-needs no grant but its answer is not a function of its arguments, for one of
-two reasons:
-
-- it varies in TIME: a pid, the terminal size, this VM's counters, a stream
-  pull. The run saw one answer and a later look would see another.
-- it varies across BUILDS: the builtin table, the parser, the op decoder. One
-  process always answers the same way; another release answers differently.
-  The parsers become `Pure` once parsers are versioned.
-
-A builtin that takes a callback is labelled `Pure` when it does nothing of its
-own, meaning pure given a pure callback; the callback's effects reach the
-analysis through the call graph, not through the label.
-
-## Requests and policies
-
-A `Request` is exact and already normalized by the checked host boundary. A
-`Rule` may cover a set of requests. Invalid input never becomes a wildcard.
-
-The package and trace stores are host-owned wholes with no per-resource
-scoping: `package-read`, `package-write`, `trace-read` and `trace-write` are
-ambient effects, granted or denied as a whole like `stdout`. `concurrency` (`Exec.spawn`) is ambient too, and allowed by
-the default instance policy: a spawned process runs under the spawner's own
-access and can do nothing the spawner could not, so the effect names only that
-something runs beside you.
-
-Read effects (`Effects.isRead`: file, env, package and trace reads) also
-decide scheduling: a call whose effects are all reads may be handed back as a
-read in flight and forced at its first use, so several run at once
-(`docs/processes.md`, "Reads are concurrent"). `http` is not in that set,
-since the one word covers every method and a policy grants a URL, not a
-method; a GET or HEAD with no body through the HTTP client's buffered builtin
-(`httpClientRequest`, behind `HttpClient.request`/`get`/`head`) is named a
-read on its own (`Effects.readsByMethod`), and every other call keeps its
-order, a stream's included. `clock` and `random` are not
-either: reading them never waits, so there is nothing to overlap, and
-`sleep`, the one clock call that does wait, is a wait the program means to
-take.
-
-Reading Bytes needs no permission. Unsaved bytes are held in memory. Saved
-bytes are loaded by their hash from the local `package_blobs` store, and that
-load needs neither `PackageRead` nor `FileRead`. A function with no effects
-must work the same whichever kind of Bytes it is given.
-
-This gives no other access: no SQL and no files. It also means saved bytes are
-not private: any code holding a Bytes value can read it. Loading or saving
-packages, traces or database values still checks its own permissions.
-
-Comparing Bytes never touches the store either. Two Bytes are equal when their
-contents are equal, whether saved or not. Unsaved bytes are hashed in memory the
-first time they are compared, and that hash is reused after. Saving a value does
-not change how it compares. See [Bytes](bytes.md).
-
-Policies are allowlists with optional explicit denies:
-
-1. A matching deny always wins inside a policy.
-2. Otherwise a matching allow is required.
-3. No matching rule means deny.
-4. Every active policy must allow the request.
-
-Policies are serialized in a versioned binary format. The Dark CLI receives a
-typed mirror of the same `Policy`; its shell-quoted text grammar is
-presentation only, and every rule renders to text that parses back to the same
-rule (a bare effect
-name such as `http` is the whole effect; the scoped rules' broad spellings are
-`http * *`, `http-server *`, `process *`). Incomplete analysis, invalid ports,
-malformed URLs, and unknown rule kinds fail closed with a diagnostic.
-
-An approval can carry the consumer's own resource rules: `permissions
-approve MyApp.fetch http GET 'https://api.example.com'` stores that policy as
-the root's package layer instead of its derived effect set. Entering the root
-appends the policy as a restriction every callee inherits, so the function
-and everything it calls is confined to those resources; its dependencies keep
-their own derived policies, so a shared bundled dependency is never narrowed
-account-wide by one root's rules. The rules must be able to cover the root's
-analyzed requirements, or the approval is refused naming the effects they
-miss. Rules given on `approve` carry over an `update` unless new ones are
-given; a derived approval is recomputed from the new version instead.
-
-Package approvals are stored outside package-controlled data and keyed by
-account plus immutable release identity. A newer version is a new hash and
-inherits nothing. Moving a pin is one trusted operation
-(`PackagePermissions.approveAndPinFunctionVersion`): it compares the callable
-type and the complete transitive requirements against the current pin before
-storing anything, then writes the closure approval and the pin together with a
-compare-and-swap, so a version the reviewer rejects is never left approved. A
-changed contract always requires review; the CLI's second confirm prompt is
-that review, passed through as an explicit acknowledgment. `unpin` releases
-the name only; `revoke-package` drops the approval and the dependencies no
-other approved root still needs.
+Stored programs use only the current binary format. Ceiling metadata and readers
+for older formats have been removed. Runtime function references retain the
+resolved name without saving permission grants.
 
 ## Checked host boundary
 
@@ -329,7 +164,7 @@ the code that used it.
 Guest code reaches neither by default. `http.loopback` widens loopback and
 `http.private` widens RFC 1918, RFC 6598 shared space and IPv6 unique-local;
 both are off until set by name, and widen nothing else. A key is necessary and
-not sufficient: the instance policy still has to allow the URL, so a missing
+not sufficient: the invocation still needs a grant for the URL, so a missing
 grant is a raise where a missing key is `Error(BadUrl(InvalidHost))`.
 
 Only the person running Dark sets them: `dark config set`, or
@@ -351,7 +186,7 @@ destination, not the proxy:
 - A destination given by name is resolved by the proxy, so Dark never sees the
   address it lands on and cannot refuse it.
 - A request the proxy does not take (`NO_PROXY`) connects directly and is
-  checked as usual. Every URL still needs an instance-policy grant.
+  checked as usual. Every URL still needs a permission grant.
 
 What the proxy sees: for `http://`, everything, the URL, every header
 (`Authorization` and cookies included) and both bodies. For `https://`, the
@@ -363,8 +198,7 @@ you would trust with that.
 Kernel primitives use the same boundary, with `HostPosix` and `HostKernel`
 owned by the host. Path operations check exact read/write requests; descriptors
 opened under those checks are returned as unguessable execution-local tokens.
-Every use checks ownership, open mode and current path access (all but the
-consumer approvals, see above) while a descriptor lease prevents close/reuse
+Every use checks ownership, open mode and current invocation access while a descriptor lease prevents close/reuse
 from redirecting a call in flight. Raw OS descriptors
 require `Native`; an owned token cannot be narrowed into an OS descriptor number.
 Child launch checks the resolved executable and ordered arguments, and later
@@ -377,7 +211,7 @@ the home-directory fallback also authorizes the candidate home path. Known host
 facts are available without `Native`, but arbitrary sysctl keys and another
 process's affinity require it. Open flags are Dark constants, and Dark computes
 CPU counts from the permitted kernel inputs. HTTP server binds also cross the
-boundary; the host returns an opaque listener handle only after the exact port
+boundary; the host returns an opaque listener handle only after the exact address and port
 request is allowed and the bind succeeds.
 
 Dark code has no raw SQL. The package store is read and changed only through
@@ -424,232 +258,9 @@ the deliberately broad `Native` boundary. Execution-owned descriptor and child
 tokens instead carry scoped grants, which are checked again on use. Tokens from
 another execution and unknown or closed tokens cannot name owned resources.
 
-## Policy administration
 
-`permissions profile` lists named starting policies. `default` restores the
-installation default. `read-only <ABSOLUTE-ROOT>` permits reads under that
-directory, local-store reads, stdio, clock, randomness, and HTTPS GET to any
-host on port 443. `local-dev <ABSOLUTE-ROOT>` also permits writes under the
-directory, local-store writes, and HTTP serving on any port. Neither grants
-environment access, process execution, or Native. HTTP transport restrictions
-still apply; a profile does not bypass SSRF checks.
+## Limits
 
-Profiles expand to ordinary typed rules and carry no authority of their own.
-The command previews the full expansion; adding `--yes` applies it through the
-same host-only writer as `permissions set`. Application replaces the entire
-instance policy, including explicit denies. Package approvals, pins, run
-restrictions and author ceilings remain independent.
-
-```text
-permissions profile
-permissions profile read-only /home/me/project
-permissions profile local-dev /home/me/project --yes
-permissions allow http GET https://api.example.com/v1
-```
-
-The typed rule grammar, `permissions list`/`show`, and exact denial hints are
-the current editing loop. A future TUI editor can use those same policy types
-and host checks; it does not need a second permissions model.
-
-Guest code cannot change instance, run, or package approval policy. The
-policy builtins are host-only (`ExecutionState.canManagePolicies`), granted
-only to the trusted `dark permissions` command.
-
-**This is runtime authorization, not OS isolation.** Every effect a Darklang
-program performs *through the interpreter* is checked against the instance
-policy: scoped resources cross `Host.perform`, while ambient and `Native`
-effects cross the interpreter gate. The IL scan proves OS APIs are confined to
-the host modules and documented bootstrap exceptions, so interpreted code is
-bounded by the instance policy.
-It deliberately does **not** contain, and must not be relied on to contain:
-
-- **A compromised interpreter or runtime.** A memory-safety exploit that
-  escapes the interpreter can call the OS directly, outside the checked
-  boundary.
-- **Spawned subprocesses.** Granting `Process`/`Native`, or invoking a local
-  agent (an LLM/Codex-style tool), hands control to native code the permission
-  model cannot reach; it runs with the process's ambient OS authority,
-  including the ability to write policy files.
-- **Denial of service.** Permissions authorize effects; they do not limit CPU,
-  memory, time, output, concurrent tasks, open handles, or request sizes.
-
-Containing those requires an OS-level sandbox, which is separate deferred
-work. Until it lands, the trust boundary is
-exactly this: the instance policy bounds all interpreted code, and escaping it
-needs a runtime exploit or a spawned process, neither of which is confined
-here.
-
-**The bundled owner is reserved.** Packages owned by `Darklang` are the
-bundled, trusted set, exempt from consumer approval. A malicious package could
-otherwise publish itself under `owner = "Darklang"` and look like built-in
-code, so before package operations are inserted the code looks at the owner on
-every operation, rejects `Darklang`-owned operations that come from guest
-input, and allows only trusted internal seeding to create those entries.
-The check applies across normal writes, propagated updates, reverts and atomic
-undo. It protects the package APIs; the bundled set is
-still computed from the mutable `owner` column, so anything that can write the
-package database directly could forge trust. Moving that anchor into the
-protected policy store is part of the deferred sandbox work.
-
-## Diagnostics
-
-At the host boundary a denial is **structured** — `Outcome.Denied` carries the
-policy layer that denied it, the reason, the exact resource, and a narrowly
-scoped suggested rule — and that structure drives the audit log and the
-actionable `permissions allow <rule>` hint. The value surfaced to *guest* code
-is still a rendered `RuntimeError` string; exposing the structured denial as a
-Dark value is tracked in docs/permissions-todos.md.
-
-A denial is actionable: it names the exact `permissions allow <rule>` that
-would fix an instance-layer denial, derived from the operation and the check
-that actually failed (a read-write op names read or write, whichever was
-denied), and the CLI grammar accepts every shape the hint emits. A file denial
-also names the rule for the file's folder and the profile for working there
-(`read-only` for a read, `local-dev` for a write), so one grant can cover a
-task that reads several files. Combined with
-the seeded default instance policy — a fresh install allows a guest run to
-load packages, compute, use the local store, and print, but denies the
-filesystem, network, processes, and the environment until granted — this
-gives a deny-by-default posture that is usable out of the box. A denial stops
-the script; earlier effects may already have happened. For an instance-layer
-denial at an interactive terminal, `run` offers to save the exact rule for
-future runs or leave permissions unchanged. Saving permission still exits 1
-and does not restart the script. Run it again explicitly when ready.
-Non-interactive execution, `--sandbox` and `--warn-permissions` never prompt
-and never widen policy automatically.
-
-Every host operation is recorded to `rundir/logs/host-audit.jsonl` — one
-structured line with the operation summary and its policy decision (allowed,
-denied, failed, or rejected) — written in-process at the single
-`Host.perform` choke point, so each operation is logged exactly once.
-`DARK_AUDIT=off` disables it. Stream-chunk continuations are not logged (they
-make no policy decision and would flood the log). The `--warn-permissions`
-audit mode additionally records-and-proceeds past run- and package-layer
-denials; it never proceeds past an instance denial or an author's function
-ceiling, is only available for trusted code, and never saves policy
-automatically.
-
-## Invariants and their tests
-
-These tests turn the design guarantees below into regression checks.
-
-### Analysis and runtime access
-
-- Requirements include transitive calls and deferred lambda bodies. Missing or
-  opaque code makes analysis incomplete. Tests: `PackagePermissions.Tests`
-  (`deferredCodeRequirementsAreIncluded`, `missingCodeIsIncomplete`,
-  `packageValuesMakeAnalysisIncomplete`).
-- Policies deny by default, deny rules win, and restricting `Access` can never
-  widen it. Tests: `Permissions.Tests` (`policiesDenyByDefault`,
-  `denyOverridesAllow`, `accessOnlyNarrows`, `instanceDenialWinsOverInnerDenial`)
-  and the `PermissionsGate` denial tests.
-- Closures, named functions, and nested package values
-  retain captured access without widening the caller. Tests:
-  `Permissions.Tests.capturedAccessCannotWidenCaller`,
-  `materializedValuesCaptureCallablesRecursively`, and the `PermissionsGate`
-  capture tests.
-
-### Requests and host safety
-
-- HTTP, file, and process rules match the complete normalized request. Invalid
-  input never becomes `All`. Tests: `Permissions.Tests`
-  (`httpRulesKeepDimensionsCoupled`, `httpQueryIsPartOfTheOperation`,
-  `fileRulesRespectBoundaries`, `processRulesPreserveArgumentOrder`,
-  `invalidRequestsFailClosed`).
-- Rule text round-trips safely, including quoting, metacharacters, IPv6, and
-  denial suggestions. Tests: `permissions-grammar.dark` and
-  `Permissions.Tests.suggestRuleIsActionable`.
-- Host operations use the supplied access and cannot bypass the checked
-  boundary. Tests: `Host.Tests` host-operation cases,
-  `HostBoundary.Tests.onlyHostModulesTouchTheOS`, and
-  `Builtin.Tests.scopedEffectBuiltinsCheckTargets`.
-- A held descriptor is checked without the consumer approvals, which checked its
-  open, but under every function ceiling and the run and instance policies.
-  Tests: `Host.Tests.scopedDescriptorsSkipApprovalsButNotCeilings` and
-  `CliPackages.approvedFunctionReadsAFile`.
-- Guest code cannot access policy files or change policy and approvals. Tests:
-  `PermissionsGate.guestFileApiCannotReachPolicyStore`,
-  `guestCannotChangePolicies`, `guestCannotApprovePackages`, and
-  `Host.Tests.localPolicyPathsRejectTraversal`.
-
-### Approvals and persistence
-
-- Approval and pin updates are atomic; stale reviews are rejected without
-  partial state. Test: `PolicyStore.Tests.approvalAndPinAreOneTransaction`.
-- Revocation and re-approval preserve shared dependencies and remove obsolete
-  ones. Tests: `PolicyStore.Tests.revokingOneRootKeepsSharedDependencies` and
-  `reapprovingWithSmallerClosureDropsObsoleteDeps`.
-- Reclassification detects stale approvals independently for each root. Test:
-  `PolicyStore.Tests.reapprovingOneRootLeavesOthersStale`.
-- Policy data round-trips and rejects old, trailing, or malformed bytes. Tests:
-  `PolicyStore.Tests.policyStoreRoundTripsVersionedPolicies`,
-  `policyStoreRejectsOlderFormat`, and `policyStoreRejectsTrailingData`.
-- The Dark effect-name table matches the runtime inventory. Test:
-  `Builtin.Tests.darkEffectNamesMatchRuntime`.
-
-Coverage still to add includes changed-contract review prompts, stream and
-deserialized-applicable widening, ancestor-symlink rejection, and redirect
-handling at the host boundary.
-
-### POSIX implementation
-
-The interpreter's POSIX bridge has no direct libc imports. `HostKernel` marshals
-typed operations to a freestanding transport with no dynamic dependencies. The
-transport enters the kernel and returns results or numeric errno; it contains
-no path policy, allocation, retry loops or account lookup. Only trusted host
-modules can call it. This removes the bridge's libc dependency, not dependencies
-of .NET, SQLite or other libraries. No generic syscall-number or native-pointer
-Builtin is exposed to Darklang, and there is no public fork primitive.
-
-Existing public StdLib functions compose private `__` helpers in File, Process,
-Posix, Sys and DateTime; listings and search hide them by default. Helpers call
-`Builtin.syscallX` and `Builtin.runtimeX` directly; Builtins are already private
-and need no `__` prefix. There are no public syscall/runtime wrapper packages or
-separate algorithm modules.
-
-Shared Dark code owns glob matching, errno messages, target ABI constants,
-directory/stat/clock/event record decoding, path-buffer growth, complete-write
-loops, interrupted-sleep retries, temporary-entry naming and account parsing.
-Adapters return initialized bytes and numeric errors. The trusted host retains
-authorization, no-follow descriptor walks, resource ownership and unavoidable
-ABI marshalling; decoding needed to authorize a kernel-returned path stays at
-that boundary too. Close consumes descriptor ownership even when it reports
-EINTR, so callers must not retry close.
-
-File copy tries kernel cloning/copying before a bounded 64 KiB positional-I/O
-fallback. It checks opened descriptor identities before truncating a destination
-and preserves file modes. Linux watches use inotify and ppoll; Darwin uses
-kqueue vnode events. Queue registrations retain their path grants, checked again
-on reads and waits. Linux held-inode registration fails closed without procfs,
-and the high-level file watcher can use its checked polling fallback.
-
-Dark owns child capture, interleaved stdin/stdout/stderr I/O, output limits,
-deadlines, UTF-8 decoding and interactive history. The interpreter uses .NET's
-process supervisor for launch and reaping; the runtime returns owned child/pipe
-tokens rather than implementing those algorithms. Two opaque byte cells retain
-history between calls on the existing integer ProcessHandle API; concatenation,
-limits and decoding stay in Dark. Closing resources remains permitted for
-cleanup, while other operations recheck retained authority.
-
-Environment reads use checked runtime environment access. Environment mutation
-functions and the libc-shaped public fnmatch entry point have been removed.
-Current-user lookup checks `LOGNAME` and `USER`, then parses `/etc/passwd` for
-the kernel UID. File-owner lookup uses stat UID and the same account file,
-falling back to the numeric UID when an authorized lookup finds no usable name.
-Home lookup checks `HOME`, then parses `/etc/passwd` and authorizes the candidate
-home path. There is no framework-account-home fallback, and NSS/directory-service
-lookup is not emulated. Policy denials raise before file access.
-
-CPU count is the number of set bits in this process's Linux affinity mask,
-Darwin's `hw.ncpu` sysctl value, or one in the browser. Linux cgroup CPU quotas
-are not separately queried. Shared clock logic uses kernel clocks and sleep
-primitives on Unix and runtime clock/delay inputs in the browser. DateTime
-construction is a pure representation conversion; today is computed in UTC.
-Darwin's current utimesNow implementation supplies whole-second timestamps.
-
-Unix builds require a C compiler; cross-runtime builds use the release
-toolchain's Zig compiler. MSBuild produces a shared transport for JIT builds and
-a static archive for NativeAOT. Platform-specific kernel operations are not
-universally available: raw stat and directory reads explicitly return ENOSYS on
-Windows/browser. Retained managed host operations do not establish complete
-compatibility for the migrated public filesystem APIs on those targets.
+This is runtime authorization, not OS isolation. External processes and Native
+operations have ambient OS authority. The system does not contain a compromised
+interpreter or limit resource exhaustion. See permissions-todos.md.

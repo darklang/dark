@@ -15,7 +15,7 @@ let indent(s: String): String =
   |> Stdlib.String.join("\n")
 
 let indentByLevel(level: Int64, s: String): String =
-  let indentStr = Stdlib.String.repeat("  ", level)
+  let indentStr = (Stdlib.String.checkedRepeat("  ", level) |> Stdlib.Result.withDefault(""))
 
   s
   |> Stdlib.String.split("\n")
@@ -61,8 +61,8 @@ let __encodeChar(c: Char): String =
     else if code == 13u8 then "\\r"
     else if code < 32u8 || code == 127u8 then
       let n = Stdlib.Int64.fromUInt8(code)
-      let hi = n / 16
-      let lo = n % 16
+      let hi = Stdlib.Int64.checkedDivide(n, 16) |> Stdlib.Result.withDefault(0)
+      let lo = Stdlib.Int64.checkedMod(n, 16) |> Stdlib.Result.withDefault(0)
       $"\\x{__hexDigitChar(hi)}{__hexDigitChar(lo)}"
     else
       Stdlib.display(c)

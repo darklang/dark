@@ -309,8 +309,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
               itemTypeStr)
 
           let report = fun(dryRun) ->
-            Stdlib.printLine(
-              Stdlib.Json.serialize<DeprecateJson>(
+            Cli.printJson(
+              Stdlib.Json.checkedSerialize<DeprecateJson>(
                 DeprecateJson
                   { deprecated = fullPath
                     itemType = itemTypeStr
@@ -349,10 +349,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
           if parsed.dryRun || (parsed.json && Stdlib.Bool.not(parsed.autoConfirm)) then
             if parsed.json then
-              report(true)
+              Cli.exitWith(state, report(true))
             else
               Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("(dry-run, no op emitted)"))
-            state
+              state
           else
             let proceed =
               Cli.Prompt.confirmExplicit(
@@ -380,11 +380,11 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 with
                 | Some(_) ->
                   if parsed.json then
-                    report(false)
+                    Cli.exitWith(state, report(false))
                   else
                     Stdlib.printLine(
                       Stdlib.Cli.UI.Colors.success($"Deprecated {itemTypeStr} {fullPath}"))
-                  state
+                    state
                 | None ->
                   Cli.printErr($"Not deprecated, though the op was written. That is a bug in op restatement -- please report it.")
                   Cli.failed(state)
@@ -395,7 +395,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
               if Stdlib.Cli.UI.Prompt.canAsk() then
                 Cli.Stderr.line("Deprecation cancelled.")
               else
-                Cli.Stderr.line("Deprecation cancelled. (`-y` deprecates without the prompt -- a piped stdin can't answer it.)")
+                let verb = if kindStr == "obsolete" then "delete" else "deprecate"
+                Cli.printErr($"no terminal to confirm at; add --yes to {verb} {fullPath}")
               Cli.failed(state)
 
 

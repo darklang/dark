@@ -24,13 +24,37 @@ let clusterEnd (s : string) (offset : int) : int =
       System.MemoryExtensions.AsSpan(s, offset)
     )
 
+/// The chars `isSimple` is true for.
+let private simpleChars : System.Buffers.SearchValues<char> =
+  System.Buffers.SearchValues.Create(
+    System.ReadOnlySpan<char>(
+      Array.init 0x300 char |> Array.filter (fun c -> c <> '\r')
+    )
+  )
+
+/// How many of the `window` chars from the boundary `offset` are surely clusters of one: a run of
+/// simple chars, less its last if a char that is not simple comes next, since the two may join.
+/// `window` when all of them are simple and so is the char after (or there is none).
+let private singleClusters (s : string) (offset : int) (window : int) : int =
+  let span = System.MemoryExtensions.AsSpan(s, offset, window)
+  match System.MemoryExtensions.IndexOfAnyExcept(span, simpleChars) with
+  | -1 -> window
+  | i -> i - 1
+
 /// The offset `count` clusters on from the boundary `offset`, or `s.Length` if the text runs out
-/// first.
+/// first. Steps over a run of simple chars at once, so a long text with a few accents or dashes
+/// costs a scan rather than a step per char.
 let rec clusterOffset (s : string) (offset : int) (count : int) : int =
   if count <= 0 || offset >= s.Length then
     offset
   else
-    clusterOffset s (clusterEnd s offset) (count - 1)
+    // One char past `count`: whether the last one counted joins the next.
+    let window = min (s.Length - offset) (count + 1)
+    let run = min count (singleClusters s offset window)
+    if run > 0 then
+      clusterOffset s (offset + run) (count - run)
+    else
+      clusterOffset s (clusterEnd s offset) (count - 1)
 
 /// True when the string's extended grapheme clusters are exactly its chars, so a char-wise
 /// operation gives the same answer as the EGC-correct one.
@@ -113,7 +137,11 @@ let rec private countClusters (s : string) (offset : int) (count : int) : int =
   if offset >= s.Length then
     count
   else
-    countClusters s (clusterEnd s offset) (count + 1)
+    let run = singleClusters s offset (s.Length - offset)
+    if run > 0 then
+      countClusters s (offset + run) (count + run)
+    else
+      countClusters s (clusterEnd s offset) (count + 1)
 
 /// The number of extended grapheme clusters in `s`. Steps from cluster to cluster rather than
 /// asking `StringInfo` for `LengthInTextElements`, which builds an index of every cluster first.
@@ -170,12 +198,95 @@ let dropFirstEgcs (s : string) (count : int64) : string =
   else
     s.Substring(clusterOffset s 0 (clampToChars s count))
 
-/// Whether walking clusters from the boundary `offset` lands exactly on `target`.
-let rec landsOn (s : string) (target : int) (offset : int) : bool =
+/// The first cluster boundary at or after `target`, walking from the boundary `offset`.
+let rec private boundaryFrom (s : string) (target : int) (offset : int) : int =
   if offset >= target then
-    offset = target
+    offset
   else
-    landsOn s target (clusterEnd s offset)
+    let window = min (s.Length - offset) (target - offset + 1)
+    let run = min (target - offset) (singleClusters s offset window)
+    if run > 0 then
+      boundaryFrom s target (offset + run)
+    else
+      boundaryFrom s target (clusterEnd s offset)
+
+/// Whether walking clusters from the boundary `offset` lands exactly on `target`.
+let landsOn (s : string) (target : int) (offset : int) : bool =
+  boundaryFrom s target offset = target
+
+/// `s` split at each whole-cluster `sep`, which is not empty: what splitting the clusters of `s` at
+/// the clusters of `sep` gives, without a string per cluster. An ordinal match counts when it
+/// starts and ends on cluster boundaries of `s`. <param walked> is a boundary at or before every
+/// match still to be found.
+let splitEgcs (s : string) (sep : string) : List<string> =
+  let rec go (start : int) (searchFrom : int) (walked : int) (acc : List<string>) =
+    match s.IndexOf(sep, searchFrom, System.StringComparison.Ordinal) with
+    | -1 -> List.rev (s.Substring start :: acc)
+    | at ->
+      let reached = boundaryFrom s at walked
+      if reached <> at then
+        // Inside the cluster that ends at `reached`, as is any match before it.
+        go start (at + 1) reached acc
+      else
+        let stop = at + sep.Length
+        if boundaryFrom s stop at = stop then
+          go stop stop stop (s.Substring(start, at - start) :: acc)
+        else
+          go start (at + 1) at acc
+  go 0 0 0 []
+
+/// The first offset at or after `offset` whose char is U+0300 or above or is CR, or `s.Length`.
+/// Every char before it, except perhaps the last, is a cluster of its own: that one may combine
+/// with the char after. See `String.clusterEnd`.
+let private simpleRunEnd (s : string) (offset : int) : int =
+  let rest = System.MemoryExtensions.AsSpan(s, offset)
+  let other = System.MemoryExtensions.IndexOfAnyExceptInRange(rest, char 0, '\u02FF')
+  let runEnd = if other < 0 then s.Length else offset + other
+  let cr = s.IndexOf('\r', offset, runEnd - offset)
+  if cr < 0 then runEnd else cr
+
+/// The UTF-16 offset of the first `needle` in `s` at or after `from` that starts and ends on
+/// cluster boundaries, or -1. `needle` is not empty.
+///
+/// `offset` is a cluster boundary at or before `from`, and `index` the number of clusters before
+/// it. Both move forward as the search walks, so a search that carries on from a match does not
+/// walk the text again. Searches ordinally and walks only as far as a hit, so a miss costs what
+/// ordinal `IndexOf` does, and a run of simple chars is jumped rather than walked.
+let nextEgcMatch
+  (s : string)
+  (needle : string)
+  (from : int)
+  (offset : byref<int>)
+  (index : byref<int>)
+  : int =
+  let mutable at = s.IndexOf(needle, from, System.StringComparison.Ordinal)
+  let mutable found = -1
+  let mutable runEnd = offset
+  while found < 0 && at >= 0 do
+    while offset < at do
+      if offset >= runEnd then runEnd <- simpleRunEnd s offset
+      // Jump over simple chars, one cluster per char, rather than asking for each cluster.
+      let jump = min at (runEnd - 1)
+      if jump > offset then
+        index <- index + (jump - offset)
+        offset <- jump
+      else
+        offset <- clusterEnd s offset
+        index <- index + 1
+    if offset = at && landsOn s (at + needle.Length) at then
+      found <- at
+    else
+      at <- s.IndexOf(needle, at + 1, System.StringComparison.Ordinal)
+  found
+
+/// The cluster index of the first whole-cluster `needle` in `s`, or -1. `needle` is not empty.
+let egcIndexOf (s : string) (needle : string) : int =
+  if isCharwise s then
+    s.IndexOf(needle, System.StringComparison.Ordinal)
+  else
+    let mutable offset = 0
+    let mutable index = 0
+    if nextEgcMatch s needle 0 &offset &index < 0 then -1 else index
 
 /// Whether the first clusters of `subject` are the clusters of `prefix`.
 ///
@@ -190,6 +301,16 @@ let startsWithEgcs (subject : string) (prefix : string) : bool =
       || p = subject.Length
       || (isSimple subject[p - 1] && isSimple subject[p])
       || landsOn subject p 0)
+
+/// Whether the last clusters of `subject` are the clusters of `suffix`: an ordinal suffix that
+/// starts on a cluster boundary of `subject`. After a simple char, only the next char decides
+/// whether a cluster starts there, so most suffixes are checked without walking `subject`.
+let endsWithEgcs (subject : string) (suffix : string) : bool =
+  let start = subject.Length - suffix.Length
+  subject.EndsWith(suffix, System.StringComparison.Ordinal)
+  && (start = 0
+      || (isSimple subject[start - 1] && clusterEnd subject (start - 1) = start)
+      || landsOn subject start 0)
 
 /// NFC. Not `s.Normalize()`, which does nothing in the released CLI: see `Normalization`.
 let normalize (s : string) : string = Normalization.normalize s

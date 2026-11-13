@@ -377,10 +377,10 @@ module StringSegment =
       w.Write 1uy
       Expr.write w expr
 
-  let read (version : uint32) (r : BinaryReader) : StringSegment =
+  let read (r : BinaryReader) : StringSegment =
     match r.ReadByte() with
     | 0uy -> StringText(String.read r)
-    | 1uy -> StringInterpolation(Expr.read version r)
+    | 1uy -> StringInterpolation(Expr.read r)
     | b -> raiseFormatError $"Invalid StringSegment tag: {b}"
 
 
@@ -390,10 +390,10 @@ module MatchCase =
     Option.write w Expr.write case.whenCondition
     Expr.write w case.rhs
 
-  let read (version : uint32) (r : BinaryReader) : MatchCase =
+  let read (r : BinaryReader) : MatchCase =
     let pat = MatchPattern.read r
-    let whenCondition = Option.read r (Expr.read version)
-    let rhs = Expr.read version r
+    let whenCondition = Option.read r Expr.read
+    let rhs = Expr.read r
     { pat = pat; whenCondition = whenCondition; rhs = rhs }
 
 
@@ -422,7 +422,7 @@ module PipeExpr =
       NameResolution.write FQFnName.write w fnName
       List.write w TypeReference.write typeArgs
       List.write w Expr.write args
-      // What this piped call worked out for the callee's bounds: v5 and later.
+      // What this piped call worked out for the callee's bounds.
       List.write
         w
         (fun w (b : FQFnName.BoundImpl) ->
@@ -438,47 +438,44 @@ module PipeExpr =
       String.write w caseName
       List.write w Expr.write fields
 
-  let read (version : uint32) (r : BinaryReader) : PipeExpr =
+  let read (r : BinaryReader) : PipeExpr =
     match r.ReadByte() with
     | 0uy ->
       let id = r.ReadUInt64()
       let name = String.read r
-      let args = List.read r (Expr.read version)
+      let args = List.read r Expr.read
       EPipeVariable(id, name, args)
     | 1uy ->
       let id = r.ReadUInt64()
       let pats = NEList.read LetPattern.read r
-      let body = Expr.read version r
+      let body = Expr.read r
       EPipeLambda(id, pats, body)
     | 2uy ->
       let id = r.ReadUInt64()
       let infix = Infix.read r
-      let expr = Expr.read version r
-      let implFn = FQFnName.ImplChoice.read version r
+      let expr = Expr.read r
+      let implFn = FQFnName.ImplChoice.read r
       EPipeInfix(id, infix, expr, implFn)
     | 3uy ->
       let id = r.ReadUInt64()
-      let fnName = NameResolution.read (FQFnName.read version) r
+      let fnName = NameResolution.read FQFnName.read r
       let typeArgs = List.read r TypeReference.read
-      let args = List.read r (Expr.read version)
-      // A v4 blob ends after the args; reading the list byte there would eat the next tag.
+      let args = List.read r Expr.read
+
       let boundImpls =
-        if version >= 5u then
-          List.read r (fun r ->
-            let param = String.read r
-            let trait_ = FQTraitName.Package.read r
-            let method_ = String.read r
-            let impl = FQFnName.ImplChoice.read version r
-            ({ param = param; trait_ = trait_; method_ = method_; choice = impl }
-            : FQFnName.BoundImpl))
-        else
-          []
+        List.read r (fun r ->
+          let param = String.read r
+          let trait_ = FQTraitName.Package.read r
+          let method_ = String.read r
+          let impl = FQFnName.ImplChoice.read r
+          ({ param = param; trait_ = trait_; method_ = method_; choice = impl }
+          : FQFnName.BoundImpl))
       EPipeFnCall(id, fnName, typeArgs, args, boundImpls)
     | 4uy ->
       let id = r.ReadUInt64()
       let typeName = NameResolution.read FQTypeName.read r
       let caseName = String.read r
-      let fields = List.read r (Expr.read version)
+      let fields = List.read r Expr.read
       EPipeEnum(id, typeName, caseName, fields)
     | b -> raiseFormatError $"Invalid PipeExpr tag: {b}"
 
@@ -651,7 +648,7 @@ module Expr =
       Infix.write w op
       write w left
       write w right
-      // The implementation this operator resolved to: v3 and later.
+      // The implementation this operator resolved to.
       FQFnName.ImplChoice.write w implFn
     | EDict(id, pairs) ->
       w.Write 30uy
@@ -666,7 +663,7 @@ module Expr =
       w.Write 31uy
       w.Write id
       NameResolution.write FQFnName.write w nameRes
-      // What this call worked out for the callee's bounds: v4 and later.
+      // What this call worked out for the callee's bounds.
       List.write
         w
         (fun w (b : FQFnName.BoundImpl) ->
@@ -675,7 +672,7 @@ module Expr =
           String.write w b.method_
           FQFnName.ImplChoice.write w b.choice)
         boundImpls
-      // The type args of an uncalled `f<T>`: v8 and later.
+      // The type args of an uncalled `f<T>`.
       List.write w TypeReference.write typeArgs
     | EUnwrap(id, operand) ->
       w.Write 36uy
@@ -694,7 +691,7 @@ module Expr =
       w.Write id
       w.Write index
 
-  let rec read (version : uint32) (r : BinaryReader) : Expr =
+  let rec read (r : BinaryReader) : Expr =
     match r.ReadByte() with
     | 0uy ->
       let id = r.ReadUInt64()
@@ -742,7 +739,7 @@ module Expr =
       EBool(id, value)
     | 11uy ->
       let id = r.ReadUInt64()
-      let segments = List.read r (StringSegment.read version)
+      let segments = List.read r StringSegment.read
       EString(id, segments)
     | 12uy ->
       let id = r.ReadUInt64()
@@ -773,23 +770,23 @@ module Expr =
     | 16uy ->
       let id = r.ReadUInt64()
       let pattern = LetPattern.read r
-      let rhs = read version r
-      let body = read version r
+      let rhs = read r
+      let body = read r
       ELet(id, pattern, rhs, body)
     | 17uy ->
       let id = r.ReadUInt64()
-      let cond = read version r
-      let thenExpr = read version r
-      let elseExpr = Option.read r (read version)
+      let cond = read r
+      let thenExpr = read r
+      let elseExpr = Option.read r read
       EIf(id, cond, thenExpr, elseExpr)
     | 18uy ->
       let id = r.ReadUInt64()
       let pats = NEList.read LetPattern.read r
-      let body = read version r
+      let body = read r
       ELambda(id, pats, body)
     | 19uy ->
       let id = r.ReadUInt64()
-      let expr = read version r
+      let expr = read r
       let field = String.read r
       ERecordFieldAccess(id, expr, field)
     | 20uy ->
@@ -798,13 +795,13 @@ module Expr =
       EVariable(id, name)
     | 21uy ->
       let id = r.ReadUInt64()
-      let fn = read version r
+      let fn = read r
       let typeArgs = List.read r TypeReference.read
-      let args = NEList.read (read version) r
+      let args = NEList.read read r
       EApply(id, fn, typeArgs, args)
     | 22uy ->
       let id = r.ReadUInt64()
-      let exprs = List.read r (read version)
+      let exprs = List.read r read
       EList(id, exprs)
     | 23uy ->
       let id = r.ReadUInt64()
@@ -813,83 +810,77 @@ module Expr =
       let fields =
         List.read r (fun r ->
           let name = String.read r
-          let expr = read version r
+          let expr = read r
           (name, expr))
       ERecord(id, typeName, typeArgs, fields)
     | 24uy ->
       let id = r.ReadUInt64()
-      let record = read version r
+      let record = read r
       let updates =
         NEList.read
           (fun r ->
             let name = String.read r
-            let expr = read version r
+            let expr = read r
             (name, expr))
           r
       ERecordUpdate(id, record, updates)
     | 25uy ->
       let id = r.ReadUInt64()
-      let expr = read version r
-      let pipes = List.read r (PipeExpr.read version)
+      let expr = read r
+      let pipes = List.read r PipeExpr.read
       EPipe(id, expr, pipes)
     | 26uy ->
       let id = r.ReadUInt64()
       let typeName = NameResolution.read FQTypeName.read r
       let typeArgs = List.read r TypeReference.read
       let caseName = String.read r
-      let fields = List.read r (read version)
+      let fields = List.read r read
       EEnum(id, typeName, typeArgs, caseName, fields)
     | 27uy ->
       let id = r.ReadUInt64()
-      let expr = read version r
-      let cases = List.read r (MatchCase.read version)
+      let expr = read r
+      let cases = List.read r MatchCase.read
       EMatch(id, expr, cases)
     | 28uy ->
       let id = r.ReadUInt64()
-      let first = read version r
-      let second = read version r
-      let rest = List.read r (read version)
+      let first = read r
+      let second = read r
+      let rest = List.read r read
       ETuple(id, first, second, rest)
     | 29uy ->
       let id = r.ReadUInt64()
       let op = Infix.read r
-      let left = read version r
-      let right = read version r
-      // v3 and later carry the implementation the save resolved this operator to. A v1 or v2
-      // blob ends after the right operand, so reading the option byte there would consume the
-      // next expression's tag.
-      let implFn = FQFnName.ImplChoice.read version r
+      let left = read r
+      let right = read r
+      let implFn = FQFnName.ImplChoice.read r
       EInfix(id, op, left, right, implFn)
     | 30uy ->
       let id = r.ReadUInt64()
       let pairs =
         List.read r (fun r ->
-          let key = read version r
-          let value = read version r
+          let key = read r
+          let value = read r
           (key, value))
       EDict(id, pairs)
     | 31uy ->
       let id = r.ReadUInt64()
-      let nameRes = NameResolution.read (FQFnName.read version) r
-      // A v3 blob ends after the name; reading the list byte there would eat the next tag.
+      let nameRes = NameResolution.read FQFnName.read r
+
       let boundImpls =
-        if version >= 4u then
-          List.read r (fun r ->
-            let param = String.read r
-            let trait_ = FQTraitName.Package.read r
-            let method_ = String.read r
-            let impl = FQFnName.ImplChoice.read version r
-            ({ param = param; trait_ = trait_; method_ = method_; choice = impl }
-            : FQFnName.BoundImpl))
-        else
-          []
-      // A v7 blob ends after the bounds.
-      let typeArgs = if version >= 8u then List.read r TypeReference.read else []
+        List.read r (fun r ->
+          let param = String.read r
+          let trait_ = FQTraitName.Package.read r
+          let method_ = String.read r
+          let impl = FQFnName.ImplChoice.read r
+          ({ param = param; trait_ = trait_; method_ = method_; choice = impl }
+          : FQFnName.BoundImpl))
+
+      let typeArgs = List.read r TypeReference.read
       EFnName(id, nameRes, boundImpls, typeArgs)
     | 32uy ->
       let id = r.ReadUInt64()
-      let first = read version r
-      let next = read version r
+      let first = read r
+      let next = read r
       EStatement(id, first, next)
     | 33uy ->
       let id = r.ReadUInt64()
@@ -904,5 +895,5 @@ module Expr =
       EBigInt(id, value)
     | 36uy ->
       let id = r.ReadUInt64()
-      EUnwrap(id, read version r)
+      EUnwrap(id, read r)
     | b -> raiseFormatError $"Invalid Expr tag: {b}"

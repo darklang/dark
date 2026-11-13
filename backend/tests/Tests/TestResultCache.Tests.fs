@@ -1,8 +1,8 @@
 /// The `dark test run` result cache (`package_test_results`) is part of the store schema.
 ///
-/// The test runner used to create this table itself, from Dark, the first time `dark test run`
-/// ran. Stores that did so still have that table and its rows, so the schema's declaration has to
-/// be the same shape and has to leave the existing one, and the passes in it, alone.
+/// A store may already hold this table and its rows, created by the test runner from Dark, so the
+/// schema's declaration has to be the same shape and has to leave the existing one, and the passes
+/// in it, alone.
 module Tests.TestResultCache
 
 open Expecto

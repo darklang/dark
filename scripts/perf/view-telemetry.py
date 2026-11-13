@@ -71,7 +71,6 @@ def show_interactive(events):
     print(f"  {'loopWork':<25s} {stats(loops)}")
     print()
 
-    # Show interpreter stats if available
     interp_data = []
     for l in loops:
         ctx = l.get("ctx", {})
@@ -126,7 +125,6 @@ def show_commands(events):
     print()
 
 def main():
-    # Find telemetry file
     if len(sys.argv) > 1:
         path = sys.argv[1]
     else:

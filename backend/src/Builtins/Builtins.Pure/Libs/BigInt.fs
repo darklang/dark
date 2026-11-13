@@ -81,7 +81,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DFloat f |] -> roundedToBigInt vm f
         | _ -> incorrectArgs ())
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -284,7 +284,7 @@ let fns () : List<BuiltInFn> =
             KTInt8
             (bigint System.SByte.MinValue)
             (bigint System.SByte.MaxValue)
-            (fun b -> DInt8(sbyte b))
+            (fun b -> Dval.int8 (sbyte b))
             v
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -304,7 +304,7 @@ let fns () : List<BuiltInFn> =
             KTUInt8
             (bigint System.Byte.MinValue)
             (bigint System.Byte.MaxValue)
-            (fun b -> DUInt8(byte b))
+            (fun b -> Dval.uint8 (byte b))
             v
         | _ -> incorrectArgs ())
       previewable = Pure

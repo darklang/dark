@@ -668,19 +668,15 @@ let writeEnumCase
   Common.String.write w c.name
   Common.List.write w (writeEnumField mode) c.fields
 
-/// Bounds are behaviour (a contract on the caller), so they hash. Written ONLY when
-/// present, and last, so every item that has none keeps the hash it had before bounds
-/// existed: adding the field must not repoint the world.
+/// Bounds are a contract on the caller and part of the content hash.
 let writeBounds (mode : HashRefMode) (w : BinaryWriter) (bounds : List<PT.Bound>) =
-  if not (List.isEmpty bounds) then
-    w.Write(0xB0uy) // bounds marker; nothing else follows an item body
-    Common.List.write
-      w
-      (fun w (b : PT.Bound) ->
-        Common.String.write w b.param
-        writeNameResolution (writeFQTraitName mode) w b.trait_.trait_
-        Common.List.write w (writeTypeReference mode) b.trait_.typeArgs)
-      bounds
+  Common.List.write
+    w
+    (fun w (b : PT.Bound) ->
+      Common.String.write w b.param
+      writeNameResolution (writeFQTraitName mode) w b.trait_.trait_
+      Common.List.write w (writeTypeReference mode) b.trait_.typeArgs)
+    bounds
 
 let writeTypeDeclaration
   (mode : HashRefMode)
@@ -721,15 +717,6 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
   Common.List.write w Common.String.write fn.typeParams
   Common.NEList.write (writeParameter mode) w fn.parameters
   writeTypeReference mode w fn.returnType
-  // The `:{…}` ceiling is hashed, unlike the description: it is part of what
-  // the function promises, and approvals and pins are keyed on that promise.
-  // Hashing the ceiling makes any contract change produce a new hash, so
-  // existing approvals cannot silently survive a widened row.
-  match fn.permissionCeiling with
-  | None -> w.Write(0uy)
-  | Some effects ->
-    w.Write(1uy)
-    LibSerialization.Binary.Serializers.Effects.write w effects
   writeBounds mode w fn.bounds
 
 /// Write a PackageValue's hash-relevant content: its body.
@@ -742,7 +729,7 @@ let writeValue
   writeExpr mode w v.body
 
 /// Write a Trait's hash-relevant content: its params, supertraits and method
-/// signatures (ceilings included, descriptions not). Its own tag, so a trait and a
+/// signatures (descriptions excluded). Its own tag, so a trait and a
 /// record type of the same shape never share a hash.
 let writeTrait (mode : HashRefMode) (w : BinaryWriter) (t : PT.Trait.Trait) =
   w.Write(3uy) // tag: trait
@@ -753,12 +740,7 @@ let writeTrait (mode : HashRefMode) (w : BinaryWriter) (t : PT.Trait.Trait) =
       Common.List.write w Common.String.write m.typeParams
       writeBounds mode w m.bounds
       Common.NEList.write (writeParameter mode) w m.parameters
-      writeTypeReference mode w m.returnType
-      match m.permissionCeiling with
-      | None -> w.Write(0uy)
-      | Some effects ->
-        w.Write(1uy)
-        LibSerialization.Binary.Serializers.Effects.write w effects)
+      writeTypeReference mode w m.returnType)
     w
     t.methods
   writeBounds mode w t.bounds

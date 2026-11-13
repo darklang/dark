@@ -55,9 +55,8 @@ let private tryBindListener
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
     let! outcome =
       LibExecution.Host.perform
-        LibExecution.Permissions.NoRelax
         access
-        (LibExecution.Host.Operation.HttpServerBind port)
+        (LibExecution.Host.Operation.HttpServerBind("0.0.0.0", port))
     match outcome with
     | LibExecution.Host.Outcome.Success response ->
       return
@@ -713,25 +712,27 @@ let private noResponseNamesDotNet =
           | url when Darklang.Stdlib.String.contains(url, "/own") ->
             Darklang.Stdlib.Http.responseWithHeaders(200, [ ("server", "mine") ], Darklang.Stdlib.Utf8.encode("own"))
           | _ -> Darklang.Stdlib.Http.responseWithText(200, "fast"))"""
-    let! results =
+    let! answered =
       runParsedRequestsAgainst
         4L
-        200
+        HttpServer.defaultRequestTimeoutMs
         router
         "POST"
         [ "/fast", [||]
           "/int", [||]
           "/boom", [||]
-          "/slow", [||]
           "/fast", UTF8.toBytes "over the limit"
           "/own", [||] ]
+    // its own server with a 1 ms deadline, so /slow times out however busy the box is
+    let! timedOut = runParsedRequestsAgainst 4L 1 router "POST" [ "/slow", [||] ]
+    let results = Array.append answered timedOut
     let expected =
       [ "200", "darklang"
         "500", "darklang"
         "500", "darklang"
-        "504", "darklang"
         "413", "darklang"
-        "200", "mine" ]
+        "200", "mine"
+        "504", "darklang" ]
     results
     |> Array.iteri (fun i (r : Http.T) ->
       let wantStatus, wantServer = expected[i]
@@ -755,47 +756,24 @@ let private noResponseNamesDotNet =
   }
 
 
-/// The serve builtin range-checks its Int64 `port`/`maxBodyBytes` BEFORE binding, turning what would be
-/// a host `HttpListener`/overflow crash into a Dark `OutOfRange` error. This
-/// asserts that guard: the values are rejected without a socket ever opening.
-let private serveRejectsOutOfRangeArgs =
-  testTask "serve rejects out-of-range port / maxBodyBytes with a Dark error" {
+/// `Stdlib.HttpServer.serve` refuses a negative body limit, which would reject every request,
+/// before anything binds.
+let private serveRejectsNegativeMaxBodyBytes =
+  testTask "serve refuses a negative maxBodyBytes" {
     let! exeState = executionStateFor pmPT true
-
-    let runServe (source : string) : Task<Result<RT.Dval, string>> =
-      task {
-        let! ptExpr = TestUtils.TestUtils.parsePTExpr source
-        let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
-        match! Execution.executeExpr exeState rtInstrs with
-        | Ok dval -> return Ok dval
-        | Error(rte, _) ->
-          match! Execution.runtimeErrorToString exeState rte with
-          | Ok(RT.DString s) -> return Error s
-          | _ -> return Error(string rte)
-      }
-
-    let handler = "(fun request -> Darklang.Stdlib.Http.notFound())"
-
-    // onListening: a no-op — the out-of-range checks fire before it would ever run.
-    let onListening = "(fun () -> ())"
-
-    // port 99999 is past the valid [0, 65535] range
-    let! tooLargePort =
-      runServe
-        $"Builtin.httpServerServe(99999, {handler}, 1048576, false, false, false, {onListening})"
-    match tooLargePort with
-    | Error msg ->
-      Expect.stringContains msg "out-of-range" "port 99999 -> OutOfRange"
-    | Ok dval -> failtest $"expected OutOfRange for port 99999, got Ok {dval}"
-
-    // a negative body limit would reject every request
-    let! negativeBodyLimit =
-      runServe
-        $"Builtin.httpServerServe(8000, {handler}, -1, false, false, false, {onListening})"
-    match negativeBodyLimit with
-    | Error msg ->
-      Expect.stringContains msg "out-of-range" "maxBodyBytes -1 -> OutOfRange"
-    | Ok dval -> failtest $"expected OutOfRange for maxBodyBytes -1, got Ok {dval}"
+    let! ptExpr =
+      TestUtils.TestUtils.parsePTExpr (
+        "Darklang.Stdlib.HttpServer.serve("
+        + "{ Darklang.Stdlib.HttpServer.Config.defaults(Darklang.Stdlib.Net.Port.httpAlt) with maxBodyBytes = -1 }, "
+        + "(fun request -> Darklang.Stdlib.Http.notFound()), (fun () -> ()))"
+      )
+    match!
+      Execution.executeExpr exeState (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
+    with
+    | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString msg ])) ->
+      Expect.equal msg "maxBodyBytes must not be negative" "the error"
+    | Ok dval -> failtest $"expected an Error, got {dval}"
+    | Error(rte, _) -> failtest $"expected an Error, got a runtime error {rte}"
   }
 
 
@@ -850,7 +828,7 @@ let tests =
       testList testListName tests)
   testList
     "HttpServer"
-    (serveRejectsOutOfRangeArgs
+    (serveRejectsNegativeMaxBodyBytes
      :: bindRetriesATakenPort
      :: noResponseNamesDotNet
      :: concurrentEphemeralBytesRequests

@@ -158,10 +158,10 @@ test shifts =
 
 // `BigInt` has no width to mask a count against, so an unusable one raises
 test negativeLeftShiftRaises =
-  1z << -1z => raises "Encountered an out-of-range integer value"
+  1z << -1z => raises "Shift count out of range (0 to 2147483647): -1z"
 
 test negativeRightShiftRaises =
-  1z >> -1z => raises "Encountered an out-of-range integer value"
+  1z >> -1z => raises "Shift count out of range (0 to 2147483647): -1z"
 
 // unary `~` is two's complement on every integer type
 test bitwiseNot =

@@ -37,8 +37,8 @@ root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 db = os.path.join(root, "rundir", "data.db")
 
 # Every JSON blob on stdin is one run. Feeding several and taking the MINIMUM per function is the
-# point: a single run of this misread `cliTerminalWrapAtColumn` by 20x, and a function called a
-# handful of times a view has its mean moved 20% by one slow call. A pass can be slowed by the
+# point: a function called a handful of times a view has its mean moved a lot by one slow call,
+# so a single run can misread a function many times over. A pass can be slowed by the
 # machine, never sped up by it, so the minimum is the least noisy estimator available.
 #
 #   for i in 1 2 3; do ./scripts/run-cli run <workload>; done | ./scripts/perf/fnprofile --divide 5

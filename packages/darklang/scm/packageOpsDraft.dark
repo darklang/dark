@@ -66,19 +66,25 @@ let unresolvedInDraft(branchId: Uuid): List<(String * List<String>)> =
   let ops = draftEntriesFor(branchId) |> Stdlib.List.map(fun e -> e.op)
   let bindings = draftBindingsFor(branchId)
 
+  // What the draft's named versions reference. An earlier version's references don't count: saving a
+  // fix leaves the broken version in the draft, and it still references the old versions around it.
+  let referenced =
+    SCM.Deps.query(SCM.Deps.DepQuery.Closure(bindings |> Stdlib.List.map(fun b -> b.hash)))
+    |> Stdlib.List.map(fun e -> e.dependsOnHash)
+
   LanguageTools.UnresolvedNames.inOps(ops)
   |> Stdlib.List.filterMap(fun((hash, names)) ->
     // The draft binds the hash it just authored, so the name is usually right there.
     match bindings |> Stdlib.List.findFirst(fun b -> b.hash == hash) with
     | Some(b) -> Stdlib.Option.Option.Some((Conflicts.fqn(b.owner, b.modules, b.name), names))
     | None ->
-      // An Add with NO surviving SetName is content nothing names: authoring hasn't bound it yet, or
+      // An Add with NO surviving SetName is content nothing names: an earlier version, or
       // `dark discard <name>` dropped the binding and kept the content on purpose (see `Draft.collapse`).
-      if Stdlib.List.isEmpty(SCM.Deps.query(SCM.Deps.DepQuery.Referenced(hash))) then
-        Stdlib.Option.Option.None
-      else
+      if Stdlib.List.contains(referenced, hash) then
         // Reachable but unnamed: still a real problem, and the short hash is the only honest label.
-        Stdlib.Option.Option.Some((Stdlib.String.first(hash, 8), names)))
+        Stdlib.Option.Option.Some((Stdlib.String.first(hash, 8), names))
+      else
+        Stdlib.Option.Option.None)
 
 
 /// The names whose CURRENT binding was written by PROPAGATION rather than by a person.
@@ -154,17 +160,6 @@ let supersededOverrides(
     |> Stdlib.Result.Result.Ok
 
 
-/// The at-rest type check over what the DRAFT holds, on <param branchId>.
-///
-/// Asked at commit rather than only at save, because a draft is allowed to be broken (you write the caller
-/// before the callee) and a commit is not: a commit is what other machines pull. Saving already reports
-/// this; committing is where refusing it is worth something.
-///
-/// Checks the draft's LIVE items only: the last binding per name, and the content those bindings
-/// target. A superseded version's `Add` stays in the draft by design (its naming collapses, the
-/// content ships as history), and checking it made a broken-then-fixed edit refuse the commit
-/// forever -- the broken content was still there, no longer bound to anything, failing on every try.
-/// Unreachable history is not what the gate protects; what other machines will RESOLVE is.
 /// The at-rest check over any set of ops, with the same live-items rule the draft gate uses:
 /// only the last binding per name, and the content those bindings target.
 ///
@@ -251,6 +246,16 @@ let typeCheckOps(
   | live -> LanguageTools.AtRestTypeChecker.checkPackageOps(live)
 
 
+/// The at-rest type check over what the DRAFT holds, on <param branchId>.
+///
+/// Asked at commit rather than only at save, because a draft is allowed to be broken (you write the caller
+/// before the callee) and a commit is not: a commit is what other machines pull. Saving already reports
+/// this; committing is where refusing it is worth something.
+///
+/// Checks the draft's LIVE items only: the last binding per name, and the content those bindings
+/// target. A superseded version's `Add` stays in the draft by design (its naming collapses, the
+/// content ships as history), and must not be checked, or a broken-then-fixed edit would refuse every
+/// commit. Unreachable history is not what the gate protects; what other machines will RESOLVE is.
 let typeCheckDraft(
   branchId: Uuid)
   : LanguageTools.AtRestTypeChecker.Report =

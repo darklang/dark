@@ -135,7 +135,7 @@ let ab(a: Unit -> 'a, b: Unit -> 'b, rounds: Int64): (Measurement * Measurement)
   let n = if rounds < 1 then 1 else rounds
 
   let pairs =
-    Stdlib.List.range(1, n)
+    (Stdlib.List.checkedRange(1, n) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.map(fun _round ->
       let (ma, _) = measure(a)
       let (mb, _) = measure(b)

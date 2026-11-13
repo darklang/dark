@@ -118,7 +118,7 @@ test tuplePatternArityRaises =
    let transformer = fun((num, str)) -> $"{Stdlib.display(num)}:{str}"
    Stdlib.List.map(triplets, transformer))
   => raises
-    "Could not deconstruct value (1, \"one\", true) into pattern ([variable], [variable])"
+    "Could not deconstruct value (1, \"one\", true) into pattern (num, str)"
 
 test dictMapPatterns =
   Stdlib.Test.all(

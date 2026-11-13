@@ -52,8 +52,8 @@ let isWarning(code: IssueCode): Bool =
   | InvalidUnwrap
   | UnsupportedDictKeyType
   // The trait codes are definite errors, not warnings: an operand with no implementation, two
-  // that both fit, an impl that misses a method or mismatches its signature or exceeds the
-  // trait's ceiling, and a bound on a type param the enclosing fn never declared, are each
+  // that both fit, an impl that misses a method or mismatches its signature, and a
+  // bound on a type param the enclosing fn never declared, are each
   // something the checker PROVED rather than something it could not finish.
   //
   // They were absent here, and `isWarning` has no catch-all, so producing any trait
@@ -63,7 +63,6 @@ let isWarning(code: IssueCode): Bool =
   | AmbiguousImpl
   | ImplMethodSet
   | ImplMethodSignature
-  | ImplExceedsCeiling
   | UnboundTypeParameter -> false
 
 /// Create an error finding whose expected or actual types may still be unknown.

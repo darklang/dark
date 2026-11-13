@@ -82,7 +82,7 @@ let private applyEach
   : Ply<Dval> =
   let answers = Array.zeroCreate entries.Length
   let mutable i = 0
-  let probe = if entries.Length > 1 then Spread.probeCostly state vm app else null
+  let probe = if entries.Length > 1 then Spread.probe state vm app else null
   let rec next (answer : Dval) : Ply<Dval> =
     if filtering then Interpreter.withValue vm answer store else store answer
   and store (answer : Dval) : Ply<Dval> =
@@ -109,16 +109,16 @@ let private applyEach
           return finish answers
         else
           let struct (k, v) = entries[i]
-          return! Interpreter.requestApply vm app k [ v ] next
+          return! Interpreter.requestApply vm app k (ValueSome v) next
       }
     else
       let struct (k, v) = entries[i]
-      Interpreter.requestApply vm app k [ v ] next
+      Interpreter.requestApply vm app k (ValueSome v) next
   if entries.Length = 0 then
     Ply(finish answers)
   else
     let struct (k, v) = entries[0]
-    Interpreter.requestApply vm app k [ v ] next
+    Interpreter.requestApply vm app k (ValueSome v) next
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0

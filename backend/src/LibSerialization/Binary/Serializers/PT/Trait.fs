@@ -1,4 +1,4 @@
-/// `Trait.Trait` and `TraitImpl.TraitImpl`: format v3 items. A v2 blob never carries them.
+/// Binary storage for traits and their implementations.
 module LibSerialization.Binary.Serializers.PT.Trait
 
 open System
@@ -24,32 +24,23 @@ module Method =
       w
       m.parameters
     TypeReference.write w m.returnType
-    Option.write
-      w
-      LibSerialization.Binary.Serializers.Effects.write
-      m.permissionCeiling
     String.write w m.description
 
   let read (r : BinaryReader) : Trait.Method =
     let name = String.read r
     let typeParams =
       LibSerialization.Binary.Serializers.Common.List.read r String.read
-    // Not version-gated: traits and their methods only exist from format v3, so a stored
-    // method has always had this field.
     let bounds =
       LibSerialization.Binary.Serializers.Common.List.read r TypeReference.Bound.read
     let parameters =
       NEList.read LibSerialization.Binary.Serializers.PT.PackageFn.Parameter.read r
     let returnType = TypeReference.read r
-    let permissionCeiling =
-      Option.read r LibSerialization.Binary.Serializers.Effects.read
     let description = String.read r
     { name = name
       typeParams = typeParams
       bounds = bounds
       parameters = parameters
       returnType = returnType
-      permissionCeiling = permissionCeiling
       description = description }
 
 
@@ -99,7 +90,7 @@ module TraitImpl =
       i.methods
     String.write w i.description
 
-  let read (version : uint32) (r : BinaryReader) : TraitImpl.TraitImpl =
+  let read (r : BinaryReader) : TraitImpl.TraitImpl =
     let hash = Hash.read r
     let trait_ = NameResolution.read FQTraitName.read r
     let traitTypeArgs =
@@ -112,7 +103,7 @@ module TraitImpl =
     let methods =
       LibSerialization.Binary.Serializers.Common.List.read r (fun r ->
         let m = String.read r
-        let nr = NameResolution.read (FQFnName.read version) r
+        let nr = NameResolution.read FQFnName.read r
         (m, nr))
     let description = String.read r
     { hash = hash

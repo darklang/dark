@@ -175,7 +175,7 @@ let stabilize(
 /// owner `Tests`, so a case can refer to `Tests.Person` or, from a declaration, `Person`.
 let branchWith(prelude: String): Uuid =
   let name = "round-trip-" + Stdlib.display(Stdlib.Uuid.generate())
-  let (branchId, _) = SCM.PackageOps.ensureBranch(name, SCM.Branch.mainBranchId)
+  let (branchId, _) = SCM.PackageOps.ensureBranch(name, SCM.Branch.mainBranchId) |> Builtin.unwrap
 
   if prelude != "" then
     match LanguageTools.Parser.Parse.parsePTSourceFileWithOps(branchId, prelude) with

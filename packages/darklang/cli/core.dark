@@ -83,10 +83,10 @@ type AppState =
 /// What the prompt shows to your left: where you are in the package tree, and WHICH BRANCH, when you're on
 /// one.
 ///
-/// The branch belongs in the prompt rather than in a status bar. The bar this replaced was positioned
-/// absolutely at the bottom of the terminal, which the frame-based renderer has no place for -- it owns the
-/// screen and composes views out of rows. The prompt is a row, it's already showing you context, and both
-/// the styled output and the cursor math derive from this one string, so the cursor stays correct for free.
+/// The branch belongs in the prompt rather than in a status bar: the frame-based renderer owns the screen and
+/// composes views out of rows, and has no place for a bar positioned at the bottom of the terminal. The prompt
+/// is a row, it's already showing you context, and both the styled output and the cursor math derive from this
+/// one string, so the cursor stays correct for free.
 ///
 /// Only when you're on a branch. Everyone is on main almost all the time, and a prompt that says so every
 /// line is noise you learn to stop reading.
@@ -118,6 +118,18 @@ let refuseDashLedName(kind: String, name: String): Bool =
 let printOk(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.success(msg))
 let printErr(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
 let printHint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
+
+/// Print <param json> on stdout, or say on stderr why the value has no JSON form. Whether it printed.
+let printJson(
+  json: Stdlib.Result.Result<String, Stdlib.Json.SerializeError.SerializeError>)
+  : Bool =
+  match json with
+  | Ok(text) ->
+    Stdlib.printLine(text)
+    true
+  | Error(e) ->
+    printErr(Stdlib.display(e))
+    false
 
 /// A line of the ANSWER in hint colour. Not `printHint`, which would take it off stdout.
 let printQuiet(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(msg))
@@ -176,8 +188,8 @@ let jsonStr(s: String): String =
 
 
 /// Takes the command list rather than calling `Registry.allCommands ()` itself: `initState` needs both the
-/// list and the options, and building the list is 60 records of 6 fields including 3 fn refs each. Calling it
-/// twice per process start was pure duplicate work, on every invocation including `dark version`.
+/// list and the options, and building the list twice per process start would be duplicate work on every
+/// invocation, including `dark version`.
 let commandOptions(commands: List<Registry.CommandHandler>): List<String> =
   let allNames = Stdlib.List.map(commands, fun cmd -> cmd.name)
   let allAliases = Stdlib.List.fold(commands, [], fun(acc, cmd) -> Stdlib.List.concat(acc, cmd.aliases))
@@ -238,13 +250,14 @@ module ExecutionError =
     { message: String
       metadata: List<(String * String)> }
 
-  /// A run that ended on a permission denial by the instance policy: the
-  /// error as the guest saw it, what was attempted, and the exact
-  /// `permissions allow` rule that would cover it when one exists.
+  /// A run that ended on a permission denial: the error as the guest saw it,
+  /// what was attempted, the exact rule that would cover it when one exists,
+  /// and the function whose approval was checked (None for the instance policy).
   type PermissionDenied =
     { error: LanguageTools.RuntimeTypes.RuntimeError.Error
       resource: String
       rule: Stdlib.Option.Option<String>
+      entry: Stdlib.Option.Option<String>
       callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint> }
 
   /// Boundary type for CLI command failures. Each variant carries its own
@@ -260,6 +273,8 @@ module ExecutionError =
         error: LanguageTools.RuntimeTypes.RuntimeError.Error,
         callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
     | Denied(PermissionDenied)
+    /// The user cancelled a permission prompt.
+    | Cancelled
     | Unhandled(Unhandled)
 
   /// `. Did you mean `X`?` for a name that did not resolve, when the standard library has it
@@ -276,7 +291,30 @@ module ExecutionError =
       | text -> ". " + text
     | _ -> ""
 
-  let toString(branchId: Uuid, err: ExecutionError): String =
+  /// Why <param name> was denied <param resource>, and how to allow <param rule>.
+  let entryDenial(
+    accountID: Stdlib.Option.Option<Uuid>,
+    branchId: Uuid,
+    name: String,
+    resource: String,
+    rule: String)
+    : String =
+    let approved = Permissions.Command.approvedVersionOf(accountID, name)
+    let why =
+      match approved with
+      | None ->
+        $"`{name}` has no remembered approval. Remember this access:\n  dark permissions approve {name} {rule}"
+      | Some(version) when Stdlib.Option.Option.Some(version) != Permissions.Command.latestVersion(branchId, name) ->
+        $"`{name}` changed since it was approved. Review the new version:\n  dark permissions update {name}"
+      | Some(_) ->
+        $"The approval for `{name}` does not cover it. Show its access:\n  dark permissions show {name}"
+    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow \"{rule}\" …"
+
+  let toString(
+    accountID: Stdlib.Option.Option<Uuid>,
+    branchId: Uuid,
+    err: ExecutionError)
+    : String =
     match err with
     | Parse(pe) -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
     | TypeCheck(report, locations) ->
@@ -285,7 +323,14 @@ module ExecutionError =
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
       + nameSuggestion(branchId, rte)
     | Denied(denied) ->
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, denied.error)
+      match (denied.entry, denied.rule) with
+      | (Some(name), Some(rule)) ->
+        entryDenial(accountID, branchId, name, denied.resource, rule)
+      | _ ->
+        match denied.error with
+        | UncaughtException(message, []) -> message
+        | error -> PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error)
+    | Cancelled -> "Cancelled."
     | Unhandled(u) ->
       match u.metadata with
       | [] -> $"Internal error: {u.message}"
@@ -296,6 +341,17 @@ module ExecutionError =
           |> Stdlib.String.join("\n")
         $"Internal error: {u.message}\n{lines}"
 
+  /// Format an error for the terminal, with colors for permission errors.
+  let formatForTerminal(
+    accountID: Stdlib.Option.Option<Uuid>,
+    branchId: Uuid,
+    err: ExecutionError)
+    : String =
+    let message = toString(accountID, branchId, err)
+    match err with
+    | Denied(_) -> Text.stylePermissionError(message)
+    | _ -> message
+
   /// Skip entry-only stacks: they add no useful detail to a missing-name error.
   let hasReadableFrames(
     frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
@@ -305,57 +361,15 @@ module ExecutionError =
       | Function(_) -> true
       | _ -> false)
 
+  /// Permission denials already explain the resource and how to allow access.
+  /// Keep their frames in the structured error for diagnostics, without printing
+  /// an internal stack.
   let printCallStack(branchId: Uuid, what: String, error: ExecutionError): Unit =
-    let frames =
-      match error with
-      | Runtime(_, frames) -> frames
-      | Denied(denial) -> denial.callStack
-      | _ -> []
-    let show =
-      match error with
-      | Denied(_) -> frames != []
-      | _ -> hasReadableFrames(frames)
-    if show then
-      let rendered =
-        match error with
-        | Denied(_) -> deniedCallStack(branchId, frames)
-        | _ -> PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
-      let gap =
-        match error with
-        | Denied(_) -> ""
-        | _ -> "\n"
-      Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}{gap}")
-    else
-      ()
-
-  /// A denial's call stack down to the first bundled Darklang function it went through. The
-  /// calls inside that function are how it reaches the resource, and the denial already names
-  /// the resource, so they are counted rather than listed.
-  let deniedCallStack(
-    branchId: Uuid,
-    frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
-    : String =
-    let isBundled = fun frame ->
-      let shown = PrettyPrinter.RuntimeTypes.executionPoint(branchId, frame)
-      Stdlib.String.startsWith(shown, "Package Function Darklang.")
-      || Stdlib.String.startsWith(shown, "Lambda in Darklang.")
-      || Stdlib.String.startsWith(shown, "Builtin Function ")
-      || Stdlib.String.startsWith(shown, "Trait Method ")
-
-    let inside =
-      frames
-      |> Stdlib.List.reverse
-      |> Stdlib.List.takeWhile(isBundled)
-      |> Stdlib.List.length
-    let kept = Stdlib.List.length(frames) - inside + 1
-
-    if inside < 2 then
-      PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
-    else
-      let hidden = inside - 1
-      let calls = if hidden == 1 then "call" else "calls"
-      PrettyPrinter.RuntimeTypes.callStack(branchId, Stdlib.List.take(frames, kept))
-      + $"\n  ({Stdlib.display(hidden)} {calls} inside it)"
+    match error with
+    | Runtime(_, frames) when hasReadableFrames(frames) ->
+      let rendered = PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
+      Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}\n")
+    | _ -> ()
 
 
 module View =

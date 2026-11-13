@@ -362,10 +362,11 @@ module Test =
   let reran(run: Run, hash: ProgramTypes.Hash): Bool =
     Builtin.pmTestReran(run.id, hash)
 
-  /// Conservative proof that a passing result is reusable. Dynamic calls and
-  /// branch-dependent rendering are not treated as cache-safe.
-  let isCacheSafe(hash: ProgramTypes.Hash): Bool =
-    Builtin.pmTestIsCacheSafe(hash)
+  /// Conservative proof that a passing result is reusable, one answer per hash,
+  /// in order. Dynamic calls and branch-dependent rendering are not treated as
+  /// cache-safe.
+  let areCacheSafe(hashes: List<ProgramTypes.Hash>): List<Bool> =
+    Builtin.pmTestsAreCacheSafe(hashes)
 
   /// Where `dark test run` keeps one result: the test's hash, plus everything
   /// that hash does not cover. `runtime` is the build and the judging code,

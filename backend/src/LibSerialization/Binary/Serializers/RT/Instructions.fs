@@ -14,9 +14,10 @@ open LibSerialization.Binary.Serializers.RT.Common
 module LetPattern =
   let rec write (w : BinaryWriter) (pat : LetPattern) =
     match pat with
-    | LPVariable extractTo ->
+    | LPVariable(extractTo, name) ->
       w.Write 0uy
       w.Write(extractTo : int)
+      String.write w name
     | LPTuple(first, second, theRest) ->
       w.Write 1uy
       write w first
@@ -25,13 +26,17 @@ module LetPattern =
     | LPUnit -> w.Write 2uy
     | LPWildcard -> w.Write 3uy
 
-  let rec read (r : BinaryReader) : LetPattern =
+  /// <param version> is the blob's format. Before v11 a variable had no name.
+  let rec read (version : uint32) (r : BinaryReader) : LetPattern =
     match r.ReadByte() with
-    | 0uy -> LPVariable(r.ReadInt32())
+    | 0uy ->
+      let extractTo = r.ReadInt32()
+      let name = if version < 11u then "[variable]" else String.read r
+      LPVariable(extractTo, name)
     | 1uy ->
-      let first = read r
-      let second = read r
-      let theRest = List.read r read
+      let first = read version r
+      let second = read version r
+      let theRest = List.read r (read version)
       LPTuple(first, second, theRest)
     | 2uy -> LPUnit
     | 3uy -> LPWildcard
@@ -200,7 +205,7 @@ module LambdaImpl =
 
   let read (version : uint32) (r : BinaryReader) : LambdaImpl =
     let exprId = r.ReadUInt64()
-    let patterns = NEList.read LetPattern.read r
+    let patterns = NEList.read (LetPattern.read version) r
     let registersToCloseOver =
       List.read r (fun r ->
         let copyFrom = r.ReadInt32()
@@ -370,7 +375,7 @@ module Instruction =
     match r.ReadByte() with
     | 0uy ->
       let loadTo = r.ReadInt32()
-      let dval = Dval.read version r
+      let dval = Dval.read r
       LoadVal(loadTo, dval)
     | 1uy ->
       let copyTo = r.ReadInt32()
@@ -392,7 +397,7 @@ module Instruction =
       CreateString(createTo, segments)
     | 5uy ->
       let valueReg = r.ReadInt32()
-      let pat = LetPattern.read r
+      let pat = LetPattern.read version r
       CheckLetPatternAndExtractVars(valueReg, pat)
     | 6uy ->
       let instrsToJump = r.ReadInt32()
@@ -503,6 +508,7 @@ let write (w : BinaryWriter) (instrs : Instructions) =
   List.write w Instruction.write instrs.instructions
   w.Write instrs.resultIn
 
+/// <param version> is the blob's format (`makeDeserializerV`).
 let read (version : uint32) (r : BinaryReader) : Instructions =
   let registerCount = Varint.read r
   let instructions = List.read r (Instruction.read version)

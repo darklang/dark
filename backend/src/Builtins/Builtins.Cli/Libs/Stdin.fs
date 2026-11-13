@@ -12,6 +12,8 @@ module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
 module HE = LibExecution.HostEvents
 module Scheduler = LibExecution.Scheduler
+module Dval = LibExecution.Dval
+module Bytes = LibExecution.Bytes
 
 open Builtin.Shortcuts
 
@@ -434,18 +436,34 @@ let readExactlyBytes
   | None -> Ok(sb.ToString())
 
 
+/// The reader every stdin read goes through. Redirected stdin is decoded strictly, so bytes that
+/// are not UTF-8 are an error rather than U+FFFD. A terminal keeps `Console.In`, which echoes and
+/// edits the line.
+let private input : Lazy<IO.TextReader * Text.Encoding> =
+  lazy
+    (if Console.IsInputRedirected then
+       let utf8 = Text.UTF8Encoding(false, true)
+       let reader = new IO.StreamReader(Console.OpenStandardInput(), utf8, false)
+       IO.TextReader.Synchronized reader, utf8
+     else
+       Console.In, Console.InputEncoding)
+
 /// One read of stdin, as the stdin reader thread does it: a line, or a byte count read through
 /// the same buffered reader (`readExactlyBytes`). The only place either is read once a scheduler
 /// is running, so a header line and the body after it come off one reader in order.
 let private readStdinFor (request : HE.StdinRequest) : HE.StdinResult =
-  match request with
-  | HE.StdinRequest.Line ->
-    match Console.In.ReadLine() with
-    | null -> Ok None
-    | line -> Ok(Some line)
-  | HE.StdinRequest.Bytes 0 -> Ok(Some "")
-  | HE.StdinRequest.Bytes n ->
-    readExactlyBytes Console.In Console.InputEncoding n |> Result.map Some
+  let reader, encoding = input.Force()
+  try
+    match request with
+    | HE.StdinRequest.Line ->
+      match reader.ReadLine() with
+      | null -> Ok None
+      | line -> Ok(Some line)
+    | HE.StdinRequest.Bytes 0 -> Ok(Some "")
+    | HE.StdinRequest.Bytes n ->
+      readExactlyBytes reader encoding n |> Result.map Some
+  with :? Text.DecoderFallbackException ->
+    Error "stdin is not valid UTF-8"
 
 /// Installed on the first wait for stdin, like the key source. Unlike keys it is installed for
 /// redirected stdin too: a pipe is exactly what a language server reads.
@@ -472,6 +490,13 @@ let private parkOnStdin (spec : HE.EventSpec) : Option<Ply<HE.StdinResult>> =
       }
     )
   | _ -> None
+
+
+/// One line of stdin, parked on under a scheduler and read synchronously outside one.
+let private readLine () : Ply<HE.StdinResult> =
+  match parkOnStdin HE.EventSpec.StdinLine with
+  | Some wait -> wait
+  | None -> Ply(readStdinFor HE.StdinRequest.Line)
 
 
 /// `Stdlib.Host.EventSpec`, as F#.
@@ -628,23 +653,46 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
-          let ofResult (result : HE.StdinResult) : Dval =
+          readLine ()
+          |> Ply.map (fun result ->
             match result with
-            | Ok(Some line) ->
-              LibExecution.Dval.optionSome
+            | Ok line ->
+              LibExecution.Dval.option
                 KTString
-                (DString(String.normalizeOutside line))
-            | Ok None -> LibExecution.Dval.optionNone KTString
+                (Option.map (String.normalizeOutside >> DString) line)
             | Error e ->
               RuntimeError.UncaughtException($"stdinReadLine: {e}", [])
-              |> raiseRTE vm.threadID
-          match parkOnStdin HE.EventSpec.StdinLine with
-          | Some wait ->
-            uply {
-              let! result = wait
-              return ofResult result
-            }
-          | None -> Ply(ofResult (readStdinFor HE.StdinRequest.Line))
+              |> raiseRTE vm.threadID)
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.Stdin; Effect.Raise ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdinCheckedReadLine" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TypeReference.result (TypeReference.option TString) TUnit
+      description =
+        "Reads a single line from the standard input, or None at its end. Error when the line is "
+        + "not valid UTF-8."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          let okType =
+            KTCustomType(
+              LibExecution.Dval.optionType (),
+              [ LibExecution.ValueType.string ]
+            )
+          readLine ()
+          |> Ply.map (fun result ->
+            match result with
+            | Ok line ->
+              LibExecution.Dval.option
+                KTString
+                (Option.map (String.normalizeOutside >> DString) line)
+              |> Dval.resultOk okType KTUnit
+            | Error _ -> Dval.resultError okType KTUnit DUnit)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
@@ -654,15 +702,28 @@ let fns () : List<BuiltInFn> =
     { name = fn "stdinReadAll" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
+      returnType = TypeReference.result TString TBytes
       description =
         "Reads all available input from standard input until EOF. Blocks if "
-        + "stdin is an interactive TTY with no EOF signal."
+        + "stdin is an interactive TTY with no EOF signal. Error holds the first bytes that "
+        + "are not UTF-8."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          let input = System.Console.In.ReadToEnd()
-          Ply(DString(String.normalizeOutside input))
+          let reader, _ = input.Force()
+          try
+            Ply(
+              Dval.resultOk
+                KTString
+                KTBytes
+                (DString(String.normalizeOutside (reader.ReadToEnd())))
+            )
+          with :? Text.DecoderFallbackException as e ->
+            let bad =
+              Bytes.newEphemeral (
+                Option.ofObj e.BytesUnknown |> Option.defaultValue [||]
+              )
+            Ply(Dval.resultError KTString KTBytes bad)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
@@ -718,7 +779,7 @@ let fns () : List<BuiltInFn> =
       // package read. A `[Timer 10]` alone still declares both; narrowing per call would need
       // the effect check to run inside the body, which nothing else does today.
       previewable = Impure
-      callEffects = set [ Effect.Stdin; Effect.PackageRead ]
+      callEffects = set [ Effect.Stdin; Effect.PackageRead; Effect.Raise ]
       deprecated = NotDeprecated } ]
 
 

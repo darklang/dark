@@ -131,11 +131,19 @@ let private vecTests =
       } ]
 
 
+let rec private unconsN (n : int) (list : DvalList) =
+  if n = 0 then
+    list
+  else
+    match DvalList.uncons list with
+    | ValueSome(struct (_, rest)) -> unconsN (n - 1) rest
+    | ValueNone -> list
+
 /// A list with these values, built by a random sequence of list operations.
 let rec private build (rng : System.Random) (items : RT.Dval[]) : DvalList =
   let whole () = DvalList.ofArray items
   let split () = rng.Next(0, items.Length + 1)
-  match rng.Next 11 with
+  match rng.Next 12 with
   | 0 -> whole ()
   | 9 -> DvalList.init items.Length (fun i -> items[i])
   | 10 -> DvalList.ofRevList (List.rev (List.ofArray items))
@@ -156,14 +164,13 @@ let rec private build (rng : System.Random) (items : RT.Dval[]) : DvalList =
   // What is left after taking values off the front.
   | 6 ->
     let before = Array.init (rng.Next 70) (fun i -> RT.DInt64(int64 -i))
-    let rec unconsN (n : int) (list : DvalList) =
-      if n = 0 then
-        list
-      else
-        match DvalList.uncons list with
-        | ValueSome(struct (_, rest)) -> unconsN (n - 1) rest
-        | ValueNone -> list
     unconsN before.Length (build rng (Array.append before items))
+  // Values taken off the front of one list and the first few put back on.
+  | 11 ->
+    let k = split ()
+    let before = Array.init (rng.Next 70) (fun i -> RT.DInt64(int64 -i))
+    let rest = unconsN before.Length (build rng (Array.append before items[k..]))
+    Array.foldBack DvalList.cons items[.. k - 1] rest
   | 7 -> DvalList.rev (build rng (Array.rev items))
   | _ ->
     let k = split ()
@@ -209,6 +216,24 @@ let private listTests =
           sameEverywhere items (build rng items) (build rng items)
       }
 
+      test "set and drop on a list built any way give the list built in one go" {
+        let rng = System.Random 6389
+        for round in 1..400 do
+          let n = if round % 2 = 0 then rng.Next(1, 40) else rng.Next(1, 3000)
+          let items = Array.init n (fun i -> RT.DInt64(int64 (i * 7)))
+          let i = rng.Next n
+          let set = Array.updateAt i (RT.DInt64 -1L) items
+          sameEverywhere
+            set
+            (DvalList.set i (RT.DInt64 -1L) (build rng items))
+            (DvalList.ofArray set)
+          let k = rng.Next(0, n + 1)
+          sameEverywhere
+            items[k..]
+            (DvalList.drop k (build rng items))
+            (DvalList.ofArray items[k..])
+      }
+
       test "lists that differ anywhere are unequal and order as before" {
         let rng = System.Random 6387
         for _ in 1..200 do
@@ -233,7 +258,7 @@ let private listTests =
         let nan = RT.DFloat nan
         let a = RT.DList(VT.known RT.KTFloat, DvalList.ofArray (Array.create 40 nan))
         let b = RT.DList(VT.known RT.KTFloat, DvalList.ofArray (Array.create 40 nan))
-        // As when a list was an F# list: the comparer a union's `Equals` passes in reaches the values.
+        // As with an F# list: the comparer a union's `Equals` passes in reaches the values.
         Expect.isFalse (a = b) "F# ="
         Expect.isFalse (a.Equals b) "Equals"
         Expect.isFalse (Dval.equals a b) "Dark equality"
@@ -257,6 +282,39 @@ let private listTests =
         Expect.equal (DvalList.toArray b) items "toArray"
       }
 
+      test "comparing and searching a list makes nothing" {
+        let values n = Array.init n (fun i -> RT.DInt64(int64 (i * 1000)))
+        let a = DvalList.ofArray (values 3000)
+        let b = DvalList.ofArray (values 3000)
+        let c = DvalList.cons (RT.DInt64 -1L) (DvalList.ofArray (values 2999))
+        let last = RT.DInt64 2_999_000L
+        let same (x : RT.Dval) (y : RT.Dval) = x = y
+        let number (x : RT.Dval) =
+          match x with
+          | RT.DInt64 n -> n
+          | _ -> 0L
+        let order (x : RT.Dval) (y : RT.Dval) = compare (number x) (number y)
+        let isLast (x : RT.Dval) = x = last
+        let run () =
+          Expect.isTrue (DvalList.forall2 same a b) "equal"
+          Expect.isFalse (DvalList.forall2 same a c) "unequal"
+          Expect.equal (DvalList.compareWith order a b) 0 "ordered alike"
+          Expect.equal (DvalList.compareWith order c a) -1 "ordered"
+          Expect.equal (DvalList.tryFind isLast a) (ValueSome last) "found"
+        run ()
+        let before = System.GC.GetAllocatedBytesForCurrentThread()
+        run ()
+        let made = System.GC.GetAllocatedBytesForCurrentThread() - before
+        Expect.isLessThan made 2000L "bytes allocated"
+        Expect.isTrue
+          (Dval.equals (RT.DList(VT.int64, a)) (RT.DList(VT.int64, b)))
+          "Dark equality"
+        Expect.equal
+          (Dval.listContains c (RT.DInt64 2_998_000L))
+          (ValueSome true)
+          "contains"
+      }
+
       test "a pattern walk visits every value once, in order" {
         let items = Array.init 5000 (fun i -> RT.DInt64(int64 i))
         let rng = System.Random 6388
@@ -266,6 +324,20 @@ let private listTests =
           | ValueNone -> List.rev acc
         for _ in 1..20 do
           Expect.equal (walk (build rng items) []) (List.ofArray items) "the values"
+      }
+
+      test "taking values off the front of a list makes nothing" {
+        let list = DvalList.ofArray (Array.init 5000 (fun i -> RT.DInt64(int64 i)))
+        let rec walk (list : DvalList) (n : int) =
+          match DvalList.uncons list with
+          | ValueSome(struct (_, rest)) -> walk rest (n + 1)
+          | ValueNone -> n
+        walk list 0 |> ignore<int>
+        let before = System.GC.GetAllocatedBytesForCurrentThread()
+        let n = walk list 0
+        let made = System.GC.GetAllocatedBytesForCurrentThread() - before
+        Expect.equal n 5000 "every value"
+        Expect.isLessThan made 2000L "bytes allocated"
       } ]
 
 

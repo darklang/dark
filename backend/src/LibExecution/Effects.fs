@@ -47,6 +47,10 @@ type Effect =
   /// they name nothing and declare no effect at all. There is deliberately no
   /// scoped form: a policy grants it whole, with `allow native`, or not at all.
   | Native
+  /// A call can stop with a runtime error: dividing by zero, an argument out of range, `unwrap`
+  /// of a `None`. Information for a reader, not a permission: no policy grants or denies it, and
+  /// a call that only raises is still pure.
+  | Raise
 
 let name (effect : Effect) : string =
   match effect with
@@ -68,6 +72,7 @@ let name (effect : Effect) : string =
   | Effect.Concurrency -> "concurrency"
   | Effect.Runtime -> "runtime"
   | Effect.Native -> "native"
+  | Effect.Raise -> "raise"
 
 /// The case name, which is also the Dark case name and the source spelling in a
 /// `:{Http, Clock}` row. Spelled out: `%A` needs reflection that a release build
@@ -92,6 +97,7 @@ let caseName (effect : Effect) : string =
   | Effect.Concurrency -> "Concurrency"
   | Effect.Runtime -> "Runtime"
   | Effect.Native -> "Native"
+  | Effect.Raise -> "Raise"
 
 /// What a refusal of this effect is refusing, in words, where the name alone does not say.
 let plainWords (effect : Effect) : Option<string> =
@@ -120,10 +126,20 @@ let all : List<Effect> =
     Effect.TraceWrite
     Effect.Concurrency
     Effect.Runtime
-    Effect.Native ]
+    Effect.Native
+    Effect.Raise ]
 
 let fromName (wanted : string) : Option<Effect> =
   all |> List.tryFind (fun effect -> name effect = wanted)
+
+/// Whether any of these effects touches the world. `Raise` alone does not, so it asks no
+/// permission, is not logged, and orders nothing.
+let performsAny (effects : Set<Effect>) : bool =
+  Set.exists (fun effect -> effect <> Effect.Raise) effects
+
+/// The effects a permission policy decides on: all but `Raise`.
+let permissionEffects (effects : Set<Effect>) : Set<Effect> =
+  Set.remove Effect.Raise effects
 
 /// A read effect observes the world without changing it, so calls whose effects are all reads
 /// may run concurrently and complete in any order; the interpreter hands such a call back as a
@@ -152,13 +168,15 @@ let isRead (effect : Effect) : bool =
   | Effect.TraceWrite
   | Effect.Concurrency
   | Effect.Runtime
-  | Effect.Native -> false
+  | Effect.Native
+  | Effect.Raise -> false
 
 /// Whether every call of a builtin with these effects is a read: non-empty, and nothing but
 /// reads. What decides if a call whose result is not ready is handed back as a promise rather
 /// than parking the process; `readsByMethod` names the builtins with calls that are reads too.
 let readsOnly (effects : Set<Effect>) : bool =
-  not (Set.isEmpty effects) && Set.forall isRead effects
+  performsAny effects
+  && Set.forall (fun effect -> isRead effect || effect = Effect.Raise) effects
 
 /// Builtins whose declared effect is not a read but some of whose calls are: the HTTP client's
 /// buffered call, whose GET or HEAD with no body is a read (`isReadMethod`; the interpreter
@@ -197,4 +215,5 @@ let isScoped (effect : Effect) : bool =
   | Effect.TraceWrite
   | Effect.Concurrency
   | Effect.Runtime
-  | Effect.Native -> false
+  | Effect.Native
+  | Effect.Raise -> false

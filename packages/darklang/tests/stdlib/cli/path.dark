@@ -33,7 +33,10 @@ test withExtension =
     [ Stdlib.Cli.Path.withExtension("file.txt", ".md") |> Stdlib.Test.equal("file.md")
       Stdlib.Cli.Path.withExtension("file", ".md") |> Stdlib.Test.equal("file.md")
       Stdlib.Cli.Path.withExtension("/home/user/file.txt", ".md")
-      |> Stdlib.Test.equal("/home/user/file.md") ])
+      |> Stdlib.Test.equal("/home/user/file.md")
+      Stdlib.Cli.Path.withExtension("posts/a.md", "html")
+      |> Stdlib.Test.equal("posts/a.html")
+      Stdlib.Cli.Path.withExtension("file.txt", "") |> Stdlib.Test.equal("file") ])
 
 // Path.isAbsolute
 test isAbsolute =

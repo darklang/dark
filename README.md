@@ -29,9 +29,9 @@ Or by hand, which is the way on Windows: download the file for your platform fro
 which), decompress it, and run it from wherever you put it. On Linux x64:
 
 ```
-gunzip darklang-alpha-*-linux-x64.gz
-chmod +x darklang-alpha-*-linux-x64
-./darklang-alpha-*-linux-x64
+gunzip darklang-alpha-*-linux-musl-x64.gz
+chmod +x darklang-alpha-*-linux-musl-x64
+./darklang-alpha-*-linux-musl-x64
 ```
 
 A fresh install can't touch files, the network, processes or environment variables until you

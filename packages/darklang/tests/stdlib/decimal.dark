@@ -69,6 +69,9 @@ test scaleIsKeptButIgnoredByEquality =
       (1.10dec == 1.1dec) |> Stdlib.Test.equal(true)
       Stdlib.Decimal.scale(1.10dec) |> Stdlib.Test.equal(2)
       Stdlib.display(Stdlib.Decimal.normalize(1.100dec)) |> Stdlib.Test.equal("1.1")
+      Stdlib.display(Stdlib.Decimal.normalize(-20.500dec)) |> Stdlib.Test.equal("-20.5")
+      Stdlib.display(Stdlib.Decimal.normalize(100dec)) |> Stdlib.Test.equal("100")
+      Stdlib.display(Stdlib.Decimal.normalize(0.000dec)) |> Stdlib.Test.equal("0")
       Stdlib.display(1.10dec + 1dec) |> Stdlib.Test.equal("2.10") ])
 
 test oneDictKeyAcrossScales =
@@ -115,6 +118,13 @@ test parse =
       Stdlib.Decimal.parse("")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
       Stdlib.Decimal.parse("1.")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      Stdlib.Decimal.parse(".5") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.5dec))
+      Stdlib.Decimal.parse("-.25") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-0.25dec))
+      Stdlib.Decimal.parse("+1.5") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5dec))
+      Stdlib.Decimal.parse(".")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
+      Stdlib.Decimal.parse("+-1")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))
       Stdlib.Decimal.parse("abc")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Decimal.ParseError.BadFormat))

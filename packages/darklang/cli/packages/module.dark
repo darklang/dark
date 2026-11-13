@@ -109,14 +109,22 @@ let landDocEdits(
     | _ -> Stdlib.Option.Option.None)
   |> Stdlib.List.length
 
+/// Who is saving a module.
+type Caller =
+  /// `dark module`.
+  | Command
+  /// `defineBundled`, for the dev build.
+  | DevBuild
+
 /// Save the declarations in <param source> under <param modulePath>, saying what happened, as
-/// `module` does. <param bundled> is `defineBundled`'s.
+/// `module` does.
 let define(
   state: Cli.AppState,
   modulePath: String,
   source: String,
-  bundled: Bool)
+  caller: Caller)
   : Cli.AppState =
+  let bundled = caller == Caller.DevBuild
   // Package input is declaration scope at its root. In particular, `val x`
   // declares a package value while `let x` is diagnosed directly instead of
   // being consumed as a script binding and failing later at EOF.
@@ -177,12 +185,13 @@ let define(
           LanguageTools.Parser.Parse.moduleToPackageOps(ctx, rootModule)
         let updates = Propagate.updatedItems(branchId, ops)
 
-        let refused = Errors.reportUnresolvedNames(branchId, unresolvedNames)
+        let home = Stdlib.List.prepend(baseLocation.modules, baseLocation.owner)
+        let refused = Errors.reportUnresolvedNames(branchId, home, unresolvedNames)
 
         if bundled && Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedNames)) then
           Cli.failed(state)
         else if refused then
-          state
+          Cli.failed(state)
         else
           // Stabilize and store the module as one mutually recursive batch.
           match SCM.PackageOps.addAuthored(branchId, ops) with
@@ -190,7 +199,10 @@ let define(
             Cli.printErr($"Failed to define module: {message}")
             { state with exitCode = 1 }
           | Ok(report) ->
-            let followed = Propagate.repointSaved(branchId, updates, Stdlib.Bool.not(bundled))
+            let followed = Propagate.repointSaved(
+              branchId,
+              updates,
+              (if bundled then Propagate.FollowerCheck.Skip else Propagate.FollowerCheck.Check))
             Propagate.printFollowed(followed)
 
             // A reload never leaves an edit's dependents behind, so the build fails over to one
@@ -241,6 +253,11 @@ let define(
             // so a type error is on screen before anything follows the change.
             AtRestCheck.printSaveReport(branchId, report)
 
+            // Save the code so it can be fixed, and signal errors through the exit code.
+            let state =
+              if AtRestCheck.saveHasErrors(report) then Cli.failed(state)
+              else state
+
             // Name what did not, so a rejected declaration is something you find out now rather than
             // the next time you call it.
             // `declarationName` returns an Option, so unwrap with filterMap before comparing:
@@ -273,7 +290,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   let input =
     match args with
     | [ modulePath, "-" ] ->
-      Stdlib.Result.Result.Ok((modulePath, Stdlib.Cli.Stdin.readAll()))
+      Stdlib.Cli.Stdin.readAll() |> Stdlib.Result.map(fun source -> (modulePath, source))
     | [ modulePath, sourcePath ] ->
       match Stdlib.Cli.File.readText(sourcePath) with
       | Ok(source) -> Stdlib.Result.Result.Ok((modulePath, source))
@@ -288,7 +305,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   | Error(message) ->
     Cli.printErr(message)
     { state with exitCode = 1 }
-  | Ok((modulePath, source)) -> define(state, modulePath, source, false)
+  | Ok((modulePath, source)) -> define(state, modulePath, source, Caller.Command)
 
 
 /// `module` for `LocalExec apply-package-edits`, which lands the dev build's edits to `packages/` on
@@ -300,7 +317,7 @@ let defineBundled(modulePath: String, source: String): Int64 =
     { Cli.initState() with
         nonInteractive = true
         currentBranchId = SCM.Branch.mainBranchId }
-  (define(state, modulePath, source, true)).exitCode
+  (define(state, modulePath, source, Caller.DevBuild)).exitCode
 
 
 let help(_state: Cli.AppState): String =
@@ -311,6 +328,8 @@ let help(_state: Cli.AppState): String =
     "The source may contain functions, types, values, tests, and nested modules."
     "All declarations are validated, then saved as WIP in one batch; the at-rest"
     "type check is reported and `commit` refuses definite type errors."
+    "Definite type errors and unresolved names exit 1; declarations remain saved"
+    "as drafts. Other incomplete checks warn and exit 0."
     ""
     "Example:"
     "  dark module /Me.Example - <<'EOF'"

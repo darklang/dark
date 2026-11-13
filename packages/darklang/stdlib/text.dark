@@ -14,7 +14,7 @@ module Darklang.Stdlib.Text
 /// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
 let padStartToWidth(s: String, width: Int64): String =
   let padding = width - (Stdlib.String.displayWidth(s))
-  if padding <= 0 then s else (Stdlib.String.repeat(" ", padding)) + s
+  if padding <= 0 then s else (Stdlib.String.checkedRepeat(" ", padding) |> Stdlib.Result.withDefault("")) + s
 
 
 /// Adds trailing spaces to <param s> until it is at least <param width> display cells wide.
@@ -23,7 +23,7 @@ let padStartToWidth(s: String, width: Int64): String =
 /// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
 let padEndToWidth(s: String, width: Int64): String =
   let padding = width - (Stdlib.String.displayWidth(s))
-  if padding <= 0 then s else s + (Stdlib.String.repeat(" ", padding))
+  if padding <= 0 then s else s + (Stdlib.String.checkedRepeat(" ", padding) |> Stdlib.Result.withDefault(""))
 
 
 /// Returns the longest prefix of <param s> that fits within <param width> display cells.
@@ -45,7 +45,7 @@ let clipToWidth(s: String, width: Int64): String =
       if hi - lo <= 1 then
         lo
       else
-        let mid = (lo + hi) / 2
+        let mid = Stdlib.Int64.checkedDivide(lo + hi, 2) |> Stdlib.Result.withDefault(0)
         if fits(mid) then search(mid, hi) else search(lo, mid)
 
     Stdlib.String.slice(s, 0, search(0, Stdlib.String.length(s)))

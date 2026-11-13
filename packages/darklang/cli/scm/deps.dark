@@ -80,7 +80,7 @@ let showDependents(
 
   match dependents with
   | [] ->
-    Stdlib.printLine($"No dependents found for {entityName}")
+    Stdlib.printErrorLine($"No dependents found for {entityName}")
   | deps ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} dependents of {entityName}:")
@@ -164,7 +164,7 @@ let showTransitiveDependents(
 
   match allDependents with
   | [] ->
-    Stdlib.printLine($"Nothing depends on {entityName}")
+    Stdlib.printErrorLine($"Nothing depends on {entityName}")
   | deps ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} items that could break if {entityName} changes:")
@@ -193,8 +193,9 @@ let showDependencies(
   cap: Bool)
   : Unit =
   match SCM.Deps.dependencyEdges(branchId, location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
-  | [] -> Stdlib.printLine($"No dependencies found for {entityName}")
-  | deps ->
+  | Error(e) -> Cli.printErr($"Couldn't read the dependencies of {entityName}: {e}")
+  | Ok([]) -> Stdlib.printErrorLine($"No dependencies found for {entityName}")
+  | Ok(deps) ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} dependencies of {entityName}:")
     Stdlib.printLine("")
@@ -291,7 +292,13 @@ let executeJson(
   kind: LanguageTools.ProgramTypes.ItemKind,
   entityName: String)
   : AppState =
-  let dependencies = SCM.Deps.dependencyEdges(state.currentBranchId, loc, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) |> Stdlib.List.map(edgeJson)
+  match SCM.Deps.dependencyEdges(state.currentBranchId, loc, LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
+  | Error(e) ->
+    Cli.printErr($"Couldn't read the dependencies of {entityName}: {e}")
+    Cli.failed(state)
+  | Ok(edges) ->
+
+  let dependencies = edges |> Stdlib.List.map(edgeJson)
 
   let dependents =
     SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (loc, kind) ])
@@ -299,16 +306,17 @@ let executeJson(
       let (h, dLoc, dKind) = d
       edgeJson((h, dKind, dLoc)))
 
-  Stdlib.printLine((
-    ScmJson.depsJson((
-      ScmJson.DepsJson
-        { item = entityName
-          dependencies = dependencies
-          dependents = dependents }
+  let printed =
+    Cli.printJson((
+      ScmJson.depsJson((
+        ScmJson.DepsJson
+          { item = entityName
+            dependencies = dependencies
+            dependents = dependents }
+      ))
     ))
-  ))
 
-  state
+  Cli.exitWith(state, printed)
 
 let execute(state: AppState, args: List<String>): AppState =
   // Flags: --deep (transitive), --all (don't cap the listing), --json
@@ -400,7 +408,7 @@ let execute(state: AppState, args: List<String>): AppState =
       else
 
       showDependencies(branchId, loc, entityType, hash, name, cap)
-      Stdlib.printLine("")
+      Stdlib.printErrorLine("")
 
       if deep then
         showTransitiveDependents(branchId, loc, entityType, name, cap)

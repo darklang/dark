@@ -69,6 +69,32 @@ module BadUrl =
       FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.badUrlDetails ())
     DEnum(typeName, typeName, [], caseName, fields)
 
+module NetworkTarget =
+  let toDT (target : HostTypes.HttpNetworkTarget) : Dval =
+    let caseName, host =
+      match target with
+      | HostTypes.HttpNetworkTarget.Destination host -> "Destination", host
+      | HostTypes.HttpNetworkTarget.Proxy host -> "Proxy", host
+    let typeName =
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.networkTarget ())
+    DEnum(typeName, typeName, [], caseName, [ DString host ])
+
+module NetworkFailure =
+  let toDT (failure : HostTypes.HttpNetworkFailure) : Dval =
+    let caseName, fields =
+      match failure with
+      | HostTypes.HttpNetworkFailure.DnsFailure target ->
+        "DnsFailure", [ NetworkTarget.toDT target ]
+      | HostTypes.HttpNetworkFailure.ConnectionFailure(target, detail) ->
+        "ConnectionFailure",
+        [ NetworkTarget.toDT target
+          Dval.option KTString (detail |> Option.map DString) ]
+      | HostTypes.HttpNetworkFailure.IoFailure(authority, detail) ->
+        "IoFailure", [ DString authority; DString detail ]
+    let typeName =
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.networkFailure ())
+    DEnum(typeName, typeName, [], caseName, fields)
+
 module RequestError =
   let toDT (err : HostTypes.HttpRequestError) : Dval =
     let (caseName, fields) =
@@ -78,7 +104,8 @@ module RequestError =
       | HostTypes.HttpRequestError.Timeout -> "Timeout", []
       | HostTypes.HttpRequestError.BadHeader err ->
         "BadHeader", [ BadHeader.toDT err ]
-      | HostTypes.HttpRequestError.NetworkError -> "NetworkError", []
+      | HostTypes.HttpRequestError.NetworkError failure ->
+        "NetworkError", [ NetworkFailure.toDT failure ]
       | HostTypes.HttpRequestError.TlsError message ->
         "TlsError", [ DString message ]
       | HostTypes.HttpRequestError.BadMethod -> "BadMethod", []
@@ -100,30 +127,15 @@ let private headersToDval (headers : List<string * string>) : Dval =
     ))
   |> Dval.list (KTTuple(VT.string, VT.string, []))
 
-/// The Dval header list, as written. A non-pair element is a type error (RTE).
+/// The Dval header list, as written; the interpreter has checked its type.
 /// Trimming and the empty-key check are Dark's (`Stdlib.HttpClient`); the host
 /// refuses anything unsafe to send.
-let private parseHeaders
-  (vm : VMState)
-  (fnName : FQFnName.FQFnName)
-  (reqHeaders : List<Dval>)
-  : List<string * string> =
+let private parseHeaders (reqHeaders : List<Dval>) : List<string * string> =
   reqHeaders
   |> List.map (fun item ->
     match item with
     | DTuple(DString k, DString v, []) -> (k, v)
-    | notAPair ->
-      RTE.Applications.FnParameterNotExpectedType(
-        fnName,
-        2,
-        "headers",
-        None,
-        VT.list (VT.tuple VT.string VT.string []),
-        Dval.toValueType notAPair,
-        notAPair
-      )
-      |> RTE.Apply
-      |> raiseRTE vm.threadID)
+    | _ -> Exception.raiseInternal "a header is not a pair of strings" [])
 
 open LibExecution.Builtin.Shortcuts
 
@@ -144,19 +156,17 @@ let private parameters =
     Param.make "headers" headersType ""
     Param.make "body" TBytes "" ]
 
-/// Name the request to the host and hand its answer to `answer`. `wrapper` is the Dark fn a
-/// header of the wrong shape names.
+/// Name the request to the host and hand its answer to `answer`.
 let private send
   (state : ExecutionState)
   (vm : VMState)
-  (wrapper : FQFnName.FQFnName)
   (args : Dval[])
   (operation : string -> string -> List<string * string> -> byte[] -> Host.Operation)
   (answer : Host.Response -> Ply<Dval>)
   : Ply<Dval> =
   match args with
   | [| DString method; DString uri; DList(_, Items(reqHeaders)); DBytes bodyRef |] ->
-    let headers = parseHeaders vm wrapper reqHeaders
+    let headers = parseHeaders reqHeaders
     Bytes.withBytes state bodyRef (fun body ->
       Interpreter.requestHost vm (operation method uri headers body) (fun outcome ->
         match outcome with
@@ -184,7 +194,6 @@ let fns () : List<BuiltInFn> =
           send
             state
             vm
-            (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.request ()))
             args
             (fun method uri headers body ->
               Host.Operation.HttpRequest(
@@ -205,7 +214,7 @@ let fns () : List<BuiltInFn> =
                     ("body", Bytes.newEphemeral response.body) ]
                 Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))
       previewable = Impure
-      callEffects = set [ Effect.Http ]
+      callEffects = set [ Effect.Http; Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -243,7 +252,6 @@ let fns () : List<BuiltInFn> =
           send
             state
             vm
-            (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.stream ()))
             args
             (fun method uri headers body ->
               Host.Operation.HttpStreamOpen(
@@ -274,7 +282,7 @@ let fns () : List<BuiltInFn> =
                     ("body", body) ]
                 Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))
       previewable = Impure
-      callEffects = set [ Effect.Http ]
+      callEffects = set [ Effect.Http; Effect.Raise ]
       deprecated = NotDeprecated } ]
 
 

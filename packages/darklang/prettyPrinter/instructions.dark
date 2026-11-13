@@ -33,11 +33,11 @@ let registerPairs(
   |> Stdlib.String.join(", ")
 
 
-/// Register-aware pattern rendering. `PrettyPrinter.RuntimeTypes.letPattern` prints `LPVariable` as
-/// "[variable]" because it has no register vocabulary; in a listing the register is the whole point.
+/// Register-aware pattern rendering. `PrettyPrinter.RuntimeTypes.letPattern` prints `LPVariable` by
+/// name; in a listing the register is the whole point.
 let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
   match pat with
-  | LPVariable(reg) -> register(reg)
+  | LPVariable(reg, _name) -> register(reg)
   | LPWildcard -> "_"
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->

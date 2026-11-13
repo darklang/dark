@@ -12,7 +12,12 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     state
 
   | [location, ...definitionParts] ->
-    let inlineDefinition = Packages.definitionFromArgs(definitionParts)
+    match Packages.definitionFromArgs(definitionParts) with
+    | Error(message) ->
+      Cli.printErr(message)
+      Cli.failed(state)
+    | Ok(inlineDefinition) ->
+
 
     if Stdlib.String.isEmpty(inlineDefinition) then
       [
@@ -90,6 +95,7 @@ let createTraitInline(
           LanguageTools.ProgramTypes.ItemKind.Trait,
           "trait",
           failState,
+          0,
           fun ctx ->
             let (packageTrait, ops, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.traitWithOps(ctx, t)

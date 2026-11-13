@@ -3,11 +3,29 @@ module Darklang.Stdlib.HttpClient.Tests
 
 // Tests that don't use the internet
 test requestErrorHasToString =
+  let network(failure: Stdlib.HttpClient.NetworkFailure): String =
+    Stdlib.display(Stdlib.HttpClient.RequestError.NetworkError(failure))
   Stdlib.Test.all(
     [ Stdlib.display(Stdlib.HttpClient.RequestError.Timeout)
       |> Stdlib.Test.equal("Timeout")
       Stdlib.display(Stdlib.HttpClient.RequestError.TlsError("bad certificate"))
-      |> Stdlib.Test.equal("bad certificate") ])
+      |> Stdlib.Test.equal("bad certificate")
+      network(Stdlib.HttpClient.NetworkFailure.DnsFailure(
+        Stdlib.HttpClient.NetworkTarget.Destination("example.invalid")))
+      |> Stdlib.Test.equal("Could not resolve host: example.invalid")
+      network(Stdlib.HttpClient.NetworkFailure.DnsFailure(
+        Stdlib.HttpClient.NetworkTarget.Proxy("proxy.invalid")))
+      |> Stdlib.Test.equal("Could not resolve host: proxy proxy.invalid")
+      network(Stdlib.HttpClient.NetworkFailure.ConnectionFailure(
+        Stdlib.HttpClient.NetworkTarget.Destination("example.com:8080"),
+        Some("Connection refused")))
+      |> Stdlib.Test.equal("Could not connect to example.com:8080: Connection refused")
+      network(Stdlib.HttpClient.NetworkFailure.ConnectionFailure(
+        Stdlib.HttpClient.NetworkTarget.Proxy("localhost:8080"), None))
+      |> Stdlib.Test.equal("Could not connect to proxy localhost:8080")
+      network(Stdlib.HttpClient.NetworkFailure.IoFailure(
+        "example.com", "connection reset"))
+      |> Stdlib.Test.equal("Request to example.com failed: connection reset") ])
 
 test contentTypes =
   Stdlib.Test.all(
@@ -72,8 +90,14 @@ let errInvalidRequest(): GetResult =
     )
   )
 
-let errNetworkError(): GetResult =
-  Error(Stdlib.HttpClient.RequestError.NetworkError)
+let errNetworkError(host: String): GetResult =
+  Error(
+    Stdlib.HttpClient.RequestError.NetworkError(
+      Stdlib.HttpClient.NetworkFailure.ConnectionFailure(
+        Stdlib.HttpClient.NetworkTarget.Destination(host), None
+      )
+    )
+  )
 
 let errBadHeaderEmptyKey(): GetResult =
   Error(
@@ -235,20 +259,19 @@ test unspecifiedAddressIsRefused =
 // They used to be borrowed third-party domains, localtest.me and c.cx, until c.cx
 // stopped resolving to 0.0.0.0 and started answering for real.
 //
-// Caveat: a name that doesn't resolve at all also gives NetworkError, so without
-// those /etc/hosts entries these three pass without testing anything. That was
-// true of the third-party version too. Nothing in the public API distinguishes
-// "blocked at connect" from "never resolved".
+// Guard refusals omit details. DNS failures must not satisfy these checks,
+// so missing /etc/hosts entries fail the test.
 test sneakyBannedHosts =
   Stdlib.Test.all(
     [ // 127.0.0.1
       get("http://banned-loopback.dark.test", [])
-      |> Stdlib.Test.equal(errNetworkError())
+      |> Stdlib.Test.equal(errNetworkError("banned-loopback.dark.test"))
       // 0.0.0.0
-      get("http://banned-zero.dark.test", []) |> Stdlib.Test.equal(errNetworkError())
+      get("http://banned-zero.dark.test", [])
+      |> Stdlib.Test.equal(errNetworkError("banned-zero.dark.test"))
       // 10.0.0.1
       get("http://banned-private.dark.test", [])
-      |> Stdlib.Test.equal(errNetworkError()) ])
+      |> Stdlib.Test.equal(errNetworkError("banned-private.dark.test")) ])
 
 // invalid headers (we just happen to know that google will fail this way if we
 // provide these headers..)
@@ -277,11 +300,11 @@ test rejectsLineBreaksInHeaders =
       get("http://google.com", [ ("X-A\r\nB", "c") ])
       |> Stdlib.Test.equal(errBadHeader(Stdlib.HttpClient.BadHeader.InvalidName)) ])
 
-// `.test` cannot resolve publicly. Depending on the DNS environment, that is
-// reported immediately as NetworkError or when the request times out.
+// DNS failures may surface as a timeout, depending on the resolver.
 test missingHostFails =
   (match get("http://no-such-host.dark.test", []) with
-   | Error(NetworkError) -> true
+   | Error(NetworkError(DnsFailure(Destination(host)))) ->
+     host == "no-such-host.dark.test"
    | Error(Timeout) -> true
    | _ -> false)
   |> Stdlib.Test.equal(true)

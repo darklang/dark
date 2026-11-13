@@ -406,10 +406,9 @@ let fileReadMemoryBound =
     let! bytes = System.IO.File.ReadAllBytesAsync path
     let _dv = Bytes.newEphemeral bytes
     let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
-    // Old List<UInt8> path allocated ~200x file size (10 MB -> ~2 GB). The bound
-    // is 8x rather than 3x because GC noise plus adjacent-test bleed routinely
-    // adds 30-60 MB; the list-boxing regression worth catching is the >2 GB
-    // pattern, far beyond any bound.
+    // A boxed List<UInt8> path allocates ~200x the file size. The bound is 8x
+    // rather than 3x because GC noise and adjacent tests add tens of MB; list
+    // boxing is far beyond any bound.
     Expect.isLessThan
       delta
       80_000_000L
@@ -449,8 +448,8 @@ let persistableAcceptsPlainShapes =
       Expect.isTrue (Dval.isPersistable dv) $"expected isPersistable=true for {dv}"
   }
 
-/// Ocean's round 2, finding 6: `dark propagate` in a terminal died with `lambda not found`, and
-/// every Component-based TUI held its component in a `val`. Nothing about the crash pointed here.
+/// A lambda must never be stored. Every Component-based TUI holds its component in a `val`, and a
+/// stored lambda fails much later, with `lambda not found`, nowhere near here.
 let persistableRejectsLambda =
   test "isPersistable: a lambda is not persistable, a named fn is" {
     let lambda =
@@ -584,8 +583,8 @@ let sweepDeletesOrphansButKeepsReferenced =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Bytes value semantics are independent of storage. All comparisons use the
-// content hash already carried by persistent bytes and lazily cached in memory.
+// Bytes value semantics are independent of storage. Two in-memory values
+// compare their bytes; anything saved compares by content hash.
 
 let equalsEphemeralEphemeralSameUuid =
   test "blob equality: two refs to the same ephemeral UUID are equal" {
@@ -914,6 +913,70 @@ let viewsBehaveLikeCopies =
     Expect.equal (dbytesRef promoted).Length 1024L "saved length"
   }
 
+let equalityComparesBytesDirectly =
+  test
+    "equality agrees with the bytes however they are held, and in memory it hashes nothing" {
+    let rng = System.Random 6145
+    // Short arrays over two values, so equal pairs are common.
+    let randomArray () = Array.init (rng.Next 6) (fun _ -> byte (rng.Next 2))
+    // The same bytes as a copy, a view into a bigger array, or saved.
+    let held (bs : byte[]) =
+      match rng.Next 3 with
+      | 0 -> mkEphemeral (Array.copy bs), true
+      | 1 ->
+        let pad = rng.Next(1, 4)
+        let buffer = Array.concat [ Array.create pad 7uy; bs; Array.create pad 7uy ]
+        RT.DBytes(
+          RT.Ephemeral
+            { id = System.Guid.NewGuid()
+              buffer = buffer
+              offset = pad
+              count = bs.Length
+              hash = null }
+        ),
+        true
+      | _ -> RT.DBytes(RT.Persistent(Bytes.sha256Hex bs, int64 bs.Length)), false
+    for _ in 1..5000 do
+      let a, b = randomArray (), randomArray ()
+      let da, aInMemory = held a
+      let db, bInMemory = held b
+      Expect.equal (Equals.equals da db) (a = b) $"{a} = {b}"
+      Expect.equal (Equals.equals db da) (a = b) $"{b} = {a}, swapped"
+      if a = b then
+        Expect.equal
+          ((dbytesRef da).GetHashCode())
+          ((dbytesRef db).GetHashCode())
+          "equal values hash alike"
+      if aInMemory && bInMemory then
+        let fresh = mkEphemeral (Array.copy a)
+        Equals.equals fresh da |> ignore<bool>
+        Expect.isFalse (ephemeralOf fresh).IsHashed "comparing did not hash"
+  }
+
+let lastIndexOfAgreesWithArray =
+  testTask "bytesLastIndexOf agrees with Array.LastIndexOf, on a view too" {
+    let parentBytes = randomBytes 4096
+    let! slice =
+      callBytesBuiltin
+        "bytesSlice"
+        [| mkEphemeral parentBytes; RT.DInt64 1000L; RT.DInt64 1024L |]
+    let own = Array.sub parentBytes 1000 1024
+    for target in [ own[0]; own[500]; own[1023]; 0uy; 255uy ] do
+      for start in [ -1L; 0L; 1L; 499L; 500L; 1023L; 1024L ] do
+        let! found =
+          callBytesBuiltin
+            "bytesLastIndexOf"
+            [| slice; RT.DUInt8 target; RT.DInt64 start |]
+        let expected =
+          if start < 0L || start >= 1024L then
+            Dval.optionNone RT.KTInt64
+          else
+            match System.Array.LastIndexOf(own, target, int start) with
+            | -1 -> Dval.optionNone RT.KTInt64
+            | i -> Dval.optionSome RT.KTInt64 (RT.DInt64(int64 i))
+        Expect.equal found expected $"lastIndexOf {target} from {start}"
+  }
+
 /// The result is one array of exactly the output's size, whatever the pieces are:
 /// views of a shared array, empty pieces, and saved bytes read from the store.
 let concatWritesOneExactArray =
@@ -1083,6 +1146,7 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
       { name = name
         typeSymbolTable = RT.TST.empty
         typeArgs = []
+        approvalName = None
         access = None
         argsSoFar = argsSoFar
         boundImpls = [] }
@@ -1234,6 +1298,8 @@ let tests =
       sliceSharesTheParent
       smallSlicesCopy
       viewsBehaveLikeCopies
+      equalityComparesBytesDirectly
+      lastIndexOfAgreesWithArray
       concatWritesOneExactArray
       packageBytesInsertLookup
       packageBytesDedupesOnSameHash

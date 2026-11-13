@@ -22,3 +22,34 @@ test aFilterThatMatchesNothingIsNamed =
       [ Instance.exitedWith(code, 1, "one filter matches nothing")
         Instance.says(out, "match `zzznope`", "the filter is named")
         Instance.says(out, "xor(a: Bool, b: Bool): Bool", "the other filter is still listed") ]))
+
+// A module that does not exist names the functions called by its last part.
+test aMissingModuleNamesItsFunctions =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "signatures", "Stdlib.Random" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "no such module")
+        Instance.says(out, "match `Stdlib.Random`", "the filter is named")
+        Instance.says(out, "Int64.random", "a function by that name is offered") ]))
+
+// A guessed module name points at the module with the shorter name.
+test aLongerModuleNamePointsAtTheShortOne =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "signatures", "Stdlib.Cli.Environment" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "no such module")
+        Instance.says(out, "Cli.Env", "the module is offered") ]))
+
+
+// A filter naming a module lists that module, not the ones whose names start the same way.
+test aModuleFilterIsThatModule =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "signatures", "Stdlib.Http" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "a module filter")
+        Instance.says(out, "responseWithJson(", "the module's fns are listed")
+        Instance.doesNotSay(out, "## HttpClient", "HttpClient is left out") ]))
+

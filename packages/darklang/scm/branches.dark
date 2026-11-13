@@ -58,8 +58,7 @@ let query(f: BranchFilter): List<BranchInfo> = Builtin.scmBranches(f)
 /// Why a merge may not go ahead.
 ///
 /// A DU rather than a sentence because one caller has to tell the empty case apart from the rest:
-/// approving a review queue that holds nothing pending is a normal outcome, not a failure, and it
-/// used to be recognised by searching the message for "nothing to merge".
+/// approving a review queue that holds nothing pending is a normal outcome, not a failure.
 type MergeRefusal =
   /// Main is the trunk; there is nothing above it to merge into.
   | IsMain
@@ -283,21 +282,23 @@ let rebase(branchId: Uuid): Stdlib.Result.Result<List<String>, String> =
 /// The branch's own callers that still reference a version of something the parent has since moved,
 /// each as the repoint that brings it to the parent's version. Rebase and merge both apply them first,
 /// so a caller written on a branch calls what the parent runs once the two meet.
-let outdatedRepoints(branchId: Uuid): List<SCM.Actions.Repoint> =
+let outdatedRepoints(branchId: Uuid): Stdlib.Result.Result<List<SCM.Actions.Repoint>, String> =
   SCM.Constraints.detectOutdatedUsagesOn(branchId)
-  |> Stdlib.List.filterMap(fun f ->
-    match f.detail with
-    | Versions(using, current) ->
-      Stdlib.Option.Option.Some(
-        SCM.Actions.Repoint
-          { usage =
-              Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
-            dependency = f.dependency
-            kind = f.dependencyKind
-            fromHash = using
-            toHash = current }
-      )
-    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.Result.map(fun findings ->
+    findings
+    |> Stdlib.List.filterMap(fun f ->
+      match f.detail with
+      | Versions(using, current) ->
+        Stdlib.Option.Option.Some(
+          SCM.Actions.Repoint
+            { usage =
+                Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
+              dependency = f.dependency
+              kind = f.dependencyKind
+              fromHash = using
+              toHash = current }
+        )
+      | _ -> Stdlib.Option.Option.None))
 
 
 /// The rebase itself, as one action: the divergences and repoints apart (see <type Rebased>), and the
@@ -309,9 +310,12 @@ let outdatedRepoints(branchId: Uuid): List<SCM.Actions.Repoint> =
 /// those the way an edit on the parent would have, then moves every base and records the conflicts in
 /// one transaction.
 let rebaseDetailed(branchId: Uuid): Stdlib.Result.Result<SCM.Actions.Reconciled, String> =
-  match SCM.Actions.merge(SCM.Actions.MergeAction.Rebase(branchId, outdatedRepoints(branchId))) with
-  | Ok(r) -> Stdlib.Result.Result.Ok(r)
-  | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+  match outdatedRepoints(branchId) with
+  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(repoints) ->
+    match SCM.Actions.merge(SCM.Actions.MergeAction.Rebase(branchId, repoints)) with
+    | Ok(r) -> Stdlib.Result.Result.Ok(r)
+    | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
 
 
 /// "owner.Module.Sub.name" -> (owner, dotted-modules, name). The inverse of <fn fqnOf>, and it has to
@@ -391,6 +395,14 @@ let opBindsKey(
   |> Stdlib.List.last
 
 
+/// Which version of a name `resolve` keeps.
+type Keep =
+  /// The branch's.
+  | Mine
+  /// The parent's.
+  | Theirs
+
+
 /// RESOLVE take-theirs: drop the branch's binding for <param fqn> -- every op that binds it, a `SetName`
 /// or the override a `resolve mine` wrote -- so the branch's view falls back to the parent's version, and move
 /// the name's base to the parent's current. One action.
@@ -398,7 +410,7 @@ let resolveTakeTheirs(
   branchId: Uuid,
   fqn: String)
   : Stdlib.Result.Result<Unit, String> =
-  resolveName(branchId, fqn, false)
+  resolveName(branchId, fqn, Keep.Theirs)
 
 
 /// RESOLVE keep-mine: author an OVERRIDE that re-states the branch's binding with a stamp that wins LWW,
@@ -412,24 +424,22 @@ let resolveKeepMine(
   branchId: Uuid,
   fqn: String)
   : Stdlib.Result.Result<Unit, String> =
-  resolveName(branchId, fqn, true)
+  resolveName(branchId, fqn, Keep.Mine)
 
 
-/// Parse <param fqn>, keep the branch's version (<param mine>) or take the parent's, and word what went
-/// wrong.
+/// Parse <param fqn>, keep the version <param keep> names, and word what went wrong.
 let resolveName(
   branchId: Uuid,
   fqn: String,
-  mine: Bool)
+  keep: Keep)
   : Stdlib.Result.Result<Unit, String> =
   match parseFqn(fqn) with
   | None -> Stdlib.Result.Result.Error($"can't parse a name from \"{fqn}\"")
   | Some((owner, modules, name)) ->
     let resolution =
-      if mine then
-        SCM.Actions.Resolution.KeepMine(branchId, owner, modules, name)
-      else
-        SCM.Actions.Resolution.TakeTheirs(branchId, owner, modules, name)
+      match keep with
+      | Mine -> SCM.Actions.Resolution.KeepMine(branchId, owner, modules, name)
+      | Theirs -> SCM.Actions.Resolution.TakeTheirs(branchId, owner, modules, name)
 
     match SCM.Actions.resolve(resolution) with
     | Ok(_) -> Stdlib.Result.Result.Ok()

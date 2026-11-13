@@ -37,15 +37,14 @@ let private storedPermissionsAreIsolated =
             LibDB.PolicyStore.setInstancePolicy
               LibExecution.Permissions.Policy.denyAll
             let approved =
-              LibDB.PolicyStore.recordApprovalAndMoveVersion
-                None
-                "test-policy-root"
-                [ "test-policy-root", LibExecution.Permissions.Policy.denyAll ]
-                "test-fingerprint"
+              LibDB.PolicyStore.recordApproval
                 None
                 "Tests.PolicyIsolation.root"
-                None
-                "test-policy-root"
+                (LibDB.PolicyStore.reviewToken (LibDB.PolicyStore.get ()))
+                { hash = "test-policy-root"
+                  policy = LibExecution.Permissions.Policy.denyAll
+                  fingerprint = "test-fingerprint"
+                  explicitRules = false }
             Expect.equal approved (Ok()) "the first test stored an approval"
             Exception.raiseInternal "simulated test failure" []
           })
@@ -164,6 +163,57 @@ let private diagnosticsStayOffStdout =
         Expect.stringContains err "DEBUG: lbl: 5" "the debug line is on stderr"
       })
 
+let private stdinThatIsNotUtf8IsRefused =
+  Tests.CliInstance.instanceTest
+    "stdin that is not UTF-8 is refused, not replaced"
+    (fun i ->
+      task {
+        let notUtf8 = Some [| 0xFFuy; 0x00uy; 0xFEuy |]
+        let! (code, out, _) =
+          Tests.CliInstance.runRawWithBytes
+            i
+            [ "eval"; "Stdlib.Cli.Stdin.readAll()" ]
+            notUtf8
+        Expect.equal code 0 "readAll answers"
+        Expect.equal
+          ((CliDsl.plain out).Trim())
+          "Error(\"stdin is not valid UTF-8: FF\")"
+          "an Error naming the first bad byte"
+
+        let! (code, out, err) =
+          Tests.CliInstance.runRawWithBytes i [ "eval"; "-" ] notUtf8
+        Expect.equal code 1 "eval - refuses"
+        Expect.equal out "" "no answer"
+        Expect.stringContains err "stdin is not valid UTF-8: FF" "says why"
+      })
+
+/// `ps` and `top` read a process's name and command line from /proc; the process reads its own.
+let private processTitleSaysWhatRuns =
+  Tests.CliInstance.instanceTest "a process's title says what it runs" (fun i ->
+    task {
+      if System.OperatingSystem.IsLinux() then
+        let! (code, _, err) =
+          Tests.CliInstance.runRaw
+            i
+            [ "permissions"; "allow"; "file"; "read"; "/proc" ]
+        Expect.equal code 0 $"allowing /proc: {err}"
+        let read (file : string) =
+          task {
+            let! (_, out, err) =
+              Tests.CliInstance.runRaw
+                i
+                [ "eval"; $"Stdlib.Cli.File.readText(\"/proc/self/{file}\")" ]
+            return out + err
+          }
+        let! comm = read "comm"
+        Expect.stringContains comm "dark eval" "the name"
+        let! cmdline = read "cmdline"
+        Expect.stringContains
+          cmdline
+          "dark eval Stdlib.Cli.File.readText"
+          "the command line names `dark`, not the binary's path"
+    })
+
 /// What a person reads while a command runs (a log line, a hint about another flag) is not part of
 /// the answer, so `dark search x | wc -l` counts results and nothing else.
 let private hintsAndLogsStayOffStdout =
@@ -234,7 +284,7 @@ let private warningsAndPreviewsStayOffStdout =
           "the preview is on stderr"
         Expect.stringContains
           (CliDsl.plain err)
-          "`-y`"
+          "add --yes to delete Tests.Streams.f"
           "with the flag that gets past the prompt"
       })
 
@@ -261,6 +311,8 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "traces"; "find"; "zzzqqq" ], 0, Silent, Says "no kept trace matches"
     [ "traces"; "calls"; "Tests.Rows.f" ], 0, Silent, Says "no recorded trace"
     [ "traces"; "show"; "Tests.Rows.f" ], 0, Silent, Says "no recorded trace"
+    [ "traces"; "fns" ], 0, Silent, Says "no runs have been kept yet"
+    [ "traces"; "hotspots" ], 0, Silent, Says "No fn-call data"
     [ "fn"; "Tests.Rows.g"; "(x: Int64): Int64 = Tests.Rows.f(x)" ],
     0,
     Says "Created function Tests.Rows.g",
@@ -280,8 +332,29 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "test"; "run"; "Zzz.Nope" ], 1, Silent, Says "No package tests matched"
     [ "view"; "Tests.Rows.f" ], 0, Says "let f(x: Int64)", Any
     [ "view"; "Zzz.Nope.f" ], 1, Silent, Says "Not found"
+    [ "view"; "Darklang.Stdlib.Float.round" ],
+    0,
+    Says "can raise a runtime error",
+    Any
+    [ "effects"; "Darklang.Stdlib.Float.round" ],
+    0,
+    Says "via Builtin.floatRound",
+    Silent
+    // Its `/` declares `Raise`, but it tests for every case where `/` raises.
+    [ "effects"; "Darklang.Stdlib.Int64.checkedDivide" ],
+    0,
+    Says "effect-free",
+    Silent
+    [ "effects"; "Darklang.Stdlib.DateTime.weekday" ], 0, Says "effect-free", Silent
     [ "hash"; "Tests.Rows.f" ], 0, Says "fn ", Silent
-    [ "deps"; "Tests.Rows.f" ], 0, Says "dependencies of Tests.Rows.f", Silent
+    [ "deps"; "Tests.Rows.f" ], 0, Says "dependencies of Tests.Rows.f", Any
+    [ "deps"; "Tests.Rows.g" ],
+    0,
+    Says "dependencies of Tests.Rows.g",
+    Says "No dependents"
+    [ "nav" ], 1, Silent, Says "Interactive terminal UI unavailable"
+    [ "search" ], 1, Silent, Says "Interactive terminal UI unavailable"
+    [ "builtins"; "zzzqqq" ], 0, Silent, Says "Showing 0 functions"
     [ "ls"; "Darklang.Stdlib.Bool" ], 0, Says "Contents of", Silent
     [ "nav"; "Darklang.Stdlib.Bool" ],
     0,
@@ -297,7 +370,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     0,
     Silent,
     Says "No values of type"
-    [ "builtins"; "listMap" ], 0, Says "listMap", Says "--with-sigs"
+    [ "builtins"; "listMap" ], 0, Says "List: listMap", Says "--with-sigs"
     [ "typecheck"; "Darklang.Stdlib.Bool" ], 0, Says "failed 0", Silent
     [ "impls"; "Darklang.Stdlib.Add" ], 0, Says "Darklang.Stdlib.Add", Silent
     [ "docs"; "scm" ], 0, Says "# Source control", Silent
@@ -308,7 +381,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "version"; "--local" ], 0, Says "Darklang CLI", Silent
     [ "config"; "list" ], 0, Says "exec.workers", Silent
     [ "config"; "get"; "zzznope" ], 1, Silent, Says "not a config key"
-    [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "requires", Silent
+    [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "Effects:", Silent
     [ "commit"; "-m"; "rows"; "--json" ], 0, Says "\"committed\":false", Any
     [ "commit"; "-m"; "rows"; "-y" ], 0, Says "commit ", Says "CHANGED"
     [ "commits"; "1"; "--json" ], 0, Says "\"hash\"", Silent
@@ -340,7 +413,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     0,
     Says "Will deprecate",
     Says "dry-run"
-    [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "`-y`"
+    [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "no terminal to confirm at"
     [ "delete"; "Tests.Rows.g2"; "-y" ],
     0,
     Says "Deprecated fn Tests.Rows.g2",
@@ -1228,6 +1301,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "conflicts", [ "list" ]
       "backups", [ "list" ]
       "permissions", [ "show"; seed.fn ]
+      "effects", [ seed.fn ]
       // Scoped to a module that is clean. The shared store holds failing fixtures other tests
       // leave on purpose, so an audit of all of it rightly exits 1.
       "typecheck", [ "Darklang.Stdlib.Bool" ]
@@ -1305,8 +1379,8 @@ let everyCommandWorksWithValidArguments =
 
         // A recorded run. Recording is off by default now, so the sweep turns it on for its own
         // seed and puts it back, the way `cliTestWithFreshTraces` does.
-        let recordingBefore = LibDB.Tracing.TraceDetail.current
-        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+        let recordingBefore = LibDB.Tracing.TraceDetail.current ()
+        LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
         let! _ = runCli state [ "eval"; "1 + 1" ]
         let! runsJson = runCli state [ "traces"; "list"; "1"; "--json" ]
         let run =
@@ -1376,7 +1450,7 @@ let everyCommandWorksWithValidArguments =
               "commands that did not answer a fair question:\n%s"
               detail
         finally
-          LibDB.Tracing.TraceDetail.setForTesting recordingBefore
+          LibDB.Tracing.TraceDetail.set recordingBefore
 
         do! archiveBranches state [ branch ]
       })
@@ -1398,6 +1472,38 @@ let private permissionsRefusesAnEmptyRule =
         Expect.isFalse
           (refused.Contains "allowed ")
           "and must not report a rule it did not add"
+      })
+
+/// Several rules in one call, `;`-separated. One that is not a rule saves none of them.
+let private permissionsAllowTakesSeveralRules =
+  instanceTest
+    "`permissions allow` takes several rules, and saves none when one is not a rule"
+    (fun state ->
+      task {
+        let! refused, code =
+          runCliWithExit
+            state
+            [ "permissions"; "allow"; "http-server 127.0.0.1 8123; zzznope" ]
+        Expect.equal code 1L $"a rule that is not one fails the call:\n{refused}"
+        Expect.stringContains
+          refused
+          "invalid permission rule: zzznope"
+          "it names the one that is not a rule"
+        let! listed = runCli state [ "permissions"; "list" ]
+        Expect.isFalse
+          (listed.Contains "http-server")
+          $"and the good rule beside it was not saved:\n{listed}"
+
+        let! _ =
+          runCli
+            state
+            [ "permissions"; "allow"; "http-server 127.0.0.1 8123; file read /tmp" ]
+        let! listed = runCli state [ "permissions"; "list" ]
+        Expect.stringContains
+          listed
+          "http-server"
+          $"the first rule is saved:\n{listed}"
+        Expect.stringContains listed "file read '/tmp'" $"and the second:\n{listed}"
       })
 
 let private nonexistentTargets : List<string * List<string>> =
@@ -2276,22 +2382,16 @@ let private workbenchFnEditCarriesCallers =
       })
 
 
-/// An approval whose version is gone from the store is a refusal the person can act on, printed
-/// as one, not an internal error.
-///
-/// Approvals outlive the store they were made against: a build re-authors the store from the
-/// `.dark` files, so a hand-authored function's hash moves while its approval stays put. The raise
-/// was written for exactly that, but went out as `Internal error` with a metadata dump under the
-/// one sentence that says what to do.
-let private staleApprovalIsARefusal =
+/// Missing old approval code must not interfere with the current function.
+let private missingApprovalVersionDoesNotBlockCurrentCode =
   cliTest
-    "an approval of a version no longer in the store refuses plainly"
+    "an approval of a missing version does not block current code"
     (fun state ->
       task {
         let name = "Tests.HonestApproval.stale"
         let! _ = runCli state [ "fn"; "/" + name; "(x: Int64) : Int64 = x + 6143" ]
         let! approved, approvalStatus =
-          runCliWithStatus state [ "permissions"; "approve"; name ]
+          runCliWithStatus state [ "permissions"; "approve"; name; "--yes" ]
         Expect.equal approvalStatus 0 approved
 
         // Move the approval to a version this store never held: what a store reset leaves behind.
@@ -2307,44 +2407,20 @@ let private staleApprovalIsARefusal =
         Expect.isSome current "the approval landed"
         let gone = String.replicate 64 "e"
         let moved =
-          LibDB.PolicyStore.recordApprovalAndMoveVersion
+          LibDB.PolicyStore.recordApproval
             account
-            gone
-            []
-            ""
-            None
             name
-            current
-            gone
+            (LibDB.PolicyStore.reviewToken (LibDB.PolicyStore.get ()))
+            { hash = gone
+              policy = LibExecution.Permissions.Policy.denyAll
+              fingerprint = "missing-version"
+              explicitRules = false }
         Expect.isOk moved "the approval now names a version the store does not have"
 
-        let! outcome =
-          task {
-            try
-              let! ran = runCli state [ "eval"; name + "(1)" ]
-              return Ok ran
-            with e ->
-              return Error e
-          }
+        let! ran, status = runCliWithStatus state [ "eval"; name + "(1)" ]
         let! _ = runCli state [ "permissions"; "unapprove"; name ]
-
-        match outcome with
-        | Error e -> return raise e
-        | Ok ran ->
-          Expect.stringContains
-            ran
-            $"An approved version of {name} is no longer in the package store"
-            $"it names the function and the condition:\n{ran}"
-          Expect.stringContains
-            ran
-            $"dark permissions unapprove {name}"
-            $"and the command that releases it:\n{ran}"
-          Expect.isFalse
-            (ran.Contains "Internal error")
-            $"and is not an internal error:\n{ran}"
-          Expect.isFalse
-            (ran.Contains "approved: ")
-            $"with no metadata dump:\n{ran}"
+        Expect.equal status 0 ran
+        Expect.equal (ran.Trim()) "6144" "the current body runs"
       })
 
 
@@ -2470,7 +2546,7 @@ let private moduleDocOnlyEditLands =
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
 let tests : List<Test> =
   [ unwrapErrorsAreReadable
-    staleApprovalIsARefusal
+    missingApprovalVersionDoesNotBlockCurrentCode
     damagedPolicyIsARefusal
     httpRuleWithTrailingStarMatches
     moduleDocOnlyEditLands
@@ -2488,6 +2564,8 @@ let tests : List<Test> =
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture
     stderrIsCapturedInOrder
+    stdinThatIsNotUtf8IsRefused
+    processTitleSaysWhatRuns
     diagnosticsStayOffStdout
     hintsAndLogsStayOffStdout
     warningsAndPreviewsStayOffStdout
@@ -2501,6 +2579,7 @@ let tests : List<Test> =
     everyExclusionIsReal
     everyHelpLeadsWithASummary
     permissionsRefusesAnEmptyRule
+    permissionsAllowTakesSeveralRules
     aDashLedArgumentIsNeverAName
     unsweptCommandsRefuseWithExit1
     costlyMistakesAreRefused

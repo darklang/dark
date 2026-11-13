@@ -236,7 +236,7 @@ let tableRows(columns: List<String>, rows: List<List<String>>): List<String> =
     |> Stdlib.String.trimEnd
 
   let rule =
-    widths |> Stdlib.List.map(fun w -> Stdlib.String.repeat("-", w)) |> Stdlib.String.join("  ")
+    widths |> Stdlib.List.map(fun w -> (Stdlib.String.checkedRepeat("-", w) |> Stdlib.Result.withDefault(""))) |> Stdlib.String.join("  ")
 
   Stdlib.List.concat(
     [ Colors.boldText(line(columns)), Colors.dimText(rule) ],

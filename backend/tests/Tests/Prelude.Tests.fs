@@ -93,7 +93,7 @@ let graphemeTests =
     [ while e.MoveNext() do
         yield e.GetTextElement() ]
 
-  // What `String.slice` computed before it had a fast path: clamp against the cluster count,
+  // `String.slice` without its fast path: clamp against the cluster count,
   // then join the clusters in range.
   let referenceSlice (s : string) (first : int64) (last : int64) : string =
     let clusters = reference s |> Array.ofList
@@ -212,6 +212,59 @@ let graphemeTests =
               $"startsWith {s} {prefix}"
       }
 
+      test "endsWithEgcs agrees with slicing" {
+        let others = samples |> List.take 200
+        for s in samples do
+          let len = int64 (reference s).Length
+          let suffixes = [ for i in 0 .. s.Length -> s.Substring i ] @ others
+          for suffix in suffixes do
+            let expected =
+              referenceSlice s (len - int64 (reference suffix).Length) len = suffix
+            Expect.equal
+              (String.endsWithEgcs s suffix)
+              expected
+              $"endsWith {s} {suffix}"
+      }
+
+      test "splitEgcs agrees with splitting the clusters" {
+        let referenceSplit (s : string) (sep : string) : List<string> =
+          let sepClusters = reference sep
+          let n = List.length sepClusters
+          let part (current : List<string>) = String.concat "" (List.rev current)
+          let rec go (rest : List<string>) (current : List<string>) acc =
+            match rest with
+            | [] -> List.rev (part current :: acc)
+            | _ when List.truncate n rest = sepClusters ->
+              go (List.skip n rest) [] (part current :: acc)
+            | c :: tail -> go tail (c :: current) acc
+          go (reference s) [] []
+        // Long runs of simple chars around the joining pieces, which the walks step over at once.
+        let long =
+          [ for s in List.take 300 samples ->
+              String.replicate 40 "ab" + s + String.replicate 40 "c" + s ]
+        let separators = List.ofArray pieces @ [ "ab"; "a\r"; "\u0301x"; "c\r\n" ]
+        for s in samples @ long do
+          for sep in separators do
+            Expect.equal
+              (String.splitEgcs s sep)
+              (referenceSplit s sep)
+              $"split {s} {sep}"
+      }
+
+      test "the walks agree with StringInfo over long runs of simple chars" {
+        for s in List.take 300 samples do
+          let s = String.replicate 40 "ab" + s + String.replicate 40 "c" + s
+          let clusters = reference s
+          let len = int64 clusters.Length
+          Expect.equal (String.lengthInEgcs s) clusters.Length $"length {s}"
+          for first in [ 0L; 1L; 39L; 40L; 41L; 79L; 80L; 81L; len - 2L; len ] do
+            for last in [ 40L; 80L; 81L; 120L; len - 1L; len ] do
+              Expect.equal
+                (String.sliceEgcs s first last)
+                (referenceSlice s first last)
+                $"slice {s} {first} {last}"
+      }
+
       testMany
         "egcs on the joining pieces"
         String.egcs
@@ -316,16 +369,15 @@ let assertions =
       test "assert_" { assert_ "_" [] true } ]
 
 
-/// Every `Ply.List` sequential helper, over a list far longer than anything a fold-based version survived.
+/// Every `Ply.List` sequential helper, over a list long enough to overflow a fold-based version.
 ///
-/// `flatten` and `foldSequentially` were the ones that actually went down: a fold there builds one nested
-/// continuation per element and unwinds only at the end, and a .NET stack overflow cannot be caught, so the
-/// process disappears. That is how the relay died decoding ~10,800 ops.
+/// In `flatten` and `foldSequentially` a fold builds one nested continuation per element and unwinds only
+/// at the end, and a .NET stack overflow cannot be caught, so the process disappears.
 ///
 /// Worth being precise about what this pins and what it does not. It asserts these helpers are CORRECT and
-/// order-preserving at 100k. It does NOT reproduce the crash: reverting `iterSequentially` to its fold form
+/// order-preserving at 100k. It does NOT reproduce an overflow: reverting `iterSequentially` to its fold form
 /// still passes here, because awaiting an already-completed Ply does not deepen the stack the way building
-/// a result chain does. The uniform iterative shape is the invariant; the crash is only reachable by some
+/// a result chain does. The uniform iterative shape is the invariant; an overflow is only reachable by some
 /// of them.
 let deepRecursion =
   let big = List.init 100_000 (fun i -> i)

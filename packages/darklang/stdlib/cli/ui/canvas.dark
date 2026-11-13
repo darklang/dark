@@ -4,20 +4,11 @@
 /// previous frame, so an arrow key rewrites the rows that changed instead of clearing and repainting. But a
 /// renderer is far easier to write as "put this text at that position" than as "produce these rows".
 ///
-/// Rewriting every renderer to return rows directly would mean redoing all the layout math with it. This
-/// module avoids that: a renderer keeps computing `(row, col, text)` exactly as it does now, but *returns*
-/// the spans instead of printing them. `compose` paints them onto a blank grid and hands back rows.
+/// A renderer computes `(row, col, text)` and *returns* the spans instead of printing them. `compose`
+/// paints them onto a blank grid and hands back rows.
 ///
-/// The migration is then mechanical, one renderer at a time:
-///   `Layout.printAt region r c text`      ->  `Layout.at region r c text`
-///   `a` then `b` (sequenced prints)        ->  `Stdlib.List.flatten [ a, b ]`
-///   `xs |> Stdlib.List.iter (...)`         ->  `xs |> Stdlib.List.map (...) |> Stdlib.List.flatten`
-///   `Region -> Unit`                       ->  `Region -> List<Span>`
-///
-/// Widths are measured with `Tui.Text`, so a span carrying CJK, emoji, or SGR colour lands where it should.
-/// `Layout.printAt` measured with `String.length`, which counts grapheme clusters rather than terminal
-/// columns - right for "how many characters is this", wrong for "how far does this reach across the screen",
-/// since `界` is one grapheme in two columns. That's why a wide glyph used to shove its row out of alignment.
+/// Widths are measured with `Tui.Text` in terminal columns, not with `String.length` (grapheme clusters),
+/// so a span carrying CJK, emoji, or SGR colour lands where it should: `界` is one grapheme in two columns.
 module Darklang.Stdlib.Cli.UI.Canvas
 
 
@@ -49,10 +40,6 @@ let overlay(existing: List<Segment>, next: Segment): List<Segment> =
     Stdlib.List.append(existing, next)
   else
 
-  // `filterMap` rather than `map` into one-element lists and `flatten`: the branches here answer
-  // "keep, trim, or drop", which is what an `Option` says, and building a list per segment only to
-  // concatenate them all was the long way round. `filterMap` is native now, which it was not when
-  // this was written.
   let kept =
     existing
     |> Stdlib.List.filterMap(fun seg ->
@@ -98,7 +85,7 @@ let renderSegments(width: Int64, segments: List<Segment>): String =
 
         let next =
           if start > col then
-            out + (Stdlib.String.repeat(" ", start - col)) + clipped
+            out + (Stdlib.String.checkedRepeat(" ", start - col) |> Stdlib.Result.withDefault("")) + clipped
           else
             out + clipped
 
@@ -110,13 +97,9 @@ let renderSegments(width: Int64, segments: List<Segment>): String =
 
 /// Paint one row's spans, in order.
 let composeRow(width: Int64, rowSpans: List<Layout.Span>): String =
-  // `renderSegments` walks the segments left to right, so they have to be in column order. Sorting
-  // them there cost a `sortBy` per row, to reorder rows a renderer had already produced left to
-  // right.
-  //
-  // So notice instead. `overlay` appends, and trimming an earlier segment leaves it where it was, so
-  // the result is in column order exactly when the spans arrived that way. Tracking that is one
-  // comparison against the highest column seen, and the sort only runs for a row that needs it.
+  // `renderSegments` walks the segments left to right, so they have to be in column order. `overlay`
+  // appends, and trimming an earlier segment leaves it where it was, so the result is in column order
+  // exactly when the spans arrived that way; the sort only runs for a row that needs it.
   // `rightmost` is the far edge of everything placed. A span starting at or after it cannot overlap
   // anything, which is the ordinary case for a row a renderer produced left to right -- and that is
   // one comparison where `overlay` would run `List.any` over every segment already placed. The two
@@ -166,9 +149,8 @@ let compose(width: Int64, height: Int64, spans: List<Layout.Span>): List<String>
         if span.row < 0 || span.row >= h then
           acc
         else
-          // Matched here rather than `|> Option.withDefault []`. `withDefault` is a real package
-          // call, and this runs once per span. Worth the two extra lines only because of where it
-          // sits; everywhere else `withDefault` reads better and costs nothing that matters.
+          // Matched here rather than `|> Option.withDefault []`: `withDefault` is a package call,
+          // and this runs once per span.
           let existing =
             match Stdlib.Dict.get(acc, span.row) with
             | Some(existing) -> existing
@@ -176,7 +158,7 @@ let compose(width: Int64, height: Int64, spans: List<Layout.Span>): List<String>
 
           Stdlib.Dict.set(acc, span.row, Stdlib.List.append(existing, span)))
 
-    Stdlib.List.range(0, h - 1)
+    (Stdlib.List.checkedRange(0, h - 1) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.map(fun row ->
       match Stdlib.Dict.get(byRow, row) with
       // An untouched row is empty rather than `width` spaces: the renderer erases each row it writes, so

@@ -5,8 +5,8 @@ module Darklang.SCM.Actions
 //
 // What stays in Dark is everything around an action: whether it is wanted, the checks it has to pass
 // first (type check, unresolved names, constraints, what a selection pulls in), and every sentence a
-// person reads about it. The wrappers callers use keep their names (`SCM.PackageOps.mergeBranch`,
-// `SCM.PackageOps.discardDraft`, ...); they map onto the functions below.
+// person reads about it. Callers use the wrappers (`SCM.PackageOps.mergeBranch`,
+// `SCM.PackageOps.discardDraft`, ...), which map onto the functions below.
 
 
 /// Why an action did nothing. A state the store or the request is in, which the caller words.

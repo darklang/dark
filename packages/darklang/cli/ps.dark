@@ -66,7 +66,7 @@ let statusText(branchId: Uuid, status: LanguageTools.Exec.Status): String =
 /// One row of the process tree. No `parent` column: the indentation is the parent, and
 /// `Table.print` pads to the widest cell, so a column that repeats the shape costs every row.
 let row(branchId: Uuid, depth: Int64, p: LanguageTools.Exec.Summary): List<String> =
-  let indent = Stdlib.String.repeat("  ", depth)
+  let indent = (Stdlib.String.checkedRepeat("  ", depth) |> Stdlib.Result.withDefault(""))
   [ Cli.Text.shortId(p.id)
     Cli.Text.oneLineAt(30, $"{indent}{entryText(branchId, p.entry)}")
     Cli.Text.oneLineAt(26, statusText(branchId, p.status))
@@ -127,12 +127,12 @@ let startedAgoText(started: DateTime): String =
   let ms = Stdlib.DateTime.subtractMs(Stdlib.DateTime.now(), started)
 
   if ms < 10000 then
-    let tenths = ms / 100
-    $"{Stdlib.display(tenths / 10)}.{Stdlib.display(tenths % 10)} s ago"
+    let tenths = Stdlib.Int64.checkedDivide(ms, 100) |> Stdlib.Result.withDefault(0)
+    $"{Stdlib.display(Stdlib.Int64.checkedDivide(tenths, 10) |> Stdlib.Result.withDefault(0))}.{Stdlib.display(Stdlib.Int64.checkedMod(tenths, 10) |> Stdlib.Result.withDefault(0))} s ago"
   else if ms < 60000 then
-    $"{Stdlib.display(ms / 1000)} s ago"
+    $"{Stdlib.display(Stdlib.Int64.checkedDivide(ms, 1000) |> Stdlib.Result.withDefault(0))} s ago"
   else if ms < 3600000 then
-    $"{Stdlib.display(ms / 60000)} min ago"
+    $"{Stdlib.display(Stdlib.Int64.checkedDivide(ms, 60000) |> Stdlib.Result.withDefault(0))} min ago"
   else
     Cli.RelativeTime.ago(started)
 
@@ -147,7 +147,7 @@ let machineEntries(): List<(Int64 * List<String>)> =
   |> Stdlib.List.map(fun m ->
     (m.pid,
      [ Stdlib.display(m.pid)
-       Cli.Text.oneLineAt(28, m.title)
+       Cli.Text.oneLineAt(48, m.title)
        (if m.branch == "" then "main" else m.branch)
        startedAgoText(m.started) ]))
 
@@ -182,10 +182,19 @@ let printList(branchId: Uuid): Unit =
   printMachine()
 
 
-/// One process in full; <param full> prints the whole uuid rather than the short id. `false`
-/// when it said why it could not, so the caller can exit non-zero: naming a process that is not
-/// there is a refusal, and a shell has only the code to read.
-let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
+/// How `ps show` prints ids: `--full` asks for the whole uuid.
+type Ids =
+  | Short
+  | Full
+
+/// One process in full. `false` when it said why it could not, so the caller can exit non-zero:
+/// naming a process that is not there is a refusal, and a shell has only the code to read.
+let printShowWith(branchId: Uuid, prefix: String, ids: Ids): Bool =
+  let idText(id: Uuid): String =
+    match ids with
+    | Short -> Cli.Text.shortId(id)
+    | Full -> Stdlib.display(id)
+
   match find(prefix) with
   | Error(e) ->
     Cli.printErr(e)
@@ -198,7 +207,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
       false
     | Some(detail) ->
       let s = detail.summary
-      let id = if full then Stdlib.display(s.id) else Cli.Text.shortId(s.id)
+      let id = idText(s.id)
       Stdlib.printLine($"{id}  {entryText(branchId, s.entry)}")
       Stdlib.printLine($"  status        {statusText(branchId, s.status)}")
       Stdlib.printLine($"  started       {startedAgoText(s.started)}")
@@ -209,7 +218,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
       else
         ()
       match s.parent with
-      | Some(pid) -> Stdlib.printLine($"  parent        {if full then Stdlib.display(pid) else Cli.Text.shortId(pid)}")
+      | Some(pid) -> Stdlib.printLine($"  parent        {idText(pid)}")
       | None -> ()
       match detail.frames with
       | [] -> ()
@@ -220,7 +229,7 @@ let printShowWith(branchId: Uuid, prefix: String, full: Bool): Bool =
           Stdlib.printLine($"    {executionPointText(branchId, ep)}"))
       true
 
-let printShow(branchId: Uuid, prefix: String): Bool = printShowWith(branchId, prefix, false)
+let printShow(branchId: Uuid, prefix: String): Bool = printShowWith(branchId, prefix, Ids.Short)
 
 /// The Dark process on this machine with pid <param target>, if it is one. A
 /// target no registered pid matches is left to the id prefix, since a short id
@@ -242,14 +251,14 @@ let printMachineShow(target: String, json: Bool): Bool =
   match machineByPid(target) with
   | Some(m) ->
     if json then
-      Stdlib.printLine(Stdlib.Json.serialize<LanguageTools.Exec.MachineProcess>(m))
+      Cli.printJson(Stdlib.Json.checkedSerialize<LanguageTools.Exec.MachineProcess>(m))
     else
       Stdlib.printLine($"{Stdlib.display(m.pid)}  {m.title}")
       Stdlib.printLine($"  command       {m.command}")
       let branch = if m.branch == "" then "main" else m.branch
       Stdlib.printLine($"  branch        {branch}")
       Stdlib.printLine($"  started       {startedAgoText(m.started)}")
-    true
+      true
   | None -> false
 
 
@@ -311,7 +320,7 @@ let stop(target: String, how: Stdlib.Exec.Stop): Stdlib.Result.Result<String, St
 
 /// Everything `ps` knows, as JSON, for something that is not a person: this instance's
 /// processes and the machine's other Dark processes, in the same two groups the tables print.
-let printJson(): Unit =
+let printJson(): Bool =
   let processes = LanguageTools.Exec.list()
   // Self is filtered out, the same way the table does it: the process answering the question is
   // not news, and the two renderings must not disagree about what is running.
@@ -319,9 +328,9 @@ let printJson(): Unit =
   let machine =
     LanguageTools.Exec.machineList()
     |> Stdlib.List.filter(fun m -> (m.pid) != me)
-  Stdlib.printLine(
-    (Stdlib.Json.serialize<PsSnapshot>(
-      PsSnapshot { thisInstance = processes, machine = machine })))
+  Cli.printJson(
+    Stdlib.Json.checkedSerialize<PsSnapshot>(
+      PsSnapshot { thisInstance = processes, machine = machine }))
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -331,8 +340,11 @@ let execute(state: AppState, args: List<String>): AppState =
 
   match args with
   | [] ->
-    if wantsJson then printJson() else printList(state.currentBranchId)
-    state
+    if wantsJson then
+      Cli.exitWith(state, printJson())
+    else
+      printList(state.currentBranchId)
+      state
   | [ "--watch" ] ->
     let view =
       LiveView.Model.View
@@ -346,7 +358,7 @@ let execute(state: AppState, args: List<String>): AppState =
             Stdlib.Option.Option.Some("up/down move  |  c cancel  |  k kill  |  esc quit") }
     // `--watch` IS the opt-in: a panel whose whole job is to repaint. It follows the store for
     // the same reason it follows the clock.
-    match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, true) with
+    match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, LiveView.Host.Updates.Live) with
     | Ok(_) -> state
     | Error(e) ->
       Cli.printErr(e)
@@ -367,13 +379,12 @@ let execute(state: AppState, args: List<String>): AppState =
               $"process {Cli.Text.shortId(p.id)} finished while you were asking")
             false
           | Some(d) ->
-            Stdlib.printLine(Stdlib.Json.serialize<LanguageTools.Exec.Detail>(d))
-            true
+            Cli.printJson(Stdlib.Json.checkedSerialize<LanguageTools.Exec.Detail>(d))
       else
         printShow(state.currentBranchId, prefix)
     Cli.exitWith(state, ok)
   | [ "show", prefix, "--full" ] ->
-    Cli.exitWith(state, printShowWith(state.currentBranchId, prefix, true))
+    Cli.exitWith(state, printShowWith(state.currentBranchId, prefix, Ids.Full))
   | [ "cancel", target ] ->
     match stop(target, Stdlib.Exec.Stop.Cancel) with
     | Ok(msg) ->
@@ -464,8 +475,8 @@ module Watch =
     let n = Stdlib.List.length(m.rows)
     { m with cursor = Stdlib.max(0, Stdlib.min(m.cursor, n - 1)) }
 
-  /// The panel shows one line either way, so a refusal becomes the note in the colour it
-  /// used to be printed in. `cancel` and `kill` on the command line exit non-zero instead;
+  /// The panel shows one line either way, so a refusal becomes the note, in the error
+  /// colour. `cancel` and `kill` on the command line exit non-zero instead;
   /// a panel has no exit code to carry it.
   let noteOf(r: Stdlib.Result.Result<String, String>): String =
     match r with

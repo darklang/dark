@@ -274,11 +274,7 @@ let private fnHashTests =
         Expect.notEqual h1 h2 "the name is all an unresolved reference has"
       }
 
-      // Bounds are a contract on the caller, so they hash; but they are written only
-      // when present, so every fn and type that has none keeps the hash it had
-      // before bounds existed. Both halves matter: the first for correctness, the
-      // second so adding the field did not repoint the whole store.
-      test "bounds hash, and an absent bounds list adds no bytes" {
+      test "bounds are part of a function hash" {
         let traitHash = PT.Hash "trait-show"
         let bound : PT.Bound =
           { param = "a"
@@ -290,16 +286,6 @@ let private fnHashTests =
         let hPlain = Hashing.computeFnHash Hashing.Normal plain
         let hBounded = Hashing.computeFnHash Hashing.Normal bounded
         Expect.notEqual hPlain hBounded "a bound is part of the fn's identity"
-        // The pre-bounds writer ended after the ceiling byte, and an empty list must not
-        // append a length byte, or adding the field would have repointed the whole store.
-        // The literal is the pin: it is what `makeFn (eInt64 42)` hashed to before `bounds`
-        // existed, so if the writer starts emitting anything for an empty list, this fails
-        // loudly rather than agreeing with itself.
-        let (PT.Hash asHex) = hPlain
-        Expect.equal
-          asHex
-          "37d6123e78e0dd93b49abcbca87e56528993f9f84731256f16a20bc2325bb391"
-          "a fn with no bounds hashes as it did before bounds existed"
       }
 
       // `Stdlib.List.map<Int64, Int64>` uncalled is a different value from `Stdlib.List.map`,

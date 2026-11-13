@@ -79,7 +79,7 @@ let private scriptOrEvalInputPersistence =
             "a path/脚本.dark",
             "args",
             args,
-            { allowHarmful = true; sandbox = true; warnPermissions = true }
+            { allowHarmful = true; sandbox = true }
           )
         for input in [ Traces.EvalExpression("1 + 2", true); script ] do
           let id = storeInvocation (Some input)
@@ -105,13 +105,26 @@ let private scriptOrEvalInputPersistence =
             "args", Sql.dbnull
             "allow_harmful", Sql.dbnull
             "sandbox", Sql.dbnull
-            "sandbox", Sql.int 2
-            "warn_permissions", Sql.dbnull ] do
+            "sandbox", Sql.int 2 ] do
           Expect.throws
             (fun () -> setColumn id column bad)
             $"the store refuses a missing or malformed {column}"
         let! read = Traces.getCliInput id
         Expect.equal read (Some script) "and the invocation is left whole"
+
+        // Removing the retired warning mode preserves recorded invocations.
+        Sql.query
+          "ALTER TABLE trace_cli_invocations ADD COLUMN warn_permissions INTEGER NOT NULL DEFAULT 0"
+        |> Sql.executeStatementSync
+        LibDB.Releases.removeTraceWarningColumn ()
+        LibDB.Releases.removeTraceWarningColumn ()
+        let! afterCleanup = Traces.getCliInput id
+        Expect.equal afterCleanup (Some script) "cleanup preserves the invocation"
+        let obsoleteColumn =
+          Sql.query
+            "SELECT 1 FROM pragma_table_info('trace_cli_invocations') WHERE name = 'warn_permissions'"
+          |> Sql.executeExistsSync
+        Expect.isFalse obsoleteColumn "the retired column is absent"
 
         // The reader must also reject malformed argument bytes.
         for bad in
@@ -367,6 +380,7 @@ let private aChildLoggedBeforeItsSpawnStillReplays =
         call "uuidGenerate" None ]
     let tracer =
       LibDB.Tracing.createReplayTracer
+        RT.Tracing.defaultCaps
         (LibExecution.AnalysisTypes.TraceID.create ())
         "eval"
         "expression"
@@ -437,39 +451,38 @@ let private retentionKeepsTheNewestAndTheSuspended =
     "retention drops the oldest runs past trace.keep but never a suspended one"
     (fun state ->
       task {
-        let keep, bytes =
-          LibDB.Tracing.TraceRetention.keep, LibDB.Tracing.TraceRetention.maxBytes
-        LibDB.Tracing.TraceRetention.setForTesting 2L 0L
-        try
-          // Four runs; the first is suspended by hand so it must survive.
-          let! _ = runCli state [ "eval"; "1" ]
-          let! first = latest ()
-          Traces.setStatus first.id Traces.Suspended
-          let! _ = runCli state [ "eval"; "2" ]
-          let! _ = runCli state [ "eval"; "3" ]
-          // The pass runs at most every ten seconds; the seam reset its clock, and it ran on
-          // the fourth store, which is the one past the cap.
-          LibDB.Tracing.TraceRetention.setForTesting 2L 0L
-          let! _ = runCli state [ "eval"; "4" ]
-          let! traces =
-            Sql.query "SELECT id FROM traces ORDER BY timestamp"
-            |> Sql.executeAsync (fun read -> read.string "id")
-          Expect.isTrue
-            (List.contains (string first.id) traces)
-            "the suspended run's trace is kept whatever its age"
-          Expect.isLessThanOrEqual
-            (List.length traces)
-            3
-            "at most the cap plus the exempt one"
-          let! rows = Traces.list 10
-          Expect.isTrue
-            (rows |> List.exists (fun e -> e.id = first.id))
-            "the suspended execution is still listed"
-          Expect.isTrue
-            (rows |> List.forall (fun e -> List.contains (string e.id) traces))
-            "every listed execution still has its trace: the rows went together"
-        finally
-          LibDB.Tracing.TraceRetention.setForTesting keep bytes
+        let state =
+          InProcess
+            { executionState state with
+                traceCaps = { RT.Tracing.defaultCaps with keep = 2L; maxBytes = 0L } }
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        // Four runs; the first is suspended by hand so it must survive.
+        let! _ = runCli state [ "eval"; "1" ]
+        let! first = latest ()
+        Traces.setStatus first.id Traces.Suspended
+        let! _ = runCli state [ "eval"; "2" ]
+        let! _ = runCli state [ "eval"; "3" ]
+        // The pass runs at most every ten seconds; the seam reset its clock, and it ran on
+        // the fourth store, which is the one past the cap.
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        let! _ = runCli state [ "eval"; "4" ]
+        let! traces =
+          Sql.query "SELECT id FROM traces ORDER BY timestamp"
+          |> Sql.executeAsync (fun read -> read.string "id")
+        Expect.isTrue
+          (List.contains (string first.id) traces)
+          "the suspended run's trace is kept whatever its age"
+        Expect.isLessThanOrEqual
+          (List.length traces)
+          3
+          "at most the cap plus the exempt one"
+        let! rows = Traces.list 10
+        Expect.isTrue
+          (rows |> List.exists (fun e -> e.id = first.id))
+          "the suspended execution is still listed"
+        Expect.isTrue
+          (rows |> List.forall (fun e -> List.contains (string e.id) traces))
+          "every listed execution still has its trace: the rows went together"
       })
 
 
@@ -559,7 +572,8 @@ let private manualDeletesSweepOrphanedRows =
              + "  |> Stdlib.List.map(fun i -> i * 2)\n"
              + "  |> Stdlib.List.length")
         do! commit state "looped"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
+        let! _ =
+          runCli state [ "permissions"; "approve"; "Tests.Prev.looped"; "--yes" ]
         // A loop, a logged call and a captured blob, so every table has live rows to copy.
         let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
         let! _ = runCli state [ "eval"; twoUuids ]
@@ -638,23 +652,23 @@ let private byteCapActsBelowFiftyTraces =
     "the byte cap applies however few traces there are"
     (fun state ->
       task {
-        let keep, bytes =
-          LibDB.Tracing.TraceRetention.keep, LibDB.Tracing.TraceRetention.maxBytes
-        try
-          LibDB.Tracing.TraceRetention.setForTesting 200L 1L
-          let! _ = runCli state [ "eval"; "Stdlib.printLine(\"one\")" ]
-          LibDB.Tracing.TraceRetention.setForTesting 200L 1L
-          let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
-          let! newest = latest ()
-          let! traces =
-            Sql.query "SELECT id FROM traces"
-            |> Sql.executeAsync (fun read -> read.string "id")
-          Expect.equal
-            traces
-            [ string newest.id ]
-            "two traces over a one-byte cap: the pass after the second store took the first"
-        finally
-          LibDB.Tracing.TraceRetention.setForTesting keep bytes
+        let state =
+          InProcess
+            { executionState state with
+                traceCaps =
+                  { RT.Tracing.defaultCaps with keep = 200L; maxBytes = 1L } }
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        let! _ = runCli state [ "eval"; "Stdlib.printLine(\"one\")" ]
+        LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
+        let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
+        let! newest = latest ()
+        let! traces =
+          Sql.query "SELECT id FROM traces"
+          |> Sql.executeAsync (fun read -> read.string "id")
+        Expect.equal
+          traces
+          [ string newest.id ]
+          "two traces over a one-byte cap: the pass after the second store took the first"
       })
 
 
@@ -839,7 +853,8 @@ let private deletingEveryTraceEmptiesEveryTraceTable =
              + ""
              + "")
         do! commit state "looped"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
+        let! _ =
+          runCli state [ "permissions"; "approve"; "Tests.Prev.looped"; "--yes" ]
         // A loop, a logged call and a captured blob, so every table has rows to leave behind.
         let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
         let! _ = runCli state [ "eval"; twoUuids ]
@@ -944,7 +959,8 @@ let private pureLoopPassesAreCounted =
              + ""
              + "")
         do! commit state "pure"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.pure" ]
+        let! _ =
+          runCli state [ "permissions"; "approve"; "Tests.Prev.pure"; "--yes" ]
         let! ran = runCli state [ "eval"; "Tests.Prev.pure(5)" ]
         Expect.stringContains ran "5" "the run went round five times"
 
@@ -1051,7 +1067,8 @@ let private deletingATraceTakesItsLoopCounts =
              + ""
              + "")
         do! commit state "looped"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
+        let! _ =
+          runCli state [ "permissions"; "approve"; "Tests.Prev.looped"; "--yes" ]
         let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
 
         let! latest' = latest ()

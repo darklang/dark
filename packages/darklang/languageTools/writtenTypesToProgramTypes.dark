@@ -26,6 +26,17 @@ let gid(): Int64 =
   // TODO: fix upper range here
   Stdlib.Int64.random(0, 922337203685477580)
 
+/// An id that carries where its node starts, so a type error can name the line. Bit 61
+/// marks it, the line goes in bits 37-60 and the column in 21-36, and the low bits stay
+/// random to keep ids unique. Positions past those widths get a plain <fn gid>.
+let gidAt(range: Parser.Range): Int64 =
+  let row = range.start.row
+  let column = range.start.column
+  if row < 0 || row >= 16777216 || column < 0 || column >= 65536 then
+    gid()
+  else
+    2305843009213693952 + row * 137438953472 + column * 2097152 + Stdlib.Int64.random(0, 2097151)
+
 let gtlid(): UInt64 =
   Stdlib.UInt64.random(0u64, 9223372036854775807u64)
 
@@ -481,10 +492,42 @@ module Expr =
       | (_, Some((_, p))) -> p
       | ((nameRange, name), None) -> WrittenTypes.MatchPattern.MPVariable(nameRange, name)
 
+    let range(p: WrittenTypes.MatchPattern): WrittenTypes.Range =
+      match p with
+      | MPUnit(r) -> r
+      | MPBool(r, _) -> r
+      | MPInt8(r, _, _) -> r
+      | MPUInt8(r, _, _) -> r
+      | MPInt16(r, _, _) -> r
+      | MPUInt16(r, _, _) -> r
+      | MPInt32(r, _, _) -> r
+      | MPUInt32(r, _, _) -> r
+      | MPInt64(r, _, _) -> r
+      | MPUInt64(r, _, _) -> r
+      | MPInt128(r, _, _) -> r
+      | MPUInt128(r, _, _) -> r
+      | MPBigInt(r, _) -> r
+      | MPFloat(r, _, _, _) -> r
+      | MPFloat32(r, _, _, _) -> r
+      | MPDecimal(r, _) -> r
+      | MPChar(r, _, _, _) -> r
+      | MPString(r, _, _, _) -> r
+      | MPList(r, _, _, _) -> r
+      | MPListCons(r, _, _, _) -> r
+      | MPTuple(r, _, _, _, _, _, _) -> r
+      | MPVariable(r, _) -> r
+      | MPEnum(r, _, _) -> r
+      | MPOr(r, _) -> r
+      | MPAs(r, _, _, _) -> r
+      | MPRecord(r, _, _, _) -> r
+      | MPError(r) -> r
+
     let toPT(
       onMissing: NameResolver.OnMissing,
       p: WrittenTypes.MatchPattern)
       : ProgramTypes.MatchPattern =
+      let at = range(p)
+      let gid(): Int64 = gidAt(at)
       match p with
       | MPUnit(_) -> ProgramTypes.MatchPattern.MPUnit(gid())
       | MPBool(_, b) -> ProgramTypes.MatchPattern.MPBool(gid(), b)
@@ -713,6 +756,9 @@ module Expr =
     : (ProgramTypes.Expr *
       List<WrittenTypes.UnresolvedName>)
     =
+    // every node made here starts where `e` starts
+    let at = WrittenTypes.Expr.range(e)
+    let gid(): Int64 = gidAt(at)
     // Callers must reject parser diagnostics before using the lowered program.
     // Keep lowering total for recovered trees by replacing their EError holes.
     match e with
@@ -1589,12 +1635,6 @@ module FunctionDeclaration =
         parameters = params
         returnType = rtyp
         description = fn.description
-        permissionCeiling =
-          fn.effects
-          |> Stdlib.Option.map(fun names ->
-            names
-            |> Stdlib.List.filterMap(fun((_range, case)) ->
-              LanguageTools.Permissions.effectOfCase(case)))
         body = body },
       unresolvedNames)
 
@@ -1629,12 +1669,6 @@ module TraitDeclaration =
           bounds = methodBounds
           parameters = params
           returnType = rtyp
-          permissionCeiling =
-            m.effects
-            |> Stdlib.Option.map(fun names ->
-              names
-              |> Stdlib.List.filterMap(fun((_range, case)) ->
-                LanguageTools.Permissions.effectOfCase(case)))
           description = m.description },
         unresolvedNames)
 

@@ -96,7 +96,7 @@ the per-opcode totals across every VM.
   on the cold first run (with its peak memory). The warm number is net of startup
   (`workloads/startup.dark`), which has a budget of its own. Every workload in `workloads/suite/`
   has one too, on allocation per iteration as `suite` measures it. So do the interactive CLI's
-  first frame and one keypress, on VM instructions and allocation (`_ui.py`). Then
+  first frame and its keys, on VM instructions, allocation and SQL statements per key (`_ui.py`). Then
   CPU for `workloads/fib.dark`,
   `workloads/lists.dark` and `ls` against the newest release, paired (`_paired.py`); offline,
   against the one `budget.json` pins. `--published` is the real one; bare is debug and does not
@@ -118,7 +118,7 @@ the per-opcode totals across every VM.
   `expect`. `gate` budgets the headless half of it (see `workloads/ui/` below).
 - `alloc-profile` is allocation by type name, from GC allocation-tick events.
 - `fnprofile` ranks per-package-fn time and resolves hashes to names. Feed it three runs: it takes
-  the minimum per call, and one run of it once misread a function by 20x.
+  the minimum per call.
 - `crosslang` runs the reference workload in node and python, for scale.
 - `view-telemetry.py` shows where a run's time went, from `rundir/logs/telemetry.jsonl`.
 - `_common` holds the shared shell helpers: where a published binary is, which mode it is, whether
@@ -139,9 +139,12 @@ Different contracts, which is why they are in different places:
   its budget.
 - `workloads/ui/workbench.dark` is the interactive CLI with no terminal, at 120x40: at
   `PERF_ITERS=0` process start to the workbench's first frame painted to a string, at N that plus
-  N Down/Up presses in Code. `_ui.py` runs it at 0, 1 and 1+N and `gate` budgets the first frame
-  and the difference per key: VM instructions, which repeat exactly, and allocation, which sees
-  the builtins where most of a keypress goes. Wall time is printed beside them and gates nothing.
+  N keys, which `PERF_UI` picks: Down/Up at `List.map` (`keypress`), Down through `List`
+  (`keyWalk`, every item new), Down/Up on Home (`homeKey`), Down through Stdlib's modules
+  (`moduleKey`). `_ui.py` runs it at 0, then each at 1 and 1+N, and `gate` budgets the first
+  frame and the difference per key: VM instructions, which repeat exactly, allocation, which sees
+  the builtins where most of a keypress goes, and SQL statements. Wall time is printed beside them
+  and gates nothing.
 - `workloads/bench/` is staged into `rundir/perf-workloads/` by `bench`. These use raw `Builtin.`
   calls rather than the Dark wrappers on purpose: an A/B runs the same source against an older
   published binary, whose store may not carry today's wrapper.
@@ -155,30 +158,27 @@ Different contracts, which is why they are in different places:
   is labelled and must not be used as a performance measurement. Run by hand, a probe keeps
   its full repetitions. The switch is a constant rather than an environment variable because
   reading one needs `env read`, which the default instance policy prompts for. The gate
-  reports elapsed seconds per probe to help identify slow checks. The separate AOT allocation
-  gate and its budget are unchanged.
+  reports elapsed seconds per probe to help identify slow checks.
 
 ## What is NOT here
 
-Correctness checks. There used to be a `checks` script and a `workloads/checks/` directory holding
-golden-output comparisons for the interpreter, operator fast paths, SGR parsing, grapheme handling
-and two rendered views. Those are all package tests now, in `packages/darklang/tests/`, where they
-are asserted by `dark test run` rather than read by eye. If you want to check that a perf change
+Correctness checks. Golden-output comparisons for the interpreter, operator fast paths, SGR parsing,
+grapheme handling and rendered views are package tests, in `packages/darklang/tests/`, asserted by
+`dark test run`. If you want to check that a perf change
 kept behaviour identical, run the package tests.
 
 ## Reading a number without fooling yourself
 
-The playbook has the long version. The four that cost the most time here:
+The playbook has the long version. The four that matter most:
 
 - **A published binary older than the tree measures the previous build.** `gate` and
   `gates first-day` refuse one rather than reporting; believe them.
-- **The store is half the measurement.** The same binary reads about 2 MB higher against a working
-  dev store than against one the published binary grew itself. CI is in the second case.
+- **The store is half the measurement.** The same binary reads a couple of percent higher against a
+  working dev store than against one the published binary grew itself. CI is in the second case.
 - **A zero-second run is a lock, not a result**, and a suspiciously good number usually means the
   thing you think produced it did not run.
-- **A whole run is mostly startup.** On an AOT binary with a warm store, `startup.dark` (one
-  `printLine`) allocates 7.0 MB and all of `steady.dark` 10.3 MB, so two thirds of a whole run is
-  not the loop under test, and a 3% tolerance on the total let a 19% regression in the workload
-  through. So `gate` budgets the two apart: startup at 3%, and `steady.dark` minus startup (3.35
-  MB, parsing the file and the loop) at 5%, each the median of three warm runs. It prints the
+- **A whole run is mostly startup.** `startup.dark` (one `printLine`) is about two thirds of a
+  whole `steady.dark` run, so a tolerance on the total hides a regression in the loop under test.
+  So `gate` budgets the two apart: startup at 3%, and `steady.dark` minus startup (parsing the
+  file and the loop) at 5%, each the median of three warm runs. It prints the
   total too. `suite` differences 0 against N iterations, so its numbers leave out parsing as well.

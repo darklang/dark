@@ -91,287 +91,238 @@ let newRunPolicyDenies =
     expectDenied [ "run policy" ] actual
   }
 
-let private clockEffects = Set.singleton Effects.Effect.Clock
+module P = LibExecution.Permissions
 
-let private ceilingFn
-  (hash : string)
-  (ceiling : Option<Set<Effects.Effect>>)
-  (body : PT.Expr)
-  : PT.PackageFn.PackageFn =
+let private clockBody =
+  eLet
+    (PT.LPWildcard(gid ()))
+    (eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ])
+    (PT.EBigInt(gid (), 1I))
+
+let private fn hash body : PT.PackageFn.PackageFn =
   { hash = PT.Hash hash
     typeParams = []
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
     returnType = PT.TBigInt
     body = body
     description = ""
-    permissionCeiling = ceiling
     bounds = [] }
 
-let private clockBody = eApply (eBuiltinFn "syscallGettimeofday" 0) [] [ eUnit () ]
+let private named name hash =
+  PT.EFnName(
+    gid (),
+    { originalName = [ "Me"; name ]
+      resolved =
+        Ok
+          { name = PT.FQFnName.Package(PT.Hash hash)
+            location = Some { owner = "Me"; modules = []; name = name } } },
+    [],
+    []
+  )
 
-let private pmWith (fns : List<PT.PackageFn.PackageFn>) : PT.PackageManager =
-  let byHash = fns |> List.map (fun fn -> fn.hash, fn) |> Map.ofList
-  { TestValues.pm with
-      getFn =
-        fun hash ->
-          match Map.tryFind hash byHash with
-          | Some fn -> Ply(Some fn)
-          | None -> TestValues.pm.getFn hash }
+let private call name hash = eApply (named name hash) [] [ eUnit () ]
 
-let private runPackageFnWith
-  (configure : RT.ExecutionState -> RT.ExecutionState)
-  (pm : PT.PackageManager)
-  (hash : string)
-  : System.Threading.Tasks.Task<RT.ExecutionResult> =
-  task {
-    let! exeState = executionStateFor pm false // instance grants all
-    return!
-      LibExecution.Execution.executeFunction
-        (configure exeState)
-        (RT.FQFnName.fqPackage hash)
-        []
-        (NEList.singleton RT.DUnit)
-  }
-
-let private runPackageFn = runPackageFnWith (fun state -> state)
-
-/// Deny one package by hash while every other package stays allow-all.
-let private denyPackage (hash : string) (state : RT.ExecutionState) =
+let private withApprovals approvals (state : RT.ExecutionState) =
   { state with
       packagePolicy =
-        fun id ->
-          if id = RT.Hash hash then
-            LibExecution.Permissions.Policy.denyAll
-          else
-            LibExecution.Permissions.Policy.allowAll }
+        fun name _ ->
+          Some(
+            name
+            |> Option.bind (fun n -> Map.tryFind n approvals)
+            |> Option.defaultValue P.Policy.denyAll
+          ) }
 
-let packagePolicyDenies =
-  testTask "a package policy attenuates instance and run access" {
-    let hash = "permissions-package-denied"
-    let fn = ceilingFn hash None clockBody
-    let! actual = runPackageFnWith (denyPackage hash) (pmWith [ fn ]) hash
-    expectDenied [ "package policy" ] actual
+let private namedState instance restriction approvals fns =
+  task {
+    let byHash =
+      fns |> List.map (fun (f : PT.PackageFn.PackageFn) -> f.hash, f) |> Map.ofList
+    let pm = { TestValues.pm with getFn = fun h -> Ply(Map.tryFind h byHash) }
+    let! state = executionStateFor pm false
+    return
+      withApprovals approvals state
+      |> LibExecution.Execution.setInstancePolicy instance
+      |> LibExecution.Execution.restrictRun restriction
   }
 
-/// After an upgrade changes what a builtin declares, a policy installed by an older approval can
-/// stop covering a call it used to cover. The denial has to say which approval that was and why it
-/// stopped being enough, not just print a policy hash nobody has seen.
-let packageDenialNamesStaleApproval =
-  testTask "a package denial names the approval and says when it is stale" {
-    let hash = "permissions-package-stale"
-    let fn = ceilingFn hash None clockBody
-    let withOrigin (stale : bool) (state : RT.ExecutionState) =
-      { denyPackage hash state with
-          packagePolicyOrigin =
-            fun id ->
-              if id = hash then
-                Some(
-                  { approvedAs = [ "Tests.Probe.run" ]; stale = stale }
-                  : RT.PackagePolicyOrigin
-                )
-              else
-                None }
+let private runIn state expr =
+  LibExecution.Execution.executeExpr state (PT2RT.Expr.toRT Map.empty 0 None expr)
 
-    let! stale = runPackageFnWith (withOrigin true) (pmWith [ fn ]) hash
-    expectDenied
-      [ "came from approving `Tests.Probe.run`"
-        "before this version of Dark changed what its builtins declare"
-        "`permissions approve Tests.Probe.run`" ]
-      stale
-
-    let! fresh = runPackageFnWith (withOrigin false) (pmWith [ fn ]) hash
-    expectDenied [ "came from approving `Tests.Probe.run`" ] fresh
-    match fresh with
-    | Error(RTE.Error.UncaughtException(msg, _), _) ->
-      Expect.isFalse
-        (msg.Contains "before this version of Dark")
-        $"a current approval is not called stale, got: {msg}"
-    | _ -> ()
+let private runNamed instance restriction approvals fns expr =
+  task {
+    let! state = namedState instance restriction approvals fns
+    return! runIn state expr
   }
 
-let escapedLambdaKeepsAccess =
-  testTask "a returned lambda keeps its creator's package access" {
-    let producerHash = "permissions-lambda-producer"
-    let runnerHash = "permissions-lambda-runner"
-    let lambdaBody = eLambda (gid ()) [ lpVar "unit" ] clockBody
-    let producer =
-      { ceilingFn producerHash None lambdaBody with
-          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
-    let returnedLambda = eApply (ePackageFn producerHash) [] [ eUnit () ]
-    let runnerBody = eApply returnedLambda [] [ eUnit () ]
-    let runner = ceilingFn runnerHash None runnerBody
+let private clockGrant = P.Policy.allowEffects (Set.singleton Effects.Effect.Clock)
+
+let namedApprovalSuppliesMissingAccess =
+  testTask "named approval supplies access without an instance allow" {
     let! actual =
-      runPackageFnWith
-        (denyPackage producerHash)
-        (pmWith [ producer; runner ])
-        runnerHash
-    // The closure kept its creator's package access.
-    expectDenied [ "package policy" ] actual
-  }
-
-let functionCeilingDenies =
-  testTask "a function ceiling attenuates an otherwise-permitted instance" {
-    let hash = "permissions-ceiling-denied"
-    let fn = ceilingFn hash (Some Set.empty) clockBody
-    let! actual = runPackageFn (pmWith [ fn ]) hash
-    expectDenied [ "function policy"; "clock" ] actual
-  }
-
-let functionCeilingAllows =
-  testTask "a function ceiling can permit an instance-granted effect" {
-    let hash = "permissions-ceiling-allowed"
-    let fn = ceilingFn hash (Some clockEffects) clockBody
-    let! actual = runPackageFn (pmWith [ fn ]) hash
+      runNamed
+        P.Policy.denyAll
+        P.Policy.allowAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "clock" clockBody ]
+        (call "reader" "clock")
     expectNotDenied actual
   }
 
-let callerCeilingAttenuates =
-  testTask "a caller ceiling continues to constrain its callees" {
-    let calleeHash = "permissions-ceiling-callee"
-    let callerHash = "permissions-ceiling-caller"
-    let callee = ceilingFn calleeHash (Some clockEffects) clockBody
-    let callerBody = eApply (ePackageFn calleeHash) [] [ eUnit () ]
-    let caller = ceilingFn callerHash (Some Set.empty) callerBody
-    let! actual = runPackageFn (pmWith [ caller; callee ]) callerHash
-    // The caller's ceiling constrains the callee.
-    expectDenied [ "function policy" ] actual
+let identicalAliasDoesNotInheritApproval =
+  testTask "an identical alias does not inherit a named approval" {
+    let! actual =
+      runNamed
+        P.Policy.denyAll
+        P.Policy.allowAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "clock" clockBody ]
+        (call "alias" "clock")
+    expectDenied [ "clock" ] actual
   }
 
-let escapedLambdaKeepsCeiling =
-  testTask "a returned lambda keeps its creator's function ceiling" {
-    let producerHash = "permissions-ceiling-lambda-producer"
-    let runnerHash = "permissions-ceiling-lambda-runner"
-    let lambdaBody = eLambda (gid ()) [ lpVar "unit" ] clockBody
-    let producer =
-      { ceilingFn producerHash (Some Set.empty) lambdaBody with
-          returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
-    let returnedLambda = eApply (ePackageFn producerHash) [] [ eUnit () ]
-    let runnerBody = eApply returnedLambda [] [ eUnit () ]
-    let runner = ceilingFn runnerHash None runnerBody
-    let! actual = runPackageFn (pmWith [ producer; runner ]) runnerHash
-    // The escaped closure retains its creator's ceiling.
-    expectDenied [ "function policy" ] actual
+let helpersInheritApproval =
+  testTask "helpers inherit the entry approval without dependency approvals" {
+    let! actual =
+      runNamed
+        P.Policy.denyAll
+        P.Policy.allowAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "root" (call "helper" "clock"); fn "clock" clockBody ]
+        (call "reader" "root")
+    expectNotDenied actual
   }
 
-// ── deferred-execution matrix ───────────────────────────────
-//
-// One rule for every value that runs later: it keeps the restrictions of
-// the frame that MADE it, and runs under the intersection of those with the
-// frame that RUNS it. A stream built broad and drained inside a `:{}`
-// function, running its callback under the construction access alone, was
-// one cell of this table. Every cell: a producer builds the value, a runner runs it, one of
-// them is restricted, and the run must be refused by that restriction.
-
-let private shapes = [ "named fn"; "lambda"; "stream" ]
-let private directions =
-  [ "restricted maker, broad runner"; "broad maker, restricted runner" ]
-let private layers = [ "function ceiling"; "package approval" ]
-
-/// One cell. Three functions, because WHERE a value is made and WHERE it is
-/// run must be different frames: a broad `driver` calls the `producer` to
-/// make the value and hands it to the `runner` as a parameter. Calling the
-/// producer from inside the runner would make it inherit the runner's
-/// restriction, and a "broad maker" would never be broad -- the first
-/// version of this matrix did exactly that and detected nothing.
-let private deferredCase
-  (shape : string)
-  (direction : string)
-  (layer : string)
-  : Test =
-  let slug (text : string) = text.Replace(" ", "-").Replace(",", "")
-  let id = $"{slug shape}-{slug direction}-{slug layer}"
-  let clockHash = $"matrix-clock-{id}"
-  let producerHash = $"matrix-producer-{id}"
-  let runnerHash = $"matrix-runner-{id}"
-  let driverHash = $"matrix-driver-{id}"
-  let makerRestricted = direction = "restricted maker, broad runner"
-  let byCeiling = layer = "function ceiling"
-  let restrictedCeiling (isThisOne : bool) =
-    if byCeiling && isThisOne then Some Set.empty else None
-  let unitLambdaClock = eLambda (gid ()) [ lpVar "unit" ] clockBody
-  let param (name : string) : PT.PackageFn.Parameter =
-    { name = name; typ = PT.TVariable "a"; description = "" }
-  let generic
-    (parameters : NEList<PT.PackageFn.Parameter>)
-    (body : PT.Expr)
-    (hash : string)
-    (ceiling : Option<Set<Effects.Effect>>)
-    : PT.PackageFn.PackageFn =
-    { ceilingFn hash ceiling body with
-        parameters = parameters
-        typeParams = [ "a" ]
-        returnType = PT.TVariable "a" }
-  // The producer makes the value.
-  let makeBody =
-    match shape with
-    | "named fn" -> ePackageFn clockHash
-    | "lambda" -> unitLambdaClock
-    | _ ->
-      eApply
-        (eBuiltinFn "streamMap" 0)
-        [ PT.TUnit; PT.TBigInt ]
-        [ eApply (eBuiltinFn "streamFromList" 0) [ PT.TUnit ] [ eList [ eUnit () ] ]
-          unitLambdaClock ]
-  let isStream = shape = "stream"
-  // A stream crossing a function boundary needs its concrete type: the
-  // fn-valued shapes unify with a type variable, a `DStream` does not.
-  let streamOfInt = PT.TStream PT.TBigInt
-  let producer =
-    let fn =
-      generic
-        (NEList.singleton (param "unit"))
-        makeBody
-        producerHash
-        (restrictedCeiling makerRestricted)
-    if isStream then { fn with typeParams = []; returnType = streamOfInt } else fn
-  // The runner runs the value it is handed.
-  let runBody =
-    match shape with
-    | "stream" -> eApply (eBuiltinFn "streamToList" 0) [ PT.TBigInt ] [ eVar "v" ]
-    | _ -> eApply (eVar "v") [] [ eUnit () ]
-  let runner =
-    let fn =
-      generic
-        (NEList.singleton (param "v"))
-        runBody
-        runnerHash
-        (restrictedCeiling (not makerRestricted))
-    if isStream then
-      { fn with
-          parameters =
-            NEList.singleton { name = "v"; typ = streamOfInt; description = "" }
-          typeParams = []
-          returnType = PT.TList PT.TBigInt }
-    else
-      fn
-  // The driver is broad and outermost: make, then run.
-  let driverBody =
-    eApply
-      (ePackageFn runnerHash)
-      []
-      [ eApply (ePackageFn producerHash) [] [ eUnit () ] ]
-  let driver = generic (NEList.singleton (param "unit")) driverBody driverHash None
-  let pm = pmWith [ ceilingFn clockHash None clockBody; producer; runner; driver ]
-  let configure =
-    if byCeiling then
-      (fun state -> state)
-    else
-      denyPackage (if makerRestricted then producerHash else runnerHash)
-  testTask $"deferred: {shape}, {direction}, {layer}" {
-    let! actual = runPackageFnWith configure pm driverHash
-    expectDenied
-      [ (if byCeiling then "function policy" else "package policy") ]
-      actual
+let nestedApprovalCannotWiden =
+  testTask "an unapproved caller cannot acquire a callee's approval" {
+    let! actual =
+      runNamed
+        P.Policy.denyAll
+        P.Policy.allowAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "outer" (call "reader" "clock"); fn "clock" clockBody ]
+        (call "outer" "outer")
+    expectDenied [ "clock" ] actual
   }
 
-let deferredExecutionMatrix : List<Test> =
-  [ for shape in shapes do
-      for direction in directions do
-        for layer in layers do
-          deferredCase shape direction layer ]
+let explicitDenyWins =
+  testTask "an explicit instance deny beats the named grant" {
+    let policy = P.Policy.create [] [ P.Rule.Effect Effects.Effect.Clock ]
+    let! actual =
+      runNamed
+        policy
+        P.Policy.allowAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "clock" clockBody ]
+        (call "reader" "clock")
+    expectDenied [ "explicitly denied" ] actual
+  }
 
-/// Calls `builtin` from `state` with no arguments: true if it refuses as policy administration.
-/// Anything else (usually an arity complaint) means the call got past the admin check.
+let runRestrictionWins =
+  testTask "a run restriction beats the named grant" {
+    let! actual =
+      runNamed
+        P.Policy.denyAll
+        P.Policy.denyAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "clock" clockBody ]
+        (call "reader" "clock")
+    expectDenied [ "run policy" ] actual
+  }
+
+// These share one state's call data across runs, as a host's later runs do.
+let approvalChangeBetweenRuns =
+  testTask "a changed approval applies on the next run" {
+    let! state =
+      namedState
+        P.Policy.denyAll
+        P.Policy.allowAll
+        Map.empty
+        [ fn "clock" clockBody ]
+    let! before = runIn state (call "reader" "clock")
+    expectDenied [ "clock" ] before
+    let granted = withApprovals (Map.ofList [ "Me.reader", clockGrant ]) state
+    let! after = runIn granted (call "reader" "clock")
+    expectNotDenied after
+    let! revoked = runIn (withApprovals Map.empty granted) (call "reader" "clock")
+    expectDenied [ "clock" ] revoked
+  }
+
+let namesSharingCallDataKeepTheirOwnApproval =
+  testTask "two names for one fn keep their own approvals" {
+    let! state =
+      namedState
+        P.Policy.denyAll
+        P.Policy.allowAll
+        (Map.ofList [ "Me.reader", clockGrant ])
+        [ fn "clock" clockBody ]
+    let! first = runIn state (call "alias" "clock")
+    expectDenied [ "clock" ] first
+    let! approved = runIn state (call "reader" "clock")
+    expectNotDenied approved
+    let! again = runIn state (call "alias" "clock")
+    expectDenied [ "clock" ] again
+    let both =
+      eLet (PT.LPWildcard(gid ())) (call "reader" "clock") (call "alias" "clock")
+    let! oneRun = runIn state both
+    expectDenied [ "clock" ] oneRun
+  }
+
+/// Make and consume in separate frames so either side can supply the restriction.
+let deferredExecutionMatrix =
+  [ for shape in [ "named fn"; "lambda"; "stream" ] do
+      for direction in [ "maker"; "runner"; "neither" ] do
+        testTask $"deferred {shape}: restricted {direction}" {
+          let suffix = shape.Replace(" ", "-") + "-" + direction
+          let makerHash = "maker-" + suffix
+          let runnerHash = "runner-" + suffix
+          let clockHash = "clock-" + suffix
+          let parameter name typ : PT.PackageFn.Parameter =
+            { name = name; typ = typ; description = "" }
+          let callable = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt)
+          let valueType =
+            if shape = "stream" then PT.TStream PT.TBigInt else callable
+          let lambda = eLambda (gid ()) [ lpVar "unit" ] clockBody
+          let makeBody =
+            match shape with
+            | "named fn" -> named "clock" clockHash
+            | "lambda" -> lambda
+            | _ ->
+              eApply
+                (eBuiltinFn "streamMap" 0)
+                [ PT.TUnit; PT.TBigInt ]
+                [ eApply
+                    (eBuiltinFn "streamFromList" 0)
+                    [ PT.TUnit ]
+                    [ eList [ eUnit () ] ]
+                  lambda ]
+          let maker = { fn makerHash makeBody with returnType = valueType }
+          let runBody =
+            if shape = "stream" then
+              eApply (eBuiltinFn "streamToList" 0) [ PT.TBigInt ] [ eVar "v" ]
+            else
+              eApply (eVar "v") [] [ eUnit () ]
+          let runner =
+            { fn runnerHash runBody with
+                parameters = NEList.singleton (parameter "v" valueType)
+                returnType =
+                  if shape = "stream" then PT.TList PT.TBigInt else PT.TBigInt }
+          let approval who = if direction = who then P.Policy.denyAll else clockGrant
+          let expr = eApply (named "runner" runnerHash) [] [ call "maker" makerHash ]
+          let! actual =
+            runNamed
+              P.Policy.denyAll
+              P.Policy.allowAll
+              (Map.ofList
+                [ "Me.maker", approval "maker"; "Me.runner", approval "runner" ])
+              [ maker; runner; fn clockHash clockBody ]
+              expr
+          if direction = "neither" then
+            match actual with
+            | Ok _ -> ()
+            | Error e -> failtestf "permitted deferred call failed: %A" e
+          else
+            expectDenied [ "clock" ] actual
+        } ]
+
 let private refusesAsAdmin
   (state : RT.ExecutionState)
   (builtin : RT.BuiltInFn)
@@ -394,12 +345,14 @@ let private policyReads =
     [ "pmPolicyGetInstance"
       "pmPolicyApprovals"
       "pmFnIsBundled"
-      "pmFnPermissionRequirements" ]
+      "pmFnPermissionRequirements"
+      "pmFnEffectReasons" ]
 
 /// The policy builtins only the trusted `dark permissions` command may call.
 let private hostOnlyPolicyBuiltins =
   set
-    [ "pmPolicyEditInstance"
+    [ "pmPolicyReviewToken"
+      "pmPolicyEditInstance"
       "pmPolicyListPackages"
       "pmPolicyWithdraw"
       "pmPolicyApprovalsStale"
@@ -426,6 +379,33 @@ let everyPolicyBuiltinRefusesGuestCode =
   }
 
 /// The reads guest code may call answer it, rather than refusing it as administration.
+let guestCannotGrantRunAccess =
+  testTask "guest code cannot supply temporary run grants" {
+    let! guest = executionStateFor TestValues.pm false
+    let builtin =
+      Builtins.CliHost.Libs.Cli.fns ()
+      |> List.find (fun b -> b.name.name = "cliParseAndExecuteScript")
+      |> Option.defaultWith (fun () -> failtest "missing script builtin")
+    let args =
+      [| LibExecution.Dval.optionNone RT.KTUuid
+         RT.DUuid(System.Guid.NewGuid())
+         RT.DString "guest.dark"
+         RT.DString "()"
+         LibExecution.Dval.list RT.KTString []
+         RT.DBool false
+         RT.DBool false
+         LibExecution.PermissionsToDarkTypes.Policy.toDT P.Policy.allowAll
+         LibExecution.Dval.optionNone RT.KTUnit |]
+    let mutable refused = false
+    try
+      let! _ = builtin.fn (struct (guest, dummyVM (), [], args)) |> Ply.toTask
+      ()
+    with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
+      refused <-
+        message.Contains "run approvals require the trusted dark run command"
+    Expect.isTrue refused "only the trusted CLI may supply a grant"
+  }
+
 let guestCodeCanCallPolicyReads =
   testTask "guest code can still call the policy reads" {
     let! (guest : RT.ExecutionState) = executionStateFor TestValues.pm false
@@ -527,381 +507,238 @@ let evaluatedNamedFnInContainerCannotWidenReentry =
     | other -> Expect.equal 1 2 $"expected a one-element function list, got {other}"
   }
 
-// ── callbacks applied by a builtin ──────────────────────────
-//
-// `f ()` inside a `:{}` function was denied; `List.map [()] f` ran the clock.
-// A builtin applies a callback in a borrowed VM, and that VM used to start
-// from the run's base access, so the ceiling and package approval of the
-// function that CALLED the builtin never reached the callback. In each case
-// below the lambda is built by an unrestricted producer -- captured broad, as
-// in the report -- and handed to a builtin inside a restricted frame.
 
-let private clockLambda = eLambda (gid ()) [ lpVar "unit" ] clockBody
-
-/// An unrestricted fn returning `fun () -> syscallGettimeofday ()`.
-let private lambdaProducer (hash : string) : PT.PackageFn.PackageFn =
-  { ceilingFn hash None clockLambda with
-      returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TBigInt) }
-
-let private producedLambda (producerHash : string) : PT.Expr =
-  eApply (ePackageFn producerHash) [] [ eUnit () ]
-
-/// `Stdlib.List.map [()] <the produced lambda>`
-let private mapBody (producerHash : string) : PT.Expr =
-  eApply
-    (eBuiltinFn "listMap" 0)
-    []
-    [ eList [ eUnit () ]; producedLambda producerHash ]
-
-let private listOfInt = PT.TList PT.TBigInt
-
-let builtinCallbackKeepsInvokingCeiling =
-  testTask "a callback applied by a builtin runs under the calling fn's ceiling" {
-    let producerHash = "permissions-callback-producer"
-    let runnerHash = "permissions-callback-map-runner"
-    let runner =
-      { ceilingFn runnerHash (Some Set.empty) (mapBody producerHash) with
-          returnType = listOfInt }
-    let! actual =
-      runPackageFn (pmWith [ lambdaProducer producerHash; runner ]) runnerHash
-    expectDenied [ "function policy"; "clock" ] actual
-  }
-
-let builtinCallbackAllowedByPermittingCeiling =
-  testTask "the same callback is allowed when the calling fn's ceiling permits it" {
-    // The control: it is the ceiling that denies above, not the plumbing.
-    let producerHash = "permissions-callback-producer-ok"
-    let runnerHash = "permissions-callback-map-runner-ok"
-    let runner =
-      { ceilingFn runnerHash (Some clockEffects) (mapBody producerHash) with
-          returnType = listOfInt }
-    let! actual =
-      runPackageFn (pmWith [ lambdaProducer producerHash; runner ]) runnerHash
-    expectNotDenied actual
-  }
-
-let builtinCallbackArity2KeepsCeiling =
-  testTask "a two-argument callback (fold) runs under the calling fn's ceiling" {
-    // A two-argument callback takes the same `requestApply` path as a one-argument one; the
-    // ceiling has to survive the extra argument.
-    let producerHash = "permissions-callback-producer2"
-    let runnerHash = "permissions-callback-fold-runner"
-    let lambda2 = eLambda (gid ()) [ lpVar "acc"; lpVar "unit" ] clockBody
-    let producer =
-      { ceilingFn producerHash None lambda2 with
-          returnType = PT.TFn(NEList.ofList PT.TBigInt [ PT.TUnit ], PT.TBigInt) }
-    let foldBody =
-      eApply
-        (eBuiltinFn "listFold" 0)
+let interactiveReviewIsScopedAndTemporary =
+  testTask "interactive grants resume an operation and expire with the run" {
+    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let guest = denyAll original
+    let mutable prompts = 0
+    let ask rules =
+      prompts <- prompts + 1
+      Expect.equal rules [ "env read 'DARK_REVIEW_TEST'" ] "exact request shown"
+      Ply 1L
+    let! (reviewed : RT.ExecutionState), _ =
+      LibDB.PermissionReview.configure
+        guest
+        "Me.review"
+        "review-version"
+        false
         []
-        [ eList [ eUnit () ]; PT.EBigInt(gid (), 0I); producedLambda producerHash ]
-    let runner = ceilingFn runnerHash (Some Set.empty) foldBody
-    let! actual = runPackageFn (pmWith [ producer; runner ]) runnerHash
-    expectDenied [ "function policy"; "clock" ] actual
-  }
-
-let builtinCallbackNestedKeepsCeiling =
-  testTask "a ceiling two frames above the builtin still bounds the callback" {
-    // `{}` runner -> unceilinged inner -> List.map. The restriction lives on
-    // a frame that is not the builtin's caller, and it must still arrive.
-    let producerHash = "permissions-callback-producer-nested"
-    let innerHash = "permissions-callback-inner"
-    let runnerHash = "permissions-callback-nested-runner"
-    let inner =
-      { ceilingFn innerHash None (mapBody producerHash) with returnType = listOfInt }
-    let runner =
-      { ceilingFn
-          runnerHash
-          (Some Set.empty)
-          (eApply (ePackageFn innerHash) [] [ eUnit () ]) with
-          returnType = listOfInt }
-    let! actual =
-      runPackageFn (pmWith [ lambdaProducer producerHash; inner; runner ]) runnerHash
-    expectDenied [ "function policy"; "clock" ] actual
-  }
-
-let builtinCallbackKeepsPackagePolicy =
-  testTask
-    "a callback applied by a builtin stays inside the calling package's approval" {
-    // The consumer-facing case: `permissions approve` confines "the function
-    // and everything it calls". The callback is captured allow-all by the
-    // producer; the runner is the package the consumer denied.
-    let producerHash = "permissions-callback-producer-pkg"
-    let runnerHash = "permissions-callback-pkg-runner"
-    let runner =
-      { ceilingFn runnerHash None (mapBody producerHash) with
-          returnType = listOfInt }
-    let! actual =
-      runPackageFnWith
-        (denyPackage runnerHash)
-        (pmWith [ lambdaProducer producerHash; runner ])
-        runnerHash
-    expectDenied [ "package policy" ] actual
-  }
-
-/// A forwarder of `listMap` with the builtin's own generic signature, which
-/// is what `thinWrapperOf` elides: type variables compare by NAME, so the
-/// wrapper must say `'a` and `'b` exactly as the builtin does. A wrapper with
-/// concrete parameter types is not thin and takes the frame path -- which is
-/// what the first version of this test did, and so tested nothing about
-/// elision.
-let private genericMapWrapper
-  (hash : string)
-  (ceiling : Option<Set<Effects.Effect>>)
-  : PT.PackageFn.PackageFn =
-  let a = PT.TVariable "a"
-  let b = PT.TVariable "b"
-  { hash = PT.Hash hash
-    typeParams = [ "a"; "b" ]
-    parameters =
-      NEList.ofList
-        { name = "list"; typ = PT.TList a; description = "" }
-        [ { name = "fn"; typ = PT.TFn(NEList.singleton a, b); description = "" } ]
-    returnType = PT.TList b
-    body = eApply (eBuiltinFn "listMap" 0) [] [ eVar "list"; eVar "fn" ]
-    description = ""
-    permissionCeiling = ceiling
-    bounds = [] }
-
-/// `wrapper [()] <the produced lambda>`
-let private viaWrapper (wrapperHash : string) (producerHash : string) : PT.Expr =
-  eApply
-    (ePackageFn wrapperHash)
-    []
-    [ eList [ eUnit () ]; producedLambda producerHash ]
-
-let builtinCallbackThroughThinWrapperKeepsCeiling =
-  testTask "a callback through an elided forwarder keeps the CALLER's ceiling" {
-    // Elision ran the builtin without writing `vm.activeAccess`, so the
-    // callback ran under whatever the previous builtin had left there.
-    // Called twice: the first call detects and caches the wrapper (late
-    // elision), the second is answered from the cache before the package
-    // call path is entered (early elision).
-    let producerHash = "permissions-callback-producer-thin"
-    let wrapperHash = "permissions-callback-thin-wrapper"
-    let runnerHash = "permissions-callback-thin-runner"
-    let runner =
-      { ceilingFn runnerHash (Some Set.empty) (viaWrapper wrapperHash producerHash) with
-          returnType = listOfInt }
-    let pm =
-      pmWith
-        [ lambdaProducer producerHash; genericMapWrapper wrapperHash None; runner ]
-    let! cold = runPackageFn pm runnerHash
-    expectDenied [ "function policy"; "clock" ] cold
-    let! warm = runPackageFn pm runnerHash
-    expectDenied [ "function policy"; "clock" ] warm
-  }
-
-let elidedWrapperKeepsItsOwnCeiling =
-  testTask "an elided forwarder's OWN ceiling applies to the builtin's callback" {
-    // The reviewer's case: `let restrictedMap xs f :{} = Builtin.listMap xs f`
-    // called from an unrestricted caller. The frame path applied the
-    // wrapper's ceiling; the elisions applied nothing of the wrapper's.
-    let producerHash = "permissions-callback-producer-own-ceiling"
-    let wrapperHash = "permissions-callback-own-ceiling-wrapper"
-    let runnerHash = "permissions-callback-own-ceiling-runner"
-    let runner =
-      { ceilingFn runnerHash None (viaWrapper wrapperHash producerHash) with
-          returnType = listOfInt }
-    let pm =
-      pmWith
-        [ lambdaProducer producerHash
-          genericMapWrapper wrapperHash (Some Set.empty)
-          runner ]
-    let! cold = runPackageFn pm runnerHash
-    expectDenied [ "function policy"; "clock" ] cold
-    let! warm = runPackageFn pm runnerHash
-    expectDenied [ "function policy"; "clock" ] warm
-  }
-
-let elidedWrapperKeepsItsOwnPackagePolicy =
-  testTask
-    "an elided forwarder's OWN package approval applies to the builtin's callback" {
-    let producerHash = "permissions-callback-producer-own-pkg"
-    let wrapperHash = "permissions-callback-own-pkg-wrapper"
-    let runnerHash = "permissions-callback-own-pkg-runner"
-    let runner =
-      { ceilingFn runnerHash None (viaWrapper wrapperHash producerHash) with
-          returnType = listOfInt }
-    let pm =
-      pmWith
-        [ lambdaProducer producerHash; genericMapWrapper wrapperHash None; runner ]
-    let! cold = runPackageFnWith (denyPackage wrapperHash) pm runnerHash
-    expectDenied [ "package policy" ] cold
-    let! warm = runPackageFnWith (denyPackage wrapperHash) pm runnerHash
-    expectDenied [ "package policy" ] warm
-  }
-
-// ── HTTP server child guest state ───────────────────────────
-//
-// `httpServerServe` builds a child guest state for the router, and
-// `guestState` REPLACES the access, so the calling frame's layers were gone
-// before the port was checked. `HttpServer` is a scoped effect -- decided at
-// the host boundary with the exact port, not by the ambient gate -- so a
-// `:{Clock, Stdout}` function passed the gate and reached the OS bind.
-//
-// The port is held open by a listener for the duration, on purpose: a
-// regression would then come back as `Error "in use"` in milliseconds, where
-// a successful bind would block the test until SIGINT.
-
-let private servingFn
-  (hash : string)
-  (ceiling : Set<Effects.Effect>)
-  (port : int)
-  : PT.PackageFn.PackageFn =
-  let handler = eLambda (gid ()) [ lpVar "req" ] (eVar "req")
-  let onListening = eLambda (gid ()) [ lpVar "unit" ] (eUnit ())
-  let body =
-    eApply
-      (eBuiltinFn "httpServerServe" 0)
-      []
-      [ PT.EInt64(gid (), int64 port)
-        handler
-        PT.EInt64(gid (), 1000L)
-        eBool true
-        eBool true
-        eBool false
-        onListening ]
-  { ceilingFn hash (Some ceiling) body with
-      typeParams = [ "a" ]
-      returnType = PT.TVariable "a" }
-
-let private withOccupiedPort (f : int -> System.Threading.Tasks.Task<unit>) =
-  task {
-    let listener =
-      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
-    listener.Start()
-    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
-    try
-      do! f port
-    finally
-      listener.Stop()
-  }
-
-let private serveEffects =
-  Set.ofList
-    [ Effects.Effect.Clock; Effects.Effect.Stdout; Effects.Effect.HttpServer ]
-
-/// `serve` builds its child state from the real policy store, so on a machine
-/// whose instance policy denies the bind (CI's seeded default) the instance
-/// layer would answer before the ceiling is consulted. Run the body against a
-/// temporary store holding an allow-all instance policy. The override is
-/// process-global, so the tests using it are sequenced.
-let private withAllowAllInstanceStore
-  (f : unit -> System.Threading.Tasks.Task<unit>)
-  =
-  task {
-    let dir =
-      System.IO.Path.Combine(
-        System.IO.Path.GetTempPath(),
-        $"dark-policy-{System.Guid.NewGuid()}"
-      )
-    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
-    let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
-    try
-      LibDB.PolicyStore.setInstancePolicy LibExecution.Permissions.Policy.allowAll
-      do! f ()
-    finally
-      restore.Dispose()
-      System.IO.Directory.Delete(dir, true)
-  }
-
-let serveBindKeepsInvokingCeiling =
-  testTask "an HTTP bind from a fn whose ceiling excludes HttpServer is denied" {
-    do!
-      withAllowAllInstanceStore (fun () ->
-        withOccupiedPort (fun port ->
-          task {
-            let hash = "permissions-serve-ceiling-denied"
-            let fn =
-              servingFn
-                hash
-                (Set.remove Effects.Effect.HttpServer serveEffects)
-                port
-            let! actual = runPackageFn (pmWith [ fn ]) hash
-            expectDenied [ "function policy" ] actual
-          }))
-  }
-
-let serveBindAllowedByPermittingCeiling =
-  testTask "an HTTP bind is allowed when the ceiling includes HttpServer" {
-    // The control: with the port occupied, an allowed bind comes back as
-    // `Error "in use"` from the OS -- a value, not a denial -- which is the
-    // proof that the permitted case reached the host boundary.
-    do!
-      withAllowAllInstanceStore (fun () ->
-        withOccupiedPort (fun port ->
-          task {
-            let hash = "permissions-serve-ceiling-allowed"
-            let fn = servingFn hash serveEffects port
-            let! actual = runPackageFn (pmWith [ fn ]) hash
-            expectNotDenied actual
-            match actual with
-            | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString message ])) ->
-              Expect.stringContains message "in use" "the OS answered the bind"
-            | other ->
-              Expect.equal 1 2 $"expected the OS's in-use error, got {other}"
-          }))
-  }
-
-let streamCallbackKeepsCeiling =
-  testTask "a stream transform runs its callback under the ceiling it was built in" {
-    // The transform is stored and only runs when the stream is drained, so
-    // the access has to be captured when the callable is handed over.
-    let producerHash = "permissions-callback-producer-stream"
-    let runnerHash = "permissions-callback-stream-runner"
-    let streamBody =
+        (Some ask)
+      |> Ply.toTask
+    let expr =
       eApply
-        (eBuiltinFn "streamToList" 0)
-        [ PT.TBigInt ]
-        [ eApply
-            (eBuiltinFn "streamMap" 0)
-            [ PT.TUnit; PT.TBigInt ]
-            [ eApply
-                (eBuiltinFn "streamFromList" 0)
-                [ PT.TUnit ]
-                [ eList [ eUnit () ] ]
-              producedLambda producerHash ] ]
-    let runner =
-      { ceilingFn runnerHash (Some Set.empty) streamBody with
-          returnType = listOfInt }
-    let! actual =
-      runPackageFn (pmWith [ lambdaProducer producerHash; runner ]) runnerHash
-    expectDenied [ "function policy"; "clock" ] actual
+        (eBuiltinFn "runtimeEnvironmentGet" 0)
+        []
+        [ eStr [ strText "DARK_REVIEW_TEST" ] ]
+      |> PT2RT.Expr.toRT Map.empty 0 None
+    let! first = LibExecution.Execution.executeExpr reviewed expr
+    let! second = LibExecution.Execution.executeExpr reviewed expr
+    expectNotDenied first
+    expectNotDenied second
+    Expect.equal prompts 1 "same access asks only once in a run"
+    let! another = LibExecution.Execution.executeExpr guest expr
+    expectDenied [ "DARK_REVIEW_TEST" ] another
+  }
+
+let interactiveReviewCannotOverrideRestrictions =
+  testTask
+    "interactive review never overrides explicit denies or mandatory restrictions" {
+    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    for layer in [ P.Layer.Instance; P.Layer.Run; P.Layer.Value "saved" ] do
+      let policy =
+        if layer = P.Layer.Instance then
+          P.Policy.create [ P.Rule.All ] [ P.Rule.All ]
+        else
+          P.Policy.denyAll
+      let guest =
+        { original with access = P.Access.restrict layer policy original.access }
+      let mutable prompts = 0
+      let ask _ =
+        prompts <- prompts + 1
+        Ply 1L
+      let! reviewed, _ =
+        LibDB.PermissionReview.configure
+          guest
+          "Me.restricted"
+          "version"
+          false
+          []
+          (Some ask)
+        |> Ply.toTask
+      let! result = LibExecution.Execution.executeExpr reviewed (clockCall ())
+      expectDenied [] result
+      Expect.equal prompts 0 "an approval prompt cannot remove this restriction"
+  }
+
+let preflightReviewIsOneBatch =
+  testTask "preflight approves exact known access in one batch before execution" {
+    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let request name =
+      P.Request.env P.AccessKind.Read name
+      |> Result.defaultWith (fun error -> failtest error)
+    let requests = [ request "REVIEW_A"; request "REVIEW_B" ]
+    let mutable prompts = 0
+    let ask (rules : List<string>) =
+      prompts <- prompts + 1
+      Expect.equal rules.Length 2 "one batch"
+      Ply 1L
+    let! (reviewed : RT.ExecutionState), _ =
+      LibDB.PermissionReview.configure
+        (denyAll original)
+        "Me.batch"
+        "version"
+        false
+        (List.map LibDB.PermissionReview.atRoot requests)
+        (Some ask)
+      |> Ply.toTask
+    Expect.equal prompts 1 "before any body execution"
+    for request in requests do
+      Expect.isTrue
+        (P.Access.allows request reviewed.access)
+        "captures include preflight grants"
+  }
+
+let preflightKeepsNamedEntryApprovals =
+  testTask "preflight uses the same first named entry as execution" {
+    let request =
+      P.Request.env P.AccessKind.Read "REPORT_INPUT" |> Result.defaultWith failtest
+    let grant =
+      P.Policy.create
+        [ P.Rule.Env(P.AccessKind.Read, P.Scope.Only "REPORT_INPUT") ]
+        []
+    let envBody =
+      eApply
+        (eBuiltinFn "runtimeEnvironmentGet" 0)
+        []
+        [ eStr [ strText "REPORT_INPUT" ] ]
+    let functions =
+      [ fn "report" envBody; fn "outer" (call "report" "report") ]
+      |> List.map (fun f -> f.hash, f)
+      |> Map.ofList
+    let load hash = Ply(Map.tryFind hash functions)
+    let policyFor name _ =
+      Some(if name = Some "Me.report" then grant else P.Policy.denyAll)
+    let! original = executionStateFor TestValues.pm false
+    let guest = { denyAll original with packagePolicy = policyFor }
+    let collect expr =
+      LibDB.PermissionReview.preflight load policyFor [ expr ] |> Ply.toTask
+    let! direct = collect (call "report" "report")
+    let expected : LibDB.PermissionReview.KnownRequest =
+      { request = request; entry = Some(Some "Me.report", RT.Hash "report") }
+    Expect.equal direct [ expected ] "preflight retains the approval identity"
+    let! _ =
+      LibDB.PermissionReview.configure
+        guest
+        "script:/report"
+        "script"
+        true
+        direct
+        None
+      |> Ply.toTask
+    let! nested = collect (call "outer" "outer")
+    Expect.equal
+      (nested
+       |> List.map (fun (item : LibDB.PermissionReview.KnownRequest) -> item.entry))
+      [ Some(Some "Me.outer", RT.Hash "outer") ]
+      "a helper cannot replace the unapproved entry"
+    let mutable denied = false
+    try
+      let! _ =
+        LibDB.PermissionReview.configure
+          guest
+          "script:/report"
+          "script"
+          true
+          nested
+          None
+        |> Ply.toTask
+      ()
+    with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
+      denied <- message.Contains "permission denied"
+    Expect.isTrue denied "the unapproved outer entry still fails before running"
+  }
+
+let pendingReviewStopsLaterEffects =
+  testTask
+    "a pending permission question stops later effects and cancellation stops the run" {
+    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let builtins = System.Collections.Generic.Dictionary(original.fns.builtIn)
+    let envBuiltin =
+      builtins.Values |> Seq.find (fun fn -> fn.name.name = "runtimeEnvironmentGet")
+    let mutable laterCalls = 0
+    builtins[envBuiltin.name] <-
+      { envBuiltin with
+          fn =
+            fun invocation ->
+              let struct (_, _, _, args) = invocation
+              if args = [| RT.DString "LATER_ALLOWED" |] then
+                laterCalls <- laterCalls + 1
+              envBuiltin.fn invocation }
+    let allowed =
+      P.Policy.create
+        [ P.Rule.Env(P.AccessKind.Read, P.Scope.Only "LATER_ALLOWED") ]
+        []
+    let guest =
+      { original with
+          fns = { original.fns with builtIn = builtins }
+          access = P.Access.start allowed }
+    let answer = System.Threading.Tasks.TaskCompletionSource<int64>()
+    let asked = System.Threading.Tasks.TaskCompletionSource<unit>()
+    let ask _ =
+      asked.SetResult()
+      uply { return! answer.Task }
+    let! (reviewed : RT.ExecutionState), _ =
+      LibDB.PermissionReview.configure
+        guest
+        "Me.pending"
+        "version"
+        false
+        []
+        (Some ask)
+      |> Ply.toTask
+    let get name =
+      eApply (eBuiltinFn "runtimeEnvironmentGet" 0) [] [ eStr [ strText name ] ]
+    let expr =
+      eLet
+        (lpWildcard ())
+        (get "NEEDS_REVIEW")
+        (eLet (lpWildcard ()) (get "LATER_ALLOWED") (eUnit ()))
+      |> PT2RT.Expr.toRT Map.empty 0 None
+    let running = LibExecution.Execution.executeExpr reviewed expr
+    do! asked.Task.WaitAsync(System.TimeSpan.FromSeconds 5.)
+    Expect.equal laterCalls 0 "later access waits for the question"
+    answer.SetResult 0L
+    let! result = running
+    expectDenied [] result
+    Expect.equal laterCalls 0 "cancelling never performs later effects"
   }
 
 let tests =
   testList
     "PermissionsGate"
-    [ denied
+    [ pendingReviewStopsLaterEffects
+      interactiveReviewIsScopedAndTemporary
+      interactiveReviewCannotOverrideRestrictions
+      preflightKeepsNamedEntryApprovals
+      preflightReviewIsOneBatch
+      denied
       allowed
       nativeDenied
       nativeAllowedByAllowAll
       newRunPolicyDenies
-      packagePolicyDenies
-      packageDenialNamesStaleApproval
-      escapedLambdaKeepsAccess
+      namedApprovalSuppliesMissingAccess
+      identicalAliasDoesNotInheritApproval
+      helpersInheritApproval
+      nestedApprovalCannotWiden
+      explicitDenyWins
+      runRestrictionWins
+      approvalChangeBetweenRuns
+      namesSharingCallDataKeepTheirOwnApproval
       evaluatedNamedFnInContainerCannotWidenReentry
-      functionCeilingDenies
-      functionCeilingAllows
-      callerCeilingAttenuates
-      escapedLambdaKeepsCeiling
-      builtinCallbackKeepsInvokingCeiling
-      builtinCallbackAllowedByPermittingCeiling
-      builtinCallbackArity2KeepsCeiling
-      builtinCallbackNestedKeepsCeiling
-      builtinCallbackKeepsPackagePolicy
-      builtinCallbackThroughThinWrapperKeepsCeiling
-      elidedWrapperKeepsItsOwnCeiling
-      elidedWrapperKeepsItsOwnPackagePolicy
-      streamCallbackKeepsCeiling
-      testSequenced (
-        testList
-          "http bind"
-          [ serveBindKeepsInvokingCeiling; serveBindAllowedByPermittingCeiling ]
-      )
-      testList "deferred execution matrix" deferredExecutionMatrix
       everyPolicyBuiltinRefusesGuestCode
+      guestCannotGrantRunAccess
       guestCodeCanCallPolicyReads
       guestStatesCannotManagePolicies
-      guestFileApiCannotReachPolicyStore ]
+      guestFileApiCannotReachPolicyStore
+      testList "deferred execution" deferredExecutionMatrix ]

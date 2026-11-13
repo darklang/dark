@@ -126,6 +126,9 @@ module DocPart =
     | DocPart.Parameter index ->
       w.Write(3uy)
       w.Write(index)
+    | DocPart.ParameterName index ->
+      w.Write(4uy)
+      w.Write(index)
 
   let read (r : BinaryReader) : DocPart =
     match r.ReadByte() with
@@ -133,46 +136,11 @@ module DocPart =
     | 1uy -> DocPart.RecordField(String.read r)
     | 2uy -> DocPart.EnumCase(String.read r)
     | 3uy -> DocPart.Parameter(r.ReadInt32())
+    | 4uy -> DocPart.ParameterName(r.ReadInt32())
     | b -> raiseFormatError $"Invalid DocPart tag: {b}"
 
 
 // -- PackageOp --
-
-/// Read a `restating` stamp written at the END of the payload, or None when the payload ends here.
-///
-/// The one place a field is not self-delimiting, and it is deliberate. A `PackageOp` is only ever
-/// serialized standalone -- `Serialization.makeSerializer` writes a header carrying the payload's
-/// real length and nothing follows it -- so "is there another byte" is a question this reader can
-/// ask. Do not copy the trick into a field that could ever be followed by another op.
-///
-/// What it buys: an EARLIER binary meeting a stamped op reads the target, the kind and the message,
-/// stops, ignores the trailing bytes and APPLIES the deprecation with a fresh `origin_ts`, so it
-/// agrees with a newer binary about what is deprecated. A new tag would have decoded as nothing at
-/// all and left the item reading as undeprecated until the old binary caught up, and the direction
-/// of that failure is "not deprecated", which for `Harmful` is the unsafe one.
-///
-/// What it costs: tags 4 and 5 are no longer self-delimiting, and an earlier binary silently decodes
-/// the blob as an op that is not quite the one written. That is normally the worst thing a format
-/// can do, and it is tolerable HERE for one reason only: the dropped field is the stamp, which is
-/// part of the op's identity and is never read by anything that acts on the op.
-let private readTrailingStamp (r : BinaryReader) : Option<string> =
-  if r.BaseStream.Position >= r.BaseStream.Length then
-    None
-  else
-    match r.ReadByte() with
-    | 0uy -> None
-    | 1uy -> Some(String.read r)
-    | b -> raiseFormatError $"Invalid trailing restating tag: {b}"
-
-/// The counterpart: nothing at all when there is no stamp, so every stamp-free blob is byte for
-/// byte what earlier builds wrote and every op id already in a store is stable.
-let private writeTrailingStamp (w : BinaryWriter) (stamp : Option<string>) : unit =
-  match stamp with
-  | None -> ()
-  | Some stamp ->
-    w.Write(1uy)
-    String.write w stamp
-
 
 let private writeSnapshot (w : BinaryWriter) (snapshot : ReferenceNamesSnapshot) =
   let { location = location; target = target; names = names; restating = restating } =
@@ -187,8 +155,6 @@ let private writeSnapshot (w : BinaryWriter) (snapshot : ReferenceNamesSnapshot)
     | Some loc ->
       w.Write(1uy)
       PackageLocation.write w loc
-  // Unlike the legacy deprecation tags, this payload is self-delimiting:
-  // snapshots can be nested inside an atomic Rename.
   match restating with
   | None -> w.Write(0uy)
   | Some stamp ->
@@ -258,19 +224,16 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     | Some(Hash h) ->
       w.Write(1uy)
       String.write w h
-  // The stamp rides on the EXISTING tags as a trailing field rather than taking new ones, so an
-  // older binary applies a restated deprecation correctly instead of storing it unapplied. See
-  // `readTrailingStamp` for what that trades away.
   | PackageOp.Deprecate(target, kind, message, restating) ->
     w.Write(4uy)
     Reference.write w target
     DeprecationKind.write w kind
     String.write w message
-    writeTrailingStamp w restating
+    Option.write w String.write restating
   | PackageOp.Undeprecate(target, restating) ->
     w.Write(5uy)
     Reference.write w target
-    writeTrailingStamp w restating
+    Option.write w String.write restating
   | PackageOp.Rename(oldLocation, newLocation, target, references, stamp) ->
     w.Write(19uy)
     PackageLocation.write w oldLocation
@@ -312,24 +275,24 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     String.write w reason
     DecisionKind.write w kind
 
-let read (version : uint32) (r : BinaryReader) : PackageOp =
+let read (r : BinaryReader) : PackageOp =
   match r.ReadByte() with
   | 0uy ->
-    let typ = LibSerialization.Binary.Serializers.PT.PackageType.read version r
+    let typ = LibSerialization.Binary.Serializers.PT.PackageType.read r
     PackageOp.AddType typ
   | 1uy ->
-    let value = LibSerialization.Binary.Serializers.PT.PackageValue.read version r
+    let value = LibSerialization.Binary.Serializers.PT.PackageValue.read r
     PackageOp.AddValue value
   | 2uy ->
-    let fn = LibSerialization.Binary.Serializers.PT.PackageFn.read version r
+    let fn = LibSerialization.Binary.Serializers.PT.PackageFn.read r
     PackageOp.AddFn fn
   | 15uy -> PackageOp.AddTrait(LibSerialization.Binary.Serializers.PT.Trait.read r)
   | 16uy ->
     PackageOp.AddTraitImpl(
-      LibSerialization.Binary.Serializers.PT.Trait.TraitImpl.read version r
+      LibSerialization.Binary.Serializers.PT.Trait.TraitImpl.read r
     )
   | 17uy ->
-    let test = LibSerialization.Binary.Serializers.PT.PackageTest.read version r
+    let test = LibSerialization.Binary.Serializers.PT.PackageTest.read r
     PackageOp.AddTest test
   | 3uy ->
     let location = PackageLocation.read r
@@ -352,17 +315,16 @@ let read (version : uint32) (r : BinaryReader) : PackageOp =
     let target = Reference.read r
     let kind = DeprecationKind.read r
     let message = String.read r
-    PackageOp.Deprecate(target, kind, message, readTrailingStamp r)
+    PackageOp.Deprecate(target, kind, message, Option.read r String.read)
   | 5uy ->
     let target = Reference.read r
-    PackageOp.Undeprecate(target, readTrailingStamp r)
+    PackageOp.Undeprecate(target, Option.read r String.read)
   | 19uy ->
     let oldLocation = PackageLocation.read r
     let newLocation = PackageLocation.read r
     let target = Reference.read r
     let count = r.ReadInt32()
     if count < 0 then raiseFormatError "Invalid rename reference count"
-    // Retain the existing tag-18 payload inside tag 19 for byte-for-byte compatibility.
     let references =
       List.init count (fun _ ->
         if r.ReadByte() <> 18uy then
@@ -413,5 +375,4 @@ let deserialize (id : uuid) (bytes : byte array) : PackageOp =
   let readId = Guid.read binaryReader
   if readId <> id then
     raiseFormatError $"PackageOp id mismatch: expected {id}, got {readId}"
-  // Headerless form carries no version; it is only ever written by this build.
-  read LibSerialization.Binary.BaseFormat.CurrentVersion binaryReader
+  read binaryReader

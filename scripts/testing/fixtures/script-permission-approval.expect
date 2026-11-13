@@ -1,5 +1,5 @@
 #!/usr/bin/expect -f
-# Run the script in a terminal and choose "Allow future runs".
+# Run the script in a terminal and choose "Remember for this code version".
 # The backend test checks the output and exit code.
 set timeout 30
 
@@ -19,10 +19,10 @@ catch {unset env(CI)}
 catch {unset env(DARK_NO_INPUT)}
 spawn -noecho $cli run $script
 expect {
-  -re {\r?\n +(?:\x1b\[[0-9;]*m)*([0-9]+)(?:\x1b\[[0-9;]*m)*\. Allow future runs} {
+  -re {\r?\n +(?:\x1b\[[0-9;]*m)*([0-9]+)(?:\x1b\[[0-9;]*m)*\. Remember for this code version} {
     set choice $expect_out(1,string)
   }
-  timeout { fail "no save-permission option" }
+  timeout { fail "no remember-for-this-version option" }
   eof { fail "exited before offering approval" }
 }
 expect {

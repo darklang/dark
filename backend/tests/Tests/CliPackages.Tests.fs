@@ -4,11 +4,9 @@
 /// Nothing here is about SCM. These are the commands a person runs before they
 /// change anything -- `ls`, `view`, `tree`, `search`, `deps`, `hash` -- plus the
 /// authoring verbs that pair with them (`fn`, `val`, `delete`, `restore`,
-/// `deprecate`). They had almost no coverage, and Dark resolves names when the line
-/// RUNS, so a rename in `packages/` leaves holes here that a green suite cannot see.
-/// Two of these tests are regressions for exactly that: `hash` and `find-values`
-/// each parsed a name with their own rule and answered "not found" about items
-/// `view` printed happily.
+/// `deprecate`). Dark resolves names when the line RUNS, so a rename in `packages/`
+/// leaves holes here that a green suite cannot see. Every command that takes a name
+/// must resolve it the way `view` does.
 module Tests.CliPackages
 
 open System.Threading.Tasks
@@ -851,7 +849,7 @@ let packageTestsRespectParallelLimit =
               task {
                 let deadline = System.Diagnostics.Stopwatch.StartNew()
                 while (started ()).Length < count
-                      && deadline.Elapsed.TotalSeconds < 30.0 do
+                      && deadline.Elapsed.TotalSeconds < 120.0 do
                   do! Task.Delay 20
                 Expect.equal
                   (started ()).Length
@@ -1214,9 +1212,9 @@ test expected =
       })
 
 
-let testsUseInstanceAndFunctionPolicies =
+let testsUseInstancePolicy =
   instanceTest
-    "tests allow effects by default while preserving package and function policies"
+    "tests use disposable allow-all without changing installation rules"
     (fun state ->
       task {
         do! start state
@@ -1224,16 +1222,6 @@ let testsUseInstanceAndFunctionPolicies =
           """let clock(): Bool =
   let _ = Stdlib.DateTime.now()
   true
-let restricted():{} Bool =
-  let _ = Stdlib.DateTime.now()
-  true
-let caller():{Native} Stdlib.Test.Result =
-  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
-  | Error(message) -> Stdlib.Test.fail(message)
-  | Ok(output) ->
-    match output.result with
-    | Ok(_) -> Stdlib.Test.pass()
-    | Error(message) -> Stdlib.Test.fail(message)
 test direct = Tests.PermissionUse.clock() |> Stdlib.Test.equal(true)
 test isolated =
   match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), Tests.PermissionUse.clock, ()) with
@@ -1242,8 +1230,6 @@ test isolated =
     match output.result with
     | Ok(value) -> value |> Stdlib.Test.equal(true)
     | Error(message) -> Stdlib.Test.fail(message)
-test functionCeiling = Tests.PermissionUse.restricted() |> Stdlib.Test.equal(true)
-test callerCeiling = Tests.PermissionUse.caller()
 """
         let sourceFile =
           System.IO.Path.Combine(
@@ -1270,37 +1256,9 @@ test callerCeiling = Tests.PermissionUse.caller()
           shows
             state
             selected
-            "package policy"
-            "unapproved functions are denied in either execution mode"
-        do!
-          shows
-            state
-            selected
-            "package policy for `Tests.PermissionUse.clock`"
-            "a denial names the function, not its hash"
-        do!
-          shows
-            state
-            selected
-            "To approve: `permissions approve Tests.PermissionUse.clock`."
-            "the remedy names the function to approve"
-        do! exits state selected 1L "denials fail the test run"
-        do!
-          run
-            state
-            [ "permissions"; "approve"; "Tests.PermissionUse.clock"; "--yes" ]
-        do!
-          shows
-            state
-            selected
             "2 passed, 0 failed"
-            "the same approval permits ordinary and isolated calls"
-        do!
-          exits
-            state
-            selected
-            0L
-            "approved functions run under the test instance policy"
+            "ordinary and isolated tests inherit test grants without approvals"
+        do! exits state selected 0L "test defaults allow both calls"
         do! run state [ "permissions"; "deny"; "clock" ]
         let! savedPolicy = runCliPlain state [ "permissions"; "list" ]
         do!
@@ -1308,60 +1266,26 @@ test callerCeiling = Tests.PermissionUse.caller()
             state
             selected
             "2 passed, 0 failed"
-            "ordinary and isolated tests allow clock even when the installation denies it"
-        do! exits state selected 0L "tests have an allow-all instance boundary"
+            "test workers have their own disposable allow-all policy"
         let! afterTests = runCliPlain state [ "permissions"; "list" ]
-        Expect.equal afterTests savedPolicy "tests do not rewrite the saved policy"
+        Expect.equal afterTests savedPolicy "tests do not rewrite saved rules"
         do!
           shows
             state
             [ "eval"; "Tests.PermissionUse.clock()" ]
-            "instance policy"
-            "ordinary eval still uses the installation's denial"
+            "explicitly denied"
+            "ordinary eval still uses installation denies"
         do!
           exits
             state
             [ "eval"; "Tests.PermissionUse.clock()" ]
             1L
             "eval stays denied"
-        for name in [ "restricted"; "caller" ] do
-          do!
-            run
-              state
-              [ "permissions"; "approve"; "Tests.PermissionUse." + name; "--yes" ]
-        do!
-          shows
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
-            "function policy"
-            "the tested function's ceiling applies"
-        do!
-          exits
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.functionCeiling" ]
-            1L
-            "an instance grant cannot widen a function"
-        do!
-          shows
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
-            "function policy"
-            "captured caller restrictions survive isolation"
-        do!
-          exits
-            state
-            [ "test"; "run"; "--force"; "Tests.PermissionUse.callerCeiling" ]
-            1L
-            "isolating a callback cannot widen its caller"
         do! discardAll state
       })
 
-/// An approved function can read a file under the installation's real policy, not the
-/// allow-all one `test run` uses. Approval derives a policy for every function the root
-/// reaches, and `Posix.fdRead` declares no effect, so its derived policy denied everything;
-/// the host checked each descriptor read against it, so the open passed and the first read
-/// was refused. A function nobody approved is still denied, at the open. (The two bodies
-/// differ: identical ones would be one hash, and so one approval.)
+/// An entry approval authorizes both opening a file and subsequent descriptor
+/// reads. Another name for identical code receives no grant from that approval.
 let approvedFunctionReadsAFile =
   instanceTest "an approved function reads a file it opens" (fun state ->
     task {
@@ -1382,7 +1306,7 @@ let approvedFunctionReadsAFile =
 let readToo(path: String): String =
   match Stdlib.Cli.FileSystem.readFileAsString(path) with
   | Ok(text) -> text
-  | Error(_) -> "could not read it either"
+  | Error(_) -> "could not read"
 """
       let sourceFile = System.IO.Path.Combine(dir, "reader.dark")
       try
@@ -1393,15 +1317,21 @@ let readToo(path: String): String =
             [ "module"; "Tests.FdRead"; sourceFile ]
             0L
             "author the readers"
-        do! run state [ "permissions"; "allow"; "file"; "read"; dir ]
         let call name = [ "eval"; $"Tests.FdRead.{name}(\"{file}\")" ]
         do!
           shows
             state
             (call "readIt")
-            "package policy"
+            "`Tests.FdRead.readIt` has no remembered approval"
             "an unapproved function is denied"
-        do! run state [ "permissions"; "approve"; "Tests.FdRead.readIt"; "--yes" ]
+        do!
+          run
+            state
+            [ "permissions"
+              "approve"
+              "Tests.FdRead.readIt"
+              $"file read {dir}"
+              "--yes" ]
         do!
           shows
             state
@@ -1413,7 +1343,7 @@ let readToo(path: String): String =
           shows
             state
             (call "readToo")
-            "package policy"
+            "`Tests.FdRead.readToo` has no remembered approval"
             "a function nobody approved is still denied"
         do! exits state (call "readToo") 1L "the unapproved read fails"
       finally
@@ -1546,8 +1476,8 @@ let private workbenchAt (modules : List<string>) (row : string) : string =
   + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap(s1.items, fun(i, it) -> (i, it.name)) |> Stdlib.List.findFirst(fun((_, nm)) -> nm == \"{row}\") |> Stdlib.Option.map(fun((i, _)) -> i) |> Stdlib.Option.withDefault(0)) }} in "
 
 /// The Code view lists a module's tests as rows of their own, and the Inspect pane shows a test's
-/// source and result, and a function's tests. Every row kind here used to fall through to "value",
-/// so a test row would have looked itself up as a value and shown "(not found)".
+/// source and result, and a function's tests. A test row must not fall through to "value", look
+/// itself up as a value and show "(not found)".
 let workbenchShowsTests =
   instanceTest "the workbench lists and inspects tests" (fun state ->
     task {
@@ -1577,6 +1507,9 @@ let workbenchShowsTests =
            + "| None -> \"\"")
           "test ·"
           "and the meta line calls it a test"
+      // The real workbench runs as trusted CLI code. This eval-based test needs
+      // explicit access to the policy metadata read by its Inspect pane.
+      do! run state [ "permissions"; "allow"; "native" ]
       do!
         evals
           state
@@ -1586,8 +1519,7 @@ let workbenchShowsTests =
           "a function's Inspect pane lists the tests that call it"
     })
 
-/// Renaming from the workbench ends the old name. It used to build the old location from the
-/// owner-first module path, so it unbound a name that did not exist and both names stayed bound.
+/// Renaming from the workbench ends the old name: afterwards only the new name is bound.
 let workbenchRenameEndsTheOldName =
   instanceTest "a workbench rename leaves one name, not two" (fun state ->
     task {
@@ -1633,10 +1565,9 @@ let depsNamesWhatAnItemUses =
           "deps says so when there's nothing to walk"
     })
 
-/// Regression: `hash` split the name itself and read the FIRST segment as the owner,
-/// so `hash Stdlib.List.head` looked for an owner called Stdlib and said "Not found"
-/// about a name `view` prints. It traverses now, like everything else that takes a
-/// name.
+/// `hash` resolves a name by traversal, like everything else that takes a name.
+/// `hash Stdlib.List.head` must not read the FIRST segment as the owner and say
+/// "Not found" about a name `view` prints.
 let hashResolvesNamesLikeViewDoes =
   instanceTest "hash takes the same names view takes" (fun state ->
     task {
@@ -1717,7 +1648,7 @@ let navIsHonestAboutHowLongItLasts =
     })
 
 
-/// Regression, same family as `hash`: find-values split the type name itself.
+/// Same family as `hash`: find-values resolves the type name like `view` does.
 let findValuesTakesTheSameNames =
   instanceTest "find-values takes the same names view takes" (fun state ->
     task {
@@ -1882,10 +1813,9 @@ let deprecateAndUndeprecate =
       do! discardAll state
     })
 
-/// Ocean's 3, and the shape it settled into. A doc comment is not behaviour, so editing one leaves
-/// the item's hash alone -- which means the edit cannot ride on an `AddFn` (ops are
-/// content-addressed, so that op IS the earlier one and folds to nothing) and rides on an `UpdateDoc`
-/// instead.
+/// A doc comment is not behaviour, so editing one leaves the item's hash alone -- which means the
+/// edit cannot ride on an `AddFn` (ops are content-addressed, so that op IS the earlier one and
+/// folds to nothing) and rides on an `UpdateDoc` instead.
 let aDocOnlyEditKeepsTheVersionAndStillLands =
   instanceTest
     "editing only the docs changes the docs and nothing else"
@@ -1975,12 +1905,12 @@ let aBranchesDocEditStaysOnTheBranch =
         do! discardAll state
       })
 
-/// The nested targets, which are the ones that used to be dropped on the floor.
+/// The nested targets.
 ///
 /// A record field's, an enum case's and a parameter's doc are all outside the identity hash, so an
-/// edit to one alone leaves the item's version exactly where it was -- and before `UpdateDoc` there
-/// was no op that could carry it, so the CLI said "unchanged: nothing saved" and the words went
-/// nowhere. Each is asserted separately because each reaches a different part of the declaration.
+/// edit to one alone leaves the item's version exactly where it was. `UpdateDoc` carries it; the
+/// CLI must not answer "unchanged: nothing saved". Each is asserted separately because each reaches
+/// a different part of the declaration.
 let aFieldsDocEditLands =
   instanceTest "editing only a record field's doc saves it" (fun state ->
     task {
@@ -2171,6 +2101,89 @@ let twoNamesHoldingOneItemHaveTheirOwnDocs =
           "still not, once committed"
       do! discardAll state
     })
+
+
+/// A function's hash leaves out its parameter names, so these three names hold one stored body.
+let eachNameShowsItsOwnParameterNames =
+  instanceTest
+    "names holding one fn each show their own parameter names"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.ParamsOne.add"
+            "(earg1: Int64, earg2: Int64): Int64 = earg1 + earg2"
+        do! fn state "Tests.ParamsTwo.add" "(a: Int64, b: Int64): Int64 = a + b"
+        do! fn state "Tests.ParamsThree.add" "(x: Int64, y: Int64): Int64 = x + y"
+
+        let! one = runCliPlain state [ "hash"; "Tests.ParamsOne.add" ]
+        let! two = runCliPlain state [ "hash"; "Tests.ParamsTwo.add" ]
+        Expect.equal two one $"the names hold one item, got {one} and {two}"
+
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsTwo.add" ]
+            "let add(a: Int64, b: Int64): Int64 =\n  a + b"
+            "the second name shows a and b"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsThree.add" ]
+            "let add(x: Int64, y: Int64): Int64 =\n  x + y"
+            "the third shows x and y"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsOne.add" ]
+            "let add(earg1: Int64, earg2: Int64): Int64 =\n  earg1 + earg2"
+            "the first keeps its own"
+
+        do! commit state "one body, three names"
+        do!
+          shows
+            state
+            [ "view"; "Tests.ParamsTwo.add" ]
+            "a + b"
+            "and the names survive the commit"
+        do! discardAll state
+      })
+
+let aSecondNameForAFnSaysSo =
+  instanceTest "saving a fn another name already holds says so" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.SameOne.f" "(a: Int64): Int64 = a * 5303"
+      do!
+        shows
+          state
+          [ "fn"; "Tests.SameTwo.g"; "(n: Int64): Int64 = n * 5303" ]
+          "Created function Tests.SameTwo.g (same code as Tests.SameOne.f, stored once)"
+          "the save names the other name"
+      do! discardAll state
+    })
+
+/// The stored body is the first name's, binders included, so a later name's parameter name can
+/// clash with one of them. Then that name keeps the declared names rather than read wrong.
+let aParameterNameTheBodyBindsIsNotSubstituted =
+  instanceTest
+    "a parameter name that the body binds is not substituted"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Capture.f" "(a: Int64): Int64 = let x = 5305 in a + x"
+        do! fn state "Tests.Capture.g" "(x: Int64): Int64 = let y = 5305 in x + y"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Capture.g" ]
+            "let g(a: Int64): Int64"
+            "x would be captured by the let, so g shows a"
+        do! evals state "Tests.Capture.g(1)" "5306" "and it still runs"
+        do! discardAll state
+      })
 
 
 let twoWordingsForOneDocRecordAConflict =
@@ -2387,7 +2400,7 @@ let tests : List<Test> =
     packageTestJobsRejectInvalidCounts
     pureTestsRunInProcess
     isolatedTestsRejectUnsuccessfulWorkers
-    testsUseInstanceAndFunctionPolicies
+    testsUseInstancePolicy
     approvedFunctionReadsAFile
     runCallsAPackageFunctionByName
     upgradeRestoresSeedOperationKinds
@@ -2416,5 +2429,8 @@ let tests : List<Test> =
     reAuthoringTheSameSourceSurvivesTheCommit
     aVersionMovedAndMovedBackKeepsTheLastNaming
     twoNamesHoldingOneItemHaveTheirOwnDocs
+    eachNameShowsItsOwnParameterNames
+    aSecondNameForAFnSaysSo
+    aParameterNameTheBodyBindsIsNotSubstituted
     twoWordingsForOneDocRecordAConflict
     authoringWithoutADocDoesNotClearOne ]

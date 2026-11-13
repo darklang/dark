@@ -7,8 +7,8 @@ open LibExecution.RuntimeTypes
 module VT = ValueType
 
 
-let int8 (i : int8) = DInt8 i
-let uint8 (i : uint8) = DUInt8 i
+let int8 (i : int8) = RuntimeTypes.Dval.dint8 i
+let uint8 (i : uint8) : Dval = RuntimeTypes.Dval.duint8 i
 let int16 (i : int16) = DInt16 i
 let uint16 (i : uint16) = DUInt16 i
 let int32 (i : int32) = DInt32 i
@@ -16,6 +16,12 @@ let uint32 (i : uint32) = DUInt32 i
 let int64 (i : int64) = DInt64 i
 /// `Int64.toString`'s digits, for the builtin and the VM both.
 let int64ToString (i : int64) : string = string i
+/// `Float.toString`'s text, for the builtin and the VM both.
+let floatToString (f : float) : string =
+  if System.Double.IsPositiveInfinity f then "Infinity"
+  else if System.Double.IsNegativeInfinity f then "-Infinity"
+  else if System.Double.IsNaN f then "NaN"
+  else floatToShortestString f
 /// `DInt64`, sharing one instance for the small values.
 let dint64 (i : int64) : Dval = RuntimeTypes.Dval.dint64 i
 let uint64 (i : uint64) = DUInt64 i
@@ -30,6 +36,9 @@ let bigInt (b : bigint) : Dval = RuntimeTypes.Dval.bigInt b
 let asBigInt (dv : Dval) : bigint = RuntimeTypes.Dval.asBigInt dv
 
 let string (s : string) = DString s
+
+/// `DChar`, sharing one instance for each ASCII character.
+let char (c : string) : Dval = RuntimeTypes.Dval.dchar c
 
 let uuid (s : System.Guid) = DUuid s
 
@@ -87,13 +96,62 @@ let memoTypeName (hashOf : unit -> string) : unit -> FQTypeName.FQTypeName =
 let optionType : unit -> FQTypeName.FQTypeName =
   memoTypeName PackageRefs.Type.Stdlib.option
 
+/// `[ VT.known k ]` for each primitive `k`, made once: every Option a builtin returns carries one.
+module private OneTypeArg =
+  let unit = [ VT.known KTUnit ]
+  let bool = [ VT.known KTBool ]
+  let int8 = [ VT.known KTInt8 ]
+  let uInt8 = [ VT.known KTUInt8 ]
+  let int16 = [ VT.known KTInt16 ]
+  let uInt16 = [ VT.known KTUInt16 ]
+  let int32 = [ VT.known KTInt32 ]
+  let uInt32 = [ VT.known KTUInt32 ]
+  let int64 = [ VT.known KTInt64 ]
+  let uInt64 = [ VT.known KTUInt64 ]
+  let int128 = [ VT.known KTInt128 ]
+  let uInt128 = [ VT.known KTUInt128 ]
+  let bigInt = [ VT.known KTBigInt ]
+  let float = [ VT.known KTFloat ]
+  let float32 = [ VT.known KTFloat32 ]
+  let decimal = [ VT.known KTDecimal ]
+  let char = [ VT.known KTChar ]
+  let string = [ VT.known KTString ]
+  let uuid = [ VT.known KTUuid ]
+  let dateTime = [ VT.known KTDateTime ]
+  let bytes = [ VT.known KTBytes ]
+
+let private oneTypeArg (k : KnownType) : List<ValueType> =
+  match k with
+  | KTUnit -> OneTypeArg.unit
+  | KTBool -> OneTypeArg.bool
+  | KTInt8 -> OneTypeArg.int8
+  | KTUInt8 -> OneTypeArg.uInt8
+  | KTInt16 -> OneTypeArg.int16
+  | KTUInt16 -> OneTypeArg.uInt16
+  | KTInt32 -> OneTypeArg.int32
+  | KTUInt32 -> OneTypeArg.uInt32
+  | KTInt64 -> OneTypeArg.int64
+  | KTUInt64 -> OneTypeArg.uInt64
+  | KTInt128 -> OneTypeArg.int128
+  | KTUInt128 -> OneTypeArg.uInt128
+  | KTBigInt -> OneTypeArg.bigInt
+  | KTFloat -> OneTypeArg.float
+  | KTFloat32 -> OneTypeArg.float32
+  | KTDecimal -> OneTypeArg.decimal
+  | KTChar -> OneTypeArg.char
+  | KTString -> OneTypeArg.string
+  | KTUuid -> OneTypeArg.uuid
+  | KTDateTime -> OneTypeArg.dateTime
+  | KTBytes -> OneTypeArg.bytes
+  | _ -> [ VT.known k ]
+
 let optionSome (innerType : KnownType) (dv : Dval) : Dval =
   let name = optionType ()
-  DEnum(name, name, [ VT.known innerType ], "Some", [ dv ])
+  DEnum(name, name, oneTypeArg innerType, "Some", [ dv ])
 
 let optionNone (innerType : KnownType) : Dval =
   let name = optionType ()
-  DEnum(name, name, [ VT.known innerType ], "None", [])
+  DEnum(name, name, oneTypeArg innerType, "None", [])
 
 let option (innerType : KnownType) (dv : Option<Dval>) : Dval =
   match dv with
@@ -336,10 +394,10 @@ let packageValue (hash : Hash) (body : Dval) : PackageValue.PackageValue =
 
 
 let byteArrayToDvalList (bytes : byte[]) : Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> DUInt8(byte b))
-  |> fun dvalList -> DList(VT.uint8, Items(dvalList))
+  DList(
+    VT.uint8,
+    DvalList.init bytes.Length (fun i -> RuntimeTypes.Dval.duint8 bytes[i])
+  )
 
 let dlistToByteArray (dvalList : List<Dval>) : byte[] =
   dvalList
@@ -513,24 +571,21 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DPromise _, _ -> false
 
 
-let rec private containsFrom
-  (vtValue : ValueType)
-  (value : Dval)
-  (rest : DvalList)
-  : bool voption =
-  match DvalList.uncons rest with
-  | ValueNone -> ValueSome false
-  | ValueSome(struct (elem, tail)) ->
-    match ValueType.merge (RuntimeTypes.Dval.toValueType elem) vtValue with
-    | Error() -> ValueNone
-    | Ok _ ->
-      if equals elem value then ValueSome true else containsFrom vtValue value tail
+let private mergesWith (vtValue : ValueType) (elem : Dval) : bool =
+  Result.isOk (ValueType.merge (RuntimeTypes.Dval.toValueType elem) vtValue)
 
 /// `List.contains`: whether <param value> is in <param items>, by `equals`. `ValueNone` when an
 /// element before the first match has a type that does not merge with the value's: `==` raises
 /// on that rather than answering false, and so does the builtin. The value's type is read once.
 let listContains (items : DvalList) (value : Dval) : bool voption =
-  containsFrom (RuntimeTypes.Dval.toValueType value) value items
+  let vtValue = RuntimeTypes.Dval.toValueType value
+  match
+    DvalList.tryFind
+      (fun elem -> not (mergesWith vtValue elem) || equals elem value)
+      items
+  with
+  | ValueNone -> ValueSome false
+  | ValueSome elem -> if mergesWith vtValue elem then ValueSome true else ValueNone
 
 
 /// Holds a value's running hash until all its children have been hashed.

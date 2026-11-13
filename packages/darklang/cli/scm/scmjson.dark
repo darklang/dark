@@ -129,7 +129,7 @@ type CommitRowJson =
 /// One branch, as `dark branches --json` reports it.
 type BranchJson =
   { id: String
-    /// What a person types and reads. Present because an agent that only got the id had no way to display a
+    /// What a person types and reads. Present because an agent with only the id has no way to display a
     /// branch or to pass one to another command -- every other surface takes a name.
     name: String
     parent: String
@@ -141,11 +141,14 @@ type BranchJson =
     /// able to tell them apart.
     merged: Bool }
 
-let depsJson(d: DepsJson): String = Stdlib.Json.serialize<DepsJson>(d)
-let commitsJson(cs: List<CommitRowJson>): String =
-  Stdlib.Json.serialize<List<CommitRowJson>>(cs)
-let branchesJson(bs: List<BranchJson>): String =
-  Stdlib.Json.serialize<List<BranchJson>>(bs)
+/// What each `--json` answer below is: the text, or why a value has no JSON form.
+type JsonText = Stdlib.Result.Result<String, Stdlib.Json.SerializeError.SerializeError>
+
+let depsJson(d: DepsJson): JsonText = Stdlib.Json.checkedSerialize<DepsJson>(d)
+let commitsJson(cs: List<CommitRowJson>): JsonText =
+  Stdlib.Json.checkedSerialize<List<CommitRowJson>>(cs)
+let branchesJson(bs: List<BranchJson>): JsonText =
+  Stdlib.Json.checkedSerialize<List<BranchJson>>(bs)
 
 /// One op on a branch, as `dark log <branch> --json` reports it. `seq` is its position, oldest first.
 ///
@@ -156,8 +159,8 @@ type BranchOpJson =
   { seq: Int64
     op: String }
 
-let branchOpsJson(os: List<BranchOpJson>): String =
-  Stdlib.Json.serialize<List<BranchOpJson>>(os)
+let branchOpsJson(os: List<BranchOpJson>): JsonText =
+  Stdlib.Json.checkedSerialize<List<BranchOpJson>>(os)
 
 /// `dark diff --json`: the draft, the same list the pretty `diff` prints. `draftOps` counts what binds no
 /// name too (a deprecation, a restore), which `changed` cannot show.
@@ -167,12 +170,12 @@ type DraftDiffJson =
     /// Fully-qualified names the draft removes.
     removed: List<String> }
 
-let draftDiffJson(d: DraftDiffJson): String = Stdlib.Json.serialize<DraftDiffJson>(d)
+let draftDiffJson(d: DraftDiffJson): JsonText = Stdlib.Json.checkedSerialize<DraftDiffJson>(d)
 
 /// `dark diff <branch> --json`. The SCM record is serialized directly rather than copied into a shape of
 /// its own: there is nothing to add here, and a second shape would be a second thing to keep in step.
-let branchDiffJson(es: List<SCM.PackageOps.BranchDiffEntry>): String =
-  Stdlib.Json.serialize<List<SCM.PackageOps.BranchDiffEntry>>(es)
+let branchDiffJson(es: List<SCM.PackageOps.BranchDiffEntry>): JsonText =
+  Stdlib.Json.checkedSerialize<List<SCM.PackageOps.BranchDiffEntry>>(es)
 
 
 /// Classify what an update did to a name. Shared by the pretty CHANGED line and the JSON, so they can't
@@ -183,9 +186,11 @@ let changeKind(
   existed: Bool,
   previous: List<LanguageTools.ProgramTypes.Hash>)
   : String =
-  match previous with
-  | [] -> if existed then "updated" else "new"
-  | [prev, ...] ->
+  // a name saved more than once in the draft but never committed is still new
+  match (existed, previous) with
+  | (false, _) -> "new"
+  | (true, []) -> "updated"
+  | (true, [prev, ...]) ->
     if b.itemType != "fn" then
       "updated"
     else
@@ -232,7 +237,7 @@ let changedItems(branchId: Uuid, propagated: List<String>, entries: List<(SCM.Co
 /// Right-pad to <param width> so a column of names lines up under each other.
 let pad(s: String, width: Int64): String =
   let n = Stdlib.String.length(s)
-  if n >= width then s else s + (Stdlib.String.repeat(" ", width - n))
+  if n >= width then s else s + (Stdlib.String.checkedRepeat(" ", width - n) |> Stdlib.Result.withDefault(""))
 
 /// The human words for a `change` value, so the pretty view reads as prose while the JSON stays a token.
 let changeNote(change: String): String =
@@ -248,14 +253,14 @@ let changeNoteFor(item: ChangedItem): String =
   else
     changeNote(item.change)
 
-let statusJson(s: StatusJson): String = Stdlib.Json.serialize<StatusJson>(s)
-let commitJson(c: CommitJson): String = Stdlib.Json.serialize<CommitJson>(c)
-let conflictListJson(c: ConflictListJson): String =
-  Stdlib.Json.serialize<ConflictListJson>(c)
-let conflictJson(c: SCM.Conflicts.Conflict): String =
-  Stdlib.Json.serialize<ConflictJson>(conflictWithFqn(c))
-let conflictActionJson(a: ConflictActionJson): String =
-  Stdlib.Json.serialize<ConflictActionJson>(a)
+let statusJson(s: StatusJson): JsonText = Stdlib.Json.checkedSerialize<StatusJson>(s)
+let commitJson(c: CommitJson): JsonText = Stdlib.Json.checkedSerialize<CommitJson>(c)
+let conflictListJson(c: ConflictListJson): JsonText =
+  Stdlib.Json.checkedSerialize<ConflictListJson>(c)
+let conflictJson(c: SCM.Conflicts.Conflict): JsonText =
+  Stdlib.Json.checkedSerialize<ConflictJson>(conflictWithFqn(c))
+let conflictActionJson(a: ConflictActionJson): JsonText =
+  Stdlib.Json.checkedSerialize<ConflictActionJson>(a)
 
 /// `--json` present?
 let wantsJson(args: List<String>): Bool = Stdlib.List.contains(args, "--json")

@@ -65,11 +65,11 @@ let minRemaining = 2
 /// core waiting on it.
 let chunksPerWorker = 2
 
-/// The least an element must cost, in interpreted instructions, before an op that asks with
-/// `probeCostly` spreads. In the grid (`docs/perf/history.md`) a 3-instruction body never paid
-/// at any length, and a 26-instruction one first did. Over 100,000 elements a cheap body that
-/// spreads finishes sooner only when the op is little but the body, and spends about twice the
-/// CPU either way. Not applied while `crossover` is 0, which tests use to force a spread.
+/// The least an element must cost, in interpreted instructions, before an op spreads. In the grid
+/// (`docs/perf/history.md`) a 3-instruction body never paid at any length, and a 26-instruction
+/// one first did. Over 100,000 elements a cheap body that spreads finishes sooner only when the op
+/// is little but the body, and spends about twice the CPU either way. Not applied while
+/// `crossover` is 0, which tests use to force a spread.
 let minPerElement = 20L
 
 /// The least work, in interpreted instructions, worth a chunk of its own. A chunk is a process,
@@ -152,7 +152,7 @@ let private instructionsSince
 /// the one that loads and converts what it calls. So the earliest answer is after two measured
 /// elements.
 [<AllowNullLiteral>]
-type Probe(vm : VMState, app : Applicable, floor : int64) =
+type Probe(vm : VMState, app : Applicable) =
   // The process stepping this VM, read once: it is the same one for the whole list op, and
   // finding it is an `AsyncLocal` lookup.
   let proc = Sched.Scheduler.CurrentProcess
@@ -180,7 +180,7 @@ type Probe(vm : VMState, app : Applicable, floor : int64) =
       // ran / finished * left >= crossover, without the division.
       if ran * int64 left < crossover * int64 finished then
         false
-      elif perElement < floor && crossover > 0L then
+      elif perElement < minPerElement && crossover > 0L then
         false
       elif fellBack.ContainsKey(keyOf app) then
         off <- true
@@ -188,12 +188,11 @@ type Probe(vm : VMState, app : Applicable, floor : int64) =
       else
         true
 
-  /// Whether the elements so far cost less than this probe's floor, which needs no count of
+  /// Whether the elements so far cost less than `minPerElement` each, which needs no count of
   /// what is left.
   member private _.BelowFloor() : bool =
-    floor > 0L
-    && crossover > 0L
-    && instructionsSince proc vm start < floor * int64 finished
+    crossover > 0L
+    && instructionsSince proc vm start < minPerElement * int64 finished
 
   /// After an element: `left` is how many are still to go.
   member this.Ask(left : int) : bool =
@@ -209,11 +208,7 @@ type Probe(vm : VMState, app : Applicable, floor : int64) =
   member _.PerElement = perElement
 
 let probe (state : ExecutionState) (vm : VMState) (app : Applicable) : Probe =
-  if eligible state then Probe(vm, app, 0L) else null
-
-/// `probe`, for an op that spreads only a body of at least `minPerElement` instructions.
-let probeCostly (state : ExecutionState) (vm : VMState) (app : Applicable) : Probe =
-  if eligible state then Probe(vm, app, minPerElement) else null
+  if eligible state then Probe(vm, app) else null
 
 
 // -- Prediction --
@@ -284,7 +279,7 @@ let private both (a : Purity) (b : Purity) : Purity =
 
 let rec private letPatternRegisters (p : LetPattern) : List<Register> =
   match p with
-  | LPVariable r -> [ r ]
+  | LPVariable(r, _) -> [ r ]
   | LPTuple(a, b, rest) -> List.collect letPatternRegisters (a :: b :: rest)
   | LPWildcard
   | LPUnit -> []
@@ -715,6 +710,7 @@ and private spreadChunks
           { name = builtin
             typeSymbolTable = TST.empty
             typeArgs = []
+            approvalName = None
             access = None
             argsSoFar = chunkArgs offset chunk
             boundImpls = [] }
@@ -837,20 +833,13 @@ type Step<'acc> =
 /// carries on here, element by element, as before.
 ///
 /// `builtinName` is the builtin a chunk runs over its stretch: the op itself, or one that applies
-/// the callable the same way (`listMap` for `sortBy`'s keys). `floor` is the least an element must
-/// cost before the op spreads: 0, or `minPerElement`.
+/// the callable the same way (`listMap` for `sortBy`'s keys).
 ///
 /// One per call of the op, and it is the continuation each element's answer comes back to, so a
 /// call allocates it and the probe and nothing else per list.
 [<AbstractClass>]
 type Walk<'acc>
-  (
-    state : ExecutionState,
-    vm : VMState,
-    app : Applicable,
-    builtinName : string,
-    floor : int64
-  ) =
+  (state : ExecutionState, vm : VMState, app : Applicable, builtinName : string) =
   inherit FSharpFunc<Dval, Ply<Dval>>()
 
   // Where the walk is: what the op has so far, the element whose answer is awaited and its index,
@@ -952,7 +941,7 @@ type Walk<'acc>
     else
       acc <- empty
       next <- box this :?> (Dval -> Ply<Dval>)
-      probe <- if eligible state then Probe(vm, app, floor) else null
+      probe <- if eligible state then Probe(vm, app) else null
       this.CarryOn(0L, items)
 
 /// Runs `op` over `items`, starting from `empty` (`Walk`).

@@ -134,7 +134,7 @@ module RuntimeTypes =
       RTE.Bool(RTE.Bools.OrOnlySupportsBooleans(vt, vt2))
       RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv))
       RTE.BigInt RTE.BigInts.DivideByZeroError
-      RTE.BigInt RTE.BigInts.OutOfRange
+      RTE.BigInt(RTE.BigInts.OutOfRange(RTE.BigInts.Port(0L, 65535L), dv))
       RTE.BigInt RTE.BigInts.NegativeExponent
       RTE.BigInt RTE.BigInts.NegativeModulus
       RTE.BigInt RTE.BigInts.ZeroModulus
@@ -146,7 +146,7 @@ module RuntimeTypes =
       RTE.Dict(RTE.Dicts.UnsupportedKeyType(vt, dv))
       RTE.Dict(RTE.Dicts.NaNKey dv)
       RTE.Dict(RTE.Dicts.MismatchedKeyType(vt, vt2, dv))
-      RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, RT.LPVariable 0))
+      RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, RT.LPVariable(0, "x")))
       RTE.VariableNotFound "x"
       RTE.EqualityCheckOnIncompatibleTypes(vt, vt2)
       RTE.NumericOperationOnIncompatibleTypes(vt, vt2)
@@ -296,7 +296,6 @@ module RuntimeTypes =
         returnType = RT.TInt64
         body = instructions[0]
         symbols = RT.DebugSymbols.emptyLazy
-        permissionCeiling = None
         bounds = [] }
       { hash = RT.Hash "fn2"
         typeParams = [ "T" ]
@@ -307,7 +306,6 @@ module RuntimeTypes =
         returnType = RT.TString
         body = instructions[0]
         symbols = RT.DebugSymbols.emptyLazy
-        permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
         bounds = [] } ]
 
 
@@ -902,7 +900,6 @@ module ProgramTypes =
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
       description = "test"
-      permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
       bounds = [] }
 
   /// `let f<'a: Show + Equal<BigInt>> ...`: two bounds on one param, one with a type arg,
@@ -951,7 +948,6 @@ module ProgramTypes =
         NEList.singleton { name = "value"; typ = TVariable "a"; description = "" }
       returnType = TString
       description = "bounded"
-      permissionCeiling = None
       bounds = [ { param = "a"; trait_ = showRef }; { param = "a"; trait_ = eqRef } ] }
 
   let packageFns = [ packageFn; boundedPackageFn ]
@@ -1017,7 +1013,6 @@ module ProgramTypes =
             parameters =
               NEList.singleton { name = "v"; typ = TVariable "a"; description = "" }
             returnType = TVariable "b"
-            permissionCeiling = Some Set.empty
             description = "the method" }
       description = "a trait" }
 
@@ -1160,6 +1155,7 @@ module ProgramTypes =
         None
       )
       UpdateDoc(loc, DocPart.Parameter 2, "what to pass", Some shortHash, None)
+      UpdateDoc(loc, DocPart.ParameterName 1, "count", None, None)
 
       Decision(
         "d1",

@@ -129,21 +129,25 @@ let helpRowsAtWidth(
     [])
 
 
-/// The leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. `shortNames` is the
-/// only thing a listing of one module and a search across the tree disagree about: a listing shows
-/// `map`, a search shows `Darklang.Stdlib.List.map`. The submodule row is each caller's own, because
-/// they ask different questions of `results`.
+/// How nav items name what they point at: a listing of one module shows `map`, a search across
+/// the tree shows `Darklang.Stdlib.List.map`.
+type Names =
+  | Short
+  | Full
+
+/// The leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. <param names> is the only
+/// thing a listing of one module and a search across the tree disagree about. The submodule row is
+/// each caller's own, because they ask different questions of `results`.
 let leafNavItems(
   results: LanguageTools.ProgramTypes.Search.SearchResults,
-  shortNames: Bool)
+  names: Names)
   : List<NavItem> =
   let nameOf(
     location: LanguageTools.ProgramTypes.PackageLocation)
     : String =
-    if shortNames then
-      location.name
-    else
-      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
+    match names with
+    | Short -> location.name
+    | Full -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
 
   let types =
     results.types
@@ -189,7 +193,7 @@ let buildNavItemsFromResults(
     |> Stdlib.List.map(fun name ->
       NavItem { name = name, entityType = EntityType.Module, location = PackageLocation.Module(Stdlib.List.append(modulePath, name)) })
 
-  Stdlib.List.flatten([ submodules, leafNavItems(results, true) ])
+  Stdlib.List.flatten([ submodules, leafNavItems(results, Names.Short) ])
 
 
 // Create interactive navigation state for a location
@@ -280,7 +284,7 @@ let loadFocusRows(
     Stdlib.List.flatten([ [ locationStr ], submoduleRows, typeRows ])
   | _ ->
     // Individual entities are typically small enough to show in full.
-    View.entityRows(branchId, location, false)
+    View.entityRows(branchId, location, View.Tests.Hide)
 
 
 /// Refresh derived focus content after a state transition.
@@ -338,7 +342,7 @@ let layout(
     if hasFocus then Stdlib.List.length(navState.focusRows) + 1 else 0
 
   let maximumStackedFocusHeight =
-    (bodyHeight * 60) / 100
+    Stdlib.Int64.checkedDivide(bodyHeight * 60, 100) |> Stdlib.Result.withDefault(0)
 
   let focusHeight =
     if sideBySide then
@@ -353,7 +357,7 @@ let layout(
     if sideBySide then
       Stdlib.max(
         30,
-        ((width - 1) * 2) / 5)
+        (Stdlib.Int64.checkedDivide((width - 1) * 2, 5) |> Stdlib.Result.withDefault(0)))
     else
       width
 
@@ -388,7 +392,7 @@ let viewAtSize(
     fun text ->
       Darklang.Stdlib.Cli.Tui.Text.clipToWidth(text, regions.focusWidth)
   let horizontalRule(line: String): String =
-    Stdlib.String.repeat(line, regions.width)
+    (Stdlib.String.checkedRepeat(line, regions.width) |> Stdlib.Result.withDefault(""))
   let locationStr = Packages.formatLocation(navState.currentLocation)
 
   let headerPrefix =
@@ -796,7 +800,7 @@ let performSearch(navState: State): State =
     // No tests, as `dark search` leaves them out by default; this mode has no
     // flag to ask for them, and browsing a module still lists its tests.
     let withoutTests = { results with tests = [] }
-    let searchItems = Stdlib.List.flatten([ moduleItems, leafNavItems(withoutTests, false) ])
+    let searchItems = Stdlib.List.flatten([ moduleItems, leafNavItems(withoutTests, Names.Full) ])
 
     { navState with
         items = searchItems

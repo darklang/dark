@@ -51,7 +51,7 @@ let lines(node: Node.Node<'msg>): List<String> =
     if height == 0 then
       []
     else
-      Stdlib.List.range(0, height - 1)
+      (Stdlib.List.checkedRange(0, height - 1) |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.map(fun i ->
         columns
         |> Stdlib.List.map(fun col ->

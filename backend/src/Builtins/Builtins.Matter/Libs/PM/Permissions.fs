@@ -115,6 +115,16 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
 
     hostOnly
+      "pmPolicyReviewToken"
+      [ Param.make "unit" TUnit "" ]
+      TString
+      "Identity of the policy to review before confirming a named approval."
+      (fun _ args ->
+        match args with
+        | [| DUnit |] -> Ply(DString(PolicyStore.reviewToken (PolicyStore.get ())))
+        | _ -> incorrectArgs ())
+
+    hostOnly
       "pmPolicyEditInstance"
       [ Param.make
           "edit"
@@ -147,9 +157,11 @@ let fns () : List<BuiltInFn> =
         | [| accountIDDval |] ->
           uply {
             let hashes =
-              PolicyStore.packagePolicies (accountIDOf accountIDDval)
+              PolicyStore.approvedVersions (accountIDOf accountIDDval)
               |> Map.toList
-              |> List.map (fst >> DString)
+              |> List.map snd
+              |> List.distinct
+              |> List.map DString
             return DList(VT.string, Items(hashes))
           }
         | _ -> incorrectArgs ())
@@ -186,8 +198,8 @@ let fns () : List<BuiltInFn> =
               PolicyToDT.Approval.toDT
                 hash
                 name
-                (Map.tryFind hash policies)
-                (PolicyStore.explicitApproval accountID hash)
+                (name |> Option.bind (fun n -> Map.tryFind n policies))
+                (name |> Option.bind (PolicyStore.explicitApproval accountID))
             let named = PolicyStore.approvedVersions accountID |> Map.toList
             let entries =
               match CommonToDT.Option.fromDT D.string hashDval with
@@ -263,6 +275,7 @@ let fns () : List<BuiltInFn> =
       "pmPolicyApproveVersion"
       [ accountParam
         locationParam
+        Param.make "expected" TString "Policy identity from before review"
         Param.make "hash" TString "Approved content hash"
         Param.make
           "rules"
@@ -280,7 +293,7 @@ let fns () : List<BuiltInFn> =
       (TypeReference.result
         TUnit
         (TCustomType(NR.ok (PolicyToDT.ApprovalFailure.typeName ()), [])))
-      ("Approve an immutable function closure and point its logical name at that version, as "
+      ("Remember access for this name and immutable function version, as "
        + "one transaction. Contract comparison happens before any approval is stored. "
        + "`Ok ()` when approved; `Error (ContractChanged differences)` "
        + "when the contract changed and `acknowledgeContractChange` was false — "
@@ -291,6 +304,7 @@ let fns () : List<BuiltInFn> =
         match args with
         | [| accountIDDval
              DString location
+             DString expected
              DString hash
              rulesDval
              DBool acknowledgeIncomplete
@@ -310,6 +324,7 @@ let fns () : List<BuiltInFn> =
                 effects.callEffectsFor
                 (accountIDOf accountIDDval)
                 location
+                expected
                 hash
                 rules
                 acknowledgeIncomplete
@@ -330,6 +345,53 @@ let fns () : List<BuiltInFn> =
                   KTUnit
                   failureKT
                   (PolicyToDT.ApprovalFailure.refused message)
+          }
+        | _ -> incorrectArgs ())
+
+    policyFn
+      "pmFnEffectReasons"
+      [ Param.make "hash" TString "The function to inspect without executing it" ]
+      (TTuple(
+        TBool,
+        TList(
+          TTuple(
+            TCustomType(NR.ok (EffectsToDT.Effect.typeName ()), []),
+            TList TString,
+            []
+          )
+        ),
+        []
+      ))
+      "Effect-analysis completeness and a call path explaining each known effect."
+      (fun state args ->
+        match args with
+        | [| DString hash |] ->
+          uply {
+            let! result, reasons =
+              PackagePermissions.explain
+                PackagePermissions.Load.fromStore
+                (builtinEffects state).callEffectsFor
+                hash
+            let itemType = KTCustomType(EffectsToDT.Effect.typeName (), [])
+            let values =
+              reasons
+              |> List.map (fun (effect, path) ->
+                DTuple(
+                  EffectsToDT.Effect.toDT effect,
+                  DList(VT.string, Items(List.map DString path)),
+                  []
+                ))
+            return
+              DTuple(
+                DBool result.complete,
+                DList(
+                  VT.known (
+                    KTTuple(VT.known itemType, VT.known (KTList VT.string), [])
+                  ),
+                  Items values
+                ),
+                []
+              )
           }
         | _ -> incorrectArgs ())
 

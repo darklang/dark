@@ -63,7 +63,7 @@ let wrapWithCursor(
 let fitToWidth(text: String, targetWidth: Int64): String =
   let clipped = clipToWidth(text, targetWidth)
   let padding = Stdlib.max(0, targetWidth - (styledWidth(clipped)))
-  clipped + Stdlib.String.repeat(" ", padding)
+  clipped + (Stdlib.String.checkedRepeat(" ", padding) |> Stdlib.Result.withDefault(""))
 
 
 // --- Word wrapping ---

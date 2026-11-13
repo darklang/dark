@@ -28,7 +28,7 @@ let renderTreeList(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
     let anyDesc = state.items |> Stdlib.List.any(fun it -> it.desc != "")
     let nameCap =
       if state.activeView == vHome then
-        Stdlib.max(16, (region.cols * 2) / 3)
+        Stdlib.max(16, Stdlib.Int64.checkedDivide(region.cols * 2, 3) |> Stdlib.Result.withDefault(0))
       else 36
     let nameCol =
       if Stdlib.Bool.not(anyDesc) then 0
@@ -64,7 +64,7 @@ let renderTreeList(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
           + (if isDeprecated then Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, " ⚠") else "")
         let gap =
           if item.desc == "" then ""
-          else Stdlib.String.repeat(" ", Stdlib.max(2, nameCol + 2 - (Stdlib.String.displayWidth(display))))
+          else (Stdlib.String.checkedRepeat(" ", Stdlib.max(2, nameCol + 2 - (Stdlib.String.displayWidth(display)))) |> Stdlib.Result.withDefault(""))
         // A description that arrives coloured (a change kind, a diff stat) keeps its colours; a
         // plain one is dim.
         let descStyled =
@@ -77,7 +77,7 @@ let renderTreeList(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
           // the cursor (see `selectableRow`).
           if item.name == "" then "" else "  " + (Stdlib.Cli.UI.Colors.dimText(item.name))
         else if i == state.selected then
-          selectionBar(display, rest, focused)
+          selectionBar(display, rest, Stdlib.Cli.UI.Focus.fromBool(focused))
         else
           // A module holding uncommitted work is grayed rather than bold: not yet part of what
           // everyone else sees, and the leaf dots inside say exactly what.
@@ -118,15 +118,9 @@ let factRow(label: String, value: String): String =
 
 /// A dim note under a fact row, aligned with its value.
 let factNote(note: String): String =
-  "  " + (Stdlib.String.repeat(" ", 11)) + (Stdlib.Cli.UI.Colors.dimText(note))
+  "             " + (Stdlib.Cli.UI.Colors.dimText(note))
 
-/// The essentials of a fn's authority, for a detail pane: what it needs, the
-/// ceiling its author set (and whether the body exceeds it), and whether this
-/// account has approved it. `permissions show` prints the whole layered
-/// report; the version is already on the meta strip, the instance policy is
-/// the same for every fn on the machine, and the closing lines about run
-/// policy and call-time resource checks describe the runtime rather than
-/// this fn, so none of that earns a line here.
+/// The function's effects and approval status, without instance-wide rules.
 /// The line the access block opens with; `inspectPageLines` splits on it.
 val accessHeading = sectionHeading("access")
 
@@ -136,34 +130,14 @@ let accessSummaryLines(state: State, hash: String): List<String> =
     Stdlib.List.flatten(
       [ [ factRow("requires", effectsText(Permissions.Command.describeRequirements((facts.effects, facts.complete)))) ]
         (if facts.complete then [] else [ factNote("incomplete · some calls not followed") ]) ])
-  let ceiling =
-    match facts.ceiling with
-    | None -> []
-    | Some(names) ->
-      let exceeding =
-        facts.effects |> Stdlib.List.filter(fun e -> Stdlib.Bool.not(Stdlib.List.contains(names, e)))
-      let warning =
-        if facts.complete && (Stdlib.Bool.not(Stdlib.List.isEmpty(exceeding))) then
-          [ factNote(
-              ("⚠ narrower than the body needs: "
-               + (Stdlib.String.join(exceeding |> Stdlib.List.map(LanguageTools.Permissions.effectName), ", "))
-               + " denied at runtime")) ]
-        else []
-      Stdlib.List.prepend(
-        warning,
-        factRow("ceiling", LanguageTools.Permissions.ceilingRow(Stdlib.Option.Option.Some(names))))
   let approval =
     if facts.bundled then
       [ factRow("approval", (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "none needed")) + (Stdlib.Cli.UI.Colors.dimText(" · bundled Darklang code"))) ]
     else if Stdlib.Bool.not(Stdlib.List.isEmpty(facts.approvedAs)) then
       [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved as " + (Stdlib.String.join(facts.approvedAs, ", ")))) ]
     else
-      match facts.packagePolicy with
-      | Some(_) -> [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "approved")) ]
-      | None ->
-        [ factRow("approval", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, "not approved"))
-          factNote("blocked as a dependency · runs as an entry point") ]
-  Stdlib.List.flatten([ [ accessHeading ], requires, ceiling, approval ])
+      [ factRow("approval", Stdlib.Cli.UI.Colors.dimText("uses instance defaults")) ]
+  Stdlib.List.flatten([ [ accessHeading ], requires, approval ])
 
 /// The selected module's immediate children for the Inspect pane. This is a
 /// preview of the next Tree level, not a recursive package listing.
@@ -638,18 +612,21 @@ let matterPageLines(state: State): List<String> =
   else
     inspectPageLines(state)
 
-/// Build the item page when the Code view is showing one it was not built for. Kept on the
-/// state, so the frames in between draw it rather than reading the store again.
+/// How many item pages the Code view keeps, so moving back over the last few draws them again.
+val previewsKept = 16
+
+/// Build the item page when the Code view is showing one it has not built. Kept on the state, so
+/// the frames in between, and a move back to it, draw it rather than reading the store again.
 let refreshPreview(next: State): State =
   if next.activeView != vMatter then
-    { next with preview = Stdlib.Option.Option.None }
+    { next with previews = [] }
   else
     let key = previewKey(next)
-    match next.preview with
-    | Some(p) when p.key == key -> next
-    | _ ->
-      { next with
-          preview = Stdlib.Option.Option.Some(PreviewCache { key = key, lines = matterPageLines(next) }) }
+    if Stdlib.List.any(next.previews, fun p -> p.key == key) then
+      next
+    else
+      let page = PreviewCache { key = key, lines = matterPageLines(next) }
+      { next with previews = Stdlib.List.take(Stdlib.List.prepend(next.previews, page), previewsKept) }
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
@@ -667,9 +644,10 @@ let previewLines(state: State): List<String> =
     // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions).
     // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf
     // against where you're standing, so it would report every one of them as missing.
-    match state.preview with
-    | Some(p) when p.key == previewKey(state) -> p.lines
-    | _ -> matterPageLines(state)
+    let key = previewKey(state)
+    match Stdlib.List.findFirst(state.previews, fun p -> p.key == key) with
+    | Some(p) -> p.lines
+    | None -> matterPageLines(state)
   else if state.activeView == vTraces then Stdlib.String.split(traceDetail(state), "\n")
   else if state.activeView == vDocs then Stdlib.String.split(docContent(state), "\n")
   else

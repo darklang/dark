@@ -89,11 +89,12 @@ let fns () : List<BuiltInFn> =
                           { name = FQFnName.Package fnHash
                             typeSymbolTable = TST.empty
                             typeArgs = []
+                            approvalName = None
                             access = None
                             argsSoFar = []
                             boundImpls = [] }
                       return!
-                        Interpreter.requestApply vm impl value [] (fun text ->
+                        Interpreter.requestApply vm impl value ValueNone (fun text ->
                           Ply(Dval.optionSome KTString text))
                     | None -> return none
                   | _ -> return none

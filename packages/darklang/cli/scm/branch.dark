@@ -79,8 +79,19 @@ let branchRows(unit: Unit): List<ScmJson.BranchJson> =
         current = b.id == current
         merged = b.merged })
 
+/// Whether `branches` shows merged branches. `--all` asks for them.
+type Merged =
+  | Show
+  | Hide
+
+module Merged =
+  /// {{Show}} when <param asked>, the way `branches` reads `--all`.
+  let showIf(asked: Bool): Darklang.Cli.Branch.Merged =
+    if asked then Darklang.Cli.Branch.Merged.Show else Darklang.Cli.Branch.Merged.Hide
+
 /// List all active branches.
-let executeList(state: AppState, includeMerged: Bool): AppState =
+let executeList(state: AppState, merged: Merged): AppState =
+  let includeMerged = merged == Merged.Show
   let header = $"on {whereLabel(SCM.PackageOps.currentBranch())}. branches:"
   let listing = SCM.PackageOps.branchList(includeMerged)
 
@@ -146,10 +157,10 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
         match SCM.PackageOps.resolveBranchRef(ref) with
         | Found(existing) ->
           if SCM.PackageOps.branchIsMerged(existing) then
-            Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch(ref, parentId))
+            start(ref, parentId)
           else
             Stdlib.Option.Option.Some((existing, false))
-        | NotFound -> Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch(ref, parentId))
+        | NotFound -> start(ref, parentId)
         | UnknownId(_) ->
           let _ = lookupRef(ref)
           Stdlib.Option.Option.None
@@ -357,8 +368,8 @@ let help(_state: AppState): String =
 let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [] -> executeCurrent(state)
-  | [ "list" ] -> executeList(state, false)
-  | [ "list", "--all" ] -> executeList(state, true)
+  | [ "list" ] -> executeList(state, Merged.Hide)
+  | [ "list", "--all" ] -> executeList(state, Merged.Show)
   | [ "current" ] -> executeCurrent(state)
   | [ "switch", id ] -> executeSwitch(state, id)
   | [ "new", id ] | [ "create", id ] when id == SCM.Branch.mainBranchName ->
@@ -373,8 +384,8 @@ let execute(state: AppState, args: List<String>): AppState =
   | [ "archive", id, "-y" ] | [ "archive", id, "--yes" ] ->
     executeArchive(state, id, Cli.Confirm.Assume)
   | [ "rename", id, newName ] -> executeRename(state, id, newName)
-  | [ "diff", id ] -> executeDiff(state, id, false)
-  | [ "diff", id, "--source" ] -> executeDiff(state, id, true)
+  | [ "diff", id ] -> executeDiff(state, id, Source.Hide)
+  | [ "diff", id, "--source" ] -> executeDiff(state, id, Source.Show)
   | [ "log", id ] -> executeLog(state, id)
   | [ "merge", id ] -> executeMerge(state, id, Cli.Confirm.Ask, TypeErrors.Refuse)
   | [ "merge", id, "-y" ] | [ "merge", id, "--yes" ] ->
@@ -454,10 +465,17 @@ let looksLikeTypoedSubcommand(arg: String): Stdlib.Option.Option<String> =
 let executeBranchesCmd(state: AppState, args: List<String>): AppState =
   if ScmJson.wantsJson(args) then
     // JSON is for a program, and a program wants the whole set rather than the readable subset.
-    Stdlib.printLine(ScmJson.branchesJson(branchRows()))
-    state
+    Cli.exitWith(state, Cli.printJson(ScmJson.branchesJson(branchRows())))
   else
-    executeList(state, Stdlib.List.contains(args, "--all"))
+    executeList(state, Merged.showIf(Stdlib.List.contains(args, "--all")))
+
+/// Start the branch named <param name> off <param parentId>, or say why it could not be.
+let start(name: String, parentId: Uuid): Stdlib.Option.Option<(Uuid * Bool)> =
+  match SCM.PackageOps.ensureBranch(name, parentId) with
+  | Ok(pair) -> Stdlib.Option.Option.Some(pair)
+  | Error(e) ->
+    Cli.printErr(SCM.Actions.failureMessage(e))
+    Stdlib.Option.Option.None
 
 /// `dark switch [<id>]`. No argument reports where you are rather than switching, so a bare `switch`
 /// can't silently move you to main.

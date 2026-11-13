@@ -329,7 +329,7 @@ let commitSelected(
           SCM.PackageOps.currentBranch(),
           message,
           SCM.Actions.CommitScope.Only(opIds),
-          false)
+          SCM.PackageOps.Namings.KeepAll)
       with
       // A selection that matched rows and then committed none of them means the ids went stale between
       // planning and stamping. Say so rather than report a commit that holds nothing.
@@ -357,7 +357,7 @@ let commit(
   : Stdlib.Result.Result<(String * Int64 * Int64), String> =
   let moved = propagateAll(state, r)
 
-  // Collapse BEFORE committing (`collapse = true`, main only). Until now every version in the draft is
+  // Collapse BEFORE committing (main only). Until now every version in the draft is
   // reachable (`undo` steps through them), but a commit is what other machines read, and five namings of
   // one function -- four of them describing a version nobody else ever saw -- are not history.
   // The process's branch, the one the checks read (see `commitSelected`).
@@ -366,7 +366,7 @@ let commit(
       SCM.PackageOps.currentBranch(),
       message,
       SCM.Actions.CommitScope.Whole,
-      true)
+      SCM.PackageOps.Namings.Collapse)
   with
   | Ok(c) -> Stdlib.Result.Result.Ok((c.hash, c.stamped, moved))
   | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
@@ -380,8 +380,8 @@ let executeJson(state: AppState, args: List<String>): AppState =
   // The same two gates the pretty path runs: an agent driving `--json -y` must not commit an unresolvable
   // reference, or a definite type error, that a person at the pretty prompt would have been refused.
   // Refusals are DATA here, not prose: `commit --json` is the documented dry review, and its
-  // stdout belongs to the JSON alone -- prose above the payload broke the one call agents were
-  // told is safe to parse.
+  // stdout belongs to the JSON alone -- prose above the payload would break the one call agents
+  // are told is safe to parse.
   let quietRefusal(): String =
     if parsed.message == "" && parsed.autoConfirm then "no-message"
     else if
@@ -425,25 +425,26 @@ let executeJson(state: AppState, args: List<String>): AppState =
     else
       (false, "", 0, 0, "")
 
-  Stdlib.printLine((
-    ScmJson.commitJson((
-      ScmJson.CommitJson
-        { branch = r.branch
-          committed = didCommit
-          refused = refusal
-          commit = hash
-          message = parsed.message
-          opsCommitted = ops
-          dependentsRepointed = moved
-          changed = r.items
-          removed = r.removed
-          propagates = r.propagates
-          conflicts = r.conflicts }
+  let printed =
+    Cli.printJson((
+      ScmJson.commitJson((
+        ScmJson.CommitJson
+          { branch = r.branch
+            committed = didCommit
+            refused = refusal
+            commit = hash
+            message = parsed.message
+            opsCommitted = ops
+            dependentsRepointed = moved
+            changed = r.items
+            removed = r.removed
+            propagates = r.propagates
+            conflicts = r.conflicts }
+      ))
     ))
-  ))
 
   if failure == "" then
-    state
+    Cli.exitWith(state, printed)
   else
     Cli.printErr(failure)
     { state with exitCode = 1 }
@@ -499,8 +500,7 @@ let refuseTypeErrors(parsed: Args): Bool =
       Cli.printErr("cannot commit: the at-rest type check found definite errors.")
 
       // Per ITEM, so the refusal names what to open, with the SAME issue rendering `dark typecheck`
-      // uses (it resolves referenced names and dedupes). "In the pipeline function: ..." with no
-      // name, over a five-item draft, told a person (and an agent) nothing actionable.
+      // uses (it resolves referenced names and dedupes).
       let branchId = SCM.PackageOps.currentBranch()
 
       report.items
@@ -630,7 +630,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
 
     // `confirmExplicit`, so a piped stdin is a NO: docs promise a review-then-ask, and a script
     // that wants no prompt says `-y`. `confirm` would treat "nobody there" as a yes. `[y/N]`,
-    // because that is what Enter now does.
+    // because that is what Enter does.
     if
       Stdlib.Bool.not((
         Cli.Prompt.confirmExplicit(
@@ -662,8 +662,8 @@ let executePretty(state: AppState, args: List<String>): AppState =
           if Stdlib.List.isEmpty(parsed.include) then
             ""
           else
-            // Ops AND items: status speaks items and this line speaks ops, and forcing the reader to
-            // reconcile 4-vs-16 mid-commit was the one vocabulary jolt of the flow.
+            // Ops AND items: status speaks items and this line speaks ops, so the reader does not have
+            // to reconcile two counts mid-commit.
             let heldOps = SCM.PackageOps.draftOpCount()
             let heldItems = Stdlib.List.length(SCM.PackageOps.draftBindings())
             $"; {Cli.Text.plural(heldOps, "op")} ({Cli.Text.plural(heldItems, "item")}) still in the draft"

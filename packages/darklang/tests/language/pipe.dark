@@ -39,7 +39,7 @@ test pipeIntoTwoParameterLambdaRaises =
 test nonFunctionStageRaises =
   (let x = 1 in (5 |> x |> (fun v -> v + 3)))
   => raises
-    "Expected something we could apply to, such as a lambda or function, but got an Int64 (1)"
+    "Cannot call an Int64 value as a function."
 
 // dict
 type Z = { a: List<Int64> }

@@ -4,6 +4,14 @@ module Darklang.Stdlib.Json
 let serialize<'a>(value: 'a): String =
   Builtin.jsonSerialize<'a>(value)
 
+/// Serializes a Dark value to a JSON string, or {{Error}} where <fn serialize> raises: a value
+/// with no JSON form, such as a function, bytes, or a dict whose keys are not Strings.
+let checkedSerialize<'a>(
+  value: 'a)
+  : Stdlib.Result.Result<String, SerializeError.SerializeError> =
+  Builtin.jsonCheckedSerialize<'a>(value)
+  |> Stdlib.Result.mapError(fun dv -> SerializeError.SerializeError.CannotSerialize(dv))
+
 /// Parses a JSON string as a Dark value, matching the type <typeParam a>.
 /// Show an error with `$"{e}"` or `Stdlib.display(e)`.
 let parse<'a>(
@@ -58,6 +66,8 @@ module ParseError =
     /// The text isn't JSON: the line and column where it broke, both counted
     /// from 1, the column in characters
     | NotJson(line: Int64, column: Int64)
+    /// A type with no JSON form: a function, bytes, a stream, or a type variable
+    | UnsupportedType(LanguageTools.RuntimeTypes.TypeReference)
 
   let toString(
     branchId: Uuid,
@@ -141,9 +151,35 @@ module ParseError =
       + ", column "
       + Stdlib.display(column)
 
+    // Can't parse JSON as type `Int64 -> Int64`, which has no JSON form
+    | UnsupportedType(typ) ->
+      "Can't parse JSON as type `"
+      + PrettyPrinter.RuntimeTypes.typeReference(branchId, typ)
+      + "`, which has no JSON form"
+
 
   impl Display for ParseError =
     /// What went wrong, with types named as the current branch sees them:
     /// {{Can't parse JSON `"x"` as type `Int64` at path: `root.age`}}
     let display(e: ParseError): String =
       Stdlib.Json.ParseError.toString(Darklang.SCM.Branches.current(), e)
+
+
+module SerializeError =
+  type SerializeError =
+    /// The first value found with no JSON form
+    | CannotSerialize(LanguageTools.RuntimeTypes.Dval)
+
+  impl Display for SerializeError =
+    /// What has no JSON form: {{Cannot serialize a function into JSON}}
+    let display(e: SerializeError): String =
+      match e with
+      | CannotSerialize(dv) ->
+        match dv with
+        | DDict(keyType, _, _) ->
+          "Cannot serialize a dict into JSON: JSON object keys must be Strings, but this dict's keys are "
+          + PrettyPrinter.RuntimeTypes.valueType(Darklang.SCM.Branches.current(), keyType)
+        | DApplicable(_) -> "Cannot serialize a function into JSON"
+        | DBytes(_) -> "Cannot serialize bytes into JSON"
+        | DStreamStub(_) -> "Cannot serialize a stream into JSON"
+        | _ -> "Cannot serialize this value into JSON"

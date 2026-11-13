@@ -18,9 +18,8 @@ running commands, not by reading them, and always the same four ways:
 
 Grep the output for `Encountered a Runtime Error`, `expects .* but got`, `No matching case
 found`, `couldn't be found`. Shape 4 is the one people skip and it finds the most: a
-fall-through arm answers plausibly instead of refusing, so `dark commits zzznope` listed
-main's commits as though nothing had been asked, and `dark branch rename` created a branch
-called "rename".
+fall-through arm answers plausibly instead of refusing, such as `dark commits zzznope` listing
+main's commits as though nothing had been asked.
 
 Shapes 2 and 4 are automated in `CliSurface.Tests.fs`, driven off the command registry rather
 than a list, so a new command is swept the day it is registered. A command that must not be
@@ -41,15 +40,9 @@ catch, so asserting deeper measures the renderer rather than the view. That make
                |> Stdlib.List.map(fun r -> r.kind)'
 
 That turns a question about pixels into a question about a list, and then into a COUNT you can
-predict before you look. The Code view was drawing seventeen implementations and seventeen folders
-of the same names where it should have drawn seventeen and none; nothing about the rendered frame
-said so, and the count said so immediately.
+predict before you look.
 
-**Check a count rather than reading, wherever you can turn a claim into one.** Both of the hardest
-finds in the traits work came that way and neither came from careful reading: a PR description that
-had been claiming `impl Divide for Int64 = let divide = Stdlib.Int64.divide` is an alias block,
-caught by verifying "fourteen of seventeen" and finding `Stdlib.Int64.divide` does not exist; and
-the duplicate rows above. It works on prose as well as on views: every number in a document is a
+**Check a count rather than reading, wherever you can turn a claim into one.** It works on prose as well as on views: every number in a document is a
 claim you can check, and the wrong ones travel in the company of other wrong ones.
 
 **A key pressed while a frame is painting is lost under `expect`.** The runtime queues a key that arrives
@@ -214,8 +207,7 @@ The point of all this is that a green F# build says nothing about Dark, which re
 ## Performance
 
 **AOT or R2R, and why it decides a number.** `scripts/build/build-release-cli-exes.sh` can publish
-either. They are about FIVE TIMES apart on startup (`dark eval 1`: 40 ms AOT, 276 ms R2R,
-measured), different sizes, and different allocation, so a number taken against one says nothing
+either. They are about FIVE TIMES apart on startup, different sizes, and different allocation, so a number taken against one says nothing
 about the other -- and nothing in the binary's filename says which you have.
 
 The rule: **anything that produces a number, or gates a release, is AOT. Anything you are only
@@ -225,8 +217,8 @@ happens in a published build, or just checking the thing starts: R2R, and say wh
 quote a number from it.
 
 The default is `--mode=auto`, which is AOT on every runtime that can do it and R2R on the ones
-that cannot (Windows, from a Linux host), so the default is AOT here. `--mode=r2r` is the fast
-path, about 40 seconds cheaper on the one-runtime default. `--mode=aot` refuses a runtime this
+that cannot (Windows, from a Linux host), so the default is AOT here. `--mode=r2r` is the faster
+build. `--mode=aot` refuses a runtime this
 host cannot AOT-build rather than falling back, which is why it is not the default.
 
 The build writes the mode to `clis/<binary>.mode`, `scripts/perf/budget.json` records the
@@ -242,9 +234,9 @@ workload net of startup, budgeted apart). CI does not run it: nothing in CI meas
 Instead `scripts/perf/measure-release <tag>` takes every number for one release binary, and
 `scripts/perf/track` measures each new release into a history and charts it, on whatever schedule
 somebody runs it. The budget is the baseline those charts compare against, moved with
-`scripts/perf/gate --published --update` when a change is real and wanted. Only the published build is budgeted: the debug budget was retired because most of
-its overage was an interpreter hook the Release optimiser elides, so it tracked a configuration
-nobody ships.
+`scripts/perf/gate --published --update` when a change is real and wanted. Only the published build is budgeted: most of a debug build's
+overage is an interpreter hook the Release optimiser elides, so a debug budget tracks a
+configuration nobody ships.
 
 `suite` is the wider view and asserts nothing -- it is for seeing whether a change that helped one
 shape of program hurt another. The seven differ by more than an order of magnitude per iteration, so

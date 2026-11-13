@@ -159,16 +159,17 @@ let private parserStructureTests =
             (Some "replace 'let' with 'val'")
             "migration hint"
         | other -> failtest $"expected one diagnostic, got {other}")
-      testCase
-        "an unknown effect in the row is a diagnostic, not a wildcard"
-        (fun _ ->
-          let result =
-            P.parse "module M =\n  let f (x: Int64) :{Telepathy} Int64 = x"
-          match result.diagnostics with
-          | [ diagnostic ] ->
-            Expect.equal diagnostic.code P.DiagnosticCode.effect "diagnostic code"
-            Expect.stringContains diagnostic.message "Telepathy" "names the effect"
-          | other -> failtest $"expected one diagnostic, got {other}") ]
+      testCase "function ceiling syntax is rejected" (fun _ ->
+        for row in [ "{}"; "{Clock}"; "{Telepathy}" ] do
+          let result = P.parse $"module M =\n  let f(x: Int64):{row} Int64 = x"
+          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax")
+      testCase "a dict written with = says so once per entry" (fun _ ->
+        let result = P.parse "Dict { \"a\" = 1, \"b\" = Point { x = 1 } }"
+        Expect.equal
+          (result.diagnostics |> List.map (fun d -> d.message))
+          [ "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields"
+            "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields" ]
+          "one error per entry, and nothing after it") ]
 
 
 /// Parse `src` and return its single trailing expression — the range-complete
@@ -1634,7 +1635,25 @@ let private traitTests =
 let tests =
   testList
     "LibParser"
-    [ testCase "private names reach package lookup" (fun _ ->
+    [ testCase "a call to a missing fn is named for the reload to refuse" (fun _ ->
+        let ops =
+          (LibParser.Package.parse
+            (LibExecution.Builtin.make [] [])
+            PT.PackageManager.empty
+            NR.OnMissing.Allow
+            "module Me.Probe =\n  let f(x: Int64): Int64 = Me.Gone.g(x)\n  let h(x: Int64): Int64 = x"
+           |> Ply.toTask)
+            .Result
+        match ops with
+        | Ok ops ->
+          Expect.equal
+            (LibParser.Package.unresolvedCalls (
+              LibDB.HashStabilization.computeRealHashes ops
+            ))
+            [ "Me.Probe.f calls Me.Gone.g, which does not exist" ]
+            "only the call to nothing"
+        | Error e -> failtest $"did not parse: {e}")
+      testCase "private names reach package lookup" (fun _ ->
         for name in [ "__helper"; "__helper_v0" ] do
           let result =
             (NR.resolveFnName

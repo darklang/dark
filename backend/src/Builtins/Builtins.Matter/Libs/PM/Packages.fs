@@ -585,7 +585,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make
             "hash"
             TString
-            "a package fn's content hash, as `Hash` carries it" ]
+            "a package fn's content hash, as `Hash` carries it"
+          Param.make "name" TString "The logical entry point being followed" ]
       // Any arity: the function is only known once the store answers.
       returnType = TypeReference.result (TVariable "f") TString
       description =
@@ -593,7 +594,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "as a Result -- Error if no function has that hash."
       fn =
         (function
-        | _, _, _, [| DString hash |] ->
+        | _, _, _, [| DString hash; DString entryName |] ->
           uply {
             let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
             let err (msg : string) = Dval.resultError okKT KTString (DString msg)
@@ -604,6 +605,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   typeSymbolTable = TST.empty
                   typeArgs = []
                   // Whoever applies this supplies the frame access.
+                  approvalName = Some entryName
                   access = None
                   argsSoFar = []
                   boundImpls = [] }
@@ -621,9 +623,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // this is the one place an RTE from an applied fn becomes a `Result`.
     //
     // The fn is the APPROVAL ROOT of the call, as a router handed to `serve` is: the host chose it
-    // by name, and every version the name resolves to is the same choice, so a fresh version is not
-    // asked to be approved again before it may print. The caller's own access still bounds it
-    // (`constrainBy`), and the instance policy is the ceiling as everywhere. A lambda has no root
+    // by name. A new version needs review before it can use the named grant.
+    // The caller's restrictions and explicit instance denies still apply. A lambda has no root
     // and runs under the caller's policies alone.
     { name = fn "applicableTryApply" 0
       typeParams = [ "a"; "b" ]
@@ -1347,6 +1348,33 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               |> Dval.list (PT2DT.Hash.knownType ())
             return
               DTuple(hashListDval sets.allDeprecated, hashListDval sets.hidden, [])
+          }
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmImplPathsBelow" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make "modulePath" (TList TString) "the module to look below" ]
+      returnType = TList TString
+      description =
+        "The full path of every impl at or below <param modulePath>, such as "
+        + "`Darklang.Json.ParseError.Display`, without reading any definition."
+      fn =
+        (function
+        | _, _, _, [| DUuid branchId; DList(_, Items(modulePath)) |] ->
+          uply {
+            let modulePath =
+              modulePath
+              |> List.map (function
+                | DString s -> s
+                | _ -> incorrectArgs ())
+            let! paths = PMPT.implPathsBelow (branchOfParam branchId) modulePath
+            return toDList paths
           }
         | _ -> incorrectArgs ())
       previewable = Impure

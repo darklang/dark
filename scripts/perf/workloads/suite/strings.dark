@@ -19,8 +19,7 @@ let repeat(times: Int64, acc: Int64): Int64 =
   if times <= 0 then acc else repeat(times - 1, acc + (work(times)))
 
 let _warm = repeat(20, 0)
-let _reset = Darklang.LanguageTools.InterpreterStats.reset()
 let t0 = Darklang.Cli.Telemetry.now()
 let result = repeat(iters(), 0)
 let t1 = Darklang.Cli.Telemetry.now()
-Stdlib.printLine("elapsed_ms=" + (Stdlib.display(t1 - t0)) + " result=" + (Stdlib.display(result)) + " stats=" + (Darklang.LanguageTools.InterpreterStats.get()))
+Stdlib.printLine("elapsed_ms=" + (Stdlib.display(t1 - t0)) + " result=" + (Stdlib.display(result)))

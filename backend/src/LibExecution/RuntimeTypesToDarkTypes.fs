@@ -7,7 +7,6 @@ open RuntimeTypes
 module VT = ValueType
 module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
-module Effects2DT = LibExecution.EffectsToDarkTypes
 
 /// `Dval.dint64` is shadowed by the local `module Dval` below, so it can't be
 /// called unqualified in this file. This is the unshadowed encoder for the
@@ -457,7 +456,7 @@ module LetPattern =
   let rec toDT (p : LetPattern) : Dval =
     let (caseName, fields) =
       match p with
-      | LPVariable reg -> "LPVariable", [ DInt32 reg ]
+      | LPVariable(reg, name) -> "LPVariable", [ DInt32 reg; DString name ]
       | LPWildcard -> "LPWildcard", []
       | LPUnit -> "LPUnit", []
       | LPTuple(first, second, theRest) ->
@@ -470,7 +469,8 @@ module LetPattern =
 
   let rec fromDT (d : Dval) : LetPattern =
     match d with
-    | DEnum(_, _, [], "LPVariable", [ DInt32 reg ]) -> LPVariable(reg)
+    | DEnum(_, _, [], "LPVariable", [ DInt32 reg; DString name ]) ->
+      LPVariable(reg, name)
     | DEnum(_, _, [], "LPWildcard", []) -> LPWildcard
     | DEnum(_, _, [], "LPUnit", []) -> LPUnit
     | DEnum(_, _, [], "LPTuple", [ first; second; DList(_vtTODO, Items(theRest)) ]) ->
@@ -753,7 +753,8 @@ module ApplicableNamedFn =
         typeSymbolTable = TST.empty // TODO
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
         // Access is runtime-only; Dark values do not carry captured access.
-        access = Some(Permissions.Access.start Permissions.Policy.denyAll)
+        approvalName = None
+        access = Some(Permissions.Access.denyAll)
         // Not carried through Dark values: a decoded applicable is code, and the bounds its
         // caller resolved belong to the call rather than to the value.
         boundImpls = []
@@ -1220,6 +1221,70 @@ module RuntimeError =
       | _ -> Exception.raiseInternal "Invalid Bools.Error" []
 
   module BigInts =
+    module OutOfRangeKind =
+      let toDT (k : RuntimeError.BigInts.OutOfRangeKind) : Dval =
+        let typeName =
+          FQTypeName.fqPackage (
+            PackageRefs
+              .Type
+              .LanguageTools
+              .RuntimeTypes
+              .RuntimeError
+              .BigInts
+              .outOfRangeKind ()
+          )
+
+        let (caseName, fields) =
+          match k with
+          | RuntimeError.BigInts.FloatHasNoInteger -> "FloatHasNoInteger", []
+          | RuntimeError.BigInts.FloatOutsideInt64(min, max) ->
+            "FloatOutsideInt64", [ DInt64 min; DInt64 max ]
+          | RuntimeError.BigInts.ShiftCount max -> "ShiftCount", [ DInt64 max ]
+          | RuntimeError.BigInts.Exponent max -> "Exponent", [ DInt64 max ]
+          | RuntimeError.BigInts.RepeatCount max -> "RepeatCount", [ DInt64 max ]
+          | RuntimeError.BigInts.DateTimeSeconds -> "DateTimeSeconds", []
+          | RuntimeError.BigInts.DateTimeMilliseconds -> "DateTimeMilliseconds", []
+          | RuntimeError.BigInts.DateTimeTicks -> "DateTimeTicks", []
+          | RuntimeError.BigInts.Port(min, max) -> "Port", [ DInt64 min; DInt64 max ]
+          | RuntimeError.BigInts.NegativeMaxBodyBytes -> "NegativeMaxBodyBytes", []
+          | RuntimeError.BigInts.Int64ToInt32(min, max) ->
+            "Int64ToInt32", [ DInt64 min; DInt64 max ]
+          | RuntimeError.BigInts.BigIntToInt64(min, max) ->
+            "BigIntToInt64", [ DInt64 min; DInt64 max ]
+          | RuntimeError.BigInts.BigIntToInt32(min, max) ->
+            "BigIntToInt32", [ DInt64 min; DInt64 max ]
+
+        DEnum(typeName, typeName, [], caseName, fields)
+
+      let fromDT (d : Dval) : RuntimeError.BigInts.OutOfRangeKind =
+        match d with
+        | DEnum(_, _, [], "FloatHasNoInteger", []) ->
+          RuntimeError.BigInts.FloatHasNoInteger
+        | DEnum(_, _, [], "FloatOutsideInt64", [ DInt64 min; DInt64 max ]) ->
+          RuntimeError.BigInts.FloatOutsideInt64(min, max)
+        | DEnum(_, _, [], "ShiftCount", [ DInt64 max ]) ->
+          RuntimeError.BigInts.ShiftCount max
+        | DEnum(_, _, [], "Exponent", [ DInt64 max ]) ->
+          RuntimeError.BigInts.Exponent max
+        | DEnum(_, _, [], "RepeatCount", [ DInt64 max ]) ->
+          RuntimeError.BigInts.RepeatCount max
+        | DEnum(_, _, [], "DateTimeSeconds", []) ->
+          RuntimeError.BigInts.DateTimeSeconds
+        | DEnum(_, _, [], "DateTimeMilliseconds", []) ->
+          RuntimeError.BigInts.DateTimeMilliseconds
+        | DEnum(_, _, [], "DateTimeTicks", []) -> RuntimeError.BigInts.DateTimeTicks
+        | DEnum(_, _, [], "Port", [ DInt64 min; DInt64 max ]) ->
+          RuntimeError.BigInts.Port(min, max)
+        | DEnum(_, _, [], "NegativeMaxBodyBytes", []) ->
+          RuntimeError.BigInts.NegativeMaxBodyBytes
+        | DEnum(_, _, [], "Int64ToInt32", [ DInt64 min; DInt64 max ]) ->
+          RuntimeError.BigInts.Int64ToInt32(min, max)
+        | DEnum(_, _, [], "BigIntToInt64", [ DInt64 min; DInt64 max ]) ->
+          RuntimeError.BigInts.BigIntToInt64(min, max)
+        | DEnum(_, _, [], "BigIntToInt32", [ DInt64 min; DInt64 max ]) ->
+          RuntimeError.BigInts.BigIntToInt32(min, max)
+        | _ -> Exception.raiseInternal "Invalid BigInts.OutOfRangeKind" []
+
     let toDT (e : RuntimeError.BigInts.Error) : Dval =
       let typeName =
         FQTypeName.fqPackage (
@@ -1229,7 +1294,8 @@ module RuntimeError =
       let (caseName, fields) =
         match e with
         | RuntimeError.BigInts.DivideByZeroError -> "DivideByZeroError", []
-        | RuntimeError.BigInts.OutOfRange -> "OutOfRange", []
+        | RuntimeError.BigInts.OutOfRange(kind, value) ->
+          "OutOfRange", [ OutOfRangeKind.toDT kind; Dval.toDT value ]
         | RuntimeError.BigInts.NegativeExponent -> "NegativeExponent", []
         | RuntimeError.BigInts.NegativeModulus -> "NegativeModulus", []
         | RuntimeError.BigInts.ZeroModulus -> "ZeroModulus", []
@@ -1240,7 +1306,11 @@ module RuntimeError =
       match d with
       | DEnum(_, _, [], "DivideByZeroError", []) ->
         RuntimeError.BigInts.DivideByZeroError
-      | DEnum(_, _, [], "OutOfRange", []) -> RuntimeError.BigInts.OutOfRange
+      | DEnum(_, _, [], "OutOfRange", [ kind; value ]) ->
+        RuntimeError.BigInts.OutOfRange(
+          OutOfRangeKind.fromDT kind,
+          Dval.fromDT value
+        )
       | DEnum(_, _, [], "NegativeExponent", []) ->
         RuntimeError.BigInts.NegativeExponent
       | DEnum(_, _, [], "NegativeModulus", []) ->

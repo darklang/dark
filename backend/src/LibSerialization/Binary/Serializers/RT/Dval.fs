@@ -123,6 +123,7 @@ and writeApplicableNamedFn (w : BinaryWriter) (namedFn : ApplicableNamedFn) =
   // Compiled code references stay uncaptured and inherit the caller's access;
   // persisted captured values decode as deny-all.
   w.Write namedFn.access.IsSome
+  Option.write w String.write namedFn.approvalName
 
 and writeTypeSymbolTable (w : BinaryWriter) (tst : TypeSymbolTable) =
   // Via a Map so the wire format is unchanged by the table's in-memory representation. This runs when
@@ -250,17 +251,12 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     w.Write 25uy
     String.write w (string (DarkBigInt.toBigInt value))
 
-/// The blob's format version reaches the applicable reader, which is the one place in this
-/// file whose layout has changed: v4 added the bounds a call worked out. Every other shape
-/// here is the same in every version, so `version` is only passed along, never branched on
-/// except there.
-let rec readDval (version : uint32) : BinaryReader -> Dval =
-  fun r -> readDvalImpl version r
+/// Read a value in the current format.
+let rec readDval : BinaryReader -> Dval = fun r -> readDvalImpl r
 
 and readValueType : BinaryReader -> ValueType = fun r -> readValueTypeImpl r
 
-and readApplicable (version : uint32) : BinaryReader -> Applicable =
-  fun r -> readApplicableImpl version r
+and readApplicable : BinaryReader -> Applicable = fun r -> readApplicableImpl r
 
 and readValueTypeImpl (r : BinaryReader) : ValueType =
   match r.ReadByte() with
@@ -312,18 +308,18 @@ and readKnownType (r : BinaryReader) : KnownType =
   | 25uy -> KTBigInt
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
-and readApplicableImpl (version : uint32) (r : BinaryReader) : Applicable =
+and readApplicableImpl (r : BinaryReader) : Applicable =
   match r.ReadByte() with
-  | 0uy -> AppLambda(readApplicableLambda version r)
-  | 1uy -> AppNamedFn(readApplicableNamedFn version r)
+  | 0uy -> AppLambda(readApplicableLambda r)
+  | 1uy -> AppNamedFn(readApplicableNamedFn r)
   | b -> raiseFormatError $"Invalid Applicable tag: {b}"
 
-and readApplicableLambda (version : uint32) (r : BinaryReader) : ApplicableLambda =
+and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
   let exprId = r.ReadUInt64()
   let closedRegisters =
     List.read r (fun r ->
       let reg = r.ReadInt32()
-      let dval = readDval version r
+      let dval = readDval r
       (reg, dval))
   let typeSymbolTable = readTypeSymbolTable r
   { exprId = exprId
@@ -334,53 +330,44 @@ and readApplicableLambda (version : uint32) (r : BinaryReader) : ApplicableLambd
     expectedReturn = ValueNone
     writtenIn = ValueNone }
 
-and readApplicableNamedFn (version : uint32) (r : BinaryReader) : ApplicableNamedFn =
+and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
   let name = FQFnName.read r
   let typeSymbolTable = readTypeSymbolTable r
   let typeArgs = List.read r TypeReference.read
-  let argsSoFar = List.read r (readDval version)
-  // v4 and later. A v1-to-v3 blob ends with the captured-access bool, so reading a list
-  // count here would consume that bool as a length and misread everything after it.
+  let argsSoFar = List.read r readDval
   let boundImpls =
-    if version >= 4u then
-      List.read r (fun r ->
-        let param = String.read r
-        let traitHash = Hash.read r
-        let method_ = String.read r
-        let choice =
-          match r.ReadByte() with
-          | 0uy -> FQFnName.Unknown
-          | 1uy -> FQFnName.Chosen(Hash.read r)
-          | 2uy -> FQFnName.FromTypeParam(String.read r)
-          | b -> raiseFormatError $"Invalid ImplChoice tag: {b}"
-        struct (param, traitHash, method_, choice))
-    else
-      []
+    List.read r (fun r ->
+      let param = String.read r
+      let traitHash = Hash.read r
+      let method_ = String.read r
+      let choice =
+        match r.ReadByte() with
+        | 0uy -> FQFnName.Unknown
+        | 1uy -> FQFnName.Chosen(Hash.read r)
+        | 2uy -> FQFnName.FromTypeParam(String.read r)
+        | b -> raiseFormatError $"Invalid ImplChoice tag: {b}"
+      struct (param, traitHash, method_, choice))
   let wasCaptured = r.ReadBoolean()
+  let approvalName = Option.read r String.read
   { name = name
+    approvalName = approvalName
     typeSymbolTable = typeSymbolTable
     typeArgs = typeArgs
     boundImpls = boundImpls
     // Captured values decode as deny-all; code constants inherit the caller.
     access =
-      if wasCaptured then
-        Some(
-          LibExecution.Permissions.Access.start
-            LibExecution.Permissions.Policy.denyAll
-        )
-      else
-        None
+      if wasCaptured then Some LibExecution.Permissions.Access.denyAll else None
     argsSoFar = argsSoFar }
 
 and readTypeSymbolTable (r : BinaryReader) : TypeSymbolTable =
   Map.read String.read readValueType r |> Map.toList |> TST.ofList
 
-and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
+and readDvalImpl (r : BinaryReader) : Dval =
   match r.ReadByte() with
   | 0uy -> DUnit
   | 1uy -> DBool(r.ReadBoolean())
-  | 2uy -> DInt8(r.ReadSByte())
-  | 3uy -> DUInt8(r.ReadByte())
+  | 2uy -> Dval.dint8 (r.ReadSByte())
+  | 3uy -> Dval.duint8 (r.ReadByte())
   | 4uy -> DInt16(r.ReadInt16())
   | 5uy -> DUInt16(r.ReadUInt16())
   | 6uy -> DInt32(r.ReadInt32())
@@ -392,18 +379,18 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   | 12uy -> DFloat(Float.read r)
   | 26uy -> DFloat32(Float32.read r)
   | 27uy -> DDecimal(Decimal.read r)
-  | 13uy -> DChar(String.read r)
+  | 13uy -> Dval.dchar (String.read r)
   | 14uy -> DString(String.read r)
   | 15uy -> DUuid(Guid.read r)
   | 16uy -> DDateTime(DarkDateTime.read r)
   | 17uy ->
     let valueType = readValueType r
-    let items = List.read r (readDval version)
+    let items = List.read r readDval
     DList(valueType, Items(items))
   | 18uy ->
-    let first = readDval version r
-    let second = readDval version r
-    let rest = List.read r (readDval version)
+    let first = readDval r
+    let second = readDval r
+    let rest = List.read r readDval
     DTuple(first, second, rest)
   | 19uy ->
     let keyType = readValueType r
@@ -411,10 +398,10 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
     let count = Varint.read r
     let entries =
       [ for _ in 1..count ->
-          let k = readDval version r
+          let k = readDval r
           if not (LibExecution.RuntimeTypes.Dval.isUsableDictKey k) then
             raiseFormatError "Dict key that cannot be a key"
-          let v = readDval version r
+          let v = readDval r
           (k, v) ]
     DDict(keyType, valueType, DictMap.ofList entries)
   | 20uy ->
@@ -423,7 +410,7 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
     let typeArgs = List.read r readValueType
     let count = Varint.read r
     let fields =
-      [| for _ in 1..count -> struct (String.read r, readDval version r) |]
+      [| for _ in 1..count -> struct (String.read r, readDval r) |]
       |> RecordFields.ofArray
     DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields)
   | 21uy ->
@@ -431,9 +418,9 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
     let runtimeTypeName = FQTypeName.read r
     let typeArgs = List.read r readValueType
     let caseName = String.read r
-    let fields = List.read r (readDval version)
+    let fields = List.read r readDval
     DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields)
-  | 22uy -> DApplicable(readApplicable version r)
+  | 22uy -> DApplicable(readApplicable r)
   | 24uy ->
     let hash = String.read r
     let length = r.ReadInt64()
@@ -442,7 +429,7 @@ and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   | b -> raiseFormatError $"Invalid Dval tag: {b}"
 
 
-// Export modules for compatibility
+// Group the leaf readers and writers
 module ValueType =
   let write = writeValueType
   let read = readValueType
@@ -453,4 +440,4 @@ module Applicable =
 
 // Main exports
 let write = writeDval
-let read (version : uint32) (r : BinaryReader) : Dval = readDval version r
+let read (r : BinaryReader) : Dval = readDval r

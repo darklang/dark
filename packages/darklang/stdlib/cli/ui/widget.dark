@@ -11,7 +11,7 @@
 /// record of closures is the wrong thing to hold. `KeyPress` and `Outcome` below are the whole shared
 /// vocabulary.
 ///
-/// Two things make these compose where the older ad-hoc widgets didn't:
+/// Two things make these compose:
 ///
 /// 1. `view` returns spans rather than printing, so a parent can place a child anywhere and the whole frame
 ///    still diffs down to the rows that changed. (Placing one by *negotiated size* - handing widgets to
@@ -19,7 +19,7 @@
 ///    nothing has pulled on. Add it when something needs it.)
 /// 2. `onKey` can answer `Ignored`. A child gets first refusal on every key and the parent handles what's
 ///    left. That's what lets an editor child own Tab and its parent own `/`, without the
-///    parent having to know the child is mid-edit (it used to peek at `editor.editing` to decide).
+///    parent having to know the child is mid-edit.
 ///
 /// A child talks upward by *emitting a message*, never by having its state read: `Emitted (state, msg)`
 /// carries a value the parent understands ("the user picked this document", "editing finished with this
@@ -31,8 +31,8 @@ module Darklang.Stdlib.Cli.UI.Widget
 
 /// One keystroke, as one value.
 ///
-/// The loop hands key, modifiers and character around as three separate arguments; every widget signature
-/// that passes them along got three parameters wider for no reason. One record threads through instead.
+/// The loop hands key, modifiers and character around as three separate arguments; one record threads
+/// through widgets instead.
 type KeyPress =
   { key: Stdlib.Cli.Stdin.Key.Key
     modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers

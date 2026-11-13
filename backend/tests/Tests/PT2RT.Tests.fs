@@ -75,7 +75,7 @@ module Expr =
         E.Let.simple
         (2,
          [ RT.LoadVal(0, RT.DBool true)
-           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1) ],
+           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x")) ],
          1)
 
     let tuple =
@@ -90,7 +90,7 @@ module Expr =
 
            RT.CheckLetPatternAndExtractVars(
              0,
-             RT.LPTuple(RT.LPVariable 3, RT.LPVariable 4, [])
+             RT.LPTuple(RT.LPVariable(3, "x"), RT.LPVariable(4, "y"), [])
            ) ],
          3)
 
@@ -109,8 +109,8 @@ module Expr =
            RT.CheckLetPatternAndExtractVars(
              0,
              RT.LPTuple(
-               RT.LPVariable 5,
-               RT.LPTuple(RT.LPVariable 6, RT.LPVariable 7, []),
+               RT.LPVariable(5, "a"),
+               RT.LPTuple(RT.LPVariable(6, "b"), RT.LPVariable(7, "c"), []),
                []
              )
            ) ],
@@ -186,7 +186,7 @@ module Expr =
         E.String.withInterpolation
         (3,
          [ RT.LoadVal(0, RT.DString ", world")
-           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x"))
 
            RT.CreateString(2, [ RT.Text "hello"; RT.Interpolated 1 ]) ],
          2)
@@ -458,6 +458,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "modulo" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -472,6 +473,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "equals" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -614,6 +616,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "equals" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -704,7 +707,7 @@ module Expr =
            RT.CreateLambda(
              1,
              { exprId = E.Pipes.pipeID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions = { registerCount = 1; instructions = []; resultIn = 0 } }
@@ -726,6 +729,7 @@ module Expr =
                  { name = plus
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -748,6 +752,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -764,7 +769,7 @@ module Expr =
          [ RT.CreateLambda(
              0,
              { exprId = E.Pipes.lambdaID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions =
@@ -778,6 +783,7 @@ module Expr =
                              { name = plus
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
+                               approvalName = None
                                access = None
                                argsSoFar = []
                                boundImpls = [] }
@@ -798,7 +804,7 @@ module Expr =
          [ RT.CreateLambda(
              0,
              { exprId = E.Pipes.lambdaID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions =
@@ -812,6 +818,7 @@ module Expr =
                              { name = plus
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
+                               approvalName = None
                                access = None
                                argsSoFar = []
                                boundImpls = [] }
@@ -825,7 +832,7 @@ module Expr =
            RT.CreateLambda(
              3,
              { exprId = E.Pipes.pipeID
-               patterns = NEList.ofList (RT.LPVariable 0) []
+               patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                registersToCloseOver = []
                selfRegister = None
                instructions =
@@ -839,6 +846,7 @@ module Expr =
                              { name = times
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
+                               approvalName = None
                                access = None
                                argsSoFar = []
                                boundImpls = [] }
@@ -857,6 +865,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -872,6 +881,7 @@ module Expr =
                  { name = plus
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -1132,6 +1142,7 @@ module Expr =
                    { name = plus
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     approvalName = None
                      access = None
                      argsSoFar = []
                      boundImpls = [] }
@@ -1184,7 +1195,7 @@ module Expr =
            [ RT.CreateLambda(
                0,
                { exprId = E.Lambdas.Identity.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1201,7 +1212,7 @@ module Expr =
              RT.CreateLambda(
                1,
                { exprId = E.Lambdas.Identity.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "x")) []
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1221,7 +1232,8 @@ module Expr =
            [ RT.CreateLambda(
                0,
                { exprId = E.Lambdas.Add.id
-                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 patterns =
+                   NEList.ofList (RT.LPVariable(0, "a")) [ RT.LPVariable(1, "b") ]
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1234,6 +1246,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1253,7 +1266,8 @@ module Expr =
              RT.CreateLambda(
                1,
                { exprId = E.Lambdas.Add.id
-                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 patterns =
+                   NEList.ofList (RT.LPVariable(0, "a")) [ RT.LPVariable(1, "b") ]
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1266,6 +1280,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1288,7 +1303,8 @@ module Expr =
              RT.CreateLambda(
                2,
                { exprId = E.Lambdas.Add.id
-                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 patterns =
+                   NEList.ofList (RT.LPVariable(0, "a")) [ RT.LPVariable(1, "b") ]
                  registersToCloseOver = []
                  selfRegister = None
                  instructions =
@@ -1301,6 +1317,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1327,7 +1344,7 @@ module Expr =
                { exprId = E.Lambdas.AddTuple.id
                  patterns =
                    NEList.ofList
-                     (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
+                     (RT.LPTuple(RT.LPVariable(0, "a"), RT.LPVariable(1, "b"), []))
                      []
                  registersToCloseOver = []
                  selfRegister = None
@@ -1341,6 +1358,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1364,7 +1382,7 @@ module Expr =
                { exprId = E.Lambdas.AddTuple.id
                  patterns =
                    NEList.ofList
-                     (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
+                     (RT.LPTuple(RT.LPVariable(0, "a"), RT.LPVariable(1, "b"), []))
                      []
                  registersToCloseOver = []
                  selfRegister = None
@@ -1378,6 +1396,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1405,15 +1424,15 @@ module Expr =
           E.Lambdas.AddToClosedVars.unapplied
           (5,
            [ RT.LoadVal(0, RT.DInt64 5L)
-             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x"))
 
              RT.LoadVal(2, RT.DInt64 10L)
-             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable 3)
+             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable(3, "y"))
 
              RT.CreateLambda(
                4,
                { exprId = E.Lambdas.AddToClosedVars.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "a")) []
                  registersToCloseOver = [ (1, 1); (3, 2) ]
                  selfRegister = None
                  instructions =
@@ -1426,6 +1445,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1439,6 +1459,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1455,15 +1476,15 @@ module Expr =
           E.Lambdas.AddToClosedVars.applied
           (8,
            [ RT.LoadVal(0, RT.DInt64 5L)
-             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable(1, "x"))
 
              RT.LoadVal(2, RT.DInt64 10L)
-             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable 3)
+             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable(3, "y"))
 
              RT.CreateLambda(
                4,
                { exprId = E.Lambdas.AddToClosedVars.id
-                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 patterns = NEList.ofList (RT.LPVariable(0, "a")) []
                  registersToCloseOver = [ (1, 1); (3, 2) ]
                  selfRegister = None
                  instructions =
@@ -1476,6 +1497,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1489,6 +1511,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 approvalName = None
                                  access = None
                                  argsSoFar = []
                                  boundImpls = [] }
@@ -1498,7 +1521,7 @@ module Expr =
                      resultIn = 6 } }
              )
 
-             RT.CheckLetPatternAndExtractVars(4, RT.LPVariable 5)
+             RT.CheckLetPatternAndExtractVars(4, RT.LPVariable(5, "addFifteen"))
 
              RT.LoadVal(6, RT.DInt64 25L)
 
@@ -1529,6 +1552,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     approvalName = None
                      access = None
                      argsSoFar = []
                      boundImpls = [] }
@@ -1549,6 +1573,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     approvalName = None
                      access = None
                      argsSoFar = []
                      boundImpls = [] }
@@ -1571,6 +1596,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     approvalName = None
                      access = None
                      argsSoFar = []
                      boundImpls = [] }
@@ -1593,6 +1619,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     approvalName = None
                      access = None
                      argsSoFar = []
                      boundImpls = [] }
@@ -1622,6 +1649,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       approvalName = None
                        access = None
                        argsSoFar = []
                        boundImpls = [] }
@@ -1642,6 +1670,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       approvalName = None
                        access = None
                        argsSoFar = []
                        boundImpls = [] }
@@ -1664,6 +1693,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       approvalName = None
                        access = None
                        argsSoFar = []
                        boundImpls = [] }
@@ -1686,7 +1716,7 @@ module Expr =
                RT.CreateLambda(
                  3,
                  { exprId = E.Fns.Package.MyFnThatTakesALambda.lambdaID
-                   patterns = { head = RT.LPVariable 0; tail = [] }
+                   patterns = { head = RT.LPVariable(0, "x"); tail = [] }
                    registersToCloseOver = []
                    selfRegister = None
                    instructions =
@@ -1700,6 +1730,7 @@ module Expr =
                                  { name = plus
                                    typeSymbolTable = RT.TST.empty
                                    typeArgs = []
+                                   approvalName = None
                                    access = None
                                    argsSoFar = []
                                    boundImpls = [] }
@@ -1717,6 +1748,7 @@ module Expr =
                            E.Fns.Package.MyFnThatTakesALambda.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       approvalName = None
                        access = None
                        argsSoFar = []
                        boundImpls = [] }
@@ -1742,6 +1774,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       approvalName = None
                        access = None
                        argsSoFar = []
                        boundImpls = [] }
@@ -1788,6 +1821,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "printLine" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   approvalName = None
                    access = None
                    argsSoFar = []
                    boundImpls = [] }
@@ -1833,7 +1867,6 @@ module PackageFn =
           parameters = params' |> NEList.ofListUnsafe "" []
           returnType = returnType
           description = ""
-          permissionCeiling = None
           bounds = [] }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
@@ -1908,10 +1941,9 @@ module LiveValues =
       | None -> failtest "no TraceExpr followed the Apply"
     }
 
-  /// `a + b` compiles its own `Apply` by hand rather than going through the `EApply` case, and
-  /// for a long time that meant no hook and no recorded value: every piece of arithmetic in a
-  /// program was invisible to a trace. It discarded the expression id as well, so there was
-  /// nothing to key a value by even in principle.
+  /// `a + b` compiles its own `Apply` by hand rather than going through the `EApply` case, so it
+  /// has to emit the hook and keep the expression id itself, or every piece of arithmetic in a
+  /// program is invisible to a trace.
   let traceExprFollowsAnInfixCall =
     testTask
       "an EInfix call is followed by TraceExpr with its id and result register" {
@@ -1973,10 +2005,9 @@ module LiveValues =
 module MarkerStripping =
   /// `DebugSymbols.split` takes the `TraceExpr` markers back out of the stream that actually
   /// runs, and jumps are RELATIVE, so removing an instruction has to rewrite every jump that
-  /// spans it. Nothing asserted that until this test. The expectations above drop the markers
-  /// with their own `withoutTraceExpr` helper and never call `split`, so the rewriting was the
-  /// one part of the marker design with no test over it -- which is why a whole suite can pass
-  /// while a conditional lands on the wrong instruction.
+  /// spans it. The expectations above drop the markers with their own `withoutTraceExpr` helper
+  /// and never call `split`, so without this test a whole suite can pass while a conditional
+  /// lands on the wrong instruction.
   ///
   /// The convention being asserted is the interpreter's, from `Interpreter.fs`: a jump sets
   /// `counter <- counter + jumpBy`, and the loop then advances `counter <- counter + 1`, so the

@@ -67,7 +67,7 @@ let handleInputKey(
   keyChar: Stdlib.Option.Option<String>)
   : Step =
   // ^u clears the field, readline-style. These prompts pre-fill (the filter with the current filter, rename
-  // with the current name), so without it "replace what's here" meant one backspace per character.
+  // with the current name), so without it "replace what's here" means one backspace per character.
   if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.U then
     Step.Continue(
       { state with

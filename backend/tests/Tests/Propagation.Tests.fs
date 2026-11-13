@@ -68,7 +68,6 @@ let traitMethodBoundIsADependency =
         parameters =
           NEList.singleton { name = "v"; typ = PT.TVariable "a"; description = "" }
         returnType = PT.TVariable "b"
-        permissionCeiling = None
         description = "" }
     let t : PT.Trait.Trait =
       { hash = PT.Hash "pairs"

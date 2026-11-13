@@ -43,8 +43,8 @@ let draw(
   // border is painted around them in pieces rather than as one string.
   let lead = if pillPlain == "" then "" else "─"
 
-  // A title near the pane's full width used to overrun the closing corner into the neighbour's
-  // border; the trailer is clipped so `─╮` always draws (the pill itself is short by construction).
+  // The trailer is clipped so a title near the pane's full width can't overrun the closing corner
+  // into the neighbour's border: `─╮` always draws (the pill itself is short by construction).
   let leadW = Stdlib.String.displayWidth(lead)
   let budget = Stdlib.max(0, innerCols - leadW - (Stdlib.String.displayWidth(pillPlain)) - 1)
   let restPlain = Stdlib.Cli.Tui.Text.clipToWidth(restPlain, budget)
@@ -53,8 +53,8 @@ let draw(
   let used = leadW + (Stdlib.String.displayWidth(pillPlain)) + (Stdlib.String.displayWidth(restPlain))
   let fillLen = Stdlib.max(0, innerCols - used)
   let top =
-    (paint("╭" + lead)) + pill + restStyled + (paint((Stdlib.String.repeat("─", fillLen)) + "╮"))
-  let bottom = "╰" + (Stdlib.String.repeat("─", innerCols)) + "╯"
+    (paint("╭" + lead)) + pill + restStyled + (paint((Stdlib.String.checkedRepeat("─", fillLen) |> Stdlib.Result.withDefault("")) + "╮"))
+  let bottom = "╰" + (Stdlib.String.checkedRepeat("─", innerCols) |> Stdlib.Result.withDefault("")) + "╯"
 
   // One colorized bar, not one per row per side. Every row's border is the same string, and a panel
   // draws it once per row; the borders of a few panels are most of a frame's spans.
@@ -74,7 +74,7 @@ let draw(
     if region.cols < 2 then
       []
     else
-      (Stdlib.List.range(1, region.rows - 2))
+      (Stdlib.List.checkedRange(1, region.rows - 2) |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.map(fun row ->
         let r = top1 + row
         [ Layout.Span { row = r, col = left1, text = bar }

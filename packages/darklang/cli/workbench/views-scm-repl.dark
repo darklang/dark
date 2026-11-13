@@ -60,15 +60,15 @@ let bindSession(state: State, name: String, rhs: String): (Stdlib.Option.Option<
       | _ -> rhs
     (Stdlib.Option.Option.Some(
        Darklang.Cli.Repl.Binding { name = name, source = rhs, value = shown, captured = false }),
-     // Reason on its own line: on one line with the value it ran past the pane edge and got clipped mid-word
-     // ("... DateTime has no "), losing the only part that explains the `~`.
+     // Reason on its own line: on one line with the value it would run past the pane edge and be clipped
+     // mid-word, losing the only part that explains the `~`.
      $"{name} = {shown}\nre-runs each eval: {reason}")
   match evalRaw(state, Darklang.Cli.Repl.captureExpr(state.repl.bindings, state.branchId, name, rhs)) with
   | Error(message) ->
-    // Report against what was typed, not against the capture wrapper. A parse error in the binding surfaced
-    // the generated `Repl.captureValue "<branch uuid>" name` line with a caret under it - source the user
-    // never wrote, and a uuid that makes it look like an internal fault. Re-running the plain binding costs
-    // one eval on the error path and points the caret at their own text.
+    // Report against what was typed, not against the capture wrapper, whose generated
+    // `Repl.captureValue "<branch uuid>" name` line is source the user never wrote, with a uuid that makes
+    // it look like an internal fault. Re-running the plain binding costs one eval on the error path and
+    // points the caret at their own text.
     let plainMessage =
       match evalRaw(state, Darklang.Cli.Repl.withBindings(state.repl.bindings, $"let {name} = {rhs}\n{name}")) with
       | Error(m) -> m

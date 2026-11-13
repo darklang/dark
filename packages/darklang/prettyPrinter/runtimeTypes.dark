@@ -609,9 +609,7 @@ let declaredKnownType(
 
 let letPattern(pat: LanguageTools.RuntimeTypes.LetPattern): String =
   match pat with
-  | LPVariable(_reg) ->
-    // TODO clearly this is not ideal.
-    "[variable]"
+  | LPVariable(_reg, name) -> name
   | LPWildcard -> "_"
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->
@@ -629,7 +627,7 @@ let bytesPreview(bytes: Bytes, count: Int64): Stdlib.Option.Option<String> =
   |> Stdlib.Option.map(fun prefix ->
     let hex = prefix |> Stdlib.Base16.encode |> Stdlib.String.toLowercase
     let pairs =
-      Stdlib.List.range(0, (Stdlib.Bytes.length(prefix)) - 1)
+      (Stdlib.List.checkedRange(0, (Stdlib.Bytes.length(prefix)) - 1) |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.map(fun i -> Stdlib.String.slice(hex, i * 2, i * 2 + 2))
     Stdlib.String.join(pairs, " "))
 
@@ -742,7 +740,7 @@ module Dval =
       Stdlib.List.concat(ordered, extra)
 
 
-  let makeSpaces(len: Int64): String = Stdlib.String.repeat(" ", len)
+  let makeSpaces(len: Int64): String = (Stdlib.String.checkedRepeat(" ", len) |> Stdlib.Result.withDefault(""))
 
   /// A value as a `Pretty.Doc`: the shapes it could take, not one it has already been forced into.
   ///
@@ -984,7 +982,7 @@ let capForDisplay(
     maxChars: Int64,
     dv: LanguageTools.RuntimeTypes.Dval)
   : LanguageTools.RuntimeTypes.Dval =
-  let enough = Stdlib.max((maxChars / 3) + 2, 64)
+  let enough = Stdlib.max((Stdlib.Int64.checkedDivide(maxChars, 3) |> Stdlib.Result.withDefault(0)) + 2, 64)
 
   match dv with
   | DList(t, items) ->

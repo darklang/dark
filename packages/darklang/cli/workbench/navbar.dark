@@ -1,9 +1,9 @@
 /// The navbar: workspace navigation for the workbench.
 ///
 /// The navbar is one flat strip across the top of the body: eight numbered views
-/// and nothing under any of them. No view has sections: what used to be
-/// Changes' History and Branches is on Home, and its Conflicts are rows in
-/// Changes. Narrow terminals show the same rows as a vertical overlay only
+/// and nothing under any of them. No view has sections: History and
+/// Branches are on Home, and Conflicts are rows in Changes. Narrow
+/// terminals show the same rows as a vertical overlay only
 /// while navigation has focus.
 ///
 /// Part of `Darklang.Cli.Workbench`.
@@ -42,7 +42,7 @@ let mkDest(view: Int64, section: Int64): Dest = Dest { view = view, section = se
 /// key for an item is its position here, so hiding one (gating) doesn't
 /// renumber the rest.
 ///
-/// One view per item, by design. What used to sit under an item is either on
+/// One view per item, by design. Anything more is either on
 /// Home (History, Branches), a row in the view (Conflicts), or a view you
 /// step to from its parent (`B` builtins from the tree, `E` errors from
 /// traces).
@@ -138,7 +138,7 @@ let navbarRows(state: State, wip: Int64, conflicts: Int64): List<NavbarRow> =
     let entry = workspaceEntryIn(vis, state, i) |> Stdlib.Option.withDefault(mkDest(vHome, 0))
     // The badge: what needs you in there. Changes only: the tree says where
     // the draft is by graying the modules that hold it, so a count on Code
-    // repeated the number without saying anything the tree doesn't.
+    // would repeat the number without saying anything the tree doesn't.
     let (badge, color) =
       if w.name == "Changes" then
         if conflicts > 0 then ("⚠ " + (count(conflicts)), Stdlib.Cli.UI.Colors.orange)
@@ -219,7 +219,7 @@ let jumpToWorkspace(state: State, n: Int64): State =
 /// Keys while the nav has the keyboard. The arrows follow how the rows sit
 /// on screen. As a strip: ←→ walk it and ↓ steps into the
 /// content. As an overlay the rows run top to bottom, so ↑↓ walk and →
-/// leaves, as the column did. Either way ⏎ goes, and tab and esc hand the
+/// leaves. Either way ⏎ goes, and tab and esc hand the
 /// keyboard back to the content (esc is one step back everywhere, and
 /// taking the nav was the step). Anything global (`/`, `:`, `?`, numbers,
 /// `q`) still works.
@@ -228,10 +228,10 @@ let handleNavbarKey(
   key: Stdlib.Cli.Stdin.Key.Key,
   keyChar: Stdlib.Option.Option<String>)
   : Step =
-  // Every one of these is a function, not a value. `let` is eager, so binding them computed the
-  // outcome of keys that were not pressed on every keypress -- including `openSel`, which calls
+  // Every one of these is a function, not a value. `let` is eager, so binding them would compute
+  // the outcome of keys that were not pressed on every keypress -- including `openSel`, which calls
   // `goTo` and loads items from the DB, and `navbarRows`, which is the most expensive thing the
-  // key handler touches. Stepping into the content pane now does none of it.
+  // key handler touches.
   let rowsNow(_u: Unit): List<NavbarRow> = navbarRows(state, 0, 0)
 
   let selIn(rows: List<NavbarRow>): Int64 =
@@ -306,12 +306,12 @@ let renderNavbarRows(state: State, rows: List<NavbarRow>, inner: Stdlib.Cli.UI.L
       // the gutter) doesn't shift the row it's on.
       let gap =
         Stdlib.max(1, width - 2 - (Stdlib.String.displayWidth(left)) - (Stdlib.String.displayWidth(rightPlain)) - 1)
-      let spaces = Stdlib.String.repeat(" ", gap)
+      let spaces = (Stdlib.String.checkedRepeat(" ", gap) |> Stdlib.Result.withDefault(""))
       let badgeStyled = if r.badge == "" then "" else Stdlib.Cli.UI.Colors.colorize(r.badgeColor, r.badge)
       let numStyled = Stdlib.Cli.UI.Colors.dimText(num)
       let right = spaces + badgeStyled + sep + numStyled
       if (navbarFocused(state)) && (i == sel) then
-        selectionBar(left, right, true)
+        selectionBar(left, right, Stdlib.Cli.UI.Focus.Focused)
       else
         let leftStyled =
           if i == active then Stdlib.Cli.UI.Colors.boldText(left)
@@ -381,8 +381,8 @@ let renderNavbarOverlay(state: State, wip: Int64, conflicts: Int64, screen: Stdl
   let n = Stdlib.List.length(rows)
   let w = 34
   let h = Stdlib.min(n + 2, Stdlib.max(3, screen.rows - 2))
-  let top = screen.top + ((Stdlib.max(0, screen.rows - h)) / 2)
-  let left = screen.left + ((Stdlib.max(0, screen.cols - w)) / 2)
+  let top = screen.top + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.rows - h), 2) |> Stdlib.Result.withDefault(0))
+  let left = screen.left + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.cols - w), 2) |> Stdlib.Result.withDefault(0))
   let region = Stdlib.Cli.UI.Layout.Region { top = top, left = left, rows = h, cols = w }
   Stdlib.List.flatten(
     [ Stdlib.Cli.UI.Layout.clearRegion(region)

@@ -1,7 +1,6 @@
 /// A yes/no question, drawn over whatever is already on screen.
 ///
-/// For the actions that don't have an undo. Deleting a document used to happen the instant you pressed `d`,
-/// with no confirmation and no way back.
+/// For the actions that don't have an undo, like deleting a document.
 module Darklang.Stdlib.Cli.UI.Confirm
 
 type State =
@@ -47,8 +46,8 @@ let centred(region: Layout.Region, rows: Int64, cols: Int64): Layout.Region =
   let h = Stdlib.min(region.rows, rows)
 
   Layout.Region
-    { top = region.top + ((region.rows - h) / 2)
-      left = region.left + ((region.cols - w) / 2)
+    { top = region.top + (Stdlib.Int64.checkedDivide(region.rows - h, 2) |> Stdlib.Result.withDefault(0))
+      left = region.left + (Stdlib.Int64.checkedDivide(region.cols - w, 2) |> Stdlib.Result.withDefault(0))
       rows = h
       cols = w }
 

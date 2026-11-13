@@ -30,12 +30,17 @@ open System
 /// v8 (2026-11): `EFnName` ends with the type args of a reference that is not called
 /// (`let h = Stdlib.List.map<Int64, Int64>`). A v7 blob ends after the bounds and reads
 /// `typeArgs = []`.
+/// v10 (effects, 2026-11): effects and permissions simplified, across program and compiled
+/// layouts. No reader was kept for v1-v8 (there was no v9), so a store from before v10 does
+/// not open.
+/// v11 (2026-11): a compiled `LPVariable` ends with the variable's name. A v10 one ends after
+/// the register and reads the name "[variable]", which is what v10 printed for it.
 [<Literal>]
-let CurrentVersion = 8u
+let CurrentVersion = 11u
 
 /// The oldest version this binary still reads.
 [<Literal>]
-let OldestReadableVersion = 1u
+let OldestReadableVersion = 10u
 
 /// Binary file header structure (8 bytes)
 type BinaryHeader =

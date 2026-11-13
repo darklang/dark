@@ -12,9 +12,9 @@
 # `scripts/perf/workloads/probes/workbench.dark`, which repeats to ~3% and can be profiled. Reach for this
 # one to see what the whole loop costs, and that one to find out why.
 #
-# Three traps, all of which produced confident wrong numbers before they were handled:
+# Three traps, each of which gives a confident wrong number:
 #   - Time to the LAST byte, not the first. The redraw starts fast and finishes slowly, so
-#     first-byte latency reads ~95 ms where the screen takes ~300.
+#     first-byte latency reads about a third of what the screen takes.
 #   - Terminal size changes the answer by 3x, because below ~120 columns the workbench drops panes.
 #     Never compare two runs at different sizes.
 #   - Sizes come from `stty_init` before `spawn`; an `stty` after it does nothing here.

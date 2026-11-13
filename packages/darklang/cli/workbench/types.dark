@@ -7,7 +7,7 @@ module Darklang.Cli.Workbench
 /// The most of the Matter body the tree pane may take, as a percent.
 ///
 /// A ceiling rather than the split itself: `matterSplitFor` narrows it to what the names actually need.
-/// A flat 45 gave eight short names 117 columns on a wide terminal while the pane that was clipping got
+/// A flat 45 would give eight short names 117 columns on a wide terminal while the pane that clips gets
 /// the smaller half.
 val matterSplitMaxPct = 45
 
@@ -132,9 +132,9 @@ let emptyRepl(): ReplState =
   ReplState { log = [], bindings = [], last = "", pending = "" }
 
 
-/// What the footer's message reports. Its own value rather than read off the text: the footer used
-/// to pick its mark by substring ("fail", "conflict"), so "need an owner", "no matches
-/// for ..." and "no relay yet" all went out behind a green tick. Not `Ok`, which would collide with
+/// What the footer's message reports. Its own value rather than read off the text: a mark picked by
+/// substring ("fail", "conflict") would put "need an owner", "no matches for ..." and "no relay yet"
+/// behind a green tick. Not `Ok`, which would collide with
 /// `Result`'s case in a bare pattern.
 type MessageKind =
   /// It did what was asked.
@@ -263,10 +263,11 @@ type State =
     matter: MatterState
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
     filter: String
-    /// The Code view's item page, built on the transition (`refreshPreview`). It reads the store
-    /// several times over, so building it per frame cost every scroll and command-bar key the
-    /// same as moving to a new item. `None` whenever the store may have moved under it.
-    preview: Stdlib.Option.Option<PreviewCache>
+    /// The Code view's item pages, newest first, built on the transition (`refreshPreview`). A page
+    /// reads the store several times over, so building it per frame cost every scroll and
+    /// command-bar key the same as moving to a new item, and keeping only the last one rebuilt it
+    /// on every move back. Empty whenever the store may have moved under them.
+    previews: List<PreviewCache>
     branchId: Uuid }
 
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").
@@ -328,8 +329,7 @@ type ViewDef =
 //
 // Nothing persists one of these and no key names one: a number key picks a
 // position in `Navbar.workspaces`, and everything else goes through the names
-// below. So they are free to move, and four holes left for views that are now
-// in later/ (Inspect, Devices, AI, Apps) have been closed.
+// below. So they are free to move.
 val vHome = 0
 val vMatter = 1
 val vScratch = 2

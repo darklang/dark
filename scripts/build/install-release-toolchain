@@ -19,20 +19,20 @@ cd "$( dirname "${BASH_SOURCE[0]}" )/../.."
 [[ $# -eq 3 ]] || { echo "usage: $0 <rid> <dotnet-dir> <zig-dir>" >&2; exit 2; }
 rid=$1 dotnet_dir=$2 zig_dir=$3
 
-dotnet_version=10.0.114
+dotnet_version=10.0.115
 zig_version=0.13.0
 
 case "$rid" in
   linux-x64)
-    dotnet_sha512=65d2ea31a31e2fc7e677aad7ac84a42f85dd8383cdd9060f75c469ac553a08fce18c1cb76db92ab0ae84505c72278fd55568f46d6595e6a121d2fd9f0bd024df
+    dotnet_sha512=01bf048cf0495a7ce76be07b9623d385c9d9f172237d0267ded25c31f4b19604d74f1d328d0ee5fe6bcfb23cb20c41fb072c9b84fce6582c20edb1e3d93ea012
     zig_platform=linux-x86_64
     zig_sha256=d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea ;;
   linux-musl-x64)
-    dotnet_sha512=f0e381615c713067152834a347b378e157623c4aedb084605b89b623303925b0aca9ce1a68d4c1016ddfdbdd9694cc7b0925dbee849b6a84ef4fe74f4be457dd
+    dotnet_sha512=5b63792faea80bf8fef74069bbaaed432be1cdcddbdbac4f4833370ad7a40e6b592ff8fbca38c2bd78cc7e7bad510e877a006021226da3cb7d10c00e83f96696
     zig_platform=linux-x86_64
     zig_sha256=d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea ;;
   osx-arm64)
-    dotnet_sha512=0f69e32e55107f5e823d38103e24da7fa4279eeda7b94851c88b16de02c0ad4cb2d9a8b8c5560709a0316d18ecc5c6183049acca77cddf5a3498f28d8806e563
+    dotnet_sha512=a26e049329ca2e0912882bb5d2d2342b78de89b40303df46a249774745a265a9eff05e4f34e6869a2b61b7c8fc6282e93d006d104f69433e208dc8c7c9791e1d
     zig_platform=macos-aarch64
     zig_sha256=46fae219656545dfaf4dce12fb4e8685cec5b51d721beee9389ab4194d43394c ;;
   *) echo "$0: no pinned toolchain for $rid" >&2; exit 2 ;;

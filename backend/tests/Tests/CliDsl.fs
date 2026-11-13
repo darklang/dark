@@ -177,8 +177,8 @@ let notFound (state : Target) (expr : string) (why : string) : Task<unit> =
   shows state [ "eval"; expr ] "not found" why
 
 /// This command REFUSES, saying `reason`, and does not also claim to have done the
-/// thing. The second half matters: several bugs here printed a refusal and a success
-/// in the same breath.
+/// thing. The second half matters: a refusal printed alongside a success
+/// fails this.
 let refuses
   (state : Target)
   (args : List<string>)

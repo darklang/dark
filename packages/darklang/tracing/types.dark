@@ -24,8 +24,7 @@ type Status =
 /// Script options preserved for replay. Permissions are checked on each run.
 type ScriptOptions =
   { allowHarmful: Bool
-    sandbox: Bool
-    warnPermissions: Bool }
+    sandbox: Bool }
 
 
 /// Saved eval source, or a script's source, filename, arguments and options.
@@ -53,8 +52,8 @@ type Trace =
     parent: Stdlib.Option.Option<(String * Int64)>
     /// Retention never drops a pinned trace, whatever the caps say.
     pinned: Bool
-    /// Wall clock for the whole trace, measured by the recorder. `0` for one still going, and
-    /// for one recorded before this was kept. Not `updated - created`: those are the same
+    /// Wall clock for the whole trace, measured by the recorder. `0` for one still going.
+    /// Not `updated - created`: those are the same
     /// instant for a served request, and a resumed trace's pair spans the suspension.
     durationMs: Int64
     /// Which handler served this, for a trace that is a served request. The only field that
@@ -81,8 +80,7 @@ type FnCall =
     /// Wall clock for the call. For a read in flight it is measured at the landing, so an HTTP
     /// call carries its round trip rather than the time to hand back a promise.
     durationMs: Int64
-    /// The process that made the call. `None` for a run nobody scheduled, and for rows written
-    /// before processes existed.
+    /// The process that made the call. `None` for a run nobody scheduled.
     processId: Stdlib.Option.Option<Uuid>
     /// Where this call completed in the whole trace, across processes. One process's rows in
     /// `seq` order are its log; all of them are the interleaving.
@@ -197,7 +195,7 @@ module ReplayStop =
   /// the recorded code's fault; it is the store having changed since.
   ///
   /// An error case this does not know falls to `false`, which is the conservative answer: the
-  /// page then shows the error plainly, as it always did, rather than claiming drift it cannot
+  /// page then shows the error plainly rather than claiming drift it cannot
   /// support. A new resolution-shaped error wants adding here, and until someone does, the
   /// page is unhelpful rather than wrong.
   let isDrift(stop: ReplayStop): Bool =

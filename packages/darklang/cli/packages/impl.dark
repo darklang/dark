@@ -30,7 +30,12 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     state
 
   | [modulePath, ...definitionParts] ->
-    let inlineDefinition = Packages.definitionFromArgs(definitionParts)
+    match Packages.definitionFromArgs(definitionParts) with
+    | Error(message) ->
+      Cli.printErr(message)
+      Cli.failed(state)
+    | Ok(inlineDefinition) ->
+
 
     if Stdlib.String.isEmpty(inlineDefinition) then
       [
@@ -168,6 +173,7 @@ let createImplInline(
             LanguageTools.ProgramTypes.ItemKind.TraitImpl,
             "implementation",
             failState,
+            0,
             fun ctx ->
               // Lower from the MODULE the impl is written in; `implWithOps` builds
               // the member path and lowers the method fns beneath it.

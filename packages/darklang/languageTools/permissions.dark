@@ -11,12 +11,17 @@ type HostRule =
   | Exact(String)
   | SubdomainsOf(String)
 
+type HttpPath =
+  | All
+  | Exact(String)
+  | Subtree(String)
+
 type HttpRule =
   { method: Permissions.Scope<String>
     scheme: Permissions.Scope<String>
     host: Permissions.HostRule
     port: Permissions.Scope<Int64>
-    pathPrefix: Permissions.Scope<String>
+    path: Permissions.HttpPath
     /// The query string is part of the request, so `/x?id=public` and
     /// `/x?id=secret` are different requests. A rule written with a query
     /// covers only that exact one (`Only "?id=public"`, leading `?` kept, as
@@ -30,7 +35,7 @@ type ProcessRule =
     args: Permissions.Scope<List<String>> }
 
 /// One statically visible kind of host behaviour, mirroring the runtime's
-/// `Effects.Effect`. A ceiling row names these (`:{Http, Clock}`); a policy
+/// `Effects.Effect`. Requirements analysis reports these; a policy
 /// rule names one whole (`allow clock`). `effectCases` gives each its source
 /// case name and its rule name.
 type Effect =
@@ -54,12 +59,14 @@ type Effect =
   /// This process's own in-memory state: its package caches and store watch.
   | Runtime
   | Native
+  /// A call can stop with a runtime error. Not a permission: no rule grants or denies it.
+  | Raise
 
 type Rule =
   | All
   | Effect(Permissions.Effect)
   | Http(Permissions.HttpRule)
-  | HttpServer(Permissions.Scope<Int64>)
+  | HttpServer(address: Permissions.Scope<String>, port: Permissions.Scope<Int64>)
   | FileRead(Permissions.Scope<String>)
   | FileWrite(Permissions.Scope<String>)
   | EnvRead(Permissions.Scope<String>)
@@ -118,8 +125,8 @@ type TokenMode =
   | EscapedDouble
 
 /// Every effect with its source case name and its rule name, in the F#
-/// `Effects.all` order. The case name is what a `:{Http, Clock}` ceiling row
-/// writes; the rule name is what `permissions allow` and denial messages use.
+/// `Effects.all` order. The rule name is what `permissions allow` and
+/// denial messages use.
 /// An F# test asserts this table agrees with `Effects.all`.
 val effectCases =
   [ (Permissions.Effect.Http, "Http", "http")
@@ -139,7 +146,8 @@ val effectCases =
     (Permissions.Effect.TraceWrite, "TraceWrite", "trace-write")
     (Permissions.Effect.Concurrency, "Concurrency", "concurrency")
     (Permissions.Effect.Runtime, "Runtime", "runtime")
-    (Permissions.Effect.Native, "Native", "native") ]
+    (Permissions.Effect.Native, "Native", "native")
+    (Permissions.Effect.Raise, "Raise", "raise") ]
 
 /// The `effectCases` row an effect is in. Every effect has one, so the
 /// fallback is unreachable; it keeps the lookups total without an Option.
@@ -169,14 +177,6 @@ let effectOfCase(case: String): Stdlib.Option.Option<Permissions.Effect> =
   Permissions.effectCases
   |> Stdlib.List.findFirst(fun((_e, c, _name)) -> c == case)
   |> Stdlib.Option.map(fun((e, _case, _name)) -> e)
-
-/// The source form of a ceiling: `{Http, Clock}`, or `""` when none is declared.
-let ceilingRow(ceiling: Stdlib.Option.Option<List<Permissions.Effect>>): String =
-  match ceiling with
-  | None -> ""
-  | Some(effects) ->
-    let cases = effects |> Stdlib.List.map(Permissions.effectCaseName)
-    "{" + (Stdlib.String.join(cases, ", ")) + "}"
 
 let empty(): Permissions.Policy =
   Permissions.Policy { allow = [], deny = [] }
@@ -274,22 +274,30 @@ let hostAndPort(
     | Some((host, port)) -> withPort(host, port)
     | None -> withoutPort(authority)
 
-/// The path prefix an HTTP rule names. A rule already covers everything under its path, so a
-/// trailing `/*` means what the path alone does: `/repos/*` is `/repos`, and `/*` is every path.
-/// A `*` anywhere else would be a pattern that no request matches, so it is refused rather than
-/// saved as a rule that never applies.
-let pathPrefix(path: String): Stdlib.Option.Option<String> =
-  let prefix =
-    if path == "/*" then "/"
-    else if Stdlib.String.endsWith(path, "/*") then Stdlib.String.dropLast(path, 2)
-    else path
-  if Stdlib.String.contains(prefix, "*") then Stdlib.Option.Option.None
-  else Stdlib.Option.Option.Some(prefix)
+/// A bare path is exact. Only a trailing /* includes the path and its children.
+let httpPath(path: String): Stdlib.Option.Option<Permissions.HttpPath> =
+  let subtree = Stdlib.String.endsWith(path, "/*")
+  let root = if subtree then Stdlib.String.dropLast(path, 2) else path
+  if Stdlib.String.contains(root, "*") then None
+  else if subtree then
+    Some(Permissions.HttpPath.Subtree(if root == "" then "/" else root))
+  else Some(Permissions.HttpPath.Exact(root))
+
+/// Bind addresses are literal IPv4, or localhost (always 127.0.0.1).
+let serverAddress(address: String): Stdlib.Option.Option<String> =
+  if address == "localhost" then Some("127.0.0.1")
+  else if Stdlib.Url.isIPv4(address) then Some(address)
+  else None
+
+/// Use the runtime's URI normalization for every literal rule component.
+let normalizeHttpRule(rule: Permissions.HttpRule): Option<Permissions.Rule> =
+  Builtin.permissionNormalizeHttpRule(rule)
+  |> Stdlib.Option.map(fun rule -> Permissions.Rule.Http(rule))
 
 /// Parse a URL for a scoped rule. `*` alone is the broad form. Otherwise:
 /// scheme `http`, `https` or `*`; host, `*`, or `*.domain`; a port, `:*`, or
-/// none (the scheme's default for a named host, any for `*`); a path prefix,
-/// which may end in `/*`, or none (any); a query or none (any). Every rendered rule parses back to
+/// none (the scheme's default for a named host, any for `*`); an exact path,
+/// a subtree ending in `/*`, or no path (any); a query or none (any). Every rendered rule parses back to
 /// itself. Malformed URLs are rejected rather than widened.
 let httpRule(
   method: String,
@@ -304,7 +312,7 @@ let httpRule(
             scheme = Permissions.Scope.All
             host = Permissions.HostRule.Any
             port = Permissions.Scope.All
-            pathPrefix = Permissions.Scope.All
+            path = Permissions.HttpPath.All
             query = Permissions.Scope.All }))
   else
     match Stdlib.String.splitFirst(url, "://") with
@@ -321,14 +329,13 @@ let httpRule(
           match Stdlib.String.splitFirst(rest, "?") with
           | Some((before, query)) -> (before, Permissions.Scope.Only("?" + query))
           | None -> (rest, Permissions.Scope.All)
-        // No path matches every path. For example, `/api` matches `/api` and
-        // `/api/users`, but not `/apix`.
+        // No path matches every path; a written path is exact unless it ends in /*.
         let authorityAndPath =
           match Stdlib.String.splitFirst(beforeQuery, "/") with
           | Some((authority, path)) ->
-            Permissions.pathPrefix("/" + path)
-            |> Stdlib.Option.map(fun prefix -> (authority, Permissions.Scope.Only(prefix)))
-          | None -> Stdlib.Option.Option.Some((beforeQuery, Permissions.Scope.All))
+            Permissions.httpPath("/" + path)
+            |> Stdlib.Option.map(fun path -> (authority, path))
+          | None -> Stdlib.Option.Option.Some((beforeQuery, Permissions.HttpPath.All))
         match authorityAndPath with
         | None -> Stdlib.Option.Option.None
         | Some((authority, path)) ->
@@ -342,15 +349,14 @@ let httpRule(
                 else if Stdlib.String.startsWith(host, "*.") then
                   Permissions.HostRule.SubdomainsOf(Stdlib.String.dropFirst(host, 2))
                 else Permissions.HostRule.Exact(host)
-              Stdlib.Option.Option.Some(
-                Permissions.Rule.Http(
+              Permissions.normalizeHttpRule(
                   Permissions.HttpRule
                     { method = method
                       scheme = Permissions.scope(scheme)
                       host = hostRule
                       port = port
-                      pathPrefix = path
-                      query = query }))
+                      path = path
+                      query = query })
 
 /// Parse one CLI rule. This only constructs the typed Policy value; runtime
 /// authorization remains in `Permissions.Policy`.
@@ -365,9 +371,22 @@ let parseRule(
   | [ "http", method, url ] ->
     (Permissions.httpRule(method, url))
     |> Stdlib.Option.map(Stdlib.List.singleton)
-  | [ "http-server", port ] ->
-    Permissions.portScope(port)
-    |> Stdlib.Option.map(fun scope -> [ Permissions.Rule.HttpServer(scope) ])
+  | [ "http-server", address, port ] ->
+    let address =
+      if address == "*" then Some(Permissions.Scope.All)
+      else
+        Permissions.serverAddress(address)
+        |> Stdlib.Option.map(fun address -> Permissions.Scope.Only(address))
+    match (address, Permissions.portScope(port)) with
+    | (Some(address), Some(port)) -> Some([ Permissions.Rule.HttpServer(address, port) ])
+    | _ -> None
+  | ["process-exact", executable, ...argv] ->
+    if executable != "*" && Stdlib.Bool.not(Permissions.isAbsolutePath(executable)) then
+      None
+    else
+      Some([ Permissions.Rule.Process(Permissions.ProcessRule
+        { executable = Permissions.scope(executable)
+          args = Permissions.Scope.Only(argv) }) ])
   | ["process", executable, ...argv] ->
     // The executable is `*` or an absolute path; a relative one would mean a
     // different program in every working directory, so it is not a rule.
@@ -388,11 +407,12 @@ let parseRule(
   | [ kind, access, target ] -> Permissions.accessRules(kind, access, target)
   // A bare effect name is always `Effect`, including `http`, `http-server`
   // and `process`: the scoped forms above need at least one more token (their
-  // broad spellings are `http * *`, `http-server *`, `process *`), so every
+  // broad spellings are `http * *`, `http-server * *`, `process *`), so every
   // rule text names exactly one Rule value and `renderRule` round-trips.
   | [ name ] ->
-    Permissions.effectOfName(name)
-    |> Stdlib.Option.map(fun effect -> [ Permissions.Rule.Effect(effect) ])
+    match Permissions.effectOfName(name) with
+    | Some(Raise) -> Stdlib.Option.Option.None
+    | found -> found |> Stdlib.Option.map(fun effect -> [ Permissions.Rule.Effect(effect) ])
   | _ -> Stdlib.Option.Option.None
 
 /// Shell-style tokens for one rule's text, or None for an unterminated quote
@@ -536,7 +556,7 @@ let renderHttpRule(rule: Permissions.HttpRule): String =
   let broad =
     Permissions.isAll(rule.scheme)
     && Permissions.isAll(rule.port)
-    && Permissions.isAll(rule.pathPrefix)
+    && rule.path == Permissions.HttpPath.All
     && Permissions.isAll(rule.query)
     && rule.host == Permissions.HostRule.Any
   if broad then
@@ -552,9 +572,10 @@ let renderHttpRule(rule: Permissions.HttpRule): String =
       | All -> if rule.host == Permissions.HostRule.Any then "" else ":*"
       | Only(port) -> ":" + Stdlib.display(port)
     let path =
-      match rule.pathPrefix with
+      match rule.path with
       | All -> ""
-      | Only(path) -> path
+      | Exact(path) -> path
+      | Subtree(path) -> if path == "/" then "/*" else path + "/*"
     // The query (leading `?` already included) round-trips so `show` reflects
     // exactly what `allow` was given; `All` renders nothing (any query).
     let query =
@@ -569,6 +590,7 @@ let renderProcessRule(rule: Permissions.ProcessRule): String =
   let executable = Permissions.renderStringScope(rule.executable)
   match rule.args with
   | All -> $"process {executable}"
+  | Only([]) -> $"process-exact {executable}"
   | Only(args) ->
     let args =
       args
@@ -581,8 +603,12 @@ let renderRule(rule: Permissions.Rule): String =
   | All -> "all"
   | Effect(effect) -> Permissions.effectName(effect)
   | Http(rule) -> Permissions.renderHttpRule(rule)
-  | HttpServer(All) -> "http-server *"
-  | HttpServer(Only(port)) -> "http-server " + Stdlib.display(port)
+  | HttpServer(address, port) ->
+    let port =
+      match port with
+      | All -> "*"
+      | Only(p) -> Stdlib.display(p)
+    "http-server " + Permissions.scopeText(address) + " " + port
   | FileRead(scope) -> "file read " + Permissions.renderStringScope(scope)
   | FileWrite(scope) -> "file write " + Permissions.renderStringScope(scope)
   | EnvRead(scope) -> "env read " + Permissions.renderStringScope(scope)

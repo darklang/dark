@@ -21,7 +21,8 @@ let indexReferenceSnapshots(snapshots: List<LanguageTools.ProgramTypes.Reference
   |> Stdlib.List.map(fun snapshot -> ((snapshot.location, snapshot.target), snapshot))
   |> Stdlib.Dict.fromEntries
 
-/// Use saved names when present, checking that they still match the body's references.
+/// Use saved names when present and they still match the body's references; otherwise the names
+/// stored with the body.
 let withSavedReferenceNames(
   original: LanguageTools.ProgramTypes.ReferenceNamesSnapshot,
   saved: ReferenceNamesBySource)
@@ -31,19 +32,18 @@ let withSavedReferenceNames(
   | Some(snapshot) ->
     let targets(names: List<(LanguageTools.ProgramTypes.Reference * Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)>): List<LanguageTools.ProgramTypes.Reference> =
       names |> Stdlib.List.map(fun((target, _)) -> target)
-    if targets(original.names) == targets(snapshot.names) then snapshot
-    else Builtin.unwrap(Stdlib.Result.Result.Error("Reference names do not match declaration content"))
+    if targets(original.names) == targets(snapshot.names) then snapshot else original
 
-/// Read reference names at the requested timestamp, or current names when none is given.
+/// Read reference names at the requested timestamp, or current names when none is given. A source
+/// whose content is not stored has no names to read, and is left out.
 let referenceSnapshotsAt(branch: Uuid, sources: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>, before: Stdlib.Option.Option<String>): List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot> =
   let sources = Stdlib.List.unique(sources)
   let targets = sources |> Stdlib.List.map(fun((_, target)) -> target) |> Stdlib.List.unique
   let saved = referenceNameOverrides(branch, targets, before) |> indexReferenceSnapshots
   let originals = storedReferenceSnapshots(sources) |> indexReferenceSnapshots
-  sources |> Stdlib.List.map(fun source ->
-    match Stdlib.Dict.get(originals, source) with
-    | Some(original) -> withSavedReferenceNames(original, saved)
-    | None -> Builtin.unwrap(Stdlib.Result.Result.Error("Reference content is missing")))
+  sources |> Stdlib.List.filterMap(fun source ->
+    Stdlib.Dict.get(originals, source)
+    |> Stdlib.Option.map(fun original -> withSavedReferenceNames(original, saved)))
 
 /// Prepare one operation that moves the item and updates its callers' reference names.
 let prepareRename(branch: Uuid, oldLocation: LanguageTools.ProgramTypes.PackageLocation, newLocation: LanguageTools.ProgramTypes.PackageLocation, target: LanguageTools.ProgramTypes.Reference): List<LanguageTools.ProgramTypes.PackageOp> =

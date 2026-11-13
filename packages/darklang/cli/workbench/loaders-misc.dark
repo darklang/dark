@@ -30,8 +30,7 @@ let thingDetail(state: State): String =
     let results = Packages.Query.searchExactMatch(state.branchId, mods, leaf)
     match results.values with
     | [i, ...] ->
-      // `mods` is the value's own module, and the pane knows its width: the last two places in the
-      // workbench still printing against neither.
+      // `mods` is the value's own module, and the pane knows its width.
       let ctx =
         { PrettyPrinter.ProgramTypes.Context.forModule(state.branchId, mods) with
             width = previewInnerWidth(state) }
@@ -56,8 +55,7 @@ let loadBranchItems(currentBranchId: Uuid): List<BodyItem> =
       fun part -> part != "")
     |> Stdlib.String.join(" · ")
   // Main first, written out: it has no row in the branch table, so a list read
-  // from the table never had it, and from a branch there was nothing here to
-  // ⏎ back to.
+  // from the table would leave nothing here to ⏎ back to from a branch.
   let onMain = Darklang.SCM.Branch.isMain(currentBranchId)
   let mainRow =
     BodyItem
@@ -115,10 +113,9 @@ let branchRowTarget(state: State): Stdlib.Option.Option<(Uuid * String)> =
 /// The branch the cursor is on, resolved by name rather than by position.
 ///
 /// `state.selected` indexes `state.items`, which the in-view filter (`f`) narrows. Indexing straight into
-/// `SCM.Branch.list ()` therefore targeted whatever branch sat at that position in the FULL list: with the
-/// Branches section filtered to one entry, the cursor was visibly on it while `x` offered to delete `main`.
-/// A destructive action naming the wrong target is the worst version of this bug, so every branch action and
-/// the preview go through here.
+/// `SCM.Branch.list ()` would target whatever branch sits at that position in the FULL list, so with the
+/// list filtered to one entry `x` could offer to delete `main`. Every branch action and the preview go
+/// through here.
 let selectedBranch(state: State): Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> Stdlib.Option.Option.None

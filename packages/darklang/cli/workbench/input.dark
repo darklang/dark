@@ -77,7 +77,7 @@ let performInputAction(state: State, inp: InputState): Step =
           | Ok(newLoc) ->
             // Bindings and caller reference names are one refactoring operation.
             // `modules` is `modulePathOf`, owner first; a location keeps the owner apart. Using the whole
-            // path here unbound a name that does not exist, so the old name stayed bound.
+            // path here would unbind a name that does not exist and leave the old name bound.
             let oldLoc =
               match modules with
               | [owner, ...rest] ->
@@ -231,7 +231,7 @@ let performInputAction(state: State, inp: InputState): Step =
           { state with
               input = Stdlib.Option.Option.None
               // Whatever ran may have changed what the item page shows, an approval for one.
-              preview = Stdlib.Option.Option.None
+              previews = []
               reading = Stdlib.Option.Option.Some((Stdlib.Cli.UI.Colors.dimText("$ " + text)) + "\n\n" + shown)
               readingIsCode = false
               detailScroll = 0 })

@@ -11,7 +11,21 @@ let commitRow(c: SCM.Commits.Commit): List<String> =
   let ops = Stdlib.display(SCM.PackageOps.opCountIn(c.hash))
   [ SCM.Conflicts.shortHash(c.hash), ops, c.message ]
 
-let executeList(state: AppState, limit: Int64, showAll: Bool): AppState =
+/// Whether a commit listing shows housekeeping commits: archive markers with no authored work.
+/// `--all` asks for them.
+type Housekeeping =
+  | Show
+  | Hide
+
+module Housekeeping =
+  /// {{Show}} when <param asked>, the way `commits` reads `--all`.
+  let showIf(asked: Bool): Darklang.Cli.Commits.Housekeeping =
+    if asked then
+      Darklang.Cli.Commits.Housekeeping.Show
+    else
+      Darklang.Cli.Commits.Housekeeping.Hide
+
+let executeList(state: AppState, limit: Int64, housekeeping: Housekeeping): AppState =
   // This branch's commits, not the store's: on a branch, main's commits are not "mine", and the workbench
   // lists the same set for the same branch.
   let branchId = state.currentBranchId
@@ -21,7 +35,7 @@ let executeList(state: AppState, limit: Int64, showAll: Bool): AppState =
   // store they dominate the listing. `--all` shows them. The overscan bounds how many rows get
   // decoded for the check.
   let (commits, hidden) =
-    if showAll then
+    if housekeeping == Housekeeping.Show then
       (SCM.PackageOps.commitsOnBranch(branchId, limit), 0)
     else
       let window = SCM.PackageOps.commitsOnBranch(branchId, limit + 60)
@@ -66,9 +80,9 @@ let executeList(state: AppState, limit: Int64, showAll: Bool): AppState =
 /// The table answers "what have I committed"; this answers "and what was in them", without running
 /// `dark show` once per row. Same op printer `show` uses, and the same per-commit cap, because the
 /// seed commit alone holds ~17k ops.
-let executeDetailed(state: AppState, limit: Int64, showAll: Bool): AppState =
+let executeDetailed(state: AppState, limit: Int64, housekeeping: Housekeeping): AppState =
   let commits =
-    if showAll then
+    if housekeeping == Housekeeping.Show then
       SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit)
     else
       SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit + 60)
@@ -126,7 +140,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let wantsJson = ScmJson.wantsJson(args)
   let args = ScmJson.stripJson(args)
   let detailed = Stdlib.List.contains(args, "--detailed")
-  let showAll = Stdlib.List.contains(args, "--all")
+  let housekeeping = Housekeeping.showIf(Stdlib.List.contains(args, "--all"))
 
   let args =
     args |> Stdlib.List.filter(fun a -> a != "--detailed" && a != "--all")
@@ -154,17 +168,16 @@ let execute(state: AppState, args: List<String>): AppState =
   let limit = limit |> Stdlib.Option.withDefault(20)
 
   if wantsJson then
-    Stdlib.printLine(ScmJson.commitsJson(commitRows(limit)))
-    state
+    Cli.exitWith(state, Cli.printJson(ScmJson.commitsJson(commitRows(limit))))
   else if detailed then
-    executeDetailed(state, limit, showAll)
+    executeDetailed(state, limit, housekeeping)
   else
 
   match args with
   // `limit` above already parsed the count and refused anything that isn't one, so both shapes here are
   // the same call.
-  | [] -> executeList(state, limit, showAll)
-  | [ _n ] -> executeList(state, limit, showAll)
+  | [] -> executeList(state, limit, housekeeping)
+  | [ _n ] -> executeList(state, limit, housekeeping)
   | _ ->
     Cli.printErr("`dark commits` takes at most a count.")
     Stdlib.printErrorLine(help(state))

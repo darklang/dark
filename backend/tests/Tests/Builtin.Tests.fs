@@ -722,7 +722,8 @@ let pureMeansNoHiddenState =
         let wrong =
           all
           |> List.filter (fun fn ->
-            fn.previewable <> RT.Impure && not (Set.isEmpty fn.callEffects))
+            fn.previewable <> RT.Impure
+            && LibExecution.Effects.performsAny fn.callEffects)
           |> List.map (fun fn -> fn.name.name)
         Expect.equal wrong [] "effectful builtins not marked Impure")
 
@@ -807,6 +808,172 @@ let debugPrintsWhatTheBuiltinPrinted =
   }
 
 
+/// Builtins with a raise site that do not declare `Raise`, by reason. `Raise` means a call with
+/// arguments of the declared types can stop with a runtime error; these raise only on something
+/// else.
+let private raisesWithoutRaise : Map<string, string> =
+  [ "the type checker rules it out (mismatched operand types, a predicate that is not a Bool)",
+    [ "equals"
+      "notEquals"
+      "negate"
+      "bitwiseAnd"
+      "bitwiseOr"
+      "bitwiseXor"
+      "bitwiseNot"
+      "greaterThan"
+      "greaterThanOrEqualTo"
+      "lessThan"
+      "lessThanOrEqualTo"
+      "listFilterMap"
+      "listFilter"
+      "listAny"
+      "listContains"
+      "listFindFirst"
+      "dictFilter"
+      "stringJoin" ]
+    "the guest's errors come back in the Result",
+    [ "cliParseAndExecuteScript"; "cliViewTrace"; "cliEvaluateExpression" ]
+    "the error comes back in the Result", [ "jsonParse"; "jsonCheckedSerialize" ]
+    "a permission refusal, which the permission effects describe",
+    [ "pmPolicyEditInstance"
+      "pmPolicyWithdraw"
+      "pmPolicyApprovalsStale"
+      "pmPolicyApproveVersion"
+      "pmPolicyListPackages"
+      "pmPolicyReviewToken"
+      "storeBackup"
+      "configSet"
+      "tracesApplyRecording" ] ]
+  |> List.collect (fun (why, names) -> names |> List.map (fun name -> name, why))
+  |> Map.ofList
+
+/// What raises a runtime error from a builtin body. `incorrectArgs` and `raiseInternal` are
+/// left out: they guard argument shapes the type checker already ensures.
+let private raisePrimitives =
+  [ "raiseRTE"; "raiseUntargetedRTE"; "raise"; "failwith" ]
+
+/// The raise sites in each builtin's source: a primitive, or a helper that reaches one (in the
+/// builtin's own file, or `Builtin.Shortcuts`), in the builtin libraries and the test-only
+/// builtins. Comments and string literals are skipped.
+let private builtinRaiseSites (names : List<string>) : Map<string, List<string>> =
+  let root = findRepoRoot ()
+  // The text without comments, and the same with string literals blanked to the same length.
+  let code (path : string) =
+    let text = Regex.Replace(File.ReadAllText path, @"//[^\n]*", "")
+    let blank (m : Match) = "\"" + System.String(' ', m.Length - 2) + "\""
+    text, Regex.Replace(text, @"""(?:[^""\\\n]|\\.)*""", MatchEvaluator blank)
+  let mentions (raising : List<string>) (body : string) =
+    raising |> List.filter (fun r -> Regex.IsMatch(body, $@"\b{r}\b"))
+  // The `let`s at this indent whose bodies reach something in `known`, added to it.
+  let raisingHelpers (indent : string) (known : List<string>) (text : string) =
+    let starts =
+      Regex.Matches(
+        text,
+        $@"^{indent}let (?:rec |private |inline )*(\w+)",
+        RegexOptions.Multiline
+      )
+      |> List.ofSeq
+    let bodies =
+      starts
+      |> List.mapi (fun i m ->
+        let stop =
+          if i + 1 < starts.Length then starts[i + 1].Index else text.Length
+        m.Groups[1].Value,
+        text.Substring(m.Index + m.Length, stop - m.Index - m.Length))
+      |> List.filter (fun (name, _) -> name <> "fns" && name <> "builtins")
+    let rec grow (raising : List<string>) =
+      let more =
+        bodies
+        |> List.filter (fun (name, body) ->
+          not (List.contains name raising)
+          && not (List.isEmpty (mentions raising body)))
+        |> List.map fst
+      if List.isEmpty more then raising else grow (raising @ more)
+    grow known
+  let shared =
+    raisingHelpers
+      "  "
+      raisePrimitives
+      (snd (
+        code (Path.Combine(root, "backend", "src", "LibExecution", "Builtin.fs"))
+      ))
+  let files =
+    [ Path.Combine(root, "backend", "src", "Builtins")
+      Path.Combine(root, "backend", "tests", "TestUtils") ]
+    |> Seq.collect (fun dir ->
+      Directory.GetFiles(dir, "*.fs", SearchOption.AllDirectories))
+    |> Seq.map (fun path -> path, code path)
+    |> Array.ofSeq
+  // `fn "name" 0` in a record, or a constructor such as `make "name"` or `policyFn` above it.
+  let declaration (name : string) =
+    let find (pattern : string) =
+      files
+      |> Array.tryPick (fun (path, (text, _)) ->
+        let m = Regex.Match(text, pattern, RegexOptions.Multiline)
+        if m.Success then Some(path, m.Index) else None)
+    find $@"\bfn\s+""{name}""\s+\d"
+    |> Option.orElse (
+      find $@"^\s*(?:\[\s*)?(?:\{{\s*\(\s*)?(?:[a-z]\w*\s+)?""{name}"""
+    )
+  let declared = names |> List.map (fun name -> name, declaration name)
+  declared
+  |> List.map (fun (name, found) ->
+    match found with
+    | None -> name, [ "(declaration not found)" ]
+    | Some(path, start) ->
+      let _, stripped = snd (Array.find (fun (p, _) -> p = path) files)
+      let stop =
+        declared
+        |> List.choose (fun (_, d) ->
+          match d with
+          | Some(p, s) when p = path && s > start -> Some s
+          | _ -> None)
+        |> List.fold min stripped.Length
+      name,
+      mentions
+        (raisingHelpers "" shared stripped)
+        (stripped.Substring(start, stop - start)))
+  |> List.filter (fun (_, sites) -> not (List.isEmpty sites))
+  |> Map.ofList
+
+/// A builtin that can raise says so with `Raise`, so a reader, and the effects inferred for the
+/// Dark functions that call it, can tell. Found by its source: a builtin whose body reaches a raise
+/// site declares `Raise`, unless `raisesWithoutRaise` says why not.
+let raisingBuiltinsDeclareRaise =
+  test "a builtin with a raise site declares Raise" {
+    let fns = allBuiltinSets () |> List.collect (fun b -> b.fns.Values |> List.ofSeq)
+    let sites = builtinRaiseSites (fns |> List.map (fun fn -> fn.name.name))
+    Expect.isGreaterThan (Map.count sites) 50 "raise sites were found"
+    let declaresRaise =
+      fns
+      |> List.filter (fun fn ->
+        Set.contains LibExecution.Effects.Effect.Raise fn.callEffects)
+      |> List.map (fun fn -> fn.name.name)
+      |> Set.ofList
+    let missing =
+      sites
+      |> Map.toList
+      |> List.filter (fun (name, _) ->
+        not (Set.contains name declaresRaise)
+        && not (Map.containsKey name raisesWithoutRaise))
+      |> List.map (fun (name, found) -> $"  {name}: " + String.concat ", " found)
+    let stale =
+      raisesWithoutRaise
+      |> Map.toList
+      |> List.filter (fun (name, _) ->
+        not (Map.containsKey name sites) || Set.contains name declaresRaise)
+      |> List.map (fun (name, _) -> $"  {name}")
+    Expect.isEmpty
+      missing
+      ("These builtins can raise but do not declare `Effect.Raise`:\n"
+       + String.concat "\n" missing)
+    Expect.isEmpty
+      stale
+      ("These `raisesWithoutRaise` entries have no raise site, or declare Raise anyway:\n"
+       + String.concat "\n" stale)
+  }
+
+
 let tests =
   testList
     "builtin"
@@ -823,4 +990,5 @@ let tests =
       everyCliHelpReturnsText
       storeScopedEffectsRequireTargetChecks
       scopedEffectInventoryRegexIsLive
-      debugPrintsWhatTheBuiltinPrinted ]
+      debugPrintsWhatTheBuiltinPrinted
+      raisingBuiltinsDeclareRaise ]

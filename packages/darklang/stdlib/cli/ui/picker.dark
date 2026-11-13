@@ -89,8 +89,7 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
 
 /// One row, marked and highlighted when it's the selection, the row with the cursor.
 ///
-/// The marker is not decoration: selection used to be colour alone, which is invisible on a monochrome
-/// terminal and on e-ink.
+/// The marker is not decoration: colour alone is invisible on a monochrome terminal and on e-ink.
 let rowFor(label: String, focus: Stdlib.Cli.UI.Focus): String =
   match focus with
   | Focused -> Colors.colorize(Colors.selection, "> " + label)
@@ -113,8 +112,7 @@ let view(state: State, region: Layout.Region): List<Layout.Span> =
   let thumb =
     if (count(state)) > region.rows then
       let position =
-        (state.selected * (region.rows - 1))
-        / (Stdlib.max(1, (count(state)) - 1))
+        Stdlib.Int64.checkedDivide(state.selected * (region.rows - 1), Stdlib.max(1, count(state) - 1)) |> Stdlib.Result.withDefault(0)
 
       Layout.at(region, position, region.cols - 1, Colors.colorize(Colors.cyan, "|"))
     else

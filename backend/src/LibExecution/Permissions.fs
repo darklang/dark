@@ -2,8 +2,7 @@
 ///
 /// A Request is one exact host operation. A Rule may cover requests. A Policy
 /// is an allowlist with optional explicit denies. Access is the immutable
-/// conjunction of the instance, run, package, and function policies currently
-/// constraining execution.
+/// conjunction of the invocation grants and its mandatory restrictions.
 module LibExecution.Permissions
 
 open Prelude
@@ -44,7 +43,7 @@ type private HttpRequest =
 type Request =
   private
   | Http of HttpRequest
-  | HttpServer of port : int
+  | HttpServer of address : string * port : int
   | File of access : AccessKind * path : string
   | Env of access : AccessKind * name : string
   | EnvList
@@ -68,10 +67,9 @@ type Request =
 type Suggestion =
   /// `permissions allow` text that covers the refused request and no other.
   | Paste of string
-  /// The narrowest rule would allow more than the refused request, so none is
-  /// offered; the reason is for the person reading the denial.
-  | Withheld of why : string
-  /// The effect has no rule a person could write (`Native`).
+  /// Rules for this exact command and for the same program with any arguments.
+  | Process of rule : string * executableRule : string
+  /// The effect has no safely scoped rule to suggest (`Native`).
   | NoRule
   /// A file: the rule for that one file, as `Paste`, and also the rule for the folder it is in
   /// and the profile for working in that folder (`<name> <root>`), so a person can answer once
@@ -83,9 +81,23 @@ module Suggestion =
   let rule (suggestion : Suggestion) : Option<string> =
     match suggestion with
     | Suggestion.Paste rule
-    | Suggestion.File(rule, _, _) -> Some rule
-    | Suggestion.Withheld _
+    | Suggestion.File(rule, _, _)
+    | Suggestion.Process(rule, _) -> Some rule
     | Suggestion.NoRule -> None
+
+/// URI normalization shared by requests and literal components of HTTP rules.
+module HttpUrl =
+  let escaped (value : string) : string =
+    System.Text.RegularExpressions.Regex.Replace(
+      value,
+      "%[0-9a-fA-F]{2}",
+      System.Text.RegularExpressions.MatchEvaluator(fun m ->
+        m.Value.ToUpperInvariant())
+    )
+
+  let host (uri : System.Uri) = uri.IdnHost.ToLowerInvariant().TrimEnd('.')
+  let path (uri : System.Uri) = escaped uri.AbsolutePath
+  let query (uri : System.Uri) = escaped uri.Query
 
 module Request =
   /// One shell-safe token for an actionable `permissions allow` command.
@@ -116,10 +128,8 @@ module Request =
     | Request.Runtime -> Effect.Effect.Runtime
     | Request.Native _ -> Effect.Effect.Native
 
-  /// The rule for the requests whose narrowest rule names the same target the
-  /// request does. `http` and `file` rules still cover a path's subpaths, and an
-  /// `http` rule written without a query covers any query: that is the rule
-  /// language, which has no exact form for either.
+  /// Suggested HTTP rules name one exact path; file rules include children.
+  /// A URL with no query allows any query on that path.
   let private suggestTargetRule (request : Request) : Option<string> =
     match request with
     | Request.Http r ->
@@ -130,7 +140,7 @@ module Request =
           r.host
       let url = $"{r.scheme}://{host}:{r.port}{r.path}{r.query}"
       Some $"http {r.method} {quoteRuleToken url}"
-    | Request.HttpServer port -> Some $"http-server {port}"
+    | Request.HttpServer(address, port) -> Some $"http-server {address} {port}"
     | Request.File(AccessKind.Read, path) -> Some $"file read {quoteRuleToken path}"
     | Request.File(AccessKind.Write, path) ->
       Some $"file write {quoteRuleToken path}"
@@ -151,15 +161,9 @@ module Request =
     | Request.Process _
     | Request.Native _ -> None
 
-  /// The `permissions allow <rule>` text that covers this request and no other
-  /// program or argument list, or why there is none to offer.
-  ///
-  /// A denial prints this, and an interactive `run` offers to save it, so a
-  /// suggestion broader than the refused call hands out access nobody asked
-  /// for. A process rule therefore carries the exact argument list: a bare
-  /// `process '/bin/bash'` would let any code run any shell command, and a
-  /// shell-mediated call (`Cli.execute "echo hi"`) is still `/bin/bash -c ...`
-  /// to the check, since the shell decides what the string runs.
+  /// Suggest a rule for the denied request and explain any broader options.
+  /// Interactive prompts use the exact rule, so approving one shell command
+  /// does not allow every command that shell can run.
   let suggestRule (request : Request) : Suggestion =
     match request with
     | Request.File(access, path) ->
@@ -178,25 +182,37 @@ module Request =
         let folder = quoteRuleToken folder
         Suggestion.File(rule, $"file {kind} {folder}", $"{profile} {folder}")
     | Request.Process(executable, []) ->
-      Suggestion.Withheld(
-        $"a `process {quoteRuleToken executable}` rule with no arguments allows every "
-        + "argument list, and no rule can say \"exactly none\"; write one "
-        + "deliberately if that is what you want"
+      Suggestion.Process(
+        $"process-exact {quoteRuleToken executable}",
+        $"process {quoteRuleToken executable}"
       )
     | Request.Process(executable, args) ->
       let tokens = executable :: args |> List.map quoteRuleToken |> String.concat " "
-      Suggestion.Paste $"process {tokens}"
+      Suggestion.Process($"process {tokens}", $"process {quoteRuleToken executable}")
     | request ->
       match suggestTargetRule request with
       | Some rule -> Suggestion.Paste rule
       | None -> Suggestion.NoRule
 
 
-  let httpServer (port : int) : Result<Request, string> =
-    if port >= 0 && port <= 65535 then
-      Ok(Request.HttpServer port)
-    else
+  /// Accept literal IPv4 addresses only; localhost has one fixed meaning.
+  /// Never resolve a permission's address through DNS.
+  let serverAddress (address : string) : Result<string, string> =
+    let address = if address = "localhost" then "127.0.0.1" else address
+    match System.Net.IPAddress.TryParse address with
+    | true, ip when
+      ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork
+      && ip.ToString() = address
+      ->
+      Ok address
+    | _ -> Error $"Invalid bind address: {address}; use an IPv4 address or localhost"
+
+  let httpServer (address : string) (port : int) : Result<Request, string> =
+    if port < 0 || port > 65535 then
       Error $"Invalid HTTP server port: {port}"
+    else
+      serverAddress address
+      |> Result.map (fun address -> Request.HttpServer(address, port))
 
   /// Parse and normalize an absolute HTTP(S) URL. Invalid input is an error,
   /// never an unrestricted request.
@@ -212,10 +228,10 @@ module Request =
         Request.Http
           { method = method.ToUpperInvariant()
             scheme = uri.Scheme.ToLowerInvariant()
-            host = uri.IdnHost.ToLowerInvariant().TrimEnd('.')
+            host = HttpUrl.host uri
             port = uri.Port
-            path = if uri.AbsolutePath = "" then "/" else uri.AbsolutePath
-            query = uri.Query }
+            path = HttpUrl.path uri
+            query = HttpUrl.query uri }
       )
     | _ -> Error $"Invalid HTTP request: {method} {url}"
 
@@ -292,19 +308,109 @@ type HostRule =
   /// The domain itself and its subdomains.
   | SubdomainsOf of string
 
+[<RequireQualifiedAccess>]
+type HttpPath =
+  | All
+  | Exact of string
+  | Subtree of string
+
 type HttpRule =
   {
     method : Scope<string>
     scheme : Scope<string>
     host : HostRule
     port : Scope<int>
-    pathPrefix : Scope<string>
+    path : HttpPath
     /// Exact query strings this rule covers. `Scope.All` (the default when a
     /// rule is written without a query) matches any query, so an unspecified
     /// rule keeps the intuitive "any query on this path" behavior; a rule
     /// written with a query covers only that exact query.
     query : Scope<string>
   }
+
+module HttpRule =
+  /// Normalize literal URL components while retaining explicitly typed wildcards.
+  /// Fragments and credentials cannot scope a network resource and are rejected.
+  let normalize (rule : HttpRule) : Result<HttpRule, string> =
+    try
+      let method =
+        match rule.method with
+        | Scope.All -> Scope.All
+        | Scope.Only method ->
+          let parsed = System.Net.Http.HttpMethod(method)
+          Scope.Only(parsed.Method.ToUpperInvariant())
+      let scheme =
+        match rule.scheme with
+        | Scope.All -> Scope.All
+        | Scope.Only scheme ->
+          match scheme.ToLowerInvariant() with
+          | "http"
+          | "https" as scheme -> Scope.Only scheme
+          | _ -> invalidArg "scheme" "Expected HTTP or HTTPS"
+      let canonicalHost (host : string) =
+        let literal = if host.Contains(":") then $"[{host.Trim('[', ']')}]" else host
+        let uri = System.Uri($"https://{literal}/")
+        if
+          uri.UserInfo <> ""
+          || uri.AbsolutePath <> "/"
+          || uri.Query <> ""
+          || uri.Fragment <> ""
+          || not uri.IsDefaultPort
+        then
+          invalidArg "host" "Invalid permission host"
+        HttpUrl.host uri
+      let host =
+        match rule.host with
+        | HostRule.Any -> HostRule.Any
+        | HostRule.Exact host -> HostRule.Exact(canonicalHost host)
+        | HostRule.SubdomainsOf host ->
+          if host.Contains(":") || host.Contains("*") then
+            invalidArg "host" "Invalid domain wildcard"
+          HostRule.SubdomainsOf(canonicalHost host)
+      match rule.port with
+      | Scope.Only port when port < 1 || port > 65535 ->
+        invalidArg "port" "Invalid HTTP port"
+      | _ -> ()
+      let pathText =
+        match rule.path with
+        | HttpPath.All -> "/"
+        | HttpPath.Exact path
+        | HttpPath.Subtree path ->
+          if
+            not (path.StartsWith "/")
+            || path.Contains("?")
+            || path.Contains("#")
+            || path.Contains("*")
+          then
+            invalidArg "path" "Invalid HTTP permission path"
+          path
+      let queryText =
+        match rule.query with
+        | Scope.All -> ""
+        | Scope.Only query ->
+          if (query <> "" && not (query.StartsWith "?")) || query.Contains("#") then
+            invalidArg "query" "Invalid HTTP permission query"
+          query
+      // The fixed origin is only a base for normalizing the path/query reference.
+      let uri = System.Uri("https://permission.invalid" + pathText + queryText)
+      let path =
+        match rule.path with
+        | HttpPath.All -> HttpPath.All
+        | HttpPath.Exact _ -> HttpPath.Exact(HttpUrl.path uri)
+        | HttpPath.Subtree _ -> HttpPath.Subtree(HttpUrl.path uri)
+      let query =
+        match rule.query with
+        | Scope.All -> Scope.All
+        | Scope.Only _ -> Scope.Only(HttpUrl.query uri)
+      Ok
+        { method = method
+          scheme = scheme
+          host = host
+          port = rule.port
+          path = path
+          query = query }
+    with _ ->
+      Error "Invalid HTTP permission rule"
 
 /// `args` is the exact argument list, in order, or any.
 type ProcessRule = { executable : Scope<string>; args : Scope<List<string>> }
@@ -315,12 +421,34 @@ type Rule =
   | All
   | Effect of Effect.Effect
   | Http of HttpRule
-  | HttpServer of Scope<int>
+  | HttpServer of address : Scope<string> * port : Scope<int>
   | File of access : AccessKind * roots : Scope<string>
   | Env of access : AccessKind * names : Scope<string>
   | Process of ProcessRule
 
 module Rule =
+  /// Resource scopes shown in the approval prompt. File paths include children and
+  /// an unspecified HTTP query allows any query, just like written rules.
+  /// Uses typed host requests, never a description supplied by guest code.
+  let forRequest (request : Request) : Rule =
+    match request with
+    | Request.Http r ->
+      Rule.Http
+        { method = Scope.Only r.method
+          scheme = Scope.Only r.scheme
+          host = HostRule.Exact r.host
+          port = Scope.Only r.port
+          path = HttpPath.Exact r.path
+          query = if r.query = "" then Scope.All else Scope.Only r.query }
+    | Request.HttpServer(address, port) ->
+      Rule.HttpServer(Scope.Only address, Scope.Only port)
+    | Request.File(access, path) -> Rule.File(access, Scope.Only path)
+    | Request.Env(access, name) -> Rule.Env(access, Scope.Only name)
+    | Request.EnvList -> Rule.Env(AccessKind.Read, Scope.All)
+    | Request.Process(executable, args) ->
+      Rule.Process { executable = Scope.Only executable; args = Scope.Only args }
+    | _ -> Rule.Effect(Request.effect request)
+
   let private same (left : 'a) (right : 'a) : bool = left = right
 
   // Windows environment-variable names are case-insensitive; POSIX names are
@@ -394,6 +522,17 @@ module Rule =
       let domain = domain.ToLowerInvariant().TrimEnd('.')
       host = domain || host.EndsWith("." + domain, System.StringComparison.Ordinal)
 
+  let private serverAddressMatches expected actual =
+    match Request.serverAddress expected with
+    | Ok address -> address = actual
+    | Error _ -> false
+
+  let private httpPathMatches rule actual =
+    match rule with
+    | HttpPath.All -> true
+    | HttpPath.Exact expected -> expected = actual
+    | HttpPath.Subtree root -> urlPathUnder root actual
+
   let private effectMatches (expected : Effect.Effect) (request : Request) : bool =
     Request.effect request = expected
 
@@ -412,9 +551,11 @@ module Rule =
         request.scheme
       && hostMatches rule.host request.host
       && Scope.covers same rule.port request.port
-      && Scope.covers urlPathUnder rule.pathPrefix request.path
+      && httpPathMatches rule.path request.path
       && Scope.covers same rule.query request.query
-    | Rule.HttpServer ports, Request.HttpServer port -> Scope.covers same ports port
+    | Rule.HttpServer(addresses, ports), Request.HttpServer(address, port) ->
+      Scope.covers serverAddressMatches addresses address
+      && Scope.covers same ports port
     | Rule.File(expected, roots), Request.File(actual, path) when expected = actual ->
       Scope.covers pathUnder roots path
     | Rule.Env(expected, names), Request.Env(actual, name) when expected = actual ->
@@ -424,6 +565,15 @@ module Rule =
       Scope.covers samePath rule.executable executable
       && Scope.covers same rule.args args
     | _ -> false
+
+  /// A wildcard bind includes each local address, so an address-specific deny
+  /// must also block it. Checking only equal bind strings would bypass the deny.
+  let denies (rule : Rule) (request : Request) : bool =
+    match rule, request with
+    | Rule.Env(AccessKind.Read, _), Request.EnvList -> true
+    | Rule.HttpServer(_, ports), Request.HttpServer("0.0.0.0", port) ->
+      Scope.covers same ports port
+    | _ -> covers rule request
 
   /// Return the effect kinds a rule can allow, or `None` for `All`. Approval
   /// checks this before storing an explicit consumer policy.
@@ -451,10 +601,17 @@ module Policy =
   let allowAll : Policy = { allow = [ Rule.All ]; deny = [] }
 
   let create (allow : List<Rule>) (deny : List<Rule>) : Policy =
-    { allow = List.distinct allow; deny = List.distinct deny }
+    let normalize =
+      function
+      | Rule.Http rule ->
+        match HttpRule.normalize rule with
+        | Ok rule -> Rule.Http rule
+        | Error message -> invalidArg "rule" message
+      | rule -> rule
+    { allow = allow |> List.map normalize |> List.distinct
+      deny = deny |> List.map normalize |> List.distinct }
 
-  /// A broad static-effect ceiling. Exact resource policies are still
-  /// intersected at the instance/run/package layers.
+  /// Grant effect families. Actual operations still check every restriction.
   let allowEffects (effects : Set<Effect.Effect>) : Policy =
     effects |> Set.toList |> List.map Rule.Effect |> (fun allow -> create allow [])
 
@@ -499,7 +656,7 @@ module Policy =
         | _ -> false)
 
   let denial (request : Request) (policy : Policy) : Option<PolicyDenial> =
-    if policy.deny |> List.exists (fun rule -> Rule.covers rule request) then
+    if policy.deny |> List.exists (fun rule -> Rule.denies rule request) then
       Some PolicyDenial.ExplicitlyDenied
     elif policy.allow |> List.exists (fun rule -> Rule.covers rule request) then
       None
@@ -514,7 +671,6 @@ type Layer =
   | Instance
   | Run
   | Package of id : string
-  | Function of id : string
   /// The ceiling every package `val` is evaluated under: no effects at all. A value is
   /// evaluated once, when it is saved (`Execution.evaluateValue`), so an effect would freeze
   /// one machine's answer into the store. `name` is the value's, for the message.
@@ -527,168 +683,169 @@ type Decision =
   | Allowed
   | Denied of Denial
 
-/// Controls whether caller-owned run/package denials are recorded and allowed
-/// (`--warn-permissions`) or enforced. Instance and function policies never
-/// relax.
-type Relax =
-  | NoRelax
-  | Relax of record : (string -> Layer -> PolicyDenial -> unit)
-
 type private Restriction = { layer : Layer; policy : Policy }
 
-/// Immutable conjunction of policies; restrictions can only be added.
-type Access = private Access of List<Restriction>
+/// Immutable grants and restrictions for one invocation, and once a named approval is entered,
+/// the access of the code that called it.
+type Access = private Access of List<Restriction> * caller : Option<Access>
 
 module Access =
   /// Host transport preserves every existing restriction across a process boundary.
-  let layers (Access restrictions) : List<Layer * Policy> =
+  let layers (Access(restrictions, _)) : List<Layer * Policy> =
     restrictions
     |> List.map (fun restriction -> restriction.layer, restriction.policy)
 
   let ofLayers (layers : List<Layer * Policy>) : Access =
     match layers with
-    | [] -> Access [ { layer = Layer.Instance; policy = Policy.denyAll } ]
+    | [] -> Access([ { layer = Layer.Instance; policy = Policy.denyAll } ], None)
     | _ ->
       Access(
-        List.map (fun (layer, policy) -> { layer = layer; policy = policy }) layers
+        List.map (fun (layer, policy) -> { layer = layer; policy = policy }) layers,
+        None
       )
 
   let start (instancePolicy : Policy) : Access =
-    Access [ { layer = Layer.Instance; policy = instancePolicy } ]
+    Access([ { layer = Layer.Instance; policy = instancePolicy } ], None)
 
   /// The fail-safe starting point, shared because `Access` is immutable.
   /// Pooled VMs reset their root frame to this value on every reuse, avoiding
   /// a new restriction list for each execution.
-  let denyAll : Access = start Policy.denyAll
+  let denyAll : Access =
+    Access(
+      [ { layer = Layer.Instance; policy = Policy.denyAll }
+        { layer = Layer.Run; policy = Policy.denyAll } ],
+      None
+    )
 
   let restrict
     (layer : Layer)
     (policy : Policy)
-    (Access restrictions as access)
+    (Access(restrictions, caller) as access)
     : Access =
     // Appending allow-all cannot change any decision (and an allow-all layer
     // can never be the denying layer in diagnostics), so skip the allocation.
     if Policy.isAllowAll policy then
       access
     else
-      Access({ layer = layer; policy = policy } :: restrictions)
+      Access({ layer = layer; policy = policy } :: restrictions, caller)
 
-  /// The access a retained grant is checked under: every layer but the consumer
-  /// approvals. A scoped descriptor keeps the exact paths it was opened with, and
-  /// that open was checked against every layer, approvals included. A later read,
-  /// write or seek on it uses that grant; it acquires nothing new, so the approval
-  /// of whichever package holds the descriptor has nothing to add. Function
-  /// ceilings, value ceilings and the run and instance policies still apply on
-  /// every use, so a `:{}` function cannot read a descriptor it is handed.
-  let withoutPackageApprovals (Access restrictions as access) : Access =
-    let isApproval (restriction : Restriction) =
-      match restriction.layer with
-      | Layer.Package _ -> true
-      | _ -> false
-    if List.exists isApproval restrictions then
-      Access(List.filter (isApproval >> not) restrictions)
-    else
+  /// Host-supplied access for this run only. Callers must authorize the user
+  /// gesture before calling this; guest code never receives this operation.
+  let rec grantRun (grant : Policy) (Access(restrictions, caller)) : Access =
+    let allows, denies = Policy.rules grant
+    Access(
+      restrictions
+      |> List.map (fun r ->
+        match r.layer with
+        | Layer.Instance ->
+          let defaults, bans = Policy.rules r.policy
+          { r with policy = Policy.create (defaults @ allows) (bans @ denies) }
+        | _ -> r),
+      caller |> Option.map (grantRun grant)
+    )
+
+  /// Establish one named invocation. Defaults and the approval supply grants;
+  /// explicit instance denies and run restrictions still win. A nested call
+  /// cannot introduce another approval.
+  let enter
+    (name : string)
+    (approval : Policy)
+    (Access(restrictions, _) as access)
+    : Access =
+    let entered =
+      restrictions
+      |> List.exists (fun r ->
+        match r.layer with
+        | Layer.Package _ -> true
+        | _ -> false)
+    if entered then
       access
+    else
+      let grants, denied = Policy.rules approval
+      let restrictions =
+        restrictions
+        |> List.collect (fun r ->
+          match r.layer with
+          | Layer.Instance ->
+            let defaults, bans = Policy.rules r.policy
+            [ { layer = Layer.Instance; policy = Policy.create [ Rule.All ] bans }
+              { layer = Layer.Package name
+                policy = Policy.create (defaults @ grants) denied } ]
+          | _ -> [ r ])
+      Access(restrictions, Some access)
 
   /// Apply every restriction from another Access. This is used when invoking
   /// a closure: both the caller and the captured access must allow the request.
-  let constrainBy (Access constraints) (Access restrictions as current) : Access =
+  let constrainBy
+    (Access(constraints, _))
+    (Access(restrictions, caller) as current)
+    : Access =
     // A closure applied in the frame that created it carries the identical
     // Access; the conjunction is then the value itself — skip the append.
     if System.Object.ReferenceEquals(constraints, restrictions) then
       current
     else
-      Access(constraints @ restrictions)
+      Access(constraints @ restrictions, caller)
 
-  /// Which layers `Relax` may waive: only the ones the invoker owns.
-  let private isCallerOwned (layer : Layer) : bool =
-    match layer with
-    | Layer.Run
-    | Layer.Package _ -> true
-    | Layer.Instance
-    | Layer.Function _
-    | Layer.Value _ -> false
+  /// For code the caller of a named approval chose rather than the approved function, such as
+  /// the trait implementation a type argument picks: like a callback, it is limited by the
+  /// caller's access.
+  let forCallersCode (Access(_, caller) as access) : Access =
+    match caller with
+    | Some caller -> access |> constrainBy caller
+    | None -> access
 
-  [<RequireQualifiedAccess; Struct>]
-  type private CheckMode =
-    | Enforce
-    | Audit of
-      resource : (unit -> string) *
-      record : (string -> Layer -> PolicyDenial -> unit)
+  /// Interactive approval may fill missing grants, never lift a deny or a
+  /// mandatory run/value restriction (including serialized captured access).
+  let canApprove request (Access(restrictions, _)) : bool =
+    restrictions
+    |> List.forall (fun r ->
+      match Policy.denial request r.policy with
+      | None -> true
+      | Some PolicyDenial.ExplicitlyDenied -> false
+      | Some PolicyDenial.NotAllowed ->
+        match r.layer with
+        | Layer.Instance
+        | Layer.Package _ -> true
+        | Layer.Run
+        | Layer.Value _ -> false)
 
-  /// The denials of `remaining`, after `standing` (the first that could not be waived so far):
-  /// see `findEffectiveDenial`. Tail-recursive, so it runs as a loop.
-  let rec private walkDenials
-    (mode : CheckMode)
-    (request : Request)
-    (standing : voption<Denial>)
-    (remaining : List<Restriction>)
-    : Option<Denial> =
-    match remaining with
-    | [] -> ValueOption.toOption standing
-    | restriction :: rest ->
-      match Policy.denial request restriction.policy with
-      | None -> walkDenials mode request standing rest
-      | Some reason ->
-        if restriction.layer = Layer.Instance then
-          Some { layer = restriction.layer; reason = reason }
-        else
-          let waived =
-            match mode with
-            | CheckMode.Audit(resource, record) when isCallerOwned restriction.layer ->
-              record (resource ()) restriction.layer reason
-              true
-            | _ -> false
-          let standing =
-            if not waived && standing.IsNone then
-              ValueSome { layer = restriction.layer; reason = reason }
-            else
-              standing
-          walkDenials mode request standing rest
+  let rec approve (grant : Policy) (Access(restrictions, caller)) : Access =
+    let added, _ = Policy.rules grant
+    Access(
+      restrictions
+      |> List.map (fun r ->
+        match r.layer with
+        | Layer.Instance
+        | Layer.Package _ ->
+          let allow, deny = Policy.rules r.policy
+          { r with policy = Policy.create (allow @ added) deny }
+        | Layer.Run
+        | Layer.Value _ -> r),
+      caller |> Option.map (approve grant)
+    )
 
-  /// The one traversal behind `check` and `decide`.
-  ///
-  /// An instance denial always wins because it is the operator's hard maximum.
-  /// Otherwise, inspect every denial in order: record and waive caller-owned
-  /// layers under `Relax`, and retain the first denial that cannot be waived
-  /// while continuing to look for an instance denial. A waived package denial
-  /// therefore cannot hide a function ceiling behind it.
-  ///
-  /// Runs on every gated builtin call, so it allocates nothing on the allowed
-  /// path: a lone allow-all instance policy returns before the traversal, and
-  /// `resource` is only rendered for a recorded waiver.
-  let private findEffectiveDenial
-    (mode : CheckMode)
-    (request : Request)
-    (Access restrictions)
-    : Option<Denial> =
-    match restrictions with
-    | [ only ] when Policy.isAllowAll only.policy -> None
-    | _ -> walkDenials mode request ValueNone restrictions
+  /// Every active restriction must allow the operation. An instance denial
+  /// takes precedence in diagnostics.
+  let decide (request : Request) (Access(restrictions, _)) : Option<Denial> =
+    let rec walk first remaining =
+      match remaining with
+      | [] -> first
+      | restriction :: rest ->
+        match Policy.denial request restriction.policy with
+        | None -> walk first rest
+        | Some reason ->
+          let denial = { layer = restriction.layer; reason = reason }
+          if restriction.layer = Layer.Instance then
+            Some denial
+          else
+            walk (first |> Option.orElse (Some denial)) rest
+    walk None restrictions
 
-  /// Report the first (innermost) denial, with the instance denial taking
-  /// precedence over any inner one. See `findEffectiveDenial`.
   let check (request : Request) (access : Access) : Decision =
-    match findEffectiveDenial CheckMode.Enforce request access with
+    match decide request access with
     | None -> Decision.Allowed
     | Some denial -> Decision.Denied denial
 
   let allows (request : Request) (access : Access) : bool =
     check request access = Decision.Allowed
-
-
-  /// Check and apply audit mode in one place: a denial from a caller-owned
-  /// layer is recorded (with the resource description, rendered only then)
-  /// and waived; the instance policy and function ceilings are never relaxed.
-  /// Returns the denial that stands, if any.
-  let decide
-    (relax : Relax)
-    (resource : unit -> string)
-    (request : Request)
-    (access : Access)
-    : Option<Denial> =
-    let mode =
-      match relax with
-      | NoRelax -> CheckMode.Enforce
-      | Relax record -> CheckMode.Audit(resource, record)
-    findEffectiveDenial mode request access

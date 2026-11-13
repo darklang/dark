@@ -504,10 +504,11 @@ let mapConstraintTypes(
   | BitwiseNot(at, operand, record) ->
     Model.Constraint.BitwiseNot(at, mapType(operand), record)
   | DictKey(at, key) -> Model.Constraint.DictKey(at, mapType(key))
-  | Apply(at, callee, args, result) ->
+  | Apply(at, callee, name, args, result) ->
     Model.Constraint.Apply(
       at,
       mapType(callee),
+      name,
       Stdlib.List.map(args, fun((t, site)) -> (mapType(t), site)),
       mapType(result)
     )
@@ -544,7 +545,7 @@ let constraintVars(s: State, c: Model.Constraint): Dict<Model.Var, Bool> =
   | Negate(_, operand, _) -> into(Dict {}, operand)
   | BitwiseNot(_, operand, _) -> into(Dict {}, operand)
   | DictKey(_, key) -> into(Dict {}, key)
-  | Apply(_, callee, args, result) ->
+  | Apply(_, callee, _, args, result) ->
     Stdlib.List.fold(args, into(into(Dict {}, callee), result), fun(found, (t, _)) ->
       into(found, t))
   | Unwrap(_, _, arg, result) -> into(into(Dict {}, arg), result)
@@ -781,7 +782,7 @@ let deferredUses(c: Model.Constraint): List<DeferredUse> =
     DeferredUse { at = at, subject = subject, site = Site.Expression, requirement = requirement }
 
   match c with
-  | Apply(at, callee, _, _) -> [ use(at, callee, DeferredRequirement.CallableType) ]
+  | Apply(at, callee, _, _, _) -> [ use(at, callee, DeferredRequirement.CallableType) ]
   | Operand(at, _, operand, _, _) ->
     [ use(at, operand, DeferredRequirement.NumericType) ]
   | Negate(at, operand, _) -> [ use(at, operand, DeferredRequirement.NumericType) ]
@@ -962,7 +963,7 @@ let queueDeferred(s: State, c: Model.Constraint): State =
 let pendingWork(pending: List<Model.Constraint>): Int64 =
   Stdlib.List.fold(pending, 0, fun(count, c) ->
     match c with
-    | Apply(_, _, args, _) -> count + 1 + Stdlib.List.length(args)
+    | Apply(_, _, _, args, _) -> count + 1 + Stdlib.List.length(args)
     | _ -> count + 1)
 
 /// Retry pending checks in order while work decreases or new variables receive types.
@@ -1006,8 +1007,8 @@ let trySolveDeferred(s: State, c: Model.Constraint): Stdlib.Option.Option<State>
   | Propagate(at, operand, inner, returned) ->
     checkUnwrapReturn(s, c, at, operand, inner, returned)
   | DictKey(at, key) -> dictKey(s, at, key)
-  | Apply(at, callee, args, result) ->
-    Stdlib.Option.Option.Some(applyArguments(s, at, callee, args, result))
+  | Apply(at, callee, name, args, result) ->
+    Stdlib.Option.Option.Some(applyArguments(s, at, callee, name, args, result))
   | _ -> Stdlib.Option.Option.Some(solve(s, c))
 
 /// Reject a dictionary key containing a forbidden type as soon as one is known.
@@ -1124,7 +1125,7 @@ let reportUnsolvedConstraints(s: State): State =
     | Negate(at, _, _) -> ambiguous(at, AmbiguousSubject.UnaryMinusOperand)
     | BitwiseNot(at, _, _) -> ambiguous(at, AmbiguousSubject.BitwiseNotOperand)
     | DictKey(at, _) -> ambiguous(at, AmbiguousSubject.DictKeyType)
-    | Apply(at, _, args, result) ->
+    | Apply(at, _, _, args, result) ->
       markAllUnknownsAsError(
         ambiguous(at, AmbiguousSubject.CalleeType),
         Stdlib.List.prepend(Stdlib.List.map(args, fun((t, _)) -> t), result))
@@ -1266,22 +1267,26 @@ let useFunction(
       let s =
         match fn with
         | TraitMethod(method) ->
-          match Stdlib.List.head(t.typeParams) with
-          | Some(selfParam) ->
-            match Stdlib.Dict.get(mapping, selfParam) with
-            | Some(selfTy) ->
-              solve(
-                s,
-                (unaryOperatorCall(s.env, at, method.trait_, method.method_, selfTy)
-                 |> Stdlib.Option.withDefault(
-                   Model.Constraint.TraitCall(
-                     at,
-                     method.trait_,
-                     method.method_,
-                     selfTy
-                   ))))
+          match method.implFn with
+          // Use the saved implementation's signature without choosing another.
+          | Chosen(_) -> s
+          | _ ->
+            match Stdlib.List.head(t.typeParams) with
+            | Some(selfParam) ->
+              match Stdlib.Dict.get(mapping, selfParam) with
+              | Some(selfTy) ->
+                solve(
+                  s,
+                  (unaryOperatorCall(s.env, at, method.trait_, method.method_, selfTy)
+                   |> Stdlib.Option.withDefault(
+                     Model.Constraint.TraitCall(
+                       at,
+                       method.trait_,
+                       method.method_,
+                       selfTy
+                     ))))
+              | None -> s
             | None -> s
-          | None -> s
         | _ -> s
 
       let s =
@@ -1395,7 +1400,7 @@ let wouldContainItself(
     s.waiting
     |> Stdlib.List.filterMap(fun c ->
       match c with
-      | Apply(_, callee, applied, gives) ->
+      | Apply(_, callee, _, applied, gives) ->
         contains(callee, Stdlib.List.prepend(Stdlib.List.map(applied, fun((t, _)) -> t), gives))
       | Unwrap(_, _, subject, result) -> contains(subject, [ result ])
       | Propagate(_, operand, inner, _) -> contains(operand, [ inner ])
@@ -1461,6 +1466,7 @@ let applyArguments(
   s: State,
   at: Int64,
   callee: Model.Ty,
+  name: Stdlib.Option.Option<String>,
   args: List<(Model.Ty * Site)>,
   result: Model.Ty)
   : State =
@@ -1477,11 +1483,11 @@ let applyArguments(
       unify(s, nodeId, Site.Expression, ret, result)
     else
       wrongArgumentCount(s, nodeId, expected, given, result)
-  | TVar(v) -> waitApplication(s, at, v, args, result)
+  | TVar(v) -> waitApplication(s, at, v, name, args, result)
   | TError ->
     markAllUnknownsAsError(s,
       Stdlib.List.prepend(Stdlib.List.map(args, fun((t, _)) -> t), result))
-  | _ -> notCallable(s, nodeId, callee, args, result)
+  | _ -> notCallable(s, nodeId, callee, name, args, result)
 
 /// Unify each argument with its parameter, as far as both lists go.
 let unifyArguments(
@@ -1502,6 +1508,7 @@ let waitApplication(
   s: State,
   at: Int64,
   v: Model.Var,
+  name: Stdlib.Option.Option<String>,
   args: List<(Model.Ty * Site)>,
   result: Model.Ty)
   : State =
@@ -1513,11 +1520,11 @@ let waitApplication(
     let previous =
       Stdlib.List.findFirst(s.waiting, fun c ->
         match c with
-        | Apply(_, other, _, _) -> Types.walk(s.subst, other) == callee
+        | Apply(_, other, _, _, _) -> Types.walk(s.subst, other) == callee
         | _ -> false)
 
     match previous with
-    | Some(Apply(_, _, oldArgs, oldResult)) ->
+    | Some(Apply(_, _, _, oldArgs, oldResult)) ->
       let nodeId = Stdlib.Option.Option.Some(at)
       let s = unifyArguments(s, nodeId, Stdlib.List.map(oldArgs, fun((t, _)) -> t), args)
       let expected = Types.count(oldArgs)
@@ -1527,7 +1534,7 @@ let waitApplication(
         unify(s, nodeId, Site.FunctionApplication, oldResult, result)
       else
         wrongArgumentCount(s, nodeId, expected, given, result)
-    | _ -> queueDeferred(s, Model.Constraint.Apply(at, callee, args, result))
+    | _ -> queueDeferred(s, Model.Constraint.Apply(at, callee, name, args, result))
 
 /// Report a call that gives a function fewer or more arguments than it takes. Mark
 /// the result's unknowns unavailable, as notCallable does, so its uses add no
@@ -1555,6 +1562,7 @@ let notCallable(
   s: State,
   at: Stdlib.Option.Option<Int64>,
   callee: Model.Ty,
+  name: Stdlib.Option.Option<String>,
   args: List<(Model.Ty * Site)>,
   result: Model.Ty)
   : State =
@@ -1566,7 +1574,7 @@ let notCallable(
         at,
         none(),
         some(callee),
-        Context.NoDetail)))
+        Context.NonCallableValue(name))))
 
   markAllUnknownsAsError(s,
     Stdlib.List.prepend(Stdlib.List.map(args, fun((t, _)) -> t), result))

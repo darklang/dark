@@ -61,7 +61,8 @@ let evaluate(
   with
   | Ok(result) -> Stdlib.Result.Result.Ok(result)
   | Error(err) ->
-    Stdlib.Result.Result.Error(ExecutionError.toString(state.currentBranchId, err))
+    Stdlib.Result.Result.Error(
+      ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err))
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -84,7 +85,14 @@ let execute(state: AppState, args: List<String>): AppState =
     let expr =
       match args with
       | [ "-" ] -> Stdlib.Cli.Stdin.readAll()
-      | parts -> Stdlib.String.join(parts, " ")
+      | parts -> Stdlib.Result.Result.Ok(Stdlib.String.join(parts, " "))
+
+    match expr with
+    | Error(message) ->
+      Cli.printErr(message)
+      Cli.failed(state)
+    | Ok(expr) ->
+
     let (stats, outcome) =
       if wantStats then
         let harness = LanguageTools.Perf.floor()

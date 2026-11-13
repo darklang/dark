@@ -17,7 +17,7 @@ let valueDesc(ctx: PrettyPrinter.ProgramTypes.Context, body: LanguageTools.Progr
 /// The rows of a module for the Code list: its submodules, then types, values, fns, traits,
 /// implementations and tests, by name. Names only; the Inspect pane says what each is.
 let loadItems(branchId: Uuid, location: Packages.PackageLocation): List<BodyItem> =
-  moduleRows(branchId, location, false)
+  moduleRows(branchId, location, Descriptions.Hide)
 
 /// The same rows with a one-line description each - a fn's signature, a
 /// type's shape, a value's literal - so the Inspect pane's preview of a
@@ -27,15 +27,19 @@ let moduleContents(
   branchId: Uuid,
   location: Packages.PackageLocation)
   : List<BodyItem> =
-  moduleRows(branchId, location, true)
+  moduleRows(branchId, location, Descriptions.Show)
 
-/// A module's rows in display order. `describe` fills the description
-/// column, which pretty-prints every signature and literal, so the list,
-/// which reloads on every move, leaves it off.
+/// Whether module rows fill the description column, which pretty-prints every signature and
+/// literal. The Code list reloads on every move, so it leaves them off.
+type Descriptions =
+  | Show
+  | Hide
+
+/// A module's rows in display order.
 let moduleRows(
   branchId: Uuid,
   location: Packages.PackageLocation,
-  describe: Bool)
+  descriptions: Descriptions)
   : List<BodyItem> =
   let modulePath = Packages.modulePathOf(location)
   let results = Packages.Query.withoutInternal(Packages.Query.allDirectDescendants(branchId, modulePath))
@@ -44,7 +48,8 @@ let moduleRows(
   // by their short names.
   let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, modulePath)
   let typeRef(t: LanguageTools.ProgramTypes.TypeReference): String = PrettyPrinter.ProgramTypes.typeReference(ctx, t)
-  let descOf(build: Unit -> String): String = if describe then build() else ""
+  let descOf(build: Unit -> String): String =
+    if descriptions == Descriptions.Show then build() else ""
   // Every implementation leaves a submodule beside it with its own name, holding its method fns.
   // The implementation is already a row; the folder is not one a reader wants, and `Stdlib.Int64`
   // drew seventeen of each. The same rule every listing uses.
@@ -296,7 +301,7 @@ let renderDiffLines(lines: List<Stdlib.Diff.DiffLine>, state: State): List<Strin
     // own and the highlighter's.
     let washed = Stdlib.String.replaceAll(gutter + code, Stdlib.Cli.UI.Colors.reset, Stdlib.Cli.UI.Colors.reset + bg)
     let visible = Stdlib.Cli.Tui.Text.styledWidth(gutter + code)
-    let pad = Stdlib.String.repeat(" ", Stdlib.max(0, fillWidth - visible))
+    let pad = (Stdlib.String.checkedRepeat(" ", Stdlib.max(0, fillWidth - visible)) |> Stdlib.Result.withDefault(""))
     bg + washed + pad + Stdlib.Cli.UI.Colors.reset
   // Walk the diff, consuming from each side as its lines come up: (oldIdx,
   // newIdx, rendered so far).
@@ -629,7 +634,7 @@ let refreshScmStatus(previous: State, next: State): State =
 /// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
 /// count: an ack, and any command run in a frame (a pull lands other people's commits).
 let forceScmRefresh(state: State): State =
-  { state with scmStatus = readScmStatus(state.branchId), preview = Stdlib.Option.Option.None, liveFor = "" }
+  { state with scmStatus = readScmStatus(state.branchId), previews = [], liveFor = "" }
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///

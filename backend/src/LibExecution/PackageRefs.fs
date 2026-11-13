@@ -239,6 +239,8 @@ module Type =
       let private p addl = p ("HttpClient" :: addl)
       let badHeader = p [] "BadHeader"
       let badUrlDetails = p [] "BadUrlDetails"
+      let networkTarget = p [] "NetworkTarget"
+      let networkFailure = p [] "NetworkFailure"
       let requestError = p [] "RequestError"
       let response = p [] "Response"
       let streamResponse = p [] "StreamResponse"
@@ -328,6 +330,7 @@ module Type =
       let scope = p [] "Scope"
       let hostRule = p [] "HostRule"
       let httpRule = p [] "HttpRule"
+      let httpPath = p [] "HttpPath"
       let processRule = p [] "ProcessRule"
       let effect = p [] "Effect"
       let rule = p [] "Rule"
@@ -445,6 +448,7 @@ module Type =
           let error = p [ "Bools" ] "Error"
         module BigInts =
           let error = p [ "BigInts" ] "Error"
+          let outOfRangeKind = p [ "BigInts" ] "OutOfRangeKind"
         module Strings =
           let error = p [ "Strings" ] "Error"
         module Lists =
@@ -697,10 +701,6 @@ module Fn =
     let private p addl = p ("Stdlib" :: addl)
 
     let inspect = p [] "inspect"
-
-    module HttpClient =
-      let request = p [ "HttpClient" ] "request"
-      let stream = p [ "HttpClient" ] "stream"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)

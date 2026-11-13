@@ -7,15 +7,13 @@ of these areas are in `docs/agent-traps.md`.
 ## Changing the schema
 
 **`migrations/schema/00-initial-schema.sql` is ONE file, edited in place.** It declares the shape a
-FRESH store is born with. It used to be fourteen numbered subsystem files, each frozen once merged, so
-that a filename meant the same thing in every store ever made from it. That rule was dropped when the
-molt made every pre-existing store unopenable anyway: a store older than the cut is not supported, and
-`dark` tells you to delete it and start again rather than pretending to upgrade it.
+FRESH store is born with. A store older than the current schema is not supported: `dark` tells you
+to delete it and start again rather than pretending to upgrade it.
 
 So:
 
 - A NEW TABLE or INDEX goes in a stamped file beside it (`scripts/migrations/new` makes one), or
-  straight into `00-initial-schema.sql` while the PR is unmerged. Filename order is still the apply
+  straight into `00-initial-schema.sql`. Filename order is still the apply
   order, and a FK target must be declared before the table that references it.
 - A NEW COLUMN takes BOTH halves, and this is the one to get right:
   - declare it on the table in `00-initial-schema.sql`, for fresh stores;
@@ -26,9 +24,7 @@ So:
 **Skipping the first half is invisible until somebody collapses the schema.** `addColumnIfMissing`
 runs on a FRESH store too -- the table exists, the column does not, so it adds it -- which means a
 column declared ONLY in a step still appears in a new store, and nothing ever says the schema file is
-incomplete. Twelve columns on `traces` and `trace_fn_calls` were in exactly that state, and the only
-thing that surfaced them was deleting the steps and watching a fresh store fail on `no such column:
-status`. If you add a column, grep the schema file for it before you call it done.
+incomplete. If you add a column, grep the schema file for it before you call it done.
 
 Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
 expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
@@ -91,22 +87,17 @@ its committed layer, then each ancestor's committed layer up to main's, nearest 
 Commit moves rows from the draft layer to the committed one, discard deletes draft rows, and merge moves
 the branch's ops to the parent and folds them there. Every read takes the branch it asks about.
 
-**A store's own log can hold ops it cannot read.** Written when ops arrived over a wire from a
-peer on a different build, which no longer happens in this tree; it still holds for any op this
-binary's deserializer rejects, including one an older build of this binary wrote. Such ops are
-STORED and left unapplied deliberately, so a later build can apply them, which means they sit in
+**A store's own log can hold ops it cannot read**: any op this binary's deserializer rejects,
+including one an older build of this binary wrote. Such ops are STORED and left unapplied deliberately, so a later build can apply them, which means they sit in
 the local log where every local reader meets them. So "the LOCAL log is ours, raise if it will not
-parse" is false. A reader that raises dies on the first such op and stays dead (once seen as a raw
-`BinaryFormatException` out of a propagation command); a writer that deletes main's log and
+parse" is false. A reader that raises dies on the first such op and stays dead; a writer that deletes main's log and
 re-inserts what it read destroys them. The rule: ONE decoder, it returns an Option, every reader
 tolerates, and no writer deletes what it could not decode (the draft rewrite deletes only the ids it
 read as ops).
 
 **A build eats ops that are not in `packages/`.** `LocalExec` calls `LibDB.Purge.purge ()` before a
 package reload: it wipes the store and re-authors every item from the `.dark` files on disk, so
-anything you authored by hand is gone. Measured once at 28,372 ops before a build and 12,692 after;
-the absolute numbers depend on the tree and are smaller now, the halving is the point. `LocalExec`
-is dev tooling, so this is a dev-clone fact rather than a product one, and we are deliberately not
+anything you authored by hand is gone. `LocalExec` is dev tooling, so this is a dev-clone fact rather than a product one, and we are deliberately not
 fixing it.
 
 **Authoring looks like the same bug and is not.** `WipRefresh.refresh` runs on every author on main, and
@@ -116,17 +107,18 @@ and an op this build cannot decode both survive it.
 
 ## Traits
 
-A trait is a package item (`PT.Trait`: type params, bounds, method signatures with optional
-ceilings); an impl is a package item (`PT.TraitImpl`: the trait, its type args, the self
-type, own params and bounds, methods as `(name, fn)` pairs). Two ops, `AddTrait` and
+A trait is a package item (`PT.Trait`: type params, bounds, method signatures).
+An impl is a package item (`PT.TraitImpl`: the trait, its type args, the self type,
+own params and bounds, methods as `(name, fn)` pairs). Two ops, `AddTrait` and
 `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
-`FQTraitName` for references; binary format v3 (`BaseFormat.fs` lists every version since).
+`FQTraitName` for references. Only the current binary format is supported
+(`BaseFormat.fs` defines its version).
 The parser lowers `trait`/`impl` in `SourceFile.items` (F#) and `implWithOps` (Dark); both
 must agree on the impl's member path `<module>[.<Type>].<Trait>`, with the method fns as
 ordinary fns beneath it. Dispatch candidates come off the index
 (`PT2RT.ImplCandidate.ofPackageManager`), selection is `Traits.fs`, the checker validates
-traits and impls in `AtRestTypeChecker` (`ImplMethodSet`, `ImplMethodSignature`;
-`ImplExceedsCeiling` is declared and not checked yet). The operators are the stdlib traits
+traits and impls in `AtRestTypeChecker` (`ImplMethodSet`, `ImplMethodSignature`).
+The operators are the stdlib traits
 (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through `NumericTraits.fs`, whose
 hashes come from `PackageRefs.Trait`, so a new operator trait needs a ref and a regenerated
 `package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is structural for every
@@ -188,10 +180,9 @@ typed at the CLI.
 
 **`EPipeFnCall` and friends exist on BOTH `WrittenTypes.PipeExpr` and `ProgramTypes.PipeExpr`,
 with different arities, and only the enclosing signature tells you which one a match is over.**
-Widening the PT case and then updating every `EPipeFnCall` pattern by name broke three matches
-that were over the WT type, with no build-time signal: one surfaced as a raise the authoring
-guard converted into "not found", and two waited for somebody to hover or to look at syntax
-highlighting. Check `(pe: WrittenTypes.PipeExpr)` against
+Updating every `EPipeFnCall` pattern by name after widening one of them breaks the matches over the
+other with no build-time signal; they surface as "not found" from the authoring guard, or only on
+hover and in syntax highlighting. Check `(pe: WrittenTypes.PipeExpr)` against
 `(p: LanguageTools.ProgramTypes.PipeExpr)` at the top of each function before touching its arms.
 
 **Every switch over item kinds has five arms.** Types, values, fns, traits, impls.
@@ -209,9 +200,7 @@ that dedupes by name can drop the implementation.** The methods of `impl Add for
 Int64` are fns under `Stdlib.Int64.Add`, which also makes `Add` look like a submodule
 of `Stdlib.Int64`. A reader wants the implementation row, not the folder, so every
 listing filters the folder out through `LanguageTools.PackageManager.Search.readerSubmodules`
-and orders its sections by `Cli.Glyphs.kindOrder`. Five surfaces decided this for
-themselves at one point or another, and the one that forgot showed seventeen empty
-folders and no implementations. It lives in the package manager rather than in the CLI
+and orders its sections by `Cli.Glyphs.kindOrder`. It lives in the package manager rather than in the CLI
 because every reader needs it.
 
 **A bare trait name falls back to the stdlib.** `impl Add for Point` in any module

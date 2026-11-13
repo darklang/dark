@@ -1,9 +1,6 @@
 # Permissions: deferred work
 
-The items docs/effects.md and docs/agent-traps.md point at when they say "the todo
-file" or "future work". Everything here is stated (not decided) in
-docs/effects.md; this file just collects it in one place so the references
-resolve.
+Future work beyond the runtime authorization model in docs/effects.md.
 
 ## Trust boundary
 
@@ -25,14 +22,11 @@ resolve.
 
 ## Language and analysis
 
-- Effect rows on function types, so a callback's effects flow through
-  higher-order functions like List.map. The declaration-level ceiling row is
-  the runtime half of that design.
-- Package-value bodies join closure analysis. Today a package-value
-  reference marks requirements analysis incomplete.
-- Requirements analysis could specialize a scoped effect when the resource
-  argument is a literal at the call site (a hardcoded path or URL), giving
-  approve-time review an exact rule instead of the bare effect.
+- More precise callback and deferred-effect analysis.
+- Follow code held in package values during requirements analysis. Stored
+  inert data is already recognized; callable or unevaluated values remain incomplete.
+- Extend conservative preflight beyond known literal arguments and unconditional
+  calls. Unknown branches and computed resources remain runtime checks.
 
 ## Diagnostics
 
@@ -52,9 +46,6 @@ resolve.
 
 ## Test coverage still to add
 
-From docs/effects.md "Invariants and their tests":
-
 - changed-contract review prompts
-- stream and deserialized-applicable widening
 - ancestor-symlink rejection
 - redirect handling at the host boundary

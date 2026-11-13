@@ -74,7 +74,7 @@ let renderFullAtWidth(
       | Some(view) -> cursorRow(view)
     let toTop = moveRows(startRow, 0)
     let physicalRows =
-      Stdlib.List.range(0, repaintHeight - 1)
+      (Stdlib.List.checkedRange(0, repaintHeight - 1) |> Stdlib.Result.withDefault([]))
     let painted =
       physicalRows
       |> Stdlib.List.map(fun row ->

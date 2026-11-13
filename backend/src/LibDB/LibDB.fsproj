@@ -69,7 +69,9 @@
     <Compile Include="UpgradeKeep.fs" />
     <Compile Include="Releases.fs" />
     <Compile Include="Seed.fs" />
+    <Compile Include="Raises.fs" />
     <Compile Include="PackagePermissions.fs" />
+    <Compile Include="PermissionReview.fs" />
 
     <!-- ex-LibCloud SQLite-bound modules /-->
     <Compile Include="Tracing.fs" />

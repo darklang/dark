@@ -40,6 +40,8 @@ module HashStabilization = LibDB.HashStabilization
 module AstTransformer = LibDB.AstTransformer
 module PackageLocation = LibDB.PackageLocation
 module PolicyStore = LibDB.PolicyStore
+module Permission = LibExecution.Permissions
+module PolicyDT = LibExecution.PermissionsToDarkTypes
 
 
 module ScriptOrEvalInput = LibDB.Traces.ScriptOrEvalInput
@@ -213,13 +215,8 @@ let private declarationsToModule
     // `ptForBranch`: names resolve as the run's branch sees them. A branch's own content is in the
     // shared content tables, so what a name resolves to runs by hash on any branch.
     //
-    // Then the account's APPROVED VERSIONS on top, which is what makes an approval bind anything:
-    // a name becomes a hash HERE, at lowering, so this is the only place a "when I say `Acme.charge`
-    // I mean this body" decision can be honoured. Per run rather than in the shared `pt`, so
-    // `permissions approve` takes effect on the next command instead of the next process.
-    let pm0 =
-      LibDB.PackageManager.ptForBranch state.branchId
-      |> LibDB.PackageManager.narrowedToApprovedVersions state.accountID
+    // Approvals authorize an exact version; they never select which code runs.
+    let pm0 = LibDB.PackageManager.ptForBranch state.branchId
     let! fns1 =
       lowerFns None pm0 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
     let! types1 =
@@ -562,10 +559,10 @@ module ExecutionError =
       error : RT.RuntimeError.Error
       /// What was attempted, e.g. "reading `/etc/hosts`".
       resource : string
-      /// The exact `permissions allow` rule that would cover it, when one
-      /// exists and the denying layer was the instance policy — the only
-      /// layer that rule edits.
+      /// The exact rule that would cover it, when one exists.
       rule : Option<string>
+      /// The function whose approval was checked; None for the instance policy.
+      entry : Option<string>
       callStack : RT.CallStack
     }
 
@@ -581,13 +578,15 @@ module ExecutionError =
     // TODO exposing the structured denial as a Dark value
     // (docs/permissions-todos.md) would make this the natural seam.
     | Denied of PermissionDenied
+    /// The user cancelled a permission prompt.
+    | Cancelled
     | Unhandled of Unhandled
 
   /// A runtime error is a `Denied` when the run recorded an instance-layer
-  /// denial: Dark cannot catch runtime errors, so the last denial recorded
-  /// under the guest state is the one that ended the run. Any other layer's
-  /// denial stays a plain `Runtime` error, since no `permissions allow` rule
-  /// would change it.
+  /// denial, or a function-approval denial with a rule that would cover it:
+  /// Dark cannot catch runtime errors, so the last denial recorded under the
+  /// guest state is the one that ended the run. Any other denial stays a
+  /// plain `Runtime` error.
   let classify
     (denied : ResizeArray<RT.PermissionDenialRecord>)
     (rte : RT.RuntimeError.Error)
@@ -596,13 +595,16 @@ module ExecutionError =
       Runtime(rte, [])
     else
       let last = denied[denied.Count - 1]
-      match last.layer with
-      | LibExecution.Permissions.Layer.Instance ->
+      let denial entry =
         Denied
           { error = rte
             resource = last.resource
             rule = last.suggestion
+            entry = entry
             callStack = [] }
+      match last.layer, last.suggestion with
+      | LibExecution.Permissions.Layer.Instance, _ -> denial None
+      | LibExecution.Permissions.Layer.Package name, Some _ -> denial (Some name)
       | _ -> Runtime(rte, [])
 
   let withCallStack (stack : RT.CallStack) (error : ExecutionError) =
@@ -641,6 +643,7 @@ module ExecutionError =
       [ "error", RT2DT.RuntimeError.toDT d.error
         "resource", DString d.resource
         "rule", (d.rule |> Option.map DString |> Dval.option KTString)
+        "entry", (d.entry |> Option.map DString |> Dval.option KTString)
         "callStack", callStackToDT d.callStack ]
     DRecord(typeName, typeName, [], RecordFields.ofList fields)
 
@@ -664,6 +667,7 @@ module ExecutionError =
           |> Dval.list locationKT
         "TypeCheck", [ report; locations ]
       | Denied d -> "Denied", [ permissionDeniedToDT d ]
+      | Cancelled -> "Cancelled", []
       | Unhandled u -> "Unhandled", [ unhandledToDT u ]
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -765,7 +769,6 @@ let private checkGuest
         parameters = NEList.singleton parameter
         returnType = PT.TVariable "result"
         description = ""
-        permissionCeiling = None
         bounds = [] }
     let ops =
       List.concat
@@ -979,6 +982,7 @@ let executeWith
           let e = resume.run
           let tracer =
             Tracing.createReplayTracer
+              parentState.traceCaps
               (AT.TraceID.fromUUID e.id)
               traceDesc
               inputName
@@ -998,7 +1002,13 @@ let executeWith
           tracer, Some e.id, Some e.status
         | None ->
           let traceID = AT.TraceID.create ()
-          let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
+          let tracer =
+            Tracing.createCliTracer
+              parentState.traceCaps
+              traceID
+              traceDesc
+              inputName
+              inputValue
           if tracer.enabled then
             // The row goes in now, at the run's start, so `dark traces` shows a run while it is
             // still going and Ctrl-C has something to mark suspended. The recorder upserts the
@@ -1215,6 +1225,7 @@ let private ownFns (mod' : Utils.CliScript.PTCliScriptModule) : List<RT.Hash> =
 /// Apply the run's permission and deprecation options.
 let private createGuestState
   (parentState : RT.ExecutionState)
+  (callerAccess : Permission.Access)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (input : LibDB.Traces.ScriptOrEvalInput)
   : RT.ExecutionState =
@@ -1230,12 +1241,65 @@ let private createGuestState
       policy
       (ownFns mod')
       { parentState with allowHarmful = options.allowHarmful }
-  { guest with
-      permissionWarnings =
-        if options.warnPermissions then
-          Some(ResizeArray<RT.PermissionViolation>())
-        else
-          None }
+  if parentState.canManagePolicies then
+    guest
+  else
+    { guest with
+        access =
+          guest.access
+          |> Permission.Access.constrainBy (
+            parentState.permissionAccess callerAccess
+          ) }
+
+/// Dark wraps scripts in a function that receives their arguments.
+/// Look inside that wrapper for upfront checks. Leave functions returned
+/// by user code for later, when they are actually called.
+let private scriptEntryBodies (mod' : Utils.CliScript.PTCliScriptModule) =
+  mod'.exprs
+  |> List.map (function
+    | PT.ELambda(_, _, body) -> body
+    | expr -> expr)
+
+/// Approvals identify either the named function being run, or the script's
+/// path, source and dependency versions.
+let private reviewIdentity filename code (mod' : Utils.CliScript.PTCliScriptModule) =
+  let named =
+    match scriptEntryBodies mod' with
+    | [ PT.EApply(_, PT.EFnName(_, nr, _, _), _, _) ] ->
+      match nr.resolved with
+      | Ok { name = PT.FQFnName.Package(PT.Hash hash); location = Some loc } ->
+        let name = String.concat "." (loc.owner :: loc.modules @ [ loc.name ])
+        if name = filename then Some(name, hash, false) else None
+      | _ -> None
+    | _ -> None
+  match named with
+  | Some identity -> identity
+  | None ->
+    // The code identity includes the versions of functions, values, types and
+    // traits it refers to. Changing any of them invalidates the saved approval,
+    // even if the script itself has not changed.
+    use bytes = new System.IO.MemoryStream()
+    use writer = new System.IO.BinaryWriter(bytes)
+    writer.Write(code : string)
+    let mode = LibSerialization.Hashing.Canonical.Normal
+    for expr in mod'.exprs do
+      LibSerialization.Hashing.Canonical.writeExpr mode writer expr
+    for fn in mod'.fns @ mod'.submodules.fns do
+      LibSerialization.Hashing.Canonical.writeFn mode writer fn
+    for value in mod'.values @ mod'.submodules.values do
+      LibSerialization.Hashing.Canonical.writeValue mode writer value
+    for typ in mod'.types @ mod'.submodules.types do
+      LibSerialization.Hashing.Canonical.writeType mode writer typ
+    for traitDef in mod'.traits do
+      LibSerialization.Hashing.Canonical.writeTrait mode writer traitDef
+    for impl in mod'.impls do
+      LibSerialization.Hashing.Canonical.writeImpl mode writer impl
+    writer.Flush()
+    let hash =
+      System.Convert
+        .ToHexString(System.Security.Cryptography.SHA256.HashData(bytes.ToArray()))
+        .ToLowerInvariant()
+    "script:" + System.IO.Path.GetFullPath filename, hash, true
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "testRunIsolated" 0
@@ -1384,42 +1448,30 @@ let fns () : List<BuiltInFn> =
           Param.make
             "sandbox"
             TBool
-            "Run the script body under a deny-all policy instead of the configured instance policy"
+            "Run the script body under a deny-all run restriction"
           Param.make
-            "warnPermissions"
-            TBool
-            "Warn-only permission mode: record caller-policy violations instead of denying them, while the instance policy remains mandatory" ]
+            "runGrants"
+            (TCustomType(NR.ok (PolicyDT.Policy.typeName ()), []))
+            "Access approved by the user for this run only"
+          Param.make
+            "askPermission"
+            (TypeReference.option (
+              TFn(NEList.singleton (TTuple(TString, TList TString, [])), TInt64)
+            ))
+            "Trusted UI callback: cancel, allow this run, or remember" ]
       returnType =
-        // Ok = (value, violations); a violation is (resource, unmet aspect, via — the
-        // package fn / lambda the access happened in, when known). Empty list = stayed
-        // inside the grant (always empty unless warnPermissions).
-        let violationT = TTuple(TString, TString, [ TypeReference.option TString ])
         TypeReference.result
-          (TTuple(
-            TCustomType(NR.ok (RT2DT.Dval.typeName ()), []),
-            TList violationT,
-            []
-          ))
+          (TCustomType(NR.ok (RT2DT.Dval.typeName ()), []))
           (ExecutionError.typeRef ())
-      description =
-        "Parses and executes a Dark script, returning its value "
-        + "and (in warn-permissions mode) caller-policy violations"
+      description = "Parses and executes a Dark script under its permissions"
       fn =
         let errType = KTCustomType(ExecutionError.fqTypeName (), [])
-        let optStrVT =
-          VT.known (KTCustomType(Dval.optionType (), [ VT.known KTString ]))
-        let violationKT = KTTuple(VT.string, VT.string, [ optStrVT ])
-        let okKT =
-          KTTuple(
-            VT.known (RT2DT.Dval.knownType ()),
-            VT.known (KTList(VT.known violationKT)),
-            []
-          )
+        let okKT = RT2DT.Dval.knownType ()
         let resultOk = Dval.resultOk okKT errType
         let resultError = Dval.resultError okKT errType
         (function
         | exeState,
-          _,
+          callerVM,
           [],
           [| accountIDDval
              DUuid branchId
@@ -1428,8 +1480,26 @@ let fns () : List<BuiltInFn> =
              DList(_vtTODO, Items(scriptArgs))
              DBool allowHarmful
              DBool sandbox
-             DBool warnPermissions |] ->
+             runGrantsValue
+             askValue |] ->
           uply {
+            let ask =
+              match askValue with
+              | DEnum(_, _, _, "None", []) -> None
+              | DEnum(_, _, _, "Some", [ DApplicable callback ]) -> Some callback
+              | _ -> incorrectArgs ()
+            let callerAccess = callerVM.activeAccess
+            let runGrants = PolicyDT.Policy.fromDT runGrantsValue
+            let grants, denies = Permission.Policy.rules runGrants
+            if
+              (ask.IsSome || not (List.isEmpty grants && List.isEmpty denies))
+              && not exeState.canManagePolicies
+            then
+              RT.RuntimeError.UncaughtException(
+                "run approvals require the trusted dark run command",
+                []
+              )
+              |> RT.raiseUntargetedRTE
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
             // (anonymous runs, tests).
@@ -1472,9 +1542,7 @@ let fns () : List<BuiltInFn> =
                       filename,
                       code,
                       List.map D.string scriptArgs,
-                      { allowHarmful = allowHarmful
-                        sandbox = sandbox
-                        warnPermissions = warnPermissions }
+                      { allowHarmful = allowHarmful; sandbox = sandbox }
                     )
                   let! parsedScript =
                     prepareGuest
@@ -1488,52 +1556,87 @@ let fns () : List<BuiltInFn> =
                     // `dark run` and `eval` start from the host's configured
                     // deny-by-default policy. Missing or corrupt state remains
                     // locked down (see PolicyStore.instancePolicy).
-                    // `--warn-permissions` may relax the run and package policies, but the
-                    // instance policy remains a hard maximum.
-                    let guest = createGuestState exeState mod' input
-                    let permissionSink = guest.permissionWarnings
-                    let exeState = { guest with deniedRequests = denied }
-                    let! execResult = execute exeState mod' input
-                    let! violations =
-                      match permissionSink with
-                      | None -> Ply []
-                      | Some sink ->
-                        sink
-                        |> List.ofSeq
-                        |> Ply.List.mapSequentially
-                          (fun (v : RT.PermissionViolation) ->
-                            uply {
-                              let! via =
-                                match v.via with
-                                | Some ep ->
-                                  uply {
-                                    let! s = Exe.executionPointToString exeState ep
-                                    return Dval.optionSome KTString (DString s)
-                                  }
-                                | None -> Ply(Dval.optionNone KTString)
-                              return
-                                DTuple(
-                                  DString v.resource,
-                                  DString v.needed,
-                                  [ via ]
-                                )
-                            })
-                    match execResult with
-                    | Ok result ->
+                    let guest = createGuestState exeState callerAccess mod' input
+                    let exeState =
+                      { guest with
+                          deniedRequests = denied
+                          access = Permission.Access.grantRun runGrants guest.access }
+                    let name, hash, script = reviewIdentity filename code mod'
+                    let localFns = mod'.fns @ mod'.submodules.fns
+                    let load hash =
+                      match localFns |> List.tryFind (fun fn -> fn.hash = hash) with
+                      | Some fn -> Ply(Some fn)
+                      | None -> LibDB.PackagePermissions.Load.fromStore.fn hash
+                    let! known =
+                      LibDB.PermissionReview.preflight
+                        load
+                        exeState.packagePolicy
+                        (scriptEntryBodies mod')
+                    let ask =
+                      ask
+                      |> Option.map (fun callback ->
+                        fun rules ->
+                          uply {
+                            let argument =
+                              DTuple(
+                                DString name,
+                                DList(VT.string, Items(List.map DString rules)),
+                                []
+                              )
+                            let! answer =
+                              match
+                                Scheduler.Scheduler.Current,
+                                Scheduler.Scheduler.CurrentProcess
+                              with
+                              | Some scheduler, Some parent ->
+                                // A terminal prompt has its own VM/process. A key or budget
+                                // wake-up must resume the prompt, never the suspended guest.
+                                let state =
+                                  { branchState with access = callerAccess }
+                                let instructions =
+                                  Exe.instructionsForApply callback argument
+                                let child =
+                                  scheduler.Spawn(
+                                    state,
+                                    (None, instructions),
+                                    Scheduler.EntryExpr,
+                                    Some parent.id
+                                  )
+                                uply { return! scheduler.Await child }
+                              | _ ->
+                                Exe.executeApplicable
+                                  branchState
+                                  callerAccess
+                                  callback
+                                  (NEList.singleton argument)
+                            match answer with
+                            | Ok(DInt64 choice) -> return choice
+                            | _ -> return 0L
+                          })
+                    let! exeState, cancelled =
+                      LibDB.PermissionReview.configure
+                        exeState
+                        name
+                        hash
+                        script
+                        known
+                        ask
+                    if cancelled () then
                       return
-                        resultOk (
-                          DTuple(
-                            RT2DT.Dval.toDT result,
-                            DList(VT.known violationKT, Items(violations)),
-                            []
-                          )
-                        )
-                    | Error(e, callStack) ->
-                      return
-                        ExecutionError.classify denied e
-                        |> ExecutionError.withCallStack callStack
-                        |> ExecutionError.toDT
-                        |> resultError
+                        resultError (ExecutionError.toDT ExecutionError.Cancelled)
+                    else
+                      let! execResult = execute exeState mod' input
+                      match execResult with
+                      | Ok result -> return resultOk (RT2DT.Dval.toDT result)
+                      | Error _ when cancelled () ->
+                        return
+                          resultError (ExecutionError.toDT ExecutionError.Cancelled)
+                      | Error(e, callStack) ->
+                        return
+                          ExecutionError.classify denied e
+                          |> ExecutionError.withCallStack callStack
+                          |> ExecutionError.toDT
+                          |> resultError
                   | Error pe -> return resultError (ExecutionError.toDT pe)
                 })
           }
@@ -1596,7 +1699,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState,
-          _,
+          callerVM,
           _,
           [| accountIDDval
              DUuid branchId
@@ -1791,7 +1894,8 @@ let fns () : List<BuiltInFn> =
                   | Error _ ->
                     return emptyAnswer (Some(ReplayStop.InputNoLongerParses))
                   | Ok mod' ->
-                    let viewState = createGuestState exeState mod' input
+                    let viewState =
+                      createGuestState exeState callerVM.activeAccess mod' input
                     let! problem =
                       uply {
                         try
@@ -1825,6 +1929,7 @@ let fns () : List<BuiltInFn> =
                         { name = FQFnName.Package(Hash hash)
                           typeSymbolTable = TST.empty
                           typeArgs = []
+                          approvalName = None
                           access = None
                           argsSoFar = []
                           boundImpls = [] }
@@ -1891,7 +1996,7 @@ let fns () : List<BuiltInFn> =
         let resultError = result ValueType.Unknown "Error"
         (function
         | exeState,
-          _,
+          callerVM,
           [],
           [| accountIDDval; DUuid branchId; DString expression; DBool allowHarmful |] ->
           uply {
@@ -1930,7 +2035,8 @@ let fns () : List<BuiltInFn> =
                     // The expression runs under the host's configured
                     // deny-by-default policy; missing or corrupt policy state
                     // remains locked down.
-                    let exeState = createGuestState exeState mod' input
+                    let exeState =
+                      createGuestState exeState callerVM.activeAccess mod' input
                     let exeState = { exeState with deniedRequests = denied }
                     match! execute exeState mod' input with
                     // A bare package fn name escaped the guest's frame, so it captured the
@@ -1938,7 +2044,9 @@ let fns () : List<BuiltInFn> =
                     // and whoever applies it supplies the access, as for any fn reference it
                     // names itself. A partial application or a lambda keeps the guest's.
                     | Ok(DApplicable(AppNamedFn({ name = FQFnName.Package _
-                                                  argsSoFar = [] } as named))) ->
+                                                  argsSoFar = [] } as named))) when
+                      branchState.canManagePolicies
+                      ->
                       return
                         resultOk (
                           DApplicable(AppNamedFn { named with access = None })

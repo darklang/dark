@@ -84,7 +84,7 @@ let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, S
     match draftOpCountFor(branchId) with
     | 0 -> Stdlib.Result.Result.Error("nothing to commit")
     | _ ->
-      match commitOn(branchId, message, SCM.Actions.CommitScope.Whole, false) with
+      match commitOn(branchId, message, SCM.Actions.CommitScope.Whole, Namings.KeepAll) with
       | Ok(c) -> Stdlib.Result.Result.Ok(c.hash)
       | Error(Refused(NothingToCommit)) -> Stdlib.Result.Result.Error("nothing was committed")
       | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
@@ -105,21 +105,26 @@ let discardDraftFor(branchId: Uuid): Int64 =
   | Error(_) -> 0
 
 
+/// What a commit does with main's superseded namings: earlier names the draft gave one function.
+type Namings =
+  /// Drop them first.
+  | Collapse
+  | KeepAll
+
 /// Commit <param scope> of <param branchId>'s draft under <param message>: the commit and its ops in
 /// one transaction. Refused (`NothingToCommit`) when nothing would be stamped, with nothing written.
-/// <param collapse> drops main's superseded namings first.
 let commitOn(
   branchId: Uuid,
   message: String,
   scope: SCM.Actions.CommitScope,
-  collapse: Bool)
+  namings: Namings)
   : Stdlib.Result.Result<SCM.Actions.Committed, SCM.Actions.Failure> =
   SCM.Actions.commit(
     SCM.Actions.CommitRequest
       { branchId = branchId
         message = message
         scope = scope
-        collapse = collapse })
+        collapse = namings == Namings.Collapse })
 
 
 /// What a merge did: how many ops moved, and what it auto-resolved on the way. `warning` is
@@ -157,7 +162,9 @@ let mergeErrorMessage(e: MergeError): String =
 /// parent, so the loser is reviewable rather than silently gone. Conflicts still pending on the branch
 /// (a rebase records them there) move to the parent too.
 let mergeBranch(branchId: Uuid): Stdlib.Result.Result<MergeOutcome, MergeError> =
-  let repoints = Branches.outdatedRepoints(branchId)
+  match Branches.outdatedRepoints(branchId) with
+  | Error(e) -> Stdlib.Result.Result.Error(MergeError.Mechanism(e))
+  | Ok(repoints) ->
 
   match SCM.Actions.merge(SCM.Actions.MergeAction.IntoParent(branchId, repoints)) with
   | Ok(r) ->
@@ -320,7 +327,10 @@ let archiveBranch(branchId: Uuid): Stdlib.Result.Result<String, String> =
 /// The id of the branch NAMED <param name>, starting it off <param parentId> if no live branch has that
 /// name. `switch` uses this, so a branch started while on another branch is parented to it (branches off
 /// branches). Returns (id, wasCreated).
-let ensureBranch(name: String, parentId: Uuid): (Uuid * Bool) =
+let ensureBranch(
+  name: String,
+  parentId: Uuid)
+  : Stdlib.Result.Result<(Uuid * Bool), SCM.Actions.Failure> =
   resolveBranch(name, parentId)
 
 

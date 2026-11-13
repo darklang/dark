@@ -63,10 +63,10 @@ let makeSerializer<'T, 'ID>
 /// every historical readVN alongside one current writer; that is what lets a new binary decode an OLD
 /// blob.
 ///
-/// Readers do dispatch on it now. The PT side threads it everywhere; on the RT side it reaches
-/// the applicable reader, whose layout changed in v4. An RT blob is a projection, but nothing on
-/// the shipped path re-folds one when the format moves (see `LibDB/Releases.fs`), so an old
-/// `rt_instrs` row is read by a new binary and the version has to be honoured there too.
+/// Readers do dispatch on it now. On the RT side it reaches the let-pattern reader, whose layout
+/// changed in v11. An RT blob is a projection, but nothing on the shipped path re-folds one when
+/// the format moves (see `LibDB/Releases.fs`), so an old `rt_instrs` row is read by a new binary
+/// and the version has to be honoured there too.
 let makeDeserializerV<'T, 'ID>
   (reader : uint32 -> BinaryReader -> 'T)
   : 'ID -> byte[] -> 'T =
@@ -86,9 +86,10 @@ let makeDeserializerV<'T, 'ID>
 
 
 /// Deserializer for a type with one on-disk layout: the reader never sees the blob's version.
-/// Everything uses this; `makeDeserializerV` is for the first type that needs to decode two.
+/// Everything else uses this; `makeDeserializerV` is for a type that needs to decode two.
 let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
   makeDeserializerV (fun _version r -> reader r)
+
 
 
 module PT =
@@ -120,15 +121,15 @@ module PT =
 
   module PackageType =
     let serialize id value = makeSerializer PT.PackageType.write id value
-    let deserialize id data = makeDeserializerV PT.PackageType.read id data
+    let deserialize id data = makeDeserializer PT.PackageType.read id data
 
   module PackageValue =
     let serialize id value = makeSerializer PT.PackageValue.write id value
-    let deserialize id data = makeDeserializerV PT.PackageValue.read id data
+    let deserialize id data = makeDeserializer PT.PackageValue.read id data
 
   module PackageFn =
     let serialize id value = makeSerializer PT.PackageFn.write id value
-    let deserialize id data = makeDeserializerV PT.PackageFn.read id data
+    let deserialize id data = makeDeserializer PT.PackageFn.read id data
 
   module Trait =
     let serialize id value = makeSerializer PT.Trait.write id value
@@ -136,23 +137,22 @@ module PT =
 
   module TraitImpl =
     let serialize id value = makeSerializer PT.Trait.TraitImpl.write id value
-    let deserialize id data = makeDeserializerV PT.Trait.TraitImpl.read id data
+    let deserialize id data = makeDeserializer PT.Trait.TraitImpl.read id data
 
   module PackageTest =
     let serialize id value = makeSerializer PT.PackageTest.write id value
-    let deserialize id data = makeDeserializerV PT.PackageTest.read id data
+    let deserialize id data = makeDeserializer PT.PackageTest.read id data
 
   module PackageOp =
     let serialize id value = makeSerializer PT.PackageOp.write id value
-    let deserialize id data = makeDeserializerV PT.PackageOp.read id data
+    let deserialize id data = makeDeserializer PT.PackageOp.read id data
 
     /// What the item's own `serialize` gives for an `Add*` op's item, cut out of the op's blob
     /// rather than written again. An `Add*` blob is the header, one tag byte, and then the item
     /// exactly as the item's writer writes it, so the item's blob is a new header over the rest.
     ///
-    /// None unless the blob is in THIS build's format: an older one is read through its version's
-    /// reader and written again in the current layout, which can differ. The caller also has to
-    /// write the item again when it changed the item after reading it (an empty hash filled in).
+    /// Only a valid current-format Add blob can be sliced. The caller must also
+    /// write the item again if it changed after reading (e.g. an empty hash filled in).
     let itemBlob (opBlob : byte[]) : Option<byte[]> =
       if opBlob.Length < 9 then
         None
@@ -237,7 +237,7 @@ module RT =
 
   module Dval =
     let serialize id value = makeSerializer RT.Dval.write id value
-    let deserialize id data = makeDeserializerV RT.Dval.read id data
+    let deserialize id data = makeDeserializer RT.Dval.read id data
 
   module Instructions =
     let serialize id value = makeSerializer RT.Instructions.write id value
@@ -245,7 +245,7 @@ module RT =
 
   module PackageValue =
     let serialize id value = makeSerializer RT.PackageValue.write id value
-    let deserialize id data = makeDeserializerV RT.PackageValue.read id data
+    let deserialize id data = makeDeserializer RT.PackageValue.read id data
 
   module PackageFn =
     let serialize id value = makeSerializer RT.PackageFn.write id value

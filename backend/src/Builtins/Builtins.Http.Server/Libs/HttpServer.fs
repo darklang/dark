@@ -241,8 +241,9 @@ type private Routing =
 
 let private rootOf = LibDB.PolicyStore.rootOf
 
-/// The guest state a handler runs under: the router is the approval root, the instance policy the
-/// ceiling, and the frame that called `serve` the outer bound. A lambda runs as the server.
+/// Use the router's saved approval if it has a name.
+/// Instance denies and the caller's restrictions still take priority.
+/// Anonymous handlers use the instance and caller's permissions.
 let private guestStateFor
   (exeState : ExecutionState)
   (invokerAccess : LibExecution.Permissions.Access)
@@ -590,6 +591,7 @@ let private handleRequest
                 "(http request)"
             let tracer =
               Tracing.createCliTracer
+                exeState.traceCaps
                 traceID
                 (Tracing.Redact.url traceDesc)
                 LibDB.Traces.servedRequestInputName
@@ -869,6 +871,7 @@ let runListenerLive
 let private serve
   (exeState : ExecutionState)
   (vm : VMState)
+  (address : string)
   (port : int64)
   (routing : Routing)
   (approvalRoot : Applicable)
@@ -879,16 +882,14 @@ let private serve
   (onListening : Applicable)
   : Ply<Dval> =
   uply {
-    // The router and its callbacks are guest code, so use a guest
-    // state rather than the trusted CLI state. Use it for both the
-    // bind check and handler calls; the instance policy remains the
-    // hard maximum. A named package router is the approval root;
-    // lambda handlers have no package root of their own.
+    // Run the router and callbacks with guest permissions.
+    // Use those permissions both to start listening and to handle requests.
+    // Named routers can use their saved approvals; anonymous handlers have none.
+    // Instance denies still take priority.
     //
-    // `guestState` replaces access, so intersect the child with the
-    // invoking frame. Guest code can call `serve` directly; its ceiling,
-    // package approval and resource restrictions must reach the bind,
-    // logging and callback checks.
+    // Creating the guest state replaces its permissions, so also apply the
+    // caller's restrictions. Calling `serve` must not bypass those restrictions
+    // when starting the server, logging requests or running callbacks.
     //
     // A live server re-derives this per router hash (`resolveRouting`); the one built here is for
     // the bind, the announce, and the routing step itself. Either kind re-derives it once the
@@ -904,15 +905,13 @@ let private serve
       match routing with
       | Fixed(handler, _) -> Fixed(handler, Some builtFrom)
       | Live _ -> routing
-    // maxBodyBytes is a comparison threshold; a negative limit would
-    // reject every request (treated as over-limit), so reject it. 0 is
-    // valid (allow no body).
+    // `Stdlib.HttpServer` refuses a negative maxBodyBytes, and a `Net.Port` is in range.
     if maxBodyBytes < 0L then
-      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
-    // A TCP port must be in [0, 65535]. Anything else would reach
-    // HttpListener.Start and throw a host exception, so check it up front.
+      Exception.raiseInternal
+        "negative maxBodyBytes"
+        [ "maxBodyBytes", maxBodyBytes ]
     if port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort then
-      RuntimeError.BigInts.OutOfRange |> RuntimeError.BigInt |> raiseRTE vm.threadID
+      Exception.raiseInternal "port out of range" [ "port", port ]
 
     // These ambient effects are performed on behalf of the child
     // guest state, so check its access (already narrowed by the
@@ -944,7 +943,7 @@ let private serve
         exeState
         vm
         exeState.access
-        (LibExecution.Host.Operation.HttpServerBind(int port))
+        (LibExecution.Host.Operation.HttpServerBind(address, int port))
     match bound with
     | Error failure ->
       return Dval.resultError KTUnit KTString (DString failure.message)
@@ -1035,7 +1034,8 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
       parameters =
-        [ Param.make "port" TInt64 "TCP port to listen on"
+        [ Param.make "address" TString "IPv4 bind address, or localhost"
+          Param.make "port" TInt64 "TCP port to listen on"
           Param.makeWithArgs
             "handler"
             handlerType
@@ -1051,7 +1051,8 @@ let fns () : List<BuiltInFn> =
         | exeState,
           vm,
           _,
-          [| DInt64 portArg
+          [| DString addressArg
+             DInt64 portArg
              DApplicable handler
              DInt64 maxBodyBytesArg
              DBool injectStandardHeaders
@@ -1061,6 +1062,7 @@ let fns () : List<BuiltInFn> =
           serve
             exeState
             vm
+            addressArg
             portArg
             (Fixed(handler, None))
             handler
@@ -1071,7 +1073,8 @@ let fns () : List<BuiltInFn> =
             onListening
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
+      callEffects =
+        set [ Effect.HttpServer; Effect.Stdout; Effect.Clock; Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -1082,7 +1085,8 @@ let fns () : List<BuiltInFn> =
     { name = fn "httpServerServeLive" 0
       typeParams = []
       parameters =
-        [ Param.make "port" TInt64 "TCP port to listen on"
+        [ Param.make "address" TString "IPv4 bind address, or localhost"
+          Param.make "port" TInt64 "TCP port to listen on"
           Param.make "init" (TVariable "s") "The routing state to start from"
           Param.makeWithArgs
             "step"
@@ -1111,7 +1115,8 @@ let fns () : List<BuiltInFn> =
         | exeState,
           vm,
           _,
-          [| DInt64 portArg
+          [| DString addressArg
+             DInt64 portArg
              init
              DApplicable step
              DApplicable first
@@ -1124,6 +1129,7 @@ let fns () : List<BuiltInFn> =
           serve
             exeState
             vm
+            addressArg
             portArg
             (Live
               { step = step
@@ -1139,7 +1145,8 @@ let fns () : List<BuiltInFn> =
             onListening
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
+      callEffects =
+        set [ Effect.HttpServer; Effect.Stdout; Effect.Clock; Effect.Raise ]
       deprecated = NotDeprecated } ]
 
 

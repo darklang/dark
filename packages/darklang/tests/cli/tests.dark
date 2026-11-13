@@ -375,14 +375,16 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
 
 
 // Two functions with identical bodies share a hash, and the trait-calls line still names each.
+// The bodies call a name that does not exist yet, so the check is incomplete rather than failed:
+// a failed item reports its type error instead of this line.
 test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
   let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-module-trait-calls-test-" + suffix
   let moduleName = "Tests.CliModuleTraitCalls"
   let source =
-    [ "let addsText(n: Int64): Int64 = n + \"x\""
+    [ "let addsText(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
       ""
-      "let addsTextToo(n: Int64): Int64 = n + \"x\""
+      "let addsTextToo(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
     ] |> Stdlib.String.join("\n")
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
@@ -727,6 +729,8 @@ test stdlibSuggestionFindsTheRealName =
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
       suggest("Bytes.toString") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
       suggest("String.toBytes") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
+      suggest("Stdlib.Int64.absoluteValue")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.abs"))
       suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test closestNamesAreSpelledNear =
@@ -745,7 +749,9 @@ test closestNamesAreSpelledNear =
       |> Stdlib.Test.equal([ "Darklang.Stdlib.List.reverse" ])
       closest("Stdlib.List.zzzzzzzz") |> Stdlib.Test.equal([])
       closest("Stdlib.Nope.zzz") |> Stdlib.Test.equal([])
-      closest("lenght") |> Stdlib.Test.equal([]) ])
+      closest("lenght") |> Stdlib.Test.equal([])
+      closest("Stdlib.List.member") |> Stdlib.Test.equal([ "Stdlib.List.contains" ])
+      closest("Stdlib.String.size") |> Stdlib.Test.equal([ "Stdlib.String.length" ]) ])
 
 
 // A function name for an operator points at the operator, when the type has it.
@@ -1442,3 +1448,62 @@ test discardNeedsAnExplicitYes =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"refused: {refused}, survived: {survived}, discarded: {discarded}, after: {after}")
+
+
+/// Saving broken code keeps the draft and returns a failing exit code.
+module ModuleSave =
+  let save(i: Instance.T, source: String): Stdlib.Cli.Process.Output =
+    let path = Instance.home(i) + "/probe.dark"
+    let _ = Stdlib.Cli.File.writeText(path, source) |> Builtin.unwrap
+    Instance.run(i, [ "module", "/Tests.ModuleSaveProbe", path ]) |> Builtin.unwrap
+
+
+  test invalidNamesExitNonzeroAndSaveNothing =
+    Instance.withInstance(fun i ->
+      let source =
+        "type Shape = | Dot | Circle(Float)\nlet f(): Shape = Circle(1.0)"
+      let result = save(i, source)
+      let viewed =
+        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+      let shape =
+        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.Shape" ]) |> Builtin.unwrap
+      Stdlib.Test.all(
+        [ result.exitCode |> Stdlib.Test.equal(1)
+          Stdlib.String.contains(result.stderr, "Invalid name: Circle")
+          |> Stdlib.Test.equal(true)
+          viewed.exitCode |> Stdlib.Test.equal(1)
+          shape.exitCode |> Stdlib.Test.equal(1) ]))
+
+
+  test unresolvedNamesExitNonzeroAndKeepDraft =
+    Instance.withInstance(fun i ->
+      let result = save(i, "let f(): Int64 = Stdlib.String.definitelyMissing(\"hello\")")
+      let viewed = Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+      Stdlib.Test.all(
+        [ result.exitCode |> Stdlib.Test.equal(1)
+          Stdlib.String.contains(result.stderr, "UnresolvedValueName")
+          |> Stdlib.Test.equal(true)
+          viewed.exitCode |> Stdlib.Test.equal(0)
+          Stdlib.String.contains(viewed.stdout, "definitelyMissing")
+          |> Stdlib.Test.equal(true) ]))
+
+
+  test checkedSaveExitsZero =
+    Instance.withInstance(fun i ->
+      let result = save(i, "let f(): Int64 = 42")
+      result.exitCode |> Stdlib.Test.equal(0))
+
+
+  // The checker can run out of depth even when the code is valid.
+  test otherIncompleteChecksExitZero =
+    let warning =
+      LanguageTools.AtRestTypeChecker.failureIssue(
+        None, LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep)
+    let report =
+      LanguageTools.AtRestTypeChecker.Report
+        { verdict = LanguageTools.AtRestTypeChecker.Verdict.Incomplete
+          items = []
+          diagnostics = []
+          warnings = [ warning ] }
+    Darklang.Cli.Packages.AtRestCheck.saveHasErrors(report)
+    |> Stdlib.Test.equal(false)

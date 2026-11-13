@@ -1,6 +1,6 @@
 {
   "steady": {
-    "published": 3353112,
+    "published": 2230768,
     "publishedMode": "aot",
     "tolerance": 0.05,
     "note": "scripts/perf/workloads/steady.dark, trace detail off, with `startup` taken off: the workload's own allocation, the median of three warm runs each. `publishedMode` is which publish mode the published number was taken in; the gate refuses a binary from the other one. Lower these whenever a change earns it (scripts/perf/gate --published --update). Method and history: docs/perf/history.md. Do not add historical comments to this line, basically never change this comment."
@@ -29,41 +29,41 @@
   },
   "suite": {
     "iters": 5000,
-    "note": "Allocation per iteration of each workload in scripts/perf/workloads/suite/, as `scripts/perf/suite --release --iters <iters>` measures it: 0 iterations differenced against `iters`, so startup and parsing cancel. Recorded by `scripts/perf/gate --published --update` with the rest. recursion's tolerance is wider because it allocates almost nothing per iteration, so a run's few KB of noise is a bigger share of it (256 to 299 bytes over five runs).",
+    "note": "Allocation per iteration of each workload in scripts/perf/workloads/suite/, as `scripts/perf/suite --release --iters <iters>` measures it: 0 iterations differenced against `iters`, so startup and parsing cancel. Recorded by `scripts/perf/gate --published --update` with the rest. recursion's tolerance is wider because it allocates almost nothing per iteration, so a run's few KB of noise is a bigger share of it (431 to 452 bytes over five runs).",
     "workloads": {
       "containers": {
-        "published": 3099,
+        "published": 2946,
         "tolerance": 0.05
       },
       "dicts": {
-        "published": 13147,
+        "published": 12769,
         "tolerance": 0.05
       },
       "json": {
-        "published": 9762,
+        "published": 9728,
         "tolerance": 0.05
       },
       "lists": {
-        "published": 5476,
+        "published": 3512,
         "tolerance": 0.05
       },
       "records": {
-        "published": 2571,
+        "published": 2241,
         "tolerance": 0.05
       },
       "recursion": {
-        "published": 280,
+        "published": 451,
         "tolerance": 0.2
       },
       "strings": {
-        "published": 6626,
+        "published": 6962,
         "tolerance": 0.05
       }
     }
   },
   "ui": {
     "keys": 10,
-    "note": "The interactive CLI at 120x40, from scripts/perf/workloads/ui/workbench.dark (see scripts/perf/_ui.py): VM instructions, which repeat exactly, and allocation, which sees the builtins where most of a keypress goes. firstFrame is process start to the workbench's first frame built and painted to a string; keypress is one Down or Up in Code at Darklang.Stdlib.List: the key handled, the next frame built and diffed. Recorded by `scripts/perf/gate --published --update` with the rest.",
+    "note": "The interactive CLI at 120x40, from scripts/perf/workloads/ui/workbench.dark (see scripts/perf/_ui.py): VM instructions, which repeat exactly, and allocation, which sees the builtins where most of a keypress goes. firstFrame is process start to the workbench's first frame built and painted to a string; each other entry is one key, handled and the next frame built and diffed: keypress Down or Up at Darklang.Stdlib.List.map, keyWalk Down through List (every item new), homeKey Down or Up on Home, moduleKey Down through Stdlib's modules. Keys also budget SQL statements, which repeat exactly. Recorded by `scripts/perf/gate --published --update` with the rest.",
     "firstFrame": {
       "instructionsTolerance": 0.05,
       "allocatedTolerance": 0.03,
@@ -74,7 +74,33 @@
       "instructionsTolerance": 0.02,
       "allocatedTolerance": 0.03,
       "instructions": 99821,
-      "allocated": 35320798
+      "allocated": 35320798,
+      "sqlTolerance": 0,
+      "sql": 184
+    },
+    "keyWalk": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.05,
+      "sqlTolerance": 0,
+      "instructions": 85462,
+      "allocated": 4744240,
+      "sql": 39
+    },
+    "homeKey": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.05,
+      "sqlTolerance": 0,
+      "instructions": 26377,
+      "allocated": 1278812,
+      "sql": 1
+    },
+    "moduleKey": {
+      "instructionsTolerance": 0.02,
+      "allocatedTolerance": 0.05,
+      "sqlTolerance": 0,
+      "instructions": 68929,
+      "allocated": 6001556,
+      "sql": 20
     }
   }
 }

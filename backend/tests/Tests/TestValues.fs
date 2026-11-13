@@ -731,7 +731,6 @@ let pm : PT.PackageManager =
         returnType = PT.TVariable "x"
         body = eVar "x"
         description = ""
-        permissionCeiling = None
         bounds = [] }
 
     let outer : PT.PackageFn.PackageFn =
@@ -751,7 +750,6 @@ let pm : PT.PackageManager =
               [ eStr [ strText "hi" ]; eBool true ])
             (eVar "x")
         description = ""
-        permissionCeiling = None
         bounds = [] }
 
     let myAdd : PT.PackageFn.PackageFn =
@@ -764,7 +762,6 @@ let pm : PT.PackageManager =
         returnType = PT.TInt64
         body = eApply (eBuiltinFn "add" 0) [] [ eVar "a"; eVar "b" ]
         description = ""
-        permissionCeiling = None
         bounds = [] }
 
     let fact : PT.PackageFn.PackageFn =
@@ -789,7 +786,6 @@ let pm : PT.PackageManager =
             ))
 
         description = ""
-        permissionCeiling = None
         bounds = [] }
 
     // let addUpTO (n : Int64) : Int64 =
@@ -816,7 +812,6 @@ let pm : PT.PackageManager =
                     [ eApply (eBuiltinFn "subtract" 0) [] [ eVar "n"; eInt64 1L ] ]) ]
             ))
         description = ""
-        permissionCeiling = None
         bounds = [] }
 
     let myFnThatTakesALambda : PT.PackageFn.PackageFn =
@@ -832,7 +827,6 @@ let pm : PT.PackageManager =
         returnType = PT.TInt64
         body = eApply (eVar "fn") [] [ eVar "x" ]
         description = ""
-        permissionCeiling = None
         bounds = [] }
 
     let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
@@ -843,7 +837,6 @@ let pm : PT.PackageManager =
         returnType = PT.TUnit
         body = eUnit ()
         description = ""
-        permissionCeiling = None
         bounds = [] }
 
     [ inner

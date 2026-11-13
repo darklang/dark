@@ -84,6 +84,13 @@ module RuntimeError =
       if w > room then acc else __escapedPrefix(rest, acc + e, room - w)
 
 
+  /// <param value> as JSON, or why it has none.
+  let __json<'a>(value: 'a): String =
+    match Stdlib.Json.checkedSerialize<'a>(value) with
+    | Ok(json) -> json
+    | Error(e) -> Stdlib.display(e)
+
+
   let segmentsToString(branchId: Uuid, segments: ErrorSegments): String =
     let reversed = Stdlib.List.reverse(segments)
 
@@ -150,7 +157,7 @@ module RuntimeError =
           | FullValue(dv) -> dval(branchId, dv)
           | LetPattern(p) -> letPattern(p)
           | segment ->
-            $"(RTETODO segmentsToString parts {(Stdlib.Json.serialize<ErrorSegment>(segment))})"
+            $"(RTETODO segmentsToString parts {(__json<ErrorSegment>(segment))})"
 
         Stdlib.List.prepend(prevSegments, newSegment))
 
@@ -250,6 +257,25 @@ module RuntimeError =
       ES.ValueType(vt) ]
 
 
+  let outOfRangeReason(
+    kind: LanguageTools.RuntimeTypes.RuntimeError.BigInts.OutOfRangeKind)
+    : String =
+    match kind with
+    | FloatHasNoInteger -> "Float has no integer value"
+    | FloatOutsideInt64(min, max) -> $"Float out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | ShiftCount(max) -> $"Shift count out of range (0 to {Stdlib.display(max)})"
+    | Exponent(max) -> $"Exponent out of range (at most {Stdlib.display(max)})"
+    | RepeatCount(max) -> $"Repeat count out of range (at most {Stdlib.display(max)})"
+    | DateTimeSeconds -> "Seconds out of DateTime range (-9998-01-01 to 9999-12-31)"
+    | DateTimeMilliseconds -> "Milliseconds out of DateTime range (-9998-01-01 to 9999-12-31)"
+    | DateTimeTicks -> "Ticks out of DateTime range (-9998-01-01 to 9999-12-31)"
+    | Port(min, max) -> $"Port out of range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | NegativeMaxBodyBytes -> "maxBodyBytes must not be negative"
+    | Int64ToInt32(min, max) -> $"Int64 out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | BigIntToInt64(min, max) -> $"BigInt out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | BigIntToInt32(min, max) -> $"BigInt out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+
+
   // The only exhaustive match over RuntimeError on the Dark side. A new RuntimeError case needs an
   // arm here, and Dark says nothing at build time: the first error of that kind raises right here.
   let toSegments(
@@ -272,7 +298,8 @@ module RuntimeError =
           ES.String(")") ]
 
     | BigInt(DivideByZeroError) -> [ ES.String("Cannot divide by 0") ]
-    | BigInt(OutOfRange) -> [ ES.String("Encountered an out-of-range integer value") ]
+    | BigInt(OutOfRange(kind, value)) ->
+      [ ES.String(outOfRangeReason(kind) + ": "), ES.FullValue(value) ]
     | DecimalOutOfRange -> [ ES.String("Decimal result is out of range (larger than 79228162514264337593543950335)") ]
     | BigInt(NegativeExponent) -> [ ES.String("Cannot raise integer to a negative exponent") ]
     | BigInt(NegativeModulus) -> [ ES.String("Cannot evaluate modulus against a negative number") ]
@@ -546,9 +573,10 @@ module RuntimeError =
             else
               ("a Result", "an Option", "Stdlib.Result.toOption")
           | _ -> ("a value", "a different container", "a conversion")
-        [ ES.String($"`?` got {got}, but the enclosing function or lambda ")
-          ES.String($"returns {returns}; convert it first with {convert}: ")
-          ES.FullValue(actual) ]
+        [ ES.String($"`?` got {got} (")
+          ES.FullValue(actual)
+          ES.String("), but the enclosing function or lambda ")
+          ES.String($"returns {returns}; convert it first with {convert}") ]
       | UnwrapOperandNotContainer(actual) ->
         [ ES.String("`?` needs an Option or Result, but got ")
           ES.InlineValue(actual)
@@ -562,13 +590,11 @@ module RuntimeError =
 
     | Apply(err) ->
       match err with
-      | ExpectedApplicableButNot(actualTyp, actualValue) ->
-        [ ES.String("Expected something we could apply to, such as a lambda or function, but got ")
+      | ExpectedApplicableButNot(actualTyp, _) ->
+        [ ES.String("Cannot call ")
           ES.IndefiniteArticle
           ES.ValueType(actualTyp)
-          ES.String(" (")
-          ES.FullValue(actualValue)
-          ES.String(")") ]
+          ES.String(" value as a function.") ]
 
       | WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
         [ ES.FunctionName(fn)
@@ -669,9 +695,19 @@ module RuntimeError =
           // Named as the caller wrote them: the builtins behind them are internal.
           ES.String(". Some types are not supported in Json serialization, and cannot be used as type arguments to Stdlib.Json.parse or Stdlib.Json.serialize") ]
       | CannotSerializeValue(dv) ->
-        [ ES.String("Cannot serialize ")
-          ES.FullValue(dv)
-          ES.String(" into JSON") ]
+        let why =
+          match dv with
+          | DDict(keyType, _, _) ->
+            [ ES.String(": JSON object keys must be Strings,")
+              ES.String(" but this dict's keys are ")
+              ES.ValueType(keyType) ]
+          | _ -> []
+
+        Stdlib.List.concat(
+          [ ES.String("Cannot serialize ")
+            ES.FullValue(dv)
+            ES.String(" into JSON") ],
+          why)
 
     | Trait(err) ->
       match err with
@@ -740,7 +776,7 @@ module RuntimeError =
         | metadata ->
           let metadataStrings =
             Stdlib.List.map(metadata, fun((key, value)) ->
-              ES.String($"\n  {key}: {Stdlib.Json.serialize<Dval>(value)}"))
+              ES.String($"\n  {key}: {(__json<Dval>(value))}"))
 
           Stdlib.List.prepend(metadataStrings, ES.String("\nMetadata:"))
 
@@ -753,7 +789,7 @@ module RuntimeError =
 
     // Every case above has a message, so this only fires for a case added without one.
     | unhandled ->
-      let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
+      let serialized = __json<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
       [ ES.String($"A runtime error with no message written for it yet: {serialized}") ]
 
 

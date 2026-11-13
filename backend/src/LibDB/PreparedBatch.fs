@@ -35,6 +35,7 @@ let disposeCtx (ctx : Ctx) : unit =
 
 /// Get the prepared command for this SQL, building and preparing it on first sight.
 let command (ctx : Ctx) (sql : string) : SqliteCommand =
+  Telemetry.count "sql.prepared"
   match ctx.cmds.TryGetValue(sql) with
   | true, cmd -> cmd
   | false, _ ->
@@ -177,6 +178,7 @@ let insertRows
     let rc, stmt = SQLitePCL.raw.sqlite3_prepare_v2 (db, sql)
     check rc
     use stmt = stmt
+    Telemetry.countBy "sql.insertRows" (int64 rows.Length)
     for row in rows do
       columns row
       |> Array.iteri (fun i value ->

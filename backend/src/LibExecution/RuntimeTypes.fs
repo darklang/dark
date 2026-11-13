@@ -796,7 +796,7 @@ type Register = int //<register> // TODO: unit of measure
 /// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
 type LetPattern =
   /// `let x = 1`
-  | LPVariable of extractTo : Register
+  | LPVariable of extractTo : Register * name : string
 
   /// `let _ = 1`
   | LPWildcard
@@ -851,10 +851,11 @@ type StringSegment =
 /// store lookup: if the Dval is reachable, the bytes are reachable; when
 /// the Dval is collected, the bytes can be collected too.
 ///
-/// `id` is only for runtime inspection. Value equality uses the same SHA-256
-/// content hash as persistent bytes, computed the first time something needs it
-/// and reused on promotion. `Bytes.newEphemeral` takes ownership of the array;
-/// callers must not mutate it.
+/// `id` is only for runtime inspection. Two in-memory values are equal when
+/// their bytes are, compared directly unless both already have a hash. The
+/// SHA-256 content hash, the key persistent bytes use, is computed the first
+/// time hashing, ordering or saving needs it, and reused on promotion.
+/// `Bytes.newEphemeral` takes ownership of the array; callers must not mutate it.
 ///
 /// The value is `buffer[offset .. offset + count - 1]`. A slice made by
 /// `Bytes.sliceEphemeral` shares its parent's `buffer` instead of copying it, so
@@ -907,7 +908,11 @@ type EphemeralBytes =
     match o with
     | :? EphemeralBytes as other ->
       obj.ReferenceEquals(this, other)
-      || (this.count = other.count && this.ContentHash = other.ContentHash)
+      || (this.count = other.count
+          && (if this.IsHashed && other.IsHashed then
+                this.hash = other.hash
+              else
+                System.MemoryExtensions.SequenceEqual(this.Span, other.Span)))
     | _ -> false
   override this.GetHashCode() : int =
     hash this.ContentHash * 31 + hash (int64 this.count)
@@ -933,15 +938,17 @@ type BytesRef =
     | Persistent(_, length) -> length
 
   // Two BytesRefs are equal when they hold the same bytes, whether ephemeral or
-  // persistent. We compare hashes, so nothing is loaded from the store.
+  // persistent. Two in-memory values compare their bytes; otherwise we compare
+  // hashes, so nothing is loaded from the store.
   // This relies on the bytes never changing. Persistent bytes can't change.
   // Ephemeral bytes could, if some F# code wrote to the array; nothing stops
   // that yet.
   override this.Equals(o : obj) : bool =
     match o with
     | :? BytesRef as other ->
-      obj.ReferenceEquals(this, other)
-      || (this.Length = other.Length && this.ContentHash = other.ContentHash)
+      match this, other with
+      | Ephemeral a, Ephemeral b -> a.Equals b
+      | _ -> this.Length = other.Length && this.ContentHash = other.ContentHash
     | _ -> false
 
   override this.GetHashCode() : int = hash this.ContentHash * 31 + hash this.Length
@@ -1426,13 +1433,7 @@ and DvalOrdering private () =
     (a : DvalList)
     (b : DvalList)
     : int =
-    match DvalList.uncons a, DvalList.uncons b with
-    | ValueNone, ValueNone -> 0
-    | ValueNone, _ -> -1
-    | _, ValueNone -> 1
-    | ValueSome(struct (x, xs)), ValueSome(struct (y, ys)) ->
-      let c = DvalOrdering.compare mode x y
-      if c <> 0 then c else DvalOrdering.compareItems mode xs ys
+    DvalList.compareWith (DvalOrdering.compare mode) a b
 
   static member private compareEntries
     (mode : DvalComparisonMode)
@@ -1588,6 +1589,9 @@ and LambdaImpl =
 and ApplicableNamedFn =
   {
     name : FQFnName.FQFnName
+
+    /// Resolved entry-point name. Hash-only references cannot claim named grants.
+    approvalName : Option<string>
 
     typeSymbolTable : TypeSymbolTable
 
@@ -2566,34 +2570,12 @@ and [<Struct; CustomEquality; NoComparison>] DvalList =
   static member private headFromBack(list : DvalList) : Dval =
     Rrb.get list.start list.back
 
-  /// All but the first value of a list that is not empty. Taking from the tree moves the rest of
-  /// its leaf to the front, so a walk with `head` and `tail` costs a cons a value, as it did
-  /// when every list was an F# list, rather than a lookup from the root.
+  /// All but the first value of a list that is not empty. Taking from the tree moves `start` on
+  /// one, so the rest shares the tree and a walk with `head` and `tail` allocates nothing a value.
   static member tail(list : DvalList) : DvalList =
     match list.front with
     | _ :: rest -> { list with count = list.count - 1; front = rest }
-    | [] -> DvalList.tailFromBack list
-
-  // Apart from `tail` so its rare path does not weigh on the common one.
-  [<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
-  static member private tailFromBack(list : DvalList) : DvalList =
-    let struct (chunk, at) = Rrb.chunkAt list.start list.back
-    { list with
-        count = list.count - 1
-        front = DvalList.listFrom chunk (at + 1) (chunk.Length - 1) []
-        start = list.start + chunk.Length - at }
-
-  /// `chunk[first..i]` onto `acc`.
-  static member private listFrom
-    (chunk : Dval[])
-    (first : int)
-    (i : int)
-    (acc : List<Dval>)
-    : List<Dval> =
-    if i < first then
-      acc
-    else
-      DvalList.listFrom chunk first (i - 1) (chunk[i] :: acc)
+    | [] -> { list with count = list.count - 1; start = list.start + 1 }
 
   static member uncons(list : DvalList) : struct (Dval * DvalList) voption =
     if list.count = 0 then
@@ -2677,22 +2659,134 @@ and [<Struct; CustomEquality; NoComparison>] DvalList =
           count = n
           back = Rrb.take (list.start + n - frontCount) list.back }
 
+  /// With the value at `index`, `0 <= index < length`, replaced by `value`.
+  static member set (index : int) (value : Dval) (list : DvalList) : DvalList =
+    let frontCount = list.FrontCount
+    if index < frontCount then
+      { list with front = List.updateAt index value list.front }
+    else
+      { list with back = Rrb.set (list.start + index - frontCount) value list.back }
+
+  /// The value at `i`, from where the value before it was read: the rest of the front, or the
+  /// tree's array that held it and the place after it. A walk that reads every value this way
+  /// makes nothing, where `tail` copies the rest of a leaf to the front.
+  static member private step
+    (list : DvalList)
+    (front : List<Dval>)
+    (chunk : Dval[])
+    (at : int)
+    (i : int)
+    : struct (Dval * List<Dval> * Dval[] * int) =
+    match front with
+    | value :: rest -> struct (value, rest, chunk, at)
+    | [] ->
+      if not (isNull chunk) && at < chunk.Length then
+        struct (chunk[at], [], chunk, at + 1)
+      else
+        let struct (chunk, at) =
+          Rrb.chunkAt (list.start + i - list.FrontCount) list.back
+        struct (chunk[at], [], chunk, at + 1)
+
   /// Whether `f` holds for each pair of values at the same index, the lists being as long.
   static member forall2
     (f : Dval -> Dval -> bool)
     (a : DvalList)
     (b : DvalList)
     : bool =
-    a.count = b.count && DvalList.walk2 f a b
+    a.count = b.count
+    && DvalList.walk2
+      (OptimizedClosures.FSharpFunc<_, _, _>.Adapt f)
+      a
+      a.front
+      null
+      0
+      b
+      b.front
+      null
+      0
+      0
 
   static member private walk2
-    (f : Dval -> Dval -> bool)
+    (f : OptimizedClosures.FSharpFunc<Dval, Dval, bool>)
+    (a : DvalList)
+    (aFront : List<Dval>)
+    (aChunk : Dval[])
+    (aAt : int)
+    (b : DvalList)
+    (bFront : List<Dval>)
+    (bChunk : Dval[])
+    (bAt : int)
+    (i : int)
+    : bool =
+    if i = a.count then
+      true
+    else
+      let struct (x, aFront, aChunk, aAt) = DvalList.step a aFront aChunk aAt i
+      let struct (y, bFront, bChunk, bAt) = DvalList.step b bFront bChunk bAt i
+      f.Invoke(x, y)
+      && DvalList.walk2 f a aFront aChunk aAt b bFront bChunk bAt (i + 1)
+
+  /// Compares the values pairwise with `compare` until two differ; a list that runs out first
+  /// is the smaller.
+  static member compareWith
+    (compare : Dval -> Dval -> int)
     (a : DvalList)
     (b : DvalList)
-    : bool =
-    a.count = 0
-    || (f (DvalList.head a) (DvalList.head b)
-        && DvalList.walk2 f (DvalList.tail a) (DvalList.tail b))
+    : int =
+    DvalList.compareFrom
+      (OptimizedClosures.FSharpFunc<_, _, _>.Adapt compare)
+      a
+      a.front
+      null
+      0
+      b
+      b.front
+      null
+      0
+      0
+
+  static member private compareFrom
+    (compare : OptimizedClosures.FSharpFunc<Dval, Dval, int>)
+    (a : DvalList)
+    (aFront : List<Dval>)
+    (aChunk : Dval[])
+    (aAt : int)
+    (b : DvalList)
+    (bFront : List<Dval>)
+    (bChunk : Dval[])
+    (bAt : int)
+    (i : int)
+    : int =
+    if i = a.count then
+      (if i = b.count then 0 else -1)
+    elif i = b.count then
+      1
+    else
+      let struct (x, aFront, aChunk, aAt) = DvalList.step a aFront aChunk aAt i
+      let struct (y, bFront, bChunk, bAt) = DvalList.step b bFront bChunk bAt i
+      let c = compare.Invoke(x, y)
+      if c <> 0 then
+        c
+      else
+        DvalList.compareFrom compare a aFront aChunk aAt b bFront bChunk bAt (i + 1)
+
+  /// The first value `f` holds for.
+  static member tryFind (f : Dval -> bool) (list : DvalList) : Dval voption =
+    DvalList.findFrom f list list.front null 0 0
+
+  static member private findFrom
+    (f : Dval -> bool)
+    (list : DvalList)
+    (front : List<Dval>)
+    (chunk : Dval[])
+    (at : int)
+    (i : int)
+    : Dval voption =
+    if i = list.count then
+      ValueNone
+    else
+      let struct (x, front, chunk, at) = DvalList.step list front chunk at i
+      if f x then ValueSome x else DvalList.findFrom f list front chunk at (i + 1)
 
   /// Hashes the length and up to the first 18 values, as F# does a list.
   static member private hashWith (hashOf : Dval -> int) (list : DvalList) : int =
@@ -2728,23 +2822,51 @@ and [<Struct; CustomEquality; NoComparison>] DvalList =
     member this.GetHashCode(comparer : System.Collections.IEqualityComparer) =
       DvalList.hashWith comparer.GetHashCode this
 
-/// Where a long `DarkString` keeps its character count once something has asked for it.
-/// 0 until then.
-and [<Sealed; AllowNullLiteral>] EgcCountCell() =
-  // A count cached on first use is a write after construction, which only a mutable field takes.
+/// What a long `DarkString` works out once and keeps: its character count, 0 until something
+/// has asked, and for a string joined by `+`, its text.
+and [<Sealed; AllowNullLiteral>] EgcCountCell(joined : StringJoin) =
+  // Each is written after construction, at most once in effect: two threads racing write the
+  // same value. A cache like that is a write after construction, which only a mutable field
+  // takes.
   [<DefaultValue>]
   val mutable Count : int
+
+  /// The two halves (a `StringJoin`) until something reads the text, then the text, so the
+  /// halves can go. Null for a string that was never joined.
+  let mutable joined : obj = box joined
+
+  new() = EgcCountCell(null)
+
+  member _.Joined : obj = joined
+  member _.Settle(text : string) : unit = joined <- text
+
+/// The halves of a string joined by `DarkString.append`, and how many UTF-16 units they hold.
+and [<Sealed; AllowNullLiteral>] StringJoin
+  (left : DarkString, right : DarkString, units : int) =
+  member _.Left = left
+  member _.Right = right
+  member _.Units = units
 
 /// A Dark `String`: its text, and its length in characters (extended grapheme clusters) once
 /// something has asked, so `String.length` in a loop doesn't recount the text each time. Short
 /// strings have no cell: counting one costs about as much as reading a cell, and most strings
 /// are short. Equal when the text is.
+///
+/// A long string made by `+` keeps its two halves and builds its text the first time something
+/// reads it, so a string grown by `+` in a loop costs each piece once rather than the whole text
+/// every time. The text is the same either way.
 and [<Struct; CustomEquality; NoComparison>] DarkString =
-  val Value : string
+  /// Null for a joined string, whose text is in its cell.
+  val private text : string
   val private cell : EgcCountCell
 
   new(value : string) =
-    { Value = value; cell = if value.Length > 32 then EgcCountCell() else null }
+    { text = value; cell = if value.Length > 32 then EgcCountCell() else null }
+
+  private new(text : string, cell : EgcCountCell) = { text = text; cell = cell }
+
+  member this.Value : string =
+    if isNull this.text then DarkString.textOf this.cell else this.text
 
   member this.EgcCount : int =
     match this.cell with
@@ -2752,6 +2874,52 @@ and [<Struct; CustomEquality; NoComparison>] DarkString =
     | cell ->
       if cell.Count = 0 then cell.Count <- String.lengthInEgcs this.Value
       cell.Count
+
+  /// UTF-16 units: of the text, or for a joined string not yet read, of its halves.
+  member private this.Units : int =
+    if isNull this.text then
+      match this.cell.Joined with
+      | :? StringJoin as join -> join.Units
+      | joined -> (joined :?> string).Length
+    else
+      this.text.Length
+
+  /// From this many UTF-16 units, `append` joins rather than copies.
+  static member private JoinFrom = 256
+
+  /// `a` then `b`, normalized: `String.append`'s text.
+  static member append (a : DarkString) (b : DarkString) : DarkString =
+    let units = a.Units + b.Units
+    if units >= DarkString.JoinFrom then
+      DarkString(null, EgcCountCell(StringJoin(a, b, units)))
+    else
+      DarkString(String.append a.Value b.Value)
+
+  /// A joined string's text. Every piece is NFC, so normalizing only around each join gives
+  /// what normalizing after every `+` does.
+  static member private textOf(cell : EgcCountCell) : string =
+    match cell.Joined with
+    | :? StringJoin as join ->
+      // A stack rather than recursion: a string grown by `+` in a loop is joined as deep as
+      // the loop ran.
+      let pending = System.Collections.Generic.Stack<DarkString>()
+      let pieces = ResizeArray<string>()
+      pending.Push join.Right
+      pending.Push join.Left
+      while pending.Count > 0 do
+        let s = pending.Pop()
+        if isNull s.text then
+          match s.cell.Joined with
+          | :? StringJoin as inner ->
+            pending.Push inner.Right
+            pending.Push inner.Left
+          | joined -> pieces.Add(joined :?> string)
+        else
+          pieces.Add s.text
+      let text = String.concatNormalized (pieces.ToArray())
+      cell.Settle text
+      text
+    | joined -> joined :?> string
 
   override this.Equals(other : obj) : bool =
     match other with
@@ -3590,9 +3758,25 @@ module RuntimeError =
       | ConditionRequiresBool of actualValueType : ValueType * actualValue : Dval
 
   module BigInts =
+    /// What was out of range. Dark words the message.
+    type OutOfRangeKind =
+      | FloatHasNoInteger
+      | FloatOutsideInt64 of min : int64 * max : int64
+      | ShiftCount of max : int64
+      | Exponent of max : int64
+      | RepeatCount of max : int64
+      | DateTimeSeconds
+      | DateTimeMilliseconds
+      | DateTimeTicks
+      | Port of min : int64 * max : int64
+      | NegativeMaxBodyBytes
+      | Int64ToInt32 of min : int64 * max : int64
+      | BigIntToInt64 of min : int64 * max : int64
+      | BigIntToInt32 of min : int64 * max : int64
+
     type Error =
       | DivideByZeroError
-      | OutOfRange // CLEANUP consider including the out-of-range value
+      | OutOfRange of kind : OutOfRangeKind * value : Dval
       | NegativeExponent
       | NegativeModulus
       | ZeroModulus
@@ -3958,31 +4142,11 @@ module CallStack =
   let last (cs : CallStack) : Option<ExecutionPoint> = List.head cs
 
 
-/// A request that exceeded the active policies in warn-only mode
-/// (`dark run --warn-permissions`). `resource` identifies the target,
-/// `needed` explains the denied layer and reason, and `via` identifies the
-/// function or lambda that made the request.
-type PermissionViolation =
-  { resource : string; needed : string; via : Option<ExecutionPoint> }
-
 /// Details of a policy denial kept for the CLI's allow-and-retry prompt:
 /// the denying layer, attempted resource, and suggested allow rule when one
 /// exists.
 type PermissionDenialRecord =
   { layer : Permissions.Layer; resource : string; suggestion : Option<string> }
-
-/// Record a violation once; repeated requests produce one warning.
-let recordPermissionViolation
-  (sink : ResizeArray<PermissionViolation>)
-  (via : Option<ExecutionPoint>)
-  (resource : string)
-  (needed : string)
-  : unit =
-  let v = { resource = resource; needed = needed; via = via }
-  // Processes on different scheduler threads share one sink (the host reads it after the run),
-  // so the append is locked. Denials are rare; the lock is never hot.
-  lock sink (fun () -> if not (sink.Contains v) then sink.Add v)
-
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
@@ -4099,6 +4263,20 @@ module Dval =
       smallInt64s[int (i - smallLo)]
     else
       DInt64 i
+
+  let private int8s : Dval[] = Array.init 256 (fun i -> DInt8(int8 (i - 128)))
+  let private uint8s : Dval[] = Array.init 256 (fun i -> DUInt8(uint8 i))
+  let private asciiChars : Dval[] = Array.init 128 (fun i -> DChar(string (char i)))
+
+  /// `DInt8`, one instance per value.
+  let dint8 (i : int8) : Dval = int8s[int i + 128]
+
+  /// `DUInt8`, one instance per value.
+  let duint8 (b : uint8) : Dval = uint8s[int b]
+
+  /// `DChar`, sharing one instance for each ASCII character.
+  let dchar (c : string) : Dval =
+    if c.Length = 1 && c[0] < char 128 then asciiChars[int c[0]] else DChar c
 
   /// Constructs a `BigInt` Dval from a bigint, normalizing through `DarkBigInt`.
   let bigInt (b : bigint) : Dval = dbigint (DarkBigInt.ofBigInt b)
@@ -4255,6 +4433,45 @@ module Dval =
     // the only way the runtime checker ever meets one (a package fn returning a read it did not
     // inspect; every argument and every stored value is forced first).
     | DPromise _ -> ValueType.Unknown
+
+  /// Whether `toValueType dv` is `vt`, without building it: for a tuple, or a record or enum with
+  /// type arguments, that is a new `ValueType` every time.
+  let rec hasValueType (vt : ValueType) (dv : Dval) : bool =
+    match dv with
+    | DTuple(first, second, theRest) ->
+      match vt with
+      | ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
+        hasValueType vFirst first
+        && hasValueType vSecond second
+        && hasValueTypes vRest theRest
+      | _ -> false
+    | DRecord(_, typeName, typeArgs, _)
+    | DEnum(_, typeName, typeArgs, _, _) ->
+      match vt with
+      | ValueType.Known(KTCustomType(name, args)) ->
+        name = typeName && args = typeArgs
+      | _ -> false
+    | DList(elem, _) ->
+      match vt with
+      | ValueType.Known(KTList vElem) -> vElem = elem
+      | _ -> false
+    | DDict(key, value, _) ->
+      match vt with
+      | ValueType.Known(KTDict(vKey, vValue)) -> vKey = key && vValue = value
+      | _ -> false
+    | DBytes _ ->
+      match vt with
+      | ValueType.Known KTBytes -> true
+      | _ -> false
+    | _ -> toValueType dv = vt
+
+  and private hasValueTypes (vts : List<ValueType>) (dvs : List<Dval>) : bool =
+    match vts with
+    | [] -> List.isEmpty dvs
+    | vt :: vtRest ->
+      match dvs with
+      | dv :: dvRest -> hasValueType vt dv && hasValueTypes vtRest dvRest
+      | [] -> false
 
 
   /// A key must mean what `==` means. Bytes compare by content, so they are keys;
@@ -4559,14 +4776,6 @@ module PackageFn =
       parameters : NEList<Parameter>
       returnType : TypeReference
 
-      /// The author's ceiling from the declaration's `:{…}` row; see
-      /// `ProgramTypes.PackageFn.permissionCeiling`. Entering the function
-      /// appends it as a `Layer.Function` restriction: `None` adds nothing,
-      /// `Some Set.empty` (`:{}`) denies every host effect, `Some {…}` allows
-      /// only those. What the caller captured at runtime is separate, in
-      /// `Access`; this never widens it.
-      permissionCeiling : Option<Set<Effects.Effect>>
-
       /// `'a: Show + Compare`; see `ProgramTypes.PackageFn.bounds`. Checked at entry.
       bounds : List<Bound>
 
@@ -4720,8 +4929,7 @@ module Trait =
     { name : string
       typeParams : List<string>
       parameters : NEList<PackageFn.Parameter>
-      returnType : TypeReference
-      permissionCeiling : Option<Set<Effects.Effect>> }
+      returnType : TypeReference }
 
   type Trait =
     { hash : Hash
@@ -4750,6 +4958,53 @@ type ImplCandidate =
     /// then it cannot win, so a call that finds only unstamped rivals still errors.
     stamp : string
   }
+
+
+/// A hash code for a self type from its outermost case alone.
+let private selfTypeHashCode (k : KnownType) : int =
+  match k with
+  | KTCustomType(FQTypeName.Package(Hash h), _) -> contentHashCode h
+  | KTList _ -> 1
+  | KTDict _ -> 2
+  | KTTuple _ -> 3
+  | KTFn _ -> 4
+  | KTStream _ -> 5
+  | _ -> k.GetHashCode()
+
+module ImplSelectionMemo =
+  /// Compares the keys (branch, trait, method, self type) directly. The default comparer of a
+  /// struct tuple of reference types reaches each part's own comparer through a runtime lookup,
+  /// and hashes the self type all the way down, on every trait method call and every entry to a
+  /// bounded fn.
+  ///
+  /// The hash reads only the self type's outermost case, so `List<Int64>` and `List<String>`
+  /// share a bucket and `Equals` tells them apart.
+  let private comparer =
+    { new System.Collections.Generic.IEqualityComparer<struct (Branching.BranchId *
+      Hash *
+      string *
+      KnownType)> with
+        member _.Equals(a, b) =
+          let struct (Branching.Id b1, Hash h1, m1, k1) = a
+          let struct (Branching.Id b2, Hash h2, m2, k2) = b
+          System.String.Equals(h1, h2)
+          && System.String.Equals(m1, m2)
+          && b1.Equals b2
+          && (obj.ReferenceEquals(k1, k2) || k1.Equals k2)
+
+        member _.GetHashCode(key) =
+          let struct (Branching.Id b, Hash h, m, k) = key
+          contentHashCode h
+          ^^^ (m.Length * 31)
+          ^^^ (selfTypeHashCode k * 1021)
+          ^^^ b.GetHashCode() }
+
+  let create
+    ()
+    : ConcurrentDictionary<struct (Branching.BranchId * Hash * string * KnownType), struct (int *
+      FQFnName.Package)>
+    =
+    ConcurrentDictionary(comparer)
 
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -4820,7 +5075,7 @@ type PackageManager =
       isHarmful = (fun _ -> false)
       implCandidates = (fun _ _ -> Ply [])
       implCandidatesByMethod = (fun _ _ -> Ply [])
-      implSelectionMemo = ConcurrentDictionary()
+      implSelectionMemo = ImplSelectionMemo.create ()
       implGeneration = (fun () -> 0)
 
       init = uply { return () } }
@@ -4837,7 +5092,7 @@ type PackageManager =
       pm
     else
       { pm with
-          implSelectionMemo = ConcurrentDictionary()
+          implSelectionMemo = ImplSelectionMemo.create ()
           implCandidates =
             fun branchId trait_ ->
               uply {
@@ -4905,7 +5160,7 @@ type PackageManager =
       isHarmful = pm.isHarmful
       implCandidates = pm.implCandidates
       implCandidatesByMethod = pm.implCandidatesByMethod
-      implSelectionMemo = ConcurrentDictionary()
+      implSelectionMemo = ImplSelectionMemo.create ()
       implGeneration = pm.implGeneration
       init = pm.init }
 
@@ -4915,15 +5170,6 @@ type PackageManager =
 // Builtins, Execution State, Package Manager
 // A bunch of tangled things we need to `and` together
 // ------------
-
-/// The approvals that installed a package policy, and whether any was reviewed under different
-/// builtin declarations than this binary's: how a policy that was enough stops being enough.
-type PackagePolicyOrigin = { approvedAs : List<string>; stale : bool }
-
-/// The name a denial gives the function behind a package or function policy. `current` is false
-/// for an older version that the name no longer points at, which the hash has to tell apart.
-type PolicyFnName = { name : string; current : bool }
-
 
 /// Whether a builtin always answers the same way, for a reader who wants to know.
 ///
@@ -4992,6 +5238,21 @@ module Tracing =
     | PerformOnce
     | PerformOnwards
     | Diverged of message : string
+
+  /// How much a host lets its runs record, worked out once at startup and handed to every
+  /// tracer it makes (`LibDB.Tracing`). 0 on any of them is no cap.
+  type Caps =
+    {
+      /// Events one trace keeps; past it they are counted, not kept.
+      maxEvents : int
+      /// Traces the store keeps (`trace.keep`).
+      keep : int64
+      /// Bytes the store's traces may hold (`trace.maxMb`).
+      maxBytes : int64
+    }
+
+  let defaultCaps : Caps =
+    { maxEvents = 10_000; keep = 200L; maxBytes = 256L * 1024L * 1024L }
 
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
@@ -5106,6 +5367,10 @@ type QuickOps(generation : int, ops : QuickOp[]) =
   /// For instructions that run once, as a root's do: there is nothing to gain from looking.
   static member val None = QuickOps(-1, Array.empty)
 
+/// What `packagePolicy` last answered for a package fn, and the closure and name it was asked with.
+type PackagePolicyMemo =
+  { owner : obj; name : Option<string>; policy : Option<Permissions.Policy> }
+
 type InstrData =
   {
     instructions : Instruction array
@@ -5120,11 +5385,6 @@ type InstrData =
     /// The operator calls in `instructions` (`Interpreter.quickOpsFor`).
     quick : QuickOps
   }
-
-/// Cached consumer policy and the policy function that produced it. The owner
-/// is compared by reference so a changed policy is resolved again.
-type PackagePolicyMemo =
-  { owner : obj; policy : Permissions.Policy; isAllowAll : bool }
 
 /// One activation of a function, lambda or the root script.
 ///
@@ -5818,7 +6078,7 @@ type VMState =
     mutable pendingReads : ResizeArray<Promise>
 
     /// A builtin body asking for a callable to be applied on its behalf, in this VM, as a frame
-    /// of its own (`Interpreter.requestApply`): the callable, its first argument and any more,
+    /// of its own (`Interpreter.requestApply`): the callable, its first argument and any second,
     /// and what to call with the result. Read and cleared by the interpreter right after the
     /// body returns, which then pushes the frame instead of using the body's result. Null
     /// `pendingNext` means no request. Four slots rather than a record, so a chain of a thousand
@@ -5826,7 +6086,7 @@ type VMState =
     mutable pendingNext : Dval -> Ply<Dval>
     mutable pendingApplicable : Applicable
     mutable pendingArg : Dval
-    mutable pendingMoreArgs : List<Dval>
+    mutable pendingSecond : Dval voption
     /// For a request made after the builtin's body had already waited (a stream pulling from
     /// the network, then applying its transform): what records the chain's final result in the
     /// trace, left here by the body's completion for the landing site to pick up. Null when
@@ -5951,7 +6211,7 @@ type VMState =
       hostInflight = Unchecked.defaultof<_>
       pendingApplicable = Unchecked.defaultof<_>
       pendingArg = DUnit
-      pendingMoreArgs = []
+      pendingSecond = ValueNone
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
@@ -6039,7 +6299,7 @@ type VMState =
     vm.pendingNext <- Unchecked.defaultof<_>
     vm.pendingApplicable <- Unchecked.defaultof<_>
     vm.pendingArg <- DUnit
-    vm.pendingMoreArgs <- []
+    vm.pendingSecond <- ValueNone
     vm.pendingFinish <- Unchecked.defaultof<_>
     vm.pendingHostOp <- Unchecked.defaultof<_>
     vm.pendingHostNext <- Unchecked.defaultof<_>
@@ -6095,13 +6355,7 @@ and PackageFnCallData =
   {
     instrData : InstrData
 
-    /// The layer used for the consumer's package policy.
-    packageLayer : Permissions.Layer
-
-    /// The author's `permissionCeiling`, if declared.
-    ceiling : voption<struct (Permissions.Layer * Permissions.Policy)>
-
-    /// The last resolved consumer policy, paired with its owner.
+    /// `packagePolicy`'s last answer here: safe, as one closure answers from a fixed snapshot.
     mutable policy : PackagePolicyMemo
 
     /// The parameters that take a callback, as (index, name, what the callback should
@@ -6127,6 +6381,9 @@ and PackageFnCallData =
     /// Whether that builtin is one `invokeBuiltin` needs to check nothing for before running it
     /// (`Interpreter.isPlainPure`), so a call to the forwarder can go straight to the body.
     plainPure : bool
+
+    /// That builtin's `FastOps` tag, if it is an operator.
+    fastOpTag : int voption
 
     /// The fn itself, so a call that finds this needs no fetch. It is content-addressed: the
     /// hash this is cached under always names this fn.
@@ -6203,6 +6460,8 @@ and [<RequireQualifiedAccess>] Purity =
 and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
+    /// What a tracer made under this state may keep.
+    traceCaps : Tracing.Caps
     test : TestContext
 
     /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.
@@ -6244,15 +6503,9 @@ and ExecutionState =
     /// Host handles belong to this execution, never a process-global guest table.
     descriptorSession : Lazy<HostDescriptors.Session>
 
-    /// Consumer approval policy for an immutable package function. Missing
-    /// approvals return deny-all.
-    packagePolicy : FQFnName.Package -> Permissions.Policy
-
-    /// For a denial to name the approval behind a package policy. `None` where none covers it.
-    packagePolicyOrigin : string -> Option<PackagePolicyOrigin>
-
-    /// For a denial to name the function a policy id belongs to. `None` where it has no name.
-    policyFnName : string -> Option<PolicyFnName>
+    /// Resolve an entry's exact name and version to its approval. `None`
+    /// means a bundled or script-local helper that inherits invocation access.
+    packagePolicy : Option<string> -> FQFnName.Package -> Option<Permissions.Policy>
 
     /// Host-only permission to modify stored policies. Guest executions never
     /// receive it.
@@ -6262,14 +6515,15 @@ and ExecutionState =
     /// builtins. Defaults to false.
     isBundledPackageFn : FQFnName.Package -> bool
 
-    /// When a warning collection is provided, requests not covered by
-    /// caller-owned policies are recorded and allowed. Without one, denials
-    /// are enforced normally.
-    permissionWarnings : Option<ResizeArray<PermissionViolation>>
-
     /// Denials raised under this state, in occurrence order. Hosts give each
     /// guest run a fresh list to distinguish policy denials from other errors.
     deniedRequests : ResizeArray<PermissionDenialRecord>
+
+    /// Host-installed interactive approval. Never stored in function values or
+    /// traces. The resolver applies only grants for this invocation context.
+    permissionAccess : Permissions.Access -> Permissions.Access
+    requestPermission :
+      Option<Permissions.Access -> Permissions.Request -> string -> Ply<bool>>
 
     /// Run an applicable to completion on a borrowed VM, as a builtin applying a
     /// callback does. Filled in by `Execution.createState`, which is where that
@@ -6621,44 +6875,115 @@ module TypeReference =
     | TDict _
     | TCustomType _
     | TFn _ ->
-      uply {
-        match! unwrapAlias types typeRef with
-        | TStream inner ->
-          let! inner = toVT types tst inner
-          return ValueType.Known(KTStream inner)
+      match toVTSync types tst typeRef with
+      | ValueSome vt -> Ply vt
+      | ValueNone -> toVTAsync types tst typeRef
 
-        | TTuple(first, second, theRest) ->
-          let! first = toVT types tst first
-          let! second = toVT types tst second
-          let! theRest = theRest |> Ply.List.mapSequentially (toVT types tst)
-          return KTTuple(first, second, theRest) |> ValueType.Known
+  /// `toVT` without a builder, for a type whose aliases are already resolved: an explicit type
+  /// argument or a declared parameter is usually that after its first use. `ValueNone` where
+  /// `toVTAsync` is needed.
+  and toVTSync
+    (types : Types)
+    (tst : TypeSymbolTable)
+    (typeRef : TypeReference)
+    : ValueType voption =
+    match typeRef with
+    | TStream inner ->
+      match toVTSync types tst inner with
+      | ValueSome inner -> ValueSome(ValueType.Known(KTStream inner))
+      | ValueNone -> ValueNone
+    | TList inner ->
+      match toVTSync types tst inner with
+      | ValueSome inner -> ValueSome(ValueType.Known(KTList inner))
+      | ValueNone -> ValueNone
+    | TDict(key, value) ->
+      match toVTSync types tst key with
+      | ValueSome key ->
+        match toVTSync types tst value with
+        | ValueSome value -> ValueSome(ValueType.Known(KTDict(key, value)))
+        | ValueNone -> ValueNone
+      | ValueNone -> ValueNone
+    | TTuple(first, second, theRest) ->
+      match toVTSync types tst first with
+      | ValueSome first ->
+        match toVTSync types tst second with
+        | ValueSome second ->
+          match toVTsSync types tst [] theRest with
+          | ValueSome theRest ->
+            ValueSome(ValueType.Known(KTTuple(first, second, theRest)))
+          | ValueNone -> ValueNone
+        | ValueNone -> ValueNone
+      | ValueNone -> ValueNone
+    | TCustomType({ resolved = Ok _ }, _) ->
+      match tryResolvedAlias types typeRef with
+      | ValueSome(TCustomType({ resolved = Ok typeName }, typeArgs)) ->
+        match toVTsSync types tst [] typeArgs with
+        | ValueSome typeArgs ->
+          ValueSome(ValueType.Known(KTCustomType(typeName, typeArgs)))
+        | ValueNone -> ValueNone
+      | ValueSome(TCustomType _) -> ValueNone
+      | ValueSome resolved -> toVTSync types tst resolved
+      | ValueNone -> ValueNone
+    | TCustomType _
+    | TFn _ -> ValueNone
+    | _ -> Ply.trySync (toVT types tst typeRef)
 
-        | TList inner ->
-          let! inner = toVT types tst inner
-          return ValueType.Known(KTList inner)
+  /// `toVTSync` over a list, prepending onto <param acc> reversed.
+  and toVTsSync
+    (types : Types)
+    (tst : TypeSymbolTable)
+    (acc : List<ValueType>)
+    (typeRefs : List<TypeReference>)
+    : List<ValueType> voption =
+    match typeRefs with
+    | [] -> ValueSome(List.rev acc)
+    | t :: rest ->
+      match toVTSync types tst t with
+      | ValueSome vt -> toVTsSync types tst (vt :: acc) rest
+      | ValueNone -> ValueNone
 
-        | TDict(key, value) ->
-          let! key = toVT types tst key
-          let! value = toVT types tst value
-          return ValueType.Known(KTDict(key, value))
+  and private toVTAsync
+    (types : Types)
+    (tst : TypeSymbolTable)
+    (typeRef : TypeReference)
+    : Ply<ValueType> =
+    uply {
+      match! unwrapAlias types typeRef with
+      | TStream inner ->
+        let! inner = toVT types tst inner
+        return ValueType.Known(KTStream inner)
 
-        | TCustomType({ resolved = Ok typeName }, typeArgs) ->
-          let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
-          return KTCustomType(typeName, typeArgs) |> ValueType.Known
+      | TTuple(first, second, theRest) ->
+        let! first = toVT types tst first
+        let! second = toVT types tst second
+        let! theRest = theRest |> Ply.List.mapSequentially (toVT types tst)
+        return KTTuple(first, second, theRest) |> ValueType.Known
 
-        | TCustomType({ originalName = names; resolved = Error nre }, _) ->
-          return
-            raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+      | TList inner ->
+        let! inner = toVT types tst inner
+        return ValueType.Known(KTList inner)
 
-        | TFn(args, result) ->
-          let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
-          let! result = toVT types tst result
-          return KTFn(args, result) |> ValueType.Known
+      | TDict(key, value) ->
+        let! key = toVT types tst key
+        let! value = toVT types tst value
+        return ValueType.Known(KTDict(key, value))
 
-        // An alias can unwrap to any of the cases handled without the builder above; those are
-        // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
-        | unwrapped -> return! toVT types tst unwrapped
-      }
+      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+        let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
+        return KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+      | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+
+      | TFn(args, result) ->
+        let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
+        let! result = toVT types tst result
+        return KTFn(args, result) |> ValueType.Known
+
+      // An alias can unwrap to any of the cases handled without the builder above; those are
+      // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
+      | unwrapped -> return! toVT types tst unwrapped
+    }
 
 
   /// Convert a KnownType back to a TypeReference

@@ -67,26 +67,23 @@ module TraceDetail =
       // opt-in, so an unreadable opt-in has not happened.
       parse s |> Option.defaultValue Off
 
-  let mutable current : T = readEnv ()
+  /// What this process records, worked out once at startup: `--trace` / `--no-trace` for this
+  /// run, else the store's `trace.record` as the host read it, else the environment. An unset or
+  /// unreadable stored value leaves the environment's answer standing.
+  let resolve (flag : Option<T>) (stored : Option<string>) : T =
+    match flag with
+    | Some level -> level
+    | None -> stored |> Option.bind parse |> Option.defaultWith readEnv
 
-  /// Set once `--trace` / `--no-trace` has spoken for this run, so the stored setting read at
-  /// startup does not then overwrite it.
-  let mutable private pinnedForRun = false
+  /// Process-wide rather than per run, because a session that is already open picks up
+  /// `traces record on|off` without waiting for the next command.
+  let mutable private level : T = readEnv ()
 
-  /// `--trace` / `--no-trace`: this run only, whatever is stored or in the environment.
-  let setForRun (level : T) : unit =
-    current <- level
-    pinnedForRun <- true
+  let current () : T = level
 
-  /// The store's `trace.record` as the host read it at startup. Unset or unreadable leaves the
-  /// environment's answer standing; `--trace` on the command line beats both.
-  let configure (stored : Option<string>) : unit =
-    if not pinnedForRun then
-      stored |> Option.bind parse |> Option.iter (fun level -> current <- level)
-
-  /// Test seam, and how a session applies a setting it has just stored without waiting for the
-  /// next command. Nothing persistent.
-  let setForTesting (level : T) : unit = current <- level
+  /// The host's startup answer (`resolve`), a session applying a setting it has just stored,
+  /// and the test seam. Nothing persistent.
+  let set (l : T) : unit = level <- l
 
 
 
@@ -212,26 +209,17 @@ type CompletedEvent =
 /// Override with `DARK_CONFIG_TRACE_MAX_EVENTS`; 0 means unlimited, for when you genuinely need the whole
 /// thing and are willing to pay for it.
 module TraceLimits =
-  let private fromEnv () : int =
+  /// The cap for this process: `DARK_CONFIG_TRACE_MAX_EVENTS`, else the default.
+  let maxEventsFromEnv () : int =
     match
       System.Environment.GetEnvironmentVariable "DARK_CONFIG_TRACE_MAX_EVENTS"
     with
     | null
-    | "" -> 10_000
+    | "" -> RT.Tracing.defaultCaps.maxEvents
     | s ->
       match System.Int32.TryParse s with
       | true, n when n >= 0 -> n
-      | _ -> 10_000
-
-  let mutable maxEvents : int = fromEnv ()
-
-  /// TEST-ONLY: run with a small cap, so a test can cross it without generating (and rendering) ten
-  /// thousand events. Call `resetMaxEventsForTesting` when done. NOT parallel-safe: it mutates
-  /// process-global state, so callers must be `testSequenced`.
-  let useMaxEventsForTesting (n : int) : unit = maxEvents <- n
-
-  /// TEST-ONLY: restore the configured cap after `useMaxEventsForTesting`.
-  let resetMaxEventsForTesting () : unit = maxEvents <- fromEnv ()
+      | _ -> RT.Tracing.defaultCaps.maxEvents
 
 
 /// Mutable per-trace tracer state. Captures every event in completion order and keeps one open
@@ -285,7 +273,9 @@ type ProcessSpans = System.Collections.Generic.Dictionary<RT.Hash, FnSpan>
 type TracerState =
   {
     events : System.Collections.Generic.List<CompletedEvent>
-    /// Events past `TraceLimits.maxEvents`, counted so the trace can say it was truncated rather than
+    /// How many events this trace keeps (`RT.Tracing.Caps.maxEvents`); 0 is no cap.
+    maxEvents : int
+    /// Events past `maxEvents`, counted so the trace can say it was truncated rather than
     /// quietly looking complete.
     mutable dropped : int
     /// The next `seq`, handed out as events complete.
@@ -326,8 +316,9 @@ type TracerState =
   }
 
 
-let private newState (resuming : string) : TracerState =
+let private newState (maxEvents : int) (resuming : string) : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
+    maxEvents = maxEvents
     fns = System.Collections.Generic.Dictionary()
     dropped = 0
     nextSeq = 0L
@@ -429,7 +420,7 @@ let private nextOrdinal (state : TracerState) (pid : System.Guid) : int64 =
 /// Keep an event unless we are at the cap. Under `sync`; `seq` is assigned here, so the order of
 /// `seq` is the order of completion across every process writing this trace.
 let private addEvent (state : TracerState) (ev : CompletedEvent) : unit =
-  if TraceLimits.maxEvents = 0 || state.events.Count < TraceLimits.maxEvents then
+  if state.maxEvents = 0 || state.events.Count < state.maxEvents then
     let seq = state.nextSeq
     state.nextSeq <- seq + 1L
     state.events.Add { ev with seq = seq }
@@ -524,7 +515,7 @@ module Redact =
 
   let private isHeader (dv : RT.Dval) : bool =
     match dv with
-    | RT.DTuple(RT.DString _, RT.DString _, []) -> true
+    | RT.DTuple(RT.DStr _, RT.DStr _, []) -> true
     | _ -> false
 
   /// An HTTP value as a trace stores it: in every header list (a list of (name, value)
@@ -748,33 +739,35 @@ let private addedUpByFunction
 /// which the count cap alone never drops. `trace.keep` is how many traces to keep (200 unset;
 /// a served request is one), `trace.maxMb` how many megabytes they may hold, input, logged
 /// calls and captured blobs together (256 unset); 0 disables a cap. Both are store config keys the
-/// host reads at startup (`configure`). A pass runs at most every ten seconds, since a `serve`
+/// host reads at startup (`caps`). A pass runs at most every ten seconds, since a `serve`
 /// stores a trace per request. The manual `traces prune|delete|clear` go through here too, so
 /// a run and its log go together, always.
 module TraceRetention =
   open LibDB.Sqlite
 
-  let mutable keep : int64 = 200L
-  let mutable maxBytes : int64 = 256L * 1024L * 1024L
+  /// When the last pass ran: the ten-second spacing is per process, whatever its runs.
   let mutable private lastPass = System.DateTime.MinValue
 
-  /// The caps, from the store's `trace.keep` and `trace.maxMb` as the host read them (a
-  /// missing or unparseable value keeps the default).
-  let configure (keepTraces : Option<string>) (maxMb : Option<string>) : unit =
+  /// This process's caps, from the store's `trace.keep` and `trace.maxMb` as the host read them
+  /// (a missing or unparseable value keeps the default) and the event cap from the environment.
+  let caps (keepTraces : Option<string>) (maxMb : Option<string>) : RT.Tracing.Caps =
     let parse (v : string) : Option<int64> =
       match System.Int64.TryParse v with
       | true, n when n >= 0L -> Some n
       | _ -> None
-    keepTraces |> Option.bind parse |> Option.iter (fun n -> keep <- n)
-    maxMb
-    |> Option.bind parse
-    |> Option.iter (fun n -> maxBytes <- n * 1024L * 1024L)
+    { maxEvents = TraceLimits.maxEventsFromEnv ()
+      keep =
+        keepTraces
+        |> Option.bind parse
+        |> Option.defaultValue RT.Tracing.defaultCaps.keep
+      maxBytes =
+        maxMb
+        |> Option.bind parse
+        |> Option.map (fun n -> n * 1024L * 1024L)
+        |> Option.defaultValue RT.Tracing.defaultCaps.maxBytes }
 
-  /// Test seam.
-  let setForTesting (keepTraces : int64) (bytes : int64) : unit =
-    keep <- keepTraces
-    maxBytes <- bytes
-    lastPass <- System.DateTime.MinValue
+  /// Test seam: let the next store's pass run however recently the last one did.
+  let resetSpacingForTesting () : unit = lastPass <- System.DateTime.MinValue
 
   /// Every table keyed by `trace_id`. A row in one of them outlives its trace with nothing that
   /// can ever read it again, so a table added here is dropped by both the delete and the sweep.
@@ -880,8 +873,8 @@ module TraceRetention =
   /// The pass after a store: at most every ten seconds, and only when a cap is exceeded. Both
   /// caps are checked from one read of `traces`, whatever the trace count; an early version
   /// skipped the byte check below 50 traces, so twelve traces held 790 MB under a 256 MB cap.
-  let run () : int =
-    if keep = 0L && maxBytes = 0L then
+  let run (caps : RT.Tracing.Caps) : int =
+    if caps.keep = 0L && caps.maxBytes = 0L then
       0
     else
       let now = System.DateTime.UtcNow
@@ -892,14 +885,14 @@ module TraceRetention =
           Sql.query "SELECT COUNT(*) AS n, COALESCE(SUM(bytes), 0) AS b FROM traces"
           |> Sql.executeRowAsync (fun read -> read.int64 "n", read.int64 "b")
           |> fun t -> t.Result
-        let overCount = keep > 0L && count > keep
-        let overBytes = maxBytes > 0L && total > maxBytes
+        let overCount = caps.keep > 0L && count > caps.keep
+        let overBytes = caps.maxBytes > 0L && total > caps.maxBytes
         if not overCount && not overBytes then
           0
         else
           lastPass <- now
           let cap (n : int64) = if n = 0L then None else Some n
-          prune (cap keep) (cap maxBytes)
+          prune (cap caps.keep) (cap caps.maxBytes)
 
 
 /// Store trace data to SQLite.
@@ -912,22 +905,17 @@ module TraceStorage =
   let keepBytesIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
     fun hash bytes ->
       uply {
-        let! added =
-          Sql.query
-            "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
-             VALUES (@traceId, @hash, @bytes)"
-          |> Sql.parameters
-            [ "traceId", Sql.string (string traceId)
-              "hash", Sql.string hash
-              "bytes", Sql.bytes bytes ]
-          |> Sql.executeNonQueryAsync
-        if added > 0 then
-          do!
-            Sql.query "UPDATE traces SET bytes = bytes + @n WHERE id = @traceId"
-            |> Sql.parameters
-              [ "traceId", Sql.string (string traceId)
-                "n", Sql.int64 (int64 bytes.Length) ]
-            |> Sql.executeStatementAsync
+        // One write: the blob, and the weight only when the blob was new to this trace.
+        Sql.executeTransactionSync
+          [ "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
+             VALUES (@traceId, @hash, @bytes)",
+            [ [ "traceId", Sql.string (string traceId)
+                "hash", Sql.string hash
+                "bytes", Sql.bytes bytes ] ]
+            "UPDATE traces SET bytes = bytes + @n WHERE id = @traceId AND changes() > 0",
+            [ [ "traceId", Sql.string (string traceId)
+                "n", Sql.int64 (int64 bytes.Length) ] ] ]
+        |> ignore<List<int>>
       }
 
 
@@ -956,8 +944,10 @@ module TraceStorage =
     (accountID : Option<System.Guid>)
     /// Wall clock for the whole run, from the tracer's own stopwatch.
     (durationMs : int64)
+    /// The retention caps the pass after this store applies.
+    (caps : RT.Tracing.Caps)
     : unit =
-    if TraceDetail.current = TraceDetail.Off then
+    if TraceDetail.current () = TraceDetail.Off then
       ()
     else
 
@@ -1150,7 +1140,7 @@ module TraceStorage =
         Sql.executeTransactionSync (
           baseStatements @ eventStmt @ fnStmt @ loopStmt @ bytesStmt
         )
-      TraceRetention.run () |> ignore<int>
+      TraceRetention.run caps |> ignore<int>
 
 
 /// Rewrite a Dval for the trace-storage boundary:
@@ -1206,6 +1196,7 @@ let private prepareTraceForStorage
 /// stubs DStream values and promotes ephemeral blob bytes so the
 /// trace survives the producing VM.
 let private storeTrace
+  (caps : RT.Tracing.Caps)
   (traceID : AT.TraceID.T)
   (handlerDesc : string)
   (inputVarName : string)
@@ -1217,7 +1208,7 @@ let private storeTrace
     // Trace detail OFF must be a true no-op: `prepareTraceForStorage` (below) hashes every captured
     // ephemeral blob, and a request body can be megabytes. Bail here so neither the walk nor the store
     // runs. This is the single choke point for both the sqlite and CLI tracers (the serve uses the CLI one).
-    if TraceDetail.current = TraceDetail.Off then
+    if TraceDetail.current () = TraceDetail.Off then
       return ()
     else
 
@@ -1251,7 +1242,7 @@ let private storeTrace
              (List.ofArray events)
              @ [ { callId = newCallId ()
                    fnName =
-                     $"trace truncated: {dropped} further calls not recorded (cap {TraceLimits.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
+                     $"trace truncated: {dropped} further calls not recorded (cap {state.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
                    args = []
                    result = RT.DUnit
                    durationMs = 0L
@@ -1264,6 +1255,7 @@ let private storeTrace
           loopPasses
           exeState.accountID
           state.elapsed.ElapsedMilliseconds
+          caps
       with ex ->
         let inner =
           match ex.InnerException with
@@ -1280,12 +1272,13 @@ let private storeTrace
 
 
 let createCliTracer
+  (caps : RT.Tracing.Caps)
   (traceID : AT.TraceID.T)
   (description : string)
   (inputVarName : string)
   (inputDval : RT.Dval)
   : T =
-  let state = newState ""
+  let state = newState caps.maxEvents ""
 
   // With detail off, collect nothing. `storeTrace` refuses to write in that case, so installing the
   // hooks anyway means building an event per frame and holding every argument and result alive for the
@@ -1293,7 +1286,7 @@ let createCliTracer
   //
   // `Exe.noTracing` leaves everything off, which also lets the interpreter skip its own per-frame
   // per-frame bookkeeping rather than just calling no-op hooks.
-  if TraceDetail.current = TraceDetail.Off then
+  if TraceDetail.current () = TraceDetail.Off then
     { enabled = false
       executionTracing = Exe.noTracing
       storeTraceResults = fun _ -> uply { return () } }
@@ -1302,7 +1295,7 @@ let createCliTracer
       executionTracing = executionTracingFor state System.Guid.Empty
       storeTraceResults =
         fun exeState ->
-          storeTrace traceID description inputVarName inputDval state exeState }
+          storeTrace caps traceID description inputVarName inputDval state exeState }
 
 
 /// A CLI tracer that replays a stored log: every effectful call whose `(process, ordinal)` the
@@ -1317,13 +1310,15 @@ let createCliTracer
 /// after another) is matched to the next recorded process in the order they first appear in the
 /// log (`forProcess`). Anything past the recorded list replays nothing.
 let createReplayTracer
+  (caps : RT.Tracing.Caps)
   (traceID : AT.TraceID.T)
   (description : string)
   (inputVarName : string)
   (inputDval : RT.Dval)
   (log : List<System.Guid * int64 * RT.Tracing.ReplayStep * RecordedCall>)
   : T =
-  let state = newState ((string (AT.TraceID.toUUID traceID)).Substring(0, 8))
+  let state =
+    newState caps.maxEvents ((string (AT.TraceID.toUUID traceID)).Substring(0, 8))
   // Each recorded spawn's child, by the process that spawned it and the spawn's ordinal.
   let spawnedAt =
     log
@@ -1385,7 +1380,7 @@ let createReplayTracer
           forProcess = tracingFor System.Guid.Empty }
     storeTraceResults =
       fun exeState ->
-        storeTrace traceID description inputVarName inputDval state exeState }
+        storeTrace caps traceID description inputVarName inputDval state exeState }
 
 
 /// One frame the replay walked: what made it, what it runs, and what it was given.

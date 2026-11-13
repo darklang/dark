@@ -545,17 +545,7 @@ module PackageFn =
       parameters: List<Parameter>
       returnType: TypeReference
       description: String
-      /// The author's ceiling on what this function and everything it calls
-      /// may do at runtime, from the `:{…}` row on the declaration. It only
-      /// restricts; granting stays with the instance, run and package layers.
-      ///
-      ///   None          no row was written: no function layer is added
-      ///   Some []       `:{}`: effect-free, every host effect inside is denied
-      ///   Some [Http, …] `:{Http, …}`: only these; anything else inside is denied
-      ///
-      /// Part of the content hash and of the upgrade contract, so changing the
-      /// row is a new version that `permissions update` asks about.
-      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>
+
       /// `'a: Show + Compare` on the type params; part of the content hash. Checked
       /// at fn entry by the interpreter and statically by the at-rest checker.
       bounds: List<Bound> }
@@ -564,10 +554,6 @@ module PackageFn =
 /// A trait: a set of fn signatures over one open type. Its own item kind.
 module Trait =
   /// One method's signature; no body (the impls have those).
-  ///
-  /// The ceiling is DECLARED and stored and hashed with the trait, and nothing enforces it
-  /// against an implementation yet, so an impl may do more than the method allows. See the
-  /// F# mirror for the detail.
   type Method =
     { name: String
       typeParams: List<String>
@@ -576,7 +562,7 @@ module Trait =
       bounds: List<Bound>
       parameters: List<PackageFn.Parameter>
       returnType: TypeReference
-      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>
+
       description: String }
 
   type Trait =
@@ -736,6 +722,9 @@ type DocPart =
   /// By POSITION, not name: a parameter's name is not in the identity hash, so a name would not
   /// survive the version it was written against. Field and case names ARE hashed.
   | Parameter(parameterIndex: Int64)
+  /// A parameter's NAME, which is not in the identity hash either: two names holding one body
+  /// each show the parameter names they were written with.
+  | ParameterName(parameterIndex: Int64)
 
 module DocPart =
   /// The part a stored key names ("item", "record-field:x", "parameter:0"), or None for one this
@@ -749,6 +738,10 @@ module DocPart =
       Stdlib.Int64.parse(index)
       |> Stdlib.Result.toOption
       |> Stdlib.Option.map(fun i -> DocPart.Parameter(i))
+    | [ "parameter-name", index ] ->
+      Stdlib.Int64.parse(index)
+      |> Stdlib.Result.toOption
+      |> Stdlib.Option.map(fun i -> DocPart.ParameterName(i))
     | _ -> Stdlib.Option.Option.None
 
   /// How it reads in a listing: which part of the declaration is being described.
@@ -758,6 +751,7 @@ module DocPart =
     | RecordField(name) -> $"field {name}"
     | EnumCase(name) -> $"case {name}"
     | Parameter(index) -> $"parameter {Stdlib.display(index + 1)}"
+    | ParameterName(index) -> $"the name of parameter {Stdlib.display(index + 1)}"
 
 
 /// Keep the reference names for one declaration at a particular package location.

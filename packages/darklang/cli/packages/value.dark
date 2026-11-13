@@ -9,7 +9,12 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
   // val SomeModule.myValue = expression
   | [location, ...definitionParts] ->
-    let inlineDefinition = Packages.definitionFromArgs(definitionParts)
+    match Packages.definitionFromArgs(definitionParts) with
+    | Error(message) ->
+      Cli.printErr(message)
+      Cli.failed(state)
+    | Ok(inlineDefinition) ->
+
 
     if Stdlib.String.isEmpty(inlineDefinition) then
       [
@@ -71,6 +76,7 @@ let createValueInline(
           LanguageTools.ProgramTypes.ItemKind.Value,
           "value",
           { state with exitCode = 1 },
+          0,
           fun ctx ->
             let (packageValue, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT(

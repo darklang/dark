@@ -28,6 +28,11 @@ type Event<'msg> =
   /// The view's `every` interval passed: refresh whatever moves on its own.
   | Tick
 
+/// Whether a view follows the code (`--live`) or keeps the version it resolved at start.
+type Updates =
+  | Live
+  | Pinned
+
 /// One running view.
 type Session<'model, 'msg> =
   { branchId: Uuid
@@ -46,11 +51,11 @@ type Session<'model, 'msg> =
     toast: Stdlib.Option.Option<String>
     /// The first tree row on screen, when the tree is taller than the pane.
     scroll: Int64
-    /// `--live`: follow the code. Off, the view runs the version it resolved at start and a
-    /// save changes nothing on screen, which is what you want when the thing on screen is
-    /// running and you are editing something else. On, a save repaints it, and an agent
-    /// pointing `Live.show` somewhere else switches it.
-    live: Bool
+    /// `Live`: a save repaints the view, and an agent pointing `Live.show` somewhere else
+    /// switches it. `Pinned`: the view runs the version it resolved at start and a save changes
+    /// nothing on screen, which is what you want when the thing on screen is running and you are
+    /// editing something else.
+    updates: Updates
     terminal: Stdlib.Cli.Tui.TerminalSession.State
     exiting: Bool }
 
@@ -100,8 +105,12 @@ let viewAtSize(s: Session<'model, 'msg>, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.
       s.view.keys,
       "esc quit  |  tab next field  |  enter press  |  pgup/pgdn scroll  |  ctrl-s save the model")
 
-  let frame =
-    Stdlib.Cli.UI.Chrome.frame(s.view.title, (if s.live then "LIVE" else "PINNED"), keys)
+  let mode =
+    match s.updates with
+    | Live -> "LIVE"
+    | Pinned -> "PINNED"
+
+  let frame = Stdlib.Cli.UI.Chrome.frame(s.view.title, mode, keys)
 
   let frame =
     match s.toast with
@@ -234,7 +243,7 @@ let moveFocus(s: Session<'model, 'msg>, forward: Bool): Session<'model, 'msg> =
     let next =
       match current with
       | None -> if forward then 0 else count - 1
-      | Some(i) -> (if forward then i + 1 else i + count - 1) % count
+      | Some(i) -> (Stdlib.Int64.checkedMod((if forward then i + 1 else i + count - 1), count) |> Stdlib.Result.withDefault(0))
 
     { s with focus = Stdlib.List.getAt(ids, next) |> Stdlib.Option.withDefault("") }
 
@@ -295,7 +304,7 @@ let shownView(): Stdlib.Option.Option<Model.View> =
 let followShown(s: Session<'model, 'msg>): (Session<'model, 'msg> * Bool) =
   match shownView() with
   | Some(view) when view.render != s.view.render ->
-    match prepareWith(s.branchId, view, Stdlib.Option.Option.None, s.live) with
+    match prepareWith(s.branchId, view, Stdlib.Option.Option.None, s.updates) with
     | Ok(fresh) ->
       ({ fresh with
           terminal = s.terminal
@@ -425,8 +434,9 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
   // process and a `StoreChanged` can never arrive. That is the gate: one entry missing from a
   // list, rather than a check on every path that could act on one.
   let watching =
-    if s.live then [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ]
-    else [ Stdlib.Host.EventSpec.Key ]
+    match s.updates with
+    | Live -> [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ]
+    | Pinned -> [ Stdlib.Host.EventSpec.Key ]
 
   let specs =
     match (s.view.every, s.toast) with
@@ -491,7 +501,7 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
           Stdlib.Cli.UI.Widget.press(read.key, read.modifiers, Stdlib.Option.Option.Some(Stdlib.String.fromChar(c))))
 
     let after =
-      Stdlib.List.range(1, times)
+      (Stdlib.List.checkedRange(1, times) |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.fold({ s with toast = Stdlib.Option.Option.None }, fun(acc, _) ->
         presses
         |> Stdlib.List.fold(acc, fun(acc2, kp) -> if acc2.exiting then acc2 else onKey(acc2, kp)))
@@ -511,7 +521,7 @@ let prepareWith(
   branchId: Uuid,
   view: Model.View,
   resume: Stdlib.Option.Option<String>,
-  live: Bool)
+  updates: Updates)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
   Stdlib.Host.begin()
 
@@ -546,7 +556,7 @@ let prepareWith(
               band = Stdlib.Option.Option.None
               toast = Stdlib.Option.Option.None
               scroll = 0
-              live = live
+              updates = updates
               terminal = Stdlib.Cli.Tui.TerminalSession.init()
               exiting = false }
         ))
@@ -558,16 +568,16 @@ let prepare(
   branchId: Uuid,
   view: Model.View)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
-  prepareWith(branchId, view, Stdlib.Option.Option.None, true)
+  prepareWith(branchId, view, Stdlib.Option.Option.None, Updates.Live)
 
 /// `prepareWith`, on screen. `Error` also when there is no terminal to take.
 let start(
   branchId: Uuid,
   view: Model.View,
   resume: Stdlib.Option.Option<String>,
-  live: Bool)
+  updates: Updates)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
-  match prepareWith(branchId, view, resume, live) with
+  match prepareWith(branchId, view, resume, updates) with
   | Error(e) -> Stdlib.Result.Result.Error(e)
   | Ok(s) ->
     let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
@@ -590,9 +600,9 @@ let openView(
   branchId: Uuid,
   view: Model.View,
   resume: Stdlib.Option.Option<String>,
-  live: Bool)
+  updates: Updates)
   : Stdlib.Result.Result<Unit, String> =
-  match start(branchId, view, resume, live) with
+  match start(branchId, view, resume, updates) with
   | Error(e) -> Stdlib.Result.Result.Error(e)
   | Ok(session) ->
     let finished = run(session)

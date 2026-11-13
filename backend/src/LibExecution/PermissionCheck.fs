@@ -14,34 +14,11 @@ open LibExecution.RuntimeTypes
 module Permission = LibExecution.Permissions
 module Effect = LibExecution.Effects
 
-/// The function a package or function policy belongs to, by name where it has one. The hash is
-/// printed only when there is no name, or the name now points at another version.
-let private fnLabel (fnName : Option<PolicyFnName>) (id : string) : string =
-  match fnName with
-  | Some { name = name; current = true } -> $"for `{name}`"
-  | Some { name = name; current = false } ->
-    $"for an older version of `{name}`, `{id}`"
-  | None -> $"`{id}`"
-
-/// The name to print for the function behind `layer`, if it is a function's policy.
-let private layerFnName
-  (state : ExecutionState)
-  (layer : Permission.Layer)
-  : Option<PolicyFnName> =
-  match layer with
-  | Permission.Layer.Package id
-  | Permission.Layer.Function id -> state.policyFnName id
-  | _ -> None
-
-let private layerName
-  (fnName : Option<PolicyFnName>)
-  (layer : Permission.Layer)
-  : string =
+let private layerName (layer : Permission.Layer) : string =
   match layer with
   | Permission.Layer.Instance -> "instance policy"
   | Permission.Layer.Run -> "run policy"
-  | Permission.Layer.Package id -> $"package policy {fnLabel fnName id}"
-  | Permission.Layer.Function id -> $"function policy {fnLabel fnName id}"
+  | Permission.Layer.Package name -> $"the access of `{name}`"
   | Permission.Layer.Value name -> $"value `{name}`"
 
 let private reasonText (reason : Permission.PolicyDenial) : string =
@@ -52,56 +29,59 @@ let private reasonText (reason : Permission.PolicyDenial) : string =
 /// The one denial message. `suggestion` is the exact `permissions allow`
 /// argument that would cover the denied request, or why none is offered; it is
 /// only actionable for an instance-layer denial, since that is the policy
-/// `permissions allow` edits. Other layers need the approve/ceiling changes the
+/// `permissions allow` edits. Other layers need the approval changes the
 /// remedy names.
 let private denialMessage
   (resource : string)
   (reason : Permission.PolicyDenial)
   (layer : Permission.Layer)
   (suggestion : Permission.Suggestion)
-  (origin : Option<PackagePolicyOrigin>)
-  (fnName : Option<PolicyFnName>)
   : string =
-  let quoted (names : List<string>) =
-    names |> List.map (fun n -> $"`{n}`") |> String.concat ", "
-  // Approval is by logical name, not by the policy id: the id names the immutable version, and
-  // the name is what a person has. An older version's name now approves a different version.
-  let approve =
-    match fnName with
-    | Some { name = name; current = true } ->
-      $"To approve: `permissions approve {name}`."
-    | _ ->
-      "To approve: `permissions approve <fn>`, naming the function that needs it."
   let remedy =
-    match layer, suggestion, origin with
-    | Permission.Layer.Instance, Permission.Suggestion.Paste rule, _ ->
-      $"To allow: `dark permissions allow {rule}`."
-    | Permission.Layer.Instance, Permission.Suggestion.File(rule, folder, profile), _ ->
-      $"To allow: `dark permissions allow {rule}`. For everything in its folder: "
-      + $"`dark permissions allow {folder}`. Or `dark permissions profile {profile}` "
-      + "previews a policy for working in that folder, which replaces the whole "
-      + "instance policy; add `--yes` to apply it."
-    | Permission.Layer.Instance, Permission.Suggestion.Withheld why, _ ->
-      $"No rule is suggested: {why}."
-    | Permission.Layer.Instance, Permission.Suggestion.NoRule, _ ->
+    match layer, suggestion with
+    | Permission.Layer.Instance, _ when
+      reason = Permission.PolicyDenial.ExplicitlyDenied
+      ->
+      "Remove or narrow the matching deny rule. Show the rules:\n"
+      + "  dark permissions list"
+    | Permission.Layer.Instance, Permission.Suggestion.Paste rule ->
+      $"To allow:\n  dark permissions allow {rule}"
+    | Permission.Layer.Instance, Permission.Suggestion.File(rule, folder, profile) ->
+      $"To allow:\n  dark permissions allow {rule}\n\n"
+      + $"For everything in its folder:\n  dark permissions allow {folder}\n\n"
+      + $"Preview a policy for working in that folder:\n  dark permissions profile {profile}\n"
+      + "  This replaces the whole instance policy; add --yes to apply it."
+    | Permission.Layer.Instance, Permission.Suggestion.Process(rule, executableRule) ->
+      $"To allow:\n  dark permissions allow {rule}\n"
+      + "  This allows this exact command only.\n\n"
+      + $"To allow this program with any arguments:\n  dark permissions allow {executableRule}\n"
+      + "For a shell, this allows any command run through that shell."
+    | Permission.Layer.Instance, Permission.Suggestion.NoRule ->
       "Configure the instance policy."
-    | Permission.Layer.Run, _, _ -> "Start the run with a broader permission policy."
-    | Permission.Layer.Package _, _, Some({ stale = true } as o) ->
-      let first = List.tryHead o.approvedAs |> Option.defaultValue "<fn>"
-      $"That policy came from approving {quoted o.approvedAs}, which was reviewed "
-      + "before this version of Dark changed what its builtins declare, so it never "
-      + $"covered this. To re-review: `permissions approve {first}`."
-    | Permission.Layer.Package _, _, Some o ->
-      $"That policy came from approving {quoted o.approvedAs}. {approve}"
-    | Permission.Layer.Package _, _, None -> approve
-    | Permission.Layer.Function _, _, _ ->
-      "The function's declared ceiling does not allow this operation."
-    | Permission.Layer.Value _, _, _ ->
+    | Permission.Layer.Run, _ -> "Start the run with a broader permission policy."
+    | Permission.Layer.Package name, _ when
+      reason = Permission.PolicyDenial.ExplicitlyDenied
+      ->
+      $"Its remembered approval denies this; `dark permissions show {name}` shows it."
+    | Permission.Layer.Package name, _ ->
+      $"Remember access with `dark permissions approve {name}` (`permissions update {name}` "
+      + "after an edit), or allow it for one run with `dark run --allow`."
+    | Permission.Layer.Value _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "
       + "Make it a function to do this each time it is called."
-  $"permission denied by {layerName fnName layer}: {resource} is {reasonText reason}. {remedy}"
+  let runnerHint =
+    match layer, reason, Permission.Suggestion.rule suggestion with
+    | Permission.Layer.Instance, Permission.PolicyDenial.NotAllowed, Some _ ->
+      "\n\nAgents:\n"
+      + "  Submit the exact allow command through your runner's approval flow.\n"
+      + "  The current approval mode applies.\n"
+      + "  After it succeeds, retry only if earlier side effects will not be repeated."
+    | _ -> ""
+  $"permission denied by {layerName layer}:\n"
+  + $"  {resource} is {reasonText reason}.\n\n{remedy}{runnerHint}"
 
-let private raiseDenial
+/// Record and report a denied operation, including checks before a run starts.
+let raiseDenial
   (state : ExecutionState)
   (resource : string)
   (reason : Permission.PolicyDenial)
@@ -114,40 +94,16 @@ let private raiseDenial
     state.deniedRequests.Add
       { layer = layer
         resource = resource
-        suggestion = Permission.Suggestion.rule suggestion })
-  let origin =
-    match layer with
-    | Permission.Layer.Package id -> state.packagePolicyOrigin id
-    | _ -> None
-  RuntimeError.UncaughtException(
-    denialMessage resource reason layer suggestion origin (layerFnName state layer),
-    []
-  )
+        suggestion =
+          if reason = Permission.PolicyDenial.ExplicitlyDenied then
+            None
+          else
+            Permission.Suggestion.rule suggestion })
+  RuntimeError.UncaughtException(denialMessage resource reason layer suggestion, [])
   |> raiseUntargetedRTE
 
 let private raiseRejected (message : string) : 'a =
   RuntimeError.UncaughtException(message, []) |> raiseUntargetedRTE
-
-/// Where execution stood when a violation was recorded. Only needed on a
-/// denial in audit mode, so the frame lookup is deferred to that point.
-let private executionPoint (vm : VMState) : Option<ExecutionPoint> =
-  match vm.callFrames.TryFind vm.currentFrameID with
-  | true, frame -> Some frame.executionPoint
-  | false, _ -> None
-
-/// Audit mode (`--warn-permissions`) records a denial from a caller-owned
-/// layer and proceeds; `Permissions.Access.decide` keeps the operator-owned
-/// instance policy a hard maximum.
-let private relaxFor (state : ExecutionState) (vm : VMState) : Permission.Relax =
-  match state.permissionWarnings with
-  | Some sink ->
-    Permission.Relax(fun resource layer reason ->
-      recordPermissionViolation
-        sink
-        (executionPoint vm)
-        $"{resource} ({layerName (layerFnName state layer) layer})"
-        (reasonText reason))
-  | None -> Permission.NoRelax
 
 /// Check one exact request against the access the running builtin was
 /// applied under (`vm.activeAccess`: the frame's, narrowed by the callee's
@@ -159,8 +115,9 @@ let private checkRequest
   (resource : unit -> string)
   (request : Permission.Request)
   : unit =
-  let relax = relaxFor state vm
-  match Permission.Access.decide relax resource request vm.activeAccess with
+  match
+    Permission.Access.decide request (state.permissionAccess vm.activeAccess)
+  with
   | None -> ()
   | Some denial ->
     raiseDenial
@@ -172,13 +129,12 @@ let private checkRequest
 
 let private checkRequestWithAccess
   (state : ExecutionState)
-  (vm : VMState)
+  (_vm : VMState)
   (access : Permission.Access)
   (resource : unit -> string)
   (request : Permission.Request)
   : unit =
-  let relax = relaxFor state vm
-  match Permission.Access.decide relax resource request access with
+  match Permission.Access.decide request (state.permissionAccess access) with
   | None -> ()
   | Some denial ->
     raiseDenial
@@ -207,23 +163,46 @@ let private check
 /// surface as a guest-visible Result.
 let performHostWithAccess
   (state : ExecutionState)
-  (vm : VMState)
+  (_vm : VMState)
   (access : Permission.Access)
   (op : Host.Operation)
   : Ply<Result<Host.Response, Host.Failure>> =
+  let rec perform () =
+    uply {
+      let current = state.permissionAccess access
+      let! outcome = Host.performInSession state.descriptorSession.Value current op
+      match outcome with
+      | Host.Outcome.Success response -> return Ok response
+      | Host.Outcome.Failed failure -> return Error failure
+      | Host.Outcome.Rejected message -> return raiseRejected message
+      | Host.Outcome.Denied(layer, reason, resource, suggestion, request) ->
+        let! approved =
+          match state.requestPermission with
+          | Some ask when Permission.Access.canApprove request current ->
+            ask access request resource
+          | _ -> Ply false
+        // A denied host operation has done no work. Recheck this operation
+        // after the user responds; never rerun the script or earlier effects.
+        if approved then
+          return! perform ()
+        else
+          return raiseDenial state resource reason layer suggestion
+    }
+  perform ()
+
+/// Resolve approval for ambient effects before entering the synchronous builtin
+/// path. Scoped effects ask at their host operation, where resources are known.
+let approveBuiltinEffects state vm effects builtinName : Ply<unit> =
   uply {
-    let! outcome =
-      Host.performInSession
-        state.descriptorSession.Value
-        (relaxFor state vm)
-        access
-        op
-    match outcome with
-    | Host.Outcome.Success response -> return Ok response
-    | Host.Outcome.Failed failure -> return Error failure
-    | Host.Outcome.Rejected message -> return raiseRejected message
-    | Host.Outcome.Denied(layer, reason, resource, suggestion) ->
-      return raiseDenial state resource reason layer suggestion
+    for effect in Effect.permissionEffects effects do
+      if not (Effect.isScoped effect) then
+        let request = Permission.Request.ofAmbientEffect effect builtinName
+        let access = state.permissionAccess vm.activeAccess
+        match Permission.Access.decide request access, state.requestPermission with
+        | Some _, Some ask when Permission.Access.canApprove request access ->
+          let! _ = ask vm.activeAccess request (Effect.name effect)
+          ()
+        | _ -> ()
   }
 
 let performHost
@@ -232,38 +211,6 @@ let performHost
   (op : Host.Operation)
   : Ply<Result<Host.Response, Host.Failure>> =
   performHostWithAccess state vm vm.activeAccess op
-
-/// Is every non-root frame bundled first-party (Darklang) code?
-///
-/// The trust question behind the two builtins nobody can scope honestly: the private-network
-/// sync transport, and raw SQLite against this instance's own store. Checking the immediate
-/// caller is not enough -- an untrusted package can call a bundled wrapper and turn it into a
-/// confused deputy -- so every frame in the chain must be bundled.
-let callerIsBundled (state : ExecutionState) (vm : VMState) : bool =
-  let rec fnOf (point : ExecutionPoint) : Option<FQFnName.Package> =
-    match point with
-    | ExecutionPoint.Function(FQFnName.Package p) -> Some p
-    | ExecutionPoint.Lambda(parent, _, _) -> fnOf parent
-    | _ -> None
-  let rec allBundled (frameID : System.Guid) (sawPackage : bool) : bool =
-    match vm.callFrames.TryFind frameID with
-    | false, _ -> false
-    | true, frame ->
-      let frameTrusted, sawPackage =
-        match fnOf frame.executionPoint with
-        | Some p -> state.isBundledPackageFn p, true
-        // Source-derived frames -- the host's own expression, and lambdas defined in it --
-        // are trusted here; what separates the CLI from a guest is the caller's own posture,
-        // checked by whoever calls this. Requiring a parentless frame refused the CLI itself,
-        // which reaches its work through a lambda of its entry expression.
-        | None -> true, sawPackage
-      if not frameTrusted then
-        false
-      else
-        match frame.parent with
-        | ValueNone -> sawPackage
-        | ValueSome(parentID, _, _) -> allBundled parentID sawPackage
-  allBundled vm.currentFrameID false
 
 /// Check ambient effects against an explicitly supplied access. Builtins that
 /// create a child guest state use this before host-side work performed on that
@@ -275,7 +222,7 @@ let requireBuiltinEffectsWithAccess
   (effects : Set<Effect.Effect>)
   (builtinName : string)
   : unit =
-  for effect in effects do
+  for effect in Effect.permissionEffects effects do
     if not (Effect.isScoped effect) then
       checkRequestWithAccess
         state

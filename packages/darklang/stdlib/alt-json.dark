@@ -20,6 +20,9 @@ module ParseError =
     match e with
     | NotJson -> "Not JSON"
 
+  impl Display for ParseError =
+    let display = Stdlib.AltJson.ParseError.toString
+
 
 /// Formats <param j> as JSON text, with no whitespace between tokens.
 let format(j: Json): String =
@@ -35,6 +38,11 @@ let format(j: Json): String =
       List.map(entries, fun((k, v)) -> (Format.stringText(k)) + ":" + (format(v)))
 
     "{" + (String.join(fields, ",")) + "}"
+
+
+impl Display for Json =
+  /// The JSON text, as <fn format> writes it: {{[1,null]}}
+  let display = Stdlib.AltJson.format
 
 
 /// Parses <param jsonString> as JSON. `//` and `/* */` comments are skipped
@@ -125,9 +133,9 @@ module Format =
         let width = String.length(digits)
 
         if point <= 0 then
-          sign + "0." + (String.repeat("0", 0 - point)) + digits
+          sign + "0." + (String.checkedRepeat("0", 0 - point) |> Stdlib.Result.withDefault("")) + digits
         else if point >= width then
-          sign + digits + (String.repeat("0", point - width))
+          sign + digits + (String.checkedRepeat("0", point - width) |> Stdlib.Result.withDefault(""))
         else
           sign + (String.first(digits, point)) + "." + (String.dropFirst(digits, point))
 

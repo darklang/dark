@@ -175,17 +175,27 @@ let dispose (i : T) : unit =
     () // a leaked instance is under rundir, where it is visible and cheap to sweep
 
 /// How long one command may take before the test says so, rather than hanging the run.
-let private commandTimeout = System.TimeSpan.FromMinutes 2.0
+/// Generous on purpose: one `test run` launches a CLI per test, one after another, and a
+/// loaded box makes each of them slow.
+let private commandTimeout = System.TimeSpan.FromMinutes 5.0
 
 /// Run one command and return (exitCode, stdout, stderr).
 let rec runRaw (i : T) (args : string list) : Task<int * string * string> =
-  runRawWithInput i args None
+  runRawWithBytes i args None
 
 /// `runRaw`, with `input` written to the command's stdin before it is closed.
 and runRawWithInput
   (i : T)
   (args : string list)
   (input : Option<string>)
+  : Task<int * string * string> =
+  runRawWithBytes i args (input |> Option.map System.Text.Encoding.UTF8.GetBytes)
+
+/// `runRawWithInput`, for input that need not be text.
+and runRawWithBytes
+  (i : T)
+  (args : string list)
+  (input : Option<byte[]>)
   : Task<int * string * string> =
   task {
     let psi = System.Diagnostics.ProcessStartInfo()
@@ -202,7 +212,7 @@ and runRawWithInput
     // Closed straight after any input: a command that asks must find nothing there and
     // refuse, which is what several of these tests assert. An open pipe would make it wait.
     match input with
-    | Some text -> p.StandardInput.Write text
+    | Some bytes -> p.StandardInput.BaseStream.Write(bytes, 0, bytes.Length)
     | None -> ()
     p.StandardInput.Close()
 

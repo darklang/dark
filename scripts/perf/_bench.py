@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """Repeatable CLI timing for the perf campaign.
 
-A number you can't reproduce is not a measurement. Four things go wrong without this, and all four have
-bitten this project:
+A number you can't reproduce is not a measurement. Four things go wrong without this:
 
   - The store drifts. Traces and ops accumulate run over run, so the same command gets slower for reasons
     that have nothing to do with the code. Every run here starts from a byte-identical fixture.
   - DARK_CONFIG_TRACE_DETAIL turns recording on or off (`off` by default, `on` in our dev
     containers and in CI), and a trace per run lands in every number. Pinned explicitly here,
     and reported.
-  - The box is shared. Four dark containers have been live at once on this machine, and the historical
-    cli.execute spread is 5x on runs doing identical work. A datapoint taken while a neighbour compiles is
-    noise wearing a number's clothes, so we refuse to record one.
+  - The box is shared. A datapoint taken while a neighbour compiles is noise wearing a number's
+    clothes, so we refuse to record one.
   - Measure-A, change code, measure-B drifts. Comparisons here interleave two binaries A,B,A,B and report
     the median of the PAIRED difference, which is immune to slow drift across the batch.
 
@@ -62,9 +60,7 @@ TELEMETRY = os.path.join(RUNDIR, "logs", "telemetry.jsonl")
 # one. Rendered summaries go to the notes repo by hand.
 SERIES = os.path.join(PERFDIR, "timeseries.jsonl")
 
-# Every scenario is one non-interactive CLI invocation. Interactive ones need a tmux driver and land once
-# the per-keystroke instrument is cheap enough to trust (see plan 6.B); measuring them now would only
-# measure the instrument.
+# Every scenario is one non-interactive CLI invocation.
 SCENARIOS = {
     "version": ["version"],
     "status": ["status"],
@@ -73,8 +69,8 @@ SCENARIOS = {
     "eval-trivial": ["eval", "1 + 2"],
     "eval-map5": ["eval", "Stdlib.List.map([1,2,3,4,5], fun x -> x + 1)"],
     "eval-map1000": ["eval", "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 1000), fun x -> x + 1))"],
-    # Heavy enough that the interpreter, not process startup, dominates. Startup is ~400 ms of fixed cost,
-    # so a scenario doing 20 ms of list work can't show a list-work improvement at all.
+    # Heavy enough that the interpreter, not process startup, dominates: against startup's fixed cost,
+    # a scenario doing little list work can't show a list-work improvement at all.
     "eval-listheavy": ["eval",
         "Stdlib.List.length(Stdlib.List.filter(Stdlib.List.map(Stdlib.List.range(1, 2000), fun x -> x + 1), fun x -> x > 5))"],
     # Interpreter workloads, materialized by `materialize_workloads`.
@@ -87,16 +83,6 @@ SCENARIOS = {
     "eval-stream": ["eval",
         "Stdlib.List.length(Stdlib.Stream.toList(Stdlib.Stream.filter(Stdlib.Stream.map(Stdlib.Stream.fromList(Stdlib.List.range(1, 3000)), fun x -> x + 1), fun x -> x > 5)))"],
 }
-
-# Interpreter workloads, kept as source here rather than as .dark files in the tree: anything under
-# `packages/` would be loaded as package items, and a loose file elsewhere drifts from the harness that
-# depends on it. Materialized into rundir (gitignored) on demand, so a scenario is reproducible from this
-# file alone.
-#
-# These exist because measuring the interpreter by hand is how I burned a night: script runs that timed out
-# at 90s, 240s and 500s all later ran in under a second, because the box was busy and I'd bypassed the noise
-# gate by invoking run-cli directly. Behind a scenario, they inherit the gate.
-
 
 
 SCENARIOS["depth-shallow"] = ["run", "rundir/perf-workloads/depth-shallow.dark"]
@@ -304,9 +290,7 @@ def run_once(binary, argv, trace, telemetry, fixture="UNSET"):
     )
     wall_ms = (time.perf_counter() - t0) * 1000.0
     # `dark run` exits 0 when the SCRIPT fails (a permission denial, a runtime error), and a failing
-    # run is fast, so it would pass as a good measurement. This cost an hour once: an older binary
-    # could not read a policy file a newer one had written, denied the workload's clock call on
-    # every run, and looked 4% faster for it.
+    # run is fast, so it would pass as a good measurement.
     rc = proc.returncode
     both = proc.stdout + proc.stderr
     if rc == 0 and ("Error when executing Script" in both or "Script error:" in both):
@@ -378,7 +362,7 @@ class DevStore:
     working tree is sitting on whichever store the last run used. If that fixture predates a `packages/`
     change, the tree is now mismatched with the binary's regenerated PackageRefs, and the symptom is a
     `FnNotFound` on `RuntimeError.toString` -- i.e. every subsequent error fails to stringify and reports
-    the wrong thing. That cost me hours before I noticed the harness was the cause."""
+    the wrong thing."""
 
     def __init__(self):
         self.saved = None
@@ -490,8 +474,7 @@ def cmd_check(args):
         """Run every scenario once per binary and report exit codes.
 
         A scenario that errors returns in a fraction of the time a working one takes, so a broken scenario or
-        a mismatched fixture reads as an improvement. Both happened here before this existed: `eval-map1000`
-        passed Int64 to `List.range`, which takes Int, and had been failing on both sides of an A/B."""
+        a mismatched fixture reads as an improvement."""
         binary = resolve_bin(args.binary)
         fixture = fixture_path(args.fixture)
         print(f"binary  {binary}")
@@ -542,8 +525,6 @@ def cmd_ab(args):
             a_ms, a_rc, _ = run_once(a_bin, argv, args.trace, False, fa)
             b_ms, b_rc, _ = run_once(b_bin, argv, args.trace, False, fb)
             # A failing run is FAST, so timing it silently makes a broken binary look like an optimization.
-            # This bit me: after changing stdlib/list.dark the fixture store still held the old content hashes,
-            # so the new binary died with FnNotFound in ~0.5 s and the A/B read it as a win.
             if a_rc != 0 or b_rc != 0:
                 sys.exit(
                     f"\nABORT: run exited non-zero (A={a_rc}, B={b_rc}) on pair {i}.\n"

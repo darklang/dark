@@ -63,9 +63,8 @@ let extension(path: String): Stdlib.Option.Option<String> =
   | None -> Stdlib.Option.Option.None
 
 
-/// Replace the extension of a path.
-/// (withExtension "file.txt" ".md") -> "file.md"
-/// (withExtension "file" ".md") -> "file.md"
+/// Replace the extension of a path. The dot is optional:
+/// `withExtension("file.txt", ".md")` and `withExtension("file.txt", "md")` are both "file.md".
 let withExtension(path: String, ext: String): String =
   let dir = parent(path)
   let name = basename(path)
@@ -76,6 +75,8 @@ let withExtension(path: String, ext: String): String =
     | Some(i) -> Stdlib.String.slice(name, 0, i)
     | None -> name
 
+  let ext =
+    if ext == "" || Stdlib.String.startsWith(ext, ".") then ext else "." + ext
   let newName = $"{stem}{ext}"
 
   if dir == "." then newName
@@ -162,7 +163,7 @@ let relativeTo(
 
       let upCount = (Stdlib.List.length(fromParts)) - commonLen
 
-      let ups = Stdlib.List.repeat(upCount, "..")
+      let ups = (Stdlib.List.checkedRepeat(upCount, "..") |> Stdlib.Result.withDefault([]))
 
       let tail = Stdlib.List.drop(toParts, commonLen)
 

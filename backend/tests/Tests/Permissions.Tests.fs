@@ -38,7 +38,10 @@ let private httpRule
       scheme = only "https"
       host = Permission.HostRule.Exact host
       port = only 443
-      pathPrefix = scope path
+      path =
+        match path with
+        | Some path -> Permission.HttpPath.Subtree path
+        | None -> Permission.HttpPath.All
       query = scope query }
 
 let private scoped (hash : string) : PolicyStore.ScopedKey = None, hash
@@ -104,10 +107,8 @@ let accessOnlyNarrows =
 
 let instanceDenialWinsOverInnerDenial =
   test "check reports the instance denial even when an inner layer also denies" {
-    // The instance layer is the operator's hard maximum. If an inner
-    // caller-owned layer also denies, check must still report the *instance*
-    // denial, so warn/audit mode (which relaxes only caller-owned layers) can
-    // never proceed past it.
+    // Without entering a named approval, missing instance grants still deny
+    // access, even when another restriction also denies the operation.
     let access =
       Permission.Access.start Permission.Policy.denyAll
       |> Permission.Access.restrict
@@ -118,129 +119,10 @@ let instanceDenialWinsOverInnerDenial =
       Expect.equal
         denial.layer
         Permission.Layer.Instance
-        "the instance hard-max is reported, not the inner package denial"
+        "the missing instance grant is reported"
     | Permission.Decision.Allowed -> failtest "should be denied"
   }
 
-let warnModeNeverRelaxesTheAuthorsCeiling =
-  test
-    "audit mode waives run and package denials but not the instance or a function ceiling" {
-    let recorded = ResizeArray<Permission.Layer>()
-    let relax = Permission.Relax(fun _ layer _ -> recorded.Add layer)
-    let decide layer =
-      let access =
-        Permission.Access.start Permission.Policy.allowAll
-        |> Permission.Access.restrict layer Permission.Policy.denyAll
-      Permission.Access.decide
-        relax
-        (fun () -> "clock")
-        Permission.Request.clock
-        access
-    Expect.isNone (decide Permission.Layer.Run) "a run denial is waived"
-    Expect.isNone
-      (decide (Permission.Layer.Package "p"))
-      "a package denial is waived"
-    Expect.equal
-      (decide (Permission.Layer.Function "f") |> Option.map (fun d -> d.layer))
-      (Some(Permission.Layer.Function "f"))
-      "the author's ceiling still denies"
-    Expect.equal
-      (Permission.Access.decide
-        relax
-        (fun () -> "clock")
-        Permission.Request.clock
-        (Permission.Access.start Permission.Policy.denyAll)
-       |> Option.map (fun d -> d.layer))
-      (Some Permission.Layer.Instance)
-      "the instance policy still denies"
-    Expect.equal
-      (List.ofSeq recorded)
-      [ Permission.Layer.Run; Permission.Layer.Package "p" ]
-      "only the waived denials were recorded"
-  }
-
-let warnModeCannotHideTheCeilingBehindAWaivableDenial =
-  test
-    "audit mode waives layer by layer; a ceiling behind a waived denial still denies" {
-    // `decide` used to waive the single denial `check` reported. With the
-    // package layer innermost, that was the package denial, and the author's
-    // ceiling behind it was never consulted. The cases below cover the
-    // combinations and both orderings, since `restrict` prepends and which
-    // layer is met first is exactly what used to decide the outcome.
-    let deny = Permission.Policy.denyAll
-    let clock = Permission.Request.clock
-    let ceiling = Permission.Layer.Function "f"
-    let pkg = Permission.Layer.Package "p"
-    let decideWith (recorded : ResizeArray<Permission.Layer>) access =
-      Permission.Access.decide
-        (Permission.Relax(fun _ layer _ -> recorded.Add layer))
-        (fun () -> "clock")
-        clock
-        access
-      |> Option.map (fun d -> d.layer)
-    let allowAll = Permission.Access.start Permission.Policy.allowAll
-
-    // The reported case: package innermost, ceiling behind it.
-    let recorded = ResizeArray()
-    let pkgThenCeiling =
-      allowAll
-      |> Permission.Access.restrict ceiling deny
-      |> Permission.Access.restrict pkg deny
-    Expect.equal
-      (decideWith recorded pkgThenCeiling)
-      (Some ceiling)
-      "the ceiling stands even though the package denial in front of it was waived"
-    Expect.equal (List.ofSeq recorded) [ pkg ] "the package waiver was recorded"
-
-    // The other order: ceiling innermost.
-    let recorded = ResizeArray()
-    let ceilingThenPkg =
-      allowAll
-      |> Permission.Access.restrict pkg deny
-      |> Permission.Access.restrict ceiling deny
-    Expect.equal
-      (decideWith recorded ceilingThenPkg)
-      (Some ceiling)
-      "ceiling first: stands"
-    Expect.equal
-      (List.ofSeq recorded)
-      [ pkg ]
-      "the package denial behind the ceiling is still recorded for the audit"
-
-    // Only waivable layers: everything is waived, and everything is recorded.
-    let recorded = ResizeArray()
-    let runAndPkg =
-      allowAll
-      |> Permission.Access.restrict Permission.Layer.Run deny
-      |> Permission.Access.restrict pkg deny
-    Expect.isNone
-      (decideWith recorded runAndPkg)
-      "run and package denials are both waived"
-    Expect.equal
-      (List.ofSeq recorded)
-      [ pkg; Permission.Layer.Run ]
-      "both waivers recorded, in traversal order"
-
-    // The instance still outranks everything, waived or not.
-    let recorded = ResizeArray()
-    let underInstance =
-      Permission.Access.start deny
-      |> Permission.Access.restrict ceiling deny
-      |> Permission.Access.restrict pkg deny
-    Expect.equal
-      (decideWith recorded underInstance)
-      (Some Permission.Layer.Instance)
-      "the instance denial is reported over the ceiling and the package"
-
-    // Without relaxation nothing changes: the first denial is the answer.
-    match Permission.Access.check clock pkgThenCeiling with
-    | Permission.Decision.Denied denial ->
-      Expect.equal
-        denial.layer
-        pkg
-        "enforced mode still reports the innermost denial"
-    | Permission.Decision.Allowed -> failtest "should be denied"
-  }
 
 let httpRulesKeepDimensionsCoupled =
   test "HTTP method, origin, port, and path remain coupled" {
@@ -301,7 +183,9 @@ let invalidRequestsFailClosed =
     Expect.isError
       (Permission.Request.http "GET" "file:///etc/passwd")
       "non-HTTP URLs are rejected"
-    Expect.isError (Permission.Request.httpServer 70000) "invalid ports are rejected"
+    Expect.isError
+      (Permission.Request.httpServer "127.0.0.1" 70000)
+      "invalid ports are rejected"
     Expect.isError
       (Permission.Request.processSpawn "git" [ "status" ])
       "unresolved executables are rejected"
@@ -421,38 +305,67 @@ let coverableEffectsFollowTheRules =
 
 module Bin = LibSerialization.Binary.Serializers.Common
 
-/// Every policy written while user datastores existed carried `db-read` and `db-write` in its
-/// defaults, so a stored datastore rule must be dropped on read, never fail the whole file.
-let retiredDatastoreRulesStillLoad =
-  test "a stored policy naming the retired datastore effects still loads" {
-    use stream = new System.IO.MemoryStream()
-    let w = new System.IO.BinaryWriter(stream)
-    let effectRule (name : string) =
-      w.Write 1uy
-      Bin.String.write w name
-    let dbRule (access : byte) (name : string) =
-      w.Write 6uy
-      w.Write access
-      w.Write 1uy
-      Bin.String.write w name
-    // allow: db-read, clock, a `db write t` rule, db-write
-    Bin.Varint.write w 4
-    effectRule "db-read"
-    effectRule "clock"
-    dbRule 1uy "t"
-    effectRule "db-write"
-    // deny: a `db read t` rule
-    Bin.Varint.write w 1
-    dbRule 0uy "t"
-    w.Flush()
-    stream.Position <- 0L
-    let reader = new System.IO.BinaryReader(stream)
-    let policy = LibSerialization.Binary.Serializers.Permissions.read reader
-    Expect.equal
-      (Permission.Policy.rules policy)
-      ([ Permission.Rule.Effect Effect.Effect.Clock ], [])
-      "the datastore rules are dropped and the rest is kept"
-    Expect.equal stream.Position stream.Length "and the whole file was read"
+let retiredDatastoreRulesAreRejected =
+  test "retired permission effects and tags are rejected" {
+    for retired in [ None; Some "db-read"; Some "db-write" ] do
+      use stream = new System.IO.MemoryStream()
+      use writer = new System.IO.BinaryWriter(stream)
+      Bin.Varint.write writer 1
+      match retired with
+      | None -> writer.Write 6uy
+      | Some name ->
+        writer.Write 1uy
+        Bin.String.write writer name
+      writer.Flush()
+      stream.Position <- 0L
+      use reader = new System.IO.BinaryReader(stream)
+      Expect.throws
+        (fun () ->
+          LibSerialization.Binary.Serializers.Permissions.read reader
+          |> ignore<Permission.Policy>)
+        "unsupported rules never silently disappear"
+  }
+
+let bulkEnvironmentHonorsDenies =
+  test "an environment enumeration cannot bypass a denied variable" {
+    let deny = Permission.Rule.Env(Permission.AccessKind.Read, only "SECRET")
+    let policy = Permission.Policy.create [ Permission.Rule.All ] [ deny ]
+    Expect.isFalse
+      (Permission.Policy.allows Permission.Request.envList policy)
+      "bulk access includes the denied variable"
+    let allowed =
+      Permission.Request.env Permission.AccessKind.Read "PUBLIC"
+      |> Result.defaultWith (fun e -> failtest e)
+    Expect.isTrue
+      (Permission.Policy.allows allowed policy)
+      "unrelated individual reads remain allowed"
+  }
+
+let httpRulesNormalizeLikeRequests =
+  test "HTTP allows and denies use the same canonical URLs as requests" {
+    let pairs =
+      [ "example.com", "/café", "https://example.com/caf%C3%A9"
+        "bücher.example", "/", "https://xn--bcher-kva.example/"
+        "example.com", "/a/../b", "https://example.com/b"
+        "example.com", "/caf%c3%a9", "https://example.com/café" ]
+    for host, path, url in pairs do
+      let rule =
+        Permission.Rule.Http
+          { method = only "GET"
+            scheme = only "https"
+            host = Permission.HostRule.Exact host
+            port = only 443
+            path = Permission.HttpPath.Exact path
+            query = Permission.Scope.All }
+      let operation = request "GET" url
+      Expect.isTrue
+        (Permission.Policy.allows operation (Permission.Policy.create [ rule ] []))
+        "equivalent URL spelling matches an allow"
+      Expect.isFalse
+        (Permission.Policy.allows
+          operation
+          (Permission.Policy.create [ Permission.Rule.All ] [ rule ]))
+        "equivalent URL spelling matches a deny"
   }
 
 let suggestRuleIsActionable =
@@ -465,10 +378,6 @@ let suggestRuleIsActionable =
     let rule (text : string) = Permission.Suggestion.Paste text
     let file (one : string) (folder : string) (profile : string) =
       Permission.Suggestion.File(one, folder, profile)
-    let withheld (s : Permission.Suggestion) =
-      match s with
-      | Permission.Suggestion.Withheld _ -> true
-      | _ -> false
     // Read vs write is exact because it comes from the request, not the op.
     Expect.equal
       (suggest (ok (Permission.Request.file Permission.AccessKind.Read "/tmp/x")))
@@ -488,11 +397,18 @@ let suggestRuleIsActionable =
       "http names the exact method and normalized origin"
     Expect.equal
       (suggest (ok (Permission.Request.processSpawn "/bin/bash" [ "-c"; "echo hi" ])))
-      (rule "process '/bin/bash' '-c' 'echo hi'")
+      (Permission.Suggestion.Process(
+        "process '/bin/bash' '-c' 'echo hi'",
+        "process '/bin/bash'"
+      ))
       "a process rule carries the exact argument list, so a shell is not handed out"
-    Expect.isTrue
-      (withheld (suggest (ok (Permission.Request.processSpawn "/bin/date" []))))
-      "no arguments has no exact rule: a bare process rule allows every argument list"
+    Expect.equal
+      (suggest (ok (Permission.Request.processSpawn "/bin/date" [])))
+      (Permission.Suggestion.Process(
+        "process-exact '/bin/date'",
+        "process '/bin/date'"
+      ))
+      "no-argument processes have an exact, pasteable rule"
     Expect.equal
       (suggest (ok (Permission.Request.native "cliProcessIO")))
       Permission.Suggestion.NoRule
@@ -522,6 +438,7 @@ let materializedValuesCaptureCallablesRecursively =
       { name = RT.FQFnName.fqBuiltin "syscallGettimeofday" 0
         typeSymbolTable = RT.TST.empty
         typeArgs = []
+        approvalName = None
         access = None
         argsSoFar = []
         boundImpls = [] }
@@ -593,14 +510,21 @@ let private shellWords (line : string) : List<string> =
   if inWord then words.Add(current.ToString())
   List.ofSeq words
 
-/// The rule a denial tells a person to paste, as the text between the backticks.
-let private suggestedRule (output : string) : Option<string> =
-  let marker = "To allow: `dark permissions allow "
+/// Read the arguments from a suggested command in the error message.
+let private readSuggestedCommandArguments
+  (marker : string)
+  (output : string)
+  : Option<string> =
   match output.IndexOf marker with
   | -1 -> None
   | start ->
     let from = start + marker.Length
-    Some(output.Substring(from, output.IndexOf("`.", from) - from))
+    let line = output.Substring(from).Split('\n')[0]
+    Some(line.TrimEnd())
+
+/// Read the rule from the suggested permissions command.
+let private suggestedRule (output : string) : Option<string> =
+  readSuggestedCommandArguments "To allow:\n  dark permissions allow " output
 
 let private denied (output : string) : bool = output.Contains "permission denied"
 
@@ -641,6 +565,20 @@ let pastedShellRuleRunsOnlyThatCommand =
     "a pasted process suggestion for a shell command allows that command and no other"
     (fun i ->
       task {
+        let! before =
+          CliInstance.run i [ "eval"; "Stdlib.Cli.execute(\"echo hi\")" ]
+        Expect.stringContains
+          before
+          "this exact command only"
+          "the narrow choice is labelled"
+        Expect.stringContains
+          before
+          "with any arguments"
+          "the executable choice is offered"
+        Expect.stringContains
+          before
+          "this allows any command run through that shell"
+          "the shell grant's scope is explained"
         let! rule =
           pastedRuleAllowsOnlyTheRefusedCall
             i
@@ -648,6 +586,13 @@ let pastedShellRuleRunsOnlyThatCommand =
             [ "Stdlib.Cli.execute(\"echo bye\")"
               "Stdlib.Cli.execute(\"echo hi; id\")" ]
         Expect.stringEnds rule "'-c' 'echo hi'" "the shell's whole argument list"
+        let executable = (shellWords rule)[1]
+        let! _ = CliInstance.run i [ "permissions"; "allow"; "process"; executable ]
+        let! other =
+          CliInstance.run i [ "eval"; "Stdlib.Cli.execute(\"echo bye\")" ]
+        Expect.isFalse
+          (denied other)
+          "the executable grant allows different commands"
       })
 
 let pastedProcessRuleKeepsItsArguments =
@@ -684,14 +629,6 @@ let pastedFileRuleReadsOnlyThatFile =
         ()
       })
 
-/// The text after <param marker> up to the closing backtick, the way a person would copy it.
-let private quotedAfter (marker : string) (output : string) : Option<string> =
-  match output.IndexOf marker with
-  | -1 -> None
-  | start ->
-    let from = start + marker.Length
-    Some(output.Substring(from, output.IndexOf("`", from) - from))
-
 let fileDenialOffersTheFolderAndTheProfile =
   CliInstance.instanceTest
     "a file denial also offers its folder's rule and the profile for that folder"
@@ -711,18 +648,33 @@ let fileDenialOffersTheFolderAndTheProfile =
         let second = write project "b.csv"
         let outside = write (dir "elsewhere") "c.csv"
 
-        let! before = CliInstance.run i [ "eval"; first ]
+        let! code, stdout, before = CliInstance.runRaw i [ "eval"; first ]
+        Expect.equal code 1 "a permission refusal exits nonzero"
+        Expect.equal stdout "" "errors go to stderr"
+        Expect.stringStarts
+          before
+          "Error: permission denied by instance policy:\n"
+          "permission errors have a heading without an exception prefix"
+        Expect.isFalse
+          (before.Contains '\u001b')
+          "redirected output has no ANSI escapes"
+        Expect.stringContains
+          before
+          "\n\nAgents:\n  "
+          "agent guidance has its own block"
         Expect.isTrue (denied before) $"a fresh install refuses it first:\n{before}"
         let folderRule =
           match
-            quotedAfter
-              "For everything in its folder: `dark permissions allow "
+            readSuggestedCommandArguments
+              "For everything in its folder:\n  dark permissions allow "
               before
           with
           | Some rule -> rule
           | None -> failtest $"no folder rule offered:\n{before}"
         let profile =
-          match quotedAfter "`dark permissions profile " before with
+          match
+            readSuggestedCommandArguments "  dark permissions profile " before
+          with
           | Some profile -> profile
           | None -> failtest $"no profile offered:\n{before}"
         Expect.equal folderRule $"file read '{project}'" "the folder the file is in"
@@ -770,7 +722,7 @@ let private getWhenUp (port : int) : Task<int * string> =
     let rec attempt () =
       task {
         try
-          let! response = client.GetAsync($"http://localhost:{port}/")
+          let! response = client.GetAsync($"http://127.0.0.1:{port}/")
           let! body = response.Content.ReadAsStringAsync()
           return (int response.StatusCode, body)
         with :? System.Net.Http.HttpRequestException when
@@ -809,8 +761,11 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
         Expect.equal code 0L $"committed:\n{committed}"
 
         let port = Tests.HttpServer.allocateFreePort ()
-        let! _ =
-          CliInstance.run i [ "permissions"; "allow"; "http-server"; string port ]
+        let! granted, grantCode =
+          CliInstance.runWithExit
+            i
+            [ "permissions"; "allow"; "http-server"; "127.0.0.1"; string port ]
+        Expect.equal grantCode 0L granted
         let server =
           CliInstance.start
             i
@@ -822,49 +777,292 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
             500
             $"neither the approval nor the read is allowed yet:\n{body}"
           Expect.stringContains body "permission denied" "and the handler says why"
-          Expect.stringContains
-            body
-            "instance policy"
-            "the instance policy refuses first"
+          Expect.stringContains body "the access of" "missing entry approval"
 
+          // Approving a dependency cannot give the router additional access.
           let! _ =
-            CliInstance.run i [ "permissions"; "allow"; "env"; "read"; "HOME" ]
-          let! (status, body) = getWhenUp port
-          Expect.equal status 500 $"the function is still not approved:\n{body}"
-          Expect.stringContains body "package policy" "the policy change counted"
+            CliInstance.run
+              i
+              [ "permissions"
+                "approve"
+                "Tests.Follow.load"
+                "env read HOME"
+                "--yes" ]
+          let! (status, _) = getWhenUp port
+          Expect.equal status 500 "a helper's approval cannot widen its caller"
 
           let! (approved, code) =
             CliInstance.runWithExit
               i
-              [ "permissions"; "approve"; "Tests.Follow.load" ]
+              [ "permissions"
+                "approve"
+                "Tests.Follow.router"
+                "env read HOME"
+                "--yes" ]
           Expect.equal code 0L $"approved:\n{approved}"
           let! (status, body) = getWhenUp port
-          Expect.equal (status, body) (200, home) "the approval counted too"
+          Expect.equal (status, body) (200, home) "entry approval supplies access"
+
+          let! _ =
+            CliInstance.run i [ "permissions"; "deny"; "env"; "read"; "HOME" ]
+          let! (status, body) = getWhenUp port
+          Expect.equal status 500 "a new explicit deny reaches the running server"
+          Expect.stringContains body "explicitly denied" "the deny wins"
         finally
           CliInstance.stop server
       })
 
-let noArgumentsGetsNoPasteableRule =
+let noArgumentsHasExactRule =
   CliInstance.instanceTest
-    "a process run with no arguments says why it suggests no rule"
+    "a process run with no arguments suggests an exact rule"
     (fun i ->
       task {
         let! out =
           CliInstance.run i [ "eval"; "Stdlib.Cli.Process.run(\"/bin/true\", [])" ]
         Expect.isTrue (denied out) $"refused:\n{out}"
-        Expect.isNone (suggestedRule out) $"nothing to paste:\n{out}"
-        Expect.stringContains out "allows every argument list" "and it says why"
+        Expect.stringContains
+          out
+          "process-exact"
+          "the suggested rule permits no arguments"
       })
+
+let effectsCommand =
+  CliInstance.instanceTest "effects are usable without executing code" (fun i ->
+    task {
+      let! pureOutput, pureCode =
+        CliInstance.runWithExit i [ "effects"; "Darklang.Stdlib.Int64.toFloat" ]
+      Expect.equal pureCode 0L pureOutput
+      Expect.stringContains
+        pureOutput
+        "effect-free"
+        "pure functions have a clear answer"
+      let! effectOutput, effectCode =
+        CliInstance.runWithExit i [ "effects"; "Darklang.Stdlib.Env.get" ]
+      Expect.equal effectCode 0L effectOutput
+      Expect.stringContains effectOutput "env-read" "effect shown"
+      Expect.stringContains
+        effectOutput
+        "Builtin.runtimeEnvironmentGet"
+        "cause shown"
+    })
+
+/// Approvals remember access, not which code a name should resolve to.
+let private approvalsDoNotPinCode =
+  CliInstance.instanceTest
+    "approvals do not pin edited or branch-local code"
+    (fun i ->
+      task {
+        let name = "Tests.CurrentCode.value"
+        let run args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.equal code 0L output
+            return output
+          }
+        let! _ = run [ "fn"; name; "(): Int64 = 1" ]
+        let! _ = run [ "permissions"; "approve"; name; "--yes" ]
+        let! _ = run [ "fn"; name; "(): Int64 = 2" ]
+        let! edited = run [ "eval"; name + "()" ]
+        Expect.equal (edited.Trim()) "2" "the edit runs without reapproval"
+        let! _ = run [ "commit"; "current code"; "-y" ]
+        let! _ = run [ "branch"; "create"; "approval-branch" ]
+        let! _ = run [ "fn"; name; "(): Int64 = 3" ]
+        let! branched = run [ "eval"; name + "()" ]
+        Expect.equal (branched.Trim()) "3" "approval cannot override branch code"
+        let! _ = run [ "permissions"; "unapprove"; name ]
+        let! withdrawn = run [ "eval"; name + "()" ]
+        Expect.equal (withdrawn.Trim()) "3" "withdrawal does not change code"
+      })
+
+/// Editing a helper changes its caller's hash too. Neither edit inherits access.
+let private editedCodeNeedsFreshApproval =
+  CliInstance.instanceTest
+    "edited functions and dependencies run current code with fresh approval"
+    (fun i ->
+      task {
+        let name = "Tests.CurrentAccess.report"
+        let helper = "Tests.CurrentAccess.message"
+        let run args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.equal code 0L output
+            return output
+          }
+        let! _ = run [ "fn"; helper; "(): String = \"before\"" ]
+        let body =
+          "(): String =\n  let _ = Stdlib.Env.get(\"HOME\")\n  " + helper + "()"
+        let! _ = run [ "fn"; name; body ]
+        let! _ = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
+        let! before = run [ "eval"; name + "()" ]
+        Expect.equal (before.Trim()) "before" "reviewed code has access"
+
+        let! _ = run [ "fn"; helper; "(): String = \"after\"" ]
+        let! denied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+        Expect.notEqual code 0L denied
+        Expect.stringContains
+          denied
+          "permission denied"
+          "helper edit loses approval"
+
+        let script = System.IO.Path.Combine(i.dir, "current.dark")
+        System.IO.File.WriteAllText(script, "Stdlib.printLine(" + name + "())\n")
+        let! temporary = run [ "run"; "--allow"; "env read HOME"; script ]
+        Expect.equal
+          (temporary.Trim())
+          "after"
+          "script calls use the edited dependency"
+        let! stillDenied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+        Expect.notEqual code 0L stillDenied
+        Expect.stringContains
+          stillDenied
+          "permission denied"
+          "run grant stays temporary"
+
+        let! _ = run [ "permissions"; "update"; name; "--yes" ]
+        let! after = run [ "eval"; name + "()" ]
+        Expect.equal (after.Trim()) "after" "update approves current code"
+
+        let editedBody =
+          "(): String =\n  let _ = Stdlib.Env.get(\"HOME\")\n  \"edited\""
+        let! _ = run [ "fn"; name; editedBody ]
+        let! denied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+        Expect.notEqual code 0L denied
+        Expect.stringContains denied "permission denied" "root edit loses approval"
+        let! _ = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
+        let! edited = run [ "eval"; name + "()" ]
+        Expect.equal (edited.Trim()) "edited" "approve also reviews current code"
+      })
+
+/// A trait implementation the caller picks runs with the caller's access, not the approval's.
+let private callerChosenImplsKeepCallerAccess =
+  CliInstance.instanceTest
+    "a trait implementation the caller chose runs with the caller's access"
+    (fun i ->
+      task {
+        let run args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.equal code 0L output
+            return output
+          }
+        let readHome =
+          "Stdlib.Option.withDefault(Stdlib.Env.get(\"HOME\"), \"none\")"
+        let! _ =
+          run
+            [ "fn"
+              "Tests.Approved.describe"
+              "<'a: Display>(v: 'a): String = \"value: \" + Stdlib.Display.display(v)" ]
+        let! _ = run [ "type"; "Tests.Approved.Own"; "{ x: Int64 }" ]
+        let! _ =
+          run
+            [ "impl"
+              "Tests.Approved"
+              $"Display for Own = let display(o: Own): String = {readHome}" ]
+        let! _ =
+          run
+            [ "fn"
+              "Tests.Approved.own"
+              "(): String = Stdlib.Display.display(Tests.Approved.Own { x = 1 })" ]
+        let! _ = run [ "type"; "Tests.Caller.Zork"; "{ x: Int64 }" ]
+        let! _ =
+          run
+            [ "impl"
+              "Tests.Caller"
+              $"Display for Zork = let display(z: Zork): String = {readHome}" ]
+        let! _ =
+          run
+            [ "fn"
+              "Tests.Caller.go"
+              "(): String = Tests.Approved.describe(Tests.Caller.Zork { x = 1 })" ]
+        for name in [ "Tests.Approved.describe"; "Tests.Approved.own" ] do
+          let! _ = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
+          ()
+
+        for call in
+          [ "Tests.Approved.describe(Tests.Caller.Zork { x = 1 })"
+            "Tests.Caller.go()" ] do
+          let! denied, code = CliInstance.runWithExit i [ "eval"; call ]
+          Expect.notEqual code 0L denied
+          Expect.stringContains denied "permission denied" call
+
+        let! plain = run [ "eval"; "Tests.Approved.describe(5)" ]
+        Expect.equal (plain.Trim()) "value: 5" "a pure implementation still runs"
+        let! own = run [ "eval"; "Tests.Approved.own()" ]
+        Expect.stringContains own "/" "the approved fn's own choice keeps access"
+      })
+
+let private httpPathsAreExactUnlessSubtree =
+  test "HTTP exact paths and explicit subtrees stay distinct" {
+    let operation = request "GET" "https://api.example.com/orders"
+    let exact = Permission.Rule.forRequest operation
+    Expect.isTrue (Permission.Rule.covers exact operation) "the reviewed path"
+    for path in [ "/orders/1"; "/orders/"; "/orders-old"; "/orders/../private" ] do
+      Expect.isFalse
+        (Permission.Rule.covers
+          exact
+          (request "GET" ("https://api.example.com" + path)))
+        $"exact approval excludes {path}"
+    let subtree = httpRule "GET" "api.example.com" (Some "/orders") None
+    Expect.isTrue
+      (Permission.Rule.covers
+        subtree
+        (request "GET" "https://api.example.com/orders/1"))
+      "an explicit subtree includes descendants"
+    Expect.isFalse
+      (Permission.Rule.covers
+        subtree
+        (request "GET" "https://api.example.com/orders-old"))
+      "subtrees respect segment boundaries"
+    let policy = Permission.Policy.create [ subtree ] [ exact ]
+    Expect.isFalse (Permission.Policy.allows operation policy) "an exact deny wins"
+    Expect.isTrue
+      (Permission.Policy.allows
+        (request "GET" "https://api.example.com/orders/1")
+        policy)
+      "an exact deny does not become a subtree deny"
+  }
+
+let private serverRulesCheckAddressAndPort =
+  test "server rules check addresses and ports including wildcard deny overlap" {
+    let server address port =
+      match Permission.Request.httpServer address port with
+      | Ok request -> request
+      | Error message -> failtest message
+    let local = Permission.Rule.HttpServer(only "127.0.0.1", only 9090)
+    let allowed = Permission.Policy.create [ local ] []
+    Expect.isTrue
+      (Permission.Policy.allows (server "localhost" 9090) allowed)
+      "localhost"
+    for address, port in [ "0.0.0.0", 9090; "192.0.2.1", 9090; "127.0.0.1", 9091 ] do
+      Expect.isFalse
+        (Permission.Policy.allows (server address port) allowed)
+        "another address or port needs separate access"
+    let denied = Permission.Policy.create [ Permission.Rule.All ] [ local ]
+    Expect.isFalse
+      (Permission.Policy.allows (server "0.0.0.0" 9090) denied)
+      "binding every interface cannot bypass a loopback deny"
+    Expect.isTrue
+      (Permission.Policy.allows (server "192.0.2.1" 9090) denied)
+      "the deny leaves a different explicit address alone"
+    for invalid in [ "example.com"; "127.1"; "*"; "127.0.0.1/path" ] do
+      Expect.isError
+        (Permission.Request.httpServer invalid 9090)
+        "never resolve DNS or widen input"
+  }
 
 let tests =
   testList
     "permissions"
-    [ policiesDenyByDefault
+    [ httpPathsAreExactUnlessSubtree
+      serverRulesCheckAddressAndPort
+      approvalsDoNotPinCode
+      editedCodeNeedsFreshApproval
+      callerChosenImplsKeepCallerAccess
+      effectsCommand
+      policiesDenyByDefault
       denyOverridesAllow
       accessOnlyNarrows
       instanceDenialWinsOverInnerDenial
-      warnModeNeverRelaxesTheAuthorsCeiling
-      warnModeCannotHideTheCeilingBehindAWaivableDenial
       httpRulesKeepDimensionsCoupled
       httpQueryIsPartOfTheOperation
       invalidRequestsFailClosed
@@ -872,7 +1070,9 @@ let tests =
       fileRulesSeeThroughSymlinkedRoots
       processRulesPreserveArgumentOrder
       coverableEffectsFollowTheRules
-      retiredDatastoreRulesStillLoad
+      retiredDatastoreRulesAreRejected
+      bulkEnvironmentHonorsDenies
+      httpRulesNormalizeLikeRequests
       suggestRuleIsActionable
       pastedShellRuleRunsOnlyThatCommand
       pastedProcessRuleKeepsItsArguments
@@ -880,6 +1080,6 @@ let tests =
       fileDenialOffersTheFolderAndTheProfile
       serveFollowsApprovalsAndPolicy []
       serveFollowsApprovalsAndPolicy [ "--live" ]
-      noArgumentsGetsNoPasteableRule
+      noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
       materializedValuesCaptureCallablesRecursively ]

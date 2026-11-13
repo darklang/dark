@@ -11,7 +11,6 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
   // next keypress picks up the real size.
   let h = if size.height < 8 then 24 else size.height
   let w = if size.width < 24 then 80 else size.width
-  // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
   let screen = Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = h, cols = w }
   let branch = state.scmStatus.branchName
   // Off the cached SCM status rather than a query here. This runs per keypress, and it drives both the
@@ -21,7 +20,6 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
   // Conflicts AND standing findings, because they're one question ("is anything waiting on me?") and they
   // fail the same way when they're separate: the record is correct, and nobody looks. The navbar's badge
   // stays conflicts-only, since that's the entry it marks.
-  //
   let needsYou = state.scmStatus.needsYou
   // The navbar's badge, off the same cached read as everything else on this row.
   let wip = state.scmStatus.changed
@@ -134,8 +132,8 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
               Stdlib.Cli.UI.Colors.colorize((if bad then Stdlib.Cli.UI.Colors.pinkBg else Stdlib.Cli.UI.Colors.greenBg) + Stdlib.Cli.UI.Colors.black, toastPlain)
             Stdlib.Cli.UI.Layout.at(r, 0, Stdlib.max(0, r.cols - toastWidth - 1), colored)
         // Clip the hints to stop short of the toast rather than letting the toast overwrite them. Canvas lets a
-        // later span truncate an earlier one, which worked, but left the two abutting with no gap on a long
-        // hint row - it read as a collision rather than two things sharing a line.
+        // later span truncate an earlier one, but that leaves the two abutting with no gap on a long hint row,
+        // which reads as a collision rather than two things sharing a line.
         let hintRoom =
           if toastPlain == "" then r.cols else Stdlib.max(0, r.cols - toastWidth - 8)
         // An ellipsis where the row was cut, so a hint list that lost its tail reads as truncated rather than
@@ -164,7 +162,7 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
 
 
 /// The ghost-completion suffix for the `:` command bar - the chars that would complete the current command or
-/// argument, from the shared CLI completion engine (so the bar has the same typeahead the classic prompt did).
+/// argument, from the shared CLI completion engine (so the bar has the same typeahead as the classic prompt).
 /// Empty when there's nothing to suggest. Only called while the command bar is open, so the per-frame cost of
 /// building a throwaway AppState is bounded to that.
 let commandCompletionHint(state: State, text: String): String =
@@ -234,18 +232,18 @@ let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
 
   let spans =
     if tooSmall then
-      // Two lines, because one was 44 columns wide and the guard fires from 24. The canvas clips at the
-      // width, so the single-line version lost its tail -- and the tail was the size you needed, which is
-      // the only thing the message is for. Both lines fit in 24.
+      // Two lines, because one would be 44 columns wide and the guard fires from 24. The canvas clips at the
+      // width, and the tail is the size you need, which is the only thing the message is for. Both lines fit
+      // in 24.
       let screen =
         Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = size.height, cols = size.width }
 
       let centred(text: String, row: Int64): List<Stdlib.Cli.UI.Layout.Span> =
         let col =
-          Stdlib.max(0, (size.width - (Stdlib.String.displayWidth(text))) / 2)
+          Stdlib.max(0, Stdlib.Int64.checkedDivide(size.width - Stdlib.String.displayWidth(text), 2) |> Stdlib.Result.withDefault(0))
         Stdlib.Cli.UI.Layout.at(screen, row, col, Stdlib.Cli.UI.Colors.dimText(text))
 
-      let row = Stdlib.max(0, size.height / 2)
+      let row = Stdlib.max(0, Stdlib.Int64.checkedDivide(size.height, 2) |> Stdlib.Result.withDefault(0))
 
       Stdlib.List.flatten(
         [ centred("terminal too small", Stdlib.max(0, row - 1))

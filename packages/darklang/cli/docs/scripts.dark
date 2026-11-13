@@ -63,9 +63,21 @@ progress) with `Stdlib.printErrorLine`, so `dark run greet.dark Ada | next` hand
 
 ## Permissions
 
-Scripts run under your installation's policy, as eval does. File, environment and
-HTTP access may need a rule; a denial stops the script and prints the
-`dark permissions allow` line that covers it. Earlier effects may already have
-happened. `--sandbox` denies everything; it is not OS isolation.
-`dark help run-script` has the rest.
+Scripts use your installation's instance policy, just like eval. File, environment
+and HTTP access may need permission; see `dark permissions`. The script's own
+functions use the run's access. Named entry points may add remembered access;
+helpers inherit it and cannot add another function's approval.
+Use `run --allow "file read /reports" report.dark` for this run only.
+Temporary grants are not saved in traces or reused by resume/fork.
+
+At a terminal, access Dark can see before the script starts is reviewed in one
+prompt. Choose Allow this run, Remember for this code version, or Cancel. Other
+access pauses before its protected operation with a prompt of its own, so a run
+can ask more than once; approval continues without repeating work.
+Remembered access belongs to this script and its dependency versions. Inspect or
+remove it using the script:/absolute/path name in `permissions approved`.
+Cancellation stops the run; earlier effects are not undone. Noninteractive runs
+fail with guidance without prompting. Explicit denies cannot be overridden.
+`--sandbox` adds a deny-all run policy; it does not provide OS isolation.
+See `dark help run-script` for all permission options.
 """

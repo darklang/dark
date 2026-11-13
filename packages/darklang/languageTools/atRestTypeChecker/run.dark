@@ -458,7 +458,7 @@ let checkQuery(
   // In pieces across the cores, the way the package reload splits the same check in
   // `TraitCalls.resolveIn`. Safe because every piece loads from the store or the shared pool, so
   // it sees what another piece holds. Explicit until `List.map` spreads by itself.
-  let size = Stdlib.max(64, (Stdlib.List.length(unique)) / 32 + 1)
+  let size = Stdlib.max(64, (Stdlib.Int64.checkedDivide(Stdlib.List.length(unique), 32) |> Stdlib.Result.withDefault(0)) + 1)
 
   // What the pieces depend on is mostly the same types and fns, and every piece is in flight at
   // once, so loading them per piece holds one copy of most of Stdlib per piece. Loaded once here
@@ -506,10 +506,10 @@ let checkQuery(
     // A fold, not a map: a map is a list op the runtime may spread across cores by itself, and
     // a spread chunk refuses the store reads every piece makes, so the lane's pieces would run
     // twice at best.
-    Stdlib.List.range(0, lanes - 1)
+    (Stdlib.List.checkedRange(0, lanes - 1) |> Stdlib.Result.withDefault([]))
     |> Stdlib.List.parallelMap(fun lane ->
       numbered
-      |> Stdlib.List.filter(fun((i, _)) -> i % lanes == lane)
+      |> Stdlib.List.filter(fun((i, _)) -> (Stdlib.Int64.checkedMod(i, lanes) |> Stdlib.Result.withDefault(0)) == lane)
       |> Stdlib.List.fold([], fun(done, (i, chunk)) ->
         Stdlib.List.prepend(done, (i, checkReferencesFrom(pool, base, branchId, loadCandidate, chunk)))))
     |> Stdlib.List.flatten

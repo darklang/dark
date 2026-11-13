@@ -38,7 +38,7 @@ module Input =
     let recorded = trace(Darklang.LanguageTools.RuntimeTypes.Dval.DString("old"))
     let options =
       Darklang.Tracing.ScriptOptions
-        { allowHarmful = false, sandbox = true, warnPermissions = false }
+        { allowHarmful = false, sandbox = true }
     Stdlib.Test.all(
       [ { recorded with
             scriptOrEvalInput =

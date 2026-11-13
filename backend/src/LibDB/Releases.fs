@@ -153,10 +153,40 @@ let populateOpKinds () : unit =
       [ "UPDATE package_ops SET op_kind = @kind WHERE id = @id", updates ]
     |> ignore<List<int>>
 
+/// Remove the obsolete warning-mode column and its CHECK constraints once.
+/// SQLite requires rebuilding the table because its row constraint names the column.
+let removeTraceWarningColumn () : unit =
+  if hasColumn "trace_cli_invocations" "warn_permissions" then
+    Sql.executeTransactionSync
+      [ """CREATE TABLE trace_cli_invocations_current (
+  trace_id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('eval', 'script')),
+  source TEXT NOT NULL,
+  filename TEXT,               -- scripts only
+  args BLOB,                   -- scripts only, see ScriptOrEvalInput.encodeArgs
+  allow_harmful INTEGER NOT NULL CHECK (allow_harmful IN (0, 1)),
+  sandbox INTEGER CHECK (sandbox IN (0, 1)),                  -- scripts only
+  CHECK (
+    (kind = 'eval'
+     AND filename IS NULL AND args IS NULL
+     AND sandbox IS NULL)
+    OR (kind = 'script'
+        AND filename IS NOT NULL AND args IS NOT NULL
+        AND sandbox IS NOT NULL))
+)""",
+        [ [] ]
+        """INSERT INTO trace_cli_invocations_current
+             (trace_id, kind, source, filename, args, allow_harmful, sandbox)
+           SELECT trace_id, kind, source, filename, args, allow_harmful, sandbox
+           FROM trace_cli_invocations""",
+        [ [] ]
+        "DROP TABLE trace_cli_invocations", [ [] ]
+        "ALTER TABLE trace_cli_invocations_current RENAME TO trace_cli_invocations",
+        [ [] ] ]
+    |> ignore<List<int>>
+
 let steps : List<Step> =
-  // NEW STEPS GO HERE. A store older than the current op log is reset rather than migrated
-  // (`resetIfOlderShape`), so nothing before it needs a step.
-  []
+  [ { name = "remove-trace-warning-mode"; run = removeTraceWarningColumn } ]
 
 
 let private alreadyRun () : Set<string> =
@@ -207,6 +237,7 @@ let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
     use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
     conn.Open()
 
+    Telemetry.countBy "sql.schema" (int64 statements.Length)
     for st in statements do
       use cmd = conn.CreateCommand()
       cmd.CommandText <- st

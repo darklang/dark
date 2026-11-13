@@ -214,6 +214,7 @@ module Fns =
           { name = fnName
             typeSymbolTable = RT.TST.empty
             typeArgs = []
+            approvalName = None
             access = allowAllAccess
             argsSoFar = []
             boundImpls = [] }
@@ -365,7 +366,58 @@ module SyncUnify =
         $"fast path should answer most accepted unifications ({answeredWhenAccepted} of {asyncAccepted})"
     }
 
-  let tests = testList "SyncUnify" [ agreesWithAsyncPath ]
+  /// `argFitsWithNothingToBind` saying yes promises that the unifier accepts and binds nothing,
+  /// type variables inside an Option's or a list's type args included.
+  let fitsMeansUnifiesUnchanged =
+    testTask "a value that fits with nothing to bind unifies and binds nothing" {
+      let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+      let optionOf t =
+        RT.TCustomType(RT.NameResolution.ok (LibExecution.Dval.optionType ()), [ t ])
+      let expected =
+        expectations
+        @ [ optionOf (RT.TVariable "a")
+            optionOf RT.TInt64
+            optionOf (RT.TList(RT.TVariable "a"))
+            RT.TList(RT.TTuple(RT.TVariable "a", RT.TVariable "b", [])) ]
+      let actualsWithOptions =
+        actuals
+        @ [ LibExecution.Dval.optionSome RT.KTInt64 (RT.DInt64 1L)
+            LibExecution.Dval.optionSome RT.KTString (RT.DString "s")
+            LibExecution.Dval.optionNone RT.KTInt64
+            RT.DList(
+              RT.ValueType.Known(
+                RT.KTTuple(
+                  RT.ValueType.Known RT.KTString,
+                  RT.ValueType.Known RT.KTInt64,
+                  []
+                )
+              ),
+              RT.Items([])
+            ) ]
+      let mutable fitted = 0
+      for tst in symbolTables do
+        for e in expected do
+          for actual in actualsWithOptions do
+            if LibExecution.TypeChecker.argFitsWithNothingToBind tst e actual then
+              fitted <- fitted + 1
+              let! unified =
+                LibExecution.TypeChecker.checkFnParam
+                  exeState.types
+                  (RT.FQFnName.fqBuiltin "test" 0)
+                  tst
+                  0
+                  "p"
+                  e
+                  actual
+                |> Ply.toTask
+              Expect.equal
+                unified
+                (Ok tst)
+                $"fits, so unifies unchanged: {e} vs {actual} under {tst}"
+      Expect.isGreaterThan fitted 0 "some pairs fit"
+    }
+
+  let tests = testList "SyncUnify" [ agreesWithAsyncPath; fitsMeansUnifiesUnchanged ]
 
 
 module AliasChecks =
@@ -783,6 +835,7 @@ module ListUnique =
         { name = RT.FQFnName.fqBuiltin name 0
           typeSymbolTable = RT.TST.empty
           typeArgs = []
+          approvalName = None
           access = None
           argsSoFar = args
           boundImpls = [] }
@@ -1374,6 +1427,7 @@ module DeepValues =
         { name = RT.FQFnName.fqBuiltin "partial" 0
           typeSymbolTable = RT.TST.empty
           typeArgs = []
+          approvalName = None
           access = None
           argsSoFar = []
           boundImpls = [] }
@@ -1432,6 +1486,7 @@ module Reload =
       { name = RT.FQFnName.fqPackage h
         typeSymbolTable = RT.TST.empty
         typeArgs = []
+        approvalName = None
         access = None
         argsSoFar = []
         boundImpls = [] }
@@ -1551,6 +1606,7 @@ module BoundMemo =
           { name = RT.FQFnName.fqPackage h
             typeSymbolTable = RT.TST.empty
             typeArgs = []
+            approvalName = None
             access = None
             argsSoFar = []
             boundImpls = [] }
@@ -2118,6 +2174,8 @@ module NumOperators =
     let value (v : bigint) = $"BigInt {v}"
     let truth (t : bool) = $"Bool {t}"
     let fails e = raises (RT.RuntimeError.BigInt e)
+    let outOfRange kind =
+      fails (BigInts.OutOfRange(kind, LibExecution.Dval.bigInt b))
     let int32Max = bigint System.Int32.MaxValue
     if op = NumOps.add then
       value (a + b)
@@ -2140,7 +2198,7 @@ module NumOperators =
       elif b <= int32Max then value (bigint.Pow(a, int b))
       elif a = 0I || a = 1I then value a
       elif a = -1I then value (if b.IsEven then 1I else -1I)
-      else fails BigInts.OutOfRange
+      else outOfRange (BigInts.Exponent(int64 int32Max))
     elif op = NumOps.bitwiseAnd then
       value (a &&& b)
     elif op = NumOps.bitwiseOr then
@@ -2149,12 +2207,12 @@ module NumOperators =
       value (a ^^^ b)
     elif op = NumOps.shiftLeft then
       if b < 0I || b > int32Max then
-        fails BigInts.OutOfRange
+        outOfRange (BigInts.ShiftCount(int64 int32Max))
       else
         value (a * bigint.Pow(2I, int b))
     elif op = NumOps.shiftRight then
       if b < 0I || b > int32Max then
-        fails BigInts.OutOfRange
+        outOfRange (BigInts.ShiftCount(int64 int32Max))
       else
         // flooring, as an arithmetic shift does
         let d = bigint.Pow(2I, int b)

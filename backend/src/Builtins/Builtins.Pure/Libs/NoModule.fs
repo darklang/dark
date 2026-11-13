@@ -143,7 +143,7 @@ let fns () : List<BuiltInFn> =
           | _, _, _, [| DString a; DString b |] -> Ply(DString(String.append a b))
           | call -> notNumbers call)
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -157,7 +157,7 @@ let fns () : List<BuiltInFn> =
         + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn = numeric NumOps.subtract notNumbers
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -171,7 +171,7 @@ let fns () : List<BuiltInFn> =
         + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn = numeric NumOps.multiply notNumbers
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -190,7 +190,7 @@ let fns () : List<BuiltInFn> =
         + "{{MinValue}}."
       fn = numeric NumOps.divide notNumbers
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -207,7 +207,7 @@ let fns () : List<BuiltInFn> =
         + "type or two decimals. The modulus <param b> must be greater than 0."
       fn = numeric NumOps.modulo notNumbers
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -222,7 +222,7 @@ let fns () : List<BuiltInFn> =
         + "overflow wraps around; the arbitrary-precision BigInt grows instead."
       fn = numeric NumOps.power notNumbers
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -291,7 +291,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise left shift of an integer by <param b> bits"
       fn = numeric NumOps.shiftLeft notNumbers
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -302,7 +302,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise right shift of an integer by <param b> bits"
       fn = numeric NumOps.shiftRight notNumbers
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
@@ -383,7 +383,7 @@ let fns () : List<BuiltInFn> =
           |> raiseRTE vm.threadID)
 
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 

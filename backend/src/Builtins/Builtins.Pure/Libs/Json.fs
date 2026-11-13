@@ -13,6 +13,7 @@ module TypeChecker = LibExecution.TypeChecker
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
 module NR = LibExecution.RuntimeTypes.NameResolution
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 // parsing
@@ -129,8 +130,11 @@ module RangedInt =
     DRecord(typeName, typeName, [], RecordFields.ofList [ range.field, DInt64 n ])
 
 
-let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit =
-  let r = serialize threadID w
+/// The value `serialize` found with no JSON form.
+exception CannotSerialize of Dval
+
+let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
+  let r = serialize w
   match dv with
   // basic types
   | DUnit -> w.WriteNullValue()
@@ -187,7 +191,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
         | DString k ->
           w.WritePropertyName k
           r v
-        | _ -> (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID))
+        | _ -> raise (CannotSerialize dv)))
 
   // Enums and Records
   | DEnum(_, _, _, caseName, fields) ->
@@ -210,8 +214,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DApplicable _
   | DBytes _
   | DStream _
-  | DPromise _ ->
-    (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
+  | DPromise _ -> raise (CannotSerialize dv)
 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -242,6 +245,8 @@ module ParseError =
     /// The text isn't JSON. Where it broke, both counted from 1; the column
     /// counts characters, not bytes
     | NotJson of line : int64 * column : int64
+    /// A type with no JSON form: a function, bytes, a stream, or a type variable
+    | UnsupportedType of TypeReference
 
   exception JsonException of ParseError
 
@@ -249,6 +254,8 @@ module ParseError =
     let (caseName, fields) =
       match e with
       | NotJson(line, column) -> "NotJson", [ Dval.dint64 line; Dval.dint64 column ]
+
+      | UnsupportedType typ -> "UnsupportedType", [ RT2DT.TypeReference.toDT typ ]
 
       | CantMatchWithType(typ, json, errorPath) ->
         "CantMatchWithType",
@@ -474,9 +481,9 @@ let private wide
 
 let private int8Type =
   narrow (int64 System.SByte.MinValue) (int64 System.SByte.MaxValue) (fun n ->
-    DInt8(int8 n))
+    Dval.int8 (int8 n))
 let private uint8Type =
-  narrow 0L (int64 System.Byte.MaxValue) (fun n -> DUInt8(uint8 n))
+  narrow 0L (int64 System.Byte.MaxValue) (fun n -> Dval.uint8 (uint8 n))
 let private int16Type =
   narrow (int64 System.Int16.MinValue) (int64 System.Int16.MaxValue) (fun n ->
     DInt16(int16 n))
@@ -515,7 +522,7 @@ let private integer
     | _ -> raiseCantMatchWithType typ j path
 
 
-/// What a record field of type `Option` parses from when the JSON leaves it out.
+/// What a record field of type `Option` parses from when the JSON leaves it out or is `null`.
 let private noneJson : JsonElement = JsonDocument.Parse("{\"None\":[]}").RootElement
 
 
@@ -528,20 +535,20 @@ let parse
 
   let tst = TST.empty // TODO consider passing this in.. somehow?
 
-  /// Whether <param typ> is `Option`, directly or through aliases.
-  let rec isOption (typ : TypeReference) : Ply<bool> =
+  /// What <param typ> holds when it is `Option`, directly or through aliases.
+  let rec optionOf (typ : TypeReference) : Ply<TypeReference option> =
     uply {
       match typ with
-      | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, _) when
+      | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, [ inner ]) when
         h = PackageRefs.Type.Stdlib.option ()
         ->
-        return true
+        return Some inner
       | TCustomType({ resolved = Ok typeName }, typeArgs) ->
         match! Types.find types typeName with
         | Some({ definition = TypeDeclaration.Alias alias } as decl) ->
-          return! isOption (Types.substitute decl.typeParams typeArgs alias)
-        | _ -> return false
-      | _ -> return false
+          return! optionOf (Types.substitute decl.typeParams typeArgs alias)
+        | _ -> return None
+      | _ -> return None
     }
 
   let rec convert
@@ -597,7 +604,7 @@ let parse
 
     | TChar, JsonValueKind.String ->
       match String.toEgcChar (j.GetString()) with
-      | Some c -> Ply(DChar c)
+      | Some c -> Ply(Dval.char c)
       | None -> raiseCantMatchWithType TChar j pathSoFar
 
 
@@ -801,32 +808,25 @@ let parse
               |> List.map (fun def ->
                 uply {
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
-                  let! correspondingValue =
-                    uply {
-                      match
-                        enumerated |> List.filter (fun v -> v.Name = def.name)
-                      with
-                      | [] ->
-                        match! isOption typ with
-                        | true -> return noneJson
-                        | false ->
-                          return
-                            raiseError (
-                              ParseError.RecordMissingField(def.name, pathSoFar)
-                            )
-                      | [ matchingFieldDef ] -> return matchingFieldDef.Value
-                      | _ ->
-                        return
-                          raiseError (
-                            ParseError.RecordDuplicateField(def.name, pathSoFar)
-                          )
-                    }
-
+                  let path = JsonPath.Part.Field def.name :: pathSoFar
+                  let! optionArg = optionOf typ
                   let! converted =
-                    convert
-                      typ
-                      (JsonPath.Part.Field def.name :: pathSoFar)
-                      correspondingValue
+                    match
+                      enumerated |> List.filter (fun v -> v.Name = def.name),
+                      optionArg
+                    with
+                    | [], Some _ -> convert typ path noneJson
+                    | [], None ->
+                      raiseError (
+                        ParseError.RecordMissingField(def.name, pathSoFar)
+                      )
+                    | [ field ], Some inner ->
+                      optionField typ inner path field.Value
+                    | [ field ], None -> convert typ path field.Value
+                    | _ ->
+                      raiseError (
+                        ParseError.RecordDuplicateField(def.name, pathSoFar)
+                      )
                   return (def.name, converted)
                 })
               |> Ply.List.flatten
@@ -847,8 +847,7 @@ let parse
     | TVariable _, _
     | TFn _, _
     | TBytes, _
-    | TStream _, _ ->
-      (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
+    | TStream _, _ -> raiseError (ParseError.UnsupportedType typ)
 
 
     // exhaust TypeReferences
@@ -876,6 +875,39 @@ let parse
     | TList _, _
     | TDict _, _
     | TCustomType _, _ -> raiseCantMatchWithType typ j pathSoFar
+
+  /// A present `Option` field. `null` is `None`, `{"Some":[..]}` and `{"None":[]}` are read as
+  /// `serialize` writes them, and any other value is the `Some`.
+  and optionField
+    (typ : TypeReference)
+    (inner : TypeReference)
+    (path : JsonPath.JsonPath)
+    (j : JsonElement)
+    : Ply<Dval> =
+    let asWritten =
+      j.ValueKind = JsonValueKind.Object
+      && (match j.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList with
+          | [ "Some" ]
+          | [ "None" ] -> true
+          | _ -> false)
+    if j.ValueKind = JsonValueKind.Null then
+      convert typ path noneJson
+    else if asWritten then
+      convert typ path j
+    else
+      uply {
+        let! value = convert inner path j
+        let! innerVT = TypeReference.toVT types tst inner
+        return!
+          TypeChecker.DvalCreator.enum
+            types
+            threadID
+            tst
+            (Dval.optionType ())
+            [ innerVT ]
+            "Some"
+            [ value ]
+      }
 
   let parsed =
     try
@@ -906,7 +938,38 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [ _typeToSerializeAs ], [| arg |] ->
-          Ply(DString(writeJson (fun w -> serialize vm.threadID w arg)))
+          try
+            Ply(DString(writeJson (fun w -> serialize w arg)))
+          with CannotSerialize dv ->
+            RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE vm.threadID
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "jsonCheckedSerialize" 0
+      typeParams = [ "a" ]
+      parameters = [ Param.make "arg" (TVariable "a") "" ]
+      returnType =
+        TypeReference.result
+          TString
+          (TCustomType(NR.ok (RT2DT.Dval.typeName ()), []))
+      description =
+        "Serializes a Dark value to a JSON string, or the first value found that has no JSON form."
+      fn =
+        (function
+        | _, _, [ _typeToSerializeAs ], [| arg |] ->
+          let errType = RT2DT.Dval.knownType ()
+          try
+            Ply(
+              Dval.resultOk
+                KTString
+                errType
+                (DString(writeJson (fun w -> serialize w arg)))
+            )
+          with CannotSerialize dv ->
+            Ply(Dval.resultError KTString errType (RT2DT.Dval.toDT dv))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

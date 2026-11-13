@@ -244,11 +244,11 @@ test runStatsReportsTheCost =
         Instance.doesNotSay(after, "allocated ", "and nothing was measured") ]))
 
 
-/// A denied permission stops the script, and approving it at the prompt saves the
-/// rule without restarting the run; a later run then completes.
+/// Remembering missing access continues the same run without replaying earlier
+/// work, and grants only this script version access on later runs.
 ///
 /// The approval needs a terminal, so `expect` plays the person.
-test aDeniedScriptStopsAndApprovalIsSaved =
+test rememberedApprovalContinuesOnceAndStaysWithTheScript =
   Instance.withInstance(fun i ->
     let path =
       script(
@@ -269,15 +269,22 @@ test aDeniedScriptStopsAndApprovalIsSaved =
     let (approvedCode, approved) =
       Instance.ran(Instance.T { dir = i.dir, cli = "expect" }, [ fixture, i.cli, path ])
 
-    // The permission also applies in a new process.
+    // The permission also applies in a new process, without widening defaults.
     let (laterCode, later) = Instance.ran(i, [ "run", path ])
+    let (_policyCode, defaults) = Instance.ran(i, [ "permissions", "list" ])
+    let (_approvalCode, approvals) =
+      Instance.ran(i, [ "permissions", "show", "script:" + path ])
 
     Stdlib.Test.all(
       [ policy
         stopped(redirectedCode, redirected, "redirected input")
         Instance.doesNotSay(redirected, "Enter number:", "redirected input does not prompt")
-        stopped(approvedCode, approved, "at a terminal")
-        Instance.says(approved, "Permission saved", "the user approved the rule")
+        Instance.exitedWith(approvedCode, 0, "approval continues this run")
+        Stdlib.List.length(Stdlib.String.split(approved, "BEFORE_DENIAL"))
+          |> Stdlib.Test.equal(2)
+        Instance.says(approved, "AFTER_APPROVAL", "the same run finishes")
+        Instance.doesNotSay(defaults, "clock", "instance defaults are unchanged")
+        Instance.says(approvals, "clock", "access belongs to this script")
         Instance.exitedWith(laterCode, 0, $"a later run completes: {later}")
         Instance.says(later, "AFTER_APPROVAL", "a later run completes") ]))
 
@@ -326,7 +333,7 @@ test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
 test runNamesTheTraitAMissingImplementationIsOf =
   Instance.withInstance(fun i ->
     let source =
-      "let show (e: Stdlib.AltJson.ParseError.ParseError): String =\n  Stdlib.display(e)\n"
+      "let show (e: Stdlib.Json.ParseError.JsonPath.Part.Part): String =\n  Stdlib.display(e)\n"
       + "Stdlib.printLine(\"SCRIPT_RAN\")\n0"
     let path = script(i, "missing-impl.dark", source)
     let (code, out) = Instance.ran(i, [ "run", path ])
@@ -335,7 +342,7 @@ test runNamesTheTraitAMissingImplementationIsOf =
       [ Instance.exitedWith(code, 1, "refused")
         Instance.says(out, "has no implementation of Stdlib.Display", "names the trait")
         Instance.doesNotSay(out, "implementation of #", "no hash")
-        Instance.says(out, "Try `Stdlib.AltJson.ParseError.toString`", "points at the module's toString")
+        Instance.says(out, "Try `Stdlib.Json.ParseError.JsonPath.Part.toString`", "points at the module's toString")
         Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
 
 
@@ -473,9 +480,9 @@ test internalNamesHiddenUntilAsked =
         Instance.says(lsAll, "__fromTicks", "ls --include-internal shows it")
         Instance.doesNotSay(search, "__fromTicks", "search hides it")
         Instance.says(searchAll, "__fromTicks", "search --include-internal shows it")
-        Instance.says(view, "dateTimeFromUnixTicks", "view by name shows its body")
+        Instance.says(view, "__fromOffset", "view by name shows its body")
         Instance.says(call, "5", "a call by name runs it")
-        Instance.says(deps, "addSeconds", "deps by name lists its dependents") ]))
+        Instance.says(deps, "atStartOfDay", "deps by name lists its dependents") ]))
 
 
 /// The settings that open HTTP's network guard or decide what traces record are the

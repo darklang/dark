@@ -391,7 +391,6 @@ let private editDoesNotReachAParkedProcess =
         returnType = PT.TString
         body = body
         description = ""
-        permissionCeiling = None
         bounds = [] }
     // The old version waits on a gate before answering; the new one answers at once.
     let oldFn =
@@ -621,11 +620,16 @@ let private traceCarriesProcessAndSeq =
               if n == 0 then () else (record(n)
                                       loop(n - 1))
             loop(20))"""
-    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+    LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
     try
       let traceId = LibExecution.AnalysisTypes.TraceID.create ()
       let tracer =
-        LibDB.Tracing.createCliTracer traceId "scheduler test" "expression" RT.DUnit
+        LibDB.Tracing.createCliTracer
+          RT.Tracing.defaultCaps
+          traceId
+          "scheduler test"
+          "expression"
+          RT.DUnit
       let traced : RT.ExecutionState =
         { state with RT.ExecutionState.tracing = tracer.executionTracing }
       do!
@@ -669,7 +673,7 @@ let private traceCarriesProcessAndSeq =
           })
     finally
       Trace.take () |> ignore<List<string>>
-      LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+      LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
   }
 
 
@@ -1595,6 +1599,42 @@ Stdlib.Exec.await(slow)"""
         })
   }
 
+/// Writes keep program order, in a map too: the second waits until the first is done. Only
+/// `List.parallelMap` (or `Exec.spawn` then `await`) overlaps them.
+let private writesOverlapOnlyWhenAsked =
+  testTask "writes run one after another unless spawned" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false
+    do!
+      withWorkers 2 (fun root ->
+        task {
+          let! (p : Scheduler.Process) =
+            spawn
+              root
+              state
+              "Stdlib.List.map([ 71, 72 ], fun g -> Builtin.testGateWait(g))"
+          let running = runOnThread root p
+          waitFor "the first write" (fun () -> Gates.waiting () = [ 71L ])
+          waitFor "the map to park on it" (fun () -> isParked p)
+          Expect.equal (Gates.waiting ()) [ 71L ] "the second has not started"
+          Gates.release 71L
+          waitFor "the second write" (fun () -> Gates.waiting () = [ 72L ])
+          Gates.release 72L
+          let! _ = running
+          let! (q : Scheduler.Process) =
+            spawn
+              root
+              state
+              "Stdlib.List.parallelMap([ 73, 74 ], fun g -> Builtin.testGateWait(g))"
+          let running = runOnThread root q
+          waitFor "both writes at once" (fun () -> Gates.waiting () = [ 73L; 74L ])
+          Gates.release 73L
+          Gates.release 74L
+          let! result = running
+          expectOk result "parallelMap" |> ignore<RT.Dval>
+        })
+  }
+
 
 /// A run a builtin drives to its end itself (`Darklang.LanguageTools.Live.apply` here; the package test runner's
 /// `withStoreSnapshot` in the wild) carries on after a wait in the context it waited in, so on
@@ -2494,6 +2534,7 @@ let tests =
         denialRaisesAtTheCall
         inflightBoundHolds
         spawnAwaitSelect
+        writesOverlapOnlyWhenAsked
         drivenRunKeepsItsScheduler
         spawnTakesACapturedRead
         spawnedErrorReachesAwait

@@ -172,7 +172,7 @@ type Operation =
     headers : List<string * string> *
     body : byte[]
   /// Bind an HTTP listener and return an opaque host-owned handle.
-  | HttpServerBind of port : int
+  | HttpServerBind of address : string * port : int
   | ChildStart of program : string * args : List<string> * inheritTerminal : bool
   | ChildDescriptors of handle : bigint
   | ChildPoll of handle : bigint
@@ -209,12 +209,28 @@ type HttpBadUrl =
   | InvalidUri
   | InvalidRequest
 
+/// A request destination or proxy.
+[<RequireQualifiedAccess>]
+type HttpNetworkTarget =
+  | Destination of host : string
+  | Proxy of host : string
+
+/// Network failures, formatted by Dark.
+[<RequireQualifiedAccess>]
+type HttpNetworkFailure =
+  /// Hostname lookup failed.
+  | DnsFailure of HttpNetworkTarget
+  /// The target is a host and optional port. Guard refusals omit details.
+  | ConnectionFailure of HttpNetworkTarget * detail : string option
+  /// Request authority and I/O error.
+  | IoFailure of authority : string * detail : string
+
 [<RequireQualifiedAccess>]
 type HttpRequestError =
   | BadUrl of HttpBadUrl
   | Timeout
   | BadHeader of HttpBadHeader
-  | NetworkError
+  | NetworkError of HttpNetworkFailure
   /// The TLS handshake failed; the message says why, in words to act on.
   | TlsError of message : string
   | BadMethod
@@ -297,7 +313,8 @@ type Outcome =
     layer : Permission.Layer *
     reason : Permission.PolicyDenial *
     resource : string *
-    suggestion : Permission.Suggestion
+    suggestion : Permission.Suggestion *
+    request : Permission.Request
 
 /// Drop the query string from a URL for the audit summary — query parameters
 /// routinely carry secrets (tokens, signatures) and the log is default-on.
@@ -384,7 +401,7 @@ let describeOperation (op : Operation) : string =
   | Operation.HttpRequest(_, method, url, _, _) -> $"http {method} {redactUrl url}"
   | Operation.HttpStreamOpen(_, method, url, _, _) ->
     $"http-stream {method} {redactUrl url}"
-  | Operation.HttpServerBind port -> $"http-server-bind {port}"
+  | Operation.HttpServerBind(address, port) -> $"http-server-bind {address}:{port}"
   | Operation.ChildStart(program, _, _) -> $"child-start {program}"
   | Operation.ChildDescriptors _ -> "child-descriptors"
   | Operation.ChildPoll _ -> "child-poll"
@@ -412,7 +429,6 @@ let private auditLayer (layer : Permission.Layer) : string =
   | Permission.Layer.Instance -> "Instance"
   | Permission.Layer.Run -> "Run"
   | Permission.Layer.Package id -> $"Package \"{id}\""
-  | Permission.Layer.Function id -> $"Function \"{id}\""
   | Permission.Layer.Value name -> $"Value \"{name}\""
 
 /// One line of the host audit log: `{"decision","detail","layer","op","ts"}`.
@@ -422,7 +438,8 @@ let auditLine (now : System.DateTime) (op : Operation) (outcome : Outcome) : str
   let decision, layer, detail =
     match outcome with
     | Outcome.Success _ -> "allowed", "", ""
-    | Outcome.Denied(layer, _, resource, _) -> "denied", auditLayer layer, resource
+    | Outcome.Denied(layer, _, resource, _, _) ->
+      "denied", auditLayer layer, resource
     | Outcome.Failed failure -> "failed", "", failure.message
     | Outcome.Rejected m -> "rejected", "", m
   use buffer = new System.IO.MemoryStream()

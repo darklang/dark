@@ -3,7 +3,8 @@
 A running computation is a value the runtime can step, park, resume and
 inspect; one thread runs many of them, and a group of worker threads (one per
 core) runs many more. Reads run concurrently on their own and writes keep
-their order; `Exec.spawn`/`await` run chosen work in the background. A trace is
+their order; `Exec.spawn`/`await` and `List.parallelMap` run chosen work, writes
+included, side by side. A trace is
 a TRACE: one row, kept with the log of what it did to the world, suspended by
 Ctrl-C, resumed or forked by replaying that log, and read back beside the code
 that made it. A lambda a builtin applies is a frame on the process's own
@@ -320,6 +321,11 @@ and a fold that pushes each response onto a list, a recursion that builds one,
 or a map pairing each url with its response all have every read in flight
 before the first is waited for.
 
+Writes overlap only where you ask: `List.parallelMap(urls, fun u ->
+HttpClient.post(u, [], body))`, or `Exec.spawn` then `Exec.await`, runs each in
+a process of its own. Plain `List.map` runs them one after another, spread or
+not, since a spread chunk refuses any effect.
+
 Where it waits, which a second implementation has to match, since the order
 is observable (`let a = get bad` then `f a` runs `f`, prints included, and
 raises where `f` first uses `a`):
@@ -395,11 +401,10 @@ first call of a body is the one that loads what it calls. So the decision
 depends on the body's cost as well as the count, and a short or cheap map
 never spreads.
 
-`Dict.map`, `Dict.filter`, `sortBy`'s keys, `map2Shortest`, `any` and
-`findFirst` also need each element to cost at least `Spread.minPerElement`
-(20) instructions, so a one-operation body over a long collection stays
-serial. Spread, such a body finishes sooner only when the op is little but the
-body, and spends about twice the CPU either way.
+Each element also has to cost at least `Spread.minPerElement` (20)
+instructions, so a one-operation body over a long collection stays serial.
+Spread, such a body finishes sooner only when the op is little but the body,
+and spends two to three times the CPU either way.
 
 It can predict before it spreads, with `exec.spreadPredict on`; the shipped
 default is off, which observes: try, and fall back on an effect. The A/B is in
@@ -500,9 +505,10 @@ the "`dark ps`" section). `spawn` carries the
 spawned process can do nothing the spawner could not. An install whose policy
 was seeded before this effect existed needs `dark permissions allow
 concurrency` once. `List.parallelMap` is `spawn` per element then `await` in
-order. It is redundant now: plain `List.map` spreads computation by itself
-(the next section), in chunks rather than a process per element, and reads
-run concurrently under it already.
+order, and is the way to overlap writes. For computation and reads it adds
+nothing: plain `List.map` spreads computation by itself (above), in chunks
+rather than a process per element, and reads run concurrently under it
+already.
 
 From a trace nobody scheduled (a test's `execute`, an HTTP handler)
 `spawn` uses a process-wide scheduler with workers of its own
@@ -683,7 +689,7 @@ one after it:
 - `dark --trace <command>`, or `--no-trace`, for one command.
 - `trace.record` in the store's config, written by `dark traces record on` or
   `dark config set trace.record on`, for this instance until changed. The host
-  reads it at startup (`TraceDetail.configure`).
+  reads it at startup (`TraceDetail.resolve`).
 - `DARK_CONFIG_TRACE_DETAIL=on` for a whole environment. Our dev containers
   and CI set it, so a clone records and a gate can assert on what a command
   did. A stored setting beats it, because the environment is a container-wide

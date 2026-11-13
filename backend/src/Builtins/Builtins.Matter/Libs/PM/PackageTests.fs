@@ -140,28 +140,34 @@ let private executeWorker
       DTuple(LibExecution.Bytes.newEphemeral bytes, Dval.dint64 (int64 code), [])
   }
 
-/// Whether the analysis of <param test>'s body and everything it calls is complete and finds
-/// no effect at all (not even the clock), counting a builtin only when <param admits> takes its
-/// `previewable` and as unknown otherwise. The one walk behind running a test in-process and
-/// reusing its cached pass; the two differ only in which builtins they admit.
+/// Whether the analysis of a test's body and everything it calls (<param closure>) is complete
+/// and finds no effect at all (not even the clock), counting a builtin only when <param admits>
+/// takes its `previewable` and as unknown otherwise. The one walk behind running a test
+/// in-process and reusing its cached pass; the two differ only in which builtins they admit.
 let private provablyEffectFree
   (admits : Previewable -> bool)
   (state : ExecutionState)
-  (test : PT.PackageTest.PackageTest)
-  : Ply<bool> =
-  uply {
-    let callEffectsFor (name, version) =
-      let key : FQFnName.Builtin = { name = name; version = version }
-      match state.fns.builtIn.TryGetValue key with
-      | true, builtin when admits builtin.previewable -> Some builtin.callEffects
-      | _ -> None
-    let! result =
-      PackagePermissions.cacheSafetyForExpression
-        PackagePermissions.Load.fromStore
-        callEffectsFor
-        test.body
-    return result.complete && Set.isEmpty result.requiredEffects
-  }
+  (closure : LibExecution.CallGraph.Requirements.Closure)
+  (body : LibExecution.CallGraph.Analysis)
+  : bool =
+  let callEffectsFor (name, version) =
+    let key : FQFnName.Builtin = { name = name; version = version }
+    match state.fns.builtIn.TryGetValue key with
+    | true, builtin when admits builtin.previewable -> Some builtin.callEffects
+    | _ -> None
+  let result =
+    LibExecution.CallGraph.Requirements.forExpression callEffectsFor closure body
+  result.complete && not (LibExecution.Effects.performsAny result.requiredEffects)
+
+/// In the runner, any builtin: one that is `Impure` stops the run before it is called.
+let private inRunner (_ : Previewable) = true
+
+/// For a cached pass, `Pure` builtins only: it outlives the run, and an `Impure` builtin may
+/// answer differently next time (`toRepr` once a name moves).
+let private reusable (previewable : Previewable) =
+  match previewable with
+  | Pure -> true
+  | Impure -> false
 
 // Shared state: concurrent runs read and write it, and it keeps a stopped test `false` for good.
 let private inProcessMemo =
@@ -183,25 +189,43 @@ let private runsInProcess
     match inProcessMemo.TryGetValue test.hash with
     | true, known -> return known
     | false, _ ->
-      let! inProcess = provablyEffectFree (fun _ -> true) state test
+      let! bodies, closure =
+        PackagePermissions.analyzeExpressions
+          PackagePermissions.Load.fromStore
+          [ test.body ]
+      let inProcess =
+        provablyEffectFree inRunner state closure (List.exactlyOne bodies)
       inProcessMemo[test.hash] <- inProcess
       return inProcess
   }
 
-/// Whether a passing result of <param test> may be reused: it is provably effect free and every
-/// builtin on the way is `Pure`. Stricter than `runsInProcess`, because a cached pass outlives
-/// the run and an `Impure` builtin may answer differently next time (`toRepr` once a name
-/// moves). Anything unknown reruns.
-let private isCacheSafe
+/// Whether a passing result of each test may be reused: it is provably effect free and every
+/// builtin on the way is `Pure`. Stricter than `runsInProcess`. Anything unknown reruns.
+///
+/// The tests share one closure, so a fn many of them call is analyzed once. The same walk
+/// answers `runsInProcess` for each test, which is kept rather than worked out again when the
+/// test runs; a test already stopped keeps its `false`.
+let private areCacheSafe
   (state : ExecutionState)
-  (test : PT.PackageTest.PackageTest)
-  : Ply<bool> =
-  provablyEffectFree
-    (function
-    | Pure -> true
-    | Impure -> false)
-    state
-    test
+  (tests : List<PT.PackageTest.PackageTest>)
+  : Ply<List<bool>> =
+  uply {
+    let! bodies, closure =
+      PackagePermissions.analyzeExpressions
+        PackagePermissions.Load.fromStore
+        (tests |> List.map _.body)
+    return
+      List.map2
+        (fun (test : PT.PackageTest.PackageTest) body ->
+          inProcessMemo.TryAdd(
+            test.hash,
+            provablyEffectFree inRunner state closure body
+          )
+          |> ignore<bool>
+          provablyEffectFree reusable state closure body)
+        tests
+        bodies
+  }
 
 /// Run a test the analysis cleared in this process, under the same test policy a worker
 /// gets, with a counter of its own. It shares the runner's warm package caches; a worker
@@ -395,7 +419,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       previewable = Impure
       // The callback may write. Keep it in program order, rather than letting
       // the interpreter defer this scope as an asynchronous package read.
-      callEffects = set [ Effect.Native ]
+      callEffects = set [ Effect.Native; Effect.Raise ]
       deprecated = NotDeprecated }
 
     { name = fn "pmTestWorkerExecute" 0
@@ -466,27 +490,33 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
-    { name = fn "pmTestIsCacheSafe" 0
+    { name = fn "pmTestsAreCacheSafe" 0
       typeParams = []
       parameters =
         [ Param.make
-            "testHash"
-            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "Hash of the package test to analyze" ]
-      returnType = TBool
+            "testHashes"
+            (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
+            "Hashes of the package tests to analyze" ]
+      returnType = TList TBool
       description =
-        "Checks the test and the functions it calls to decide whether a cached pass "
-        + "can be reused. Returns false if it cannot prove reuse is safe."
+        "Checks each test and the functions it calls to decide whether a cached pass "
+        + "can be reused, one answer per hash, in order. An answer is false if reuse "
+        + "cannot be proved safe."
       fn =
         (function
-        | state, _, _, [| hashDval |] ->
+        | state, _, _, [| DList(_, Items(hashes)) |] ->
           uply {
-            let hash = PT2DT.Hash.fromDT hashDval
-            match! pm.getTest hash with
-            | None -> return DBool false
-            | Some test ->
-              let! safe = isCacheSafe state test
-              return DBool safe
+            let! tests =
+              hashes |> Ply.List.mapSequentially (PT2DT.Hash.fromDT >> pm.getTest)
+            let found = tests |> List.choose (fun test -> test)
+            let! safe = areCacheSafe state found
+            let safe = List.zip (found |> List.map _.hash) safe |> Map.ofList
+            return
+              tests
+              |> List.map (function
+                | Some test -> DBool(Map.find test.hash safe = Some true)
+                | None -> DBool false)
+              |> Dval.list KTBool
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -517,7 +547,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           count |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
     { name = fn "pmTestRaiseRuntimeError" 0
@@ -536,7 +566,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       // Pure: inside a test, the same message always raises the same error, so a test that
       // checks how an error propagates can run in-process and keep its cached pass.
       previewable = Pure
-      callEffects = Set.empty
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
     { name = fn "pmTestRunsInProcess" 0

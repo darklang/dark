@@ -207,10 +207,6 @@ module FQFnName =
 
 
   /// Which implementation a trait call resolved to, and how much of that the save could say.
-  ///
-  /// v4 writes a case tag. v3 wrote a bare option, whose `0`/`1` line up with `Unknown`/`Chosen`,
-  /// so a v3 blob reads through the same two tags and never produces `FromTypeParam`. v1 and v2
-  /// wrote no field at all and read as `Unknown`.
   module ImplChoice =
     let write (w : BinaryWriter) (c : FQFnName.ImplChoice) : unit =
       match c with
@@ -223,18 +219,15 @@ module FQFnName =
         w.Write(2uy)
         String.write w p
 
-    let read (version : uint32) (r : BinaryReader) : FQFnName.ImplChoice =
-      if version < 3u then
-        FQFnName.Unknown
-      else
-        match r.ReadByte() with
-        | 0uy -> FQFnName.Unknown
-        | 1uy ->
-          let name = Package.read r
-          let location = Option.read r PackageLocation.read
-          FQFnName.Chosen { name = name; location = location }
-        | 2uy -> FQFnName.FromTypeParam(String.read r)
-        | b -> raiseFormatError $"Invalid ImplChoice tag: {b}"
+    let read (r : BinaryReader) : FQFnName.ImplChoice =
+      match r.ReadByte() with
+      | 0uy -> FQFnName.Unknown
+      | 1uy ->
+        let name = Package.read r
+        let location = Option.read r PackageLocation.read
+        FQFnName.Chosen { name = name; location = location }
+      | 2uy -> FQFnName.FromTypeParam(String.read r)
+      | b -> raiseFormatError $"Invalid ImplChoice tag: {b}"
 
   let write (w : BinaryWriter) (n : FQFnName.FQFnName) =
     match n with
@@ -245,21 +238,19 @@ module FQFnName =
       w.Write(1uy)
       Package.write w p
     | FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn } ->
-      // v2 only; a v1 blob never carries this tag. The implementation the call resolved to
-      // rides along: an option in v3, an `ImplChoice` from v4.
       w.Write(2uy)
       FQTraitName.Package.write w t
       String.write w m
       ImplChoice.write w implFn
 
-  let read (version : uint32) (r : BinaryReader) : FQFnName.FQFnName =
+  let read (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
     | 0uy -> FQFnName.Builtin(Builtin.read r)
     | 1uy -> FQFnName.Package(Package.read r)
     | 2uy ->
       let t = FQTraitName.Package.read r
       let m = String.read r
-      let implFn = ImplChoice.read version r
+      let implFn = ImplChoice.read r
       FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn }
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
