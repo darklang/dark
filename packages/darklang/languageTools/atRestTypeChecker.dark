@@ -762,11 +762,19 @@ let stringExpectedHint(expected: StaticType, actual: StaticType): String =
   | _ -> ""
 
 
-/// A two-parameter lambda does not unpack the pair a callback receives.
-let pairParameterHint(expected: StaticType, actual: StaticType): String =
+/// A lambda with one parameter per element does not unpack the tuple a callback receives,
+/// as `fun (k, v) ->` over a list of pairs.
+let tupleParameterHint(expected: StaticType, actual: StaticType): String =
   match (expected, actual) with
-  | (TFn([TTuple(_, _, [])], _), TFn([_, _], _)) ->
-    " (a pair is one argument; write `fun ((a, b)) -> ...`)"
+  | (TFn([ TTuple(_, _, rest) ], _), TFn(parameters, _)) ->
+    let names = [ "a", "b", "c", "d", "e", "f", "g", "h" ]
+    let count = Stdlib.List.length(parameters)
+    if count == 2 + Stdlib.List.length(rest) && count <= Stdlib.List.length(names) then
+      let noun = if count == 2 then "pair" else "tuple"
+      let pattern = Stdlib.String.join(Stdlib.List.take(names, count), ", ")
+      $" (a {noun} is one argument; write `fun (({pattern})) -> ...`)"
+    else
+      ""
   | _ -> ""
 
 
@@ -798,7 +806,7 @@ let issueToStringWith(
   let hint =
     fun(expected, actual) ->
       let typeHint =
-        stringExpectedHint(expected, actual) + pairParameterHint(expected, actual)
+        stringExpectedHint(expected, actual) + tupleParameterHint(expected, actual)
       match (issue.code, issue.context) with
       | (TypeMismatch, At(FunctionArgument(1, Some(callee)))) ->
         typeHint + appendListHint(callee, expected, actual)

@@ -485,7 +485,7 @@ let issueText(issue: LanguageTools.AtRestTypeChecker.Issue): String =
       let hint =
         match issue.code with
         | TypeMismatch ->
-          LanguageTools.AtRestTypeChecker.pairParameterHint(expected, actual)
+          LanguageTools.AtRestTypeChecker.tupleParameterHint(expected, actual)
         | _ -> ""
       Stdlib.Option.Option.Some("expected "
          + (LanguageTools.AtRestTypeChecker.staticTypeToString(expected))
