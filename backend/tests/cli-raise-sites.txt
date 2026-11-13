@@ -26,6 +26,7 @@
 1 Darklang.Cli.Installation.Uninstall.runUninstall Darklang.Stdlib.Cli.Unix.removeDirectory
 1 Darklang.Cli.Installation.Update.execute Builtin.unwrap
 1 Darklang.Cli.LiveView.Host.step Darklang.Stdlib.Host.await
+1 Darklang.Cli.Packages.AtRestCheck.positionShifted Darklang.Stdlib.UInt64.Modulo.modulo
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.createTemp
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.writeText
@@ -54,11 +55,6 @@
 1 Darklang.Cli.Tracing.followLoop Darklang.Stdlib.Cli.Posix.sleep
 1 Darklang.Cli.Workbench.execute Darklang.Stdlib.Cli.Sys.hostname
 1 Darklang.Cli.Workbench.loadBuiltinItems Darklang.Stdlib.List.sort
-1 Darklang.Cli.Workbench.renderBranchPicker Darklang.Stdlib.Cli.UI.ListView.render
-1 Darklang.Cli.Workbench.renderFull Darklang.Stdlib.Cli.UI.Layout.vstack
-1 Darklang.Cli.Workbench.renderNavbarRows Darklang.Stdlib.Cli.UI.ListView.render
-1 Darklang.Cli.Workbench.renderSearchResults Darklang.Stdlib.Cli.UI.ListView.render
-1 Darklang.Cli.Workbench.renderTreeList Darklang.Stdlib.Cli.UI.ListView.render
 1 Darklang.Cli.runInteractiveLoop Darklang.Stdlib.Host.await
 1 Darklang.GitHub.__fetchString Darklang.Stdlib.HttpClient.get
 1 Darklang.LanguageTools.AtRestTypeChecker.Items.toUInt64 Builtin.unwrap
@@ -70,14 +66,15 @@
 1 Darklang.LanguageTools.PackageManager.Test.Worker.read Darklang.Stdlib.Cli.FileSystem.readFile
 1 Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot Builtin.pmTestWithStoreSnapshot
 1 Darklang.LanguageTools.RuntimeTypesToProgramTypes.gid Darklang.Stdlib.Int64.random
+1 Darklang.LanguageTools.WrittenTypesToProgramTypes.gidAt Darklang.Stdlib.Int64.random
 1 Darklang.PrettyPrinter.RuntimeTypes.Instructions.boolSkip Darklang.Stdlib.Int64.fromInt32
-1 Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString Darklang.Stdlib.English.toOrdinal
-1 Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString Darklang.Stdlib.Text.ellipsis
 1 Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toSegments Darklang.Stdlib.Int64.fromInt32
 1 Darklang.PrettyPrinter.__encodeChar Darklang.Stdlib.Int64.fromUInt8
 1 Darklang.SCM.PackageOps.readRevisionOps Builtin.unwrap
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
+2 Darklang.Cli.Packages.AtRestCheck.positionShifted Darklang.Stdlib.UInt64.Divide.divide
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive
+2 Darklang.Cli.Packages.Signatures.namedLike Darklang.Stdlib.List.sort
 2 Darklang.LanguageTools.AtRestTypeChecker.Generate.orPattern Darklang.Stdlib.List.sort
 3 Darklang.Cli.Completion.completeFilesystemPath Darklang.Stdlib.Cli.FileSystem.getDirectoryContents
 3 Darklang.Cli.Installation.Download.replaceBinary Darklang.Stdlib.Cli.executeWithUnitOrStdErr
