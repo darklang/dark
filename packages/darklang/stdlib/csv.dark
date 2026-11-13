@@ -1,0 +1,113 @@
+/// Comma-separated values, as [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180) writes them:
+/// a field holding a comma, a quote or a line break is quoted, and a quote inside one is
+/// doubled.
+module Darklang.Stdlib.Csv
+
+
+module ParseError =
+  /// What is wrong, and the line (from 1) where the record it is in starts.
+  type ParseError =
+    /// A quoted field runs to the end of the text.
+    | UnclosedQuote(line: Int64)
+    /// A `"` inside a field that does not start with one.
+    | QuoteInUnquotedField(line: Int64)
+    /// Something other than a comma or a line break right after a quoted field closes.
+    | TextAfterClosingQuote(line: Int64)
+
+  let toString(e: ParseError): String =
+    match e with
+    | UnclosedQuote(line) -> $"a quoted field starting on line {line} is never closed"
+    | QuoteInUnquotedField(line) ->
+      $"line {line}: a quote inside a field that is not quoted; quote the field and double the quote"
+    | TextAfterClosingQuote(line) ->
+      $"line {line}: text after a closing quote; a quote inside a quoted field is written twice"
+
+  impl Display for ParseError =
+    let display = Stdlib.Csv.ParseError.toString
+
+
+type Mode =
+  | FieldStart
+  | Unquoted
+  | Quoted
+  | AfterQuote
+
+
+// a String's Chars are graphemes, so CRLF arrives as one Char
+let __isLineBreak(c: Char): Bool = c == '\n' || Stdlib.String.fromChar(c) == "\r\n"
+
+let __text(reversed: List<Char>): String = Stdlib.String.fromList(Stdlib.List.reverse(reversed))
+
+let __endField(row: List<String>, field: List<Char>): List<String> =
+  Stdlib.List.prepend(row, __text(field))
+
+let __endRecord(rows: List<List<String>>, row: List<String>): List<List<String>> =
+  Stdlib.List.prepend(rows, Stdlib.List.reverse(row))
+
+let __parse(
+  chars: List<Char>,
+  mode: Mode,
+  field: List<Char>,
+  row: List<String>,
+  rows: List<List<String>>,
+  line: Int64,
+  recordLine: Int64)
+  : Stdlib.Result.Result<List<List<String>>, ParseError.ParseError> =
+  match chars with
+  | [] ->
+    match mode with
+    | Quoted -> Stdlib.Result.Result.Error(ParseError.ParseError.UnclosedQuote(recordLine))
+    | FieldStart when Stdlib.List.isEmpty(row) ->
+      Stdlib.Result.Result.Ok(Stdlib.List.reverse(rows))
+    | _ -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(__endRecord(rows, __endField(row, field))))
+  | [ c, ...rest ] ->
+    match mode with
+    | Quoted ->
+      if c == '"' then __parse(rest, Mode.AfterQuote, field, row, rows, line, recordLine)
+      else
+        let line = if __isLineBreak(c) then line + 1 else line
+        __parse(rest, Mode.Quoted, Stdlib.List.prepend(field, c), row, rows, line, recordLine)
+    | _ ->
+      if c == '\r' then
+        __parse(rest, mode, field, row, rows, line, recordLine)
+      else if c == ',' then
+        __parse(rest, Mode.FieldStart, [], __endField(row, field), rows, line, recordLine)
+      else if __isLineBreak(c) then
+        // a blank line is no record
+        if mode == Mode.FieldStart && Stdlib.List.isEmpty(row) then
+          __parse(rest, Mode.FieldStart, [], [], rows, line + 1, line + 1)
+        else
+          __parse(rest, Mode.FieldStart, [], [], __endRecord(rows, __endField(row, field)), line + 1, line + 1)
+      else if c == '"' then
+        match mode with
+        | FieldStart -> __parse(rest, Mode.Quoted, [], row, rows, line, recordLine)
+        | AfterQuote -> __parse(rest, Mode.Quoted, Stdlib.List.prepend(field, '"'), row, rows, line, recordLine)
+        | _ -> Stdlib.Result.Result.Error(ParseError.ParseError.QuoteInUnquotedField(line))
+      else
+        match mode with
+        | AfterQuote -> Stdlib.Result.Result.Error(ParseError.ParseError.TextAfterClosingQuote(line))
+        | _ -> __parse(rest, Mode.Unquoted, Stdlib.List.prepend(field, c), row, rows, line, recordLine)
+
+
+/// The records in <param text>, each a list of its fields. Lines end in CRLF or LF, a
+/// blank line is skipped, and a final line break is optional. Fields are not trimmed.
+let parse(text: String): Stdlib.Result.Result<List<List<String>>, ParseError.ParseError> =
+  __parse(Stdlib.String.toList(text), Mode.FieldStart, [], [], [], 1, 1)
+
+
+/// <param rows> as CSV text: fields joined by commas and records ended by CRLF. A field with a
+/// comma, a quote or a line break is quoted, with each quote inside it doubled.
+let serialize(rows: List<List<String>>): String =
+  let quote = fun field ->
+    if
+      Stdlib.String.contains(field, ",")
+      || Stdlib.String.contains(field, "\"")
+      || Stdlib.String.contains(field, "\n")
+      || Stdlib.String.contains(field, "\r")
+    then
+      "\"" + Stdlib.String.replaceAll(field, "\"", "\"\"") + "\""
+    else
+      field
+  rows
+  |> Stdlib.List.map(fun row -> Stdlib.String.join(Stdlib.List.map(row, quote), ",") + "\r\n")
+  |> Stdlib.String.join("")

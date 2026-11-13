@@ -2350,14 +2350,16 @@ module PackageOp =
         [ PackageLocation.toDT loc; Reference.toDT target; previousToDT previous ]
       | PT.PackageOp.Unbind(loc, previous) ->
         "Unbind", [ PackageLocation.toDT loc; previousToDT previous ]
-      | PT.PackageOp.Deprecate(target, kind, message, restating) ->
+      | PT.PackageOp.Deprecate(location, target, kind, message, restating) ->
         "Deprecate",
-        [ Reference.toDT target
+        [ PackageLocation.toDT location
+          Reference.toDT target
           DeprecationKind.toDT kind
           DString message
           stampToDT restating ]
-      | PT.PackageOp.Undeprecate(target, restating) ->
-        "Undeprecate", [ Reference.toDT target; stampToDT restating ]
+      | PT.PackageOp.Undeprecate(location, target, restating) ->
+        "Undeprecate",
+        [ PackageLocation.toDT location; Reference.toDT target; stampToDT restating ]
       | PT.PackageOp.Rename(oldLocation, newLocation, target, references, stamp) ->
         "Rename",
         [ PackageLocation.toDT oldLocation
@@ -2412,17 +2414,28 @@ module PackageOp =
       )
     | DEnum(_, _, [], "Unbind", [ loc; previous ]) ->
       Some(PT.PackageOp.Unbind(PackageLocation.fromDT loc, previousFromDT previous))
-    | DEnum(_, _, [], "Deprecate", [ target; kind; DString message; restating ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "Deprecate",
+            [ location; target; kind; DString message; restating ]) ->
       Some(
         PT.PackageOp.Deprecate(
+          PackageLocation.fromDT location,
           Reference.fromDT target,
           DeprecationKind.fromDT kind,
           message,
           stampFromDT restating
         )
       )
-    | DEnum(_, _, [], "Undeprecate", [ target; restating ]) ->
-      Some(PT.PackageOp.Undeprecate(Reference.fromDT target, stampFromDT restating))
+    | DEnum(_, _, [], "Undeprecate", [ location; target; restating ]) ->
+      Some(
+        PT.PackageOp.Undeprecate(
+          PackageLocation.fromDT location,
+          Reference.fromDT target,
+          stampFromDT restating
+        )
+      )
     | DEnum(_,
             _,
             [],

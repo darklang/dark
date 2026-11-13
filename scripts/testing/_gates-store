@@ -266,7 +266,7 @@ gate_backups_restore() {
   [[ "$fail" -eq 0 ]]
 }
 
-# --- old-store-resets: a store from before per-branch names opens, backed up and refilled -------
+# --- old-store-resets: a store with older package tables opens, backed up and refilled ----------
 # Its package tables cannot be carried across, so the first open resets them. What has to hold:
 # a fresh backup is taken whatever older backups the folder holds, it says where, the packages come
 # back from the build, config and traces are kept, and a stored branch that is gone falls back to
@@ -325,7 +325,7 @@ gate_old_store_resets() {
 
   echo "== the first open resets it"
   opened=$(x eval 'Stdlib.List.length([1, 2, 3])')
-  want "it says the store predates per-branch names" "predates per-branch names" "$opened"
+  want "it says the package tables are an older shape" "package tables are an older shape" "$opened"
   want "and names the backup" "copied to .*data\.db\.before-layers-" "$opened"
   want "and the packages are back" "^3$" "$(tail -1 <<<"$opened")"
 
@@ -341,7 +341,22 @@ gate_old_store_resets() {
 
   echo "== the next open is an ordinary one"
   again=$(x eval 1)
-  if grep -q "predates" <<<"$again"; then bad "it does not reset again" "$again"; else ok "it does not reset again"; fi
+  if grep -q "older shape" <<<"$again"; then bad "it does not reset again" "$again"; else ok "it does not reset again"; fi
+
+  # Deprecations once keyed on content alone, and their ops carry no name to key them by now, so a
+  # store whose `deprecations` has no name columns resets too, with everything else current.
+  echo "== a store with content-keyed deprecations resets too"
+  sqlite3 "$DB" "
+    DROP TABLE deprecations;
+    CREATE TABLE deprecations (branch_id TEXT NOT NULL, draft INTEGER NOT NULL, item_hash TEXT NOT NULL,
+      item_kind TEXT NOT NULL, state TEXT NOT NULL, annotation_blob BLOB, live INTEGER NOT NULL DEFAULT 1,
+      origin_ts TEXT NOT NULL, op_id TEXT NOT NULL);
+    DROP TABLE IF EXISTS store_stamp_v0;"
+  reopened=$(x eval 'Stdlib.List.length([1, 2])')
+  want "it says the package tables are an older shape" "package tables are an older shape" "$reopened"
+  want "and the packages are back" "^2$" "$(tail -1 <<<"$reopened")"
+  want "and deprecations are keyed on the name" "^1$" "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('deprecations') WHERE name = 'owner'")"
+  want "config is still kept" "^yes$" "$(sqlite3 "$DB" "SELECT value FROM config_v0 WHERE key = 'gate.kept'")"
 
   echo
   echo "passed: $pass   failed: $fail"

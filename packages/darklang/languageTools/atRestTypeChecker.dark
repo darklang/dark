@@ -188,6 +188,8 @@ type Context =
   /// A value used as a function, named as written when available.
   | NonCallableValue(Stdlib.Option.Option<String>)
   | Arity(Int64, Int64)
+  /// A call's source name, when available, and its expected and given counts.
+  | FunctionArgumentCount(Stdlib.Option.Option<String>, Int64, Int64)
   | NamedArity(String, Int64, Int64)
   | TypeArity(LanguageTools.ProgramTypes.Hash, Int64, Int64)
   | ArgumentIndex(Int64)
@@ -635,6 +637,13 @@ let contextToStringWith(
     | _ ->
       $"This type declaration expects {noun}, "
       + $"but {Stdlib.display(actual)} {verb} provided"
+  | FunctionArgumentCount(name, expected, actual) ->
+    let subject = Stdlib.Option.withDefault(name, "This function")
+    let args =
+      if expected == 1 then "1 argument"
+      else $"{Stdlib.display(expected)} arguments"
+    let verb = if actual == 1 then "was" else "were"
+    $"{subject} takes {args}, but {Stdlib.display(actual)} {verb} given"
   | NamedArity(ident, expected, actual) ->
     let noun =
       if expected == 1 then "1 field" else $"{Stdlib.display(expected)} fields"
