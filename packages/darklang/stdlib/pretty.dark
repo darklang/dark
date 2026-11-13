@@ -32,8 +32,9 @@ type Doc =
   | Concat(Doc, Doc)
   /// Indent everything inside by `n` columns, applied after each break rather than once at the front.
   | Nest(Int64, Doc)
-  /// Try to fit the inside on one line.
-  | Group(Doc)
+  /// Try to fit the inside on one line. `flatWidth` is its width on one line, measured once by
+  /// `group`, or -1 when it holds a break that keeps it from being laid flat.
+  | Group(doc: Doc, flatWidth: Int64)
   /// Indent everything inside to the column it starts at, so its later lines line up under its
   /// first: `[ a` then `  b ]`, wherever on the line the `[` is.
   | Align(Doc)
@@ -115,7 +116,31 @@ let concatLine(a: Doc, b: Doc): Doc = Doc.Concat(a, Doc.Concat(Doc.Line, b))
 
 let nest(n: Int64, d: Doc): Doc = Doc.Nest(n, d)
 
-let group(d: Doc): Doc = Doc.Group(d)
+let group(d: Doc): Doc = Doc.Group(d, __flatWidthLoop(0, [ d ]))
+
+
+/// The width of <param ds> laid on one line, after <param acc> columns, or -1 when one holds a
+/// break that keeps it from being flat.
+let __flatWidthLoop(acc: Int64, ds: List<Doc>): Int64 =
+  match ds with
+  | [] -> acc
+  | [d, ...rest] ->
+    match d with
+    | Empty -> __flatWidthLoop(acc, rest)
+    | SoftLine -> __flatWidthLoop(acc, rest)
+    | LineSuffix(_) -> __flatWidthLoop(acc, rest)
+    | Line -> __flatWidthLoop(acc + 1, rest)
+    | Text(_, w) -> if w < 0 then -1 else __flatWidthLoop(acc + w, rest)
+    | Styled(_, t, _) -> __flatWidthLoop(acc + String.displayWidth(t), rest)
+    | HardLine -> -1
+    | BreakParent -> -1
+    | Concat(a, b) -> __flatWidthLoop(acc, List.prepend(List.prepend(rest, b), a))
+    | Nest(_, x) -> __flatWidthLoop(acc, List.prepend(rest, x))
+    | Align(x) -> __flatWidthLoop(acc, List.prepend(rest, x))
+    | Group(_, w) -> if w < 0 then -1 else __flatWidthLoop(acc + w, rest)
+    | IfFlat(a, _) -> __flatWidthLoop(acc, List.prepend(rest, a))
+    | FitsOr(a, _) -> __flatWidthLoop(acc, List.prepend(rest, a))
+    | Paragraphs(items, flat) -> __flatWidthLoop(acc, List.prepend(rest, __joined(items, flat)))
 
 
 /// See `Doc.Align`.
@@ -139,7 +164,7 @@ let vsep(ds: List<Doc>): Doc =
 
 /// Hang `items` from `head`, breaking and indenting them when needed.
 let hang(indent: Int64, head: Doc, items: List<Doc>): Doc =
-  Doc.Group(
+  group(
     Doc.Concat(
       head,
       Doc.Nest(indent, concatAll(items |> List.map(fun d -> Doc.Concat(Doc.Line, d))))))
@@ -238,34 +263,33 @@ let __laidOut(width: Int64, i: Int64, items: List<(Doc * Doc * String * Bool)>):
       Doc.Concat(acc, Doc.Concat(sep, d)))
 
 
+/// `Doc.Paragraphs` as work for a walk that stops at the first line break: broken, its first
+/// sibling and the break after it; flat, all of them joined.
+let __paragraphsWork(
+  i: Int64,
+  m: Mode,
+  ps: List<(Doc * Doc * String * Bool)>,
+  flat: Doc)
+  : List<(Int64 * Mode * Doc)> =
+  match m, ps with
+  | Break, [(d, _, _, _)] -> [ (i, m, d) ]
+  | Break, [(d, _, _, _), _, ...] -> [ (i, m, d), (i, m, Doc.Line) ]
+  | _ -> [ (i, m, __joined(ps, Doc.IfFlat(flat, Doc.Line))) ]
+
+
 /// Whether a group is being laid out on one line or broken.
 type Mode =
   | Flat
   | Break
 
 
-/// Whether <param d> holds a break that keeps it from being laid flat.
-let __hard(d: Doc): Bool =
-  match d with
-  | HardLine -> true
-  | BreakParent -> true
-  | Text(_, width) -> width < 0
-  | Concat(a, b) -> Pretty.__hard(a) || Pretty.__hard(b)
-  | Nest(_, x) -> Pretty.__hard(x)
-  | Group(x) -> Pretty.__hard(x)
-  | Align(x) -> Pretty.__hard(x)
-  | IfFlat(a, _) -> Pretty.__hard(a)
-  | FitsOr(a, _) -> Pretty.__hard(a)
-  | Paragraphs(items, flat) -> Pretty.__hard(__joined(items, flat))
-  | _ -> false
-
-
 /// Would the rest of this line fit in `room` columns?
 ///
-/// `items` is the group being tried, flat, in front of everything after it. The walk stops at the
-/// first break that ends the line (everything so far fits) or when the room runs out. A hard break
-/// inside the flat part means it can't be one line. With `hardEnds`, a hard break ends the line
-/// instead of failing it: that measures only a document's first line, for `FitsOr`.
+/// `items` is what follows on the line: for a group being tried, everything after it, with the
+/// group's own width already taken from `room`. The walk stops at the first break that ends the
+/// line (everything so far fits) or when the room runs out. A hard break inside the flat part
+/// means it can't be one line. With `hardEnds`, a hard break ends the line instead of failing it:
+/// that measures only a document's first line, for `FitsOr`.
 let __fits(hardEnds: Bool, room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
   if room < 0 then
     false
@@ -304,21 +328,25 @@ let __fits(hardEnds: Bool, room: Int64, items: List<(Int64 * Mode * Doc)>): Bool
       | Concat(a, b) ->
         Pretty.__fits(hardEnds, room, List.prepend(List.prepend(rest, (i, m, b)), (i, m, a)))
       | Nest(j, x) -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i + j, m, x)))
-      // Measuring a first line, a group that can't be flat will break, so its first break ends
-      // the line.
-      | Group(x) ->
-        let mode = if hardEnds && __hard(x) then Mode.Break else m
-        Pretty.__fits(hardEnds, room, List.prepend(rest, (i, mode, x)))
+      // Flat, a group takes the width measured when it was made. Measuring a first line, one
+      // that can't be flat will break, so its first break ends the line.
+      | Group(x, w) ->
+        match m with
+        | Flat ->
+          if w >= 0 then
+            Pretty.__fits(hardEnds, room - w, rest)
+          else if hardEnds then
+            Pretty.__fits(hardEnds, room, List.prepend(rest, (i, Mode.Break, x)))
+          else
+            false
+        | Break -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, x)))
       | Align(x) -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, x)))
       | IfFlat(a, b) ->
         let chosen = if m == Mode.Flat then a else b
         Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, chosen)))
       | FitsOr(a, _) -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, a)))
       | Paragraphs(ps, flat) ->
-        Pretty.__fits(
-          hardEnds,
-          room,
-          List.prepend(rest, (i, m, __joined(ps, Doc.IfFlat(flat, Doc.Line)))))
+        Pretty.__fits(hardEnds, room, List.concat(__paragraphsWork(i, m, ps, flat), rest))
 
 
 /// The output so far, as reversed chunks, with <param s> written: the <param indentDue> spaces
@@ -396,12 +424,11 @@ let __renderLoop(
         List.prepend(List.prepend(rest, (i, m, b)), (i, m, a)))
     | Nest(j, x) ->
       __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i + j, m, x)))
-    | Group(x) ->
+    | Group(x, w) ->
       // The one decision this whole module exists to make. Inside a flat group it is made
       // already: that group's check covered this one.
-      let flat = List.prepend(rest, (i, Mode.Flat, x))
-      if m == Mode.Flat || __fits(false, width - col, flat) then
-        __renderLoop(width, col, acc, indentDue, pending, flat)
+      if m == Mode.Flat || w >= 0 && __fits(false, width - col - w, rest) then
+        __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, Mode.Flat, x)))
       else
         __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, Mode.Break, x)))
     | Align(x) -> __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (col, m, x)))
@@ -454,10 +481,9 @@ let __breaksLoop(width: Int64, col: Int64, items: List<(Int64 * Mode * Doc)>): B
     | Concat(a, b) ->
       __breaksLoop(width, col, List.prepend(List.prepend(rest, (i, m, b)), (i, m, a)))
     | Nest(j, x) -> __breaksLoop(width, col, List.prepend(rest, (i + j, m, x)))
-    | Group(x) ->
-      let flat = List.prepend(rest, (i, Mode.Flat, x))
-      if m == Mode.Flat || __fits(false, width - col, flat) then
-        __breaksLoop(width, col, flat)
+    | Group(x, w) ->
+      if m == Mode.Flat || w >= 0 && __fits(false, width - col - w, rest) then
+        __breaksLoop(width, col, List.prepend(rest, (i, Mode.Flat, x)))
       else
         __breaksLoop(width, col, List.prepend(rest, (i, Mode.Break, x)))
     | Align(x) -> __breaksLoop(width, col, List.prepend(rest, (col, m, x)))
@@ -472,7 +498,7 @@ let __breaksLoop(width: Int64, col: Int64, items: List<(Int64 * Mode * Doc)>): B
         let chosen = if first then a else b
         __breaksLoop(width, col, List.prepend(rest, (i, Mode.Break, chosen)))
     | Paragraphs(ps, flat) ->
-      __breaksLoop(width, col, List.prepend(rest, (i, m, __joined(ps, Doc.IfFlat(flat, Doc.Line)))))
+      __breaksLoop(width, col, List.concat(__paragraphsWork(i, m, ps, flat), rest))
 
 
 /// Whether `render(width, doc)` would take more than one line, found without rendering it: the

@@ -783,7 +783,7 @@ let typeReferenceDocWithFnParens(
       |> Stdlib.List.map(fun item -> typeReferenceDocWithFnParens(ctx, true, item))
 
     let separator = Stdlib.Pretty.Doc.Concat(txt(" *"), Stdlib.Pretty.Doc.Line)
-    Stdlib.Pretty.Doc.Group(parens(Stdlib.Pretty.join(parts, separator)))
+    Stdlib.Pretty.group(parens(Stdlib.Pretty.join(parts, separator)))
   | TCustomType(typ, args) ->
     let head = txt(NameResolution.typeName(ctx, typ))
     match args with
@@ -810,7 +810,7 @@ let typeReferenceDocWithFnParens(
           args |> Stdlib.List.map(fun a -> typeReferenceDocWithFnParens(ctx, false, a)))
 
     let doc =
-      Stdlib.Pretty.Doc.Group(
+      Stdlib.Pretty.group(
         Stdlib.Pretty.join(
           [ argsDoc, typeReferenceDocWithFnParens(ctx, true, ret) ],
           Stdlib.Pretty.Doc.Concat(txt(" ->"), Stdlib.Pretty.Doc.Line)))
@@ -1223,7 +1223,7 @@ let wrapExprs(
         parts,
         Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text(sep), Stdlib.Pretty.Doc.Line))
 
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.concatAll(
         [ Stdlib.Pretty.text(opening)
           Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.SoftLine, separated))
@@ -1246,7 +1246,7 @@ let wrapExprsClosingBelow(
         parts,
         Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text(sep), Stdlib.Pretty.Doc.Line))
 
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.concatAll(
         [ Stdlib.Pretty.text(opening)
           Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.SoftLine, separated))
@@ -1267,7 +1267,7 @@ let spacedParts(
   | [] -> Stdlib.Pretty.text(opening + closing)
   | parts ->
     let sep = Stdlib.Pretty.Doc.IfFlat(Stdlib.Pretty.text(", "), Stdlib.Pretty.Doc.Line)
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.concatAll(
         [ Stdlib.Pretty.text(opening + " ")
           Stdlib.Pretty.Doc.Align(Stdlib.Pretty.join(parts, sep))
@@ -1303,7 +1303,7 @@ let listDoc(ctx: Context, items: List<LanguageTools.ProgramTypes.Expr>): Stdlib.
           lineShape(item),
           blankBeforeComments(ctx, id)))
 
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.concatAll(
         [ Stdlib.Pretty.text("[ ")
           Stdlib.Pretty.Doc.Align(
@@ -1409,11 +1409,11 @@ let callArgs(
       let hugged =
         Stdlib.Pretty.concatAll(
           [ Stdlib.Pretty.text("(")
-            Stdlib.Pretty.Doc.Group(before)
+            Stdlib.Pretty.group(before)
             lambdaBrokenDoc(pats, bodyDoc)
             Stdlib.Pretty.text(")") ])
 
-      Stdlib.Pretty.Doc.Group(
+      Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.IfFlat(onOneLine, Stdlib.Pretty.Doc.FitsOr(hugged, brokenArgs)))
     | _ -> broken
 
@@ -1433,7 +1433,7 @@ let lambdaFlatDoc(
   pats: List<LanguageTools.ProgramTypes.LetPattern>,
   body: Stdlib.Pretty.Doc)
   : Stdlib.Pretty.Doc =
-  Stdlib.Pretty.Doc.Group(
+  Stdlib.Pretty.group(
     Stdlib.Pretty.Doc.Concat(
       Stdlib.Pretty.text($"fun{lambdaParams(pats)} ->"),
       Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, body))))
@@ -1688,7 +1688,7 @@ let ifDoc(
     // `if cond then` when the condition fits on the line; otherwise the condition goes on lines
     // of its own between `if` and `then`, two in, rather than hanging off the `if`.
     let condLine =
-      Stdlib.Pretty.Doc.Group(
+      Stdlib.Pretty.group(
         Stdlib.Pretty.concatAll(
           [ txt("if")
             Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, condDoc))
@@ -1729,10 +1729,10 @@ let ifDoc(
       Stdlib.Bool.not(
         Stdlib.Pretty.isMultiLine(
           shortIfWidth,
-          Stdlib.Pretty.Doc.Group(layout(measured, Stdlib.Pretty.Doc.Line))))
+          Stdlib.Pretty.group(layout(measured, Stdlib.Pretty.Doc.Line))))
 
   if short || ctx.oneLine then
-    Stdlib.Pretty.Doc.Group(layout(built, Stdlib.Pretty.Doc.Line))
+    Stdlib.Pretty.group(layout(built, Stdlib.Pretty.Doc.Line))
   else
     layout(built, Stdlib.Pretty.Doc.HardLine)
 
@@ -1767,14 +1767,14 @@ let letBindingDoc(
   // a lambda.
   | ELambda(_, pats, body) ->
     let bodyDoc = exprDoc(ctx, body)
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.Doc.IfFlat(
         Stdlib.Pretty.Doc.Concat(txt(head + " "), lambdaFlatDoc(pats, bodyDoc)),
         Stdlib.Pretty.Doc.Concat(txt(head + " "), lambdaBrokenDoc(pats, bodyDoc))))
   | EApply(_, _, _, args) when lastIsLambda(args) ->
     let rhsDoc = lineDoc(ctx, rhs)
     let hanging = Stdlib.Pretty.hang(2, txt(head), [ rhsDoc ])
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.Doc.IfFlat(
         Stdlib.Pretty.Doc.Concat(txt(head + " "), rhsDoc),
         Stdlib.Pretty.Doc.FitsOr(Stdlib.Pretty.Doc.Concat(txt(head + " "), rhsDoc), hanging)))
@@ -2048,7 +2048,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
           let head =
             match case.pat with
             | MPOr(_, alternatives) ->
-              Stdlib.Pretty.Doc.Group(
+              Stdlib.Pretty.group(
                 Stdlib.Pretty.Doc.Concat(
                   Stdlib.Pretty.text("| "),
                   alternatives
@@ -2062,7 +2062,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
 
           Stdlib.Pretty.hang(
             2,
-            Stdlib.Pretty.Doc.Group(Stdlib.Pretty.Doc.Concat(head, whenPart)),
+            Stdlib.Pretty.group(Stdlib.Pretty.Doc.Concat(head, whenPart)),
             [ body ])))
       |> Stdlib.Pretty.join(Stdlib.Pretty.Doc.HardLine)
 
@@ -2120,7 +2120,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
     let doc =
       Stdlib.Pretty.Doc.Concat(head, Stdlib.Pretty.Doc.Concat(sep, Stdlib.Pretty.join(stages, sep)))
 
-    if vertical then doc else Stdlib.Pretty.Doc.Group(doc)
+    if vertical then doc else Stdlib.Pretty.group(doc)
   // Parenthesise only where precedence or associativity requires it. A chain of one operator
   // breaks before each operator, the operands lined up: `a` then `|| b` then `|| c`.
   | EInfix(_id, infixOp, _, _, _) ->
@@ -2134,7 +2134,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
         else
           exprDoc(ctx, e)
 
-      Stdlib.Pretty.Doc.Group(
+      Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.Align(
           Stdlib.Pretty.concatAll(
             [ side(left, false)
@@ -2156,7 +2156,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
               Stdlib.Pretty.text($"{infix(infixOp)} ")
               side(operand, true) ]))
 
-      Stdlib.Pretty.Doc.Group(
+      Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.Align(
           Stdlib.Pretty.Doc.Concat(side(first, false), Stdlib.Pretty.concatAll(tail))))
     | [] -> Stdlib.Pretty.text("")
@@ -2235,7 +2235,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
         Stdlib.Pretty.text(NameResolution.typeName(ctx, typeName)),
         typeArgumentsDoc(ctx, typeArgs))
 
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.Doc.Concat(
         head,
         Stdlib.Pretty.Doc.Nest(
@@ -2255,7 +2255,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
             [ exprDoc(ctx, value) ])))
 
     let sep = Stdlib.Pretty.Doc.IfFlat(Stdlib.Pretty.text(", "), Stdlib.Pretty.Doc.Line)
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.concatAll(
         [ Stdlib.Pretty.text("{ ")
           Stdlib.Pretty.Doc.Align(
@@ -2431,7 +2431,7 @@ let bindingDoc(
       | None -> []
 
     let header =
-      Stdlib.Pretty.Doc.Group(
+      Stdlib.Pretty.group(
         Stdlib.Pretty.concatAll(
           Stdlib.List.flatten(
             [ [ Stdlib.Pretty.text($"let {formatName(name)}")
@@ -2440,7 +2440,7 @@ let bindingDoc(
               returnPart
               [ Stdlib.Pretty.text(" =") ] ])))
 
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.Doc.Concat(
         header,
         Stdlib.Pretty.Doc.Nest(
@@ -2995,7 +2995,7 @@ let packageFnNamed(
   let headerDoc =
     let txt = Stdlib.Pretty.text
     let colon = ": "
-    Stdlib.Pretty.Doc.Group(
+    Stdlib.Pretty.group(
       Stdlib.Pretty.concatAll(
         [ txt($"let {namePart}{typeParamPart}")
           PackageFn.parametersDoc(ctx, p.parameters)
@@ -3025,7 +3025,7 @@ let packageFnNamed(
   let body = lineDoc(contextWithFn, p.body)
   let doc =
     if ctx.compactFnBody then
-      Stdlib.Pretty.Doc.Group(
+      Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.Concat(
           headerDoc,
           Stdlib.Pretty.Doc.Nest(2, Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, body))))
