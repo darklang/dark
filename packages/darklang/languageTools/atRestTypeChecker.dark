@@ -185,6 +185,8 @@ type Context =
   | Untrusted(NameRef, UntrustedBuiltin)
   /// The trait a bound or method call needed an impl of
   | TraitNeeded(LanguageTools.ProgramTypes.Hash, Stdlib.Option.Option<String>)
+  /// A value used as a function, named as written when available.
+  | NonCallableValue(Stdlib.Option.Option<String>)
   | Arity(Int64, Int64)
   | NamedArity(String, Int64, Int64)
   | TypeArity(LanguageTools.ProgramTypes.Hash, Int64, Int64)
@@ -557,7 +559,15 @@ let contextToStringWith(
   match context with
   | InStringInterpolation(inner) ->
     "In string interpolation: " + contextToStringWith(customTypeName, actualName, code, inner)
-  | NoDetail -> ""
+  | NoDetail ->
+    if code == IssueCode.NotCallable then "This value is not a function" else ""
+  | NonCallableValue(name) ->
+    match name with
+    | Some(name) ->
+      $"{name} is a value, not a function. Use {name} without calling it."
+    | None ->
+      let typ = Stdlib.Option.withDefault(actualName, "unknown")
+      $"This value has type {typ}, not a function type, and cannot be called."
   | At(site) -> $"In {siteToString(site)}"
   | Unresolved(parts) ->
     match parts with

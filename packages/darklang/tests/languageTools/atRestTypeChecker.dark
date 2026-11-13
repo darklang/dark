@@ -3499,3 +3499,39 @@ module StandardTypes =
         |> Stdlib.Test.equal(carried(Stdlib.Test.Result.Pass))
         byName([ "Stdlib", "Option" ], "NoSuchType")
         |> Stdlib.Test.equal(Darklang.LanguageTools.ProgramTypes.Hash.Hash("")) ])
+
+module NotCallableDiagnostics =
+  test noDetailFormatting =
+    let render(code: Darklang.LanguageTools.AtRestTypeChecker.IssueCode): String =
+      Darklang.LanguageTools.AtRestTypeChecker.contextToStringWith(
+        (fun _ -> Stdlib.Option.Option.None),
+        Stdlib.Option.Option.None,
+        code,
+        Darklang.LanguageTools.AtRestTypeChecker.Context.NoDetail)
+    Stdlib.Test.all(
+      [ render(Darklang.LanguageTools.AtRestTypeChecker.IssueCode.NotCallable)
+        |> Stdlib.Test.equal("This value is not a function")
+        render(Darklang.LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch)
+        |> Stdlib.Test.equal("") ])
+
+  test packageValue =
+    issues("let f(): Bytes = Stdlib.Bytes.empty()", "f")
+    |> Stdlib.Test.equal(
+         [ "NotCallable: Stdlib.Bytes.empty is a value, not a function. Use Stdlib.Bytes.empty without calling it." ])
+
+  test localValue =
+    issues(src([ "let f(): Int64 =", "  let n = 1", "  n()" ]), "f")
+    |> Stdlib.Test.equal(
+         [ "NotCallable: n is a value, not a function. Use n without calling it." ])
+
+  // The parser rejects literal callees; exercise the checker with an AST.
+  test unnamedExpression =
+    let body =
+      Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+        1, intExpr(2, 1), [], [ intExpr(3, 2) ])
+    let outcome = checkFunctionAstOutcome([], oneArg(tUnit(), tInt(), body))
+    outcome.diagnostics
+    |> Stdlib.List.map(fun issue ->
+         Darklang.LanguageTools.AtRestTypeChecker.issueToString(issue))
+    |> Stdlib.Test.equal(
+         [ "This value has type Int64, not a function type, and cannot be called." ])
