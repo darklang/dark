@@ -236,19 +236,26 @@ let private quickCheck
   (start : int)
   : Option<int> =
   let fails = failsFlag form
+  let bmp = bmpProperties.Force()
   let rec go (i : int) (lastClass : int) (safe : int) =
     if i >= s.Length then
       None
     else
-      match Rune.DecodeFromUtf16(System.MemoryExtensions.AsSpan(s, i)) with
-      | System.Buffers.OperationStatus.Done, rune, used when not (isRefused rune) ->
-        let bits = properties rune.Value
-        let ccc = bits &&& 0xFF
-        if bits &&& fails <> 0 || (ccc <> 0 && lastClass > ccc) then
-          Some safe
+      // -1 for what NFC refuses
+      let struct (bits, used) =
+        let c = s[i]
+        if not (System.Char.IsSurrogate c) && c <> '\uFFFE' then
+          struct (int bmp[int c], 1)
         else
-          go (i + used) ccc (if ccc = 0 then i else safe)
-      | _ -> Some safe
+          match Rune.DecodeFromUtf16(System.MemoryExtensions.AsSpan(s, i)) with
+          | System.Buffers.OperationStatus.Done, rune, used when not (isRefused rune) ->
+            struct (properties rune.Value, used)
+          | _ -> struct (-1, 0)
+      let ccc = bits &&& 0xFF
+      if bits < 0 || bits &&& fails <> 0 || (ccc <> 0 && lastClass > ccc) then
+        Some safe
+      else
+        go (i + used) ccc (if ccc = 0 then i else safe)
   // The char before `start` is below `firstCandidate`, so it is a safe place to begin.
   go start 0 (max 0 (start - 1))
 
@@ -314,7 +321,13 @@ let private normalizeJoins
         | (prevStart, prevStop) :: rest when start < prevStop ->
           windows (k + 1) join ((prevStart, max prevStop stop) :: rest)
         | _ -> windows (k + 1) join ((start, stop) :: acc)
-  match windows 0 0 [] with
+  let noCandidates =
+    System.MemoryExtensions.IndexOfAnyExceptInRange(
+      System.MemoryExtensions.AsSpan s,
+      char 0,
+      char 0x2FF
+    ) < 0
+  match if noCandidates then [] else windows 0 0 [] with
   | [] -> s
   | lastFirst ->
     let normalized =
