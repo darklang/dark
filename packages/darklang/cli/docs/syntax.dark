@@ -48,9 +48,16 @@ API. Listings, search and completion hide it unless given `--include-internal`;
 it is still called, viewed and depended on by its full name.
 
 ## Constructors
-  Some(5)         // fields in parentheses, like a call's arguments
-  Pair(1, 2)      // several fields
-  None            // no fields
+  type Shape = | Dot | Circle(Float) | Rect(Float, Float)
+  Shape.Circle(1.0)     // fields in parentheses, like a call's arguments
+  Shape.Rect(1.0, 2.0) // several fields
+  Shape.Dot            // no fields
+
+Use `Type.Case(...)` to construct an enum value, for example `Shape.Circle(1.0)`.
+In match patterns, use the case name alone: `| Circle(r) -> r`.
+
+`Some`, `None`, `Ok`, and `Error` are exceptions: they can also be constructed
+without the type name.
 
 ## Match
   match x with

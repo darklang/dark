@@ -224,14 +224,17 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     | Some(Hash h) ->
       w.Write(1uy)
       String.write w h
-  | PackageOp.Deprecate(target, kind, message, restating) ->
-    w.Write(4uy)
+  // 20 and 21, not 4 and 5: those carried no location, from when a deprecation keyed on content.
+  | PackageOp.Deprecate(location, target, kind, message, restating) ->
+    w.Write(20uy)
+    PackageLocation.write w location
     Reference.write w target
     DeprecationKind.write w kind
     String.write w message
     Option.write w String.write restating
-  | PackageOp.Undeprecate(target, restating) ->
-    w.Write(5uy)
+  | PackageOp.Undeprecate(location, target, restating) ->
+    w.Write(21uy)
+    PackageLocation.write w location
     Reference.write w target
     Option.write w String.write restating
   | PackageOp.Rename(oldLocation, newLocation, target, references, stamp) ->
@@ -311,14 +314,16 @@ let read (r : BinaryReader) : PackageOp =
       | 1uy -> Some(Hash(String.read r))
       | b -> raiseFormatError $"Invalid Unbind previous tag: {b}"
     PackageOp.Unbind(location, previous)
-  | 4uy ->
+  | 20uy ->
+    let location = PackageLocation.read r
     let target = Reference.read r
     let kind = DeprecationKind.read r
     let message = String.read r
-    PackageOp.Deprecate(target, kind, message, Option.read r String.read)
-  | 5uy ->
+    PackageOp.Deprecate(location, target, kind, message, Option.read r String.read)
+  | 21uy ->
+    let location = PackageLocation.read r
     let target = Reference.read r
-    PackageOp.Undeprecate(target, Option.read r String.read)
+    PackageOp.Undeprecate(location, target, Option.read r String.read)
   | 19uy ->
     let oldLocation = PackageLocation.read r
     let newLocation = PackageLocation.read r

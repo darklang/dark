@@ -332,10 +332,14 @@ CREATE INDEX IF NOT EXISTS idx_locations_op ON locations(op_id, branch_id);
 CREATE INDEX IF NOT EXISTS idx_locations_layer ON locations(branch_id, draft) WHERE live = 1;
 
 
--- Projection of Deprecate / Undeprecate ops, keyed by content.
+-- Projection of Deprecate / Undeprecate ops, keyed on the NAME and the content it held: content is
+-- shared, so deprecating one name must not deprecate the others that hold the same item.
 CREATE TABLE IF NOT EXISTS deprecations (
   branch_id TEXT NOT NULL,
   draft INTEGER NOT NULL,
+  owner TEXT NOT NULL,
+  modules TEXT NOT NULL,
+  name TEXT NOT NULL,
   item_hash TEXT NOT NULL,
   item_kind TEXT NOT NULL,
   -- 'deprecated' (annotation_blob has kind + message) or 'undeprecated' (annotation_blob NULL)
