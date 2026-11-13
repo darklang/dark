@@ -91,6 +91,26 @@ test definedPolyFnInfersTypeArgs =
       definedPolyFn<String>(X.B("str"))
       |> Stdlib.Test.equal(definedPolyFn(X.B("str"))) ])
 
+// A type arg is read from inside a record, an enum or a tuple, and binds the next parameter.
+module InferFromParts =
+  type Box<'a> = { v: 'a }
+
+  let sameAsBoxed(b: Box<'a>, y: 'a): 'a = y
+  let sameAsSome(o: Stdlib.Option.Option<'a>, y: 'a): 'a = y
+  let sameAsSecond(p: ('a * 'b), y: 'b): 'b = y
+
+  test fromARecord = sameAsBoxed(Box { v = 1 }, 2) |> Stdlib.Test.equal(2)
+
+  test fromAnEnum =
+    sameAsSome(Stdlib.Option.Option.Some("a"), "b") |> Stdlib.Test.equal("b")
+
+  test fromATuple = sameAsSecond((1, "a"), "b") |> Stdlib.Test.equal("b")
+
+  test aRecordMismatchRaises =
+    sameAsBoxed(Box { v = 1 }, "x")
+    => raises
+      "Darklang.Language.Tests.Apply.InferFromParts.sameAsBoxed's 2nd parameter `y` expects Int64, but got String (\"x\")"
+
 // A fn named with type args and not called is that fn as a value, specialised to them.
 module TypedFnValues =
   let twice(f: (List<Int64> * (Int64 -> Int64)) -> List<Int64>): List<Int64> =
