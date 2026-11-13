@@ -19,3 +19,18 @@ test eachOccurrenceHasItsLine =
     Stdlib.Test.all(
       [ Instance.says(out, "(line 3, column 5; line 4, column 5)", "both patterns, each with its line")
         Instance.says(out, "(line 7, column 7)", "the operand") ]))
+
+/// A value called as a function names the value and the source location.
+test calledValueHasNameAndLine =
+  Instance.withInstance(fun i ->
+    let path = Instance.home(i) + "/called-value.dark"
+    let source = "let f(): Bytes = Stdlib.Bytes.empty()"
+    let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+    let (_, out) = Instance.ran(i, [ "module", "/Me.CalledValue", path ])
+    Stdlib.Test.all(
+      [ Instance.says(out, "[NotCallable]", "the diagnostic code")
+        Instance.says(
+          out,
+          "Stdlib.Bytes.empty is a value, not a function",
+          "the called value")
+        Instance.says(out, "(line 1, column 18)", "the call's location") ]))
