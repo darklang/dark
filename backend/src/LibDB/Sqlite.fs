@@ -358,7 +358,14 @@ module Sql =
       $"Database statement failed in executeStatementSync: {err}")
     |> ignore<int>
 
-  /// Execute multiple SQL statements in a transaction synchronously
+  /// Execute multiple SQL statements in one write transaction synchronously: each statement
+  /// once per parameter set (once with none), returning each statement's rows changed.
+  ///
+  /// On a connection of its own with `busy_timeout` set, rather than through Fumble. A pooled
+  /// connection has no `busy_timeout` unless something set it, and then a write that meets
+  /// another process's lock falls to Microsoft.Data.Sqlite's own retry, which sleeps 150 ms at a
+  /// time: under a handful of writers, short writes waited in ~165 ms steps. SQLite's handler
+  /// polls in milliseconds. `BEGIN IMMEDIATE` takes the write lock up front, where waiting works.
   let executeTransactionSync
     (statements :
       List<string * List<List<string * Microsoft.Data.Sqlite.SqliteParameter>>>)
@@ -366,10 +373,36 @@ module Sql =
     Telemetry.countBy
       "sql.transaction"
       (statements |> List.sumBy (fun (_, ps) -> max 1 ps.Length) |> int64)
-    connect
-    |> Sql.executeTransaction statements
-    |> unwrapDb (fun err ->
-      $"Database transaction failed in executeTransactionSync: {err}")
+    try
+      timedSync "sql.transactionSync" (fun () ->
+        use conn = new SqliteConnection(connString)
+        conn.Open()
+        use pragma = conn.CreateCommand()
+        pragma.CommandText <- "PRAGMA busy_timeout=5000;"
+        pragma.ExecuteNonQuery() |> ignore<int>
+        use tx = conn.BeginTransaction(deferred = false)
+        let run (sql : string) (ps : List<string * SqliteParameter>) : int =
+          use cmd = conn.CreateCommand()
+          cmd.Transaction <- tx
+          cmd.CommandText <- sql
+          for (name, p) in ps do
+            let copy = SqliteParameter(name, p.Value)
+            copy.SqliteType <- p.SqliteType
+            cmd.Parameters.Add copy |> ignore<SqliteParameter>
+          cmd.ExecuteNonQuery()
+        let counts =
+          statements
+          |> List.map (fun (sql, paramSets) ->
+            match paramSets with
+            | [] -> run sql []
+            | sets -> sets |> List.sumBy (run sql))
+        tx.Commit()
+        counts)
+    with e ->
+      raiseIfStoreCondition e
+      Exception.raiseInternal
+        $"Database transaction failed in executeTransactionSync: {e.Message}"
+        [ "err", e ]
 
   let uuid (u : uuid) = u.ToString() |> Sql.string
 
