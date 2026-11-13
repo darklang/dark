@@ -148,6 +148,39 @@ let positionShifted(
     Stdlib.Option.Option.Some($"line {row + 1u64}, column {column + 1u64}")
   | _ -> Stdlib.Option.Option.None
 
+/// Show each unresolved call with its own position in the author's source.
+let printUnresolvedTraitCalls(
+  callsByItem: List<(String * List<LanguageTools.PackageManager.UnresolvedTraitCall>)>,
+  firstLineShift: UInt64)
+  : Unit =
+  if Stdlib.List.isEmpty(callsByItem) then
+    ()
+  else
+    let which =
+      callsByItem
+      |> Stdlib.List.map(fun((name, calls)) ->
+        let callNames =
+          calls
+          |> Stdlib.List.indexedMap(fun(index, call) ->
+            let (nodeId, description) =
+              match call with
+              | Function(at, name) -> (at, $"`{name}`")
+              | Operator(at, op) ->
+                (at, "operator `" + PrettyPrinter.ProgramTypes.infixFnName(op) + "`")
+            let at =
+              positionShifted(Stdlib.Option.Option.Some(nodeId), firstLineShift)
+              |> Stdlib.Option.withDefault($"call {index + 1}")
+            $"{description} ({at})")
+          |> Stdlib.String.join(", ")
+        $"    {name}: {callNames}")
+      |> Stdlib.String.join("\n")
+    Stdlib.printErrorLine(
+      "  Warning: could not choose implementations for these calls:\n"
+      + which
+      + "\n  Check for missing references or type annotations, then save again."
+      + "\n  Until resolved, these calls use the newest matching implementation "
+      + "at runtime.")
+
 let issueLines(
   branchId: Uuid,
   issues: List<LanguageTools.AtRestTypeChecker.Issue>)

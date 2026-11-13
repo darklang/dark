@@ -199,6 +199,8 @@ let saveEditing(state: State, es: EditingState): Step =
             // is in `Packages.commitAuthored`; only the wording is the footer's own.
             match Packages.commitAuthored(state.branchId, loc, kind, hash, ops) with
             | Ok(committed) ->
+              Packages.AtRestCheck.printUnresolvedTraitCalls(
+                committed.unresolvedTraitCalls, 0u64)
               // Land on what you just saved, in the module it went to, which is not always where
               // you were: a new item can be saved into a module below the one on screen.
               let there =

@@ -28,6 +28,13 @@ let add(
   Builtin.scmAddOps(branchId, Lineage.recordPrevious(branchId, ops))
 
 
+/// The checker report and call details from a successful save.
+type Authored =
+  { report: LanguageTools.AtRestTypeChecker.Report
+    unresolvedTraitCalls:
+      List<(String * List<LanguageTools.PackageManager.UnresolvedTraitCall>)> }
+
+
 /// THE authoring boundary: stabilize a batch and store it, refusing what stabilization would corrupt.
 ///
 /// Ordered deliberately. Duplicate names are checked FIRST, because `stabilizeHashes` keys by name: a
@@ -42,16 +49,17 @@ let add(
 let addAuthored(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  : Stdlib.Result.Result<Authored, String> =
   let duplicates = LanguageTools.PackageManager.duplicateDeclarations(ops)
 
   if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicates)) then
     Stdlib.Result.Result.Error(
       "Declared more than once: " + (Stdlib.String.join(duplicates, ", ")))
   else
+    let (resolvedOps, unresolvedCalls) =
+      LanguageTools.PackageManager.resolveTraitCalls(ops)
     let stabilizedOps =
-      ops
-      |> LanguageTools.PackageManager.resolveTraitCalls
+      resolvedOps
       |> LanguageTools.PackageManager.stabilizeHashes
 
     let added = add(branchId, stabilizedOps)
@@ -63,8 +71,14 @@ let addAuthored(
     | [] ->
       match added with
       | Ok(_) ->
+        let report =
+          LanguageTools.AtRestTypeChecker.checkPackageOpsOn(branchId, stabilizedOps)
+        // Keep the type error as the only warning on a failed check.
+        let calls =
+          if report.verdict == LanguageTools.AtRestTypeChecker.Verdict.Failed then []
+          else unresolvedCalls
         Stdlib.Result.Result.Ok(
-          LanguageTools.AtRestTypeChecker.checkPackageOpsOn(branchId, stabilizedOps))
+          Authored { report = report, unresolvedTraitCalls = calls })
       | Error(message) -> Stdlib.Result.Result.Error(message)
     | failed -> Stdlib.Result.Result.Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
 

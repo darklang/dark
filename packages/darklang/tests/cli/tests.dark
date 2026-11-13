@@ -374,7 +374,7 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
     Stdlib.Test.fail($"Expected each failing function named above its error; got {output}")
 
 
-// Two functions with identical bodies share a hash, and the trait-calls line still names each.
+// Two functions with identical bodies share a hash, and the warning still names each.
 // The bodies call a name that does not exist yet, so the check is incomplete rather than failed:
 // a failed item reports its type error instead of this line.
 test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
@@ -396,13 +396,12 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
   let _ = Stdlib.Cli.File.delete(sourcePath)
 
   if
-    Stdlib.String.contains(
-      output,
-      $"in 2 item(s), will run whichever implementation is newest when they run: {moduleName}.addsText (1), {moduleName}.addsTextToo (1)")
+    Stdlib.String.contains(output, $"{moduleName}.addsText: operator `+`")
+    && Stdlib.String.contains(output, $"{moduleName}.addsTextToo: operator `+`")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected the trait-calls line to name each function once; got {output}")
+    Stdlib.Test.fail($"Expected the warning to name each function and call; got {output}")
 
 
 // Merge a child into a throwaway parent so the test leaves no function on main.

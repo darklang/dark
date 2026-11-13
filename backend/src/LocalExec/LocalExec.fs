@@ -118,7 +118,7 @@ module HandleCommand =
         $"The checker runs {Set.count checkerFiles} source file(s) outside the build hash:"
       for file in checkerFiles do
         print $"  {file}"
-      let! chosen =
+      let! chosen, _ =
         Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
           exeState
           BranchId.Main

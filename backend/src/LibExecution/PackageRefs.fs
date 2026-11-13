@@ -581,6 +581,8 @@ module Type =
       let checkFailure = p [] "CheckFailure"
 
     module PackageManager =
+      let unresolvedTraitCall = p [ "PackageManager" ] "UnresolvedTraitCall"
+
       module Test =
         let private p addl = p ("PackageManager" :: "Test" :: addl)
         let resultKey = p [] "ResultKey"

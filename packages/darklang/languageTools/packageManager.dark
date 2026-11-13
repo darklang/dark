@@ -558,15 +558,22 @@ let stabilizeHashes(
   Builtin.pmStabilizeHashes(ops)
 
 
+/// A call whose implementation could not be recorded by this save.
+type UnresolvedTraitCall =
+  | Function(UInt64, String)
+  | Operator(UInt64, ProgramTypes.InfixFnName)
+
+
 /// Write onto each trait-method call the implementation it resolves to, so a saved item goes on
 /// running what it was written against, and a newer implementation arrives as an ordinary
 /// repoint instead of changing the call underneath it.
 ///
 /// Before `stabilizeHashes`, so a choice at a placeholder hash moves with everything else. A call
 /// whose self type is only known at run time (inside a bounded generic) comes back unchanged.
+/// Also return unresolved calls by item name, for reporting after the save.
 let resolveTraitCalls(
   ops: List<ProgramTypes.PackageOp>)
-  : List<ProgramTypes.PackageOp> =
+  : (List<ProgramTypes.PackageOp> * List<(String * List<UnresolvedTraitCall>)>) =
   Builtin.pmResolveTraitCalls(ops)
 
 
