@@ -162,7 +162,14 @@ let private parserStructureTests =
       testCase "function ceiling syntax is rejected" (fun _ ->
         for row in [ "{}"; "{Clock}"; "{Telepathy}" ] do
           let result = P.parse $"module M =\n  let f(x: Int64):{row} Int64 = x"
-          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax") ]
+          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax")
+      testCase "a dict written with = says so once per entry" (fun _ ->
+        let result = P.parse "Dict { \"a\" = 1, \"b\" = Point { x = 1 } }"
+        Expect.equal
+          (result.diagnostics |> List.map (fun d -> d.message))
+          [ "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields"
+            "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields" ]
+          "one error per entry, and nothing after it") ]
 
 
 /// Parse `src` and return its single trailing expression — the range-complete
