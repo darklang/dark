@@ -131,11 +131,20 @@ let deduplicate(
 /// Where in the saved source a node starts, as "line:column", when its id carries it
 /// (see <fn LanguageTools.WrittenTypesToProgramTypes.gidAt>).
 let position(nodeId: Stdlib.Option.Option<UInt64>): Stdlib.Option.Option<String> =
+  positionShifted(nodeId, 0u64)
+
+/// <fn position> for source that had <param shift> characters put in front of its first line
+/// before it was parsed, as `dark fn`'s short form does, so the column is the author's.
+let positionShifted(
+  nodeId: Stdlib.Option.Option<UInt64>,
+  shift: UInt64)
+  : Stdlib.Option.Option<String> =
   match nodeId with
   | Some(id) when id >= 2305843009213693952u64 ->
     let rest = id - 2305843009213693952u64
     let row = rest / 137438953472u64
     let column = (rest / 2097152u64) % 65536u64
+    let column = if row == 0u64 && column >= shift then column - shift else column
     Stdlib.Option.Option.Some($"line {row + 1u64}, column {column + 1u64}")
   | _ -> Stdlib.Option.Option.None
 
