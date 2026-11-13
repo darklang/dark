@@ -93,8 +93,7 @@ let conflictId
   let sorted =
     hashes |> List.sortWith (fun a b -> System.String.CompareOrdinal(a, b))
   let material = $"{owner}/{modules}/{name}|" + String.concat "," sorted
-  (sha256Hex (material.Normalize(System.Text.NormalizationForm.FormC)))
-    .Substring(0, 8)
+  (sha256Hex (String.normalize material)).Substring(0, 8)
 
 /// Does the INCOMING binding beat the LOCAL one? The fold's own rule.
 let incomingWins (incoming : Binding) (local : Binding) : bool =

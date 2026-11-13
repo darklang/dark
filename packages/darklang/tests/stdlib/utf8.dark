@@ -19,6 +19,20 @@ test encodeLength =
       Stdlib.Bytes.length(Stdlib.Utf8.encode("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"))
       |> Stdlib.Test.equal(49) ])
 
+// Decoded text is normalized, as every String is: {{e}} + a combining acute decodes to {{é}}.
+test decodeNormalizes =
+  Stdlib.Test.all(
+    [ Stdlib.Base16.decode("63616665cc81")
+      |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
+      |> Stdlib.Test.equal(Ok("café"))
+      Stdlib.Base16.decode("63616665cc81")
+      |> Stdlib.Result.map(Stdlib.Utf8.decodeWithReplacement)
+      |> Stdlib.Test.equal(Ok("café"))
+      Stdlib.Base16.decode("65cc81616263")
+      |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
+      |> Stdlib.Result.map(fun s -> s + "x")
+      |> Stdlib.Test.equal(Ok("éabcx")) ])
+
 test roundTrip =
   Stdlib.Utf8.encode("hello") |> Stdlib.Utf8.decode
   |> Stdlib.Test.equal(Ok("hello"))

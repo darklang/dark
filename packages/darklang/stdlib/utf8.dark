@@ -7,12 +7,14 @@ let encode(s: String): Bytes = Builtin.utf8Encode(s)
 
 /// Decodes <param bytes> as UTF-8. Returns Error with a message if the
 /// bytes aren't valid UTF-8, naming the offset of the first bad bytes:
-/// {{Error "Invalid UTF-8 at byte 1: E2 82"}}.
+/// {{Error "Invalid UTF-8 at byte 1: E2 82"}}. Like every String, the result is
+/// normalized (NFC); keep the Bytes when the exact bytes matter.
 let decode(bytes: Bytes): Stdlib.Result.Result<String, String> =
   Builtin.utf8Decode(bytes)
 
 
 /// Decodes <param bytes> as UTF-8, replacing invalid sequences with
-/// {{U+FFFD}}.
+/// {{U+FFFD}}. Like every String, the result is normalized (NFC);
+/// keep the Bytes when the exact bytes matter.
 let decodeWithReplacement(bytes: Bytes): String =
   Builtin.utf8DecodeWithReplacement(bytes)

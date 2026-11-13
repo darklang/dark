@@ -351,13 +351,13 @@ let keyReadToDval
   // otherwise only include keyChar for printable characters.
   let keyChar =
     match pasteText with
-    | Some text -> DString text
+    | Some text -> DString(String.normalizeOutside text)
     | None ->
       let ch = readKey.KeyChar
       if System.Char.IsControl(ch) || ch = '\u0000' then
         DString "" // Empty string for control/special keys
       else
-        ch |> string |> DString
+        ch |> string |> String.normalizeOutside |> DString
 
   let keyRead =
     let typeName =
@@ -526,7 +526,8 @@ let private eventToDval (vm : VMState) (ev : HE.HostEvent) : Dval =
   | HE.HostEvent.StoreChanged -> case "StoreChanged" []
   | HE.HostEvent.Timer _ -> case "Timer" []
   | HE.HostEvent.ExecDone id -> case "ExecDone" [ DUuid id ]
-  | HE.HostEvent.Stdin(_, Ok(Some text)) -> case "Stdin" [ DString text ]
+  | HE.HostEvent.Stdin(_, Ok(Some text)) ->
+    case "Stdin" [ DString(String.normalizeOutside text) ]
   | HE.HostEvent.Stdin(_, Ok None) -> case "StdinClosed" []
   // Out of step: what comes next cannot be trusted, and a guess would be read as a message.
   | HE.HostEvent.Stdin(_, Error e) ->
@@ -655,7 +656,10 @@ let fns () : List<BuiltInFn> =
           readLine ()
           |> Ply.map (fun result ->
             match result with
-            | Ok line -> LibExecution.Dval.option KTString (Option.map DString line)
+            | Ok line ->
+              LibExecution.Dval.option
+                KTString
+                (Option.map (String.normalizeOutside >> DString) line)
             | Error e ->
               RuntimeError.UncaughtException($"stdinReadLine: {e}", [])
               |> raiseRTE vm.threadID)
@@ -684,7 +688,9 @@ let fns () : List<BuiltInFn> =
           |> Ply.map (fun result ->
             match result with
             | Ok line ->
-              LibExecution.Dval.option KTString (Option.map DString line)
+              LibExecution.Dval.option
+                KTString
+                (Option.map (String.normalizeOutside >> DString) line)
               |> Dval.resultOk okType KTUnit
             | Error _ -> Dval.resultError okType KTUnit DUnit)
         | _ -> incorrectArgs ())
@@ -706,7 +712,12 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           let reader, _ = input.Force()
           try
-            Ply(Dval.resultOk KTString KTBytes (DString(reader.ReadToEnd())))
+            Ply(
+              Dval.resultOk
+                KTString
+                KTBytes
+                (DString(String.normalizeOutside (reader.ReadToEnd())))
+            )
           with :? Text.DecoderFallbackException as e ->
             let bad =
               Bytes.newEphemeral (

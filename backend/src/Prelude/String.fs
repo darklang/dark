@@ -312,11 +312,28 @@ let endsWithEgcs (subject : string) (suffix : string) : bool =
       || (isSimple subject[start - 1] && clusterEnd subject (start - 1) = start)
       || landsOn subject start 0)
 
-let normalize (s : string) : string = s.Normalize()
+/// NFC. Not `s.Normalize()`, which does nothing in the released CLI: see `Normalization`.
+let normalize (s : string) : string = Normalization.normalize s
+
+/// `normalize`, for text coming into Dark from outside, so every String is NFC. Text holding a
+/// lone surrogate or U+FFFE, which NFC refuses, is kept as it came rather than failing the read.
+let normalizeOutside (s : string) : string =
+  try
+    normalize s
+  with :? System.ArgumentException ->
+    s
+
+/// The NFC of `pieces` joined, each already NFC: what `normalize (String.concat "" pieces)`
+/// gives, without re-checking the whole result.
+let concatNormalized (pieces : string[]) : string = Normalization.concat pieces
+
+/// `concatNormalized` of `parts` with `separator` between each.
+let joinNormalized (separator : string) (parts : List<string>) : string =
+  Normalization.join separator (List.toArray parts)
 
 /// <param a> then <param b>, normalized: two normalized strings can join into one that is not.
 /// What `stringAppend` and String `+` compute, in the builtins and in the VM.
-let append (a : string) (b : string) : string = normalize (a + b)
+let append (a : string) (b : string) : string = concatNormalized [| a; b |]
 
 /// Orders two strings by code point, which is also the order of their UTF-8 bytes. Only the sign
 /// of the result is meaningful.

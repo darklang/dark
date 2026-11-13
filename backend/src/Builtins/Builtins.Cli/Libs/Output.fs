@@ -112,7 +112,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let captured = NonBlockingConsole.stopCapture ()
-          Ply(DString captured)
+          Ply(DString(String.normalizeOutside captured))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
