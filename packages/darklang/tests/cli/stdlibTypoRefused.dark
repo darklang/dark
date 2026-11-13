@@ -1,0 +1,27 @@
+/// A missing name under `Stdlib` is a typo, not a dependency still to come, so the save is refused.
+module Darklang.Cli.Tests.StdlibTypoRefused
+
+test aMissingStdlibNameRefusesTheSave =
+  Instance.withInstance(fun i ->
+    let (code, out) =
+      Instance.ran(
+        i,
+        [ "fn"
+          "Me.Typo.first"
+          "(xs: List<Int64>): Option<Int64> = Stdlib.Option.bind(Stdlib.List.head(xs), fun x -> Some(x))" ])
+    let (_, viewed) = Instance.ran(i, [ "view", "Me.Typo.first" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, "refused")
+        Instance.says(out, "Not found: Stdlib.Option.bind", "names the missing fn")
+        Instance.doesNotSay(out, "Created function", "nothing saved")
+        Instance.doesNotSay(viewed, "Stdlib.Option.bind", "and nothing stored") ]))
+
+test aMissingNameOfYourOwnIsStillSaved =
+  Instance.withInstance(fun i ->
+    let (_, out) =
+      Instance.ran(i, [ "fn", "Me.Later.caller", "(n: Int64): Int64 = Me.Later.notYet(n)" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(out, "Unresolved references", "a warning")
+        Instance.says(out, "Created function Me.Later.caller", "and saved") ]))

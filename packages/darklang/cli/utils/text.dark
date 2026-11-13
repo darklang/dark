@@ -2,6 +2,25 @@ module Darklang.Cli.Text
 
 // Small text helpers shared across CLI commands, so counters and summaries read the same everywhere.
 
+/// Add colors to a permission error and make its section headings bold.
+/// The console handles NO_COLOR, pipes and TERM=dumb.
+let stylePermissionError(message: String): String =
+  message
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.indexedMap(fun(index, line) ->
+    if index == 0 then
+      Stdlib.Cli.UI.Colors.error(line)
+    else if Stdlib.String.startsWith(line, "  dark ") then
+      Stdlib.Cli.UI.Colors.cyanText(line)
+    else if
+      Stdlib.String.endsWith(line, ":")
+      && Stdlib.Bool.not(Stdlib.String.startsWith(line, "  "))
+    then
+      Stdlib.Cli.UI.Colors.boldText(line)
+    else
+      line)
+  |> Stdlib.String.join("\n")
+
 /// <param text> as lines no wider than <param width>, broken at spaces, every line after the first
 /// carrying <param indent>. What every line a person reads at a save goes through: an 80-column
 /// terminal is the floor, and a wrapped line keeps its shape.

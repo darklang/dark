@@ -60,6 +60,7 @@ let private step (name : string) : unit =
 type private Param = string * obj
 
 let private command (conn : SqliteConnection) (sql : string) (ps : List<Param>) =
+  Telemetry.count "sql.scm"
   let cmd = conn.CreateCommand()
   cmd.CommandText <- sql
   for (n, v) in ps do

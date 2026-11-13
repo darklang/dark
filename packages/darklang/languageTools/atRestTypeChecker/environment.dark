@@ -224,36 +224,44 @@ let resolveCallable(
     match LanguageTools.findBuiltinFn(name.name, name.version) with
     | Some(builtin) -> builtinCallable(env, builtin)
     | None -> (Model.Callable.Unavailable, env)
-  // A trait method call (`Show.show v`), whose signature is the TRAIT's rather than any one
-  // implementation's. The trait's first type param is the self type and stays rigid here, so
-  // inference unifies it with the argument the caller passes: that is what decides which type
-  // the call is for, and the implementation is chosen from it afterwards.
   | TraitMethod(method) ->
-    match traitFor(env, method.trait_) with
+    match method.implFn with
+    | Chosen(implementation) ->
+      // Check the implementation this saved call will run.
+      resolveCallable(
+        env, LanguageTools.ProgramTypes.FQFnName.FQFnName.Package(implementation.name))
+    | _ -> traitCallable(env, method)
+
+/// Use the trait signature when the implementation is not fixed.
+let traitCallable(
+  env: Model.Environment,
+  method: LanguageTools.ProgramTypes.FQFnName.TraitMethod)
+  : (Model.Callable * Model.Environment) =
+  match traitFor(env, method.trait_) with
+  | None -> (Model.Callable.Unavailable, env)
+  | Some(trait_) ->
+    match
+      trait_.methods
+      |> Stdlib.List.findFirst(fun m -> m.name == method.method_)
+    with
     | None -> (Model.Callable.Unavailable, env)
-    | Some(trait_) ->
-      match
-        trait_.methods
-        |> Stdlib.List.findFirst(fun m -> m.name == method.method_)
-      with
-      | None -> (Model.Callable.Unavailable, env)
-      | Some(declared) ->
-        signatureTemplate(
-          env,
-          (Model.Signature
-            { // The trait's params first, self among them, then the method's own.
-              typeParams =
-                Stdlib.List.concat(trait_.typeParams, declared.typeParams)
-              parameters =
-                declared.parameters |> Stdlib.List.map(fun p -> p.typ)
-              returnType = declared.returnType
-              // The self type comes from the argument, not from a type argument the
-              // caller has to write.
-              needsTypeArgs = false
-              // The trait's own bound on the self type is not a caller's obligation: which
-              // implementation this call means is settled by `TraitCall` from the self type
-              // directly. A method's OWN bounds would belong here and none are written yet.
-              bounds = [] }))
+    | Some(declared) ->
+      signatureTemplate(
+        env,
+        (Model.Signature
+          { // The trait's params first, self among them, then the method's own.
+            typeParams =
+              Stdlib.List.concat(trait_.typeParams, declared.typeParams)
+            parameters =
+              declared.parameters |> Stdlib.List.map(fun p -> p.typ)
+            returnType = declared.returnType
+            // The self type comes from the argument, not from a type argument the
+            // caller has to write.
+            needsTypeArgs = false
+            // The trait's own bound on the self type is not a caller's obligation: which
+            // implementation this call means is settled by `TraitCall` from the self type
+            // directly. A method's OWN bounds would belong here and none are written yet.
+            bounds = [] }))
 
 /// Fetch one builtin value's declared type and convert it to a package-style type
 /// reference. Return None for missing builtins or package values, whose types
@@ -627,11 +635,13 @@ let functionNameRefs(
           |> Stdlib.List.map(fun t -> fromRuntimeType(t))
           |> typeListRefs
         | None -> []
-    // A trait method call needs the TRAIT, which is where its signature lives. Not the
-    // implementation: which one applies is decided from the self type after inference, and an
-    // implementation is not needed to type the call.
+    // Load the saved implementation so its signature can be checked.
     | TraitMethod(method) ->
-      [ LanguageTools.ProgramTypes.Reference.PackageTrait(method.trait_) ]
+      let traitRef = LanguageTools.ProgramTypes.Reference.PackageTrait(method.trait_)
+      match method.implFn with
+      | Chosen(implementation) ->
+        [ traitRef, LanguageTools.ProgramTypes.Reference.PackageFn(implementation.name) ]
+      | _ -> [ traitRef ]
   | Error(_) -> []
 
 /// Find the package declarations needed to check a value reference: the value

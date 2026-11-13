@@ -174,6 +174,16 @@ test interpolationNormalizesLikeAppend =
       $"{thumb}{tone}" |> Stdlib.String.length |> Stdlib.Test.equal(1)
       $"{woman}‍{girl}" |> Stdlib.Test.equal("👩‍👧") ])
 
+test interpolationOfPrimitives =
+  let f = 1.5
+  let n = 42
+  let shown = Stdlib.display(n) + Stdlib.display(f) + Stdlib.display(true)
+
+  Stdlib.Test.all(
+    [ $"{n}|{-7}|{f}|{0.1 + 0.2}|{1.0 / 0.0}|{true}|{false}|{'x'}|{"s"}|{3u8}"
+      |> Stdlib.Test.equal("42|-7|1.5|0.30000000000000004|Infinity|true|false|x|s|3")
+      shown |> Stdlib.Test.equal("421.5true") ])
+
 test startsWith =
   Stdlib.Test.all(
     [ Stdlib.String.startsWith("a string", "a s") |> Stdlib.Test.equal(true)

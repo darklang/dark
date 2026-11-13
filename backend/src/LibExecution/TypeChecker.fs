@@ -719,9 +719,9 @@ let private primitiveFits (expected : TypeReference) (actual : Dval) : bool =
 
 
 /// Whether <param actual> is a value of <param expected> with nothing to bind: a primitive, or a type
-/// variable <param tst> already binds to a primitive. `true` means a unify would pass and hand back
-/// <param tst> as it is; `false` means ask it. A lambda's result is checked this way on every call,
-/// and for `List.fold`'s `'b` the variable is bound from the first element on.
+/// variable <param tst> already binds to exactly its type. `true` means a unify would pass and hand
+/// back <param tst> as it is; `false` means ask it. A lambda's result is checked this way on every
+/// call, and for `List.fold`'s `'b` the variable is bound from the first element on.
 let fitsWithNothingToBind
   (tst : TypeSymbolTable)
   (expected : TypeReference)
@@ -730,30 +730,8 @@ let fitsWithNothingToBind
   match expected with
   | TVariable name ->
     match tst.TryFind name with
-    | ValueSome(ValueType.Known known) ->
-      match known with
-      | KTUnit -> primitiveFits TUnit actual
-      | KTBool -> primitiveFits TBool actual
-      | KTInt8 -> primitiveFits TInt8 actual
-      | KTUInt8 -> primitiveFits TUInt8 actual
-      | KTInt16 -> primitiveFits TInt16 actual
-      | KTUInt16 -> primitiveFits TUInt16 actual
-      | KTInt32 -> primitiveFits TInt32 actual
-      | KTUInt32 -> primitiveFits TUInt32 actual
-      | KTInt64 -> primitiveFits TInt64 actual
-      | KTUInt64 -> primitiveFits TUInt64 actual
-      | KTInt128 -> primitiveFits TInt128 actual
-      | KTUInt128 -> primitiveFits TUInt128 actual
-      | KTBigInt -> primitiveFits TBigInt actual
-      | KTFloat -> primitiveFits TFloat actual
-      | KTFloat32 -> primitiveFits TFloat32 actual
-      | KTDecimal -> primitiveFits TDecimal actual
-      | KTChar -> primitiveFits TChar actual
-      | KTString -> primitiveFits TString actual
-      | KTUuid -> primitiveFits TUuid actual
-      | KTDateTime -> primitiveFits TDateTime actual
-      | _ -> false
-    | _ -> false
+    | ValueSome bound -> Dval.hasValueType bound actual
+    | ValueNone -> false
   | _ -> primitiveFits expected actual
 
 
@@ -784,8 +762,54 @@ let private knownIs (expected : TypeReference) (known : KnownType) : bool =
   | _ -> false
 
 
-/// Whether each of a value's type arguments is known and is the primitive declared for it.
-let rec private knownArgsAre
+/// Whether a value whose type is known to be <param known> is a value of <param expected> with
+/// nothing to bind: the same type all the way down, every part of it known. A record or enum
+/// matches by name, which is enough for the reason given at `argFitsWithNothingToBind`. A type
+/// variable fits what <param tst> already binds it to, exactly, as `unifyValueTypeSync` has it.
+let rec private knownFits
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (known : KnownType)
+  : bool =
+  match expected with
+  | TVariable name ->
+    match tst.TryFind name with
+    | ValueSome(ValueType.Known bound) -> bound = known
+    | _ -> false
+  | _ ->
+    match known with
+    | KTList elem ->
+      (match expected with
+       | TList inner -> valueTypeFits tst inner elem
+       | _ -> false)
+    | KTTuple(a, b, rest) ->
+      (match expected with
+       | TTuple(ea, eb, eRest) ->
+         valueTypeFits tst ea a
+         && valueTypeFits tst eb b
+         && valueTypesFit tst eRest rest
+       | _ -> false)
+    | KTCustomType(FQTypeName.Package(Hash actualName), actualArgs) ->
+      (match expected with
+       | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) },
+                     declaredArgs) ->
+         System.String.Equals(declared, actualName)
+         && valueTypesFit tst declaredArgs actualArgs
+       | _ -> false)
+    | _ -> knownIs expected known
+
+and private valueTypeFits
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : ValueType)
+  : bool =
+  match actual with
+  | ValueType.Known k -> knownFits tst expected k
+  | ValueType.Unknown -> false
+
+/// `valueTypeFits` for each of a type's arguments, or a tuple's parts after the second.
+and private valueTypesFit
+  (tst : TypeSymbolTable)
   (declared : List<TypeReference>)
   (actual : List<ValueType>)
   : bool =
@@ -793,18 +817,19 @@ let rec private knownArgsAre
   | [] -> List.isEmpty actual
   | d :: dRest ->
     match actual with
-    | ValueType.Known k :: aRest -> knownIs d k && knownArgsAre dRest aRest
-    | _ -> false
+    | a :: aRest -> valueTypeFits tst d a && valueTypesFit tst dRest aRest
+    | [] -> false
 
 
 /// `fitsWithNothingToBind` for a package fn's argument, which is checked on every call. Also
-/// `Bytes`, and a list of a primitive whose element type is that primitive: the unifier reads a
-/// list's element type and not its items, so this answers as it would. A list of anything else,
-/// or one whose element type is not known yet (`[]`), is left to the unifier.
+/// `Bytes`, and a list whose element type is known and is the declared one (`List<(Int64 * Doc)>`):
+/// the unifier reads a list's element type and not its items, so this answers as it would. One
+/// whose element type is not known yet (`[]`), or names an alias, is left to the unifier.
 ///
-/// Also a record or enum of exactly the declared type whose type arguments are all primitives
-/// (`Option<UInt8>`): equal names mean the declared type is not an alias (see `tryUnifyGeneral`).
-let argFitsWithNothingToBind
+/// Also a record or enum of exactly the declared type whose type arguments are known and declared
+/// (`Option<Doc>`): equal names mean the declared type is not an alias (see `tryUnifyGeneral`).
+/// And a tuple whose parts each fit.
+let rec argFitsWithNothingToBind
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
@@ -816,16 +841,36 @@ let argFitsWithNothingToBind
      | _ -> false)
   | TList inner ->
     (match actual with
-     | DList(ValueType.Known elem, _) -> knownIs inner elem
+     | DList(ValueType.Known elem, _) -> knownFits tst inner elem
      | _ -> false)
   | TCustomType({ resolved = Ok(FQTypeName.Package(Hash declared)) }, declaredArgs) ->
     (match actual with
      | DEnum(_, FQTypeName.Package(Hash actualName), actualArgs, _, _)
      | DRecord(_, FQTypeName.Package(Hash actualName), actualArgs, _) ->
        System.String.Equals(declared, actualName)
-       && knownArgsAre declaredArgs actualArgs
+       && valueTypesFit tst declaredArgs actualArgs
+     | _ -> false)
+  | TTuple(ea, eb, eRest) ->
+    (match actual with
+     | DTuple(a, b, rest) ->
+       argFitsWithNothingToBind tst ea a
+       && argFitsWithNothingToBind tst eb b
+       && argsFitWithNothingToBind tst eRest rest
      | _ -> false)
   | _ -> fitsWithNothingToBind tst expected actual
+
+and private argsFitWithNothingToBind
+  (tst : TypeSymbolTable)
+  (expected : List<TypeReference>)
+  (actual : List<Dval>)
+  : bool =
+  match expected with
+  | [] -> List.isEmpty actual
+  | e :: eRest ->
+    match actual with
+    | a :: aRest ->
+      argFitsWithNothingToBind tst e a && argsFitWithNothingToBind tst eRest aRest
+    | [] -> false
 
 
 /// Whether <param actual> is a value of <param expected>, and the symbol table with whatever that
@@ -1376,30 +1421,79 @@ module DvalCreator =
   /// One field of an enum case being constructed. Same shape as `checkRecordFields`, and the same
   /// reason for existing: as a lambda over a three-element accumulator this costs a closure, a state
   /// machine and a tuple per field of every enum built.
+  /// One type argument once a field has been checked: an unknown one takes what the field bound
+  /// it to, a known one merges.
+  let private bindTypeArg
+    (newTST : TypeSymbolTable)
+    (paramName : string)
+    (vt : ValueType)
+    : ValueType voption =
+    match vt with
+    | ValueType.Unknown ->
+      match TST.tryFind paramName newTST with
+      | ValueSome known -> ValueSome known
+      | ValueNone -> ValueSome vt
+    | known ->
+      match ValueType.merge known vt with
+      | Ok merged -> ValueSome merged
+      | Error() -> ValueNone
+
   /// The type-argument walk from the checked-field slow path, without the builder.
   ///
   /// `ValueNone` when a merge fails, so the caller falls through to the asynchronous path and the
   /// error message is built in one place rather than two.
+  ///
+  /// An argument that does not change keeps its pair, and a tail that does not change is the
+  /// same list, so a field that teaches nothing new allocates nothing.
   let rec private updateTypeArgsSync
     (newTST : TypeSymbolTable)
-    (acc : List<string * ValueType>)
     (typeArgs : List<string * ValueType>)
     : List<string * ValueType> voption =
     match typeArgs with
-    | [] -> ValueSome(List.rev acc)
+    | [] -> ValueSome typeArgs
     | (paramName, vt) :: rest ->
-      match vt with
-      | ValueType.Unknown ->
-        let bound =
-          match TST.tryFind paramName newTST with
-          | ValueSome known -> (paramName, known)
-          | ValueNone -> (paramName, vt)
-        updateTypeArgsSync newTST (bound :: acc) rest
+      match bindTypeArg newTST paramName vt with
+      | ValueNone -> ValueNone
+      | ValueSome bound ->
+        match updateTypeArgsSync newTST rest with
+        | ValueNone -> ValueNone
+        | ValueSome newRest ->
+          if
+            System.Object.ReferenceEquals(bound, vt)
+            && System.Object.ReferenceEquals(newRest, rest)
+          then
+            ValueSome typeArgs
+          else
+            ValueSome((paramName, bound) :: newRest)
 
-      | known ->
-        match ValueType.merge known vt with
-        | Ok merged -> updateTypeArgsSync newTST ((paramName, merged) :: acc) rest
-        | Error() -> ValueNone
+  /// `updateTypeArgsSync` for the values alone, as a `DEnum` holds them, so the pairs are never
+  /// rebuilt. `values` are the ones so far, or empty before the first field, when they are still
+  /// the ones in `typeArgs`.
+  let rec private updateTypeArgValuesSync
+    (newTST : TypeSymbolTable)
+    (typeArgs : List<string * ValueType>)
+    (values : List<ValueType>)
+    : List<ValueType> voption =
+    match typeArgs with
+    | [] -> ValueSome []
+    | (paramName, own) :: rest ->
+      let struct (vt, valuesRest) =
+        match values with
+        | v :: vs -> struct (v, vs)
+        | [] -> struct (own, [])
+      match bindTypeArg newTST paramName vt with
+      | ValueNone -> ValueNone
+      | ValueSome bound ->
+        match updateTypeArgValuesSync newTST rest valuesRest with
+        | ValueNone -> ValueNone
+        | ValueSome newRest ->
+          match values with
+          | v :: vs when
+            System.Object.ReferenceEquals(bound, v)
+            && System.Object.ReferenceEquals(newRest, vs)
+            ->
+            ValueSome values
+          | _ -> ValueSome(bound :: newRest)
 
 
   let rec private checkEnumFields
@@ -1427,7 +1521,7 @@ module DvalCreator =
           if List.isEmpty typeArgs then
             ValueSome typeArgs
           else
-            updateTypeArgsSync newTST [] typeArgs
+            updateTypeArgsSync newTST typeArgs
 
         match updated with
         | ValueSome newTypeArgs ->
@@ -1592,11 +1686,17 @@ module DvalCreator =
     (defs : List<TypeReference>)
     (fields : List<Dval>)
     (typeArgs : List<string * ValueType>)
-    : voption<List<string * ValueType>> =
+    (values : List<ValueType>)
+    : voption<List<ValueType>> =
     match defs with
     | [] ->
       match fields with
-      | [] -> ValueSome typeArgs
+      | [] ->
+        // No fields, or no type arguments: nothing was bound.
+        if List.isEmpty values && not (List.isEmpty typeArgs) then
+          ValueSome(typeArgs |> List.map Tuple2.second)
+        else
+          ValueSome values
       | _ -> ValueNone
     | fieldDef :: defsRest ->
       match fields with
@@ -1604,15 +1704,9 @@ module DvalCreator =
       | actualField :: fieldsRest ->
         match tryUnifySync tst fieldDef actualField with
         | ValueSome newTST ->
-          let updated =
-            if List.isEmpty typeArgs then
-              ValueSome typeArgs
-            else
-              updateTypeArgsSync newTST [] typeArgs
-
-          match updated with
-          | ValueSome newTypeArgs ->
-            enumFieldsSync newTST defsRest fieldsRest newTypeArgs
+          match updateTypeArgValuesSync newTST typeArgs values with
+          | ValueSome newValues ->
+            enumFieldsSync newTST defsRest fieldsRest typeArgs newValues
           | ValueNone -> ValueNone
         | ValueNone -> ValueNone
 
@@ -1654,14 +1748,12 @@ module DvalCreator =
       | ValueSome case ->
         let tst =
           typeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
-        enumFieldsSync tst case.fields fields typeArgs
+        enumFieldsSync tst case.fields fields typeArgs []
       | ValueNone -> ValueNone
 
     match fast with
-    | ValueSome typeArgs ->
-      let typeArgs =
-        if List.isEmpty typeArgs then [] else typeArgs |> List.map Tuple2.second
-      Ply(DEnum(sourceTypeName, resolvedTypeName, typeArgs, caseName, fields))
+    | ValueSome typeArgValues ->
+      Ply(DEnum(sourceTypeName, resolvedTypeName, typeArgValues, caseName, fields))
     | ValueNone ->
       let struct (tst, fieldsZipped) =
         enumCaseFields
@@ -1867,7 +1959,7 @@ module DvalCreator =
             else
               // Synchronous apart from building an error message, so a parameterised type need
               // not enter the builder; only a genuine merge failure falls through.
-              match updateTypeArgsSync newTST [] currentTypeArgs with
+              match updateTypeArgsSync newTST currentTypeArgs with
               | ValueSome updated -> ValueSome(struct (updated, newTST))
               | ValueNone -> ValueNone
 
@@ -2011,7 +2103,7 @@ module DvalCreator =
               // Parameterised types used to fail this gate outright and take the builder. The
               // type-argument walk is synchronous apart from building an error message, so it runs
               // here and only a genuine merge failure falls through.
-              match updateTypeArgsSync newTST [] currentTypeArgs with
+              match updateTypeArgsSync newTST currentTypeArgs with
               | ValueSome updated -> ValueSome(struct (updated, newTST))
               | ValueNone -> ValueNone
 

@@ -185,7 +185,11 @@ type Context =
   | Untrusted(NameRef, UntrustedBuiltin)
   /// The trait a bound or method call needed an impl of
   | TraitNeeded(LanguageTools.ProgramTypes.Hash, Stdlib.Option.Option<String>)
+  /// A value used as a function, named as written when available.
+  | NonCallableValue(Stdlib.Option.Option<String>)
   | Arity(Int64, Int64)
+  /// A call's source name, when available, and its expected and given counts.
+  | FunctionArgumentCount(Stdlib.Option.Option<String>, Int64, Int64)
   | NamedArity(String, Int64, Int64)
   | TypeArity(LanguageTools.ProgramTypes.Hash, Int64, Int64)
   | ArgumentIndex(Int64)
@@ -557,7 +561,15 @@ let contextToStringWith(
   match context with
   | InStringInterpolation(inner) ->
     "In string interpolation: " + contextToStringWith(customTypeName, actualName, code, inner)
-  | NoDetail -> ""
+  | NoDetail ->
+    if code == IssueCode.NotCallable then "This value is not a function" else ""
+  | NonCallableValue(name) ->
+    match name with
+    | Some(name) ->
+      $"{name} is a value, not a function. Use {name} without calling it."
+    | None ->
+      let typ = Stdlib.Option.withDefault(actualName, "unknown")
+      $"This value has type {typ}, not a function type, and cannot be called."
   | At(site) -> $"In {siteToString(site)}"
   | Unresolved(parts) ->
     match parts with
@@ -625,6 +637,13 @@ let contextToStringWith(
     | _ ->
       $"This type declaration expects {noun}, "
       + $"but {Stdlib.display(actual)} {verb} provided"
+  | FunctionArgumentCount(name, expected, actual) ->
+    let subject = Stdlib.Option.withDefault(name, "This function")
+    let args =
+      if expected == 1 then "1 argument"
+      else $"{Stdlib.display(expected)} arguments"
+    let verb = if actual == 1 then "was" else "were"
+    $"{subject} takes {args}, but {Stdlib.display(actual)} {verb} given"
   | NamedArity(ident, expected, actual) ->
     let noun =
       if expected == 1 then "1 field" else $"{Stdlib.display(expected)} fields"
@@ -762,6 +781,41 @@ let stringExpectedHint(expected: StaticType, actual: StaticType): String =
   | _ -> ""
 
 
+/// A lambda with one parameter per element does not unpack the tuple a callback receives,
+/// as `fun (k, v) ->` over a list of pairs.
+let tupleParameterHint(expected: StaticType, actual: StaticType): String =
+  match (expected, actual) with
+  | (TFn([ TTuple(_, _, rest) ], _), TFn(parameters, _)) ->
+    let names = [ "a", "b", "c", "d", "e", "f", "g", "h" ]
+    let count = Stdlib.List.length(parameters)
+    if count == 2 + Stdlib.List.length(rest) && count <= Stdlib.List.length(names) then
+      let noun = if count == 2 then "pair" else "tuple"
+      let pattern = Stdlib.String.join(Stdlib.List.take(names, count), ", ")
+      $" (a {noun} is one argument; write `fun (({pattern})) -> ...`)"
+    else
+      ""
+  | _ -> ""
+
+
+/// Says what `append` is for when its second argument is a whole list of the element type,
+/// as `Stdlib.List.append(xs, [x])` written to join two lists.
+let appendListHint(
+  callee: String,
+  expected: StaticType,
+  actual: StaticType)
+  : String =
+  let isAppend =
+    Stdlib.List.contains(
+      [ "Stdlib.List.append"
+        "Darklang.Stdlib.List.append"
+        "PACKAGE.Darklang.Stdlib.List.append" ],
+      callee)
+  match actual with
+  | TList(element) when isAppend && element == expected ->
+    " (`append` adds one item; to join two lists use `Stdlib.List.concat(a, b)` or `[...a, ...b]`)"
+  | _ -> ""
+
+
 let issueToStringWith(
   customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>,
@@ -770,14 +824,18 @@ let issueToStringWith(
   // Only where a value is handed over: an Int64 where `?` wanted a String error wants `mapError`.
   let hint =
     fun(expected, actual) ->
+      let typeHint =
+        stringExpectedHint(expected, actual) + tupleParameterHint(expected, actual)
       match (issue.code, issue.context) with
+      | (TypeMismatch, At(FunctionArgument(1, Some(callee)))) ->
+        typeHint + appendListHint(callee, expected, actual)
       | (TypeMismatch, At(FunctionArgument(_, _)))
       | (TypeMismatch, At(FunctionReturnValue))
       | (TypeMismatch, At(LambdaReturnValue))
       | (TypeMismatch, At(ValueBody))
       | (TypeMismatch, At(Expression))
       | (TypeMismatch, At(OperatorOperand(_)))
-      | (TypeMismatch, At(PipelineStringConcatenation)) -> stringExpectedHint(expected, actual)
+      | (TypeMismatch, At(PipelineStringConcatenation)) -> typeHint
       | _ -> ""
   let detail =
     match issue.expected with
@@ -797,6 +855,15 @@ let issueToStringWith(
       Stdlib.Option.Option.Some(staticTypeToStringWith(customTypeName, actual))
     | None -> Stdlib.Option.Option.None
   match (issue.context, issue.code, actualName) with
+  | (EnumRequiredForPattern, InvalidPattern, _) when Stdlib.Option.isSome(issue.expected) ->
+    let matched =
+      issue.expected
+      |> Stdlib.Option.map(fun t -> staticTypeToStringWith(customTypeName, t))
+      |> Stdlib.Option.withDefault("_")
+    if matched == "_" then
+      "An enum pattern requires an enum type"
+    else
+      $"An enum pattern such as `Ok(x)` or `Some(x)` cannot match a {matched}"
   | (At(InterpolatedSegment), TypeMismatch, Some(actual)) ->
     $"String interpolation conversion must return String; got {actual}."
   | (At(OperatorOperand(operation)), TypeMismatch, Some(right)) when Stdlib.Option.isSome(issue.expected) ->

@@ -587,6 +587,12 @@ module Basics =
     check("let f(value: Int64, other: String): String = other", "f")
     |> Stdlib.Test.equal("checked:")
 
+  // An enum pattern on a value that is not an enum names the value's type.
+  test enumPatternOnAListNamesTheType =
+    issues("let f(xs: List<Int64>): Int64 =\n  match xs with\n  | Ok(_) -> 1\n  | _ -> 0", "f")
+    |> Stdlib.Test.equal(
+      [ "InvalidPattern: An enum pattern such as `Ok(x)` or `Some(x)` cannot match a List<Int64>" ])
+
   // Calling an Int64 as though it were a function must report NotCallable.
   test callingIntIsNotCallable =
     check("let f(x: Int64): Int64 = x(1)", "f")
@@ -1323,6 +1329,70 @@ module Builtins =
           "let f(u: Unit): Int64 =\n  let h = Stdlib.List.length<Int64, Int64, Int64>\n  h([])",
           "f")
         |> Stdlib.Test.equal("failed:ExplicitTypeArgumentCountMismatch") ])
+
+  // `append` adds one value; a whole list as its second argument was meant to join two lists.
+  test appendGivenAListPointsAtConcat =
+    issues("let f(xs: List<Int64>): List<Int64> = Stdlib.List.append(xs, [ 1 ])", "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.append`, argument 2: expected Int64, got List<Int64> (`append` adds one item; to join two lists use `Stdlib.List.concat(a, b)` or `[...a, ...b]`)" ])
+
+// ----------------------------------------------------------------------------------
+// Tuple callbacks
+// ----------------------------------------------------------------------------------
+
+module TupleCallbacks =
+  test pairParameterSuggestsTuplePattern =
+    issues(
+      src([
+        "let f(): Unit ="
+        "  Stdlib.List.iter([(\"a\", 1)], fun (k, v) -> Stdlib.printLine(k))" ]),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.iter`, argument 2: "
+        + "expected ((String * Int64)) -> Unit, got (String, _) -> Unit"
+        + " (a pair is one argument; write `fun ((a, b)) -> ...`)" ])
+
+  test tripleParameterSuggestsTuplePattern =
+    issues(
+      src([
+        "let f(): Unit ="
+        "  Stdlib.List.iter([(\"a\", 1, true)], fun (k, v, b) -> Stdlib.printLine(k))" ]),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.iter`, argument 2: "
+        + "expected ((String * Int64 * Bool)) -> Unit, got (String, _, _) -> Unit"
+        + " (a tuple is one argument; write `fun ((a, b, c)) -> ...`)" ])
+
+  test tuplePatternChecks =
+    Stdlib.Test.all([
+      check(
+        src([
+          "let f(): Unit ="
+          "  Stdlib.List.iter([(\"a\", 1)], fun ((k, v)) -> Stdlib.printLine(k))" ]),
+        "f")
+      |> Stdlib.Test.equal("checked:")
+      check(
+        src([
+          "let f(items: List<(String * Decimal)>): List<String> ="
+          "  Stdlib.List.map(items, fun ((k, v)) -> k)" ]),
+        "f")
+      |> Stdlib.Test.equal("checked:")
+    ])
+
+  test otherArityErrorsDoNotSuggestTuplePattern =
+    [ "Stdlib.List.iter([\"a\"], fun (k, v) -> Stdlib.printLine(k))"
+      "Stdlib.List.iter([(\"a\", 1)], fun (k, v, x) -> Stdlib.printLine(k))"
+      "Stdlib.List.iter([(\"a\", 1, true)], fun (k, v) -> Stdlib.printLine(k))" ]
+    |> Stdlib.List.map(fun call ->
+      let messages = issues("let f(): Unit = " + call, "f")
+      Stdlib.Test.all([
+        Stdlib.List.any(
+          messages, fun m -> Stdlib.String.startsWith(m, "TypeMismatch:"))
+        |> Stdlib.Test.equal(true)
+        Stdlib.List.any(messages, fun m -> Stdlib.String.contains(m, "is one argument"))
+        |> Stdlib.Test.equal(false)
+      ]))
+    |> Stdlib.Test.all
 
 // ----------------------------------------------------------------------------------
 // Postfix `?`
@@ -3429,3 +3499,77 @@ module StandardTypes =
         |> Stdlib.Test.equal(carried(Stdlib.Test.Result.Pass))
         byName([ "Stdlib", "Option" ], "NoSuchType")
         |> Stdlib.Test.equal(Darklang.LanguageTools.ProgramTypes.Hash.Hash("")) ])
+
+module NotCallableDiagnostics =
+  test noDetailFormatting =
+    let render(code: Darklang.LanguageTools.AtRestTypeChecker.IssueCode): String =
+      Darklang.LanguageTools.AtRestTypeChecker.contextToStringWith(
+        (fun _ -> Stdlib.Option.Option.None),
+        Stdlib.Option.Option.None,
+        code,
+        Darklang.LanguageTools.AtRestTypeChecker.Context.NoDetail)
+    Stdlib.Test.all(
+      [ render(Darklang.LanguageTools.AtRestTypeChecker.IssueCode.NotCallable)
+        |> Stdlib.Test.equal("This value is not a function")
+        render(Darklang.LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch)
+        |> Stdlib.Test.equal("") ])
+
+  test packageValue =
+    issues("let f(): Bytes = Stdlib.Bytes.empty()", "f")
+    |> Stdlib.Test.equal(
+         [ "NotCallable: Stdlib.Bytes.empty is a value, not a function. Use Stdlib.Bytes.empty without calling it." ])
+
+  test localValue =
+    issues(src([ "let f(): Int64 =", "  let n = 1", "  n()" ]), "f")
+    |> Stdlib.Test.equal(
+         [ "NotCallable: n is a value, not a function. Use n without calling it." ])
+
+  // The parser rejects literal callees; exercise the checker with an AST.
+  test unnamedExpression =
+    let body =
+      Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+        1, intExpr(2, 1), [], [ intExpr(3, 2) ])
+    let outcome = checkFunctionAstOutcome([], oneArg(tUnit(), tInt(), body))
+    outcome.diagnostics
+    |> Stdlib.List.map(fun issue ->
+         Darklang.LanguageTools.AtRestTypeChecker.issueToString(issue))
+    |> Stdlib.Test.equal(
+         [ "This value has type Int64, not a function type, and cannot be called." ])
+
+module FunctionArgumentCountDiagnostics =
+  test namedTooMany =
+    issues(
+      src([ "let f(s: String): String ="
+            "  let a = Stdlib.String.trim(s)"
+            "  Stdlib.String.trimEnd(a, \"/\")" ]),
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])
+
+  test namedTooFew =
+    issues(
+      "let f(s: String): List<String> = Stdlib.String.split(s)",
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooFewArguments: Stdlib.String.split takes 2 arguments, but 1 was given" ])
+
+  test localFunction =
+    issues(
+      src([ "let f(s: String): String ="
+            "  let g = (fun x -> x)"
+            "  g(s, s)" ]),
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: g takes 1 argument, but 2 were given" ])
+
+  test anonymousFunction =
+    issues("let f(): Int64 = (fun x -> x)(1, 2)", "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: This function takes 1 argument, but 2 were given" ])
+
+  test pipeline =
+    issues(
+      "let f(s: String): String = s |> Stdlib.String.trimEnd(\"/\")",
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])

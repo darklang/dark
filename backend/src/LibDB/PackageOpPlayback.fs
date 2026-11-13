@@ -649,13 +649,14 @@ let private applyUnbind
   }
 
 /// Record a deprecation-state change in <param layer>: the newest statement stands, by the op's own
-/// stamp, whatever order the ops arrived in. Keyed on content: two names sharing a hash deprecate
-/// together.
+/// stamp, whatever order the ops arrived in. Keyed on the name and the content it held: another
+/// name holding the same content is not deprecated by it.
 let private writeDeprecationState
   (ctx : Ctx)
   (layer : Layers.Layer)
   (row : OpRow)
   (opId : System.Guid)
+  (location : PT.PackageLocation)
   (target : PT.Reference)
   (state : string)
   (blob : Option<byte[]>)
@@ -664,12 +665,14 @@ let private writeDeprecationState
     let (Hash itemHashStr) = target.hash
     let itemKindStr = target.kind.toString ()
     let bindKey (cmd : SqliteCommand) =
+      pLoc cmd location
       p cmd "$item_hash" itemHashStr
       p cmd "$item_kind" itemKindStr
 
     let! standingTs =
       textOption ctx "SELECT origin_ts FROM deprecations
-         WHERE item_hash = $item_hash AND item_kind = $item_kind
+         WHERE owner = $owner AND modules = $modules AND name = $name
+           AND item_hash = $item_hash AND item_kind = $item_kind
            AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
         bindKey cmd
         layerParams cmd layer)
@@ -685,8 +688,10 @@ let private writeDeprecationState
       do!
         exec ctx """
           INSERT INTO deprecations
-            (branch_id, draft, item_hash, item_kind, state, annotation_blob, origin_ts, op_id)
-          VALUES ($branch, $draft, $item_hash, $item_kind, $state, $blob, $origin_ts, $op_id)
+            (branch_id, draft, owner, modules, name, item_hash, item_kind, state, annotation_blob,
+             origin_ts, op_id)
+          VALUES ($branch, $draft, $owner, $modules, $name, $item_hash, $item_kind, $state, $blob,
+                  $origin_ts, $op_id)
           """ (fun cmd ->
           layerParams cmd layer
           bindKey cmd
@@ -747,18 +752,28 @@ let private applyOp
         do! applyUnbind ctx layer row opId loc previous
       // `restating` is part of the op's identity and nothing else: what it SAYS is the kind and
       // the message.
-      | PT.PackageOp.Deprecate(target, kind, message, _) ->
+      | PT.PackageOp.Deprecate(location, target, kind, message, _) ->
         do!
           writeDeprecationState
             ctx
             layer
             row
             opId
+            location
             target
             "deprecated"
             (Some(Deprecations.serializeAnnotation kind message))
-      | PT.PackageOp.Undeprecate(target, _) ->
-        do! writeDeprecationState ctx layer row opId target "undeprecated" None
+      | PT.PackageOp.Undeprecate(location, target, _) ->
+        do!
+          writeDeprecationState
+            ctx
+            layer
+            row
+            opId
+            location
+            target
+            "undeprecated"
+            None
       // A rename is its two binding effects; the names its callers use are read from the op itself
       // (`ReferenceNames`), as `SetReferenceNames` is.
       | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->

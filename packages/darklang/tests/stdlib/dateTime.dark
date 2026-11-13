@@ -570,7 +570,12 @@ test format =
       Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "")
       |> Stdlib.Test.equal(Ok(""))
       Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "%%Y is %Y, 100%%")
-      |> Stdlib.Test.equal(Ok("%Y is 2019, 100%")) ])
+      |> Stdlib.Test.equal(Ok("%Y is 2019, 100%"))
+      Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "at noon")
+      |> Stdlib.Test.equal(Ok("at noon"))
+      Stdlib.DateTime.format(d("2019-07-28T22:42:36Z"), "HH:mm:ss")
+      |> Stdlib.Test.equal(
+        Error("`HH:mm:ss` has no % directive, so it would print as written; the directives are %Y %m %d %H %M %S %f %%")) ])
 
 test formatPadsEveryField =
   Stdlib.Test.all(

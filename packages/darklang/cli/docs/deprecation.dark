@@ -4,8 +4,11 @@ let content(): String =
   """# Deprecation
 
 Author-initiated notes that a fn/type/value/trait/impl shouldn't be used anymore.
-Deprecations target content hashes, not names, so a pure rename of the same
-hash is not a deprecation (name changes go through `SetName`); a rewrite with
+A deprecation is said at a NAME, about the content it holds then. Content is
+shared -- `Probe.v = 5` is the same item as every other `= 5` -- so deleting or
+deprecating one name leaves the others alone. `harmful` is the exception: it is
+about the code, so it marks every name holding that code. A pure rename of the same hash is not a
+deprecation (name changes go through `SetName`); a rewrite with
 a replacement is. Removing a NAME is a different op again, `Unbind`: the name
 stops resolving, the content stays reachable by hash, and nothing is said
 about the content. A deprecated name still resolves; an unbound one does not.
@@ -50,7 +53,8 @@ replacement or runtime-halt is wanted.
   { "deprecated": "Acme.oldThing", "itemType": "fn", "kind": "obsolete",
     "replacement": "", "message": "", "names": ["Acme.oldThing"], "dryRun": false }
 
-`names` is every name the deprecation reaches, since it keys on content. Without
+`names` is every name the deprecation reaches: the target alone, or for
+`harmful` every name holding the code. Without
 --yes (or --force) nothing is written and `dryRun` is true. A refusal (not found,
 live dependents) prints nothing on stdout, says why on stderr, and exits 1.
 
@@ -96,21 +100,24 @@ call that needs it fails the at-rest check with `MissingImpl`. Calls saved while
 it was live keep the implementation they resolved against and go on working, so
 the order is: deprecate, then move the callers.
 
-Deprecation keys on CONTENT, not on the name -- so if two names hold the same
-bytes, deprecating one deprecates both, and `deprecate` warns you when that's
-the case. Undeprecating works the same way, for the same reason.
+Deprecation is said at the name, so if two names hold the same bytes,
+deleting or deprecating one leaves the other as it was, and `deprecate` says so
+in one line on stderr. `harmful` marks both, and names the others; undeprecating
+a harmful item clears it at every name holding the code. Trait dispatch counts
+content as deprecated only when no name holds it undeprecated.
 
 ## Visibility in package tree
 
 By default, deprecated items are hidden from `ls` / `tree` / `search` unless
-a non-deprecated item still references them. Pass `--include-deprecated` to
+a non-deprecated item still references them. A deleted name whose code another
+name still holds is hidden too: the other name is the one listed. Pass `--include-deprecated` to
 see them anyway. `view` always shows the deprecation header when present.
 
 ## Notes
 
-  * Deprecation targets a specific content hash. If you update `Foo.bar` to a
-    new hash later, the deprecation doesn't follow — the new hash is its own
-    thing. Re-deprecate the new hash if you want.
+  * Deprecation is of the content a name held when it was said. If you update
+    `Foo.bar` to a new hash later, the deprecation doesn't follow -- the new
+    hash is its own thing. Re-deprecate it if you want.
   * Branch-chain visibility: deprecating on a child branch extends the parent;
     a child can un-deprecate what the parent deprecated.
   * `delete` refuses without `--ignore-dependents` if live dependents exist.

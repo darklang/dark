@@ -1859,6 +1859,10 @@ let private liveValuesStayBounded =
         do! author target "Tests.LiveBound.inc" "(n: Int64): Int64 = (n + 1)"
         let! out = runCli target [ "eval"; "Tests.LiveBound.inc(41)" ]
         Expect.stringContains out "42" "the call ran"
+        // pin the recorded duration: the limits are the point, not how fast this box ran it
+        do!
+          Sql.query "UPDATE traces SET duration_ms = 10"
+          |> Sql.executeStatementAsync
 
         let within (ms : string) (fns : string) =
           $"""match Darklang.LanguageTools.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
@@ -1879,7 +1883,7 @@ let private liveValuesStayBounded =
         | RT.DTuple(RT.DInt64 n, RT.DString "", []) ->
           Expect.isGreaterThan n 0L "a small run is replayed"
         | other -> failtest $"expected (n, \"\"), got {other}"
-        do! expectSkipped "over the time limit" "-1" "500"
+        do! expectSkipped "over the time limit" "9" "500"
         do! expectSkipped "over the fn limit" "1000" "0"
 
         // A sentinel in the values survives a refresh that moved nothing, so that refresh did not

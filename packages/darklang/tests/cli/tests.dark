@@ -375,14 +375,16 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
 
 
 // Two functions with identical bodies share a hash, and the trait-calls line still names each.
+// The bodies call a name that does not exist yet, so the check is incomplete rather than failed:
+// a failed item reports its type error instead of this line.
 test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
   let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-module-trait-calls-test-" + suffix
   let moduleName = "Tests.CliModuleTraitCalls"
   let source =
-    [ "let addsText(n: Int64): Int64 = n + \"x\""
+    [ "let addsText(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
       ""
-      "let addsTextToo(n: Int64): Int64 = n + \"x\""
+      "let addsTextToo(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
     ] |> Stdlib.String.join("\n")
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
@@ -567,6 +569,60 @@ test harmfulGate =
     Stdlib.Test.Result.Pass
 
 
+/// Two names holding one body are one item, so deleting or deprecating one used to deprecate
+/// both: deleting a probe `= 5` took stdlib constants with it. Now it is said at the name, and the
+/// other name stays undeprecated and resolvable.
+test deprecateLeavesATwinAlone =
+  Instance.withInstance(fun i ->
+    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
+    let hashOf = fun(name) -> Stdlib.String.trim(said([ "hash", name ]))
+    let _ = said([ "val", "Tests.Twins.kept", "= 770031" ])
+    let _ = said([ "val", "Tests.Twins.probe", "= 770031" ])
+    let deprecated = said([ "deprecate", "Tests.Twins.probe", "--kind", "obsolete", "--yes" ])
+
+    if hashOf("Tests.Twins.kept") != hashOf("Tests.Twins.probe") then
+      Stdlib.Test.fail("the two names should hold one item, or this tests nothing")
+    else
+      Stdlib.Test.all(
+        [ Instance.says(deprecated, "1 other name shares this code and is unaffected", "deprecate says the code is shared")
+          Instance.says(said([ "undeprecate", "Tests.Twins.kept" ]), "is not deprecated", "the other name is left alone")
+          Instance.says(said([ "eval", "Tests.Twins.kept" ]), "770031", "and still resolves")
+          Instance.says(said([ "undeprecate", "Tests.Twins.probe" ]), "Undeprecated", "the name given was deprecated") ]))
+
+
+/// Harmful is about the code, not the name: marking one name halts calls through every name holding
+/// that code, and undoing it at one name clears it for all of them.
+test harmfulMarksEveryTwin =
+  Instance.withInstance(fun i ->
+    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
+    let _ = said([ "fn", "Tests.HarmTwins.a", "(x: Int64) : Int64 = (x + 770032)" ])
+    let _ = said([ "fn", "Tests.HarmTwins.b", "(x: Int64) : Int64 = (x + 770032)" ])
+    let marked = said([ "deprecate", "fn", "Tests.HarmTwins.a", "--kind", "harmful", "--yes" ])
+    let haltedB = said([ "eval", "Tests.HarmTwins.b(0)" ])
+    let cleared = said([ "undeprecate", "Tests.HarmTwins.b" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(marked, "1 other name shares this code and is also marked harmful: Tests.HarmTwins.b", "harmful names the others")
+        Instance.says(haltedB, "Harmful", "a call through the twin halts")
+        Instance.says(cleared, "no longer harmful: Tests.HarmTwins.a", "undoing it at the twin clears both")
+        Instance.says(said([ "eval", "Tests.HarmTwins.a(0)" ]), "770032", "so the first name runs again") ]))
+
+
+/// `ls` lists names: after deleting one of two names holding the same code, only the other is listed.
+test lsDropsADeletedTwin =
+  Instance.withInstance(fun i ->
+    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
+    let _ = said([ "val", "Tests.LsTwins.kept", "= 770033" ])
+    let _ = said([ "val", "Tests.LsTwins.probe", "= 770033" ])
+    let _ = said([ "delete", "Tests.LsTwins.probe", "--yes" ])
+    let listed = said([ "ls", "Tests.LsTwins" ])
+
+    Stdlib.Test.all(
+      [ Instance.says(listed, "kept", "the twin is still listed")
+        Instance.doesNotSay(listed, "⚠", "and nothing listed is marked deprecated")
+        Instance.doesNotSay(listed, "probe", "the deleted name is not") ]))
+
+
 test searchMatchesModuleAndCamelCaseName =
   let output = runWithCommand(["search", "string toList", "--fn"])
   if Stdlib.String.contains(output, "Darklang.Stdlib.String.toList") then
@@ -727,6 +783,8 @@ test stdlibSuggestionFindsTheRealName =
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
       suggest("Bytes.toString") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
       suggest("String.toBytes") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
+      suggest("Stdlib.Int64.absoluteValue")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.abs"))
       suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test closestNamesAreSpelledNear =
@@ -1444,3 +1502,62 @@ test discardNeedsAnExplicitYes =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"refused: {refused}, survived: {survived}, discarded: {discarded}, after: {after}")
+
+
+/// Saving broken code keeps the draft and returns a failing exit code.
+module ModuleSave =
+  let save(i: Instance.T, source: String): Stdlib.Cli.Process.Output =
+    let path = Instance.home(i) + "/probe.dark"
+    let _ = Stdlib.Cli.File.writeText(path, source) |> Builtin.unwrap
+    Instance.run(i, [ "module", "/Tests.ModuleSaveProbe", path ]) |> Builtin.unwrap
+
+
+  test invalidNamesExitNonzeroAndSaveNothing =
+    Instance.withInstance(fun i ->
+      let source =
+        "type Shape = | Dot | Circle(Float)\nlet f(): Shape = Circle(1.0)"
+      let result = save(i, source)
+      let viewed =
+        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+      let shape =
+        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.Shape" ]) |> Builtin.unwrap
+      Stdlib.Test.all(
+        [ result.exitCode |> Stdlib.Test.equal(1)
+          Stdlib.String.contains(result.stderr, "Invalid name: Circle")
+          |> Stdlib.Test.equal(true)
+          viewed.exitCode |> Stdlib.Test.equal(1)
+          shape.exitCode |> Stdlib.Test.equal(1) ]))
+
+
+  test unresolvedNamesExitNonzeroAndKeepDraft =
+    Instance.withInstance(fun i ->
+      let result = save(i, "let f(): Int64 = Stdlib.String.definitelyMissing(\"hello\")")
+      let viewed = Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+      Stdlib.Test.all(
+        [ result.exitCode |> Stdlib.Test.equal(1)
+          Stdlib.String.contains(result.stderr, "UnresolvedValueName")
+          |> Stdlib.Test.equal(true)
+          viewed.exitCode |> Stdlib.Test.equal(0)
+          Stdlib.String.contains(viewed.stdout, "definitelyMissing")
+          |> Stdlib.Test.equal(true) ]))
+
+
+  test checkedSaveExitsZero =
+    Instance.withInstance(fun i ->
+      let result = save(i, "let f(): Int64 = 42")
+      result.exitCode |> Stdlib.Test.equal(0))
+
+
+  // The checker can run out of depth even when the code is valid.
+  test otherIncompleteChecksExitZero =
+    let warning =
+      LanguageTools.AtRestTypeChecker.failureIssue(
+        None, LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep)
+    let report =
+      LanguageTools.AtRestTypeChecker.Report
+        { verdict = LanguageTools.AtRestTypeChecker.Verdict.Incomplete
+          items = []
+          diagnostics = []
+          warnings = [ warning ] }
+    Darklang.Cli.Packages.AtRestCheck.saveHasErrors(report)
+    |> Stdlib.Test.equal(false)
