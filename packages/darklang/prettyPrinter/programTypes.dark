@@ -76,7 +76,10 @@ type KnownBindings =
   { /// The names that were read. A name in here with no entry in `bound` is bound nowhere.
     names: Dict<String, Unit>
     /// Each binding found, by `bindingKey`.
-    bound: Dict<String, Unit> }
+    bound: Dict<String, Unit>
+    /// What `referenceSegments` answers, worked out once per file for the references in it, by
+    /// `segmentsKey`.
+    segments: Dict<String, List<String>> }
 
 
 /// How `KnownBindings.bound` keys a binding of <param kind> at <param location>.
@@ -103,7 +106,8 @@ let knownBindings(branchId: Uuid, names: List<String>): KnownBindings =
         |> Stdlib.List.map(fun b ->
           let (location, kind) = b
           (bindingKey(kind, location), ()))
-        |> Stdlib.Dict.fromList }
+        |> Stdlib.Dict.fromList
+      segments = Stdlib.Dict.empty }
 
 
 // Context for relative name resolution - when we know what module we're currently in,
@@ -391,6 +395,43 @@ let referenceSegments(
   currentModule: List<String>,
   minSegments: Int64)
   : List<String> =
+  let found =
+    match known with
+    | Some(k) ->
+      if Stdlib.Dict.isEmpty(k.segments) then
+        Option.None
+      else
+        Stdlib.Dict.get(k.segments, segmentsKey(kind, location, currentModule, minSegments))
+    | None -> Option.None
+
+  match found with
+  | Some(segments) -> segments
+  | None -> referenceSegmentsWorkedOut(branchId, known, kind, location, currentModule, minSegments)
+
+
+/// How `KnownBindings.segments` keys what `referenceSegments` answers.
+let segmentsKey(
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  currentModule: List<String>,
+  minSegments: Int64)
+  : String =
+  bindingKey(kind, location)
+  + "|"
+  + Stdlib.String.join(currentModule, ".")
+  + "|"
+  + Stdlib.display(minSegments)
+
+
+/// <fn referenceSegments>, worked out rather than looked up.
+let referenceSegmentsWorkedOut(
+  branchId: Uuid,
+  known: Option<KnownBindings>,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  currentModule: List<String>,
+  minSegments: Int64)
+  : List<String> =
   let fullPath = Stdlib.List.prepend(location.modules, location.owner)
   let len = Stdlib.List.length(fullPath)
   let depth = Stdlib.List.length(currentModule)
@@ -508,19 +549,7 @@ let resolvableName(
       | Value -> Stdlib.Dict.containsKey(ctx.localNames, location.name)
       | _ -> false
 
-  // In a test module a name keeps the modules it was written with, less a leading `Darklang.`:
-  // a test reads better saying `Stdlib.List.length` than `length`.
-  let writtenModules =
-    match written with
-    | ["Darklang", ...rest] -> Stdlib.List.length(rest) - 1
-    | _ -> Stdlib.List.length(written) - 1
-
-  let least =
-    if Stdlib.List.contains(ctx.currentModule, "Tests") then
-      Stdlib.max(0, writtenModules)
-    else
-      0
-
+  let least = leastSegments(ctx.currentModule, written)
   let segments =
     match segmentsAtLeast(least) with
     | [] -> if local then segmentsAtLeast(1) else []
@@ -530,6 +559,192 @@ let resolvableName(
   match segments with
   | [] -> name
   | segments -> Stdlib.String.join(segments, ".") + "." + name
+
+
+/// The fewest module segments a reference written <param written> keeps in
+/// <param currentModule>. In a test module a name keeps the modules it was written with, less a
+/// leading `Darklang.`: a test reads better saying `Stdlib.List.length` than `length`.
+let leastSegments(currentModule: List<String>, written: List<String>): Int64 =
+  if Stdlib.List.contains(currentModule, "Tests") then
+    let writtenModules =
+      match written with
+      | ["Darklang", ...rest] -> Stdlib.List.length(rest) - 1
+      | _ -> Stdlib.List.length(written) - 1
+
+    Stdlib.max(0, writtenModules)
+  else
+    0
+
+
+/// `KnownBindings.segments` for the references in <param modules>, each a module path and the
+/// references printed from there.
+let segmentsFor(
+  branchId: Uuid,
+  known: KnownBindings,
+  modules: List<(List<String> * List<References.Reference>)>)
+  : Dict<String, List<String>> =
+  modules
+  |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, m) ->
+    let (path, refs) = m
+    refs
+    |> Stdlib.List.fold(acc, fun(acc, r) ->
+      let n = leastSegments(path, r.written)
+      let key = segmentsKey(r.kind, r.location, path, n)
+      if Stdlib.Dict.containsKey(acc, key) then
+        acc
+      else
+        Stdlib.Dict.set(
+          acc,
+          key,
+          referenceSegmentsWorkedOut(branchId, Option.Some(known), r.kind, r.location, path, n))))
+
+
+/// The package references in printed code: what `referenceSegments` is asked about.
+module References =
+  /// What a reference names, and how it was written.
+  type Reference =
+    { kind: LanguageTools.ProgramTypes.ItemKind
+      location: LanguageTools.ProgramTypes.PackageLocation
+      written: List<String> }
+
+
+  let inName(
+    kind: LanguageTools.ProgramTypes.ItemKind,
+    nr: LanguageTools.ProgramTypes.NameResolution<'a>)
+    : List<Reference> =
+    match nr.resolved with
+    | Ok(r) ->
+      match r.location with
+      | Some(l) -> [ Reference { kind = kind, location = l, written = nr.originalName } ]
+      | None -> []
+    | Error(_) -> []
+
+
+  let inFnName(
+    nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQFnName.FQFnName>)
+    : List<Reference> =
+    match nr.resolved with
+    | Ok(r) ->
+      match r.name, r.location with
+      | Package(_), Some(l) ->
+        [ Reference
+            { kind = LanguageTools.ProgramTypes.ItemKind.Fn
+              location = l
+              written = nr.originalName } ]
+      | TraitMethod(_), Some(l) ->
+        [ Reference
+            { kind = LanguageTools.ProgramTypes.ItemKind.Trait, location = l, written = [] } ]
+      | _ -> []
+    | Error(_) -> []
+
+
+  let inTypeRef(t: LanguageTools.ProgramTypes.TypeReference): List<Reference> =
+    match t with
+    | TStream(inner) -> inTypeRef(inner)
+    | TList(inner) -> inTypeRef(inner)
+    | TDict(key, value) -> Stdlib.List.concat(inTypeRef(key), inTypeRef(value))
+    | TTuple(first, second, rest) ->
+      Stdlib.List.flatten([ inTypeRef(first), inTypeRef(second), inTypeRefs(rest) ])
+    | TCustomType(name, typeArgs) ->
+      Stdlib.List.concat(
+        inName(LanguageTools.ProgramTypes.ItemKind.Type, name),
+        inTypeRefs(typeArgs))
+    | TFn(args, ret) -> Stdlib.List.concat(inTypeRefs(args), inTypeRef(ret))
+    | _ -> []
+
+
+  let inTypeRefs(ts: List<LanguageTools.ProgramTypes.TypeReference>): List<Reference> =
+    match ts with
+    | [] -> []
+    | [t, ...rest] -> Stdlib.List.concat(inTypeRef(t), inTypeRefs(rest))
+
+
+  let inExpr(e: LanguageTools.ProgramTypes.Expr): List<Reference> =
+    match e with
+    | EString(_, segments) -> inSegments(segments)
+    | EIf(_, cond, thenExpr, elseExpr) ->
+      Stdlib.List.flatten([ inExpr(cond), inExpr(thenExpr), inOptionalExpr(elseExpr) ])
+    | EPipe(_, lhs, parts) -> Stdlib.List.concat(inExpr(lhs), inPipeExprs(parts))
+    | EMatch(_, arg, cases) -> Stdlib.List.concat(inExpr(arg), inMatchCases(cases))
+    | ELet(_, _, value, body) -> Stdlib.List.concat(inExpr(value), inExpr(body))
+    | EList(_, items) -> inExprs(items)
+    | EDict(_, pairs) ->
+      inExprs(
+        Stdlib.List.flatten(
+          Stdlib.List.map(pairs, fun pair ->
+            let (k, v) = pair
+            [ k, v ])))
+    | ETuple(_, first, second, rest) ->
+      Stdlib.List.flatten([ inExpr(first), inExpr(second), inExprs(rest) ])
+    | EApply(_, fnExpr, typeArgs, args) ->
+      Stdlib.List.flatten([ inExpr(fnExpr), inTypeRefs(typeArgs), inExprs(args) ])
+    | EFnName(_, name, _, typeArgs) -> Stdlib.List.concat(inFnName(name), inTypeRefs(typeArgs))
+    | ELambda(_, _, body) -> inExpr(body)
+    | EInfix(_, _, lhs, rhs, _) -> Stdlib.List.concat(inExpr(lhs), inExpr(rhs))
+    | ERecord(_, typeName, typeArgs, fields) ->
+      Stdlib.List.flatten(
+        [ inName(LanguageTools.ProgramTypes.ItemKind.Type, typeName)
+          inTypeRefs(typeArgs)
+          inExprs(Stdlib.List.map(fields, fun f -> Stdlib.Tuple2.second(f))) ])
+    | ERecordFieldAccess(_, record, _) -> inExpr(record)
+    | ERecordUpdate(_, record, updates) ->
+      Stdlib.List.concat(
+        inExpr(record),
+        inExprs(Stdlib.List.map(updates, fun u -> Stdlib.Tuple2.second(u))))
+    | EEnum(_, typeName, typeArgs, _, fields) ->
+      Stdlib.List.flatten(
+        [ inName(LanguageTools.ProgramTypes.ItemKind.Type, typeName)
+          inTypeRefs(typeArgs)
+          inExprs(fields) ])
+    | EValue(_, name) -> inName(LanguageTools.ProgramTypes.ItemKind.Value, name)
+    | EUnwrap(_, operand) -> inExpr(operand)
+    | EStatement(_, first, next) -> Stdlib.List.concat(inExpr(first), inExpr(next))
+    | _ -> []
+
+
+  let inOptionalExpr(e: Option<LanguageTools.ProgramTypes.Expr>): List<Reference> =
+    match e with
+    | Some(e) -> inExpr(e)
+    | None -> []
+
+
+  let inExprs(es: List<LanguageTools.ProgramTypes.Expr>): List<Reference> =
+    match es with
+    | [] -> []
+    | [e, ...rest] -> Stdlib.List.concat(inExpr(e), inExprs(rest))
+
+
+  let inSegments(segments: List<LanguageTools.ProgramTypes.StringSegment>): List<Reference> =
+    match segments with
+    | [] -> []
+    | [StringText(_), ...rest] -> inSegments(rest)
+    | [StringInterpolation(e), ...rest] -> Stdlib.List.concat(inExpr(e), inSegments(rest))
+
+
+  let inMatchCases(cases: List<LanguageTools.ProgramTypes.MatchCase>): List<Reference> =
+    match cases with
+    | [] -> []
+    | [c, ...rest] ->
+      Stdlib.List.flatten([ inOptionalExpr(c.whenCondition), inExpr(c.rhs), inMatchCases(rest) ])
+
+
+  let inPipeExprs(parts: List<LanguageTools.ProgramTypes.PipeExpr>): List<Reference> =
+    match parts with
+    | [] -> []
+    | [p, ...rest] ->
+      let here =
+        match p with
+        | EPipeLambda(_, _, body) -> inExpr(body)
+        | EPipeInfix(_, _, rhs, _) -> inExpr(rhs)
+        | EPipeFnCall(_, name, typeArgs, args, _) ->
+          Stdlib.List.flatten([ inFnName(name), inTypeRefs(typeArgs), inExprs(args) ])
+        | EPipeEnum(_, typeName, _, fields) ->
+          Stdlib.List.concat(
+            inName(LanguageTools.ProgramTypes.ItemKind.Type, typeName),
+            inExprs(fields))
+        | EPipeVariable(_, _, args) -> inExprs(args)
+
+      Stdlib.List.concat(here, inPipeExprs(rest))
 
 
 /// The names <param p> binds.

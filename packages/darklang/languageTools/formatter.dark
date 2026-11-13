@@ -595,6 +595,32 @@ let declarations(
   (text, names)
 
 
+/// The package references printed in <param ds>, declared at <param path>, by the module
+/// path they are printed from.
+let referencesIn(
+  path: List<String>,
+  ds: List<Declaration>)
+  : List<(List<String> * List<PrettyPrinter.ProgramTypes.References.Reference>)> =
+  ds
+  |> Stdlib.List.map(fun d ->
+    match d.item with
+    | Module(name, _, inner) ->
+      referencesIn(Stdlib.List.concat(path, Stdlib.String.split(name, ".")), inner)
+    | Fn(_, fn) ->
+      [ (
+          path,
+          Stdlib.List.flatten(
+            [ PrettyPrinter.ProgramTypes.References.inExpr(fn.body)
+              PrettyPrinter.ProgramTypes.References.inTypeRefs(
+                Stdlib.List.map(fn.parameters, fun p -> p.typ))
+
+              PrettyPrinter.ProgramTypes.References.inTypeRef(fn.returnType) ])) ]
+    | Value(_, v) -> [ (path, PrettyPrinter.ProgramTypes.References.inExpr(v.body)) ]
+    | Test(_, t) -> [ (path, PrettyPrinter.ProgramTypes.References.inExpr(t.body)) ]
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+
 /// The words of <param source>, and the owner names a reference can resolve through without
 /// writing: every name a reference in it can be printed with.
 let namesIn(source: String): List<String> =
@@ -625,7 +651,15 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
   | Error(e) -> Result.Error(e)
   | Ok(file) ->
     let comments = placeComments(file)
-    let known = PrettyPrinter.ProgramTypes.knownBindings(branchId, namesIn(source))
+    let bindings = PrettyPrinter.ProgramTypes.knownBindings(branchId, namesIn(source))
+    let known =
+      { bindings with
+          segments =
+            PrettyPrinter.ProgramTypes.segmentsFor(
+              branchId,
+              bindings,
+              referencesIn([], file.declarations)) }
+
     let (body, asWritten) =
       declarations(branchId, known, width, file, [], comments, file.declarations)
 
