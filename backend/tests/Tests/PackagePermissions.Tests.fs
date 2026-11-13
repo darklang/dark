@@ -721,7 +721,216 @@ let preflightCollectsOnlyCertainRequests =
     Expect.equal (List.length chosen) 1 "only the literal branch is included"
     let! stopped = collect [ PT.EUnwrap(gid (), env "FIRST"); env "LATER" ]
     Expect.equal (List.length stopped) 1 "a possible early return stops preflight"
+
+    let openPath flags =
+      eApply
+        (eBuiltinFn "syscallOpen" 0)
+        []
+        [ eStr [ strText "/tmp/report" ]; eInt64 flags; eInt64 0L ]
+    for flag in
+      [ LibExecution.HostPosix.O_CREAT
+        LibExecution.HostPosix.O_TRUNC
+        LibExecution.HostPosix.O_APPEND ] do
+      let! requests = collect [ openPath (int64 flag) ]
+      Expect.equal
+        (requests
+         |> List.map (fun (r : LibDB.PermissionReview.KnownRequest) -> r.request)
+         |> Set.ofList)
+        (set
+          [ Permission.Request.file Permission.AccessKind.Read "/tmp/report"
+            |> Result.unwrap
+            Permission.Request.file Permission.AccessKind.Write "/tmp/report"
+            |> Result.unwrap ])
+        "mutating flags require write access even with O_RDONLY"
   }
+
+module OpenEffects =
+  let private effects =
+    set [ Effect.Effect.FileRead; Effect.Effect.FileWrite; Effect.Effect.Raise ]
+
+  let private classify (name, _version) =
+    if name = "syscallOpen" then Some effects else testEffects (name, _version)
+
+  let private openWith flags =
+    eApply
+      (eBuiltinFn "syscallOpen" 0)
+      []
+      [ eStr [ strText "/tmp/report" ]; flags; eInt64 0L ]
+
+  let private wrapper =
+    { unitFn "open-wrapper" (openWith (eArg 0)) with
+        parameters =
+          NEList.singleton { name = "flags"; typ = PT.TInt64; description = "" } }
+
+  let private throughWrapper flags = eApply (ePackageFn "open-wrapper") [] [ flags ]
+
+  let private check dependencies body expected =
+    let root = unitFn "open-root" body
+    let closure = closureOf (root :: wrapper :: dependencies)
+    let result = Requirements.forFunction classify closure root.hash
+    Expect.isTrue result.complete "all calls resolve"
+    Expect.equal result.requiredEffects expected "contextual requirements"
+    let paths =
+      Requirements.effectPaths
+        classify
+        closure
+        (LibExecution.CallGraph.analyzeFn Set.empty root)
+    Expect.equal (Map.keys paths |> Set.ofList) expected "explanations agree"
+
+  let tests =
+    [ testCase "known access flags propagate through wrappers" (fun () ->
+        let read = set [ Effect.Effect.FileRead; Effect.Effect.Raise ]
+        let write = set [ Effect.Effect.FileWrite; Effect.Effect.Raise ]
+        check [] (throughWrapper (eInt64 0L)) read
+        check [] (throughWrapper (eInt64 1L)) write
+        check [] (throughWrapper (eInt64 2L)) effects
+        for flag in
+          [ LibExecution.HostPosix.O_CREAT
+            LibExecution.HostPosix.O_TRUNC
+            LibExecution.HostPosix.O_APPEND ] do
+          check [] (throughWrapper (eInt64 (int64 flag))) effects)
+      testCase "directory flags retain all platform possibilities" (fun () ->
+        let flags =
+          unitFn
+            "directory-flags"
+            (eIf
+              (eBool true)
+              (eInt64 1048576L)
+              (Some(eIf (eBool true) (eInt64 65536L) (Some(eInt64 16384L)))))
+        let call = eApply (ePackageFn "directory-flags") [] [ eUnit () ]
+        let body = eLet (lpVar "flags") call (throughWrapper (eVar "flags"))
+        check [ flags ] body (set [ Effect.Effect.FileRead; Effect.Effect.Raise ]))
+      testCase "different calls to one wrapper keep write effects" (fun () ->
+        check
+          []
+          (eStatement (throughWrapper (eInt64 0L)) (throughWrapper (eInt64 1L)))
+          effects)
+      testCase "helper return values stay scoped to their call" (fun () ->
+        let flags = { wrapper with hash = PT.Hash "identity-flags"; body = eArg 0 }
+        let flagsFor n = eApply (ePackageFn "identity-flags") [] [ eInt64 n ]
+        let body =
+          eLet (lpVar "flags") (flagsFor 0L) (throughWrapper (eVar "flags"))
+        check [ flags ] body (set [ Effect.Effect.FileRead; Effect.Effect.Raise ])
+        check [ flags ] (eStatement body (throughWrapper (flagsFor 1L))) effects)
+      testCase "repeated conditional aliases keep analysis bounded" (fun () ->
+        let body =
+          List.foldBack
+            (fun i body ->
+              let previous = eVar $"flags{i - 1}"
+              eLet
+                (lpVar $"flags{i}")
+                (eIf (eBool true) previous (Some previous))
+                body)
+            [ 1..32 ]
+            (throughWrapper (eVar "flags32"))
+        check
+          []
+          (eLet (lpVar "flags0") (eInt64 0L) body)
+          (set [ Effect.Effect.FileRead; Effect.Effect.Raise ]))
+      testCase
+        "deferred bodies retain captured parameters without confusing their own"
+        (fun () ->
+          let captured =
+            { wrapper with
+                hash = PT.Hash "captured-open"
+                body =
+                  eLambda (gid ()) [ lpVar "ignored" ] (openWith (eVar "flags")) }
+          check
+            [ captured ]
+            (eApply (ePackageFn "captured-open") [] [ eInt64 0L ])
+            (set [ Effect.Effect.FileRead; Effect.Effect.Raise ])
+          let shadowed =
+            { captured with
+                body = eLambda (gid ()) [ lpVar "flags" ] (openWith (eVar "flags")) }
+          check
+            [ shadowed ]
+            (eApply (ePackageFn "captured-open") [] [ eInt64 0L ])
+            effects)
+      testCase "piped arguments and named parameters retain constants" (fun () ->
+        let read = set [ Effect.Effect.FileRead; Effect.Effect.Raise ]
+        let named =
+          { wrapper with
+              hash = PT.Hash "named-open"
+              body = openWith (eVar "flags") }
+        check [ named ] (eApply (ePackageFn "named-open") [] [ eInt64 0L ]) read
+        check
+          []
+          (ePipe
+            (eInt64 0L)
+            [ pFnCall (gid ()) (PT.FQFnName.Package wrapper.hash) [] [] ])
+          read)
+      testCase "unknown branches and large value sets widen safely" (fun () ->
+        check
+          []
+          (throughWrapper (eIf (eBool true) (eInt64 0L) (Some(eArg 0))))
+          effects
+        let flags =
+          [ 1L .. 17L ]
+          |> List.fold
+            (fun rest n -> eIf (eBool true) (eInt64 (n * 65536L)) (Some rest))
+            (eInt64 0L)
+        check [] (throughWrapper flags) effects)
+      testCase
+        "unknown arguments and returned functions remain conservative"
+        (fun () ->
+          check [] (throughWrapper (eArg 0)) effects
+          check [] (ePackageFn "open-wrapper") effects
+          check [] (throughWrapper (eInt64 System.Int64.MaxValue)) effects)
+      testCase
+        "lambda and match bindings cannot inherit shadowed constants"
+        (fun () ->
+          let lambda =
+            eLambda (gid ()) [ lpVar "flags" ] (throughWrapper (eVar "flags"))
+          check [] (eLet (lpVar "flags") (eInt64 0L) lambda) effects
+          let matching =
+            eMatch
+              (eArg 0)
+              [ { pat = PT.MPVariable(gid (), "flags")
+                  whenCondition = None
+                  rhs = throughWrapper (eVar "flags") } ]
+          check [] (eLet (lpVar "flags") (eInt64 0L) matching) effects)
+      testCase "recursive calls retain changes to arguments" (fun () ->
+        let recursive =
+          { wrapper with
+              hash = PT.Hash "recursive-open"
+              body =
+                eIf
+                  (eBool true)
+                  (openWith (eArg 0))
+                  (Some(eApply (PT.ESelf(gid ())) [] [ eInt64 1L ])) }
+        check
+          [ recursive ]
+          (eApply (ePackageFn "recursive-open") [] [ eInt64 0L ])
+          effects)
+      testCase "context limits widen rather than lose effects" (fun () ->
+        let body =
+          [ 0L .. 20L ]
+          |> List.map (fun i -> throughWrapper (eInt64 (i * 65536L)))
+          |> List.reduce eStatement
+        check [] body effects)
+      testCase "self calls in deferred bodies retain changed arguments" (fun () ->
+        let recursive =
+          { wrapper with
+              hash = PT.Hash "deferred-self-open"
+              body =
+                eStatement
+                  (openWith (eArg 0))
+                  (eLambda
+                    (gid ())
+                    [ lpUnit () ]
+                    (eApply (PT.ESelf(gid ())) [] [ eInt64 1L ])) }
+        check
+          [ recursive ]
+          (eApply (ePackageFn "deferred-self-open") [] [ eInt64 0L ])
+          effects)
+      testCase "unknown builtin versions retain their declared effects" (fun () ->
+        check
+          []
+          (eApply
+            (eBuiltinFn "syscallOpen" 1)
+            []
+            [ eStr [ strText "/tmp/report" ]; eInt64 0L; eInt64 0L ])
+          effects) ]
 
 let effectReasonsFollowDependencies =
   testTask "effect explanations retain call paths and incompleteness" {
@@ -751,6 +960,7 @@ let tests =
   testList
     "packagePermissions"
     [ preflightCollectsOnlyCertainRequests
+      testList "open effects" OpenEffects.tests
       effectReasonsFollowDependencies
       dictionaryKeysAreAnalyzed
       cacheSafetyRejectsBranchDependentRendering
