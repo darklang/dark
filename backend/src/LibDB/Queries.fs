@@ -213,21 +213,23 @@ let getWipOpOriginTs () : Task<Map<System.Guid, string>> =
   }
 
 
-/// What deprecation stands for an item as <param branchId> sees it: None when it is not deprecated
-/// there, else the kind and message of the newest statement.
+/// What deprecation stands for an item at a name as <param branchId> sees it: None when it is not
+/// deprecated there, else the kind and message of the newest statement.
 let getCurrentDeprecationFor
   (branchId : PT.BranchId)
+  (location : PT.PackageLocation)
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
   : Task<Option<PT.DeprecationKind * string>> =
-  Deprecations.standing branchId itemHash itemKind
+  Deprecations.standing branchId location itemHash itemKind
 
 /// <fn getCurrentDeprecationFor> on main.
 let getCurrentDeprecation
+  (location : PT.PackageLocation)
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
   : Task<Option<PT.DeprecationKind * string>> =
-  Deprecations.standing PT.BranchId.Main itemHash itemKind
+  Deprecations.standing PT.BranchId.Main location itemHash itemKind
 
 
 /// Deprecation info for `ls`/`tree`/`search`: the full deprecated-hash set plus the subset
@@ -236,15 +238,26 @@ let getCurrentDeprecation
 ///
 /// Direct only, no transitive walk: if live A calls deprecated B which calls deprecated C,
 /// C is hidden and B is shown.
-type DeprecationSets = { allDeprecated : Set<Hash>; hidden : Set<Hash> }
+///
+/// `names` is every deprecated name, as `Owner.Modules.name#hash`: a listing is of names, and a
+/// deleted name whose content a twin still holds is not deprecated content.
+type DeprecationSets =
+  { allDeprecated : Set<Hash>; hidden : Set<Hash>; names : Set<string> }
 
 /// <param branchId>'s deprecation sets.
 let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
   task {
     let! rows = Deprecations.deprecatedIn branchId
+    let! atNames = Deprecations.deprecatedNamesIn branchId
+    let names =
+      atNames
+      |> List.map (fun r ->
+        let path = if r.modules = "" then r.owner else $"{r.owner}.{r.modules}"
+        $"{path}.{r.name}#{r.hash}")
+      |> Set.ofList
     let deprecatedStrs = rows |> List.map (fun (h, _, _) -> h) |> Set.ofList
     if Set.isEmpty deprecatedStrs then
-      return { allDeprecated = Set.empty; hidden = Set.empty }
+      return { allDeprecated = Set.empty; hidden = Set.empty; names = names }
     else
       // (target, caller) pairs -- "target" is deprecated by construction.
       // Caller is live iff it's not itself in deprecatedStrs.
@@ -271,7 +284,8 @@ let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
           hidden =
             deprecatedStrs
             |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
-            |> Set.map Hash }
+            |> Set.map Hash
+          names = names }
   }
 
 /// How many items call each of <param hashes>, for ranking search results by use. A caller
@@ -351,39 +365,14 @@ let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Task<Set<string>>
 /// Boot preloaded the cache to dodge that, but authoring invalidates every cache, so the first
 /// package call after any `dark fn` in a tab hung there for good.
 let getHarmfulFnHashesSync () : Set<Hash> =
-  // F# decides whether the annotation is Harmful, which keeps the SQL schema simple.
-  let rows =
-    Sql.query (
-      Layers.view "@" Layers.deprecations
-      + " SELECT item_hash, state, annotation_blob FROM visible WHERE item_kind = 'fn'"
-    )
-    |> Sql.parameters (Layers.sqlParams PT.BranchId.Main true)
-    |> Sql.execute (fun read ->
-      (read.string "item_hash",
-       read.string "state",
-       read.bytesOrNone "annotation_blob"))
-    |> Result.unwrap
-
-  let isHarmful (blob : byte array) : bool =
-    try
-      use ms = new System.IO.MemoryStream(blob)
-      use r = new System.IO.BinaryReader(ms)
-      let kind =
-        LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
-      match kind with
-      | PT.Harmful -> true
-      | PT.SupersededBy _
-      | PT.Obsolete -> false
-    with _ ->
-      // A blob we cannot read means we cannot tell whether it says Harmful, and this answers "not
-      // harmful", so the fn RUNS. That is failing open on a safety marking: chosen so one corrupt row
-      // cannot brick a function, but it is a choice, and the opposite is defensible.
-      false
-
-  rows
-  |> List.choose (fun (hashStr, state, blobOpt) ->
-    match state, blobOpt with
-    | "deprecated", Some blob when isHarmful blob -> Some(Hash hashStr)
+  // Harmful is about the code, not the name: any name saying it marks the content.
+  Deprecations.deprecatedNamesSync PT.BranchId.Main
+  |> List.choose (fun r ->
+    match r.blob with
+    | Some blob when
+      r.kind = PT.ItemKind.Fn.toString () && Deprecations.isHarmful blob
+      ->
+      Some(Hash r.hash)
     | _ -> None)
   |> Set.ofList
 

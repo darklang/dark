@@ -87,13 +87,14 @@ let printRaw(branchId: Uuid, location: PackageLocation): Unit =
   | Error(e) -> Cli.printErr(e)
 
 
-/// Build a deprecation header for an item, if any.
+/// Build a deprecation header for the item at a name, if any.
 let deprecationHeaderRowsFor(
   branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
   hash: LanguageTools.ProgramTypes.Hash,
   itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<String> =
-  match LanguageTools.PackageManager.currentDeprecation(branchId, hash, itemKind) with
+  match LanguageTools.PackageManager.currentDeprecation(branchId, location, hash, itemKind) with
   | None -> []
   | Some(tuple) ->
     let (kind, message) = tuple
@@ -171,9 +172,9 @@ let testRowsFrom(
   let depSets = Query.loadDeprecationSets(branchId)
   let tests =
     dependents
-    |> Stdlib.List.filter(fun((hash, _, depKind)) ->
+    |> Stdlib.List.filter(fun((hash, loc, depKind)) ->
       depKind == LanguageTools.ProgramTypes.ItemKind.Test
-      && Stdlib.Bool.not(Query.isDeprecated(depSets, hash)))
+      && Stdlib.Bool.not(Query.isDeprecatedAtLocation(depSets, loc, hash)))
     |> Stdlib.List.sortBy(fun((_, loc, _)) ->
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc))
 
@@ -365,6 +366,7 @@ let entityRows(
       Stdlib.List.flatten([
         deprecationHeaderRowsFor(
           branchId,
+          name,
           item.entity.hash,
           LanguageTools.ProgramTypes.ItemKind.Type)
         sourceRows(highlighted)
@@ -392,6 +394,7 @@ let entityRows(
       Stdlib.List.flatten([
         deprecationHeaderRowsFor(
           branchId,
+          name,
           item.entity.hash,
           LanguageTools.ProgramTypes.ItemKind.Fn)
         sourceRows(highlighted)
@@ -427,6 +430,7 @@ let entityRows(
       Stdlib.List.flatten([
         deprecationHeaderRowsFor(
           branchId,
+          name,
           item.entity.hash,
           LanguageTools.ProgramTypes.ItemKind.Value)
         sourceRows(highlighted)
@@ -449,6 +453,7 @@ let entityRows(
       Stdlib.List.flatten([
         deprecationHeaderRowsFor(
           branchId,
+          name,
           item.entity.hash,
           LanguageTools.ProgramTypes.ItemKind.Trait)
         sourceRows(highlighted)
@@ -471,6 +476,7 @@ let entityRows(
       Stdlib.List.flatten([
         deprecationHeaderRowsFor(
           branchId,
+          name,
           item.entity.hash,
           LanguageTools.ProgramTypes.ItemKind.TraitImpl)
         sourceRows(highlighted)
@@ -494,6 +500,7 @@ let entityRows(
       Stdlib.List.flatten([
         deprecationHeaderRowsFor(
           branchId,
+          name,
           item.entity.hash,
           LanguageTools.ProgramTypes.ItemKind.Test)
         sourceRows(highlighted)

@@ -480,7 +480,7 @@ let liveTests(
   let depSets = Query.loadDeprecationSets(branchId)
   rawResults.tests
   |> Stdlib.List.filter(fun item ->
-    Stdlib.Bool.not(Query.isDeprecated(depSets, item.entity.hash)))
+    Stdlib.Bool.not(Query.isDeprecatedAtLocation(depSets, item.location, item.entity.hash)))
 
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,

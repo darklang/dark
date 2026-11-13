@@ -601,14 +601,14 @@ let readBadges(state: State): (List<String> * List<String>) =
     let results = Packages.Query.allDirectDescendants(state.branchId, Packages.modulePathOf(state.location))
     let pick = fun pairs ->
       pairs
-      |> Stdlib.List.filter(fun((hash, _name)) -> Packages.Query.isDeprecated(sets, hash))
-      |> Stdlib.List.map(fun((_hash, name)) -> name)
+      |> Stdlib.List.filter(fun((hash, location)) -> Packages.Query.isDeprecatedAtLocation(sets, location, hash))
+      |> Stdlib.List.map(fun((_hash, location)) -> location.name)
     (wip,
      Stdlib.List.flatten(
-       [ pick(results.fns |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name)))
-         pick(results.types |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name)))
-         pick(results.values |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name)))
-         pick(results.tests |> Stdlib.List.map(fun i -> (i.entity.hash, i.location.name))) ]))
+       [ pick(results.fns |> Stdlib.List.map(fun i -> (i.entity.hash, i.location)))
+         pick(results.types |> Stdlib.List.map(fun i -> (i.entity.hash, i.location)))
+         pick(results.values |> Stdlib.List.map(fun i -> (i.entity.hash, i.location)))
+         pick(results.tests |> Stdlib.List.map(fun i -> (i.entity.hash, i.location))) ]))
 
 
 /// Carry the cached badge sets forward, re-reading only when something they depend on moved.
