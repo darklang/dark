@@ -1894,7 +1894,17 @@ let blankBeforeComments(ctx: Context, id: Int64): Bool =
 /// without them, so no comment prints twice. A comment no node takes is left out, and `dark format`,
 /// which checks for that, prints the declaration as written instead.
 let commented(ctx: Context, id: Int64, build: Context -> Stdlib.Pretty.Doc): Stdlib.Pretty.Doc =
-  if ctx.hasComments then commentedAt(ctx, [ id ], build) else build(ctx)
+  if ctx.hasComments then
+    let key = Stdlib.display(id)
+    if
+      Stdlib.Dict.containsKey(ctx.comments, key)
+      || Stdlib.Dict.containsKey(ctx.trailingComments, key)
+    then
+      commentedAt(ctx, [ id ], build)
+    else
+      build(ctx)
+  else
+    build(ctx)
 
 
 /// `commented`, for the nodes <param ids>, which all start where one piece of code does: a
