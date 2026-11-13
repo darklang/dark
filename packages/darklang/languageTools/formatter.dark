@@ -254,6 +254,7 @@ let docLines(source: String): List<String> =
 /// Every `///` line in <param lines>, in order and trimmed.
 let docLinesOf(lines: List<String>): List<String> =
   lines
+  |> Stdlib.List.filter(fun l -> Stdlib.String.contains(l, "///"))
   |> Stdlib.List.map(fun l -> Stdlib.String.trim(l))
   |> Stdlib.List.filter(fun l -> Stdlib.String.startsWith(l, "///"))
 

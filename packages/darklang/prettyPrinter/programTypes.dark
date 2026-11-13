@@ -1604,7 +1604,6 @@ let callArgs(
       else
         wrapExprs("(", ")", ",", parts)
 
-    let broken = wrap(docs)
     match Stdlib.List.last(args) with
     | Some(ELambda(_, pats, body)) ->
       let before =
@@ -1630,7 +1629,7 @@ let callArgs(
 
       Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.IfFlat(onOneLine, Stdlib.Pretty.Doc.FitsOr(hugged, brokenArgs)))
-    | _ -> broken
+    | _ -> wrap(docs)
 
 
 /// `fun x ->` with the body on the lines below, two past the line it starts on.
