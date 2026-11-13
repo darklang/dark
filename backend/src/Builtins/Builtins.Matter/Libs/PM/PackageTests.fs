@@ -485,7 +485,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 outcomes
                 |> List.map (Option.map DString >> Dval.option KTString)
                 |> Dval.list (
-                  KTCustomType(Dval.optionType (), [ LibExecution.ValueType.known KTString ])
+                  KTCustomType(
+                    Dval.optionType (),
+                    [ LibExecution.ValueType.known KTString ]
+                  )
                 )
             }
         | _ -> incorrectArgs ())

@@ -181,7 +181,11 @@ let manyMatchesOneAtATime =
             Expect.equal many single "same answers as one read per key"
             Expect.equal
               many
-              [ Some "{\"Failed\":[[\"no\"]]}"; None; Some "\"Passed\""; None; Some "{\"Failed\":[[\"no\"]]}" ]
+              [ Some "{\"Failed\":[[\"no\"]]}"
+                None
+                Some "\"Passed\""
+                None
+                Some "{\"Failed\":[[\"no\"]]}" ]
               "in the order asked"
             let! none = TestResults.getMany []
             Expect.equal none [] "no keys, no results"
