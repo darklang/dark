@@ -993,43 +993,72 @@ let private resolveIn
 // Saying what was left unresolved.
 // --------------------
 
+/// A call whose implementation could not be recorded by this save.
+type UnresolvedCall =
+  | Function of at : id * name : string
+  | Operator of at : id * op : PT.InfixFnName
+
+let private callNodeId (call : UnresolvedCall) : id =
+  match call with
+  | Function(at, _)
+  | Operator(at, _) -> at
+
 /// The calls in <param expr> that will be decided at run time rather than by this save: a trait
 /// method or a trait operator still `Unknown`, and a call into a BOUNDED fn that recorded nothing
 /// for its bounds (so the callee's deferral has nothing to read). <param isBounded> answers for a
 /// callee by hash.
-let rec private unresolved (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
+let rec private unresolved
+  (isBounded : PT.Hash -> bool)
+  (expr : PT.Expr)
+  : List<UnresolvedCall> =
   let traitOperator (infix : PT.Infix) =
     match infix with
     | PT.InfixFnCall name -> Option.isSome (LibExecution.NumericTraits.ofInfix name)
     | PT.BinOp _ -> false
-  let named (nr : PT.NameResolution<PT.FQFnName.FQFnName>) (recorded : bool) =
+  let named at (nr : PT.NameResolution<PT.FQFnName.FQFnName>) (recorded : bool) =
+    let name fallback =
+      match nr.originalName, nr.resolved with
+      | [], Ok { name = PT.FQFnName.TraitMethod method_; location = Some loc } ->
+        String.concat "." (loc.owner :: loc.modules @ [ loc.name; method_.method_ ])
+      | [], Ok { location = Some loc } ->
+        String.concat "." (loc.owner :: loc.modules @ [ loc.name ])
+      | [], _ -> fallback
+      | parts, _ -> String.concat "." parts
     match nr.resolved with
-    | Ok { name = PT.FQFnName.TraitMethod { implFn = PT.FQFnName.Unknown } } -> 1
-    | Ok { name = PT.FQFnName.Package h } when not recorded && isBounded h -> 1
-    | _ -> 0
+    | Ok { name = PT.FQFnName.TraitMethod method_ } when
+      method_.implFn = PT.FQFnName.Unknown
+      ->
+      [ Function(at, name method_.method_) ]
+    | Ok { name = PT.FQFnName.Package(PT.Hash h) } when
+      not recorded && isBounded (PT.Hash h)
+      ->
+      [ Function(at, name h) ]
+    | _ -> []
   let here =
     match expr with
-    | PT.EFnName(_, nr, boundImpls, _) -> named nr (not (List.isEmpty boundImpls))
-    | PT.EInfix(_, infix, _, _, PT.FQFnName.Unknown) when traitOperator infix -> 1
+    | PT.EFnName(at, nr, boundImpls, _) ->
+      named at nr (not (List.isEmpty boundImpls))
+    | PT.EInfix(at, (PT.InfixFnCall op as infix), _, _, PT.FQFnName.Unknown) when
+      traitOperator infix
+      ->
+      [ Operator(at, op) ]
     | PT.EPipe(_, _, parts) ->
       parts
-      |> List.sumBy (fun part ->
+      |> List.collect (fun part ->
         match part with
-        | PT.EPipeFnCall(_, nr, _, _, boundImpls) ->
-          named nr (not (List.isEmpty boundImpls))
-        | PT.EPipeInfix(_, infix, _, PT.FQFnName.Unknown) when traitOperator infix ->
-          1
-        | _ -> 0)
-    | _ -> 0
-  here + (PTAst.subExprs expr |> List.sumBy (unresolved isBounded))
+        | PT.EPipeFnCall(at, nr, _, _, boundImpls) ->
+          named at nr (not (List.isEmpty boundImpls))
+        | PT.EPipeInfix(at, (PT.InfixFnCall op as infix), _, PT.FQFnName.Unknown) when
+          traitOperator infix
+          ->
+          [ Operator(at, op) ]
+        | _ -> [])
+    | _ -> []
+  here @ (PTAst.subExprs expr |> List.collect (unresolved isBounded))
 
 
-/// Write onto each trait-method call in <param ops> the implementation it resolves to, and on an
-/// authoring save, say how many calls it could not.
-///
-/// The count is what makes a partly resolved save visible. A save the checker could not settle at
-/// all printed a line; one it settled partly printed nothing, and its unsettled calls ran whichever
-/// implementation was newest, which a later rival could change without anyone being told.
+/// Resolve trait calls and return any unresolved calls by item name.
+/// The save path decides whether to show them after saving and checking.
 ///
 /// <param reload> is Some build on a package reload, None on a save: the hash of the build less
 /// `outsideTheChecker` and of the files of theirs the checker runs (`CheckerSources`).
@@ -1041,12 +1070,14 @@ let resolveTraitCalls
   (pm : PT.PackageManager)
   (reload : Option<string>)
   (ops : List<PT.PackageOp>)
-  : Ply<List<PT.PackageOp>> =
+  : Ply<List<PT.PackageOp> * List<string * List<UnresolvedCall>>> =
   uply {
     let! (resolved, failed) = resolveIn exeState branchId pm reload ops
 
-    // A reload has its own report (`Resolved trait calls: ...`); this is for a person saving.
-    if Option.isNone reload then
+    // A reload has its own report.
+    if Option.isSome reload then
+      return resolved, []
+    else
       let batchFns =
         resolved
         |> List.choose (function
@@ -1087,32 +1118,55 @@ let resolveTraitCalls
       let bounded = Set.ofList boundedCallees
       let isBounded h = Set.contains h bounded
 
-      // Items with identical bodies share a hash, so each hash is counted once and then
-      // reported under every name the save gives it.
+      let callsFromSource originalBody resolvedBody =
+        match unresolved isBounded resolvedBody with
+        | [] -> []
+        | calls ->
+          // Resolution can copy a twin's body. Keep this declaration's names and ids.
+          let originalCalls =
+            unresolved isBounded originalBody
+            |> List.map (fun call -> callNodeId call, call)
+            |> Map.ofList
+          let originalIds =
+            List.zip (Positions.ofBody resolvedBody) (Positions.ofBody originalBody)
+            |> Map.ofList
+          calls
+          |> List.map (fun call ->
+            Map.tryFind (callNodeId call) originalIds
+            |> Option.bind (fun at -> Map.tryFind at originalCalls)
+            |> Option.defaultValue call)
+
+      let nextOps =
+        match ops with
+        | [] -> []
+        | _ :: rest -> List.map Some rest @ [ None ]
       let left =
-        resolved
-        |> List.choose (fun op ->
-          match op with
-          | PT.PackageOp.AddFn fn -> Some(fn.hash, unresolved isBounded fn.body)
-          | PT.PackageOp.AddValue v -> Some(v.hash, unresolved isBounded v.body)
-          | PT.PackageOp.AddTest t -> Some(t.hash, unresolved isBounded t.body)
-          | _ -> None)
-        |> List.distinctBy fst
-        |> List.filter (fun (hash, count) ->
-          count > 0 && not (Set.contains hash failed))
-        |> List.collect (fun (hash, count) ->
-          // A name when the save carries one; `dark fn` saves the body before its name.
-          let (PT.Hash h) = hash
-          Map.tryFind hash names
-          |> Option.defaultValue
-            [ if h.Length > 8 then h.Substring(0, 8) else "an item" ]
-          |> List.map (fun name -> $"{name} ({count})"))
+        List.zip3 ops resolved nextOps
+        |> List.collect (fun (original, rewritten, next) ->
+          match Positions.bodyOf original, Positions.bodyOf rewritten with
+          | Some(_, hash, originalBody), Some(_, _, resolvedBody) when
+            not (Set.contains hash failed)
+            ->
+            let calls = callsFromSource originalBody resolvedBody
+            if List.isEmpty calls then
+              []
+            else
+              let itemNames =
+                match original, next with
+                | PT.PackageOp.AddFn _,
+                  Some(PT.PackageOp.SetName(loc, PT.PackageFn _, _))
+                | PT.PackageOp.AddValue _,
+                  Some(PT.PackageOp.SetName(loc, PT.PackageValue _, _))
+                | PT.PackageOp.AddTest _,
+                  Some(PT.PackageOp.SetName(loc, PT.PackageTest _, _)) ->
+                  [ String.concat "." (loc.owner :: loc.modules @ [ loc.name ]) ]
+                | _ ->
+                  let (PT.Hash h) = hash
+                  Map.tryFind hash names
+                  |> Option.defaultValue
+                    [ if h.Length > 8 then h.Substring(0, 8) else "an item" ]
+              itemNames |> List.map (fun name -> name, calls)
+          | _ -> [])
 
-      if not (List.isEmpty left) then
-        let total = List.length left
-        let which = String.concat ", " left
-        print
-          $"  [traitcalls] trait calls this save could not resolve, in {total} item(s), will run whichever implementation is newest when they run: {which}"
-
-    return resolved
+      return resolved, left
   }
