@@ -3535,3 +3535,41 @@ module NotCallableDiagnostics =
          Darklang.LanguageTools.AtRestTypeChecker.issueToString(issue))
     |> Stdlib.Test.equal(
          [ "This value has type Int64, not a function type, and cannot be called." ])
+
+module FunctionArgumentCountDiagnostics =
+  test namedTooMany =
+    issues(
+      src([ "let f(s: String): String ="
+            "  let a = Stdlib.String.trim(s)"
+            "  Stdlib.String.trimEnd(a, \"/\")" ]),
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])
+
+  test namedTooFew =
+    issues(
+      "let f(s: String): List<String> = Stdlib.String.split(s)",
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooFewArguments: Stdlib.String.split takes 2 arguments, but 1 was given" ])
+
+  test localFunction =
+    issues(
+      src([ "let f(s: String): String ="
+            "  let g = (fun x -> x)"
+            "  g(s, s)" ]),
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: g takes 1 argument, but 2 were given" ])
+
+  test anonymousFunction =
+    issues("let f(): Int64 = (fun x -> x)(1, 2)", "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: This function takes 1 argument, but 2 were given" ])
+
+  test pipeline =
+    issues(
+      "let f(s: String): String = s |> Stdlib.String.trimEnd(\"/\")",
+      "f")
+    |> Stdlib.Test.equal(
+         [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])
