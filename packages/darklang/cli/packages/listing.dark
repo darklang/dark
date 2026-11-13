@@ -54,12 +54,12 @@ let listModule(
   let (allSubmodules, rawTypes, rawValues, rawFns, rawTraits, rawImpls, rawTests) =
     Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
   let depSets = Query.loadDeprecationSets(branchId)
-  let types = Query.filterHiddenPairs(rawTypes, depSets, deprecated, internal)
-  let values = Query.filterHiddenPairs(rawValues, depSets, deprecated, internal)
-  let fns = Query.filterHiddenPairs(rawFns, depSets, deprecated, internal)
-  let traits = Query.filterHiddenPairs(rawTraits, depSets, deprecated, internal)
-  let impls = Query.filterHiddenPairs(rawImpls, depSets, deprecated, internal)
-  let tests = Query.filterHiddenPairs(rawTests, depSets, deprecated, internal)
+  let types = Query.filterHiddenPairs(modulePath, rawTypes, depSets, deprecated, internal)
+  let values = Query.filterHiddenPairs(modulePath, rawValues, depSets, deprecated, internal)
+  let fns = Query.filterHiddenPairs(modulePath, rawFns, depSets, deprecated, internal)
+  let traits = Query.filterHiddenPairs(modulePath, rawTraits, depSets, deprecated, internal)
+  let impls = Query.filterHiddenPairs(modulePath, rawImpls, depSets, deprecated, internal)
+  let tests = Query.filterHiddenPairs(modulePath, rawTests, depSets, deprecated, internal)
 
   let locationStr = Packages.formatLocation(location)
   Stdlib.printLine($"Contents of {locationStr}:")
@@ -98,7 +98,7 @@ let listModule(
         Stdlib.List.prepend(item.location.modules, item.location.owner) == childPath)
       |> Stdlib.List.map(fun item -> (item.location.name, item.entity.hash))
 
-    Query.filterHiddenPairs(childImpls, depSets, deprecated, internal)
+    Query.filterHiddenPairs(childPath, childImpls, depSets, deprecated, internal)
     |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, typeName, hash, childPath))
 
   // The type an implementation stored HERE is for is the module we are standing in: at
@@ -136,7 +136,7 @@ let listModule(
       Stdlib.printLine(Display.getSectionHeader(header))
       items
       |> Stdlib.List.iter(fun((name, hash)) ->
-        let mark = Query.deprecationMarker(depSets, hash)
+        let mark = Query.deprecationMarker(depSets, modulePath, name, hash)
         Stdlib.printLine($"  {name}{mark}")
 
         // A listing names what a name MEANS, which is one version; `--versions` adds what it
@@ -157,7 +157,7 @@ let listModule(
       entries
       |> Stdlib.List.iter(fun entry ->
         let (traitName, typeName, hash, versionsPath) = entry
-        let mark = Query.deprecationMarker(depSets, hash)
+        let mark = Query.deprecationMarker(depSets, versionsPath, traitName, hash)
         Stdlib.printLine(
           $"  implementation of trait \"{traitName}\" for type \"{typeName}\"{mark}")
 

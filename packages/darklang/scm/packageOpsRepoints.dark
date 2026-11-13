@@ -4,16 +4,6 @@ module Darklang.SCM.PackageOps
 //
 // Propagation's read half: all callers follow.
 
-/// Every name bound to <param hash>, as <param branchId> sees it.
-///
-/// Deprecation is keyed on CONTENT, so it applies to every name holding that hash, which for a trivial
-/// value can be many unrelated ones.
-let namesAtContent(branchId: Uuid, hash: String, itemType: String): List<String> =
-  SCM.Bindings.query(SCM.Bindings.BindingFilter.ByHash(branchId, hash, itemType))
-  |> Stdlib.List.map(fun b -> Conflicts.fqn(b.owner, b.modules, b.name))
-  |> Stdlib.List.unique
-
-
 /// One knock-on repoint: <param name> moves because <param uses> did. Carrying the CAUSE is what lets the
 /// commit view read as an outcome ("Home.render -> uses User.format") instead of a bare list of names.
 type Repoint =

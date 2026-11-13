@@ -200,12 +200,12 @@ let displayTree(
       Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
 
     // Entity names paired with their hash, so we can mark deprecated rows.
-    let fnEntries = Query.filterHiddenPairs(rawFns, depSets, deprecated, internal)
-    let typeEntries = Query.filterHiddenPairs(rawTypes, depSets, deprecated, internal)
-    let valueEntries = Query.filterHiddenPairs(rawValues, depSets, deprecated, internal)
-    let traitEntries = Query.filterHiddenPairs(rawTraits, depSets, deprecated, internal)
-    let implEntries = Query.filterHiddenPairs(rawImpls, depSets, deprecated, internal)
-    let testEntries = Query.filterHiddenPairs(rawTests, depSets, deprecated, internal)
+    let fnEntries = Query.filterHiddenPairs(modulePath, rawFns, depSets, deprecated, internal)
+    let typeEntries = Query.filterHiddenPairs(modulePath, rawTypes, depSets, deprecated, internal)
+    let valueEntries = Query.filterHiddenPairs(modulePath, rawValues, depSets, deprecated, internal)
+    let traitEntries = Query.filterHiddenPairs(modulePath, rawTraits, depSets, deprecated, internal)
+    let implEntries = Query.filterHiddenPairs(modulePath, rawImpls, depSets, deprecated, internal)
+    let testEntries = Query.filterHiddenPairs(modulePath, rawTests, depSets, deprecated, internal)
 
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.
@@ -261,7 +261,7 @@ let displayTree(
       let icon = Display.getIcon(entityType) + " "
       let mark =
         if entityType == EntityType.Module then ""
-        else Query.deprecationMarker(depSets, hash)
+        else Query.deprecationMarker(depSets, modulePath, name, hash)
 
       let requirements =
         if entityType == EntityType.Function then
