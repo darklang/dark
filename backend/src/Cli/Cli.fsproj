@@ -82,9 +82,9 @@
        they are not ours to fix. One line for that assembly, so a new one from our code stands out. -->
   <Target Name="OneTrimWarningForFSharpCore" BeforeTargets="WriteIlcRspFileForCompilation">
     <ItemGroup>
-      <ManagedAssemblyToLink Condition="'%(Filename)' == 'FSharp.Core'">
+      <_IlcManagedInputAssemblies Condition="'%(Filename)' == 'FSharp.Core'">
         <TrimmerSingleWarn>true</TrimmerSingleWarn>
-      </ManagedAssemblyToLink>
+      </_IlcManagedInputAssemblies>
     </ItemGroup>
   </Target>
 

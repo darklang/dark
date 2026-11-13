@@ -126,7 +126,7 @@ def backend_test():
 
 SEED = "rundir/seed.db"
 STORE = "rundir/data.db"
-DEBUG_LOCAL_EXEC = "backend/Build/out/LocalExec/Debug/net10.0/LocalExec"
+DEBUG_LOCAL_EXEC = "backend/Build/out/LocalExec/Debug/net11.0/LocalExec"
 
 
 def ensure_seed():

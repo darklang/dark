@@ -16,7 +16,7 @@
 # a run still going when the next copy is made keeps its own. Run from the clone's root.
 set -euo pipefail
 
-DEBUG_DIR=backend/Build/out/Cli/Debug/net10.0
+DEBUG_DIR=backend/Build/out/Cli/Debug/net11.0
 ROOT=backend/Build/out/Cli/fast
 
 case "$(uname -m)" in

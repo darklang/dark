@@ -76,7 +76,7 @@ answer "absent", which reads like a missing function rather than a mismatched pa
 fails, `1 + 1` included, and the error may not even render, because rendering it needs a second
 unresolvable fn. Compare the two mtimes before theorising (in-container paths):
 
-    stat -c %y backend/Build/out/Cli/Debug/net10.0/Cli
+    stat -c %y backend/Build/out/Cli/Debug/net11.0/Cli
     stat -c %y rundir/data.db
 
 If the binary is older than the store, that is the bug, whatever `dev/status` says. The full build
@@ -236,7 +236,7 @@ CI never sees this, because CI's rundir is fresh. `rm -rf rundir/test-policy` an
 re-run.
 
 **The gates run against the DEBUG binary, so do not run them straight after `--optimize`.**
-Every gate defaults to `backend/Build/out/Cli/Debug/net10.0/Cli`, and `--optimize` builds Release
+Every gate defaults to `backend/Build/out/Cli/Debug/net11.0/Cli`, and `--optimize` builds Release
 instead of Debug, so `gates all` right after it fails gates that have nothing wrong with them: one
 exits in a second with no CLI to run, and `first-day` refuses because the published artifact is
 older than the tree. Build Debug first, or pass `CLI=<path>` the way the CI step does.
@@ -481,7 +481,7 @@ inside:
 
     source scripts/devcontainer/_container-for-clone
     docker exec "$(container_for_clone "$PWD")" \
-      ls -la /home/dark/app/backend/Build/out/Cli/Debug/net10.0/Cli
+      ls -la /home/dark/app/backend/Build/out/Cli/Debug/net11.0/Cli
 
 That helper exists for this and is meant to be sourced; its own comment explains why the
 `/home/dark/app` mount source is the only key that holds (names vary, the `local_folder` label is

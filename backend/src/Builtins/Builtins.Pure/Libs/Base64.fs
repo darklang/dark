@@ -36,6 +36,22 @@ let fns () : List<BuiltInFn> =
             else if length % 4 = 3 then $"{initial}="
             else initial
 
+          // .NET 11 refuses a last char whose unused low bits aren't zero; older ones dropped them
+          let clearUnusedBits (str : string) : string =
+            let alphabet =
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+            let unused =
+              if str.EndsWith "==" then 4
+              elif str.EndsWith "=" then 2
+              else 0
+            let last = str.Length - 1 - unused / 2
+            let i = if unused = 0 || last < 0 then -1 else alphabet.IndexOf str[last]
+            if i < 0 then
+              str
+            else
+              let cleared = alphabet[i &&& ~~~((1 <<< unused) - 1)]
+              str.Substring(0, last) + string cleared + str.Substring(last + 1)
+
           if s = "" then
             resultOk (Bytes.newEphemeral [||])
           elif Regex.IsMatch(s, @"\s") then
@@ -44,7 +60,10 @@ let fns () : List<BuiltInFn> =
           else
             try
               let bytes =
-                s |> base64FromUrlEncoded |> System.Convert.FromBase64String
+                s
+                |> base64FromUrlEncoded
+                |> clearUnusedBits
+                |> System.Convert.FromBase64String
               resultOk (Bytes.newEphemeral bytes)
             with _ ->
               resultError (DString "Not a valid base64 string")

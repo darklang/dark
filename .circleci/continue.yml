@@ -91,8 +91,8 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     docker:
-      # 10.0-alpine, by digest so the build doesn't change under us.
-      - image: mcr.microsoft.com/dotnet/sdk@sha256:5562fd626eec39f6f53218f9b7d7856ab7195d51d846568304fbe85071a3b6e6
+      # 11.0-alpine, by digest so the build doesn't change under us.
+      - image: mcr.microsoft.com/dotnet/sdk@sha256:52556c0fb9d0f609ae9aeab9efeeba96f4acc2f7038f7696f2235ccbdbb8e290
 
   # CircleCI's macOS executors are bare VMs with no Docker, so there's no
   # container for the scripts to enter. IN_DEV_CONTAINER is what tells

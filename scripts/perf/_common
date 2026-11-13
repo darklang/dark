@@ -4,8 +4,8 @@
 # Where a published CLI can be. Three layouts, and a tool that knows only one of them passes in one
 # environment and fails in another:
 #   clis/                       `build-release-cli-exes.sh` *moves* it here, emptying the publish dir
-#   net10.0/publish/            `dotnet publish` with no runtime identifier, which is what CI runs
-#   net10.0/<rid>/publish/      `dotnet publish -r <rid>`, before the move above
+#   net11.0/publish/            `dotnet publish` with no runtime identifier, which is what CI runs
+#   net11.0/<rid>/publish/      `dotnet publish -r <rid>`, before the move above
 case "$(uname -m)" in
   aarch64|arm64) RELEASE_RUNTIME=linux-arm64 ;;
   armv7l) RELEASE_RUNTIME=linux-arm ;;
@@ -14,8 +14,8 @@ esac
 
 RELEASE_EXE_PATHS=(
   clis/darklang-alpha-*-"${RELEASE_RUNTIME}"
-  backend/Build/out/Cli/Release/net10.0/publish/Cli
-  backend/Build/out/Cli/Release/net10.0/*/publish/Cli
+  backend/Build/out/Cli/Release/net11.0/publish/Cli
+  backend/Build/out/Cli/Release/net11.0/*/publish/Cli
 )
 
 # Which publish mode produced a released binary: `aot`, `r2r`, or `unknown` for one built before
