@@ -1482,7 +1482,7 @@ let applyArguments(
     if given == expected then
       unify(s, nodeId, Site.Expression, ret, result)
     else
-      wrongArgumentCount(s, nodeId, expected, given, result)
+      wrongArgumentCount(s, nodeId, name, expected, given, result)
   | TVar(v) -> waitApplication(s, at, v, name, args, result)
   | TError ->
     markAllUnknownsAsError(s,
@@ -1533,7 +1533,7 @@ let waitApplication(
       if given == expected then
         unify(s, nodeId, Site.FunctionApplication, oldResult, result)
       else
-        wrongArgumentCount(s, nodeId, expected, given, result)
+        wrongArgumentCount(s, nodeId, name, expected, given, result)
     | _ -> queueDeferred(s, Model.Constraint.Apply(at, callee, name, args, result))
 
 /// Report a call that gives a function fewer or more arguments than it takes. Mark
@@ -1542,6 +1542,7 @@ let waitApplication(
 let wrongArgumentCount(
   s: State,
   at: Stdlib.Option.Option<Int64>,
+  name: Stdlib.Option.Option<String>,
   expected: Int64,
   given: Int64,
   result: Model.Ty)
@@ -1552,7 +1553,7 @@ let wrongArgumentCount(
   let s =
     addFinding(
       s,
-      (Types.definiteError(code, at, none(), none(), Context.Arity(expected, given))))
+      (Types.definiteError(code, at, none(), none(), Context.FunctionArgumentCount(name, expected, given))))
 
   markAllUnknownsAsError(s, [ result ])
 

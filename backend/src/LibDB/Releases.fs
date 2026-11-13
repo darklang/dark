@@ -89,8 +89,11 @@ let private isOlderShape () : bool =
      && hasColumn "package_ops" "seq"
    ))
   || (tableExists "locations" && not (hasColumn "locations" "draft"))
+  // Deprecations keyed on content alone, and their ops (tags 4 and 5) carry no name to key them by
+  // now, so they cannot be carried across either.
+  || (tableExists "deprecations" && not (hasColumn "deprecations" "owner"))
 
-/// Reset the package tables of the store at <param dbPath> when it is older than the layered shape,
+/// Reset the package tables of the store at <param dbPath> when they are an older shape than this build's,
 /// so the schema can create them afresh. Returns the backup taken first, when it reset.
 ///
 /// Runs BEFORE the schema: `CREATE TABLE IF NOT EXISTS` would leave the old shapes in place and the
@@ -104,11 +107,11 @@ let resetIfOlderShape (dbPath : string) : Option<string> =
     match StoreBackups.beforeReset dbPath with
     | Error reason ->
       Exception.raiseInternal
-        $"this store predates per-branch names, and the backup taken before resetting it failed: {reason}"
+        $"this store's package tables are an older shape, and the backup taken before resetting it failed: {reason}"
         []
     | Ok backup ->
       System.Console.Error.WriteLine
-        $"  release: this store predates per-branch names. Its packages, branches and commits are copied to {backup.path}, and its packages are refilled from this build."
+        $"  release: this store's package tables are an older shape. Its packages, branches and commits are copied to {backup.path}, and its packages are refilled from this build."
       beforeLayers
       |> List.filter tableExists
       |> List.map (fun t -> $"DROP TABLE {t}", [ [] ])
