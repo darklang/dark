@@ -370,7 +370,8 @@ Clearing only `current_branch%` is the trap: it looks like isolation and is not.
 `config_v0` is the only config store, but an instance id and name in a `cli-config.json` beside
 the db are moved in the first time anything asks for `instance.*`, and the file is left alone, so a
 cleared copy that still has an old `cli-config.json` beside it takes that
-file's identity. Copy `data.db` alone, which is the shape to prefer for a scratch store anyway.
+file's identity. Copy the store alone, which is the shape to prefer for a scratch store anyway,
+with `scripts/testing/_copy-store` rather than `cp`: the newest writes sit in `data.db-wal`.
 
 It lives in `~/.darklang`, so a process given its own HOME gets its own. In the dev
 container the clone's `rundir` is mounted there.

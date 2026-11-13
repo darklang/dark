@@ -75,10 +75,12 @@ let private formatCtx (ctx : (string * string) list) : string =
 let private counters =
   System.Collections.Concurrent.ConcurrentDictionary<string, int64 ref>()
 
-let count (name : string) : unit =
+let countBy (name : string) (n : int64) : unit =
   if logPath <> "" then
     let r = counters.GetOrAdd(name, (fun _ -> ref 0L))
-    System.Threading.Interlocked.Increment(r) |> ignore<int64>
+    System.Threading.Interlocked.Add(r, n) |> ignore<int64>
+
+let count (name : string) : unit = countBy name 1L
 
 /// Accumulated microseconds for a repeated operation. Same reasoning as `count`: a span per call would cost
 /// more than the call. Pair them -- a count without a total can't tell you whether 96 loads are the problem.

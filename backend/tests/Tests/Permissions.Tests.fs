@@ -397,11 +397,17 @@ let suggestRuleIsActionable =
       "http names the exact method and normalized origin"
     Expect.equal
       (suggest (ok (Permission.Request.processSpawn "/bin/bash" [ "-c"; "echo hi" ])))
-      (rule "process '/bin/bash' '-c' 'echo hi'")
+      (Permission.Suggestion.Process(
+        "process '/bin/bash' '-c' 'echo hi'",
+        "process '/bin/bash'"
+      ))
       "a process rule carries the exact argument list, so a shell is not handed out"
     Expect.equal
       (suggest (ok (Permission.Request.processSpawn "/bin/date" [])))
-      (rule "process-exact '/bin/date'")
+      (Permission.Suggestion.Process(
+        "process-exact '/bin/date'",
+        "process '/bin/date'"
+      ))
       "no-argument processes have an exact, pasteable rule"
     Expect.equal
       (suggest (ok (Permission.Request.native "cliProcessIO")))
@@ -504,14 +510,21 @@ let private shellWords (line : string) : List<string> =
   if inWord then words.Add(current.ToString())
   List.ofSeq words
 
-/// The rule a denial tells a person to paste, as the text between the backticks.
-let private suggestedRule (output : string) : Option<string> =
-  let marker = "To allow: `dark permissions allow "
+/// Read the arguments from a suggested command in the error message.
+let private readSuggestedCommandArguments
+  (marker : string)
+  (output : string)
+  : Option<string> =
   match output.IndexOf marker with
   | -1 -> None
   | start ->
     let from = start + marker.Length
-    Some(output.Substring(from, output.IndexOf("`.", from) - from))
+    let line = output.Substring(from).Split('\n')[0]
+    Some(line.TrimEnd())
+
+/// Read the rule from the suggested permissions command.
+let private suggestedRule (output : string) : Option<string> =
+  readSuggestedCommandArguments "To allow:\n  dark permissions allow " output
 
 let private denied (output : string) : bool = output.Contains "permission denied"
 
@@ -552,6 +565,20 @@ let pastedShellRuleRunsOnlyThatCommand =
     "a pasted process suggestion for a shell command allows that command and no other"
     (fun i ->
       task {
+        let! before =
+          CliInstance.run i [ "eval"; "Stdlib.Cli.execute(\"echo hi\")" ]
+        Expect.stringContains
+          before
+          "this exact command only"
+          "the narrow choice is labelled"
+        Expect.stringContains
+          before
+          "with any arguments"
+          "the executable choice is offered"
+        Expect.stringContains
+          before
+          "this allows any command run through that shell"
+          "the shell grant's scope is explained"
         let! rule =
           pastedRuleAllowsOnlyTheRefusedCall
             i
@@ -559,6 +586,13 @@ let pastedShellRuleRunsOnlyThatCommand =
             [ "Stdlib.Cli.execute(\"echo bye\")"
               "Stdlib.Cli.execute(\"echo hi; id\")" ]
         Expect.stringEnds rule "'-c' 'echo hi'" "the shell's whole argument list"
+        let executable = (shellWords rule)[1]
+        let! _ = CliInstance.run i [ "permissions"; "allow"; "process"; executable ]
+        let! other =
+          CliInstance.run i [ "eval"; "Stdlib.Cli.execute(\"echo bye\")" ]
+        Expect.isFalse
+          (denied other)
+          "the executable grant allows different commands"
       })
 
 let pastedProcessRuleKeepsItsArguments =
@@ -595,14 +629,6 @@ let pastedFileRuleReadsOnlyThatFile =
         ()
       })
 
-/// The text after <param marker> up to the closing backtick, the way a person would copy it.
-let private quotedAfter (marker : string) (output : string) : Option<string> =
-  match output.IndexOf marker with
-  | -1 -> None
-  | start ->
-    let from = start + marker.Length
-    Some(output.Substring(from, output.IndexOf("`", from) - from))
-
 let fileDenialOffersTheFolderAndTheProfile =
   CliInstance.instanceTest
     "a file denial also offers its folder's rule and the profile for that folder"
@@ -622,18 +648,33 @@ let fileDenialOffersTheFolderAndTheProfile =
         let second = write project "b.csv"
         let outside = write (dir "elsewhere") "c.csv"
 
-        let! before = CliInstance.run i [ "eval"; first ]
+        let! code, stdout, before = CliInstance.runRaw i [ "eval"; first ]
+        Expect.equal code 1 "a permission refusal exits nonzero"
+        Expect.equal stdout "" "errors go to stderr"
+        Expect.stringStarts
+          before
+          "Error: permission denied by instance policy:\n"
+          "permission errors have a heading without an exception prefix"
+        Expect.isFalse
+          (before.Contains '\u001b')
+          "redirected output has no ANSI escapes"
+        Expect.stringContains
+          before
+          "\n\nAgents:\n  "
+          "agent guidance has its own block"
         Expect.isTrue (denied before) $"a fresh install refuses it first:\n{before}"
         let folderRule =
           match
-            quotedAfter
-              "For everything in its folder: `dark permissions allow "
+            readSuggestedCommandArguments
+              "For everything in its folder:\n  dark permissions allow "
               before
           with
           | Some rule -> rule
           | None -> failtest $"no folder rule offered:\n{before}"
         let profile =
-          match quotedAfter "`dark permissions profile " before with
+          match
+            readSuggestedCommandArguments "  dark permissions profile " before
+          with
           | Some profile -> profile
           | None -> failtest $"no profile offered:\n{before}"
         Expect.equal folderRule $"file read '{project}'" "the folder the file is in"

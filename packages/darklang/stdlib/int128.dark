@@ -80,9 +80,13 @@ let toFloat(a: Int128): Float = Builtin.int128ToFloat(a)
 let parse(
   s: String)
   : Stdlib.Result.Result<Int128, Stdlib.Int128.ParseError> =
+  // a plain match: the generic Option.toResult call was a quarter of the cost
   match Stdlib.BigInt.parse(s) with
-  | Ok(n) -> Stdlib.Option.toResult(Stdlib.BigInt.toInt128(n), Stdlib.Int128.ParseError.OutOfRange)
-  | Error(_) -> Error(Stdlib.Int128.ParseError.BadFormat)
+  | Ok(n) ->
+    match Stdlib.BigInt.toInt128(n) with
+    | Some(i) -> Stdlib.Result.Result.Ok(i)
+    | None -> Stdlib.Result.Result.Error(Stdlib.Int128.ParseError.OutOfRange)
+  | Error(_) -> Stdlib.Result.Result.Error(Stdlib.Int128.ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int128>.

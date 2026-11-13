@@ -342,12 +342,12 @@ let create
   |> ignore<List<int>>
 
 let setStatus (id : System.Guid) (status : Status) : unit =
-  Sql.query "UPDATE traces SET status = @status, updated = @updated WHERE id = @id"
-  |> Sql.parameters
-    [ "id", Sql.uuid id
-      "status", Sql.string (Status.name status)
-      "updated", Sql.string (now ()) ]
-  |> Sql.executeStatementSync
+  Sql.executeTransactionSync
+    [ "UPDATE traces SET status = @status, updated = @updated WHERE id = @id",
+      [ [ "id", Sql.uuid id
+          "status", Sql.string (Status.name status)
+          "updated", Sql.string (now ()) ] ] ]
+  |> ignore<List<int>>
 
 /// Read CLI input without decoding the trace's result or display value.
 /// Corrupt values there must not block a rerun.
@@ -382,19 +382,21 @@ let list (limit : int) : Task<List<Trace>> =
 /// takes the old one's length back out, so a run that answers twice is not counted twice.
 let setResult (id : System.Guid) (result : RT.Dval) : unit =
   let bytes = BinarySer.RT.Dval.serialize "traces.result_value" result
-  Sql.query
-    "UPDATE traces SET
-       bytes = bytes - COALESCE(LENGTH(result_value), 0) + LENGTH(@result),
-       result_value = @result, updated = @updated
-     WHERE id = @id"
-  |> Sql.parameters
-    [ "id", Sql.uuid id; "result", Sql.bytes bytes; "updated", Sql.string (now ()) ]
-  |> Sql.executeStatementSync
+  Sql.executeTransactionSync
+    [ "UPDATE traces SET
+         bytes = bytes - COALESCE(LENGTH(result_value), 0) + LENGTH(@result),
+         result_value = @result, updated = @updated
+       WHERE id = @id",
+      [ [ "id", Sql.uuid id
+          "result", Sql.bytes bytes
+          "updated", Sql.string (now ()) ] ] ]
+  |> ignore<List<int>>
 
 let setEntryHash (id : System.Guid) (hash : string) : unit =
-  Sql.query "UPDATE traces SET entry_hash = @hash WHERE id = @id"
-  |> Sql.parameters [ "id", Sql.uuid id; "hash", Sql.string hash ]
-  |> Sql.executeStatementSync
+  Sql.executeTransactionSync
+    [ "UPDATE traces SET entry_hash = @hash WHERE id = @id",
+      [ [ "id", Sql.uuid id; "hash", Sql.string hash ] ] ]
+  |> ignore<List<int>>
 
 /// Pin a run so retention never drops it, or unpin it. False when no run has that id.
 let setPinned (id : string) (pinned : bool) : Task<bool> =

@@ -11,6 +11,7 @@ let readFishConfig(): Result.Result<String, String> =
 let overwriteFishConfig(content: String): Result.Result<Unit, String> =
   // `writeFile`, which makes `~/.config/fish` if it isn't there yet.
   FileSystem.writeFile("$HOME/.config/fish/config.fish", Stdlib.Utf8.encode(content))
+  |> Result.mapError(FileSystem.FileError.toString)
 
 
 /// Delete an alias from config.fish

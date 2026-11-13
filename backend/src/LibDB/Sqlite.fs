@@ -100,6 +100,7 @@ module DataVersion =
       cmd
 
   let current () : int64 =
+    Telemetry.count "sql.dataVersion"
     lock gate (fun () -> (command ()).ExecuteScalar() |> unbox<int64>)
 
 
@@ -115,6 +116,7 @@ module Sql =
         (System.IO.File.GetUnixFileMode path).HasFlag
           System.IO.UnixFileMode.UserWrite
       )
+    Telemetry.count "sql.init"
     props
     |> Sql.query (
       (if readOnly then "" else "PRAGMA journal_mode=WAL;")
@@ -129,13 +131,36 @@ module Sql =
   // never rebinds it: it stays the default `connString` store for the process's life.
   let mutable connect = Sql.connect connString |> initializeConnection currentDbPath
 
+  /// A connection to the store that is opened once and never closed.
+  ///
+  /// When the last connection to a WAL store closes, SQLite checkpoints it -- syncs the WAL, copies
+  /// it into the database, syncs that -- and deletes the WAL, which the next write then recreates and
+  /// syncs along with the directory. In a CLI that is every exit: up to four fsyncs, most of a short
+  /// command's wall time on a busy disk. While this one is open no other close is the last. The WAL
+  /// is still folded in as it grows, by `wal_autocheckpoint` inside a write, and exiting with it
+  /// open is what a crash looks like to SQLite: the next open reads the WAL.
+  let private heldOpen : Lazy<SqliteConnection> =
+    lazy
+      (let conn =
+        new SqliteConnection(
+          SqliteConnectionStringBuilder(connString, Pooling = false).ToString()
+        )
+       conn.Open()
+       // in WAL mode the shared lock is taken by the first read and kept until close
+       use cmd = conn.CreateCommand()
+       cmd.CommandText <- "PRAGMA user_version"
+       cmd.ExecuteScalar() |> ignore<obj>
+       conn)
+
   /// Force this module's initialization (first connection open + PRAGMA round trip)
   /// so the cost lands in its own span instead of inside whatever query runs first.
   let warm () : unit =
+    Telemetry.count "sql.init"
     connect
     |> Sql.query "SELECT 1"
     |> Sql.executeNonQuery
     |> ignore<Result<int, exn>>
+    heldOpen.Force() |> ignore<SqliteConnection>
 
   /// TEST-ONLY: repoint every LibDB reader and writer, and `Builtin.localDbPath` with them, at the
   /// store file at <param path> (created if missing). That is what lets a test run true multi-instance
@@ -158,7 +183,8 @@ module Sql =
     currentDbPath <- LibConfig.Config.dbPath
     connect <- Sql.connect connString |> initializeConnection currentDbPath
 
-  /// Count and time every SQL statement this process runs.
+  /// Count and time every SQL statement this process runs. Each path counts under a `sql.` name
+  /// of its own; together they are every statement (`scripts/perf/_ui.py` sums them).
   ///
   /// Instrumenting only package-item loads leaves everything issued through `pmSearch` and the SCM
   /// builtins invisible, which is most of it, and makes SQL time easy to mistake for interpreter cost.
@@ -169,7 +195,7 @@ module Sql =
       f ()
     else
       task {
-        Telemetry.count $"sql.{name}"
+        Telemetry.count name
         let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
         let! r = f ()
         let t1 = System.Diagnostics.Stopwatch.GetTimestamp()
@@ -183,7 +209,7 @@ module Sql =
     if not (Telemetry.isEnabled ()) then
       f ()
     else
-      Telemetry.count $"sql.{name}"
+      Telemetry.count name
       let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
       let r = f ()
       let t1 = System.Diagnostics.Stopwatch.GetTimestamp()
@@ -193,6 +219,11 @@ module Sql =
       r
 
   let query (sql : string) : Sql.SqlProps = connect |> Sql.query sql
+
+  /// Fumble's `Sql.execute`, counted. Same name, so a caller that opens this module after Fumble
+  /// gets this one.
+  let execute reader props =
+    timedSync "sql.rowsSync" (fun () -> Sql.execute reader props)
 
   /// A store that can't be read or written is an ENVIRONMENT, not a bug: a read-only
   /// mount, another user's store, a full disk. SQLite says which; .NET buries it
@@ -243,7 +274,7 @@ module Sql =
       Exception.raiseInternal (msg err) [ "err", err ]
 
   let executeNonQueryAsync props =
-    timedTask "nonQuery" (fun () ->
+    timedTask "sql.nonQuery" (fun () ->
       Sql.executeNonQueryAsync props
       |> Async.StartImmediateAsTask
       |> Task.map (function
@@ -255,7 +286,7 @@ module Sql =
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     task {
       let! r =
-        timedTask "row" (fun () ->
+        timedTask "sql.row" (fun () ->
           Sql.executeAsync reader props |> Async.StartImmediateAsTask)
       match
         unwrapDb (fun err -> $"SQL query failed in executeRowAsync: {err.Message}") r
@@ -273,7 +304,7 @@ module Sql =
     : Task<Option<'t>> =
     task {
       let! r =
-        timedTask "rowOption" (fun () ->
+        timedTask "sql.rowOption" (fun () ->
           Sql.executeAsync reader props |> Async.StartImmediateAsTask)
       match
         unwrapDb
@@ -290,8 +321,8 @@ module Sql =
     }
 
   let executeAsync rr props =
-    Sql.executeAsync rr props
-    |> Async.StartImmediateAsTask
+    timedTask "sql.rows" (fun () ->
+      Sql.executeAsync rr props |> Async.StartImmediateAsTask)
     |> Task.map (fun r ->
       match r with
       | Ok v -> v
@@ -301,7 +332,8 @@ module Sql =
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match
-      timedSync "existsSync" (fun () -> Sql.execute (fun read -> read.bool 0) props)
+      timedSync "sql.existsSync" (fun () ->
+        Sql.execute (fun read -> read.bool 0) props)
       |> unwrapDb (fun err -> $"Database query failed in executeExistsSync: {err}")
     with
     | [ true ] -> true
@@ -312,7 +344,7 @@ module Sql =
   let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =
     task {
       let! r =
-        timedTask "statement" (fun () ->
+        timedTask "sql.statement" (fun () ->
           Sql.executeNonQueryAsync props |> Async.StartImmediateAsTask)
       r
       |> unwrapDb (fun err ->
@@ -321,20 +353,56 @@ module Sql =
     }
 
   let executeStatementSync (props : Sql.SqlProps) : unit =
-    timedSync "statementSync" (fun () -> Sql.executeNonQuery props)
+    timedSync "sql.statementSync" (fun () -> Sql.executeNonQuery props)
     |> unwrapDb (fun err ->
       $"Database statement failed in executeStatementSync: {err}")
     |> ignore<int>
 
-  /// Execute multiple SQL statements in a transaction synchronously
+  /// Execute multiple SQL statements in one write transaction synchronously: each statement
+  /// once per parameter set (once with none), returning each statement's rows changed.
+  ///
+  /// On a connection of its own with `busy_timeout` set, rather than through Fumble. A pooled
+  /// connection has no `busy_timeout` unless something set it, and then a write that meets
+  /// another process's lock falls to Microsoft.Data.Sqlite's own retry, which sleeps 150 ms at a
+  /// time: under a handful of writers, short writes waited in ~165 ms steps. SQLite's handler
+  /// polls in milliseconds. `BEGIN IMMEDIATE` takes the write lock up front, where waiting works.
   let executeTransactionSync
     (statements :
       List<string * List<List<string * Microsoft.Data.Sqlite.SqliteParameter>>>)
     : List<int> =
-    connect
-    |> Sql.executeTransaction statements
-    |> unwrapDb (fun err ->
-      $"Database transaction failed in executeTransactionSync: {err}")
+    Telemetry.countBy
+      "sql.transaction"
+      (statements |> List.sumBy (fun (_, ps) -> max 1 ps.Length) |> int64)
+    try
+      timedSync "sql.transactionSync" (fun () ->
+        use conn = new SqliteConnection(connString)
+        conn.Open()
+        use pragma = conn.CreateCommand()
+        pragma.CommandText <- "PRAGMA busy_timeout=5000;"
+        pragma.ExecuteNonQuery() |> ignore<int>
+        use tx = conn.BeginTransaction(deferred = false)
+        let run (sql : string) (ps : List<string * SqliteParameter>) : int =
+          use cmd = conn.CreateCommand()
+          cmd.Transaction <- tx
+          cmd.CommandText <- sql
+          for (name, p) in ps do
+            let copy = SqliteParameter(name, p.Value)
+            copy.SqliteType <- p.SqliteType
+            cmd.Parameters.Add copy |> ignore<SqliteParameter>
+          cmd.ExecuteNonQuery()
+        let counts =
+          statements
+          |> List.map (fun (sql, paramSets) ->
+            match paramSets with
+            | [] -> run sql []
+            | sets -> sets |> List.sumBy (run sql))
+        tx.Commit()
+        counts)
+    with e ->
+      raiseIfStoreCondition e
+      Exception.raiseInternal
+        $"Database transaction failed in executeTransactionSync: {e.Message}"
+        [ "err", e ]
 
   let uuid (u : uuid) = u.ToString() |> Sql.string
 

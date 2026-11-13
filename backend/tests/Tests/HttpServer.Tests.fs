@@ -712,25 +712,27 @@ let private noResponseNamesDotNet =
           | url when Darklang.Stdlib.String.contains(url, "/own") ->
             Darklang.Stdlib.Http.responseWithHeaders(200, [ ("server", "mine") ], Darklang.Stdlib.Utf8.encode("own"))
           | _ -> Darklang.Stdlib.Http.responseWithText(200, "fast"))"""
-    let! results =
+    let! answered =
       runParsedRequestsAgainst
         4L
-        200
+        HttpServer.defaultRequestTimeoutMs
         router
         "POST"
         [ "/fast", [||]
           "/int", [||]
           "/boom", [||]
-          "/slow", [||]
           "/fast", UTF8.toBytes "over the limit"
           "/own", [||] ]
+    // its own server with a 1 ms deadline, so /slow times out however busy the box is
+    let! timedOut = runParsedRequestsAgainst 4L 1 router "POST" [ "/slow", [||] ]
+    let results = Array.append answered timedOut
     let expected =
       [ "200", "darklang"
         "500", "darklang"
         "500", "darklang"
-        "504", "darklang"
         "413", "darklang"
-        "200", "mine" ]
+        "200", "mine"
+        "504", "darklang" ]
     results
     |> Array.iteri (fun i (r : Http.T) ->
       let wantStatus, wantServer = expected[i]

@@ -10,7 +10,8 @@
 #   - startup's allocation, warm: `run` of a one-line script (workloads/startup.dark)
 #   - allocation per iteration of every workload in workloads/suite/, as `suite` measures it
 #   - the cold first run's allocation and peak memory, on a store grown from nothing
-#   - the interactive CLI's first frame and one keypress: VM instructions and allocation (_ui.py)
+#   - the interactive CLI's first frame and its keys: VM instructions, allocation and, per key,
+#     SQL statements (_ui.py)
 #   - CPU for `fib 24`, `lists.dark` and `ls Darklang.Stdlib.List`, paired against the newest
 #     release (_paired.py)
 # Allocation can't see a call getting slower, and the warm run can't see the first run getting
@@ -231,6 +232,8 @@ startup_tolerance = budget["startup"]["tolerance"]
 mb = lambda b: f"{b/1e6:.1f} MB"
 mb2 = lambda b: f"{b/1e6:.2f} MB"
 bytes_ = lambda b: f"{b:.0f} bytes"
+# A key workload new to budget.json starts with these. SQL statements repeat exactly, so any more is a regression.
+UI_TOLERANCES = {"instructionsTolerance": 0.02, "allocatedTolerance": 0.05, "sqlTolerance": 0}
 
 # Prints a reading against its budget and says whether it is over the ceiling. Under the floor is
 # only said: the budget is moved when the charts are read, not by the PR that earned it.
@@ -240,7 +243,7 @@ def over(key, label, got, base, tol, show, indent=""):
     print(f"{indent}{label} {show(got)}; budget {show(base)}, ceiling {show(top)}")
     if got > top:
         tag = "OVER (reported, not failing)" if report_only else "FAIL"
-        print(f"{tag}: {label} {(got / base - 1) * 100:.1f}% over budget.")
+        print(f"{tag}: {label} {(got / base - 1) * 100:.1f}% over budget." if base else f"{tag}: {label} over a budget of 0.")
         return True
     if got < base * (1 - tol):
         print(f"{indent}  {(1 - got / base) * 100:.1f}% under budget.")
@@ -270,7 +273,10 @@ if update:
     for name, per in suite.items():
         budget["suite"]["workloads"].setdefault(name, {"tolerance": 0.05})[mode] = per
     for name, r in ui.items():
-        budget["ui"][name].update(instructions=r["instructions"], allocated=r["allocated"])
+        b = budget["ui"].setdefault(name, dict(UI_TOLERANCES))
+        b.update(instructions=r["instructions"], allocated=r["allocated"])
+        if name != "firstFrame":
+            b["sql"] = r["sql"]
     with open(budget_file, "w") as f:
         json.dump(budget, f, indent=2)
         f.write("\n")
@@ -300,26 +306,29 @@ for name in suite.keys() - {name for name in workloads if mode in workloads[name
 
 # Instructions and allocation, not time: both repeat run to run. A budget not recorded yet reports
 # and passes, like the suite's.
-labels = {"firstFrame": "first frame", "keypress": "keypress"}
+labels = {"firstFrame": "first frame", "keypress": "keypress, Down/Up at List.map",
+          "keyWalk": "keypress, Down through List", "homeKey": "Home keypress, Down/Up",
+          "moduleKey": "keypress, Down through Stdlib's modules"}
 ui_failed = False
 if ui:
     print("interactive CLI at 120x40")
 for name, r in ui.items():
-    b = budget["ui"][name]
-    if "instructions" not in b:
-        record(f"ui.{name}.instructions", r["instructions"])
-        record(f"ui.{name}.allocated", r["allocated"])
-        print(f"  {labels[name]} {r['instructions']:,} instructions, {mb2(r['allocated'])}; no budget recorded yet.")
-        continue
-    ui_failed = any([
-        over(f"ui.{name}.instructions", f"{labels[name]} instructions", r["instructions"], b["instructions"],
-             b["instructionsTolerance"], lambda v: f"{v:,.0f}", "  "),
-        over(f"ui.{name}.allocated", f"{labels[name]} allocated", r["allocated"], b["allocated"], b["allocatedTolerance"], mb2, "  "),
-    ]) or ui_failed
+    b = budget["ui"].get(name, {})
+    checks = [("instructions", "instructions", lambda v: f"{v:,.0f}"), ("allocated", "allocated", mb2),
+              ("sql", "SQL statements", lambda v: f"{v:,.0f}")]
+    for field, what, show in checks:
+        if field not in r:
+            continue
+        key = f"ui.{name}.{field}"
+        if field in b:
+            ui_failed = over(key, f"{labels[name]}: {what}", r[field], b[field], b[f"{field}Tolerance"], show, "  ") or ui_failed
+        else:
+            record(key, r[field])
+            print(f"  {labels[name]}: {what} {show(r[field])}; no budget recorded yet.")
 for name, r in ui.items():
     record(f"ui.{name}.ms", r["ms"])
 if ui:
-    print(f"  wall time, not gated: first frame {ui['firstFrame']['ms']} ms, keypress {ui['keypress']['ms']} ms")
+    print("  wall time, not gated: " + ", ".join(f"{labels[name]} {r['ms']} ms" for name, r in ui.items()))
 failed = cold_failed or suite_failed or ui_failed
 
 # A budget nobody has recorded yet reports and passes. Better than a number carried over from the

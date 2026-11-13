@@ -24,6 +24,9 @@ module Requirements = LibExecution.CallGraph.Requirements
 ///
 /// The clock: when its syscall fails, the runtime's own clock answers, and a reading is always in
 /// `DateTime`'s range.
+///
+/// The date fields, such as `DateTime.month`: each divides by a nonzero constant, and what it
+/// unwraps is always in the field's range.
 let cannotRaise : Set<string> =
   let guarded =
     [ "Int64.checkedDivide"
@@ -37,7 +40,14 @@ let cannotRaise : Set<string> =
       "List.checkedRange"
       "DateTime.parse"
       "DateTime.__now"
-      "DateTime.__monotonicMilliseconds" ]
+      "DateTime.__monotonicMilliseconds"
+      "DateTime.month"
+      "DateTime.day"
+      "DateTime.weekday"
+      "DateTime.hour"
+      "DateTime.minute"
+      "DateTime.second"
+      "DateTime.millisecond" ]
     |> List.map (fun f -> $"Darklang.Stdlib.{f}")
   let ints =
     [ "Int8"
@@ -71,13 +81,17 @@ let cannotRaise : Set<string> =
     @ guarded
   )
 
-/// Each live fn's name. A hash with several names keeps the first in order.
-let fnNames () : Ply<Map<PT.Hash, string>> =
+/// The live name of each fn in <hashes>. A hash with several names keeps the first in order.
+let fnNames (hashes : List<PT.Hash>) : Ply<Map<PT.Hash, string>> =
   uply {
     let! rows =
       Sql.query
         "SELECT item_hash, owner, modules, name FROM locations
-         WHERE live = 1 AND item_hash <> '' AND item_type = 'fn'"
+         WHERE live = 1 AND item_type = 'fn'
+           AND item_hash IN (SELECT value FROM json_each(@hashes))"
+      |> Sql.parameters
+        [ "hashes",
+          Sql.string (jsonStrings (hashes |> List.map (fun (PT.Hash h) -> h))) ]
       |> Sql.executeAsync (fun read ->
         (read.string "item_hash",
          read.string "owner",

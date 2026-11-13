@@ -409,7 +409,7 @@ and private inferTVarsFromArgs
 /// needs the whole ValueType, so that still falls through.
 ///
 /// Same trick as `TypeChecker.unifyDvalSync`, on the other walk over the same arguments.
-let private inferTVarsFromDval
+let rec private inferTVarsFromDval
   (acc : TypeSymbolTable)
   (tr : TypeReference)
   (dv : Dval)
@@ -423,6 +423,17 @@ let private inferTVarsFromDval
     match dv with
     | DDict(keyV, valueV, _) ->
       inferTVarsFromArg (inferTVarsFromArg acc keyT keyV) valueT valueV
+    | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+  | TCustomType({ resolved = Ok _ }, typeArgs) ->
+    match dv with
+    | DEnum(_, _, vtArgs, _, _)
+    | DRecord(_, _, vtArgs, _) -> inferTVarsFromArgs acc typeArgs vtArgs
+    | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+  | TTuple(a, b, rest) ->
+    match dv with
+    | DTuple(a', b', rest') when List.length rest = List.length rest' ->
+      let acc = inferTVarsFromDval (inferTVarsFromDval acc a a') b b'
+      List.fold2 inferTVarsFromDval acc rest rest'
     | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
   | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
 
@@ -1366,9 +1377,7 @@ let private resolveTypeArgsSync
       RTE.Applications.WrongNumberOfTypeArgsForFn(name, typeParamCount, typeArgCount)
       |> RTE.Apply
       |> raiseRTE vm.threadID
-    typeArgs
-    |> Ply.List.mapSequentially (TypeReference.toVT exeState.types ctx.tst)
-    |> Ply.trySync
+    TypeReference.toVTsSync exeState.types ctx.tst [] typeArgs
 
 /// As `resolveTypeArgsSync`, for when it does need the store. Cold path; the arity check already ran.
 let private resolveTypeArgsAsync
@@ -2279,8 +2288,12 @@ let private fastTraitOp
       | DBigInt y -> FastOps.eval tag x y
       | _ -> ValueNone
     | a -> FastOps.evalNumeric tag a registers[secondReg]
-  // `-x` and `~x`
-  | [] -> FastOps.evalUnary tag registers[argRegs.head]
+  // `-x`, `~x` and `Display.display`
+  | [] ->
+    if tag = FastOps.display then
+      FastOps.evalDisplay registers[argRegs.head]
+    else
+      FastOps.evalUnary tag registers[argRegs.head]
   | _ -> ValueNone
 
 
@@ -5290,23 +5303,6 @@ let inline private applyInstruction
       newArgRegs
 
 
-/// `TypeReference.toVT` over a list, without awaiting. `ValueNone` if any element needs the store.
-///
-/// The empty list is the overwhelmingly common case and costs nothing here.
-let rec private toVTsSync
-  (types : Types)
-  (tst : TypeSymbolTable)
-  (acc : List<ValueType>)
-  (typeArgs : List<TypeReference>)
-  : List<ValueType> voption =
-  match typeArgs with
-  | [] -> ValueSome(List.rev acc)
-  | t :: rest ->
-    match Ply.trySync (TypeReference.toVT types tst t) with
-    | ValueSome vt -> toVTsSync types tst (vt :: acc) rest
-    | ValueNone -> ValueNone
-
-
 /// Field-less enum values already built, by type name and case, shared because they cannot differ:
 /// values are immutable and type names are content hashes. Only a construction that succeeded is
 /// kept, so the checks it made stand for every later use.
@@ -5336,7 +5332,7 @@ let private tryBuildSync
 
   match inst with
   | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
-    match toVTsSync exeState.types tst [] typeArgs with
+    match TypeReference.toVTsSync exeState.types tst [] typeArgs with
     | ValueNone -> false
     | ValueSome typeArgs ->
       let fields = recordFieldsOfRegisters registers fields
@@ -5370,7 +5366,7 @@ let private tryBuildSync
       Registers.set registers enumReg kept
       true
     else
-      match toVTsSync exeState.types tst [] typeArgs with
+      match TypeReference.toVTsSync exeState.types tst [] typeArgs with
       | ValueNone -> false
       | ValueSome typeArgs ->
         let fields = valuesOfRegisters registers fields
@@ -5431,6 +5427,39 @@ let private tryBuildSync
     Exception.raiseInternal
       "tryBuildSync given an opcode it does not handle"
       [ "opcode", Opcode.index inst ]
+
+
+/// A stored package value as the frame loading it gets it.
+///
+/// Stored package values must not leak the seeder's authority. When one is loaded, attach this
+/// frame's access recursively to every callable inside it, so later calls use the loader's
+/// permissions. An inert value has no callable to attach it to, and the copy would equal the
+/// original, so it is handed over as it is stored.
+let private packageValueFor
+  (currentFrame : CallFrame)
+  (v : PackageValue.PackageValue)
+  : Dval =
+  if v.isInert then v.body else Dval.captureValueAccess currentFrame.access v.body
+
+/// A `LoadValue` answered without waiting: a builtin value, or a package value the store has
+/// already answered for. `ValueNone` leaves it to `runRareOpcode`, which waits for the store and
+/// raises when there is no such value.
+let private loadValueSync
+  (exeState : ExecutionState)
+  (currentFrame : CallFrame)
+  (name : FQValueName.FQValueName)
+  : Dval voption =
+  match name with
+  | FQValueName.Builtin builtin ->
+    let mutable v = Unchecked.defaultof<BuiltInValue>
+    if exeState.values.builtIn.TryGetValue(builtin, &v) then
+      ValueSome(Dval.captureValueAccess currentFrame.access v.body)
+    else
+      ValueNone
+  | FQValueName.Package pkg ->
+    match Ply.trySync (exeState.values.package pkg) with
+    | ValueSome(Some v) -> ValueSome(packageValueFor currentFrame v)
+    | _ -> ValueNone
 
 
 /// An operator call answered as its `Apply` would answer it in `tryFastOpDirect`: true when it
@@ -5620,7 +5649,14 @@ let private runSyncInstructions
       if handled then counter <- counter + 1
       elif not landedRetry then running <- false
 
-    | LoadValue _ -> running <- false
+    | LoadValue(createTo, name) ->
+      match loadValueSync exeState currentFrame name with
+      | ValueSome v ->
+        if vm.stats.enabled then
+          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+        Registers.set registers createTo v
+        counter <- counter + 1
+      | ValueNone -> running <- false
 
     // An operator call: this `LoadVal` and the `Apply` after it, answered from the registers.
     // Only when the budget would have run the `Apply` too, so preemption falls where it did, and
@@ -6443,50 +6479,60 @@ let private checkFrameReturnType
     let tst = currentFrame.typeSymbolTable
     // Every frame return checks its result, so the same sync-first treatment as the argument checks
     // applies: skip the bind when the answer needs no type lookup.
-    match
-      TypeChecker.tryUnifyWithAliasesSync
-        exeState.types
-        tst
-        expectedReturnType
-        resultOfFrame
-    with
-    | ValueSome _ ->
+    if TypeChecker.argFitsWithNothingToBind tst expectedReturnType resultOfFrame then
       recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
       completedUnit
-    | ValueNone ->
-      recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-      frameReturnTypeCheckAsync
-        exeState
-        vm
-        tst
-        expectedReturnType
-        resultOfFrame
-        fnName
+    else
+      match
+        TypeChecker.tryUnifyWithAliasesSync
+          exeState.types
+          tst
+          expectedReturnType
+          resultOfFrame
+      with
+      | ValueSome _ ->
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        completedUnit
+      | ValueNone ->
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        frameReturnTypeCheckAsync
+          exeState
+          vm
+          tst
+          expectedReturnType
+          resultOfFrame
+          fnName
 
 
-/// The four opcodes that can still need the package store: CreateRecord, CloneRecordWithUpdates,
-/// CreateEnum and LoadValue.
-///
-/// Its own `task` so the interpreter loop's state machine stays statically compilable: six binds
-/// nested two matches deep inside the loop stopped F#'s resumable code reducing it (FS3511), which
-/// downgrades the whole loop to the dynamic implementation.
-/// `p.show` where `p` has no field `show`: a receiver call. Exactly one visible
-/// impl (of any trait) with a method of that name for `p`'s type gives the
-/// method's fn with `p` as its first argument: the RESULT when that is the only
-/// argument (`p.show` is the whole call), else the method with `p` bound, called
-/// with the rest (`a.add(b)`). None means the field access was simply wrong; several is
-/// an ambiguity the caller resolves by naming the trait (`Show.show p`).
-let private receiverMethod
+/// The trait a receiver call's pick is remembered under in `implSelectionMemo`: none, since the
+/// call names only a method. No trait hashes to "", so it cannot collide with a dispatch entry,
+/// and it shares that memo's `implGeneration` invalidation exactly.
+let private receiverMemoTrait = Hash ""
+
+/// The fn `self.methodName` calls, or `None` if no trait gives `self` that method. A pick made
+/// under the current generation is remembered, so a receiver call seen before skips scanning every
+/// candidate for the method.
+let private receiverImpl
   (exeState : ExecutionState)
   (vm : VMState)
-  (currentFrame : CallFrame)
-  (receiver : Dval)
   (methodName : string)
-  : Ply<Option<Dval>> =
-  uply {
-    match Dval.toValueType receiver with
-    | ValueType.Unknown -> return None
-    | ValueType.Known self ->
+  (self : KnownType)
+  : Ply<Option<FQFnName.Package>> =
+  // Read before the candidates, as dispatch does, so a fold in between cannot stamp a stale
+  // pick with the new generation.
+  let generation = exeState.fns.implGeneration ()
+  let mutable hit = Unchecked.defaultof<struct (int * FQFnName.Package)>
+  if
+    exeState.fns.implSelectionMemo.TryGetValue(
+      struct (exeState.branchId, receiverMemoTrait, methodName, self),
+      &hit
+    )
+    && (let struct (g, _) = hit in g = generation)
+  then
+    let struct (_, fnHash) = hit
+    Ply(Some fnHash)
+  else
+    uply {
       let! candidates =
         exeState.fns.implCandidatesByMethod exeState.branchId methodName
       // Two TRAITS that both declare this method is an ambiguity, and it is settled here
@@ -6517,44 +6563,12 @@ let private receiverMethod
         | Traits.Selected c ->
           match Map.tryFind methodName c.methods with
           | Some fnHash ->
-            // Chosen by the receiver's type, so by whoever made the value.
-            let access = Permissions.Access.forCallersCode currentFrame.access
-            let applicable =
-              AppNamedFn
-                { name = FQFnName.Package fnHash
-                  typeSymbolTable = TST.empty
-                  typeArgs = []
-                  approvalName = None
-                  access = Some access
-                  argsSoFar = []
-                  boundImpls = [] }
-            match! exeState.fns.package fnHash with
-            | Some fn when NEList.length fn.parameters = 1 ->
-              match!
-                exeState.callApplicable
-                  exeState
-                  access
-                  applicable
-                  (NEList.singleton receiver)
-              with
-              | Ok result -> return Some result
-              | Error(rte, nested) ->
-                vm.nestedCallStack <- nested
-                return raiseRTE vm.threadID rte
-            | _ ->
-              return
-                Some(
-                  DApplicable(
-                    AppNamedFn
-                      { name = FQFnName.Package fnHash
-                        typeSymbolTable = TST.empty
-                        typeArgs = []
-                        approvalName = None
-                        access = Some access
-                        argsSoFar = [ receiver ]
-                        boundImpls = [] }
-                  )
-                )
+            exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                                   receiverMemoTrait,
+                                                   methodName,
+                                                   self)] <-
+              struct (generation, fnHash)
+            return Some fnHash
           | None -> return None
         | Traits.Ambiguous cs ->
           return
@@ -6566,6 +6580,73 @@ let private receiverMethod
               )
             )
             |> raiseRTE vm.threadID
+    }
+
+
+/// The four opcodes that can still need the package store: CreateRecord, CloneRecordWithUpdates,
+/// CreateEnum and LoadValue.
+///
+/// Its own `task` so the interpreter loop's state machine stays statically compilable: six binds
+/// nested two matches deep inside the loop stopped F#'s resumable code reducing it (FS3511), which
+/// downgrades the whole loop to the dynamic implementation.
+/// `p.show` where `p` has no field `show`: a receiver call. Exactly one visible
+/// impl (of any trait) with a method of that name for `p`'s type gives the
+/// method's fn with `p` as its first argument: the RESULT when that is the only
+/// argument (`p.show` is the whole call), else the method with `p` bound, called
+/// with the rest (`a.add(b)`). None means the field access was simply wrong; several is
+/// an ambiguity the caller resolves by naming the trait (`Show.show p`).
+let private receiverMethod
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (receiver : Dval)
+  (methodName : string)
+  : Ply<Option<Dval>> =
+  uply {
+    match Dval.toValueType receiver with
+    | ValueType.Unknown -> return None
+    | ValueType.Known self ->
+      match! receiverImpl exeState vm methodName self with
+      | None -> return None
+      | Some fnHash ->
+        // Chosen by the receiver's type, so by whoever made the value.
+        let access = Permissions.Access.forCallersCode currentFrame.access
+        let applicable =
+          AppNamedFn
+            { name = FQFnName.Package fnHash
+              typeSymbolTable = TST.empty
+              typeArgs = []
+              approvalName = None
+              access = Some access
+              argsSoFar = []
+              boundImpls = [] }
+        match! exeState.fns.package fnHash with
+        | Some fn when NEList.length fn.parameters = 1 ->
+          match!
+            exeState.callApplicable
+              exeState
+              access
+              applicable
+              (NEList.singleton receiver)
+          with
+          | Ok result -> return Some result
+          | Error(rte, nested) ->
+            vm.nestedCallStack <- nested
+            return raiseRTE vm.threadID rte
+        | _ ->
+          return
+            Some(
+              DApplicable(
+                AppNamedFn
+                  { name = FQFnName.Package fnHash
+                    typeSymbolTable = TST.empty
+                    typeArgs = []
+                    approvalName = None
+                    access = Some access
+                    argsSoFar = [ receiver ]
+                    boundImpls = [] }
+              )
+            )
   }
 
 let private runRareOpcode
@@ -6687,17 +6768,7 @@ let private runRareOpcode
 
       | FQValueName.Package pkg ->
         match! Ply.toTask (exeState.values.package pkg) with
-        | Some v ->
-          // Stored package values must not leak the seeder's authority. When
-          // one is loaded, attach this frame's access recursively to every
-          // callable inside it, so later calls use the loader's permissions.
-          // An inert value has no callable to attach it to, and the copy would
-          // equal the original, so it is handed over as it is stored.
-          registers[createTo] <-
-            if v.isInert then
-              v.body
-            else
-              Dval.captureValueAccess currentFrame.access v.body
+        | Some v -> registers[createTo] <- packageValueFor currentFrame v
         | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
     // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
     // `FrameRareOpcode` for the five above. Loud rather than silent if that ever stops holding.

@@ -141,10 +141,11 @@ module PT =
     }
 
   let olderVersionsRejected =
-    test "older binary formats are rejected" {
+    test "formats older than the oldest readable one are rejected" {
       let fn = Values.ProgramTypes.packageFn
       let blob = BS.PT.PackageFn.serialize fn.hash fn
-      for version in 1u .. LibSerialization.Binary.BaseFormat.CurrentVersion - 1u do
+      for version in
+        1u .. LibSerialization.Binary.BaseFormat.OldestReadableVersion - 1u do
         let oldBlob = Array.copy blob
         System.BitConverter.GetBytes(version).CopyTo(oldBlob, 0)
         Expect.throws
@@ -152,6 +153,41 @@ module PT =
             BS.PT.PackageFn.deserialize fn.hash oldBlob
             |> ignore<PT.PackageFn.PackageFn>)
           $"format {version} is unsupported"
+    }
+
+  // A store keeps its ops forever, and an upgrade does not rewrite a blob whose hash did not
+  // change, so a build must read what the builds before it wrote.
+  let readableVersionsRead =
+    test "program blobs in every readable format still read" {
+      let fn = Values.ProgramTypes.packageFn
+      let blob = BS.PT.PackageFn.serialize fn.hash fn
+      for version in
+        LibSerialization.Binary.BaseFormat.OldestReadableVersion .. LibSerialization.Binary.BaseFormat.CurrentVersion do
+        let oldBlob = Array.copy blob
+        System.BitConverter.GetBytes(version).CopyTo(oldBlob, 0)
+        Expect.equal
+          (BS.PT.PackageFn.deserialize fn.hash oldBlob)
+          fn
+          $"format {version} reads"
+    }
+
+  let v10VariableReads =
+    test "a v10 compiled variable, which had no name, reads as [variable]" {
+      let read version (bytes : byte[]) =
+        use stream = new System.IO.MemoryStream(bytes)
+        use r = new System.IO.BinaryReader(stream)
+        LibSerialization.Binary.Serializers.RT.Instructions.LetPattern.read version r
+      // v10: the tag, then the register, and nothing after it.
+      let v10 = Array.append [| 0uy |] (System.BitConverter.GetBytes 3)
+      Expect.equal (read 10u v10) (RT.LPVariable(3, "[variable]")) "v10"
+
+      use stream = new System.IO.MemoryStream()
+      use w = new System.IO.BinaryWriter(stream)
+      LibSerialization.Binary.Serializers.RT.Instructions.LetPattern.write
+        w
+        (RT.LPVariable(3, "a"))
+      w.Flush()
+      Expect.equal (read 11u (stream.ToArray())) (RT.LPVariable(3, "a")) "v11"
     }
 
   let unknownVersionRejected =
@@ -471,6 +507,8 @@ let tests =
 
 
           PT.olderVersionsRejected
+          PT.readableVersionsRead
+          PT.v10VariableReads
           PT.unknownVersionRejected ]
 
       testList

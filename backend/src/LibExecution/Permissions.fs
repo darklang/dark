@@ -67,6 +67,8 @@ type Request =
 type Suggestion =
   /// `permissions allow` text that covers the refused request and no other.
   | Paste of string
+  /// Rules for this exact command and for the same program with any arguments.
+  | Process of rule : string * executableRule : string
   /// The effect has no safely scoped rule to suggest (`Native`).
   | NoRule
   /// A file: the rule for that one file, as `Paste`, and also the rule for the folder it is in
@@ -79,7 +81,8 @@ module Suggestion =
   let rule (suggestion : Suggestion) : Option<string> =
     match suggestion with
     | Suggestion.Paste rule
-    | Suggestion.File(rule, _, _) -> Some rule
+    | Suggestion.File(rule, _, _)
+    | Suggestion.Process(rule, _) -> Some rule
     | Suggestion.NoRule -> None
 
 /// URI normalization shared by requests and literal components of HTTP rules.
@@ -158,15 +161,9 @@ module Request =
     | Request.Process _
     | Request.Native _ -> None
 
-  /// The `permissions allow <rule>` text that covers this request and no other
-  /// program or argument list, or why there is none to offer.
-  ///
-  /// A denial prints this, and an interactive `run` offers to save it, so a
-  /// suggestion broader than the refused call hands out access nobody asked
-  /// for. A process rule therefore carries the exact argument list: a bare
-  /// `process '/bin/bash'` would let any code run any shell command, and a
-  /// shell-mediated call (`Cli.execute "echo hi"`) is still `/bin/bash -c ...`
-  /// to the check, since the shell decides what the string runs.
+  /// Suggest a rule for the denied request and explain any broader options.
+  /// Interactive prompts use the exact rule, so approving one shell command
+  /// does not allow every command that shell can run.
   let suggestRule (request : Request) : Suggestion =
     match request with
     | Request.File(access, path) ->
@@ -185,10 +182,13 @@ module Request =
         let folder = quoteRuleToken folder
         Suggestion.File(rule, $"file {kind} {folder}", $"{profile} {folder}")
     | Request.Process(executable, []) ->
-      Suggestion.Paste $"process-exact {quoteRuleToken executable}"
+      Suggestion.Process(
+        $"process-exact {quoteRuleToken executable}",
+        $"process {quoteRuleToken executable}"
+      )
     | Request.Process(executable, args) ->
       let tokens = executable :: args |> List.map quoteRuleToken |> String.concat " "
-      Suggestion.Paste $"process {tokens}"
+      Suggestion.Process($"process {tokens}", $"process {quoteRuleToken executable}")
     | request ->
       match suggestTargetRule request with
       | Some rule -> Suggestion.Paste rule

@@ -265,6 +265,7 @@ let addTest(
               LanguageTools.ProgramTypes.ItemKind.Test,
               "test",
               { state with exitCode = 1 },
+              0,
               fun ctx ->
                 let (packageTest, unresolvedNames) =
                   LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT(

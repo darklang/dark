@@ -16,6 +16,12 @@ let uint32 (i : uint32) = DUInt32 i
 let int64 (i : int64) = DInt64 i
 /// `Int64.toString`'s digits, for the builtin and the VM both.
 let int64ToString (i : int64) : string = string i
+/// `Float.toString`'s text, for the builtin and the VM both.
+let floatToString (f : float) : string =
+  if System.Double.IsPositiveInfinity f then "Infinity"
+  else if System.Double.IsNegativeInfinity f then "-Infinity"
+  else if System.Double.IsNaN f then "NaN"
+  else floatToShortestString f
 /// `DInt64`, sharing one instance for the small values.
 let dint64 (i : int64) : Dval = RuntimeTypes.Dval.dint64 i
 let uint64 (i : uint64) = DUInt64 i

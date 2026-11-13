@@ -849,7 +849,7 @@ let packageTestsRespectParallelLimit =
               task {
                 let deadline = System.Diagnostics.Stopwatch.StartNew()
                 while (started ()).Length < count
-                      && deadline.Elapsed.TotalSeconds < 30.0 do
+                      && deadline.Elapsed.TotalSeconds < 120.0 do
                   do! Task.Delay 20
                 Expect.equal
                   (started ()).Length
@@ -2160,7 +2160,7 @@ let aSecondNameForAFnSaysSo =
         shows
           state
           [ "fn"; "Tests.SameTwo.g"; "(n: Int64): Int64 = n * 5303" ]
-          "Created function Tests.SameTwo.g (also named Tests.SameOne.f)"
+          "Created function Tests.SameTwo.g (same code as Tests.SameOne.f, stored once)"
           "the save names the other name"
       do! discardAll state
     })

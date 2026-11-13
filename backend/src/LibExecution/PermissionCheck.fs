@@ -42,14 +42,20 @@ let private denialMessage
     | Permission.Layer.Instance, _ when
       reason = Permission.PolicyDenial.ExplicitlyDenied
       ->
-      "Remove or narrow the matching deny rule; `dark permissions list` shows the rules."
+      "Remove or narrow the matching deny rule. Show the rules:\n"
+      + "  dark permissions list"
     | Permission.Layer.Instance, Permission.Suggestion.Paste rule ->
-      $"To allow: `dark permissions allow {rule}`."
+      $"To allow:\n  dark permissions allow {rule}"
     | Permission.Layer.Instance, Permission.Suggestion.File(rule, folder, profile) ->
-      $"To allow: `dark permissions allow {rule}`. For everything in its folder: "
-      + $"`dark permissions allow {folder}`. Or `dark permissions profile {profile}` "
-      + "previews a policy for working in that folder, which replaces the whole "
-      + "instance policy; add `--yes` to apply it."
+      $"To allow:\n  dark permissions allow {rule}\n\n"
+      + $"For everything in its folder:\n  dark permissions allow {folder}\n\n"
+      + $"Preview a policy for working in that folder:\n  dark permissions profile {profile}\n"
+      + "  This replaces the whole instance policy; add --yes to apply it."
+    | Permission.Layer.Instance, Permission.Suggestion.Process(rule, executableRule) ->
+      $"To allow:\n  dark permissions allow {rule}\n"
+      + "  This allows this exact command only.\n\n"
+      + $"To allow this program with any arguments:\n  dark permissions allow {executableRule}\n"
+      + "For a shell, this allows any command run through that shell."
     | Permission.Layer.Instance, Permission.Suggestion.NoRule ->
       "Configure the instance policy."
     | Permission.Layer.Run, _ -> "Start the run with a broader permission policy."
@@ -63,7 +69,16 @@ let private denialMessage
     | Permission.Layer.Value _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "
       + "Make it a function to do this each time it is called."
-  $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}"
+  let runnerHint =
+    match layer, reason, Permission.Suggestion.rule suggestion with
+    | Permission.Layer.Instance, Permission.PolicyDenial.NotAllowed, Some _ ->
+      "\n\nAgents:\n"
+      + "  Submit the exact allow command through your runner's approval flow.\n"
+      + "  The current approval mode applies.\n"
+      + "  After it succeeds, retry only if earlier side effects will not be repeated."
+    | _ -> ""
+  $"permission denied by {layerName layer}:\n"
+  + $"  {resource} is {reasonText reason}.\n\n{remedy}{runnerHint}"
 
 /// Record and report a denied operation, including checks before a run starts.
 let raiseDenial

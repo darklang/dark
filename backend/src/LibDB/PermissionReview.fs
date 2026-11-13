@@ -50,8 +50,12 @@ let preflight
     | ("syscallMkdir" | "syscallUnlinkAt" | "syscallChmod"), Known.Text path :: _ ->
       add entry (P.Request.file P.AccessKind.Write path)
     | "syscallOpen", Known.Text path :: Known.Number flags :: _ ->
-      if flags &&& 3L <> 1L then add entry (P.Request.file P.AccessKind.Read path)
-      if flags &&& 3L <> 0L then add entry (P.Request.file P.AccessKind.Write path)
+      if
+        flags >= int64 System.Int32.MinValue && flags <= int64 System.Int32.MaxValue
+      then
+        let reads, writes = LibExecution.HostPosix.openAccess (int flags)
+        if reads then add entry (P.Request.file P.AccessKind.Read path)
+        if writes then add entry (P.Request.file P.AccessKind.Write path)
     | _ -> ()
     Known.Unknown, true
   let rec walk entry stack env args expr : Ply<Known * bool> =

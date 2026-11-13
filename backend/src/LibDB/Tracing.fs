@@ -905,22 +905,17 @@ module TraceStorage =
   let keepBytesIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
     fun hash bytes ->
       uply {
-        let! added =
-          Sql.query
-            "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
-             VALUES (@traceId, @hash, @bytes)"
-          |> Sql.parameters
-            [ "traceId", Sql.string (string traceId)
-              "hash", Sql.string hash
-              "bytes", Sql.bytes bytes ]
-          |> Sql.executeNonQueryAsync
-        if added > 0 then
-          do!
-            Sql.query "UPDATE traces SET bytes = bytes + @n WHERE id = @traceId"
-            |> Sql.parameters
-              [ "traceId", Sql.string (string traceId)
-                "n", Sql.int64 (int64 bytes.Length) ]
-            |> Sql.executeStatementAsync
+        // One write: the blob, and the weight only when the blob was new to this trace.
+        Sql.executeTransactionSync
+          [ "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
+             VALUES (@traceId, @hash, @bytes)",
+            [ [ "traceId", Sql.string (string traceId)
+                "hash", Sql.string hash
+                "bytes", Sql.bytes bytes ] ]
+            "UPDATE traces SET bytes = bytes + @n WHERE id = @traceId AND changes() > 0",
+            [ [ "traceId", Sql.string (string traceId)
+                "n", Sql.int64 (int64 bytes.Length) ] ] ]
+        |> ignore<List<int>>
       }
 
 

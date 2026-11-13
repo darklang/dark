@@ -284,7 +284,13 @@ gate_old_store_resets() {
     # shellcheck disable=SC2012  # need mtime order; no filename here has a space
     CLI=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
   fi
-  [[ -x "$CLI" ]] || { echo "old-store-resets: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }
+  if [[ ! -x "$CLI" ]]; then
+    echo "old-store-resets: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2
+    # CI builds one before the gates run, so missing there is a failure.
+    [[ "${CI:-}" == "true" ]] && exit 2
+    echo "old-store-resets: skipped: it needs a CLI with an embedded seed, which the debug build is not; scripts/run-tests --published runs it" >&2
+    exit "$SKIP"
+  fi
   ROOT=$(realpath -m rundir/old-store-test)
   pass=0; fail=0
   ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
@@ -549,6 +555,19 @@ DARK
     fi
   done
   HOME="${WORK%/.darklang}"
+
+  # --- case 3: a save with a type error reports the error, not the calls it left unresolved ---
+  saved=$($CLI fn Stachu.Fit.broken - 2>&1 <<'DARK' | clean || true
+(xs: List<(String * Int64)>): List<(String * Int64)> =
+  xs |> Stdlib.List.sortBy(fun (_, c) -> -c)
+DARK
+)
+  if [[ "$saved" != *"type error"* || "$saved" == *"[traitcalls]"* ]]; then
+    echo "trait-checker-vs-dispatch: a save with a type error should show the type error and no"
+    echo "  [traitcalls] line. It answered:"
+    echo "    ${saved//$'\n'/$'\n'    }"
+    exit 1
+  fi
 
   echo "trait-checker-vs-dispatch: a live implementation types and runs ($live); once it is"
   echo "  deprecated the checker refuses the save with MissingImpl, as dispatch does; and a saved"

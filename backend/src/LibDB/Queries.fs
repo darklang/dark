@@ -316,6 +316,18 @@ let getTraitImplStamps () : Task<Map<string, string>> =
     return Map.ofList rows
   }
 
+/// `getTraitImplStamps` for <param hashes> only.
+let getTraitImplStampsFor (hashes : List<string>) : Task<Map<string, string>> =
+  task {
+    let! rows =
+      Sql.query
+        "SELECT hash, origin_ts FROM package_trait_impls
+         WHERE hash IN (SELECT value FROM json_each(@hashes))"
+      |> Sql.parameters [ "hashes", Sql.string (jsonStrings hashes) ]
+      |> Sql.executeAsync (fun read -> (read.string "hash", read.string "origin_ts"))
+    return Map.ofList rows
+  }
+
 
 /// The impls <param branchId> sees deprecated. A deprecated impl is not a dispatch candidate:
 /// deprecating one of two rivals is how the ambiguity finding says to settle it. The candidate path

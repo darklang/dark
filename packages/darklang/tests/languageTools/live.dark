@@ -153,3 +153,37 @@ module ApplicableByName =
         |> Stdlib.Test.equal("Not a package function name: length")
         errorOf("")
         |> Stdlib.Test.equal("Not a package function name: ") ])
+
+
+module IssueText =
+  /// Check real source and render its diagnostics as a live host does.
+  let messages(source: String): List<String> =
+    match
+      LanguageTools.Parser.Parse.packageSourceToOps(
+        Darklang.SCM.Branch.mainBranchId, "Tests", [ "LiveDiagnostics" ], source)
+    with
+    | Error(error) -> [ "Parse failed: " + error ]
+    | Ok(ops) ->
+      (LanguageTools.AtRestTypeChecker.checkPackageOps(ops)).diagnostics
+      |> Stdlib.List.map(LanguageTools.Live.issueText)
+
+  test pairCallbackRetainsHint =
+    messages(
+      "let f(): Unit =\n"
+      + "  Stdlib.List.iter([(\"a\", 1)], fun (k, v) -> Stdlib.printLine(k))")
+    |> Stdlib.Test.equal(
+      [ "expected ((String * Int64)) -> Unit, got (String, _) -> Unit"
+        + " (a pair is one argument; write `fun ((a, b)) -> ...`)"
+        + " (`Stdlib.List.iter`, argument 2)" ])
+
+  test ordinaryMismatchKeepsLayout =
+    messages("let f(): String = 1")
+    |> Stdlib.Test.equal([ "expected String, got Int64 (return value)" ])
+
+  test otherCallbackArityKeepsLayout =
+    messages(
+      "let f(): Unit =\n"
+      + "  Stdlib.List.iter([\"a\"], fun (k, v) -> Stdlib.printLine(k))")
+    |> Stdlib.Test.equal(
+      [ "expected (String) -> Unit, got (String, _) -> Unit"
+        + " (`Stdlib.List.iter`, argument 2)" ])

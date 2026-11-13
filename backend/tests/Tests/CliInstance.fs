@@ -175,7 +175,9 @@ let dispose (i : T) : unit =
     () // a leaked instance is under rundir, where it is visible and cheap to sweep
 
 /// How long one command may take before the test says so, rather than hanging the run.
-let private commandTimeout = System.TimeSpan.FromMinutes 2.0
+/// Generous on purpose: one `test run` launches a CLI per test, one after another, and a
+/// loaded box makes each of them slow.
+let private commandTimeout = System.TimeSpan.FromMinutes 5.0
 
 /// Run one command and return (exitCode, stdout, stderr).
 let rec runRaw (i : T) (args : string list) : Task<int * string * string> =
