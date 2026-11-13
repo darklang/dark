@@ -33,7 +33,7 @@ let private cliPath () : string =
   let path =
     match System.Environment.GetEnvironmentVariable "DARK_TEST_CLI" with
     | null
-    | "" -> "backend/Build/out/Cli/Debug/net10.0/Cli"
+    | "" -> "backend/Build/out/Cli/Debug/net11.0/Cli"
     | path -> path
 
   // Named rather than left to fail as "cannot start process": the two ways this goes wrong

@@ -219,8 +219,8 @@ before every publish, so each binary's name is a tree you can name back.
 - `ls a b` exits **non-zero when either operand is missing**, even though it prints the one that
   matched. Under `set -euo pipefail` that kills the script mid-assignment with no message.
 - There are **three** places a published binary can be, and the difference is the runtime
-  identifier. CI publishes the solution with no `-r`, so it lands in `net10.0/publish/`;
-  `build-release-cli-exes.sh` publishes per-RID into `net10.0/<rid>/publish/` and then *moves* it to
+  identifier. CI publishes the solution with no `-r`, so it lands in `net11.0/publish/`;
+  `build-release-cli-exes.sh` publishes per-RID into `net11.0/<rid>/publish/` and then *moves* it to
   `clis/`, emptying that. A tool that knows one layout passes in one environment and fails in
   another. `scripts/perf/_common` knows all three; use it rather than writing the paths again.
 - `backend/Build/out` is a container volume and is not writable from the host. Staging anything there

@@ -505,7 +505,7 @@ build_for_runtime() {
   # from its own location, but it's overridable, and a caller that overrides
   # it would otherwise watch this move fail on a path that no longer exists.
   local build_dir="${DarkBuildDir:-backend/Build}"
-  local publish_dir="$build_dir/out/Cli/Release/net10.0/$rt/publish"
+  local publish_dir="$build_dir/out/Cli/Release/net11.0/$rt/publish"
 
   echo "Moving to $target"
 

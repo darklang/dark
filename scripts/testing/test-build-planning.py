@@ -430,7 +430,7 @@ class TestReloadStamp(unittest.TestCase):
     env = Env(HOME=home, DARK_CONFIG_DB_NAME=None)
     env.__enter__()
     self.addCleanup(env.__exit__)
-    t.write("backend/Build/out/LocalExec/Debug/net10.0/LocalExec.dll", "builtins v1")
+    t.write("backend/Build/out/LocalExec/Debug/net11.0/LocalExec.dll", "builtins v1")
     t.write("packages/darklang/stdlib/list.dark", "let length (l: List<'a>): Int64 = 0")
     t.write("backend/migrations/schema/00-initial-schema.sql", "CREATE TABLE package_ops (id)")
     t.write("scripts/build/reload-packages", "#!/usr/bin/env bash")
@@ -476,7 +476,7 @@ class TestReloadStamp(unittest.TestCase):
     # Builtins are compiled into the assemblies beside LocalExec.
     t = self.tree()
     self.reloaded()
-    t.write("backend/Build/out/LocalExec/Debug/net10.0/LocalExec.dll", "builtins v2")
+    t.write("backend/Build/out/LocalExec/Debug/net11.0/LocalExec.dll", "builtins v2")
     self.assertTrue(self.reloaded())
 
   def test_a_schema_change_reloads(self):
@@ -494,7 +494,7 @@ class TestReloadStamp(unittest.TestCase):
   def test_a_release_reload_is_not_a_debug_one(self):
     t = self.tree()
     self.reloaded()
-    t.write("backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec.dll", "builtins v1")
+    t.write("backend/Build/out/LocalExec/Release/net11.0/publish/LocalExec.dll", "builtins v1")
     self.assertFalse(_reloadstamp.unchanged(_reloadstamp.inputs(optimize=True)))
 
   def test_a_changed_ref_hash_file_reloads(self):

@@ -28,8 +28,8 @@ REF_HASHES = "backend/src/LibExecution/package-ref-hashes.txt"
 
 def local_exec_dir(optimize):
   if optimize:
-    return "backend/Build/out/LocalExec/Release/net10.0/publish"
-  return "backend/Build/out/LocalExec/Debug/net10.0"
+    return "backend/Build/out/LocalExec/Release/net11.0/publish"
+  return "backend/Build/out/LocalExec/Debug/net11.0"
 
 
 def db_path():

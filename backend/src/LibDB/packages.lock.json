@@ -1,12 +1,12 @@
 {
   "version": 2,
   "dependencies": {
-    "net10.0": {
+    "net11.0": {
       "FSharp.Core": {
         "type": "Direct",
-        "requested": "[10.0.100, )",
-        "resolved": "10.0.100",
-        "contentHash": "c/r6T/HE9MWL0O0OispLtaKhVwDsiYQlLS249LoxSo1HNH/wfc0f5DE4pI6WpTXkCEdeXa66K5f9FmKLr/0cmw=="
+        "requested": "[11.0.101, )",
+        "resolved": "11.0.101",
+        "contentHash": "XL1wfb0gujXAtnJfO7rYfxKgwufCiT8aOKqGoqKB83oxRAZ9+yiNWXinHO4x9StYuunTl/AH8eERc0hv7UXJVQ=="
       },
       "Fumble": {
         "type": "Direct",
@@ -20,41 +20,41 @@
       },
       "Microsoft.Data.Sqlite": {
         "type": "Direct",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "I/azQ5WjwoLvSlTyDydkhARPSjYJN8jkXRjR5D92OeyTLbTrQ1K93rgf6XU+HYWHZA6lBI9SUOfl69OqEHb4ow==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "K3hceHG5pxWJ+mytesLiGxmJ988YFrKnMGml0xbq//UWsM79KD8nQ5sBwTSLKgWecT6Saict/jIB8O6lDL0M2g==",
         "dependencies": {
-          "Microsoft.Data.Sqlite.Core": "10.0.0",
-          "SQLitePCLRaw.bundle_e_sqlite3": "2.1.11",
-          "SQLitePCLRaw.core": "2.1.11"
+          "Microsoft.Data.Sqlite.Core": "[11.0.0, 12.0.0-a)",
+          "SQLitePCLRaw.bundle_e_sqlite3": "3.0.5",
+          "SQLitePCLRaw.core": "3.0.5"
         }
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[10.0.15, )",
-        "resolved": "10.0.15",
-        "contentHash": "u0WnRcZgBZYHlVFpbe/3Adpmb9rmNJ8/fmEwqc/xjB7fFppq+gfaLJd3Sdaw+J02zV0eP/T9dneQ3Dv5jWw6bw=="
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "gK2aq4XvChj5kvozpPHrkfKkr7zc5Z4xoTrJb4GPZzDEPMlCk0TX632bwY3LsWcX2UVcVRQBBGzsBGC2lq6YhA=="
       },
       "libconfig": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "Prelude": "[1.0.0, )"
         }
       },
       "libexecution": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )",
-          "System.IO.Hashing": "[10.0.0, )"
+          "System.IO.Hashing": "[11.0.0, )"
         }
       },
       "libserialization": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
           "Prelude": "[1.0.0, )"
         }
@@ -62,7 +62,7 @@
       "prelude": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "NodaTime": "[3.2.2, )",
           "Ply": "[0.3.1, )",
           "Wcwidth": "[4.0.1, )"
@@ -70,11 +70,11 @@
       },
       "Microsoft.Data.Sqlite.Core": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "jFYXnh7s0RShCw6Vkf+ReGCw+mVi7ISg1YaEzYCJcXnUifmbW+aqvCsRJuSRj2ZuQ+oqetpjxlZtbpMmk5FKqQ==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "aWaF2LDjuFZwE9UsAGRYGNyS48xqaXoKPAjwpJI85fsaM/43s5NTRnl4xtqbTGKq8of2M/W8mo7DJk7v4zzHGQ==",
         "dependencies": {
-          "SQLitePCLRaw.core": "2.1.11"
+          "SQLitePCLRaw.core": "3.0.5"
         }
       },
       "NodaTime": {
@@ -92,20 +92,20 @@
           "FSharp.Core": "4.6.2"
         }
       },
-      "SourceGear.sqlite3": {
+      "SQLite": {
         "type": "CentralTransitive",
         "requested": "[3.53.4, )",
         "resolved": "3.53.4",
-        "contentHash": "aXPX39R0Vgivhi95Z82TRenG56bSOs+Hnt8h1GV0nmfuRaANObd3LC44eoZwszmQqALjaV3ZnBQRej8m5E0L4Q=="
+        "contentHash": "KN7jeWqgUPeBRe1FlcpZURzxomuKKEKHmBBQfg+Nx7NkY1LjKhzHvH+3ASkNvhayESE34nMBinL9CV21JfPRJw=="
       },
       "SQLitePCLRaw.bundle_e_sqlite3": {
         "type": "CentralTransitive",
-        "requested": "[3.0.2, )",
-        "resolved": "3.0.2",
-        "contentHash": "nzPPFpELY9U1scLvQpA1k1GIgR9ror83DCPmirT2/i5NCPdTBfhTDA6MZqFZonGDayye5mUQRQLOVyEiJNYr0g==",
+        "requested": "[3.0.5, )",
+        "resolved": "3.0.5",
+        "contentHash": "SW8iASIyWMrLzqabUHYQRvALhvD4ylSBsj4PgEVGwc36kQjc9xT5kSV/XQ9rU7nIpBWD+LPyX3Hlw5FzyUzGeQ==",
         "dependencies": {
-          "SQLitePCLRaw.config.e_sqlite3": "3.0.2",
-          "SourceGear.sqlite3": "3.50.4.2"
+          "SQLite": "3.53.4",
+          "SQLitePCLRaw.config.e_sqlite3": "3.0.5"
         }
       },
       "SQLitePCLRaw.config.e_sqlite3": {
@@ -134,9 +134,9 @@
       },
       "System.IO.Hashing": {
         "type": "CentralTransitive",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "MqSp5IfX9RdWVwTED0WSRL1kZDNB7GlFj64O/NAJs4uO1beBHWEAFLlC7j8Fw/PkI+SUzooLVNvAe4aEkSwsRg=="
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
       },
       "Wcwidth": {
         "type": "CentralTransitive",

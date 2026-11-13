@@ -36,10 +36,10 @@ done
 
 if [[ "$PUBLISHED" == "true" ]]; then
   FSHARP=(scripts/run-fsharp-tests --published --split)
-  export CLI=backend/Build/out/Cli/Release/net10.0/publish/Cli
+  export CLI=backend/Build/out/Cli/Release/net11.0/publish/Cli
 else
   FSHARP=(scripts/run-fsharp-tests --split)
-  export CLI=backend/Build/out/Cli/Debug/net10.0/Cli
+  export CLI=backend/Build/out/Cli/Debug/net11.0/Cli
 fi
 
 # The gates check the build once per invocation; do it here, before anything starts.

@@ -18,7 +18,7 @@
 gate_workbench_scm() {
   set -euo pipefail
 
-  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}
   HOME=$(realpath -m rundir/workbench-scm-test); export HOME; WORK="$HOME/.darklang"
 
   rm -rf "$WORK"
@@ -78,7 +78,7 @@ gate_workbench_scm() {
 gate_workbench_views() {
   set -euo pipefail
 
-  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}
   HOME=$(realpath -m rundir/workbench-views-test); export HOME; WORK="$HOME/.darklang"
 
   rm -rf "$WORK"
@@ -118,7 +118,7 @@ gate_workbench_views() {
 gate_prompts_unattended() {
   set -euo pipefail
 
-  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}
   HOME=$(realpath -m rundir/prompts-unattended-test); export HOME; WORK="$HOME/.darklang"
   fail() { echo "FAIL: $1" >&2; exit 1; }
 

@@ -92,19 +92,19 @@ fi
 killall -9 Tests 2>/dev/null || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Tests/Release/net10.0/publish/Tests
-  LOCALEXEC=Build/out/LocalExec/Release/net10.0/publish/LocalExec
+  EXE=Build/out/Tests/Release/net11.0/publish/Tests
+  LOCALEXEC=Build/out/LocalExec/Release/net11.0/publish/LocalExec
   # The CLI the instance-backed tests drive as a child. Only this script knows which build
   # a run is against, and a suite that silently tested the other one would be worse than
   # one that fails to start.
-  export DARK_TEST_CLI="${DARK_TEST_CLI:-$PWD/backend/Build/out/Cli/Release/net10.0/publish/Cli}"
+  export DARK_TEST_CLI="${DARK_TEST_CLI:-$PWD/backend/Build/out/Cli/Release/net11.0/publish/Cli}"
 else
-  EXE=Build/out/Tests/Debug/net10.0/Tests
-  LOCALEXEC=Build/out/LocalExec/Debug/net10.0/LocalExec
+  EXE=Build/out/Tests/Debug/net11.0/Tests
+  LOCALEXEC=Build/out/LocalExec/Debug/net11.0/LocalExec
   # The debug build answers in about a second; the published one, which is what CI runs
   # and what a user has, answers several times quicker. Nearly all of that difference is
   # JIT. Point this at a publish build if you are timing these tests.
-  export DARK_TEST_CLI="${DARK_TEST_CLI:-$PWD/backend/Build/out/Cli/Debug/net10.0/Cli}"
+  export DARK_TEST_CLI="${DARK_TEST_CLI:-$PWD/backend/Build/out/Cli/Debug/net11.0/Cli}"
 fi
 
 

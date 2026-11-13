@@ -1,7 +1,7 @@
 {
   "version": 2,
   "dependencies": {
-    "net10.0": {
+    "net11.0": {
       "Expecto": {
         "type": "Direct",
         "requested": "[10.1.0, )",
@@ -26,7 +26,7 @@
       "builtins.cli": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibConfig": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "Ply": "[0.3.1, )",
@@ -36,7 +36,7 @@
       "builtins.http.client": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
           "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
@@ -45,7 +45,7 @@
       "builtins.http.server": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "Ply": "[0.3.1, )",
@@ -55,7 +55,7 @@
       "builtins.language": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "LibParser": "[1.0.0, )",
@@ -66,7 +66,7 @@
       "builtins.matter": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "LibSerialization": "[1.0.0, )",
@@ -77,7 +77,7 @@
       "builtins.pure": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
           "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
@@ -86,7 +86,7 @@
       "builtins.random": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
           "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
@@ -95,7 +95,7 @@
       "builtins.time": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
           "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
@@ -104,29 +104,29 @@
       "libconfig": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "Prelude": "[1.0.0, )"
         }
       },
       "libdb": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "Fumble": "[1.0.3, )",
           "LibConfig": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "LibSerialization": "[1.0.0, )",
-          "Microsoft.Data.Sqlite": "[10.0.0, )",
+          "Microsoft.Data.Sqlite": "[11.0.0, )",
           "Prelude": "[1.0.0, )"
         }
       },
       "libexecution": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )",
-          "System.IO.Hashing": "[10.0.0, )"
+          "System.IO.Hashing": "[11.0.0, )"
         }
       },
       "libparser": {
@@ -140,7 +140,7 @@
       "libserialization": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
           "Prelude": "[1.0.0, )"
         }
@@ -148,7 +148,7 @@
       "prelude": {
         "type": "Project",
         "dependencies": {
-          "FSharp.Core": "[10.0.100, )",
+          "FSharp.Core": "[11.0.101, )",
           "NodaTime": "[3.2.2, )",
           "Ply": "[0.3.1, )",
           "Wcwidth": "[4.0.1, )"
@@ -156,9 +156,9 @@
       },
       "FSharp.Core": {
         "type": "CentralTransitive",
-        "requested": "[10.0.100, )",
-        "resolved": "10.0.100",
-        "contentHash": "c/r6T/HE9MWL0O0OispLtaKhVwDsiYQlLS249LoxSo1HNH/wfc0f5DE4pI6WpTXkCEdeXa66K5f9FmKLr/0cmw=="
+        "requested": "[11.0.101, )",
+        "resolved": "11.0.101",
+        "contentHash": "XL1wfb0gujXAtnJfO7rYfxKgwufCiT8aOKqGoqKB83oxRAZ9+yiNWXinHO4x9StYuunTl/AH8eERc0hv7UXJVQ=="
       },
       "Fumble": {
         "type": "CentralTransitive",
@@ -172,132 +172,74 @@
       },
       "Microsoft.Data.Sqlite": {
         "type": "CentralTransitive",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "I/azQ5WjwoLvSlTyDydkhARPSjYJN8jkXRjR5D92OeyTLbTrQ1K93rgf6XU+HYWHZA6lBI9SUOfl69OqEHb4ow==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "K3hceHG5pxWJ+mytesLiGxmJ988YFrKnMGml0xbq//UWsM79KD8nQ5sBwTSLKgWecT6Saict/jIB8O6lDL0M2g==",
         "dependencies": {
-          "Microsoft.Data.Sqlite.Core": "10.0.0",
-          "SQLitePCLRaw.bundle_e_sqlite3": "2.1.11",
-          "SQLitePCLRaw.core": "2.1.11"
+          "Microsoft.Data.Sqlite.Core": "[11.0.0, 12.0.0-a)",
+          "SQLitePCLRaw.bundle_e_sqlite3": "3.0.5",
+          "SQLitePCLRaw.core": "3.0.5"
         }
       },
       "Microsoft.Data.Sqlite.Core": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "jFYXnh7s0RShCw6Vkf+ReGCw+mVi7ISg1YaEzYCJcXnUifmbW+aqvCsRJuSRj2ZuQ+oqetpjxlZtbpMmk5FKqQ==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "aWaF2LDjuFZwE9UsAGRYGNyS48xqaXoKPAjwpJI85fsaM/43s5NTRnl4xtqbTGKq8of2M/W8mo7DJk7v4zzHGQ==",
         "dependencies": {
-          "SQLitePCLRaw.core": "2.1.11"
+          "SQLitePCLRaw.core": "3.0.5"
         }
       },
       "Microsoft.Extensions.Configuration": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "8Rx5sqg04FttxrumyG6bmoRuFRgYzK6IVwF1i0/o0cXfKBdDeVpJejKHtJCMjyg9E/DNMVqpqOGe/tCT5gYvVA==",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Primitives": "10.0.5"
-        }
-      },
-      "Microsoft.Extensions.Configuration.Abstractions": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "P09QpTHjqHmCLQOTC+WyLkoRNxek4NIvfWt+TnU0etoDUSRxcltyd6+j/ouRbMdLR0j44GqGO+lhI2M4fAHG4g==",
-        "dependencies": {
-          "Microsoft.Extensions.Primitives": "10.0.5"
-        }
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "VQS/GkFU9oLQmXZv0AR/zluF0YAbEAoUQ5aYMqcRc2TWeKa6m2AjInAOnDhCcoWI5a6LQUCzTcl8B3DZZaPZLg=="
       },
       "Microsoft.Extensions.Configuration.Binder": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "99Z4rjyXopb1MIazDSPcvwYCUdYNO01Cf1GUs2WUjIFAbkGmwzj2vPa2k+3pheJRV+YgNd2QqRKHAri0oBAU4Q==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "3eoaKF4Stat1PSN+KFwqmy04sM9DwGuHM1o1lHwuNFM/TqwQ+PCIvaQHS4lcT3kJl5rwvDK4w/rIlR0wc024eQ==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration": "10.0.5",
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.5"
+          "Microsoft.Extensions.Configuration": "11.0.0"
         }
       },
       "Microsoft.Extensions.DependencyInjection": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "v1SVsowG6YE1YnHVGmLWz57YTRCQRx9pH5ebIESXfm5isI9gA3QaMyg/oMTzPpXYZwSAVDzYItGJKfmV+pqXkQ==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.5"
-        }
-      },
-      "Microsoft.Extensions.DependencyInjection.Abstractions": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "iVMtq9eRvzyhx8949EGT0OCYJfXi737SbRVzWXE5GrOgGj5AaZ9eUuxA/BSUfmOMALKn/g8KfFaNQw0eiB3lyA=="
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "KygQMITBDDPXw7+AAgdwQvVAaTXuDsc1iCAuvhO73ERxKX+d92cdbgZmpoYF7DIUq2hfs/yO2KD87uIreRy3MA=="
       },
       "Microsoft.Extensions.Logging": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "+XTMKQyDWg4ODoNHU/BN3BaI1jhGO7VCS+BnzT/4IauiG6y2iPAte7MyD7rHKS+hNP0TkFkjrae8DFjDUxtcxg==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "zsse8MOgo0bj2KAEsSkg9WtNAfZbHbTlGeqfhy5PGozomM3zQM0XzumSQzQ0451IWNSJWLqYaSIQEpCi2j1sCA==",
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection": "10.0.5",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Options": "10.0.5"
-        }
-      },
-      "Microsoft.Extensions.Logging.Abstractions": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "9HOdqlDtPptVcmKAjsQ/Nr5Rxfq6FMYLdhvZh1lVmeKR738qeYecQD7+ldooXf+u2KzzR1kafSphWngIM3C6ug==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.5"
+          "Microsoft.Extensions.DependencyInjection": "11.0.0"
         }
       },
       "Microsoft.Extensions.Logging.Configuration": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "cSgxsDgfP0+gmVRPVoNHI/KIDavIZxh+CxE6tSLPlYTogqccDnjBFI9CgEsiNuMP6+fiuXUwhhlTz36uUEpwbQ==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "zI04chEUw5Z14Jtfq4gWq/D3nnvWTqu1RMhdEMQb+gyRmMMNmeaBGL6kKvSNJ/C+lbsvhThKzYBjzdmhGn4rHg==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration": "10.0.5",
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Configuration.Binder": "10.0.5",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Logging": "10.0.5",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Options": "10.0.5",
-          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.5"
-        }
-      },
-      "Microsoft.Extensions.Options": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "MDaQMdUplw0AIRhWWmbLA7yQEXaLIHb+9CTroTiNS8OlI0LMXS4LCxtopqauiqGCWlRgJ+xyraVD8t6veRAFbw==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Primitives": "10.0.5"
+          "Microsoft.Extensions.Configuration": "11.0.0",
+          "Microsoft.Extensions.Configuration.Binder": "11.0.0",
+          "Microsoft.Extensions.Logging": "11.0.0",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "11.0.0"
         }
       },
       "Microsoft.Extensions.Options.ConfigurationExtensions": {
         "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "BB9uUW3+6Rxu1R97OB1H/13lUF8P2+H1+eDhpZlK30kDh/6E4EKHBUqTp+ilXQmZLzsRErxON8aBSR6WpUKJdg==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "s4JrxDPwxk8pE6LFVj+M5TrDHxOVIoCnQBy5lexs5uAYeggPYwAc/pSDNgVuZN14pCmZGCInygI/2ylCdLYShw==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Configuration.Binder": "10.0.5",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.5",
-          "Microsoft.Extensions.Options": "10.0.5",
-          "Microsoft.Extensions.Primitives": "10.0.5"
+          "Microsoft.Extensions.Configuration.Binder": "11.0.0"
         }
-      },
-      "Microsoft.Extensions.Primitives": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "/HUHJ0tw/LQvD0DZrz50eQy/3z7PfX7WWEaXnjKTV9/TNdcgFlNTZGo49QhS7PTmhDqMyHRMqAXSBxLh0vso4g=="
       },
       "Mono.Cecil": {
         "type": "CentralTransitive",
@@ -320,20 +262,20 @@
           "FSharp.Core": "4.6.2"
         }
       },
-      "SourceGear.sqlite3": {
+      "SQLite": {
         "type": "CentralTransitive",
         "requested": "[3.53.4, )",
         "resolved": "3.53.4",
-        "contentHash": "aXPX39R0Vgivhi95Z82TRenG56bSOs+Hnt8h1GV0nmfuRaANObd3LC44eoZwszmQqALjaV3ZnBQRej8m5E0L4Q=="
+        "contentHash": "KN7jeWqgUPeBRe1FlcpZURzxomuKKEKHmBBQfg+Nx7NkY1LjKhzHvH+3ASkNvhayESE34nMBinL9CV21JfPRJw=="
       },
       "SQLitePCLRaw.bundle_e_sqlite3": {
         "type": "CentralTransitive",
-        "requested": "[3.0.2, )",
-        "resolved": "3.0.2",
-        "contentHash": "nzPPFpELY9U1scLvQpA1k1GIgR9ror83DCPmirT2/i5NCPdTBfhTDA6MZqFZonGDayye5mUQRQLOVyEiJNYr0g==",
+        "requested": "[3.0.5, )",
+        "resolved": "3.0.5",
+        "contentHash": "SW8iASIyWMrLzqabUHYQRvALhvD4ylSBsj4PgEVGwc36kQjc9xT5kSV/XQ9rU7nIpBWD+LPyX3Hlw5FzyUzGeQ==",
         "dependencies": {
-          "SQLitePCLRaw.config.e_sqlite3": "3.0.2",
-          "SourceGear.sqlite3": "3.50.4.2"
+          "SQLite": "3.53.4",
+          "SQLitePCLRaw.config.e_sqlite3": "3.0.5"
         }
       },
       "SQLitePCLRaw.config.e_sqlite3": {
@@ -362,9 +304,9 @@
       },
       "System.IO.Hashing": {
         "type": "CentralTransitive",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "MqSp5IfX9RdWVwTED0WSRL1kZDNB7GlFj64O/NAJs4uO1beBHWEAFLlC7j8Fw/PkI+SUzooLVNvAe4aEkSwsRg=="
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
       },
       "Wcwidth": {
         "type": "CentralTransitive",

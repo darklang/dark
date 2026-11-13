@@ -48,7 +48,7 @@ if [[ "$RELEASE" == "true" ]]; then
   EXE=$(release_exe)
   MODE=release
 else
-  EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+  EXE="backend/Build/out/Cli/Debug/net11.0/Cli"
   MODE=debug
 fi
 TELEMETRY=$(telemetry_path)
