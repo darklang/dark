@@ -6,10 +6,14 @@
 1 Darklang.LanguageTools.AtRestTypeChecker.Generate.inferPipe Darklang.LanguageTools.AtRestTypeChecker.Generate.inferPipePart
 1 Darklang.LanguageTools.AtRestTypeChecker.Generate.specialApplication Darklang.LanguageTools.AtRestTypeChecker.Generate.inferInfix
 1 Darklang.LanguageTools.AtRestTypeChecker.Solve.traitCallFor Darklang.LanguageTools.AtRestTypeChecker.Solve.recordImplChoice
+1 Darklang.PrettyPrinter.ProgramTypes.blockDoc Darklang.PrettyPrinter.ProgramTypes.blockDocSpaced
 1 Darklang.PrettyPrinter.ProgramTypes.callArg Darklang.PrettyPrinter.ProgramTypes.lambdaDoc
-1 Darklang.PrettyPrinter.ProgramTypes.exprDoc Darklang.PrettyPrinter.ProgramTypes.callArgs
-1 Darklang.PrettyPrinter.ProgramTypes.exprDoc Darklang.PrettyPrinter.ProgramTypes.lambdaDoc
+1 Darklang.PrettyPrinter.ProgramTypes.exprDocBare Darklang.PrettyPrinter.ProgramTypes.ifDoc
+1 Darklang.PrettyPrinter.ProgramTypes.exprDocBare Darklang.PrettyPrinter.ProgramTypes.lambdaDoc
+1 Darklang.PrettyPrinter.ProgramTypes.listItemDoc Darklang.PrettyPrinter.ProgramTypes.blockDocSpaced
+1 Darklang.PrettyPrinter.ProgramTypes.parenthesized Darklang.PrettyPrinter.ProgramTypes.blockDocSpaced
 1 Darklang.PrettyPrinter.ProgramTypes.pipeExprDoc Darklang.PrettyPrinter.ProgramTypes.callArgs
+1 Darklang.PrettyPrinter.ProgramTypes.pipeExprDoc Darklang.PrettyPrinter.ProgramTypes.lambdaDoc
 1 Darklang.PrettyPrinter.ProgramTypes.typeReferenceDoc Darklang.PrettyPrinter.ProgramTypes.typeReferenceDocWithFnParens
 1 Darklang.PrettyPrinter.ProgramTypes.typeReferenceFlat Darklang.PrettyPrinter.ProgramTypes.typeReferenceFlatAtPrecedence
 1 Darklang.Stdlib.Cli.File.Bytes.Tests.events Darklang.Stdlib.Cli.File.__watchEvents
@@ -23,5 +27,9 @@
 1 Darklang.Stdlib.Url.parseLenient Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseReference Darklang.Stdlib.Url.__parseWith
 2 Darklang.Cli.Packages.Deprecate.execute Darklang.Cli.Packages.Deprecate.sayShared
+2 Darklang.LanguageTools.Formatter.declarations Darklang.LanguageTools.Formatter.declaration
 2 Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumFieldDoc Darklang.PrettyPrinter.ProgramTypes.typeReferenceDocWithFnParens
+2 Darklang.PrettyPrinter.ProgramTypes.exprDocBare Darklang.PrettyPrinter.ProgramTypes.callArgs
 2 Darklang.Stdlib.Cli.Process.__childDrain Darklang.Stdlib.Cli.Process.__childRead
+2 Darklang.Stdlib.Pretty.__breaksLoop Darklang.Stdlib.Pretty.__fits
+2 Darklang.Stdlib.Pretty.__renderLoop Darklang.Stdlib.Pretty.__fits
