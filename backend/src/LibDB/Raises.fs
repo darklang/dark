@@ -81,17 +81,11 @@ let cannotRaise : Set<string> =
     @ guarded
   )
 
-/// The live name of each fn in <hashes>. A hash with several names keeps the first in order.
-let fnNames (hashes : List<PT.Hash>) : Ply<Map<PT.Hash, string>> =
+/// A hash with several names keeps the first in order.
+let private namesOf query : Ply<Map<PT.Hash, string>> =
   uply {
     let! rows =
-      Sql.query
-        "SELECT item_hash, owner, modules, name FROM locations
-         WHERE live = 1 AND item_type = 'fn'
-           AND item_hash IN (SELECT value FROM json_each(@hashes))"
-      |> Sql.parameters
-        [ "hashes",
-          Sql.string (jsonStrings (hashes |> List.map (fun (PT.Hash h) -> h))) ]
+      query
       |> Sql.executeAsync (fun read ->
         (read.string "item_hash",
          read.string "owner",
@@ -104,6 +98,23 @@ let fnNames (hashes : List<PT.Hash>) : Ply<Map<PT.Hash, string>> =
       |> List.groupBy fst
       |> Map.map (fun named -> named |> List.map snd |> List.min)
   }
+
+/// The live name of each fn in <hashes>.
+let fnNames (hashes : List<PT.Hash>) : Ply<Map<PT.Hash, string>> =
+  Sql.query
+    "SELECT item_hash, owner, modules, name FROM locations
+     WHERE live = 1 AND item_type = 'fn'
+       AND item_hash IN (SELECT value FROM json_each(@hashes))"
+  |> Sql.parameters
+    [ "hashes", Sql.string (jsonStrings (hashes |> List.map (fun (PT.Hash h) -> h))) ]
+  |> namesOf
+
+/// Every live fn's name, for a pass over the whole store.
+let allFnNames () : Ply<Map<PT.Hash, string>> =
+  Sql.query
+    "SELECT item_hash, owner, modules, name FROM locations
+     WHERE live = 1 AND item_hash <> '' AND item_type = 'fn'"
+  |> namesOf
 
 /// The calls from `root` to a builtin that declares `Raise`, shortest first, avoiding the fns in
 /// `cannotRaise`: each fn's name, then the builtin. `None` when nothing it reaches can raise.

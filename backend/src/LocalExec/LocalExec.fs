@@ -220,6 +220,72 @@ module HandleCommand =
         return Error $"Failed to list migrations: {ex.Message}"
     }
 
+  /// The PRODUCT's builtins. `Builtins.all ()` also carries `TestUtils.LibTest`, which no
+  /// shipped code may name.
+  let private productBuiltins () =
+    LibExecution.Builtin.combine
+      [ Builtins.Pure.Builtin.builtins ()
+        Builtins.Http.Client.Builtin.builtins ()
+        Builtins.Language.Builtin.builtins ()
+        Builtins.Cli.Builtin.builtins ()
+        Builtins.Time.Builtin.builtins ()
+        Builtins.Random.Builtin.builtins ()
+        Builtins.Matter.Builtin.builtins
+          LibExecution.ProgramTypes.PackageManager.empty
+        Builtins.CliHost.Builtin.builtins ()
+        Builtins.Http.Server.Builtin.builtins () ]
+      []
+
+  /// Where the CLI can stop with a runtime error (`LibDB.RaiseSites`), grouped by what raises.
+  /// With a path, writes the baseline `PackagePermissions.Tests` compares against.
+  let raiseSites (baseline : Option<string>) : Ply<Result<unit, string>> =
+    uply {
+      let! names = LibDB.Raises.allFnNames ()
+      let! closure =
+        LibDB.RaiseSites.closure
+          LibConfig.Dirs.sourceRootDir
+          names
+          LibDB.PackagePermissions.Load.fromStore
+      let effects =
+        (productBuiltins ()).fns
+        |> Seq.map (fun (KeyValue(k, b)) -> (k.name, k.version), b.callEffects)
+        |> Map.ofSeq
+      let declaring =
+        effects
+        |> Map.filter (fun e -> Set.contains LibExecution.Effects.Effect.Raise e)
+        |> Map.count
+      let found =
+        LibDB.RaiseSites.find (fun key -> Map.tryFind key effects) names closure
+      let byCallee =
+        found.sites
+        |> List.groupBy (fun s -> s.callee)
+        |> Map.toList
+        |> List.sortBy (fun (callee, sites) -> (-(List.length sites), callee))
+      print $"{declaring} builtins declare Raise"
+      print
+        $"{List.length found.sites} raising call(s) from the CLI's code into {List.length byCallee} function(s)"
+      byCallee
+      |> List.iter (fun (callee, sites) ->
+        let via =
+          match Map.tryFind callee found.reasons with
+          | Some reasons -> "  via " + (reasons |> Set.toList |> String.concat ", ")
+          | None -> ""
+        print $"{List.length sites} {callee}{via}"
+        sites
+        |> List.countBy (fun s -> s.caller)
+        |> List.sort
+        |> List.iter (fun (caller, count) -> print $"    {count} {caller}"))
+      match baseline with
+      | Some path ->
+        System.IO.File.WriteAllLines(
+          path,
+          LibDB.RaiseSites.baselineLines found.sites
+        )
+        print $"wrote {path}"
+      | None -> ()
+      return Ok()
+    }
+
   /// Scan `package_values.rt_dval` for referenced blob hashes and
   /// delete any `package_blobs` rows that aren't referenced.
   /// What is reachable, from the entry points a person actually drives.
@@ -590,21 +656,9 @@ module HandleCommand =
         print
           $"builtins named only by an UNREACHABLE item: {Set.count (Set.difference namedAnywhere namedByReachable)}"
 
-        // The PRODUCT's builtins. `Builtins.all ()` also carries `TestUtils.LibTest`, which no
-        // shipped code may name, so counting those would report seven permanent orphans.
+        // The PRODUCT's builtins, not `Builtins.all ()`, so `LibTest` is not seven permanent orphans.
         let all =
-          LibExecution.Builtin.combine
-            [ Builtins.Pure.Builtin.builtins ()
-              Builtins.Http.Client.Builtin.builtins ()
-              Builtins.Language.Builtin.builtins ()
-              Builtins.Cli.Builtin.builtins ()
-              Builtins.Time.Builtin.builtins ()
-              Builtins.Random.Builtin.builtins ()
-              Builtins.Matter.Builtin.builtins
-                LibExecution.ProgramTypes.PackageManager.empty
-              Builtins.CliHost.Builtin.builtins ()
-              Builtins.Http.Server.Builtin.builtins () ]
-            []
+          productBuiltins ()
           |> fun b ->
             b.fns.Keys
             |> Seq.map (fun (k : RT.FQFnName.Builtin) -> $"{k.name}_v{k.version}")
@@ -687,6 +741,16 @@ let main (args : string[]) : int =
         "reporting what is reachable from the CLI's entry points"
         (HandleCommand.reachability ())
 
+    | [ "raise-sites" ] ->
+      handleCommand
+        "listing where the CLI's code can raise a runtime error"
+        (HandleCommand.raiseSites None)
+
+    | [ "raise-sites"; "--write"; path ] ->
+      handleCommand
+        $"writing the CLI's raise sites to {path}"
+        (HandleCommand.raiseSites (Some path))
+
     | [ "pm-sweep-blobs" ] ->
       handleCommand
         "sweeping orphan package_blobs rows"
@@ -712,6 +776,7 @@ let main (args : string[]) : int =
       print "  export-seed <output-path>"
       print "  pm-sweep-blobs"
       print "  reachability"
+      print "  raise-sites [--write <baseline>]"
       print "  bench"
       print "  bench-render"
       NonBlockingConsole.wait ()

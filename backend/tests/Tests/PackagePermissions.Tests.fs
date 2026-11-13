@@ -956,6 +956,55 @@ let effectReasonsFollowDependencies =
     Expect.isFalse dynamic.complete "unknown callbacks stay visible"
   }
 
+/// The CLI's raise sites (`LibDB.RaiseSites`) are the ones `backend/tests/cli-raise-sites.txt`
+/// lists. A new call that can raise fails here, and so does one taken away until the file is
+/// rewritten, so the count only goes down. Rewrite it with
+/// `scripts/run-local-exec raise-sites --write backend/tests/cli-raise-sites.txt`.
+let cliRaiseSitesMatchTheBaseline =
+  testTask
+    "the CLI's raise sites are the ones backend/tests/cli-raise-sites.txt lists" {
+    let path =
+      System.IO.Path.Combine(
+        LibConfig.Dirs.sourceRootDir,
+        "backend/tests/cli-raise-sites.txt"
+      )
+    let effects =
+      (TestUtils.TestUtils.builtins TestUtils.TestUtils.pmPT).fns
+      |> Seq.map (fun (KeyValue(k, b)) -> (k.name, k.version), b.callEffects)
+      |> Map.ofSeq
+    let! names = LibDB.Raises.allFnNames () |> Ply.toTask
+    let! closure =
+      LibDB.RaiseSites.closure
+        LibConfig.Dirs.sourceRootDir
+        names
+        PackagePermissions.Load.fromStore
+      |> Ply.toTask
+    let found =
+      (LibDB.RaiseSites.find (fun key -> Map.tryFind key effects) names closure)
+        .sites
+      |> LibDB.RaiseSites.baselineLines
+    let listed =
+      System.IO.File.ReadAllLines path
+      |> List.ofArray
+      |> List.filter (fun line -> line <> "")
+    let total (lines : List<string>) =
+      lines |> List.sumBy (fun line -> int (line.Split(' ')[0]))
+    let notIn (other : List<string>) (lines : List<string>) =
+      lines |> List.filter (fun line -> not (List.contains line other))
+    let rewrite =
+      "scripts/run-local-exec raise-sites --write backend/tests/cli-raise-sites.txt"
+    let fail (what : string) (fix : string) (lines : List<string>) =
+      if not (List.isEmpty lines) then
+        let shown = lines |> List.map (fun line -> $"  {line}") |> String.concat "\n"
+        failtest
+          $"{what} raising calls ({total found} now, {total listed} listed); {fix}:\n{shown}"
+    fail
+      "new or more"
+      $"use a checked variant, or if the raise is deliberate rewrite with `{rewrite}`"
+      (notIn listed found)
+    fail "fewer" $"rewrite with `{rewrite}`" (notIn found listed)
+  }
+
 let tests =
   testList
     "packagePermissions"
@@ -978,5 +1027,6 @@ let tests =
       reviewAcceptsRestrictiveRules
       reviewRefusesAWidenedContractWithoutAcknowledgment
       reviewRejectsAnIncompleteClosure
+      cliRaiseSitesMatchTheBaseline
       testList "operators and trait calls" Operators.tests
       testList "package value references" ValueReferences.tests ]
