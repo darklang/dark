@@ -170,6 +170,14 @@ let load
     let! (iteration, currentOps) = converge 0 (HS.computeRealHashes firstPassOps) []
 
     debuG "phase 2" $"converged after {iteration} passes"
+    match LibParser.Package.unresolvedCalls currentOps with
+    | [] -> ()
+    | missing ->
+      // one line: the build shows only the last lines of the reload log
+      let listed = String.concat "; " missing
+      Exception.raiseInternal
+        $"Package code calls names that do not exist: {listed}"
+        [ "count", List.length missing ]
     let passes = iteration + 1
     let secs = parseTimer.Elapsed.TotalSeconds
     print
