@@ -36,63 +36,44 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
       Cli.failed(state)
     else
-      // Parse and create function immediately
-      createFnInline(
-        state.packageData.currentLocation,
-        location,
-        inlineDefinition,
-        state)
+      createFnInline(state, location, inlineDefinition)
 
 
-let createFnInline(
-  currentLocation: Packages.PackageLocation,
-  locationStr: String,
-  definition: String,
-  state: Cli.AppState)
-  : Cli.AppState =
-  // Parse location relative to current position
-  match Location.parseRelativeTo(currentLocation, locationStr) with
-  | Ok(location) ->
-    // Keep accepting the concise historical fragment, while also accepting a
-    // complete declaration (with an optional doc comment).
-    let trimmedDefinition = Stdlib.String.trim(definition)
-    let isShortForm =
-      Stdlib.Bool.not(
-        Stdlib.String.startsWith(trimmedDefinition, "let ")
-        || Stdlib.String.startsWith(trimmedDefinition, "///"))
-    let fullSource =
-      if
-        Stdlib.String.startsWith(trimmedDefinition, "let ")
-        || Stdlib.String.startsWith(trimmedDefinition, "///")
-      then
-        definition
-      else if Stdlib.String.startsWith(trimmedDefinition, "<") then
-        // `dark fn F "<'a: Show> (v: 'a) : String = ..."`: type parameters bind to the name and
-        // the parser refuses a space between them, so there is nowhere for the usual one to go.
-        $"let {location.name}{trimmedDefinition}"
-      else
-        $"let {location.name} {definition}"
+/// The source to parse for <param definition>. A complete declaration (with an optional doc comment)
+/// is taken as it is; otherwise the definition is the part after the name.
+let fnSource(name: String, definition: String): String =
+  let trimmedDefinition = Stdlib.String.trim(definition)
 
-    // Parse the function definition
-    let (tree, diagnostics) =
-      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
+  if
+    Stdlib.String.startsWith(trimmedDefinition, "let ")
+    || Stdlib.String.startsWith(trimmedDefinition, "///")
+  then
+    definition
+  else if Stdlib.String.startsWith(trimmedDefinition, "<") then
+    // `dark fn F "<'a: Show> (v: 'a) : String = ..."`: type parameters bind to the name and
+    // the parser refuses a space between them, so there is nowhere for the usual one to go.
+    $"let {name}{trimmedDefinition}"
+  else
+    $"let {name} {definition}"
 
-    match tree with
-    | Some(SourceFile(sourceFile)) ->
-      // The parser may recover a tree after errors; do not save it.
-      let hasParseError =
-        (Errors.reportParseErrors(diagnostics))
-        || (Errors.reportTrailing(sourceFile))
-      let parsedFunction =
-        if hasParseError then
-          Stdlib.Option.Option.None
-        else
-          match sourceFile.declarations with
-          | [ Function(writtenFn) ] -> Stdlib.Option.Option.Some(writtenFn)
-          | _ -> Stdlib.Option.Option.None
 
-      match parsedFunction with
-      | Some(writtenFn) when writtenFn.name.name != location.name ->
+let createFnInline(state: Cli.AppState, locationStr: String, definition: String): Cli.AppState =
+  let hint =
+    [ (Stdlib.Cli.UI.Colors.error("Expected exactly one function declaration"))
+      ""
+      "Examples:"
+      "  fn double(x: Int64): Int64 = (x * 2)"
+      "  fn greet(name: String): String = \"Hello, \" + name"
+      "" ]
+
+  Packages.authorInline(
+    state,
+    locationStr,
+    (fun location -> fnSource(location.name, definition)),
+    hint,
+    fun(location, declaration) ->
+      match declaration with
+      | Function(writtenFn) when writtenFn.name.name != location.name ->
         let actual = writtenFn.name.name
         Cli.printErr($"Function name `{actual}` does not match target `{location.name}`")
         Stdlib.printErrorLine(
@@ -100,98 +81,69 @@ let createFnInline(
             ($"Rename it to `let {location.name} ...`, or change the "
              + "fn target."))))
         // Nothing was saved: an agent's authoring loop branches on the exit.
-        { state with exitCode = 1 }
+        Stdlib.Option.Option.Some(Cli.failed(state))
 
-      | Some(writtenFn) ->
-        let failState = { state with exitCode = 1 }
+      | Function(writtenFn) ->
+        Stdlib.Option.Option.Some(
+          Packages.saveAuthored(
+            state,
+            location,
+            LanguageTools.ProgramTypes.ItemKind.Fn,
+            "function",
+            // the short form is parsed behind `let <name> `, so a column on its first line is off by that
+            Stdlib.String.length(fnSource(location.name, definition)) - Stdlib.String.length(definition),
+            fun ctx ->
+              let (packageFn, unresolvedNames) =
+                LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT(
+                  ctx,
+                  writtenFn)
 
-        Packages.saveAuthored(
-          state,
-          location,
-          LanguageTools.ProgramTypes.ItemKind.Fn,
-          "function",
-          failState,
-          // the short form is parsed behind `let <name> `, so a column on its first line is off by that
-          (if isShortForm then Stdlib.String.length(fullSource) - Stdlib.String.length(definition) else 0),
-          fun ctx ->
-            let (packageFn, unresolvedNames) =
-              LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT(
-                ctx,
-                writtenFn)
+              // A bound on a trait that does not exist is not a forward reference worth waiting
+              // on, same as `dark impl`: without the trait the bound constrains nothing, and the
+              // generic "will resolve when dependencies are added" sends you looking for a missing
+              // dependency. The common way to get here is naming a TYPE, which resolves fine as a
+              // type and not at all as a trait, so the generic message reads as a lie.
+              let unresolvedBoundNames =
+                packageFn.bounds
+                |> Stdlib.List.filterMap(fun b ->
+                  match b.trait_.trait_.resolved with
+                  | Ok(_) -> Stdlib.Option.Option.None
+                  | Error(_) ->
+                    Stdlib.Option.Option.Some(Stdlib.String.join(b.trait_.trait_.originalName, ".")))
+                |> Stdlib.List.unique
 
-            // A bound on a trait that does not exist is not a forward reference worth waiting
-            // on, same as `dark impl`: without the trait the bound constrains nothing, and the
-            // generic "will resolve when dependencies are added" sends you looking for a missing
-            // dependency. The common way to get here is naming a TYPE, which resolves fine as a
-            // type and not at all as a trait, so the generic message reads as a lie.
-            let unresolvedBoundNames =
-              packageFn.bounds
-              |> Stdlib.List.filterMap(fun b ->
-                match b.trait_.trait_.resolved with
-                | Ok(_) -> Stdlib.Option.Option.None
-                | Error(_) ->
-                  Stdlib.Option.Option.Some(Stdlib.String.join(b.trait_.trait_.originalName, ".")))
-              |> Stdlib.List.unique
+              unresolvedBoundNames
+              |> Stdlib.List.iter(fun name ->
+                Cli.printErr($"There is no trait called {name}.")
 
-            unresolvedBoundNames
-            |> Stdlib.List.iter(fun name ->
-              Cli.printErr($"There is no trait called {name}.")
+                let alsoAType =
+                  match LanguageTools.ProgramTypes.parsePackageLocation(name) with
+                  | location ->
+                    match LanguageTools.PackageManager.Type.find(ctx.branchId, location) with
+                    | Some(_) -> true
+                    | None -> false
 
-              let alsoAType =
-                match LanguageTools.ProgramTypes.parsePackageLocation(name) with
-                | location ->
-                  match LanguageTools.PackageManager.Type.find(ctx.branchId, location) with
-                  | Some(_) -> true
-                  | None -> false
+                if alsoAType then
+                  Stdlib.printErrorLine(
+                    (Stdlib.Cli.UI.Colors.hint(
+                      $"  {name} is a type. A bound names a trait: `'a: Display`, not `'a: SomeType`.")))
+                else
+                  Stdlib.printErrorLine(
+                    (Stdlib.Cli.UI.Colors.hint(
+                      "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")))
 
-              if alsoAType then
-                Stdlib.printErrorLine(
-                  (Stdlib.Cli.UI.Colors.hint(
-                    $"  {name} is a type. A bound names a trait: `'a: Display`, not `'a: SomeType`.")))
+                Stdlib.printLine(""))
+
+              if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedBoundNames)) then
+                Stdlib.Option.Option.None
               else
-                Stdlib.printErrorLine(
-                  (Stdlib.Cli.UI.Colors.hint(
-                    "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")))
+                let ops =
+                  [ LanguageTools.ProgramTypes.PackageOp.AddFn(packageFn)
+                    LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageFn(packageFn.hash), Stdlib.Option.Option.None) ]
 
-              Stdlib.printLine(""))
+                Stdlib.Option.Option.Some((ops, packageFn.hash, unresolvedNames))))
 
-            if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedBoundNames)) then
-              Stdlib.Option.Option.None
-            else
-              let ops =
-                [ LanguageTools.ProgramTypes.PackageOp.AddFn(packageFn)
-                  LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageFn(packageFn.hash), Stdlib.Option.Option.None) ]
-
-              Stdlib.Option.Option.Some((ops, packageFn.hash, unresolvedNames)))
-
-      | _ ->
-        // a precise parse error was already printed above; don't stack the
-        // generic hint on top of it
-        if hasParseError then
-          { state with exitCode = 1 }
-        else
-          [
-            (Stdlib.Cli.UI.Colors.error("Expected exactly one function declaration"))
-            ""
-            "Examples:"
-            "  fn double(x: Int64): Int64 = (x * 2)"
-            "  fn greet(name: String): String = \"Hello, \" + name"
-            ""
-          ] |> Cli.Stderr.lines
-          { state with exitCode = 1 }
-    | None ->
-      [
-        (Stdlib.Cli.UI.Colors.error("Failed to parse function definition"))
-        ""
-        "Make sure your syntax is correct. Examples:"
-        "  fn double(x: Int64): Int64 = (x * 2)"
-        "  fn greet(name: String): String = \"Hello, \" + name"
-        ""
-      ] |> Cli.Stderr.lines
-      { state with exitCode = 1 }
-  | Error(msg) ->
-    Cli.printErr($"Invalid location: {msg}")
-    { state with exitCode = 1 }
+      | _ -> Stdlib.Option.Option.None)
 
 
 let help(_state: Cli.AppState): String =

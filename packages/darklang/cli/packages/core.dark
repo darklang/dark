@@ -451,18 +451,55 @@ let commitAuthored(
   | Error(msg) -> Stdlib.Result.Result.Error(msg)
 
 
-/// Shared tail of the fn/type/val authoring flow: build the name-resolution
-/// context, convert the written declaration, check unresolved names, take the
-/// previous hashes, save, report, and repoint dependents. `kindWord` fills the
-/// output lines ("function" | "type" | "value"); `failState` is what a failed
-/// save returns (fn sets the exit code, type/val historically don't). `convert` answers None
-/// to refuse, having said why; nothing is written.
+/// What `fn`, `type`, `val` and `trait` share before saving: resolve <param locationStr>, parse the
+/// source <param toSource> writes for that location, and hand its one declaration to <param save>.
+/// A syntax error, or anything after the declaration, is reported and nothing is saved: the parser
+/// may recover a tree after errors. <param save> answers None for a declaration of another kind,
+/// and then, as when nothing parsed at all, <param hint> is printed.
+let authorInline(
+  state: Cli.AppState,
+  locationStr: String,
+  toSource: LanguageTools.ProgramTypes.PackageLocation -> String,
+  hint: List<String>,
+  save:
+    (LanguageTools.ProgramTypes.PackageLocation, LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration)
+      -> Stdlib.Option.Option<Cli.AppState>)
+  : Cli.AppState =
+  match Location.parseRelativeTo(state.packageData.currentLocation, locationStr) with
+  | Error(msg) ->
+    Cli.printErr($"Invalid location: {msg}")
+    Cli.failed(state)
+  | Ok(location) ->
+    let (tree, diagnostics) =
+      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, toSource(location))
+
+    let saved =
+      match tree with
+      | Some(SourceFile(sourceFile)) ->
+        if (Errors.reportParseErrors(diagnostics)) || (Errors.reportTrailing(sourceFile)) then
+          Stdlib.Option.Option.Some(Cli.failed(state))
+        else
+          match sourceFile.declarations with
+          | [ declaration ] -> save(location, declaration)
+          | _ -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+
+    match saved with
+    | Some(result) -> result
+    | None ->
+      hint |> Cli.Stderr.lines
+      Cli.failed(state)
+
+
+/// Shared tail of the authoring flow: build the name-resolution context, convert the written
+/// declaration, check unresolved names, take the previous hashes, save, report, and repoint
+/// dependents. `kindWord` fills the output lines ("function" | "type" | "value"). `convert`
+/// answers None to refuse, having said why; nothing is written, and the command fails.
 let saveAuthored(
   state: Cli.AppState,
   location: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind,
   kindWord: String,
-  failState: Cli.AppState,
   firstLineShift: Int64,
   convert:
     LanguageTools.NameResolver.NRContext
@@ -483,14 +520,14 @@ let saveAuthored(
         currentModule = location.modules }
 
   match convert(ctx) with
-  | None -> failState
+  | None -> Cli.failed(state)
   | Some(converted) ->
   // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
   let (ops, hash, unresolvedNames) = converted
 
   let home = Stdlib.List.prepend(location.modules, location.owner)
   if Errors.reportUnresolvedNames(state.currentBranchId, home, unresolvedNames) then
-    failState
+    Cli.failed(state)
   else
     match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
     | Ok(committed) ->
@@ -548,4 +585,4 @@ let saveAuthored(
       let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
       Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "", $"✗ Could not save {kindWord} {fullPath}: {msg}")
 
-      failState
+      Cli.failed(state)

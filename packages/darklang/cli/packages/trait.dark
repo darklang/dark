@@ -35,96 +35,60 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
       { state with exitCode = 1 }
     else
-      createTraitInline(
-        state.packageData.currentLocation,
-        location,
-        inlineDefinition,
-        state)
+      createTraitInline(state, location, inlineDefinition)
 
 
-let createTraitInline(
-  currentLocation: Packages.PackageLocation,
-  locationStr: String,
-  definition: String,
-  state: Cli.AppState)
-  : Cli.AppState =
-  match Location.parseRelativeTo(currentLocation, locationStr) with
-  | Ok(location) ->
-    let trimmedDefinition = Stdlib.String.trim(definition)
-    let fullSource =
-      if
-        Stdlib.String.startsWith(trimmedDefinition, "trait ")
-        || Stdlib.String.startsWith(trimmedDefinition, "///")
-      then
-        definition
-      else
-        $"trait {location.name}{definition}"
+/// The source to parse for <param definition>: a complete `trait Name<'a> = ...` declaration (doc
+/// comment included) as it is, otherwise the part after the name.
+let traitSource(name: String, definition: String): String =
+  let trimmedDefinition = Stdlib.String.trim(definition)
 
-    let (tree, diagnostics) =
-      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
+  if
+    Stdlib.String.startsWith(trimmedDefinition, "trait ")
+    || Stdlib.String.startsWith(trimmedDefinition, "///")
+  then
+    definition
+  else
+    $"trait {name}{definition}"
 
-    match tree with
-    | Some(SourceFile(sourceFile)) ->
-      // The parser may recover a tree after errors; do not save it.
-      let hasParseError =
-        (Errors.reportParseErrors(diagnostics))
-        || (Errors.reportTrailing(sourceFile))
-      let parsed =
-        if hasParseError then
-          Stdlib.Option.Option.None
-        else
-          match sourceFile.declarations with
-          | [ Trait(t) ] -> Stdlib.Option.Option.Some(t)
-          | _ -> Stdlib.Option.Option.None
 
-      match parsed with
-      | Some(t) when t.name.name != location.name ->
+let createTraitInline(state: Cli.AppState, locationStr: String, definition: String): Cli.AppState =
+  let hint =
+    [ (Stdlib.Cli.UI.Colors.error("Expected exactly one trait declaration"))
+      ""
+      "Example:"
+      "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""
+      "" ]
+
+  Packages.authorInline(
+    state,
+    locationStr,
+    (fun location -> traitSource(location.name, definition)),
+    hint,
+    fun(location, declaration) ->
+      match declaration with
+      | Trait(t) when t.name.name != location.name ->
         let actual = t.name.name
         Cli.printErr($"Trait name `{actual}` does not match target `{location.name}`")
         Stdlib.printErrorLine(
           (Stdlib.Cli.UI.Colors.hint(
             $"Rename it to `trait {location.name}<...> = ...`, or change the target.")))
-        { state with exitCode = 1 }
+        Stdlib.Option.Option.Some(Cli.failed(state))
 
-      | Some(t) ->
-        let failState = { state with exitCode = 1 }
+      | Trait(t) ->
+        Stdlib.Option.Option.Some(
+          Packages.saveAuthored(
+            state,
+            location,
+            LanguageTools.ProgramTypes.ItemKind.Trait,
+            "trait",
+            0,
+            fun ctx ->
+              let (packageTrait, ops, unresolvedNames) =
+                LanguageTools.WrittenTypesToProgramTypes.traitWithOps(ctx, t)
+              Stdlib.Option.Option.Some((ops, packageTrait.hash, unresolvedNames))))
 
-        Packages.saveAuthored(
-          state,
-          location,
-          LanguageTools.ProgramTypes.ItemKind.Trait,
-          "trait",
-          failState,
-          0,
-          fun ctx ->
-            let (packageTrait, ops, unresolvedNames) =
-              LanguageTools.WrittenTypesToProgramTypes.traitWithOps(ctx, t)
-            Stdlib.Option.Option.Some((ops, packageTrait.hash, unresolvedNames)))
-
-      | _ ->
-        if hasParseError then
-          { state with exitCode = 1 }
-        else
-          [
-            (Stdlib.Cli.UI.Colors.error("Expected exactly one trait declaration"))
-            ""
-            "Example:"
-            "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""
-            ""
-          ] |> Cli.Stderr.lines
-          { state with exitCode = 1 }
-    | None ->
-      [
-        (Stdlib.Cli.UI.Colors.error("Failed to parse trait definition"))
-        ""
-        "Example:"
-        "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""
-        ""
-      ] |> Cli.Stderr.lines
-      { state with exitCode = 1 }
-  | Error(msg) ->
-    Cli.printErr($"Invalid location: {msg}")
-    { state with exitCode = 1 }
+      | _ -> Stdlib.Option.Option.None)
 
 
 let help(_state: Cli.AppState): String =

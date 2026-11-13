@@ -126,8 +126,6 @@ let createImplInline(
                 modules = baseLocation.modules
                 name = implDecl.trait_.typ.name }
 
-        let failState = { state with exitCode = 1 }
-
         // One name holds ONE item here, and an implementation written in a module named for
         // its type lands on `<module>.<Trait>`, which is exactly where a trait DECLARED in
         // that module already sits. Binding over it unlists the trait, and the trait then
@@ -164,7 +162,7 @@ let createImplInline(
             "" ]
           |> Cli.Stderr.lines
 
-          failState
+          Cli.failed(state)
         else
 
           Packages.saveAuthored(
@@ -172,7 +170,6 @@ let createImplInline(
             location,
             LanguageTools.ProgramTypes.ItemKind.TraitImpl,
             "implementation",
-            failState,
             0,
             fun ctx ->
               // Lower from the MODULE the impl is written in; `implWithOps` builds
