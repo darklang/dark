@@ -1169,3 +1169,145 @@ gate_package_tests() {
     exit 1
   fi
 }
+
+# --- dark-format: the .dark files a change touches are formatted ------------------------------
+# `dark format --check` on the package files this branch changes, against main. It refuses a file
+# whose comments it would change, so a pass also says every comment survives. A change to the
+# formatter itself can move any file, so then, and with DARK_FORMAT_ALL=1, every file is checked.
+#
+# DARK_FORMAT_ALL=1 also proves formatting is safe when packages/ isn't formatted: it formats a
+# copy, loads the copy into its own store, and requires every name to hash as it does from the
+# tree as written and a second run to change nothing. That is the check the sweep is made with.
+# The files scripts/formatting/dark-format-skip lists are left as written, and not checked.
+dark_format_skipped() {  # dark_format_skipped <path relative to the checkout>
+  local s
+  while IFS= read -r s; do
+    [[ -n "$s" && "$1" == "$s"* ]] && return 0
+  done < <(grep -v -e '^#' -e '^$' scripts/formatting/dark-format-skip)
+  return 1
+}
+
+dark_format_changed_files() {
+  local base=""
+  if [[ -n "${CIRCLE_SHA1:-}" ]]; then
+    git fetch -q --depth=200 --filter=blob:none origin "+refs/heads/main:refs/remotes/origin/main" 2>/dev/null || true
+  fi
+  for ref in refs/remotes/upstream/main refs/remotes/origin/main; do
+    if git rev-parse -q --verify "$ref" >/dev/null; then
+      base=$(git merge-base "$ref" HEAD 2>/dev/null || true)
+      [[ -n "$base" ]] && break
+    fi
+  done
+  [[ -n "$base" ]] || return 1
+  { git diff --name-only --no-renames "$base" HEAD; git diff --name-only HEAD; git ls-files -o --exclude-standard packages; } \
+    | sort -u
+}
+
+gate_dark_format() {
+  set -euo pipefail
+
+  HOME=$(realpath -m rundir/dark-format); export HOME; WORK="$HOME/.darklang"
+  rm -rf "$HOME"
+  mkdir -p "$WORK/logs"
+  scripts/testing/_copy-store "$WORK/data.db"
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  [[ $CLI = /* ]] || CLI=$PWD/$CLI
+  "$CLI" permissions allow file read "$PWD/packages" </dev/null >/dev/null
+
+  local all=${DARK_FORMAT_ALL:-}
+  local files=()
+  if [[ -z "$all" ]]; then
+    if changed=$(dark_format_changed_files); then
+      if grep -qE '^(packages/darklang/prettyPrinter/|packages/darklang/languageTools/formatter\.dark$|packages/darklang/stdlib/pretty\.dark$|backend/src/LibParser/|backend/src/Builtins/Builtins\.(Pure/Libs/Pretty|Language/Libs/Formatter)\.fs$|scripts/formatting/dark-format-skip$)' <<<"$changed"; then
+        all=1
+      else
+        while IFS= read -r f; do
+          [[ "$f" == packages/*.dark && -f "$f" ]] && ! dark_format_skipped "$f" && files+=("$f")
+        done <<<"$changed"
+      fi
+    else
+      all=1
+    fi
+  fi
+
+  if [[ -z "$all" ]]; then
+    if [[ ${#files[@]} -eq 0 ]]; then
+      echo "dark-format: no .dark file changed."
+      return 0
+    fi
+    if ! DOTNET_gcServer=1 "$CLI" format --check "${files[@]}" </dev/null > "$WORK/logs/check.log" 2>&1; then
+      echo "dark-format: \`dark format\` would change these; run it on them:"
+      grep -v "formatted" "$WORK/logs/check.log" | head -20
+      exit 1
+    fi
+    echo "dark-format: the ${#files[@]} changed .dark file(s) are formatted."
+    return 0
+  fi
+
+  # Every file. A copy of packages/ in a tree that is otherwise the checkout, linked. Outside the
+  # checkout, since anything that walks the checkout would walk a link back into it forever.
+  ROOT=$(mktemp -d /tmp/dark-format-XXXXXX)
+  trap 'rm -rf "$ROOT"' EXIT
+  for entry in "$PWD"/* "$PWD"/.[!.]*; do
+    [[ -e "$entry" && "$(basename "$entry")" != packages ]] && ln -s "$entry" "$ROOT/"
+  done
+  cp -r packages "$ROOT/packages"
+  "$CLI" permissions allow file read+write "$ROOT" </dev/null >/dev/null
+  local all_files=()
+  while IFS= read -r f; do
+    dark_format_skipped "$f" || all_files+=("$ROOT/$f")
+  done < <(find packages -name '*.dark' -type f | sort)
+
+  start=$(date +%s)
+  # A collector per core (as `scripts/formatting/format` does): the cores otherwise wait on one.
+  DOTNET_gcServer=1 "$CLI" format "${all_files[@]}" </dev/null > "$WORK/logs/fmt-1.log" 2>&1 \
+    || { echo "dark-format: dark format failed:"; grep -v "formatted" "$WORK/logs/fmt-1.log" | tail -20; exit 1; }
+  took=$(( $(date +%s) - start ))
+  first=$(tail -1 "$WORK/logs/fmt-1.log")
+
+  if [[ "$first" == "0 formatted, "* ]]; then
+    echo "dark-format: packages/ is formatted ($first, ${took}s)."
+    return 0
+  fi
+
+  hashes() {
+    sqlite3 "$WORK/data.db" \
+      "SELECT branch_id, owner, modules, name, item_type, item_hash FROM locations
+       WHERE live = 1 AND draft = 0 ORDER BY 1, 2, 3, 4, 5"
+  }
+
+  ./scripts/build/reload-packages > "$WORK/logs/reload-as-written.log" 2>&1
+  written=$(hashes)
+
+  # The load rewrites package-ref-hashes.txt in the tree it loads, which here is the checkout's.
+  refs=backend/src/LibExecution/package-ref-hashes.txt
+  cp "$refs" "$WORK/package-ref-hashes.txt"
+  if ! DARK_CONFIG_ROOT_DIR="$ROOT" ./scripts/build/reload-packages \
+    > "$WORK/logs/reload-formatted.log" 2>&1; then
+    cp "$WORK/package-ref-hashes.txt" "$refs"
+    echo "dark-format: the formatted tree doesn't load:"
+    grep -E "^error|Failed to parse" "$WORK/logs/packages.log" | head -10
+    exit 1
+  fi
+  cp "$WORK/package-ref-hashes.txt" "$refs"
+  formatted=$(hashes)
+
+  n=$(wc -l <<<"$written")
+  if [[ "$written" != "$formatted" ]]; then
+    echo "dark-format: formatting packages/ changed hashes (as written <, formatted >):"
+    diff <(echo "$written") <(echo "$formatted") | grep "^[<>]" | head -10 || true
+    exit 1
+  fi
+
+  "$CLI" format "${all_files[@]}" </dev/null > "$WORK/logs/fmt-2.log" 2>&1 || true
+  again=$(tail -1 "$WORK/logs/fmt-2.log")
+  if [[ "$again" != "0 formatted, "* ]]; then
+    echo "dark-format: formatting a formatted tree changed it again: $again"
+    exit 1
+  fi
+
+  echo "dark-format: formatting packages/ (${took}s) keeps all $n hashes and every comment, and a"
+  echo "  second run changes nothing. But packages/ isn't formatted; \`scripts/formatting/format format packages\` changes:"
+  diff -rq packages "$ROOT/packages" | sed -e 's/^Files \([^ ]*\) and .*/  \1/' | head -20
+  exit 1
+}

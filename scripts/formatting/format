@@ -6,7 +6,7 @@ set -euo pipefail
 CHECK=255 # (0 mean check, 1 means format, 255 means error)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
-DARK=1 # (0 means check .dark files, 1 means don't; only --dark-only checks them)
+DARK=0 # (0 means check .dark files, 1 means don't)
 FILES=()
 
 #######################
@@ -20,7 +20,7 @@ function print_help ()
 	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
   printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
-  printf '\t%s\n' "--dark-only: Only check .dark files (under packages/, with the dev CLI). Without it, .dark is not checked"
+  printf '\t%s\n' "--dark-only: Only check .dark files (under packages/, with the dev CLI)"
 }
 
 FILES=()
@@ -43,7 +43,6 @@ for val in "${@}"; do
     --dark-only)
         FSHARP=1
         PRETTIER=1
-        DARK=0
         ;;
     check)
       CHECK=0
@@ -167,8 +166,9 @@ do_prettier() {
   fi
 }
 
-# `.dark` is formatted by `dark format`, so it needs the dev CLI built. Only packages/: it is package
-# source, which is what `dark format` reads.
+# `.dark` is formatted by `dark format`, so it needs the dev CLI built. CI's format step runs before
+# the build; the `dark-format` gate checks packages/ there, with the CLI the build makes. Only
+# packages/ is held to it: it is package source, which is what `dark format` reads.
 DARK_CLI=backend/Build/out/Cli/Debug/net10.0/Cli
 DARK_PATHS=()
 
@@ -233,8 +233,10 @@ for i in "${FILES[@]}"; do
         DARK_PATHS+=("$dir")
       fi
     fi
-  elif [[ 0 -eq "$DARK" ]] && is_dark "$i"; then
-    DARK_PATHS+=("$i")
+  elif is_dark "$i"; then
+    if [[ 0 -eq "$DARK" ]]; then
+      DARK_PATHS+=("$i")
+    fi
   elif is_allowed "$i"; then
     if is_fsharp "$i"; then
       if [[ 0 -eq "$FSHARP" ]]; then

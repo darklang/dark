@@ -1,5 +1,5 @@
 # The .dark files `dark format` leaves as written: a path, or a directory ending in `/`, one a line.
-# Read by scripts/formatting/format.
+# Read by scripts/formatting/format and the dark-format gate.
 
 # Each test here exists to parse one way of writing a construct (`elif`, `let ... in`, `(+)`,
 # `\u` escapes, an empty `___` parameter); formatted, they would all read the one way the printer
