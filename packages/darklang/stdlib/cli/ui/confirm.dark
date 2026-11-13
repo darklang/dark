@@ -46,8 +46,8 @@ let centred(region: Layout.Region, rows: Int64, cols: Int64): Layout.Region =
   let h = Stdlib.min(region.rows, rows)
 
   Layout.Region
-    { top = region.top + ((region.rows - h) / 2)
-      left = region.left + ((region.cols - w) / 2)
+    { top = region.top + (Stdlib.Int64.checkedDivide(region.rows - h, 2) |> Stdlib.Result.withDefault(0))
+      left = region.left + (Stdlib.Int64.checkedDivide(region.cols - w, 2) |> Stdlib.Result.withDefault(0))
       rows = h
       cols = w }
 

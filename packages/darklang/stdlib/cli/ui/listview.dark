@@ -38,7 +38,7 @@ let render(region: Layout.Region, displayLines: List<String>, selected: Int64): 
     let thumb =
       if total > region.rows then
         let thumbRow =
-          (selected * (region.rows - 1)) / (Stdlib.max(1, total - 1))
+          Stdlib.Int64.checkedDivide(selected * (region.rows - 1), Stdlib.max(1, total - 1)) |> Stdlib.Result.withDefault(0)
         Layout.at(region, thumbRow, region.cols - 1, Colors.colorize(Colors.cyan, "▐"))
       else
         []

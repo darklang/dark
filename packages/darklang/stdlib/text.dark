@@ -45,7 +45,7 @@ let clipToWidth(s: String, width: Int64): String =
       if hi - lo <= 1 then
         lo
       else
-        let mid = (lo + hi) / 2
+        let mid = Stdlib.Int64.checkedDivide(lo + hi, 2) |> Stdlib.Result.withDefault(0)
         if fits(mid) then search(mid, hi) else search(lo, mid)
 
     Stdlib.String.slice(s, 0, search(0, Stdlib.String.length(s)))
