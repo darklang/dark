@@ -303,12 +303,12 @@ module ExecutionError =
     let why =
       match approved with
       | None ->
-        $"`{name}` has no remembered approval; `dark permissions approve {name} {rule}` remembers this access."
+        $"`{name}` has no remembered approval. Remember this access:\n  dark permissions approve {name} {rule}"
       | Some(version) when Stdlib.Option.Option.Some(version) != Permissions.Command.latestVersion(branchId, name) ->
-        $"`{name}` changed since it was approved; `dark permissions update {name}` reviews the new version."
+        $"`{name}` changed since it was approved. Review the new version:\n  dark permissions update {name}"
       | Some(_) ->
-        $"The approval for `{name}` does not cover it; `dark permissions show {name}` shows what it allows."
-    $"permission denied: {resource} is not allowed. {why} For one run: `dark run --allow \"{rule}\" …`"
+        $"The approval for `{name}` does not cover it. Show its access:\n  dark permissions show {name}"
+    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow \"{rule}\" …"
 
   let toString(
     accountID: Stdlib.Option.Option<Uuid>,
@@ -326,7 +326,10 @@ module ExecutionError =
       match (denied.entry, denied.rule) with
       | (Some(name), Some(rule)) ->
         entryDenial(accountID, branchId, name, denied.resource, rule)
-      | _ -> PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, denied.error)
+      | _ ->
+        match denied.error with
+        | UncaughtException(message, []) -> message
+        | error -> PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error)
     | Cancelled -> "Cancelled."
     | Unhandled(u) ->
       match u.metadata with
@@ -337,6 +340,17 @@ module ExecutionError =
           |> Stdlib.List.map(fun((k, v)) -> $"  {k}: {v}")
           |> Stdlib.String.join("\n")
         $"Internal error: {u.message}\n{lines}"
+
+  /// Format an error for the terminal, with colors for permission errors.
+  let formatForTerminal(
+    accountID: Stdlib.Option.Option<Uuid>,
+    branchId: Uuid,
+    err: ExecutionError)
+    : String =
+    let message = toString(accountID, branchId, err)
+    match err with
+    | Denied(_) -> Text.stylePermissionError(message)
+    | _ -> message
 
   /// Skip entry-only stacks: they add no useful detail to a missing-name error.
   let hasReadableFrames(
