@@ -141,3 +141,32 @@ test savingAFunctionAndItsCalleeTogetherLeavesNoStaleCaller =
       run(dark, [ "module", "/Tests.Pair", path ])
       evals(dark, "Tests.App.c(1)", "133", "the caller runs both edits")
       same(staleCallers(dark), 0, "and nothing reads as on an old version") ])
+
+
+/// A helper return-type change must expose an incompatible saved Display.
+test savedDisplayMustMatchTheChangedReturnType =
+  scenario(fun dark ->
+    let caller = "(n: Int64): String = $\"<{Tests.ReturnChange.h(n)}>\""
+    [ save(dark, "Tests.ReturnChange.h", "(n: Int64): String = $\"{n}\"")
+      save(dark, "Tests.ReturnChange.a", caller)
+      run(dark, [ "typecheck", "Tests.ReturnChange" ])
+      save(
+        dark,
+        "Tests.ReturnChange.h",
+        "(n: Int64): Result<String, String> = Ok($\"{n}\")")
+      (let (code, _, audit) = exec(dark, [ "typecheck", "Tests.ReturnChange" ])
+       Stdlib.Test.all(
+         [ same(code, 1, "the stale implementation fails the audit")
+           Darklang.Cli.Tests.Instance.says(
+             audit, "Tests.ReturnChange.a", "the audit names the caller")
+           Darklang.Cli.Tests.Instance.says(
+             audit, "expected String", "the saved Display expects String")
+           Darklang.Cli.Tests.Instance.says(
+             audit, "Result", "the helper now returns Result") ]))
+      save(dark, "Tests.ReturnChange.a", caller)
+      run(dark, [ "typecheck", "Tests.ReturnChange" ])
+      evals(
+        dark,
+        "Tests.ReturnChange.a(1)",
+        "<Ok(1)>",
+        "the re-saved caller uses Result's Display") ])
