@@ -281,7 +281,7 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
   | Cancelled -> ()
   | _ ->
     ExecutionError.printCallStack(state.currentBranchId, "Script", e)
-    let pretty = ExecutionError.toString(state.accountID, state.currentBranchId, e)
+    let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)
     Stdlib.printErrorLine($"Script error: {pretty}")
   { state with exitCode = 1 }
 

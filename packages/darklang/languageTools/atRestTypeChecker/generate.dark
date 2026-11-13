@@ -693,6 +693,8 @@ let inferApply(
     let calleeName =
       match callee with
       | EFnName(_, name, _, _) -> Stdlib.Option.Option.Some(name.originalName)
+      | EValue(_, name) -> Stdlib.Option.Option.Some(name.originalName)
+      | EVariable(_, name) -> Stdlib.Option.Option.Some([ name ])
       | _ -> Stdlib.Option.Option.None
 
     let (resultType, applyConstraints) =
@@ -1393,7 +1395,7 @@ let apply(
 
   (result,
    all(
-     [ Model.Constraint.Apply(id, callee, Stdlib.List.concat(known, slots), result)
+     [ Model.Constraint.Apply(id, callee, name, Stdlib.List.concat(known, slots), result)
        all(argChecks) ]))
 
 /// One unknown and one check per argument of call <param id>, numbered from <param index>, in

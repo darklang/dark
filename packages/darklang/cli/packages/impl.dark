@@ -173,6 +173,7 @@ let createImplInline(
             LanguageTools.ProgramTypes.ItemKind.TraitImpl,
             "implementation",
             failState,
+            0,
             fun ctx ->
               // Lower from the MODULE the impl is written in; `implWithOps` builds
               // the member path and lowers the method fns beneath it.

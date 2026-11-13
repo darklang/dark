@@ -409,7 +409,7 @@ and private inferTVarsFromArgs
 /// needs the whole ValueType, so that still falls through.
 ///
 /// Same trick as `TypeChecker.unifyDvalSync`, on the other walk over the same arguments.
-let private inferTVarsFromDval
+let rec private inferTVarsFromDval
   (acc : TypeSymbolTable)
   (tr : TypeReference)
   (dv : Dval)
@@ -423,6 +423,17 @@ let private inferTVarsFromDval
     match dv with
     | DDict(keyV, valueV, _) ->
       inferTVarsFromArg (inferTVarsFromArg acc keyT keyV) valueT valueV
+    | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+  | TCustomType({ resolved = Ok _ }, typeArgs) ->
+    match dv with
+    | DEnum(_, _, vtArgs, _, _)
+    | DRecord(_, _, vtArgs, _) -> inferTVarsFromArgs acc typeArgs vtArgs
+    | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+  | TTuple(a, b, rest) ->
+    match dv with
+    | DTuple(a', b', rest') when List.length rest = List.length rest' ->
+      let acc = inferTVarsFromDval (inferTVarsFromDval acc a a') b b'
+      List.fold2 inferTVarsFromDval acc rest rest'
     | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
   | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
 
@@ -6468,25 +6479,29 @@ let private checkFrameReturnType
     let tst = currentFrame.typeSymbolTable
     // Every frame return checks its result, so the same sync-first treatment as the argument checks
     // applies: skip the bind when the answer needs no type lookup.
-    match
-      TypeChecker.tryUnifyWithAliasesSync
-        exeState.types
-        tst
-        expectedReturnType
-        resultOfFrame
-    with
-    | ValueSome _ ->
+    if TypeChecker.argFitsWithNothingToBind tst expectedReturnType resultOfFrame then
       recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
       completedUnit
-    | ValueNone ->
-      recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-      frameReturnTypeCheckAsync
-        exeState
-        vm
-        tst
-        expectedReturnType
-        resultOfFrame
-        fnName
+    else
+      match
+        TypeChecker.tryUnifyWithAliasesSync
+          exeState.types
+          tst
+          expectedReturnType
+          resultOfFrame
+      with
+      | ValueSome _ ->
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        completedUnit
+      | ValueNone ->
+        recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+        frameReturnTypeCheckAsync
+          exeState
+          vm
+          tst
+          expectedReturnType
+          resultOfFrame
+          fnName
 
 
 /// The trait a receiver call's pick is remembered under in `implSelectionMemo`: none, since the

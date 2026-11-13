@@ -76,6 +76,7 @@ let createValueInline(
           LanguageTools.ProgramTypes.ItemKind.Value,
           "value",
           { state with exitCode = 1 },
+          0,
           fun ctx ->
             let (packageValue, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT(

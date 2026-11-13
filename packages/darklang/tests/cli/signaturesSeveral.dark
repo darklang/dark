@@ -41,3 +41,15 @@ test aLongerModuleNamePointsAtTheShortOne =
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 1, "no such module")
         Instance.says(out, "Cli.Env", "the module is offered") ]))
+
+
+// A filter naming a module lists that module, not the ones whose names start the same way.
+test aModuleFilterIsThatModule =
+  Instance.withInstance(fun i ->
+    let (code, out) = Instance.ran(i, [ "docs", "signatures", "Stdlib.Http" ])
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "a module filter")
+        Instance.says(out, "responseWithJson(", "the module's fns are listed")
+        Instance.doesNotSay(out, "## HttpClient", "HttpClient is left out") ]))
+

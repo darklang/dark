@@ -282,8 +282,8 @@ let __fromParts(
   | _ -> Stdlib.Result.Result.Error("Invalid date format")
 
 
-/// Parses a string representing a date and time in the ISO 8601 format exactly {{" + ISO8601Format+ "}}
-/// (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}.
+/// Parses a UTC date and time in {{YYYY-MM-DDTHH:mm:ssZ}} or {{YYYY-MM-DDTHH:mm:ss.fffZ}} format,
+/// returning {{Result<DateTime, String>}}.
 let parse(s: String): Stdlib.Result.Result<DateTime, String> =
   match Stdlib.String.toList(s) with
   | [ y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, 'Z' ] ->
@@ -529,7 +529,16 @@ let __formatChars(date: __Fields, chars: List<Char>, written: List<String>)
 /// Any other {{%}} sequence, or a lone {{%}} at the end, is an {{Error}}.
 /// For example, {{format(d, "%Y-%m-%d %H:%M:%S.%f")}} gives {{Ok("2019-07-28 22:42:36.500")}}.
 let format(date: DateTime, pattern: String): Stdlib.Result.Result<String, String> =
-  __formatChars(__fieldsOf(date, pattern), Stdlib.String.toList(pattern), [])
+  // `HH:mm:ss` has no directive, so it would come back unchanged: refuse it instead
+  let foreign = [ "yyyy", "YYYY", "HH", "hh", "mm", "ss", "dd", "MM" ]
+  if
+    Stdlib.Bool.not(Stdlib.String.contains(pattern, "%"))
+    && Stdlib.List.any(foreign, fun f -> Stdlib.String.contains(pattern, f))
+  then
+    Stdlib.Result.Result.Error(
+      $"`{pattern}` has no % directive, so it would print as written; the directives are %Y %m %d %H %M %S %f %%")
+  else
+    __formatChars(__fieldsOf(date, pattern), Stdlib.String.toList(pattern), [])
 
 
 // Shared clock implementation.

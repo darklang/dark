@@ -264,3 +264,45 @@ let parse
               $"error at {r.start.row + 1}:{r.start.column + 1}: {msg}")
           )
   }
+
+
+/// Each call in <param ops> to a fn or value that does not exist, as "Item calls Name". The
+/// parser lowers such a call without complaint, since a local variable may stand behind the
+/// name, so without this it surfaces only when the call runs.
+let unresolvedCalls (ops : List<PT.PackageOp>) : List<string> =
+  let named =
+    ops
+    |> List.choose (function
+      | PT.PackageOp.SetName(loc, target, _) ->
+        Some(target.hash, LibDB.PackageLocation.toFQN loc)
+      | _ -> None)
+    |> Map.ofList
+  let unresolved (nr : PT.NameResolution<'a>) : List<string> =
+    match nr.resolved with
+    | Error _ -> [ String.concat "." nr.originalName ]
+    | Ok _ -> []
+  let rec missing (e : PT.Expr) : List<string> =
+    let here =
+      match e with
+      | PT.EFnName(_, nr, _, _) -> unresolved nr
+      | PT.EValue(_, nr) -> unresolved nr
+      | PT.EPipe(_, _, parts) ->
+        parts
+        |> List.collect (function
+          | PT.EPipeFnCall(_, nr, _, _, _) -> unresolved nr
+          | _ -> [])
+      | _ -> []
+    here @ (LibExecution.ProgramTypesAst.subExprs e |> List.collect missing)
+  ops
+  |> List.collect (fun op ->
+    let found hash body =
+      missing body
+      |> List.map (fun name ->
+        let item = Map.tryFind hash named |> Option.defaultValue "an unnamed item"
+        $"{item} calls {name}, which does not exist")
+    match op with
+    | PT.PackageOp.AddFn fn -> found fn.hash fn.body
+    | PT.PackageOp.AddValue v -> found v.hash v.body
+    // a test may call a missing name on purpose, to check the error a run gives
+    | _ -> [])
+  |> List.distinct
