@@ -147,11 +147,17 @@ let __fromOffset(ticks: Int64, count: Int64, unit: Int64): DateTime =
   Builtin.dateTimeFromUnixTicks(ticks, count, unit)
 
 /// `/` and `%` by a positive divisor, which every caller here passes.
+/// A plain match rather than `Result.withDefault`: these run a dozen times per calendar field, and
+/// the generic call cost more than the division.
 let __div(value: Int64, divisor: Int64): Int64 =
-  Stdlib.Int64.checkedDivide(value, divisor) |> Stdlib.Result.withDefault(0)
+  match Stdlib.Int64.checkedDivide(value, divisor) with
+  | Ok(q) -> q
+  | Error(_) -> 0
 
 let __mod(value: Int64, divisor: Int64): Int64 =
-  Stdlib.Int64.checkedMod(value, divisor) |> Stdlib.Result.withDefault(0)
+  match Stdlib.Int64.checkedMod(value, divisor) with
+  | Ok(r) -> r
+  | Error(_) -> 0
 
 /// `/` on Int64s rounds toward zero; dates before 1970 need it to round down.
 let __floorDiv(value: Int64, divisor: Int64): Int64 =
@@ -459,23 +465,44 @@ let subtractMs(d1: DateTime, d2: DateTime): Int64 =
 let zeroPadded(n: Int64, width: Int64): String =
   Stdlib.String.padStart(Stdlib.display(n), '0', width)
 
+/// The fields a {{format}} pattern can name, worked out once per call rather than once per
+/// directive: the calendar date alone takes a dozen divisions.
+type __Fields =
+  { year: Int64
+    month: Int64
+    day: Int64
+    ticksWithinDay: Int64 }
+
+let __fieldsOf(date: DateTime, pattern: String): __Fields =
+  // a pattern with only clock fields skips the calendar
+  let (y, m, d) =
+    if
+      Stdlib.String.contains(pattern, "%Y")
+      || Stdlib.String.contains(pattern, "%m")
+      || Stdlib.String.contains(pattern, "%d")
+    then
+      __civilFromDays(__daysSinceEpoch(date))
+    else
+      (0, 0, 0)
+  __Fields { year = y, month = m, day = d, ticksWithinDay = __ticksWithinDay(date) }
+
 /// The text for one {{format}} directive (the character after {{%}}), or {{None}} if it is not a directive
-let __formatDirective(date: DateTime, directive: Char): Stdlib.Option.Option<String> =
+let __formatDirective(f: __Fields, directive: Char): Stdlib.Option.Option<String> =
+  let t = f.ticksWithinDay
   match directive with
   | 'Y' ->
-    let y = year(date)
-    Stdlib.Option.Option.Some(if y < 0 then "-" + zeroPadded(0 - y, 4) else zeroPadded(y, 4))
-  | 'm' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int64.fromUInt8(Month.toNumber(month(date))), 2))
-  | 'd' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int64.fromUInt8(day(date)), 2))
-  | 'H' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int64.fromUInt8(hour(date)), 2))
-  | 'M' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int64.fromUInt8(minute(date)), 2))
-  | 'S' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int64.fromUInt8(second(date)), 2))
-  | 'f' -> Stdlib.Option.Option.Some(zeroPadded(Stdlib.Int64.fromUInt16(millisecond(date)), 3))
+    Stdlib.Option.Option.Some(if f.year < 0 then "-" + zeroPadded(0 - f.year, 4) else zeroPadded(f.year, 4))
+  | 'm' -> Stdlib.Option.Option.Some(zeroPadded(f.month, 2))
+  | 'd' -> Stdlib.Option.Option.Some(zeroPadded(f.day, 2))
+  | 'H' -> Stdlib.Option.Option.Some(zeroPadded(__div(t, __ticksPerHour()), 2))
+  | 'M' -> Stdlib.Option.Option.Some(zeroPadded(__mod(__div(t, __ticksPerMinute()), 60), 2))
+  | 'S' -> Stdlib.Option.Option.Some(zeroPadded(__mod(__div(t, __ticksPerSecond()), 60), 2))
+  | 'f' -> Stdlib.Option.Option.Some(zeroPadded(__mod(__div(t, __ticksPerMillisecond()), 1000), 3))
   | '%' -> Stdlib.Option.Option.Some("%")
   | _ -> Stdlib.Option.Option.None
 
 /// Writes <param chars> of a {{format}} pattern after <param written> (kept in reverse order)
-let __formatChars(date: DateTime, chars: List<Char>, written: List<String>)
+let __formatChars(date: __Fields, chars: List<Char>, written: List<String>)
   : Stdlib.Result.Result<String, String> =
   match chars with
   | [] -> Stdlib.Result.Result.Ok(Stdlib.String.join(Stdlib.List.reverse(written), ""))
@@ -502,7 +529,7 @@ let __formatChars(date: DateTime, chars: List<Char>, written: List<String>)
 /// Any other {{%}} sequence, or a lone {{%}} at the end, is an {{Error}}.
 /// For example, {{format(d, "%Y-%m-%d %H:%M:%S.%f")}} gives {{Ok("2019-07-28 22:42:36.500")}}.
 let format(date: DateTime, pattern: String): Stdlib.Result.Result<String, String> =
-  __formatChars(date, Stdlib.String.toList(pattern), [])
+  __formatChars(__fieldsOf(date, pattern), Stdlib.String.toList(pattern), [])
 
 
 // Shared clock implementation.
