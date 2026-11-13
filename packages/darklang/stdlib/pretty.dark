@@ -397,9 +397,10 @@ let __renderLoop(
     | Nest(j, x) ->
       __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i + j, m, x)))
     | Group(x) ->
-      // The one decision this whole module exists to make.
+      // The one decision this whole module exists to make. Inside a flat group it is made
+      // already: that group's check covered this one.
       let flat = List.prepend(rest, (i, Mode.Flat, x))
-      if __fits(false, width - col, flat) then
+      if m == Mode.Flat || __fits(false, width - col, flat) then
         __renderLoop(width, col, acc, indentDue, pending, flat)
       else
         __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, Mode.Break, x)))
@@ -455,7 +456,7 @@ let __breaksLoop(width: Int64, col: Int64, items: List<(Int64 * Mode * Doc)>): B
     | Nest(j, x) -> __breaksLoop(width, col, List.prepend(rest, (i + j, m, x)))
     | Group(x) ->
       let flat = List.prepend(rest, (i, Mode.Flat, x))
-      if __fits(false, width - col, flat) then
+      if m == Mode.Flat || __fits(false, width - col, flat) then
         __breaksLoop(width, col, flat)
       else
         __breaksLoop(width, col, List.prepend(rest, (i, Mode.Break, x)))
