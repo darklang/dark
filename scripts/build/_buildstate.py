@@ -35,9 +35,6 @@ FAILED = "failed"
 # the binaries any newer, so a lint-only build must not move the last-success mark:
 # that would declare a .fs edited in the same second already built.
 BUILD_ACTIONS = {
-  "fsharp_tool_restore",
-  "fsharp_paket_restore",
-  "fsharp_paket_install",
   "backend_full_build",
   "backend_quick_build",
   "run_migrations",

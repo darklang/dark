@@ -1,0 +1,42 @@
+<Project>
+  <!-- Every package version, exact. Transitive packages are pinned too: NuGet takes the lowest
+       version a dependency allows, so without these Microsoft.Extensions.* would fall to 2.0. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Expecto" Version="10.1.0" />
+    <PackageVersion Include="FSharp.Core" Version="10.0.100" />
+    <PackageVersion Include="Fumble" Version="1.0.3" />
+    <PackageVersion Include="Legivel" Version="0.4.6" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <PackageVersion Include="NodaTime" Version="3.2.2" />
+    <PackageVersion Include="NReco.Logging.File" Version="1.1.7" />
+    <PackageVersion Include="Ply" Version="0.3.1" />
+    <PackageVersion Include="SimpleBase" Version="4.0.0" />
+    <PackageVersion Include="System.IO.Hashing" Version="10.0.0" />
+    <PackageVersion Include="Wcwidth" Version="4.0.1" />
+  </ItemGroup>
+  <!-- Transitive -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Primitives" Version="10.0.5" />
+    <PackageVersion Include="Mono.Cecil" Version="0.11.6" />
+    <PackageVersion Include="SourceGear.sqlite3" Version="3.53.4" />
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
+    <PackageVersion Include="SQLitePCLRaw.config.e_sqlite3" Version="3.0.5" />
+    <PackageVersion Include="SQLitePCLRaw.core" Version="3.0.5" />
+    <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.5" />
+  </ItemGroup>
+</Project>

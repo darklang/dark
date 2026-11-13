@@ -24,7 +24,6 @@ all_yaml_files() {
     -o -path ./later \
     -o -path ./rundir \
     -o -path ./clis \
-    -o -path ./backend/paket-files \
     -o -path ./backend/Build \
     -o -name node_modules \
     \) -prune \

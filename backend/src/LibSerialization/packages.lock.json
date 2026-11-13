@@ -1,0 +1,64 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "FSharp.Core": {
+        "type": "Direct",
+        "requested": "[10.0.100, )",
+        "resolved": "10.0.100",
+        "contentHash": "c/r6T/HE9MWL0O0OispLtaKhVwDsiYQlLS249LoxSo1HNH/wfc0f5DE4pI6WpTXkCEdeXa66K5f9FmKLr/0cmw=="
+      },
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[10.0.15, )",
+        "resolved": "10.0.15",
+        "contentHash": "u0WnRcZgBZYHlVFpbe/3Adpmb9rmNJ8/fmEwqc/xjB7fFppq+gfaLJd3Sdaw+J02zV0eP/T9dneQ3Dv5jWw6bw=="
+      },
+      "libexecution": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "Ply": "[0.3.1, )",
+          "Prelude": "[1.0.0, )",
+          "System.IO.Hashing": "[10.0.0, )"
+        }
+      },
+      "prelude": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.0.100, )",
+          "NodaTime": "[3.2.2, )",
+          "Ply": "[0.3.1, )",
+          "Wcwidth": "[4.0.1, )"
+        }
+      },
+      "NodaTime": {
+        "type": "CentralTransitive",
+        "requested": "[3.2.2, )",
+        "resolved": "3.2.2",
+        "contentHash": "dmju5W0UYC3QP/UJM0juKAZkH0HSDMp0gH91A0+mT9M0kgyM2Jm67hUZPl/WRQLq8Lijjqmdk8kyAViWFWM7dA=="
+      },
+      "Ply": {
+        "type": "CentralTransitive",
+        "requested": "[0.3.1, )",
+        "resolved": "0.3.1",
+        "contentHash": "+Jtg/ID8isRXdvB0/vpsuSpzrLY33rYtzSscdfijOaXqRqzVdah08ljpOZhQPKuid4JRX3RRzxNqc1p8azZbbg==",
+        "dependencies": {
+          "FSharp.Core": "4.6.2"
+        }
+      },
+      "System.IO.Hashing": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "MqSp5IfX9RdWVwTED0WSRL1kZDNB7GlFj64O/NAJs4uO1beBHWEAFLlC7j8Fw/PkI+SUzooLVNvAe4aEkSwsRg=="
+      },
+      "Wcwidth": {
+        "type": "CentralTransitive",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "PMU8u3pGf9nUkee39KMrB8qqId7u7kyGWaZpOh9E4Mal3xChq+relS/hHQOicGAswyzi7F5DjXjac0mTnRBX8Q=="
+      }
+    }
+  }
+}

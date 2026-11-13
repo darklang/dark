@@ -31,9 +31,6 @@ class Should:
 
   # Ordered so callers can print a plan that matches what happens.
   ACTIONS = [
-    "fsharp_tool_restore",
-    "fsharp_paket_restore",
-    "fsharp_paket_install",
     "backend_full_build",
     "backend_quick_build",
     "run_migrations",
@@ -45,9 +42,6 @@ class Should:
   ]
 
   def __init__(self):
-    self.fsharp_tool_restore = False
-    self.fsharp_paket_restore = False
-    self.fsharp_paket_install = False
     self.backend_quick_build = False
     self.backend_full_build = False
     self.backend_test = False
@@ -79,19 +73,10 @@ def mark(should, f):
     # Not part of the product. Nothing under this path is built, loaded or linted.
     should.unrouted.append(f)
 
-  elif f == "backend/global.json" or \
-      f == "backend/.config/dotnet-tools.json" or \
-      f == "backend/Directory.Build.props":
-    should.fsharp_tool_restore = True
-
-  elif "backend/paket.dependencies" == f:
-    should.fsharp_paket_install = True
-
-  elif f.startswith("backend/") and f.endswith("paket.references"):
-    should.fsharp_paket_restore = True
-
-  elif f == "backend/Directory.Build.targets" or \
-      (f.startswith("backend/") and (f.endswith(".fsproj") or f.endswith(".sln"))):
+  elif f in ["backend/global.json", "backend/Directory.Build.props",
+             "backend/Directory.Build.targets", "backend/Directory.Packages.props"] or \
+      (f.startswith("backend/") and (f.endswith(".fsproj") or f.endswith(".sln")
+                                     or f.endswith("packages.lock.json"))):
     should.backend_full_build = True
 
   elif f.startswith("backend/") and \
@@ -170,12 +155,6 @@ def expand(should, run_tests=False):
   s = Should()
   s.__dict__.update({k: (list(v) if isinstance(v, list) else v)
                      for k, v in should.__dict__.items()})
-
-  if s.fsharp_tool_restore:
-    s.fsharp_paket_restore = True
-    s.backend_full_build = True
-  if s.fsharp_paket_restore or s.fsharp_paket_install:
-    s.backend_full_build = True
 
   if s.backend_full_build or s.backend_quick_build:
     if s.backend_full_build:

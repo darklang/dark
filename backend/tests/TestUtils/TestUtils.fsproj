@@ -22,5 +22,8 @@
     <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+  <ItemGroup>
+    <PackageReference Include="Expecto" />
+    <PackageReference Include="NReco.Logging.File" />
+  </ItemGroup>
 </Project>

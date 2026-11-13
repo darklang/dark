@@ -6,7 +6,8 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
     <Compile Include="Http.fs" />
     <Compile Include="Libs/HttpServer.fs" />
     <Compile Include="Builtin.fs" />
@@ -16,5 +17,4 @@
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

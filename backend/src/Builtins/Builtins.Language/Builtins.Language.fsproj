@@ -12,7 +12,8 @@
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
     <Compile Include="Libs/LanguageTools.fs" />
     <Compile Include="Libs/Parser.fs" />
     <Compile Include="Libs/Formatter.fs" />
@@ -21,5 +22,4 @@
     <Compile Include="Libs/Exec.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
-  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -272,7 +272,7 @@ sha256_of() {
 }
 
 # Everything that goes into one runtime's binary, one `name value` per line. The tree
-# covers the source, paket.lock and global.json; the rest are inputs git ignores, or
+# covers the source, the package locks and global.json; the rest are inputs git ignores, or
 # that come from the build host.
 #
 # The seed is named by its bytes when it's passed in. One exported here is named by the
@@ -355,8 +355,6 @@ if [[ -n "$SEED_PATH" ]]; then
   fi
 else
   # Refresh LocalExec and packages before exporting this checkout's seed.
-  scripts/build/_dotnet-wrapper tool restore
-  scripts/build/_dotnet-wrapper paket restore --fail-on-checks
   scripts/build/_dotnet-wrapper build --configuration Debug src/LocalExec/LocalExec.fsproj
   scripts/build/run-migrations
   scripts/build/reload-packages

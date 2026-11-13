@@ -28,7 +28,6 @@ find . \
   -o -name node_modules \
   -o -name rundir \
   -o -name Build \
-  -o -name paket-files \
   -o -name static \
   \) -prune \
   -o -type f \
