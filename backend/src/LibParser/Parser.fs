@@ -3351,10 +3351,18 @@ and private parseDictEntries
     if kAfterKey <= k then
       errExpected state k "a dict entry 'key: value'"
       (entriesRev, k)
-    elif tok state kAfterKey <> TColon then
+    elif tok state kAfterKey <> TColon && tok state kAfterKey <> TEquals then
       errExpected state kAfterKey "`:` between a dict key and its value"
       (entriesRev, k)
     else
+      // `key = value` is a record field written in a dict. Say so once and read on as if it
+      // were `:`, so the rest of the dict does not turn into a screenful of follow-on errors.
+      if tok state kAfterKey = TEquals then
+        err
+          state
+          DiagnosticCode.expected
+          kAfterKey
+          "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields"
       let colonR = rng state kAfterKey
       let (value, k2) = parseExpr state (kAfterKey + 1)
       let entriesRev =
@@ -4717,7 +4725,11 @@ let private parseSyntaxWithRootScope
           message = m
           related = []
           hint = None })
-    { result with diagnostics = lexDiagnostics @ result.diagnostics }
+    // in source order, so the first error printed is the first one in the file
+    { result with
+        diagnostics =
+          lexDiagnostics @ result.diagnostics
+          |> List.sortBy (fun d -> (d.range.start.row, d.range.start.column)) }
 
 let private parseRecovering
   (rootScope : ItemScope)

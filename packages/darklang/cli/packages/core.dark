@@ -302,6 +302,10 @@ type Committed =
     followed: Propagate.Followed
     /// The save's own type error, named, if it has one.
     ownIssue: Stdlib.Option.Option<String>
+    /// The node the issue in <field ownIssue> is about, which may carry where it is.
+    ownIssueNode: Stdlib.Option.Option<UInt64>
+    /// How many issues there are besides the one in <field ownIssue>.
+    otherIssues: Int64
     /// Another name that already held the version this name now holds.
     sameAs: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
     report: LanguageTools.AtRestTypeChecker.Report }
@@ -390,7 +394,9 @@ let commitAuthored(
     let ownIssue =
       match report.verdict with
       | Failed ->
-        let issues = Stdlib.List.concat(report.warnings, report.diagnostics)
+        // definite errors first: a warning such as AmbiguousType is often what an error
+        // left behind, and only the first issue is shown
+        let issues = Stdlib.List.concat(report.diagnostics, report.warnings)
 
         match issues with
         | [] -> Stdlib.Option.Option.Some("it failed the type check")
@@ -412,14 +418,23 @@ let commitAuthored(
                   (fun hash -> AtRestCheck.customTypeName(branchId, hash)),
                   issue))
 
-          let more =
-            if Stdlib.List.isEmpty(rest) then
-              ""
-            else
-              " (and " + (Stdlib.display(Stdlib.List.length(rest))) + " more)"
-
-          Stdlib.Option.Option.Some(first + more)
+          Stdlib.Option.Option.Some(first)
       | _ -> Stdlib.Option.Option.None
+
+    let ownIssueNode =
+      match report.verdict with
+      | Failed ->
+        Stdlib.List.concat(report.diagnostics, report.warnings)
+        |> Stdlib.List.head
+        |> Stdlib.Option.andThen(fun issue -> issue.nodeId)
+      | _ -> Stdlib.Option.Option.None
+
+    let otherIssues =
+      match report.verdict with
+      | Failed ->
+        let all = Stdlib.List.length(Stdlib.List.concat(report.diagnostics, report.warnings))
+        if all > 1 then all - 1 else 0
+      | _ -> 0
 
     Stdlib.Result.Result.Ok(
       Committed
@@ -429,6 +444,8 @@ let commitAuthored(
           boundHash = boundHash
           followed = followed
           ownIssue = ownIssue
+          ownIssueNode = ownIssueNode
+          otherIssues = otherIssues
           sameAs = sameAs
           report = report })
   | Error(msg) -> Stdlib.Result.Result.Error(msg)
@@ -446,6 +463,7 @@ let saveAuthored(
   kind: LanguageTools.ProgramTypes.ItemKind,
   kindWord: String,
   failState: Cli.AppState,
+  firstLineShift: Int64,
   convert:
     LanguageTools.NameResolver.NRContext
       -> Stdlib.Option.Option<(List<LanguageTools.ProgramTypes.PackageOp>
@@ -470,7 +488,8 @@ let saveAuthored(
   // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
   let (ops, hash, unresolvedNames) = converted
 
-  if Errors.reportUnresolvedNames(state.currentBranchId, unresolvedNames) then
+  let home = Stdlib.List.prepend(location.modules, location.owner)
+  if Errors.reportUnresolvedNames(state.currentBranchId, home, unresolvedNames) then
     failState
   else
     match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
@@ -495,7 +514,7 @@ let saveAuthored(
         let alsoNamed =
           match committed.sameAs with
           | Some(other) ->
-            $" (also named {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(other)})"
+            $" (same code as {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(other)}, stored once)"
           | None -> ""
         Stdlib.printLine($"{glyph} {action} {kindWord} {fullPath}{alsoNamed}")
       else
@@ -504,10 +523,21 @@ let saveAuthored(
 
       match ownIssue with
       | Some(why) ->
+        let at =
+          match
+            AtRestCheck.positionShifted(
+              committed.ownIssueNode,
+              Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64))
+          with
+          | Some(p) -> $" ({p})"
+          | None -> ""
         Cli.Text.printWrappedErr(
           Stdlib.Cli.UI.Colors.error,
           "  ",
-          $"type error: {why}; saved as a draft, `dark commit` will refuse it")
+          let more =
+            if committed.otherIssues == 0 then ""
+            else $" (and {Stdlib.display(committed.otherIssues)} more)"
+          $"type error: {why}{at}{more}; saved as a draft, `dark commit` will refuse it")
       | None -> ()
 
       Propagate.printFollowed(followed)

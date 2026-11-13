@@ -73,3 +73,16 @@ module WriteErrors =
       result |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.OsAccessDenied)))
     |> Builtin.unwrap
+
+
+module ListErrors =
+  test missingDirectory =
+    Stdlib.Cli.FileSystem.listDirectory("/nonexistent-dark-test-dir")
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound))
+
+  test existingDirectory =
+    Stdlib.Cli.Dir.withTemp(fun dir ->
+      let _ = Stdlib.Cli.File.writeText(dir + "/a.txt", "x") |> Builtin.unwrap
+      Stdlib.Cli.FileSystem.listDirectory(dir)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ dir + "/a.txt" ])))
+    |> Builtin.unwrap

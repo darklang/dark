@@ -773,12 +773,7 @@ let private resolvePosix
                 accessMode = HostPosix.O_WRONLY || accessMode = HostPosix.O_RDWR }
         Response.Descriptor token
     let accessMode = flags &&& 3
-    let reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
-    let writes =
-      accessMode = HostPosix.O_WRONLY
-      || accessMode = HostPosix.O_RDWR
-      || (flags &&& (HostPosix.O_CREAT ||| HostPosix.O_TRUNC ||| HostPosix.O_APPEND))
-         <> 0
+    let reads, writes = HostPosix.openAccess flags
     if not reads && not writes then
       Error(rejected $"unsupported open access mode: {accessMode}")
     elif reads && writes then

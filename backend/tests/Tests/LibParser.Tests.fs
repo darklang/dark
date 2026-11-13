@@ -170,7 +170,14 @@ let private parserStructureTests =
           (result.diagnostics |> List.map (fun d -> d.message))
           [ "a lambda's parameters take no type annotation; write `fun u ->`"
             "a lambda's parameters take no type annotation; write `fun u ->`" ]
-          "one per annotation, and nothing after") ]
+          "one per annotation, and nothing after")
+      testCase "a dict written with = says so once per entry" (fun _ ->
+        let result = P.parse "Dict { \"a\" = 1, \"b\" = Point { x = 1 } }"
+        Expect.equal
+          (result.diagnostics |> List.map (fun d -> d.message))
+          [ "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields"
+            "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields" ]
+          "one error per entry, and nothing after it") ]
 
 
 /// Parse `src` and return its single trailing expression — the range-complete
@@ -1636,7 +1643,25 @@ let private traitTests =
 let tests =
   testList
     "LibParser"
-    [ testCase "private names reach package lookup" (fun _ ->
+    [ testCase "a call to a missing fn is named for the reload to refuse" (fun _ ->
+        let ops =
+          (LibParser.Package.parse
+            (LibExecution.Builtin.make [] [])
+            PT.PackageManager.empty
+            NR.OnMissing.Allow
+            "module Me.Probe =\n  let f(x: Int64): Int64 = Me.Gone.g(x)\n  let h(x: Int64): Int64 = x"
+           |> Ply.toTask)
+            .Result
+        match ops with
+        | Ok ops ->
+          Expect.equal
+            (LibParser.Package.unresolvedCalls (
+              LibDB.HashStabilization.computeRealHashes ops
+            ))
+            [ "Me.Probe.f calls Me.Gone.g, which does not exist" ]
+            "only the call to nothing"
+        | Error e -> failtest $"did not parse: {e}")
+      testCase "private names reach package lookup" (fun _ ->
         for name in [ "__helper"; "__helper_v0" ] do
           let result =
             (NR.resolveFnName

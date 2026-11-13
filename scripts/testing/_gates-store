@@ -556,6 +556,19 @@ DARK
   done
   HOME="${WORK%/.darklang}"
 
+  # --- case 3: a save with a type error reports the error, not the calls it left unresolved ---
+  saved=$($CLI fn Stachu.Fit.broken - 2>&1 <<'DARK' | clean || true
+(xs: List<(String * Int64)>): List<(String * Int64)> =
+  xs |> Stdlib.List.sortBy(fun (_, c) -> -c)
+DARK
+)
+  if [[ "$saved" != *"type error"* || "$saved" == *"[traitcalls]"* ]]; then
+    echo "trait-checker-vs-dispatch: a save with a type error should show the type error and no"
+    echo "  [traitcalls] line. It answered:"
+    echo "    ${saved//$'\n'/$'\n'    }"
+    exit 1
+  fi
+
   echo "trait-checker-vs-dispatch: a live implementation types and runs ($live); once it is"
   echo "  deprecated the checker refuses the save with MissingImpl, as dispatch does; and a saved"
   echo "  call takes the implementation whose TYPE ARGUMENTS fit, in either authoring order."
