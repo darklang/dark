@@ -903,12 +903,15 @@ type PackageOp =
   /// what `constraints` is for. `previous` is the hash it unbound, for the same reason `SetName`
   /// carries one: a merge wants to know what was replaced.
   ///
-  /// Not a `Deprecate`: deprecation is a statement about CONTENT and keys on the hash, so it would also
-  /// mark every other name bound to the same body, and a deprecated name still resolves. A location's
-  /// identity is (owner, modules, name), so no kind: whatever kind holds the name is what goes.
+  /// Not a `Deprecate`: a deprecated name still resolves. A location's identity is
+  /// (owner, modules, name), so no kind: whatever kind holds the name is what goes.
   | Unbind of location : PackageLocation * previous : Option<Hash>
 
-  // Deprecation: author-initiated annotation on a specific content hash.
+  // Deprecation: author-initiated annotation on a NAME, and the content it held when said.
+  //
+  // Keyed on the location, like `UpdateDoc`, because content is shared: `Probe.v = 5` is the same
+  // item as every other `= 5` in the store, and deprecating the probe must not deprecate those.
+  // `target` is what the name held, so a later rebind to new content is not deprecated by it.
   //
   // Future: implicit deprecations as Constraints.
   //
@@ -937,19 +940,23 @@ type PackageOp =
   // the op that said it the first time and folds to nothing. `Inserts.restateOrDrop` stamps it, via `PT.restating`, and only when what the op says is
   // not what currently stands.
   | Deprecate of
+    location : PackageLocation *
     target : Reference *
     kind : DeprecationKind *
     message : string *
     restating : Option<string>
 
-  /// Clear any prior deprecation on a target.
+  /// Clear any prior deprecation of <param target> at <param location>.
   ///
   /// `restating` matters MORE here than on `Deprecate`: this op carries only its target, so
   /// without a stamp there is exactly one possible `Undeprecate` per item for all time.
   ///
   /// TODO: merge-into-main needs a permission axis once ACLs land (a branch
   ///   shouldn't silently un-Harmful on merge).
-  | Undeprecate of target : Reference * restating : Option<string>
+  | Undeprecate of
+    location : PackageLocation *
+    target : Reference *
+    restating : Option<string>
 
   /// What the thing at a NAME says about itself, or one named part of it.
   ///
@@ -1278,9 +1285,10 @@ let restating (ts : string) (op : PackageOp) : Option<PackageOp> =
   // Deprecation is the same shape again, with the inverse spelled out as its own op rather than
   // implied by a later binding: deprecate, undeprecate, deprecate the same way is three decisions
   // and the third must not dedupe into the first.
-  | PackageOp.Deprecate(target, kind, message, _) ->
-    Some(PackageOp.Deprecate(target, kind, message, Some ts))
-  | PackageOp.Undeprecate(target, _) -> Some(PackageOp.Undeprecate(target, Some ts))
+  | PackageOp.Deprecate(location, target, kind, message, _) ->
+    Some(PackageOp.Deprecate(location, target, kind, message, Some ts))
+  | PackageOp.Undeprecate(location, target, _) ->
+    Some(PackageOp.Undeprecate(location, target, Some ts))
   | _ -> None
 
 

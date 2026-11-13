@@ -82,7 +82,7 @@ describe() {
     workbench-views)        echo 'every workbench view, one session each' ;;
     first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;
     backups-restore)        echo 'backup, wipe, restore; the destructive verbs ask first' ;;
-    old-store-resets)       echo 'a store from before per-branch names: backed up, reset, refilled' ;;
+    old-store-resets)       echo 'a store with older package tables: backed up, reset, refilled' ;;
     reload-is-reproducible) echo 'two reloads of one tree agree on every op id' ;;
     trait-choice-survives-rival) echo 'a saved call keeps its implementation when a newer rival lands' ;;
     trait-choice-any-batching) echo 'the choice is recorded whether trait, impls and callers are saved together or apart' ;;

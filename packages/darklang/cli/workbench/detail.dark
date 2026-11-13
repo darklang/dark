@@ -482,16 +482,16 @@ let itemMeta(
   item: BodyItem,
   results: LanguageTools.ProgramTypes.Search.SearchResults)
   : String =
-  let hashOpt =
-    if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "test" then results.tests |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
+  let itemAt =
+    if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "test" then results.tests |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
   let short =
-    match hashOpt with
-    | Some(h) -> LanguageTools.ProgramTypes.hashToShort(h)
+    match itemAt with
+    | Some((_, h)) -> LanguageTools.ProgramTypes.hashToShort(h)
     | None -> "?"
   let kindLabel =
     if item.kind == "fn" then "fn"
@@ -502,10 +502,10 @@ let itemMeta(
     else "value"
   // Real deprecation status (same read path as the tree badge).
   let deprecation =
-    match hashOpt with
-    | Some(h) ->
+    match itemAt with
+    | Some((location, h)) ->
       let sets = Packages.Query.loadDeprecationSets(state.branchId)
-      if Packages.Query.isDeprecated(sets, h) then
+      if Packages.Query.isDeprecatedAtLocation(sets, location, h) then
         "  " + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, "⚠ deprecated"))
       else ""
     | None -> ""

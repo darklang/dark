@@ -87,12 +87,34 @@ let resolveTarget(
 
 
 /// What `deprecate` is being pointed at: the kind, its word (for the messages), the name as typed,
-/// and the item it resolved to.
+/// the name it means, which is what the deprecation is said at, and the item it resolved to there.
 type Target =
   { itemKind: LanguageTools.ProgramTypes.ItemKind
     itemTypeStr: String
     target: String
+    location: LanguageTools.ProgramTypes.PackageLocation
     targetRef: LanguageTools.ProgramTypes.Reference }
+
+
+/// `target` as a <type Target> of `itemKind`, or None when nothing of that kind is there.
+let resolveAt(
+  branchId: Uuid,
+  currentLoc: Packages.PackageLocation,
+  itemKind: LanguageTools.ProgramTypes.ItemKind,
+  itemTypeStr: String,
+  target: String)
+  : Stdlib.Option.Option<Target> =
+  match Location.parseRelativeTo(currentLoc, target) with
+  | Ok(location) ->
+    resolveTarget(branchId, currentLoc, itemKind, target)
+    |> Stdlib.Option.map(fun targetRef ->
+      Target
+        { itemKind = itemKind
+          itemTypeStr = itemTypeStr
+          target = target
+          location = location
+          targetRef = targetRef })
+  | Error(_) -> Stdlib.Option.Option.None
 
 
 val allItemKinds =
@@ -118,14 +140,8 @@ let resolveKindAndTarget(
   : Stdlib.Result.Result<Target, String> =
   match (LanguageTools.ProgramTypes.ItemKind.fromString(first)), second with
   | (Some(itemKind), Some(target)) ->
-    match resolveTarget(branchId, currentLoc, itemKind, target) with
-    | Some(targetRef) ->
-      Stdlib.Result.Result.Ok(
-        Target
-          { itemKind = itemKind
-            itemTypeStr = first
-            target = target
-            targetRef = targetRef })
+    match resolveAt(branchId, currentLoc, itemKind, first, target) with
+    | Some(found) -> Stdlib.Result.Result.Ok(found)
     | None -> Stdlib.Result.Result.Error($"Could not resolve {first} {target}")
 
   // A kind word and nothing after it: say that, rather than looking for an item called `fn`.
@@ -142,16 +158,7 @@ let resolveKindAndTarget(
       allItemKinds
       |> Stdlib.List.filterMap(fun pair ->
         let (k, word) = pair
-
-        match resolveTarget(branchId, currentLoc, k, first) with
-        | Some(targetRef) ->
-          Stdlib.Option.Option.Some(
-            Target
-              { itemKind = k
-                itemTypeStr = word
-                target = first
-                targetRef = targetRef })
-        | None -> Stdlib.Option.Option.None)
+        resolveAt(branchId, currentLoc, k, word, first))
 
     match found with
     | [ one ] -> Stdlib.Result.Result.Ok(one)
@@ -193,18 +200,71 @@ let parseKind(
       $"Unknown kind '{other}'. Expected: superseded-by, harmful, obsolete")
 
 
-/// Every live name on this branch bound to this exact content (item_hash + kind). Deprecation keys on CONTENT,
-/// not name, so deprecating one deprecates ALL of these — for a trivial value (0/1/true/"") that can be many
-/// unrelated names, including stdlib constants (deprecating a `= 1` retires `Errno.eperm`). We surface the
-/// full set before the confirm so the collateral is never a surprise. A normal fn/type has a near-unique
-/// hash, so this is a single name and no heads-up fires.
-let namesAtContent(branchId: Uuid, hashStr: String, itemType: String): List<String> =
-  SCM.PackageOps.namesAtContent(branchId, hashStr, itemType)
+/// The other names holding the content `target` holds at `location`. Deprecated and deleted leave
+/// them alone; harmful marks them too, because it is about the code.
+let twinsOf(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  target: LanguageTools.ProgramTypes.Reference)
+  : List<LanguageTools.ProgramTypes.PackageLocation> =
+  let hash = LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))
+  let kind = LanguageTools.ProgramTypes.ItemKind.toString(LanguageTools.ProgramTypes.Reference.kind(target))
+
+  SCM.Bindings.query(SCM.Bindings.BindingFilter.ByHash(branchId, hash, kind))
+  |> Stdlib.List.map(fun b ->
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = b.owner
+        modules = if b.modules == "" then [] else Stdlib.String.split(b.modules, ".")
+        name = b.name })
+  |> Stdlib.List.unique
+  |> Stdlib.List.filter(fun l -> l != location)
+
+
+/// The one line that says other names share this code: `what` is what happens to them.
+let sayShared(twins: List<LanguageTools.ProgramTypes.PackageLocation>, what: String, listed: Bool): Unit =
+  match twins with
+  | [] -> ()
+  | _ ->
+    let n = Stdlib.List.length(twins)
+    let share = if n == 1 then "shares" else "share"
+    let are = if n == 1 then "is" else "are"
+    let names =
+      if listed then
+        ": "
+        + (twins
+           |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
+           |> Stdlib.String.join(", "))
+      else
+        ""
+    Stdlib.printErrorLine(
+      Stdlib.Cli.UI.Colors.hint(
+        $"  {Cli.Text.plural(n, "other name")} {share} this code and {are} {what}{names}"))
+
+
+/// Whether the item at `location` is marked harmful.
+let harmfulAt(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  target: LanguageTools.ProgramTypes.Reference)
+  : Bool =
+  match
+    LanguageTools.PackageManager.currentDeprecation(
+      branchId,
+      location,
+      LanguageTools.ProgramTypes.Reference.hash(target),
+      LanguageTools.ProgramTypes.Reference.kind(target))
+  with
+  | Some(standing) ->
+    let (kind, _) = standing
+    match kind with
+    | Harmful -> true
+    | _ -> false
+  | None -> false
 
 
 /// What `deprecate --json` and `delete --json` print. `dryRun` is true when nothing was written: `--dry-run`,
-/// or `--json` without `--yes`, since there is nobody to ask. `names` is every name the deprecation reaches,
-/// the target included, because it keys on content.
+/// or `--json` without `--yes`, since there is nobody to ask. `names` is every name the deprecation reaches:
+/// the target alone, or for harmful every name holding the same code.
 type DeprecateJson =
   { deprecated: String
     itemType: String
@@ -246,6 +306,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
       let itemKind = found.itemKind
       let itemTypeStr = found.itemTypeStr
       let target = found.target
+      let location = found.location
       let targetRef = found.targetRef
         // --replacement has three outcomes we care about:
         //   - absent: None (only valid for non-superseded-by kinds)
@@ -299,14 +360,13 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
           let fullPath = fullPathOf(target)
 
-          // Deprecation is content-keyed, so every name bound to this content is deprecated together.
-          // `affected` always includes the target itself.
-          let affected =
-            namesAtContent(
-              branchId,
-              (LanguageTools.ProgramTypes.hashToString(
-                LanguageTools.ProgramTypes.Reference.hash(targetRef))),
-              itemTypeStr)
+          // Harmful is about the code, so it marks every name holding it; the rest are by name.
+          let twins = twinsOf(branchId, location, targetRef)
+          let harmful =
+            match deprecationKind with
+            | Harmful -> true
+            | _ -> false
+          let marked = if harmful then Stdlib.List.prepend(twins, location) else [ location ]
 
           let report = fun(dryRun) ->
             Cli.printJson(
@@ -318,7 +378,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                     replacement =
                       parsed.replacement |> Stdlib.Option.map(fullPathOf) |> Stdlib.Option.withDefault("")
                     message = parsed.message
-                    names = affected
+                    names = marked |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
                     dryRun = dryRun }))
 
           // Under --dry-run the preview is the answer, so it goes to stdout. Otherwise it is what the
@@ -335,17 +395,10 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             | Some(r) -> preview($"    replacement: {r}")
             | None -> ()
 
-            // Two or more names: list them all so the confirm is informed. The warning is on
-            // stderr; the names are what would be deprecated, so they go with the preview.
-            match affected with
-            | [] -> ()
-            | [ _ ] -> ()
-            | _ ->
-              Stdlib.printErrorLine(
-                (Stdlib.Cli.UI.Colors.warning(
-                  $"  Heads up: this {itemTypeStr}'s content is bound to multiple names -- deprecation keys on content, so ALL of these are deprecated together:")))
-              affected
-              |> Stdlib.List.iter(fun a -> preview($"    - {a}"))
+          if harmful then
+            sayShared(twins, "also marked harmful", true)
+          else
+            sayShared(twins, "unaffected", false)
 
           if parsed.dryRun || (parsed.json && Stdlib.Bool.not(parsed.autoConfirm)) then
             if parsed.json then
@@ -360,12 +413,15 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 Stdlib.Cli.UI.Colors.warning("Proceed? (y/n): "))
 
             if proceed then
-              let op =
-                LanguageTools.ProgramTypes.PackageOp.Deprecate(targetRef,
-                   deprecationKind,
-                   parsed.message,
-                   Stdlib.Option.Option.None)
-              match SCM.PackageOps.add(branchId, [ op ]) with
+              let ops =
+                marked
+                |> Stdlib.List.map(fun l ->
+                  LanguageTools.ProgramTypes.PackageOp.Deprecate(l,
+                     targetRef,
+                     deprecationKind,
+                     parsed.message,
+                     Stdlib.Option.Option.None))
+              match SCM.PackageOps.add(branchId, ops) with
               | Ok(_) ->
                 // Report what is in EFFECT, not that the write returned Ok. The two can differ:
                 // an op's identity is its content, so a deprecation that was later undone is the
@@ -375,6 +431,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
                 match
                   LanguageTools.PackageManager.currentDeprecation(
                     branchId,
+                    location,
                     LanguageTools.ProgramTypes.Reference.hash(targetRef),
                     itemKind)
                 with
@@ -440,11 +497,8 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
     let resolved =
       allItemKinds
       |> Stdlib.List.filterMap(fun pair ->
-        let (k, _) = pair
-
-        match resolveTarget(branchId, currentLoc, k, target) with
-        | Some(r) -> Stdlib.Option.Option.Some((k, r))
-        | None -> Stdlib.Option.Option.None)
+        let (k, word) = pair
+        resolveAt(branchId, currentLoc, k, word, target))
 
     match resolved with
     | [] ->
@@ -459,8 +513,10 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
         Stdlib.Cli.UI.Colors.hint("  say which: `dark deprecate <fn|type|value|trait|impl> <name>`"))
 
       Cli.failed(state)
-    | [ pair ] ->
-      let (itemKind, targetRef) = pair
+    | [ found ] ->
+      let itemKind = found.itemKind
+      let location = found.location
+      let targetRef = found.targetRef
 
       // Two checks, because they ask different questions. Reporting success for
       // undeprecating something that was never deprecated reads as though it undid
@@ -469,20 +525,33 @@ let executeUndeprecate(state: Cli.AppState, args: List<String>): Cli.AppState =
       let standing() =
         LanguageTools.PackageManager.currentDeprecation(
           branchId,
+          location,
           LanguageTools.ProgramTypes.Reference.hash(targetRef),
           itemKind)
 
-      match standing() with
-      | None ->
+      // Harmful is about the code: undoing it at one name clears it at every name holding the code.
+      let harmfulTwins =
+        twinsOf(branchId, location, targetRef)
+        |> Stdlib.List.filter(fun l -> harmfulAt(branchId, l, targetRef))
+      let cleared =
+        match standing() with
+        | Some(_) -> Stdlib.List.prepend(harmfulTwins, location)
+        | None -> harmfulTwins
+
+      match cleared with
+      | [] ->
         Stdlib.printErrorLine(
           Stdlib.Cli.UI.Colors.hint($"{target} is not deprecated; nothing to undo."))
 
         state
-      | Some(_) ->
-        let op =
-          LanguageTools.ProgramTypes.PackageOp.Undeprecate(targetRef, Stdlib.Option.Option.None)
+      | _ ->
+        let ops =
+          cleared
+          |> Stdlib.List.map(fun l ->
+            LanguageTools.ProgramTypes.PackageOp.Undeprecate(l, targetRef, Stdlib.Option.Option.None))
+        sayShared(harmfulTwins, "no longer harmful", true)
 
-        match SCM.PackageOps.add(branchId, [ op ]) with
+        match SCM.PackageOps.add(branchId, ops) with
         | Ok(_) ->
           match standing() with
           | None ->

@@ -649,14 +649,15 @@ let findAny(
 /// undeprecated", which is the distinction a caller usually does NOT want; it
 /// is the current state, not the history.
 ///
-/// Deprecation keys on CONTENT, so this answers about the hash rather than
-/// about a name: every name bound to that content shares the answer.
+/// Deprecation is said at a name, so this answers about `hash` at `location`:
+/// another name holding the same content has its own answer.
 let currentDeprecation(
   branchId: Uuid,
+  location: ProgramTypes.PackageLocation,
   hash: ProgramTypes.Hash,
   itemKind: ProgramTypes.ItemKind)
   : Stdlib.Option.Option<ProgramTypes.DeprecationKind * String> =
-  Builtin.pmGetCurrentDeprecation(branchId, hash, itemKind)
+  Builtin.pmGetCurrentDeprecation(branchId, location, hash, itemKind)
 
 
 module Search =

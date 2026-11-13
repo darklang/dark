@@ -91,8 +91,10 @@ module Internal =
       Darklang.Cli.Packages.Query.Internal.Hide
 
 
-/// Drop what a listing hides by default, for a (name, hash) listing. See `filterHidden`.
+/// Drop what a listing of <param modulePath> (owner first) hides by default, for a (name, hash)
+/// listing. See `filterHidden`.
 let filterHiddenPairs(
+  modulePath: List<String>,
   items: List<(String * LanguageTools.ProgramTypes.Hash)>,
   sets: DeprecationSets,
   deprecated: Deprecated,
@@ -103,7 +105,7 @@ let filterHiddenPairs(
 
   items
   |> Stdlib.List.filter(fun((name, hash)) ->
-    (showDeprecated || Stdlib.Bool.not(isHidden(sets, hash)))
+    (showDeprecated || Stdlib.Bool.not(isHiddenAt(sets, modulePath, name, hash)))
     && (showInternal || Stdlib.Bool.not(isInternalName(name))))
 
 
@@ -192,9 +194,15 @@ let getDirectSubmodules(results: LanguageTools.ProgramTypes.Search.SearchResults
 ///
 /// Sets are kept as Dicts keyed by the underlying hex string (there's no
 /// Stdlib.Set yet), giving O(1) lookup. The unit value is unused.
+///
+/// `marked` maps every hash that is deprecated, or held by a deprecated NAME, to those names
+/// (`Owner.Modules.name`): deleted and deprecated are said at a name, so a listing asks about the
+/// name, and a deleted name whose twin still holds its content is hidden. One lookup in it clears
+/// the common, unmarked item.
 type DeprecationSets =
   { allDeprecated: Dict<String, Bool>
-    hidden: Dict<String, Bool> }
+    hidden: Dict<String, Bool>
+    marked: Dict<String, List<String>> }
 
 
 /// Build a Dict<String, Bool> keyed by each hash's underlying hex string.
@@ -207,15 +215,39 @@ let hashListToDict(
     Stdlib.Dict.set(acc, key, true))
 
 
+/// Add `Owner.Modules.name#hash` to `DeprecationSets.marked`.
+let addDeprecatedName(
+  names: Dict<String, List<String>>,
+  nameAndHash: String)
+  : Dict<String, List<String>> =
+  match Stdlib.String.split(nameAndHash, "#") with
+  | [ path, hash ] ->
+    let others = Stdlib.Dict.get(names, hash) |> Stdlib.Option.withDefault([])
+    Stdlib.Dict.set(names, hash, Stdlib.List.prepend(others, path))
+  | _ -> names
+
+
 /// The deprecation sets, as <param branchId> sees them.
 ///
 /// Its own layers over its ancestors' committed ones (`LibDB.Deprecations`), the same view its names
 /// resolve in.
 let loadDeprecationSets(branchId: Uuid): DeprecationSets =
-  let (all, hidden) = Builtin.pmGetDeprecationSets(branchId)
+  let (all, hidden, names) = Builtin.pmGetDeprecationSets(branchId)
   DeprecationSets
     { allDeprecated = hashListToDict(all)
-      hidden = hashListToDict(hidden) }
+      hidden = hashListToDict(hidden)
+      marked =
+        Stdlib.List.fold(
+          names,
+          all
+          |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, h) ->
+            Stdlib.Dict.set(acc, LanguageTools.ProgramTypes.hashToString(h), [])),
+          addDeprecatedName) }
+
+
+/// How `DeprecationSets.marked` spells the name `modulePath.name` (owner first).
+let pathOf(modulePath: List<String>, name: String): String =
+  Stdlib.String.join(Stdlib.List.append(modulePath, name), ".")
 
 
 let memberOf(
@@ -239,6 +271,57 @@ let isDeprecated(
   hash: LanguageTools.ProgramTypes.Hash)
   : Bool =
   memberOf(sets.allDeprecated, hash)
+
+
+/// Whether the item at `modulePath.name` holding `hash` is deprecated: at its own name, or as
+/// content (harmful, or every name holding it deprecated).
+let isDeprecatedAt(
+  sets: DeprecationSets,
+  modulePath: List<String>,
+  name: String,
+  hash: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  let key = LanguageTools.ProgramTypes.hashToString(hash)
+  match Stdlib.Dict.get(sets.marked, key) with
+  | None -> false
+  | Some(names) ->
+    Stdlib.Dict.containsKey(sets.allDeprecated, key)
+    || Stdlib.List.contains(names, pathOf(modulePath, name))
+
+
+/// `isDeprecatedAt` for an item with its location.
+let isDeprecatedAtLocation(
+  sets: DeprecationSets,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  hash: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  isDeprecatedAt(sets, Stdlib.List.prepend(location.modules, location.owner), location.name, hash)
+
+
+/// Whether a listing hides the item at `modulePath.name` by default: its content is hidden, or the
+/// name is deprecated while another name holds the content undeprecated, which is the one to list.
+let isHiddenAt(
+  sets: DeprecationSets,
+  modulePath: List<String>,
+  name: String,
+  hash: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  let key = LanguageTools.ProgramTypes.hashToString(hash)
+  match Stdlib.Dict.get(sets.marked, key) with
+  | None -> false
+  | Some(names) ->
+    Stdlib.Dict.containsKey(sets.hidden, key)
+    || (Stdlib.List.contains(names, pathOf(modulePath, name))
+        && Stdlib.Bool.not(Stdlib.Dict.containsKey(sets.allDeprecated, key)))
+
+
+/// `isHiddenAt` for an item with its location.
+let isHiddenAtLocation(
+  sets: DeprecationSets,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  hash: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  isHiddenAt(sets, Stdlib.List.prepend(location.modules, location.owner), location.name, hash)
 
 
 /// A name whose last segment starts with `__` is an internal helper: callable and viewable by
@@ -299,21 +382,32 @@ let filterHidden(
   | Hide ->
     LanguageTools.ProgramTypes.Search.SearchResults
       { submodules = results.submodules
-        types = results.types |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
-        values = results.values |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
-        fns = results.fns |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
-        traits = results.traits |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
-        impls = results.impls |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash)))
-        tests = results.tests |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHidden(sets, i.entity.hash))) }
+        types = results.types |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        values = results.values |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        fns = results.fns |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        traits = results.traits |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        impls = results.impls |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        tests = results.tests |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash))) }
 
 
-/// Deprecation marker rendered after an item name when it's shown despite
-/// being deprecated. Kept short to avoid cluttering lists.
+/// Deprecation marker rendered after the name `modulePath.name` when it's shown despite being
+/// deprecated. Kept short to avoid cluttering lists.
 let deprecationMarker(
   sets: DeprecationSets,
+  modulePath: List<String>,
+  name: String,
   hash: LanguageTools.ProgramTypes.Hash)
   : String =
-  if isDeprecated(sets, hash) then " ⚠" else ""
+  if isDeprecatedAt(sets, modulePath, name, hash) then " ⚠" else ""
+
+
+/// `deprecationMarker` for an item with its location.
+let deprecationMarkerAt(
+  sets: DeprecationSets,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  hash: LanguageTools.ProgramTypes.Hash)
+  : String =
+  if isDeprecatedAtLocation(sets, location, hash) then " ⚠" else ""
 
 
 /// Forward dependencies of an item: the hashes it references, each with its kind.
